@@ -424,6 +424,8 @@ pub fn place_perp_order(
         maker_order,
         oracle_map.get_price_data(&market.oracle_id())?.price,
         bit_flags,
+        None,
+        None,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -699,6 +701,8 @@ pub fn cancel_order(
             maker_order,
             oracle_map.get_price_data(&oracle_id)?.price,
             0,
+            None,
+            None,
         )?;
         emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
     }
@@ -2165,6 +2169,12 @@ pub fn fulfill_perp_order_with_amm(
 
     validation::perp_market::validate_amm_account_for_fill(&market.amm, order_direction)?;
 
+    let quote_entry_amount = if user.perp_positions[position_index].get_direction_to_close() == order_direction {
+        Some(user.perp_positions[position_index].quote_entry_amount)
+    } else {
+        None
+    };
+
     let market_side_price = match order_direction {
         PositionDirection::Long => market.amm.ask_price(reserve_price_before)?,
         PositionDirection::Short => market.amm.bid_price(reserve_price_before)?,
@@ -2355,6 +2365,16 @@ pub fn fulfill_perp_order_with_amm(
         order_action_bit_flags,
         user.orders[order_index].is_signed_msg(),
     );
+    let (taker_quote_entry_amount, maker_quote_entry_amount) = if let Some(quote_entry_amount) = quote_entry_amount {
+        let quote_entry_amount = quote_entry_amount.unsigned_abs().safe_mul(BASE_PRECISION_U64)?.safe_div(base_asset_amount)?;
+        if taker.is_some() {
+            (Some(quote_entry_amount), None)
+        } else {
+            (None, Some(quote_entry_amount))
+        }
+    } else {
+        (None, None)
+    };
     let order_action_record = get_order_action_record(
         now,
         OrderAction::Fill,
@@ -2380,6 +2400,8 @@ pub fn fulfill_perp_order_with_amm(
         maker_order,
         oracle_map.get_price_data(&market.oracle_id())?.price,
         order_action_bit_flags,
+        taker_quote_entry_amount,
+        maker_quote_entry_amount,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -2480,9 +2502,18 @@ pub fn fulfill_perp_order_with_match(
         .get_base_asset_amount_unfilled(Some(taker_existing_position))?;
 
     let maker_direction = maker.orders[maker_order_index].direction;
-    let maker_existing_position = maker
-        .get_perp_position(market.market_index)?
-        .base_asset_amount;
+    let (maker_existing_position, maker_quote_entry_amount) = {
+        let maker_position = maker
+            .get_perp_position(market.market_index)?;
+
+        let quoute_entry_amount = if maker_position.get_direction_to_close() == maker_direction {
+            Some(maker_position.quote_entry_amount)
+        } else {
+            None
+        };
+
+        (maker_position.base_asset_amount, quoute_entry_amount)
+    };
     let maker_base_asset_amount = maker.orders[maker_order_index]
         .get_base_asset_amount_unfilled(Some(maker_existing_position))?;
 
@@ -2564,9 +2595,19 @@ pub fn fulfill_perp_order_with_match(
         total_quote_asset_amount = quote_asset_amount_filled_by_amm
     }
 
-    let taker_existing_position = taker
-        .get_perp_position(market.market_index)?
-        .base_asset_amount;
+
+    let (taker_existing_position, taker_quote_entry_amount) = {
+        let taker_position = taker
+            .get_perp_position(market.market_index)?;
+
+        let quoute_entry_amount = if taker_position.get_direction_to_close() == taker_direction {
+            Some(taker_position.quote_entry_amount)
+        } else {
+            None
+        };
+
+        (taker_position.base_asset_amount, quoute_entry_amount)
+    };
 
     let taker_base_asset_amount = taker.orders[taker_order_index]
         .get_base_asset_amount_unfilled(Some(taker_existing_position))?;
@@ -2780,6 +2821,16 @@ pub fn fulfill_perp_order_with_match(
         order_action_bit_flags,
         taker.orders[taker_order_index].is_signed_msg(),
     );
+    let taker_quote_entry_amount = if let Some(taker_quote_entry_amount) = taker_quote_entry_amount {
+        Some(taker_quote_entry_amount.unsigned_abs().safe_mul(BASE_PRECISION_U64)?.safe_div(base_asset_amount_fulfilled_by_maker)?)
+    } else {
+        None
+    };
+    let maker_quote_entry_amount = if let Some(maker_quote_entry_amount) = maker_quote_entry_amount {
+        Some(maker_quote_entry_amount.unsigned_abs().safe_mul(BASE_PRECISION_U64)?.safe_div(base_asset_amount_fulfilled_by_maker)?)
+    } else {
+        None
+    };
     let order_action_record = get_order_action_record(
         now,
         OrderAction::Fill,
@@ -2801,6 +2852,8 @@ pub fn fulfill_perp_order_with_match(
         Some(maker.orders[maker_order_index]),
         oracle_map.get_price_data(&market.oracle_id())?.price,
         order_action_bit_flags,
+        taker_quote_entry_amount,
+        maker_quote_entry_amount,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -3018,6 +3071,8 @@ pub fn trigger_order(
         None,
         oracle_price,
         0,
+        None,
+        None,
     )?;
     emit!(order_action_record);
 
@@ -3689,6 +3744,8 @@ pub fn place_spot_order(
         maker_order,
         oracle_price_data.price,
         0,
+        None,
+        None,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -4916,6 +4973,8 @@ pub fn fulfill_spot_order_with_match(
         Some(maker.orders[maker_order_index]),
         oracle_map.get_price_data(&base_market.oracle_id())?.price,
         0,
+        None,
+        None,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -5182,6 +5241,8 @@ pub fn fulfill_spot_order_with_external_market(
         None,
         oracle_price,
         0,
+        None,
+        None,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -5374,6 +5435,8 @@ pub fn trigger_spot_order(
         None,
         oracle_price,
         0,
+        None,
+        None,
     )?;
 
     emit!(order_action_record);
