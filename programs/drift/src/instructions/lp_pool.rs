@@ -562,7 +562,7 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
         in_constituent.constituent_index,
         &in_spot_market,
         in_oracle.price,
-        lp_pool.last_aum,
+        lp_pool.last_aum, // TODO: add in_amount * in_oracle to est post add_liquidity aum
     )?;
 
     let dlp_total_supply = ctx.accounts.lp_mint.supply;
@@ -736,7 +736,7 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
         out_constituent.constituent_index,
         &out_spot_market,
         out_oracle.price,
-        lp_pool.last_aum,
+        lp_pool.last_aum, // TODO: remove out_amount * out_oracle to est post remove_liquidity aum
     )?;
 
     let dlp_total_supply = ctx.accounts.lp_mint.supply;
