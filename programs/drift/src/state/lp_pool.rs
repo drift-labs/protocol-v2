@@ -1,7 +1,7 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I64,
+    BASE_PRECISION_I128, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I64,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
@@ -12,7 +12,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 use super::oracle::OraclePriceData;
 use super::oracle_map::OracleMap;
-use super::spot_market::SpotMarket;
+use super::spot_market::{self, SpotMarket};
 use super::zero_copy::{AccountZeroCopy, AccountZeroCopyMut, HasLen};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType};
 use crate::state::traits::Size;
@@ -530,7 +530,13 @@ pub enum WeightValidationFlags {
 }
 
 impl<'a> AccountZeroCopy<'a, WeightDatum, ConstituentTargetWeightsFixed> {
-    pub fn get_target_weight(&self, constituent_index: u16) -> DriftResult<i64> {
+    pub fn get_target_weight(
+        &self,
+        constituent_index: u16,
+        spot_market: &SpotMarket,
+        price: i64,
+        aum: u128,
+    ) -> DriftResult<i64> {
         validate!(
             constituent_index < self.len() as u16,
             ErrorCode::InvalidConstituent,
@@ -538,42 +544,59 @@ impl<'a> AccountZeroCopy<'a, WeightDatum, ConstituentTargetWeightsFixed> {
             constituent_index,
             self.len()
         )?;
+        // TODO: validate spot market
         let datum = self.get(constituent_index as u32);
-        Ok(datum.weight)
+        let target_weight = calculate_target_weight(
+            datum.weight,
+            &spot_market,
+            price,
+            aum,
+            WeightValidationFlags::NONE,
+        )?;
+        Ok(target_weight)
     }
 }
 
-calculate_target_weight() {
-
-
-
+pub fn calculate_target_weight(
+    target_base: i64,
+    spot_market: &SpotMarket,
+    price: i64,
+    lp_pool_aum: u128,
+    validation_flags: WeightValidationFlags,
+) -> DriftResult<i64> {
     //.clamp(-PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I128) as i64;
 
-
-    let price = prices[i] as i128;
-
     // assumes PRICE_PRECISION = PERCENTAGE_PRECISION
-    let target_weight: i128 = target_amount;
+    let token_precision = 10_i128.pow(spot_market.decimals as u32);
 
-    if (validation_flags as u8 & (WeightValidationFlags::NoNegativeWeights as u8) != 0)
-        && target_weight < 0
-    {
-        return Err(ErrorCode::DefaultError);
-    }
-    if (validation_flags as u8 & (WeightValidationFlags::NoOverweight as u8) != 0)
-        && target_weight > PERCENTAGE_PRECISION_I64 as i128
-    {
-        return Err(ErrorCode::DefaultError);
-    }
+    let value_usd = target_base.cast::<i128>()?.safe_mul(price.cast::<i128>()?)?;
 
+    let target_weight = value_usd
+        .cast::<i128>()?
+        .safe_mul(PERCENTAGE_PRECISION_I64.cast::<i128>()?)?
+        .safe_div(lp_pool_aum.cast::<i128>()?.safe_mul(token_precision)?)?
+        .cast::<i64>()?;
 
-    if (validation_flags as u8) & WeightValidationFlags::EnforceTotalWeight100 as u8 != 0 {
-        let deviation = (total_weight - PERCENTAGE_PRECISION_I128).abs();
-        let tolerance = 100;
-        if deviation > tolerance {
-            return Err(ErrorCode::DefaultError);
-        }
-    }
+    // if (validation_flags as u8 & (WeightValidationFlags::NoNegativeWeights as u8) != 0)
+    //     && target_weight < 0
+    // {
+    //     return Err(ErrorCode::DefaultError);
+    // }
+    // if (validation_flags as u8 & (WeightValidationFlags::NoOverweight as u8) != 0)
+    //     && target_weight > PERCENTAGE_PRECISION_I64 as i128
+    // {
+    //     return Err(ErrorCode::DefaultError);
+    // }
+
+    // if (validation_flags as u8) & WeightValidationFlags::EnforceTotalWeight100 as u8 != 0 {
+    //     let deviation = (total_weight - PERCENTAGE_PRECISION_I128).abs();
+    //     let tolerance = 100;
+    //     if deviation > tolerance {
+    //         return Err(ErrorCode::DefaultError);
+    //     }
+    // }
+
+    Ok(target_weight)
 }
 
 /// Update target base based on amm_inventory and mapping
@@ -584,12 +607,10 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
         // (perp market index, inventory, price)
         amm_inventory: &[(u16, i64)],
         constituents_indexes: &[u16],
-        prices: &[i64],
         slot: u64,
-        validation_flags: WeightValidationFlags,
     ) -> DriftResult<i128> {
         let mut total_base: i128 = 0;
-        
+
         for (i, constituent_index) in constituents_indexes.iter().enumerate() {
             let mut target_amount = 0i128;
 
@@ -607,19 +628,18 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
 
             let cell = self.get_mut(i as u32);
             msg!(
-                "updating constituent index {} target weight to {}",
+                "updating constituent index {} target amount to {}",
                 constituent_index,
-                target_weight
+                target_amount
             );
-            cell.weight =
-            target_amount
-                
+            cell.weight = target_amount as i64;
+
             cell.last_slot = slot;
 
             total_base = total_base.saturating_add(total_base);
         }
 
-        Ok(total_weight)
+        Ok(total_base)
     }
 }
 
