@@ -111,6 +111,7 @@ import {
 	getLpPoolPublicKey,
 	getConstituentPublicKey,
 	getAmmCachePublicKey,
+	getLpPoolTokenVaultPublicKey,
 } from './addresses/pda';
 import {
 	DataAndSlot,
@@ -9769,10 +9770,7 @@ export class DriftClient {
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
-				await this.getUpdateLpPoolAumIxs(
-					lpPool,
-					spotMarketIndexOfConstituents
-				),
+				await this.getUpdateLpPoolAumIxs(lpPool, spotMarketIndexOfConstituents),
 				txParams
 			),
 			[],
@@ -9938,6 +9936,235 @@ export class DriftClient {
 			}
 		);
 	}
+
+	public async lpPoolAddLiquidity({
+		lpPoolName,
+		inMarketIndex,
+		inAmount,
+		minMintAmount,
+		lpPool,
+		lpMint,
+		constituentTargetWeights,
+		constituentInTokenAccount,
+		userInTokenAccount,
+		userLpTokenAccount,
+		inMarketMint,
+		inConstituent,
+		txParams,
+	}: {
+		lpPoolName: number[];
+		inMarketIndex: number;
+		inAmount: BN;
+		minMintAmount: BN;
+		lpPool: PublicKey;
+		lpMint: PublicKey;
+		constituentTargetWeights: PublicKey;
+		constituentInTokenAccount: PublicKey;
+		userInTokenAccount: PublicKey;
+		userLpTokenAccount: PublicKey;
+		inMarketMint: PublicKey;
+		inConstituent: PublicKey;
+		txParams?: TxParams;
+	}): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getLpPoolAddLiquidityIx({
+					lpPoolName,
+					inMarketIndex,
+					inAmount,
+					minMintAmount,
+					lpPool,
+					lpMint,
+					constituentTargetWeights,
+					constituentInTokenAccount,
+					userInTokenAccount,
+					userLpTokenAccount,
+					inMarketMint,
+					inConstituent,
+				}),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getLpPoolAddLiquidityIx({
+		lpPoolName,
+		inMarketIndex,
+		inAmount,
+		minMintAmount,
+		lpPool,
+		lpMint,
+		constituentTargetWeights,
+		constituentInTokenAccount,
+		userInTokenAccount,
+		userLpTokenAccount,
+		inMarketMint,
+		inConstituent,
+	}: {
+		lpPoolName: number[];
+		inMarketIndex: number;
+		inAmount: BN;
+		minMintAmount: BN;
+		lpPool: PublicKey;
+		lpMint: PublicKey;
+		constituentTargetWeights: PublicKey;
+		constituentInTokenAccount: PublicKey;
+		userInTokenAccount: PublicKey;
+		userLpTokenAccount: PublicKey;
+		inMarketMint: PublicKey;
+		inConstituent: PublicKey;
+	}): Promise<TransactionInstruction> {
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [],
+			writableSpotMarketIndexes: [inMarketIndex],
+		});
+
+		return this.program.instruction.lpPoolAddLiquidity(
+			lpPoolName,
+			inMarketIndex,
+			inAmount,
+			minMintAmount,
+			{
+				remainingAccounts,
+				accounts: {
+					driftSigner: this.getSignerPublicKey(),
+					state: await this.getStatePublicKey(),
+					lpPool,
+					authority: this.wallet.publicKey,
+					inMarketMint,
+					inConstituent,
+					userInTokenAccount,
+					constituentInTokenAccount,
+					userLpTokenAccount,
+					lpMint,
+					lpPoolTokenVault: getLpPoolTokenVaultPublicKey(
+						this.program.programId,
+						lpPool
+					),
+					constituentTargetWeights,
+					tokenProgram: TOKEN_PROGRAM_ID,
+				},
+			}
+		);
+	}
+
+	public async lpPoolRemoveLiquidity({
+		lpPoolName,
+		outMarketIndex,
+		lpToBurn,
+		minAmountOut,
+		lpPool,
+		lpMint,
+		constituentTargetWeights,
+		constituentOutTokenAccount,
+		userOutTokenAccount,
+		userLpTokenAccount,
+		outMarketMint,
+		outConstituent,
+		txParams,
+	}: {
+		lpPoolName: number[];
+		outMarketIndex: number;
+		lpToBurn: BN;
+		minAmountOut: BN;
+		lpPool: PublicKey;
+		lpMint: PublicKey;
+		constituentTargetWeights: PublicKey;
+		constituentOutTokenAccount: PublicKey;
+		userOutTokenAccount: PublicKey;
+		userLpTokenAccount: PublicKey;
+		outMarketMint: PublicKey;
+		outConstituent: PublicKey;
+		txParams?: TxParams;
+	}): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getLpPoolRemoveLiquidityIx({
+					lpPoolName,
+					outMarketIndex,
+					lpToBurn,
+					minAmountOut,
+					lpPool,
+					lpMint,
+					constituentTargetWeights,
+					constituentOutTokenAccount,
+					userOutTokenAccount,
+					userLpTokenAccount,
+					outMarketMint,
+					outConstituent,
+				}),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getLpPoolRemoveLiquidityIx({
+		lpPoolName,
+		outMarketIndex,
+		lpToBurn,
+		minAmountOut,
+		lpPool,
+		lpMint,
+		constituentTargetWeights,
+		constituentOutTokenAccount,
+		userOutTokenAccount,
+		userLpTokenAccount,
+		outMarketMint,
+		outConstituent,
+	}: {
+		lpPoolName: number[];
+		outMarketIndex: number;
+		lpToBurn: BN;
+		minAmountOut: BN;
+		lpPool: PublicKey;
+		lpMint: PublicKey;
+		constituentTargetWeights: PublicKey;
+		constituentOutTokenAccount: PublicKey;
+		userOutTokenAccount: PublicKey;
+		userLpTokenAccount: PublicKey;
+		outMarketMint: PublicKey;
+		outConstituent: PublicKey;
+	}): Promise<TransactionInstruction> {
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [],
+			writableSpotMarketIndexes: [outMarketIndex],
+		});
+
+		return this.program.instruction.lpPoolRemoveLiquidity(
+			lpPoolName,
+			outMarketIndex,
+			lpToBurn,
+			minAmountOut,
+			{
+				remainingAccounts,
+				accounts: {
+					driftSigner: this.getSignerPublicKey(),
+					state: await this.getStatePublicKey(),
+					lpPool,
+					authority: this.wallet.publicKey,
+					outMarketMint,
+					outConstituent,
+					userOutTokenAccount,
+					constituentOutTokenAccount,
+					userLpTokenAccount,
+					lpMint,
+					lpPoolTokenVault: getLpPoolTokenVaultPublicKey(
+						this.program.programId,
+						lpPool
+					),
+					constituentTargetWeights,
+					tokenProgram: TOKEN_PROGRAM_ID,
+				},
+			}
+		);
+	}
+
 	/**
 	 * Below here are the transaction sending functions
 	 */

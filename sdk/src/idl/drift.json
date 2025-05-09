@@ -7077,8 +7077,13 @@
         },
         {
           "name": "mint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "lpPoolTokenVault",
           "isMut": true,
-          "isSigner": true
+          "isSigner": false
         },
         {
           "name": "ammConstituentMapping",
@@ -7092,6 +7097,11 @@
         },
         {
           "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "driftSigner",
           "isMut": false,
           "isSigner": false
         },
@@ -7120,6 +7130,18 @@
               32
             ]
           }
+        },
+        {
+          "name": "minMintFee",
+          "type": "i64"
+        },
+        {
+          "name": "maxMintFee",
+          "type": "i64"
+        },
+        {
+          "name": "revenueRebalancePeriod",
+          "type": "u64"
         },
         {
           "name": "maxAum",
@@ -7668,7 +7690,7 @@
         },
         {
           "name": "constituentTargetWeights",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -7729,6 +7751,192 @@
         },
         {
           "name": "outMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "inAmount",
+          "type": "u64"
+        },
+        {
+          "name": "minOutAmount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "lpPoolAddLiquidity",
+      "accounts": [
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "lpPool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "inMarketMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "inConstituent",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userInTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "constituentInTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userLpTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "lpMint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "constituentTargetWeights",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "lpPoolTokenVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "lpPoolName",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "inMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "inAmount",
+          "type": "u64"
+        },
+        {
+          "name": "minMintAmount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "lpPoolRemoveLiquidity",
+      "accounts": [
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "lpPool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "outMarketMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "outConstituent",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userOutTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "constituentOutTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userLpTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "lpMint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "constituentTargetWeights",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "lpPoolTokenVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "lpPoolName",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "inMarketIndex",
           "type": "u16"
         },
         {
@@ -8097,7 +8305,6 @@
           {
             "name": "maxAum",
             "docs": [
-              "LPPool's token account",
               "token_supply? to simplify NAV calculation, or load from mint account",
               "token_total_supply: u64",
               "The current number of VaultConstituents in the vault, each constituent is pda(LPPool.address, constituent_index)",
@@ -8143,6 +8350,17 @@
             "type": "u64"
           },
           {
+            "name": "revenueRebalancePeriod",
+            "type": "u64"
+          },
+          {
+            "name": "nextMintRedeemId",
+            "docs": [
+              "Every mint/redeem has a monotonically increasing id. This is the next id to use"
+            ],
+            "type": "u64"
+          },
+          {
             "name": "totalFeesReceived",
             "docs": [
               "all revenue settles recieved"
@@ -8155,6 +8373,18 @@
               "all revenues paid out"
             ],
             "type": "u128"
+          },
+          {
+            "name": "totalMintRedeemFeesPaid",
+            "type": "i128"
+          },
+          {
+            "name": "minMintFee",
+            "type": "i64"
+          },
+          {
+            "name": "maxMintFeePremium",
+            "type": "i64"
           },
           {
             "name": "constituents",
@@ -14914,6 +15144,81 @@
         {
           "name": "mintIn",
           "type": "publicKey",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "LPMintRedeemRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "authority",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "isMinting",
+          "type": "bool",
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "fee",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "spotMarketIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "constituentIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "oraclePrice",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "mint",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "lpMint",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "lpAmount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "lpFee",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "lpNav",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "mintRedeemId",
+          "type": "u64",
           "index": false
         }
       ]

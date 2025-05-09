@@ -26,6 +26,7 @@ import {
 	SPOT_MARKET_RATE_PRECISION,
 	getAmmCachePublicKey,
 	AmmCache,
+	ZERO,
 } from '../sdk/src';
 
 import {
@@ -190,7 +191,10 @@ describe('LP Pool', () => {
 
 		await adminClient.initializeLpPool(
 			lpPoolName,
-			new BN(100_000_000).mul(QUOTE_PRECISION),
+			ZERO,
+			ZERO,
+			new BN(3600),
+			new BN(1_000_000).mul(QUOTE_PRECISION),
 			Keypair.generate()
 		);
 	});
@@ -232,7 +236,9 @@ describe('LP Pool', () => {
 		);
 		expect(mintInfo.decimals).to.equal(tokenDecimals);
 		expect(Number(mintInfo.supply)).to.equal(0);
-		expect(mintInfo.mintAuthority!.toBase58()).to.equal(lpPoolKey.toBase58());
+		expect(mintInfo.mintAuthority!.toBase58()).to.equal(
+			adminClient.getSignerPublicKey().toBase58()
+		);
 	});
 
 	it('can add constituent to LP Pool', async () => {

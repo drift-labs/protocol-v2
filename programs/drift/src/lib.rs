@@ -1690,9 +1690,19 @@ pub mod drift {
     pub fn initialize_lp_pool(
         ctx: Context<InitializeLpPool>,
         name: [u8; 32],
+        min_mint_fee: i64,
+        max_mint_fee: i64,
+        revenue_rebalance_period: u64,
         max_aum: u128,
     ) -> Result<()> {
-        handle_initialize_lp_pool(ctx, name, max_aum)
+        handle_initialize_lp_pool(
+            ctx,
+            name,
+            min_mint_fee,
+            max_mint_fee,
+            revenue_rebalance_period,
+            max_aum,
+        )
     }
 
     pub fn update_high_leverage_mode_config(
@@ -1815,6 +1825,26 @@ pub mod drift {
             in_amount,
             min_out_amount,
         )
+    }
+
+    pub fn lp_pool_add_liquidity<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, LPPoolAddLiquidity<'info>>,
+        _lp_pool_name: [u8; 32],
+        in_market_index: u16,
+        in_amount: u64,
+        min_mint_amount: u64,
+    ) -> Result<()> {
+        handle_lp_pool_add_liquidity(ctx, in_market_index, in_amount, min_mint_amount)
+    }
+
+    pub fn lp_pool_remove_liquidity<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, LPPoolRemoveLiquidity<'info>>,
+        _lp_pool_name: [u8; 32],
+        in_market_index: u16,
+        in_amount: u64,
+        min_out_amount: u64,
+    ) -> Result<()> {
+        handle_lp_pool_remove_liquidity(ctx, in_market_index, in_amount, min_out_amount)
     }
 }
 
