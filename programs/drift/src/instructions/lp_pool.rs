@@ -187,14 +187,11 @@ pub fn handle_update_constituent_target_weights<'c: 'info, 'info>(
         return Ok(());
     }
 
-    constituent_target_weights.update_target_weights(
+    constituent_target_weights.update_target_base(
         &amm_constituent_mapping,
         amm_inventories.as_slice(),
         constituent_indexes.as_slice(),
-        &oracle_prices.as_slice(),
-        lp_pool.last_aum,
         slot,
-        WeightValidationFlags::NONE,
     )?;
 
     Ok(())
@@ -401,10 +398,18 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
     update_spot_market_cumulative_interest(&mut in_spot_market, Some(&in_oracle), now)?;
     update_spot_market_cumulative_interest(&mut out_spot_market, Some(&out_oracle), now)?;
 
-    let in_target_weight =
-        constituent_target_weights.get_target_weight(in_constituent.constituent_index)?;
-    let out_target_weight =
-        constituent_target_weights.get_target_weight(out_constituent.constituent_index)?;
+    let in_target_weight = constituent_target_weights.get_target_weight(
+        in_constituent.constituent_index,
+        &in_spot_market,
+        in_oracle.price,
+        lp_pool.last_aum,
+    )?;
+    let out_target_weight = constituent_target_weights.get_target_weight(
+        out_constituent.constituent_index,
+        &out_spot_market,
+        out_oracle.price,
+        lp_pool.last_aum,
+    )?;
 
     let (in_amount, out_amount, in_fee, out_fee) = lp_pool.get_swap_amount(
         &in_oracle,
@@ -553,8 +558,12 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
 
     update_spot_market_cumulative_interest(&mut in_spot_market, Some(&in_oracle), now)?;
 
-    let in_target_weight =
-        constituent_target_weights.get_target_weight(in_constituent.constituent_index)?;
+    let in_target_weight = constituent_target_weights.get_target_weight(
+        in_constituent.constituent_index,
+        &in_spot_market,
+        in_oracle.price,
+        lp_pool.last_aum, // TODO: add in_amount * in_oracle to est post add_liquidity aum
+    )?;
 
     let dlp_total_supply = ctx.accounts.lp_mint.supply;
 
@@ -723,8 +732,12 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
 
     update_spot_market_cumulative_interest(&mut out_spot_market, Some(&out_oracle), now)?;
 
-    let out_target_weight =
-        constituent_target_weights.get_target_weight(out_constituent.constituent_index)?;
+    let out_target_weight = constituent_target_weights.get_target_weight(
+        out_constituent.constituent_index,
+        &out_spot_market,
+        out_oracle.price,
+        lp_pool.last_aum, // TODO: remove out_amount * out_oracle to est post remove_liquidity aum
+    )?;
 
     let dlp_total_supply = ctx.accounts.lp_mint.supply;
 

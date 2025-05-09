@@ -66,15 +66,7 @@ mod tests {
             };
 
         let totalw = target_zc_mut
-            .update_target_weights(
-                &mapping_zc,
-                &amm_inventory,
-                &constituent_indexes,
-                &prices,
-                aum,
-                now_ts,
-                WeightValidationFlags::NONE,
-            )
+            .update_target_base(&mapping_zc, &amm_inventory, &constituent_indexes, now_ts)
             .unwrap();
 
         assert_eq!(totalw, 0);
@@ -130,15 +122,7 @@ mod tests {
             };
 
         let totalw = target_zc_mut
-            .update_target_weights(
-                &mapping_zc,
-                &amm_inventory,
-                &constituent_indexes,
-                &prices,
-                aum,
-                now_ts,
-                WeightValidationFlags::NONE,
-            )
+            .update_target_base(&mapping_zc, &amm_inventory, &constituent_indexes, now_ts)
             .unwrap();
 
         assert_eq!(totalw, 1000000);
@@ -206,15 +190,7 @@ mod tests {
             };
 
         target_zc_mut
-            .update_target_weights(
-                &mapping_zc,
-                &amm_inventory,
-                &constituent_indexes,
-                &prices,
-                aum,
-                now_ts,
-                WeightValidationFlags::NONE,
-            )
+            .update_target_base(&mapping_zc, &amm_inventory, &constituent_indexes, now_ts)
             .unwrap();
 
         assert_eq!(target_zc_mut.len(), 2);
@@ -272,15 +248,7 @@ mod tests {
             };
 
         target_zc_mut
-            .update_target_weights(
-                &mapping_zc,
-                &amm_inventory,
-                &constituent_indexes,
-                &prices,
-                aum,
-                now_ts,
-                WeightValidationFlags::NONE,
-            )
+            .update_target_base(&mapping_zc, &amm_inventory, &constituent_indexes, now_ts)
             .unwrap();
 
         assert_eq!(target_zc_mut.len(), 1);
@@ -335,15 +303,7 @@ mod tests {
             };
 
         target_zc_mut
-            .update_target_weights(
-                &mapping_zc,
-                &amm_inventory,
-                &constituent_indexes,
-                &prices,
-                aum,
-                now_ts,
-                WeightValidationFlags::NONE,
-            )
+            .update_target_base(&mapping_zc, &amm_inventory, &constituent_indexes, now_ts)
             .unwrap();
 
         assert_eq!(target_zc_mut.len(), 1);
