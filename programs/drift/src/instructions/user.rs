@@ -1842,6 +1842,8 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         maker_order_cumulative_quote_asset_amount_filled: Some(base_asset_value),
         oracle_price,
         bit_flags: 0,
+        taker_quote_entry_amount: None,
+        maker_quote_entry_amount: None,
     };
 
     emit_stack::<_, { OrderActionRecord::SIZE }>(fill_record)?;

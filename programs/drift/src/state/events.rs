@@ -242,6 +242,10 @@ pub struct OrderActionRecord {
     /// Bit flags:
     /// 0: is_signed_message
     pub bit_flags: u8,
+    /// precision: QUOTE_PRECISION
+    pub taker_quote_entry_amount: Option<u64>,
+    /// precision: QUOTE_PRECISION
+    pub maker_quote_entry_amount: Option<u64>,
 }
 
 impl Size for OrderActionRecord {
@@ -269,6 +273,8 @@ pub fn get_order_action_record(
     maker_order: Option<Order>,
     oracle_price: i64,
     bit_flags: u8,
+    taker_quote_entry_amount: Option<u64>,
+    maker_quote_entry_amount: Option<u64>,
 ) -> DriftResult<OrderActionRecord> {
     Ok(OrderActionRecord {
         ts,
@@ -317,6 +323,8 @@ pub fn get_order_action_record(
             .map(|order| order.quote_asset_amount_filled),
         oracle_price,
         bit_flags,
+        taker_quote_entry_amount,
+        maker_quote_entry_amount,
     })
 }
 
