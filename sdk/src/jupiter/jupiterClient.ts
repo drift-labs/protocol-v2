@@ -224,6 +224,9 @@ export interface QuoteResponse {
 	errorCode?: string;
 }
 
+export const RECOMMENDED_JUPITER_API_VERSION = '/v1';
+export const RECOMMENDED_JUPITER_API = 'https://lite-api.jup.ag/swap';
+
 export class JupiterClient {
 	url: string;
 	connection: Connection;
@@ -231,50 +234,7 @@ export class JupiterClient {
 
 	constructor({ connection, url }: { connection: Connection; url?: string }) {
 		this.connection = connection;
-		this.url = url ?? 'https://quote-api.jup.ag';
-	}
-
-	/**
-	 * ** @deprecated - use getQuote
-	 * Get routes for a swap
-	 * @param inputMint the mint of the input token
-	 * @param outputMint the mint of the output token
-	 * @param amount the amount of the input token
-	 * @param slippageBps the slippage tolerance in basis points
-	 * @param swapMode the swap mode (ExactIn or ExactOut)
-	 * @param onlyDirectRoutes whether to only return direct routes
-	 */
-	public async getRoutes({
-		inputMint,
-		outputMint,
-		amount,
-		slippageBps = 50,
-		swapMode = 'ExactIn',
-		onlyDirectRoutes = false,
-	}: {
-		inputMint: PublicKey;
-		outputMint: PublicKey;
-		amount: BN;
-		slippageBps?: number;
-		swapMode?: SwapMode;
-		onlyDirectRoutes?: boolean;
-	}): Promise<Route[]> {
-		const params = new URLSearchParams({
-			inputMint: inputMint.toString(),
-			outputMint: outputMint.toString(),
-			amount: amount.toString(),
-			slippageBps: slippageBps.toString(),
-			swapMode,
-			onlyDirectRoutes: onlyDirectRoutes.toString(),
-		}).toString();
-
-		const apiVersionParam =
-			this.url === 'https://quote-api.jup.ag' ? '/v4' : '';
-		const { data: routes } = await (
-			await fetch(`${this.url}${apiVersionParam}/quote?${params}`)
-		).json();
-
-		return routes;
+		this.url = url ?? RECOMMENDED_JUPITER_API;
 	}
 
 	/**
@@ -330,7 +290,9 @@ export class JupiterClient {
 			params.delete('maxAccounts');
 		}
 		const apiVersionParam =
-			this.url === 'https://quote-api.jup.ag' ? '/v6' : '';
+			this.url === RECOMMENDED_JUPITER_API
+				? RECOMMENDED_JUPITER_API_VERSION
+				: '';
 		const quote = await (
 			await fetch(`${this.url}${apiVersionParam}/quote?${params.toString()}`)
 		).json();
@@ -357,7 +319,9 @@ export class JupiterClient {
 		}
 
 		const apiVersionParam =
-			this.url === 'https://quote-api.jup.ag' ? '/v6' : '';
+			this.url === RECOMMENDED_JUPITER_API
+				? RECOMMENDED_JUPITER_API_VERSION
+				: '';
 		const resp = await (
 			await fetch(`${this.url}${apiVersionParam}/swap`, {
 				method: 'POST',
@@ -388,44 +352,6 @@ export class JupiterClient {
 				'Something went wrong with creating the Jupiter swap transaction. Please try again.'
 			);
 		}
-	}
-
-	/**
-	 * ** @deprecated - use getSwap
-	 * Get a swap transaction for a route
-	 * @param route the route to perform swap
-	 * @param userPublicKey the signer's wallet public key
-	 * @param slippageBps the slippage tolerance in basis points
-	 */
-	public async getSwapTransaction({
-		route,
-		userPublicKey,
-		slippageBps = 50,
-	}: {
-		route: Route;
-		userPublicKey: PublicKey;
-		slippageBps?: number;
-	}): Promise<VersionedTransaction> {
-		const apiVersionParam =
-			this.url === 'https://quote-api.jup.ag' ? '/v4' : '';
-		const resp = await (
-			await fetch(`${this.url}${apiVersionParam}/swap`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify({
-					route,
-					userPublicKey,
-					slippageBps,
-				}),
-			})
-		).json();
-
-		const { swapTransaction } = resp;
-
-		const swapTransactionBuf = Buffer.from(swapTransaction, 'base64');
-		return VersionedTransaction.deserialize(swapTransactionBuf);
 	}
 
 	/**
