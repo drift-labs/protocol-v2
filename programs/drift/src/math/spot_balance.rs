@@ -2,7 +2,9 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 #[cfg(feature = "drift-rs")]
 use crate::math::constants::PERCENTAGE_PRECISION;
-use crate::math::constants::{ONE_YEAR, SPOT_RATE_PRECISION, SPOT_UTILIZATION_PRECISION};
+use crate::math::constants::{
+    INTEREST_RATE_SEGMENT_AND_WEIGHTS, ONE_YEAR, SPOT_RATE_PRECISION, SPOT_UTILIZATION_PRECISION,
+};
 use crate::math::safe_math::{SafeDivFloor, SafeMath};
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -185,14 +187,6 @@ pub fn calculate_borrow_rate(spot_market: &SpotMarket, utilization: u128) -> Dri
     let min_rate = spot_market.get_min_borrow_rate()?.cast::<u128>()?;
 
     let weights_divisor = 1000;
-    let segments: &[(u128, u128)] = &[
-        (850_000, 50),
-        (900_000, 100),
-        (950_000, 150),
-        (990_000, 200),
-        (995_000, 250),
-        (1_000_000, 250),
-    ];
 
     let borrow_rate = if utilization <= optimal_util {
         let slope = optimal_rate
@@ -202,13 +196,12 @@ pub fn calculate_borrow_rate(spot_market: &SpotMarket, utilization: u128) -> Dri
             .safe_mul(slope)?
             .safe_div(SPOT_UTILIZATION_PRECISION)?
     } else {
-        let total_extra_util = SPOT_UTILIZATION_PRECISION.safe_sub(optimal_util)?;
         let total_extra_rate = max_rate.safe_sub(optimal_rate)?;
 
         let mut rate = optimal_rate;
         let mut prev_util = optimal_util;
 
-        for &(bp, weight) in segments {
+        for &(bp, weight) in INTEREST_RATE_SEGMENT_AND_WEIGHTS {
             let segment_start = prev_util;
             let segment_end = bp.min(SPOT_UTILIZATION_PRECISION);
             let segment_range = segment_end.safe_sub(segment_start)?;
