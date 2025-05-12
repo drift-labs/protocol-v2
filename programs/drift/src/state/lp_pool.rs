@@ -10,7 +10,8 @@ use anchor_spl::token::Mint;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use super::oracle::OraclePriceData;
-use super::spot_market::SpotMarket;
+use super::oracle_map::OracleMap;
+use super::spot_market::{self, SpotMarket};
 use super::zero_copy::{AccountZeroCopy, AccountZeroCopyMut, HasLen};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType};
 use crate::state::traits::Size;
@@ -18,7 +19,7 @@ use crate::{impl_zero_copy_loader, validate};
 
 pub const AMM_MAP_PDA_SEED: &str = "AMM_MAP";
 pub const CONSTITUENT_PDA_SEED: &str = "CONSTITUENT";
-pub const CONSTITUENT_TARGET_WEIGHT_PDA_SEED: &str = "CONSTITUENT_TARGET_WEIGHTS";
+pub const CONSTITUENT_TARGET_WEIGHT_PDA_SEED: &str = "constituent_target_base";
 pub const CONSTITUENT_VAULT_PDA_SEED: &str = "CONSTITUENT_VAULT";
 pub const LP_POOL_TOKEN_VAULT_PDA_SEED: &str = "LP_POOL_TOKEN_VAULT";
 
@@ -623,17 +624,28 @@ pub struct WeightDatum {
     pub weight: i64,
 }
 
+
+#[zero_copy]
+#[derive(Debug, Default, BorshDeserialize, BorshSerialize)]
+#[repr(C)]
+pub struct TargetsDatum {
+    pub last_slot: u64,
+    pub target_base: i64,
+    // pub correlation_scalar: i32,
+    // pub cost_to_trade: i32,
+}
+
 #[zero_copy]
 #[derive(Debug, Default)]
 #[repr(C)]
-pub struct ConstituentTargetWeightsFixed {
+pub struct ConstituentTargetBaseFixed {
     pub bump: u8,
     _pad: [u8; 3],
     /// total elements in the flattened `data` vec
     pub len: u32,
 }
 
-impl HasLen for ConstituentTargetWeightsFixed {
+impl HasLen for ConstituentTargetBaseFixed {
     fn len(&self) -> u32 {
         self.len
     }
@@ -642,21 +654,21 @@ impl HasLen for ConstituentTargetWeightsFixed {
 #[account]
 #[derive(Debug)]
 #[repr(C)]
-pub struct ConstituentTargetWeights {
+pub struct ConstituentTargetBase {
     pub bump: u8,
     _padding: [u8; 3],
     // PERCENTAGE_PRECISION. The weights of the target weight matrix. Updated async
-    pub weights: Vec<WeightDatum>,
+    pub targets: Vec<TargetsDatum>,
 }
 
-impl ConstituentTargetWeights {
+impl ConstituentTargetBase {
     pub fn space(num_constituents: usize) -> usize {
         8 + 8 + 4 + num_constituents * 16
     }
 
     pub fn validate(&self) -> DriftResult<()> {
         validate!(
-            self.weights.len() <= 128,
+            self.targets.len() <= 128,
             ErrorCode::DefaultError,
             "Number of constituents len must be between 1 and 128"
         )?;
@@ -665,18 +677,18 @@ impl ConstituentTargetWeights {
 }
 
 impl_zero_copy_loader!(
-    ConstituentTargetWeights,
+    ConstituentTargetBase,
     crate::id,
-    ConstituentTargetWeightsFixed,
-    WeightDatum
+    ConstituentTargetBaseFixed,
+    TargetsDatum
 );
 
-impl Default for ConstituentTargetWeights {
+impl Default for ConstituentTargetBase {
     fn default() -> Self {
-        ConstituentTargetWeights {
+        ConstituentTargetBase {
             bump: 0,
             _padding: [0; 3],
-            weights: Vec::with_capacity(0),
+            targets: Vec::with_capacity(0),
         }
     }
 }
@@ -689,92 +701,118 @@ pub enum WeightValidationFlags {
     NoOverweight = 0b0000_0100,
 }
 
-impl<'a> AccountZeroCopy<'a, WeightDatum, ConstituentTargetWeightsFixed> {
-    pub fn get_target_weight(&self, constituent_index: u16) -> DriftResult<i64> {
+impl<'a> AccountZeroCopy<'a, TargetsDatum, ConstituentTargetBaseFixed> {
+    pub fn get_target_weight(
+        &self,
+        constituent_index: u16,
+        spot_market: &SpotMarket,
+        price: i64,
+        aum: u128,
+    ) -> DriftResult<i64> {
         validate!(
             constituent_index < self.len() as u16,
             ErrorCode::InvalidConstituent,
-            "Invalid constituent_index = {}, ConstituentTargetWeights len = {}",
+            "Invalid constituent_index = {}, ConstituentTargetBase len = {}",
             constituent_index,
             self.len()
         )?;
+        // TODO: validate spot market
         let datum = self.get(constituent_index as u32);
-        Ok(datum.weight)
+        let target_weight = calculate_target_weight(
+            datum.target_base,
+            &spot_market,
+            price,
+            aum,
+            WeightValidationFlags::NONE,
+        )?;
+        Ok(target_weight)
     }
 }
 
-/// Update target weights based on amm_inventory and mapping
-impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
-    pub fn update_target_weights(
+pub fn calculate_target_weight(
+    target_base: i64,
+    spot_market: &SpotMarket,
+    price: i64,
+    lp_pool_aum: u128,
+    validation_flags: WeightValidationFlags,
+) -> DriftResult<i64> {
+    //.clamp(-PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I128) as i64;
+
+    // assumes PRICE_PRECISION = PERCENTAGE_PRECISION
+    let token_precision = 10_i128.pow(spot_market.decimals as u32);
+
+    let value_usd = target_base
+        .cast::<i128>()?
+        .safe_mul(price.cast::<i128>()?)?;
+
+    let target_weight = value_usd
+        .cast::<i128>()?
+        .safe_mul(PERCENTAGE_PRECISION_I64.cast::<i128>()?)?
+        .safe_div(lp_pool_aum.cast::<i128>()?.safe_mul(token_precision)?)?
+        .cast::<i64>()?;
+
+    // if (validation_flags as u8 & (WeightValidationFlags::NoNegativeWeights as u8) != 0)
+    //     && target_weight < 0
+    // {
+    //     return Err(ErrorCode::DefaultError);
+    // }
+    // if (validation_flags as u8 & (WeightValidationFlags::NoOverweight as u8) != 0)
+    //     && target_weight > PERCENTAGE_PRECISION_I64 as i128
+    // {
+    //     return Err(ErrorCode::DefaultError);
+    // }
+
+    // if (validation_flags as u8) & WeightValidationFlags::EnforceTotalWeight100 as u8 != 0 {
+    //     let deviation = (total_weight - PERCENTAGE_PRECISION_I128).abs();
+    //     let tolerance = 100;
+    //     if deviation > tolerance {
+    //         return Err(ErrorCode::DefaultError);
+    //     }
+    // }
+
+    Ok(target_weight)
+}
+
+/// Update target base based on amm_inventory and mapping
+impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
+    pub fn update_target_base(
         &mut self,
         mapping: &AccountZeroCopy<'a, AmmConstituentDatum, AmmConstituentMappingFixed>,
         // (perp market index, inventory, price)
         amm_inventory: &[(u16, i64)],
         constituents_indexes: &[u16],
-        prices: &[i64],
-        aum: u128,
         slot: u64,
-        validation_flags: WeightValidationFlags,
-    ) -> DriftResult<i128> {
-        let mut total_weight: i128 = 0;
-        let aum_i128 = aum.cast::<i128>()?;
+    ) -> DriftResult<Vec<i128>> {
+        let mut results = Vec::with_capacity(constituents_indexes.len());
+    
         for (i, constituent_index) in constituents_indexes.iter().enumerate() {
             let mut target_amount = 0i128;
-
+    
             for (perp_market_index, inventory) in amm_inventory.iter() {
                 let idx = mapping
                     .iter()
                     .position(|d| &d.perp_market_index == perp_market_index)
                     .expect("missing mapping for this market index");
                 let weight = mapping.get(idx as u32).weight; // PERCENTAGE_PRECISION
-
+    
                 target_amount += (*inventory as i128)
                     .saturating_mul(weight as i128)
                     .saturating_div(PERCENTAGE_PRECISION_I64 as i128);
             }
-
-            let price = prices[i] as i128;
-
-            // assumes PRICE_PRECISION = PERCENTAGE_PRECISION
-            let target_weight: i128 = if aum > 0 {
-                target_amount.saturating_mul(price).saturating_div(aum_i128)
-            } else {
-                0
-            };
-
-            if (validation_flags as u8 & (WeightValidationFlags::NoNegativeWeights as u8) != 0)
-                && target_weight < 0
-            {
-                return Err(ErrorCode::DefaultError);
-            }
-            if (validation_flags as u8 & (WeightValidationFlags::NoOverweight as u8) != 0)
-                && target_weight > PERCENTAGE_PRECISION_I64 as i128
-            {
-                return Err(ErrorCode::DefaultError);
-            }
-
+    
             let cell = self.get_mut(i as u32);
             msg!(
-                "updating constituent index {} target weight to {}",
+                "updating constituent index {} target amount to {}",
                 constituent_index,
-                target_weight
+                target_amount
             );
-            cell.weight =
-                target_weight.clamp(-PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I128) as i64;
+            cell.target_base = target_amount as i64;
             cell.last_slot = slot;
-
-            total_weight = total_weight.saturating_add(target_weight);
+    
+            results.push(target_amount);
         }
-
-        if (validation_flags as u8) & WeightValidationFlags::EnforceTotalWeight100 as u8 != 0 {
-            let deviation = (total_weight - PERCENTAGE_PRECISION_I128).abs();
-            let tolerance = 100;
-            if deviation > tolerance {
-                return Err(ErrorCode::DefaultError);
-            }
-        }
-
-        Ok(total_weight)
+    
+        Ok(results)
     }
 }
 

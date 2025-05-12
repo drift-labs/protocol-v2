@@ -69,7 +69,7 @@ pub enum DriftAction {
     UpdateTwap,
     UpdateAMMCurve,
     OracleOrderPrice,
-    UpdateLpConstituentTargetWeights,
+    UpdateLpConstituentTargetBase,
     UpdateLpPoolAum,
     LpPoolSwap,
 }
@@ -131,7 +131,7 @@ pub fn is_oracle_valid_for_action(
             ),
             DriftAction::UpdateTwap => !matches!(oracle_validity, OracleValidity::NonPositive),
             DriftAction::UpdateAMMCurve => !matches!(oracle_validity, OracleValidity::NonPositive),
-            DriftAction::UpdateLpConstituentTargetWeights | DriftAction::UpdateLpPoolAum => {
+            DriftAction::UpdateLpConstituentTargetBase | DriftAction::UpdateLpPoolAum => {
                 !matches!(oracle_validity, OracleValidity::NonPositive)
             }
             DriftAction::LpPoolSwap => !matches!(

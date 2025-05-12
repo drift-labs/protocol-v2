@@ -53,33 +53,25 @@ mod tests {
         let aum = 1_000_000;
         let now_ts = 1000;
 
-        let target_fixed = RefCell::new(ConstituentTargetWeightsFixed {
+        let target_fixed = RefCell::new(ConstituentTargetBaseFixed {
             len: 1,
-            ..ConstituentTargetWeightsFixed::default()
+            ..ConstituentTargetBaseFixed::default()
         });
         let target_data = RefCell::new([0u8; 16]);
         let mut target_zc_mut =
-            AccountZeroCopyMut::<'_, WeightDatum, ConstituentTargetWeightsFixed> {
+            AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
                 fixed: target_fixed.borrow_mut(),
                 data: target_data.borrow_mut(),
-                _marker: PhantomData::<WeightDatum>,
+                _marker: PhantomData::<TargetsDatum>,
             };
 
         let totalw = target_zc_mut
-            .update_target_weights(
-                &mapping_zc,
-                &amm_inventory,
-                &constituent_indexes,
-                &prices,
-                aum,
-                now_ts,
-                WeightValidationFlags::NONE,
-            )
+            .update_target_base(&mapping_zc, &amm_inventory, &constituent_indexes, now_ts)
             .unwrap();
 
-        assert_eq!(totalw, 0);
+        assert!(totalw.iter().all(|&x| x == 0));
         assert_eq!(target_zc_mut.len(), 1);
-        assert_eq!(target_zc_mut.get(0).weight, 0);
+        assert_eq!(target_zc_mut.get(0).target_base, 0);
         assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
     }
 
@@ -117,34 +109,26 @@ mod tests {
         let aum = 1_000_000;
         let now_ts = 1234;
 
-        let target_fixed = RefCell::new(ConstituentTargetWeightsFixed {
+        let target_fixed = RefCell::new(ConstituentTargetBaseFixed {
             len: 1,
-            ..ConstituentTargetWeightsFixed::default()
+            ..ConstituentTargetBaseFixed::default()
         });
         let target_data = RefCell::new([0u8; 16]);
         let mut target_zc_mut =
-            AccountZeroCopyMut::<'_, WeightDatum, ConstituentTargetWeightsFixed> {
+            AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
                 fixed: target_fixed.borrow_mut(),
                 data: target_data.borrow_mut(),
-                _marker: PhantomData::<WeightDatum>,
+                _marker: PhantomData::<TargetsDatum>,
             };
 
         let totalw = target_zc_mut
-            .update_target_weights(
-                &mapping_zc,
-                &amm_inventory,
-                &constituent_indexes,
-                &prices,
-                aum,
-                now_ts,
-                WeightValidationFlags::NONE,
-            )
+            .update_target_base(&mapping_zc, &amm_inventory, &constituent_indexes, now_ts)
             .unwrap();
 
-        assert_eq!(totalw, 1000000);
+        assert_eq!(totalw, [1000000]);
 
         assert_eq!(target_zc_mut.len(), 1);
-        assert_eq!(target_zc_mut.get(0).weight, PERCENTAGE_PRECISION_I64);
+        assert_eq!(target_zc_mut.get(0).target_base, PERCENTAGE_PRECISION_I64);
         assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
     }
 
@@ -193,34 +177,26 @@ mod tests {
         let aum = 1_000_000;
         let now_ts = 999;
 
-        let target_fixed = RefCell::new(ConstituentTargetWeightsFixed {
+        let target_fixed = RefCell::new(ConstituentTargetBaseFixed {
             len: amm_mapping_data.len() as u32,
-            ..ConstituentTargetWeightsFixed::default()
+            ..ConstituentTargetBaseFixed::default()
         });
         let target_data = RefCell::new([0u8; 32]);
         let mut target_zc_mut =
-            AccountZeroCopyMut::<'_, WeightDatum, ConstituentTargetWeightsFixed> {
+            AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
                 fixed: target_fixed.borrow_mut(),
                 data: target_data.borrow_mut(),
-                _marker: PhantomData::<WeightDatum>,
+                _marker: PhantomData::<TargetsDatum>,
             };
 
         target_zc_mut
-            .update_target_weights(
-                &mapping_zc,
-                &amm_inventory,
-                &constituent_indexes,
-                &prices,
-                aum,
-                now_ts,
-                WeightValidationFlags::NONE,
-            )
+            .update_target_base(&mapping_zc, &amm_inventory, &constituent_indexes, now_ts)
             .unwrap();
 
         assert_eq!(target_zc_mut.len(), 2);
 
         for i in 0..target_zc_mut.len() {
-            assert_eq!(target_zc_mut.get(i).weight, PERCENTAGE_PRECISION_I64 / 2);
+            assert_eq!(target_zc_mut.get(i).target_base, PERCENTAGE_PRECISION_I64 / 2);
             assert_eq!(target_zc_mut.get(i).last_slot, now_ts);
         }
     }
@@ -259,32 +235,24 @@ mod tests {
         let aum = 0;
         let now_ts = 111;
 
-        let target_fixed = RefCell::new(ConstituentTargetWeightsFixed {
+        let target_fixed = RefCell::new(ConstituentTargetBaseFixed {
             len: 1,
-            ..ConstituentTargetWeightsFixed::default()
+            ..ConstituentTargetBaseFixed::default()
         });
         let target_data = RefCell::new([0u8; 16]);
         let mut target_zc_mut =
-            AccountZeroCopyMut::<'_, WeightDatum, ConstituentTargetWeightsFixed> {
+            AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
                 fixed: target_fixed.borrow_mut(),
                 data: target_data.borrow_mut(),
-                _marker: PhantomData::<WeightDatum>,
+                _marker: PhantomData::<TargetsDatum>,
             };
 
         target_zc_mut
-            .update_target_weights(
-                &mapping_zc,
-                &amm_inventory,
-                &constituent_indexes,
-                &prices,
-                aum,
-                now_ts,
-                WeightValidationFlags::NONE,
-            )
+            .update_target_base(&mapping_zc, &amm_inventory, &constituent_indexes, now_ts)
             .unwrap();
 
         assert_eq!(target_zc_mut.len(), 1);
-        assert_eq!(target_zc_mut.get(0).weight, 0); // no target
+        assert_eq!(target_zc_mut.get(0).target_base, 1_000_000); // despite no aum, desire to reach target
         assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
     }
 
@@ -322,32 +290,24 @@ mod tests {
         let aum = 1;
         let now_ts = 222;
 
-        let target_fixed = RefCell::new(ConstituentTargetWeightsFixed {
+        let target_fixed = RefCell::new(ConstituentTargetBaseFixed {
             len: 1,
-            ..ConstituentTargetWeightsFixed::default()
+            ..ConstituentTargetBaseFixed::default()
         });
         let target_data = RefCell::new([0u8; 16]);
         let mut target_zc_mut =
-            AccountZeroCopyMut::<'_, WeightDatum, ConstituentTargetWeightsFixed> {
+            AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
                 fixed: target_fixed.borrow_mut(),
                 data: target_data.borrow_mut(),
-                _marker: PhantomData::<WeightDatum>,
+                _marker: PhantomData::<TargetsDatum>,
             };
 
         target_zc_mut
-            .update_target_weights(
-                &mapping_zc,
-                &amm_inventory,
-                &constituent_indexes,
-                &prices,
-                aum,
-                now_ts,
-                WeightValidationFlags::NONE,
-            )
+            .update_target_base(&mapping_zc, &amm_inventory, &constituent_indexes, now_ts)
             .unwrap();
 
         assert_eq!(target_zc_mut.len(), 1);
-        assert!(target_zc_mut.get(0).weight <= PERCENTAGE_PRECISION_I64);
+        assert!(target_zc_mut.get(0).target_base < i64::MAX); // rounding sat div
         assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
     }
 

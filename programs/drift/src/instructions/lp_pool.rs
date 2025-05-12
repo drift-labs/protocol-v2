@@ -17,7 +17,7 @@ use crate::{
         events::{LPMintRedeemRecord, LPSwapRecord},
         lp_pool::{
             AmmConstituentDatum, AmmConstituentMappingFixed, Constituent,
-            ConstituentTargetWeightsFixed, LPPool, WeightDatum, WeightValidationFlags,
+            ConstituentTargetBaseFixed, LPPool, TargetsDatum, WeightValidationFlags,
         },
         oracle::OraclePriceData,
         perp_market::{AmmCacheFixed, CacheInfo, AMM_POSITIONS_CACHE},
@@ -41,8 +41,8 @@ use crate::state::lp_pool::{
     LP_POOL_TOKEN_VAULT_PDA_SEED,
 };
 
-pub fn handle_update_constituent_target_weights<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, UpdateConstituentTargetWeights<'info>>,
+pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, UpdateConstituentTargetBase<'info>>,
     lp_pool_name: [u8; 32],
     constituent_indexes: Vec<u16>,
 ) -> Result<()> {
@@ -68,7 +68,7 @@ pub fn handle_update_constituent_target_weights<'c: 'info, 'info>(
     )?;
 
     let state = &ctx.accounts.state;
-    let constituent_target_weights_key = &ctx.accounts.constituent_target_weights.key();
+    let constituent_target_base_key = &ctx.accounts.constituent_target_base.key();
     let amm_mapping_key = &ctx.accounts.amm_constituent_mapping.key();
 
     // Validate lp pool pda
@@ -87,13 +87,13 @@ pub fn handle_update_constituent_target_weights<'c: 'info, 'info>(
         "Lp pool PDA does not match expected PDA"
     )?;
 
-    let mut constituent_target_weights: AccountZeroCopyMut<
+    let mut constituent_target_base: AccountZeroCopyMut<
         '_,
-        WeightDatum,
-        ConstituentTargetWeightsFixed,
-    > = ctx.accounts.constituent_target_weights.load_zc_mut()?;
+        TargetsDatum,
+        ConstituentTargetBaseFixed,
+    > = ctx.accounts.constituent_target_base.load_zc_mut()?;
 
-    let bump = constituent_target_weights.fixed.bump;
+    let bump = constituent_target_base.fixed.bump;
     let expected_pda = &Pubkey::create_program_address(
         &[
             CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(),
@@ -104,13 +104,13 @@ pub fn handle_update_constituent_target_weights<'c: 'info, 'info>(
     )
     .map_err(|_| ErrorCode::InvalidPDA)?;
     validate!(
-        expected_pda.eq(constituent_target_weights_key),
+        expected_pda.eq(constituent_target_base_key),
         ErrorCode::InvalidPDA,
         "Constituent target weights PDA does not match expected PDA"
     )?;
 
-    let num_constituents = constituent_target_weights.len();
-    for datum in constituent_target_weights.iter() {
+    let num_constituents = constituent_target_base.len();
+    for datum in constituent_target_base.iter() {
         msg!("weight datum: {:?}", datum);
     }
 
@@ -120,7 +120,7 @@ pub fn handle_update_constituent_target_weights<'c: 'info, 'info>(
 
     validate!(
         !exists_invalid_constituent_index,
-        ErrorCode::InvalidUpdateConstituentTargetWeightsArgument,
+        ErrorCode::InvalidUpdateConstituentTargetBaseArgument,
         "Constituent index larger than number of constituent target weights"
     )?;
 
@@ -171,7 +171,7 @@ pub fn handle_update_constituent_target_weights<'c: 'info, 'info>(
 
         if !is_oracle_valid_for_action(
             oracle_validity,
-            Some(DriftAction::UpdateLpConstituentTargetWeights),
+            Some(DriftAction::UpdateLpConstituentTargetBase),
         )? {
             msg!("Oracle data for perp market {} and constituent index {} is invalid. Skipping update",
                 datum.perp_market_index, datum.constituent_index);
@@ -187,14 +187,11 @@ pub fn handle_update_constituent_target_weights<'c: 'info, 'info>(
         return Ok(());
     }
 
-    constituent_target_weights.update_target_weights(
+    constituent_target_base.update_target_base(
         &amm_constituent_mapping,
         amm_inventories.as_slice(),
         constituent_indexes.as_slice(),
-        &oracle_prices.as_slice(),
-        lp_pool.last_aum,
         slot,
-        WeightValidationFlags::NONE,
     )?;
 
     Ok(())
@@ -324,23 +321,23 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
     let mut in_constituent = ctx.accounts.in_constituent.load_mut()?;
     let mut out_constituent = ctx.accounts.out_constituent.load_mut()?;
 
-    let constituent_target_weights_key = &ctx.accounts.constituent_target_weights.key();
-    let constituent_target_weights: AccountZeroCopy<
+    let constituent_target_base_key = &ctx.accounts.constituent_target_base.key();
+    let constituent_target_base: AccountZeroCopy<
         '_,
-        WeightDatum,
-        ConstituentTargetWeightsFixed,
-    > = ctx.accounts.constituent_target_weights.load_zc()?;
+        TargetsDatum,
+        ConstituentTargetBaseFixed,
+    > = ctx.accounts.constituent_target_base.load_zc()?;
     let expected_pda = &Pubkey::create_program_address(
         &[
             CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(),
             lp_pool.pubkey.as_ref(),
-            constituent_target_weights.fixed.bump.to_le_bytes().as_ref(),
+            constituent_target_base.fixed.bump.to_le_bytes().as_ref(),
         ],
         &crate::ID,
     )
     .map_err(|_| ErrorCode::InvalidPDA)?;
     validate!(
-        expected_pda.eq(constituent_target_weights_key),
+        expected_pda.eq(constituent_target_base_key),
         ErrorCode::InvalidPDA,
         "Constituent target weights PDA does not match expected PDA"
     )?;
@@ -401,10 +398,18 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
     update_spot_market_cumulative_interest(&mut in_spot_market, Some(&in_oracle), now)?;
     update_spot_market_cumulative_interest(&mut out_spot_market, Some(&out_oracle), now)?;
 
-    let in_target_weight =
-        constituent_target_weights.get_target_weight(in_constituent.constituent_index)?;
-    let out_target_weight =
-        constituent_target_weights.get_target_weight(out_constituent.constituent_index)?;
+    let in_target_weight = constituent_target_base.get_target_weight(
+        in_constituent.constituent_index,
+        &in_spot_market,
+        in_oracle.price,
+        lp_pool.last_aum,
+    )?;
+    let out_target_weight = constituent_target_base.get_target_weight(
+        out_constituent.constituent_index,
+        &out_spot_market,
+        out_oracle.price,
+        lp_pool.last_aum,
+    )?;
 
     let (in_amount, out_amount, in_fee, out_fee) = lp_pool.get_swap_amount(
         &in_oracle,
@@ -514,7 +519,7 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
 
     let mut in_constituent = ctx.accounts.in_constituent.load_mut()?;
 
-    let constituent_target_weights = ctx.accounts.constituent_target_weights.load_zc()?;
+    let constituent_target_base = ctx.accounts.constituent_target_base.load_zc()?;
 
     let AccountMaps {
         perp_market_map: _,
@@ -553,8 +558,12 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
 
     update_spot_market_cumulative_interest(&mut in_spot_market, Some(&in_oracle), now)?;
 
-    let in_target_weight =
-        constituent_target_weights.get_target_weight(in_constituent.constituent_index)?;
+    let in_target_weight = constituent_target_base.get_target_weight(
+        in_constituent.constituent_index,
+        &in_spot_market,
+        in_oracle.price,
+        lp_pool.last_aum, // TODO: add in_amount * in_oracle to est post add_liquidity aum
+    )?;
 
     let dlp_total_supply = ctx.accounts.lp_mint.supply;
 
@@ -682,7 +691,7 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
 
     let mut out_constituent = ctx.accounts.out_constituent.load_mut()?;
 
-    let constituent_target_weights = ctx.accounts.constituent_target_weights.load_zc()?;
+    let constituent_target_base = ctx.accounts.constituent_target_base.load_zc()?;
 
     let AccountMaps {
         perp_market_map: _,
@@ -723,8 +732,12 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
 
     update_spot_market_cumulative_interest(&mut out_spot_market, Some(&out_oracle), now)?;
 
-    let out_target_weight =
-        constituent_target_weights.get_target_weight(out_constituent.constituent_index)?;
+    let out_target_weight = constituent_target_base.get_target_weight(
+        out_constituent.constituent_index,
+        &out_spot_market,
+        out_oracle.price,
+        lp_pool.last_aum, // TODO: remove out_amount * out_oracle to est post remove_liquidity aum
+    )?;
 
     let dlp_total_supply = ctx.accounts.lp_mint.supply;
 
@@ -843,14 +856,14 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
 #[instruction(
     lp_pool_name: [u8; 32],
 )]
-pub struct UpdateConstituentTargetWeights<'info> {
+pub struct UpdateConstituentTargetBase<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub keeper: Signer<'info>,
     /// CHECK: checked in AmmConstituentMappingZeroCopy checks
     pub amm_constituent_mapping: AccountInfo<'info>,
-    /// CHECK: checked in ConstituentTargetWeightsZeroCopy checks
-    pub constituent_target_weights: AccountInfo<'info>,
+    /// CHECK: checked in ConstituentTargetBaseZeroCopy checks
+    pub constituent_target_base: AccountInfo<'info>,
     /// CHECK: checked in AmmCacheZeroCopy checks
     pub amm_cache: AccountInfo<'info>,
     #[account(
@@ -892,8 +905,8 @@ pub struct LPPoolSwap<'info> {
         seeds = [CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
         bump,
     )]
-    /// CHECK: checked in ConstituentTargetWeightsZeroCopy checks
-    pub constituent_target_weights: AccountInfo<'info>,
+    /// CHECK: checked in ConstituentTargetBaseZeroCopy checks
+    pub constituent_target_base: AccountInfo<'info>,
 
     #[account(mut)]
     pub constituent_in_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
@@ -991,8 +1004,8 @@ pub struct LPPoolAddLiquidity<'info> {
         seeds = [CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
         bump,
     )]
-    /// CHECK: checked in ConstituentTargetWeightsZeroCopy checks
-    pub constituent_target_weights: AccountInfo<'info>,
+    /// CHECK: checked in ConstituentTargetBaseZeroCopy checks
+    pub constituent_target_base: AccountInfo<'info>,
 
     #[account(
         mut,
@@ -1052,8 +1065,8 @@ pub struct LPPoolRemoveLiquidity<'info> {
         seeds = [CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
         bump,
     )]
-    /// CHECK: checked in ConstituentTargetWeightsZeroCopy checks
-    pub constituent_target_weights: AccountInfo<'info>,
+    /// CHECK: checked in ConstituentTargetBaseZeroCopy checks
+    pub constituent_target_base: AccountInfo<'info>,
 
     #[account(
         mut,

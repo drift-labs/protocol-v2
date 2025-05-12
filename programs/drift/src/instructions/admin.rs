@@ -3,8 +3,8 @@ use std::mem::size_of;
 
 use crate::msg;
 use crate::state::lp_pool::{
-    AmmConstituentDatum, AmmConstituentMapping, Constituent, ConstituentTargetWeights, LPPool,
-    WeightDatum, AMM_MAP_PDA_SEED, CONSTITUENT_PDA_SEED, CONSTITUENT_TARGET_WEIGHT_PDA_SEED,
+    AmmConstituentDatum, AmmConstituentMapping, Constituent, ConstituentTargetBase, LPPool,
+    TargetsDatum, AMM_MAP_PDA_SEED, CONSTITUENT_PDA_SEED, CONSTITUENT_TARGET_WEIGHT_PDA_SEED,
     CONSTITUENT_VAULT_PDA_SEED,
 };
 use anchor_lang::prelude::*;
@@ -4517,12 +4517,12 @@ pub fn handle_initialize_lp_pool(
         .resize_with(0 as usize, AmmConstituentDatum::default);
     amm_constituent_mapping.validate()?;
 
-    let constituent_target_weights = &mut ctx.accounts.constituent_target_weights;
-    constituent_target_weights.bump = ctx.bumps.constituent_target_weights;
-    constituent_target_weights
-        .weights
-        .resize_with(0 as usize, WeightDatum::default);
-    constituent_target_weights.validate()?;
+    let constituent_target_base = &mut ctx.accounts.constituent_target_base;
+    constituent_target_base.bump = ctx.bumps.constituent_target_base;
+    constituent_target_base
+        .targets
+        .resize_with(0 as usize, TargetsDatum::default);
+    constituent_target_base.validate()?;
 
     Ok(())
 }
@@ -4734,13 +4734,13 @@ pub fn handle_initialize_constituent<'info>(
     let mut constituent = ctx.accounts.constituent.load_init()?;
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
 
-    let constituent_target_weights = &mut ctx.accounts.constituent_target_weights;
-    let current_len = constituent_target_weights.weights.len();
+    let constituent_target_base = &mut ctx.accounts.constituent_target_base;
+    let current_len = constituent_target_base.targets.len();
 
-    constituent_target_weights
-        .weights
-        .resize_with((current_len + 1) as usize, WeightDatum::default);
-    constituent_target_weights.validate()?;
+    constituent_target_base
+        .targets
+        .resize_with((current_len + 1) as usize, TargetsDatum::default);
+    constituent_target_base.validate()?;
 
     msg!(
         "initializing constituent {} with spot market index {}",
@@ -4759,7 +4759,7 @@ pub fn handle_initialize_constituent<'info>(
     constituent.mint = ctx.accounts.spot_market_mint.key();
     constituent.bump = ctx.bumps.constituent;
     constituent.lp_pool = lp_pool.pubkey;
-    constituent.constituent_index = (constituent_target_weights.weights.len() - 1) as u16;
+    constituent.constituent_index = (constituent_target_base.targets.len() - 1) as u16;
     lp_pool.constituents += 1;
 
     Ok(())
@@ -4890,7 +4890,7 @@ pub fn handle_add_amm_constituent_data<'info>(
     init_amm_constituent_mapping_data: Vec<AddAmmConstituentMappingDatum>,
 ) -> Result<()> {
     let amm_mapping = &mut ctx.accounts.amm_constituent_mapping;
-    let constituent_target_weights = &ctx.accounts.constituent_target_weights;
+    let constituent_target_base = &ctx.accounts.constituent_target_base;
     let state = &ctx.accounts.state;
     let mut current_len = amm_mapping.weights.len();
 
@@ -4904,7 +4904,7 @@ pub fn handle_add_amm_constituent_data<'info>(
         )?;
 
         validate!(
-            (init_datum.constituent_index as usize) < constituent_target_weights.weights.len(),
+            (init_datum.constituent_index as usize) < constituent_target_base.targets.len(),
             ErrorCode::InvalidAmmConstituentMappingArgument,
             "constituent_index too large compared to number of constituents in target weights"
         )?;
@@ -5796,10 +5796,10 @@ pub struct InitializeLpPool<'info> {
         init,
         seeds = [CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
         bump,
-        space = ConstituentTargetWeights::space(0 as usize),
+        space = ConstituentTargetBase::space(0 as usize),
         payer = admin,
     )]
-    pub constituent_target_weights: Box<Account<'info, ConstituentTargetWeights>>,
+    pub constituent_target_base: Box<Account<'info, ConstituentTargetBase>>,
 
     #[account(
         has_one = admin
@@ -5838,12 +5838,12 @@ pub struct InitializeConstituent<'info> {
     #[account(
         mut,
         seeds = [CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
-        bump = constituent_target_weights.bump,
-        realloc = ConstituentTargetWeights::space(constituent_target_weights.weights.len() + 1 as usize),
+        bump = constituent_target_base.bump,
+        realloc = ConstituentTargetBase::space(constituent_target_base.targets.len() + 1 as usize),
         realloc::payer = admin,
         realloc::zero = false,
     )]
-    pub constituent_target_weights: Box<Account<'info, ConstituentTargetWeights>>,
+    pub constituent_target_base: Box<Account<'info, ConstituentTargetBase>>,
 
     #[account(
         init,
@@ -5923,11 +5923,11 @@ pub struct AddAmmConstituentMappingData<'info> {
         mut,
         seeds = [CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
         bump,
-        realloc = ConstituentTargetWeights::space(constituent_target_weights.weights.len() + 1 as usize),
+        realloc = ConstituentTargetBase::space(constituent_target_base.targets.len() + 1 as usize),
         realloc::payer = admin,
         realloc::zero = false,
     )]
-    pub constituent_target_weights: Box<Account<'info, ConstituentTargetWeights>>,
+    pub constituent_target_base: Box<Account<'info, ConstituentTargetBase>>,
     pub state: Box<Account<'info, State>>,
     pub system_program: Program<'info, System>,
 }
