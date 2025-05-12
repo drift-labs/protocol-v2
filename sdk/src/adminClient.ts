@@ -43,7 +43,7 @@ import {
 	getTokenProgramForSpotMarket,
 	getLpPoolPublicKey,
 	getAmmConstituentMappingPublicKey,
-	getConstituentTargetWeightsPublicKey,
+	getConstituentTargetBasePublicKey,
 	getConstituentPublicKey,
 	getConstituentVaultPublicKey,
 	getAmmCachePublicKey,
@@ -4399,7 +4399,7 @@ export class AdminClient extends DriftClient {
 			this.program.programId,
 			lpPool
 		);
-		const constituentTargetWeights = getConstituentTargetWeightsPublicKey(
+		const constituentTargetBase = getConstituentTargetBasePublicKey(
 			this.program.programId,
 			lpPool
 		);
@@ -4441,7 +4441,7 @@ export class AdminClient extends DriftClient {
 							lpPool
 						),
 						ammConstituentMapping,
-						constituentTargetWeights,
+						constituentTargetBase,
 						mint: mint.publicKey,
 						state: await this.getStatePublicKey(),
 						driftSigner: this.getSignerPublicKey(),
@@ -4462,7 +4462,9 @@ export class AdminClient extends DriftClient {
 		maxWeightDeviation: BN,
 		swapFeeMin: BN,
 		swapFeeMax: BN,
-		oracleStalenessThreshold: BN
+		oracleStalenessThreshold: BN,
+		beta: BN,
+		costToTrade: BN
 	): Promise<TransactionSignature> {
 		const ixs = await this.getInitializeConstituentIx(
 			lpPoolName,
@@ -4471,7 +4473,9 @@ export class AdminClient extends DriftClient {
 			maxWeightDeviation,
 			swapFeeMin,
 			swapFeeMax,
-			oracleStalenessThreshold
+			oracleStalenessThreshold,
+			beta,
+			costToTrade
 		);
 		const tx = await this.buildTransaction(ixs);
 		const { txSig } = await this.sendTransaction(tx, []);
@@ -4485,10 +4489,12 @@ export class AdminClient extends DriftClient {
 		maxWeightDeviation: BN,
 		swapFeeMin: BN,
 		swapFeeMax: BN,
-		oracleStalenessThreshold: BN
+		oracleStalenessThreshold: BN,
+		beta: BN,
+		costToTrade: BN
 	): Promise<TransactionInstruction[]> {
 		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
-		const constituentTargetWeights = getConstituentTargetWeightsPublicKey(
+		const constituentTargetBase = getConstituentTargetBasePublicKey(
 			this.program.programId,
 			lpPool
 		);
@@ -4508,11 +4514,13 @@ export class AdminClient extends DriftClient {
 				swapFeeMin,
 				swapFeeMax,
 				oracleStalenessThreshold,
+				beta,
+				costToTrade,
 				{
 					accounts: {
 						admin: this.wallet.publicKey,
 						lpPool,
-						constituentTargetWeights,
+						constituentTargetBase,
 						constituent,
 						rent: SYSVAR_RENT_PUBKEY,
 						systemProgram: SystemProgram.programId,
@@ -4533,15 +4541,19 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async updateConstituentParams(
+		lpPoolName: number[],
 		constituentPublicKey: PublicKey,
 		updateConstituentParams: {
 			maxWeightDeviation?: BN;
 			swapFeeMin?: BN;
 			swapFeeMax?: BN;
 			oracleStalenessThreshold?: BN;
+			beta?: BN;
+			costToTrade?: BN;
 		}
 	): Promise<TransactionSignature> {
 		const ixs = await this.getUpdateConstituentParamsIx(
+			lpPoolName,
 			constituentPublicKey,
 			updateConstituentParams
 		);
@@ -4551,22 +4563,29 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async getUpdateConstituentParamsIx(
+		lpPoolName: number[],
 		constituentPublicKey: PublicKey,
 		updateConstituentParams: {
 			maxWeightDeviation?: BN;
 			swapFeeMin?: BN;
 			swapFeeMax?: BN;
 			oracleStalenessThreshold?: BN;
+			beta?: BN;
+			costToTrade?: BN;
 		}
 	): Promise<TransactionInstruction[]> {
+		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
 		return [
 			this.program.instruction.updateConstituentParams(
+				lpPoolName,
 				Object.assign(
 					{
 						maxWeightDeviation: null,
 						swapFeeMin: null,
 						swapFeeMax: null,
 						oracleStalenessThreshold: null,
+						beta: null,
+						costToTrade: null,
 					},
 					updateConstituentParams
 				),
@@ -4575,6 +4594,11 @@ export class AdminClient extends DriftClient {
 						admin: this.wallet.publicKey,
 						constituent: constituentPublicKey,
 						state: await this.getStatePublicKey(),
+						lpPool,
+						constituentTargetBase: getConstituentTargetBasePublicKey(
+							this.program.programId,
+							lpPool
+						),
 					},
 					signers: [],
 				}
@@ -4604,7 +4628,7 @@ export class AdminClient extends DriftClient {
 			this.program.programId,
 			lpPool
 		);
-		const constituentTargetWeights = getConstituentTargetWeightsPublicKey(
+		const constituentTargetBase = getConstituentTargetBasePublicKey(
 			this.program.programId,
 			lpPool
 		);
@@ -4617,7 +4641,7 @@ export class AdminClient extends DriftClient {
 						admin: this.wallet.publicKey,
 						lpPool,
 						ammConstituentMapping,
-						constituentTargetWeights,
+						constituentTargetBase,
 						rent: SYSVAR_RENT_PUBKEY,
 						systemProgram: SystemProgram.programId,
 						state: await this.getStatePublicKey(),

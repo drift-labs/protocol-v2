@@ -19,7 +19,7 @@ use crate::{impl_zero_copy_loader, validate};
 
 pub const AMM_MAP_PDA_SEED: &str = "AMM_MAP";
 pub const CONSTITUENT_PDA_SEED: &str = "CONSTITUENT";
-pub const CONSTITUENT_TARGET_WEIGHT_PDA_SEED: &str = "constituent_target_base";
+pub const CONSTITUENT_TARGET_BASE_PDA_SEED: &str = "constituent_target_base";
 pub const CONSTITUENT_VAULT_PDA_SEED: &str = "CONSTITUENT_VAULT";
 pub const LP_POOL_TOKEN_VAULT_PDA_SEED: &str = "LP_POOL_TOKEN_VAULT";
 
@@ -624,15 +624,14 @@ pub struct WeightDatum {
     pub weight: i64,
 }
 
-
 #[zero_copy]
 #[derive(Debug, Default, BorshDeserialize, BorshSerialize)]
 #[repr(C)]
 pub struct TargetsDatum {
     pub last_slot: u64,
     pub target_base: i64,
-    // pub correlation_scalar: i32,
-    // pub cost_to_trade: i32,
+    pub beta: i32,
+    pub cost_to_trade_bps: i32,
 }
 
 #[zero_copy]
@@ -663,7 +662,7 @@ pub struct ConstituentTargetBase {
 
 impl ConstituentTargetBase {
     pub fn space(num_constituents: usize) -> usize {
-        8 + 8 + 4 + num_constituents * 16
+        8 + 8 + 4 + num_constituents * 24
     }
 
     pub fn validate(&self) -> DriftResult<()> {
@@ -672,6 +671,13 @@ impl ConstituentTargetBase {
             ErrorCode::DefaultError,
             "Number of constituents len must be between 1 and 128"
         )?;
+
+        validate!(
+            !self.targets.iter().any(|t| t.cost_to_trade_bps == 0),
+            ErrorCode::DefaultError,
+            "cost_to_trade_bps must be non-zero"
+        )?;
+
         Ok(())
     }
 }
@@ -716,10 +722,13 @@ impl<'a> AccountZeroCopy<'a, TargetsDatum, ConstituentTargetBaseFixed> {
             constituent_index,
             self.len()
         )?;
+
         // TODO: validate spot market
         let datum = self.get(constituent_index as u32);
         let target_weight = calculate_target_weight(
             datum.target_base,
+            datum.beta,
+            datum.cost_to_trade_bps,
             &spot_market,
             price,
             aum,
@@ -731,6 +740,8 @@ impl<'a> AccountZeroCopy<'a, TargetsDatum, ConstituentTargetBaseFixed> {
 
 pub fn calculate_target_weight(
     target_base: i64,
+    beta: i32,
+    cost_to_trade_bps: i32,
     spot_market: &SpotMarket,
     price: i64,
     lp_pool_aum: u128,
@@ -743,7 +754,11 @@ pub fn calculate_target_weight(
 
     let value_usd = target_base
         .cast::<i128>()?
-        .safe_mul(price.cast::<i128>()?)?;
+        .safe_mul(price.cast::<i128>()?)?
+        .safe_mul(
+            beta.cast::<i128>()?
+                .safe_div(cost_to_trade_bps.cast::<i128>()?.safe_div(10000)?)?,
+        )?;
 
     let target_weight = value_usd
         .cast::<i128>()?
@@ -784,22 +799,22 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
         slot: u64,
     ) -> DriftResult<Vec<i128>> {
         let mut results = Vec::with_capacity(constituents_indexes.len());
-    
+
         for (i, constituent_index) in constituents_indexes.iter().enumerate() {
             let mut target_amount = 0i128;
-    
+
             for (perp_market_index, inventory) in amm_inventory.iter() {
                 let idx = mapping
                     .iter()
                     .position(|d| &d.perp_market_index == perp_market_index)
                     .expect("missing mapping for this market index");
                 let weight = mapping.get(idx as u32).weight; // PERCENTAGE_PRECISION
-    
+
                 target_amount += (*inventory as i128)
                     .saturating_mul(weight as i128)
                     .saturating_div(PERCENTAGE_PRECISION_I64 as i128);
             }
-    
+
             let cell = self.get_mut(i as u32);
             msg!(
                 "updating constituent index {} target amount to {}",
@@ -808,10 +823,10 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
             );
             cell.target_base = target_amount as i64;
             cell.last_slot = slot;
-    
+
             results.push(target_amount);
         }
-    
+
         Ok(results)
     }
 }

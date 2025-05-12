@@ -106,7 +106,7 @@ import {
 	getUserAccountPublicKeySync,
 	getUserStatsAccountPublicKey,
 	getSignedMsgWsDelegatesAccountPublicKey,
-	getConstituentTargetWeightsPublicKey,
+	getConstituentTargetBasePublicKey,
 	getAmmConstituentMappingPublicKey,
 	getLpPoolPublicKey,
 	getConstituentPublicKey,
@@ -9711,7 +9711,7 @@ export class DriftClient {
 		return txSig;
 	}
 
-	public async updateLpConstituentTargetWeights(
+	public async updateLpConstituentTargetBase(
 		lpPoolName: number[],
 		constituentIndexesToUpdate: number[],
 		ammConstituentMapping: AmmConstituentMapping,
@@ -9719,7 +9719,7 @@ export class DriftClient {
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
-				await this.getUpdateLpConstituentTargetWeightsIx(
+				await this.getUpdateLpConstituentTargetBaseIx(
 					lpPoolName,
 					constituentIndexesToUpdate
 				),
@@ -9731,7 +9731,7 @@ export class DriftClient {
 		return txSig;
 	}
 
-	public async getUpdateLpConstituentTargetWeightsIx(
+	public async getUpdateLpConstituentTargetBaseIx(
 		lpPoolName: number[],
 		constituentIndexesToUpdate: number[]
 	): Promise<TransactionInstruction> {
@@ -9740,14 +9740,14 @@ export class DriftClient {
 			this.program.programId,
 			lpPool
 		);
-		const constituentTargetWeights = getConstituentTargetWeightsPublicKey(
+		const constituentTargetBase = getConstituentTargetBasePublicKey(
 			this.program.programId,
 			lpPool
 		);
 
 		const ammCache = getAmmCachePublicKey(this.program.programId);
 
-		return this.program.instruction.updateLpConstituentTargetWeights(
+		return this.program.instruction.updateLpConstituentTargetBase(
 			lpPoolName,
 			constituentIndexesToUpdate,
 			{
@@ -9755,7 +9755,7 @@ export class DriftClient {
 					keeper: this.wallet.publicKey,
 					lpPool,
 					ammConstituentMapping: ammConstituentMappingPublicKey,
-					constituentTargetWeights,
+					constituentTargetBase,
 					state: await this.getStatePublicKey(),
 					ammCache,
 				},
@@ -9852,7 +9852,7 @@ export class DriftClient {
 		inAmount: BN,
 		minOutAmount: BN,
 		lpPool: PublicKey,
-		constituentTargetWeights: PublicKey,
+		constituentTargetBase: PublicKey,
 		constituentInTokenAccount: PublicKey,
 		constituentOutTokenAccount: PublicKey,
 		userInTokenAccount: PublicKey,
@@ -9871,7 +9871,7 @@ export class DriftClient {
 					inAmount,
 					minOutAmount,
 					lpPool,
-					constituentTargetWeights,
+					constituentTargetBase,
 					constituentInTokenAccount,
 					constituentOutTokenAccount,
 					userInTokenAccount,
@@ -9895,7 +9895,7 @@ export class DriftClient {
 		inAmount: BN,
 		minOutAmount: BN,
 		lpPool: PublicKey,
-		constituentTargetWeights: PublicKey,
+		constituentTargetBase: PublicKey,
 		constituentInTokenAccount: PublicKey,
 		constituentOutTokenAccount: PublicKey,
 		userInTokenAccount: PublicKey,
@@ -9921,7 +9921,7 @@ export class DriftClient {
 					driftSigner: this.getSignerPublicKey(),
 					state: await this.getStatePublicKey(),
 					lpPool,
-					constituentTargetWeights,
+					constituentTargetBase,
 					constituentInTokenAccount,
 					constituentOutTokenAccount,
 					userInTokenAccount,
@@ -9944,7 +9944,7 @@ export class DriftClient {
 		minMintAmount,
 		lpPool,
 		lpMint,
-		constituentTargetWeights,
+		constituentTargetBase,
 		constituentInTokenAccount,
 		userInTokenAccount,
 		userLpTokenAccount,
@@ -9958,7 +9958,7 @@ export class DriftClient {
 		minMintAmount: BN;
 		lpPool: PublicKey;
 		lpMint: PublicKey;
-		constituentTargetWeights: PublicKey;
+		constituentTargetBase: PublicKey;
 		constituentInTokenAccount: PublicKey;
 		userInTokenAccount: PublicKey;
 		userLpTokenAccount: PublicKey;
@@ -9975,7 +9975,7 @@ export class DriftClient {
 					minMintAmount,
 					lpPool,
 					lpMint,
-					constituentTargetWeights,
+					constituentTargetBase,
 					constituentInTokenAccount,
 					userInTokenAccount,
 					userLpTokenAccount,
@@ -9997,7 +9997,7 @@ export class DriftClient {
 		minMintAmount,
 		lpPool,
 		lpMint,
-		constituentTargetWeights,
+		constituentTargetBase,
 		constituentInTokenAccount,
 		userInTokenAccount,
 		userLpTokenAccount,
@@ -10010,7 +10010,7 @@ export class DriftClient {
 		minMintAmount: BN;
 		lpPool: PublicKey;
 		lpMint: PublicKey;
-		constituentTargetWeights: PublicKey;
+		constituentTargetBase: PublicKey;
 		constituentInTokenAccount: PublicKey;
 		userInTokenAccount: PublicKey;
 		userLpTokenAccount: PublicKey;
@@ -10044,7 +10044,7 @@ export class DriftClient {
 						this.program.programId,
 						lpPool
 					),
-					constituentTargetWeights,
+					constituentTargetBase,
 					tokenProgram: TOKEN_PROGRAM_ID,
 				},
 			}
@@ -10058,7 +10058,7 @@ export class DriftClient {
 		minAmountOut,
 		lpPool,
 		lpMint,
-		constituentTargetWeights,
+		constituentTargetBase,
 		constituentOutTokenAccount,
 		userOutTokenAccount,
 		userLpTokenAccount,
@@ -10072,7 +10072,7 @@ export class DriftClient {
 		minAmountOut: BN;
 		lpPool: PublicKey;
 		lpMint: PublicKey;
-		constituentTargetWeights: PublicKey;
+		constituentTargetBase: PublicKey;
 		constituentOutTokenAccount: PublicKey;
 		userOutTokenAccount: PublicKey;
 		userLpTokenAccount: PublicKey;
@@ -10089,7 +10089,7 @@ export class DriftClient {
 					minAmountOut,
 					lpPool,
 					lpMint,
-					constituentTargetWeights,
+					constituentTargetBase,
 					constituentOutTokenAccount,
 					userOutTokenAccount,
 					userLpTokenAccount,
@@ -10111,7 +10111,7 @@ export class DriftClient {
 		minAmountOut,
 		lpPool,
 		lpMint,
-		constituentTargetWeights,
+		constituentTargetBase,
 		constituentOutTokenAccount,
 		userOutTokenAccount,
 		userLpTokenAccount,
@@ -10124,7 +10124,7 @@ export class DriftClient {
 		minAmountOut: BN;
 		lpPool: PublicKey;
 		lpMint: PublicKey;
-		constituentTargetWeights: PublicKey;
+		constituentTargetBase: PublicKey;
 		constituentOutTokenAccount: PublicKey;
 		userOutTokenAccount: PublicKey;
 		userLpTokenAccount: PublicKey;
@@ -10158,7 +10158,7 @@ export class DriftClient {
 						this.program.programId,
 						lpPool
 					),
-					constituentTargetWeights,
+					constituentTargetBase,
 					tokenProgram: TOKEN_PROGRAM_ID,
 				},
 			}

@@ -130,7 +130,7 @@ impl<'a> ConstituentMap<'a> {
                 &constituent_lp_key == lp_pool_key,
                 ErrorCode::InvalidConstituent,
                 "Constituent lp pool pubkey does not match lp pool pubkey"
-            );
+            )?;
 
             // constituent index 42 bytes from front of account
             let constituent_index = u16::from_le_bytes(*array_ref![data, 42, 2]);

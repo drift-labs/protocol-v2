@@ -418,13 +418,13 @@ export function getAmmConstituentMappingPublicKey(
 	)[0];
 }
 
-export function getConstituentTargetWeightsPublicKey(
+export function getConstituentTargetBasePublicKey(
 	programId: PublicKey,
 	lpPoolPublicKey: PublicKey
 ): PublicKey {
 	return PublicKey.findProgramAddressSync(
 		[
-			Buffer.from(anchor.utils.bytes.utf8.encode('CONSTITUENT_TARGET_WEIGHTS')),
+			Buffer.from(anchor.utils.bytes.utf8.encode('constituent_target_base')),
 			lpPoolPublicKey.toBuffer(),
 		],
 		programId

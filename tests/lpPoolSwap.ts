@@ -8,7 +8,7 @@ import {
 	QUOTE_PRECISION,
 	getLpPoolPublicKey,
 	encodeName,
-	getConstituentTargetWeightsPublicKey,
+	getConstituentTargetBasePublicKey,
 	PERCENTAGE_PRECISION,
 	PRICE_PRECISION,
 	PEG_PRECISION,
@@ -212,7 +212,7 @@ describe('LP Pool', () => {
 
 		try {
 			const constituentTargetWeightsPublicKey =
-				getConstituentTargetWeightsPublicKey(program.programId, lpPoolKey);
+				getConstituentTargetBasePublicKey(program.programId, lpPoolKey);
 			const constituentTargetWeights =
 				(await adminClient.program.account.constituentTargetWeights.fetch(
 					constituentTargetWeightsPublicKey
@@ -307,8 +307,10 @@ describe('LP Pool', () => {
 		expect(lpPool2.lastAum.gt(lpPool1.lastAum)).to.be.true;
 		console.log(`AUM: ${convertToNumber(lpPool2.lastAum, QUOTE_PRECISION)}`);
 
-		const constituentTargetWeightsPublicKey =
-			getConstituentTargetWeightsPublicKey(program.programId, lpPoolKey);
+		const constituentTargetWeightsPublicKey = getConstituentTargetBasePublicKey(
+			program.programId,
+			lpPoolKey
+		);
 
 		// swap c0 for c1
 
@@ -403,8 +405,10 @@ describe('LP Pool', () => {
 			lpPoolKey
 		)) as LPPoolAccount;
 		const lpPoolAumBefore = lpPool.lastAum;
-		const constituentTargetWeightsPublicKey =
-			getConstituentTargetWeightsPublicKey(program.programId, lpPoolKey);
+		const constituentTargetWeightsPublicKey = getConstituentTargetBasePublicKey(
+			program.programId,
+			lpPoolKey
+		);
 
 		const userLpTokenAccount = await mockAtaTokenAccountForMint(
 			bankrunContextWrapper,
