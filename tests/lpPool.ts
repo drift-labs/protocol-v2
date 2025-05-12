@@ -27,7 +27,8 @@ import {
 	getAmmCachePublicKey,
 	AmmCache,
 	ZERO,
-	ONE,
+	getConstituentPublicKey,
+	ConstituentAccount,
 } from '../sdk/src';
 
 import {
@@ -253,8 +254,8 @@ describe('LP Pool', () => {
 			new BN(1).mul(PERCENTAGE_PRECISION),
 			new BN(2).mul(PERCENTAGE_PRECISION),
 			new BN(400),
-			ONE,
-			ONE
+			1,
+			1
 		);
 		const constituentTargetBasePublicKey = getConstituentTargetBasePublicKey(
 			program.programId,
@@ -309,6 +310,37 @@ describe('LP Pool', () => {
 			)) as AmmConstituentMapping;
 		expect(ammMapping).to.not.be.null;
 		assert(ammMapping.weights.length == 2);
+	});
+
+	it('can update constituent beta and cost to trade', async () => {
+		const constituentPublicKey = getConstituentPublicKey(
+			program.programId,
+			lpPoolKey,
+			0,
+		);
+
+		const constituent = await adminClient.program.account.constituent.fetch(
+			constituentPublicKey
+		) as ConstituentAccount;
+
+		await adminClient.updateConstituentParams(encodeName(lpPoolName), 
+			constituentPublicKey,
+		{
+			beta: 2,
+			costToTradeBps: 10,
+		});
+		const constituentTargetBase = getConstituentTargetBasePublicKey(
+			program.programId,
+			lpPoolKey
+		);
+		const targets =
+			(await adminClient.program.account.constituentTargetBase.fetch(
+				constituentTargetBase
+			)) as ConstituentTargetBase;
+		expect(targets).to.not.be.null;
+		console.log(targets.targets[constituent.constituentIndex]);
+		assert(targets.targets[constituent.constituentIndex].beta == 2);
+		assert(targets.targets[constituent.constituentIndex].costToTradeBps == 10);
 	});
 
 	it('fails adding datum with bad params', async () => {
@@ -426,8 +458,8 @@ describe('LP Pool', () => {
 			new BN(1).mul(PERCENTAGE_PRECISION),
 			new BN(2).mul(PERCENTAGE_PRECISION),
 			new BN(400),
-			ONE,
-			ONE
+			1,
+			1
 		);
 
 		try {

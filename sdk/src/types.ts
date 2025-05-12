@@ -1501,9 +1501,9 @@ export type AmmConstituentMapping = {
 };
 
 export type TargetDatum = {
-	target_base: BN;
-	beta: BN;
-	costToTradeBps: BN;
+	costToTradeBps: number;
+	beta: number;
+	targetBase: BN;
 	lastSlot: BN;
 };
 
