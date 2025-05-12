@@ -642,7 +642,7 @@ pub enum ErrorCode {
     #[msg("Invalid Amm Constituent Mapping argument")]
     InvalidAmmConstituentMappingArgument,
     #[msg("Invalid update constituent update target weights argument")]
-    InvalidUpdateConstituentTargetWeightsArgument,
+    InvalidUpdateConstituentTargetBaseArgument,
     #[msg("Constituent not found")]
     ConstituentNotFound,
     #[msg("Constituent could not load")]

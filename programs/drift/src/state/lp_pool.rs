@@ -19,7 +19,7 @@ use crate::{impl_zero_copy_loader, validate};
 
 pub const AMM_MAP_PDA_SEED: &str = "AMM_MAP";
 pub const CONSTITUENT_PDA_SEED: &str = "CONSTITUENT";
-pub const CONSTITUENT_TARGET_WEIGHT_PDA_SEED: &str = "CONSTITUENT_TARGET_WEIGHTS";
+pub const CONSTITUENT_TARGET_WEIGHT_PDA_SEED: &str = "constituent_target_base";
 pub const CONSTITUENT_VAULT_PDA_SEED: &str = "CONSTITUENT_VAULT";
 pub const LP_POOL_TOKEN_VAULT_PDA_SEED: &str = "LP_POOL_TOKEN_VAULT";
 
@@ -624,17 +624,28 @@ pub struct WeightDatum {
     pub weight: i64,
 }
 
+
+#[zero_copy]
+#[derive(Debug, Default, BorshDeserialize, BorshSerialize)]
+#[repr(C)]
+pub struct TargetsDatum {
+    pub last_slot: u64,
+    pub target_base: i64,
+    // pub correlation_scalar: i32,
+    // pub cost_to_trade: i32,
+}
+
 #[zero_copy]
 #[derive(Debug, Default)]
 #[repr(C)]
-pub struct ConstituentTargetWeightsFixed {
+pub struct ConstituentTargetBaseFixed {
     pub bump: u8,
     _pad: [u8; 3],
     /// total elements in the flattened `data` vec
     pub len: u32,
 }
 
-impl HasLen for ConstituentTargetWeightsFixed {
+impl HasLen for ConstituentTargetBaseFixed {
     fn len(&self) -> u32 {
         self.len
     }
@@ -643,21 +654,21 @@ impl HasLen for ConstituentTargetWeightsFixed {
 #[account]
 #[derive(Debug)]
 #[repr(C)]
-pub struct ConstituentTargetWeights {
+pub struct ConstituentTargetBase {
     pub bump: u8,
     _padding: [u8; 3],
     // PERCENTAGE_PRECISION. The weights of the target weight matrix. Updated async
-    pub weights: Vec<WeightDatum>,
+    pub targets: Vec<TargetsDatum>,
 }
 
-impl ConstituentTargetWeights {
+impl ConstituentTargetBase {
     pub fn space(num_constituents: usize) -> usize {
         8 + 8 + 4 + num_constituents * 16
     }
 
     pub fn validate(&self) -> DriftResult<()> {
         validate!(
-            self.weights.len() <= 128,
+            self.targets.len() <= 128,
             ErrorCode::DefaultError,
             "Number of constituents len must be between 1 and 128"
         )?;
@@ -666,18 +677,18 @@ impl ConstituentTargetWeights {
 }
 
 impl_zero_copy_loader!(
-    ConstituentTargetWeights,
+    ConstituentTargetBase,
     crate::id,
-    ConstituentTargetWeightsFixed,
-    WeightDatum
+    ConstituentTargetBaseFixed,
+    TargetsDatum
 );
 
-impl Default for ConstituentTargetWeights {
+impl Default for ConstituentTargetBase {
     fn default() -> Self {
-        ConstituentTargetWeights {
+        ConstituentTargetBase {
             bump: 0,
             _padding: [0; 3],
-            weights: Vec::with_capacity(0),
+            targets: Vec::with_capacity(0),
         }
     }
 }
@@ -690,7 +701,7 @@ pub enum WeightValidationFlags {
     NoOverweight = 0b0000_0100,
 }
 
-impl<'a> AccountZeroCopy<'a, WeightDatum, ConstituentTargetWeightsFixed> {
+impl<'a> AccountZeroCopy<'a, TargetsDatum, ConstituentTargetBaseFixed> {
     pub fn get_target_weight(
         &self,
         constituent_index: u16,
@@ -701,14 +712,14 @@ impl<'a> AccountZeroCopy<'a, WeightDatum, ConstituentTargetWeightsFixed> {
         validate!(
             constituent_index < self.len() as u16,
             ErrorCode::InvalidConstituent,
-            "Invalid constituent_index = {}, ConstituentTargetWeights len = {}",
+            "Invalid constituent_index = {}, ConstituentTargetBase len = {}",
             constituent_index,
             self.len()
         )?;
         // TODO: validate spot market
         let datum = self.get(constituent_index as u32);
         let target_weight = calculate_target_weight(
-            datum.weight,
+            datum.target_base,
             &spot_market,
             price,
             aum,
@@ -763,7 +774,7 @@ pub fn calculate_target_weight(
 }
 
 /// Update target base based on amm_inventory and mapping
-impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
+impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
     pub fn update_target_base(
         &mut self,
         mapping: &AccountZeroCopy<'a, AmmConstituentDatum, AmmConstituentMappingFixed>,
@@ -771,38 +782,37 @@ impl<'a> AccountZeroCopyMut<'a, WeightDatum, ConstituentTargetWeightsFixed> {
         amm_inventory: &[(u16, i64)],
         constituents_indexes: &[u16],
         slot: u64,
-    ) -> DriftResult<i128> {
-        let mut total_base: i128 = 0;
-
+    ) -> DriftResult<Vec<i128>> {
+        let mut results = Vec::with_capacity(constituents_indexes.len());
+    
         for (i, constituent_index) in constituents_indexes.iter().enumerate() {
             let mut target_amount = 0i128;
-
+    
             for (perp_market_index, inventory) in amm_inventory.iter() {
                 let idx = mapping
                     .iter()
                     .position(|d| &d.perp_market_index == perp_market_index)
                     .expect("missing mapping for this market index");
                 let weight = mapping.get(idx as u32).weight; // PERCENTAGE_PRECISION
-
+    
                 target_amount += (*inventory as i128)
                     .saturating_mul(weight as i128)
                     .saturating_div(PERCENTAGE_PRECISION_I64 as i128);
             }
-
+    
             let cell = self.get_mut(i as u32);
             msg!(
                 "updating constituent index {} target amount to {}",
                 constituent_index,
                 target_amount
             );
-            cell.weight = target_amount as i64;
-
+            cell.target_base = target_amount as i64;
             cell.last_slot = slot;
-
-            total_base = total_base.saturating_add(total_base);
+    
+            results.push(target_amount);
         }
-
-        Ok(total_base)
+    
+        Ok(results)
     }
 }
 

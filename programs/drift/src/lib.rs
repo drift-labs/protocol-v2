@@ -1790,12 +1790,12 @@ pub mod drift {
         handle_remove_amm_constituent_mapping_data(ctx, perp_market_index, constituent_index)
     }
 
-    pub fn update_lp_constituent_target_weights<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, UpdateConstituentTargetWeights<'info>>,
+    pub fn update_lp_constituent_target_base<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdateConstituentTargetBase<'info>>,
         lp_pool_name: [u8; 32],
         constituent_indexes: Vec<u16>,
     ) -> Result<()> {
-        handle_update_constituent_target_weights(ctx, lp_pool_name, constituent_indexes)
+        handle_update_constituent_target_base(ctx, lp_pool_name, constituent_indexes)
     }
 
     pub fn update_lp_pool_aum<'c: 'info, 'info>(
