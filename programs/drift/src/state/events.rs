@@ -243,8 +243,10 @@ pub struct OrderActionRecord {
     /// 0: is_signed_message
     pub bit_flags: u8,
     /// precision: QUOTE_PRECISION
+    /// Only Some if the taker reduced position
     pub taker_quote_entry_amount: Option<u64>,
     /// precision: QUOTE_PRECISION
+    /// Only Some if the maker reduced position
     pub maker_quote_entry_amount: Option<u64>,
 }
 
