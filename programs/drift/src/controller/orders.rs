@@ -2169,12 +2169,8 @@ pub fn fulfill_perp_order_with_amm(
 
     validation::perp_market::validate_amm_account_for_fill(&market.amm, order_direction)?;
 
-    let quote_entry_amount =
-        if user.perp_positions[position_index].get_direction_to_close() == order_direction {
-            Some(user.perp_positions[position_index].quote_entry_amount)
-        } else {
-            None
-        };
+    let quote_entry_amount = user.perp_positions[position_index]
+        .get_quote_entry_amount_for_order_action_record(order_direction);
 
     let market_side_price = match order_direction {
         PositionDirection::Long => market.amm.ask_price(reserve_price_before)?,
@@ -2366,20 +2362,15 @@ pub fn fulfill_perp_order_with_amm(
         order_action_bit_flags,
         user.orders[order_index].is_signed_msg(),
     );
-    let (taker_quote_entry_amount, maker_quote_entry_amount) =
-        if let Some(quote_entry_amount) = quote_entry_amount {
-            let quote_entry_amount = quote_entry_amount
-                .unsigned_abs()
-                .safe_mul(BASE_PRECISION_U64)?
-                .safe_div(base_asset_amount)?;
-            if taker.is_some() {
-                (Some(quote_entry_amount), None)
-            } else {
-                (None, Some(quote_entry_amount))
-            }
+    let (taker_quote_entry_amount, maker_quote_entry_amount) = {
+        let quote_entry_amount =
+            calculate_quote_entry_amount_for_fill(base_asset_amount, quote_entry_amount)?;
+        if taker.is_some() {
+            (quote_entry_amount, None)
         } else {
-            (None, None)
-        };
+            (None, quote_entry_amount)
+        }
+    };
     let order_action_record = get_order_action_record(
         now,
         OrderAction::Fill,
@@ -2510,13 +2501,10 @@ pub fn fulfill_perp_order_with_match(
     let (maker_existing_position, maker_quote_entry_amount) = {
         let maker_position = maker.get_perp_position(market.market_index)?;
 
-        let quoute_entry_amount = if maker_position.get_direction_to_close() == maker_direction {
-            Some(maker_position.quote_entry_amount)
-        } else {
-            None
-        };
-
-        (maker_position.base_asset_amount, quoute_entry_amount)
+        (
+            maker_position.base_asset_amount,
+            maker_position.get_quote_entry_amount_for_order_action_record(maker_direction),
+        )
     };
     let maker_base_asset_amount = maker.orders[maker_order_index]
         .get_base_asset_amount_unfilled(Some(maker_existing_position))?;
@@ -2602,13 +2590,10 @@ pub fn fulfill_perp_order_with_match(
     let (taker_existing_position, taker_quote_entry_amount) = {
         let taker_position = taker.get_perp_position(market.market_index)?;
 
-        let quoute_entry_amount = if taker_position.get_direction_to_close() == taker_direction {
-            Some(taker_position.quote_entry_amount)
-        } else {
-            None
-        };
-
-        (taker_position.base_asset_amount, quoute_entry_amount)
+        (
+            taker_position.base_asset_amount,
+            taker_position.get_quote_entry_amount_for_order_action_record(taker_direction),
+        )
     };
 
     let taker_base_asset_amount = taker.orders[taker_order_index]
@@ -2823,28 +2808,14 @@ pub fn fulfill_perp_order_with_match(
         order_action_bit_flags,
         taker.orders[taker_order_index].is_signed_msg(),
     );
-    let taker_quote_entry_amount = if let Some(taker_quote_entry_amount) = taker_quote_entry_amount
-    {
-        Some(
-            taker_quote_entry_amount
-                .unsigned_abs()
-                .safe_mul(BASE_PRECISION_U64)?
-                .safe_div(base_asset_amount_fulfilled_by_maker)?,
-        )
-    } else {
-        None
-    };
-    let maker_quote_entry_amount = if let Some(maker_quote_entry_amount) = maker_quote_entry_amount
-    {
-        Some(
-            maker_quote_entry_amount
-                .unsigned_abs()
-                .safe_mul(BASE_PRECISION_U64)?
-                .safe_div(base_asset_amount_fulfilled_by_maker)?,
-        )
-    } else {
-        None
-    };
+    let taker_quote_entry_amount = calculate_quote_entry_amount_for_fill(
+        base_asset_amount_fulfilled_by_maker,
+        taker_quote_entry_amount,
+    )?;
+    let maker_quote_entry_amount = calculate_quote_entry_amount_for_fill(
+        base_asset_amount_fulfilled_by_maker,
+        maker_quote_entry_amount,
+    )?;
     let order_action_record = get_order_action_record(
         now,
         OrderAction::Fill,

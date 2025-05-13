@@ -42,8 +42,9 @@ use crate::math::margin::{
 };
 use crate::math::oracle::DriftAction;
 use crate::math::orders::{
-    get_position_delta_for_fill, is_multiple_of_step_size, is_oracle_too_divergent_with_twap_5min,
-    standardize_base_asset_amount, standardize_base_asset_amount_ceil,
+    calculate_quote_entry_amount_for_fill, get_position_delta_for_fill, is_multiple_of_step_size,
+    is_oracle_too_divergent_with_twap_5min, standardize_base_asset_amount,
+    standardize_base_asset_amount_ceil,
 };
 use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::math::safe_math::SafeMath;
@@ -497,13 +498,17 @@ pub fn liquidate_perp(
     let (
         user_existing_position_direction,
         user_position_direction_to_close,
+        user_quote_entry_amount,
         liquidator_existing_position_direction,
+        liquidator_quote_entry_amount,
     ) = {
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
         let user_position = user.get_perp_position_mut(market_index)?;
         let user_existing_position_direction = user_position.get_direction();
         let user_position_direction_to_close = user_position.get_direction_to_close();
+        let user_quote_entry_amount = user_position
+            .get_quote_entry_amount_for_order_action_record(user_position_direction_to_close);
         update_position_and_market(user_position, &mut market, &user_position_delta)?;
         update_quote_asset_and_break_even_amount(user_position, &mut market, liquidator_fee)?;
         update_quote_asset_and_break_even_amount(user_position, &mut market, if_fee)?;
@@ -521,6 +526,8 @@ pub fn liquidate_perp(
 
         let liquidator_position = liquidator.force_get_perp_position_mut(market_index)?;
         let liquidator_existing_position_direction = liquidator_position.get_direction();
+        let liquidator_quote_entry_amount = liquidator_position
+            .get_quote_entry_amount_for_order_action_record(user_existing_position_direction);
         update_position_and_market(liquidator_position, &mut market, &liquidator_position_delta)?;
         update_quote_asset_and_break_even_amount(
             liquidator_position,
@@ -547,7 +554,9 @@ pub fn liquidate_perp(
         (
             user_existing_position_direction,
             user_position_direction_to_close,
+            user_quote_entry_amount,
             liquidator_existing_position_direction,
+            liquidator_quote_entry_amount,
         )
     };
 
@@ -632,6 +641,12 @@ pub fn liquidate_perp(
         order: liquidator_order
     });
 
+    let taker_quote_entry_amount =
+        calculate_quote_entry_amount_for_fill(base_asset_amount, user_quote_entry_amount)?;
+
+    let maker_quote_entry_amount =
+        calculate_quote_entry_amount_for_fill(base_asset_amount, liquidator_quote_entry_amount)?;
+
     let fill_record = OrderActionRecord {
         ts: now,
         action: OrderAction::Fill,
@@ -666,8 +681,8 @@ pub fn liquidate_perp(
         maker_order_cumulative_quote_asset_amount_filled: Some(base_asset_value),
         oracle_price,
         bit_flags: 0,
-        taker_quote_entry_amount: None,
-        maker_quote_entry_amount: None,
+        taker_quote_entry_amount,
+        maker_quote_entry_amount,
     };
     emit!(fill_record);
 
