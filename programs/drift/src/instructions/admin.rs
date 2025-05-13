@@ -4,7 +4,7 @@ use std::mem::size_of;
 use crate::msg;
 use crate::state::lp_pool::{
     AmmConstituentDatum, AmmConstituentMapping, Constituent, ConstituentTargetBase, LPPool,
-    TargetsDatum, AMM_MAP_PDA_SEED, CONSTITUENT_PDA_SEED, CONSTITUENT_TARGET_WEIGHT_PDA_SEED,
+    TargetsDatum, AMM_MAP_PDA_SEED, CONSTITUENT_PDA_SEED, CONSTITUENT_TARGET_BASE_PDA_SEED,
     CONSTITUENT_VAULT_PDA_SEED,
 };
 use anchor_lang::prelude::*;
@@ -4730,6 +4730,8 @@ pub fn handle_initialize_constituent<'info>(
     swap_fee_min: i64,
     swap_fee_max: i64,
     oracle_staleness_threshold: u64,
+    beta: i32,
+    cost_to_trade_bps: i32,
 ) -> Result<()> {
     let mut constituent = ctx.accounts.constituent.load_init()?;
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
@@ -4740,6 +4742,13 @@ pub fn handle_initialize_constituent<'info>(
     constituent_target_base
         .targets
         .resize_with((current_len + 1) as usize, TargetsDatum::default);
+
+    let new_target = constituent_target_base
+        .targets
+        .get_mut(current_len)
+        .unwrap();
+    new_target.beta = beta;
+    new_target.cost_to_trade_bps = cost_to_trade_bps;
     constituent_target_base.validate()?;
 
     msg!(
@@ -4771,6 +4780,8 @@ pub struct ConstituentParams {
     pub swap_fee_min: Option<i64>,
     pub swap_fee_max: Option<i64>,
     pub oracle_staleness_threshold: Option<u64>,
+    pub beta: Option<i32>,
+    pub cost_to_trade_bps: Option<i32>,
 }
 
 pub fn handle_update_constituent_params<'info>(
@@ -4813,6 +4824,29 @@ pub fn handle_update_constituent_params<'info>(
         );
         constituent.oracle_staleness_threshold =
             constituent_params.oracle_staleness_threshold.unwrap();
+    }
+
+    if constituent_params.beta.is_some() || constituent_params.cost_to_trade_bps.is_some() {
+        let constituent_target_base = &mut ctx.accounts.constituent_target_base;
+
+        let target = constituent_target_base
+            .targets
+            .get_mut(constituent.constituent_index as usize)
+            .unwrap();
+
+        if constituent_params.cost_to_trade_bps.is_some() {
+            msg!(
+                "cost_to_trade: {:?} -> {:?}",
+                target.cost_to_trade_bps,
+                constituent_params.cost_to_trade_bps
+            );
+            target.cost_to_trade_bps = constituent_params.cost_to_trade_bps.unwrap();
+        }
+
+        if constituent_params.beta.is_some() {
+            msg!("beta: {:?} -> {:?}", target.beta, constituent_params.beta);
+            target.beta = constituent_params.beta.unwrap();
+        }
     }
 
     Ok(())
@@ -5794,7 +5828,7 @@ pub struct InitializeLpPool<'info> {
 
     #[account(
         init,
-        seeds = [CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        seeds = [CONSTITUENT_TARGET_BASE_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
         bump,
         space = ConstituentTargetBase::space(0 as usize),
         payer = admin,
@@ -5837,7 +5871,7 @@ pub struct InitializeConstituent<'info> {
 
     #[account(
         mut,
-        seeds = [CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        seeds = [CONSTITUENT_TARGET_BASE_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
         bump = constituent_target_base.bump,
         realloc = ConstituentTargetBase::space(constituent_target_base.targets.len() + 1 as usize),
         realloc::payer = admin,
@@ -5874,7 +5908,23 @@ pub struct InitializeConstituent<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(
+    lp_pool_name: [u8; 32],
+)]
 pub struct UpdateConstituentParams<'info> {
+    #[account(
+        mut,
+        seeds = [b"lp_pool", lp_pool_name.as_ref()],
+        bump = lp_pool.load()?.bump,
+    )]
+    pub lp_pool: AccountLoader<'info, LPPool>,
+    #[account(
+        mut,
+        seeds = [CONSTITUENT_TARGET_BASE_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        bump = constituent_target_base.bump,
+        constraint = constituent.load()?.lp_pool == lp_pool.key()
+    )]
+    pub constituent_target_base: Box<Account<'info, ConstituentTargetBase>>,
     #[account(
         mut,
         constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
@@ -5921,7 +5971,7 @@ pub struct AddAmmConstituentMappingData<'info> {
     pub amm_constituent_mapping: Box<Account<'info, AmmConstituentMapping>>,
     #[account(
         mut,
-        seeds = [CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        seeds = [CONSTITUENT_TARGET_BASE_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
         bump,
         realloc = ConstituentTargetBase::space(constituent_target_base.targets.len() + 1 as usize),
         realloc::payer = admin,

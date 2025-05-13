@@ -1746,6 +1746,8 @@ pub mod drift {
         swap_fee_min: i64,
         swap_fee_max: i64,
         oracle_staleness_threshold: u64,
+        beta: i32,
+        cost_to_trade: i32,
     ) -> Result<()> {
         handle_initialize_constituent(
             ctx,
@@ -1755,11 +1757,14 @@ pub mod drift {
             swap_fee_min,
             swap_fee_max,
             oracle_staleness_threshold,
+            beta,
+            cost_to_trade,
         )
     }
 
     pub fn update_constituent_params(
         ctx: Context<UpdateConstituentParams>,
+        lp_pool_name: [u8; 32],
         constituent_params: ConstituentParams,
     ) -> Result<()> {
         handle_update_constituent_params(ctx, constituent_params)

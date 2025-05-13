@@ -7091,7 +7091,7 @@
           "isSigner": false
         },
         {
-          "name": "constituentTargetWeights",
+          "name": "constituentTargetBase",
           "isMut": true,
           "isSigner": false
         },
@@ -7315,7 +7315,7 @@
           "isSigner": false
         },
         {
-          "name": "constituentTargetWeights",
+          "name": "constituentTargetBase",
           "isMut": true,
           "isSigner": false
         },
@@ -7388,12 +7388,30 @@
         {
           "name": "oracleStalenessThreshold",
           "type": "u64"
+        },
+        {
+          "name": "beta",
+          "type": "i32"
+        },
+        {
+          "name": "costToTrade",
+          "type": "i32"
         }
       ]
     },
     {
       "name": "updateConstituentParams",
       "accounts": [
+        {
+          "name": "lpPool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "constituentTargetBase",
+          "isMut": true,
+          "isSigner": false
+        },
         {
           "name": "admin",
           "isMut": true,
@@ -7411,6 +7429,15 @@
         }
       ],
       "args": [
+        {
+          "name": "lpPoolName",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
         {
           "name": "constituentParams",
           "type": {
@@ -7438,7 +7465,7 @@
           "isSigner": false
         },
         {
-          "name": "constituentTargetWeights",
+          "name": "constituentTargetBase",
           "isMut": true,
           "isSigner": false
         },
@@ -7572,7 +7599,7 @@
       ]
     },
     {
-      "name": "updateLpConstituentTargetWeights",
+      "name": "updateLpConstituentTargetBase",
       "accounts": [
         {
           "name": "state",
@@ -7590,7 +7617,7 @@
           "isSigner": false
         },
         {
-          "name": "constituentTargetWeights",
+          "name": "constituentTargetBase",
           "isMut": false,
           "isSigner": false
         },
@@ -7689,7 +7716,7 @@
           "isSigner": false
         },
         {
-          "name": "constituentTargetWeights",
+          "name": "constituentTargetBase",
           "isMut": false,
           "isSigner": false
         },
@@ -7817,7 +7844,7 @@
           "isSigner": false
         },
         {
-          "name": "constituentTargetWeights",
+          "name": "constituentTargetBase",
           "isMut": false,
           "isSigner": false
         },
@@ -7910,7 +7937,7 @@
           "isSigner": false
         },
         {
-          "name": "constituentTargetWeights",
+          "name": "constituentTargetBase",
           "isMut": false,
           "isSigner": false
         },
@@ -8559,7 +8586,7 @@
       }
     },
     {
-      "name": "ConstituentTargetWeights",
+      "name": "ConstituentTargetBase",
       "type": {
         "kind": "struct",
         "fields": [
@@ -8577,10 +8604,10 @@
             }
           },
           {
-            "name": "weights",
+            "name": "targets",
             "type": {
               "vec": {
-                "defined": "WeightDatum"
+                "defined": "TargetsDatum"
               }
             }
           }
@@ -10284,6 +10311,18 @@
             "type": {
               "option": "u64"
             }
+          },
+          {
+            "name": "beta",
+            "type": {
+              "option": "i32"
+            }
+          },
+          {
+            "name": "costToTradeBps",
+            "type": {
+              "option": "i32"
+            }
           }
         ]
       }
@@ -10659,7 +10698,31 @@
       }
     },
     {
-      "name": "ConstituentTargetWeightsFixed",
+      "name": "TargetsDatum",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lastSlot",
+            "type": "u64"
+          },
+          {
+            "name": "targetBase",
+            "type": "i64"
+          },
+          {
+            "name": "beta",
+            "type": "i32"
+          },
+          {
+            "name": "costToTradeBps",
+            "type": "i32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ConstituentTargetBaseFixed",
       "type": {
         "kind": "struct",
         "fields": [
@@ -12843,7 +12906,7 @@
             "name": "OracleOrderPrice"
           },
           {
-            "name": "UpdateLpConstituentTargetWeights"
+            "name": "UpdateLpConstituentTargetBase"
           },
           {
             "name": "UpdateLpPoolAum"
@@ -16812,7 +16875,7 @@
     },
     {
       "code": 6317,
-      "name": "InvalidUpdateConstituentTargetWeightsArgument",
+      "name": "InvalidUpdateConstituentTargetBaseArgument",
       "msg": "Invalid update constituent update target weights argument"
     },
     {

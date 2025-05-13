@@ -13,11 +13,11 @@ import {
 	getLpPoolPublicKey,
 	getAmmConstituentMappingPublicKey,
 	encodeName,
-	getConstituentTargetWeightsPublicKey,
+	getConstituentTargetBasePublicKey,
 	PERCENTAGE_PRECISION,
 	PRICE_PRECISION,
 	PEG_PRECISION,
-	ConstituentTargetWeights,
+	ConstituentTargetBase,
 	AmmConstituentMapping,
 	LPPoolAccount,
 	getConstituentVaultPublicKey,
@@ -27,6 +27,8 @@ import {
 	getAmmCachePublicKey,
 	AmmCache,
 	ZERO,
+	getConstituentPublicKey,
+	ConstituentAccount,
 } from '../sdk/src';
 
 import {
@@ -220,14 +222,16 @@ describe('LP Pool', () => {
 		assert(ammConstituentMap.weights.length == 0);
 
 		// check constituent target weights exists
-		const constituentTargetWeightsPublicKey =
-			getConstituentTargetWeightsPublicKey(program.programId, lpPoolKey);
-		const constituentTargetWeights =
-			(await adminClient.program.account.constituentTargetWeights.fetch(
-				constituentTargetWeightsPublicKey
-			)) as ConstituentTargetWeights;
-		expect(constituentTargetWeights).to.not.be.null;
-		assert(constituentTargetWeights.weights.length == 0);
+		const constituentTargetBasePublicKey = getConstituentTargetBasePublicKey(
+			program.programId,
+			lpPoolKey
+		);
+		const constituentTargetBase =
+			(await adminClient.program.account.constituentTargetBase.fetch(
+				constituentTargetBasePublicKey
+			)) as ConstituentTargetBase;
+		expect(constituentTargetBase).to.not.be.null;
+		assert(constituentTargetBase.targets.length == 0);
 
 		// check mint created correctly
 		const mintInfo = await getMint(
@@ -249,14 +253,18 @@ describe('LP Pool', () => {
 			new BN(10).mul(PERCENTAGE_PRECISION),
 			new BN(1).mul(PERCENTAGE_PRECISION),
 			new BN(2).mul(PERCENTAGE_PRECISION),
-			new BN(400)
+			new BN(400),
+			1,
+			1
 		);
-		const constituentTargetWeightsPublicKey =
-			getConstituentTargetWeightsPublicKey(program.programId, lpPoolKey);
-		const constituentTargetWeights =
-			(await adminClient.program.account.constituentTargetWeights.fetch(
-				constituentTargetWeightsPublicKey
-			)) as ConstituentTargetWeights;
+		const constituentTargetBasePublicKey = getConstituentTargetBasePublicKey(
+			program.programId,
+			lpPoolKey
+		);
+		const constituentTargetBase =
+			(await adminClient.program.account.constituentTargetBase.fetch(
+				constituentTargetBasePublicKey
+			)) as ConstituentTargetBase;
 
 		const lpPool = (await adminClient.program.account.lpPool.fetch(
 			lpPoolKey
@@ -264,8 +272,8 @@ describe('LP Pool', () => {
 
 		assert(lpPool.constituents == 1);
 
-		expect(constituentTargetWeights).to.not.be.null;
-		assert(constituentTargetWeights.weights.length == 1);
+		expect(constituentTargetBase).to.not.be.null;
+		assert(constituentTargetBase.targets.length == 1);
 
 		const constituentVaultPublicKey = getConstituentVaultPublicKey(
 			program.programId,
@@ -302,6 +310,37 @@ describe('LP Pool', () => {
 			)) as AmmConstituentMapping;
 		expect(ammMapping).to.not.be.null;
 		assert(ammMapping.weights.length == 2);
+	});
+
+	it('can update constituent beta and cost to trade', async () => {
+		const constituentPublicKey = getConstituentPublicKey(
+			program.programId,
+			lpPoolKey,
+			0,
+		);
+
+		const constituent = await adminClient.program.account.constituent.fetch(
+			constituentPublicKey
+		) as ConstituentAccount;
+
+		await adminClient.updateConstituentParams(encodeName(lpPoolName), 
+			constituentPublicKey,
+		{
+			beta: 2,
+			costToTradeBps: 10,
+		});
+		const constituentTargetBase = getConstituentTargetBasePublicKey(
+			program.programId,
+			lpPoolKey
+		);
+		const targets =
+			(await adminClient.program.account.constituentTargetBase.fetch(
+				constituentTargetBase
+			)) as ConstituentTargetBase;
+		expect(targets).to.not.be.null;
+		console.log(targets.targets[constituent.constituentIndex]);
+		assert(targets.targets[constituent.constituentIndex].beta == 2);
+		assert(targets.targets[constituent.constituentIndex].costToTradeBps == 10);
 	});
 
 	it('fails adding datum with bad params', async () => {
@@ -385,19 +424,21 @@ describe('LP Pool', () => {
 				ammConstituentMappingPublicKey
 			)) as AmmConstituentMapping;
 
-		await adminClient.updateLpConstituentTargetWeights(
+		await adminClient.updateLpConstituentTargetBase(
 			encodeName(lpPoolName),
 			[0],
 			ammMapping
 		);
-		const constituentTargetWeightsPublicKey =
-			getConstituentTargetWeightsPublicKey(program.programId, lpPoolKey);
-		const constituentTargetWeights =
-			(await adminClient.program.account.constituentTargetWeights.fetch(
-				constituentTargetWeightsPublicKey
-			)) as ConstituentTargetWeights;
-		expect(constituentTargetWeights).to.not.be.null;
-		assert(constituentTargetWeights.weights.length == 1);
+		const constituentTargetBasePublicKey = getConstituentTargetBasePublicKey(
+			program.programId,
+			lpPoolKey
+		);
+		const constituentTargetBase =
+			(await adminClient.program.account.constituentTargetBase.fetch(
+				constituentTargetBasePublicKey
+			)) as ConstituentTargetBase;
+		expect(constituentTargetBase).to.not.be.null;
+		assert(constituentTargetBase.targets.length == 1);
 	});
 
 	it('can update pool aum', async () => {
@@ -416,7 +457,9 @@ describe('LP Pool', () => {
 			new BN(10).mul(PERCENTAGE_PRECISION),
 			new BN(1).mul(PERCENTAGE_PRECISION),
 			new BN(2).mul(PERCENTAGE_PRECISION),
-			new BN(400)
+			new BN(400),
+			1,
+			1
 		);
 
 		try {

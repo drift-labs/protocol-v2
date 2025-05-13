@@ -57,13 +57,12 @@ mod tests {
             len: 1,
             ..ConstituentTargetBaseFixed::default()
         });
-        let target_data = RefCell::new([0u8; 16]);
-        let mut target_zc_mut =
-            AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
-                fixed: target_fixed.borrow_mut(),
-                data: target_data.borrow_mut(),
-                _marker: PhantomData::<TargetsDatum>,
-            };
+        let target_data = RefCell::new([0u8; 24]);
+        let mut target_zc_mut = AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
+            fixed: target_fixed.borrow_mut(),
+            data: target_data.borrow_mut(),
+            _marker: PhantomData::<TargetsDatum>,
+        };
 
         let totalw = target_zc_mut
             .update_target_base(&mapping_zc, &amm_inventory, &constituent_indexes, now_ts)
@@ -113,13 +112,12 @@ mod tests {
             len: 1,
             ..ConstituentTargetBaseFixed::default()
         });
-        let target_data = RefCell::new([0u8; 16]);
-        let mut target_zc_mut =
-            AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
-                fixed: target_fixed.borrow_mut(),
-                data: target_data.borrow_mut(),
-                _marker: PhantomData::<TargetsDatum>,
-            };
+        let target_data = RefCell::new([0u8; 24]);
+        let mut target_zc_mut = AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
+            fixed: target_fixed.borrow_mut(),
+            data: target_data.borrow_mut(),
+            _marker: PhantomData::<TargetsDatum>,
+        };
 
         let totalw = target_zc_mut
             .update_target_base(&mapping_zc, &amm_inventory, &constituent_indexes, now_ts)
@@ -181,13 +179,12 @@ mod tests {
             len: amm_mapping_data.len() as u32,
             ..ConstituentTargetBaseFixed::default()
         });
-        let target_data = RefCell::new([0u8; 32]);
-        let mut target_zc_mut =
-            AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
-                fixed: target_fixed.borrow_mut(),
-                data: target_data.borrow_mut(),
-                _marker: PhantomData::<TargetsDatum>,
-            };
+        let target_data = RefCell::new([0u8; 48]);
+        let mut target_zc_mut = AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
+            fixed: target_fixed.borrow_mut(),
+            data: target_data.borrow_mut(),
+            _marker: PhantomData::<TargetsDatum>,
+        };
 
         target_zc_mut
             .update_target_base(&mapping_zc, &amm_inventory, &constituent_indexes, now_ts)
@@ -196,7 +193,10 @@ mod tests {
         assert_eq!(target_zc_mut.len(), 2);
 
         for i in 0..target_zc_mut.len() {
-            assert_eq!(target_zc_mut.get(i).target_base, PERCENTAGE_PRECISION_I64 / 2);
+            assert_eq!(
+                target_zc_mut.get(i).target_base,
+                PERCENTAGE_PRECISION_I64 / 2
+            );
             assert_eq!(target_zc_mut.get(i).last_slot, now_ts);
         }
     }
@@ -239,13 +239,12 @@ mod tests {
             len: 1,
             ..ConstituentTargetBaseFixed::default()
         });
-        let target_data = RefCell::new([0u8; 16]);
-        let mut target_zc_mut =
-            AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
-                fixed: target_fixed.borrow_mut(),
-                data: target_data.borrow_mut(),
-                _marker: PhantomData::<TargetsDatum>,
-            };
+        let target_data = RefCell::new([0u8; 24]);
+        let mut target_zc_mut = AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
+            fixed: target_fixed.borrow_mut(),
+            data: target_data.borrow_mut(),
+            _marker: PhantomData::<TargetsDatum>,
+        };
 
         target_zc_mut
             .update_target_base(&mapping_zc, &amm_inventory, &constituent_indexes, now_ts)
@@ -294,13 +293,12 @@ mod tests {
             len: 1,
             ..ConstituentTargetBaseFixed::default()
         });
-        let target_data = RefCell::new([0u8; 16]);
-        let mut target_zc_mut =
-            AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
-                fixed: target_fixed.borrow_mut(),
-                data: target_data.borrow_mut(),
-                _marker: PhantomData::<TargetsDatum>,
-            };
+        let target_data = RefCell::new([0u8; 24]);
+        let mut target_zc_mut = AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
+            fixed: target_fixed.borrow_mut(),
+            data: target_data.borrow_mut(),
+            _marker: PhantomData::<TargetsDatum>,
+        };
 
         target_zc_mut
             .update_target_base(&mapping_zc, &amm_inventory, &constituent_indexes, now_ts)

@@ -1500,14 +1500,16 @@ export type AmmConstituentMapping = {
 	weights: AmmConstituentDatum[];
 };
 
-export type WeightDatum = {
-	weight: BN;
+export type TargetDatum = {
+	costToTradeBps: number;
+	beta: number;
+	targetBase: BN;
 	lastSlot: BN;
 };
 
-export type ConstituentTargetWeights = {
+export type ConstituentTargetBase = {
 	bump: number;
-	weights: WeightDatum[];
+	targets: TargetDatum[];
 };
 
 export type LPPoolAccount = {

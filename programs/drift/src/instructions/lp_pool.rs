@@ -37,7 +37,7 @@ use crate::controller::spot_balance::update_spot_market_cumulative_interest;
 use crate::controller::token::{receive, send_from_program_vault};
 use crate::instructions::constraints::*;
 use crate::state::lp_pool::{
-    AMM_MAP_PDA_SEED, CONSTITUENT_PDA_SEED, CONSTITUENT_TARGET_WEIGHT_PDA_SEED,
+    AMM_MAP_PDA_SEED, CONSTITUENT_PDA_SEED, CONSTITUENT_TARGET_BASE_PDA_SEED,
     LP_POOL_TOKEN_VAULT_PDA_SEED,
 };
 
@@ -96,7 +96,7 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
     let bump = constituent_target_base.fixed.bump;
     let expected_pda = &Pubkey::create_program_address(
         &[
-            CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(),
+            CONSTITUENT_TARGET_BASE_PDA_SEED.as_ref(),
             lp_pool.pubkey.as_ref(),
             bump.to_le_bytes().as_ref(),
         ],
@@ -322,14 +322,11 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
     let mut out_constituent = ctx.accounts.out_constituent.load_mut()?;
 
     let constituent_target_base_key = &ctx.accounts.constituent_target_base.key();
-    let constituent_target_base: AccountZeroCopy<
-        '_,
-        TargetsDatum,
-        ConstituentTargetBaseFixed,
-    > = ctx.accounts.constituent_target_base.load_zc()?;
+    let constituent_target_base: AccountZeroCopy<'_, TargetsDatum, ConstituentTargetBaseFixed> =
+        ctx.accounts.constituent_target_base.load_zc()?;
     let expected_pda = &Pubkey::create_program_address(
         &[
-            CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(),
+            CONSTITUENT_TARGET_BASE_PDA_SEED.as_ref(),
             lp_pool.pubkey.as_ref(),
             constituent_target_base.fixed.bump.to_le_bytes().as_ref(),
         ],
@@ -902,7 +899,7 @@ pub struct LPPoolSwap<'info> {
     pub state: Box<Account<'info, State>>,
     pub lp_pool: AccountLoader<'info, LPPool>,
     #[account(
-        seeds = [CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        seeds = [CONSTITUENT_TARGET_BASE_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
         bump,
     )]
     /// CHECK: checked in ConstituentTargetBaseZeroCopy checks
@@ -1001,7 +998,7 @@ pub struct LPPoolAddLiquidity<'info> {
     )]
     pub lp_mint: Box<InterfaceAccount<'info, Mint>>,
     #[account(
-        seeds = [CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        seeds = [CONSTITUENT_TARGET_BASE_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
         bump,
     )]
     /// CHECK: checked in ConstituentTargetBaseZeroCopy checks
@@ -1062,7 +1059,7 @@ pub struct LPPoolRemoveLiquidity<'info> {
     )]
     pub lp_mint: Box<InterfaceAccount<'info, Mint>>,
     #[account(
-        seeds = [CONSTITUENT_TARGET_WEIGHT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        seeds = [CONSTITUENT_TARGET_BASE_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
         bump,
     )]
     /// CHECK: checked in ConstituentTargetBaseZeroCopy checks
