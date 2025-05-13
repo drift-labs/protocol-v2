@@ -762,6 +762,30 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precision: new BN(10).pow(NINE),
 		precisionExp: NINE,
 	},
+	{
+		symbol: 'zBTC',
+		marketIndex: 45,
+		poolId: 0,
+		oracle: new PublicKey('CN9QvvbGQzMnN8vJaSek2so4vFnTqgJDFrdJB8Y4tQfB'),
+		oracleSource: OracleSource.PYTH_PULL,
+		mint: new PublicKey('zBTCug3er3tLyffELcvDNrKkCymbPWysGcWihESYfLg'),
+		precision: new BN(10).pow(EIGHT),
+		precisionExp: EIGHT,
+		pythFeedId:
+			'0x3d824c7f7c26ed1c85421ecec8c754e6b52d66a4e45de20a9c9ea91de8b396f9',
+	},
+	{
+		symbol: 'ZEUS',
+		marketIndex: 46,
+		poolId: 0,
+		oracle: new PublicKey('ABetWkmf1dpQX8gbtrt947ma2j7KzTPjVAdFWHkuEzi3'),
+		oracleSource: OracleSource.PYTH_PULL,
+		mint: new PublicKey('ZEUS1aR7aX8DFFJf5QjWj2ftDDdNTroMNGo8YoQm3Gq'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		pythFeedId:
+			'0x31558e9ccb18c151af6c52bf78afd03098a7aca1b9cf171a65b693b464c2f066',
+	},
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {
