@@ -1715,7 +1715,7 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
 
         let from_quote_entry_amount = calculate_quote_entry_amount_for_fill(
             transfer_amount_abs,
-            from_user_position.get_quote_entry_amount_for_order_action_record(direction_to_close),
+            from_user_position.get_quote_entry_amount_params_for_order_action_record(direction_to_close),
         )?;
 
         update_position_and_market(from_user_position, &mut market, &from_user_position_delta)?;
@@ -1725,7 +1725,7 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         let to_quote_entry_amount = calculate_quote_entry_amount_for_fill(
             transfer_amount_abs,
             to_user_position
-                .get_quote_entry_amount_for_order_action_record(direction_to_close.opposite()),
+                .get_quote_entry_amount_params_for_order_action_record(direction_to_close.opposite()),
         )?;
 
         update_position_and_market(to_user_position, &mut market, &to_user_position_delta)?;

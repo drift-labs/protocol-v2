@@ -2170,7 +2170,7 @@ pub fn fulfill_perp_order_with_amm(
     validation::perp_market::validate_amm_account_for_fill(&market.amm, order_direction)?;
 
     let quote_entry_amount = user.perp_positions[position_index]
-        .get_quote_entry_amount_for_order_action_record(order_direction);
+        .get_quote_entry_amount_params_for_order_action_record(order_direction);
 
     let market_side_price = match order_direction {
         PositionDirection::Long => market.amm.ask_price(reserve_price_before)?,
@@ -2498,12 +2498,12 @@ pub fn fulfill_perp_order_with_match(
         .get_base_asset_amount_unfilled(Some(taker_existing_position))?;
 
     let maker_direction = maker.orders[maker_order_index].direction;
-    let (maker_existing_position, maker_quote_entry_amount) = {
+    let (maker_existing_position, maker_quote_entry_amount_params) = {
         let maker_position = maker.get_perp_position(market.market_index)?;
 
         (
             maker_position.base_asset_amount,
-            maker_position.get_quote_entry_amount_for_order_action_record(maker_direction),
+            maker_position.get_quote_entry_amount_params_for_order_action_record(maker_direction),
         )
     };
     let maker_base_asset_amount = maker.orders[maker_order_index]
@@ -2587,12 +2587,12 @@ pub fn fulfill_perp_order_with_match(
         total_quote_asset_amount = quote_asset_amount_filled_by_amm
     }
 
-    let (taker_existing_position, taker_quote_entry_amount) = {
+    let (taker_existing_position, taker_quote_entry_amount_params) = {
         let taker_position = taker.get_perp_position(market.market_index)?;
 
         (
             taker_position.base_asset_amount,
-            taker_position.get_quote_entry_amount_for_order_action_record(taker_direction),
+            taker_position.get_quote_entry_amount_params_for_order_action_record(taker_direction),
         )
     };
 
@@ -2810,11 +2810,11 @@ pub fn fulfill_perp_order_with_match(
     );
     let taker_quote_entry_amount = calculate_quote_entry_amount_for_fill(
         base_asset_amount_fulfilled_by_maker,
-        taker_quote_entry_amount,
+        taker_quote_entry_amount_params,
     )?;
     let maker_quote_entry_amount = calculate_quote_entry_amount_for_fill(
         base_asset_amount_fulfilled_by_maker,
-        maker_quote_entry_amount,
+        maker_quote_entry_amount_params,
     )?;
     let order_action_record = get_order_action_record(
         now,
