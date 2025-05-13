@@ -764,7 +764,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	},
 	{
 		symbol: 'zBTC',
-		marketIndex: 46,
+		marketIndex: 45,
 		poolId: 0,
 		oracle: new PublicKey('CN9QvvbGQzMnN8vJaSek2so4vFnTqgJDFrdJB8Y4tQfB'),
 		oracleSource: OracleSource.PYTH_PULL,
@@ -776,7 +776,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 	},
 	{
 		symbol: 'ZEUS',
-		marketIndex: 47,
+		marketIndex: 46,
 		poolId: 0,
 		oracle: new PublicKey('ABetWkmf1dpQX8gbtrt947ma2j7KzTPjVAdFWHkuEzi3'),
 		oracleSource: OracleSource.PYTH_PULL,
