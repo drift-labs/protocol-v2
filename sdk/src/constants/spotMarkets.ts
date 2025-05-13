@@ -775,8 +775,20 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 			'0x3d824c7f7c26ed1c85421ecec8c754e6b52d66a4e45de20a9c9ea91de8b396f9',
 	},
 	{
-		symbol: 'ZEUS',
+		symbol: 'zBTC',
 		marketIndex: 46,
+		poolId: 0,
+		oracle: new PublicKey('CN9QvvbGQzMnN8vJaSek2so4vFnTqgJDFrdJB8Y4tQfB'),
+		oracleSource: OracleSource.PYTH_PULL,
+		mint: new PublicKey('zBTCug3er3tLyffELcvDNrKkCymbPWysGcWihESYfLg'),
+		precision: new BN(10).pow(EIGHT),
+		precisionExp: EIGHT,
+		pythFeedId:
+			'0x3d824c7f7c26ed1c85421ecec8c754e6b52d66a4e45de20a9c9ea91de8b396f9',
+	},
+	{
+		symbol: 'ZEUS',
+		marketIndex: 47,
 		poolId: 0,
 		oracle: new PublicKey('ABetWkmf1dpQX8gbtrt947ma2j7KzTPjVAdFWHkuEzi3'),
 		oracleSource: OracleSource.PYTH_PULL,
