@@ -8545,6 +8545,13 @@
             "type": "publicKey"
           },
           {
+            "name": "nextSwapId",
+            "docs": [
+              "Every swap to/from this constituent has a monotonically increasing id. This is the next id to use"
+            ],
+            "type": "u64"
+          },
+          {
             "name": "padding2",
             "type": {
               "array": [
@@ -15242,6 +15249,16 @@
         {
           "name": "outMarketTargetWeight",
           "type": "i64",
+          "index": false
+        },
+        {
+          "name": "inSwapId",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "outSwapId",
+          "type": "u64",
           "index": false
         }
       ]

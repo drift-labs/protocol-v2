@@ -183,7 +183,7 @@ describe('LP Pool', () => {
 			PERCENTAGE_PRECISION.divn(10000), // min fee 1 bps
 			PERCENTAGE_PRECISION.divn(100), // max 1%
 			new BN(100),
-			PERCENTAGE_PRECISION.toNumber(),
+			1,
 			1
 		);
 		await adminClient.initializeConstituent(
@@ -194,7 +194,7 @@ describe('LP Pool', () => {
 			PERCENTAGE_PRECISION.divn(10000), // min 1 bps
 			PERCENTAGE_PRECISION.divn(100), // max 1%
 			new BN(100),
-			PERCENTAGE_PRECISION.toNumber(),
+			1,
 			1
 		);
 	});

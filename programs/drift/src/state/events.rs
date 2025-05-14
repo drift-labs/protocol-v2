@@ -715,6 +715,8 @@ pub struct LPSwapRecord {
     pub in_market_target_weight: i64,
     /// PERCENTAGE_PRECISION
     pub out_market_target_weight: i64,
+    pub in_swap_id: u64,
+    pub out_swap_id: u64,
 }
 
 #[event]

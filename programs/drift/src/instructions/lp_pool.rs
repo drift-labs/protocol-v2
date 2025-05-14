@@ -455,6 +455,9 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
     in_constituent.record_swap_fees(in_fee)?;
     out_constituent.record_swap_fees(out_fee)?;
 
+    let in_swap_id = get_then_update_id!(in_constituent, next_swap_id);
+    let out_swap_id = get_then_update_id!(out_constituent, next_swap_id);
+
     emit!(LPSwapRecord {
         ts: now,
         slot,
@@ -487,6 +490,8 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
             lp_pool.last_aum
         )?,
         out_market_target_weight: out_target_weight,
+        in_swap_id,
+        out_swap_id,
     });
 
     receive(

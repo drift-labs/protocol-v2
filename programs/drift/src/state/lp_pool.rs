@@ -463,11 +463,15 @@ pub struct Constituent {
     pub oracle_staleness_threshold: u64,
 
     pub lp_pool: Pubkey,
+
+    /// Every swap to/from this constituent has a monotonically increasing id. This is the next id to use
+    pub next_swap_id: u64,
+
     _padding2: [u8; 8],
 }
 
 impl Size for Constituent {
-    const SIZE: usize = 224;
+    const SIZE: usize = 232;
 }
 
 impl Constituent {
@@ -757,7 +761,8 @@ pub fn calculate_target_weight(
         .safe_mul(price.cast::<i128>()?)?
         .safe_mul(
             beta.cast::<i128>()?
-                .safe_div(cost_to_trade_bps.cast::<i128>()?.safe_div(10000)?)?,
+                .safe_mul(10000_i128)?
+                .safe_div(cost_to_trade_bps.cast::<i128>()?)?,
         )?;
 
     let target_weight = value_usd

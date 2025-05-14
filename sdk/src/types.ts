@@ -710,6 +710,8 @@ export type LPSwapRecord = {
 	outMarketCurrentWeight: BN;
 	inMarketTargetWeight: BN;
 	outMarketTargetWeight: BN;
+	inSwapId: BN;
+	outSwapId: BN;
 };
 
 export type LPMintRedeemRecord = {
