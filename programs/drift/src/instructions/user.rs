@@ -40,7 +40,7 @@ use crate::math::margin::{
 };
 use crate::math::oracle::is_oracle_valid_for_action;
 use crate::math::oracle::DriftAction;
-use crate::math::orders::calculate_quote_entry_amount_for_fill;
+use crate::math::orders::calculate_existing_position_fields_for_order_action_record;
 use crate::math::orders::get_position_delta_for_fill;
 use crate::math::orders::is_multiple_of_step_size;
 use crate::math::orders::standardize_price_i64;
@@ -1708,24 +1708,24 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         .force_get_perp_position_mut(market_index)
         .map(|position| position.get_direction())?;
 
-    let (from_quote_entry_amount, to_quote_entry_amount) = {
+    let (from_existing_quote_entry_amount, from_existing_base_asset_amount, to_existing_quote_entry_amount, to_existing_base_asset_amount) = {
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
         let from_user_position = from_user.force_get_perp_position_mut(market_index)?;
 
-        let from_quote_entry_amount = calculate_quote_entry_amount_for_fill(
+        let (from_existing_quote_entry_amount, from_existing_base_asset_amount) = calculate_existing_position_fields_for_order_action_record(
             transfer_amount_abs,
-            from_user_position.get_quote_entry_amount_params_for_order_action_record(direction_to_close),
+            from_user_position.get_existing_position_params_for_order_action_record(direction_to_close),
         )?;
 
         update_position_and_market(from_user_position, &mut market, &from_user_position_delta)?;
 
         let to_user_position = to_user.force_get_perp_position_mut(market_index)?;
 
-        let to_quote_entry_amount = calculate_quote_entry_amount_for_fill(
+        let (to_existing_quote_entry_amount, to_existing_base_asset_amount) = calculate_existing_position_fields_for_order_action_record(
             transfer_amount_abs,
             to_user_position
-                .get_quote_entry_amount_params_for_order_action_record(direction_to_close.opposite()),
+                .get_existing_position_params_for_order_action_record(direction_to_close.opposite()),
         )?;
 
         update_position_and_market(to_user_position, &mut market, &to_user_position_delta)?;
@@ -1733,7 +1733,7 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         validate_perp_position_with_perp_market(from_user_position, &market)?;
         validate_perp_position_with_perp_market(to_user_position, &market)?;
 
-        (from_quote_entry_amount, to_quote_entry_amount)
+        (from_existing_quote_entry_amount, from_existing_base_asset_amount, to_existing_quote_entry_amount, to_existing_base_asset_amount)
     };
 
     let from_user_margin_calculation =
@@ -1856,8 +1856,10 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         maker_order_cumulative_quote_asset_amount_filled: Some(base_asset_value),
         oracle_price,
         bit_flags: 0,
-        taker_quote_entry_amount: to_quote_entry_amount,
-        maker_quote_entry_amount: from_quote_entry_amount,
+        taker_existing_quote_entry_amount: to_existing_quote_entry_amount,
+        taker_existing_base_asset_amount: to_existing_base_asset_amount,
+        maker_existing_quote_entry_amount: from_existing_quote_entry_amount,
+        maker_existing_base_asset_amount: from_existing_base_asset_amount,
     };
 
     emit_stack::<_, { OrderActionRecord::SIZE }>(fill_record)?;
