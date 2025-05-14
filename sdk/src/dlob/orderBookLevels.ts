@@ -370,7 +370,7 @@ export function getVammL2Generator({
 					calculateAmmReservesAfterSwap(
 						askAmm,
 						'base',
-						baseSwapped,
+						askSize,
 						SwapDirection.REMOVE
 					);
 
