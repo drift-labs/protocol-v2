@@ -15145,27 +15145,32 @@
           "index": false
         },
         {
+          "name": "slot",
+          "type": "u64",
+          "index": false
+        },
+        {
           "name": "authority",
           "type": "publicKey",
           "index": false
         },
         {
-          "name": "amountOut",
+          "name": "outAmount",
           "type": "u64",
           "index": false
         },
         {
-          "name": "amountIn",
+          "name": "inAmount",
           "type": "u64",
           "index": false
         },
         {
-          "name": "feeOut",
+          "name": "outFee",
           "type": "i64",
           "index": false
         },
         {
-          "name": "feeIn",
+          "name": "inFee",
           "type": "i64",
           "index": false
         },
@@ -15200,13 +15205,43 @@
           "index": false
         },
         {
-          "name": "mintOut",
+          "name": "outMint",
           "type": "publicKey",
           "index": false
         },
         {
-          "name": "mintIn",
+          "name": "inMint",
           "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "lastAum",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "lastAumSlot",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "inMarketCurrentWeight",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "outMarketCurrentWeight",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "inMarketTargetWeight",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "outMarketTargetWeight",
+          "type": "i64",
           "index": false
         }
       ]
@@ -15217,6 +15252,11 @@
         {
           "name": "ts",
           "type": "i64",
+          "index": false
+        },
+        {
+          "name": "slot",
+          "type": "u64",
           "index": false
         },
         {
@@ -15282,6 +15322,26 @@
         {
           "name": "mintRedeemId",
           "type": "u64",
+          "index": false
+        },
+        {
+          "name": "lastAum",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "lastAumSlot",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "inMarketCurrentWeight",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "inMarketTargetWeight",
+          "type": "i64",
           "index": false
         }
       ]

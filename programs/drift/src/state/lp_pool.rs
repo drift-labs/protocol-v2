@@ -757,7 +757,8 @@ pub fn calculate_target_weight(
         .safe_mul(price.cast::<i128>()?)?
         .safe_mul(
             beta.cast::<i128>()?
-                .safe_div(cost_to_trade_bps.cast::<i128>()?.safe_div(10000)?)?,
+                .safe_mul(cost_to_trade_bps.cast::<i128>()?)?
+                .safe_div(10000)?,
         )?;
 
     let target_weight = value_usd

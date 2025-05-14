@@ -316,19 +316,21 @@ describe('LP Pool', () => {
 		const constituentPublicKey = getConstituentPublicKey(
 			program.programId,
 			lpPoolKey,
-			0,
+			0
 		);
 
-		const constituent = await adminClient.program.account.constituent.fetch(
+		const constituent = (await adminClient.program.account.constituent.fetch(
 			constituentPublicKey
-		) as ConstituentAccount;
+		)) as ConstituentAccount;
 
-		await adminClient.updateConstituentParams(encodeName(lpPoolName), 
+		await adminClient.updateConstituentParams(
+			encodeName(lpPoolName),
 			constituentPublicKey,
-		{
-			beta: 2,
-			costToTradeBps: 10,
-		});
+			{
+				beta: 2,
+				costToTradeBps: 10,
+			}
+		);
 		const constituentTargetBase = getConstituentTargetBasePublicKey(
 			program.programId,
 			lpPoolKey

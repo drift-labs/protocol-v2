@@ -688,6 +688,52 @@ export type FuelSweepRecord = {
 	fuelOverflowFuelMaker: BN;
 };
 
+export type LPSwapRecord = {
+	ts: BN;
+	slot: BN;
+	authority: PublicKey;
+	outAmount: BN;
+	inAmount: BN;
+	outFee: BN;
+	inFee: BN;
+	outSpotMarketIndex: number;
+	inSpotMarketIndex: number;
+	outConstituentIndex: number;
+	inConstituentIndex: number;
+	outOraclePrice: BN;
+	inOraclePrice: BN;
+	outMint: PublicKey;
+	inMint: PublicKey;
+	lastAum: BN;
+	lastAumSlot: BN;
+	inMarketCurrentWeight: BN;
+	outMarketCurrentWeight: BN;
+	inMarketTargetWeight: BN;
+	outMarketTargetWeight: BN;
+};
+
+export type LPMintRedeemRecord = {
+	ts: BN;
+	slot: BN;
+	authority: PublicKey;
+	isMinting: boolean;
+	amount: BN;
+	fee: BN;
+	spotMarketIndex: number;
+	constituentIndex: number;
+	oraclePrice: BN;
+	mint: PublicKey;
+	lpMint: PublicKey;
+	lpAmount: BN;
+	lpFee: BN;
+	lpNav: BN;
+	mintRedeemId: BN;
+	lastAum: BN;
+	lastAumSlot: BN;
+	inMarketCurrentWeight: BN;
+	inMarketTargetWeight: BN;
+};
+
 export type StateAccount = {
 	admin: PublicKey;
 	exchangeStatus: number;
