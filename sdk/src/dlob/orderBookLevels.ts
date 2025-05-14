@@ -378,12 +378,6 @@ export function getVammL2Generator({
 					);
 				}
 				topOfBookAskSize = topOfBookAskSize.add(baseSwapped);
-				console.log(
-					'topOfBookAskSize:',
-					topOfBookAskSize.toNumber(),
-					'baseSwapped:',
-					baseSwapped.toNumber()
-				);
 
 				askSize = openAsks
 					.abs()
