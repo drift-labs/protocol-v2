@@ -2174,7 +2174,7 @@ pub fn fulfill_perp_order_with_amm(
     validation::perp_market::validate_amm_account_for_fill(&market.amm, order_direction)?;
 
     let existing_position_params_for_order_action = user.perp_positions[position_index]
-        .get_existing_position_params_for_order_action_record(order_direction);
+        .get_existing_position_params_for_order_action(order_direction);
 
     let market_side_price = match order_direction {
         PositionDirection::Long => market.amm.ask_price(reserve_price_before)?,
@@ -2368,7 +2368,7 @@ pub fn fulfill_perp_order_with_amm(
     );
     let (taker_existing_quote_entry_amount, taker_existing_base_asset_amount, maker_existing_quote_entry_amount, maker_existing_base_asset_amount) = {
         let (existing_quote_entry_amount, existing_base_asset_amount) =
-            calculate_existing_position_fields_for_order_action_record(base_asset_amount, existing_position_params_for_order_action)?;
+            calculate_existing_position_fields_for_order_action(base_asset_amount, existing_position_params_for_order_action)?;
         if taker.is_some() {
             (existing_quote_entry_amount, existing_base_asset_amount, None, None)
         } else {
@@ -2509,7 +2509,7 @@ pub fn fulfill_perp_order_with_match(
 
         (
             maker_position.base_asset_amount,
-            maker_position.get_existing_position_params_for_order_action_record(maker_direction),
+            maker_position.get_existing_position_params_for_order_action(maker_direction),
         )
     };
     let maker_base_asset_amount = maker.orders[maker_order_index]
@@ -2598,7 +2598,7 @@ pub fn fulfill_perp_order_with_match(
 
         (
             taker_position.base_asset_amount,
-            taker_position.get_existing_position_params_for_order_action_record(taker_direction),
+            taker_position.get_existing_position_params_for_order_action(taker_direction),
         )
     };
 
@@ -2814,11 +2814,11 @@ pub fn fulfill_perp_order_with_match(
         order_action_bit_flags,
         taker.orders[taker_order_index].is_signed_msg(),
     );
-    let (taker_existing_quote_entry_amount, taker_existing_base_asset_amount) = calculate_existing_position_fields_for_order_action_record(
+    let (taker_existing_quote_entry_amount, taker_existing_base_asset_amount) = calculate_existing_position_fields_for_order_action(
         base_asset_amount_fulfilled_by_maker,
         taker_existing_position_params_for_order_action,
     )?;
-    let (maker_existing_quote_entry_amount, maker_existing_base_asset_amount) = calculate_existing_position_fields_for_order_action_record(
+    let (maker_existing_quote_entry_amount, maker_existing_base_asset_amount) = calculate_existing_position_fields_for_order_action(
         base_asset_amount_fulfilled_by_maker,
         maker_existing_position_params_for_order_action,
     )?;

@@ -42,7 +42,7 @@ use crate::math::margin::{
 };
 use crate::math::oracle::DriftAction;
 use crate::math::orders::{
-    calculate_existing_position_fields_for_order_action_record, get_position_delta_for_fill, is_multiple_of_step_size,
+    calculate_existing_position_fields_for_order_action, get_position_delta_for_fill, is_multiple_of_step_size,
     is_oracle_too_divergent_with_twap_5min, standardize_base_asset_amount,
     standardize_base_asset_amount_ceil,
 };
@@ -508,7 +508,7 @@ pub fn liquidate_perp(
         let user_existing_position_direction = user_position.get_direction();
         let user_position_direction_to_close = user_position.get_direction_to_close();
         let user_existing_position_params = user_position
-            .get_existing_position_params_for_order_action_record(user_position_direction_to_close);
+            .get_existing_position_params_for_order_action(user_position_direction_to_close);
         update_position_and_market(user_position, &mut market, &user_position_delta)?;
         update_quote_asset_and_break_even_amount(user_position, &mut market, liquidator_fee)?;
         update_quote_asset_and_break_even_amount(user_position, &mut market, if_fee)?;
@@ -526,8 +526,8 @@ pub fn liquidate_perp(
 
         let liquidator_position = liquidator.force_get_perp_position_mut(market_index)?;
         let liquidator_existing_position_direction = liquidator_position.get_direction();
-        let liquidator_quote_entry_amount_params = liquidator_position
-            .get_existing_position_params_for_order_action_record(user_existing_position_direction);
+        let liquidator_existing_position_params = liquidator_position
+            .get_existing_position_params_for_order_action(user_existing_position_direction);
         update_position_and_market(liquidator_position, &mut market, &liquidator_position_delta)?;
         update_quote_asset_and_break_even_amount(
             liquidator_position,
@@ -556,7 +556,7 @@ pub fn liquidate_perp(
             user_position_direction_to_close,
             user_existing_position_params,
             liquidator_existing_position_direction,
-            liquidator_quote_entry_amount_params,
+            liquidator_existing_position_params,
         )
     };
 
@@ -642,10 +642,10 @@ pub fn liquidate_perp(
     });
 
     let (taker_existing_quote_entry_amount, taker_existing_base_asset_amount) =
-        calculate_existing_position_fields_for_order_action_record(base_asset_amount, user_existing_position_params_for_order_action)?;
+        calculate_existing_position_fields_for_order_action(base_asset_amount, user_existing_position_params_for_order_action)?;
 
     let (maker_existing_quote_entry_amount, maker_existing_base_asset_amount) =
-        calculate_existing_position_fields_for_order_action_record(base_asset_amount, liquidator_existing_position_params_for_order_action)?;
+        calculate_existing_position_fields_for_order_action(base_asset_amount, liquidator_existing_position_params_for_order_action)?;
 
     let fill_record = OrderActionRecord {
         ts: now,

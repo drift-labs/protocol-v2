@@ -1242,7 +1242,7 @@ impl PerpPosition {
         }
     }
 
-    pub fn get_existing_position_params_for_order_action_record(
+    pub fn get_existing_position_params_for_order_action(
         &self,
         fill_direction: PositionDirection,
     ) -> Option<(u64, u64)> {
