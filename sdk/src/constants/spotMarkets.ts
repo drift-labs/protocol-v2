@@ -773,6 +773,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precisionExp: EIGHT,
 		pythFeedId:
 			'0x3d824c7f7c26ed1c85421ecec8c754e6b52d66a4e45de20a9c9ea91de8b396f9',
+		launchTs: 1747155600000,
 	},
 	{
 		symbol: 'ZEUS',
@@ -785,6 +786,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precisionExp: SIX,
 		pythFeedId:
 			'0x31558e9ccb18c151af6c52bf78afd03098a7aca1b9cf171a65b693b464c2f066',
+		launchTs: 1747155600000,
 	},
 ];
 
