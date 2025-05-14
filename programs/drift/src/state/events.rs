@@ -245,12 +245,12 @@ pub struct OrderActionRecord {
     /// precision: QUOTE_PRECISION
     /// Only Some if the taker reduced position
     pub taker_existing_quote_entry_amount: Option<u64>,
-    /// precision: QUOTE_PRECISION
-    /// Only Some if the maker reduced position
-    pub maker_existing_quote_entry_amount: Option<u64>,
     /// precision: BASE_PRECISION
     /// Only Some if the taker flipped position direction
     pub taker_existing_base_asset_amount: Option<u64>,
+    /// precision: QUOTE_PRECISION
+    /// Only Some if the maker reduced position
+    pub maker_existing_quote_entry_amount: Option<u64>,
     /// precision: BASE_PRECISION
     /// Only Some if the maker flipped position direction
     pub maker_existing_base_asset_amount: Option<u64>,
@@ -282,8 +282,8 @@ pub fn get_order_action_record(
     oracle_price: i64,
     bit_flags: u8,
     taker_existing_quote_entry_amount: Option<u64>,
-    maker_existing_quote_entry_amount: Option<u64>,
     taker_existing_base_asset_amount: Option<u64>,
+    maker_existing_quote_entry_amount: Option<u64>,
     maker_existing_base_asset_amount: Option<u64>,
 ) -> DriftResult<OrderActionRecord> {
     Ok(OrderActionRecord {
@@ -334,8 +334,8 @@ pub fn get_order_action_record(
         oracle_price,
         bit_flags,
         taker_existing_quote_entry_amount,
-        maker_existing_quote_entry_amount,
         taker_existing_base_asset_amount,
+        maker_existing_quote_entry_amount,
         maker_existing_base_asset_amount,
     })
 }
