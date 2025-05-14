@@ -12,7 +12,7 @@ import {
 	PERCENTAGE_PRECISION,
 	PRICE_PRECISION,
 	PEG_PRECISION,
-	ConstituentTargetWeights,
+	ConstituentTargetBase,
 	OracleSource,
 	SPOT_MARKET_RATE_PRECISION,
 	SPOT_MARKET_WEIGHT_PRECISION,
@@ -182,7 +182,9 @@ describe('LP Pool', () => {
 			PERCENTAGE_PRECISION.divn(10), // 10% max dev
 			PERCENTAGE_PRECISION.divn(10000), // min fee 1 bps
 			PERCENTAGE_PRECISION.divn(100), // max 1%
-			new BN(100)
+			new BN(100),
+			1,
+			1
 		);
 		await adminClient.initializeConstituent(
 			encodeName(lpPoolName),
@@ -191,7 +193,9 @@ describe('LP Pool', () => {
 			PERCENTAGE_PRECISION.divn(10), // 10% max dev
 			PERCENTAGE_PRECISION.divn(10000), // min 1 bps
 			PERCENTAGE_PRECISION.divn(100), // max 1%
-			new BN(100)
+			new BN(100),
+			1,
+			1
 		);
 	});
 
@@ -211,14 +215,16 @@ describe('LP Pool', () => {
 		}
 
 		try {
-			const constituentTargetWeightsPublicKey =
-				getConstituentTargetBasePublicKey(program.programId, lpPoolKey);
-			const constituentTargetWeights =
-				(await adminClient.program.account.constituentTargetWeights.fetch(
-					constituentTargetWeightsPublicKey
-				)) as ConstituentTargetWeights;
-			expect(constituentTargetWeights).to.not.be.null;
-			assert(constituentTargetWeights.weights.length == 2);
+			const constituentTargetBasePublicKey = getConstituentTargetBasePublicKey(
+				program.programId,
+				lpPoolKey
+			);
+			const constituentTargetBase =
+				(await adminClient.program.account.constituentTargetBase.fetch(
+					constituentTargetBasePublicKey
+				)) as ConstituentTargetBase;
+			expect(constituentTargetBase).to.not.be.null;
+			assert(constituentTargetBase.targets.length == 2);
 		} catch (e) {
 			expect.fail('Amm constituent map should have been created');
 		}
@@ -445,7 +451,7 @@ describe('LP Pool', () => {
 			minMintAmount: new BN(1),
 			lpPool: lpPoolKey,
 			lpMint: lpPool.mint,
-			constituentTargetWeights: constituentTargetWeightsPublicKey,
+			constituentTargetBase: constituentTargetWeightsPublicKey,
 			constituentInTokenAccount: c0TokenAccount,
 			userInTokenAccount: c0UserTokenAccount,
 			userLpTokenAccount: userLpTokenAccount,
@@ -490,7 +496,7 @@ describe('LP Pool', () => {
 			minAmountOut: new BN(1),
 			lpPool: lpPoolKey,
 			lpMint: lpPool.mint,
-			constituentTargetWeights: constituentTargetWeightsPublicKey,
+			constituentTargetBase: constituentTargetWeightsPublicKey,
 			constituentOutTokenAccount: c0TokenAccount,
 			userOutTokenAccount: c0UserTokenAccount,
 			userLpTokenAccount: userLpTokenAccount,

@@ -4769,6 +4769,7 @@ pub fn handle_initialize_constituent<'info>(
     constituent.bump = ctx.bumps.constituent;
     constituent.lp_pool = lp_pool.pubkey;
     constituent.constituent_index = (constituent_target_base.targets.len() - 1) as u16;
+    constituent.next_swap_id = 1;
     lp_pool.constituents += 1;
 
     Ok(())

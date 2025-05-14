@@ -455,21 +455,43 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
     in_constituent.record_swap_fees(in_fee)?;
     out_constituent.record_swap_fees(out_fee)?;
 
+    let in_swap_id = get_then_update_id!(in_constituent, next_swap_id);
+    let out_swap_id = get_then_update_id!(out_constituent, next_swap_id);
+
     emit!(LPSwapRecord {
         ts: now,
+        slot,
         authority: ctx.accounts.authority.key(),
-        amount_out: out_amount_net_fees,
-        amount_in: in_amount,
-        fee_out: out_fee,
-        fee_in: in_fee,
+        out_amount: out_amount_net_fees,
+        in_amount,
+        out_fee,
+        in_fee,
         out_spot_market_index: out_market_index,
         in_spot_market_index: in_market_index,
         out_constituent_index: out_constituent.constituent_index,
         in_constituent_index: in_constituent.constituent_index,
         out_oracle_price: out_oracle.price,
         in_oracle_price: in_oracle.price,
-        mint_out: out_constituent.mint,
-        mint_in: in_constituent.mint,
+        out_mint: out_constituent.mint,
+        in_mint: in_constituent.mint,
+        last_aum: lp_pool.last_aum,
+        last_aum_slot: lp_pool.last_aum_slot,
+        in_market_current_weight: in_constituent.get_weight(
+            in_oracle.price,
+            &in_spot_market,
+            0,
+            lp_pool.last_aum
+        )?,
+        in_market_target_weight: in_target_weight,
+        out_market_current_weight: out_constituent.get_weight(
+            out_oracle.price,
+            &out_spot_market,
+            0,
+            lp_pool.last_aum
+        )?,
+        out_market_target_weight: out_target_weight,
+        in_swap_id,
+        out_swap_id,
     });
 
     receive(
@@ -654,6 +676,7 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
     let mint_redeem_id = get_then_update_id!(lp_pool, next_mint_redeem_id);
     emit!(LPMintRedeemRecord {
         ts: now,
+        slot,
         authority: ctx.accounts.authority.key(),
         is_minting: true,
         amount: in_amount,
@@ -667,6 +690,15 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
         lp_fee: lp_fee_amount,
         lp_nav,
         mint_redeem_id,
+        last_aum: lp_pool.last_aum,
+        last_aum_slot: lp_pool.last_aum_slot,
+        in_market_current_weight: in_constituent.get_weight(
+            in_oracle.price,
+            &in_spot_market,
+            0,
+            lp_pool.last_aum
+        )?,
+        in_market_target_weight: in_target_weight,
     });
 
     Ok(())
@@ -831,6 +863,7 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
     let mint_redeem_id = get_then_update_id!(lp_pool, next_mint_redeem_id);
     emit!(LPMintRedeemRecord {
         ts: now,
+        slot,
         authority: ctx.accounts.authority.key(),
         is_minting: false,
         amount: out_amount,
@@ -844,6 +877,15 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
         lp_fee: lp_fee_amount,
         lp_nav,
         mint_redeem_id,
+        last_aum: lp_pool.last_aum,
+        last_aum_slot: lp_pool.last_aum_slot,
+        in_market_current_weight: out_constituent.get_weight(
+            out_oracle.price,
+            &out_spot_market,
+            0,
+            lp_pool.last_aum
+        )?,
+        in_market_target_weight: out_target_weight,
     });
 
     Ok(())
