@@ -240,7 +240,7 @@ export function getVammL2Generator({
 						SwapDirection.REMOVE
 					);
 
-				standardizeBaseAssetAmount(
+				baseSwapped = standardizeBaseAssetAmount(
 					bidAmm.baseAssetReserve.sub(afterSwapBaseReserves).abs(),
 					marketAccount.amm.orderStepSize
 				);
