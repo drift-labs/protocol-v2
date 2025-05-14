@@ -167,7 +167,13 @@ export class IndicativeQuotesSender {
 			quote.bidBaseAssetAmount == null ||
 			quote.askBaseAssetAmount == null
 		) {
-			console.warn('Received incomplete quote, ignoring', quote);
+			console.warn(
+				'Received incomplete quote, ignoring and deleting old quote',
+				quote
+			);
+			if (quote.marketIndex != null) {
+				this.quotes.delete(quote.marketIndex);
+			}
 			return;
 		}
 		this.quotes.set(quote.marketIndex, quote);
