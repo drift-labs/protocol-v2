@@ -497,8 +497,8 @@ pub fn liquidate_perp(
 
     let (
         user_existing_position_direction,
-        user_exisiting_position_params_for_order_action,
-        user_quote_entry_amount_params,
+        user_position_direction_to_close,
+        user_existing_position_params_for_order_action,
         liquidator_existing_position_direction,
         liquidator_existing_position_params_for_order_action,
     ) = {
@@ -602,7 +602,7 @@ pub fn liquidate_perp(
         status: OrderStatus::Open,
         order_type: OrderType::Market,
         market_type: MarketType::Perp,
-        direction: user_exisiting_position_params_for_order_action,
+        direction: user_position_direction_to_close,
         existing_position_direction: user_existing_position_direction,
         ..Order::default()
     };
@@ -642,7 +642,7 @@ pub fn liquidate_perp(
     });
 
     let (taker_existing_quote_entry_amount, taker_existing_base_asset_amount) =
-        calculate_existing_position_fields_for_order_action_record(base_asset_amount, user_quote_entry_amount_params)?;
+        calculate_existing_position_fields_for_order_action_record(base_asset_amount, user_existing_position_params_for_order_action)?;
 
     let (maker_existing_quote_entry_amount, maker_existing_base_asset_amount) =
         calculate_existing_position_fields_for_order_action_record(base_asset_amount, liquidator_existing_position_params_for_order_action)?;
@@ -669,7 +669,7 @@ pub fn liquidate_perp(
         spot_fulfillment_method_fee: None,
         taker: Some(*user_key),
         taker_order_id: Some(user_order_id),
-        taker_order_direction: Some(user_exisiting_position_params_for_order_action),
+        taker_order_direction: Some(user_position_direction_to_close),
         taker_order_base_asset_amount: Some(base_asset_amount),
         taker_order_cumulative_base_asset_amount_filled: Some(base_asset_amount),
         taker_order_cumulative_quote_asset_amount_filled: Some(base_asset_value),
