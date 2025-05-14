@@ -1409,7 +1409,7 @@ pub fn set_is_signed_msg_flag(mut flags: u8, value: bool) -> u8 {
     flags
 }
 
-pub fn calculate_existing_position_fields_for_order_action_record(
+pub fn calculate_existing_position_fields_for_order_action(
     base_asset_amount_filled: u64,
     existing_posiiton_params: Option<(u64, u64)>,
 ) -> DriftResult<(Option<u64>, Option<u64>)> {

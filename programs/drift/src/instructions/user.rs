@@ -40,7 +40,7 @@ use crate::math::margin::{
 };
 use crate::math::oracle::is_oracle_valid_for_action;
 use crate::math::oracle::DriftAction;
-use crate::math::orders::calculate_existing_position_fields_for_order_action_record;
+use crate::math::orders::calculate_existing_position_fields_for_order_action;
 use crate::math::orders::get_position_delta_for_fill;
 use crate::math::orders::is_multiple_of_step_size;
 use crate::math::orders::standardize_price_i64;
@@ -1713,19 +1713,19 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
 
         let from_user_position = from_user.force_get_perp_position_mut(market_index)?;
 
-        let (from_existing_quote_entry_amount, from_existing_base_asset_amount) = calculate_existing_position_fields_for_order_action_record(
+        let (from_existing_quote_entry_amount, from_existing_base_asset_amount) = calculate_existing_position_fields_for_order_action(
             transfer_amount_abs,
-            from_user_position.get_existing_position_params_for_order_action_record(direction_to_close),
+            from_user_position.get_existing_position_params_for_order_action(direction_to_close),
         )?;
 
         update_position_and_market(from_user_position, &mut market, &from_user_position_delta)?;
 
         let to_user_position = to_user.force_get_perp_position_mut(market_index)?;
 
-        let (to_existing_quote_entry_amount, to_existing_base_asset_amount) = calculate_existing_position_fields_for_order_action_record(
+        let (to_existing_quote_entry_amount, to_existing_base_asset_amount) = calculate_existing_position_fields_for_order_action(
             transfer_amount_abs,
             to_user_position
-                .get_existing_position_params_for_order_action_record(direction_to_close.opposite()),
+                .get_existing_position_params_for_order_action(direction_to_close.opposite()),
         )?;
 
         update_position_and_market(to_user_position, &mut market, &to_user_position_delta)?;
