@@ -265,7 +265,7 @@ pub fn place_perp_order(
         trigger_condition: params.trigger_condition,
         post_only: params.post_only != PostOnlyParam::None,
         oracle_price_offset: params.oracle_price_offset.unwrap_or(0),
-        immediate_or_cancel: params.immediate_or_cancel,
+        immediate_or_cancel: params.is_immediate_or_cancel(),
         auction_start_price,
         auction_end_price,
         auction_duration,
@@ -807,7 +807,7 @@ fn merge_modify_order_params_with_existing_order(
         } else {
             PostOnlyParam::None
         });
-    let immediate_or_cancel = false;
+    let bit_flags = 0;
     let max_ts = modify_order_params.max_ts.or(Some(existing_order.max_ts));
     let trigger_price = modify_order_params
         .trigger_price
@@ -850,7 +850,7 @@ fn merge_modify_order_params_with_existing_order(
         market_index,
         reduce_only,
         post_only,
-        immediate_or_cancel,
+        bit_flags,
         max_ts,
         trigger_price,
         trigger_condition,
@@ -3230,7 +3230,7 @@ pub fn place_spot_order(
         trigger_condition: params.trigger_condition,
         post_only: params.post_only != PostOnlyParam::None,
         oracle_price_offset: params.oracle_price_offset.unwrap_or(0),
-        immediate_or_cancel: params.immediate_or_cancel,
+        immediate_or_cancel: params.is_immediate_or_cancel(),
         auction_start_price,
         auction_end_price,
         auction_duration,

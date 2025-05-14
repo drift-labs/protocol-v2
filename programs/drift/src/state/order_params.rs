@@ -576,6 +576,14 @@ impl OrderParams {
 
         Ok(params)
     }
+
+    pub fn is_immediate_or_cancel(&self) -> bool {
+        self.bit_flags & OrderParamsBitFlag::ImmediateOrCancel as u8 != 0
+    }
+
+    pub fn is_update_high_leverage_mode(&self) -> bool {
+        self.bit_flags & OrderParamsBitFlag::UpdateHighLeverageMode as u8 != 0
+    }
 }
 
 fn get_auction_duration(

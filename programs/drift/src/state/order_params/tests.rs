@@ -97,7 +97,7 @@ mod update_perp_auction_params {
             order_type: OrderType::Limit,
             auction_duration: None,
             post_only: PostOnlyParam::None,
-            immediate_or_cancel: true,
+            bit_flags: 1,
             ..OrderParams::default()
         };
         let mut order_params_after = order_params_before;
@@ -110,7 +110,7 @@ mod update_perp_auction_params {
             order_type: OrderType::Limit,
             auction_duration: None,
             post_only: PostOnlyParam::None,
-            immediate_or_cancel: false,
+            bit_flags: 0,
             oracle_price_offset: Some(0),
             ..OrderParams::default()
         };
@@ -124,7 +124,7 @@ mod update_perp_auction_params {
             order_type: OrderType::Limit,
             auction_duration: None,
             post_only: PostOnlyParam::None,
-            immediate_or_cancel: false,
+            bit_flags: 0,
             oracle_price_offset: None,
             price: 0,
             ..OrderParams::default()
@@ -139,7 +139,7 @@ mod update_perp_auction_params {
             order_type: OrderType::Limit,
             auction_duration: None,
             post_only: PostOnlyParam::None,
-            immediate_or_cancel: false,
+            bit_flags: 0,
             oracle_price_offset: None,
             price: 100 * PRICE_PRECISION_U64,
             direction: PositionDirection::Long,
@@ -155,7 +155,7 @@ mod update_perp_auction_params {
             order_type: OrderType::Limit,
             auction_duration: None,
             post_only: PostOnlyParam::None,
-            immediate_or_cancel: false,
+            bit_flags: 0,
             oracle_price_offset: None,
             price: 102 * PRICE_PRECISION_U64,
             direction: PositionDirection::Long,
@@ -180,7 +180,7 @@ mod update_perp_auction_params {
             order_type: OrderType::Limit,
             auction_duration: None,
             post_only: PostOnlyParam::None,
-            immediate_or_cancel: false,
+            bit_flags: 0,
             oracle_price_offset: None,
             price: 100 * PRICE_PRECISION_U64,
             direction: PositionDirection::Short,
@@ -196,7 +196,7 @@ mod update_perp_auction_params {
             order_type: OrderType::Limit,
             auction_duration: None,
             post_only: PostOnlyParam::None,
-            immediate_or_cancel: false,
+            bit_flags: 0,
             oracle_price_offset: None,
             price: 98 * PRICE_PRECISION_U64,
             direction: PositionDirection::Short,
@@ -1032,7 +1032,7 @@ mod get_close_perp_params {
             trigger_condition: params.trigger_condition,
             post_only: params.post_only != PostOnlyParam::None,
             oracle_price_offset: params.oracle_price_offset.unwrap_or(0),
-            immediate_or_cancel: params.immediate_or_cancel,
+            immediate_or_cancel: params.is_immediate_or_cancel(),
             auction_start_price: params.auction_start_price.unwrap_or(0),
             auction_end_price: params.auction_end_price.unwrap_or(0),
             auction_duration: params.auction_duration.unwrap_or(0),
