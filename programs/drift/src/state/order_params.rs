@@ -27,7 +27,7 @@ pub struct OrderParams {
     pub market_index: u16,
     pub reduce_only: bool,
     pub post_only: PostOnlyParam,
-    pub immediate_or_cancel: bool,
+    pub bit_flags: u8,
     pub max_ts: Option<i64>,
     pub trigger_price: Option<u64>,
     pub trigger_condition: OrderTriggerCondition,
@@ -37,6 +37,12 @@ pub struct OrderParams {
     pub auction_end_price: Option<i64>,   // specified in price or oracle_price_offset
 }
 
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum OrderParamsBitFlag {
+    ImmediateOrCancel = 0b00000001,
+    UpdateHighLeverageMode = 0b00000010,
+}
+
 impl OrderParams {
     pub fn update_perp_auction_params_limit_orders(
         &mut self,
@@ -44,10 +50,6 @@ impl OrderParams {
         oracle_price: i64,
     ) -> DriftResult {
         if self.post_only != PostOnlyParam::None {
-            return Ok(());
-        }
-
-        if self.immediate_or_cancel {
             return Ok(());
         }
 
@@ -616,7 +618,7 @@ pub struct ModifyOrderParams {
     pub price: Option<u64>,
     pub reduce_only: Option<bool>,
     pub post_only: Option<PostOnlyParam>,
-    pub immediate_or_cancel: Option<bool>,
+    pub bit_flags: Option<u8>,
     pub max_ts: Option<i64>,
     pub trigger_price: Option<u64>,
     pub trigger_condition: Option<OrderTriggerCondition>,
