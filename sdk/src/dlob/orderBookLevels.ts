@@ -15,11 +15,11 @@ import {
 	PositionDirection,
 	QUOTE_PRECISION,
 	standardizePrice,
-	standardizeBaseAssetAmount,
 	SwapDirection,
 	ZERO,
 	PRICE_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
+	standardizeBaseAssetAmount,
 } from '..';
 import { PublicKey } from '@solana/web3.js';
 import { assert } from '../assert/assert';
@@ -277,10 +277,7 @@ export function getVammL2Generator({
 				topOfBookBidSize = topOfBookBidSize.add(baseSwapped);
 				bidSize = openBids.sub(topOfBookBidSize).div(new BN(numBaseOrders));
 			} else {
-				baseSwapped = standardizeBaseAssetAmount(
-					bidSize,
-					marketAccount.amm.orderStepSize
-				);
+				baseSwapped = bidSize;
 				[afterSwapQuoteReserves, afterSwapBaseReserves] =
 					calculateAmmReservesAfterSwap(
 						bidAmm,
@@ -296,10 +293,11 @@ export function getVammL2Generator({
 				);
 			}
 
-			const price = quoteSwapped.mul(BASE_PRECISION).div(baseSwapped);
-			// 	orderTickSize,
-			// 	PositionDirection.LONG
-			// );
+			const price = standardizePrice(
+				quoteSwapped.mul(BASE_PRECISION).div(baseSwapped),
+				marketAccount.amm.orderTickSize,
+				PositionDirection.LONG
+			);
 
 			bidAmm.baseAssetReserve = afterSwapBaseReserves;
 			bidAmm.quoteAssetReserve = afterSwapQuoteReserves;
@@ -384,10 +382,7 @@ export function getVammL2Generator({
 					.sub(topOfBookAskSize)
 					.div(new BN(numBaseOrders));
 			} else {
-				baseSwapped = standardizeBaseAssetAmount(
-					askSize,
-					marketAccount.amm.orderStepSize
-				);
+				baseSwapped = askSize;
 				[afterSwapQuoteReserves, afterSwapBaseReserves] =
 					calculateAmmReservesAfterSwap(
 						askAmm,
@@ -403,7 +398,11 @@ export function getVammL2Generator({
 				);
 			}
 
-			const price = quoteSwapped.mul(BASE_PRECISION).div(baseSwapped);
+			const price = standardizePrice(
+				quoteSwapped.mul(BASE_PRECISION).div(baseSwapped),
+				marketAccount.amm.orderTickSize,
+				PositionDirection.SHORT
+			);
 
 			askAmm.baseAssetReserve = afterSwapBaseReserves;
 			askAmm.quoteAssetReserve = afterSwapQuoteReserves;
