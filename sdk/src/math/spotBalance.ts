@@ -436,7 +436,7 @@ export function calculateInterestRate(
 		}
 	}
 
-	return rate.lt(minRate) ? minRate : rate;
+	return BN.max(minRate, rate);
 }
 
 export function calculateDepositRate(
