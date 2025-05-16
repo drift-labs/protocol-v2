@@ -1023,7 +1023,7 @@ dependencies = [
  "pyth",
  "pyth-client",
  "pyth-solana-receiver-sdk",
- "pythnet-sdk",
+ "pythnet-sdk 2.1.0 (git+https://github.com/drift-labs/pyth-crosschain?rev=d790d1cb4da873a949cf33ff70349b7614b232eb)",
  "serum_dex",
  "solana-program",
  "solana-security-txt",
@@ -1753,7 +1753,7 @@ source = "git+https://github.com/drift-labs/pyth-crosschain?rev=3e8a24ecd0bcf22b
 dependencies = [
  "anchor-lang 0.29.0",
  "hex",
- "pythnet-sdk",
+ "pythnet-sdk 2.1.0 (git+https://github.com/drift-labs/pyth-crosschain?rev=3e8a24ecd0bcf22b787313e2020f4186bb22c729)",
  "solana-program",
 ]
 
@@ -1775,6 +1775,24 @@ dependencies = [
  "sha3 0.10.8",
  "slow_primes",
  "solana-program",
+ "thiserror",
+]
+
+[[package]]
+name = "pythnet-sdk"
+version = "2.1.0"
+source = "git+https://github.com/drift-labs/pyth-crosschain?rev=d790d1cb4da873a949cf33ff70349b7614b232eb#d790d1cb4da873a949cf33ff70349b7614b232eb"
+dependencies = [
+ "bincode",
+ "borsh 0.10.3",
+ "bytemuck",
+ "byteorder",
+ "fast-math",
+ "hex",
+ "rustc_version",
+ "serde",
+ "sha3 0.10.8",
+ "slow_primes",
  "thiserror",
 ]
 
