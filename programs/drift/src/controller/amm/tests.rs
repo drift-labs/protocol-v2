@@ -513,8 +513,8 @@ fn update_pool_balances_test() {
         market.pnl_pool.balance_type(),
     )
     .unwrap();
-    assert_eq!(pnl_pool_token_amount, 1_650_000_000 + 3);
-    assert_eq!(amm_fee_pool_token_amount, 16_666_666);
+    assert_eq!(pnl_pool_token_amount, 3_300_000_000 + 3);
+    assert_eq!(amm_fee_pool_token_amount, 33333333);
 
     // negative fee pool
     market.amm.total_fee_minus_distributions = -8_008_123_456;
@@ -539,7 +539,7 @@ fn update_pool_balances_test() {
         market.pnl_pool.balance_type(),
     )
     .unwrap();
-    assert_eq!(pnl_pool_token_amount, 665678880);
+    assert_eq!(pnl_pool_token_amount, 2332345547);
     assert_eq!(amm_fee_pool_token_amount, 0);
 }
 
