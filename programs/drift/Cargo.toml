@@ -44,7 +44,7 @@ drift-macros = { git = "https://github.com/drift-labs/drift-macros.git", rev = "
 switchboard = { path = "../switchboard", features = ["no-entrypoint"] }
 switchboard-on-demand = { path = "../switchboard-on-demand", features = ["no-entrypoint"] }
 pythnet-sdk = "2.2.0"
-pyth-solana-receiver-sdk = "0.6.1"
+pyth-solana-receiver-sdk = { git = "https://github.com/ranger-finance/pyth-crosschain.git", rev = "90743b0d" }
 
 [dev-dependencies]
 bytes = "1.2.0"
