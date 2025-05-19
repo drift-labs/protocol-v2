@@ -31,7 +31,7 @@ use crate::validate;
 
 #[account(zero_copy(unsafe))]
 #[derive(PartialEq, Eq, Debug)]
-#[repr(C)]
+#[repr(C, align(8))]
 pub struct SpotMarket {
     /// The address of the spot market. It is a pda of the market index
     pub pubkey: Pubkey,
@@ -206,7 +206,7 @@ pub struct SpotMarket {
     pub fuel_boost_insurance: u8,
     pub token_program: u8,
     pub pool_id: u8,
-    pub padding: [u8; 8],
+    pub padding: [u8; 40],
 }
 
 impl Default for SpotMarket {
@@ -275,7 +275,7 @@ impl Default for SpotMarket {
             fuel_boost_insurance: 0,
             token_program: 0,
             pool_id: 0,
-            padding: [0; 8],
+            padding: [0; 40],
         }
     }
 }
