@@ -17,6 +17,9 @@ anchor-test = []
 default = ["mainnet-beta"]
 drift-rs = []
 
+[patch.crates-io]
+bytemuck = "1.14.0"
+
 [dependencies]
 anchor-lang = "0.28.0"
 anchor-attribute-program = "0.28.0"
