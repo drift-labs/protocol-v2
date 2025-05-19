@@ -207,7 +207,7 @@ pub struct SpotMarket {
     pub token_program: u8,
     pub pool_id: u8,
     pub padding: [u8; 16],
-    pub padding2: u32,
+    pub padding2: u8,
 }
 
 impl Default for SpotMarket {
