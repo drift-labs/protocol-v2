@@ -258,6 +258,7 @@ export class JupiterClient {
 		autoSlippage = false,
 		maxAutoSlippageBps,
 		usdEstimate,
+		platformFeeBps,
 	}: {
 		inputMint: PublicKey;
 		outputMint: PublicKey;
@@ -270,6 +271,7 @@ export class JupiterClient {
 		autoSlippage?: boolean;
 		maxAutoSlippageBps?: number;
 		usdEstimate?: number;
+		platformFeeBps?: number;
 	}): Promise<QuoteResponse> {
 		const params = new URLSearchParams({
 			inputMint: inputMint.toString(),
@@ -285,6 +287,7 @@ export class JupiterClient {
 				? usdEstimate.toString()
 				: '0',
 			...(excludeDexes && { excludeDexes: excludeDexes.join(',') }),
+			...(platformFeeBps && { platformFeeBps: platformFeeBps.toString() }),
 		});
 		if (swapMode === 'ExactOut') {
 			params.delete('maxAccounts');
@@ -304,15 +307,20 @@ export class JupiterClient {
 	 * @param quoteResponse quote to perform swap
 	 * @param userPublicKey the signer's wallet public key
 	 * @param slippageBps the slippage tolerance in basis points
+	 * @param feeAccount the fee account to use for the swap
 	 */
 	public async getSwap({
 		quote,
 		userPublicKey,
 		slippageBps = 50,
+		wrapAndUnwrapSOL = undefined,
+		feeAccount,
 	}: {
 		quote: QuoteResponse;
 		userPublicKey: PublicKey;
 		slippageBps?: number;
+		wrapAndUnwrapSOL?: boolean;
+		feeAccount?: string;
 	}): Promise<VersionedTransaction> {
 		if (!quote) {
 			throw new Error('Jupiter swap quote not provided. Please try again.');
@@ -332,6 +340,8 @@ export class JupiterClient {
 					quoteResponse: quote,
 					userPublicKey,
 					slippageBps,
+					wrapAndUnwrapSOL,
+					feeAccount,
 				}),
 			})
 		).json();
