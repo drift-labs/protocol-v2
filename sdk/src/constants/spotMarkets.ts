@@ -616,13 +616,13 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		symbol: 'JLP-1',
 		marketIndex: 33,
 		poolId: 1,
-		oracle: new PublicKey('5Mb11e5rt1Sp6A286B145E4TmgMzsM2UX9nCF2vas5bs'),
+		oracle: new PublicKey('3ZLn5XDgSLWhTk2NjqAU44cPkSeC5JAhW5o6w5Nz4p8R'),
 		oracleSource: OracleSource.PYTH_PULL,
 		mint: new PublicKey('27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4'),
 		precision: new BN(10).pow(SIX),
 		precisionExp: SIX,
 		pythFeedId:
-			'0xc811abc82b4bad1f9bd711a2773ccaa935b03ecef974236942cec5e0eb845a3a',
+			'0x6704952e00b6a088b6dcdb8170dcd591eaf64cff9e996ca75ae0ca55bfb96687',
 		launchTs: 1735255852000,
 	},
 	{
@@ -761,6 +761,32 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		mint: new PublicKey('jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL'),
 		precision: new BN(10).pow(NINE),
 		precisionExp: NINE,
+	},
+	{
+		symbol: 'zBTC',
+		marketIndex: 45,
+		poolId: 0,
+		oracle: new PublicKey('CN9QvvbGQzMnN8vJaSek2so4vFnTqgJDFrdJB8Y4tQfB'),
+		oracleSource: OracleSource.PYTH_PULL,
+		mint: new PublicKey('zBTCug3er3tLyffELcvDNrKkCymbPWysGcWihESYfLg'),
+		precision: new BN(10).pow(EIGHT),
+		precisionExp: EIGHT,
+		pythFeedId:
+			'0x3d824c7f7c26ed1c85421ecec8c754e6b52d66a4e45de20a9c9ea91de8b396f9',
+		launchTs: 1747155600000,
+	},
+	{
+		symbol: 'ZEUS',
+		marketIndex: 46,
+		poolId: 0,
+		oracle: new PublicKey('ABetWkmf1dpQX8gbtrt947ma2j7KzTPjVAdFWHkuEzi3'),
+		oracleSource: OracleSource.PYTH_PULL,
+		mint: new PublicKey('ZEUS1aR7aX8DFFJf5QjWj2ftDDdNTroMNGo8YoQm3Gq'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		pythFeedId:
+			'0x31558e9ccb18c151af6c52bf78afd03098a7aca1b9cf171a65b693b464c2f066',
+		launchTs: 1747155600000,
 	},
 ];
 
