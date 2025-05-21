@@ -313,13 +313,11 @@ export class JupiterClient {
 		quote,
 		userPublicKey,
 		slippageBps = 50,
-		wrapAndUnwrapSOL = undefined,
 		feeAccount,
 	}: {
 		quote: QuoteResponse;
 		userPublicKey: PublicKey;
 		slippageBps?: number;
-		wrapAndUnwrapSOL?: boolean;
 		feeAccount?: string;
 	}): Promise<VersionedTransaction> {
 		if (!quote) {
@@ -340,7 +338,6 @@ export class JupiterClient {
 					quoteResponse: quote,
 					userPublicKey,
 					slippageBps,
-					wrapAndUnwrapSOL,
 					feeAccount,
 				}),
 			})
