@@ -1,4 +1,5 @@
 import {
+	AddressLookupTableAccount,
 	Keypair,
 	LAMPORTS_PER_SOL,
 	PublicKey,
@@ -70,6 +71,11 @@ import { PROGRAM_ID as PHOENIX_PROGRAM_ID } from '@ellipsis-labs/phoenix-sdk';
 import { DRIFT_ORACLE_RECEIVER_ID } from './config';
 import { getFeedIdUint8Array } from './util/pythOracleUtils';
 import { FUEL_RESET_LOG_ACCOUNT } from './constants/txConstants';
+import {
+	JupiterClient,
+	QuoteResponse,
+	SwapMode,
+} from './jupiter/jupiterClient';
 
 const OPENBOOK_PROGRAM_ID = new PublicKey(
 	'opnb2LAfJYbRMAHHvqjCwQxanZn7ReEHp1k81EohpZb'
@@ -4732,5 +4738,261 @@ export class AdminClient extends DriftClient {
 				}
 			),
 		];
+	}
+
+	/**
+	 * Get the drift begin_swap and end_swap instructions
+	 *
+	 * @param outMarketIndex the market index of the token you're buying
+	 * @param inMarketIndex the market index of the token you're selling
+	 * @param amountIn the amount of the token to sell
+	 * @param inTokenAccount the token account to move the tokens being sold
+	 * @param outTokenAccount the token account to receive the tokens being bought
+	 * @param limitPrice the limit price of the swap
+	 * @param reduceOnly
+	 * @param userAccountPublicKey optional, specify a custom userAccountPublicKey to use instead of getting the current user account; can be helpful if the account is being created within the current tx
+	 */
+	public async getSwapIx({
+		lpPoolName,
+		outMarketIndex,
+		inMarketIndex,
+		amountIn,
+		inTokenAccount,
+		outTokenAccount,
+	}: {
+		lpPoolName: number[];
+		outMarketIndex: number;
+		inMarketIndex: number;
+		amountIn: BN;
+		inTokenAccount: PublicKey;
+		outTokenAccount: PublicKey;
+	}): Promise<{
+		beginSwapIx: TransactionInstruction;
+		endSwapIx: TransactionInstruction;
+	}> {
+		const outSpotMarket = this.getSpotMarketAccount(outMarketIndex);
+		const inSpotMarket = this.getSpotMarketAccount(inMarketIndex);
+
+		const outTokenProgram = this.getTokenProgramForSpotMarket(outSpotMarket);
+		const inTokenProgram = this.getTokenProgramForSpotMarket(inSpotMarket);
+
+		const remainingAccounts = [];
+		if (!outTokenProgram.equals(inTokenProgram)) {
+			remainingAccounts.push({
+				pubkey: outTokenProgram,
+				isWritable: false,
+				isSigner: false,
+			});
+		}
+
+		if (outSpotMarket.tokenProgram === 1 || inSpotMarket.tokenProgram === 1) {
+			remainingAccounts.push({
+				pubkey: inSpotMarket.mint,
+				isWritable: false,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: outSpotMarket.mint,
+				isWritable: false,
+				isSigner: false,
+			});
+		}
+
+		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
+		const outConstituent = getConstituentPublicKey(
+			this.program.programId,
+			lpPool,
+			outMarketIndex
+		);
+		const inConstituent = getConstituentPublicKey(
+			this.program.programId,
+			lpPool,
+			inMarketIndex
+		);
+
+		const inConstituentTokenAccount = await this.getAssociatedTokenAccount(
+			inMarketIndex
+		);
+		const outConstituentTokenAccount = await this.getAssociatedTokenAccount(
+			outMarketIndex
+		);
+
+		const beginSwapIx = await this.program.instruction.beginLpSwap(
+			lpPoolName,
+			inMarketIndex,
+			outMarketIndex,
+			amountIn,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					admin: this.wallet.publicKey,
+					signerOutTokenAccount: outTokenAccount,
+					signerInTokenAccount: inTokenAccount,
+					constituentOutTokenAccount: outConstituentTokenAccount,
+					constituentInTokenAccount: inConstituentTokenAccount,
+					outConstituent,
+					inConstituent,
+					lpPool,
+					tokenProgram: inTokenProgram,
+					instructions: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+				},
+				remainingAccounts,
+			}
+		);
+
+		const endSwapIx = await this.program.instruction.endLpSwap(
+			lpPoolName,
+			inMarketIndex,
+			outMarketIndex,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					admin: this.wallet.publicKey,
+					signerOutTokenAccount: outTokenAccount,
+					signerInTokenAccount: inTokenAccount,
+					constituentOutTokenAccount: outConstituentTokenAccount,
+					constituentInTokenAccount: inConstituentTokenAccount,
+					outConstituent,
+					inConstituent,
+					lpPool,
+					tokenProgram: outTokenProgram,
+					instructions: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+				},
+				remainingAccounts,
+			}
+		);
+
+		return { beginSwapIx, endSwapIx };
+	}
+
+	public async getLpJupiterSwapIxV6({
+		jupiterClient,
+		outMarketIndex,
+		inMarketIndex,
+		amount,
+		slippageBps,
+		swapMode,
+		onlyDirectRoutes,
+		quote,
+		lpPoolName,
+	}: {
+		jupiterClient: JupiterClient;
+		outMarketIndex: number;
+		inMarketIndex: number;
+		outAssociatedTokenAccount?: PublicKey;
+		inAssociatedTokenAccount?: PublicKey;
+		amount: BN;
+		slippageBps?: number;
+		swapMode?: SwapMode;
+		onlyDirectRoutes?: boolean;
+		quote?: QuoteResponse;
+		lpPoolName: number[];
+	}): Promise<{
+		ixs: TransactionInstruction[];
+		lookupTables: AddressLookupTableAccount[];
+	}> {
+		const outMarket = this.getSpotMarketAccount(outMarketIndex);
+		const inMarket = this.getSpotMarketAccount(inMarketIndex);
+
+		if (!quote) {
+			const fetchedQuote = await jupiterClient.getQuote({
+				inputMint: inMarket.mint,
+				outputMint: outMarket.mint,
+				amount,
+				slippageBps,
+				swapMode,
+				onlyDirectRoutes,
+			});
+
+			quote = fetchedQuote;
+		}
+
+		if (!quote) {
+			throw new Error("Could not fetch Jupiter's quote. Please try again.");
+		}
+
+		const isExactOut = swapMode === 'ExactOut' || quote.swapMode === 'ExactOut';
+		const amountIn = new BN(quote.inAmount);
+		const exactOutBufferedAmountIn = amountIn.muln(1001).divn(1000); // Add 10bp buffer
+
+		const transaction = await jupiterClient.getSwap({
+			quote,
+			userPublicKey: this.provider.wallet.publicKey,
+			slippageBps,
+		});
+
+		const { transactionMessage, lookupTables } =
+			await jupiterClient.getTransactionMessageAndLookupTables({
+				transaction,
+			});
+
+		const jupiterInstructions = jupiterClient.getJupiterInstructions({
+			transactionMessage,
+			inputMint: inMarket.mint,
+			outputMint: outMarket.mint,
+		});
+
+		const preInstructions = [];
+		const tokenProgram = this.getTokenProgramForSpotMarket(outMarket);
+		const outAssociatedTokenAccount = await this.getAssociatedTokenAccount(
+			outMarket.marketIndex,
+			false,
+			tokenProgram
+		);
+
+		const outAccountInfo = await this.connection.getAccountInfo(
+			outAssociatedTokenAccount
+		);
+		if (!outAccountInfo) {
+			preInstructions.push(
+				this.createAssociatedTokenAccountIdempotentInstruction(
+					outAssociatedTokenAccount,
+					this.provider.wallet.publicKey,
+					this.provider.wallet.publicKey,
+					outMarket.mint,
+					tokenProgram
+				)
+			);
+		}
+
+		const inTokenProgram = this.getTokenProgramForSpotMarket(inMarket);
+		const inAssociatedTokenAccount = await this.getAssociatedTokenAccount(
+			inMarket.marketIndex,
+			false,
+			inTokenProgram
+		);
+
+		const inAccountInfo = await this.connection.getAccountInfo(
+			inAssociatedTokenAccount
+		);
+		if (!inAccountInfo) {
+			preInstructions.push(
+				this.createAssociatedTokenAccountIdempotentInstruction(
+					inAssociatedTokenAccount,
+					this.provider.wallet.publicKey,
+					this.provider.wallet.publicKey,
+					inMarket.mint,
+					tokenProgram
+				)
+			);
+		}
+
+		const { beginSwapIx, endSwapIx } = await this.getSwapIx({
+			lpPoolName,
+			outMarketIndex,
+			inMarketIndex,
+			amountIn: isExactOut ? exactOutBufferedAmountIn : amountIn,
+			inTokenAccount: inAssociatedTokenAccount,
+			outTokenAccount: outAssociatedTokenAccount,
+		});
+
+		const ixs = [
+			...preInstructions,
+			beginSwapIx,
+			...jupiterInstructions,
+			endSwapIx,
+		];
+
+		return { ixs, lookupTables };
 	}
 }

@@ -1864,6 +1864,7 @@ pub mod drift {
 
     pub fn end_lp_swap<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, LPTakerSwap<'info>>,
+        lp_pool_name: [u8; 32],
         in_market_index: u16,
         out_market_index: u16,
     ) -> Result<()> {
