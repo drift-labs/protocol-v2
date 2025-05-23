@@ -1851,6 +1851,24 @@ pub mod drift {
     ) -> Result<()> {
         handle_lp_pool_remove_liquidity(ctx, in_market_index, in_amount, min_out_amount)
     }
+
+    pub fn being_lp_swap<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, LPTakerSwap<'info>>,
+        lp_pool_name: [u8; 32],
+        in_market_index: u16,
+        out_market_index: u16,
+        amount_in: u64,
+    ) -> Result<()> {
+        handle_begin_lp_swap(ctx, amount_in)
+    }
+
+    pub fn end_lp_swap<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, LPTakerSwap<'info>>,
+        in_market_index: u16,
+        out_market_index: u16,
+    ) -> Result<()> {
+        handle_end_lp_swap(ctx)
+    }
 }
 
 #[cfg(not(feature = "no-entrypoint"))]

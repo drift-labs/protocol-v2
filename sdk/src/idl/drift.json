@@ -7975,6 +7975,183 @@
           "type": "u64"
         }
       ]
+    },
+    {
+      "name": "beingLpSwap",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "signerOutTokenAccount",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Signer token accounts"
+          ]
+        },
+        {
+          "name": "signerInTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "constituentOutTokenAccount",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Constituent token accounts"
+          ]
+        },
+        {
+          "name": "constituentInTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "outConstituent",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Constituents"
+          ]
+        },
+        {
+          "name": "inConstituent",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "lpPool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "instructions",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Instructions Sysvar for instruction introspection"
+          ]
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "lpPoolName",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "inMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "outMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "amountIn",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "endLpSwap",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "signerOutTokenAccount",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Signer token accounts"
+          ]
+        },
+        {
+          "name": "signerInTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "constituentOutTokenAccount",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Constituent token accounts"
+          ]
+        },
+        {
+          "name": "constituentInTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "outConstituent",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Constituents"
+          ]
+        },
+        {
+          "name": "inConstituent",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "lpPool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "instructions",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Instructions Sysvar for instruction introspection"
+          ]
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "inMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "outMarketIndex",
+          "type": "u16"
+        }
+      ]
     }
   ],
   "accounts": [

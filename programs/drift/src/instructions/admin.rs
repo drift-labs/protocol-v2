@@ -1,3 +1,5 @@
+use anchor_lang::Discriminator;
+use anchor_spl::associated_token::AssociatedToken;
 use std::convert::identity;
 use std::mem::size_of;
 
@@ -7,6 +9,7 @@ use crate::state::lp_pool::{
     TargetsDatum, AMM_MAP_PDA_SEED, CONSTITUENT_PDA_SEED, CONSTITUENT_TARGET_BASE_PDA_SEED,
     CONSTITUENT_VAULT_PDA_SEED,
 };
+use crate::state::zero_copy::{AccountZeroCopy, ZeroCopyLoader};
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
 use anchor_spl::token_2022::Token2022;
@@ -15,10 +18,14 @@ use phoenix::quantities::WrapperU64;
 use pyth_solana_receiver_sdk::cpi::accounts::InitPriceUpdate;
 use pyth_solana_receiver_sdk::program::PythSolanaReceiver;
 use serum_dex::state::ToAlignedBytes;
+use solana_program::sysvar::instructions;
 
-use crate::controller::token::close_vault;
+use crate::controller::token::{close_vault, receive};
 use crate::error::ErrorCode;
-use crate::ids::admin_hot_wallet;
+use crate::ids::{
+    admin_hot_wallet, jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, lighthouse,
+    marinade_mainnet, serum_program,
+};
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
@@ -4969,6 +4976,185 @@ pub fn handle_add_amm_constituent_data<'info>(
     Ok(())
 }
 
+pub fn handle_begin_lp_swap<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, LPTakerSwap<'info>>,
+    amount_in: u64,
+) -> Result<()> {
+    let ixs = ctx.accounts.instructions.as_ref();
+    let current_index = instructions::load_current_index_checked(ixs)? as usize;
+
+    let current_ix = instructions::load_instruction_at_checked(current_index, ixs)?;
+    validate!(
+        current_ix.program_id == *ctx.program_id,
+        ErrorCode::InvalidSwap,
+        "SwapBegin must be a top-level instruction (cant be cpi)"
+    )?;
+
+    // Make sure we have enough balance to do the swap
+    let constituent_in_token_account = &ctx.accounts.constituent_in_token_account;
+    validate!(
+        amount_in >= constituent_in_token_account.amount,
+        ErrorCode::InvalidSwap,
+        "trying to swap more than the balance of the constituent in token account"
+    )?;
+
+    let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
+    let mint = get_token_mint(remaining_accounts)?;
+
+    receive(
+        &ctx.accounts.token_program,
+        constituent_in_token_account,
+        &ctx.accounts.signer_in_token_account,
+        &ctx.accounts.admin.to_account_info(),
+        amount_in,
+        &mint,
+    )?;
+
+    // Update balance on the constituent account
+    let mut in_constituent = ctx.accounts.in_constituent.load_mut()?;
+    in_constituent.token_balance = in_constituent
+        .token_balance
+        .checked_sub(amount_in)
+        .ok_or(ErrorCode::InvalidSwap)?;
+
+    // The only other drift program allowed is SwapEnd
+    let mut index = current_index + 1;
+    let mut found_end = false;
+    loop {
+        let ix = match instructions::load_instruction_at_checked(index, ixs) {
+            Ok(ix) => ix,
+            Err(ProgramError::InvalidArgument) => break,
+            Err(e) => return Err(e.into()),
+        };
+
+        // Check that the drift program key is not used
+        if ix.program_id == crate::id() {
+            // must be the last ix -- this could possibly be relaxed
+            validate!(
+                !found_end,
+                ErrorCode::InvalidSwap,
+                "the transaction must not contain a Drift instruction after FlashLoanEnd"
+            )?;
+            found_end = true;
+
+            // must be the SwapEnd instruction
+            let discriminator = crate::instruction::EndLpSwap::discriminator();
+            validate!(
+                ix.data[0..8] == discriminator,
+                ErrorCode::InvalidSwap,
+                "last drift ix must be end of swap"
+            )?;
+
+            validate!(
+                ctx.accounts.signer_out_token_account.key() == ix.accounts[2].pubkey,
+                ErrorCode::InvalidSwap,
+                "the out_token_account passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.signer_in_token_account.key() == ix.accounts[3].pubkey,
+                ErrorCode::InvalidSwap,
+                "the in_token_account passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.constituent_out_token_account.key() == ix.accounts[4].pubkey,
+                ErrorCode::InvalidSwap,
+                "the in_token_account passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.constituent_in_token_account.key() == ix.accounts[5].pubkey,
+                ErrorCode::InvalidSwap,
+                "the out_token_account passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.remaining_accounts.len() == ix.accounts.len() - 11,
+                ErrorCode::InvalidSwap,
+                "begin and end ix must have the same number of accounts"
+            )?;
+        } else {
+            if found_end {
+                if ix.program_id == lighthouse::ID {
+                    continue;
+                }
+
+                for meta in ix.accounts.iter() {
+                    validate!(
+                        meta.is_writable == false,
+                        ErrorCode::InvalidSwap,
+                        "instructions after swap end must not have writable accounts"
+                    )?;
+                }
+            } else {
+                let mut whitelisted_programs = vec![
+                    serum_program::id(),
+                    AssociatedToken::id(),
+                    jupiter_mainnet_3::ID,
+                    jupiter_mainnet_4::ID,
+                    jupiter_mainnet_6::ID,
+                ];
+                whitelisted_programs.push(Token::id());
+                whitelisted_programs.push(Token2022::id());
+                whitelisted_programs.push(marinade_mainnet::ID);
+
+                validate!(
+                    whitelisted_programs.contains(&ix.program_id),
+                    ErrorCode::InvalidSwap,
+                    "only allowed to pass in ixs to token, openbook, and Jupiter v3/v4/v6 programs"
+                )?;
+
+                for meta in ix.accounts.iter() {
+                    validate!(
+                        meta.pubkey != crate::id(),
+                        ErrorCode::InvalidSwap,
+                        "instructions between begin and end must not be drift instructions"
+                    )?;
+                }
+            }
+        }
+
+        index += 1;
+    }
+
+    validate!(
+        found_end,
+        ErrorCode::InvalidSwap,
+        "found no SwapEnd instruction in transaction"
+    )?;
+
+    Ok(())
+}
+
+pub fn handle_end_lp_swap<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, LPTakerSwap<'info>>,
+) -> Result<()> {
+    let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
+    let mint = get_token_mint(remaining_accounts)?;
+    let signer_out_token_account = &ctx.accounts.signer_out_token_account;
+
+    let amount_out = signer_out_token_account.amount;
+
+    receive(
+        &ctx.accounts.token_program,
+        &ctx.accounts.signer_out_token_account,
+        &ctx.accounts.constituent_out_token_account,
+        &ctx.accounts.admin.to_account_info(),
+        amount_out,
+        &mint,
+    )?;
+
+    // Update the balance on the token accounts for after swap
+    let mut out_constituent = ctx.accounts.out_constituent.load_mut()?;
+    out_constituent.token_balance = out_constituent
+        .token_balance
+        .checked_add(amount_out)
+        .ok_or(ErrorCode::InvalidSwap)?;
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(mut)]
@@ -6038,4 +6224,74 @@ pub struct RemoveAmmConstituentMappingData<'info> {
     pub amm_constituent_mapping: Box<Account<'info, AmmConstituentMapping>>,
     pub system_program: Program<'info, System>,
     pub state: Box<Account<'info, State>>,
+}
+
+#[derive(Accounts)]
+#[instruction(
+    lp_pool_name: [u8; 32],
+    in_market_index: u16,
+    out_market_index: u16,
+)]
+pub struct LPTakerSwap<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+
+    /// Signer token accounts
+    #[account(
+        mut,
+        constraint = &constituent_out_token_account.mint.eq(&signer_out_token_account.mint),
+        token::authority = admin
+    )]
+    pub signer_out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = &constituent_in_token_account.mint.eq(&signer_in_token_account.mint),
+        token::authority = admin
+    )]
+    pub signer_in_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    /// Constituent token accounts
+    #[account(
+        mut,
+        constraint = &out_constituent.load()?.mint.eq(&constituent_out_token_account.mint),
+        token::authority = out_constituent.key()
+    )]
+    pub constituent_out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = &in_constituent.load()?.mint.eq(&constituent_in_token_account.mint),
+        token::authority = in_constituent.key()
+    )]
+    pub constituent_in_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    /// Constituents
+    #[account(
+        mut,
+        seeds = [CONSTITUENT_PDA_SEED.as_ref(), lp_pool.key().as_ref(), out_market_index.to_le_bytes().as_ref()],
+        bump = out_constituent.load()?.bump,
+    )]
+    pub out_constituent: AccountLoader<'info, Constituent>,
+    #[account(
+        mut,
+        seeds = [CONSTITUENT_PDA_SEED.as_ref(), lp_pool.key().as_ref(), in_market_index.to_le_bytes().as_ref()],
+        bump = in_constituent.load()?.bump,
+    )]
+    pub in_constituent: AccountLoader<'info, Constituent>,
+
+    #[account(
+        mut,
+        seeds = [b"lp_pool", lp_pool_name.as_ref()],
+        bump= lp_pool.load()?.bump,
+    )]
+    pub lp_pool: AccountLoader<'info, LPPool>,
+
+    /// Instructions Sysvar for instruction introspection
+    /// CHECK: fixed instructions sysvar account
+    #[account(address = instructions::ID)]
+    pub instructions: UncheckedAccount<'info>,
+    pub token_program: Interface<'info, TokenInterface>,
 }
