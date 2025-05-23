@@ -19,6 +19,7 @@ import {
 	SpotFulfillmentConfigStatus,
 	AddAmmConstituentMappingDatum,
 	TxParams,
+	SwapReduceOnly,
 } from './types';
 import { DEFAULT_MARKET_NAME, encodeName } from './userName';
 import { BN } from '@coral-xyz/anchor';
@@ -49,6 +50,7 @@ import {
 	getConstituentVaultPublicKey,
 	getAmmCachePublicKey,
 	getLpPoolTokenVaultPublicKey,
+	getDriftSignerPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import {
@@ -4752,24 +4754,45 @@ export class AdminClient extends DriftClient {
 	 * @param reduceOnly
 	 * @param userAccountPublicKey optional, specify a custom userAccountPublicKey to use instead of getting the current user account; can be helpful if the account is being created within the current tx
 	 */
-	public async getSwapIx({
-		lpPoolName,
-		outMarketIndex,
-		inMarketIndex,
-		amountIn,
-		inTokenAccount,
-		outTokenAccount,
-	}: {
-		lpPoolName: number[];
-		outMarketIndex: number;
-		inMarketIndex: number;
-		amountIn: BN;
-		inTokenAccount: PublicKey;
-		outTokenAccount: PublicKey;
-	}): Promise<{
+	public async getSwapIx(
+		{
+			lpPoolName,
+			outMarketIndex,
+			inMarketIndex,
+			amountIn,
+			inTokenAccount,
+			outTokenAccount,
+			limitPrice,
+			reduceOnly,
+			userAccountPublicKey,
+		}: {
+			lpPoolName: number[];
+			outMarketIndex: number;
+			inMarketIndex: number;
+			amountIn: BN;
+			inTokenAccount: PublicKey;
+			outTokenAccount: PublicKey;
+			limitPrice?: BN;
+			reduceOnly?: SwapReduceOnly;
+			userAccountPublicKey?: PublicKey;
+		},
+		lpSwap?: boolean
+	): Promise<{
 		beginSwapIx: TransactionInstruction;
 		endSwapIx: TransactionInstruction;
 	}> {
+		if (!lpSwap) {
+			return super.getSwapIx({
+				outMarketIndex,
+				inMarketIndex,
+				amountIn,
+				inTokenAccount,
+				outTokenAccount,
+				limitPrice,
+				reduceOnly,
+				userAccountPublicKey,
+			});
+		}
 		const outSpotMarket = this.getSpotMarketAccount(outMarketIndex);
 		const inSpotMarket = this.getSpotMarketAccount(inMarketIndex);
 
@@ -4835,6 +4858,7 @@ export class AdminClient extends DriftClient {
 					lpPool,
 					tokenProgram: inTokenProgram,
 					instructions: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+					driftSigner: getDriftSignerPublicKey(this.program.programId),
 				},
 				remainingAccounts,
 			}
@@ -4857,6 +4881,7 @@ export class AdminClient extends DriftClient {
 					lpPool,
 					tokenProgram: outTokenProgram,
 					instructions: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+					driftSigner: getDriftSignerPublicKey(this.program.programId),
 				},
 				remainingAccounts,
 			}

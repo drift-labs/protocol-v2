@@ -1,7 +1,13 @@
 import * as anchor from '@coral-xyz/anchor';
 import { expect, assert } from 'chai';
 import { Program } from '@coral-xyz/anchor';
-import { Keypair, PublicKey } from '@solana/web3.js';
+import {
+	Account,
+	Keypair,
+	LAMPORTS_PER_SOL,
+	PublicKey,
+	Transaction,
+} from '@solana/web3.js';
 import {
 	BN,
 	TestClient,
@@ -22,6 +28,8 @@ import {
 	getConstituentPublicKey,
 	ConstituentAccount,
 	ZERO,
+	getSerumSignerPublicKey,
+	BN_MAX,
 } from '../sdk/src';
 import {
 	initializeQuoteSpotMarket,
@@ -33,11 +41,18 @@ import {
 	overwriteConstituentAccount,
 	mockAtaTokenAccountForMint,
 	overWriteMintAccount,
+	createWSolTokenAccountForUser,
+	createUSDCAccountForUser,
+	initializeSolSpotMarket,
+	createUserWithUSDCAndWSOLAccount,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import dotenv from 'dotenv';
+import { DexInstructions, Market, OpenOrders } from '@project-serum/serum';
+import { listMarket, SERUM, makePlaceOrderTransaction } from './serumHelper';
+import { NATIVE_MINT } from '@solana/spl-token';
 dotenv.config();
 
 describe('LP Pool', () => {
@@ -49,6 +64,19 @@ describe('LP Pool', () => {
 	let usdcMint: Keypair;
 	let spotTokenMint: Keypair;
 	let spotMarketOracle: PublicKey;
+
+	let serumMarketPublicKey: PublicKey;
+
+	let serumDriftClient: TestClient;
+	let serumWSOL: PublicKey;
+	let serumUSDC: PublicKey;
+	let serumKeypair: Keypair;
+	let serumOpenOrders: PublicKey;
+
+	let openOrdersAccount: PublicKey;
+
+	const usdcAmount = new BN(500 * 10 ** 6);
+	const solAmount = new BN(2 * 10 ** 9);
 
 	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(10 * 10 ** 13).mul(
@@ -65,8 +93,22 @@ describe('LP Pool', () => {
 		encodeName(lpPoolName)
 	);
 
+	let userUSDCAccount: Keypair;
+	let serumMarket: Market;
+
 	before(async () => {
-		const context = await startAnchor('', [], []);
+		const context = await startAnchor(
+			'',
+			[
+				{
+					name: 'serum_dex',
+					programId: new PublicKey(
+						'srmqPvymJeFKQ4zGQed1GFppgkRHL9kaELCbyksJtPX'
+					),
+				},
+			],
+			[]
+		);
 
 		// @ts-ignore
 		bankrunContextWrapper = new BankrunContextWrapper(context);
@@ -82,7 +124,7 @@ describe('LP Pool', () => {
 		spotMarketOracle = await mockOracleNoProgram(bankrunContextWrapper, 200.1);
 
 		const keypair = new Keypair();
-		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
+		await bankrunContextWrapper.fundKeypair(keypair, 50 * LAMPORTS_PER_SOL);
 
 		adminClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -94,7 +136,7 @@ describe('LP Pool', () => {
 			activeSubAccountId: 0,
 			subAccountIds: [],
 			perpMarketIndexes: [0, 1],
-			spotMarketIndexes: [0, 1],
+			spotMarketIndexes: [0, 1, 2],
 			oracleInfos: [
 				{
 					publicKey: spotMarketOracle,
@@ -110,7 +152,7 @@ describe('LP Pool', () => {
 		await adminClient.subscribe();
 		await initializeQuoteSpotMarket(adminClient, usdcMint.publicKey);
 
-		const userUSDCAccount = await mockUserUSDCAccount(
+		userUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
 			new BN(10).mul(QUOTE_PRECISION),
 			bankrunContextWrapper,
@@ -197,6 +239,38 @@ describe('LP Pool', () => {
 			1,
 			1
 		);
+
+		await initializeSolSpotMarket(adminClient, spotMarketOracle);
+		await adminClient.updateSpotMarketStepSizeAndTickSize(
+			2,
+			new BN(100000000),
+			new BN(100)
+		);
+		await adminClient.updateSpotAuctionDuration(0);
+
+		[serumDriftClient, serumWSOL, serumUSDC, serumKeypair] =
+			await createUserWithUSDCAndWSOLAccount(
+				bankrunContextWrapper,
+				usdcMint,
+				program,
+				solAmount,
+				usdcAmount,
+				[],
+				[0, 1],
+				[
+					{
+						publicKey: spotMarketOracle,
+						source: OracleSource.PYTH,
+					},
+				],
+				bulkAccountLoader
+			);
+
+		await bankrunContextWrapper.fundKeypair(
+			serumKeypair,
+			50 * LAMPORTS_PER_SOL
+		);
+		await serumDriftClient.deposit(usdcAmount, 0, serumUSDC);
 	});
 
 	after(async () => {
@@ -526,5 +600,181 @@ describe('LP Pool', () => {
 		const totalC0TokensLostPercent =
 			Number(totalC0TokensLost) / Number(tokensAdded);
 		expect(totalC0TokensLostPercent).to.be.approximately(-0.013, 0.001); // lost about 1.3 swapping in an out
+	});
+
+	it('Add Serum Market', async () => {
+		serumMarketPublicKey = await listMarket({
+			context: bankrunContextWrapper,
+			wallet: bankrunContextWrapper.provider.wallet,
+			baseMint: NATIVE_MINT,
+			quoteMint: usdcMint.publicKey,
+			baseLotSize: 100000000,
+			quoteLotSize: 100,
+			dexProgramId: SERUM,
+			feeRateBps: 0,
+		});
+
+		serumMarket = await Market.load(
+			bankrunContextWrapper.connection.toConnection(),
+			serumMarketPublicKey,
+			{ commitment: 'confirmed' },
+			SERUM
+		);
+
+		await adminClient.initializeSerumFulfillmentConfig(
+			2,
+			serumMarketPublicKey,
+			SERUM
+		);
+
+		serumMarket = await Market.load(
+			bankrunContextWrapper.connection.toConnection(),
+			serumMarketPublicKey,
+			{ commitment: 'recent' },
+			SERUM
+		);
+
+		const serumOpenOrdersAccount = new Account();
+		const createOpenOrdersIx = await OpenOrders.makeCreateAccountTransaction(
+			bankrunContextWrapper.connection.toConnection(),
+			serumMarket.address,
+			serumDriftClient.wallet.publicKey,
+			serumOpenOrdersAccount.publicKey,
+			serumMarket.programId
+		);
+		await serumDriftClient.sendTransaction(
+			new Transaction().add(createOpenOrdersIx),
+			[serumOpenOrdersAccount]
+		);
+		serumOpenOrders = serumOpenOrdersAccount.publicKey;
+
+		const adminOpenOrdersAccount = new Account();
+		const adminCreateOpenOrdersIx =
+			await OpenOrders.makeCreateAccountTransaction(
+				bankrunContextWrapper.connection.toConnection(),
+				serumMarket.address,
+				adminClient.wallet.publicKey,
+				adminOpenOrdersAccount.publicKey,
+				serumMarket.programId
+			);
+		await adminClient.sendTransaction(
+			new Transaction().add(adminCreateOpenOrdersIx),
+			[adminOpenOrdersAccount]
+		);
+
+		openOrdersAccount = adminOpenOrdersAccount.publicKey;
+	});
+
+	it('swap usdc for sol', async () => {
+		const serumMarket = await Market.load(
+			bankrunContextWrapper.connection.toConnection(),
+			serumMarketPublicKey,
+			{ commitment: 'recent' },
+			SERUM
+		);
+
+		const adminSolAccount = await createWSolTokenAccountForUser(
+			bankrunContextWrapper,
+			adminClient.wallet.payer,
+			ZERO
+		);
+
+		// place ask to sell 1 sol for 100 usdc
+		const { transaction, signers } = await makePlaceOrderTransaction(
+			bankrunContextWrapper.connection.toConnection(),
+			serumMarket,
+			{
+				owner: serumDriftClient.wallet,
+				payer: serumWSOL,
+				side: 'sell',
+				price: 200,
+				size: 1,
+				orderType: 'postOnly',
+				clientId: undefined, // todo?
+				openOrdersAddressKey: undefined,
+				openOrdersAccount: undefined,
+				feeDiscountPubkey: null,
+				selfTradeBehavior: 'abortTransaction',
+				maxTs: BN_MAX,
+			}
+		);
+
+		serumOpenOrders = signers[0].publicKey;
+		const signerKeypairs = signers.map((signer) => {
+			return Keypair.fromSecretKey(signer.secretKey);
+		});
+
+		await serumDriftClient.sendTransaction(transaction, signerKeypairs);
+
+		const amountIn = new BN(1).mul(new BN(LAMPORTS_PER_SOL));
+		// .mul(new BN(1999))
+		// .div(new BN(2000)); // .9995 SOL
+
+		const { beginSwapIx, endSwapIx } = await adminClient.getSwapIx(
+			{
+				lpPoolName: encodeName(lpPoolName),
+				amountIn: amountIn,
+				inMarketIndex: 0,
+				outMarketIndex: 2,
+				inTokenAccount: userUSDCAccount.publicKey,
+				outTokenAccount: adminSolAccount,
+			},
+			true
+		);
+
+		const serumBidIx = serumMarket.makePlaceOrderInstruction(
+			bankrunContextWrapper.connection.toConnection(),
+			{
+				owner: adminClient.wallet.publicKey,
+				payer: userUSDCAccount.publicKey,
+				side: 'buy',
+				price: 200,
+				size: 1, // larger than maker orders so that entire maker order is taken
+				orderType: 'ioc',
+				clientId: new BN(1), // todo?
+				openOrdersAddressKey: openOrdersAccount,
+				feeDiscountPubkey: null,
+				selfTradeBehavior: 'abortTransaction',
+			}
+		);
+
+		const serumConfig = await adminClient.getSerumV3FulfillmentConfig(
+			serumMarket.publicKey
+		);
+		const settleFundsIx = DexInstructions.settleFunds({
+			market: serumMarket.publicKey,
+			openOrders: openOrdersAccount,
+			owner: adminClient.wallet.publicKey,
+			// @ts-ignore
+			baseVault: serumConfig.serumBaseVault,
+			// @ts-ignore
+			quoteVault: serumConfig.serumQuoteVault,
+			baseWallet: adminSolAccount,
+			quoteWallet: userUSDCAccount.publicKey,
+			vaultSigner: getSerumSignerPublicKey(
+				serumMarket.programId,
+				serumMarket.publicKey,
+				serumConfig.serumSignerNonce
+			),
+			programId: serumMarket.programId,
+		});
+
+		const tx = new Transaction()
+			.add(beginSwapIx)
+			.add(serumBidIx)
+			.add(settleFundsIx)
+			.add(endSwapIx);
+
+		const txSig = await bankrunContextWrapper.sendTransaction(tx);
+
+		console.log('\n\n\n\n\n here \n\n\n\n\n');
+
+		bankrunContextWrapper.printTxLogs(txSig);
+
+		const takerSOLAmount = await adminClient.getTokenAmount(1);
+		assert(takerSOLAmount.eq(new BN(0)));
+		const takerUSDCAmount = await adminClient.getTokenAmount(0);
+		console.log(takerUSDCAmount.toString());
+		assert(takerUSDCAmount.eq(new BN(199919999)));
 	});
 });

@@ -1852,7 +1852,7 @@ pub mod drift {
         handle_lp_pool_remove_liquidity(ctx, in_market_index, in_amount, min_out_amount)
     }
 
-    pub fn being_lp_swap<'c: 'info, 'info>(
+    pub fn begin_lp_swap<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, LPTakerSwap<'info>>,
         lp_pool_name: [u8; 32],
         in_market_index: u16,

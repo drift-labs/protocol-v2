@@ -9,7 +9,6 @@ use crate::state::lp_pool::{
     TargetsDatum, AMM_MAP_PDA_SEED, CONSTITUENT_PDA_SEED, CONSTITUENT_TARGET_BASE_PDA_SEED,
     CONSTITUENT_VAULT_PDA_SEED,
 };
-use crate::state::zero_copy::{AccountZeroCopy, ZeroCopyLoader};
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
 use anchor_spl::token_2022::Token2022;
@@ -20,7 +19,7 @@ use pyth_solana_receiver_sdk::program::PythSolanaReceiver;
 use serum_dex::state::ToAlignedBytes;
 use solana_program::sysvar::instructions;
 
-use crate::controller::token::{close_vault, receive};
+use crate::controller::token::{close_vault, send_from_program_vault};
 use crate::error::ErrorCode;
 use crate::ids::{
     admin_hot_wallet, jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, lighthouse,
@@ -4776,6 +4775,7 @@ pub fn handle_initialize_constituent<'info>(
     constituent.bump = ctx.bumps.constituent;
     constituent.lp_pool = lp_pool.pubkey;
     constituent.constituent_index = (constituent_target_base.targets.len() - 1) as u16;
+    constituent.next_swap_id = 1;
     lp_pool.constituents += 1;
 
     Ok(())
@@ -4980,6 +4980,7 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, LPTakerSwap<'info>>,
     amount_in: u64,
 ) -> Result<()> {
+    let state = &ctx.accounts.state;
     let ixs = ctx.accounts.instructions.as_ref();
     let current_index = instructions::load_current_index_checked(ixs)? as usize;
 
@@ -5001,21 +5002,19 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
     let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
     let mint = get_token_mint(remaining_accounts)?;
 
-    receive(
+    send_from_program_vault(
         &ctx.accounts.token_program,
         constituent_in_token_account,
         &ctx.accounts.signer_in_token_account,
         &ctx.accounts.admin.to_account_info(),
+        state.signer_nonce,
         amount_in,
         &mint,
     )?;
 
     // Update balance on the constituent account
     let mut in_constituent = ctx.accounts.in_constituent.load_mut()?;
-    in_constituent.token_balance = in_constituent
-        .token_balance
-        .checked_sub(amount_in)
-        .ok_or(ErrorCode::InvalidSwap)?;
+    in_constituent.sync_token_balance(ctx.accounts.constituent_in_token_account.amount);
 
     // The only other drift program allowed is SwapEnd
     let mut index = current_index + 1;
@@ -5130,17 +5129,20 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
 pub fn handle_end_lp_swap<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, LPTakerSwap<'info>>,
 ) -> Result<()> {
+    let state = &ctx.accounts.state;
     let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
+    let _out_mint = get_token_mint(remaining_accounts)?;
     let mint = get_token_mint(remaining_accounts)?;
     let signer_out_token_account = &ctx.accounts.signer_out_token_account;
 
     let amount_out = signer_out_token_account.amount;
 
-    receive(
+    send_from_program_vault(
         &ctx.accounts.token_program,
         &ctx.accounts.signer_out_token_account,
         &ctx.accounts.constituent_out_token_account,
         &ctx.accounts.admin.to_account_info(),
+        state.signer_nonce,
         amount_out,
         &mint,
     )?;
@@ -6258,13 +6260,13 @@ pub struct LPTakerSwap<'info> {
     #[account(
         mut,
         constraint = &out_constituent.load()?.mint.eq(&constituent_out_token_account.mint),
-        token::authority = out_constituent.key()
+        token::authority = drift_signer
     )]
     pub constituent_out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
         constraint = &in_constituent.load()?.mint.eq(&constituent_in_token_account.mint),
-        token::authority = in_constituent.key()
+        token::authority = drift_signer
     )]
     pub constituent_in_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
 
@@ -6294,4 +6296,6 @@ pub struct LPTakerSwap<'info> {
     #[account(address = instructions::ID)]
     pub instructions: UncheckedAccount<'info>,
     pub token_program: Interface<'info, TokenInterface>,
+    /// CHECK: program signer
+    pub drift_signer: AccountInfo<'info>,
 }
