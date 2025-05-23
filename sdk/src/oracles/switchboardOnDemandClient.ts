@@ -12,6 +12,10 @@ const SB_PRECISION_EXP = new BN(18);
 const SB_PRECISION = new BN(10).pow(SB_PRECISION_EXP.sub(PRICE_PRECISION_EXP));
 
 type PullFeedAccountData = {
+	submissions: {
+		landed_at: BN;
+		value: BN;
+	}[];
 	result: {
 		value: BN;
 		std_dev: BN;
@@ -46,9 +50,13 @@ export class SwitchboardOnDemandClient implements OracleClient {
 			buffer
 		) as PullFeedAccountData;
 
+		const landedAt = pullFeedAccountData.submissions.reduce(
+			(max, s) => BN.max(max, s.landed_at),
+			new BN(0)
+		);
 		return {
 			price: pullFeedAccountData.result.value.div(SB_PRECISION),
-			slot: pullFeedAccountData.result.slot,
+			slot: landedAt,
 			confidence: pullFeedAccountData.result.range.div(SB_PRECISION),
 			hasSufficientNumberOfDataPoints: true,
 		};

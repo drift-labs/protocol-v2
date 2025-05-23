@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: safely use saturating sub number_of_users fields per market ([#1616](https://github.com/drift-labs/protocol-v2/pull/1616))
+
 ### Breaking
 
 ## [2.120.0] - 2025-04-29

@@ -1679,8 +1679,9 @@ pub mod drift {
         ctx: Context<UpdateHighLeverageModeConfig>,
         max_users: u32,
         reduce_only: bool,
+        current_users: Option<u32>,
     ) -> Result<()> {
-        handle_update_high_leverage_mode_config(ctx, max_users, reduce_only)
+        handle_update_high_leverage_mode_config(ctx, max_users, reduce_only, current_users)
     }
 
     pub fn initialize_protected_maker_mode_config(

@@ -1281,6 +1281,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracleSource: OracleSource.PYTH_LAZER,
 		pythLazerId: 163,
 	},
+	{
+		fullName: 'LAUNCHCOIN',
+		category: ['Meme'],
+		symbol: 'LAUNCHCOIN-PERP',
+		baseAssetSymbol: 'LAUNCHCOIN',
+		marketIndex: 74,
+		oracle: new PublicKey('4zXs8GrbMwd9EhDwuaWLngX2yY5BApb2UxeHrTzu3Ckr'),
+		launchTs: 1747318237000,
+		oracleSource: OracleSource.SWITCHBOARD_ON_DEMAND,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
