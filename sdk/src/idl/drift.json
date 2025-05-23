@@ -13031,6 +13031,34 @@
           "name": "bitFlags",
           "type": "u8",
           "index": false
+        },
+        {
+          "name": "takerExistingQuoteEntryAmount",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "takerExistingBaseAssetAmount",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "makerExistingQuoteEntryAmount",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "makerExistingBaseAssetAmount",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
         }
       ]
     },

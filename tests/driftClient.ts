@@ -338,6 +338,9 @@ describe('drift client', () => {
 		assert.ok(orderActionRecord.quoteAssetAmountFilled.eq(new BN(48000001)));
 		assert.ok(orderActionRecord.marketIndex === marketIndex);
 
+		assert.ok(orderActionRecord.takerExistingQuoteEntryAmount === null);
+		assert.ok(orderActionRecord.takerExistingBaseAssetAmount === null);
+
 		assert(driftClient.getPerpMarketAccount(0).nextFillRecordId.eq(new BN(2)));
 	});
 
@@ -420,6 +423,8 @@ describe('drift client', () => {
 		assert.ok(orderActionRecord.baseAssetAmountFilled.eq(new BN(24000000000)));
 		assert.ok(orderActionRecord.quoteAssetAmountFilled.eq(new BN(24000000)));
 		assert.ok(orderActionRecord.marketIndex === 0);
+		assert.ok(orderActionRecord.takerExistingQuoteEntryAmount.eq(new BN(24000000)));
+		assert.ok(orderActionRecord.takerExistingBaseAssetAmount === null);
 	});
 
 	it('Reverse long position', async () => {
@@ -486,6 +491,9 @@ describe('drift client', () => {
 		assert.ok(orderActionRecord.baseAssetAmountFilled.eq(new BN(48000000000)));
 		assert.ok(orderActionRecord.quoteAssetAmountFilled.eq(new BN(48000000)));
 
+		assert.ok(orderActionRecord.takerExistingQuoteEntryAmount.eq(new BN(24000001)));
+		assert.ok(orderActionRecord.takerExistingBaseAssetAmount.eq(new BN(24000000000)));
+
 		assert.ok(orderActionRecord.marketIndex === 0);
 	});
 
@@ -532,6 +540,9 @@ describe('drift client', () => {
 		assert.ok(orderActionRecord.baseAssetAmountFilled.eq(new BN(24000000000)));
 		assert.ok(orderActionRecord.quoteAssetAmountFilled.eq(new BN(24000000)));
 		assert.ok(orderActionRecord.marketIndex === 0);
+
+		assert.ok(orderActionRecord.takerExistingQuoteEntryAmount.eq(new BN(24000000)));
+		assert.ok(orderActionRecord.takerExistingBaseAssetAmount === null);
 	});
 
 	it('Open short position', async () => {
