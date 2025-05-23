@@ -1658,10 +1658,6 @@ async function initializeNewTakerClientAndUser(
 		},
 	});
 	await takerDriftClientUser.subscribe();
-	await takerDriftClient.initializeSignedMsgUserOrders(
-		takerDriftClientUser.getUserAccount().authority,
-		32
-	);
 	return [takerDriftClient, takerDriftClientUser];
 }
 

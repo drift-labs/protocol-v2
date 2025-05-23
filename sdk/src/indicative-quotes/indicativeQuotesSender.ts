@@ -5,6 +5,7 @@ import { decodeUTF8 } from 'tweetnacl-util';
 import WebSocket from 'ws';
 
 const SEND_INTERVAL = 500;
+const MAX_BUFFERED_AMOUNT = 10 * 1024; // 10 KB as worst case scenario
 
 type Quote = {
 	bidPrice: BN;
@@ -97,7 +98,10 @@ export class IndicativeQuotesSender {
 									is_oracle_offset: quote.isOracleOffset,
 								};
 								try {
-									if (this.ws?.readyState === WebSocket.OPEN) {
+									if (
+										this.ws?.readyState === WebSocket.OPEN &&
+										this.ws?.bufferedAmount < MAX_BUFFERED_AMOUNT
+									) {
 										this.ws.send(JSON.stringify(message));
 									}
 								} catch (err) {
@@ -123,7 +127,7 @@ export class IndicativeQuotesSender {
 		ws.on('unexpected-response', async (request, response) => {
 			console.error(
 				'Unexpected response, reconnecting in 5s:',
-				response.statusCode
+				response?.statusCode
 			);
 			setTimeout(() => {
 				if (this.heartbeatTimeout) clearTimeout(this.heartbeatTimeout);
@@ -155,6 +159,22 @@ export class IndicativeQuotesSender {
 	setQuote(quote: Quote): void {
 		if (!this.connected) {
 			console.warn('Setting quote before connected to the server, ignoring');
+		}
+		if (
+			quote.marketIndex == null ||
+			quote.bidPrice == null ||
+			quote.askPrice == null ||
+			quote.bidBaseAssetAmount == null ||
+			quote.askBaseAssetAmount == null
+		) {
+			console.warn(
+				'Received incomplete quote, ignoring and deleting old quote',
+				quote
+			);
+			if (quote.marketIndex != null) {
+				this.quotes.delete(quote.marketIndex);
+			}
+			return;
 		}
 		this.quotes.set(quote.marketIndex, quote);
 	}

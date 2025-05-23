@@ -631,7 +631,7 @@ export function calculateWithdrawLimit(
 		borrowLimit = BN.min(borrowLimit, maxBorrowTokens);
 	}
 
-	if (withdrawLimit.eq(ZERO)) {
+	if (withdrawLimit.eq(ZERO) || isVariant(spotMarket.assetTier, 'protected')) {
 		borrowLimit = ZERO;
 	}
 
