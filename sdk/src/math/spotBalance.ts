@@ -383,35 +383,61 @@ export function calculateInterestRate(
 	delta = ZERO,
 	currentUtilization: BN = null
 ): BN {
+	// todo: ensure both a delta and current util aren't pass?
 	const utilization = currentUtilization || calculateUtilization(bank, delta);
-	let interestRate: BN;
-	if (utilization.gt(new BN(bank.optimalUtilization))) {
-		const surplusUtilization = utilization.sub(new BN(bank.optimalUtilization));
-		const borrowRateSlope = new BN(bank.maxBorrowRate - bank.optimalBorrowRate)
-			.mul(SPOT_MARKET_UTILIZATION_PRECISION)
-			.div(
-				SPOT_MARKET_UTILIZATION_PRECISION.sub(new BN(bank.optimalUtilization))
-			);
 
-		interestRate = new BN(bank.optimalBorrowRate).add(
-			surplusUtilization
-				.mul(borrowRateSlope)
-				.div(SPOT_MARKET_UTILIZATION_PRECISION)
-		);
+	const optimalUtil = new BN(bank.optimalUtilization);
+	const optimalRate = new BN(bank.optimalBorrowRate);
+	const maxRate = new BN(bank.maxBorrowRate);
+	const minRate = new BN(bank.minBorrowRate).mul(
+		PERCENTAGE_PRECISION.divn(200)
+	);
+
+	const weightsDivisor = new BN(1000);
+	const segments: [BN, BN][] = [
+		[new BN(850_000), new BN(50)],
+		[new BN(900_000), new BN(100)],
+		[new BN(950_000), new BN(150)],
+		[new BN(990_000), new BN(200)],
+		[new BN(995_000), new BN(250)],
+		[SPOT_MARKET_UTILIZATION_PRECISION, new BN(250)],
+	];
+
+	let rate: BN;
+	if (utilization.lte(optimalUtil)) {
+		// below optimal: linear ramp from 0 to optimalRate
+		const slope = optimalRate
+			.mul(SPOT_MARKET_UTILIZATION_PRECISION)
+			.div(optimalUtil);
+		rate = utilization.mul(slope).div(SPOT_MARKET_UTILIZATION_PRECISION);
 	} else {
-		const borrowRateSlope = new BN(bank.optimalBorrowRate)
-			.mul(SPOT_MARKET_UTILIZATION_PRECISION)
-			.div(new BN(bank.optimalUtilization));
+		// above optimal: piecewise segments
+		const totalExtraRate = maxRate.sub(optimalRate);
 
-		interestRate = utilization
-			.mul(borrowRateSlope)
-			.div(SPOT_MARKET_UTILIZATION_PRECISION);
+		rate = optimalRate.clone();
+		let prevUtil = optimalUtil.clone();
+
+		for (const [bp, weight] of segments) {
+			const segmentEnd = bp.gt(SPOT_MARKET_UTILIZATION_PRECISION)
+				? SPOT_MARKET_UTILIZATION_PRECISION
+				: bp;
+			const segmentRange = segmentEnd.sub(prevUtil);
+
+			const segmentRateTotal = totalExtraRate.mul(weight).div(weightsDivisor);
+
+			if (utilization.lte(segmentEnd)) {
+				const partialUtil = utilization.sub(prevUtil);
+				const partialRate = segmentRateTotal.mul(partialUtil).div(segmentRange);
+				rate = rate.add(partialRate);
+				break;
+			} else {
+				rate = rate.add(segmentRateTotal);
+				prevUtil = segmentEnd;
+			}
+		}
 	}
 
-	return BN.max(
-		interestRate,
-		new BN(bank.minBorrowRate).mul(PERCENTAGE_PRECISION.divn(200))
-	);
+	return BN.max(minRate, rate);
 }
 
 export function calculateDepositRate(

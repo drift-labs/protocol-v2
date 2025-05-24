@@ -220,3 +220,13 @@ pub const MAX_PREDICTION_MARKET_PRICE_U128: u128 = PRICE_PRECISION_U64 as u128;
 
 // POOL IDs
 pub const LST_POOL_ID: u8 = 2;
+
+// SPOT INTEREST RATE CURVE
+pub const INTEREST_RATE_SEGMENT_AND_WEIGHTS: &[(u128, u128)] = &[
+    (850_000, 50),
+    (900_000, 100),
+    (950_000, 150),
+    (990_000, 200),
+    (995_000, 250),
+    (1_000_000, 250),
+];
