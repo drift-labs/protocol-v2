@@ -67,6 +67,7 @@ use crate::state::fulfillment_params::openbook_v2::OpenbookV2FulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
 use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
 use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
+use crate::state::lp_pool::{Constituent, LPPool};
 use crate::state::margin_calculation::MarginContext;
 use crate::state::oracle::StrictOraclePrice;
 use crate::state::order_params::{
