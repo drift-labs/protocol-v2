@@ -2447,17 +2447,19 @@ export class DriftClient {
 	public async getAssociatedTokenAccount(
 		marketIndex: number,
 		useNative = true,
-		tokenProgram = TOKEN_PROGRAM_ID
+		tokenProgram = TOKEN_PROGRAM_ID,
+		authority = this.wallet.publicKey,
+		allowOwnerOffCurve = false
 	): Promise<PublicKey> {
 		const spotMarket = this.getSpotMarketAccount(marketIndex);
 		if (useNative && spotMarket.mint.equals(WRAPPED_SOL_MINT)) {
-			return this.wallet.publicKey;
+			return authority;
 		}
 		const mint = spotMarket.mint;
 		return await getAssociatedTokenAddress(
 			mint,
-			this.wallet.publicKey,
-			undefined,
+			authority,
+			allowOwnerOffCurve,
 			tokenProgram
 		);
 	}

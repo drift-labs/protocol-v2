@@ -8034,6 +8034,11 @@
           "isSigner": false
         },
         {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "instructions",
           "isMut": false,
           "isSigner": false,
@@ -8131,6 +8136,11 @@
         {
           "name": "lpPool",
           "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "mint",
+          "isMut": false,
           "isSigner": false
         },
         {

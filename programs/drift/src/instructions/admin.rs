@@ -19,7 +19,7 @@ use pyth_solana_receiver_sdk::program::PythSolanaReceiver;
 use serum_dex::state::ToAlignedBytes;
 use solana_program::sysvar::instructions;
 
-use crate::controller::token::{close_vault, send_from_program_vault};
+use crate::controller::token::{close_vault, receive, send_from_program_vault};
 use crate::error::ErrorCode;
 use crate::ids::{
     admin_hot_wallet, jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, lighthouse,
@@ -4994,22 +4994,27 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
     // Make sure we have enough balance to do the swap
     let constituent_in_token_account = &ctx.accounts.constituent_in_token_account;
     validate!(
-        amount_in >= constituent_in_token_account.amount,
+        amount_in <= constituent_in_token_account.amount,
         ErrorCode::InvalidSwap,
         "trying to swap more than the balance of the constituent in token account"
     )?;
 
-    let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
-    let mint = get_token_mint(remaining_accounts)?;
+    // Validate that the passed mint is accpetable
+    let mint_key = ctx.accounts.mint.key();
+    validate!(
+        mint_key == ctx.accounts.constituent_in_token_account.mint,
+        ErrorCode::InvalidSwap,
+        "mint passed to SwapBegin does not match the mint constituent in token account"
+    )?;
 
     send_from_program_vault(
         &ctx.accounts.token_program,
         constituent_in_token_account,
         &ctx.accounts.signer_in_token_account,
-        &ctx.accounts.admin.to_account_info(),
+        &ctx.accounts.drift_signer.to_account_info(),
         state.signer_nonce,
         amount_in,
-        &mint,
+        &Some(ctx.accounts.mint.clone()),
     )?;
 
     // Update balance on the constituent account
@@ -5069,9 +5074,10 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
             )?;
 
             validate!(
-                ctx.remaining_accounts.len() == ix.accounts.len() - 11,
+                ctx.remaining_accounts.len() == ix.accounts.len() - 13
+                    && ctx.remaining_accounts.len() == 0,
                 ErrorCode::InvalidSwap,
-                "begin and end ix must have the same number of accounts"
+                "begin and end ix must have the same number of accounts and no remaining accounts"
             )?;
         } else {
             if found_end {
@@ -5130,29 +5136,31 @@ pub fn handle_end_lp_swap<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, LPTakerSwap<'info>>,
 ) -> Result<()> {
     let state = &ctx.accounts.state;
-    let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
-    let _out_mint = get_token_mint(remaining_accounts)?;
-    let mint = get_token_mint(remaining_accounts)?;
     let signer_out_token_account = &ctx.accounts.signer_out_token_account;
 
+    let constituent_out_token_account = &ctx.accounts.constituent_out_token_account;
     let amount_out = signer_out_token_account.amount;
 
-    send_from_program_vault(
+    // Validate that the passed mint is accpetable
+    let mint_key = ctx.accounts.mint.key();
+    validate!(
+        mint_key == constituent_out_token_account.mint,
+        ErrorCode::InvalidSwap,
+        "mint passed to SwapBegin does not match the mint constituent in token account"
+    )?;
+
+    receive(
         &ctx.accounts.token_program,
         &ctx.accounts.signer_out_token_account,
-        &ctx.accounts.constituent_out_token_account,
+        &constituent_out_token_account,
         &ctx.accounts.admin.to_account_info(),
-        state.signer_nonce,
         amount_out,
-        &mint,
+        &Some(ctx.accounts.mint.clone()),
     )?;
 
     // Update the balance on the token accounts for after swap
     let mut out_constituent = ctx.accounts.out_constituent.load_mut()?;
-    out_constituent.token_balance = out_constituent
-        .token_balance
-        .checked_add(amount_out)
-        .ok_or(ErrorCode::InvalidSwap)?;
+    out_constituent.sync_token_balance(constituent_out_token_account.amount);
 
     Ok(())
 }
@@ -6290,6 +6298,8 @@ pub struct LPTakerSwap<'info> {
         bump= lp_pool.load()?.bump,
     )]
     pub lp_pool: AccountLoader<'info, LPPool>,
+
+    pub mint: InterfaceAccount<'info, Mint>,
 
     /// Instructions Sysvar for instruction introspection
     /// CHECK: fixed instructions sysvar account

@@ -4748,8 +4748,8 @@ export class AdminClient extends DriftClient {
 	 * @param outMarketIndex the market index of the token you're buying
 	 * @param inMarketIndex the market index of the token you're selling
 	 * @param amountIn the amount of the token to sell
-	 * @param inTokenAccount the token account to move the tokens being sold
-	 * @param outTokenAccount the token account to receive the tokens being bought
+	 * @param inTokenAccount the token account to move the tokens being sold (admin signer ata for lp swap)
+	 * @param outTokenAccount the token account to receive the tokens being bought (admin signer ata for lp swap)
 	 * @param limitPrice the limit price of the swap
 	 * @param reduceOnly
 	 * @param userAccountPublicKey optional, specify a custom userAccountPublicKey to use instead of getting the current user account; can be helpful if the account is being created within the current tx
@@ -4799,28 +4799,6 @@ export class AdminClient extends DriftClient {
 		const outTokenProgram = this.getTokenProgramForSpotMarket(outSpotMarket);
 		const inTokenProgram = this.getTokenProgramForSpotMarket(inSpotMarket);
 
-		const remainingAccounts = [];
-		if (!outTokenProgram.equals(inTokenProgram)) {
-			remainingAccounts.push({
-				pubkey: outTokenProgram,
-				isWritable: false,
-				isSigner: false,
-			});
-		}
-
-		if (outSpotMarket.tokenProgram === 1 || inSpotMarket.tokenProgram === 1) {
-			remainingAccounts.push({
-				pubkey: inSpotMarket.mint,
-				isWritable: false,
-				isSigner: false,
-			});
-			remainingAccounts.push({
-				pubkey: outSpotMarket.mint,
-				isWritable: false,
-				isSigner: false,
-			});
-		}
-
 		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
 		const outConstituent = getConstituentPublicKey(
 			this.program.programId,
@@ -4833,11 +4811,15 @@ export class AdminClient extends DriftClient {
 			inMarketIndex
 		);
 
-		const inConstituentTokenAccount = await this.getAssociatedTokenAccount(
-			inMarketIndex
-		);
-		const outConstituentTokenAccount = await this.getAssociatedTokenAccount(
+		const outConstituentTokenAccount = getConstituentVaultPublicKey(
+			this.program.programId,
+			lpPool,
 			outMarketIndex
+		);
+		const inConstituentTokenAccount = getConstituentVaultPublicKey(
+			this.program.programId,
+			lpPool,
+			inMarketIndex
 		);
 
 		const beginSwapIx = await this.program.instruction.beginLpSwap(
@@ -4859,8 +4841,8 @@ export class AdminClient extends DriftClient {
 					tokenProgram: inTokenProgram,
 					instructions: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
 					driftSigner: getDriftSignerPublicKey(this.program.programId),
+					mint: inSpotMarket.mint,
 				},
-				remainingAccounts,
 			}
 		);
 
@@ -4882,8 +4864,8 @@ export class AdminClient extends DriftClient {
 					tokenProgram: outTokenProgram,
 					instructions: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
 					driftSigner: getDriftSignerPublicKey(this.program.programId),
+					mint: outSpotMarket.mint,
 				},
-				remainingAccounts,
 			}
 		);
 
