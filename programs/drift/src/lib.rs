@@ -1859,7 +1859,7 @@ pub mod drift {
         out_market_index: u16,
         amount_in: u64,
     ) -> Result<()> {
-        handle_begin_lp_swap(ctx, amount_in)
+        handle_begin_lp_swap(ctx, in_market_index, out_market_index, amount_in)
     }
 
     pub fn end_lp_swap<'c: 'info, 'info>(

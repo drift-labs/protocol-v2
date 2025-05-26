@@ -90,6 +90,8 @@ use crate::{load_mut, PTYH_PRICE_FEED_SEED_PREFIX};
 use crate::{math, safe_decrement, safe_increment};
 use crate::{math_error, SPOT_BALANCE_PRECISION};
 
+use super::optional_accounts::get_token_interface;
+
 pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
     let (drift_signer, drift_signer_nonce) =
         Pubkey::find_program_address(&[b"drift_signer".as_ref()], ctx.program_id);
@@ -4978,11 +4980,25 @@ pub fn handle_add_amm_constituent_data<'info>(
 
 pub fn handle_begin_lp_swap<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, LPTakerSwap<'info>>,
+    in_market_index: u16,
+    out_market_index: u16,
     amount_in: u64,
 ) -> Result<()> {
     let state = &ctx.accounts.state;
     let ixs = ctx.accounts.instructions.as_ref();
     let current_index = instructions::load_current_index_checked(ixs)? as usize;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let mint = get_token_mint(remaining_accounts_iter)?;
+    validate!(
+        mint.is_some(),
+        ErrorCode::InvalidSwap,
+        "BeginLpSwap must have a mint for in token passed in"
+    )?;
+    let mint = mint.unwrap();
+
+    let mut in_constituent = ctx.accounts.in_constituent.load_mut()?;
+    let mut out_constituent = ctx.accounts.out_constituent.load_mut()?;
 
     let current_ix = instructions::load_instruction_at_checked(current_index, ixs)?;
     validate!(
@@ -4991,21 +5007,44 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
         "SwapBegin must be a top-level instruction (cant be cpi)"
     )?;
 
+    validate!(
+        in_market_index != out_market_index,
+        ErrorCode::InvalidSwap,
+        "in and out market the same"
+    )?;
+
+    validate!(
+        amount_in != 0,
+        ErrorCode::InvalidSwap,
+        "amount_in cannot be zero"
+    )?;
+
+    // Validate that the passed mint is accpetable
+    let mint_key = mint.key();
+    validate!(
+        mint_key == ctx.accounts.constituent_in_token_account.mint,
+        ErrorCode::InvalidSwap,
+        "mint passed to SwapBegin does not match the mint constituent in token account"
+    )?;
+
     // Make sure we have enough balance to do the swap
     let constituent_in_token_account = &ctx.accounts.constituent_in_token_account;
+    let constituent_out_token_account = &ctx.accounts.constituent_out_token_account;
+
     validate!(
         amount_in <= constituent_in_token_account.amount,
         ErrorCode::InvalidSwap,
         "trying to swap more than the balance of the constituent in token account"
     )?;
 
-    // Validate that the passed mint is accpetable
-    let mint_key = ctx.accounts.mint.key();
     validate!(
-        mint_key == ctx.accounts.constituent_in_token_account.mint,
+        out_constituent.flash_loan_initial_token_amount == 0,
         ErrorCode::InvalidSwap,
-        "mint passed to SwapBegin does not match the mint constituent in token account"
+        "begin_lp_swap ended in invalid state"
     )?;
+
+    in_constituent.flash_loan_initial_token_amount = constituent_in_token_account.amount;
+    out_constituent.flash_loan_initial_token_amount = constituent_out_token_account.amount;
 
     send_from_program_vault(
         &ctx.accounts.token_program,
@@ -5014,12 +5053,8 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
         &ctx.accounts.drift_signer.to_account_info(),
         state.signer_nonce,
         amount_in,
-        &Some(ctx.accounts.mint.clone()),
+        &Some(mint),
     )?;
-
-    // Update balance on the constituent account
-    let mut in_constituent = ctx.accounts.in_constituent.load_mut()?;
-    in_constituent.sync_token_balance(ctx.accounts.constituent_in_token_account.amount);
 
     // The only other drift program allowed is SwapEnd
     let mut index = current_index + 1;
@@ -5071,13 +5106,6 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
                 ctx.accounts.constituent_in_token_account.key() == ix.accounts[5].pubkey,
                 ErrorCode::InvalidSwap,
                 "the out_token_account passed to SwapBegin and End must match"
-            )?;
-
-            validate!(
-                ctx.remaining_accounts.len() == ix.accounts.len() - 13
-                    && ctx.remaining_accounts.len() == 0,
-                ErrorCode::InvalidSwap,
-                "begin and end ix must have the same number of accounts and no remaining accounts"
             )?;
         } else {
             if found_end {
@@ -5135,32 +5163,102 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
 pub fn handle_end_lp_swap<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, LPTakerSwap<'info>>,
 ) -> Result<()> {
-    let state = &ctx.accounts.state;
+    let signer_in_token_account = &ctx.accounts.signer_in_token_account;
     let signer_out_token_account = &ctx.accounts.signer_out_token_account;
 
+    let admin_account_info = ctx.accounts.admin.to_account_info();
+
+    let constituent_in_token_account = &ctx.accounts.constituent_in_token_account;
     let constituent_out_token_account = &ctx.accounts.constituent_out_token_account;
-    let amount_out = signer_out_token_account.amount;
+
+    let mut in_constituent = ctx.accounts.in_constituent.load_mut()?;
+    let mut out_constituent = ctx.accounts.out_constituent.load_mut()?;
+
+    let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
+    let out_token_program = get_token_interface(remaining_accounts)?;
+
+    let in_mint = get_token_mint(remaining_accounts)?;
+    let out_mint = get_token_mint(remaining_accounts)?;
+
+    validate!(
+        in_mint.is_some(),
+        ErrorCode::InvalidSwap,
+        "EndLpSwap must have a mint for in token passed in"
+    )?;
+
+    validate!(
+        out_mint.is_some(),
+        ErrorCode::InvalidSwap,
+        "EndLpSwap must have a mint for out token passed in"
+    )?;
+
+    let in_mint = in_mint.unwrap();
+    let out_mint = out_mint.unwrap();
 
     // Validate that the passed mint is accpetable
-    let mint_key = ctx.accounts.mint.key();
+    let mint_key = out_mint.key();
     validate!(
         mint_key == constituent_out_token_account.mint,
         ErrorCode::InvalidSwap,
-        "mint passed to SwapBegin does not match the mint constituent in token account"
+        "mint passed to EndLpSwap does not match the mint constituent out token account"
     )?;
 
-    receive(
-        &ctx.accounts.token_program,
-        &ctx.accounts.signer_out_token_account,
-        &constituent_out_token_account,
-        &ctx.accounts.admin.to_account_info(),
-        amount_out,
-        &Some(ctx.accounts.mint.clone()),
+    let mint_key = in_mint.key();
+    validate!(
+        mint_key == constituent_in_token_account.mint,
+        ErrorCode::InvalidSwap,
+        "mint passed to EndLpSwap does not match the mint constituent in token account"
     )?;
+
+    // Residual of what wasnt swapped
+    if signer_in_token_account.amount > in_constituent.flash_loan_initial_token_amount {
+        let residual = signer_in_token_account
+            .amount
+            .safe_sub(in_constituent.flash_loan_initial_token_amount)?;
+
+        controller::token::receive(
+            &ctx.accounts.token_program,
+            signer_in_token_account,
+            constituent_in_token_account,
+            &admin_account_info,
+            residual,
+            &Some(in_mint),
+        )?;
+    }
+
+    // Whatever was swapped
+    if signer_out_token_account.amount > out_constituent.flash_loan_initial_token_amount {
+        let residual = signer_out_token_account
+            .amount
+            .safe_sub(out_constituent.flash_loan_initial_token_amount)?;
+
+        if let Some(token_interface) = out_token_program {
+            receive(
+                &token_interface,
+                signer_out_token_account,
+                constituent_out_token_account,
+                &admin_account_info,
+                residual,
+                &Some(out_mint),
+            )?;
+        } else {
+            receive(
+                &ctx.accounts.token_program,
+                signer_out_token_account,
+                constituent_out_token_account,
+                &admin_account_info,
+                residual,
+                &Some(out_mint),
+            )?;
+        }
+    }
 
     // Update the balance on the token accounts for after swap
-    let mut out_constituent = ctx.accounts.out_constituent.load_mut()?;
     out_constituent.sync_token_balance(constituent_out_token_account.amount);
+    in_constituent.sync_token_balance(constituent_in_token_account.amount);
+
+    out_constituent.flash_loan_initial_token_amount = 0;
+    in_constituent.flash_loan_initial_token_amount = 0;
 
     Ok(())
 }
@@ -6298,8 +6396,6 @@ pub struct LPTakerSwap<'info> {
         bump= lp_pool.load()?.bump,
     )]
     pub lp_pool: AccountLoader<'info, LPPool>,
-
-    pub mint: InterfaceAccount<'info, Mint>,
 
     /// Instructions Sysvar for instruction introspection
     /// CHECK: fixed instructions sysvar account

@@ -8034,11 +8034,6 @@
           "isSigner": false
         },
         {
-          "name": "mint",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "instructions",
           "isMut": false,
           "isSigner": false,
@@ -8136,11 +8131,6 @@
         {
           "name": "lpPool",
           "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "mint",
-          "isMut": false,
           "isSigner": false
         },
         {
@@ -8758,13 +8748,8 @@
             "type": "u64"
           },
           {
-            "name": "padding2",
-            "type": {
-              "array": [
-                "u8",
-                8
-              ]
-            }
+            "name": "flashLoanInitialTokenAmount",
+            "type": "u64"
           }
         ]
       }

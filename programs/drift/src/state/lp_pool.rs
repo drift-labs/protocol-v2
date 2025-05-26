@@ -467,7 +467,7 @@ pub struct Constituent {
     /// Every swap to/from this constituent has a monotonically increasing id. This is the next id to use
     pub next_swap_id: u64,
 
-    _padding2: [u8; 8],
+    pub flash_loan_initial_token_amount: u64,
 }
 
 impl Size for Constituent {

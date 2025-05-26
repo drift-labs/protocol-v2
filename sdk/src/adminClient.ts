@@ -4822,7 +4822,7 @@ export class AdminClient extends DriftClient {
 			inMarketIndex
 		);
 
-		const beginSwapIx = await this.program.instruction.beginLpSwap(
+		const beginSwapIx = this.program.instruction.beginLpSwap(
 			lpPoolName,
 			inMarketIndex,
 			outMarketIndex,
@@ -4838,15 +4838,38 @@ export class AdminClient extends DriftClient {
 					outConstituent,
 					inConstituent,
 					lpPool,
-					tokenProgram: inTokenProgram,
 					instructions: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+					tokenProgram: inTokenProgram,
 					driftSigner: getDriftSignerPublicKey(this.program.programId),
-					mint: inSpotMarket.mint,
 				},
+				remainingAccounts: [
+					{
+						pubkey: inSpotMarket.mint,
+						isWritable: false,
+						isSigner: false,
+					},
+				],
 			}
 		);
 
-		const endSwapIx = await this.program.instruction.endLpSwap(
+		const remainingAccounts = [];
+		remainingAccounts.push({
+			pubkey: outTokenProgram,
+			isWritable: false,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: inSpotMarket.mint,
+			isWritable: false,
+			isSigner: false,
+		});
+		remainingAccounts.push({
+			pubkey: outSpotMarket.mint,
+			isWritable: false,
+			isSigner: false,
+		});
+
+		const endSwapIx = this.program.instruction.endLpSwap(
 			lpPoolName,
 			inMarketIndex,
 			outMarketIndex,
@@ -4861,11 +4884,11 @@ export class AdminClient extends DriftClient {
 					outConstituent,
 					inConstituent,
 					lpPool,
-					tokenProgram: outTokenProgram,
+					tokenProgram: inTokenProgram,
 					instructions: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
 					driftSigner: getDriftSignerPublicKey(this.program.programId),
-					mint: outSpotMarket.mint,
 				},
+				remainingAccounts,
 			}
 		);
 
