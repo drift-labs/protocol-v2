@@ -682,11 +682,13 @@ describe('LP Pool', () => {
 				getConstituentVaultPublicKey(program.programId, lpPoolKey, 2)
 			)
 		).amount.toString();
+		console.log(`beforeSOLBalance: ${beforeSOLBalance}`);
 		const beforeUSDCBalance = +(
 			await bankrunContextWrapper.connection.getTokenAccount(
 				getConstituentVaultPublicKey(program.programId, lpPoolKey, 0)
 			)
 		).amount.toString();
+		console.log(`beforeUSDCBalance: ${beforeUSDCBalance}`);
 
 		const serumMarket = await Market.load(
 			bankrunContextWrapper.connection.toConnection(),
@@ -709,8 +711,8 @@ describe('LP Pool', () => {
 				owner: serumDriftClient.wallet,
 				payer: serumWSOL,
 				side: 'sell',
-				price: 200,
-				size: 2,
+				price: 100,
+				size: 1,
 				orderType: 'postOnly',
 				clientId: undefined, // todo?
 				openOrdersAddressKey: undefined,
@@ -749,8 +751,8 @@ describe('LP Pool', () => {
 				owner: adminClient.wallet.publicKey,
 				payer: userUSDCAccount.publicKey,
 				side: 'buy',
-				price: 200,
-				size: 1, // larger than maker orders so that entire maker order is taken
+				price: 100,
+				size: 2, // larger than maker orders so that entire maker order is taken
 				orderType: 'ioc',
 				clientId: new BN(1), // todo?
 				openOrdersAddressKey: openOrdersAccount,
@@ -813,6 +815,6 @@ describe('LP Pool', () => {
 		);
 
 		expect(usdcDiff).to.be.equal(-200 * 10 ** 6);
-		expect(solDiff).to.be.equal(9 * 10 ** 8);
+		expect(solDiff).to.be.equal(1 * 10 ** 9);
 	});
 });

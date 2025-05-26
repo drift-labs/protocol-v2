@@ -16,7 +16,7 @@ import {
 	getMintLen,
 	ExtensionType,
 	unpackAccount,
-	type RawAccount,
+	RawAccount,
 	AccountState,
 	unpackMint,
 	RawMint,
