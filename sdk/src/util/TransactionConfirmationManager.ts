@@ -45,7 +45,7 @@ export class TransactionConfirmationManager {
 	private connection: Connection;
 	private pendingConfirmations: Map<string, TransactionConfirmationRequest> =
 		new Map();
-	private intervalId: NodeJS.Timeout | null = null;
+	private intervalId: ReturnType<typeof setTimeout> | null = null;
 
 	constructor(connection: Connection) {
 		this.connection = connection;
