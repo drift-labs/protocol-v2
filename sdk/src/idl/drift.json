@@ -7395,7 +7395,7 @@
       "accounts": [
         {
           "name": "lpPool",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {

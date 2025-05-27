@@ -6216,7 +6216,6 @@ pub struct InitializeConstituent<'info> {
 
 #[derive(Accounts)]
 pub struct UpdateConstituentParams<'info> {
-    #[account(mut)]
     pub lp_pool: AccountLoader<'info, LPPool>,
     #[account(
         mut,
