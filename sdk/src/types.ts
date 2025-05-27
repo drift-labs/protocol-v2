@@ -178,6 +178,12 @@ export class OrderStatus {
 	static readonly CANCELED = { canceled: {} };
 }
 
+export class OrderBitFlag {
+	static readonly SignedMessage = 1;
+	static readonly OracleTriggerMarket = 2;
+	static readonly SafeTriggerOrder = 4;
+}
+
 export class OrderAction {
 	static readonly PLACE = { place: {} };
 	static readonly CANCEL = { cancel: {} };
@@ -269,6 +275,7 @@ export class DepositExplanation {
 	static readonly TRANSFER = { transfer: {} };
 	static readonly BORROW = { borrow: {} };
 	static readonly REPAY_BORROW = { repayBorrow: {} };
+	static readonly REWARD = { reward: {} };
 }
 
 export class SettlePnlExplanation {
@@ -1109,7 +1116,7 @@ export type OrderParams = {
 	marketIndex: number;
 	reduceOnly: boolean;
 	postOnly: PostOnlyParams;
-	immediateOrCancel: boolean;
+	bitFlags: number;
 	triggerPrice: BN | null;
 	triggerCondition: OrderTriggerCondition;
 	oraclePriceOffset: number | null;
@@ -1124,6 +1131,11 @@ export class PostOnlyParams {
 	static readonly MUST_POST_ONLY = { mustPostOnly: {} }; // Tx fails if order can't be post only
 	static readonly TRY_POST_ONLY = { tryPostOnly: {} }; // Tx succeeds and order not placed if can't be post only
 	static readonly SLIDE = { slide: {} }; // Modify price to be post only if can't be post only
+}
+
+export class OrderParamsBitFlag {
+	static readonly ImmediateOrCancel = 1;
+	static readonly UpdateHighLeverageMode = 2;
 }
 
 export type NecessaryOrderParams = {
@@ -1156,7 +1168,7 @@ export const DefaultOrderParams: OrderParams = {
 	marketIndex: 0,
 	reduceOnly: false,
 	postOnly: PostOnlyParams.NONE,
-	immediateOrCancel: false,
+	bitFlags: 0,
 	triggerPrice: null,
 	triggerCondition: OrderTriggerCondition.ABOVE,
 	oraclePriceOffset: null,

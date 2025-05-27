@@ -1,5 +1,5 @@
 {
-  "version": "2.116.0",
+  "version": "2.120.0",
   "name": "drift",
   "instructions": [
     {
@@ -6416,6 +6416,40 @@
       ]
     },
     {
+      "name": "updatePerpMarketProtectedMakerParams",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "protectedMakerLimitPriceDivisor",
+          "type": {
+            "option": "u8"
+          }
+        },
+        {
+          "name": "protectedMakerDynamicDivisor",
+          "type": {
+            "option": "u8"
+          }
+        }
+      ]
+    },
+    {
       "name": "updateSpotMarketFuel",
       "accounts": [
         {
@@ -7060,6 +7094,51 @@
           "type": {
             "option": "u32"
           }
+        }
+      ]
+    },
+    {
+      "name": "adminDeposit",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "adminTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
         }
       ]
     }
@@ -9436,8 +9515,8 @@
             }
           },
           {
-            "name": "immediateOrCancel",
-            "type": "bool"
+            "name": "bitFlags",
+            "type": "u8"
           },
           {
             "name": "maxTs",
@@ -9634,9 +9713,9 @@
             }
           },
           {
-            "name": "immediateOrCancel",
+            "name": "bitFlags",
             "type": {
-              "option": "bool"
+              "option": "u8"
             }
           },
           {
@@ -11364,6 +11443,9 @@
           },
           {
             "name": "RepayBorrow"
+          },
+          {
+            "name": "Reward"
           }
         ]
       }
@@ -11710,6 +11792,20 @@
           },
           {
             "name": "PythLazerStableCoin"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderParamsBitFlag",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "ImmediateOrCancel"
+          },
+          {
+            "name": "UpdateHighLeverageMode"
           }
         ]
       }
@@ -12153,6 +12249,23 @@
           },
           {
             "name": "Perp"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OrderBitFlag",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "SignedMessage"
+          },
+          {
+            "name": "OracleTriggerMarket"
+          },
+          {
+            "name": "SafeTriggerOrder"
           }
         ]
       }
@@ -12912,6 +13025,11 @@
         {
           "name": "oraclePrice",
           "type": "i64",
+          "index": false
+        },
+        {
+          "name": "bitFlags",
+          "type": "u8",
           "index": false
         }
       ]
@@ -15056,6 +15174,11 @@
       "code": 6313,
       "name": "InvalidSignedMsgUserOrdersResize",
       "msg": "Invalid SignedMsgUserOrders resize"
+    },
+    {
+      "code": 6314,
+      "name": "CouldNotDeserializeHighLeverageModeConfig",
+      "msg": "Could not deserialize high leverage mode config"
     }
   ],
   "metadata": {

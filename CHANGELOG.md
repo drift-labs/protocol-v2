@@ -9,9 +9,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- sdk: fees and max perp trade size calculation functions allow an optional parameter for a user using bitFlags to enter high leverage mode
+
+### Fixes
+
+- program: safely use saturating sub number_of_users fields per market ([#1616](https://github.com/drift-labs/protocol-v2/pull/1616))
+
+### Breaking
+
+## [2.120.0] - 2025-04-29
+
+### Features
+
+- program: add admin_deposit ([#1591](https://github.com/drift-labs/protocol-v2/pull/1591))
+
+### Fixes
+
+### Breaking
+
+## [2.119.0] - 2025-04-21
+
+### Features
+
+- program: place perp order can update high leverage mode ([#1573](https://github.com/drift-labs/protocol-v2/pull/1573))
+- sdk: generalized getSpotAssetValue and getSpotLiabilityValue to be able to be called without a user account ([#1577](https://github.com/drift-labs/protocol-v2/pull/1577))
+
+### Fixes
+
+### Breaking
+
+## [2.118.0] - 2025-04-10
+
+### Features
+
+- program: make Pyra accounts exempt from force_delete_user ([#1569](https://github.com/drift-labs/protocol-v2/pull/1569))
+- sdk: deprecate getPostSwitchboardOnDemandUpdateAtomicIx ([#1567](https://github.com/drift-labs/protocol-v2/pull/1567))
+- program: maker trigger market oracle offset and fill with amm faster ([#1564](https://github.com/drift-labs/protocol-v2/pull/1564))
+- program: sanitize signed msg orders with wider thresholds ([#1554](https://github.com/drift-labs/protocol-v2/pull/1554))
+
+### Fixes
+
+- program: add crossing start buffer auction to end price ([#1568](https://github.com/drift-labs/protocol-v2/pull/1568))
+
+### Breaking
+
+## [2.117.0] - 2025-03-31
+
+### Features
+
+- program: more lenient pool id check to allow users with referrer rewards to withdraw ([#1553](https://github.com/drift-labs/protocol-v2/pull/1553))
 - program: add bitflags to order aciton records ([#1550](https://github.com/drift-labs/protocol-v2/pull/1550))
 
 ### Fixes
+
+- program: fix user stats check for transfer_perp_position ([#1557](https://github.com/drift-labs/protocol-v2/pull/1557))
 
 ### Breaking
 

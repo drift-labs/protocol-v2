@@ -1259,6 +1259,38 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracleSource: OracleSource.PYTH_LAZER,
 		pythLazerId: 182,
 	},
+	{
+		fullName: 'Cardano',
+		category: ['L1'],
+		symbol: 'ADA-PERP',
+		baseAssetSymbol: 'ADA',
+		marketIndex: 72,
+		oracle: new PublicKey('55722FS8VeAxRghz5h2ARJvNjkFiHyzkZ9BF7CEQWN6E'),
+		launchTs: 1743708559000,
+		oracleSource: OracleSource.PYTH_LAZER,
+		pythLazerId: 16,
+	},
+	{
+		fullName: 'Pax Gold',
+		category: ['RWA'],
+		symbol: 'PAXG-PERP',
+		baseAssetSymbol: 'PAXG',
+		marketIndex: 73,
+		oracle: new PublicKey('8FauFNbX2gvjkPLH8w2kntXCcSGCwZL2prZjHBpvq6aE'),
+		launchTs: 1744402932000,
+		oracleSource: OracleSource.PYTH_LAZER,
+		pythLazerId: 163,
+	},
+	{
+		fullName: 'LAUNCHCOIN',
+		category: ['Meme'],
+		symbol: 'LAUNCHCOIN-PERP',
+		baseAssetSymbol: 'LAUNCHCOIN',
+		marketIndex: 74,
+		oracle: new PublicKey('4zXs8GrbMwd9EhDwuaWLngX2yY5BApb2UxeHrTzu3Ckr'),
+		launchTs: 1747318237000,
+		oracleSource: OracleSource.SWITCHBOARD_ON_DEMAND,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {

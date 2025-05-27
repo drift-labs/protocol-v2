@@ -665,8 +665,8 @@ fn amm_perp_ref_offset() {
         max_ref_offset,
     )
     .unwrap();
-    assert_eq!(res, 18000);
-    assert_eq!(perp_market.amm.reference_price_offset, 18000);
+    assert_eq!(res, 45000);
+    assert_eq!(perp_market.amm.reference_price_offset, 18000); // not updated vs market account
 
     let now = 1741207620 + 1;
     let clock_slot = 324817761 + 1; // todo
@@ -696,12 +696,14 @@ fn amm_perp_ref_offset() {
         perp_market.amm.historical_oracle_data.last_oracle_price,
         7101600
     );
-    assert_eq!(perp_market.amm.reference_price_offset, 18000);
+    assert_eq!(perp_market.amm.reference_price_offset, 45000);
     assert_eq!(perp_market.amm.max_spread, 90000);
 
     assert_eq!(r, 7101599);
-    assert_eq!(perp_market.amm.bid_base_asset_reserve, 4633657972174584);
-    assert_eq!(perp_market.amm.ask_base_asset_reserve, 4631420570932586);
+    assert_eq!(perp_market.amm.bid_base_asset_reserve, 4570430670410018);
+    assert_eq!(perp_market.amm.ask_base_asset_reserve, 4568069910766211);
+
+    crate::validation::perp_market::validate_perp_market(&perp_market).unwrap();
 }
 
 #[test]

@@ -36,6 +36,7 @@ import {
 	getPythLazerOraclePublicKey,
 	getProtectedMakerModeConfigPublicKey,
 	getFuelOverflowAccountPublicKey,
+	getTokenProgramForSpotMarket,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -1164,14 +1165,16 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		updateAmmSummaryStats?: boolean,
 		quoteAssetAmountWithUnsettledLp?: BN,
-		netUnsettledFundingPnl?: BN
+		netUnsettledFundingPnl?: BN,
+		excludeTotalLiqFee?: boolean
 	): Promise<TransactionSignature> {
 		const updatePerpMarketMarginRatioIx =
 			await this.getUpdatePerpMarketAmmSummaryStatsIx(
 				perpMarketIndex,
 				updateAmmSummaryStats,
 				quoteAssetAmountWithUnsettledLp,
-				netUnsettledFundingPnl
+				netUnsettledFundingPnl,
+				excludeTotalLiqFee
 			);
 
 		const tx = await this.buildTransaction(updatePerpMarketMarginRatioIx);
@@ -1185,7 +1188,8 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		updateAmmSummaryStats?: boolean,
 		quoteAssetAmountWithUnsettledLp?: BN,
-		netUnsettledFundingPnl?: BN
+		netUnsettledFundingPnl?: BN,
+		excludeTotalLiqFee?: boolean
 	): Promise<TransactionInstruction> {
 		return await this.program.instruction.updatePerpMarketAmmSummaryStats(
 			{
@@ -1193,6 +1197,7 @@ export class AdminClient extends DriftClient {
 				quoteAssetAmountWithUnsettledLp:
 					quoteAssetAmountWithUnsettledLp ?? null,
 				netUnsettledFundingPnl: netUnsettledFundingPnl ?? null,
+				excludeTotalLiqFee: excludeTotalLiqFee ?? null,
 			},
 			{
 				accounts: {
@@ -3854,6 +3859,51 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async updatePerpMarketProtectedMakerParams(
+		perpMarketIndex: number,
+		protectedMakerLimitPriceDivisor?: number,
+		protectedMakerDynamicDivisor?: number
+	): Promise<TransactionSignature> {
+		const updatePerpMarketProtectedMakerParamsIx =
+			await this.getUpdatePerpMarketProtectedMakerParamsIx(
+				perpMarketIndex,
+				protectedMakerLimitPriceDivisor || null,
+				protectedMakerDynamicDivisor || null
+			);
+
+		const tx = await this.buildTransaction(
+			updatePerpMarketProtectedMakerParamsIx
+		);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdatePerpMarketProtectedMakerParamsIx(
+		perpMarketIndex: number,
+		protectedMakerLimitPriceDivisor?: number,
+		protectedMakerDynamicDivisor?: number
+	): Promise<TransactionInstruction> {
+		const perpMarketPublicKey = await getPerpMarketPublicKey(
+			this.program.programId,
+			perpMarketIndex
+		);
+
+		return await this.program.instruction.updatePerpMarketProtectedMakerParams(
+			protectedMakerLimitPriceDivisor || null,
+			protectedMakerDynamicDivisor || null,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: perpMarketPublicKey,
+				},
+			}
+		);
+	}
+
 	public async initUserFuel(
 		user: PublicKey,
 		authority: PublicKey,
@@ -4063,10 +4113,15 @@ export class AdminClient extends DriftClient {
 
 	public async updateUpdateHighLeverageModeConfig(
 		maxUsers: number,
-		reduceOnly: boolean
+		reduceOnly: boolean,
+		currentUsers?: number
 	): Promise<TransactionSignature> {
 		const updateHighLeverageModeConfigIx =
-			await this.getUpdateHighLeverageModeConfigIx(maxUsers, reduceOnly);
+			await this.getUpdateHighLeverageModeConfigIx(
+				maxUsers,
+				reduceOnly,
+				currentUsers
+			);
 
 		const tx = await this.buildTransaction(updateHighLeverageModeConfigIx);
 
@@ -4077,11 +4132,13 @@ export class AdminClient extends DriftClient {
 
 	public async getUpdateHighLeverageModeConfigIx(
 		maxUsers: number,
-		reduceOnly: boolean
+		reduceOnly: boolean,
+		currentUsers?: number
 	): Promise<TransactionInstruction> {
 		return await this.program.instruction.updateHighLeverageModeConfig(
 			maxUsers,
 			reduceOnly,
+			currentUsers,
 			{
 				accounts: {
 					admin: this.isSubscribed
@@ -4174,5 +4231,51 @@ export class AdminClient extends DriftClient {
 				},
 			}
 		);
+	}
+
+	public async adminDeposit(
+		marketIndex: number,
+		amount: BN,
+		depositUserAccount: PublicKey,
+		adminTokenAccount?: PublicKey
+	): Promise<TransactionSignature> {
+		const ix = await this.getAdminDepositIx(
+			marketIndex,
+			amount,
+			depositUserAccount,
+			adminTokenAccount
+		);
+		const tx = await this.buildTransaction(ix);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getAdminDepositIx(
+		marketIndex: number,
+		amount: BN,
+		depositUserAccount: PublicKey,
+		adminTokenAccount?: PublicKey
+	): Promise<TransactionInstruction> {
+		const state = await this.getStatePublicKey();
+		const spotMarket = this.getSpotMarketAccount(marketIndex);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [],
+			writableSpotMarketIndexes: [marketIndex],
+		});
+		this.addTokenMintToRemainingAccounts(spotMarket, remainingAccounts);
+		return this.program.instruction.adminDeposit(marketIndex, amount, {
+			remainingAccounts,
+			accounts: {
+				state,
+				user: depositUserAccount,
+				admin: this.wallet.publicKey,
+				spotMarketVault: spotMarket.vault,
+				adminTokenAccount:
+					adminTokenAccount ??
+					(await this.getAssociatedTokenAccount(marketIndex)),
+				tokenProgram: getTokenProgramForSpotMarket(spotMarket),
+			},
+		});
 	}
 }

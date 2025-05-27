@@ -30,7 +30,8 @@
 	"dependencies": {
 		"@ellipsis-labs/phoenix-sdk": "1.4.2",
 		"@pythnetwork/pyth-solana-receiver": "0.8.0",
-		"@switchboard-xyz/on-demand": "2.3.2",
+		"@switchboard-xyz/on-demand": "2.4.1",
+		"@switchboard-xyz/common": "3.0.14",
 		"anchor-bankrun": "0.3.0",
 		"chai-bn": "0.2.2",
 		"csvtojson": "2.0.10",

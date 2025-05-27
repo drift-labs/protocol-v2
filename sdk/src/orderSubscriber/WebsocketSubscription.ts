@@ -13,7 +13,7 @@ export class WebsocketSubscription {
 	private resyncIntervalMs?: number;
 
 	private subscriber?: WebSocketProgramAccountSubscriber<UserAccount>;
-	private resyncTimeoutId?: NodeJS.Timeout;
+	private resyncTimeoutId?: ReturnType<typeof setTimeout>;
 
 	private decoded?: boolean;
 

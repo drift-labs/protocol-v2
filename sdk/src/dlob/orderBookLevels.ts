@@ -21,7 +21,13 @@ import {
 import { PublicKey } from '@solana/web3.js';
 import { assert } from '../assert/assert';
 
-type liquiditySource = 'serum' | 'vamm' | 'dlob' | 'phoenix' | 'openbook';
+type liquiditySource =
+	| 'serum'
+	| 'vamm'
+	| 'dlob'
+	| 'phoenix'
+	| 'openbook'
+	| 'indicative';
 
 export type L2Level = {
 	price: BN;
@@ -66,6 +72,7 @@ export const DEFAULT_TOP_OF_BOOK_QUOTE_AMOUNTS = [
  * @param oraclePriceData
  * @param slot
  */
+const INDICATIVE_QUOTES_PUBKEY = 'inDNdu3ML4vG5LNExqcwuCQtLcCU8KfK5YM2qYV3JJz';
 export function* getL2GeneratorFromDLOBNodes(
 	dlobNodes: Generator<DLOBNode>,
 	oraclePriceData: OraclePriceData,
@@ -78,9 +85,12 @@ export function* getL2GeneratorFromDLOBNodes(
 		yield {
 			size,
 			price: dlobNode.getPrice(oraclePriceData, slot),
-			sources: {
-				dlob: size,
-			},
+			sources:
+				dlobNode.userAccount == INDICATIVE_QUOTES_PUBKEY
+					? { indicative: size }
+					: {
+							dlob: size,
+					  },
 		};
 	}
 }

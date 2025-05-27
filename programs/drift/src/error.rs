@@ -633,6 +633,8 @@ pub enum ErrorCode {
     InvalidTransferPerpPosition,
     #[msg("Invalid SignedMsgUserOrders resize")]
     InvalidSignedMsgUserOrdersResize,
+    #[msg("Could not deserialize high leverage mode config")]
+    CouldNotDeserializeHighLeverageModeConfig,
 }
 
 #[macro_export]

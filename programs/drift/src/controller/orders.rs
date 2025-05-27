@@ -4,6 +4,7 @@ use std::ops::{Deref, DerefMut};
 use std::u64;
 
 use crate::msg;
+use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use anchor_lang::prelude::*;
 
 use crate::controller::funding::settle_funding_payment;
@@ -71,7 +72,7 @@ use crate::state::state::FeeStructure;
 use crate::state::state::*;
 use crate::state::traits::Size;
 use crate::state::user::{
-    AssetType, Order, OrderStatus, OrderTriggerCondition, OrderType, UserStats,
+    AssetType, Order, OrderBitFlag, OrderStatus, OrderTriggerCondition, OrderType, UserStats,
 };
 use crate::state::user::{MarketType, User};
 use crate::state::user_map::{UserMap, UserStatsMap};
@@ -101,6 +102,7 @@ pub fn place_perp_order(
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
+    high_leverage_mode_config: &Option<AccountLoader<HighLeverageModeConfig>>,
     clock: &Clock,
     mut params: OrderParams,
     mut options: PlaceOrderOptions,
@@ -119,6 +121,20 @@ pub fn place_perp_order(
     }
 
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
+
+    if params.is_update_high_leverage_mode() {
+        if let Some(config) = high_leverage_mode_config {
+            let mut config = load_mut!(config)?;
+            if !config.is_full() || params.is_max_leverage_order() {
+                config.update_user(user)?;
+            } else {
+                msg!("high leverage mode config is full");
+            }
+        } else {
+            msg!("high leverage mode config not found");
+            return Err(ErrorCode::InvalidOrder);
+        }
+    }
 
     if options.try_expire_orders {
         expire_orders(
@@ -228,8 +244,12 @@ pub fn place_perp_order(
 
     // updates auction params for crossing limit orders w/out auction duration
     // dont modify if it's a liquidation
-    if !options.is_liquidation() && !options.is_signed_msg_order() {
-        params.update_perp_auction_params(market, oracle_price_data.price)?;
+    if !options.is_liquidation() {
+        params.update_perp_auction_params(
+            market,
+            oracle_price_data.price,
+            options.is_signed_msg_order(),
+        )?;
     }
 
     let (auction_start_price, auction_end_price, auction_duration) = get_auction_params(
@@ -296,7 +316,7 @@ pub fn place_perp_order(
         trigger_condition: params.trigger_condition,
         post_only: params.post_only != PostOnlyParam::None,
         oracle_price_offset: params.oracle_price_offset.unwrap_or(0),
-        immediate_or_cancel: params.immediate_or_cancel,
+        immediate_or_cancel: params.is_immediate_or_cancel(),
         auction_start_price,
         auction_end_price,
         auction_duration,
@@ -797,6 +817,7 @@ pub fn modify_order(
                 perp_market_map,
                 spot_market_map,
                 oracle_map,
+                &None,
                 clock,
                 order_params,
                 PlaceOrderOptions::default(),
@@ -855,7 +876,7 @@ fn merge_modify_order_params_with_existing_order(
         } else {
             PostOnlyParam::None
         });
-    let immediate_or_cancel = false;
+    let bit_flags = 0;
     let max_ts = modify_order_params.max_ts.or(Some(existing_order.max_ts));
     let trigger_price = modify_order_params
         .trigger_price
@@ -898,7 +919,7 @@ fn merge_modify_order_params_with_existing_order(
         market_index,
         reduce_only,
         post_only,
-        immediate_or_cancel,
+        bit_flags,
         max_ts,
         trigger_price,
         trigger_condition,
@@ -947,7 +968,6 @@ pub fn fill_perp_order(
         order_oracle_price_offset,
         order_direction,
         order_auction_duration,
-        order_posted_slot_tail,
     ) = get_struct_values!(
         user.orders[order_index],
         status,
@@ -956,8 +976,7 @@ pub fn fill_perp_order(
         price,
         oracle_price_offset,
         direction,
-        auction_duration,
-        posted_slot_tail
+        auction_duration
     );
 
     validate!(
@@ -1231,17 +1250,9 @@ pub fn fill_perp_order(
         return Ok((0, 0));
     }
 
-    let clock_slot_tail = get_posted_slot_from_clock_slot(slot);
-
     let amm_availability = if amm_is_available {
         if amm_can_skip_duration && user_can_skip_duration {
             AMMAvailability::Immediate
-        } else if !user_can_skip_duration
-            && (clock_slot_tail.wrapping_sub(order_posted_slot_tail)
-                < state.min_perp_auction_duration)
-        {
-            msg!("Overriding amm to unavailable for user atomic fill");
-            AMMAvailability::Unavailable
         } else {
             AMMAvailability::AfterMinDuration
         }
@@ -1664,6 +1675,10 @@ fn get_referrer_info(
         }
 
         if referrer.sub_account_id == 0 {
+            if referrer.pool_id != 0 {
+                return Ok(None);
+            }
+
             referrer.update_last_active_slot(slot);
             referrer_user_key = *referrer_key;
             break;
@@ -2952,7 +2967,7 @@ pub fn trigger_order(
             &mut user.orders[order_index],
             oracle_price_data,
             slot,
-            30,
+            20,
             Some(&perp_market),
         )?;
 
@@ -3057,6 +3072,10 @@ fn update_trigger_order_params(
         }
     };
 
+    if slot.saturating_sub(order.slot) > 150 && order.reduce_only {
+        order.add_bit_flag(OrderBitFlag::SafeTriggerOrder);
+    }
+
     order.slot = slot;
 
     let (auction_duration, auction_start_price, auction_end_price) =
@@ -3077,6 +3096,10 @@ fn update_trigger_order_params(
     order.auction_duration = auction_duration;
     order.auction_start_price = auction_start_price;
     order.auction_end_price = auction_end_price;
+
+    if matches!(order.order_type, OrderType::TriggerMarket) {
+        order.add_bit_flag(OrderBitFlag::OracleTriggerMarket);
+    }
 
     Ok(())
 }
@@ -3315,6 +3338,7 @@ pub fn burn_user_lp_shares_for_risk_reduction(
             perp_market_map,
             spot_market_map,
             oracle_map,
+            &None,
             clock,
             params,
             PlaceOrderOptions::default().explanation(OrderActionExplanation::DeriskLp),
@@ -3586,7 +3610,7 @@ pub fn place_spot_order(
         trigger_condition: params.trigger_condition,
         post_only: params.post_only != PostOnlyParam::None,
         oracle_price_offset: params.oracle_price_offset.unwrap_or(0),
-        immediate_or_cancel: params.immediate_or_cancel,
+        immediate_or_cancel: params.is_immediate_or_cancel(),
         auction_start_price,
         auction_end_price,
         auction_duration,
@@ -5298,7 +5322,7 @@ pub fn trigger_spot_order(
             &mut user.orders[order_index],
             oracle_price_data,
             slot,
-            30,
+            20,
             None,
         )?;
 

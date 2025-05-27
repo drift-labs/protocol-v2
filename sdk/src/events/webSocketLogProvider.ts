@@ -13,7 +13,7 @@ export class WebSocketLogProvider implements LogProvider {
 	private isUnsubscribing = false;
 	private externalUnsubscribe = false;
 	private receivingData = false;
-	private timeoutId?: NodeJS.Timeout;
+	private timeoutId?: ReturnType<typeof setTimeout>;
 	private reconnectAttempts = 0;
 	eventEmitter?: EventEmitter;
 	private callback?: logProviderCallback;

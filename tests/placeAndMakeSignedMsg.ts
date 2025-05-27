@@ -199,10 +199,6 @@ describe('place and make signedMsg order', () => {
 			},
 		});
 		await takerDriftClientUser.subscribe();
-		await takerDriftClient.initializeSignedMsgUserOrders(
-			takerDriftClientUser.getUserAccount().authority,
-			32
-		);
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -237,7 +233,7 @@ describe('place and make signedMsg order', () => {
 			price: new BN(33).mul(PRICE_PRECISION),
 			userOrderId: 1,
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
-			immediateOrCancel: true,
+			bitFlags: 1,
 		});
 
 		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
@@ -325,10 +321,6 @@ describe('place and make signedMsg order', () => {
 			},
 		});
 		await takerDriftClientUser.subscribe();
-		await takerDriftClient.initializeSignedMsgUserOrders(
-			takerDriftClientUser.getUserAccount().authority,
-			32
-		);
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -363,7 +355,7 @@ describe('place and make signedMsg order', () => {
 			price: new BN(33).mul(PRICE_PRECISION),
 			userOrderId: 1,
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
-			immediateOrCancel: true,
+			bitFlags: 1,
 		});
 
 		const takerOrderParamsMessageEncoded =
@@ -500,7 +492,7 @@ describe('place and make signedMsg order', () => {
 			price: new BN(33).mul(PRICE_PRECISION),
 			userOrderId: 1,
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
-			immediateOrCancel: true,
+			bitFlags: 1,
 		});
 
 		const takerOrderParamsMessageEncoded =

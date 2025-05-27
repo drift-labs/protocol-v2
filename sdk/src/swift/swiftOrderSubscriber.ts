@@ -38,7 +38,7 @@ export type SwiftOrderSubscriberConfig = {
 };
 
 export class SwiftOrderSubscriber {
-	private heartbeatTimeout: NodeJS.Timeout | null = null;
+	private heartbeatTimeout: ReturnType<typeof setTimeout> | null = null;
 	private readonly heartbeatIntervalMs = 60000;
 	private ws: WebSocket | null = null;
 	private driftClient: DriftClient;
@@ -56,6 +56,15 @@ export class SwiftOrderSubscriber {
 	constructor(private config: SwiftOrderSubscriberConfig) {
 		this.driftClient = config.driftClient;
 		this.userAccountGetter = config.userAccountGetter;
+	}
+
+	unsubscribe() {
+		if (this.subscribed) {
+			this.ws.removeAllListeners();
+			this.ws.terminate();
+			this.ws = null;
+			this.subscribed = false;
+		}
 	}
 
 	getSymbolForMarketIndex(marketIndex: number): string {
@@ -112,7 +121,8 @@ export class SwiftOrderSubscriber {
 				| SignedMsgOrderParamsMessage
 				| SignedMsgOrderParamsDelegateMessage,
 			isDelegateSigner?: boolean
-		) => Promise<void>
+		) => Promise<void>,
+		acceptSanitized = false
 	): Promise<void> {
 		this.onOrder = onOrder;
 
@@ -137,6 +147,10 @@ export class SwiftOrderSubscriber {
 
 				if (message['order']) {
 					const order = message['order'];
+					// ignore likely sanitized orders by default
+					if (order['will_sanitize'] === true && !acceptSanitized) {
+						return;
+					}
 					const signedMsgOrderParamsBuf = Buffer.from(
 						order['order_message'],
 						'hex'

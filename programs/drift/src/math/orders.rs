@@ -11,6 +11,7 @@ use crate::math::auction::is_amm_available_liquidity_source;
 use crate::math::casting::Cast;
 use crate::state::fill_mode::FillMode;
 use crate::state::protected_maker_mode_config::ProtectedMakerParams;
+use crate::state::user::OrderBitFlag;
 use crate::{
     load, math, FeeTier, State, BASE_PRECISION_I128, FEE_ADJUSTMENT_MAX,
     MAX_PREDICTION_MARKET_PRICE, MAX_PREDICTION_MARKET_PRICE_I64, OPEN_ORDER_MARGIN_REQUIREMENT,
@@ -1398,12 +1399,11 @@ pub fn get_posted_slot_from_clock_slot(slot: u64) -> u8 {
 }
 
 // Bit flag operators
-pub const FLAG_IS_SIGNED_MSG: u8 = 0x01;
 pub fn set_is_signed_msg_flag(mut flags: u8, value: bool) -> u8 {
     if value {
-        flags |= FLAG_IS_SIGNED_MSG;
+        flags |= OrderBitFlag::SignedMessage as u8;
     } else {
-        flags &= !FLAG_IS_SIGNED_MSG;
+        flags &= !(OrderBitFlag::SignedMessage as u8);
     }
     flags
 }

@@ -46,6 +46,7 @@ import {
 	convertToNumber,
 	OrderParams,
 	SignedMsgOrderParamsDelegateMessage,
+	OrderParamsBitFlag,
 } from '../sdk/src';
 
 import {
@@ -266,7 +267,7 @@ describe('place and make signedMsg order', () => {
 			price: new BN(223).mul(PRICE_PRECISION),
 			userOrderId: 1,
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
-			immediateOrCancel: true,
+			bitFlags: 1,
 		});
 
 		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
@@ -423,7 +424,7 @@ describe('place and make signedMsg order', () => {
 		await takerDriftClient.unsubscribe();
 	});
 
-	it('should work with pyth lazer crank and filling against vamm in one tx', async () => {
+	it('should not work with pyth lazer crank and filling against vamm in one tx', async () => {
 		const slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
@@ -606,10 +607,7 @@ describe('place and make signedMsg order', () => {
 
 		await takerDriftClient.fetchAccounts();
 		assert(
-			takerDriftClient
-				.getUser()
-				.getPerpPosition(0)
-				.baseAssetAmount.eq(BASE_PRECISION)
+			takerDriftClient.getUser().getPerpPosition(0).baseAssetAmount.eq(ZERO)
 		);
 
 		await takerDriftClientUser.unsubscribe();
@@ -869,7 +867,7 @@ describe('place and make signedMsg order', () => {
 			baseAssetAmount,
 			price: new BN(223).mul(PRICE_PRECISION),
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
-			immediateOrCancel: true,
+			bitFlags: 1,
 			marketType: MarketType.PERP,
 		}) as OrderParams;
 
@@ -983,7 +981,7 @@ describe('place and make signedMsg order', () => {
 			baseAssetAmount,
 			price: new BN(223).mul(PRICE_PRECISION),
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
-			immediateOrCancel: true,
+			bitFlags: 1,
 		}) as OrderParams;
 
 		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
@@ -1169,7 +1167,7 @@ describe('place and make signedMsg order', () => {
 			baseAssetAmount,
 			price: new BN(225).mul(PRICE_PRECISION),
 			postOnly: PostOnlyParams.MUST_POST_ONLY,
-			immediateOrCancel: true,
+			bitFlags: 1,
 		});
 		await makerDriftClient.placeAndMakeSignedMsgPerpOrder(
 			signedOrderParams,
@@ -1190,6 +1188,69 @@ describe('place and make signedMsg order', () => {
 
 		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
 		assert(takerPosition.baseAssetAmount.eq(baseAssetAmount));
+
+		await takerDriftClientUser.unsubscribe();
+		await takerDriftClient.unsubscribe();
+	});
+
+	it('should place with high-leverage mode update', async () => {
+		const slot = new BN(
+			await bankrunContextWrapper.connection.toConnection().getSlot()
+		);
+
+		const [takerDriftClient, takerDriftClientUser] =
+			await initializeNewTakerClientAndUser(
+				bankrunContextWrapper,
+				chProgram,
+				usdcMint,
+				usdcAmount,
+				marketIndexes,
+				spotMarketIndexes,
+				oracleInfos,
+				bulkAccountLoader
+			);
+		await takerDriftClientUser.fetchAccounts();
+
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		const takerOrderParams = getMarketOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount,
+			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(227).mul(PRICE_PRECISION),
+			auctionDuration: 10,
+			userOrderId: 1,
+			postOnly: PostOnlyParams.NONE,
+			bitFlags: OrderParamsBitFlag.UpdateHighLeverageMode,
+		}) as OrderParams;
+		const signedMsgSlot = slot.subn(5);
+		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
+		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
+			signedMsgOrderParams: takerOrderParams,
+			subAccountId: 0,
+			slot: signedMsgSlot,
+			uuid,
+			takeProfitOrderParams: null,
+			stopLossOrderParams: null,
+		};
+		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
+			takerOrderParamsMessage
+		);
+
+		await makerDriftClient.initializeHighLeverageModeConfig(1);
+		await makerDriftClient.placeSignedMsgTakerOrder(
+			signedOrderParams,
+			marketIndex,
+			{
+				taker: await takerDriftClient.getUserAccountPublicKey(),
+				takerUserAccount: takerDriftClient.getUserAccount(),
+				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
+				signingAuthority: takerDriftClient.wallet.publicKey,
+			},
+			undefined,
+			2
+		);
 
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();
@@ -1597,10 +1658,6 @@ async function initializeNewTakerClientAndUser(
 		},
 	});
 	await takerDriftClientUser.subscribe();
-	await takerDriftClient.initializeSignedMsgUserOrders(
-		takerDriftClientUser.getUserAccount().authority,
-		32
-	);
 	return [takerDriftClient, takerDriftClientUser];
 }
 
