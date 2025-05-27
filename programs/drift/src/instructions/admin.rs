@@ -5043,8 +5043,8 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
         "begin_lp_swap ended in invalid state"
     )?;
 
-    in_constituent.flash_loan_initial_token_amount = constituent_in_token_account.amount;
-    out_constituent.flash_loan_initial_token_amount = constituent_out_token_account.amount;
+    in_constituent.flash_loan_initial_token_amount = ctx.accounts.signer_in_token_account.amount;
+    out_constituent.flash_loan_initial_token_amount = ctx.accounts.signer_out_token_account.amount;
 
     send_from_program_vault(
         &ctx.accounts.token_program,

@@ -814,7 +814,7 @@ describe('LP Pool', () => {
 			`out Token: ${beforeSOLBalance} -> ${afterSOLBalance} (${solDiff})`
 		);
 
-		expect(usdcDiff).to.be.equal(-200 * 10 ** 6);
-		expect(solDiff).to.be.equal(1 * 10 ** 9);
+		expect(usdcDiff).to.be.equal(-100040000);
+		expect(solDiff).to.be.equal(1000000000);
 	});
 });
