@@ -1441,6 +1441,73 @@ fn test_multi_stage_borrow_rate_curve() {
     assert_eq!(rate_jumps, 5);
 }
 
+
+
+#[test]
+fn test_multi_stage_borrow_rate_curve_sol() {
+
+    let sol_market_str = "ZLEIa6hBQSe8mOScO4Q3gPiYlmy/ytlG/cnYQTYnRtaSWXsTV1MIDdyLk9ix4D+qm1SCoZnNadQyNDlZvAA3W5B/Hvp4Nzsj/NFB6YMsrxCtkXSVyg8nG1spPNRwJ+pzcAftQOs5oL2NnO4AQjaj0aPvLSuAhrujNBdQ4Oed3CsiKSwbXOb62kppdG9TT0wtMyAgICAgICAgICAgICAgICAgICAgICAg2MDRDAAAAAAAAAAAAAAAACkAAAAAAAAAjZzNDAAAAAAbptAMAAAAAPsfNmgAAAAAkcXoCgAAAACRxegKAAAAAJHF6AoAAAAAkcXoCgAAAAAAAAAAAAAAANw38AgAAAAAAAAAAAAAAAAoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUO6uqOFP+6m2IqCEcWIRS4KbJ19gSCx97MQnTm2zeasJI7ow8AAAAAAAAAAAAAAPjT3YsPAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgCMRAAAAAABwGjZoAAAAABAOAAAAAAAAoIYBAFDDAAAAAAAAAAAAAAAAAAAAAAAAYklbkYUcAAAAAAAAAAAAAKtaiR+OFwAAAAAAAAAAAACObuFUAgAAAAAAAAAAAAAAn39RVQIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKByThgJAAAAgN1isiECAP6BWLcJHQAASD6HE6UXAADpbgwAAAAAAPsfNmgAAAAA+x82aAAAAAAAAAAAAAAAAICWmAAAAAAAZAAAAAAAAACAlpgAAAAAAAAAAAAAAAAAAQAAAAAAAACwBwAAAAAAADQhAAAiJAAA7CwAAP4pAAAyAAAAiBMAAJg6AAAANQwAIE4AACChBwAJAAAAKAABCwEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEDlnDASAAAABQABAQAAAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+    let mut decoded_bytes = base64::decode(sol_market_str).unwrap();
+    let sol_market_bytes = decoded_bytes.as_mut_slice();
+
+    let key = Pubkey::default();
+    let owner = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
+    let mut lamports = 0;
+    let sol_market_account_info =
+        create_account_info(&key, true, &mut lamports, sol_market_bytes, &owner);
+
+    let spot_market_loader: AccountLoader<SpotMarket> =
+        AccountLoader::try_from(&sol_market_account_info).unwrap();
+    let mut spot_market = spot_market_loader.load_mut().unwrap();
+
+    // Store all rates to verify monotonicity and smoothness later
+    let mut last_rate = 0_u128;
+    let mut last_rate_delta = 0_u128;
+    let mut rate_jumps = 0_u128;
+    for i in 0..=200 {
+        let utilization = i * 5_000; // 0.5% increments
+
+        let rate = calculate_borrow_rate(&spot_market, utilization).unwrap();
+        println!("Utilization: {} => Rate: {}", utilization, rate);
+
+        if (rate - last_rate) > (last_rate_delta + 1) && last_rate_delta != 0 {
+            rate_jumps += 1;
+        }
+
+        println!("rate deltas: {} => {}", (rate - last_rate), last_rate_delta);
+
+        assert!(
+            (rate - last_rate) >= last_rate_delta.saturating_sub(1),
+            "Rate of change should not decrease by much"
+        );
+        last_rate_delta = rate - last_rate;
+
+        if utilization == 845000 {
+            assert_eq!(rate, 41600);
+        }
+        if utilization == 985000 {
+            assert_eq!(rate, 248000);
+        }
+        if utilization == 1000000 {
+            assert_eq!(rate, 500000);
+        }
+
+        // Check monotonic increasing
+        assert!(rate >= last_rate, "Rate should not decrease");
+        last_rate = rate;
+
+        if utilization == spot_market.optimal_utilization as u128 {
+            assert!(((rate as i32) - (spot_market.optimal_borrow_rate as i32)).abs() <= 1)
+        }
+
+        if utilization == 1000000_u128 {
+            assert_eq!(rate as u32, spot_market.max_borrow_rate)
+        }
+    }
+
+    assert_eq!(rate_jumps, 5);
+}
+
 #[test]
 fn attempt_borrow_with_massive_upnl() {
     let _now = 0_i64;
