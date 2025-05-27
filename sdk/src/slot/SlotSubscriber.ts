@@ -17,7 +17,7 @@ export class SlotSubscriber {
 	eventEmitter: StrictEventEmitter<EventEmitter, SlotSubscriberEvents>;
 
 	// Reconnection
-	timeoutId?: NodeJS.Timeout;
+	timeoutId?: ReturnType<typeof setTimeout>;
 	resubTimeoutMs?: number;
 	isUnsubscribing = false;
 	receivingData = false;
