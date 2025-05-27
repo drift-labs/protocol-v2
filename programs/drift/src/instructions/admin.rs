@@ -5099,13 +5099,31 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
             validate!(
                 ctx.accounts.constituent_out_token_account.key() == ix.accounts[4].pubkey,
                 ErrorCode::InvalidSwap,
-                "the in_token_account passed to SwapBegin and End must match"
+                "the constituent out_token_account passed to SwapBegin and End must match"
             )?;
 
             validate!(
                 ctx.accounts.constituent_in_token_account.key() == ix.accounts[5].pubkey,
                 ErrorCode::InvalidSwap,
-                "the out_token_account passed to SwapBegin and End must match"
+                "the constituent in token account passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.out_constituent.key() == ix.accounts[6].pubkey,
+                ErrorCode::InvalidSwap,
+                "the out constituent passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.in_constituent.key() == ix.accounts[7].pubkey,
+                ErrorCode::InvalidSwap,
+                "the in constituent passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.lp_pool.key() == ix.accounts[8].pubkey,
+                ErrorCode::InvalidSwap,
+                "the lp pool passed to SwapBegin and End must match"
             )?;
         } else {
             if found_end {
@@ -6332,12 +6350,16 @@ pub struct LPTakerSwap<'info> {
     /// Constituent token accounts
     #[account(
         mut,
+        seeds = ["CONSTITUENT_VAULT".as_ref(), lp_pool.key().as_ref(), out_market_index.to_le_bytes().as_ref()],
+        bump,
         constraint = &out_constituent.load()?.mint.eq(&constituent_out_token_account.mint),
         token::authority = drift_signer
     )]
     pub constituent_out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
+        seeds = ["CONSTITUENT_VAULT".as_ref(), lp_pool.key().as_ref(), in_market_index.to_le_bytes().as_ref()],
+        bump,
         constraint = &in_constituent.load()?.mint.eq(&constituent_in_token_account.mint),
         token::authority = drift_signer
     )]

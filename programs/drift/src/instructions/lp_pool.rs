@@ -916,9 +916,17 @@ pub struct LPPoolSwap<'info> {
     /// CHECK: checked in ConstituentTargetBaseZeroCopy checks
     pub constituent_target_base: AccountInfo<'info>,
 
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = ["CONSTITUENT_VAULT".as_ref(), lp_pool.key().as_ref(), in_market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
     pub constituent_in_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = ["CONSTITUENT_VAULT".as_ref(), lp_pool.key().as_ref(), out_market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
     pub constituent_out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
 
     #[account(
