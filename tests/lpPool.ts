@@ -416,20 +416,9 @@ describe('LP Pool', () => {
 			data: lpbuf,
 		});
 
-		const ammConstituentMappingPublicKey = getAmmConstituentMappingPublicKey(
-			program.programId,
-			lpPoolKey
-		);
-
-		const ammMapping =
-			(await adminClient.program.account.ammConstituentMapping.fetch(
-				ammConstituentMappingPublicKey
-			)) as AmmConstituentMapping;
-
 		await adminClient.updateLpConstituentTargetBase(
 			encodeName(lpPoolName),
 			[0],
-			ammMapping
 		);
 		const constituentTargetBasePublicKey = getConstituentTargetBasePublicKey(
 			program.programId,

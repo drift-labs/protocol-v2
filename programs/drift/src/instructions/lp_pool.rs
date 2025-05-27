@@ -43,7 +43,6 @@ use crate::state::lp_pool::{
 
 pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdateConstituentTargetBase<'info>>,
-    lp_pool_name: [u8; 32],
     constituent_indexes: Vec<u16>,
 ) -> Result<()> {
     let lp_pool = &ctx.accounts.lp_pool.load()?;
@@ -70,22 +69,6 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
     let state = &ctx.accounts.state;
     let constituent_target_base_key = &ctx.accounts.constituent_target_base.key();
     let amm_mapping_key = &ctx.accounts.amm_constituent_mapping.key();
-
-    // Validate lp pool pda
-    let expected_lp_pda = &Pubkey::create_program_address(
-        &[
-            b"lp_pool",
-            lp_pool_name.as_ref(),
-            lp_pool.bump.to_le_bytes().as_ref(),
-        ],
-        &crate::ID,
-    )
-    .map_err(|_| ErrorCode::InvalidPDA)?;
-    validate!(
-        expected_lp_pda.eq(lp_pool_key),
-        ErrorCode::InvalidPDA,
-        "Lp pool PDA does not match expected PDA"
-    )?;
 
     let mut constituent_target_base: AccountZeroCopyMut<
         '_,
@@ -892,9 +875,6 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
 }
 
 #[derive(Accounts)]
-#[instruction(
-    lp_pool_name: [u8; 32],
-)]
 pub struct UpdateConstituentTargetBase<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
@@ -905,26 +885,15 @@ pub struct UpdateConstituentTargetBase<'info> {
     pub constituent_target_base: AccountInfo<'info>,
     /// CHECK: checked in AmmCacheZeroCopy checks
     pub amm_cache: AccountInfo<'info>,
-    #[account(
-        seeds = [b"lp_pool", lp_pool_name.as_ref()],
-        bump = lp_pool.load()?.bump,
-    )]
     pub lp_pool: AccountLoader<'info, LPPool>,
 }
 
 #[derive(Accounts)]
-#[instruction(
-    lp_pool_name: [u8; 32],
-)]
 pub struct UpdateLPPoolAum<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub keeper: Signer<'info>,
-    #[account(
-        mut,
-        seeds = [b"lp_pool", lp_pool_name.as_ref()],
-        bump,
-    )]
+    #[account(mut)]
     pub lp_pool: AccountLoader<'info, LPPool>,
 }
 
@@ -995,18 +964,13 @@ pub struct LPPoolSwap<'info> {
 
 #[derive(Accounts)]
 #[instruction(
-    lp_pool_name: [u8; 32],
     in_market_index: u16,
 )]
 pub struct LPPoolAddLiquidity<'info> {
     /// CHECK: forced drift_signer
     pub drift_signer: AccountInfo<'info>,
     pub state: Box<Account<'info, State>>,
-    #[account(
-        mut,
-        seeds = [b"lp_pool", lp_pool_name.as_ref()],
-        bump,
-    )]
+    #[account(mut)]
     pub lp_pool: AccountLoader<'info, LPPool>,
     pub authority: Signer<'info>,
     pub in_market_mint: Box<InterfaceAccount<'info, Mint>>,
@@ -1058,18 +1022,13 @@ pub struct LPPoolAddLiquidity<'info> {
 
 #[derive(Accounts)]
 #[instruction(
-    lp_pool_name: [u8; 32],
     in_market_index: u16,
 )]
 pub struct LPPoolRemoveLiquidity<'info> {
     /// CHECK: forced drift_signer
     pub drift_signer: AccountInfo<'info>,
     pub state: Box<Account<'info, State>>,
-    #[account(
-        mut,
-        seeds = [b"lp_pool", lp_pool_name.as_ref()],
-        bump,
-    )]
+    #[account(mut)]
     pub lp_pool: AccountLoader<'info, LPPool>,
     pub authority: Signer<'info>,
     pub out_market_mint: Box<InterfaceAccount<'info, Mint>>,

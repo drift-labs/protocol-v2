@@ -44,7 +44,6 @@ import {
 	createWSolTokenAccountForUser,
 	initializeSolSpotMarket,
 	createUserWithUSDCAndWSOLAccount,
-	getTokenAmountAsBN,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
@@ -518,7 +517,6 @@ describe('LP Pool', () => {
 			0
 		);
 		await adminClient.lpPoolAddLiquidity({
-			lpPoolName: encodeName(lpPoolName),
 			inMarketIndex: 0,
 			inAmount: tokensAdded,
 			minMintAmount: new BN(1),
@@ -563,7 +561,6 @@ describe('LP Pool', () => {
 
 		// remove liquidity
 		await adminClient.lpPoolRemoveLiquidity({
-			lpPoolName: encodeName(lpPoolName),
 			outMarketIndex: 0,
 			lpToBurn: new BN(userLpTokenBalanceAfter.amount.toString()),
 			minAmountOut: new BN(1),

@@ -4515,7 +4515,6 @@ export class AdminClient extends DriftClient {
 
 		return [
 			this.program.instruction.initializeConstituent(
-				lpPoolName,
 				spotMarketIndex,
 				decimals,
 				maxWeightDeviation,
@@ -4585,7 +4584,6 @@ export class AdminClient extends DriftClient {
 		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
 		return [
 			this.program.instruction.updateConstituentParams(
-				lpPoolName,
 				Object.assign(
 					{
 						maxWeightDeviation: null,
@@ -4642,7 +4640,6 @@ export class AdminClient extends DriftClient {
 		);
 		return [
 			this.program.instruction.addAmmConstituentMappingData(
-				lpPoolName,
 				addAmmConstituentMappingData,
 				{
 					accounts: {
@@ -4683,7 +4680,6 @@ export class AdminClient extends DriftClient {
 		);
 		return [
 			this.program.instruction.updateAmmConstituentMappingData(
-				lpPoolName,
 				addAmmConstituentMappingData,
 				{
 					accounts: {
@@ -4726,7 +4722,6 @@ export class AdminClient extends DriftClient {
 
 		return [
 			this.program.instruction.removeAmmConstituentMappingData(
-				lpPoolName,
 				perpMarketIndex,
 				constituentIndex,
 				{
@@ -4823,7 +4818,6 @@ export class AdminClient extends DriftClient {
 		);
 
 		const beginSwapIx = this.program.instruction.beginLpSwap(
-			lpPoolName,
 			inMarketIndex,
 			outMarketIndex,
 			amountIn,
@@ -4870,7 +4864,6 @@ export class AdminClient extends DriftClient {
 		});
 
 		const endSwapIx = this.program.instruction.endLpSwap(
-			lpPoolName,
 			inMarketIndex,
 			outMarketIndex,
 			{

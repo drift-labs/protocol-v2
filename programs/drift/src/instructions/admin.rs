@@ -6144,7 +6144,6 @@ pub struct InitializeLpPool<'info> {
 
 #[derive(Accounts)]
 #[instruction(
-    lp_pool_name: [u8; 32],
     spot_market_index: u16,
 )]
 pub struct InitializeConstituent<'info> {
@@ -6156,11 +6155,7 @@ pub struct InitializeConstituent<'info> {
     )]
     pub admin: Signer<'info>,
 
-    #[account(
-        mut,
-        seeds = [b"lp_pool", lp_pool_name.as_ref()],
-        bump = lp_pool.load()?.bump,
-    )]
+    #[account(mut)]
     pub lp_pool: AccountLoader<'info, LPPool>,
 
     #[account(
@@ -6202,15 +6197,8 @@ pub struct InitializeConstituent<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(
-    lp_pool_name: [u8; 32],
-)]
 pub struct UpdateConstituentParams<'info> {
-    #[account(
-        mut,
-        seeds = [b"lp_pool", lp_pool_name.as_ref()],
-        bump = lp_pool.load()?.bump,
-    )]
+    #[account(mut)]
     pub lp_pool: AccountLoader<'info, LPPool>,
     #[account(
         mut,
@@ -6238,7 +6226,6 @@ pub struct AddAmmConstituentMappingDatum {
 
 #[derive(Accounts)]
 #[instruction(
-    lp_pool_name: [u8; 32],
     amm_constituent_mapping_data:  Vec<AddAmmConstituentMappingDatum>,
 )]
 pub struct AddAmmConstituentMappingData<'info> {
@@ -6247,11 +6234,6 @@ pub struct AddAmmConstituentMappingData<'info> {
         constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>,
-
-    #[account(
-        seeds = [b"lp_pool", lp_pool_name.as_ref()],
-        bump,
-    )]
     pub lp_pool: AccountLoader<'info, LPPool>,
 
     #[account(
@@ -6278,7 +6260,6 @@ pub struct AddAmmConstituentMappingData<'info> {
 
 #[derive(Accounts)]
 #[instruction(
-    lp_pool_name: [u8; 32],
     amm_constituent_mapping_data:  Vec<AddAmmConstituentMappingDatum>,
 )]
 pub struct UpdateAmmConstituentMappingData<'info> {
@@ -6287,11 +6268,6 @@ pub struct UpdateAmmConstituentMappingData<'info> {
         constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>,
-
-    #[account(
-        seeds = [b"lp_pool", lp_pool_name.as_ref()],
-        bump,
-    )]
     pub lp_pool: AccountLoader<'info, LPPool>,
 
     #[account(
@@ -6305,20 +6281,12 @@ pub struct UpdateAmmConstituentMappingData<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(
-    lp_pool_name: [u8; 32],
-)]
 pub struct RemoveAmmConstituentMappingData<'info> {
     #[account(
         mut,
         constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>,
-
-    #[account(
-        seeds = [b"lp_pool", lp_pool_name.as_ref()],
-        bump,
-    )]
     pub lp_pool: AccountLoader<'info, LPPool>,
 
     #[account(
@@ -6336,7 +6304,6 @@ pub struct RemoveAmmConstituentMappingData<'info> {
 
 #[derive(Accounts)]
 #[instruction(
-    lp_pool_name: [u8; 32],
     in_market_index: u16,
     out_market_index: u16,
 )]
@@ -6389,12 +6356,6 @@ pub struct LPTakerSwap<'info> {
         bump = in_constituent.load()?.bump,
     )]
     pub in_constituent: AccountLoader<'info, Constituent>,
-
-    #[account(
-        mut,
-        seeds = [b"lp_pool", lp_pool_name.as_ref()],
-        bump= lp_pool.load()?.bump,
-    )]
     pub lp_pool: AccountLoader<'info, LPPool>,
 
     /// Instructions Sysvar for instruction introspection

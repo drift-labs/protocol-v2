@@ -58,7 +58,6 @@ import {
 	UserStatsAccount,
 	ProtectedMakerModeConfig,
 	SignedMsgOrderParamsDelegateMessage,
-	AmmConstituentMapping,
 	LPPoolAccount,
 } from './types';
 import driftIDL from './idl/drift.json';
@@ -9716,7 +9715,6 @@ export class DriftClient {
 	public async updateLpConstituentTargetBase(
 		lpPoolName: number[],
 		constituentIndexesToUpdate: number[],
-		ammConstituentMapping: AmmConstituentMapping,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
@@ -9750,7 +9748,6 @@ export class DriftClient {
 		const ammCache = getAmmCachePublicKey(this.program.programId);
 
 		return this.program.instruction.updateLpConstituentTargetBase(
-			lpPoolName,
 			constituentIndexesToUpdate,
 			{
 				accounts: {
@@ -9802,7 +9799,7 @@ export class DriftClient {
 				};
 			})
 		);
-		return this.program.instruction.updateLpPoolAum(lpPool.name, {
+		return this.program.instruction.updateLpPoolAum({
 			accounts: {
 				keeper: this.wallet.publicKey,
 				lpPool: lpPool.pubkey,
@@ -9940,7 +9937,6 @@ export class DriftClient {
 	}
 
 	public async lpPoolAddLiquidity({
-		lpPoolName,
 		inMarketIndex,
 		inAmount,
 		minMintAmount,
@@ -9954,7 +9950,6 @@ export class DriftClient {
 		inConstituent,
 		txParams,
 	}: {
-		lpPoolName: number[];
 		inMarketIndex: number;
 		inAmount: BN;
 		minMintAmount: BN;
@@ -9971,7 +9966,6 @@ export class DriftClient {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
 				await this.getLpPoolAddLiquidityIx({
-					lpPoolName,
 					inMarketIndex,
 					inAmount,
 					minMintAmount,
@@ -9993,7 +9987,6 @@ export class DriftClient {
 	}
 
 	public async getLpPoolAddLiquidityIx({
-		lpPoolName,
 		inMarketIndex,
 		inAmount,
 		minMintAmount,
@@ -10006,7 +9999,6 @@ export class DriftClient {
 		inMarketMint,
 		inConstituent,
 	}: {
-		lpPoolName: number[];
 		inMarketIndex: number;
 		inAmount: BN;
 		minMintAmount: BN;
@@ -10025,7 +10017,6 @@ export class DriftClient {
 		});
 
 		return this.program.instruction.lpPoolAddLiquidity(
-			lpPoolName,
 			inMarketIndex,
 			inAmount,
 			minMintAmount,
@@ -10054,7 +10045,6 @@ export class DriftClient {
 	}
 
 	public async lpPoolRemoveLiquidity({
-		lpPoolName,
 		outMarketIndex,
 		lpToBurn,
 		minAmountOut,
@@ -10068,7 +10058,6 @@ export class DriftClient {
 		outConstituent,
 		txParams,
 	}: {
-		lpPoolName: number[];
 		outMarketIndex: number;
 		lpToBurn: BN;
 		minAmountOut: BN;
@@ -10085,7 +10074,6 @@ export class DriftClient {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
 				await this.getLpPoolRemoveLiquidityIx({
-					lpPoolName,
 					outMarketIndex,
 					lpToBurn,
 					minAmountOut,
@@ -10107,7 +10095,6 @@ export class DriftClient {
 	}
 
 	public async getLpPoolRemoveLiquidityIx({
-		lpPoolName,
 		outMarketIndex,
 		lpToBurn,
 		minAmountOut,
@@ -10120,7 +10107,6 @@ export class DriftClient {
 		outMarketMint,
 		outConstituent,
 	}: {
-		lpPoolName: number[];
 		outMarketIndex: number;
 		lpToBurn: BN;
 		minAmountOut: BN;
@@ -10139,7 +10125,6 @@ export class DriftClient {
 		});
 
 		return this.program.instruction.lpPoolRemoveLiquidity(
-			lpPoolName,
 			outMarketIndex,
 			lpToBurn,
 			minAmountOut,
