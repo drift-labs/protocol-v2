@@ -470,7 +470,7 @@ pub struct Constituent {
 
     /// percentable of stablecoin weight to go to this specific stablecoin PERCENTAGE_PRECISION
     /// ZERO for non-stablecoins
-    pub stablecoin_weight: i64,
+    pub stablecoin_weight: u64,
     pub flash_loan_initial_token_amount: u64,
 }
 
@@ -753,12 +753,12 @@ pub fn calculate_target_weight(
     lp_pool_aum: u128,
     validation_flags: WeightValidationFlags,
 ) -> DriftResult<i64> {
-    let target_weight = target_base
+    let notional = target_base.safe_mul(price)?.safe_div(BASE_PRECISION_I64)?;
+
+    let target_weight = notional
         .cast::<i128>()?
-        .safe_mul(BASE_PRECISION_I128)?
-        .safe_div(QUOTE_PRECISION_I128)?
-        .safe_div(lp_pool_aum.cast::<i128>()?)?
         .safe_mul(PERCENTAGE_PRECISION_I128)?
+        .safe_div(lp_pool_aum.cast::<i128>()?)?
         .cast::<i64>()?;
 
     // if (validation_flags as u8 & (WeightValidationFlags::NoNegativeWeights as u8) != 0)

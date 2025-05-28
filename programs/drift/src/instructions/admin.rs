@@ -33,8 +33,8 @@ use crate::math::constants::{
     IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX, INSURANCE_C_MAX,
     INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION, MAX_CONCENTRATION_COEFFICIENT,
     MAX_SQRT_K, MAX_UPDATE_K_PRICE_CHANGE, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I64,
-    QUOTE_SPOT_MARKET_INDEX, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION,
-    SPOT_WEIGHT_PRECISION, THIRTEEN_DAY, TWENTY_FOUR_HOUR,
+    PRICE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX, SPOT_CUMULATIVE_INTEREST_PRECISION,
+    SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION, THIRTEEN_DAY, TWENTY_FOUR_HOUR,
 };
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::orders::is_multiple_of_step_size;
@@ -4739,7 +4739,7 @@ pub fn handle_initialize_constituent<'info>(
     swap_fee_max: i64,
     oracle_staleness_threshold: u64,
     cost_to_trade_bps: i32,
-    stablecoin_weight: i64,
+    stablecoin_weight: u64,
 ) -> Result<()> {
     let mut constituent = ctx.accounts.constituent.load_init()?;
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
@@ -4763,6 +4763,12 @@ pub fn handle_initialize_constituent<'info>(
         lp_pool.constituents,
         spot_market_index
     );
+
+    validate!(
+        stablecoin_weight >= 0 && stablecoin_weight <= PRICE_PRECISION_U64,
+        ErrorCode::InvalidConstituent,
+        "stablecoin_weight must be between 0 and 1",
+    )?;
 
     constituent.spot_market_index = spot_market_index;
     constituent.constituent_index = lp_pool.constituents;
@@ -4790,7 +4796,7 @@ pub struct ConstituentParams {
     pub swap_fee_max: Option<i64>,
     pub oracle_staleness_threshold: Option<u64>,
     pub cost_to_trade_bps: Option<i32>,
-    pub stablecoin_weight: Option<i64>,
+    pub stablecoin_weight: Option<u64>,
 }
 
 pub fn handle_update_constituent_params<'info>(
