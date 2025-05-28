@@ -3910,7 +3910,7 @@ pub fn handle_update_perp_market_number_of_users(
 }
 
 pub fn handle_update_perp_market_fuel(
-    ctx: Context<AdminUpdatePerpMarket>,
+    ctx: Context<AdminUpdatePerpMarketFuel>,
     fuel_boost_taker: Option<u8>,
     fuel_boost_maker: Option<u8>,
     fuel_boost_position: Option<u8>,
@@ -4016,7 +4016,7 @@ pub fn handle_update_spot_market_fee_adjustment(
 }
 
 pub fn handle_update_spot_market_fuel(
-    ctx: Context<AdminUpdateSpotMarket>,
+    ctx: Context<AdminUpdateSpotMarketFuel>,
     fuel_boost_deposits: Option<u8>,
     fuel_boost_borrows: Option<u8>,
     fuel_boost_taker: Option<u8>,
@@ -4865,6 +4865,17 @@ pub struct AdminUpdatePerpMarket<'info> {
 }
 
 #[derive(Accounts)]
+pub struct AdminUpdatePerpMarketFuel<'info> {
+    #[account(
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub perp_market: AccountLoader<'info, PerpMarket>,
+}
+
+#[derive(Accounts)]
 pub struct AdminUpdatePerpMarketAmmSummaryStats<'info> {
     #[account(
         constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
@@ -4998,6 +5009,17 @@ pub struct AdminUpdateSpotMarket<'info> {
     #[account(
         has_one = admin
     )]
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+}
+
+#[derive(Accounts)]
+pub struct AdminUpdateSpotMarketFuel<'info> {
+    #[account(
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub spot_market: AccountLoader<'info, SpotMarket>,

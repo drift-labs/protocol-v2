@@ -1513,7 +1513,7 @@ pub mod drift {
     }
 
     pub fn update_perp_market_fuel(
-        ctx: Context<AdminUpdatePerpMarket>,
+        ctx: Context<AdminUpdatePerpMarketFuel>,
         fuel_boost_taker: Option<u8>,
         fuel_boost_maker: Option<u8>,
         fuel_boost_position: Option<u8>,
@@ -1534,7 +1534,7 @@ pub mod drift {
     }
 
     pub fn update_spot_market_fuel(
-        ctx: Context<AdminUpdateSpotMarket>,
+        ctx: Context<AdminUpdateSpotMarketFuel>,
         fuel_boost_deposits: Option<u8>,
         fuel_boost_borrows: Option<u8>,
         fuel_boost_taker: Option<u8>,
