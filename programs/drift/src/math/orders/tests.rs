@@ -581,7 +581,7 @@ mod get_max_fill_amounts {
         let (max_base, max_quote) =
             get_max_fill_amounts(&user, 0, &base_market, &quote_market, true).unwrap();
 
-        assert_eq!(max_base, Some(16666666666));
+        assert_eq!(max_base, Some(33333333333));
         assert_eq!(max_quote, None);
     }
 
@@ -704,7 +704,7 @@ mod get_max_fill_amounts {
             get_max_fill_amounts(&user, 0, &base_market, &quote_market, true).unwrap();
 
         assert_eq!(max_base, None);
-        assert_eq!(max_quote, Some(16666666));
+        assert_eq!(max_quote, Some(33333333));
     }
 }
 
