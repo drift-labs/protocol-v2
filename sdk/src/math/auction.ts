@@ -33,7 +33,7 @@ export function getAuctionPrice(
 	) {
 		return getAuctionPriceForFixedAuction(order, slot);
 	} else if (isVariant(order.orderType, 'limit')) {
-		if (order.oraclePriceOffset !== 0) {
+		if (order.oraclePriceOffset != null && order.oraclePriceOffset !== 0) {
 			return getAuctionPriceForOracleOffsetAuction(order, slot, oraclePrice);
 		} else {
 			return getAuctionPriceForFixedAuction(order, slot);
