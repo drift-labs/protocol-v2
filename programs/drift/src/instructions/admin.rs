@@ -33,8 +33,8 @@ use crate::math::constants::{
     IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX, INSURANCE_C_MAX,
     INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION, MAX_CONCENTRATION_COEFFICIENT,
     MAX_SQRT_K, MAX_UPDATE_K_PRICE_CHANGE, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I64,
-    QUOTE_SPOT_MARKET_INDEX, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION,
-    SPOT_WEIGHT_PRECISION, THIRTEEN_DAY, TWENTY_FOUR_HOUR,
+    PRICE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX, SPOT_CUMULATIVE_INTEREST_PRECISION,
+    SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION, THIRTEEN_DAY, TWENTY_FOUR_HOUR,
 };
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::orders::is_multiple_of_step_size;
@@ -4738,8 +4738,8 @@ pub fn handle_initialize_constituent<'info>(
     swap_fee_min: i64,
     swap_fee_max: i64,
     oracle_staleness_threshold: u64,
-    beta: i32,
     cost_to_trade_bps: i32,
+    stablecoin_weight: u64,
 ) -> Result<()> {
     let mut constituent = ctx.accounts.constituent.load_init()?;
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
@@ -4755,7 +4755,6 @@ pub fn handle_initialize_constituent<'info>(
         .targets
         .get_mut(current_len)
         .unwrap();
-    new_target.beta = beta;
     new_target.cost_to_trade_bps = cost_to_trade_bps;
     constituent_target_base.validate()?;
 
@@ -4764,6 +4763,12 @@ pub fn handle_initialize_constituent<'info>(
         lp_pool.constituents,
         spot_market_index
     );
+
+    validate!(
+        stablecoin_weight >= 0 && stablecoin_weight <= PRICE_PRECISION_U64,
+        ErrorCode::InvalidConstituent,
+        "stablecoin_weight must be between 0 and 1",
+    )?;
 
     constituent.spot_market_index = spot_market_index;
     constituent.constituent_index = lp_pool.constituents;
@@ -4778,6 +4783,7 @@ pub fn handle_initialize_constituent<'info>(
     constituent.lp_pool = lp_pool.pubkey;
     constituent.constituent_index = (constituent_target_base.targets.len() - 1) as u16;
     constituent.next_swap_id = 1;
+    constituent.stablecoin_weight = stablecoin_weight;
     lp_pool.constituents += 1;
 
     Ok(())
@@ -4789,8 +4795,8 @@ pub struct ConstituentParams {
     pub swap_fee_min: Option<i64>,
     pub swap_fee_max: Option<i64>,
     pub oracle_staleness_threshold: Option<u64>,
-    pub beta: Option<i32>,
     pub cost_to_trade_bps: Option<i32>,
+    pub stablecoin_weight: Option<u64>,
 }
 
 pub fn handle_update_constituent_params<'info>(
@@ -4835,7 +4841,7 @@ pub fn handle_update_constituent_params<'info>(
             constituent_params.oracle_staleness_threshold.unwrap();
     }
 
-    if constituent_params.beta.is_some() || constituent_params.cost_to_trade_bps.is_some() {
+    if constituent_params.cost_to_trade_bps.is_some() {
         let constituent_target_base = &mut ctx.accounts.constituent_target_base;
 
         let target = constituent_target_base
@@ -4843,19 +4849,21 @@ pub fn handle_update_constituent_params<'info>(
             .get_mut(constituent.constituent_index as usize)
             .unwrap();
 
-        if constituent_params.cost_to_trade_bps.is_some() {
-            msg!(
-                "cost_to_trade: {:?} -> {:?}",
-                target.cost_to_trade_bps,
-                constituent_params.cost_to_trade_bps
-            );
-            target.cost_to_trade_bps = constituent_params.cost_to_trade_bps.unwrap();
-        }
+        msg!(
+            "cost_to_trade: {:?} -> {:?}",
+            target.cost_to_trade_bps,
+            constituent_params.cost_to_trade_bps
+        );
+        target.cost_to_trade_bps = constituent_params.cost_to_trade_bps.unwrap();
+    }
 
-        if constituent_params.beta.is_some() {
-            msg!("beta: {:?} -> {:?}", target.beta, constituent_params.beta);
-            target.beta = constituent_params.beta.unwrap();
-        }
+    if constituent_params.stablecoin_weight.is_some() {
+        msg!(
+            "stablecoin_weight: {:?} -> {:?}",
+            constituent.stablecoin_weight,
+            constituent_params.stablecoin_weight
+        );
+        constituent.stablecoin_weight = constituent_params.stablecoin_weight.unwrap();
     }
 
     Ok(())

@@ -224,7 +224,7 @@ describe('LP Pool', () => {
 			PERCENTAGE_PRECISION.divn(100), // max 1%
 			new BN(100),
 			1,
-			1
+			PERCENTAGE_PRECISION
 		);
 		await adminClient.initializeConstituent(
 			encodeName(lpPoolName),
@@ -235,7 +235,7 @@ describe('LP Pool', () => {
 			PERCENTAGE_PRECISION.divn(100), // max 1%
 			new BN(100),
 			1,
-			1
+			ZERO
 		);
 
 		await initializeSolSpotMarket(adminClient, spotMarketOracle);
@@ -671,7 +671,7 @@ describe('LP Pool', () => {
 			PERCENTAGE_PRECISION.divn(100), // max 1%
 			new BN(100),
 			1,
-			1
+			ZERO
 		);
 
 		const beforeSOLBalance = +(

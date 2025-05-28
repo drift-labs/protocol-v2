@@ -7381,12 +7381,12 @@
           "type": "u64"
         },
         {
-          "name": "beta",
+          "name": "costToTrade",
           "type": "i32"
         },
         {
-          "name": "costToTrade",
-          "type": "i32"
+          "name": "stablecoinWeight",
+          "type": "i64"
         }
       ]
     },
@@ -7611,6 +7611,11 @@
         },
         {
           "name": "lpPool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "constituentTargetBase",
           "isMut": true,
           "isSigner": false
         }
@@ -8646,6 +8651,14 @@
               "Every swap to/from this constituent has a monotonically increasing id. This is the next id to use"
             ],
             "type": "u64"
+          },
+          {
+            "name": "stablecoinWeight",
+            "docs": [
+              "percentable of stablecoin weight to go to this specific stablecoin PERCENTAGE_PRECISION",
+              "ZERO for non-stablecoins"
+            ],
+            "type": "i64"
           },
           {
             "name": "flashLoanInitialTokenAmount",
@@ -10411,15 +10424,15 @@
             }
           },
           {
-            "name": "beta",
+            "name": "costToTradeBps",
             "type": {
               "option": "i32"
             }
           },
           {
-            "name": "costToTradeBps",
+            "name": "stablecoinWeight",
             "type": {
-              "option": "i32"
+              "option": "i64"
             }
           }
         ]
@@ -10801,20 +10814,25 @@
         "kind": "struct",
         "fields": [
           {
+            "name": "costToTradeBps",
+            "type": "i32"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
+          },
+          {
             "name": "lastSlot",
             "type": "u64"
           },
           {
             "name": "targetBase",
             "type": "i64"
-          },
-          {
-            "name": "beta",
-            "type": "i32"
-          },
-          {
-            "name": "costToTradeBps",
-            "type": "i32"
           }
         ]
       }
