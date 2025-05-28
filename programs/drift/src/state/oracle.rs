@@ -1,5 +1,7 @@
 use anchor_lang::prelude::*;
+use bytemuck::{Pod, Zeroable};
 use std::cell::Ref;
+use std::convert::TryFrom;
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
@@ -165,6 +167,55 @@ impl OracleSource {
             _ => {
                 panic!("Calling get_pyth_multiple on non-pyth oracle source");
             }
+        }
+    }
+}
+
+impl TryFrom<u8> for OracleSource {
+    type Error = ErrorCode;
+
+    fn try_from(v: u8) -> DriftResult<Self> {
+        match v {
+            0 => Ok(OracleSource::Pyth),
+            1 => Ok(OracleSource::Switchboard),
+            2 => Ok(OracleSource::QuoteAsset),
+            3 => Ok(OracleSource::Pyth1K),
+            4 => Ok(OracleSource::Pyth1M),
+            5 => Ok(OracleSource::PythStableCoin),
+            6 => Ok(OracleSource::Prelaunch),
+            7 => Ok(OracleSource::PythPull),
+            8 => Ok(OracleSource::Pyth1KPull),
+            9 => Ok(OracleSource::Pyth1MPull),
+            10 => Ok(OracleSource::PythStableCoinPull),
+            11 => Ok(OracleSource::SwitchboardOnDemand),
+            12 => Ok(OracleSource::PythLazer),
+            13 => Ok(OracleSource::PythLazer1K),
+            14 => Ok(OracleSource::PythLazer1M),
+            15 => Ok(OracleSource::PythLazerStableCoin),
+            _ => Err(ErrorCode::InvalidOracle),
+        }
+    }
+}
+
+impl From<OracleSource> for u8 {
+    fn from(src: OracleSource) -> u8 {
+        match src {
+            OracleSource::Pyth => 0,
+            OracleSource::Switchboard => 1,
+            OracleSource::QuoteAsset => 2,
+            OracleSource::Pyth1K => 3,
+            OracleSource::Pyth1M => 4,
+            OracleSource::PythStableCoin => 5,
+            OracleSource::Prelaunch => 6,
+            OracleSource::PythPull => 7,
+            OracleSource::Pyth1KPull => 8,
+            OracleSource::Pyth1MPull => 9,
+            OracleSource::PythStableCoinPull => 10,
+            OracleSource::SwitchboardOnDemand => 11,
+            OracleSource::PythLazer => 12,
+            OracleSource::PythLazer1K => 13,
+            OracleSource::PythLazer1M => 14,
+            OracleSource::PythLazerStableCoin => 15,
         }
     }
 }
