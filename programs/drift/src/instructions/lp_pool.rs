@@ -7,7 +7,7 @@ use crate::{
     get_then_update_id,
     math::{
         casting::Cast,
-        constants::PRICE_PRECISION_I128,
+        constants::{PERCENTAGE_PRECISION_I128, PRICE_PRECISION_I128},
         oracle::{is_oracle_valid_for_action, oracle_validity, DriftAction},
         safe_math::SafeMath,
     },
@@ -212,7 +212,9 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
     )?;
 
     let mut aum: u128 = 0;
+    let mut crypto_delta = 0_i128;
     let mut oldest_slot = u64::MAX;
+    let mut stablecoin_constituent_indexes: Vec<usize> = vec![];
     for i in 0..lp_pool.constituents as usize {
         let mut constituent = constituent_map.get_ref_mut(&(i as u16))?;
 
@@ -269,6 +271,10 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
             .safe_mul(oracle_price.unwrap() as i128)?
             .safe_div(PRICE_PRECISION_I128)?
             .max(0);
+        if constituent.stablecoin_weight > 0 {
+            stablecoin_constituent_indexes.push(i);
+            crypto_delta = crypto_delta.safe_add(constituent_aum.cast()?)?;
+        }
         aum = aum.safe_add(constituent_aum.cast()?)?;
     }
 
@@ -276,6 +282,23 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
     lp_pool.last_aum = aum;
     lp_pool.last_aum_slot = slot;
     lp_pool.last_aum_ts = Clock::get()?.unix_timestamp;
+
+    // Update the stablecoin target base with the new aum
+    let mut constituent_target_base: AccountZeroCopyMut<
+        '_,
+        TargetsDatum,
+        ConstituentTargetBaseFixed,
+    > = ctx.accounts.constituent_target_base.load_zc_mut()?;
+
+    let total_stable_target_base = aum.cast::<i128>()?.safe_sub(crypto_delta.abs())?;
+    for index in stablecoin_constituent_indexes {
+        let constituent = constituent_map.get_ref(&(index as u16))?;
+        let stable_target = constituent_target_base.get_mut(index as u32);
+        stable_target.target_base = total_stable_target_base
+            .safe_mul(constituent.stablecoin_weight as i128)?
+            .safe_div(PERCENTAGE_PRECISION_I128)?
+            .cast::<i64>()?;
+    }
 
     Ok(())
 }
@@ -895,6 +918,13 @@ pub struct UpdateLPPoolAum<'info> {
     pub keeper: Signer<'info>,
     #[account(mut)]
     pub lp_pool: AccountLoader<'info, LPPool>,
+    #[account(
+        seeds = [CONSTITUENT_TARGET_BASE_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        bump,
+    )]
+    /// CHECK: checked in ConstituentTargetBaseZeroCopy checks
+    #[account(mut)]
+    pub constituent_target_base: AccountInfo<'info>,
 }
 
 /// `in`/`out` is in the program's POV for this swap. So `user_in_token_account` is the user owned token account

@@ -9804,6 +9804,10 @@ export class DriftClient {
 				keeper: this.wallet.publicKey,
 				lpPool: lpPool.pubkey,
 				state: await this.getStatePublicKey(),
+				constituentTargetBase: getConstituentTargetBasePublicKey(
+					this.program.programId,
+					lpPool.pubkey
+				),
 			},
 			remainingAccounts,
 		});

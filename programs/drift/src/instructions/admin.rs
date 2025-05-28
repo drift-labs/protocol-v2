@@ -4738,8 +4738,8 @@ pub fn handle_initialize_constituent<'info>(
     swap_fee_min: i64,
     swap_fee_max: i64,
     oracle_staleness_threshold: u64,
-    beta: i32,
     cost_to_trade_bps: i32,
+    stablecoin_weight: i64,
 ) -> Result<()> {
     let mut constituent = ctx.accounts.constituent.load_init()?;
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
@@ -4755,7 +4755,6 @@ pub fn handle_initialize_constituent<'info>(
         .targets
         .get_mut(current_len)
         .unwrap();
-    new_target.beta = beta;
     new_target.cost_to_trade_bps = cost_to_trade_bps;
     constituent_target_base.validate()?;
 
@@ -4778,6 +4777,7 @@ pub fn handle_initialize_constituent<'info>(
     constituent.lp_pool = lp_pool.pubkey;
     constituent.constituent_index = (constituent_target_base.targets.len() - 1) as u16;
     constituent.next_swap_id = 1;
+    constituent.stablecoin_weight = stablecoin_weight;
     lp_pool.constituents += 1;
 
     Ok(())
@@ -4789,8 +4789,8 @@ pub struct ConstituentParams {
     pub swap_fee_min: Option<i64>,
     pub swap_fee_max: Option<i64>,
     pub oracle_staleness_threshold: Option<u64>,
-    pub beta: Option<i32>,
     pub cost_to_trade_bps: Option<i32>,
+    pub stablecoin_weight: Option<i64>,
 }
 
 pub fn handle_update_constituent_params<'info>(
@@ -4835,7 +4835,7 @@ pub fn handle_update_constituent_params<'info>(
             constituent_params.oracle_staleness_threshold.unwrap();
     }
 
-    if constituent_params.beta.is_some() || constituent_params.cost_to_trade_bps.is_some() {
+    if constituent_params.cost_to_trade_bps.is_some() {
         let constituent_target_base = &mut ctx.accounts.constituent_target_base;
 
         let target = constituent_target_base
@@ -4843,19 +4843,21 @@ pub fn handle_update_constituent_params<'info>(
             .get_mut(constituent.constituent_index as usize)
             .unwrap();
 
-        if constituent_params.cost_to_trade_bps.is_some() {
-            msg!(
-                "cost_to_trade: {:?} -> {:?}",
-                target.cost_to_trade_bps,
-                constituent_params.cost_to_trade_bps
-            );
-            target.cost_to_trade_bps = constituent_params.cost_to_trade_bps.unwrap();
-        }
+        msg!(
+            "cost_to_trade: {:?} -> {:?}",
+            target.cost_to_trade_bps,
+            constituent_params.cost_to_trade_bps
+        );
+        target.cost_to_trade_bps = constituent_params.cost_to_trade_bps.unwrap();
+    }
 
-        if constituent_params.beta.is_some() {
-            msg!("beta: {:?} -> {:?}", target.beta, constituent_params.beta);
-            target.beta = constituent_params.beta.unwrap();
-        }
+    if constituent_params.stablecoin_weight.is_some() {
+        msg!(
+            "stablecoin_weight: {:?} -> {:?}",
+            constituent.stablecoin_weight,
+            constituent_params.stablecoin_weight
+        );
+        constituent.stablecoin_weight = constituent_params.stablecoin_weight.unwrap();
     }
 
     Ok(())

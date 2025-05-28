@@ -4471,8 +4471,8 @@ export class AdminClient extends DriftClient {
 		swapFeeMin: BN,
 		swapFeeMax: BN,
 		oracleStalenessThreshold: BN,
-		beta: number,
-		costToTrade: number
+		costToTrade: number,
+		stablecoinWeight: BN
 	): Promise<TransactionSignature> {
 		const ixs = await this.getInitializeConstituentIx(
 			lpPoolName,
@@ -4482,8 +4482,8 @@ export class AdminClient extends DriftClient {
 			swapFeeMin,
 			swapFeeMax,
 			oracleStalenessThreshold,
-			beta,
-			costToTrade
+			costToTrade,
+			stablecoinWeight
 		);
 		const tx = await this.buildTransaction(ixs);
 		const { txSig } = await this.sendTransaction(tx, []);
@@ -4498,8 +4498,8 @@ export class AdminClient extends DriftClient {
 		swapFeeMin: BN,
 		swapFeeMax: BN,
 		oracleStalenessThreshold: BN,
-		beta: number,
-		costToTrade: number
+		costToTrade: number,
+		stablecoinWeight: BN
 	): Promise<TransactionInstruction[]> {
 		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
 		const constituentTargetBase = getConstituentTargetBasePublicKey(
@@ -4521,8 +4521,8 @@ export class AdminClient extends DriftClient {
 				swapFeeMin,
 				swapFeeMax,
 				oracleStalenessThreshold,
-				beta,
 				costToTrade,
+				stablecoinWeight,
 				{
 					accounts: {
 						admin: this.wallet.publicKey,
@@ -4555,8 +4555,8 @@ export class AdminClient extends DriftClient {
 			swapFeeMin?: BN;
 			swapFeeMax?: BN;
 			oracleStalenessThreshold?: BN;
-			beta?: number;
 			costToTradeBps?: number;
+			stablecoinWeight?: BN;
 		}
 	): Promise<TransactionSignature> {
 		const ixs = await this.getUpdateConstituentParamsIx(
@@ -4577,8 +4577,8 @@ export class AdminClient extends DriftClient {
 			swapFeeMin?: BN;
 			swapFeeMax?: BN;
 			oracleStalenessThreshold?: BN;
-			beta?: number;
 			costToTradeBps?: number;
+			stablecoinWeight?: BN;
 		}
 	): Promise<TransactionInstruction[]> {
 		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
@@ -4590,8 +4590,8 @@ export class AdminClient extends DriftClient {
 						swapFeeMin: null,
 						swapFeeMax: null,
 						oracleStalenessThreshold: null,
-						beta: null,
 						costToTradeBps: null,
+						stablecoinWeight: null,
 					},
 					updateConstituentParams
 				),
