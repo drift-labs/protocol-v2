@@ -7386,7 +7386,7 @@
         },
         {
           "name": "stablecoinWeight",
-          "type": "i64"
+          "type": "u64"
         }
       ]
     },
@@ -8646,6 +8646,10 @@
             "type": "publicKey"
           },
           {
+            "name": "tokenVault",
+            "type": "publicKey"
+          },
+          {
             "name": "nextSwapId",
             "docs": [
               "Every swap to/from this constituent has a monotonically increasing id. This is the next id to use"
@@ -8658,7 +8662,7 @@
               "percentable of stablecoin weight to go to this specific stablecoin PERCENTAGE_PRECISION",
               "ZERO for non-stablecoins"
             ],
-            "type": "i64"
+            "type": "u64"
           },
           {
             "name": "flashLoanInitialTokenAmount",
@@ -10432,7 +10436,7 @@
           {
             "name": "stablecoinWeight",
             "type": {
-              "option": "i64"
+              "option": "u64"
             }
           }
         ]
@@ -10788,22 +10792,6 @@
           {
             "name": "len",
             "type": "u32"
-          }
-        ]
-      }
-    },
-    {
-      "name": "WeightDatum",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "lastSlot",
-            "type": "u64"
-          },
-          {
-            "name": "weight",
-            "type": "i64"
           }
         ]
       }

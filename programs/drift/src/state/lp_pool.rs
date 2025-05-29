@@ -1,8 +1,7 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    BASE_PRECISION_I128, BASE_PRECISION_I64, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
-    PRICE_PRECISION_I64, QUOTE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
+    BASE_PRECISION_I64, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, QUOTE_PRECISION,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
@@ -11,8 +10,7 @@ use anchor_spl::token::Mint;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use super::oracle::OraclePriceData;
-use super::oracle_map::OracleMap;
-use super::spot_market::{self, SpotMarket};
+use super::spot_market::SpotMarket;
 use super::zero_copy::{AccountZeroCopy, AccountZeroCopyMut, HasLen};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType};
 use crate::state::traits::Size;
@@ -465,6 +463,8 @@ pub struct Constituent {
 
     pub lp_pool: Pubkey,
 
+    pub token_vault: Pubkey,
+
     /// Every swap to/from this constituent has a monotonically increasing id. This is the next id to use
     pub next_swap_id: u64,
 
@@ -475,7 +475,7 @@ pub struct Constituent {
 }
 
 impl Size for Constituent {
-    const SIZE: usize = 240;
+    const SIZE: usize = 272;
 }
 
 impl Constituent {
@@ -623,14 +623,6 @@ impl_zero_copy_loader!(
     AmmConstituentMappingFixed,
     AmmConstituentDatum
 );
-
-#[zero_copy]
-#[derive(Debug, Default, BorshDeserialize, BorshSerialize)]
-#[repr(C)]
-pub struct WeightDatum {
-    pub last_slot: u64,
-    pub weight: i64,
-}
 
 #[zero_copy]
 #[derive(Debug, Default, BorshDeserialize, BorshSerialize)]

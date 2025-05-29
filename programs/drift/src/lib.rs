@@ -1746,7 +1746,7 @@ pub mod drift {
         swap_fee_max: i64,
         oracle_staleness_threshold: u64,
         cost_to_trade: i32,
-        stablecoin_weight: i64,
+        stablecoin_weight: u64,
     ) -> Result<()> {
         handle_initialize_constituent(
             ctx,

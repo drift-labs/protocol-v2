@@ -365,7 +365,7 @@ mod tests {
 
 #[cfg(test)]
 mod swap_tests {
-    use crate::math::constants::PERCENTAGE_PRECISION_I64;
+    use crate::math::constants::{PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I64};
     use crate::state::lp_pool::*;
 
     #[test]

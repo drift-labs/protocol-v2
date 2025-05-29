@@ -4765,7 +4765,7 @@ pub fn handle_initialize_constituent<'info>(
     );
 
     validate!(
-        stablecoin_weight >= 0 && stablecoin_weight <= PRICE_PRECISION_U64,
+        stablecoin_weight <= PRICE_PRECISION_U64,
         ErrorCode::InvalidConstituent,
         "stablecoin_weight must be between 0 and 1",
     )?;
@@ -4779,6 +4779,7 @@ pub fn handle_initialize_constituent<'info>(
     constituent.oracle_staleness_threshold = oracle_staleness_threshold;
     constituent.pubkey = ctx.accounts.constituent.key();
     constituent.mint = ctx.accounts.spot_market_mint.key();
+    constituent.token_vault = ctx.accounts.constituent_vault.key();
     constituent.bump = ctx.bumps.constituent;
     constituent.lp_pool = lp_pool.pubkey;
     constituent.constituent_index = (constituent_target_base.targets.len() - 1) as u16;
@@ -5037,7 +5038,6 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
 
     // Make sure we have enough balance to do the swap
     let constituent_in_token_account = &ctx.accounts.constituent_in_token_account;
-    let constituent_out_token_account = &ctx.accounts.constituent_out_token_account;
 
     validate!(
         amount_in <= constituent_in_token_account.amount,
@@ -6357,16 +6357,14 @@ pub struct LPTakerSwap<'info> {
     /// Constituent token accounts
     #[account(
         mut,
-        seeds = ["CONSTITUENT_VAULT".as_ref(), lp_pool.key().as_ref(), out_market_index.to_le_bytes().as_ref()],
-        bump,
+        address = out_constituent.load()?.token_vault,
         constraint = &out_constituent.load()?.mint.eq(&constituent_out_token_account.mint),
         token::authority = drift_signer
     )]
     pub constituent_out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
-        seeds = ["CONSTITUENT_VAULT".as_ref(), lp_pool.key().as_ref(), in_market_index.to_le_bytes().as_ref()],
-        bump,
+        address = in_constituent.load()?.token_vault,
         constraint = &in_constituent.load()?.mint.eq(&constituent_in_token_account.mint),
         token::authority = drift_signer
     )]
