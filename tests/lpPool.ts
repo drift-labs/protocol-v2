@@ -255,7 +255,7 @@ describe('LP Pool', () => {
 			new BN(2).mul(PERCENTAGE_PRECISION),
 			new BN(400),
 			1,
-			1
+			PERCENTAGE_PRECISION
 		);
 		const constituentTargetBasePublicKey = getConstituentTargetBasePublicKey(
 			program.programId,
@@ -327,7 +327,6 @@ describe('LP Pool', () => {
 			encodeName(lpPoolName),
 			constituentPublicKey,
 			{
-				beta: 2,
 				costToTradeBps: 10,
 			}
 		);
@@ -341,7 +340,6 @@ describe('LP Pool', () => {
 			)) as ConstituentTargetBase;
 		expect(targets).to.not.be.null;
 		console.log(targets.targets[constituent.constituentIndex]);
-		assert(targets.targets[constituent.constituentIndex].beta == 2);
 		assert(targets.targets[constituent.constituentIndex].costToTradeBps == 10);
 	});
 
@@ -416,21 +414,9 @@ describe('LP Pool', () => {
 			data: lpbuf,
 		});
 
-		const ammConstituentMappingPublicKey = getAmmConstituentMappingPublicKey(
-			program.programId,
-			lpPoolKey
-		);
-
-		const ammMapping =
-			(await adminClient.program.account.ammConstituentMapping.fetch(
-				ammConstituentMappingPublicKey
-			)) as AmmConstituentMapping;
-
-		await adminClient.updateLpConstituentTargetBase(
-			encodeName(lpPoolName),
-			[0],
-			ammMapping
-		);
+		await adminClient.updateLpConstituentTargetBase(encodeName(lpPoolName), [
+			0,
+		]);
 		const constituentTargetBasePublicKey = getConstituentTargetBasePublicKey(
 			program.programId,
 			lpPoolKey
@@ -461,7 +447,7 @@ describe('LP Pool', () => {
 			new BN(2).mul(PERCENTAGE_PRECISION),
 			new BN(400),
 			1,
-			1
+			ZERO
 		);
 
 		try {

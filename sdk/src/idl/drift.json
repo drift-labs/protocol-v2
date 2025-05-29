@@ -7357,15 +7357,6 @@
       ],
       "args": [
         {
-          "name": "lpPoolName",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        },
-        {
           "name": "spotMarketIndex",
           "type": "u16"
         },
@@ -7390,12 +7381,12 @@
           "type": "u64"
         },
         {
-          "name": "beta",
+          "name": "costToTrade",
           "type": "i32"
         },
         {
-          "name": "costToTrade",
-          "type": "i32"
+          "name": "stablecoinWeight",
+          "type": "i64"
         }
       ]
     },
@@ -7404,7 +7395,7 @@
       "accounts": [
         {
           "name": "lpPool",
-          "isMut": true,
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -7429,15 +7420,6 @@
         }
       ],
       "args": [
-        {
-          "name": "lpPoolName",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        },
         {
           "name": "constituentParams",
           "type": {
@@ -7482,15 +7464,6 @@
       ],
       "args": [
         {
-          "name": "lpPoolName",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        },
-        {
           "name": "ammConstituentMappingData",
           "type": {
             "vec": {
@@ -7531,15 +7504,6 @@
       ],
       "args": [
         {
-          "name": "lpPoolName",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        },
-        {
           "name": "ammConstituentMappingData",
           "type": {
             "vec": {
@@ -7579,15 +7543,6 @@
         }
       ],
       "args": [
-        {
-          "name": "lpPoolName",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        },
         {
           "name": "perpMarketIndex",
           "type": "u16"
@@ -7634,15 +7589,6 @@
       ],
       "args": [
         {
-          "name": "lpPoolName",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        },
-        {
           "name": "constituentIndexes",
           "type": {
             "vec": "u16"
@@ -7667,19 +7613,14 @@
           "name": "lpPool",
           "isMut": true,
           "isSigner": false
+        },
+        {
+          "name": "constituentTargetBase",
+          "isMut": true,
+          "isSigner": false
         }
       ],
-      "args": [
-        {
-          "name": "lpPoolName",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        }
-      ]
+      "args": []
     },
     {
       "name": "updateAmmCache",
@@ -7861,15 +7802,6 @@
       ],
       "args": [
         {
-          "name": "lpPoolName",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        },
-        {
           "name": "inMarketIndex",
           "type": "u16"
         },
@@ -7954,15 +7886,6 @@
       ],
       "args": [
         {
-          "name": "lpPoolName",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        },
-        {
           "name": "inMarketIndex",
           "type": "u16"
         },
@@ -7973,6 +7896,184 @@
         {
           "name": "minOutAmount",
           "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "beginLpSwap",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "signerOutTokenAccount",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Signer token accounts"
+          ]
+        },
+        {
+          "name": "signerInTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "constituentOutTokenAccount",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Constituent token accounts"
+          ]
+        },
+        {
+          "name": "constituentInTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "outConstituent",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Constituents"
+          ]
+        },
+        {
+          "name": "inConstituent",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "lpPool",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructions",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Instructions Sysvar for instruction introspection"
+          ]
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "inMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "outMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "amountIn",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "endLpSwap",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "signerOutTokenAccount",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Signer token accounts"
+          ]
+        },
+        {
+          "name": "signerInTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "constituentOutTokenAccount",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Constituent token accounts"
+          ]
+        },
+        {
+          "name": "constituentInTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "outConstituent",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Constituents"
+          ]
+        },
+        {
+          "name": "inConstituent",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "lpPool",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructions",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Instructions Sysvar for instruction introspection"
+          ]
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "inMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "outMarketIndex",
+          "type": "u16"
         }
       ]
     }
@@ -8552,13 +8653,16 @@
             "type": "u64"
           },
           {
-            "name": "padding2",
-            "type": {
-              "array": [
-                "u8",
-                8
-              ]
-            }
+            "name": "stablecoinWeight",
+            "docs": [
+              "percentable of stablecoin weight to go to this specific stablecoin PERCENTAGE_PRECISION",
+              "ZERO for non-stablecoins"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "flashLoanInitialTokenAmount",
+            "type": "u64"
           }
         ]
       }
@@ -10320,15 +10424,15 @@
             }
           },
           {
-            "name": "beta",
+            "name": "costToTradeBps",
             "type": {
               "option": "i32"
             }
           },
           {
-            "name": "costToTradeBps",
+            "name": "stablecoinWeight",
             "type": {
-              "option": "i32"
+              "option": "i64"
             }
           }
         ]
@@ -10710,20 +10814,25 @@
         "kind": "struct",
         "fields": [
           {
+            "name": "costToTradeBps",
+            "type": "i32"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
+          },
+          {
             "name": "lastSlot",
             "type": "u64"
           },
           {
             "name": "targetBase",
             "type": "i64"
-          },
-          {
-            "name": "beta",
-            "type": "i32"
-          },
-          {
-            "name": "costToTradeBps",
-            "type": "i32"
           }
         ]
       }

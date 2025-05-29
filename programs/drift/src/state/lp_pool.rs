@@ -1,7 +1,8 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I64, QUOTE_PRECISION,
+    BASE_PRECISION_I128, BASE_PRECISION_I64, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
+    PRICE_PRECISION_I64, QUOTE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
@@ -467,11 +468,14 @@ pub struct Constituent {
     /// Every swap to/from this constituent has a monotonically increasing id. This is the next id to use
     pub next_swap_id: u64,
 
-    _padding2: [u8; 8],
+    /// percentable of stablecoin weight to go to this specific stablecoin PERCENTAGE_PRECISION
+    /// ZERO for non-stablecoins
+    pub stablecoin_weight: u64,
+    pub flash_loan_initial_token_amount: u64,
 }
 
 impl Size for Constituent {
-    const SIZE: usize = 232;
+    const SIZE: usize = 240;
 }
 
 impl Constituent {
@@ -632,10 +636,10 @@ pub struct WeightDatum {
 #[derive(Debug, Default, BorshDeserialize, BorshSerialize)]
 #[repr(C)]
 pub struct TargetsDatum {
+    pub cost_to_trade_bps: i32,
+    pub _padding: [u8; 4],
     pub last_slot: u64,
     pub target_base: i64,
-    pub beta: i32,
-    pub cost_to_trade_bps: i32,
 }
 
 #[zero_copy]
@@ -731,7 +735,6 @@ impl<'a> AccountZeroCopy<'a, TargetsDatum, ConstituentTargetBaseFixed> {
         let datum = self.get(constituent_index as u32);
         let target_weight = calculate_target_weight(
             datum.target_base,
-            datum.beta,
             datum.cost_to_trade_bps,
             &spot_market,
             price,
@@ -744,31 +747,18 @@ impl<'a> AccountZeroCopy<'a, TargetsDatum, ConstituentTargetBaseFixed> {
 
 pub fn calculate_target_weight(
     target_base: i64,
-    beta: i32,
     cost_to_trade_bps: i32,
     spot_market: &SpotMarket,
     price: i64,
     lp_pool_aum: u128,
     validation_flags: WeightValidationFlags,
 ) -> DriftResult<i64> {
-    //.clamp(-PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I128) as i64;
+    let notional = target_base.safe_mul(price)?.safe_div(BASE_PRECISION_I64)?;
 
-    // assumes PRICE_PRECISION = PERCENTAGE_PRECISION
-    let token_precision = 10_i128.pow(spot_market.decimals as u32);
-
-    let value_usd = target_base
+    let target_weight = notional
         .cast::<i128>()?
-        .safe_mul(price.cast::<i128>()?)?
-        .safe_mul(
-            beta.cast::<i128>()?
-                .safe_mul(10000_i128)?
-                .safe_div(cost_to_trade_bps.cast::<i128>()?)?,
-        )?;
-
-    let target_weight = value_usd
-        .cast::<i128>()?
-        .safe_mul(PERCENTAGE_PRECISION_I64.cast::<i128>()?)?
-        .safe_div(lp_pool_aum.cast::<i128>()?.safe_mul(token_precision)?)?
+        .safe_mul(PERCENTAGE_PRECISION_I128)?
+        .safe_div(lp_pool_aum.cast::<i128>()?)?
         .cast::<i64>()?;
 
     // if (validation_flags as u8 & (WeightValidationFlags::NoNegativeWeights as u8) != 0)

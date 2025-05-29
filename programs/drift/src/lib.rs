@@ -1739,15 +1739,14 @@ pub mod drift {
 
     pub fn initialize_constituent<'info>(
         ctx: Context<'_, '_, '_, 'info, InitializeConstituent<'info>>,
-        lp_pool_name: [u8; 32],
         spot_market_index: u16,
         decimals: u8,
         max_weight_deviation: i64,
         swap_fee_min: i64,
         swap_fee_max: i64,
         oracle_staleness_threshold: u64,
-        beta: i32,
         cost_to_trade: i32,
+        stablecoin_weight: i64,
     ) -> Result<()> {
         handle_initialize_constituent(
             ctx,
@@ -1757,14 +1756,13 @@ pub mod drift {
             swap_fee_min,
             swap_fee_max,
             oracle_staleness_threshold,
-            beta,
             cost_to_trade,
+            stablecoin_weight,
         )
     }
 
     pub fn update_constituent_params(
         ctx: Context<UpdateConstituentParams>,
-        lp_pool_name: [u8; 32],
         constituent_params: ConstituentParams,
     ) -> Result<()> {
         handle_update_constituent_params(ctx, constituent_params)
@@ -1772,7 +1770,6 @@ pub mod drift {
 
     pub fn add_amm_constituent_mapping_data(
         ctx: Context<AddAmmConstituentMappingData>,
-        lp_pool_name: [u8; 32],
         amm_constituent_mapping_data: Vec<AddAmmConstituentMappingDatum>,
     ) -> Result<()> {
         handle_add_amm_constituent_data(ctx, amm_constituent_mapping_data)
@@ -1780,7 +1777,6 @@ pub mod drift {
 
     pub fn update_amm_constituent_mapping_data(
         ctx: Context<UpdateAmmConstituentMappingData>,
-        lp_pool_name: [u8; 32],
         amm_constituent_mapping_data: Vec<AddAmmConstituentMappingDatum>,
     ) -> Result<()> {
         handle_update_amm_constituent_mapping_data(ctx, amm_constituent_mapping_data)
@@ -1788,7 +1784,6 @@ pub mod drift {
 
     pub fn remove_amm_constituent_mapping_data<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, RemoveAmmConstituentMappingData<'info>>,
-        lp_pool_name: [u8; 32],
         perp_market_index: u16,
         constituent_index: u16,
     ) -> Result<()> {
@@ -1797,15 +1792,13 @@ pub mod drift {
 
     pub fn update_lp_constituent_target_base<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, UpdateConstituentTargetBase<'info>>,
-        lp_pool_name: [u8; 32],
         constituent_indexes: Vec<u16>,
     ) -> Result<()> {
-        handle_update_constituent_target_base(ctx, lp_pool_name, constituent_indexes)
+        handle_update_constituent_target_base(ctx, constituent_indexes)
     }
 
     pub fn update_lp_pool_aum<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, UpdateLPPoolAum<'info>>,
-        lp_pool_name: [u8; 32],
     ) -> Result<()> {
         handle_update_lp_pool_aum(ctx)
     }
@@ -1834,7 +1827,6 @@ pub mod drift {
 
     pub fn lp_pool_add_liquidity<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, LPPoolAddLiquidity<'info>>,
-        _lp_pool_name: [u8; 32],
         in_market_index: u16,
         in_amount: u64,
         min_mint_amount: u64,
@@ -1844,12 +1836,28 @@ pub mod drift {
 
     pub fn lp_pool_remove_liquidity<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, LPPoolRemoveLiquidity<'info>>,
-        _lp_pool_name: [u8; 32],
         in_market_index: u16,
         in_amount: u64,
         min_out_amount: u64,
     ) -> Result<()> {
         handle_lp_pool_remove_liquidity(ctx, in_market_index, in_amount, min_out_amount)
+    }
+
+    pub fn begin_lp_swap<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, LPTakerSwap<'info>>,
+        in_market_index: u16,
+        out_market_index: u16,
+        amount_in: u64,
+    ) -> Result<()> {
+        handle_begin_lp_swap(ctx, in_market_index, out_market_index, amount_in)
+    }
+
+    pub fn end_lp_swap<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, LPTakerSwap<'info>>,
+        in_market_index: u16,
+        out_market_index: u16,
+    ) -> Result<()> {
+        handle_end_lp_swap(ctx)
     }
 }
 

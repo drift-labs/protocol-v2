@@ -1,3 +1,5 @@
+use anchor_lang::Discriminator;
+use anchor_spl::associated_token::AssociatedToken;
 use std::convert::identity;
 use std::mem::size_of;
 
@@ -15,10 +17,14 @@ use phoenix::quantities::WrapperU64;
 use pyth_solana_receiver_sdk::cpi::accounts::InitPriceUpdate;
 use pyth_solana_receiver_sdk::program::PythSolanaReceiver;
 use serum_dex::state::ToAlignedBytes;
+use solana_program::sysvar::instructions;
 
-use crate::controller::token::close_vault;
+use crate::controller::token::{close_vault, receive, send_from_program_vault};
 use crate::error::ErrorCode;
-use crate::ids::admin_hot_wallet;
+use crate::ids::{
+    admin_hot_wallet, jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, lighthouse,
+    marinade_mainnet, serum_program,
+};
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
@@ -27,8 +33,8 @@ use crate::math::constants::{
     IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX, INSURANCE_C_MAX,
     INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION, MAX_CONCENTRATION_COEFFICIENT,
     MAX_SQRT_K, MAX_UPDATE_K_PRICE_CHANGE, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I64,
-    QUOTE_SPOT_MARKET_INDEX, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION,
-    SPOT_WEIGHT_PRECISION, THIRTEEN_DAY, TWENTY_FOUR_HOUR,
+    PRICE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX, SPOT_CUMULATIVE_INTEREST_PRECISION,
+    SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION, THIRTEEN_DAY, TWENTY_FOUR_HOUR,
 };
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::orders::is_multiple_of_step_size;
@@ -83,6 +89,8 @@ use crate::{load, FEE_ADJUSTMENT_MAX};
 use crate::{load_mut, PTYH_PRICE_FEED_SEED_PREFIX};
 use crate::{math, safe_decrement, safe_increment};
 use crate::{math_error, SPOT_BALANCE_PRECISION};
+
+use super::optional_accounts::get_token_interface;
 
 pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
     let (drift_signer, drift_signer_nonce) =
@@ -4730,8 +4738,8 @@ pub fn handle_initialize_constituent<'info>(
     swap_fee_min: i64,
     swap_fee_max: i64,
     oracle_staleness_threshold: u64,
-    beta: i32,
     cost_to_trade_bps: i32,
+    stablecoin_weight: u64,
 ) -> Result<()> {
     let mut constituent = ctx.accounts.constituent.load_init()?;
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
@@ -4747,7 +4755,6 @@ pub fn handle_initialize_constituent<'info>(
         .targets
         .get_mut(current_len)
         .unwrap();
-    new_target.beta = beta;
     new_target.cost_to_trade_bps = cost_to_trade_bps;
     constituent_target_base.validate()?;
 
@@ -4756,6 +4763,12 @@ pub fn handle_initialize_constituent<'info>(
         lp_pool.constituents,
         spot_market_index
     );
+
+    validate!(
+        stablecoin_weight >= 0 && stablecoin_weight <= PRICE_PRECISION_U64,
+        ErrorCode::InvalidConstituent,
+        "stablecoin_weight must be between 0 and 1",
+    )?;
 
     constituent.spot_market_index = spot_market_index;
     constituent.constituent_index = lp_pool.constituents;
@@ -4770,6 +4783,7 @@ pub fn handle_initialize_constituent<'info>(
     constituent.lp_pool = lp_pool.pubkey;
     constituent.constituent_index = (constituent_target_base.targets.len() - 1) as u16;
     constituent.next_swap_id = 1;
+    constituent.stablecoin_weight = stablecoin_weight;
     lp_pool.constituents += 1;
 
     Ok(())
@@ -4781,8 +4795,8 @@ pub struct ConstituentParams {
     pub swap_fee_min: Option<i64>,
     pub swap_fee_max: Option<i64>,
     pub oracle_staleness_threshold: Option<u64>,
-    pub beta: Option<i32>,
     pub cost_to_trade_bps: Option<i32>,
+    pub stablecoin_weight: Option<u64>,
 }
 
 pub fn handle_update_constituent_params<'info>(
@@ -4827,7 +4841,7 @@ pub fn handle_update_constituent_params<'info>(
             constituent_params.oracle_staleness_threshold.unwrap();
     }
 
-    if constituent_params.beta.is_some() || constituent_params.cost_to_trade_bps.is_some() {
+    if constituent_params.cost_to_trade_bps.is_some() {
         let constituent_target_base = &mut ctx.accounts.constituent_target_base;
 
         let target = constituent_target_base
@@ -4835,19 +4849,21 @@ pub fn handle_update_constituent_params<'info>(
             .get_mut(constituent.constituent_index as usize)
             .unwrap();
 
-        if constituent_params.cost_to_trade_bps.is_some() {
-            msg!(
-                "cost_to_trade: {:?} -> {:?}",
-                target.cost_to_trade_bps,
-                constituent_params.cost_to_trade_bps
-            );
-            target.cost_to_trade_bps = constituent_params.cost_to_trade_bps.unwrap();
-        }
+        msg!(
+            "cost_to_trade: {:?} -> {:?}",
+            target.cost_to_trade_bps,
+            constituent_params.cost_to_trade_bps
+        );
+        target.cost_to_trade_bps = constituent_params.cost_to_trade_bps.unwrap();
+    }
 
-        if constituent_params.beta.is_some() {
-            msg!("beta: {:?} -> {:?}", target.beta, constituent_params.beta);
-            target.beta = constituent_params.beta.unwrap();
-        }
+    if constituent_params.stablecoin_weight.is_some() {
+        msg!(
+            "stablecoin_weight: {:?} -> {:?}",
+            constituent.stablecoin_weight,
+            constituent_params.stablecoin_weight
+        );
+        constituent.stablecoin_weight = constituent_params.stablecoin_weight.unwrap();
     }
 
     Ok(())
@@ -4966,6 +4982,309 @@ pub fn handle_add_amm_constituent_data<'info>(
         current_len += 1;
         amm_mapping.weights.resize(current_len, datum);
     }
+
+    Ok(())
+}
+
+pub fn handle_begin_lp_swap<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, LPTakerSwap<'info>>,
+    in_market_index: u16,
+    out_market_index: u16,
+    amount_in: u64,
+) -> Result<()> {
+    let state = &ctx.accounts.state;
+    let ixs = ctx.accounts.instructions.as_ref();
+    let current_index = instructions::load_current_index_checked(ixs)? as usize;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let mint = get_token_mint(remaining_accounts_iter)?;
+    validate!(
+        mint.is_some(),
+        ErrorCode::InvalidSwap,
+        "BeginLpSwap must have a mint for in token passed in"
+    )?;
+    let mint = mint.unwrap();
+
+    let mut in_constituent = ctx.accounts.in_constituent.load_mut()?;
+    let mut out_constituent = ctx.accounts.out_constituent.load_mut()?;
+
+    let current_ix = instructions::load_instruction_at_checked(current_index, ixs)?;
+    validate!(
+        current_ix.program_id == *ctx.program_id,
+        ErrorCode::InvalidSwap,
+        "SwapBegin must be a top-level instruction (cant be cpi)"
+    )?;
+
+    validate!(
+        in_market_index != out_market_index,
+        ErrorCode::InvalidSwap,
+        "in and out market the same"
+    )?;
+
+    validate!(
+        amount_in != 0,
+        ErrorCode::InvalidSwap,
+        "amount_in cannot be zero"
+    )?;
+
+    // Validate that the passed mint is accpetable
+    let mint_key = mint.key();
+    validate!(
+        mint_key == ctx.accounts.constituent_in_token_account.mint,
+        ErrorCode::InvalidSwap,
+        "mint passed to SwapBegin does not match the mint constituent in token account"
+    )?;
+
+    // Make sure we have enough balance to do the swap
+    let constituent_in_token_account = &ctx.accounts.constituent_in_token_account;
+    let constituent_out_token_account = &ctx.accounts.constituent_out_token_account;
+
+    validate!(
+        amount_in <= constituent_in_token_account.amount,
+        ErrorCode::InvalidSwap,
+        "trying to swap more than the balance of the constituent in token account"
+    )?;
+
+    validate!(
+        out_constituent.flash_loan_initial_token_amount == 0,
+        ErrorCode::InvalidSwap,
+        "begin_lp_swap ended in invalid state"
+    )?;
+
+    in_constituent.flash_loan_initial_token_amount = ctx.accounts.signer_in_token_account.amount;
+    out_constituent.flash_loan_initial_token_amount = ctx.accounts.signer_out_token_account.amount;
+
+    send_from_program_vault(
+        &ctx.accounts.token_program,
+        constituent_in_token_account,
+        &ctx.accounts.signer_in_token_account,
+        &ctx.accounts.drift_signer.to_account_info(),
+        state.signer_nonce,
+        amount_in,
+        &Some(mint),
+    )?;
+
+    // The only other drift program allowed is SwapEnd
+    let mut index = current_index + 1;
+    let mut found_end = false;
+    loop {
+        let ix = match instructions::load_instruction_at_checked(index, ixs) {
+            Ok(ix) => ix,
+            Err(ProgramError::InvalidArgument) => break,
+            Err(e) => return Err(e.into()),
+        };
+
+        // Check that the drift program key is not used
+        if ix.program_id == crate::id() {
+            // must be the last ix -- this could possibly be relaxed
+            validate!(
+                !found_end,
+                ErrorCode::InvalidSwap,
+                "the transaction must not contain a Drift instruction after FlashLoanEnd"
+            )?;
+            found_end = true;
+
+            // must be the SwapEnd instruction
+            let discriminator = crate::instruction::EndLpSwap::discriminator();
+            validate!(
+                ix.data[0..8] == discriminator,
+                ErrorCode::InvalidSwap,
+                "last drift ix must be end of swap"
+            )?;
+
+            validate!(
+                ctx.accounts.signer_out_token_account.key() == ix.accounts[2].pubkey,
+                ErrorCode::InvalidSwap,
+                "the out_token_account passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.signer_in_token_account.key() == ix.accounts[3].pubkey,
+                ErrorCode::InvalidSwap,
+                "the in_token_account passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.constituent_out_token_account.key() == ix.accounts[4].pubkey,
+                ErrorCode::InvalidSwap,
+                "the constituent out_token_account passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.constituent_in_token_account.key() == ix.accounts[5].pubkey,
+                ErrorCode::InvalidSwap,
+                "the constituent in token account passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.out_constituent.key() == ix.accounts[6].pubkey,
+                ErrorCode::InvalidSwap,
+                "the out constituent passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.in_constituent.key() == ix.accounts[7].pubkey,
+                ErrorCode::InvalidSwap,
+                "the in constituent passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.lp_pool.key() == ix.accounts[8].pubkey,
+                ErrorCode::InvalidSwap,
+                "the lp pool passed to SwapBegin and End must match"
+            )?;
+        } else {
+            if found_end {
+                if ix.program_id == lighthouse::ID {
+                    continue;
+                }
+
+                for meta in ix.accounts.iter() {
+                    validate!(
+                        meta.is_writable == false,
+                        ErrorCode::InvalidSwap,
+                        "instructions after swap end must not have writable accounts"
+                    )?;
+                }
+            } else {
+                let mut whitelisted_programs = vec![
+                    serum_program::id(),
+                    AssociatedToken::id(),
+                    jupiter_mainnet_3::ID,
+                    jupiter_mainnet_4::ID,
+                    jupiter_mainnet_6::ID,
+                ];
+                whitelisted_programs.push(Token::id());
+                whitelisted_programs.push(Token2022::id());
+                whitelisted_programs.push(marinade_mainnet::ID);
+
+                validate!(
+                    whitelisted_programs.contains(&ix.program_id),
+                    ErrorCode::InvalidSwap,
+                    "only allowed to pass in ixs to token, openbook, and Jupiter v3/v4/v6 programs"
+                )?;
+
+                for meta in ix.accounts.iter() {
+                    validate!(
+                        meta.pubkey != crate::id(),
+                        ErrorCode::InvalidSwap,
+                        "instructions between begin and end must not be drift instructions"
+                    )?;
+                }
+            }
+        }
+
+        index += 1;
+    }
+
+    validate!(
+        found_end,
+        ErrorCode::InvalidSwap,
+        "found no SwapEnd instruction in transaction"
+    )?;
+
+    Ok(())
+}
+
+pub fn handle_end_lp_swap<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, LPTakerSwap<'info>>,
+) -> Result<()> {
+    let signer_in_token_account = &ctx.accounts.signer_in_token_account;
+    let signer_out_token_account = &ctx.accounts.signer_out_token_account;
+
+    let admin_account_info = ctx.accounts.admin.to_account_info();
+
+    let constituent_in_token_account = &ctx.accounts.constituent_in_token_account;
+    let constituent_out_token_account = &ctx.accounts.constituent_out_token_account;
+
+    let mut in_constituent = ctx.accounts.in_constituent.load_mut()?;
+    let mut out_constituent = ctx.accounts.out_constituent.load_mut()?;
+
+    let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
+    let out_token_program = get_token_interface(remaining_accounts)?;
+
+    let in_mint = get_token_mint(remaining_accounts)?;
+    let out_mint = get_token_mint(remaining_accounts)?;
+
+    validate!(
+        in_mint.is_some(),
+        ErrorCode::InvalidSwap,
+        "EndLpSwap must have a mint for in token passed in"
+    )?;
+
+    validate!(
+        out_mint.is_some(),
+        ErrorCode::InvalidSwap,
+        "EndLpSwap must have a mint for out token passed in"
+    )?;
+
+    let in_mint = in_mint.unwrap();
+    let out_mint = out_mint.unwrap();
+
+    // Validate that the passed mint is accpetable
+    let mint_key = out_mint.key();
+    validate!(
+        mint_key == constituent_out_token_account.mint,
+        ErrorCode::InvalidSwap,
+        "mint passed to EndLpSwap does not match the mint constituent out token account"
+    )?;
+
+    let mint_key = in_mint.key();
+    validate!(
+        mint_key == constituent_in_token_account.mint,
+        ErrorCode::InvalidSwap,
+        "mint passed to EndLpSwap does not match the mint constituent in token account"
+    )?;
+
+    // Residual of what wasnt swapped
+    if signer_in_token_account.amount > in_constituent.flash_loan_initial_token_amount {
+        let residual = signer_in_token_account
+            .amount
+            .safe_sub(in_constituent.flash_loan_initial_token_amount)?;
+
+        controller::token::receive(
+            &ctx.accounts.token_program,
+            signer_in_token_account,
+            constituent_in_token_account,
+            &admin_account_info,
+            residual,
+            &Some(in_mint),
+        )?;
+    }
+
+    // Whatever was swapped
+    if signer_out_token_account.amount > out_constituent.flash_loan_initial_token_amount {
+        let residual = signer_out_token_account
+            .amount
+            .safe_sub(out_constituent.flash_loan_initial_token_amount)?;
+
+        if let Some(token_interface) = out_token_program {
+            receive(
+                &token_interface,
+                signer_out_token_account,
+                constituent_out_token_account,
+                &admin_account_info,
+                residual,
+                &Some(out_mint),
+            )?;
+        } else {
+            receive(
+                &ctx.accounts.token_program,
+                signer_out_token_account,
+                constituent_out_token_account,
+                &admin_account_info,
+                residual,
+                &Some(out_mint),
+            )?;
+        }
+    }
+
+    // Update the balance on the token accounts for after swap
+    out_constituent.sync_token_balance(constituent_out_token_account.amount);
+    in_constituent.sync_token_balance(constituent_in_token_account.amount);
+
+    out_constituent.flash_loan_initial_token_amount = 0;
+    in_constituent.flash_loan_initial_token_amount = 0;
 
     Ok(())
 }
@@ -5851,7 +6170,6 @@ pub struct InitializeLpPool<'info> {
 
 #[derive(Accounts)]
 #[instruction(
-    lp_pool_name: [u8; 32],
     spot_market_index: u16,
 )]
 pub struct InitializeConstituent<'info> {
@@ -5863,11 +6181,7 @@ pub struct InitializeConstituent<'info> {
     )]
     pub admin: Signer<'info>,
 
-    #[account(
-        mut,
-        seeds = [b"lp_pool", lp_pool_name.as_ref()],
-        bump = lp_pool.load()?.bump,
-    )]
+    #[account(mut)]
     pub lp_pool: AccountLoader<'info, LPPool>,
 
     #[account(
@@ -5909,15 +6223,7 @@ pub struct InitializeConstituent<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(
-    lp_pool_name: [u8; 32],
-)]
 pub struct UpdateConstituentParams<'info> {
-    #[account(
-        mut,
-        seeds = [b"lp_pool", lp_pool_name.as_ref()],
-        bump = lp_pool.load()?.bump,
-    )]
     pub lp_pool: AccountLoader<'info, LPPool>,
     #[account(
         mut,
@@ -5945,7 +6251,6 @@ pub struct AddAmmConstituentMappingDatum {
 
 #[derive(Accounts)]
 #[instruction(
-    lp_pool_name: [u8; 32],
     amm_constituent_mapping_data:  Vec<AddAmmConstituentMappingDatum>,
 )]
 pub struct AddAmmConstituentMappingData<'info> {
@@ -5954,11 +6259,6 @@ pub struct AddAmmConstituentMappingData<'info> {
         constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>,
-
-    #[account(
-        seeds = [b"lp_pool", lp_pool_name.as_ref()],
-        bump,
-    )]
     pub lp_pool: AccountLoader<'info, LPPool>,
 
     #[account(
@@ -5985,7 +6285,6 @@ pub struct AddAmmConstituentMappingData<'info> {
 
 #[derive(Accounts)]
 #[instruction(
-    lp_pool_name: [u8; 32],
     amm_constituent_mapping_data:  Vec<AddAmmConstituentMappingDatum>,
 )]
 pub struct UpdateAmmConstituentMappingData<'info> {
@@ -5994,11 +6293,6 @@ pub struct UpdateAmmConstituentMappingData<'info> {
         constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>,
-
-    #[account(
-        seeds = [b"lp_pool", lp_pool_name.as_ref()],
-        bump,
-    )]
     pub lp_pool: AccountLoader<'info, LPPool>,
 
     #[account(
@@ -6012,20 +6306,12 @@ pub struct UpdateAmmConstituentMappingData<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(
-    lp_pool_name: [u8; 32],
-)]
 pub struct RemoveAmmConstituentMappingData<'info> {
     #[account(
         mut,
         constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>,
-
-    #[account(
-        seeds = [b"lp_pool", lp_pool_name.as_ref()],
-        bump,
-    )]
     pub lp_pool: AccountLoader<'info, LPPool>,
 
     #[account(
@@ -6039,4 +6325,73 @@ pub struct RemoveAmmConstituentMappingData<'info> {
     pub amm_constituent_mapping: Box<Account<'info, AmmConstituentMapping>>,
     pub system_program: Program<'info, System>,
     pub state: Box<Account<'info, State>>,
+}
+
+#[derive(Accounts)]
+#[instruction(
+    in_market_index: u16,
+    out_market_index: u16,
+)]
+pub struct LPTakerSwap<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+
+    /// Signer token accounts
+    #[account(
+        mut,
+        constraint = &constituent_out_token_account.mint.eq(&signer_out_token_account.mint),
+        token::authority = admin
+    )]
+    pub signer_out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = &constituent_in_token_account.mint.eq(&signer_in_token_account.mint),
+        token::authority = admin
+    )]
+    pub signer_in_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    /// Constituent token accounts
+    #[account(
+        mut,
+        seeds = ["CONSTITUENT_VAULT".as_ref(), lp_pool.key().as_ref(), out_market_index.to_le_bytes().as_ref()],
+        bump,
+        constraint = &out_constituent.load()?.mint.eq(&constituent_out_token_account.mint),
+        token::authority = drift_signer
+    )]
+    pub constituent_out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        seeds = ["CONSTITUENT_VAULT".as_ref(), lp_pool.key().as_ref(), in_market_index.to_le_bytes().as_ref()],
+        bump,
+        constraint = &in_constituent.load()?.mint.eq(&constituent_in_token_account.mint),
+        token::authority = drift_signer
+    )]
+    pub constituent_in_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    /// Constituents
+    #[account(
+        mut,
+        seeds = [CONSTITUENT_PDA_SEED.as_ref(), lp_pool.key().as_ref(), out_market_index.to_le_bytes().as_ref()],
+        bump = out_constituent.load()?.bump,
+    )]
+    pub out_constituent: AccountLoader<'info, Constituent>,
+    #[account(
+        mut,
+        seeds = [CONSTITUENT_PDA_SEED.as_ref(), lp_pool.key().as_ref(), in_market_index.to_le_bytes().as_ref()],
+        bump = in_constituent.load()?.bump,
+    )]
+    pub in_constituent: AccountLoader<'info, Constituent>,
+    pub lp_pool: AccountLoader<'info, LPPool>,
+
+    /// Instructions Sysvar for instruction introspection
+    /// CHECK: fixed instructions sysvar account
+    #[account(address = instructions::ID)]
+    pub instructions: UncheckedAccount<'info>,
+    pub token_program: Interface<'info, TokenInterface>,
+    /// CHECK: program signer
+    pub drift_signer: AccountInfo<'info>,
 }
