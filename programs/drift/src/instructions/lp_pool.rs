@@ -946,6 +946,7 @@ pub struct UpdateConstituentOracleInfo<'info> {
     #[account(mut)]
     pub constituent: AccountLoader<'info, Constituent>,
     #[account(
+        owner = crate::ID,
         constraint = spot_market.load()?.market_index == constituent.load()?.spot_market_index
     )]
     pub spot_market: AccountLoader<'info, SpotMarket>,
