@@ -20,8 +20,10 @@ use crate::{
             ConstituentTargetBaseFixed, LPPool, TargetsDatum, WeightValidationFlags,
         },
         oracle::OraclePriceData,
+        oracle_map::OracleMap,
         perp_market::{AmmCacheFixed, CacheInfo, AMM_POSITIONS_CACHE},
         perp_market_map::MarketSet,
+        spot_market::SpotMarket,
         spot_market_map::get_writable_spot_market_set_from_many,
         state::State,
         user::MarketType,
@@ -910,6 +912,52 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
     });
 
     Ok(())
+}
+
+pub fn update_constituent_oracle_info<'c: 'info, 'info>(
+    ctx: &mut Context<'_, '_, 'c, 'info, UpdateConstituentOracleInfo<'info>>,
+) -> Result<()> {
+    let clock = Clock::get()?;
+    let mut constituent = ctx.accounts.constituent.load_mut()?;
+    let spot_market = ctx.accounts.spot_market.load()?;
+
+    let oracle_id = spot_market.oracle_id();
+    let mut oracle_map = OracleMap::load_one(
+        &ctx.accounts.oracle,
+        clock.slot,
+        Some(ctx.accounts.state.oracle_guard_rails),
+    )?;
+
+    let oracle_data = oracle_map.get_price_data_and_validity(
+        MarketType::Spot,
+        constituent.spot_market_index,
+        &oracle_id,
+        spot_market.historical_oracle_data.last_oracle_price_twap,
+        spot_market.get_max_confidence_interval_multiplier()?,
+    )?;
+
+    let oracle_data_slot = clock.slot - oracle_data.0.delay.max(0i64).cast::<u64>()?;
+    if constituent.last_oracle_slot < oracle_data_slot {
+        constituent.last_oracle_price = oracle_data.0.price;
+        constituent.last_oracle_slot = oracle_data_slot;
+    }
+
+    Ok(())
+}
+
+#[derive(Accounts)]
+pub struct UpdateConstituentOracleInfo<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub keeper: Signer<'info>,
+    #[account(mut)]
+    pub constituent: AccountLoader<'info, Constituent>,
+    #[account(
+        constraint = spot_market.load()?.market_index == constituent.load()?.spot_market_index
+    )]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    /// CHECK: checked when loading oracle in oracle map
+    pub oracle: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
