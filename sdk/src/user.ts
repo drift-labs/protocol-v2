@@ -2308,7 +2308,9 @@ export class User {
 			market.amm.orderStepSize
 		);
 
-		const freeCollateralChangeFromNewPosition =
+		// free collateral change can't be more than free collateral
+		// otherwise they have insufficient collateral to open the position
+		const freeCollateralChangeFromNewPosition = BN.max(
 			this.calculateEntriesEffectOnFreeCollateral(
 				market,
 				oraclePrice,
@@ -2317,7 +2319,9 @@ export class User {
 				estimatedEntryPrice,
 				includeOpenOrders,
 				enteringHighLeverage
-			);
+			),
+			freeCollateral.neg()
+		);
 
 		freeCollateral = freeCollateral.add(freeCollateralChangeFromNewPosition);
 
