@@ -928,17 +928,10 @@ pub fn handle_update_constituent_oracle_info<'c: 'info, 'info>(
         Some(ctx.accounts.state.oracle_guard_rails),
     )?;
 
-    let oracle_data = oracle_map.get_price_data_and_validity(
-        MarketType::Spot,
-        constituent.spot_market_index,
-        &oracle_id,
-        spot_market.historical_oracle_data.last_oracle_price_twap,
-        spot_market.get_max_confidence_interval_multiplier()?,
-    )?;
-
-    let oracle_data_slot = clock.slot - oracle_data.0.delay.max(0i64).cast::<u64>()?;
+    let oracle_data = oracle_map.get_price_data(&oracle_id)?;
+    let oracle_data_slot = clock.slot - oracle_data.delay.max(0i64).cast::<u64>()?;
     if constituent.last_oracle_slot < oracle_data_slot {
-        constituent.last_oracle_price = oracle_data.0.price;
+        constituent.last_oracle_price = oracle_data.price;
         constituent.last_oracle_slot = oracle_data_slot;
     }
 
