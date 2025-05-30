@@ -914,8 +914,8 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
     Ok(())
 }
 
-pub fn update_constituent_oracle_info<'c: 'info, 'info>(
-    ctx: &mut Context<'_, '_, 'c, 'info, UpdateConstituentOracleInfo<'info>>,
+pub fn handle_update_constituent_oracle_info<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, UpdateConstituentOracleInfo<'info>>,
 ) -> Result<()> {
     let clock = Clock::get()?;
     let mut constituent = ctx.accounts.constituent.load_mut()?;
