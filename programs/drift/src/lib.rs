@@ -1859,6 +1859,12 @@ pub mod drift {
     ) -> Result<()> {
         handle_end_lp_swap(ctx)
     }
+
+    pub fn update_constituent_oracle_info<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdateConstituentOracleInfo<'info>>,
+    ) -> Result<()> {
+        handle_update_constituent_oracle_info(ctx)
+    }
 }
 
 #[cfg(not(feature = "no-entrypoint"))]
