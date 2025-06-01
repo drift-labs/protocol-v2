@@ -21,6 +21,7 @@ export class SlotSubscriber {
 	resubTimeoutMs?: number;
 	isUnsubscribing = false;
 	receivingData = false;
+	initialSubDone = false;
 
 	public constructor(
 		private connection: Connection,
@@ -29,7 +30,7 @@ export class SlotSubscriber {
 		this.eventEmitter = new EventEmitter();
 		this.resubTimeoutMs = config?.resubTimeoutMs;
 		if (this.resubTimeoutMs < 1000) {
-			console.log(
+			throw new Error(
 				'resubTimeoutMs should be at least 1000ms to avoid spamming resub'
 			);
 		}
@@ -40,7 +41,10 @@ export class SlotSubscriber {
 			return;
 		}
 
-		this.currentSlot = await this.connection.getSlot('confirmed');
+		if (!this.initialSubDone) {
+			this.initialSubDone = true;
+			this.currentSlot = await this.connection.getSlot('confirmed');
+		}
 
 		this.subscriptionId = this.connection.onSlotChange((slotInfo) => {
 			if (!this.currentSlot || this.currentSlot < slotInfo.slot) {
