@@ -69,7 +69,7 @@ fn calculate_oracle_valid() {
     assert!(!oracle_status.mark_too_divergent);
 
     let _new_oracle_twap =
-        update_oracle_price_twap(&mut market.amm, now, &oracle_price_data, None, None).unwrap();
+        update_oracle_price_twap(&mut market.amm, now, &oracle_price_data, None, Some(3)).unwrap();
     assert_eq!(
         market.amm.historical_oracle_data.last_oracle_price_twap,
         (34 * PRICE_PRECISION - PRICE_PRECISION / 100) as i64
