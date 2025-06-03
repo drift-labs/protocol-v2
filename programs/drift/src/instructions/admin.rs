@@ -57,6 +57,7 @@ use crate::state::perp_market::{
     ContractTier, ContractType, InsuranceClaim, MarketStatus, PerpMarket, PoolBalance, AMM,
 };
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
+use crate::state::if_rebalance_config::{IfRebalanceConfig, IfRebalanceConfigParams};
 use crate::state::protected_maker_mode_config::ProtectedMakerModeConfig;
 use crate::state::pyth_lazer_oracle::{PythLazerOracle, PYTH_LAZER_ORACLE_SEED};
 use crate::state::spot_market::{
@@ -4595,6 +4596,30 @@ pub fn handle_admin_deposit<'c: 'info, 'info>(
     Ok(())
 }
 
+pub fn handle_initialize_if_rebalance_config(
+    ctx: Context<InitializeIfRebalanceConfig>,
+    params: IfRebalanceConfigParams,
+) -> Result<()> {
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+
+    let mut config = ctx.accounts.if_rebalance_config.load_init()?;
+
+    config.name = params.name;
+    config.total_in_amount = params.total_in_amount;
+    config.current_in_amount = 0;
+    config.start_ts = now;
+    config.end_ts = params.end_ts;
+    config.last_swap_ts = now;
+    config.max_swap_amount = params.max_swap_amount;
+    config.out_market_index = params.out_market_index;
+    config.in_market_index = params.in_market_index;
+    config.swap_mode = params.swap_mode;
+    config.status = 0;
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(mut)]
@@ -5367,4 +5392,25 @@ pub struct AdminDeposit<'info> {
     )]
     pub admin_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     pub token_program: Interface<'info, TokenInterface>,
+}
+
+#[derive(Accounts)]
+#[instruction(params: IfRebalanceConfigParams)]
+pub struct InitializeIfRebalanceConfig<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        init,
+        seeds = [b"if_rebalance_config".as_ref(), params.name.as_ref()],
+        space = IfRebalanceConfig::SIZE,
+        bump,
+        payer = admin
+    )]
+    pub if_rebalance_config: AccountLoader<'info, IfRebalanceConfig>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
 }

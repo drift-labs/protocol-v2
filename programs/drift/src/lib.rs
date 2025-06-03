@@ -17,6 +17,7 @@ use crate::state::perp_market::{ContractTier, MarketStatus};
 use crate::state::settle_pnl_mode::SettlePnlMode;
 use crate::state::spot_market::AssetTier;
 use crate::state::spot_market::SpotFulfillmentConfigStatus;
+use crate::state::if_rebalance_config::IfRebalanceConfigParams;
 use crate::state::state::FeeStructure;
 use crate::state::state::*;
 use crate::state::user::MarketType;
@@ -1706,6 +1707,13 @@ pub mod drift {
         amount: u64,
     ) -> Result<()> {
         handle_admin_deposit(ctx, market_index, amount)
+    }
+
+    pub fn initialize_if_rebalance_config(
+        ctx: Context<InitializeIfRebalanceConfig>,
+        params: IfRebalanceConfigParams,
+    ) -> Result<()> {
+        handle_initialize_if_rebalance_config(ctx, params)
     }
 }
 
