@@ -123,6 +123,7 @@ impl<'a> PerpMarketMap<'a> {
 
             let is_writable = account_info.is_writable;
             if writable_markets.contains(&market_index) && !is_writable {
+                msg!("Market {} is not writable", market_index);
                 return Err(ErrorCode::MarketWrongMutability);
             }
 
@@ -167,6 +168,7 @@ impl<'a> PerpMarketMap<'a> {
             AccountLoader::try_from(account_info).or(Err(ErrorCode::InvalidMarketAccount))?;
 
         if must_be_writable && !is_writable {
+            msg!("Market {} is not writable", market_index);
             return Err(ErrorCode::MarketWrongMutability);
         }
 
@@ -209,6 +211,7 @@ impl<'a> PerpMarketMap<'a> {
                 AccountLoader::try_from(account_info).or(Err(ErrorCode::InvalidMarketAccount))?;
 
             if must_be_writable && !is_writable {
+                msg!("Market {} is not writable", market_index);
                 return Err(ErrorCode::MarketWrongMutability);
             }
 
