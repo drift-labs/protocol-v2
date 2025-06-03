@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- sdk: fix to getMaxTradeSizeUSDCForPerp which was previously overshooting max allowed size due to IMF factor
+
 ### Breaking
 
 ## [2.121.0] - 2025-05-29

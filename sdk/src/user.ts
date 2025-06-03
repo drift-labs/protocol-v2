@@ -2748,6 +2748,45 @@ export class User {
 			}
 		}
 
+		const freeCollateral = this.getFreeCollateral();
+
+		let baseTradeSize =
+			targetSide === 'long'
+				? tradeSize.mul(BASE_PRECISION).div(oracleData.price)
+				: tradeSize.mul(BASE_PRECISION).div(oracleData.price).neg();
+
+		let freeCollateralChangeFromNewPosition =
+			this.calculateEntriesEffectOnFreeCollateral(
+				marketAccount,
+				oracleData.price,
+				currentPosition,
+				baseTradeSize,
+				oracleData.price,
+				false,
+				enterHighLeverageMode
+			);
+
+		while (
+			freeCollateralChangeFromNewPosition.isNeg() &&
+			freeCollateralChangeFromNewPosition.abs().gt(freeCollateral)
+		) {
+			tradeSize = tradeSize.mul(new BN(99)).div(new BN(100));
+			baseTradeSize =
+				targetSide === 'long'
+					? tradeSize.mul(BASE_PRECISION).div(oracleData.price)
+					: tradeSize.mul(BASE_PRECISION).div(oracleData.price).neg();
+			freeCollateralChangeFromNewPosition =
+				this.calculateEntriesEffectOnFreeCollateral(
+					marketAccount,
+					oracleData.price,
+					currentPosition,
+					baseTradeSize,
+					oracleData.price,
+					false,
+					enterHighLeverageMode
+				);
+		}
+
 		return { tradeSize, oppositeSideTradeSize };
 	}
 
