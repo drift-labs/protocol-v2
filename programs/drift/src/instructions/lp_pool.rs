@@ -43,7 +43,6 @@ use crate::state::lp_pool::{
 
 pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdateConstituentTargetBase<'info>>,
-    constituent_indexes: Vec<u16>,
 ) -> Result<()> {
     let lp_pool = &ctx.accounts.lp_pool.load()?;
     let lp_pool_key: &Pubkey = &ctx.accounts.lp_pool.key();
@@ -97,16 +96,6 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
         msg!("weight datum: {:?}", datum);
     }
 
-    let exists_invalid_constituent_index = constituent_indexes
-        .iter()
-        .any(|index| *index as u32 >= num_constituents);
-
-    validate!(
-        !exists_invalid_constituent_index,
-        ErrorCode::InvalidUpdateConstituentTargetBaseArgument,
-        "Constituent index larger than number of constituent target weights"
-    )?;
-
     let slot = Clock::get()?.slot;
 
     let amm_constituent_mapping: AccountZeroCopy<
@@ -131,8 +120,7 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
         "Amm mapping PDA does not match expected PDA"
     )?;
 
-    let mut amm_inventories: Vec<(u16, i64)> = vec![];
-    let mut oracle_prices: Vec<i64> = vec![];
+    let mut amm_inventories: Vec<(u16, i64, i64)> = vec![];
     for (_, datum) in amm_constituent_mapping.iter().enumerate() {
         let cache_info = amm_cache.get(datum.perp_market_index as u32);
 
@@ -161,8 +149,11 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
             continue;
         }
 
-        amm_inventories.push((datum.perp_market_index, cache_info.position));
-        oracle_prices.push(cache_info.oracle_price);
+        amm_inventories.push((
+            datum.perp_market_index,
+            cache_info.position,
+            cache_info.oracle_price,
+        ));
     }
 
     if amm_inventories.is_empty() {
@@ -170,10 +161,30 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
         return Ok(());
     }
 
+    let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
+    let constituent_map =
+        ConstituentMap::load(&ConstituentSet::new(), &lp_pool_key, remaining_accounts)?;
+
+    let mut constituent_indexes_and_prices: Vec<(u16, i64)> = vec![];
+    for (index, loader) in &constituent_map.0 {
+        let constituent_ref = loader.load()?;
+        constituent_indexes_and_prices.push((*index, constituent_ref.last_oracle_price));
+    }
+
+    let exists_invalid_constituent_index = constituent_indexes_and_prices
+        .iter()
+        .any(|(index, _)| *index as u32 >= num_constituents);
+
+    validate!(
+        !exists_invalid_constituent_index,
+        ErrorCode::InvalidUpdateConstituentTargetBaseArgument,
+        "Constituent index larger than number of constituent target weights"
+    )?;
+
     constituent_target_base.update_target_base(
         &amm_constituent_mapping,
         amm_inventories.as_slice(),
-        constituent_indexes.as_slice(),
+        constituent_indexes_and_prices.as_slice(),
         slot,
     )?;
 

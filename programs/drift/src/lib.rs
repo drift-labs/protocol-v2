@@ -1792,9 +1792,8 @@ pub mod drift {
 
     pub fn update_lp_constituent_target_base<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, UpdateConstituentTargetBase<'info>>,
-        constituent_indexes: Vec<u16>,
     ) -> Result<()> {
-        handle_update_constituent_target_base(ctx, constituent_indexes)
+        handle_update_constituent_target_base(ctx)
     }
 
     pub fn update_lp_pool_aum<'c: 'info, 'info>(

@@ -9714,15 +9714,12 @@ export class DriftClient {
 
 	public async updateLpConstituentTargetBase(
 		lpPoolName: number[],
-		constituentIndexesToUpdate: number[],
+		constituents: PublicKey[],
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
-				await this.getUpdateLpConstituentTargetBaseIx(
-					lpPoolName,
-					constituentIndexesToUpdate
-				),
+				await this.getUpdateLpConstituentTargetBaseIx(lpPoolName, constituents),
 				txParams
 			),
 			[],
@@ -9733,7 +9730,7 @@ export class DriftClient {
 
 	public async getUpdateLpConstituentTargetBaseIx(
 		lpPoolName: number[],
-		constituentIndexesToUpdate: number[]
+		constituents: PublicKey[]
 	): Promise<TransactionInstruction> {
 		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
 		const ammConstituentMappingPublicKey = getAmmConstituentMappingPublicKey(
@@ -9747,19 +9744,25 @@ export class DriftClient {
 
 		const ammCache = getAmmCachePublicKey(this.program.programId);
 
-		return this.program.instruction.updateLpConstituentTargetBase(
-			constituentIndexesToUpdate,
-			{
-				accounts: {
-					keeper: this.wallet.publicKey,
-					lpPool,
-					ammConstituentMapping: ammConstituentMappingPublicKey,
-					constituentTargetBase,
-					state: await this.getStatePublicKey(),
-					ammCache,
-				},
-			}
-		);
+		const remainingAccounts = constituents.map((constituent) => {
+			return {
+				isWritable: false,
+				isSigner: false,
+				pubkey: constituent,
+			};
+		});
+
+		return this.program.instruction.updateLpConstituentTargetBase({
+			accounts: {
+				keeper: this.wallet.publicKey,
+				lpPool,
+				ammConstituentMapping: ammConstituentMappingPublicKey,
+				constituentTargetBase,
+				state: await this.getStatePublicKey(),
+				ammCache,
+			},
+			remainingAccounts,
+		});
 	}
 
 	public async updateLpPoolAum(
