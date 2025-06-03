@@ -7587,14 +7587,7 @@
           "isSigner": false
         }
       ],
-      "args": [
-        {
-          "name": "constituentIndexes",
-          "type": {
-            "vec": "u16"
-          }
-        }
-      ]
+      "args": []
     },
     {
       "name": "updateLpPoolAum",

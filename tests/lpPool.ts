@@ -312,7 +312,7 @@ describe('LP Pool', () => {
 		assert(ammMapping.weights.length == 2);
 	});
 
-	it('can update constituent beta and cost to trade', async () => {
+	it('can update constituent properties', async () => {
 		const constituentPublicKey = getConstituentPublicKey(
 			program.programId,
 			lpPoolKey,
@@ -415,7 +415,7 @@ describe('LP Pool', () => {
 		});
 
 		await adminClient.updateLpConstituentTargetBase(encodeName(lpPoolName), [
-			0,
+			getConstituentPublicKey(program.programId, lpPoolKey, 0),
 		]);
 		const constituentTargetBasePublicKey = getConstituentTargetBasePublicKey(
 			program.programId,

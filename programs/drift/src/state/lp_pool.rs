@@ -1,7 +1,8 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    BASE_PRECISION_I64, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, QUOTE_PRECISION,
+    BASE_PRECISION_I128, BASE_PRECISION_I64, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
+    QUOTE_PRECISION,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
@@ -565,7 +566,7 @@ impl Constituent {
 //   }
 
 #[zero_copy]
-#[derive(Debug, Default, BorshDeserialize, BorshSerialize)]
+#[derive(Debug, BorshDeserialize, BorshSerialize)]
 #[repr(C)]
 pub struct AmmConstituentDatum {
     pub perp_market_index: u16,
@@ -574,6 +575,18 @@ pub struct AmmConstituentDatum {
     pub last_slot: u64,
     /// PERCENTAGE_PRECISION. The weight this constituent has on the perp market
     pub weight: i64,
+}
+
+impl Default for AmmConstituentDatum {
+    fn default() -> Self {
+        AmmConstituentDatum {
+            perp_market_index: u16::MAX,
+            constituent_index: u16::MAX,
+            _padding: [0; 4],
+            last_slot: 0,
+            weight: 0,
+        }
+    }
 }
 
 #[zero_copy]
@@ -745,13 +758,15 @@ pub fn calculate_target_weight(
     lp_pool_aum: u128,
     validation_flags: WeightValidationFlags,
 ) -> DriftResult<i64> {
-    let notional = target_base.safe_mul(price)?.safe_div(BASE_PRECISION_I64)?;
+    let notional: i128 = (target_base as i128)
+        .safe_mul(price as i128)?
+        .safe_div(BASE_PRECISION_I128)?;
 
     let target_weight = notional
-        .cast::<i128>()?
         .safe_mul(PERCENTAGE_PRECISION_I128)?
         .safe_div(lp_pool_aum.cast::<i128>()?)?
-        .cast::<i64>()?;
+        .cast::<i64>()?
+        .clamp(-1 * PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_I64);
 
     // if (validation_flags as u8 & (WeightValidationFlags::NoNegativeWeights as u8) != 0)
     //     && target_weight < 0
@@ -781,37 +796,57 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
         &mut self,
         mapping: &AccountZeroCopy<'a, AmmConstituentDatum, AmmConstituentMappingFixed>,
         // (perp market index, inventory, price)
-        amm_inventory: &[(u16, i64)],
-        constituents_indexes: &[u16],
+        amm_inventory_and_prices: &[(u16, i64, i64)],
+        constituents_indexes_and_prices: &[(u16, i64)],
         slot: u64,
     ) -> DriftResult<Vec<i128>> {
-        let mut results = Vec::with_capacity(constituents_indexes.len());
+        let mut results = Vec::with_capacity(constituents_indexes_and_prices.len());
+        for (i, constituent_index_and_price) in constituents_indexes_and_prices.iter().enumerate() {
+            let mut target_notional = 0i128;
+            let constituent_index = constituent_index_and_price.0;
+            let price = constituent_index_and_price.1;
 
-        for (i, constituent_index) in constituents_indexes.iter().enumerate() {
-            let mut target_amount = 0i128;
+            for (perp_market_index, inventory, price) in amm_inventory_and_prices.iter() {
+                let idx = mapping.iter().position(|d| {
+                    &d.perp_market_index == perp_market_index
+                        && d.constituent_index == constituent_index
+                });
+                if idx.is_none() {
+                    msg!(
+                        "No mapping found for perp market index {} and constituent index {}",
+                        perp_market_index,
+                        constituent_index
+                    );
+                    continue;
+                }
 
-            for (perp_market_index, inventory) in amm_inventory.iter() {
-                let idx = mapping
-                    .iter()
-                    .position(|d| &d.perp_market_index == perp_market_index)
-                    .expect("missing mapping for this market index");
-                let weight = mapping.get(idx as u32).weight; // PERCENTAGE_PRECISION
+                let weight = mapping.get(idx.unwrap() as u32).weight; // PERCENTAGE_PRECISION
 
-                target_amount += (*inventory as i128)
+                let notional: i128 = (*inventory as i128)
+                    .safe_mul(*price as i128)?
+                    .safe_div(BASE_PRECISION_I128)?;
+
+                target_notional += notional
                     .saturating_mul(weight as i128)
-                    .saturating_div(PERCENTAGE_PRECISION_I64 as i128);
+                    .saturating_div(PERCENTAGE_PRECISION_I128);
             }
 
             let cell = self.get_mut(i as u32);
+            let target_base = target_notional
+                .safe_mul(BASE_PRECISION_I128)?
+                .safe_div(price as i128)?
+                * -1; // Want to target opposite sign of total scaled notional inventory
+
             msg!(
-                "updating constituent index {} target amount to {}",
+                "updating constituent index {} target base to {} from target notional {}",
                 constituent_index,
-                target_amount
+                target_base,
+                target_notional,
             );
-            cell.target_base = target_amount as i64;
+            cell.target_base = target_base.cast::<i64>()?;
             cell.last_slot = slot;
 
-            results.push(target_amount);
+            results.push(target_base);
         }
 
         Ok(results)
@@ -825,7 +860,9 @@ impl<'a> AccountZeroCopyMut<'a, AmmConstituentDatum, AmmConstituentMappingFixed>
         let mut open_slot_index: Option<u32> = None;
         for i in 0..len {
             let cell = self.get(i as u32);
-            if cell.constituent_index == datum.constituent_index {
+            if cell.constituent_index == datum.constituent_index
+                && cell.perp_market_index == datum.perp_market_index
+            {
                 return Err(ErrorCode::DefaultError);
             }
             if cell.last_slot == 0 && open_slot_index.is_none() {
