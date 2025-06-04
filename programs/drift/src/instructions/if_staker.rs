@@ -4,8 +4,9 @@ use anchor_spl::{
 };
 use anchor_lang::Discriminator;
 
-use crate::{controller::insurance::transfer_protocol_insurance_fund_stake, state::{perp_market_map::MarketSet, spot_market_map::get_writable_spot_market_set_from_many}};
+use crate::{controller::insurance::transfer_protocol_insurance_fund_stake, state::{if_rebalance_config::IfRebalanceConfig, perp_market_map::MarketSet, spot_market_map::get_writable_spot_market_set_from_many}};
 use crate::error::ErrorCode;
+use crate::ids::admin_hot_wallet;
 use crate::instructions::constraints::*;
 use crate::optional_accounts::get_token_mint;
 use crate::state::insurance_fund_stake::{InsuranceFundStake, ProtocolIfSharesTransferConfig};
@@ -480,18 +481,24 @@ pub fn handle_begin_insurance_fund_swap<'c: 'info, 'info>(
             )?;
 
             validate!(
-                ctx.remaining_accounts.len() == ix.accounts.len() - 9,
+                ctx.accounts.if_rebalance_config.key() == ix.accounts[6].pubkey,
+                ErrorCode::InvalidSwap,
+                "the if_rebalance_config passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.remaining_accounts.len() == ix.accounts.len() - 10,
                 ErrorCode::InvalidSwap,
                 "begin and end ix must have the same number of accounts"
             )?;
 
-            for i in 9..ix.accounts.len() {
+            for i in 10..ix.accounts.len() {
                 validate!(
-                    *ctx.remaining_accounts[i - 9].key == ix.accounts[i].pubkey,
+                    *ctx.remaining_accounts[i - 10].key == ix.accounts[i].pubkey,
                     ErrorCode::InvalidSwap,
                     "begin and end ix must have the same accounts. {}th account mismatch. begin: {}, end: {}",
                     i,
-                    ctx.remaining_accounts[i - 9].key,
+                    ctx.remaining_accounts[i - 10].key,
                     ix.accounts[i].pubkey
                 )?;
             }
@@ -833,6 +840,10 @@ pub struct TransferProtocolIfShares<'info> {
 #[instruction(in_market_index: u16, out_market_index: u16, )]
 pub struct InsuranceFundSwap<'info> {
     pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        constraint = authority.key() == admin_hot_wallet::id() || authority.key() == state.admin
+    )]
     pub authority: Signer<'info>,
     #[account(
         mut,
@@ -858,6 +869,8 @@ pub struct InsuranceFundSwap<'info> {
         token::authority = authority
     )]
     pub in_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(mut)]
+    pub if_rebalance_config: AccountLoader<'info, IfRebalanceConfig>,
     pub token_program: Interface<'info, TokenInterface>,
     #[account(
         constraint = state.signer.eq(&drift_signer.key())
