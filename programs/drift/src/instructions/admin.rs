@@ -4617,6 +4617,23 @@ pub fn handle_initialize_if_rebalance_config(
     config.swap_mode = params.swap_mode;
     config.status = 0;
 
+    config.validate()?;
+
+    Ok(())
+}
+
+pub fn handle_update_if_rebalance_config(
+    ctx: Context<UpdateIfRebalanceConfig>,
+    params: IfRebalanceConfigParams,
+) -> Result<()> {
+    let mut config = load_mut!(ctx.accounts.if_rebalance_config)?;
+
+    config.total_in_amount = params.total_in_amount;
+    config.end_ts = params.end_ts;
+    config.max_swap_amount = params.max_swap_amount;
+
+    config.validate()?;
+
     Ok(())
 }
 
@@ -5413,4 +5430,16 @@ pub struct InitializeIfRebalanceConfig<'info> {
     pub state: Box<Account<'info, State>>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateIfRebalanceConfig<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(mut)]
+    pub if_rebalance_config: AccountLoader<'info, IfRebalanceConfig>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
 }

@@ -1715,6 +1715,13 @@ pub mod drift {
     ) -> Result<()> {
         handle_initialize_if_rebalance_config(ctx, params)
     }
+
+    pub fn update_if_rebalance_config(
+        ctx: Context<UpdateIfRebalanceConfig>,
+        params: IfRebalanceConfigParams,
+    ) -> Result<()> {
+        handle_update_if_rebalance_config(ctx, params)
+    }
 }
 
 #[cfg(not(feature = "no-entrypoint"))]
