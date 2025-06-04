@@ -816,6 +816,36 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 			'0x2b89b9dc8fdf9f34709a5b106b472f0f39bb6ca9ce04b0fd7f2e971688e2e53b',
 		pythLazerId: 8,
 	},
+	{
+		symbol: 'SOL-2',
+		marketIndex: 49,
+		poolId: 2,
+		oracle: new PublicKey('3PiwrLLyiuWaxS7zJL5znGR9iYD3KWubZThdQzsCdg2e'),
+		oracleSource: OracleSource.SWITCHBOARD_ON_DEMAND,
+		mint: new PublicKey(WRAPPED_SOL_MINT),
+		precision: LAMPORTS_PRECISION,
+		precisionExp: LAMPORTS_EXP,
+	},
+	{
+		symbol: 'JitoSOL-2',
+		marketIndex: 50,
+		poolId: 2,
+		oracle: new PublicKey('Fqv8vT5fdjvBbHd5k4B4ZvnXLH6bbdKP8cMv93ybCP8W'),
+		oracleSource: OracleSource.SWITCHBOARD_ON_DEMAND,
+		mint: new PublicKey('J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn'),
+		precision: new BN(10).pow(NINE),
+		precisionExp: NINE,
+	},
+	{
+		symbol: 'JTO-2',
+		marketIndex: 51,
+		poolId: 2,
+		oracle: new PublicKey('DPvVSQYhZXQ2ygfT2Qjdg6iyeQVAyiz8okj88YRjy6NN'),
+		oracleSource: OracleSource.SWITCHBOARD_ON_DEMAND,
+		mint: new PublicKey('jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL'),
+		precision: new BN(10).pow(NINE),
+		precisionExp: NINE,
+	},
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {
