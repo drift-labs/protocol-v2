@@ -688,3 +688,9 @@ pub struct InsuranceFund {
     pub total_factor: u32, // percentage of interest for total insurance
     pub user_factor: u32,  // percentage of interest for user staked insurance
 }
+
+impl InsuranceFund {
+    pub fn get_protocol_shares(&self) -> DriftResult<u128> {
+        self.total_shares.safe_sub(self.user_shares)
+    }
+}

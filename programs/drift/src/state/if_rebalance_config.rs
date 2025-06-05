@@ -17,6 +17,8 @@ pub struct IfRebalanceConfig {
     pub total_in_amount: u64,
     /// amount already sold
     pub current_in_amount: u64,
+    /// amount already bought
+    pub current_out_amount: u64,
     /// start time of the rebalance
     pub start_ts: i64,
     /// end time of the rebalance
@@ -46,6 +48,8 @@ impl IfRebalanceConfig {
 
     pub fn validate(&self) -> DriftResult<()> {
         validate!(self.start_ts < self.end_ts, ErrorCode::InvalidIfRebalanceConfig)?;
+
+        validate!(self.in_market_index == 0, ErrorCode::InvalidIfRebalanceConfig)?;
 
         validate!(self.out_market_index != self.in_market_index, ErrorCode::InvalidIfRebalanceConfig)?;
         

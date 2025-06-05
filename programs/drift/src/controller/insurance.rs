@@ -32,6 +32,7 @@ use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::state::State;
 use crate::state::user::UserStats;
 use crate::{emit, validate, FUEL_START_TS, GOV_SPOT_MARKET_INDEX, QUOTE_SPOT_MARKET_INDEX};
+use crate::state::if_rebalance_config::IfRebalanceConfig;
 
 #[cfg(test)]
 mod tests;
@@ -947,4 +948,57 @@ pub fn resolve_perp_pnl_deficit(
     });
 
     insurance_withdraw.cast()
+}
+
+pub fn handle_if_begin_swap(
+    if_rebalance_config: &mut IfRebalanceConfig,
+    in_insurance_fund_vault_amount: u64,
+    out_insurance_fund_vault_amount: u64,
+    in_spot_market: &mut SpotMarket,
+    out_spot_market: &mut SpotMarket,
+    in_amount: u64,
+    now: i64,
+) -> DriftResult<()> {
+
+    apply_rebase_to_insurance_fund(in_insurance_fund_vault_amount, in_spot_market)?;
+    apply_rebase_to_insurance_fund(out_insurance_fund_vault_amount, out_spot_market)?;
+
+    Ok(())
+}
+
+pub fn handle_if_end_swap(
+    if_rebalance_config: &mut IfRebalanceConfig,
+    in_insurance_fund_vault_amount: u64,
+    out_insurance_fund_vault_amount: u64,
+    in_spot_market: &mut SpotMarket,
+    out_spot_market: &mut SpotMarket,
+    in_amount: u64,
+    out_amount: u64,
+    now: i64,
+) -> DriftResult<()> {
+    let in_shares = vault_amount_to_if_shares(in_amount, in_spot_market.insurance_fund.total_shares, in_insurance_fund_vault_amount)?;
+    let out_shares = vault_amount_to_if_shares(out_amount, out_spot_market.insurance_fund.total_shares, out_insurance_fund_vault_amount)?;
+
+    // validate shares less than protocol shares
+    validate!(
+        in_shares < in_spot_market.insurance_fund.get_protocol_shares()?,
+        ErrorCode::InsufficientIFShares,
+        "in_shares={} < total_shares={}",
+        in_shares,
+        in_spot_market.insurance_fund.get_protocol_shares()?
+    )?;
+
+    // increment spot market insurance funds total shares
+    in_spot_market.insurance_fund.total_shares = in_spot_market.insurance_fund.total_shares.safe_add(in_shares)?;
+    out_spot_market.insurance_fund.total_shares = out_spot_market.insurance_fund.total_shares.safe_add(out_shares)?;
+
+    // increment config current in amount
+    if_rebalance_config.current_in_amount = if_rebalance_config.current_in_amount.safe_add(in_amount)?;
+    // increment config current out amount
+    if_rebalance_config.current_out_amount = if_rebalance_config.current_out_amount.safe_add(out_amount)?;
+    // increment config last swap ts
+    if_rebalance_config.last_swap_ts = now;
+    
+
+    Ok(())
 }
