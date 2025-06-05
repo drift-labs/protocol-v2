@@ -8,6 +8,7 @@ use anchor_lang::prelude::*;
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct IfRebalanceConfig {
+    pub pubkey: Pubkey,
     pub name: [u8; 32],
     /// total amount to be sold
     pub total_in_amount: u64,

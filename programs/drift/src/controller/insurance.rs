@@ -26,7 +26,7 @@ use crate::math::orders::{calculate_fill_price};
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
-use crate::state::events::{InsuranceFundRecord, InsuranceFundStakeRecord, StakeAction};
+use crate::state::events::{InsuranceFundRecord, InsuranceFundStakeRecord, StakeAction, InsuranceFundSwapRecord};
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -996,6 +996,11 @@ pub fn handle_if_end_swap(
     let in_insurance_fund_vault_amount_before = in_insurance_fund_vault_amount_after.safe_add(in_amount)?;
     let out_insurance_fund_vault_amount_before = out_insurance_fund_vault_amount_after.safe_sub(out_amount)?;
 
+    let in_if_total_shares_before = in_spot_market.insurance_fund.total_shares;
+    let out_if_total_shares_before = out_spot_market.insurance_fund.total_shares;
+    let in_if_user_shares_before = in_spot_market.insurance_fund.user_shares;
+    let out_if_user_shares_before = out_spot_market.insurance_fund.user_shares;
+
     let in_shares = vault_amount_to_if_shares(in_amount, in_spot_market.insurance_fund.total_shares, in_insurance_fund_vault_amount_before)?;
     let out_shares = vault_amount_to_if_shares(out_amount, out_spot_market.insurance_fund.total_shares, out_insurance_fund_vault_amount_before)?;
 
@@ -1009,7 +1014,7 @@ pub fn handle_if_end_swap(
     )?;
 
     // increment spot market insurance funds total shares
-    in_spot_market.insurance_fund.total_shares = in_spot_market.insurance_fund.total_shares.safe_add(in_shares)?;
+    in_spot_market.insurance_fund.total_shares = in_spot_market.insurance_fund.total_shares.safe_sub(in_shares)?;
     out_spot_market.insurance_fund.total_shares = out_spot_market.insurance_fund.total_shares.safe_add(out_shares)?;
 
     // increment config current in amount
@@ -1039,6 +1044,29 @@ pub fn handle_if_end_swap(
         "swap_price={} > out_oracle_price={} + max_slippage={}",
         swap_price, out_oracle_price, max_slippage
     )?;
+
+    emit!(InsuranceFundSwapRecord {
+        ts: now,
+        rebalance_config: if_rebalance_config.pubkey,
+        in_market_index: if_rebalance_config.in_market_index,
+        out_market_index: if_rebalance_config.out_market_index,
+        in_amount,
+        out_amount,
+        out_oracle_price,
+        out_oracle_price_twap: oracle_twap,
+        in_vault_amount_before: in_insurance_fund_vault_amount_before,
+        out_vault_amount_before: out_insurance_fund_vault_amount_before,
+        in_fund_vault_amount_after: in_insurance_fund_vault_amount_after,
+        out_fund_vault_amount_after: out_insurance_fund_vault_amount_after,
+        in_if_total_shares_before,
+        out_if_total_shares_before,
+        in_if_user_shares_before,
+        out_if_user_shares_before,
+        in_if_total_shares_after: in_spot_market.insurance_fund.total_shares,
+        out_if_total_shares_after: out_spot_market.insurance_fund.total_shares,
+        in_if_user_shares_after: in_spot_market.insurance_fund.user_shares,
+        out_if_user_shares_after: out_spot_market.insurance_fund.user_shares,
+    });
 
     Ok(())
 }

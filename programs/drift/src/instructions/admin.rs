@@ -4603,8 +4603,10 @@ pub fn handle_initialize_if_rebalance_config(
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
 
+    let pubkey = ctx.accounts.if_rebalance_config.to_account_info().key;
     let mut config = ctx.accounts.if_rebalance_config.load_init()?;
 
+    config.pubkey = *pubkey;
     config.name = params.name;
     config.total_in_amount = params.total_in_amount;
     config.current_in_amount = 0;
