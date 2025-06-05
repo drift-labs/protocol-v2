@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+- sdk: fix to getMaxTradeSizeUSDCForPerp which was previously overshooting max allowed size due to IMF factor
+
+### Breaking
+
+## [2.121.0] - 2025-05-29
+
+### Features
+
+- program: multi piecewise interest rate curve ([#1560](https://github.com/drift-labs/protocol-v2/pull/1560))
 - sdk: fees and max perp trade size calculation functions allow an optional parameter for a user using bitFlags to enter high leverage mode
 
 ### Fixes

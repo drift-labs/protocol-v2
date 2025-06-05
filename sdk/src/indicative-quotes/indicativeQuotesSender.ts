@@ -17,8 +17,8 @@ type Quote = {
 };
 
 export class IndicativeQuotesSender {
-	private heartbeatTimeout: NodeJS.Timeout | null = null;
-	private sendQuotesInterval: NodeJS.Timeout | null = null;
+	private heartbeatTimeout: ReturnType<typeof setTimeout> | null = null;
+	private sendQuotesInterval: ReturnType<typeof setTimeout> | null = null;
 
 	private readonly heartbeatIntervalMs = 60000;
 	private reconnectDelay = 1000;

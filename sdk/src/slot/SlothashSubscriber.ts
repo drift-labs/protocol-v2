@@ -23,7 +23,7 @@ export class SlothashSubscriber {
 	commitment: Commitment;
 
 	// Reconnection
-	timeoutId?: NodeJS.Timeout;
+	timeoutId?: ReturnType<typeof setTimeout>;
 	resubTimeoutMs?: number;
 	isUnsubscribing = false;
 	receivingData = false;

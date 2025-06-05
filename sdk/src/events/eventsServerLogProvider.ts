@@ -19,7 +19,7 @@ export class EventsServerLogProvider implements LogProvider {
 	private isUnsubscribing = false;
 	private externalUnsubscribe = false;
 	private lastHeartbeat = 0;
-	private timeoutId?: NodeJS.Timeout;
+	private timeoutId?: ReturnType<typeof setTimeout>;
 	private reconnectAttempts = 0;
 	eventEmitter?: EventEmitter;
 

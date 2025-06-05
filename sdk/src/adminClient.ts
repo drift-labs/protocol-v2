@@ -3769,11 +3769,11 @@ export class AdminClient extends DriftClient {
 	): Promise<TransactionSignature> {
 		const updateSpotMarketFuelIx = await this.getUpdateSpotMarketFuelIx(
 			spotMarketIndex,
-			fuelBoostDeposits || null,
-			fuelBoostBorrows || null,
-			fuelBoostTaker || null,
-			fuelBoostMaker || null,
-			fuelBoostInsurance || null
+			fuelBoostDeposits ?? null,
+			fuelBoostBorrows ?? null,
+			fuelBoostTaker ?? null,
+			fuelBoostMaker ?? null,
+			fuelBoostInsurance ?? null
 		);
 
 		const tx = await this.buildTransaction(updateSpotMarketFuelIx);
@@ -3796,11 +3796,11 @@ export class AdminClient extends DriftClient {
 		);
 
 		return await this.program.instruction.updateSpotMarketFuel(
-			fuelBoostDeposits || null,
-			fuelBoostBorrows || null,
-			fuelBoostTaker || null,
-			fuelBoostMaker || null,
-			fuelBoostInsurance || null,
+			fuelBoostDeposits ?? null,
+			fuelBoostBorrows ?? null,
+			fuelBoostTaker ?? null,
+			fuelBoostMaker ?? null,
+			fuelBoostInsurance ?? null,
 			{
 				accounts: {
 					admin: this.isSubscribed
@@ -3821,9 +3821,9 @@ export class AdminClient extends DriftClient {
 	): Promise<TransactionSignature> {
 		const updatePerpMarketFuelIx = await this.getUpdatePerpMarketFuelIx(
 			perpMarketIndex,
-			fuelBoostTaker || null,
-			fuelBoostMaker || null,
-			fuelBoostPosition || null
+			fuelBoostTaker ?? null,
+			fuelBoostMaker ?? null,
+			fuelBoostPosition ?? null
 		);
 
 		const tx = await this.buildTransaction(updatePerpMarketFuelIx);
@@ -3844,9 +3844,9 @@ export class AdminClient extends DriftClient {
 		);
 
 		return await this.program.instruction.updatePerpMarketFuel(
-			fuelBoostTaker || null,
-			fuelBoostMaker || null,
-			fuelBoostPosition || null,
+			fuelBoostTaker ?? null,
+			fuelBoostMaker ?? null,
+			fuelBoostPosition ?? null,
 			{
 				accounts: {
 					admin: this.isSubscribed

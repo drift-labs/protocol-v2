@@ -24,7 +24,7 @@ export class DLOBSubscriber {
 	dlobSource: DLOBSource;
 	slotSource: SlotSource;
 	updateFrequency: number;
-	intervalId?: NodeJS.Timeout;
+	intervalId?: ReturnType<typeof setTimeout>;
 	dlob: DLOB;
 	public eventEmitter: StrictEventEmitter<EventEmitter, DLOBSubscriberEvents>;
 	protectedMakerView: boolean;

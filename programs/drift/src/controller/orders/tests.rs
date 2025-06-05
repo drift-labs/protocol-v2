@@ -8056,7 +8056,7 @@ pub mod fulfill_spot_order_with_match {
         )
         .unwrap();
 
-        assert_eq!(base_filled, 166666666);
+        assert_eq!(base_filled, 333333333);
     }
 
     #[test]
@@ -8252,7 +8252,7 @@ pub mod fulfill_spot_order_with_match {
         )
         .unwrap();
 
-        assert_eq!(base_filled, 166666660);
+        assert_eq!(base_filled, 333333330);
     }
 
     #[test]
@@ -8450,7 +8450,7 @@ pub mod fulfill_spot_order_with_match {
         )
         .unwrap();
 
-        assert_eq!(base_filled, 166666660);
+        assert_eq!(base_filled, 333333330);
     }
 
     #[test]
@@ -8646,7 +8646,7 @@ pub mod fulfill_spot_order_with_match {
         )
         .unwrap();
 
-        assert_eq!(base_filled, 166666666);
+        assert_eq!(base_filled, 333333333);
     }
 
     #[test]
