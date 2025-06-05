@@ -9,10 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: add existing position fields to order records ([#1614](https://github.com/drift-labs/protocol-v2/pull/1614))
+
 ### Fixes
 
 - sdk: fix to getMaxTradeSizeUSDCForPerp which was previously overshooting max allowed size due to IMF factor
-- program: add existing position fields to order records ([#1614](https://github.com/drift-labs/protocol-v2/pull/1614))
 - program: check limit price after applying buffer in trigger limit order ([#1648](https://github.com/drift-labs/protocol-v2/pull/1648))
 - program: check limit price when setting auction for limit order ([#1650](https://github.com/drift-labs/protocol-v2/pull/1650))
 
