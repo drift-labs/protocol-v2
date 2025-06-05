@@ -42,9 +42,9 @@ use crate::math::margin::{
 };
 use crate::math::oracle::DriftAction;
 use crate::math::orders::{
-    calculate_existing_position_fields_for_order_action, get_position_delta_for_fill, is_multiple_of_step_size,
-    is_oracle_too_divergent_with_twap_5min, standardize_base_asset_amount,
-    standardize_base_asset_amount_ceil,
+    calculate_existing_position_fields_for_order_action, get_position_delta_for_fill,
+    is_multiple_of_step_size, is_oracle_too_divergent_with_twap_5min,
+    standardize_base_asset_amount, standardize_base_asset_amount_ceil,
 };
 use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::math::safe_math::SafeMath;
@@ -642,10 +642,16 @@ pub fn liquidate_perp(
     });
 
     let (taker_existing_quote_entry_amount, taker_existing_base_asset_amount) =
-        calculate_existing_position_fields_for_order_action(base_asset_amount, user_existing_position_params_for_order_action)?;
+        calculate_existing_position_fields_for_order_action(
+            base_asset_amount,
+            user_existing_position_params_for_order_action,
+        )?;
 
     let (maker_existing_quote_entry_amount, maker_existing_base_asset_amount) =
-        calculate_existing_position_fields_for_order_action(base_asset_amount, liquidator_existing_position_params_for_order_action)?;
+        calculate_existing_position_fields_for_order_action(
+            base_asset_amount,
+            liquidator_existing_position_params_for_order_action,
+        )?;
 
     let fill_record = OrderActionRecord {
         ts: now,

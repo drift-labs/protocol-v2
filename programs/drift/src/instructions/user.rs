@@ -1708,32 +1708,45 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         .force_get_perp_position_mut(market_index)
         .map(|position| position.get_direction())?;
 
-    let (from_existing_quote_entry_amount, from_existing_base_asset_amount, to_existing_quote_entry_amount, to_existing_base_asset_amount) = {
+    let (
+        from_existing_quote_entry_amount,
+        from_existing_base_asset_amount,
+        to_existing_quote_entry_amount,
+        to_existing_base_asset_amount,
+    ) = {
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
         let from_user_position = from_user.force_get_perp_position_mut(market_index)?;
 
-        let (from_existing_quote_entry_amount, from_existing_base_asset_amount) = calculate_existing_position_fields_for_order_action(
-            transfer_amount_abs,
-            from_user_position.get_existing_position_params_for_order_action(direction_to_close),
-        )?;
+        let (from_existing_quote_entry_amount, from_existing_base_asset_amount) =
+            calculate_existing_position_fields_for_order_action(
+                transfer_amount_abs,
+                from_user_position
+                    .get_existing_position_params_for_order_action(direction_to_close),
+            )?;
 
         update_position_and_market(from_user_position, &mut market, &from_user_position_delta)?;
 
         let to_user_position = to_user.force_get_perp_position_mut(market_index)?;
 
-        let (to_existing_quote_entry_amount, to_existing_base_asset_amount) = calculate_existing_position_fields_for_order_action(
-            transfer_amount_abs,
-            to_user_position
-                .get_existing_position_params_for_order_action(direction_to_close.opposite()),
-        )?;
+        let (to_existing_quote_entry_amount, to_existing_base_asset_amount) =
+            calculate_existing_position_fields_for_order_action(
+                transfer_amount_abs,
+                to_user_position
+                    .get_existing_position_params_for_order_action(direction_to_close.opposite()),
+            )?;
 
         update_position_and_market(to_user_position, &mut market, &to_user_position_delta)?;
 
         validate_perp_position_with_perp_market(from_user_position, &market)?;
         validate_perp_position_with_perp_market(to_user_position, &market)?;
 
-        (from_existing_quote_entry_amount, from_existing_base_asset_amount, to_existing_quote_entry_amount, to_existing_base_asset_amount)
+        (
+            from_existing_quote_entry_amount,
+            from_existing_base_asset_amount,
+            to_existing_quote_entry_amount,
+            to_existing_base_asset_amount,
+        )
     };
 
     let from_user_margin_calculation =
