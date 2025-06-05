@@ -1251,7 +1251,10 @@ impl PerpPosition {
         }
 
         if self.get_direction_to_close() == fill_direction {
-            Some((self.quote_entry_amount.unsigned_abs(), self.base_asset_amount.unsigned_abs()))
+            Some((
+                self.quote_entry_amount.unsigned_abs(),
+                self.base_asset_amount.unsigned_abs(),
+            ))
         } else {
             None
         }

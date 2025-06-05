@@ -1422,11 +1422,13 @@ pub fn calculate_existing_position_fields_for_order_action(
             return Ok((Some(quote_entry_amount), Some(base_asset_amount)));
         } else {
             return Ok((
-                Some(quote_entry_amount
-                    .cast::<u128>()?
-                    .safe_mul(base_asset_amount_filled.cast()?)?
-                    .safe_div(base_asset_amount.cast()?)?
-                    .cast::<u64>()?),
+                Some(
+                    quote_entry_amount
+                        .cast::<u128>()?
+                        .safe_mul(base_asset_amount_filled.cast()?)?
+                        .safe_div(base_asset_amount.cast()?)?
+                        .cast::<u64>()?,
+                ),
                 None,
             ));
         }
