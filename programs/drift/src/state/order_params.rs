@@ -200,7 +200,7 @@ impl OrderParams {
                         if is_oracle_offset_oracle {
                             msg!(
                                 "Updating oracle limit auction start price to {}",
-                                new_auction_start_price
+                                auction_start_price_offset
                             );
                             self.auction_start_price = Some(auction_start_price_offset);
                         } else {
@@ -216,7 +216,7 @@ impl OrderParams {
                     if is_oracle_offset_oracle {
                         msg!(
                             "Updating oracle limit auction start price to {}",
-                            new_auction_start_price
+                            auction_start_price_offset
                         );
                         self.auction_start_price = Some(auction_start_price_offset);
                     } else {
@@ -240,6 +240,28 @@ impl OrderParams {
                     msg!("Updating limit auction end price to {}", self.price);
                     self.auction_end_price = Some(self.price as i64);
                 }
+            }
+        }
+
+        let worst_price = if is_oracle_offset_oracle {
+            oracle_price_offset as i64
+        } else {
+            self.price as i64
+        };
+
+        if self.direction == PositionDirection::Long {
+            if let Some(auction_start_price) = self.auction_start_price {
+                self.auction_start_price = Some(auction_start_price.min(worst_price));
+            }
+            if let Some(auction_end_price) = self.auction_end_price {
+                self.auction_end_price = Some(auction_end_price.min(worst_price));
+            }
+        } else {
+            if let Some(auction_start_price) = self.auction_start_price {
+                self.auction_start_price = Some(auction_start_price.max(worst_price));
+            }
+            if let Some(auction_end_price) = self.auction_end_price {
+                self.auction_end_price = Some(auction_end_price.max(worst_price));
             }
         }
 
