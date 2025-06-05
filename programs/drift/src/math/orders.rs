@@ -1423,8 +1423,10 @@ pub fn calculate_existing_position_fields_for_order_action(
         } else {
             return Ok((
                 Some(quote_entry_amount
-                    .safe_mul(base_asset_amount_filled)?
-                    .safe_div(base_asset_amount)?),
+                    .cast::<u128>()?
+                    .safe_mul(base_asset_amount_filled.cast()?)?
+                    .safe_div(base_asset_amount.cast()?)?
+                    .cast::<u64>()?),
                 None,
             ));
         }
