@@ -1,12 +1,8 @@
 use crate::error::DriftResult;
 use crate::error::ErrorCode;
-use crate::math::safe_math::SafeMath;
 use crate::state::traits::Size;
 use crate::validate;
 use anchor_lang::prelude::*;
-
-use super::user::MarginMode;
-use super::user::User;
 
 #[account(zero_copy(unsafe))]
 #[derive(Default, Eq, PartialEq, Debug)]
@@ -25,14 +21,17 @@ pub struct IfRebalanceConfig {
     pub end_ts: i64,
     /// last swap time
     pub last_swap_ts: i64,
-    pub max_swap_amount: u64,
+    /// amount to swap
+    pub swap_amount: u64,
+    /// frequency of swaps
+    pub swap_frequency: i64,
     /// market index to sell
     pub out_market_index: u16,
     /// market index to buy
     pub in_market_index: u16,
+    pub max_slippage_bps: u16,
     pub swap_mode: u8,
     pub status: u8,
-    pub padding: u16,
     pub padding2: [u8; 32],
 }
 
@@ -55,7 +54,7 @@ impl IfRebalanceConfig {
         
         validate!(self.total_in_amount >= self.current_in_amount, ErrorCode::InvalidIfRebalanceConfig)?;
 
-        validate!(self.max_swap_amount < self.total_in_amount, ErrorCode::InvalidIfRebalanceConfig)?;
+        validate!(self.swap_amount < self.total_in_amount, ErrorCode::InvalidIfRebalanceConfig)?;
 
         Ok(())
     }
@@ -66,9 +65,11 @@ pub struct IfRebalanceConfigParams {
     pub name: [u8; 32],
     pub total_in_amount: u64,
     pub end_ts: i64,
-    pub max_swap_amount: u64,
+    pub swap_amount: u64,
+    pub swap_frequency: i64,
     pub out_market_index: u16,
     pub in_market_index: u16,
+    pub max_slippage_bps: u16,
     pub swap_mode: u8,
     pub status: u8,
 }

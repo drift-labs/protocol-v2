@@ -637,6 +637,8 @@ pub enum ErrorCode {
     CouldNotDeserializeHighLeverageModeConfig,
     #[msg("Invalid If Rebalance Config")]
     InvalidIfRebalanceConfig,
+    #[msg("Invalid If Rebalance Swap")]
+    InvalidIfRebalanceSwap,
 }
 
 #[macro_export]

@@ -392,6 +392,17 @@ pub fn handle_begin_insurance_fund_swap<'c: 'info, 'info>(
         "amount_out cannot be zero"
     )?;
 
+    let mut if_rebalance_config = ctx.accounts.if_rebalance_config.load_mut()?;
+    controller::insurance::handle_if_begin_swap(
+        &mut if_rebalance_config,
+        ctx.accounts.in_insurance_fund_vault.amount,
+        ctx.accounts.out_insurance_fund_vault.amount,
+        &mut in_spot_market,
+        &mut out_spot_market,
+        amount_in,
+        now,
+    )?;
+
     let in_vault = &ctx.accounts.in_insurance_fund_vault;
     let in_token_account = &ctx.accounts.in_token_account;
 
@@ -650,6 +661,21 @@ pub fn handle_end_insurance_fund_swap<'c: 'info, 'info>(
             && in_spot_market.flash_loan_amount == 0,
         ErrorCode::InvalidSwap,
         "end_swap ended in invalid state"
+    )?;
+
+    let out_oracle_price = oracle_map.get_price_data(&out_spot_market.oracle_id())?.price;
+
+    let mut if_rebalance_config = ctx.accounts.if_rebalance_config.load_mut()?;
+    controller::insurance::handle_if_end_swap(
+        &mut if_rebalance_config,
+        ctx.accounts.in_insurance_fund_vault.amount,
+        ctx.accounts.out_insurance_fund_vault.amount,
+        &mut in_spot_market,
+        &mut out_spot_market,
+        amount_in,
+        amount_out,
+        out_oracle_price.unsigned_abs(),
+        now,
     )?;
 
     Ok(())

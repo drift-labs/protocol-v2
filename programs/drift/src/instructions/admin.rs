@@ -4611,9 +4611,10 @@ pub fn handle_initialize_if_rebalance_config(
     config.start_ts = now;
     config.end_ts = params.end_ts;
     config.last_swap_ts = now;
-    config.max_swap_amount = params.max_swap_amount;
+    config.swap_amount = params.swap_amount;
     config.out_market_index = params.out_market_index;
     config.in_market_index = params.in_market_index;
+    config.max_slippage_bps = params.max_slippage_bps;
     config.swap_mode = params.swap_mode;
     config.status = 0;
 
@@ -4630,7 +4631,8 @@ pub fn handle_update_if_rebalance_config(
 
     config.total_in_amount = params.total_in_amount;
     config.end_ts = params.end_ts;
-    config.max_swap_amount = params.max_swap_amount;
+    config.swap_amount = params.swap_amount;
+    config.max_slippage_bps = params.max_slippage_bps;
 
     config.validate()?;
 

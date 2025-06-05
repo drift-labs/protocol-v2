@@ -22,6 +22,7 @@ use crate::math::insurance::{
     calculate_if_shares_lost, calculate_rebase_info, if_shares_to_vault_amount,
     vault_amount_to_if_shares,
 };
+use crate::math::orders::{calculate_fill_price};
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
@@ -963,21 +964,40 @@ pub fn handle_if_begin_swap(
     apply_rebase_to_insurance_fund(in_insurance_fund_vault_amount, in_spot_market)?;
     apply_rebase_to_insurance_fund(out_insurance_fund_vault_amount, out_spot_market)?;
 
+    validate!(
+        in_amount == if_rebalance_config.swap_amount,
+        ErrorCode::InvalidIfRebalanceSwap,
+        "in_amount={} > swap_amount={}",
+        in_amount, if_rebalance_config.swap_amount
+    )?;
+
+    validate!(
+        now >= if_rebalance_config.last_swap_ts.safe_add(if_rebalance_config.swap_frequency)?,
+        ErrorCode::InvalidIfRebalanceSwap,
+        "now={} < last_swap_ts={} + swap_frequency={}",
+        now, if_rebalance_config.last_swap_ts, if_rebalance_config.swap_frequency
+    )?;
+    
+
     Ok(())
 }
 
 pub fn handle_if_end_swap(
     if_rebalance_config: &mut IfRebalanceConfig,
-    in_insurance_fund_vault_amount: u64,
-    out_insurance_fund_vault_amount: u64,
+    in_insurance_fund_vault_amount_after: u64,
+    out_insurance_fund_vault_amount_after: u64,
     in_spot_market: &mut SpotMarket,
     out_spot_market: &mut SpotMarket,
     in_amount: u64,
     out_amount: u64,
+    out_oracle_price: u64,
     now: i64,
 ) -> DriftResult<()> {
-    let in_shares = vault_amount_to_if_shares(in_amount, in_spot_market.insurance_fund.total_shares, in_insurance_fund_vault_amount)?;
-    let out_shares = vault_amount_to_if_shares(out_amount, out_spot_market.insurance_fund.total_shares, out_insurance_fund_vault_amount)?;
+    let in_insurance_fund_vault_amount_before = in_insurance_fund_vault_amount_after.safe_add(in_amount)?;
+    let out_insurance_fund_vault_amount_before = out_insurance_fund_vault_amount_after.safe_sub(out_amount)?;
+
+    let in_shares = vault_amount_to_if_shares(in_amount, in_spot_market.insurance_fund.total_shares, in_insurance_fund_vault_amount_before)?;
+    let out_shares = vault_amount_to_if_shares(out_amount, out_spot_market.insurance_fund.total_shares, out_insurance_fund_vault_amount_before)?;
 
     // validate shares less than protocol shares
     validate!(
@@ -998,7 +1018,27 @@ pub fn handle_if_end_swap(
     if_rebalance_config.current_out_amount = if_rebalance_config.current_out_amount.safe_add(out_amount)?;
     // increment config last swap ts
     if_rebalance_config.last_swap_ts = now;
+
+    let oracle_twap = out_spot_market.historical_oracle_data.last_oracle_price_twap;
+
+    validate!(
+        out_oracle_price <= oracle_twap.cast::<u64>()?,
+        ErrorCode::InvalidIfRebalanceSwap,
+        "out_oracle_price={} > oracle_twap={}",
+        out_oracle_price, oracle_twap
+    )?;
+
+    let swap_price = calculate_fill_price(in_amount, out_amount, out_spot_market.get_precision())?;
     
+    let max_slippage_bps = if_rebalance_config.max_slippage_bps.cast::<u64>()?;
+    let max_slippage = out_oracle_price / (10000 / max_slippage_bps.max(1));
+
+    validate!(
+        swap_price <= out_oracle_price.safe_add(max_slippage)?,
+        ErrorCode::InvalidIfRebalanceSwap,
+        "swap_price={} > out_oracle_price={} + max_slippage={}",
+        swap_price, out_oracle_price, max_slippage
+    )?;
 
     Ok(())
 }
