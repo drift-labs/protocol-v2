@@ -1241,6 +1241,21 @@ impl PerpPosition {
             Ok(unrealized_pnl)
         }
     }
+
+    pub fn get_existing_position_params_for_order_action(
+        &self,
+        fill_direction: PositionDirection,
+    ) -> Option<(u64, u64)> {
+        if self.base_asset_amount == 0 {
+            return None;
+        }
+
+        if self.get_direction_to_close() == fill_direction {
+            Some((self.quote_entry_amount.unsigned_abs(), self.base_asset_amount.unsigned_abs()))
+        } else {
+            None
+        }
+    }
 }
 
 pub(crate) type PerpPositions = [PerpPosition; 8];

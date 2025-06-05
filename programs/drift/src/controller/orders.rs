@@ -424,6 +424,10 @@ pub fn place_perp_order(
         maker_order,
         oracle_map.get_price_data(&market.oracle_id())?.price,
         bit_flags,
+        None,
+        None,
+        None,
+        None,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -699,6 +703,10 @@ pub fn cancel_order(
             maker_order,
             oracle_map.get_price_data(&oracle_id)?.price,
             0,
+            None,
+            None,
+            None,
+            None,
         )?;
         emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
     }
@@ -2165,6 +2173,9 @@ pub fn fulfill_perp_order_with_amm(
 
     validation::perp_market::validate_amm_account_for_fill(&market.amm, order_direction)?;
 
+    let existing_position_params_for_order_action = user.perp_positions[position_index]
+        .get_existing_position_params_for_order_action(order_direction);
+
     let market_side_price = match order_direction {
         PositionDirection::Long => market.amm.ask_price(reserve_price_before)?,
         PositionDirection::Short => market.amm.bid_price(reserve_price_before)?,
@@ -2355,6 +2366,15 @@ pub fn fulfill_perp_order_with_amm(
         order_action_bit_flags,
         user.orders[order_index].is_signed_msg(),
     );
+    let (taker_existing_quote_entry_amount, taker_existing_base_asset_amount, maker_existing_quote_entry_amount, maker_existing_base_asset_amount) = {
+        let (existing_quote_entry_amount, existing_base_asset_amount) =
+            calculate_existing_position_fields_for_order_action(base_asset_amount, existing_position_params_for_order_action)?;
+        if taker.is_some() {
+            (existing_quote_entry_amount, existing_base_asset_amount, None, None)
+        } else {
+            (None, None, existing_quote_entry_amount, existing_base_asset_amount)
+        }
+    };
     let order_action_record = get_order_action_record(
         now,
         OrderAction::Fill,
@@ -2380,6 +2400,10 @@ pub fn fulfill_perp_order_with_amm(
         maker_order,
         oracle_map.get_price_data(&market.oracle_id())?.price,
         order_action_bit_flags,
+        taker_existing_quote_entry_amount,
+        taker_existing_base_asset_amount,
+        maker_existing_quote_entry_amount,
+        maker_existing_base_asset_amount,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -2480,9 +2504,14 @@ pub fn fulfill_perp_order_with_match(
         .get_base_asset_amount_unfilled(Some(taker_existing_position))?;
 
     let maker_direction = maker.orders[maker_order_index].direction;
-    let maker_existing_position = maker
-        .get_perp_position(market.market_index)?
-        .base_asset_amount;
+    let (maker_existing_position, maker_existing_position_params_for_order_action) = {
+        let maker_position = maker.get_perp_position(market.market_index)?;
+
+        (
+            maker_position.base_asset_amount,
+            maker_position.get_existing_position_params_for_order_action(maker_direction),
+        )
+    };
     let maker_base_asset_amount = maker.orders[maker_order_index]
         .get_base_asset_amount_unfilled(Some(maker_existing_position))?;
 
@@ -2564,9 +2593,14 @@ pub fn fulfill_perp_order_with_match(
         total_quote_asset_amount = quote_asset_amount_filled_by_amm
     }
 
-    let taker_existing_position = taker
-        .get_perp_position(market.market_index)?
-        .base_asset_amount;
+    let (taker_existing_position, taker_existing_position_params_for_order_action) = {
+        let taker_position = taker.get_perp_position(market.market_index)?;
+
+        (
+            taker_position.base_asset_amount,
+            taker_position.get_existing_position_params_for_order_action(taker_direction),
+        )
+    };
 
     let taker_base_asset_amount = taker.orders[taker_order_index]
         .get_base_asset_amount_unfilled(Some(taker_existing_position))?;
@@ -2780,6 +2814,14 @@ pub fn fulfill_perp_order_with_match(
         order_action_bit_flags,
         taker.orders[taker_order_index].is_signed_msg(),
     );
+    let (taker_existing_quote_entry_amount, taker_existing_base_asset_amount) = calculate_existing_position_fields_for_order_action(
+        base_asset_amount_fulfilled_by_maker,
+        taker_existing_position_params_for_order_action,
+    )?;
+    let (maker_existing_quote_entry_amount, maker_existing_base_asset_amount) = calculate_existing_position_fields_for_order_action(
+        base_asset_amount_fulfilled_by_maker,
+        maker_existing_position_params_for_order_action,
+    )?;
     let order_action_record = get_order_action_record(
         now,
         OrderAction::Fill,
@@ -2801,6 +2843,10 @@ pub fn fulfill_perp_order_with_match(
         Some(maker.orders[maker_order_index]),
         oracle_map.get_price_data(&market.oracle_id())?.price,
         order_action_bit_flags,
+        taker_existing_quote_entry_amount,
+        taker_existing_base_asset_amount,
+        maker_existing_quote_entry_amount,
+        maker_existing_base_asset_amount,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -3018,6 +3064,10 @@ pub fn trigger_order(
         None,
         oracle_price,
         0,
+        None,
+        None,
+        None,
+        None,
     )?;
     emit!(order_action_record);
 
@@ -3689,6 +3739,10 @@ pub fn place_spot_order(
         maker_order,
         oracle_price_data.price,
         0,
+        None,
+        None,
+        None,
+        None,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -4916,6 +4970,10 @@ pub fn fulfill_spot_order_with_match(
         Some(maker.orders[maker_order_index]),
         oracle_map.get_price_data(&base_market.oracle_id())?.price,
         0,
+        None,
+        None,
+        None,
+        None,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -5182,6 +5240,10 @@ pub fn fulfill_spot_order_with_external_market(
         None,
         oracle_price,
         0,
+        None,
+        None,
+        None,
+        None,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -5374,6 +5436,10 @@ pub fn trigger_spot_order(
         None,
         oracle_price,
         0,
+        None,
+        None,
+        None,
+        None,
     )?;
 
     emit!(order_action_record);
