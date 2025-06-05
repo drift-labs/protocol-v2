@@ -12,6 +12,7 @@ use crate::math::casting::Cast;
 use crate::state::fill_mode::FillMode;
 use crate::state::protected_maker_mode_config::ProtectedMakerParams;
 use crate::state::user::OrderBitFlag;
+use crate::BASE_PRECISION_U64;
 use crate::{
     load, math, FeeTier, State, BASE_PRECISION_I128, FEE_ADJUSTMENT_MAX,
     MAX_PREDICTION_MARKET_PRICE, MAX_PREDICTION_MARKET_PRICE_I64, OPEN_ORDER_MARGIN_REQUIREMENT,
@@ -1406,4 +1407,28 @@ pub fn set_is_signed_msg_flag(mut flags: u8, value: bool) -> u8 {
         flags &= !(OrderBitFlag::SignedMessage as u8);
     }
     flags
+}
+
+pub fn calculate_existing_position_fields_for_order_action(
+    base_asset_amount_filled: u64,
+    existing_position_params: Option<(u64, u64)>,
+) -> DriftResult<(Option<u64>, Option<u64>)> {
+    if let Some((quote_entry_amount, base_asset_amount)) = existing_position_params {
+        if base_asset_amount == 0 {
+            return Ok((None, None));
+        }
+
+        if base_asset_amount_filled > base_asset_amount {
+            return Ok((Some(quote_entry_amount), Some(base_asset_amount)));
+        } else {
+            return Ok((
+                Some(quote_entry_amount
+                    .safe_mul(base_asset_amount_filled)?
+                    .safe_div(base_asset_amount)?),
+                None,
+            ));
+        }
+    } else {
+        Ok((None, None))
+    }
 }
