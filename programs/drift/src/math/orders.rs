@@ -1411,9 +1411,9 @@ pub fn set_is_signed_msg_flag(mut flags: u8, value: bool) -> u8 {
 
 pub fn calculate_existing_position_fields_for_order_action(
     base_asset_amount_filled: u64,
-    existing_posiiton_params: Option<(u64, u64)>,
+    existing_position_params: Option<(u64, u64)>,
 ) -> DriftResult<(Option<u64>, Option<u64>)> {
-    if let Some((quote_entry_amount, base_asset_amount)) = existing_posiiton_params {
+    if let Some((quote_entry_amount, base_asset_amount)) = existing_position_params {
         if base_asset_amount == 0 {
             return Ok((None, None));
         }
