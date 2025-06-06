@@ -149,6 +149,8 @@ jobs:
         run: cd sdk/ && yarn && yarn build && cd ..
 
       - name: run anchor tests
+        env:
+          RUST_LOG: solana_runtime::message_processor::stable_log=info
         run: bash test-scripts/run-anchor-tests.sh
   verify-sdk-configs:
     name: Verify SDK Configs
