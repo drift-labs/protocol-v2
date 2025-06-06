@@ -16,16 +16,14 @@ pub struct IfRebalanceConfig {
     pub current_in_amount: u64,
     /// amount already bought
     pub current_out_amount: u64,
-    /// start time of the rebalance
-    pub start_ts: i64,
-    /// end time of the rebalance
-    pub end_ts: i64,
-    /// last swap time
-    pub last_swap_ts: i64,
-    /// amount to swap
-    pub swap_amount: u64,
-    /// frequency of swaps
-    pub swap_frequency: i64,
+    /// start time of epoch
+    pub epoch_start_ts: i64,
+    /// amount already bought in epoch
+    pub epoch_in_amount: u64,
+    /// max amount to swap in epoch
+    pub epoch_max_in_amount: u64,
+    /// duration of epoch
+    pub epoch_duration: i64,
     /// market index to sell
     pub out_market_index: u16,
     /// market index to buy
@@ -47,15 +45,13 @@ impl IfRebalanceConfig {
     }
 
     pub fn validate(&self) -> DriftResult<()> {
-        validate!(self.start_ts < self.end_ts, ErrorCode::InvalidIfRebalanceConfig)?;
-
         validate!(self.in_market_index == 0, ErrorCode::InvalidIfRebalanceConfig)?;
 
         validate!(self.out_market_index != self.in_market_index, ErrorCode::InvalidIfRebalanceConfig)?;
         
         validate!(self.total_in_amount >= self.current_in_amount, ErrorCode::InvalidIfRebalanceConfig)?;
 
-        validate!(self.swap_amount < self.total_in_amount, ErrorCode::InvalidIfRebalanceConfig)?;
+        validate!(self.epoch_max_in_amount < self.total_in_amount, ErrorCode::InvalidIfRebalanceConfig)?;
 
         Ok(())
     }
@@ -65,9 +61,8 @@ impl IfRebalanceConfig {
 pub struct IfRebalanceConfigParams {
     pub name: [u8; 32],
     pub total_in_amount: u64,
-    pub end_ts: i64,
-    pub swap_amount: u64,
-    pub swap_frequency: i64,
+    pub epoch_max_in_amount: u64,
+    pub epoch_duration: i64,
     pub out_market_index: u16,
     pub in_market_index: u16,
     pub max_slippage_bps: u16,

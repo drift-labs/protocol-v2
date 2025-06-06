@@ -960,23 +960,13 @@ pub fn handle_if_begin_swap(
     in_amount: u64,
     now: i64,
 ) -> DriftResult<()> {
+    if now > if_rebalance_config.epoch_start_ts.safe_add(if_rebalance_config.epoch_duration)? {
+        if_rebalance_config.epoch_start_ts = now;
+        if_rebalance_config.epoch_in_amount = 0;
+    }
 
     apply_rebase_to_insurance_fund(in_insurance_fund_vault_amount, in_spot_market)?;
     apply_rebase_to_insurance_fund(out_insurance_fund_vault_amount, out_spot_market)?;
-
-    validate!(
-        in_amount == if_rebalance_config.swap_amount,
-        ErrorCode::InvalidIfRebalanceSwap,
-        "in_amount={} > swap_amount={}",
-        in_amount, if_rebalance_config.swap_amount
-    )?;
-
-    validate!(
-        now >= if_rebalance_config.last_swap_ts.safe_add(if_rebalance_config.swap_frequency)?,
-        ErrorCode::InvalidIfRebalanceSwap,
-        "now={} < last_swap_ts={} + swap_frequency={}",
-        now, if_rebalance_config.last_swap_ts, if_rebalance_config.swap_frequency
-    )?;
     
 
     Ok(())
@@ -1019,10 +1009,16 @@ pub fn handle_if_end_swap(
 
     // increment config current in amount
     if_rebalance_config.current_in_amount = if_rebalance_config.current_in_amount.safe_add(in_amount)?;
+    if_rebalance_config.epoch_in_amount = if_rebalance_config.epoch_in_amount.safe_add(in_amount)?;
     // increment config current out amount
     if_rebalance_config.current_out_amount = if_rebalance_config.current_out_amount.safe_add(out_amount)?;
-    // increment config last swap ts
-    if_rebalance_config.last_swap_ts = now;
+
+    validate!(
+        if_rebalance_config.epoch_in_amount <= if_rebalance_config.epoch_max_in_amount,
+        ErrorCode::InvalidIfRebalanceSwap,
+        "epoch_in_amount={} > epoch_max_in_amount={}",
+        if_rebalance_config.epoch_in_amount, if_rebalance_config.epoch_max_in_amount
+    )?;
 
     let oracle_twap = out_spot_market.historical_oracle_data.last_oracle_price_twap;
 

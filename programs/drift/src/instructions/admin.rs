@@ -4610,10 +4610,8 @@ pub fn handle_initialize_if_rebalance_config(
     config.name = params.name;
     config.total_in_amount = params.total_in_amount;
     config.current_in_amount = 0;
-    config.start_ts = now;
-    config.end_ts = params.end_ts;
-    config.last_swap_ts = now;
-    config.swap_amount = params.swap_amount;
+    config.epoch_max_in_amount = params.epoch_max_in_amount;
+    config.epoch_duration = params.epoch_duration;
     config.out_market_index = params.out_market_index;
     config.in_market_index = params.in_market_index;
     config.max_slippage_bps = params.max_slippage_bps;
@@ -4632,8 +4630,8 @@ pub fn handle_update_if_rebalance_config(
     let mut config = load_mut!(ctx.accounts.if_rebalance_config)?;
 
     config.total_in_amount = params.total_in_amount;
-    config.end_ts = params.end_ts;
-    config.swap_amount = params.swap_amount;
+    config.epoch_max_in_amount = params.epoch_max_in_amount;
+    config.epoch_duration = params.epoch_duration;
     config.max_slippage_bps = params.max_slippage_bps;
 
     config.validate()?;
@@ -5422,7 +5420,7 @@ pub struct InitializeIfRebalanceConfig<'info> {
     pub admin: Signer<'info>,
     #[account(
         init,
-        seeds = [b"if_rebalance_config".as_ref(), params.name.as_ref()],
+        seeds = [b"if_rebalance_config".as_ref(), params.in_market_index.to_le_bytes().as_ref(), params.out_market_index.to_le_bytes().as_ref()],
         space = IfRebalanceConfig::SIZE,
         bump,
         payer = admin
