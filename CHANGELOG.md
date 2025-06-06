@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.122.0] - 2025-06-05
+
+### Features
+
 - program: add existing position fields to order records ([#1614](https://github.com/drift-labs/protocol-v2/pull/1614))
 
 ### Fixes
