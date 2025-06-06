@@ -5018,4 +5018,105 @@ export class AdminClient extends DriftClient {
 
 		return { ixs, lookupTables };
 	}
+
+	public async depositWithdrawToProgramVault(
+		lpPoolName: number[],
+		depositMarketIndex: number,
+		borrowMarketIndex: number,
+		amountToDeposit: BN,
+		amountToBorrow: BN
+	): Promise<TransactionSignature> {
+		const { depositIx, withdrawIx } =
+			await this.getDepositWithdrawToProgramVaultIxs(
+				lpPoolName,
+				depositMarketIndex,
+				borrowMarketIndex,
+				amountToDeposit,
+				amountToBorrow
+			);
+
+		const tx = await this.buildTransaction([depositIx, withdrawIx]);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getDepositWithdrawToProgramVaultIxs(
+		lpPoolName: number[],
+		depositMarketIndex: number,
+		borrowMarketIndex: number,
+		amountToDeposit: BN,
+		amountToBorrow: BN
+	): Promise<{
+		depositIx: TransactionInstruction;
+		withdrawIx: TransactionInstruction;
+	}> {
+		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
+		const depositSpotMarket = this.getSpotMarketAccount(depositMarketIndex);
+		const withdrawSpotMarket = this.getSpotMarketAccount(borrowMarketIndex);
+
+		const depositTokenProgram =
+			this.getTokenProgramForSpotMarket(depositSpotMarket);
+		const withdrawTokenProgram =
+			this.getTokenProgramForSpotMarket(withdrawSpotMarket);
+
+		const depositConstituent = getConstituentPublicKey(
+			this.program.programId,
+			lpPool,
+			depositMarketIndex
+		);
+		const withdrawConstituent = getConstituentPublicKey(
+			this.program.programId,
+			lpPool,
+			borrowMarketIndex
+		);
+
+		const depositConstituentTokenAccount = getConstituentVaultPublicKey(
+			this.program.programId,
+			lpPool,
+			depositMarketIndex
+		);
+		const withdrawConstituentTokenAccount = getConstituentVaultPublicKey(
+			this.program.programId,
+			lpPool,
+			borrowMarketIndex
+		);
+
+		const depositIx = this.program.instruction.depositToProgramVault(
+			amountToDeposit,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					admin: this.wallet.publicKey,
+					constituent: depositConstituent,
+					constituentTokenAccount: depositConstituentTokenAccount,
+					spotMarket: depositSpotMarket.pubkey,
+					spotMarketVault: depositSpotMarket.vault,
+					tokenProgram: depositTokenProgram,
+					mint: depositSpotMarket.mint,
+					driftSigner: getDriftSignerPublicKey(this.program.programId),
+					oracle: depositSpotMarket.oracle,
+				},
+			}
+		);
+
+		const withdrawIx = this.program.instruction.withdrawFromProgramVault(
+			amountToBorrow,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					admin: this.wallet.publicKey,
+					constituent: withdrawConstituent,
+					constituentTokenAccount: withdrawConstituentTokenAccount,
+					spotMarket: withdrawSpotMarket.pubkey,
+					spotMarketVault: withdrawSpotMarket.vault,
+					tokenProgram: withdrawTokenProgram,
+					mint: withdrawSpotMarket.mint,
+					driftSigner: getDriftSignerPublicKey(this.program.programId),
+					oracle: withdrawSpotMarket.oracle,
+				},
+			}
+		);
+
+		return { depositIx, withdrawIx };
+	}
 }

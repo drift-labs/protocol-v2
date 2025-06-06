@@ -1864,6 +1864,20 @@ pub mod drift {
     ) -> Result<()> {
         handle_update_constituent_oracle_info(ctx)
     }
+
+    pub fn deposit_to_program_vault<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, DepositWithdrawProgramVault<'info>>,
+        amount: u64,
+    ) -> Result<()> {
+        handle_deposit_to_program_vault(ctx, amount)
+    }
+
+    pub fn withdraw_from_program_vault<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, DepositWithdrawProgramVault<'info>>,
+        amount: u64,
+    ) -> Result<()> {
+        handle_withdraw_from_program_vault(ctx, amount)
+    }
 }
 
 #[cfg(not(feature = "no-entrypoint"))]
