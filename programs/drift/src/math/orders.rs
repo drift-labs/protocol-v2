@@ -965,7 +965,7 @@ pub fn calculate_max_perp_order_size(
 
     let mut order_size = 0_u64;
     let mut updated_margin_ratio = margin_ratio;
-    for _ in 0..7 {
+    for _ in 0..6 {
         let (new_order_size, new_margin_ratio) =
             calculate_order_size_and_margin_ratio(updated_margin_ratio)?;
         order_size = new_order_size;
