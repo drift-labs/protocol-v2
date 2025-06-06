@@ -2,16 +2,22 @@ use anchor_lang::{prelude::*, Accounts, Key, Result};
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 use crate::{
-    controller::token::{burn_tokens, mint_tokens},
+    controller::{
+        self,
+        spot_balance::update_spot_balances,
+        token::{burn_tokens, mint_tokens},
+    },
     error::ErrorCode,
     get_then_update_id,
+    ids::admin_hot_wallet,
     math::{
+        self,
         casting::Cast,
         constants::{PERCENTAGE_PRECISION_I128, PRICE_PRECISION_I128},
         oracle::{is_oracle_valid_for_action, oracle_validity, DriftAction},
         safe_math::SafeMath,
     },
-    msg,
+    math_error, msg, safe_decrement, safe_increment,
     state::{
         constituent_map::{ConstituentMap, ConstituentSet},
         events::{LPMintRedeemRecord, LPSwapRecord},
@@ -21,9 +27,9 @@ use crate::{
         },
         oracle::OraclePriceData,
         oracle_map::OracleMap,
-        perp_market::{AmmCacheFixed, CacheInfo, AMM_POSITIONS_CACHE},
+        perp_market::{AmmCacheFixed, CacheInfo, MarketStatus, AMM_POSITIONS_CACHE},
         perp_market_map::MarketSet,
-        spot_market::SpotMarket,
+        spot_market::{SpotBalanceType, SpotMarket},
         spot_market_map::get_writable_spot_market_set_from_many,
         state::State,
         user::MarketType,
@@ -947,6 +953,174 @@ pub fn handle_update_constituent_oracle_info<'c: 'info, 'info>(
     }
 
     Ok(())
+}
+
+pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, DepositWithdrawProgramVault<'info>>,
+    amount: u64,
+) -> Result<()> {
+    let clock = Clock::get()?;
+
+    let mut spot_market = ctx.accounts.spot_market.load_mut()?;
+    let mut constituent = ctx.accounts.constituent.load_mut()?;
+    let spot_market_vault = &ctx.accounts.spot_market_vault;
+    let oracle_id = spot_market.oracle_id();
+    let mut oracle_map = OracleMap::load_one(
+        &ctx.accounts.oracle,
+        clock.slot,
+        Some(ctx.accounts.state.oracle_guard_rails),
+    )?;
+
+    if amount == 0 {
+        return Err(ErrorCode::InsufficientDeposit.into());
+    }
+
+    let oracle_data = oracle_map.get_price_data(&oracle_id)?;
+    let oracle_data_slot = clock.slot - oracle_data.delay.max(0i64).cast::<u64>()?;
+    if constituent.last_oracle_slot < oracle_data_slot {
+        constituent.last_oracle_price = oracle_data.price;
+        constituent.last_oracle_slot = oracle_data_slot;
+    }
+
+    controller::spot_balance::update_spot_market_cumulative_interest(
+        &mut spot_market,
+        Some(&oracle_data),
+        clock.unix_timestamp,
+    )?;
+
+    controller::token::send_from_program_vault(
+        &ctx.accounts.token_program,
+        &ctx.accounts.constituent_token_account,
+        &spot_market_vault,
+        &ctx.accounts.drift_signer,
+        ctx.accounts.state.signer_nonce,
+        amount,
+        &Some(*ctx.accounts.mint.clone()),
+    )?;
+
+    // Adjust BLPosition for the new deposits
+    let spot_position = &mut constituent.spot_balance;
+    update_spot_balances(
+        amount as u128,
+        &SpotBalanceType::Deposit,
+        &mut spot_market,
+        spot_position,
+        false,
+    )?;
+
+    safe_increment!(spot_position.cumulative_deposits, amount.cast()?);
+
+    ctx.accounts.spot_market_vault.reload()?;
+    spot_market.validate_max_token_deposits_and_borrows(false)?;
+
+    Ok(())
+}
+
+pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, DepositWithdrawProgramVault<'info>>,
+    amount: u64,
+) -> Result<()> {
+    let state = &ctx.accounts.state;
+    let clock = Clock::get()?;
+
+    let mut spot_market = ctx.accounts.spot_market.load_mut()?;
+    let mut constituent = ctx.accounts.constituent.load_mut()?;
+    let spot_market_vault = &ctx.accounts.spot_market_vault;
+    let oracle_id = spot_market.oracle_id();
+    let mut oracle_map = OracleMap::load_one(
+        &ctx.accounts.oracle,
+        clock.slot,
+        Some(ctx.accounts.state.oracle_guard_rails),
+    )?;
+
+    if amount == 0 {
+        return Err(ErrorCode::InsufficientDeposit.into());
+    }
+
+    let oracle_data = oracle_map.get_price_data(&oracle_id)?;
+    let oracle_data_slot = clock.slot - oracle_data.delay.max(0i64).cast::<u64>()?;
+    if constituent.last_oracle_slot < oracle_data_slot {
+        constituent.last_oracle_price = oracle_data.price;
+        constituent.last_oracle_slot = oracle_data_slot;
+    }
+
+    controller::spot_balance::update_spot_market_cumulative_interest(
+        &mut spot_market,
+        Some(&oracle_data),
+        clock.unix_timestamp,
+    )?;
+
+    controller::token::send_from_program_vault(
+        &ctx.accounts.token_program,
+        &spot_market_vault,
+        &ctx.accounts.constituent_token_account,
+        &ctx.accounts.drift_signer,
+        state.signer_nonce,
+        amount,
+        &Some(*ctx.accounts.mint.clone()),
+    )?;
+
+    // Adjust BLPosition for the new deposits
+    let spot_position = &mut constituent.spot_balance;
+    update_spot_balances(
+        amount as u128,
+        &SpotBalanceType::Borrow,
+        &mut spot_market,
+        spot_position,
+        true,
+    )?;
+
+    safe_decrement!(spot_position.cumulative_deposits, amount.cast()?);
+
+    ctx.accounts.spot_market_vault.reload()?;
+    math::spot_withdraw::validate_spot_market_vault_amount(
+        &spot_market,
+        ctx.accounts.spot_market_vault.amount,
+    )?;
+
+    spot_market.validate_max_token_deposits_and_borrows(true)?;
+
+    Ok(())
+}
+
+#[derive(Accounts)]
+pub struct DepositWithdrawProgramVault<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+    /// CHECK: program signer
+    pub drift_signer: AccountInfo<'info>,
+    #[account(mut)]
+    pub constituent: AccountLoader<'info, Constituent>,
+    #[account(
+        mut,
+        address = constituent.load()?.token_vault,
+        constraint = &constituent.load()?.mint.eq(&constituent_token_account.mint),
+        token::authority = drift_signer
+    )]
+    pub constituent_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        owner = crate::ID,
+        constraint = spot_market.load()?.market_index == constituent.load()?.spot_market_index
+    )]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        mut,
+        address = spot_market.load()?.vault,
+        token::authority = drift_signer,
+    )]
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Interface<'info, TokenInterface>,
+    #[account(
+        address = spot_market.load()?.mint,
+    )]
+    pub mint: Box<InterfaceAccount<'info, Mint>>,
+    /// CHECK: checked when loading oracle in oracle map
+    pub oracle: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
