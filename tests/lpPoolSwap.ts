@@ -520,14 +520,7 @@ describe('LP Pool', () => {
 			inMarketIndex: 0,
 			inAmount: tokensAdded,
 			minMintAmount: new BN(1),
-			lpPool: lpPoolKey,
-			lpMint: lpPool.mint,
-			constituentTargetBase: constituentTargetWeightsPublicKey,
-			constituentInTokenAccount: c0TokenAccount,
-			userInTokenAccount: c0UserTokenAccount,
-			userLpTokenAccount: userLpTokenAccount,
-			inMarketMint: c0.mint,
-			inConstituent: const0Key,
+			lpPool: lpPool,
 		});
 
 		const userC0TokenBalanceAfter =

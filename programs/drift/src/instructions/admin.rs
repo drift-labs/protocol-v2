@@ -23,7 +23,7 @@ use crate::controller::token::{close_vault, receive, send_from_program_vault};
 use crate::error::ErrorCode;
 use crate::ids::{
     admin_hot_wallet, jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, lighthouse,
-    marinade_mainnet, serum_program,
+    marinade_mainnet, serum_program, usdc_mint,
 };
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
@@ -4515,7 +4515,8 @@ pub fn handle_initialize_lp_pool(
         max_mint_fee_premium: max_mint_fee,
         revenue_rebalance_period,
         next_mint_redeem_id: 1,
-        _padding: [0; 12],
+        usdc_consituent_index: 0,
+        _padding: [0; 10],
     };
 
     let amm_constituent_mapping = &mut ctx.accounts.amm_constituent_mapping;
@@ -4739,7 +4740,8 @@ pub fn handle_initialize_constituent<'info>(
     swap_fee_max: i64,
     oracle_staleness_threshold: u64,
     cost_to_trade_bps: i32,
-    stablecoin_weight: u64,
+    constituent_derivative_index: Option<i16>,
+    derivative_weight: u64,
 ) -> Result<()> {
     let mut constituent = ctx.accounts.constituent.load_init()?;
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
@@ -4765,7 +4767,7 @@ pub fn handle_initialize_constituent<'info>(
     );
 
     validate!(
-        stablecoin_weight <= PRICE_PRECISION_U64,
+        derivative_weight <= PRICE_PRECISION_U64,
         ErrorCode::InvalidConstituent,
         "stablecoin_weight must be between 0 and 1",
     )?;
@@ -4784,8 +4786,13 @@ pub fn handle_initialize_constituent<'info>(
     constituent.lp_pool = lp_pool.pubkey;
     constituent.constituent_index = (constituent_target_base.targets.len() - 1) as u16;
     constituent.next_swap_id = 1;
-    constituent.stablecoin_weight = stablecoin_weight;
+    constituent.constituent_derivative_index = constituent_derivative_index.unwrap_or(-1);
+    constituent.derivative_weight = derivative_weight;
     lp_pool.constituents += 1;
+
+    if constituent.mint.eq(&usdc_mint::ID) {
+        lp_pool.usdc_consituent_index = constituent.constituent_index;
+    }
 
     Ok(())
 }
@@ -4797,7 +4804,8 @@ pub struct ConstituentParams {
     pub swap_fee_max: Option<i64>,
     pub oracle_staleness_threshold: Option<u64>,
     pub cost_to_trade_bps: Option<i32>,
-    pub stablecoin_weight: Option<u64>,
+    pub constituent_derivative_index: Option<i16>,
+    pub derivative_weight: Option<u64>,
 }
 
 pub fn handle_update_constituent_params<'info>(
@@ -4858,13 +4866,23 @@ pub fn handle_update_constituent_params<'info>(
         target.cost_to_trade_bps = constituent_params.cost_to_trade_bps.unwrap();
     }
 
-    if constituent_params.stablecoin_weight.is_some() {
+    if constituent_params.derivative_weight.is_some() {
         msg!(
-            "stablecoin_weight: {:?} -> {:?}",
-            constituent.stablecoin_weight,
-            constituent_params.stablecoin_weight
+            "derivative_weight: {:?} -> {:?}",
+            constituent.derivative_weight,
+            constituent_params.derivative_weight
         );
-        constituent.stablecoin_weight = constituent_params.stablecoin_weight.unwrap();
+        constituent.derivative_weight = constituent_params.derivative_weight.unwrap();
+    }
+
+    if constituent_params.constituent_derivative_index.is_some() {
+        msg!(
+            "constituent_derivative_index: {:?} -> {:?}",
+            constituent.constituent_derivative_index,
+            constituent_params.constituent_derivative_index
+        );
+        constituent.constituent_derivative_index =
+            constituent_params.constituent_derivative_index.unwrap();
     }
 
     Ok(())

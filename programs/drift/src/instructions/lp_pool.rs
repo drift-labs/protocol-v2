@@ -7,7 +7,10 @@ use crate::{
     get_then_update_id,
     math::{
         casting::Cast,
-        constants::{PERCENTAGE_PRECISION_I128, PRICE_PRECISION_I128},
+        constants::{
+            BASE_PRECISION_I128, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
+            PRICE_PRECISION_I128,
+        },
         oracle::{is_oracle_valid_for_action, oracle_validity, DriftAction},
         safe_math::SafeMath,
     },
@@ -183,6 +186,12 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
         "Constituent index larger than number of constituent target weights"
     )?;
 
+    msg!("amm inventories: {:?}", amm_inventories);
+    msg!(
+        "constituent indexes and prices: {:?}",
+        constituent_indexes_and_prices
+    );
+    msg!("slot: {}", slot);
     constituent_target_base.update_target_base(
         &amm_constituent_mapping,
         amm_inventories.as_slice(),
@@ -249,6 +258,7 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
     let mut crypto_delta = 0_i128;
     let mut oldest_slot = u64::MAX;
     let mut stablecoin_constituent_indexes: Vec<usize> = vec![];
+    let mut crypto_constituent_indexes: Vec<usize> = vec![];
     for i in 0..lp_pool.constituents as usize {
         let mut constituent = constituent_map.get_ref_mut(&(i as u16))?;
 
@@ -305,8 +315,11 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
             .safe_mul(oracle_price.unwrap() as i128)?
             .safe_div(PRICE_PRECISION_I128)?
             .max(0);
-        if constituent.stablecoin_weight == 0 {
+        if constituent.constituent_index != lp_pool.usdc_consituent_index
+            && constituent.constituent_derivative_index != -1
+        {
             crypto_delta = crypto_delta.safe_add(constituent_aum.cast()?)?;
+            crypto_constituent_indexes.push(i);
         } else {
             stablecoin_constituent_indexes.push(i);
         }
@@ -318,14 +331,41 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
     lp_pool.last_aum_slot = slot;
     lp_pool.last_aum_ts = Clock::get()?.unix_timestamp;
 
+    // Handle stable and stable derivatives separately
     let total_stable_target_base = aum.cast::<i128>()?.safe_sub(crypto_delta.abs())?;
     for index in stablecoin_constituent_indexes {
         let constituent = constituent_map.get_ref(&(index as u16))?;
         let stable_target = constituent_target_base.get_mut(index as u32);
         stable_target.target_base = total_stable_target_base
-            .safe_mul(constituent.stablecoin_weight as i128)?
+            .safe_mul(constituent.derivative_weight as i128)?
             .safe_div(PERCENTAGE_PRECISION_I128)?
             .cast::<i64>()?;
+    }
+
+    // Handle LSTs and other derivatives
+    for index in crypto_constituent_indexes {
+        let constituent = constituent_map.get_ref(&(index as u16))?;
+        if constituent.constituent_derivative_index == -1 {
+            continue; // Skip if not a derivative
+        }
+        let parent_constituent =
+            constituent_map.get_ref(&(constituent.constituent_derivative_index as u16))?;
+
+        let target_parent_weight = parent_constituent.get_weight(
+            parent_constituent.last_oracle_price,
+            &*spot_market_map.get_ref(&parent_constituent.spot_market_index)?,
+            parent_constituent.last_oracle_price,
+            lp_pool.last_aum,
+        )?;
+        let target_weight = target_parent_weight.safe_mul(constituent.derivative_weight as i64)?;
+        let target_base = lp_pool
+            .last_aum
+            .cast::<i128>()?
+            .safe_mul(target_weight as i128)?
+            .safe_div(PERCENTAGE_PRECISION_I128)?
+            .safe_mul(BASE_PRECISION_I128)?
+            .safe_div(constituent.last_oracle_price as i128)?;
+        constituent_target_base.get_mut(index as u32).target_base = target_base.cast::<i64>()?;
     }
 
     Ok(())
@@ -611,12 +651,17 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
 
     update_spot_market_cumulative_interest(&mut in_spot_market, Some(&in_oracle), now)?;
 
-    let in_target_weight = constituent_target_base.get_target_weight(
-        in_constituent.constituent_index,
-        &in_spot_market,
-        in_oracle.price,
-        lp_pool.last_aum, // TODO: add in_amount * in_oracle to est post add_liquidity aum
-    )?;
+    msg!("aum: {}", lp_pool.last_aum);
+    let in_target_weight = if lp_pool.last_aum == 0 {
+        PERCENTAGE_PRECISION_I64 // 100% weight if no aum
+    } else {
+        constituent_target_base.get_target_weight(
+            in_constituent.constituent_index,
+            &in_spot_market,
+            in_oracle.price,
+            lp_pool.last_aum, // TODO: add in_amount * in_oracle to est post add_liquidity aum
+        )?
+    };
 
     let dlp_total_supply = ctx.accounts.lp_mint.supply;
 
@@ -973,6 +1018,7 @@ pub struct UpdateConstituentTargetBase<'info> {
     /// CHECK: checked in AmmConstituentMappingZeroCopy checks
     pub amm_constituent_mapping: AccountInfo<'info>,
     /// CHECK: checked in ConstituentTargetBaseZeroCopy checks
+    #[account(mut)]
     pub constituent_target_base: AccountInfo<'info>,
     /// CHECK: checked in AmmCacheZeroCopy checks
     pub amm_cache: AccountInfo<'info>,

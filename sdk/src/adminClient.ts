@@ -2318,7 +2318,7 @@ export class AdminClient extends DriftClient {
 					),
 					oracle: oracle,
 					oldOracle: this.getPerpMarketAccount(perpMarketIndex).amm.oracle,
-					amm_cache: getAmmCachePublicKey(this.program.programId),
+					ammCache: getAmmCachePublicKey(this.program.programId),
 				},
 			}
 		);
@@ -4472,7 +4472,8 @@ export class AdminClient extends DriftClient {
 		swapFeeMax: BN,
 		oracleStalenessThreshold: BN,
 		costToTrade: number,
-		stablecoinWeight: BN
+		derivativeWeight: BN,
+		constituentDerivativeIndex?: number,
 	): Promise<TransactionSignature> {
 		const ixs = await this.getInitializeConstituentIx(
 			lpPoolName,
@@ -4483,7 +4484,8 @@ export class AdminClient extends DriftClient {
 			swapFeeMax,
 			oracleStalenessThreshold,
 			costToTrade,
-			stablecoinWeight
+			derivativeWeight,
+			constituentDerivativeIndex
 		);
 		const tx = await this.buildTransaction(ixs);
 		const { txSig } = await this.sendTransaction(tx, []);
@@ -4499,7 +4501,8 @@ export class AdminClient extends DriftClient {
 		swapFeeMax: BN,
 		oracleStalenessThreshold: BN,
 		costToTrade: number,
-		stablecoinWeight: BN
+		derivativeWeight: BN,
+		constituentDerivativeIndex?: number,
 	): Promise<TransactionInstruction[]> {
 		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
 		const constituentTargetBase = getConstituentTargetBasePublicKey(
@@ -4522,7 +4525,8 @@ export class AdminClient extends DriftClient {
 				swapFeeMax,
 				oracleStalenessThreshold,
 				costToTrade,
-				stablecoinWeight,
+				constituentDerivativeIndex || null,
+				constituentDerivativeIndex != null ? derivativeWeight : ZERO,
 				{
 					accounts: {
 						admin: this.wallet.publicKey,
@@ -4556,7 +4560,8 @@ export class AdminClient extends DriftClient {
 			swapFeeMax?: BN;
 			oracleStalenessThreshold?: BN;
 			costToTradeBps?: number;
-			stablecoinWeight?: BN;
+			derivativeWeight?: BN,
+			constituentDerivativeIndex?: number,
 		}
 	): Promise<TransactionSignature> {
 		const ixs = await this.getUpdateConstituentParamsIx(
@@ -4577,8 +4582,8 @@ export class AdminClient extends DriftClient {
 			swapFeeMin?: BN;
 			swapFeeMax?: BN;
 			oracleStalenessThreshold?: BN;
-			costToTradeBps?: number;
-			stablecoinWeight?: BN;
+			derivativeWeight?: BN,
+			constituentDerivativeIndex?: number,
 		}
 	): Promise<TransactionInstruction[]> {
 		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
@@ -4592,6 +4597,8 @@ export class AdminClient extends DriftClient {
 						oracleStalenessThreshold: null,
 						costToTradeBps: null,
 						stablecoinWeight: null,
+						derivativeWeight: null,
+						constituentDerivativeIndex: null,
 					},
 					updateConstituentParams
 				),

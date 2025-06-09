@@ -79,7 +79,9 @@ pub struct LPPool {
 
     pub bump: u8,
 
-    pub _padding: [u8; 12],
+    pub usdc_consituent_index: u16,
+
+    pub _padding: [u8; 10],
 }
 
 impl Size for LPPool {
@@ -197,13 +199,17 @@ impl LPPool {
         in_target_weight: i64,
         dlp_total_supply: u64,
     ) -> DriftResult<(u64, u64, i64, i64)> {
-        let in_fee_pct = self.get_swap_fees(
-            in_spot_market,
-            in_oracle,
-            in_constituent,
-            in_amount.cast::<i64>()?,
-            in_target_weight,
-        )?;
+        let in_fee_pct = if self.last_aum == 0 {
+            0
+        } else {
+            self.get_swap_fees(
+                in_spot_market,
+                in_oracle,
+                in_constituent,
+                in_amount.cast::<i64>()?,
+                in_target_weight,
+            )?
+        };
         let in_fee_amount = in_amount
             .cast::<i64>()?
             .safe_mul(in_fee_pct)?
@@ -212,6 +218,7 @@ impl LPPool {
         let in_amount_less_fees = in_amount
             .cast::<i128>()?
             .safe_sub(in_fee_amount as i128)?
+            .max(0)
             .cast::<u128>()?;
 
         let token_precision_denominator = 10_u128.pow(in_spot_market.decimals);
@@ -434,7 +441,7 @@ pub struct Constituent {
 
     pub decimals: u8,
     pub bump: u8,
-    _padding1: [u8; 2],
+    pub constituent_derivative_index: i16, // -1 if a parent index
 
     /// max deviation from target_weight allowed for the constituent
     /// precision: PERCENTAGE_PRECISION
@@ -470,8 +477,8 @@ pub struct Constituent {
     pub next_swap_id: u64,
 
     /// percentable of stablecoin weight to go to this specific stablecoin PERCENTAGE_PRECISION
-    /// ZERO for non-stablecoins
-    pub stablecoin_weight: u64,
+    pub derivative_weight: u64,
+
     pub flash_loan_initial_token_amount: u64,
 }
 
