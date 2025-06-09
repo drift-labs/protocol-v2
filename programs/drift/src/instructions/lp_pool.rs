@@ -186,12 +186,6 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
         "Constituent index larger than number of constituent target weights"
     )?;
 
-    msg!("amm inventories: {:?}", amm_inventories);
-    msg!(
-        "constituent indexes and prices: {:?}",
-        constituent_indexes_and_prices
-    );
-    msg!("slot: {}", slot);
     constituent_target_base.update_target_base(
         &amm_constituent_mapping,
         amm_inventories.as_slice(),

@@ -195,6 +195,8 @@ describe('LP Pool', () => {
 			new BN(224 * PEG_PRECISION.toNumber())
 		);
 
+		await adminClient.updatePerpAuctionDuration(new BN(0));
+
 		const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(
 			new BN(2)
 		).toNumber(); // 50% utilization
@@ -247,8 +249,6 @@ describe('LP Pool', () => {
 		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION).muln(10);
 		await adminClient.openPosition(PositionDirection.LONG, baseAssetAmount, 0);
 		await adminClient.openPosition(PositionDirection.SHORT, baseAssetAmount, 1);
-
-		console.log(adminClient.getUser().getActivePerpPositions());
 		assert(
 			adminClient
 				.getUser()
@@ -427,7 +427,6 @@ describe('LP Pool', () => {
 				constituentTargetBase
 			)) as ConstituentTargetBase;
 		expect(targets).to.not.be.null;
-		console.log(targets.targets[constituent.constituentIndex]);
 		assert(targets.targets[constituent.constituentIndex].costToTradeBps == 10);
 	});
 
@@ -543,8 +542,8 @@ describe('LP Pool', () => {
 				constituentTargetBasePublicKey
 			)) as ConstituentTargetBase;
 		expect(constituentTargetBase).to.not.be.null;
-		console.log(constituentTargetBase.targets);
 		assert(constituentTargetBase.targets.length == 2);
+		assert(constituentTargetBase.targets.filter((x) => x.targetBase.eq(ZERO)).length !== constituentTargetBase.targets.length);
 	});
 
 	it('can add constituent to LP Pool thats a derivative and get half of the target weight', async () => {
@@ -581,6 +580,8 @@ describe('LP Pool', () => {
 
 		await adminClient.updateLpConstituentTargetBase(encodeName(lpPoolName), [
 			getConstituentPublicKey(program.programId, lpPoolKey, 0),
+			getConstituentPublicKey(program.programId, lpPoolKey, 1),
+			getConstituentPublicKey(program.programId, lpPoolKey, 2),
 		]);
 		const constituentTargetBasePublicKey = getConstituentTargetBasePublicKey(
 			program.programId,
@@ -592,7 +593,6 @@ describe('LP Pool', () => {
 			)) as ConstituentTargetBase;
 
 		expect(constituentTargetBase).to.not.be.null;
-		console.log(constituentTargetBase.targets);
 	});
 
 	it('can update and remove amm constituent mapping entries', async () => {

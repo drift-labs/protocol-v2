@@ -4983,6 +4983,8 @@ pub fn handle_add_amm_constituent_data<'info>(
         let mut datum = AmmConstituentDatum::default();
         datum.perp_market_index = perp_market_index;
         datum.constituent_index = constituent_index;
+        datum.weight = init_datum.weight;
+        datum.last_slot = Clock::get()?.slot;
 
         // Check if the datum already exists
         let exists = amm_mapping.weights.iter().any(|d| {
