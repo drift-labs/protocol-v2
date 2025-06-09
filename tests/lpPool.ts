@@ -3,7 +3,13 @@ import { expect, assert } from 'chai';
 
 import { Program } from '@coral-xyz/anchor';
 
-import { AccountInfo, Keypair, LAMPORTS_PER_SOL, PublicKey, Transaction } from '@solana/web3.js';
+import {
+	AccountInfo,
+	Keypair,
+	LAMPORTS_PER_SOL,
+	PublicKey,
+	Transaction,
+} from '@solana/web3.js';
 import { getAssociatedTokenAddress, getMint } from '@solana/spl-token';
 
 import {
@@ -97,11 +103,11 @@ describe('LP Pool', () => {
 				},
 			],
 			[
-							{
-								address: PYTH_LAZER_STORAGE_ACCOUNT_KEY,
-								info: PYTH_STORAGE_ACCOUNT_INFO,
-							},
-						]
+				{
+					address: PYTH_LAZER_STORAGE_ACCOUNT_KEY,
+					info: PYTH_STORAGE_ACCOUNT_INFO,
+				},
+			]
 		);
 
 		// @ts-ignore
@@ -149,7 +155,7 @@ describe('LP Pool', () => {
 			usdcMint,
 			new BN(100_000_000).mul(QUOTE_PRECISION),
 			bankrunContextWrapper,
-			keypair,
+			keypair
 		);
 
 		await adminClient.initializeUserAccountAndDepositCollateral(
@@ -159,9 +165,8 @@ describe('LP Pool', () => {
 
 		const periodicity = new BN(0);
 
-		solUsdLazer= getPythLazerOraclePublicKey(program.programId, 6);
+		solUsdLazer = getPythLazerOraclePublicKey(program.programId, 6);
 		await adminClient.initializePythLazerOracle(6);
-
 
 		await adminClient.initializePerpMarket(
 			0,
@@ -239,25 +244,17 @@ describe('LP Pool', () => {
 		);
 
 		// Give the vamm some inventory
-		await adminClient.placeAndTakePerpOrder(
-			getMarketOrderParams({
-				direction: PositionDirection.LONG,
-				baseAssetAmount: new BN(AMM_RESERVE_PRECISION).muln(10),
-				marketIndex: 0,
-			})
-		);
-
-		await adminClient.placeAndTakePerpOrder(
-			getMarketOrderParams({
-				direction: PositionDirection.SHORT,
-				baseAssetAmount: new BN(AMM_RESERVE_PRECISION).muln(10),
-				marketIndex: 1,
-			})
-		);
+		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION).muln(10);
+		await adminClient.openPosition(PositionDirection.LONG, baseAssetAmount, 0);
+		await adminClient.openPosition(PositionDirection.SHORT, baseAssetAmount, 1);
 
 		console.log(adminClient.getUser().getActivePerpPositions());
-		assert(adminClient.getUser().getActivePerpPositions());
-
+		assert(
+			adminClient
+				.getUser()
+				.getActivePerpPositions()
+				.filter((x) => !x.baseAssetAmount.eq(ZERO)).length == 2
+		);
 	});
 
 	after(async () => {
@@ -321,18 +318,11 @@ describe('LP Pool', () => {
 			lpPoolKey
 		);
 
-		const constituent =
-			(await adminClient.program.account.constituent.fetch(
-				getConstituentPublicKey(
-					program.programId,
-					lpPoolKey,
-					0
-				)
-			)) as ConstituentAccount;
+		const constituent = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 0)
+		)) as ConstituentAccount;
 
-		await adminClient.updateConstituentOracleInfo(
-			constituent
-		);
+		await adminClient.updateConstituentOracleInfo(constituent);
 
 		const constituentTargetBase =
 			(await adminClient.program.account.constituentTargetBase.fetch(
@@ -375,7 +365,7 @@ describe('LP Pool', () => {
 
 	it('can add amm mapping datum', async () => {
 		// Firt constituent is USDC, so add no mapping. We will add a second mapping though
-		// for the second constituent which is SOL 
+		// for the second constituent which is SOL
 		await adminClient.addAmmConstituentMappingData(encodeName(lpPoolName), [
 			{
 				perpMarketIndex: 1,
@@ -477,16 +467,17 @@ describe('LP Pool', () => {
 		)) as LPPoolAccount;
 		assert(lpPool.constituents == 2);
 
-		const createAtaIx = adminClient.createAssociatedTokenAccountIdempotentInstruction(
-			await getAssociatedTokenAddress(
-				lpPool.mint,
+		const createAtaIx =
+			adminClient.createAssociatedTokenAccountIdempotentInstruction(
+				await getAssociatedTokenAddress(
+					lpPool.mint,
+					adminClient.wallet.publicKey,
+					true
+				),
 				adminClient.wallet.publicKey,
-				true
-			),
-			adminClient.wallet.publicKey,
-			adminClient.wallet.publicKey,
-			lpPool.mint,
-		);
+				adminClient.wallet.publicKey,
+				lpPool.mint
+			);
 
 		await adminClient.sendTransaction(new Transaction().add(createAtaIx), []);
 
@@ -497,7 +488,6 @@ describe('LP Pool', () => {
 			inMarketIndex: 0,
 		});
 
-
 		await adminClient.updateLpPoolAum(lpPool, [0, 1]);
 
 		lpPool = (await adminClient.program.account.lpPool.fetch(
@@ -507,18 +497,11 @@ describe('LP Pool', () => {
 		assert(lpPool.lastAum.eq(new BN(1000).mul(QUOTE_PRECISION)));
 
 		// Should fail if we dont pass in the second constituent
-		const constituent =
-			(await adminClient.program.account.constituent.fetch(
-				getConstituentPublicKey(
-					program.programId,
-					lpPoolKey,
-					1
-				)
-			)) as ConstituentAccount;
+		const constituent = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 1)
+		)) as ConstituentAccount;
 
-		await adminClient.updateConstituentOracleInfo(
-			constituent
-		);
+		await adminClient.updateConstituentOracleInfo(constituent);
 
 		try {
 			await adminClient.updateLpPoolAum(lpPool, [0]);
@@ -529,11 +512,7 @@ describe('LP Pool', () => {
 	});
 
 	it('can update constituent target weights', async () => {
-
-		await adminClient.postPythLazerOracleUpdate(
-			[6],
-			PYTH_LAZER_HEX_STRING_SOL
-		);
+		await adminClient.postPythLazerOracleUpdate([6], PYTH_LAZER_HEX_STRING_SOL);
 		await adminClient.updatePerpMarketOracle(
 			0,
 			solUsdLazer,
@@ -549,19 +528,11 @@ describe('LP Pool', () => {
 			solUsdLazer,
 			OracleSource.PYTH_LAZER
 		);
-		await adminClient.updateAmmCache([0,1,2]);
+		await adminClient.updateAmmCache([0, 1, 2]);
 
 		await adminClient.updateLpConstituentTargetBase(encodeName(lpPoolName), [
-			getConstituentPublicKey(
-				program.programId,
-				lpPoolKey,
-				0
-			),
-			getConstituentPublicKey(
-				program.programId,
-				lpPoolKey,
-				1
-			),
+			getConstituentPublicKey(program.programId, lpPoolKey, 0),
+			getConstituentPublicKey(program.programId, lpPoolKey, 1),
 		]);
 		const constituentTargetBasePublicKey = getConstituentTargetBasePublicKey(
 			program.programId,
@@ -580,7 +551,7 @@ describe('LP Pool', () => {
 		const lpPool = (await adminClient.program.account.lpPool.fetch(
 			lpPoolKey
 		)) as LPPoolAccount;
-		
+
 		await adminClient.initializeConstituent(
 			lpPool.name,
 			2,
@@ -594,39 +565,22 @@ describe('LP Pool', () => {
 			0
 		);
 
-
 		await adminClient.updateAmmCache([0, 1, 2]);
 
-		let constituent =
-			(await adminClient.program.account.constituent.fetch(
-				getConstituentPublicKey(
-					program.programId,
-					lpPoolKey,
-					2
-				)
-			)) as ConstituentAccount;
+		let constituent = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 2)
+		)) as ConstituentAccount;
 
-		await adminClient.updateConstituentOracleInfo(
-			constituent
-		);
+		await adminClient.updateConstituentOracleInfo(constituent);
 
-		constituent =
-			(await adminClient.program.account.constituent.fetch(
-				getConstituentPublicKey(
-					program.programId,
-					lpPoolKey,
-					2
-				)
-			)) as ConstituentAccount;
+		constituent = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 2)
+		)) as ConstituentAccount;
 		assert(!constituent.lastOraclePrice.eq(ZERO));
-		await adminClient.updateLpPoolAum(lpPool, [0,1,2]);
+		await adminClient.updateLpPoolAum(lpPool, [0, 1, 2]);
 
 		await adminClient.updateLpConstituentTargetBase(encodeName(lpPoolName), [
-			getConstituentPublicKey(
-				program.programId,
-				lpPoolKey,
-				0
-			),
+			getConstituentPublicKey(program.programId, lpPoolKey, 0),
 		]);
 		const constituentTargetBasePublicKey = getConstituentTargetBasePublicKey(
 			program.programId,

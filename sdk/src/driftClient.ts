@@ -9855,8 +9855,8 @@ export class DriftClient {
 	}
 
 	public async updateConstituentOracleInfo(
-		constituent: ConstituentAccount,
-	) : Promise<TransactionSignature> {
+		constituent: ConstituentAccount
+	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
 				await this.getUpdateConstituentOracleInfoIx(constituent),
@@ -9874,15 +9874,14 @@ export class DriftClient {
 		const spotMarket = await this.getSpotMarketAccount(
 			constituent.spotMarketIndex
 		);
-		return this.program.instruction.updateConstituentOracleInfo(
-			{
-				accounts: {
-					keeper: this.wallet.publicKey,
-					constituent: constituent.pubkey,
-					state: await this.getStatePublicKey(),
-					oracle: spotMarket.oracle,
-					spotMarket: spotMarket.pubkey,
-			}
+		return this.program.instruction.updateConstituentOracleInfo({
+			accounts: {
+				keeper: this.wallet.publicKey,
+				constituent: constituent.pubkey,
+				state: await this.getStatePublicKey(),
+				oracle: spotMarket.oracle,
+				spotMarket: spotMarket.pubkey,
+			},
 		});
 	}
 
@@ -10030,7 +10029,7 @@ export class DriftClient {
 			inMarketIndex
 		);
 		const userInTokenAccount = await this.getAssociatedTokenAccount(
-			inMarketIndex,
+			inMarketIndex
 		);
 		const constituentInTokenAccount = getConstituentVaultPublicKey(
 			this.program.programId,
@@ -10041,12 +10040,12 @@ export class DriftClient {
 		const userLpTokenAccount = await getAssociatedTokenAddress(
 			lpMint,
 			this.wallet.publicKey,
-			true,
+			true
 		);
 
 		const constituentTargetBase = getConstituentTargetBasePublicKey(
 			this.program.programId,
-			lpPool.pubkey,
+			lpPool.pubkey
 		);
 
 		return this.program.instruction.lpPoolAddLiquidity(
@@ -10068,7 +10067,7 @@ export class DriftClient {
 					lpMint,
 					lpPoolTokenVault: getLpPoolTokenVaultPublicKey(
 						this.program.programId,
-						lpPool.pubkey,
+						lpPool.pubkey
 					),
 					constituentTargetBase,
 					tokenProgram: TOKEN_PROGRAM_ID,
