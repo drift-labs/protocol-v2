@@ -1699,12 +1699,15 @@ pub struct CacheInfo {
     pub oracle_delay: i64,
     pub oracle_slot: u64,
     pub oracle: Pubkey,
+    pub amm_balance: i64,
+    pub last_settle_amm_balance: i64,
+    pub last_settle_ts: i64,
     pub oracle_source: u8,
     _padding: [u8; 7],
 }
 
 impl Size for CacheInfo {
-    const SIZE: usize = 104;
+    const SIZE: usize = 104 + 8 + 8 + 8;
 }
 
 impl Default for CacheInfo {
@@ -1719,6 +1722,9 @@ impl Default for CacheInfo {
             oracle_delay: 0i64,
             oracle_slot: 0u64,
             oracle: Pubkey::default(),
+            amm_balance: 0i64,
+            last_settle_amm_balance: 0i64,
+            last_settle_ts: 0i64,
             oracle_source: 0u8,
             _padding: [0u8; 7],
         }

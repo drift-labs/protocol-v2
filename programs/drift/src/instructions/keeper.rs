@@ -78,6 +78,7 @@ use crate::{math_error, ID};
 use crate::{validate, QUOTE_PRECISION_I128};
 use anchor_spl::associated_token::AssociatedToken;
 
+use crate::math::amm::calculate_net_user_pnl;
 use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_liability_info;
 use crate::math::margin::MarginRequirementType;
 use crate::state::margin_calculation::MarginContext;
@@ -2934,6 +2935,76 @@ pub fn handle_pause_spot_market_deposit_withdraw(
     Ok(())
 }
 
+pub fn handle_settle_perp_to_dlp<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, UpdateAmmCache<'info>>,
+) -> Result<()> {
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let amm_cache_key = &ctx.accounts.amm_cache.key();
+    let mut amm_cache: AccountZeroCopyMut<'_, CacheInfo, _> =
+        ctx.accounts.amm_cache.load_zc_mut()?;
+
+    let expected_pda = &Pubkey::create_program_address(
+        &[
+            AMM_POSITIONS_CACHE.as_ref(),
+            amm_cache.fixed.bump.to_le_bytes().as_ref(),
+        ],
+        &crate::ID,
+    )
+    .map_err(|_| ErrorCode::InvalidPDA)?;
+    validate!(
+        expected_pda.eq(amm_cache_key),
+        ErrorCode::InvalidPDA,
+        "Amm cache PDA does not match expected PDA"
+    )?;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map: _,
+        mut oracle_map,
+    } = load_maps(
+        remaining_accounts_iter,
+        &MarketSet::new(),
+        &MarketSet::new(),
+        Clock::get()?.slot,
+        None,
+    )?;
+    let slot = Clock::get()?.slot;
+
+    for (_, perp_market_loader) in perp_market_map.0.iter() {
+        let perp_market = perp_market_loader.load()?;
+        let cached_info = amm_cache.get_mut(perp_market.market_index as u32);
+
+        validate!(
+            perp_market.oracle_id() == cached_info.oracle_id()?,
+            ErrorCode::DefaultError,
+            "oracle id mismatch between amm cache and perp market"
+        )?;
+
+        let oracle_data = oracle_map.get_price_data(&perp_market.oracle_id())?;
+
+        let pnl_pool_token_amount = get_token_amount(
+            perp_market.pnl_pool.scaled_balance,
+            spot_market,
+            perp_market.pnl_pool.balance_type(),
+        )?;
+
+        let fee_pool_token_amount = get_token_amount(
+            perp_market.amm.fee_pool.scaled_balance,
+            spot_market,
+            perp_market.amm.fee_pool.balance_type(),
+        )?;
+
+        cached_info.last_settle_amm_balance = pnl_pool_token_amount + fee_pool_token_amount + calculate_net_user_pnl(
+                &perp_market.amm,
+                oracle_data.price,
+            )?;
+    }
+
+    // todo: move usdc to and from perp fee pool and dlp 
+    Ok(())
+}
+
+
 pub fn handle_update_amm_cache<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdateAmmCache<'info>>,
 ) -> Result<()> {
@@ -2992,6 +3063,22 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
         cached_info.oracle_confidence = oracle_data.confidence;
         cached_info.max_confidence_interval_multiplier =
             perp_market.get_max_confidence_interval_multiplier()?;
+
+        let pnl_pool_token_amount = get_token_amount(
+            perp_market.pnl_pool.scaled_balance,
+            spot_market,
+            perp_market.pnl_pool.balance_type(),
+        )?;
+
+        let fee_pool_token_amount = get_token_amount(
+            perp_market.amm.fee_pool.scaled_balance,
+            spot_market,
+            perp_market.amm.fee_pool.balance_type(),
+        )?;
+        cached_info.amm_balance = pnl_pool_token_amount + fee_pool_token_amount + calculate_net_user_pnl(
+                &perp_market.amm,
+                oracle_data.price,
+            )?;
     }
 
     Ok(())
