@@ -183,7 +183,7 @@ export async function mockUserUSDCAccount(
 	fakeUSDCMint: Keypair,
 	usdcMintAmount: BN,
 	context: BankrunContextWrapper,
-	owner?: PublicKey,
+	owner?: PublicKey
 ): Promise<Keypair> {
 	const userUSDCAccount = anchor.web3.Keypair.generate();
 	const fakeUSDCTx = new Transaction();
@@ -233,7 +233,7 @@ export async function mockUserUSDCAccountWithAuthority(
 	fakeUSDCMint: Keypair,
 	usdcMintAmount: BN,
 	context: BankrunContextWrapper,
-	authority: Keypair,
+	authority: Keypair
 ): Promise<PublicKey> {
 	const userUSDCAccount = getAssociatedTokenAddressSync(
 		fakeUSDCMint.publicKey,

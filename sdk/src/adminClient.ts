@@ -4525,7 +4525,7 @@ export class AdminClient extends DriftClient {
 				swapFeeMax,
 				oracleStalenessThreshold,
 				costToTrade,
-				constituentDerivativeIndex || null,
+				constituentDerivativeIndex != null ? constituentDerivativeIndex : null,
 				constituentDerivativeIndex != null ? derivativeWeight : ZERO,
 				{
 					accounts: {

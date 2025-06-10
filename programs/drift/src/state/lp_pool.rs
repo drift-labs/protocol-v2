@@ -476,7 +476,7 @@ pub struct Constituent {
     /// Every swap to/from this constituent has a monotonically increasing id. This is the next id to use
     pub next_swap_id: u64,
 
-    /// percentable of stablecoin weight to go to this specific stablecoin PERCENTAGE_PRECISION
+    /// percentable of derivatve weight to go to this specific derivative PERCENTAGE_PRECISION. Zero if no derivative weight
     pub derivative_weight: u64,
 
     pub flash_loan_initial_token_amount: u64,
@@ -747,7 +747,6 @@ impl<'a> AccountZeroCopy<'a, TargetsDatum, ConstituentTargetBaseFixed> {
         let datum = self.get(constituent_index as u32);
         let target_weight = calculate_target_weight(
             datum.target_base,
-            datum.cost_to_trade_bps,
             &spot_market,
             price,
             aum,
@@ -759,7 +758,6 @@ impl<'a> AccountZeroCopy<'a, TargetsDatum, ConstituentTargetBaseFixed> {
 
 pub fn calculate_target_weight(
     target_base: i64,
-    cost_to_trade_bps: i32,
     spot_market: &SpotMarket,
     price: i64,
     lp_pool_aum: u128,
@@ -767,7 +765,7 @@ pub fn calculate_target_weight(
 ) -> DriftResult<i64> {
     let notional: i128 = (target_base as i128)
         .safe_mul(price as i128)?
-        .safe_div(BASE_PRECISION_I128)?;
+        .safe_div(10_i128.pow(spot_market.decimals))?;
 
     let target_weight = notional
         .safe_mul(PERCENTAGE_PRECISION_I128)?
@@ -804,14 +802,18 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
         mapping: &AccountZeroCopy<'a, AmmConstituentDatum, AmmConstituentMappingFixed>,
         // (perp market index, inventory, price)
         amm_inventory_and_prices: &[(u16, i64, i64)],
-        constituents_indexes_and_prices: &[(u16, i64)],
+        constituents_indexes_and_decimals_and_prices: &[(u16, u8, i64)],
         slot: u64,
     ) -> DriftResult<Vec<i128>> {
-        let mut results = Vec::with_capacity(constituents_indexes_and_prices.len());
-        for (i, constituent_index_and_price) in constituents_indexes_and_prices.iter().enumerate() {
+        let mut results = Vec::with_capacity(constituents_indexes_and_decimals_and_prices.len());
+        for (i, constituent_index_and_price) in constituents_indexes_and_decimals_and_prices
+            .iter()
+            .enumerate()
+        {
             let mut target_notional = 0i128;
             let constituent_index = constituent_index_and_price.0;
-            let price = constituent_index_and_price.1;
+            let decimals = constituent_index_and_price.1;
+            let price = constituent_index_and_price.2;
 
             for (perp_market_index, inventory, price) in amm_inventory_and_prices.iter() {
                 let idx = mapping.iter().position(|d| {
@@ -840,7 +842,7 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
 
             let cell = self.get_mut(i as u32);
             let target_base = target_notional
-                .safe_mul(BASE_PRECISION_I128)?
+                .safe_mul(10_i128.pow(decimals as u32))?
                 .safe_div(price as i128)?
                 * -1; // Want to target opposite sign of total scaled notional inventory
 

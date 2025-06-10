@@ -8688,7 +8688,7 @@
           {
             "name": "derivativeWeight",
             "docs": [
-              "percentable of stablecoin weight to go to this specific stablecoin PERCENTAGE_PRECISION"
+              "percentable of derivatve weight to go to this specific derivative PERCENTAGE_PRECISION. Zero if no derivative weight"
             ],
             "type": "u64"
           },

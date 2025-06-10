@@ -35,12 +35,11 @@ import {
 	ZERO,
 	getConstituentPublicKey,
 	ConstituentAccount,
-	getMarketOrderParams,
 	PositionDirection,
 	getPythLazerOraclePublicKey,
 	PYTH_LAZER_STORAGE_ACCOUNT_KEY,
 	PTYH_LAZER_PROGRAM_ID,
-	AMM_RESERVE_PRECISION,
+	BASE_PRECISION,
 } from '../sdk/src';
 
 import {
@@ -128,7 +127,7 @@ describe('LP Pool', () => {
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 
-		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 224.3);
+		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 200);
 
 		adminClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -174,7 +173,7 @@ describe('LP Pool', () => {
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
-			new BN(224 * PEG_PRECISION.toNumber())
+			new BN(200 * PEG_PRECISION.toNumber())
 		);
 
 		await adminClient.initializePerpMarket(
@@ -183,7 +182,7 @@ describe('LP Pool', () => {
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
-			new BN(224 * PEG_PRECISION.toNumber())
+			new BN(200 * PEG_PRECISION.toNumber())
 		);
 
 		await adminClient.initializePerpMarket(
@@ -246,9 +245,8 @@ describe('LP Pool', () => {
 		);
 
 		// Give the vamm some inventory
-		const baseAssetAmount = new BN(AMM_RESERVE_PRECISION).muln(10);
-		await adminClient.openPosition(PositionDirection.LONG, baseAssetAmount, 0);
-		await adminClient.openPosition(PositionDirection.SHORT, baseAssetAmount, 1);
+		await adminClient.openPosition(PositionDirection.LONG, BASE_PRECISION, 0);
+		await adminClient.openPosition(PositionDirection.SHORT, BASE_PRECISION, 1);
 		assert(
 			adminClient
 				.getUser()
@@ -296,7 +294,7 @@ describe('LP Pool', () => {
 		);
 		expect(mintInfo.decimals).to.equal(tokenDecimals);
 		expect(Number(mintInfo.supply)).to.equal(0);
-		expect(mintInfo.mintAuthority!.toBase58()).to.equal(
+		expect(mintInfo.mintAuthority?.toBase58()).to.equal(
 			adminClient.getSignerPublicKey().toBase58()
 		);
 	});
@@ -397,7 +395,7 @@ describe('LP Pool', () => {
 		expect(ammCache).to.not.be.null;
 		assert(ammCache.cache.length == 3);
 		assert(ammCache.cache[0].oracle.equals(solUsd));
-		assert(ammCache.cache[0].oraclePrice.eq(new BN(224300000)));
+		assert(ammCache.cache[0].oraclePrice.eq(new BN(200000000)));
 	});
 
 	it('can update constituent properties', async () => {
@@ -543,7 +541,10 @@ describe('LP Pool', () => {
 			)) as ConstituentTargetBase;
 		expect(constituentTargetBase).to.not.be.null;
 		assert(constituentTargetBase.targets.length == 2);
-		assert(constituentTargetBase.targets.filter((x) => x.targetBase.eq(ZERO)).length !== constituentTargetBase.targets.length);
+		assert(
+			constituentTargetBase.targets.filter((x) => x.targetBase.eq(ZERO))
+				.length !== constituentTargetBase.targets.length
+		);
 	});
 
 	it('can add constituent to LP Pool thats a derivative and get half of the target weight', async () => {
@@ -560,8 +561,8 @@ describe('LP Pool', () => {
 			new BN(2).mul(PERCENTAGE_PRECISION),
 			new BN(400),
 			1,
-			PERCENTAGE_PRECISION.divn(2), // 50% weight against USDC
-			0
+			PERCENTAGE_PRECISION.divn(2), // 50% weight against SOL
+			1
 		);
 
 		await adminClient.updateAmmCache([0, 1, 2]);
@@ -583,6 +584,8 @@ describe('LP Pool', () => {
 			getConstituentPublicKey(program.programId, lpPoolKey, 1),
 			getConstituentPublicKey(program.programId, lpPoolKey, 2),
 		]);
+		await adminClient.updateLpPoolAum(lpPool, [0, 1, 2]);
+
 		const constituentTargetBasePublicKey = getConstituentTargetBasePublicKey(
 			program.programId,
 			lpPoolKey
@@ -593,6 +596,15 @@ describe('LP Pool', () => {
 			)) as ConstituentTargetBase;
 
 		expect(constituentTargetBase).to.not.be.null;
+		console.log(
+			'constituentTargetBase.targets',
+			constituentTargetBase.targets.map((x) => x.targetBase.toString())
+		);
+		assert(
+			constituentTargetBase.targets[1].targetBase
+				.sub(constituentTargetBase.targets[2].targetBase)
+				.lt(constituentTargetBase.targets[1].targetBase.divn(1000))
+		);
 	});
 
 	it('can update and remove amm constituent mapping entries', async () => {
