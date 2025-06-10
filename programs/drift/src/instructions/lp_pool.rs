@@ -1,29 +1,41 @@
+use std::collections::BTreeMap;
+
 use anchor_lang::{prelude::*, Accounts, Key, Result};
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 use crate::{
-    controller::token::{burn_tokens, mint_tokens},
+    controller::{
+        self,
+        spot_balance::update_spot_balances,
+        lp,
+        token::{burn_tokens, mint_tokens},
+    },
     error::ErrorCode,
     get_then_update_id,
+    ids::admin_hot_wallet,
     math::{
+        self,
         casting::Cast,
-        constants::{PERCENTAGE_PRECISION_I128, PRICE_PRECISION_I128},
+        constants::{
+            BASE_PRECISION_I128, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
+            PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, QUOTE_PRECISION_I128,
+        },
         oracle::{is_oracle_valid_for_action, oracle_validity, DriftAction},
         safe_math::SafeMath,
     },
-    msg,
+    math_error, msg, safe_decrement, safe_increment,
     state::{
         constituent_map::{ConstituentMap, ConstituentSet},
         events::{LPMintRedeemRecord, LPSwapRecord},
         lp_pool::{
-            AmmConstituentDatum, AmmConstituentMappingFixed, Constituent,
+            calculate_target_weight, AmmConstituentDatum, AmmConstituentMappingFixed, Constituent,
             ConstituentTargetBaseFixed, LPPool, TargetsDatum, WeightValidationFlags,
         },
         oracle::OraclePriceData,
         oracle_map::OracleMap,
-        perp_market::{AmmCacheFixed, CacheInfo, AMM_POSITIONS_CACHE},
+        perp_market::{AmmCacheFixed, CacheInfo, MarketStatus, AMM_POSITIONS_CACHE},
         perp_market_map::MarketSet,
-        spot_market::SpotMarket,
+        spot_market::{SpotBalanceType, SpotMarket},
         spot_market_map::get_writable_spot_market_set_from_many,
         state::State,
         user::MarketType,
@@ -167,15 +179,19 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
     let constituent_map =
         ConstituentMap::load(&ConstituentSet::new(), &lp_pool_key, remaining_accounts)?;
 
-    let mut constituent_indexes_and_prices: Vec<(u16, i64)> = vec![];
+    let mut constituent_indexes_and_decimals_and_prices: Vec<(u16, u8, i64)> = vec![];
     for (index, loader) in &constituent_map.0 {
         let constituent_ref = loader.load()?;
-        constituent_indexes_and_prices.push((*index, constituent_ref.last_oracle_price));
+        constituent_indexes_and_decimals_and_prices.push((
+            *index,
+            constituent_ref.decimals,
+            constituent_ref.last_oracle_price,
+        ));
     }
 
-    let exists_invalid_constituent_index = constituent_indexes_and_prices
+    let exists_invalid_constituent_index = constituent_indexes_and_decimals_and_prices
         .iter()
-        .any(|(index, _)| *index as u32 >= num_constituents);
+        .any(|(index, _, _)| *index as u32 >= num_constituents);
 
     validate!(
         !exists_invalid_constituent_index,
@@ -186,7 +202,7 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
     constituent_target_base.update_target_base(
         &amm_constituent_mapping,
         amm_inventories.as_slice(),
-        constituent_indexes_and_prices.as_slice(),
+        constituent_indexes_and_decimals_and_prices.as_slice(),
         slot,
     )?;
 
@@ -248,9 +264,22 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
     let mut aum: u128 = 0;
     let mut crypto_delta = 0_i128;
     let mut oldest_slot = u64::MAX;
-    let mut stablecoin_constituent_indexes: Vec<usize> = vec![];
+    let mut derivative_groups: BTreeMap<u16, Vec<u16>> = BTreeMap::new();
     for i in 0..lp_pool.constituents as usize {
         let mut constituent = constituent_map.get_ref_mut(&(i as u16))?;
+        if constituent.constituent_derivative_index >= 0 && constituent.derivative_weight != 0 {
+            if !derivative_groups.contains_key(&(constituent.constituent_derivative_index as u16)) {
+                derivative_groups.insert(
+                    constituent.constituent_derivative_index as u16,
+                    vec![constituent.constituent_index],
+                );
+            } else {
+                derivative_groups
+                    .get_mut(&(constituent.constituent_derivative_index as u16))
+                    .unwrap()
+                    .push(constituent.constituent_index);
+            }
+        }
 
         let spot_market = spot_market_map.get_ref(&constituent.spot_market_index)?;
 
@@ -305,10 +334,21 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
             .safe_mul(oracle_price.unwrap() as i128)?
             .safe_div(PRICE_PRECISION_I128)?
             .max(0);
-        if constituent.stablecoin_weight == 0 {
-            crypto_delta = crypto_delta.safe_add(constituent_aum.cast()?)?;
-        } else {
-            stablecoin_constituent_indexes.push(i);
+        msg!(
+            "constituent: {}, aum: {}, deriv index: {}",
+            constituent.constituent_index,
+            constituent_aum,
+            constituent.constituent_derivative_index
+        );
+        if constituent.constituent_index != lp_pool.usdc_consituent_index
+            && constituent.constituent_derivative_index != lp_pool.usdc_consituent_index as i16
+        {
+            let constituent_target_notional = constituent_target_base
+                .get(constituent.constituent_index as u32)
+                .target_base
+                .safe_mul(constituent.last_oracle_price)?
+                .safe_div(10_i64.pow(spot_market.decimals as u32))?;
+            crypto_delta = crypto_delta.safe_add(constituent_target_notional.cast()?)?;
         }
         aum = aum.safe_add(constituent_aum.cast()?)?;
     }
@@ -318,14 +358,82 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
     lp_pool.last_aum_slot = slot;
     lp_pool.last_aum_ts = Clock::get()?.unix_timestamp;
 
-    let total_stable_target_base = aum.cast::<i128>()?.safe_sub(crypto_delta.abs())?;
-    for index in stablecoin_constituent_indexes {
-        let constituent = constituent_map.get_ref(&(index as u16))?;
-        let stable_target = constituent_target_base.get_mut(index as u32);
-        stable_target.target_base = total_stable_target_base
-            .safe_mul(constituent.stablecoin_weight as i128)?
-            .safe_div(PERCENTAGE_PRECISION_I128)?
-            .cast::<i64>()?;
+    // Set USDC stable weight
+    let total_stable_target_base = aum
+        .cast::<i128>()?
+        .safe_sub(crypto_delta.abs())?
+        .max(0_i128);
+    constituent_target_base
+        .get_mut(lp_pool.usdc_consituent_index as u32)
+        .target_base = total_stable_target_base
+        .safe_mul(
+            10_i128.pow(
+                constituent_map
+                    .get_ref(&lp_pool.usdc_consituent_index)?
+                    .decimals as u32,
+            ),
+        )?
+        .safe_div(QUOTE_PRECISION_I128)?
+        .cast::<i64>()?;
+
+    msg!(
+        "stable target base: {}",
+        constituent_target_base
+            .get(lp_pool.usdc_consituent_index as u32)
+            .target_base
+    );
+    msg!("aum: {}, crypto_delta: {}", aum, crypto_delta);
+    msg!("derivative groups: {:?}", derivative_groups);
+
+    // Handle all other derivatives
+    for (parent_index, constituent_indexes) in derivative_groups.iter() {
+        let parent_constituent = constituent_map.get_ref(&(parent_index))?;
+        let parent_target_base = constituent_target_base
+            .get(*parent_index as u32)
+            .target_base;
+        let target_parent_weight = calculate_target_weight(
+            parent_target_base,
+            &*spot_market_map.get_ref(&parent_constituent.spot_market_index)?,
+            parent_constituent.last_oracle_price,
+            aum,
+            WeightValidationFlags::NONE,
+        )?;
+        let mut derivative_weights_sum = 0;
+        for constituent_index in constituent_indexes {
+            let constituent = constituent_map.get_ref(constituent_index)?;
+            derivative_weights_sum += constituent.derivative_weight;
+
+            let target_weight = target_parent_weight
+                .safe_mul(constituent.derivative_weight as i64)?
+                .safe_div(PERCENTAGE_PRECISION_I64)?;
+
+            msg!(
+                "constituent: {}, target weight: {}",
+                constituent_index,
+                target_weight,
+            );
+            let target_base = lp_pool
+                .last_aum
+                .cast::<i128>()?
+                .safe_mul(target_weight as i128)?
+                .safe_div(PERCENTAGE_PRECISION_I128)?
+                .safe_mul(10_i128.pow(constituent.decimals as u32))?
+                .safe_div(constituent.last_oracle_price as i128)?;
+
+            msg!(
+                "constituent: {}, target base: {}",
+                constituent_index,
+                target_base
+            );
+            constituent_target_base
+                .get_mut(*constituent_index as u32)
+                .target_base = target_base.cast::<i64>()?;
+        }
+        constituent_target_base
+            .get_mut(*parent_index as u32)
+            .target_base = parent_target_base
+            .safe_mul(PERCENTAGE_PRECISION_U64.safe_sub(derivative_weights_sum)? as i64)?
+            .safe_div(PERCENTAGE_PRECISION_I64)?;
     }
 
     Ok(())
@@ -611,12 +719,17 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
 
     update_spot_market_cumulative_interest(&mut in_spot_market, Some(&in_oracle), now)?;
 
-    let in_target_weight = constituent_target_base.get_target_weight(
-        in_constituent.constituent_index,
-        &in_spot_market,
-        in_oracle.price,
-        lp_pool.last_aum, // TODO: add in_amount * in_oracle to est post add_liquidity aum
-    )?;
+    msg!("aum: {}", lp_pool.last_aum);
+    let in_target_weight = if lp_pool.last_aum == 0 {
+        PERCENTAGE_PRECISION_I64 // 100% weight if no aum
+    } else {
+        constituent_target_base.get_target_weight(
+            in_constituent.constituent_index,
+            &in_spot_market,
+            in_oracle.price,
+            lp_pool.last_aum, // TODO: add in_amount * in_oracle to est post add_liquidity aum
+        )?
+    };
 
     let dlp_total_supply = ctx.accounts.lp_mint.supply;
 
@@ -949,6 +1062,174 @@ pub fn handle_update_constituent_oracle_info<'c: 'info, 'info>(
     Ok(())
 }
 
+pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, DepositWithdrawProgramVault<'info>>,
+    amount: u64,
+) -> Result<()> {
+    let clock = Clock::get()?;
+
+    let mut spot_market = ctx.accounts.spot_market.load_mut()?;
+    let mut constituent = ctx.accounts.constituent.load_mut()?;
+    let spot_market_vault = &ctx.accounts.spot_market_vault;
+    let oracle_id = spot_market.oracle_id();
+    let mut oracle_map = OracleMap::load_one(
+        &ctx.accounts.oracle,
+        clock.slot,
+        Some(ctx.accounts.state.oracle_guard_rails),
+    )?;
+
+    if amount == 0 {
+        return Err(ErrorCode::InsufficientDeposit.into());
+    }
+
+    let oracle_data = oracle_map.get_price_data(&oracle_id)?;
+    let oracle_data_slot = clock.slot - oracle_data.delay.max(0i64).cast::<u64>()?;
+    if constituent.last_oracle_slot < oracle_data_slot {
+        constituent.last_oracle_price = oracle_data.price;
+        constituent.last_oracle_slot = oracle_data_slot;
+    }
+
+    controller::spot_balance::update_spot_market_cumulative_interest(
+        &mut spot_market,
+        Some(&oracle_data),
+        clock.unix_timestamp,
+    )?;
+
+    controller::token::send_from_program_vault(
+        &ctx.accounts.token_program,
+        &ctx.accounts.constituent_token_account,
+        &spot_market_vault,
+        &ctx.accounts.drift_signer,
+        ctx.accounts.state.signer_nonce,
+        amount,
+        &Some(*ctx.accounts.mint.clone()),
+    )?;
+
+    // Adjust BLPosition for the new deposits
+    let spot_position = &mut constituent.spot_balance;
+    update_spot_balances(
+        amount as u128,
+        &SpotBalanceType::Deposit,
+        &mut spot_market,
+        spot_position,
+        false,
+    )?;
+
+    safe_increment!(spot_position.cumulative_deposits, amount.cast()?);
+
+    ctx.accounts.spot_market_vault.reload()?;
+    spot_market.validate_max_token_deposits_and_borrows(false)?;
+
+    Ok(())
+}
+
+pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, DepositWithdrawProgramVault<'info>>,
+    amount: u64,
+) -> Result<()> {
+    let state = &ctx.accounts.state;
+    let clock = Clock::get()?;
+
+    let mut spot_market = ctx.accounts.spot_market.load_mut()?;
+    let mut constituent = ctx.accounts.constituent.load_mut()?;
+    let spot_market_vault = &ctx.accounts.spot_market_vault;
+    let oracle_id = spot_market.oracle_id();
+    let mut oracle_map = OracleMap::load_one(
+        &ctx.accounts.oracle,
+        clock.slot,
+        Some(ctx.accounts.state.oracle_guard_rails),
+    )?;
+
+    if amount == 0 {
+        return Err(ErrorCode::InsufficientDeposit.into());
+    }
+
+    let oracle_data = oracle_map.get_price_data(&oracle_id)?;
+    let oracle_data_slot = clock.slot - oracle_data.delay.max(0i64).cast::<u64>()?;
+    if constituent.last_oracle_slot < oracle_data_slot {
+        constituent.last_oracle_price = oracle_data.price;
+        constituent.last_oracle_slot = oracle_data_slot;
+    }
+
+    controller::spot_balance::update_spot_market_cumulative_interest(
+        &mut spot_market,
+        Some(&oracle_data),
+        clock.unix_timestamp,
+    )?;
+
+    controller::token::send_from_program_vault(
+        &ctx.accounts.token_program,
+        &spot_market_vault,
+        &ctx.accounts.constituent_token_account,
+        &ctx.accounts.drift_signer,
+        state.signer_nonce,
+        amount,
+        &Some(*ctx.accounts.mint.clone()),
+    )?;
+
+    // Adjust BLPosition for the new deposits
+    let spot_position = &mut constituent.spot_balance;
+    update_spot_balances(
+        amount as u128,
+        &SpotBalanceType::Borrow,
+        &mut spot_market,
+        spot_position,
+        true,
+    )?;
+
+    safe_decrement!(spot_position.cumulative_deposits, amount.cast()?);
+
+    ctx.accounts.spot_market_vault.reload()?;
+    math::spot_withdraw::validate_spot_market_vault_amount(
+        &spot_market,
+        ctx.accounts.spot_market_vault.amount,
+    )?;
+
+    spot_market.validate_max_token_deposits_and_borrows(true)?;
+
+    Ok(())
+}
+
+#[derive(Accounts)]
+pub struct DepositWithdrawProgramVault<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+    /// CHECK: program signer
+    pub drift_signer: AccountInfo<'info>,
+    #[account(mut)]
+    pub constituent: AccountLoader<'info, Constituent>,
+    #[account(
+        mut,
+        address = constituent.load()?.token_vault,
+        constraint = &constituent.load()?.mint.eq(&constituent_token_account.mint),
+        token::authority = drift_signer
+    )]
+    pub constituent_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        owner = crate::ID,
+        constraint = spot_market.load()?.market_index == constituent.load()?.spot_market_index
+    )]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        mut,
+        address = spot_market.load()?.vault,
+        token::authority = drift_signer,
+    )]
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Interface<'info, TokenInterface>,
+    #[account(
+        address = spot_market.load()?.mint,
+    )]
+    pub mint: Box<InterfaceAccount<'info, Mint>>,
+    /// CHECK: checked when loading oracle in oracle map
+    pub oracle: AccountInfo<'info>,
+}
+
 #[derive(Accounts)]
 pub struct UpdateConstituentOracleInfo<'info> {
     pub state: Box<Account<'info, State>>,
@@ -973,6 +1254,7 @@ pub struct UpdateConstituentTargetBase<'info> {
     /// CHECK: checked in AmmConstituentMappingZeroCopy checks
     pub amm_constituent_mapping: AccountInfo<'info>,
     /// CHECK: checked in ConstituentTargetBaseZeroCopy checks
+    #[account(mut)]
     pub constituent_target_base: AccountInfo<'info>,
     /// CHECK: checked in AmmCacheZeroCopy checks
     pub amm_cache: AccountInfo<'info>,

@@ -3,8 +3,14 @@ import { expect, assert } from 'chai';
 
 import { Program } from '@coral-xyz/anchor';
 
-import { Keypair, PublicKey } from '@solana/web3.js';
-import { getMint } from '@solana/spl-token';
+import {
+	AccountInfo,
+	Keypair,
+	LAMPORTS_PER_SOL,
+	PublicKey,
+	Transaction,
+} from '@solana/web3.js';
+import { getAssociatedTokenAddress, getMint } from '@solana/spl-token';
 
 import {
 	BN,
@@ -29,20 +35,33 @@ import {
 	ZERO,
 	getConstituentPublicKey,
 	ConstituentAccount,
+	PositionDirection,
+	getPythLazerOraclePublicKey,
+	PYTH_LAZER_STORAGE_ACCOUNT_KEY,
+	PTYH_LAZER_PROGRAM_ID,
+	BASE_PRECISION,
 } from '../sdk/src';
 
 import {
-	getPerpMarketDecoded,
 	initializeQuoteSpotMarket,
 	mockOracleNoProgram,
 	mockUSDCMint,
-	mockUserUSDCAccount,
+	mockUserUSDCAccountWithAuthority,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import dotenv from 'dotenv';
+import { PYTH_LAZER_HEX_STRING_SOL, PYTH_STORAGE_DATA } from './pythLazerData';
 dotenv.config();
+
+const PYTH_STORAGE_ACCOUNT_INFO: AccountInfo<Buffer> = {
+	executable: false,
+	lamports: LAMPORTS_PER_SOL,
+	owner: new PublicKey(PTYH_LAZER_PROGRAM_ID),
+	rentEpoch: 0,
+	data: Buffer.from(PYTH_STORAGE_DATA, 'base64'),
+};
 
 describe('LP Pool', () => {
 	const program = anchor.workspace.Drift as Program;
@@ -55,13 +74,14 @@ describe('LP Pool', () => {
 	let spotMarketOracle: PublicKey;
 
 	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
-	const ammInitialQuoteAssetReserve = new anchor.BN(10 * 10 ** 13).mul(
+	const ammInitialQuoteAssetReserve = new anchor.BN(100 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
-	const ammInitialBaseAssetReserve = new anchor.BN(10 * 10 ** 13).mul(
+	const ammInitialBaseAssetReserve = new anchor.BN(100 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
 	let solUsd: PublicKey;
+	let solUsdLazer: PublicKey;
 
 	const lpPoolName = 'test pool 1';
 	const tokenDecimals = 6;
@@ -81,7 +101,12 @@ describe('LP Pool', () => {
 					),
 				},
 			],
-			[]
+			[
+				{
+					address: PYTH_LAZER_STORAGE_ACCOUNT_KEY,
+					info: PYTH_STORAGE_ACCOUNT_INFO,
+				},
+			]
 		);
 
 		// @ts-ignore
@@ -102,7 +127,7 @@ describe('LP Pool', () => {
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 
-		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 224.3);
+		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 200);
 
 		adminClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -125,19 +150,22 @@ describe('LP Pool', () => {
 		await adminClient.subscribe();
 		await initializeQuoteSpotMarket(adminClient, usdcMint.publicKey);
 
-		const userUSDCAccount = await mockUserUSDCAccount(
+		const userUSDCAccount = await mockUserUSDCAccountWithAuthority(
 			usdcMint,
-			new BN(10).mul(QUOTE_PRECISION),
+			new BN(100_000_000).mul(QUOTE_PRECISION),
 			bankrunContextWrapper,
-			keypair.publicKey
+			keypair
 		);
 
 		await adminClient.initializeUserAccountAndDepositCollateral(
-			new BN(10).mul(QUOTE_PRECISION),
-			userUSDCAccount.publicKey
+			new BN(1_000_000).mul(QUOTE_PRECISION),
+			userUSDCAccount
 		);
 
 		const periodicity = new BN(0);
+
+		solUsdLazer = getPythLazerOraclePublicKey(program.programId, 6);
+		await adminClient.initializePythLazerOracle(6);
 
 		await adminClient.initializePerpMarket(
 			0,
@@ -145,7 +173,7 @@ describe('LP Pool', () => {
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
-			new BN(224 * PEG_PRECISION.toNumber())
+			new BN(200 * PEG_PRECISION.toNumber())
 		);
 
 		await adminClient.initializePerpMarket(
@@ -154,7 +182,7 @@ describe('LP Pool', () => {
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
-			new BN(224 * PEG_PRECISION.toNumber())
+			new BN(200 * PEG_PRECISION.toNumber())
 		);
 
 		await adminClient.initializePerpMarket(
@@ -165,6 +193,8 @@ describe('LP Pool', () => {
 			periodicity,
 			new BN(224 * PEG_PRECISION.toNumber())
 		);
+
+		await adminClient.updatePerpAuctionDuration(new BN(0));
 
 		const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(
 			new BN(2)
@@ -191,6 +221,20 @@ describe('LP Pool', () => {
 			imfFactor
 		);
 
+		await adminClient.initializeSpotMarket(
+			spotTokenMint.publicKey,
+			optimalUtilization,
+			optimalRate,
+			maxRate,
+			spotMarketOracle,
+			OracleSource.PYTH,
+			initialAssetWeight,
+			maintenanceAssetWeight,
+			initialLiabilityWeight,
+			maintenanceLiabilityWeight,
+			imfFactor
+		);
+
 		await adminClient.initializeLpPool(
 			lpPoolName,
 			ZERO,
@@ -198,6 +242,16 @@ describe('LP Pool', () => {
 			new BN(3600),
 			new BN(1_000_000).mul(QUOTE_PRECISION),
 			Keypair.generate()
+		);
+
+		// Give the vamm some inventory
+		await adminClient.openPosition(PositionDirection.LONG, BASE_PRECISION, 0);
+		await adminClient.openPosition(PositionDirection.SHORT, BASE_PRECISION, 1);
+		assert(
+			adminClient
+				.getUser()
+				.getActivePerpPositions()
+				.filter((x) => !x.baseAssetAmount.eq(ZERO)).length == 2
 		);
 	});
 
@@ -240,7 +294,7 @@ describe('LP Pool', () => {
 		);
 		expect(mintInfo.decimals).to.equal(tokenDecimals);
 		expect(Number(mintInfo.supply)).to.equal(0);
-		expect(mintInfo.mintAuthority!.toBase58()).to.equal(
+		expect(mintInfo.mintAuthority?.toBase58()).to.equal(
 			adminClient.getSignerPublicKey().toBase58()
 		);
 	});
@@ -261,6 +315,13 @@ describe('LP Pool', () => {
 			program.programId,
 			lpPoolKey
 		);
+
+		const constituent = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 0)
+		)) as ConstituentAccount;
+
+		await adminClient.updateConstituentOracleInfo(constituent);
+
 		const constituentTargetBase =
 			(await adminClient.program.account.constituentTargetBase.fetch(
 				constituentTargetBasePublicKey
@@ -285,18 +346,28 @@ describe('LP Pool', () => {
 				constituentVaultPublicKey
 			);
 		expect(constituentTokenVault).to.not.be.null;
+
+		// Add second constituent representing SOL
+		await adminClient.initializeConstituent(
+			lpPool.name,
+			1,
+			6,
+			new BN(10).mul(PERCENTAGE_PRECISION),
+			new BN(1).mul(PERCENTAGE_PRECISION),
+			new BN(2).mul(PERCENTAGE_PRECISION),
+			new BN(400),
+			1,
+			ZERO
+		);
 	});
 
 	it('can add amm mapping datum', async () => {
+		// Firt constituent is USDC, so add no mapping. We will add a second mapping though
+		// for the second constituent which is SOL
 		await adminClient.addAmmConstituentMappingData(encodeName(lpPoolName), [
 			{
-				perpMarketIndex: 0,
-				constituentIndex: 0,
-				weight: PERCENTAGE_PRECISION,
-			},
-			{
 				perpMarketIndex: 1,
-				constituentIndex: 0,
+				constituentIndex: 1,
 				weight: PERCENTAGE_PRECISION,
 			},
 		]);
@@ -309,7 +380,22 @@ describe('LP Pool', () => {
 				ammConstituentMapping
 			)) as AmmConstituentMapping;
 		expect(ammMapping).to.not.be.null;
-		assert(ammMapping.weights.length == 2);
+		assert(ammMapping.weights.length == 1);
+	});
+
+	it('can crank amm info into the cache', async () => {
+		let ammCache = (await adminClient.program.account.ammCache.fetch(
+			getAmmCachePublicKey(program.programId)
+		)) as AmmCache;
+
+		await adminClient.updateAmmCache([0]);
+		ammCache = (await adminClient.program.account.ammCache.fetch(
+			getAmmCachePublicKey(program.programId)
+		)) as AmmCache;
+		expect(ammCache).to.not.be.null;
+		assert(ammCache.cache.length == 3);
+		assert(ammCache.cache[0].oracle.equals(solUsd));
+		assert(ammCache.cache[0].oraclePrice.eq(new BN(200000000)));
 	});
 
 	it('can update constituent properties', async () => {
@@ -339,7 +425,6 @@ describe('LP Pool', () => {
 				constituentTargetBase
 			)) as ConstituentTargetBase;
 		expect(targets).to.not.be.null;
-		console.log(targets.targets[constituent.constituentIndex]);
 		assert(targets.targets[constituent.constituentIndex].costToTradeBps == 10);
 	});
 
@@ -363,7 +448,7 @@ describe('LP Pool', () => {
 			await adminClient.addAmmConstituentMappingData(encodeName(lpPoolName), [
 				{
 					perpMarketIndex: 0,
-					constituentIndex: 1,
+					constituentIndex: 5,
 					weight: PERCENTAGE_PRECISION,
 				},
 			]);
@@ -373,49 +458,78 @@ describe('LP Pool', () => {
 		}
 	});
 
-	it('can update constituent target weights', async () => {
-		// Override AMM to have a balance
-		const perpMarket = adminClient.getPerpMarketAccount(0);
-		const raw = await bankrunContextWrapper.connection.getAccountInfo(
-			perpMarket.pubkey
-		);
-		const buf = raw.data;
-
-		buf.writeBigInt64LE(BigInt(1000000000), 304);
-
-		bankrunContextWrapper.context.setAccount(perpMarket.pubkey, {
-			executable: raw.executable,
-			owner: raw.owner,
-			lamports: raw.lamports,
-			rentEpoch: raw.rentEpoch,
-			data: buf,
-		});
-
-		const perpMarketAccountAfter = await getPerpMarketDecoded(
-			adminClient,
-			bankrunContextWrapper,
-			perpMarket.pubkey
-		);
-		assert(!perpMarketAccountAfter.amm.baseAssetAmountLong.isZero());
-
-		// Override LP pool to have some aum
-		const lpraw = await bankrunContextWrapper.connection.getAccountInfo(
+	it('can update pool aum', async () => {
+		let lpPool = (await adminClient.program.account.lpPool.fetch(
 			lpPoolKey
-		);
-		const lpbuf = lpraw.data;
+		)) as LPPoolAccount;
+		assert(lpPool.constituents == 2);
 
-		buf.writeBigInt64LE(BigInt(1000000000), 152);
+		const createAtaIx =
+			adminClient.createAssociatedTokenAccountIdempotentInstruction(
+				await getAssociatedTokenAddress(
+					lpPool.mint,
+					adminClient.wallet.publicKey,
+					true
+				),
+				adminClient.wallet.publicKey,
+				adminClient.wallet.publicKey,
+				lpPool.mint
+			);
 
-		bankrunContextWrapper.context.setAccount(lpPoolKey, {
-			executable: lpraw.executable,
-			owner: lpraw.owner,
-			lamports: lpraw.lamports,
-			rentEpoch: lpraw.rentEpoch,
-			data: lpbuf,
+		await adminClient.sendTransaction(new Transaction().add(createAtaIx), []);
+
+		await adminClient.lpPoolAddLiquidity({
+			lpPool,
+			inAmount: new BN(1000).mul(QUOTE_PRECISION),
+			minMintAmount: new BN(1),
+			inMarketIndex: 0,
 		});
+
+		await adminClient.updateLpPoolAum(lpPool, [0, 1]);
+
+		lpPool = (await adminClient.program.account.lpPool.fetch(
+			lpPoolKey
+		)) as LPPoolAccount;
+
+		assert(lpPool.lastAum.eq(new BN(1000).mul(QUOTE_PRECISION)));
+
+		// Should fail if we dont pass in the second constituent
+		const constituent = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 1)
+		)) as ConstituentAccount;
+
+		await adminClient.updateConstituentOracleInfo(constituent);
+
+		try {
+			await adminClient.updateLpPoolAum(lpPool, [0]);
+			expect.fail('should have failed');
+		} catch (e) {
+			assert(e.message.includes('0x18b1'));
+		}
+	});
+
+	it('can update constituent target weights', async () => {
+		await adminClient.postPythLazerOracleUpdate([6], PYTH_LAZER_HEX_STRING_SOL);
+		await adminClient.updatePerpMarketOracle(
+			0,
+			solUsdLazer,
+			OracleSource.PYTH_LAZER
+		);
+		await adminClient.updatePerpMarketOracle(
+			1,
+			solUsdLazer,
+			OracleSource.PYTH_LAZER
+		);
+		await adminClient.updatePerpMarketOracle(
+			2,
+			solUsdLazer,
+			OracleSource.PYTH_LAZER
+		);
+		await adminClient.updateAmmCache([0, 1, 2]);
 
 		await adminClient.updateLpConstituentTargetBase(encodeName(lpPoolName), [
 			getConstituentPublicKey(program.programId, lpPoolKey, 0),
+			getConstituentPublicKey(program.programId, lpPoolKey, 1),
 		]);
 		const constituentTargetBasePublicKey = getConstituentTargetBasePublicKey(
 			program.programId,
@@ -426,36 +540,71 @@ describe('LP Pool', () => {
 				constituentTargetBasePublicKey
 			)) as ConstituentTargetBase;
 		expect(constituentTargetBase).to.not.be.null;
-		assert(constituentTargetBase.targets.length == 1);
+		assert(constituentTargetBase.targets.length == 2);
+		assert(
+			constituentTargetBase.targets.filter((x) => x.targetBase.eq(ZERO))
+				.length !== constituentTargetBase.targets.length
+		);
 	});
 
-	it('can update pool aum', async () => {
+	it('can add constituent to LP Pool thats a derivative and get half of the target weight', async () => {
 		const lpPool = (await adminClient.program.account.lpPool.fetch(
 			lpPoolKey
 		)) as LPPoolAccount;
-		assert(lpPool.constituents == 1);
 
-		await adminClient.updateLpPoolAum(lpPool, [0]);
-
-		// Should fail if we initialize a second constituent and dont pass it in
 		await adminClient.initializeConstituent(
 			lpPool.name,
-			1,
+			2,
 			6,
 			new BN(10).mul(PERCENTAGE_PRECISION),
 			new BN(1).mul(PERCENTAGE_PRECISION),
 			new BN(2).mul(PERCENTAGE_PRECISION),
 			new BN(400),
 			1,
-			ZERO
+			PERCENTAGE_PRECISION.divn(2), // 50% weight against SOL
+			1
 		);
 
-		try {
-			await adminClient.updateLpPoolAum(lpPool, [0]);
-			expect.fail('should have failed');
-		} catch (e) {
-			assert(e.message.includes('0x18b1'));
-		}
+		await adminClient.updateAmmCache([0, 1, 2]);
+
+		let constituent = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 2)
+		)) as ConstituentAccount;
+
+		await adminClient.updateConstituentOracleInfo(constituent);
+
+		constituent = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 2)
+		)) as ConstituentAccount;
+		assert(!constituent.lastOraclePrice.eq(ZERO));
+		await adminClient.updateLpPoolAum(lpPool, [0, 1, 2]);
+
+		await adminClient.updateLpConstituentTargetBase(encodeName(lpPoolName), [
+			getConstituentPublicKey(program.programId, lpPoolKey, 0),
+			getConstituentPublicKey(program.programId, lpPoolKey, 1),
+			getConstituentPublicKey(program.programId, lpPoolKey, 2),
+		]);
+		await adminClient.updateLpPoolAum(lpPool, [0, 1, 2]);
+
+		const constituentTargetBasePublicKey = getConstituentTargetBasePublicKey(
+			program.programId,
+			lpPoolKey
+		);
+		const constituentTargetBase =
+			(await adminClient.program.account.constituentTargetBase.fetch(
+				constituentTargetBasePublicKey
+			)) as ConstituentTargetBase;
+
+		expect(constituentTargetBase).to.not.be.null;
+		console.log(
+			'constituentTargetBase.targets',
+			constituentTargetBase.targets.map((x) => x.targetBase.toString())
+		);
+		assert(
+			constituentTargetBase.targets[1].targetBase
+				.sub(constituentTargetBase.targets[2].targetBase)
+				.lt(constituentTargetBase.targets[1].targetBase.divn(1000))
+		);
 	});
 
 	it('can update and remove amm constituent mapping entries', async () => {
@@ -475,7 +624,7 @@ describe('LP Pool', () => {
 				ammConstituentMapping
 			)) as AmmConstituentMapping;
 		expect(ammMapping).to.not.be.null;
-		assert(ammMapping.weights.length == 3);
+		assert(ammMapping.weights.length == 2);
 
 		// Update
 		await adminClient.updateAmmConstituentMappingData(encodeName(lpPoolName), [
@@ -506,21 +655,6 @@ describe('LP Pool', () => {
 		)) as AmmConstituentMapping;
 		expect(ammMapping).to.not.be.null;
 		assert(ammMapping.weights.find((x) => x.perpMarketIndex == 2) == undefined);
-		assert(ammMapping.weights.length === 2);
-	});
-
-	it('can crank amm info into the cache', async () => {
-		let ammCache = (await adminClient.program.account.ammCache.fetch(
-			getAmmCachePublicKey(program.programId)
-		)) as AmmCache;
-
-		await adminClient.updateAmmCache([0, 1, 2]);
-		ammCache = (await adminClient.program.account.ammCache.fetch(
-			getAmmCachePublicKey(program.programId)
-		)) as AmmCache;
-		expect(ammCache).to.not.be.null;
-		assert(ammCache.cache.length == 3);
-		assert(ammCache.cache[0].oracle.equals(solUsd));
-		assert(ammCache.cache[0].oraclePrice.eq(new BN(224300000)));
+		assert(ammMapping.weights.length === 1);
 	});
 });

@@ -1746,7 +1746,8 @@ pub mod drift {
         swap_fee_max: i64,
         oracle_staleness_threshold: u64,
         cost_to_trade: i32,
-        stablecoin_weight: u64,
+        constituent_derivative_index: Option<i16>,
+        derivative_weight: u64,
     ) -> Result<()> {
         handle_initialize_constituent(
             ctx,
@@ -1757,7 +1758,8 @@ pub mod drift {
             swap_fee_max,
             oracle_staleness_threshold,
             cost_to_trade,
-            stablecoin_weight,
+            constituent_derivative_index,
+            derivative_weight,
         )
     }
 
@@ -1863,6 +1865,20 @@ pub mod drift {
         ctx: Context<'_, '_, 'c, 'info, UpdateConstituentOracleInfo<'info>>,
     ) -> Result<()> {
         handle_update_constituent_oracle_info(ctx)
+    }
+
+    pub fn deposit_to_program_vault<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, DepositWithdrawProgramVault<'info>>,
+        amount: u64,
+    ) -> Result<()> {
+        handle_deposit_to_program_vault(ctx, amount)
+    }
+
+    pub fn withdraw_from_program_vault<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, DepositWithdrawProgramVault<'info>>,
+        amount: u64,
+    ) -> Result<()> {
+        handle_withdraw_from_program_vault(ctx, amount)
     }
 }
 

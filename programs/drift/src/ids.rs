@@ -79,3 +79,8 @@ pub mod lighthouse {
     use solana_program::declare_id;
     declare_id!("L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95");
 }
+
+pub mod usdc_mint {
+    use solana_program::declare_id;
+    declare_id!("BJE5MMbqXjVwjAF7oxwPYXnTXDyspzZyt4vwenNw5ruG");
+}
