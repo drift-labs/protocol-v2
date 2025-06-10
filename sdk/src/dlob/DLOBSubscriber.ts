@@ -141,7 +141,10 @@ export class DLOBSubscriber {
 					marketAccount: this.driftClient.getPerpMarketAccount(marketIndex),
 					oraclePriceData,
 					numOrders: numVammOrders ?? depth,
-					topOfBookQuoteAmounts: marketIndex < 3  ? MAJORS_TOP_OF_BOOK_QUOTE_AMOUNTS : DEFAULT_TOP_OF_BOOK_QUOTE_AMOUNTS,
+					topOfBookQuoteAmounts:
+						marketIndex < 3
+							? MAJORS_TOP_OF_BOOK_QUOTE_AMOUNTS
+							: DEFAULT_TOP_OF_BOOK_QUOTE_AMOUNTS,
 				}),
 			];
 		}
