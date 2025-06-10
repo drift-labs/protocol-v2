@@ -79,7 +79,9 @@ pub struct LPPool {
 
     pub bump: u8,
 
-    pub _padding: [u8; 12],
+    pub usdc_consituent_index: u16,
+
+    pub _padding: [u8; 10],
 }
 
 impl Size for LPPool {
@@ -197,13 +199,17 @@ impl LPPool {
         in_target_weight: i64,
         dlp_total_supply: u64,
     ) -> DriftResult<(u64, u64, i64, i64)> {
-        let in_fee_pct = self.get_swap_fees(
-            in_spot_market,
-            in_oracle,
-            in_constituent,
-            in_amount.cast::<i64>()?,
-            in_target_weight,
-        )?;
+        let in_fee_pct = if self.last_aum == 0 {
+            0
+        } else {
+            self.get_swap_fees(
+                in_spot_market,
+                in_oracle,
+                in_constituent,
+                in_amount.cast::<i64>()?,
+                in_target_weight,
+            )?
+        };
         let in_fee_amount = in_amount
             .cast::<i64>()?
             .safe_mul(in_fee_pct)?
@@ -212,6 +218,7 @@ impl LPPool {
         let in_amount_less_fees = in_amount
             .cast::<i128>()?
             .safe_sub(in_fee_amount as i128)?
+            .max(0)
             .cast::<u128>()?;
 
         let token_precision_denominator = 10_u128.pow(in_spot_market.decimals);
@@ -434,7 +441,7 @@ pub struct Constituent {
 
     pub decimals: u8,
     pub bump: u8,
-    _padding1: [u8; 2],
+    pub constituent_derivative_index: i16, // -1 if a parent index
 
     /// max deviation from target_weight allowed for the constituent
     /// precision: PERCENTAGE_PRECISION
@@ -469,9 +476,9 @@ pub struct Constituent {
     /// Every swap to/from this constituent has a monotonically increasing id. This is the next id to use
     pub next_swap_id: u64,
 
-    /// percentable of stablecoin weight to go to this specific stablecoin PERCENTAGE_PRECISION
-    /// ZERO for non-stablecoins
-    pub stablecoin_weight: u64,
+    /// percentable of derivatve weight to go to this specific derivative PERCENTAGE_PRECISION. Zero if no derivative weight
+    pub derivative_weight: u64,
+
     pub flash_loan_initial_token_amount: u64,
 }
 
@@ -740,7 +747,6 @@ impl<'a> AccountZeroCopy<'a, TargetsDatum, ConstituentTargetBaseFixed> {
         let datum = self.get(constituent_index as u32);
         let target_weight = calculate_target_weight(
             datum.target_base,
-            datum.cost_to_trade_bps,
             &spot_market,
             price,
             aum,
@@ -752,7 +758,6 @@ impl<'a> AccountZeroCopy<'a, TargetsDatum, ConstituentTargetBaseFixed> {
 
 pub fn calculate_target_weight(
     target_base: i64,
-    cost_to_trade_bps: i32,
     spot_market: &SpotMarket,
     price: i64,
     lp_pool_aum: u128,
@@ -760,7 +765,7 @@ pub fn calculate_target_weight(
 ) -> DriftResult<i64> {
     let notional: i128 = (target_base as i128)
         .safe_mul(price as i128)?
-        .safe_div(BASE_PRECISION_I128)?;
+        .safe_div(10_i128.pow(spot_market.decimals))?;
 
     let target_weight = notional
         .safe_mul(PERCENTAGE_PRECISION_I128)?
@@ -797,14 +802,18 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
         mapping: &AccountZeroCopy<'a, AmmConstituentDatum, AmmConstituentMappingFixed>,
         // (perp market index, inventory, price)
         amm_inventory_and_prices: &[(u16, i64, i64)],
-        constituents_indexes_and_prices: &[(u16, i64)],
+        constituents_indexes_and_decimals_and_prices: &[(u16, u8, i64)],
         slot: u64,
     ) -> DriftResult<Vec<i128>> {
-        let mut results = Vec::with_capacity(constituents_indexes_and_prices.len());
-        for (i, constituent_index_and_price) in constituents_indexes_and_prices.iter().enumerate() {
+        let mut results = Vec::with_capacity(constituents_indexes_and_decimals_and_prices.len());
+        for (i, constituent_index_and_price) in constituents_indexes_and_decimals_and_prices
+            .iter()
+            .enumerate()
+        {
             let mut target_notional = 0i128;
             let constituent_index = constituent_index_and_price.0;
-            let price = constituent_index_and_price.1;
+            let decimals = constituent_index_and_price.1;
+            let price = constituent_index_and_price.2;
 
             for (perp_market_index, inventory, price) in amm_inventory_and_prices.iter() {
                 let idx = mapping.iter().position(|d| {
@@ -833,7 +842,7 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
 
             let cell = self.get_mut(i as u32);
             let target_base = target_notional
-                .safe_mul(BASE_PRECISION_I128)?
+                .safe_mul(10_i128.pow(decimals as u32))?
                 .safe_div(price as i128)?
                 * -1; // Want to target opposite sign of total scaled notional inventory
 

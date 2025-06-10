@@ -7385,7 +7385,13 @@
           "type": "i32"
         },
         {
-          "name": "stablecoinWeight",
+          "name": "constituentDerivativeIndex",
+          "type": {
+            "option": "i16"
+          }
+        },
+        {
+          "name": "derivativeWeight",
           "type": "u64"
         }
       ]
@@ -7573,7 +7579,7 @@
         },
         {
           "name": "constituentTargetBase",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         },
         {
@@ -8669,11 +8675,15 @@
             "type": "u8"
           },
           {
+            "name": "usdcConsituentIndex",
+            "type": "u16"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                12
+                10
               ]
             }
           }
@@ -8716,13 +8726,8 @@
             "type": "u8"
           },
           {
-            "name": "padding1",
-            "type": {
-              "array": [
-                "u8",
-                2
-              ]
-            }
+            "name": "constituentDerivativeIndex",
+            "type": "i16"
           },
           {
             "name": "maxWeightDeviation",
@@ -8803,10 +8808,9 @@
             "type": "u64"
           },
           {
-            "name": "stablecoinWeight",
+            "name": "derivativeWeight",
             "docs": [
-              "percentable of stablecoin weight to go to this specific stablecoin PERCENTAGE_PRECISION",
-              "ZERO for non-stablecoins"
+              "percentable of derivatve weight to go to this specific derivative PERCENTAGE_PRECISION. Zero if no derivative weight"
             ],
             "type": "u64"
           },
@@ -10580,7 +10584,13 @@
             }
           },
           {
-            "name": "stablecoinWeight",
+            "name": "constituentDerivativeIndex",
+            "type": {
+              "option": "i16"
+            }
+          },
+          {
+            "name": "derivativeWeight",
             "type": {
               "option": "u64"
             }
