@@ -12,6 +12,7 @@ import { DriftClient } from '../driftClient';
 import { isVariant, MarketType } from '../types';
 import {
 	DEFAULT_TOP_OF_BOOK_QUOTE_AMOUNTS,
+	MAJORS_TOP_OF_BOOK_QUOTE_AMOUNTS,
 	getVammL2Generator,
 	L2OrderBook,
 	L2OrderBookGenerator,
@@ -140,7 +141,7 @@ export class DLOBSubscriber {
 					marketAccount: this.driftClient.getPerpMarketAccount(marketIndex),
 					oraclePriceData,
 					numOrders: numVammOrders ?? depth,
-					topOfBookQuoteAmounts: DEFAULT_TOP_OF_BOOK_QUOTE_AMOUNTS,
+					topOfBookQuoteAmounts: marketIndex < 3  ? MAJORS_TOP_OF_BOOK_QUOTE_AMOUNTS : DEFAULT_TOP_OF_BOOK_QUOTE_AMOUNTS,
 				}),
 			];
 		}
