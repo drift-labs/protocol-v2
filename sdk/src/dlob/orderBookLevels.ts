@@ -22,7 +22,6 @@ import {
 	standardizeBaseAssetAmount,
 } from '..';
 import { PublicKey } from '@solana/web3.js';
-import { assert } from '../assert/assert';
 
 type liquiditySource =
 	| 'serum'
