@@ -69,6 +69,13 @@ export const DEFAULT_TOP_OF_BOOK_QUOTE_AMOUNTS = [
 	new BN(5000).mul(QUOTE_PRECISION),
 ];
 
+export const MAJORS_TOP_OF_BOOK_QUOTE_AMOUNTS = [
+	new BN(5000).mul(QUOTE_PRECISION),
+	new BN(10000).mul(QUOTE_PRECISION),
+	new BN(20000).mul(QUOTE_PRECISION),
+	new BN(50000).mul(QUOTE_PRECISION),
+];
+
 /**
  * Get an {@link Generator<L2Level>} generator from a {@link Generator<DLOBNode>}
  * @param dlobNodes e.g. {@link DLOB#getRestingLimitAsks} or {@link DLOB#getRestingLimitBids}
