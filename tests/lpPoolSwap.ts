@@ -30,6 +30,7 @@ import {
 	ZERO,
 	getSerumSignerPublicKey,
 	BN_MAX,
+	isVariant,
 } from '../sdk/src';
 import {
 	initializeQuoteSpotMarket,
@@ -70,6 +71,8 @@ describe('LP Pool', () => {
 	let serumWSOL: PublicKey;
 	let serumUSDC: PublicKey;
 	let serumKeypair: Keypair;
+
+	let adminSolAta: PublicKey;
 
 	let openOrdersAccount: PublicKey;
 
@@ -207,6 +210,12 @@ describe('LP Pool', () => {
 			imfFactor
 		);
 
+		adminSolAta = await createWSolTokenAccountForUser(
+			bankrunContextWrapper,
+			adminClient.wallet.payer,
+			new BN(20 * 10 ** 9) // 10 SOL
+		);
+
 		await adminClient.initializeLpPool(
 			lpPoolName,
 			new BN(100), // 1 bps
@@ -245,6 +254,18 @@ describe('LP Pool', () => {
 			new BN(100)
 		);
 		await adminClient.updateSpotAuctionDuration(0);
+
+		await adminClient.deposit(
+			new BN(5 * 10 ** 9), // 10 SOL
+			2, // market index
+			adminSolAta // user token account
+		);
+
+		await adminClient.depositIntoSpotMarketVault(
+			2,
+			new BN(4 * 10 ** 9), // 4 SOL
+			adminSolAta
+		);
 
 		[serumDriftClient, serumWSOL, serumUSDC, serumKeypair] =
 			await createUserWithUSDCAndWSOLAccount(
@@ -653,7 +674,7 @@ describe('LP Pool', () => {
 		openOrdersAccount = adminOpenOrdersAccount.publicKey;
 	});
 
-	it('swap usdc for sol', async () => {
+	it('swap sol for usdc', async () => {
 		// Initialize new constituent for market 2
 		await adminClient.initializeConstituent(
 			encodeName(lpPoolName),
@@ -806,5 +827,57 @@ describe('LP Pool', () => {
 
 		expect(usdcDiff).to.be.equal(-100040000);
 		expect(solDiff).to.be.equal(1000000000);
+	});
+
+	it('deposit and withdraw atomically before swapping', async () => {
+		const beforeSOLBalance = +(
+			await bankrunContextWrapper.connection.getTokenAccount(
+				getConstituentVaultPublicKey(program.programId, lpPoolKey, 2)
+			)
+		).amount.toString();
+		const beforeUSDCBalance = +(
+			await bankrunContextWrapper.connection.getTokenAccount(
+				getConstituentVaultPublicKey(program.programId, lpPoolKey, 0)
+			)
+		).amount.toString();
+
+		await adminClient.depositWithdrawToProgramVault(
+			encodeName(lpPoolName),
+			0,
+			2,
+			new BN(400).mul(QUOTE_PRECISION), // 100 USDC
+			new BN(2 * 10 ** 9) // 100 USDC
+		);
+
+		const afterSOLBalance = +(
+			await bankrunContextWrapper.connection.getTokenAccount(
+				getConstituentVaultPublicKey(program.programId, lpPoolKey, 2)
+			)
+		).amount.toString();
+		const afterUSDCBalance = +(
+			await bankrunContextWrapper.connection.getTokenAccount(
+				getConstituentVaultPublicKey(program.programId, lpPoolKey, 0)
+			)
+		).amount.toString();
+
+		const solDiff = afterSOLBalance - beforeSOLBalance;
+		const usdcDiff = afterUSDCBalance - beforeUSDCBalance;
+
+		console.log(
+			`in Token:  ${beforeUSDCBalance} -> ${afterUSDCBalance} (${usdcDiff})`
+		);
+		console.log(
+			`out Token: ${beforeSOLBalance} -> ${afterSOLBalance} (${solDiff})`
+		);
+
+		expect(usdcDiff).to.be.equal(-400000000);
+		expect(solDiff).to.be.equal(2000000000);
+
+		const constituent = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 2)
+		)) as ConstituentAccount;
+
+		assert(constituent.spotBalance.scaledBalance.eq(new BN(2000000001)));
+		assert(isVariant(constituent.spotBalance.balanceType, 'borrow'));
 	});
 });
