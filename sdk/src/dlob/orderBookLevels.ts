@@ -17,6 +17,9 @@ import {
 	standardizePrice,
 	SwapDirection,
 	ZERO,
+	PRICE_PRECISION,
+	AMM_TO_QUOTE_PRECISION_RATIO,
+	standardizeBaseAssetAmount,
 } from '..';
 import { PublicKey } from '@solana/web3.js';
 import { assert } from '../assert/assert';
@@ -64,6 +67,13 @@ export const DEFAULT_TOP_OF_BOOK_QUOTE_AMOUNTS = [
 	new BN(1000).mul(QUOTE_PRECISION),
 	new BN(2000).mul(QUOTE_PRECISION),
 	new BN(5000).mul(QUOTE_PRECISION),
+];
+
+export const MAJORS_TOP_OF_BOOK_QUOTE_AMOUNTS = [
+	new BN(5000).mul(QUOTE_PRECISION),
+	new BN(10000).mul(QUOTE_PRECISION),
+	new BN(20000).mul(QUOTE_PRECISION),
+	new BN(50000).mul(QUOTE_PRECISION),
 ];
 
 /**
@@ -162,8 +172,8 @@ export function getVammL2Generator({
 	marketAccount,
 	oraclePriceData,
 	numOrders,
-	now,
-	topOfBookQuoteAmounts,
+	now = new BN(Math.floor(Date.now() / 1000)),
+	topOfBookQuoteAmounts = [],
 }: {
 	marketAccount: PerpMarketAccount;
 	oraclePriceData: OraclePriceData;
@@ -171,20 +181,12 @@ export function getVammL2Generator({
 	now?: BN;
 	topOfBookQuoteAmounts?: BN[];
 }): L2OrderBookGenerator {
-	let numBaseOrders = numOrders;
-	if (topOfBookQuoteAmounts) {
-		numBaseOrders = numOrders - topOfBookQuoteAmounts.length;
-		assert(topOfBookQuoteAmounts.length < numOrders);
-	}
-
 	const updatedAmm = calculateUpdatedAMM(marketAccount.amm, oraclePriceData);
-
-	const vammFillsDisabled = isOperationPaused(
+	const paused = isOperationPaused(
 		marketAccount.pausedOperations,
 		PerpOperation.AMM_FILL
 	);
-
-	let [openBids, openAsks] = vammFillsDisabled
+	let [openBids, openAsks] = paused
 		? [ZERO, ZERO]
 		: calculateMarketOpenBidAsk(
 				updatedAmm.baseAssetReserve,
@@ -193,16 +195,10 @@ export function getVammL2Generator({
 				updatedAmm.orderStepSize
 		  );
 
-	const minOrderSize = marketAccount.amm.minOrderSize;
-	if (openBids.lt(minOrderSize.muln(2))) {
-		openBids = ZERO;
-	}
-
-	if (openAsks.abs().lt(minOrderSize.muln(2))) {
+	if (openBids.lt(marketAccount.amm.minOrderSize.muln(2))) openBids = ZERO;
+	if (openAsks.abs().lt(marketAccount.amm.minOrderSize.muln(2)))
 		openAsks = ZERO;
-	}
 
-	now = now ?? new BN(Date.now() / 1000);
 	const [bidReserves, askReserves] = calculateSpreadReserves(
 		updatedAmm,
 		oraclePriceData,
@@ -210,177 +206,99 @@ export function getVammL2Generator({
 		isVariant(marketAccount.contractType, 'prediction')
 	);
 
-	let numBids = 0;
-
-	let topOfBookBidSize = ZERO;
-	let bidSize = openBids.div(new BN(numBaseOrders));
-	const bidAmm = {
-		baseAssetReserve: bidReserves.baseAssetReserve,
-		quoteAssetReserve: bidReserves.quoteAssetReserve,
-		sqrtK: updatedAmm.sqrtK,
+	const numBaseOrders = Math.max(1, numOrders - topOfBookQuoteAmounts.length);
+	const commonOpts = {
+		numOrders,
+		numBaseOrders,
+		oraclePriceData,
+		orderTickSize: marketAccount.amm.orderTickSize,
+		orderStepSize: marketAccount.amm.orderStepSize,
 		pegMultiplier: updatedAmm.pegMultiplier,
+		sqrtK: updatedAmm.sqrtK,
+		topOfBookQuoteAmounts,
 	};
 
-	const getL2Bids = function* () {
-		while (numBids < numOrders && bidSize.gt(ZERO)) {
-			let quoteSwapped = ZERO;
-			let baseSwapped = ZERO;
-			let [afterSwapQuoteReserves, afterSwapBaseReserves] = [ZERO, ZERO];
-
-			if (topOfBookQuoteAmounts && numBids < topOfBookQuoteAmounts?.length) {
-				const remainingBaseLiquidity = openBids.sub(topOfBookBidSize);
-				quoteSwapped = topOfBookQuoteAmounts[numBids];
-				[afterSwapQuoteReserves, afterSwapBaseReserves] =
-					calculateAmmReservesAfterSwap(
-						bidAmm,
-						'quote',
-						quoteSwapped,
-						SwapDirection.REMOVE
-					);
-
-				baseSwapped = bidAmm.baseAssetReserve.sub(afterSwapBaseReserves).abs();
-				if (baseSwapped.eq(ZERO)) {
-					return;
-				}
-				if (remainingBaseLiquidity.lt(baseSwapped)) {
-					baseSwapped = remainingBaseLiquidity;
-					[afterSwapQuoteReserves, afterSwapBaseReserves] =
-						calculateAmmReservesAfterSwap(
-							bidAmm,
-							'base',
-							baseSwapped,
-							SwapDirection.ADD
-						);
-
-					quoteSwapped = calculateQuoteAssetAmountSwapped(
-						bidAmm.quoteAssetReserve.sub(afterSwapQuoteReserves).abs(),
-						bidAmm.pegMultiplier,
-						SwapDirection.ADD
-					);
-				}
-				topOfBookBidSize = topOfBookBidSize.add(baseSwapped);
-				bidSize = openBids.sub(topOfBookBidSize).div(new BN(numBaseOrders));
-			} else {
-				baseSwapped = bidSize;
-				[afterSwapQuoteReserves, afterSwapBaseReserves] =
-					calculateAmmReservesAfterSwap(
-						bidAmm,
-						'base',
-						baseSwapped,
-						SwapDirection.ADD
-					);
-
-				quoteSwapped = calculateQuoteAssetAmountSwapped(
-					bidAmm.quoteAssetReserve.sub(afterSwapQuoteReserves).abs(),
-					bidAmm.pegMultiplier,
-					SwapDirection.ADD
-				);
-			}
-
-			const price = quoteSwapped.mul(BASE_PRECISION).div(baseSwapped);
-
-			bidAmm.baseAssetReserve = afterSwapBaseReserves;
-			bidAmm.quoteAssetReserve = afterSwapQuoteReserves;
-
-			yield {
-				price,
-				size: baseSwapped,
-				sources: { vamm: baseSwapped },
+	const makeL2Gen = ({
+		openLiquidity,
+		startReserves,
+		swapDir,
+		positionDir,
+	}: {
+		openLiquidity: BN;
+		startReserves: { baseAssetReserve: BN; quoteAssetReserve: BN };
+		swapDir: SwapDirection;
+		positionDir: PositionDirection;
+	}) => {
+		return function* () {
+			let count = 0;
+			let topSize = ZERO;
+			let size = openLiquidity.abs().divn(commonOpts.numBaseOrders);
+			const amm = {
+				...startReserves,
+				sqrtK: commonOpts.sqrtK,
+				pegMultiplier: commonOpts.pegMultiplier,
 			};
 
-			numBids++;
-		}
-	};
-
-	let numAsks = 0;
-	let topOfBookAskSize = ZERO;
-	let askSize = openAsks.abs().div(new BN(numBaseOrders));
-	const askAmm = {
-		baseAssetReserve: askReserves.baseAssetReserve,
-		quoteAssetReserve: askReserves.quoteAssetReserve,
-		sqrtK: updatedAmm.sqrtK,
-		pegMultiplier: updatedAmm.pegMultiplier,
-	};
-
-	const getL2Asks = function* () {
-		while (numAsks < numOrders && askSize.gt(ZERO)) {
-			let quoteSwapped: BN = ZERO;
-			let baseSwapped: BN = ZERO;
-			let [afterSwapQuoteReserves, afterSwapBaseReserves] = [ZERO, ZERO];
-
-			if (topOfBookQuoteAmounts && numAsks < topOfBookQuoteAmounts?.length) {
-				const remainingBaseLiquidity = openAsks
-					.mul(new BN(-1))
-					.sub(topOfBookAskSize);
-				quoteSwapped = topOfBookQuoteAmounts[numAsks];
-				[afterSwapQuoteReserves, afterSwapBaseReserves] =
-					calculateAmmReservesAfterSwap(
-						askAmm,
-						'quote',
-						quoteSwapped,
-						SwapDirection.ADD
-					);
-
-				baseSwapped = askAmm.baseAssetReserve.sub(afterSwapBaseReserves).abs();
-				if (baseSwapped.eq(ZERO)) {
-					return;
+			while (count < commonOpts.numOrders && size.gt(ZERO)) {
+				let baseSwap = size;
+				if (count < commonOpts.topOfBookQuoteAmounts.length) {
+					const raw = commonOpts.topOfBookQuoteAmounts[count]
+						.mul(AMM_TO_QUOTE_PRECISION_RATIO)
+						.mul(PRICE_PRECISION)
+						.div(commonOpts.oraclePriceData.price);
+					baseSwap = standardizeBaseAssetAmount(raw, commonOpts.orderStepSize);
+					const remaining = openLiquidity.abs().sub(topSize);
+					if (remaining.lt(baseSwap)) baseSwap = remaining;
 				}
-				if (remainingBaseLiquidity.lt(baseSwapped)) {
-					baseSwapped = remainingBaseLiquidity;
-					[afterSwapQuoteReserves, afterSwapBaseReserves] =
-						calculateAmmReservesAfterSwap(
-							askAmm,
-							'base',
-							baseSwapped,
-							SwapDirection.REMOVE
-						);
+				if (baseSwap.isZero()) return;
 
-					quoteSwapped = calculateQuoteAssetAmountSwapped(
-						askAmm.quoteAssetReserve.sub(afterSwapQuoteReserves).abs(),
-						askAmm.pegMultiplier,
-						SwapDirection.REMOVE
-					);
-				}
-				topOfBookAskSize = topOfBookAskSize.add(baseSwapped);
-				askSize = openAsks
-					.abs()
-					.sub(topOfBookAskSize)
-					.div(new BN(numBaseOrders));
-			} else {
-				baseSwapped = askSize;
-				[afterSwapQuoteReserves, afterSwapBaseReserves] =
-					calculateAmmReservesAfterSwap(
-						askAmm,
-						'base',
-						askSize,
-						SwapDirection.REMOVE
-					);
-
-				quoteSwapped = calculateQuoteAssetAmountSwapped(
-					askAmm.quoteAssetReserve.sub(afterSwapQuoteReserves).abs(),
-					askAmm.pegMultiplier,
-					SwapDirection.REMOVE
+				const [newQuoteRes, newBaseRes] = calculateAmmReservesAfterSwap(
+					amm,
+					'base',
+					baseSwap,
+					swapDir
 				);
+				const quoteSwapped = calculateQuoteAssetAmountSwapped(
+					amm.quoteAssetReserve.sub(newQuoteRes).abs(),
+					amm.pegMultiplier,
+					swapDir
+				);
+				const price = standardizePrice(
+					quoteSwapped.mul(BASE_PRECISION).div(baseSwap),
+					commonOpts.orderTickSize,
+					positionDir
+				);
+
+				amm.baseAssetReserve = newBaseRes;
+				amm.quoteAssetReserve = newQuoteRes;
+
+				if (count < commonOpts.topOfBookQuoteAmounts.length) {
+					topSize = topSize.add(baseSwap);
+					size = openLiquidity
+						.abs()
+						.sub(topSize)
+						.divn(commonOpts.numBaseOrders);
+				}
+
+				yield { price, size: baseSwap, sources: { vamm: baseSwap } };
+				count++;
 			}
-
-			const price = quoteSwapped.mul(BASE_PRECISION).div(baseSwapped);
-
-			askAmm.baseAssetReserve = afterSwapBaseReserves;
-			askAmm.quoteAssetReserve = afterSwapQuoteReserves;
-
-			yield {
-				price,
-				size: baseSwapped,
-				sources: { vamm: baseSwapped },
-			};
-
-			numAsks++;
-		}
+		};
 	};
 
 	return {
-		getL2Bids,
-		getL2Asks,
+		getL2Bids: makeL2Gen({
+			openLiquidity: openBids,
+			startReserves: bidReserves,
+			swapDir: SwapDirection.ADD,
+			positionDir: PositionDirection.LONG,
+		}),
+		getL2Asks: makeL2Gen({
+			openLiquidity: openAsks,
+			startReserves: askReserves,
+			swapDir: SwapDirection.REMOVE,
+			positionDir: PositionDirection.SHORT,
+		}),
 	};
 }
 
