@@ -46,12 +46,10 @@ pub enum OrderParamsBitFlag {
 
 impl OrderParams {
     pub fn has_valid_auction_params(&self) -> DriftResult<bool> {
-        if self.auction_duration.is_none()
-            || self.auction_start_price.is_none()
-            || self.auction_end_price.is_none()
+        if self.auction_duration.is_some()
+            && self.auction_start_price.is_some()
+            && self.auction_end_price.is_some()
         {
-            return Ok(false);
-        } else {
             if self.direction == PositionDirection::Long {
                 return Ok(self.auction_start_price.safe_unwrap()?
                     <= self.auction_end_price.safe_unwrap()?);
@@ -59,6 +57,14 @@ impl OrderParams {
                 return Ok(self.auction_start_price.safe_unwrap()?
                     >= self.auction_end_price.safe_unwrap()?);
             }
+        } else if self.order_type == OrderType::Limit
+            && self.auction_duration.is_none()
+            && self.auction_start_price.is_none()
+            && self.auction_end_price.is_none()
+        {
+            return Ok(true);
+        } else {
+            return Ok(false);
         }
     }
 
