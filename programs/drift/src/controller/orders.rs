@@ -1115,7 +1115,8 @@ pub fn fill_perp_order(
         oracle_validity = _oracle_validity;
         perp_market_index = market.market_index;
 
-        min_auction_duration = market.get_min_perp_auction_duration(state.min_perp_auction_duration);
+        min_auction_duration =
+            market.get_min_perp_auction_duration(state.min_perp_auction_duration);
     }
 
     // allow oracle price to be used to calculate limit price if it's valid or stale for amm
