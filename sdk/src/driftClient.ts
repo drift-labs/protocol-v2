@@ -327,42 +327,8 @@ export class DriftClient {
 			: new Map<string, number[]>();
 
 		this.includeDelegates = config.includeDelegates ?? false;
-		if (config.accountSubscription?.type === 'polling') {
-			this.userAccountSubscriptionConfig = {
-				type: 'polling',
-				accountLoader: config.accountSubscription.accountLoader,
-			};
-			this.userStatsAccountSubscriptionConfig = {
-				type: 'polling',
-				accountLoader: config.accountSubscription.accountLoader,
-			};
-		} else if (config.accountSubscription?.type === 'grpc') {
-			this.userAccountSubscriptionConfig = {
-				type: 'grpc',
-				resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
-				logResubMessages: config.accountSubscription?.logResubMessages,
-				grpcConfigs: config.accountSubscription?.grpcConfigs,
-			};
-			this.userStatsAccountSubscriptionConfig = {
-				type: 'grpc',
-				grpcConfigs: config.accountSubscription?.grpcConfigs,
-				resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
-				logResubMessages: config.accountSubscription?.logResubMessages,
-			};
-		} else {
-			this.userAccountSubscriptionConfig = {
-				type: 'websocket',
-				resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
-				logResubMessages: config.accountSubscription?.logResubMessages,
-				commitment: config.accountSubscription?.commitment,
-			};
-			this.userStatsAccountSubscriptionConfig = {
-				type: 'websocket',
-				resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
-				logResubMessages: config.accountSubscription?.logResubMessages,
-				commitment: config.accountSubscription?.commitment,
-			};
-		}
+
+		this.setUserSubscriptionConfigs(config);
 
 		if (config.userStats) {
 			this.userStats = new UserStats({
@@ -371,7 +337,7 @@ export class DriftClient {
 					this.program.programId,
 					this.authority
 				),
-				accountSubscription: this.userAccountSubscriptionConfig,
+				accountSubscription: this.userStatsAccountSubscriptionConfig,
 			});
 		}
 
@@ -9742,5 +9708,63 @@ export class DriftClient {
 			lookupTables,
 			forceVersionedTransaction,
 		});
+	}
+
+	private setUserSubscriptionConfigs(config: DriftClientConfig) {
+		if (config.userAccountSubscription) {
+			this.userAccountSubscriptionConfig = config.userAccountSubscription;
+		} else {
+			if (config.accountSubscription?.type === 'polling') {
+				const userAccountSpecificAccountLoader =
+					config.userAccountSubscription?.type === 'polling'
+						? config.userAccountSubscription?.accountLoader
+						: undefined;
+				this.userAccountSubscriptionConfig = {
+					type: 'polling',
+					accountLoader:
+						userAccountSpecificAccountLoader ??
+						config.accountSubscription.accountLoader,
+				};
+			} else if (config.accountSubscription?.type === 'grpc') {
+				this.userAccountSubscriptionConfig = {
+					type: 'grpc',
+					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
+					logResubMessages: config.accountSubscription?.logResubMessages,
+					grpcConfigs: config.accountSubscription?.grpcConfigs,
+				};
+			} else {
+				this.userAccountSubscriptionConfig = {
+					type: 'websocket',
+					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
+					logResubMessages: config.accountSubscription?.logResubMessages,
+					commitment: config.accountSubscription?.commitment,
+				};
+			}
+		}
+		if (config.userStatsAccountSubscription) {
+			this.userStatsAccountSubscriptionConfig =
+				config.userStatsAccountSubscription;
+		} else {
+			if (config.accountSubscription?.type === 'polling') {
+				this.userStatsAccountSubscriptionConfig = {
+					type: 'polling',
+					accountLoader: config.accountSubscription.accountLoader,
+				};
+			} else if (config.accountSubscription?.type === 'grpc') {
+				this.userStatsAccountSubscriptionConfig = {
+					type: 'grpc',
+					grpcConfigs: config.accountSubscription?.grpcConfigs,
+					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
+					logResubMessages: config.accountSubscription?.logResubMessages,
+				};
+			} else {
+				this.userStatsAccountSubscriptionConfig = {
+					type: 'websocket',
+					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
+					logResubMessages: config.accountSubscription?.logResubMessages,
+					commitment: config.accountSubscription?.commitment,
+				};
+			}
+		}
 	}
 }

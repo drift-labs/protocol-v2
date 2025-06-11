@@ -12,6 +12,8 @@ import { DriftEnv } from './config';
 import { TxSender } from './tx/types';
 import { TxHandler, TxHandlerConfig } from './tx/txHandler';
 import { DelistedMarketSetting, GrpcConfigs } from './accounts/types';
+import { UserSubscriptionConfig } from './userConfig';
+import { UserStatsSubscriptionConfig } from './userStatsConfig';
 
 export type DriftClientConfig = {
 	connection: Connection;
@@ -19,6 +21,10 @@ export type DriftClientConfig = {
 	env?: DriftEnv;
 	programID?: PublicKey;
 	accountSubscription?: DriftClientSubscriptionConfig;
+	/** Configuration for how to subscribe to user account updates. If not provided, will use accountSubscription config */
+	userAccountSubscription?: UserSubscriptionConfig;
+	/** Configuration for how to subscribe to user stats account updates. If not provided, will use accountSubscription config */
+	userStatsAccountSubscription?: UserStatsSubscriptionConfig;
 	opts?: ConfirmOptions;
 	txSender?: TxSender;
 	txHandler?: TxHandler;
