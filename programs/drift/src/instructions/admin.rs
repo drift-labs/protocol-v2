@@ -1041,8 +1041,7 @@ pub fn handle_initialize_perp_market(
             target_base_asset_amount_per_lp: 0,
             per_lp_base: 0,
             padding1: 0,
-            taker_speed_bump_override: 0,
-            amm_spread_adjustment: 0,
+            padding2: 0,
             total_fee_earned_per_lp: 0,
             net_unsettled_funding_pnl: 0,
             quote_asset_amount_with_unsettled_lp: 0,
@@ -3911,7 +3910,7 @@ pub fn handle_update_perp_market_number_of_users(
 }
 
 pub fn handle_update_perp_market_fuel(
-    ctx: Context<HotAdminUpdatePerpMarket>,
+    ctx: Context<AdminUpdatePerpMarketFuel>,
     fuel_boost_taker: Option<u8>,
     fuel_boost_maker: Option<u8>,
     fuel_boost_position: Option<u8>,
@@ -3985,46 +3984,6 @@ pub fn handle_update_perp_market_protected_maker_params(
         msg!("perp_market.protected_maker_dynamic_divisor: unchanged");
     }
 
-    Ok(())
-}
-
-#[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
-pub fn handle_update_perp_market_taker_speed_bump_override(
-    ctx: Context<HotAdminUpdatePerpMarket>,
-    taker_speed_bump_override: i8,
-) -> Result<()> {
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    msg!("perp market {}", perp_market.market_index);
-
-    msg!(
-        "perp_market.amm.taker_speed_bump_override: {:?} -> {:?}",
-        perp_market.amm.taker_speed_bump_override,
-        taker_speed_bump_override
-    );
-
-    perp_market.amm.taker_speed_bump_override = taker_speed_bump_override;
-    Ok(())
-}
-
-#[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
-pub fn handle_update_perp_market_amm_spread_adjustment(
-    ctx: Context<HotAdminUpdatePerpMarket>,
-    amm_spread_adjustment: i8,
-) -> Result<()> {
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    msg!("perp market {}", perp_market.market_index);
-
-    msg!(
-        "perp_market.amm.amm_spread_adjustment: {:?} -> {:?}",
-        perp_market.amm.amm_spread_adjustment,
-        amm_spread_adjustment
-    );
-
-    perp_market.amm.amm_spread_adjustment = amm_spread_adjustment;
     Ok(())
 }
 
@@ -4906,7 +4865,7 @@ pub struct AdminUpdatePerpMarket<'info> {
 }
 
 #[derive(Accounts)]
-pub struct HotAdminUpdatePerpMarket<'info> {
+pub struct AdminUpdatePerpMarketFuel<'info> {
     #[account(
         constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
     )]
