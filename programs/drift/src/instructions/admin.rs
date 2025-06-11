@@ -965,7 +965,8 @@ pub fn handle_initialize_perp_market(
         high_leverage_margin_ratio_maintenance: 0,
         protected_maker_limit_price_divisor: 0,
         protected_maker_dynamic_divisor: 0,
-        padding: [0; 36],
+        lp_fee_transfer_scalar: 1,
+        padding: [0; 35],
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
             oracle_source,
@@ -3801,6 +3802,25 @@ pub fn handle_update_perp_market_min_order_size(
     );
 
     perp_market.amm.min_order_size = order_size;
+    Ok(())
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_update_perp_market_lp_pool_fee_transfer_scalar(
+    ctx: Context<AdminUpdatePerpMarket>,
+    lp_fee_transfer_scalar: u8,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
+    msg!(
+        "perp_market.: {:?} -> {:?}",
+        perp_market.lp_fee_transfer_scalar,
+        lp_fee_transfer_scalar
+    );
+
+    perp_market.lp_fee_transfer_scalar = lp_fee_transfer_scalar;
     Ok(())
 }
 

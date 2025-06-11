@@ -9849,6 +9849,7 @@ export class DriftClient {
 			accounts: {
 				keeper: this.wallet.publicKey,
 				ammCache: getAmmCachePublicKey(this.program.programId),
+				quoteMarket: this.getSpotMarketAccount(0).pubkey,
 			},
 			remainingAccounts,
 		});
@@ -10183,6 +10184,77 @@ export class DriftClient {
 			}
 		);
 	}
+
+	async settlePerpToLpPool(
+		lpPoolName: number[],
+		perpMarketIndexes: number[]
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getSettlePerpToLpPoolIx(
+					lpPoolName,
+					perpMarketIndexes
+				),
+				undefined
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getSettlePerpToLpPoolIx(
+			lpPoolName: number[],
+			perpMarketIndexes: number[]
+	): Promise<TransactionInstruction> {
+		const remainingAccounts = [];
+		remainingAccounts.push(...perpMarketIndexes.map((index) => {
+			return {
+				pubkey: this.getPerpMarketAccount(index).amm.oracle,
+				isSigner: false,
+				isWritable: true,
+			};
+		}));
+		remainingAccounts.push(
+			...perpMarketIndexes.map((index) => {
+				return {
+					pubkey: this.getPerpMarketAccount(index).pubkey,
+					isSigner: false,
+					isWritable: true,
+				};
+			})
+		);
+		const quoteSpotMarketAccount = this.getQuoteSpotMarketAccount();
+		const lpPool = getLpPoolPublicKey(
+			this.program.programId,
+			lpPoolName
+		);
+		return this.program.instruction.settlePerpToLpPool({
+			accounts: {
+				driftSigner: this.getSignerPublicKey(),
+				state: await this.getStatePublicKey(),
+				keeper: this.wallet.publicKey,
+				ammCache: getAmmCachePublicKey(this.program.programId),
+				quoteMarket: quoteSpotMarketAccount.pubkey,
+				constituent: getConstituentPublicKey(
+					this.program.programId,
+					lpPool,
+					0 
+				),
+				constituentQuoteTokenAccount: getConstituentVaultPublicKey(
+					this.program.programId,
+					lpPool,
+					0 
+				),
+				lpPool,
+				quoteTokenVault: quoteSpotMarketAccount.vault,
+				tokenProgram: this.getTokenProgramForSpotMarket(quoteSpotMarketAccount),
+				mint: quoteSpotMarketAccount.mint,
+			},
+			remainingAccounts,
+		});
+	}
+
 
 	/**
 	 * Below here are the transaction sending functions

@@ -191,7 +191,7 @@ describe('LP Pool', () => {
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
-			new BN(224 * PEG_PRECISION.toNumber())
+			new BN(200 * PEG_PRECISION.toNumber())
 		);
 
 		await adminClient.updatePerpAuctionDuration(new BN(0));
@@ -605,6 +605,48 @@ describe('LP Pool', () => {
 				.sub(constituentTargetBase.targets[2].targetBase)
 				.lt(constituentTargetBase.targets[1].targetBase.divn(1000))
 		);
+	});
+
+	it('can settle pnl from perp markets into the usdc account', async () => {
+		await adminClient.depositIntoPerpMarketFeePool(
+			0, 
+			new BN(100).mul(QUOTE_PRECISION),
+			await adminClient.getAssociatedTokenAccount(0),
+		);
+
+		await adminClient.depositIntoPerpMarketFeePool(
+			1, 
+			new BN(100).mul(QUOTE_PRECISION),
+			await adminClient.getAssociatedTokenAccount(0),
+		);
+
+		let constituent = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 0)
+		)) as ConstituentAccount;
+		let lpPool = (await adminClient.program.account.lpPool.fetch(
+			lpPoolKey
+		)) as LPPoolAccount;
+
+		const usdcBefore = constituent.tokenBalance;
+		const lpAumBefore = lpPool.lastAum;
+		await adminClient.settlePerpToLpPool(
+			encodeName(lpPoolName),
+			[0, 1, 2],
+		);
+		constituent = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 0)
+		)) as ConstituentAccount;
+		lpPool = (await adminClient.program.account.lpPool.fetch(
+			lpPoolKey
+		)) as LPPoolAccount;
+
+		const usdcAfter = constituent.tokenBalance;
+		const lpAumAfter = lpPool.lastAum;
+		console.log('usdcBefore', usdcBefore.toString());
+		console.log('usdcAfter', usdcAfter.toString());
+		assert(usdcAfter.sub(usdcBefore).gt(QUOTE_PRECISION.muln(200)));
+
+		assert(lpAumAfter.sub(lpAumBefore).gt(QUOTE_PRECISION.muln(200)));
 	});
 
 	it('can update and remove amm constituent mapping entries', async () => {

@@ -7633,6 +7633,11 @@
           "name": "ammCache",
           "isMut": true,
           "isSigner": false
+        },
+        {
+          "name": "quoteMarket",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": []
@@ -8228,6 +8233,67 @@
           "type": "u64"
         }
       ]
+    },
+    {
+      "name": "settlePerpToLpPool",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "lpPool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "keeper",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "ammCache",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "quoteMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "constituent",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "constituentQuoteTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "quoteTokenVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -9197,11 +9263,15 @@
             "type": "u8"
           },
           {
+            "name": "lpFeeTransferScalar",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                36
+                35
               ]
             }
           }
@@ -12212,6 +12282,18 @@
           {
             "name": "oracle",
             "type": "publicKey"
+          },
+          {
+            "name": "ammBalanceAvailable",
+            "type": "i64"
+          },
+          {
+            "name": "lastSettleAmmBalance",
+            "type": "i64"
+          },
+          {
+            "name": "lastSettleTs",
+            "type": "i64"
           },
           {
             "name": "oracleSource",

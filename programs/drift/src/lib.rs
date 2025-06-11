@@ -1880,6 +1880,12 @@ pub mod drift {
     ) -> Result<()> {
         handle_withdraw_from_program_vault(ctx, amount)
     }
+
+    pub fn settle_perp_to_lp_pool<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, SettleAmmPnlToLp<'info>>,
+    ) -> Result<()> {
+        handle_settle_perp_to_lp_pool(ctx)
+    }
 }
 
 #[cfg(not(feature = "no-entrypoint"))]
