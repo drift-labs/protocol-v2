@@ -735,6 +735,14 @@ impl PerpMarket {
             tick_size: self.amm.order_tick_size,
         }
     }
+
+    pub fn get_min_perp_auction_duration(&self, default_min_auction_duration: u8) -> u8 {
+        if self.amm.taker_speed_bump_override != 0 {
+            self.amm.taker_speed_bump_override.max(0).unsigned_abs()
+        } else {
+            default_min_auction_duration
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1034,8 +1042,11 @@ pub struct AMM {
     pub target_base_asset_amount_per_lp: i32,
     /// expo for unit of per_lp, base 10 (if per_lp_base=X, then per_lp unit is 10^X)
     pub per_lp_base: i8,
+    /// the override for the state.min_perp_auction_duration
+    /// 0 is no override, -1 is disable speed bump, 1-100 is literal speed bump
+    pub taker_speed_bump_override: i8,
+    pub amm_spread_adjustment: i8,
     pub padding1: u8,
-    pub padding2: u16,
     pub total_fee_earned_per_lp: u64,
     pub net_unsettled_funding_pnl: i64,
     pub quote_asset_amount_with_unsettled_lp: i64,
@@ -1123,8 +1134,9 @@ impl Default for AMM {
             last_oracle_valid: false,
             target_base_asset_amount_per_lp: 0,
             per_lp_base: 0,
+            taker_speed_bump_override: 0,
+            amm_spread_adjustment: 0,
             padding1: 0,
-            padding2: 0,
             total_fee_earned_per_lp: 0,
             net_unsettled_funding_pnl: 0,
             quote_asset_amount_with_unsettled_lp: 0,
