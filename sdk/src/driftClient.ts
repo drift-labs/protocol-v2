@@ -2539,7 +2539,8 @@ export class DriftClient {
 		associatedTokenAccount: PublicKey,
 		subAccountId?: number,
 		reduceOnly = false,
-		txParams?: TxParams
+		txParams?: TxParams,
+		initSwiftAccount = false
 	): Promise<VersionedTransaction | Transaction> {
 		const instructions = await this.getDepositTxnIx(
 			amount,
@@ -2549,7 +2550,24 @@ export class DriftClient {
 			reduceOnly
 		);
 
-		txParams = { ...(txParams ?? this.txParams), computeUnits: 600_000 };
+		if (initSwiftAccount) {
+			const isSignedMsgUserOrdersAccountInitialized =
+				await this.isSignedMsgUserOrdersAccountInitialized(
+					this.wallet.publicKey
+				);
+
+			if (!isSignedMsgUserOrdersAccountInitialized) {
+				const [, initializeSignedMsgUserOrdersAccountIx] =
+					await this.getInitializeSignedMsgUserOrdersAccountIx(
+						this.wallet.publicKey,
+						8
+					);
+
+				instructions.push(initializeSignedMsgUserOrdersAccountIx);
+			}
+		}
+
+		txParams = { ...(txParams ?? this.txParams), computeUnits: 800_000 };
 
 		const tx = await this.buildTransaction(instructions, txParams);
 
@@ -2571,7 +2589,8 @@ export class DriftClient {
 		associatedTokenAccount: PublicKey,
 		subAccountId?: number,
 		reduceOnly = false,
-		txParams?: TxParams
+		txParams?: TxParams,
+		initSwiftAccount = false
 	): Promise<TransactionSignature> {
 		const tx = await this.createDepositTxn(
 			amount,
@@ -2579,7 +2598,8 @@ export class DriftClient {
 			associatedTokenAccount,
 			subAccountId,
 			reduceOnly,
-			txParams
+			txParams,
+			initSwiftAccount
 		);
 
 		const { txSig, slot } = await this.sendTransaction(tx, [], this.opts);
