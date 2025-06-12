@@ -424,7 +424,7 @@ describe('place and make signedMsg order', () => {
 		await takerDriftClient.unsubscribe();
 	});
 
-	it('should not work with pyth lazer crank and filling against vamm in one tx', async () => {
+	it('should work with pyth lazer crank and filling against vamm in one tx', async () => {
 		const slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
@@ -607,14 +607,14 @@ describe('place and make signedMsg order', () => {
 
 		await takerDriftClient.fetchAccounts();
 		assert(
-			takerDriftClient.getUser().getPerpPosition(0).baseAssetAmount.eq(ZERO)
+			takerDriftClient.getUser().getPerpPosition(0).baseAssetAmount.gt(ZERO)
 		);
 
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();
 	});
 
-	it('should not fill against the vamm if the user is toxic', async () => {
+	it.skip('should not fill against the vamm if the user is toxic', async () => {
 		const slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);

@@ -25,7 +25,7 @@ import {
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpers';
-import { PEG_PRECISION, PostOnlyParams } from '../sdk';
+import { PEG_PRECISION, PerpOperation, PostOnlyParams } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
@@ -121,6 +121,8 @@ describe('place and make perp order', () => {
 			periodicity,
 			new BN(32 * PEG_PRECISION.toNumber())
 		);
+
+		await makerDriftClient.updatePerpMarketPausedOperations(0, PerpOperation.AMM_FILL);
 
 		await makerDriftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
