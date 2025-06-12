@@ -15,8 +15,8 @@ use crate::math::amm::calculate_quote_asset_amount_swapped;
 use crate::math::amm_spread::{calculate_spread_reserves, get_spread_reserves};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    CONCENTRATION_PRECISION, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, K_BPS_UPDATE_SCALE,
-    MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE, MAX_SQRT_K,
+    CONCENTRATION_PRECISION, FEE_ADJUSTMENT_MAX, FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
+    K_BPS_UPDATE_SCALE, MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE, MAX_SQRT_K,
 };
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::repeg::get_total_fee_lower_bound;
@@ -209,7 +209,7 @@ pub fn update_spreads(market: &mut PerpMarket, reserve_price: u64) -> DriftResul
         0
     };
 
-    let (long_spread, short_spread) = if market.amm.curve_update_intensity > 0 {
+    let (mut long_spread, mut short_spread) = if market.amm.curve_update_intensity > 0 {
         amm_spread::calculate_spread(
             market.amm.base_spread,
             market.amm.last_oracle_reserve_price_spread_pct,
@@ -235,6 +235,42 @@ pub fn update_spreads(market: &mut PerpMarket, reserve_price: u64) -> DriftResul
         let half_base_spread = market.amm.base_spread.safe_div(2)?;
         (half_base_spread, half_base_spread)
     };
+
+    if market.amm.amm_spread_adjustment < 0 {
+        long_spread = long_spread
+            .saturating_sub(
+                long_spread
+                    .safe_mul(market.amm.amm_spread_adjustment.unsigned_abs().cast()?)
+                    .unwrap_or(u32::MAX)
+                    .safe_div(100)?,
+            )
+            .max(1);
+        short_spread = short_spread
+            .saturating_sub(
+                short_spread
+                    .safe_mul(market.amm.amm_spread_adjustment.unsigned_abs().cast()?)
+                    .unwrap_or(u32::MAX)
+                    .safe_div(100)?,
+            )
+            .max(1);
+    } else if market.amm.amm_spread_adjustment > 0 {
+        long_spread = long_spread
+            .saturating_add(
+                long_spread
+                    .safe_mul(market.amm.amm_spread_adjustment.cast()?)
+                    .unwrap_or(u32::MAX)
+                    .safe_div_ceil(100)?,
+            )
+            .max(1);
+        short_spread = short_spread
+            .saturating_add(
+                short_spread
+                    .safe_mul(market.amm.amm_spread_adjustment.cast()?)
+                    .unwrap_or(u32::MAX)
+                    .safe_div_ceil(100)?,
+            )
+            .max(1);
+    }
 
     market.amm.long_spread = long_spread;
     market.amm.short_spread = short_spread;

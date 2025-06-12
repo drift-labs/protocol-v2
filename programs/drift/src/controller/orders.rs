@@ -1057,6 +1057,7 @@ pub fn fill_perp_order(
     let amm_lp_allowed_to_jit_make: bool;
     let oracle_valid_for_amm_fill: bool;
     let oracle_stale_for_margin: bool;
+    let min_auction_duration: u8;
     let mut amm_is_available = !state.amm_paused()?;
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
@@ -1105,6 +1106,9 @@ pub fn fill_perp_order(
             .last_oracle_price_twap_5min;
         oracle_validity = _oracle_validity;
         perp_market_index = market.market_index;
+
+        min_auction_duration =
+            market.get_min_perp_auction_duration(state.min_perp_auction_duration);
     }
 
     // allow oracle price to be used to calculate limit price if it's valid or stale for amm
@@ -1280,7 +1284,7 @@ pub fn fill_perp_order(
         valid_oracle_price,
         now,
         slot,
-        state.min_perp_auction_duration,
+        min_auction_duration,
         amm_availability,
         fill_mode,
         oracle_stale_for_margin,
