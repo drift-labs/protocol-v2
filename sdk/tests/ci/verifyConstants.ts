@@ -81,7 +81,12 @@ describe('Verify Constants', function () {
 
 	it('has all mainnet markets', async () => {
 		const errors: string[] = [];
-		const missingLutAddresses: { type: string; marketIndex: number; address: string; description: string }[] = [];
+		const missingLutAddresses: {
+			type: string;
+			marketIndex: number;
+			address: string;
+			description: string;
+		}[] = [];
 
 		const spotMarkets = mainnetDriftClient.getSpotMarketAccounts();
 		spotMarkets.sort((a, b) => a.marketIndex - b.marketIndex);
@@ -90,22 +95,47 @@ describe('Verify Constants', function () {
 			const correspondingConfigMarket = MainnetSpotMarkets.find(
 				(configMarket) => configMarket.marketIndex === market.marketIndex
 			);
-			
+
 			if (correspondingConfigMarket === undefined) {
-				errors.push(`Market ${market.marketIndex} not found in MainnetSpotMarkets. market: ${market.pubkey.toBase58()}`);
+				errors.push(
+					`Market ${
+						market.marketIndex
+					} not found in MainnetSpotMarkets. market: ${market.pubkey.toBase58()}`
+				);
 				continue;
 			}
 
-			if (correspondingConfigMarket.oracle.toBase58() !== market.oracle.toBase58()) {
-				errors.push(`Oracle mismatch for mainnet spot market ${market.marketIndex}, market: ${market.pubkey.toBase58()}, constants: ${correspondingConfigMarket.oracle.toBase58()}, chain: ${market.oracle.toBase58()}`);
+			if (
+				correspondingConfigMarket.oracle.toBase58() !== market.oracle.toBase58()
+			) {
+				errors.push(
+					`Oracle mismatch for mainnet spot market ${
+						market.marketIndex
+					}, market: ${market.pubkey.toBase58()}, constants: ${correspondingConfigMarket.oracle.toBase58()}, chain: ${market.oracle.toBase58()}`
+				);
 			}
 
-			if (getVariant(correspondingConfigMarket.oracleSource) !== getVariant(market.oracleSource)) {
-				errors.push(`Oracle source mismatch for mainnet spot market ${market.marketIndex}, market: ${market.pubkey.toBase58()}, constants: ${getVariant(correspondingConfigMarket.oracleSource)}, chain: ${getVariant(market.oracleSource)}`);
+			if (
+				getVariant(correspondingConfigMarket.oracleSource) !==
+				getVariant(market.oracleSource)
+			) {
+				errors.push(
+					`Oracle source mismatch for mainnet spot market ${
+						market.marketIndex
+					}, market: ${market.pubkey.toBase58()}, constants: ${getVariant(
+						correspondingConfigMarket.oracleSource
+					)}, chain: ${getVariant(market.oracleSource)}`
+				);
 			}
 
-			if (correspondingConfigMarket.mint.toBase58() !== market.mint.toBase58()) {
-				errors.push(`Mint mismatch for mainnet spot market ${market.marketIndex}, market: ${market.pubkey.toBase58()}, constants: ${correspondingConfigMarket.mint.toBase58()}, chain: ${market.mint.toBase58()}`);
+			if (
+				correspondingConfigMarket.mint.toBase58() !== market.mint.toBase58()
+			) {
+				errors.push(
+					`Mint mismatch for mainnet spot market ${
+						market.marketIndex
+					}, market: ${market.pubkey.toBase58()}, constants: ${correspondingConfigMarket.mint.toBase58()}, chain: ${market.mint.toBase58()}`
+				);
 			}
 
 			const lutHasMarket = lutAccounts.includes(market.pubkey.toBase58());
@@ -114,7 +144,7 @@ describe('Verify Constants', function () {
 					type: 'spot',
 					marketIndex: market.marketIndex,
 					address: market.pubkey.toBase58(),
-					description: 'market'
+					description: 'market',
 				});
 			}
 
@@ -124,7 +154,7 @@ describe('Verify Constants', function () {
 					type: 'spot',
 					marketIndex: market.marketIndex,
 					address: market.oracle.toBase58(),
-					description: 'oracle'
+					description: 'oracle',
 				});
 			}
 
@@ -149,18 +179,38 @@ describe('Verify Constants', function () {
 			const correspondingConfigMarket = MainnetPerpMarkets.find(
 				(configMarket) => configMarket.marketIndex === market.marketIndex
 			);
-			
+
 			if (correspondingConfigMarket === undefined) {
-				errors.push(`Market ${market.marketIndex} not found in MainnetPerpMarkets, market: ${market.pubkey.toBase58()}`);
+				errors.push(
+					`Market ${
+						market.marketIndex
+					} not found in MainnetPerpMarkets, market: ${market.pubkey.toBase58()}`
+				);
 				continue;
 			}
 
-			if (correspondingConfigMarket.oracle.toBase58() !== market.amm.oracle.toBase58()) {
-				errors.push(`Oracle mismatch for mainnet perp market ${market.marketIndex}, market: ${market.pubkey.toBase58()}, constants: ${correspondingConfigMarket.oracle.toBase58()}, chain: ${market.amm.oracle.toBase58()}`);
+			if (
+				correspondingConfigMarket.oracle.toBase58() !==
+				market.amm.oracle.toBase58()
+			) {
+				errors.push(
+					`Oracle mismatch for mainnet perp market ${
+						market.marketIndex
+					}, market: ${market.pubkey.toBase58()}, constants: ${correspondingConfigMarket.oracle.toBase58()}, chain: ${market.amm.oracle.toBase58()}`
+				);
 			}
 
-			if (getVariant(correspondingConfigMarket.oracleSource) !== getVariant(market.amm.oracleSource)) {
-				errors.push(`Oracle source mismatch for mainnet perp market ${market.marketIndex}, market: ${market.pubkey.toBase58()}, constants: ${getVariant(correspondingConfigMarket.oracleSource)}, chain: ${getVariant(market.amm.oracleSource)}`);
+			if (
+				getVariant(correspondingConfigMarket.oracleSource) !==
+				getVariant(market.amm.oracleSource)
+			) {
+				errors.push(
+					`Oracle source mismatch for mainnet perp market ${
+						market.marketIndex
+					}, market: ${market.pubkey.toBase58()}, constants: ${getVariant(
+						correspondingConfigMarket.oracleSource
+					)}, chain: ${getVariant(market.amm.oracleSource)}`
+				);
 			}
 
 			const lutHasMarket = lutAccounts.includes(market.pubkey.toBase58());
@@ -169,17 +219,19 @@ describe('Verify Constants', function () {
 					type: 'perp',
 					marketIndex: market.marketIndex,
 					address: market.pubkey.toBase58(),
-					description: 'market'
+					description: 'market',
 				});
 			}
 
-			const lutHasMarketOracle = lutAccounts.includes(market.amm.oracle.toBase58());
+			const lutHasMarketOracle = lutAccounts.includes(
+				market.amm.oracle.toBase58()
+			);
 			if (!lutHasMarketOracle) {
 				missingLutAddresses.push({
 					type: 'perp',
 					marketIndex: market.marketIndex,
 					address: market.amm.oracle.toBase58(),
-					description: 'oracle'
+					description: 'oracle',
 				});
 			}
 
@@ -200,10 +252,16 @@ describe('Verify Constants', function () {
 		// Print all missing LUT addresses
 		if (missingLutAddresses.length > 0) {
 			console.log('\n=== MISSING LUT ADDRESSES ===');
-			missingLutAddresses.forEach(({ type, marketIndex, address, description }) => {
-				console.log(`${type.toUpperCase()} Market ${marketIndex} ${description}: ${address}`);
-			});
-			console.log(`\nTotal missing LUT addresses: ${missingLutAddresses.length}`);
+			missingLutAddresses.forEach(
+				({ type, marketIndex, address, description }) => {
+					console.log(
+						`${type.toUpperCase()} Market ${marketIndex} ${description}: ${address}`
+					);
+				}
+			);
+			console.log(
+				`\nTotal missing LUT addresses: ${missingLutAddresses.length}`
+			);
 		}
 
 		// Print all errors
@@ -218,7 +276,10 @@ describe('Verify Constants', function () {
 		// Fail if there are any issues
 		const totalIssues = errors.length + missingLutAddresses.length;
 		if (totalIssues > 0) {
-			assert(false, `Found ${totalIssues} issues (${errors.length} validation errors, ${missingLutAddresses.length} missing LUT addresses). See details above.`);
+			assert(
+				false,
+				`Found ${totalIssues} issues (${errors.length} validation errors, ${missingLutAddresses.length} missing LUT addresses). See details above.`
+			);
 		}
 	});
 
@@ -232,22 +293,47 @@ describe('Verify Constants', function () {
 			const correspondingConfigMarket = DevnetSpotMarkets.find(
 				(configMarket) => configMarket.marketIndex === market.marketIndex
 			);
-			
+
 			if (correspondingConfigMarket === undefined) {
-				errors.push(`Market ${market.marketIndex} not found in DevnetSpotMarkets, market: ${market.pubkey.toBase58()}`);
+				errors.push(
+					`Market ${
+						market.marketIndex
+					} not found in DevnetSpotMarkets, market: ${market.pubkey.toBase58()}`
+				);
 				continue;
 			}
 
-			if (correspondingConfigMarket.oracle.toBase58() !== market.oracle.toBase58()) {
-				errors.push(`Oracle mismatch for devnet spot market ${market.marketIndex}, market: ${market.pubkey.toBase58()}, constants: ${correspondingConfigMarket.oracle.toBase58()}, chain: ${market.oracle.toBase58()}`);
+			if (
+				correspondingConfigMarket.oracle.toBase58() !== market.oracle.toBase58()
+			) {
+				errors.push(
+					`Oracle mismatch for devnet spot market ${
+						market.marketIndex
+					}, market: ${market.pubkey.toBase58()}, constants: ${correspondingConfigMarket.oracle.toBase58()}, chain: ${market.oracle.toBase58()}`
+				);
 			}
 
-			if (getVariant(correspondingConfigMarket.oracleSource) !== getVariant(market.oracleSource)) {
-				errors.push(`Oracle source mismatch for devnet spot market ${market.marketIndex}, market: ${market.pubkey.toBase58()}, constants: ${getVariant(correspondingConfigMarket.oracleSource)}, chain: ${getVariant(market.oracleSource)}`);
+			if (
+				getVariant(correspondingConfigMarket.oracleSource) !==
+				getVariant(market.oracleSource)
+			) {
+				errors.push(
+					`Oracle source mismatch for devnet spot market ${
+						market.marketIndex
+					}, market: ${market.pubkey.toBase58()}, constants: ${getVariant(
+						correspondingConfigMarket.oracleSource
+					)}, chain: ${getVariant(market.oracleSource)}`
+				);
 			}
 
-			if (correspondingConfigMarket.mint.toBase58() !== market.mint.toBase58()) {
-				errors.push(`Mint mismatch for devnet spot market ${market.marketIndex}, market: ${market.pubkey.toBase58()}, constants: ${correspondingConfigMarket.mint.toBase58()}, chain: ${market.mint.toBase58()}`);
+			if (
+				correspondingConfigMarket.mint.toBase58() !== market.mint.toBase58()
+			) {
+				errors.push(
+					`Mint mismatch for devnet spot market ${
+						market.marketIndex
+					}, market: ${market.pubkey.toBase58()}, constants: ${correspondingConfigMarket.mint.toBase58()}, chain: ${market.mint.toBase58()}`
+				);
 			}
 		}
 
@@ -258,18 +344,38 @@ describe('Verify Constants', function () {
 			const correspondingConfigMarket = DevnetPerpMarkets.find(
 				(configMarket) => configMarket.marketIndex === market.marketIndex
 			);
-			
+
 			if (correspondingConfigMarket === undefined) {
-				errors.push(`Market ${market.marketIndex} not found in DevnetPerpMarkets, market: ${market.pubkey.toBase58()}`);
+				errors.push(
+					`Market ${
+						market.marketIndex
+					} not found in DevnetPerpMarkets, market: ${market.pubkey.toBase58()}`
+				);
 				continue;
 			}
 
-			if (correspondingConfigMarket.oracle.toBase58() !== market.amm.oracle.toBase58()) {
-				errors.push(`Oracle mismatch for devnet perp market ${market.marketIndex}, market: ${market.pubkey.toBase58()}, constants: ${correspondingConfigMarket.oracle.toBase58()}, chain: ${market.amm.oracle.toBase58()}`);
+			if (
+				correspondingConfigMarket.oracle.toBase58() !==
+				market.amm.oracle.toBase58()
+			) {
+				errors.push(
+					`Oracle mismatch for devnet perp market ${
+						market.marketIndex
+					}, market: ${market.pubkey.toBase58()}, constants: ${correspondingConfigMarket.oracle.toBase58()}, chain: ${market.amm.oracle.toBase58()}`
+				);
 			}
 
-			if (getVariant(correspondingConfigMarket.oracleSource) !== getVariant(market.amm.oracleSource)) {
-				errors.push(`Oracle source mismatch for devnet perp market ${market.marketIndex}, market: ${market.pubkey.toBase58()}, constants: ${getVariant(correspondingConfigMarket.oracleSource)}, chain: ${getVariant(market.amm.oracleSource)}`);
+			if (
+				getVariant(correspondingConfigMarket.oracleSource) !==
+				getVariant(market.amm.oracleSource)
+			) {
+				errors.push(
+					`Oracle source mismatch for devnet perp market ${
+						market.marketIndex
+					}, market: ${market.pubkey.toBase58()}, constants: ${getVariant(
+						correspondingConfigMarket.oracleSource
+					)}, chain: ${getVariant(market.amm.oracleSource)}`
+				);
 			}
 		}
 
@@ -284,7 +390,10 @@ describe('Verify Constants', function () {
 
 		// Fail if there are any issues
 		if (errors.length > 0) {
-			assert(false, `Found ${errors.length} devnet validation errors. See details above.`);
+			assert(
+				false,
+				`Found ${errors.length} devnet validation errors. See details above.`
+			);
 		}
 	});
 });
