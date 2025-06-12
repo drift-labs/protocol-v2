@@ -336,9 +336,12 @@ impl PerpMarket {
             return Ok(false);
         }
 
-        let amm_low_inventory_and_profitable =
-            self.amm.net_revenue_since_last_funding > 0 && amm_lp_allowed_to_jit_make;
-        let amm_oracle_no_latency = self.amm.oracle_source == OracleSource::Prelaunch;
+        let amm_low_inventory_and_profitable = self.amm.net_revenue_since_last_funding
+            >= DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT
+            && amm_lp_allowed_to_jit_make;
+        let amm_oracle_no_latency = self.amm.oracle_source == OracleSource::Prelaunch
+            || (self.amm.historical_oracle_data.last_oracle_delay == 0
+                && self.amm.oracle_source == OracleSource::PythLazer);
         let can_skip = amm_low_inventory_and_profitable || amm_oracle_no_latency;
 
         if can_skip {
