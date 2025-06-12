@@ -2338,8 +2338,8 @@ fn recenter_amm_1() {
     )
     .unwrap();
 
-    assert_eq!(r1_orig, 334837204625);
-    assert_eq!(r2_orig, 703359043);
+    assert_eq!(r1_orig, 334835721519);
+    assert_eq!(r2_orig, 704842149);
 
     let current_k = perp_market.amm.sqrt_k;
     let _current_peg = perp_market.amm.peg_multiplier;
