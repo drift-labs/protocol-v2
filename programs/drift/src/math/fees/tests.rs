@@ -346,7 +346,6 @@ mod calculate_fee_for_taker_and_maker {
         assert_eq!(referee_discount, 5000);
     }
 
-
     #[test]
     fn fee_adjustment_free() {
         let quote_asset_amount = 100 * QUOTE_PRECISION_U64;
@@ -511,7 +510,6 @@ mod calculate_fee_for_taker_and_maker {
         assert_eq!(referrer_reward, 0);
         assert_eq!(referee_discount, 0);
     }
-
 
     #[test]
     fn high_leverage_mode() {

@@ -3664,7 +3664,6 @@ pub mod calculate_limit_price_with_buffer {
             limit_price_with_buffer,
             Some(100 * PRICE_PRECISION_U64) // 100
         );
-
     }
 }
 
