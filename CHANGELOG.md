@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: simplify user can skip duration ([#1668](https://github.com/drift-labs/protocol-v2/pull/1668))
 - program: allow limit orders without auctions in swift ([#1661](https://github.com/drift-labs/protocol-v2/pull/1661))
 
 ### Fixes

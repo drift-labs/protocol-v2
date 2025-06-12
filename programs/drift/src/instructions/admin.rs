@@ -5057,10 +5057,10 @@ pub struct AdminUpdatePerpMarketOracle<'info> {
 
 #[derive(Accounts)]
 pub struct AdminDisableBidAskTwapUpdate<'info> {
-    pub admin: Signer<'info>,
     #[account(
-        has_one = admin
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
     )]
+    pub admin: Signer<'info>,
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub user_stats: AccountLoader<'info, UserStats>,

@@ -1095,15 +1095,7 @@ pub fn fill_perp_order(
         amm_can_skip_duration =
             market.can_skip_auction_duration(&state, amm_lp_allowed_to_jit_make)?;
 
-        user_can_skip_duration = user.can_skip_auction_duration(
-            user_stats,
-            order_auction_duration > 0,
-            fill_mode.is_ioc(),
-            order_direction,
-            order_price,
-            order_oracle_price_offset,
-            oracle_price_data.price,
-        )?;
+        user_can_skip_duration = user.can_skip_auction_duration(user_stats)?;
 
         reserve_price_before = market.amm.reserve_price()?;
         oracle_price = oracle_price_data.price;
