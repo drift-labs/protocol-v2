@@ -268,7 +268,7 @@ pub mod fill_order_protected_maker {
         .unwrap();
 
         assert_eq!(base_asset_amount, 1000000000);
-        assert_eq!(quote_asset_amount, 100_000_000); // $100 + 10 bps
+        assert_eq!(quote_asset_amount, 100100000); // $100 + 10 bps
 
         // user exempt, no 10 bps applied for pmm
         let mut taker_stats = UserStats {
