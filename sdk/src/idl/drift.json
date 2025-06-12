@@ -6450,6 +6450,58 @@
       ]
     },
     {
+      "name": "updatePerpMarketTakerSpeedBumpOverride",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "takerSpeedBumpOverride",
+          "type": "i8"
+        }
+      ]
+    },
+    {
+      "name": "updatePerpMarketAmmSpreadAdjustment",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "ammSpreadAdjustment",
+          "type": "i8"
+        }
+      ]
+    },
+    {
       "name": "updateSpotMarketFuel",
       "accounts": [
         {
@@ -7022,6 +7074,12 @@
         {
           "name": "reduceOnly",
           "type": "bool"
+        },
+        {
+          "name": "currentUsers",
+          "type": {
+            "option": "u32"
+          }
         }
       ]
     },
@@ -10455,12 +10513,23 @@
             "type": "i8"
           },
           {
-            "name": "padding1",
-            "type": "u8"
+            "name": "takerSpeedBumpOverride",
+            "docs": [
+              "the override for the state.min_perp_auction_duration",
+              "0 is no override, -1 is disable speed bump, 1-100 is literal speed bump"
+            ],
+            "type": "i8"
           },
           {
-            "name": "padding2",
-            "type": "u16"
+            "name": "ammSpreadAdjustment",
+            "docs": [
+              "signed scale amm_spread similar to fee_adjustment logic (-100 = 0, 100 = double)"
+            ],
+            "type": "i8"
+          },
+          {
+            "name": "padding1",
+            "type": "u8"
           },
           {
             "name": "totalFeeEarnedPerLp",
