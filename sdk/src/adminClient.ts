@@ -3859,6 +3859,86 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async updatePerpMarketTakerSpeedBumpOverride(
+		perpMarketIndex: number,
+		takerSpeedBumpOverride: number
+	): Promise<TransactionSignature> {
+		const updatePerpMarketTakerSpeedBumpOverrideIx =
+			await this.getUpdatePerpMarketTakerSpeedBumpOverrideIx(
+				perpMarketIndex,
+				takerSpeedBumpOverride
+			);
+		const tx = await this.buildTransaction(
+			updatePerpMarketTakerSpeedBumpOverrideIx
+		);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdatePerpMarketTakerSpeedBumpOverrideIx(
+		perpMarketIndex: number,
+		takerSpeedBumpOverride: number
+	): Promise<TransactionInstruction> {
+		const perpMarketPublicKey = await getPerpMarketPublicKey(
+			this.program.programId,
+			perpMarketIndex
+		);
+
+		return await this.program.instruction.updatePerpMarketTakerSpeedBumpOverride(
+			takerSpeedBumpOverride,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: perpMarketPublicKey,
+				},
+			}
+		);
+	}
+
+	public async updatePerpMarketAmmSpreadAdjustment(
+		perpMarketIndex: number,
+		ammSpreadAdjustment: number
+	): Promise<TransactionSignature> {
+		const updatePerpMarketAmmSpreadAdjustmentIx =
+			await this.getUpdatePerpMarketAmmSpreadAdjustmentIx(
+				perpMarketIndex,
+				ammSpreadAdjustment
+			);
+		const tx = await this.buildTransaction(
+			updatePerpMarketAmmSpreadAdjustmentIx
+		);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdatePerpMarketAmmSpreadAdjustmentIx(
+		perpMarketIndex: number,
+		ammSpreadAdjustment: number
+	): Promise<TransactionInstruction> {
+		const perpMarketPublicKey = await getPerpMarketPublicKey(
+			this.program.programId,
+			perpMarketIndex
+		);
+
+		return await this.program.instruction.updatePerpMarketAmmSpreadAdjustment(
+			ammSpreadAdjustment,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: perpMarketPublicKey,
+				},
+			}
+		);
+	}
+
 	public async updatePerpMarketProtectedMakerParams(
 		perpMarketIndex: number,
 		protectedMakerLimitPriceDivisor?: number,

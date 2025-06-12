@@ -971,6 +971,9 @@ export type AMM = {
 	netUnsettledFundingPnl: BN;
 	quoteAssetAmountWithUnsettledLp: BN;
 	referencePriceOffset: number;
+
+	takerSpeedBumpOverride: number;
+	ammSpreadAdjustment: number;
 };
 
 // # User Account Types
