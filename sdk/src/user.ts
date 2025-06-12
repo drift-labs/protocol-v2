@@ -2398,7 +2398,8 @@ export class User {
 		positionBaseSizeChange: BN,
 		estimatedEntryPrice: BN,
 		includeOpenOrders: boolean,
-		enteringHighLeverage = false
+		enteringHighLeverage = false,
+		marginCategory: MarginCategory = 'Maintenance'
 	): BN {
 		let freeCollateralChange = ZERO;
 
@@ -2449,7 +2450,7 @@ export class User {
 			const marginRatio = calculateMarketMarginRatio(
 				market,
 				baseAssetAmount.abs(),
-				'Maintenance',
+				marginCategory,
 				this.getUserAccount().maxMarginRatio,
 				this.isHighLeverageMode() || enteringHighLeverage
 			);
@@ -2763,7 +2764,8 @@ export class User {
 				baseTradeSize,
 				oracleData.price,
 				false,
-				enterHighLeverageMode
+				enterHighLeverageMode,
+				'Initial'
 			);
 
 		while (
@@ -2783,7 +2785,8 @@ export class User {
 					baseTradeSize,
 					oracleData.price,
 					false,
-					enterHighLeverageMode
+					enterHighLeverageMode,
+					'Initial'
 				);
 		}
 
