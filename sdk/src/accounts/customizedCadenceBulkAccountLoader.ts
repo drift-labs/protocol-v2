@@ -120,6 +120,16 @@ export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
 		}
 	}
 
+	public getAccountCadence(publicKey: PublicKey): number | null {
+		const key = publicKey.toBase58();
+		for (const [frequency, group] of this.customPollingGroups.entries()) {
+			if (group.has(key)) {
+				return frequency;
+			}
+		}
+		return null;
+	}
+
 	public startPolling(): void {
 		// Don't start the default polling interval
 		// Only start custom polling for accounts that have custom frequencies
