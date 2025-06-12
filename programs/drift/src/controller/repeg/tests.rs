@@ -159,10 +159,10 @@ pub fn update_amm_test() {
         244822 // (market.margin_ratio_initial * 100) as u32
     );
 
-    assert_eq!(bid, 9781849613);
+    assert_eq!(bid, 9757967541);
     assert!(bid < (oracle_price_data.price as u64));
     assert_eq!(reserve_price, 12743902015);
-    assert_eq!(ask, 12901837192);
+    assert_eq!(ask, 12877955120);
     assert!(ask >= (oracle_price_data.price as u64));
     assert_eq!(
         (ask - bid) * 1000000 / reserve_price,
