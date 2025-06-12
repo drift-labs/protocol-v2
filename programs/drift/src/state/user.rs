@@ -612,51 +612,12 @@ impl User {
         Ok(true)
     }
 
-    pub fn can_skip_auction_duration(
-        &self,
-        user_stats: &UserStats,
-        is_auction: bool,
-        is_ioc: bool,
-        order_direction: PositionDirection,
-        order_price: u64,
-        oracle_price_offset: i32,
-        oracle_price: i64,
-    ) -> DriftResult<bool> {
-        if self.next_order_id > 9000 {
-            return Ok(false);
-        }
-
-        if self.next_order_id > 1000 && (!is_auction || is_ioc) {
-            return Ok(false);
-        }
-
-        if user_stats.number_of_sub_accounts_created > 10 {
-            return Ok(false);
-        }
-
+    pub fn can_skip_auction_duration(&self, user_stats: &UserStats) -> DriftResult<bool> {
         if user_stats.disable_update_perp_bid_ask_twap {
             return Ok(false);
         }
 
-        return if order_price == 0 {
-            Ok(true)
-        } else {
-            let mut order_offset: i64 = if order_price != 0 {
-                order_price.cast::<i64>()?.safe_sub(oracle_price)?
-            } else {
-                oracle_price_offset.cast::<i64>()?
-            };
-
-            if order_direction == PositionDirection::Short {
-                order_offset = -order_offset;
-            }
-
-            // worst price is 10 bps past oracle
-            Ok(order_offset
-                .safe_mul(PERCENTAGE_PRECISION_I64)?
-                .safe_div(oracle_price)?
-                >= 1000)
-        };
+        return Ok(true);
     }
 }
 
