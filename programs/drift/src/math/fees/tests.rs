@@ -347,6 +347,171 @@ mod calculate_fee_for_taker_and_maker {
     }
 
     #[test]
+    fn fee_adjustment_free() {
+        let quote_asset_amount = 100 * QUOTE_PRECISION_U64;
+        let taker_stats = UserStats::default();
+        let mut maker_stats = UserStats::default();
+
+        let FillFees {
+            user_fee: taker_fee,
+            maker_rebate,
+            fee_to_market,
+            filler_reward,
+            referee_discount,
+            referrer_reward,
+            ..
+        } = calculate_fee_for_fulfillment_with_match(
+            &taker_stats,
+            &Some(&mut maker_stats),
+            quote_asset_amount,
+            &FeeStructure::test_default(),
+            0,
+            0,
+            0,
+            false,
+            &None,
+            &MarketType::Perp,
+            -100,
+            false,
+        )
+        .unwrap();
+
+        assert_eq!(taker_fee, 0);
+        assert_eq!(maker_rebate, 0);
+        assert_eq!(fee_to_market, 0);
+        assert_eq!(filler_reward, 0);
+        assert_eq!(referrer_reward, 0);
+        assert_eq!(referee_discount, 0);
+
+        let FillFees {
+            user_fee: taker_fee,
+            maker_rebate,
+            fee_to_market,
+            filler_reward,
+            referee_discount,
+            referrer_reward,
+            ..
+        } = calculate_fee_for_fulfillment_with_match(
+            &taker_stats,
+            &Some(&mut maker_stats),
+            quote_asset_amount,
+            &FeeStructure::test_default(),
+            0,
+            0,
+            0,
+            false,
+            &None,
+            &MarketType::Perp,
+            -100,
+            false,
+        )
+        .unwrap();
+
+        assert_eq!(taker_fee, 0);
+        assert_eq!(maker_rebate, 0);
+        assert_eq!(fee_to_market, 0);
+        assert_eq!(filler_reward, 0);
+        assert_eq!(referrer_reward, 0);
+        assert_eq!(referee_discount, 0);
+
+        // test HLM
+        let FillFees {
+            user_fee: taker_fee,
+            maker_rebate,
+            fee_to_market,
+            filler_reward,
+            referee_discount,
+            referrer_reward,
+            ..
+        } = calculate_fee_for_fulfillment_with_match(
+            &taker_stats,
+            &Some(&mut maker_stats),
+            quote_asset_amount,
+            &FeeStructure::test_default(),
+            0,
+            0,
+            0,
+            false,
+            &None,
+            &MarketType::Perp,
+            -100,
+            true,
+        )
+        .unwrap();
+
+        assert_eq!(taker_fee, 0);
+        assert_eq!(maker_rebate, 0);
+        assert_eq!(fee_to_market, 0);
+        assert_eq!(filler_reward, 0);
+        assert_eq!(referrer_reward, 0);
+        assert_eq!(referee_discount, 0);
+
+        // reward referrer
+        let FillFees {
+            user_fee: taker_fee,
+            maker_rebate,
+            fee_to_market,
+            filler_reward,
+            referee_discount,
+            referrer_reward,
+            ..
+        } = calculate_fee_for_fulfillment_with_match(
+            &taker_stats,
+            &Some(&mut maker_stats),
+            quote_asset_amount,
+            &FeeStructure::test_default(),
+            0,
+            0,
+            0,
+            true,
+            &None,
+            &MarketType::Perp,
+            -100,
+            false,
+        )
+        .unwrap();
+
+        assert_eq!(taker_fee, 0);
+        assert_eq!(maker_rebate, 0);
+        assert_eq!(fee_to_market, 0);
+        assert_eq!(filler_reward, 0);
+        assert_eq!(referrer_reward, 0);
+        assert_eq!(referee_discount, 0);
+
+        // reward referrer + filler
+        let FillFees {
+            user_fee: taker_fee,
+            maker_rebate,
+            fee_to_market,
+            filler_reward,
+            referee_discount,
+            referrer_reward,
+            ..
+        } = calculate_fee_for_fulfillment_with_match(
+            &taker_stats,
+            &Some(&mut maker_stats),
+            quote_asset_amount,
+            &FeeStructure::test_default(),
+            0,
+            0,
+            1,
+            true,
+            &None,
+            &MarketType::Perp,
+            -100,
+            false,
+        )
+        .unwrap();
+
+        assert_eq!(taker_fee, 0);
+        assert_eq!(maker_rebate, 0);
+        assert_eq!(fee_to_market, 0);
+        assert_eq!(filler_reward, 0);
+        assert_eq!(referrer_reward, 0);
+        assert_eq!(referee_discount, 0);
+    }
+
+    #[test]
     fn high_leverage_mode() {
         let quote_asset_amount = 100 * QUOTE_PRECISION_U64;
         let taker_stats = UserStats::default();
