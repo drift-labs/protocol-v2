@@ -5,7 +5,7 @@ import { decodeUTF8 } from 'tweetnacl-util';
 import WebSocket from 'ws';
 
 const SEND_INTERVAL = 500;
-const MAX_BUFFERED_AMOUNT = 10 * 1024; // 10 KB as worst case scenario
+const MAX_BUFFERED_AMOUNT = 20 * 1024; // 20 KB as worst case scenario
 
 type Quote = {
 	bidPrice: BN;
@@ -25,7 +25,7 @@ export class IndicativeQuotesSender {
 	private ws: WebSocket | null = null;
 	private connected = false;
 
-	private quotes: Map<number, Quote> = new Map();
+	private quotes: Map<number, Quote[]> = new Map();
 
 	constructor(
 		private endpoint: string,
@@ -87,15 +87,19 @@ export class IndicativeQuotesSender {
 				) {
 					this.sendQuotesInterval = setInterval(() => {
 						if (this.connected) {
-							for (const [marketIndex, quote] of this.quotes.entries()) {
+							for (const [marketIndex, quotes] of this.quotes.entries()) {
 								const message = {
-									market_type: 'perp',
 									market_index: marketIndex,
-									bid_price: quote.bidPrice.toString(),
-									ask_price: quote.askPrice.toString(),
-									bid_size: quote.bidBaseAssetAmount.toString(),
-									ask_size: quote.askBaseAssetAmount.toString(),
-									is_oracle_offset: quote.isOracleOffset,
+									market_type: 'perp',
+									quotes: quotes.map((quote) => {
+										return {
+											bid_price: quote.bidPrice.toString(),
+											ask_price: quote.askPrice.toString(),
+											bid_size: quote.bidBaseAssetAmount.toString(),
+											ask_size: quote.askBaseAssetAmount.toString(),
+											is_oracle_offset: quote.isOracleOffset,
+										};
+									}),
 								};
 								try {
 									if (
@@ -156,27 +160,37 @@ export class IndicativeQuotesSender {
 		}, this.heartbeatIntervalMs);
 	}
 
-	setQuote(quote: Quote): void {
+	setQuote(newQuotes: Quote | Quote[]): void {
 		if (!this.connected) {
 			console.warn('Setting quote before connected to the server, ignoring');
 		}
-		if (
-			quote.marketIndex == null ||
-			quote.bidPrice == null ||
-			quote.askPrice == null ||
-			quote.bidBaseAssetAmount == null ||
-			quote.askBaseAssetAmount == null
-		) {
-			console.warn(
-				'Received incomplete quote, ignoring and deleting old quote',
-				quote
-			);
-			if (quote.marketIndex != null) {
-				this.quotes.delete(quote.marketIndex);
+		const quotes = Array.isArray(newQuotes) ? newQuotes : [newQuotes];
+		const newQuoteMap = new Map<number, Quote[]>();
+		for (const quote of quotes) {
+			if (
+				quote.marketIndex == null ||
+				quote.bidPrice == null ||
+				quote.askPrice == null ||
+				quote.bidBaseAssetAmount == null ||
+				quote.askBaseAssetAmount == null
+			) {
+				console.warn(
+					'Received incomplete quote, ignoring and deleting old quote',
+					quote
+				);
+				if (quote.marketIndex != null) {
+					this.quotes.delete(quote.marketIndex);
+				}
+				return;
 			}
-			return;
+			if (!newQuoteMap.has(quote.marketIndex)) {
+				newQuoteMap.set(quote.marketIndex, []);
+			}
+			newQuoteMap.get(quote.marketIndex)?.push(quote);
 		}
-		this.quotes.set(quote.marketIndex, quote);
+		for (const marketIndex of newQuoteMap.keys()) {
+			this.quotes.set(marketIndex, newQuoteMap.get(marketIndex));
+		}
 	}
 
 	private reconnect() {
