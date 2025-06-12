@@ -181,7 +181,12 @@ pub mod fill_order_protected_maker {
         let user_account_loader: AccountLoader<User> =
             AccountLoader::try_from(&user_account_info).unwrap();
 
-        create_anchor_account_info!(UserStats::default(), UserStats, user_stats_account_info);
+        let mut taker_stats = UserStats {
+            disable_update_perp_bid_ask_twap: true,
+            ..UserStats::default()
+        };
+
+        create_anchor_account_info!(taker_stats, UserStats, user_stats_account_info);
         let user_stats_account_loader: AccountLoader<UserStats> =
             AccountLoader::try_from(&user_stats_account_info).unwrap();
 
@@ -263,9 +268,18 @@ pub mod fill_order_protected_maker {
         .unwrap();
 
         assert_eq!(base_asset_amount, 1000000000);
-        assert_eq!(quote_asset_amount, 100_000_000 + 100_000_000 / 1000); // $100 + 10 bps
+        assert_eq!(quote_asset_amount, 100_000_000); // $100 + 10 bps
 
         // user exempt, no 10 bps applied for pmm
+        let mut taker_stats = UserStats {
+            disable_update_perp_bid_ask_twap: false,
+            ..UserStats::default()
+        };
+
+        create_anchor_account_info!(taker_stats, UserStats, user_stats_account_info);
+        let user_stats_account_loader: AccountLoader<UserStats> =
+            AccountLoader::try_from(&user_stats_account_info).unwrap();
+
         let mut user = User {
             // next_order_id: 10000000,
             next_order_id: 3000 - 2,
