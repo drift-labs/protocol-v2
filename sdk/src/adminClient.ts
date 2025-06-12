@@ -3863,8 +3863,14 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		takerSpeedBumpOverride: number
 	): Promise<TransactionSignature> {
-		const updatePerpMarketTakerSpeedBumpOverrideIx = await this.getUpdatePerpMarketTakerSpeedBumpOverrideIx(perpMarketIndex, takerSpeedBumpOverride);
-		const tx = await this.buildTransaction(updatePerpMarketTakerSpeedBumpOverrideIx);
+		const updatePerpMarketTakerSpeedBumpOverrideIx =
+			await this.getUpdatePerpMarketTakerSpeedBumpOverrideIx(
+				perpMarketIndex,
+				takerSpeedBumpOverride
+			);
+		const tx = await this.buildTransaction(
+			updatePerpMarketTakerSpeedBumpOverrideIx
+		);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
 		return txSig;
@@ -3883,7 +3889,7 @@ export class AdminClient extends DriftClient {
 			takerSpeedBumpOverride,
 			{
 				accounts: {
-										admin: this.isSubscribed
+					admin: this.isSubscribed
 						? this.getStateAccount().admin
 						: this.wallet.publicKey,
 					state: await this.getStatePublicKey(),
@@ -3897,8 +3903,14 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		ammSpreadAdjustment: number
 	): Promise<TransactionSignature> {
-		const updatePerpMarketAmmSpreadAdjustmentIx = await this.getUpdatePerpMarketAmmSpreadAdjustmentIx(perpMarketIndex, ammSpreadAdjustment);
-		const tx = await this.buildTransaction(updatePerpMarketAmmSpreadAdjustmentIx);
+		const updatePerpMarketAmmSpreadAdjustmentIx =
+			await this.getUpdatePerpMarketAmmSpreadAdjustmentIx(
+				perpMarketIndex,
+				ammSpreadAdjustment
+			);
+		const tx = await this.buildTransaction(
+			updatePerpMarketAmmSpreadAdjustmentIx
+		);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
 		return txSig;
