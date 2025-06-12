@@ -122,7 +122,10 @@ describe('place and make perp order', () => {
 			new BN(32 * PEG_PRECISION.toNumber())
 		);
 
-		await makerDriftClient.updatePerpMarketPausedOperations(0, PerpOperation.AMM_FILL);
+		await makerDriftClient.updatePerpMarketPausedOperations(
+			0,
+			PerpOperation.AMM_FILL
+		);
 
 		await makerDriftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
