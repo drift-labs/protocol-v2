@@ -24,7 +24,7 @@ import {
 	mockUserUSDCAccount,
 	setFeedPriceNoProgram,
 } from './testHelpers';
-import { MARGIN_PRECISION, OrderType, PostOnlyParams } from '../sdk';
+import { MARGIN_PRECISION, OrderType, PerpOperation, PostOnlyParams } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
@@ -144,6 +144,8 @@ describe('oracle fill guardrails', () => {
 			usdcAmount,
 			userUSDCAccount.publicKey
 		);
+
+		await fillerDriftClient.updatePerpMarketPausedOperations(0, PerpOperation.AMM_FILL);
 	});
 
 	beforeEach(async () => {
