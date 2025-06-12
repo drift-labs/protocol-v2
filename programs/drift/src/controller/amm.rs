@@ -237,38 +237,20 @@ pub fn update_spreads(market: &mut PerpMarket, reserve_price: u64) -> DriftResul
     };
 
     if market.amm.amm_spread_adjustment < 0 {
+        let adjustment = market.amm.amm_spread_adjustment.unsigned_abs().cast()?;
         long_spread = long_spread
-            .saturating_sub(
-                long_spread
-                    .safe_mul(market.amm.amm_spread_adjustment.unsigned_abs().cast()?)
-                    .unwrap_or(u32::MAX)
-                    .safe_div(100)?,
-            )
+            .saturating_sub(long_spread.saturating_mul(adjustment).safe_div(100)?)
             .max(1);
         short_spread = short_spread
-            .saturating_sub(
-                short_spread
-                    .safe_mul(market.amm.amm_spread_adjustment.unsigned_abs().cast()?)
-                    .unwrap_or(u32::MAX)
-                    .safe_div(100)?,
-            )
+            .saturating_sub(short_spread.saturating_mul(adjustment).safe_div(100)?)
             .max(1);
     } else if market.amm.amm_spread_adjustment > 0 {
+        let adjustment = market.amm.amm_spread_adjustment.cast()?;
         long_spread = long_spread
-            .saturating_add(
-                long_spread
-                    .safe_mul(market.amm.amm_spread_adjustment.cast()?)
-                    .unwrap_or(u32::MAX)
-                    .safe_div_ceil(100)?,
-            )
+            .saturating_add(long_spread.saturating_mul(adjustment).safe_div_ceil(100)?)
             .max(1);
         short_spread = short_spread
-            .saturating_add(
-                short_spread
-                    .safe_mul(market.amm.amm_spread_adjustment.cast()?)
-                    .unwrap_or(u32::MAX)
-                    .safe_div_ceil(100)?,
-            )
+            .saturating_add(short_spread.saturating_mul(adjustment).safe_div_ceil(100)?)
             .max(1);
     }
 
