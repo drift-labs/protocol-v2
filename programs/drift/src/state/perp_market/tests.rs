@@ -103,7 +103,7 @@ mod get_margin_ratio {
 }
 
 mod get_min_perp_auction_duration {
-    use crate::state::perp_market::{AMM, PerpMarket};
+    use crate::state::perp_market::{PerpMarket, AMM};
     use crate::State;
 
     #[test]

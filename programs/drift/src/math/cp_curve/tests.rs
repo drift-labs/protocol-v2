@@ -313,6 +313,64 @@ fn calculate_k_tests_wrapper_fcn() {
 }
 
 #[test]
+fn amm_spread_adj_logic() {
+    let mut market = PerpMarket {
+        amm: AMM {
+            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            terminal_quote_asset_reserve: 999900009999000 * AMM_RESERVE_PRECISION,
+            sqrt_k: 100 * AMM_RESERVE_PRECISION,
+            peg_multiplier: 50_000_000_000,
+            base_asset_amount_with_amm: (AMM_RESERVE_PRECISION / 10) as i128,
+            base_asset_amount_long: (AMM_RESERVE_PRECISION / 10) as i128,
+            order_step_size: 5,
+            base_spread: 100,
+            max_spread: 10000,
+            ..AMM::default_test()
+        },
+        margin_ratio_initial: 1000,
+        ..PerpMarket::default()
+    };
+    // let (t_price, _t_qar, _t_bar) = calculate_terminal_price_and_reserves(&market.amm).unwrap();
+    // market.amm.terminal_quote_asset_reserve = _t_qar;
+
+    let mut position = PerpPosition {
+        ..PerpPosition::default()
+    };
+
+    mint_lp_shares(&mut position, &mut market, BASE_PRECISION_U64).unwrap();
+
+    market.amm.base_asset_amount_per_lp = 1;
+    market.amm.quote_asset_amount_per_lp = -QUOTE_PRECISION_I64 as i128;
+
+    let reserve_price = market.amm.reserve_price().unwrap();
+    update_spreads(&mut market, reserve_price).unwrap();
+
+    assert_eq!(market.amm.long_spread, 50);
+    assert_eq!(market.amm.short_spread, 50);
+
+    market.amm.amm_spread_adjustment = -100;
+    update_spreads(&mut market, reserve_price).unwrap();
+    assert_eq!(market.amm.long_spread, 1);
+    assert_eq!(market.amm.short_spread, 1);
+
+    market.amm.amm_spread_adjustment = 100;
+    update_spreads(&mut market, reserve_price).unwrap();
+    assert_eq!(market.amm.long_spread, 100);
+    assert_eq!(market.amm.short_spread, 100);
+
+    market.amm.amm_spread_adjustment = 20;
+    update_spreads(&mut market, reserve_price).unwrap();
+    assert_eq!(market.amm.long_spread, 60);
+    assert_eq!(market.amm.short_spread, 60);
+
+    market.amm.amm_spread_adjustment = 120;
+    update_spreads(&mut market, reserve_price).unwrap();
+    assert_eq!(market.amm.long_spread, 110);
+    assert_eq!(market.amm.short_spread, 110);
+}
+
+#[test]
 fn calculate_k_with_lps_tests() {
     let mut market = PerpMarket {
         amm: AMM {

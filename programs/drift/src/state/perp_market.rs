@@ -1045,6 +1045,7 @@ pub struct AMM {
     /// the override for the state.min_perp_auction_duration
     /// 0 is no override, -1 is disable speed bump, 1-100 is literal speed bump
     pub taker_speed_bump_override: i8,
+    /// signed scale amm_spread similar to fee_adjustment logic (-100 = 0, 100 = double)
     pub amm_spread_adjustment: i8,
     pub padding1: u8,
     pub total_fee_earned_per_lp: u64,
