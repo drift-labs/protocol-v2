@@ -235,7 +235,9 @@ pub struct PerpMarket {
     pub pool_id: u8,
     pub high_leverage_margin_ratio_initial: u16,
     pub high_leverage_margin_ratio_maintenance: u16,
-    pub padding: [u8; 38],
+    pub protected_maker_limit_price_divisor: u8,
+    pub protected_maker_dynamic_divisor: u8,
+    pub padding: [u8; 36],
 }
 
 impl Default for PerpMarket {
@@ -272,10 +274,12 @@ impl Default for PerpMarket {
             fuel_boost_position: 0,
             fuel_boost_taker: 0,
             fuel_boost_maker: 0,
-            padding: [0; 38],
             pool_id: 0,
             high_leverage_margin_ratio_initial: 0,
             high_leverage_margin_ratio_maintenance: 0,
+            protected_maker_limit_price_divisor: 0,
+            protected_maker_dynamic_divisor: 0,
+            padding: [0; 36],
         }
     }
 }
@@ -733,6 +737,7 @@ impl SpotBalance for PoolBalance {
     }
 }
 
+
 #[assert_no_slop]
 #[zero_copy(unsafe)]
 #[derive(Debug, PartialEq, Eq)]
@@ -943,8 +948,12 @@ pub struct AMM {
     pub target_base_asset_amount_per_lp: i32,
     /// expo for unit of per_lp, base 10 (if per_lp_base=X, then per_lp unit is 10^X)
     pub per_lp_base: i8,
+    /// the override for the state.min_perp_auction_duration
+    /// 0 is no override, -1 is disable speed bump, 1-100 is literal speed bump
+    pub taker_speed_bump_override: i8,
+    /// signed scale amm_spread similar to fee_adjustment logic (-100 = 0, 100 = double)
+    pub amm_spread_adjustment: i8,
     pub padding1: u8,
-    pub padding2: u16,
     pub total_fee_earned_per_lp: u64,
     pub net_unsettled_funding_pnl: i64,
     pub quote_asset_amount_with_unsettled_lp: i64,
@@ -1032,8 +1041,9 @@ impl Default for AMM {
             last_oracle_valid: false,
             target_base_asset_amount_per_lp: 0,
             per_lp_base: 0,
+            taker_speed_bump_override: 0,
+            amm_spread_adjustment: 0,
             padding1: 0,
-            padding2: 0,
             total_fee_earned_per_lp: 0,
             net_unsettled_funding_pnl: 0,
             quote_asset_amount_with_unsettled_lp: 0,
