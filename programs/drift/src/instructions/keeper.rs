@@ -3076,15 +3076,38 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
         }
 
         let mint = *ctx.accounts.mint.clone();
-        controller::token::send_from_program_vault(
-            &ctx.accounts.token_program,
-            &ctx.accounts.quote_token_vault,
-            constituent_token_account,
-            &ctx.accounts.drift_signer,
-            state.signer_nonce,
-            amount_available.cast::<u64>()?,
-            &Some(mint),
-        )?;
+
+        let amount_to_transfer = if cached_info.last_settle_ts != 0 {
+            amount_available.safe_sub(cached_info.last_settle_amm_balance)?
+        } else {
+            0
+        };
+
+        if amount_to_transfer != 0 {
+            if amount_to_transfer > 0 {
+                controller::token::send_from_program_vault(
+                    &ctx.accounts.token_program,
+                    &ctx.accounts.quote_token_vault,
+                    constituent_token_account,
+                    &ctx.accounts.drift_signer,
+                    state.signer_nonce,
+                    amount_to_transfer.cast::<u64>()?,
+                    &Some(mint),
+                )?;
+            } else {
+                controller::token::send_from_program_vault(
+                    &ctx.accounts.token_program,
+                    constituent_token_account,
+                    &ctx.accounts.quote_token_vault,
+                    &ctx.accounts.drift_signer,
+                    state.signer_nonce,
+                    amount_to_transfer.unsigned_abs().cast::<u64>()?,
+                    &Some(mint),
+                )?;
+            }
+
+            // todo: inc/dec perp market fee pools reflecting this transfer
+        }
 
         lp_pool.last_aum += amount_available.cast::<u128>()?;
         lp_pool.last_aum_ts = clock.unix_timestamp;
