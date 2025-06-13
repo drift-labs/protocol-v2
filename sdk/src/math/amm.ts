@@ -547,11 +547,11 @@ export function calculateVolSpreadBN(
 		.add(oracleStd)
 		.mul(PERCENTAGE_PRECISION)
 		.div(reservePrice)
-		.div(new BN(2));
+		.div(new BN(4));
 	const volSpread = BN.max(lastOracleConfPct, marketAvgStdPct.div(new BN(2)));
 
 	const clampMin = PERCENTAGE_PRECISION.div(new BN(100));
-	const clampMax = PERCENTAGE_PRECISION.mul(new BN(16)).div(new BN(10));
+	const clampMax = PERCENTAGE_PRECISION;
 
 	const longVolSpreadFactor = clampBN(
 		longIntensity.mul(PERCENTAGE_PRECISION).div(BN.max(ONE, volume24H)),
@@ -568,7 +568,7 @@ export function calculateVolSpreadBN(
 	let confComponent = lastOracleConfPct;
 
 	if (lastOracleConfPct.lte(PRICE_PRECISION.div(new BN(400)))) {
-		confComponent = lastOracleConfPct.div(new BN(10));
+		confComponent = lastOracleConfPct.div(new BN(20));
 	}
 
 	const longVolSpread = BN.max(
