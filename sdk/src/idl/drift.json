@@ -12284,12 +12284,12 @@
             "type": "publicKey"
           },
           {
-            "name": "ammBalanceAvailable",
+            "name": "lastAmmBalanceAvailable",
             "type": "i64"
           },
           {
-            "name": "lastSettleAmmBalance",
-            "type": "i64"
+            "name": "lastSettleAmount",
+            "type": "u64"
           },
           {
             "name": "lastSettleTs",

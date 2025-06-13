@@ -609,15 +609,15 @@ describe('LP Pool', () => {
 
 	it('can settle pnl from perp markets into the usdc account', async () => {
 		await adminClient.depositIntoPerpMarketFeePool(
-			0, 
+			0,
 			new BN(100).mul(QUOTE_PRECISION),
-			await adminClient.getAssociatedTokenAccount(0),
+			await adminClient.getAssociatedTokenAccount(0)
 		);
 
 		await adminClient.depositIntoPerpMarketFeePool(
-			1, 
+			1,
 			new BN(100).mul(QUOTE_PRECISION),
-			await adminClient.getAssociatedTokenAccount(0),
+			await adminClient.getAssociatedTokenAccount(0)
 		);
 
 		let constituent = (await adminClient.program.account.constituent.fetch(
@@ -629,10 +629,7 @@ describe('LP Pool', () => {
 
 		const usdcBefore = constituent.tokenBalance;
 		const lpAumBefore = lpPool.lastAum;
-		await adminClient.settlePerpToLpPool(
-			encodeName(lpPoolName),
-			[0, 1, 2],
-		);
+		await adminClient.settlePerpToLpPool(encodeName(lpPoolName), [0, 1, 2]);
 		constituent = (await adminClient.program.account.constituent.fetch(
 			getConstituentPublicKey(program.programId, lpPoolKey, 0)
 		)) as ConstituentAccount;
@@ -644,9 +641,8 @@ describe('LP Pool', () => {
 		const lpAumAfter = lpPool.lastAum;
 		console.log('usdcBefore', usdcBefore.toString());
 		console.log('usdcAfter', usdcAfter.toString());
-		assert(usdcAfter.sub(usdcBefore).gt(QUOTE_PRECISION.muln(200)));
-
-		assert(lpAumAfter.sub(lpAumBefore).gt(QUOTE_PRECISION.muln(200)));
+		assert(usdcAfter.sub(usdcBefore).eq(QUOTE_PRECISION.muln(200)));
+		assert(lpAumAfter.sub(lpAumBefore).eq(QUOTE_PRECISION.muln(200)));
 	});
 
 	it('can update and remove amm constituent mapping entries', async () => {

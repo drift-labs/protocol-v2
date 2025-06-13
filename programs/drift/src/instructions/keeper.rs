@@ -2990,6 +2990,14 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
         let perp_market = perp_market_loader.load()?;
         let cached_info = amm_cache.get_mut(perp_market.market_index as u32);
 
+        if cached_info.last_amm_balance_available == 0 {
+            msg!(
+                "No settled amm balance to transfer for {}. Needs cache update crank",
+                perp_market.market_index
+            );
+            continue;
+        }
+
         validate!(
             perp_market.oracle_id() == cached_info.oracle_id()?,
             ErrorCode::DefaultError,
@@ -3015,8 +3023,15 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
             .cast::<i128>()?
             .safe_sub(calculate_net_user_pnl(&perp_market.amm, oracle_data.price)?)?
             .max(0i128)
-            .cast::<i64>()?
-            .safe_div_floor(perp_market.lp_fee_transfer_scalar as i64)?;
+            .cast::<i64>()?;
+
+        if amount_available <= 0 {
+            msg!(
+                "No available pnl to settle for {}. No change in fee or revenue pool",
+                perp_market.market_index
+            );
+            continue;
+        }
 
         // Actually transfer the pnl to the lp usdc constituent account
         let oracle_price = oracle_map.get_price_data(&perp_market.oracle_id())?.price;
@@ -3076,48 +3091,30 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
         }
 
         let mint = *ctx.accounts.mint.clone();
+        let amount_to_send = (amount_available - cached_info.last_amm_balance_available)
+            .max(0i64)
+            .safe_div_floor(perp_market.lp_fee_transfer_scalar as i64)?;
+        controller::token::send_from_program_vault(
+            &ctx.accounts.token_program,
+            &ctx.accounts.quote_token_vault,
+            constituent_token_account,
+            &ctx.accounts.drift_signer,
+            state.signer_nonce,
+            amount_to_send.cast::<u64>()?,
+            &Some(mint),
+        )?;
 
-        let amount_to_transfer = if cached_info.last_settle_ts != 0 {
-            amount_available.safe_sub(cached_info.last_settle_amm_balance)?
-        } else {
-            0
-        };
-
-        if amount_to_transfer != 0 {
-            if amount_to_transfer > 0 {
-                controller::token::send_from_program_vault(
-                    &ctx.accounts.token_program,
-                    &ctx.accounts.quote_token_vault,
-                    constituent_token_account,
-                    &ctx.accounts.drift_signer,
-                    state.signer_nonce,
-                    amount_to_transfer.cast::<u64>()?,
-                    &Some(mint),
-                )?;
-            } else {
-                controller::token::send_from_program_vault(
-                    &ctx.accounts.token_program,
-                    constituent_token_account,
-                    &ctx.accounts.quote_token_vault,
-                    &ctx.accounts.drift_signer,
-                    state.signer_nonce,
-                    amount_to_transfer.unsigned_abs().cast::<u64>()?,
-                    &Some(mint),
-                )?;
-            }
-
-            // todo: inc/dec perp market fee pools reflecting this transfer
-        }
-
-        lp_pool.last_aum += amount_available.cast::<u128>()?;
+        lp_pool.last_aum = lp_pool
+            .last_aum
+            .saturating_add(amount_to_send.cast::<u128>()?);
         lp_pool.last_aum_ts = clock.unix_timestamp;
         lp_pool.last_aum_slot = clock.slot;
 
         constituent_token_account.reload()?;
         constituent.sync_token_balance(constituent_token_account.amount);
 
-        cached_info.last_settle_amm_balance = amount_available;
-        cached_info.amm_balance_available = amount_available;
+        cached_info.last_amm_balance_available = amount_available.saturating_sub(amount_to_send);
+        cached_info.last_settle_amount = amount_to_send.cast::<u64>()?;
         cached_info.last_settle_ts = Clock::get()?.unix_timestamp;
     }
 
@@ -3196,7 +3193,7 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
             &quote_market,
             perp_market.amm.fee_pool.balance_type(),
         )?;
-        cached_info.amm_balance_available = pnl_pool_token_amount
+        cached_info.last_amm_balance_available = pnl_pool_token_amount
             .safe_add(fee_pool_token_amount)?
             .cast::<i128>()?
             .safe_sub(calculate_net_user_pnl(&perp_market.amm, oracle_data.price)?)?
