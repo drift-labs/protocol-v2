@@ -19,7 +19,7 @@ use crate::math::fuel::calculate_insurance_fuel_bonus;
 use crate::math::helpers::get_proportion_u128;
 use crate::math::helpers::on_the_hour_update;
 use crate::math::insurance::{
-    calculate_if_shares_lost, calculate_rebase_info, if_shares_to_vault_amount,
+    calculate_if_shares_lost, calculate_rebase_info, calculate_share_price, if_shares_to_vault_amount,
     vault_amount_to_if_shares,
 };
 use crate::math::orders::{calculate_fill_price};
@@ -991,6 +991,9 @@ pub fn handle_if_end_swap(
     let in_if_user_shares_before = in_spot_market.insurance_fund.user_shares;
     let out_if_user_shares_before = out_spot_market.insurance_fund.user_shares;
 
+    let in_share_price_before = calculate_share_price(in_spot_market.insurance_fund.total_shares, in_insurance_fund_vault_amount_before)?;
+    let out_share_price_before = calculate_share_price(out_spot_market.insurance_fund.total_shares, out_insurance_fund_vault_amount_before)?;
+
     let in_shares = vault_amount_to_if_shares(in_amount, in_spot_market.insurance_fund.total_shares, in_insurance_fund_vault_amount_before)?;
     let out_shares = vault_amount_to_if_shares(out_amount, out_spot_market.insurance_fund.total_shares, out_insurance_fund_vault_amount_before)?;
 
@@ -1006,6 +1009,27 @@ pub fn handle_if_end_swap(
     // increment spot market insurance funds total shares
     in_spot_market.insurance_fund.total_shares = in_spot_market.insurance_fund.total_shares.safe_sub(in_shares)?;
     out_spot_market.insurance_fund.total_shares = out_spot_market.insurance_fund.total_shares.safe_add(out_shares)?;
+
+    let in_share_price_after = calculate_share_price(in_spot_market.insurance_fund.total_shares, in_insurance_fund_vault_amount_after)?;
+    let out_share_price_after = calculate_share_price(out_spot_market.insurance_fund.total_shares, out_insurance_fund_vault_amount_after)?;
+
+    if in_share_price_before > 0 && in_share_price_after > 0 {
+        validate!(
+            in_share_price_before - in_share_price_after <= 1,
+            ErrorCode::InvalidIfRebalanceSwap,
+            "in_share_price_before={} - in_share_price_after={} > 1",
+            in_share_price_before, in_share_price_after
+        )?;
+    }
+
+    if out_share_price_before > 0 && out_share_price_after > 0 {
+        validate!(
+            out_share_price_before - out_share_price_after <= 1,
+            ErrorCode::InvalidIfRebalanceSwap,
+            "out_share_price_before={} - out_share_price_after={} > 1",
+            out_share_price_before, out_share_price_after
+        )?;
+    }
 
     // increment config current in amount
     if_rebalance_config.current_in_amount = if_rebalance_config.current_in_amount.safe_add(in_amount)?;
