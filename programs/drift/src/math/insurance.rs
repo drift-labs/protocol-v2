@@ -123,7 +123,11 @@ pub fn calculate_share_price(
     insurance_fund_vault_balance: u64,
 ) -> DriftResult<u64> {
     if total_if_shares > 0 {
-        insurance_fund_vault_balance.cast::<u128>()?.safe_mul(PRICE_PRECISION)?.safe_div(total_if_shares)?.cast::<u64>()
+        insurance_fund_vault_balance
+            .cast::<u128>()?
+            .safe_mul(PRICE_PRECISION)?
+            .safe_div(total_if_shares)?
+            .cast::<u64>()
     } else {
         Ok(0)
     }

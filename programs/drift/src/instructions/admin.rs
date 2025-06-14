@@ -44,6 +44,7 @@ use crate::state::fulfillment_params::phoenix::PhoenixV1FulfillmentConfig;
 use crate::state::fulfillment_params::serum::SerumContext;
 use crate::state::fulfillment_params::serum::SerumV3FulfillmentConfig;
 use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
+use crate::state::if_rebalance_config::{IfRebalanceConfig, IfRebalanceConfigParams};
 use crate::state::insurance_fund_stake::ProtocolIfSharesTransferConfig;
 use crate::state::oracle::get_sb_on_demand_price;
 use crate::state::oracle::{
@@ -57,7 +58,6 @@ use crate::state::perp_market::{
     ContractTier, ContractType, InsuranceClaim, MarketStatus, PerpMarket, PoolBalance, AMM,
 };
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
-use crate::state::if_rebalance_config::{IfRebalanceConfig, IfRebalanceConfigParams};
 use crate::state::protected_maker_mode_config::ProtectedMakerModeConfig;
 use crate::state::pyth_lazer_oracle::{PythLazerOracle, PYTH_LAZER_ORACLE_SEED};
 use crate::state::spot_market::{

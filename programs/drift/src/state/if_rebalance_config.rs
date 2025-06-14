@@ -59,13 +59,25 @@ impl IfRebalanceConfig {
     }
 
     pub fn validate(&self) -> DriftResult<()> {
-        validate!(self.in_market_index == 0, ErrorCode::InvalidIfRebalanceConfig)?;
+        validate!(
+            self.in_market_index == 0,
+            ErrorCode::InvalidIfRebalanceConfig
+        )?;
 
-        validate!(self.out_market_index != self.in_market_index, ErrorCode::InvalidIfRebalanceConfig)?;
-        
-        validate!(self.total_in_amount >= self.current_in_amount, ErrorCode::InvalidIfRebalanceConfig)?;
+        validate!(
+            self.out_market_index != self.in_market_index,
+            ErrorCode::InvalidIfRebalanceConfig
+        )?;
 
-        validate!(self.epoch_max_in_amount <= self.total_in_amount, ErrorCode::InvalidIfRebalanceConfig)?;
+        validate!(
+            self.total_in_amount >= self.current_in_amount,
+            ErrorCode::InvalidIfRebalanceConfig
+        )?;
+
+        validate!(
+            self.epoch_max_in_amount <= self.total_in_amount,
+            ErrorCode::InvalidIfRebalanceConfig
+        )?;
 
         Ok(())
     }

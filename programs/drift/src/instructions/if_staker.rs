@@ -1,13 +1,11 @@
 use anchor_lang::prelude::*;
-use anchor_spl::{
-    token_interface::{TokenAccount, TokenInterface},
-};
 use anchor_lang::Discriminator;
+use anchor_spl::token_interface::{TokenAccount, TokenInterface};
 
-use crate::{controller::insurance::transfer_protocol_insurance_fund_stake, state::{if_rebalance_config::IfRebalanceConfig, perp_market_map::MarketSet, spot_market_map::get_writable_spot_market_set_from_many}};
 use crate::error::ErrorCode;
 use crate::ids::admin_hot_wallet;
 use crate::instructions::constraints::*;
+use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::optional_accounts::get_token_mint;
 use crate::state::insurance_fund_stake::{InsuranceFundStake, ProtocolIfSharesTransferConfig};
 use crate::state::paused_operations::InsuranceFundOperation;
@@ -18,11 +16,15 @@ use crate::state::traits::Size;
 use crate::state::user::UserStats;
 use crate::validate;
 use crate::{controller, math};
+use crate::{
+    controller::insurance::transfer_protocol_insurance_fund_stake,
+    state::{
+        if_rebalance_config::IfRebalanceConfig, perp_market_map::MarketSet,
+        spot_market_map::get_writable_spot_market_set_from_many,
+    },
+};
 use crate::{load_mut, QUOTE_SPOT_MARKET_INDEX};
 use anchor_lang::solana_program::sysvar::instructions;
-use crate::instructions::optional_accounts::{
-    load_maps, AccountMaps,
-};
 
 use super::optional_accounts::get_token_interface;
 use crate::math::safe_math::SafeMath;
@@ -663,7 +665,9 @@ pub fn handle_end_insurance_fund_swap<'c: 'info, 'info>(
         "end_swap ended in invalid state"
     )?;
 
-    let out_oracle_price = oracle_map.get_price_data(&out_spot_market.oracle_id())?.price;
+    let out_oracle_price = oracle_map
+        .get_price_data(&out_spot_market.oracle_id())?
+        .price;
 
     let mut if_rebalance_config = ctx.accounts.if_rebalance_config.load_mut()?;
     controller::insurance::handle_if_end_swap(

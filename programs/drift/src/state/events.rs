@@ -573,7 +573,7 @@ pub struct InsuranceFundSwapRecord {
     pub ts: i64,
     pub in_amount: u64,
     pub out_amount: u64,
-    pub out_oracle_price: u64, 
+    pub out_oracle_price: u64,
     pub out_oracle_price_twap: i64,
     pub in_vault_amount_before: u64,
     pub out_vault_amount_before: u64,
