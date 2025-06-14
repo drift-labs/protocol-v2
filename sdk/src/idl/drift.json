@@ -3541,6 +3541,146 @@
       ]
     },
     {
+      "name": "beginInsuranceFundSwap",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "outInsuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inInsuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "outTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "ifRebalanceConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructions",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Instructions Sysvar for instruction introspection"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "inMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "outMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "amountIn",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "endInsuranceFundSwap",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "outInsuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inInsuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "outTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "ifRebalanceConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructions",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Instructions Sysvar for instruction introspection"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "inMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "outMarketIndex",
+          "type": "u16"
+        }
+      ]
+    },
+    {
       "name": "updatePythPullOracle",
       "accounts": [
         {
@@ -7022,6 +7162,12 @@
         {
           "name": "reduceOnly",
           "type": "bool"
+        },
+        {
+          "name": "currentUsers",
+          "type": {
+            "option": "u32"
+          }
         }
       ]
     },
@@ -7139,6 +7285,72 @@
         {
           "name": "amount",
           "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "initializeIfRebalanceConfig",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "ifRebalanceConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "IfRebalanceConfigParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "updateIfRebalanceConfig",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "ifRebalanceConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "IfRebalanceConfigParams"
+          }
         }
       ]
     }
@@ -7370,6 +7582,102 @@
               "array": [
                 "u8",
                 31
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "IfRebalanceConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pubkey",
+            "type": "publicKey"
+          },
+          {
+            "name": "totalInAmount",
+            "docs": [
+              "total amount to be sold"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "currentInAmount",
+            "docs": [
+              "amount already sold"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "currentOutAmount",
+            "docs": [
+              "amount already bought"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "epochStartTs",
+            "docs": [
+              "start time of epoch"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "epochInAmount",
+            "docs": [
+              "amount already bought in epoch"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "epochMaxInAmount",
+            "docs": [
+              "max amount to swap in epoch"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "epochDuration",
+            "docs": [
+              "duration of epoch"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "outMarketIndex",
+            "docs": [
+              "market index to sell"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "inMarketIndex",
+            "docs": [
+              "market index to buy"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "maxSlippageBps",
+            "type": "u16"
+          },
+          {
+            "name": "swapMode",
+            "type": "u8"
+          },
+          {
+            "name": "status",
+            "type": "u8"
+          },
+          {
+            "name": "padding2",
+            "type": {
+              "array": [
+                "u8",
+                32
               ]
             }
           }
@@ -9326,6 +9634,46 @@
           {
             "name": "cumulativeDepositInterestDelta",
             "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "IfRebalanceConfigParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "totalInAmount",
+            "type": "u64"
+          },
+          {
+            "name": "epochMaxInAmount",
+            "type": "u64"
+          },
+          {
+            "name": "epochDuration",
+            "type": "i64"
+          },
+          {
+            "name": "outMarketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "inMarketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "maxSlippageBps",
+            "type": "u16"
+          },
+          {
+            "name": "swapMode",
+            "type": "u8"
+          },
+          {
+            "name": "status",
+            "type": "u8"
           }
         ]
       }
@@ -13357,6 +13705,111 @@
       ]
     },
     {
+      "name": "InsuranceFundSwapRecord",
+      "fields": [
+        {
+          "name": "rebalanceConfig",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "inIfTotalSharesBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "outIfTotalSharesBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "inIfUserSharesBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "outIfUserSharesBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "inIfTotalSharesAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "outIfTotalSharesAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "inIfUserSharesAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "outIfUserSharesAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "inAmount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "outAmount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "outOraclePrice",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "outOraclePriceTwap",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "inVaultAmountBefore",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "outVaultAmountBefore",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "inFundVaultAmountAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "outFundVaultAmountAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "inMarketIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "outMarketIndex",
+          "type": "u16",
+          "index": false
+        }
+      ]
+    },
+    {
       "name": "SwapRecord",
       "fields": [
         {
@@ -15179,6 +15632,16 @@
       "code": 6314,
       "name": "CouldNotDeserializeHighLeverageModeConfig",
       "msg": "Could not deserialize high leverage mode config"
+    },
+    {
+      "code": 6315,
+      "name": "InvalidIfRebalanceConfig",
+      "msg": "Invalid If Rebalance Config"
+    },
+    {
+      "code": 6316,
+      "name": "InvalidIfRebalanceSwap",
+      "msg": "Invalid If Rebalance Swap"
     }
   ],
   "metadata": {

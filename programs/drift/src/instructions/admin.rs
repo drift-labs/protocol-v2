@@ -4607,7 +4607,6 @@ pub fn handle_initialize_if_rebalance_config(
     let mut config = ctx.accounts.if_rebalance_config.load_init()?;
 
     config.pubkey = *pubkey;
-    config.name = params.name;
     config.total_in_amount = params.total_in_amount;
     config.current_in_amount = 0;
     config.epoch_max_in_amount = params.epoch_max_in_amount;

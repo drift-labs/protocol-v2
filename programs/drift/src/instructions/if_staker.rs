@@ -454,7 +454,7 @@ pub fn handle_begin_insurance_fund_swap<'c: 'info, 'info>(
             found_end = true;
 
             // must be the SwapEnd instruction
-            let discriminator = crate::instruction::EndSwap::discriminator();
+            let discriminator = crate::instruction::EndInsuranceFundSwap::discriminator();
             validate!(
                 ix.data[0..8] == discriminator,
                 ErrorCode::InvalidSwap,

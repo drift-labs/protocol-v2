@@ -14,6 +14,7 @@ import {
 	ContractTier,
 	AssetTier,
 	SpotFulfillmentConfigStatus,
+	IfRebalanceConfigParams,
 } from './types';
 import { DEFAULT_MARKET_NAME, encodeName } from './userName';
 import { BN } from '@coral-xyz/anchor';
@@ -37,6 +38,7 @@ import {
 	getProtectedMakerModeConfigPublicKey,
 	getFuelOverflowAccountPublicKey,
 	getTokenProgramForSpotMarket,
+	getIfRebalanceConfigPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -3902,6 +3904,38 @@ export class AdminClient extends DriftClient {
 				},
 			}
 		);
+	}
+
+	public async initializeIfRebalanceConfig(
+		params: IfRebalanceConfigParams
+	): Promise<TransactionSignature> {
+		const initializeIfRebalanceConfigIx =
+			await this.getInitializeIfRebalanceConfigIx(params);
+
+		const tx = await this.buildTransaction(initializeIfRebalanceConfigIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getInitializeIfRebalanceConfigIx(
+		params: IfRebalanceConfigParams
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.initializeIfRebalanceConfig(params, {
+			accounts: {
+				admin: this.isSubscribed
+					? this.getStateAccount().admin
+					: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				ifRebalanceConfig: await getIfRebalanceConfigPublicKey(
+					this.program.programId,
+					params.inMarketIndex,
+					params.outMarketIndex
+				),
+				rent: SYSVAR_RENT_PUBKEY,
+				systemProgram: anchor.web3.SystemProgram.programId,
+			},
+		});
 	}
 
 	public async initUserFuel(

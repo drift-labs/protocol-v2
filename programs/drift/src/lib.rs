@@ -779,6 +779,22 @@ pub mod drift {
     ) -> Result<()> {
         handle_transfer_protocol_if_shares(ctx, market_index, shares)
     }
+    pub fn begin_insurance_fund_swap<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InsuranceFundSwap<'info>>,
+        in_market_index: u16,
+        out_market_index: u16,
+        amount_in: u64,
+    ) -> Result<()> {
+        handle_begin_insurance_fund_swap(ctx, in_market_index, out_market_index, amount_in)
+    }
+
+    pub fn end_insurance_fund_swap<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InsuranceFundSwap<'info>>,
+        in_market_index: u16,
+        out_market_index: u16,
+    ) -> Result<()> {
+        handle_end_insurance_fund_swap(ctx, in_market_index, out_market_index)
+    }
 
     pub fn update_pyth_pull_oracle(
         ctx: Context<UpdatePythPullOraclePriceFeed>,

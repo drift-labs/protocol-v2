@@ -9,7 +9,6 @@ use anchor_lang::prelude::*;
 #[repr(C)]
 pub struct IfRebalanceConfig {
     pub pubkey: Pubkey,
-    pub name: [u8; 32],
     /// total amount to be sold
     pub total_in_amount: u64,
     /// amount already sold
@@ -36,7 +35,22 @@ pub struct IfRebalanceConfig {
 
 // implement SIZE const for IfRebalanceConfig
 impl Size for IfRebalanceConfig {
-    const SIZE: usize = 32;
+    // discriminator: 8
+    // pubkey: 32
+    // total_in_amount: 8
+    // current_in_amount: 8
+    // current_out_amount: 8
+    // epoch_start_ts: 8
+    // epoch_in_amount: 8
+    // epoch_max_in_amount: 8
+    // epoch_duration: 8
+    // out_market_index: 2
+    // in_market_index: 2
+    // max_slippage_bps: 2
+    // swap_mode: 1
+    // status: 1
+    // padding2: 32
+    const SIZE: usize = 136;
 }
 
 impl IfRebalanceConfig {
@@ -51,7 +65,7 @@ impl IfRebalanceConfig {
         
         validate!(self.total_in_amount >= self.current_in_amount, ErrorCode::InvalidIfRebalanceConfig)?;
 
-        validate!(self.epoch_max_in_amount < self.total_in_amount, ErrorCode::InvalidIfRebalanceConfig)?;
+        validate!(self.epoch_max_in_amount <= self.total_in_amount, ErrorCode::InvalidIfRebalanceConfig)?;
 
         Ok(())
     }
@@ -59,7 +73,6 @@ impl IfRebalanceConfig {
 
 #[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq)]
 pub struct IfRebalanceConfigParams {
-    pub name: [u8; 32],
     pub total_in_amount: u64,
     pub epoch_max_in_amount: u64,
     pub epoch_duration: i64,
