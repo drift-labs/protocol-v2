@@ -796,6 +796,14 @@ pub mod drift {
         handle_end_insurance_fund_swap(ctx, in_market_index, out_market_index)
     }
 
+    pub fn transfer_protocol_if_shares_to_revenue_pool<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, TransferProtocolIfSharesToRevenuePool<'info>>,
+        market_index: u16,
+        amount: u64,
+    ) -> Result<()> {
+        handle_transfer_protocol_if_shares_to_revenue_pool(ctx, market_index, amount)
+    }
+
     pub fn update_pyth_pull_oracle(
         ctx: Context<UpdatePythPullOraclePriceFeed>,
         feed_id: [u8; 32],

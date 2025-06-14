@@ -23,6 +23,8 @@ import {
 	unstakeSharesToAmount,
 	getIfRebalanceConfigPublicKey,
 	IfRebalanceConfigAccount,
+	getTokenAmount,
+	SpotBalanceType,
 } from '../sdk/src';
 
 import {
@@ -451,5 +453,39 @@ describe('spot swap', () => {
 		assert(swapRecord.outFundVaultAmountAfter.eq(new BN(1000000000)));
 		assert(swapRecord.inMarketIndex === 0);
 		assert(swapRecord.outMarketIndex === 1);
+
+		await takerDriftClient.transferProtocolIfSharesToRevenuePool(
+			1,
+			0,
+			new BN(1000000000)
+		);
+
+		const transferRecord = eventSubscriber.getEventsArray(
+			'TransferProtocolIfSharesToRevenuePoolRecord'
+		)[0];
+
+		assert(transferRecord.amount.eq(new BN(1000000000)));
+		assert(transferRecord.shares.eq(new BN(1000000000)));
+		assert(transferRecord.ifVaultAmountBefore.eq(new BN(1000000000)));
+		assert(transferRecord.protocolSharesBefore.eq(new BN(1000000000)));
+
+		const revenuePoolVaultAmount = (
+			await bankrunContextWrapper.connection.getTokenAccount(
+				makerDriftClient.getSpotMarketAccount(1).vault
+			)
+		).amount;
+
+		assert(revenuePoolVaultAmount.toString() === '1000000000');
+
+		const revenuePoolBalance = await takerDriftClient.getSpotMarketAccount(1)
+			.revenuePool.scaledBalance;
+
+		const revenuePoolTokenAmount = getTokenAmount(
+			revenuePoolBalance,
+			takerDriftClient.getSpotMarketAccount(1),
+			SpotBalanceType.DEPOSIT
+		);
+
+		assert(revenuePoolTokenAmount.toString() === '1000000000');
 	});
 });

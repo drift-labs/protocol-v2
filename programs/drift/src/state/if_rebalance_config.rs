@@ -15,6 +15,8 @@ pub struct IfRebalanceConfig {
     pub current_in_amount: u64,
     /// amount already bought
     pub current_out_amount: u64,
+    /// amount already transferred to revenue pool
+    pub current_out_amount_transferred: u64,
     /// start time of epoch
     pub epoch_start_ts: i64,
     /// amount already bought in epoch
@@ -40,6 +42,7 @@ impl Size for IfRebalanceConfig {
     // total_in_amount: 8
     // current_in_amount: 8
     // current_out_amount: 8
+    // current_out_transferred_amount: 8
     // epoch_start_ts: 8
     // epoch_in_amount: 8
     // epoch_max_in_amount: 8
@@ -50,7 +53,7 @@ impl Size for IfRebalanceConfig {
     // swap_mode: 1
     // status: 1
     // padding2: 32
-    const SIZE: usize = 136;
+    const SIZE: usize = 144;
 }
 
 impl IfRebalanceConfig {

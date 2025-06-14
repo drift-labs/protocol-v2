@@ -28,6 +28,7 @@ use crate::math::spot_balance::get_token_amount;
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::state::events::{
     InsuranceFundRecord, InsuranceFundStakeRecord, InsuranceFundSwapRecord, StakeAction,
+    TransferProtocolIfSharesToRevenuePoolRecord,
 };
 use crate::state::if_rebalance_config::IfRebalanceConfig;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
@@ -1131,6 +1132,54 @@ pub fn handle_if_end_swap(
         out_if_total_shares_after: out_spot_market.insurance_fund.total_shares,
         in_if_user_shares_after: in_spot_market.insurance_fund.user_shares,
         out_if_user_shares_after: out_spot_market.insurance_fund.user_shares,
+    });
+
+    Ok(())
+}
+
+pub fn transfer_protocol_if_shares_to_revenue_pool(
+    if_rebalance_config: &mut IfRebalanceConfig,
+    spot_market: &mut SpotMarket,
+    insurance_fund_vault_amount_before: u64,
+    amount: u64,
+    now: i64,
+) -> DriftResult<()> {
+    apply_rebase_to_insurance_fund(insurance_fund_vault_amount_before, spot_market)?;
+
+    let shares = vault_amount_to_if_shares(amount, spot_market.insurance_fund.total_shares, insurance_fund_vault_amount_before)?;
+
+    let protocol_shares = spot_market.insurance_fund.get_protocol_shares()?;
+
+    validate!(
+        shares <= protocol_shares,
+        ErrorCode::InsufficientIFShares,
+        "shares={} > protocol_shares={}",
+        shares,
+        protocol_shares
+    )?;
+
+    spot_market.insurance_fund.total_shares = spot_market
+        .insurance_fund
+        .total_shares
+        .safe_sub(shares)?;
+
+    update_revenue_pool_balances(
+        amount.cast()?,
+        &SpotBalanceType::Deposit,
+        spot_market,
+    )?;
+
+    if_rebalance_config.current_out_amount_transferred = if_rebalance_config
+        .current_out_amount_transferred
+        .safe_add(amount)?;
+
+    emit!(TransferProtocolIfSharesToRevenuePoolRecord {
+        ts: now,
+        market_index: spot_market.market_index,
+        amount,
+        shares,
+        if_vault_amount_before: insurance_fund_vault_amount_before,
+        protocol_shares_before: protocol_shares,
     });
 
     Ok(())

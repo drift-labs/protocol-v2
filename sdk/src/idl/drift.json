@@ -3681,6 +3681,56 @@
       ]
     },
     {
+      "name": "transferProtocolIfSharesToRevenuePool",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "ifRebalanceConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "updatePythPullOracle",
       "accounts": [
         {
@@ -7615,6 +7665,13 @@
             "name": "currentOutAmount",
             "docs": [
               "amount already bought"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "currentOutAmountTransferred",
+            "docs": [
+              "amount already transferred to revenue pool"
             ],
             "type": "u64"
           },
@@ -13805,6 +13862,41 @@
         {
           "name": "outMarketIndex",
           "type": "u16",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "TransferProtocolIfSharesToRevenuePoolRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "marketIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "shares",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "ifVaultAmountBefore",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "protocolSharesBefore",
+          "type": "u128",
           "index": false
         }
       ]

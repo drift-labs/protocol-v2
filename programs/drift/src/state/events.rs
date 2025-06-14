@@ -583,6 +583,16 @@ pub struct InsuranceFundSwapRecord {
     pub out_market_index: u16,
 }
 
+#[event]
+pub struct TransferProtocolIfSharesToRevenuePoolRecord {
+    pub ts: i64,
+    pub market_index: u16,
+    pub amount: u64,
+    pub shares: u128,
+    pub if_vault_amount_before: u64,
+    pub protocol_shares_before: u128,
+}
+
 impl Size for InsuranceFundSwapRecord {
     const SIZE: usize = 256;
 }

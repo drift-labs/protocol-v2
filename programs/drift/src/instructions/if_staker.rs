@@ -685,6 +685,59 @@ pub fn handle_end_insurance_fund_swap<'c: 'info, 'info>(
     Ok(())
 }
 
+pub fn handle_transfer_protocol_if_shares_to_revenue_pool<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, TransferProtocolIfSharesToRevenuePool<'info>>,
+    market_index: u16,
+    amount: u64,
+) -> Result<()> {
+    let state = &ctx.accounts.state;
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+
+    let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
+    let AccountMaps {
+        spot_market_map,
+        ..
+    } = load_maps(
+        remaining_accounts,
+        &MarketSet::new(),
+        &get_writable_spot_market_set_from_many(vec![market_index]),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let mint = get_token_mint(remaining_accounts)?;
+
+    let mut spot_market = spot_market_map.get_ref_mut(&market_index)?;
+
+    let insurance_fund_amount_before = ctx.accounts.insurance_fund_vault.amount;
+
+    let mut if_rebalance_config = ctx.accounts.if_rebalance_config.load_mut()?;
+    controller::insurance::transfer_protocol_if_shares_to_revenue_pool(
+        &mut if_rebalance_config,
+        &mut spot_market,
+        insurance_fund_amount_before,
+        amount,
+        now,
+    )?;
+
+    controller::token::send_from_program_vault(
+        &ctx.accounts.token_program.clone(),
+        &ctx.accounts.insurance_fund_vault.clone(),
+        &ctx.accounts.spot_market_vault.clone(),
+        &ctx.accounts.drift_signer.clone(),
+        state.signer_nonce,
+        amount,
+        &mint,
+    )?;
+
+    ctx.accounts.spot_market_vault.reload()?;   
+
+    math::spot_withdraw::validate_spot_market_vault_amount(&spot_market, ctx.accounts.spot_market_vault.amount)?;
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 #[instruction(
     market_index: u16,
@@ -911,4 +964,38 @@ pub struct InsuranceFundSwap<'info> {
     /// CHECK: fixed instructions sysvar account
     #[account(address = instructions::ID)]
     pub instructions: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(market_index: u16)]
+pub struct TransferProtocolIfSharesToRevenuePool<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        constraint = authority.key() == admin_hot_wallet::id() || authority.key() == state.admin
+    )]
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"insurance_fund_vault".as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = if_rebalance_config.load()?.out_market_index == market_index,
+    )]
+    pub if_rebalance_config: AccountLoader<'info, IfRebalanceConfig>,
+    pub token_program: Interface<'info, TokenInterface>,
+    #[account(
+        constraint = state.signer.eq(&drift_signer.key())
+    )]
+    /// CHECK: forced drift_signer
+    pub drift_signer: AccountInfo<'info>,
 }

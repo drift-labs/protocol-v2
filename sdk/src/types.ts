@@ -711,6 +711,15 @@ export type InsuranceFundSwapRecord = {
 	outMarketIndex: number;
 };
 
+export type TransferProtocolIfSharesToRevenuePoolRecord = {
+	ts: BN;
+	marketIndex: number;
+	amount: BN;
+	shares: BN;
+	ifVaultAmountBefore: BN;
+	protocolSharesBefore: BN;
+};
+
 export type StateAccount = {
 	admin: PublicKey;
 	exchangeStatus: number;

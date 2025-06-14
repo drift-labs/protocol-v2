@@ -3620,6 +3620,65 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async transferProtocolIfSharesToRevenuePool(
+		outMarketIndex: number,
+		inMarketIndex: number,
+		amount: BN
+	): Promise<TransactionSignature> {
+		const transferProtocolIfSharesToRevenuePoolIx =
+			await this.getTransferProtocolIfSharesToRevenuePoolIx(
+				outMarketIndex,
+				inMarketIndex,
+				amount
+			);
+
+		const tx = await this.buildTransaction(
+			transferProtocolIfSharesToRevenuePoolIx
+		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getTransferProtocolIfSharesToRevenuePoolIx(
+		outMarketIndex: number,
+		inMarketIndex: number,
+		amount: BN
+	): Promise<TransactionInstruction> {
+		const remainingAccounts = await this.getRemainingAccounts({
+			userAccounts: [],
+			writableSpotMarketIndexes: [outMarketIndex],
+		});
+
+		return await this.program.instruction.transferProtocolIfSharesToRevenuePool(
+			outMarketIndex,
+			amount,
+			{
+				accounts: {
+					authority: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					insuranceFundVault: await getInsuranceFundVaultPublicKey(
+						this.program.programId,
+						outMarketIndex
+					),
+					spotMarketVault: await getSpotMarketVaultPublicKey(
+						this.program.programId,
+						outMarketIndex
+					),
+					ifRebalanceConfig: await getIfRebalanceConfigPublicKey(
+						this.program.programId,
+						inMarketIndex,
+						outMarketIndex
+					),
+					tokenProgram: TOKEN_PROGRAM_ID,
+					driftSigner: this.getStateAccount().signer,
+				},
+				remainingAccounts,
+			}
+		);
+	}
+
 	public async initializePrelaunchOracle(
 		perpMarketIndex: number,
 		price?: BN,
