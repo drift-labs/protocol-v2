@@ -547,11 +547,11 @@ export function calculateVolSpreadBN(
 		.add(oracleStd)
 		.mul(PERCENTAGE_PRECISION)
 		.div(reservePrice)
-		.div(new BN(4));
+		.div(new BN(2));
 	const volSpread = BN.max(lastOracleConfPct, marketAvgStdPct.div(new BN(2)));
 
 	const clampMin = PERCENTAGE_PRECISION.div(new BN(100));
-	const clampMax = PERCENTAGE_PRECISION;
+	const clampMax = PERCENTAGE_PRECISION.mul(new BN(16)).div(new BN(10));
 
 	const longVolSpreadFactor = clampBN(
 		longIntensity.mul(PERCENTAGE_PRECISION).div(BN.max(ONE, volume24H)),
@@ -568,7 +568,7 @@ export function calculateVolSpreadBN(
 	let confComponent = lastOracleConfPct;
 
 	if (lastOracleConfPct.lte(PRICE_PRECISION.div(new BN(400)))) {
-		confComponent = lastOracleConfPct.div(new BN(20));
+		confComponent = lastOracleConfPct.div(new BN(10));
 	}
 
 	const longVolSpread = BN.max(
@@ -845,8 +845,28 @@ export function calculateSpread(
 		amm.shortIntensityVolume,
 		amm.volume24H
 	);
-	const longSpread = spreads[0];
-	const shortSpread = spreads[1];
+	let longSpread = spreads[0];
+	let shortSpread = spreads[1];
+
+	if (amm.ammSpreadAdjustment > 0) {
+		longSpread = Math.max(
+			longSpread + (longSpread * amm.ammSpreadAdjustment) / 100,
+			1
+		);
+		shortSpread = Math.max(
+			shortSpread + (shortSpread * amm.ammSpreadAdjustment) / 100,
+			1
+		);
+	} else if (amm.ammSpreadAdjustment < 0) {
+		longSpread = Math.max(
+			longSpread - (longSpread * -amm.ammSpreadAdjustment) / 100,
+			1
+		);
+		shortSpread = Math.max(
+			shortSpread - (shortSpread * -amm.ammSpreadAdjustment) / 100,
+			1
+		);
+	}
 
 	return [longSpread, shortSpread];
 }
