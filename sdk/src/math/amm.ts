@@ -849,11 +849,11 @@ export function calculateSpread(
 	let shortSpread = spreads[1];
 
 	if (amm.ammSpreadAdjustment > 0) {
-		longSpread = longSpread + (longSpread * amm.ammSpreadAdjustment) / 100;
-		shortSpread = shortSpread + (shortSpread * amm.ammSpreadAdjustment) / 100;
+		longSpread = Math.max(longSpread + (longSpread * amm.ammSpreadAdjustment) / 100, 1);
+		shortSpread = Math.max(shortSpread + (shortSpread * amm.ammSpreadAdjustment) / 100, 1);
 	} else if (amm.ammSpreadAdjustment < 0) {
-		longSpread = longSpread - (longSpread * -amm.ammSpreadAdjustment) / 100;
-		shortSpread = shortSpread - (shortSpread * -amm.ammSpreadAdjustment) / 100;
+		longSpread = Math.max(longSpread - (longSpread * -amm.ammSpreadAdjustment) / 100, 1);
+		shortSpread = Math.max(shortSpread - (shortSpread * -amm.ammSpreadAdjustment) / 100, 1);
 	}
 
 	return [longSpread, shortSpread];
