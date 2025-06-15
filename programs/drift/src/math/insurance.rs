@@ -1,4 +1,4 @@
-use crate::msg;
+use crate::{msg, PRICE_PRECISION};
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
@@ -116,4 +116,19 @@ pub fn calculate_if_shares_lost(
     };
 
     Ok(if_shares_lost)
+}
+
+pub fn calculate_share_price(
+    total_if_shares: u128,
+    insurance_fund_vault_balance: u64,
+) -> DriftResult<u64> {
+    if total_if_shares > 0 {
+        insurance_fund_vault_balance
+            .cast::<u128>()?
+            .safe_mul(PRICE_PRECISION)?
+            .safe_div(total_if_shares)?
+            .cast::<u64>()
+    } else {
+        Ok(0)
+    }
 }

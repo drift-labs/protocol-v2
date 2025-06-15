@@ -19,6 +19,8 @@ import {
 	DeleteUserRecord,
 	FuelSweepRecord,
 	FuelSeasonRecord,
+	InsuranceFundSwapRecord,
+	TransferProtocolIfSharesToRevenuePoolRecord,
 } from '../index';
 import { EventEmitter } from 'events';
 
@@ -57,6 +59,8 @@ export const DefaultEventSubscriptionOptions: EventSubscriptionOptions = {
 		'DeleteUserRecord',
 		'FuelSweepRecord',
 		'FuelSeasonRecord',
+		'InsuranceFundSwapRecord',
+		'TransferProtocolIfSharesToRevenuePoolRecord',
 	],
 	maxEventsPerType: 4096,
 	orderBy: 'blockchain',
@@ -104,6 +108,8 @@ export type EventMap = {
 	DeleteUserRecord: Event<DeleteUserRecord>;
 	FuelSweepRecord: Event<FuelSweepRecord>;
 	FuelSeasonRecord: Event<FuelSeasonRecord>;
+	InsuranceFundSwapRecord: Event<InsuranceFundSwapRecord>;
+	TransferProtocolIfSharesToRevenuePoolRecord: Event<TransferProtocolIfSharesToRevenuePoolRecord>;
 };
 
 export type EventType = keyof EventMap;
@@ -127,7 +133,9 @@ export type DriftEvent =
 	| Event<SignedMsgOrderRecord>
 	| Event<DeleteUserRecord>
 	| Event<FuelSweepRecord>
-	| Event<FuelSeasonRecord>;
+	| Event<FuelSeasonRecord>
+	| Event<InsuranceFundSwapRecord>
+	| Event<TransferProtocolIfSharesToRevenuePoolRecord>;
 
 export interface EventSubscriberEvents {
 	newEvent: (event: WrappedEvent<EventType>) => void;
