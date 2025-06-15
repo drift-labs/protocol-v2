@@ -15,6 +15,7 @@ export * from './accounts/webSocketHighLeverageModeConfigAccountSubscriber';
 export * from './accounts/bulkAccountLoader';
 export * from './accounts/bulkUserSubscription';
 export * from './accounts/bulkUserStatsSubscription';
+export { CustomizedCadenceBulkAccountLoader } from './accounts/customizedCadenceBulkAccountLoader';
 export * from './accounts/pollingDriftClientAccountSubscriber';
 export * from './accounts/pollingOracleAccountSubscriber';
 export * from './accounts/pollingTokenAccountSubscriber';
