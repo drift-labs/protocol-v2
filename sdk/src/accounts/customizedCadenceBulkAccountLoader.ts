@@ -4,8 +4,9 @@ import { Commitment, Connection, PublicKey } from '@solana/web3.js';
 import { v4 as uuidv4 } from 'uuid';
 
 export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
-	private customIntervalIds: Map<string, NodeJS.Timeout>;
-	private customPollingGroups: Map<number, Set<string>>;
+	private customIntervalId: NodeJS.Timeout | null;
+	private accountFrequencies: Map<string, number>;
+	private lastPollingTime: Map<string, number>;
 	private defaultPollingFrequency: number;
 
 	constructor(
@@ -14,41 +15,50 @@ export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
 		defaultPollingFrequency: number
 	) {
 		super(connection, commitment, defaultPollingFrequency);
-		this.customIntervalIds = new Map();
-		this.customPollingGroups = new Map();
+		this.customIntervalId = null;
+		this.accountFrequencies = new Map();
+		this.lastPollingTime = new Map();
 		this.defaultPollingFrequency = defaultPollingFrequency;
 	}
 
-	private reloadFrequencyGroup(frequency: number): void {
-		const frequencyStr = frequency.toString();
-		const existingInterval = this.customIntervalIds.get(frequencyStr);
-		if (existingInterval) {
-			clearInterval(existingInterval);
-			this.customIntervalIds.delete(frequencyStr);
+	private getAccountsToLoad(): Array<{
+		publicKey: PublicKey;
+		callbacks: Map<string, (buffer: Buffer, slot: number) => void>;
+	}> {
+		const currentTime = Date.now();
+		const accountsToLoad: Array<{
+			publicKey: PublicKey;
+			callbacks: Map<string, (buffer: Buffer, slot: number) => void>;
+		}> = [];
+
+		for (const [key, frequency] of this.accountFrequencies.entries()) {
+			const lastPollTime = this.lastPollingTime.get(key) || 0;
+			if (currentTime - lastPollTime >= frequency) {
+				const account = this.accountsToLoad.get(key);
+				if (account) {
+					accountsToLoad.push(account);
+					this.lastPollingTime.set(key, currentTime);
+				}
+			}
 		}
 
-		const group = this.customPollingGroups.get(frequency);
-		if (group && group.size > 0) {
-			const handleAccountLoading = async () => {
-				const accounts = Array.from(group)
-					.map((key) => this.accountsToLoad.get(key))
-					.filter((account) => account !== undefined);
+		return accountsToLoad;
+	}
 
-				if (accounts.length > 0) {
-					const chunks = this.chunks(
-						this.chunks(Array.from(accounts), GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE),
-						10
-					);
+	private async handleAccountLoading(): Promise<void> {
+		const accounts = this.getAccountsToLoad();
 
-					await Promise.all(
-						chunks.map((chunk) => {
-							return this.loadChunk(chunk);
-						})
-					);
-				}
-			};
-			const intervalId = setInterval(handleAccountLoading, frequency);
-			this.customIntervalIds.set(frequencyStr, intervalId);
+		if (accounts.length > 0) {
+			const chunks = this.chunks(
+				this.chunks(accounts, GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE),
+				10
+			);
+
+			await Promise.all(
+				chunks.map((chunk) => {
+					return this.loadChunk(chunk);
+				})
+			);
 		}
 	}
 
@@ -57,42 +67,37 @@ export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
 		newFrequency: number
 	): void {
 		const key = publicKey.toBase58();
+		this.accountFrequencies.set(key, newFrequency);
+		this.lastPollingTime.set(key, 0); // Reset last polling time to ensure immediate load
+		this.restartPollingIfNeeded(newFrequency);
+	}
 
-		let removedFromOldGroup = false;
-		// Remove from old frequency group
-		for (const [frequency, group] of this.customPollingGroups.entries()) {
-			if (group.has(key)) {
-				if (newFrequency === frequency) {
-					// if frequency is the same, we do nothing
-					break;
-				}
-				group.delete(key);
-				if (group.size === 0) {
-					const intervalId = this.customIntervalIds.get(frequency.toString());
-					if (intervalId) {
-						clearInterval(intervalId);
-						this.customIntervalIds.delete(frequency.toString());
-					}
-					this.customPollingGroups.delete(frequency);
-				}
-				removedFromOldGroup = true;
-				break;
-			}
-		}
+	private restartPollingIfNeeded(newFrequency: number): void {
+		const currentMinFrequency = Math.min(
+			...Array.from(this.accountFrequencies.values()),
+			this.defaultPollingFrequency
+		);
 
-		// Add to new frequency group
-		if (removedFromOldGroup) {
-			let group = this.customPollingGroups.get(newFrequency);
-			if (!group) {
-				group = new Set();
-				this.customPollingGroups.set(newFrequency, group);
-			}
-			group.add(key);
-
-			this.reloadFrequencyGroup(newFrequency);
+		if (newFrequency < currentMinFrequency || !this.customIntervalId) {
+			this.stopPolling();
+			this.startPolling();
 		}
 	}
 
+	/**
+	 * Adds an account to be monitored by the bulk account loader
+	 * @param publicKey The public key of the account to monitor
+	 * @param callback Function to be called when account data is received
+	 * @param customPollingFrequency Optional custom polling frequency in ms for this specific account.
+	 * If not provided, will use the default polling frequency
+	 * @returns A unique callback ID that can be used to remove this specific callback later
+	 * 
+	 * The method will:
+	 * 1. Create a new callback mapping for the account
+	 * 2. Set up polling frequency tracking for the account
+	 * 3. Reset last polling time to 0 to ensure immediate data fetch
+	 * 4. Automatically restart polling if this account needs a faster frequency than existing accounts
+	 */
 	public async addAccount(
 		publicKey: PublicKey,
 		callback: (buffer: Buffer, slot: number) => void,
@@ -109,68 +114,60 @@ export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
 
 		const key = publicKey.toBase58();
 		const frequency = customPollingFrequency || this.defaultPollingFrequency;
+		this.accountFrequencies.set(key, frequency);
+		this.lastPollingTime.set(key, 0); // Reset last polling time to ensure immediate load
 
-		// Add to frequency group
-		let group = this.customPollingGroups.get(frequency);
-		if (!group) {
-			group = new Set();
-			this.customPollingGroups.set(frequency, group);
-		}
-		group.add(key);
-
-		this.reloadFrequencyGroup(frequency);
+		this.restartPollingIfNeeded(frequency);
 
 		return callbackId;
 	}
 
 	public removeAccount(publicKey: PublicKey, id?: string): void {
-		super.removeAccount(publicKey, id);
-
 		const key = publicKey.toBase58();
-
-		// Remove from any polling groups
-		for (const [frequency, group] of this.customPollingGroups.entries()) {
-			if (group.has(key)) {
-				group.delete(key);
-				if (group.size === 0) {
-					const intervalId = this.customIntervalIds.get(frequency.toString());
-					if (intervalId) {
-						clearInterval(intervalId);
-						this.customIntervalIds.delete(frequency.toString());
-					}
-					this.customPollingGroups.delete(frequency);
-				}
-				this.reloadFrequencyGroup(frequency);
-				break;
-			}
+		this.accountFrequencies.delete(key);
+		this.lastPollingTime.delete(key);
+		
+		if (this.accountsToLoad.size === 0) {
+			this.stopPolling();
+		} else {
+			// Restart polling in case we removed the account with the smallest frequency
+			this.restartPollingIfNeeded(this.defaultPollingFrequency);
 		}
 	}
 
 	public getAccountCadence(publicKey: PublicKey): number | null {
 		const key = publicKey.toBase58();
-		for (const [frequency, group] of this.customPollingGroups.entries()) {
-			if (group.has(key)) {
-				return frequency;
-			}
-		}
-		return null;
+		return this.accountFrequencies.get(key) || null;
 	}
 
 	public startPolling(): void {
-		// Don't start the polling in the base class
-		// Only start polling in these custom frequencies
-		for (const frequency of this.customPollingGroups.keys()) {
-			this.reloadFrequencyGroup(frequency);
+		if (this.customIntervalId) {
+			return;
 		}
+
+		const minFrequency = Math.min(
+			...Array.from(this.accountFrequencies.values()),
+			this.defaultPollingFrequency
+		);
+
+		this.customIntervalId = setInterval(() => {
+			this.handleAccountLoading().catch((error) => {
+				console.error('Error in account loading:', error);
+			});
+		}, minFrequency);
 	}
 
 	public stopPolling(): void {
 		super.stopPolling();
 
-		// Clear all custom intervals
-		for (const intervalId of this.customIntervalIds.values()) {
-			clearInterval(intervalId);
+		if (this.customIntervalId) {
+			clearInterval(this.customIntervalId);
+			this.customIntervalId = null;
 		}
-		this.customIntervalIds.clear();
+		this.lastPollingTime.clear();
+	}
+
+	public clearAccountFrequencies(): void {
+		this.accountFrequencies.clear();
 	}
 }

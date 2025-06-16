@@ -1,5 +1,5 @@
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
-import { BN } from '../';
+import { BN } from '@coral-xyz/anchor';
 
 export const ZERO = new BN(0);
 export const ONE = new BN(1);
