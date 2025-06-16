@@ -192,11 +192,9 @@ export function getTriggerAuctionStartPrice(params: {
 	perpMarket: PerpMarketAccount;
 	direction: PositionDirection;
 	oraclePrice: BN;
-	startBuffer: number;
 	limitPrice?: BN;
 }): BN {
-	const { perpMarket, direction, oraclePrice, startBuffer, limitPrice } =
-		params;
+	const { perpMarket, direction, oraclePrice, limitPrice } = params;
 
 	const twapMismatch =
 		perpMarket.amm.historicalOracleData.lastOraclePriceTwapTs
@@ -246,10 +244,19 @@ export function getTriggerAuctionStartPrice(params: {
 			  );
 	}
 
+	let startBuffer = -3500;
+
+	if (
+		isVariant(perpMarket.contractTier, 'a') ||
+		isVariant(perpMarket.contractTier, 'b')
+	) {
+		startBuffer = -500;
+	}
+
 	// Apply start buffer (in BPS)
 	const startBufferPrice = oraclePrice
 		.mul(new BN(startBuffer))
-		.div(new BN(10_000)); // BPS
+		.div(new BN(PRICE_PRECISION));
 
 	let auctionStartPrice = isVariant(direction, 'long')
 		? oraclePrice.add(baselineStartOffset).sub(startBufferPrice)
