@@ -45,6 +45,10 @@ export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
 		return accountsToLoad;
 	}
 
+	public async load(): Promise<void> {
+		return this.handleAccountLoading();
+	}
+
 	private async handleAccountLoading(): Promise<void> {
 		const accounts = this.getAccountsToLoad();
 
@@ -122,7 +126,7 @@ export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
 		return callbackId;
 	}
 
-	public removeAccount(publicKey: PublicKey, id?: string): void {
+	public removeAccount(publicKey: PublicKey): void {
 		const key = publicKey.toBase58();
 		this.accountFrequencies.delete(key);
 		this.lastPollingTime.delete(key);
