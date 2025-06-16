@@ -3518,7 +3518,7 @@ export class User {
 				now
 			);
 
-			const stakedQuoteAssetAmount = userStatsAccount.ifStakedQuoteAssetAmount;
+			const stakedGovAssetAmount = userStatsAccount.ifStakedGovTokenAmount;
 			const volumeTiers = [
 				new BN(100_000_000).mul(QUOTE_PRECISION),
 				new BN(50_000_000).mul(QUOTE_PRECISION),
@@ -3527,17 +3527,17 @@ export class User {
 				new BN(1_000_000).mul(QUOTE_PRECISION),
 			];
 			const stakedTiers = [
-				new BN(10000).mul(QUOTE_PRECISION),
-				new BN(5000).mul(QUOTE_PRECISION),
-				new BN(2000).mul(QUOTE_PRECISION),
-				new BN(1000).mul(QUOTE_PRECISION),
-				new BN(500).mul(QUOTE_PRECISION),
+				new BN(120000 - 1).mul(QUOTE_PRECISION),
+				new BN(100000 - 1).mul(QUOTE_PRECISION),
+				new BN(25000 - 1).mul(QUOTE_PRECISION),
+				new BN(10000 - 1).mul(QUOTE_PRECISION),
+				new BN(1000 - 1).mul(QUOTE_PRECISION),
 			];
 
 			for (let i = 0; i < volumeTiers.length; i++) {
 				if (
 					total30dVolume.gte(volumeTiers[i]) ||
-					stakedQuoteAssetAmount.gte(stakedTiers[i])
+					stakedGovAssetAmount.gte(stakedTiers[i])
 				) {
 					feeTierIndex = 5 - i;
 					break;
