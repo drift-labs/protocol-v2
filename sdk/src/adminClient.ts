@@ -14,7 +14,6 @@ import {
 	ContractTier,
 	AssetTier,
 	SpotFulfillmentConfigStatus,
-	IfRebalanceConfigParams,
 } from './types';
 import { DEFAULT_MARKET_NAME, encodeName } from './userName';
 import { BN } from '@coral-xyz/anchor';
@@ -38,7 +37,6 @@ import {
 	getProtectedMakerModeConfigPublicKey,
 	getFuelOverflowAccountPublicKey,
 	getTokenProgramForSpotMarket,
-	getIfRebalanceConfigPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -3403,86 +3401,6 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
-	public async updatePerpMarketTakerSpeedBumpOverride(
-		perpMarketIndex: number,
-		takerSpeedBumpOverride: number
-	): Promise<TransactionSignature> {
-		const updatePerpMarketTakerSpeedBumpOverrideIx =
-			await this.getUpdatePerpMarketTakerSpeedBumpOverrideIx(
-				perpMarketIndex,
-				takerSpeedBumpOverride
-			);
-
-		const tx = await this.buildTransaction(
-			updatePerpMarketTakerSpeedBumpOverrideIx
-		);
-
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-
-		return txSig;
-	}
-
-	public async getUpdatePerpMarketTakerSpeedBumpOverrideIx(
-		perpMarketIndex: number,
-		takerSpeedBumpOverride: number
-	): Promise<TransactionInstruction> {
-		return await this.program.instruction.updatePerpMarketTakerSpeedBumpOverride(
-			takerSpeedBumpOverride,
-			{
-				accounts: {
-					admin: this.isSubscribed
-						? this.getStateAccount().admin
-						: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					perpMarket: await getPerpMarketPublicKey(
-						this.program.programId,
-						perpMarketIndex
-					),
-				},
-			}
-		);
-	}
-
-	public async updatePerpMarketAmmSpreadAdjustment(
-		perpMarketIndex: number,
-		ammSpreadAdjustment: number
-	): Promise<TransactionSignature> {
-		const updatePerpMarketAmmSpreadAdjustmentIx =
-			await this.getUpdatePerpMarketAmmSpreadAdjustmentIx(
-				perpMarketIndex,
-				ammSpreadAdjustment
-			);
-
-		const tx = await this.buildTransaction(
-			updatePerpMarketAmmSpreadAdjustmentIx
-		);
-
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-
-		return txSig;
-	}
-
-	public async getUpdatePerpMarketAmmSpreadAdjustmentIx(
-		perpMarketIndex: number,
-		ammSpreadAdjustment: number
-	): Promise<TransactionInstruction> {
-		return await this.program.instruction.updatePerpMarketAmmSpreadAdjustment(
-			ammSpreadAdjustment,
-			{
-				accounts: {
-					admin: this.useHotWalletAdmin
-						? this.wallet.publicKey
-						: this.getStateAccount().admin,
-					state: await this.getStatePublicKey(),
-					perpMarket: await getPerpMarketPublicKey(
-						this.program.programId,
-						perpMarketIndex
-					),
-				},
-			}
-		);
-	}
-
 	public async updateSpotMarketFeeAdjustment(
 		perpMarketIndex: number,
 		feeAdjustment: number
@@ -3941,6 +3859,86 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async updatePerpMarketTakerSpeedBumpOverride(
+		perpMarketIndex: number,
+		takerSpeedBumpOverride: number
+	): Promise<TransactionSignature> {
+		const updatePerpMarketTakerSpeedBumpOverrideIx =
+			await this.getUpdatePerpMarketTakerSpeedBumpOverrideIx(
+				perpMarketIndex,
+				takerSpeedBumpOverride
+			);
+		const tx = await this.buildTransaction(
+			updatePerpMarketTakerSpeedBumpOverrideIx
+		);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdatePerpMarketTakerSpeedBumpOverrideIx(
+		perpMarketIndex: number,
+		takerSpeedBumpOverride: number
+	): Promise<TransactionInstruction> {
+		const perpMarketPublicKey = await getPerpMarketPublicKey(
+			this.program.programId,
+			perpMarketIndex
+		);
+
+		return await this.program.instruction.updatePerpMarketTakerSpeedBumpOverride(
+			takerSpeedBumpOverride,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: perpMarketPublicKey,
+				},
+			}
+		);
+	}
+
+	public async updatePerpMarketAmmSpreadAdjustment(
+		perpMarketIndex: number,
+		ammSpreadAdjustment: number
+	): Promise<TransactionSignature> {
+		const updatePerpMarketAmmSpreadAdjustmentIx =
+			await this.getUpdatePerpMarketAmmSpreadAdjustmentIx(
+				perpMarketIndex,
+				ammSpreadAdjustment
+			);
+		const tx = await this.buildTransaction(
+			updatePerpMarketAmmSpreadAdjustmentIx
+		);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdatePerpMarketAmmSpreadAdjustmentIx(
+		perpMarketIndex: number,
+		ammSpreadAdjustment: number
+	): Promise<TransactionInstruction> {
+		const perpMarketPublicKey = await getPerpMarketPublicKey(
+			this.program.programId,
+			perpMarketIndex
+		);
+
+		return await this.program.instruction.updatePerpMarketAmmSpreadAdjustment(
+			ammSpreadAdjustment,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: perpMarketPublicKey,
+				},
+			}
+		);
+	}
+
 	public async updatePerpMarketProtectedMakerParams(
 		perpMarketIndex: number,
 		protectedMakerLimitPriceDivisor?: number,
@@ -3984,69 +3982,6 @@ export class AdminClient extends DriftClient {
 				},
 			}
 		);
-	}
-
-	public async initializeIfRebalanceConfig(
-		params: IfRebalanceConfigParams
-	): Promise<TransactionSignature> {
-		const initializeIfRebalanceConfigIx =
-			await this.getInitializeIfRebalanceConfigIx(params);
-
-		const tx = await this.buildTransaction(initializeIfRebalanceConfigIx);
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-
-		return txSig;
-	}
-
-	public async getInitializeIfRebalanceConfigIx(
-		params: IfRebalanceConfigParams
-	): Promise<TransactionInstruction> {
-		return await this.program.instruction.initializeIfRebalanceConfig(params, {
-			accounts: {
-				admin: this.isSubscribed
-					? this.getStateAccount().admin
-					: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				ifRebalanceConfig: await getIfRebalanceConfigPublicKey(
-					this.program.programId,
-					params.inMarketIndex,
-					params.outMarketIndex
-				),
-				rent: SYSVAR_RENT_PUBKEY,
-				systemProgram: anchor.web3.SystemProgram.programId,
-			},
-		});
-	}
-
-	public async updateIfRebalanceConfig(
-		params: IfRebalanceConfigParams
-	): Promise<TransactionSignature> {
-		const updateIfRebalanceConfigIx = await this.getUpdateIfRebalanceConfigIx(
-			params
-		);
-
-		const tx = await this.buildTransaction(updateIfRebalanceConfigIx);
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-
-		return txSig;
-	}
-
-	public async getUpdateIfRebalanceConfigIx(
-		params: IfRebalanceConfigParams
-	): Promise<TransactionInstruction> {
-		return await this.program.instruction.updateIfRebalanceConfig(params, {
-			accounts: {
-				admin: this.isSubscribed
-					? this.getStateAccount().admin
-					: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				ifRebalanceConfig: await getIfRebalanceConfigPublicKey(
-					this.program.programId,
-					params.inMarketIndex,
-					params.outMarketIndex
-				),
-			},
-		});
 	}
 
 	public async initUserFuel(
