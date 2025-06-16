@@ -29,7 +29,6 @@ export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
 
 		const group = this.customPollingGroups.get(frequency);
 		if (group && group.size > 0) {
-
 			const handleAccountLoading = async () => {
 				const accounts = Array.from(group)
 					.map((key) => this.accountsToLoad.get(key))
@@ -37,20 +36,17 @@ export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
 
 				if (accounts.length > 0) {
 					const chunks = this.chunks(
-						this.chunks(
-							Array.from(accounts),
-							GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE
-						),
+						this.chunks(Array.from(accounts), GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE),
 						10
 					);
-		
+
 					await Promise.all(
 						chunks.map((chunk) => {
 							return this.loadChunk(chunk);
 						})
 					);
 				}
-			}
+			};
 			const intervalId = setInterval(handleAccountLoading, frequency);
 			this.customIntervalIds.set(frequencyStr, intervalId);
 		}
@@ -66,7 +62,7 @@ export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
 		// Remove from old frequency group
 		for (const [frequency, group] of this.customPollingGroups.entries()) {
 			if (group.has(key)) {
-				if(newFrequency === frequency) {
+				if (newFrequency === frequency) {
 					// if frequency is the same, we do nothing
 					break;
 				}
@@ -85,15 +81,14 @@ export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
 		}
 
 		// Add to new frequency group
-		if(removedFromOldGroup) {
-
+		if (removedFromOldGroup) {
 			let group = this.customPollingGroups.get(newFrequency);
 			if (!group) {
 				group = new Set();
 				this.customPollingGroups.set(newFrequency, group);
 			}
 			group.add(key);
-			
+
 			this.reloadFrequencyGroup(newFrequency);
 		}
 	}
@@ -104,11 +99,8 @@ export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
 		customPollingFrequency?: number
 	): Promise<string> {
 		const callbackId = uuidv4();
-		const callbacks = new Map<
-				string,
-				(buffer: Buffer, slot: number) => void
-			>();
-			callbacks.set(callbackId, callback);
+		const callbacks = new Map<string, (buffer: Buffer, slot: number) => void>();
+		callbacks.set(callbackId, callback);
 		const newAccountToLoad = {
 			publicKey,
 			callbacks,

@@ -10,8 +10,6 @@ export type AccountToLoad = {
 	callbacks: Map<string, (buffer: Buffer, slot: number) => void>;
 };
 
-
-
 const oneMinute = 60 * 1000;
 
 export class BulkAccountLoader {
