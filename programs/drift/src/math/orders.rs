@@ -923,10 +923,19 @@ pub fn calculate_max_perp_order_size(
 
     // if user has no free collateral, just return the order size to reduce position
     if free_collateral_before <= 0 {
-        return standardize_base_asset_amount(
-            order_size_to_reduce_position,
-            perp_market.amm.order_step_size,
-        );
+        if order_size_to_reduce_position > 0 {
+            return standardize_base_asset_amount(
+                order_size_to_reduce_position,
+                perp_market.amm.order_step_size,
+            );
+        } else {
+            msg!(
+                "no free collateral before. total_collateral={} margin_requirement={}",
+                total_collateral,
+                margin_requirement
+            );
+            return Err(ErrorCode::InsufficientCollateral);
+        }
     }
 
     let oracle_price =
@@ -975,10 +984,20 @@ pub fn calculate_max_perp_order_size(
         }
     }
 
-    standardize_base_asset_amount(
+    let max_order_size = standardize_base_asset_amount(
         order_size.safe_add(order_size_to_reduce_position)?,
         perp_market.amm.order_step_size,
-    )
+    )?;
+
+    msg!(
+        "max_order_size={} updated_margin_ratio={} free_collateral_before={} free_collateral_released={}",
+        max_order_size,
+        updated_margin_ratio,
+        free_collateral_before,
+        free_collateral_released
+    );
+
+    Ok(max_order_size)
 }
 
 #[allow(clippy::unwrap_used)]
