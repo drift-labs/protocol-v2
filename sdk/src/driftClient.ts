@@ -8911,7 +8911,8 @@ export class DriftClient {
 		enteringHighLeverageMode?: boolean
 	) {
 		let feeTier;
-		if (user) {
+		const userHLM = (user?.isHighLeverageMode() ?? false) || enteringHighLeverageMode;
+		if (user && !userHLM) {
 			feeTier = user.getUserFeeTier(marketType);
 		} else {
 			const state = this.getStateAccount();
@@ -8933,7 +8934,7 @@ export class DriftClient {
 			}
 
 			takerFee += (takerFee * marketAccount.feeAdjustment) / 100;
-			if (user && (user.isHighLeverageMode() || enteringHighLeverageMode)) {
+			if (userHLM) {
 				takerFee *= 2;
 			}
 			makerFee += (makerFee * marketAccount.feeAdjustment) / 100;
