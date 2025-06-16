@@ -95,7 +95,7 @@ export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
 	 * @param customPollingFrequency Optional custom polling frequency in ms for this specific account.
 	 * If not provided, will use the default polling frequency
 	 * @returns A unique callback ID that can be used to remove this specific callback later
-	 * 
+	 *
 	 * The method will:
 	 * 1. Create a new callback mapping for the account
 	 * 2. Set up polling frequency tracking for the account
@@ -130,7 +130,7 @@ export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
 		const key = publicKey.toBase58();
 		this.accountFrequencies.delete(key);
 		this.lastPollingTime.delete(key);
-		
+
 		if (this.accountsToLoad.size === 0) {
 			this.stopPolling();
 		} else {

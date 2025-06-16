@@ -10,12 +10,18 @@ describe('CustomizedCadenceBulkAccountLoader', () => {
 	beforeEach(() => {
 		connection = {
 			_rpcBatchRequest: async () => {
-				return Promise.resolve([{
-					result: {
-						context: { slot: 1 },
-						value: Array(10).fill(null).map(() => ({
-							data: [Buffer.from(Math.random().toString()).toString('base64'), 'base64']
-						})),
+				return Promise.resolve([
+					{
+						result: {
+							context: { slot: 1 },
+							value: Array(10)
+								.fill(null)
+								.map(() => ({
+									data: [
+										Buffer.from(Math.random().toString()).toString('base64'),
+										'base64',
+									],
+								})),
 						},
 					},
 				]);
