@@ -7,6 +7,8 @@ import {
 	ZERO,
 	PerpMarketAccount,
 	getPerpMarketTierNumber,
+	QUOTE_PRECISION,
+	PRICE_PRECISION,
 } from '../.';
 
 export function isAuctionComplete(order: Order, slot: number): boolean {
@@ -195,9 +197,6 @@ export function getTriggerAuctionStartPrice(params: {
 }): BN {
 	const { perpMarket, direction, oraclePrice, startBuffer, limitPrice } =
 		params;
-
-	const QUOTE_PRECISION = new BN(1_000_000);
-	const PRICE_PRECISION = new BN(1_000_000);
 
 	const twapMismatch =
 		perpMarket.amm.historicalOracleData.lastOraclePriceTwapTs
