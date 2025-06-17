@@ -1701,7 +1701,8 @@ pub struct CacheInfo {
     pub oracle_delay: i64,
     pub oracle_slot: u64,
     pub oracle: Pubkey,
-    pub last_amm_balance_available: i64,
+    pub last_fee_pool_balance: u128,
+    pub last_net_pnl_pool_balance: i128,
     pub last_settle_amount: u64,
     pub last_settle_ts: i64,
     pub oracle_source: u8,
@@ -1709,7 +1710,7 @@ pub struct CacheInfo {
 }
 
 impl Size for CacheInfo {
-    const SIZE: usize = 104 + 8 + 8 + 8;
+    const SIZE: usize = 160 + 8 + 8 + 8;
 }
 
 impl Default for CacheInfo {
@@ -1724,7 +1725,8 @@ impl Default for CacheInfo {
             oracle_delay: 0i64,
             oracle_slot: 0u64,
             oracle: Pubkey::default(),
-            last_amm_balance_available: 0i64,
+            last_fee_pool_balance: 0u128,
+            last_net_pnl_pool_balance: 0i128,
             last_settle_amount: 0u64,
             last_settle_ts: 0i64,
             oracle_source: 0u8,
@@ -1741,6 +1743,14 @@ impl CacheInfo {
     pub fn oracle_id(&self) -> DriftResult<OracleIdentifier> {
         let oracle_source = self.get_oracle_source()?;
         Ok((self.oracle, oracle_source))
+    }
+
+    pub fn get_last_available_amm_balance(&self) -> DriftResult<i128> {
+        let last_available_balance = self
+            .last_fee_pool_balance
+            .cast::<i128>()?
+            .safe_add(self.last_net_pnl_pool_balance)?;
+        Ok(last_available_balance)
     }
 }
 

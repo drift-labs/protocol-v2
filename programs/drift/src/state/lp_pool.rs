@@ -70,6 +70,9 @@ pub struct LPPool {
     /// all revenues paid out
     pub total_fees_paid: u128, // 16, 192
 
+    pub cumulative_usdc_sent_to_perp_markets: u128,
+    pub cumulative_usdc_received_from_perp_markets: u128,
+
     pub total_mint_redeem_fees_paid: i128,
 
     pub min_mint_fee: i64,

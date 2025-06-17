@@ -6,6 +6,7 @@ use anchor_lang::Discriminator;
 use anchor_spl::associated_token::get_associated_token_address_with_program_id;
 use anchor_spl::token_interface::Mint;
 use anchor_spl::token_interface::{TokenAccount, TokenInterface};
+use num_integer::Integer;
 use solana_program::instruction::Instruction;
 use solana_program::pubkey;
 use solana_program::sysvar::instructions::{
@@ -27,7 +28,9 @@ use crate::ids::{jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, serum_
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
+use crate::math::constants::QUOTE_PRECISION;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
+use crate::math::constants::SPOT_BALANCE_PRECISION;
 use crate::math::margin::{calculate_user_equity, meets_settle_pnl_maintenance_margin_requirement};
 use crate::math::oracle::is_oracle_valid_for_action;
 use crate::math::oracle::DriftAction;
@@ -2987,14 +2990,30 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
     )?;
 
     for (_, perp_market_loader) in perp_market_map.0.iter() {
-        let perp_market = perp_market_loader.load()?;
+        let mut perp_market = perp_market_loader.load_mut()?;
         let cached_info = amm_cache.get_mut(perp_market.market_index as u32);
+        let oracle_data = oracle_map.get_price_data(&perp_market.oracle_id())?;
 
-        if cached_info.last_amm_balance_available == 0 {
-            msg!(
-                "No settled amm balance to transfer for {}. Needs cache update crank",
-                perp_market.market_index
-            );
+        let fee_pool_token_amount = get_token_amount(
+            perp_market.amm.fee_pool.scaled_balance,
+            &quote_market,
+            perp_market.amm.fee_pool.balance_type(),
+        )?;
+
+        let net_pnl_pool_token_amount = get_token_amount(
+            perp_market.pnl_pool.scaled_balance,
+            &quote_market,
+            perp_market.pnl_pool.balance_type(),
+        )?
+        .cast::<i128>()?
+        .safe_sub(calculate_net_user_pnl(&perp_market.amm, oracle_data.price)?)?;
+
+        let amount_available =
+            net_pnl_pool_token_amount.safe_add(fee_pool_token_amount.cast::<i128>()?)?;
+
+        if cached_info.last_net_pnl_pool_balance == 0 && cached_info.last_fee_pool_balance == 0 {
+            cached_info.last_fee_pool_balance = fee_pool_token_amount;
+            cached_info.last_net_pnl_pool_balance = net_pnl_pool_token_amount;
             continue;
         }
 
@@ -3003,35 +3022,6 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
             ErrorCode::DefaultError,
             "oracle id mismatch between amm cache and perp market"
         )?;
-
-        let oracle_data = oracle_map.get_price_data(&perp_market.oracle_id())?;
-
-        let pnl_pool_token_amount = get_token_amount(
-            perp_market.pnl_pool.scaled_balance,
-            &quote_market,
-            perp_market.pnl_pool.balance_type(),
-        )?;
-
-        let fee_pool_token_amount = get_token_amount(
-            perp_market.amm.fee_pool.scaled_balance,
-            &quote_market,
-            perp_market.amm.fee_pool.balance_type(),
-        )?;
-
-        let amount_available = pnl_pool_token_amount
-            .safe_add(fee_pool_token_amount)?
-            .cast::<i128>()?
-            .safe_sub(calculate_net_user_pnl(&perp_market.amm, oracle_data.price)?)?
-            .max(0i128)
-            .cast::<i64>()?;
-
-        if amount_available <= 0 {
-            msg!(
-                "No available pnl to settle for {}. No change in fee or revenue pool",
-                perp_market.market_index
-            );
-            continue;
-        }
 
         // Actually transfer the pnl to the lp usdc constituent account
         let oracle_price = oracle_map.get_price_data(&perp_market.oracle_id())?.price;
@@ -3091,32 +3081,110 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
         }
 
         let mint = *ctx.accounts.mint.clone();
-        let amount_to_send = (amount_available - cached_info.last_amm_balance_available)
-            .max(0i64)
-            .safe_div_floor(perp_market.lp_fee_transfer_scalar as i64)?;
-        controller::token::send_from_program_vault(
-            &ctx.accounts.token_program,
-            &ctx.accounts.quote_token_vault,
-            constituent_token_account,
-            &ctx.accounts.drift_signer,
-            state.signer_nonce,
-            amount_to_send.cast::<u64>()?,
-            &Some(mint),
-        )?;
 
-        lp_pool.last_aum = lp_pool
-            .last_aum
-            .saturating_add(amount_to_send.cast::<u128>()?);
+        if perp_market.lp_fee_transfer_scalar == 0 {
+            msg!(
+                "lp_fee_transfer_scalar is 0 for perp market {}. Cannot settle pnl",
+                perp_market.market_index
+            );
+            continue;
+        }
+
+        let amount_to_send = amount_available
+            .abs_diff(cached_info.get_last_available_amm_balance()?)
+            .safe_div_ceil(perp_market.lp_fee_transfer_scalar as u128)?;
+        if amount_available < 0 {
+            controller::token::receive(
+                &ctx.accounts.token_program,
+                constituent_token_account,
+                &ctx.accounts.quote_token_vault,
+                &ctx.accounts.drift_signer,
+                amount_to_send.cast::<u64>()?,
+                &Some(mint),
+            )?;
+
+            // Send all revenues to the perp market fee pool
+            perp_market
+                .amm
+                .fee_pool
+                .increase_balance(amount_to_send as u128)?;
+
+            lp_pool.cumulative_usdc_sent_to_perp_markets = lp_pool
+                .cumulative_usdc_sent_to_perp_markets
+                .saturating_add(amount_to_send.cast::<u128>()?);
+            lp_pool.last_aum = lp_pool
+                .last_aum
+                .saturating_sub(amount_to_send.cast::<u128>()?);
+        } else {
+            controller::token::send_from_program_vault(
+                &ctx.accounts.token_program,
+                &ctx.accounts.quote_token_vault,
+                constituent_token_account,
+                &ctx.accounts.drift_signer,
+                state.signer_nonce,
+                amount_to_send.cast::<u64>()?,
+                &Some(mint),
+            )?;
+
+            // If both fees and pnl are up, take from both equally
+            let precision_increase = SPOT_BALANCE_PRECISION.safe_div(QUOTE_PRECISION)?;
+            if fee_pool_token_amount > cached_info.last_fee_pool_balance
+                && net_pnl_pool_token_amount > cached_info.last_net_pnl_pool_balance
+            {
+                let abs_scaled_fee_pool_token_delta = fee_pool_token_amount
+                    .abs_diff(cached_info.last_fee_pool_balance)
+                    .safe_div_ceil(perp_market.lp_fee_transfer_scalar as u128)?;
+
+                let abs_scaled_pnl_pool_token_delta = net_pnl_pool_token_amount
+                    .abs_diff(cached_info.last_net_pnl_pool_balance)
+                    .safe_div_ceil(perp_market.lp_fee_transfer_scalar as u128)?;
+
+                msg!(
+                    "abs scaled fee pool token delta = {} abs scaled pnl pool token delta = {}",
+                    abs_scaled_fee_pool_token_delta,
+                    abs_scaled_pnl_pool_token_delta
+                );
+                perp_market.amm.fee_pool.decrease_balance(
+                    abs_scaled_fee_pool_token_delta.safe_mul(precision_increase)?,
+                )?;
+                perp_market.pnl_pool.decrease_balance(
+                    abs_scaled_pnl_pool_token_delta.safe_mul(precision_increase)?,
+                )?;
+            } else if fee_pool_token_amount > cached_info.last_fee_pool_balance {
+                perp_market
+                    .amm
+                    .fee_pool
+                    .decrease_balance((amount_to_send as u128).safe_mul(precision_increase)?)?;
+            } else if net_pnl_pool_token_amount > cached_info.last_net_pnl_pool_balance {
+                perp_market
+                    .pnl_pool
+                    .decrease_balance((amount_to_send as u128).safe_mul(precision_increase)?)?;
+            }
+
+            lp_pool.cumulative_usdc_received_from_perp_markets = lp_pool
+                .cumulative_usdc_received_from_perp_markets
+                .saturating_add(amount_to_send.cast::<u128>()?);
+            lp_pool.last_aum = lp_pool
+                .last_aum
+                .saturating_add(amount_to_send.cast::<u128>()?);
+        }
+
         lp_pool.last_aum_ts = clock.unix_timestamp;
         lp_pool.last_aum_slot = clock.slot;
 
         constituent_token_account.reload()?;
         constituent.sync_token_balance(constituent_token_account.amount);
 
-        cached_info.last_amm_balance_available = amount_available.saturating_sub(amount_to_send);
+        cached_info.last_fee_pool_balance = fee_pool_token_amount;
+        cached_info.last_net_pnl_pool_balance = net_pnl_pool_token_amount;
         cached_info.last_settle_amount = amount_to_send.cast::<u64>()?;
         cached_info.last_settle_ts = Clock::get()?.unix_timestamp;
     }
+
+    math::spot_withdraw::validate_spot_market_vault_amount(
+        quote_market,
+        ctx.accounts.quote_token_vault.amount,
+    )?;
 
     Ok(())
 }
@@ -3181,23 +3249,6 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
         cached_info.oracle_confidence = oracle_data.confidence;
         cached_info.max_confidence_interval_multiplier =
             perp_market.get_max_confidence_interval_multiplier()?;
-
-        let pnl_pool_token_amount = get_token_amount(
-            perp_market.pnl_pool.scaled_balance,
-            &quote_market,
-            perp_market.pnl_pool.balance_type(),
-        )?;
-
-        let fee_pool_token_amount = get_token_amount(
-            perp_market.amm.fee_pool.scaled_balance,
-            &quote_market,
-            perp_market.amm.fee_pool.balance_type(),
-        )?;
-        cached_info.last_amm_balance_available = pnl_pool_token_amount
-            .safe_add(fee_pool_token_amount)?
-            .cast::<i128>()?
-            .safe_sub(calculate_net_user_pnl(&perp_market.amm, oracle_data.price)?)?
-            .cast::<i64>()?;
     }
 
     Ok(())

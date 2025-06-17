@@ -8721,6 +8721,14 @@
             "type": "u128"
           },
           {
+            "name": "cumulativeUsdcSentToPerpMarkets",
+            "type": "u128"
+          },
+          {
+            "name": "cumulativeUsdcReceivedFromPerpMarkets",
+            "type": "u128"
+          },
+          {
             "name": "totalMintRedeemFeesPaid",
             "type": "i128"
           },
@@ -12284,8 +12292,12 @@
             "type": "publicKey"
           },
           {
-            "name": "lastAmmBalanceAvailable",
-            "type": "i64"
+            "name": "lastFeePoolBalance",
+            "type": "u128"
+          },
+          {
+            "name": "lastNetPnlPoolBalance",
+            "type": "i128"
           },
           {
             "name": "lastSettleAmount",

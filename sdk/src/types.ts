@@ -1610,6 +1610,10 @@ export type CacheInfo = {
 	oraclePrice: BN;
 	oracleDelay: BN;
 	oracleConfidence: BN;
+	lastFeePoolBalance: BN;
+	lastNetPnlPoolBalance: BN;
+	lastSettleAmount: BN;
+	lastSettleTs: BN;
 };
 
 export type AmmCache = {
