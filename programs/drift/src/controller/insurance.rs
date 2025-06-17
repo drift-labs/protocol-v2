@@ -1167,6 +1167,14 @@ pub fn transfer_protocol_if_shares_to_revenue_pool(
         protocol_shares
     )?;
 
+    validate!(
+        amount == if_rebalance_config.next_transfer_amount()?,
+        ErrorCode::DefaultError,
+        "amount={} != next_transfer_amount={}",
+        amount,
+        if_rebalance_config.next_transfer_amount()?
+    )?;
+
     spot_market.insurance_fund.total_shares =
         spot_market.insurance_fund.total_shares.safe_sub(shares)?;
 

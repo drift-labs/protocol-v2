@@ -1,5 +1,6 @@
 use crate::error::DriftResult;
 use crate::error::ErrorCode;
+use crate::math::safe_math::SafeMath;
 use crate::state::traits::Size;
 use crate::validate;
 use anchor_lang::prelude::*;
@@ -86,6 +87,11 @@ impl IfRebalanceConfig {
         )?;
 
         Ok(())
+    }
+
+    pub fn next_transfer_amount(&self) -> DriftResult<u64> {
+        self.current_out_amount
+            .safe_sub(self.current_out_amount_transferred)
     }
 }
 
