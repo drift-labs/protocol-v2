@@ -392,7 +392,9 @@ impl OrderParams {
             let current_start_price_offset = self.get_auction_start_price_offset(oracle_price)?;
             let current_end_price_offset = self.get_auction_end_price_offset(oracle_price)?;
 
-            let is_tail_mkt = !perp_market.contract_tier.is_as_safe_as_contract(&ContractTier::B);
+            let is_tail_mkt = !perp_market
+                .contract_tier
+                .is_as_safe_as_contract(&ContractTier::B);
 
             match self.direction {
                 PositionDirection::Long => {
