@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: sanitize long tail perp market orders less frequently ([#1641](https://github.com/drift-labs/protocol-v2/pull/1641))
+
 ### Fixes
 
 ### Breaking
