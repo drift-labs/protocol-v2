@@ -221,10 +221,7 @@ export class BigNum {
 		const precisionNum = this.precision.toNumber();
 
 		// make a string with at least the precisionNum number of zeroes
-		let printString = [
-			...Array(this.precision.toNumber()).fill(0),
-			...plainString.split(''),
-		].join('');
+		let printString = '0'.repeat(precisionNum) + plainString;
 
 		// inject decimal
 		printString =
@@ -233,7 +230,7 @@ export class BigNum {
 			printString.substring(printString.length - precisionNum);
 
 		// remove leading zeroes
-		printString = printString.replace(/^0+/, '');
+		printString = printString.replace(/^0+(?=\d)/, '') || '0';
 
 		// add zero if leading delim
 		if (printString[0] === BigNum.delim) printString = `0${printString}`;
