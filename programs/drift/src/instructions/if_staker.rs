@@ -3,7 +3,7 @@ use anchor_lang::Discriminator;
 use anchor_spl::token_interface::{TokenAccount, TokenInterface};
 
 use crate::error::ErrorCode;
-use crate::ids::admin_hot_wallet;
+use crate::ids::if_rebalance_wallet;
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::optional_accounts::get_token_mint;
@@ -951,7 +951,7 @@ pub struct InsuranceFundSwap<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         mut,
-        constraint = authority.key() == admin_hot_wallet::id() || authority.key() == state.admin
+        constraint = authority.key() == if_rebalance_wallet::id() || authority.key() == state.admin
     )]
     pub authority: Signer<'info>,
     #[account(
@@ -998,7 +998,7 @@ pub struct TransferProtocolIfSharesToRevenuePool<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         mut,
-        constraint = authority.key() == admin_hot_wallet::id() || authority.key() == state.admin
+        constraint = authority.key() == if_rebalance_wallet::id() || authority.key() == state.admin
     )]
     pub authority: Signer<'info>,
     #[account(
