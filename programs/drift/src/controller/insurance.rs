@@ -1146,7 +1146,11 @@ pub fn transfer_protocol_if_shares_to_revenue_pool(
 ) -> DriftResult<()> {
     apply_rebase_to_insurance_fund(insurance_fund_vault_amount_before, spot_market)?;
 
-    let shares = vault_amount_to_if_shares(amount, spot_market.insurance_fund.total_shares, insurance_fund_vault_amount_before)?;
+    let shares = vault_amount_to_if_shares(
+        amount,
+        spot_market.insurance_fund.total_shares,
+        insurance_fund_vault_amount_before,
+    )?;
 
     let protocol_shares = spot_market.insurance_fund.get_protocol_shares()?;
 
@@ -1158,16 +1162,10 @@ pub fn transfer_protocol_if_shares_to_revenue_pool(
         protocol_shares
     )?;
 
-    spot_market.insurance_fund.total_shares = spot_market
-        .insurance_fund
-        .total_shares
-        .safe_sub(shares)?;
+    spot_market.insurance_fund.total_shares =
+        spot_market.insurance_fund.total_shares.safe_sub(shares)?;
 
-    update_revenue_pool_balances(
-        amount.cast()?,
-        &SpotBalanceType::Deposit,
-        spot_market,
-    )?;
+    update_revenue_pool_balances(amount.cast()?, &SpotBalanceType::Deposit, spot_market)?;
 
     if_rebalance_config.current_out_amount_transferred = if_rebalance_config
         .current_out_amount_transferred

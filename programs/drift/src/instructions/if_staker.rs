@@ -720,8 +720,7 @@ pub fn handle_transfer_protocol_if_shares_to_revenue_pool<'c: 'info, 'info>(
 
     let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
-        spot_market_map,
-        ..
+        spot_market_map, ..
     } = load_maps(
         remaining_accounts,
         &MarketSet::new(),
@@ -755,9 +754,12 @@ pub fn handle_transfer_protocol_if_shares_to_revenue_pool<'c: 'info, 'info>(
         &mint,
     )?;
 
-    ctx.accounts.spot_market_vault.reload()?;   
+    ctx.accounts.spot_market_vault.reload()?;
 
-    math::spot_withdraw::validate_spot_market_vault_amount(&spot_market, ctx.accounts.spot_market_vault.amount)?;
+    math::spot_withdraw::validate_spot_market_vault_amount(
+        &spot_market,
+        ctx.accounts.spot_market_vault.amount,
+    )?;
 
     Ok(())
 }
