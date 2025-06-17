@@ -366,6 +366,14 @@ pub fn handle_begin_insurance_fund_swap<'c: 'info, 'info>(
 
     let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
 
+    if let Some(mint) = &mint {
+        validate!(
+            mint.key() == in_spot_market.mint,
+            ErrorCode::InvalidSwap,
+            "in_spot_market.mint mismatch"
+        )?;
+    }
+
     validate!(
         in_spot_market.flash_loan_initial_token_amount == 0
             && in_spot_market.flash_loan_amount == 0,
@@ -576,6 +584,14 @@ pub fn handle_end_insurance_fund_swap<'c: 'info, 'info>(
 
     let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
 
+    if let Some(in_mint) = &in_mint {
+        validate!(
+            in_mint.key() == in_spot_market.mint,
+            ErrorCode::InvalidSwap,
+            "in_spot_market.mint mismatch"
+        )?;
+    }
+
     validate!(
         in_spot_market.flash_loan_amount != 0,
         ErrorCode::InvalidSwap,
@@ -583,6 +599,14 @@ pub fn handle_end_insurance_fund_swap<'c: 'info, 'info>(
     )?;
 
     let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
+
+    if let Some(out_mint) = &out_mint {
+        validate!(
+            out_mint.key() == out_spot_market.mint,
+            ErrorCode::InvalidSwap,
+            "out_spot_market.mint mismatch"
+        )?;
+    }
 
     let in_vault = &mut ctx.accounts.in_insurance_fund_vault;
     let in_token_account = &mut ctx.accounts.in_token_account;
