@@ -1068,19 +1068,13 @@ pub fn fill_perp_order(
             "Market is in settlement mode",
         )?;
 
-        if market.amm.oracle_slot_delay_override != 0 {
-            oracle_map
-                .oracle_guard_rails
-                .validity
-                .slots_before_stale_for_amm = market.amm.oracle_slot_delay_override as i64;
-        }
-
         let (oracle_price_data, _oracle_validity) = oracle_map.get_price_data_and_validity(
             MarketType::Perp,
             market.market_index,
             &market.oracle_id(),
             market.amm.historical_oracle_data.last_oracle_price_twap,
             market.get_max_confidence_interval_multiplier()?,
+            market.amm.oracle_slot_delay_override as i64,
         )?;
 
         oracle_valid_for_amm_fill =
@@ -2994,6 +2988,7 @@ pub fn trigger_order(
             .historical_oracle_data
             .last_oracle_price_twap,
         perp_market.get_max_confidence_interval_multiplier()?,
+        0,
     )?;
 
     let is_oracle_valid =
@@ -5348,6 +5343,7 @@ pub fn trigger_spot_order(
         &spot_market.oracle_id(),
         spot_market.historical_oracle_data.last_oracle_price_twap,
         spot_market.get_max_confidence_interval_multiplier()?,
+        0,
     )?;
     let strict_oracle_price = StrictOraclePrice {
         current: oracle_price_data.price,
