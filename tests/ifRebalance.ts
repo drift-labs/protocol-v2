@@ -41,7 +41,6 @@ import { DexInstructions, Market, OpenOrders } from '@project-serum/serum';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
-import { DRIFT_PROGRAM_ID } from '../sdk/src';
 
 describe('spot swap', () => {
 	const chProgram = anchor.workspace.Drift as Program;
@@ -74,8 +73,6 @@ describe('spot swap', () => {
 	let oracleInfos: OracleInfo[];
 
 	const solSpotMarketIndex = 1;
-
-	let openOrdersAccount: PublicKey;
 
 	let takerKeypair: Keypair;
 
@@ -333,8 +330,6 @@ describe('spot swap', () => {
 			}
 		);
 
-		openOrdersAccount = signers[0].publicKey;
-
 		const signerKeypairs = signers.map((signer) => {
 			return Keypair.fromSecretKey(signer.secretKey);
 		});
@@ -468,6 +463,9 @@ describe('spot swap', () => {
 		assert(transferRecord.shares.eq(new BN(1000000000)));
 		assert(transferRecord.ifVaultAmountBefore.eq(new BN(1000000000)));
 		assert(transferRecord.protocolSharesBefore.eq(new BN(1000000000)));
+		assert(
+			transferRecord.currentInAmountSinceLastTransfer.eq(new BN(100040000))
+		);
 
 		const revenuePoolVaultAmount = (
 			await bankrunContextWrapper.connection.getTokenAccount(
@@ -487,5 +485,12 @@ describe('spot swap', () => {
 		);
 
 		assert(revenuePoolTokenAmount.toString() === '1000000000');
+
+		const rebalanceConfigAfter =
+			(await takerDriftClient.program.account.ifRebalanceConfig.fetch(
+				rebalanceConfigKey
+			)) as IfRebalanceConfigAccount;
+
+		assert(rebalanceConfigAfter.currentInAmountSinceLastTransfer.eq(new BN(0)));
 	});
 });
