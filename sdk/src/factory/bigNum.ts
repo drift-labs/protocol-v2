@@ -216,33 +216,37 @@ export class BigNum {
 			'Tried to print a BN with precision lower than zero'
 		);
 
-		const isNeg = this.isNeg();
-		const plainString = this.abs().toString();
 		const precisionNum = this.precision.toNumber();
+		
+		// Early return for zero precision
+		if (precisionNum === 0) {
+			return this.val.toString();
+		}
 
-		// make a string with at least the precisionNum number of zeroes
+		const isNeg = this.val.isNeg();
+		const plainString = this.val.abs().toString();
+
+		// Build padded string with leading zeros
 		let printString = '0'.repeat(precisionNum) + plainString;
 
-		// inject decimal
-		printString =
-			printString.substring(0, printString.length - precisionNum) +
-			BigNum.delim +
-			printString.substring(printString.length - precisionNum);
+		// Insert decimal point
+		const insertPos = printString.length - precisionNum;
+		printString = printString.substring(0, insertPos) + BigNum.delim + printString.substring(insertPos);
 
-		// remove leading zeroes
+		// Remove leading zeros but keep at least one digit before decimal
 		printString = printString.replace(/^0+(?=\d)/, '') || '0';
 
-		// add zero if leading delim
-		if (printString[0] === BigNum.delim) printString = `0${printString}`;
+		// Handle case where we have leading decimal after zero removal
+		if (printString[0] === BigNum.delim) {
+			printString = '0' + printString;
+		}
 
-		// Add minus if negative
-		if (isNeg) printString = `-${printString}`;
+		// Remove trailing decimal if present
+		if (printString.endsWith(BigNum.delim)) {
+			printString = printString.slice(0, -1);
+		}
 
-		// remove trailing delim
-		if (printString[printString.length - 1] === BigNum.delim)
-			printString = printString.slice(0, printString.length - 1);
-
-		return printString;
+		return isNeg ? `-${printString}` : printString;
 	}
 
 	public prettyPrint(

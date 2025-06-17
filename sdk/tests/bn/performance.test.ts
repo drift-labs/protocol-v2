@@ -1,7 +1,7 @@
 import { BN } from '../../src/index';
 import { BigNum } from '../../src/factory/bigNum';
 
-const BIGNUM_VERSION = 'v1.2';
+const BIGNUM_VERSION = 'v1.3';
 
 describe('BigNum Performance Tests', () => {
 	const testValues = [
