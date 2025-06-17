@@ -252,28 +252,39 @@ export class BigNum {
 		useTradePrecision?: boolean,
 		precisionOverride?: number
 	): string {
-		const [leftSide, rightSide] = this.printShort(
-			useTradePrecision,
-			precisionOverride
-		).split(BigNum.delim);
-
-		let formattedLeftSide = leftSide;
-
-		const isNeg = formattedLeftSide.includes('-');
-		if (isNeg) {
-			formattedLeftSide = formattedLeftSide.replace('-', '');
+		const printVal = this.printShort(useTradePrecision, precisionOverride);
+		const delimIndex = printVal.indexOf(BigNum.delim);
+		
+		let leftSide: string;
+		let rightSide: string;
+		
+		if (delimIndex === -1) {
+			leftSide = printVal;
+			rightSide = '';
+		} else {
+			leftSide = printVal.substring(0, delimIndex);
+			rightSide = printVal.substring(delimIndex + 1);
 		}
 
-		let index = formattedLeftSide.length - 3;
+		const isNeg = leftSide.startsWith('-');
+		if (isNeg) {
+			leftSide = leftSide.substring(1);
+		}
 
-		while (index >= 1) {
-			const formattedLeftSideArray = formattedLeftSide.split('');
+		if (leftSide.length <= 3) {
+			return `${isNeg ? '-' : ''}${leftSide}${
+				rightSide ? `${BigNum.delim}${rightSide}` : ''
+			}`;
+		}
 
-			formattedLeftSideArray.splice(index, 0, BigNum.spacer);
-
-			formattedLeftSide = formattedLeftSideArray.join('');
-
-			index -= 3;
+		let formattedLeftSide = '';
+		const len = leftSide.length;
+		
+		for (let i = 0; i < len; i++) {
+			if (i > 0 && (len - i) % 3 === 0) {
+				formattedLeftSide += BigNum.spacer;
+			}
+			formattedLeftSide += leftSide[i];
 		}
 
 		return `${isNeg ? '-' : ''}${formattedLeftSide}${
@@ -317,15 +328,24 @@ export class BigNum {
 		}
 
 		const printString = this.print();
+		const delimIndex = printString.indexOf(BigNum.delim);
+		
+		let leftSide: string;
+		let rightSide: string;
+		
+		if (delimIndex === -1) {
+			leftSide = printString;
+			rightSide = '';
+		} else {
+			leftSide = printString.substring(0, delimIndex);
+			rightSide = printString.substring(delimIndex + 1);
+		}
 
-		const [leftSide, rightSide] = printString.split(BigNum.delim);
-
-		const filledRightSide = [
-			...(rightSide ?? '').slice(0, fixedPrecision),
-			...Array(fixedPrecision).fill('0'),
-		]
-			.slice(0, fixedPrecision)
-			.join('');
+		const truncatedRightSide = rightSide.length > fixedPrecision 
+			? rightSide.substring(0, fixedPrecision)
+			: rightSide;
+		
+		const filledRightSide = truncatedRightSide.padEnd(fixedPrecision, '0');
 
 		return `${leftSide}${BigNum.delim}${filledRightSide}`;
 	}
@@ -613,14 +633,12 @@ export class BigNum {
 
 		// Must convert any non-US delimiters and spacers to US format before using parseFloat
 		if (BigNum.delim !== '.' || BigNum.spacer !== ',') {
-			printedValue = printedValue
-				.split('')
-				.map((char) => {
-					if (char === BigNum.delim) return '.';
-					if (char === BigNum.spacer) return ',';
-					return char;
-				})
-				.join('');
+			if (BigNum.delim !== '.') {
+				printedValue = printedValue.replace(new RegExp('\\' + BigNum.delim, 'g'), '.');
+			}
+			if (BigNum.spacer !== ',') {
+				printedValue = printedValue.replace(new RegExp('\\' + BigNum.spacer, 'g'), ',');
+			}
 		}
 
 		return parseFloat(printedValue);
