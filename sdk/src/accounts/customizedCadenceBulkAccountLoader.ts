@@ -5,8 +5,9 @@ import { v4 as uuidv4 } from 'uuid';
 
 export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
 	private customIntervalId: NodeJS.Timeout | null;
+	private currentPollingFrequency: number | null;
 	private accountFrequencies: Map<string, number>;
-	private lastPollingTime: Map<string, number>;
+	private lastPollingTimes: Map<string, number>;
 	private defaultPollingFrequency: number;
 
 	constructor(
@@ -16,8 +17,9 @@ export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
 	) {
 		super(connection, commitment, defaultPollingFrequency);
 		this.customIntervalId = null;
+		this.currentPollingFrequency = null;
 		this.accountFrequencies = new Map();
-		this.lastPollingTime = new Map();
+		this.lastPollingTimes = new Map();
 		this.defaultPollingFrequency = defaultPollingFrequency;
 	}
 
@@ -32,12 +34,12 @@ export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
 		}> = [];
 
 		for (const [key, frequency] of this.accountFrequencies.entries()) {
-			const lastPollTime = this.lastPollingTime.get(key) || 0;
+			const lastPollTime = this.lastPollingTimes.get(key) || 0;
 			if (currentTime - lastPollTime >= frequency) {
 				const account = this.accountsToLoad.get(key);
 				if (account) {
 					accountsToLoad.push(account);
-					this.lastPollingTime.set(key, currentTime);
+					this.lastPollingTimes.set(key, currentTime);
 				}
 			}
 		}
@@ -66,23 +68,28 @@ export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
 		}
 	}
 
+	/**
+	 * Updates the polling frequency for an account. This affects all callbacks attached to this account.
+	 *
+	 * @param publicKey The public key of the account to set the custom polling frequency for
+	 * @param newFrequency The new polling frequency in ms
+	 */
 	public setCustomPollingFrequency(
 		publicKey: PublicKey,
 		newFrequency: number
 	): void {
 		const key = publicKey.toBase58();
 		this.accountFrequencies.set(key, newFrequency);
-		this.lastPollingTime.set(key, 0); // Reset last polling time to ensure immediate load
+		this.lastPollingTimes.set(key, 0); // Reset last polling time to ensure immediate load
 		this.restartPollingIfNeeded(newFrequency);
 	}
 
 	private restartPollingIfNeeded(newFrequency: number): void {
-		const currentMinFrequency = Math.min(
-			...Array.from(this.accountFrequencies.values()),
-			this.defaultPollingFrequency
-		);
-
-		if (newFrequency < currentMinFrequency || !this.customIntervalId) {
+		if (
+			(this.currentPollingFrequency &&
+				newFrequency < this.currentPollingFrequency) ||
+			!this.customIntervalId
+		) {
 			this.stopPolling();
 			this.startPolling();
 		}
@@ -97,9 +104,10 @@ export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
 	 * @returns A unique callback ID that can be used to remove this specific callback later
 	 *
 	 * The method will:
-	 * 1. Create a new callback mapping for the account
-	 * 2. Set up polling frequency tracking for the account
-	 * 3. Reset last polling time to 0 to ensure immediate data fetch
+	 * 1. Create a new callback mapping for the account if it doesn't exist already
+	 * 2. Set up polling frequency tracking for the account if it doesn't exist already. If previous polling frequency is faster than the new one,
+	 *    we will use the previous frequency.
+	 * 3. Reset last polling time to 0 to ensure data fetch is triggered on the next poll. Note that this does not mean the account will be fetched immediately.
 	 * 4. Automatically restart polling if this account needs a faster frequency than existing accounts
 	 */
 	public async addAccount(
@@ -108,28 +116,53 @@ export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
 		customPollingFrequency?: number
 	): Promise<string> {
 		const callbackId = uuidv4();
-		const callbacks = new Map<string, (buffer: Buffer, slot: number) => void>();
-		callbacks.set(callbackId, callback);
-		const newAccountToLoad = {
-			publicKey,
-			callbacks,
-		};
-		this.accountsToLoad.set(publicKey.toString(), newAccountToLoad);
+		const existingAccountToLoad = this.accountsToLoad.get(publicKey.toString());
+
+		if (existingAccountToLoad) {
+			existingAccountToLoad.callbacks.set(callbackId, callback);
+		} else {
+			const callbacks = new Map<
+				string,
+				(buffer: Buffer, slot: number) => void
+			>();
+			callbacks.set(callbackId, callback);
+			const newAccountToLoad = {
+				publicKey,
+				callbacks,
+			};
+			this.accountsToLoad.set(publicKey.toString(), newAccountToLoad);
+		}
 
 		const key = publicKey.toBase58();
-		const frequency = customPollingFrequency || this.defaultPollingFrequency;
-		this.accountFrequencies.set(key, frequency);
-		this.lastPollingTime.set(key, 0); // Reset last polling time to ensure immediate load
+		const previousFrequency =
+			this.accountFrequencies.get(key) || this.defaultPollingFrequency;
+		const updatedFrequency =
+			customPollingFrequency && customPollingFrequency < previousFrequency
+				? customPollingFrequency
+				: previousFrequency;
 
-		this.restartPollingIfNeeded(frequency);
+		this.accountFrequencies.set(key, updatedFrequency);
+		this.lastPollingTimes.set(key, 0); // Reset last polling time to ensure immediate load
+
+		this.restartPollingIfNeeded(updatedFrequency);
 
 		return callbackId;
 	}
 
-	public removeAccount(publicKey: PublicKey): void {
-		const key = publicKey.toBase58();
-		this.accountFrequencies.delete(key);
-		this.lastPollingTime.delete(key);
+	public removeAccount(publicKey: PublicKey, callbackId: string): void {
+		const existingAccountToLoad = this.accountsToLoad.get(publicKey.toString());
+
+		if (existingAccountToLoad) {
+			existingAccountToLoad.callbacks.delete(callbackId);
+
+			if (existingAccountToLoad.callbacks.size === 0) {
+				this.bufferAndSlotMap.delete(publicKey.toString());
+				this.accountsToLoad.delete(existingAccountToLoad.publicKey.toString());
+				const key = publicKey.toBase58();
+				this.accountFrequencies.delete(key);
+				this.lastPollingTimes.delete(key);
+			}
+		}
 
 		if (this.accountsToLoad.size === 0) {
 			this.stopPolling();
@@ -154,6 +187,8 @@ export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
 			this.defaultPollingFrequency
 		);
 
+		this.currentPollingFrequency = minFrequency;
+
 		this.customIntervalId = setInterval(() => {
 			this.handleAccountLoading().catch((error) => {
 				console.error('Error in account loading:', error);
@@ -167,8 +202,9 @@ export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
 		if (this.customIntervalId) {
 			clearInterval(this.customIntervalId);
 			this.customIntervalId = null;
+			this.currentPollingFrequency = null;
 		}
-		this.lastPollingTime.clear();
+		this.lastPollingTimes.clear();
 	}
 
 	public clearAccountFrequencies(): void {
