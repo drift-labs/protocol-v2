@@ -1876,7 +1876,7 @@ export class User {
 	 */
 	public getMaxLeverageForPerp(
 		perpMarketIndex: number,
-		marginCategory: MarginCategory = 'Initial',
+		_marginCategory: MarginCategory = 'Initial',
 		isLp = false,
 		enterHighLeverageMode = false
 	): BN {
@@ -1901,75 +1901,27 @@ export class User {
 			? marketPrice.mul(market.amm.orderStepSize).div(AMM_RESERVE_PRECISION)
 			: ZERO;
 
-		const freeCollateral = this.getFreeCollateral().sub(lpBuffer);
-
-		let rawMarginRatio;
-
-		switch (marginCategory) {
-			case 'Initial':
-				rawMarginRatio = Math.max(
-					market.marginRatioInitial,
-					this.getUserAccount().maxMarginRatio
-				);
-				break;
-			case 'Maintenance':
-				rawMarginRatio = market.marginRatioMaintenance;
-				break;
-			default:
-				rawMarginRatio = market.marginRatioInitial;
-				break;
-		}
-
 		// absolute max fesible size (upper bound)
-		const maxSize = BN.max(
-			ZERO,
-			freeCollateral
-				.mul(MARGIN_PRECISION)
-				.div(new BN(rawMarginRatio))
-				.mul(PRICE_PRECISION)
-				.div(marketPrice)
+		const maxSizeQuote = BN.max(
+			BN.min(
+				this.getMaxTradeSizeUSDCForPerp(
+					perpMarketIndex,
+					PositionDirection.LONG,
+					false,
+					enterHighLeverageMode || this.isHighLeverageMode()
+				).tradeSize,
+				this.getMaxTradeSizeUSDCForPerp(
+					perpMarketIndex,
+					PositionDirection.SHORT,
+					false,
+					enterHighLeverageMode || this.isHighLeverageMode()
+				).tradeSize
+			).sub(lpBuffer),
+			ZERO
 		);
-
-		// margin ratio incorporting upper bound on size
-		let marginRatio = calculateMarketMarginRatio(
-			market,
-			maxSize,
-			marginCategory,
-			this.getUserAccount().maxMarginRatio,
-			enterHighLeverageMode || this.isHighLeverageMode()
-		);
-
-		// use more fesible size since imf factor activated
-		let attempts = 0;
-		while (marginRatio > rawMarginRatio + 1e-4 && attempts < 10) {
-			// more fesible size (upper bound)
-			const targetSize = BN.max(
-				ZERO,
-				freeCollateral
-					.mul(MARGIN_PRECISION)
-					.div(new BN(marginRatio))
-					.mul(PRICE_PRECISION)
-					.div(marketPrice)
-			);
-
-			// margin ratio incorporting more fesible target size
-			marginRatio = calculateMarketMarginRatio(
-				market,
-				targetSize,
-				marginCategory,
-				this.getUserAccount().maxMarginRatio,
-				enterHighLeverageMode || this.isHighLeverageMode()
-			);
-			attempts += 1;
-		}
-
-		// how much more liabilities can be opened w remaining free collateral
-		const additionalLiabilities = freeCollateral
-			.mul(MARGIN_PRECISION)
-			.div(new BN(marginRatio));
 
 		return totalLiabilityValue
-			.add(additionalLiabilities)
+			.add(maxSizeQuote)
 			.mul(TEN_THOUSAND)
 			.div(netAssetValue);
 	}

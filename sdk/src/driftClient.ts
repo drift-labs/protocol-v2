@@ -273,7 +273,8 @@ export class DriftClient {
 		this.program = new Program(
 			driftIDL as Idl,
 			config.programID ?? new PublicKey(DRIFT_PROGRAM_ID),
-			this.provider
+			this.provider,
+			config.coder
 		);
 
 		this.authority = config.authority ?? this.wallet.publicKey;

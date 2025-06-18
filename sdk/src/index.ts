@@ -36,6 +36,7 @@ export * from './userStats';
 export * from './userName';
 export * from './userStatsConfig';
 export * from './decode/user';
+export * from './decode/customCoder';
 export * from './driftClient';
 export * from './factory/oracleClient';
 export * from './factory/bigNum';

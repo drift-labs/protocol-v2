@@ -391,14 +391,19 @@ impl OrderParams {
                 )?;
             let current_start_price_offset = self.get_auction_start_price_offset(oracle_price)?;
             let current_end_price_offset = self.get_auction_end_price_offset(oracle_price)?;
+
+            let is_tail_mkt = !perp_market
+                .contract_tier
+                .is_as_safe_as_contract(&ContractTier::B);
+
             match self.direction {
                 PositionDirection::Long => {
-                    let long_start_threshold = if is_signed_msg {
+                    let long_start_threshold = if is_signed_msg || is_tail_mkt {
                         new_start_price_offset.safe_add(oracle_price.abs().safe_div(1000)?)?
                     } else {
                         new_start_price_offset
                     };
-                    let long_end_threshold = if is_signed_msg {
+                    let long_end_threshold = if is_signed_msg || is_tail_mkt {
                         new_end_price_offset.safe_add(oracle_price.abs().safe_div(1000)?)?
                     } else {
                         new_end_price_offset
@@ -428,12 +433,12 @@ impl OrderParams {
                     }
                 }
                 PositionDirection::Short => {
-                    let short_start_threshold = if is_signed_msg {
+                    let short_start_threshold = if is_signed_msg || is_tail_mkt {
                         new_start_price_offset.safe_sub(oracle_price.abs().safe_div(1000)?)?
                     } else {
                         new_start_price_offset
                     };
-                    let short_end_threshold = if is_signed_msg {
+                    let short_end_threshold = if is_signed_msg || is_tail_mkt {
                         new_end_price_offset.safe_sub(oracle_price.abs().safe_div(1000)?)?
                     } else {
                         new_end_price_offset
@@ -889,7 +894,7 @@ fn get_auction_duration(
     Ok(percent_diff
         .safe_mul(slots_per_bp)?
         .safe_div_ceil(PERCENTAGE_PRECISION_U64 / 100)? // 1% = 60 slots
-        .clamp(10, 180) as u8) // 180 slots max
+        .clamp(1, 180) as u8) // 180 slots max
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
