@@ -54,8 +54,8 @@ describe('CustomizedCadenceBulkAccountLoader', () => {
 		const customFrequency = 500;
 		const callback = () => {};
 
-		await loader.addAccount(pubkey, callback, customFrequency);
-		loader.removeAccount(pubkey);
+		const cid = await loader.addAccount(pubkey, callback, customFrequency);
+		loader.removeAccount(pubkey, cid);
 
 		expect(loader.getAccountCadence(pubkey)).to.equal(null);
 	});
