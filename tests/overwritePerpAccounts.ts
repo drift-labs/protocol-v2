@@ -21,7 +21,10 @@ import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import dotenv from 'dotenv';
-import { CustomBorshAccountsCoder, CustomBorshCoder } from './customCoder';
+import {
+	CustomBorshAccountsCoder,
+	CustomBorshCoder,
+} from '../sdk/src/decode/customCoder';
 dotenv.config();
 
 describe('Bankrun Overwrite Accounts', () => {

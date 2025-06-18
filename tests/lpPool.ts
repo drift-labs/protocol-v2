@@ -40,8 +40,6 @@ import {
 	PYTH_LAZER_STORAGE_ACCOUNT_KEY,
 	PTYH_LAZER_PROGRAM_ID,
 	BASE_PRECISION,
-	getTokenAmount,
-	SpotBalanceType,
 	SPOT_MARKET_BALANCE_PRECISION,
 } from '../sdk/src';
 
@@ -661,7 +659,8 @@ describe('LP Pool', () => {
 
 		const usdcBefore = constituent.tokenBalance;
 		const lpAumBefore = lpPool.lastAum;
-		const feePoolBalanceBefore = adminClient.getPerpMarketAccount(0).amm.feePool.scaledBalance;
+		const feePoolBalanceBefore =
+			adminClient.getPerpMarketAccount(0).amm.feePool.scaledBalance;
 
 		await adminClient.settlePerpToLpPool(encodeName(lpPoolName), [0, 1, 2]);
 
@@ -674,14 +673,19 @@ describe('LP Pool', () => {
 
 		const usdcAfter = constituent.tokenBalance;
 		const lpAumAfter = lpPool.lastAum;
-		const feePoolBalanceAfter = adminClient.getPerpMarketAccount(0).amm.feePool.scaledBalance,;
+		const feePoolBalanceAfter =
+			adminClient.getPerpMarketAccount(0).amm.feePool.scaledBalance;
 		console.log('usdcBefore', usdcBefore.toString());
 		console.log('usdcAfter', usdcAfter.toString());
 		assert(usdcAfter.sub(usdcBefore).eq(QUOTE_PRECISION.muln(200)));
 		assert(lpAumAfter.sub(lpAumBefore).eq(QUOTE_PRECISION.muln(200)));
 		console.log('feePoolBalanceBefore', feePoolBalanceBefore.toString());
 		console.log('feePoolBalanceAfter', feePoolBalanceAfter.toString());
-		assert(feePoolBalanceAfter.sub(feePoolBalanceBefore).eq(SPOT_MARKET_BALANCE_PRECISION.muln(-100)));
+		assert(
+			feePoolBalanceAfter
+				.sub(feePoolBalanceBefore)
+				.eq(SPOT_MARKET_BALANCE_PRECISION.muln(-100))
+		);
 	});
 
 	it('can update and remove amm constituent mapping entries', async () => {
