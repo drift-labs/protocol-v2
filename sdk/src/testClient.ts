@@ -6,16 +6,12 @@ import { DriftClientConfig } from './driftClientConfig';
 import { AccountsCoder } from '@coral-xyz/anchor/dist/cjs/coder';
 
 export class TestClient extends AdminClient {
-	public constructor(config: DriftClientConfig, accountsCoder?: AccountsCoder) {
+	public constructor(config: DriftClientConfig) {
 		config.txVersion = 'legacy';
 		if (config.accountSubscription.type !== 'polling') {
 			throw new Error('Test client must be polling');
 		}
 		super(config);
-		if (accountsCoder) {
-			// @ts-ignore
-			this.program.coder.accounts = accountsCoder;
-		}
 	}
 
 	async sendTransaction(
