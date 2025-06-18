@@ -11,13 +11,13 @@ mod get_auction_duration {
         let contract_tier = ContractTier::C;
 
         let duration = get_auction_duration(price_diff, price, contract_tier).unwrap();
-        assert_eq!(duration, 10);
+        assert_eq!(duration, 1);
 
         let price_diff = PRICE_PRECISION_U64 / 10;
         let price = 100 * PRICE_PRECISION_U64;
 
         let duration = get_auction_duration(price_diff, price, contract_tier).unwrap();
-        assert_eq!(duration, 10);
+        assert_eq!(duration, 6);
 
         let price_diff = PRICE_PRECISION_U64 / 2;
         let price = 100 * PRICE_PRECISION_U64;
@@ -168,6 +168,7 @@ mod update_perp_auction_params {
         amm.historical_oracle_data.last_oracle_price = oracle_price;
         let perp_market = PerpMarket {
             amm,
+            contract_tier: ContractTier::A,
             ..PerpMarket::default()
         };
 
@@ -262,7 +263,7 @@ mod update_perp_auction_params {
         );
         assert_eq!(
             order_params_long_after_not_signed.auction_duration,
-            Some(30)
+            Some(31)
         );
         assert_eq!(sanitized, true);
     }
@@ -290,6 +291,7 @@ mod update_perp_auction_params {
         amm.historical_oracle_data.last_oracle_price = oracle_price;
         let perp_market = PerpMarket {
             amm,
+            contract_tier: ContractTier::A,
             ..PerpMarket::default()
         };
 
@@ -387,7 +389,7 @@ mod update_perp_auction_params {
         );
         assert_eq!(
             order_params_long_after_not_signed.auction_duration,
-            Some(30)
+            Some(31)
         );
         assert_eq!(sanitized, true);
     }
@@ -1016,7 +1018,7 @@ mod update_perp_auction_params {
             direction: PositionDirection::Long,
             auction_start_price: None,
             auction_end_price: None,
-            price: 95 * PRICE_PRECISION_U64,
+            price: 99 * PRICE_PRECISION_U64,
             auction_duration: None,
 
             ..OrderParams::default()
@@ -1028,7 +1030,7 @@ mod update_perp_auction_params {
         assert_ne!(order_params_before, order_params_after);
         assert_eq!(
             order_params_after.auction_start_price.unwrap(),
-            95 * PRICE_PRECISION_I64 - oracle_price / 400
+            (99 * PRICE_PRECISION_I64 - oracle_price / 400) - 98920 // approx equal with some noise
         );
 
         let order_params_before = OrderParams {
@@ -1055,7 +1057,7 @@ mod update_perp_auction_params {
             direction: PositionDirection::Short,
             auction_start_price: None,
             auction_end_price: None,
-            price: 100 * PRICE_PRECISION_U64,
+            price: 99 * PRICE_PRECISION_U64 + 100000,
             auction_duration: None,
 
             ..OrderParams::default()
@@ -1067,7 +1069,7 @@ mod update_perp_auction_params {
         assert_ne!(order_params_before, order_params_after);
         assert_eq!(
             order_params_after.auction_start_price.unwrap(),
-            100 * PRICE_PRECISION_I64 + oracle_price / 400
+            (99 * PRICE_PRECISION_U64 + 100000) as i64 + oracle_price / 400 + 18879 // use limit price and oracle buffer with some noise
         );
 
         let order_params_before = OrderParams {

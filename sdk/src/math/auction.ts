@@ -1,5 +1,15 @@
 import { isOneOfVariant, isVariant, Order, PositionDirection } from '../types';
-import { BN, getVariant, ONE, OrderBitFlag, ZERO } from '../.';
+import {
+	BN,
+	getVariant,
+	ONE,
+	OrderBitFlag,
+	ZERO,
+	PerpMarketAccount,
+	getPerpMarketTierNumber,
+	QUOTE_PRECISION,
+	PRICE_PRECISION,
+} from '../.';
 
 export function isAuctionComplete(order: Order, slot: number): boolean {
 	if (order.auctionDuration === 0) {
@@ -176,4 +186,89 @@ export function deriveOracleAuctionParams({
 		auctionEndPrice: auctionEndPrice.sub(oraclePrice),
 		oraclePriceOffset: oraclePriceOffsetNum,
 	};
+}
+
+export function getTriggerAuctionStartPrice(params: {
+	perpMarket: PerpMarketAccount;
+	direction: PositionDirection;
+	oraclePrice: BN;
+	limitPrice?: BN;
+}): BN {
+	const { perpMarket, direction, oraclePrice, limitPrice } = params;
+
+	const twapMismatch =
+		perpMarket.amm.historicalOracleData.lastOraclePriceTwapTs
+			.sub(perpMarket.amm.lastMarkPriceTwapTs)
+			.abs()
+			.gte(new BN(60)) ||
+		perpMarket.amm.volume24H.lte(new BN(100_000).mul(QUOTE_PRECISION));
+
+	let baselineStartOffset: BN;
+
+	if (twapMismatch) {
+		const contractTierNumber = getPerpMarketTierNumber(perpMarket);
+		const priceDivisor = contractTierNumber <= 1 ? 500 : 100;
+		baselineStartOffset = isVariant(direction, 'long')
+			? perpMarket.amm.lastBidPriceTwap.divn(priceDivisor)
+			: perpMarket.amm.lastAskPriceTwap.divn(priceDivisor).neg();
+	} else {
+		const markTwapSlow = isVariant(direction, 'long')
+			? perpMarket.amm.lastBidPriceTwap
+			: perpMarket.amm.lastAskPriceTwap;
+
+		const markTwapFast = perpMarket.amm.lastMarkPriceTwap5Min;
+		const oracleTwapSlow =
+			perpMarket.amm.historicalOracleData.lastOraclePriceTwap;
+		const oracleTwapFast =
+			perpMarket.amm.historicalOracleData.lastOraclePriceTwap5Min;
+
+		const offsetSlow = markTwapSlow.sub(oracleTwapSlow);
+		const offsetFast = markTwapFast.sub(oracleTwapFast);
+
+		const fracOfLongSpreadInPrice = new BN(perpMarket.amm.longSpread)
+			.mul(markTwapSlow)
+			.div(PRICE_PRECISION.muln(10)); // divide by 10x for safety
+
+		const fracOfShortSpreadInPrice = new BN(perpMarket.amm.shortSpread)
+			.mul(markTwapSlow)
+			.div(PRICE_PRECISION.muln(10)); // divide by 10x for safety
+
+		baselineStartOffset = isVariant(direction, 'long')
+			? BN.min(
+					offsetSlow.add(fracOfLongSpreadInPrice),
+					offsetFast.sub(fracOfShortSpreadInPrice)
+			  )
+			: BN.max(
+					offsetSlow.sub(fracOfShortSpreadInPrice),
+					offsetFast.add(fracOfLongSpreadInPrice)
+			  );
+	}
+
+	let startBuffer = -3500;
+
+	if (
+		isVariant(perpMarket.contractTier, 'a') ||
+		isVariant(perpMarket.contractTier, 'b')
+	) {
+		startBuffer = -500;
+	}
+
+	// Apply start buffer (in BPS)
+	const startBufferPrice = oraclePrice
+		.mul(new BN(startBuffer))
+		.div(new BN(PRICE_PRECISION));
+
+	let auctionStartPrice = isVariant(direction, 'long')
+		? oraclePrice.add(baselineStartOffset).sub(startBufferPrice)
+		: oraclePrice.add(baselineStartOffset).add(startBufferPrice);
+
+	if (limitPrice) {
+		if (isVariant(direction, 'long')) {
+			auctionStartPrice = BN.min(auctionStartPrice, limitPrice);
+		} else {
+			auctionStartPrice = BN.max(auctionStartPrice, limitPrice);
+		}
+	}
+
+	return auctionStartPrice;
 }

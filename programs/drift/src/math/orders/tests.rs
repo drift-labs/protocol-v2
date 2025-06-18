@@ -3639,6 +3639,32 @@ pub mod calculate_limit_price_with_buffer {
             Some(100 * PRICE_PRECISION_U64 + PRICE_PRECISION_U64 / 50 / 4) // 100.005
         );
     }
+
+    #[test]
+    fn test_max_fee_adj() {
+        // Post only ask w fee adjustment
+        let order = Order {
+            post_only: true,
+            direction: PositionDirection::Short,
+            ..Order::default()
+        };
+        let limit_price = Some(100 * PRICE_PRECISION_U64);
+        let fee_tier = FeeTier {
+            maker_rebate_numerator: 2,
+            maker_rebate_denominator: 10000, // 2bps
+            ..FeeTier::default()
+        };
+        let fee_adjustment = -100;
+
+        let limit_price_with_buffer =
+            calculate_limit_price_with_buffer(&order, limit_price, &fee_tier, fee_adjustment)
+                .unwrap();
+
+        assert_eq!(
+            limit_price_with_buffer,
+            Some(100 * PRICE_PRECISION_U64) // 100
+        );
+    }
 }
 
 mod select_margin_type_for_perp_maker {

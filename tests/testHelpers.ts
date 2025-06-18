@@ -15,6 +15,11 @@ import {
 	createInitializePermanentDelegateInstruction,
 	getMintLen,
 	ExtensionType,
+	unpackAccount,
+	RawAccount,
+	AccountState,
+	unpackMint,
+	RawMint,
 } from '@solana/spl-token';
 import {
 	AccountInfo,
@@ -29,7 +34,13 @@ import {
 } from '@solana/web3.js';
 import { assert } from 'chai';
 import buffer from 'buffer';
-import { BN, Wallet, OraclePriceData, OracleInfo } from '../sdk';
+import {
+	BN,
+	Wallet,
+	OraclePriceData,
+	OracleInfo,
+	PerpMarketAccount,
+} from '../sdk';
 import {
 	TestClient,
 	SPOT_MARKET_RATE_PRECISION,
@@ -215,6 +226,80 @@ export async function mockUserUSDCAccount(
 	await context.sendTransaction(fakeUSDCTx, [userUSDCAccount, fakeUSDCMint]);
 
 	return userUSDCAccount;
+}
+
+export async function mockUserUSDCAccountWithAuthority(
+	fakeUSDCMint: Keypair,
+	usdcMintAmount: BN,
+	context: BankrunContextWrapper,
+	authority: Keypair
+): Promise<PublicKey> {
+	const userUSDCAccount = getAssociatedTokenAddressSync(
+		fakeUSDCMint.publicKey,
+		authority.publicKey
+	);
+	const fakeUSDCTx = new Transaction();
+
+	const tokenProgram = (
+		await context.connection.getAccountInfo(fakeUSDCMint.publicKey)
+	).owner;
+
+	const createAtaIx = createAssociatedTokenAccountIdempotentInstruction(
+		context.context.payer.publicKey,
+		userUSDCAccount,
+		authority.publicKey,
+		fakeUSDCMint.publicKey,
+		tokenProgram
+	);
+	fakeUSDCTx.add(createAtaIx);
+
+	const mintToUserAccountTx = createMintToInstruction(
+		fakeUSDCMint.publicKey,
+		userUSDCAccount,
+		// @ts-ignore
+		context.context.payer.publicKey,
+		usdcMintAmount.toNumber(),
+		undefined,
+		tokenProgram
+	);
+	fakeUSDCTx.add(mintToUserAccountTx);
+
+	await context.sendTransaction(fakeUSDCTx, [fakeUSDCMint]);
+
+	return userUSDCAccount;
+}
+
+export async function mockAtaTokenAccountForMint(
+	context: BankrunContextWrapper,
+	tokenMint: PublicKey,
+	amount: BN,
+	owner: PublicKey
+): Promise<PublicKey> {
+	const userTokenAccount = getAssociatedTokenAddressSync(tokenMint, owner);
+	const newTx = new Transaction();
+
+	const tokenProgram = (await context.connection.getAccountInfo(tokenMint))
+		.owner;
+
+	newTx.add(
+		createAssociatedTokenAccountIdempotentInstruction(
+			context.context.payer.publicKey,
+			userTokenAccount,
+			owner,
+			tokenMint,
+			tokenProgram
+		)
+	);
+
+	await context.sendTransaction(newTx, [context.context.payer]);
+
+	await overWriteTokenAccountBalance(
+		context,
+		userTokenAccount,
+		BigInt(amount.toString())
+	);
+
+	return userTokenAccount;
 }
 
 export function getMockUserUsdcAccountInfo(
@@ -1098,4 +1183,98 @@ export async function initializeSolSpotMarket(
 		new BN(10 ** 10).mul(QUOTE_PRECISION)
 	);
 	return txSig;
+}
+
+export async function overWritePerpMarket(
+	driftClient: TestClient,
+	bankrunContextWrapper: BankrunContextWrapper,
+	perpMarketKey: PublicKey,
+	perpMarket: PerpMarketAccount
+) {
+	bankrunContextWrapper.context.setAccount(perpMarketKey, {
+		executable: false,
+		owner: driftClient.program.programId,
+		lamports: LAMPORTS_PER_SOL,
+		data: await driftClient.program.account.perpMarket.coder.accounts.encode(
+			'PerpMarket',
+			perpMarket
+		),
+	});
+}
+
+export async function getPerpMarketDecoded(
+	driftClient: TestClient,
+	bankrunContextWrapper: BankrunContextWrapper,
+	perpMarketPublicKey: PublicKey
+): Promise<PerpMarketAccount> {
+	const accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
+		perpMarketPublicKey
+	);
+	const perpMarketAccount: PerpMarketAccount =
+		driftClient.program.coder.accounts.decode('PerpMarket', accountInfo!.data);
+	return perpMarketAccount;
+}
+
+export async function overWriteTokenAccountBalance(
+	bankrunContextWrapper: BankrunContextWrapper,
+	tokenAccount: PublicKey,
+	newBalance: bigint
+) {
+	const info = await bankrunContextWrapper.connection.getAccountInfo(
+		tokenAccount
+	);
+	const account = unpackAccount(tokenAccount, info, info.owner);
+	account.amount = newBalance;
+	const data = Buffer.alloc(AccountLayout.span);
+	const rawAccount: RawAccount = {
+		mint: account.mint,
+		owner: account.owner,
+		amount: account.amount,
+		delegateOption: account.delegate ? 1 : 0,
+		delegate: account.delegate || PublicKey.default,
+		state: account.isFrozen ? AccountState.Frozen : AccountState.Initialized,
+		isNativeOption: account.isNative ? 1 : 0,
+		isNative: account.rentExemptReserve || BigInt(0),
+		delegatedAmount: account.delegatedAmount,
+		closeAuthorityOption: account.closeAuthority ? 1 : 0,
+		closeAuthority: account.closeAuthority || PublicKey.default,
+	};
+	AccountLayout.encode(rawAccount, data);
+	bankrunContextWrapper.context.setAccount(tokenAccount, {
+		executable: info.executable,
+		owner: info.owner,
+		lamports: info.lamports,
+		data: data,
+		rentEpoch: info.rentEpoch,
+	});
+}
+
+export async function overWriteMintAccount(
+	bankrunContextWrapper: BankrunContextWrapper,
+	mintAccount: PublicKey,
+	newSupply: bigint
+) {
+	const info = await bankrunContextWrapper.connection.getAccountInfo(
+		mintAccount
+	);
+	const mint = unpackMint(mintAccount, info, info.owner);
+	mint.supply = newSupply;
+	const data = Buffer.alloc(MintLayout.span);
+	const rawMint: RawMint = {
+		mintAuthorityOption: mint.mintAuthority ? 1 : 0,
+		mintAuthority: mint.mintAuthority || PublicKey.default,
+		supply: mint.supply,
+		decimals: mint.decimals,
+		isInitialized: mint.isInitialized,
+		freezeAuthorityOption: mint.freezeAuthority ? 1 : 0,
+		freezeAuthority: mint.freezeAuthority || PublicKey.default,
+	};
+	MintLayout.encode(rawMint, data);
+	bankrunContextWrapper.context.setAccount(mintAccount, {
+		executable: info.executable,
+		owner: info.owner,
+		lamports: info.lamports,
+		data: data,
+		rentEpoch: info.rentEpoch,
+	});
 }

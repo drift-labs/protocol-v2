@@ -1538,7 +1538,7 @@ pub mod drift {
     }
 
     pub fn update_perp_market_fuel(
-        ctx: Context<AdminUpdatePerpMarketFuel>,
+        ctx: Context<HotAdminUpdatePerpMarket>,
         fuel_boost_taker: Option<u8>,
         fuel_boost_maker: Option<u8>,
         fuel_boost_position: Option<u8>,
@@ -1556,6 +1556,27 @@ pub mod drift {
             protected_maker_limit_price_divisor,
             protected_maker_dynamic_divisor,
         )
+    }
+
+    pub fn update_perp_market_taker_speed_bump_override(
+        ctx: Context<HotAdminUpdatePerpMarket>,
+        taker_speed_bump_override: i8,
+    ) -> Result<()> {
+        handle_update_perp_market_taker_speed_bump_override(ctx, taker_speed_bump_override)
+    }
+
+    pub fn update_perp_market_amm_spread_adjustment(
+        ctx: Context<HotAdminUpdatePerpMarket>,
+        amm_spread_adjustment: i8,
+    ) -> Result<()> {
+        handle_update_perp_market_amm_spread_adjustment(ctx, amm_spread_adjustment)
+    }
+
+    pub fn update_perp_market_oracle_slot_delay_override(
+        ctx: Context<HotAdminUpdatePerpMarket>,
+        oracle_slot_delay_override: i8,
+    ) -> Result<()> {
+        handle_update_perp_market_oracle_slot_delay_override(ctx, oracle_slot_delay_override)
     }
 
     pub fn update_spot_market_fuel(

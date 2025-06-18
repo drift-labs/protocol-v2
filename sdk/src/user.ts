@@ -1876,7 +1876,7 @@ export class User {
 	 */
 	public getMaxLeverageForPerp(
 		perpMarketIndex: number,
-		marginCategory: MarginCategory = 'Initial',
+		_marginCategory: MarginCategory = 'Initial',
 		isLp = false,
 		enterHighLeverageMode = false
 	): BN {
@@ -1901,75 +1901,27 @@ export class User {
 			? marketPrice.mul(market.amm.orderStepSize).div(AMM_RESERVE_PRECISION)
 			: ZERO;
 
-		const freeCollateral = this.getFreeCollateral().sub(lpBuffer);
-
-		let rawMarginRatio;
-
-		switch (marginCategory) {
-			case 'Initial':
-				rawMarginRatio = Math.max(
-					market.marginRatioInitial,
-					this.getUserAccount().maxMarginRatio
-				);
-				break;
-			case 'Maintenance':
-				rawMarginRatio = market.marginRatioMaintenance;
-				break;
-			default:
-				rawMarginRatio = market.marginRatioInitial;
-				break;
-		}
-
 		// absolute max fesible size (upper bound)
-		const maxSize = BN.max(
-			ZERO,
-			freeCollateral
-				.mul(MARGIN_PRECISION)
-				.div(new BN(rawMarginRatio))
-				.mul(PRICE_PRECISION)
-				.div(marketPrice)
+		const maxSizeQuote = BN.max(
+			BN.min(
+				this.getMaxTradeSizeUSDCForPerp(
+					perpMarketIndex,
+					PositionDirection.LONG,
+					false,
+					enterHighLeverageMode || this.isHighLeverageMode()
+				).tradeSize,
+				this.getMaxTradeSizeUSDCForPerp(
+					perpMarketIndex,
+					PositionDirection.SHORT,
+					false,
+					enterHighLeverageMode || this.isHighLeverageMode()
+				).tradeSize
+			).sub(lpBuffer),
+			ZERO
 		);
-
-		// margin ratio incorporting upper bound on size
-		let marginRatio = calculateMarketMarginRatio(
-			market,
-			maxSize,
-			marginCategory,
-			this.getUserAccount().maxMarginRatio,
-			enterHighLeverageMode || this.isHighLeverageMode()
-		);
-
-		// use more fesible size since imf factor activated
-		let attempts = 0;
-		while (marginRatio > rawMarginRatio + 1e-4 && attempts < 10) {
-			// more fesible size (upper bound)
-			const targetSize = BN.max(
-				ZERO,
-				freeCollateral
-					.mul(MARGIN_PRECISION)
-					.div(new BN(marginRatio))
-					.mul(PRICE_PRECISION)
-					.div(marketPrice)
-			);
-
-			// margin ratio incorporting more fesible target size
-			marginRatio = calculateMarketMarginRatio(
-				market,
-				targetSize,
-				marginCategory,
-				this.getUserAccount().maxMarginRatio,
-				enterHighLeverageMode || this.isHighLeverageMode()
-			);
-			attempts += 1;
-		}
-
-		// how much more liabilities can be opened w remaining free collateral
-		const additionalLiabilities = freeCollateral
-			.mul(MARGIN_PRECISION)
-			.div(new BN(marginRatio));
 
 		return totalLiabilityValue
-			.add(additionalLiabilities)
+			.add(maxSizeQuote)
 			.mul(TEN_THOUSAND)
 			.div(netAssetValue);
 	}
@@ -2398,7 +2350,8 @@ export class User {
 		positionBaseSizeChange: BN,
 		estimatedEntryPrice: BN,
 		includeOpenOrders: boolean,
-		enteringHighLeverage = false
+		enteringHighLeverage = false,
+		marginCategory: MarginCategory = 'Maintenance'
 	): BN {
 		let freeCollateralChange = ZERO;
 
@@ -2449,7 +2402,7 @@ export class User {
 			const marginRatio = calculateMarketMarginRatio(
 				market,
 				baseAssetAmount.abs(),
-				'Maintenance',
+				marginCategory,
 				this.getUserAccount().maxMarginRatio,
 				this.isHighLeverageMode() || enteringHighLeverage
 			);
@@ -2746,6 +2699,47 @@ export class User {
 				// do nothing if targetting same side
 				tradeSize = maxPositionSize;
 			}
+		}
+
+		const freeCollateral = this.getFreeCollateral();
+
+		let baseTradeSize =
+			targetSide === 'long'
+				? tradeSize.mul(BASE_PRECISION).div(oracleData.price)
+				: tradeSize.mul(BASE_PRECISION).div(oracleData.price).neg();
+
+		let freeCollateralChangeFromNewPosition =
+			this.calculateEntriesEffectOnFreeCollateral(
+				marketAccount,
+				oracleData.price,
+				currentPosition,
+				baseTradeSize,
+				oracleData.price,
+				false,
+				enterHighLeverageMode,
+				'Initial'
+			);
+
+		while (
+			freeCollateralChangeFromNewPosition.isNeg() &&
+			freeCollateralChangeFromNewPosition.abs().gt(freeCollateral)
+		) {
+			tradeSize = tradeSize.mul(new BN(99)).div(new BN(100));
+			baseTradeSize =
+				targetSide === 'long'
+					? tradeSize.mul(BASE_PRECISION).div(oracleData.price)
+					: tradeSize.mul(BASE_PRECISION).div(oracleData.price).neg();
+			freeCollateralChangeFromNewPosition =
+				this.calculateEntriesEffectOnFreeCollateral(
+					marketAccount,
+					oracleData.price,
+					currentPosition,
+					baseTradeSize,
+					oracleData.price,
+					false,
+					enterHighLeverageMode,
+					'Initial'
+				);
 		}
 
 		return { tradeSize, oppositeSideTradeSize };
@@ -3476,7 +3470,7 @@ export class User {
 				now
 			);
 
-			const stakedQuoteAssetAmount = userStatsAccount.ifStakedQuoteAssetAmount;
+			const stakedGovAssetAmount = userStatsAccount.ifStakedGovTokenAmount;
 			const volumeTiers = [
 				new BN(100_000_000).mul(QUOTE_PRECISION),
 				new BN(50_000_000).mul(QUOTE_PRECISION),
@@ -3485,17 +3479,17 @@ export class User {
 				new BN(1_000_000).mul(QUOTE_PRECISION),
 			];
 			const stakedTiers = [
-				new BN(10000).mul(QUOTE_PRECISION),
-				new BN(5000).mul(QUOTE_PRECISION),
-				new BN(2000).mul(QUOTE_PRECISION),
-				new BN(1000).mul(QUOTE_PRECISION),
-				new BN(500).mul(QUOTE_PRECISION),
+				new BN(120000 - 1).mul(QUOTE_PRECISION),
+				new BN(100000 - 1).mul(QUOTE_PRECISION),
+				new BN(25000 - 1).mul(QUOTE_PRECISION),
+				new BN(10000 - 1).mul(QUOTE_PRECISION),
+				new BN(1000 - 1).mul(QUOTE_PRECISION),
 			];
 
 			for (let i = 0; i < volumeTiers.length; i++) {
 				if (
 					total30dVolume.gte(volumeTiers[i]) ||
-					stakedQuoteAssetAmount.gte(stakedTiers[i])
+					stakedGovAssetAmount.gte(stakedTiers[i])
 				) {
 					feeTierIndex = 5 - i;
 					break;

@@ -403,6 +403,11 @@ describe('liquidate perp (no open orders)', () => {
 		assert(fillRecord.makerFee.eq(new BN(ZERO)));
 		assert(isVariant(fillRecord.makerOrderDirection, 'long'));
 
+		assert(fillRecord.takerExistingQuoteEntryAmount.eq(new BN(17500007)));
+		assert(fillRecord.takerExistingBaseAssetAmount === null);
+		assert(fillRecord.makerExistingQuoteEntryAmount === null);
+		assert(fillRecord.makerExistingBaseAssetAmount === null);
+
 		const _sig2 = await liquidatorDriftClient.liquidatePerpPnlForDeposit(
 			await driftClient.getUserAccountPublicKey(),
 			driftClient.getUserAccount(),

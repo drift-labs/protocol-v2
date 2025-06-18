@@ -19,16 +19,16 @@ npm i @drift-labs/sdk
 
 ## Getting Started
 
-*Start here if you're integrating with Drift!*
+_Start here if you're integrating with Drift!_
 
 - [Drift v2-teacher + API Docs](https://drift-labs.github.io/v2-teacher/)
-	- Docs and examples for using the SDK in Typescript and Python
-	- Useful concepts and examples when integrating Drift
-	- Docs for Drift's "Data API"
+  - Docs and examples for using the SDK in Typescript and Python
+  - Useful concepts and examples when integrating Drift
+  - Docs for Drift's "Data API"
 - [Typescript API docs](https://drift-labs.github.io/protocol-v2/sdk/)
-	- JSDoc automated documentation for the Drift v2 Typescript SDK
+  - JSDoc automated documentation for the Drift v2 Typescript SDK
 - [Drift docs](https://docs.drift.trade/)
-	- Comprehensive universal docs for Drift
+  - Comprehensive universal docs for Drift
 
 ---
 
@@ -272,4 +272,3 @@ Drift Protocol v2 is licensed under [Apache 2.0](./LICENSE).
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in Drift SDK by you, as defined in the Apache-2.0 license, shall be
 licensed as above, without any additional terms or conditions.
-

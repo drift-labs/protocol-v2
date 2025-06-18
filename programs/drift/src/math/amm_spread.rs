@@ -121,10 +121,10 @@ pub fn calculate_long_short_vol_spread(
 
     let vol_spread: u128 = last_oracle_conf_pct
         .cast::<u128>()?
-        .max(market_avg_std_pct.safe_div(2)?);
+        .max(market_avg_std_pct.safe_div(4)?);
 
     let factor_clamp_min: u128 = PERCENTAGE_PRECISION / 100; // .01
-    let factor_clamp_max: u128 = 16 * PERCENTAGE_PRECISION / 10; // 1.6
+    let factor_clamp_max: u128 = PERCENTAGE_PRECISION; // 1
 
     let long_vol_spread_factor: u128 = long_intensity_volume
         .cast::<u128>()?
@@ -141,7 +141,7 @@ pub fn calculate_long_short_vol_spread(
     let conf_component = if last_oracle_conf_pct > PERCENTAGE_PRECISION_U64 / 400 {
         last_oracle_conf_pct
     } else {
-        last_oracle_conf_pct.safe_div(10)?
+        last_oracle_conf_pct.safe_div(20)?
     };
 
     Ok((
