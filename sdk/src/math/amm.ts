@@ -922,7 +922,7 @@ export function calculateSpreadReserves(
 				quoteAssetReserve: amm.quoteAssetReserve,
 			};
 		}
-		let spreadFraction = new BN(spread / 2);
+		let spreadFraction = new BN(spread).div(new BN(2));
 
 		// make non-zero
 		if (spreadFraction.eq(ZERO)) {
