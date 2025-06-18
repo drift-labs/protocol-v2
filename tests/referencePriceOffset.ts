@@ -146,11 +146,22 @@ describe('Reference Price Offset E2E', () => {
 	it('should overwrite perp accounts', async () => {
 		await adminClient.fetchAccounts();
 
+		const oracle = adminClient.getOracleDataForPerpMarket(0);
+
 		const perpMarket0 = adminClient.getPerpMarketAccount(0);
 		expect(perpMarket0.amm.curveUpdateIntensity).to.equal(100);
 		expect(perpMarket0.amm.referencePriceOffset).to.equal(0);
 
-		const oracle = adminClient.getOracleDataForPerpMarket(0);
+		const [vBid, vAsk] = calculateBidAskPrice(
+			perpMarket0.amm,
+			oracle,
+			true,
+			false
+		);
+		console.log(
+			`Before ref price: vBid: ${vBid.toString()}, vAsk: ${vAsk.toString()}`
+		);
+
 
 		perpMarket0.amm.curveUpdateIntensity = 200;
 		perpMarket0.amm.referencePriceOffset =
@@ -162,15 +173,6 @@ describe('Reference Price Offset E2E', () => {
 			perpMarket0
 		);
 		await adminClient.fetchAccounts();
-		const [vBid, vAsk] = calculateBidAskPrice(
-			perpMarket0.amm,
-			oracle,
-			true,
-			false
-		);
-		console.log(
-			`Before ref price: vBid: ${vBid.toString()}, vAsk: ${vAsk.toString()}`
-		);
 
 		const perpMarket2 = adminClient.getPerpMarketAccount(0);
 		expect(perpMarket2.amm.curveUpdateIntensity).to.equal(200);
@@ -179,13 +181,13 @@ describe('Reference Price Offset E2E', () => {
 		);
 
 		const [vBid2, vAsk2] = calculateBidAskPrice(
-			perpMarket0.amm,
+			perpMarket2.amm,
 			oracle,
 			true,
 			false
 		);
 		console.log(
-			`After ref price: vBid: ${vBid2.toString()}, vAsk: ${vAsk2.toString()}`
+			`After ref price: vBid:  ${vBid2.toString()}, vAsk: ${vAsk2.toString()}`
 		);
 	});
 });
