@@ -121,6 +121,12 @@ export class BankrunContextWrapper {
 	}
 
 	async moveTimeForward(increment: number): Promise<void> {
+
+		const approxSlots = increment / 0.4;
+		const slot = await this.connection.getSlot();
+		console.log(`warping to slot ${slot} -> ${BigInt(slot) + BigInt(approxSlots)}`)
+		this.context.warpToSlot(BigInt(Number(slot) + approxSlots));
+
 		const currentClock = await this.context.banksClient.getClock();
 		const newUnixTimestamp = currentClock.unixTimestamp + BigInt(increment);
 		const newClock = new Clock(
@@ -130,6 +136,7 @@ export class BankrunContextWrapper {
 			currentClock.leaderScheduleEpoch,
 			newUnixTimestamp
 		);
+
 		await this.context.setClock(newClock);
 	}
 
@@ -290,7 +297,7 @@ export class BankrunConnection {
 		return signature;
 	}
 
-	private async updateSlotAndClock() {
+	async updateSlotAndClock() {
 		const currentSlot = await this.getSlot();
 		const nextSlot = currentSlot + BigInt(1);
 		this.context.warpToSlot(nextSlot);

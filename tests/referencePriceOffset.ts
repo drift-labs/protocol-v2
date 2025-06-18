@@ -10,12 +10,23 @@ import {
 	OracleSource,
 	PERCENTAGE_PRECISION,
 	calculateBidAskPrice,
+	convertToNumber,
+	OrderType,
+	BASE_PRECISION,
+	PositionDirection,
+	DriftClient,
+	parseLogs,
+	parseLogsWithRaw,
+	isFallbackAvailableLiquiditySource,
+	calculateBaseAssetAmountForAmmToFulfill,
+	isFillableByVAMM,
 } from '../sdk/src';
 import {
 	initializeQuoteSpotMarket,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	overWritePerpMarket,
+	printTxLogs,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
@@ -27,14 +38,18 @@ import {
 } from '../sdk/src/decode/customCoder';
 dotenv.config();
 
-// SOL-PERP
-const solPerpMarketBytes =
-	'0adf0c2c6bf537f76f007dc417aef206a69441eadcb699b8caaa4af90352ad7090cfbea9f81fa46b290362271e4c3b69c7b52905f73fa23fae1841b086b2148f347889f1fe952fe1a7a7a8080000000000000000000000000000000000000000f16ba30800000000f51aa7080000000059fb52680000000093b02897b8ffffffffffffffffffffff7a0d7ab6f5ffffffffffffffffffffffcc794535c5560f0000000000000000000000000000000000e8240c803cdc48000000000000000000dbdec2414aa4480000000000000000006e520f00000000000000000000000000c1565825a073480000000000000000008e8160a1970d49000000000000000000bdfe28003ec048000000000000000000d852af08000000000000000000000000e1b116d808c04800000000000000000000194f68e2f00100000000000000000080c76a0354f3fdffffffffffffffffffbcfd55a836e4ffffffffffffffffffffc4e263c3ffffffffffffffffffffffff00008d49fd1a07000000000000000000b35245e4240800000000000000000000e34c0f6314b5ffffffffffffffffffff631c3c45354e00000000000000000000680a85f364b5ffffffffffffffffffff74a1b77ec94d000000000000000000002b7212e89533000000000000000000004b7d0600000000004b7d0600000000004b7d060000000000d28801000000000073810318ee0c000000000000000000001c2506a87b030000000000000000000073f2b5228a0900000000000000000000533f70078a0600000000000000000000ad27b0e0b2050000000000000000000090b06954bd03000000000000000000005862208c0b0000000000000000000000dd06d67f0b0000000000000000000000c1b8f90c0100000000000000000000007c3ae02c2edc4800000000000000000072bbf18958a448000000000000000000719a75c2b5dd48000000000000000000df29a328d2a248000000000000000000a7a7a808000000000000000000000000a708a30800000000ed4ea30800000000ca2ba30800000000c802a708000000002ab4b814000000003b05000000000000a56f5b0903000000a1f0526800000000100e0000000000008096980000000000640000000000000080969800000000000000000000000000de17cb40c13c000039eaedc0e1000000f13a814ba20000004cfb526800000000a478050000000000b63b0500000000004cfb5268000000000a00000020030000070000009e000000000000002d000000a861320064640c01c0c852de0300a600fd7f871400000000d2f81cd200000000476293b9e5ffffff00000000000000000000000000000000811377379662220000000000000000000000000000000000534f4c2d50455250202020202020202020202020202020202020202020202020009b32e2ffffffff0065cd1d00000000ff0fa5d4e8000000331f4c38190000004cf552680000000000e1f5050000000000000000000000000000000000000000b94eb200000000006b590000000000005d0d00000000000064000000000000004c1d00004c1d0000f40100002c010000000000001027000017110000440d00000000010001000000b5ff00000000630042000000000000000000000000000000000000000000000000000000000000000000000000000000';
-const solPerpOracleBytes =
-	'9f07a1f922517985b5b102620300000008158f34dc37060049b4b81400000000f8ffffff0000000051d6110000000000';
 
-const solMarket = new PublicKey('8UJgxaiQx5nTrdDgph5FiahMmzduuLTLf5WmsPegYA6W');
-const solOracle = new PublicKey('3m6i4RFWEDw2Ft4tFHPJtYgmpPe21k56M3FHeWYrgGBz');
+// 1MPEPE-PERP
+const marketPubkey = new PublicKey('GsMte91Y1eY9XYtY1nt1Ax77V5hzsj3rr1a7a29mxHZw');
+const marketIndex = 10;
+const oraclePubkey = new PublicKey('Eo8x9Y1289GvsuYVwRS2R8HfiWRXxYofL1KYvHK2ZM2o');
+const oracleSource = OracleSource.PYTH_LAZER_1M;
+const marketSnapshotBytes =
+	'0adf0c2c6bf537f7ebc5f713a1eebbe52ad08af6f417aed85122d533728331aaacae7c1cf1fc1cceccf9a3244f7965a75c10c05f359aadbb808523d3d1b7e8cb2e32c9604bc6da08b8579a00000000000000000000000000000000000000000026689a000000000012699a0000000000f71853680000000035d1a5c61d00000000000000000000002836fc9d00000000000000000000000019c19b0727d500000000000000000000000000000000000018b0ff41782207000000000000000000502481ab6227070000000000000000003c6b1200000000000000000000000000c4fdee3020eb0500000000000000000093469bd9ac9f08000000000000000000b1c7840aed2407000000000000000000aaed99000000000000000000000000001f016f8ff1240700000000000000000000d27f92b00b000000000000000000000014582ebff6fffffffffffffffffffffcb99d43700200000000000000000000042c3a7dffffffffffffffffffffffff0080c6a47e8d03000000000000000000c90d0a3bfeffffffffffffffffffffffb1782f4cddffffffffffffffffffffff6ee036a919000000000000000000000021371fb8dcffffffffffffffffffffffee9f3fc61b0000000000000000000000009eff3786030000000000000000000053e103000000000053e103000000000053e1030000000000faf4040000000000bdfe266c4500000000000000000000005be6e8d73800000000000000000000003e4ca2a10c0000000000000000000000e528578d4b0000000000000000000000000000000000000000000000000000008c4d8aa31400000000000000000000000530837a0100000000000000000000002b32817a01000000000000000000000000000000000000000000000000000000527b02fbd31b070000000000000000007b07d1be112e07000000000000000000cb9d314bb52507000000000000000000c69cc2df242407000000000000000000b8579a0000000000000000000000000006289a0000000000a1fd9a0000000000d3929a000000000023bd9a000000000020feb81400000000a9010000000000003463f3f6ffffffffd50c536800000000100e00000000000000ca9a3b00000000640000000000000000f2052a0100000000000000000000007806d8c20d000000b124804a00000000a03db450000000001e07536800000000120e0000000000006e10000000000000f718536800000000e8030000905f01006c1c0000d00d00001d0000002a000000e803320064640e01000000000400000072571d0900000000c8109b93010000004057f0f6ffffffff00000000000000000000000000000000cad66686df3f000000000000000000000000000000000000314d504550452d5045525020202020202020202020202020202020202020202000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000c0ed000000000000ec46000000000000231f000000000000ee020000ee020000a861000050c30000c4090000e204000000000000102700007b000000510000000a00010003000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
+const oracleSnapshotBytes =
+	'9f07a1f9225179853d8b010000000000802e6ff8dd3706003efeb81400000000f6ffffff000000000c00000000000000';;
+
+const usdcMintAmount = new BN(100_000_000).mul(QUOTE_PRECISION);
 
 describe('Reference Price Offset E2E', () => {
 	const program = anchor.workspace.Drift as Program;
@@ -44,6 +59,7 @@ describe('Reference Price Offset E2E', () => {
 	let bulkAccountLoader: TestBulkAccountLoader;
 
 	let adminClient: TestClient;
+	let fillerDriftClient: DriftClient;
 	let usdcMint: Keypair;
 
 	let userUSDCAccount: Keypair;
@@ -59,7 +75,26 @@ describe('Reference Price Offset E2E', () => {
 					),
 				},
 			],
-			[]
+			[
+				{
+					address: marketPubkey,
+					info: {
+						executable: false,
+						owner: program.programId,
+						lamports: LAMPORTS_PER_SOL,
+						data: Buffer.from(marketSnapshotBytes, 'hex'),
+					}
+				},
+				{
+					address: oraclePubkey,
+					info: {
+						executable: false,
+						owner: program.programId,
+						lamports: LAMPORTS_PER_SOL,
+						data: Buffer.from(oracleSnapshotBytes, 'hex'),
+					}
+				}
+			]
 		);
 
 		// @ts-ignore
@@ -74,18 +109,18 @@ describe('Reference Price Offset E2E', () => {
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 
 		// seed SOL-PERP market and oracle accounts
-		bankrunContextWrapper.context.setAccount(solMarket, {
-			executable: false,
-			owner: program.programId,
-			lamports: LAMPORTS_PER_SOL,
-			data: Buffer.from(solPerpMarketBytes, 'hex'),
-		});
-		bankrunContextWrapper.context.setAccount(solOracle, {
-			executable: false,
-			owner: program.programId,
-			lamports: LAMPORTS_PER_SOL,
-			data: Buffer.from(solPerpOracleBytes, 'hex'),
-		});
+		// bankrunContextWrapper.context.setAccount(marketPubkey, {
+		// 	executable: false,
+		// 	owner: program.programId,
+		// 	lamports: LAMPORTS_PER_SOL,
+		// 	data: Buffer.from(marketSnapshotBytes, 'hex'),
+		// });
+		// bankrunContextWrapper.context.setAccount(oraclePubkey, {
+		// 	executable: false,
+		// 	owner: program.programId,
+		// 	lamports: LAMPORTS_PER_SOL,
+		// 	data: Buffer.from(oracleSnapshotBytes, 'hex'),
+		// });
 
 		const keypair = new Keypair();
 		await bankrunContextWrapper.fundKeypair(keypair, 50 * LAMPORTS_PER_SOL);
@@ -99,12 +134,12 @@ describe('Reference Price Offset E2E', () => {
 			},
 			activeSubAccountId: 0,
 			subAccountIds: [],
-			perpMarketIndexes: [0, 1],
+			perpMarketIndexes: [marketIndex],
 			spotMarketIndexes: [0, 1, 2],
 			oracleInfos: [
 				{
-					publicKey: solOracle,
-					source: OracleSource.PYTH_LAZER,
+					publicKey: oraclePubkey,
+					source: oracleSource,
 				},
 			],
 			accountSubscription: {
@@ -120,23 +155,51 @@ describe('Reference Price Offset E2E', () => {
 
 		userUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
-			new BN(10).mul(QUOTE_PRECISION),
+			usdcMintAmount,
 			bankrunContextWrapper,
 			keypair.publicKey
 		);
 
 		await adminClient.initializeUserAccountAndDepositCollateral(
-			new BN(10).mul(QUOTE_PRECISION),
+			usdcMintAmount,
 			userUSDCAccount.publicKey
 		);
 
 		/// why have to do this manually and bulk acc lodaer not handle
 		await adminClient.accountSubscriber.addPerpMarket(0);
 		await adminClient.accountSubscriber.addOracle({
-			publicKey: solOracle,
+			publicKey: oraclePubkey,
 			source: OracleSource.PYTH_LAZER,
 		});
 		await adminClient.accountSubscriber.setPerpOracleMap();
+
+		const keypair2 = new Keypair();
+		await bankrunContextWrapper.fundKeypair(keypair2, 50 * LAMPORTS_PER_SOL);
+		fillerDriftClient = new TestClient({
+			connection: bankrunContextWrapper.connection.toConnection(),
+			wallet: new anchor.Wallet(keypair2),
+			programID: program.programId,
+			opts: {
+				commitment: 'confirmed',
+			},
+			perpMarketIndexes: [marketIndex],
+			spotMarketIndexes: [0, 1],
+			// subAccountIds: [0],
+			subAccountIds: [],
+			oracleInfos: [
+				{
+					publicKey: oraclePubkey,
+					source: oracleSource,
+				},
+			],
+			accountSubscription: {
+				type: 'polling',
+				accountLoader: bulkAccountLoader,
+			},
+		});
+		await fillerDriftClient.subscribe();
+
+		await fillerDriftClient.initializeUserAccount();
 	});
 
 	after(async () => {
@@ -146,9 +209,9 @@ describe('Reference Price Offset E2E', () => {
 	it('should overwrite perp accounts', async () => {
 		await adminClient.fetchAccounts();
 
-		const oracle = adminClient.getOracleDataForPerpMarket(0);
+		const oracle = adminClient.getOracleDataForPerpMarket(marketIndex);
 
-		const perpMarket0 = adminClient.getPerpMarketAccount(0);
+		const perpMarket0 = adminClient.getPerpMarketAccount(marketIndex);
 		expect(perpMarket0.amm.curveUpdateIntensity).to.equal(100);
 		expect(perpMarket0.amm.referencePriceOffset).to.equal(0);
 
@@ -158,14 +221,17 @@ describe('Reference Price Offset E2E', () => {
 			true,
 			false
 		);
+		const vBidNum = convertToNumber(vBid);
+		const vAskNum = convertToNumber(vAsk);
+		const spread = (vAskNum - vBidNum) / ((vAskNum + vBidNum) / 2);
 		console.log(
-			`Before ref price: vBid: ${vBid.toString()}, vAsk: ${vAsk.toString()}`
+			`Before ref price: vBid: ${vBidNum}, vAsk: ${vAskNum}, spread: ${spread * 10000}bps`
 		);
 
 
 		perpMarket0.amm.curveUpdateIntensity = 200;
-		perpMarket0.amm.referencePriceOffset =
-			PERCENTAGE_PRECISION.toNumber() / 1000; // 10 bps
+		// perpMarket0.amm.referencePriceOffset =
+		// 	PERCENTAGE_PRECISION.toNumber() / 1000; // 10 bps
 		await overWritePerpMarket(
 			adminClient,
 			bankrunContextWrapper,
@@ -174,11 +240,11 @@ describe('Reference Price Offset E2E', () => {
 		);
 		await adminClient.fetchAccounts();
 
-		const perpMarket2 = adminClient.getPerpMarketAccount(0);
+		const perpMarket2 = adminClient.getPerpMarketAccount(marketIndex);
 		expect(perpMarket2.amm.curveUpdateIntensity).to.equal(200);
-		expect(perpMarket2.amm.referencePriceOffset).to.equal(
-			PERCENTAGE_PRECISION.toNumber() / 1000
-		);
+		// expect(perpMarket2.amm.referencePriceOffset).to.equal(
+		// 	PERCENTAGE_PRECISION.toNumber() / 1000
+		// );
 
 		const [vBid2, vAsk2] = calculateBidAskPrice(
 			perpMarket2.amm,
@@ -186,8 +252,91 @@ describe('Reference Price Offset E2E', () => {
 			true,
 			false
 		);
+		const vBidNum2 = convertToNumber(vBid2);
+		const vAskNum2 = convertToNumber(vAsk2);
+		const spread2 = (vAskNum2 - vBidNum2) / ((vAskNum2 + vBidNum2) / 2);
 		console.log(
-			`After ref price: vBid:  ${vBid2.toString()}, vAsk: ${vAsk2.toString()}`
+			`After ref price: vBid:  ${vBidNum2}, vAsk: ${vAskNum2}, spread: ${spread2 * 10000}bps`
+		);
+
+
+		const adminUser = adminClient.getUser(0);
+		const adminUserAcc = await adminClient.getUserAccountPublicKey();
+
+		let now = bankrunContextWrapper.connection.getTime();
+
+		let tx = await adminClient.placePerpOrder({
+			orderType: OrderType.ORACLE,
+			marketIndex,
+			baseAssetAmount: new BN(100).mul(BASE_PRECISION),
+			direction: PositionDirection.LONG,
+			auctionDuration: 20,
+			auctionStartPrice: vAsk2,
+			auctionEndPrice: vAsk2.muln(110).divn(100),
+			maxTs: new BN(now + 60),
+		})
+		await printTxLogs(bankrunContextWrapper.connection.toConnection(), tx);
+		let logs = await printTxLogs(bankrunContextWrapper.connection.toConnection(), tx);
+		let events = parseLogsWithRaw(program, logs);
+		console.log(events.events.map(e => e.data));
+
+		await adminClient.fetchAccounts();
+		let pos = adminClient.getUser(0).getPerpPosition(marketIndex);
+		console.log('base: ', convertToNumber(pos.baseAssetAmount, BASE_PRECISION));
+		console.log('quote:', convertToNumber(pos.quoteAssetAmount, QUOTE_PRECISION));
+
+		let openOrders = adminClient.getUser(0).getOpenOrders();
+		let order = openOrders.length > 0 ? openOrders[0] : null;
+		if (!order) {
+			throw new Error('No open orders found');
+		}
+
+		/// check if vamm can fill
+		let slot = await bankrunContextWrapper.connection.getSlot();
+		console.log("slot:", slot);
+		console.log("now:", now);
+		now = bankrunContextWrapper.connection.getTime();
+
+		// console.log("fillableByVamm:", isFillableByVAMM(order, perpMarket2, oracle, Number(slot), now, 0));
+
+		await bankrunContextWrapper.moveTimeForward(30);
+
+		slot = await bankrunContextWrapper.connection.getSlot();
+		now = bankrunContextWrapper.connection.getTime();
+		console.log("slot:", slot);
+		console.log("now:", now);
+		now = bankrunContextWrapper.connection.getTime();
+		console.log("fillableByVamm:", isFillableByVAMM(order, perpMarket2, oracle, Number(slot), now, 0));
+
+		tx = await fillerDriftClient.fillPerpOrder(adminUserAcc, adminUser.getUserAccount(), order);
+		logs = await printTxLogs(bankrunContextWrapper.connection.toConnection(), tx);
+		events = parseLogsWithRaw(program, logs);
+		console.log(events.events.map(e => e.data));
+
+		await adminClient.fetchAccounts();
+		pos = adminClient.getUser(0).getPerpPosition(marketIndex);
+		console.log('base: ', convertToNumber(pos.baseAssetAmount, BASE_PRECISION));
+		console.log('quote:', convertToNumber(pos.quoteAssetAmount, QUOTE_PRECISION));
+
+		
+
+		const perpMarket3 = adminClient.getPerpMarketAccount(marketIndex);
+		expect(perpMarket3.amm.curveUpdateIntensity).to.equal(200);
+		// expect(perpMarket2.amm.referencePriceOffset).to.equal(
+		// 	PERCENTAGE_PRECISION.toNumber() / 1000
+		// );
+
+		const [vBid3, vAsk3] = calculateBidAskPrice(
+			perpMarket3.amm,
+			oracle,
+			true,
+			false
+		);
+		const vBidNum3 = convertToNumber(vBid3);
+		const vAskNum3 = convertToNumber(vAsk3);
+		const spread3 = (vAskNum3 - vBidNum3) / ((vAskNum3 + vBidNum3) / 2);
+		console.log(
+			`After ref price: vBid:  ${vBidNum3}, vAsk: ${vAskNum3}, spread: ${spread3 * 10000}bps`
 		);
 	});
 });

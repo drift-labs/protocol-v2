@@ -550,12 +550,13 @@ export async function createUserWithUSDCAndWSOLAccount(
 export async function printTxLogs(
 	connection: Connection,
 	txSig: TransactionSignature
-): Promise<void> {
+): Promise<string[]> {
+	const tx = await connection.getTransaction(txSig, { commitment: 'confirmed' });
 	console.log(
 		'tx logs',
-		(await connection.getTransaction(txSig, { commitment: 'confirmed' })).meta
-			.logMessages
+		tx.meta.logMessages,
 	);
+	return tx.meta.logMessages;
 }
 
 export async function mintToInsuranceFund(
