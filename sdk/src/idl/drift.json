@@ -6692,6 +6692,32 @@
       ]
     },
     {
+      "name": "updatePerpMarketOracleSlotDelayOverride",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "oracleSlotDelayOverride",
+          "type": "i8"
+        }
+      ]
+    },
+    {
       "name": "updateSpotMarketFuel",
       "accounts": [
         {
@@ -10934,8 +10960,8 @@
             "type": "i8"
           },
           {
-            "name": "padding1",
-            "type": "u8"
+            "name": "oracleSlotDelayOverride",
+            "type": "i8"
           },
           {
             "name": "totalFeeEarnedPerLp",
