@@ -3,6 +3,7 @@ use anchor_spl::associated_token::AssociatedToken;
 use std::convert::identity;
 use std::mem::size_of;
 
+use crate::math::amm::calculate_net_user_pnl;
 use crate::msg;
 use crate::state::lp_pool::{
     AmmConstituentDatum, AmmConstituentMapping, Constituent, ConstituentTargetBase, LPPool,
@@ -72,7 +73,7 @@ use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::protected_maker_mode_config::ProtectedMakerModeConfig;
 use crate::state::pyth_lazer_oracle::{PythLazerOracle, PYTH_LAZER_ORACLE_SEED};
 use crate::state::spot_market::{
-    AssetTier, InsuranceFund, SpotBalanceType, SpotFulfillmentConfigStatus, SpotMarket,
+    AssetTier, InsuranceFund, SpotBalance, SpotBalanceType, SpotFulfillmentConfigStatus, SpotMarket,
 };
 use crate::state::spot_market_map::get_writable_spot_market_set;
 use crate::state::state::{ExchangeStatus, FeeStructure, OracleGuardRails, State};
@@ -965,7 +966,8 @@ pub fn handle_initialize_perp_market(
         high_leverage_margin_ratio_maintenance: 0,
         protected_maker_limit_price_divisor: 0,
         protected_maker_dynamic_divisor: 0,
-        padding: [0; 36],
+        lp_fee_transfer_scalar: 1,
+        padding: [0; 35],
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
             oracle_source,
@@ -1115,8 +1117,8 @@ pub fn handle_update_init_amm_cache_info<'c: 'info, 'info>(
 
     let AccountMaps {
         perp_market_map,
-        spot_market_map: _,
-        oracle_map: _,
+        spot_market_map,
+        mut oracle_map,
     } = load_maps(
         &mut ctx.remaining_accounts.iter().peekable(),
         &MarketSet::new(),
@@ -1125,8 +1127,12 @@ pub fn handle_update_init_amm_cache_info<'c: 'info, 'info>(
         None,
     )?;
 
+    let quote_market = spot_market_map.get_quote_spot_market()?;
+
     for (_, perp_market_loader) in perp_market_map.0 {
         let perp_market = perp_market_loader.load()?;
+        let oracle_data = oracle_map.get_price_data(&perp_market.oracle_id())?;
+
         let market_index = perp_market.market_index as usize;
         let cache = amm_cache.cache.get_mut(market_index).unwrap();
         cache.oracle = perp_market.amm.oracle;
@@ -1135,6 +1141,18 @@ pub fn handle_update_init_amm_cache_info<'c: 'info, 'info>(
             .amm
             .historical_oracle_data
             .last_oracle_price_twap;
+        cache.last_fee_pool_balance = get_token_amount(
+            perp_market.amm.fee_pool.scaled_balance,
+            &quote_market,
+            perp_market.amm.fee_pool.balance_type(),
+        )?;
+        cache.last_net_pnl_pool_balance = get_token_amount(
+            perp_market.pnl_pool.scaled_balance,
+            &quote_market,
+            perp_market.pnl_pool.balance_type(),
+        )?
+        .cast::<i128>()?
+        .safe_sub(calculate_net_user_pnl(&perp_market.amm, oracle_data.price)?)?;
     }
 
     Ok(())
@@ -3805,6 +3823,25 @@ pub fn handle_update_perp_market_min_order_size(
 }
 
 #[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_update_perp_market_lp_pool_fee_transfer_scalar(
+    ctx: Context<AdminUpdatePerpMarket>,
+    lp_fee_transfer_scalar: u8,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
+    msg!(
+        "perp_market.: {:?} -> {:?}",
+        perp_market.lp_fee_transfer_scalar,
+        lp_fee_transfer_scalar
+    );
+
+    perp_market.lp_fee_transfer_scalar = lp_fee_transfer_scalar;
+    Ok(())
+}
+
+#[access_control(
     spot_market_valid(&ctx.accounts.spot_market)
 )]
 pub fn handle_update_spot_market_step_size_and_tick_size(
@@ -4516,6 +4553,8 @@ pub fn handle_initialize_lp_pool(
         revenue_rebalance_period,
         next_mint_redeem_id: 1,
         usdc_consituent_index: 0,
+        cumulative_usdc_sent_to_perp_markets: 0,
+        cumulative_usdc_received_from_perp_markets: 0,
         _padding: [0; 10],
     };
 

@@ -682,6 +682,7 @@ export class AdminClient extends DriftClient {
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [],
 			readablePerpMarketIndex: perpMarketIndexes,
+			readableSpotMarketIndexes: [QUOTE_SPOT_MARKET_INDEX],
 		});
 		return await this.program.instruction.updateInitAmmCacheInfo({
 			accounts: {

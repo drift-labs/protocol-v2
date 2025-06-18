@@ -40,6 +40,9 @@ import {
 	PYTH_LAZER_STORAGE_ACCOUNT_KEY,
 	PTYH_LAZER_PROGRAM_ID,
 	BASE_PRECISION,
+	getTokenAmount,
+	SpotBalanceType,
+	SPOT_MARKET_BALANCE_PRECISION,
 } from '../sdk/src';
 
 import {
@@ -191,7 +194,7 @@ describe('LP Pool', () => {
 			ammInitialBaseAssetReserve,
 			ammInitialQuoteAssetReserve,
 			periodicity,
-			new BN(224 * PEG_PRECISION.toNumber())
+			new BN(200 * PEG_PRECISION.toNumber())
 		);
 
 		await adminClient.updatePerpAuctionDuration(new BN(0));
@@ -388,7 +391,7 @@ describe('LP Pool', () => {
 			getAmmCachePublicKey(program.programId)
 		)) as AmmCache;
 
-		await adminClient.updateAmmCache([0]);
+		await adminClient.updateAmmCache([0, 1, 2]);
 		ammCache = (await adminClient.program.account.ammCache.fetch(
 			getAmmCachePublicKey(program.programId)
 		)) as AmmCache;
@@ -605,6 +608,80 @@ describe('LP Pool', () => {
 				.sub(constituentTargetBase.targets[2].targetBase)
 				.lt(constituentTargetBase.targets[1].targetBase.divn(1000))
 		);
+	});
+
+	it('can settle pnl from perp markets into the usdc account', async () => {
+		// First run should just load the values into the cache
+		await adminClient.depositIntoPerpMarketFeePool(
+			0,
+			new BN(100).mul(QUOTE_PRECISION),
+			await adminClient.getAssociatedTokenAccount(0)
+		);
+
+		await adminClient.depositIntoPerpMarketFeePool(
+			1,
+			new BN(100).mul(QUOTE_PRECISION),
+			await adminClient.getAssociatedTokenAccount(0)
+		);
+
+		let constituent = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 0)
+		)) as ConstituentAccount;
+		let lpPool = (await adminClient.program.account.lpPool.fetch(
+			lpPoolKey
+		)) as LPPoolAccount;
+
+		let ammCache = (await adminClient.program.account.ammCache.fetch(
+			getAmmCachePublicKey(program.programId)
+		)) as AmmCache;
+		assert(ammCache.cache[0].lastFeePoolBalance.eq(ZERO));
+		assert(ammCache.cache[1].lastFeePoolBalance.eq(ZERO));
+		assert(ammCache.cache[2].lastFeePoolBalance.eq(ZERO));
+		assert(ammCache.cache[0].lastNetPnlPoolBalance.eq(ZERO));
+		assert(ammCache.cache[1].lastNetPnlPoolBalance.eq(ZERO));
+		assert(ammCache.cache[2].lastNetPnlPoolBalance.eq(ZERO));
+		await adminClient.settlePerpToLpPool(encodeName(lpPoolName), [0, 1, 2]);
+		ammCache = (await adminClient.program.account.ammCache.fetch(
+			getAmmCachePublicKey(program.programId)
+		)) as AmmCache;
+		assert(ammCache.cache[0].lastFeePoolBalance.eq(new BN(100000000)));
+		assert(ammCache.cache[1].lastFeePoolBalance.eq(new BN(100000000)));
+
+		await adminClient.depositIntoPerpMarketFeePool(
+			0,
+			new BN(100).mul(QUOTE_PRECISION),
+			await adminClient.getAssociatedTokenAccount(0)
+		);
+
+		await adminClient.depositIntoPerpMarketFeePool(
+			1,
+			new BN(100).mul(QUOTE_PRECISION),
+			await adminClient.getAssociatedTokenAccount(0)
+		);
+
+		const usdcBefore = constituent.tokenBalance;
+		const lpAumBefore = lpPool.lastAum;
+		const feePoolBalanceBefore = adminClient.getPerpMarketAccount(0).amm.feePool.scaledBalance;
+
+		await adminClient.settlePerpToLpPool(encodeName(lpPoolName), [0, 1, 2]);
+
+		constituent = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 0)
+		)) as ConstituentAccount;
+		lpPool = (await adminClient.program.account.lpPool.fetch(
+			lpPoolKey
+		)) as LPPoolAccount;
+
+		const usdcAfter = constituent.tokenBalance;
+		const lpAumAfter = lpPool.lastAum;
+		const feePoolBalanceAfter = adminClient.getPerpMarketAccount(0).amm.feePool.scaledBalance,;
+		console.log('usdcBefore', usdcBefore.toString());
+		console.log('usdcAfter', usdcAfter.toString());
+		assert(usdcAfter.sub(usdcBefore).eq(QUOTE_PRECISION.muln(200)));
+		assert(lpAumAfter.sub(lpAumBefore).eq(QUOTE_PRECISION.muln(200)));
+		console.log('feePoolBalanceBefore', feePoolBalanceBefore.toString());
+		console.log('feePoolBalanceAfter', feePoolBalanceAfter.toString());
+		assert(feePoolBalanceAfter.sub(feePoolBalanceBefore).eq(SPOT_MARKET_BALANCE_PRECISION.muln(-100)));
 	});
 
 	it('can update and remove amm constituent mapping entries', async () => {

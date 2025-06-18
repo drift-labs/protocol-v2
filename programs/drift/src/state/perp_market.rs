@@ -254,7 +254,8 @@ pub struct PerpMarket {
     pub high_leverage_margin_ratio_maintenance: u16,
     pub protected_maker_limit_price_divisor: u8,
     pub protected_maker_dynamic_divisor: u8,
-    pub padding: [u8; 36],
+    pub lp_fee_transfer_scalar: u8,
+    pub padding: [u8; 35],
 }
 
 impl Default for PerpMarket {
@@ -296,7 +297,8 @@ impl Default for PerpMarket {
             high_leverage_margin_ratio_maintenance: 0,
             protected_maker_limit_price_divisor: 0,
             protected_maker_dynamic_divisor: 0,
-            padding: [0; 36],
+            lp_fee_transfer_scalar: 1,
+            padding: [0; 35],
         }
     }
 }
@@ -1699,12 +1701,16 @@ pub struct CacheInfo {
     pub oracle_delay: i64,
     pub oracle_slot: u64,
     pub oracle: Pubkey,
+    pub last_fee_pool_balance: u128,
+    pub last_net_pnl_pool_balance: i128,
+    pub last_settle_amount: u64,
+    pub last_settle_ts: i64,
     pub oracle_source: u8,
     _padding: [u8; 7],
 }
 
 impl Size for CacheInfo {
-    const SIZE: usize = 104;
+    const SIZE: usize = 160 + 8 + 8 + 8;
 }
 
 impl Default for CacheInfo {
@@ -1719,6 +1725,10 @@ impl Default for CacheInfo {
             oracle_delay: 0i64,
             oracle_slot: 0u64,
             oracle: Pubkey::default(),
+            last_fee_pool_balance: 0u128,
+            last_net_pnl_pool_balance: 0i128,
+            last_settle_amount: 0u64,
+            last_settle_ts: 0i64,
             oracle_source: 0u8,
             _padding: [0u8; 7],
         }
@@ -1733,6 +1743,14 @@ impl CacheInfo {
     pub fn oracle_id(&self) -> DriftResult<OracleIdentifier> {
         let oracle_source = self.get_oracle_source()?;
         Ok((self.oracle, oracle_source))
+    }
+
+    pub fn get_last_available_amm_balance(&self) -> DriftResult<i128> {
+        let last_available_balance = self
+            .last_fee_pool_balance
+            .cast::<i128>()?
+            .safe_add(self.last_net_pnl_pool_balance)?;
+        Ok(last_available_balance)
     }
 }
 
