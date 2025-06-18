@@ -188,6 +188,7 @@ pub fn get_oracle_status(
         market.get_max_confidence_interval_multiplier()?,
         &market.amm.oracle_source,
         false,
+        0,
     )?;
     let oracle_reserve_price_spread_pct =
         amm::calculate_oracle_twap_5min_price_spread_pct(&market.amm, reserve_price)?;
@@ -213,6 +214,7 @@ pub fn oracle_validity(
     max_confidence_interval_multiplier: u64,
     oracle_source: &OracleSource,
     log_validity: bool,
+    slots_before_stale_for_amm_override: i8,
 ) -> DriftResult<OracleValidity> {
     let OraclePriceData {
         price: oracle_price,
@@ -237,7 +239,11 @@ pub fn oracle_validity(
         .confidence_interval_max_size
         .safe_mul(max_confidence_interval_multiplier)?);
 
-    let is_stale_for_amm = oracle_delay.gt(&valid_oracle_guard_rails.slots_before_stale_for_amm);
+    let is_stale_for_amm = if slots_before_stale_for_amm_override != 0 {
+        oracle_delay.gt(&slots_before_stale_for_amm_override.max(0).cast()?)
+    } else {
+        oracle_delay.gt(&valid_oracle_guard_rails.slots_before_stale_for_amm)
+    };
 
     let is_stale_for_margin = if matches!(
         oracle_source,

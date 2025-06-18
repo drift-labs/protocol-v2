@@ -1547,6 +1547,13 @@ pub mod drift {
         handle_update_perp_market_amm_spread_adjustment(ctx, amm_spread_adjustment)
     }
 
+    pub fn update_perp_market_oracle_slot_delay_override(
+        ctx: Context<HotAdminUpdatePerpMarket>,
+        oracle_slot_delay_override: i8,
+    ) -> Result<()> {
+        handle_update_perp_market_oracle_slot_delay_override(ctx, oracle_slot_delay_override)
+    }
+
     pub fn update_spot_market_fuel(
         ctx: Context<AdminUpdateSpotMarketFuel>,
         fuel_boost_deposits: Option<u8>,
