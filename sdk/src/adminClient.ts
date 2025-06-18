@@ -3889,9 +3889,9 @@ export class AdminClient extends DriftClient {
 			takerSpeedBumpOverride,
 			{
 				accounts: {
-					admin: this.isSubscribed
-						? this.getStateAccount().admin
-						: this.wallet.publicKey,
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
 					state: await this.getStatePublicKey(),
 					perpMarket: perpMarketPublicKey,
 				},
@@ -3929,9 +3929,9 @@ export class AdminClient extends DriftClient {
 			ammSpreadAdjustment,
 			{
 				accounts: {
-					admin: this.isSubscribed
-						? this.getStateAccount().admin
-						: this.wallet.publicKey,
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
 					state: await this.getStatePublicKey(),
 					perpMarket: perpMarketPublicKey,
 				},
