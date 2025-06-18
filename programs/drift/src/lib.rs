@@ -1349,7 +1349,7 @@ pub mod drift {
     }
 
     pub fn update_perp_market_curve_update_intensity(
-        ctx: Context<AdminUpdatePerpMarket>,
+        ctx: Context<HotAdminUpdatePerpMarket>,
         curve_update_intensity: u8,
     ) -> Result<()> {
         handle_update_perp_market_curve_update_intensity(ctx, curve_update_intensity)
@@ -1459,7 +1459,7 @@ pub mod drift {
     }
 
     pub fn update_amm_jit_intensity(
-        ctx: Context<AdminUpdatePerpMarket>,
+        ctx: Context<HotAdminUpdatePerpMarket>,
         amm_jit_intensity: u8,
     ) -> Result<()> {
         handle_update_amm_jit_intensity(ctx, amm_jit_intensity)
