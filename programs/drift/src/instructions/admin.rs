@@ -3606,7 +3606,7 @@ pub fn handle_update_perp_market_base_spread(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_amm_jit_intensity(
-    ctx: Context<AdminUpdatePerpMarket>,
+    ctx: Context<HotAdminUpdatePerpMarket>,
     amm_jit_intensity: u8,
 ) -> Result<()> {
     validate!(
