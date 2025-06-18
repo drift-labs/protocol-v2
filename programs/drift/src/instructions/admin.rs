@@ -3257,7 +3257,7 @@ pub fn handle_update_perp_market_concentration_coef(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_curve_update_intensity(
-    ctx: Context<AdminUpdatePerpMarket>,
+    ctx: Context<HotAdminUpdatePerpMarket>,
     curve_update_intensity: u8,
 ) -> Result<()> {
     // (0, 100] is for repeg / formulaic k intensity

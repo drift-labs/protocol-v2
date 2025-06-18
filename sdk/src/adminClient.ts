@@ -1131,9 +1131,9 @@ export class AdminClient extends DriftClient {
 			curveUpdateIntensity,
 			{
 				accounts: {
-					admin: this.isSubscribed
-						? this.getStateAccount().admin
-						: this.wallet.publicKey,
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
 					state: await this.getStatePublicKey(),
 					perpMarket: await getPerpMarketPublicKey(
 						this.program.programId,
