@@ -149,15 +149,17 @@ pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
         }
     }
 
-    validate!(
-        market.amm.long_spread + market.amm.short_spread >= market.amm.base_spread,
-        ErrorCode::InvalidAmmDetected,
-        "market {} amm long_spread + short_spread < base_spread: {} + {} < {}",
-        market.market_index,
-        market.amm.long_spread,
-        market.amm.short_spread,
-        market.amm.base_spread
-    )?;
+    if market.amm.amm_spread_adjustment >= 0 {
+        validate!(
+            market.amm.long_spread + market.amm.short_spread >= market.amm.base_spread,
+            ErrorCode::InvalidAmmDetected,
+            "market {} amm long_spread + short_spread < base_spread: {} + {} < {}",
+            market.market_index,
+            market.amm.long_spread,
+            market.amm.short_spread,
+            market.amm.base_spread
+        )?;
+    }
 
     validate!(
         market
