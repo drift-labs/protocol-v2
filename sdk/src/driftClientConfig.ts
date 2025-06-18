@@ -12,6 +12,7 @@ import { DriftEnv } from './config';
 import { TxSender } from './tx/types';
 import { TxHandler, TxHandlerConfig } from './tx/txHandler';
 import { DelistedMarketSetting, GrpcConfigs } from './accounts/types';
+import { Coder } from '@coral-xyz/anchor';
 
 export type DriftClientConfig = {
 	connection: Connection;
@@ -41,6 +42,7 @@ export type DriftClientConfig = {
 	txHandlerConfig?: TxHandlerConfig;
 	delistedMarketSetting?: DelistedMarketSetting;
 	useHotWalletAdmin?: boolean;
+	coder?: Coder;
 };
 
 export type DriftClientSubscriptionConfig =
