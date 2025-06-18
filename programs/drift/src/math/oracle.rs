@@ -214,7 +214,7 @@ pub fn oracle_validity(
     max_confidence_interval_multiplier: u64,
     oracle_source: &OracleSource,
     log_validity: bool,
-    slots_before_stale_for_amm_override: i64,
+    slots_before_stale_for_amm_override: i8,
 ) -> DriftResult<OracleValidity> {
     let OraclePriceData {
         price: oracle_price,
@@ -240,7 +240,7 @@ pub fn oracle_validity(
         .safe_mul(max_confidence_interval_multiplier)?);
 
     let is_stale_for_amm = if slots_before_stale_for_amm_override != 0 {
-        oracle_delay.gt(&slots_before_stale_for_amm_override)
+        oracle_delay.gt(&slots_before_stale_for_amm_override.max(0).cast()?)
     } else {
         oracle_delay.gt(&valid_oracle_guard_rails.slots_before_stale_for_amm)
     };

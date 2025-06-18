@@ -1549,7 +1549,7 @@ pub mod drift {
 
     pub fn update_perp_market_oracle_slot_delay_override(
         ctx: Context<HotAdminUpdatePerpMarket>,
-        oracle_slot_delay_override: u8,
+        oracle_slot_delay_override: i8,
     ) -> Result<()> {
         handle_update_perp_market_oracle_slot_delay_override(ctx, oracle_slot_delay_override)
     }

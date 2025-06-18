@@ -1074,7 +1074,7 @@ pub fn fill_perp_order(
             &market.oracle_id(),
             market.amm.historical_oracle_data.last_oracle_price_twap,
             market.get_max_confidence_interval_multiplier()?,
-            market.amm.oracle_slot_delay_override as i64,
+            market.amm.oracle_slot_delay_override,
         )?;
 
         oracle_valid_for_amm_fill =

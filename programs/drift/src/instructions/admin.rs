@@ -4033,7 +4033,7 @@ pub fn handle_update_perp_market_amm_spread_adjustment(
 )]
 pub fn handle_update_perp_market_oracle_slot_delay_override(
     ctx: Context<HotAdminUpdatePerpMarket>,
-    oracle_slot_delay_override: u8,
+    oracle_slot_delay_override: i8,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     msg!("perp market {}", perp_market.market_index);
