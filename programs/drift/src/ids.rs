@@ -75,6 +75,11 @@ pub mod admin_hot_wallet {
     declare_id!("5hMjmxexWu954pX9gB9jkHxMqdjpxArQS2XdvkaevRax");
 }
 
+pub mod if_rebalance_wallet {
+    use solana_program::declare_id;
+    declare_id!("BuynBZjr5yiZCFpXngFQ31BAwechmFE1Ab6vNP3f5PTt");
+}
+
 pub mod lighthouse {
     use solana_program::declare_id;
     declare_id!("L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95");

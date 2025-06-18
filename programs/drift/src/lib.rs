@@ -11,6 +11,7 @@ use math::{bn, constants::*};
 use state::oracle::OracleSource;
 
 use crate::controller::position::PositionDirection;
+use crate::state::if_rebalance_config::IfRebalanceConfigParams;
 use crate::state::oracle::PrelaunchOracleParams;
 use crate::state::order_params::{ModifyOrderParams, OrderParams};
 use crate::state::perp_market::{ContractTier, MarketStatus};
@@ -777,6 +778,30 @@ pub mod drift {
         shares: u128,
     ) -> Result<()> {
         handle_transfer_protocol_if_shares(ctx, market_index, shares)
+    }
+    pub fn begin_insurance_fund_swap<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InsuranceFundSwap<'info>>,
+        in_market_index: u16,
+        out_market_index: u16,
+        amount_in: u64,
+    ) -> Result<()> {
+        handle_begin_insurance_fund_swap(ctx, in_market_index, out_market_index, amount_in)
+    }
+
+    pub fn end_insurance_fund_swap<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InsuranceFundSwap<'info>>,
+        in_market_index: u16,
+        out_market_index: u16,
+    ) -> Result<()> {
+        handle_end_insurance_fund_swap(ctx, in_market_index, out_market_index)
+    }
+
+    pub fn transfer_protocol_if_shares_to_revenue_pool<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, TransferProtocolIfSharesToRevenuePool<'info>>,
+        market_index: u16,
+        amount: u64,
+    ) -> Result<()> {
+        handle_transfer_protocol_if_shares_to_revenue_pool(ctx, market_index, amount)
     }
 
     pub fn update_pyth_pull_oracle(
@@ -1727,6 +1752,20 @@ pub mod drift {
         amount: u64,
     ) -> Result<()> {
         handle_admin_deposit(ctx, market_index, amount)
+    }
+
+    pub fn initialize_if_rebalance_config(
+        ctx: Context<InitializeIfRebalanceConfig>,
+        params: IfRebalanceConfigParams,
+    ) -> Result<()> {
+        handle_initialize_if_rebalance_config(ctx, params)
+    }
+
+    pub fn update_if_rebalance_config(
+        ctx: Context<UpdateIfRebalanceConfig>,
+        params: IfRebalanceConfigParams,
+    ) -> Result<()> {
+        handle_update_if_rebalance_config(ctx, params)
     }
 }
 

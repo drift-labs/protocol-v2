@@ -692,6 +692,40 @@ export type FuelSweepRecord = {
 	fuelOverflowFuelMaker: BN;
 };
 
+export type InsuranceFundSwapRecord = {
+	rebalanceConfig: PublicKey;
+	inIfTotalSharesBefore: BN;
+	outIfTotalSharesBefore: BN;
+	inIfUserSharesBefore: BN;
+	outIfUserSharesBefore: BN;
+	inIfTotalSharesAfter: BN;
+	outIfTotalSharesAfter: BN;
+	inIfUserSharesAfter: BN;
+	outIfUserSharesAfter: BN;
+	ts: BN;
+	inAmount: BN;
+	outAmount: BN;
+	outOraclePrice: BN;
+	outOraclePriceTwap: BN;
+	inVaultAmountBefore: BN;
+	outVaultAmountBefore: BN;
+	inFundVaultAmountAfter: BN;
+	outFundVaultAmountAfter: BN;
+	inMarketIndex: number;
+	outMarketIndex: number;
+};
+
+export type TransferProtocolIfSharesToRevenuePoolRecord = {
+	ts: BN;
+	marketIndex: number;
+	amount: BN;
+	shares: BN;
+	ifVaultAmountBefore: BN;
+	protocolSharesBefore: BN;
+	protocolSharesAfter: BN;
+	currentInAmountSinceLastTransfer: BN;
+};
+
 export type StateAccount = {
 	admin: PublicKey;
 	exchangeStatus: number;
@@ -1465,6 +1499,34 @@ export type ProtectedMakerParams = {
 	limitPriceDivisor: number;
 	tickSize: BN;
 	dynamicOffset: BN;
+};
+
+export type IfRebalanceConfigAccount = {
+	pubkey: PublicKey;
+	totalInAmount: BN;
+	currentInAmount: BN;
+	currentOutAmount: BN;
+	currentInAmountSinceLastTransfer: BN;
+	epochStartTs: BN;
+	epochInAmount: BN;
+	epochMaxInAmount: BN;
+	epochDuration: BN;
+	outMarketIndex: number;
+	inMarketIndex: number;
+	maxSlippageBps: number;
+	swapMode: number;
+	status: number;
+};
+
+export type IfRebalanceConfigParams = {
+	totalInAmount: BN;
+	epochMaxInAmount: BN;
+	epochDuration: BN;
+	outMarketIndex: number;
+	inMarketIndex: number;
+	maxSlippageBps: number;
+	swapMode: number;
+	status: number;
 };
 
 /* Represents proof of a signed msg taker order

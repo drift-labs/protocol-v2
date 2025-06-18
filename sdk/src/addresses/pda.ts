@@ -379,3 +379,18 @@ export function getProtectedMakerModeConfigPublicKey(
 		programId
 	)[0];
 }
+
+export function getIfRebalanceConfigPublicKey(
+	programId: PublicKey,
+	inMarketIndex: number,
+	outMarketIndex: number
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('if_rebalance_config')),
+			new BN(inMarketIndex).toArrayLike(Buffer, 'le', 2),
+			new BN(outMarketIndex).toArrayLike(Buffer, 'le', 2),
+		],
+		programId
+	)[0];
+}

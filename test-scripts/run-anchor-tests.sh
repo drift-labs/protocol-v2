@@ -29,6 +29,7 @@ test_files=(
   driftClient.ts
   fillSpot.ts
   highLeverageMode.ts
+  ifRebalance.ts
   insuranceFundStake.ts
   liquidateBorrowForPerpPnl.ts
   liquidateMaxLps.ts

@@ -19,13 +19,18 @@ use crate::math::fuel::calculate_insurance_fuel_bonus;
 use crate::math::helpers::get_proportion_u128;
 use crate::math::helpers::on_the_hour_update;
 use crate::math::insurance::{
-    calculate_if_shares_lost, calculate_rebase_info, if_shares_to_vault_amount,
-    vault_amount_to_if_shares,
+    calculate_if_shares_lost, calculate_rebase_info, calculate_share_price,
+    if_shares_to_vault_amount, vault_amount_to_if_shares,
 };
+use crate::math::orders::calculate_fill_price;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
-use crate::state::events::{InsuranceFundRecord, InsuranceFundStakeRecord, StakeAction};
+use crate::state::events::{
+    InsuranceFundRecord, InsuranceFundStakeRecord, InsuranceFundSwapRecord, StakeAction,
+    TransferProtocolIfSharesToRevenuePoolRecord,
+};
+use crate::state::if_rebalance_config::IfRebalanceConfig;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -947,4 +952,249 @@ pub fn resolve_perp_pnl_deficit(
     });
 
     insurance_withdraw.cast()
+}
+
+pub fn handle_if_begin_swap(
+    if_rebalance_config: &mut IfRebalanceConfig,
+    in_insurance_fund_vault_amount: u64,
+    out_insurance_fund_vault_amount: u64,
+    in_spot_market: &mut SpotMarket,
+    out_spot_market: &mut SpotMarket,
+    in_amount: u64,
+    now: i64,
+) -> DriftResult<()> {
+    if now
+        > if_rebalance_config
+            .epoch_start_ts
+            .safe_add(if_rebalance_config.epoch_duration)?
+    {
+        if_rebalance_config.epoch_start_ts = now;
+        if_rebalance_config.epoch_in_amount = 0;
+    }
+
+    apply_rebase_to_insurance_fund(in_insurance_fund_vault_amount, in_spot_market)?;
+    apply_rebase_to_insurance_fund(out_insurance_fund_vault_amount, out_spot_market)?;
+
+    Ok(())
+}
+
+pub fn handle_if_end_swap(
+    if_rebalance_config: &mut IfRebalanceConfig,
+    in_insurance_fund_vault_amount_after: u64,
+    out_insurance_fund_vault_amount_after: u64,
+    in_spot_market: &mut SpotMarket,
+    out_spot_market: &mut SpotMarket,
+    in_amount: u64,
+    out_amount: u64,
+    out_oracle_price: u64,
+    now: i64,
+) -> DriftResult<()> {
+    let in_insurance_fund_vault_amount_before =
+        in_insurance_fund_vault_amount_after.safe_add(in_amount)?;
+    let out_insurance_fund_vault_amount_before =
+        out_insurance_fund_vault_amount_after.safe_sub(out_amount)?;
+
+    let in_if_total_shares_before = in_spot_market.insurance_fund.total_shares;
+    let out_if_total_shares_before = out_spot_market.insurance_fund.total_shares;
+    let in_if_user_shares_before = in_spot_market.insurance_fund.user_shares;
+    let out_if_user_shares_before = out_spot_market.insurance_fund.user_shares;
+
+    let in_share_price_before = calculate_share_price(
+        in_spot_market.insurance_fund.total_shares,
+        in_insurance_fund_vault_amount_before,
+    )?;
+    let out_share_price_before = calculate_share_price(
+        out_spot_market.insurance_fund.total_shares,
+        out_insurance_fund_vault_amount_before,
+    )?;
+
+    let in_shares = vault_amount_to_if_shares(
+        in_amount,
+        in_spot_market.insurance_fund.total_shares,
+        in_insurance_fund_vault_amount_before,
+    )?;
+    let out_shares = vault_amount_to_if_shares(
+        out_amount,
+        out_spot_market.insurance_fund.total_shares,
+        out_insurance_fund_vault_amount_before,
+    )?;
+
+    // validate shares less than protocol shares
+    validate!(
+        in_shares < in_spot_market.insurance_fund.get_protocol_shares()?,
+        ErrorCode::InsufficientIFShares,
+        "in_shares={} < total_shares={}",
+        in_shares,
+        in_spot_market.insurance_fund.get_protocol_shares()?
+    )?;
+
+    // increment spot market insurance funds total shares
+    in_spot_market.insurance_fund.total_shares = in_spot_market
+        .insurance_fund
+        .total_shares
+        .safe_sub(in_shares)?;
+    out_spot_market.insurance_fund.total_shares = out_spot_market
+        .insurance_fund
+        .total_shares
+        .safe_add(out_shares)?;
+
+    let in_share_price_after = calculate_share_price(
+        in_spot_market.insurance_fund.total_shares,
+        in_insurance_fund_vault_amount_after,
+    )?;
+    let out_share_price_after = calculate_share_price(
+        out_spot_market.insurance_fund.total_shares,
+        out_insurance_fund_vault_amount_after,
+    )?;
+
+    if in_share_price_before > 0 && in_share_price_after > 0 {
+        validate!(
+            in_share_price_before - in_share_price_after <= 1,
+            ErrorCode::InvalidIfRebalanceSwap,
+            "in_share_price_before={} - in_share_price_after={} > 1",
+            in_share_price_before,
+            in_share_price_after
+        )?;
+    }
+
+    if out_share_price_before > 0 && out_share_price_after > 0 {
+        validate!(
+            out_share_price_before - out_share_price_after <= 1,
+            ErrorCode::InvalidIfRebalanceSwap,
+            "out_share_price_before={} - out_share_price_after={} > 1",
+            out_share_price_before,
+            out_share_price_after
+        )?;
+    }
+
+    // increment config current in amount
+    if_rebalance_config.current_in_amount =
+        if_rebalance_config.current_in_amount.safe_add(in_amount)?;
+    if_rebalance_config.epoch_in_amount =
+        if_rebalance_config.epoch_in_amount.safe_add(in_amount)?;
+    // increment config current out amount
+    if_rebalance_config.current_out_amount = if_rebalance_config
+        .current_out_amount
+        .safe_add(out_amount)?;
+    if_rebalance_config.current_in_amount_since_last_transfer = if_rebalance_config
+        .current_in_amount_since_last_transfer
+        .safe_add(in_amount)?;
+
+    validate!(
+        if_rebalance_config.epoch_in_amount <= if_rebalance_config.epoch_max_in_amount,
+        ErrorCode::InvalidIfRebalanceSwap,
+        "epoch_in_amount={} > epoch_max_in_amount={}",
+        if_rebalance_config.epoch_in_amount,
+        if_rebalance_config.epoch_max_in_amount
+    )?;
+
+    let oracle_twap = out_spot_market
+        .historical_oracle_data
+        .last_oracle_price_twap;
+
+    validate!(
+        out_oracle_price <= oracle_twap.cast::<u64>()?,
+        ErrorCode::InvalidIfRebalanceSwap,
+        "out_oracle_price={} > oracle_twap={}",
+        out_oracle_price,
+        oracle_twap
+    )?;
+
+    let swap_price = calculate_fill_price(in_amount, out_amount, out_spot_market.get_precision())?;
+
+    let max_slippage_bps = if_rebalance_config.max_slippage_bps.cast::<u64>()?;
+    let max_slippage = out_oracle_price / (10000 / max_slippage_bps.max(1));
+
+    validate!(
+        swap_price <= out_oracle_price.safe_add(max_slippage)?,
+        ErrorCode::InvalidIfRebalanceSwap,
+        "swap_price={} > out_oracle_price={} + max_slippage={}",
+        swap_price,
+        out_oracle_price,
+        max_slippage
+    )?;
+
+    emit!(InsuranceFundSwapRecord {
+        ts: now,
+        rebalance_config: if_rebalance_config.pubkey,
+        in_market_index: if_rebalance_config.in_market_index,
+        out_market_index: if_rebalance_config.out_market_index,
+        in_amount,
+        out_amount,
+        out_oracle_price,
+        out_oracle_price_twap: oracle_twap,
+        in_vault_amount_before: in_insurance_fund_vault_amount_before,
+        out_vault_amount_before: out_insurance_fund_vault_amount_before,
+        in_fund_vault_amount_after: in_insurance_fund_vault_amount_after,
+        out_fund_vault_amount_after: out_insurance_fund_vault_amount_after,
+        in_if_total_shares_before,
+        out_if_total_shares_before,
+        in_if_user_shares_before,
+        out_if_user_shares_before,
+        in_if_total_shares_after: in_spot_market.insurance_fund.total_shares,
+        out_if_total_shares_after: out_spot_market.insurance_fund.total_shares,
+        in_if_user_shares_after: in_spot_market.insurance_fund.user_shares,
+        out_if_user_shares_after: out_spot_market.insurance_fund.user_shares,
+    });
+
+    Ok(())
+}
+
+pub fn transfer_protocol_if_shares_to_revenue_pool(
+    if_rebalance_config: &mut IfRebalanceConfig,
+    spot_market: &mut SpotMarket,
+    insurance_fund_vault_amount_before: u64,
+    amount: u64,
+    now: i64,
+) -> DriftResult<()> {
+    apply_rebase_to_insurance_fund(insurance_fund_vault_amount_before, spot_market)?;
+
+    let shares = vault_amount_to_if_shares(
+        amount,
+        spot_market.insurance_fund.total_shares,
+        insurance_fund_vault_amount_before,
+    )?;
+
+    let protocol_shares = spot_market.insurance_fund.get_protocol_shares()?;
+    let current_in_amount_since_last_transfer =
+        if_rebalance_config.current_in_amount_since_last_transfer;
+
+    validate!(
+        shares <= protocol_shares,
+        ErrorCode::InsufficientIFShares,
+        "shares={} > protocol_shares={}",
+        shares,
+        protocol_shares
+    )?;
+
+    validate!(
+        amount == if_rebalance_config.next_transfer_amount()?,
+        ErrorCode::DefaultError,
+        "amount={} != next_transfer_amount={}",
+        amount,
+        if_rebalance_config.next_transfer_amount()?
+    )?;
+
+    spot_market.insurance_fund.total_shares =
+        spot_market.insurance_fund.total_shares.safe_sub(shares)?;
+
+    update_revenue_pool_balances(amount.cast()?, &SpotBalanceType::Deposit, spot_market)?;
+
+    if_rebalance_config.current_out_amount_transferred = if_rebalance_config
+        .current_out_amount_transferred
+        .safe_add(amount)?;
+
+    if_rebalance_config.current_in_amount_since_last_transfer = 0;
+
+    emit!(TransferProtocolIfSharesToRevenuePoolRecord {
+        ts: now,
+        market_index: spot_market.market_index,
+        amount,
+        shares,
+        if_vault_amount_before: insurance_fund_vault_amount_before,
+        protocol_shares_before: protocol_shares,
+        current_in_amount_since_last_transfer,
+    });
+
+    Ok(())
 }

@@ -104,6 +104,7 @@ import {
 	getUserAccountPublicKeySync,
 	getUserStatsAccountPublicKey,
 	getSignedMsgWsDelegatesAccountPublicKey,
+	getIfRebalanceConfigPublicKey,
 } from './addresses/pda';
 import {
 	DataAndSlot,
@@ -7811,6 +7812,80 @@ export class DriftClient {
 					assetTokenAccount: assetTokenAccount,
 					liabilityTokenAccount: liabilityTokenAccount,
 					tokenProgram: assetTokenProgram,
+					driftSigner: this.getStateAccount().signer,
+					instructions: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+				},
+				remainingAccounts,
+			}
+		);
+
+		return { beginSwapIx, endSwapIx };
+	}
+
+	public async getInsuranceFundSwapIx({
+		inMarketIndex,
+		outMarketIndex,
+		amountIn,
+		inTokenAccount,
+		outTokenAccount,
+	}: {
+		inMarketIndex: number;
+		outMarketIndex: number;
+		amountIn: BN;
+		inTokenAccount: PublicKey;
+		outTokenAccount: PublicKey;
+	}): Promise<{
+		beginSwapIx: TransactionInstruction;
+		endSwapIx: TransactionInstruction;
+	}> {
+		const remainingAccounts = await this.getRemainingAccounts({
+			userAccounts: [],
+			writableSpotMarketIndexes: [inMarketIndex, outMarketIndex],
+		});
+
+		const inSpotMarket = this.getSpotMarketAccount(inMarketIndex);
+		const outSpotMarket = this.getSpotMarketAccount(outMarketIndex);
+
+		const ifRebalanceConfig = getIfRebalanceConfigPublicKey(
+			this.program.programId,
+			inMarketIndex,
+			outMarketIndex
+		);
+
+		const beginSwapIx = await this.program.instruction.beginInsuranceFundSwap(
+			inMarketIndex,
+			outMarketIndex,
+			amountIn,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					authority: this.wallet.publicKey,
+					outInsuranceFundVault: outSpotMarket.insuranceFund.vault,
+					inInsuranceFundVault: inSpotMarket.insuranceFund.vault,
+					outTokenAccount,
+					inTokenAccount,
+					ifRebalanceConfig: ifRebalanceConfig,
+					tokenProgram: TOKEN_PROGRAM_ID,
+					driftSigner: this.getStateAccount().signer,
+					instructions: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+				},
+				remainingAccounts,
+			}
+		);
+
+		const endSwapIx = await this.program.instruction.endInsuranceFundSwap(
+			inMarketIndex,
+			outMarketIndex,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					authority: this.wallet.publicKey,
+					outInsuranceFundVault: outSpotMarket.insuranceFund.vault,
+					inInsuranceFundVault: inSpotMarket.insuranceFund.vault,
+					outTokenAccount,
+					inTokenAccount,
+					ifRebalanceConfig: ifRebalanceConfig,
+					tokenProgram: TOKEN_PROGRAM_ID,
 					driftSigner: this.getStateAccount().signer,
 					instructions: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
 				},
