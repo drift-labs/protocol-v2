@@ -864,15 +864,20 @@ describe('LP Pool', () => {
 		assert(new BN(constituentVault.amount.toString()).eq(ZERO));
 
 		// Should have recorded the amount left over to the amm cache and increased the amount in the fee pool
-		assert(ammCache.cache[0].lastFeePoolTokenAmount.eq(new BN(constituentUSDCBalanceBefore.toString())));
+		assert(
+			ammCache.cache[0].lastFeePoolTokenAmount.eq(
+				new BN(constituentUSDCBalanceBefore.toString())
+			)
+		);
 		assert(
 			ammCache.cache[0].quoteOwedFromLp.eq(
-				expectedTransferAmount.sub(new BN(constituentUSDCBalanceBefore.toString()))
+				expectedTransferAmount.sub(
+					new BN(constituentUSDCBalanceBefore.toString())
+				)
 			)
 		);
 
 		// NAV should have gone down the max that is has
 		assert(lpPool.lastAum.eq(ZERO));
-
 	});
 });
