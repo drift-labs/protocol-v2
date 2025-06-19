@@ -455,12 +455,12 @@ fn calc_mark_std_tests() {
         last_mark_price_twap_ts: prev,
         ..AMM::default()
     };
-    update_amm_mark_std(&mut amm, now, PRICE_PRECISION_U64 * 23, 0).unwrap();
+    update_amm_mark_std(&mut amm, now, PRICE_PRECISION_U64 * 23, 0, 0).unwrap();
     assert_eq!(amm.mark_std, 23000000);
 
     amm.mark_std = PRICE_PRECISION_U64;
     amm.last_mark_price_twap_ts = now - 60;
-    update_amm_mark_std(&mut amm, now, PRICE_PRECISION_U64 * 2, 0).unwrap();
+    update_amm_mark_std(&mut amm, now, PRICE_PRECISION_U64 * 2, 0, 0).unwrap();
     assert_eq!(amm.mark_std, 2000000);
 
     let mut px = PRICE_PRECISION_U64;
@@ -577,7 +577,7 @@ fn calc_mark_std_tests() {
 
             let mark_twap = amm.last_mark_price_twap;
 
-            update_amm_oracle_std(&mut amm, now, px + 1000000, mark_twap).unwrap();
+            update_amm_oracle_std(&mut amm, now, px + 1000000, mark_twap, mark_twap).unwrap();
         }
     }
     assert_eq!(now, 1656703921);
@@ -721,8 +721,8 @@ fn update_mark_twap_tests() {
     assert_eq!(new_mark_twap, 39995089);
 
     assert!((new_oracle_twap as u64) >= new_mark_twap); // funding in favor of maker
-    assert_eq!(amm.mark_std, 24467);
     assert_eq!(amm.oracle_std, 7238);
+    assert_eq!(amm.mark_std, 24467);
 }
 
 #[test]
