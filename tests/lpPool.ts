@@ -781,7 +781,7 @@ describe('LP Pool', () => {
 	});
 
 	it('will fail gracefully when trying to settle pnl from constituents to perp markets if not enough usdc in the constituent vault', async () => {
-		const lpPool = (await adminClient.program.account.lpPool.fetch(
+		let lpPool = (await adminClient.program.account.lpPool.fetch(
 			lpPoolKey
 		)) as LPPoolAccount;
 		let constituent = (await adminClient.program.account.constituent.fetch(
@@ -796,7 +796,7 @@ describe('LP Pool', () => {
 			0
 		);
 
-		// First remove liquidity
+		/// First remove some liquidity so DLP doesnt have enought to transfer
 		const lpTokenBalance =
 			await bankrunContextWrapper.connection.getTokenAccount(
 				userLpTokenAccount
@@ -842,6 +842,7 @@ describe('LP Pool', () => {
 			perpMarket
 		);
 
+		/// Now finally try and settle Perp to LP Pool
 		await adminClient.settlePerpToLpPool(encodeName(lpPoolName), [0, 1, 2]);
 
 		constituent = (await adminClient.program.account.constituent.fetch(
@@ -850,9 +851,11 @@ describe('LP Pool', () => {
 		constituentVault = await bankrunContextWrapper.connection.getTokenAccount(
 			constituentVaultPublicKey
 		);
+		lpPool = (await adminClient.program.account.lpPool.fetch(
+			lpPoolKey
+		)) as LPPoolAccount;
 
-		// Should have written fee pool amount owed to the amm cache and new usdc balane should be 0
-		// for the constituent
+		// Should have written fee pool amount owed to the amm cache and new constituent usdc balane should be 0
 		ammCache = (await adminClient.program.account.ammCache.fetch(
 			getAmmCachePublicKey(program.programId)
 		)) as AmmCache;
@@ -861,18 +864,15 @@ describe('LP Pool', () => {
 		assert(new BN(constituentVault.amount.toString()).eq(ZERO));
 
 		// Should have recorded the amount left over to the amm cache and increased the amount in the fee pool
-		console.log(ammCache.cache[0].lastFeePoolTokenAmount.toString());
-		assert(
-			ammCache.cache[0].lastFeePoolTokenAmount.eq(
-				new BN(constituentUSDCBalanceBefore.toString())
-			)
-		);
+		assert(ammCache.cache[0].lastFeePoolTokenAmount.eq(new BN(constituentUSDCBalanceBefore.toString())));
 		assert(
 			ammCache.cache[0].quoteOwedFromLp.eq(
-				expectedTransferAmount.sub(
-					new BN(constituentUSDCBalanceBefore.toString())
-				)
+				expectedTransferAmount.sub(new BN(constituentUSDCBalanceBefore.toString()))
 			)
 		);
+
+		// NAV should have gone down the max that is has
+		assert(lpPool.lastAum.eq(ZERO));
+
 	});
 });

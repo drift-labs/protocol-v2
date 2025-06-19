@@ -3225,8 +3225,6 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
     let mut amm_cache: AccountZeroCopyMut<'_, CacheInfo, _> =
         ctx.accounts.amm_cache.load_zc_mut()?;
 
-    let quote_market = &ctx.accounts.quote_market.load()?;
-
     let expected_pda = &Pubkey::create_program_address(
         &[
             AMM_POSITIONS_CACHE.as_ref(),
