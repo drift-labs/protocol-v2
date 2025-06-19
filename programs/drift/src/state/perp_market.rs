@@ -1691,22 +1691,23 @@ pub struct AmmCache {
 #[derive(AnchorSerialize, AnchorDeserialize, Debug)]
 #[repr(C)]
 pub struct CacheInfo {
+    pub last_fee_pool_token_amount: u128,
+    pub last_net_pnl_pool_token_amount: i128,
     /// BASE PRECISION
     pub position: i64,
     pub slot: u64,
     pub max_confidence_interval_multiplier: u64,
     pub last_oracle_price_twap: i64,
+    pub last_settle_amount: u64,
+    pub last_settle_ts: i64,
+    pub quote_owed_from_lp: i64,
     pub oracle_price: i64,
     pub oracle_confidence: u64,
     pub oracle_delay: i64,
     pub oracle_slot: u64,
-    pub oracle: Pubkey,
-    pub last_fee_pool_balance: u128,
-    pub last_net_pnl_pool_balance: i128,
-    pub last_settle_amount: u64,
-    pub last_settle_ts: i64,
     pub oracle_source: u8,
     _padding: [u8; 7],
+    pub oracle: Pubkey,
 }
 
 impl Size for CacheInfo {
@@ -1724,13 +1725,14 @@ impl Default for CacheInfo {
             oracle_confidence: 0u64,
             oracle_delay: 0i64,
             oracle_slot: 0u64,
+            _padding: [0u8; 7],
             oracle: Pubkey::default(),
-            last_fee_pool_balance: 0u128,
-            last_net_pnl_pool_balance: 0i128,
+            last_fee_pool_token_amount: 0u128,
+            last_net_pnl_pool_token_amount: 0i128,
             last_settle_amount: 0u64,
             last_settle_ts: 0i64,
             oracle_source: 0u8,
-            _padding: [0u8; 7],
+            quote_owed_from_lp: 0i64,
         }
     }
 }
@@ -1747,9 +1749,9 @@ impl CacheInfo {
 
     pub fn get_last_available_amm_balance(&self) -> DriftResult<i128> {
         let last_available_balance = self
-            .last_fee_pool_balance
+            .last_fee_pool_token_amount
             .cast::<i128>()?
-            .safe_add(self.last_net_pnl_pool_balance)?;
+            .safe_add(self.last_net_pnl_pool_token_amount)?;
         Ok(last_available_balance)
     }
 }

@@ -23,6 +23,8 @@ pub const CONSTITUENT_TARGET_BASE_PDA_SEED: &str = "constituent_target_base";
 pub const CONSTITUENT_VAULT_PDA_SEED: &str = "CONSTITUENT_VAULT";
 pub const LP_POOL_TOKEN_VAULT_PDA_SEED: &str = "LP_POOL_TOKEN_VAULT";
 
+pub const MAX_SWAP_FEE: i64 = 75_000; // 0.75% in PERCENTAGE_PRECISION
+
 #[cfg(test)]
 mod tests;
 
@@ -292,7 +294,7 @@ impl LPPool {
             out_spot_market,
             out_oracle,
             out_constituent,
-            out_amount.cast::<i64>()?,
+            out_amount.cast::<i64>()?.safe_mul(-1_i64)?,
             out_target_weight,
         )?;
         let out_fee_amount = out_amount
@@ -326,8 +328,18 @@ impl LPPool {
             target_weight
         );
 
+        let adjusted_aum = self
+            .last_aum
+            .cast::<i128>()?
+            .safe_add(
+                amount
+                    .cast::<i128>()?
+                    .safe_mul(oracle.price.cast::<i128>()?)?
+                    .safe_div(10_i128.pow(spot_market.decimals as u32))?,
+            )?
+            .cast::<u128>()?;
         let weight_after =
-            constituent.get_weight(oracle.price, spot_market, amount, self.last_aum)?;
+            constituent.get_weight(oracle.price, spot_market, amount, adjusted_aum)?;
         msg!(
             "constituent {}: weight_after: {} target_weight: {}",
             constituent.constituent_index,
@@ -335,6 +347,7 @@ impl LPPool {
             target_weight
         );
         let fee = constituent.get_fee_to_charge(weight_after, target_weight)?;
+        let fee = fee.min(MAX_SWAP_FEE);
 
         Ok(fee)
     }
