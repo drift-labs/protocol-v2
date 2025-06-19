@@ -55,6 +55,54 @@ export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
 
 	private async handleAccountLoading(): Promise<void> {
 		const accounts = this.getAccountsToLoad();
+		console.log('ORACLEDATA handleAccountLoading', accounts.length);
+
+		const oracleAddresses = [
+			'3m6i4RFWEDw2Ft4tFHPJtYgmpPe21k56M3FHeWYrgGBz', // SOL
+			'35MbvS1Juz2wf7GsyHrkCw8yfKciRLxVpEhfZDZFrB4R', // BTC
+			'93FG52TzNKCnMiasV14Ba34BYcHDb9p4zK4GjZnLwqWR', // ETH
+			'CXZhzKePYajrZgZyrzgvHYFKK3c5tNgDrRobAgySo8Nb', // APT
+			'BERaNi6cpEresbq6HC1EQGaB1H1UjvEo4NGnmYSSJof4', // BONK
+			'HDveCibToLf157NtUqShCEWX3GcF4Aq8Ngt2bst1s1cc', // POL
+			'r8eNLQ8jysUyk9rrWXuicwAoKZ7V3YngAB6737zfxmv', // BERA
+			'8M8mjNJ42k2Xi12Q1zRnQRC3xhggu3WGuftiu5VZZmsF', // KAITO
+			'AZVVDFve8ijzLAm9z6W53GFsoWbcycFsdxCL7WUjMz8S', // IP
+			'2sZomfWMDuQLcFak3nuharXorHrZ3hK8iaML6ZGSHtso', // FARTCOIN
+			'55722FS8VeAxRghz5h2ARJvNjkFiHyzkZ9BF7CEQWN6E', // ADA
+		];
+
+		const oracleMatches = accounts.filter(account => 
+			oracleAddresses.some(addr => 
+				account.publicKey.toBase58().includes(addr)
+			)
+		);
+
+		console.log('ORACLEDATA loading oracle accounts:', oracleMatches.length);
+		console.log('ORACLEDATA oracle pubkeys found:', 
+			oracleMatches.map(account => {
+				const pubkey = account.publicKey.toBase58();
+				let marketName = '';
+				if (pubkey.includes('3m6i4RFWEDw2Ft4tFHPJtYgmpPe21k56M3FHeWYrgGBz')) marketName = 'SOL';
+				else if (pubkey.includes('35MbvS1Juz2wf7GsyHrkCw8yfKciRLxVpEhfZDZFrB4R')) marketName = 'BTC';
+				else if (pubkey.includes('93FG52TzNKCnMiasV14Ba34BYcHDb9p4zK4GjZnLwqWR')) marketName = 'ETH';
+				else if (pubkey.includes('CXZhzKePYajrZgZyrzgvHYFKK3c5tNgDrRobAgySo8Nb')) marketName = 'APT';
+				else if (pubkey.includes('BERaNi6cpEresbq6HC1EQGaB1H1UjvEo4NGnmYSSJof4')) marketName = 'BONK';
+				else if (pubkey.includes('HDveCibToLf157NtUqShCEWX3GcF4Aq8Ngt2bst1s1cc')) marketName = 'POL';
+				else if (pubkey.includes('r8eNLQ8jysUyk9rrWXuicwAoKZ7V3YngAB6737zfxmv')) marketName = 'BERA';
+				else if (pubkey.includes('8M8mjNJ42k2Xi12Q1zRnQRC3xhggu3WGuftiu5VZZmsF')) marketName = 'KAITO';
+				else if (pubkey.includes('AZVVDFve8ijzLAm9z6W53GFsoWbcycFsdxCL7WUjMz8S')) marketName = 'IP';
+				else if (pubkey.includes('2sZomfWMDuQLcFak3nuharXorHrZ3hK8iaML6ZGSHtso')) marketName = 'FARTCOIN';
+				else if (pubkey.includes('55722FS8VeAxRghz5h2ARJvNjkFiHyzkZ9BF7CEQWN6E')) marketName = 'ADA';
+				return `${marketName} (${pubkey})`;
+			})
+		);
+		const hasBonkOracle = accounts.some((account) =>
+			account.publicKey.toBase58().includes(
+				'BERaNi6cpEresbq6HC1EQGaB1H1UjvEo4NGnmYSSJof4'
+			)
+		);
+		// console.log('ORACLEDATA loading accounts hasBonkOracle', hasBonkOracle);
+		console.log('ORACLEDATA loading accounts', accounts.map((account) => account.publicKey.toBase58()));
 
 		if (accounts.length > 0) {
 			const chunks = this.chunks(

@@ -26,7 +26,6 @@ export class ExternalOracleDataDriftClientSubscriber extends PollingDriftClientA
 
 	/** Public method to be called externally with fresh oracle data */
 	public feedOracle(oracleInfo: OracleInfo, priceData: OraclePriceData, slot: number) {
-		console.log('ORACLEDATA feedOracle');
 		const oracleId = getOracleId(oracleInfo.publicKey, oracleInfo.source);
 		this.oracles.set(oracleId, { data: priceData, slot });
 		this.oracleLastUpdate.set(oracleId, Date.now());
@@ -51,24 +50,24 @@ export class ExternalOracleDataDriftClientSubscriber extends PollingDriftClientA
 	}
 
 	private startOraclePollingWatchdog() {
+		// how do we handle not polling bet markets every 1s from this change?
 		this.oraclePollIntervalId = setInterval(async () => {
 			for (const [oracleId, oracleToPoll] of this.oraclesToPoll.entries()) {
 				const lastUpdate = this.oracleLastUpdate.get(oracleId) || 0;
 				const now = Date.now();
 				if (now - lastUpdate > 70_000 && !this.pollingOracles.has(oracleId)) {
-					console.log('ORACLEDATA polling oracle via RPC', oracleToPoll.publicKey.toBase58());
 					await this.addOracleToAccountLoader(oracleToPoll);
 					this.pollingOracles.set(oracleId, true);
 				}
 			}
-		}, 70_000);
+		}, 60_000);
 	}
 
 	public removeAllOraclesFromAccountLoader() {
 		for (const oracleInfo of this.oracleInfos) {
 			const existingAccountToLoad = this.accountLoader.accountsToLoad.get(oracleInfo.publicKey.toString());
 			if (existingAccountToLoad) {
-				console.log('ORACLEDATA remove from account loader', oracleInfo.publicKey.toBase58());
+				// console.log('ORACLEDATA remove from account loader', oracleInfo.publicKey.toBase58());
 				for (const [callbackId] of existingAccountToLoad.callbacks) {
 					this.accountLoader.removeAccount(oracleInfo.publicKey, callbackId);
 				}
