@@ -5,9 +5,8 @@ use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 use crate::{
     controller::{
-        self,
+        self, lp,
         spot_balance::update_spot_balances,
-        lp,
         token::{burn_tokens, mint_tokens},
     },
     error::ErrorCode,

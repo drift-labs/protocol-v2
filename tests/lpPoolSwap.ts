@@ -485,12 +485,6 @@ describe('LP Pool', () => {
 	});
 
 	it('lp pool add and remove liquidity', async () => {
-		const const0Key = getConstituentPublicKey(program.programId, lpPoolKey, 0);
-
-		const c0 = (await adminClient.program.account.constituent.fetch(
-			const0Key
-		)) as ConstituentAccount;
-
 		// add c0 liquidity
 		const adminAuth = adminClient.wallet.publicKey;
 		const c0UserTokenAccount = await mockAtaTokenAccountForMint(
@@ -504,10 +498,6 @@ describe('LP Pool', () => {
 			lpPoolKey
 		)) as LPPoolAccount;
 		const lpPoolAumBefore = lpPool.lastAum;
-		const constituentTargetWeightsPublicKey = getConstituentTargetBasePublicKey(
-			program.programId,
-			lpPoolKey
-		);
 
 		const userLpTokenAccount = await mockAtaTokenAccountForMint(
 			bankrunContextWrapper,
@@ -532,11 +522,6 @@ describe('LP Pool', () => {
 		);
 
 		const tokensAdded = new BN(1_000_000_000_000);
-		const c0TokenAccount = getConstituentVaultPublicKey(
-			program.programId,
-			lpPoolKey,
-			0
-		);
 		await adminClient.lpPoolAddLiquidity({
 			inMarketIndex: 0,
 			inAmount: tokensAdded,
@@ -578,14 +563,7 @@ describe('LP Pool', () => {
 			outMarketIndex: 0,
 			lpToBurn: new BN(userLpTokenBalanceAfter.amount.toString()),
 			minAmountOut: new BN(1),
-			lpPool: lpPoolKey,
-			lpMint: lpPool.mint,
-			constituentTargetBase: constituentTargetWeightsPublicKey,
-			constituentOutTokenAccount: c0TokenAccount,
-			userOutTokenAccount: c0UserTokenAccount,
-			userLpTokenAccount: userLpTokenAccount,
-			outMarketMint: c0.mint,
-			outConstituent: const0Key,
+			lpPool: lpPool,
 		});
 
 		const userC0TokenBalanceAfterBurn =

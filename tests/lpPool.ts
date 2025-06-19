@@ -41,19 +41,28 @@ import {
 	PTYH_LAZER_PROGRAM_ID,
 	BASE_PRECISION,
 	SPOT_MARKET_BALANCE_PRECISION,
+	SpotBalanceType,
+	getTokenAmount,
 } from '../sdk/src';
 
 import {
 	initializeQuoteSpotMarket,
+	mockAtaTokenAccountForMint,
 	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccountWithAuthority,
+	overWritePerpMarket,
+	overWriteSpotMarket,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import dotenv from 'dotenv';
 import { PYTH_LAZER_HEX_STRING_SOL, PYTH_STORAGE_DATA } from './pythLazerData';
+import {
+	CustomBorshAccountsCoder,
+	CustomBorshCoder,
+} from '../sdk/src/decode/customCoder';
 dotenv.config();
 
 const PYTH_STORAGE_ACCOUNT_INFO: AccountInfo<Buffer> = {
@@ -66,9 +75,13 @@ const PYTH_STORAGE_ACCOUNT_INFO: AccountInfo<Buffer> = {
 
 describe('LP Pool', () => {
 	const program = anchor.workspace.Drift as Program;
+	// @ts-ignore
+	program.coder.accounts = new CustomBorshAccountsCoder(program.idl);
+
 	let bankrunContextWrapper: BankrunContextWrapper;
 	let bulkAccountLoader: TestBulkAccountLoader;
 
+	let userLpTokenAccount: PublicKey;
 	let adminClient: TestClient;
 	let usdcMint: Keypair;
 	let spotTokenMint: Keypair;
@@ -146,6 +159,7 @@ describe('LP Pool', () => {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
+			coder: new CustomBorshCoder(program.idl),
 		});
 		await adminClient.initialize(usdcMint.publicKey, true);
 		await adminClient.subscribe();
@@ -262,7 +276,16 @@ describe('LP Pool', () => {
 
 	it('can create a new LP Pool', async () => {
 		// check LpPool created
-		const lpPool = await adminClient.program.account.lpPool.fetch(lpPoolKey);
+		const lpPool = (await adminClient.program.account.lpPool.fetch(
+			lpPoolKey
+		)) as LPPoolAccount;
+
+		userLpTokenAccount = await mockAtaTokenAccountForMint(
+			bankrunContextWrapper,
+			lpPool.mint,
+			new BN(0),
+			adminClient.wallet.publicKey
+		);
 
 		// Check amm constituent map exists
 		const ammConstituentMapPublicKey = getAmmConstituentMappingPublicKey(
@@ -300,7 +323,7 @@ describe('LP Pool', () => {
 		);
 	});
 
-	it('can add constituent to LP Pool', async () => {
+	it('can add constituents to LP Pool', async () => {
 		await adminClient.initializeConstituent(
 			encodeName(lpPoolName),
 			0,
@@ -382,6 +405,57 @@ describe('LP Pool', () => {
 			)) as AmmConstituentMapping;
 		expect(ammMapping).to.not.be.null;
 		assert(ammMapping.weights.length == 1);
+	});
+
+	it('can update and remove amm constituent mapping entries', async () => {
+		await adminClient.addAmmConstituentMappingData(encodeName(lpPoolName), [
+			{
+				perpMarketIndex: 2,
+				constituentIndex: 0,
+				weight: PERCENTAGE_PRECISION,
+			},
+		]);
+		const ammConstituentMapping = getAmmConstituentMappingPublicKey(
+			program.programId,
+			lpPoolKey
+		);
+		let ammMapping =
+			(await adminClient.program.account.ammConstituentMapping.fetch(
+				ammConstituentMapping
+			)) as AmmConstituentMapping;
+		expect(ammMapping).to.not.be.null;
+		assert(ammMapping.weights.length == 2);
+
+		// Update
+		await adminClient.updateAmmConstituentMappingData(encodeName(lpPoolName), [
+			{
+				perpMarketIndex: 2,
+				constituentIndex: 0,
+				weight: PERCENTAGE_PRECISION.muln(2),
+			},
+		]);
+		ammMapping = (await adminClient.program.account.ammConstituentMapping.fetch(
+			ammConstituentMapping
+		)) as AmmConstituentMapping;
+		expect(ammMapping).to.not.be.null;
+		assert(
+			ammMapping.weights
+				.find((x) => x.perpMarketIndex == 2)
+				.weight.eq(PERCENTAGE_PRECISION.muln(2))
+		);
+
+		// Remove
+		await adminClient.removeAmmConstituentMappingData(
+			encodeName(lpPoolName),
+			2,
+			0
+		);
+		ammMapping = (await adminClient.program.account.ammConstituentMapping.fetch(
+			ammConstituentMapping
+		)) as AmmConstituentMapping;
+		expect(ammMapping).to.not.be.null;
+		assert(ammMapping.weights.find((x) => x.perpMarketIndex == 2) == undefined);
+		assert(ammMapping.weights.length === 1);
 	});
 
 	it('can crank amm info into the cache', async () => {
@@ -632,18 +706,18 @@ describe('LP Pool', () => {
 		let ammCache = (await adminClient.program.account.ammCache.fetch(
 			getAmmCachePublicKey(program.programId)
 		)) as AmmCache;
-		assert(ammCache.cache[0].lastFeePoolBalance.eq(ZERO));
-		assert(ammCache.cache[1].lastFeePoolBalance.eq(ZERO));
-		assert(ammCache.cache[2].lastFeePoolBalance.eq(ZERO));
-		assert(ammCache.cache[0].lastNetPnlPoolBalance.eq(ZERO));
-		assert(ammCache.cache[1].lastNetPnlPoolBalance.eq(ZERO));
-		assert(ammCache.cache[2].lastNetPnlPoolBalance.eq(ZERO));
+		assert(ammCache.cache[0].lastFeePoolTokenAmount.eq(ZERO));
+		assert(ammCache.cache[1].lastFeePoolTokenAmount.eq(ZERO));
+		assert(ammCache.cache[2].lastFeePoolTokenAmount.eq(ZERO));
+		assert(ammCache.cache[0].lastNetPnlPoolTokenAmount.eq(ZERO));
+		assert(ammCache.cache[1].lastNetPnlPoolTokenAmount.eq(ZERO));
+		assert(ammCache.cache[2].lastNetPnlPoolTokenAmount.eq(ZERO));
 		await adminClient.settlePerpToLpPool(encodeName(lpPoolName), [0, 1, 2]);
 		ammCache = (await adminClient.program.account.ammCache.fetch(
 			getAmmCachePublicKey(program.programId)
 		)) as AmmCache;
-		assert(ammCache.cache[0].lastFeePoolBalance.eq(new BN(100000000)));
-		assert(ammCache.cache[1].lastFeePoolBalance.eq(new BN(100000000)));
+		assert(ammCache.cache[0].lastFeePoolTokenAmount.eq(new BN(100000000)));
+		assert(ammCache.cache[1].lastFeePoolTokenAmount.eq(new BN(100000000)));
 
 		await adminClient.depositIntoPerpMarketFeePool(
 			0,
@@ -686,56 +760,119 @@ describe('LP Pool', () => {
 				.sub(feePoolBalanceBefore)
 				.eq(SPOT_MARKET_BALANCE_PRECISION.muln(-100))
 		);
-	});
 
-	it('can update and remove amm constituent mapping entries', async () => {
-		await adminClient.addAmmConstituentMappingData(encodeName(lpPoolName), [
-			{
-				perpMarketIndex: 2,
-				constituentIndex: 0,
-				weight: PERCENTAGE_PRECISION,
-			},
-		]);
-		const ammConstituentMapping = getAmmConstituentMappingPublicKey(
+		// Constituent sync worked successfully
+		constituent = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 0)
+		)) as ConstituentAccount;
+
+		const constituentVaultPublicKey = getConstituentVaultPublicKey(
 			program.programId,
-			lpPoolKey
-		);
-		let ammMapping =
-			(await adminClient.program.account.ammConstituentMapping.fetch(
-				ammConstituentMapping
-			)) as AmmConstituentMapping;
-		expect(ammMapping).to.not.be.null;
-		assert(ammMapping.weights.length == 2);
-
-		// Update
-		await adminClient.updateAmmConstituentMappingData(encodeName(lpPoolName), [
-			{
-				perpMarketIndex: 2,
-				constituentIndex: 0,
-				weight: PERCENTAGE_PRECISION.muln(2),
-			},
-		]);
-		ammMapping = (await adminClient.program.account.ammConstituentMapping.fetch(
-			ammConstituentMapping
-		)) as AmmConstituentMapping;
-		expect(ammMapping).to.not.be.null;
-		assert(
-			ammMapping.weights
-				.find((x) => x.perpMarketIndex == 2)
-				.weight.eq(PERCENTAGE_PRECISION.muln(2))
-		);
-
-		// Remove
-		await adminClient.removeAmmConstituentMappingData(
-			encodeName(lpPoolName),
-			2,
+			lpPoolKey,
 			0
 		);
-		ammMapping = (await adminClient.program.account.ammConstituentMapping.fetch(
-			ammConstituentMapping
-		)) as AmmConstituentMapping;
-		expect(ammMapping).to.not.be.null;
-		assert(ammMapping.weights.find((x) => x.perpMarketIndex == 2) == undefined);
-		assert(ammMapping.weights.length === 1);
+		const constituentVault =
+			await bankrunContextWrapper.connection.getTokenAccount(
+				constituentVaultPublicKey
+			);
+		assert(
+			new BN(constituentVault.amount.toString()).eq(constituent.tokenBalance)
+		);
+	});
+
+	it('will fail gracefully when trying to settle pnl from constituents to perp markets if not enough usdc in the constituent vault', async () => {
+		const lpPool = (await adminClient.program.account.lpPool.fetch(
+			lpPoolKey
+		)) as LPPoolAccount;
+		let constituent = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 0)
+		)) as ConstituentAccount;
+		let ammCache = (await adminClient.program.account.ammCache.fetch(
+			getAmmCachePublicKey(program.programId)
+		)) as AmmCache;
+		const constituentVaultPublicKey = getConstituentVaultPublicKey(
+			program.programId,
+			lpPoolKey,
+			0
+		);
+
+		// First remove liquidity
+		const lpTokenBalance =
+			await bankrunContextWrapper.connection.getTokenAccount(
+				userLpTokenAccount
+			);
+		await adminClient.lpPoolRemoveLiquidity({
+			outMarketIndex: 0,
+			lpToBurn: new BN(lpTokenBalance.amount.toString()),
+			minAmountOut: new BN(1000).mul(QUOTE_PRECISION),
+			lpPool: lpPool,
+		});
+
+		let constituentVault =
+			await bankrunContextWrapper.connection.getTokenAccount(
+				constituentVaultPublicKey
+			);
+
+		const expectedTransferAmount = getTokenAmount(
+			adminClient.getPerpMarketAccount(0).amm.feePool.scaledBalance,
+			adminClient.getQuoteSpotMarketAccount(),
+			SpotBalanceType.DEPOSIT
+		);
+		const constituentUSDCBalanceBefore = constituentVault.amount;
+
+		// Temporarily overwrite perp market to have taken a loss on the fee pool
+		const spotMarket = adminClient.getSpotMarketAccount(0);
+		const perpMarket = adminClient.getPerpMarketAccount(0);
+		spotMarket.depositBalance = spotMarket.depositBalance.sub(
+			perpMarket.amm.feePool.scaledBalance.add(
+				spotMarket.cumulativeDepositInterest.muln(10 ** 3)
+			)
+		);
+		await overWriteSpotMarket(
+			adminClient,
+			bankrunContextWrapper,
+			spotMarket.pubkey,
+			spotMarket
+		);
+		perpMarket.amm.feePool.scaledBalance = ZERO;
+		await overWritePerpMarket(
+			adminClient,
+			bankrunContextWrapper,
+			perpMarket.pubkey,
+			perpMarket
+		);
+
+		await adminClient.settlePerpToLpPool(encodeName(lpPoolName), [0, 1, 2]);
+
+		constituent = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 0)
+		)) as ConstituentAccount;
+		constituentVault = await bankrunContextWrapper.connection.getTokenAccount(
+			constituentVaultPublicKey
+		);
+
+		// Should have written fee pool amount owed to the amm cache and new usdc balane should be 0
+		// for the constituent
+		ammCache = (await adminClient.program.account.ammCache.fetch(
+			getAmmCachePublicKey(program.programId)
+		)) as AmmCache;
+		// No more usdc left in the constituent vault
+		assert(constituent.tokenBalance.eq(ZERO));
+		assert(new BN(constituentVault.amount.toString()).eq(ZERO));
+
+		// Should have recorded the amount left over to the amm cache and increased the amount in the fee pool
+		console.log(ammCache.cache[0].lastFeePoolTokenAmount.toString());
+		assert(
+			ammCache.cache[0].lastFeePoolTokenAmount.eq(
+				new BN(constituentUSDCBalanceBefore.toString())
+			)
+		);
+		assert(
+			ammCache.cache[0].quoteOwedFromLp.eq(
+				expectedTransferAmount.sub(
+					new BN(constituentUSDCBalanceBefore.toString())
+				)
+			)
+		);
 	});
 });

@@ -1141,12 +1141,12 @@ pub fn handle_update_init_amm_cache_info<'c: 'info, 'info>(
             .amm
             .historical_oracle_data
             .last_oracle_price_twap;
-        cache.last_fee_pool_balance = get_token_amount(
+        cache.last_fee_pool_token_amount = get_token_amount(
             perp_market.amm.fee_pool.scaled_balance,
             &quote_market,
             perp_market.amm.fee_pool.balance_type(),
         )?;
-        cache.last_net_pnl_pool_balance = get_token_amount(
+        cache.last_net_pnl_pool_token_amount = get_token_amount(
             perp_market.pnl_pool.scaled_balance,
             &quote_market,
             perp_market.pnl_pool.balance_type(),

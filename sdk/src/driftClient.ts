@@ -10083,26 +10083,12 @@ export class DriftClient {
 		lpToBurn,
 		minAmountOut,
 		lpPool,
-		lpMint,
-		constituentTargetBase,
-		constituentOutTokenAccount,
-		userOutTokenAccount,
-		userLpTokenAccount,
-		outMarketMint,
-		outConstituent,
 		txParams,
 	}: {
 		outMarketIndex: number;
 		lpToBurn: BN;
 		minAmountOut: BN;
-		lpPool: PublicKey;
-		lpMint: PublicKey;
-		constituentTargetBase: PublicKey;
-		constituentOutTokenAccount: PublicKey;
-		userOutTokenAccount: PublicKey;
-		userLpTokenAccount: PublicKey;
-		outMarketMint: PublicKey;
-		outConstituent: PublicKey;
+		lpPool: LPPoolAccount;
 		txParams?: TxParams;
 	}): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
@@ -10112,13 +10098,6 @@ export class DriftClient {
 					lpToBurn,
 					minAmountOut,
 					lpPool,
-					lpMint,
-					constituentTargetBase,
-					constituentOutTokenAccount,
-					userOutTokenAccount,
-					userLpTokenAccount,
-					outMarketMint,
-					outConstituent,
 				}),
 				txParams
 			),
@@ -10133,30 +10112,43 @@ export class DriftClient {
 		lpToBurn,
 		minAmountOut,
 		lpPool,
-		lpMint,
-		constituentTargetBase,
-		constituentOutTokenAccount,
-		userOutTokenAccount,
-		userLpTokenAccount,
-		outMarketMint,
-		outConstituent,
 	}: {
 		outMarketIndex: number;
 		lpToBurn: BN;
 		minAmountOut: BN;
-		lpPool: PublicKey;
-		lpMint: PublicKey;
-		constituentTargetBase: PublicKey;
-		constituentOutTokenAccount: PublicKey;
-		userOutTokenAccount: PublicKey;
-		userLpTokenAccount: PublicKey;
-		outMarketMint: PublicKey;
-		outConstituent: PublicKey;
+		lpPool: LPPoolAccount;
 	}): Promise<TransactionInstruction> {
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [],
 			writableSpotMarketIndexes: [outMarketIndex],
 		});
+
+		const spotMarket = this.getSpotMarketAccount(outMarketIndex);
+		const outMarketMint = spotMarket.mint;
+		const outConstituent = getConstituentPublicKey(
+			this.program.programId,
+			lpPool.pubkey,
+			outMarketIndex
+		);
+		const userOutTokenAccount = await this.getAssociatedTokenAccount(
+			outMarketIndex
+		);
+		const constituentOutTokenAccount = getConstituentVaultPublicKey(
+			this.program.programId,
+			lpPool.pubkey,
+			outMarketIndex
+		);
+		const lpMint = lpPool.mint;
+		const userLpTokenAccount = await getAssociatedTokenAddress(
+			lpMint,
+			this.wallet.publicKey,
+			true
+		);
+
+		const constituentTargetBase = getConstituentTargetBasePublicKey(
+			this.program.programId,
+			lpPool.pubkey
+		);
 
 		return this.program.instruction.lpPoolRemoveLiquidity(
 			outMarketIndex,
@@ -10167,7 +10159,7 @@ export class DriftClient {
 				accounts: {
 					driftSigner: this.getSignerPublicKey(),
 					state: await this.getStatePublicKey(),
-					lpPool,
+					lpPool: lpPool.pubkey,
 					authority: this.wallet.publicKey,
 					outMarketMint,
 					outConstituent,
@@ -10177,7 +10169,7 @@ export class DriftClient {
 					lpMint,
 					lpPoolTokenVault: getLpPoolTokenVaultPublicKey(
 						this.program.programId,
-						lpPool
+						lpPool.pubkey
 					),
 					constituentTargetBase,
 					tokenProgram: TOKEN_PROGRAM_ID,

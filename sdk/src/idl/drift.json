@@ -12253,6 +12253,14 @@
         "kind": "struct",
         "fields": [
           {
+            "name": "lastFeePoolTokenAmount",
+            "type": "u128"
+          },
+          {
+            "name": "lastNetPnlPoolTokenAmount",
+            "type": "i128"
+          },
+          {
             "name": "position",
             "docs": [
               "BASE PRECISION"
@@ -12272,6 +12280,18 @@
             "type": "i64"
           },
           {
+            "name": "lastSettleAmount",
+            "type": "u64"
+          },
+          {
+            "name": "lastSettleTs",
+            "type": "i64"
+          },
+          {
+            "name": "quoteOwedFromLp",
+            "type": "i64"
+          },
+          {
             "name": "oraclePrice",
             "type": "i64"
           },
@@ -12288,26 +12308,6 @@
             "type": "u64"
           },
           {
-            "name": "oracle",
-            "type": "publicKey"
-          },
-          {
-            "name": "lastFeePoolBalance",
-            "type": "u128"
-          },
-          {
-            "name": "lastNetPnlPoolBalance",
-            "type": "i128"
-          },
-          {
-            "name": "lastSettleAmount",
-            "type": "u64"
-          },
-          {
-            "name": "lastSettleTs",
-            "type": "i64"
-          },
-          {
             "name": "oracleSource",
             "type": "u8"
           },
@@ -12319,6 +12319,10 @@
                 7
               ]
             }
+          },
+          {
+            "name": "oracle",
+            "type": "publicKey"
           }
         ]
       }
