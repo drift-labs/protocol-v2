@@ -121,9 +121,10 @@ export class BulkAccountLoader {
 		this.lastTimeLoadingPromiseCleared = Date.now();
 
 		try {
+			const acctsArray = Array.from(this.accountsToLoad.values());
 			const chunks = this.chunks(
 				this.chunks(
-					Array.from(this.accountsToLoad.values()),
+					acctsArray,
 					GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE
 				),
 				10

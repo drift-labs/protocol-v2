@@ -91,6 +91,7 @@ export class PollingDriftClientAccountSubscriber
 	}
 
 	public async subscribe(): Promise<boolean> {
+		console.log('ORACLEDATA subscribe on PollingDriftClientAccountSubscriber');
 		if (this.isSubscribed) {
 			return true;
 		}
@@ -212,8 +213,10 @@ export class PollingDriftClientAccountSubscriber
 	}
 
 	updateOraclesToPoll(): boolean {
+		console.log('ORACLEDATA updateOraclesToPoll');
 		for (const oracleInfo of this.oracleInfos) {
 			if (!oracleInfo.publicKey.equals(PublicKey.default)) {
+				console.log('ORACLEDATA updateOraclesToPoll', oracleInfo.publicKey.toBase58());
 				this.addOracleToPoll(oracleInfo);
 			}
 		}
@@ -222,6 +225,7 @@ export class PollingDriftClientAccountSubscriber
 	}
 
 	addOracleToPoll(oracleInfo: OracleInfo): boolean {
+		console.log('ORACLEDATA addOracleToPoll', oracleInfo.publicKey.toBase58());
 		this.oraclesToPoll.set(
 			getOracleId(oracleInfo.publicKey, oracleInfo.source),
 			{
@@ -240,6 +244,7 @@ export class PollingDriftClientAccountSubscriber
 
 		const oraclePromises = [];
 		for (const [_, oracleToPoll] of this.oraclesToPoll) {
+			console.log('ORACLEDATA  oraclePromises addOracleToPoll', oracleToPoll.publicKey.toBase58());
 			oraclePromises.push(this.addOracleToAccountLoader(oracleToPoll));
 		}
 
@@ -382,6 +387,7 @@ export class PollingDriftClientAccountSubscriber
 	}
 
 	public async unsubscribe(): Promise<void> {
+		console.log('ORACLEDATA unsubscribe');
 		for (const [_, accountToPoll] of this.accountsToPoll) {
 			this.accountLoader.removeAccount(
 				accountToPoll.publicKey,
@@ -546,8 +552,13 @@ export class PollingDriftClientAccountSubscriber
 
 		for (const oracle of oracles) {
 			const oracleId = getOracleId(oracle.publicKey, oracle.source);
-			const callbackId = this.oraclesToPoll.get(oracleId).callbackId;
-			this.accountLoader.removeAccount(oracle.publicKey, callbackId);
+			const oracleToPoll = this.oraclesToPoll.get(oracleId);
+			if (oracleToPoll) {
+				this.accountLoader.removeAccount(
+					oracleToPoll.publicKey,
+					oracleToPoll.callbackId
+				);
+			}
 			if (this.delistedMarketSetting === DelistedMarketSetting.Discard) {
 				this.oracles.delete(oracleId);
 			}
