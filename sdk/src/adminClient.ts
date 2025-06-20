@@ -1115,6 +1115,13 @@ export class AdminClient extends DriftClient {
 		sourceVault: PublicKey
 	): Promise<TransactionInstruction> {
 		const spotMarket = this.getQuoteSpotMarketAccount();
+		const remainingAccounts = [
+			{
+				pubkey: spotMarket.mint,
+				isWritable: false,
+				isSigner: false,
+			},
+		];
 
 		return await this.program.instruction.depositIntoPerpMarketFeePool(amount, {
 			accounts: {
@@ -1132,6 +1139,7 @@ export class AdminClient extends DriftClient {
 				spotMarketVault: spotMarket.vault,
 				tokenProgram: TOKEN_PROGRAM_ID,
 			},
+			remainingAccounts,
 		});
 	}
 

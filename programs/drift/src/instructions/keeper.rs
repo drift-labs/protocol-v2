@@ -3114,10 +3114,11 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
             )?;
 
             // Send all revenues to the perp market fee pool
+            let precision_increase = SPOT_BALANCE_PRECISION.safe_div(QUOTE_PRECISION)?;
             perp_market
                 .amm
                 .fee_pool
-                .increase_balance(amount_to_send as u128)?;
+                .increase_balance((amount_to_send as u128).safe_mul(precision_increase)?)?;
 
             lp_pool.cumulative_usdc_sent_to_perp_markets = lp_pool
                 .cumulative_usdc_sent_to_perp_markets
@@ -3131,10 +3132,14 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
         } else {
             let amount_to_send = if cached_info.quote_owed_from_lp > 0 {
                 if amount_to_send > cached_info.quote_owed_from_lp as u64 {
+                    let new_amount_to_send =
+                        amount_to_send.safe_sub(cached_info.quote_owed_from_lp as u64)?;
                     cached_info.quote_owed_from_lp = 0;
-                    amount_to_send - cached_info.quote_owed_from_lp as u64
+                    new_amount_to_send
                 } else {
-                    cached_info.quote_owed_from_lp -= amount_to_send as i64;
+                    cached_info.quote_owed_from_lp = cached_info
+                        .quote_owed_from_lp
+                        .safe_sub(amount_to_send as i64)?;
                     0
                 }
             } else {
@@ -3196,6 +3201,9 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
                 lp_pool.last_aum = lp_pool
                     .last_aum
                     .saturating_add(amount_to_send.cast::<u128>()?);
+            } else {
+                cached_info.last_fee_pool_token_amount = fee_pool_token_amount;
+                cached_info.last_net_pnl_pool_token_amount = net_pnl_pool_token_amount;
             }
         }
 

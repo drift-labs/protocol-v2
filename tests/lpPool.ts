@@ -43,6 +43,7 @@ import {
 	SPOT_MARKET_BALANCE_PRECISION,
 	SpotBalanceType,
 	getTokenAmount,
+	TWO,
 } from '../sdk/src';
 
 import {
@@ -780,7 +781,7 @@ describe('LP Pool', () => {
 		);
 	});
 
-	it('will fail gracefully when trying to settle pnl from constituents to perp markets if not enough usdc in the constituent vault', async () => {
+	it('will settle gracefully when trying to settle pnl from constituents to perp markets if not enough usdc in the constituent vault', async () => {
 		let lpPool = (await adminClient.program.account.lpPool.fetch(
 			lpPoolKey
 		)) as LPPoolAccount;
@@ -876,8 +877,85 @@ describe('LP Pool', () => {
 				)
 			)
 		);
+		assert(
+			adminClient
+				.getPerpMarketAccount(0)
+				.amm.feePool.scaledBalance.eq(
+					new BN(constituentUSDCBalanceBefore.toString()).mul(
+						SPOT_MARKET_BALANCE_PRECISION.div(QUOTE_PRECISION)
+					)
+				)
+		);
 
 		// NAV should have gone down the max that is has
 		assert(lpPool.lastAum.eq(ZERO));
+	});
+
+	it('perp market will not transfer with the constituent vault if it is owed from dlp', async () => {
+		let ammCache = (await adminClient.program.account.ammCache.fetch(
+			getAmmCachePublicKey(program.programId)
+		)) as AmmCache;
+		const owedAmount = ammCache.cache[0].quoteOwedFromLp;
+
+		// Give the perp market half of its owed amount
+		const perpMarket = adminClient.getPerpMarketAccount(0);
+		perpMarket.amm.feePool.scaledBalance =
+			perpMarket.amm.feePool.scaledBalance.add(
+				owedAmount
+					.div(TWO)
+					.mul(SPOT_MARKET_BALANCE_PRECISION.div(QUOTE_PRECISION))
+			);
+		await overWritePerpMarket(
+			adminClient,
+			bankrunContextWrapper,
+			perpMarket.pubkey,
+			perpMarket
+		);
+
+		await adminClient.settlePerpToLpPool(encodeName(lpPoolName), [0, 1, 2]);
+
+		ammCache = (await adminClient.program.account.ammCache.fetch(
+			getAmmCachePublicKey(program.programId)
+		)) as AmmCache;
+		const constituent = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 0)
+		)) as ConstituentAccount;
+
+		assert(ammCache.cache[0].quoteOwedFromLp.eq(owedAmount.divn(2)));
+		assert(constituent.tokenBalance.eq(ZERO));
+	});
+
+	it('perp market will transfer with the constituent vault if it should send more than its owed', async () => {
+		let ammCache = (await adminClient.program.account.ammCache.fetch(
+			getAmmCachePublicKey(program.programId)
+		)) as AmmCache;
+		const owedAmount = ammCache.cache[0].quoteOwedFromLp;
+
+		// Give the perp market half of its owed amount
+		const perpMarket = adminClient.getPerpMarketAccount(0);
+		perpMarket.amm.feePool.scaledBalance =
+			perpMarket.amm.feePool.scaledBalance.add(
+				owedAmount
+					.mul(TWO)
+					.mul(SPOT_MARKET_BALANCE_PRECISION.div(QUOTE_PRECISION))
+			);
+		await overWritePerpMarket(
+			adminClient,
+			bankrunContextWrapper,
+			perpMarket.pubkey,
+			perpMarket
+		);
+
+		await adminClient.settlePerpToLpPool(encodeName(lpPoolName), [0, 1, 2]);
+
+		ammCache = (await adminClient.program.account.ammCache.fetch(
+			getAmmCachePublicKey(program.programId)
+		)) as AmmCache;
+		const constituent = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 0)
+		)) as ConstituentAccount;
+
+		assert(ammCache.cache[0].quoteOwedFromLp.eq(ZERO));
+		assert(constituent.tokenBalance.eq(owedAmount));
 	});
 });
