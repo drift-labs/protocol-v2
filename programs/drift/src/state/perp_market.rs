@@ -1055,7 +1055,9 @@ pub struct AMM {
     pub net_unsettled_funding_pnl: i64,
     pub quote_asset_amount_with_unsettled_lp: i64,
     pub reference_price_offset: i32,
-    pub padding: [u8; 12],
+    /// signed scale amm_spread similar to fee_adjustment logic (-100 = 0, 100 = double)
+    pub amm_inventory_spread_adjustment: i8,
+    pub padding: [u8; 11],
 }
 
 impl Default for AMM {
@@ -1145,7 +1147,8 @@ impl Default for AMM {
             net_unsettled_funding_pnl: 0,
             quote_asset_amount_with_unsettled_lp: 0,
             reference_price_offset: 0,
-            padding: [0; 12],
+            amm_inventory_spread_adjustment: 0,
+            padding: [0; 11],
         }
     }
 }

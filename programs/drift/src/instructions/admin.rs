@@ -1048,7 +1048,8 @@ pub fn handle_initialize_perp_market(
             net_unsettled_funding_pnl: 0,
             quote_asset_amount_with_unsettled_lp: 0,
             reference_price_offset: 0,
-            padding: [0; 12],
+            amm_inventory_spread_adjustment: 0,
+            padding: [0; 11],
         },
     };
 
@@ -4015,6 +4016,7 @@ pub fn handle_update_perp_market_taker_speed_bump_override(
 pub fn handle_update_perp_market_amm_spread_adjustment(
     ctx: Context<HotAdminUpdatePerpMarket>,
     amm_spread_adjustment: i8,
+    amm_inventory_spread_adjustment: i8,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     msg!("perp market {}", perp_market.market_index);
@@ -4026,6 +4028,14 @@ pub fn handle_update_perp_market_amm_spread_adjustment(
     );
 
     perp_market.amm.amm_spread_adjustment = amm_spread_adjustment;
+
+    msg!(
+        "perp_market.amm.amm_inventory_spread_adjustment: {:?} -> {:?}",
+        perp_market.amm.amm_inventory_spread_adjustment,
+        amm_inventory_spread_adjustment
+    );
+
+    perp_market.amm.amm_inventory_spread_adjustment = amm_inventory_spread_adjustment;
     Ok(())
 }
 
