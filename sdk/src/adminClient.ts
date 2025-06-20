@@ -3960,6 +3960,46 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async updatePerpMarketOracleSlotDelayOverride(
+		perpMarketIndex: number,
+		oracleSlotDelay: number
+	): Promise<TransactionSignature> {
+		const updatePerpMarketOracleSlotDelayOverrideIx =
+			await this.getUpdatePerpMarketOracleSlotDelayOverrideIx(
+				perpMarketIndex,
+				oracleSlotDelay
+			);
+		const tx = await this.buildTransaction(
+			updatePerpMarketOracleSlotDelayOverrideIx
+		);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdatePerpMarketOracleSlotDelayOverrideIx(
+		perpMarketIndex: number,
+		oracleSlotDelay: number
+	): Promise<TransactionInstruction> {
+		const perpMarketPublicKey = await getPerpMarketPublicKey(
+			this.program.programId,
+			perpMarketIndex
+		);
+
+		return await this.program.instruction.updatePerpMarketOracleSlotDelayOverride(
+			oracleSlotDelay,
+			{
+				accounts: {
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
+					state: await this.getStatePublicKey(),
+					perpMarket: perpMarketPublicKey,
+				},
+			}
+		);
+	}
+
 	public async updatePerpMarketAmmSpreadAdjustment(
 		perpMarketIndex: number,
 		ammSpreadAdjustment: number
