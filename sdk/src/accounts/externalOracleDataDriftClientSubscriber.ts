@@ -29,8 +29,7 @@ export class ExternalOracleDataDriftClientSubscriber extends PollingDriftClientA
 		const oracleId = getOracleId(oracleInfo.publicKey, oracleInfo.source);
 		this.oracles.set(oracleId, { data: priceData, slot });
 		this.oracleLastUpdate.set(oracleId, Date.now());
-
-		if (this.pollingOracles.has(oracleId)) {
+		if (this.pollingOracles.has(oracleId) || this.accountLoader.accountsToLoad.has(oracleInfo.publicKey.toBase58())) {
 			const oracleToPoll = this.oraclesToPoll.get(oracleId);
 			if (oracleToPoll) {
 				this.accountLoader.removeAccount(
