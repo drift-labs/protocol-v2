@@ -739,9 +739,9 @@ pub fn settle_revenue_to_insurance_fund(
         // only allow MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT or 1/10th of revenue pool to be settled
         let max_apr_per_revenue_settle: u128 = if spot_market.market_index == GOV_SPOT_MARKET_INDEX
         {
-            MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT_GOV.cast::<u128>()?
+            MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT_GOV
         } else {
-            MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT.cast::<u128>()?
+            MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT
         };
 
         let capped_apr_amount = insurance_vault_amount
