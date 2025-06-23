@@ -175,7 +175,17 @@ export function calculateLiveOracleStd(
 		amm.fundingPeriod
 	);
 
-	const priceDeltaVsTwap = oraclePriceData.price.sub(liveOracleTwap).abs();
+	const liveOracleTwap5MIN = calculateLiveOracleTwap(
+		amm.historicalOracleData,
+		oraclePriceData,
+		now,
+		FIVE_MINUTE
+	);
+
+	const priceDeltaVsTwap = BN.max(
+		oraclePriceData.price.sub(liveOracleTwap).abs(),
+		oraclePriceData.price.sub(liveOracleTwap5MIN).abs()
+	);
 
 	const oracleStd = priceDeltaVsTwap.add(
 		amm.oracleStd.mul(sinceStart).div(sinceStart.add(sinceLastUpdate))
