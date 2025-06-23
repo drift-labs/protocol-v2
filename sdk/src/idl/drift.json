@@ -7096,6 +7096,11 @@
           "isSigner": false
         },
         {
+          "name": "constituentCorrelations",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "state",
           "isMut": false,
           "isSigner": false
@@ -7320,6 +7325,11 @@
           "isSigner": false
         },
         {
+          "name": "constituentCorrelations",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "constituent",
           "isMut": true,
           "isSigner": false
@@ -7393,6 +7403,28 @@
         {
           "name": "derivativeWeight",
           "type": "u64"
+        },
+        {
+          "name": "volatility",
+          "type": "u8"
+        },
+        {
+          "name": "gammaExecution",
+          "type": "u8"
+        },
+        {
+          "name": "gammaInventory",
+          "type": "u8"
+        },
+        {
+          "name": "xi",
+          "type": "u8"
+        },
+        {
+          "name": "newConstituentCorrelations",
+          "type": {
+            "vec": "u64"
+          }
         }
       ]
     },
@@ -8777,31 +8809,32 @@
             "type": "publicKey"
           },
           {
-            "name": "spotMarketIndex",
+            "name": "mint",
+            "type": "publicKey"
+          },
+          {
+            "name": "lpPool",
+            "type": "publicKey"
+          },
+          {
+            "name": "tokenVault",
+            "type": "publicKey"
+          },
+          {
+            "name": "totalSwapFees",
             "docs": [
-              "underlying drift spot market index.",
-              "TODO: redundant with spot_balance.market_index"
+              "total fees received by the constituent. Positive = fees received, Negative = fees paid"
             ],
-            "type": "u16"
+            "type": "i128"
           },
           {
-            "name": "constituentIndex",
+            "name": "spotBalance",
             "docs": [
-              "idx in LPPool.constituents"
+              "spot borrow-lend balance for constituent"
             ],
-            "type": "u16"
-          },
-          {
-            "name": "decimals",
-            "type": "u8"
-          },
-          {
-            "name": "bump",
-            "type": "u8"
-          },
-          {
-            "name": "constituentDerivativeIndex",
-            "type": "i16"
+            "type": {
+              "defined": "BLPosition"
+            }
           },
           {
             "name": "maxWeightDeviation",
@@ -8828,27 +8861,11 @@
             "type": "i64"
           },
           {
-            "name": "totalSwapFees",
-            "docs": [
-              "total fees received by the constituent. Positive = fees received, Negative = fees paid"
-            ],
-            "type": "i128"
-          },
-          {
             "name": "tokenBalance",
             "docs": [
               "ata token balance in token precision"
             ],
             "type": "u64"
-          },
-          {
-            "name": "spotBalance",
-            "docs": [
-              "spot borrow-lend balance for constituent"
-            ],
-            "type": {
-              "defined": "BLPosition"
-            }
           },
           {
             "name": "lastOraclePrice",
@@ -8859,20 +8876,12 @@
             "type": "u64"
           },
           {
-            "name": "mint",
-            "type": "publicKey"
-          },
-          {
             "name": "oracleStalenessThreshold",
             "type": "u64"
           },
           {
-            "name": "lpPool",
-            "type": "publicKey"
-          },
-          {
-            "name": "tokenVault",
-            "type": "publicKey"
+            "name": "flashLoanInitialTokenAmount",
+            "type": "u64"
           },
           {
             "name": "nextSwapId",
@@ -8889,8 +8898,49 @@
             "type": "u64"
           },
           {
-            "name": "flashLoanInitialTokenAmount",
-            "type": "u64"
+            "name": "constituentDerivativeIndex",
+            "type": "i16"
+          },
+          {
+            "name": "spotMarketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "constituentIndex",
+            "type": "u16"
+          },
+          {
+            "name": "decimals",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "volatility",
+            "type": "u8"
+          },
+          {
+            "name": "gammaInventory",
+            "type": "u8"
+          },
+          {
+            "name": "gammaExecution",
+            "type": "u8"
+          },
+          {
+            "name": "xi",
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
           }
         ]
       }
@@ -8948,6 +8998,33 @@
               "vec": {
                 "defined": "TargetsDatum"
               }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ConstituentCorrelations",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                3
+              ]
+            }
+          },
+          {
+            "name": "correlations",
+            "type": {
+              "vec": "u64"
             }
           }
         ]
@@ -10672,6 +10749,30 @@
             "type": {
               "option": "u64"
             }
+          },
+          {
+            "name": "volatility",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "gammaExecution",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "gammaInventory",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "xi",
+            "type": {
+              "option": "u8"
+            }
           }
         ]
       }
@@ -11061,6 +11162,34 @@
     },
     {
       "name": "ConstituentTargetBaseFixed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "pad",
+            "type": {
+              "array": [
+                "u8",
+                3
+              ]
+            }
+          },
+          {
+            "name": "len",
+            "docs": [
+              "total elements in the flattened `data` vec"
+            ],
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ConstituentCorrelationsFixed",
       "type": {
         "kind": "struct",
         "fields": [

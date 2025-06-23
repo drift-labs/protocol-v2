@@ -467,3 +467,16 @@ export function getAmmCachePublicKey(programId: PublicKey): PublicKey {
 		programId
 	)[0];
 }
+
+export function getConstituentCorrelationsPublicKey(
+	programId: PublicKey,
+	lpPoolPublicKey: PublicKey
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('constituent_correlations')),
+			lpPoolPublicKey.toBuffer(),
+		],
+		programId
+	)[0];
+}

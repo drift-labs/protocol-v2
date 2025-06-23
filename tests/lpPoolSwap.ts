@@ -224,28 +224,30 @@ describe('LP Pool', () => {
 			new BN(100_000_000).mul(QUOTE_PRECISION),
 			Keypair.generate() // dlp mint
 		);
-		await adminClient.initializeConstituent(
-			encodeName(lpPoolName),
-			0,
-			6,
-			PERCENTAGE_PRECISION.divn(10), // 10% max dev
-			PERCENTAGE_PRECISION.divn(10000), // min fee 1 bps
-			PERCENTAGE_PRECISION.divn(100), // max 1%
-			new BN(100),
-			1,
-			PERCENTAGE_PRECISION
-		);
-		await adminClient.initializeConstituent(
-			encodeName(lpPoolName),
-			1,
-			6,
-			PERCENTAGE_PRECISION.divn(10), // 10% max dev
-			PERCENTAGE_PRECISION.divn(10000), // min 1 bps
-			PERCENTAGE_PRECISION.divn(100), // max 1%
-			new BN(100),
-			1,
-			ZERO
-		);
+		await adminClient.initializeConstituent(encodeName(lpPoolName), {
+			spotMarketIndex: 0,
+			decimals: 6,
+			maxWeightDeviation: PERCENTAGE_PRECISION.divn(10), // 10% max dev,
+			swapFeeMin: PERCENTAGE_PRECISION.divn(10000), // min fee 1 bps,
+			swapFeeMax: PERCENTAGE_PRECISION.divn(100),
+			oracleStalenessThreshold: new BN(100),
+			costToTrade: 1,
+			derivativeWeight: PERCENTAGE_PRECISION,
+			volatility: 0,
+			constituentCorrelations: [],
+		});
+		await adminClient.initializeConstituent(encodeName(lpPoolName), {
+			spotMarketIndex: 1,
+			decimals: 6,
+			maxWeightDeviation: PERCENTAGE_PRECISION.divn(10), // 10% max dev,
+			swapFeeMin: PERCENTAGE_PRECISION.divn(10000), // min fee 1 bps,
+			swapFeeMax: PERCENTAGE_PRECISION.divn(100),
+			oracleStalenessThreshold: new BN(100),
+			costToTrade: 1,
+			derivativeWeight: ZERO,
+			volatility: 10,
+			constituentCorrelations: [ZERO],
+		});
 
 		await initializeSolSpotMarket(adminClient, spotMarketOracle);
 		await adminClient.updateSpotMarketStepSizeAndTickSize(
@@ -654,17 +656,18 @@ describe('LP Pool', () => {
 
 	it('swap sol for usdc', async () => {
 		// Initialize new constituent for market 2
-		await adminClient.initializeConstituent(
-			encodeName(lpPoolName),
-			2,
-			6,
-			PERCENTAGE_PRECISION.divn(10), // 10% max dev
-			PERCENTAGE_PRECISION.divn(10000), // min 1 bps
-			PERCENTAGE_PRECISION.divn(100), // max 1%
-			new BN(100),
-			1,
-			ZERO
-		);
+		await adminClient.initializeConstituent(encodeName(lpPoolName), {
+			spotMarketIndex: 2,
+			decimals: 6,
+			maxWeightDeviation: PERCENTAGE_PRECISION.divn(10), // 10% max dev,
+			swapFeeMin: PERCENTAGE_PRECISION.divn(10000), // min fee 1 bps,
+			swapFeeMax: PERCENTAGE_PRECISION.divn(100),
+			oracleStalenessThreshold: new BN(100),
+			costToTrade: 1,
+			derivativeWeight: ZERO,
+			volatility: 0,
+			constituentCorrelations: [ZERO, PERCENTAGE_PRECISION],
+		});
 
 		const beforeSOLBalance = +(
 			await bankrunContextWrapper.connection.getTokenAccount(

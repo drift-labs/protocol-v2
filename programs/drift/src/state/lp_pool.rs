@@ -1,8 +1,7 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    BASE_PRECISION_I128, BASE_PRECISION_I64, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
-    QUOTE_PRECISION,
+    BASE_PRECISION_I128, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, QUOTE_PRECISION,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
@@ -20,6 +19,7 @@ use crate::{impl_zero_copy_loader, validate};
 pub const AMM_MAP_PDA_SEED: &str = "AMM_MAP";
 pub const CONSTITUENT_PDA_SEED: &str = "CONSTITUENT";
 pub const CONSTITUENT_TARGET_BASE_PDA_SEED: &str = "constituent_target_base";
+pub const CONSTITUENT_CORRELATIONS_PDA_SEED: &str = "constituent_correlations";
 pub const CONSTITUENT_VAULT_PDA_SEED: &str = "CONSTITUENT_VAULT";
 pub const LP_POOL_TOKEN_VAULT_PDA_SEED: &str = "LP_POOL_TOKEN_VAULT";
 
@@ -449,15 +449,15 @@ impl BLPosition {
 pub struct Constituent {
     /// address of the constituent
     pub pubkey: Pubkey,
-    /// underlying drift spot market index.
-    /// TODO: redundant with spot_balance.market_index
-    pub spot_market_index: u16,
-    /// idx in LPPool.constituents
-    pub constituent_index: u16,
+    pub mint: Pubkey,
+    pub lp_pool: Pubkey,
+    pub token_vault: Pubkey,
 
-    pub decimals: u8,
-    pub bump: u8,
-    pub constituent_derivative_index: i16, // -1 if a parent index
+    /// total fees received by the constituent. Positive = fees received, Negative = fees paid
+    pub total_swap_fees: i128,
+
+    /// spot borrow-lend balance for constituent
+    pub spot_balance: BLPosition, // should be in constituent base asset
 
     /// max deviation from target_weight allowed for the constituent
     /// precision: PERCENTAGE_PRECISION
@@ -469,37 +469,40 @@ pub struct Constituent {
     /// precision: PERCENTAGE_PRECISION
     pub swap_fee_max: i64,
 
-    /// total fees received by the constituent. Positive = fees received, Negative = fees paid
-    pub total_swap_fees: i128,
-
     /// ata token balance in token precision
     pub token_balance: u64,
-
-    /// spot borrow-lend balance for constituent
-    pub spot_balance: BLPosition, // should be in constituent base asset
 
     pub last_oracle_price: i64,
     pub last_oracle_slot: u64,
 
-    pub mint: Pubkey,
-
     pub oracle_staleness_threshold: u64,
 
-    pub lp_pool: Pubkey,
-
-    pub token_vault: Pubkey,
-
+    pub flash_loan_initial_token_amount: u64,
     /// Every swap to/from this constituent has a monotonically increasing id. This is the next id to use
     pub next_swap_id: u64,
 
     /// percentable of derivatve weight to go to this specific derivative PERCENTAGE_PRECISION. Zero if no derivative weight
     pub derivative_weight: u64,
 
-    pub flash_loan_initial_token_amount: u64,
+    pub constituent_derivative_index: i16, // -1 if a parent index
+
+    pub spot_market_index: u16,
+    pub constituent_index: u16,
+
+    pub decimals: u8,
+    pub bump: u8,
+
+    // Fee params
+    pub volatility: u8, // rounded, 1 = 1%
+    pub gamma_inventory: u8,
+    pub gamma_execution: u8,
+    pub xi: u8,
+
+    pub _padding: [u8; 4],
 }
 
 impl Size for Constituent {
-    const SIZE: usize = 272;
+    const SIZE: usize = 280;
 }
 
 impl Constituent {
@@ -528,6 +531,28 @@ impl Constituent {
     /// Current weight of this constituent = price * token_balance / lp_pool_aum
     /// Note: lp_pool_aum is from LPPool.last_aum, which is a lagged value updated via crank
     pub fn get_weight(
+        &self,
+        price: i64,
+        spot_market: &SpotMarket,
+        token_amount_delta: i64,
+        lp_pool_aum: u128,
+    ) -> DriftResult<i64> {
+        if lp_pool_aum == 0 {
+            return Ok(0);
+        }
+        let token_precision = 10_i128.pow(self.decimals as u32);
+
+        let value_usd = self
+            .get_notional(price, spot_market, token_amount_delta, lp_pool_aum)?
+            .cast::<i128>()?;
+
+        value_usd
+            .safe_mul(PERCENTAGE_PRECISION_I64.cast::<i128>()?)?
+            .safe_div(lp_pool_aum.cast::<i128>()?.safe_mul(token_precision)?)?
+            .cast::<i64>()
+    }
+
+    pub fn get_notional(
         &self,
         price: i64,
         spot_market: &SpotMarket,
@@ -584,9 +609,6 @@ impl Constituent {
         self.token_balance = token_account_amount;
     }
 }
-
-//   pub struct PerpConstituent {
-//   }
 
 #[zero_copy]
 #[derive(Debug, BorshDeserialize, BorshSerialize)]
@@ -900,5 +922,189 @@ impl<'a> AccountZeroCopyMut<'a, AmmConstituentDatum, AmmConstituentMappingFixed>
         *cell = datum;
 
         Ok(())
+    }
+}
+
+#[zero_copy]
+#[derive(Debug, Default)]
+#[repr(C)]
+pub struct ConstituentCorrelationsFixed {
+    pub bump: u8,
+    _pad: [u8; 3],
+    /// total elements in the flattened `data` vec
+    pub len: u32,
+}
+
+impl HasLen for ConstituentCorrelationsFixed {
+    fn len(&self) -> u32 {
+        self.len
+    }
+}
+
+#[account]
+#[derive(Debug)]
+#[repr(C)]
+pub struct ConstituentCorrelations {
+    pub bump: u8,
+    _padding: [u8; 3],
+    // PERCENTAGE_PRECISION. The weights of the target weight matrix. Updated async
+    pub correlations: Vec<u64>,
+}
+
+impl HasLen for ConstituentCorrelations {
+    fn len(&self) -> u32 {
+        self.correlations.len() as u32
+    }
+}
+
+impl_zero_copy_loader!(
+    ConstituentCorrelations,
+    crate::id,
+    ConstituentCorrelationsFixed,
+    u64
+);
+
+impl ConstituentCorrelations {
+    pub fn space(num_constituents: usize) -> usize {
+        8 + 8 + 4 + num_constituents * num_constituents * 8
+    }
+
+    pub fn validate(&self) -> DriftResult<()> {
+        let len = self.correlations.len();
+        let num_constituents = (len as f32).sqrt() as usize; // f32 is plenty precise for matrix dims < 2^16
+        validate!(
+            num_constituents * num_constituents == self.correlations.len(),
+            ErrorCode::DefaultError,
+            "ConstituentCorrelation correlations len must be a perfect square"
+        )?;
+
+        for i in 0..num_constituents {
+            for j in 0..num_constituents {
+                let corr = self.correlations[i * num_constituents + j];
+                validate!(
+                    corr <= PERCENTAGE_PRECISION_I64 as u64,
+                    ErrorCode::DefaultError,
+                    "ConstituentCorrelation correlations must be between 0 and PERCENTAGE_PRECISION"
+                )?;
+                let corr_ji = self.correlations[j * num_constituents + i];
+                validate!(
+                    corr == corr_ji,
+                    ErrorCode::DefaultError,
+                    "ConstituentCorrelation correlations must be symmetric"
+                )?;
+            }
+            let corr_ii = self.correlations[i * num_constituents + i];
+            validate!(
+                corr_ii == PERCENTAGE_PRECISION_I64 as u64,
+                ErrorCode::DefaultError,
+                "ConstituentCorrelation correlations diagonal must be PERCENTAGE_PRECISION"
+            )?;
+        }
+
+        Ok(())
+    }
+
+    pub fn add_new_constituent(&mut self, new_constituent_correlations: &[u64]) -> DriftResult {
+        // Add a new constituent at index N (where N = old size),
+        // given a slice `new_corrs` of length `N` such that
+        // new_corrs[i] == correlation[i, N].
+        //
+        // On entry:
+        //   self.correlations.len() == N*N
+        //
+        // After:
+        //   self.correlations.len() == (N+1)*(N+1)
+        let len = self.correlations.len();
+        let n = (len as f64).sqrt() as usize;
+        validate!(
+            n * n == len,
+            ErrorCode::DefaultError,
+            "existing correlations len must be a perfect square"
+        )?;
+        validate!(
+            new_constituent_correlations.len() == n,
+            ErrorCode::DefaultError,
+            "new_corrs length must equal number of number of other constituents ({})",
+            n
+        )?;
+        for &c in new_constituent_correlations {
+            validate!(
+                c <= PERCENTAGE_PRECISION_I64 as u64,
+                ErrorCode::DefaultError,
+                "correlation must be ≤ PERCENTAGE_PRECISION"
+            )?;
+        }
+
+        let new_n = n + 1;
+        let mut buf = Vec::with_capacity(new_n * new_n);
+
+        for i in 0..n {
+            buf.extend_from_slice(&self.correlations[i * n..i * n + n]);
+            buf.push(new_constituent_correlations[i]);
+        }
+
+        buf.extend_from_slice(new_constituent_correlations);
+        buf.push(PERCENTAGE_PRECISION_I64 as u64);
+
+        self.correlations = buf;
+
+        msg!("here");
+
+        debug_assert_eq!(self.correlations.len(), new_n * new_n);
+
+        Ok(())
+    }
+
+    pub fn set_correlation(&mut self, i: u16, j: u16, corr: u64) -> DriftResult {
+        let num_constituents = (self.correlations.len() as f64).sqrt() as usize;
+        validate!(
+            i < num_constituents as u16,
+            ErrorCode::InvalidConstituent,
+            "Invalid constituent_index i = {}, ConstituentCorrelation len = {}",
+            i,
+            num_constituents
+        )?;
+        validate!(
+            j < num_constituents as u16,
+            ErrorCode::InvalidConstituent,
+            "Invalid constituent_index j = {}, ConstituentCorrelation len = {}",
+            j,
+            num_constituents
+        )?;
+        validate!(
+            corr <= PERCENTAGE_PRECISION_I64 as u64,
+            ErrorCode::DefaultError,
+            "ConstituentCorrelation correlations must be between 0 and PERCENTAGE_PRECISION"
+        )?;
+
+        self.correlations[(i as usize * num_constituents + j as usize) as usize] = corr;
+        self.correlations[(j as usize * num_constituents + i as usize) as usize] = corr;
+
+        self.validate()?;
+
+        Ok(())
+    }
+}
+
+impl<'a> AccountZeroCopy<'a, u64, ConstituentCorrelationsFixed> {
+    pub fn get_correlation(&self, i: u16, j: u16) -> DriftResult<u64> {
+        let num_constituents = (self.len() as f64).sqrt() as usize;
+        validate!(
+            i < num_constituents as u16,
+            ErrorCode::InvalidConstituent,
+            "Invalid constituent_index i = {}, ConstituentCorrelation len = {}",
+            i,
+            num_constituents
+        )?;
+        validate!(
+            j < num_constituents as u16,
+            ErrorCode::InvalidConstituent,
+            "Invalid constituent_index j = {}, ConstituentCorrelation len = {}",
+            j,
+            num_constituents
+        )?;
+
+        let corr = self.get((i as usize * num_constituents + j as usize) as u32);
+        Ok(*corr)
     }
 }

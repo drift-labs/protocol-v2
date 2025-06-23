@@ -1748,6 +1748,11 @@ pub mod drift {
         cost_to_trade: i32,
         constituent_derivative_index: Option<i16>,
         derivative_weight: u64,
+        volatility: u8,
+        gamma_execution: u8,
+        gamma_inventory: u8,
+        xi: u8,
+        new_constituent_correlations: Vec<u64>,
     ) -> Result<()> {
         handle_initialize_constituent(
             ctx,
@@ -1760,6 +1765,11 @@ pub mod drift {
             cost_to_trade,
             constituent_derivative_index,
             derivative_weight,
+            volatility,
+            gamma_execution,
+            gamma_inventory,
+            xi,
+            new_constituent_correlations,
         )
     }
 
