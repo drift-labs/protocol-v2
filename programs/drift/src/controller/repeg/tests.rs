@@ -28,6 +28,8 @@ pub fn update_amm_test() {
             last_mark_price_twap_ts: 0,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: 19_400 * PRICE_PRECISION_I64,
+                last_oracle_price_twap_5min: 19_400 * PRICE_PRECISION_I64,
+
                 ..HistoricalOracleData::default()
             },
             base_spread: 250,
@@ -157,17 +159,17 @@ pub fn update_amm_test() {
     assert!(reserve_price <= ask);
     assert_eq!(
         market.amm.long_spread + market.amm.short_spread,
-        244822 // (market.margin_ratio_initial * 100) as u32
+        453312 // (market.margin_ratio_initial * 100) as u32
     );
 
-    assert_eq!(bid, 9757967541);
+    assert_eq!(bid, 7404359997);
     assert!(bid < (oracle_price_data.price as u64));
     assert_eq!(reserve_price, 12743902015);
-    assert_eq!(ask, 12877955120);
+    assert_eq!(ask, 13181323707);
     assert!(ask >= (oracle_price_data.price as u64));
     assert_eq!(
         (ask - bid) * 1000000 / reserve_price,
-        244821 // overriden by max spread baseline
+        453311 // overriden by max spread baseline
                // (market.amm.max_spread) as u64
     );
 }
@@ -282,7 +284,7 @@ pub fn update_amm_larg_conf_test() {
     let cost_of_update = _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
     assert_eq!(cost_of_update, -42992787); // amm wins when price increases
 
-    assert_eq!(market.amm.short_spread, 12388);
+    assert_eq!(market.amm.short_spread, 12576);
     assert_eq!(market.amm.long_spread, 125);
 
     let reserve_price_after = market.amm.reserve_price().unwrap();
@@ -444,8 +446,8 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
         market.amm.max_spread,
     )
     .unwrap();
-    assert_eq!(max_target_spread, 28691);
-    assert_eq!(market.amm.short_spread, 15780);
+    assert_eq!(max_target_spread, 29177);
+    assert_eq!(market.amm.short_spread, 16020);
     let reserve_price_after = market.amm.reserve_price().unwrap();
     assert_eq!(reserve_price_after, 18849999999);
     assert_eq!(reserve_price_before < reserve_price_after, true);
