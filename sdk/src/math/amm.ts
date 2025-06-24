@@ -772,23 +772,33 @@ export function calculateSpreadBN(
 	spreadTerms.longSpreadwRevRetreat = longSpread;
 	spreadTerms.shortSpreadwRevRetreat = shortSpread;
 
-
 	if (ammInventorySpreadAdjustment < 0) {
 		const adjustment = Math.abs(ammInventorySpreadAdjustment);
 
-		const shrunkLong  = Math.max(1, longSpread  - Math.floor((longSpread  * adjustment) / 100));
-		const shrunkShort = Math.max(1, shortSpread - Math.floor((shortSpread * adjustment) / 100));
+		const shrunkLong = Math.max(
+			1,
+			longSpread - Math.floor((longSpread * adjustment) / 100)
+		);
+		const shrunkShort = Math.max(
+			1,
+			shortSpread - Math.floor((shortSpread * adjustment) / 100)
+		);
 
-		longSpread  = Math.max(longVolSpread.toNumber(),  shrunkLong);
+		longSpread = Math.max(longVolSpread.toNumber(), shrunkLong);
 		shortSpread = Math.max(shortVolSpread.toNumber(), shrunkShort);
-
 	} else if (ammInventorySpreadAdjustment > 0) {
 		const adjustment = ammInventorySpreadAdjustment;
 
-		const grownLong  = Math.max(1, longSpread  + Math.ceil((longSpread  * adjustment) / 100));
-		const grownShort = Math.max(1, shortSpread + Math.ceil((shortSpread * adjustment) / 100));
+		const grownLong = Math.max(
+			1,
+			longSpread + Math.ceil((longSpread * adjustment) / 100)
+		);
+		const grownShort = Math.max(
+			1,
+			shortSpread + Math.ceil((shortSpread * adjustment) / 100)
+		);
 
-		longSpread  = Math.max(longVolSpread.toNumber(),  grownLong);
+		longSpread = Math.max(longVolSpread.toNumber(), grownLong);
 		shortSpread = Math.max(shortVolSpread.toNumber(), grownShort);
 	}
 
