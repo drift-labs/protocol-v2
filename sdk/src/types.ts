@@ -1008,6 +1008,7 @@ export type AMM = {
 
 	takerSpeedBumpOverride: number;
 	ammSpreadAdjustment: number;
+	ammInventorySpreadAdjustment: number;
 };
 
 // # User Account Types
