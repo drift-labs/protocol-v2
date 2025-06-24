@@ -339,6 +339,7 @@ pub fn calculate_spread(
     long_intensity_volume: u64,
     short_intensity_volume: u64,
     volume_24h: u64,
+    amm_inventory_spread_adjustment: i8,
 ) -> DriftResult<(u32, u32)> {
     let (long_vol_spread, short_vol_spread) = calculate_long_short_vol_spread(
         last_oracle_conf_pct,
@@ -451,6 +452,34 @@ pub fn calculate_spread(
             long_spread = long_spread.safe_add(revenue_retreat_amount.safe_div(2)?)?;
             short_spread = short_spread.safe_add(revenue_retreat_amount.safe_div(2)?)?;
         }
+    }
+
+    if amm_inventory_spread_adjustment < 0 {
+        let adjustment: u64 = amm_inventory_spread_adjustment
+            .cast::<i64>()?
+            .unsigned_abs();
+        long_spread = long_vol_spread.max(
+            long_spread
+                .saturating_sub(long_spread.saturating_mul(adjustment).safe_div(100)?)
+                .max(1),
+        );
+        short_spread = short_vol_spread.max(
+            short_spread
+                .saturating_sub(short_spread.saturating_mul(adjustment).safe_div(100)?)
+                .max(1),
+        );
+    } else if amm_inventory_spread_adjustment > 0 {
+        let adjustment = amm_inventory_spread_adjustment.cast()?;
+        long_spread = long_vol_spread.max(
+            long_spread
+                .saturating_add(long_spread.saturating_mul(adjustment).safe_div_ceil(100)?)
+                .max(1),
+        );
+        short_spread = short_vol_spread.max(
+            short_spread
+                .saturating_add(short_spread.saturating_mul(adjustment).safe_div_ceil(100)?)
+                .max(1),
+        );
     }
 
     let (long_spread, short_spread) =

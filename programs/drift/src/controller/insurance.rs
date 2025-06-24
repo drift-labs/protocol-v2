@@ -11,7 +11,8 @@ use crate::error::ErrorCode;
 use crate::math::amm::calculate_net_user_pnl;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT, ONE_YEAR, PERCENTAGE_PRECISION,
+    MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT,
+    MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT_GOV, ONE_YEAR, PERCENTAGE_PRECISION,
     SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_DENOMINATOR,
     SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_NUMERATOR,
 };
@@ -736,9 +737,16 @@ pub fn settle_revenue_to_insurance_fund(
 
     if spot_market.insurance_fund.user_shares > 0 {
         // only allow MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT or 1/10th of revenue pool to be settled
+        let max_apr_per_revenue_settle: u128 = if spot_market.market_index == GOV_SPOT_MARKET_INDEX
+        {
+            MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT_GOV
+        } else {
+            MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT
+        };
+
         let capped_apr_amount = insurance_vault_amount
             .cast::<u128>()?
-            .safe_mul(MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT.cast::<u128>()?)?
+            .safe_mul(max_apr_per_revenue_settle)?
             .safe_div(PERCENTAGE_PRECISION)?
             .safe_div(
                 ONE_YEAR
