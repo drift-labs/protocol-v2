@@ -13,7 +13,7 @@ use crate::state::fill_mode::FillMode;
 use crate::state::protected_maker_mode_config::ProtectedMakerParams;
 use crate::state::user::OrderBitFlag;
 use crate::{
-    load, math, FeeTier, State, BASE_PRECISION_I128, FEE_ADJUSTMENT_MAX,
+    load, math, FeeTier, State, BASE_PRECISION_I128, FEE_ADJUSTMENT_MAX, MARGIN_PRECISION_I128,
     MAX_PREDICTION_MARKET_PRICE, MAX_PREDICTION_MARKET_PRICE_I64, OPEN_ORDER_MARGIN_REQUIREMENT,
     PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, PRICE_PRECISION_U64,
     QUOTE_PRECISION_I128, SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_I128,
@@ -936,24 +936,33 @@ pub fn calculate_max_perp_order_size(
             MAX_PREDICTION_MARKET_PRICE_I64.safe_sub(oracle_price_data_price)?
         };
 
-    let calculate_order_size_and_margin_ratio = |margin_ratio: u32| {
+    let calculate_order_size_and_margin_ratio = |margin_ratio: u32, margin_ratio_delta: i32| {
+        let free_collateral_from_margin_ratio_delta = worst_case_base_asset_amount
+            .safe_mul(oracle_price.cast()?)?
+            .safe_div(BASE_PRECISION_I128)?
+            .safe_mul(margin_ratio_delta.cast()?)?
+            .safe_div(MARGIN_PRECISION_I128.cast()?)?;
+
         let new_order_size = free_collateral_before
             .safe_add(free_collateral_released)?
+            .safe_sub(free_collateral_from_margin_ratio_delta)?
             .safe_sub(OPEN_ORDER_MARGIN_REQUIREMENT.cast()?)?
-            .safe_mul(BASE_PRECISION_I128 / QUOTE_PRECISION_I128)?
+            .safe_mul(BASE_PRECISION_I128)?
             .safe_mul(MARGIN_PRECISION_U128.cast()?)?
             .safe_div(margin_ratio.cast()?)?
             .safe_mul(PRICE_PRECISION_I128)?
             .safe_div(oracle_price.cast()?)?
             .safe_mul(PRICE_PRECISION_I128)?
             .safe_div(quote_oracle_price.cast()?)?
+            .safe_div(QUOTE_PRECISION_I128)?
             .cast::<u64>()?;
+
+        let worst_case_base_asset_amount =
+            worst_case_base_asset_amount.safe_add(new_order_size.cast()?)?;
 
         let new_margin_ratio = perp_market
             .get_margin_ratio(
-                worst_case_base_asset_amount
-                    .unsigned_abs()
-                    .safe_add(new_order_size.cast()?)?,
+                worst_case_base_asset_amount.unsigned_abs(),
                 MarginRequirementType::Initial,
                 user_high_leverage_mode,
             )?
@@ -964,15 +973,20 @@ pub fn calculate_max_perp_order_size(
 
     let mut order_size = 0_u64;
     let mut updated_margin_ratio = margin_ratio;
+    let mut margin_ratio_delta = 0;
     for _ in 0..6 {
         let (new_order_size, new_margin_ratio) =
-            calculate_order_size_and_margin_ratio(updated_margin_ratio)?;
+            calculate_order_size_and_margin_ratio(updated_margin_ratio, margin_ratio_delta)?;
         order_size = new_order_size;
-        updated_margin_ratio = new_margin_ratio;
 
-        if new_margin_ratio == margin_ratio {
+        if new_margin_ratio == updated_margin_ratio {
             break;
         }
+
+        margin_ratio_delta = new_margin_ratio
+            .cast::<i32>()?
+            .safe_sub(margin_ratio.cast::<i32>()?)?;
+        updated_margin_ratio = new_margin_ratio;
     }
 
     standardize_base_asset_amount(
