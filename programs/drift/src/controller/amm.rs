@@ -230,6 +230,7 @@ pub fn update_spreads(market: &mut PerpMarket, reserve_price: u64) -> DriftResul
             market.amm.long_intensity_volume,
             market.amm.short_intensity_volume,
             market.amm.volume_24h,
+            market.amm.amm_inventory_spread_adjustment,
         )?
     } else {
         let half_base_spread = market.amm.base_spread.safe_div(2)?;

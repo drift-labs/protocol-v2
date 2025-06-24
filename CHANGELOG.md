@@ -10,14 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - program: use three points for std estimator ([#1686](https://github.com/drift-labs/protocol-v2/pull/1686))
-
-### Fixes
-
-### Breaking
-
-## [2.124.0] - 2025-06-18
-
-### Features
+- program: add inventory component amm_spread_adjustment ([#1690](https://github.com/drift-labs/protocol-v2/pull/1690))
 
 ### Fixes
 

@@ -1568,8 +1568,13 @@ pub mod drift {
     pub fn update_perp_market_amm_spread_adjustment(
         ctx: Context<HotAdminUpdatePerpMarket>,
         amm_spread_adjustment: i8,
+        amm_inventory_spread_adjustment: i8,
     ) -> Result<()> {
-        handle_update_perp_market_amm_spread_adjustment(ctx, amm_spread_adjustment)
+        handle_update_perp_market_amm_spread_adjustment(
+            ctx,
+            amm_spread_adjustment,
+            amm_inventory_spread_adjustment,
+        )
     }
 
     pub fn update_perp_market_oracle_slot_delay_override(

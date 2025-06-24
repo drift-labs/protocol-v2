@@ -603,6 +603,7 @@ export function calculateSpreadBN(
 	longIntensity: BN,
 	shortIntensity: BN,
 	volume24H: BN,
+	ammInventorySpreadAdjustment: number,
 	returnTerms = false
 ) {
 	assert(Number.isInteger(baseSpread));
@@ -771,6 +772,36 @@ export function calculateSpreadBN(
 	spreadTerms.longSpreadwRevRetreat = longSpread;
 	spreadTerms.shortSpreadwRevRetreat = shortSpread;
 
+	if (ammInventorySpreadAdjustment < 0) {
+		const adjustment = Math.abs(ammInventorySpreadAdjustment);
+
+		const shrunkLong = Math.max(
+			1,
+			longSpread - Math.floor((longSpread * adjustment) / 100)
+		);
+		const shrunkShort = Math.max(
+			1,
+			shortSpread - Math.floor((shortSpread * adjustment) / 100)
+		);
+
+		longSpread = Math.max(longVolSpread.toNumber(), shrunkLong);
+		shortSpread = Math.max(shortVolSpread.toNumber(), shrunkShort);
+	} else if (ammInventorySpreadAdjustment > 0) {
+		const adjustment = ammInventorySpreadAdjustment;
+
+		const grownLong = Math.max(
+			1,
+			longSpread + Math.ceil((longSpread * adjustment) / 100)
+		);
+		const grownShort = Math.max(
+			1,
+			shortSpread + Math.ceil((shortSpread * adjustment) / 100)
+		);
+
+		longSpread = Math.max(longVolSpread.toNumber(), grownLong);
+		shortSpread = Math.max(shortVolSpread.toNumber(), grownShort);
+	}
+
 	const totalSpread = longSpread + shortSpread;
 	if (totalSpread > maxTargetSpread) {
 		if (longSpread > shortSpread) {
@@ -843,7 +874,8 @@ export function calculateSpread(
 		liveOracleStd,
 		amm.longIntensityVolume,
 		amm.shortIntensityVolume,
-		amm.volume24H
+		amm.volume24H,
+		amm.ammInventorySpreadAdjustment
 	);
 	let longSpread = spreads[0];
 	let shortSpread = spreads[1];
