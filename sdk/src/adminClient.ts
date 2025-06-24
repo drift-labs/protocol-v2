@@ -4022,7 +4022,7 @@ export class AdminClient extends DriftClient {
 	public async getUpdatePerpMarketAmmSpreadAdjustmentIx(
 		perpMarketIndex: number,
 		ammSpreadAdjustment: number,
-		ammInventorySpreadAdjustment: number,
+		ammInventorySpreadAdjustment: number
 	): Promise<TransactionInstruction> {
 		const perpMarketPublicKey = await getPerpMarketPublicKey(
 			this.program.programId,
@@ -4031,7 +4031,7 @@ export class AdminClient extends DriftClient {
 
 		return await this.program.instruction.updatePerpMarketAmmSpreadAdjustment(
 			ammSpreadAdjustment,
-			ammInventorySpreadAdjustment
+			ammInventorySpreadAdjustment,
 			{
 				accounts: {
 					admin: this.useHotWalletAdmin
