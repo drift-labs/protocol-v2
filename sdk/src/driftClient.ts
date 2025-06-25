@@ -8462,9 +8462,56 @@ export class DriftClient {
 		fromSubaccount?: boolean;
 		txParams?: TxParams;
 	}): Promise<TransactionSignature> {
-		const addIfStakeIxs = [];
+		const addIfStakeIxs = await this.getAddInsuranceFundStakeIxs({
+			marketIndex,
+			amount,
+			collateralAccountPublicKey,
+			initializeStakeAccount,
+			fromSubaccount,
+		});
 
 		const additionalSigners: Array<Signer> = [];
+		const tx = await this.buildTransaction(addIfStakeIxs, txParams);
+
+		const { txSig } = await this.sendTransaction(
+			tx,
+			additionalSigners,
+			this.opts
+		);
+
+		return txSig;
+	}
+
+	/**
+	 * Get instructions to add to an insurance fund stake and optionally initialize the account
+	 */
+	public async getAddInsuranceFundStakeIxs({
+		marketIndex,
+		amount,
+		collateralAccountPublicKey,
+		initializeStakeAccount,
+		fromSubaccount,
+	}: {
+		/**
+		 * Spot market index
+		 */
+		marketIndex: number;
+		amount: BN;
+		/**
+		 * The account where the funds to stake come from. Usually an associated token account
+		 */
+		collateralAccountPublicKey: PublicKey;
+		/**
+		 * Add instructions to initialize the staking account -- required if its the first time the currrent authority has staked in this market
+		 */
+		initializeStakeAccount?: boolean;
+		/**
+		 * Optional -- withdraw from current subaccount to fund stake amount, instead of wallet balance
+		 */
+		fromSubaccount?: boolean;
+	}): Promise<TransactionInstruction[]> {
+		const addIfStakeIxs = [];
+
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 		const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
 		const createWSOLTokenAccount =
@@ -8545,15 +8592,7 @@ export class DriftClient {
 			);
 		}
 
-		const tx = await this.buildTransaction(addIfStakeIxs, txParams);
-
-		const { txSig } = await this.sendTransaction(
-			tx,
-			additionalSigners,
-			this.opts
-		);
-
-		return txSig;
+		return addIfStakeIxs;
 	}
 
 	public async requestRemoveInsuranceFundStake(
