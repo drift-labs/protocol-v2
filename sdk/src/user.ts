@@ -2356,7 +2356,11 @@ export class User {
 		let freeCollateralChange = ZERO;
 
 		// update free collateral to account for change in pnl from new position
-		if (!estimatedEntryPrice.eq(ZERO) && !positionBaseSizeChange.eq(ZERO)) {
+		if (
+			!estimatedEntryPrice.eq(ZERO) &&
+			!positionBaseSizeChange.eq(ZERO) &&
+			marginCategory === 'Maintenance'
+		) {
 			const costBasis = oraclePrice
 				.mul(positionBaseSizeChange.abs())
 				.div(BASE_PRECISION);
