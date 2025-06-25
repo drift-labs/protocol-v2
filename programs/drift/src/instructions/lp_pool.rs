@@ -28,7 +28,8 @@ use crate::{
         events::{LPMintRedeemRecord, LPSwapRecord},
         lp_pool::{
             calculate_target_weight, AmmConstituentDatum, AmmConstituentMappingFixed, Constituent,
-            ConstituentTargetBaseFixed, LPPool, TargetsDatum, WeightValidationFlags,
+            ConstituentCorrelations, ConstituentCorrelationsFixed, ConstituentTargetBaseFixed,
+            LPPool, TargetsDatum, WeightValidationFlags, CONSTITUENT_CORRELATIONS_PDA_SEED,
         },
         oracle::OraclePriceData,
         oracle_map::OracleMap,
@@ -480,6 +481,23 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         "Constituent target weights PDA does not match expected PDA"
     )?;
 
+    let constituent_correlation_key = &ctx.accounts.constituent_correlations.key();
+    let constituent_correlations: AccountZeroCopy<'_, i64, ConstituentCorrelationsFixed> =
+        ctx.accounts.constituent_correlations.load_zc()?;
+    let expected_correlation_pda = &Pubkey::create_program_address(
+        &[
+            CONSTITUENT_CORRELATIONS_PDA_SEED.as_ref(),
+            lp_pool.pubkey.as_ref(),
+        ],
+        &crate::ID,
+    )
+    .map_err(|_| ErrorCode::InvalidPDA)?;
+    validate!(
+        expected_correlation_pda.eq(constituent_correlation_key),
+        ErrorCode::InvalidPDA,
+        "Constituent correlations PDA does not match expected PDA"
+    )?;
+
     let AccountMaps {
         perp_market_map: _,
         spot_market_map,
@@ -559,6 +577,10 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         in_target_weight,
         out_target_weight,
         in_amount,
+        constituent_correlations.get_correlation(
+            in_constituent.constituent_index,
+            out_constituent.constituent_index,
+        )?,
     )?;
     msg!(
         "in_amount: {}, out_amount: {}, in_fee: {}, out_fee: {}",
@@ -1290,6 +1312,13 @@ pub struct LPPoolSwap<'info> {
     )]
     /// CHECK: checked in ConstituentTargetBaseZeroCopy checks
     pub constituent_target_base: AccountInfo<'info>,
+
+    #[account(
+        seeds = [CONSTITUENT_CORRELATIONS_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        bump,
+    )]
+    /// CHECK: checked in ConstituentCorrelationsZeroCopy checks
+    pub constituent_correlations: AccountInfo<'info>,
 
     #[account(
         mut,

@@ -546,6 +546,7 @@ mod swap_tests {
                 500_000,
                 500_000,
                 in_amount,
+                0,
             )
             .unwrap();
         assert_eq!(in_amount, expected_in_amount);

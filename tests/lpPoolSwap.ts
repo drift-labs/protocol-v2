@@ -233,7 +233,7 @@ describe('LP Pool', () => {
 			oracleStalenessThreshold: new BN(100),
 			costToTrade: 1,
 			derivativeWeight: PERCENTAGE_PRECISION,
-			volatility: 0,
+			volatility: ZERO,
 			constituentCorrelations: [],
 		});
 		await adminClient.initializeConstituent(encodeName(lpPoolName), {
@@ -245,7 +245,7 @@ describe('LP Pool', () => {
 			oracleStalenessThreshold: new BN(100),
 			costToTrade: 1,
 			derivativeWeight: ZERO,
-			volatility: 10,
+			volatility: new BN(10).mul(PERCENTAGE_PRECISION),
 			constituentCorrelations: [ZERO],
 		});
 
@@ -665,7 +665,7 @@ describe('LP Pool', () => {
 			oracleStalenessThreshold: new BN(100),
 			costToTrade: 1,
 			derivativeWeight: ZERO,
-			volatility: 0,
+			volatility: ZERO,
 			constituentCorrelations: [ZERO, PERCENTAGE_PRECISION],
 		});
 

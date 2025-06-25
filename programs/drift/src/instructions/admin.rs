@@ -4556,7 +4556,9 @@ pub fn handle_initialize_lp_pool(
         usdc_consituent_index: 0,
         cumulative_usdc_sent_to_perp_markets: 0,
         cumulative_usdc_received_from_perp_markets: 0,
-        _padding: [0; 10],
+        gamma_execution: 2,
+        volatility: 4,
+        xi: 2,
     };
 
     let amm_constituent_mapping = &mut ctx.accounts.amm_constituent_mapping;
@@ -4787,11 +4789,11 @@ pub fn handle_initialize_constituent<'info>(
     cost_to_trade_bps: i32,
     constituent_derivative_index: Option<i16>,
     derivative_weight: u64,
-    volatility: u8,
+    volatility: u64,
     gamma_execution: u8,
     gamma_inventory: u8,
     xi: u8,
-    new_constituent_correlations: Vec<u64>,
+    new_constituent_correlations: Vec<i64>,
 ) -> Result<()> {
     let mut constituent = ctx.accounts.constituent.load_init()?;
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;

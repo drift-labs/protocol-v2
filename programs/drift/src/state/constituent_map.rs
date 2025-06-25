@@ -132,8 +132,8 @@ impl<'a> ConstituentMap<'a> {
                 "Constituent lp pool pubkey does not match lp pool pubkey"
             )?;
 
-            // constituent index 260 bytes from front of account
-            let constituent_index = u16::from_le_bytes(*array_ref![data, 268, 2]);
+            // constituent index 276 bytes from front of account
+            let constituent_index = u16::from_le_bytes(*array_ref![data, 276, 2]);
             if constituent_map.0.contains_key(&constituent_index) {
                 msg!(
                     "Can not include same constituent index twice {}",

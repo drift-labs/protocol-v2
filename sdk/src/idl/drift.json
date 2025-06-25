@@ -7406,7 +7406,7 @@
         },
         {
           "name": "volatility",
-          "type": "u8"
+          "type": "u64"
         },
         {
           "name": "gammaExecution",
@@ -7423,7 +7423,7 @@
         {
           "name": "newConstituentCorrelations",
           "type": {
-            "vec": "u64"
+            "vec": "i64"
           }
         }
       ]
@@ -7694,6 +7694,11 @@
         },
         {
           "name": "constituentTargetBase",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "constituentCorrelations",
           "isMut": false,
           "isSigner": false
         },
@@ -8785,13 +8790,16 @@
             "type": "u16"
           },
           {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u8",
-                10
-              ]
-            }
+            "name": "gammaExecution",
+            "type": "u8"
+          },
+          {
+            "name": "xi",
+            "type": "u8"
+          },
+          {
+            "name": "volatility",
+            "type": "u64"
           }
         ]
       }
@@ -8898,6 +8906,10 @@
             "type": "u64"
           },
           {
+            "name": "volatility",
+            "type": "u64"
+          },
+          {
             "name": "constituentDerivativeIndex",
             "type": "i16"
           },
@@ -8918,10 +8930,6 @@
             "type": "u8"
           },
           {
-            "name": "volatility",
-            "type": "u8"
-          },
-          {
             "name": "gammaInventory",
             "type": "u8"
           },
@@ -8938,7 +8946,7 @@
             "type": {
               "array": [
                 "u8",
-                4
+                5
               ]
             }
           }
@@ -9024,7 +9032,7 @@
           {
             "name": "correlations",
             "type": {
-              "vec": "u64"
+              "vec": "i64"
             }
           }
         ]

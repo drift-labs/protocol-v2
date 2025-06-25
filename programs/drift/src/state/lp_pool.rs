@@ -1,7 +1,9 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    BASE_PRECISION_I128, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, QUOTE_PRECISION,
+    BASE_PRECISION_I128, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
+    PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, QUOTE_PRECISION, QUOTE_PRECISION_I128,
+    QUOTE_PRECISION_U64,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
@@ -23,7 +25,9 @@ pub const CONSTITUENT_CORRELATIONS_PDA_SEED: &str = "constituent_correlations";
 pub const CONSTITUENT_VAULT_PDA_SEED: &str = "CONSTITUENT_VAULT";
 pub const LP_POOL_TOKEN_VAULT_PDA_SEED: &str = "LP_POOL_TOKEN_VAULT";
 
+pub const BASE_SWAP_FEE: i64 = 3_000; // 0.75% in PERCENTAGE_PRECISION
 pub const MAX_SWAP_FEE: i64 = 75_000; // 0.75% in PERCENTAGE_PRECISION
+pub const MIN_SWAP_FEE: i64 = 2_000; // 0.75% in PERCENTAGE_PRECISION
 
 #[cfg(test)]
 mod tests;
@@ -86,7 +90,9 @@ pub struct LPPool {
 
     pub usdc_consituent_index: u16,
 
-    pub _padding: [u8; 10],
+    pub gamma_execution: u8,
+    pub xi: u8,
+    pub volatility: u64,
 }
 
 impl Size for LPPool {
@@ -101,6 +107,18 @@ impl LPPool {
                 // TODO: assuming mint decimals = quote decimals = 6
                 self.last_aum
                     .checked_div(supply.into())
+                    .ok_or(ErrorCode::MathError.into())
+            }
+        }
+    }
+
+    pub fn get_price(&self, mint: &Mint) -> Result<u128> {
+        match mint.supply {
+            0 => Ok(0),
+            supply => {
+                // TODO: assuming mint decimals = quote decimals = 6
+                (supply as u128)
+                    .checked_div(self.last_aum)
                     .ok_or(ErrorCode::MathError.into())
             }
         }
@@ -146,6 +164,7 @@ impl LPPool {
         in_target_weight: i64,
         out_target_weight: i64,
         in_amount: u64,
+        correlation: i64,
     ) -> DriftResult<(u64, u64, i64, i64)> {
         let (swap_price_num, swap_price_denom) = self.get_swap_price(
             in_spot_market.decimals,
@@ -154,12 +173,17 @@ impl LPPool {
             out_oracle,
         )?;
 
-        let in_fee = self.get_swap_fees(
+        let (in_fee, out_fee) = self.get_swap_fees(
             in_spot_market,
-            in_oracle,
+            in_oracle.price,
             in_constituent,
             in_amount.cast::<i64>()?,
             in_target_weight,
+            Some(out_spot_market),
+            Some(out_oracle.price),
+            Some(out_constituent),
+            Some(out_target_weight),
+            correlation,
         )?;
         let in_fee_amount = in_amount
             .cast::<i64>()?
@@ -172,16 +196,6 @@ impl LPPool {
             .safe_mul(swap_price_num.cast::<i64>()?)?
             .safe_div(swap_price_denom.cast::<i64>()?)?
             .cast::<u64>()?;
-        let out_fee = self.get_swap_fees(
-            out_spot_market,
-            out_oracle,
-            out_constituent,
-            out_amount
-                .cast::<i64>()?
-                .checked_neg()
-                .ok_or(ErrorCode::MathError.into())?,
-            out_target_weight,
-        )?;
 
         msg!("in_fee: {}, out_fee: {}", in_fee, out_fee);
         let out_fee_amount = out_amount
@@ -204,17 +218,23 @@ impl LPPool {
         in_target_weight: i64,
         dlp_total_supply: u64,
     ) -> DriftResult<(u64, u64, i64, i64)> {
-        let in_fee_pct = if self.last_aum == 0 {
-            0
+        let (in_fee_pct, out_fee_pct) = if self.last_aum == 0 {
+            (0, 0)
         } else {
             self.get_swap_fees(
                 in_spot_market,
-                in_oracle,
+                in_oracle.price,
                 in_constituent,
                 in_amount.cast::<i64>()?,
                 in_target_weight,
+                None,
+                None,
+                None,
+                None,
+                0,
             )?
         };
+        let in_fee_pct = in_fee_pct.safe_add(out_fee_pct)?;
         let in_fee_amount = in_amount
             .cast::<i64>()?
             .safe_mul(in_fee_pct)?
@@ -290,13 +310,19 @@ impl LPPool {
         // .safe_div(token_precision_denominator)?;
         msg!("out_amount: {}", out_amount);
 
-        let out_fee_pct = self.get_swap_fees(
+        let (in_fee_pct, out_fee_pct) = self.get_swap_fees(
             out_spot_market,
-            out_oracle,
+            out_oracle.price,
             out_constituent,
             out_amount.cast::<i64>()?.safe_mul(-1_i64)?,
             out_target_weight,
+            None,
+            None,
+            None,
+            None,
+            0,
         )?;
+        let out_fee_pct = in_fee_pct.safe_add(out_fee_pct)?;
         let out_fee_amount = out_amount
             .cast::<i64>()?
             .safe_mul(out_fee_pct)?
@@ -310,46 +336,246 @@ impl LPPool {
         ))
     }
 
+    pub fn get_linear_fee_inventory(
+        &self,
+        notional_error: i128,
+        trade_notional: i128,
+        kappa_inventory: u64,
+    ) -> DriftResult<i128> {
+        notional_error
+            .safe_mul(trade_notional.signum() as i128)?
+            .safe_mul(kappa_inventory.cast::<i128>()?)?
+            .cast::<i128>()?
+            .safe_div(self.last_aum.cast::<i128>()?)?
+            .safe_mul(PERCENTAGE_PRECISION_I128)?
+            .safe_div(QUOTE_PRECISION_I128)
+    }
+
+    pub fn get_quadratic_fee_inventory(
+        &self,
+        gamma_covar: [[i128; 2]; 2],
+        notional_errors: [i128; 2],
+    ) -> DriftResult<(i128, i128)> {
+        let in_fee = gamma_covar[0][0]
+            .safe_mul(notional_errors[0])?
+            .safe_add(gamma_covar[0][1].safe_mul(notional_errors[1])?)?
+            .safe_div(self.last_aum.cast::<i128>()?)?;
+        let out_fee = gamma_covar[1][0]
+            .safe_mul(notional_errors[0])?
+            .safe_add(gamma_covar[1][1].safe_mul(notional_errors[1])?)?
+            .safe_div(self.last_aum.cast::<i128>()?)?;
+        Ok((in_fee, out_fee))
+    }
+
+    pub fn get_linear_fee_execution(
+        &self,
+        trade_notional: i128,
+        kappa_execution: u64,
+        xi: u8,
+        spot_depth: u128,
+    ) -> DriftResult<i128> {
+        trade_notional
+            .abs()
+            .safe_mul(kappa_execution.cast::<i128>()?)?
+            .safe_mul(xi.cast::<i128>()?)?
+            .cast::<i128>()?
+            .safe_div(spot_depth.cast::<i128>()?)?
+            .safe_mul(PERCENTAGE_PRECISION_I128)?
+            .safe_div(QUOTE_PRECISION_I128)
+    }
+
+    pub fn get_quadratic_fee_execution(
+        &self,
+        trade_notional: i128,
+        kappa_execution: u64,
+        xi: u8,
+        spot_depth: u128,
+    ) -> DriftResult<i128> {
+        let scaled_abs_trade_notional =
+            trade_notional.abs().safe_div(spot_depth.cast::<i128>()?)?;
+
+        kappa_execution
+            .cast::<i128>()?
+            .safe_mul(xi.safe_mul(xi)?.cast::<i128>()?)?
+            .safe_mul(scaled_abs_trade_notional.safe_mul(scaled_abs_trade_notional)?)?
+            .safe_mul(PERCENTAGE_PRECISION_I128)?
+            .safe_div(QUOTE_PRECISION_I128)
+    }
+
     /// returns fee in PERCENTAGE_PRECISION
     pub fn get_swap_fees(
         &self,
-        spot_market: &SpotMarket,
-        oracle: &OraclePriceData,
-        constituent: &Constituent,
-        amount: i64,
-        target_weight: i64,
-    ) -> DriftResult<i64> {
-        // +4,976 CUs to log weight_before
-        let weight_before = constituent.get_weight(oracle.price, spot_market, 0, self.last_aum)?;
-        msg!(
-            "constituent {}: weight_before: {} target_weight: {}",
-            constituent.constituent_index,
-            weight_before,
-            target_weight
-        );
+        in_spot_market: &SpotMarket,
+        in_oracle_price: i64,
+        in_constituent: &Constituent,
+        in_amount: i64,
+        in_target_weight: i64,
+        out_spot_market: Option<&SpotMarket>,
+        out_oracle_price: Option<i64>,
+        out_constituent: Option<&Constituent>,
+        out_target_weight: Option<i64>,
+        correlation: i64,
+    ) -> DriftResult<(i64, i64)> {
+        let notional_trade_size =
+            in_constituent.get_notional(in_oracle_price, in_spot_market, in_amount, false)?;
+        let out_amount = if out_oracle_price.is_some() {
+            notional_trade_size
+                .safe_div(out_oracle_price.unwrap().cast::<i128>()?)?
+                .safe_div(10_i128.pow(out_spot_market.unwrap().decimals as u32))?
+                .cast::<i64>()?
+        } else {
+            0
+        };
 
-        let adjusted_aum = self
-            .last_aum
+        // Compute scalars
+        let in_volatility = in_constituent.volatility;
+        let out_volatility = if out_constituent.is_some() {
+            out_constituent.unwrap().volatility
+        } else {
+            self.volatility
+        };
+        let out_gamma_execution = if out_constituent.is_some() {
+            out_constituent.unwrap().gamma_execution
+        } else {
+            self.gamma_execution
+        };
+        let out_gamma_inventory = if out_constituent.is_some() {
+            out_constituent.unwrap().gamma_inventory
+        } else {
+            0
+        };
+        let out_xi = if out_constituent.is_some() {
+            out_constituent.unwrap().xi
+        } else {
+            self.xi
+        };
+
+        let in_kappa_inventory = in_volatility
+            .safe_mul(in_volatility)?
+            .safe_mul(in_constituent.gamma_inventory as u64)?
+            .safe_div(2u64)?;
+
+        let in_kappa_execution = in_volatility
+            .safe_mul(in_volatility)?
+            .safe_mul(in_constituent.gamma_execution as u64)?
+            .safe_div(2u64)?;
+
+        let out_kappa_inventory = out_volatility
+            .safe_mul(out_volatility)?
+            .safe_mul(out_gamma_inventory as u64)?
+            .safe_div(2u64)?;
+
+        let out_kappa_execution = out_volatility
+            .safe_mul(out_volatility)?
+            .safe_mul(out_gamma_execution as u64)?
+            .safe_div(2u64)?;
+
+        // Compute notional targets and errors
+        let in_notional_target = in_target_weight
             .cast::<i128>()?
-            .safe_add(
-                amount
-                    .cast::<i128>()?
-                    .safe_mul(oracle.price.cast::<i128>()?)?
-                    .safe_div(10_i128.pow(spot_market.decimals as u32))?,
-            )?
-            .cast::<u128>()?;
-        let weight_after =
-            constituent.get_weight(oracle.price, spot_market, amount, adjusted_aum)?;
-        msg!(
-            "constituent {}: weight_after: {} target_weight: {}",
-            constituent.constituent_index,
-            weight_after,
-            target_weight
-        );
-        let fee = constituent.get_fee_to_charge(weight_after, target_weight)?;
-        let fee = fee.min(MAX_SWAP_FEE);
+            .safe_mul(self.last_aum.cast::<i128>()?)?
+            .safe_div(PERCENTAGE_PRECISION_I128)?;
+        let in_notional_before =
+            in_constituent.get_notional(in_oracle_price, in_spot_market, 0, true)?;
+        let in_notional_after =
+            in_constituent.get_notional(in_oracle_price, in_spot_market, in_amount, true)?;
+        let in_notional_error_pre = in_notional_before.safe_sub(in_notional_target)?;
+        let in_notional_error_post = in_notional_after.safe_sub(in_notional_target)?;
+        let average_in_notional_error = in_notional_error_pre
+            .safe_add(in_notional_error_post)?
+            .safe_div(2_i128)?;
 
-        Ok(fee)
+        let (out_notional_target, out_notional_before, out_notional_after) =
+            if out_constituent.is_some() {
+                (
+                    out_target_weight
+                        .unwrap()
+                        .cast::<i128>()?
+                        .safe_mul(self.last_aum.cast::<i128>()?)?
+                        .safe_div(PERCENTAGE_PRECISION_I128)?,
+                    out_constituent.unwrap().get_notional(
+                        out_oracle_price.unwrap(),
+                        out_spot_market.unwrap(),
+                        0,
+                        true,
+                    )?,
+                    out_constituent.unwrap().get_notional(
+                        out_oracle_price.unwrap(),
+                        out_spot_market.unwrap(),
+                        out_amount,
+                        true,
+                    )?,
+                )
+            } else {
+                (0_i128, 0_i128, 0_i128)
+            };
+        let out_notional_error_pre = out_notional_before.safe_sub(out_notional_target)?;
+        let out_notional_error_post = out_notional_after.safe_sub(out_notional_target)?;
+        let average_out_notional_error = out_notional_error_pre
+            .safe_add(out_notional_error_post)?
+            .safe_div(2_i128)?;
+
+        // Linear fee computation amount
+        let in_fee_inventory_linear = self.get_linear_fee_inventory(
+            average_in_notional_error,
+            notional_trade_size,
+            in_kappa_inventory,
+        )?;
+        let out_fee_inventory_linear = self.get_linear_fee_inventory(
+            average_out_notional_error,
+            notional_trade_size,
+            out_kappa_inventory,
+        )?;
+        let in_fee_execution_linear = self.get_linear_fee_execution(
+            notional_trade_size,
+            in_kappa_execution,
+            in_constituent.xi,
+            self.last_aum,
+        )?;
+        let out_fee_execution_linear = self.get_linear_fee_execution(
+            notional_trade_size,
+            out_kappa_execution,
+            out_xi,
+            self.last_aum,
+        )?;
+
+        // Quadratic fee components
+        let in_fee_execution_quadratic = self.get_quadratic_fee_execution(
+            notional_trade_size,
+            in_kappa_execution,
+            in_constituent.xi,
+            self.last_aum,
+        )?;
+        let out_fee_execution_quadratic = self.get_quadratic_fee_execution(
+            notional_trade_size,
+            out_kappa_execution,
+            out_xi,
+            self.last_aum,
+        )?;
+        let (in_quadratic_inventory_fee, out_quadratic_inventory_fee) = self
+            .get_quadratic_fee_inventory(
+                get_gamma_covar_matrix(
+                    correlation,
+                    in_constituent.gamma_inventory,
+                    out_gamma_inventory,
+                    in_constituent.volatility,
+                    out_volatility,
+                )?,
+                [average_in_notional_error, average_out_notional_error],
+            )?;
+
+        let total_in_fee = in_fee_inventory_linear
+            .safe_add(in_fee_execution_linear)?
+            .safe_add(in_fee_execution_quadratic)?
+            .safe_add(in_quadratic_inventory_fee)?
+            .cast::<i64>()?;
+        let total_out_fee = out_fee_inventory_linear
+            .safe_add(out_fee_execution_linear)?
+            .safe_add(out_fee_execution_quadratic)?
+            .safe_add(out_quadratic_inventory_fee)?
+            .cast::<i64>()?;
+
+        Ok((total_in_fee, total_out_fee))
     }
 
     /// Returns the fee to charge for a mint or redeem in PERCENTAGE_PRECISION
@@ -484,6 +710,8 @@ pub struct Constituent {
     /// percentable of derivatve weight to go to this specific derivative PERCENTAGE_PRECISION. Zero if no derivative weight
     pub derivative_weight: u64,
 
+    pub volatility: u64, // volatility in PERCENTAGE_PRECISION 1=1%
+
     pub constituent_derivative_index: i16, // -1 if a parent index
 
     pub spot_market_index: u16,
@@ -493,16 +721,14 @@ pub struct Constituent {
     pub bump: u8,
 
     // Fee params
-    pub volatility: u8, // rounded, 1 = 1%
     pub gamma_inventory: u8,
     pub gamma_execution: u8,
     pub xi: u8,
-
-    pub _padding: [u8; 4],
+    pub _padding: [u8; 5],
 }
 
 impl Size for Constituent {
-    const SIZE: usize = 280;
+    const SIZE: usize = 288;
 }
 
 impl Constituent {
@@ -540,15 +766,11 @@ impl Constituent {
         if lp_pool_aum == 0 {
             return Ok(0);
         }
-        let token_precision = 10_i128.pow(self.decimals as u32);
-
-        let value_usd = self
-            .get_notional(price, spot_market, token_amount_delta, lp_pool_aum)?
-            .cast::<i128>()?;
+        let value_usd = self.get_notional(price, spot_market, token_amount_delta, true)?;
 
         value_usd
             .safe_mul(PERCENTAGE_PRECISION_I64.cast::<i128>()?)?
-            .safe_div(lp_pool_aum.cast::<i128>()?.safe_mul(token_precision)?)?
+            .safe_div(lp_pool_aum.cast::<i128>()?)?
             .cast::<i64>()
     }
 
@@ -556,24 +778,23 @@ impl Constituent {
         &self,
         price: i64,
         spot_market: &SpotMarket,
-        token_amount_delta: i64,
-        lp_pool_aum: u128,
-    ) -> DriftResult<i64> {
-        if lp_pool_aum == 0 {
-            return Ok(0);
-        }
-
-        let balance = self.get_full_balance(spot_market)?.cast::<i128>()?;
+        token_amount: i64,
+        is_delta: bool,
+    ) -> DriftResult<i128> {
         let token_precision = 10_i128.pow(self.decimals as u32);
+        let amount = if is_delta {
+            let balance = self.get_full_balance(spot_market)?.cast::<i128>()?;
+            balance.safe_add(token_amount as i128)?
+        } else {
+            token_amount as i128
+        };
 
-        let value_usd = balance
-            .safe_add(token_amount_delta.cast::<i128>()?)?
-            .safe_mul(price.cast::<i128>()?)?;
+        let value_usd = amount.safe_mul(price.cast::<i128>()?)?;
 
         value_usd
-            .safe_mul(PERCENTAGE_PRECISION_I64.cast::<i128>()?)?
-            .safe_div(lp_pool_aum.cast::<i128>()?.safe_mul(token_precision)?)?
-            .cast::<i64>()
+            .safe_mul(QUOTE_PRECISION_I128)?
+            .safe_div(PRICE_PRECISION_I128)?
+            .safe_div(token_precision)
     }
 
     /// Returns the fee to charge for a swap to/from this constituent
@@ -948,7 +1169,7 @@ pub struct ConstituentCorrelations {
     pub bump: u8,
     _padding: [u8; 3],
     // PERCENTAGE_PRECISION. The weights of the target weight matrix. Updated async
-    pub correlations: Vec<u64>,
+    pub correlations: Vec<i64>,
 }
 
 impl HasLen for ConstituentCorrelations {
@@ -961,7 +1182,7 @@ impl_zero_copy_loader!(
     ConstituentCorrelations,
     crate::id,
     ConstituentCorrelationsFixed,
-    u64
+    i64
 );
 
 impl ConstituentCorrelations {
@@ -982,7 +1203,7 @@ impl ConstituentCorrelations {
             for j in 0..num_constituents {
                 let corr = self.correlations[i * num_constituents + j];
                 validate!(
-                    corr <= PERCENTAGE_PRECISION_I64 as u64,
+                    corr <= PERCENTAGE_PRECISION_I64,
                     ErrorCode::DefaultError,
                     "ConstituentCorrelation correlations must be between 0 and PERCENTAGE_PRECISION"
                 )?;
@@ -995,7 +1216,7 @@ impl ConstituentCorrelations {
             }
             let corr_ii = self.correlations[i * num_constituents + i];
             validate!(
-                corr_ii == PERCENTAGE_PRECISION_I64 as u64,
+                corr_ii == PERCENTAGE_PRECISION_I64,
                 ErrorCode::DefaultError,
                 "ConstituentCorrelation correlations diagonal must be PERCENTAGE_PRECISION"
             )?;
@@ -1004,7 +1225,7 @@ impl ConstituentCorrelations {
         Ok(())
     }
 
-    pub fn add_new_constituent(&mut self, new_constituent_correlations: &[u64]) -> DriftResult {
+    pub fn add_new_constituent(&mut self, new_constituent_correlations: &[i64]) -> DriftResult {
         // Add a new constituent at index N (where N = old size),
         // given a slice `new_corrs` of length `N` such that
         // new_corrs[i] == correlation[i, N].
@@ -1029,7 +1250,7 @@ impl ConstituentCorrelations {
         )?;
         for &c in new_constituent_correlations {
             validate!(
-                c <= PERCENTAGE_PRECISION_I64 as u64,
+                c <= PERCENTAGE_PRECISION_I64,
                 ErrorCode::DefaultError,
                 "correlation must be ≤ PERCENTAGE_PRECISION"
             )?;
@@ -1044,7 +1265,7 @@ impl ConstituentCorrelations {
         }
 
         buf.extend_from_slice(new_constituent_correlations);
-        buf.push(PERCENTAGE_PRECISION_I64 as u64);
+        buf.push(PERCENTAGE_PRECISION_I64);
 
         self.correlations = buf;
 
@@ -1055,7 +1276,7 @@ impl ConstituentCorrelations {
         Ok(())
     }
 
-    pub fn set_correlation(&mut self, i: u16, j: u16, corr: u64) -> DriftResult {
+    pub fn set_correlation(&mut self, i: u16, j: u16, corr: i64) -> DriftResult {
         let num_constituents = (self.correlations.len() as f64).sqrt() as usize;
         validate!(
             i < num_constituents as u16,
@@ -1072,7 +1293,7 @@ impl ConstituentCorrelations {
             num_constituents
         )?;
         validate!(
-            corr <= PERCENTAGE_PRECISION_I64 as u64,
+            corr <= PERCENTAGE_PRECISION_I64,
             ErrorCode::DefaultError,
             "ConstituentCorrelation correlations must be between 0 and PERCENTAGE_PRECISION"
         )?;
@@ -1086,8 +1307,8 @@ impl ConstituentCorrelations {
     }
 }
 
-impl<'a> AccountZeroCopy<'a, u64, ConstituentCorrelationsFixed> {
-    pub fn get_correlation(&self, i: u16, j: u16) -> DriftResult<u64> {
+impl<'a> AccountZeroCopy<'a, i64, ConstituentCorrelationsFixed> {
+    pub fn get_correlation(&self, i: u16, j: u16) -> DriftResult<i64> {
         let num_constituents = (self.len() as f64).sqrt() as usize;
         validate!(
             i < num_constituents as u16,
@@ -1107,4 +1328,48 @@ impl<'a> AccountZeroCopy<'a, u64, ConstituentCorrelationsFixed> {
         let corr = self.get((i as usize * num_constituents + j as usize) as u32);
         Ok(*corr)
     }
+}
+
+pub fn get_gamma_covar_matrix(
+    correlation_ij: i64,
+    gamma_i: u8,
+    gamma_j: u8,
+    vol_i: u64,
+    vol_j: u64,
+) -> DriftResult<[[i128; 2]; 2]> {
+    // Build the covariance matrix
+    let mut covar_matrix = [[0i128; 2]; 2];
+    let scaled_vol_i = (vol_i as i128)
+        .safe_mul(PERCENTAGE_PRECISION_I128)?
+        .safe_div(100_i128)?;
+    let scaled_vol_j = (vol_j as i128)
+        .safe_mul(PERCENTAGE_PRECISION_I128)?
+        .safe_div(100_i128)?;
+    covar_matrix[0][0] = scaled_vol_i.safe_mul(scaled_vol_i)?;
+    covar_matrix[1][1] = scaled_vol_j.safe_mul(scaled_vol_j)?;
+    covar_matrix[0][1] = scaled_vol_i
+        .safe_mul(scaled_vol_j)?
+        .safe_mul(correlation_ij as i128)?;
+    covar_matrix[1][0] = covar_matrix[0][1];
+
+    // Build the gamma matrix as a diagonal matrix
+    let gamma_matrix = [[gamma_i as i128, 0i128], [0i128, gamma_j as i128]];
+
+    // Multiply gamma_matrix with covar_matrix: product = gamma_matrix * covar_matrix
+    let mut product = [[0i128; 2]; 2];
+    for i in 0..2 {
+        for j in 0..2 {
+            for k in 0..2 {
+                product[i][j] = product[i][j]
+                    .checked_add(
+                        gamma_matrix[i][k]
+                            .checked_mul(covar_matrix[k][j])
+                            .ok_or(ErrorCode::MathError)?,
+                    )
+                    .ok_or(ErrorCode::MathError)?;
+            }
+        }
+    }
+
+    Ok(product)
 }

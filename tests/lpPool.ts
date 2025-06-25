@@ -334,7 +334,7 @@ describe('LP Pool', () => {
 			oracleStalenessThreshold: new BN(400),
 			costToTrade: 1,
 			derivativeWeight: ZERO,
-			volatility: 0,
+			volatility: ZERO,
 			constituentCorrelations: [],
 		});
 		const constituentTargetBasePublicKey = getConstituentTargetBasePublicKey(
@@ -383,7 +383,7 @@ describe('LP Pool', () => {
 			oracleStalenessThreshold: new BN(400),
 			costToTrade: 1,
 			derivativeWeight: ZERO,
-			volatility: 10,
+			volatility: new BN(10).mul(PERCENTAGE_PRECISION),
 			constituentCorrelations: [ZERO],
 		});
 	});
@@ -639,7 +639,7 @@ describe('LP Pool', () => {
 			oracleStalenessThreshold: new BN(400),
 			costToTrade: 1,
 			derivativeWeight: PERCENTAGE_PRECISION.divn(2),
-			volatility: 10,
+			volatility: new BN(10).mul(PERCENTAGE_PRECISION),
 			constituentCorrelations: [ZERO, PERCENTAGE_PRECISION.muln(87).divn(100)],
 			constituentDerivativeIndex: 1,
 		});

@@ -1594,7 +1594,7 @@ export type InitializeConstituentParams = {
 	derivativeWeight: BN;
 	constituentDerivativeIndex?: number;
 	constituentCorrelations: BN[];
-	volatility: number;
+	volatility: BN;
 	gammaExecution?: number;
 	gammaInventory?: number;
 	xi?: number;
