@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.125.0] - 2025-06-24
+
+### Features
+
 - program: use three points for std estimator ([#1686](https://github.com/drift-labs/protocol-v2/pull/1686))
 - program: add inventory component amm_spread_adjustment ([#1690](https://github.com/drift-labs/protocol-v2/pull/1690))
 - program: spot market specific rev pool to insurance cap ([#1692](https://github.com/drift-labs/protocol-v2/pull/1692))
