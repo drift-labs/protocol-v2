@@ -245,7 +245,7 @@ describe('LP Pool', () => {
 			oracleStalenessThreshold: new BN(100),
 			costToTrade: 1,
 			derivativeWeight: ZERO,
-			volatility: new BN(10).mul(PERCENTAGE_PRECISION),
+			volatility: PERCENTAGE_PRECISION.muln(4).divn(100),
 			constituentCorrelations: [ZERO],
 		});
 
@@ -472,7 +472,7 @@ describe('LP Pool', () => {
 			outTokenBalanceAfter.amount - outTokenBalanceBefore.amount;
 
 		expect(Number(diffInToken)).to.be.equal(-224_300_000);
-		expect(Number(diffOutToken)).to.be.approximately(980100, 1);
+		expect(Number(diffOutToken)).to.be.approximately(1001296, 1);
 
 		console.log(
 			`in Token:  ${inTokenBalanceBefore.amount} -> ${
@@ -557,8 +557,8 @@ describe('LP Pool', () => {
 			Number(userLpTokenBalanceAfter.amount) -
 			Number(userLpTokenBalanceBefore.amount);
 		expect(userLpTokenBalanceDiff).to.be.equal(
-			(((tokensAdded.toNumber() * 99) / 100) * 9999) / 10000
-		); // max weight deviation: expect 1% fee on constituent, + 0.01% lp mint fee
+			(((tokensAdded.toNumber() * 9997) / 10000) * 9999) / 10000
+		); // max weight deviation: expect min swap% fee on constituent, + 0.01% lp mint fee
 
 		// remove liquidity
 		await adminClient.lpPoolRemoveLiquidity({
@@ -589,7 +589,7 @@ describe('LP Pool', () => {
 		).sub(tokensAdded);
 		const totalC0TokensLostPercent =
 			Number(totalC0TokensLost) / Number(tokensAdded);
-		expect(totalC0TokensLostPercent).to.be.approximately(-0.013, 0.001); // lost about 1.3 swapping in an out
+		expect(totalC0TokensLostPercent).to.be.approximately(-0.0007, 0.0002); // lost about 7bps swapping in an out
 	});
 
 	it('Add Serum Market', async () => {

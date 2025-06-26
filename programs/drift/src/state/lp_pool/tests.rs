@@ -459,7 +459,9 @@ mod tests {
 
 #[cfg(test)]
 mod swap_tests {
-    use crate::math::constants::{PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I64};
+    use crate::math::constants::{
+        PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I64,
+    };
     use crate::state::lp_pool::*;
 
     #[test]
@@ -490,6 +492,8 @@ mod swap_tests {
     }
 
     fn get_swap_amount_decimals_scenario(
+        in_current_weight: u64,
+        out_current_weight: u64,
         in_decimals: u32,
         out_decimals: u32,
         in_amount: u64,
@@ -497,6 +501,14 @@ mod swap_tests {
         expected_out_amount: u64,
         expected_in_fee: i64,
         expected_out_fee: i64,
+        in_xi: u8,
+        out_xi: u8,
+        in_gamma_inventory: u8,
+        out_gamma_inventory: u8,
+        in_gamma_execution: u8,
+        out_gamma_execution: u8,
+        in_volatility: u64,
+        out_volatility: u64,
     ) {
         let lp_pool = LPPool {
             last_aum: 1_000_000_000_000,
@@ -512,10 +524,21 @@ mod swap_tests {
             ..OraclePriceData::default()
         };
 
+        let in_notional = (in_current_weight as u128) * lp_pool.last_aum / PERCENTAGE_PRECISION;
+        let in_token_amount = in_notional * 10_u128.pow(in_decimals) / oracle_0.price as u128;
+
+        let out_notional = (out_current_weight as u128) * lp_pool.last_aum / PERCENTAGE_PRECISION;
+        let out_token_amount = out_notional * 10_u128.pow(out_decimals) / oracle_1.price as u128;
+
         let constituent_0 = Constituent {
             decimals: in_decimals as u8,
             swap_fee_min: PERCENTAGE_PRECISION_I64 / 10000,
             swap_fee_max: PERCENTAGE_PRECISION_I64 / 1000,
+            gamma_execution: in_gamma_execution,
+            gamma_inventory: in_gamma_inventory,
+            xi: in_xi,
+            volatility: in_volatility,
+            token_balance: in_token_amount as u64,
             // max_weight_deviation: PERCENTAGE_PRECISION_I64 / 10,
             ..Constituent::default()
         };
@@ -523,6 +546,11 @@ mod swap_tests {
             decimals: out_decimals as u8,
             swap_fee_min: PERCENTAGE_PRECISION_I64 / 10000,
             swap_fee_max: PERCENTAGE_PRECISION_I64 / 1000,
+            gamma_execution: out_gamma_execution,
+            gamma_inventory: out_gamma_inventory,
+            xi: out_xi,
+            volatility: out_volatility,
+            token_balance: out_token_amount as u64,
             // max_weight_deviation: PERCENTAGE_PRECISION_I64 / 10,
             ..Constituent::default()
         };
@@ -558,31 +586,69 @@ mod swap_tests {
     #[test]
     fn test_get_swap_amount_in_6_out_6() {
         get_swap_amount_decimals_scenario(
+            500_000,
+            500_000,
             6,
             6,
-            233_400_000,
-            233_400_000,
-            999900,
-            23340, // 1 bps
-            99,
+            150_000_000_000,
+            150_000_000_000,
+            642577120,
+            22500000, // 1 bps
+            650930,
+            1,
+            2,
+            1,
+            2,
+            1,
+            2,
+            0u64,
+            PERCENTAGE_PRECISION_U64 * 4 / 100,
         );
     }
 
     #[test]
     fn test_get_swap_amount_in_6_out_9() {
-        get_swap_amount_decimals_scenario(6, 9, 233_400_000, 233_400_000, 999900000, 23340, 99990);
+        get_swap_amount_decimals_scenario(
+            500_000,
+            500_000,
+            6,
+            9,
+            150_000_000_000,
+            150_000_000_000,
+            642577120822,
+            22500000, // 1 bps
+            650930623,
+            1,
+            2,
+            1,
+            2,
+            1,
+            2,
+            0u64,
+            PERCENTAGE_PRECISION_U64 * 4 / 100,
+        );
     }
 
     #[test]
     fn test_get_swap_amount_in_9_out_6() {
         get_swap_amount_decimals_scenario(
+            500_000,
+            500_000,
             9,
             6,
-            233_400_000_000,
-            233_400_000_000,
-            999900,
-            23340000,
-            99,
+            150_000_000_000_000,
+            150_000_000_000_000,
+            642577120,
+            22500000000, // 1 bps
+            650930,
+            1,
+            2,
+            1,
+            2,
+            1,
+            2,
+            0u64,
+            PERCENTAGE_PRECISION_U64 * 4 / 100,
         );
     }
 

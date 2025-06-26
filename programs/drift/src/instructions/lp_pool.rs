@@ -488,6 +488,7 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         &[
             CONSTITUENT_CORRELATIONS_PDA_SEED.as_ref(),
             lp_pool.pubkey.as_ref(),
+            constituent_correlations.fixed.bump.to_le_bytes().as_ref(),
         ],
         &crate::ID,
     )
@@ -1306,18 +1307,11 @@ pub struct LPPoolSwap<'info> {
     pub drift_signer: AccountInfo<'info>,
     pub state: Box<Account<'info, State>>,
     pub lp_pool: AccountLoader<'info, LPPool>,
-    #[account(
-        seeds = [CONSTITUENT_TARGET_BASE_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
-        bump,
-    )]
-    /// CHECK: checked in ConstituentTargetBaseZeroCopy checks
+
+    /// CHECK: checked in ConstituentTargetBaseZeroCopy checks and in ix
     pub constituent_target_base: AccountInfo<'info>,
 
-    #[account(
-        seeds = [CONSTITUENT_CORRELATIONS_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
-        bump,
-    )]
-    /// CHECK: checked in ConstituentCorrelationsZeroCopy checks
+    /// CHECK: checked in ConstituentCorrelationsZeroCopy checks and in ix
     pub constituent_correlations: AccountInfo<'info>,
 
     #[account(
