@@ -486,7 +486,7 @@ describe('LP Pool', () => {
 		);
 	});
 
-	it('lp pool add and remove liquidity', async () => {
+	it('lp pool add and remove liquidity: usdc', async () => {
 		// add c0 liquidity
 		const adminAuth = adminClient.wallet.publicKey;
 		const c0UserTokenAccount = await mockAtaTokenAccountForMint(
@@ -559,6 +559,8 @@ describe('LP Pool', () => {
 		expect(userLpTokenBalanceDiff).to.be.equal(
 			(((tokensAdded.toNumber() * 9997) / 10000) * 9999) / 10000
 		); // max weight deviation: expect min swap% fee on constituent, + 0.01% lp mint fee
+
+		await adminClient.updateLpPoolAum(lpPool, [0, 1]);
 
 		// remove liquidity
 		await adminClient.lpPoolRemoveLiquidity({

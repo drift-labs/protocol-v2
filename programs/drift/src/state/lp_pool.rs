@@ -302,7 +302,6 @@ impl LPPool {
             .cast::<u128>()?
             .safe_mul(QUOTE_PRECISION)?
             .safe_div(dlp_total_supply as u128)?;
-        msg!("proportion: {}", proportion);
 
         // Apply proportion to AUM and convert to token amount
         let out_amount = self
@@ -364,12 +363,6 @@ impl LPPool {
         post_notional_errors: [i128; 2],
         trade_notional: i128,
     ) -> DriftResult<(i128, i128)> {
-        msg!("pre_notional_errors: {:?}", pre_notional_errors);
-        msg!("post_notional_errors: {:?}", post_notional_errors);
-
-        msg!("trade_notional: {}", trade_notional);
-        msg!("gamma_covar: {:?}", gamma_covar);
-
         let gamma_covar_error_pre_in = gamma_covar[0][0]
             .safe_mul(pre_notional_errors[0])?
             .safe_add(gamma_covar[0][1].safe_mul(pre_notional_errors[1])?)?
@@ -532,7 +525,22 @@ impl LPPool {
         let in_notional_after =
             in_constituent.get_notional(in_oracle_price, in_spot_market, in_amount, true)?;
         let in_notional_error_pre = in_notional_before.safe_sub(in_notional_target)?;
-        let in_notional_error_post = in_notional_after.safe_sub(in_notional_target)?;
+
+        // keep aum fixed if it's a swap for calculating post error, othwerise
+        // increase aum first
+        let in_notional_error_post = if out_spot_market.is_some() {
+            in_notional_after.safe_sub(in_notional_target)?
+        } else {
+            let adjusted_aum = self
+                .last_aum
+                .cast::<i128>()?
+                .safe_add(notional_trade_size)?;
+            let in_notional_target_post_mint_redeem = in_target_weight
+                .cast::<i128>()?
+                .safe_mul(adjusted_aum)?
+                .safe_div(PERCENTAGE_PRECISION_I128)?;
+            in_notional_after.safe_sub(in_notional_target_post_mint_redeem)?
+        };
 
         let (out_notional_target, out_notional_before, out_notional_after) =
             if out_constituent.is_some() {
