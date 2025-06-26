@@ -6688,6 +6688,10 @@
         {
           "name": "ammSpreadAdjustment",
           "type": "i8"
+        },
+        {
+          "name": "ammInventorySpreadAdjustment",
+          "type": "i8"
         }
       ]
     },
@@ -10980,11 +10984,18 @@
             "type": "i32"
           },
           {
+            "name": "ammInventorySpreadAdjustment",
+            "docs": [
+              "signed scale amm_spread similar to fee_adjustment logic (-100 = 0, 100 = double)"
+            ],
+            "type": "i8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                12
+                11
               ]
             }
           }
