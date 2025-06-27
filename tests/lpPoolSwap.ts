@@ -472,7 +472,7 @@ describe('LP Pool', () => {
 			outTokenBalanceAfter.amount - outTokenBalanceBefore.amount;
 
 		expect(Number(diffInToken)).to.be.equal(-224_300_000);
-		expect(Number(diffOutToken)).to.be.approximately(1001296, 1);
+		expect(Number(diffOutToken)).to.be.approximately(1001298, 1);
 
 		console.log(
 			`in Token:  ${inTokenBalanceBefore.amount} -> ${
@@ -591,7 +591,7 @@ describe('LP Pool', () => {
 		).sub(tokensAdded);
 		const totalC0TokensLostPercent =
 			Number(totalC0TokensLost) / Number(tokensAdded);
-		expect(totalC0TokensLostPercent).to.be.approximately(-0.0007, 0.0002); // lost about 7bps swapping in an out
+		expect(totalC0TokensLostPercent).to.be.approximately(-0.0006, 0.0001); // lost about 7bps swapping in an out
 	});
 
 	it('Add Serum Market', async () => {

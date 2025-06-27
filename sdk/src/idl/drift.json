@@ -7848,7 +7848,7 @@
         },
         {
           "name": "inAmount",
-          "type": "u64"
+          "type": "u128"
         },
         {
           "name": "minMintAmount",
@@ -7936,7 +7936,7 @@
         },
         {
           "name": "minOutAmount",
-          "type": "u64"
+          "type": "u128"
         }
       ]
     },
@@ -15651,22 +15651,22 @@
         },
         {
           "name": "outAmount",
-          "type": "u64",
+          "type": "u128",
           "index": false
         },
         {
           "name": "inAmount",
-          "type": "u64",
+          "type": "u128",
           "index": false
         },
         {
           "name": "outFee",
-          "type": "i64",
+          "type": "i128",
           "index": false
         },
         {
           "name": "inFee",
-          "type": "i64",
+          "type": "i128",
           "index": false
         },
         {
@@ -15776,12 +15776,12 @@
         },
         {
           "name": "amount",
-          "type": "u64",
+          "type": "u128",
           "index": false
         },
         {
           "name": "fee",
-          "type": "i64",
+          "type": "i128",
           "index": false
         },
         {
