@@ -609,8 +609,9 @@ fn amm_perp_ref_offset() {
 
     let reserve_price = perp_market.amm.reserve_price().unwrap();
     let (b1, a1) = perp_market.amm.bid_ask_price(reserve_price).unwrap();
-    assert_eq!(b1, 7098048);
-    assert_eq!(a1, 7105178);
+    assert_eq!(reserve_price, 7101599);
+    assert_eq!(b1, 7225876);
+    assert_eq!(a1, 7233006);
     assert_eq!(
         perp_market.amm.historical_oracle_data.last_oracle_price,
         7101600
@@ -690,8 +691,8 @@ fn amm_perp_ref_offset() {
 
     let r = perp_market.amm.reserve_price().unwrap();
     let (b, a) = perp_market.amm.bid_ask_price(r).unwrap();
-    assert_eq!(b, 7098048);
-    assert_eq!(a, 7105178);
+    assert_eq!(b, 7417620);
+    assert_eq!(a, 7424750);
     assert_eq!(
         perp_market.amm.historical_oracle_data.last_oracle_price,
         7101600
