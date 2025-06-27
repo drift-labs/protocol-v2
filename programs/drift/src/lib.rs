@@ -1839,7 +1839,7 @@ pub mod drift {
     pub fn lp_pool_add_liquidity<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, LPPoolAddLiquidity<'info>>,
         in_market_index: u16,
-        in_amount: u64,
+        in_amount: u128,
         min_mint_amount: u64,
     ) -> Result<()> {
         handle_lp_pool_add_liquidity(ctx, in_market_index, in_amount, min_mint_amount)
@@ -1849,7 +1849,7 @@ pub mod drift {
         ctx: Context<'_, '_, 'c, 'info, LPPoolRemoveLiquidity<'info>>,
         in_market_index: u16,
         in_amount: u64,
-        min_out_amount: u64,
+        min_out_amount: u128,
     ) -> Result<()> {
         handle_lp_pool_remove_liquidity(ctx, in_market_index, in_amount, min_out_amount)
     }

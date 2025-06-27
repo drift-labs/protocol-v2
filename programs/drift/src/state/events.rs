@@ -681,13 +681,13 @@ pub struct LPSwapRecord {
     pub slot: u64,
     pub authority: Pubkey,
     /// precision: out market mint precision, gross fees
-    pub out_amount: u64,
+    pub out_amount: u128,
     /// precision: in market mint precision, gross fees
-    pub in_amount: u64,
+    pub in_amount: u128,
     /// precision: fee on amount_out, in market mint precision
-    pub out_fee: i64,
+    pub out_fee: i128,
     /// precision: fee on amount_in, out market mint precision
-    pub in_fee: i64,
+    pub in_fee: i128,
     // out spot market index
     pub out_spot_market_index: u16,
     // in spot market index
@@ -727,9 +727,9 @@ pub struct LPMintRedeemRecord {
     pub authority: Pubkey,
     pub is_minting: bool,
     /// precision: continutent mint precision, gross fees
-    pub amount: u64,
+    pub amount: u128,
     /// precision: fee on amount, constituent market mint precision
-    pub fee: i64,
+    pub fee: i128,
     // spot market index
     pub spot_market_index: u16,
     // constituent index
