@@ -1588,6 +1588,8 @@ export type ConstituentAccount = {
 	spotMarketIndex: number;
 	constituentIndex: number;
 	decimals: number;
+	bump: number;
+	constituentDerivativeIndex: number;
 	maxWeightDeviation: BN;
 	swapFeeMin: BN;
 	swapFeeMax: BN;
@@ -1597,7 +1599,12 @@ export type ConstituentAccount = {
 	lastOraclePrice: BN;
 	lastOracleSlot: BN;
 	mint: PublicKey;
-	bump: number;
+	oracleStalenessThreshold: BN;
+	lpPool: PublicKey;
+	tokenVault: PublicKey;
+	nextSwapId: BN;
+	derivativeWeight: BN;
+	flashLoanInitialTokenAmount: BN;
 };
 
 export type CacheInfo = {
