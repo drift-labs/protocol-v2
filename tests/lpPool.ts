@@ -325,17 +325,18 @@ describe('LP Pool', () => {
 	});
 
 	it('can add constituents to LP Pool', async () => {
-		await adminClient.initializeConstituent(
-			encodeName(lpPoolName),
-			0,
-			6,
-			new BN(10).mul(PERCENTAGE_PRECISION),
-			new BN(1).mul(PERCENTAGE_PRECISION),
-			new BN(2).mul(PERCENTAGE_PRECISION),
-			new BN(400),
-			1,
-			PERCENTAGE_PRECISION
-		);
+		await adminClient.initializeConstituent(encodeName(lpPoolName), {
+			spotMarketIndex: 0,
+			decimals: 6,
+			maxWeightDeviation: new BN(10).mul(PERCENTAGE_PRECISION),
+			swapFeeMin: new BN(1).mul(PERCENTAGE_PRECISION),
+			swapFeeMax: new BN(2).mul(PERCENTAGE_PRECISION),
+			oracleStalenessThreshold: new BN(400),
+			costToTrade: 1,
+			derivativeWeight: ZERO,
+			volatility: ZERO,
+			constituentCorrelations: [],
+		});
 		const constituentTargetBasePublicKey = getConstituentTargetBasePublicKey(
 			program.programId,
 			lpPoolKey
@@ -373,17 +374,18 @@ describe('LP Pool', () => {
 		expect(constituentTokenVault).to.not.be.null;
 
 		// Add second constituent representing SOL
-		await adminClient.initializeConstituent(
-			lpPool.name,
-			1,
-			6,
-			new BN(10).mul(PERCENTAGE_PRECISION),
-			new BN(1).mul(PERCENTAGE_PRECISION),
-			new BN(2).mul(PERCENTAGE_PRECISION),
-			new BN(400),
-			1,
-			ZERO
-		);
+		await adminClient.initializeConstituent(lpPool.name, {
+			spotMarketIndex: 1,
+			decimals: 6,
+			maxWeightDeviation: new BN(10).mul(PERCENTAGE_PRECISION),
+			swapFeeMin: new BN(1).mul(PERCENTAGE_PRECISION),
+			swapFeeMax: new BN(2).mul(PERCENTAGE_PRECISION),
+			oracleStalenessThreshold: new BN(400),
+			costToTrade: 1,
+			derivativeWeight: ZERO,
+			volatility: new BN(10).mul(PERCENTAGE_PRECISION),
+			constituentCorrelations: [ZERO],
+		});
 	});
 
 	it('can add amm mapping datum', async () => {
@@ -628,18 +630,19 @@ describe('LP Pool', () => {
 			lpPoolKey
 		)) as LPPoolAccount;
 
-		await adminClient.initializeConstituent(
-			lpPool.name,
-			2,
-			6,
-			new BN(10).mul(PERCENTAGE_PRECISION),
-			new BN(1).mul(PERCENTAGE_PRECISION),
-			new BN(2).mul(PERCENTAGE_PRECISION),
-			new BN(400),
-			1,
-			PERCENTAGE_PRECISION.divn(2), // 50% weight against SOL
-			1
-		);
+		await adminClient.initializeConstituent(lpPool.name, {
+			spotMarketIndex: 2,
+			decimals: 6,
+			maxWeightDeviation: new BN(10).mul(PERCENTAGE_PRECISION),
+			swapFeeMin: new BN(1).mul(PERCENTAGE_PRECISION),
+			swapFeeMax: new BN(2).mul(PERCENTAGE_PRECISION),
+			oracleStalenessThreshold: new BN(400),
+			costToTrade: 1,
+			derivativeWeight: PERCENTAGE_PRECISION.divn(2),
+			volatility: new BN(10).mul(PERCENTAGE_PRECISION),
+			constituentCorrelations: [ZERO, PERCENTAGE_PRECISION.muln(87).divn(100)],
+			constituentDerivativeIndex: 1,
+		});
 
 		await adminClient.updateAmmCache([0, 1, 2]);
 

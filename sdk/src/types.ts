@@ -1583,6 +1583,23 @@ export type BLPosition = {
 	balanceType: SpotBalanceType;
 };
 
+export type InitializeConstituentParams = {
+	spotMarketIndex: number;
+	decimals: number;
+	maxWeightDeviation: BN;
+	swapFeeMin: BN;
+	swapFeeMax: BN;
+	oracleStalenessThreshold: BN;
+	costToTrade: number;
+	derivativeWeight: BN;
+	constituentDerivativeIndex?: number;
+	constituentCorrelations: BN[];
+	volatility: BN;
+	gammaExecution?: number;
+	gammaInventory?: number;
+	xi?: number;
+};
+
 export type ConstituentAccount = {
 	pubkey: PublicKey;
 	spotMarketIndex: number;

@@ -28,7 +28,8 @@ use crate::{
         events::{LPMintRedeemRecord, LPSwapRecord},
         lp_pool::{
             calculate_target_weight, AmmConstituentDatum, AmmConstituentMappingFixed, Constituent,
-            ConstituentTargetBaseFixed, LPPool, TargetsDatum, WeightValidationFlags,
+            ConstituentCorrelations, ConstituentCorrelationsFixed, ConstituentTargetBaseFixed,
+            LPPool, TargetsDatum, WeightValidationFlags, CONSTITUENT_CORRELATIONS_PDA_SEED,
         },
         oracle::OraclePriceData,
         oracle_map::OracleMap,
@@ -480,6 +481,24 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         "Constituent target weights PDA does not match expected PDA"
     )?;
 
+    let constituent_correlation_key = &ctx.accounts.constituent_correlations.key();
+    let constituent_correlations: AccountZeroCopy<'_, i64, ConstituentCorrelationsFixed> =
+        ctx.accounts.constituent_correlations.load_zc()?;
+    let expected_correlation_pda = &Pubkey::create_program_address(
+        &[
+            CONSTITUENT_CORRELATIONS_PDA_SEED.as_ref(),
+            lp_pool.pubkey.as_ref(),
+            constituent_correlations.fixed.bump.to_le_bytes().as_ref(),
+        ],
+        &crate::ID,
+    )
+    .map_err(|_| ErrorCode::InvalidPDA)?;
+    validate!(
+        expected_correlation_pda.eq(constituent_correlation_key),
+        ErrorCode::InvalidPDA,
+        "Constituent correlations PDA does not match expected PDA"
+    )?;
+
     let AccountMaps {
         perp_market_map: _,
         spot_market_map,
@@ -558,7 +577,11 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         &out_spot_market,
         in_target_weight,
         out_target_weight,
-        in_amount,
+        in_amount as u128,
+        constituent_correlations.get_correlation(
+            in_constituent.constituent_index,
+            out_constituent.constituent_index,
+        )?,
     )?;
     msg!(
         "in_amount: {}, out_amount: {}, in_fee: {}, out_fee: {}",
@@ -568,13 +591,13 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         out_fee
     );
     let out_amount_net_fees = if out_fee > 0 {
-        out_amount.safe_sub(out_fee.unsigned_abs() as u64)?
+        out_amount.safe_sub(out_fee.unsigned_abs())?
     } else {
-        out_amount.safe_add(out_fee.unsigned_abs() as u64)?
+        out_amount.safe_add(out_fee.unsigned_abs())?
     };
 
     validate!(
-        out_amount_net_fees >= min_out_amount,
+        out_amount_net_fees.cast::<u64>()? >= min_out_amount,
         ErrorCode::SlippageOutsideLimit,
         format!(
             "Slippage outside limit: out_amount_net_fees({}) < min_out_amount({})",
@@ -584,7 +607,7 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
     )?;
 
     validate!(
-        out_amount_net_fees <= out_constituent.token_balance,
+        out_amount_net_fees.cast::<u64>()? <= out_constituent.token_balance,
         ErrorCode::InsufficientConstituentTokenBalance,
         format!(
             "Insufficient out constituent balance: out_amount_net_fees({}) > out_constituent.token_balance({})",
@@ -640,7 +663,7 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         &ctx.accounts.user_in_token_account,
         &ctx.accounts.constituent_in_token_account,
         &ctx.accounts.authority,
-        in_amount,
+        in_amount.cast::<u64>()?,
         &Some((*ctx.accounts.in_market_mint).clone()),
     )?;
 
@@ -650,7 +673,7 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         &ctx.accounts.user_out_token_account,
         &ctx.accounts.drift_signer,
         state.signer_nonce,
-        out_amount_net_fees,
+        out_amount_net_fees.cast::<u64>()?,
         &Some((*ctx.accounts.out_market_mint).clone()),
     )?;
 
@@ -669,7 +692,7 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
 pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, LPPoolAddLiquidity<'info>>,
     in_market_index: u16,
-    in_amount: u64,
+    in_amount: u128,
     min_mint_amount: u64,
 ) -> Result<()> {
     let slot = Clock::get()?.slot;
@@ -775,7 +798,7 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
         &ctx.accounts.user_in_token_account,
         &ctx.accounts.constituent_in_token_account,
         &ctx.accounts.authority,
-        in_amount,
+        in_amount.cast::<u64>()?,
         &Some((*ctx.accounts.in_market_mint).clone()),
     )?;
 
@@ -857,7 +880,7 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, LPPoolRemoveLiquidity<'info>>,
     out_market_index: u16,
     lp_to_burn: u64,
-    min_amount_out: u64,
+    min_amount_out: u128,
 ) -> Result<()> {
     let slot = Clock::get()?.slot;
     let now = Clock::get()?.unix_timestamp;
@@ -941,9 +964,9 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
     };
 
     let out_amount_net_fees = if out_fee_amount > 0 {
-        out_amount.safe_sub(out_fee_amount.unsigned_abs() as u64)?
+        out_amount.safe_sub(out_fee_amount.unsigned_abs())?
     } else {
-        out_amount.safe_add(out_fee_amount.unsigned_abs() as u64)?
+        out_amount.safe_add(out_fee_amount.unsigned_abs())?
     };
 
     validate!(
@@ -983,7 +1006,7 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
         &ctx.accounts.user_out_token_account,
         &ctx.accounts.drift_signer,
         state.signer_nonce,
-        out_amount_net_fees,
+        out_amount_net_fees.cast::<u64>()?,
         &None,
     )?;
 
@@ -1284,12 +1307,12 @@ pub struct LPPoolSwap<'info> {
     pub drift_signer: AccountInfo<'info>,
     pub state: Box<Account<'info, State>>,
     pub lp_pool: AccountLoader<'info, LPPool>,
-    #[account(
-        seeds = [CONSTITUENT_TARGET_BASE_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
-        bump,
-    )]
-    /// CHECK: checked in ConstituentTargetBaseZeroCopy checks
+
+    /// CHECK: checked in ConstituentTargetBaseZeroCopy checks and in ix
     pub constituent_target_base: AccountInfo<'info>,
+
+    /// CHECK: checked in ConstituentCorrelationsZeroCopy checks and in ix
+    pub constituent_correlations: AccountInfo<'info>,
 
     #[account(
         mut,

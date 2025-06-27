@@ -6,8 +6,9 @@ use std::mem::size_of;
 use crate::math::amm::calculate_net_user_pnl;
 use crate::msg;
 use crate::state::lp_pool::{
-    AmmConstituentDatum, AmmConstituentMapping, Constituent, ConstituentTargetBase, LPPool,
-    TargetsDatum, AMM_MAP_PDA_SEED, CONSTITUENT_PDA_SEED, CONSTITUENT_TARGET_BASE_PDA_SEED,
+    AmmConstituentDatum, AmmConstituentMapping, Constituent, ConstituentCorrelations,
+    ConstituentTargetBase, LPPool, TargetsDatum, AMM_MAP_PDA_SEED,
+    CONSTITUENT_CORRELATIONS_PDA_SEED, CONSTITUENT_PDA_SEED, CONSTITUENT_TARGET_BASE_PDA_SEED,
     CONSTITUENT_VAULT_PDA_SEED,
 };
 use anchor_lang::prelude::*;
@@ -4555,7 +4556,9 @@ pub fn handle_initialize_lp_pool(
         usdc_consituent_index: 0,
         cumulative_usdc_sent_to_perp_markets: 0,
         cumulative_usdc_received_from_perp_markets: 0,
-        _padding: [0; 10],
+        gamma_execution: 2,
+        volatility: 4,
+        xi: 2,
     };
 
     let amm_constituent_mapping = &mut ctx.accounts.amm_constituent_mapping;
@@ -4571,6 +4574,11 @@ pub fn handle_initialize_lp_pool(
         .targets
         .resize_with(0 as usize, TargetsDatum::default);
     constituent_target_base.validate()?;
+
+    let consituent_correlations = &mut ctx.accounts.constituent_correlations;
+    consituent_correlations.bump = ctx.bumps.constituent_correlations;
+    consituent_correlations.correlations.resize(0 as usize, 0);
+    consituent_correlations.validate()?;
 
     Ok(())
 }
@@ -4781,6 +4789,11 @@ pub fn handle_initialize_constituent<'info>(
     cost_to_trade_bps: i32,
     constituent_derivative_index: Option<i16>,
     derivative_weight: u64,
+    volatility: u64,
+    gamma_execution: u8,
+    gamma_inventory: u8,
+    xi: u8,
+    new_constituent_correlations: Vec<i64>,
 ) -> Result<()> {
     let mut constituent = ctx.accounts.constituent.load_init()?;
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
@@ -4827,11 +4840,25 @@ pub fn handle_initialize_constituent<'info>(
     constituent.next_swap_id = 1;
     constituent.constituent_derivative_index = constituent_derivative_index.unwrap_or(-1);
     constituent.derivative_weight = derivative_weight;
+    constituent.volatility = volatility;
+    constituent.gamma_execution = gamma_execution;
+    constituent.gamma_inventory = gamma_inventory;
+    constituent.xi = xi;
     lp_pool.constituents += 1;
 
     if constituent.mint.eq(&usdc_mint::ID) {
         lp_pool.usdc_consituent_index = constituent.constituent_index;
     }
+
+    let constituent_correlations = &mut ctx.accounts.constituent_correlations;
+    validate!(
+        new_constituent_correlations.len() as u16 == lp_pool.constituents - 1,
+        ErrorCode::InvalidConstituent,
+        "expected {} correlations, got {}",
+        lp_pool.constituents,
+        new_constituent_correlations.len()
+    )?;
+    constituent_correlations.add_new_constituent(&new_constituent_correlations)?;
 
     Ok(())
 }
@@ -4845,6 +4872,10 @@ pub struct ConstituentParams {
     pub cost_to_trade_bps: Option<i32>,
     pub constituent_derivative_index: Option<i16>,
     pub derivative_weight: Option<u64>,
+    pub volatility: Option<u8>,
+    pub gamma_execution: Option<u8>,
+    pub gamma_inventory: Option<u8>,
+    pub xi: Option<u8>,
 }
 
 pub fn handle_update_constituent_params<'info>(
@@ -4922,6 +4953,29 @@ pub fn handle_update_constituent_params<'info>(
         );
         constituent.constituent_derivative_index =
             constituent_params.constituent_derivative_index.unwrap();
+    }
+
+    if constituent_params.gamma_execution.is_some() {
+        msg!(
+            "gamma_execution: {:?} -> {:?}",
+            constituent.gamma_execution,
+            constituent_params.gamma_execution
+        );
+        constituent.gamma_execution = constituent_params.gamma_execution.unwrap();
+    }
+
+    if constituent_params.gamma_inventory.is_some() {
+        msg!(
+            "gamma_inventory: {:?} -> {:?}",
+            constituent.gamma_inventory,
+            constituent_params.gamma_inventory
+        );
+        constituent.gamma_inventory = constituent_params.gamma_inventory.unwrap();
+    }
+
+    if constituent_params.xi.is_some() {
+        msg!("xi: {:?} -> {:?}", constituent.xi, constituent_params.xi);
+        constituent.xi = constituent_params.xi.unwrap();
     }
 
     Ok(())
@@ -6215,6 +6269,15 @@ pub struct InitializeLpPool<'info> {
     pub constituent_target_base: Box<Account<'info, ConstituentTargetBase>>,
 
     #[account(
+        init,
+        seeds = [CONSTITUENT_CORRELATIONS_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        bump,
+        space = ConstituentCorrelations::space(0 as usize),
+        payer = admin,
+    )]
+    pub constituent_correlations: Box<Account<'info, ConstituentCorrelations>>,
+
+    #[account(
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
@@ -6252,6 +6315,16 @@ pub struct InitializeConstituent<'info> {
         realloc::zero = false,
     )]
     pub constituent_target_base: Box<Account<'info, ConstituentTargetBase>>,
+
+    #[account(
+        mut,
+        seeds = [CONSTITUENT_CORRELATIONS_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        bump = constituent_correlations.bump,
+        realloc = ConstituentCorrelations::space(constituent_target_base.targets.len() + 1 as usize),
+        realloc::payer = admin,
+        realloc::zero = false,
+    )]
+    pub constituent_correlations: Box<Account<'info, ConstituentCorrelations>>,
 
     #[account(
         init,

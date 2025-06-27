@@ -20,6 +20,7 @@ import {
 	AddAmmConstituentMappingDatum,
 	TxParams,
 	SwapReduceOnly,
+	InitializeConstituentParams,
 } from './types';
 import { DEFAULT_MARKET_NAME, encodeName } from './userName';
 import { BN } from '@coral-xyz/anchor';
@@ -51,6 +52,7 @@ import {
 	getAmmCachePublicKey,
 	getLpPoolTokenVaultPublicKey,
 	getDriftSignerPublicKey,
+	getConstituentCorrelationsPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import {
@@ -4457,6 +4459,10 @@ export class AdminClient extends DriftClient {
 							this.program.programId,
 							lpPool
 						),
+						constituentCorrelations: getConstituentCorrelationsPublicKey(
+							this.program.programId,
+							lpPool
+						),
 						ammConstituentMapping,
 						constituentTargetBase,
 						mint: mint.publicKey,
@@ -4474,27 +4480,11 @@ export class AdminClient extends DriftClient {
 
 	public async initializeConstituent(
 		lpPoolName: number[],
-		spotMarketIndex: number,
-		decimals: number,
-		maxWeightDeviation: BN,
-		swapFeeMin: BN,
-		swapFeeMax: BN,
-		oracleStalenessThreshold: BN,
-		costToTrade: number,
-		derivativeWeight: BN,
-		constituentDerivativeIndex?: number
+		initializeConstituentParams: InitializeConstituentParams
 	): Promise<TransactionSignature> {
 		const ixs = await this.getInitializeConstituentIx(
 			lpPoolName,
-			spotMarketIndex,
-			decimals,
-			maxWeightDeviation,
-			swapFeeMin,
-			swapFeeMax,
-			oracleStalenessThreshold,
-			costToTrade,
-			derivativeWeight,
-			constituentDerivativeIndex
+			initializeConstituentParams
 		);
 		const tx = await this.buildTransaction(ixs);
 		const { txSig } = await this.sendTransaction(tx, []);
@@ -4503,17 +4493,10 @@ export class AdminClient extends DriftClient {
 
 	public async getInitializeConstituentIx(
 		lpPoolName: number[],
-		spotMarketIndex: number,
-		decimals: number,
-		maxWeightDeviation: BN,
-		swapFeeMin: BN,
-		swapFeeMax: BN,
-		oracleStalenessThreshold: BN,
-		costToTrade: number,
-		derivativeWeight: BN,
-		constituentDerivativeIndex?: number
+		initializeConstituentParams: InitializeConstituentParams
 	): Promise<TransactionInstruction[]> {
 		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
+		const spotMarketIndex = initializeConstituentParams.spotMarketIndex;
 		const constituentTargetBase = getConstituentTargetBasePublicKey(
 			this.program.programId,
 			lpPool
@@ -4528,14 +4511,31 @@ export class AdminClient extends DriftClient {
 		return [
 			this.program.instruction.initializeConstituent(
 				spotMarketIndex,
-				decimals,
-				maxWeightDeviation,
-				swapFeeMin,
-				swapFeeMax,
-				oracleStalenessThreshold,
-				costToTrade,
-				constituentDerivativeIndex != null ? constituentDerivativeIndex : null,
-				constituentDerivativeIndex != null ? derivativeWeight : ZERO,
+				initializeConstituentParams.decimals,
+				initializeConstituentParams.maxWeightDeviation,
+				initializeConstituentParams.swapFeeMin,
+				initializeConstituentParams.swapFeeMax,
+				initializeConstituentParams.oracleStalenessThreshold,
+				initializeConstituentParams.costToTrade,
+				initializeConstituentParams.constituentDerivativeIndex != null
+					? initializeConstituentParams.constituentDerivativeIndex
+					: null,
+				initializeConstituentParams.constituentDerivativeIndex != null
+					? initializeConstituentParams.derivativeWeight
+					: ZERO,
+				initializeConstituentParams.volatility != null
+					? initializeConstituentParams.volatility
+					: 10,
+				initializeConstituentParams.gammaExecution != null
+					? initializeConstituentParams.gammaExecution
+					: 2,
+				initializeConstituentParams.gammaInventory != null
+					? initializeConstituentParams.gammaInventory
+					: 2,
+				initializeConstituentParams.xi != null
+					? initializeConstituentParams.xi
+					: 2,
+				initializeConstituentParams.constituentCorrelations,
 				{
 					accounts: {
 						admin: this.wallet.publicKey,
@@ -4550,6 +4550,10 @@ export class AdminClient extends DriftClient {
 							this.program.programId,
 							lpPool,
 							spotMarketIndex
+						),
+						constituentCorrelations: getConstituentCorrelationsPublicKey(
+							this.program.programId,
+							lpPool
 						),
 						driftSigner: this.getSignerPublicKey(),
 						tokenProgram: TOKEN_PROGRAM_ID,
@@ -4571,6 +4575,10 @@ export class AdminClient extends DriftClient {
 			costToTradeBps?: number;
 			derivativeWeight?: BN;
 			constituentDerivativeIndex?: number;
+			volatility?: number;
+			gammaExecution?: number;
+			gammaInventory?: number;
+			xi?: number;
 		}
 	): Promise<TransactionSignature> {
 		const ixs = await this.getUpdateConstituentParamsIx(
@@ -4593,6 +4601,10 @@ export class AdminClient extends DriftClient {
 			oracleStalenessThreshold?: BN;
 			derivativeWeight?: BN;
 			constituentDerivativeIndex?: number;
+			volatility?: number;
+			gammaExecution?: number;
+			gammaInventory?: number;
+			xi?: number;
 		}
 	): Promise<TransactionInstruction[]> {
 		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
@@ -4608,6 +4620,10 @@ export class AdminClient extends DriftClient {
 						stablecoinWeight: null,
 						derivativeWeight: null,
 						constituentDerivativeIndex: null,
+						volatility: null,
+						gammaExecution: null,
+						gammaInventory: null,
+						xi: null,
 					},
 					updateConstituentParams
 				),

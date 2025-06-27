@@ -113,6 +113,7 @@ import {
 	getAmmCachePublicKey,
 	getLpPoolTokenVaultPublicKey,
 	getConstituentVaultPublicKey,
+	getConstituentCorrelationsPublicKey,
 } from './addresses/pda';
 import {
 	DataAndSlot,
@@ -9965,6 +9966,10 @@ export class DriftClient {
 					constituentTargetBase,
 					constituentInTokenAccount,
 					constituentOutTokenAccount,
+					constituentCorrelations: getConstituentCorrelationsPublicKey(
+						this.program.programId,
+						lpPool
+					),
 					userInTokenAccount,
 					userOutTokenAccount,
 					inConstituent,

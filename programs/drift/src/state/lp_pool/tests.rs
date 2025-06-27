@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod tests {
-    use crate::math::constants::{PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I64};
+    use crate::math::constants::{
+        BASE_PRECISION_I64, PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I64,
+    };
     use crate::state::lp_pool::*;
     use std::{cell::RefCell, marker::PhantomData, vec};
 
@@ -457,7 +459,9 @@ mod tests {
 
 #[cfg(test)]
 mod swap_tests {
-    use crate::math::constants::{PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I64};
+    use crate::math::constants::{
+        PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I64,
+    };
     use crate::state::lp_pool::*;
 
     #[test]
@@ -488,13 +492,23 @@ mod swap_tests {
     }
 
     fn get_swap_amount_decimals_scenario(
+        in_current_weight: u64,
+        out_current_weight: u64,
         in_decimals: u32,
         out_decimals: u32,
         in_amount: u64,
-        expected_in_amount: u64,
-        expected_out_amount: u64,
-        expected_in_fee: i64,
-        expected_out_fee: i64,
+        expected_in_amount: u128,
+        expected_out_amount: u128,
+        expected_in_fee: i128,
+        expected_out_fee: i128,
+        in_xi: u8,
+        out_xi: u8,
+        in_gamma_inventory: u8,
+        out_gamma_inventory: u8,
+        in_gamma_execution: u8,
+        out_gamma_execution: u8,
+        in_volatility: u64,
+        out_volatility: u64,
     ) {
         let lp_pool = LPPool {
             last_aum: 1_000_000_000_000,
@@ -510,10 +524,21 @@ mod swap_tests {
             ..OraclePriceData::default()
         };
 
+        let in_notional = (in_current_weight as u128) * lp_pool.last_aum / PERCENTAGE_PRECISION;
+        let in_token_amount = in_notional * 10_u128.pow(in_decimals) / oracle_0.price as u128;
+
+        let out_notional = (out_current_weight as u128) * lp_pool.last_aum / PERCENTAGE_PRECISION;
+        let out_token_amount = out_notional * 10_u128.pow(out_decimals) / oracle_1.price as u128;
+
         let constituent_0 = Constituent {
             decimals: in_decimals as u8,
             swap_fee_min: PERCENTAGE_PRECISION_I64 / 10000,
             swap_fee_max: PERCENTAGE_PRECISION_I64 / 1000,
+            gamma_execution: in_gamma_execution,
+            gamma_inventory: in_gamma_inventory,
+            xi: in_xi,
+            volatility: in_volatility,
+            token_balance: in_token_amount as u64,
             // max_weight_deviation: PERCENTAGE_PRECISION_I64 / 10,
             ..Constituent::default()
         };
@@ -521,6 +546,11 @@ mod swap_tests {
             decimals: out_decimals as u8,
             swap_fee_min: PERCENTAGE_PRECISION_I64 / 10000,
             swap_fee_max: PERCENTAGE_PRECISION_I64 / 1000,
+            gamma_execution: out_gamma_execution,
+            gamma_inventory: out_gamma_inventory,
+            xi: out_xi,
+            volatility: out_volatility,
+            token_balance: out_token_amount as u64,
             // max_weight_deviation: PERCENTAGE_PRECISION_I64 / 10,
             ..Constituent::default()
         };
@@ -543,7 +573,8 @@ mod swap_tests {
                 &spot_market_1,
                 500_000,
                 500_000,
-                in_amount,
+                in_amount.cast::<u128>().unwrap(),
+                0,
             )
             .unwrap();
         assert_eq!(in_amount, expected_in_amount);
@@ -555,31 +586,69 @@ mod swap_tests {
     #[test]
     fn test_get_swap_amount_in_6_out_6() {
         get_swap_amount_decimals_scenario(
+            500_000,
+            500_000,
             6,
             6,
-            233_400_000,
-            233_400_000,
-            999900,
-            23340, // 1 bps
-            99,
+            150_000_000_000,
+            150_000_000_000,
+            642577120,
+            22500000, // 1 bps
+            281448,
+            1,
+            2,
+            1,
+            2,
+            1,
+            2,
+            0u64,
+            PERCENTAGE_PRECISION_U64 * 4 / 100,
         );
     }
 
     #[test]
     fn test_get_swap_amount_in_6_out_9() {
-        get_swap_amount_decimals_scenario(6, 9, 233_400_000, 233_400_000, 999900000, 23340, 99990);
+        get_swap_amount_decimals_scenario(
+            500_000,
+            500_000,
+            6,
+            9,
+            150_000_000_000,
+            150_000_000_000,
+            642577120822,
+            22500000,
+            281448778,
+            1,
+            2,
+            1,
+            2,
+            1,
+            2,
+            0u64,
+            PERCENTAGE_PRECISION_U64 * 4 / 100,
+        );
     }
 
     #[test]
     fn test_get_swap_amount_in_9_out_6() {
         get_swap_amount_decimals_scenario(
+            500_000,
+            500_000,
             9,
             6,
-            233_400_000_000,
-            233_400_000_000,
-            999900,
-            23340000,
-            99,
+            150_000_000_000_000,
+            150_000_000_000_000,
+            642577120,
+            22500000000, // 1 bps
+            281448,
+            1,
+            2,
+            1,
+            2,
+            1,
+            2,
+            0u64,
+            PERCENTAGE_PRECISION_U64 * 4 / 100,
         );
     }
 
@@ -831,11 +900,15 @@ mod swap_tests {
         last_aum: u128,
         now: i64,
         in_decimals: u32,
-        in_amount: u64,
+        in_amount: u128,
         dlp_total_supply: u64,
         expected_lp_amount: u64,
         expected_lp_fee: i64,
-        expected_in_fee_amount: i64,
+        expected_in_fee_amount: i128,
+        xi: u8,
+        gamma_inventory: u8,
+        gamma_execution: u8,
+        volatility: u64,
     ) {
         let lp_pool = LPPool {
             last_aum,
@@ -871,6 +944,10 @@ mod swap_tests {
                 ..BLPosition::default()
             },
             token_balance: token_balance as u64,
+            xi,
+            gamma_inventory,
+            gamma_execution,
+            volatility,
             ..Constituent::default()
         };
 
@@ -909,6 +986,7 @@ mod swap_tests {
             1_000_000, // expected_lp_amount
             0,         // expected_lp_fee
             0,         // expected_in_fee_amount
+            1, 2, 2, 0,
         );
     }
 
@@ -920,9 +998,13 @@ mod swap_tests {
             6,              // in_decimals
             1_000_000,      // in_amount (1 token) = $1
             10_000_000_000, // dlp_total_supply
-            1_000_000,      // expected_lp_amount
+            999700,         // expected_lp_amount
             0,              // expected_lp_fee
-            0,              // expected_in_fee_amount
+            300,            // expected_in_fee_amount
+            1,
+            2,
+            2,
+            0,
         );
     }
 
@@ -938,6 +1020,10 @@ mod swap_tests {
             1_000_000,   // expected_lp_amount
             0,           // expected_lp_fee
             0,           // expected_in_fee_amount
+            1,
+            2,
+            2,
+            0,
         );
     }
 
@@ -949,9 +1035,13 @@ mod swap_tests {
             8,              // in_decimals
             100_000_000,    // in_amount (1 token) = $1
             10_000_000_000, // dlp_total_supply
-            1_000_000,      // expected_lp_amount
+            999700,         // expected_lp_amount in lp decimals
             0,              // expected_lp_fee
-            0,              // expected_in_fee_amount
+            30000,          // expected_in_fee_amount
+            1,
+            2,
+            2,
+            0,
         );
     }
 
@@ -959,14 +1049,15 @@ mod swap_tests {
     #[test]
     fn test_get_add_liquidity_mint_amount_with_zero_aum_4_decimals() {
         get_add_liquidity_mint_amount_scenario(
-            0,         // last_aum
-            0,         // now
-            4,         // in_decimals
-            10_000,    // in_amount (1 token) = $1
-            0,         // dlp_total_supply
-            1_000_000, // expected_lp_amount
-            0,         // expected_lp_fee
-            0,         // expected_in_fee_amount
+            0,       // last_aum
+            0,       // now
+            4,       // in_decimals
+            10_000,  // in_amount (1 token) = $1
+            0,       // dlp_total_supply
+            1000000, // expected_lp_amount
+            0,       // expected_lp_fee
+            0,       // expected_in_fee_amount
+            1, 2, 2, 0,
         );
     }
 
@@ -978,9 +1069,13 @@ mod swap_tests {
             4,              // in_decimals
             10_000,         // in_amount (1 token) = $1
             10_000_000_000, // dlp_total_supply
-            1_000_000,      // expected_lp_amount
+            999700,         // expected_lp_amount
             0,              // expected_lp_fee
-            0,              // expected_in_fee_amount
+            3,              // expected_in_fee_amount
+            1,
+            2,
+            2,
+            0,
         );
     }
 
@@ -990,16 +1085,20 @@ mod swap_tests {
         in_decimals: u32,
         lp_burn_amount: u64,
         dlp_total_supply: u64,
-        expected_out_amount: u64,
+        expected_out_amount: u128,
         expected_lp_fee: i64,
-        expected_out_fee_amount: i64,
+        expected_out_fee_amount: i128,
+        xi: u8,
+        gamma_inventory: u8,
+        gamma_execution: u8,
+        volatility: u64,
     ) {
         let lp_pool = LPPool {
             last_aum,
             last_revenue_rebalance_ts: 0,
             revenue_rebalance_period: 3600,
-            max_mint_fee_premium: 0,
-            min_mint_fee: 0,
+            max_mint_fee_premium: 2000, // 20 bps
+            min_mint_fee: 100,          // 1 bps
             ..LPPool::default()
         };
 
@@ -1028,6 +1127,10 @@ mod swap_tests {
                 ..BLPosition::default()
             },
             token_balance: token_balance as u64,
+            xi,
+            gamma_inventory,
+            gamma_execution,
+            volatility,
             ..Constituent::default()
         };
 
@@ -1063,9 +1166,13 @@ mod swap_tests {
             6,              // in_decimals
             1_000_000,      // in_amount (1 token) = $1
             10_000_000_000, // dlp_total_supply
-            1_000_000,      // expected_out_amount
-            0,              // expected_lp_fee
-            0,              // expected_out_fee_amount
+            997900,         // expected_out_amount
+            2100,           // expected_lp_fee
+            299,            // expected_out_fee_amount
+            1,
+            2,
+            2,
+            PERCENTAGE_PRECISION_U64 * 4 / 100, // volatility
         );
     }
 
@@ -1078,9 +1185,13 @@ mod swap_tests {
             8,              // in_decimals
             100_000_000,    // in_amount (1 token) = $1
             10_000_000_000, // dlp_total_supply
-            100_000_000,    // expected_out_amount
-            0,              // expected_lp_fee
-            0,              // expected_out_fee_amount
+            9979000000,     // expected_out_amount
+            210000,         // expected_lp_fee
+            2993700,
+            1,
+            2,
+            2,
+            PERCENTAGE_PRECISION_U64 * 4 / 100, // volatility
         );
     }
 
@@ -1094,9 +1205,13 @@ mod swap_tests {
             4,              // in_decimals
             10_000,         // in_amount (1 token) = 1/10000
             10_000_000_000, // dlp_total_supply
-            10_000,         // expected_out_amount = 1
-            0,              // expected_lp_fee
+            99,             // expected_out_amount
+            21,             // expected_lp_fee
             0,              // expected_out_fee_amount
+            1,
+            2,
+            2,
+            PERCENTAGE_PRECISION_U64 * 4 / 100, // volatility
         );
     }
 
@@ -1108,9 +1223,13 @@ mod swap_tests {
             5,                           // in_decimals
             100_000_000_000 * 100_000,   // in_amount
             100_000_000_000 * 1_000_000, // dlp_total_supply
-            100_000_000_000 * 100_000,   // expected_out_amount
-            0,                           // expected_lp_fee
-            0,                           // expected_out_fee_amount
+            997900000000000,             // expected_out_amount
+            21000000000000,              // expected_lp_fee
+            473004600000,                // expected_out_fee_amount
+            1,
+            2,
+            2,
+            PERCENTAGE_PRECISION_U64 * 4 / 100, // volatility
         );
     }
 
@@ -1122,23 +1241,31 @@ mod swap_tests {
             6,                           // in_decimals
             100_000_000_000 * 1_000_000, // in_amount
             100_000_000_000 * 1_000_000, // dlp_total_supply
-            100_000_000_000 * 1_000_000, // expected_out_amount
-            0,                           // expected_lp_fee
-            0,                           // expected_out_fee_amount
+            99790000000000000,           // expected_out_amount
+            210000000000000,             // expected_lp_fee
+            348167310000000,             // expected_out_fee_amount
+            1,
+            2,
+            2,
+            PERCENTAGE_PRECISION_U64 * 4 / 100, // volatility
         );
     }
 
     #[test]
     fn test_get_remove_liquidity_mint_amount_with_existing_aum_8_decimals_large_aum() {
         get_remove_liquidity_mint_amount_scenario(
-            10_000_000_000 * 1_000_000,   // last_aum ($10,000,000,000)
+            10_000_000_000_000_000,       // last_aum ($10,000,000,000)
             0,                            // now
             8,                            // in_decimals
             10_000_000_000 * 100_000_000, // in_amount
             10_000_000_000 * 1_000_000,   // dlp_total_supply
-            10_000_000_000 * 100_000_000, // expected_out_amount
-            0,                            // expected_lp_fee
-            0,                            // expected_out_fee_amount
+            9_979_000_000_000_000_0000,   // expected_out_amount
+            2100_000_000_000_000,         // expected_lp_fee
+            3757093500000000000,          // expected_out_fee_amount
+            1,
+            2,
+            2,
+            PERCENTAGE_PRECISION_U64 * 4 / 100, // volatility
         );
     }
 }

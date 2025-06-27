@@ -16,7 +16,7 @@ use crate::state::traits::Size;
 use crate::{msg, validate};
 use std::panic::Location;
 
-use super::lp_pool::{Constituent, CONSTITUENT_PDA_SEED};
+use super::lp_pool::Constituent;
 
 pub struct ConstituentMap<'a>(pub BTreeMap<u16, AccountLoader<'a, Constituent>>);
 
@@ -125,15 +125,15 @@ impl<'a> ConstituentMap<'a> {
             }
 
             // Pubkey
-            let constituent_lp_key = Pubkey::from(*array_ref![data, 184, 32]);
+            let constituent_lp_key = Pubkey::from(*array_ref![data, 72, 32]);
             validate!(
                 &constituent_lp_key == lp_pool_key,
                 ErrorCode::InvalidConstituent,
                 "Constituent lp pool pubkey does not match lp pool pubkey"
             )?;
 
-            // constituent index 42 bytes from front of account
-            let constituent_index = u16::from_le_bytes(*array_ref![data, 42, 2]);
+            // constituent index 276 bytes from front of account
+            let constituent_index = u16::from_le_bytes(*array_ref![data, 276, 2]);
             if constituent_map.0.contains_key(&constituent_index) {
                 msg!(
                     "Can not include same constituent index twice {}",
