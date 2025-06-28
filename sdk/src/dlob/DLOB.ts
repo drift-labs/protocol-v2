@@ -1048,8 +1048,6 @@ export class DLOB {
 		for (const signedMsgOrder of signedMsgOrderList.getGenerator()) {
 			if (filter(signedMsgOrder)) {
 				yield signedMsgOrder;
-			} else {
-				continue;
 			}
 		}
 	}
