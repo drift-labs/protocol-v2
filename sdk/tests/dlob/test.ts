@@ -3859,6 +3859,289 @@ describe('DLOB Perp Tests', () => {
 			'wrong maker orderId'
 		).to.equal(5);
 	});
+
+	it('DLOB signedMsgOrder filtering - taking vs resting orders', () => {
+		const vAsk = new BN(15);
+		const vBid = new BN(10);
+		const slot = 1;
+		const oracle = {
+			price: vBid.add(vAsk).div(new BN(2)),
+			slot: new BN(slot),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
+
+		const users = [
+			Keypair.generate(),
+			Keypair.generate(),
+			Keypair.generate(),
+			Keypair.generate(),
+		];
+		const dlob = new DLOB();
+		const marketIndex = 0;
+		const marketType = MarketType.PERP;
+
+		// Create orders for both directions (LONG for bids, SHORT for asks)
+		const directions = [PositionDirection.LONG, PositionDirection.SHORT];
+		const orderConfigs = [
+			{
+				orderId: 1,
+				price: 11,
+				postOnly: false,
+				auctionComplete: false,
+				orderType: OrderType.LIMIT,
+			}, // taking order 1
+			{
+				orderId: 2,
+				price: 12,
+				postOnly: false,
+				auctionComplete: false,
+				orderType: OrderType.MARKET,
+			}, // taking order 2
+			{
+				orderId: 3,
+				price: 13,
+				postOnly: true,
+				auctionComplete: false,
+				orderType: OrderType.LIMIT,
+			}, // resting order 1
+			{
+				orderId: 4,
+				price: 14,
+				postOnly: false,
+				auctionComplete: true,
+				orderType: OrderType.LIMIT,
+			}, // resting order 2
+		];
+
+		directions.forEach((direction, dirIndex) => {
+			orderConfigs.forEach((config, orderIndex) => {
+				const orderSlot = config.auctionComplete ? slot - 11 : slot;
+				const order: Order = {
+					status: OrderStatus.OPEN,
+					orderId: config.orderId + dirIndex * 10, // unique orderId per direction
+					marketType: MarketType.PERP,
+					marketIndex: 0,
+					price: new BN(config.price).mul(PRICE_PRECISION),
+					baseAssetAmount: BASE_PRECISION,
+					direction,
+					orderType: config.orderType,
+					postOnly: config.postOnly,
+					auctionDuration: 10,
+					slot: new BN(orderSlot),
+					auctionStartPrice: vBid,
+					auctionEndPrice: vAsk,
+					bitFlags: 1, // isSignedMsg flag
+					userOrderId: 0,
+					baseAssetAmountFilled: new BN(0),
+					quoteAssetAmountFilled: new BN(0),
+					quoteAssetAmount: new BN(0),
+					reduceOnly: false,
+					triggerPrice: new BN(0),
+					triggerCondition: OrderTriggerCondition.ABOVE,
+					existingPositionDirection: direction,
+					immediateOrCancel: false,
+					oraclePriceOffset: 0,
+					maxTs: ZERO,
+					postedSlotTail: 0,
+				};
+				dlob.insertSignedMsgOrder(
+					order,
+					users[orderIndex].publicKey.toString(),
+					false
+				);
+			});
+		});
+
+		// Test taking bids - should only include taking orders (1, 2) in LONG direction
+		const takingBids = Array.from(
+			dlob.getTakingBids(marketIndex, marketType, slot, oracle)
+		);
+
+		const signedMsgTakingBids = takingBids.filter((node) => node.isSignedMsg);
+		expect(signedMsgTakingBids.length).to.equal(2);
+		expect(signedMsgTakingBids.some((node) => node.order.orderId === 1)).to.be
+			.true; // taking order 1
+		expect(signedMsgTakingBids.some((node) => node.order.orderId === 2)).to.be
+			.true; // taking order 2
+
+		// Test resting limit bids - should only include resting orders (3, 4) in LONG direction
+		const restingBids = Array.from(
+			dlob.getRestingLimitBids(marketIndex, slot, marketType, oracle)
+		);
+
+		const signedMsgRestingBids = restingBids.filter((node) => node.isSignedMsg);
+		expect(signedMsgRestingBids.length).to.equal(2);
+		expect(signedMsgRestingBids.some((node) => node.order.orderId === 3)).to.be
+			.true; // resting order 1
+		expect(signedMsgRestingBids.some((node) => node.order.orderId === 4)).to.be
+			.true; // resting order 2
+
+		// Test taking asks - should only include taking orders (11, 12) in SHORT direction
+		const takingAsks = Array.from(
+			dlob.getTakingAsks(marketIndex, marketType, slot, oracle)
+		);
+
+		const signedMsgTakingAsks = takingAsks.filter((node) => node.isSignedMsg);
+		expect(signedMsgTakingAsks.length).to.equal(2);
+		expect(signedMsgTakingAsks.some((node) => node.order.orderId === 11)).to.be
+			.true; // taking order 1
+		expect(signedMsgTakingAsks.some((node) => node.order.orderId === 12)).to.be
+			.true; // taking order 2
+
+		// Test resting limit asks - should only include resting orders (13, 14) in SHORT direction
+		const restingAsks = Array.from(
+			dlob.getRestingLimitAsks(marketIndex, slot, marketType, oracle)
+		);
+
+		const signedMsgRestingAsks = restingAsks.filter((node) => node.isSignedMsg);
+		expect(signedMsgRestingAsks.length).to.equal(2);
+		expect(signedMsgRestingAsks.some((node) => node.order.orderId === 13)).to.be
+			.true; // resting order 1
+		expect(signedMsgRestingAsks.some((node) => node.order.orderId === 14)).to.be
+			.true; // resting order 2
+	});
+
+	it('DLOB signedMsgOrder filtering - auction completion transition', () => {
+		const vAsk = new BN(15);
+		const vBid = new BN(10);
+		let slot = 1;
+		const oracle = {
+			price: vBid.add(vAsk).div(new BN(2)),
+			slot: new BN(slot),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
+
+		const user0 = Keypair.generate();
+		const dlob = new DLOB();
+		const marketIndex = 0;
+		const marketType = MarketType.PERP;
+
+		// Insert a limit order that starts as taking (in auction) and becomes resting (auction complete)
+		const limitOrder: Order = {
+			status: OrderStatus.OPEN,
+			orderId: 1,
+			marketType: MarketType.PERP,
+			marketIndex: 0,
+			price: new BN(11).mul(PRICE_PRECISION),
+			baseAssetAmount: BASE_PRECISION,
+			direction: PositionDirection.LONG,
+			orderType: OrderType.LIMIT,
+			postOnly: false,
+			auctionDuration: 10,
+			slot: new BN(slot),
+			auctionStartPrice: vBid,
+			auctionEndPrice: vAsk,
+			bitFlags: 1, // isSignedMsg flag
+			userOrderId: 0,
+			baseAssetAmountFilled: new BN(0),
+			quoteAssetAmountFilled: new BN(0),
+			quoteAssetAmount: new BN(0),
+			reduceOnly: false,
+			triggerPrice: new BN(0),
+			triggerCondition: OrderTriggerCondition.ABOVE,
+			existingPositionDirection: PositionDirection.LONG,
+			immediateOrCancel: false,
+			oraclePriceOffset: 0,
+			maxTs: ZERO,
+			postedSlotTail: 0,
+		};
+		dlob.insertSignedMsgOrder(limitOrder, user0.publicKey.toString(), false);
+
+		// Initially, the order should be in taking orders (auction not complete)
+		let takingBids = Array.from(
+			dlob.getTakingBids(marketIndex, marketType, slot, oracle)
+		);
+		let signedMsgTakingBids = takingBids.filter((node) => node.isSignedMsg);
+		expect(signedMsgTakingBids.length).to.equal(1);
+		expect(signedMsgTakingBids[0].order.orderId).to.equal(1);
+
+		let restingBids = Array.from(
+			dlob.getRestingLimitBids(marketIndex, slot, marketType, oracle)
+		);
+		let signedMsgRestingBids = restingBids.filter((node) => node.isSignedMsg);
+		expect(signedMsgRestingBids.length).to.equal(0);
+
+		// After auction duration, the order should move to resting orders
+		slot = 12; // slot + auctionDuration + 1
+		oracle.slot = new BN(slot);
+
+		takingBids = Array.from(
+			dlob.getTakingBids(marketIndex, marketType, slot, oracle)
+		);
+		signedMsgTakingBids = takingBids.filter((node) => node.isSignedMsg);
+		expect(signedMsgTakingBids.length).to.equal(0);
+
+		restingBids = Array.from(
+			dlob.getRestingLimitBids(marketIndex, slot, marketType, oracle)
+		);
+		signedMsgRestingBids = restingBids.filter((node) => node.isSignedMsg);
+		expect(signedMsgRestingBids.length).to.equal(1);
+		expect(signedMsgRestingBids[0].order.orderId).to.equal(1);
+	});
+
+	it('DLOB signedMsgOrder filtering - postOnly orders always resting', () => {
+		const vAsk = new BN(15);
+		const vBid = new BN(10);
+		const slot = 1;
+		const oracle = {
+			price: vBid.add(vAsk).div(new BN(2)),
+			slot: new BN(slot),
+			confidence: new BN(1),
+			hasSufficientNumberOfDataPoints: true,
+		};
+
+		const user0 = Keypair.generate();
+		const dlob = new DLOB();
+		const marketIndex = 0;
+		const marketType = MarketType.PERP;
+
+		// Insert a postOnly limit order (should always be resting regardless of auction state)
+		const postOnlyOrder: Order = {
+			status: OrderStatus.OPEN,
+			orderId: 1,
+			marketType: MarketType.PERP,
+			marketIndex: 0,
+			price: new BN(11).mul(PRICE_PRECISION),
+			baseAssetAmount: BASE_PRECISION,
+			direction: PositionDirection.LONG,
+			orderType: OrderType.LIMIT,
+			postOnly: true,
+			auctionDuration: 10,
+			slot: new BN(slot),
+			auctionStartPrice: vBid,
+			auctionEndPrice: vAsk,
+			bitFlags: 1, // isSignedMsg flag
+			userOrderId: 0,
+			baseAssetAmountFilled: new BN(0),
+			quoteAssetAmountFilled: new BN(0),
+			quoteAssetAmount: new BN(0),
+			reduceOnly: false,
+			triggerPrice: new BN(0),
+			triggerCondition: OrderTriggerCondition.ABOVE,
+			existingPositionDirection: PositionDirection.LONG,
+			immediateOrCancel: false,
+			oraclePriceOffset: 0,
+			maxTs: ZERO,
+			postedSlotTail: 0,
+		};
+		dlob.insertSignedMsgOrder(postOnlyOrder, user0.publicKey.toString(), false);
+
+		// PostOnly orders should always be in resting orders, never in taking orders
+		const takingBids = Array.from(
+			dlob.getTakingBids(marketIndex, marketType, slot, oracle)
+		);
+		const signedMsgTakingBids = takingBids.filter((node) => node.isSignedMsg);
+		expect(signedMsgTakingBids.length).to.equal(0);
+
+		const restingBids = Array.from(
+			dlob.getRestingLimitBids(marketIndex, slot, marketType, oracle)
+		);
+		const signedMsgRestingBids = restingBids.filter((node) => node.isSignedMsg);
+		expect(signedMsgRestingBids.length).to.equal(1);
+		expect(signedMsgRestingBids[0].order.orderId).to.equal(1);
+	});
 });
 
 describe('DLOB Spot Tests', () => {
