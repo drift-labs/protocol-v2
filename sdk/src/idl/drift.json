@@ -7592,6 +7592,45 @@
       ]
     },
     {
+      "name": "updateConstituentCorrelationData",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "lpPool",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "constituentCorrelations",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "index1",
+          "type": "u16"
+        },
+        {
+          "name": "index2",
+          "type": "u16"
+        },
+        {
+          "name": "correlation",
+          "type": "i64"
+        }
+      ]
+    },
+    {
       "name": "updateLpConstituentTargetBase",
       "accounts": [
         {

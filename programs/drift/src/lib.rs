@@ -1802,6 +1802,15 @@ pub mod drift {
         handle_remove_amm_constituent_mapping_data(ctx, perp_market_index, constituent_index)
     }
 
+    pub fn update_constituent_correlation_data(
+        ctx: Context<UpdateConstituentCorrelation>,
+        index1: u16,
+        index2: u16,
+        correlation: i64,
+    ) -> Result<()> {
+        handle_update_constituent_correlation_data(ctx, index1, index2, correlation)
+    }
+
     pub fn update_lp_constituent_target_base<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, UpdateConstituentTargetBase<'info>>,
     ) -> Result<()> {
