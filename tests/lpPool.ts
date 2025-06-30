@@ -477,7 +477,7 @@ describe('LP Pool', () => {
 		assert(ammCache.cache[0].oraclePrice.eq(new BN(200000000)));
 	});
 
-	it('can update constituent properties', async () => {
+	it('can update constituent properties and correlations', async () => {
 		const constituentPublicKey = getConstituentPublicKey(
 			program.programId,
 			lpPoolKey,
@@ -505,6 +505,20 @@ describe('LP Pool', () => {
 			)) as ConstituentTargetBase;
 		expect(targets).to.not.be.null;
 		assert(targets.targets[constituent.constituentIndex].costToTradeBps == 10);
+
+		await adminClient.updateConstituentCorrelationData(
+			encodeName(lpPoolName),
+			0,
+			1,
+			PERCENTAGE_PRECISION.muln(87).divn(100)
+		);
+
+		await adminClient.updateConstituentCorrelationData(
+			encodeName(lpPoolName),
+			0,
+			1,
+			PERCENTAGE_PRECISION
+		);
 	});
 
 	it('fails adding datum with bad params', async () => {

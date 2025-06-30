@@ -5100,6 +5100,27 @@ pub fn handle_add_amm_constituent_data<'info>(
     Ok(())
 }
 
+pub fn handle_update_constituent_correlation_data<'info>(
+    ctx: Context<UpdateConstituentCorrelation>,
+    index1: u16,
+    index2: u16,
+    corr: i64,
+) -> Result<()> {
+    let constituent_correlations = &mut ctx.accounts.constituent_correlations;
+    constituent_correlations.set_correlation(index1, index2, corr)?;
+
+    msg!(
+        "Updated correlation between constituent {} and {} to {}",
+        index1,
+        index2,
+        corr
+    );
+
+    constituent_correlations.validate()?;
+
+    Ok(())
+}
+
 pub fn handle_begin_lp_swap<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, LPTakerSwap<'info>>,
     in_market_index: u16,
@@ -6456,6 +6477,24 @@ pub struct RemoveAmmConstituentMappingData<'info> {
     )]
     pub amm_constituent_mapping: Box<Account<'info, AmmConstituentMapping>>,
     pub system_program: Program<'info, System>,
+    pub state: Box<Account<'info, State>>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateConstituentCorrelation<'info> {
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+    pub lp_pool: AccountLoader<'info, LPPool>,
+
+    #[account(
+        mut,
+        seeds = [CONSTITUENT_CORRELATIONS_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        bump = constituent_correlations.bump,
+    )]
+    pub constituent_correlations: Box<Account<'info, ConstituentCorrelations>>,
     pub state: Box<Account<'info, State>>,
 }
 

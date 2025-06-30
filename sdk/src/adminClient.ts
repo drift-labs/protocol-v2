@@ -4769,6 +4769,50 @@ export class AdminClient extends DriftClient {
 		];
 	}
 
+	public async updateConstituentCorrelationData(
+		lpPoolName: number[],
+		index1: number,
+		index2: number,
+		correlation: BN
+	): Promise<TransactionSignature> {
+		const ixs = await this.getUpdateConstituentCorrelationDataIx(
+			lpPoolName,
+			index1,
+			index2,
+			correlation
+		);
+		const tx = await this.buildTransaction(ixs);
+		const { txSig } = await this.sendTransaction(tx, []);
+		return txSig;
+	}
+
+	public async getUpdateConstituentCorrelationDataIx(
+		lpPoolName: number[],
+		index1: number,
+		index2: number,
+		correlation: BN
+	): Promise<TransactionInstruction[]> {
+		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
+		return [
+			this.program.instruction.updateConstituentCorrelationData(
+				index1,
+				index2,
+				correlation,
+				{
+					accounts: {
+						admin: this.wallet.publicKey,
+						lpPool,
+						constituentCorrelations: getConstituentCorrelationsPublicKey(
+							this.program.programId,
+							lpPool
+						),
+						state: await this.getStatePublicKey(),
+					},
+				}
+			),
+		];
+	}
+
 	/**
 	 * Get the drift begin_swap and end_swap instructions
 	 *
