@@ -28,12 +28,12 @@ use crate::{
         events::{LPMintRedeemRecord, LPSwapRecord},
         lp_pool::{
             calculate_target_weight, AmmConstituentDatum, AmmConstituentMappingFixed, Constituent,
-            ConstituentCorrelations, ConstituentCorrelationsFixed, ConstituentTargetBaseFixed,
-            LPPool, TargetsDatum, WeightValidationFlags, CONSTITUENT_CORRELATIONS_PDA_SEED,
+            ConstituentCorrelationsFixed, ConstituentTargetBaseFixed, LPPool, TargetsDatum,
+            WeightValidationFlags, CONSTITUENT_CORRELATIONS_PDA_SEED,
         },
         oracle::OraclePriceData,
         oracle_map::OracleMap,
-        perp_market::{AmmCacheFixed, CacheInfo, MarketStatus, AMM_POSITIONS_CACHE},
+        perp_market::{AmmCacheFixed, CacheInfo, AMM_POSITIONS_CACHE},
         perp_market_map::MarketSet,
         spot_market::{SpotBalanceType, SpotMarket},
         spot_market_map::get_writable_spot_market_set_from_many,
@@ -261,6 +261,23 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
         "Constituent target weights PDA does not match expected PDA"
     )?;
 
+    let amm_cache_key: &Pubkey = &ctx.accounts.amm_cache.key();
+    let amm_cache: AccountZeroCopy<'_, CacheInfo, AmmCacheFixed> =
+        ctx.accounts.amm_cache.load_zc()?;
+    let expected_amm_pda = &Pubkey::create_program_address(
+        &[
+            AMM_POSITIONS_CACHE.as_ref(),
+            amm_cache.fixed.bump.to_le_bytes().as_ref(),
+        ],
+        &crate::ID,
+    )
+    .map_err(|_| ErrorCode::InvalidPDA)?;
+    validate!(
+        amm_cache_key.eq(expected_amm_pda),
+        ErrorCode::InvalidPDA,
+        "Amm cache PDA does not match expected PDA"
+    )?;
+
     let mut aum: u128 = 0;
     let mut crypto_delta = 0_i128;
     let mut oldest_slot = u64::MAX;
@@ -351,6 +368,14 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
             crypto_delta = crypto_delta.safe_add(constituent_target_notional.cast()?)?;
         }
         aum = aum.safe_add(constituent_aum.cast()?)?;
+    }
+
+    for cache_datum in amm_cache.iter() {
+        if cache_datum.quote_owed_from_lp > 0 {
+            aum = aum.safe_sub(cache_datum.quote_owed_from_lp.abs().cast::<u128>()?)?;
+        } else {
+            aum = aum.safe_add(cache_datum.quote_owed_from_lp.abs().cast::<u128>()?)?;
+        }
     }
 
     lp_pool.oldest_oracle_slot = oldest_slot;
@@ -1293,6 +1318,8 @@ pub struct UpdateLPPoolAum<'info> {
     /// CHECK: checked in ConstituentTargetBaseZeroCopy checks
     #[account(mut)]
     pub constituent_target_base: AccountInfo<'info>,
+    /// CHECK: checked in AmmCacheZeroCopy checks
+    pub amm_cache: AccountInfo<'info>,
 }
 
 /// `in`/`out` is in the program's POV for this swap. So `user_in_token_account` is the user owned token account

@@ -9815,6 +9815,7 @@ export class DriftClient {
 					this.program.programId,
 					lpPool.pubkey
 				),
+				ammCache: getAmmCachePublicKey(this.program.programId),
 			},
 			remainingAccounts,
 		});

@@ -89,7 +89,9 @@ where
     validate!(
         acct.owner == &program_id,
         ErrorCode::DefaultError,
-        "invalid owner",
+        "invalid owner {}, program_id: {}",
+        acct.owner,
+        program_id,
     )?;
 
     let data = acct.try_borrow_data().safe_unwrap()?;

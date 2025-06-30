@@ -52,6 +52,7 @@ import {
 	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccountWithAuthority,
+	overWriteMintAccount,
 	overWritePerpMarket,
 	overWriteSpotMarket,
 } from './testHelpers';
@@ -924,14 +925,69 @@ describe('LP Pool', () => {
 			getConstituentPublicKey(program.programId, lpPoolKey, 0)
 		)) as ConstituentAccount;
 
+		let lpPool = (await adminClient.program.account.lpPool.fetch(
+			lpPoolKey
+		)) as LPPoolAccount;
+
 		assert(ammCache.cache[0].quoteOwedFromLp.eq(owedAmount.divn(2)));
 		assert(constituent.tokenBalance.eq(ZERO));
+		assert(lpPool.lastAum.eq(ZERO));
+
+		// Deposit here to DLP to make sure aum calc work with perp market debt
+		await overWriteMintAccount(
+			bankrunContextWrapper,
+			lpPool.mint,
+			BigInt(lpPool.lastAum.toNumber())
+		);
+		await adminClient.lpPoolAddLiquidity({
+			lpPool,
+			inAmount: new BN(1000).mul(QUOTE_PRECISION),
+			minMintAmount: new BN(1),
+			inMarketIndex: 0,
+		});
+
+		await adminClient.updateLpPoolAum(lpPool, [0, 1, 2]);
+
+		lpPool = (await adminClient.program.account.lpPool.fetch(
+			lpPoolKey
+		)) as LPPoolAccount;
+
+		let aum = new BN(0);
+		for (let i = 0; i <= 2; i++) {
+			const constituent = (await adminClient.program.account.constituent.fetch(
+				getConstituentPublicKey(program.programId, lpPoolKey, i)
+			)) as ConstituentAccount;
+			aum = aum.add(
+				constituent.tokenBalance
+					.mul(constituent.lastOraclePrice)
+					.div(QUOTE_PRECISION)
+			);
+		}
+
+		// Overwrite the amm cache with amount owed
+		ammCache = (await adminClient.program.account.ammCache.fetch(
+			getAmmCachePublicKey(program.programId)
+		)) as AmmCache;
+		for (let i = 0; i <= ammCache.cache.length - 1; i++) {
+			aum = aum.sub(ammCache.cache[i].quoteOwedFromLp);
+		}
+		assert(lpPool.lastAum.eq(aum));
 	});
 
 	it('perp market will transfer with the constituent vault if it should send more than its owed', async () => {
+		let lpPool = (await adminClient.program.account.lpPool.fetch(
+			lpPoolKey
+		)) as LPPoolAccount;
+		const aumBefore = lpPool.lastAum;
+		let constituent = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 0)
+		)) as ConstituentAccount;
+
 		let ammCache = (await adminClient.program.account.ammCache.fetch(
 			getAmmCachePublicKey(program.programId)
 		)) as AmmCache;
+
+		const balanceBefore = constituent.tokenBalance;
 		const owedAmount = ammCache.cache[0].quoteOwedFromLp;
 
 		// Give the perp market half of its owed amount
@@ -954,11 +1010,16 @@ describe('LP Pool', () => {
 		ammCache = (await adminClient.program.account.ammCache.fetch(
 			getAmmCachePublicKey(program.programId)
 		)) as AmmCache;
-		const constituent = (await adminClient.program.account.constituent.fetch(
+		constituent = (await adminClient.program.account.constituent.fetch(
 			getConstituentPublicKey(program.programId, lpPoolKey, 0)
 		)) as ConstituentAccount;
 
+		lpPool = (await adminClient.program.account.lpPool.fetch(
+			lpPoolKey
+		)) as LPPoolAccount;
+
 		assert(ammCache.cache[0].quoteOwedFromLp.eq(ZERO));
-		assert(constituent.tokenBalance.eq(owedAmount));
+		assert(constituent.tokenBalance.eq(balanceBefore.add(owedAmount)));
+		assert(lpPool.lastAum.eq(aumBefore.add(owedAmount)));
 	});
 });
