@@ -40,7 +40,7 @@ import {
 	OraclePriceData,
 	OracleInfo,
 	PerpMarketAccount,
-	SpotMarketAccount,
+	ConstituentAccount,
 } from '../sdk';
 import {
 	TestClient,
@@ -50,7 +50,6 @@ import {
 	QUOTE_PRECISION,
 	User,
 	OracleSource,
-	ConstituentAccount,
 } from '../sdk/src';
 import {
 	BankrunContextWrapper,
@@ -1192,7 +1191,7 @@ export async function overWritePerpMarket(
 	bankrunContextWrapper: BankrunContextWrapper,
 	perpMarketKey: PublicKey,
 	perpMarket: PerpMarketAccount
-): Promise<void> {
+) {
 	bankrunContextWrapper.context.setAccount(perpMarketKey, {
 		executable: false,
 		owner: driftClient.program.programId,
@@ -1200,23 +1199,6 @@ export async function overWritePerpMarket(
 		data: await driftClient.program.account.perpMarket.coder.accounts.encode(
 			'PerpMarket',
 			perpMarket
-		),
-	});
-}
-
-export async function overWriteSpotMarket(
-	driftClient: TestClient,
-	bankrunContextWrapper: BankrunContextWrapper,
-	spotMarketKey: PublicKey,
-	spotMarket: SpotMarketAccount
-): Promise<void> {
-	bankrunContextWrapper.context.setAccount(spotMarketKey, {
-		executable: false,
-		owner: driftClient.program.programId,
-		lamports: LAMPORTS_PER_SOL,
-		data: await driftClient.program.account.spotMarket.coder.accounts.encode(
-			'SpotMarket',
-			spotMarket
 		),
 	});
 }

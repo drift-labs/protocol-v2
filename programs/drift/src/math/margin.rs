@@ -268,6 +268,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             &spot_market.oracle_id(),
             spot_market.historical_oracle_data.last_oracle_price_twap,
             spot_market.get_max_confidence_interval_multiplier()?,
+            0,
         )?;
 
         let mut skip_token_value = false;
@@ -519,6 +520,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     .historical_oracle_data
                     .last_oracle_price_twap,
                 quote_spot_market.get_max_confidence_interval_multiplier()?,
+                0,
             )?;
 
         let strict_quote_price = StrictOraclePrice::new(
@@ -536,6 +538,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             &market.oracle_id(),
             market.amm.historical_oracle_data.last_oracle_price_twap,
             market.get_max_confidence_interval_multiplier()?,
+            0,
         )?;
 
         let (
@@ -909,6 +912,7 @@ pub fn calculate_user_equity(
             &spot_market.oracle_id(),
             spot_market.historical_oracle_data.last_oracle_price_twap,
             spot_market.get_max_confidence_interval_multiplier()?,
+            0,
         )?;
         all_oracles_valid &=
             is_oracle_valid_for_action(oracle_validity, Some(DriftAction::MarginCalc))?;
@@ -938,6 +942,7 @@ pub fn calculate_user_equity(
                         .historical_oracle_data
                         .last_oracle_price_twap,
                     quote_spot_market.get_max_confidence_interval_multiplier()?,
+                    0,
                 )?;
 
             all_oracles_valid &=
@@ -952,6 +957,7 @@ pub fn calculate_user_equity(
             &market.oracle_id(),
             market.amm.historical_oracle_data.last_oracle_price_twap,
             market.get_max_confidence_interval_multiplier()?,
+            0,
         )?;
 
         all_oracles_valid &=

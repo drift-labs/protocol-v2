@@ -740,15 +740,6 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
         return Err(print_error!(ErrorCode::InvalidSignedMsgOrderParam)().into());
     }
 
-    // Make sure that them auction parameters are set
-    if matching_taker_order_params.auction_duration.is_none()
-        || matching_taker_order_params.auction_start_price.is_none()
-        || matching_taker_order_params.auction_end_price.is_none()
-    {
-        msg!("Auction params must be set for signed msg orders");
-        return Err(print_error!(ErrorCode::InvalidSignedMsgOrderParam)().into());
-    }
-
     // Set max slot for the order early so we set correct signed msg order id
     let order_slot = verified_message_and_signature.slot;
     if order_slot < clock.slot.saturating_sub(500) {
@@ -759,12 +750,21 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
         return Err(print_error!(ErrorCode::InvalidSignedMsgOrderParam)().into());
     }
     let market_index = matching_taker_order_params.market_index;
-    let max_slot = order_slot.safe_add(
-        matching_taker_order_params
-            .auction_duration
-            .unwrap()
-            .cast::<u64>()?,
-    )?;
+    let max_slot = if matching_taker_order_params.order_type == OrderType::Limit {
+        order_slot.safe_add(
+            matching_taker_order_params
+                .auction_duration
+                .unwrap_or(0)
+                .cast::<u64>()?,
+        )?
+    } else {
+        order_slot.safe_add(
+            matching_taker_order_params
+                .auction_duration
+                .unwrap()
+                .cast::<u64>()?,
+        )?
+    };
 
     // Dont place order if max slot already passed
     if max_slot < clock.slot {
@@ -3040,6 +3040,7 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
                         .historical_oracle_data
                         .last_oracle_price_twap,
                     perp_market.get_max_confidence_interval_multiplier()?,
+                    0,
                 )?;
 
                 if !is_oracle_valid_for_action(oracle_validity, Some(DriftAction::SettlePnl))?

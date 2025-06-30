@@ -25,7 +25,7 @@ export class SignedMsgUserOrdersAccountSubscriber {
 	protected driftClient: DriftClient;
 	protected commitment: Commitment;
 	protected resubOpts?: ResubOpts;
-	protected resyncTimeoutId?: NodeJS.Timeout;
+	protected resyncTimeoutId?: ReturnType<typeof setTimeout>;
 	protected resyncIntervalMs?: number;
 	protected decodeFn: (
 		name: string,

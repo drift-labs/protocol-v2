@@ -39,13 +39,13 @@ pub fn calculate_max_borrow_token_amount(
     let lesser_deposit_amount = deposit_token_amount.min(deposit_token_twap);
 
     let max_borrow_token = if pool_id == 0 {
-        // main pool between ~15-80% utilization with friction on twap in 10% increments
+        // main pool between ~30-87.5% utilization with friction on twap in 14% increments
 
         withdraw_guard_threshold
             .max(
-                (lesser_deposit_amount / 6)
-                    .max(borrow_token_twap.safe_add(lesser_deposit_amount / 10)?)
-                    .min(lesser_deposit_amount.safe_sub(lesser_deposit_amount / 5)?),
+                (lesser_deposit_amount / 3)
+                    .max(borrow_token_twap.safe_add(lesser_deposit_amount / 7)?)
+                    .min(lesser_deposit_amount.safe_sub(lesser_deposit_amount / 8)?),
             )
             .min(max_token_borrows)
     } else {

@@ -17,7 +17,7 @@ export class SlotSubscriber {
 	eventEmitter: StrictEventEmitter<EventEmitter, SlotSubscriberEvents>;
 
 	// Reconnection
-	timeoutId?: NodeJS.Timeout;
+	timeoutId?: ReturnType<typeof setTimeout>;
 	resubTimeoutMs?: number;
 	isUnsubscribing = false;
 	receivingData = false;
@@ -40,17 +40,19 @@ export class SlotSubscriber {
 			return;
 		}
 
-		this.currentSlot = await this.connection.getSlot('confirmed');
+		const newSlot = await this.connection.getSlot('confirmed');
+		this.updateCurrentSlot(newSlot);
 
 		this.subscriptionId = this.connection.onSlotChange((slotInfo) => {
-			if (!this.currentSlot || this.currentSlot < slotInfo.slot) {
+			const newSlot = slotInfo.slot;
+
+			if (!this.currentSlot || this.currentSlot < newSlot) {
 				if (this.resubTimeoutMs && !this.isUnsubscribing) {
 					this.receivingData = true;
 					clearTimeout(this.timeoutId);
 					this.setTimeout();
 				}
-				this.currentSlot = slotInfo.slot;
-				this.eventEmitter.emit('newSlot', slotInfo.slot);
+				this.updateCurrentSlot(newSlot);
 			}
 		});
 
@@ -58,6 +60,11 @@ export class SlotSubscriber {
 			this.receivingData = true;
 			this.setTimeout();
 		}
+	}
+
+	private updateCurrentSlot(slot: number) {
+		this.currentSlot = slot;
+		this.eventEmitter.emit('newSlot', slot);
 	}
 
 	private setTimeout(): void {

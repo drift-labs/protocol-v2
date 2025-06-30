@@ -1,5 +1,5 @@
 {
-  "version": "2.120.0",
+  "version": "2.125.0",
   "name": "drift",
   "instructions": [
     {
@@ -3541,6 +3541,196 @@
       ]
     },
     {
+      "name": "beginInsuranceFundSwap",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "outInsuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inInsuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "outTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "ifRebalanceConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructions",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Instructions Sysvar for instruction introspection"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "inMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "outMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "amountIn",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "endInsuranceFundSwap",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "outInsuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inInsuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "outTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "ifRebalanceConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "instructions",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Instructions Sysvar for instruction introspection"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "inMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "outMarketIndex",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "transferProtocolIfSharesToRevenuePool",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "ifRebalanceConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "updatePythPullOracle",
       "accounts": [
         {
@@ -6517,6 +6707,88 @@
       ]
     },
     {
+      "name": "updatePerpMarketTakerSpeedBumpOverride",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "takerSpeedBumpOverride",
+          "type": "i8"
+        }
+      ]
+    },
+    {
+      "name": "updatePerpMarketAmmSpreadAdjustment",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "ammSpreadAdjustment",
+          "type": "i8"
+        },
+        {
+          "name": "ammInventorySpreadAdjustment",
+          "type": "i8"
+        }
+      ]
+    },
+    {
+      "name": "updatePerpMarketOracleSlotDelayOverride",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "oracleSlotDelayOverride",
+          "type": "i8"
+        }
+      ]
+    },
+    {
       "name": "updateSpotMarketFuel",
       "accounts": [
         {
@@ -7181,6 +7453,12 @@
         {
           "name": "reduceOnly",
           "type": "bool"
+        },
+        {
+          "name": "currentUsers",
+          "type": {
+            "option": "u32"
+          }
         }
       ]
     },
@@ -7298,6 +7576,72 @@
         {
           "name": "amount",
           "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "initializeIfRebalanceConfig",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "ifRebalanceConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "IfRebalanceConfigParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "updateIfRebalanceConfig",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "ifRebalanceConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "IfRebalanceConfigParams"
+          }
         }
       ]
     },
@@ -8604,6 +8948,116 @@
               "array": [
                 "u8",
                 31
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "IfRebalanceConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pubkey",
+            "type": "publicKey"
+          },
+          {
+            "name": "totalInAmount",
+            "docs": [
+              "total amount to be sold"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "currentInAmount",
+            "docs": [
+              "amount already sold"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "currentOutAmount",
+            "docs": [
+              "amount already bought"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "currentOutAmountTransferred",
+            "docs": [
+              "amount already transferred to revenue pool"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "currentInAmountSinceLastTransfer",
+            "docs": [
+              "amount already bought in epoch"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "epochStartTs",
+            "docs": [
+              "start time of epoch"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "epochInAmount",
+            "docs": [
+              "amount already bought in epoch"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "epochMaxInAmount",
+            "docs": [
+              "max amount to swap in epoch"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "epochDuration",
+            "docs": [
+              "duration of epoch"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "outMarketIndex",
+            "docs": [
+              "market index to sell"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "inMarketIndex",
+            "docs": [
+              "market index to buy"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "maxSlippageBps",
+            "type": "u16"
+          },
+          {
+            "name": "swapMode",
+            "type": "u8"
+          },
+          {
+            "name": "status",
+            "type": "u8"
+          },
+          {
+            "name": "padding2",
+            "type": {
+              "array": [
+                "u8",
+                32
               ]
             }
           }
@@ -11073,6 +11527,46 @@
       }
     },
     {
+      "name": "IfRebalanceConfigParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "totalInAmount",
+            "type": "u64"
+          },
+          {
+            "name": "epochMaxInAmount",
+            "type": "u64"
+          },
+          {
+            "name": "epochDuration",
+            "type": "i64"
+          },
+          {
+            "name": "outMarketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "inMarketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "maxSlippageBps",
+            "type": "u16"
+          },
+          {
+            "name": "swapMode",
+            "type": "u8"
+          },
+          {
+            "name": "status",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
       "name": "BLPosition",
       "type": {
         "kind": "struct",
@@ -12393,12 +12887,23 @@
             "type": "i8"
           },
           {
-            "name": "padding1",
-            "type": "u8"
+            "name": "takerSpeedBumpOverride",
+            "docs": [
+              "the override for the state.min_perp_auction_duration",
+              "0 is no override, -1 is disable speed bump, 1-100 is literal speed bump"
+            ],
+            "type": "i8"
           },
           {
-            "name": "padding2",
-            "type": "u16"
+            "name": "ammSpreadAdjustment",
+            "docs": [
+              "signed scale amm_spread similar to fee_adjustment logic (-100 = 0, 100 = double)"
+            ],
+            "type": "i8"
+          },
+          {
+            "name": "oracleSlotDelayOverride",
+            "type": "i8"
           },
           {
             "name": "totalFeeEarnedPerLp",
@@ -12417,11 +12922,18 @@
             "type": "i32"
           },
           {
+            "name": "ammInventorySpreadAdjustment",
+            "docs": [
+              "signed scale amm_spread similar to fee_adjustment logic (-100 = 0, 100 = double)"
+            ],
+            "type": "i8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                12
+                11
               ]
             }
           }
@@ -15103,6 +15615,34 @@
           "name": "bitFlags",
           "type": "u8",
           "index": false
+        },
+        {
+          "name": "takerExistingQuoteEntryAmount",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "takerExistingBaseAssetAmount",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "makerExistingQuoteEntryAmount",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "makerExistingBaseAssetAmount",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
         }
       ]
     },
@@ -15424,6 +15964,151 @@
         {
           "name": "totalIfSharesAfter",
           "type": "u128",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "InsuranceFundSwapRecord",
+      "fields": [
+        {
+          "name": "rebalanceConfig",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "inIfTotalSharesBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "outIfTotalSharesBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "inIfUserSharesBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "outIfUserSharesBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "inIfTotalSharesAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "outIfTotalSharesAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "inIfUserSharesAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "outIfUserSharesAfter",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "inAmount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "outAmount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "outOraclePrice",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "outOraclePriceTwap",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "inVaultAmountBefore",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "outVaultAmountBefore",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "inFundVaultAmountAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "outFundVaultAmountAfter",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "inMarketIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "outMarketIndex",
+          "type": "u16",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "TransferProtocolIfSharesToRevenuePoolRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "marketIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "shares",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "ifVaultAmountBefore",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "protocolSharesBefore",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "currentInAmountSinceLastTransfer",
+          "type": "u64",
           "index": false
         }
       ]
@@ -17474,46 +18159,56 @@
     },
     {
       "code": 6315,
+      "name": "InvalidIfRebalanceConfig",
+      "msg": "Invalid If Rebalance Config"
+    },
+    {
+      "code": 6316,
+      "name": "InvalidIfRebalanceSwap",
+      "msg": "Invalid If Rebalance Swap"
+    },
+    {
+      "code": 6317,
       "name": "InvalidConstituent",
       "msg": "Invalid Constituent"
     },
     {
-      "code": 6316,
+      "code": 6318,
       "name": "InvalidAmmConstituentMappingArgument",
       "msg": "Invalid Amm Constituent Mapping argument"
     },
     {
-      "code": 6317,
+      "code": 6319,
       "name": "InvalidUpdateConstituentTargetBaseArgument",
       "msg": "Invalid update constituent update target weights argument"
     },
     {
-      "code": 6318,
+      "code": 6320,
       "name": "ConstituentNotFound",
       "msg": "Constituent not found"
     },
     {
-      "code": 6319,
+      "code": 6321,
       "name": "ConstituentCouldNotLoad",
       "msg": "Constituent could not load"
     },
     {
-      "code": 6320,
+      "code": 6322,
       "name": "ConstituentWrongMutability",
       "msg": "Constituent wrong mutability"
     },
     {
-      "code": 6321,
+      "code": 6323,
       "name": "WrongNumberOfConstituents",
       "msg": "Wrong number of constituents passed to instruction"
     },
     {
-      "code": 6322,
+      "code": 6324,
       "name": "OracleTooStaleForLPAUMUpdate",
       "msg": "Oracle too stale for LP AUM update"
     },
     {
-      "code": 6323,
+      "code": 6325,
       "name": "InsufficientConstituentTokenBalance",
       "msg": "Insufficient constituent token balance"
     }

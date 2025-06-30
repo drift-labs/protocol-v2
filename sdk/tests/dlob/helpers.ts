@@ -146,6 +146,9 @@ export const mockAMM: AMM = {
 	netUnsettledFundingPnl: new BN(0),
 	quoteAssetAmountWithUnsettledLp: new BN(0),
 	referencePriceOffset: 0,
+
+	takerSpeedBumpOverride: 0,
+	ammSpreadAdjustment: 0,
 };
 
 export const mockPerpMarkets: Array<PerpMarketAccount> = [

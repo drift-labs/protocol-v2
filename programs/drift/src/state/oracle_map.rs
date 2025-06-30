@@ -88,6 +88,7 @@ impl<'a> OracleMap<'a> {
         oracle_id: &OracleIdentifier,
         last_oracle_price_twap: i64,
         max_confidence_interval_multiplier: u64,
+        slots_before_stale_for_amm_override: i8,
     ) -> DriftResult<(&OraclePriceData, OracleValidity)> {
         if self.should_get_quote_asset_price_data(&oracle_id.0) {
             return Ok((&self.quote_asset_price_data, OracleValidity::Valid));
@@ -108,6 +109,7 @@ impl<'a> OracleMap<'a> {
                     max_confidence_interval_multiplier,
                     &oracle_id.1,
                     true,
+                    slots_before_stale_for_amm_override,
                 )?;
                 self.validity.insert(*oracle_id, oracle_validity);
                 oracle_validity
@@ -137,6 +139,7 @@ impl<'a> OracleMap<'a> {
             max_confidence_interval_multiplier,
             &oracle_id.1,
             true,
+            slots_before_stale_for_amm_override,
         )?;
         self.validity.insert(*oracle_id, oracle_validity);
 

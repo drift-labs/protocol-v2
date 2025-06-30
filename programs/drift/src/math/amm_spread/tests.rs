@@ -236,6 +236,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread1, (base_spread * 10 / 2));
@@ -265,6 +266,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread2, 16667);
@@ -294,6 +296,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
 
@@ -329,6 +332,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
         assert!(short_spread4 < long_spread4);
@@ -358,6 +362,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
 
@@ -486,11 +491,12 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
 
         assert_eq!(long_spread_btc, 250);
-        assert_eq!(short_spread_btc, 74142);
+        assert_eq!(short_spread_btc, 74117);
 
         let (long_spread_btc1, short_spread_btc1) = calculate_spread(
             500,
@@ -512,6 +518,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
 
@@ -565,6 +572,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
 
@@ -613,6 +621,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread1, 500);
@@ -640,6 +649,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread1, 345);
@@ -666,6 +676,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread1, 110);
@@ -715,6 +726,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread1, 199926);
@@ -740,6 +752,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread1, 199951);
@@ -765,6 +778,7 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread1, 199815);
@@ -1064,8 +1078,8 @@ mod test {
             volume_24h,
         )
         .unwrap();
-        assert_eq!(long_vspread, 1639);
-        assert_eq!(short_vspread, 4918);
+        assert_eq!(long_vspread, 819);
+        assert_eq!(short_vspread, 2459);
 
         // since short volume ~= 3 * long volume intensity, expect short spread to be larger by this factor
         assert_eq!(short_vspread >= long_vspread * 3, true);
@@ -1121,11 +1135,12 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
 
         // since total_fee_minus_distributions <=0, 10 * vol spread
-        assert_eq!(long_spread, 16390); // vs 2500
+        assert_eq!(long_spread, 8190); // vs 2500
         assert_eq!(
             long_spread
                 > (base_spread
@@ -1133,13 +1148,67 @@ mod test {
             true
         );
 
-        assert_eq!(short_spread, 49180);
+        assert_eq!(short_spread, 24590);
         assert_eq!(
             short_spread
                 > (base_spread
                     * ((DEFAULT_LARGE_BID_ASK_FACTOR / BID_ASK_SPREAD_PRECISION) as u32)),
             true
         );
+
+        let (long_spread, short_spread) = calculate_spread(
+            base_spread,
+            last_oracle_reserve_price_spread_pct,
+            last_oracle_conf_pct,
+            max_spread,
+            quote_asset_reserve,
+            terminal_quote_asset_reserve,
+            peg_multiplier,
+            base_asset_amount_with_amm,
+            reserve_price,
+            total_fee_minus_distributions,
+            net_revenue_since_last_funding,
+            base_asset_reserve,
+            min_base_asset_reserve,
+            max_base_asset_reserve,
+            mark_std,
+            oracle_std,
+            long_intensity_volume,
+            short_intensity_volume,
+            volume_24h,
+            -50,
+        )
+        .unwrap();
+
+        assert_eq!(long_spread, 4095);
+        assert_eq!(short_spread, 12295);
+
+        let (long_spread, short_spread) = calculate_spread(
+            base_spread,
+            last_oracle_reserve_price_spread_pct,
+            last_oracle_conf_pct,
+            max_spread,
+            quote_asset_reserve,
+            terminal_quote_asset_reserve,
+            peg_multiplier,
+            base_asset_amount_with_amm,
+            reserve_price,
+            total_fee_minus_distributions,
+            net_revenue_since_last_funding,
+            base_asset_reserve,
+            min_base_asset_reserve,
+            max_base_asset_reserve,
+            mark_std,
+            oracle_std,
+            long_intensity_volume,
+            short_intensity_volume,
+            volume_24h,
+            -100,
+        )
+        .unwrap();
+
+        assert_eq!(long_spread, 819);
+        assert_eq!(short_spread, 2459);
 
         let (long_spread, short_spread) = calculate_spread(
             base_spread,
@@ -1161,11 +1230,12 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
 
-        assert_eq!(long_spread, 1639);
-        assert_eq!(short_spread, 4918);
+        assert_eq!(long_spread, 819);
+        assert_eq!(short_spread, 2459);
 
         let (long_spread, short_spread) = calculate_spread(
             base_spread,
@@ -1187,10 +1257,11 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
-        assert_eq!(long_spread, 195556);
-        assert_eq!(short_spread, 4444);
+        assert_eq!(long_spread, 197666);
+        assert_eq!(short_spread, 2334);
 
         let (long_spread, short_spread) = calculate_spread(
             base_spread,
@@ -1212,10 +1283,11 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
-        assert_eq!(long_spread, 1639);
-        assert_eq!(short_spread, 24917);
+        assert_eq!(long_spread, 819);
+        assert_eq!(short_spread, 22458);
     }
 
     #[test]
@@ -1254,8 +1326,8 @@ mod test {
             volume_24h,
         )
         .unwrap();
-        assert_eq!(long_vspread, 1639);
-        assert_eq!(short_vspread, 4918);
+        assert_eq!(long_vspread, 819);
+        assert_eq!(short_vspread, 2459);
 
         // since short volume ~= 3 * long volume intensity, expect short spread to be larger by this factor
         assert_eq!(short_vspread >= long_vspread * 3, true);
@@ -1311,11 +1383,12 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
 
         // since total_fee_minus_distributions <=0, 10 * vol spread
-        assert_eq!(long_spread, 16390); // vs 2500
+        assert_eq!(long_spread, 8190); // vs 2500
         assert_eq!(
             long_spread
                 > (base_spread
@@ -1323,7 +1396,7 @@ mod test {
             true
         );
 
-        assert_eq!(short_spread, 99180);
+        assert_eq!(short_spread, 74590);
         assert_eq!(
             short_spread
                 > (base_spread
@@ -1351,11 +1424,12 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
 
-        assert_eq!(long_spread, 1639);
-        assert_eq!(short_spread, 9918);
+        assert_eq!(long_spread, 819);
+        assert_eq!(short_spread, 7459);
 
         let (long_spread, short_spread) = calculate_spread(
             base_spread,
@@ -1377,10 +1451,11 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
-        assert_eq!(long_spread, 197138); // big cause of oracel pct
-        assert_eq!(short_spread, 2862);
+        assert_eq!(long_spread, 197814); // big cause of oracel pct
+        assert_eq!(short_spread, 2186);
 
         let (long_spread, short_spread) = calculate_spread(
             base_spread,
@@ -1402,10 +1477,11 @@ mod test {
             long_intensity_volume,
             short_intensity_volume,
             volume_24h,
+            0,
         )
         .unwrap();
-        assert_eq!(long_spread, 1639);
-        assert_eq!(short_spread, 76584); // big
+        assert_eq!(long_spread, 819);
+        assert_eq!(short_spread, 74125); // big
     }
 
     #[test]
@@ -1432,6 +1508,7 @@ mod test {
             12358265776,
             72230366233,
             432067603632,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread, 89746);
@@ -1458,6 +1535,7 @@ mod test {
             12358265776,
             72230366233,
             432067603632,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread, 89746);
@@ -1484,6 +1562,7 @@ mod test {
             12358265776,
             72230366233,
             432067603632,
+            0,
         )
         .unwrap();
         assert_eq!(long_spread, 89746);
@@ -1511,10 +1590,11 @@ mod test {
             9520659647,
             53979922148,
             427588331503,
+            0,
         )
         .unwrap();
-        assert_eq!(long_spread, 22137);
-        assert_eq!(short_spread, 217356);
+        assert_eq!(long_spread, 11068);
+        assert_eq!(short_spread, 135916);
     }
 
     #[test]

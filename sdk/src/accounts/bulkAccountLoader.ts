@@ -3,13 +3,12 @@ import { v4 as uuidv4 } from 'uuid';
 import { BufferAndSlot } from './types';
 import { promiseTimeout } from '../util/promiseTimeout';
 import { Connection } from '../bankrun/bankrunConnection';
+import { GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE } from '../constants/numericConstants';
 
 export type AccountToLoad = {
 	publicKey: PublicKey;
 	callbacks: Map<string, (buffer: Buffer, slot: number) => void>;
 };
-
-const GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE = 99;
 
 const oneMinute = 60 * 1000;
 

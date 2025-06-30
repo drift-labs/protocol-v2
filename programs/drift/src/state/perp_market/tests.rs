@@ -101,3 +101,58 @@ mod get_margin_ratio {
         assert_eq!(margin_ratio_maintenance, MARGIN_PRECISION / 100);
     }
 }
+
+mod get_min_perp_auction_duration {
+    use crate::state::perp_market::{PerpMarket, AMM};
+    use crate::State;
+
+    #[test]
+    fn test_get_speed_bump() {
+        let perp_market = PerpMarket {
+            amm: AMM {
+                taker_speed_bump_override: 0,
+                ..AMM::default()
+            },
+            ..PerpMarket::default()
+        };
+
+        let state = State {
+            min_perp_auction_duration: 10,
+            ..State::default()
+        };
+
+        // no override uses state value
+        assert_eq!(
+            perp_market.get_min_perp_auction_duration(state.min_perp_auction_duration),
+            10
+        );
+
+        let perp_market = PerpMarket {
+            amm: AMM {
+                taker_speed_bump_override: -1,
+                ..AMM::default()
+            },
+            ..PerpMarket::default()
+        };
+
+        // -1 override disables speed bump
+        assert_eq!(
+            perp_market.get_min_perp_auction_duration(state.min_perp_auction_duration),
+            0
+        );
+
+        let perp_market = PerpMarket {
+            amm: AMM {
+                taker_speed_bump_override: 20,
+                ..AMM::default()
+            },
+            ..PerpMarket::default()
+        };
+
+        // positive override uses override value
+        assert_eq!(
+            perp_market.get_min_perp_auction_duration(state.min_perp_auction_duration),
+            20
+        );
+    }
+}
