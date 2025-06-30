@@ -256,6 +256,13 @@ impl LPPool {
         let lp_amount = if self.last_aum == 0 {
             token_amount_usd.safe_div(token_precision_denominator)?
         } else {
+            msg!("token_amount_usd: {}", token_amount_usd);
+            msg!("dlp_total_supply: {}", dlp_total_supply);
+            msg!("last_aum: {}", self.last_aum);
+            msg!(
+                "token_precision_denominator: {}",
+                token_precision_denominator
+            );
             token_amount_usd
                 .safe_mul(dlp_total_supply as u128)?
                 .safe_div(self.last_aum.safe_mul(token_precision_denominator)?)?

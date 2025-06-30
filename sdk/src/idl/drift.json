@@ -7649,6 +7649,11 @@
           "name": "constituentTargetBase",
           "isMut": true,
           "isSigner": false
+        },
+        {
+          "name": "ammCache",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": []
