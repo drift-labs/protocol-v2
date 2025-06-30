@@ -455,12 +455,12 @@ fn calc_mark_std_tests() {
         last_mark_price_twap_ts: prev,
         ..AMM::default()
     };
-    update_amm_mark_std(&mut amm, now, PRICE_PRECISION_U64 * 23, 0).unwrap();
+    update_amm_mark_std(&mut amm, now, PRICE_PRECISION_U64 * 23, 0, 0).unwrap();
     assert_eq!(amm.mark_std, 23000000);
 
     amm.mark_std = PRICE_PRECISION_U64;
     amm.last_mark_price_twap_ts = now - 60;
-    update_amm_mark_std(&mut amm, now, PRICE_PRECISION_U64 * 2, 0).unwrap();
+    update_amm_mark_std(&mut amm, now, PRICE_PRECISION_U64 * 2, 0, 0).unwrap();
     assert_eq!(amm.mark_std, 2000000);
 
     let mut px = PRICE_PRECISION_U64;
@@ -505,7 +505,7 @@ fn calc_mark_std_tests() {
     assert_eq!(amm.last_bid_price_twap, 39449);
     assert_eq!(amm.last_ask_price_twap, 39449);
 
-    assert_eq!(amm.mark_std, 105);
+    assert_eq!(amm.mark_std, 6676);
 
     // sol price looking thinkg
     let mut px: u64 = 31_936_658;
@@ -577,7 +577,7 @@ fn calc_mark_std_tests() {
 
             let mark_twap = amm.last_mark_price_twap;
 
-            update_amm_oracle_std(&mut amm, now, px + 1000000, mark_twap).unwrap();
+            update_amm_oracle_std(&mut amm, now, px + 1000000, mark_twap, mark_twap).unwrap();
         }
     }
     assert_eq!(now, 1656703921);
@@ -680,7 +680,7 @@ fn update_mark_twap_tests() {
     assert_eq!(new_mark_twap, 40024054); // ~ 2 cents above oracle twap
     assert_eq!(new_ask_twap, 40033561);
     assert_eq!(amm.mark_std, 27230);
-    assert_eq!(amm.oracle_std, 3119);
+    assert_eq!(amm.oracle_std, 3120);
 
     let trade_price_2 = 39_971_280 * PRICE_PRECISION_U64 / 1_000_000;
     let trade_direction_2 = PositionDirection::Short;
@@ -721,8 +721,8 @@ fn update_mark_twap_tests() {
     assert_eq!(new_mark_twap, 39995089);
 
     assert!((new_oracle_twap as u64) >= new_mark_twap); // funding in favor of maker
+    assert_eq!(amm.oracle_std, 7240);
     assert_eq!(amm.mark_std, 24467);
-    assert_eq!(amm.oracle_std, 7238);
 }
 
 #[test]
@@ -778,7 +778,7 @@ fn calc_oracle_twap_tests() {
         amm.historical_oracle_data.last_oracle_price_twap_5min,
         33392001
     );
-    assert_eq!(amm.oracle_std, 2_940_167);
+    assert_eq!(amm.oracle_std, 2_990_000);
 
     let _new_oracle_twap_2 =
         update_oracle_price_twap(&mut amm, now + 60 * 5, &oracle_price_data, None, None).unwrap();
@@ -788,7 +788,7 @@ fn calc_oracle_twap_tests() {
         amm.historical_oracle_data.last_oracle_price_twap_5min,
         31 * PRICE_PRECISION_I64
     );
-    assert_eq!(amm.oracle_std, 2_695_154);
+    assert_eq!(amm.oracle_std, 2940167);
 
     oracle_price_data = OraclePriceData {
         price: (32 * PRICE_PRECISION) as i64,
@@ -804,7 +804,7 @@ fn calc_oracle_twap_tests() {
         amm.historical_oracle_data.last_oracle_price_twap_5min,
         31200001
     );
-    assert_eq!(amm.oracle_std, 1_666_902); // ~$1.6 of std
+    assert_eq!(amm.oracle_std, 1695154); // ~$1.7 of std
 }
 
 #[test]

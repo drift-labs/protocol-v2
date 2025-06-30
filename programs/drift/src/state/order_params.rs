@@ -46,12 +46,10 @@ pub enum OrderParamsBitFlag {
 
 impl OrderParams {
     pub fn has_valid_auction_params(&self) -> DriftResult<bool> {
-        if self.auction_duration.is_none()
-            || self.auction_start_price.is_none()
-            || self.auction_end_price.is_none()
+        if self.auction_duration.is_some()
+            && self.auction_start_price.is_some()
+            && self.auction_end_price.is_some()
         {
-            return Ok(false);
-        } else {
             if self.direction == PositionDirection::Long {
                 return Ok(self.auction_start_price.safe_unwrap()?
                     <= self.auction_end_price.safe_unwrap()?);
@@ -59,6 +57,14 @@ impl OrderParams {
                 return Ok(self.auction_start_price.safe_unwrap()?
                     >= self.auction_end_price.safe_unwrap()?);
             }
+        } else if self.order_type == OrderType::Limit
+            && self.auction_duration.is_none()
+            && self.auction_start_price.is_none()
+            && self.auction_end_price.is_none()
+        {
+            return Ok(true);
+        } else {
+            return Ok(false);
         }
     }
 
@@ -200,7 +206,7 @@ impl OrderParams {
                         if is_oracle_offset_oracle {
                             msg!(
                                 "Updating oracle limit auction start price to {}",
-                                new_auction_start_price
+                                auction_start_price_offset
                             );
                             self.auction_start_price = Some(auction_start_price_offset);
                         } else {
@@ -216,7 +222,7 @@ impl OrderParams {
                     if is_oracle_offset_oracle {
                         msg!(
                             "Updating oracle limit auction start price to {}",
-                            new_auction_start_price
+                            auction_start_price_offset
                         );
                         self.auction_start_price = Some(auction_start_price_offset);
                     } else {
@@ -240,6 +246,28 @@ impl OrderParams {
                     msg!("Updating limit auction end price to {}", self.price);
                     self.auction_end_price = Some(self.price as i64);
                 }
+            }
+        }
+
+        let worst_price = if is_oracle_offset_oracle {
+            oracle_price_offset as i64
+        } else {
+            self.price as i64
+        };
+
+        if self.direction == PositionDirection::Long {
+            if let Some(auction_start_price) = self.auction_start_price {
+                self.auction_start_price = Some(auction_start_price.min(worst_price));
+            }
+            if let Some(auction_end_price) = self.auction_end_price {
+                self.auction_end_price = Some(auction_end_price.min(worst_price));
+            }
+        } else {
+            if let Some(auction_start_price) = self.auction_start_price {
+                self.auction_start_price = Some(auction_start_price.max(worst_price));
+            }
+            if let Some(auction_end_price) = self.auction_end_price {
+                self.auction_end_price = Some(auction_end_price.max(worst_price));
             }
         }
 
@@ -363,14 +391,19 @@ impl OrderParams {
                 )?;
             let current_start_price_offset = self.get_auction_start_price_offset(oracle_price)?;
             let current_end_price_offset = self.get_auction_end_price_offset(oracle_price)?;
+
+            let is_tail_mkt = !perp_market
+                .contract_tier
+                .is_as_safe_as_contract(&ContractTier::B);
+
             match self.direction {
                 PositionDirection::Long => {
-                    let long_start_threshold = if is_signed_msg {
+                    let long_start_threshold = if is_signed_msg || is_tail_mkt {
                         new_start_price_offset.safe_add(oracle_price.abs().safe_div(1000)?)?
                     } else {
                         new_start_price_offset
                     };
-                    let long_end_threshold = if is_signed_msg {
+                    let long_end_threshold = if is_signed_msg || is_tail_mkt {
                         new_end_price_offset.safe_add(oracle_price.abs().safe_div(1000)?)?
                     } else {
                         new_end_price_offset
@@ -400,12 +433,12 @@ impl OrderParams {
                     }
                 }
                 PositionDirection::Short => {
-                    let short_start_threshold = if is_signed_msg {
+                    let short_start_threshold = if is_signed_msg || is_tail_mkt {
                         new_start_price_offset.safe_sub(oracle_price.abs().safe_div(1000)?)?
                     } else {
                         new_start_price_offset
                     };
-                    let short_end_threshold = if is_signed_msg {
+                    let short_end_threshold = if is_signed_msg || is_tail_mkt {
                         new_end_price_offset.safe_sub(oracle_price.abs().safe_div(1000)?)?
                     } else {
                         new_end_price_offset
@@ -480,17 +513,8 @@ impl OrderParams {
         let (mut auction_start_price, mut auction_end_price) = if limit_price != 0 {
             let (auction_start_price_offset, auction_end_price_offset) =
                 OrderParams::get_perp_baseline_start_end_price_offset(perp_market, direction, 2)?;
-            let mut auction_start_price = oracle_price.safe_add(auction_start_price_offset)?;
-            let mut auction_end_price = oracle_price.safe_add(auction_end_price_offset)?;
-
-            let limit_price = limit_price as i64;
-            if direction == PositionDirection::Long {
-                auction_start_price = auction_start_price.min(limit_price);
-                auction_end_price = auction_end_price.min(limit_price);
-            } else {
-                auction_start_price = auction_start_price.max(limit_price);
-                auction_end_price = auction_end_price.max(limit_price);
-            };
+            let auction_start_price = oracle_price.safe_add(auction_start_price_offset)?;
+            let auction_end_price = oracle_price.safe_add(auction_end_price_offset)?;
 
             (auction_start_price, auction_end_price)
         } else {
@@ -526,6 +550,17 @@ impl OrderParams {
         if perp_market.is_prediction_market() {
             auction_start_price = auction_start_price.min(MAX_PREDICTION_MARKET_PRICE_I64);
             auction_end_price = auction_end_price.min(MAX_PREDICTION_MARKET_PRICE_I64);
+        }
+
+        if limit_price != 0 {
+            let limit_price = limit_price as i64;
+            if direction == PositionDirection::Long {
+                auction_start_price = auction_start_price.min(limit_price);
+                auction_end_price = auction_end_price.min(limit_price);
+            } else {
+                auction_start_price = auction_start_price.max(limit_price);
+                auction_end_price = auction_end_price.max(limit_price);
+            }
         }
 
         let auction_duration = get_auction_duration(
@@ -859,7 +894,7 @@ fn get_auction_duration(
     Ok(percent_diff
         .safe_mul(slots_per_bp)?
         .safe_div_ceil(PERCENTAGE_PRECISION_U64 / 100)? // 1% = 60 slots
-        .clamp(10, 180) as u8) // 180 slots max
+        .clamp(1, 180) as u8) // 180 slots max
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]

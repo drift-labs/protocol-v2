@@ -27,7 +27,7 @@ export class WebSocketProgramAccountSubscriber<T>
 	listenerId?: number;
 	resubOpts?: ResubOpts;
 	isUnsubscribing = false;
-	timeoutId?: NodeJS.Timeout;
+	timeoutId?: ReturnType<typeof setTimeout>;
 	options: { filters: MemcmpFilter[]; commitment?: Commitment };
 
 	receivingData = false;

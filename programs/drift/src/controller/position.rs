@@ -192,10 +192,10 @@ pub fn update_position_and_market(
         market.number_of_users_with_base = market.number_of_users_with_base.safe_add(1)?;
     } else if let PositionUpdateType::Close = update_type {
         if new_base_asset_amount == 0 && new_quote_asset_amount == 0 {
-            market.number_of_users = market.number_of_users.safe_sub(1)?;
+            market.number_of_users = market.number_of_users.saturating_sub(1);
         }
 
-        market.number_of_users_with_base = market.number_of_users_with_base.safe_sub(1)?;
+        market.number_of_users_with_base = market.number_of_users_with_base.saturating_sub(1);
     }
 
     market.amm.quote_asset_amount = market

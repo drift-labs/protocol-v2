@@ -1,6 +1,6 @@
 {
 	"name": "@drift-labs/sdk",
-	"version": "2.121.0-beta.6",
+	"version": "2.126.0-beta.6",
 	"main": "lib/node/index.js",
 	"types": "lib/node/index.d.ts",
 	"browser": "./lib/browser/index.js",
@@ -18,6 +18,7 @@
 		"test": "mocha -r ts-node/register tests/**/*.ts",
 		"test:inspect": "mocha --inspect-brk -r ts-node/register tests/**/*.ts",
 		"test:bignum": "mocha -r ts-node/register tests/bn/**/*.ts",
+		"test:ci": "mocha -r ts-node/register tests/ci/**/*.ts",
 		"patch-and-pub": "npm version patch --force && npm publish",
 		"prettify": "prettier --check './src/***/*.ts'",
 		"prettify:fix": "prettier --write './{src,tests}/***/*.ts'",

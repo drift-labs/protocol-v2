@@ -11,6 +11,7 @@ use math::{bn, constants::*};
 use state::oracle::OracleSource;
 
 use crate::controller::position::PositionDirection;
+use crate::state::if_rebalance_config::IfRebalanceConfigParams;
 use crate::state::oracle::PrelaunchOracleParams;
 use crate::state::order_params::{ModifyOrderParams, OrderParams};
 use crate::state::perp_market::{ContractTier, MarketStatus};
@@ -778,6 +779,30 @@ pub mod drift {
     ) -> Result<()> {
         handle_transfer_protocol_if_shares(ctx, market_index, shares)
     }
+    pub fn begin_insurance_fund_swap<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InsuranceFundSwap<'info>>,
+        in_market_index: u16,
+        out_market_index: u16,
+        amount_in: u64,
+    ) -> Result<()> {
+        handle_begin_insurance_fund_swap(ctx, in_market_index, out_market_index, amount_in)
+    }
+
+    pub fn end_insurance_fund_swap<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InsuranceFundSwap<'info>>,
+        in_market_index: u16,
+        out_market_index: u16,
+    ) -> Result<()> {
+        handle_end_insurance_fund_swap(ctx, in_market_index, out_market_index)
+    }
+
+    pub fn transfer_protocol_if_shares_to_revenue_pool<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, TransferProtocolIfSharesToRevenuePool<'info>>,
+        market_index: u16,
+        amount: u64,
+    ) -> Result<()> {
+        handle_transfer_protocol_if_shares_to_revenue_pool(ctx, market_index, amount)
+    }
 
     pub fn update_pyth_pull_oracle(
         ctx: Context<UpdatePythPullOraclePriceFeed>,
@@ -1336,7 +1361,7 @@ pub mod drift {
     }
 
     pub fn update_perp_market_curve_update_intensity(
-        ctx: Context<AdminUpdatePerpMarket>,
+        ctx: Context<HotAdminUpdatePerpMarket>,
         curve_update_intensity: u8,
     ) -> Result<()> {
         handle_update_perp_market_curve_update_intensity(ctx, curve_update_intensity)
@@ -1446,7 +1471,7 @@ pub mod drift {
     }
 
     pub fn update_amm_jit_intensity(
-        ctx: Context<AdminUpdatePerpMarket>,
+        ctx: Context<HotAdminUpdatePerpMarket>,
         amm_jit_intensity: u8,
     ) -> Result<()> {
         handle_update_amm_jit_intensity(ctx, amm_jit_intensity)
@@ -1525,7 +1550,7 @@ pub mod drift {
     }
 
     pub fn update_perp_market_fuel(
-        ctx: Context<AdminUpdatePerpMarket>,
+        ctx: Context<HotAdminUpdatePerpMarket>,
         fuel_boost_taker: Option<u8>,
         fuel_boost_maker: Option<u8>,
         fuel_boost_position: Option<u8>,
@@ -1545,8 +1570,34 @@ pub mod drift {
         )
     }
 
+    pub fn update_perp_market_taker_speed_bump_override(
+        ctx: Context<HotAdminUpdatePerpMarket>,
+        taker_speed_bump_override: i8,
+    ) -> Result<()> {
+        handle_update_perp_market_taker_speed_bump_override(ctx, taker_speed_bump_override)
+    }
+
+    pub fn update_perp_market_amm_spread_adjustment(
+        ctx: Context<HotAdminUpdatePerpMarket>,
+        amm_spread_adjustment: i8,
+        amm_inventory_spread_adjustment: i8,
+    ) -> Result<()> {
+        handle_update_perp_market_amm_spread_adjustment(
+            ctx,
+            amm_spread_adjustment,
+            amm_inventory_spread_adjustment,
+        )
+    }
+
+    pub fn update_perp_market_oracle_slot_delay_override(
+        ctx: Context<HotAdminUpdatePerpMarket>,
+        oracle_slot_delay_override: i8,
+    ) -> Result<()> {
+        handle_update_perp_market_oracle_slot_delay_override(ctx, oracle_slot_delay_override)
+    }
+
     pub fn update_spot_market_fuel(
-        ctx: Context<AdminUpdateSpotMarket>,
+        ctx: Context<AdminUpdateSpotMarketFuel>,
         fuel_boost_deposits: Option<u8>,
         fuel_boost_borrows: Option<u8>,
         fuel_boost_taker: Option<u8>,
@@ -1709,8 +1760,9 @@ pub mod drift {
         ctx: Context<UpdateHighLeverageModeConfig>,
         max_users: u32,
         reduce_only: bool,
+        current_users: Option<u32>,
     ) -> Result<()> {
-        handle_update_high_leverage_mode_config(ctx, max_users, reduce_only)
+        handle_update_high_leverage_mode_config(ctx, max_users, reduce_only, current_users)
     }
 
     pub fn initialize_protected_maker_mode_config(
@@ -1735,6 +1787,20 @@ pub mod drift {
         amount: u64,
     ) -> Result<()> {
         handle_admin_deposit(ctx, market_index, amount)
+    }
+
+    pub fn initialize_if_rebalance_config(
+        ctx: Context<InitializeIfRebalanceConfig>,
+        params: IfRebalanceConfigParams,
+    ) -> Result<()> {
+        handle_initialize_if_rebalance_config(ctx, params)
+    }
+
+    pub fn update_if_rebalance_config(
+        ctx: Context<UpdateIfRebalanceConfig>,
+        params: IfRebalanceConfigParams,
+    ) -> Result<()> {
+        handle_update_if_rebalance_config(ctx, params)
     }
 
     pub fn initialize_constituent<'info>(

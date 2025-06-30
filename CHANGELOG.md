@@ -5,11 +5,75 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## Unreleased
 
 ### Features
 
 ### Fixes
+
+### Breaking
+
+## [2.125.0] - 2025-06-24
+
+### Features
+
+- program: use three points for std estimator ([#1686](https://github.com/drift-labs/protocol-v2/pull/1686))
+- program: add inventory component amm_spread_adjustment ([#1690](https://github.com/drift-labs/protocol-v2/pull/1690))
+- program: spot market specific rev pool to insurance cap ([#1692](https://github.com/drift-labs/protocol-v2/pull/1692))
+- program: better account for imf in calculate_max_perp_order_size ([#1693](https://github.com/drift-labs/protocol-v2/pull/1693))
+
+### Fixes
+
+### Breaking
+
+## [2.124.0] - 2025-06-18
+
+### Features
+
+- program: perp market amm oracle delay override ([#1679](https://github.com/drift-labs/protocol-v2/pull/1679))
+- program: sanitize long tail perp market orders less frequently ([#1641](https://github.com/drift-labs/protocol-v2/pull/1641))
+- program: programmatic rebalance between protocol owned if holdings ([#1653](https://github.com/drift-labs/protocol-v2/pull/1653))
+
+### Fixes
+
+### Breaking
+
+## [2.123.0] - 2025-06-13
+
+### Features
+
+- program: simplify user can skip duration ([#1668](https://github.com/drift-labs/protocol-v2/pull/1668))
+- program: allow limit orders without auctions in swift ([#1661](https://github.com/drift-labs/protocol-v2/pull/1661))
+- program: add taker_speed_bump_override and amm_spread_adjustment ([#1665](https://github.com/drift-labs/protocol-v2/pull/1665))
+
+### Fixes
+
+### Breaking
+
+## [2.122.0] - 2025-06-05
+
+### Features
+
+- program: add existing position fields to order records ([#1614](https://github.com/drift-labs/protocol-v2/pull/1614))
+
+### Fixes
+
+- sdk: fix to getMaxTradeSizeUSDCForPerp which was previously overshooting max allowed size due to IMF factor
+- program: check limit price after applying buffer in trigger limit order ([#1648](https://github.com/drift-labs/protocol-v2/pull/1648))
+- program: check limit price when setting auction for limit order ([#1650](https://github.com/drift-labs/protocol-v2/pull/1650))
+
+### Breaking
+
+## [2.121.0] - 2025-05-29
+
+### Features
+
+- program: multi piecewise interest rate curve ([#1560](https://github.com/drift-labs/protocol-v2/pull/1560))
+- sdk: fees and max perp trade size calculation functions allow an optional parameter for a user using bitFlags to enter high leverage mode
+
+### Fixes
+
+- program: safely use saturating sub number_of_users fields per market ([#1616](https://github.com/drift-labs/protocol-v2/pull/1616))
 
 ### Breaking
 

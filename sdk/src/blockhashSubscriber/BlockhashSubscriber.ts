@@ -12,7 +12,7 @@ export class BlockhashSubscriber {
 	private latestBlockHeight: number;
 	private latestBlockHeightContext: Context | undefined;
 	private blockhashes: Array<BlockhashWithExpiryBlockHeight> = [];
-	private updateBlockhashIntervalId: NodeJS.Timeout | undefined;
+	private updateBlockhashIntervalId: ReturnType<typeof setTimeout> | undefined;
 	private commitment: Commitment;
 	private updateIntervalMs: number;
 

@@ -24,7 +24,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 	commitment?: Commitment;
 	isUnsubscribing = false;
 
-	timeoutId?: NodeJS.Timeout;
+	timeoutId?: ReturnType<typeof setTimeout>;
 
 	receivingData: boolean;
 
