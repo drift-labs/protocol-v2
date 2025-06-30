@@ -1,5 +1,4 @@
 import {
-	DataAndSlot,
 	NotSubscribedError,
 	ConstituentAccountEvents,
 	ConstituentAccountSubscriber,
@@ -7,8 +6,7 @@ import {
 import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
-import { PublicKey, Commitment, MemcmpFilter } from '@solana/web3.js';
-import { ConstituentAccount } from '../types';
+import { Commitment, MemcmpFilter } from '@solana/web3.js';
 import { ConstituentMap } from './constituentMap';
 
 export class PollingConstituentAccountSubscriber

@@ -40,6 +40,7 @@ import {
 	OraclePriceData,
 	OracleInfo,
 	PerpMarketAccount,
+	ConstituentAccount,
 } from '../sdk';
 import {
 	TestClient,
@@ -1276,5 +1277,31 @@ export async function overWriteMintAccount(
 		lamports: info.lamports,
 		data: data,
 		rentEpoch: info.rentEpoch,
+	});
+}
+
+export async function overwriteConstituentAccount(
+	bankrunContextWrapper: BankrunContextWrapper,
+	program: Program,
+	constituentPublicKey: PublicKey,
+	overwriteFields: Array<[key: keyof ConstituentAccount, value: any]>
+) {
+	const acc = await program.account.constituent.fetch(constituentPublicKey);
+	if (!acc) {
+		throw new Error(
+			`Constituent account ${constituentPublicKey.toBase58()} not found`
+		);
+	}
+	for (const [key, value] of overwriteFields) {
+		acc[key] = value;
+	}
+	bankrunContextWrapper.context.setAccount(constituentPublicKey, {
+		executable: false,
+		owner: program.programId,
+		lamports: LAMPORTS_PER_SOL,
+		data: await program.account.constituent.coder.accounts.encode(
+			'Constituent',
+			acc
+		),
 	});
 }

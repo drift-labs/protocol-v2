@@ -9,7 +9,6 @@ import { ConstituentAccount } from '../types';
 import { PollingConstituentAccountSubscriber } from './pollingConstituentAccountSubscriber';
 import { WebSocketConstituentAccountSubscriber } from './webSocketConstituentAccountSubscriber';
 import { DriftClient } from '../driftClient';
-import { ProgramAccount } from '@coral-xyz/anchor';
 import { getConstituentFilter } from '../memcmp';
 import { ZSTDDecoder } from 'zstddec';
 

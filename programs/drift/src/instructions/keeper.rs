@@ -3040,6 +3040,7 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
                         .historical_oracle_data
                         .last_oracle_price_twap,
                     perp_market.get_max_confidence_interval_multiplier()?,
+                    0,
                 )?;
 
                 if !is_oracle_valid_for_action(oracle_validity, Some(DriftAction::SettlePnl))?

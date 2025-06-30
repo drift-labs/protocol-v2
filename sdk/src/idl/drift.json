@@ -18168,47 +18168,47 @@
       "msg": "Invalid If Rebalance Swap"
     },
     {
-      "code": 6315,
+      "code": 6317,
       "name": "InvalidConstituent",
       "msg": "Invalid Constituent"
     },
     {
-      "code": 6316,
+      "code": 6318,
       "name": "InvalidAmmConstituentMappingArgument",
       "msg": "Invalid Amm Constituent Mapping argument"
     },
     {
-      "code": 6317,
+      "code": 6319,
       "name": "InvalidUpdateConstituentTargetBaseArgument",
       "msg": "Invalid update constituent update target weights argument"
     },
     {
-      "code": 6318,
+      "code": 6320,
       "name": "ConstituentNotFound",
       "msg": "Constituent not found"
     },
     {
-      "code": 6319,
+      "code": 6321,
       "name": "ConstituentCouldNotLoad",
       "msg": "Constituent could not load"
     },
     {
-      "code": 6320,
+      "code": 6322,
       "name": "ConstituentWrongMutability",
       "msg": "Constituent wrong mutability"
     },
     {
-      "code": 6321,
+      "code": 6323,
       "name": "WrongNumberOfConstituents",
       "msg": "Wrong number of constituents passed to instruction"
     },
     {
-      "code": 6322,
+      "code": 6324,
       "name": "OracleTooStaleForLPAUMUpdate",
       "msg": "Oracle too stale for LP AUM update"
     },
     {
-      "code": 6323,
+      "code": 6325,
       "name": "InsufficientConstituentTokenBalance",
       "msg": "Insufficient constituent token balance"
     }
