@@ -755,7 +755,12 @@ export class User {
 	 * @returns The maintenance margin requirement in USDC. : QUOTE_PRECISION
 	 */
 	public getMaintenanceMarginRequirement(liquidationBuffer?: BN): BN {
-		return this.getMarginRequirement('Maintenance', liquidationBuffer);
+		return this.getMarginRequirement(
+			'Maintenance',
+			liquidationBuffer,
+			undefined,
+			false
+		);
 	}
 
 	public getActivePerpPositionsForUserAccount(
