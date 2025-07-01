@@ -551,11 +551,10 @@ export async function printTxLogs(
 	connection: Connection,
 	txSig: TransactionSignature
 ): Promise<string[]> {
-	const tx = await connection.getTransaction(txSig, { commitment: 'confirmed' });
-	console.log(
-		'tx logs',
-		tx.meta.logMessages,
-	);
+	const tx = await connection.getTransaction(txSig, {
+		commitment: 'confirmed',
+	});
+	console.log('tx logs', tx.meta.logMessages);
 	return tx.meta.logMessages;
 }
 

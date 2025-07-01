@@ -121,11 +121,9 @@ export class BankrunContextWrapper {
 	}
 
 	async moveTimeForward(increment: number): Promise<void> {
-
 		const approxSlots = increment / 0.4;
 		const slot = await this.connection.getSlot();
-		console.log(`warping to slot ${slot} -> ${BigInt(slot) + BigInt(approxSlots)}`)
-		this.context.warpToSlot(BigInt(Number(slot) + approxSlots));
+		this.context.warpToSlot(BigInt(Math.floor(Number(slot) + approxSlots)));
 
 		const currentClock = await this.context.banksClient.getClock();
 		const newUnixTimestamp = currentClock.unixTimestamp + BigInt(increment);
