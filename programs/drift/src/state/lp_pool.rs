@@ -31,6 +31,17 @@ pub const MIN_SWAP_FEE: i128 = 200; // 0.75% in PERCENTAGE_PRECISION
 
 pub const MIN_AUM_EXECUTION_FEE: u128 = 10_000_000_000_000;
 
+// Delay constants
+#[cfg(feature = "anchor-test")]
+pub const SETTLE_AMM_ORACLE_MAX_DELAY: u64 = 100;
+#[cfg(not(feature = "anchor-test"))]
+pub const SETTLE_AMM_ORACLE_MAX_DELAY: u64 = 10;
+pub const LP_POOL_SWAP_AUM_UPDATE_DELAY: u64 = 0;
+#[cfg(feature = "anchor-test")]
+pub const MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC: u64 = 10000u64;
+#[cfg(not(feature = "anchor-test"))]
+pub const MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC: u64 = 0u64;
+
 #[cfg(test)]
 mod tests;
 
@@ -1090,6 +1101,9 @@ pub fn calculate_target_weight(
     lp_pool_aum: u128,
     validation_flags: WeightValidationFlags,
 ) -> DriftResult<i64> {
+    if lp_pool_aum == 0 {
+        return Ok(0);
+    }
     let notional: i128 = (target_base as i128)
         .safe_mul(price as i128)?
         .safe_div(10_i128.pow(spot_market.decimals))?;

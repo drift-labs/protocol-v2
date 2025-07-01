@@ -551,6 +551,23 @@ describe('LP Pool', () => {
 		}
 	});
 
+	it('fails to add liquidity if aum not updated atomically', async () => {
+		try {
+			const lpPool = (await adminClient.program.account.lpPool.fetch(
+				lpPoolKey
+			)) as LPPoolAccount;
+			await adminClient.lpPoolAddLiquidity({
+				lpPool,
+				inAmount: new BN(1000).mul(QUOTE_PRECISION),
+				minMintAmount: new BN(1),
+				inMarketIndex: 0,
+			});
+			expect.fail('should have failed');
+		} catch (e) {
+			assert(e.message.includes('0x18b5'));
+		}
+	});
+
 	it('can update pool aum', async () => {
 		let lpPool = (await adminClient.program.account.lpPool.fetch(
 			lpPoolKey
@@ -571,15 +588,19 @@ describe('LP Pool', () => {
 
 		await adminClient.sendTransaction(new Transaction().add(createAtaIx), []);
 
-		await adminClient.lpPoolAddLiquidity({
-			lpPool,
-			inAmount: new BN(1000).mul(QUOTE_PRECISION),
-			minMintAmount: new BN(1),
-			inMarketIndex: 0,
-		});
+		const tx = new Transaction();
+		tx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1]));
+		tx.add(
+			await adminClient.getLpPoolAddLiquidityIx({
+				lpPool,
+				inAmount: new BN(1000).mul(QUOTE_PRECISION),
+				minMintAmount: new BN(1),
+				inMarketIndex: 0,
+			})
+		);
+		await adminClient.sendTransaction(tx);
 
 		await adminClient.updateLpPoolAum(lpPool, [0, 1]);
-
 		lpPool = (await adminClient.program.account.lpPool.fetch(
 			lpPoolKey
 		)) as LPPoolAccount;
@@ -620,10 +641,19 @@ describe('LP Pool', () => {
 		);
 		await adminClient.updateAmmCache([0, 1, 2]);
 
-		await adminClient.updateLpConstituentTargetBase(encodeName(lpPoolName), [
-			getConstituentPublicKey(program.programId, lpPoolKey, 0),
-			getConstituentPublicKey(program.programId, lpPoolKey, 1),
-		]);
+		const tx = new Transaction();
+		tx.add(await adminClient.getUpdateAmmCacheIx([0, 1, 2]));
+		tx.add(
+			await adminClient.getUpdateLpConstituentTargetBaseIx(
+				encodeName(lpPoolName),
+				[
+					getConstituentPublicKey(program.programId, lpPoolKey, 0),
+					getConstituentPublicKey(program.programId, lpPoolKey, 1),
+				]
+			)
+		);
+		await adminClient.sendTransaction(tx);
+
 		const constituentTargetBasePublicKey = getConstituentTargetBasePublicKey(
 			program.programId,
 			lpPoolKey
@@ -673,11 +703,19 @@ describe('LP Pool', () => {
 		assert(!constituent.lastOraclePrice.eq(ZERO));
 		await adminClient.updateLpPoolAum(lpPool, [0, 1, 2]);
 
-		await adminClient.updateLpConstituentTargetBase(encodeName(lpPoolName), [
-			getConstituentPublicKey(program.programId, lpPoolKey, 0),
-			getConstituentPublicKey(program.programId, lpPoolKey, 1),
-			getConstituentPublicKey(program.programId, lpPoolKey, 2),
-		]);
+		const tx = new Transaction();
+		tx.add(await adminClient.getUpdateAmmCacheIx([0, 1, 2])).add(
+			await adminClient.getUpdateLpConstituentTargetBaseIx(
+				encodeName(lpPoolName),
+				[
+					getConstituentPublicKey(program.programId, lpPoolKey, 0),
+					getConstituentPublicKey(program.programId, lpPoolKey, 1),
+					getConstituentPublicKey(program.programId, lpPoolKey, 2),
+				]
+			)
+		);
+		await adminClient.sendTransaction(tx);
+
 		await adminClient.updateLpPoolAum(lpPool, [0, 1, 2]);
 
 		const constituentTargetBasePublicKey = getConstituentTargetBasePublicKey(
@@ -820,12 +858,18 @@ describe('LP Pool', () => {
 			await bankrunContextWrapper.connection.getTokenAccount(
 				userLpTokenAccount
 			);
-		await adminClient.lpPoolRemoveLiquidity({
-			outMarketIndex: 0,
-			lpToBurn: new BN(lpTokenBalance.amount.toString()),
-			minAmountOut: new BN(1000).mul(QUOTE_PRECISION),
-			lpPool: lpPool,
-		});
+
+		const tx = new Transaction();
+		tx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1, 2]));
+		tx.add(
+			await adminClient.getLpPoolRemoveLiquidityIx({
+				outMarketIndex: 0,
+				lpToBurn: new BN(lpTokenBalance.amount.toString()),
+				minAmountOut: new BN(1000).mul(QUOTE_PRECISION),
+				lpPool: lpPool,
+			})
+		);
+		await adminClient.sendTransaction(tx);
 
 		let constituentVault =
 			await bankrunContextWrapper.connection.getTokenAccount(
@@ -862,7 +906,15 @@ describe('LP Pool', () => {
 		);
 
 		/// Now finally try and settle Perp to LP Pool
-		await adminClient.settlePerpToLpPool(encodeName(lpPoolName), [0, 1, 2]);
+		const settleTx = new Transaction();
+		settleTx.add(await adminClient.getUpdateAMMsIx([0, 1, 2]));
+		settleTx.add(
+			await adminClient.getSettlePerpToLpPoolIx(
+				encodeName(lpPoolName),
+				[0, 1, 2]
+			)
+		);
+		await adminClient.sendTransaction(settleTx);
 
 		constituent = (await adminClient.program.account.constituent.fetch(
 			getConstituentPublicKey(program.programId, lpPoolKey, 0)
@@ -930,7 +982,15 @@ describe('LP Pool', () => {
 			perpMarket
 		);
 
-		await adminClient.settlePerpToLpPool(encodeName(lpPoolName), [0, 1, 2]);
+		const settleTx = new Transaction();
+		settleTx.add(await adminClient.getUpdateAMMsIx([0, 1, 2]));
+		settleTx.add(
+			await adminClient.getSettlePerpToLpPoolIx(
+				encodeName(lpPoolName),
+				[0, 1, 2]
+			)
+		);
+		await adminClient.sendTransaction(settleTx);
 
 		ammCache = (await adminClient.program.account.ammCache.fetch(
 			getAmmCachePublicKey(program.programId)
@@ -953,13 +1013,19 @@ describe('LP Pool', () => {
 			lpPool.mint,
 			BigInt(lpPool.lastAum.toNumber())
 		);
-		await adminClient.lpPoolAddLiquidity({
-			lpPool,
-			inAmount: new BN(1000).mul(QUOTE_PRECISION),
-			minMintAmount: new BN(1),
-			inMarketIndex: 0,
-		});
 
+		console.log('here!');
+		const tx = new Transaction();
+		tx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1, 2]));
+		tx.add(
+			await adminClient.getLpPoolAddLiquidityIx({
+				lpPool,
+				inAmount: new BN(1000).mul(QUOTE_PRECISION),
+				minMintAmount: new BN(1),
+				inMarketIndex: 0,
+			})
+		);
+		await adminClient.sendTransaction(tx);
 		await adminClient.updateLpPoolAum(lpPool, [0, 1, 2]);
 
 		lpPool = (await adminClient.program.account.lpPool.fetch(

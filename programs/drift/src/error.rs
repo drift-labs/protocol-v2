@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::state::lp_pool::Constituent;
+use crate::state::{lp_pool::Constituent, perp_market::AMM};
 
 pub type DriftResult<T = ()> = std::result::Result<T, ErrorCode>;
 
@@ -655,6 +655,10 @@ pub enum ErrorCode {
     OracleTooStaleForLPAUMUpdate,
     #[msg("Insufficient constituent token balance")]
     InsufficientConstituentTokenBalance,
+    #[msg("Amm Cache data too stale")]
+    AMMCacheStale,
+    #[msg("LP Pool AUM not updated recently")]
+    LpPoolAumDelayed,
 }
 
 #[macro_export]

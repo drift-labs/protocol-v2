@@ -30,6 +30,7 @@ use crate::{
             calculate_target_weight, AmmConstituentDatum, AmmConstituentMappingFixed, Constituent,
             ConstituentCorrelationsFixed, ConstituentTargetBaseFixed, LPPool, TargetsDatum,
             WeightValidationFlags, CONSTITUENT_CORRELATIONS_PDA_SEED,
+            LP_POOL_SWAP_AUM_UPDATE_DELAY, MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC,
         },
         oracle::OraclePriceData,
         oracle_map::OracleMap,
@@ -58,12 +59,17 @@ use crate::state::lp_pool::{
 pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdateConstituentTargetBase<'info>>,
 ) -> Result<()> {
+    let slot = Clock::get()?.slot;
+
     let lp_pool = &ctx.accounts.lp_pool.load()?;
     let lp_pool_key: &Pubkey = &ctx.accounts.lp_pool.key();
     let amm_cache_key: &Pubkey = &ctx.accounts.amm_cache.key();
 
     let amm_cache: AccountZeroCopy<'_, CacheInfo, AmmCacheFixed> =
         ctx.accounts.amm_cache.load_zc()?;
+
+    amm_cache.check_oracle_staleness(slot, MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC)?;
+    amm_cache.check_perp_market_staleness(slot, MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC)?;
 
     let expected_cache_pda = &Pubkey::create_program_address(
         &[
@@ -372,7 +378,7 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
 
     for cache_datum in amm_cache.iter() {
         if cache_datum.quote_owed_from_lp > 0 {
-            aum = aum.safe_sub(cache_datum.quote_owed_from_lp.abs().cast::<u128>()?)?;
+            aum = aum.saturating_sub(cache_datum.quote_owed_from_lp.abs().cast::<u128>()?);
         } else {
             aum = aum.safe_add(cache_datum.quote_owed_from_lp.abs().cast::<u128>()?)?;
         }
@@ -484,6 +490,15 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
     let now = Clock::get()?.unix_timestamp;
     let state = &ctx.accounts.state;
     let lp_pool = &ctx.accounts.lp_pool.load()?;
+
+    if slot.saturating_sub(lp_pool.last_aum_slot) > LP_POOL_SWAP_AUM_UPDATE_DELAY {
+        msg!(
+            "Must update LP pool AUM before swap, last_aum_slot: {}, current slot: {}",
+            lp_pool.last_aum_slot,
+            slot
+        );
+        return Err(ErrorCode::LpPoolAumDelayed.into());
+    }
 
     let mut in_constituent = ctx.accounts.in_constituent.load_mut()?;
     let mut out_constituent = ctx.accounts.out_constituent.load_mut()?;
@@ -725,6 +740,15 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
     let state = &ctx.accounts.state;
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
 
+    if slot.saturating_sub(lp_pool.last_aum_slot) > LP_POOL_SWAP_AUM_UPDATE_DELAY {
+        msg!(
+            "Must update LP pool AUM before swap, last_aum_slot: {}, current slot: {}",
+            lp_pool.last_aum_slot,
+            slot
+        );
+        return Err(ErrorCode::LpPoolAumDelayed.into());
+    }
+
     let mut in_constituent = ctx.accounts.in_constituent.load_mut()?;
 
     let constituent_target_base = ctx.accounts.constituent_target_base.load_zc()?;
@@ -911,6 +935,15 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
     let now = Clock::get()?.unix_timestamp;
     let state = &ctx.accounts.state;
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
+
+    if slot.saturating_sub(lp_pool.last_aum_slot) > LP_POOL_SWAP_AUM_UPDATE_DELAY {
+        msg!(
+            "Must update LP pool AUM before swap, last_aum_slot: {}, current slot: {}",
+            lp_pool.last_aum_slot,
+            slot
+        );
+        return Err(ErrorCode::LpPoolAumDelayed.into());
+    }
 
     let mut out_constituent = ctx.accounts.out_constituent.load_mut()?;
 

@@ -17516,6 +17516,16 @@
       "code": 6323,
       "name": "InsufficientConstituentTokenBalance",
       "msg": "Insufficient constituent token balance"
+    },
+    {
+      "code": 6324,
+      "name": "AMMCacheStale",
+      "msg": "Amm Cache data too stale"
+    },
+    {
+      "code": 6325,
+      "name": "LpPoolAumDelayed",
+      "msg": "LP Pool AUM not updated recently"
     }
   ],
   "metadata": {
