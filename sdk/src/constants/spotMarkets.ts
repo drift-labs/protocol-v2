@@ -866,6 +866,19 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precision: new BN(10).pow(SIX),
 		precisionExp: SIX,
 	},
+	{
+		symbol: 'EURC',
+		marketIndex: 54,
+		poolId: 0,
+		oracle: new PublicKey('BkdSPLmw4W6twrJjAePw2bJAwDTBtxJ9t6LvNHfcBKg1'),
+		oracleSource: OracleSource.PYTH_LAZER,
+		mint: new PublicKey('HzwqbKZw8HxMN6bF2yFZNrht3c2iXXzpKcFu7uBEDKtr'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		pythFeedId:
+			'0x76fa85158bf14ede77087fe3ae472f66213f6ea2f5b411cb2de472794990fa5c',
+		pythLazerId: 240,
+	},
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {

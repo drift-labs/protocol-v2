@@ -149,6 +149,7 @@ export const mockAMM: AMM = {
 
 	takerSpeedBumpOverride: 0,
 	ammSpreadAdjustment: 0,
+	ammInventorySpreadAdjustment: 0,
 };
 
 export const mockPerpMarkets: Array<PerpMarketAccount> = [

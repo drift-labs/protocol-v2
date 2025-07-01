@@ -5,11 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## Unreleased
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.125.0] - 2025-06-24
+
+### Features
+
+- program: use three points for std estimator ([#1686](https://github.com/drift-labs/protocol-v2/pull/1686))
+- program: add inventory component amm_spread_adjustment ([#1690](https://github.com/drift-labs/protocol-v2/pull/1690))
+- program: spot market specific rev pool to insurance cap ([#1692](https://github.com/drift-labs/protocol-v2/pull/1692))
+- program: better account for imf in calculate_max_perp_order_size ([#1693](https://github.com/drift-labs/protocol-v2/pull/1693))
+
+### Fixes
+
+### Breaking
+
+## [2.124.0] - 2025-06-18
+
+### Features
+
+- program: perp market amm oracle delay override ([#1679](https://github.com/drift-labs/protocol-v2/pull/1679))
 - program: sanitize long tail perp market orders less frequently ([#1641](https://github.com/drift-labs/protocol-v2/pull/1641))
+- program: programmatic rebalance between protocol owned if holdings ([#1653](https://github.com/drift-labs/protocol-v2/pull/1653))
 
 ### Fixes
 

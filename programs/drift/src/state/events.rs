@@ -580,6 +580,46 @@ pub enum StakeAction {
 
 #[event]
 #[derive(Default)]
+pub struct InsuranceFundSwapRecord {
+    pub rebalance_config: Pubkey,
+    pub in_if_total_shares_before: u128,
+    pub out_if_total_shares_before: u128,
+    pub in_if_user_shares_before: u128,
+    pub out_if_user_shares_before: u128,
+    pub in_if_total_shares_after: u128,
+    pub out_if_total_shares_after: u128,
+    pub in_if_user_shares_after: u128,
+    pub out_if_user_shares_after: u128,
+    pub ts: i64,
+    pub in_amount: u64,
+    pub out_amount: u64,
+    pub out_oracle_price: u64,
+    pub out_oracle_price_twap: i64,
+    pub in_vault_amount_before: u64,
+    pub out_vault_amount_before: u64,
+    pub in_fund_vault_amount_after: u64,
+    pub out_fund_vault_amount_after: u64,
+    pub in_market_index: u16,
+    pub out_market_index: u16,
+}
+
+#[event]
+pub struct TransferProtocolIfSharesToRevenuePoolRecord {
+    pub ts: i64,
+    pub market_index: u16,
+    pub amount: u64,
+    pub shares: u128,
+    pub if_vault_amount_before: u64,
+    pub protocol_shares_before: u128,
+    pub current_in_amount_since_last_transfer: u64,
+}
+
+impl Size for InsuranceFundSwapRecord {
+    const SIZE: usize = 256;
+}
+
+#[event]
+#[derive(Default)]
 pub struct SwapRecord {
     pub ts: i64,
     pub user: Pubkey,

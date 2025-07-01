@@ -1051,12 +1051,14 @@ pub struct AMM {
     pub taker_speed_bump_override: i8,
     /// signed scale amm_spread similar to fee_adjustment logic (-100 = 0, 100 = double)
     pub amm_spread_adjustment: i8,
-    pub padding1: u8,
+    pub oracle_slot_delay_override: i8,
     pub total_fee_earned_per_lp: u64,
     pub net_unsettled_funding_pnl: i64,
     pub quote_asset_amount_with_unsettled_lp: i64,
     pub reference_price_offset: i32,
-    pub padding: [u8; 12],
+    /// signed scale amm_spread similar to fee_adjustment logic (-100 = 0, 100 = double)
+    pub amm_inventory_spread_adjustment: i8,
+    pub padding: [u8; 11],
 }
 
 impl Default for AMM {
@@ -1141,12 +1143,13 @@ impl Default for AMM {
             per_lp_base: 0,
             taker_speed_bump_override: 0,
             amm_spread_adjustment: 0,
-            padding1: 0,
+            oracle_slot_delay_override: 0,
             total_fee_earned_per_lp: 0,
             net_unsettled_funding_pnl: 0,
             quote_asset_amount_with_unsettled_lp: 0,
             reference_price_offset: 0,
-            padding: [0; 12],
+            amm_inventory_spread_adjustment: 0,
+            padding: [0; 11],
         }
     }
 }
@@ -1685,6 +1688,7 @@ impl AMM {
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: 19_400 * PRICE_PRECISION_I64,
                 last_oracle_price_twap: 19_400 * PRICE_PRECISION_I64,
+                last_oracle_price_twap_5min: 19_400 * PRICE_PRECISION_I64,
                 last_oracle_price_twap_ts: 1662800000_i64,
                 ..HistoricalOracleData::default()
             },

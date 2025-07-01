@@ -44,6 +44,7 @@ use crate::state::fulfillment_params::phoenix::PhoenixV1FulfillmentConfig;
 use crate::state::fulfillment_params::serum::SerumContext;
 use crate::state::fulfillment_params::serum::SerumV3FulfillmentConfig;
 use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
+use crate::state::if_rebalance_config::{IfRebalanceConfig, IfRebalanceConfigParams};
 use crate::state::insurance_fund_stake::ProtocolIfSharesTransferConfig;
 use crate::state::oracle::get_sb_on_demand_price;
 use crate::state::oracle::{
@@ -1040,14 +1041,15 @@ pub fn handle_initialize_perp_market(
             last_oracle_valid: false,
             target_base_asset_amount_per_lp: 0,
             per_lp_base: 0,
-            padding1: 0,
+            oracle_slot_delay_override: 0,
             taker_speed_bump_override: 0,
             amm_spread_adjustment: 0,
             total_fee_earned_per_lp: 0,
             net_unsettled_funding_pnl: 0,
             quote_asset_amount_with_unsettled_lp: 0,
             reference_price_offset: 0,
-            padding: [0; 12],
+            amm_inventory_spread_adjustment: 0,
+            padding: [0; 11],
         },
     };
 
@@ -3256,7 +3258,7 @@ pub fn handle_update_perp_market_concentration_coef(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_curve_update_intensity(
-    ctx: Context<AdminUpdatePerpMarket>,
+    ctx: Context<HotAdminUpdatePerpMarket>,
     curve_update_intensity: u8,
 ) -> Result<()> {
     // (0, 100] is for repeg / formulaic k intensity
@@ -3605,7 +3607,7 @@ pub fn handle_update_perp_market_base_spread(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_amm_jit_intensity(
-    ctx: Context<AdminUpdatePerpMarket>,
+    ctx: Context<HotAdminUpdatePerpMarket>,
     amm_jit_intensity: u8,
 ) -> Result<()> {
     validate!(
@@ -4014,6 +4016,7 @@ pub fn handle_update_perp_market_taker_speed_bump_override(
 pub fn handle_update_perp_market_amm_spread_adjustment(
     ctx: Context<HotAdminUpdatePerpMarket>,
     amm_spread_adjustment: i8,
+    amm_inventory_spread_adjustment: i8,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     msg!("perp market {}", perp_market.market_index);
@@ -4025,6 +4028,34 @@ pub fn handle_update_perp_market_amm_spread_adjustment(
     );
 
     perp_market.amm.amm_spread_adjustment = amm_spread_adjustment;
+
+    msg!(
+        "perp_market.amm.amm_inventory_spread_adjustment: {:?} -> {:?}",
+        perp_market.amm.amm_inventory_spread_adjustment,
+        amm_inventory_spread_adjustment
+    );
+
+    perp_market.amm.amm_inventory_spread_adjustment = amm_inventory_spread_adjustment;
+    Ok(())
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_update_perp_market_oracle_slot_delay_override(
+    ctx: Context<HotAdminUpdatePerpMarket>,
+    oracle_slot_delay_override: i8,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
+
+    msg!(
+        "perp_market.amm.oracle_slot_delay_override: {:?} -> {:?}",
+        perp_market.amm.oracle_slot_delay_override,
+        oracle_slot_delay_override
+    );
+
+    perp_market.amm.oracle_slot_delay_override = oracle_slot_delay_override;
     Ok(())
 }
 
@@ -4632,6 +4663,48 @@ pub fn handle_admin_deposit<'c: 'info, 'info>(
     emit!(deposit_record);
 
     spot_market.validate_max_token_deposits_and_borrows(false)?;
+
+    Ok(())
+}
+
+pub fn handle_initialize_if_rebalance_config(
+    ctx: Context<InitializeIfRebalanceConfig>,
+    params: IfRebalanceConfigParams,
+) -> Result<()> {
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+
+    let pubkey = ctx.accounts.if_rebalance_config.to_account_info().key;
+    let mut config = ctx.accounts.if_rebalance_config.load_init()?;
+
+    config.pubkey = *pubkey;
+    config.total_in_amount = params.total_in_amount;
+    config.current_in_amount = 0;
+    config.epoch_max_in_amount = params.epoch_max_in_amount;
+    config.epoch_duration = params.epoch_duration;
+    config.out_market_index = params.out_market_index;
+    config.in_market_index = params.in_market_index;
+    config.max_slippage_bps = params.max_slippage_bps;
+    config.swap_mode = params.swap_mode;
+    config.status = 0;
+
+    config.validate()?;
+
+    Ok(())
+}
+
+pub fn handle_update_if_rebalance_config(
+    ctx: Context<UpdateIfRebalanceConfig>,
+    params: IfRebalanceConfigParams,
+) -> Result<()> {
+    let mut config = load_mut!(ctx.accounts.if_rebalance_config)?;
+
+    config.total_in_amount = params.total_in_amount;
+    config.epoch_max_in_amount = params.epoch_max_in_amount;
+    config.epoch_duration = params.epoch_duration;
+    config.max_slippage_bps = params.max_slippage_bps;
+
+    config.validate()?;
 
     Ok(())
 }
@@ -5408,4 +5481,37 @@ pub struct AdminDeposit<'info> {
     )]
     pub admin_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     pub token_program: Interface<'info, TokenInterface>,
+}
+
+#[derive(Accounts)]
+#[instruction(params: IfRebalanceConfigParams)]
+pub struct InitializeIfRebalanceConfig<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        init,
+        seeds = [b"if_rebalance_config".as_ref(), params.in_market_index.to_le_bytes().as_ref(), params.out_market_index.to_le_bytes().as_ref()],
+        space = IfRebalanceConfig::SIZE,
+        bump,
+        payer = admin
+    )]
+    pub if_rebalance_config: AccountLoader<'info, IfRebalanceConfig>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateIfRebalanceConfig<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(mut)]
+    pub if_rebalance_config: AccountLoader<'info, IfRebalanceConfig>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
 }

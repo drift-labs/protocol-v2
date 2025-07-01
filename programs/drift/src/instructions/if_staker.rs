@@ -1,9 +1,11 @@
 use anchor_lang::prelude::*;
+use anchor_lang::Discriminator;
 use anchor_spl::token_interface::{TokenAccount, TokenInterface};
 
-use crate::controller::insurance::transfer_protocol_insurance_fund_stake;
 use crate::error::ErrorCode;
+use crate::ids::if_rebalance_wallet;
 use crate::instructions::constraints::*;
+use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::optional_accounts::get_token_mint;
 use crate::state::insurance_fund_stake::{InsuranceFundStake, ProtocolIfSharesTransferConfig};
 use crate::state::paused_operations::InsuranceFundOperation;
@@ -14,7 +16,18 @@ use crate::state::traits::Size;
 use crate::state::user::UserStats;
 use crate::validate;
 use crate::{controller, math};
+use crate::{
+    controller::insurance::transfer_protocol_insurance_fund_stake,
+    state::{
+        if_rebalance_config::IfRebalanceConfig, perp_market_map::MarketSet,
+        spot_market_map::get_writable_spot_market_set_from_many,
+    },
+};
 use crate::{load_mut, QUOTE_SPOT_MARKET_INDEX};
+use anchor_lang::solana_program::sysvar::instructions;
+
+use super::optional_accounts::get_token_interface;
+use crate::math::safe_math::SafeMath;
 
 pub fn handle_initialize_insurance_fund_stake(
     ctx: Context<InitializeInsuranceFundStake>,
@@ -322,6 +335,435 @@ pub fn handle_transfer_protocol_if_shares(
     Ok(())
 }
 
+#[access_control(
+    fill_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_begin_insurance_fund_swap<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, InsuranceFundSwap<'info>>,
+    in_market_index: u16,
+    out_market_index: u16,
+    amount_in: u64,
+) -> Result<()> {
+    let state = &ctx.accounts.state;
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        remaining_accounts_iter,
+        &MarketSet::new(),
+        &get_writable_spot_market_set_from_many(vec![in_market_index, out_market_index]),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let _token_interface = get_token_interface(remaining_accounts_iter)?;
+    let mint = get_token_mint(remaining_accounts_iter)?;
+
+    let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
+
+    if let Some(mint) = &mint {
+        validate!(
+            mint.key() == in_spot_market.mint,
+            ErrorCode::InvalidSwap,
+            "in_spot_market.mint mismatch"
+        )?;
+    }
+
+    validate!(
+        in_spot_market.flash_loan_initial_token_amount == 0
+            && in_spot_market.flash_loan_amount == 0,
+        ErrorCode::InvalidSwap,
+        "begin_swap ended in invalid state"
+    )?;
+
+    let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
+
+    validate!(
+        out_spot_market.flash_loan_initial_token_amount == 0
+            && out_spot_market.flash_loan_amount == 0,
+        ErrorCode::InvalidSwap,
+        "begin_swap ended in invalid state"
+    )?;
+
+    validate!(
+        in_market_index != out_market_index,
+        ErrorCode::InvalidSwap,
+        "in and out market the same"
+    )?;
+
+    validate!(
+        amount_in != 0,
+        ErrorCode::InvalidSwap,
+        "amount_out cannot be zero"
+    )?;
+
+    let mut if_rebalance_config = ctx.accounts.if_rebalance_config.load_mut()?;
+    controller::insurance::handle_if_begin_swap(
+        &mut if_rebalance_config,
+        ctx.accounts.in_insurance_fund_vault.amount,
+        ctx.accounts.out_insurance_fund_vault.amount,
+        &mut in_spot_market,
+        &mut out_spot_market,
+        amount_in,
+        now,
+    )?;
+
+    let in_vault = &ctx.accounts.in_insurance_fund_vault;
+    let in_token_account = &ctx.accounts.in_token_account;
+
+    in_spot_market.flash_loan_amount = amount_in;
+    in_spot_market.flash_loan_initial_token_amount = in_token_account.amount;
+
+    let out_token_account = &ctx.accounts.out_token_account;
+
+    out_spot_market.flash_loan_initial_token_amount = out_token_account.amount;
+
+    controller::token::send_from_program_vault(
+        &ctx.accounts.token_program,
+        in_vault,
+        &ctx.accounts.in_token_account,
+        &ctx.accounts.drift_signer,
+        state.signer_nonce,
+        amount_in,
+        &mint,
+    )?;
+
+    let ixs = ctx.accounts.instructions.as_ref();
+    let current_index = instructions::load_current_index_checked(ixs)? as usize;
+
+    let current_ix = instructions::load_instruction_at_checked(current_index, ixs)?;
+    validate!(
+        current_ix.program_id == *ctx.program_id,
+        ErrorCode::InvalidSwap,
+        "SwapBegin must be a top-level instruction (cant be cpi)"
+    )?;
+
+    // The only other drift program allowed is SwapEnd
+    let mut index = current_index + 1;
+    let mut found_end = false;
+    loop {
+        let ix = match instructions::load_instruction_at_checked(index, ixs) {
+            Ok(ix) => ix,
+            Err(ProgramError::InvalidArgument) => break,
+            Err(e) => return Err(e.into()),
+        };
+
+        // Check that the drift program key is not used
+        if ix.program_id == crate::id() {
+            // must be the last ix -- this could possibly be relaxed
+            validate!(
+                !found_end,
+                ErrorCode::InvalidSwap,
+                "the transaction must not contain a Drift instruction after FlashLoanEnd"
+            )?;
+            found_end = true;
+
+            // must be the SwapEnd instruction
+            let discriminator = crate::instruction::EndInsuranceFundSwap::discriminator();
+            validate!(
+                ix.data[0..8] == discriminator,
+                ErrorCode::InvalidSwap,
+                "last drift ix must be end of swap"
+            )?;
+
+            validate!(
+                ctx.accounts.authority.key() == ix.accounts[1].pubkey,
+                ErrorCode::InvalidSwap,
+                "the authority passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.out_insurance_fund_vault.key() == ix.accounts[2].pubkey,
+                ErrorCode::InvalidSwap,
+                "the out_insurance_fund_vault passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.in_insurance_fund_vault.key() == ix.accounts[3].pubkey,
+                ErrorCode::InvalidSwap,
+                "the in_insurance_fund_vault passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.out_token_account.key() == ix.accounts[4].pubkey,
+                ErrorCode::InvalidSwap,
+                "the out_token_account passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.in_token_account.key() == ix.accounts[5].pubkey,
+                ErrorCode::InvalidSwap,
+                "the in_token_account passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.accounts.if_rebalance_config.key() == ix.accounts[6].pubkey,
+                ErrorCode::InvalidSwap,
+                "the if_rebalance_config passed to SwapBegin and End must match"
+            )?;
+
+            validate!(
+                ctx.remaining_accounts.len() == ix.accounts.len() - 10,
+                ErrorCode::InvalidSwap,
+                "begin and end ix must have the same number of accounts"
+            )?;
+
+            for i in 10..ix.accounts.len() {
+                validate!(
+                    *ctx.remaining_accounts[i - 10].key == ix.accounts[i].pubkey,
+                    ErrorCode::InvalidSwap,
+                    "begin and end ix must have the same accounts. {}th account mismatch. begin: {}, end: {}",
+                    i,
+                    ctx.remaining_accounts[i - 10].key,
+                    ix.accounts[i].pubkey
+                )?;
+            }
+        } else {
+            if found_end {
+                for meta in ix.accounts.iter() {
+                    validate!(
+                        meta.is_writable == false,
+                        ErrorCode::InvalidSwap,
+                        "instructions after swap end must not have writable accounts"
+                    )?;
+                }
+            } else {
+                for meta in ix.accounts.iter() {
+                    validate!(
+                        meta.pubkey != crate::id(),
+                        ErrorCode::InvalidSwap,
+                        "instructions between begin and end must not be drift instructions"
+                    )?;
+                }
+            }
+        }
+
+        index += 1;
+    }
+
+    validate!(
+        found_end,
+        ErrorCode::InvalidSwap,
+        "found no SwapEnd instruction in transaction"
+    )?;
+
+    Ok(())
+}
+
+pub fn handle_end_insurance_fund_swap<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, InsuranceFundSwap<'info>>,
+    in_market_index: u16,
+    out_market_index: u16,
+) -> Result<()> {
+    let state = &ctx.accounts.state;
+    let clock = Clock::get()?;
+    let slot = clock.slot;
+    let now = clock.unix_timestamp;
+
+    let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        remaining_accounts,
+        &MarketSet::new(),
+        &get_writable_spot_market_set_from_many(vec![in_market_index, out_market_index]),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+    let out_token_program = get_token_interface(remaining_accounts)?;
+
+    let in_mint = get_token_mint(remaining_accounts)?;
+    let out_mint = get_token_mint(remaining_accounts)?;
+
+    let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
+
+    if let Some(in_mint) = &in_mint {
+        validate!(
+            in_mint.key() == in_spot_market.mint,
+            ErrorCode::InvalidSwap,
+            "in_spot_market.mint mismatch"
+        )?;
+    }
+
+    validate!(
+        in_spot_market.flash_loan_amount != 0,
+        ErrorCode::InvalidSwap,
+        "the in_spot_market must have a flash loan amount set"
+    )?;
+
+    let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
+
+    if let Some(out_mint) = &out_mint {
+        validate!(
+            out_mint.key() == out_spot_market.mint,
+            ErrorCode::InvalidSwap,
+            "out_spot_market.mint mismatch"
+        )?;
+    }
+
+    let in_vault = &mut ctx.accounts.in_insurance_fund_vault;
+    let in_token_account = &mut ctx.accounts.in_token_account;
+
+    let mut amount_in = in_spot_market.flash_loan_amount;
+    if in_token_account.amount > in_spot_market.flash_loan_initial_token_amount {
+        let residual = in_token_account
+            .amount
+            .safe_sub(in_spot_market.flash_loan_initial_token_amount)?;
+
+        controller::token::receive(
+            &ctx.accounts.token_program,
+            in_token_account,
+            in_vault,
+            &ctx.accounts.authority,
+            residual,
+            &in_mint,
+        )?;
+        in_token_account.reload()?;
+        in_vault.reload()?;
+
+        amount_in = amount_in.safe_sub(residual)?;
+    }
+
+    in_spot_market.flash_loan_initial_token_amount = 0;
+    in_spot_market.flash_loan_amount = 0;
+
+    let out_vault = &mut ctx.accounts.out_insurance_fund_vault;
+    let out_token_account = &mut ctx.accounts.out_token_account;
+
+    let mut amount_out = 0_u64;
+    if out_token_account.amount > out_spot_market.flash_loan_initial_token_amount {
+        amount_out = out_token_account
+            .amount
+            .safe_sub(out_spot_market.flash_loan_initial_token_amount)?;
+
+        if let Some(token_interface) = out_token_program {
+            controller::token::receive(
+                &token_interface,
+                out_token_account,
+                out_vault,
+                &ctx.accounts.authority,
+                amount_out,
+                &out_mint,
+            )?;
+        } else {
+            controller::token::receive(
+                &ctx.accounts.token_program,
+                out_token_account,
+                out_vault,
+                &ctx.accounts.authority,
+                amount_out,
+                &out_mint,
+            )?;
+        }
+
+        out_vault.reload()?;
+    }
+
+    validate!(
+        amount_out != 0,
+        ErrorCode::InvalidSwap,
+        "amount_out must be greater than 0"
+    )?;
+
+    out_spot_market.flash_loan_initial_token_amount = 0;
+    out_spot_market.flash_loan_amount = 0;
+
+    validate!(
+        out_spot_market.flash_loan_initial_token_amount == 0
+            && out_spot_market.flash_loan_amount == 0,
+        ErrorCode::InvalidSwap,
+        "end_swap ended in invalid state"
+    )?;
+
+    validate!(
+        in_spot_market.flash_loan_initial_token_amount == 0
+            && in_spot_market.flash_loan_amount == 0,
+        ErrorCode::InvalidSwap,
+        "end_swap ended in invalid state"
+    )?;
+
+    let out_oracle_price = oracle_map
+        .get_price_data(&out_spot_market.oracle_id())?
+        .price;
+
+    let mut if_rebalance_config = ctx.accounts.if_rebalance_config.load_mut()?;
+    controller::insurance::handle_if_end_swap(
+        &mut if_rebalance_config,
+        ctx.accounts.in_insurance_fund_vault.amount,
+        ctx.accounts.out_insurance_fund_vault.amount,
+        &mut in_spot_market,
+        &mut out_spot_market,
+        amount_in,
+        amount_out,
+        out_oracle_price.unsigned_abs(),
+        now,
+    )?;
+
+    Ok(())
+}
+
+pub fn handle_transfer_protocol_if_shares_to_revenue_pool<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, TransferProtocolIfSharesToRevenuePool<'info>>,
+    market_index: u16,
+    amount: u64,
+) -> Result<()> {
+    let state = &ctx.accounts.state;
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+
+    let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
+    let AccountMaps {
+        spot_market_map, ..
+    } = load_maps(
+        remaining_accounts,
+        &MarketSet::new(),
+        &get_writable_spot_market_set_from_many(vec![market_index]),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let mint = get_token_mint(remaining_accounts)?;
+
+    let mut spot_market = spot_market_map.get_ref_mut(&market_index)?;
+
+    let insurance_fund_amount_before = ctx.accounts.insurance_fund_vault.amount;
+
+    let mut if_rebalance_config = ctx.accounts.if_rebalance_config.load_mut()?;
+    controller::insurance::transfer_protocol_if_shares_to_revenue_pool(
+        &mut if_rebalance_config,
+        &mut spot_market,
+        insurance_fund_amount_before,
+        amount,
+        now,
+    )?;
+
+    controller::token::send_from_program_vault(
+        &ctx.accounts.token_program.clone(),
+        &ctx.accounts.insurance_fund_vault.clone(),
+        &ctx.accounts.spot_market_vault.clone(),
+        &ctx.accounts.drift_signer.clone(),
+        state.signer_nonce,
+        amount,
+        &mint,
+    )?;
+
+    ctx.accounts.spot_market_vault.reload()?;
+
+    math::spot_withdraw::validate_spot_market_vault_amount(
+        &spot_market,
+        ctx.accounts.spot_market_vault.amount,
+    )?;
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 #[instruction(
     market_index: u16,
@@ -501,4 +943,85 @@ pub struct TransferProtocolIfShares<'info> {
         bump,
     )]
     pub insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+}
+
+#[derive(Accounts)]
+#[instruction(in_market_index: u16, out_market_index: u16, )]
+pub struct InsuranceFundSwap<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        constraint = authority.key() == if_rebalance_wallet::id() || authority.key() == state.admin
+    )]
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"insurance_fund_vault".as_ref(), out_market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub out_insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        seeds = [b"insurance_fund_vault".as_ref(), in_market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub in_insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = &out_insurance_fund_vault.mint.eq(&out_token_account.mint),
+        token::authority = authority
+    )]
+    pub out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = &in_insurance_fund_vault.mint.eq(&in_token_account.mint),
+        token::authority = authority
+    )]
+    pub in_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(mut)]
+    pub if_rebalance_config: AccountLoader<'info, IfRebalanceConfig>,
+    pub token_program: Interface<'info, TokenInterface>,
+    #[account(
+        constraint = state.signer.eq(&drift_signer.key())
+    )]
+    /// CHECK: forced drift_signer
+    pub drift_signer: AccountInfo<'info>,
+    /// Instructions Sysvar for instruction introspection
+    /// CHECK: fixed instructions sysvar account
+    #[account(address = instructions::ID)]
+    pub instructions: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(market_index: u16)]
+pub struct TransferProtocolIfSharesToRevenuePool<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        constraint = authority.key() == if_rebalance_wallet::id() || authority.key() == state.admin
+    )]
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"insurance_fund_vault".as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = if_rebalance_config.load()?.out_market_index == market_index,
+    )]
+    pub if_rebalance_config: AccountLoader<'info, IfRebalanceConfig>,
+    pub token_program: Interface<'info, TokenInterface>,
+    #[account(
+        constraint = state.signer.eq(&drift_signer.key())
+    )]
+    /// CHECK: forced drift_signer
+    pub drift_signer: AccountInfo<'info>,
 }

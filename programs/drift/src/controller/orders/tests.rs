@@ -2159,6 +2159,7 @@ pub mod fulfill_order_with_maker_order {
                 &(oracle_price_key, OracleSource::Pyth),
                 market.amm.historical_oracle_data.last_oracle_price_twap,
                 market.get_max_confidence_interval_multiplier().unwrap(),
+                0,
             )
             .unwrap();
 
