@@ -1025,6 +1025,13 @@ pub mod drift {
         handle_recenter_perp_market_amm(ctx, peg_multiplier, sqrt_k)
     }
 
+    pub fn recenter_perp_market_amm_crank(
+        ctx: Context<AdminUpdatePerpMarketAmmSummaryStats>,
+        depth: Option<u128>,
+    ) -> Result<()> {
+        handle_recenter_perp_market_amm_crank(ctx, depth)
+    }
+
     pub fn update_perp_market_amm_summary_stats(
         ctx: Context<AdminUpdatePerpMarketAmmSummaryStats>,
         params: UpdatePerpMarketSummaryStatsParams,

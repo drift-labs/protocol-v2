@@ -4647,6 +4647,44 @@
       ]
     },
     {
+      "name": "recenterPerpMarketAmmCrank",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "oracle",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "depth",
+          "type": {
+            "option": "u128"
+          }
+        }
+      ]
+    },
+    {
       "name": "updatePerpMarketAmmSummaryStats",
       "accounts": [
         {

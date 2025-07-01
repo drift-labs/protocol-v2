@@ -1,6 +1,7 @@
 use std::convert::identity;
 use std::mem::size_of;
 
+use crate::math::amm::calculate_amm_available_liquidity;
 use crate::msg;
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
@@ -18,6 +19,7 @@ use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
 use crate::math::constants::{
+    AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
     DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO, FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
     IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX, INSURANCE_C_MAX,
     INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION, MAX_CONCENTRATION_COEFFICIENT,
@@ -26,6 +28,7 @@ use crate::math::constants::{
     SPOT_WEIGHT_PRECISION, THIRTEEN_DAY, TWENTY_FOUR_HOUR,
 };
 use crate::math::cp_curve::get_update_k_result;
+use crate::math::helpers::get_proportion_u128;
 use crate::math::orders::is_multiple_of_step_size;
 use crate::math::repeg::get_total_fee_lower_bound;
 use crate::math::safe_math::SafeMath;
@@ -1571,6 +1574,102 @@ pub fn handle_recenter_perp_market_amm(
         min_base_asset_reserve_after
     );
 
+    Ok(())
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_recenter_perp_market_amm_crank(
+    ctx: Context<AdminUpdatePerpMarketAmmSummaryStats>,
+    depth: Option<u128>,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    let spot_market = &mut load!(ctx.accounts.spot_market)?;
+
+    let clock = Clock::get()?;
+    let price_oracle = &ctx.accounts.oracle;
+
+    let OraclePriceData {
+        price: oracle_price,
+        ..
+    } = get_oracle_price(&perp_market.amm.oracle_source, price_oracle, clock.slot)?;
+
+    msg!(
+        "recentering amm crank for perp market {}",
+        perp_market.market_index
+    );
+
+    let base_asset_reserve_before = perp_market.amm.base_asset_reserve;
+    let quote_asset_reserve_before = perp_market.amm.quote_asset_reserve;
+    let sqrt_k_before = perp_market.amm.sqrt_k;
+    let peg_multiplier_before = perp_market.amm.peg_multiplier;
+    let max_base_asset_reserve_before = perp_market.amm.max_base_asset_reserve;
+    let min_base_asset_reserve_before = perp_market.amm.min_base_asset_reserve;
+
+    let mut sqrt_k = sqrt_k_before;
+    let peg_multiplier: u128 = oracle_price.cast()?;
+    let (max_bids_before, max_asks_before) =
+        amm::calculate_market_open_bids_asks(&perp_market.amm)?;
+
+    if let Some(depth) = depth {
+        let base_depth = max_bids_before
+            .safe_add(max_asks_before.abs())?
+            .safe_div(2)?
+            .unsigned_abs();
+        let quote_depth = base_depth
+            .safe_mul(peg_multiplier)?
+            .safe_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO)?;
+        sqrt_k = get_proportion_u128(sqrt_k, depth, quote_depth)?;
+    }
+
+    controller::amm::recenter_perp_market_amm(perp_market, peg_multiplier, sqrt_k)?;
+    validate_perp_market(perp_market)?;
+
+    let base_asset_reserve_after = perp_market.amm.base_asset_reserve;
+    let quote_asset_reserve_after = perp_market.amm.quote_asset_reserve;
+    let sqrt_k_after = perp_market.amm.sqrt_k;
+    let peg_multiplier_after = perp_market.amm.peg_multiplier;
+    let max_base_asset_reserve_after = perp_market.amm.max_base_asset_reserve;
+    let min_base_asset_reserve_after = perp_market.amm.min_base_asset_reserve;
+
+    msg!(
+        "base_asset_reserve {} -> {}",
+        base_asset_reserve_before,
+        base_asset_reserve_after
+    );
+
+    msg!(
+        "quote_asset_reserve {} -> {}",
+        quote_asset_reserve_before,
+        quote_asset_reserve_after
+    );
+
+    msg!("sqrt_k {} -> {}", sqrt_k_before, sqrt_k_after);
+
+    msg!(
+        "peg_multiplier {} -> {}",
+        peg_multiplier_before,
+        peg_multiplier_after
+    );
+
+    msg!(
+        "max_base_asset_reserve {} -> {}",
+        max_base_asset_reserve_before,
+        max_base_asset_reserve_after
+    );
+
+    msg!(
+        "min_base_asset_reserve {} -> {}",
+        min_base_asset_reserve_before,
+        min_base_asset_reserve_after
+    );
+
+    let (max_bids_after, max_asks_after) = amm::calculate_market_open_bids_asks(&perp_market.amm)?;
+
+    msg!("max_bids {} -> {}", max_bids_before, max_bids_after);
+
+    msg!("max_asks {} -> {}", max_asks_before, max_asks_after);
     Ok(())
 }
 

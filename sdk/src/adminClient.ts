@@ -789,6 +789,45 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async recenterPerpMarketAmmCrank(
+		perpMarketIndex: number,
+		depth?: BN
+	): Promise<TransactionSignature> {
+		const recenterPerpMarketAmmIx = await this.getRecenterPerpMarketAmmCrankIx(
+			perpMarketIndex,
+			depth
+		);
+
+		const tx = await this.buildTransaction(recenterPerpMarketAmmIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getRecenterPerpMarketAmmCrankIx(
+		perpMarketIndex: number,
+		depth: BN
+	): Promise<TransactionInstruction> {
+		const marketPublicKey = await getPerpMarketPublicKey(
+			this.program.programId,
+			perpMarketIndex
+		);
+
+		return await this.program.instruction.recenterPerpMarketAmmCrank(
+			depth ?? null,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
+					perpMarket: marketPublicKey,
+				},
+			}
+		);
+	}
+
 	public async updatePerpMarketConcentrationScale(
 		perpMarketIndex: number,
 		concentrationScale: BN
