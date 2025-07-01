@@ -9,17 +9,14 @@ import {
 	OracleSource,
 	calculateBidAskPrice,
 	convertToNumber,
-	OrderType,
 	BASE_PRECISION,
-	PositionDirection,
 	DriftClient,
-	isVariant,
 } from '../sdk/src';
 import {
 	initializeQuoteSpotMarket,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	printTxLogs,
+	overWritePerpMarket,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
@@ -46,84 +43,6 @@ const oracleSnapshotBytes =
 	'9f07a1f9225179853d8b010000000000802e6ff8dd3706003efeb81400000000f6ffffff000000000c00000000000000';
 
 const usdcMintAmount = new BN(100_000_000).mul(QUOTE_PRECISION);
-
-type placeVammTradeParams = {
-	bankrunContextWrapper: BankrunContextWrapper;
-	orderClient: TestClient;
-	fillerClient: DriftClient;
-	marketIndex: number;
-	baseAssetAmount: BN;
-	auctionStartPrice: BN;
-	auctionEndPrice: BN;
-	auctionDuration: number;
-	direction: PositionDirection;
-	maxTs: BN;
-};
-
-async function placeVammTrade({
-	bankrunContextWrapper,
-	orderClient,
-	fillerClient,
-	marketIndex,
-	baseAssetAmount,
-	auctionStartPrice,
-	auctionEndPrice,
-	auctionDuration,
-	direction,
-	maxTs,
-}: placeVammTradeParams) {
-	let tx = null;
-	try {
-		tx = await orderClient.placePerpOrder({
-			orderType: OrderType.LIMIT,
-			marketIndex,
-			baseAssetAmount,
-			direction,
-			auctionDuration,
-			auctionStartPrice,
-			auctionEndPrice,
-			price: new BN(10196000),
-			maxTs,
-		});
-	} catch (e) {
-		console.log('place order failed!');
-		console.log(e);
-	}
-	await printTxLogs(bankrunContextWrapper.connection.toConnection(), tx);
-	await printTxLogs(bankrunContextWrapper.connection.toConnection(), tx);
-	// let events = parseLogsWithRaw(program, logs);
-	// console.log(events.events.map(e => e.data));
-
-	await bankrunContextWrapper.moveTimeForward(30);
-
-	await orderClient.fetchAccounts();
-	const pos = orderClient.getUser(0).getPerpPosition(marketIndex);
-	console.log('base: ', convertToNumber(pos.baseAssetAmount, BASE_PRECISION));
-	console.log('quote:', convertToNumber(pos.quoteAssetAmount, QUOTE_PRECISION));
-
-	const openOrders = orderClient.getUser(0).getOpenOrders();
-	const order = openOrders.length > 0 ? openOrders[0] : null;
-	if (!order) {
-		throw new Error('No open orders found');
-	}
-
-	const orderUser = orderClient.getUser(0);
-	const orderUserAcc = await orderClient.getUserAccountPublicKey();
-
-	try {
-		tx = await fillerClient.fillPerpOrder(
-			orderUserAcc,
-			orderUser.getUserAccount(),
-			order
-		);
-		await printTxLogs(bankrunContextWrapper.connection.toConnection(), tx);
-		// events = parseLogsWithRaw(program, logs);
-		// console.log(events.events.map(e => e.data));
-	} catch (e) {
-		console.log('fill failed!');
-		console.error(e);
-	}
-}
 
 describe('Reference Price Offset E2E', () => {
 	const program = anchor.workspace.Drift as Program;
@@ -280,7 +199,7 @@ describe('Reference Price Offset E2E', () => {
 		await adminClient.unsubscribe();
 	});
 
-	it('should overwrite perp accounts', async () => {
+	it('Reference price offset should shift vAMM mid', async () => {
 		await adminClient.fetchAccounts();
 
 		const oracle = adminClient.getOracleDataForPerpMarket(marketIndex);
@@ -297,11 +216,12 @@ describe('Reference Price Offset E2E', () => {
 		);
 		const vBidNum = convertToNumber(vBid);
 		const vAskNum = convertToNumber(vAsk);
+		const vAmmMidBeforeOffsetUpdate = vBid.add(vAsk).divn(2);
 		const spread = (vAskNum - vBidNum) / ((vAskNum + vBidNum) / 2);
 		console.log(
 			`Before ref price: vBid: ${vBidNum}, vAsk: ${vAskNum}, spread: ${
 				spread * 10000
-			}bps`
+			}bps, mid: ${convertToNumber(vAmmMidBeforeOffsetUpdate)}`
 		);
 		console.log(
 			`Vamm inventory: ${
@@ -310,20 +230,19 @@ describe('Reference Price Offset E2E', () => {
 			}`
 		);
 
-		// perpMarket0.amm.curveUpdateIntensity = 200;
-		// await overWritePerpMarket(
-		// 	adminClient,
-		// 	bankrunContextWrapper,
-		// 	perpMarket0.pubkey,
-		// 	perpMarket0
-		// );
+		perpMarket0.amm.curveUpdateIntensity = 200;
+		await overWritePerpMarket(
+			adminClient,
+			bankrunContextWrapper,
+			perpMarket0.pubkey,
+			perpMarket0
+		);
 		await adminClient.fetchAccounts();
+		await adminClient.updateAMMs([marketIndex]);
 
 		const perpMarket2 = adminClient.getPerpMarketAccount(marketIndex);
-		// expect(perpMarket2.amm.curveUpdateIntensity).to.equal(200);
-		// await adminClient.updateAMMs([marketIndex]);
-
-		expect(perpMarket2.amm.referencePriceOffset).to.equal(0);
+		expect(perpMarket2.amm.curveUpdateIntensity).to.equal(200);
+		expect(perpMarket2.amm.referencePriceOffset).to.equal(45000);
 
 		const [vBid2, vAsk2] = calculateBidAskPrice(
 			perpMarket2.amm,
@@ -334,10 +253,11 @@ describe('Reference Price Offset E2E', () => {
 		const vBidNum2 = convertToNumber(vBid2);
 		const vAskNum2 = convertToNumber(vAsk2);
 		const spread2 = (vAskNum2 - vBidNum2) / ((vAskNum2 + vBidNum2) / 2);
+		const vAmmMidAfterOffsetUpdate = vBid2.add(vAsk2).divn(2);
 		console.log(
 			`Before fills price: vBid:  ${vBidNum2}, vAsk: ${vAskNum2}, spread: ${
 				spread2 * 10000
-			}bps`
+			}bps, mid: ${convertToNumber(vAmmMidAfterOffsetUpdate)}`
 		);
 		console.log(
 			`Vamm inventory: ${
@@ -346,84 +266,6 @@ describe('Reference Price Offset E2E', () => {
 			}`
 		);
 
-		// new BN(100000).mul(BASE_PRECISION),
-		for (let i = 0; i < 1; i++) {
-			const now = bankrunContextWrapper.connection.getTime();
-			await adminClient.fetchAccounts();
-			const perpMarket = adminClient.getPerpMarketAccount(marketIndex);
-			const [_vBid2, vAsk2] = calculateBidAskPrice(
-				perpMarket.amm,
-				oracle,
-				true,
-				false
-			);
-			const vBidNum2 = convertToNumber(vBid2);
-			const vAskNum2 = convertToNumber(vAsk2);
-			const spread2 = (vAskNum2 - vBidNum2) / ((vAskNum2 + vBidNum2) / 2);
-			console.log(
-				`Before fill2 price: vBid:  ${vBidNum2}, vAsk: ${vAskNum2}, spread: ${
-					spread2 * 10000
-				}bps`
-			);
-			console.log(
-				`Vamm inventory: ${
-					-1 *
-					convertToNumber(
-						perpMarket2.amm.baseAssetAmountWithAmm,
-						BASE_PRECISION
-					)
-				}`
-			);
-			// const direction = i % 2 === 0 ? PositionDirection.LONG : PositionDirection.SHORT;
-			const direction = PositionDirection.LONG;
-			const auctionStartPrice = isVariant(direction, 'long') ? vBid2 : vAsk2;
-			const auctionEndPrice = isVariant(direction, 'long') ? vAsk2 : vBid2;
-
-			await placeVammTrade({
-				bankrunContextWrapper,
-				orderClient: adminClient,
-				fillerClient: fillerDriftClient,
-				marketIndex,
-				baseAssetAmount: new BN(5).mul(BASE_PRECISION),
-				auctionStartPrice,
-				auctionEndPrice,
-				auctionDuration: 20,
-				direction,
-				maxTs: new BN(now + 60),
-			});
-			await bankrunContextWrapper.moveTimeForward(10);
-		}
-
-		const perpMarket3 = adminClient.getPerpMarketAccount(marketIndex);
-
-		const [vBid3, vAsk3] = calculateBidAskPrice(
-			perpMarket3.amm,
-			oracle,
-			true,
-			false
-		);
-		const vBidNum3 = convertToNumber(vBid3);
-		const vAskNum3 = convertToNumber(vAsk3);
-		const spread3 = (vAskNum3 - vBidNum3) / ((vAskNum3 + vBidNum3) / 2);
-		console.log(
-			`After fills: vBid:  ${vBidNum3}, vAsk: ${vAskNum3}, spread: ${
-				spread3 * 10000
-			}bps`
-		);
-		console.log(
-			`Vamm inventory: ${
-				-1 *
-				convertToNumber(perpMarket3.amm.baseAssetAmountWithAmm, BASE_PRECISION)
-			}`
-		);
-
-		await adminClient.fetchAccounts();
-		const pos = adminClient.getUser(0).getPerpPosition(marketIndex);
-		const base = convertToNumber(pos.baseAssetAmount, BASE_PRECISION);
-		const quote = convertToNumber(pos.quoteAssetAmount, QUOTE_PRECISION);
-		const entryPrice = Math.abs(quote / base);
-		console.log('base: ', base);
-		console.log('quote:', quote);
-		console.log('entryPrice:', entryPrice);
+		expect(vAmmMidAfterOffsetUpdate.gt(vAmmMidBeforeOffsetUpdate)).to.be.true;
 	});
 });
