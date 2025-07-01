@@ -55,6 +55,7 @@ import {
 	overWriteMintAccount,
 	overWritePerpMarket,
 	overWriteSpotMarket,
+	setFeedPriceNoProgram,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
@@ -88,6 +89,7 @@ describe('LP Pool', () => {
 	let usdcMint: Keypair;
 	let spotTokenMint: Keypair;
 	let spotMarketOracle: PublicKey;
+	let spotMarketOracle2: PublicKey;
 
 	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(100 * 10 ** 13).mul(
@@ -137,6 +139,7 @@ describe('LP Pool', () => {
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 		spotTokenMint = await mockUSDCMint(bankrunContextWrapper);
 		spotMarketOracle = await mockOracleNoProgram(bankrunContextWrapper, 200);
+		spotMarketOracle2 = await mockOracleNoProgram(bankrunContextWrapper, 200);
 
 		const keypair = new Keypair();
 		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
@@ -243,7 +246,7 @@ describe('LP Pool', () => {
 			optimalUtilization,
 			optimalRate,
 			maxRate,
-			spotMarketOracle,
+			spotMarketOracle2,
 			OracleSource.PYTH,
 			initialAssetWeight,
 			maintenanceAssetWeight,
@@ -723,7 +726,7 @@ describe('LP Pool', () => {
 			program.programId,
 			lpPoolKey
 		);
-		const constituentTargetBase =
+		let constituentTargetBase =
 			(await adminClient.program.account.constituentTargetBase.fetch(
 				constituentTargetBasePublicKey
 			)) as ConstituentTargetBase;
@@ -733,10 +736,50 @@ describe('LP Pool', () => {
 			'constituentTargetBase.targets',
 			constituentTargetBase.targets.map((x) => x.targetBase.toString())
 		);
-		assert(
-			constituentTargetBase.targets[1].targetBase
-				.sub(constituentTargetBase.targets[2].targetBase)
-				.lt(constituentTargetBase.targets[1].targetBase.divn(1000))
+		expect(
+			constituentTargetBase.targets[1].targetBase.toNumber()
+		).to.be.approximately(
+			constituentTargetBase.targets[2].targetBase.toNumber(),
+			10
+		);
+
+		// Move the oracle price to be double, so it should have half of the target base
+		const derivativeBalanceBefore = constituentTargetBase.targets[2].targetBase;
+		const derivative = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 2)
+		)) as ConstituentAccount;
+		await setFeedPriceNoProgram(bankrunContextWrapper, 400, spotMarketOracle2);
+		await adminClient.updateConstituentOracleInfo(derivative);
+		const tx2 = new Transaction();
+		tx2
+			.add(await adminClient.getUpdateAmmCacheIx([0, 1, 2]))
+			.add(
+				await adminClient.getUpdateLpConstituentTargetBaseIx(
+					encodeName(lpPoolName),
+					[
+						getConstituentPublicKey(program.programId, lpPoolKey, 0),
+						getConstituentPublicKey(program.programId, lpPoolKey, 1),
+						getConstituentPublicKey(program.programId, lpPoolKey, 2),
+					]
+				)
+			);
+		await adminClient.sendTransaction(tx2);
+		await adminClient.updateLpPoolAum(lpPool, [0, 1, 2]);
+
+		constituentTargetBase =
+			(await adminClient.program.account.constituentTargetBase.fetch(
+				constituentTargetBasePublicKey
+			)) as ConstituentTargetBase;
+		const derivativeBalanceAfter = constituentTargetBase.targets[2].targetBase;
+
+		console.log(
+			'constituentTargetBase.targets',
+			constituentTargetBase.targets.map((x) => x.targetBase.toString())
+		);
+
+		expect(derivativeBalanceAfter.toNumber()).to.be.approximately(
+			derivativeBalanceBefore.toNumber() / 2,
+			20
 		);
 	});
 
