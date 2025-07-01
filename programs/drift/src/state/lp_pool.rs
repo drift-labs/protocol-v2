@@ -42,6 +42,11 @@ pub const MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC: u64 = 10000u64;
 #[cfg(not(feature = "anchor-test"))]
 pub const MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC: u64 = 0u64;
 
+#[cfg(feature = "anchor-test")]
+pub const MAX_CONSTITUENT_ORACLE_SLOT_STALENESS_FOR_AUM: u64 = 10000u64;
+#[cfg(not(feature = "anchor-test"))]
+pub const MAX_CONSTITUENT_ORACLE_SLOT_STALENESS_FOR_AUM: u64 = 2u64;
+
 #[cfg(test)]
 mod tests;
 

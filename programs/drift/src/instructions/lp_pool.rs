@@ -31,6 +31,7 @@ use crate::{
             ConstituentCorrelationsFixed, ConstituentTargetBaseFixed, LPPool, TargetsDatum,
             WeightValidationFlags, CONSTITUENT_CORRELATIONS_PDA_SEED,
             LP_POOL_SWAP_AUM_UPDATE_DELAY, MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC,
+            MAX_CONSTITUENT_ORACLE_SLOT_STALENESS_FOR_AUM,
         },
         oracle::OraclePriceData,
         oracle_map::OracleMap,
@@ -229,7 +230,7 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
     let AccountMaps {
         perp_market_map: _,
         spot_market_map,
-        mut oracle_map,
+        oracle_map: _,
     } = load_maps(
         remaining_accounts,
         &MarketSet::new(),
@@ -290,7 +291,19 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
     let mut oldest_slot = u64::MAX;
     let mut derivative_groups: BTreeMap<u16, Vec<u16>> = BTreeMap::new();
     for i in 0..lp_pool.constituents as usize {
-        let mut constituent = constituent_map.get_ref_mut(&(i as u16))?;
+        let constituent = constituent_map.get_ref(&(i as u16))?;
+        if slot.saturating_sub(constituent.last_oracle_slot)
+            > MAX_CONSTITUENT_ORACLE_SLOT_STALENESS_FOR_AUM
+        {
+            msg!(
+                "Constituent {} oracle slot is too stale: {}, current slot: {}",
+                constituent.constituent_index,
+                constituent.last_oracle_slot,
+                slot
+            );
+            return Err(ErrorCode::ConstituentOracleStale.into());
+        }
+
         if constituent.constituent_derivative_index >= 0 && constituent.derivative_weight != 0 {
             if !derivative_groups.contains_key(&(constituent.constituent_derivative_index as u16)) {
                 derivative_groups.insert(
@@ -307,40 +320,7 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
 
         let spot_market = spot_market_map.get_ref(&constituent.spot_market_index)?;
 
-        let oracle_data = oracle_map.get_price_data_and_validity(
-            MarketType::Spot,
-            constituent.spot_market_index,
-            &spot_market.oracle_id(),
-            spot_market.historical_oracle_data.last_oracle_price_twap,
-            spot_market.get_max_confidence_interval_multiplier()?,
-            0,
-        )?;
-
-        let oracle_slot = slot - oracle_data.0.delay.max(0i64).cast::<u64>()?;
-        let oracle_price: Option<i64> = {
-            if !is_oracle_valid_for_action(oracle_data.1, Some(DriftAction::UpdateLpPoolAum))? {
-                msg!(
-                    "Oracle data for spot market {} is invalid. Skipping update",
-                    spot_market.market_index,
-                );
-                if slot.saturating_sub(constituent.last_oracle_slot)
-                    >= constituent.oracle_staleness_threshold
-                {
-                    None
-                } else {
-                    Some(constituent.last_oracle_price)
-                }
-            } else {
-                Some(oracle_data.0.price)
-            }
-        };
-
-        if oracle_price.is_none() {
-            return Err(ErrorCode::OracleTooStaleForLPAUMUpdate.into());
-        }
-
-        constituent.last_oracle_price = oracle_price.unwrap();
-        constituent.last_oracle_slot = oracle_slot;
+        let oracle_slot = constituent.last_oracle_slot;
 
         if oracle_slot < oldest_slot {
             oldest_slot = oracle_slot;
@@ -356,7 +336,7 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
             .get_full_balance(&spot_market)?
             .safe_mul(numerator_scale)?
             .safe_div(denominator_scale)?
-            .safe_mul(oracle_price.unwrap() as i128)?
+            .safe_mul(constituent.last_oracle_price as i128)?
             .safe_div(PRICE_PRECISION_I128)?
             .max(0);
         msg!(
@@ -372,7 +352,7 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
                 .get(constituent.constituent_index as u32)
                 .target_base
                 .safe_mul(constituent.last_oracle_price)?
-                .safe_div(10_i64.pow(spot_market.decimals as u32))?;
+                .safe_div(10_i64.pow(constituent.decimals as u32))?;
             crypto_delta = crypto_delta.safe_add(constituent_target_notional.cast()?)?;
         }
         aum = aum.safe_add(constituent_aum.cast()?)?;

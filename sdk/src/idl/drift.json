@@ -18213,14 +18213,19 @@
       "msg": "Insufficient constituent token balance"
     },
     {
-      "code": 6324,
+      "code": 6326,
       "name": "AMMCacheStale",
       "msg": "Amm Cache data too stale"
     },
     {
-      "code": 6325,
+      "code": 6327,
       "name": "LpPoolAumDelayed",
       "msg": "LP Pool AUM not updated recently"
+    },
+    {
+      "code": 6328,
+      "name": "ConstituentOracleStale",
+      "msg": "Constituent oracle is stale"
     }
   ],
   "metadata": {

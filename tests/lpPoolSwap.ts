@@ -389,6 +389,9 @@ describe('LP Pool', () => {
 		)) as ConstituentAccount;
 		expect(c1.tokenBalance.toString()).to.equal(c1TokenBalance.toString());
 
+		await adminClient.updateConstituentOracleInfo(c1);
+		await adminClient.updateConstituentOracleInfo(c0);
+
 		const prec = new BN(10).pow(new BN(tokenDecimals));
 		console.log(`const0 balance: ${convertToNumber(c0.tokenBalance, prec)}`);
 		console.log(`const1 balance: ${convertToNumber(c1.tokenBalance, prec)}`);
@@ -515,6 +518,16 @@ describe('LP Pool', () => {
 			new BN(0),
 			adminAuth
 		);
+
+		// check fields overwritten correctly
+		const c0 = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 0)
+		)) as ConstituentAccount;
+		const c1 = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 1)
+		)) as ConstituentAccount;
+		await adminClient.updateConstituentOracleInfo(c1);
+		await adminClient.updateConstituentOracleInfo(c0);
 
 		const userC0TokenBalanceBefore =
 			await bankrunContextWrapper.connection.getTokenAccount(
