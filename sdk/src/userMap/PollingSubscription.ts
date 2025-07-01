@@ -5,7 +5,7 @@ export class PollingSubscription {
 	private frequency: number;
 	private skipInitialLoad: boolean;
 
-	intervalId?: NodeJS.Timeout;
+	intervalId?: ReturnType<typeof setTimeout>;
 
 	constructor({
 		userMap,

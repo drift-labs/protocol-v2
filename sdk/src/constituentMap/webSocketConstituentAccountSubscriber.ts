@@ -1,6 +1,4 @@
 import {
-	DataAndSlot,
-	AccountSubscriber,
 	NotSubscribedError,
 	ConstituentAccountEvents,
 	ConstituentAccountSubscriber,

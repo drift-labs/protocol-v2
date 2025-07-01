@@ -242,10 +242,22 @@ pub struct OrderActionRecord {
     /// Bit flags:
     /// 0: is_signed_message
     pub bit_flags: u8,
+    /// precision: QUOTE_PRECISION
+    /// Only Some if the taker reduced position
+    pub taker_existing_quote_entry_amount: Option<u64>,
+    /// precision: BASE_PRECISION
+    /// Only Some if the taker flipped position direction
+    pub taker_existing_base_asset_amount: Option<u64>,
+    /// precision: QUOTE_PRECISION
+    /// Only Some if the maker reduced position
+    pub maker_existing_quote_entry_amount: Option<u64>,
+    /// precision: BASE_PRECISION
+    /// Only Some if the maker flipped position direction
+    pub maker_existing_base_asset_amount: Option<u64>,
 }
 
 impl Size for OrderActionRecord {
-    const SIZE: usize = 384;
+    const SIZE: usize = 448;
 }
 
 pub fn get_order_action_record(
@@ -269,6 +281,10 @@ pub fn get_order_action_record(
     maker_order: Option<Order>,
     oracle_price: i64,
     bit_flags: u8,
+    taker_existing_quote_entry_amount: Option<u64>,
+    taker_existing_base_asset_amount: Option<u64>,
+    maker_existing_quote_entry_amount: Option<u64>,
+    maker_existing_base_asset_amount: Option<u64>,
 ) -> DriftResult<OrderActionRecord> {
     Ok(OrderActionRecord {
         ts,
@@ -317,6 +333,10 @@ pub fn get_order_action_record(
             .map(|order| order.quote_asset_amount_filled),
         oracle_price,
         bit_flags,
+        taker_existing_quote_entry_amount,
+        taker_existing_base_asset_amount,
+        maker_existing_quote_entry_amount,
+        maker_existing_base_asset_amount,
     })
 }
 
@@ -556,6 +576,46 @@ pub enum StakeAction {
     Unstake,
     UnstakeTransfer,
     StakeTransfer,
+}
+
+#[event]
+#[derive(Default)]
+pub struct InsuranceFundSwapRecord {
+    pub rebalance_config: Pubkey,
+    pub in_if_total_shares_before: u128,
+    pub out_if_total_shares_before: u128,
+    pub in_if_user_shares_before: u128,
+    pub out_if_user_shares_before: u128,
+    pub in_if_total_shares_after: u128,
+    pub out_if_total_shares_after: u128,
+    pub in_if_user_shares_after: u128,
+    pub out_if_user_shares_after: u128,
+    pub ts: i64,
+    pub in_amount: u64,
+    pub out_amount: u64,
+    pub out_oracle_price: u64,
+    pub out_oracle_price_twap: i64,
+    pub in_vault_amount_before: u64,
+    pub out_vault_amount_before: u64,
+    pub in_fund_vault_amount_after: u64,
+    pub out_fund_vault_amount_after: u64,
+    pub in_market_index: u16,
+    pub out_market_index: u16,
+}
+
+#[event]
+pub struct TransferProtocolIfSharesToRevenuePoolRecord {
+    pub ts: i64,
+    pub market_index: u16,
+    pub amount: u64,
+    pub shares: u128,
+    pub if_vault_amount_before: u64,
+    pub protocol_shares_before: u128,
+    pub current_in_amount_since_last_transfer: u64,
+}
+
+impl Size for InsuranceFundSwapRecord {
+    const SIZE: usize = 256;
 }
 
 #[event]

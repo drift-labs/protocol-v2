@@ -343,9 +343,12 @@ impl PerpMarket {
             return Ok(false);
         }
 
-        let amm_low_inventory_and_profitable =
-            self.amm.net_revenue_since_last_funding > 0 && amm_lp_allowed_to_jit_make;
-        let amm_oracle_no_latency = self.amm.oracle_source == OracleSource::Prelaunch;
+        let amm_low_inventory_and_profitable = self.amm.net_revenue_since_last_funding
+            >= DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT
+            && amm_lp_allowed_to_jit_make;
+        let amm_oracle_no_latency = self.amm.oracle_source == OracleSource::Prelaunch
+            || (self.amm.historical_oracle_data.last_oracle_delay == 0
+                && self.amm.oracle_source == OracleSource::PythLazer);
         let can_skip = amm_low_inventory_and_profitable || amm_oracle_no_latency;
 
         if can_skip {
@@ -742,6 +745,14 @@ impl PerpMarket {
             tick_size: self.amm.order_tick_size,
         }
     }
+
+    pub fn get_min_perp_auction_duration(&self, default_min_auction_duration: u8) -> u8 {
+        if self.amm.taker_speed_bump_override != 0 {
+            self.amm.taker_speed_bump_override.max(0).unsigned_abs()
+        } else {
+            default_min_auction_duration
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1041,13 +1052,19 @@ pub struct AMM {
     pub target_base_asset_amount_per_lp: i32,
     /// expo for unit of per_lp, base 10 (if per_lp_base=X, then per_lp unit is 10^X)
     pub per_lp_base: i8,
-    pub padding1: u8,
-    pub padding2: u16,
+    /// the override for the state.min_perp_auction_duration
+    /// 0 is no override, -1 is disable speed bump, 1-100 is literal speed bump
+    pub taker_speed_bump_override: i8,
+    /// signed scale amm_spread similar to fee_adjustment logic (-100 = 0, 100 = double)
+    pub amm_spread_adjustment: i8,
+    pub oracle_slot_delay_override: i8,
     pub total_fee_earned_per_lp: u64,
     pub net_unsettled_funding_pnl: i64,
     pub quote_asset_amount_with_unsettled_lp: i64,
     pub reference_price_offset: i32,
-    pub padding: [u8; 12],
+    /// signed scale amm_spread similar to fee_adjustment logic (-100 = 0, 100 = double)
+    pub amm_inventory_spread_adjustment: i8,
+    pub padding: [u8; 11],
 }
 
 impl Default for AMM {
@@ -1130,13 +1147,15 @@ impl Default for AMM {
             last_oracle_valid: false,
             target_base_asset_amount_per_lp: 0,
             per_lp_base: 0,
-            padding1: 0,
-            padding2: 0,
+            taker_speed_bump_override: 0,
+            amm_spread_adjustment: 0,
+            oracle_slot_delay_override: 0,
             total_fee_earned_per_lp: 0,
             net_unsettled_funding_pnl: 0,
             quote_asset_amount_with_unsettled_lp: 0,
             reference_price_offset: 0,
-            padding: [0; 12],
+            amm_inventory_spread_adjustment: 0,
+            padding: [0; 11],
         }
     }
 }
@@ -1661,6 +1680,7 @@ impl AMM {
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: 19_400 * PRICE_PRECISION_I64,
                 last_oracle_price_twap: 19_400 * PRICE_PRECISION_I64,
+                last_oracle_price_twap_5min: 19_400 * PRICE_PRECISION_I64,
                 last_oracle_price_twap_ts: 1662800000_i64,
                 ..HistoricalOracleData::default()
             },

@@ -106,6 +106,7 @@ import {
 	getUserAccountPublicKeySync,
 	getUserStatsAccountPublicKey,
 	getSignedMsgWsDelegatesAccountPublicKey,
+	getIfRebalanceConfigPublicKey,
 	getConstituentTargetBasePublicKey,
 	getAmmConstituentMappingPublicKey,
 	getLpPoolPublicKey,
@@ -157,7 +158,6 @@ import { castNumberToSpotPrecision } from './math/spotMarket';
 import {
 	JupiterClient,
 	QuoteResponse,
-	Route,
 	SwapMode,
 } from './jupiter/jupiterClient';
 import { getNonIdleUserFilter } from './memcmp';
@@ -2553,7 +2553,8 @@ export class DriftClient {
 		associatedTokenAccount: PublicKey,
 		subAccountId?: number,
 		reduceOnly = false,
-		txParams?: TxParams
+		txParams?: TxParams,
+		initSwiftAccount = false
 	): Promise<VersionedTransaction | Transaction> {
 		const instructions = await this.getDepositTxnIx(
 			amount,
@@ -2563,7 +2564,24 @@ export class DriftClient {
 			reduceOnly
 		);
 
-		txParams = { ...(txParams ?? this.txParams), computeUnits: 600_000 };
+		if (initSwiftAccount) {
+			const isSignedMsgUserOrdersAccountInitialized =
+				await this.isSignedMsgUserOrdersAccountInitialized(
+					this.wallet.publicKey
+				);
+
+			if (!isSignedMsgUserOrdersAccountInitialized) {
+				const [, initializeSignedMsgUserOrdersAccountIx] =
+					await this.getInitializeSignedMsgUserOrdersAccountIx(
+						this.wallet.publicKey,
+						8
+					);
+
+				instructions.push(initializeSignedMsgUserOrdersAccountIx);
+			}
+		}
+
+		txParams = { ...(txParams ?? this.txParams), computeUnits: 800_000 };
 
 		const tx = await this.buildTransaction(instructions, txParams);
 
@@ -2585,7 +2603,8 @@ export class DriftClient {
 		associatedTokenAccount: PublicKey,
 		subAccountId?: number,
 		reduceOnly = false,
-		txParams?: TxParams
+		txParams?: TxParams,
+		initSwiftAccount = false
 	): Promise<TransactionSignature> {
 		const tx = await this.createDepositTxn(
 			amount,
@@ -2593,7 +2612,8 @@ export class DriftClient {
 			associatedTokenAccount,
 			subAccountId,
 			reduceOnly,
-			txParams
+			txParams,
+			initSwiftAccount
 		);
 
 		const { txSig, slot } = await this.sendTransaction(tx, [], this.opts);
@@ -2778,6 +2798,18 @@ export class DriftClient {
 				name,
 				referrerInfo
 			);
+
+		const isSignedMsgUserOrdersAccountInitialized =
+			await this.isSignedMsgUserOrdersAccountInitialized(this.wallet.publicKey);
+
+		if (!isSignedMsgUserOrdersAccountInitialized) {
+			const [, initializeSignedMsgUserOrdersAccountIx] =
+				await this.getInitializeSignedMsgUserOrdersAccountIx(
+					this.wallet.publicKey,
+					8
+				);
+			ixs.push(initializeSignedMsgUserOrdersAccountIx);
+		}
 
 		const spotMarket = this.getSpotMarketAccount(marketIndex);
 
@@ -4442,6 +4474,16 @@ export class DriftClient {
 			useMarketLastSlotCache: true,
 		});
 
+		for (const param of params) {
+			if (isUpdateHighLeverageMode(param.bitFlags)) {
+				remainingAccounts.push({
+					pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
+					isWritable: true,
+					isSigner: false,
+				});
+			}
+		}
+
 		const formattedParams = params.map((item) => getOrderParams(item));
 
 		return await this.program.instruction.placeOrders(formattedParams, {
@@ -5077,6 +5119,8 @@ export class DriftClient {
 	 * @param swapMode jupiter swapMode (ExactIn or ExactOut), default is ExactIn
 	 * @param route the jupiter route to use for the swap
 	 * @param reduceOnly specify if In or Out token on the drift account must reduceOnly, checked at end of swap
+	 * @param v6 pass in the quote response from Jupiter quote's API (deprecated, use quote instead)
+	 * @param quote pass in the quote response from Jupiter quote's API
 	 * @param txParams
 	 */
 	public async swap({
@@ -5088,10 +5132,10 @@ export class DriftClient {
 		amount,
 		slippageBps,
 		swapMode,
-		route,
 		reduceOnly,
 		txParams,
 		v6,
+		quote,
 		onlyDirectRoutes = false,
 	}: {
 		jupiterClient: JupiterClient;
@@ -5102,49 +5146,31 @@ export class DriftClient {
 		amount: BN;
 		slippageBps?: number;
 		swapMode?: SwapMode;
-		route?: Route;
 		reduceOnly?: SwapReduceOnly;
 		txParams?: TxParams;
 		onlyDirectRoutes?: boolean;
 		v6?: {
 			quote?: QuoteResponse;
 		};
+		quote?: QuoteResponse;
 	}): Promise<TransactionSignature> {
-		let ixs: anchor.web3.TransactionInstruction[];
-		let lookupTables: anchor.web3.AddressLookupTableAccount[];
+		const quoteToUse = quote ?? v6?.quote;
 
-		if (v6) {
-			const res = await this.getJupiterSwapIxV6({
-				jupiterClient,
-				outMarketIndex,
-				inMarketIndex,
-				outAssociatedTokenAccount,
-				inAssociatedTokenAccount,
-				amount,
-				slippageBps,
-				swapMode,
-				quote: v6.quote,
-				reduceOnly,
-				onlyDirectRoutes,
-			});
-			ixs = res.ixs;
-			lookupTables = res.lookupTables;
-		} else {
-			const res = await this.getJupiterSwapIx({
-				jupiterClient,
-				outMarketIndex,
-				inMarketIndex,
-				outAssociatedTokenAccount,
-				inAssociatedTokenAccount,
-				amount,
-				slippageBps,
-				swapMode,
-				route,
-				reduceOnly,
-			});
-			ixs = res.ixs;
-			lookupTables = res.lookupTables;
-		}
+		const res = await this.getJupiterSwapIxV6({
+			jupiterClient,
+			outMarketIndex,
+			inMarketIndex,
+			outAssociatedTokenAccount,
+			inAssociatedTokenAccount,
+			amount,
+			slippageBps,
+			swapMode,
+			quote: quoteToUse,
+			reduceOnly,
+			onlyDirectRoutes,
+		});
+		const ixs = res.ixs;
+		const lookupTables = res.lookupTables;
 
 		const tx = (await this.buildTransaction(
 			ixs,
@@ -5158,142 +5184,6 @@ export class DriftClient {
 		this.spotMarketLastSlotCache.set(inMarketIndex, slot);
 
 		return txSig;
-	}
-
-	public async getJupiterSwapIx({
-		jupiterClient,
-		outMarketIndex,
-		inMarketIndex,
-		outAssociatedTokenAccount,
-		inAssociatedTokenAccount,
-		amount,
-		slippageBps,
-		swapMode,
-		onlyDirectRoutes,
-		route,
-		reduceOnly,
-		userAccountPublicKey,
-	}: {
-		jupiterClient: JupiterClient;
-		outMarketIndex: number;
-		inMarketIndex: number;
-		outAssociatedTokenAccount?: PublicKey;
-		inAssociatedTokenAccount?: PublicKey;
-		amount: BN;
-		slippageBps?: number;
-		swapMode?: SwapMode;
-		onlyDirectRoutes?: boolean;
-		route?: Route;
-		reduceOnly?: SwapReduceOnly;
-		userAccountPublicKey?: PublicKey;
-	}): Promise<{
-		ixs: TransactionInstruction[];
-		lookupTables: AddressLookupTableAccount[];
-	}> {
-		const outMarket = this.getSpotMarketAccount(outMarketIndex);
-		const inMarket = this.getSpotMarketAccount(inMarketIndex);
-
-		if (!route) {
-			const routes = await jupiterClient.getRoutes({
-				inputMint: inMarket.mint,
-				outputMint: outMarket.mint,
-				amount,
-				slippageBps,
-				swapMode,
-				onlyDirectRoutes,
-			});
-
-			if (!routes || routes.length === 0) {
-				throw new Error('No jupiter routes found');
-			}
-
-			route = routes[0];
-		}
-
-		const transaction = await jupiterClient.getSwapTransaction({
-			route,
-			userPublicKey: this.provider.wallet.publicKey,
-			slippageBps,
-		});
-
-		const { transactionMessage, lookupTables } =
-			await jupiterClient.getTransactionMessageAndLookupTables({
-				transaction,
-			});
-
-		const jupiterInstructions = jupiterClient.getJupiterInstructions({
-			transactionMessage,
-			inputMint: inMarket.mint,
-			outputMint: outMarket.mint,
-		});
-
-		const preInstructions = [];
-		if (!outAssociatedTokenAccount) {
-			const tokenProgram = this.getTokenProgramForSpotMarket(outMarket);
-			outAssociatedTokenAccount = await this.getAssociatedTokenAccount(
-				outMarket.marketIndex,
-				false,
-				tokenProgram
-			);
-
-			const accountInfo = await this.connection.getAccountInfo(
-				outAssociatedTokenAccount
-			);
-			if (!accountInfo) {
-				preInstructions.push(
-					this.createAssociatedTokenAccountIdempotentInstruction(
-						outAssociatedTokenAccount,
-						this.provider.wallet.publicKey,
-						this.provider.wallet.publicKey,
-						outMarket.mint,
-						tokenProgram
-					)
-				);
-			}
-		}
-
-		if (!inAssociatedTokenAccount) {
-			const tokenProgram = this.getTokenProgramForSpotMarket(outMarket);
-			inAssociatedTokenAccount = await this.getAssociatedTokenAccount(
-				inMarket.marketIndex,
-				false,
-				tokenProgram
-			);
-
-			const accountInfo = await this.connection.getAccountInfo(
-				inAssociatedTokenAccount
-			);
-			if (!accountInfo) {
-				preInstructions.push(
-					this.createAssociatedTokenAccountIdempotentInstruction(
-						inAssociatedTokenAccount,
-						this.provider.wallet.publicKey,
-						this.provider.wallet.publicKey,
-						inMarket.mint,
-						tokenProgram
-					)
-				);
-			}
-		}
-
-		const { beginSwapIx, endSwapIx } = await this.getSwapIx({
-			outMarketIndex,
-			inMarketIndex,
-			amountIn: new BN(route.inAmount),
-			inTokenAccount: inAssociatedTokenAccount,
-			outTokenAccount: outAssociatedTokenAccount,
-			reduceOnly,
-			userAccountPublicKey,
-		});
-
-		const ixs = [
-			...preInstructions,
-			beginSwapIx,
-			...jupiterInstructions,
-			endSwapIx,
-		];
-
-		return { ixs, lookupTables };
 	}
 
 	public async getJupiterSwapIxV6({
@@ -6431,7 +6321,6 @@ export class DriftClient {
 		},
 		precedingIxs: TransactionInstruction[] = [],
 		overrideCustomIxIndex?: number,
-		includeHighLeverageModeConfig?: boolean,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const ixs = await this.getPlaceSignedMsgTakerPerpOrderIxs(
@@ -6439,8 +6328,7 @@ export class DriftClient {
 			marketIndex,
 			takerInfo,
 			precedingIxs,
-			overrideCustomIxIndex,
-			includeHighLeverageModeConfig
+			overrideCustomIxIndex
 		);
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(ixs, txParams),
@@ -6460,8 +6348,7 @@ export class DriftClient {
 			signingAuthority: PublicKey;
 		},
 		precedingIxs: TransactionInstruction[] = [],
-		overrideCustomIxIndex?: number,
-		includeHighLeverageModeConfig?: boolean
+		overrideCustomIxIndex?: number
 	): Promise<TransactionInstruction[]> {
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [takerInfo.takerUserAccount],
@@ -6469,12 +6356,28 @@ export class DriftClient {
 			readablePerpMarketIndex: marketIndex,
 		});
 
-		if (includeHighLeverageModeConfig) {
-			remainingAccounts.push({
-				pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
-				isWritable: true,
-				isSigner: false,
-			});
+		const isDelegateSigner = takerInfo.signingAuthority.equals(
+			takerInfo.takerUserAccount.delegate
+		);
+
+		const borshBuf = Buffer.from(
+			signedSignedMsgOrderParams.orderParams.toString(),
+			'hex'
+		);
+		try {
+			const { signedMsgOrderParams } = this.decodeSignedMsgOrderParamsMessage(
+				borshBuf,
+				isDelegateSigner
+			);
+			if (isUpdateHighLeverageMode(signedMsgOrderParams.bitFlags)) {
+				remainingAccounts.push({
+					pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
+					isWritable: true,
+					isSigner: false,
+				});
+			}
+		} catch (err) {
+			console.error('invalid signed order encoding');
 		}
 
 		const messageLengthBuffer = Buffer.alloc(2);
@@ -6496,9 +6399,6 @@ export class DriftClient {
 			0
 		);
 
-		const isDelegateSigner = takerInfo.signingAuthority.equals(
-			takerInfo.takerUserAccount.delegate
-		);
 		const placeTakerSignedMsgPerpOrderIx =
 			this.program.instruction.placeSignedMsgTakerOrder(
 				signedMsgIxData,
@@ -7934,6 +7834,80 @@ export class DriftClient {
 		return { beginSwapIx, endSwapIx };
 	}
 
+	public async getInsuranceFundSwapIx({
+		inMarketIndex,
+		outMarketIndex,
+		amountIn,
+		inTokenAccount,
+		outTokenAccount,
+	}: {
+		inMarketIndex: number;
+		outMarketIndex: number;
+		amountIn: BN;
+		inTokenAccount: PublicKey;
+		outTokenAccount: PublicKey;
+	}): Promise<{
+		beginSwapIx: TransactionInstruction;
+		endSwapIx: TransactionInstruction;
+	}> {
+		const remainingAccounts = await this.getRemainingAccounts({
+			userAccounts: [],
+			writableSpotMarketIndexes: [inMarketIndex, outMarketIndex],
+		});
+
+		const inSpotMarket = this.getSpotMarketAccount(inMarketIndex);
+		const outSpotMarket = this.getSpotMarketAccount(outMarketIndex);
+
+		const ifRebalanceConfig = getIfRebalanceConfigPublicKey(
+			this.program.programId,
+			inMarketIndex,
+			outMarketIndex
+		);
+
+		const beginSwapIx = await this.program.instruction.beginInsuranceFundSwap(
+			inMarketIndex,
+			outMarketIndex,
+			amountIn,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					authority: this.wallet.publicKey,
+					outInsuranceFundVault: outSpotMarket.insuranceFund.vault,
+					inInsuranceFundVault: inSpotMarket.insuranceFund.vault,
+					outTokenAccount,
+					inTokenAccount,
+					ifRebalanceConfig: ifRebalanceConfig,
+					tokenProgram: TOKEN_PROGRAM_ID,
+					driftSigner: this.getStateAccount().signer,
+					instructions: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+				},
+				remainingAccounts,
+			}
+		);
+
+		const endSwapIx = await this.program.instruction.endInsuranceFundSwap(
+			inMarketIndex,
+			outMarketIndex,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					authority: this.wallet.publicKey,
+					outInsuranceFundVault: outSpotMarket.insuranceFund.vault,
+					inInsuranceFundVault: inSpotMarket.insuranceFund.vault,
+					outTokenAccount,
+					inTokenAccount,
+					ifRebalanceConfig: ifRebalanceConfig,
+					tokenProgram: TOKEN_PROGRAM_ID,
+					driftSigner: this.getStateAccount().signer,
+					instructions: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
+				},
+				remainingAccounts,
+			}
+		);
+
+		return { beginSwapIx, endSwapIx };
+	}
+
 	public async liquidateBorrowForPerpPnl(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
@@ -8500,9 +8474,56 @@ export class DriftClient {
 		fromSubaccount?: boolean;
 		txParams?: TxParams;
 	}): Promise<TransactionSignature> {
-		const addIfStakeIxs = [];
+		const addIfStakeIxs = await this.getAddInsuranceFundStakeIxs({
+			marketIndex,
+			amount,
+			collateralAccountPublicKey,
+			initializeStakeAccount,
+			fromSubaccount,
+		});
 
 		const additionalSigners: Array<Signer> = [];
+		const tx = await this.buildTransaction(addIfStakeIxs, txParams);
+
+		const { txSig } = await this.sendTransaction(
+			tx,
+			additionalSigners,
+			this.opts
+		);
+
+		return txSig;
+	}
+
+	/**
+	 * Get instructions to add to an insurance fund stake and optionally initialize the account
+	 */
+	public async getAddInsuranceFundStakeIxs({
+		marketIndex,
+		amount,
+		collateralAccountPublicKey,
+		initializeStakeAccount,
+		fromSubaccount,
+	}: {
+		/**
+		 * Spot market index
+		 */
+		marketIndex: number;
+		amount: BN;
+		/**
+		 * The account where the funds to stake come from. Usually an associated token account
+		 */
+		collateralAccountPublicKey: PublicKey;
+		/**
+		 * Add instructions to initialize the staking account -- required if its the first time the currrent authority has staked in this market
+		 */
+		initializeStakeAccount?: boolean;
+		/**
+		 * Optional -- withdraw from current subaccount to fund stake amount, instead of wallet balance
+		 */
+		fromSubaccount?: boolean;
+	}): Promise<TransactionInstruction[]> {
+		const addIfStakeIxs = [];
+
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 		const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
 		const createWSOLTokenAccount =
@@ -8583,15 +8604,7 @@ export class DriftClient {
 			);
 		}
 
-		const tx = await this.buildTransaction(addIfStakeIxs, txParams);
-
-		const { txSig } = await this.sendTransaction(
-			tx,
-			additionalSigners,
-			this.opts
-		);
-
-		return txSig;
+		return addIfStakeIxs;
 	}
 
 	public async requestRemoveInsuranceFundStake(
@@ -9021,10 +9034,13 @@ export class DriftClient {
 	public getMarketFees(
 		marketType: MarketType,
 		marketIndex?: number,
-		user?: User
+		user?: User,
+		enteringHighLeverageMode?: boolean
 	) {
 		let feeTier;
-		if (user) {
+		const userHLM =
+			(user?.isHighLeverageMode() ?? false) || enteringHighLeverageMode;
+		if (user && !userHLM) {
 			feeTier = user.getUserFeeTier(marketType);
 		} else {
 			const state = this.getStateAccount();
@@ -9046,7 +9062,7 @@ export class DriftClient {
 			}
 
 			takerFee += (takerFee * marketAccount.feeAdjustment) / 100;
-			if (user && user.isHighLeverageMode()) {
+			if (userHLM) {
 				takerFee *= 2;
 			}
 			makerFee += (makerFee * marketAccount.feeAdjustment) / 100;

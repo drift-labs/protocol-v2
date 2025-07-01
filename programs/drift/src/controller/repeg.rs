@@ -161,6 +161,7 @@ pub fn _update_amm(
         market.get_max_confidence_interval_multiplier()?,
         &market.amm.oracle_source,
         true,
+        0,
     )?;
 
     let mut amm_update_cost = 0;
@@ -249,6 +250,7 @@ pub fn update_amm_and_check_validity(
         market.get_max_confidence_interval_multiplier()?,
         &market.amm.oracle_source,
         false,
+        0,
     )?;
 
     validate!(

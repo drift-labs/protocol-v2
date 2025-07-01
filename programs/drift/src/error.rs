@@ -637,6 +637,10 @@ pub enum ErrorCode {
     InvalidSignedMsgUserOrdersResize,
     #[msg("Could not deserialize high leverage mode config")]
     CouldNotDeserializeHighLeverageModeConfig,
+    #[msg("Invalid If Rebalance Config")]
+    InvalidIfRebalanceConfig,
+    #[msg("Invalid If Rebalance Swap")]
+    InvalidIfRebalanceSwap,
     #[msg("Invalid Constituent")]
     InvalidConstituent,
     #[msg("Invalid Amm Constituent Mapping argument")]

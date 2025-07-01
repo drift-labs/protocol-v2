@@ -2,7 +2,9 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 #[cfg(feature = "drift-rs")]
 use crate::math::constants::PERCENTAGE_PRECISION;
-use crate::math::constants::{ONE_YEAR, SPOT_RATE_PRECISION, SPOT_UTILIZATION_PRECISION};
+use crate::math::constants::{
+    INTEREST_RATE_SEGMENT_AND_WEIGHTS, ONE_YEAR, SPOT_RATE_PRECISION, SPOT_UTILIZATION_PRECISION,
+};
 use crate::math::safe_math::{SafeDivFloor, SafeMath};
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
@@ -179,37 +181,51 @@ pub fn calculate_accumulated_interest(
 
 #[inline(always)]
 pub fn calculate_borrow_rate(spot_market: &SpotMarket, utilization: u128) -> DriftResult<u128> {
-    let borrow_rate = if utilization > spot_market.optimal_utilization.cast()? {
-        let surplus_utilization = utilization.safe_sub(spot_market.optimal_utilization.cast()?)?;
+    let optimal_util = spot_market.optimal_utilization.cast::<u128>()?;
+    let optimal_rate = spot_market.optimal_borrow_rate.cast::<u128>()?;
+    let max_rate = spot_market.max_borrow_rate.cast::<u128>()?;
+    let min_rate = spot_market.get_min_borrow_rate()?.cast::<u128>()?;
 
-        let borrow_rate_slope = spot_market
-            .max_borrow_rate
-            .cast::<u128>()?
-            .safe_sub(spot_market.optimal_borrow_rate.cast()?)?
+    let weights_divisor = 1000;
+
+    let borrow_rate = if utilization <= optimal_util {
+        let slope = optimal_rate
             .safe_mul(SPOT_UTILIZATION_PRECISION)?
-            .safe_div(
-                SPOT_UTILIZATION_PRECISION.safe_sub(spot_market.optimal_utilization.cast()?)?,
-            )?;
-
-        spot_market.optimal_borrow_rate.cast::<u128>()?.safe_add(
-            surplus_utilization
-                .safe_mul(borrow_rate_slope)?
-                .safe_div(SPOT_UTILIZATION_PRECISION)?,
-        )?
-    } else {
-        let borrow_rate_slope = spot_market
-            .optimal_borrow_rate
-            .cast::<u128>()?
-            .safe_mul(SPOT_UTILIZATION_PRECISION)?
-            .safe_div(spot_market.optimal_utilization.cast()?)?;
-
+            .safe_div(optimal_util)?;
         utilization
-            .safe_mul(borrow_rate_slope)?
+            .safe_mul(slope)?
             .safe_div(SPOT_UTILIZATION_PRECISION)?
-    }
-    .max(spot_market.get_min_borrow_rate()?.cast()?);
+    } else {
+        let total_extra_rate = max_rate.safe_sub(optimal_rate)?;
 
-    Ok(borrow_rate)
+        let mut rate = optimal_rate;
+        let mut prev_util = optimal_util;
+
+        for &(bp, weight) in INTEREST_RATE_SEGMENT_AND_WEIGHTS {
+            let segment_start = prev_util;
+            let segment_end = bp;
+            let segment_range = segment_end.safe_sub(segment_start)?;
+            let segment_rate_total = total_extra_rate
+                .safe_mul(weight as u128)?
+                .safe_div(weights_divisor)?;
+
+            if utilization <= segment_end {
+                let partial_util = utilization.safe_sub(segment_start)?;
+                let partial_rate = segment_rate_total
+                    .safe_mul(partial_util)?
+                    .safe_div(segment_range)?;
+                rate = rate.safe_add(partial_rate)?;
+                break;
+            } else {
+                rate = rate.safe_add(segment_rate_total)?;
+                prev_util = segment_end;
+            }
+        }
+
+        rate
+    };
+
+    Ok(borrow_rate.max(min_rate))
 }
 
 #[cfg(feature = "drift-rs")]

@@ -158,6 +158,7 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
             cache_info.max_confidence_interval_multiplier,
             &cache_info.get_oracle_source()?,
             true,
+            0,
         )?;
 
         if !is_oracle_valid_for_action(
@@ -312,6 +313,7 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
             &spot_market.oracle_id(),
             spot_market.historical_oracle_data.last_oracle_price_twap,
             spot_market.get_max_confidence_interval_multiplier()?,
+            0,
         )?;
 
         let oracle_slot = slot - oracle_data.0.delay.max(0i64).cast::<u64>()?;
@@ -563,6 +565,7 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         &in_oracle_id,
         in_spot_market.historical_oracle_data.last_oracle_price_twap,
         in_spot_market.get_max_confidence_interval_multiplier()?,
+        0,
     )?;
     let in_oracle = in_oracle.clone();
 
@@ -574,6 +577,7 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
             .historical_oracle_data
             .last_oracle_price_twap,
         out_spot_market.get_max_confidence_interval_multiplier()?,
+        0,
     )?;
 
     if !is_oracle_valid_for_action(in_oracle_validity, Some(DriftAction::LpPoolSwap))? {
@@ -775,6 +779,7 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
         &in_oracle_id,
         in_spot_market.historical_oracle_data.last_oracle_price_twap,
         in_spot_market.get_max_confidence_interval_multiplier()?,
+        0,
     )?;
     let in_oracle = in_oracle.clone();
 
@@ -973,6 +978,7 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
             .historical_oracle_data
             .last_oracle_price_twap,
         out_spot_market.get_max_confidence_interval_multiplier()?,
+        0,
     )?;
     let out_oracle = out_oracle.clone();
 

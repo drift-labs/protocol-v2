@@ -514,7 +514,7 @@ impl SpotMarket {
     }
 
     pub fn is_healthy_utilization(self) -> DriftResult<bool> {
-        let unhealthy_utilization = 800000; // 80%
+        let unhealthy_utilization = 900000; // 90%
         let utilization: u64 = self.get_utilization()?.cast()?;
         Ok(self.utilization_twap <= unhealthy_utilization && utilization <= unhealthy_utilization)
     }
@@ -687,4 +687,10 @@ pub struct InsuranceFund {
     pub revenue_settle_period: i64,
     pub total_factor: u32, // percentage of interest for total insurance
     pub user_factor: u32,  // percentage of interest for user staked insurance
+}
+
+impl InsuranceFund {
+    pub fn get_protocol_shares(&self) -> DriftResult<u128> {
+        self.total_shares.safe_sub(self.user_shares)
+    }
 }

@@ -1,10 +1,11 @@
 import { Keypair } from '@solana/web3.js';
-import { BN, DriftClient } from '..';
+import { BN } from '..';
 import nacl from 'tweetnacl';
 import { decodeUTF8 } from 'tweetnacl-util';
 import WebSocket from 'ws';
 
 const SEND_INTERVAL = 500;
+const MAX_BUFFERED_AMOUNT = 20 * 1024; // 20 KB as worst case scenario
 
 type Quote = {
 	bidPrice: BN;
@@ -16,16 +17,15 @@ type Quote = {
 };
 
 export class IndicativeQuotesSender {
-	private heartbeatTimeout: NodeJS.Timeout | null = null;
-	private sendQuotesInterval: NodeJS.Timeout | null = null;
+	private heartbeatTimeout: ReturnType<typeof setTimeout> | null = null;
+	private sendQuotesInterval: ReturnType<typeof setTimeout> | null = null;
 
 	private readonly heartbeatIntervalMs = 60000;
 	private reconnectDelay = 1000;
 	private ws: WebSocket | null = null;
-	private driftClient: DriftClient;
 	private connected = false;
 
-	private quotes: Map<number, Quote> = new Map();
+	private quotes: Map<number, Quote[]> = new Map();
 
 	constructor(
 		private endpoint: string,
@@ -87,18 +87,25 @@ export class IndicativeQuotesSender {
 				) {
 					this.sendQuotesInterval = setInterval(() => {
 						if (this.connected) {
-							for (const [marketIndex, quote] of this.quotes.entries()) {
+							for (const [marketIndex, quotes] of this.quotes.entries()) {
 								const message = {
-									market_type: 'perp',
 									market_index: marketIndex,
-									bid_price: quote.bidPrice.toString(),
-									ask_price: quote.askPrice.toString(),
-									bid_size: quote.bidBaseAssetAmount.toString(),
-									ask_size: quote.askBaseAssetAmount.toString(),
-									is_oracle_offset: quote.isOracleOffset,
+									market_type: 'perp',
+									quotes: quotes.map((quote) => {
+										return {
+											bid_price: quote.bidPrice.toString(),
+											ask_price: quote.askPrice.toString(),
+											bid_size: quote.bidBaseAssetAmount.toString(),
+											ask_size: quote.askBaseAssetAmount.toString(),
+											is_oracle_offset: quote.isOracleOffset,
+										};
+									}),
 								};
 								try {
-									if (this.ws?.readyState === WebSocket.OPEN) {
+									if (
+										this.ws?.readyState === WebSocket.OPEN &&
+										this.ws?.bufferedAmount < MAX_BUFFERED_AMOUNT
+									) {
 										this.ws.send(JSON.stringify(message));
 									}
 								} catch (err) {
@@ -124,7 +131,7 @@ export class IndicativeQuotesSender {
 		ws.on('unexpected-response', async (request, response) => {
 			console.error(
 				'Unexpected response, reconnecting in 5s:',
-				response.statusCode
+				response?.statusCode
 			);
 			setTimeout(() => {
 				if (this.heartbeatTimeout) clearTimeout(this.heartbeatTimeout);
@@ -153,8 +160,37 @@ export class IndicativeQuotesSender {
 		}, this.heartbeatIntervalMs);
 	}
 
-	setQuote(quote: Quote) {
-		this.quotes.set(quote.marketIndex, quote);
+	setQuote(newQuotes: Quote | Quote[]): void {
+		if (!this.connected) {
+			console.warn('Setting quote before connected to the server, ignoring');
+		}
+		const quotes = Array.isArray(newQuotes) ? newQuotes : [newQuotes];
+		const newQuoteMap = new Map<number, Quote[]>();
+		for (const quote of quotes) {
+			if (
+				quote.marketIndex == null ||
+				quote.bidPrice == null ||
+				quote.askPrice == null ||
+				quote.bidBaseAssetAmount == null ||
+				quote.askBaseAssetAmount == null
+			) {
+				console.warn(
+					'Received incomplete quote, ignoring and deleting old quote',
+					quote
+				);
+				if (quote.marketIndex != null) {
+					this.quotes.delete(quote.marketIndex);
+				}
+				return;
+			}
+			if (!newQuoteMap.has(quote.marketIndex)) {
+				newQuoteMap.set(quote.marketIndex, []);
+			}
+			newQuoteMap.get(quote.marketIndex)?.push(quote);
+		}
+		for (const marketIndex of newQuoteMap.keys()) {
+			this.quotes.set(marketIndex, newQuoteMap.get(marketIndex));
+		}
 	}
 
 	private reconnect() {

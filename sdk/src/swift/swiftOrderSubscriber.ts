@@ -38,7 +38,7 @@ export type SwiftOrderSubscriberConfig = {
 };
 
 export class SwiftOrderSubscriber {
-	private heartbeatTimeout: NodeJS.Timeout | null = null;
+	private heartbeatTimeout: ReturnType<typeof setTimeout> | null = null;
 	private readonly heartbeatIntervalMs = 60000;
 	private ws: WebSocket | null = null;
 	private driftClient: DriftClient;
@@ -56,6 +56,15 @@ export class SwiftOrderSubscriber {
 	constructor(private config: SwiftOrderSubscriberConfig) {
 		this.driftClient = config.driftClient;
 		this.userAccountGetter = config.userAccountGetter;
+	}
+
+	unsubscribe() {
+		if (this.subscribed) {
+			this.ws.removeAllListeners();
+			this.ws.terminate();
+			this.ws = null;
+			this.subscribed = false;
+		}
 	}
 
 	getSymbolForMarketIndex(marketIndex: number): string {
