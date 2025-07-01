@@ -18,7 +18,7 @@ use crate::math::constants::{
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral_and_liability_info, MarginRequirementType,
 };
-use crate::math::spot_balance::calculate_borrow_rate;
+use crate::math::spot_balance::{calculate_spot_market_utilization, calculate_borrow_rate};
 use crate::math::spot_withdraw::{
     calculate_max_borrow_token_amount, calculate_min_deposit_token_amount,
     calculate_token_utilization_limits, check_withdraw_limits,
@@ -52,6 +52,60 @@ pub fn check_perp_market_valid(
 
     Ok(())
 }
+
+
+
+    #[test]
+    fn test_meme_interest_rate() {
+        let perp_market_map = PerpMarketMap::empty();
+
+        let meme_market_str = String::from("ZLEIa6hBQSevW/X04aQW147VpUQWOD4EIug/dsSiOD9fb0zJ0wWcoS7j6sf54CJSzlSd9qLpWca7pkLsD9feF5s7APU7gn3iHYzPh6wBR7rnVuuWOi72JEyWkVaajsCPACCi64+9taHIXe4QF4hhlYiPl09UhcN3ox28V0LjKljDOQldWcbLBFBFTkdVICAgICAgICAgICAgICAgICAgICAgICAgICAgoSUAAAAAAAABAAAAAAAAAC0AAAAAAAAAoSUAAAAAAAChJQAAAAAAAGjJXGgAAAAAWLEAAAAAAABYsQAAAAAAAFixAAAAAAAAWLEAAAAAAAAAAAAAAAAAAElUtwEAAAAAAAAAAAAAAAAfAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAENwysOIJBM0GAg6e0k5xZNDmGwlyo8khzcIbPkfiODoiEpVqmAAAAAAAAAAAAAAAD0eROlcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgCMRAAAAAAC6bl1oAAAAABAOAAAAAAAAoIYBAFDDAAAAAAAAAAAAAAAAAAAAAAAAzw+vh+4i1wAAAAAAAAAAABomcsakZgAAAAAAAAAAAAAdZW5VAgAAAAAAAAAAAAAASCHPWAIAAAAAAAAAAAAAAHHfCgAAAAAAAAAAAAAAAACSFAAAAAAAAAAAAAAAAAAAACA9iHktAAAAYLeYbIgAAOd3NZr4NgAAo5FIlBoAAABvBwAAAAAAALpuXWgAAAAAum5daAAAAAAAAAAAAAAAAEBCDwAAAAAAZAAAAAAAAABAQg8AAAAAAAAAAAAAAAAAAQAAAAAAAAAiEgAAAAAAAMQJAACIEwAAXEQAAJg6AABkAAAA1DAAAIy5AABgrgoA8EkCAEBLTAAGAAAAHwABDAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADDvfboCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
+
+        let mut decoded_bytes = base64::decode(meme_market_str).unwrap();
+        let meme_market_bytes = decoded_bytes.as_mut_slice();
+
+        let key = Pubkey::default();
+        let owner = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
+        let mut lamports = 0;
+        let meme_market_account_info =
+            create_account_info(&key, true, &mut lamports, meme_market_bytes, &owner);
+    
+        let spot_market_map = SpotMarketMap::load_multiple(
+                vec![&meme_market_account_info],
+                true,
+            )
+            .unwrap();
+
+        let mut meme_market = spot_market_map.get_ref_mut(&31).unwrap();
+
+        assert_eq!(meme_market.cumulative_borrow_interest, 10079904072);
+        
+        let oracle_price_data = OraclePriceData {
+            price: PRICE_PRECISION_I64/100,
+            confidence: 1,
+            delay: 0,
+            has_sufficient_number_of_data_points: true,
+        };
+
+        assert_eq!(meme_market.last_interest_ts, 1750953658);
+        let utilization = calculate_spot_market_utilization(&meme_market).unwrap();
+
+        let rate = calculate_borrow_rate(&meme_market, utilization).unwrap();
+        assert_eq!(utilization, 1874);
+        assert_eq!(rate, 401);
+
+        let now = (meme_market.last_interest_ts + 3600 * 24 * 30) as i64;
+
+        update_spot_market_cumulative_interest(
+            &mut meme_market,
+            Some(&oracle_price_data),
+            now,
+        ).unwrap();
+
+        assert_eq!(meme_market.cumulative_borrow_interest, 10080236295);
+
+    }
+
 
 #[test]
 fn test_daily_withdraw_limits() {
