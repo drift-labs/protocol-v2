@@ -12,14 +12,11 @@ use pyth_lazer_solana_contract::protocol::router::Price;
 use pyth_lazer_solana_contract::Storage;
 use solana_program::sysvar::instructions::load_current_index_checked;
 
-use crate::compute_fn;
-
 pub fn handle_update_pyth_lazer_oracle<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdatePythLazerOracle>,
     pyth_message: Vec<u8>,
 ) -> Result<()> {
     // Verify the Pyth lazer message
-
     let ix_idx = load_current_index_checked(&ctx.accounts.ix_sysvar.to_account_info())?;
     validate!(
         ix_idx > 0,
