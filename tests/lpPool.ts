@@ -55,6 +55,7 @@ import {
 	overWriteMintAccount,
 	overWritePerpMarket,
 	overWriteSpotMarket,
+	setFeedPriceNoProgram,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
@@ -88,6 +89,7 @@ describe('LP Pool', () => {
 	let usdcMint: Keypair;
 	let spotTokenMint: Keypair;
 	let spotMarketOracle: PublicKey;
+	let spotMarketOracle2: PublicKey;
 
 	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
 	const ammInitialQuoteAssetReserve = new anchor.BN(100 * 10 ** 13).mul(
@@ -137,6 +139,7 @@ describe('LP Pool', () => {
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 		spotTokenMint = await mockUSDCMint(bankrunContextWrapper);
 		spotMarketOracle = await mockOracleNoProgram(bankrunContextWrapper, 200);
+		spotMarketOracle2 = await mockOracleNoProgram(bankrunContextWrapper, 200);
 
 		const keypair = new Keypair();
 		await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
@@ -243,7 +246,21 @@ describe('LP Pool', () => {
 			optimalUtilization,
 			optimalRate,
 			maxRate,
-			spotMarketOracle,
+			spotMarketOracle2,
+			OracleSource.PYTH,
+			initialAssetWeight,
+			maintenanceAssetWeight,
+			initialLiabilityWeight,
+			maintenanceLiabilityWeight,
+			imfFactor
+		);
+
+		await adminClient.initializeSpotMarket(
+			spotTokenMint.publicKey,
+			optimalUtilization,
+			optimalRate,
+			maxRate,
+			spotMarketOracle2,
 			OracleSource.PYTH,
 			initialAssetWeight,
 			maintenanceAssetWeight,
@@ -671,7 +688,7 @@ describe('LP Pool', () => {
 		);
 	});
 
-	it('can add constituent to LP Pool thats a derivative and get half of the target weight', async () => {
+	it('can add constituent to LP Pool thats a derivative and behave correctly', async () => {
 		const lpPool = (await adminClient.program.account.lpPool.fetch(
 			lpPoolKey
 		)) as LPPoolAccount;
@@ -723,7 +740,7 @@ describe('LP Pool', () => {
 			program.programId,
 			lpPoolKey
 		);
-		const constituentTargetBase =
+		let constituentTargetBase =
 			(await adminClient.program.account.constituentTargetBase.fetch(
 				constituentTargetBasePublicKey
 			)) as ConstituentTargetBase;
@@ -733,11 +750,88 @@ describe('LP Pool', () => {
 			'constituentTargetBase.targets',
 			constituentTargetBase.targets.map((x) => x.targetBase.toString())
 		);
-		assert(
-			constituentTargetBase.targets[1].targetBase
-				.sub(constituentTargetBase.targets[2].targetBase)
-				.lt(constituentTargetBase.targets[1].targetBase.divn(1000))
+		expect(
+			constituentTargetBase.targets[1].targetBase.toNumber()
+		).to.be.approximately(
+			constituentTargetBase.targets[2].targetBase.toNumber(),
+			10
 		);
+
+		// Move the oracle price to be double, so it should have half of the target base
+		const derivativeBalanceBefore = constituentTargetBase.targets[2].targetBase;
+		const derivative = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 2)
+		)) as ConstituentAccount;
+		await setFeedPriceNoProgram(bankrunContextWrapper, 400, spotMarketOracle2);
+		await adminClient.updateConstituentOracleInfo(derivative);
+		const tx2 = new Transaction();
+		tx2
+			.add(await adminClient.getUpdateAmmCacheIx([0, 1, 2]))
+			.add(
+				await adminClient.getUpdateLpConstituentTargetBaseIx(
+					encodeName(lpPoolName),
+					[
+						getConstituentPublicKey(program.programId, lpPoolKey, 0),
+						getConstituentPublicKey(program.programId, lpPoolKey, 1),
+						getConstituentPublicKey(program.programId, lpPoolKey, 2),
+					]
+				)
+			);
+		await adminClient.sendTransaction(tx2);
+		await adminClient.updateLpPoolAum(lpPool, [0, 1, 2]);
+
+		constituentTargetBase =
+			(await adminClient.program.account.constituentTargetBase.fetch(
+				constituentTargetBasePublicKey
+			)) as ConstituentTargetBase;
+		const derivativeBalanceAfter = constituentTargetBase.targets[2].targetBase;
+
+		console.log(
+			'constituentTargetBase.targets',
+			constituentTargetBase.targets.map((x) => x.targetBase.toString())
+		);
+
+		expect(derivativeBalanceAfter.toNumber()).to.be.approximately(
+			derivativeBalanceBefore.toNumber() / 2,
+			20
+		);
+
+		// Move the oracle price to be half, so its target base should go to zero
+		const parentBalanceBefore = constituentTargetBase.targets[1].targetBase;
+		await setFeedPriceNoProgram(bankrunContextWrapper, 100, spotMarketOracle2);
+		await adminClient.updateConstituentOracleInfo(derivative);
+		const tx3 = new Transaction();
+		tx3
+			.add(await adminClient.getUpdateAmmCacheIx([0, 1, 2]))
+			.add(
+				await adminClient.getUpdateLpConstituentTargetBaseIx(
+					encodeName(lpPoolName),
+					[
+						getConstituentPublicKey(program.programId, lpPoolKey, 0),
+						getConstituentPublicKey(program.programId, lpPoolKey, 1),
+						getConstituentPublicKey(program.programId, lpPoolKey, 2),
+					]
+				)
+			);
+		await adminClient.sendTransaction(tx3);
+		await adminClient.updateLpPoolAum(lpPool, [0, 1, 2]);
+
+		constituentTargetBase =
+			(await adminClient.program.account.constituentTargetBase.fetch(
+				constituentTargetBasePublicKey
+			)) as ConstituentTargetBase;
+		const parentBalanceAfter = constituentTargetBase.targets[1].targetBase;
+
+		console.log(
+			'constituentTargetBase.targets',
+			constituentTargetBase.targets.map((x) => x.targetBase.toString())
+		);
+		expect(parentBalanceAfter.toNumber()).to.be.approximately(
+			parentBalanceBefore.toNumber() * 2,
+			10
+		);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 200, spotMarketOracle2);
+		await adminClient.updateConstituentOracleInfo(derivative);
 	});
 
 	it('can settle pnl from perp markets into the usdc account', async () => {
@@ -1015,7 +1109,6 @@ describe('LP Pool', () => {
 			BigInt(lpPool.lastAum.toNumber())
 		);
 
-		console.log('here!');
 		const tx = new Transaction();
 		tx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1, 2]));
 		tx.add(
@@ -1102,5 +1195,144 @@ describe('LP Pool', () => {
 		assert(ammCache.cache[0].quoteOwedFromLp.eq(ZERO));
 		assert(constituent.tokenBalance.eq(balanceBefore.add(owedAmount)));
 		assert(lpPool.lastAum.eq(aumBefore.add(owedAmount)));
+	});
+
+	it('can work with multiple derivatives on the same parent', async () => {
+		const lpPool = (await adminClient.program.account.lpPool.fetch(
+			lpPoolKey
+		)) as LPPoolAccount;
+
+		await adminClient.initializeConstituent(lpPool.name, {
+			spotMarketIndex: 3,
+			decimals: 6,
+			maxWeightDeviation: new BN(10).mul(PERCENTAGE_PRECISION),
+			swapFeeMin: new BN(1).mul(PERCENTAGE_PRECISION),
+			swapFeeMax: new BN(2).mul(PERCENTAGE_PRECISION),
+			oracleStalenessThreshold: new BN(400),
+			costToTrade: 1,
+			derivativeWeight: PERCENTAGE_PRECISION.divn(4),
+			volatility: new BN(10).mul(PERCENTAGE_PRECISION),
+			constituentCorrelations: [
+				ZERO,
+				PERCENTAGE_PRECISION.muln(87).divn(100),
+				PERCENTAGE_PRECISION,
+			],
+			constituentDerivativeIndex: 1,
+		});
+
+		await adminClient.updateConstituentParams(
+			lpPool.name,
+			getConstituentPublicKey(program.programId, lpPoolKey, 2),
+			{
+				derivativeWeight: PERCENTAGE_PRECISION.divn(4),
+			}
+		);
+
+		await adminClient.updateAmmCache([0, 1, 2]);
+
+		let constituent = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 3)
+		)) as ConstituentAccount;
+
+		await adminClient.updateConstituentOracleInfo(constituent);
+
+		constituent = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 3)
+		)) as ConstituentAccount;
+		assert(!constituent.lastOraclePrice.eq(ZERO));
+		await adminClient.updateLpPoolAum(lpPool, [0, 1, 2, 3]);
+
+		const tx = new Transaction();
+		tx.add(await adminClient.getUpdateAmmCacheIx([0, 1, 2])).add(
+			await adminClient.getUpdateLpConstituentTargetBaseIx(
+				encodeName(lpPoolName),
+				[
+					getConstituentPublicKey(program.programId, lpPoolKey, 0),
+					getConstituentPublicKey(program.programId, lpPoolKey, 1),
+					getConstituentPublicKey(program.programId, lpPoolKey, 2),
+					getConstituentPublicKey(program.programId, lpPoolKey, 3),
+				]
+			)
+		);
+		await adminClient.sendTransaction(tx);
+		await adminClient.updateLpPoolAum(lpPool, [0, 1, 2, 3]);
+
+		const constituentTargetBasePublicKey = getConstituentTargetBasePublicKey(
+			program.programId,
+			lpPoolKey
+		);
+		let constituentTargetBase =
+			(await adminClient.program.account.constituentTargetBase.fetch(
+				constituentTargetBasePublicKey
+			)) as ConstituentTargetBase;
+
+		expect(constituentTargetBase).to.not.be.null;
+		console.log(
+			'constituentTargetBase.targets',
+			constituentTargetBase.targets.map((x) => x.targetBase.toString())
+		);
+		expect(
+			constituentTargetBase.targets[2].targetBase.toNumber()
+		).to.be.approximately(
+			constituentTargetBase.targets[3].targetBase.toNumber(),
+			10
+		);
+		expect(
+			constituentTargetBase.targets[3].targetBase.toNumber()
+		).to.be.approximately(
+			constituentTargetBase.targets[1].targetBase.toNumber() / 2,
+			10
+		);
+
+		// Set the derivative weights to 0
+		await adminClient.updateConstituentParams(
+			lpPool.name,
+			getConstituentPublicKey(program.programId, lpPoolKey, 2),
+			{
+				derivativeWeight: ZERO,
+			}
+		);
+
+		await adminClient.updateConstituentParams(
+			lpPool.name,
+			getConstituentPublicKey(program.programId, lpPoolKey, 3),
+			{
+				derivativeWeight: ZERO,
+			}
+		);
+
+		const parentTargetBaseBefore = constituentTargetBase.targets[1].targetBase;
+		const tx2 = new Transaction();
+		tx2
+			.add(await adminClient.getUpdateAmmCacheIx([0, 1, 2]))
+			.add(
+				await adminClient.getUpdateLpConstituentTargetBaseIx(
+					encodeName(lpPoolName),
+					[
+						getConstituentPublicKey(program.programId, lpPoolKey, 0),
+						getConstituentPublicKey(program.programId, lpPoolKey, 1),
+						getConstituentPublicKey(program.programId, lpPoolKey, 2),
+						getConstituentPublicKey(program.programId, lpPoolKey, 3),
+					]
+				)
+			);
+		await adminClient.sendTransaction(tx2);
+		await adminClient.updateLpPoolAum(lpPool, [0, 1, 2, 3]);
+
+		constituentTargetBase =
+			(await adminClient.program.account.constituentTargetBase.fetch(
+				constituentTargetBasePublicKey
+			)) as ConstituentTargetBase;
+		console.log(
+			'constituentTargetBase.targets',
+			constituentTargetBase.targets.map((x) => x.targetBase.toString())
+		);
+
+		const parentTargetBaseAfter = constituentTargetBase.targets[1].targetBase;
+
+		expect(parentTargetBaseAfter.toNumber()).to.be.approximately(
+			parentTargetBaseBefore.toNumber() * 2,
+			10
+		);
 	});
 });

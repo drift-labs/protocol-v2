@@ -41,6 +41,7 @@ import {
 	OracleInfo,
 	PerpMarketAccount,
 	ConstituentAccount,
+	SpotMarketAccount,
 } from '../sdk';
 import {
 	TestClient,
@@ -1207,7 +1208,7 @@ export async function overWriteSpotMarket(
 	driftClient: TestClient,
 	bankrunContextWrapper: BankrunContextWrapper,
 	spotMarketKey: PublicKey,
-	spotMarket: PerpMarketAccount
+	spotMarket: SpotMarketAccount
 ) {
 	bankrunContextWrapper.context.setAccount(spotMarketKey, {
 		executable: false,
