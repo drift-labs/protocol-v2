@@ -1,4 +1,5 @@
 use crate::state::pyth_lazer_oracle::PythLazerOracle;
+use crate::state::zero_copy::AccountZeroCopy;
 use crate::{impl_zero_copy_loader, validate};
 use anchor_lang::prelude::*;
 
@@ -1807,3 +1808,40 @@ impl AmmCache {
 }
 
 impl_zero_copy_loader!(AmmCache, crate::id, AmmCacheFixed, CacheInfo);
+
+impl<'a> AccountZeroCopy<'a, CacheInfo, AmmCacheFixed> {
+    pub fn check_settle_staleness(&self, now: i64, threshold_ms: i64) -> DriftResult<()> {
+        for (i, cache_info) in self.iter().enumerate() {
+            if cache_info.last_settle_ts < now.saturating_sub(threshold_ms) {
+                msg!("AMM settle data is stale for perp market {}", i);
+                return Err(ErrorCode::AMMCacheStale.into());
+            }
+        }
+        Ok(())
+    }
+
+    pub fn check_perp_market_staleness(&self, slot: u64, threshold: u64) -> DriftResult<()> {
+        for (i, cache_info) in self.iter().enumerate() {
+            if cache_info.slot < slot.saturating_sub(threshold) {
+                msg!("Perp market cache info is stale for perp market {}", i);
+                return Err(ErrorCode::AMMCacheStale.into());
+            }
+        }
+        Ok(())
+    }
+
+    pub fn check_oracle_staleness(&self, slot: u64, threshold: u64) -> DriftResult<()> {
+        for (i, cache_info) in self.iter().enumerate() {
+            if cache_info.oracle_slot < slot.saturating_sub(threshold) {
+                msg!(
+                    "Perp market cache info is stale for perp market {}. oracle slot: {}, slot: {}",
+                    i,
+                    cache_info.oracle_slot,
+                    slot
+                );
+                return Err(ErrorCode::AMMCacheStale.into());
+            }
+        }
+        Ok(())
+    }
+}

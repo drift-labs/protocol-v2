@@ -10223,15 +10223,6 @@ export class DriftClient {
 		remainingAccounts.push(
 			...perpMarketIndexes.map((index) => {
 				return {
-					pubkey: this.getPerpMarketAccount(index).amm.oracle,
-					isSigner: false,
-					isWritable: true,
-				};
-			})
-		);
-		remainingAccounts.push(
-			...perpMarketIndexes.map((index) => {
-				return {
 					pubkey: this.getPerpMarketAccount(index).pubkey,
 					isSigner: false,
 					isWritable: true,

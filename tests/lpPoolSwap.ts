@@ -389,6 +389,9 @@ describe('LP Pool', () => {
 		)) as ConstituentAccount;
 		expect(c1.tokenBalance.toString()).to.equal(c1TokenBalance.toString());
 
+		await adminClient.updateConstituentOracleInfo(c1);
+		await adminClient.updateConstituentOracleInfo(c0);
+
 		const prec = new BN(10).pow(new BN(tokenDecimals));
 		console.log(`const0 balance: ${convertToNumber(c0.tokenBalance, prec)}`);
 		console.log(`const1 balance: ${convertToNumber(c1.tokenBalance, prec)}`);
@@ -441,22 +444,27 @@ describe('LP Pool', () => {
 			);
 
 		// in = 0, out = 1
-		await adminClient.lpPoolSwap(
-			0,
-			1,
-			new BN(224_300_000),
-			new BN(0),
-			lpPoolKey,
-			constituentTargetWeightsPublicKey,
-			const0TokenAccount,
-			const1TokenAccount,
-			c0UserTokenAccount,
-			c1UserTokenAccount,
-			const0Key,
-			const1Key,
-			usdcMint.publicKey,
-			spotTokenMint.publicKey
+		const swapTx = new Transaction();
+		swapTx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool2, [0, 1]));
+		swapTx.add(
+			await adminClient.getLpPoolSwapIx(
+				0,
+				1,
+				new BN(224_300_000),
+				new BN(0),
+				lpPoolKey,
+				constituentTargetWeightsPublicKey,
+				const0TokenAccount,
+				const1TokenAccount,
+				c0UserTokenAccount,
+				c1UserTokenAccount,
+				const0Key,
+				const1Key,
+				usdcMint.publicKey,
+				spotTokenMint.publicKey
+			)
 		);
+		await adminClient.sendTransaction(swapTx);
 
 		const inTokenBalanceAfter =
 			await bankrunContextWrapper.connection.getTokenAccount(
@@ -495,8 +503,11 @@ describe('LP Pool', () => {
 			new BN(1_000_000_000_000),
 			adminAuth
 		);
-
 		let lpPool = (await adminClient.program.account.lpPool.fetch(
+			lpPoolKey
+		)) as LPPoolAccount;
+		await adminClient.updateLpPoolAum(lpPool, [0, 1]);
+		lpPool = (await adminClient.program.account.lpPool.fetch(
 			lpPoolKey
 		)) as LPPoolAccount;
 		const lpPoolAumBefore = lpPool.lastAum;
@@ -507,6 +518,16 @@ describe('LP Pool', () => {
 			new BN(0),
 			adminAuth
 		);
+
+		// check fields overwritten correctly
+		const c0 = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 0)
+		)) as ConstituentAccount;
+		const c1 = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 1)
+		)) as ConstituentAccount;
+		await adminClient.updateConstituentOracleInfo(c1);
+		await adminClient.updateConstituentOracleInfo(c0);
 
 		const userC0TokenBalanceBefore =
 			await bankrunContextWrapper.connection.getTokenAccount(
@@ -524,12 +545,17 @@ describe('LP Pool', () => {
 		);
 
 		const tokensAdded = new BN(1_000_000_000_000);
-		await adminClient.lpPoolAddLiquidity({
-			inMarketIndex: 0,
-			inAmount: tokensAdded,
-			minMintAmount: new BN(1),
-			lpPool: lpPool,
-		});
+		const tx = new Transaction();
+		tx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1]));
+		tx.add(
+			await adminClient.getLpPoolAddLiquidityIx({
+				inMarketIndex: 0,
+				inAmount: tokensAdded,
+				minMintAmount: new BN(1),
+				lpPool: lpPool,
+			})
+		);
+		await adminClient.sendTransaction(tx);
 
 		const userC0TokenBalanceAfter =
 			await bankrunContextWrapper.connection.getTokenAccount(
@@ -560,15 +586,18 @@ describe('LP Pool', () => {
 			(((tokensAdded.toNumber() * 9997) / 10000) * 9999) / 10000
 		); // max weight deviation: expect min swap% fee on constituent, + 0.01% lp mint fee
 
-		await adminClient.updateLpPoolAum(lpPool, [0, 1]);
-
 		// remove liquidity
-		await adminClient.lpPoolRemoveLiquidity({
-			outMarketIndex: 0,
-			lpToBurn: new BN(userLpTokenBalanceAfter.amount.toString()),
-			minAmountOut: new BN(1),
-			lpPool: lpPool,
-		});
+		const removeTx = new Transaction();
+		removeTx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1]));
+		removeTx.add(
+			await adminClient.getLpPoolRemoveLiquidityIx({
+				outMarketIndex: 0,
+				lpToBurn: new BN(userLpTokenBalanceAfter.amount.toString()),
+				minAmountOut: new BN(1),
+				lpPool: lpPool,
+			})
+		);
+		await adminClient.sendTransaction(removeTx);
 
 		const userC0TokenBalanceAfterBurn =
 			await bankrunContextWrapper.connection.getTokenAccount(

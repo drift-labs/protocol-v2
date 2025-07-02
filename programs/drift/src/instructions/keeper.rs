@@ -50,6 +50,7 @@ use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::lp_pool::Constituent;
 use crate::state::lp_pool::LPPool;
 use crate::state::lp_pool::CONSTITUENT_PDA_SEED;
+use crate::state::lp_pool::SETTLE_AMM_ORACLE_MAX_DELAY;
 use crate::state::oracle_map::OracleMap;
 use crate::state::order_params::{OrderParams, PlaceOrderOptions};
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
@@ -2949,6 +2950,8 @@ pub fn handle_pause_spot_market_deposit_withdraw(
 pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, SettleAmmPnlToLp<'info>>,
 ) -> Result<()> {
+    let slot = Clock::get()?.slot;
+
     let state = &ctx.accounts.state;
     let amm_cache_key = &ctx.accounts.amm_cache.key();
     let mut amm_cache: AccountZeroCopyMut<'_, CacheInfo, _> =
@@ -2978,19 +2981,27 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
     let AccountMaps {
         perp_market_map,
         spot_market_map: _,
-        mut oracle_map,
+        oracle_map: _,
     } = load_maps(
         remaining_accounts_iter,
         &MarketSet::new(),
         &MarketSet::new(),
-        Clock::get()?.slot,
+        slot,
         None,
     )?;
 
     for (_, perp_market_loader) in perp_market_map.0.iter() {
         let mut perp_market = perp_market_loader.load_mut()?;
         let cached_info = amm_cache.get_mut(perp_market.market_index as u32);
-        let oracle_data = oracle_map.get_price_data(&perp_market.oracle_id())?;
+
+        if slot.saturating_sub(cached_info.oracle_slot) > SETTLE_AMM_ORACLE_MAX_DELAY {
+            // If the oracle slot is not up to date, skip this market
+            msg!(
+                "Skipping settling perp market {} to dlp because oracle slot is not up to date",
+                perp_market.market_index
+            );
+            continue;
+        }
 
         let fee_pool_token_amount = get_token_amount(
             perp_market.amm.fee_pool.scaled_balance,
@@ -3004,7 +3015,10 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
             perp_market.pnl_pool.balance_type(),
         )?
         .cast::<i128>()?
-        .safe_sub(calculate_net_user_pnl(&perp_market.amm, oracle_data.price)?)?;
+        .safe_sub(calculate_net_user_pnl(
+            &perp_market.amm,
+            cached_info.oracle_price,
+        )?)?;
 
         let amm_amount_available =
             net_pnl_pool_token_amount.safe_add(fee_pool_token_amount.cast::<i128>()?)?;
@@ -3024,53 +3038,7 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
         )?;
 
         // Actually transfer the pnl to the lp usdc constituent account
-        let oracle_price = oracle_map.get_price_data(&perp_market.oracle_id())?.price;
-        validate_market_within_price_band(&perp_market, state, oracle_price)?;
-
-        if perp_market.amm.curve_update_intensity > 0 {
-            let healthy_oracle = perp_market.amm.is_recent_oracle_valid(oracle_map.slot)?;
-
-            if !healthy_oracle {
-                let (_, oracle_validity) = oracle_map.get_price_data_and_validity(
-                    MarketType::Perp,
-                    perp_market.market_index,
-                    &perp_market.oracle_id(),
-                    perp_market
-                        .amm
-                        .historical_oracle_data
-                        .last_oracle_price_twap,
-                    perp_market.get_max_confidence_interval_multiplier()?,
-                    0,
-                )?;
-
-                if !is_oracle_valid_for_action(oracle_validity, Some(DriftAction::SettlePnl))?
-                    || !perp_market.is_price_divergence_ok_for_settle_pnl(oracle_price)?
-                {
-                    if !perp_market.amm.last_oracle_valid {
-                        let msg = format!(
-                            "Oracle Price detected as invalid ({}) on last perp market update for Market = {}",
-                            oracle_validity,
-                            perp_market.market_index
-                        );
-                        msg!(&msg);
-
-                        return Err(oracle_validity.get_error_code().into());
-                    }
-
-                    if oracle_map.slot != perp_market.amm.last_update_slot {
-                        let msg = format!(
-                            "Market={} AMM must be updated in a prior instruction within same slot (current={} != amm={}, last_oracle_valid={})",
-                            perp_market.market_index,
-                            oracle_map.slot,
-                            perp_market.amm.last_update_slot,
-                            perp_market.amm.last_oracle_valid
-                        );
-                        msg!(&msg);
-                        return Err(ErrorCode::AMMNotUpdatedInSameSlot.into());
-                    }
-                }
-            }
-        }
+        validate_market_within_price_band(&perp_market, state, cached_info.oracle_price)?;
 
         if perp_market.is_operation_paused(PerpOperation::SettlePnl) {
             msg!(

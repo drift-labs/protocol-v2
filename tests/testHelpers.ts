@@ -1203,6 +1203,23 @@ export async function overWritePerpMarket(
 	});
 }
 
+export async function overWriteSpotMarket(
+	driftClient: TestClient,
+	bankrunContextWrapper: BankrunContextWrapper,
+	spotMarketKey: PublicKey,
+	spotMarket: PerpMarketAccount
+) {
+	bankrunContextWrapper.context.setAccount(spotMarketKey, {
+		executable: false,
+		owner: driftClient.program.programId,
+		lamports: LAMPORTS_PER_SOL,
+		data: await driftClient.program.account.spotMarket.coder.accounts.encode(
+			'SpotMarket',
+			spotMarket
+		),
+	});
+}
+
 export async function getPerpMarketDecoded(
 	driftClient: TestClient,
 	bankrunContextWrapper: BankrunContextWrapper,
