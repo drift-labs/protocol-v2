@@ -17,6 +17,7 @@ pub struct PythLazerOracle {
     pub publish_time: u64,
     pub posted_slot: u64,
     pub exponent: i32,
-    pub _padding: [u8; 4],
+    pub bump: u8,
+    pub _padding: [u8; 3],
     pub conf: u64,
 }

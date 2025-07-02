@@ -4333,6 +4333,34 @@ export class AdminClient extends DriftClient {
 		});
 	}
 
+	public async updatePythLazerOracleBump(
+		feedId: number
+	): Promise<TransactionSignature> {
+		const initializePythPullOracleIx =
+			await this.getUpdatePythLazerOracleBumpeIx(feedId);
+		const tx = await this.buildTransaction(initializePythPullOracleIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdatePythLazerOracleBumpeIx(
+		feedId: number
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updatePythLazerOracleBump(feedId, {
+			accounts: {
+				admin: this.useHotWalletAdmin
+					? this.wallet.publicKey
+					: this.getStateAccount().admin,
+				state: await this.getStatePublicKey(),
+				lazerOracle: getPythLazerOraclePublicKey(
+					this.program.programId,
+					feedId
+				),
+			},
+		});
+	}
+
 	public async initializeHighLeverageModeConfig(
 		maxUsers: number
 	): Promise<TransactionSignature> {

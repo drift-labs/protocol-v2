@@ -1719,6 +1719,13 @@ pub mod drift {
         handle_initialize_pyth_lazer_oracle(ctx, feed_id)
     }
 
+    pub fn update_pyth_lazer_oracle_bump(
+        ctx: Context<UpdatePythLazerOracleBump>,
+        feed_id: u32,
+    ) -> Result<()> {
+        handle_update_pyth_lazer_oracle_bump(ctx, feed_id)
+    }
+
     pub fn post_pyth_lazer_oracle_update<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, UpdatePythLazerOracle>,
         pyth_message: Vec<u8>,

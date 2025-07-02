@@ -57,14 +57,21 @@ pub fn handle_update_pyth_lazer_oracle<'c: 'info, 'info>(
         let feed_id = payload_data.feed_id.0;
 
         // Verify the pda
-        let pda = Pubkey::find_program_address(
-            &[PYTH_LAZER_ORACLE_SEED, &feed_id.to_le_bytes()],
+        let pda = Pubkey::create_program_address(
+            &[
+                PYTH_LAZER_ORACLE_SEED,
+                &feed_id.to_le_bytes(),
+                pyth_lazer_oracle.bump.to_le_bytes().as_ref(),
+            ],
             &crate::ID,
-        )
-        .0;
+        );
+        if pda.is_err() {
+            return Err(ErrorCode::OracleBadRemainingAccountPublicKey.into());
+        }
+        let unwrapped_pda = pda.unwrap();
         require_keys_eq!(
             *account.key,
-            pda,
+            unwrapped_pda,
             ErrorCode::OracleBadRemainingAccountPublicKey
         );
 
@@ -103,13 +110,6 @@ pub fn handle_update_pyth_lazer_oracle<'c: 'info, 'info>(
             pyth_lazer_oracle.publish_time = next_timestamp;
             pyth_lazer_oracle.exponent = exponent.cast::<i32>()?;
             pyth_lazer_oracle.conf = conf.cast::<u64>()?;
-            msg!("Price updated to {}", price.0.get());
-
-            msg!(
-                "Posting new lazer update. current ts {} < next ts {}",
-                current_timestamp,
-                next_timestamp
-            );
         } else {
             msg!(
                 "Skipping new lazer update. current ts {} >= next ts {}",
