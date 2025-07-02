@@ -1059,14 +1059,11 @@ pub fn handle_initialize_perp_market(
     safe_increment!(state.number_of_markets, 1);
 
     controller::amm::update_concentration_coef(perp_market, concentration_coef_scale)?;
-    crate::dlog!(oracle_price);
 
     let (amm_bid_size, amm_ask_size) = amm::calculate_market_open_bids_asks(&perp_market.amm)?;
-    crate::dlog!(amm_bid_size, amm_ask_size);
 
     let mrk = perp_market.amm.reserve_price()?;
     let (amm_bid_price, amm_ask_price) = perp_market.amm.bid_ask_price(mrk)?;
-    crate::dlog!(amm_bid_price, amm_ask_price);
 
     crate::validation::perp_market::validate_perp_market(perp_market)?;
 

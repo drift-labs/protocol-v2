@@ -190,8 +190,6 @@ pub fn update_spreads(market: &mut PerpMarket, reserve_price: u64) -> DriftResul
 
         let signed_liquidity_ratio =
             liquidity_ratio.safe_mul(market.amm.get_protocol_owned_position()?.signum().cast()?)?;
-        
-        crate::dlog!(liquidity_ratio, signed_liquidity_ratio, reserve_price);
 
         amm_spread::calculate_reference_price_offset(
             reserve_price,
@@ -210,7 +208,6 @@ pub fn update_spreads(market: &mut PerpMarket, reserve_price: u64) -> DriftResul
     } else {
         0
     };
-
 
     let (mut long_spread, mut short_spread) = if market.amm.curve_update_intensity > 0 {
         amm_spread::calculate_spread(

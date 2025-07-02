@@ -418,8 +418,6 @@ pub fn settle_expired_market(
         market.amm.historical_oracle_data.last_oracle_price_twap
     };
 
-    crate::dlog!(target_expiry_price);
-
     validate!(
         target_expiry_price > 0,
         ErrorCode::MarketSettlementTargetPriceInvalid,
@@ -443,16 +441,11 @@ pub fn settle_expired_market(
         .safe_add(fee_pool_token_amount)?
         .cast()?;
 
-    crate::dlog!(market.market_index);
-    crate::dlog!(total_excess_balance);
-
     let expiry_price =
         amm::calculate_expiry_price(&market.amm, target_expiry_price, total_excess_balance)?;
 
     market.expiry_price = expiry_price;
     market.status = MarketStatus::Settlement;
-
-    crate::dlog!(market.expiry_price);
 
     Ok(())
 }

@@ -1414,10 +1414,8 @@ impl AMM {
     }
 
     pub fn bid_price(&self, reserve_price: u64) -> DriftResult<u64> {
-        let adjusted_spread = (-(self
-            .short_spread
-            .cast::<i32>()?))
-            .safe_add(self.reference_price_offset)?;
+        let adjusted_spread =
+            (-(self.short_spread.cast::<i32>()?)).safe_add(self.reference_price_offset)?;
 
         let multiplier = BID_ASK_SPREAD_PRECISION_I128.safe_add(adjusted_spread.cast::<i128>()?)?;
 
