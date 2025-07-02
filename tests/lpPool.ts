@@ -606,6 +606,12 @@ describe('LP Pool', () => {
 
 		await adminClient.sendTransaction(new Transaction().add(createAtaIx), []);
 
+		await adminClient.updateLpPoolAum(lpPool, [0, 1]);
+		lpPool = (await adminClient.program.account.lpPool.fetch(
+			lpPoolKey
+		)) as LPPoolAccount;
+		assert(lpPool.lastAum.eq(ZERO));
+
 		const tx = new Transaction();
 		tx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1]));
 		tx.add(
@@ -1334,5 +1340,86 @@ describe('LP Pool', () => {
 			parentTargetBaseBefore.toNumber() * 2,
 			10
 		);
+	});
+
+	it('remove aum then add back', async () => {
+		const lpPool = (await adminClient.program.account.lpPool.fetch(
+			lpPoolKey
+		)) as LPPoolAccount;
+		const tx = new Transaction();
+
+		const lpTokenBalanceBefore =
+			await bankrunContextWrapper.connection.getTokenAccount(
+				userLpTokenAccount
+			);
+		expect(Number(lpTokenBalanceBefore.amount.toString())).to.equal(1000000000);
+
+		const mintInfo = await getMint(
+			bankrunContextWrapper.connection.toConnection(),
+			lpPool.mint as PublicKey
+		);
+		expect(mintInfo.decimals).to.equal(tokenDecimals);
+		expect(Number(mintInfo.supply)).to.equal(1000000000);
+		expect(mintInfo.mintAuthority?.toBase58()).to.equal(
+			adminClient.getSignerPublicKey().toBase58()
+		);
+
+		// console.log(lpPool);
+		tx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1, 2, 3]));
+		tx.add(
+			await adminClient.getLpPoolRemoveLiquidityIx({
+				lpPool,
+				minAmountOut: new BN(1000).mul(QUOTE_PRECISION),
+				lpToBurn: new BN(1000).mul(QUOTE_PRECISION),
+				outMarketIndex: 0,
+			})
+		);
+		await adminClient.sendTransaction(tx);
+
+		const lpPoolAfter = (await adminClient.program.account.lpPool.fetch(
+			lpPoolKey
+		)) as LPPoolAccount;
+
+		const deltaAum = lpPool.lastAum.sub(lpPoolAfter.lastAum);
+
+		expect(lpPoolAfter.lastAum.toNumber()).to.eq(314946); // residual fee
+		expect(deltaAum.toNumber()).to.eq(1049820000 - 314946);
+
+		const mintInfoAfter = await getMint(
+			bankrunContextWrapper.connection.toConnection(),
+			lpPool.mint as PublicKey
+		);
+		expect(Number(mintInfoAfter.supply)).to.equal(0);
+
+		const lpTokenBalanceAfter =
+			await bankrunContextWrapper.connection.getTokenAccount(
+				userLpTokenAccount
+			);
+		expect(Number(lpTokenBalanceAfter.amount)).to.equal(0);
+
+		// TODO: below shoudn't fail (Slippage outside limit: lp_mint_amount_net_fees(0) < min_mint_amount(10))
+		const txNext = new Transaction();
+		txNext.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1, 2, 3]));
+		txNext.add(
+			await adminClient.getLpPoolAddLiquidityIx({
+				lpPool,
+				inAmount: new BN(1000).mul(QUOTE_PRECISION),
+				minMintAmount: new BN(10),
+				inMarketIndex: 0,
+			})
+		);
+		await adminClient.sendTransaction(txNext);
+
+		const lpPoolAfter2 = (await adminClient.program.account.lpPool.fetch(
+			lpPoolKey
+		)) as LPPoolAccount;
+
+		expect(lpPoolAfter2.lastAum).to.equal(1000000000);
+
+		const lpTokenBalanceAfter2 =
+			await bankrunContextWrapper.connection.getTokenAccount(
+				userLpTokenAccount
+			);
+		expect(Number(lpTokenBalanceAfter2.amount)).to.equal(1000000000);
 	});
 });
