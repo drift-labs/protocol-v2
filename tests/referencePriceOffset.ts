@@ -17,12 +17,16 @@ import {
 	sigNum,
 	calculatePrice,
 	PRICE_PRECISION,
+	PositionDirection,
+	isVariant,
+	PEG_PRECISION,
 } from '../sdk/src';
 import {
 	initializeQuoteSpotMarket,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	overWritePerpMarket,
+	placeAndFillVammTrade,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
@@ -32,7 +36,6 @@ import {
 	CustomBorshAccountsCoder,
 	CustomBorshCoder,
 } from '../sdk/src/decode/customCoder';
-import { PRICE_DIV_PEG } from '../sdk/lib/browser';
 dotenv.config();
 
 // 1MPEPE-PERP
@@ -370,5 +373,133 @@ describe('Reference Price Offset E2E', () => {
 
 		expect(oracle.price.toNumber()).to.equal(10118100);
 		expect(vAmmMidAfterOffsetUpdate.gt(vAmmMidBeforeOffsetUpdate)).to.be.true;
+	});
+
+	it('Fills with vAMM should shift vAMM mid', async () => {
+		await adminClient.fetchAccounts();
+
+		const oracle = adminClient.getOracleDataForPerpMarket(marketIndex);
+
+		const perpMarket0 = adminClient.getPerpMarketAccount(marketIndex);
+
+		const [vBid, vAsk] = calculateBidAskPrice(
+			perpMarket0.amm,
+			oracle,
+			true,
+			false
+		);
+		const vBidNum = convertToNumber(vBid);
+		const vAskNum = convertToNumber(vAsk);
+		const vAmmMidBeforeOffsetUpdate = vBid.add(vAsk).divn(2);
+		const spread = (vAskNum - vBidNum) / ((vAskNum + vBidNum) / 2);
+		console.log(
+			`Before ref price: vBid: ${vBidNum}, vAsk: ${vAskNum}, spread: ${
+				spread * 10000
+			}bps, mid: ${convertToNumber(vAmmMidBeforeOffsetUpdate)}`
+		);
+		const vammInventoryBefore = perpMarket0.amm.baseAssetAmountWithAmm.muln(-1);
+		console.log(
+			`Vamm inventory: ${convertToNumber(vammInventoryBefore, BASE_PRECISION)}`
+		);
+
+		perpMarket0.amm.curveUpdateIntensity = 200;
+		await overWritePerpMarket(
+			adminClient,
+			bankrunContextWrapper,
+			perpMarket0.pubkey,
+			perpMarket0
+		);
+		await adminClient.fetchAccounts();
+		await adminClient.updateAMMs([marketIndex]);
+
+		const direction = PositionDirection.LONG;
+		for (let i = 0; i < 1; i++) {
+			const now = bankrunContextWrapper.connection.getTime();
+			await adminClient.fetchAccounts();
+			const perpMarket = adminClient.getPerpMarketAccount(marketIndex);
+			const [vBid, vAsk] = calculateBidAskPrice(
+				perpMarket.amm,
+				oracle,
+				true,
+				false
+			);
+			console.log(
+				`vBid: ${convertToNumber(
+					vBid,
+					PRICE_PRECISION
+				)}, vAsk: ${convertToNumber(vAsk, PRICE_PRECISION)}`
+			);
+
+			const auctionStartPrice = isVariant(direction, 'long') ? vBid : vAsk;
+			const auctionEndPrice = isVariant(direction, 'long') ? vAsk : vBid;
+			const priceAgg = 1;
+			const orderPrice = isVariant(direction, 'long')
+				? vAsk.muln(10000 + priceAgg).divn(10000)
+				: vBid.muln(10000 - priceAgg).divn(10000);
+			await placeAndFillVammTrade({
+				bankrunContextWrapper,
+				orderClient: adminClient,
+				// @ts-ignore
+				fillerClient: fillerDriftClient,
+				marketIndex,
+				baseAssetAmount: new BN(100).mul(BASE_PRECISION),
+				auctionStartPrice,
+				auctionEndPrice,
+				orderPrice,
+				auctionDuration: 20,
+				direction,
+				maxTs: new BN(now + 60),
+			});
+			await adminClient.cancelOrders();
+			await bankrunContextWrapper.moveTimeForward(10);
+		}
+
+		const perpMarket3 = adminClient.getPerpMarketAccount(marketIndex);
+		expect(perpMarket3.amm.curveUpdateIntensity).to.equal(200);
+		expect(perpMarket3.amm.referencePriceOffset).to.equal(30687);
+
+		const [vBid3, vAsk3] = calculateBidAskPrice(
+			perpMarket3.amm,
+			oracle,
+			false,
+			false
+		);
+
+		const vAmmMidAfterOffsetUpdate3 = vBid3.add(vAsk3).divn(2);
+		expect(oracle.price.toNumber()).to.lt(vBid3.toNumber()); // bid above oracle
+
+		expect(oracle.price.toNumber()).to.equal(10118100);
+
+		const vammInventoryAfter = perpMarket3.amm.baseAssetAmountWithAmm.muln(-1);
+		console.log(
+			`Vamm inventory after: ${convertToNumber(
+				vammInventoryAfter,
+				BASE_PRECISION
+			)}`
+		);
+		console.log(
+			`peg multiplier: ${convertToNumber(
+				perpMarket3.amm.pegMultiplier,
+				PEG_PRECISION
+			)}`
+		);
+		const reservePrice = calculatePrice(
+			perpMarket3.amm.baseAssetReserve,
+			perpMarket3.amm.quoteAssetReserve,
+			perpMarket3.amm.pegMultiplier
+		);
+		console.log(
+			`reserve price: ${convertToNumber(reservePrice, PRICE_PRECISION)}`
+		);
+
+		if (isVariant(direction, 'long')) {
+			expect(vammInventoryAfter.lt(vammInventoryBefore)).to.be.true;
+			expect(vAmmMidAfterOffsetUpdate3.gt(vAmmMidBeforeOffsetUpdate)).to.be
+				.true;
+		} else {
+			expect(vammInventoryAfter.gt(vammInventoryBefore)).to.be.true;
+			expect(vAmmMidAfterOffsetUpdate3.lt(vAmmMidBeforeOffsetUpdate)).to.be
+				.true;
+		}
 	});
 });

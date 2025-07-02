@@ -180,7 +180,7 @@ pub fn update_spread_reserves(market: &mut PerpMarket) -> DriftResult {
 pub fn update_spreads(market: &mut PerpMarket, reserve_price: u64) -> DriftResult<(u32, u32)> {
     let max_ref_offset_pct = market.amm.get_max_reference_price_offset()?;
 
-    let reference_price_offset = if max_ref_offset > 0 {
+    let reference_price_offset = if max_ref_offset_pct > 0 {
         let liquidity_ratio = amm_spread::calculate_inventory_liquidity_ratio(
             market.amm.base_asset_amount_with_amm,
             market.amm.base_asset_reserve,
@@ -211,7 +211,6 @@ pub fn update_spreads(market: &mut PerpMarket, reserve_price: u64) -> DriftResul
         0
     };
 
-    crate::dlog!(reference_price_offset);
 
     let (mut long_spread, mut short_spread) = if market.amm.curve_update_intensity > 0 {
         amm_spread::calculate_spread(

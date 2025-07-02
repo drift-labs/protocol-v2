@@ -40,6 +40,9 @@ import {
 	OraclePriceData,
 	OracleInfo,
 	PerpMarketAccount,
+	PositionDirection,
+	DriftClient,
+	OrderType,
 } from '../sdk';
 import {
 	TestClient,
@@ -1277,4 +1280,81 @@ export async function overWriteMintAccount(
 		data: data,
 		rentEpoch: info.rentEpoch,
 	});
+}
+
+export type placeAndFillVammTradeParams = {
+	bankrunContextWrapper: BankrunContextWrapper;
+	orderClient: TestClient;
+	fillerClient: DriftClient;
+	marketIndex: number;
+	baseAssetAmount: BN;
+	auctionStartPrice: BN;
+	auctionEndPrice: BN;
+	orderPrice: BN;
+	auctionDuration: number;
+	direction: PositionDirection;
+	maxTs: BN;
+	dumpTxLogs?: boolean;
+};
+
+export async function placeAndFillVammTrade({
+	bankrunContextWrapper,
+	orderClient,
+	fillerClient,
+	marketIndex,
+	baseAssetAmount,
+	auctionStartPrice,
+	auctionEndPrice,
+	auctionDuration,
+	orderPrice = auctionEndPrice,
+	direction,
+	maxTs,
+	dumpTxLogs = true,
+}: placeAndFillVammTradeParams) {
+	let tx = null;
+	try {
+		tx = await orderClient.placePerpOrder({
+			orderType: OrderType.LIMIT,
+			marketIndex,
+			baseAssetAmount,
+			direction,
+			auctionDuration,
+			auctionStartPrice,
+			auctionEndPrice,
+			price: orderPrice,
+			maxTs,
+		});
+	} catch (e) {
+		console.log('place order failed!');
+		console.log(e);
+	}
+	if (dumpTxLogs) {
+		await printTxLogs(bankrunContextWrapper.connection.toConnection(), tx);
+	}
+
+	await bankrunContextWrapper.moveTimeForward(30);
+	await orderClient.fetchAccounts();
+
+	const openOrders = orderClient.getUser(0).getOpenOrders();
+	const order = openOrders.length > 0 ? openOrders[0] : null;
+	if (!order) {
+		throw new Error('No open orders found');
+	}
+
+	const orderUser = orderClient.getUser(0);
+	const orderUserAcc = await orderClient.getUserAccountPublicKey();
+
+	try {
+		tx = await fillerClient.fillPerpOrder(
+			orderUserAcc,
+			orderUser.getUserAccount(),
+			order
+		);
+		if (dumpTxLogs) {
+			await printTxLogs(bankrunContextWrapper.connection.toConnection(), tx);
+		}
+	} catch (e) {
+		console.log('fill failed!');
+		console.error(e);
+	}
 }
