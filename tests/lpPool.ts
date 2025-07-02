@@ -674,7 +674,7 @@ describe('LP Pool', () => {
 		);
 	});
 
-	it('can add constituent to LP Pool thats a derivative and get half of the target weight', async () => {
+	it('can add constituent to LP Pool thats a derivative and behave correctly', async () => {
 		const lpPool = (await adminClient.program.account.lpPool.fetch(
 			lpPoolKey
 		)) as LPPoolAccount;
@@ -780,6 +780,41 @@ describe('LP Pool', () => {
 		expect(derivativeBalanceAfter.toNumber()).to.be.approximately(
 			derivativeBalanceBefore.toNumber() / 2,
 			20
+		);
+
+		// Move the oracle price to be half, so its target base should go to zero
+		const parentBalanceBefore = constituentTargetBase.targets[1].targetBase;
+		await setFeedPriceNoProgram(bankrunContextWrapper, 100, spotMarketOracle2);
+		await adminClient.updateConstituentOracleInfo(derivative);
+		const tx3 = new Transaction();
+		tx3
+			.add(await adminClient.getUpdateAmmCacheIx([0, 1, 2]))
+			.add(
+				await adminClient.getUpdateLpConstituentTargetBaseIx(
+					encodeName(lpPoolName),
+					[
+						getConstituentPublicKey(program.programId, lpPoolKey, 0),
+						getConstituentPublicKey(program.programId, lpPoolKey, 1),
+						getConstituentPublicKey(program.programId, lpPoolKey, 2),
+					]
+				)
+			);
+		await adminClient.sendTransaction(tx3);
+		await adminClient.updateLpPoolAum(lpPool, [0, 1, 2]);
+
+		constituentTargetBase =
+			(await adminClient.program.account.constituentTargetBase.fetch(
+				constituentTargetBasePublicKey
+			)) as ConstituentTargetBase;
+		const parentBalanceAfter = constituentTargetBase.targets[1].targetBase;
+
+		console.log(
+			'constituentTargetBase.targets',
+			constituentTargetBase.targets.map((x) => x.targetBase.toString())
+		);
+		expect(parentBalanceAfter.toNumber()).to.be.approximately(
+			parentBalanceBefore.toNumber() * 2,
+			10
 		);
 	});
 
@@ -1058,7 +1093,6 @@ describe('LP Pool', () => {
 			BigInt(lpPool.lastAum.toNumber())
 		);
 
-		console.log('here!');
 		const tx = new Transaction();
 		tx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1, 2]));
 		tx.add(

@@ -414,6 +414,25 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
         let mut derivative_weights_sum = 0;
         for constituent_index in constituent_indexes {
             let constituent = constituent_map.get_ref(constituent_index)?;
+            if constituent.last_oracle_price
+                < parent_constituent
+                    .last_oracle_price
+                    .safe_mul(9)?
+                    .safe_div(10)?
+            {
+                msg!(
+                    "Constituent {} last oracle price {} is too low compared to parent constituent {} last oracle price {}. Assuming depegging and setting target base to 0.",
+                    constituent.constituent_index,
+                    constituent.last_oracle_price,
+                    parent_constituent.constituent_index,
+                    parent_constituent.last_oracle_price
+                );
+                constituent_target_base
+                    .get_mut(*constituent_index as u32)
+                    .target_base = 0_i64;
+                continue;
+            }
+
             derivative_weights_sum += constituent.derivative_weight;
 
             let target_weight = target_parent_weight
