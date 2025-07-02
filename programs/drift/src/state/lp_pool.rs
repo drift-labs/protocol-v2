@@ -311,11 +311,15 @@ impl LPPool {
         dlp_total_supply: u64,
     ) -> DriftResult<(u64, u128, i64, i128)> {
         let lp_fee_to_charge_pct = self.get_mint_redeem_fee(now, false)?;
-        let lp_fee_to_charge = lp_burn_amount
+        let mut lp_fee_to_charge = lp_burn_amount
             .cast::<i128>()?
             .safe_mul(lp_fee_to_charge_pct.cast::<i128>()?)?
             .safe_div(PERCENTAGE_PRECISION_I128)?
             .cast::<i64>()?;
+
+        if lp_burn_amount == dlp_total_supply && lp_fee_to_charge == 0 {
+            lp_fee_to_charge = 1;
+        }
 
         let lp_amount_less_fees = (lp_burn_amount as i128).safe_sub(lp_fee_to_charge as i128)?;
         msg!("lp_amount_less_fees: {}", lp_amount_less_fees);
