@@ -129,8 +129,28 @@ describe('pyth pull oracles', () => {
 		await driftClient.initializePythLazerOracle(6);
 	});
 
+	it('update lazer account bumps', async () => {
+		await driftClient.updatePythLazerOracleBump(1);
+		await driftClient.updatePythLazerOracleBump(2);
+		await driftClient.updatePythLazerOracleBump(6);
+	});
+
 	it('crank single', async () => {
-		await driftClient.postPythLazerOracleUpdate([6], PYTH_LAZER_HEX_STRING_SOL);
+		const tx = await driftClient.postPythLazerOracleUpdate(
+			[6],
+			PYTH_LAZER_HEX_STRING_SOL
+		);
+		const logs = (
+			await bankrunContextWrapper.connection.getTransaction(tx, {
+				commitment: 'confirmed',
+			})
+		).meta.logMessages;
+		const consumedLog = logs.find((log) => log.includes('consumed'));
+		const cus = consumedLog.split('consumed ')[1].split(' ')[0];
+		console.log(`Consumed cus: ${cus}`);
+	});
+
+	it('can update perp market feed', async () => {
 		await driftClient.updatePerpMarketOracle(
 			0,
 			getPythLazerOraclePublicKey(driftClient.program.programId, 6),

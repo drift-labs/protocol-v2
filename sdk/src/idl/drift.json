@@ -7244,6 +7244,32 @@
       ]
     },
     {
+      "name": "updatePythLazerOracleBump",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "lazerOracle",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "feedId",
+          "type": "u32"
+        }
+      ]
+    },
+    {
       "name": "postPythLazerOracleUpdate",
       "accounts": [
         {
@@ -8339,11 +8365,15 @@
             "type": "i32"
           },
           {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                4
+                3
               ]
             }
           },

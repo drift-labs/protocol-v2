@@ -4504,9 +4504,25 @@ pub fn handle_initialize_pyth_lazer_oracle(
     feed_id: u32,
 ) -> Result<()> {
     let pubkey = ctx.accounts.lazer_oracle.to_account_info().key;
+    let mut account = ctx.accounts.lazer_oracle.load_init()?;
+    account.bump = ctx.bumps.lazer_oracle;
     msg!(
         "Lazer price feed initted {} with feed_id {}",
         pubkey,
+        feed_id
+    );
+    Ok(())
+}
+
+pub fn handle_update_pyth_lazer_oracle_bump(
+    ctx: Context<UpdatePythLazerOracleBump>,
+    feed_id: u32,
+) -> Result<()> {
+    let mut account = ctx.accounts.lazer_oracle.load_mut()?;
+    account.bump = ctx.bumps.lazer_oracle;
+    msg!(
+        "Lazer price bump updated to {} for feed id {}",
+        ctx.bumps.lazer_oracle,
         feed_id
     );
     Ok(())
@@ -5479,6 +5495,23 @@ pub struct InitPythLazerOracle<'info> {
     pub state: Box<Account<'info, State>>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(feed_id: u32)]
+pub struct UpdatePythLazerOracleBump<'info> {
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [PYTH_LAZER_ORACLE_SEED, &feed_id.to_le_bytes()],
+        bump,
+    )]
+    pub lazer_oracle: AccountLoader<'info, PythLazerOracle>,
+    pub state: Box<Account<'info, State>>,
 }
 
 #[derive(Accounts)]
