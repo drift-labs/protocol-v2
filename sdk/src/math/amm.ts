@@ -997,7 +997,7 @@ export function calculateSpreadReserves(
 		amm.pegMultiplier
 	);
 
-	// always allow 10 bps of price offset, up to a fifth of the market's max_spread
+	// always allow 10 bps of price offset, up to a half of the market's max_spread
 	let maxOffset = 0;
 	let referencePriceOffset = ZERO;
 	if (amm.curveUpdateIntensity > 100) {

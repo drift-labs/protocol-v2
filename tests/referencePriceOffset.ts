@@ -11,6 +11,12 @@ import {
 	convertToNumber,
 	BASE_PRECISION,
 	DriftClient,
+	calculateReferencePriceOffset,
+	PERCENTAGE_PRECISION,
+	calculateInventoryLiquidityRatio,
+	sigNum,
+	calculatePrice,
+	PRICE_PRECISION,
 } from '../sdk/src';
 import {
 	initializeQuoteSpotMarket,
@@ -26,6 +32,7 @@ import {
 	CustomBorshAccountsCoder,
 	CustomBorshCoder,
 } from '../sdk/src/decode/customCoder';
+import { PRICE_DIV_PEG } from '../sdk/lib/browser';
 dotenv.config();
 
 // 1MPEPE-PERP
@@ -207,6 +214,9 @@ describe('Reference Price Offset E2E', () => {
 		const perpMarket0 = adminClient.getPerpMarketAccount(marketIndex);
 		expect(perpMarket0.amm.curveUpdateIntensity).to.equal(100);
 		expect(perpMarket0.amm.referencePriceOffset).to.equal(0);
+		expect(perpMarket0.amm.maxSpread).to.equal(90000); // 9%, max ref price offset is half
+		expect(perpMarket0.amm.longSpread).to.equal(7276);
+		expect(perpMarket0.amm.shortSpread).to.equal(3536);
 
 		const [vBid, vAsk] = calculateBidAskPrice(
 			perpMarket0.amm,
@@ -242,7 +252,56 @@ describe('Reference Price Offset E2E', () => {
 
 		const perpMarket2 = adminClient.getPerpMarketAccount(marketIndex);
 		expect(perpMarket2.amm.curveUpdateIntensity).to.equal(200);
-		expect(perpMarket2.amm.referencePriceOffset).to.equal(45000);
+		expect(perpMarket2.amm.referencePriceOffset).to.equal(1757);
+		expect(perpMarket2.amm.maxSpread).to.equal(90000); // 9%, max ref price offset is half
+		expect(perpMarket2.amm.longSpread).to.equal(7608);
+		expect(perpMarket2.amm.shortSpread).to.equal(3702);
+
+		const maxOffset = Math.max(
+			perpMarket2.amm.maxSpread / 2,
+			(PERCENTAGE_PRECISION.toNumber() / 10000) *
+				(perpMarket2.amm.curveUpdateIntensity - 100)
+		);
+		expect(maxOffset).to.equal(45000);
+
+		const liquidityFraction = calculateInventoryLiquidityRatio(
+			perpMarket2.amm.baseAssetAmountWithAmm,
+			perpMarket2.amm.baseAssetReserve,
+			perpMarket2.amm.minBaseAssetReserve,
+			perpMarket2.amm.maxBaseAssetReserve
+		);
+		const liquidityFractionSigned = liquidityFraction.mul(
+			sigNum(
+				perpMarket2.amm.baseAssetAmountWithAmm.add(
+					perpMarket2.amm.baseAssetAmountWithUnsettledLp
+				)
+			)
+		);
+
+		const reservePrice = calculatePrice(
+			perpMarket2.amm.baseAssetReserve,
+			perpMarket2.amm.quoteAssetReserve,
+			perpMarket2.amm.pegMultiplier
+		);
+		expect(reservePrice.toNumber()).to.equal(10118099);
+		expect(liquidityFractionSigned.toNumber()).to.equal(7832);
+
+		const sdkReferencePriceOffset = calculateReferencePriceOffset(
+			reservePrice,
+			perpMarket2.amm.last24HAvgFundingRate,
+			liquidityFractionSigned,
+			perpMarket2.amm.historicalOracleData.lastOraclePriceTwap5Min,
+			perpMarket2.amm.lastMarkPriceTwap5Min,
+			perpMarket2.amm.historicalOracleData.lastOraclePriceTwap,
+			perpMarket2.amm.lastMarkPriceTwap,
+			maxOffset
+		);
+
+		console.log(`ref price offset sdk:  ${sdkReferencePriceOffset}`);
+		expect(sdkReferencePriceOffset.toNumber()).to.equal(1757);
+		expect(sdkReferencePriceOffset.toNumber()).to.equal(
+			perpMarket2.amm.referencePriceOffset
+		);
 
 		const [vBid2, vAsk2] = calculateBidAskPrice(
 			perpMarket2.amm,
@@ -250,6 +309,7 @@ describe('Reference Price Offset E2E', () => {
 			false,
 			false
 		);
+
 		const vBidNum2 = convertToNumber(vBid2);
 		const vAskNum2 = convertToNumber(vAsk2);
 		const spread2 = (vAskNum2 - vBidNum2) / ((vAskNum2 + vBidNum2) / 2);
@@ -266,6 +326,49 @@ describe('Reference Price Offset E2E', () => {
 			}`
 		);
 
+		expect(oracle.price.toNumber()).to.equal(10118100);
+		expect(vAmmMidAfterOffsetUpdate.gt(vAmmMidBeforeOffsetUpdate)).to.be.true;
+
+		// flip reference price more
+		perpMarket2.amm.lastMarkPriceTwap =
+			perpMarket2.amm.lastMarkPriceTwap.add(PRICE_PRECISION);
+		perpMarket2.amm.lastMarkPriceTwap5Min =
+			perpMarket2.amm.lastMarkPriceTwap5Min.add(PRICE_PRECISION);
+		perpMarket2.amm.last24HAvgFundingRate =
+			perpMarket2.amm.last24HAvgFundingRate.addn(100000);
+
+		await overWritePerpMarket(
+			adminClient,
+			bankrunContextWrapper,
+			perpMarket2.pubkey,
+			perpMarket2
+		);
+		await adminClient.fetchAccounts();
+		await adminClient.updateAMMs([marketIndex]);
+
+		const perpMarket3 = adminClient.getPerpMarketAccount(marketIndex);
+		expect(perpMarket3.amm.curveUpdateIntensity).to.equal(200);
+		expect(perpMarket3.amm.referencePriceOffset).to.equal(30687);
+
+		const [vBid3, vAsk3] = calculateBidAskPrice(
+			perpMarket2.amm,
+			oracle,
+			false,
+			false
+		);
+
+		const vBidNum3 = convertToNumber(vBid3);
+		const vAskNum3 = convertToNumber(vAsk3);
+		const spread3 = (vAskNum3 - vBidNum3) / ((vAskNum3 + vBidNum3) / 2);
+		const vAmmMidAfterOffsetUpdate3 = vBid3.add(vAsk3).divn(2);
+		console.log(
+			`Before fills price: vBid:  ${vBidNum3}, vAsk: ${vAskNum3}, spread: ${
+				spread3 * 10000
+			}bps, mid: ${convertToNumber(vAmmMidAfterOffsetUpdate3)}`
+		);
+		expect(oracle.price.toNumber()).to.lt(vBid3.toNumber()); // bid above oracle
+
+		expect(oracle.price.toNumber()).to.equal(10118100);
 		expect(vAmmMidAfterOffsetUpdate.gt(vAmmMidBeforeOffsetUpdate)).to.be.true;
 	});
 });
