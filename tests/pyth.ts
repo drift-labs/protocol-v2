@@ -38,7 +38,7 @@ async function updateFundingRateHelper(
 	priceFeedAddress: PublicKey,
 	prices: Array<number>,
 	context: BankrunContextWrapper,
-	txNonce: number = 0 // helps prevent race conditions with identical transactions
+	txNonce = 0 // helps prevent race conditions with identical transactions
 ) {
 	for (let i = 0; i < prices.length; i++) {
 		await new Promise((r) => setTimeout(r, 1000)); // wait 1 second
@@ -325,7 +325,7 @@ describe('pyth-oracle', () => {
 			priceFeedAddress,
 			[42],
 			bankrunContextWrapper,
-			1,
+			1
 		);
 	});
 
@@ -359,7 +359,7 @@ describe('pyth-oracle', () => {
 			priceFeedAddress,
 			[41.501, 41.499],
 			bankrunContextWrapper,
-			2,
+			2
 		);
 	});
 
