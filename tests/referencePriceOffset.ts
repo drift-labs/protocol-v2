@@ -207,6 +207,7 @@ describe('Reference Price Offset E2E', () => {
 
 	after(async () => {
 		await adminClient.unsubscribe();
+		await fillerDriftClient.unsubscribe();
 	});
 
 	it('Reference price offset should shift vAMM mid', async () => {
