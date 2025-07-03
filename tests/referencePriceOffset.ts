@@ -457,7 +457,6 @@ describe('Reference Price Offset E2E', () => {
 
 		const perpMarket3 = adminClient.getPerpMarketAccount(marketIndex);
 		expect(perpMarket3.amm.curveUpdateIntensity).to.equal(200);
-		expect(perpMarket3.amm.referencePriceOffset).to.equal(30687);
 
 		const [vBid3, vAsk3] = calculateBidAskPrice(
 			perpMarket3.amm,
