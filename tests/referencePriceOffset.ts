@@ -67,7 +67,7 @@ describe('Reference Price Offset E2E', () => {
 
 	let userUSDCAccount: Keypair;
 
-	before(async () => {
+	beforeEach(async () => {
 		const context = await startAnchor(
 			'',
 			[
@@ -205,7 +205,7 @@ describe('Reference Price Offset E2E', () => {
 		await fillerDriftClient.initializeUserAccount();
 	});
 
-	after(async () => {
+	afterEach(async () => {
 		await adminClient.unsubscribe();
 		await fillerDriftClient.unsubscribe();
 	});
