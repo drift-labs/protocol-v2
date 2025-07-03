@@ -226,7 +226,7 @@ export async function mockUserUSDCAccount(
 	);
 	fakeUSDCTx.add(mintToUserAccountTx);
 
-	await context.sendTransaction(fakeUSDCTx, [userUSDCAccount, fakeUSDCMint]);
+	await context.sendTransaction(fakeUSDCTx, [userUSDCAccount]);
 
 	return userUSDCAccount;
 }

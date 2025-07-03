@@ -152,6 +152,7 @@ describe('fuel sweep', () => {
 	it('cannot init fuel sweep with low fuel amount', async () => {
 		let success = false;
 		try {
+			userDriftClient.txParams.computeUnits = 600_000;
 			await userDriftClient.initializeFuelOverflow(
 				userDriftClient.wallet.publicKey
 			);
@@ -187,7 +188,8 @@ describe('fuel sweep', () => {
 		assert.equal(userStatsAfter.data.fuelTaker, 4_000_000_001);
 		assert.equal(userStatsAfter.data.fuelMaker, 4_000_000_000);
 
-		// initialize FuelSweep account
+		// use a different CU limit to prevent race condition of sending two identical transactions
+		userDriftClient.txParams.computeUnits = 600_001;
 		await userDriftClient.initializeFuelOverflow(
 			userDriftClient.wallet.publicKey
 		);
