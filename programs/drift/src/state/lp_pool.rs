@@ -215,7 +215,6 @@ impl LPPool {
             .safe_div(swap_price_denom.cast::<i128>()?)?
             .cast::<u128>()?;
 
-        msg!("in_fee: {}, out_fee: {}", in_fee, out_fee);
         let out_fee_amount = out_amount
             .cast::<i128>()?
             .safe_mul(out_fee as i128)?
@@ -272,13 +271,6 @@ impl LPPool {
         let lp_amount = if self.last_aum == 0 {
             token_amount_usd.safe_div(token_precision_denominator)?
         } else {
-            msg!("token_amount_usd: {}", token_amount_usd);
-            msg!("dlp_total_supply: {}", dlp_total_supply);
-            msg!("last_aum: {}", self.last_aum);
-            msg!(
-                "token_precision_denominator: {}",
-                token_precision_denominator
-            );
             token_amount_usd
                 .safe_mul(dlp_total_supply as u128)?
                 .safe_div(self.last_aum.safe_mul(token_precision_denominator)?)?
@@ -318,7 +310,6 @@ impl LPPool {
             .cast::<i64>()?;
 
         let lp_amount_less_fees = (lp_burn_amount as i128).safe_sub(lp_fee_to_charge as i128)?;
-        msg!("lp_amount_less_fees: {}", lp_amount_less_fees);
 
         let token_precision_denominator = 10_u128.pow(out_spot_market.decimals);
 
@@ -337,7 +328,6 @@ impl LPPool {
             .safe_div(PERCENTAGE_PRECISION)?
             .safe_div(PERCENTAGE_PRECISION)?
             .safe_div(out_oracle.price.cast::<u128>()?)?;
-        msg!("out_amount: {}", out_amount);
 
         let (in_fee_pct, out_fee_pct) = self.get_swap_fees(
             out_spot_market,
@@ -352,8 +342,6 @@ impl LPPool {
             0,
         )?;
         let out_fee_pct = in_fee_pct.safe_add(out_fee_pct)?;
-        msg!("out_fee_pct: {}", out_fee_pct);
-        msg!("out_amount: {}", out_amount);
         let out_fee_amount = out_amount
             .safe_mul(out_fee_pct.cast::<u128>()?)?
             .safe_div(PERCENTAGE_PRECISION)?
@@ -368,9 +356,6 @@ impl LPPool {
         trade_notional: i128,
         kappa_inventory: u64,
     ) -> DriftResult<i128> {
-        msg!("notional_error: {}", notional_error);
-        msg!("trade_notional: {}", trade_notional);
-        msg!("kappa_inventory: {}", kappa_inventory);
         notional_error
             .safe_mul(-1_i128)?
             .safe_mul(trade_notional.signum() as i128)?
@@ -491,9 +476,6 @@ impl LPPool {
         out_target_weight: Option<i64>,
         correlation: i64,
     ) -> DriftResult<(i128, i128)> {
-        msg!("in target weight: {}", in_target_weight);
-        msg!("out target weight: {:?}", out_target_weight);
-
         let notional_trade_size =
             in_constituent.get_notional(in_oracle_price, in_spot_market, in_amount, false)?;
         let out_amount = if out_oracle_price.is_some() {
@@ -636,18 +618,15 @@ impl LPPool {
                 notional_trade_size,
             )?;
 
-        msg!("in_fee_execution_linear: {}", in_fee_execution_linear);
-        msg!("in_fee_execution_quadratic: {}", in_fee_execution_quadratic);
-        msg!("in_quadratic_inventory_fee: {}", in_quadratic_inventory_fee);
-        msg!("out_fee_execution_linear: {}", out_fee_execution_linear);
-        msg!(
-            "out_fee_execution_quadratic: {}",
-            out_fee_execution_quadratic
-        );
-        msg!(
-            "out_quadratic_inventory_fee: {}",
-            out_quadratic_inventory_fee
-        );
+        // msg!(
+        //     "fee breakdown - in_exec_linear: {}, in_exec_quad: {}, in_inv_quad: {}, out_exec_linear: {}, out_exec_quad: {}, out_inv_quad: {}",
+        //     in_fee_execution_linear,
+        //     in_fee_execution_quadratic,
+        //     in_quadratic_inventory_fee,
+        //     out_fee_execution_linear,
+        //     out_fee_execution_quadratic,
+        //     out_quadratic_inventory_fee
+        // );
         let total_in_fee = in_fee_execution_linear
             .safe_add(in_fee_execution_quadratic)?
             .safe_add(in_quadratic_inventory_fee)?
