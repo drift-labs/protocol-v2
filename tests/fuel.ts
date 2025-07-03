@@ -246,23 +246,14 @@ describe("fuelin'", () => {
 		assert(takerUserStats.ifStakedQuoteAssetAmount.gt(ZERO));
 
 		await fillerDriftClient.updateSpotMarketFuel(0, 100, 200, 200, 0, 250);
-		const currentClockInit =
-			await bankrunContextWrapper.context.banksClient.getClock();
 
 		await takerDriftClient.fetchAccounts();
 		assert(takerDriftClient.getSpotMarketAccount(0).fuelBoostInsurance > 0);
 
-		const fuelDictInit = takerDriftClientUser.getFuelBonus(
-			new BN(currentClockInit.unixTimestamp.toString()).addn(36000),
-			true,
-			true
-		);
+		const currentClockInit =
+			await bankrunContextWrapper.context.banksClient.getClock();
 
-		console.log(fuelDictInit);
-		assert(fuelDictInit['insuranceFuel'].gt(ZERO));
-
-		const timeProgress = 36000; // 30 days in seconds
-
+		const timeProgress = 36000; // 30 hours in seconds
 		await bankrunContextWrapper.moveTimeForward(timeProgress);
 
 		const _ = await takerDriftClient.requestRemoveInsuranceFundStake(
@@ -272,6 +263,15 @@ describe("fuelin'", () => {
 
 		const currentClockInit2 =
 			await bankrunContextWrapper.context.banksClient.getClock();
+
+		const timeDiff =
+			currentClockInit2.unixTimestamp - currentClockInit.unixTimestamp;
+		const fuelDictInit = takerDriftClientUser.getFuelBonus(
+			new BN(currentClockInit.unixTimestamp.toString()).addn(Number(timeDiff)),
+			true,
+			true
+		);
+		assert(fuelDictInit['insuranceFuel'].gt(ZERO));
 
 		const fuelDictInit2 = takerDriftClientUser.getFuelBonus(
 			new BN(currentClockInit2.unixTimestamp.toString()),
@@ -316,7 +316,7 @@ describe("fuelin'", () => {
 		);
 
 		console.log(fuelDictRmStake);
-		const totalFuelIfNoUnstake = 119791;
+		const totalFuelIfNoUnstake = 119802;
 		const expectedFuel =
 			(totalFuelIfNoUnstake - fuelDictInit2['insuranceFuel'].toNumber()) / 3 +
 			fuelDictInit2['insuranceFuel'].toNumber();
