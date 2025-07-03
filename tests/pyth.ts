@@ -10,7 +10,6 @@ import {
 	setFeedPriceNoProgram,
 	initializeQuoteSpotMarket,
 	initUserAccounts,
-	sleep,
 	getFeedDataNoProgram,
 } from './testHelpers';
 import { Program } from '@coral-xyz/anchor';
@@ -38,7 +37,8 @@ async function updateFundingRateHelper(
 	marketIndex: number,
 	priceFeedAddress: PublicKey,
 	prices: Array<number>,
-	context: BankrunContextWrapper
+	context: BankrunContextWrapper,
+	txNonce = 0 // helps prevent race conditions with identical transactions
 ) {
 	for (let i = 0; i < prices.length; i++) {
 		await new Promise((r) => setTimeout(r, 1000)); // wait 1 second
@@ -84,6 +84,7 @@ async function updateFundingRateHelper(
 		const cumulativeFundingRateShortOld =
 			ammAccountState0.cumulativeFundingRateShort;
 		try {
+			driftClient.txParams.computeUnits = 600_000 + txNonce;
 			const _tx = await driftClient.updateFundingRate(
 				marketIndex,
 				priceFeedAddress
@@ -323,7 +324,8 @@ describe('pyth-oracle', () => {
 			marketIndex,
 			priceFeedAddress,
 			[42],
-			bankrunContextWrapper
+			bankrunContextWrapper,
+			1
 		);
 	});
 
@@ -356,7 +358,8 @@ describe('pyth-oracle', () => {
 			marketIndex,
 			priceFeedAddress,
 			[41.501, 41.499],
-			bankrunContextWrapper
+			bankrunContextWrapper,
+			2
 		);
 	});
 
@@ -378,12 +381,14 @@ describe('pyth-oracle', () => {
 			)
 		);
 
+		driftClient.txParams.computeUnits = 600_003;
 		await driftClient.openPosition(
 			PositionDirection.LONG,
 			BASE_PRECISION,
 			marketIndex
 		);
 
+		driftClient.txParams.computeUnits = 600_004;
 		await driftClient2.openPosition(
 			PositionDirection.SHORT,
 			BASE_PRECISION.div(new BN(100)),
@@ -408,9 +413,9 @@ describe('pyth-oracle', () => {
 			marketIndex,
 			market.amm.oracle,
 			[43.501, 44.499],
-			bankrunContextWrapper
+			bankrunContextWrapper,
+			3
 		);
-		await sleep(1000);
 		await driftClient.fetchAccounts();
 
 		const marketNew = driftClient.getPerpMarketAccount(marketIndex);

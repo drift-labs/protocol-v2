@@ -167,12 +167,13 @@ describe('orders', () => {
 
 		let oraclesLoaded = false;
 		while (!oraclesLoaded) {
+			await driftClient.accountSubscriber.setSpotOracleMap();
 			const found =
 				!!driftClient.accountSubscriber.getOraclePriceDataAndSlotForSpotMarket(
 					0
 				);
 			if (found) {
-				oraclesLoaded = found;
+				oraclesLoaded = true;
 			}
 			await sleep(1000);
 		}

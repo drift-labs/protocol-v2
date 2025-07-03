@@ -14,10 +14,11 @@ use crate::math::constants::{
 };
 use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION,
-    BID_ASK_SPREAD_PRECISION_U128, DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
-    LIQUIDATION_FEE_PRECISION, LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, LP_FEE_SLICE_DENOMINATOR,
-    LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION, MARGIN_PRECISION_U128, MAX_LIQUIDATION_MULTIPLIER,
-    PEG_PRECISION, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
+    BID_ASK_SPREAD_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128,
+    DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT, LIQUIDATION_FEE_PRECISION,
+    LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, LP_FEE_SLICE_DENOMINATOR, LP_FEE_SLICE_NUMERATOR,
+    MARGIN_PRECISION, MARGIN_PRECISION_U128, MAX_LIQUIDATION_MULTIPLIER, PEG_PRECISION,
+    PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
     PERCENTAGE_PRECISION_U64, PRICE_PRECISION, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
 };
 use crate::math::helpers::get_proportion_i128;
@@ -1413,19 +1414,31 @@ impl AMM {
     }
 
     pub fn bid_price(&self, reserve_price: u64) -> DriftResult<u64> {
+        let adjusted_spread =
+            (-(self.short_spread.cast::<i32>()?)).safe_add(self.reference_price_offset)?;
+
+        let multiplier = BID_ASK_SPREAD_PRECISION_I128.safe_add(adjusted_spread.cast::<i128>()?)?;
+
         reserve_price
             .cast::<u128>()?
-            .safe_mul(BID_ASK_SPREAD_PRECISION_U128.safe_sub(self.short_spread.cast()?)?)?
+            .safe_mul(multiplier.cast::<u128>()?)?
             .safe_div(BID_ASK_SPREAD_PRECISION_U128)?
             .cast()
     }
 
     pub fn ask_price(&self, reserve_price: u64) -> DriftResult<u64> {
+        let adjusted_spread = self
+            .long_spread
+            .cast::<i32>()?
+            .safe_add(self.reference_price_offset)?;
+
+        let multiplier = BID_ASK_SPREAD_PRECISION_I128.safe_add(adjusted_spread.cast::<i128>()?)?;
+
         reserve_price
             .cast::<u128>()?
-            .safe_mul(BID_ASK_SPREAD_PRECISION_U128.safe_add(self.long_spread.cast()?)?)?
+            .safe_mul(multiplier.cast::<u128>()?)?
             .safe_div(BID_ASK_SPREAD_PRECISION_U128)?
-            .cast::<u64>()
+            .cast()
     }
 
     pub fn bid_ask_price(&self, reserve_price: u64) -> DriftResult<(u64, u64)> {
