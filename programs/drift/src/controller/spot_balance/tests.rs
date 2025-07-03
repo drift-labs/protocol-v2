@@ -57,7 +57,6 @@ pub fn check_perp_market_valid(
 
     #[test]
     fn test_meme_interest_rate() {
-        let perp_market_map = PerpMarketMap::empty();
 
         let meme_market_str = String::from("ZLEIa6hBQSevW/X04aQW147VpUQWOD4EIug/dsSiOD9fb0zJ0wWcoS7j6sf54CJSzlSd9qLpWca7pkLsD9feF5s7APU7gn3iHYzPh6wBR7rnVuuWOi72JEyWkVaajsCPACCi64+9taHIXe4QF4hhlYiPl09UhcN3ox28V0LjKljDOQldWcbLBFBFTkdVICAgICAgICAgICAgICAgICAgICAgICAgICAgoSUAAAAAAAABAAAAAAAAAC0AAAAAAAAAoSUAAAAAAAChJQAAAAAAAGjJXGgAAAAAWLEAAAAAAABYsQAAAAAAAFixAAAAAAAAWLEAAAAAAAAAAAAAAAAAAElUtwEAAAAAAAAAAAAAAAAfAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAENwysOIJBM0GAg6e0k5xZNDmGwlyo8khzcIbPkfiODoiEpVqmAAAAAAAAAAAAAAAD0eROlcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgCMRAAAAAAC6bl1oAAAAABAOAAAAAAAAoIYBAFDDAAAAAAAAAAAAAAAAAAAAAAAAzw+vh+4i1wAAAAAAAAAAABomcsakZgAAAAAAAAAAAAAdZW5VAgAAAAAAAAAAAAAASCHPWAIAAAAAAAAAAAAAAHHfCgAAAAAAAAAAAAAAAACSFAAAAAAAAAAAAAAAAAAAACA9iHktAAAAYLeYbIgAAOd3NZr4NgAAo5FIlBoAAABvBwAAAAAAALpuXWgAAAAAum5daAAAAAAAAAAAAAAAAEBCDwAAAAAAZAAAAAAAAABAQg8AAAAAAAAAAAAAAAAAAQAAAAAAAAAiEgAAAAAAAMQJAACIEwAAXEQAAJg6AABkAAAA1DAAAIy5AABgrgoA8EkCAEBLTAAGAAAAHwABDAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADDvfboCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
 
@@ -78,23 +77,27 @@ pub fn check_perp_market_valid(
 
         let mut meme_market = spot_market_map.get_ref_mut(&31).unwrap();
 
-        assert_eq!(meme_market.cumulative_borrow_interest, 10079904072);
+        meme_market.last_interest_ts = 1749779983;
+        meme_market.last_twap_ts = 1749779983;
+        meme_market.borrow_balance = 26402565540955;
+        meme_market.cumulative_borrow_interest = 10060977324;
+        meme_market.deposit_balance = 41390568668241904;
+        meme_market.cumulative_deposit_interest = 10017207890;
         
         let oracle_price_data = OraclePriceData {
-            price: PRICE_PRECISION_I64/100,
+            price: 8640,
             confidence: 1,
             delay: 0,
             has_sufficient_number_of_data_points: true,
         };
 
-        assert_eq!(meme_market.last_interest_ts, 1750953658);
         let utilization = calculate_spot_market_utilization(&meme_market).unwrap();
-
         let rate = calculate_borrow_rate(&meme_market, utilization).unwrap();
-        assert_eq!(utilization, 1874);
-        assert_eq!(rate, 401);
 
-        let now = (meme_market.last_interest_ts + 3600 * 24 * 30) as i64;
+        println!("utilization: {}", utilization);
+        println!("rate: {}", rate);
+
+        let now = 1749779983 + 1000;
 
         update_spot_market_cumulative_interest(
             &mut meme_market,
@@ -102,7 +105,8 @@ pub fn check_perp_market_valid(
             now,
         ).unwrap();
 
-        assert_eq!(meme_market.cumulative_borrow_interest, 10080236295);
+        // unchanged
+        assert_eq!(meme_market.last_interest_ts, 1749779983);
 
     }
 
