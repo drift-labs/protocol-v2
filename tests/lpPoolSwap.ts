@@ -296,6 +296,7 @@ describe('LP Pool', () => {
 
 	after(async () => {
 		await adminClient.unsubscribe();
+		await serumDriftClient.unsubscribe();
 	});
 
 	it('LP Pool init properly', async () => {

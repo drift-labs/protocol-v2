@@ -3181,7 +3181,7 @@ export class AdminClient extends DriftClient {
 						this.program.programId,
 						perpMarketIndex
 					),
-					amm_cache: getAmmCachePublicKey(this.program.programId),
+					ammCache: getAmmCachePublicKey(this.program.programId),
 				},
 			}
 		);
