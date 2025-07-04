@@ -184,8 +184,8 @@ pub fn update_spreads(market: &mut PerpMarket, reserve_price: u64) -> DriftResul
         let liquidity_ratio = amm_spread::calculate_inventory_liquidity_ratio(
             market.amm.base_asset_amount_with_amm,
             market.amm.base_asset_reserve,
-            market.amm.max_base_asset_reserve,
             market.amm.min_base_asset_reserve,
+            market.amm.max_base_asset_reserve,
         )?;
 
         let signed_liquidity_ratio =

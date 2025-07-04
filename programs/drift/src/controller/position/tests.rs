@@ -609,8 +609,9 @@ fn amm_perp_ref_offset() {
 
     let reserve_price = perp_market.amm.reserve_price().unwrap();
     let (b1, a1) = perp_market.amm.bid_ask_price(reserve_price).unwrap();
-    assert_eq!(b1, 7098048);
-    assert_eq!(a1, 7105178);
+    assert_eq!(reserve_price, 7101599);
+    assert_eq!(b1, 7225876);
+    assert_eq!(a1, 7233006);
     assert_eq!(
         perp_market.amm.historical_oracle_data.last_oracle_price,
         7101600
@@ -690,18 +691,18 @@ fn amm_perp_ref_offset() {
 
     let r = perp_market.amm.reserve_price().unwrap();
     let (b, a) = perp_market.amm.bid_ask_price(r).unwrap();
-    assert_eq!(b, 7098048);
-    assert_eq!(a, 7105178);
+    assert_eq!(b, 7098999);
+    assert_eq!(a, 7106129);
     assert_eq!(
         perp_market.amm.historical_oracle_data.last_oracle_price,
         7101600
     );
-    assert_eq!(perp_market.amm.reference_price_offset, 45000);
+    assert_eq!(perp_market.amm.reference_price_offset, 134);
     assert_eq!(perp_market.amm.max_spread, 90000);
 
     assert_eq!(r, 7101599);
-    assert_eq!(perp_market.amm.bid_base_asset_reserve, 4570430670410018);
-    assert_eq!(perp_market.amm.ask_base_asset_reserve, 4568069910766211);
+    assert_eq!(perp_market.amm.bid_base_asset_reserve, 4675159724262455);
+    assert_eq!(perp_market.amm.ask_base_asset_reserve, 4672813088646692);
 
     crate::validation::perp_market::validate_perp_market(&perp_market).unwrap();
 }

@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: fix AMM reference price offset ([#1683](https://github.com/drift-labs/protocol-v2/pull/1683))
+
 ### Breaking
 
 ## [2.125.0] - 2025-06-24

@@ -1085,7 +1085,10 @@ export class DriftClient {
 	async getInitializeUserStatsIx(): Promise<TransactionInstruction> {
 		return await this.program.instruction.initializeUserStats({
 			accounts: {
-				userStats: this.getUserStatsAccountPublicKey(),
+				userStats: getUserStatsAccountPublicKey(
+					this.program.programId,
+					this.wallet.publicKey // only allow payer to initialize own user stats account
+				),
 				authority: this.wallet.publicKey,
 				payer: this.wallet.publicKey,
 				rent: anchor.web3.SYSVAR_RENT_PUBKEY,
@@ -8389,19 +8392,24 @@ export class DriftClient {
 			marketIndex
 		);
 
+		const accounts = {
+			insuranceFundStake: ifStakeAccountPublicKey,
+			spotMarket: this.getSpotMarketAccount(marketIndex).pubkey,
+			userStats: getUserStatsAccountPublicKey(
+				this.program.programId,
+				this.wallet.publicKey // only allow payer to initialize own insurance fund stake account
+			),
+			authority: this.wallet.publicKey,
+			payer: this.wallet.publicKey,
+			rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+			systemProgram: anchor.web3.SystemProgram.programId,
+			state: await this.getStatePublicKey(),
+		};
+
 		return await this.program.instruction.initializeInsuranceFundStake(
 			marketIndex,
 			{
-				accounts: {
-					insuranceFundStake: ifStakeAccountPublicKey,
-					spotMarket: this.getSpotMarketAccount(marketIndex).pubkey,
-					userStats: this.getUserStatsAccountPublicKey(),
-					authority: this.wallet.publicKey,
-					payer: this.wallet.publicKey,
-					rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-					systemProgram: anchor.web3.SystemProgram.programId,
-					state: await this.getStatePublicKey(),
-				},
+				accounts,
 			}
 		);
 	}
@@ -8429,7 +8437,10 @@ export class DriftClient {
 					state: await this.getStatePublicKey(),
 					spotMarket: spotMarket.pubkey,
 					insuranceFundStake: ifStakeAccountPublicKey,
-					userStats: this.getUserStatsAccountPublicKey(),
+					userStats: getUserStatsAccountPublicKey(
+						this.program.programId,
+						this.wallet.publicKey // only allow payer to add to own insurance fund stake account
+					),
 					authority: this.wallet.publicKey,
 					spotMarketVault: spotMarket.vault,
 					insuranceFundVault: spotMarket.insuranceFund.vault,
@@ -8551,7 +8562,12 @@ export class DriftClient {
 		let tokenAccount;
 
 		if (
-			!(await this.checkIfAccountExists(this.getUserStatsAccountPublicKey()))
+			!(await this.checkIfAccountExists(
+				getUserStatsAccountPublicKey(
+					this.program.programId,
+					this.wallet.publicKey // only allow payer to initialize own user stats account
+				)
+			))
 		) {
 			addIfStakeIxs.push(await this.getInitializeUserStatsIx());
 		}
