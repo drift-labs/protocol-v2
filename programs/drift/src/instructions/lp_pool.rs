@@ -889,7 +889,7 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
     in_constituent.sync_token_balance(ctx.accounts.constituent_in_token_account.amount);
 
     let dlp_total_supply = ctx.accounts.lp_mint.supply;
-    let lp_nav = if dlp_total_supply > 0 {
+    let lp_price = if dlp_total_supply > 0 {
         lp_pool.last_aum.safe_div(dlp_total_supply as u128)?
     } else {
         0
@@ -910,7 +910,7 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
         lp_mint: lp_pool.mint,
         lp_amount,
         lp_fee: lp_fee_amount,
-        lp_nav,
+        lp_price,
         mint_redeem_id,
         last_aum: lp_pool.last_aum,
         last_aum_slot: lp_pool.last_aum_slot,
@@ -1086,7 +1086,7 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
     out_constituent.sync_token_balance(ctx.accounts.constituent_out_token_account.amount);
 
     let dlp_total_supply = ctx.accounts.lp_mint.supply;
-    let lp_nav = if dlp_total_supply > 0 {
+    let lp_price = if dlp_total_supply > 0 {
         lp_pool.last_aum.safe_div(dlp_total_supply as u128)?
     } else {
         0
@@ -1107,7 +1107,7 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
         lp_mint: lp_pool.mint,
         lp_amount: lp_burn_amount,
         lp_fee: lp_fee_amount,
-        lp_nav,
+        lp_price,
         mint_redeem_id,
         last_aum: lp_pool.last_aum,
         last_aum_slot: lp_pool.last_aum_slot,

@@ -61,9 +61,6 @@ pub struct LPPool {
     // vault token mint
     pub mint: Pubkey, // 32, 96
 
-    /// token_supply? to simplify NAV calculation, or load from mint account
-    /// token_total_supply: u64
-
     /// The current number of VaultConstituents in the vault, each constituent is pda(LPPool.address, constituent_index)
     /// which constituent is the quote, receives revenue pool distributions. (maybe this should just be implied idx 0)
     /// pub quote_constituent_index: u16,
@@ -118,18 +115,6 @@ impl Size for LPPool {
 }
 
 impl LPPool {
-    pub fn get_nav(&self, mint: &Mint) -> Result<u128> {
-        match mint.supply {
-            0 => Ok(0),
-            supply => {
-                // TODO: assuming mint decimals = quote decimals = 6
-                self.last_aum
-                    .checked_div(supply.into())
-                    .ok_or(ErrorCode::MathError.into())
-            }
-        }
-    }
-
     pub fn get_price(&self, mint: &Mint) -> Result<u128> {
         match mint.supply {
             0 => Ok(0),

@@ -766,7 +766,7 @@ export type LPMintRedeemRecord = {
 	lpMint: PublicKey;
 	lpAmount: BN;
 	lpFee: BN;
-	lpNav: BN;
+	lpPrice: BN;
 	mintRedeemId: BN;
 	lastAum: BN;
 	lastAumSlot: BN;

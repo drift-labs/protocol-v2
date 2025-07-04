@@ -804,8 +804,8 @@ pub struct LPMintRedeemRecord {
     pub lp_amount: u64,
     /// lp fee, lp mint precision
     pub lp_fee: i64,
-    /// lp nav, PRICE_PRECISION
-    pub lp_nav: u128,
+    /// the fair price of the lp token, PRICE_PRECISION
+    pub lp_price: u128,
     pub mint_redeem_id: u64,
     /// LPPool last_aum
     pub last_aum: u128,

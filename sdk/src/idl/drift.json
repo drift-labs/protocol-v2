@@ -9224,8 +9224,6 @@
           {
             "name": "maxAum",
             "docs": [
-              "token_supply? to simplify NAV calculation, or load from mint account",
-              "token_total_supply: u64",
               "The current number of VaultConstituents in the vault, each constituent is pda(LPPool.address, constituent_index)",
               "which constituent is the quote, receives revenue pool distributions. (maybe this should just be implied idx 0)",
               "pub quote_constituent_index: u16,",
@@ -16587,7 +16585,7 @@
           "index": false
         },
         {
-          "name": "lpNav",
+          "name": "lpPrice",
           "type": "u128",
           "index": false
         },
@@ -18265,8 +18263,5 @@
       "name": "ConstituentOracleStale",
       "msg": "Constituent oracle is stale"
     }
-  ],
-  "metadata": {
-    "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
-  }
+  ]
 }
