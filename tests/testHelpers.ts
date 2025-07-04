@@ -40,8 +40,11 @@ import {
 	OraclePriceData,
 	OracleInfo,
 	PerpMarketAccount,
+<<<<<<< HEAD
 	ConstituentAccount,
 	SpotMarketAccount,
+=======
+>>>>>>> master
 } from '../sdk';
 import {
 	TestClient,
@@ -1297,6 +1300,7 @@ export async function overWriteMintAccount(
 		rentEpoch: info.rentEpoch,
 	});
 }
+<<<<<<< HEAD
 
 export async function overwriteConstituentAccount(
 	bankrunContextWrapper: BankrunContextWrapper,
@@ -1323,3 +1327,5 @@ export async function overwriteConstituentAccount(
 		),
 	});
 }
+=======
+>>>>>>> master

@@ -839,7 +839,7 @@ pub fn recenter_perp_market_amm(
     )?;
 
     market.amm.sqrt_k = sqrt_k;
-    // todo: could calcualte terminal state cost for altering sqrt_k
+    // todo: ensure correct terminal state cost for altering sqrt_k
 
     market.amm.peg_multiplier = peg_multiplier;
 
