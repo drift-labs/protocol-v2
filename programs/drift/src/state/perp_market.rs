@@ -1,8 +1,11 @@
 use crate::state::pyth_lazer_oracle::PythLazerOracle;
+use crate::state::zero_copy::AccountZeroCopy;
+use crate::{impl_zero_copy_loader, validate};
 use anchor_lang::prelude::*;
 
 use crate::state::state::State;
 use std::cmp::max;
+use std::convert::TryFrom;
 
 use crate::controller::position::{PositionDelta, PositionDirection};
 use crate::error::{DriftResult, ErrorCode};
@@ -43,8 +46,10 @@ use crate::state::paused_operations::PerpOperation;
 use drift_macros::assert_no_slop;
 use static_assertions::const_assert_eq;
 
+use super::oracle::OraclePriceData;
 use super::oracle_map::OracleIdentifier;
 use super::protected_maker_mode_config::ProtectedMakerParams;
+use super::zero_copy::HasLen;
 
 #[cfg(test)]
 mod tests;
@@ -251,7 +256,8 @@ pub struct PerpMarket {
     pub high_leverage_margin_ratio_maintenance: u16,
     pub protected_maker_limit_price_divisor: u8,
     pub protected_maker_dynamic_divisor: u8,
-    pub padding: [u8; 36],
+    pub lp_fee_transfer_scalar: u8,
+    pub padding: [u8; 35],
 }
 
 impl Default for PerpMarket {
@@ -293,7 +299,8 @@ impl Default for PerpMarket {
             high_leverage_margin_ratio_maintenance: 0,
             protected_maker_limit_price_divisor: 0,
             protected_maker_dynamic_divisor: 0,
-            padding: [0; 36],
+            lp_fee_transfer_scalar: 1,
+            padding: [0; 35],
         }
     }
 }
@@ -1700,5 +1707,154 @@ impl AMM {
             last_oracle_valid: true,
             ..AMM::default()
         }
+    }
+}
+
+pub const AMM_POSITIONS_CACHE: &str = "amm_positions_cache";
+
+#[account]
+#[derive(Debug)]
+#[repr(C)]
+pub struct AmmCache {
+    pub bump: u8,
+    _padding: [u8; 3],
+    pub cache: Vec<CacheInfo>,
+}
+
+#[zero_copy]
+#[derive(AnchorSerialize, AnchorDeserialize, Debug)]
+#[repr(C)]
+pub struct CacheInfo {
+    pub last_fee_pool_token_amount: u128,
+    pub last_net_pnl_pool_token_amount: i128,
+    /// BASE PRECISION
+    pub position: i64,
+    pub slot: u64,
+    pub max_confidence_interval_multiplier: u64,
+    pub last_oracle_price_twap: i64,
+    pub last_settle_amount: u64,
+    pub last_settle_ts: i64,
+    pub quote_owed_from_lp: i64,
+    pub oracle_price: i64,
+    pub oracle_confidence: u64,
+    pub oracle_delay: i64,
+    pub oracle_slot: u64,
+    pub oracle_source: u8,
+    _padding: [u8; 7],
+    pub oracle: Pubkey,
+}
+
+impl Size for CacheInfo {
+    const SIZE: usize = 160 + 8 + 8 + 8;
+}
+
+impl Default for CacheInfo {
+    fn default() -> Self {
+        CacheInfo {
+            position: 0i64,
+            slot: 0u64,
+            max_confidence_interval_multiplier: 1u64,
+            last_oracle_price_twap: 0i64,
+            oracle_price: 0i64,
+            oracle_confidence: 0u64,
+            oracle_delay: 0i64,
+            oracle_slot: 0u64,
+            _padding: [0u8; 7],
+            oracle: Pubkey::default(),
+            last_fee_pool_token_amount: 0u128,
+            last_net_pnl_pool_token_amount: 0i128,
+            last_settle_amount: 0u64,
+            last_settle_ts: 0i64,
+            oracle_source: 0u8,
+            quote_owed_from_lp: 0i64,
+        }
+    }
+}
+
+impl CacheInfo {
+    pub fn get_oracle_source(&self) -> DriftResult<OracleSource> {
+        Ok(OracleSource::try_from(self.oracle_source)?)
+    }
+
+    pub fn oracle_id(&self) -> DriftResult<OracleIdentifier> {
+        let oracle_source = self.get_oracle_source()?;
+        Ok((self.oracle, oracle_source))
+    }
+
+    pub fn get_last_available_amm_balance(&self) -> DriftResult<i128> {
+        let last_available_balance = self
+            .last_fee_pool_token_amount
+            .cast::<i128>()?
+            .safe_add(self.last_net_pnl_pool_token_amount)?;
+        Ok(last_available_balance)
+    }
+}
+
+#[zero_copy]
+#[derive(Default, Debug)]
+#[repr(C)]
+pub struct AmmCacheFixed {
+    pub bump: u8,
+    _pad: [u8; 3],
+    pub len: u32,
+}
+
+impl HasLen for AmmCacheFixed {
+    fn len(&self) -> u32 {
+        self.len
+    }
+}
+
+impl AmmCache {
+    pub fn space(num_markets: usize) -> usize {
+        8 + 8 + 4 + num_markets * CacheInfo::SIZE
+    }
+
+    pub fn validate(&self, state: &State) -> DriftResult<()> {
+        validate!(
+            self.cache.len() == state.number_of_markets as usize,
+            ErrorCode::DefaultError,
+            "Number of amm positions is different than number of markets"
+        )?;
+        Ok(())
+    }
+}
+
+impl_zero_copy_loader!(AmmCache, crate::id, AmmCacheFixed, CacheInfo);
+
+impl<'a> AccountZeroCopy<'a, CacheInfo, AmmCacheFixed> {
+    pub fn check_settle_staleness(&self, now: i64, threshold_ms: i64) -> DriftResult<()> {
+        for (i, cache_info) in self.iter().enumerate() {
+            if cache_info.last_settle_ts < now.saturating_sub(threshold_ms) {
+                msg!("AMM settle data is stale for perp market {}", i);
+                return Err(ErrorCode::AMMCacheStale.into());
+            }
+        }
+        Ok(())
+    }
+
+    pub fn check_perp_market_staleness(&self, slot: u64, threshold: u64) -> DriftResult<()> {
+        for (i, cache_info) in self.iter().enumerate() {
+            if cache_info.slot < slot.saturating_sub(threshold) {
+                msg!("Perp market cache info is stale for perp market {}", i);
+                return Err(ErrorCode::AMMCacheStale.into());
+            }
+        }
+        Ok(())
+    }
+
+    pub fn check_oracle_staleness(&self, slot: u64, threshold: u64) -> DriftResult<()> {
+        for (i, cache_info) in self.iter().enumerate() {
+            if cache_info.oracle_slot < slot.saturating_sub(threshold) {
+                msg!(
+                    "Perp market cache info is stale for perp market {}. oracle slot: {}, slot: {}",
+                    i,
+                    cache_info.oracle_slot,
+                    slot
+                );
+                return Err(ErrorCode::AMMCacheStale.into());
+            }
+        }
+        Ok(())
     }
 }

@@ -726,6 +726,54 @@ export type TransferProtocolIfSharesToRevenuePoolRecord = {
 	currentInAmountSinceLastTransfer: BN;
 };
 
+export type LPSwapRecord = {
+	ts: BN;
+	slot: BN;
+	authority: PublicKey;
+	outAmount: BN;
+	inAmount: BN;
+	outFee: BN;
+	inFee: BN;
+	outSpotMarketIndex: number;
+	inSpotMarketIndex: number;
+	outConstituentIndex: number;
+	inConstituentIndex: number;
+	outOraclePrice: BN;
+	inOraclePrice: BN;
+	outMint: PublicKey;
+	inMint: PublicKey;
+	lastAum: BN;
+	lastAumSlot: BN;
+	inMarketCurrentWeight: BN;
+	outMarketCurrentWeight: BN;
+	inMarketTargetWeight: BN;
+	outMarketTargetWeight: BN;
+	inSwapId: BN;
+	outSwapId: BN;
+};
+
+export type LPMintRedeemRecord = {
+	ts: BN;
+	slot: BN;
+	authority: PublicKey;
+	isMinting: boolean;
+	amount: BN;
+	fee: BN;
+	spotMarketIndex: number;
+	constituentIndex: number;
+	oraclePrice: BN;
+	mint: PublicKey;
+	lpMint: PublicKey;
+	lpAmount: BN;
+	lpFee: BN;
+	lpPrice: BN;
+	mintRedeemId: BN;
+	lastAum: BN;
+	lastAumSlot: BN;
+	inMarketCurrentWeight: BN;
+	inMarketTargetWeight: BN;
+};
+
 export type StateAccount = {
 	admin: PublicKey;
 	exchangeStatus: number;
@@ -1553,4 +1601,116 @@ export type SignedMsgOrderId = {
 export type SignedMsgUserOrdersAccount = {
 	authorityPubkey: PublicKey;
 	signedMsgOrderData: SignedMsgOrderId[];
+};
+
+export type AddAmmConstituentMappingDatum = {
+	constituentIndex: number;
+	perpMarketIndex: number;
+	weight: BN;
+};
+
+export type AmmConstituentDatum = AddAmmConstituentMappingDatum & {
+	lastSlot: BN;
+};
+
+export type AmmConstituentMapping = {
+	bump: number;
+	weights: AmmConstituentDatum[];
+};
+
+export type TargetDatum = {
+	costToTradeBps: number;
+	beta: number;
+	targetBase: BN;
+	lastSlot: BN;
+};
+
+export type ConstituentTargetBase = {
+	bump: number;
+	targets: TargetDatum[];
+};
+
+export type LPPoolAccount = {
+	name: number[];
+	pubkey: PublicKey;
+	mint: PublicKey;
+	maxAum: BN;
+	lastAum: BN;
+	lastAumSlot: BN;
+	lastAumTs: BN;
+	bump: number;
+	oldestOracleSlot: BN;
+	lastRevenueRebalanceTs: BN;
+	totalFeesReceived: BN;
+	totalFeesPaid: BN;
+	constituents: number;
+};
+
+export type BLPosition = {
+	scaledBalance: BN;
+	cumulativeDeposits: BN;
+	marketIndex: number;
+	balanceType: SpotBalanceType;
+};
+
+export type InitializeConstituentParams = {
+	spotMarketIndex: number;
+	decimals: number;
+	maxWeightDeviation: BN;
+	swapFeeMin: BN;
+	swapFeeMax: BN;
+	oracleStalenessThreshold: BN;
+	costToTrade: number;
+	derivativeWeight: BN;
+	constituentDerivativeIndex?: number;
+	constituentCorrelations: BN[];
+	volatility: BN;
+	gammaExecution?: number;
+	gammaInventory?: number;
+	xi?: number;
+};
+
+export type ConstituentAccount = {
+	pubkey: PublicKey;
+	spotMarketIndex: number;
+	constituentIndex: number;
+	decimals: number;
+	bump: number;
+	constituentDerivativeIndex: number;
+	maxWeightDeviation: BN;
+	swapFeeMin: BN;
+	swapFeeMax: BN;
+	totalSwapFees: BN;
+	tokenBalance: BN;
+	spotBalance: BLPosition;
+	lastOraclePrice: BN;
+	lastOracleSlot: BN;
+	mint: PublicKey;
+	oracleStalenessThreshold: BN;
+	lpPool: PublicKey;
+	tokenVault: PublicKey;
+	nextSwapId: BN;
+	derivativeWeight: BN;
+	flashLoanInitialTokenAmount: BN;
+};
+
+export type CacheInfo = {
+	slot: BN;
+	position: BN;
+	maxConfidenceIntervalMultiplier: BN;
+	lastOraclePriceTwap: BN;
+	oracle: PublicKey;
+	oracleSource: number;
+	oraclePrice: BN;
+	oracleDelay: BN;
+	oracleConfidence: BN;
+	lastFeePoolTokenAmount: BN;
+	lastNetPnlPoolTokenAmount: BN;
+	lastSettleAmount: BN;
+	lastSettleTs: BN;
+	quoteOwedFromLp: BN;
+};
+
+export type AmmCache = {
+	cache: CacheInfo[];
 };
