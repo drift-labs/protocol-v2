@@ -460,7 +460,7 @@ mod tests {
 #[cfg(test)]
 mod swap_tests {
     use crate::math::constants::{
-        PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I64,
+        PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I64, SPOT_BALANCE_PRECISION,
     };
     use crate::state::lp_pool::*;
 
@@ -1267,5 +1267,372 @@ mod swap_tests {
             2,
             PERCENTAGE_PRECISION_U64 * 4 / 100, // volatility
         );
+    }
+
+    fn round_to_sig(x: i128, sig: u32) -> i128 {
+        if x == 0 {
+            return 0;
+        }
+        let digits = (x.abs() as f64).log10().floor() as u32 + 1;
+        let factor = 10_i128.pow(digits - sig);
+        ((x + factor / 2) / factor) * factor
+    }
+
+    fn get_swap_amounts(
+        in_oracle_price: i64,
+        out_oracle_price: i64,
+        in_current_weight: i64,
+        out_current_weight: i64,
+        in_amount: u64,
+        in_volatility: u64,
+        out_volatility: u64,
+        in_target_weight: i64,
+        out_target_weight: i64,
+    ) -> (u128, u128, i128, i128, i128, i128) {
+        let lp_pool = LPPool {
+            last_aum: 1_000_000_000_000,
+            ..LPPool::default()
+        };
+
+        let oracle_0 = OraclePriceData {
+            price: in_oracle_price,
+            ..OraclePriceData::default()
+        };
+        let oracle_1 = OraclePriceData {
+            price: out_oracle_price,
+            ..OraclePriceData::default()
+        };
+
+        let in_notional = (in_current_weight as i128) * lp_pool.last_aum.cast::<i128>().unwrap()
+            / PERCENTAGE_PRECISION_I128;
+        let in_token_amount = in_notional * 10_i128.pow(6) / oracle_0.price as i128;
+        let in_spot_balance = if in_token_amount > 0 {
+            BLPosition {
+                scaled_balance: (in_token_amount.abs() as u128)
+                    * (SPOT_BALANCE_PRECISION / 10_u128.pow(6)),
+                balance_type: SpotBalanceType::Deposit,
+                market_index: 0,
+                ..BLPosition::default()
+            }
+        } else {
+            BLPosition {
+                scaled_balance: (in_token_amount.abs() as u128)
+                    * (SPOT_BALANCE_PRECISION / 10_u128.pow(6)),
+                balance_type: SpotBalanceType::Borrow,
+                market_index: 0,
+                ..BLPosition::default()
+            }
+        };
+
+        let out_notional = (out_current_weight as i128) * lp_pool.last_aum.cast::<i128>().unwrap()
+            / PERCENTAGE_PRECISION_I128;
+        let out_token_amount = out_notional * 10_i128.pow(6) / oracle_1.price as i128;
+        let out_spot_balance = if out_token_amount > 0 {
+            BLPosition {
+                scaled_balance: (out_token_amount.abs() as u128)
+                    * (SPOT_BALANCE_PRECISION / 10_u128.pow(6)),
+                balance_type: SpotBalanceType::Deposit,
+                market_index: 0,
+                ..BLPosition::default()
+            }
+        } else {
+            BLPosition {
+                scaled_balance: (out_token_amount.abs() as u128)
+                    * (SPOT_BALANCE_PRECISION / 10_u128.pow(6)),
+                balance_type: SpotBalanceType::Deposit,
+                market_index: 0,
+                ..BLPosition::default()
+            }
+        };
+
+        let constituent_0 = Constituent {
+            decimals: 6,
+            swap_fee_min: PERCENTAGE_PRECISION_I64 / 10000,
+            swap_fee_max: PERCENTAGE_PRECISION_I64 / 1000,
+            gamma_execution: 1,
+            gamma_inventory: 1,
+            xi: 1,
+            volatility: in_volatility,
+            spot_balance: in_spot_balance,
+            ..Constituent::default()
+        };
+        let constituent_1 = Constituent {
+            decimals: 6,
+            swap_fee_min: PERCENTAGE_PRECISION_I64 / 10000,
+            swap_fee_max: PERCENTAGE_PRECISION_I64 / 1000,
+            gamma_execution: 2,
+            gamma_inventory: 2,
+            xi: 2,
+            volatility: out_volatility,
+            spot_balance: out_spot_balance,
+            ..Constituent::default()
+        };
+        let spot_market_0 = SpotMarket {
+            decimals: 6,
+            ..SpotMarket::default()
+        };
+        let spot_market_1 = SpotMarket {
+            decimals: 6,
+            ..SpotMarket::default()
+        };
+
+        let (in_amount_result, out_amount, in_fee, out_fee) = lp_pool
+            .get_swap_amount(
+                &oracle_0,
+                &oracle_1,
+                &constituent_0,
+                &constituent_1,
+                &spot_market_0,
+                &spot_market_1,
+                in_target_weight,
+                out_target_weight,
+                in_amount.cast::<u128>().unwrap(),
+                0,
+            )
+            .unwrap();
+
+        return (
+            in_amount_result,
+            out_amount,
+            in_fee,
+            out_fee,
+            in_token_amount,
+            out_token_amount,
+        );
+    }
+
+    #[test]
+    fn grid_search_swap() {
+        let weights: [i64; 20] = [
+            -100_000, -200_000, -300_000, -400_000, -500_000, -600_000, -700_000, -800_000,
+            -900_000, -1_000_000, 100_000, 200_000, 300_000, 400_000, 500_000, 600_000, 700_000,
+            800_000, 900_000, 1_000_000,
+        ];
+        let in_amounts: Vec<u64> = (0..=10)
+            .map(|i| (1000 + i * 20000) * 10_u64.pow(6))
+            .collect();
+
+        let volatilities: Vec<u64> = (1..=10)
+            .map(|i| PERCENTAGE_PRECISION_U64 * i / 100)
+            .collect();
+
+        let in_oracle_price = PRICE_PRECISION_I64; // $1
+        let out_oracle_price = 233_400_000; // $233.4
+
+        // Assert monotonically increasing fees in in_amounts
+        for in_current_weight in weights.iter() {
+            let out_current_weight = 1_000_000 - *in_current_weight;
+            for out_volatility in volatilities.iter() {
+                let mut prev_in_fee_bps = 0_i128;
+                let mut prev_out_fee_bps = 0_i128;
+                for in_amount in in_amounts.iter() {
+                    let (
+                        in_amount_result,
+                        out_amount,
+                        in_fee,
+                        out_fee,
+                        in_token_amount_pre,
+                        out_token_amount_pre,
+                    ) = get_swap_amounts(
+                        in_oracle_price,
+                        out_oracle_price,
+                        *in_current_weight,
+                        out_current_weight,
+                        *in_amount,
+                        0,
+                        *out_volatility,
+                        PERCENTAGE_PRECISION_I64, // 100% target weight
+                        PERCENTAGE_PRECISION_I64, // 100% target weight
+                    );
+
+                    // Calculate fee in basis points with precision
+                    let in_fee_bps = if in_amount_result > 0 {
+                        (in_fee * 10_000 * 1_000_000) / in_amount_result as i128
+                    } else {
+                        0
+                    };
+
+                    let out_fee_bps = if out_amount > 0 {
+                        (out_fee * 10_000 * 1_000_000) / out_amount as i128
+                    } else {
+                        0
+                    };
+
+                    // Assert monotonically increasing fees
+                    if in_amounts.iter().position(|&x| x == *in_amount).unwrap() > 0 {
+                        assert!(
+                                in_fee_bps >= prev_in_fee_bps,
+                                "in_fee should be monotonically increasing. Current: {} bps, Previous: {} bps, weight: {}, amount: {}, volatility: {}",
+                                in_fee_bps as f64 / 1_000_000.0,
+                                prev_in_fee_bps as f64 / 1_000_000.0,
+                                in_current_weight,
+                                in_amount,
+                                out_volatility
+                            );
+                        assert!(
+                                out_fee_bps >= prev_out_fee_bps,
+                                "out_fee should be monotonically increasing. Current: {} bps, Previous: {} bps, weight: {}, amount: {}, volatility: {}",
+                                out_fee_bps as f64 / 1_000_000.0,
+                                prev_out_fee_bps as f64 / 1_000_000.0,
+                                out_current_weight,
+                                in_amount,
+                                out_volatility
+                            );
+                    }
+
+                    println!(
+                            "in_weight: {}, out_weight: {}, in_amount: {}, out_amount: {}, in_fee: {:.6} bps, out_fee: {:.6} bps",
+                            in_current_weight,
+                            out_current_weight,
+                            in_amount_result,
+                            out_amount,
+                            in_fee_bps as f64 / 1_000_000.0,
+                            out_fee_bps as f64 / 1_000_000.0
+                        );
+
+                    prev_in_fee_bps = in_fee_bps;
+                    prev_out_fee_bps = out_fee_bps;
+                }
+            }
+        }
+
+        // Assert monotonically increasing fees based on error improvement
+        for in_amount in in_amounts.iter() {
+            for in_current_weight in weights.iter() {
+                let out_current_weight = 1_000_000 - *in_current_weight;
+                let fixed_volatility = PERCENTAGE_PRECISION_U64 * 5 / 100;
+                let target_weights: Vec<i64> = (1..=20).map(|i| i * 50_000).collect();
+
+                let mut results: Vec<(i128, i128, i128, i128, i128, i128)> = Vec::new();
+
+                for target_weight in target_weights.iter() {
+                    let in_target_weight = *target_weight;
+                    let out_target_weight = 1_000_000 - in_target_weight;
+
+                    let (
+                        in_amount_result,
+                        out_amount,
+                        in_fee,
+                        out_fee,
+                        in_token_amount_pre,
+                        out_token_amount_pre,
+                    ) = get_swap_amounts(
+                        in_oracle_price,
+                        out_oracle_price,
+                        *in_current_weight,
+                        out_current_weight,
+                        *in_amount,
+                        fixed_volatility,
+                        fixed_volatility,
+                        in_target_weight,
+                        out_target_weight,
+                    );
+
+                    // Calculate weights after swap
+
+                    let out_token_after = out_token_amount_pre - out_amount as i128 + out_fee;
+                    let in_token_after = in_token_amount_pre + in_amount_result as i128;
+
+                    let out_notional_after =
+                        out_token_after * (out_oracle_price as i128) / PRICE_PRECISION_I128;
+                    let in_notional_after =
+                        in_token_after * (in_oracle_price as i128) / PRICE_PRECISION_I128;
+                    let total_notional_after = in_notional_after + out_notional_after;
+
+                    let out_weight_after =
+                        (out_notional_after * PERCENTAGE_PRECISION_I128) / (total_notional_after);
+                    let in_weight_after =
+                        (in_notional_after * PERCENTAGE_PRECISION_I128) / (total_notional_after);
+
+                    // Calculate error improvement (positive means improvement)
+                    let in_error_before = (*in_current_weight - in_target_weight).abs() as i128;
+                    let out_error_before = (out_current_weight - out_target_weight).abs() as i128;
+
+                    let in_error_after = (in_weight_after - in_target_weight as i128).abs();
+                    let out_error_after = (out_weight_after - out_target_weight as i128).abs();
+
+                    let in_error_improvement = round_to_sig(in_error_before - in_error_after, 2);
+                    let out_error_improvement = round_to_sig(out_error_before - out_error_after, 2);
+
+                    let in_fee_bps = if in_amount_result > 0 {
+                        (in_fee * 10_000 * 1_000_000) / in_amount_result as i128
+                    } else {
+                        0
+                    };
+
+                    let out_fee_bps = if out_amount > 0 {
+                        (out_fee * 10_000 * 1_000_000) / out_amount as i128
+                    } else {
+                        0
+                    };
+
+                    results.push((
+                        in_error_improvement,
+                        out_error_improvement,
+                        in_fee_bps,
+                        out_fee_bps,
+                        in_target_weight as i128,
+                        out_target_weight as i128,
+                    ));
+
+                    println!(
+                    "in_weight: {}, out_weight: {}, in_target: {}, out_target: {}, in_error_improvement: {}, out_error_improvement: {}, in_fee: {:.6} bps, out_fee: {:.6} bps",
+                    in_current_weight,
+                    out_current_weight,
+                    in_target_weight,
+                    out_target_weight,
+                    in_error_improvement,
+                    out_error_improvement,
+                    in_fee_bps as f64 / 1_000_000.0,
+                    out_fee_bps as f64 / 1_000_000.0
+                );
+                }
+
+                // Sort by in_error_improvement and check monotonicity
+                results.sort_by_key(|&(in_error_improvement, _, _, _, _, _)| -in_error_improvement);
+
+                for i in 1..results.len() {
+                    let (prev_in_improvement, _, prev_in_fee_bps, _, _, _) = results[i - 1];
+                    let (curr_in_improvement, _, curr_in_fee_bps, _, in_target, _) = results[i];
+
+                    // Less improvement should mean higher fees
+                    if curr_in_improvement < prev_in_improvement {
+                        assert!(
+                        curr_in_fee_bps >= prev_in_fee_bps,
+                        "in_fee should increase as error improvement decreases. Current improvement: {}, Previous improvement: {}, Current fee: {:.6} bps, Previous fee: {:.6} bps, in_weight: {}, in_target: {}",
+                        curr_in_improvement,
+                        prev_in_improvement,
+                        curr_in_fee_bps as f64 / 1_000_000.0,
+                        prev_in_fee_bps as f64 / 1_000_000.0,
+                        in_current_weight,
+                        in_target
+                    );
+                    }
+                }
+
+                // Sort by out_error_improvement and check monotonicity
+                results
+                    .sort_by_key(|&(_, out_error_improvement, _, _, _, _)| -out_error_improvement);
+
+                for i in 1..results.len() {
+                    let (_, prev_out_improvement, _, prev_out_fee_bps, _, _) = results[i - 1];
+                    let (_, curr_out_improvement, _, curr_out_fee_bps, _, out_target) = results[i];
+
+                    // Less improvement should mean higher fees
+                    if curr_out_improvement < prev_out_improvement {
+                        assert!(
+                        curr_out_fee_bps >= prev_out_fee_bps,
+                        "out_fee should increase as error improvement decreases. Current improvement: {}, Previous improvement: {}, Current fee: {:.6} bps, Previous fee: {:.6} bps, out_weight: {}, out_target: {}",
+                        curr_out_improvement,
+                        prev_out_improvement,
+                        curr_out_fee_bps as f64 / 1_000_000.0,
+                        prev_out_fee_bps as f64 / 1_000_000.0,
+                        out_current_weight,
+                        out_target
+                    );
+                    }
+                }
+            }
+        }
     }
 }
