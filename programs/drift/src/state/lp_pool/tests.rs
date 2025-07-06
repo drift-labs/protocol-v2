@@ -1529,6 +1529,7 @@ mod swap_tests {
                     );
 
                     // Calculate weights after swap
+
                     let out_token_after = out_token_amount_pre - out_amount as i128 + out_fee;
                     let in_token_after = in_token_amount_pre + in_amount_result as i128;
 
@@ -1536,11 +1537,12 @@ mod swap_tests {
                         out_token_after * (out_oracle_price as i128) / PRICE_PRECISION_I128;
                     let in_notional_after =
                         in_token_after * (in_oracle_price as i128) / PRICE_PRECISION_I128;
+                    let total_notional_after = in_notional_after + out_notional_after;
 
                     let out_weight_after =
-                        (out_notional_after * PERCENTAGE_PRECISION_I128) / 1_000_000_000_000;
+                        (out_notional_after * PERCENTAGE_PRECISION_I128) / (total_notional_after);
                     let in_weight_after =
-                        (in_notional_after * PERCENTAGE_PRECISION_I128) / 1_000_000_000_000;
+                        (in_notional_after * PERCENTAGE_PRECISION_I128) / (total_notional_after);
 
                     // Calculate error improvement (positive means improvement)
                     let in_error_before = (*in_current_weight - in_target_weight).abs() as i128;
@@ -1549,8 +1551,8 @@ mod swap_tests {
                     let in_error_after = (in_weight_after - in_target_weight as i128).abs();
                     let out_error_after = (out_weight_after - out_target_weight as i128).abs();
 
-                    let in_error_improvement = in_error_before - in_error_after;
-                    let out_error_improvement = round_to_sig(out_error_before - out_error_after, 1);
+                    let in_error_improvement = round_to_sig(in_error_before - in_error_after, 2);
+                    let out_error_improvement = round_to_sig(out_error_before - out_error_after, 2);
 
                     let in_fee_bps = if in_amount_result > 0 {
                         (in_fee * 10_000 * 1_000_000) / in_amount_result as i128

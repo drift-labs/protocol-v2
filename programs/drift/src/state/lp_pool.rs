@@ -618,15 +618,15 @@ impl LPPool {
                 notional_trade_size,
             )?;
 
-        // msg!(
-        //     "fee breakdown - in_exec_linear: {}, in_exec_quad: {}, in_inv_quad: {}, out_exec_linear: {}, out_exec_quad: {}, out_inv_quad: {}",
-        //     in_fee_execution_linear,
-        //     in_fee_execution_quadratic,
-        //     in_quadratic_inventory_fee,
-        //     out_fee_execution_linear,
-        //     out_fee_execution_quadratic,
-        //     out_quadratic_inventory_fee
-        // );
+        msg!(
+            "fee breakdown - in_exec_linear: {}, in_exec_quad: {}, in_inv_quad: {}, out_exec_linear: {}, out_exec_quad: {}, out_inv_quad: {}",
+            in_fee_execution_linear,
+            in_fee_execution_quadratic,
+            in_quadratic_inventory_fee,
+            out_fee_execution_linear,
+            out_fee_execution_quadratic,
+            out_quadratic_inventory_fee
+        );
         let total_in_fee = in_fee_execution_linear
             .safe_add(in_fee_execution_quadratic)?
             .safe_add(in_quadratic_inventory_fee)?
