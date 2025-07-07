@@ -753,7 +753,7 @@ impl PerpMarket {
         }
     }
 
-    pub fn get_trigger_price(&self, oracle_price: i64) -> DriftResult<u64> {
+    pub fn get_trigger_price(&self, oracle_price: i64, now: i64) -> DriftResult<u64> {
         let last_fill_price = self.last_fill_price;
 
         let mark_price_5min_twap = self.amm.last_mark_price_twap;
@@ -766,7 +766,10 @@ impl PerpMarket {
         let last_funding_basis = if self.amm.last_funding_oracle_twap > 0 {
             let last_funding_rate = self.amm.last_funding_rate.safe_mul(PRICE_PRECISION_I64)?.safe_div(self.amm.last_funding_oracle_twap)?;
             let last_funding_rate_pre_adj = last_funding_rate.safe_sub(FUNDING_RATE_OFFSET_PERCENTAGE)? / 24;
-            oracle_price.safe_mul(last_funding_rate_pre_adj)?.safe_div(PERCENTAGE_PRECISION_I64)?
+
+            let time_since_last_funding_update = now.safe_sub(self.amm.last_funding_rate_ts)?.min(self.amm.funding_period);
+
+            oracle_price.safe_mul(last_funding_rate_pre_adj)?.safe_div(PERCENTAGE_PRECISION_I64)?.safe_mul(time_since_last_funding_update)?.safe_div(self.amm.funding_period)?
         } else {
             0
         };
