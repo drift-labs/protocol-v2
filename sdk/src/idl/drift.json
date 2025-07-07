@@ -16567,8 +16567,8 @@
           "index": false
         },
         {
-          "name": "isMinting",
-          "type": "bool",
+          "name": "description",
+          "type": "u8",
           "index": false
         },
         {
