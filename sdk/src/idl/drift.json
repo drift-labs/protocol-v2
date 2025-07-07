@@ -7783,6 +7783,10 @@
           }
         },
         {
+          "name": "constituentDerivativeDepegThreshold",
+          "type": "u64"
+        },
+        {
           "name": "derivativeWeight",
           "type": "u64"
         },
@@ -9441,6 +9445,10 @@
           },
           {
             "name": "volatility",
+            "type": "u64"
+          },
+          {
+            "name": "constituentDerivativeDepegThreshold",
             "type": "u64"
           },
           {

@@ -1,5 +1,4 @@
 use crate::error::{DriftResult, ErrorCode};
-use crate::state::constituent_map::ConstituentSet;
 use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use std::cell::RefMut;
 use std::convert::TryFrom;

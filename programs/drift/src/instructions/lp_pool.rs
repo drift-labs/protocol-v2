@@ -382,8 +382,8 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
             if constituent.last_oracle_price
                 < parent_constituent
                     .last_oracle_price
-                    .safe_mul(9)?
-                    .safe_div(10)?
+                    .safe_mul(constituent.constituent_derivative_depeg_threshold as i64)?
+                    .safe_div(PERCENTAGE_PRECISION_I64)?
             {
                 msg!(
                     "Constituent {} last oracle price {} is too low compared to parent constituent {} last oracle price {}. Assuming depegging and setting target base to 0.",

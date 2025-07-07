@@ -4783,6 +4783,9 @@ export class AdminClient extends DriftClient {
 				initializeConstituentParams.constituentDerivativeIndex != null
 					? initializeConstituentParams.constituentDerivativeIndex
 					: null,
+				initializeConstituentParams.constituentDerivativeDepegThreshold != null
+					? initializeConstituentParams.constituentDerivativeDepegThreshold
+					: ZERO,
 				initializeConstituentParams.constituentDerivativeIndex != null
 					? initializeConstituentParams.derivativeWeight
 					: ZERO,

@@ -760,6 +760,9 @@ pub struct Constituent {
 
     pub volatility: u64, // volatility in PERCENTAGE_PRECISION 1=1%
 
+    // depeg threshold in relation top parent in PERCENTAGE_PRECISION
+    pub constituent_derivative_depeg_threshold: u64,
+
     pub constituent_derivative_index: i16, // -1 if a parent index
 
     pub spot_market_index: u16,
@@ -776,7 +779,7 @@ pub struct Constituent {
 }
 
 impl Size for Constituent {
-    const SIZE: usize = 288;
+    const SIZE: usize = 296;
 }
 
 impl Constituent {

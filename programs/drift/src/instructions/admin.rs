@@ -5008,6 +5008,7 @@ pub fn handle_initialize_constituent<'info>(
     oracle_staleness_threshold: u64,
     cost_to_trade_bps: i32,
     constituent_derivative_index: Option<i16>,
+    constituent_derivative_depeg_threshold: u64,
     derivative_weight: u64,
     volatility: u64,
     gamma_execution: u8,
@@ -5059,6 +5060,7 @@ pub fn handle_initialize_constituent<'info>(
     constituent.constituent_index = (constituent_target_base.targets.len() - 1) as u16;
     constituent.next_swap_id = 1;
     constituent.constituent_derivative_index = constituent_derivative_index.unwrap_or(-1);
+    constituent.constituent_derivative_depeg_threshold = constituent_derivative_depeg_threshold;
     constituent.derivative_weight = derivative_weight;
     constituent.volatility = volatility;
     constituent.gamma_execution = gamma_execution;
