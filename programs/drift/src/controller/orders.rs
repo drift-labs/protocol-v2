@@ -1295,7 +1295,7 @@ pub fn fill_perp_order(
         let fill_price =
             calculate_fill_price(quote_asset_amount, base_asset_amount, BASE_PRECISION_U64)?;
 
-        let perp_market = perp_market_map.get_ref(&market_index)?;
+        let mut perp_market = perp_market_map.get_ref_mut(&market_index)?;
         validate_fill_price_within_price_bands(
             fill_price,
             order_direction,
@@ -1307,6 +1307,8 @@ pub fn fill_perp_order(
                 .max_oracle_twap_5min_percent_divergence(),
             perp_market.is_prediction_market(),
         )?;
+
+        perp_market.last_fill_price = fill_price;
     }
 
     let base_asset_amount_after = user.perp_positions[position_index].base_asset_amount;

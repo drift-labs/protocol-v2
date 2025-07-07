@@ -20,6 +20,7 @@ use crate::math::constants::{
     MARGIN_PRECISION, MARGIN_PRECISION_U128, MAX_LIQUIDATION_MULTIPLIER, PEG_PRECISION,
     PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
     PERCENTAGE_PRECISION_U64, PRICE_PRECISION, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
+    PRICE_PRECISION_I64,   FUNDING_RATE_OFFSET_PERCENTAGE
 };
 use crate::math::helpers::get_proportion_i128;
 use crate::math::margin::{
@@ -251,7 +252,9 @@ pub struct PerpMarket {
     pub high_leverage_margin_ratio_maintenance: u16,
     pub protected_maker_limit_price_divisor: u8,
     pub protected_maker_dynamic_divisor: u8,
-    pub padding: [u8; 36],
+    pub padding1: u32,
+    pub last_fill_price: u64,
+    pub padding: [u8; 24],
 }
 
 impl Default for PerpMarket {
@@ -293,7 +296,9 @@ impl Default for PerpMarket {
             high_leverage_margin_ratio_maintenance: 0,
             protected_maker_limit_price_divisor: 0,
             protected_maker_dynamic_divisor: 0,
-            padding: [0; 36],
+            padding1: 0,
+            last_fill_price: 0,
+            padding: [0; 24],
         }
     }
 }
@@ -747,6 +752,32 @@ impl PerpMarket {
             default_min_auction_duration
         }
     }
+
+    pub fn get_trigger_price(&self, oracle_price: i64) -> DriftResult<u64> {
+        let last_fill_price = self.last_fill_price;
+
+        let mark_price_5min_twap = self.amm.last_mark_price_twap;
+        let last_oracle_price_twap_5min = self.amm.historical_oracle_data.last_oracle_price_twap_5min;
+
+        let basis_5min = mark_price_5min_twap.cast::<i64>()?.safe_sub(last_oracle_price_twap_5min)?;
+
+        let oracle_plus_basis_5min = oracle_price.safe_add(basis_5min)?.unsigned_abs();
+
+        let last_funding_basis = if self.amm.last_funding_oracle_twap > 0 {
+            let last_funding_rate = self.amm.last_funding_rate.safe_mul(PRICE_PRECISION_I64)?.safe_div(self.amm.last_funding_oracle_twap)?;
+            let last_funding_rate_pre_adj = last_funding_rate.safe_sub(FUNDING_RATE_OFFSET_PERCENTAGE)? / 24;
+            oracle_price.safe_mul(last_funding_rate_pre_adj)?.safe_div(PERCENTAGE_PRECISION_I64)?
+        } else {
+            0
+        };
+
+        let oracle_plus_funding_basis = oracle_price.safe_add(last_funding_basis)?.unsigned_abs();
+
+        let mut prices = [last_fill_price, oracle_plus_funding_basis, oracle_plus_basis_5min];
+        prices.sort_unstable();
+
+        Ok(prices[1])
+    }
 }
 
 #[cfg(test)]
@@ -912,10 +943,10 @@ pub struct AMM {
     /// precision: AMM_RESERVE_PRECISION
     pub user_lp_shares: u128,
     /// last funding rate in this perp market (unit is quote per base)
-    /// precision: QUOTE_PRECISION
+    /// precision: FUNDING_RATE_PRECISION
     pub last_funding_rate: i64,
     /// last funding rate for longs in this perp market (unit is quote per base)
-    /// precision: QUOTE_PRECISION
+    /// precision: FUNDING_RATE_PRECISION
     pub last_funding_rate_long: i64,
     /// last funding rate for shorts in this perp market (unit is quote per base)
     /// precision: QUOTE_PRECISION
@@ -1058,7 +1089,8 @@ pub struct AMM {
     pub reference_price_offset: i32,
     /// signed scale amm_spread similar to fee_adjustment logic (-100 = 0, 100 = double)
     pub amm_inventory_spread_adjustment: i8,
-    pub padding: [u8; 11],
+    pub padding: [u8; 3],
+    pub last_funding_oracle_twap: i64,
 }
 
 impl Default for AMM {
@@ -1149,7 +1181,8 @@ impl Default for AMM {
             quote_asset_amount_with_unsettled_lp: 0,
             reference_price_offset: 0,
             amm_inventory_spread_adjustment: 0,
-            padding: [0; 11],
+            padding: [0; 3],
+            last_funding_oracle_twap: 0,
         }
     }
 }

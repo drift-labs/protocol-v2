@@ -955,7 +955,9 @@ pub fn handle_initialize_perp_market(
         high_leverage_margin_ratio_maintenance: 0,
         protected_maker_limit_price_divisor: 0,
         protected_maker_dynamic_divisor: 0,
-        padding: [0; 36],
+        padding1: 0,
+        last_fill_price: 0,
+        padding: [0; 24],
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
             oracle_source,
@@ -1052,7 +1054,8 @@ pub fn handle_initialize_perp_market(
             quote_asset_amount_with_unsettled_lp: 0,
             reference_price_offset: 0,
             amm_inventory_spread_adjustment: 0,
-            padding: [0; 11],
+            padding: [0; 3],
+            last_funding_oracle_twap: 0,
         },
     };
 
