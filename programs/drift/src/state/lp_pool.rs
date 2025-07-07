@@ -2,8 +2,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     BASE_PRECISION_I128, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
-    PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, QUOTE_PRECISION, QUOTE_PRECISION_I128,
-    QUOTE_PRECISION_U64,
+    PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, QUOTE_PRECISION_I128,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;

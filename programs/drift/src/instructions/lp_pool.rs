@@ -5,7 +5,7 @@ use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 use crate::{
     controller::{
-        self, lp,
+        self,
         spot_balance::update_spot_balances,
         token::{burn_tokens, mint_tokens},
     },
@@ -16,8 +16,8 @@ use crate::{
         self,
         casting::Cast,
         constants::{
-            BASE_PRECISION_I128, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
-            PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, QUOTE_PRECISION_I128,
+            PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U64,
+            PRICE_PRECISION_I128, QUOTE_PRECISION_I128,
         },
         oracle::{is_oracle_valid_for_action, oracle_validity, DriftAction},
         safe_math::SafeMath,
@@ -25,7 +25,7 @@ use crate::{
     math_error, msg, safe_decrement, safe_increment,
     state::{
         constituent_map::{ConstituentMap, ConstituentSet},
-        events::{LPMintRedeemRecord, LPSwapRecord},
+        events::{emit_stack, LPMintRedeemRecord, LPSwapRecord},
         lp_pool::{
             calculate_target_weight, AmmConstituentDatum, AmmConstituentMappingFixed, Constituent,
             ConstituentCorrelationsFixed, ConstituentTargetBaseFixed, LPPool, TargetsDatum,
@@ -40,6 +40,7 @@ use crate::{
         spot_market::{SpotBalanceType, SpotMarket},
         spot_market_map::get_writable_spot_market_set_from_many,
         state::State,
+        traits::Size,
         user::MarketType,
         zero_copy::{AccountZeroCopy, AccountZeroCopyMut, ZeroCopyLoader},
     },
@@ -141,7 +142,12 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
         "Amm mapping PDA does not match expected PDA"
     )?;
 
-    let mut amm_inventories: Vec<(u16, i64, i64)> = vec![];
+    let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
+    let constituent_map =
+        ConstituentMap::load(&ConstituentSet::new(), &lp_pool_key, remaining_accounts)?;
+
+    let mut amm_inventories: Vec<(u16, i64, i64)> =
+        Vec::with_capacity(amm_constituent_mapping.len() as usize);
     for (_, datum) in amm_constituent_mapping.iter().enumerate() {
         let cache_info = amm_cache.get(datum.perp_market_index as u32);
 
@@ -183,11 +189,8 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
         return Ok(());
     }
 
-    let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
-    let constituent_map =
-        ConstituentMap::load(&ConstituentSet::new(), &lp_pool_key, remaining_accounts)?;
-
-    let mut constituent_indexes_and_decimals_and_prices: Vec<(u16, u8, i64)> = vec![];
+    let mut constituent_indexes_and_decimals_and_prices: Vec<(u16, u8, i64)> =
+        Vec::with_capacity(constituent_map.0.len());
     for (index, loader) in &constituent_map.0 {
         let constituent_ref = loader.load()?;
         constituent_indexes_and_decimals_and_prices.push((
@@ -665,7 +668,7 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
     let in_swap_id = get_then_update_id!(in_constituent, next_swap_id);
     let out_swap_id = get_then_update_id!(out_constituent, next_swap_id);
 
-    emit!(LPSwapRecord {
+    emit_stack::<_, { LPSwapRecord::SIZE }>(LPSwapRecord {
         ts: now,
         slot,
         authority: ctx.accounts.authority.key(),
@@ -687,19 +690,19 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
             in_oracle.price,
             &in_spot_market,
             0,
-            lp_pool.last_aum
+            lp_pool.last_aum,
         )?,
         in_market_target_weight: in_target_weight,
         out_market_current_weight: out_constituent.get_weight(
             out_oracle.price,
             &out_spot_market,
             0,
-            lp_pool.last_aum
+            lp_pool.last_aum,
         )?,
         out_market_target_weight: out_target_weight,
         in_swap_id,
         out_swap_id,
-    });
+    })?;
 
     receive(
         &ctx.accounts.token_program,
@@ -896,7 +899,7 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
     };
 
     let mint_redeem_id = get_then_update_id!(lp_pool, next_mint_redeem_id);
-    emit!(LPMintRedeemRecord {
+    emit_stack::<_, { LPMintRedeemRecord::SIZE }>(LPMintRedeemRecord {
         ts: now,
         slot,
         authority: ctx.accounts.authority.key(),
@@ -918,10 +921,10 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
             in_oracle.price,
             &in_spot_market,
             0,
-            lp_pool.last_aum
+            lp_pool.last_aum,
         )?,
         in_market_target_weight: in_target_weight,
-    });
+    })?;
 
     Ok(())
 }
@@ -1093,7 +1096,7 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
     };
 
     let mint_redeem_id = get_then_update_id!(lp_pool, next_mint_redeem_id);
-    emit!(LPMintRedeemRecord {
+    emit_stack::<_, { LPMintRedeemRecord::SIZE }>(LPMintRedeemRecord {
         ts: now,
         slot,
         authority: ctx.accounts.authority.key(),
@@ -1115,10 +1118,10 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
             out_oracle.price,
             &out_spot_market,
             0,
-            lp_pool.last_aum
+            lp_pool.last_aum,
         )?,
         in_market_target_weight: out_target_weight,
-    });
+    })?;
 
     Ok(())
 }

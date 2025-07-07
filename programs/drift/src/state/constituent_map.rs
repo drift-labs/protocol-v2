@@ -62,7 +62,7 @@ impl<'a> ConstituentMap<'a> {
             None => {
                 let caller = Location::caller();
                 msg!(
-                    "Could not find perp market {} at {}:{}",
+                    "Could not find constituent {} at {}:{}",
                     market_index,
                     caller.file(),
                     caller.line()
@@ -77,7 +77,7 @@ impl<'a> ConstituentMap<'a> {
                 let caller = Location::caller();
                 msg!("{:?}", e);
                 msg!(
-                    "Could not load perp market {} at {}:{}",
+                    "Could not load constituent {} at {}:{}",
                     market_index,
                     caller.file(),
                     caller.line()
@@ -88,7 +88,7 @@ impl<'a> ConstituentMap<'a> {
     }
 
     pub fn load<'b, 'c>(
-        writable_markets: &'b ConstituentSet,
+        writable_constituents: &'b ConstituentSet,
         lp_pool_key: &Pubkey,
         account_info_iter: &'c mut Peekable<Iter<'a, AccountInfo<'a>>>,
     ) -> DriftResult<ConstituentMap<'a>> {
@@ -145,7 +145,7 @@ impl<'a> ConstituentMap<'a> {
             let account_info = account_info_iter.next().safe_unwrap()?;
 
             let is_writable = account_info.is_writable;
-            if writable_markets.contains(&constituent_index) && !is_writable {
+            if writable_constituents.contains(&constituent_index) && !is_writable {
                 return Err(ErrorCode::ConstituentWrongMutability);
             }
 

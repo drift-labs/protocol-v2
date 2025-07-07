@@ -779,6 +779,10 @@ pub struct LPSwapRecord {
     pub out_swap_id: u64,
 }
 
+impl Size for LPSwapRecord {
+    const SIZE: usize = 376;
+}
+
 #[event]
 #[derive(Default)]
 pub struct LPMintRedeemRecord {
@@ -813,4 +817,8 @@ pub struct LPMintRedeemRecord {
     /// PERCENTAGE_PRECISION
     pub in_market_current_weight: i64,
     pub in_market_target_weight: i64,
+}
+
+impl Size for LPMintRedeemRecord {
+    const SIZE: usize = 328;
 }
