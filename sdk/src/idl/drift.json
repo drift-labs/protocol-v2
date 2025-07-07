@@ -9493,6 +9493,10 @@
         "kind": "struct",
         "fields": [
           {
+            "name": "lpPool",
+            "type": "publicKey"
+          },
+          {
             "name": "bump",
             "type": "u8"
           },
@@ -9522,6 +9526,10 @@
         "kind": "struct",
         "fields": [
           {
+            "name": "lpPool",
+            "type": "publicKey"
+          },
+          {
             "name": "bump",
             "type": "u8"
           },
@@ -9550,6 +9558,10 @@
       "type": {
         "kind": "struct",
         "fields": [
+          {
+            "name": "lpPool",
+            "type": "publicKey"
+          },
           {
             "name": "bump",
             "type": "u8"
@@ -11694,6 +11706,10 @@
         "kind": "struct",
         "fields": [
           {
+            "name": "lpPool",
+            "type": "publicKey"
+          },
+          {
             "name": "bump",
             "type": "u8"
           },
@@ -11748,6 +11764,10 @@
         "kind": "struct",
         "fields": [
           {
+            "name": "lpPool",
+            "type": "publicKey"
+          },
+          {
             "name": "bump",
             "type": "u8"
           },
@@ -11775,6 +11795,10 @@
       "type": {
         "kind": "struct",
         "fields": [
+          {
+            "name": "lpPool",
+            "type": "publicKey"
+          },
           {
             "name": "bump",
             "type": "u8"

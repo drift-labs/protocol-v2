@@ -29,9 +29,8 @@ use crate::{
         lp_pool::{
             calculate_target_weight, AmmConstituentDatum, AmmConstituentMappingFixed, Constituent,
             ConstituentCorrelationsFixed, ConstituentTargetBaseFixed, LPPool, TargetsDatum,
-            WeightValidationFlags, CONSTITUENT_CORRELATIONS_PDA_SEED,
-            LP_POOL_SWAP_AUM_UPDATE_DELAY, MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC,
-            MAX_CONSTITUENT_ORACLE_SLOT_STALENESS_FOR_AUM,
+            WeightValidationFlags, LP_POOL_SWAP_AUM_UPDATE_DELAY,
+            MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC, MAX_CONSTITUENT_ORACLE_SLOT_STALENESS_FOR_AUM,
         },
         oracle::OraclePriceData,
         oracle_map::OracleMap,
@@ -54,8 +53,7 @@ use crate::controller::spot_balance::update_spot_market_cumulative_interest;
 use crate::controller::token::{receive, send_from_program_vault};
 use crate::instructions::constraints::*;
 use crate::state::lp_pool::{
-    AMM_MAP_PDA_SEED, CONSTITUENT_PDA_SEED, CONSTITUENT_TARGET_BASE_PDA_SEED,
-    LP_POOL_TOKEN_VAULT_PDA_SEED,
+    CONSTITUENT_PDA_SEED, CONSTITUENT_TARGET_BASE_PDA_SEED, LP_POOL_TOKEN_VAULT_PDA_SEED,
 };
 
 pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
@@ -63,7 +61,6 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
 ) -> Result<()> {
     let slot = Clock::get()?.slot;
 
-    let lp_pool = &ctx.accounts.lp_pool.load()?;
     let lp_pool_key: &Pubkey = &ctx.accounts.lp_pool.key();
     let amm_cache_key: &Pubkey = &ctx.accounts.amm_cache.key();
 
@@ -88,29 +85,15 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
     )?;
 
     let state = &ctx.accounts.state;
-    let constituent_target_base_key = &ctx.accounts.constituent_target_base.key();
-    let amm_mapping_key = &ctx.accounts.amm_constituent_mapping.key();
-
     let mut constituent_target_base: AccountZeroCopyMut<
         '_,
         TargetsDatum,
         ConstituentTargetBaseFixed,
     > = ctx.accounts.constituent_target_base.load_zc_mut()?;
-
-    let bump = constituent_target_base.fixed.bump;
-    let expected_pda = &Pubkey::create_program_address(
-        &[
-            CONSTITUENT_TARGET_BASE_PDA_SEED.as_ref(),
-            lp_pool.pubkey.as_ref(),
-            bump.to_le_bytes().as_ref(),
-        ],
-        &crate::ID,
-    )
-    .map_err(|_| ErrorCode::InvalidPDA)?;
     validate!(
-        expected_pda.eq(constituent_target_base_key),
+        constituent_target_base.fixed.lp_pool.eq(lp_pool_key),
         ErrorCode::InvalidPDA,
-        "Constituent target weights PDA does not match expected PDA"
+        "Constituent target base lp pool pubkey does not match lp pool pubkey",
     )?;
 
     let num_constituents = constituent_target_base.len();
@@ -125,21 +108,10 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
         AmmConstituentDatum,
         AmmConstituentMappingFixed,
     > = ctx.accounts.amm_constituent_mapping.load_zc()?;
-
-    let amm_mapping_bump = amm_constituent_mapping.fixed.bump;
-    let expected_map_pda = &Pubkey::create_program_address(
-        &[
-            AMM_MAP_PDA_SEED.as_ref(),
-            lp_pool.pubkey.as_ref(),
-            amm_mapping_bump.to_le_bytes().as_ref(),
-        ],
-        &crate::ID,
-    )
-    .map_err(|_| ErrorCode::InvalidPDA)?;
     validate!(
-        expected_map_pda.eq(amm_mapping_key),
+        amm_constituent_mapping.fixed.lp_pool.eq(lp_pool_key),
         ErrorCode::InvalidPDA,
-        "Amm mapping PDA does not match expected PDA"
+        "Amm constituent mapping lp pool pubkey does not match lp pool pubkey",
     )?;
 
     let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
@@ -251,25 +223,15 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
         "Constituent map length does not match lp pool constituent count"
     )?;
 
-    let constituent_target_base_key = &ctx.accounts.constituent_target_base.key();
     let mut constituent_target_base: AccountZeroCopyMut<
         '_,
         TargetsDatum,
         ConstituentTargetBaseFixed,
     > = ctx.accounts.constituent_target_base.load_zc_mut()?;
-    let expected_pda = &Pubkey::create_program_address(
-        &[
-            CONSTITUENT_TARGET_BASE_PDA_SEED.as_ref(),
-            lp_pool.pubkey.as_ref(),
-            constituent_target_base.fixed.bump.to_le_bytes().as_ref(),
-        ],
-        &crate::ID,
-    )
-    .map_err(|_| ErrorCode::InvalidPDA)?;
     validate!(
-        expected_pda.eq(constituent_target_base_key),
+        constituent_target_base.fixed.lp_pool.eq(&lp_pool.pubkey),
         ErrorCode::InvalidPDA,
-        "Constituent target weights PDA does not match expected PDA"
+        "Constituent target base lp pool pubkey does not match lp pool pubkey",
     )?;
 
     let amm_cache_key: &Pubkey = &ctx.accounts.amm_cache.key();
@@ -507,40 +469,20 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
     let mut in_constituent = ctx.accounts.in_constituent.load_mut()?;
     let mut out_constituent = ctx.accounts.out_constituent.load_mut()?;
 
-    let constituent_target_base_key = &ctx.accounts.constituent_target_base.key();
     let constituent_target_base: AccountZeroCopy<'_, TargetsDatum, ConstituentTargetBaseFixed> =
         ctx.accounts.constituent_target_base.load_zc()?;
-    let expected_pda = &Pubkey::create_program_address(
-        &[
-            CONSTITUENT_TARGET_BASE_PDA_SEED.as_ref(),
-            lp_pool.pubkey.as_ref(),
-            constituent_target_base.fixed.bump.to_le_bytes().as_ref(),
-        ],
-        &crate::ID,
-    )
-    .map_err(|_| ErrorCode::InvalidPDA)?;
     validate!(
-        expected_pda.eq(constituent_target_base_key),
+        constituent_target_base.fixed.lp_pool.eq(&lp_pool.pubkey),
         ErrorCode::InvalidPDA,
-        "Constituent target weights PDA does not match expected PDA"
+        "Constituent target base lp pool pubkey does not match lp pool pubkey",
     )?;
 
-    let constituent_correlation_key = &ctx.accounts.constituent_correlations.key();
     let constituent_correlations: AccountZeroCopy<'_, i64, ConstituentCorrelationsFixed> =
         ctx.accounts.constituent_correlations.load_zc()?;
-    let expected_correlation_pda = &Pubkey::create_program_address(
-        &[
-            CONSTITUENT_CORRELATIONS_PDA_SEED.as_ref(),
-            lp_pool.pubkey.as_ref(),
-            constituent_correlations.fixed.bump.to_le_bytes().as_ref(),
-        ],
-        &crate::ID,
-    )
-    .map_err(|_| ErrorCode::InvalidPDA)?;
     validate!(
-        expected_correlation_pda.eq(constituent_correlation_key),
+        constituent_correlations.fixed.lp_pool.eq(&lp_pool.pubkey),
         ErrorCode::InvalidPDA,
-        "Constituent correlations PDA does not match expected PDA"
+        "Constituent correlations lp pool pubkey does not match lp pool pubkey",
     )?;
 
     let AccountMaps {

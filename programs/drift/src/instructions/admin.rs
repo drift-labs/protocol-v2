@@ -4732,6 +4732,7 @@ pub fn handle_initialize_lp_pool(
     };
 
     let amm_constituent_mapping = &mut ctx.accounts.amm_constituent_mapping;
+    amm_constituent_mapping.lp_pool = ctx.accounts.lp_pool.key();
     amm_constituent_mapping.bump = ctx.bumps.amm_constituent_mapping;
     amm_constituent_mapping
         .weights
@@ -4739,6 +4740,7 @@ pub fn handle_initialize_lp_pool(
     amm_constituent_mapping.validate()?;
 
     let constituent_target_base = &mut ctx.accounts.constituent_target_base;
+    constituent_target_base.lp_pool = ctx.accounts.lp_pool.key();
     constituent_target_base.bump = ctx.bumps.constituent_target_base;
     constituent_target_base
         .targets
@@ -4746,6 +4748,7 @@ pub fn handle_initialize_lp_pool(
     constituent_target_base.validate()?;
 
     let consituent_correlations = &mut ctx.accounts.constituent_correlations;
+    consituent_correlations.lp_pool = ctx.accounts.lp_pool.key();
     consituent_correlations.bump = ctx.bumps.constituent_correlations;
     consituent_correlations.correlations.resize(0 as usize, 0);
     consituent_correlations.validate()?;

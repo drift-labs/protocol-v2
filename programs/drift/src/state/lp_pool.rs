@@ -906,6 +906,7 @@ impl Default for AmmConstituentDatum {
 #[derive(Debug, Default)]
 #[repr(C)]
 pub struct AmmConstituentMappingFixed {
+    pub lp_pool: Pubkey,
     pub bump: u8,
     pub _pad: [u8; 3],
     pub len: u32,
@@ -921,6 +922,7 @@ impl HasLen for AmmConstituentMappingFixed {
 #[derive(Debug)]
 #[repr(C)]
 pub struct AmmConstituentMapping {
+    pub lp_pool: Pubkey,
     pub bump: u8,
     _padding: [u8; 3],
     // PERCENTAGE_PRECISION. Each datum represents the target weight for a single (AMM, Constituent) pair.
@@ -930,7 +932,7 @@ pub struct AmmConstituentMapping {
 
 impl AmmConstituentMapping {
     pub fn space(num_constituents: usize) -> usize {
-        8 + 8 + 4 + num_constituents * 24
+        8 + 40 + num_constituents * 24
     }
 
     pub fn validate(&self) -> DriftResult<()> {
@@ -964,6 +966,7 @@ pub struct TargetsDatum {
 #[derive(Debug, Default)]
 #[repr(C)]
 pub struct ConstituentTargetBaseFixed {
+    pub lp_pool: Pubkey,
     pub bump: u8,
     _pad: [u8; 3],
     /// total elements in the flattened `data` vec
@@ -980,6 +983,7 @@ impl HasLen for ConstituentTargetBaseFixed {
 #[derive(Debug)]
 #[repr(C)]
 pub struct ConstituentTargetBase {
+    pub lp_pool: Pubkey,
     pub bump: u8,
     _padding: [u8; 3],
     // PERCENTAGE_PRECISION. The weights of the target weight matrix. Updated async
@@ -988,7 +992,7 @@ pub struct ConstituentTargetBase {
 
 impl ConstituentTargetBase {
     pub fn space(num_constituents: usize) -> usize {
-        8 + 8 + 4 + num_constituents * 24
+        8 + 40 + num_constituents * 24
     }
 
     pub fn validate(&self) -> DriftResult<()> {
@@ -1018,6 +1022,7 @@ impl_zero_copy_loader!(
 impl Default for ConstituentTargetBase {
     fn default() -> Self {
         ConstituentTargetBase {
+            lp_pool: Pubkey::default(),
             bump: 0,
             _padding: [0; 3],
             targets: Vec::with_capacity(0),
@@ -1200,6 +1205,7 @@ impl<'a> AccountZeroCopyMut<'a, AmmConstituentDatum, AmmConstituentMappingFixed>
 #[derive(Debug, Default)]
 #[repr(C)]
 pub struct ConstituentCorrelationsFixed {
+    pub lp_pool: Pubkey,
     pub bump: u8,
     _pad: [u8; 3],
     /// total elements in the flattened `data` vec
@@ -1216,6 +1222,7 @@ impl HasLen for ConstituentCorrelationsFixed {
 #[derive(Debug)]
 #[repr(C)]
 pub struct ConstituentCorrelations {
+    pub lp_pool: Pubkey,
     pub bump: u8,
     _padding: [u8; 3],
     // PERCENTAGE_PRECISION. The weights of the target weight matrix. Updated async
@@ -1237,7 +1244,7 @@ impl_zero_copy_loader!(
 
 impl ConstituentCorrelations {
     pub fn space(num_constituents: usize) -> usize {
-        8 + 8 + 4 + num_constituents * num_constituents * 8
+        8 + 40 + num_constituents * num_constituents * 8
     }
 
     pub fn validate(&self) -> DriftResult<()> {
