@@ -789,7 +789,7 @@ pub struct LPMintRedeemRecord {
     pub ts: i64,
     pub slot: u64,
     pub authority: Pubkey,
-    pub is_minting: bool,
+    pub description: u8,
     /// precision: continutent mint precision, gross fees
     pub amount: u128,
     /// precision: fee on amount, constituent market mint precision
