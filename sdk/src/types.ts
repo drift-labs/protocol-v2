@@ -1663,6 +1663,7 @@ export type InitializeConstituentParams = {
 	costToTrade: number;
 	derivativeWeight: BN;
 	constituentDerivativeIndex?: number;
+	constituentDerivativeDepegThreshold?: BN;
 	constituentCorrelations: BN[];
 	volatility: BN;
 	gammaExecution?: number;

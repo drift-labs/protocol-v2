@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::math::constants::{
-        BASE_PRECISION_I64, PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I64,
+        BASE_PRECISION_I64, PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I64, QUOTE_PRECISION,
     };
     use crate::state::lp_pool::*;
     use std::{cell::RefCell, marker::PhantomData, vec};

@@ -779,13 +779,17 @@ pub struct LPSwapRecord {
     pub out_swap_id: u64,
 }
 
+impl Size for LPSwapRecord {
+    const SIZE: usize = 376;
+}
+
 #[event]
 #[derive(Default)]
 pub struct LPMintRedeemRecord {
     pub ts: i64,
     pub slot: u64,
     pub authority: Pubkey,
-    pub is_minting: bool,
+    pub description: u8,
     /// precision: continutent mint precision, gross fees
     pub amount: u128,
     /// precision: fee on amount, constituent market mint precision
@@ -813,4 +817,8 @@ pub struct LPMintRedeemRecord {
     /// PERCENTAGE_PRECISION
     pub in_market_current_weight: i64,
     pub in_market_target_weight: i64,
+}
+
+impl Size for LPMintRedeemRecord {
+    const SIZE: usize = 328;
 }
