@@ -809,11 +809,6 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		depth: BN
 	): Promise<TransactionInstruction> {
-		const marketPublicKey = await getPerpMarketPublicKey(
-			this.program.programId,
-			perpMarketIndex
-		);
-
 		return await this.program.instruction.recenterPerpMarketAmmCrank(
 			depth ?? null,
 			{
