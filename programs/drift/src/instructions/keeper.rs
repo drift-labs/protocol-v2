@@ -26,7 +26,6 @@ use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
-use crate::math::margin;
 use crate::math::margin::{calculate_user_equity, meets_settle_pnl_maintenance_margin_requirement};
 use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
