@@ -1869,7 +1869,7 @@ impl<'a> AccountZeroCopyMut<'a, CacheInfo, AmmCacheFixed> {
     ) -> DriftResult<()> {
         if perp_market.lp_fee_transfer_scalar == 0 {
             msg!(
-                "lp_fee_transfer_scalar is 0 for perp market {}. Cannot settle pnl",
+                "lp_fee_transfer_scalar is 0 for perp market {}. not updating quote amount owed in cache",
                 perp_market.market_index
             );
             return Ok(());
@@ -1894,21 +1894,6 @@ impl<'a> AccountZeroCopyMut<'a, CacheInfo, AmmCacheFixed> {
             cached_info.oracle_price,
         )?)?;
 
-        msg!("fee pool token amount: {}", fee_pool_token_amount);
-        msg!("net pnl pool token amount: {}", net_pnl_pool_token_amount);
-        msg!(
-            "last fee pool token amount: {}",
-            cached_info.last_fee_pool_token_amount
-        );
-        msg!(
-            "last net pnl pool token amount: {}",
-            cached_info.last_net_pnl_pool_token_amount
-        );
-        msg!(
-            "last available amm balance: {}",
-            cached_info.get_last_available_amm_balance()?
-        );
-
         let amm_amount_available =
             net_pnl_pool_token_amount.safe_add(fee_pool_token_amount.cast::<i128>()?)?;
 
@@ -1926,12 +1911,6 @@ impl<'a> AccountZeroCopyMut<'a, CacheInfo, AmmCacheFixed> {
             .cast::<u64>()?;
 
         if amm_amount_available < cached_info.get_last_available_amm_balance()? {
-            msg!(
-                "amm amount available {} is less than last available amm balance {}",
-                amm_amount_available,
-                cached_info.get_last_available_amm_balance()?
-            );
-            msg!("adjust quote owed from lp by {}", amount_to_send);
             cached_info.quote_owed_from_lp = cached_info
                 .quote_owed_from_lp
                 .safe_add(amount_to_send.cast::<i64>()?)?;

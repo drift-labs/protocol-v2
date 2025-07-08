@@ -88,7 +88,6 @@ use crate::{math_error, ID};
 use crate::{validate, QUOTE_PRECISION_I128};
 use anchor_spl::associated_token::AssociatedToken;
 
-use crate::math::amm::calculate_net_user_pnl;
 use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_liability_info;
 use crate::math::margin::MarginRequirementType;
 use crate::state::margin_calculation::MarginContext;
@@ -3095,11 +3094,6 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
                     .safe_sub(amount_to_send as u128)?;
                 cached_info.quote_owed_from_lp = 0;
 
-                msg!(
-                    "fee pool can cover it all, perp sending to dlp: {}",
-                    amount_to_send.cast::<u64>()?
-                );
-
                 controller::token::send_from_program_vault(
                     &ctx.accounts.token_program,
                     &ctx.accounts.quote_token_vault,
@@ -3144,10 +3138,6 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
                 )?;
                 if remaining_amount_to_send > pnl_pool_token_amount {
                     let transfer_amount = if pnl_pool_token_amount == 0 {
-                        msg!(
-                            "Perp market {} has no pnl pool to settle to lp pool",
-                            perp_market.market_index
-                        );
                         fee_pool_token_amount
                     } else {
                         perp_market.pnl_pool.decrease_balance(
@@ -3158,11 +3148,6 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
                             .safe_sub(pnl_pool_token_amount.cast::<i128>()?)?;
                         cached_info.quote_owed_from_lp += pnl_pool_token_amount.cast::<i64>()?;
 
-                        msg!(
-                            "fee pool not enough, pnl pool not enough, perp sending to dlp: {}",
-                            (fee_pool_token_amount.safe_add(pnl_pool_token_amount)?)
-                                .cast::<u64>()?
-                        );
                         fee_pool_token_amount.safe_add(pnl_pool_token_amount)?
                     };
 
@@ -3196,11 +3181,6 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
                         .last_net_pnl_pool_token_amount
                         .safe_sub(remaining_amount_to_send.cast::<i128>()?)?;
                     cached_info.quote_owed_from_lp += remaining_amount_to_send.cast::<i64>()?;
-
-                    msg!(
-                        "fee and pnl pool combined perp sending to dlp: {}",
-                        amount_to_send.cast::<u64>()?
-                    );
 
                     controller::token::send_from_program_vault(
                         &ctx.accounts.token_program,
