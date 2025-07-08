@@ -119,6 +119,15 @@ export class grpcProgramAccountSubscriber<
 			entry: {},
 			transactionsStatus: {},
 		};
+		this.stream.on('error', (error) => {
+			// @ts-ignore
+			if (error.code === 1) {
+				// expected: 1 CANCELLED: Cancelled on client
+				return;
+			} else {
+				console.error('GRPC unexpected error caught:', error);
+			}
+		});
 		this.stream.on('data', (chunk: SubscribeUpdate) => {
 			if (!chunk.account) {
 				return;
@@ -206,6 +215,8 @@ export class grpcProgramAccountSubscriber<
 						reject(err);
 					}
 				});
+				this.stream.cancel();
+				this.stream.destroy();
 			}).catch((reason) => {
 				console.error(reason);
 				throw reason;
