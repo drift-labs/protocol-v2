@@ -7783,6 +7783,10 @@
           }
         },
         {
+          "name": "constituentDerivativeDepegThreshold",
+          "type": "u64"
+        },
+        {
           "name": "derivativeWeight",
           "type": "u64"
         },
@@ -9444,6 +9448,10 @@
             "type": "u64"
           },
           {
+            "name": "constituentDerivativeDepegThreshold",
+            "type": "u64"
+          },
+          {
             "name": "constituentDerivativeIndex",
             "type": "i16"
           },
@@ -9493,6 +9501,10 @@
         "kind": "struct",
         "fields": [
           {
+            "name": "lpPool",
+            "type": "publicKey"
+          },
+          {
             "name": "bump",
             "type": "u8"
           },
@@ -9522,6 +9534,10 @@
         "kind": "struct",
         "fields": [
           {
+            "name": "lpPool",
+            "type": "publicKey"
+          },
+          {
             "name": "bump",
             "type": "u8"
           },
@@ -9550,6 +9566,10 @@
       "type": {
         "kind": "struct",
         "fields": [
+          {
+            "name": "lpPool",
+            "type": "publicKey"
+          },
           {
             "name": "bump",
             "type": "u8"
@@ -11694,6 +11714,10 @@
         "kind": "struct",
         "fields": [
           {
+            "name": "lpPool",
+            "type": "publicKey"
+          },
+          {
             "name": "bump",
             "type": "u8"
           },
@@ -11748,6 +11772,10 @@
         "kind": "struct",
         "fields": [
           {
+            "name": "lpPool",
+            "type": "publicKey"
+          },
+          {
             "name": "bump",
             "type": "u8"
           },
@@ -11775,6 +11803,10 @@
       "type": {
         "kind": "struct",
         "fields": [
+          {
+            "name": "lpPool",
+            "type": "publicKey"
+          },
           {
             "name": "bump",
             "type": "u8"
@@ -16535,8 +16567,8 @@
           "index": false
         },
         {
-          "name": "isMinting",
-          "type": "bool",
+          "name": "description",
+          "type": "u8",
           "index": false
         },
         {
@@ -18263,5 +18295,8 @@
       "name": "ConstituentOracleStale",
       "msg": "Constituent oracle is stale"
     }
-  ]
+  ],
+  "metadata": {
+    "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
+  }
 }

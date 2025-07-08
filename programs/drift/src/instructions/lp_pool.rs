@@ -5,7 +5,7 @@ use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 use crate::{
     controller::{
-        self, lp,
+        self,
         spot_balance::update_spot_balances,
         token::{burn_tokens, mint_tokens},
     },
@@ -16,7 +16,7 @@ use crate::{
         self,
         casting::Cast,
         constants::{
-            BASE_PRECISION_I128, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
+            PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
             PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, QUOTE_PRECISION_I128,
         },
         oracle::{is_oracle_valid_for_action, oracle_validity, DriftAction},
@@ -25,13 +25,12 @@ use crate::{
     math_error, msg, safe_decrement, safe_increment,
     state::{
         constituent_map::{ConstituentMap, ConstituentSet},
-        events::{LPMintRedeemRecord, LPSwapRecord},
+        events::{emit_stack, LPMintRedeemRecord, LPSwapRecord},
         lp_pool::{
             calculate_target_weight, AmmConstituentDatum, AmmConstituentMappingFixed, Constituent,
             ConstituentCorrelationsFixed, ConstituentTargetBaseFixed, LPPool, TargetsDatum,
-            WeightValidationFlags, CONSTITUENT_CORRELATIONS_PDA_SEED,
-            LP_POOL_SWAP_AUM_UPDATE_DELAY, MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC,
-            MAX_CONSTITUENT_ORACLE_SLOT_STALENESS_FOR_AUM,
+            WeightValidationFlags, LP_POOL_SWAP_AUM_UPDATE_DELAY,
+            MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC, MAX_CONSTITUENT_ORACLE_SLOT_STALENESS_FOR_AUM,
         },
         oracle::OraclePriceData,
         oracle_map::OracleMap,
@@ -40,6 +39,7 @@ use crate::{
         spot_market::{SpotBalanceType, SpotMarket},
         spot_market_map::get_writable_spot_market_set_from_many,
         state::State,
+        traits::Size,
         user::MarketType,
         zero_copy::{AccountZeroCopy, AccountZeroCopyMut, ZeroCopyLoader},
     },
@@ -53,8 +53,7 @@ use crate::controller::spot_balance::update_spot_market_cumulative_interest;
 use crate::controller::token::{receive, send_from_program_vault};
 use crate::instructions::constraints::*;
 use crate::state::lp_pool::{
-    AMM_MAP_PDA_SEED, CONSTITUENT_PDA_SEED, CONSTITUENT_TARGET_BASE_PDA_SEED,
-    LP_POOL_TOKEN_VAULT_PDA_SEED,
+    CONSTITUENT_PDA_SEED, CONSTITUENT_TARGET_BASE_PDA_SEED, LP_POOL_TOKEN_VAULT_PDA_SEED,
 };
 
 pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
@@ -62,7 +61,6 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
 ) -> Result<()> {
     let slot = Clock::get()?.slot;
 
-    let lp_pool = &ctx.accounts.lp_pool.load()?;
     let lp_pool_key: &Pubkey = &ctx.accounts.lp_pool.key();
     let amm_cache_key: &Pubkey = &ctx.accounts.amm_cache.key();
 
@@ -87,29 +85,15 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
     )?;
 
     let state = &ctx.accounts.state;
-    let constituent_target_base_key = &ctx.accounts.constituent_target_base.key();
-    let amm_mapping_key = &ctx.accounts.amm_constituent_mapping.key();
-
     let mut constituent_target_base: AccountZeroCopyMut<
         '_,
         TargetsDatum,
         ConstituentTargetBaseFixed,
     > = ctx.accounts.constituent_target_base.load_zc_mut()?;
-
-    let bump = constituent_target_base.fixed.bump;
-    let expected_pda = &Pubkey::create_program_address(
-        &[
-            CONSTITUENT_TARGET_BASE_PDA_SEED.as_ref(),
-            lp_pool.pubkey.as_ref(),
-            bump.to_le_bytes().as_ref(),
-        ],
-        &crate::ID,
-    )
-    .map_err(|_| ErrorCode::InvalidPDA)?;
     validate!(
-        expected_pda.eq(constituent_target_base_key),
+        constituent_target_base.fixed.lp_pool.eq(lp_pool_key),
         ErrorCode::InvalidPDA,
-        "Constituent target weights PDA does not match expected PDA"
+        "Constituent target base lp pool pubkey does not match lp pool pubkey",
     )?;
 
     let num_constituents = constituent_target_base.len();
@@ -124,24 +108,18 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
         AmmConstituentDatum,
         AmmConstituentMappingFixed,
     > = ctx.accounts.amm_constituent_mapping.load_zc()?;
-
-    let amm_mapping_bump = amm_constituent_mapping.fixed.bump;
-    let expected_map_pda = &Pubkey::create_program_address(
-        &[
-            AMM_MAP_PDA_SEED.as_ref(),
-            lp_pool.pubkey.as_ref(),
-            amm_mapping_bump.to_le_bytes().as_ref(),
-        ],
-        &crate::ID,
-    )
-    .map_err(|_| ErrorCode::InvalidPDA)?;
     validate!(
-        expected_map_pda.eq(amm_mapping_key),
+        amm_constituent_mapping.fixed.lp_pool.eq(lp_pool_key),
         ErrorCode::InvalidPDA,
-        "Amm mapping PDA does not match expected PDA"
+        "Amm constituent mapping lp pool pubkey does not match lp pool pubkey",
     )?;
 
-    let mut amm_inventories: Vec<(u16, i64, i64)> = vec![];
+    let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
+    let constituent_map =
+        ConstituentMap::load(&ConstituentSet::new(), &lp_pool_key, remaining_accounts)?;
+
+    let mut amm_inventories: Vec<(u16, i64, i64)> =
+        Vec::with_capacity(amm_constituent_mapping.len() as usize);
     for (_, datum) in amm_constituent_mapping.iter().enumerate() {
         let cache_info = amm_cache.get(datum.perp_market_index as u32);
 
@@ -183,11 +161,8 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
         return Ok(());
     }
 
-    let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
-    let constituent_map =
-        ConstituentMap::load(&ConstituentSet::new(), &lp_pool_key, remaining_accounts)?;
-
-    let mut constituent_indexes_and_decimals_and_prices: Vec<(u16, u8, i64)> = vec![];
+    let mut constituent_indexes_and_decimals_and_prices: Vec<(u16, u8, i64)> =
+        Vec::with_capacity(constituent_map.0.len());
     for (index, loader) in &constituent_map.0 {
         let constituent_ref = loader.load()?;
         constituent_indexes_and_decimals_and_prices.push((
@@ -248,25 +223,15 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
         "Constituent map length does not match lp pool constituent count"
     )?;
 
-    let constituent_target_base_key = &ctx.accounts.constituent_target_base.key();
     let mut constituent_target_base: AccountZeroCopyMut<
         '_,
         TargetsDatum,
         ConstituentTargetBaseFixed,
     > = ctx.accounts.constituent_target_base.load_zc_mut()?;
-    let expected_pda = &Pubkey::create_program_address(
-        &[
-            CONSTITUENT_TARGET_BASE_PDA_SEED.as_ref(),
-            lp_pool.pubkey.as_ref(),
-            constituent_target_base.fixed.bump.to_le_bytes().as_ref(),
-        ],
-        &crate::ID,
-    )
-    .map_err(|_| ErrorCode::InvalidPDA)?;
     validate!(
-        expected_pda.eq(constituent_target_base_key),
+        constituent_target_base.fixed.lp_pool.eq(&lp_pool.pubkey),
         ErrorCode::InvalidPDA,
-        "Constituent target weights PDA does not match expected PDA"
+        "Constituent target base lp pool pubkey does not match lp pool pubkey",
     )?;
 
     let amm_cache_key: &Pubkey = &ctx.accounts.amm_cache.key();
@@ -417,8 +382,8 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
             if constituent.last_oracle_price
                 < parent_constituent
                     .last_oracle_price
-                    .safe_mul(9)?
-                    .safe_div(10)?
+                    .safe_mul(constituent.constituent_derivative_depeg_threshold as i64)?
+                    .safe_div(PERCENTAGE_PRECISION_I64)?
             {
                 msg!(
                     "Constituent {} last oracle price {} is too low compared to parent constituent {} last oracle price {}. Assuming depegging and setting target base to 0.",
@@ -504,40 +469,20 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
     let mut in_constituent = ctx.accounts.in_constituent.load_mut()?;
     let mut out_constituent = ctx.accounts.out_constituent.load_mut()?;
 
-    let constituent_target_base_key = &ctx.accounts.constituent_target_base.key();
     let constituent_target_base: AccountZeroCopy<'_, TargetsDatum, ConstituentTargetBaseFixed> =
         ctx.accounts.constituent_target_base.load_zc()?;
-    let expected_pda = &Pubkey::create_program_address(
-        &[
-            CONSTITUENT_TARGET_BASE_PDA_SEED.as_ref(),
-            lp_pool.pubkey.as_ref(),
-            constituent_target_base.fixed.bump.to_le_bytes().as_ref(),
-        ],
-        &crate::ID,
-    )
-    .map_err(|_| ErrorCode::InvalidPDA)?;
     validate!(
-        expected_pda.eq(constituent_target_base_key),
+        constituent_target_base.fixed.lp_pool.eq(&lp_pool.pubkey),
         ErrorCode::InvalidPDA,
-        "Constituent target weights PDA does not match expected PDA"
+        "Constituent target base lp pool pubkey does not match lp pool pubkey",
     )?;
 
-    let constituent_correlation_key = &ctx.accounts.constituent_correlations.key();
     let constituent_correlations: AccountZeroCopy<'_, i64, ConstituentCorrelationsFixed> =
         ctx.accounts.constituent_correlations.load_zc()?;
-    let expected_correlation_pda = &Pubkey::create_program_address(
-        &[
-            CONSTITUENT_CORRELATIONS_PDA_SEED.as_ref(),
-            lp_pool.pubkey.as_ref(),
-            constituent_correlations.fixed.bump.to_le_bytes().as_ref(),
-        ],
-        &crate::ID,
-    )
-    .map_err(|_| ErrorCode::InvalidPDA)?;
     validate!(
-        expected_correlation_pda.eq(constituent_correlation_key),
+        constituent_correlations.fixed.lp_pool.eq(&lp_pool.pubkey),
         ErrorCode::InvalidPDA,
-        "Constituent correlations PDA does not match expected PDA"
+        "Constituent correlations lp pool pubkey does not match lp pool pubkey",
     )?;
 
     let AccountMaps {
@@ -665,7 +610,7 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
     let in_swap_id = get_then_update_id!(in_constituent, next_swap_id);
     let out_swap_id = get_then_update_id!(out_constituent, next_swap_id);
 
-    emit!(LPSwapRecord {
+    emit_stack::<_, { LPSwapRecord::SIZE }>(LPSwapRecord {
         ts: now,
         slot,
         authority: ctx.accounts.authority.key(),
@@ -687,19 +632,19 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
             in_oracle.price,
             &in_spot_market,
             0,
-            lp_pool.last_aum
+            lp_pool.last_aum,
         )?,
         in_market_target_weight: in_target_weight,
         out_market_current_weight: out_constituent.get_weight(
             out_oracle.price,
             &out_spot_market,
             0,
-            lp_pool.last_aum
+            lp_pool.last_aum,
         )?,
         out_market_target_weight: out_target_weight,
         in_swap_id,
         out_swap_id,
-    });
+    })?;
 
     receive(
         &ctx.accounts.token_program,
@@ -896,11 +841,11 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
     };
 
     let mint_redeem_id = get_then_update_id!(lp_pool, next_mint_redeem_id);
-    emit!(LPMintRedeemRecord {
+    emit_stack::<_, { LPMintRedeemRecord::SIZE }>(LPMintRedeemRecord {
         ts: now,
         slot,
         authority: ctx.accounts.authority.key(),
-        is_minting: true,
+        description: 1,
         amount: in_amount,
         fee: in_fee_amount,
         spot_market_index: in_market_index,
@@ -918,10 +863,10 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
             in_oracle.price,
             &in_spot_market,
             0,
-            lp_pool.last_aum
+            lp_pool.last_aum,
         )?,
         in_market_target_weight: in_target_weight,
-    });
+    })?;
 
     Ok(())
 }
@@ -1093,11 +1038,11 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
     };
 
     let mint_redeem_id = get_then_update_id!(lp_pool, next_mint_redeem_id);
-    emit!(LPMintRedeemRecord {
+    emit_stack::<_, { LPMintRedeemRecord::SIZE }>(LPMintRedeemRecord {
         ts: now,
         slot,
         authority: ctx.accounts.authority.key(),
-        is_minting: false,
+        description: 0,
         amount: out_amount,
         fee: out_fee_amount,
         spot_market_index: out_market_index,
@@ -1115,10 +1060,10 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
             out_oracle.price,
             &out_spot_market,
             0,
-            lp_pool.last_aum
+            lp_pool.last_aum,
         )?,
         in_market_target_weight: out_target_weight,
-    });
+    })?;
 
     Ok(())
 }

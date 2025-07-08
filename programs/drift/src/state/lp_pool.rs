@@ -2,8 +2,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     BASE_PRECISION_I128, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
-    PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, QUOTE_PRECISION, QUOTE_PRECISION_I128,
-    QUOTE_PRECISION_U64,
+    PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, QUOTE_PRECISION_I128,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
@@ -200,7 +199,6 @@ impl LPPool {
             .safe_div(swap_price_denom.cast::<i128>()?)?
             .cast::<u128>()?;
 
-        msg!("in_fee: {}, out_fee: {}", in_fee, out_fee);
         let out_fee_amount = out_amount
             .cast::<i128>()?
             .safe_mul(out_fee as i128)?
@@ -257,13 +255,6 @@ impl LPPool {
         let lp_amount = if self.last_aum == 0 {
             token_amount_usd.safe_div(token_precision_denominator)?
         } else {
-            msg!("token_amount_usd: {}", token_amount_usd);
-            msg!("dlp_total_supply: {}", dlp_total_supply);
-            msg!("last_aum: {}", self.last_aum);
-            msg!(
-                "token_precision_denominator: {}",
-                token_precision_denominator
-            );
             token_amount_usd
                 .safe_mul(dlp_total_supply as u128)?
                 .safe_div(self.last_aum.safe_mul(token_precision_denominator)?)?
@@ -303,7 +294,6 @@ impl LPPool {
             .cast::<i64>()?;
 
         let lp_amount_less_fees = (lp_burn_amount as i128).safe_sub(lp_fee_to_charge as i128)?;
-        msg!("lp_amount_less_fees: {}", lp_amount_less_fees);
 
         let token_precision_denominator = 10_u128.pow(out_spot_market.decimals);
 
@@ -322,7 +312,6 @@ impl LPPool {
             .safe_div(PERCENTAGE_PRECISION)?
             .safe_div(PERCENTAGE_PRECISION)?
             .safe_div(out_oracle.price.cast::<u128>()?)?;
-        msg!("out_amount: {}", out_amount);
 
         let (in_fee_pct, out_fee_pct) = self.get_swap_fees(
             out_spot_market,
@@ -337,8 +326,6 @@ impl LPPool {
             0,
         )?;
         let out_fee_pct = in_fee_pct.safe_add(out_fee_pct)?;
-        msg!("out_fee_pct: {}", out_fee_pct);
-        msg!("out_amount: {}", out_amount);
         let out_fee_amount = out_amount
             .safe_mul(out_fee_pct.cast::<u128>()?)?
             .safe_div(PERCENTAGE_PRECISION)?
@@ -353,9 +340,6 @@ impl LPPool {
         trade_notional: i128,
         kappa_inventory: u64,
     ) -> DriftResult<i128> {
-        msg!("notional_error: {}", notional_error);
-        msg!("trade_notional: {}", trade_notional);
-        msg!("kappa_inventory: {}", kappa_inventory);
         notional_error
             .safe_mul(-1_i128)?
             .safe_mul(trade_notional.signum() as i128)?
@@ -476,9 +460,6 @@ impl LPPool {
         out_target_weight: Option<i64>,
         correlation: i64,
     ) -> DriftResult<(i128, i128)> {
-        msg!("in target weight: {}", in_target_weight);
-        msg!("out target weight: {:?}", out_target_weight);
-
         let notional_trade_size =
             in_constituent.get_notional(in_oracle_price, in_spot_market, in_amount, false)?;
         let out_amount = if out_oracle_price.is_some() {
@@ -621,16 +602,13 @@ impl LPPool {
                 notional_trade_size,
             )?;
 
-        msg!("in_fee_execution_linear: {}", in_fee_execution_linear);
-        msg!("in_fee_execution_quadratic: {}", in_fee_execution_quadratic);
-        msg!("in_quadratic_inventory_fee: {}", in_quadratic_inventory_fee);
-        msg!("out_fee_execution_linear: {}", out_fee_execution_linear);
         msg!(
-            "out_fee_execution_quadratic: {}",
-            out_fee_execution_quadratic
-        );
-        msg!(
-            "out_quadratic_inventory_fee: {}",
+            "fee breakdown - in_exec_linear: {}, in_exec_quad: {}, in_inv_quad: {}, out_exec_linear: {}, out_exec_quad: {}, out_inv_quad: {}",
+            in_fee_execution_linear,
+            in_fee_execution_quadratic,
+            in_quadratic_inventory_fee,
+            out_fee_execution_linear,
+            out_fee_execution_quadratic,
             out_quadratic_inventory_fee
         );
         let total_in_fee = in_fee_execution_linear
@@ -782,6 +760,9 @@ pub struct Constituent {
 
     pub volatility: u64, // volatility in PERCENTAGE_PRECISION 1=1%
 
+    // depeg threshold in relation top parent in PERCENTAGE_PRECISION
+    pub constituent_derivative_depeg_threshold: u64,
+
     pub constituent_derivative_index: i16, // -1 if a parent index
 
     pub spot_market_index: u16,
@@ -798,7 +779,7 @@ pub struct Constituent {
 }
 
 impl Size for Constituent {
-    const SIZE: usize = 288;
+    const SIZE: usize = 296;
 }
 
 impl Constituent {
@@ -928,6 +909,7 @@ impl Default for AmmConstituentDatum {
 #[derive(Debug, Default)]
 #[repr(C)]
 pub struct AmmConstituentMappingFixed {
+    pub lp_pool: Pubkey,
     pub bump: u8,
     pub _pad: [u8; 3],
     pub len: u32,
@@ -943,6 +925,7 @@ impl HasLen for AmmConstituentMappingFixed {
 #[derive(Debug)]
 #[repr(C)]
 pub struct AmmConstituentMapping {
+    pub lp_pool: Pubkey,
     pub bump: u8,
     _padding: [u8; 3],
     // PERCENTAGE_PRECISION. Each datum represents the target weight for a single (AMM, Constituent) pair.
@@ -952,7 +935,7 @@ pub struct AmmConstituentMapping {
 
 impl AmmConstituentMapping {
     pub fn space(num_constituents: usize) -> usize {
-        8 + 8 + 4 + num_constituents * 24
+        8 + 40 + num_constituents * 24
     }
 
     pub fn validate(&self) -> DriftResult<()> {
@@ -986,6 +969,7 @@ pub struct TargetsDatum {
 #[derive(Debug, Default)]
 #[repr(C)]
 pub struct ConstituentTargetBaseFixed {
+    pub lp_pool: Pubkey,
     pub bump: u8,
     _pad: [u8; 3],
     /// total elements in the flattened `data` vec
@@ -1002,6 +986,7 @@ impl HasLen for ConstituentTargetBaseFixed {
 #[derive(Debug)]
 #[repr(C)]
 pub struct ConstituentTargetBase {
+    pub lp_pool: Pubkey,
     pub bump: u8,
     _padding: [u8; 3],
     // PERCENTAGE_PRECISION. The weights of the target weight matrix. Updated async
@@ -1010,7 +995,7 @@ pub struct ConstituentTargetBase {
 
 impl ConstituentTargetBase {
     pub fn space(num_constituents: usize) -> usize {
-        8 + 8 + 4 + num_constituents * 24
+        8 + 40 + num_constituents * 24
     }
 
     pub fn validate(&self) -> DriftResult<()> {
@@ -1040,6 +1025,7 @@ impl_zero_copy_loader!(
 impl Default for ConstituentTargetBase {
     fn default() -> Self {
         ConstituentTargetBase {
+            lp_pool: Pubkey::default(),
             bump: 0,
             _padding: [0; 3],
             targets: Vec::with_capacity(0),
@@ -1222,6 +1208,7 @@ impl<'a> AccountZeroCopyMut<'a, AmmConstituentDatum, AmmConstituentMappingFixed>
 #[derive(Debug, Default)]
 #[repr(C)]
 pub struct ConstituentCorrelationsFixed {
+    pub lp_pool: Pubkey,
     pub bump: u8,
     _pad: [u8; 3],
     /// total elements in the flattened `data` vec
@@ -1238,6 +1225,7 @@ impl HasLen for ConstituentCorrelationsFixed {
 #[derive(Debug)]
 #[repr(C)]
 pub struct ConstituentCorrelations {
+    pub lp_pool: Pubkey,
     pub bump: u8,
     _padding: [u8; 3],
     // PERCENTAGE_PRECISION. The weights of the target weight matrix. Updated async
@@ -1259,7 +1247,7 @@ impl_zero_copy_loader!(
 
 impl ConstituentCorrelations {
     pub fn space(num_constituents: usize) -> usize {
-        8 + 8 + 4 + num_constituents * num_constituents * 8
+        8 + 40 + num_constituents * num_constituents * 8
     }
 
     pub fn validate(&self) -> DriftResult<()> {

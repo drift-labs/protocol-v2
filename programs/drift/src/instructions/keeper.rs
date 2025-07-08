@@ -31,8 +31,6 @@ use crate::math::constants::QUOTE_PRECISION;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::constants::SPOT_BALANCE_PRECISION;
 use crate::math::margin::{calculate_user_equity, meets_settle_pnl_maintenance_margin_requirement};
-use crate::math::oracle::is_oracle_valid_for_action;
-use crate::math::oracle::DriftAction;
 use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 use crate::math::safe_math::SafeMath;
@@ -3311,7 +3309,7 @@ pub struct UpdateAmmCache<'info> {
     pub amm_cache: AccountInfo<'info>,
     #[account(
         owner = crate::ID,
-        seeds = [b"spot_market", 0_u16.to_le_bytes().as_ref()],
+        seeds = [b"spot_market", QUOTE_SPOT_MARKET_INDEX.to_le_bytes().as_ref()],
         bump,
     )]
     pub quote_market: AccountLoader<'info, SpotMarket>,
