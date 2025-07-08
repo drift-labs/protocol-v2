@@ -488,6 +488,8 @@ describe('spot swap', () => {
 				rebalanceConfigKey
 			)) as IfRebalanceConfigAccount;
 
-		assert(rebalanceConfigAfter.currentOutAmountTransferred.eq(new BN(1000000000)));
+		assert(
+			rebalanceConfigAfter.currentOutAmountTransferred.eq(new BN(1000000000))
+		);
 	});
 });
