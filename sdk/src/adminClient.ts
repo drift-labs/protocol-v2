@@ -809,20 +809,23 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		depth: BN
 	): Promise<TransactionInstruction> {
-		const marketPublicKey = await getPerpMarketPublicKey(
-			this.program.programId,
-			perpMarketIndex
-		);
-
 		return await this.program.instruction.recenterPerpMarketAmmCrank(
 			depth ?? null,
 			{
 				accounts: {
-					state: await this.getStatePublicKey(),
 					admin: this.useHotWalletAdmin
 						? this.wallet.publicKey
 						: this.getStateAccount().admin,
-					perpMarket: marketPublicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						QUOTE_SPOT_MARKET_INDEX
+					),
+					oracle: this.getPerpMarketAccount(perpMarketIndex).amm.oracle,
 				},
 			}
 		);

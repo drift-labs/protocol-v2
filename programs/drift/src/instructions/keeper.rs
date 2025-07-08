@@ -2650,6 +2650,9 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
 
     user.margin_mode = MarginMode::Default;
 
+    let custom_margin_ratio_before = user.max_margin_ratio;
+    user.max_margin_ratio = 0;
+
     let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
         &user,
         &perp_market_map,
@@ -2658,6 +2661,8 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
         MarginContext::standard(MarginRequirementType::Initial)
             .margin_buffer(MARGIN_PRECISION / 100), // 1% buffer
     )?;
+
+    user.max_margin_ratio = custom_margin_ratio_before;
 
     if margin_calc.num_perp_liabilities > 0 {
         let mut requires_invariant_check = false;
@@ -2683,7 +2688,7 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
     if user.authority != *ctx.accounts.authority.key {
         let slots_since_last_active = slot.safe_sub(user.last_active_slot)?;
 
-        let min_slots_inactive = 9000; // 60 * 60 / .4
+        let min_slots_inactive = 2250; // 15 * 60 / .4
 
         validate!(
             slots_since_last_active >= min_slots_inactive || user.idle,
