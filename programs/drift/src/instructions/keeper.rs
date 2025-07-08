@@ -2955,7 +2955,7 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
     let mut amm_cache: AccountZeroCopyMut<'_, CacheInfo, _> =
         ctx.accounts.amm_cache.load_zc_mut()?;
     let quote_market = &ctx.accounts.quote_market.load_mut()?;
-    let mut constituent = ctx.accounts.constituent.load_mut()?;
+    let mut quote_constituent = ctx.accounts.constituent.load_mut()?;
     let constituent_token_account = &mut ctx.accounts.constituent_quote_token_account;
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
 
@@ -3001,74 +3001,39 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
             continue;
         }
 
-        let fee_pool_token_amount = get_token_amount(
-            perp_market.amm.fee_pool.scaled_balance,
-            &quote_market,
-            perp_market.amm.fee_pool.balance_type(),
-        )?;
-
-        let net_pnl_pool_token_amount = get_token_amount(
-            perp_market.pnl_pool.scaled_balance,
-            &quote_market,
-            perp_market.pnl_pool.balance_type(),
-        )?
-        .cast::<i128>()?
-        .safe_sub(calculate_net_user_pnl(
-            &perp_market.amm,
-            cached_info.oracle_price,
-        )?)?;
-
-        let amm_amount_available =
-            net_pnl_pool_token_amount.safe_add(fee_pool_token_amount.cast::<i128>()?)?;
-
-        if cached_info.last_net_pnl_pool_token_amount == 0
-            && cached_info.last_fee_pool_token_amount == 0
-        {
-            cached_info.last_fee_pool_token_amount = fee_pool_token_amount;
-            cached_info.last_net_pnl_pool_token_amount = net_pnl_pool_token_amount;
-            continue;
-        }
-
-        validate!(
-            perp_market.oracle_id() == cached_info.oracle_id()?,
-            ErrorCode::DefaultError,
-            "oracle id mismatch between amm cache and perp market"
-        )?;
-
-        // Actually transfer the pnl to the lp usdc constituent account
         validate_market_within_price_band(&perp_market, state, cached_info.oracle_price)?;
-
         if perp_market.is_operation_paused(PerpOperation::SettlePnl) {
             msg!(
                 "Cannot settle pnl under current market = {} status",
                 perp_market.market_index
             );
-
-            return Err(ErrorCode::InvalidMarketStatusToSettlePnl.into());
-        }
-
-        let mint = *ctx.accounts.mint.clone();
-
-        if perp_market.lp_fee_transfer_scalar == 0 {
-            msg!(
-                "lp_fee_transfer_scalar is 0 for perp market {}. Cannot settle pnl",
-                perp_market.market_index
-            );
             continue;
         }
 
-        let amount_to_send = amm_amount_available
-            .abs_diff(cached_info.get_last_available_amm_balance()?)
-            .safe_div_ceil(perp_market.lp_fee_transfer_scalar as u128)?
-            .cast::<u64>()?;
-        if amm_amount_available < cached_info.get_last_available_amm_balance()? {
-            let amount_to_send = if amount_to_send > constituent_token_account.amount {
-                cached_info.quote_owed_from_lp +=
-                    amount_to_send.saturating_sub(constituent_token_account.amount) as i64;
-                constituent_token_account.amount
-            } else {
-                amount_to_send
-            };
+        if cached_info.slot != slot {
+            msg!("Skipping settling perp market {} to lp pool because amm cache was not updated in the same slot",
+                perp_market.market_index
+            );
+            return Err(ErrorCode::AMMCacheStale.into());
+        }
+
+        let mint = *ctx.accounts.mint.clone();
+        // Transfer balance if it's available
+        if cached_info.quote_owed_from_lp > 0 {
+            if quote_constituent.token_balance == 0 {
+                msg!("LP Pool has no usdc to settle",);
+                continue;
+            }
+            let amount_to_send =
+                if cached_info.quote_owed_from_lp > quote_constituent.token_balance as i64 {
+                    quote_constituent.token_balance
+                } else {
+                    cached_info.quote_owed_from_lp as u64
+                };
+
+            cached_info.quote_owed_from_lp = cached_info
+                .quote_owed_from_lp
+                .safe_sub(amount_to_send as i64)?;
 
             controller::token::send_from_program_vault(
                 &ctx.accounts.token_program,
@@ -3087,33 +3052,54 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
                 .fee_pool
                 .increase_balance((amount_to_send as u128).safe_mul(precision_increase)?)?;
 
+            // Update LP Pool Stats
             lp_pool.cumulative_usdc_sent_to_perp_markets = lp_pool
                 .cumulative_usdc_sent_to_perp_markets
                 .saturating_add(amount_to_send.cast::<u128>()?);
-            lp_pool.last_aum = lp_pool
-                .last_aum
-                .saturating_sub(amount_to_send.cast::<u128>()?);
 
-            cached_info.last_fee_pool_token_amount =
-                fee_pool_token_amount.safe_add(amount_to_send as u128)?;
-        } else {
-            let amount_to_send = if cached_info.quote_owed_from_lp > 0 {
-                if amount_to_send > cached_info.quote_owed_from_lp as u64 {
-                    let new_amount_to_send =
-                        amount_to_send.safe_sub(cached_info.quote_owed_from_lp as u64)?;
-                    cached_info.quote_owed_from_lp = 0;
-                    new_amount_to_send
-                } else {
-                    cached_info.quote_owed_from_lp = cached_info
-                        .quote_owed_from_lp
-                        .safe_sub(amount_to_send as i64)?;
-                    0
-                }
-            } else {
-                amount_to_send
-            };
+            // Decrement cached fee pool token amount
+            cached_info.last_fee_pool_token_amount = cached_info
+                .last_fee_pool_token_amount
+                .safe_add(amount_to_send as u128)?;
 
-            if amount_to_send > 0 {
+            // Sync the constituent token account balance
+            constituent_token_account.reload()?;
+            quote_constituent.sync_token_balance(constituent_token_account.amount);
+
+            // Update the last settle info
+            cached_info.last_settle_amount = amount_to_send.cast::<u64>()?;
+            cached_info.last_settle_ts = Clock::get()?.unix_timestamp;
+
+            // Update LP Pool Stats
+            lp_pool.cumulative_usdc_sent_to_perp_markets = lp_pool
+                .cumulative_usdc_sent_to_perp_markets
+                .saturating_add(amount_to_send.cast::<u128>()?);
+        } else if cached_info.quote_owed_from_lp < 0 {
+            // We now send from the perp market to dlp and wipe out the amount owed from the perp market
+            let amount_to_send = cached_info.quote_owed_from_lp.abs() as u64;
+
+            // Take from the fee pool if it can cover the whole balance, otherwise also take from pnl pool
+            let precision_increase = SPOT_BALANCE_PRECISION.safe_div(QUOTE_PRECISION)?;
+            let fee_pool_token_amount = get_token_amount(
+                perp_market.amm.fee_pool.scaled_balance,
+                &quote_market,
+                &SpotBalanceType::Deposit,
+            )?;
+            if fee_pool_token_amount > amount_to_send as u128 {
+                perp_market
+                    .amm
+                    .fee_pool
+                    .decrease_balance((amount_to_send as u128).safe_mul(precision_increase)?)?;
+                cached_info.last_fee_pool_token_amount = cached_info
+                    .last_fee_pool_token_amount
+                    .safe_sub(amount_to_send as u128)?;
+                cached_info.quote_owed_from_lp = 0;
+
+                msg!(
+                    "fee pool can cover it all, perp sending to dlp: {}",
+                    amount_to_send.cast::<u64>()?
+                );
+
                 controller::token::send_from_program_vault(
                     &ctx.accounts.token_program,
                     &ctx.accounts.quote_token_vault,
@@ -3123,65 +3109,127 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
                     amount_to_send.cast::<u64>()?,
                     &Some(mint),
                 )?;
-                // If both fees and pnl are up, take from both equally
-                let precision_increase = SPOT_BALANCE_PRECISION.safe_div(QUOTE_PRECISION)?;
-                if fee_pool_token_amount > cached_info.last_fee_pool_token_amount
-                    && net_pnl_pool_token_amount > cached_info.last_net_pnl_pool_token_amount
-                {
-                    let abs_scaled_fee_pool_token_delta = fee_pool_token_amount
-                        .abs_diff(cached_info.last_fee_pool_token_amount)
-                        .safe_div_ceil(perp_market.lp_fee_transfer_scalar as u128)?;
 
-                    let abs_scaled_pnl_pool_token_delta = net_pnl_pool_token_amount
-                        .abs_diff(cached_info.last_net_pnl_pool_token_amount)
-                        .safe_div_ceil(perp_market.lp_fee_transfer_scalar as u128)?;
+                // Sync the constituent token account balance
+                constituent_token_account.reload()?;
+                quote_constituent.sync_token_balance(constituent_token_account.amount);
 
-                    perp_market.amm.fee_pool.decrease_balance(
-                        abs_scaled_fee_pool_token_delta.safe_mul(precision_increase)?,
-                    )?;
-                    perp_market.pnl_pool.decrease_balance(
-                        abs_scaled_pnl_pool_token_delta.safe_mul(precision_increase)?,
-                    )?;
+                // Update the last settle info
+                cached_info.last_settle_amount = amount_to_send.cast::<u64>()?;
+                cached_info.last_settle_ts = Clock::get()?.unix_timestamp;
 
-                    cached_info.last_fee_pool_token_amount =
-                        fee_pool_token_amount.safe_sub(abs_scaled_fee_pool_token_delta)?;
-                    cached_info.last_net_pnl_pool_token_amount = net_pnl_pool_token_amount
-                        .safe_sub(abs_scaled_pnl_pool_token_delta.cast::<i128>()?)?;
-                } else if fee_pool_token_amount > cached_info.last_fee_pool_token_amount {
-                    perp_market
-                        .amm
-                        .fee_pool
-                        .decrease_balance((amount_to_send as u128).safe_mul(precision_increase)?)?;
-                    cached_info.last_fee_pool_token_amount =
-                        fee_pool_token_amount.safe_sub(amount_to_send as u128)?;
-                } else if net_pnl_pool_token_amount > cached_info.last_net_pnl_pool_token_amount {
-                    perp_market
-                        .pnl_pool
-                        .decrease_balance((amount_to_send as u128).safe_mul(precision_increase)?)?;
-                    cached_info.last_net_pnl_pool_token_amount =
-                        net_pnl_pool_token_amount.safe_sub(amount_to_send.cast::<i128>()?)?;
-                }
-
+                // Update LP Pool Stats
                 lp_pool.cumulative_usdc_received_from_perp_markets = lp_pool
                     .cumulative_usdc_received_from_perp_markets
                     .saturating_add(amount_to_send.cast::<u128>()?);
-                lp_pool.last_aum = lp_pool
-                    .last_aum
-                    .saturating_add(amount_to_send.cast::<u128>()?);
             } else {
-                cached_info.last_fee_pool_token_amount = fee_pool_token_amount;
-                cached_info.last_net_pnl_pool_token_amount = net_pnl_pool_token_amount;
+                // If the fee pool cannot cover the whole amount, we take the rest from the pnl pool and set the
+                // fee pool balances to 0
+
+                let remaining_amount_to_send =
+                    (amount_to_send as u128).safe_sub(fee_pool_token_amount)?;
+
+                perp_market
+                    .amm
+                    .fee_pool
+                    .decrease_balance(fee_pool_token_amount.safe_mul(precision_increase)?)?;
+                cached_info.last_fee_pool_token_amount = 0;
+                cached_info.quote_owed_from_lp += fee_pool_token_amount.cast::<i64>()?;
+
+                // Similarly, can the pnl pool cover the rest?
+                let pnl_pool_token_amount = get_token_amount(
+                    perp_market.pnl_pool.scaled_balance,
+                    &quote_market,
+                    &SpotBalanceType::Deposit,
+                )?;
+                if remaining_amount_to_send > pnl_pool_token_amount {
+                    let transfer_amount = if pnl_pool_token_amount == 0 {
+                        msg!(
+                            "Perp market {} has no pnl pool to settle to lp pool",
+                            perp_market.market_index
+                        );
+                        fee_pool_token_amount
+                    } else {
+                        perp_market.pnl_pool.decrease_balance(
+                            pnl_pool_token_amount.safe_mul(precision_increase)?,
+                        )?;
+                        cached_info.last_net_pnl_pool_token_amount = cached_info
+                            .last_net_pnl_pool_token_amount
+                            .safe_sub(pnl_pool_token_amount.cast::<i128>()?)?;
+                        cached_info.quote_owed_from_lp += pnl_pool_token_amount.cast::<i64>()?;
+
+                        msg!(
+                            "fee pool not enough, pnl pool not enough, perp sending to dlp: {}",
+                            (fee_pool_token_amount.safe_add(pnl_pool_token_amount)?)
+                                .cast::<u64>()?
+                        );
+                        fee_pool_token_amount.safe_add(pnl_pool_token_amount)?
+                    };
+
+                    controller::token::send_from_program_vault(
+                        &ctx.accounts.token_program,
+                        &ctx.accounts.quote_token_vault,
+                        constituent_token_account,
+                        &ctx.accounts.drift_signer,
+                        state.signer_nonce,
+                        transfer_amount.cast::<u64>()?,
+                        &Some(mint),
+                    )?;
+
+                    // Sync the constituent token account balance
+                    constituent_token_account.reload()?;
+                    quote_constituent.sync_token_balance(constituent_token_account.amount);
+
+                    // Update the last settle info
+                    cached_info.last_settle_amount = transfer_amount.cast::<u64>()?;
+                    cached_info.last_settle_ts = Clock::get()?.unix_timestamp;
+
+                    // Update LP Pool Stats
+                    lp_pool.cumulative_usdc_received_from_perp_markets = lp_pool
+                        .cumulative_usdc_received_from_perp_markets
+                        .saturating_add(transfer_amount.cast::<u128>()?);
+                } else {
+                    perp_market
+                        .pnl_pool
+                        .decrease_balance(remaining_amount_to_send.safe_mul(precision_increase)?)?;
+                    cached_info
+                        .last_net_pnl_pool_token_amount
+                        .safe_sub(remaining_amount_to_send.cast::<i128>()?)?;
+                    cached_info.quote_owed_from_lp += remaining_amount_to_send.cast::<i64>()?;
+
+                    msg!(
+                        "fee and pnl pool combined perp sending to dlp: {}",
+                        amount_to_send.cast::<u64>()?
+                    );
+
+                    controller::token::send_from_program_vault(
+                        &ctx.accounts.token_program,
+                        &ctx.accounts.quote_token_vault,
+                        constituent_token_account,
+                        &ctx.accounts.drift_signer,
+                        state.signer_nonce,
+                        amount_to_send.cast::<u64>()?,
+                        &Some(mint),
+                    )?;
+
+                    // Sync the constituent token account balance
+                    constituent_token_account.reload()?;
+                    quote_constituent.sync_token_balance(constituent_token_account.amount);
+
+                    // Update the last settle info
+                    cached_info.last_settle_amount = amount_to_send.cast::<u64>()?;
+                    cached_info.last_settle_ts = Clock::get()?.unix_timestamp;
+
+                    // Update LP Pool Stats
+                    lp_pool.cumulative_usdc_received_from_perp_markets = lp_pool
+                        .cumulative_usdc_received_from_perp_markets
+                        .saturating_add(amount_to_send.cast::<u128>()?);
+                }
             }
+        } else {
+            // nothing owed to settle
+            continue;
         }
-
-        lp_pool.last_aum_ts = clock.unix_timestamp;
-        lp_pool.last_aum_slot = clock.slot;
-
-        constituent_token_account.reload()?;
-        constituent.sync_token_balance(constituent_token_account.amount);
-
-        cached_info.last_settle_amount = amount_to_send.cast::<u64>()?;
-        cached_info.last_settle_ts = Clock::get()?.unix_timestamp;
     }
 
     math::spot_withdraw::validate_spot_market_vault_amount(
@@ -3199,6 +3247,8 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
     let amm_cache_key = &ctx.accounts.amm_cache.key();
     let mut amm_cache: AccountZeroCopyMut<'_, CacheInfo, _> =
         ctx.accounts.amm_cache.load_zc_mut()?;
+
+    let quote_market = ctx.accounts.quote_market.load()?;
 
     let expected_pda = &Pubkey::create_program_address(
         &[
@@ -3250,6 +3300,8 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
         cached_info.oracle_confidence = oracle_data.confidence;
         cached_info.max_confidence_interval_multiplier =
             perp_market.get_max_confidence_interval_multiplier()?;
+
+        amm_cache.update_amount_owed_from_lp_pool(&perp_market, &quote_market)?;
     }
 
     Ok(())

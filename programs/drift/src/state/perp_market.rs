@@ -1,5 +1,6 @@
+use crate::math::spot_balance::get_token_amount;
 use crate::state::pyth_lazer_oracle::PythLazerOracle;
-use crate::state::zero_copy::AccountZeroCopy;
+use crate::state::zero_copy::{AccountZeroCopy, AccountZeroCopyMut};
 use crate::{impl_zero_copy_loader, validate};
 use anchor_lang::prelude::*;
 
@@ -9,7 +10,7 @@ use std::convert::TryFrom;
 
 use crate::controller::position::{PositionDelta, PositionDirection};
 use crate::error::{DriftResult, ErrorCode};
-use crate::math::amm;
+use crate::math::amm::{self, calculate_net_user_pnl};
 use crate::math::casting::Cast;
 #[cfg(test)]
 use crate::math::constants::{
@@ -38,7 +39,7 @@ use crate::state::oracle::{
     get_prelaunch_price, get_sb_on_demand_price, get_switchboard_price, HistoricalOracleData,
     OracleSource,
 };
-use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType};
+use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::traits::{MarketIndexOffset, Size};
 use borsh::{BorshDeserialize, BorshSerialize};
 
@@ -46,7 +47,6 @@ use crate::state::paused_operations::PerpOperation;
 use drift_macros::assert_no_slop;
 use static_assertions::const_assert_eq;
 
-use super::oracle::OraclePriceData;
 use super::oracle_map::OracleIdentifier;
 use super::protected_maker_mode_config::ProtectedMakerParams;
 use super::zero_copy::HasLen;
@@ -1740,7 +1740,8 @@ pub struct CacheInfo {
     pub oracle_delay: i64,
     pub oracle_slot: u64,
     pub oracle_source: u8,
-    _padding: [u8; 7],
+    pub lp_status: u8,
+    _padding: [u8; 6],
     pub oracle: Pubkey,
 }
 
@@ -1759,7 +1760,7 @@ impl Default for CacheInfo {
             oracle_confidence: 0u64,
             oracle_delay: 0i64,
             oracle_slot: 0u64,
-            _padding: [0u8; 7],
+            _padding: [0u8; 6],
             oracle: Pubkey::default(),
             last_fee_pool_token_amount: 0u128,
             last_net_pnl_pool_token_amount: 0i128,
@@ -1767,6 +1768,7 @@ impl Default for CacheInfo {
             last_settle_ts: 0i64,
             oracle_source: 0u8,
             quote_owed_from_lp: 0i64,
+            lp_status: 0u8,
         }
     }
 }
@@ -1855,6 +1857,72 @@ impl<'a> AccountZeroCopy<'a, CacheInfo, AmmCacheFixed> {
                 return Err(ErrorCode::AMMCacheStale.into());
             }
         }
+        Ok(())
+    }
+}
+
+impl<'a> AccountZeroCopyMut<'a, CacheInfo, AmmCacheFixed> {
+    pub fn update_amount_owed_from_lp_pool(
+        &mut self,
+        perp_market: &PerpMarket,
+        quote_market: &SpotMarket,
+    ) -> DriftResult<()> {
+        if perp_market.lp_fee_transfer_scalar == 0 {
+            msg!(
+                "lp_fee_transfer_scalar is 0 for perp market {}. Cannot settle pnl",
+                perp_market.market_index
+            );
+            return Ok(());
+        }
+
+        let cached_info = self.get_mut(perp_market.market_index as u32);
+
+        let fee_pool_token_amount = get_token_amount(
+            perp_market.amm.fee_pool.scaled_balance,
+            &quote_market,
+            perp_market.amm.fee_pool.balance_type(),
+        )?;
+
+        let net_pnl_pool_token_amount = get_token_amount(
+            perp_market.pnl_pool.scaled_balance,
+            &quote_market,
+            perp_market.pnl_pool.balance_type(),
+        )?
+        .cast::<i128>()?
+        .safe_sub(calculate_net_user_pnl(
+            &perp_market.amm,
+            cached_info.oracle_price,
+        )?)?;
+
+        let amm_amount_available =
+            net_pnl_pool_token_amount.safe_add(fee_pool_token_amount.cast::<i128>()?)?;
+
+        if cached_info.last_net_pnl_pool_token_amount == 0
+            && cached_info.last_fee_pool_token_amount == 0
+        {
+            cached_info.last_fee_pool_token_amount = fee_pool_token_amount;
+            cached_info.last_net_pnl_pool_token_amount = net_pnl_pool_token_amount;
+            return Ok(());
+        }
+
+        let amount_to_send = amm_amount_available
+            .abs_diff(cached_info.get_last_available_amm_balance()?)
+            .safe_div_ceil(perp_market.lp_fee_transfer_scalar as u128)?
+            .cast::<u64>()?;
+
+        if amm_amount_available < cached_info.get_last_available_amm_balance()? {
+            cached_info.quote_owed_from_lp = cached_info
+                .quote_owed_from_lp
+                .safe_add(amount_to_send.cast::<i64>()?)?;
+        } else {
+            cached_info.quote_owed_from_lp = cached_info
+                .quote_owed_from_lp
+                .safe_sub(amount_to_send.cast::<i64>()?)?;
+        }
+
+        cached_info.last_fee_pool_token_amount = fee_pool_token_amount;
+        cached_info.last_net_pnl_pool_token_amount = net_pnl_pool_token_amount;
+
         Ok(())
     }
 }

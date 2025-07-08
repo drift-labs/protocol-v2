@@ -235,8 +235,8 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
     )?;
 
     let amm_cache_key: &Pubkey = &ctx.accounts.amm_cache.key();
-    let amm_cache: AccountZeroCopy<'_, CacheInfo, AmmCacheFixed> =
-        ctx.accounts.amm_cache.load_zc()?;
+    let amm_cache: AccountZeroCopyMut<'_, CacheInfo, AmmCacheFixed> =
+        ctx.accounts.amm_cache.load_zc_mut()?;
     let expected_amm_pda = &Pubkey::create_program_address(
         &[
             AMM_POSITIONS_CACHE.as_ref(),
@@ -1302,6 +1302,7 @@ pub struct UpdateLPPoolAum<'info> {
     #[account(mut)]
     pub constituent_target_base: AccountInfo<'info>,
     /// CHECK: checked in AmmCacheZeroCopy checks
+    #[account(mut)]
     pub amm_cache: AccountInfo<'info>,
 }
 
