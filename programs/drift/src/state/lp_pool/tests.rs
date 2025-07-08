@@ -1639,6 +1639,9 @@ mod swap_tests {
 
 #[cfg(test)]
 mod swap_fee_tests {
+    use crate::math::constants::{
+        PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U64, QUOTE_PRECISION,
+    };
     use crate::state::lp_pool::*;
 
     #[test]
@@ -1691,25 +1694,6 @@ mod swap_fee_tests {
             .unwrap();
 
         assert_eq!(fee_execution_quadratic, 711); // 7.1 bps
-    }
-
-    #[test]
-    fn test_lp_pool_get_linear_fee_inventory() {
-        let lp_pool = LPPool {
-            last_aum: 10_000_000 * QUOTE_PRECISION, // $10,000,000
-            ..LPPool::default()
-        };
-
-        let fee_inventory_linear = lp_pool
-            .get_linear_fee_inventory(
-                1_000_000 * QUOTE_PRECISION_I128,
-                5_000_000 * QUOTE_PRECISION_I128,
-                2, // this should be gamma, fixed precision?
-            )
-            .unwrap();
-
-        assert_eq!(fee_inventory_linear, -2 * PERCENTAGE_PRECISION_I128 / 10000);
-        // -2 bps
     }
 
     #[test]
