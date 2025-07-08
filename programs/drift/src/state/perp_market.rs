@@ -15,12 +15,12 @@ use crate::math::constants::{
 use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION,
     BID_ASK_SPREAD_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128,
-    DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT, LIQUIDATION_FEE_PRECISION,
-    LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, LP_FEE_SLICE_DENOMINATOR, LP_FEE_SLICE_NUMERATOR,
-    MARGIN_PRECISION, MARGIN_PRECISION_U128, MAX_LIQUIDATION_MULTIPLIER, PEG_PRECISION,
-    PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
-    PERCENTAGE_PRECISION_U64, PRICE_PRECISION, SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
-    PRICE_PRECISION_I64,   FUNDING_RATE_OFFSET_PERCENTAGE
+    DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT, FUNDING_RATE_OFFSET_PERCENTAGE,
+    LIQUIDATION_FEE_PRECISION, LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, LP_FEE_SLICE_DENOMINATOR,
+    LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION, MARGIN_PRECISION_U128, MAX_LIQUIDATION_MULTIPLIER,
+    PEG_PRECISION, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
+    PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I64, SPOT_WEIGHT_PRECISION,
+    TWENTY_FOUR_HOUR,
 };
 use crate::math::helpers::get_proportion_i128;
 use crate::math::margin::{
@@ -757,29 +757,70 @@ impl PerpMarket {
         let last_fill_price = self.last_fill_price;
 
         let mark_price_5min_twap = self.amm.last_mark_price_twap;
-        let last_oracle_price_twap_5min = self.amm.historical_oracle_data.last_oracle_price_twap_5min;
+        let last_oracle_price_twap_5min =
+            self.amm.historical_oracle_data.last_oracle_price_twap_5min;
 
-        let basis_5min = mark_price_5min_twap.cast::<i64>()?.safe_sub(last_oracle_price_twap_5min)?;
+        let basis_5min = mark_price_5min_twap
+            .cast::<i64>()?
+            .safe_sub(last_oracle_price_twap_5min)?;
 
         let oracle_plus_basis_5min = oracle_price.safe_add(basis_5min)?.unsigned_abs();
 
         let last_funding_basis = if self.amm.last_funding_oracle_twap > 0 {
-            let last_funding_rate = self.amm.last_funding_rate.safe_mul(PRICE_PRECISION_I64)?.safe_div(self.amm.last_funding_oracle_twap)?;
-            let last_funding_rate_pre_adj = last_funding_rate.safe_sub(FUNDING_RATE_OFFSET_PERCENTAGE)? / 24;
+            let last_funding_rate = self
+                .amm
+                .last_funding_rate
+                .safe_mul(PRICE_PRECISION_I64)?
+                .safe_div(self.amm.last_funding_oracle_twap)?;
+            let last_funding_rate_pre_adj =
+                last_funding_rate.safe_sub(FUNDING_RATE_OFFSET_PERCENTAGE)? / 24;
 
-            let time_since_last_funding_update = now.safe_sub(self.amm.last_funding_rate_ts)?.min(self.amm.funding_period);
+            let time_since_last_funding_update = now
+                .safe_sub(self.amm.last_funding_rate_ts)?
+                .min(self.amm.funding_period);
 
-            oracle_price.safe_mul(last_funding_rate_pre_adj)?.safe_div(PERCENTAGE_PRECISION_I64)?.safe_mul(time_since_last_funding_update)?.safe_div(self.amm.funding_period)?
+            oracle_price
+                .safe_mul(last_funding_rate_pre_adj)?
+                .safe_div(PERCENTAGE_PRECISION_I64)?
+                .safe_mul(time_since_last_funding_update)?
+                .safe_div(self.amm.funding_period)?
         } else {
             0
         };
 
         let oracle_plus_funding_basis = oracle_price.safe_add(last_funding_basis)?.unsigned_abs();
 
-        let mut prices = [last_fill_price, oracle_plus_funding_basis, oracle_plus_basis_5min];
-        prices.sort_unstable();
+        let median_price = if last_fill_price > 0 {
+            let mut prices = [
+                last_fill_price,
+                oracle_plus_funding_basis,
+                oracle_plus_basis_5min,
+            ];
+            prices.sort_unstable();
 
-        Ok(prices[1])
+            prices[1]
+        } else {
+            let mut prices = [
+                oracle_price.unsigned_abs(),
+                oracle_plus_funding_basis,
+                oracle_plus_basis_5min,
+            ];
+            prices.sort_unstable();
+
+            prices[1]
+        };
+
+        let max_bps_diff = if matches!(self.contract_tier, ContractTier::A | ContractTier::B) {
+            500 // 20 BPS
+        } else {
+            100 // 100 BPS
+        };
+
+        let max_oracle_diff = oracle_price / max_bps_diff;
+
+        Ok(median_price
+            .max(oracle_price.safe_sub(max_oracle_diff)?.unsigned_abs())
+            .min(oracle_price.safe_add(max_oracle_diff)?.unsigned_abs()))
     }
 }
 
