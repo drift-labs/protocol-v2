@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: account for initial margin ratio for disable_user_high_leverage_mode and make it faster ([#1720](https://github.com/drift-labs/protocol-v2/pull/1720))
 - program: fix AMM reference price offset ([#1683](https://github.com/drift-labs/protocol-v2/pull/1683))
 
 ### Breaking
