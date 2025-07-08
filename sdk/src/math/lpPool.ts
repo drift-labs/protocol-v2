@@ -1,6 +1,5 @@
 import { calculateNetUserPnl } from './market';
 
-import { PublicKey } from '@solana/web3.js';
 import {
 	PerpMarketAccount,
 	SpotMarketAccount,

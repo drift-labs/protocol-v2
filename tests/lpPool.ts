@@ -1108,7 +1108,7 @@ describe('LP Pool', () => {
 		assert(lpPool.lastAum.eq(ZERO));
 		// assert(ammCache.cache[0].quoteOwedFromLp.eq(owedAmount.divn(2)));
 		expect(ammCache.cache[0].quoteOwedFromLp.toNumber()).to.eq(
-			owedAmount.divn(2).toNumber() - 1
+			owedAmount.divn(2).toNumber()
 		);
 		// Deposit here to DLP to make sure aum calc work with perp market debt
 		await overWriteMintAccount(
@@ -1349,6 +1349,7 @@ describe('LP Pool', () => {
 			lpPoolKey
 		)) as LPPoolAccount;
 		const tx = new Transaction();
+		expect(lpPool.lastAum.toNumber()).to.eq(1049220180);
 
 		const lpTokenBalanceBefore =
 			await bankrunContextWrapper.connection.getTokenAccount(
@@ -1384,14 +1385,16 @@ describe('LP Pool', () => {
 
 		const deltaAum = lpPool.lastAum.sub(lpPoolAfter.lastAum);
 
-		expect(lpPoolAfter.lastAum.toNumber()).to.eq(314946); // residual fee
-		expect(deltaAum.toNumber()).to.eq(1049820000 - 314946);
+		expect(lpPoolAfter.lastAum.toNumber()).to.eq(1363672); // residual fee
+		expect(deltaAum.toNumber()).to.eq(
+			1049820000 - 1363672 - 1400000 // price of 1 dlp
+		);
 
 		const mintInfoAfter = await getMint(
 			bankrunContextWrapper.connection.toConnection(),
 			lpPool.mint as PublicKey
 		);
-		expect(Number(mintInfoAfter.supply)).to.equal(0);
+		expect(Number(mintInfoAfter.supply)).to.equal(1000000);
 
 		const lpTokenBalanceAfter =
 			await bankrunContextWrapper.connection.getTokenAccount(
@@ -1416,12 +1419,20 @@ describe('LP Pool', () => {
 			lpPoolKey
 		)) as LPPoolAccount;
 
-		expect(lpPoolAfter2.lastAum).to.equal(1000000000);
+		// expect(lpPoolAfter2.lastAum).to.equal(1000000000);
+		expect(Number(lpPoolAfter2.lastAum.toNumber())).to.equal(1000314947);
+
+		const mintInfoAfter2 = await getMint(
+			bankrunContextWrapper.connection.toConnection(),
+			lpPool.mint as PublicKey
+		);
+		expect(Number(mintInfoAfter2.supply)).to.equal(1000000);
 
 		const lpTokenBalanceAfter2 =
 			await bankrunContextWrapper.connection.getTokenAccount(
 				userLpTokenAccount
 			);
-		expect(Number(lpTokenBalanceAfter2.amount)).to.equal(1000000000);
+		// expect(Number(lpTokenBalanceAfter2.amount)).to.equal(1000000000);
+		expect(Number(lpTokenBalanceAfter2.amount)).to.equal(3174);
 	});
 });
