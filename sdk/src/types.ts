@@ -723,7 +723,7 @@ export type TransferProtocolIfSharesToRevenuePoolRecord = {
 	ifVaultAmountBefore: BN;
 	protocolSharesBefore: BN;
 	protocolSharesAfter: BN;
-	currentInAmountSinceLastTransfer: BN;
+	transferAmount: BN;
 };
 
 export type StateAccount = {
@@ -1507,7 +1507,7 @@ export type IfRebalanceConfigAccount = {
 	totalInAmount: BN;
 	currentInAmount: BN;
 	currentOutAmount: BN;
-	currentInAmountSinceLastTransfer: BN;
+	currentOutAmountTransferred: BN;
 	epochStartTs: BN;
 	epochInAmount: BN;
 	epochMaxInAmount: BN;

@@ -463,9 +463,6 @@ describe('spot swap', () => {
 		assert(transferRecord.shares.eq(new BN(1000000000)));
 		assert(transferRecord.ifVaultAmountBefore.eq(new BN(1000000000)));
 		assert(transferRecord.protocolSharesBefore.eq(new BN(1000000000)));
-		assert(
-			transferRecord.currentInAmountSinceLastTransfer.eq(new BN(100040000))
-		);
 
 		const revenuePoolVaultAmount = (
 			await bankrunContextWrapper.connection.getTokenAccount(
@@ -491,6 +488,8 @@ describe('spot swap', () => {
 				rebalanceConfigKey
 			)) as IfRebalanceConfigAccount;
 
-		assert(rebalanceConfigAfter.currentInAmountSinceLastTransfer.eq(new BN(0)));
+		assert(
+			rebalanceConfigAfter.currentOutAmountTransferred.eq(new BN(1000000000))
+		);
 	});
 });

@@ -1084,9 +1084,6 @@ pub fn handle_if_end_swap(
     if_rebalance_config.current_out_amount = if_rebalance_config
         .current_out_amount
         .safe_add(out_amount)?;
-    if_rebalance_config.current_in_amount_since_last_transfer = if_rebalance_config
-        .current_in_amount_since_last_transfer
-        .safe_add(in_amount)?;
 
     validate!(
         if_rebalance_config.epoch_in_amount <= if_rebalance_config.epoch_max_in_amount,
@@ -1164,8 +1161,6 @@ pub fn transfer_protocol_if_shares_to_revenue_pool(
     )?;
 
     let protocol_shares = spot_market.insurance_fund.get_protocol_shares()?;
-    let current_in_amount_since_last_transfer =
-        if_rebalance_config.current_in_amount_since_last_transfer;
 
     validate!(
         shares <= protocol_shares,
@@ -1176,11 +1171,11 @@ pub fn transfer_protocol_if_shares_to_revenue_pool(
     )?;
 
     validate!(
-        amount == if_rebalance_config.next_transfer_amount()?,
+        amount <= if_rebalance_config.max_transfer_amount()?,
         ErrorCode::DefaultError,
-        "amount={} != next_transfer_amount={}",
+        "amount={} > max_transfer_amount={}",
         amount,
-        if_rebalance_config.next_transfer_amount()?
+        if_rebalance_config.max_transfer_amount()?
     )?;
 
     spot_market.insurance_fund.total_shares =
@@ -1192,8 +1187,6 @@ pub fn transfer_protocol_if_shares_to_revenue_pool(
         .current_out_amount_transferred
         .safe_add(amount)?;
 
-    if_rebalance_config.current_in_amount_since_last_transfer = 0;
-
     emit!(TransferProtocolIfSharesToRevenuePoolRecord {
         ts: now,
         market_index: spot_market.market_index,
@@ -1201,7 +1194,7 @@ pub fn transfer_protocol_if_shares_to_revenue_pool(
         shares,
         if_vault_amount_before: insurance_fund_vault_amount_before,
         protocol_shares_before: protocol_shares,
-        current_in_amount_since_last_transfer,
+        transfer_amount: amount,
     });
 
     Ok(())

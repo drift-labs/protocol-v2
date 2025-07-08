@@ -14073,7 +14073,7 @@
           "index": false
         },
         {
-          "name": "currentInAmountSinceLastTransfer",
+          "name": "transferAmount",
           "type": "u64",
           "index": false
         }
