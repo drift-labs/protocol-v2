@@ -334,22 +334,6 @@ impl LPPool {
         Ok((lp_burn_amount, out_amount, lp_fee_to_charge, out_fee_amount))
     }
 
-    pub fn get_linear_fee_inventory(
-        &self,
-        notional_error: i128,
-        trade_notional: i128,
-        kappa_inventory: u64,
-    ) -> DriftResult<i128> {
-        notional_error
-            .safe_mul(-1_i128)?
-            .safe_mul(trade_notional.signum() as i128)?
-            .safe_mul(kappa_inventory.cast::<i128>()?)?
-            .safe_mul(PERCENTAGE_PRECISION_I128)?
-            .cast::<i128>()?
-            .safe_div(self.last_aum.cast::<i128>()?)?
-            .safe_div(QUOTE_PRECISION_I128)
-    }
-
     pub fn get_quadratic_fee_inventory(
         &self,
         gamma_covar: [[i128; 2]; 2],

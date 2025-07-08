@@ -400,7 +400,8 @@ describe('LP Pool', () => {
 			swapFeeMax: new BN(2).mul(PERCENTAGE_PRECISION),
 			oracleStalenessThreshold: new BN(400),
 			costToTrade: 1,
-			constituentDerivativeDepegThreshold: PERCENTAGE_PRECISION.divn(10).muln(9),
+			constituentDerivativeDepegThreshold:
+				PERCENTAGE_PRECISION.divn(10).muln(9),
 			derivativeWeight: ZERO,
 			volatility: new BN(10).mul(PERCENTAGE_PRECISION),
 			constituentCorrelations: [ZERO],
@@ -703,7 +704,8 @@ describe('LP Pool', () => {
 			oracleStalenessThreshold: new BN(400),
 			costToTrade: 1,
 			derivativeWeight: PERCENTAGE_PRECISION.divn(2),
-			constituentDerivativeDepegThreshold: PERCENTAGE_PRECISION.divn(10).muln(9),
+			constituentDerivativeDepegThreshold:
+				PERCENTAGE_PRECISION.divn(10).muln(9),
 			volatility: new BN(10).mul(PERCENTAGE_PRECISION),
 			constituentCorrelations: [ZERO, PERCENTAGE_PRECISION.muln(87).divn(100)],
 			constituentDerivativeIndex: 1,
@@ -1213,7 +1215,8 @@ describe('LP Pool', () => {
 			oracleStalenessThreshold: new BN(400),
 			costToTrade: 1,
 			derivativeWeight: PERCENTAGE_PRECISION.divn(4),
-			constituentDerivativeDepegThreshold: PERCENTAGE_PRECISION.divn(10).muln(9),
+			constituentDerivativeDepegThreshold:
+				PERCENTAGE_PRECISION.divn(10).muln(9),
 			volatility: new BN(10).mul(PERCENTAGE_PRECISION),
 			constituentCorrelations: [
 				ZERO,

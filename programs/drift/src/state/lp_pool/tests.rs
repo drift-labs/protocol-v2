@@ -1636,3 +1636,89 @@ mod swap_tests {
         }
     }
 }
+
+#[cfg(test)]
+mod swap_fee_tests {
+    use crate::math::constants::{
+        PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U64, QUOTE_PRECISION,
+    };
+    use crate::state::lp_pool::*;
+
+    #[test]
+    fn test_get_gamma_covar_matrix() {
+        // in = sol, out = btc
+        let covar_matrix = get_gamma_covar_matrix(
+            PERCENTAGE_PRECISION_I64,
+            2,                                  // gamma sol
+            2,                                  // gamma btc
+            4 * PERCENTAGE_PRECISION_U64 / 100, // vol sol
+            3 * PERCENTAGE_PRECISION_U64 / 100, // vol btc
+        )
+        .unwrap();
+        assert_eq!(covar_matrix, [[3200, 2400], [2400, 1800]]);
+    }
+
+    #[test]
+    fn test_lp_pool_get_linear_fee_execution() {
+        let lp_pool = LPPool {
+            last_aum: 10_000_000 * QUOTE_PRECISION, // $10,000,000
+            ..LPPool::default()
+        };
+
+        let fee_execution_linear = lp_pool
+            .get_linear_fee_execution(
+                5_000_000 * QUOTE_PRECISION_I128,
+                1600, // 0.0016
+                2,
+                15_000_000 * QUOTE_PRECISION,
+            )
+            .unwrap();
+
+        assert_eq!(fee_execution_linear, 1066); // 10.667 bps
+    }
+
+    #[test]
+    fn test_lp_pool_get_quadratic_fee_execution() {
+        let lp_pool = LPPool {
+            last_aum: 10_000_000 * QUOTE_PRECISION, // $10,000,000
+            ..LPPool::default()
+        };
+
+        let fee_execution_quadratic = lp_pool
+            .get_quadratic_fee_execution(
+                5_000_000 * QUOTE_PRECISION_I128,
+                1600, // 0.0016
+                2,
+                15_000_000 * QUOTE_PRECISION,
+            )
+            .unwrap();
+
+        assert_eq!(fee_execution_quadratic, 711); // 7.1 bps
+    }
+
+    #[test]
+    fn test_lp_pool_get_quadratic_fee_inventory() {
+        let lp_pool = LPPool {
+            last_aum: 10_000_000 * QUOTE_PRECISION, // $10,000,000
+            ..LPPool::default()
+        };
+
+        let (fee_in, fee_out) = lp_pool
+            .get_quadratic_fee_inventory(
+                [[3200, 2400], [2400, 1800]],
+                [
+                    1_000_000 * QUOTE_PRECISION_I128,
+                    -500_000 * QUOTE_PRECISION_I128,
+                ],
+                [
+                    -4_000_000 * QUOTE_PRECISION_I128,
+                    4_500_000 * QUOTE_PRECISION_I128,
+                ],
+                5_000_000 * QUOTE_PRECISION_I128,
+            )
+            .unwrap();
+
+        assert_eq!(fee_in, 6 * PERCENTAGE_PRECISION_I128 / 100000); // 0.6 bps
+        assert_eq!(fee_out, -6 * PERCENTAGE_PRECISION_I128 / 100000); // -0.6 bps
+    }
+}
