@@ -2688,7 +2688,7 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
     if user.authority != *ctx.accounts.authority.key {
         let slots_since_last_active = slot.safe_sub(user.last_active_slot)?;
 
-        let min_slots_inactive = 2500; // 60 * 60 / .4
+        let min_slots_inactive = 2250; // 15 * 60 / .4
 
         validate!(
             slots_since_last_active >= min_slots_inactive || user.idle,
