@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: allow subset of transfer to revenue pool for protocol if ([#1721](https://github.com/drift-labs/protocol-v2/pull/1721))
+
 ### Fixes
 
 - program: account for initial margin ratio for disable_user_high_leverage_mode and make it faster ([#1720](https://github.com/drift-labs/protocol-v2/pull/1720))
