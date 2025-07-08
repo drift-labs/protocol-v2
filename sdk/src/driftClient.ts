@@ -8633,7 +8633,7 @@ export class DriftClient {
 					insuranceFundStake: ifStakeAccountPublicKey,
 					userStats: getUserStatsAccountPublicKey(
 						this.program.programId,
-						this.wallet.publicKey  // only allow payer to request remove own insurance fund stake account
+						this.wallet.publicKey // only allow payer to request remove own insurance fund stake account
 					),
 					authority: this.wallet.publicKey,
 					insuranceFundVault: spotMarketAccount.insuranceFund.vault,
@@ -8668,7 +8668,7 @@ export class DriftClient {
 						insuranceFundStake: ifStakeAccountPublicKey,
 						userStats: getUserStatsAccountPublicKey(
 							this.program.programId,
-							this.wallet.publicKey  // only allow payer to request remove own insurance fund stake account
+							this.wallet.publicKey // only allow payer to request remove own insurance fund stake account
 						),
 						authority: this.wallet.publicKey,
 						insuranceFundVault: spotMarketAccount.insuranceFund.vault,
@@ -8739,7 +8739,7 @@ export class DriftClient {
 					insuranceFundStake: ifStakeAccountPublicKey,
 					userStats: getUserStatsAccountPublicKey(
 						this.program.programId,
-						this.wallet.publicKey  // only allow payer to request remove own insurance fund stake account
+						this.wallet.publicKey // only allow payer to request remove own insurance fund stake account
 					),
 					authority: this.wallet.publicKey,
 					insuranceFundVault: spotMarketAccount.insuranceFund.vault,
