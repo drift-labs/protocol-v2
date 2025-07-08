@@ -3018,9 +3018,10 @@ pub fn trigger_order(
         "oracle price vs twap too divergent"
     )?;
 
+    let trigger_price = perp_market.get_trigger_price(oracle_price, now)?;
     let can_trigger = order_satisfies_trigger_condition(
         &user.orders[order_index],
-        oracle_price.unsigned_abs().cast()?,
+        trigger_price,
     )?;
     validate!(can_trigger, ErrorCode::OrderDidNotSatisfyTriggerCondition)?;
 
