@@ -256,7 +256,7 @@ impl LPPool {
             token_amount_usd.safe_div(token_precision_denominator)?
         } else {
             token_amount_usd
-                .safe_mul(dlp_total_supply as u128)?
+                .safe_mul(dlp_total_supply.max(1) as u128)?
                 .safe_div(self.last_aum.safe_mul(token_precision_denominator)?)?
         };
 
