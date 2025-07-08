@@ -612,6 +612,7 @@ pub struct TransferProtocolIfSharesToRevenuePoolRecord {
     pub if_vault_amount_before: u64,
     pub protocol_shares_before: u128,
     pub current_in_amount_since_last_transfer: u64,
+    pub transfer_amount: u64,
 }
 
 impl Size for InsuranceFundSwapRecord {

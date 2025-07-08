@@ -724,6 +724,7 @@ export type TransferProtocolIfSharesToRevenuePoolRecord = {
 	protocolSharesBefore: BN;
 	protocolSharesAfter: BN;
 	currentInAmountSinceLastTransfer: BN;
+	transferAmount: BN;
 };
 
 export type StateAccount = {

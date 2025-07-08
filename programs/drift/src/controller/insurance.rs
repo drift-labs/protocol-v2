@@ -1176,11 +1176,11 @@ pub fn transfer_protocol_if_shares_to_revenue_pool(
     )?;
 
     validate!(
-        amount == if_rebalance_config.next_transfer_amount()?,
+        amount <= if_rebalance_config.max_transfer_amount()?,
         ErrorCode::DefaultError,
-        "amount={} != next_transfer_amount={}",
+        "amount={} > max_transfer_amount={}",
         amount,
-        if_rebalance_config.next_transfer_amount()?
+        if_rebalance_config.max_transfer_amount()?
     )?;
 
     spot_market.insurance_fund.total_shares =
@@ -1201,6 +1201,7 @@ pub fn transfer_protocol_if_shares_to_revenue_pool(
         shares,
         if_vault_amount_before: insurance_fund_vault_amount_before,
         protocol_shares_before: protocol_shares,
+        transfer_amount: amount,
         current_in_amount_since_last_transfer,
     });
 
