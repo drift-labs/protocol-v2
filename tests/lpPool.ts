@@ -195,7 +195,7 @@ describe('LP Pool', () => {
 			periodicity,
 			new BN(200 * PEG_PRECISION.toNumber())
 		);
-		await adminClient.updatePerpMarketLpPoolStatus(0, 1);	
+		await adminClient.updatePerpMarketLpPoolStatus(0, 1);
 
 		await adminClient.initializePerpMarket(
 			1,
@@ -215,7 +215,7 @@ describe('LP Pool', () => {
 			periodicity,
 			new BN(200 * PEG_PRECISION.toNumber())
 		);
-		await adminClient.updatePerpMarketLpPoolStatus(2, 1);	
+		await adminClient.updatePerpMarketLpPoolStatus(2, 1);
 
 		await adminClient.updatePerpAuctionDuration(new BN(0));
 
@@ -951,9 +951,7 @@ describe('LP Pool', () => {
 				[0, 1, 2]
 			)
 		);
-		settleTx.add(
-			await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1, 2])
-		);
+		settleTx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1, 2]));
 		await adminClient.sendTransaction(settleTx);
 
 		lpPool = (await adminClient.program.account.lpPool.fetch(
