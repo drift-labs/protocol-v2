@@ -881,15 +881,15 @@ describe('LP Pool', () => {
 		assert(ammCache.cache[0].lastFeePoolTokenAmount.eq(new BN(100000000)));
 		assert(ammCache.cache[1].lastFeePoolTokenAmount.eq(new BN(100000000)));
 		assert(
-			ammCache.cache[0].quoteOwedFromLp.eq(
-				ammCacheBeforeAdjust.cache[0].quoteOwedFromLp.sub(
+			ammCache.cache[0].quoteOwedFromLpPool.eq(
+				ammCacheBeforeAdjust.cache[0].quoteOwedFromLpPool.sub(
 					new BN(100).mul(QUOTE_PRECISION)
 				)
 			)
 		);
 		assert(
-			ammCache.cache[1].quoteOwedFromLp.eq(
-				ammCacheBeforeAdjust.cache[1].quoteOwedFromLp.sub(
+			ammCache.cache[1].quoteOwedFromLpPool.eq(
+				ammCacheBeforeAdjust.cache[1].quoteOwedFromLpPool.sub(
 					new BN(100).mul(QUOTE_PRECISION)
 				)
 			)
@@ -934,11 +934,11 @@ describe('LP Pool', () => {
 
 		// Expected transfers per pool are capital constrained by the actual balances
 		const expectedTransfer0 = BN.min(
-			ammCache.cache[0].quoteOwedFromLp.muln(-1),
+			ammCache.cache[0].quoteOwedFromLpPool.muln(-1),
 			pnlPoolBalance0.add(feePoolBalance0)
 		);
 		const expectedTransfer1 = BN.min(
-			ammCache.cache[1].quoteOwedFromLp.muln(-1),
+			ammCache.cache[1].quoteOwedFromLpPool.muln(-1),
 			pnlPoolBalance1.add(feePoolBalance1)
 		);
 		const expectedTransferAmount = expectedTransfer0.add(expectedTransfer1);
@@ -1107,7 +1107,7 @@ describe('LP Pool', () => {
 			)
 		);
 		assert(
-			ammCache.cache[0].quoteOwedFromLp.eq(
+			ammCache.cache[0].quoteOwedFromLpPool.eq(
 				expectedTransferAmount.sub(
 					new BN(constituentUSDCBalanceBefore.toString())
 				)
@@ -1135,7 +1135,7 @@ describe('LP Pool', () => {
 		let ammCache = (await adminClient.program.account.ammCache.fetch(
 			getAmmCachePublicKey(program.programId)
 		)) as AmmCache;
-		const owedAmount = ammCache.cache[0].quoteOwedFromLp;
+		const owedAmount = ammCache.cache[0].quoteOwedFromLpPool;
 
 		// Give the perp market half of its owed amount
 		const perpMarket = adminClient.getPerpMarketAccount(0);
@@ -1173,7 +1173,7 @@ describe('LP Pool', () => {
 			lpPoolKey
 		)) as LPPoolAccount;
 
-		assert(ammCache.cache[0].quoteOwedFromLp.eq(owedAmount.divn(2)));
+		assert(ammCache.cache[0].quoteOwedFromLpPool.eq(owedAmount.divn(2)));
 		assert(constituent.tokenBalance.eq(ZERO));
 		assert(lpPool.lastAum.eq(ZERO));
 
@@ -1218,7 +1218,7 @@ describe('LP Pool', () => {
 			getAmmCachePublicKey(program.programId)
 		)) as AmmCache;
 		for (let i = 0; i <= ammCache.cache.length - 1; i++) {
-			aum = aum.sub(ammCache.cache[i].quoteOwedFromLp);
+			aum = aum.sub(ammCache.cache[i].quoteOwedFromLpPool);
 		}
 		assert(lpPool.lastAum.eq(aum));
 	});
@@ -1237,7 +1237,7 @@ describe('LP Pool', () => {
 		)) as AmmCache;
 
 		const balanceBefore = constituent.tokenBalance;
-		const owedAmount = ammCache.cache[0].quoteOwedFromLp;
+		const owedAmount = ammCache.cache[0].quoteOwedFromLpPool;
 
 		// Give the perp market half of its owed amount
 		const perpMarket = adminClient.getPerpMarketAccount(0);
@@ -1276,7 +1276,7 @@ describe('LP Pool', () => {
 			lpPoolKey
 		)) as LPPoolAccount;
 
-		assert(ammCache.cache[0].quoteOwedFromLp.eq(ZERO));
+		assert(ammCache.cache[0].quoteOwedFromLpPool.eq(ZERO));
 		assert(constituent.tokenBalance.eq(balanceBefore.add(owedAmount)));
 		assert(lpPool.lastAum.eq(aumBefore.add(owedAmount.muln(2))));
 	});

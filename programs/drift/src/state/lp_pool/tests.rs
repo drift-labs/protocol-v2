@@ -1722,3 +1722,644 @@ mod swap_fee_tests {
         assert_eq!(fee_out, -6 * PERCENTAGE_PRECISION_I128 / 100000); // -0.6 bps
     }
 }
+
+#[cfg(test)]
+mod settle_tests {
+    use crate::math::lp_pool::perp_lp_pool_settlement::{
+        calculate_settlement_amount, update_cache_info, SettlementContext, SettlementDirection,
+        SettlementResult,
+    };
+    use crate::state::perp_market::CacheInfo;
+    use crate::state::spot_market::SpotMarket;
+
+    fn create_mock_spot_market() -> SpotMarket {
+        SpotMarket::default()
+    }
+
+    #[test]
+    fn test_calculate_settlement_no_amount_owed() {
+        let ctx = SettlementContext {
+            quote_owed_from_lp: 0,
+            quote_constituent_token_balance: 1000,
+            fee_pool_balance: 500,
+            pnl_pool_balance: 300,
+            quote_market: &create_mock_spot_market(),
+        };
+
+        let result = calculate_settlement_amount(&ctx).unwrap();
+        assert_eq!(result.direction, SettlementDirection::None);
+        assert_eq!(result.amount_transferred, 0);
+    }
+
+    #[test]
+    fn test_lp_to_perp_settlement_sufficient_balance() {
+        let ctx = SettlementContext {
+            quote_owed_from_lp: 500,
+            quote_constituent_token_balance: 1000,
+            fee_pool_balance: 300,
+            pnl_pool_balance: 200,
+            quote_market: &create_mock_spot_market(),
+        };
+
+        let result = calculate_settlement_amount(&ctx).unwrap();
+        assert_eq!(result.direction, SettlementDirection::FromLpPool);
+        assert_eq!(result.amount_transferred, 500);
+        assert_eq!(result.fee_pool_used, 0);
+        assert_eq!(result.pnl_pool_used, 0);
+    }
+
+    #[test]
+    fn test_lp_to_perp_settlement_insufficient_balance() {
+        let ctx = SettlementContext {
+            quote_owed_from_lp: 1500,
+            quote_constituent_token_balance: 1000,
+            fee_pool_balance: 300,
+            pnl_pool_balance: 200,
+            quote_market: &create_mock_spot_market(),
+        };
+
+        let result = calculate_settlement_amount(&ctx).unwrap();
+        assert_eq!(result.direction, SettlementDirection::FromLpPool);
+        assert_eq!(result.amount_transferred, 1000); // Limited by LP balance
+    }
+
+    #[test]
+    fn test_lp_to_perp_settlement_no_lp_balance() {
+        let ctx = SettlementContext {
+            quote_owed_from_lp: 500,
+            quote_constituent_token_balance: 0,
+            fee_pool_balance: 300,
+            pnl_pool_balance: 200,
+            quote_market: &create_mock_spot_market(),
+        };
+
+        let result = calculate_settlement_amount(&ctx).unwrap();
+        assert_eq!(result.direction, SettlementDirection::None);
+        assert_eq!(result.amount_transferred, 0);
+    }
+
+    #[test]
+    fn test_perp_to_lp_settlement_fee_pool_sufficient() {
+        let ctx = SettlementContext {
+            quote_owed_from_lp: -500,
+            quote_constituent_token_balance: 1000,
+            fee_pool_balance: 800,
+            pnl_pool_balance: 200,
+            quote_market: &create_mock_spot_market(),
+        };
+
+        let result = calculate_settlement_amount(&ctx).unwrap();
+        assert_eq!(result.direction, SettlementDirection::ToLpPool);
+        assert_eq!(result.amount_transferred, 500);
+        assert_eq!(result.fee_pool_used, 500);
+        assert_eq!(result.pnl_pool_used, 0);
+    }
+
+    #[test]
+    fn test_perp_to_lp_settlement_needs_both_pools() {
+        let ctx = SettlementContext {
+            quote_owed_from_lp: -1000,
+            quote_constituent_token_balance: 2000,
+            fee_pool_balance: 300,
+            pnl_pool_balance: 800,
+            quote_market: &create_mock_spot_market(),
+        };
+
+        let result = calculate_settlement_amount(&ctx).unwrap();
+        assert_eq!(result.direction, SettlementDirection::ToLpPool);
+        assert_eq!(result.amount_transferred, 1000);
+        assert_eq!(result.fee_pool_used, 300);
+        assert_eq!(result.pnl_pool_used, 700);
+    }
+
+    #[test]
+    fn test_perp_to_lp_settlement_insufficient_pools() {
+        let ctx = SettlementContext {
+            quote_owed_from_lp: -1500,
+            quote_constituent_token_balance: 2000,
+            fee_pool_balance: 300,
+            pnl_pool_balance: 200,
+            quote_market: &create_mock_spot_market(),
+        };
+
+        let result = calculate_settlement_amount(&ctx).unwrap();
+        assert_eq!(result.direction, SettlementDirection::ToLpPool);
+        assert_eq!(result.amount_transferred, 500); // Limited by pool balances
+        assert_eq!(result.fee_pool_used, 300);
+        assert_eq!(result.pnl_pool_used, 200);
+    }
+
+    #[test]
+    fn test_settlement_edge_cases() {
+        // Test with zero fee pool
+        let ctx = SettlementContext {
+            quote_owed_from_lp: -500,
+            quote_constituent_token_balance: 1000,
+            fee_pool_balance: 0,
+            pnl_pool_balance: 800,
+            quote_market: &create_mock_spot_market(),
+        };
+
+        let result = calculate_settlement_amount(&ctx).unwrap();
+        assert_eq!(result.amount_transferred, 500);
+        assert_eq!(result.fee_pool_used, 0);
+        assert_eq!(result.pnl_pool_used, 500);
+
+        // Test with zero pnl pool
+        let ctx = SettlementContext {
+            quote_owed_from_lp: -500,
+            quote_constituent_token_balance: 1000,
+            fee_pool_balance: 300,
+            pnl_pool_balance: 0,
+            quote_market: &create_mock_spot_market(),
+        };
+
+        let result = calculate_settlement_amount(&ctx).unwrap();
+        assert_eq!(result.amount_transferred, 300);
+        assert_eq!(result.fee_pool_used, 300);
+        assert_eq!(result.pnl_pool_used, 0);
+    }
+
+    #[test]
+    fn test_update_cache_info_to_lp_pool() {
+        let mut cache = CacheInfo {
+            quote_owed_from_lp_pool: -400,
+            last_fee_pool_token_amount: 2_000,
+            last_net_pnl_pool_token_amount: 500,
+            last_settle_amount: 0,
+            last_settle_ts: 0,
+            ..Default::default()
+        };
+
+        let result = SettlementResult {
+            amount_transferred: 200,
+            direction: SettlementDirection::ToLpPool,
+            fee_pool_used: 120,
+            pnl_pool_used: 80,
+        };
+        let new_quote_owed = cache.quote_owed_from_lp_pool + result.amount_transferred as i64;
+        let ts = 99;
+
+        update_cache_info(&mut cache, &result, new_quote_owed, ts).unwrap();
+
+        // quote_owed updated
+        assert_eq!(cache.quote_owed_from_lp_pool, new_quote_owed);
+        // settle fields updated
+        assert_eq!(cache.last_settle_amount, 200);
+        assert_eq!(cache.last_settle_ts, ts);
+        // fee pool decreases by fee_pool_used
+        assert_eq!(cache.last_fee_pool_token_amount, 2_000 - 120);
+        // pnl pool decreases by pnl_pool_used
+        assert_eq!(cache.last_net_pnl_pool_token_amount, 500 - 80);
+    }
+
+    #[test]
+    fn test_update_cache_info_from_lp_pool() {
+        let mut cache = CacheInfo {
+            quote_owed_from_lp_pool: 500,
+            last_fee_pool_token_amount: 1_000,
+            last_net_pnl_pool_token_amount: 200,
+            last_settle_amount: 0,
+            last_settle_ts: 0,
+            ..Default::default()
+        };
+
+        let result = SettlementResult {
+            amount_transferred: 150,
+            direction: SettlementDirection::FromLpPool,
+            fee_pool_used: 0,
+            pnl_pool_used: 0,
+        };
+        let new_quote_owed = cache.quote_owed_from_lp_pool - result.amount_transferred as i64;
+        let ts = 42;
+
+        update_cache_info(&mut cache, &result, new_quote_owed, ts).unwrap();
+
+        // quote_owed updated
+        assert_eq!(cache.quote_owed_from_lp_pool, new_quote_owed);
+        // settle fields updated
+        assert_eq!(cache.last_settle_amount, 150);
+        assert_eq!(cache.last_settle_ts, ts);
+        // fee pool increases by amount_transferred
+        assert_eq!(cache.last_fee_pool_token_amount, 1_000 + 150);
+        // pnl pool untouched
+        assert_eq!(cache.last_net_pnl_pool_token_amount, 200);
+    }
+
+    #[test]
+    fn test_large_settlement_amounts() {
+        // Test with very large amounts to check for overflow
+        let ctx = SettlementContext {
+            quote_owed_from_lp: i64::MAX / 2,
+            quote_constituent_token_balance: u64::MAX / 2,
+            fee_pool_balance: u128::MAX / 4,
+            pnl_pool_balance: u128::MAX / 4,
+            quote_market: &create_mock_spot_market(),
+        };
+
+        let result = calculate_settlement_amount(&ctx).unwrap();
+        assert_eq!(result.direction, SettlementDirection::FromLpPool);
+        assert!(result.amount_transferred > 0);
+    }
+
+    #[test]
+    fn test_negative_large_settlement_amounts() {
+        let ctx = SettlementContext {
+            quote_owed_from_lp: i64::MIN / 2,
+            quote_constituent_token_balance: u64::MAX / 2,
+            fee_pool_balance: u128::MAX / 4,
+            pnl_pool_balance: u128::MAX / 4,
+            quote_market: &create_mock_spot_market(),
+        };
+
+        let result = calculate_settlement_amount(&ctx).unwrap();
+        assert_eq!(result.direction, SettlementDirection::ToLpPool);
+        assert!(result.amount_transferred > 0);
+    }
+
+    #[test]
+    fn test_exact_boundary_settlements() {
+        // Test when quote_owed exactly equals LP balance
+        let ctx = SettlementContext {
+            quote_owed_from_lp: 1000,
+            quote_constituent_token_balance: 1000,
+            fee_pool_balance: 500,
+            pnl_pool_balance: 300,
+            quote_market: &create_mock_spot_market(),
+        };
+
+        let result = calculate_settlement_amount(&ctx).unwrap();
+        assert_eq!(result.direction, SettlementDirection::FromLpPool);
+        assert_eq!(result.amount_transferred, 1000);
+
+        // Test when negative quote_owed exactly equals total pool balance
+        let ctx = SettlementContext {
+            quote_owed_from_lp: -800,
+            quote_constituent_token_balance: 2000,
+            fee_pool_balance: 500,
+            pnl_pool_balance: 300,
+            quote_market: &create_mock_spot_market(),
+        };
+
+        let result = calculate_settlement_amount(&ctx).unwrap();
+        assert_eq!(result.direction, SettlementDirection::ToLpPool);
+        assert_eq!(result.amount_transferred, 800);
+        assert_eq!(result.fee_pool_used, 500);
+        assert_eq!(result.pnl_pool_used, 300);
+    }
+
+    #[test]
+    fn test_minimal_settlement_amounts() {
+        // Test with minimal positive amount
+        let ctx = SettlementContext {
+            quote_owed_from_lp: 1,
+            quote_constituent_token_balance: 1,
+            fee_pool_balance: 1,
+            pnl_pool_balance: 1,
+            quote_market: &create_mock_spot_market(),
+        };
+
+        let result = calculate_settlement_amount(&ctx).unwrap();
+        assert_eq!(result.direction, SettlementDirection::FromLpPool);
+        assert_eq!(result.amount_transferred, 1);
+
+        // Test with minimal negative amount
+        let ctx = SettlementContext {
+            quote_owed_from_lp: -1,
+            quote_constituent_token_balance: 1,
+            fee_pool_balance: 1,
+            pnl_pool_balance: 0,
+            quote_market: &create_mock_spot_market(),
+        };
+
+        let result = calculate_settlement_amount(&ctx).unwrap();
+        assert_eq!(result.direction, SettlementDirection::ToLpPool);
+        assert_eq!(result.amount_transferred, 1);
+        assert_eq!(result.fee_pool_used, 1);
+        assert_eq!(result.pnl_pool_used, 0);
+    }
+
+    #[test]
+    fn test_all_zero_balances() {
+        let ctx = SettlementContext {
+            quote_owed_from_lp: -500,
+            quote_constituent_token_balance: 0,
+            fee_pool_balance: 0,
+            pnl_pool_balance: 0,
+            quote_market: &create_mock_spot_market(),
+        };
+
+        let result = calculate_settlement_amount(&ctx).unwrap();
+        assert_eq!(result.direction, SettlementDirection::ToLpPool);
+        assert_eq!(result.amount_transferred, 0);
+        assert_eq!(result.fee_pool_used, 0);
+        assert_eq!(result.pnl_pool_used, 0);
+    }
+
+    #[test]
+    fn test_cache_info_update_none_direction() {
+        let mut cache = CacheInfo {
+            quote_owed_from_lp_pool: 100,
+            last_fee_pool_token_amount: 1000,
+            last_net_pnl_pool_token_amount: 500,
+            last_settle_amount: 50,
+            last_settle_ts: 12345,
+            ..Default::default()
+        };
+
+        let result = SettlementResult {
+            amount_transferred: 0,
+            direction: SettlementDirection::None,
+            fee_pool_used: 0,
+            pnl_pool_used: 0,
+        };
+        let new_quote_owed = 100; // No change
+        let ts = 67890;
+
+        update_cache_info(&mut cache, &result, new_quote_owed, ts).unwrap();
+
+        // quote_owed unchanged
+        assert_eq!(cache.quote_owed_from_lp_pool, 100);
+        // settle fields updated with new timestamp but zero amount
+        assert_eq!(cache.last_settle_amount, 0);
+        assert_eq!(cache.last_settle_ts, ts);
+        // pool amounts unchanged
+        assert_eq!(cache.last_fee_pool_token_amount, 1000);
+        assert_eq!(cache.last_net_pnl_pool_token_amount, 500);
+    }
+
+    #[test]
+    fn test_cache_info_update_maximum_values() {
+        let mut cache = CacheInfo {
+            quote_owed_from_lp_pool: i64::MAX / 2,
+            last_fee_pool_token_amount: u128::MAX / 2,
+            last_net_pnl_pool_token_amount: i128::MAX / 2,
+            last_settle_amount: 0,
+            last_settle_ts: 0,
+            ..Default::default()
+        };
+
+        let result = SettlementResult {
+            amount_transferred: u64::MAX / 4,
+            direction: SettlementDirection::FromLpPool,
+            fee_pool_used: 0,
+            pnl_pool_used: 0,
+        };
+        let new_quote_owed = cache.quote_owed_from_lp_pool - (result.amount_transferred as i64);
+        let ts = i64::MAX / 2;
+
+        let update_result = update_cache_info(&mut cache, &result, new_quote_owed, ts);
+        assert!(update_result.is_ok());
+    }
+
+    #[test]
+    fn test_cache_info_update_minimum_values() {
+        let mut cache = CacheInfo {
+            quote_owed_from_lp_pool: i64::MIN / 2,
+            last_fee_pool_token_amount: 1000,
+            last_net_pnl_pool_token_amount: i128::MIN / 2,
+            last_settle_amount: 0,
+            last_settle_ts: 0,
+            ..Default::default()
+        };
+
+        let result = SettlementResult {
+            amount_transferred: 500,
+            direction: SettlementDirection::ToLpPool,
+            fee_pool_used: 200,
+            pnl_pool_used: 300,
+        };
+        let new_quote_owed = cache.quote_owed_from_lp_pool + (result.amount_transferred as i64);
+        let ts = 42;
+
+        let update_result = update_cache_info(&mut cache, &result, new_quote_owed, ts);
+        assert!(update_result.is_ok());
+    }
+
+    #[test]
+    fn test_sequential_settlement_updates() {
+        let mut cache = CacheInfo {
+            quote_owed_from_lp_pool: 1000,
+            last_fee_pool_token_amount: 5000,
+            last_net_pnl_pool_token_amount: 3000,
+            last_settle_amount: 0,
+            last_settle_ts: 0,
+            ..Default::default()
+        };
+
+        // First settlement: From LP pool
+        let result1 = SettlementResult {
+            amount_transferred: 300,
+            direction: SettlementDirection::FromLpPool,
+            fee_pool_used: 0,
+            pnl_pool_used: 0,
+        };
+        let new_quote_owed1 = cache.quote_owed_from_lp_pool - (result1.amount_transferred as i64);
+        update_cache_info(&mut cache, &result1, new_quote_owed1, 100).unwrap();
+
+        assert_eq!(cache.quote_owed_from_lp_pool, 700);
+        assert_eq!(cache.last_fee_pool_token_amount, 5300);
+        assert_eq!(cache.last_net_pnl_pool_token_amount, 3000);
+
+        // Second settlement: To LP pool
+        let result2 = SettlementResult {
+            amount_transferred: 400,
+            direction: SettlementDirection::ToLpPool,
+            fee_pool_used: 250,
+            pnl_pool_used: 150,
+        };
+        let new_quote_owed2 = cache.quote_owed_from_lp_pool + (result2.amount_transferred as i64);
+        update_cache_info(&mut cache, &result2, new_quote_owed2, 200).unwrap();
+
+        assert_eq!(cache.quote_owed_from_lp_pool, 1100);
+        assert_eq!(cache.last_fee_pool_token_amount, 5050);
+        assert_eq!(cache.last_net_pnl_pool_token_amount, 2850);
+        assert_eq!(cache.last_settle_ts, 200);
+    }
+
+    #[test]
+    fn test_perp_to_lp_with_only_pnl_pool() {
+        let ctx = SettlementContext {
+            quote_owed_from_lp: -1000,
+            quote_constituent_token_balance: 2000,
+            fee_pool_balance: 0, // No fee pool
+            pnl_pool_balance: 1200,
+            quote_market: &create_mock_spot_market(),
+        };
+
+        let result = calculate_settlement_amount(&ctx).unwrap();
+        assert_eq!(result.direction, SettlementDirection::ToLpPool);
+        assert_eq!(result.amount_transferred, 1000);
+        assert_eq!(result.fee_pool_used, 0);
+        assert_eq!(result.pnl_pool_used, 1000);
+    }
+
+    #[test]
+    fn test_perp_to_lp_with_only_fee_pool() {
+        let ctx = SettlementContext {
+            quote_owed_from_lp: -800,
+            quote_constituent_token_balance: 1500,
+            fee_pool_balance: 1000,
+            pnl_pool_balance: 0, // No PnL pool
+            quote_market: &create_mock_spot_market(),
+        };
+
+        let result = calculate_settlement_amount(&ctx).unwrap();
+        assert_eq!(result.direction, SettlementDirection::ToLpPool);
+        assert_eq!(result.amount_transferred, 800);
+        assert_eq!(result.fee_pool_used, 800);
+        assert_eq!(result.pnl_pool_used, 0);
+    }
+
+    #[test]
+    fn test_fractional_settlement_coverage() {
+        // Test when pools can only partially cover the needed amount
+        let ctx = SettlementContext {
+            quote_owed_from_lp: -2000,
+            quote_constituent_token_balance: 5000,
+            fee_pool_balance: 300,
+            pnl_pool_balance: 500,
+            quote_market: &create_mock_spot_market(),
+        };
+
+        let result = calculate_settlement_amount(&ctx).unwrap();
+        assert_eq!(result.direction, SettlementDirection::ToLpPool);
+        assert_eq!(result.amount_transferred, 800); // Only what pools can provide
+        assert_eq!(result.fee_pool_used, 300);
+        assert_eq!(result.pnl_pool_used, 500);
+    }
+
+    #[test]
+    fn test_settlement_direction_consistency() {
+        // Positive quote_owed should always result in FromLpPool or None
+        for quote_owed in [1, 100, 1000, 10000] {
+            let ctx = SettlementContext {
+                quote_owed_from_lp: quote_owed,
+                quote_constituent_token_balance: 500,
+                fee_pool_balance: 300,
+                pnl_pool_balance: 200,
+                quote_market: &create_mock_spot_market(),
+            };
+
+            let result = calculate_settlement_amount(&ctx).unwrap();
+            assert!(
+                result.direction == SettlementDirection::FromLpPool
+                    || result.direction == SettlementDirection::None
+            );
+        }
+
+        // Negative quote_owed should always result in ToLpPool or None
+        for quote_owed in [-1, -100, -1000, -10000] {
+            let ctx = SettlementContext {
+                quote_owed_from_lp: quote_owed,
+                quote_constituent_token_balance: 500,
+                fee_pool_balance: 300,
+                pnl_pool_balance: 200,
+                quote_market: &create_mock_spot_market(),
+            };
+
+            let result = calculate_settlement_amount(&ctx).unwrap();
+            assert!(
+                result.direction == SettlementDirection::ToLpPool
+                    || result.direction == SettlementDirection::None
+            );
+        }
+    }
+
+    #[test]
+    fn test_cache_info_timestamp_progression() {
+        let mut cache = CacheInfo::default();
+
+        let timestamps = [1000, 2000, 3000, 1500, 5000]; // Including out-of-order
+
+        for (_, &ts) in timestamps.iter().enumerate() {
+            let result = SettlementResult {
+                amount_transferred: 100,
+                direction: SettlementDirection::FromLpPool,
+                fee_pool_used: 0,
+                pnl_pool_used: 0,
+            };
+
+            update_cache_info(&mut cache, &result, 0, ts).unwrap();
+            assert_eq!(cache.last_settle_ts, ts);
+            assert_eq!(cache.last_settle_amount, 100);
+        }
+    }
+
+    #[test]
+    fn test_settlement_amount_conservation() {
+        // Test that fee_pool_used + pnl_pool_used = amount_transferred for ToLpPool
+        let test_cases = [
+            (-500, 1000, 300, 400),  // Normal case
+            (-1000, 2000, 600, 500), // Uses both pools
+            (-200, 500, 0, 300),     // Only PnL pool
+            (-150, 400, 200, 0),     // Only fee pool
+        ];
+
+        for (quote_owed, lp_balance, fee_pool, pnl_pool) in test_cases {
+            let ctx = SettlementContext {
+                quote_owed_from_lp: quote_owed,
+                quote_constituent_token_balance: lp_balance,
+                fee_pool_balance: fee_pool,
+                pnl_pool_balance: pnl_pool,
+                quote_market: &create_mock_spot_market(),
+            };
+
+            let result = calculate_settlement_amount(&ctx).unwrap();
+
+            if result.direction == SettlementDirection::ToLpPool {
+                assert_eq!(
+                    result.amount_transferred as u128,
+                    result.fee_pool_used + result.pnl_pool_used,
+                    "Amount transferred should equal sum of pool usage for case: {:?}",
+                    (quote_owed, lp_balance, fee_pool, pnl_pool)
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_cache_pool_balance_tracking() {
+        let mut cache = CacheInfo {
+            last_fee_pool_token_amount: 1000,
+            last_net_pnl_pool_token_amount: 500,
+            ..Default::default()
+        };
+
+        // Multiple settlements that should maintain balance consistency
+        let settlements = [
+            (SettlementDirection::ToLpPool, 200, 120, 80), // Uses both pools
+            (SettlementDirection::FromLpPool, 150, 0, 0),  // Adds to fee pool
+            (SettlementDirection::ToLpPool, 100, 100, 0),  // Uses only fee pool
+            (SettlementDirection::ToLpPool, 50, 30, 20),   // Uses both pools again
+        ];
+
+        let mut expected_fee_pool = cache.last_fee_pool_token_amount;
+        let mut expected_pnl_pool = cache.last_net_pnl_pool_token_amount;
+
+        for (direction, amount, fee_used, pnl_used) in settlements {
+            let result = SettlementResult {
+                amount_transferred: amount,
+                direction,
+                fee_pool_used: fee_used,
+                pnl_pool_used: pnl_used,
+            };
+
+            match direction {
+                SettlementDirection::FromLpPool => {
+                    expected_fee_pool += amount as u128;
+                }
+                SettlementDirection::ToLpPool => {
+                    expected_fee_pool -= fee_used;
+                    expected_pnl_pool -= pnl_used as i128;
+                }
+                SettlementDirection::None => {}
+            }
+
+            update_cache_info(&mut cache, &result, 0, 1000).unwrap();
+
+            assert_eq!(cache.last_fee_pool_token_amount, expected_fee_pool);
+            assert_eq!(cache.last_net_pnl_pool_token_amount, expected_pnl_pool);
+        }
+    }
+}

@@ -13079,7 +13079,7 @@
             "type": "i64"
           },
           {
-            "name": "quoteOwedFromLp",
+            "name": "quoteOwedFromLpPool",
             "type": "i64"
           },
           {
@@ -13969,6 +13969,23 @@
           },
           {
             "name": "Premium"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SettlementDirection",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "ToLpPool"
+          },
+          {
+            "name": "FromLpPool"
+          },
+          {
+            "name": "None"
           }
         ]
       }

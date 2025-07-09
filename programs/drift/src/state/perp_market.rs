@@ -1736,13 +1736,13 @@ pub struct CacheInfo {
     pub last_oracle_price_twap: i64,
     pub last_settle_amount: u64,
     pub last_settle_ts: i64,
-    pub quote_owed_from_lp: i64,
+    pub quote_owed_from_lp_pool: i64,
     pub oracle_price: i64,
     pub oracle_confidence: u64,
     pub oracle_delay: i64,
     pub oracle_slot: u64,
     pub oracle_source: u8,
-    _padding: [u8; 7],
+    pub _padding: [u8; 7],
     pub oracle: Pubkey,
 }
 
@@ -1768,7 +1768,7 @@ impl Default for CacheInfo {
             last_settle_amount: 0u64,
             last_settle_ts: 0i64,
             oracle_source: 0u8,
-            quote_owed_from_lp: 0i64,
+            quote_owed_from_lp_pool: 0i64,
         }
     }
 }
@@ -1911,12 +1911,12 @@ impl<'a> AccountZeroCopyMut<'a, CacheInfo, AmmCacheFixed> {
             .cast::<u64>()?;
 
         if amm_amount_available < cached_info.get_last_available_amm_balance()? {
-            cached_info.quote_owed_from_lp = cached_info
-                .quote_owed_from_lp
+            cached_info.quote_owed_from_lp_pool = cached_info
+                .quote_owed_from_lp_pool
                 .safe_add(amount_to_send.cast::<i64>()?)?;
         } else {
-            cached_info.quote_owed_from_lp = cached_info
-                .quote_owed_from_lp
+            cached_info.quote_owed_from_lp_pool = cached_info
+                .quote_owed_from_lp_pool
                 .safe_sub(amount_to_send.cast::<i64>()?)?;
         }
 
