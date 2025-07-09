@@ -13974,6 +13974,23 @@
       }
     },
     {
+      "name": "SettlementDirection",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "ToLpPool"
+          },
+          {
+            "name": "FromLpPool"
+          },
+          {
+            "name": "None"
+          }
+        ]
+      }
+    },
+    {
       "name": "MarginRequirementType",
       "type": {
         "kind": "enum",

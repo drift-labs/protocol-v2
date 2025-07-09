@@ -17,6 +17,7 @@ pub mod helpers;
 pub mod insurance;
 pub mod liquidation;
 pub mod lp;
+pub mod lp_pool;
 pub mod margin;
 pub mod matching;
 pub mod oracle;

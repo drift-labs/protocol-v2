@@ -30,6 +30,7 @@ use crate::math::casting::Cast;
 use crate::math::constants::QUOTE_PRECISION;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::constants::SPOT_BALANCE_PRECISION;
+use crate::math::lp_pool::perp_lp_pool_settlement;
 use crate::math::margin::{calculate_user_equity, meets_settle_pnl_maintenance_margin_requirement};
 use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
@@ -2944,12 +2945,17 @@ pub fn handle_pause_spot_market_deposit_withdraw(
     Ok(())
 }
 
+// Refactored main function
 pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, SettleAmmPnlToLp<'info>>,
 ) -> Result<()> {
-    let slot = Clock::get()?.slot;
+    use perp_lp_pool_settlement::*;
 
+    let slot = Clock::get()?.slot;
+    let timestamp = Clock::get()?.unix_timestamp;
     let state = &ctx.accounts.state;
+
+    // Validation and setup code (unchanged)
     let amm_cache_key = &ctx.accounts.amm_cache.key();
     let mut amm_cache: AccountZeroCopyMut<'_, CacheInfo, _> =
         ctx.accounts.amm_cache.load_zc_mut()?;
@@ -2958,8 +2964,7 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
     let constituent_token_account = &mut ctx.accounts.constituent_quote_token_account;
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
 
-    let clock = Clock::get()?;
-
+    // PDA validation (unchanged)
     let expected_pda = &Pubkey::create_program_address(
         &[
             AMM_POSITIONS_CACHE.as_ref(),
@@ -2987,12 +2992,19 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
         None,
     )?;
 
+    let precision_increase = SPOT_BALANCE_PRECISION.safe_div(QUOTE_PRECISION)?;
+    let mint = Some(*ctx.accounts.mint.clone());
+
     for (_, perp_market_loader) in perp_market_map.0.iter() {
         let mut perp_market = perp_market_loader.load_mut()?;
+        if perp_market.lp_status == 0 {
+            continue;
+        }
+
         let cached_info = amm_cache.get_mut(perp_market.market_index as u32);
 
+        // Early validation checks (unchanged)
         if slot.saturating_sub(cached_info.oracle_slot) > SETTLE_AMM_ORACLE_MAX_DELAY {
-            // If the oracle slot is not up to date, skip this market
             msg!(
                 "Skipping settling perp market {} to dlp because oracle slot is not up to date",
                 perp_market.market_index
@@ -3001,6 +3013,7 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
         }
 
         validate_market_within_price_band(&perp_market, state, cached_info.oracle_price)?;
+
         if perp_market.is_operation_paused(PerpOperation::SettlePnl) {
             msg!(
                 "Cannot settle pnl under current market = {} status",
@@ -3011,207 +3024,99 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
 
         if cached_info.slot != slot {
             msg!("Skipping settling perp market {} to lp pool because amm cache was not updated in the same slot",
-                perp_market.market_index
-            );
+                perp_market.market_index);
             return Err(ErrorCode::AMMCacheStale.into());
         }
 
-        let mint = *ctx.accounts.mint.clone();
-        // Transfer balance if it's available
-        if cached_info.quote_owed_from_lp > 0 {
-            if quote_constituent.token_balance == 0 {
-                msg!("LP Pool has no usdc to settle",);
-                continue;
-            }
-            let amount_to_send =
-                if cached_info.quote_owed_from_lp > quote_constituent.token_balance as i64 {
-                    quote_constituent.token_balance
-                } else {
-                    cached_info.quote_owed_from_lp as u64
-                };
-
-            cached_info.quote_owed_from_lp = cached_info
-                .quote_owed_from_lp
-                .safe_sub(amount_to_send as i64)?;
-
-            controller::token::send_from_program_vault(
-                &ctx.accounts.token_program,
-                constituent_token_account,
-                &ctx.accounts.quote_token_vault,
-                &ctx.accounts.drift_signer,
-                state.signer_nonce,
-                amount_to_send,
-                &Some(mint),
-            )?;
-
-            // Send all revenues to the perp market fee pool
-            let precision_increase = SPOT_BALANCE_PRECISION.safe_div(QUOTE_PRECISION)?;
-            perp_market
-                .amm
-                .fee_pool
-                .increase_balance((amount_to_send as u128).safe_mul(precision_increase)?)?;
-
-            // Update LP Pool Stats
-            lp_pool.cumulative_usdc_sent_to_perp_markets = lp_pool
-                .cumulative_usdc_sent_to_perp_markets
-                .saturating_add(amount_to_send.cast::<u128>()?);
-
-            // Decrement cached fee pool token amount
-            cached_info.last_fee_pool_token_amount = cached_info
-                .last_fee_pool_token_amount
-                .safe_add(amount_to_send as u128)?;
-
-            // Sync the constituent token account balance
-            constituent_token_account.reload()?;
-            quote_constituent.sync_token_balance(constituent_token_account.amount);
-
-            // Update the last settle info
-            cached_info.last_settle_amount = amount_to_send.cast::<u64>()?;
-            cached_info.last_settle_ts = Clock::get()?.unix_timestamp;
-
-            // Update LP Pool Stats
-            lp_pool.cumulative_usdc_sent_to_perp_markets = lp_pool
-                .cumulative_usdc_sent_to_perp_markets
-                .saturating_add(amount_to_send.cast::<u128>()?);
-        } else if cached_info.quote_owed_from_lp < 0 {
-            // We now send from the perp market to dlp and wipe out the amount owed from the perp market
-            let amount_to_send = cached_info.quote_owed_from_lp.abs() as u64;
-
-            // Take from the fee pool if it can cover the whole balance, otherwise also take from pnl pool
-            let precision_increase = SPOT_BALANCE_PRECISION.safe_div(QUOTE_PRECISION)?;
-            let fee_pool_token_amount = get_token_amount(
+        // Create settlement context
+        let settlement_ctx = SettlementContext {
+            quote_owed_from_lp: cached_info.quote_owed_from_lp,
+            quote_constituent_token_balance: quote_constituent.token_balance,
+            fee_pool_balance: get_token_amount(
                 perp_market.amm.fee_pool.scaled_balance,
-                &quote_market,
+                quote_market,
                 &SpotBalanceType::Deposit,
-            )?;
-            if fee_pool_token_amount > amount_to_send as u128 {
-                perp_market
-                    .amm
-                    .fee_pool
-                    .decrease_balance((amount_to_send as u128).safe_mul(precision_increase)?)?;
-                cached_info.last_fee_pool_token_amount = cached_info
-                    .last_fee_pool_token_amount
-                    .safe_sub(amount_to_send as u128)?;
-                cached_info.quote_owed_from_lp = 0;
+            )?,
+            pnl_pool_balance: get_token_amount(
+                perp_market.pnl_pool.scaled_balance,
+                quote_market,
+                &SpotBalanceType::Deposit,
+            )?,
+            quote_market,
+        };
 
-                controller::token::send_from_program_vault(
+        // Calculate settlement
+        let settlement_result = calculate_settlement_amount(&settlement_ctx)?;
+
+        if settlement_result.direction == SettlementDirection::None {
+            continue;
+        }
+
+        // Execute token transfer
+        match settlement_result.direction {
+            SettlementDirection::FromLpPool => {
+                execute_token_transfer(
+                    &ctx.accounts.token_program,
+                    constituent_token_account,
+                    &ctx.accounts.quote_token_vault,
+                    &ctx.accounts.drift_signer,
+                    state.signer_nonce,
+                    settlement_result.amount_transferred,
+                    &mint,
+                )?;
+            }
+            SettlementDirection::ToLpPool => {
+                execute_token_transfer(
                     &ctx.accounts.token_program,
                     &ctx.accounts.quote_token_vault,
                     constituent_token_account,
                     &ctx.accounts.drift_signer,
                     state.signer_nonce,
-                    amount_to_send.cast::<u64>()?,
-                    &Some(mint),
+                    settlement_result.amount_transferred,
+                    &mint,
                 )?;
+            }
+            SettlementDirection::None => unreachable!(),
+        }
 
-                // Sync the constituent token account balance
-                constituent_token_account.reload()?;
-                quote_constituent.sync_token_balance(constituent_token_account.amount);
+        // Update market pools
+        update_perp_market_pools(&mut perp_market, &settlement_result, precision_increase)?;
 
-                // Update the last settle info
-                cached_info.last_settle_amount = amount_to_send.cast::<u64>()?;
-                cached_info.last_settle_ts = Clock::get()?.unix_timestamp;
+        // Calculate new quote owed amount
+        let new_quote_owed = match settlement_result.direction {
+            SettlementDirection::FromLpPool => cached_info
+                .quote_owed_from_lp
+                .safe_sub(settlement_result.amount_transferred as i64)?,
+            SettlementDirection::ToLpPool => cached_info
+                .quote_owed_from_lp
+                .safe_add(settlement_result.amount_transferred as i64)?,
+            SettlementDirection::None => cached_info.quote_owed_from_lp,
+        };
 
-                // Update LP Pool Stats
+        // Update cache info
+        update_cache_info(cached_info, &settlement_result, new_quote_owed, timestamp)?;
+
+        // Update LP pool stats
+        match settlement_result.direction {
+            SettlementDirection::FromLpPool => {
+                lp_pool.cumulative_usdc_sent_to_perp_markets = lp_pool
+                    .cumulative_usdc_sent_to_perp_markets
+                    .saturating_add(settlement_result.amount_transferred as u128);
+            }
+            SettlementDirection::ToLpPool => {
                 lp_pool.cumulative_usdc_received_from_perp_markets = lp_pool
                     .cumulative_usdc_received_from_perp_markets
-                    .saturating_add(amount_to_send.cast::<u128>()?);
-            } else {
-                // If the fee pool cannot cover the whole amount, we take the rest from the pnl pool and set the
-                // fee pool balances to 0
-
-                let remaining_amount_to_send =
-                    (amount_to_send as u128).safe_sub(fee_pool_token_amount)?;
-
-                perp_market
-                    .amm
-                    .fee_pool
-                    .decrease_balance(fee_pool_token_amount.safe_mul(precision_increase)?)?;
-                cached_info.last_fee_pool_token_amount = 0;
-                cached_info.quote_owed_from_lp += fee_pool_token_amount.cast::<i64>()?;
-
-                // Similarly, can the pnl pool cover the rest?
-                let pnl_pool_token_amount = get_token_amount(
-                    perp_market.pnl_pool.scaled_balance,
-                    &quote_market,
-                    &SpotBalanceType::Deposit,
-                )?;
-                if remaining_amount_to_send > pnl_pool_token_amount {
-                    let transfer_amount = if pnl_pool_token_amount == 0 {
-                        fee_pool_token_amount
-                    } else {
-                        perp_market.pnl_pool.decrease_balance(
-                            pnl_pool_token_amount.safe_mul(precision_increase)?,
-                        )?;
-                        cached_info.last_net_pnl_pool_token_amount = cached_info
-                            .last_net_pnl_pool_token_amount
-                            .safe_sub(pnl_pool_token_amount.cast::<i128>()?)?;
-                        cached_info.quote_owed_from_lp += pnl_pool_token_amount.cast::<i64>()?;
-
-                        fee_pool_token_amount.safe_add(pnl_pool_token_amount)?
-                    };
-
-                    controller::token::send_from_program_vault(
-                        &ctx.accounts.token_program,
-                        &ctx.accounts.quote_token_vault,
-                        constituent_token_account,
-                        &ctx.accounts.drift_signer,
-                        state.signer_nonce,
-                        transfer_amount.cast::<u64>()?,
-                        &Some(mint),
-                    )?;
-
-                    // Sync the constituent token account balance
-                    constituent_token_account.reload()?;
-                    quote_constituent.sync_token_balance(constituent_token_account.amount);
-
-                    // Update the last settle info
-                    cached_info.last_settle_amount = transfer_amount.cast::<u64>()?;
-                    cached_info.last_settle_ts = Clock::get()?.unix_timestamp;
-
-                    // Update LP Pool Stats
-                    lp_pool.cumulative_usdc_received_from_perp_markets = lp_pool
-                        .cumulative_usdc_received_from_perp_markets
-                        .saturating_add(transfer_amount.cast::<u128>()?);
-                } else {
-                    perp_market
-                        .pnl_pool
-                        .decrease_balance(remaining_amount_to_send.safe_mul(precision_increase)?)?;
-                    cached_info
-                        .last_net_pnl_pool_token_amount
-                        .safe_sub(remaining_amount_to_send.cast::<i128>()?)?;
-                    cached_info.quote_owed_from_lp += remaining_amount_to_send.cast::<i64>()?;
-
-                    controller::token::send_from_program_vault(
-                        &ctx.accounts.token_program,
-                        &ctx.accounts.quote_token_vault,
-                        constituent_token_account,
-                        &ctx.accounts.drift_signer,
-                        state.signer_nonce,
-                        amount_to_send.cast::<u64>()?,
-                        &Some(mint),
-                    )?;
-
-                    // Sync the constituent token account balance
-                    constituent_token_account.reload()?;
-                    quote_constituent.sync_token_balance(constituent_token_account.amount);
-
-                    // Update the last settle info
-                    cached_info.last_settle_amount = amount_to_send.cast::<u64>()?;
-                    cached_info.last_settle_ts = Clock::get()?.unix_timestamp;
-
-                    // Update LP Pool Stats
-                    lp_pool.cumulative_usdc_received_from_perp_markets = lp_pool
-                        .cumulative_usdc_received_from_perp_markets
-                        .saturating_add(amount_to_send.cast::<u128>()?);
-                }
+                    .saturating_add(settlement_result.amount_transferred as u128);
             }
-        } else {
-            // nothing owed to settle
-            continue;
+            SettlementDirection::None => {}
         }
+
+        // Sync constituent token balance
+        constituent_token_account.reload()?;
+        quote_constituent.sync_token_balance(constituent_token_account.amount);
     }
 
+    // Final validation
     math::spot_withdraw::validate_spot_market_vault_amount(
         quote_market,
         ctx.accounts.quote_token_vault.amount,
