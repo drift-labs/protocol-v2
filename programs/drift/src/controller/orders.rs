@@ -428,6 +428,7 @@ pub fn place_perp_order(
         None,
         None,
         None,
+        None,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -703,6 +704,7 @@ pub fn cancel_order(
             maker_order,
             oracle_map.get_price_data(&oracle_id)?.price,
             0,
+            None,
             None,
             None,
             None,
@@ -2421,6 +2423,7 @@ pub fn fulfill_perp_order_with_amm(
         taker_existing_base_asset_amount,
         maker_existing_quote_entry_amount,
         maker_existing_base_asset_amount,
+        None,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -2866,6 +2869,7 @@ pub fn fulfill_perp_order_with_match(
         taker_existing_base_asset_amount,
         maker_existing_quote_entry_amount,
         maker_existing_base_asset_amount,
+        None,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -3089,6 +3093,7 @@ pub fn trigger_order(
         None,
         None,
         None,
+        Some(trigger_price),
     )?;
     emit!(order_action_record);
 
@@ -3760,6 +3765,7 @@ pub fn place_spot_order(
         maker_order,
         oracle_price_data.price,
         0,
+        None,
         None,
         None,
         None,
@@ -4995,6 +5001,7 @@ pub fn fulfill_spot_order_with_match(
         None,
         None,
         None,
+        None,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -5265,6 +5272,7 @@ pub fn fulfill_spot_order_with_external_market(
         None,
         None,
         None,
+        None,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -5462,6 +5470,7 @@ pub fn trigger_spot_order(
         None,
         None,
         None,
+        Some(oracle_price.unsigned_abs()),
     )?;
 
     emit!(order_action_record);
