@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.126.0] - 2025-07-09
+
+### Features
+
 - program: allow subset of transfer to revenue pool for protocol if ([#1721](https://github.com/drift-labs/protocol-v2/pull/1721))
 
 ### Fixes
