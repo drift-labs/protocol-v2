@@ -235,8 +235,8 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
     )?;
 
     let amm_cache_key: &Pubkey = &ctx.accounts.amm_cache.key();
-    let amm_cache: AccountZeroCopy<'_, CacheInfo, AmmCacheFixed> =
-        ctx.accounts.amm_cache.load_zc()?;
+    let amm_cache: AccountZeroCopyMut<'_, CacheInfo, AmmCacheFixed> =
+        ctx.accounts.amm_cache.load_zc_mut()?;
     let expected_amm_pda = &Pubkey::create_program_address(
         &[
             AMM_POSITIONS_CACHE.as_ref(),
@@ -323,13 +323,11 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
         aum = aum.safe_add(constituent_aum.cast()?)?;
     }
 
+    let mut aum_i128 = aum.cast::<i128>()?;
     for cache_datum in amm_cache.iter() {
-        if cache_datum.quote_owed_from_lp > 0 {
-            aum = aum.saturating_sub(cache_datum.quote_owed_from_lp.abs().cast::<u128>()?);
-        } else {
-            aum = aum.safe_add(cache_datum.quote_owed_from_lp.abs().cast::<u128>()?)?;
-        }
+        aum_i128 -= cache_datum.quote_owed_from_lp as i128;
     }
+    aum = aum_i128.max(0i128).cast::<u128>()?;
 
     lp_pool.oldest_oracle_slot = oldest_slot;
     lp_pool.last_aum = aum;
@@ -976,6 +974,8 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
     } else {
         out_amount.safe_add(out_fee_amount.unsigned_abs())?
     };
+    let out_amount_net_fees =
+        out_amount_net_fees.min(ctx.accounts.constituent_out_token_account.amount as u128);
 
     validate!(
         out_amount_net_fees >= min_amount_out,
@@ -1302,6 +1302,7 @@ pub struct UpdateLPPoolAum<'info> {
     #[account(mut)]
     pub constituent_target_base: AccountInfo<'info>,
     /// CHECK: checked in AmmCacheZeroCopy checks
+    #[account(mut)]
     pub amm_cache: AccountInfo<'info>,
 }
 

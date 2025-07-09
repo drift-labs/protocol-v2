@@ -8077,7 +8077,7 @@
         },
         {
           "name": "ammCache",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         }
       ],
@@ -13073,11 +13073,15 @@
             "type": "u8"
           },
           {
+            "name": "lpStatus",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                7
+                6
               ]
             }
           },

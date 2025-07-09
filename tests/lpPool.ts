@@ -839,7 +839,13 @@ describe('LP Pool', () => {
 	});
 
 	it('can settle pnl from perp markets into the usdc account', async () => {
-		// First run should just load the values into the cache
+		let ammCache = (await adminClient.program.account.ammCache.fetch(
+			getAmmCachePublicKey(program.programId)
+		)) as AmmCache;
+		let lpPool = (await adminClient.program.account.lpPool.fetch(
+			lpPoolKey
+		)) as LPPoolAccount;
+
 		await adminClient.depositIntoPerpMarketFeePool(
 			0,
 			new BN(100).mul(QUOTE_PRECISION),
@@ -855,67 +861,123 @@ describe('LP Pool', () => {
 		let constituent = (await adminClient.program.account.constituent.fetch(
 			getConstituentPublicKey(program.programId, lpPoolKey, 0)
 		)) as ConstituentAccount;
-		let lpPool = (await adminClient.program.account.lpPool.fetch(
+
+		lpPool = (await adminClient.program.account.lpPool.fetch(
 			lpPoolKey
 		)) as LPPoolAccount;
+		const lpAumAfterDeposit = lpPool.lastAum;
 
-		let ammCache = (await adminClient.program.account.ammCache.fetch(
-			getAmmCachePublicKey(program.programId)
-		)) as AmmCache;
-		assert(ammCache.cache[0].lastFeePoolTokenAmount.eq(ZERO));
-		assert(ammCache.cache[1].lastFeePoolTokenAmount.eq(ZERO));
-		assert(ammCache.cache[2].lastFeePoolTokenAmount.eq(ZERO));
-		assert(ammCache.cache[0].lastNetPnlPoolTokenAmount.eq(ZERO));
-		assert(ammCache.cache[1].lastNetPnlPoolTokenAmount.eq(ZERO));
-		assert(ammCache.cache[2].lastNetPnlPoolTokenAmount.eq(ZERO));
-		await adminClient.settlePerpToLpPool(encodeName(lpPoolName), [0, 1, 2]);
+		// Make sure the amount recorded goes into the cache and that the quote amount owed is adjusted
+		// for new influx in fees
+		const ammCacheBeforeAdjust = ammCache;
+		await adminClient.updateAmmCache([0, 1, 2]);
 		ammCache = (await adminClient.program.account.ammCache.fetch(
 			getAmmCachePublicKey(program.programId)
 		)) as AmmCache;
+
 		assert(ammCache.cache[0].lastFeePoolTokenAmount.eq(new BN(100000000)));
 		assert(ammCache.cache[1].lastFeePoolTokenAmount.eq(new BN(100000000)));
-
-		await adminClient.depositIntoPerpMarketFeePool(
-			0,
-			new BN(100).mul(QUOTE_PRECISION),
-			await adminClient.getAssociatedTokenAccount(0)
+		assert(
+			ammCache.cache[0].quoteOwedFromLp.eq(
+				ammCacheBeforeAdjust.cache[0].quoteOwedFromLp.sub(
+					new BN(100).mul(QUOTE_PRECISION)
+				)
+			)
 		);
-
-		await adminClient.depositIntoPerpMarketFeePool(
-			1,
-			new BN(100).mul(QUOTE_PRECISION),
-			await adminClient.getAssociatedTokenAccount(0)
+		assert(
+			ammCache.cache[1].quoteOwedFromLp.eq(
+				ammCacheBeforeAdjust.cache[1].quoteOwedFromLp.sub(
+					new BN(100).mul(QUOTE_PRECISION)
+				)
+			)
 		);
 
 		const usdcBefore = constituent.tokenBalance;
-		const lpAumBefore = lpPool.lastAum;
-		const feePoolBalanceBefore =
-			adminClient.getPerpMarketAccount(0).amm.feePool.scaledBalance;
+		// Update Amm Cache to update the aum
+		await adminClient.updateLpPoolAum(lpPool, [0, 1, 2]);
+		lpPool = (await adminClient.program.account.lpPool.fetch(
+			lpPoolKey
+		)) as LPPoolAccount;
+		const lpAumAfterUpdateCacheBeforeSettle = lpPool.lastAum;
+		assert(
+			lpAumAfterUpdateCacheBeforeSettle.eq(
+				lpAumAfterDeposit.add(new BN(200).mul(QUOTE_PRECISION))
+			)
+		);
 
-		await adminClient.settlePerpToLpPool(encodeName(lpPoolName), [0, 1, 2]);
+		// Calculate the expected transfer amount which is the increase in fee pool - amount owed,
+		// but we have to consider the fee pool limitations
+		const pnlPoolBalance0 = getTokenAmount(
+			adminClient.getPerpMarketAccount(0).pnlPool.scaledBalance,
+			adminClient.getQuoteSpotMarketAccount(),
+			SpotBalanceType.DEPOSIT
+		);
+		const feePoolBalance0 = getTokenAmount(
+			adminClient.getPerpMarketAccount(0).amm.feePool.scaledBalance,
+			adminClient.getQuoteSpotMarketAccount(),
+			SpotBalanceType.DEPOSIT
+		);
+
+		const pnlPoolBalance1 = getTokenAmount(
+			adminClient.getPerpMarketAccount(1).pnlPool.scaledBalance,
+			adminClient.getQuoteSpotMarketAccount(),
+			SpotBalanceType.DEPOSIT
+		);
+		const feePoolBalance1 = getTokenAmount(
+			adminClient.getPerpMarketAccount(1).amm.feePool.scaledBalance,
+			adminClient.getQuoteSpotMarketAccount(),
+			SpotBalanceType.DEPOSIT
+		);
+
+		// Expected transfers per pool are capital constrained by the actual balances
+		const expectedTransfer0 = BN.min(
+			ammCache.cache[0].quoteOwedFromLp.muln(-1),
+			pnlPoolBalance0.add(feePoolBalance0)
+		);
+		const expectedTransfer1 = BN.min(
+			ammCache.cache[1].quoteOwedFromLp.muln(-1),
+			pnlPoolBalance1.add(feePoolBalance1)
+		);
+		const expectedTransferAmount = expectedTransfer0.add(expectedTransfer1);
+
+		const settleTx = new Transaction();
+		settleTx.add(await adminClient.getUpdateAmmCacheIx([0, 1, 2]));
+		settleTx.add(
+			await adminClient.getSettlePerpToLpPoolIx(
+				encodeName(lpPoolName),
+				[0, 1, 2]
+			)
+		);
+		settleTx.add(
+			await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1, 2])
+		);
+		await adminClient.sendTransaction(settleTx);
+
+		lpPool = (await adminClient.program.account.lpPool.fetch(
+			lpPoolKey
+		)) as LPPoolAccount;
+		const lpAumAfterSettle = lpPool.lastAum;
+		assert(lpAumAfterSettle.eq(lpAumAfterUpdateCacheBeforeSettle));
 
 		constituent = (await adminClient.program.account.constituent.fetch(
 			getConstituentPublicKey(program.programId, lpPoolKey, 0)
 		)) as ConstituentAccount;
-		lpPool = (await adminClient.program.account.lpPool.fetch(
-			lpPoolKey
-		)) as LPPoolAccount;
 
 		const usdcAfter = constituent.tokenBalance;
-		const lpAumAfter = lpPool.lastAum;
-		const feePoolBalanceAfter =
-			adminClient.getPerpMarketAccount(0).amm.feePool.scaledBalance;
+		const feePoolBalanceAfter = getTokenAmount(
+			adminClient.getPerpMarketAccount(0).amm.feePool.scaledBalance,
+			adminClient.getQuoteSpotMarketAccount(),
+			SpotBalanceType.DEPOSIT
+		);
 		console.log('usdcBefore', usdcBefore.toString());
 		console.log('usdcAfter', usdcAfter.toString());
-		assert(usdcAfter.sub(usdcBefore).eq(QUOTE_PRECISION.muln(200)));
-		assert(lpAumAfter.sub(lpAumBefore).eq(QUOTE_PRECISION.muln(200)));
-		console.log('feePoolBalanceBefore', feePoolBalanceBefore.toString());
+
+		// Verify the expected usdc transfer amount
+		assert(usdcAfter.sub(usdcBefore).eq(expectedTransferAmount));
+		console.log('feePoolBalanceBefore', feePoolBalance0.toString());
 		console.log('feePoolBalanceAfter', feePoolBalanceAfter.toString());
-		assert(
-			feePoolBalanceAfter
-				.sub(feePoolBalanceBefore)
-				.eq(SPOT_MARKET_BALANCE_PRECISION.muln(-100))
-		);
+		// Fee pool can cover it all in first perp market
+		assert(feePoolBalance0.sub(feePoolBalanceAfter).eq(expectedTransfer0));
 
 		// Constituent sync worked successfully
 		constituent = (await adminClient.program.account.constituent.fetch(
@@ -983,6 +1045,10 @@ describe('LP Pool', () => {
 		const constituentUSDCBalanceBefore = constituentVault.amount;
 
 		// Temporarily overwrite perp market to have taken a loss on the fee pool
+		await adminClient.updateLpPoolAum(lpPool, [0, 1, 2]);
+		lpPool = (await adminClient.program.account.lpPool.fetch(
+			lpPoolKey
+		)) as LPPoolAccount;
 		const spotMarket = adminClient.getSpotMarketAccount(0);
 		const perpMarket = adminClient.getPerpMarketAccount(0);
 		spotMarket.depositBalance = spotMarket.depositBalance.sub(
@@ -1006,7 +1072,8 @@ describe('LP Pool', () => {
 
 		/// Now finally try and settle Perp to LP Pool
 		const settleTx = new Transaction();
-		settleTx.add(await adminClient.getUpdateAMMsIx([0, 1, 2]));
+		settleTx.add(await adminClient.getUpdateAmmCacheIx([0, 1, 2]));
+		settleTx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1, 2]));
 		settleTx.add(
 			await adminClient.getSettlePerpToLpPoolIx(
 				encodeName(lpPoolName),
@@ -1021,9 +1088,6 @@ describe('LP Pool', () => {
 		constituentVault = await bankrunContextWrapper.connection.getTokenAccount(
 			constituentVaultPublicKey
 		);
-		lpPool = (await adminClient.program.account.lpPool.fetch(
-			lpPoolKey
-		)) as LPPoolAccount;
 
 		// Should have written fee pool amount owed to the amm cache and new constituent usdc balane should be 0
 		ammCache = (await adminClient.program.account.ammCache.fetch(
@@ -1056,7 +1120,11 @@ describe('LP Pool', () => {
 				)
 		);
 
-		// NAV should have gone down the max that is has
+		// Update the LP pool AUM
+		await adminClient.updateLpPoolAum(lpPool, [0, 1, 2]);
+		lpPool = (await adminClient.program.account.lpPool.fetch(
+			lpPoolKey
+		)) as LPPoolAccount;
 		assert(lpPool.lastAum.eq(ZERO));
 	});
 
@@ -1082,7 +1150,7 @@ describe('LP Pool', () => {
 		);
 
 		const settleTx = new Transaction();
-		settleTx.add(await adminClient.getUpdateAMMsIx([0, 1, 2]));
+		settleTx.add(await adminClient.getUpdateAmmCacheIx([0, 1, 2]));
 		settleTx.add(
 			await adminClient.getSettlePerpToLpPoolIx(
 				encodeName(lpPoolName),
@@ -1183,7 +1251,16 @@ describe('LP Pool', () => {
 			perpMarket
 		);
 
-		await adminClient.settlePerpToLpPool(encodeName(lpPoolName), [0, 1, 2]);
+		const settleTx = new Transaction();
+		settleTx.add(await adminClient.getUpdateAmmCacheIx([0, 1, 2]));
+		settleTx.add(
+			await adminClient.getSettlePerpToLpPoolIx(
+				encodeName(lpPoolName),
+				[0, 1, 2]
+			)
+		);
+		settleTx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1, 2]));
+		await adminClient.sendTransaction(settleTx);
 
 		ammCache = (await adminClient.program.account.ammCache.fetch(
 			getAmmCachePublicKey(program.programId)
@@ -1198,7 +1275,7 @@ describe('LP Pool', () => {
 
 		assert(ammCache.cache[0].quoteOwedFromLp.eq(ZERO));
 		assert(constituent.tokenBalance.eq(balanceBefore.add(owedAmount)));
-		assert(lpPool.lastAum.eq(aumBefore.add(owedAmount)));
+		assert(lpPool.lastAum.eq(aumBefore.add(owedAmount.muln(2))));
 	});
 
 	it('can work with multiple derivatives on the same parent', async () => {
