@@ -971,7 +971,8 @@ pub fn handle_initialize_perp_market(
         protected_maker_limit_price_divisor: 0,
         protected_maker_dynamic_divisor: 0,
         lp_fee_transfer_scalar: 1,
-        padding: [0; 35],
+        lp_status: 0,
+        padding: [0; 34],
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
             oracle_source,
@@ -4214,6 +4215,16 @@ pub fn handle_update_perp_market_protected_maker_params(
         msg!("perp_market.protected_maker_dynamic_divisor: unchanged");
     }
 
+    Ok(())
+}
+
+pub fn handle_update_perp_market_lp_pool_status(
+    ctx: Context<AdminUpdatePerpMarket>,
+    lp_status: u8,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
+    perp_market.lp_status = lp_status;
     Ok(())
 }
 

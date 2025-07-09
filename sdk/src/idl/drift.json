@@ -4806,6 +4806,32 @@
       ]
     },
     {
+      "name": "updatePerpMarketLpPoolStatus",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "lpStatus",
+          "type": "u8"
+        }
+      ]
+    },
+    {
       "name": "settleExpiredMarketPoolsToRevenuePool",
       "accounts": [
         {
@@ -9914,11 +9940,15 @@
             "type": "u8"
           },
           {
+            "name": "lpStatus",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                35
+                34
               ]
             }
           }
@@ -13073,15 +13103,11 @@
             "type": "u8"
           },
           {
-            "name": "lpStatus",
-            "type": "u8"
-          },
-          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                6
+                7
               ]
             }
           },

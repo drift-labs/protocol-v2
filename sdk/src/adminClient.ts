@@ -968,6 +968,40 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async updatePerpMarketLpPoolStatus(
+		perpMarketIndex: number,
+		lpStatus: number,
+	) {
+		const updatePerpMarketLpPoolStatusIx = await this.getUpdatePerpMarketLpPoolStatusIx(
+			perpMarketIndex,
+			lpStatus
+		);
+
+		const tx = await this.buildTransaction(updatePerpMarketLpPoolStatusIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdatePerpMarketLpPoolStatusIx(
+		perpMarketIndex: number,
+		lpStatus: number
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updatePerpMarketLpPoolStatus(lpStatus, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				admin: this.isSubscribed
+					? this.getStateAccount().admin
+					: this.wallet.publicKey,
+				perpMarket: await getPerpMarketPublicKey(
+					this.program.programId,
+					perpMarketIndex
+				),
+			},
+		});
+	}
+
 	public async moveAmmToPrice(
 		perpMarketIndex: number,
 		targetPrice: BN

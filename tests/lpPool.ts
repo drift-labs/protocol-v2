@@ -195,6 +195,7 @@ describe('LP Pool', () => {
 			periodicity,
 			new BN(200 * PEG_PRECISION.toNumber())
 		);
+		await adminClient.updatePerpMarketLpPoolStatus(0, 1);	
 
 		await adminClient.initializePerpMarket(
 			1,
@@ -204,6 +205,7 @@ describe('LP Pool', () => {
 			periodicity,
 			new BN(200 * PEG_PRECISION.toNumber())
 		);
+		await adminClient.updatePerpMarketLpPoolStatus(1, 1);
 
 		await adminClient.initializePerpMarket(
 			2,
@@ -213,6 +215,7 @@ describe('LP Pool', () => {
 			periodicity,
 			new BN(200 * PEG_PRECISION.toNumber())
 		);
+		await adminClient.updatePerpMarketLpPoolStatus(2, 1);	
 
 		await adminClient.updatePerpAuctionDuration(new BN(0));
 

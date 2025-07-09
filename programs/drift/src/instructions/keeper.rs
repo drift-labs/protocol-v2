@@ -3281,7 +3281,9 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
         cached_info.max_confidence_interval_multiplier =
             perp_market.get_max_confidence_interval_multiplier()?;
 
-        amm_cache.update_amount_owed_from_lp_pool(&perp_market, &quote_market)?;
+        if perp_market.lp_status != 0 {
+            amm_cache.update_amount_owed_from_lp_pool(&perp_market, &quote_market)?;
+        }
     }
 
     Ok(())

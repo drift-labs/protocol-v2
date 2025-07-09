@@ -175,6 +175,7 @@ describe('LP Pool', () => {
 			periodicity,
 			new BN(224 * PEG_PRECISION.toNumber())
 		);
+		await adminClient.updatePerpMarketLpPoolStatus(0, 1);
 
 		await adminClient.initializePerpMarket(
 			1,
@@ -184,6 +185,7 @@ describe('LP Pool', () => {
 			periodicity,
 			new BN(224 * PEG_PRECISION.toNumber())
 		);
+		await adminClient.updatePerpMarketLpPoolStatus(1, 1);	
 
 		const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(
 			new BN(2)

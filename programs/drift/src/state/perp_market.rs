@@ -257,7 +257,8 @@ pub struct PerpMarket {
     pub protected_maker_limit_price_divisor: u8,
     pub protected_maker_dynamic_divisor: u8,
     pub lp_fee_transfer_scalar: u8,
-    pub padding: [u8; 35],
+    pub lp_status: u8,
+    pub padding: [u8; 34],
 }
 
 impl Default for PerpMarket {
@@ -300,7 +301,8 @@ impl Default for PerpMarket {
             protected_maker_limit_price_divisor: 0,
             protected_maker_dynamic_divisor: 0,
             lp_fee_transfer_scalar: 1,
-            padding: [0; 35],
+            lp_status: 0,
+            padding: [0; 34],
         }
     }
 }
@@ -1740,8 +1742,7 @@ pub struct CacheInfo {
     pub oracle_delay: i64,
     pub oracle_slot: u64,
     pub oracle_source: u8,
-    pub lp_status: u8,
-    _padding: [u8; 6],
+    _padding: [u8; 7],
     pub oracle: Pubkey,
 }
 
@@ -1760,7 +1761,7 @@ impl Default for CacheInfo {
             oracle_confidence: 0u64,
             oracle_delay: 0i64,
             oracle_slot: 0u64,
-            _padding: [0u8; 6],
+            _padding: [0u8; 7],
             oracle: Pubkey::default(),
             last_fee_pool_token_amount: 0u128,
             last_net_pnl_pool_token_amount: 0i128,
@@ -1768,7 +1769,6 @@ impl Default for CacheInfo {
             last_settle_ts: 0i64,
             oracle_source: 0u8,
             quote_owed_from_lp: 0i64,
-            lp_status: 0u8,
         }
     }
 }

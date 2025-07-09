@@ -1058,6 +1058,13 @@ pub mod drift {
         handle_update_perp_market_expiry(ctx, expiry_ts)
     }
 
+    pub fn update_perp_market_lp_pool_status(
+        ctx: Context<AdminUpdatePerpMarket>,
+        lp_status: u8,
+    ) -> Result<()> {
+        handle_update_perp_market_lp_pool_status(ctx, lp_status)
+    }
+
     pub fn settle_expired_market_pools_to_revenue_pool(
         ctx: Context<SettleExpiredMarketPoolsToRevenuePool>,
     ) -> Result<()> {
