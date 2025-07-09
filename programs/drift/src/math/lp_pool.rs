@@ -9,7 +9,7 @@ pub mod perp_lp_pool_settlement {
     };
     use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, Copy)]
     pub struct SettlementResult {
         pub amount_transferred: u64,
         pub direction: SettlementDirection,
@@ -17,7 +17,7 @@ pub mod perp_lp_pool_settlement {
         pub pnl_pool_used: u128,
     }
 
-    #[derive(Debug, Clone, PartialEq)]
+    #[derive(Debug, Clone, Copy, PartialEq)]
     pub enum SettlementDirection {
         ToLpPool,
         FromLpPool,
@@ -154,7 +154,7 @@ pub mod perp_lp_pool_settlement {
         new_quote_owed: i64,
         timestamp: i64,
     ) -> Result<()> {
-        cache_info.quote_owed_from_lp = new_quote_owed;
+        cache_info.quote_owed_from_lp_pool = new_quote_owed;
         cache_info.last_settle_amount = result.amount_transferred;
         cache_info.last_settle_ts = timestamp;
 

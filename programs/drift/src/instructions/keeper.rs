@@ -3030,7 +3030,7 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
 
         // Create settlement context
         let settlement_ctx = SettlementContext {
-            quote_owed_from_lp: cached_info.quote_owed_from_lp,
+            quote_owed_from_lp: cached_info.quote_owed_from_lp_pool,
             quote_constituent_token_balance: quote_constituent.token_balance,
             fee_pool_balance: get_token_amount(
                 perp_market.amm.fee_pool.scaled_balance,
@@ -3085,12 +3085,12 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
         // Calculate new quote owed amount
         let new_quote_owed = match settlement_result.direction {
             SettlementDirection::FromLpPool => cached_info
-                .quote_owed_from_lp
+                .quote_owed_from_lp_pool
                 .safe_sub(settlement_result.amount_transferred as i64)?,
             SettlementDirection::ToLpPool => cached_info
-                .quote_owed_from_lp
+                .quote_owed_from_lp_pool
                 .safe_add(settlement_result.amount_transferred as i64)?,
-            SettlementDirection::None => cached_info.quote_owed_from_lp,
+            SettlementDirection::None => cached_info.quote_owed_from_lp_pool,
         };
 
         // Update cache info

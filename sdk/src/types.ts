@@ -1709,7 +1709,7 @@ export type CacheInfo = {
 	lastNetPnlPoolTokenAmount: BN;
 	lastSettleAmount: BN;
 	lastSettleTs: BN;
-	quoteOwedFromLp: BN;
+	quoteOwedFromLpPool: BN;
 };
 
 export type AmmCache = {

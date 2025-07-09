@@ -13079,7 +13079,7 @@
             "type": "i64"
           },
           {
-            "name": "quoteOwedFromLp",
+            "name": "quoteOwedFromLpPool",
             "type": "i64"
           },
           {
