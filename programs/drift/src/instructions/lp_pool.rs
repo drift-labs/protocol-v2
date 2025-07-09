@@ -17,7 +17,7 @@ use crate::{
         casting::Cast,
         constants::{
             PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
-            PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, QUOTE_PRECISION_I128,
+            PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128, QUOTE_PRECISION_I128,
         },
         oracle::{is_oracle_valid_for_action, oracle_validity, DriftAction},
         safe_math::SafeMath,
@@ -30,7 +30,7 @@ use crate::{
             calculate_target_weight, AmmConstituentDatum, AmmConstituentMappingFixed, Constituent,
             ConstituentCorrelationsFixed, ConstituentTargetBaseFixed, LPPool, TargetsDatum,
             WeightValidationFlags, LP_POOL_SWAP_AUM_UPDATE_DELAY,
-            MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC, MAX_CONSTITUENT_ORACLE_SLOT_STALENESS_FOR_AUM,
+            MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC,
         },
         oracle::OraclePriceData,
         oracle_map::OracleMap,
@@ -258,7 +258,7 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
     for i in 0..lp_pool.constituents as usize {
         let constituent = constituent_map.get_ref(&(i as u16))?;
         if slot.saturating_sub(constituent.last_oracle_slot)
-            > MAX_CONSTITUENT_ORACLE_SLOT_STALENESS_FOR_AUM
+            > constituent.oracle_staleness_threshold
         {
             msg!(
                 "Constituent {} oracle slot is too stale: {}, current slot: {}",
@@ -490,13 +490,13 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
     } = load_maps(
         &mut ctx.remaining_accounts.iter().peekable(),
         &MarketSet::new(),
-        &get_writable_spot_market_set_from_many(vec![in_market_index, out_market_index]),
+        &MarketSet::new(),
         slot,
         Some(state.oracle_guard_rails),
     )?;
 
-    let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
-    let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
+    let in_spot_market = spot_market_map.get_ref(&in_market_index)?;
+    let out_spot_market = spot_market_map.get_ref(&out_market_index)?;
 
     let in_oracle_id = in_spot_market.oracle_id();
     let out_oracle_id = out_spot_market.oracle_id();
@@ -537,9 +537,6 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         );
         return Err(ErrorCode::InvalidOracle.into());
     }
-
-    update_spot_market_cumulative_interest(&mut in_spot_market, Some(&in_oracle), now)?;
-    update_spot_market_cumulative_interest(&mut out_spot_market, Some(&out_oracle), now)?;
 
     let in_target_weight = constituent_target_base.get_target_weight(
         in_constituent.constituent_index,
@@ -833,7 +830,10 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
 
     let dlp_total_supply = ctx.accounts.lp_mint.supply;
     let lp_price = if dlp_total_supply > 0 {
-        lp_pool.last_aum.safe_div(dlp_total_supply as u128)?
+        lp_pool
+            .last_aum
+            .safe_mul(PRICE_PRECISION)?
+            .safe_div(dlp_total_supply as u128)?
     } else {
         0
     };
@@ -1032,7 +1032,10 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
 
     let dlp_total_supply = ctx.accounts.lp_mint.supply;
     let lp_price = if dlp_total_supply > 0 {
-        lp_pool.last_aum.safe_div(dlp_total_supply as u128)?
+        lp_pool
+            .last_aum
+            .safe_mul(PRICE_PRECISION)?
+            .safe_div(dlp_total_supply as u128)?
     } else {
         0
     };

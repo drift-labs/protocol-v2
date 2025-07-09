@@ -9982,7 +9982,7 @@ export class DriftClient {
 	): Promise<TransactionInstruction> {
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [],
-			writableSpotMarketIndexes: [inMarketIndex, outMarketIndex],
+			readableSpotMarketIndexes: [inMarketIndex, outMarketIndex],
 		});
 
 		return this.program.instruction.lpPoolSwap(
