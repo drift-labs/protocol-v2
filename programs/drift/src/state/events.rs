@@ -760,10 +760,6 @@ pub struct LPSwapRecord {
     pub out_oracle_price: i64,
     /// precision: PRICE_PRECISION
     pub in_oracle_price: i64,
-    /// out token mint
-    pub out_mint: Pubkey,
-    /// in token mint
-    pub in_mint: Pubkey,
     /// LPPool last_aum, QUOTE_PRECISION
     pub last_aum: u128,
     pub last_aum_slot: u64,
@@ -802,8 +798,6 @@ pub struct LPMintRedeemRecord {
     pub oracle_price: i64,
     /// token mint
     pub mint: Pubkey,
-    /// lp mint
-    pub lp_mint: Pubkey,
     /// lp amount, lp mint precision
     pub lp_amount: u64,
     /// lp fee, lp mint precision

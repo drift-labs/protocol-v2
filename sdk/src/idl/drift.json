@@ -16544,16 +16544,6 @@
           "index": false
         },
         {
-          "name": "outMint",
-          "type": "publicKey",
-          "index": false
-        },
-        {
-          "name": "inMint",
-          "type": "publicKey",
-          "index": false
-        },
-        {
           "name": "lastAum",
           "type": "u128",
           "index": false
@@ -16645,11 +16635,6 @@
         },
         {
           "name": "mint",
-          "type": "publicKey",
-          "index": false
-        },
-        {
-          "name": "lpMint",
           "type": "publicKey",
           "index": false
         },
@@ -18341,6 +18326,11 @@
       "code": 6328,
       "name": "ConstituentOracleStale",
       "msg": "Constituent oracle is stale"
+    },
+    {
+      "code": 6329,
+      "name": "LpInvariantFailed",
+      "msg": "LP Invariant failed"
     }
   ],
   "metadata": {

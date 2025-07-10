@@ -46,11 +46,6 @@ pub const MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC: u64 = 10000u64;
 #[cfg(not(feature = "anchor-test"))]
 pub const MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC: u64 = 0u64;
 
-#[cfg(feature = "anchor-test")]
-pub const MAX_CONSTITUENT_ORACLE_SLOT_STALENESS_FOR_AUM: u64 = 10000u64;
-#[cfg(not(feature = "anchor-test"))]
-pub const MAX_CONSTITUENT_ORACLE_SLOT_STALENESS_FOR_AUM: u64 = 2u64;
-
 #[cfg(test)]
 mod tests;
 
@@ -668,7 +663,7 @@ impl LPPool {
         for i in 0..self.constituents as usize {
             let constituent = constituent_map.get_ref(&(i as u16))?;
             if slot.saturating_sub(constituent.last_oracle_slot)
-                > MAX_CONSTITUENT_ORACLE_SLOT_STALENESS_FOR_AUM
+                > constituent.oracle_staleness_threshold
             {
                 msg!(
                     "Constituent {} oracle slot is too stale: {}, current slot: {}",
