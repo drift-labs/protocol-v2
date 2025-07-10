@@ -9,7 +9,7 @@ use crate::math::constants::{
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 use crate::state::constituent_map::ConstituentMap;
-use crate::state::perp_market::{AmmCache, AmmCacheFixed, CacheInfo};
+use crate::state::perp_market::{AmmCacheFixed, CacheInfo};
 use crate::state::spot_market_map::SpotMarketMap;
 use anchor_lang::prelude::*;
 use anchor_spl::token::Mint;
@@ -698,13 +698,6 @@ impl LPPool {
                 oldest_slot = oracle_slot;
             }
 
-            // msg!("{} spot_market.decimals: {}", spot_market.market_index, spot_market.decimals);
-            // let (numerator_scale, denominator_scale) = if spot_market.decimals > 6 {
-            //     (10_i128.pow(spot_market.decimals - 6), 1)
-            // } else {
-            //     (1, 10_i128.pow(6 - spot_market.decimals))
-            // };
-
             let constituent_aum = constituent
                 .get_full_balance(&spot_market)?
                 .safe_mul(constituent.last_oracle_price as i128)?
@@ -717,6 +710,8 @@ impl LPPool {
                 constituent_aum,
                 constituent.constituent_derivative_index
             );
+
+            // sum up crypto deltas (notional exposures for all non-stablecoins)
             if constituent.constituent_index != self.usdc_consituent_index
                 && constituent.constituent_derivative_index != self.usdc_consituent_index as i16
             {
@@ -844,6 +839,9 @@ pub struct Constituent {
     // depeg threshold in relation top parent in PERCENTAGE_PRECISION
     pub constituent_derivative_depeg_threshold: u64,
 
+    /// An arbitrary index to group like-assets together (stablecoins, LSTs, wrapped assets with similar underlying, etc.)
+    /// Stablecoins must have constituent_derivative_index=usdc_consituent_index (0).
+    /// -1 if
     pub constituent_derivative_index: i16, // -1 if a parent index
 
     pub spot_market_index: u16,
@@ -1583,6 +1581,14 @@ pub fn update_constituent_target_base_for_derivatives(
                 .get_mut(*constituent_index as u32)
                 .target_base = target_base.cast::<i64>()?;
         }
+
+        validate!(
+            derivative_weights_sum <= PERCENTAGE_PRECISION_U64,
+            ErrorCode::InvalidConstituentDerivativeWeights,
+            "derivative_weights_sum for parent constituent {} must be less than or equal to 100%",
+            parent_index
+        )?;
+
         constituent_target_base
             .get_mut(*parent_index as u32)
             .target_base = parent_target_base

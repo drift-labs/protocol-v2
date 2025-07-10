@@ -9479,6 +9479,11 @@
           },
           {
             "name": "constituentDerivativeIndex",
+            "docs": [
+              "An arbitrary index to group like-assets together (stablecoins, LSTs, wrapped assets with similar underlying, etc.)",
+              "Stablecoins must have constituent_derivative_index=usdc_consituent_index (0).",
+              "-1 if"
+            ],
             "type": "i16"
           },
           {
@@ -18331,6 +18336,11 @@
       "code": 6329,
       "name": "LpInvariantFailed",
       "msg": "LP Invariant failed"
+    },
+    {
+      "code": 6330,
+      "name": "InvalidConstituentDerivativeWeights",
+      "msg": "Invalid constituent derivative weights"
     }
   ],
   "metadata": {

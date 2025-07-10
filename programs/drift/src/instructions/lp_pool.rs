@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use anchor_lang::{prelude::*, Accounts, Key, Result};
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
@@ -15,10 +13,7 @@ use crate::{
     math::{
         self,
         casting::Cast,
-        constants::{
-            PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
-            PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128, QUOTE_PRECISION_I128,
-        },
+        constants::{PERCENTAGE_PRECISION_I64, PRICE_PRECISION},
         oracle::{is_oracle_valid_for_action, oracle_validity, DriftAction},
         safe_math::SafeMath,
     },
@@ -27,10 +22,9 @@ use crate::{
         constituent_map::{ConstituentMap, ConstituentSet},
         events::{emit_stack, LPMintRedeemRecord, LPSwapRecord},
         lp_pool::{
-            calculate_target_weight, update_constituent_target_base_for_derivatives,
-            AmmConstituentDatum, AmmConstituentMappingFixed, Constituent,
-            ConstituentCorrelationsFixed, ConstituentTargetBaseFixed, LPPool, TargetsDatum,
-            WeightValidationFlags, LP_POOL_SWAP_AUM_UPDATE_DELAY,
+            update_constituent_target_base_for_derivatives, AmmConstituentDatum,
+            AmmConstituentMappingFixed, Constituent, ConstituentCorrelationsFixed,
+            ConstituentTargetBaseFixed, LPPool, TargetsDatum, LP_POOL_SWAP_AUM_UPDATE_DELAY,
             MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC,
         },
         oracle::OraclePriceData,
