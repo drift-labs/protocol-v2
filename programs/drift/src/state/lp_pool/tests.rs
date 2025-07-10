@@ -2363,3 +2363,1207 @@ mod settle_tests {
         }
     }
 }
+
+#[cfg(test)]
+mod update_aum_tests {
+    use crate::{
+        create_anchor_account_info,
+        math::constants::SPOT_CUMULATIVE_INTEREST_PRECISION,
+        math::constants::{PRICE_PRECISION_I64, QUOTE_PRECISION},
+        state::lp_pool::*,
+        state::oracle::HistoricalOracleData,
+        state::oracle::OracleSource,
+        state::perp_market::{AmmCacheFixed, CacheInfo},
+        state::spot_market::SpotMarket,
+        state::spot_market_map::SpotMarketMap,
+        state::zero_copy::AccountZeroCopyMut,
+        test_utils::{create_account_info, get_anchor_account_bytes},
+    };
+    use anchor_lang::prelude::Pubkey;
+    use std::{cell::RefCell, marker::PhantomData};
+
+    fn test_aum_with_balances(
+        usdc_balance: u64, // USDC balance in tokens (6 decimals)
+        sol_balance: u64,  // SOL balance in tokens (9 decimals)
+        btc_balance: u64,  // BTC balance in tokens (8 decimals)
+        bonk_balance: u64, // BONK balance in tokens (5 decimals)
+        expected_aum_usd: u64,
+        test_name: &str,
+    ) {
+        let mut lp_pool = LPPool::default();
+        lp_pool.constituents = 4;
+        lp_pool.usdc_consituent_index = 0;
+
+        // Create constituents with specified token balances
+        let mut constituent_usdc = Constituent {
+            mint: Pubkey::new_unique(),
+            spot_market_index: 0,
+            constituent_index: 0,
+            last_oracle_price: PRICE_PRECISION_I64,
+            last_oracle_slot: 100,
+            decimals: 6,
+            token_balance: usdc_balance,
+            oracle_staleness_threshold: 10,
+            ..Constituent::default()
+        };
+        create_anchor_account_info!(constituent_usdc, Constituent, constituent_usdc_account_info);
+
+        let mut constituent_sol = Constituent {
+            mint: Pubkey::new_unique(),
+            spot_market_index: 1,
+            constituent_index: 1,
+            last_oracle_price: 200 * PRICE_PRECISION_I64,
+            last_oracle_slot: 100,
+            decimals: 9,
+            token_balance: sol_balance,
+            oracle_staleness_threshold: 10,
+            ..Constituent::default()
+        };
+        create_anchor_account_info!(constituent_sol, Constituent, constituent_sol_account_info);
+
+        let mut constituent_btc = Constituent {
+            mint: Pubkey::new_unique(),
+            spot_market_index: 2,
+            constituent_index: 2,
+            last_oracle_price: 100_000 * PRICE_PRECISION_I64,
+            last_oracle_slot: 100,
+            decimals: 8,
+            token_balance: btc_balance,
+            oracle_staleness_threshold: 10,
+            ..Constituent::default()
+        };
+        create_anchor_account_info!(constituent_btc, Constituent, constituent_btc_account_info);
+
+        let mut constituent_bonk = Constituent {
+            mint: Pubkey::new_unique(),
+            spot_market_index: 3,
+            constituent_index: 3,
+            last_oracle_price: 22, // $0.000022 in PRICE_PRECISION_I64
+            last_oracle_slot: 100,
+            decimals: 5,
+            token_balance: bonk_balance,
+            oracle_staleness_threshold: 10,
+            ..Constituent::default()
+        };
+        create_anchor_account_info!(constituent_bonk, Constituent, constituent_bonk_account_info);
+
+        let constituent_map = ConstituentMap::load_multiple(
+            vec![
+                &constituent_usdc_account_info,
+                &constituent_sol_account_info,
+                &constituent_btc_account_info,
+                &constituent_bonk_account_info,
+            ],
+            true,
+        )
+        .unwrap();
+
+        // Create spot markets
+        let mut usdc_spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
+
+        let mut sol_spot_market = SpotMarket {
+            market_index: 1,
+            oracle_source: OracleSource::Pyth,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 9,
+            historical_oracle_data: HistoricalOracleData::default(),
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(sol_spot_market, SpotMarket, sol_spot_market_account_info);
+
+        let mut btc_spot_market = SpotMarket {
+            market_index: 2,
+            oracle_source: OracleSource::Pyth,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 8,
+            historical_oracle_data: HistoricalOracleData::default(),
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(btc_spot_market, SpotMarket, btc_spot_market_account_info);
+
+        let mut bonk_spot_market = SpotMarket {
+            market_index: 3,
+            oracle_source: OracleSource::Pyth,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 5,
+            historical_oracle_data: HistoricalOracleData::default(),
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(bonk_spot_market, SpotMarket, bonk_spot_market_account_info);
+
+        let spot_market_account_infos = vec![
+            &usdc_spot_market_account_info,
+            &sol_spot_market_account_info,
+            &btc_spot_market_account_info,
+            &bonk_spot_market_account_info,
+        ];
+        let spot_market_map =
+            SpotMarketMap::load_multiple(spot_market_account_infos, true).unwrap();
+
+        // Create constituent target base
+        let target_fixed = RefCell::new(ConstituentTargetBaseFixed {
+            len: 4,
+            ..ConstituentTargetBaseFixed::default()
+        });
+        let target_data = RefCell::new([0u8; 96]); // 4 * 24 bytes per TargetsDatum
+        let mut constituent_target_base =
+            AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
+                fixed: target_fixed.borrow_mut(),
+                data: target_data.borrow_mut(),
+                _marker: PhantomData::<TargetsDatum>,
+            };
+
+        // Create AMM cache
+        let mut cache_fixed_default = AmmCacheFixed::default();
+        cache_fixed_default.len = 0; // No perp markets for this test
+        let cache_fixed = RefCell::new(cache_fixed_default);
+        let cache_data = RefCell::new([0u8; 0]); // Empty cache data
+        let amm_cache = AccountZeroCopyMut::<'_, CacheInfo, AmmCacheFixed> {
+            fixed: cache_fixed.borrow_mut(),
+            data: cache_data.borrow_mut(),
+            _marker: PhantomData::<CacheInfo>,
+        };
+
+        // Call update_aum
+        let result = lp_pool.update_aum(
+            1000, // now (timestamp)
+            101,  // slot
+            &constituent_map,
+            &spot_market_map,
+            &constituent_target_base,
+            &amm_cache,
+        );
+
+        assert!(result.is_ok(), "{}: update_aum should succeed", test_name);
+        let (aum, crypto_delta, derivative_groups) = result.unwrap();
+
+        // Convert expected USD to quote precision
+        let expected_aum = expected_aum_usd as u128 * QUOTE_PRECISION;
+
+        println!(
+            "{}: AUM = ${}, Expected = ${}",
+            test_name,
+            aum / QUOTE_PRECISION,
+            expected_aum / QUOTE_PRECISION
+        );
+
+        // Verify the results (allow small rounding differences)
+        let aum_diff = if aum > expected_aum {
+            aum - expected_aum
+        } else {
+            expected_aum - aum
+        };
+        assert!(
+            aum_diff <= QUOTE_PRECISION, // Allow up to $1 difference for rounding
+            "{}: AUM mismatch. Got: ${}, Expected: ${}, Diff: ${}",
+            test_name,
+            aum / QUOTE_PRECISION,
+            expected_aum / QUOTE_PRECISION,
+            aum_diff / QUOTE_PRECISION
+        );
+
+        assert_eq!(crypto_delta, 0, "{}: crypto_delta should be 0", test_name);
+        assert!(
+            derivative_groups.is_empty(),
+            "{}: derivative_groups should be empty",
+            test_name
+        );
+
+        // Verify LP pool state was updated
+        assert_eq!(
+            lp_pool.last_aum, aum,
+            "{}: last_aum should match calculated AUM",
+            test_name
+        );
+        assert_eq!(
+            lp_pool.last_aum_slot, 101,
+            "{}: last_aum_slot should be updated",
+            test_name
+        );
+        assert_eq!(
+            lp_pool.last_aum_ts, 1000,
+            "{}: last_aum_ts should be updated",
+            test_name
+        );
+        assert_eq!(
+            lp_pool.oldest_oracle_slot, 100,
+            "{}: oldest_oracle_slot should be updated",
+            test_name
+        );
+    }
+
+    #[test]
+    fn test_aum_zero() {
+        test_aum_with_balances(
+            0, // 0 USDC
+            0, // 0 SOL
+            0, // 0 BTC
+            0, // 0 BONK
+            0, // $0 expected AUM
+            "Zero AUM",
+        );
+    }
+
+    #[test]
+    fn test_aum_low_1k() {
+        test_aum_with_balances(
+            1_000_000_000, // 1,000 USDC (6 decimals) = $1,000
+            0,             // 0 SOL
+            0,             // 0 BTC
+            0,             // 0 BONK
+            1_000,         // $1,000 expected AUM
+            "Low AUM (~$1k)",
+        );
+    }
+
+    #[test]
+    fn test_aum_reasonable() {
+        test_aum_with_balances(
+            1_000_000_000_000, // 1M USDC (6 decimals) = $1M
+            5_000_000_000_000, // 5k SOL (9 decimals) = $1M at $200/SOL
+            800_000_000,       // 8 BTC (8 decimals) = $800k at $100k/BTC
+            0,                 // 0 BONK
+            2_800_000,         // Expected AUM based on actual calculation
+            "Reasonable AUM (~$2.8M)",
+        );
+    }
+
+    #[test]
+    fn test_aum_high() {
+        test_aum_with_balances(
+            10_000_000_000_000_000,  // 10B USDC (6 decimals) = $10B
+            500_000_000_000_000_000, // 500M SOL (9 decimals) = $100B at $200/SOL
+            100_000_000_000_000,     // 1M BTC (8 decimals) = $100B at $100k/BTC
+            0,                       // 0 BONK
+            210_000_000_000,         // Expected AUM based on actual calculation
+            "High AUM (~$210b)",
+        );
+    }
+
+    #[test]
+    fn test_aum_with_small_bonk_balance() {
+        test_aum_with_balances(
+            10_000_000_000_000_000,  // 10B USDC (6 decimals) = $10B
+            500_000_000_000_000_000, // 500M SOL (9 decimals) = $100B at $200/SOL
+            100_000_000_000_000,     // 1M BTC (8 decimals) = $100B at $100k/BTC
+            100_000_000_000_000,     // 1B BONK (5 decimals) = $22k at $0.000022/BONK
+            210_000_022_000,         // Expected AUM based on actual calculation
+            "High AUM (~$210b) with BONK",
+        );
+    }
+
+    #[test]
+    fn test_aum_with_large_bonk_balance() {
+        test_aum_with_balances(
+            10_000_000_000_000_000,  // 10B USDC (6 decimals) = $10B
+            500_000_000_000_000_000, // 500M SOL (9 decimals) = $100B at $200/SOL
+            100_000_000_000_000,     // 1M BTC (8 decimals) = $100B at $100k/BTC
+            100_000_000_000_000_000, // 1T BONK (5 decimals) = $22M at $0.000022/BONK
+            210_022_000_000,         // Expected AUM based on actual calculation
+            "High AUM (~$210b) with BONK",
+        );
+    }
+}
+
+#[cfg(test)]
+mod update_constituent_target_base_for_derivatives_tests {
+    use super::super::update_constituent_target_base_for_derivatives;
+    use crate::create_anchor_account_info;
+    use crate::math::constants::{
+        PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I64, QUOTE_PRECISION,
+        SPOT_CUMULATIVE_INTEREST_PRECISION,
+    };
+    use crate::state::constituent_map::ConstituentMap;
+    use crate::state::lp_pool::{Constituent, ConstituentTargetBaseFixed, TargetsDatum};
+    use crate::state::oracle::{HistoricalOracleData, OracleSource};
+    use crate::state::spot_market::SpotMarket;
+    use crate::state::spot_market_map::SpotMarketMap;
+    use crate::state::zero_copy::AccountZeroCopyMut;
+    use crate::test_utils::{create_account_info, get_anchor_account_bytes};
+    use anchor_lang::prelude::Pubkey;
+    use anchor_lang::Owner;
+    use std::collections::BTreeMap;
+    use std::{cell::RefCell, marker::PhantomData};
+
+    fn test_derivative_weights_scenario(
+        derivative_weights: Vec<u64>,
+        test_name: &str,
+        should_succeed: bool,
+    ) {
+        let aum = 10_000_000 * QUOTE_PRECISION; // $10M AUM
+
+        // Create parent constituent (SOL) - parent_index must not be 0
+        let parent_index = 1u16;
+        let mut parent_constituent = Constituent {
+            mint: Pubkey::new_unique(),
+            spot_market_index: parent_index,
+            constituent_index: parent_index,
+            last_oracle_price: 200 * PRICE_PRECISION_I64, // $200 SOL
+            last_oracle_slot: 100,
+            decimals: 9,
+            constituent_derivative_index: -1, // Parent index
+            derivative_weight: 0,             // Parent doesn't have derivative weight
+            constituent_derivative_depeg_threshold: 950_000, // 95% threshold
+            ..Constituent::default()
+        };
+        create_anchor_account_info!(
+            parent_constituent,
+            Constituent,
+            parent_constituent_account_info
+        );
+
+        // Create first derivative constituent
+        let derivative1_index = parent_index + 1; // 2
+        let mut derivative1_constituent = Constituent {
+            mint: Pubkey::new_unique(),
+            spot_market_index: derivative1_index,
+            constituent_index: derivative1_index,
+            last_oracle_price: 195 * PRICE_PRECISION_I64, // $195 (slightly below parent)
+            last_oracle_slot: 100,
+            decimals: 9,
+            constituent_derivative_index: parent_index as i16,
+            derivative_weight: derivative_weights.get(0).map(|w| *w).unwrap_or(0),
+            constituent_derivative_depeg_threshold: 950_000, // 95% threshold
+            ..Constituent::default()
+        };
+        create_anchor_account_info!(
+            derivative1_constituent,
+            Constituent,
+            derivative1_constituent_account_info
+        );
+
+        // Create second derivative constituent
+        let derivative2_index = parent_index + 2; // 3
+        let mut derivative2_constituent = Constituent {
+            mint: Pubkey::new_unique(),
+            spot_market_index: derivative2_index,
+            constituent_index: derivative2_index,
+            last_oracle_price: 205 * PRICE_PRECISION_I64, // $205 (slightly above parent)
+            last_oracle_slot: 100,
+            decimals: 9,
+            constituent_derivative_index: parent_index as i16,
+            derivative_weight: derivative_weights.get(1).map(|w| *w).unwrap_or(0),
+            constituent_derivative_depeg_threshold: 950_000, // 95% threshold
+            ..Constituent::default()
+        };
+        create_anchor_account_info!(
+            derivative2_constituent,
+            Constituent,
+            derivative2_constituent_account_info
+        );
+
+        // Create third derivative constituent
+        let derivative3_index = parent_index + 3; // 4
+        let mut derivative3_constituent = Constituent {
+            mint: Pubkey::new_unique(),
+            spot_market_index: derivative3_index,
+            constituent_index: derivative3_index,
+            last_oracle_price: 210 * PRICE_PRECISION_I64, // $210 (slightly above parent)
+            last_oracle_slot: 100,
+            decimals: 9,
+            constituent_derivative_index: parent_index as i16,
+            derivative_weight: derivative_weights.get(2).map(|w| *w).unwrap_or(0),
+            constituent_derivative_depeg_threshold: 950_000, // 95% threshold
+            ..Constituent::default()
+        };
+        create_anchor_account_info!(
+            derivative3_constituent,
+            Constituent,
+            derivative3_constituent_account_info
+        );
+
+        let constituents_list = vec![
+            &parent_constituent_account_info,
+            &derivative1_constituent_account_info,
+            &derivative2_constituent_account_info,
+            &derivative3_constituent_account_info,
+        ];
+        let constituent_map = ConstituentMap::load_multiple(constituents_list, true).unwrap();
+
+        // Create spot markets
+        let mut parent_spot_market = SpotMarket {
+            market_index: parent_index,
+            oracle_source: OracleSource::Pyth,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 9,
+            historical_oracle_data: HistoricalOracleData::default(),
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(
+            parent_spot_market,
+            SpotMarket,
+            parent_spot_market_account_info
+        );
+
+        let mut derivative1_spot_market = SpotMarket {
+            market_index: derivative1_index,
+            oracle_source: OracleSource::Pyth,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 9,
+            historical_oracle_data: HistoricalOracleData::default(),
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(
+            derivative1_spot_market,
+            SpotMarket,
+            derivative1_spot_market_account_info
+        );
+
+        let mut derivative2_spot_market = SpotMarket {
+            market_index: derivative2_index,
+            oracle_source: OracleSource::Pyth,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 9,
+            historical_oracle_data: HistoricalOracleData::default(),
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(
+            derivative2_spot_market,
+            SpotMarket,
+            derivative2_spot_market_account_info
+        );
+
+        let mut derivative3_spot_market = SpotMarket {
+            market_index: derivative3_index,
+            oracle_source: OracleSource::Pyth,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 9,
+            historical_oracle_data: HistoricalOracleData::default(),
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(
+            derivative3_spot_market,
+            SpotMarket,
+            derivative3_spot_market_account_info
+        );
+
+        let spot_market_list = vec![
+            &parent_spot_market_account_info,
+            &derivative1_spot_market_account_info,
+            &derivative2_spot_market_account_info,
+            &derivative3_spot_market_account_info,
+        ];
+        let spot_market_map = SpotMarketMap::load_multiple(spot_market_list, true).unwrap();
+
+        // Create constituent target base
+        let num_constituents = 4; // Fixed: parent + 3 derivatives
+        let target_fixed = RefCell::new(ConstituentTargetBaseFixed {
+            len: num_constituents as u32,
+            ..ConstituentTargetBaseFixed::default()
+        });
+        let target_data = RefCell::new([0u8; 120]); // 4+1 constituents * 24 bytes per TargetsDatum
+        let mut constituent_target_base =
+            AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
+                fixed: target_fixed.borrow_mut(),
+                data: target_data.borrow_mut(),
+                _marker: PhantomData::<TargetsDatum>,
+            };
+
+        // Set initial parent target base (targeting 10% of total AUM worth of SOL tokens)
+        // For 10M AUM and $200 SOL price with 9 decimals: (10M * 0.1) / 200 * 10^9 = 5,000,000,000,000 tokens
+        let initial_parent_target_base = 5_000_000_000_000i64; // ~$1M worth of SOL tokens
+        constituent_target_base
+            .get_mut(parent_index as u32)
+            .target_base = initial_parent_target_base;
+        constituent_target_base
+            .get_mut(parent_index as u32)
+            .last_slot = 100;
+
+        // Initialize derivative target bases to 0
+        constituent_target_base
+            .get_mut(derivative1_index as u32)
+            .target_base = 0;
+        constituent_target_base
+            .get_mut(derivative1_index as u32)
+            .last_slot = 100;
+        constituent_target_base
+            .get_mut(derivative2_index as u32)
+            .target_base = 0;
+        constituent_target_base
+            .get_mut(derivative2_index as u32)
+            .last_slot = 100;
+        constituent_target_base
+            .get_mut(derivative3_index as u32)
+            .target_base = 0;
+        constituent_target_base
+            .get_mut(derivative3_index as u32)
+            .last_slot = 100;
+
+        // Create derivative groups
+        let mut derivative_groups = BTreeMap::new();
+        let mut active_derivatives = Vec::new();
+        for (i, _) in derivative_weights.iter().enumerate() {
+            // Add all derivatives regardless of weight (they may have zero weight for testing)
+            let derivative_index = match i {
+                0 => derivative1_index,
+                1 => derivative2_index,
+                2 => derivative3_index,
+                _ => continue,
+            };
+            active_derivatives.push(derivative_index);
+        }
+        if !active_derivatives.is_empty() {
+            derivative_groups.insert(parent_index, active_derivatives);
+        }
+
+        // Call the function
+        let result = update_constituent_target_base_for_derivatives(
+            aum,
+            &derivative_groups,
+            &constituent_map,
+            &spot_market_map,
+            &mut constituent_target_base,
+        );
+
+        assert!(
+            result.is_ok() == should_succeed,
+            "{}: update_constituent_target_base_for_derivatives should succeed",
+            test_name
+        );
+
+        if !should_succeed {
+            return;
+        }
+
+        // Verify results
+        let parent_target_base_after = constituent_target_base.get(parent_index as u32).target_base;
+        let total_derivative_weight: u64 = derivative_weights.iter().sum();
+        let remaining_parent_weight = PERCENTAGE_PRECISION_U64 - total_derivative_weight;
+
+        // Expected parent target base after scaling down
+        let expected_parent_target_base = initial_parent_target_base
+            * (remaining_parent_weight as i64)
+            / (PERCENTAGE_PRECISION_I64);
+
+        println!(
+            "{}: Original parent target base: {}, After: {}, Expected: {}",
+            test_name,
+            initial_parent_target_base,
+            parent_target_base_after,
+            expected_parent_target_base
+        );
+
+        assert_eq!(
+            parent_target_base_after, expected_parent_target_base,
+            "{}: Parent target base should be scaled down correctly",
+            test_name
+        );
+
+        // Verify derivative target bases
+        for (i, derivative_weight) in derivative_weights.iter().enumerate() {
+            let derivative_index = match i {
+                0 => derivative1_index,
+                1 => derivative2_index,
+                2 => derivative3_index,
+                _ => continue,
+            };
+
+            let derivative_target_base = constituent_target_base
+                .get(derivative_index as u32)
+                .target_base;
+
+            if *derivative_weight == 0 {
+                // If derivative weight is 0, target base should remain 0
+                assert_eq!(
+                    derivative_target_base, 0,
+                    "{}: Derivative {} with zero weight should have target base 0",
+                    test_name, derivative_index
+                );
+                continue;
+            }
+
+            // For simplicity, just verify that the derivative target base is positive and reasonable
+            // The exact calculation is complex and depends on the internal implementation
+            println!(
+                "{}: Derivative {} target base: {}, Weight: {}",
+                test_name, derivative_index, derivative_target_base, derivative_weight
+            );
+
+            assert!(
+                derivative_target_base > 0,
+                "{}: Derivative {} target base should be positive",
+                test_name,
+                derivative_index
+            );
+
+            // Verify that target base is reasonable (not too large or too small)
+            assert!(
+                derivative_target_base < 10_000_000_000_000i64,
+                "{}: Derivative {} target base should be reasonable",
+                test_name,
+                derivative_index
+            );
+        }
+    }
+
+    fn test_depeg_scenario() {
+        let aum = 10_000_000 * QUOTE_PRECISION; // $10M AUM
+
+        // Create parent constituent (SOL) - parent_index must not be 0
+        let parent_index = 1u16;
+        let mut parent_constituent = Constituent {
+            mint: Pubkey::new_unique(),
+            spot_market_index: parent_index,
+            constituent_index: parent_index,
+            last_oracle_price: 200 * PRICE_PRECISION_I64, // $200 SOL
+            last_oracle_slot: 100,
+            decimals: 9,
+            constituent_derivative_index: -1, // Parent index
+            derivative_weight: 0,
+            constituent_derivative_depeg_threshold: 950_000, // 95% threshold
+            ..Constituent::default()
+        };
+        create_anchor_account_info!(
+            parent_constituent,
+            Constituent,
+            parent_constituent_account_info
+        );
+
+        // Create derivative constituent that's depegged - must have different index than parent
+        let derivative_index = parent_index + 1; // 2
+        let mut derivative_constituent = Constituent {
+            mint: Pubkey::new_unique(),
+            spot_market_index: derivative_index,
+            constituent_index: derivative_index,
+            last_oracle_price: 180 * PRICE_PRECISION_I64, // $180 (below 95% threshold)
+            last_oracle_slot: 100,
+            decimals: 9,
+            constituent_derivative_index: parent_index as i16,
+            derivative_weight: 500_000,                      // 50% weight
+            constituent_derivative_depeg_threshold: 950_000, // 95% threshold
+            ..Constituent::default()
+        };
+        create_anchor_account_info!(
+            derivative_constituent,
+            Constituent,
+            derivative_constituent_account_info
+        );
+
+        let constituent_map = ConstituentMap::load_multiple(
+            vec![
+                &parent_constituent_account_info,
+                &derivative_constituent_account_info,
+            ],
+            true,
+        )
+        .unwrap();
+
+        // Create spot markets
+        let mut parent_spot_market = SpotMarket {
+            market_index: parent_index,
+            oracle_source: OracleSource::Pyth,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 9,
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(
+            parent_spot_market,
+            SpotMarket,
+            parent_spot_market_account_info
+        );
+
+        let mut derivative_spot_market = SpotMarket {
+            market_index: derivative_index,
+            oracle_source: OracleSource::Pyth,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 9,
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(
+            derivative_spot_market,
+            SpotMarket,
+            derivative_spot_market_account_info
+        );
+
+        let spot_market_map = SpotMarketMap::load_multiple(
+            vec![
+                &parent_spot_market_account_info,
+                &derivative_spot_market_account_info,
+            ],
+            true,
+        )
+        .unwrap();
+
+        // Create constituent target base
+        let target_fixed = RefCell::new(ConstituentTargetBaseFixed {
+            len: 2,
+            ..ConstituentTargetBaseFixed::default()
+        });
+        let target_data = RefCell::new([0u8; 72]); // 2+1 constituents * 24 bytes per TargetsDatum
+        let mut constituent_target_base =
+            AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
+                fixed: target_fixed.borrow_mut(),
+                data: target_data.borrow_mut(),
+                _marker: PhantomData::<TargetsDatum>,
+            };
+
+        // Set initial values
+        constituent_target_base
+            .get_mut(parent_index as u32)
+            .target_base = 2_500_000_000_000i64; // ~$500k worth of SOL
+        constituent_target_base
+            .get_mut(derivative_index as u32)
+            .target_base = 1_250_000_000_000i64; // ~$250k worth
+
+        // Create derivative groups
+        let mut derivative_groups = BTreeMap::new();
+        derivative_groups.insert(parent_index, vec![derivative_index]);
+
+        // Call the function
+        let result = update_constituent_target_base_for_derivatives(
+            aum,
+            &derivative_groups,
+            &constituent_map,
+            &spot_market_map,
+            &mut constituent_target_base,
+        );
+
+        assert!(
+            result.is_ok(),
+            "depeg scenario: update_constituent_target_base_for_derivatives should succeed"
+        );
+
+        // Verify that depegged derivative has target base set to 0
+        let derivative_target_base = constituent_target_base
+            .get(derivative_index as u32)
+            .target_base;
+        assert_eq!(
+            derivative_target_base, 0,
+            "depeg scenario: Depegged derivative should have target base 0"
+        );
+
+        // Verify that parent target base is unchanged since derivative weight is 0 now
+        let parent_target_base = constituent_target_base.get(parent_index as u32).target_base;
+        assert_eq!(
+            parent_target_base, 2_500_000_000_000i64,
+            "depeg scenario: Parent target base should remain unchanged"
+        );
+    }
+
+    #[test]
+    fn test_derivative_depeg_scenario() {
+        // Test case: Test depeg scenario
+        test_depeg_scenario();
+    }
+
+    #[test]
+    fn test_derivative_weights_sum_to_110_percent() {
+        // Test case: Derivative constituents with weights that sum to 1.1 (110%)
+        test_derivative_weights_scenario(
+            vec![
+                500_000, // 50% weight
+                300_000, // 30% weight
+                300_000, // 30% weight
+            ],
+            "weights sum to 110%",
+            false,
+        );
+    }
+
+    #[test]
+    fn test_derivative_weights_sum_to_100_percent() {
+        // Test case: Derivative constituents with weights that sum to 1 (100%)
+        test_derivative_weights_scenario(
+            vec![
+                500_000, // 50% weight
+                300_000, // 30% weight
+                200_000, // 20% weight
+            ],
+            "weights sum to 100%",
+            true,
+        );
+    }
+
+    #[test]
+    fn test_derivative_weights_sum_to_75_percent() {
+        // Test case: Derivative constituents with weights that sum to < 1 (75%)
+        test_derivative_weights_scenario(
+            vec![
+                400_000, // 40% weight
+                200_000, // 20% weight
+                150_000, // 15% weight
+            ],
+            "weights sum to 75%",
+            true,
+        );
+    }
+
+    #[test]
+    fn test_single_derivative_60_percent_weight() {
+        // Test case: Single derivative with partial weight
+        test_derivative_weights_scenario(
+            vec![
+                600_000, // 60% weight
+            ],
+            "single derivative 60% weight",
+            true,
+        );
+    }
+
+    #[test]
+    fn test_single_derivative_100_percent_weight() {
+        // Test case: Single derivative with 100% weight - parent should become 0
+        test_derivative_weights_scenario(
+            vec![
+                1_000_000, // 100% weight
+            ],
+            "single derivative 100% weight",
+            true,
+        );
+    }
+
+    #[test]
+    fn test_mixed_zero_and_nonzero_weights() {
+        // Test case: Mix of zero and non-zero weights
+        test_derivative_weights_scenario(
+            vec![
+                0,       // 0% weight
+                400_000, // 40% weight
+                0,       // 0% weight
+            ],
+            "mixed zero and non-zero weights",
+            true,
+        );
+    }
+
+    #[test]
+    fn test_very_small_weights() {
+        // Test case: Very small weights (1 basis point = 0.01%)
+        test_derivative_weights_scenario(
+            vec![
+                100, // 0.01% weight
+                200, // 0.02% weight
+                300, // 0.03% weight
+            ],
+            "very small weights",
+            true,
+        );
+    }
+
+    #[test]
+    fn test_zero_parent_target_base() {
+        let aum = 10_000_000 * QUOTE_PRECISION; // $10M AUM
+
+        let parent_index = 1u16;
+        let mut parent_constituent = Constituent {
+            mint: Pubkey::new_unique(),
+            spot_market_index: parent_index,
+            constituent_index: parent_index,
+            last_oracle_price: 200 * PRICE_PRECISION_I64,
+            last_oracle_slot: 100,
+            decimals: 9,
+            constituent_derivative_index: -1,
+            derivative_weight: 0,
+            constituent_derivative_depeg_threshold: 950_000,
+            ..Constituent::default()
+        };
+        create_anchor_account_info!(
+            parent_constituent,
+            Constituent,
+            parent_constituent_account_info
+        );
+
+        let derivative_index = parent_index + 1;
+        let mut derivative_constituent = Constituent {
+            mint: Pubkey::new_unique(),
+            spot_market_index: derivative_index,
+            constituent_index: derivative_index,
+            last_oracle_price: 195 * PRICE_PRECISION_I64,
+            last_oracle_slot: 100,
+            decimals: 9,
+            constituent_derivative_index: parent_index as i16,
+            derivative_weight: 500_000, // 50% weight
+            constituent_derivative_depeg_threshold: 950_000,
+            ..Constituent::default()
+        };
+        create_anchor_account_info!(
+            derivative_constituent,
+            Constituent,
+            derivative_constituent_account_info
+        );
+
+        let constituent_map = ConstituentMap::load_multiple(
+            vec![
+                &parent_constituent_account_info,
+                &derivative_constituent_account_info,
+            ],
+            true,
+        )
+        .unwrap();
+
+        let mut parent_spot_market = SpotMarket {
+            market_index: parent_index,
+            oracle_source: OracleSource::Pyth,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 9,
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(
+            parent_spot_market,
+            SpotMarket,
+            parent_spot_market_account_info
+        );
+
+        let mut derivative_spot_market = SpotMarket {
+            market_index: derivative_index,
+            oracle_source: OracleSource::Pyth,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 9,
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(
+            derivative_spot_market,
+            SpotMarket,
+            derivative_spot_market_account_info
+        );
+
+        let spot_market_map = SpotMarketMap::load_multiple(
+            vec![
+                &parent_spot_market_account_info,
+                &derivative_spot_market_account_info,
+            ],
+            true,
+        )
+        .unwrap();
+
+        let target_fixed = RefCell::new(ConstituentTargetBaseFixed {
+            len: 2,
+            ..ConstituentTargetBaseFixed::default()
+        });
+        let target_data = RefCell::new([0u8; 72]);
+        let mut constituent_target_base =
+            AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
+                fixed: target_fixed.borrow_mut(),
+                data: target_data.borrow_mut(),
+                _marker: PhantomData::<TargetsDatum>,
+            };
+
+        // Set parent target base to 0
+        constituent_target_base
+            .get_mut(parent_index as u32)
+            .target_base = 0i64;
+        constituent_target_base
+            .get_mut(derivative_index as u32)
+            .target_base = 0i64;
+
+        let mut derivative_groups = BTreeMap::new();
+        derivative_groups.insert(parent_index, vec![derivative_index]);
+
+        let result = update_constituent_target_base_for_derivatives(
+            aum,
+            &derivative_groups,
+            &constituent_map,
+            &spot_market_map,
+            &mut constituent_target_base,
+        );
+
+        assert!(
+            result.is_ok(),
+            "zero parent target base scenario should succeed"
+        );
+
+        // With zero parent target base, derivative should also be 0
+        let derivative_target_base = constituent_target_base
+            .get(derivative_index as u32)
+            .target_base;
+        assert_eq!(
+            derivative_target_base, 0,
+            "zero parent target base: derivative target base should be 0"
+        );
+    }
+
+    #[test]
+    fn test_mixed_depegged_and_valid_derivatives() {
+        let aum = 10_000_000 * QUOTE_PRECISION; // $10M AUM
+
+        let parent_index = 1u16;
+        let mut parent_constituent = Constituent {
+            mint: Pubkey::new_unique(),
+            spot_market_index: parent_index,
+            constituent_index: parent_index,
+            last_oracle_price: 200 * PRICE_PRECISION_I64, // $200
+            last_oracle_slot: 100,
+            decimals: 9,
+            constituent_derivative_index: -1,
+            derivative_weight: 0,
+            constituent_derivative_depeg_threshold: 949_999, // 95% threshold
+            ..Constituent::default()
+        };
+        create_anchor_account_info!(
+            parent_constituent,
+            Constituent,
+            parent_constituent_account_info
+        );
+
+        // First derivative - depegged
+        let derivative1_index = parent_index + 1;
+        let mut derivative1_constituent = Constituent {
+            mint: Pubkey::new_unique(),
+            spot_market_index: derivative1_index,
+            constituent_index: derivative1_index,
+            last_oracle_price: 180 * PRICE_PRECISION_I64, // $180 (below 95% threshold)
+            last_oracle_slot: 100,
+            decimals: 9,
+            constituent_derivative_index: parent_index as i16,
+            derivative_weight: 300_000, // 30% weight
+            constituent_derivative_depeg_threshold: 950_000,
+            ..Constituent::default()
+        };
+        create_anchor_account_info!(
+            derivative1_constituent,
+            Constituent,
+            derivative1_constituent_account_info
+        );
+
+        // Second derivative - valid
+        let derivative2_index = parent_index + 2;
+        let mut derivative2_constituent = Constituent {
+            mint: Pubkey::new_unique(),
+            spot_market_index: derivative2_index,
+            constituent_index: derivative2_index,
+            last_oracle_price: 198 * PRICE_PRECISION_I64, // $198 (above 95% threshold)
+            last_oracle_slot: 100,
+            decimals: 9,
+            constituent_derivative_index: parent_index as i16,
+            derivative_weight: 400_000, // 40% weight
+            constituent_derivative_depeg_threshold: 950_000,
+            ..Constituent::default()
+        };
+        create_anchor_account_info!(
+            derivative2_constituent,
+            Constituent,
+            derivative2_constituent_account_info
+        );
+
+        let constituent_map = ConstituentMap::load_multiple(
+            vec![
+                &parent_constituent_account_info,
+                &derivative1_constituent_account_info,
+                &derivative2_constituent_account_info,
+            ],
+            true,
+        )
+        .unwrap();
+
+        let mut parent_spot_market = SpotMarket {
+            market_index: parent_index,
+            oracle_source: OracleSource::Pyth,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 9,
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(
+            parent_spot_market,
+            SpotMarket,
+            parent_spot_market_account_info
+        );
+
+        let mut derivative1_spot_market = SpotMarket {
+            market_index: derivative1_index,
+            oracle_source: OracleSource::Pyth,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 9,
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(
+            derivative1_spot_market,
+            SpotMarket,
+            derivative1_spot_market_account_info
+        );
+
+        let mut derivative2_spot_market = SpotMarket {
+            market_index: derivative2_index,
+            oracle_source: OracleSource::Pyth,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 9,
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(
+            derivative2_spot_market,
+            SpotMarket,
+            derivative2_spot_market_account_info
+        );
+
+        let spot_market_map = SpotMarketMap::load_multiple(
+            vec![
+                &parent_spot_market_account_info,
+                &derivative1_spot_market_account_info,
+                &derivative2_spot_market_account_info,
+            ],
+            true,
+        )
+        .unwrap();
+
+        let target_fixed = RefCell::new(ConstituentTargetBaseFixed {
+            len: 3,
+            ..ConstituentTargetBaseFixed::default()
+        });
+        let target_data = RefCell::new([0u8; 96]);
+        let mut constituent_target_base =
+            AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
+                fixed: target_fixed.borrow_mut(),
+                data: target_data.borrow_mut(),
+                _marker: PhantomData::<TargetsDatum>,
+            };
+
+        constituent_target_base
+            .get_mut(parent_index as u32)
+            .target_base = 5_000_000_000_000i64;
+        constituent_target_base
+            .get_mut(derivative1_index as u32)
+            .target_base = 0i64;
+        constituent_target_base
+            .get_mut(derivative2_index as u32)
+            .target_base = 0i64;
+
+        let mut derivative_groups = BTreeMap::new();
+        derivative_groups.insert(parent_index, vec![derivative1_index, derivative2_index]);
+
+        let result = update_constituent_target_base_for_derivatives(
+            aum,
+            &derivative_groups,
+            &constituent_map,
+            &spot_market_map,
+            &mut constituent_target_base,
+        );
+
+        assert!(
+            result.is_ok(),
+            "mixed depegged and valid derivatives scenario should succeed"
+        );
+
+        // First derivative should be depegged (target base = 0)
+        let derivative1_target_base = constituent_target_base
+            .get(derivative1_index as u32)
+            .target_base;
+        assert_eq!(
+            derivative1_target_base, 0,
+            "mixed scenario: depegged derivative should have target base 0"
+        );
+
+        // Second derivative should have positive target base
+        let derivative2_target_base = constituent_target_base
+            .get(derivative2_index as u32)
+            .target_base;
+        assert!(
+            derivative2_target_base > 0,
+            "mixed scenario: valid derivative should have positive target base"
+        );
+
+        // Parent should be scaled down by only the valid derivative's weight (40%)
+        let parent_target_base = constituent_target_base.get(parent_index as u32).target_base;
+        let expected_parent_target_base = 5_000_000_000_000i64 * (1_000_000 - 400_000) / 1_000_000;
+        assert_eq!(
+            parent_target_base, expected_parent_target_base,
+            "mixed scenario: parent should be scaled by valid derivative weight only"
+        );
+    }
+}
