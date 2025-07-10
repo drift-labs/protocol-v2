@@ -2363,3 +2363,308 @@ mod settle_tests {
         }
     }
 }
+
+#[cfg(test)]
+mod update_aum_tests {
+    use crate::{
+        create_anchor_account_info,
+        math::constants::SPOT_CUMULATIVE_INTEREST_PRECISION,
+        math::constants::{PRICE_PRECISION_I64, QUOTE_PRECISION},
+        state::lp_pool::*,
+        state::oracle::HistoricalOracleData,
+        state::oracle::OracleSource,
+        state::perp_market::{AmmCacheFixed, CacheInfo},
+        state::spot_market::SpotMarket,
+        state::spot_market_map::SpotMarketMap,
+        state::zero_copy::AccountZeroCopyMut,
+        test_utils::{create_account_info, get_anchor_account_bytes},
+    };
+    use anchor_lang::prelude::Pubkey;
+    use std::{cell::RefCell, marker::PhantomData};
+
+    fn test_aum_with_balances(
+        usdc_balance: u64, // USDC balance in tokens (6 decimals)
+        sol_balance: u64,  // SOL balance in tokens (9 decimals)
+        btc_balance: u64,  // BTC balance in tokens (8 decimals)
+        bonk_balance: u64, // BONK balance in tokens (5 decimals)
+        expected_aum_usd: u64,
+        test_name: &str,
+    ) {
+        let mut lp_pool = LPPool::default();
+        lp_pool.constituents = 4;
+        lp_pool.usdc_consituent_index = 0;
+
+        // Create constituents with specified token balances
+        let mut constituent_usdc = Constituent {
+            mint: Pubkey::new_unique(),
+            spot_market_index: 0,
+            constituent_index: 0,
+            last_oracle_price: PRICE_PRECISION_I64,
+            last_oracle_slot: 100,
+            decimals: 6,
+            token_balance: usdc_balance,
+            ..Constituent::default()
+        };
+        create_anchor_account_info!(constituent_usdc, Constituent, constituent_usdc_account_info);
+
+        let mut constituent_sol = Constituent {
+            mint: Pubkey::new_unique(),
+            spot_market_index: 1,
+            constituent_index: 1,
+            last_oracle_price: 200 * PRICE_PRECISION_I64,
+            last_oracle_slot: 100,
+            decimals: 9,
+            token_balance: sol_balance,
+            ..Constituent::default()
+        };
+        create_anchor_account_info!(constituent_sol, Constituent, constituent_sol_account_info);
+
+        let mut constituent_btc = Constituent {
+            mint: Pubkey::new_unique(),
+            spot_market_index: 2,
+            constituent_index: 2,
+            last_oracle_price: 100_000 * PRICE_PRECISION_I64,
+            last_oracle_slot: 100,
+            decimals: 8,
+            token_balance: btc_balance,
+            ..Constituent::default()
+        };
+        create_anchor_account_info!(constituent_btc, Constituent, constituent_btc_account_info);
+
+        let mut constituent_bonk = Constituent {
+            mint: Pubkey::new_unique(),
+            spot_market_index: 3,
+            constituent_index: 3,
+            last_oracle_price: 22, // $0.000022 in PRICE_PRECISION_I64
+            last_oracle_slot: 100,
+            decimals: 5,
+            token_balance: bonk_balance,
+            ..Constituent::default()
+        };
+        create_anchor_account_info!(constituent_bonk, Constituent, constituent_bonk_account_info);
+
+        let constituent_map = ConstituentMap::load_multiple(
+            vec![
+                &constituent_usdc_account_info,
+                &constituent_sol_account_info,
+                &constituent_btc_account_info,
+                &constituent_bonk_account_info,
+            ],
+            true,
+        )
+        .unwrap();
+
+        // Create spot markets
+        let mut usdc_spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
+
+        let mut sol_spot_market = SpotMarket {
+            market_index: 1,
+            oracle_source: OracleSource::Pyth,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 9,
+            historical_oracle_data: HistoricalOracleData::default(),
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(sol_spot_market, SpotMarket, sol_spot_market_account_info);
+
+        let mut btc_spot_market = SpotMarket {
+            market_index: 2,
+            oracle_source: OracleSource::Pyth,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 8,
+            historical_oracle_data: HistoricalOracleData::default(),
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(btc_spot_market, SpotMarket, btc_spot_market_account_info);
+
+        let mut bonk_spot_market = SpotMarket {
+            market_index: 3,
+            oracle_source: OracleSource::Pyth,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 5,
+            historical_oracle_data: HistoricalOracleData::default(),
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(bonk_spot_market, SpotMarket, bonk_spot_market_account_info);
+
+        let spot_market_account_infos = vec![
+            &usdc_spot_market_account_info,
+            &sol_spot_market_account_info,
+            &btc_spot_market_account_info,
+            &bonk_spot_market_account_info,
+        ];
+        let spot_market_map =
+            SpotMarketMap::load_multiple(spot_market_account_infos, true).unwrap();
+
+        // Create constituent target base
+        let target_fixed = RefCell::new(ConstituentTargetBaseFixed {
+            len: 4,
+            ..ConstituentTargetBaseFixed::default()
+        });
+        let target_data = RefCell::new([0u8; 96]); // 4 * 24 bytes per TargetsDatum
+        let mut constituent_target_base =
+            AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
+                fixed: target_fixed.borrow_mut(),
+                data: target_data.borrow_mut(),
+                _marker: PhantomData::<TargetsDatum>,
+            };
+
+        // Create AMM cache
+        let mut cache_fixed_default = AmmCacheFixed::default();
+        cache_fixed_default.len = 0; // No perp markets for this test
+        let cache_fixed = RefCell::new(cache_fixed_default);
+        let cache_data = RefCell::new([0u8; 0]); // Empty cache data
+        let mut amm_cache = AccountZeroCopyMut::<'_, CacheInfo, AmmCacheFixed> {
+            fixed: cache_fixed.borrow_mut(),
+            data: cache_data.borrow_mut(),
+            _marker: PhantomData::<CacheInfo>,
+        };
+
+        // Call update_aum
+        let result = lp_pool.update_aum(
+            1000, // now (timestamp)
+            101,  // slot
+            &constituent_map,
+            &spot_market_map,
+            &constituent_target_base,
+            &amm_cache,
+        );
+
+        assert!(result.is_ok(), "{}: update_aum should succeed", test_name);
+        let (aum, crypto_delta, derivative_groups) = result.unwrap();
+
+        // Convert expected USD to quote precision
+        let expected_aum = expected_aum_usd as u128 * QUOTE_PRECISION;
+
+        println!(
+            "{}: AUM = ${}, Expected = ${}",
+            test_name,
+            aum / QUOTE_PRECISION,
+            expected_aum / QUOTE_PRECISION
+        );
+
+        // Verify the results (allow small rounding differences)
+        let aum_diff = if aum > expected_aum {
+            aum - expected_aum
+        } else {
+            expected_aum - aum
+        };
+        assert!(
+            aum_diff <= QUOTE_PRECISION, // Allow up to $1 difference for rounding
+            "{}: AUM mismatch. Got: ${}, Expected: ${}, Diff: ${}",
+            test_name,
+            aum / QUOTE_PRECISION,
+            expected_aum / QUOTE_PRECISION,
+            aum_diff / QUOTE_PRECISION
+        );
+
+        assert_eq!(crypto_delta, 0, "{}: crypto_delta should be 0", test_name);
+        assert!(
+            derivative_groups.is_empty(),
+            "{}: derivative_groups should be empty",
+            test_name
+        );
+
+        // Verify LP pool state was updated
+        assert_eq!(
+            lp_pool.last_aum, aum,
+            "{}: last_aum should match calculated AUM",
+            test_name
+        );
+        assert_eq!(
+            lp_pool.last_aum_slot, 101,
+            "{}: last_aum_slot should be updated",
+            test_name
+        );
+        assert_eq!(
+            lp_pool.last_aum_ts, 1000,
+            "{}: last_aum_ts should be updated",
+            test_name
+        );
+        assert_eq!(
+            lp_pool.oldest_oracle_slot, 100,
+            "{}: oldest_oracle_slot should be updated",
+            test_name
+        );
+    }
+
+    #[test]
+    fn test_aum_zero() {
+        test_aum_with_balances(
+            0, // 0 USDC
+            0, // 0 SOL
+            0, // 0 BTC
+            0, // 0 BONK
+            0, // $0 expected AUM
+            "Zero AUM",
+        );
+    }
+
+    #[test]
+    fn test_aum_low_1k() {
+        test_aum_with_balances(
+            1_000_000_000, // 1,000 USDC (6 decimals) = $1,000
+            0,             // 0 SOL
+            0,             // 0 BTC
+            0,             // 0 BONK
+            1_000,         // $1,000 expected AUM
+            "Low AUM (~$1k)",
+        );
+    }
+
+    #[test]
+    fn test_aum_reasonable() {
+        test_aum_with_balances(
+            1_000_000_000_000, // 1M USDC (6 decimals) = $1M
+            5_000_000_000_000, // 5k SOL (9 decimals) = $1M at $200/SOL
+            800_000_000,       // 8 BTC (8 decimals) = $800k at $100k/BTC
+            0,                 // 0 BONK
+            2_800_000,         // Expected AUM based on actual calculation
+            "Reasonable AUM (~$2.8M)",
+        );
+    }
+
+    #[test]
+    fn test_aum_high() {
+        test_aum_with_balances(
+            10_000_000_000_000_000,  // 10B USDC (6 decimals) = $10B
+            500_000_000_000_000_000, // 500M SOL (9 decimals) = $100B at $200/SOL
+            100_000_000_000_000,     // 1M BTC (8 decimals) = $100B at $100k/BTC
+            0,                       // 0 BONK
+            210_000_000_000,         // Expected AUM based on actual calculation
+            "High AUM (~$210b)",
+        );
+    }
+
+    #[test]
+    fn test_aum_with_small_bonk_balance() {
+        test_aum_with_balances(
+            10_000_000_000_000_000,  // 10B USDC (6 decimals) = $10B
+            500_000_000_000_000_000, // 500M SOL (9 decimals) = $100B at $200/SOL
+            100_000_000_000_000,     // 1M BTC (8 decimals) = $100B at $100k/BTC
+            100_000_000_000_000,     // 1B BONK (5 decimals) = $22k at $0.000022/BONK
+            210_000_022_000,         // Expected AUM based on actual calculation
+            "High AUM (~$210b) with BONK",
+        );
+    }
+
+    #[test]
+    fn test_aum_with_large_bonk_balance() {
+        test_aum_with_balances(
+            10_000_000_000_000_000,  // 10B USDC (6 decimals) = $10B
+            500_000_000_000_000_000, // 500M SOL (9 decimals) = $100B at $200/SOL
+            100_000_000_000_000,     // 1M BTC (8 decimals) = $100B at $100k/BTC
+            100_000_000_000_000_000, // 1T BONK (5 decimals) = $22M at $0.000022/BONK
+            210_022_000_000,         // Expected AUM based on actual calculation
+            "High AUM (~$210b) with BONK",
+        );
+    }
+}

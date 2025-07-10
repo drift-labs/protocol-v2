@@ -27,7 +27,8 @@ use crate::{
         constituent_map::{ConstituentMap, ConstituentSet},
         events::{emit_stack, LPMintRedeemRecord, LPSwapRecord},
         lp_pool::{
-            calculate_target_weight, AmmConstituentDatum, AmmConstituentMappingFixed, Constituent,
+            calculate_target_weight, update_constituent_target_base_for_derivatives,
+            AmmConstituentDatum, AmmConstituentMappingFixed, Constituent,
             ConstituentCorrelationsFixed, ConstituentTargetBaseFixed, LPPool, TargetsDatum,
             WeightValidationFlags, LP_POOL_SWAP_AUM_UPDATE_DELAY,
             MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC, MAX_CONSTITUENT_ORACLE_SLOT_STALENESS_FOR_AUM,
@@ -199,6 +200,7 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
     let state = &ctx.accounts.state;
 
     let slot = Clock::get()?.slot;
+    let now = Clock::get()?.unix_timestamp;
 
     let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
 
@@ -251,88 +253,14 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
         "Amm cache PDA does not match expected PDA"
     )?;
 
-    let mut aum: u128 = 0;
-    let mut crypto_delta = 0_i128;
-    let mut oldest_slot = u64::MAX;
-    let mut derivative_groups: BTreeMap<u16, Vec<u16>> = BTreeMap::new();
-    for i in 0..lp_pool.constituents as usize {
-        let constituent = constituent_map.get_ref(&(i as u16))?;
-        if slot.saturating_sub(constituent.last_oracle_slot)
-            > MAX_CONSTITUENT_ORACLE_SLOT_STALENESS_FOR_AUM
-        {
-            msg!(
-                "Constituent {} oracle slot is too stale: {}, current slot: {}",
-                constituent.constituent_index,
-                constituent.last_oracle_slot,
-                slot
-            );
-            return Err(ErrorCode::ConstituentOracleStale.into());
-        }
-
-        if constituent.constituent_derivative_index >= 0 && constituent.derivative_weight != 0 {
-            if !derivative_groups.contains_key(&(constituent.constituent_derivative_index as u16)) {
-                derivative_groups.insert(
-                    constituent.constituent_derivative_index as u16,
-                    vec![constituent.constituent_index],
-                );
-            } else {
-                derivative_groups
-                    .get_mut(&(constituent.constituent_derivative_index as u16))
-                    .unwrap()
-                    .push(constituent.constituent_index);
-            }
-        }
-
-        let spot_market = spot_market_map.get_ref(&constituent.spot_market_index)?;
-
-        let oracle_slot = constituent.last_oracle_slot;
-
-        if oracle_slot < oldest_slot {
-            oldest_slot = oracle_slot;
-        }
-
-        let (numerator_scale, denominator_scale) = if spot_market.decimals > 6 {
-            (10_i128.pow(spot_market.decimals - 6), 1)
-        } else {
-            (1, 10_i128.pow(6 - spot_market.decimals))
-        };
-
-        let constituent_aum = constituent
-            .get_full_balance(&spot_market)?
-            .safe_mul(numerator_scale)?
-            .safe_div(denominator_scale)?
-            .safe_mul(constituent.last_oracle_price as i128)?
-            .safe_div(PRICE_PRECISION_I128)?
-            .max(0);
-        msg!(
-            "constituent: {}, aum: {}, deriv index: {}",
-            constituent.constituent_index,
-            constituent_aum,
-            constituent.constituent_derivative_index
-        );
-        if constituent.constituent_index != lp_pool.usdc_consituent_index
-            && constituent.constituent_derivative_index != lp_pool.usdc_consituent_index as i16
-        {
-            let constituent_target_notional = constituent_target_base
-                .get(constituent.constituent_index as u32)
-                .target_base
-                .safe_mul(constituent.last_oracle_price)?
-                .safe_div(10_i64.pow(constituent.decimals as u32))?;
-            crypto_delta = crypto_delta.safe_add(constituent_target_notional.cast()?)?;
-        }
-        aum = aum.safe_add(constituent_aum.cast()?)?;
-    }
-
-    let mut aum_i128 = aum.cast::<i128>()?;
-    for cache_datum in amm_cache.iter() {
-        aum_i128 -= cache_datum.quote_owed_from_lp_pool as i128;
-    }
-    aum = aum_i128.max(0i128).cast::<u128>()?;
-
-    lp_pool.oldest_oracle_slot = oldest_slot;
-    lp_pool.last_aum = aum;
-    lp_pool.last_aum_slot = slot;
-    lp_pool.last_aum_ts = Clock::get()?.unix_timestamp;
+    let (aum, crypto_delta, derivative_groups) = lp_pool.update_aum(
+        now,
+        slot,
+        &constituent_map,
+        &spot_market_map,
+        &constituent_target_base,
+        &amm_cache,
+    )?;
 
     // Set USDC stable weight
     let total_stable_target_base = aum
@@ -341,16 +269,7 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
         .max(0_i128);
     constituent_target_base
         .get_mut(lp_pool.usdc_consituent_index as u32)
-        .target_base = total_stable_target_base
-        .safe_mul(
-            10_i128.pow(
-                constituent_map
-                    .get_ref(&lp_pool.usdc_consituent_index)?
-                    .decimals as u32,
-            ),
-        )?
-        .safe_div(QUOTE_PRECISION_I128)?
-        .cast::<i64>()?;
+        .target_base = total_stable_target_base.cast::<i64>()?;
 
     msg!(
         "stable target base: {}",
@@ -361,75 +280,13 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
     msg!("aum: {}, crypto_delta: {}", aum, crypto_delta);
     msg!("derivative groups: {:?}", derivative_groups);
 
-    // Handle all other derivatives
-    for (parent_index, constituent_indexes) in derivative_groups.iter() {
-        let parent_constituent = constituent_map.get_ref(&(parent_index))?;
-        let parent_target_base = constituent_target_base
-            .get(*parent_index as u32)
-            .target_base;
-        let target_parent_weight = calculate_target_weight(
-            parent_target_base,
-            &*spot_market_map.get_ref(&parent_constituent.spot_market_index)?,
-            parent_constituent.last_oracle_price,
-            aum,
-            WeightValidationFlags::NONE,
-        )?;
-        let mut derivative_weights_sum = 0;
-        for constituent_index in constituent_indexes {
-            let constituent = constituent_map.get_ref(constituent_index)?;
-            if constituent.last_oracle_price
-                < parent_constituent
-                    .last_oracle_price
-                    .safe_mul(constituent.constituent_derivative_depeg_threshold as i64)?
-                    .safe_div(PERCENTAGE_PRECISION_I64)?
-            {
-                msg!(
-                    "Constituent {} last oracle price {} is too low compared to parent constituent {} last oracle price {}. Assuming depegging and setting target base to 0.",
-                    constituent.constituent_index,
-                    constituent.last_oracle_price,
-                    parent_constituent.constituent_index,
-                    parent_constituent.last_oracle_price
-                );
-                constituent_target_base
-                    .get_mut(*constituent_index as u32)
-                    .target_base = 0_i64;
-                continue;
-            }
-
-            derivative_weights_sum += constituent.derivative_weight;
-
-            let target_weight = target_parent_weight
-                .safe_mul(constituent.derivative_weight as i64)?
-                .safe_div(PERCENTAGE_PRECISION_I64)?;
-
-            msg!(
-                "constituent: {}, target weight: {}",
-                constituent_index,
-                target_weight,
-            );
-            let target_base = lp_pool
-                .last_aum
-                .cast::<i128>()?
-                .safe_mul(target_weight as i128)?
-                .safe_div(PERCENTAGE_PRECISION_I128)?
-                .safe_mul(10_i128.pow(constituent.decimals as u32))?
-                .safe_div(constituent.last_oracle_price as i128)?;
-
-            msg!(
-                "constituent: {}, target base: {}",
-                constituent_index,
-                target_base
-            );
-            constituent_target_base
-                .get_mut(*constituent_index as u32)
-                .target_base = target_base.cast::<i64>()?;
-        }
-        constituent_target_base
-            .get_mut(*parent_index as u32)
-            .target_base = parent_target_base
-            .safe_mul(PERCENTAGE_PRECISION_U64.safe_sub(derivative_weights_sum)? as i64)?
-            .safe_div(PERCENTAGE_PRECISION_I64)?;
-    }
+    update_constituent_target_base_for_derivatives(
+        aum,
+        &derivative_groups,
+        &constituent_map,
+        &spot_market_map,
+        &mut constituent_target_base,
+    )?;
 
     Ok(())
 }
