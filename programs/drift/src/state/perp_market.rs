@@ -9,18 +9,17 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::amm;
 use crate::math::casting::Cast;
 #[cfg(test)]
-use crate::math::constants::{
-    AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION_I64,
-};
+use crate::math::constants::{AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT};
 use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION,
     BID_ASK_SPREAD_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128,
-    DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT, FUNDING_RATE_OFFSET_PERCENTAGE,
-    LIQUIDATION_FEE_PRECISION, LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, LP_FEE_SLICE_DENOMINATOR,
-    LP_FEE_SLICE_NUMERATOR, MARGIN_PRECISION, MARGIN_PRECISION_U128, MAX_LIQUIDATION_MULTIPLIER,
-    PEG_PRECISION, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
-    PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I64, SPOT_WEIGHT_PRECISION,
-    TWENTY_FOUR_HOUR,
+    DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT, FUNDING_RATE_BUFFER_I128,
+    FUNDING_RATE_OFFSET_PERCENTAGE, LIQUIDATION_FEE_PRECISION,
+    LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, LP_FEE_SLICE_DENOMINATOR, LP_FEE_SLICE_NUMERATOR,
+    MARGIN_PRECISION, MARGIN_PRECISION_U128, MAX_LIQUIDATION_MULTIPLIER, PEG_PRECISION,
+    PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
+    PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128, PRICE_PRECISION_I64,
+    SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
 };
 use crate::math::helpers::get_proportion_i128;
 use crate::math::margin::{
@@ -766,27 +765,7 @@ impl PerpMarket {
 
         let oracle_plus_basis_5min = oracle_price.safe_add(basis_5min)?.unsigned_abs();
 
-        let last_funding_basis = if self.amm.last_funding_oracle_twap > 0 {
-            let last_funding_rate = self
-                .amm
-                .last_funding_rate
-                .safe_mul(PRICE_PRECISION_I64)?
-                .safe_div(self.amm.last_funding_oracle_twap)?;
-            let last_funding_rate_pre_adj =
-                last_funding_rate.safe_sub(FUNDING_RATE_OFFSET_PERCENTAGE)? / 24;
-
-            let time_since_last_funding_update = now
-                .safe_sub(self.amm.last_funding_rate_ts)?
-                .min(self.amm.funding_period);
-
-            oracle_price
-                .safe_mul(last_funding_rate_pre_adj)?
-                .safe_div(PERCENTAGE_PRECISION_I64)?
-                .safe_mul(time_since_last_funding_update)?
-                .safe_div(self.amm.funding_period)?
-        } else {
-            0
-        };
+        let last_funding_basis = self.get_last_funding_basis(oracle_price, now)?;
 
         let oracle_plus_funding_basis = oracle_price.safe_add(last_funding_basis)?.unsigned_abs();
 
@@ -810,17 +789,57 @@ impl PerpMarket {
             prices[1]
         };
 
+        self.clamp_trigger_price(oracle_price.unsigned_abs(), median_price)
+    }
+
+    #[inline(always)]
+    fn get_last_funding_basis(&self, oracle_price: i64, now: i64) -> DriftResult<i64> {
+        if self.amm.last_funding_oracle_twap > 0 {
+            let last_funding_rate = self
+                .amm
+                .last_funding_rate
+                .cast::<i128>()?
+                .safe_mul(PRICE_PRECISION_I128)?
+                .safe_div(self.amm.last_funding_oracle_twap.cast::<i128>()?)?
+                .safe_mul(24)?;
+            let last_funding_rate_pre_adj =
+                last_funding_rate.safe_sub(FUNDING_RATE_OFFSET_PERCENTAGE as i128)?;
+
+            let time_left_until_funding_update = now
+                .safe_sub(self.amm.last_funding_rate_ts)?
+                .min(self.amm.funding_period);
+
+            let last_funding_basis = oracle_price
+                .cast::<i128>()?
+                .safe_mul(last_funding_rate_pre_adj)?
+                .safe_div(PERCENTAGE_PRECISION_I128)?
+                .safe_mul(
+                    self.amm
+                        .funding_period
+                        .safe_sub(time_left_until_funding_update)?
+                        .cast::<i128>()?,
+                )?
+                .safe_div(self.amm.funding_period.cast::<i128>()?)?
+                / FUNDING_RATE_BUFFER_I128;
+
+            last_funding_basis.cast::<i64>()
+        } else {
+            Ok(0)
+        }
+    }
+
+    #[inline(always)]
+    fn clamp_trigger_price(&self, oracle_price: u64, median_price: u64) -> DriftResult<u64> {
         let max_bps_diff = if matches!(self.contract_tier, ContractTier::A | ContractTier::B) {
             500 // 20 BPS
         } else {
             100 // 100 BPS
         };
-
         let max_oracle_diff = oracle_price / max_bps_diff;
 
         Ok(median_price
-            .max(oracle_price.safe_sub(max_oracle_diff)?.unsigned_abs())
-            .min(oracle_price.safe_add(max_oracle_diff)?.unsigned_abs()))
+            .max(oracle_price.safe_sub(max_oracle_diff)?)
+            .min(oracle_price.safe_add(max_oracle_diff)?))
     }
 }
 
