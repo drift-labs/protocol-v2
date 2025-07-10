@@ -21,6 +21,7 @@ use crate::{
         },
         oracle::{is_oracle_valid_for_action, oracle_validity, DriftAction},
         safe_math::SafeMath,
+        spot_balance,
     },
     math_error, msg, safe_decrement, safe_increment,
     state::{
@@ -1107,6 +1108,9 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
         Some(ctx.accounts.state.oracle_guard_rails),
     )?;
 
+    constituent.sync_token_balance(ctx.accounts.constituent_token_account.amount);
+    let balance_before = constituent.get_full_balance(&spot_market)?;
+
     if amount == 0 {
         return Err(ErrorCode::InsufficientDeposit.into());
     }
@@ -1149,12 +1153,23 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
     safe_increment!(spot_position.cumulative_deposits, amount.cast()?);
 
     ctx.accounts.spot_market_vault.reload()?;
+    ctx.accounts.constituent_token_account.reload()?;
+    constituent.sync_token_balance(ctx.accounts.constituent_token_account.amount);
     spot_market.validate_max_token_deposits_and_borrows(false)?;
 
     validate!(
         ctx.accounts.spot_market_vault.amount == deposit_plus_token_amount_before,
         ErrorCode::LpInvariantFailed,
         "Spot market vault amount mismatch after deposit"
+    )?;
+
+    validate!(
+        constituent
+            .get_full_balance(&spot_market)?
+            .abs_diff(balance_before)
+            <= 1,
+        ErrorCode::LpInvariantFailed,
+        "Constituent balance mismatch after desposit to program vault"
     )?;
 
     Ok(())
@@ -1177,6 +1192,10 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
         Some(ctx.accounts.state.oracle_guard_rails),
     )?;
 
+    constituent.sync_token_balance(ctx.accounts.constituent_token_account.amount);
+
+    let balance_before = constituent.get_full_balance(&spot_market)?;
+
     if amount == 0 {
         return Err(ErrorCode::InsufficientDeposit.into());
     }
@@ -1194,35 +1213,65 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
         clock.unix_timestamp,
     )?;
 
+    // Can only borrow up to the max
+    let token_amount = constituent.spot_balance.get_token_amount(&spot_market)?;
+    let amount_to_transfer = if constituent.spot_balance.balance_type == SpotBalanceType::Borrow {
+        amount.min(
+            constituent
+                .max_borrow_token_amount
+                .safe_sub(token_amount as u64)?,
+        )
+    } else {
+        amount.min(
+            constituent
+                .max_borrow_token_amount
+                .safe_add(token_amount as u64)?,
+        )
+    };
+
     controller::token::send_from_program_vault(
         &ctx.accounts.token_program,
         &spot_market_vault,
         &ctx.accounts.constituent_token_account,
         &ctx.accounts.drift_signer,
         state.signer_nonce,
-        amount,
+        amount_to_transfer,
         &Some(*ctx.accounts.mint.clone()),
     )?;
+    ctx.accounts.constituent_token_account.reload()?;
+    constituent.sync_token_balance(ctx.accounts.constituent_token_account.amount);
 
     // Adjust BLPosition for the new deposits
     let spot_position = &mut constituent.spot_balance;
     update_spot_balances(
-        amount as u128,
+        amount_to_transfer as u128,
         &SpotBalanceType::Borrow,
         &mut spot_market,
         spot_position,
         true,
     )?;
 
-    safe_decrement!(spot_position.cumulative_deposits, amount.cast()?);
+    safe_decrement!(
+        spot_position.cumulative_deposits,
+        amount_to_transfer.cast()?
+    );
 
     ctx.accounts.spot_market_vault.reload()?;
+    spot_market.validate_max_token_deposits_and_borrows(true)?;
+
     math::spot_withdraw::validate_spot_market_vault_amount(
         &spot_market,
         ctx.accounts.spot_market_vault.amount,
     )?;
 
-    spot_market.validate_max_token_deposits_and_borrows(true)?;
+    validate!(
+        constituent
+            .get_full_balance(&spot_market)?
+            .abs_diff(balance_before)
+            <= 1,
+        ErrorCode::LpInvariantFailed,
+        "Constituent balance mismatch after withdraw from program vault"
+    )?;
 
     Ok(())
 }

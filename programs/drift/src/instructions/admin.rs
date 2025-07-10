@@ -5016,6 +5016,7 @@ pub fn handle_initialize_constituent<'info>(
     max_weight_deviation: i64,
     swap_fee_min: i64,
     swap_fee_max: i64,
+    max_borrow_token_amount: u64,
     oracle_staleness_threshold: u64,
     cost_to_trade_bps: i32,
     constituent_derivative_index: Option<i16>,
@@ -5067,6 +5068,7 @@ pub fn handle_initialize_constituent<'info>(
     constituent.mint = ctx.accounts.spot_market_mint.key();
     constituent.token_vault = ctx.accounts.constituent_vault.key();
     constituent.bump = ctx.bumps.constituent;
+    constituent.max_borrow_token_amount = max_borrow_token_amount;
     constituent.lp_pool = lp_pool.pubkey;
     constituent.constituent_index = (constituent_target_base.targets.len() - 1) as u16;
     constituent.next_swap_id = 1;
@@ -5101,6 +5103,7 @@ pub struct ConstituentParams {
     pub max_weight_deviation: Option<i64>,
     pub swap_fee_min: Option<i64>,
     pub swap_fee_max: Option<i64>,
+    pub max_borrow_token_amount: Option<u64>,
     pub oracle_staleness_threshold: Option<u64>,
     pub cost_to_trade_bps: Option<i32>,
     pub constituent_derivative_index: Option<i16>,
@@ -5209,6 +5212,15 @@ pub fn handle_update_constituent_params<'info>(
     if constituent_params.xi.is_some() {
         msg!("xi: {:?} -> {:?}", constituent.xi, constituent_params.xi);
         constituent.xi = constituent_params.xi.unwrap();
+    }
+
+    if let Some(max_borrow_token_amount) = constituent_params.max_borrow_token_amount {
+        msg!(
+            "max_borrow_token_amount: {:?} -> {:?}",
+            constituent.max_borrow_token_amount,
+            max_borrow_token_amount
+        );
+        constituent.max_borrow_token_amount = max_borrow_token_amount;
     }
 
     Ok(())

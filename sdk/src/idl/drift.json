@@ -7795,6 +7795,10 @@
           "type": "i64"
         },
         {
+          "name": "maxBorrowTokenAmount",
+          "type": "u64"
+        },
+        {
           "name": "oracleStalenessThreshold",
           "type": "u64"
         },
@@ -9431,6 +9435,14 @@
               "precision: PERCENTAGE_PRECISION"
             ],
             "type": "i64"
+          },
+          {
+            "name": "maxBorrowTokenAmount",
+            "docs": [
+              "Max Borrow amount:",
+              "precision: token precision"
+            ],
+            "type": "u64"
           },
           {
             "name": "tokenBalance",
@@ -11316,6 +11328,12 @@
             "name": "swapFeeMax",
             "type": {
               "option": "i64"
+            }
+          },
+          {
+            "name": "maxBorrowTokenAmount",
+            "type": {
+              "option": "u64"
             }
           },
           {

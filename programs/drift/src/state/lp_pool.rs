@@ -722,6 +722,10 @@ pub struct Constituent {
     /// precision: PERCENTAGE_PRECISION
     pub swap_fee_max: i64,
 
+    /// Max Borrow amount:
+    /// precision: token precision
+    pub max_borrow_token_amount: u64,
+
     /// ata token balance in token precision
     pub token_balance: u64,
 
@@ -758,7 +762,7 @@ pub struct Constituent {
 }
 
 impl Size for Constituent {
-    const SIZE: usize = 296;
+    const SIZE: usize = 304;
 }
 
 impl Constituent {
