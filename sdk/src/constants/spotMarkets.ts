@@ -879,6 +879,16 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 			'0x76fa85158bf14ede77087fe3ae472f66213f6ea2f5b411cb2de472794990fa5c',
 		pythLazerId: 240,
 	},
+	{
+		symbol: 'PT-fragSOL-31OCT25-3',
+		marketIndex: 55,
+		poolId: 3,
+		oracle: new PublicKey('C41YpBLZfERAbV1p8DD48vDwbYhRQCbiryMx8Vp5sfo4'),
+		oracleSource: OracleSource.SWITCHBOARD_ON_DEMAND,
+		mint: new PublicKey('Aby6y5DYtTrhQD8i7JXLs4H3jdUTwSXDraYqnwn5tKbt'),
+		precision: new BN(10).pow(NINE),
+		precisionExp: NINE,
+	},
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {
