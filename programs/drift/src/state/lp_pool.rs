@@ -839,10 +839,11 @@ pub struct Constituent {
     // depeg threshold in relation top parent in PERCENTAGE_PRECISION
     pub constituent_derivative_depeg_threshold: u64,
 
-    /// An arbitrary index to group like-assets together (stablecoins, LSTs, wrapped assets with similar underlying, etc.)
-    /// Stablecoins must have constituent_derivative_index=usdc_consituent_index (0).
-    /// -1 if
-    pub constituent_derivative_index: i16, // -1 if a parent index
+    /// The `constituent_index` of the parent constituent. -1 if it is a parent index
+    /// Example: if in a pool with SOL (parent) and dSOL (derivative),
+    /// SOL.constituent_index = 1, SOL.constituent_derivative_index = -1,
+    /// dSOL.constituent_index = 2, dSOL.constituent_derivative_index = 1
+    pub constituent_derivative_index: i16,
 
     pub spot_market_index: u16,
     pub constituent_index: u16,
