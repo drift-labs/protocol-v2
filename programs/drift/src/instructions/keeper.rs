@@ -1616,6 +1616,7 @@ pub fn handle_liquidate_spot_with_swap_end<'c: 'info, 'info>(
             &ctx.accounts.authority,
             residual,
             &asset_mint,
+            None,
         )?;
         asset_token_account.reload()?;
         asset_vault.reload()?;
@@ -1643,6 +1644,7 @@ pub fn handle_liquidate_spot_with_swap_end<'c: 'info, 'info>(
                 &ctx.accounts.authority,
                 amount_out,
                 &liability_mint,
+                None,
             )?;
         } else {
             controller::token::receive(
@@ -1652,6 +1654,7 @@ pub fn handle_liquidate_spot_with_swap_end<'c: 'info, 'info>(
                 &ctx.accounts.authority,
                 amount_out,
                 &liability_mint,
+                None,
             )?;
         }
 
@@ -2882,6 +2885,7 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
                 &ctx.accounts.keeper.to_account_info(),
                 token_amount.cast()?,
                 &mint_account_info,
+                None,
             )?;
         }
 

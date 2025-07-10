@@ -637,6 +637,11 @@ pub fn handle_deposit<'c: 'info, 'info>(
         &ctx.accounts.authority,
         amount,
         &mint,
+        if spot_market.token_program == 1 {
+            Some(remaining_accounts_iter)
+        } else {
+            None
+        },
     )?;
     ctx.accounts.spot_market_vault.reload()?;
 
@@ -3362,6 +3367,7 @@ pub fn handle_deposit_into_spot_market_revenue_pool<'c: 'info, 'info>(
         &ctx.accounts.authority,
         amount,
         &mint,
+        None,
     )?;
 
     spot_market.validate_max_token_deposits_and_borrows(false)?;
@@ -3773,6 +3779,7 @@ pub fn handle_end_swap<'c: 'info, 'info>(
             &ctx.accounts.authority,
             residual,
             &in_mint,
+            None,
         )?;
         in_token_account.reload()?;
         in_vault.reload()?;
@@ -3853,6 +3860,7 @@ pub fn handle_end_swap<'c: 'info, 'info>(
                 &ctx.accounts.authority,
                 amount_out,
                 &out_mint,
+                None,
             )?;
         } else {
             controller::token::receive(
@@ -3862,6 +3870,7 @@ pub fn handle_end_swap<'c: 'info, 'info>(
                 &ctx.accounts.authority,
                 amount_out,
                 &out_mint,
+                None,
             )?;
         }
 

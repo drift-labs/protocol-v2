@@ -137,6 +137,7 @@ pub fn handle_add_insurance_fund_stake<'c: 'info, 'info>(
         &ctx.accounts.authority,
         amount,
         &mint,
+        None,
     )?;
 
     Ok(())
@@ -624,6 +625,7 @@ pub fn handle_end_insurance_fund_swap<'c: 'info, 'info>(
             &ctx.accounts.authority,
             residual,
             &in_mint,
+            None,
         )?;
         in_token_account.reload()?;
         in_vault.reload()?;
@@ -651,6 +653,7 @@ pub fn handle_end_insurance_fund_swap<'c: 'info, 'info>(
                 &ctx.accounts.authority,
                 amount_out,
                 &out_mint,
+                None,
             )?;
         } else {
             controller::token::receive(
@@ -660,6 +663,7 @@ pub fn handle_end_insurance_fund_swap<'c: 'info, 'info>(
                 &ctx.accounts.authority,
                 amount_out,
                 &out_mint,
+                None,
             )?;
         }
 

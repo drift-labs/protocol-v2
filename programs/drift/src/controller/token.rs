@@ -2,6 +2,7 @@ use crate::error::ErrorCode;
 use crate::signer::get_signer_seeds;
 use crate::validate;
 use anchor_lang::prelude::*;
+use anchor_spl::token_2022::spl_token_2022;
 use anchor_spl::token_2022::spl_token_2022::extension::transfer_fee::TransferFeeConfig;
 use anchor_spl::token_2022::spl_token_2022::extension::{
     BaseStateWithExtensions, StateWithExtensions,
@@ -10,6 +11,8 @@ use anchor_spl::token_2022::spl_token_2022::state::Mint as MintInner;
 use anchor_spl::token_interface::{
     self, CloseAccount, Mint, TokenAccount, TokenInterface, Transfer, TransferChecked,
 };
+use std::iter::Peekable;
+use std::slice::Iter;
 
 pub fn send_from_program_vault<'info>(
     token_program: &Interface<'info, TokenInterface>,
@@ -59,21 +62,34 @@ pub fn receive<'info>(
     authority: &AccountInfo<'info>,
     amount: u64,
     mint: &Option<InterfaceAccount<'info, Mint>>,
+    remaining_account_metas: Option<&mut Peekable<Iter<'info, AccountInfo<'info>>>>,
 ) -> Result<()> {
     if let Some(mint) = mint {
-        let mint_account_info = mint.to_account_info();
+        if let Some(remaining_account_metas) = remaining_account_metas {
+            receive_with_transfer_hook(
+                token_program,
+                from,
+                to,
+                authority,
+                amount,
+                mint,
+                remaining_account_metas,
+            )
+        } else {
+            let mint_account_info = mint.to_account_info();
 
-        validate_mint_fee(&mint_account_info)?;
+            validate_mint_fee(&mint_account_info)?;
 
-        let cpi_accounts = TransferChecked {
-            from: from.to_account_info(),
-            to: to.to_account_info(),
-            mint: mint_account_info,
-            authority: authority.to_account_info(),
-        };
-        let cpi_program = token_program.to_account_info();
-        let cpi_context = CpiContext::new(cpi_program, cpi_accounts);
-        token_interface::transfer_checked(cpi_context, amount, mint.decimals)
+            let cpi_accounts = TransferChecked {
+                from: from.to_account_info(),
+                to: to.to_account_info(),
+                mint: mint_account_info,
+                authority: authority.to_account_info(),
+            };
+            let cpi_program = token_program.to_account_info();
+            let cpi_context = CpiContext::new(cpi_program, cpi_accounts);
+            token_interface::transfer_checked(cpi_context, amount, mint.decimals)
+        }
     } else {
         let cpi_accounts = Transfer {
             from: from.to_account_info(),
@@ -119,4 +135,48 @@ pub fn validate_mint_fee(account_info: &AccountInfo) -> Result<()> {
     }
 
     Ok(())
+}
+
+pub fn receive_with_transfer_hook<'info>(
+    token_program: &Interface<'info, TokenInterface>,
+    from: &InterfaceAccount<'info, TokenAccount>,
+    to: &InterfaceAccount<'info, TokenAccount>,
+    authority: &AccountInfo<'info>,
+    amount: u64,
+    mint: &InterfaceAccount<'info, Mint>,
+    remaining_accounts: &mut Peekable<Iter<'info, AccountInfo<'info>>>,
+) -> Result<()> {
+    let mint_account_info = mint.to_account_info();
+
+    validate_mint_fee(&mint_account_info)?;
+
+    let from_account_info = from.to_account_info();
+    let to_account_info = to.to_account_info();
+    let authority_account_info = authority.to_account_info();
+
+    let mut ix = spl_token_2022::instruction::transfer_checked(
+        token_program.key,
+        &from_account_info.key,
+        &mint_account_info.key,
+        &to_account_info.key,
+        &authority_account_info.key,
+        &[],
+        amount,
+        mint.decimals,
+    )?;
+
+    let remaining_account_metas: Vec<AccountMeta> = remaining_accounts
+        .map(|account_info| AccountMeta::new(*account_info.key, account_info.is_writable))
+        .collect();
+    ix.accounts.extend(remaining_account_metas);
+
+    let mut account_infos = vec![
+        from_account_info,
+        mint_account_info,
+        to_account_info,
+        authority_account_info,
+    ];
+    account_infos.extend(remaining_accounts.map(|account_info| account_info.to_account_info()));
+
+    solana_program::program::invoke_signed(&ix, &account_infos, &[]).map_err(Into::into)
 }

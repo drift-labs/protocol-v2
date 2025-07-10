@@ -1945,6 +1945,7 @@ pub fn handle_deposit_into_perp_market_fee_pool<'c: 'info, 'info>(
         &ctx.accounts.admin.to_account_info(),
         amount,
         &mint,
+        None,
     )?;
 
     Ok(())
@@ -2015,6 +2016,7 @@ pub fn handle_deposit_into_spot_market_vault<'c: 'info, 'info>(
         &ctx.accounts.admin.to_account_info(),
         amount,
         &mint,
+        None,
     )?;
 
     ctx.accounts.spot_market_vault.reload()?;
@@ -4735,6 +4737,7 @@ pub fn handle_admin_deposit<'c: 'info, 'info>(
         &ctx.accounts.admin,
         amount,
         &mint,
+        None,
     )?;
     ctx.accounts.spot_market_vault.reload()?;
     validate_spot_market_vault_amount(spot_market, ctx.accounts.spot_market_vault.amount)?;
