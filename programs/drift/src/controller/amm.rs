@@ -257,7 +257,13 @@ pub fn update_spreads(market: &mut PerpMarket, reserve_price: u64) -> DriftResul
 
     market.amm.long_spread = long_spread;
     market.amm.short_spread = short_spread;
-    market.amm.reference_price_offset = reference_price_offset;
+
+    if reference_price_offset == 0 && market.amm.reference_price_offset != 0 {
+        // smooth decay toward 0
+        market.amm.reference_price_offset = market.amm.reference_price_offset.safe_sub(market.amm.reference_price_offset.safe_div(10)?)?;
+    } else {
+        market.amm.reference_price_offset = reference_price_offset;
+    }
 
     update_spread_reserves(market)?;
 
