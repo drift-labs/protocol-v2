@@ -4688,6 +4688,7 @@ export class AdminClient extends DriftClient {
 		maxMintFee: BN,
 		revenueRebalancePeriod: BN,
 		maxAum: BN,
+		maxSettleQuoteAmountPerMarket: BN,
 		mint: Keypair
 	): Promise<TransactionSignature> {
 		const ixs = await this.getInitializeLpPoolIx(
@@ -4696,6 +4697,7 @@ export class AdminClient extends DriftClient {
 			maxMintFee,
 			revenueRebalancePeriod,
 			maxAum,
+			maxSettleQuoteAmountPerMarket,
 			mint
 		);
 		const tx = await this.buildTransaction(ixs);
@@ -4709,6 +4711,7 @@ export class AdminClient extends DriftClient {
 		maxMintFee: BN,
 		revenueRebalancePeriod: BN,
 		maxAum: BN,
+		maxSettleQuoteAmountPerMarket: BN,
 		mint: Keypair
 	): Promise<TransactionInstruction[]> {
 		const lpPool = getLpPoolPublicKey(this.program.programId, encodeName(name));
@@ -4749,6 +4752,7 @@ export class AdminClient extends DriftClient {
 				maxMintFee,
 				revenueRebalancePeriod,
 				maxAum,
+				maxSettleQuoteAmountPerMarket,
 				{
 					accounts: {
 						admin: this.wallet.publicKey,
@@ -4813,6 +4817,7 @@ export class AdminClient extends DriftClient {
 				initializeConstituentParams.maxWeightDeviation,
 				initializeConstituentParams.swapFeeMin,
 				initializeConstituentParams.swapFeeMax,
+				initializeConstituentParams.maxBorrowTokenAmount,
 				initializeConstituentParams.oracleStalenessThreshold,
 				initializeConstituentParams.costToTrade,
 				initializeConstituentParams.constituentDerivativeIndex != null
@@ -4872,6 +4877,7 @@ export class AdminClient extends DriftClient {
 			maxWeightDeviation?: BN;
 			swapFeeMin?: BN;
 			swapFeeMax?: BN;
+			maxBorrowTokenAmount?: BN;
 			oracleStalenessThreshold?: BN;
 			costToTradeBps?: number;
 			derivativeWeight?: BN;
@@ -4899,6 +4905,7 @@ export class AdminClient extends DriftClient {
 			maxWeightDeviation?: BN;
 			swapFeeMin?: BN;
 			swapFeeMax?: BN;
+			maxBorrowTokenAmount?: BN;
 			oracleStalenessThreshold?: BN;
 			derivativeWeight?: BN;
 			constituentDerivativeIndex?: number;
@@ -4916,6 +4923,7 @@ export class AdminClient extends DriftClient {
 						maxWeightDeviation: null,
 						swapFeeMin: null,
 						swapFeeMax: null,
+						maxBorrowTokenAmount: null,
 						oracleStalenessThreshold: null,
 						costToTradeBps: null,
 						stablecoinWeight: null,
@@ -4938,6 +4946,48 @@ export class AdminClient extends DriftClient {
 							this.program.programId,
 							lpPool
 						),
+					},
+					signers: [],
+				}
+			),
+		];
+	}
+
+	public async updateLpPoolParams(
+		lpPoolName: number[],
+		updateLpPoolParams: {
+			maxSettleQuoteAmount?: BN;
+		}
+	): Promise<TransactionSignature> {
+		const ixs = await this.getUpdateLpPoolParamsIx(
+			lpPoolName,
+			updateLpPoolParams
+		);
+		const tx = await this.buildTransaction(ixs);
+		const { txSig } = await this.sendTransaction(tx, []);
+		return txSig;
+	}
+
+	public async getUpdateLpPoolParamsIx(
+		lpPoolName: number[],
+		updateLpPoolParams: {
+			maxSettleQuoteAmount?: BN;
+		}
+	): Promise<TransactionInstruction[]> {
+		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
+		return [
+			this.program.instruction.updateLpPoolParams(
+				Object.assign(
+					{
+						maxSettleQuoteAmount: null,
+					},
+					updateLpPoolParams
+				),
+				{
+					accounts: {
+						admin: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+						lpPool,
 					},
 					signers: [],
 				}
@@ -5495,5 +5545,41 @@ export class AdminClient extends DriftClient {
 		);
 
 		return { depositIx, withdrawIx };
+	}
+
+	public async depositToProgramVault(
+		lpPoolName: number[],
+		depositMarketIndex: number,
+		amountToDeposit: BN
+	): Promise<TransactionSignature> {
+		const { depositIx } = await this.getDepositWithdrawToProgramVaultIxs(
+			lpPoolName,
+			depositMarketIndex,
+			depositMarketIndex,
+			amountToDeposit,
+			new BN(0)
+		);
+
+		const tx = await this.buildTransaction([depositIx]);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async withdrawFromProgramVault(
+		lpPoolName: number[],
+		borrowMarketIndex: number,
+		amountToWithdraw: BN
+	): Promise<TransactionSignature> {
+		const { withdrawIx } = await this.getDepositWithdrawToProgramVaultIxs(
+			lpPoolName,
+			borrowMarketIndex,
+			borrowMarketIndex,
+			new BN(0),
+			amountToWithdraw
+		);
+
+		const tx = await this.buildTransaction([withdrawIx]);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
 	}
 }

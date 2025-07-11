@@ -76,7 +76,7 @@ pub struct LPPool {
     pub last_aum_ts: i64, // 8, 160
 
     /// Oldest slot of constituent oracles
-    pub oldest_oracle_slot: u64,
+    pub max_settle_quote_amount: u64,
 
     /// timestamp of last vAMM revenue rebalance
     pub last_revenue_rebalance_ts: u64, // 8, 168
@@ -731,7 +731,6 @@ impl LPPool {
         }
         aum = aum_i128.max(0i128).cast::<u128>()?;
 
-        self.oldest_oracle_slot = oldest_slot;
         self.last_aum = aum;
         self.last_aum_slot = slot;
         self.last_aum_ts = now;
@@ -819,6 +818,10 @@ pub struct Constituent {
     /// precision: PERCENTAGE_PRECISION
     pub swap_fee_max: i64,
 
+    /// Max Borrow amount:
+    /// precision: token precision
+    pub max_borrow_token_amount: u64,
+
     /// ata token balance in token precision
     pub token_balance: u64,
 
@@ -859,7 +862,7 @@ pub struct Constituent {
 }
 
 impl Size for Constituent {
-    const SIZE: usize = 296;
+    const SIZE: usize = 304;
 }
 
 impl Constituent {

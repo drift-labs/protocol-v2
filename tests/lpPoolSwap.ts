@@ -224,6 +224,7 @@ describe('LP Pool', () => {
 			ZERO, // 1 bps
 			new BN(3600),
 			new BN(100_000_000).mul(QUOTE_PRECISION),
+			new BN(1_000_000).mul(QUOTE_PRECISION),
 			Keypair.generate() // dlp mint
 		);
 		await adminClient.initializeConstituent(encodeName(lpPoolName), {
@@ -232,6 +233,7 @@ describe('LP Pool', () => {
 			maxWeightDeviation: PERCENTAGE_PRECISION.divn(10), // 10% max dev,
 			swapFeeMin: PERCENTAGE_PRECISION.divn(10000), // min fee 1 bps,
 			swapFeeMax: PERCENTAGE_PRECISION.divn(100),
+			maxBorrowTokenAmount: new BN(1_000_000).muln(10 ** 6),
 			oracleStalenessThreshold: new BN(100),
 			costToTrade: 1,
 			derivativeWeight: PERCENTAGE_PRECISION,
@@ -244,6 +246,7 @@ describe('LP Pool', () => {
 			maxWeightDeviation: PERCENTAGE_PRECISION.divn(10), // 10% max dev,
 			swapFeeMin: PERCENTAGE_PRECISION.divn(10000), // min fee 1 bps,
 			swapFeeMax: PERCENTAGE_PRECISION.divn(100),
+			maxBorrowTokenAmount: new BN(1_000_000).muln(10 ** 6),
 			oracleStalenessThreshold: new BN(100),
 			costToTrade: 1,
 			derivativeWeight: ZERO,
@@ -696,6 +699,7 @@ describe('LP Pool', () => {
 			maxWeightDeviation: PERCENTAGE_PRECISION.divn(10), // 10% max dev,
 			swapFeeMin: PERCENTAGE_PRECISION.divn(10000), // min fee 1 bps,
 			swapFeeMax: PERCENTAGE_PRECISION.divn(100),
+			maxBorrowTokenAmount: new BN(1_000_000).muln(10 ** 6),
 			oracleStalenessThreshold: new BN(100),
 			costToTrade: 1,
 			derivativeWeight: ZERO,

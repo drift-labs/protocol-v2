@@ -1659,6 +1659,7 @@ export type InitializeConstituentParams = {
 	maxWeightDeviation: BN;
 	swapFeeMin: BN;
 	swapFeeMax: BN;
+	maxBorrowTokenAmount: BN;
 	oracleStalenessThreshold: BN;
 	costToTrade: number;
 	derivativeWeight: BN;

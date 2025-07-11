@@ -278,6 +278,7 @@ describe('LP Pool', () => {
 			ZERO,
 			new BN(3600),
 			new BN(1_000_000).mul(QUOTE_PRECISION),
+			new BN(1_000_000).mul(QUOTE_PRECISION),
 			Keypair.generate()
 		);
 
@@ -352,6 +353,7 @@ describe('LP Pool', () => {
 			maxWeightDeviation: new BN(10).mul(PERCENTAGE_PRECISION),
 			swapFeeMin: new BN(1).mul(PERCENTAGE_PRECISION),
 			swapFeeMax: new BN(2).mul(PERCENTAGE_PRECISION),
+			maxBorrowTokenAmount: new BN(1_000_000).muln(10 ** 6),
 			oracleStalenessThreshold: new BN(400),
 			costToTrade: 1,
 			derivativeWeight: ZERO,
@@ -401,6 +403,7 @@ describe('LP Pool', () => {
 			maxWeightDeviation: new BN(10).mul(PERCENTAGE_PRECISION),
 			swapFeeMin: new BN(1).mul(PERCENTAGE_PRECISION),
 			swapFeeMax: new BN(2).mul(PERCENTAGE_PRECISION),
+			maxBorrowTokenAmount: new BN(1_000_000).muln(10 ** 6),
 			oracleStalenessThreshold: new BN(400),
 			costToTrade: 1,
 			constituentDerivativeDepegThreshold:
@@ -705,6 +708,7 @@ describe('LP Pool', () => {
 			swapFeeMin: new BN(1).mul(PERCENTAGE_PRECISION),
 			swapFeeMax: new BN(2).mul(PERCENTAGE_PRECISION),
 			oracleStalenessThreshold: new BN(400),
+			maxBorrowTokenAmount: new BN(1_000_000).muln(10 ** 6),
 			costToTrade: 1,
 			derivativeWeight: PERCENTAGE_PRECISION.divn(2),
 			constituentDerivativeDepegThreshold:
@@ -1290,6 +1294,7 @@ describe('LP Pool', () => {
 			maxWeightDeviation: new BN(10).mul(PERCENTAGE_PRECISION),
 			swapFeeMin: new BN(1).mul(PERCENTAGE_PRECISION),
 			swapFeeMax: new BN(2).mul(PERCENTAGE_PRECISION),
+			maxBorrowTokenAmount: new BN(1_000_000).muln(10 ** 6),
 			oracleStalenessThreshold: new BN(400),
 			costToTrade: 1,
 			derivativeWeight: PERCENTAGE_PRECISION.divn(4),
@@ -1418,5 +1423,42 @@ describe('LP Pool', () => {
 			parentTargetBaseBefore.toNumber() * 2,
 			10
 		);
+	});
+
+	it('cant withdraw more than constituent limit', async () => {
+		await adminClient.updateConstituentParams(
+			encodeName(lpPoolName),
+			getConstituentPublicKey(program.programId, lpPoolKey, 0),
+			{
+				maxBorrowTokenAmount: new BN(10).muln(10 ** 6),
+			}
+		);
+
+		let constituent = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 0)
+		)) as ConstituentAccount;
+		const balanceBefore = constituent.tokenBalance;
+		const spotBalanceBefore = constituent.spotBalance;
+
+		await adminClient.withdrawFromProgramVault(
+			encodeName(lpPoolName),
+			0,
+			new BN(100).mul(QUOTE_PRECISION)
+		);
+
+		constituent = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 0)
+		)) as ConstituentAccount;
+
+		assert(
+			constituent.tokenBalance
+				.sub(balanceBefore)
+				.eq(new BN(10).mul(QUOTE_PRECISION))
+		);
+		expect(
+			constituent.spotBalance.scaledBalance
+				.sub(spotBalanceBefore.scaledBalance)
+				.toNumber()
+		).to.be.approximately(10 * 10 ** 9, 1);
 	});
 });
