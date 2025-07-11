@@ -1937,23 +1937,31 @@ pub fn handle_resolve_perp_pnl_deficit<'c: 'info, 'info>(
 
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&spot_market_index)?;
-        let mut transfer_hook_remaining_accounts_iter = remaining_accounts_iter.clone();
-        let remaining_accounts = if spot_market.has_transfer_hook() {
-            Some(&mut transfer_hook_remaining_accounts_iter)
+        if spot_market.has_transfer_hook() {
+            controller::insurance::attempt_settle_revenue_to_insurance_fund(
+                &ctx.accounts.spot_market_vault,
+                &ctx.accounts.insurance_fund_vault,
+                spot_market,
+                now,
+                &ctx.accounts.token_program,
+                &ctx.accounts.drift_signer,
+                state,
+                &mint,
+                Some(&mut remaining_accounts_iter.clone()),
+            )?;
         } else {
-            None
+            controller::insurance::attempt_settle_revenue_to_insurance_fund(
+                &ctx.accounts.spot_market_vault,
+                &ctx.accounts.insurance_fund_vault,
+                spot_market,
+                now,
+                &ctx.accounts.token_program,
+                &ctx.accounts.drift_signer,
+                state,
+                &mint,
+                None,
+            )?;
         };
-        controller::insurance::attempt_settle_revenue_to_insurance_fund(
-            &ctx.accounts.spot_market_vault,
-            &ctx.accounts.insurance_fund_vault,
-            spot_market,
-            now,
-            &ctx.accounts.token_program,
-            &ctx.accounts.drift_signer,
-            state,
-            &mint,
-            remaining_accounts,
-        )?;
 
         // reload the spot market vault balance so it's up-to-date
         ctx.accounts.spot_market_vault.reload()?;

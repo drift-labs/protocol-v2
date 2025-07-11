@@ -101,24 +101,31 @@ pub fn handle_add_insurance_fund_stake<'c: 'info, 'info>(
     )?;
 
     {
-        let mut transfer_hook_remaining_accounts_iter = remaining_accounts_iter.clone();
-        let remaining_accounts_for_hooks = if spot_market.has_transfer_hook() {
-            Some(&mut transfer_hook_remaining_accounts_iter)
+        if spot_market.has_transfer_hook() {
+            controller::insurance::attempt_settle_revenue_to_insurance_fund(
+                &ctx.accounts.spot_market_vault,
+                &ctx.accounts.insurance_fund_vault,
+                spot_market,
+                now,
+                &ctx.accounts.token_program,
+                &ctx.accounts.drift_signer,
+                state,
+                &mint,
+                Some(&mut remaining_accounts_iter.clone()),
+            )?;
         } else {
-            None
+            controller::insurance::attempt_settle_revenue_to_insurance_fund(
+                &ctx.accounts.spot_market_vault,
+                &ctx.accounts.insurance_fund_vault,
+                spot_market,
+                now,
+                &ctx.accounts.token_program,
+                &ctx.accounts.drift_signer,
+                state,
+                &mint,
+                None,
+            )?;
         };
-
-        controller::insurance::attempt_settle_revenue_to_insurance_fund(
-            &ctx.accounts.spot_market_vault,
-            &ctx.accounts.insurance_fund_vault,
-            spot_market,
-            now,
-            &ctx.accounts.token_program,
-            &ctx.accounts.drift_signer,
-            state,
-            &mint,
-            remaining_accounts_for_hooks,
-        )?;
 
         // reload the vault balances so they're up-to-date
         ctx.accounts.spot_market_vault.reload()?;
@@ -145,7 +152,11 @@ pub fn handle_add_insurance_fund_stake<'c: 'info, 'info>(
         &ctx.accounts.authority,
         amount,
         &mint,
-        None,
+        if spot_market.has_transfer_hook() {
+            Some(remaining_accounts_iter)
+        } else {
+            None
+        },
     )?;
 
     Ok(())
