@@ -46,7 +46,7 @@
 		"@pythnetwork/client": "2.5.3",
 		"@pythnetwork/price-service-sdk": "1.7.1",
 		"@pythnetwork/pyth-solana-receiver": "0.7.0",
-		"@solana/spl-token": "0.3.7",
+		"@solana/spl-token": "0.4.13",
 		"@solana/web3.js": "1.92.3",
 		"@switchboard-xyz/common": "3.0.14",
 		"@switchboard-xyz/on-demand": "2.4.1",
@@ -70,11 +70,11 @@
 		"@types/chai": "4.3.20",
 		"@types/jest": "28.1.8",
 		"@types/mocha": "9.1.1",
-		"@typescript-eslint/eslint-plugin": "4.28.0",
-		"@typescript-eslint/parser": "4.28.0",
+		"@typescript-eslint/eslint-plugin": "6.21.0",
+		"@typescript-eslint/parser": "6.21.0",
 		"chai": "4.5.0",
 		"encoding": "0.1.13",
-		"eslint": "7.29.0",
+		"eslint": "8.57.0",
 		"eslint-config-prettier": "8.3.0",
 		"eslint-plugin-prettier": "3.4.0",
 		"lodash": "4.17.21",
@@ -83,7 +83,7 @@
 		"prettier": "3.0.1",
 		"sinon": "18.0.1",
 		"ts-node": "10.9.2",
-		"typescript": "4.9.5"
+		"typescript": "5.4.5"
 	},
 	"description": "SDK for Drift Protocol",
 	"engines": {
