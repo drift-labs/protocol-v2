@@ -731,7 +731,6 @@ impl LPPool {
         }
         aum = aum_i128.max(0i128).cast::<u128>()?;
 
-        self.oldest_oracle_slot = oldest_slot;
         self.last_aum = aum;
         self.last_aum_slot = slot;
         self.last_aum_ts = now;
