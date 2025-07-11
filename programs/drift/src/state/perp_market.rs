@@ -1233,7 +1233,7 @@ impl AMM {
         // always allow 1-100 bps of price offset, up to half of the market's max_spread
         let lb_bps =
             (PERCENTAGE_PRECISION.cast::<i64>()? / 10000).safe_mul(lower_bound_multiplier)?;
-        let max_offset = (self.max_spread.cast::<i64>()? / 2).max(lb_bps);
+        let max_offset = (self.max_spread.cast::<i64>()? / 2).min(lb_bps);
 
         Ok(max_offset)
     }
