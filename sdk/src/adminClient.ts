@@ -4688,6 +4688,7 @@ export class AdminClient extends DriftClient {
 		maxMintFee: BN,
 		revenueRebalancePeriod: BN,
 		maxAum: BN,
+		maxSettleQuoteAmountPerMarket: BN,
 		mint: Keypair
 	): Promise<TransactionSignature> {
 		const ixs = await this.getInitializeLpPoolIx(
@@ -4696,6 +4697,7 @@ export class AdminClient extends DriftClient {
 			maxMintFee,
 			revenueRebalancePeriod,
 			maxAum,
+			maxSettleQuoteAmountPerMarket,
 			mint
 		);
 		const tx = await this.buildTransaction(ixs);
@@ -4709,6 +4711,7 @@ export class AdminClient extends DriftClient {
 		maxMintFee: BN,
 		revenueRebalancePeriod: BN,
 		maxAum: BN,
+		maxSettleQuoteAmountPerMarket: BN,
 		mint: Keypair
 	): Promise<TransactionInstruction[]> {
 		const lpPool = getLpPoolPublicKey(this.program.programId, encodeName(name));
@@ -4749,6 +4752,7 @@ export class AdminClient extends DriftClient {
 				maxMintFee,
 				revenueRebalancePeriod,
 				maxAum,
+				maxSettleQuoteAmountPerMarket,
 				{
 					accounts: {
 						admin: this.wallet.publicKey,
@@ -4942,6 +4946,48 @@ export class AdminClient extends DriftClient {
 							this.program.programId,
 							lpPool
 						),
+					},
+					signers: [],
+				}
+			),
+		];
+	}
+
+	public async updateLpPoolParams(
+		lpPoolName: number[],
+		updateLpPoolParams: {
+			maxSettleQuoteAmount?: BN;
+		}
+	): Promise<TransactionSignature> {
+		const ixs = await this.getUpdateLpPoolParamsIx(
+			lpPoolName,
+			updateLpPoolParams
+		);
+		const tx = await this.buildTransaction(ixs);
+		const { txSig } = await this.sendTransaction(tx, []);
+		return txSig;
+	}
+
+	public async getUpdateLpPoolParamsIx(
+		lpPoolName: number[],
+		updateLpPoolParams: {
+			maxSettleQuoteAmount?: BN;
+		}
+	): Promise<TransactionInstruction[]> {
+		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
+		return [
+			this.program.instruction.updateLpPoolParams(
+				Object.assign(
+					{
+						maxSettleQuoteAmount: null,
+					},
+					updateLpPoolParams
+				),
+				{
+					accounts: {
+						admin: this.wallet.publicKey,
+						state: await this.getStatePublicKey(),
+						lpPool,
 					},
 					signers: [],
 				}

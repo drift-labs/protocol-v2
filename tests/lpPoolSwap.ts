@@ -224,6 +224,7 @@ describe('LP Pool', () => {
 			ZERO, // 1 bps
 			new BN(3600),
 			new BN(100_000_000).mul(QUOTE_PRECISION),
+			new BN(1_000_000).mul(QUOTE_PRECISION),
 			Keypair.generate() // dlp mint
 		);
 		await adminClient.initializeConstituent(encodeName(lpPoolName), {

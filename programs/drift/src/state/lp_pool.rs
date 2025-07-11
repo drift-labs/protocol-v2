@@ -71,7 +71,7 @@ pub struct LPPool {
     pub last_aum_ts: i64, // 8, 160
 
     /// Oldest slot of constituent oracles
-    pub oldest_oracle_slot: u64,
+    pub max_settle_quote_amount: u64,
 
     /// timestamp of last vAMM revenue rebalance
     pub last_revenue_rebalance_ts: u64, // 8, 168

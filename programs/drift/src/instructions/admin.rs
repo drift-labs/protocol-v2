@@ -4711,6 +4711,7 @@ pub fn handle_initialize_lp_pool(
     max_mint_fee: i64,
     revenue_rebalance_period: u64,
     max_aum: u128,
+    max_settle_quote_amount_per_market: u64,
 ) -> Result<()> {
     let mut lp_pool = ctx.accounts.lp_pool.load_init()?;
     let mint = ctx.accounts.mint.key();
@@ -4724,11 +4725,11 @@ pub fn handle_initialize_lp_pool(
         last_aum: 0,
         last_aum_slot: 0,
         last_aum_ts: 0,
+        max_settle_quote_amount: max_settle_quote_amount_per_market,
         last_revenue_rebalance_ts: 0,
         total_fees_received: 0,
         total_fees_paid: 0,
         total_mint_redeem_fees_paid: 0,
-        oldest_oracle_slot: 0,
         bump: ctx.bumps.lp_pool,
         min_mint_fee,
         max_mint_fee_premium: max_mint_fee,
@@ -5221,6 +5222,29 @@ pub fn handle_update_constituent_params<'info>(
             max_borrow_token_amount
         );
         constituent.max_borrow_token_amount = max_borrow_token_amount;
+    }
+
+    Ok(())
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+pub struct LpPoolParams {
+    pub max_settle_quote_amount: Option<u64>,
+}
+
+pub fn handle_update_lp_pool_params<'info>(
+    ctx: Context<UpdateLpPoolParams>,
+    lp_pool_params: LpPoolParams,
+) -> Result<()> {
+    let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
+
+    if let Some(max_settle_quote_amount) = lp_pool_params.max_settle_quote_amount {
+        msg!(
+            "max_settle_quote_amount: {:?} -> {:?}",
+            lp_pool.max_settle_quote_amount,
+            max_settle_quote_amount
+        );
+        lp_pool.max_settle_quote_amount = max_settle_quote_amount;
     }
 
     Ok(())
@@ -6693,6 +6717,18 @@ pub struct UpdateConstituentParams<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub constituent: AccountLoader<'info, Constituent>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateLpPoolParams<'info> {
+    #[account(mut)]
+    pub lp_pool: AccountLoader<'info, LPPool>,
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+    pub state: Box<Account<'info, State>>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]

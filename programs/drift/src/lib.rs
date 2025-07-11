@@ -1759,6 +1759,7 @@ pub mod drift {
         max_mint_fee: i64,
         revenue_rebalance_period: u64,
         max_aum: u128,
+        max_settle_quote_amount_per_market: u64,
     ) -> Result<()> {
         handle_initialize_lp_pool(
             ctx,
@@ -1767,6 +1768,7 @@ pub mod drift {
             max_mint_fee,
             revenue_rebalance_period,
             max_aum,
+            max_settle_quote_amount_per_market,
         )
     }
 
@@ -1862,6 +1864,13 @@ pub mod drift {
         constituent_params: ConstituentParams,
     ) -> Result<()> {
         handle_update_constituent_params(ctx, constituent_params)
+    }
+
+    pub fn update_lp_pool_params(
+        ctx: Context<UpdateLpPoolParams>,
+        lp_pool_params: LpPoolParams,
+    ) -> Result<()> {
+        handle_update_lp_pool_params(ctx, lp_pool_params)
     }
 
     pub fn add_amm_constituent_mapping_data(

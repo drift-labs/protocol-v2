@@ -330,7 +330,6 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
     }
     aum = aum_i128.max(0i128).cast::<u128>()?;
 
-    lp_pool.oldest_oracle_slot = oldest_slot;
     lp_pool.last_aum = aum;
     lp_pool.last_aum_slot = slot;
     lp_pool.last_aum_ts = Clock::get()?.unix_timestamp;

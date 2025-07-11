@@ -278,6 +278,7 @@ describe('LP Pool', () => {
 			ZERO,
 			new BN(3600),
 			new BN(1_000_000).mul(QUOTE_PRECISION),
+			new BN(1_000_000).mul(QUOTE_PRECISION),
 			Keypair.generate()
 		);
 
