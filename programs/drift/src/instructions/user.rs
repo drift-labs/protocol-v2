@@ -1482,6 +1482,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             .find(|acc| acc.key() == spot_market_mint.key())
             .map(|acc| InterfaceAccount::try_from(acc).unwrap());
 
+        // TODO: support transfer hook tokens
         controller::token::send_from_program_vault(
             token_program,
             &ctx.accounts.deposit_from_spot_market_vault,
@@ -1511,6 +1512,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             .find(|acc| acc.key() == spot_market_mint.key())
             .map(|acc| InterfaceAccount::try_from(acc).unwrap());
 
+        // TODO: support transfer hook tokens
         controller::token::send_from_program_vault(
             token_program,
             &ctx.accounts.borrow_to_spot_market_vault,
@@ -3374,7 +3376,11 @@ pub fn handle_deposit_into_spot_market_revenue_pool<'c: 'info, 'info>(
         &ctx.accounts.authority,
         amount,
         &mint,
-        None,
+        if spot_market.has_transfer_hook() {
+            Some(remaining_accounts_iter)
+        } else {
+            None
+        },
     )?;
 
     spot_market.validate_max_token_deposits_and_borrows(false)?;
@@ -3493,6 +3499,21 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
 
     let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
 
+    let in_spot_has_transfer_hook = in_spot_market.has_transfer_hook();
+    let out_spot_has_transfer_hook = out_spot_market.has_transfer_hook();
+
+    validate!(
+        !(in_spot_has_transfer_hook && out_spot_has_transfer_hook),
+        ErrorCode::InvalidSwap,
+        "both in and out spot markets cannot both have transfer hooks"
+    )?;
+
+    let in_remaining_accounts_for_hooks = if in_spot_has_transfer_hook {
+        Some(remaining_accounts_iter)
+    } else {
+        None
+    };
+
     validate!(
         out_spot_market.fills_enabled(),
         ErrorCode::MarketFillOrderPaused,
@@ -3544,11 +3565,7 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
         state.signer_nonce,
         amount_in,
         &mint,
-        if in_spot_market.has_transfer_hook() {
-            Some(remaining_accounts_iter)
-        } else {
-            None
-        },
+        in_remaining_accounts_for_hooks,
     )?;
 
     let ixs = ctx.accounts.instructions.as_ref();
