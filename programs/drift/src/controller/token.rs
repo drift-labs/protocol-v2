@@ -181,18 +181,23 @@ pub fn transfer_checked_with_transfer_hook<'info>(
         mint.decimals,
     )?;
 
-    let remaining_account_metas: Vec<AccountMeta> = remaining_accounts
-        .map(|account_info| AccountMeta::new(*account_info.key, account_info.is_writable))
-        .collect();
-    ix.accounts.extend(remaining_account_metas);
-
     let mut account_infos = vec![
         from_account_info,
         mint_account_info,
         to_account_info,
         authority_account_info,
     ];
-    account_infos.extend(remaining_accounts.map(|account_info| account_info.to_account_info()));
+
+    for account_info in remaining_accounts {
+        ix.accounts.push(
+            if account_info.is_writable {
+                AccountMeta::new(*account_info.key, account_info.is_signer)
+            } else {
+                AccountMeta::new_readonly(*account_info.key, account_info.is_writable)
+            }
+        );
+        account_infos.push(account_info.to_account_info());
+    }
 
     solana_program::program::invoke_signed(&ix, &account_infos, signer_seeds).map_err(Into::into)
 }

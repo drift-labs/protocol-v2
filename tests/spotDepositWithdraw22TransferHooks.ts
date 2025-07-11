@@ -22,62 +22,36 @@ import {
 import {
 	TestClient,
 	BN,
-	EventSubscriber,
-	SPOT_MARKET_RATE_PRECISION as _SPOT_MARKET_RATE_PRECISION,
-	SpotBalanceType as _SpotBalanceType,
-	isVariant as _isVariant,
 	OracleSource,
-	SPOT_MARKET_WEIGHT_PRECISION as _SPOT_MARKET_WEIGHT_PRECISION,
-	SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION as _SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
 	OracleInfo,
+	SPOT_MARKET_RATE_PRECISION,
+	SPOT_MARKET_WEIGHT_PRECISION,
+	QUOTE_PRECISION,
 } from '../sdk/src';
 
 import {
-	createUserWithUSDCAccount as _createUserWithUSDCAccount,
-	createUserWithUSDCAndWSOLAccount as _createUserWithUSDCAndWSOLAccount,
-	mintUSDCToUser as _mintUSDCToUser,
 	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	printTxLogs as _printTxLogs,
-	sleep as _sleep,
+	createUserWithUSDCAccount,
+	initializeQuoteSpotMarket,
 } from './testHelpers';
 import {
-	getBalance as _getBalance,
-	calculateInterestAccumulated as _calculateInterestAccumulated,
-	getTokenAmount as _getTokenAmount,
-} from '../sdk/src/math/spotBalance';
-import {
 	getMint,
-	NATIVE_MINT as _NATIVE_MINT,
 	TOKEN_2022_PROGRAM_ID,
 	createInitializeMintInstruction,
 	createInitializeTransferHookInstruction,
 	ExtensionType,
 	getMintLen,
 	getTransferHook,
-	ExtraAccountMeta as _ExtraAccountMeta,
 	getExtraAccountMetas,
 	getExtraAccountMetaAddress,
 	resolveExtraAccountMeta,
 } from '@solana/spl-token';
-import {
-	QUOTE_PRECISION as _QUOTE_PRECISION,
-	ZERO as _ZERO,
-	ONE as _ONE,
-	SPOT_MARKET_BALANCE_PRECISION as _SPOT_MARKET_BALANCE_PRECISION,
-	PRICE_PRECISION as _PRICE_PRECISION,
-} from '../sdk/lib/node';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import {
-	BankrunConnection as _BankrunConnection,
-	BankrunContextWrapper,
-} from '../sdk/src/bankrun/bankrunConnection';
-import {
-	initializeExtraAccountMetaList,
-	CustomExtraAccountMeta as _CustomExtraAccountMeta,
-} from './splTransferHookClient';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { initializeExtraAccountMetaList } from './splTransferHookClient';
 
 const transferHookProgramId = new PublicKey(
 	'4qXcCexy21qw66VgPqZjVyL9PTHsB6CdbSCZsDTac6Qq'
@@ -86,18 +60,18 @@ const transferHookProgramId = new PublicKey(
 describe('spot deposit and withdraw 22', () => {
 	const chProgram = anchor.workspace.Drift as Program;
 
+	let firstUserKeypair: Keypair;
+	let firstUserDriftClient: TestClient;
+	let firstUserTokenAccount: PublicKey;
+
 	let admin: TestClient;
-	let eventSubscriber: EventSubscriber;
-
 	let bulkAccountLoader: TestBulkAccountLoader;
-
 	let bankrunContextWrapper: BankrunContextWrapper;
 
 	let solOracle: PublicKey;
-
 	let usdcMint;
 
-	const _usdcAmount = new BN(10 * 10 ** 6);
+	const usdcAmount = new BN(10 * 10 ** 6);
 	const largeUsdcAmount = new BN(10_000 * 10 ** 6);
 
 	const _solAmount = new BN(1 * 10 ** 9);
@@ -110,6 +84,7 @@ describe('spot deposit and withdraw 22', () => {
 	let mintKeypair: Keypair;
 	let mint: PublicKey;
 	let extraAccountPda: PublicKey;
+	let mintOracle: PublicKey;
 
 	before(async () => {
 		const context = await startAnchor(
@@ -123,6 +98,7 @@ describe('spot deposit and withdraw 22', () => {
 			[]
 		);
 
+		// @ts-ignore
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
 		bulkAccountLoader = new TestBulkAccountLoader(
@@ -130,13 +106,6 @@ describe('spot deposit and withdraw 22', () => {
 			'processed',
 			1
 		);
-
-		eventSubscriber = new EventSubscriber(
-			bankrunContextWrapper.connection.toConnection(),
-			chProgram
-		);
-
-		await eventSubscriber.subscribe();
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper, TOKEN_2022_PROGRAM_ID);
 		await mockUserUSDCAccount(usdcMint, largeUsdcAmount, bankrunContextWrapper);
@@ -168,14 +137,31 @@ describe('spot deposit and withdraw 22', () => {
 		await admin.initialize(usdcMint.publicKey, true);
 		await admin.subscribe();
 
+		await initializeQuoteSpotMarket(admin, usdcMint.publicKey);
+
+		let _firstUserDriftClientUSDCAccount: PublicKey;
+		[firstUserDriftClient, _firstUserDriftClientUSDCAccount, firstUserKeypair] =
+			await createUserWithUSDCAccount(
+				bankrunContextWrapper,
+				usdcMint,
+				chProgram,
+				usdcAmount,
+				marketIndexes,
+				spotMarketIndexes,
+				oracleInfos,
+				bulkAccountLoader
+			);
+
 		// create token with transfer hook
 		mintAuthority = Keypair.generate();
 		mintKeypair = Keypair.generate();
 		mint = mintKeypair.publicKey;
 
+		mintOracle = await mockOracleNoProgram(bankrunContextWrapper, 0.05); // a future we all need to believe in
+
 		const extensions = [ExtensionType.TransferHook];
 		const mintLen = getMintLen(extensions);
-		const decimals = 9;
+		const decimals = 6;
 
 		const payer = bankrunContextWrapper.provider.wallet.publicKey;
 		const mintTransaction = new Transaction().add(
@@ -231,10 +217,10 @@ describe('spot deposit and withdraw 22', () => {
 
 	after(async () => {
 		await admin.unsubscribe();
-		await eventSubscriber.unsubscribe();
+		await firstUserDriftClient.unsubscribe();
 	});
 
-	it('Initialize TransferHookToken Market', async () => {
+	it('Initialize TransferHookToken', async () => {
 		const mintAcc = await getMint(
 			bankrunContextWrapper.connection.toConnection(),
 			mint,
@@ -243,6 +229,7 @@ describe('spot deposit and withdraw 22', () => {
 		);
 		const hookAcc = getTransferHook(mintAcc);
 		assert.isNotNull(hookAcc);
+		assert.isTrue(hookAcc!.programId.equals(transferHookProgramId));
 
 		const metasAddress = getExtraAccountMetaAddress(mint, hookAcc!.programId);
 		const metasAcc = await bankrunContextWrapper.connection.getAccountInfo(
@@ -271,13 +258,13 @@ describe('spot deposit and withdraw 22', () => {
 
 	it('Can mint tokens and transfer between accounts', async () => {
 		// Create two user keypairs
-		const user1 = Keypair.generate();
 		const user2 = Keypair.generate();
 
 		// Create token accounts for both users
 		// Create token accounts for both users
 		const user1TokenAccountKeypair = Keypair.generate();
 		const user2TokenAccountKeypair = Keypair.generate();
+		firstUserTokenAccount = user1TokenAccountKeypair.publicKey;
 
 		const mintState = await getMint(
 			bankrunContextWrapper.connection.toConnection(),
@@ -303,7 +290,7 @@ describe('spot deposit and withdraw 22', () => {
 			createInitializeAccountInstruction(
 				user1TokenAccountKeypair.publicKey,
 				mint,
-				user1.publicKey,
+				firstUserKeypair.publicKey,
 				TOKEN_2022_PROGRAM_ID
 			)
 		);
@@ -335,8 +322,8 @@ describe('spot deposit and withdraw 22', () => {
 			user2TokenAccountKeypair,
 		]);
 
-		const user1TokenAccount = user1TokenAccountKeypair.publicKey;
-		const user2TokenAccount = user2TokenAccountKeypair.publicKey;
+		// const user1TokenAccount = user1TokenAccountKeypair.publicKey;
+		// const user2TokenAccount = user2TokenAccountKeypair.publicKey;
 
 		// Amount to mint and transfer (1000 tokens with 9 decimals)
 		const mintAmount = BigInt(1000 * 10 ** 9);
@@ -346,7 +333,7 @@ describe('spot deposit and withdraw 22', () => {
 		const mintTransaction = new Transaction().add(
 			createMintToInstruction(
 				mint,
-				user1TokenAccount,
+				user1TokenAccountKeypair.publicKey,
 				mintAuthority.publicKey,
 				mintAmount,
 				[],
@@ -362,13 +349,13 @@ describe('spot deposit and withdraw 22', () => {
 		// Check initial balances
 		const user1BalanceBefore = await getAccount(
 			bankrunContextWrapper.connection.toConnection(),
-			user1TokenAccount,
+			user1TokenAccountKeypair.publicKey,
 			'confirmed',
 			TOKEN_2022_PROGRAM_ID
 		);
 		const user2BalanceBefore = await getAccount(
 			bankrunContextWrapper.connection.toConnection(),
-			user2TokenAccount,
+			user2TokenAccountKeypair.publicKey,
 			'confirmed',
 			TOKEN_2022_PROGRAM_ID
 		);
@@ -403,10 +390,10 @@ describe('spot deposit and withdraw 22', () => {
 
 		// Create transfer instruction with transfer hook support
 		const transferInstruction = createTransferCheckedInstruction(
-			user1TokenAccount,
+			user1TokenAccountKeypair.publicKey,
 			mint,
-			user2TokenAccount,
-			user1.publicKey,
+			user2TokenAccountKeypair.publicKey,
+			firstUserKeypair.publicKey,
 			transferAmount,
 			mintInfo.decimals,
 			[],
@@ -418,10 +405,10 @@ describe('spot deposit and withdraw 22', () => {
 			bankrunContextWrapper.connection.toConnection(),
 			transferInstruction,
 			transferHookProgramId,
-			user1TokenAccount,
+			user1TokenAccountKeypair.publicKey,
 			mint,
-			user2TokenAccount,
-			user1.publicKey,
+			user2TokenAccountKeypair.publicKey,
+			firstUserKeypair.publicKey,
 			transferAmount
 		);
 
@@ -429,19 +416,19 @@ describe('spot deposit and withdraw 22', () => {
 
 		await bankrunContextWrapper.sendTransaction(transferTransaction, [
 			bankrunContextWrapper.provider.wallet.payer,
-			user1,
+			firstUserKeypair,
 		]);
 
 		// Check final balances
 		const user1BalanceAfter = await getAccount(
 			bankrunContextWrapper.connection.toConnection(),
-			user1TokenAccount,
+			user1TokenAccountKeypair.publicKey,
 			'confirmed',
 			TOKEN_2022_PROGRAM_ID
 		);
 		const user2BalanceAfter = await getAccount(
 			bankrunContextWrapper.connection.toConnection(),
-			user2TokenAccount,
+			user2TokenAccountKeypair.publicKey,
 			'confirmed',
 			TOKEN_2022_PROGRAM_ID
 		);
@@ -475,5 +462,87 @@ describe('spot deposit and withdraw 22', () => {
 			mintAmount,
 			'Total balance should equal minted amount'
 		);
+	});
+
+	it('Initialize TransferHookToken SpotMarket', async () => {
+		await admin.initializeSpotMarket(
+			mint,
+			SPOT_MARKET_RATE_PRECISION.divn(2).toNumber(),
+			SPOT_MARKET_RATE_PRECISION.mul(new BN(20)).toNumber(),
+			SPOT_MARKET_RATE_PRECISION.mul(new BN(50)).toNumber(),
+			mintOracle,
+			OracleSource.PYTH,
+			SPOT_MARKET_WEIGHT_PRECISION.toNumber(),
+			SPOT_MARKET_WEIGHT_PRECISION.toNumber(),
+			SPOT_MARKET_WEIGHT_PRECISION.toNumber(),
+			SPOT_MARKET_WEIGHT_PRECISION.toNumber(),
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			undefined
+		);
+		await admin.updateWithdrawGuardThreshold(
+			1,
+			new BN(10 ** 10).mul(QUOTE_PRECISION)
+		);
+		await admin.fetchAccounts();
+		const spotMarket = admin.getSpotMarketAccount(1);
+		assert(spotMarket.marketIndex === 1);
+		assert(admin.getStateAccount().numberOfSpotMarkets === 2);
+
+		assert(
+			spotMarket.tokenProgramFlag === 3,
+			'Token program flag should be 3 for token with transfer hook'
+		);
+	});
+
+	it('Deposit and withdraw TransferHookToken SpotMarket', async () => {
+		const userTokenBalanceBefore = await getAccount(
+			bankrunContextWrapper.connection.toConnection(),
+			firstUserTokenAccount,
+			'confirmed',
+			TOKEN_2022_PROGRAM_ID
+		);
+		const depositAmount = new BN(userTokenBalanceBefore.amount.toString()).divn(
+			2
+		);
+
+		await firstUserDriftClient.fetchAccounts();
+		await firstUserDriftClient.deposit(depositAmount, 1, firstUserTokenAccount);
+
+		await firstUserDriftClient.fetchAccounts();
+		let spotMarket = firstUserDriftClient.getSpotMarketAccount(1)!;
+		let spotPos = firstUserDriftClient.getSpotPosition(1)!;
+		let spotBal = getTokenAmount(
+			spotPos.scaledBalance,
+			spotMarket,
+			spotPos.balanceType
+		);
+		assert.equal(spotBal.toString(), depositAmount.toString());
+
+		await firstUserDriftClient.fetchAccounts();
+		await firstUserDriftClient.withdraw(
+			depositAmount,
+			1,
+			firstUserTokenAccount
+		);
+
+		await firstUserDriftClient.fetchAccounts();
+		spotMarket = firstUserDriftClient.getSpotMarketAccount(1)!;
+		spotPos = firstUserDriftClient.getSpotPosition(1)!;
+		spotBal = getTokenAmount(
+			spotPos.scaledBalance,
+			spotMarket,
+			spotPos.balanceType
+		);
+		assert.equal(spotBal.toString(), '0');
 	});
 });

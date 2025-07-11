@@ -18,6 +18,11 @@ import {
 	TOKEN_2022_PROGRAM_ID,
 	TOKEN_PROGRAM_ID,
 	getAssociatedTokenAddressSync,
+	getMint,
+	getTransferHook,
+	getExtraAccountMetaAddress,
+	getExtraAccountMetas,
+	resolveExtraAccountMeta,
 } from '@solana/spl-token';
 import {
 	DriftClientMetricsEvents,
@@ -2644,6 +2649,14 @@ export class DriftClient {
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 
 		this.addTokenMintToRemainingAccounts(spotMarketAccount, remainingAccounts);
+
+		if (this.isTransferHook(spotMarketAccount)) {
+			await this.addExtraAccountMetasToRemainingAccounts(
+				spotMarketAccount.mint,
+				remainingAccounts
+			);
+		}
+
 		const tokenProgram = this.getTokenProgramForSpotMarket(spotMarketAccount);
 		return await this.program.instruction.deposit(
 			marketIndex,
@@ -2741,7 +2754,15 @@ export class DriftClient {
 	}
 
 	public isToken2022(spotMarketAccount: SpotMarketAccount): boolean {
-		return (spotMarketAccount.tokenProgramFlag & TokenProgramFlag.Token2022) > 0;
+		return (
+			(spotMarketAccount.tokenProgramFlag & TokenProgramFlag.Token2022) > 0
+		);
+	}
+
+	public isTransferHook(spotMarketAccount: SpotMarketAccount): boolean {
+		return (
+			(spotMarketAccount.tokenProgramFlag & TokenProgramFlag.TransferHook) > 0
+		);
 	}
 
 	public addTokenMintToRemainingAccounts(
@@ -2755,6 +2776,49 @@ export class DriftClient {
 				isWritable: false,
 			});
 		}
+	}
+
+	public async addExtraAccountMetasToRemainingAccounts(
+		mint: PublicKey,
+		remainingAccounts: AccountMeta[]
+	) {
+		const mintAccount = await getMint(
+			this.connection,
+			mint,
+			'confirmed',
+			TOKEN_2022_PROGRAM_ID
+		);
+		const hookAccount = getTransferHook(mintAccount)!;
+		const extraAccountMetasAddress = getExtraAccountMetaAddress(
+			mint,
+			hookAccount!.programId
+		);
+		const extraAccountMetas = getExtraAccountMetas(
+			await this.connection.getAccountInfo(extraAccountMetasAddress)!
+		);
+
+		for (const acc of extraAccountMetas) {
+			// assuming it's an extra account meta that does not rely on ix data
+			const resolvedAcc = await resolveExtraAccountMeta(
+				this.connection,
+				acc,
+				remainingAccounts,
+				Buffer.from([]),
+				hookAccount.programId
+			);
+			remainingAccounts.push(resolvedAcc);
+		}
+
+		remainingAccounts.push({
+			pubkey: hookAccount.programId,
+			isSigner: false,
+			isWritable: false,
+		});
+		remainingAccounts.push({
+			pubkey: extraAccountMetasAddress,
+			isSigner: false,
+			isWritable: false,
+		});
 	}
 
 	public getAssociatedTokenAccountCreationIx(
@@ -3241,6 +3305,14 @@ export class DriftClient {
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 
 		this.addTokenMintToRemainingAccounts(spotMarketAccount, remainingAccounts);
+
+		if (this.isTransferHook(spotMarketAccount)) {
+			await this.addExtraAccountMetasToRemainingAccounts(
+				spotMarketAccount.mint,
+				remainingAccounts
+			);
+		}
+
 		const tokenProgram = this.getTokenProgramForSpotMarket(spotMarketAccount);
 
 		return await this.program.instruction.withdraw(
