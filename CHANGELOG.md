@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: allow hot admin to update prelaunch oracle ([#1734](https://github.com/drift-labs/protocol-v2/pull/1734))
+
 ### Fixes
 
 ### Breaking
