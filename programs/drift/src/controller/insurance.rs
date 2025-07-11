@@ -688,6 +688,7 @@ pub fn attempt_settle_revenue_to_insurance_fund<'info>(
                 state.signer_nonce,
                 token_amount.cast()?,
                 mint,
+                None,
             )?;
         }
 

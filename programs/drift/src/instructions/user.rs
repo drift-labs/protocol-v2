@@ -637,7 +637,7 @@ pub fn handle_deposit<'c: 'info, 'info>(
         &ctx.accounts.authority,
         amount,
         &mint,
-        if spot_market.token_program == 1 {
+        if spot_market.token_program == 1 && remaining_accounts_iter.len() > 0 {
             Some(remaining_accounts_iter)
         } else {
             None
@@ -835,6 +835,11 @@ pub fn handle_withdraw<'c: 'info, 'info>(
         state.signer_nonce,
         amount,
         &mint,
+        if spot_market.token_program == 1 && remaining_accounts_iter.len() > 0 {
+            Some(remaining_accounts_iter)
+        } else {
+            None
+        },
     )?;
 
     // reload the spot market vault balance so it's up-to-date
@@ -1485,6 +1490,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             state.signer_nonce,
             deposit_transfer,
             &mint_account_info,
+            None,
         )?;
     }
 
@@ -1513,6 +1519,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             state.signer_nonce,
             borrow_transfer,
             &mint_account_info,
+            None,
         )?;
     }
 
@@ -3537,6 +3544,7 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
         state.signer_nonce,
         amount_in,
         &mint,
+        None,
     )?;
 
     let ixs = ctx.accounts.instructions.as_ref();

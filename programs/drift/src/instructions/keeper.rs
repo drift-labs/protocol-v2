@@ -1410,6 +1410,7 @@ pub fn handle_liquidate_spot_with_swap_begin<'c: 'info, 'info>(
         state.signer_nonce,
         swap_amount,
         &mint,
+        None,
     )?;
 
     let ixs = ctx.accounts.instructions.as_ref();
@@ -1987,6 +1988,7 @@ pub fn handle_resolve_perp_pnl_deficit<'c: 'info, 'info>(
             state.signer_nonce,
             pay_from_insurance,
             &mint,
+            None,
         )?;
 
         validate!(
@@ -2096,6 +2098,7 @@ pub fn handle_resolve_perp_bankruptcy<'c: 'info, 'info>(
             state.signer_nonce,
             pay_from_insurance,
             &mint,
+            None,
         )?;
 
         validate!(
@@ -2199,6 +2202,7 @@ pub fn handle_resolve_spot_bankruptcy<'c: 'info, 'info>(
             ctx.accounts.state.signer_nonce,
             pay_from_insurance,
             &mint,
+            None,
         )?;
 
         validate!(
@@ -2466,6 +2470,7 @@ pub fn handle_settle_revenue_to_insurance_fund<'c: 'info, 'info>(
         state.signer_nonce,
         token_amount,
         &mint,
+        None,
     )?;
 
     // reload the spot market vault balance so it's up-to-date
@@ -2868,6 +2873,7 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
                 state.signer_nonce,
                 token_amount.cast()?,
                 &mint_account_info,
+                None,
             )?;
         } else {
             update_spot_balances(

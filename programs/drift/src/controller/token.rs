@@ -22,25 +22,30 @@ pub fn send_from_program_vault<'info>(
     nonce: u8,
     amount: u64,
     mint: &Option<InterfaceAccount<'info, Mint>>,
+    remaining_accounts: Option<&mut Peekable<Iter<'info, AccountInfo<'info>>>>,
 ) -> Result<()> {
     let signature_seeds = get_signer_seeds(&nonce);
     let signers = &[&signature_seeds[..]];
 
     if let Some(mint) = mint {
-        let mint_account_info = mint.to_account_info();
+        if let Some(remaining_accounts) = remaining_accounts {
+            transfer_checked_with_transfer_hook(token_program, from, to, authority, amount, mint, remaining_accounts, signers)
+        } else {
+            let mint_account_info = mint.to_account_info();
 
-        validate_mint_fee(&mint_account_info)?;
-
-        let cpi_accounts = TransferChecked {
-            from: from.to_account_info(),
-            mint: mint_account_info,
-            to: to.to_account_info(),
-            authority: authority.to_account_info(),
-        };
-
-        let cpi_program = token_program.to_account_info();
-        let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signers);
-        token_interface::transfer_checked(cpi_context, amount, mint.decimals)
+            validate_mint_fee(&mint_account_info)?;
+    
+            let cpi_accounts = TransferChecked {
+                from: from.to_account_info(),
+                mint: mint_account_info,
+                to: to.to_account_info(),
+                authority: authority.to_account_info(),
+            };
+    
+            let cpi_program = token_program.to_account_info();
+            let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signers);
+            token_interface::transfer_checked(cpi_context, amount, mint.decimals)
+        }
     } else {
         let cpi_accounts = Transfer {
             from: from.to_account_info(),
@@ -62,11 +67,11 @@ pub fn receive<'info>(
     authority: &AccountInfo<'info>,
     amount: u64,
     mint: &Option<InterfaceAccount<'info, Mint>>,
-    remaining_account_metas: Option<&mut Peekable<Iter<'info, AccountInfo<'info>>>>,
+    remaining_accounts: Option<&mut Peekable<Iter<'info, AccountInfo<'info>>>>,
 ) -> Result<()> {
     if let Some(mint) = mint {
-        if let Some(remaining_account_metas) = remaining_account_metas {
-            receive_with_transfer_hook(
+        if let Some(remaining_account_metas) = remaining_accounts {
+            transfer_checked_with_transfer_hook(
                 token_program,
                 from,
                 to,
@@ -74,6 +79,7 @@ pub fn receive<'info>(
                 amount,
                 mint,
                 remaining_account_metas,
+                &[],
             )
         } else {
             let mint_account_info = mint.to_account_info();
@@ -137,7 +143,7 @@ pub fn validate_mint_fee(account_info: &AccountInfo) -> Result<()> {
     Ok(())
 }
 
-pub fn receive_with_transfer_hook<'info>(
+pub fn transfer_checked_with_transfer_hook<'info>(
     token_program: &Interface<'info, TokenInterface>,
     from: &InterfaceAccount<'info, TokenAccount>,
     to: &InterfaceAccount<'info, TokenAccount>,
@@ -145,6 +151,7 @@ pub fn receive_with_transfer_hook<'info>(
     amount: u64,
     mint: &InterfaceAccount<'info, Mint>,
     remaining_accounts: &mut Peekable<Iter<'info, AccountInfo<'info>>>,
+    signer_seeds: &[&[&[u8]]],
 ) -> Result<()> {
     let mint_account_info = mint.to_account_info();
 
@@ -178,5 +185,5 @@ pub fn receive_with_transfer_hook<'info>(
     ];
     account_infos.extend(remaining_accounts.map(|account_info| account_info.to_account_info()));
 
-    solana_program::program::invoke_signed(&ix, &account_infos, &[]).map_err(Into::into)
+    solana_program::program::invoke_signed(&ix, &account_infos, signer_seeds).map_err(Into::into)
 }

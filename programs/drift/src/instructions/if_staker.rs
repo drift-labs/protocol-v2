@@ -283,6 +283,7 @@ pub fn handle_remove_insurance_fund_stake<'c: 'info, 'info>(
         state.signer_nonce,
         amount,
         &mint,
+        None,
     )?;
 
     ctx.accounts.insurance_fund_vault.reload()?;
@@ -432,6 +433,7 @@ pub fn handle_begin_insurance_fund_swap<'c: 'info, 'info>(
         state.signer_nonce,
         amount_in,
         &mint,
+        None,
     )?;
 
     let ixs = ctx.accounts.instructions.as_ref();
@@ -756,6 +758,7 @@ pub fn handle_transfer_protocol_if_shares_to_revenue_pool<'c: 'info, 'info>(
         state.signer_nonce,
         amount,
         &mint,
+        None,
     )?;
 
     ctx.accounts.spot_market_vault.reload()?;
