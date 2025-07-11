@@ -101,6 +101,13 @@ pub fn handle_add_insurance_fund_stake<'c: 'info, 'info>(
     )?;
 
     {
+        let mut transfer_hook_remaining_accounts_iter = remaining_accounts_iter.clone();
+        let remaining_accounts_for_hooks = if spot_market.has_transfer_hook() {
+            Some(&mut transfer_hook_remaining_accounts_iter)
+        } else {
+            None
+        };
+
         controller::insurance::attempt_settle_revenue_to_insurance_fund(
             &ctx.accounts.spot_market_vault,
             &ctx.accounts.insurance_fund_vault,
@@ -110,6 +117,7 @@ pub fn handle_add_insurance_fund_stake<'c: 'info, 'info>(
             &ctx.accounts.drift_signer,
             state,
             &mint,
+            remaining_accounts_for_hooks,
         )?;
 
         // reload the vault balances so they're up-to-date
@@ -283,7 +291,11 @@ pub fn handle_remove_insurance_fund_stake<'c: 'info, 'info>(
         state.signer_nonce,
         amount,
         &mint,
-        None,
+        if spot_market.has_transfer_hook() {
+            Some(remaining_accounts_iter)
+        } else {
+            None
+        },
     )?;
 
     ctx.accounts.insurance_fund_vault.reload()?;
@@ -365,6 +377,7 @@ pub fn handle_begin_insurance_fund_swap<'c: 'info, 'info>(
 
     let _token_interface = get_token_interface(remaining_accounts_iter)?;
     let mint = get_token_mint(remaining_accounts_iter)?;
+    let _out_mint = get_token_mint(remaining_accounts_iter)?;
 
     let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
 
@@ -384,6 +397,15 @@ pub fn handle_begin_insurance_fund_swap<'c: 'info, 'info>(
     )?;
 
     let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
+
+    let in_spot_has_transfer_hook = in_spot_market.has_transfer_hook();
+    let out_spot_has_transfer_hook = out_spot_market.has_transfer_hook();
+
+    validate!(
+        !(in_spot_has_transfer_hook && out_spot_has_transfer_hook),
+        ErrorCode::InvalidSwap,
+        "both in and out spot markets cannot both have transfer hooks"
+    )?;
 
     validate!(
         out_spot_market.flash_loan_initial_token_amount == 0
@@ -433,7 +455,11 @@ pub fn handle_begin_insurance_fund_swap<'c: 'info, 'info>(
         state.signer_nonce,
         amount_in,
         &mint,
-        None,
+        if in_spot_market.has_transfer_hook() {
+            Some(remaining_accounts_iter)
+        } else {
+            None
+        },
     )?;
 
     let ixs = ctx.accounts.instructions.as_ref();
@@ -627,7 +653,11 @@ pub fn handle_end_insurance_fund_swap<'c: 'info, 'info>(
             &ctx.accounts.authority,
             residual,
             &in_mint,
-            None,
+            if in_spot_market.has_transfer_hook() {
+                Some(remaining_accounts)
+            } else {
+                None
+            },
         )?;
         in_token_account.reload()?;
         in_vault.reload()?;
@@ -655,7 +685,11 @@ pub fn handle_end_insurance_fund_swap<'c: 'info, 'info>(
                 &ctx.accounts.authority,
                 amount_out,
                 &out_mint,
-                None,
+                if out_spot_market.has_transfer_hook() {
+                    Some(remaining_accounts)
+                } else {
+                    None
+                },
             )?;
         } else {
             controller::token::receive(
@@ -665,7 +699,11 @@ pub fn handle_end_insurance_fund_swap<'c: 'info, 'info>(
                 &ctx.accounts.authority,
                 amount_out,
                 &out_mint,
-                None,
+                if out_spot_market.has_transfer_hook() {
+                    Some(remaining_accounts)
+                } else {
+                    None
+                },
             )?;
         }
 
@@ -758,7 +796,11 @@ pub fn handle_transfer_protocol_if_shares_to_revenue_pool<'c: 'info, 'info>(
         state.signer_nonce,
         amount,
         &mint,
-        None,
+        if spot_market.has_transfer_hook() {
+            Some(remaining_accounts)
+        } else {
+            None
+        },
     )?;
 
     ctx.accounts.spot_market_vault.reload()?;

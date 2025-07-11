@@ -1402,6 +1402,15 @@ pub fn handle_liquidate_spot_with_swap_begin<'c: 'info, 'info>(
 
     liability_spot_market.flash_loan_initial_token_amount = liability_token_account.amount;
 
+    let asset_spot_has_transfer_hook = asset_spot_market.has_transfer_hook();
+    let liability_spot_has_transfer_hook = liability_spot_market.has_transfer_hook();
+
+    validate!(
+        !(asset_spot_has_transfer_hook && liability_spot_has_transfer_hook),
+        ErrorCode::InvalidSwap,
+        "both asset and liability spot markets cannot both have transfer hooks"
+    )?;
+
     controller::token::send_from_program_vault(
         &ctx.accounts.token_program,
         asset_vault,
@@ -1410,7 +1419,11 @@ pub fn handle_liquidate_spot_with_swap_begin<'c: 'info, 'info>(
         state.signer_nonce,
         swap_amount,
         &mint,
-        None,
+        if asset_spot_market.has_transfer_hook() {
+            Some(remaining_accounts_iter)
+        } else {
+            None
+        },
     )?;
 
     let ixs = ctx.accounts.instructions.as_ref();
@@ -1617,7 +1630,11 @@ pub fn handle_liquidate_spot_with_swap_end<'c: 'info, 'info>(
             &ctx.accounts.authority,
             residual,
             &asset_mint,
-            None,
+            if asset_spot_market.has_transfer_hook() {
+                Some(remaining_accounts)
+            } else {
+                None
+            },
         )?;
         asset_token_account.reload()?;
         asset_vault.reload()?;
@@ -1645,7 +1662,11 @@ pub fn handle_liquidate_spot_with_swap_end<'c: 'info, 'info>(
                 &ctx.accounts.authority,
                 amount_out,
                 &liability_mint,
-                None,
+                if liability_spot_market.has_transfer_hook() {
+                    Some(remaining_accounts)
+                } else {
+                    None
+                },
             )?;
         } else {
             controller::token::receive(
@@ -1655,7 +1676,11 @@ pub fn handle_liquidate_spot_with_swap_end<'c: 'info, 'info>(
                 &ctx.accounts.authority,
                 amount_out,
                 &liability_mint,
-                None,
+                if liability_spot_market.has_transfer_hook() {
+                    Some(remaining_accounts)
+                } else {
+                    None
+                },
             )?;
         }
 
@@ -1912,6 +1937,12 @@ pub fn handle_resolve_perp_pnl_deficit<'c: 'info, 'info>(
 
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&spot_market_index)?;
+        let mut transfer_hook_remaining_accounts_iter = remaining_accounts_iter.clone();
+        let remaining_accounts = if spot_market.has_transfer_hook() {
+            Some(&mut transfer_hook_remaining_accounts_iter)
+        } else {
+            None
+        };
         controller::insurance::attempt_settle_revenue_to_insurance_fund(
             &ctx.accounts.spot_market_vault,
             &ctx.accounts.insurance_fund_vault,
@@ -1921,6 +1952,7 @@ pub fn handle_resolve_perp_pnl_deficit<'c: 'info, 'info>(
             &ctx.accounts.drift_signer,
             state,
             &mint,
+            remaining_accounts,
         )?;
 
         // reload the spot market vault balance so it's up-to-date
@@ -1980,6 +2012,7 @@ pub fn handle_resolve_perp_pnl_deficit<'c: 'info, 'info>(
             ctx.accounts.insurance_fund_vault.amount
         )?;
 
+        let spot_market = &mut spot_market_map.get_ref_mut(&spot_market_index)?;
         controller::token::send_from_program_vault(
             &ctx.accounts.token_program,
             &ctx.accounts.insurance_fund_vault,
@@ -1988,7 +2021,11 @@ pub fn handle_resolve_perp_pnl_deficit<'c: 'info, 'info>(
             state.signer_nonce,
             pay_from_insurance,
             &mint,
-            None,
+            if spot_market.has_transfer_hook() {
+                Some(remaining_accounts_iter)
+            } else {
+                None
+            },
         )?;
 
         validate!(
@@ -2048,6 +2085,12 @@ pub fn handle_resolve_perp_bankruptcy<'c: 'info, 'info>(
 
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&quote_spot_market_index)?;
+        let mut transfer_hook_remaining_accounts_iter = remaining_accounts_iter.clone();
+        let remaining_accounts = if spot_market.has_transfer_hook() {
+            Some(&mut transfer_hook_remaining_accounts_iter)
+        } else {
+            None
+        };
         controller::insurance::attempt_settle_revenue_to_insurance_fund(
             &ctx.accounts.spot_market_vault,
             &ctx.accounts.insurance_fund_vault,
@@ -2057,6 +2100,7 @@ pub fn handle_resolve_perp_bankruptcy<'c: 'info, 'info>(
             &ctx.accounts.drift_signer,
             state,
             &mint,
+            remaining_accounts,
         )?;
 
         // reload the spot market vault balance so it's up-to-date
@@ -2090,6 +2134,14 @@ pub fn handle_resolve_perp_bankruptcy<'c: 'info, 'info>(
             ctx.accounts.insurance_fund_vault.amount
         )?;
 
+        let spot_market = &spot_market_map.get_ref(&quote_spot_market_index)?;
+        let mut transfer_hook_remaining_accounts_iter = remaining_accounts_iter.clone();
+        let remaining_accounts = if spot_market.has_transfer_hook() {
+            Some(&mut transfer_hook_remaining_accounts_iter)
+        } else {
+            None
+        };
+
         controller::token::send_from_program_vault(
             &ctx.accounts.token_program,
             &ctx.accounts.insurance_fund_vault,
@@ -2098,7 +2150,7 @@ pub fn handle_resolve_perp_bankruptcy<'c: 'info, 'info>(
             state.signer_nonce,
             pay_from_insurance,
             &mint,
-            None,
+            remaining_accounts,
         )?;
 
         validate!(
@@ -2160,6 +2212,12 @@ pub fn handle_resolve_spot_bankruptcy<'c: 'info, 'info>(
 
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
+        let mut transfer_hook_remaining_accounts_iter = remaining_accounts_iter.clone();
+        let remaining_accounts = if spot_market.has_transfer_hook() {
+            Some(&mut transfer_hook_remaining_accounts_iter)
+        } else {
+            None
+        };
         controller::insurance::attempt_settle_revenue_to_insurance_fund(
             &ctx.accounts.spot_market_vault,
             &ctx.accounts.insurance_fund_vault,
@@ -2169,6 +2227,7 @@ pub fn handle_resolve_spot_bankruptcy<'c: 'info, 'info>(
             &ctx.accounts.drift_signer,
             state,
             &mint,
+            remaining_accounts,
         )?;
 
         // reload the spot market vault balance so it's up-to-date
@@ -2194,6 +2253,13 @@ pub fn handle_resolve_spot_bankruptcy<'c: 'info, 'info>(
     )?;
 
     if pay_from_insurance > 0 {
+        let spot_market = &spot_market_map.get_ref(&market_index)?;
+        let mut transfer_hook_remaining_accounts_iter = remaining_accounts_iter.clone();
+        let remaining_accounts = if spot_market.has_transfer_hook() {
+            Some(&mut transfer_hook_remaining_accounts_iter)
+        } else {
+            None
+        };
         controller::token::send_from_program_vault(
             &ctx.accounts.token_program,
             &ctx.accounts.insurance_fund_vault,
@@ -2202,7 +2268,7 @@ pub fn handle_resolve_spot_bankruptcy<'c: 'info, 'info>(
             ctx.accounts.state.signer_nonce,
             pay_from_insurance,
             &mint,
-            None,
+            remaining_accounts,
         )?;
 
         validate!(
@@ -2470,7 +2536,11 @@ pub fn handle_settle_revenue_to_insurance_fund<'c: 'info, 'info>(
         state.signer_nonce,
         token_amount,
         &mint,
-        None,
+        if spot_market.has_transfer_hook() {
+            Some(remaining_accounts_iter)
+        } else {
+            None
+        },
     )?;
 
     // reload the spot market vault balance so it's up-to-date
@@ -2865,6 +2935,7 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
                 true,
             )?;
 
+            // TODO: support transfer hook tokens
             send_from_program_vault(
                 &token_program,
                 &spot_market_vault_account_info,
@@ -2884,6 +2955,7 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
                 false,
             )?;
 
+            // TODO: support transfer hook tokens
             receive(
                 token_program,
                 &keeper_vault_account_info,

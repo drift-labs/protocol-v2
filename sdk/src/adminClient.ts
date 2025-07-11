@@ -1107,6 +1107,13 @@ export class AdminClient extends DriftClient {
 
 		const remainingAccounts = [];
 		this.addTokenMintToRemainingAccounts(spotMarket, remainingAccounts);
+		if (this.isTransferHook(spotMarket)) {
+			await this.addExtraAccountMetasToRemainingAccounts(
+				spotMarket.mint,
+				remainingAccounts
+			);
+		}
+
 		const tokenProgram = this.getTokenProgramForSpotMarket(spotMarket);
 		return await this.program.instruction.depositIntoSpotMarketVault(amount, {
 			accounts: {
@@ -4523,6 +4530,13 @@ export class AdminClient extends DriftClient {
 			writableSpotMarketIndexes: [marketIndex],
 		});
 		this.addTokenMintToRemainingAccounts(spotMarket, remainingAccounts);
+		if (this.isTransferHook(spotMarket)) {
+			await this.addExtraAccountMetasToRemainingAccounts(
+				spotMarket.mint,
+				remainingAccounts
+			);
+		}
+
 		return this.program.instruction.adminDeposit(marketIndex, amount, {
 			remainingAccounts,
 			accounts: {

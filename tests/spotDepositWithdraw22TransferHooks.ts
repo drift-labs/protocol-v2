@@ -27,6 +27,7 @@ import {
 	SPOT_MARKET_RATE_PRECISION,
 	SPOT_MARKET_WEIGHT_PRECISION,
 	QUOTE_PRECISION,
+	getTokenAmount,
 } from '../sdk/src';
 
 import {
