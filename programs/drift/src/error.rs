@@ -664,6 +664,8 @@ pub enum ErrorCode {
     ConstituentOracleStale,
     #[msg("LP Invariant failed")]
     LpInvariantFailed,
+    #[msg("Invalid constituent derivative weights")]
+    InvalidConstituentDerivativeWeights,
 }
 
 #[macro_export]

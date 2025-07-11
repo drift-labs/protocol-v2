@@ -198,6 +198,46 @@ impl<'a> ConstituentMap<'a> {
         Ok(constituent_map)
     }
 
+    pub fn load_multiple<'c: 'a>(
+        account_info: Vec<&'c AccountInfo<'a>>,
+        must_be_writable: bool,
+    ) -> DriftResult<ConstituentMap<'a>> {
+        let mut constituent_map: ConstituentMap = ConstituentMap(BTreeMap::new());
+
+        let account_info_iter = account_info.into_iter();
+        for account_info in account_info_iter {
+            let constituent_discriminator: [u8; 8] = Constituent::discriminator();
+            let data = account_info
+                .try_borrow_data()
+                .or(Err(ErrorCode::ConstituentCouldNotLoad))?;
+
+            let expected_data_len = Constituent::SIZE;
+            if data.len() < expected_data_len {
+                return Err(ErrorCode::ConstituentCouldNotLoad);
+            }
+
+            let account_discriminator = array_ref![data, 0, 8];
+            if account_discriminator != &constituent_discriminator {
+                return Err(ErrorCode::ConstituentCouldNotLoad);
+            }
+
+            // constituent index 284 bytes from front of account
+            let constituent_index = u16::from_le_bytes(*array_ref![data, 284, 2]);
+
+            let is_writable = account_info.is_writable;
+            let account_loader: AccountLoader<Constituent> = AccountLoader::try_from(account_info)
+                .or(Err(ErrorCode::ConstituentCouldNotLoad))?;
+
+            if must_be_writable && !is_writable {
+                return Err(ErrorCode::ConstituentWrongMutability);
+            }
+
+            constituent_map.0.insert(constituent_index, account_loader);
+        }
+
+        Ok(constituent_map)
+    }
+
     pub fn empty() -> Self {
         ConstituentMap(BTreeMap::new())
     }
