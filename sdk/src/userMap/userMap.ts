@@ -18,6 +18,7 @@ import {
 	DataAndSlot,
 	OneShotUserAccountSubscriber,
 	ProtectMakerParamsMap,
+	UserEvents,
 } from '..';
 
 import {
@@ -43,10 +44,13 @@ import { WebsocketSubscription } from './WebsocketSubscription';
 import { PollingSubscription } from './PollingSubscription';
 import { decodeUser } from '../decode/user';
 import { grpcSubscription } from './grpcSubscription';
+import StrictEventEmitter from 'strict-event-emitter-types';
+import { EventEmitter } from 'events';
 
 const MAX_USER_ACCOUNT_SIZE_BYTES = 4376;
 
 export interface UserMapInterface {
+	eventEmitter: StrictEventEmitter<EventEmitter, UserEvents>;
 	subscribe(): Promise<void>;
 	unsubscribe(): Promise<void>;
 	addPubkey(
@@ -77,6 +81,7 @@ export interface UserMapInterface {
 export class UserMap implements UserMapInterface {
 	private userMap = new Map<string, DataAndSlot<User>>();
 	driftClient: DriftClient;
+	eventEmitter: StrictEventEmitter<EventEmitter, UserEvents>;
 	private connection: Connection;
 	private commitment: Commitment;
 	private includeIdle: boolean;
@@ -172,6 +177,7 @@ export class UserMap implements UserMapInterface {
 
 		// Whether to throw an error if the userMap fails to sync. Defaults to false.
 		this.throwOnFailedSync = config.throwOnFailedSync ?? false;
+		this.eventEmitter = new EventEmitter();
 	}
 
 	public async subscribe() {
@@ -218,6 +224,7 @@ export class UserMap implements UserMapInterface {
 			data: user,
 			slot: slot ?? user.getUserAccountAndSlot()?.slot,
 		});
+		this.eventEmitter.emit('userUpdate', user);
 	}
 
 	public has(key: string): boolean {
@@ -667,6 +674,7 @@ export class UserMap implements UserMapInterface {
 					data: userWithSlot.data,
 					slot,
 				});
+				this.eventEmitter.emit('userUpdate', userWithSlot.data);
 			}
 		} else {
 			this.addPubkey(new PublicKey(key), userAccount, slot);

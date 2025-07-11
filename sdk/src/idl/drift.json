@@ -1,5 +1,5 @@
 {
-  "version": "2.125.0",
+  "version": "2.126.0",
   "name": "drift",
   "instructions": [
     {
@@ -16292,7 +16292,7 @@
           "index": false
         },
         {
-          "name": "currentInAmountSinceLastTransfer",
+          "name": "transferAmount",
           "type": "u64",
           "index": false
         }
