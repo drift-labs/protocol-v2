@@ -99,6 +99,11 @@ export class AssetTier {
 	static readonly UNLISTED = { unlisted: {} };
 }
 
+export enum TokenProgramFlag {
+	Token2022 = 1,
+	TransferHook = 2,
+}
+
 export class SwapDirection {
 	static readonly ADD = { add: {} };
 	static readonly REMOVE = { remove: {} };
@@ -902,7 +907,7 @@ export type SpotMarketAccount = {
 	fuelBoostMaker: number;
 	fuelBoostInsurance: number;
 
-	tokenProgram: number;
+	tokenProgramFlag: number;
 
 	poolId: number;
 };

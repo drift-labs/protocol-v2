@@ -58,6 +58,7 @@ import {
 	UserStatsAccount,
 	ProtectedMakerModeConfig,
 	SignedMsgOrderParamsDelegateMessage,
+	TokenProgramFlag,
 } from './types';
 import driftIDL from './idl/drift.json';
 
@@ -2733,17 +2734,21 @@ export class DriftClient {
 	public getTokenProgramForSpotMarket(
 		spotMarketAccount: SpotMarketAccount
 	): PublicKey {
-		if (spotMarketAccount.tokenProgram === 1) {
+		if (this.isToken2022(spotMarketAccount)) {
 			return TOKEN_2022_PROGRAM_ID;
 		}
 		return TOKEN_PROGRAM_ID;
+	}
+
+	public isToken2022(spotMarketAccount: SpotMarketAccount): boolean {
+		return (spotMarketAccount.tokenProgramFlag & TokenProgramFlag.Token2022) > 0;
 	}
 
 	public addTokenMintToRemainingAccounts(
 		spotMarketAccount: SpotMarketAccount,
 		remainingAccounts: AccountMeta[]
 	) {
-		if (spotMarketAccount.tokenProgram === 1) {
+		if (this.isToken2022(spotMarketAccount)) {
 			remainingAccounts.push({
 				pubkey: spotMarketAccount.mint,
 				isSigner: false,
@@ -5383,7 +5388,7 @@ export class DriftClient {
 			});
 		}
 
-		if (outSpotMarket.tokenProgram === 1 || inSpotMarket.tokenProgram === 1) {
+		if (this.isToken2022(outSpotMarket) || this.isToken2022(inSpotMarket)) {
 			remainingAccounts.push({
 				pubkey: inSpotMarket.mint,
 				isWritable: false,
@@ -7759,8 +7764,8 @@ export class DriftClient {
 		}
 
 		if (
-			liabilitySpotMarket.tokenProgram === 1 ||
-			assetSpotMarket.tokenProgram === 1
+			this.isToken2022(liabilitySpotMarket) ||
+			this.isToken2022(assetSpotMarket)
 		) {
 			remainingAccounts.push({
 				pubkey: assetSpotMarket.mint,

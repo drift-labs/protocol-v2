@@ -29,19 +29,28 @@ pub fn send_from_program_vault<'info>(
 
     if let Some(mint) = mint {
         if let Some(remaining_accounts) = remaining_accounts {
-            transfer_checked_with_transfer_hook(token_program, from, to, authority, amount, mint, remaining_accounts, signers)
+            transfer_checked_with_transfer_hook(
+                token_program,
+                from,
+                to,
+                authority,
+                amount,
+                mint,
+                remaining_accounts,
+                signers,
+            )
         } else {
             let mint_account_info = mint.to_account_info();
 
             validate_mint_fee(&mint_account_info)?;
-    
+
             let cpi_accounts = TransferChecked {
                 from: from.to_account_info(),
                 mint: mint_account_info,
                 to: to.to_account_info(),
                 authority: authority.to_account_info(),
             };
-    
+
             let cpi_program = token_program.to_account_info();
             let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signers);
             token_interface::transfer_checked(cpi_context, amount, mint.decimals)

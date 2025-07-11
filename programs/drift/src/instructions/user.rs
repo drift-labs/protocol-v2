@@ -637,7 +637,7 @@ pub fn handle_deposit<'c: 'info, 'info>(
         &ctx.accounts.authority,
         amount,
         &mint,
-        if spot_market.token_program == 1 && remaining_accounts_iter.len() > 0 {
+        if spot_market.has_transfer_hook() {
             Some(remaining_accounts_iter)
         } else {
             None
@@ -835,7 +835,7 @@ pub fn handle_withdraw<'c: 'info, 'info>(
         state.signer_nonce,
         amount,
         &mint,
-        if spot_market.token_program == 1 && remaining_accounts_iter.len() > 0 {
+        if spot_market.has_transfer_hook() {
             Some(remaining_accounts_iter)
         } else {
             None
@@ -3544,7 +3544,11 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
         state.signer_nonce,
         amount_in,
         &mint,
-        None,
+        if in_spot_market.has_transfer_hook() {
+            Some(remaining_accounts_iter)
+        } else {
+            None
+        },
     )?;
 
     let ixs = ctx.accounts.instructions.as_ref();
@@ -3787,7 +3791,11 @@ pub fn handle_end_swap<'c: 'info, 'info>(
             &ctx.accounts.authority,
             residual,
             &in_mint,
-            None,
+            if in_spot_market.has_transfer_hook() {
+                Some(remaining_accounts)
+            } else {
+                None
+            },
         )?;
         in_token_account.reload()?;
         in_vault.reload()?;
@@ -3868,7 +3876,11 @@ pub fn handle_end_swap<'c: 'info, 'info>(
                 &ctx.accounts.authority,
                 amount_out,
                 &out_mint,
-                None,
+                if out_spot_market.has_transfer_hook() {
+                    Some(remaining_accounts)
+                } else {
+                    None
+                },
             )?;
         } else {
             controller::token::receive(
@@ -3878,7 +3890,11 @@ pub fn handle_end_swap<'c: 'info, 'info>(
                 &ctx.accounts.authority,
                 amount_out,
                 &out_mint,
-                None,
+                if out_spot_market.has_transfer_hook() {
+                    Some(remaining_accounts)
+                } else {
+                    None
+                },
             )?;
         }
 
