@@ -204,7 +204,7 @@ pub struct SpotMarket {
     /// fuel multiplier for spot insurance stake
     /// precision: 10
     pub fuel_boost_insurance: u8,
-    pub token_program: u8,
+    pub token_program_flag: u8,
     pub pool_id: u8,
     pub padding: [u8; 40],
 }
@@ -273,7 +273,7 @@ impl Default for SpotMarket {
             fuel_boost_taker: 0,
             fuel_boost_maker: 0,
             fuel_boost_insurance: 0,
-            token_program: 0,
+            token_program_flag: 0,
             pool_id: 0,
             padding: [0; 40],
         }
@@ -572,11 +572,15 @@ impl SpotMarket {
     }
 
     pub fn get_token_program(&self) -> Pubkey {
-        match self.token_program {
-            0 => spl_token::ID,
-            1 => spl_token_2022::ID,
-            _ => panic!("Invalid token program"),
+        if self.token_program_flag & TokenProgramFlag::Token2022 as u8 != 0 {
+            spl_token_2022::ID
+        } else {
+            spl_token::ID
         }
+    }
+
+    pub fn has_transfer_hook(&self) -> bool {
+        self.token_program_flag & TokenProgramFlag::TransferHook as u8 != 0
     }
 }
 
@@ -693,4 +697,10 @@ impl InsuranceFund {
     pub fn get_protocol_shares(&self) -> DriftResult<u128> {
         self.total_shares.safe_sub(self.user_shares)
     }
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum TokenProgramFlag {
+    Token2022 = 0b00000001,
+    TransferHook = 0b00000010,
 }
