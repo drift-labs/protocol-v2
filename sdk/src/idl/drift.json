@@ -7487,6 +7487,10 @@
         {
           "name": "maxAum",
           "type": "u128"
+        },
+        {
+          "name": "maxSettleQuoteAmountPerMarket",
+          "type": "u64"
         }
       ]
     },
@@ -7878,6 +7882,34 @@
           "name": "constituentParams",
           "type": {
             "defined": "ConstituentParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "updateLpPoolParams",
+      "accounts": [
+        {
+          "name": "lpPool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "lpPoolParams",
+          "type": {
+            "defined": "LpPoolParams"
           }
         }
       ]
@@ -9287,7 +9319,7 @@
             "type": "i64"
           },
           {
-            "name": "oldestOracleSlot",
+            "name": "maxSettleQuoteAmount",
             "docs": [
               "Oldest slot of constituent oracles"
             ],
@@ -11382,6 +11414,20 @@
             "name": "xi",
             "type": {
               "option": "u8"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "LpPoolParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "maxSettleQuoteAmount",
+            "type": {
+              "option": "u64"
             }
           }
         ]
