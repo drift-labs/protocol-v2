@@ -5657,7 +5657,7 @@ pub struct UpdateIfRebalanceConfig<'info> {
 #[derive(Accounts)]
 pub struct UpdateAmmParams<'info> {
     #[account(
-        mut, 
+        mut,
         constraint = admin.key() == admin_hot_wallet::id()
     )]
     pub admin: Signer<'info>,
