@@ -1779,6 +1779,10 @@ pub mod drift {
     ) -> Result<()> {
         handle_update_if_rebalance_config(ctx, params)
     }
+
+    pub fn zero_amm_fields_prep_mm_oracle_info(ctx: Context<UpdateAmmParams>) -> Result<()> {
+        handle_zero_amm_fields_prep_mm_oracle_info(ctx)
+    }
 }
 
 #[cfg(not(feature = "no-entrypoint"))]
