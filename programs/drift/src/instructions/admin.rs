@@ -65,6 +65,7 @@ use crate::state::protected_maker_mode_config::ProtectedMakerModeConfig;
 use crate::state::pyth_lazer_oracle::{PythLazerOracle, PYTH_LAZER_ORACLE_SEED};
 use crate::state::spot_market::{
     AssetTier, InsuranceFund, SpotBalanceType, SpotFulfillmentConfigStatus, SpotMarket,
+    TokenProgramFlag,
 };
 use crate::state::spot_market_map::get_writable_spot_market_set;
 use crate::state::state::{ExchangeStatus, FeeStructure, OracleGuardRails, State};
@@ -81,6 +82,11 @@ use crate::{load, FEE_ADJUSTMENT_MAX};
 use crate::{load_mut, PTYH_PRICE_FEED_SEED_PREFIX};
 use crate::{math, safe_decrement, safe_increment};
 use crate::{math_error, SPOT_BALANCE_PRECISION};
+use anchor_spl::token_2022::spl_token_2022::extension::transfer_hook::TransferHook;
+use anchor_spl::token_2022::spl_token_2022::extension::{
+    BaseStateWithExtensions, StateWithExtensions,
+};
+use anchor_spl::token_2022::spl_token_2022::state::Mint as MintInner;
 
 pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
     let (drift_signer, drift_signer_nonce) =
@@ -237,14 +243,20 @@ pub fn handle_initialize_spot_market(
 
     let decimals = ctx.accounts.spot_market_mint.decimals.cast::<u32>()?;
 
-    let token_program = if ctx.accounts.token_program.key() == Token2022::id() {
-        1_u8
-    } else if ctx.accounts.token_program.key() == Token::id() {
-        0_u8
-    } else {
-        msg!("unexpected program {:?}", ctx.accounts.token_program.key());
-        return Err(ErrorCode::DefaultError.into());
-    };
+    let mut token_program = 0_u8;
+    if ctx.accounts.token_program.key() == Token2022::id() {
+        token_program |= TokenProgramFlag::Token2022 as u8;
+    }
+
+    let mint_account_info = ctx.accounts.spot_market_mint.to_account_info();
+    let mint_data = mint_account_info.try_borrow_data()?;
+    let mint_with_extension = StateWithExtensions::<MintInner>::unpack(&mint_data)?;
+    if let Ok(transfer_hook) = mint_with_extension.get_extension::<TransferHook>() {
+        let transfer_hook_program_id: Option<Pubkey> = transfer_hook.program_id.into();
+        if transfer_hook_program_id.is_some() {
+            token_program |= TokenProgramFlag::TransferHook as u8;
+        }
+    }
 
     if active_status {
         validate!(
@@ -323,7 +335,7 @@ pub fn handle_initialize_spot_market(
         fuel_boost_taker: 1,
         fuel_boost_maker: 1,
         fuel_boost_insurance: 0,
-        token_program,
+        token_program_flag: token_program,
         pool_id: 0,
         padding: [0; 40],
         insurance_fund: InsuranceFund {
@@ -1945,6 +1957,11 @@ pub fn handle_deposit_into_perp_market_fee_pool<'c: 'info, 'info>(
         &ctx.accounts.admin.to_account_info(),
         amount,
         &mint,
+        if quote_spot_market.has_transfer_hook() {
+            Some(remaining_accounts_iter)
+        } else {
+            None
+        },
     )?;
 
     Ok(())
@@ -2015,6 +2032,11 @@ pub fn handle_deposit_into_spot_market_vault<'c: 'info, 'info>(
         &ctx.accounts.admin.to_account_info(),
         amount,
         &mint,
+        if spot_market.has_transfer_hook() {
+            Some(remaining_accounts_iter)
+        } else {
+            None
+        },
     )?;
 
     ctx.accounts.spot_market_vault.reload()?;
@@ -4735,6 +4757,11 @@ pub fn handle_admin_deposit<'c: 'info, 'info>(
         &ctx.accounts.admin,
         amount,
         &mint,
+        if spot_market.has_transfer_hook() {
+            Some(remaining_accounts_iter)
+        } else {
+            None
+        },
     )?;
     ctx.accounts.spot_market_vault.reload()?;
     validate_spot_market_vault_amount(spot_market, ctx.accounts.spot_market_vault.amount)?;
