@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.127.0] - 2025-07-12
+
+### Features
+
 - program: allow hot admin to update prelaunch oracle ([#1734](https://github.com/drift-labs/protocol-v2/pull/1734))
 - program: init passing in remaining accounts for transfer hook ([#1730](https://github.com/drift-labs/protocol-v2/pull/1730))
 
