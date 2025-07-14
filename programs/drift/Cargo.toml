@@ -46,6 +46,7 @@ openbook-v2-light = { path = "../openbook_v2", features = ["no-entrypoint"] }
 ahash = "=0.8.6"
 switchboard-on-demand = { path = "../switchboard-on-demand", features = ["no-entrypoint"] }
 byteorder = "1.4.3"
+memoffset = "0.6"
 
 [dev-dependencies]
 bytes = "1.2.0"

@@ -6,9 +6,11 @@ import {
 	BN,
 	ExchangeStatus,
 	getPythLazerOraclePublicKey,
+	loadKeypair,
 	OracleGuardRails,
 	OracleSource,
 	TestClient,
+	Wallet,
 } from '../sdk/src';
 
 import { decodeName, DEFAULT_MARKET_NAME } from '../sdk/src/userName';
@@ -47,9 +49,13 @@ describe('admin', () => {
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 
+		const wallet = new Wallet(loadKeypair(process.env.ANCHOR_WALLET));
+		//@ts-ignore
+		await bankrunContextWrapper.fundKeypair(wallet, 10 ** 9);
+
 		driftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(), // ugh.
-			wallet: bankrunContextWrapper.provider.wallet,
+			wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
@@ -404,6 +410,9 @@ describe('admin', () => {
 	it('update MM oracle', async () => {
 		const oraclePrice = new BN(100);
 		await driftClient.updateMmOracle(0, oraclePrice);
+
+		const perpMarket = driftClient.getPerpMarketAccount(0);
+		assert(perpMarket.amm.mmOraclePrice.eq(oraclePrice));
 	});
 
 	it('Update admin', async () => {

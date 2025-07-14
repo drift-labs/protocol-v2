@@ -4572,11 +4572,19 @@ export class AdminClient extends DriftClient {
 		oraclePrice: BN
 	): Promise<TransactionInstruction> {
 		return await this.program.instruction.updateMmOracle(oraclePrice, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				perpMarket: this.getPerpMarketAccount(marketIndex).pubkey,
-				state: await this.getStatePublicKey(),
-			},
+			accounts: {},
+			remainingAccounts: [
+				{
+					pubkey: this.getPerpMarketAccount(marketIndex).pubkey,
+					isWritable: true,
+					isSigner: false,
+				},
+				{
+					pubkey: this.wallet.publicKey,
+					isWritable: true,
+					isSigner: true,
+				},
+			],
 		});
 	}
 }

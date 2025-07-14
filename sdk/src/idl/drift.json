@@ -7526,23 +7526,7 @@
     },
     {
       "name": "updateMmOracle",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
+      "accounts": [],
       "args": [
         {
           "name": "oraclePrice",

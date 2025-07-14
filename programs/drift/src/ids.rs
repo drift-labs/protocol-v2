@@ -72,7 +72,10 @@ pub mod marinade_mainnet {
 
 pub mod admin_hot_wallet {
     use solana_program::declare_id;
+    #[cfg(not(feature = "anchor-test"))]
     declare_id!("5hMjmxexWu954pX9gB9jkHxMqdjpxArQS2XdvkaevRax");
+    #[cfg(feature = "anchor-test")]
+    declare_id!("1ucYHAGrBbi1PaecC4Ptq5ocZLWGLBmbGWysoDGNB1N");
 }
 
 pub mod if_rebalance_wallet {

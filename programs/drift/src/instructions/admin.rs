@@ -2,7 +2,7 @@ use std::convert::identity;
 use std::mem::size_of;
 
 use crate::math::amm::calculate_amm_available_liquidity;
-use crate::msg;
+use crate::{compute_fn, msg};
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
 use anchor_spl::token_2022::Token2022;
@@ -4834,11 +4834,53 @@ pub fn handle_update_if_rebalance_config(
     Ok(())
 }
 
-pub fn handle_update_mm_oracle(ctx: Context<UpdateAmmParams>, oracle_price: i64) -> Result<()> {
-    let mut perp_market = load_mut!(ctx.accounts.perp_market)?;
-    perp_market
-        .amm
-        .update_mm_oracle_info(oracle_price, Clock::get()?.slot)?;
+pub fn handle_update_mm_oracle(ctx: Context<Empty>, oracle_price: i64) -> Result<()> {
+    ::solana_program::log::sol_log_compute_units();
+
+    let remaining_accounts = &ctx.remaining_accounts;
+
+    let signer = &remaining_accounts[1];
+
+    validate!(
+        *signer.key == admin_hot_wallet::id() && signer.is_signer,
+        ErrorCode::DefaultError,
+        "signer must be admin hot wallet, signer: {}, admin hot wallet: {}",
+        signer.key,
+        admin_hot_wallet::id()
+    )?;
+
+    let mut data = remaining_accounts[0]
+        .try_borrow_mut_data()
+        .or(Err(ErrorCode::DefaultError))?;
+
+    data[832..840].copy_from_slice(&Clock::get()?.slot.to_le_bytes());
+    data[912..920].copy_from_slice(oracle_price.to_le_bytes().as_ref());
+
+    Ok(())
+}
+
+pub fn handle_update_mm_oracle_native(accounts: &[AccountInfo], oracle_price: i64) -> Result<()> {
+    ::solana_program::log::sol_log_compute_units();
+
+    let accounts_iter = &mut accounts.iter();
+    let perp_market_account = next_account_info(accounts_iter)?;
+    let signer_account = next_account_info(accounts_iter)?;
+
+    validate!(
+        *signer_account.key == admin_hot_wallet::id() && signer_account.is_signer,
+        ErrorCode::DefaultError,
+        "signer must be admin hot wallet, signer: {}, admin hot wallet: {}",
+        signer_account.key,
+        admin_hot_wallet::id()
+    )?;
+
+    let mut data = perp_market_account
+        .try_borrow_mut_data()
+        .or(Err(ErrorCode::DefaultError))?;
+
+    data[828..840].copy_from_slice(&Clock::get()?.slot.to_le_bytes());
+    data[912..920].copy_from_slice(oracle_price.to_le_bytes().as_ref());
+
     Ok(())
 }
 
@@ -5663,3 +5705,6 @@ pub struct UpdateAmmParams<'info> {
     )]
     pub state: Box<Account<'info, State>>,
 }
+
+#[derive(Accounts)]
+pub struct Empty {}
