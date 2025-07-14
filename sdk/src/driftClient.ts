@@ -2790,6 +2790,9 @@ export class DriftClient {
 			TOKEN_2022_PROGRAM_ID
 		);
 		const hookAccount = getTransferHook(mintAccount)!;
+		if (hookAccount.programId.equals(PublicKey.default)) {
+			return;
+		}
 		const extraAccountMetasAddress = getExtraAccountMetaAddress(
 			mint,
 			hookAccount!.programId
