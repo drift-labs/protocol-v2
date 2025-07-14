@@ -2962,11 +2962,10 @@ pub fn trigger_order(
         "Order is not triggerable"
     )?;
 
-    validate!(
-        !user.orders[order_index].triggered(),
-        ErrorCode::OrderNotTriggerable,
-        "Order is already triggered"
-    )?;
+    if user.orders[order_index].triggered() {
+        msg!("Order is already triggered");
+        return Ok(());
+    }
 
     validate!(
         market_type == MarketType::Perp,
