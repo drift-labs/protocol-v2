@@ -1300,6 +1300,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracle: new PublicKey('5r8RWTaRiMgr9Lph3FTUE3sGb1vymhpCrm83Bovjfcps'),
 		launchTs: 1747318237000,
 		oracleSource: OracleSource.PYTH_LAZER,
+		pythLazerId: 1578,
 	},
 ];
 
