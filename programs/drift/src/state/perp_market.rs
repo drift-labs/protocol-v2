@@ -832,8 +832,10 @@ impl PerpMarket {
     fn clamp_trigger_price(&self, oracle_price: u64, median_price: u64) -> DriftResult<u64> {
         let max_bps_diff = if matches!(self.contract_tier, ContractTier::A | ContractTier::B) {
             500 // 20 BPS
-        } else {
+        } else if matches!(self.contract_tier, ContractTier::C) {
             100 // 100 BPS
+        } else {
+            40 // 250 BPS
         };
         let max_oracle_diff = oracle_price / max_bps_diff;
 
