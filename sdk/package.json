@@ -90,6 +90,7 @@
 		"node": ">=20.18.0"
 	},
 	"resolutions": {
+		"@solana/web3.js": "1.98.0",
 		"@solana/errors": "2.0.0-preview.4",
 		"@solana/codecs-data-structures": "2.0.0-preview.4"
 	}
