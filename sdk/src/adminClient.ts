@@ -4552,26 +4552,30 @@ export class AdminClient extends DriftClient {
 		});
 	}
 
-	public async zeroAmmFieldsPrepMmOracleInfo(
-		marketIndex: number
+	public async updateMmOracle(
+		marketIndex: number,
+		oraclePrice: BN
 	): Promise<TransactionSignature> {
-		const zeroAmmFieldsPrepMmOracleInfoIx =
-			await this.getZeroAmmFieldsPrepMmOracleInfoIx(marketIndex);
+		const updateMmOracleIx = await this.getUpdateMmOracleIx(
+			marketIndex,
+			oraclePrice
+		);
 
-		const tx = await this.buildTransaction(zeroAmmFieldsPrepMmOracleInfoIx);
-
+		const tx = await this.buildTransaction(updateMmOracleIx);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
 		return txSig;
 	}
 
-	public async getZeroAmmFieldsPrepMmOracleInfoIx(
-		marketIndex: number
+	public async getUpdateMmOracleIx(
+		marketIndex: number,
+		oraclePrice: BN
 	): Promise<TransactionInstruction> {
-		return await this.program.instruction.zeroAmmFieldsPrepMmOracleInfo({
+		return await this.program.instruction.updateMmOracle(oraclePrice, {
 			accounts: {
 				admin: this.wallet.publicKey,
 				perpMarket: this.getPerpMarketAccount(marketIndex).pubkey,
+				state: await this.getStatePublicKey(),
 			},
 		});
 	}

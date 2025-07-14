@@ -7525,7 +7525,7 @@
       ]
     },
     {
-      "name": "zeroAmmFieldsPrepMmOracleInfo",
+      "name": "updateMmOracle",
       "accounts": [
         {
           "name": "admin",
@@ -7536,9 +7536,19 @@
           "name": "perpMarket",
           "isMut": true,
           "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "oraclePrice",
+          "type": "i64"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -10841,7 +10851,7 @@
             "type": "u64"
           },
           {
-            "name": "maxPositionSize",
+            "name": "mmOracleSlot",
             "docs": [
               "the max base size a single user can have",
               "precision: BASE_PRECISION"
@@ -10929,18 +10939,11 @@
             "type": "u32"
           },
           {
-            "name": "longIntensityCount",
+            "name": "mmOraclePrice",
             "docs": [
-              "the count intensity of long fills against AMM"
+              "MM oracle price"
             ],
-            "type": "u32"
-          },
-          {
-            "name": "shortIntensityCount",
-            "docs": [
-              "the count intensity of short fills against AMM"
-            ],
-            "type": "u32"
+            "type": "i64"
           },
           {
             "name": "maxFillReserveFraction",

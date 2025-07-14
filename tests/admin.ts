@@ -401,6 +401,11 @@ describe('admin', () => {
 		);
 	});
 
+	it('update MM oracle', async () => {
+		const oraclePrice = new BN(100);
+		await driftClient.updateMmOracle(0, oraclePrice);
+	});
+
 	it('Update admin', async () => {
 		const newAdminKey = PublicKey.default;
 

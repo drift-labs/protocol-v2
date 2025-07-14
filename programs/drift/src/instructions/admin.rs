@@ -1016,7 +1016,7 @@ pub fn handle_initialize_perp_market(
             order_step_size,
             order_tick_size,
             min_order_size,
-            max_position_size: 0,
+            mm_oracle_price: 0,
             max_slippage_ratio: 50,         // ~2%
             max_fill_reserve_fraction: 100, // moves price ~2%
             base_spread,
@@ -1037,9 +1037,8 @@ pub fn handle_initialize_perp_market(
             mark_std: 0,
             oracle_std: 0,
             volume_24h: 0,
-            long_intensity_count: 0,
             long_intensity_volume: 0,
-            short_intensity_count: 0,
+            mm_oracle_slot: 0,
             short_intensity_volume: 0,
             last_trade_ts: now,
             curve_update_intensity,
@@ -4835,15 +4834,11 @@ pub fn handle_update_if_rebalance_config(
     Ok(())
 }
 
-pub fn handle_zero_amm_fields_prep_mm_oracle_info(ctx: Context<UpdateAmmParams>) -> Result<()> {
-    let mut perp_market = ctx.accounts.perp_market.load_mut()?;
-    perp_market.amm.long_intensity_count = 0;
-    perp_market.amm.short_intensity_count = 0;
-    perp_market.amm.max_position_size = 0;
-    msg!(
-        "zeroed amm fields for perp market {}",
-        perp_market.market_index
-    );
+pub fn handle_update_mm_oracle(ctx: Context<UpdateAmmParams>, oracle_price: i64) -> Result<()> {
+    let mut perp_market = load_mut!(ctx.accounts.perp_market)?;
+    perp_market
+        .amm
+        .update_mm_oracle_info(oracle_price, Clock::get()?.slot)?;
     Ok(())
 }
 
@@ -5658,9 +5653,13 @@ pub struct UpdateIfRebalanceConfig<'info> {
 pub struct UpdateAmmParams<'info> {
     #[account(
         mut,
-        constraint = admin.key() == admin_hot_wallet::id()
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>,
     #[account(mut)]
     pub perp_market: AccountLoader<'info, PerpMarket>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
 }

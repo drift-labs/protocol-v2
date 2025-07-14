@@ -1780,8 +1780,8 @@ pub mod drift {
         handle_update_if_rebalance_config(ctx, params)
     }
 
-    pub fn zero_amm_fields_prep_mm_oracle_info(ctx: Context<UpdateAmmParams>) -> Result<()> {
-        handle_zero_amm_fields_prep_mm_oracle_info(ctx)
+    pub fn update_mm_oracle(ctx: Context<UpdateAmmParams>, oracle_price: i64) -> Result<()> {
+        handle_update_mm_oracle(ctx, oracle_price)
     }
 }
 

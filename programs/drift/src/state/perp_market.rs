@@ -998,7 +998,7 @@ pub struct AMM {
     pub min_order_size: u64,
     /// the max base size a single user can have
     /// precision: BASE_PRECISION
-    pub max_position_size: u64,
+    pub mm_oracle_slot: u64,
     /// estimated total of volume in market
     /// QUOTE_PRECISION
     pub volume_24h: u64,
@@ -1024,10 +1024,8 @@ pub struct AMM {
     pub long_spread: u32,
     /// the spread for bids vs the reserve price
     pub short_spread: u32,
-    /// the count intensity of long fills against AMM
-    pub long_intensity_count: u32,
-    /// the count intensity of short fills against AMM
-    pub short_intensity_count: u32,
+    /// MM oracle price
+    pub mm_oracle_price: i64,
     /// the fraction of total available liquidity a single fill on the AMM can consume
     pub max_fill_reserve_fraction: u16,
     /// the maximum slippage a single fill on the AMM can push
@@ -1119,7 +1117,6 @@ impl Default for AMM {
             order_step_size: 0,
             order_tick_size: 0,
             min_order_size: 1,
-            max_position_size: 0,
             volume_24h: 0,
             long_intensity_volume: 0,
             short_intensity_volume: 0,
@@ -1131,8 +1128,8 @@ impl Default for AMM {
             max_spread: 0,
             long_spread: 0,
             short_spread: 0,
-            long_intensity_count: 0,
-            short_intensity_count: 0,
+            mm_oracle_price: 0,
+            mm_oracle_slot: 0,
             max_fill_reserve_fraction: 0,
             max_slippage_ratio: 0,
             curve_update_intensity: 0,
@@ -1636,6 +1633,16 @@ impl AMM {
 
     pub fn is_recent_oracle_valid(&self, current_slot: u64) -> DriftResult<bool> {
         Ok(self.last_oracle_valid && current_slot == self.last_update_slot)
+    }
+
+    pub fn update_mm_oracle_info(
+        &mut self,
+        mm_oracle_price: i64,
+        mm_oracle_slot: u64,
+    ) -> DriftResult {
+        self.mm_oracle_price = mm_oracle_price;
+        self.mm_oracle_slot = mm_oracle_slot;
+        Ok(())
     }
 }
 
