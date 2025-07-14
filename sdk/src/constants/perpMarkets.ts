@@ -1297,9 +1297,10 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'PUMP-PERP',
 		baseAssetSymbol: 'PUMP',
 		marketIndex: 75,
-		oracle: new PublicKey('7ezQA4H8XrdJjvvet6Jvd4NUtssFfQVN4S3HDDJeZy2M'),
+		oracle: new PublicKey('5r8RWTaRiMgr9Lph3FTUE3sGb1vymhpCrm83Bovjfcps'),
 		launchTs: 1747318237000,
-		oracleSource: OracleSource.Prelaunch,
+		oracleSource: OracleSource.PYTH_LAZER,
+		pythLazerId: 1578,
 	},
 ];
 
