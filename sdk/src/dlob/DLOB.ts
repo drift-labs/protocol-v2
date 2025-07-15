@@ -1556,7 +1556,7 @@ export class DLOB {
 	public findNodesToTrigger(
 		marketIndex: number,
 		slot: number,
-		oraclePrice: BN,
+		triggerPrice: BN,
 		marketType: MarketType,
 		stateAccount: StateAccount
 	): NodeToTrigger[] {
@@ -1573,7 +1573,7 @@ export class DLOB {
 			: undefined;
 		if (triggerAboveList) {
 			for (const node of triggerAboveList.getGenerator()) {
-				if (oraclePrice.gt(node.order.triggerPrice)) {
+				if (triggerPrice.gt(node.order.triggerPrice)) {
 					nodesToTrigger.push({
 						node: node,
 					});
@@ -1588,7 +1588,7 @@ export class DLOB {
 			: undefined;
 		if (triggerBelowList) {
 			for (const node of triggerBelowList.getGenerator()) {
-				if (oraclePrice.lt(node.order.triggerPrice)) {
+				if (triggerPrice.lt(node.order.triggerPrice)) {
 					nodesToTrigger.push({
 						node: node,
 					});
