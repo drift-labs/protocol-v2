@@ -47,7 +47,7 @@
 		"@pythnetwork/price-service-sdk": "1.7.1",
 		"@pythnetwork/pyth-solana-receiver": "0.7.0",
 		"@solana/spl-token": "0.4.13",
-		"@solana/web3.js": "1.92.3",
+		"@solana/web3.js": "1.98.0",
 		"@switchboard-xyz/common": "3.0.14",
 		"@switchboard-xyz/on-demand": "2.4.1",
 		"@triton-one/yellowstone-grpc": "1.3.0",
@@ -90,6 +90,7 @@
 		"node": ">=20.18.0"
 	},
 	"resolutions": {
+		"@solana/web3.js": "1.98.0",
 		"@solana/errors": "2.0.0-preview.4",
 		"@solana/codecs-data-structures": "2.0.0-preview.4"
 	}
