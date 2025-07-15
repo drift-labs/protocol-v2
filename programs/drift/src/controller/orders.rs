@@ -210,7 +210,7 @@ pub fn place_perp_order(
             market.amm.order_step_size
         )?;
 
-        let base_asset_amount = if params.base_asset_amount == u64::MAX {
+        let base_asset_amount = if params.base_asset_amount == u64::MAX && !params.reduce_only {
             calculate_max_perp_order_size(
                 user,
                 position_index,
@@ -3619,7 +3619,7 @@ pub fn place_spot_order(
             step_size
         )?;
 
-        let base_asset_amount = if params.base_asset_amount == u64::MAX {
+        let base_asset_amount = if params.base_asset_amount == u64::MAX && !params.reduce_only {
             calculate_max_spot_order_size(
                 user,
                 params.market_index,
