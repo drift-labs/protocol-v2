@@ -1595,6 +1595,11 @@ impl Order {
     pub fn is_available(&self) -> bool {
         self.status != OrderStatus::Open
     }
+
+    pub fn update_open_bids_and_asks(&self) -> bool {
+        (!self.must_be_triggered() || self.triggered())
+            && !(self.reduce_only && self.is_bit_flag_set(OrderBitFlag::NewReduceOnly))
+    }
 }
 
 impl Default for Order {
@@ -1683,6 +1688,7 @@ pub enum OrderBitFlag {
     SignedMessage = 0b00000001,
     OracleTriggerMarket = 0b00000010,
     SafeTriggerOrder = 0b00000100,
+    NewReduceOnly = 0b00001000,
 }
 
 #[account(zero_copy(unsafe))]

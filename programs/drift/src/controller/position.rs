@@ -625,7 +625,12 @@ pub fn increase_open_bids_and_asks(
     position: &mut PerpPosition,
     direction: &PositionDirection,
     base_asset_amount_unfilled: u64,
+    update: bool,
 ) -> DriftResult {
+    if !update {
+        return Ok(());
+    }
+
     match direction {
         PositionDirection::Long => {
             position.open_bids = position
@@ -646,7 +651,12 @@ pub fn decrease_open_bids_and_asks(
     position: &mut PerpPosition,
     direction: &PositionDirection,
     base_asset_amount_unfilled: u64,
+    update: bool,
 ) -> DriftResult {
+    if !update {
+        return Ok(());
+    }
+
     match direction {
         PositionDirection::Long => {
             position.open_bids = position
