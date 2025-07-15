@@ -551,7 +551,11 @@ export class TxHandler {
 
 		const computeUnitsPrice = baseTxParams?.computeUnitsPrice;
 
-		if (typeof computeUnitsPrice === 'number' && computeUnitsPrice != null && !hasSetComputeUnitPriceIx) {
+		if (
+			typeof computeUnitsPrice === 'number' &&
+			computeUnitsPrice != null &&
+			!hasSetComputeUnitPriceIx
+		) {
 			allIx.push(
 				ComputeBudgetProgram.setComputeUnitPrice({
 					microLamports: computeUnitsPrice,
