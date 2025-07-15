@@ -1,10 +1,8 @@
 use std::convert::identity;
 use std::mem::size_of;
 
-use crate::math::amm::calculate_amm_available_liquidity;
-use crate::{compute_fn, msg};
+use crate::msg;
 use anchor_lang::prelude::*;
-use anchor_spl::token::Token;
 use anchor_spl::token_2022::Token2022;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use phoenix::quantities::WrapperU64;
@@ -19,13 +17,12 @@ use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
-    DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO, FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
-    IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX, INSURANCE_C_MAX,
-    INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION, MAX_CONCENTRATION_COEFFICIENT,
-    MAX_SQRT_K, MAX_UPDATE_K_PRICE_CHANGE, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I64,
-    QUOTE_SPOT_MARKET_INDEX, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION,
-    SPOT_WEIGHT_PRECISION, THIRTEEN_DAY, TWENTY_FOUR_HOUR,
+    AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO, DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO,
+    FEE_POOL_TO_REVENUE_POOL_THRESHOLD, IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX,
+    INSURANCE_C_MAX, INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION,
+    MAX_CONCENTRATION_COEFFICIENT, MAX_SQRT_K, MAX_UPDATE_K_PRICE_CHANGE, PERCENTAGE_PRECISION,
+    PERCENTAGE_PRECISION_I64, QUOTE_SPOT_MARKET_INDEX, SPOT_CUMULATIVE_INTEREST_PRECISION,
+    SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION, THIRTEEN_DAY, TWENTY_FOUR_HOUR,
 };
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::helpers::get_proportion_u128;
@@ -4860,27 +4857,18 @@ pub fn handle_update_mm_oracle(ctx: Context<Empty>, oracle_price: i64) -> Result
     Ok(())
 }
 
-pub fn handle_update_mm_oracle_native(accounts: &[AccountInfo], oracle_price: i64) -> Result<()> {
-    ::solana_program::log::sol_log_compute_units();
-
-    let accounts_iter = &mut accounts.iter();
-    let perp_market_account = next_account_info(accounts_iter)?;
-    let signer_account = next_account_info(accounts_iter)?;
-
-    validate!(
-        *signer_account.key == admin_hot_wallet::id() && signer_account.is_signer,
-        ErrorCode::DefaultError,
+pub fn handle_update_mm_oracle_native(accounts: &[AccountInfo], data: &[u8]) -> Result<()> {
+    let signer_account = &accounts[1];
+    #[cfg(not(feature = "anchor-test"))]
+    assert!(
+        signer_account.is_signer && *signer_account.key == admin_hot_wallet::id(),
         "signer must be admin hot wallet, signer: {}, admin hot wallet: {}",
         signer_account.key,
         admin_hot_wallet::id()
-    )?;
-
-    let mut data = perp_market_account
-        .try_borrow_mut_data()
-        .or(Err(ErrorCode::DefaultError))?;
-
-    data[828..840].copy_from_slice(&Clock::get()?.slot.to_le_bytes());
-    data[912..920].copy_from_slice(oracle_price.to_le_bytes().as_ref());
+    );
+    let mut perp_market = accounts[0].data.borrow_mut();
+    perp_market[832..840].copy_from_slice(&data[5..5 + 8]);
+    perp_market[912..920].copy_from_slice(&data[13..13 + 8]);
 
     Ok(())
 }
