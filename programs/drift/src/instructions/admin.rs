@@ -4835,6 +4835,18 @@ pub fn handle_update_if_rebalance_config(
     Ok(())
 }
 
+pub fn handle_zero_amm_fields_prep_mm_oracle_info(ctx: Context<UpdateAmmParams>) -> Result<()> {
+    let mut perp_market = ctx.accounts.perp_market.load_mut()?;
+    perp_market.amm.long_intensity_count = 0;
+    perp_market.amm.short_intensity_count = 0;
+    perp_market.amm.max_position_size = 0;
+    msg!(
+        "zeroed amm fields for perp market {}",
+        perp_market.market_index
+    );
+    Ok(())
+}
+
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(mut)]
@@ -5640,4 +5652,15 @@ pub struct UpdateIfRebalanceConfig<'info> {
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateAmmParams<'info> {
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id()
+    )]
+    pub admin: Signer<'info>,
+    #[account(mut)]
+    pub perp_market: AccountLoader<'info, PerpMarket>,
 }

@@ -4551,4 +4551,28 @@ export class AdminClient extends DriftClient {
 			},
 		});
 	}
+
+	public async zeroAmmFieldsPrepMmOracleInfo(
+		marketIndex: number
+	): Promise<TransactionSignature> {
+		const zeroAmmFieldsPrepMmOracleInfoIx =
+			await this.getZeroAmmFieldsPrepMmOracleInfoIx(marketIndex);
+
+		const tx = await this.buildTransaction(zeroAmmFieldsPrepMmOracleInfoIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getZeroAmmFieldsPrepMmOracleInfoIx(
+		marketIndex: number
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.zeroAmmFieldsPrepMmOracleInfo({
+			accounts: {
+				admin: this.wallet.publicKey,
+				perpMarket: this.getPerpMarketAccount(marketIndex).pubkey,
+			},
+		});
+	}
 }

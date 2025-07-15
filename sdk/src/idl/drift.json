@@ -7523,6 +7523,22 @@
           }
         }
       ]
+    },
+    {
+      "name": "zeroAmmFieldsPrepMmOracleInfo",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
