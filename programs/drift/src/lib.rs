@@ -545,7 +545,7 @@ pub mod drift {
         handle_update_user_open_orders_count(ctx)
     }
 
-    pub fn _disable_update_perp_bid_ask_twap(
+    pub fn admin_disable_update_perp_bid_ask_twap(
         ctx: Context<AdminDisableBidAskTwapUpdate>,
         disable: bool,
     ) -> Result<()> {
