@@ -1,14 +1,8 @@
-import {
-	PollingDriftClientAccountSubscriber
-} from './pollingDriftClientAccountSubscriber';
+import { PollingDriftClientAccountSubscriber } from './pollingDriftClientAccountSubscriber';
 
-import {
-	OraclePriceData,
-	OracleInfo
-} from '../oracles/types';
+import { OraclePriceData, OracleInfo } from '../oracles/types';
 
 import { getOracleId } from '../oracles/oracleId';
-
 
 // allowing app UI state to incrementally replace RPC fetched acconut data with data from our infra that is pre-indexed and decoded
 export class ExternalDataDriftClientSubscriber extends PollingDriftClientAccountSubscriber {
@@ -16,9 +10,10 @@ export class ExternalDataDriftClientSubscriber extends PollingDriftClientAccount
 	private pollingOracles = new Map<string, boolean>();
 	private oraclePollIntervalId: NodeJS.Timeout;
 
-	constructor(...args: ConstructorParameters<typeof PollingDriftClientAccountSubscriber>) {
+	constructor(
+		...args: ConstructorParameters<typeof PollingDriftClientAccountSubscriber>
+	) {
 		super(...args);
-		
 	}
 
 	/** Override to prevent oracles from being automatically polled later */
@@ -27,11 +22,18 @@ export class ExternalDataDriftClientSubscriber extends PollingDriftClientAccount
 	}
 
 	/** Public method to be called externally with fresh oracle data */
-	public feedOracle(oracleInfo: OracleInfo, priceData: OraclePriceData, slot: number) {
+	public feedOracle(
+		oracleInfo: OracleInfo,
+		priceData: OraclePriceData,
+		slot: number
+	) {
 		const oracleId = getOracleId(oracleInfo.publicKey, oracleInfo.source);
 		this.oracles.set(oracleId, { data: priceData, slot });
 		this.oracleLastUpdate.set(oracleId, Date.now());
-		if (this.pollingOracles.has(oracleId) || this.accountLoader.accountsToLoad.has(oracleInfo.publicKey.toBase58())) {
+		if (
+			this.pollingOracles.has(oracleId) ||
+			this.accountLoader.accountsToLoad.has(oracleInfo.publicKey.toBase58())
+		) {
 			const oracleToPoll = this.oraclesToPoll.get(oracleId);
 			if (oracleToPoll) {
 				this.accountLoader.removeAccount(
@@ -50,14 +52,14 @@ export class ExternalDataDriftClientSubscriber extends PollingDriftClientAccount
 	}
 
 	private startOraclePollingWatchdog() {
-		if(this.oraclePollIntervalId) {
+		if (this.oraclePollIntervalId) {
 			clearInterval(this.oraclePollIntervalId);
 		}
 		// how do we handle not polling bet markets every 1s from this change?
 		this.oraclePollIntervalId = setInterval(async () => {
 			for (const [oracleId, lastUpdate] of this.oracleLastUpdate.entries()) {
 				const oracleToPoll = this.oraclesToPoll.get(oracleId);
-				if(!oracleToPoll) continue;
+				if (!oracleToPoll) continue;
 				const now = Date.now();
 				if (now - lastUpdate > 130_000 && !this.pollingOracles.has(oracleId)) {
 					await this.addOracleToAccountLoader(oracleToPoll);
