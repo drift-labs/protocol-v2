@@ -88,9 +88,14 @@ export function* getL2GeneratorFromDLOBNodes(
 	slot: number
 ): Generator<L2Level> {
 	for (const dlobNode of dlobNodes) {
-		const size = dlobNode.order.baseAssetAmount.sub(
+		const size = dlobNode.baseAssetAmount.sub(
 			dlobNode.order.baseAssetAmountFilled
 		) as BN;
+
+		if (size.isZero()) {
+			continue;
+		}
+
 		yield {
 			size,
 			price: dlobNode.getPrice(oraclePriceData, slot),
