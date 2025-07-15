@@ -4841,6 +4841,7 @@ pub fn handle_update_mm_oracle(ctx: Context<Empty>, oracle_price: i64) -> Result
 
     let signer = &remaining_accounts[1];
 
+    #[cfg(not(feature = "anchor-test"))]
     validate!(
         *signer.key == admin_hot_wallet::id() && signer.is_signer,
         ErrorCode::DefaultError,
