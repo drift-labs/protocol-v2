@@ -676,7 +676,10 @@ export class User {
 			  )
 			: ZERO;
 
-		const freeCollateral = this.getFreeCollateral().sub(collateralBuffer);
+		const freeCollateral = this.getFreeCollateral(
+			'Initial',
+			enterHighLeverageMode
+		).sub(collateralBuffer);
 
 		return this.getPerpBuyingPowerFromFreeCollateralAndBaseAssetAmount(
 			marketIndex,
@@ -707,11 +710,14 @@ export class User {
 	 * calculates Free Collateral = Total collateral - margin requirement
 	 * @returns : Precision QUOTE_PRECISION
 	 */
-	public getFreeCollateral(marginCategory: MarginCategory = 'Initial'): BN {
+	public getFreeCollateral(
+		marginCategory: MarginCategory = 'Initial',
+		enterHighLeverageMode = false
+	): BN {
 		const totalCollateral = this.getTotalCollateral(marginCategory, true);
 		const marginRequirement =
 			marginCategory === 'Initial'
-				? this.getInitialMarginRequirement()
+				? this.getInitialMarginRequirement(enterHighLeverageMode)
 				: this.getMaintenanceMarginRequirement();
 		const freeCollateral = totalCollateral.sub(marginRequirement);
 		return freeCollateral.gte(ZERO) ? freeCollateral : ZERO;
@@ -747,8 +753,14 @@ export class User {
 	/**
 	 * @returns The initial margin requirement in USDC. : QUOTE_PRECISION
 	 */
-	public getInitialMarginRequirement(): BN {
-		return this.getMarginRequirement('Initial', undefined, true);
+	public getInitialMarginRequirement(enterHighLeverageMode = false): BN {
+		return this.getMarginRequirement(
+			'Initial',
+			undefined,
+			true,
+			undefined,
+			enterHighLeverageMode
+		);
 	}
 
 	/**
@@ -2676,7 +2688,9 @@ export class User {
 					isVariant(market.contractType, 'prediction')
 				);
 				const totalCollateral = this.getTotalCollateral();
-				const marginRequirement = this.getInitialMarginRequirement();
+				const marginRequirement = this.getInitialMarginRequirement(
+					enterHighLeverageMode
+				);
 				const marginFreedByClosing = perpLiabilityValue
 					.mul(new BN(market.marginRatioInitial))
 					.div(MARGIN_PRECISION);
@@ -2705,7 +2719,10 @@ export class User {
 			}
 		}
 
-		const freeCollateral = this.getFreeCollateral();
+		const freeCollateral = this.getFreeCollateral(
+			'Initial',
+			enterHighLeverageMode
+		);
 
 		let baseTradeSize =
 			targetSide === 'long'
