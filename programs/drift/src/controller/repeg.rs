@@ -124,7 +124,8 @@ pub fn update_amm(
     state: &State,
     clock: &Clock,
 ) -> DriftResult<i128> {
-    let market = &mut perp_market_map.get_ref_mut(&market_index)?;
+    let market: &mut std::cell::RefMut<'_, PerpMarket> =
+        &mut perp_market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = oracle_map.get_price_data(&market.oracle_id())?;
 
     let cost_of_update = _update_amm(
@@ -151,6 +152,25 @@ pub fn _update_amm(
     ) {
         return Ok(0);
     }
+
+    let oracle_slot = clock_slot.safe_sub(oracle_price_data.delay.max(0) as u64)?;
+    let (oracle_price, delay): (i64, i64) = if oracle_slot < market.amm.mm_oracle_slot {
+        (
+            market.amm.mm_oracle_price,
+            clock_slot
+                .cast::<i64>()?
+                .safe_sub(market.amm.mm_oracle_slot.cast::<i64>()?)?,
+        )
+    } else {
+        (oracle_price_data.price, oracle_price_data.delay)
+    };
+
+    let oracle_price_data = &OraclePriceData {
+        price: oracle_price,
+        confidence: oracle_price_data.confidence,
+        delay,
+        ..*oracle_price_data
+    };
 
     let oracle_validity = oracle::oracle_validity(
         MarketType::Perp,
