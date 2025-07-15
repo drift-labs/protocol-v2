@@ -36,6 +36,7 @@ mod validation;
 
 // main program entrypoint
 // anchor `#[program]` entrypoint is compiled out by `no-entrypoint`
+#[cfg(not(feature = "cpi"))]
 solana_program::entrypoint!(program_entry);
 
 pub fn program_entry<'info>(
@@ -43,12 +44,28 @@ pub fn program_entry<'info>(
     accounts: &'info [AccountInfo<'info>],
     data: &[u8],
 ) -> anchor_lang::solana_program::entrypoint::ProgramResult {
-    if data.len() > 5 && data[..5] == [0xFF, 0xFF, 0xFF, 0xFF, 0] {
-        // total ~509 CU without clock (-278)
-        return handle_update_mm_oracle_native(accounts, &data).map_err(Into::into);
+    // Early exit for small data
+    if data.len() < 5 {
+        return Err(
+            anchor_lang::solana_program::program_error::ProgramError::InvalidInstructionData.into(),
+        );
     }
-    // hook into anchor generated entry
-    entry(program_id, accounts, data)
+
+    if let [0xFF, 0xFF, 0xFF, 0xFF, discriminator, ref payload @ ..] = data {
+        match *discriminator {
+            0 => Ok(handle_update_mm_oracle_native(accounts, payload)?),
+            1 => Ok(handle_update_amm_spread_adjustment_native(
+                accounts, payload,
+            )?),
+            _ => Err(
+                anchor_lang::solana_program::program_error::ProgramError::InvalidInstructionData
+                    .into(),
+            ),
+        }
+    } else {
+        // Fallback to anchor generated entry
+        entry(program_id, accounts, data)
+    }
 }
 
 #[cfg(feature = "mainnet-beta")]
@@ -528,7 +545,7 @@ pub mod drift {
         handle_update_user_open_orders_count(ctx)
     }
 
-    pub fn admin_disable_update_perp_bid_ask_twap(
+    pub fn _disable_update_perp_bid_ask_twap(
         ctx: Context<AdminDisableBidAskTwapUpdate>,
         disable: bool,
     ) -> Result<()> {

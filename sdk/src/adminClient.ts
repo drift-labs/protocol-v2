@@ -57,6 +57,7 @@ import { PROGRAM_ID as PHOENIX_PROGRAM_ID } from '@ellipsis-labs/phoenix-sdk';
 import { DRIFT_ORACLE_RECEIVER_ID } from './config';
 import { getFeedIdUint8Array } from './util/pythOracleUtils';
 import { FUEL_RESET_LOG_ACCOUNT } from './constants/txConstants';
+import { createNativeInstructionDiscriminatorBuffer } from './tx/utils';
 
 const OPENBOOK_PROGRAM_ID = new PublicKey(
 	'opnb2LAfJYbRMAHHvqjCwQxanZn7ReEHp1k81EohpZb'
@@ -4567,19 +4568,38 @@ export class AdminClient extends DriftClient {
 		return txSig;
 	}
 
+	public async getUpdateMmOracleIx(
+		marketIndex: number,
+		oraclePrice: BN
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateMmOracle(oraclePrice, {
+			accounts: {},
+			remainingAccounts: [
+				{
+					pubkey: this.getPerpMarketAccount(marketIndex).pubkey,
+					isWritable: true,
+					isSigner: false,
+				},
+				{
+					pubkey: this.wallet.publicKey,
+					isWritable: true,
+					isSigner: true,
+				},
+			],
+		});
+	}
+
 	public async updateMmOracleNative(
 		marketIndex: number,
-		slot: BN,
 		oraclePrice: BN
 	): Promise<TransactionSignature> {
 		const updateMmOracleIx = await this.getUpdateMmOracleNativeIx(
 			marketIndex,
-			slot,
 			oraclePrice
 		);
 
 		const tx = await this.buildTransaction(updateMmOracleIx, {
-			computeUnits: 1024,
+			computeUnits: 1000,
 			computeUnitsPrice: 0,
 		});
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
@@ -4589,13 +4609,12 @@ export class AdminClient extends DriftClient {
 
 	public getUpdateMmOracleNativeIx(
 		marketIndex: number,
-		slot: BN,
 		oraclePrice: BN
 	): TransactionInstruction {
-		const data = Buffer.alloc(5 + 8 + 8);
-		data.set([0xff, 0xff, 0xff, 0xff, 0x00], 0); // 5 bytes
-		data.set(slot.toArrayLike(Buffer, 'le', 8), 5); // next 8 bytes
-		data.set(oraclePrice.toArrayLike(Buffer, 'le', 8), 13); // next 8 bytes
+		const discriminatorBuffer = createNativeInstructionDiscriminatorBuffer(0);
+		const data = Buffer.alloc(discriminatorBuffer.length + 8);
+		data.set(discriminatorBuffer, 0);
+		data.set(oraclePrice.toArrayLike(Buffer, 'le', 8), 5); // next 8 bytes
 
 		// Build the instruction manually
 		return new TransactionInstruction({
@@ -4616,13 +4635,37 @@ export class AdminClient extends DriftClient {
 		});
 	}
 
-	public async getUpdateMmOracleIx(
+	public async updateAmmSpreadAdjustmentNative(
 		marketIndex: number,
-		oraclePrice: BN
-	): Promise<TransactionInstruction> {
-		return await this.program.instruction.updateMmOracle(oraclePrice, {
-			accounts: {},
-			remainingAccounts: [
+		ammSpreadAdjustment: number
+	): Promise<TransactionSignature> {
+		const updateMmOracleIx = await this.getUpdateAmmSpreadAdjustmentNativeIx(
+			marketIndex,
+			ammSpreadAdjustment
+		);
+
+		const tx = await this.buildTransaction(updateMmOracleIx, {
+			computeUnits: 700,
+			computeUnitsPrice: 0,
+		});
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public getUpdateAmmSpreadAdjustmentNativeIx(
+		marketIndex: number,
+		ammSpreadAdjustment: number // i8
+	): TransactionInstruction {
+		const discriminatorBuffer = createNativeInstructionDiscriminatorBuffer(1);
+		const data = Buffer.alloc(discriminatorBuffer.length + 4);
+		data.set(discriminatorBuffer, 0);
+		data.writeInt8(ammSpreadAdjustment, 5); // next byte
+
+		// Build the instruction manually
+		return new TransactionInstruction({
+			programId: this.program.programId,
+			keys: [
 				{
 					pubkey: this.getPerpMarketAccount(marketIndex).pubkey,
 					isWritable: true,
@@ -4630,10 +4673,11 @@ export class AdminClient extends DriftClient {
 				},
 				{
 					pubkey: this.wallet.publicKey,
-					isWritable: true,
+					isWritable: false,
 					isSigner: true,
 				},
 			],
+			data,
 		});
 	}
 }

@@ -2170,7 +2170,7 @@
       "args": []
     },
     {
-      "name": "adminDisableUpdatePerpBidAskTwap",
+      "name": "disableUpdatePerpBidAskTwap",
       "accounts": [
         {
           "name": "admin",

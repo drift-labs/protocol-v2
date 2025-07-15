@@ -4832,8 +4832,6 @@ pub fn handle_update_if_rebalance_config(
 }
 
 pub fn handle_update_mm_oracle(ctx: Context<Empty>, oracle_price: i64) -> Result<()> {
-    ::solana_program::log::sol_log_compute_units();
-
     let remaining_accounts = &ctx.remaining_accounts;
 
     let signer = &remaining_accounts[1];
@@ -4867,8 +4865,26 @@ pub fn handle_update_mm_oracle_native(accounts: &[AccountInfo], data: &[u8]) -> 
         admin_hot_wallet::id()
     );
     let mut perp_market = accounts[0].data.borrow_mut();
-    perp_market[832..840].copy_from_slice(&data[5..5 + 8]);
-    perp_market[912..920].copy_from_slice(&data[13..13 + 8]);
+    perp_market[832..840].copy_from_slice(&Clock::get()?.slot.to_le_bytes());
+    perp_market[912..920].copy_from_slice(&data[0..8]);
+
+    Ok(())
+}
+
+pub fn handle_update_amm_spread_adjustment_native(
+    accounts: &[AccountInfo],
+    data: &[u8],
+) -> Result<()> {
+    let signer_account = &accounts[1];
+    #[cfg(not(feature = "anchor-test"))]
+    assert!(
+        signer_account.is_signer && *signer_account.key == admin_hot_wallet::id(),
+        "signer must be admin hot wallet, signer: {}, admin hot wallet: {}",
+        signer_account.key,
+        admin_hot_wallet::id()
+    );
+    let mut perp_market = accounts[0].data.borrow_mut();
+    perp_market[934..935].copy_from_slice(&[data[0]]);
 
     Ok(())
 }
