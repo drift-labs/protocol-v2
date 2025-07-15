@@ -20,7 +20,11 @@ import {
 	mockOracleNoProgram,
 	mockUSDCMint,
 } from './testHelpers';
-import { PublicKey } from '@solana/web3.js';
+import {
+	PublicKey,
+	Transaction,
+	TransactionInstruction,
+} from '@solana/web3.js';
 import {
 	BankrunContextWrapper,
 	Connection,
@@ -413,6 +417,16 @@ describe('admin', () => {
 
 		const perpMarket = driftClient.getPerpMarketAccount(0);
 		assert(perpMarket.amm.mmOraclePrice.eq(oraclePrice));
+	});
+
+	it('update MM oracle native', async () => {
+		const oraclePrice = new BN(100);
+		const slot = new BN(123456);
+		await driftClient.updateMmOracleNative(0, slot, oraclePrice);
+
+		const perpMarket = driftClient.getPerpMarketAccount(0);
+		assert(perpMarket.amm.mmOraclePrice.eq(oraclePrice));
+		assert(perpMarket.amm.mmOracleSlot.eq(slot));
 	});
 
 	it('Update admin', async () => {

@@ -4567,6 +4567,55 @@ export class AdminClient extends DriftClient {
 		return txSig;
 	}
 
+	public async updateMmOracleNative(
+		marketIndex: number,
+		slot: BN,
+		oraclePrice: BN
+	): Promise<TransactionSignature> {
+		const updateMmOracleIx = await this.getUpdateMmOracleNativeIx(
+			marketIndex,
+			slot,
+			oraclePrice
+		);
+
+		const tx = await this.buildTransaction(updateMmOracleIx, {
+			computeUnits: 1024,
+			computeUnitsPrice: 0,
+		});
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public getUpdateMmOracleNativeIx(
+		marketIndex: number,
+		slot: BN,
+		oraclePrice: BN
+	): TransactionInstruction {
+		const data = Buffer.alloc(5 + 8 + 8);
+		data.set([0xff, 0xff, 0xff, 0xff, 0x00], 0); // 5 bytes
+		data.set(slot.toArrayLike(Buffer, 'le', 8), 5); // next 8 bytes
+		data.set(oraclePrice.toArrayLike(Buffer, 'le', 8), 13); // next 8 bytes
+
+		// Build the instruction manually
+		return new TransactionInstruction({
+			programId: this.program.programId,
+			keys: [
+				{
+					pubkey: this.getPerpMarketAccount(marketIndex).pubkey,
+					isWritable: true,
+					isSigner: false,
+				},
+				{
+					pubkey: this.wallet.publicKey,
+					isWritable: false,
+					isSigner: true,
+				},
+			],
+			data,
+		});
+	}
+
 	public async getUpdateMmOracleIx(
 		marketIndex: number,
 		oraclePrice: BN

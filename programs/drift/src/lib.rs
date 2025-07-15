@@ -34,6 +34,23 @@ pub mod state;
 mod test_utils;
 mod validation;
 
+// main program entrypoint
+// anchor `#[program]` entrypoint is compiled out by `no-entrypoint`
+solana_program::entrypoint!(program_entry);
+
+pub fn program_entry<'info>(
+    program_id: &Pubkey,
+    accounts: &'info [AccountInfo<'info>],
+    data: &[u8],
+) -> anchor_lang::solana_program::entrypoint::ProgramResult {
+    if data.len() > 5 && data[..5] == [0xFF, 0xFF, 0xFF, 0xFF, 0] {
+        // total ~509 CU without clock (-278)
+        return handle_update_mm_oracle_native(accounts, &data).map_err(Into::into);
+    }
+    // hook into anchor generated entry
+    entry(program_id, accounts, data)
+}
+
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH");
 #[cfg(not(feature = "mainnet-beta"))]
