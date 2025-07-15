@@ -665,10 +665,10 @@ pub struct SpotPosition {
     /// interest of corresponding market.
     /// precision: SPOT_BALANCE_PRECISION
     pub scaled_balance: u64,
-    /// How many spot bids the user has open
+    /// How many spot non reduce only bids the user has open
     /// precision: token mint precision
     pub open_bids: i64,
-    /// How many spot asks the user has open
+    /// How many spot non reduce only asks the user has open
     /// precision: token mint precision
     pub open_asks: i64,
     /// The cumulative deposits/borrows a user has made into a market
@@ -938,10 +938,10 @@ pub struct PerpPosition {
     /// Updated when the user open/closes position. Excludes fees/funding
     /// precision: QUOTE_PRECISION
     pub quote_entry_amount: i64,
-    /// The amount of open bids the user has in this perp market
+    /// The amount of non reduce only open bids the user has in this perp market
     /// precision: BASE_PRECISION
     pub open_bids: i64,
-    /// The amount of open asks the user has in this perp market
+    /// The amount of non reduce only open asks the user has in this perp market
     /// precision: BASE_PRECISION
     pub open_asks: i64,
     /// The amount of pnl settled in this market since opening the position

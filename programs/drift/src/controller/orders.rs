@@ -348,7 +348,7 @@ pub fn place_perp_order(
     user.increment_open_orders(new_order.has_auction());
     user.orders[new_order_index] = new_order;
     user.perp_positions[position_index].open_orders += 1;
-    if !new_order.must_be_triggered() {
+    if !new_order.must_be_triggered() && !new_order.reduce_only {
         increase_open_bids_and_asks(
             &mut user.perp_positions[position_index],
             &params.direction,
@@ -3043,7 +3043,9 @@ pub fn trigger_order(
         let base_asset_amount = user.orders[order_index].base_asset_amount;
 
         let user_position = user.get_perp_position_mut(market_index)?;
-        increase_open_bids_and_asks(user_position, &direction, base_asset_amount)?;
+        if !user.orders[order_index].reduce_only {
+            increase_open_bids_and_asks(user_position, &direction, base_asset_amount)?;
+        }
     }
 
     let is_filler_taker = user_key == filler_key;
@@ -3704,7 +3706,7 @@ pub fn place_spot_order(
     user.increment_open_orders(new_order.has_auction());
     user.orders[new_order_index] = new_order;
     user.spot_positions[spot_position_index].open_orders += 1;
-    if !new_order.must_be_triggered() {
+    if !new_order.must_be_triggered() && !new_order.reduce_only {
         increase_spot_open_bids_and_asks(
             &mut user.spot_positions[spot_position_index],
             &params.direction,
@@ -5415,7 +5417,9 @@ pub fn trigger_spot_order(
         let base_asset_amount = user.orders[order_index].base_asset_amount;
 
         let user_position = user.force_get_spot_position_mut(market_index)?;
-        increase_spot_open_bids_and_asks(user_position, &direction, base_asset_amount.cast()?)?;
+        if !user.orders[order_index].reduce_only {
+            increase_spot_open_bids_and_asks(user_position, &direction, base_asset_amount.cast()?)?;
+        }
     }
 
     let is_filler_taker = user_key == filler_key;
