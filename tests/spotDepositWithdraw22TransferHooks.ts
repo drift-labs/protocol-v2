@@ -17,6 +17,7 @@ import {
 	addExtraAccountMetasForExecute,
 	createInitializeAccountInstruction,
 	getAccountLenForMint,
+	createUpdateTransferHookInstruction,
 } from '@solana/spl-token';
 
 import {
@@ -505,7 +506,7 @@ describe('spot deposit and withdraw 22', () => {
 		);
 	});
 
-	it('Deposit and withdraw TransferHookToken SpotMarket', async () => {
+	async function doDepositWithdrawTest() {
 		const userTokenBalanceBefore = await getAccount(
 			bankrunContextWrapper.connection.toConnection(),
 			firstUserTokenAccount,
@@ -545,5 +546,35 @@ describe('spot deposit and withdraw 22', () => {
 			spotPos.balanceType
 		);
 		assert.equal(spotBal.toString(), '0');
+	}
+
+	it('Deposit and withdraw TransferHookToken SpotMarket', async () => {
+		await doDepositWithdrawTest();
+	});
+
+	it('Test can still deposit/withdraw undefined transfer hook program', async () => {
+		const payer = bankrunContextWrapper.provider.wallet.publicKey;
+		const updateTransferHookInstruction = new Transaction().add(
+			createUpdateTransferHookInstruction(mint, payer, PublicKey.default)
+		);
+		await bankrunContextWrapper.sendTransaction(updateTransferHookInstruction, [
+			bankrunContextWrapper.provider.wallet.payer,
+			mintKeypair,
+		]);
+
+		await bankrunContextWrapper.moveTimeForward(100);
+
+		const mintAcc = await getMint(
+			bankrunContextWrapper.connection.toConnection(),
+			mint,
+			'confirmed',
+			TOKEN_2022_PROGRAM_ID
+		);
+		const hookAcc = getTransferHook(mintAcc);
+		assert.isNotNull(hookAcc);
+		console.log('hookAcc', hookAcc);
+		assert.isTrue(hookAcc!.programId.equals(PublicKey.default));
+
+		await doDepositWithdrawTest();
 	});
 });

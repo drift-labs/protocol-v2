@@ -1,5 +1,4 @@
 import {
-	ClientSubscriptionId,
 	Connection,
 	Context,
 	RpcResponseAndContext,
@@ -15,6 +14,7 @@ import {
 	throwTransactionError,
 } from '../tx/reportTransactionError';
 import { promiseTimeout } from './promiseTimeout';
+import { ClientSubscriptionId } from '../bankrun/bankrunConnection';
 
 type ResolveReference = {
 	resolve?: () => void;
