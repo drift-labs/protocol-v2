@@ -475,8 +475,8 @@ export function calculateReferencePriceOffset(
 
 	const inventoryPct = clampBN(
 		liquidityFraction.mul(new BN(maxOffsetPct)).div(PERCENTAGE_PRECISION),
-		maxOffsetInPrice.mul(new BN(-1)),
-		maxOffsetInPrice
+		new BN(maxOffsetPct).mul(new BN(-1)),
+		new BN(maxOffsetPct)
 	);
 
 	// Only apply when inventory is consistent with recent and 24h market premium
