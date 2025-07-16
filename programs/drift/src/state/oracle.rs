@@ -186,18 +186,18 @@ impl MMOraclePriceData {
     }
 
     pub fn get_oracle_price(&self) -> i64 {
-        if self.mm_oracle_delay > self.oracle_price_data.delay {
-            self.oracle_price_data.price
-        } else {
+        if self.mm_oracle_delay <= self.oracle_price_data.delay && self.mm_oracle_price != 0i64 {
             self.mm_oracle_price
+        } else {
+            self.oracle_price_data.price
         }
     }
 
     pub fn get_delay(&self) -> i64 {
-        if self.mm_oracle_delay > self.oracle_price_data.delay {
-            self.oracle_price_data.delay
-        } else {
+        if self.mm_oracle_delay <= self.oracle_price_data.delay && self.mm_oracle_price != 0i64 {
             self.mm_oracle_delay
+        } else {
+            self.oracle_price_data.delay
         }
     }
 }

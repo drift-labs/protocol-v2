@@ -989,6 +989,12 @@ fn test_last_oracle_conf_update() {
         has_sufficient_number_of_data_points: true,
     };
 
+    let mm_oracle_price_data = MMOraclePriceData {
+        mm_oracle_delay: 2,
+        mm_oracle_price: oracle_price_data.price,
+        oracle_price_data,
+    };
+
     // unchanged if now hasnt changed
     update_oracle_price_twap(&mut amm, now, &mm_oracle_price_data, None, None).unwrap();
     assert_eq!(amm.last_oracle_conf_pct, 7692);
