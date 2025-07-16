@@ -45,6 +45,7 @@ import {
 	initializeQuoteSpotMarket,
 	sleep,
 } from './testHelpers';
+import { getOraclePriceFromMMOracleData } from '../sdk/src/oracles/utils';
 
 describe('prepeg', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -207,10 +208,7 @@ describe('prepeg', () => {
 		// await setFeedPrice(anchor.workspace.Pyth, 1.01, solUsd);
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
 		console.log('new oracle price:', curPrice);
-		const oraclePriceData = await getOraclePriceData(
-			anchor.workspace.Pyth,
-			solUsd
-		);
+		const oraclePriceData = driftClient.getMMOracleDataForPerpMarket(0);
 		const position0Before = driftClient.getUserAccount().perpPositions[0];
 		console.log(position0Before.quoteAssetAmount.eq(ZERO));
 
@@ -349,11 +347,11 @@ describe('prepeg', () => {
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
 		console.log('new oracle price:', curPrice);
 
-		const oraclePriceData = await getOraclePriceData(
-			anchor.workspace.Pyth,
-			solUsd
+		const oraclePriceData = driftClient.getMMOracleDataForPerpMarket(0);
+		console.log(
+			'oraclePriceData',
+			getOraclePriceFromMMOracleData(oraclePriceData).toNumber()
 		);
-		console.log('oraclePriceData', oraclePriceData.price.toNumber());
 		assert(market0.amm.pegMultiplier.eq(new BN(1000000)));
 		const prepegAMM = calculateUpdatedAMM(market0.amm, oraclePriceData);
 		console.log(prepegAMM.pegMultiplier.toString());
@@ -469,6 +467,7 @@ describe('prepeg', () => {
 		await driftClient.fetchAccounts();
 		const market = driftClient.getPerpMarketAccount(0);
 		const [bid1, ask1] = calculateBidAskPrice(market.amm, oraclePriceData);
+		const oraclePrice = getOraclePriceFromMMOracleData(oraclePriceData);
 		console.log(
 			'after trade bid/ask:',
 			convertToNumber(bid1),
@@ -478,8 +477,8 @@ describe('prepeg', () => {
 			convertToNumber(calculateReservePrice(market, oraclePriceData))
 		);
 		assert(bid1.lt(ask1));
-		assert(ask1.gt(oraclePriceData.price));
-		assert(bid1.lt(oraclePriceData.price));
+		assert(ask1.gt(oraclePrice));
+		assert(bid1.lt(oraclePrice));
 
 		console.log('prepegAMM.pegMultiplier:', prepegAMM.pegMultiplier.toString());
 		console.log(
@@ -614,10 +613,7 @@ describe('prepeg', () => {
 		await setFeedPrice(anchor.workspace.Pyth, 1.02234232, solUsd);
 		const curPrice = (await getFeedData(anchor.workspace.Pyth, solUsd)).price;
 		console.log('new oracle price:', curPrice);
-		const oraclePriceData = await getOraclePriceData(
-			anchor.workspace.Pyth,
-			solUsd
-		);
+		const oraclePriceData = driftClient.getMMOracleDataForPerpMarket(0);
 		const [_pctAvgSlippage, _pctMaxSlippage, _entryPrice, newPrice] =
 			calculateTradeSlippage(
 				PositionDirection.SHORT,
@@ -698,10 +694,8 @@ describe('prepeg', () => {
 			const curPrice = (await getFeedData(anchor.workspace.Pyth, thisUsd))
 				.price;
 			console.log('market_index=', i, 'new oracle price:', curPrice);
-			const oraclePriceData = await getOraclePriceData(
-				anchor.workspace.Pyth,
-				thisUsd
-			);
+			const oraclePriceData = driftClient.getMMOracleDataForPerpMarket(i);
+
 			const [_pctAvgSlippage, _pctMaxSlippage, _entryPrice, newPrice] =
 				calculateTradeSlippage(
 					PositionDirection.LONG,

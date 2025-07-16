@@ -342,7 +342,9 @@ describe('Reference Price Offset E2E', () => {
 			}`
 		);
 
-		expect(getOraclePriceFromMMOracleData(oracle).toNumber()).to.equal(10118100);
+		expect(getOraclePriceFromMMOracleData(oracle).toNumber()).to.equal(
+			10118100
+		);
 		expect(vAmmMidAfterOffsetUpdate.gt(vAmmMidBeforeOffsetUpdate)).to.be.true;
 
 		// flip reference price more
@@ -382,9 +384,13 @@ describe('Reference Price Offset E2E', () => {
 				spread3 * 10000
 			}bps, mid: ${convertToNumber(vAmmMidAfterOffsetUpdate3)}`
 		);
-		expect(getOraclePriceFromMMOracleData(oracle).toNumber()).to.lt(vBid3.toNumber()); // bid above oracle
+		expect(getOraclePriceFromMMOracleData(oracle).toNumber()).to.lt(
+			vBid3.toNumber()
+		); // bid above oracle
 
-		expect(getOraclePriceFromMMOracleData(oracle).toNumber()).to.equal(10118100);
+		expect(getOraclePriceFromMMOracleData(oracle).toNumber()).to.equal(
+			10118100
+		);
 		expect(vAmmMidAfterOffsetUpdate.gt(vAmmMidBeforeOffsetUpdate)).to.be.true;
 	});
 
@@ -478,9 +484,13 @@ describe('Reference Price Offset E2E', () => {
 		);
 
 		const vAmmMidAfterOffsetUpdate3 = vBid3.add(vAsk3).divn(2);
-		expect(getOraclePriceFromMMOracleData(oracle).toNumber()).to.lt(vBid3.toNumber()); // bid above oracle
+		expect(getOraclePriceFromMMOracleData(oracle).toNumber()).to.lt(
+			vBid3.toNumber()
+		); // bid above oracle
 
-		expect(getOraclePriceFromMMOracleData(oracle).toNumber()).to.equal(10118100);
+		expect(getOraclePriceFromMMOracleData(oracle).toNumber()).to.equal(
+			10118100
+		);
 
 		const vammInventoryAfter = perpMarket3.amm.baseAssetAmountWithAmm.muln(-1);
 		console.log(
