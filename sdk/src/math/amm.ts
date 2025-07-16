@@ -840,23 +840,18 @@ export function calculateSpread(
 			amm.pegMultiplier
 		);
 	}
-
-	const targetPrice =
-		getOraclePriceFromMMOracleData(mmOraclePriceData) || reservePrice;
+	const oraclePrice = getOraclePriceFromMMOracleData(mmOraclePriceData);
+	const targetPrice = oraclePrice || reservePrice;
 	const targetMarkSpreadPct = reservePrice
 		.sub(targetPrice)
 		.mul(BID_ASK_SPREAD_PRECISION)
 		.div(reservePrice);
 
 	now = now || new BN(new Date().getTime() / 1000); //todo
-	const liveOracleStd = calculateLiveOracleStd(
-		amm,
-		mmOraclePriceData.oraclePriceData,
-		now
-	);
+	const liveOracleStd = calculateLiveOracleStd(amm, oraclePrice, now);
 	const confIntervalPct = getNewOracleConfPct(
 		amm,
-		mmOraclePriceData.oraclePriceData,
+		mmOraclePriceData.oraclePriceData.confidence,
 		reservePrice,
 		now
 	);

@@ -992,7 +992,7 @@ export class User {
 
 					const twap5min = calculateLiveOracleTwap(
 						spotMarketAccount.historicalOracleData,
-						oraclePriceData,
+						oraclePriceData.price,
 						now,
 						FIVE_MINUTE // 5MIN
 					);
@@ -1099,7 +1099,7 @@ export class User {
 			if (strict) {
 				twap5min = calculateLiveOracleTwap(
 					spotMarketAccount.historicalOracleData,
-					oraclePriceData,
+					oraclePriceData.price,
 					now,
 					FIVE_MINUTE // 5MIN
 				);

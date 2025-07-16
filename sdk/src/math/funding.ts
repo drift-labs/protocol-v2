@@ -158,7 +158,7 @@ export function calculateAllEstimatedFundingRate(
 
 	const liveOracleTwap = calculateLiveOracleTwap(
 		market.amm.historicalOracleData,
-		oraclePriceDataToUse,
+		oraclePriceDataToUse.price,
 		now,
 		market.amm.fundingPeriod
 	);

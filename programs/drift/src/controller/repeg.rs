@@ -25,7 +25,7 @@ use crate::math::repeg;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 
-use crate::state::oracle::{OraclePriceData, OracleSource};
+use crate::state::oracle::OracleSource;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
@@ -128,8 +128,7 @@ pub fn update_amm(
     state: &State,
     clock: &Clock,
 ) -> DriftResult<i128> {
-    let market: &mut std::cell::RefMut<'_, PerpMarket> =
-        &mut perp_market_map.get_ref_mut(&market_index)?;
+    let market = &mut perp_market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = oracle_map.get_price_data(&market.oracle_id())?;
     let mm_oracle_price_data = market.get_mm_oracle_price_data(*oracle_price_data, clock.slot)?;
 
