@@ -4597,7 +4597,9 @@ export class AdminClient extends DriftClient {
 		oraclePrice: BN
 	): Promise<TransactionInstruction> {
 		return await this.program.instruction.updateMmOracle(oraclePrice, {
-			accounts: {},
+			accounts: {
+				"system": anchor.web3.SystemProgram.programId,
+			},
 			remainingAccounts: [
 				{
 					pubkey: this.getPerpMarketAccount(marketIndex).pubkey,
