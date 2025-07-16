@@ -186,13 +186,15 @@ pub fn update_funding_rate(
         !funding_paused && !block_funding_rate_update && (time_until_next_update == 0);
 
     if valid_funding_update {
-        let oracle_price_data = oracle_map.get_price_data(&market.oracle_id())?;
+        let oracle_price_data: &crate::state::oracle::OraclePriceData =
+            oracle_map.get_price_data(&market.oracle_id())?;
         let sanitize_clamp_denominator = market.get_sanitize_clamp_denominator()?;
+        let mm_oracle_price_data = market.get_mm_oracle_price_data(*oracle_price_data, slot)?;
 
         let oracle_price_twap = amm::update_oracle_price_twap(
             &mut market.amm,
             now,
-            oracle_price_data,
+            &mm_oracle_price_data,
             Some(reserve_price),
             sanitize_clamp_denominator,
         )?;
