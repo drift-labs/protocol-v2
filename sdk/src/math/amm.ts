@@ -53,12 +53,17 @@ export function calculateOptimalPegAndBudget(
 	amm: AMM,
 	oraclePriceData: OraclePriceData
 ): [BN, BN, BN, boolean] {
+	const oraclePriceDataToUse = determineOraclePriceDataforCalc(
+		amm,
+		oraclePriceData
+	);
+
 	const reservePriceBefore = calculatePrice(
 		amm.baseAssetReserve,
 		amm.quoteAssetReserve,
 		amm.pegMultiplier
 	);
-	const targetPrice = oraclePriceData.price;
+	const targetPrice = oraclePriceDataToUse.price;
 	const newPeg = calculatePegFromTargetPrice(
 		targetPrice,
 		amm.baseAssetReserve,
@@ -198,10 +203,14 @@ export function calculateUpdatedAMMSpreadReserves(
 	oraclePriceData: OraclePriceData,
 	isPrediction = false
 ): { baseAssetReserve: BN; quoteAssetReserve: BN; sqrtK: BN; newPeg: BN } {
-	const newAmm = calculateUpdatedAMM(amm, oraclePriceData);
+	const oraclePriceDataToUse = determineOraclePriceDataforCalc(
+		amm,
+		oraclePriceData
+	);
+	const newAmm = calculateUpdatedAMM(amm, oraclePriceDataToUse);
 	const [shortReserves, longReserves] = calculateSpreadReserves(
 		newAmm,
-		oraclePriceData,
+		oraclePriceDataToUse,
 		undefined,
 		isPrediction
 	);
@@ -227,15 +236,20 @@ export function calculateBidAskPrice(
 	isPrediction = false
 ): [BN, BN] {
 	let newAmm: AMM;
+	const oraclePriceDataToUse = determineOraclePriceDataforCalc(
+		amm,
+		oraclePriceData
+	);
+
 	if (withUpdate) {
-		newAmm = calculateUpdatedAMM(amm, oraclePriceData);
+		newAmm = calculateUpdatedAMM(amm, oraclePriceDataToUse);
 	} else {
 		newAmm = amm;
 	}
 
 	const [bidReserves, askReserves] = calculateSpreadReserves(
 		newAmm,
-		oraclePriceData,
+		oraclePriceDataToUse,
 		undefined,
 		isPrediction
 	);
@@ -828,6 +842,11 @@ export function calculateSpread(
 	now?: BN,
 	reservePrice?: BN
 ): [number, number] {
+	const oraclePriceDataToUse = determineOraclePriceDataforCalc(
+		amm,
+		oraclePriceData
+	);
+
 	if (amm.baseSpread == 0 || amm.curveUpdateIntensity == 0) {
 		return [amm.baseSpread / 2, amm.baseSpread / 2];
 	}
@@ -840,17 +859,17 @@ export function calculateSpread(
 		);
 	}
 
-	const targetPrice = oraclePriceData?.price || reservePrice;
+	const targetPrice = oraclePriceDataToUse?.price || reservePrice;
 	const targetMarkSpreadPct = reservePrice
 		.sub(targetPrice)
 		.mul(BID_ASK_SPREAD_PRECISION)
 		.div(reservePrice);
 
 	now = now || new BN(new Date().getTime() / 1000); //todo
-	const liveOracleStd = calculateLiveOracleStd(amm, oraclePriceData, now);
+	const liveOracleStd = calculateLiveOracleStd(amm, oraclePriceDataToUse, now);
 	const confIntervalPct = getNewOracleConfPct(
 		amm,
-		oraclePriceData,
+		oraclePriceDataToUse,
 		reservePrice,
 		now
 	);
@@ -991,6 +1010,11 @@ export function calculateSpreadReserves(
 		};
 	}
 
+	const oraclePriceDataToUse = determineOraclePriceDataforCalc(
+		amm,
+		oraclePriceData
+	);
+
 	const reservePrice = calculatePrice(
 		amm.baseAssetReserve,
 		amm.quoteAssetReserve,
@@ -1030,7 +1054,7 @@ export function calculateSpreadReserves(
 
 	const [longSpread, shortSpread] = calculateSpread(
 		amm,
-		oraclePriceData,
+		oraclePriceDataToUse,
 		now,
 		reservePrice
 	);
@@ -1211,4 +1235,19 @@ export function calculateMaxBaseAssetAmountFillable(
 		BN.min(maxFillSize, maxBaseAssetAmountOnSide),
 		amm.orderStepSize
 	);
+}
+
+export function determineOraclePriceDataforCalc(
+	amm: AMM,
+	oraclePriceData: OraclePriceData
+): OraclePriceData {
+	const oraclePriceDataToUse: OraclePriceData = amm.mmOracleSlot.gte(
+		oraclePriceData.slot
+	)
+		? Object.assign({}, oraclePriceData, {
+				price: amm.mmOraclePrice,
+				slot: amm.mmOracleSlot,
+		  })
+		: oraclePriceData;
+	return oraclePriceDataToUse;
 }

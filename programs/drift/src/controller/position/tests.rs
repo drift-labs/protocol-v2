@@ -40,6 +40,7 @@ use crate::test_utils::get_hardcoded_pyth_price;
 use crate::QUOTE_PRECISION_I64;
 use anchor_lang::prelude::{AccountLoader, Clock};
 use anchor_lang::Owner;
+use solana_program::clock;
 use solana_program::pubkey::Pubkey;
 use std::str::FromStr;
 
@@ -705,6 +706,47 @@ fn amm_perp_ref_offset() {
     assert_eq!(perp_market.amm.ask_base_asset_reserve, 4672813088646692);
 
     crate::validation::perp_market::validate_perp_market(&perp_market).unwrap();
+
+    // Update MM oracle and reference price offset stays the same and is applied to the MM oracle
+    perp_market.amm.mm_oracle_price = 7200000;
+    perp_market.amm.mm_oracle_slot = clock_slot;
+
+    let _ = _update_amm(
+        &mut perp_market,
+        &oracle_price_data,
+        &state,
+        now,
+        clock_slot,
+    );
+    let reserve_price_mm_offset = perp_market.amm.reserve_price().unwrap();
+    let (b2, a2) = perp_market
+        .amm
+        .bid_ask_price(reserve_price_mm_offset)
+        .unwrap();
+    assert_eq!(perp_market.amm.reference_price_offset, 132);
+    assert_eq!(reserve_price_mm_offset, 7199999);
+    assert_eq!(b2, 7197349);
+    assert_eq!(a2, 7204578);
+
+    // Uses the original oracle if the slot is old, ignoring MM oracle
+    perp_market.amm.mm_oracle_price = 7200000;
+    perp_market.amm.mm_oracle_slot = clock_slot - 100;
+
+    let _ = _update_amm(
+        &mut perp_market,
+        &oracle_price_data,
+        &state,
+        now,
+        clock_slot,
+    );
+    let reserve_price_mm_offset_3 = perp_market.amm.reserve_price().unwrap();
+    let (b3, a3) = perp_market
+        .amm
+        .bid_ask_price(reserve_price_mm_offset_3)
+        .unwrap();
+    assert_eq!(reserve_price_mm_offset_3, r);
+    assert_eq!(b3, b);
+    assert_eq!(a3, a);
 }
 
 #[test]

@@ -14,6 +14,7 @@ import {
 	getSwapDirection,
 	calculateUpdatedAMM,
 	calculateMarketOpenBidAsk,
+	determineOraclePriceDataforCalc,
 } from './amm';
 import {
 	calculateSizeDiscountAssetWeight,
@@ -41,7 +42,11 @@ export function calculateReservePrice(
 	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData
 ): BN {
-	const newAmm = calculateUpdatedAMM(market.amm, oraclePriceData);
+	const oraclePriceDataToUse = determineOraclePriceDataforCalc(
+		market.amm,
+		oraclePriceData
+	);
+	const newAmm = calculateUpdatedAMM(market.amm, oraclePriceDataToUse);
 	return calculatePrice(
 		newAmm.baseAssetReserve,
 		newAmm.quoteAssetReserve,
@@ -59,11 +64,15 @@ export function calculateBidPrice(
 	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData
 ): BN {
+	const oraclePriceDataToUse = determineOraclePriceDataforCalc(
+		market.amm,
+		oraclePriceData
+	);
 	const { baseAssetReserve, quoteAssetReserve, newPeg } =
 		calculateUpdatedAMMSpreadReserves(
 			market.amm,
 			PositionDirection.SHORT,
-			oraclePriceData
+			oraclePriceDataToUse
 		);
 
 	return calculatePrice(baseAssetReserve, quoteAssetReserve, newPeg);
@@ -79,11 +88,15 @@ export function calculateAskPrice(
 	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData
 ): BN {
+	const oraclePriceDataToUse = determineOraclePriceDataforCalc(
+		market.amm,
+		oraclePriceData
+	);
 	const { baseAssetReserve, quoteAssetReserve, newPeg } =
 		calculateUpdatedAMMSpreadReserves(
 			market.amm,
 			PositionDirection.LONG,
-			oraclePriceData
+			oraclePriceDataToUse
 		);
 
 	return calculatePrice(baseAssetReserve, quoteAssetReserve, newPeg);
@@ -115,8 +128,12 @@ export function calculateOracleReserveSpread(
 	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData
 ): BN {
-	const reservePrice = calculateReservePrice(market, oraclePriceData);
-	return calculateOracleSpread(reservePrice, oraclePriceData);
+	const oraclePriceDataToUse = determineOraclePriceDataforCalc(
+		market.amm,
+		oraclePriceData
+	);
+	const reservePrice = calculateReservePrice(market, oraclePriceDataToUse);
+	return calculateOracleSpread(reservePrice, oraclePriceDataToUse);
 }
 
 export function calculateOracleSpread(
