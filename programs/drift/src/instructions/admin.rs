@@ -5712,4 +5712,9 @@ pub struct UpdateAmmParams<'info> {
 }
 
 #[derive(Accounts)]
-pub struct Empty {}
+pub struct Empty<'info> {
+    // this is not used
+    // it serves as a placeholder to satisfy 'info lifetime and Accounts macro
+    #[account()]
+    pub system: Program<'info, System>,
+}

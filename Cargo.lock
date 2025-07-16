@@ -970,7 +970,6 @@ dependencies = [
  "drift-macros",
  "enumflags2",
  "hex",
- "memoffset 0.6.5",
  "num-derive 0.3.3",
  "num-integer",
  "num-traits",

@@ -7526,7 +7526,13 @@
     },
     {
       "name": "updateMmOracle",
-      "accounts": [],
+      "accounts": [
+        {
+          "name": "system",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
       "args": [
         {
           "name": "oraclePrice",
