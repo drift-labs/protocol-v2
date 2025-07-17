@@ -293,7 +293,7 @@ export class WebSocketDriftClientAccountSubscriber
 			marketIndex
 		);
 		const accountSubscriber = new WebSocketAccountSubscriber<PerpMarketAccount>(
-			'perpMarket',
+			`perpMarket-${marketIndex}`,
 			this.program,
 			perpMarketPublicKey,
 			undefined,
@@ -326,7 +326,7 @@ export class WebSocketDriftClientAccountSubscriber
 			marketIndex
 		);
 		const accountSubscriber = new WebSocketAccountSubscriber<SpotMarketAccount>(
-			'spotMarket',
+			`spotMarket-${marketIndex}`,
 			this.program,
 			marketPublicKey,
 			undefined,
@@ -362,7 +362,7 @@ export class WebSocketDriftClientAccountSubscriber
 			this.program
 		);
 		const accountSubscriber = new WebSocketAccountSubscriber<OraclePriceData>(
-			'oracle',
+			`oracle-${oracleId}`,
 			this.program,
 			oracleInfo.publicKey,
 			(buffer: Buffer) => {
