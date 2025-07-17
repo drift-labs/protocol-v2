@@ -4840,6 +4840,7 @@ pub fn handle_zero_amm_fields_prep_mm_oracle_info(ctx: Context<UpdateAmmParams>)
     perp_market.amm.long_intensity_count = 0;
     perp_market.amm.short_intensity_count = 0;
     perp_market.amm.max_position_size = 0;
+    perp_market.amm.total_fee_earned_per_lp = 0;
     msg!(
         "zeroed amm fields for perp market {}",
         perp_market.market_index
