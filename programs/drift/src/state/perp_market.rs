@@ -1050,7 +1050,7 @@ pub struct AMM {
     /// signed scale amm_spread similar to fee_adjustment logic (-100 = 0, 100 = double)
     pub amm_spread_adjustment: i8,
     pub oracle_slot_delay_override: i8,
-    pub total_fee_earned_per_lp: u64,
+    pub mm_oracle_sequence_id: u64,
     pub net_unsettled_funding_pnl: i64,
     pub quote_asset_amount_with_unsettled_lp: i64,
     pub reference_price_offset: i32,
@@ -1141,7 +1141,7 @@ impl Default for AMM {
             taker_speed_bump_override: 0,
             amm_spread_adjustment: 0,
             oracle_slot_delay_override: 0,
-            total_fee_earned_per_lp: 0,
+            mm_oracle_sequence_id: 0,
             net_unsettled_funding_pnl: 0,
             quote_asset_amount_with_unsettled_lp: 0,
             reference_price_offset: 0,

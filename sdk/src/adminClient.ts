@@ -1,6 +1,7 @@
 import {
 	PublicKey,
 	SystemProgram,
+	SYSVAR_CLOCK_PUBKEY,
 	SYSVAR_RENT_PUBKEY,
 	TransactionInstruction,
 	TransactionSignature,
@@ -4579,53 +4580,17 @@ export class AdminClient extends DriftClient {
 
 	public async updateMmOracle(
 		marketIndex: number,
-		oraclePrice: BN
+		oraclePrice: BN,
+		oracleSequenceId: BN
 	): Promise<TransactionSignature> {
 		const updateMmOracleIx = await this.getUpdateMmOracleIx(
 			marketIndex,
-			oraclePrice
-		);
-
-		const tx = await this.buildTransaction(updateMmOracleIx);
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-
-		return txSig;
-	}
-
-	public async getUpdateMmOracleIx(
-		marketIndex: number,
-		oraclePrice: BN
-	): Promise<TransactionInstruction> {
-		return await this.program.instruction.updateMmOracle(oraclePrice, {
-			accounts: {
-				"system": anchor.web3.SystemProgram.programId,
-			},
-			remainingAccounts: [
-				{
-					pubkey: this.getPerpMarketAccount(marketIndex).pubkey,
-					isWritable: true,
-					isSigner: false,
-				},
-				{
-					pubkey: this.wallet.publicKey,
-					isWritable: true,
-					isSigner: true,
-				},
-			],
-		});
-	}
-
-	public async updateMmOracleNative(
-		marketIndex: number,
-		oraclePrice: BN
-	): Promise<TransactionSignature> {
-		const updateMmOracleIx = await this.getUpdateMmOracleNativeIx(
-			marketIndex,
-			oraclePrice
+			oraclePrice,
+			oracleSequenceId
 		);
 
 		const tx = await this.buildTransaction(updateMmOracleIx, {
-			computeUnits: 1000,
+			computeUnits: 2000,
 			computeUnitsPrice: 0,
 		});
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
@@ -4633,14 +4598,69 @@ export class AdminClient extends DriftClient {
 		return txSig;
 	}
 
-	public getUpdateMmOracleNativeIx(
+	public async getUpdateMmOracleIx(
 		marketIndex: number,
-		oraclePrice: BN
-	): TransactionInstruction {
+		oraclePrice: BN,
+		oracleSequenceId: BN
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateMmOracle(
+			oraclePrice,
+			oracleSequenceId,
+			{
+				accounts: {
+					system: anchor.web3.SystemProgram.programId,
+				},
+				remainingAccounts: [
+					{
+						pubkey: this.getPerpMarketAccount(marketIndex).pubkey,
+						isWritable: true,
+						isSigner: false,
+					},
+					{
+						pubkey: this.wallet.publicKey,
+						isWritable: true,
+						isSigner: true,
+					},
+					{
+						pubkey: await this.getStatePublicKey(),
+						isWritable: false,
+						isSigner: false,
+					},
+				],
+			}
+		);
+	}
+
+	public async updateMmOracleNative(
+		marketIndex: number,
+		oraclePrice: BN,
+		oracleSequenceId: BN
+	): Promise<TransactionSignature> {
+		const updateMmOracleIx = await this.getUpdateMmOracleNativeIx(
+			marketIndex,
+			oraclePrice,
+			oracleSequenceId
+		);
+
+		const tx = await this.buildTransaction(updateMmOracleIx, {
+			computeUnits: 5000,
+			computeUnitsPrice: 0,
+		});
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateMmOracleNativeIx(
+		marketIndex: number,
+		oraclePrice: BN,
+		oracleSequenceId: BN
+	): Promise<TransactionInstruction> {
 		const discriminatorBuffer = createNativeInstructionDiscriminatorBuffer(0);
-		const data = Buffer.alloc(discriminatorBuffer.length + 8);
+		const data = Buffer.alloc(discriminatorBuffer.length + 16);
 		data.set(discriminatorBuffer, 0);
 		data.set(oraclePrice.toArrayLike(Buffer, 'le', 8), 5); // next 8 bytes
+		data.set(oracleSequenceId.toArrayLike(Buffer, 'le', 8), 13); // next 8 bytes
 
 		// Build the instruction manually
 		return new TransactionInstruction({
@@ -4655,6 +4675,16 @@ export class AdminClient extends DriftClient {
 					pubkey: this.wallet.publicKey,
 					isWritable: false,
 					isSigner: true,
+				},
+				{
+					pubkey: SYSVAR_CLOCK_PUBKEY,
+					isWritable: false,
+					isSigner: false,
+				},
+				{
+					pubkey: await this.getStatePublicKey(),
+					isWritable: false,
+					isSigner: false,
 				},
 			],
 			data,
@@ -4671,7 +4701,7 @@ export class AdminClient extends DriftClient {
 		);
 
 		const tx = await this.buildTransaction(updateMmOracleIx, {
-			computeUnits: 700,
+			computeUnits: 1000,
 			computeUnitsPrice: 0,
 		});
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
@@ -4705,5 +4735,32 @@ export class AdminClient extends DriftClient {
 			],
 			data,
 		});
+	}
+
+	public async updateDisableBitFlagsMMOracle(
+		disable: boolean
+	): Promise<TransactionSignature> {
+		const updateDisableBitFlagsMMOracleIx =
+			await this.getUpdateDisableBitFlagsMMOracleIx(disable);
+
+		const tx = await this.buildTransaction(updateDisableBitFlagsMMOracleIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+	public async getUpdateDisableBitFlagsMMOracleIx(
+		disable: boolean
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateDisableBitflagsMmOracle(
+			disable,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
 	}
 }

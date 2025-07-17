@@ -1,4 +1,4 @@
-use std::convert::identity;
+use std::convert::{identity, TryInto};
 use std::mem::size_of;
 
 use crate::msg;
@@ -9,10 +9,11 @@ use phoenix::quantities::WrapperU64;
 use pyth_solana_receiver_sdk::cpi::accounts::InitPriceUpdate;
 use pyth_solana_receiver_sdk::program::PythSolanaReceiver;
 use serum_dex::state::ToAlignedBytes;
+use solana_program::sysvar::SysvarId;
 
 use crate::controller::token::close_vault;
 use crate::error::ErrorCode;
-use crate::ids::admin_hot_wallet;
+use crate::ids::{admin_hot_wallet, amm_spread_adjust_wallet, mm_oracle_crank_wallet};
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
@@ -114,7 +115,8 @@ pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
         initial_pct_to_liquidate: 0,
         max_number_of_sub_accounts: 0,
         max_initialize_user_fee: 0,
-        padding: [0; 10],
+        disable_bit_flags: 0,
+        padding: [0; 9],
     };
 
     Ok(())
@@ -1055,7 +1057,7 @@ pub fn handle_initialize_perp_market(
             oracle_slot_delay_override: 0,
             taker_speed_bump_override: 0,
             amm_spread_adjustment: 0,
-            total_fee_earned_per_lp: 0,
+            mm_oracle_sequence_id: 0,
             net_unsettled_funding_pnl: 0,
             quote_asset_amount_with_unsettled_lp: 0,
             reference_price_offset: 0,
@@ -4831,10 +4833,18 @@ pub fn handle_update_if_rebalance_config(
     Ok(())
 }
 
-pub fn handle_update_mm_oracle(ctx: Context<Empty>, oracle_price: i64) -> Result<()> {
+pub fn handle_update_mm_oracle(
+    ctx: Context<Empty>,
+    oracle_price: i64,
+    oracle_sequence_id: u64,
+) -> Result<()> {
     let remaining_accounts = &ctx.remaining_accounts;
 
     let signer = &remaining_accounts[1];
+
+    // Verify this ix is allowed
+    let state = &remaining_accounts[2].data.borrow();
+    assert!(state[982] & 1 == 0);
 
     #[cfg(not(feature = "anchor-test"))]
     validate!(
@@ -4849,24 +4859,43 @@ pub fn handle_update_mm_oracle(ctx: Context<Empty>, oracle_price: i64) -> Result
         .try_borrow_mut_data()
         .or(Err(ErrorCode::DefaultError))?;
 
-    data[832..840].copy_from_slice(&Clock::get()?.slot.to_le_bytes());
-    data[912..920].copy_from_slice(oracle_price.to_le_bytes().as_ref());
+    let perp_market_sequence_id = u64::from_le_bytes(data[936..944].try_into().unwrap());
+    if oracle_sequence_id > perp_market_sequence_id {
+        data[832..840].copy_from_slice(&Clock::get()?.slot.to_le_bytes());
+        data[912..920].copy_from_slice(oracle_price.to_le_bytes().as_ref());
+        data[936..944].copy_from_slice(oracle_sequence_id.to_le_bytes().as_ref());
+    }
 
     Ok(())
 }
 
 pub fn handle_update_mm_oracle_native(accounts: &[AccountInfo], data: &[u8]) -> Result<()> {
+    // Verify this ix is allowed
+    let state = &accounts[3].data.borrow();
+    assert!(state[982] & 1 == 0, "ix disabled by admin state");
+
     let signer_account = &accounts[1];
     #[cfg(not(feature = "anchor-test"))]
     assert!(
-        signer_account.is_signer && *signer_account.key == admin_hot_wallet::id(),
-        "signer must be admin hot wallet, signer: {}, admin hot wallet: {}",
+        signer_account.is_signer && *signer_account.key == mm_oracle_crank_wallet::id(),
+        "signer must be mm oracle crank wallet, signer: {}, mm oracle crank wallet: {}",
         signer_account.key,
-        admin_hot_wallet::id()
+        mm_oracle_crank_wallet::id()
     );
+
     let mut perp_market = accounts[0].data.borrow_mut();
-    perp_market[832..840].copy_from_slice(&Clock::get()?.slot.to_le_bytes());
-    perp_market[912..920].copy_from_slice(&data[0..8]);
+    let perp_market_sequence_id = u64::from_le_bytes(perp_market[936..944].try_into().unwrap());
+    let incoming_sequence_id = u64::from_le_bytes(data[8..16].try_into().unwrap());
+
+    if incoming_sequence_id > perp_market_sequence_id {
+        let clock_account = &accounts[2];
+        let clock_data = clock_account.data.borrow();
+
+        perp_market[832..840].copy_from_slice(&clock_data[0..8]);
+        // perp_market[832..840].copy_from_slice(Clock::get()?.slot.to_le_bytes().as_ref());
+        perp_market[912..920].copy_from_slice(&data[0..8]);
+        perp_market[936..944].copy_from_slice(&data[8..16]);
+    }
 
     Ok(())
 }
@@ -4878,14 +4907,29 @@ pub fn handle_update_amm_spread_adjustment_native(
     let signer_account = &accounts[1];
     #[cfg(not(feature = "anchor-test"))]
     assert!(
-        signer_account.is_signer && *signer_account.key == admin_hot_wallet::id(),
-        "signer must be admin hot wallet, signer: {}, admin hot wallet: {}",
+        signer_account.is_signer && *signer_account.key == amm_spread_adjust_wallet::id(),
+        "signer must be amm spread adjust wallet, signer: {}, amm spread adjust wallet: {}",
         signer_account.key,
-        admin_hot_wallet::id()
+        amm_spread_adjust_wallet::id()
     );
     let mut perp_market = accounts[0].data.borrow_mut();
     perp_market[934..935].copy_from_slice(&[data[0]]);
 
+    Ok(())
+}
+
+pub fn handle_update_disable_bitflags_mm_oracle(
+    ctx: Context<AdminUpdateState>,
+    disable: bool,
+) -> Result<()> {
+    let state = &mut ctx.accounts.state;
+    if disable {
+        msg!("Setting first bit to 1, disabling mm oracle update");
+        state.disable_bit_flags = state.disable_bit_flags | 1;
+    } else {
+        msg!("Setting first bit to 0, enabling mm oracle update");
+        state.disable_bit_flags = state.disable_bit_flags & !1;
+    }
     Ok(())
 }
 

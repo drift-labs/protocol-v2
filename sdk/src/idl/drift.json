@@ -7537,6 +7537,31 @@
         {
           "name": "oraclePrice",
           "type": "i64"
+        },
+        {
+          "name": "oracleSequenceId",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "updateDisableBitflagsMmOracle",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "disable",
+          "type": "bool"
         }
       ]
     }
@@ -9028,11 +9053,15 @@
             "type": "u16"
           },
           {
+            "name": "disableBitFlags",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                10
+                9
               ]
             }
           }
@@ -11015,7 +11044,7 @@
             "type": "i8"
           },
           {
-            "name": "totalFeeEarnedPerLp",
+            "name": "mmOracleSequenceId",
             "type": "u64"
           },
           {
