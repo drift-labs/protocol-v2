@@ -10,8 +10,9 @@ use crate::math::casting::Cast;
 use crate::math::constants::{
     BID_ASK_SPREAD_PRECISION_I128, CONCENTRATION_PRECISION,
     DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR, FIVE_MINUTE, ONE_HOUR, ONE_MINUTE,
-    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128,
-    PRICE_TO_PEG_PRECISION_RATIO, QUOTE_PRECISION_I64,
+    PERCENTAGE_PRECISION_I64, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
+    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128, PRICE_TO_PEG_PRECISION_RATIO,
+    QUOTE_PRECISION_I64,
 };
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::quote_asset::reserve_to_asset_amount;
@@ -437,9 +438,10 @@ pub fn update_oracle_price_twap(
         amm.last_oracle_normalised_price = capped_oracle_update_price;
         amm.historical_oracle_data.last_oracle_price = mm_oracle_price_data.get_oracle_price();
 
+        // Adjust confidence if the mm oracle and oracle price data are different by 5bps or more
         // use decayed last_oracle_conf_pct as lower bound
         amm.last_oracle_conf_pct = amm.get_new_oracle_conf_pct(
-            mm_oracle_price_data.oracle_price_data.confidence,
+            mm_oracle_price_data.get_confidence()?,
             reserve_price,
             now,
         )?;

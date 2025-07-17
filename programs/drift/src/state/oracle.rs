@@ -3,7 +3,10 @@ use std::cell::Ref;
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
-use crate::math::constants::{PRICE_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
+use crate::math::constants::{
+    PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I64,
+    PRICE_PRECISION_U64,
+};
 use crate::math::safe_math::SafeMath;
 use switchboard::{AggregatorAccountData, SwitchboardDecimal};
 use switchboard_on_demand::{PullFeedAccountData, SB_ON_DEMAND_PRECISION};
@@ -199,6 +202,31 @@ impl MMOraclePriceData {
         } else {
             self.oracle_price_data.delay
         }
+    }
+
+    pub fn get_confidence(&self) -> DriftResult<u64> {
+        let price_diff_bps = self
+            .mm_oracle_price
+            .abs_diff(self.oracle_price_data.price)
+            .safe_mul(PERCENTAGE_PRECISION_U64)?
+            .cast::<i64>()?
+            .safe_div(self.oracle_price_data.price)?;
+        let adjusted_confidence = if self.mm_oracle_delay.abs_diff(self.oracle_price_data.delay)
+            < 10
+            && price_diff_bps.abs() > PERCENTAGE_PRECISION_I64 / 2000
+        // 5bps
+        {
+            let mm_oracle_diff_premium = self
+                .mm_oracle_price
+                .abs_diff(self.oracle_price_data.price)
+                .safe_div(5)?;
+            self.oracle_price_data
+                .confidence
+                .safe_add(mm_oracle_diff_premium)?
+        } else {
+            self.oracle_price_data.confidence
+        };
+        Ok(adjusted_confidence)
     }
 }
 

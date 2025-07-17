@@ -215,3 +215,46 @@ fn use_mm_oracle() {
     );
     assert_eq!(mm_oracle_price_data.get_delay(), oracle_price_data.delay,);
 }
+
+#[test]
+fn mm_oracle_confidence() {
+    let slot = 303030303;
+    let market = PerpMarket {
+        market_index: 0,
+        amm: AMM {
+            base_asset_reserve: 512295081967,
+            quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
+            sqrt_k: 500 * AMM_RESERVE_PRECISION,
+            peg_multiplier: 22_100_000_000,
+            base_asset_amount_with_amm: (12295081967_i128),
+            max_spread: 1000,
+            mm_oracle_price: 132 * PRICE_PRECISION_I64 + 873,
+            mm_oracle_slot: slot,
+            // assume someone else has other half same entry,
+            ..AMM::default()
+        },
+        margin_ratio_initial: 1000,
+        margin_ratio_maintenance: 500,
+        imf_factor: 1000, // 1_000/1_000_000 = .001
+        unrealized_pnl_initial_asset_weight: 100,
+        unrealized_pnl_maintenance_asset_weight: 100,
+        ..PerpMarket::default()
+    };
+
+    let oracle_price_data = OraclePriceData {
+        price: 130 * PRICE_PRECISION_I64 + 873,
+        confidence: PRICE_PRECISION_U64 / 10,
+        delay: 1,
+        has_sufficient_number_of_data_points: true,
+    };
+
+    let mm_oracle_price_data = market
+        .get_mm_oracle_price_data(oracle_price_data, slot)
+        .unwrap();
+
+    let expected_confidence =
+        mm_oracle_price_data.oracle_price_data.confidence + PRICE_PRECISION_U64 * 2 / 5;
+
+    let confidence = mm_oracle_price_data.get_confidence().unwrap();
+    assert_eq!(confidence, expected_confidence);
+}
