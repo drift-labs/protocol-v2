@@ -1,6 +1,12 @@
 import { BN } from '@coral-xyz/anchor';
 import { MMOraclePriceData } from './types';
-import { ZERO } from '../constants/numericConstants';
+import {
+	FIVE,
+	ONE,
+	PERCENTAGE_PRECISION,
+	TEN,
+	ZERO,
+} from '../constants/numericConstants';
 
 export function getOraclePriceFromMMOracleData(
 	mmOracleData: MMOraclePriceData
@@ -25,5 +31,30 @@ export function getOracleSlotFromMMOracleData(
 		return mmOracleData.mmOracleSlot;
 	} else {
 		return mmOracleData.oraclePriceData.slot;
+	}
+}
+
+export function getOracleConfidenceFromMMOracleData(
+	mmOracleData: MMOraclePriceData
+): BN {
+	const priceDiffBps = mmOracleData.mmOraclePrice
+		.sub(mmOracleData.oraclePriceData.price)
+		.abs()
+		.mul(PERCENTAGE_PRECISION)
+		.div(BN.max(mmOracleData.oraclePriceData.price, ONE));
+	if (
+		mmOracleData.mmOracleSlot
+			.sub(mmOracleData.oraclePriceData.slot)
+			.abs()
+			.lt(TEN) &&
+		priceDiffBps.abs().gt(PERCENTAGE_PRECISION.div(new BN(2000))) // 5bps
+	) {
+		const mmOracleDiffPremium = mmOracleData.mmOraclePrice
+			.sub(mmOracleData.oraclePriceData.price)
+			.abs()
+			.div(FIVE);
+		return mmOracleData.oraclePriceData.confidence.add(mmOracleDiffPremium);
+	} else {
+		return mmOracleData.oraclePriceData.confidence;
 	}
 }

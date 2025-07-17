@@ -210,7 +210,7 @@ impl MMOraclePriceData {
             .abs_diff(self.oracle_price_data.price)
             .safe_mul(PERCENTAGE_PRECISION_U64)?
             .cast::<i64>()?
-            .safe_div(self.oracle_price_data.price)?;
+            .safe_div(self.oracle_price_data.price.max(1))?;
         let adjusted_confidence = if self.mm_oracle_delay.abs_diff(self.oracle_price_data.delay)
             < 10
             && price_diff_bps.abs() > PERCENTAGE_PRECISION_I64 / 2000

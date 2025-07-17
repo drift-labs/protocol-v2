@@ -25,7 +25,7 @@ import {
 import { assert } from '../assert/assert';
 import { squareRootBN, sigNum, clampBN, standardizeBaseAssetAmount } from '..';
 
-import { MMOraclePriceData, OraclePriceData } from '../oracles/types';
+import { MMOraclePriceData } from '../oracles/types';
 import {
 	calculateRepegCost,
 	calculateAdjustKCost,
@@ -33,7 +33,10 @@ import {
 } from './repeg';
 
 import { calculateLiveOracleStd, getNewOracleConfPct } from './oracles';
-import { getOraclePriceFromMMOracleData } from '../oracles/utils';
+import {
+	getOracleConfidenceFromMMOracleData,
+	getOraclePriceFromMMOracleData,
+} from '../oracles/utils';
 
 export function calculatePegFromTargetPrice(
 	targetPrice: BN,
@@ -851,7 +854,7 @@ export function calculateSpread(
 	const liveOracleStd = calculateLiveOracleStd(amm, oraclePrice, now);
 	const confIntervalPct = getNewOracleConfPct(
 		amm,
-		mmOraclePriceData.oraclePriceData.confidence,
+		getOracleConfidenceFromMMOracleData(mmOraclePriceData),
 		reservePrice,
 		now
 	);
