@@ -33,7 +33,7 @@ use num_integer::Roots;
 
 use crate::state::oracle::{
     get_prelaunch_price, get_sb_on_demand_price, get_switchboard_price, HistoricalOracleData,
-    OracleSource,
+    MMOraclePriceData, OraclePriceData, OracleSource,
 };
 use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType};
 use crate::state::traits::{MarketIndexOffset, Size};
@@ -746,6 +746,20 @@ impl PerpMarket {
         } else {
             default_min_auction_duration
         }
+    }
+
+    pub fn get_mm_oracle_price_data(
+        &self,
+        oracle_price_data: OraclePriceData,
+        clock_slot: u64,
+    ) -> DriftResult<MMOraclePriceData> {
+        Ok(MMOraclePriceData {
+            mm_oracle_price: self.amm.mm_oracle_price,
+            mm_oracle_delay: clock_slot
+                .cast::<i64>()?
+                .safe_sub(self.amm.mm_oracle_slot.cast::<i64>()?)?,
+            oracle_price_data: oracle_price_data,
+        })
     }
 }
 

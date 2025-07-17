@@ -1,6 +1,7 @@
 use std::cmp::min;
 
 use crate::msg;
+use crate::state::oracle::MMOraclePriceData;
 use anchor_lang::prelude::AccountInfo;
 use anchor_lang::prelude::*;
 
@@ -24,7 +25,7 @@ use crate::math::repeg;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 
-use crate::state::oracle::{OraclePriceData, OracleSource};
+use crate::state::oracle::OracleSource;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
@@ -110,8 +111,11 @@ pub fn update_amms(
     let updated = true; // todo
     for (_key, market_account_loader) in perp_market_map.0.iter_mut() {
         let market = &mut load_mut!(market_account_loader)?;
-        let oracle_price_data = &oracle_map.get_price_data(&market.oracle_id())?;
-        _update_amm(market, oracle_price_data, state, now, clock_slot)?;
+        let oracle_price_data = oracle_map.get_price_data(&market.oracle_id())?;
+        let mm_oracle_price_data =
+            market.get_mm_oracle_price_data(*oracle_price_data, clock_slot)?;
+
+        _update_amm(market, &mm_oracle_price_data, state, now, clock_slot)?;
     }
 
     Ok(updated)
@@ -126,10 +130,11 @@ pub fn update_amm(
 ) -> DriftResult<i128> {
     let market = &mut perp_market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = oracle_map.get_price_data(&market.oracle_id())?;
+    let mm_oracle_price_data = market.get_mm_oracle_price_data(*oracle_price_data, clock.slot)?;
 
     let cost_of_update = _update_amm(
         market,
-        oracle_price_data,
+        &mm_oracle_price_data,
         state,
         clock.unix_timestamp,
         clock.slot,
@@ -140,7 +145,7 @@ pub fn update_amm(
 
 pub fn _update_amm(
     market: &mut PerpMarket,
-    oracle_price_data: &OraclePriceData,
+    mm_oracle_price_data: &MMOraclePriceData,
     state: &State,
     now: i64,
     clock_slot: u64,
@@ -156,7 +161,7 @@ pub fn _update_amm(
         MarketType::Perp,
         market.market_index,
         market.amm.historical_oracle_data.last_oracle_price_twap,
-        oracle_price_data,
+        &mm_oracle_price_data.oracle_price_data,
         &state.oracle_guard_rails.validity,
         market.get_max_confidence_interval_multiplier()?,
         &market.amm.oracle_source,
@@ -172,7 +177,7 @@ pub fn _update_amm(
 
         if curve_update_intensity > 0 {
             let (optimal_peg, fee_budget, check_lower_bound) =
-                repeg::calculate_optimal_peg_and_budget(market, oracle_price_data)?;
+                repeg::calculate_optimal_peg_and_budget(market, mm_oracle_price_data)?;
 
             let (repegged_market, repegged_cost) = repeg::adjust_amm(
                 market,
@@ -208,7 +213,7 @@ pub fn _update_amm(
         amm::update_oracle_price_twap(
             &mut market.amm,
             now,
-            oracle_price_data,
+            mm_oracle_price_data,
             Some(reserve_price_after),
             sanitize_clamp_denominator,
         )?;
@@ -230,13 +235,13 @@ pub fn _update_amm(
 
 pub fn update_amm_and_check_validity(
     market: &mut PerpMarket,
-    oracle_price_data: &OraclePriceData,
+    mm_oracle_price_data: &MMOraclePriceData,
     state: &State,
     now: i64,
     clock_slot: u64,
     action: Option<DriftAction>,
 ) -> DriftResult {
-    _update_amm(market, oracle_price_data, state, now, clock_slot)?;
+    _update_amm(market, mm_oracle_price_data, state, now, clock_slot)?;
 
     // 1 hour EMA
     let risk_ema_price = market.amm.historical_oracle_data.last_oracle_price_twap;
@@ -245,7 +250,7 @@ pub fn update_amm_and_check_validity(
         MarketType::Perp,
         market.market_index,
         risk_ema_price,
-        oracle_price_data,
+        &mm_oracle_price_data.oracle_price_data,
         &state.oracle_guard_rails.validity,
         market.get_max_confidence_interval_multiplier()?,
         &market.amm.oracle_source,
@@ -257,7 +262,7 @@ pub fn update_amm_and_check_validity(
         is_oracle_valid_for_action(oracle_validity, action)?,
         ErrorCode::InvalidOracle,
         "Invalid Oracle ({:?} vs ema={:?}) for perp market index={} and action={:?}",
-        oracle_price_data,
+        mm_oracle_price_data.oracle_price_data,
         risk_ema_price,
         market.market_index,
         action
