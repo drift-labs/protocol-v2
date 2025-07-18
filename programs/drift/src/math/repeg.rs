@@ -1,6 +1,7 @@
 use std::cmp::{max, min};
 
 use crate::msg;
+use crate::state::oracle::MMOraclePriceData;
 use anchor_lang::prelude::AccountInfo;
 
 use crate::error::*;
@@ -345,13 +346,13 @@ pub fn adjust_amm(
 
 pub fn calculate_optimal_peg_and_budget(
     market: &PerpMarket,
-    oracle_price_data: &OraclePriceData,
+    mm_oracle_price_data: &MMOraclePriceData,
 ) -> DriftResult<(u128, u128, bool)> {
     let reserve_price_before = market.amm.reserve_price()?;
 
     let mut fee_budget = calculate_fee_pool(market)?;
 
-    let target_price_i64 = oracle_price_data.price;
+    let target_price_i64 = mm_oracle_price_data.get_oracle_price();
     let target_price = target_price_i64.cast()?;
     let mut optimal_peg = calculate_peg_from_target_price(
         market.amm.quote_asset_reserve,

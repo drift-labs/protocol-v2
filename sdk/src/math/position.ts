@@ -8,7 +8,7 @@ import {
 	ONE,
 	ZERO,
 } from '../constants/numericConstants';
-import { OraclePriceData } from '../oracles/types';
+import { MMOraclePriceData, OraclePriceData } from '../oracles/types';
 import { PerpMarketAccount, PositionDirection, PerpPosition } from '../types';
 import {
 	calculateUpdatedAMM,
@@ -30,7 +30,7 @@ import { calculateNetUserPnlImbalance } from './market';
 export function calculateBaseAssetValue(
 	market: PerpMarketAccount,
 	userPosition: PerpPosition,
-	oraclePriceData: OraclePriceData,
+	mmOraclePriceData: MMOraclePriceData,
 	useSpread = true,
 	skipUpdate = false
 ): BN {
@@ -47,7 +47,7 @@ export function calculateBaseAssetValue(
 				calculateUpdatedAMMSpreadReserves(
 					market.amm,
 					directionToClose,
-					oraclePriceData
+					mmOraclePriceData
 				);
 			prepegAmm = {
 				baseAssetReserve,
@@ -56,7 +56,7 @@ export function calculateBaseAssetValue(
 				pegMultiplier: newPeg,
 			};
 		} else {
-			prepegAmm = calculateUpdatedAMM(market.amm, oraclePriceData);
+			prepegAmm = calculateUpdatedAMM(market.amm, mmOraclePriceData);
 		}
 	} else {
 		prepegAmm = market.amm;

@@ -86,7 +86,7 @@ import {
 	calculateMarginUSDCRequiredForTrade,
 	calculateWorstCaseBaseAssetAmount,
 } from './math/margin';
-import { OraclePriceData } from './oracles/types';
+import { MMOraclePriceData, OraclePriceData } from './oracles/types';
 import { UserConfig } from './userConfig';
 import { PollingUserAccountSubscriber } from './accounts/pollingUserAccountSubscriber';
 import { WebSocketUserAccountSubscriber } from './accounts/webSocketUserAccountSubscriber';
@@ -992,7 +992,7 @@ export class User {
 
 					const twap5min = calculateLiveOracleTwap(
 						spotMarketAccount.historicalOracleData,
-						oraclePriceData,
+						oraclePriceData.price,
 						now,
 						FIVE_MINUTE // 5MIN
 					);
@@ -1099,7 +1099,7 @@ export class User {
 			if (strict) {
 				twap5min = calculateLiveOracleTwap(
 					spotMarketAccount.historicalOracleData,
-					oraclePriceData,
+					oraclePriceData.price,
 					now,
 					FIVE_MINUTE // 5MIN
 				);
@@ -1671,13 +1671,13 @@ export class User {
 
 		const entryPrice = calculateEntryPrice(position);
 
-		const oraclePriceData = this.getOracleDataForPerpMarket(
+		const mmOraclePriceData = this.getMMOracleDataForPerpMarket(
 			position.marketIndex
 		);
 
 		if (amountToClose) {
 			if (amountToClose.eq(ZERO)) {
-				return [calculateReservePrice(market, oraclePriceData), ZERO];
+				return [calculateReservePrice(market, mmOraclePriceData), ZERO];
 			}
 			position = {
 				baseAssetAmount: amountToClose,
@@ -1693,13 +1693,13 @@ export class User {
 			baseAssetValue = calculateBaseAssetValue(
 				market,
 				position,
-				oraclePriceData
+				mmOraclePriceData
 			);
 		} else {
 			baseAssetValue = calculateBaseAssetValueWithOracle(
 				market,
 				position,
-				oraclePriceData
+				mmOraclePriceData.oraclePriceData
 			);
 		}
 		if (position.baseAssetAmount.eq(ZERO)) {
@@ -4085,6 +4085,10 @@ export class User {
 			liquidationBuffer,
 			includeOpenOrders
 		).sub(currentPerpPositionValueUSDC);
+	}
+
+	private getMMOracleDataForPerpMarket(marketIndex: number): MMOraclePriceData {
+		return this.driftClient.getMMOracleDataForPerpMarket(marketIndex);
 	}
 
 	private getOracleDataForPerpMarket(marketIndex: number): OraclePriceData {
