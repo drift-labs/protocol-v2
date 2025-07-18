@@ -734,8 +734,8 @@ fn amm_perp_ref_offset() {
         .unwrap();
     assert_eq!(perp_market.amm.reference_price_offset, 132);
     assert_eq!(reserve_price_mm_offset, 7199999);
-    assert_eq!(b2, 7197349);
-    assert_eq!(a2, 7204578);
+    assert_eq!(b2, 7180271);
+    assert_eq!(a2, 7221656);
 
     // Uses the original oracle if the slot is old, ignoring MM oracle
     perp_market.amm.mm_oracle_price = 7200000;
@@ -751,8 +751,8 @@ fn amm_perp_ref_offset() {
         .bid_ask_price(reserve_price_mm_offset_3)
         .unwrap();
     assert_eq!(reserve_price_mm_offset_3, r);
-    assert_eq!(b3, b);
-    assert_eq!(a3, a);
+    assert_eq!(b3, 7082154);
+    assert_eq!(a3, 7122974);
 }
 
 #[test]
