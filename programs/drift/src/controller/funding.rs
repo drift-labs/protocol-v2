@@ -196,6 +196,7 @@ pub fn update_funding_rate(
             &mm_oracle_price_data,
             Some(reserve_price),
             sanitize_clamp_denominator,
+            None,
         )?;
 
         // price relates to execution premium / direction

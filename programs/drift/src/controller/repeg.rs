@@ -2,6 +2,7 @@ use std::cmp::min;
 
 use crate::msg;
 use crate::state::oracle::MMOraclePriceData;
+use crate::state::oracle::OraclePriceData;
 use anchor_lang::prelude::AccountInfo;
 use anchor_lang::prelude::*;
 
@@ -157,11 +158,19 @@ pub fn _update_amm(
         return Ok(0);
     }
 
+    let oracle_data = &OraclePriceData {
+        price: mm_oracle_price_data.get_oracle_price(),
+        delay: mm_oracle_price_data.get_delay(),
+        confidence: mm_oracle_price_data.get_confidence()?,
+        has_sufficient_number_of_data_points: mm_oracle_price_data
+            .oracle_price_data
+            .has_sufficient_number_of_data_points,
+    };
     let oracle_validity = oracle::oracle_validity(
         MarketType::Perp,
         market.market_index,
         market.amm.historical_oracle_data.last_oracle_price_twap,
-        &mm_oracle_price_data.oracle_price_data,
+        oracle_data,
         &state.oracle_guard_rails.validity,
         market.get_max_confidence_interval_multiplier()?,
         &market.amm.oracle_source,
@@ -216,6 +225,7 @@ pub fn _update_amm(
             mm_oracle_price_data,
             Some(reserve_price_after),
             sanitize_clamp_denominator,
+            Some(oracle_data.confidence),
         )?;
     }
 

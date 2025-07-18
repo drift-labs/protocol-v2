@@ -4,7 +4,7 @@ use std::cell::Ref;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I64,
+    PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I64, PRICE_PRECISION, PRICE_PRECISION_I64,
     PRICE_PRECISION_U64,
 };
 use crate::math::safe_math::SafeMath;
@@ -208,9 +208,11 @@ impl MMOraclePriceData {
         let price_diff_bps = self
             .mm_oracle_price
             .abs_diff(self.oracle_price_data.price)
-            .safe_mul(PERCENTAGE_PRECISION_U64)?
-            .cast::<i64>()?
-            .safe_div(self.oracle_price_data.price.max(1))?;
+            .cast::<u128>()?
+            .safe_mul(PERCENTAGE_PRECISION)?
+            .cast::<i128>()?
+            .safe_div(self.oracle_price_data.price.max(1).cast::<i128>()?)?
+            .cast::<i64>()?;
         let adjusted_confidence = if self.mm_oracle_delay.abs_diff(self.oracle_price_data.delay)
             < 10
             && price_diff_bps.abs() > PERCENTAGE_PRECISION_I64 / 2000
