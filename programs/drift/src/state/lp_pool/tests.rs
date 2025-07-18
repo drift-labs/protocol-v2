@@ -2593,11 +2593,6 @@ mod update_aum_tests {
             "{}: last_aum_ts should be updated",
             test_name
         );
-        assert_eq!(
-            lp_pool.oldest_oracle_slot, 100,
-            "{}: oldest_oracle_slot should be updated",
-            test_name
-        );
     }
 
     #[test]

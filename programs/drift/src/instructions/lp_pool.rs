@@ -247,7 +247,7 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
         ErrorCode::InvalidPDA,
         "Amm cache PDA does not match expected PDA"
     )?;
-  
+
     let (aum, crypto_delta, derivative_groups) = lp_pool.update_aum(
         now,
         slot,
