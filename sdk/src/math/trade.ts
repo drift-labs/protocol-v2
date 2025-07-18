@@ -36,7 +36,6 @@ import { DLOB } from '../dlob/DLOB';
 import { PublicKey } from '@solana/web3.js';
 import { Orderbook } from '@project-serum/serum';
 import { L2OrderBook } from '../dlob/orderBookLevels';
-import { DLOBNode } from '../dlob/DLOBNode';
 
 const MAXPCT = new BN(1000); //percentage units are [0,1000] => [0,1]
 

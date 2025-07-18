@@ -41,7 +41,6 @@ import {
 	mockUserUSDCAccount,
 	mockUSDCMint,
 	setFeedPrice,
-	getOraclePriceData,
 	initializeQuoteSpotMarket,
 	sleep,
 } from './testHelpers';

@@ -17,7 +17,6 @@ import {
 	FUNDING_RATE_BUFFER_PRECISION,
 	FUNDING_RATE_PRECISION_EXP,
 } from '../constants/numericConstants';
-import { Oracle } from '@switchboard-xyz/on-demand';
 import {
 	getOraclePriceFromMMOracleData,
 	getOracleSlotFromMMOracleData,
