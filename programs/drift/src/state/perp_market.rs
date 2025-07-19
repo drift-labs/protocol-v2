@@ -589,29 +589,6 @@ impl PerpMarket {
         Ok(depth)
     }
 
-    pub fn update_market_with_counterparty(
-        &mut self,
-        delta: &PositionDelta,
-        new_settled_base_asset_amount: i64,
-    ) -> DriftResult {
-        // indicates that position delta is settling lp counterparty
-        if delta.remainder_base_asset_amount.is_some() {
-            // todo: name for this is confusing, but adding is correct as is
-            // definition: net position of users in the market that has the LP as a counterparty (which have NOT settled)
-            self.amm.base_asset_amount_with_unsettled_lp = self
-                .amm
-                .base_asset_amount_with_unsettled_lp
-                .safe_add(new_settled_base_asset_amount.cast()?)?;
-
-            self.amm.quote_asset_amount_with_unsettled_lp = self
-                .amm
-                .quote_asset_amount_with_unsettled_lp
-                .safe_add(delta.quote_asset_amount.cast()?)?;
-        }
-
-        Ok(())
-    }
-
     pub fn is_price_divergence_ok_for_settle_pnl(&self, oracle_price: i64) -> DriftResult<bool> {
         let oracle_divergence = oracle_price
             .safe_sub(self.amm.historical_oracle_data.last_oracle_price_twap_5min)?
