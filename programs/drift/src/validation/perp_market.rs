@@ -149,7 +149,7 @@ pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
         }
     }
 
-    if market.amm.amm_spread_adjustment >= 0 {
+    if market.amm.amm_spread_adjustment >= 0 && market.amm.amm_inventory_spread_adjustment >= 0 {
         validate!(
             market.amm.long_spread + market.amm.short_spread >= market.amm.base_spread,
             ErrorCode::InvalidAmmDetected,
