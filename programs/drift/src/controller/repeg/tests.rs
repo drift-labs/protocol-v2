@@ -248,7 +248,7 @@ pub fn update_amm_test_bad_oracle() {
 #[test]
 pub fn update_amm_larg_conf_test() {
     let now = 1662800000 + 60;
-    let slot = 81680085;
+    let mut slot = 81680085;
 
     let mut market = PerpMarket::default_btc_test();
     assert_eq!(market.amm.base_asset_amount_with_amm, -1000000000);
@@ -299,6 +299,7 @@ pub fn update_amm_larg_conf_test() {
         has_sufficient_number_of_data_points: true,
     };
 
+    slot += 1;
     let cost_of_update = _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
     assert_eq!(cost_of_update, 0);
 
@@ -377,7 +378,7 @@ pub fn update_amm_larg_conf_test() {
 #[test]
 pub fn update_amm_larg_conf_w_neg_tfmd_test() {
     let now = 1662800000 + 60;
-    let slot = 81680085;
+    let mut slot = 81680085;
 
     let mut market = PerpMarket::default_btc_test();
     market.amm.concentration_coef = 1414213;
@@ -460,6 +461,7 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
         has_sufficient_number_of_data_points: true,
     };
 
+    slot += 1;
     let cost_of_update = _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
     assert_eq!(cost_of_update, 0);
 

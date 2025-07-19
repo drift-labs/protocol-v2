@@ -2631,6 +2631,40 @@ pub fn handle_update_amms<'c: 'info, 'info>(
     Ok(())
 }
 
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn view_amm_liquidity<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, UpdateAMM<'info>>,
+    market_indexes: [u16; 5],
+) -> Result<()> {
+    // up to ~60k compute units (per amm) worst case
+
+    let clock = Clock::get()?;
+
+    let state = &ctx.accounts.state;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let oracle_map = &mut OracleMap::load(remaining_accounts_iter, clock.slot, None)?;
+    let market_map = &mut PerpMarketMap::load(
+        &get_market_set_from_list(market_indexes),
+        remaining_accounts_iter,
+    )?;
+
+    controller::repeg::update_amms(market_map, oracle_map, state, &clock)?;
+    
+     for (_key, market_account_loader) in market_map.0.iter_mut() {
+        let market = &mut load_mut!(market_account_loader)?;
+        let oracle_price_data = &oracle_map.get_price_data(&market.oracle_id())?;
+
+        let reserve_price = market.amm.reserve_price()?;
+        let (bid, ask) = market.amm.bid_ask_price(reserve_price)?;
+        crate::dlog!(bid, ask, oracle_price_data.price);
+    }
+
+    Ok(())
+}
+
 pub fn handle_update_user_quote_asset_insurance_stake(
     ctx: Context<UpdateUserQuoteAssetInsuranceStake>,
 ) -> Result<()> {

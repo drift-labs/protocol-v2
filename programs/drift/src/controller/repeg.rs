@@ -214,6 +214,8 @@ pub fn _update_amm(
         )?;
     }
 
+    update_spreads(market, reserve_price_after, Some(clock_slot))?;
+
     if is_oracle_valid_for_action(oracle_validity, Some(DriftAction::FillOrderAmm))? {
         if !amm_not_successfully_updated {
             market.amm.last_update_slot = clock_slot;
@@ -222,8 +224,6 @@ pub fn _update_amm(
     } else {
         market.amm.last_oracle_valid = false;
     }
-
-    update_spreads(market, reserve_price_after)?;
 
     Ok(amm_update_cost)
 }

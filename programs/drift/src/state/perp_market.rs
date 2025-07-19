@@ -1230,7 +1230,7 @@ impl AMM {
         let lower_bound_multiplier: i64 =
             self.curve_update_intensity.safe_sub(100)?.cast::<i64>()?;
 
-        // always allow 1-100 bps of price offset, up to half of the market's max_spread
+        // always higher of 1-100 bps of price offset and half of the market's max_spread
         let lb_bps =
             (PERCENTAGE_PRECISION.cast::<i64>()? / 10000).safe_mul(lower_bound_multiplier)?;
         let max_offset = (self.max_spread.cast::<i64>()? / 2).max(lb_bps);
