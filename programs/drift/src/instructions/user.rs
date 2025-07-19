@@ -2937,6 +2937,9 @@ pub fn handle_add_perp_lp_shares<'c: 'info, 'info>(
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
 
+    msg!("add_perp_lp_shares is disabled");
+    return Err(ErrorCode::DefaultError.into());
+
     let AccountMaps {
         perp_market_map,
         spot_market_map,
@@ -3054,9 +3057,10 @@ pub fn handle_remove_perp_lp_shares_in_expiring_market<'c: 'info, 'info>(
 
     // additional validate
     {
+        let signer_is_admin = ctx.accounts.signer.key() == admin_hot_wallet::id();
         let market = perp_market_map.get_ref(&market_index)?;
         validate!(
-            market.is_reduce_only()?,
+            market.is_reduce_only()? || signer_is_admin,
             ErrorCode::PerpMarketNotInReduceOnly,
             "Can only permissionless burn when market is in reduce only"
         )?;
@@ -4630,6 +4634,7 @@ pub struct RemoveLiquidityInExpiredMarket<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
+    pub signer: Signer<'info>,
 }
 
 #[derive(Accounts)]
