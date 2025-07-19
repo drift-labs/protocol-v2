@@ -1092,6 +1092,7 @@ pub fn fill_perp_order(
         amm_lp_allowed_to_jit_make = market
             .amm
             .amm_lp_allowed_to_jit_make(amm_wants_to_jit_make)?;
+        // TODO what do do here?
         amm_can_skip_duration =
             market.can_skip_auction_duration(&state, amm_lp_allowed_to_jit_make)?;
 
@@ -1862,7 +1863,6 @@ fn fulfill_perp_order(
                         fee_structure,
                         oracle_map,
                         fill_mode.is_liquidation(),
-                        None,
                     )?;
 
                 if maker_fill_base_asset_amount != 0 {
@@ -2462,7 +2462,6 @@ pub fn fulfill_perp_order_with_match(
     fee_structure: &FeeStructure,
     oracle_map: &mut OracleMap,
     is_liquidation: bool,
-    amm_lp_allowed_to_jit_make: Option<bool>,
 ) -> DriftResult<(u64, u64, u64)> {
     if !are_orders_same_market_but_different_sides(
         &maker.orders[maker_order_index],
@@ -2549,7 +2548,6 @@ pub fn fulfill_perp_order_with_match(
         taker_base_asset_amount,
         maker_base_asset_amount,
         taker.orders[taker_order_index].has_limit_price(slot)?,
-        amm_lp_allowed_to_jit_make,
     )?;
 
     if jit_base_asset_amount > 0 {

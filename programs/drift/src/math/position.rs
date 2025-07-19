@@ -43,23 +43,17 @@ pub fn calculate_base_asset_value(base_asset_amount: i128, amm: &AMM) -> DriftRe
     let (base_asset_reserve, quote_asset_reserve) =
         (amm.base_asset_reserve, amm.quote_asset_reserve);
 
-    let amm_lp_shares = amm.sqrt_k.safe_sub(amm.user_lp_shares)?;
-
-    let base_asset_reserve_proportion =
-        get_proportion_u128(base_asset_reserve, amm_lp_shares, amm.sqrt_k)?;
-
-    let quote_asset_reserve_proportion =
-        get_proportion_u128(quote_asset_reserve, amm_lp_shares, amm.sqrt_k)?;
+    let amm_lp_shares = amm.sqrt_k;
 
     let (new_quote_asset_reserve, _new_base_asset_reserve) = amm::calculate_swap_output(
         base_asset_amount.unsigned_abs(),
-        base_asset_reserve_proportion,
+        base_asset_reserve,
         swap_direction,
         amm_lp_shares,
     )?;
 
     let base_asset_value = calculate_quote_asset_amount_swapped(
-        quote_asset_reserve_proportion,
+        quote_asset_reserve,
         new_quote_asset_reserve,
         swap_direction,
         amm.peg_multiplier,

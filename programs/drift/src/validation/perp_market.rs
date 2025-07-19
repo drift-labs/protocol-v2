@@ -32,19 +32,16 @@ pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
     )?;
     validate!(
         (market.amm.base_asset_amount_long + market.amm.base_asset_amount_short)
-            == market.amm.base_asset_amount_with_amm
-                + market.amm.base_asset_amount_with_unsettled_lp,
+            == market.amm.base_asset_amount_with_amm,
         ErrorCode::InvalidAmmDetected,
         "Market NET_BAA Error: 
         market.amm.base_asset_amount_long={}, 
         + market.amm.base_asset_amount_short={} 
         != 
-        market.amm.base_asset_amount_with_amm={}
-        +  market.amm.base_asset_amount_with_unsettled_lp={}",
+        market.amm.base_asset_amount_with_amm={}",
         market.amm.base_asset_amount_long,
         market.amm.base_asset_amount_short,
         market.amm.base_asset_amount_with_amm,
-        market.amm.base_asset_amount_with_unsettled_lp,
     )?;
 
     validate!(
@@ -82,15 +79,6 @@ pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
         market.amm.sqrt_k,
         market.amm.base_asset_reserve,
         market.amm.quote_asset_reserve
-    )?;
-
-    validate!(
-        market.amm.sqrt_k >= market.amm.user_lp_shares,
-        ErrorCode::InvalidAmmDetected,
-        "market {} market.amm.sqrt_k < market.amm.user_lp_shares: {} < {}",
-        market.market_index,
-        market.amm.sqrt_k,
-        market.amm.user_lp_shares,
     )?;
 
     let invariant_sqrt_u192 = crate::bn::U192::from(market.amm.sqrt_k);
@@ -227,22 +215,6 @@ pub fn validate_perp_market(market: &PerpMarket) -> DriftResult {
         .insurance_claim
         .max_revenue_withdraw_per_period,
         market.insurance_claim.revenue_withdraw_since_last_settle.unsigned_abs()
-    )?;
-
-    validate!(
-        market.amm.base_asset_amount_per_lp < MAX_BASE_ASSET_AMOUNT_WITH_AMM as i128,
-        ErrorCode::InvalidAmmDetected,
-        "{} market.amm.base_asset_amount_per_lp too large: {}",
-        market.market_index,
-        market.amm.base_asset_amount_per_lp
-    )?;
-
-    validate!(
-        market.amm.quote_asset_amount_per_lp < MAX_BASE_ASSET_AMOUNT_WITH_AMM as i128,
-        ErrorCode::InvalidAmmDetected,
-        "{} market.amm.quote_asset_amount_per_lp too large: {}",
-        market.market_index,
-        market.amm.quote_asset_amount_per_lp
     )?;
 
     Ok(())
