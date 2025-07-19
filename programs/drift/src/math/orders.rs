@@ -358,30 +358,6 @@ pub fn get_position_delta_for_fill(
 }
 
 #[inline(always)]
-pub fn validate_perp_fill_possible(
-    state: &State,
-    user: &User,
-    order_index: usize,
-    slot: u64,
-    num_makers: usize,
-    fill_mode: FillMode,
-) -> DriftResult {
-    let amm_available = is_amm_available_liquidity_source(
-        &user.orders[order_index],
-        state.min_perp_auction_duration,
-        slot,
-        fill_mode,
-    )?;
-
-    if !amm_available && num_makers == 0 && user.orders[order_index].is_limit_order() {
-        msg!("invalid fill. order is limit order, amm is not available and no makers present");
-        return Err(ErrorCode::ImpossibleFill);
-    }
-
-    Ok(())
-}
-
-#[inline(always)]
 pub fn should_expire_order_before_fill(
     user: &User,
     order_index: usize,
