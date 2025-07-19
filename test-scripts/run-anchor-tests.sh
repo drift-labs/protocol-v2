@@ -44,7 +44,6 @@ test_files=(
   liquidatePerpPnlForDeposit.ts
   liquidateSpot.ts
   liquidateSpotSocialLoss.ts
-  liquidityProvider.ts
   marketOrder.ts
   marketOrderBaseAssetAmount.ts
   maxDeposit.ts
@@ -60,8 +59,6 @@ test_files=(
   ordersWithSpread.ts
   pauseExchange.ts
   pauseDepositWithdraw.ts
-  perpLpJit.ts
-  perpLpRiskMitigation.ts
   phoenixTest.ts
   placeAndMakePerp.ts
   placeAndMakeSignedMsgBankrun.ts
@@ -85,7 +82,6 @@ test_files=(
   surgePricing.ts
   switchboardTxCus.ts
   switchOracle.ts
-  tradingLP.ts
   triggerOrders.ts
   triggerSpotOrder.ts
   transferPerpPosition.ts
