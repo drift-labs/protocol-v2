@@ -486,7 +486,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
         )
         .unwrap();
 
@@ -610,7 +609,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
         )
         .unwrap();
 
@@ -734,7 +732,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
         )
         .unwrap();
 
@@ -858,7 +855,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
         )
         .unwrap();
 
@@ -981,7 +977,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
         )
         .unwrap();
 
@@ -1071,7 +1066,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
         )
         .unwrap();
 
@@ -1162,7 +1156,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
         )
         .unwrap();
 
@@ -1253,7 +1246,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
         )
         .unwrap();
 
@@ -1344,7 +1336,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
         )
         .unwrap();
 
@@ -1455,7 +1446,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
         )
         .unwrap();
 
@@ -1571,7 +1561,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
         )
         .unwrap();
 
@@ -1692,7 +1681,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
         )
         .unwrap();
 
@@ -1814,7 +1802,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
         )
         .unwrap();
 
@@ -1960,7 +1947,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
         )
         .unwrap();
 
@@ -2081,7 +2067,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
         )
         .unwrap();
 
@@ -2212,7 +2197,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut oracle_map,
             false,
-            None,
         )
         .unwrap();
 
@@ -2364,7 +2348,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut oracle_map,
             false,
-            None,
         )
         .unwrap();
 
@@ -2514,7 +2497,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut oracle_map,
             false,
-            None,
         )
         .unwrap();
 
@@ -2665,7 +2647,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut oracle_map,
             false,
-            None,
         )
         .unwrap();
 
@@ -2797,7 +2778,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
         )
         .unwrap();
 
@@ -2928,7 +2908,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
         )
         .unwrap();
 
