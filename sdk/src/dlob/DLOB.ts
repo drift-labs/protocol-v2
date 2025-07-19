@@ -3,6 +3,7 @@ import {
 	BASE_PRECISION,
 	BN,
 	BN_MAX,
+	calculateOrderBaseAssetAmount,
 	convertToNumber,
 	decodeName,
 	DLOBNode,
@@ -178,7 +179,26 @@ export class DLOB {
 			const protectedMaker = isUserProtectedMaker(userAccount);
 
 			for (const order of userAccount.orders) {
-				this.insertOrder(order, userAccountPubkeyString, slot, protectedMaker);
+				let baseAssetAmount = order.baseAssetAmount;
+				if (order.reduceOnly) {
+					const existingBaseAmount =
+						userAccount.perpPositions.find(
+							(pos) =>
+								pos.marketIndex === order.marketIndex && pos.openOrders > 0
+						)?.baseAssetAmount || ZERO;
+					baseAssetAmount = calculateOrderBaseAssetAmount(
+						order,
+						existingBaseAmount
+					);
+				}
+
+				this.insertOrder(
+					order,
+					userAccountPubkeyString,
+					slot,
+					protectedMaker,
+					baseAssetAmount
+				);
 			}
 		}
 
@@ -191,6 +211,7 @@ export class DLOB {
 		userAccount: string,
 		slot: number,
 		isUserProtectedMaker: boolean,
+		baseAssetAmount: BN,
 		onInsert?: OrderBookCallback
 	): void {
 		if (!isVariant(order.status, 'open')) {
@@ -218,7 +239,8 @@ export class DLOB {
 			marketType,
 			userAccount,
 			isUserProtectedMaker,
-			this.protectedMakerParamsMap[marketType].get(order.marketIndex)
+			this.protectedMakerParamsMap[marketType].get(order.marketIndex),
+			baseAssetAmount
 		);
 
 		if (onInsert) {
@@ -230,6 +252,7 @@ export class DLOB {
 		order: Order,
 		userAccount: string,
 		isUserProtectedMaker: boolean,
+		baseAssetAmount?: BN,
 		onInsert?: OrderBookCallback
 	): void {
 		const marketType = getVariant(order.marketType) as MarketTypeStr;
@@ -249,7 +272,8 @@ export class DLOB {
 				marketType,
 				userAccount,
 				isUserProtectedMaker,
-				this.protectedMakerParamsMap[marketType].get(order.marketIndex)
+				this.protectedMakerParamsMap[marketType].get(order.marketIndex),
+				baseAssetAmount
 			);
 		if (onInsert) {
 			onInsert();
