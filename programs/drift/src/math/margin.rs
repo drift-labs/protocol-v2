@@ -28,6 +28,8 @@ use crate::state::user::{MarketType, OrderFillSimulation, PerpPosition, User};
 use num_integer::Roots;
 use std::cmp::{max, min, Ordering};
 
+use super::spot_balance::get_token_amount;
+
 #[cfg(test)]
 mod tests;
 
@@ -147,8 +149,8 @@ pub fn calculate_perp_position_value_and_pnl(
     };
 
     // add small margin requirement for every open order
-    margin_requirement = margin_requirement
-        .safe_add(market_position.margin_requirement_for_open_orders()?)?;
+    margin_requirement =
+        margin_requirement.safe_add(market_position.margin_requirement_for_open_orders()?)?;
 
     let unrealized_asset_weight =
         market.get_unrealized_asset_weight(total_unrealized_pnl, margin_requirement_type)?;
@@ -233,6 +235,10 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
     oracle_map: &mut OracleMap,
     context: MarginContext,
 ) -> DriftResult<MarginCalculation> {
+    if context.isolated_position_market_index.is_some() {
+        return calculate_margin_requirement_and_total_collateral_and_liability_info_for_isolated_position(user, perp_market_map, spot_market_map, oracle_map, context);
+    }
+
     let mut calculation = MarginCalculation::new(context);
 
     let mut user_custom_margin_ratio = if context.margin_type == MarginRequirementType::Initial {
@@ -494,6 +500,10 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             continue;
         }
 
+        if market_position.is_isolated_position() {
+            continue;
+        }
+
         let market = &perp_market_map.get_ref(&market_position.market_index)?;
 
         validate!(
@@ -630,6 +640,165 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
         calculation.update_fuel_spot_bonus(&spot_market, 0, &strict_oracle_price)?;
     }
+
+    Ok(calculation)
+}
+
+pub fn calculate_margin_requirement_and_total_collateral_and_liability_info_for_isolated_position(
+    user: &User,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    context: MarginContext,
+) -> DriftResult<MarginCalculation> {
+    let mut calculation = MarginCalculation::new(context);
+
+    let mut user_custom_margin_ratio = if context.margin_type == MarginRequirementType::Initial {
+        user.max_margin_ratio
+    } else {
+        0_u32
+    };
+
+    if let Some(margin_ratio_override) = context.margin_ratio_override {
+        user_custom_margin_ratio = margin_ratio_override.max(user_custom_margin_ratio);
+    }
+
+    let user_pool_id = user.pool_id;
+    let user_high_leverage_mode = user.is_high_leverage_mode();
+
+    let isolated_position_market_index = context.isolated_position_market_index.unwrap();
+
+    let perp_position = user.get_perp_position(isolated_position_market_index)?;
+
+    let perp_market = perp_market_map.get_ref(&isolated_position_market_index)?;
+
+    validate!(
+        user_pool_id == perp_market.pool_id,
+        ErrorCode::InvalidPoolId,
+        "user pool id ({}) == perp market pool id ({})",
+        user_pool_id,
+        perp_market.pool_id,
+    )?;
+
+    let quote_spot_market = spot_market_map.get_ref(&perp_market.quote_spot_market_index)?;
+
+    validate!(
+        user_pool_id == quote_spot_market.pool_id,
+        ErrorCode::InvalidPoolId,
+        "user pool id ({}) == quote spot market pool id ({})",
+        user_pool_id,
+        quote_spot_market.pool_id,
+    )?;
+
+    let (quote_oracle_price_data, quote_oracle_validity) = oracle_map.get_price_data_and_validity(
+        MarketType::Spot,
+        quote_spot_market.market_index,
+        &quote_spot_market.oracle_id(),
+        quote_spot_market
+            .historical_oracle_data
+            .last_oracle_price_twap,
+        quote_spot_market.get_max_confidence_interval_multiplier()?,
+        0,
+    )?;
+
+    let quote_oracle_valid =
+        is_oracle_valid_for_action(quote_oracle_validity, Some(DriftAction::MarginCalc))?;
+
+    let quote_strict_oracle_price = StrictOraclePrice::new(
+        quote_oracle_price_data.price,
+        quote_spot_market
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        calculation.context.strict,
+    );
+    quote_strict_oracle_price.validate()?;
+
+    let quote_token_amount = get_token_amount(
+        perp_position
+            .isolated_position_scaled_balance
+            .cast::<u128>()?,
+        &quote_spot_market,
+        &SpotBalanceType::Deposit,
+    )?;
+
+    let quote_token_value = get_strict_token_value(
+        quote_token_amount.cast::<i128>()?,
+        quote_spot_market.decimals,
+        &quote_strict_oracle_price,
+    )?;
+
+    calculation.add_total_collateral(quote_token_value)?;
+
+    calculation.update_all_deposit_oracles_valid(quote_oracle_valid);
+
+    #[cfg(feature = "drift-rs")]
+    calculation.add_spot_asset_value(quote_token_value)?;
+
+    let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
+        MarketType::Perp,
+        isolated_position_market_index,
+        &perp_market.oracle_id(),
+        perp_market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap,
+        perp_market.get_max_confidence_interval_multiplier()?,
+        0,
+    )?;
+
+    let (
+        perp_margin_requirement,
+        weighted_pnl,
+        worst_case_liability_value,
+        open_order_margin_requirement,
+        base_asset_value,
+    ) = calculate_perp_position_value_and_pnl(
+        &perp_position,
+        &perp_market,
+        oracle_price_data,
+        &quote_strict_oracle_price,
+        context.margin_type,
+        user_custom_margin_ratio,
+        user_high_leverage_mode,
+        calculation.track_open_orders_fraction(),
+    )?;
+
+    calculation.add_margin_requirement(
+        perp_margin_requirement,
+        worst_case_liability_value,
+        MarketIdentifier::perp(isolated_position_market_index),
+    )?;
+
+    calculation.add_total_collateral(weighted_pnl)?;
+
+    #[cfg(feature = "drift-rs")]
+    calculation.add_perp_liability_value(worst_case_liability_value)?;
+    #[cfg(feature = "drift-rs")]
+    calculation.add_perp_pnl(weighted_pnl)?;
+
+    let has_perp_liability = perp_position.base_asset_amount != 0
+        || perp_position.quote_asset_amount < 0
+        || perp_position.has_open_order();
+
+    if has_perp_liability {
+        calculation.add_perp_liability()?;
+        calculation.update_with_perp_isolated_liability(
+            perp_market.contract_tier == ContractTier::Isolated,
+        );
+    }
+
+    if has_perp_liability || calculation.context.margin_type != MarginRequirementType::Initial {
+        calculation.update_all_liability_oracles_valid(is_oracle_valid_for_action(
+            quote_oracle_validity,
+            Some(DriftAction::MarginCalc),
+        )?);
+        calculation.update_all_liability_oracles_valid(is_oracle_valid_for_action(
+            oracle_validity,
+            Some(DriftAction::MarginCalc),
+        )?);
+    }
+
+    calculation.validate_num_spot_liabilities()?;
 
     Ok(calculation)
 }

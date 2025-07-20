@@ -11,8 +11,7 @@ use crate::math::orders::{
     apply_protected_maker_limit_price_offset, standardize_base_asset_amount, standardize_price,
 };
 use crate::math::position::{
-    calculate_base_asset_value_and_pnl_with_oracle_price,
-    calculate_perp_liability_value,
+    calculate_base_asset_value_and_pnl_with_oracle_price, calculate_perp_liability_value,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{
@@ -21,7 +20,7 @@ use crate::math::spot_balance::{
 use crate::math::stats::calculate_rolling_sum;
 use crate::msg;
 use crate::state::oracle::StrictOraclePrice;
-use crate::state::perp_market::{ContractType};
+use crate::state::perp_market::ContractType;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::traits::Size;
 use crate::{get_then_update_id, ID, QUOTE_PRECISION_U64};
@@ -951,8 +950,8 @@ pub struct PerpPosition {
     pub lp_shares: u64,
     /// The last base asset amount per lp the amm had
     /// Used to settle the users lp position
-    /// precision: BASE_PRECISION
-    pub last_base_asset_amount_per_lp: i64,
+    /// precision: SPOT_BALANCE_PRECISION
+    pub isolated_position_scaled_balance: u64,
     /// The last quote asset amount per lp the amm had
     /// Used to settle the users lp position
     /// precision: QUOTE_PRECISION
@@ -965,7 +964,7 @@ pub struct PerpPosition {
     pub market_index: u16,
     /// The number of open orders
     pub open_orders: u8,
-    pub per_lp_base: i8,
+    pub position_type: u8,
 }
 
 impl PerpPosition {
@@ -974,9 +973,7 @@ impl PerpPosition {
     }
 
     pub fn is_available(&self) -> bool {
-        !self.is_open_position()
-            && !self.has_open_order()
-            && !self.has_unsettled_pnl()
+        !self.is_open_position() && !self.has_open_order() && !self.has_unsettled_pnl()
     }
 
     pub fn is_open_position(&self) -> bool {
@@ -1119,6 +1116,40 @@ impl PerpPosition {
         } else {
             None
         }
+    }
+
+    pub fn is_isolated_position(&self) -> bool {
+        self.position_type == 1
+    }
+}
+
+impl SpotBalance for PerpPosition {
+    fn market_index(&self) -> u16 {
+        QUOTE_SPOT_MARKET_INDEX
+    }
+
+    fn balance_type(&self) -> &SpotBalanceType {
+        &SpotBalanceType::Deposit
+    }
+
+    fn balance(&self) -> u128 {
+        self.isolated_position_scaled_balance as u128
+    }
+
+    fn increase_balance(&mut self, delta: u128) -> DriftResult {
+        self.isolated_position_scaled_balance =
+            self.isolated_position_scaled_balance.safe_add(delta.cast::<u64>()?)?;
+        Ok(())
+    }
+
+    fn decrease_balance(&mut self, delta: u128) -> DriftResult {
+        self.isolated_position_scaled_balance =
+            self.isolated_position_scaled_balance.safe_sub(delta.cast::<u64>()?)?;
+        Ok(())
+    }
+
+    fn update_balance_type(&mut self, _balance_type: SpotBalanceType) -> DriftResult {
+        Err(ErrorCode::CantUpdateSpotBalanceType)
     }
 }
 
