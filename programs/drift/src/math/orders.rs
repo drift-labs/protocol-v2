@@ -860,7 +860,7 @@ pub fn calculate_max_perp_order_size(
     )?;
 
     let user_custom_margin_ratio = user.max_margin_ratio;
-    let user_high_leverage_mode = user.is_high_leverage_mode();
+    let user_high_leverage_mode = user.is_high_leverage_mode(false);
 
     let free_collateral_before = total_collateral.safe_sub(margin_requirement.cast()?)?;
 

@@ -337,7 +337,7 @@ pub fn liquidate_perp(
     let margin_ratio = perp_market_map.get_ref(&market_index)?.get_margin_ratio(
         user_base_asset_amount.cast()?,
         MarginRequirementType::Maintenance,
-        user.is_high_leverage_mode(),
+        user.is_high_leverage_mode(false),
     )?;
 
     let margin_ratio_with_buffer = margin_ratio.safe_add(liquidation_margin_buffer_ratio)?;
@@ -351,7 +351,7 @@ pub fn liquidate_perp(
         .price;
 
     let liquidator_fee = get_liquidation_fee(
-        market.get_base_liquidator_fee(user.is_high_leverage_mode()),
+        market.get_base_liquidator_fee(user.is_high_leverage_mode(false)),
         market.get_max_liquidation_fee()?,
         user.last_active_slot,
         slot,
@@ -964,7 +964,7 @@ pub fn liquidate_perp_with_fill(
     let margin_ratio = perp_market_map.get_ref(&market_index)?.get_margin_ratio(
         user_base_asset_amount.cast()?,
         MarginRequirementType::Maintenance,
-        user.is_high_leverage_mode(),
+        user.is_high_leverage_mode(false),
     )?;
 
     let margin_ratio_with_buffer = margin_ratio.safe_add(liquidation_margin_buffer_ratio)?;

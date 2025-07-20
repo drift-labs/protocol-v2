@@ -2734,7 +2734,13 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
         "user must be in high leverage mode"
     )?;
 
-    user.margin_mode = MarginMode::Default;
+    let new_margin_mode = if user.margin_mode == MarginMode::HighLeverageReduceOnly {
+        MarginMode::Default
+    } else {
+        MarginMode::HighLeverage
+    };
+
+    user.margin_mode = new_margin_mode;
 
     let custom_margin_ratio_before = user.max_margin_ratio;
     user.max_margin_ratio = 0;

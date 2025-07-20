@@ -443,8 +443,8 @@ impl User {
         false
     }
 
-    pub fn is_high_leverage_mode(&self) -> bool {
-        self.margin_mode == MarginMode::HighLeverage
+    pub fn is_high_leverage_mode(&self, include_reduce_only: bool) -> bool {
+        self.margin_mode == MarginMode::HighLeverage || (include_reduce_only && self.margin_mode == MarginMode::HighLeverageReduceOnly)
     }
 
     pub fn get_fuel_bonus_numerator(&self, now: i64) -> DriftResult<i64> {
@@ -2103,6 +2103,7 @@ pub enum MarginMode {
     #[default]
     Default,
     HighLeverage,
+    HighLeverageReduceOnly,
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
