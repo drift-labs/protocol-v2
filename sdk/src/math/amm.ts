@@ -1049,10 +1049,11 @@ export function calculateSpreadReserves(
 					(oraclePriceData.slot.toNumber() - amm.lastUpdateSlot.toNumber())) /
 					100
 			);
-			const decay = Math.min(
-				Math.max(rawDecay, 10),
-				Math.abs(amm.referencePriceOffset)
-			);
+
+			const maxOffset = Math.abs(amm.referencePriceOffset);
+			const decayMagnitude = Math.min(Math.max(rawDecay, 10), maxOffset);
+
+			const decay = Math.sign(amm.referencePriceOffset) * decayMagnitude;
 
 			if (amm.referencePriceOffset > 0) {
 				referencePriceOffset = amm.referencePriceOffset - decay;

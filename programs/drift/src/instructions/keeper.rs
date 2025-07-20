@@ -2652,8 +2652,8 @@ pub fn view_amm_liquidity<'c: 'info, 'info>(
     )?;
 
     controller::repeg::update_amms(market_map, oracle_map, state, &clock)?;
-    
-     for (_key, market_account_loader) in market_map.0.iter_mut() {
+
+    for (_key, market_account_loader) in market_map.0.iter_mut() {
         let market = &mut load_mut!(market_account_loader)?;
         let oracle_price_data = &oracle_map.get_price_data(&market.oracle_id())?;
 

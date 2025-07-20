@@ -278,16 +278,21 @@ pub fn update_spreads(
         const DECAY_BPS_PER_SLOT: i128 = 12;
         const BPS_DENOMINATOR: i128 = 100;
 
-        let reference_price_decay = market
-            .amm
-            .reference_price_offset
-            .cast::<i128>()?
-            .safe_mul(DECAY_BPS_PER_SLOT)?
-            .safe_mul(slots_passed.cast::<i128>()?)?
-            .safe_div(BPS_DENOMINATOR)?
-            .cast::<i32>()?
-            .abs()
-            .max(10.min(market.amm.reference_price_offset));
+        let reference_price_decay = {
+            let raw = market
+                .amm
+                .reference_price_offset
+                .cast::<i128>()?
+                .safe_mul(DECAY_BPS_PER_SLOT)?
+                .safe_mul(slots_passed.cast::<i128>()?)?
+                .safe_div(BPS_DENOMINATOR)?
+                .cast::<i32>()?;
+
+            market.amm.reference_price_offset.signum()
+                * (raw
+                    .abs()
+                    .max(10.min(market.amm.reference_price_offset.abs())))
+        };
 
         market.amm.reference_price_offset = market
             .amm
