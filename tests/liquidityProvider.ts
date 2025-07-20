@@ -1328,11 +1328,6 @@ describe('liquidity providing', () => {
 
 		await driftClient.fetchAccounts();
 		const marketBefore = driftClient.getPerpMarketAccount(0);
-		console.log(
-			'marketBefore.amm.totalFeeEarnedPerLp',
-			marketBefore.amm.totalFeeEarnedPerLp.toString()
-		);
-		assert(marketBefore.amm.totalFeeEarnedPerLp.eq(new BN('272')));
 
 		const txSig1 = await driftClient.updatePerpMarketPerLpBase(0, 1);
 		await _viewLogs(txSig1);
@@ -1340,12 +1335,6 @@ describe('liquidity providing', () => {
 		await sleep(1400); // todo?
 		await driftClient.fetchAccounts();
 		const marketAfter = driftClient.getPerpMarketAccount(0);
-
-		assert(
-			marketAfter.amm.totalFeeEarnedPerLp.eq(
-				marketBefore.amm.totalFeeEarnedPerLp.mul(new BN(10))
-			)
-		);
 
 		assert(
 			marketAfter.amm.baseAssetAmountPerLp.eq(
@@ -1365,7 +1354,6 @@ describe('liquidity providing', () => {
 			marketAfter.amm.targetBaseAssetAmountPerLp ==
 				marketBefore.amm.targetBaseAssetAmountPerLp
 		);
-		assert(marketAfter.amm.totalFeeEarnedPerLp.eq(new BN('2720')));
 
 		assert(marketBefore.amm.perLpBase == 0);
 		console.log('marketAfter.amm.perLpBase:', marketAfter.amm.perLpBase);
@@ -1474,11 +1462,6 @@ describe('liquidity providing', () => {
 			marketAfter2.amm.baseAssetAmountWithUnsettledLp.toString()
 		);
 		assert(marketAfter2.amm.baseAssetAmountWithUnsettledLp.eq(new BN('0')));
-		console.log(
-			'marketBefore.amm.totalFeeEarnedPerLp',
-			marketAfter2.amm.totalFeeEarnedPerLp.toString()
-		);
-		assert(marketAfter2.amm.totalFeeEarnedPerLp.eq(new BN('2826')));
 	});
 
 	it('add back lp shares from 0, after rebase', async () => {

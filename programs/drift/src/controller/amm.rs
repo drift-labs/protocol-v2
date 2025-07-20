@@ -288,9 +288,7 @@ pub fn update_spreads(
                 .safe_div(BPS_DENOMINATOR)?
                 .cast::<i32>()?;
 
-            market
-                .amm
-                .reference_price_offset.signum()
+            market.amm.reference_price_offset.signum()
                 * (raw
                     .abs()
                     .max(10.min(market.amm.reference_price_offset.abs())))

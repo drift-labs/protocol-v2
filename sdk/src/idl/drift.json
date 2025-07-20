@@ -1,5 +1,5 @@
 {
-  "version": "2.125.0",
+  "version": "2.127.0",
   "name": "drift",
   "instructions": [
     {
@@ -7523,6 +7523,22 @@
           }
         }
       ]
+    },
+    {
+      "name": "zeroAmmFieldsPrepMmOracleInfo",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -8885,7 +8901,7 @@
             "type": "u8"
           },
           {
-            "name": "tokenProgram",
+            "name": "tokenProgramFlag",
             "type": "u8"
           },
           {
@@ -12658,6 +12674,20 @@
       }
     },
     {
+      "name": "TokenProgramFlag",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Token2022"
+          },
+          {
+            "name": "TransferHook"
+          }
+        ]
+      }
+    },
+    {
       "name": "ExchangeStatus",
       "type": {
         "kind": "enum",
@@ -14073,7 +14103,7 @@
           "index": false
         },
         {
-          "name": "currentInAmountSinceLastTransfer",
+          "name": "transferAmount",
           "type": "u64",
           "index": false
         }

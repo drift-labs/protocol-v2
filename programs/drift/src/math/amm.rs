@@ -606,15 +606,6 @@ pub fn update_amm_long_short_intensity(
         (0_u64, quote_asset_amount)
     };
 
-    amm.long_intensity_count = calculate_weighted_average(
-        amm.long_intensity_count.cast()?,
-        long_quote_amount
-            .cast::<i64>()?
-            .safe_div(QUOTE_PRECISION_I64)?,
-        since_last,
-        ONE_HOUR,
-    )?
-    .cast()?;
     amm.long_intensity_volume = calculate_rolling_sum(
         amm.long_intensity_volume,
         long_quote_amount,
@@ -622,15 +613,6 @@ pub fn update_amm_long_short_intensity(
         ONE_HOUR,
     )?;
 
-    amm.short_intensity_count = calculate_weighted_average(
-        amm.short_intensity_count.cast()?,
-        short_quote_amount
-            .cast::<i64>()?
-            .safe_div(QUOTE_PRECISION_I64)?,
-        since_last,
-        ONE_HOUR,
-    )?
-    .cast()?;
     amm.short_intensity_volume = calculate_rolling_sum(
         amm.short_intensity_volume,
         short_quote_amount,

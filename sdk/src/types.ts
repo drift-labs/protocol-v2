@@ -99,6 +99,11 @@ export class AssetTier {
 	static readonly UNLISTED = { unlisted: {} };
 }
 
+export enum TokenProgramFlag {
+	Token2022 = 1,
+	TransferHook = 2,
+}
+
 export class SwapDirection {
 	static readonly ADD = { add: {} };
 	static readonly REMOVE = { remove: {} };
@@ -723,7 +728,7 @@ export type TransferProtocolIfSharesToRevenuePoolRecord = {
 	ifVaultAmountBefore: BN;
 	protocolSharesBefore: BN;
 	protocolSharesAfter: BN;
-	currentInAmountSinceLastTransfer: BN;
+	transferAmount: BN;
 };
 
 export type StateAccount = {
@@ -902,7 +907,7 @@ export type SpotMarketAccount = {
 	fuelBoostMaker: number;
 	fuelBoostInsurance: number;
 
-	tokenProgram: number;
+	tokenProgramFlag: number;
 
 	poolId: number;
 };
@@ -1507,7 +1512,7 @@ export type IfRebalanceConfigAccount = {
 	totalInAmount: BN;
 	currentInAmount: BN;
 	currentOutAmount: BN;
-	currentInAmountSinceLastTransfer: BN;
+	currentOutAmountTransferred: BN;
 	epochStartTs: BN;
 	epochInAmount: BN;
 	epochMaxInAmount: BN;
