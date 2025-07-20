@@ -177,7 +177,11 @@ pub fn update_spread_reserves(market: &mut PerpMarket) -> DriftResult {
     Ok(())
 }
 
-pub fn update_spreads(market: &mut PerpMarket, reserve_price: u64) -> DriftResult<(u32, u32)> {
+pub fn update_spreads(
+    market: &mut PerpMarket,
+    reserve_price: u64,
+    slot: Option<u64>,
+) -> DriftResult<(u32, u32)> {
     let max_ref_offset = market.amm.get_max_reference_price_offset()?;
 
     let reference_price_offset = if max_ref_offset > 0 {
@@ -207,6 +211,16 @@ pub fn update_spreads(market: &mut PerpMarket, reserve_price: u64) -> DriftResul
         )?
     } else {
         0
+    };
+
+    let do_reference_price_decay = {
+        // sign flip or drop to zero
+        let sign_changed = reference_price_offset == 0
+            || reference_price_offset.signum() != market.amm.reference_price_offset.signum();
+        // currently has over min sized offset
+        let has_offset = market.amm.reference_price_offset.abs() > 1;
+        // do additional check if slot passed
+        sign_changed && has_offset
     };
 
     let (mut long_spread, mut short_spread) = if market.amm.curve_update_intensity > 0 {
@@ -257,7 +271,51 @@ pub fn update_spreads(market: &mut PerpMarket, reserve_price: u64) -> DriftResul
 
     market.amm.long_spread = long_spread;
     market.amm.short_spread = short_spread;
-    market.amm.reference_price_offset = reference_price_offset;
+
+    if do_reference_price_decay {
+        let slots_passed = slot.map_or(0, |s| s.saturating_sub(market.amm.last_update_slot));
+
+        const DECAY_BPS_PER_SLOT: i128 = 12;
+        const BPS_DENOMINATOR: i128 = 100;
+
+        let reference_price_decay = market
+            .amm
+            .reference_price_offset
+            .cast::<i128>()?
+            .safe_mul(DECAY_BPS_PER_SLOT)?
+            .safe_mul(slots_passed.cast::<i128>()?)?
+            .safe_div(BPS_DENOMINATOR)?
+            .cast::<i32>()?
+            .abs()
+            .max(10.min(market.amm.reference_price_offset));
+
+        market.amm.reference_price_offset = market
+            .amm
+            .reference_price_offset
+            .safe_sub(reference_price_decay)?;
+
+        if reference_price_decay > 0 {
+            market.amm.long_spread = market
+                .amm
+                .long_spread
+                .safe_add(reference_price_decay.unsigned_abs())?;
+            market.amm.short_spread = market
+                .amm
+                .short_spread
+                .safe_add(market.amm.reference_price_offset.unsigned_abs())?;
+        } else {
+            market.amm.short_spread = market
+                .amm
+                .short_spread
+                .safe_add(reference_price_decay.unsigned_abs())?;
+            market.amm.long_spread = market
+                .amm
+                .long_spread
+                .safe_add(market.amm.reference_price_offset.unsigned_abs())?;
+        }
+    } else {
+        market.amm.reference_price_offset = reference_price_offset;
+    }
 
     update_spread_reserves(market)?;
 
@@ -302,7 +360,7 @@ pub fn update_concentration_coef(market: &mut PerpMarket, scale: u128) -> DriftR
     market.amm.min_base_asset_reserve = min_base_asset_reserve;
 
     let reserve_price_after = market.amm.reserve_price()?;
-    update_spreads(market, reserve_price_after)?;
+    update_spreads(market, reserve_price_after, None)?;
 
     let (max_bids, max_asks) = amm::calculate_market_open_bids_asks(&market.amm)?;
     validate!(
@@ -798,7 +856,7 @@ pub fn move_price(
     market.amm.min_base_asset_reserve = min_base_asset_reserve;
 
     let reserve_price_after = market.amm.reserve_price()?;
-    update_spreads(market, reserve_price_after)?;
+    update_spreads(market, reserve_price_after, None)?;
 
     Ok(())
 }
@@ -854,7 +912,7 @@ pub fn recenter_perp_market_amm(
     market.amm.min_base_asset_reserve = min_base_asset_reserve;
 
     let reserve_price_after = market.amm.reserve_price()?;
-    update_spreads(market, reserve_price_after)?;
+    update_spreads(market, reserve_price_after, None)?;
 
     Ok(())
 }

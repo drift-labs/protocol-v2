@@ -592,6 +592,157 @@ fn amm_pred_market_example() {
 }
 
 #[test]
+fn amm_ref_price_offset_decay_logic() {
+    // sample btc market
+    let perp_market_str = String::from("Ct8MLGv1N/cV6vWLwJY+18dY2GsrmrNldgnISB7pmbcf7cn9S4FZ4B7U/fA1on6uX4cAPWh+6q5kflQbDzfTC/LJrf1AdS22jhnK8BsAAAAAAAAAAAAAAAEAAAAAAAAA46fs5xsAAADJQ2HmGwAAANhndWgAAAAA0MlT6v///////////////yF75IAAAAAAAAAAAAAAAADHCg8Gw/4GAAAAAAAAAAAAAAAAAAAAAADpl1aFUVEAAAAAAAAAAAAAd5bGp2BRAAAAAAAAAAAAAHxFDwAAAAAAAAAAAAAAAADYi6VkR1EAAAAAAAAAAAAAjzRN3WlRAAAAAAAAAAAAAMF8NBZZUQAAAAAAAAAAAACx1JfrGwAAAAAAAAAAAAAA27hDjVlRAAAAAAAAAAAAAAAvMJpRAAAAAAAAAAAAAACAeFmAtf///////////////VbPGQcAAAAAAAAAAAAAAINQugAAAAAAAAAAAAAAAAAAuEHoLgMAAAAAAAAAAAAA0BBxPAX+/////////////x+EvMLH3v////////////9dJGEqRB4AAAAAAAAAAAAAvT+NfU3e/////////////yp6wB2KHgAAAAAAAAAAAAAAqKvhEAAAAAAAAAAAAAAAPsFFqQAAAAA+wUWpAAAAAD7BRakAAAAAbrDDcQAAAAAaJWKGrwMAAAAAAAAAAAAAS7R+idYBAAAAAAAAAAAAAF2WRnPdAQAAAAAAAAAAAADRdFqB6AIAAAAAAAAAAAAAiHk9siQBAAAAAAAAAAAAANqRAEIxAQAAAAAAAAAAAABxdu2rEhsAAAAAAAAAAAAAluV7kBIbAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC/RQAMTFEAAAAAAAAAAAAAcSSAImZRAAAAAAAAAAAAADqAU5VRUQAAAAAAAAAAAACLt8aXYFEAAAAAAAAAAAAAjhnK8BsAAAAAAAAAAAAAALcQR+kbAAAAFBqR6xsAAABlFWzqGwAAALmLxOgbAAAAqDIPFQAAAABvAAAAAAAAANPXJTQAAAAAxmF1aAAAAAAQDgAAAAAAAKCGAQAAAAAAoIYBAAAAAACghgEAAAAAAAAAAAAAAAAAPM5NNkwmAQAtW2Wj6QQAAAfQ/dycBgAA12d1aAAAAAAj//YHAAAAAF+/cQoAAAAA12d1aAAAAAAUAAAA3AUAAA4CAAAHAAAAAAAAAHgAAADcBTIAZGQMAYCLLeUABf8FcpekBQAAAADLSnrF+v///32cLdP/////AAAAAM4AAAAAAAAAAAAAAP+OXyMvTQcAAAAAAAAAAAAAAAAAAAAAAEJUQy1QRVJQICAgICAgICAgICAgICAgICAgICAgICAgAB8K+v////8A4fUFAAAAAP8PpdToAAAA7YdGAwQAAABBY3VoAAAAAADh9QUAAAAAAAAAAAAAAAAAAAAAAAAAAIdLVAAAAAAAmlgAAAAAAABvBwAAAAAAAGwHAAAAAAAAiBMAAEwdAAD0AQAALAEAAAAAAAAQJwAAwQQAANMDAAABAAEAAAAAAJz/AAAAAGMAQgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
+    let mut decoded_bytes = base64::decode(perp_market_str).unwrap();
+    let perp_market_bytes = decoded_bytes.as_mut_slice();
+
+    let key = Pubkey::default();
+    let owner = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
+    let mut lamports = 0;
+    let perp_market_account_info =
+        create_account_info(&key, true, &mut lamports, perp_market_bytes, &owner);
+
+    let perp_market_loader: AccountLoader<PerpMarket> =
+        AccountLoader::try_from(&perp_market_account_info).unwrap();
+    let mut perp_market = perp_market_loader.load_mut().unwrap();
+
+    let reserve_price = perp_market.amm.reserve_price().unwrap();
+    let (b1, a1) = perp_market.amm.bid_ask_price(reserve_price).unwrap();
+    assert_eq!(reserve_price, 120003893645);
+    assert_eq!(b1, 120003053617);
+    assert_eq!(a1, 120067015693);
+    assert_eq!(
+        perp_market.amm.historical_oracle_data.last_oracle_price,
+        120003893646
+    );
+    assert_eq!(perp_market.amm.reference_price_offset, 0);
+    assert_eq!(perp_market.amm.last_update_slot, 353317544);
+
+    perp_market.amm.curve_update_intensity = 200;
+
+    let max_ref_offset = perp_market.amm.get_max_reference_price_offset().unwrap();
+
+    let liquidity_ratio = crate::math::amm_spread::calculate_inventory_liquidity_ratio(
+        perp_market.amm.base_asset_amount_with_amm,
+        perp_market.amm.base_asset_reserve,
+        perp_market.amm.max_base_asset_reserve,
+        perp_market.amm.min_base_asset_reserve,
+    )
+    .unwrap();
+
+    let signed_liquidity_ratio = liquidity_ratio
+        .checked_mul(
+            (perp_market
+                .amm
+                .get_protocol_owned_position()
+                .unwrap()
+                .signum() as i128),
+        )
+        .unwrap();
+
+    let res = crate::math::amm_spread::calculate_reference_price_offset(
+        reserve_price,
+        perp_market.amm.last_24h_avg_funding_rate,
+        signed_liquidity_ratio,
+        perp_market.amm.min_order_size,
+        perp_market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        perp_market.amm.last_mark_price_twap_5min,
+        perp_market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap,
+        perp_market.amm.last_mark_price_twap,
+        max_ref_offset,
+    )
+    .unwrap();
+    assert_eq!(res, 10000);
+
+    let mut now = perp_market.amm.last_mark_price_twap_ts + 10;
+    let mut clock_slot = 353317544 + 20; // todo
+    let state = State::default();
+    let oracle_price_data = OraclePriceData {
+        price: 120003893646,
+        confidence: PRICE_PRECISION_U64 / 1000,
+        delay: 1,
+        has_sufficient_number_of_data_points: true,
+    };
+    let cost = _update_amm(
+        &mut perp_market,
+        &oracle_price_data,
+        &state,
+        now,
+        clock_slot,
+    )
+    .unwrap();
+    assert_eq!(perp_market.amm.last_update_slot, clock_slot);
+    assert_eq!(perp_market.amm.last_oracle_valid, true);
+    assert_eq!(perp_market.amm.reference_price_offset, 7350);
+
+    perp_market.amm.curve_update_intensity = 0;
+
+    // Run  decay steps
+    let mut offsets = Vec::new();
+    let mut lspreads = Vec::new();
+    let mut sspreads = Vec::new();
+
+    for i in 0..50 {
+        // advance time for next iteration
+
+        // some multiple cranks same slot
+        if i < 6 || i > 9 {
+            now += i % 2;
+            clock_slot += 1;
+        }
+
+        let cost = _update_amm(
+            &mut perp_market,
+            &oracle_price_data,
+            &state,
+            now,
+            clock_slot,
+        )
+        .unwrap();
+        assert_eq!(perp_market.amm.last_update_slot, clock_slot);
+        assert_eq!(perp_market.amm.last_oracle_valid, true);
+
+        // capture the new offset
+        offsets.push(perp_market.amm.reference_price_offset);
+        lspreads.push(perp_market.amm.long_spread);
+        sspreads.push(perp_market.amm.short_spread);
+    }
+
+    assert_eq!(
+        offsets,
+        [
+            6468, 5692, 5009, 4408, 3880, 3415, 3405, 3395, 3385, 3375, 2970, 2614, 2301, 2025,
+            1782, 1569, 1381, 1216, 1071, 943, 830, 731, 644, 567, 499, 440, 388, 342, 301, 265,
+            234, 206, 182, 161, 142, 125, 110, 97, 86, 76, 66, 56, 46, 36, 26, 16, 6, 0, 0, 0
+        ]
+    );
+    assert_eq!(
+        lspreads,
+        [
+            892, 786, 693, 611, 538, 475, 20, 20, 20, 20, 415, 366, 323, 286, 253, 223, 198, 175,
+            155, 138, 123, 109, 97, 87, 78, 69, 62, 56, 51, 46, 41, 38, 34, 31, 29, 27, 25, 23, 21,
+            20, 20, 20, 20, 20, 20, 20, 20, 16, 10, 10
+        ]
+    );
+    assert_eq!(
+        sspreads,
+        [
+            6478, 5702, 5019, 4418, 3890, 3425, 3415, 3405, 3395, 3385, 2980, 2624, 2311, 2035,
+            1792, 1579, 1391, 1226, 1081, 953, 840, 741, 654, 577, 509, 450, 398, 352, 311, 275,
+            244, 216, 192, 171, 152, 135, 120, 107, 96, 86, 76, 66, 56, 46, 36, 26, 16, 10, 10, 10
+        ]
+    );
+}
+
+#[test]
 fn amm_perp_ref_offset() {
     let perp_market_str = String::from("Ct8MLGv1N/frxfcToe675SrQivb0F67YUSLVM3KDMaqsrnwc8fwczsz5oyRPeWWnXBDAXzWarbuAhSPT0bfoyy4yyWBLxtoIoFxsAAAAAAAAAAAAAAAAAAEAAAAAAAAAwt1rAAAAAAAiZmwAAAAAAES4yGcAAAAAtlzFXyUAAAAAAAAAAAAAALSB+4IAAAAAAAAAAAAAAAD2TULXx84AAAAAAAAAAAAAAAAAAAAAAABslCM7QZsQAAAAAAAAAAAAk4WjVa59CAAAAAAAAAAAADxrEgAAAAAAAAAAAAAAAAAFC7zM58ENAAAAAAAAAAAAemIeFLwLFAAAAAAAAAAAAFJYZFbh3wsAAAAAAAAAAAC57tMAAAAAAAAAAAAAAAAAHopkdKl9CAAAAAAAAAAAAACyqjNmBAAAAAAAAAAAAAAA3oQco/v/////////////IX9HiwkAAAAAAAAAAAAAAN8Q6MT///////////////8AgMakfo0DAAAAAAAAAAAANEmHdQAAAAAAAAAAAAAAAE/4Lvzz//////////////8XEpOoCwAAAAAAAAAAAAAABKUfVPP//////////////3ckDIgNAAAAAAAAAAAAAAAAGJUuKwMAAAAAAAAAAAAA/E0BAAAAAAD8TQEAAAAAAPxNAQAAAAAAFlABAAAAAADJ8AhjKAAAAAAAAAAAAAAADJaguhwAAAAAAAAAAAAAAKZ++bELAAAAAAAAAAAAAABae48GKAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMpu/m4UAAAAAAAAAAAAAACjl79nAQAAAAAAAAAAAAAAyZm9ZwEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABqle+hQHQQAAAAAAAAAAAAs/93w86RCAAAAAAAAAAAAGyUIztBmxAAAAAAAAAAAACThaNVrn0IAAAAAAAAAAAAoFxsAAAAAAAAAAAAAAAAAAHSawAAAAAAv+1rAAAAAADg32sAAAAAAAJnbAAAAAAAYVNcEwAAAAChAwAAAAAAADfd8f//////Q63IZwAAAAAQDgAAAAAAAADKmjsAAAAAZAAAAAAAAAAA8gUqAQAAAAAAAAAAAAAAzxOSPQAAAADE4TUGAAAAAAAAAAAAAAAAzHHIZwAAAACAfQAAAAAAAN5+AAAAAAAARLjIZwAAAADoAwAAkF8BAPgBAAD0AQAAqwEAABYBAADoAzIAyGQOAQAAAAAEAAAAYE+5CAAAAADJKrR8AQAAAFf04Pb/////UEYAAAAAAAAAAAAAAAAAAD7kkISSGgAAAAAAAAAAAAAAAAAAAAAAADFNUEVQRS1QRVJQICAgICAgICAgICAgICAgICAgICAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJflAAAAAAAAFj0AAAAAAADYGwAAAAAAAO4CAADuAgAAqGEAAFDDAADECQAA4gQAAAAAAAAQJwAAbQAAAKgAAAAKAAEAAwAAAAAAAAEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
     let mut decoded_bytes = base64::decode(perp_market_str).unwrap();
@@ -666,7 +817,7 @@ fn amm_perp_ref_offset() {
         max_ref_offset,
     )
     .unwrap();
-    assert_eq!(res, 45000);
+    assert_eq!(res, (perp_market.amm.max_spread / 2) as i32);
     assert_eq!(perp_market.amm.reference_price_offset, 18000); // not updated vs market account
 
     let now = 1741207620 + 1;

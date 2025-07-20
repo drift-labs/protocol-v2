@@ -999,7 +999,7 @@ export function calculateSpreadReserves(
 
 	// always allow 10 bps of price offset, up to a half of the market's max_spread
 	let maxOffset = 0;
-	let referencePriceOffset = ZERO;
+	let referencePriceOffset = 0;
 	if (amm.curveUpdateIntensity > 100) {
 		maxOffset = Math.max(
 			amm.maxSpread / 2,
@@ -1025,23 +1025,56 @@ export function calculateSpreadReserves(
 			amm.historicalOracleData.lastOraclePriceTwap,
 			amm.lastMarkPriceTwap,
 			maxOffset
-		);
+		).toNumber();
 	}
 
-	const [longSpread, shortSpread] = calculateSpread(
+	let [longSpread, shortSpread] = calculateSpread(
 		amm,
 		oraclePriceData,
 		now,
 		reservePrice
 	);
 
+	const signChanged =
+		referencePriceOffset === 0 ||
+		Math.sign(referencePriceOffset) !== Math.sign(amm.referencePriceOffset);
+
+	const hasOffset = Math.abs(amm.referencePriceOffset) > 1;
+
+	if (signChanged && hasOffset) {
+		if (oraclePriceData.slot !== amm.lastUpdateSlot) {
+			const rawDecay = Math.trunc(
+				(Math.abs(amm.referencePriceOffset) *
+					12 *
+					(oraclePriceData.slot.toNumber() - amm.lastUpdateSlot.toNumber())) /
+					100
+			);
+			const decay = Math.min(
+				Math.max(rawDecay, 10),
+				Math.abs(amm.referencePriceOffset)
+			);
+
+			if (amm.referencePriceOffset > 0) {
+				referencePriceOffset = amm.referencePriceOffset - decay;
+				longSpread += decay;
+				shortSpread += referencePriceOffset;
+			} else {
+				referencePriceOffset = amm.referencePriceOffset + decay;
+				shortSpread += decay;
+				longSpread += Math.abs(referencePriceOffset);
+			}
+		}
+	} else {
+		amm.referencePriceOffset = referencePriceOffset;
+	}
+
 	const askReserves = calculateSpreadReserve(
-		longSpread + referencePriceOffset.toNumber(),
+		longSpread + referencePriceOffset,
 		PositionDirection.LONG,
 		amm
 	);
 	const bidReserves = calculateSpreadReserve(
-		-shortSpread + referencePriceOffset.toNumber(),
+		-shortSpread + referencePriceOffset,
 		PositionDirection.SHORT,
 		amm
 	);
