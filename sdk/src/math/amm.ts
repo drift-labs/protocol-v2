@@ -1028,7 +1028,7 @@ export function calculateSpreadReserves(
 		).toNumber();
 	}
 
-	let [longSpread, shortSpread] = calculateSpread(
+	const [longSpread, shortSpread] = calculateSpread(
 		amm,
 		oraclePriceData,
 		now,
