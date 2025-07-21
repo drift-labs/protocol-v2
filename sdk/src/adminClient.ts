@@ -5588,7 +5588,7 @@ export class AdminClient extends DriftClient {
 
 	public async updatePerpMarketLpPoolFeeTransferScalar(
 		marketIndex: number,
-		lpFeeTransferScalar: number,
+		lpFeeTransferScalar: number
 	) {
 		const ix = await this.getUpdatePerpMarketLpPoolFeeTransferScalarIx(
 			marketIndex,
@@ -5604,7 +5604,6 @@ export class AdminClient extends DriftClient {
 		lpFeeTransferScalar: number
 	): Promise<TransactionInstruction> {
 		return await this.program.instruction.updatePerpMarketLpPoolFeeTransferScalar(
-			marketIndex,
 			lpFeeTransferScalar,
 			{
 				accounts: {

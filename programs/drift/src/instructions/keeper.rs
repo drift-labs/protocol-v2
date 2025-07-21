@@ -3193,6 +3193,7 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
             .historical_oracle_data
             .last_oracle_price_twap;
         cached_info.oracle_price = oracle_data.price;
+        cached_info.oracle_slot = slot.saturating_sub(oracle_data.delay.max(0i64).cast::<u64>()?);
         cached_info.oracle_delay = oracle_data.delay;
         cached_info.oracle_confidence = oracle_data.confidence;
         cached_info.max_confidence_interval_multiplier =
