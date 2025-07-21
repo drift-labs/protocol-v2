@@ -213,11 +213,6 @@ pub fn update_spreads(
         0
     };
 
-    let do_reference_price_smooth = {
-        // sign flip or drop to zero
-        let sign_changed = reference_price_offset.signum() != market.amm.reference_price_offset.signum();
-    };
-
     let (mut long_spread, mut short_spread) = if market.amm.curve_update_intensity > 0 {
         amm_spread::calculate_spread(
             market.amm.base_spread,
@@ -267,38 +262,50 @@ pub fn update_spreads(
     market.amm.long_spread = long_spread;
     market.amm.short_spread = short_spread;
 
+    let do_reference_price_smooth = {
+        let sign_changed: bool =
+            reference_price_offset.signum() != market.amm.reference_price_offset.signum();
+
+        sign_changed && market.amm.curve_update_intensity > 100
+    };
+
     if do_reference_price_smooth {
         let slots_passed = slot.map_or(0, |s| s.saturating_sub(market.amm.last_update_slot));
 
-        const DECAY_BPS_PER_SLOT: i128 = 12;
-        const BPS_DENOMINATOR: i128 = 100;
+        const BPS_DENOMINATOR: i128 = 10;
 
         let reference_price_delta = {
-            let raw = market
-                .amm
-                .reference_price_offset
+            let full_offset_delta = reference_price_offset
                 .cast::<i128>()?
-                .safe_mul(DECAY_BPS_PER_SLOT)?
-                .safe_mul(slots_passed.cast::<i128>()?)?
+                .saturating_sub(market.amm.reference_price_offset.cast::<i128>()?);
+            let raw = full_offset_delta
+                .abs()
+                .cast::<i128>()?
+                .min(slots_passed.cast::<i128>()?.safe_mul(1000)?)
+                .cast::<i128>()?
                 .safe_div(BPS_DENOMINATOR)?
                 .cast::<i32>()?;
 
-            market.amm.reference_price_offset.signum()
-                * (raw
-                    .abs()
-                    .max(10).min(market.amm.reference_price_offset.abs()))
+            full_offset_delta.signum().cast::<i32>()?
+                * (raw.abs().max(10).min(
+                    market
+                        .amm
+                        .reference_price_offset
+                        .abs()
+                        .max(reference_price_offset.abs()),
+                ))
         };
 
         market.amm.reference_price_offset = market
             .amm
             .reference_price_offset
-            .safe_sub(reference_price_decay)?;
+            .safe_add(reference_price_delta)?;
 
-        if reference_price_decay > 0 {
+        if reference_price_delta < 0 {
             market.amm.long_spread = market
                 .amm
                 .long_spread
-                .safe_add(reference_price_decay.unsigned_abs())?;
+                .safe_add(reference_price_delta.unsigned_abs())?;
             market.amm.short_spread = market
                 .amm
                 .short_spread
@@ -307,7 +314,7 @@ pub fn update_spreads(
             market.amm.short_spread = market
                 .amm
                 .short_spread
-                .safe_add(reference_price_decay.unsigned_abs())?;
+                .safe_add(reference_price_delta.unsigned_abs())?;
             market.amm.long_spread = market
                 .amm
                 .long_spread

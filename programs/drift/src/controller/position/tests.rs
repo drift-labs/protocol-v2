@@ -591,12 +591,9 @@ fn amm_pred_market_example() {
     assert_eq!(cost, 6333935);
 }
 
-
 #[test]
 fn amm_ref_price_decay_tail_test() {
-
-
-let perp_market_str = String::from("Ct8MLGv1N/cYzqS2/5Aqu+5dnPum3Mz7oNSk0pG7qV9BgKAzNA1g8nc/ec1eDI5cjucZIdA9e2tj/SgqABSJFUY3KifRpWXvgRY3AAAAAAAAAAAAAAAAAAAAAAAAAAAA+yI3AAAAAADgJzcAAAAAAHplfmgAAAAAi9Ixko3//////////////0fUBWIAAAAAAAAAAAAAAAAi/zfzqpgAAAAAAAAAAAAAAAAAAAAAAAAc9ScOaLQnAAAAAAAAAAAAbHFuuWqMKAAAAAAAAAAAACaTDwAAAAAAAAAAAAAAAACfXfRpjOwmAAAAAAAAAAAAHqAXzo2NKAAAAAAAAAAAANYlJAjYHygAAAAAAAAAAAAJ8TUAAAAAAAAAAAAAAAAASuGKZ8aFKAAAAAAAAAAAAABwLtd8SAEAAAAAAAAAAAAAXAfmA77+////////////26vRAIIGAAAAAAAAAAAAACUgZLz+//////////////8AAMFv8oYjAAAAAAAAAAAAbA0S9BcAAAAAAAAAAAAAAM879U39/v/////////////2Mm7qzwAAAAAAAAAAAAAA5jPQVPz+/////////////7/NuobVAAAAAAAAAAAAAAAA7Ahc1eIAAAAAAAAAAAAA3PEAAAAAAADc8QAAAAAAANzxAAAAAAAAsP0AAAAAAABuSl53NgAAAAAAAAAAAAAA77CPlhMAAAAAAAAAAAAAAGEv3BsjAAAAAAAAAAAAAABRjl7zNwAAAAAAAAAAAAAA5v6m4RIAAAAAAAAAAAAAAKhxy78MAAAAAAAAAAAAAADNROsgAAAAAAAAAAAAAAAAzUTrIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD+1LD+3HwnAAAAAAAAAAAADp8TwHPFKAAAAAAAAAAAACWcir2K8DQAAAAAAAAAAAAR1RILUGkeAAAAAAAAAAAAgRY3AAAAAAAAAAAAAAAAAM0TNwAAAAAA0Co3AAAAAABOHzcAAAAAAHjoNgAAAAAA7OolFQAAAAD5AAAAAAAAAD11ywAAAAAAR2R+aAAAAAAQDgAAAAAAAADKmjsAAAAAZAAAAAAAAAAA8gUqAQAAAAAAAAAAAAAAqpIRz9oBAACl/xIeCQAAAIh9U7UTAAAAHWV+aAAAAADelgAAAAAAAHkXAAAAAAAAemV+aAAAAADIAAAAECcAAGnFAwDEmgMAAAAAAAkFAAD0ATIAyGQMAQAAAAAEALUAVeKYAgAAAAAxkAyD//////mtMUYAAAAAVWX8/wAAAAAAAAAAAAAAABO5llSEvAAAAAAAAAAAAAAAAAAAAAAAAFhSUC1QRVJQICAgICAgICAgICAgICAgICAgICAgICAgAAAAAAAAAAAAwusLAAAAAADyBSoBAAAAv3vMKQAAAAC3Xn5oAAAAAABlzR0AAAAAAAAAAAAAAAAAAAAAAAAAACjqAQAAAAAAaUQAAAAAAADsBgAAAAAAAPoAAAAAAAAAECcAACBOAADoAwAAigIAAAAAAAAQJwAAUwEAAEABAAANAAEAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
+    let perp_market_str = String::from("Ct8MLGv1N/cYzqS2/5Aqu+5dnPum3Mz7oNSk0pG7qV9BgKAzNA1g8nc/ec1eDI5cjucZIdA9e2tj/SgqABSJFUY3KifRpWXvgRY3AAAAAAAAAAAAAAAAAAAAAAAAAAAA+yI3AAAAAADgJzcAAAAAAHplfmgAAAAAi9Ixko3//////////////0fUBWIAAAAAAAAAAAAAAAAi/zfzqpgAAAAAAAAAAAAAAAAAAAAAAAAc9ScOaLQnAAAAAAAAAAAAbHFuuWqMKAAAAAAAAAAAACaTDwAAAAAAAAAAAAAAAACfXfRpjOwmAAAAAAAAAAAAHqAXzo2NKAAAAAAAAAAAANYlJAjYHygAAAAAAAAAAAAJ8TUAAAAAAAAAAAAAAAAASuGKZ8aFKAAAAAAAAAAAAABwLtd8SAEAAAAAAAAAAAAAXAfmA77+////////////26vRAIIGAAAAAAAAAAAAACUgZLz+//////////////8AAMFv8oYjAAAAAAAAAAAAbA0S9BcAAAAAAAAAAAAAAM879U39/v/////////////2Mm7qzwAAAAAAAAAAAAAA5jPQVPz+/////////////7/NuobVAAAAAAAAAAAAAAAA7Ahc1eIAAAAAAAAAAAAA3PEAAAAAAADc8QAAAAAAANzxAAAAAAAAsP0AAAAAAABuSl53NgAAAAAAAAAAAAAA77CPlhMAAAAAAAAAAAAAAGEv3BsjAAAAAAAAAAAAAABRjl7zNwAAAAAAAAAAAAAA5v6m4RIAAAAAAAAAAAAAAKhxy78MAAAAAAAAAAAAAADNROsgAAAAAAAAAAAAAAAAzUTrIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD+1LD+3HwnAAAAAAAAAAAADp8TwHPFKAAAAAAAAAAAACWcir2K8DQAAAAAAAAAAAAR1RILUGkeAAAAAAAAAAAAgRY3AAAAAAAAAAAAAAAAAM0TNwAAAAAA0Co3AAAAAABOHzcAAAAAAHjoNgAAAAAA7OolFQAAAAD5AAAAAAAAAD11ywAAAAAAR2R+aAAAAAAQDgAAAAAAAADKmjsAAAAAZAAAAAAAAAAA8gUqAQAAAAAAAAAAAAAAqpIRz9oBAACl/xIeCQAAAIh9U7UTAAAAHWV+aAAAAADelgAAAAAAAHkXAAAAAAAAemV+aAAAAADIAAAAECcAAGnFAwDEmgMAAAAAAAkFAAD0ATIAyGQMAQAAAAAEALUAVeKYAgAAAAAxkAyD//////mtMUYAAAAAVWX8/wAAAAAAAAAAAAAAABO5llSEvAAAAAAAAAAAAAAAAAAAAAAAAFhSUC1QRVJQICAgICAgICAgICAgICAgICAgICAgICAgAAAAAAAAAAAAwusLAAAAAADyBSoBAAAAv3vMKQAAAAC3Xn5oAAAAAABlzR0AAAAAAAAAAAAAAAAAAAAAAAAAACjqAQAAAAAAaUQAAAAAAADsBgAAAAAAAPoAAAAAAAAAECcAACBOAADoAwAAigIAAAAAAAAQJwAAUwEAAEABAAANAAEAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
     let mut decoded_bytes = base64::decode(perp_market_str).unwrap();
     let perp_market_bytes = decoded_bytes.as_mut_slice();
 
@@ -626,7 +623,7 @@ let perp_market_str = String::from("Ct8MLGv1N/cYzqS2/5Aqu+5dnPum3Mz7oNSk0pG7qV9B
 
     let max_ref_offset = perp_market.amm.get_max_reference_price_offset().unwrap();
     assert_eq!(max_ref_offset, 10000);
-    
+
     let liquidity_ratio = crate::math::amm_spread::calculate_inventory_liquidity_ratio(
         perp_market.amm.base_asset_amount_with_amm,
         perp_market.amm.base_asset_reserve,
@@ -665,8 +662,8 @@ let perp_market_str = String::from("Ct8MLGv1N/cYzqS2/5Aqu+5dnPum3Mz7oNSk0pG7qV9B
     .unwrap();
     assert_eq!(res, 0);
 
-    let mut now = perp_market.amm.last_mark_price_twap_ts + 10;
-    let mut clock_slot = 354806508 + 20; // todo
+    let mut now = perp_market.amm.last_mark_price_twap_ts + 1;
+    let mut clock_slot = 354806508 + 1; // todo
     let state = State::default();
     let oracle_price_data = OraclePriceData {
         price: 3610241,
@@ -684,21 +681,20 @@ let perp_market_str = String::from("Ct8MLGv1N/cYzqS2/5Aqu+5dnPum3Mz7oNSk0pG7qV9B
     .unwrap();
     assert_eq!(perp_market.amm.last_update_slot, clock_slot);
     assert_eq!(perp_market.amm.last_oracle_valid, true);
-    assert_eq!(perp_market.amm.reference_price_offset, -236193);
-
+    assert_eq!(perp_market.amm.reference_price_offset, -236093);
 
     // Run  decay steps
     let mut offsets = Vec::new();
     let mut lspreads = Vec::new();
     let mut sspreads = Vec::new();
 
-    for i in 0..50 {
+    for i in 0..60 {
         // advance time for next iteration
 
         // some multiple cranks same slot
         if i < 6 || i > 9 {
-            now += i % 2;
-            clock_slot += 1;
+            now += 250;
+            clock_slot += 700;
         }
 
         let cost = _update_amm(
@@ -721,25 +717,31 @@ let perp_market_str = String::from("Ct8MLGv1N/cYzqS2/5Aqu+5dnPum3Mz7oNSk0pG7qV9B
     assert_eq!(
         offsets,
         [
-            6468, 5692, 5009, 4408, 3880, 3415, 3405, 3395, 3385, 3375, 2970, 2614, 2301, 2025,
-            1782, 1569, 1381, 1216, 1071, 943, 830, 731, 644, 567, 499, 440, 388, 342, 301, 265,
-            234, 206, 182, 161, 142, 125, 110, 97, 86, 76, 66, 56, 46, 36, 26, 16, 6, 0, 0, 0
+            -212475, -191219, -172089, -154872, -139376, -125430, -125410, -125390, -125370,
+            -125350, -112806, -101517, -91357, -82213, -73983, -66576, -59910, -53910, -48510,
+            -43650, -39276, -35340, -31797, -28609, -25740, -23157, -20833, -18741, -16858, -15164,
+            -13639, -12267, -11032, -9920, -8919, -8019, -7209, -6480, -5823, -5232, -4700, -4221,
+            -3790, -3402, -3053, -2739, -2457, -2203, -1974, -1768, -1583, -1416, -1266, -1131,
+            -1009, -900, -801, -712, -632, -560
         ]
     );
     assert_eq!(
         lspreads,
         [
-            892, 786, 693, 611, 538, 475, 20, 20, 20, 20, 415, 366, 323, 286, 253, 223, 198, 175,
-            155, 138, 123, 109, 97, 87, 78, 69, 62, 56, 51, 46, 41, 38, 34, 31, 29, 27, 25, 23, 21,
-            20, 20, 20, 20, 20, 20, 20, 20, 16, 10, 10
+            212587, 191331, 172201, 154984, 139488, 125542, 125522, 125502, 125482, 125462, 112918,
+            101629, 91469, 82325, 74095, 66688, 60022, 54022, 48622, 43762, 39388, 35452, 31909,
+            28721, 25852, 23269, 20945, 18853, 16970, 15276, 13751, 12379, 11144, 10032, 9031,
+            8131, 7321, 6592, 5935, 5344, 4812, 4333, 3902, 3514, 3165, 2851, 2569, 2315, 2086,
+            1880, 1695, 1528, 1378, 1243, 1121, 1012, 913, 824, 744, 672
         ]
     );
     assert_eq!(
         sspreads,
         [
-            6478, 5702, 5019, 4418, 3890, 3425, 3415, 3405, 3395, 3385, 2980, 2624, 2311, 2035,
-            1792, 1579, 1391, 1226, 1081, 953, 840, 741, 654, 577, 509, 450, 398, 352, 311, 275,
-            244, 216, 192, 171, 152, 135, 120, 107, 96, 86, 76, 66, 56, 46, 36, 26, 16, 10, 10, 10
+            23633, 21271, 19145, 17232, 15511, 13961, 35, 35, 35, 35, 12559, 11304, 10175, 9159,
+            8245, 7422, 6681, 6015, 5415, 4875, 4389, 3951, 3558, 3203, 2884, 2598, 2339, 2107,
+            1898, 1709, 1540, 1387, 1250, 1127, 1016, 915, 825, 744, 672, 606, 547, 494, 446, 403,
+            364, 329, 297, 269, 244, 221, 200, 182, 165, 150, 137, 124, 114, 104, 95, 87
         ]
     );
 
@@ -843,20 +845,25 @@ fn amm_ref_price_offset_decay_logic() {
     assert_eq!(perp_market.amm.last_oracle_valid, true);
     assert_eq!(perp_market.amm.reference_price_offset, 7350);
 
-    perp_market.amm.curve_update_intensity = 0;
+    perp_market.amm.last_mark_price_twap_5min = (perp_market
+        .amm
+        .historical_oracle_data
+        .last_oracle_price_twap_5min
+        * 99
+        / 100) as u64;
 
     // Run  decay steps
     let mut offsets = Vec::new();
     let mut lspreads = Vec::new();
     let mut sspreads = Vec::new();
 
-    for i in 0..50 {
+    for i in 0..60 {
         // advance time for next iteration
 
         // some multiple cranks same slot
         if i < 6 || i > 9 {
-            now += i % 2;
-            clock_slot += 1;
+            now += 1;
+            clock_slot += 2;
         }
 
         let cost = _update_amm(
@@ -879,25 +886,28 @@ fn amm_ref_price_offset_decay_logic() {
     assert_eq!(
         offsets,
         [
-            6468, 5692, 5009, 4408, 3880, 3415, 3405, 3395, 3385, 3375, 2970, 2614, 2301, 2025,
-            1782, 1569, 1381, 1216, 1071, 943, 830, 731, 644, 567, 499, 440, 388, 342, 301, 265,
-            234, 206, 182, 161, 142, 125, 110, 97, 86, 76, 66, 56, 46, 36, 26, 16, 6, 0, 0, 0
+            7140, 6930, 6720, 6510, 6300, 6090, 6070, 6050, 6030, 6010, 5800, 5590, 5380, 5170,
+            4960, 4750, 4540, 4330, 4120, 3910, 3700, 3490, 3280, 3070, 2860, 2650, 2440, 2230,
+            2020, 1810, 1620, 1449, 1296, 1158, 1034, 922, 821, 730, 648, 575, 509, 450, 396, 348,
+            305, 266, 231, 199, 171, 145, 122, 101, 81, 61, 41, 21, 1, 0, 0, 0
         ]
     );
     assert_eq!(
         lspreads,
         [
-            892, 786, 693, 611, 538, 475, 20, 20, 20, 20, 415, 366, 323, 286, 253, 223, 198, 175,
-            155, 138, 123, 109, 97, 87, 78, 69, 62, 56, 51, 46, 41, 38, 34, 31, 29, 27, 25, 23, 21,
-            20, 20, 20, 20, 20, 20, 20, 20, 16, 10, 10
+            726, 726, 726, 726, 726, 726, 536, 536, 536, 536, 726, 726, 726, 726, 726, 726, 726,
+            726, 726, 726, 726, 726, 726, 726, 726, 726, 726, 726, 726, 726, 706, 687, 669, 654,
+            640, 628, 617, 607, 598, 589, 582, 575, 570, 564, 559, 555, 551, 548, 544, 542, 539,
+            537, 536, 536, 536, 536, 536, 526, 526, 526
         ]
     );
     assert_eq!(
         sspreads,
         [
-            6478, 5702, 5019, 4418, 3890, 3425, 3415, 3405, 3395, 3385, 2980, 2624, 2311, 2035,
-            1792, 1579, 1391, 1226, 1081, 953, 840, 741, 654, 577, 509, 450, 398, 352, 311, 275,
-            244, 216, 192, 171, 152, 135, 120, 107, 96, 86, 76, 66, 56, 46, 36, 26, 16, 10, 10, 10
+            7147, 6937, 6727, 6517, 6307, 6097, 6077, 6057, 6037, 6017, 5807, 5596, 5386, 5176,
+            4966, 4756, 4546, 4336, 4126, 3916, 3706, 3496, 3286, 3076, 2866, 2656, 2446, 2236,
+            2026, 1816, 1626, 1455, 1302, 1164, 1040, 928, 827, 736, 654, 581, 515, 456, 402, 354,
+            311, 272, 237, 205, 177, 151, 128, 107, 87, 67, 47, 27, 7, 6, 6, 6
         ]
     );
 }
@@ -994,7 +1004,12 @@ fn amm_negative_ref_price_offset_decay_logic() {
     assert_eq!(perp_market.amm.last_oracle_valid, true);
     assert_eq!(perp_market.amm.reference_price_offset, 7350);
 
-    perp_market.amm.curve_update_intensity = 0;
+    perp_market.amm.last_mark_price_twap_5min = (perp_market
+        .amm
+        .historical_oracle_data
+        .last_oracle_price_twap_5min
+        * 101
+        / 100) as u64;
     perp_market.amm.reference_price_offset = -1 * perp_market.amm.reference_price_offset;
 
     // Run  decay steps
@@ -1002,13 +1017,13 @@ fn amm_negative_ref_price_offset_decay_logic() {
     let mut lspreads = Vec::new();
     let mut sspreads = Vec::new();
 
-    for i in 0..50 {
+    for i in 0..80 {
         // advance time for next iteration
 
         // some multiple cranks same slot
         if i < 6 || i > 9 {
-            now += i % 2;
-            clock_slot += 1;
+            now += 1;
+            clock_slot += 2;
         }
 
         let cost = _update_amm(
@@ -1031,26 +1046,33 @@ fn amm_negative_ref_price_offset_decay_logic() {
     assert_eq!(
         offsets,
         [
-            -6468, -5692, -5009, -4408, -3880, -3415, -3405, -3395, -3385, -3375, -2970, -2614,
-            -2301, -2025, -1782, -1569, -1381, -1216, -1071, -943, -830, -731, -644, -567, -499,
-            -440, -388, -342, -301, -265, -234, -206, -182, -161, -142, -125, -110, -97, -86, -76,
-            -66, -56, -46, -36, -26, -16, -6, 0, 0, 0
+            -7140, -6930, -6720, -6510, -6300, -6090, -6070, -6050, -6030, -6010, -5800, -5590,
+            -5380, -5170, -4960, -4750, -4540, -4330, -4120, -3910, -3700, -3490, -3280, -3070,
+            -2860, -2650, -2440, -2230, -2020, -1810, -1600, -1390, -1180, -970, -760, -550, -340,
+            -130, 80, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000,
+            10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000,
+            10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000,
+            10000, 10000, 10000, 10000, 10000, 10000
         ]
     );
     assert_eq!(
         sspreads,
         [
-            892, 786, 693, 611, 538, 475, 20, 20, 20, 20, 415, 366, 323, 286, 253, 223, 198, 175,
-            155, 138, 123, 109, 97, 87, 78, 69, 62, 56, 51, 46, 41, 38, 34, 31, 29, 27, 25, 23, 21,
-            20, 20, 20, 20, 20, 20, 20, 20, 16, 10, 10
+            207, 207, 207, 207, 207, 207, 17, 17, 17, 17, 207, 206, 206, 206, 206, 206, 206, 206,
+            206, 206, 206, 206, 206, 206, 206, 206, 206, 206, 206, 206, 206, 206, 206, 206, 206,
+            206, 206, 206, 206, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+            6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6
         ]
     );
     assert_eq!(
         lspreads,
         [
-            6478, 5702, 5019, 4418, 3890, 3425, 3415, 3405, 3395, 3385, 2980, 2624, 2311, 2035,
-            1792, 1579, 1391, 1226, 1081, 953, 840, 741, 654, 577, 509, 450, 398, 352, 311, 275,
-            244, 216, 192, 171, 152, 135, 120, 107, 96, 86, 76, 66, 56, 46, 36, 26, 16, 10, 10, 10
+            7666, 7456, 7246, 7036, 6826, 6616, 6596, 6576, 6556, 6536, 6326, 6116, 5906, 5696,
+            5486, 5276, 5066, 4856, 4646, 4436, 4226, 4016, 3806, 3596, 3386, 3176, 2966, 2756,
+            2546, 2336, 2126, 1916, 1706, 1496, 1286, 1076, 866, 656, 606, 526, 526, 526, 526, 526,
+            526, 526, 526, 526, 526, 526, 526, 526, 526, 526, 526, 526, 526, 526, 526, 526, 526,
+            526, 526, 526, 526, 526, 526, 526, 526, 526, 526, 526, 526, 526, 526, 526, 526, 526,
+            526, 526
         ]
     );
 }

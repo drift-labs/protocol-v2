@@ -1035,38 +1035,37 @@ export function calculateSpreadReserves(
 		reservePrice
 	);
 
-	const signChanged =
-		referencePriceOffset === 0 ||
-		Math.sign(referencePriceOffset) !== Math.sign(amm.referencePriceOffset);
+	const doReferencePricOffsetSmooth =
+		Math.sign(referencePriceOffset) !== Math.sign(amm.referencePriceOffset) &&
+		amm.curveUpdateIntensity > 100;
 
-	const hasOffset = Math.abs(amm.referencePriceOffset) > 1;
-
-	if (signChanged && hasOffset) {
+	if (doReferencePricOffsetSmooth) {
 		if (oraclePriceData.slot !== amm.lastUpdateSlot) {
-			const rawDecay = Math.trunc(
-				(Math.abs(amm.referencePriceOffset) *
-					12 *
-					(oraclePriceData.slot.toNumber() - amm.lastUpdateSlot.toNumber())) /
-					100
+			const BPS_DENOMINATOR = 10;
+			const slotsPassed =
+				oraclePriceData.slot.toNumber() - amm.lastUpdateSlot.toNumber();
+			const fullOffsetDelta = referencePriceOffset - amm.referencePriceOffset;
+			const raw = Math.trunc(
+				Math.min(Math.abs(fullOffsetDelta), slotsPassed * 1000) /
+					BPS_DENOMINATOR
 			);
+			const maxAllowed = Math.max(
+				Math.abs(amm.referencePriceOffset),
+				Math.abs(referencePriceOffset)
+			);
+			const magnitude = Math.min(Math.max(raw, 10), maxAllowed);
+			const referencePriceDelta = Math.sign(fullOffsetDelta) * magnitude;
 
-			const maxOffset = Math.abs(amm.referencePriceOffset);
-			const decayMagnitude = Math.min(Math.max(rawDecay, 10), maxOffset);
+			referencePriceOffset = amm.referencePriceOffset + referencePriceDelta;
 
-			const decay = Math.sign(amm.referencePriceOffset) * decayMagnitude;
-
-			if (amm.referencePriceOffset > 0) {
-				referencePriceOffset = amm.referencePriceOffset - decay;
-				longSpread += decay;
-				shortSpread += referencePriceOffset;
+			if (referencePriceDelta < 0) {
+				longSpread += Math.abs(referencePriceDelta);
+				shortSpread += Math.abs(referencePriceOffset);
 			} else {
-				referencePriceOffset = amm.referencePriceOffset + decay;
-				shortSpread += decay;
+				shortSpread += Math.abs(referencePriceDelta);
 				longSpread += Math.abs(referencePriceOffset);
 			}
 		}
-	} else {
-		amm.referencePriceOffset = referencePriceOffset;
 	}
 
 	const askReserves = calculateSpreadReserve(
