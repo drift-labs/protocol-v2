@@ -954,7 +954,6 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
         )
         .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
 
-        user.update_last_active_slot(clock.slot);
     }
 
     let spot_market = spot_market_map.get_quote_spot_market()?;
@@ -1040,7 +1039,6 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
             )
             .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
 
-            user.update_last_active_slot(clock.slot);
         }
     }
 
