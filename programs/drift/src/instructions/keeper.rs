@@ -2761,6 +2761,15 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
+    let in_high_leverage_mode = user.is_high_leverage_mode(MarginRequirementType::Maintenance);
+    validate!(
+        in_high_leverage_mode,
+        ErrorCode::DefaultError,
+        "user is not in high leverage mode"
+    )?;
+
+    let old_margin_mode = user.margin_mode;
+
     if disable_maintenance {
         validate!(
             user.margin_mode == MarginMode::HighLeverageMaintenance,
@@ -2770,13 +2779,26 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
 
         user.margin_mode = MarginMode::Default;
     } else {
-        validate!(
-            user.margin_mode == MarginMode::HighLeverage,
-            ErrorCode::DefaultError,
-            "user must be in high leverage mode"
-        )?;
+        let mut has_high_leverage_pos = false;
+        for position in user.perp_positions.iter().filter(|p| !p.is_available()) {
+            let perp_market = perp_market_map.get_ref(&position.market_index)?;
+            if perp_market.is_high_leverage_mode_enabled() {
+                has_high_leverage_pos = true;
+                break;
+            }
+        }
 
-        user.margin_mode = MarginMode::HighLeverageMaintenance;
+        if !has_high_leverage_pos {
+            user.margin_mode = MarginMode::Default;
+        } else {
+            validate!(
+                user.margin_mode == MarginMode::HighLeverage,
+                ErrorCode::DefaultError,
+                "user must be in high leverage mode"
+            )?;
+
+            user.margin_mode = MarginMode::HighLeverageMaintenance;
+        }
     }
 
     let custom_margin_ratio_before = user.max_margin_ratio;
@@ -2830,8 +2852,15 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
 
     let mut config = load_mut!(ctx.accounts.high_leverage_mode_config)?;
 
-    config.current_users = config.current_users.safe_sub(1)?;
-    config.current_maintenance_users = config.current_maintenance_users.safe_add(1)?;
+    if old_margin_mode == MarginMode::HighLeverageMaintenance {
+        config.current_maintenance_users = config.current_maintenance_users.safe_sub(1)?;
+    } else {
+        config.current_users = config.current_users.safe_sub(1)?;
+    }
+
+    if user.margin_mode == MarginMode::HighLeverageMaintenance {
+        config.current_maintenance_users = config.current_maintenance_users.safe_add(1)?;
+    }
 
     config.validate()?;
 
