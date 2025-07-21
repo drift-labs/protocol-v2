@@ -1,6 +1,6 @@
 {
 	"name": "@drift-labs/sdk",
-	"version": "2.128.0",
+	"version": "2.129.0-beta.0",
 	"main": "lib/node/index.js",
 	"types": "lib/node/index.d.ts",
 	"browser": "./lib/browser/index.js",
