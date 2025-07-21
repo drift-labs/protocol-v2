@@ -591,6 +591,166 @@ fn amm_pred_market_example() {
     assert_eq!(cost, 6333935);
 }
 
+
+#[test]
+fn amm_ref_price_decay_tail_test() {
+
+
+let perp_market_str = String::from("Ct8MLGv1N/cYzqS2/5Aqu+5dnPum3Mz7oNSk0pG7qV9BgKAzNA1g8nc/ec1eDI5cjucZIdA9e2tj/SgqABSJFUY3KifRpWXvgRY3AAAAAAAAAAAAAAAAAAAAAAAAAAAA+yI3AAAAAADgJzcAAAAAAHplfmgAAAAAi9Ixko3//////////////0fUBWIAAAAAAAAAAAAAAAAi/zfzqpgAAAAAAAAAAAAAAAAAAAAAAAAc9ScOaLQnAAAAAAAAAAAAbHFuuWqMKAAAAAAAAAAAACaTDwAAAAAAAAAAAAAAAACfXfRpjOwmAAAAAAAAAAAAHqAXzo2NKAAAAAAAAAAAANYlJAjYHygAAAAAAAAAAAAJ8TUAAAAAAAAAAAAAAAAASuGKZ8aFKAAAAAAAAAAAAABwLtd8SAEAAAAAAAAAAAAAXAfmA77+////////////26vRAIIGAAAAAAAAAAAAACUgZLz+//////////////8AAMFv8oYjAAAAAAAAAAAAbA0S9BcAAAAAAAAAAAAAAM879U39/v/////////////2Mm7qzwAAAAAAAAAAAAAA5jPQVPz+/////////////7/NuobVAAAAAAAAAAAAAAAA7Ahc1eIAAAAAAAAAAAAA3PEAAAAAAADc8QAAAAAAANzxAAAAAAAAsP0AAAAAAABuSl53NgAAAAAAAAAAAAAA77CPlhMAAAAAAAAAAAAAAGEv3BsjAAAAAAAAAAAAAABRjl7zNwAAAAAAAAAAAAAA5v6m4RIAAAAAAAAAAAAAAKhxy78MAAAAAAAAAAAAAADNROsgAAAAAAAAAAAAAAAAzUTrIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD+1LD+3HwnAAAAAAAAAAAADp8TwHPFKAAAAAAAAAAAACWcir2K8DQAAAAAAAAAAAAR1RILUGkeAAAAAAAAAAAAgRY3AAAAAAAAAAAAAAAAAM0TNwAAAAAA0Co3AAAAAABOHzcAAAAAAHjoNgAAAAAA7OolFQAAAAD5AAAAAAAAAD11ywAAAAAAR2R+aAAAAAAQDgAAAAAAAADKmjsAAAAAZAAAAAAAAAAA8gUqAQAAAAAAAAAAAAAAqpIRz9oBAACl/xIeCQAAAIh9U7UTAAAAHWV+aAAAAADelgAAAAAAAHkXAAAAAAAAemV+aAAAAADIAAAAECcAAGnFAwDEmgMAAAAAAAkFAAD0ATIAyGQMAQAAAAAEALUAVeKYAgAAAAAxkAyD//////mtMUYAAAAAVWX8/wAAAAAAAAAAAAAAABO5llSEvAAAAAAAAAAAAAAAAAAAAAAAAFhSUC1QRVJQICAgICAgICAgICAgICAgICAgICAgICAgAAAAAAAAAAAAwusLAAAAAADyBSoBAAAAv3vMKQAAAAC3Xn5oAAAAAABlzR0AAAAAAAAAAAAAAAAAAAAAAAAAACjqAQAAAAAAaUQAAAAAAADsBgAAAAAAAPoAAAAAAAAAECcAACBOAADoAwAAigIAAAAAAAAQJwAAUwEAAEABAAANAAEAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
+    let mut decoded_bytes = base64::decode(perp_market_str).unwrap();
+    let perp_market_bytes = decoded_bytes.as_mut_slice();
+
+    let key = Pubkey::default();
+    let owner = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
+    let mut lamports = 0;
+    let perp_market_account_info =
+        create_account_info(&key, true, &mut lamports, perp_market_bytes, &owner);
+
+    let perp_market_loader: AccountLoader<PerpMarket> =
+        AccountLoader::try_from(&perp_market_account_info).unwrap();
+    let mut perp_market = perp_market_loader.load_mut().unwrap();
+
+    let reserve_price = perp_market.amm.reserve_price().unwrap();
+    let (b1, a1) = perp_market.amm.bid_ask_price(reserve_price).unwrap();
+    assert_eq!(reserve_price, 3610239);
+    assert_eq!(b1, 1904650);
+    assert_eq!(a1, 3649742);
+    assert_eq!(
+        perp_market.amm.historical_oracle_data.last_oracle_price,
+        3610241
+    );
+    assert_eq!(perp_market.amm.reference_price_offset, -236203);
+    assert_eq!(perp_market.amm.last_update_slot, 354806508);
+
+    perp_market.amm.curve_update_intensity = 200;
+
+    let max_ref_offset = perp_market.amm.get_max_reference_price_offset().unwrap();
+    assert_eq!(max_ref_offset, 10000);
+    
+    let liquidity_ratio = crate::math::amm_spread::calculate_inventory_liquidity_ratio(
+        perp_market.amm.base_asset_amount_with_amm,
+        perp_market.amm.base_asset_reserve,
+        perp_market.amm.max_base_asset_reserve,
+        perp_market.amm.min_base_asset_reserve,
+    )
+    .unwrap();
+
+    let signed_liquidity_ratio = liquidity_ratio
+        .checked_mul(
+            (perp_market
+                .amm
+                .get_protocol_owned_position()
+                .unwrap()
+                .signum() as i128),
+        )
+        .unwrap();
+
+    let res = crate::math::amm_spread::calculate_reference_price_offset(
+        reserve_price,
+        perp_market.amm.last_24h_avg_funding_rate,
+        signed_liquidity_ratio,
+        perp_market.amm.min_order_size,
+        perp_market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+        perp_market.amm.last_mark_price_twap_5min,
+        perp_market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap,
+        perp_market.amm.last_mark_price_twap,
+        max_ref_offset,
+    )
+    .unwrap();
+    assert_eq!(res, 0);
+
+    let mut now = perp_market.amm.last_mark_price_twap_ts + 10;
+    let mut clock_slot = 354806508 + 20; // todo
+    let state = State::default();
+    let oracle_price_data = OraclePriceData {
+        price: 3610241,
+        confidence: PRICE_PRECISION_U64 / 100000,
+        delay: 1,
+        has_sufficient_number_of_data_points: true,
+    };
+    let cost = _update_amm(
+        &mut perp_market,
+        &oracle_price_data,
+        &state,
+        now,
+        clock_slot,
+    )
+    .unwrap();
+    assert_eq!(perp_market.amm.last_update_slot, clock_slot);
+    assert_eq!(perp_market.amm.last_oracle_valid, true);
+    assert_eq!(perp_market.amm.reference_price_offset, -236193);
+
+
+    // Run  decay steps
+    let mut offsets = Vec::new();
+    let mut lspreads = Vec::new();
+    let mut sspreads = Vec::new();
+
+    for i in 0..50 {
+        // advance time for next iteration
+
+        // some multiple cranks same slot
+        if i < 6 || i > 9 {
+            now += i % 2;
+            clock_slot += 1;
+        }
+
+        let cost = _update_amm(
+            &mut perp_market,
+            &oracle_price_data,
+            &state,
+            now,
+            clock_slot,
+        )
+        .unwrap();
+        assert_eq!(perp_market.amm.last_update_slot, clock_slot);
+        assert_eq!(perp_market.amm.last_oracle_valid, true);
+
+        // capture the new offset
+        offsets.push(perp_market.amm.reference_price_offset);
+        lspreads.push(perp_market.amm.long_spread);
+        sspreads.push(perp_market.amm.short_spread);
+    }
+
+    assert_eq!(
+        offsets,
+        [
+            6468, 5692, 5009, 4408, 3880, 3415, 3405, 3395, 3385, 3375, 2970, 2614, 2301, 2025,
+            1782, 1569, 1381, 1216, 1071, 943, 830, 731, 644, 567, 499, 440, 388, 342, 301, 265,
+            234, 206, 182, 161, 142, 125, 110, 97, 86, 76, 66, 56, 46, 36, 26, 16, 6, 0, 0, 0
+        ]
+    );
+    assert_eq!(
+        lspreads,
+        [
+            892, 786, 693, 611, 538, 475, 20, 20, 20, 20, 415, 366, 323, 286, 253, 223, 198, 175,
+            155, 138, 123, 109, 97, 87, 78, 69, 62, 56, 51, 46, 41, 38, 34, 31, 29, 27, 25, 23, 21,
+            20, 20, 20, 20, 20, 20, 20, 20, 16, 10, 10
+        ]
+    );
+    assert_eq!(
+        sspreads,
+        [
+            6478, 5702, 5019, 4418, 3890, 3425, 3415, 3405, 3395, 3385, 2980, 2624, 2311, 2035,
+            1792, 1579, 1391, 1226, 1081, 953, 840, 741, 654, 577, 509, 450, 398, 352, 311, 275,
+            244, 216, 192, 171, 152, 135, 120, 107, 96, 86, 76, 66, 56, 46, 36, 26, 16, 10, 10, 10
+        ]
+    );
+
+    // perp_market.amm.curve_update_intensity = 0;
+
+    // Run  decay steps
+    // let mut offsets = Vec::new();
+    // let mut lspreads = Vec::new();
+    // let mut sspreads = Vec::new();
+}
+
 #[test]
 fn amm_ref_price_offset_decay_logic() {
     // sample btc market
