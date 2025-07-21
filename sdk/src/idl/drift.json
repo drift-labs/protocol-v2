@@ -4832,6 +4832,32 @@
       ]
     },
     {
+      "name": "updatePerpMarketLpPoolFeeTransferScalar",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "lpFeeTransferScalar",
+          "type": "u8"
+        }
+      ]
+    },
+    {
       "name": "settleExpiredMarketPoolsToRevenuePool",
       "accounts": [
         {
