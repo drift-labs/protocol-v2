@@ -1041,13 +1041,12 @@ export function calculateSpreadReserves(
 
 	if (doReferencePricOffsetSmooth) {
 		if (oraclePriceData.slot !== amm.lastUpdateSlot) {
-			const BPS_DENOMINATOR = 10;
 			const slotsPassed =
 				oraclePriceData.slot.toNumber() - amm.lastUpdateSlot.toNumber();
 			const fullOffsetDelta = referencePriceOffset - amm.referencePriceOffset;
 			const raw = Math.trunc(
 				Math.min(Math.abs(fullOffsetDelta), slotsPassed * 1000) /
-					BPS_DENOMINATOR
+					10
 			);
 			const maxAllowed = Math.max(
 				Math.abs(amm.referencePriceOffset),
