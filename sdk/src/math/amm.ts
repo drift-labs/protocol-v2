@@ -1035,40 +1035,6 @@ export function calculateSpreadReserves(
 		reservePrice
 	);
 
-	const signChanged =
-		referencePriceOffset === 0 ||
-		Math.sign(referencePriceOffset) !== Math.sign(amm.referencePriceOffset);
-
-	const hasOffset = Math.abs(amm.referencePriceOffset) > 1;
-
-	if (signChanged && hasOffset) {
-		if (oraclePriceData.slot !== amm.lastUpdateSlot) {
-			const rawDecay = Math.trunc(
-				(Math.abs(amm.referencePriceOffset) *
-					12 *
-					(oraclePriceData.slot.toNumber() - amm.lastUpdateSlot.toNumber())) /
-					100
-			);
-
-			const maxOffset = Math.abs(amm.referencePriceOffset);
-			const decayMagnitude = Math.min(Math.max(rawDecay, 10), maxOffset);
-
-			const decay = Math.sign(amm.referencePriceOffset) * decayMagnitude;
-
-			if (amm.referencePriceOffset > 0) {
-				referencePriceOffset = amm.referencePriceOffset - decay;
-				longSpread += decay;
-				shortSpread += referencePriceOffset;
-			} else {
-				referencePriceOffset = amm.referencePriceOffset + decay;
-				shortSpread += decay;
-				longSpread += Math.abs(referencePriceOffset);
-			}
-		}
-	} else {
-		amm.referencePriceOffset = referencePriceOffset;
-	}
-
 	const askReserves = calculateSpreadReserve(
 		longSpread + referencePriceOffset,
 		PositionDirection.LONG,
