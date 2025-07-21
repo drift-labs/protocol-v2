@@ -2744,6 +2744,7 @@ pub fn handle_update_user_gov_token_insurance_stake_devnet(
 
 pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, DisableUserHighLeverageMode<'info>>,
+    disable_maintenance: bool,
 ) -> Result<()> {
     let state = &ctx.accounts.state;
     let mut user = load_mut!(ctx.accounts.user)?;
@@ -2762,13 +2763,23 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    validate!(
-        user.margin_mode == MarginMode::HighLeverage,
-        ErrorCode::DefaultError,
-        "user must be in high leverage mode"
-    )?;
+    if disable_maintenance {
+        validate!(
+            user.margin_mode == MarginMode::HighLeverageMaintenance,
+            ErrorCode::DefaultError,
+            "user must be in high leverage maintenance mode"
+        )?;
 
-    user.margin_mode = MarginMode::HighLeverageMaintenance;
+        user.margin_mode = MarginMode::Default;
+    } else {
+        validate!(
+            user.margin_mode == MarginMode::HighLeverage,
+            ErrorCode::DefaultError,
+            "user must be in high leverage mode"
+        )?;
+
+        user.margin_mode = MarginMode::HighLeverageMaintenance;
+    }
 
     let custom_margin_ratio_before = user.max_margin_ratio;
     user.max_margin_ratio = 0;

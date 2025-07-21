@@ -126,7 +126,7 @@ pub fn place_perp_order(
         if let Some(config) = high_leverage_mode_config {
             let mut config = load_mut!(config)?;
             if !config.is_full() || params.is_max_leverage_order() {
-                config.update_user(user)?;
+                config.enable_high_leverage(user)?;
             } else {
                 msg!("high leverage mode config is full");
             }
