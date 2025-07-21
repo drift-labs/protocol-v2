@@ -15,7 +15,8 @@ pub struct HighLeverageModeConfig {
     pub max_users: u32,
     pub current_users: u32,
     pub reduce_only: u8,
-    pub padding: [u8; 31],
+    pub current_maintenance_users: u32,
+    pub padding: [u8; 31 - 4],
 }
 
 // implement SIZE const for ProtocolIfSharesTransferConfig

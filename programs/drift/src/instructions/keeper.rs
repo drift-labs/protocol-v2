@@ -2768,7 +2768,7 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
         "user must be in high leverage mode"
     )?;
 
-    user.margin_mode = MarginMode::Default;
+    user.margin_mode = MarginMode::HighLeverageMaintenance;
 
     let custom_margin_ratio_before = user.max_margin_ratio;
     user.max_margin_ratio = 0;
@@ -2822,6 +2822,7 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
     let mut config = load_mut!(ctx.accounts.high_leverage_mode_config)?;
 
     config.current_users = config.current_users.safe_sub(1)?;
+    config.current_maintenance_users = config.current_maintenance_users.safe_add(1)?;
 
     config.validate()?;
 
