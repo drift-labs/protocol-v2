@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 
 ### Features
+
+### Fixes
+
+### Breaking
+
+## [2.128.0] - 2025-07-20
+
+### Features
 - program: smooth decay for reference price offset ([#1758)](https://github.com/drift-labs/protocol-v2/pull/1758))
 
 ### Fixes
