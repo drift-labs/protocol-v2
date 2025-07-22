@@ -4138,6 +4138,7 @@ pub fn handle_update_perp_market_amm_spread_adjustment(
     ctx: Context<HotAdminUpdatePerpMarket>,
     amm_spread_adjustment: i8,
     amm_inventory_spread_adjustment: i8,
+    reference_price_offset: i32,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     msg!("perp market {}", perp_market.market_index);
@@ -4157,6 +4158,15 @@ pub fn handle_update_perp_market_amm_spread_adjustment(
     );
 
     perp_market.amm.amm_inventory_spread_adjustment = amm_inventory_spread_adjustment;
+
+    msg!(
+        "perp_market.amm.reference_price_offset: {:?} -> {:?}",
+        perp_market.amm.reference_price_offset,
+        reference_price_offset
+    );
+
+    perp_market.amm.reference_price_offset = reference_price_offset;
+
     Ok(())
 }
 

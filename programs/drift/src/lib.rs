@@ -1576,11 +1576,13 @@ pub mod drift {
         ctx: Context<HotAdminUpdatePerpMarket>,
         amm_spread_adjustment: i8,
         amm_inventory_spread_adjustment: i8,
+        reference_price_offset: i32,
     ) -> Result<()> {
         handle_update_perp_market_amm_spread_adjustment(
             ctx,
             amm_spread_adjustment,
             amm_inventory_spread_adjustment,
+            reference_price_offset,
         )
     }
 
