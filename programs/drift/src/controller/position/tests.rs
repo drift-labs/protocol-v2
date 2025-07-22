@@ -670,7 +670,7 @@ fn amm_perp_ref_offset() {
         max_ref_offset,
     )
     .unwrap();
-    assert_eq!(res, 45000);
+    assert_eq!(res, (perp_market.amm.max_spread / 2) as i32);
     assert_eq!(perp_market.amm.reference_price_offset, 18000); // not updated vs market account
 
     let now = 1741207620 + 1;

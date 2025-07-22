@@ -177,7 +177,11 @@ pub fn update_spread_reserves(market: &mut PerpMarket) -> DriftResult {
     Ok(())
 }
 
-pub fn update_spreads(market: &mut PerpMarket, reserve_price: u64) -> DriftResult<(u32, u32)> {
+pub fn update_spreads(
+    market: &mut PerpMarket,
+    reserve_price: u64,
+    slot: Option<u64>,
+) -> DriftResult<(u32, u32)> {
     let max_ref_offset = market.amm.get_max_reference_price_offset()?;
 
     let reference_price_offset = if max_ref_offset > 0 {
@@ -302,7 +306,7 @@ pub fn update_concentration_coef(market: &mut PerpMarket, scale: u128) -> DriftR
     market.amm.min_base_asset_reserve = min_base_asset_reserve;
 
     let reserve_price_after = market.amm.reserve_price()?;
-    update_spreads(market, reserve_price_after)?;
+    update_spreads(market, reserve_price_after, None)?;
 
     let (max_bids, max_asks) = amm::calculate_market_open_bids_asks(&market.amm)?;
     validate!(
@@ -798,7 +802,7 @@ pub fn move_price(
     market.amm.min_base_asset_reserve = min_base_asset_reserve;
 
     let reserve_price_after = market.amm.reserve_price()?;
-    update_spreads(market, reserve_price_after)?;
+    update_spreads(market, reserve_price_after, None)?;
 
     Ok(())
 }
@@ -854,7 +858,7 @@ pub fn recenter_perp_market_amm(
     market.amm.min_base_asset_reserve = min_base_asset_reserve;
 
     let reserve_price_after = market.amm.reserve_price()?;
-    update_spreads(market, reserve_price_after)?;
+    update_spreads(market, reserve_price_after, None)?;
 
     Ok(())
 }

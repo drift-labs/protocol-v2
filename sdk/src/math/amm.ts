@@ -479,8 +479,8 @@ export function calculateReferencePriceOffset(
 
 	const inventoryPct = clampBN(
 		liquidityFraction.mul(new BN(maxOffsetPct)).div(PERCENTAGE_PRECISION),
-		maxOffsetInPrice.mul(new BN(-1)),
-		maxOffsetInPrice
+		new BN(maxOffsetPct).mul(new BN(-1)),
+		new BN(maxOffsetPct)
 	);
 
 	// Only apply when inventory is consistent with recent and 24h market premium
@@ -1003,7 +1003,7 @@ export function calculateSpreadReserves(
 
 	// always allow 10 bps of price offset, up to a half of the market's max_spread
 	let maxOffset = 0;
-	let referencePriceOffset = ZERO;
+	let referencePriceOffset = 0;
 	if (amm.curveUpdateIntensity > 100) {
 		maxOffset = Math.max(
 			amm.maxSpread / 2,
@@ -1029,7 +1029,7 @@ export function calculateSpreadReserves(
 			amm.historicalOracleData.lastOraclePriceTwap,
 			amm.lastMarkPriceTwap,
 			maxOffset
-		);
+		).toNumber();
 	}
 
 	const [longSpread, shortSpread] = calculateSpread(
@@ -1040,12 +1040,12 @@ export function calculateSpreadReserves(
 	);
 
 	const askReserves = calculateSpreadReserve(
-		longSpread + referencePriceOffset.toNumber(),
+		longSpread + referencePriceOffset,
 		PositionDirection.LONG,
 		amm
 	);
 	const bidReserves = calculateSpreadReserve(
-		-shortSpread + referencePriceOffset.toNumber(),
+		-shortSpread + referencePriceOffset,
 		PositionDirection.SHORT,
 		amm
 	);
