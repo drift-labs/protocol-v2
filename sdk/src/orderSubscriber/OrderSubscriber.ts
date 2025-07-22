@@ -34,6 +34,8 @@ export class OrderSubscriber {
 
 	fetchAllNonIdleUsers?: boolean;
 
+	ignoreList: Set<string>;
+
 	constructor(config: OrderSubscriberConfig) {
 		this.driftClient = config.driftClient;
 		this.commitment = config.subscriptionConfig.commitment || 'processed';
@@ -77,6 +79,7 @@ export class OrderSubscriber {
 		}
 		this.eventEmitter = new EventEmitter();
 		this.fetchAllNonIdleUsers = config.fetchAllNonIdleUsers;
+		this.ignoreList = config.ignoreList ?? new Set<string>();
 	}
 
 	public async subscribe(): Promise<void> {
@@ -244,6 +247,9 @@ export class OrderSubscriber {
 	): Promise<DLOB> {
 		const dlob = this.createDLOB(protectedMakerParamsMap);
 		for (const [key, { userAccount }] of this.usersAccounts.entries()) {
+			if (this.ignoreList.has(key)) {
+				continue;
+			}
 			const protectedMaker = isUserProtectedMaker(userAccount);
 			for (const order of userAccount.orders) {
 				dlob.insertOrder(order, key, slot, protectedMaker);

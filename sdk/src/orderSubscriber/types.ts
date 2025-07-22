@@ -31,6 +31,7 @@ export type OrderSubscriberConfig = {
 	fastDecode?: boolean;
 	decodeData?: boolean;
 	fetchAllNonIdleUsers?: boolean;
+	ignoreList?: Set<string>;
 };
 
 export interface OrderSubscriberEvents {
