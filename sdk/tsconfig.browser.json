@@ -6,7 +6,10 @@
 		"declaration": true,
 		"outDir": "./lib/browser",
 		"resolveJsonModule": true,
-		"skipLibCheck": true
+		"skipLibCheck": true,
+		"paths": {
+			"@solana/web3.js": ["./node_modules/@solana/web3.js/lib/index.d.ts"]
+		}
 	},
 	"include": ["src"],
 	"exclude": ["node_modules", "tests"]
