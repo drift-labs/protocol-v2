@@ -272,8 +272,6 @@ pub fn update_spreads(
     if do_reference_price_smooth {
         let slots_passed = slot.map_or(0, |s| s.saturating_sub(market.amm.last_update_slot));
 
-        const BPS_DENOMINATOR: i128 = 10;
-
         let reference_price_delta = {
             let full_offset_delta = reference_price_offset
                 .cast::<i128>()?
@@ -283,7 +281,7 @@ pub fn update_spreads(
                 .cast::<i128>()?
                 .min(slots_passed.cast::<i128>()?.safe_mul(1000)?)
                 .cast::<i128>()?
-                .safe_div(BPS_DENOMINATOR)?
+                .safe_div(10_i128)?
                 .cast::<i32>()?;
 
             full_offset_delta.signum().cast::<i32>()?

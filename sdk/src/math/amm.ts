@@ -1047,10 +1047,9 @@ export function calculateSpreadReserves(
 			const raw = Math.trunc(
 				Math.min(Math.abs(fullOffsetDelta), slotsPassed * 1000) / 10
 			);
-			const maxAllowed = Math.max(
-				Math.abs(amm.referencePriceOffset),
-				Math.abs(referencePriceOffset)
-			);
+			const maxAllowed =
+				Math.abs(amm.referencePriceOffset) || Math.abs(referencePriceOffset);
+
 			const magnitude = Math.min(Math.max(raw, 10), maxAllowed);
 			const referencePriceDelta = Math.sign(fullOffsetDelta) * magnitude;
 
