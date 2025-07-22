@@ -1809,14 +1809,6 @@ pub mod drift {
         handle_update_if_rebalance_config(ctx, params)
     }
 
-    pub fn update_mm_oracle(
-        ctx: Context<Empty>,
-        oracle_price: i64,
-        oracle_sequence_id: u64,
-    ) -> Result<()> {
-        handle_update_mm_oracle(ctx, oracle_price, oracle_sequence_id)
-    }
-
     pub fn update_disable_bitflags_mm_oracle(
         ctx: Context<AdminUpdateState>,
         disable: bool,

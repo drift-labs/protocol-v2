@@ -190,7 +190,7 @@ fn use_mm_oracle() {
         delay: 1,
         has_sufficient_number_of_data_points: true,
     };
-    let mm_oracle_price_data = market
+    let mut mm_oracle_price_data = market
         .get_mm_oracle_price_data(oracle_price_data, slot)
         .unwrap();
 
@@ -206,7 +206,7 @@ fn use_mm_oracle() {
 
     // Update the MM oracle slot to be delayed
     market.amm.mm_oracle_slot = slot - 5;
-    let mm_oracle_price_data = market
+    let mut mm_oracle_price_data = market
         .get_mm_oracle_price_data(oracle_price_data, slot)
         .unwrap();
     assert_eq!(
@@ -248,7 +248,7 @@ fn mm_oracle_confidence() {
         has_sufficient_number_of_data_points: true,
     };
 
-    let mm_oracle_price_data = market
+    let mut mm_oracle_price_data = market
         .get_mm_oracle_price_data(oracle_price_data, slot)
         .unwrap();
 

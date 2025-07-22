@@ -758,6 +758,7 @@ impl PerpMarket {
             mm_oracle_delay: clock_slot
                 .cast::<i64>()?
                 .safe_sub(self.amm.mm_oracle_slot.cast::<i64>()?)?,
+            oracle_confidence: None,
             oracle_price_data: oracle_price_data,
         })
     }

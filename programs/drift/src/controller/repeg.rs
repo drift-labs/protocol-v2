@@ -113,10 +113,10 @@ pub fn update_amms(
     for (_key, market_account_loader) in perp_market_map.0.iter_mut() {
         let market = &mut load_mut!(market_account_loader)?;
         let oracle_price_data = oracle_map.get_price_data(&market.oracle_id())?;
-        let mm_oracle_price_data =
+        let mut mm_oracle_price_data =
             market.get_mm_oracle_price_data(*oracle_price_data, clock_slot)?;
 
-        _update_amm(market, &mm_oracle_price_data, state, now, clock_slot)?;
+        _update_amm(market, &mut mm_oracle_price_data, state, now, clock_slot)?;
     }
 
     Ok(updated)
@@ -131,11 +131,12 @@ pub fn update_amm(
 ) -> DriftResult<i128> {
     let market = &mut perp_market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = oracle_map.get_price_data(&market.oracle_id())?;
-    let mm_oracle_price_data = market.get_mm_oracle_price_data(*oracle_price_data, clock.slot)?;
+    let mut mm_oracle_price_data =
+        market.get_mm_oracle_price_data(*oracle_price_data, clock.slot)?;
 
     let cost_of_update = _update_amm(
         market,
-        &mm_oracle_price_data,
+        &mut mm_oracle_price_data,
         state,
         clock.unix_timestamp,
         clock.slot,
@@ -146,7 +147,7 @@ pub fn update_amm(
 
 pub fn _update_amm(
     market: &mut PerpMarket,
-    mm_oracle_price_data: &MMOraclePriceData,
+    mm_oracle_price_data: &mut MMOraclePriceData,
     state: &State,
     now: i64,
     clock_slot: u64,
@@ -225,7 +226,6 @@ pub fn _update_amm(
             mm_oracle_price_data,
             Some(reserve_price_after),
             sanitize_clamp_denominator,
-            Some(oracle_data.confidence),
         )?;
     }
 
@@ -245,7 +245,7 @@ pub fn _update_amm(
 
 pub fn update_amm_and_check_validity(
     market: &mut PerpMarket,
-    mm_oracle_price_data: &MMOraclePriceData,
+    mm_oracle_price_data: &mut MMOraclePriceData,
     state: &State,
     now: i64,
     clock_slot: u64,
@@ -260,7 +260,7 @@ pub fn update_amm_and_check_validity(
         MarketType::Perp,
         market.market_index,
         risk_ema_price,
-        &mm_oracle_price_data.oracle_price_data,
+        &mut mm_oracle_price_data.oracle_price_data,
         &state.oracle_guard_rails.validity,
         market.get_max_confidence_interval_multiplier()?,
         &market.amm.oracle_source,

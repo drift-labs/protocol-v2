@@ -4843,42 +4843,6 @@ pub fn handle_update_if_rebalance_config(
     Ok(())
 }
 
-pub fn handle_update_mm_oracle(
-    ctx: Context<Empty>,
-    oracle_price: i64,
-    oracle_sequence_id: u64,
-) -> Result<()> {
-    let remaining_accounts = &ctx.remaining_accounts;
-
-    let signer = &remaining_accounts[1];
-
-    // Verify this ix is allowed
-    let state = &remaining_accounts[2].data.borrow();
-    assert!(state[982] & 1 == 0);
-
-    #[cfg(not(feature = "anchor-test"))]
-    validate!(
-        *signer.key == admin_hot_wallet::id() && signer.is_signer,
-        ErrorCode::DefaultError,
-        "signer must be admin hot wallet, signer: {}, admin hot wallet: {}",
-        signer.key,
-        admin_hot_wallet::id()
-    )?;
-
-    let mut data = remaining_accounts[0]
-        .try_borrow_mut_data()
-        .or(Err(ErrorCode::DefaultError))?;
-
-    let perp_market_sequence_id = u64::from_le_bytes(data[936..944].try_into().unwrap());
-    if oracle_sequence_id > perp_market_sequence_id {
-        data[832..840].copy_from_slice(&Clock::get()?.slot.to_le_bytes());
-        data[912..920].copy_from_slice(oracle_price.to_le_bytes().as_ref());
-        data[936..944].copy_from_slice(oracle_sequence_id.to_le_bytes().as_ref());
-    }
-
-    Ok(())
-}
-
 pub fn handle_update_mm_oracle_native(accounts: &[AccountInfo], data: &[u8]) -> Result<()> {
     // Verify this ix is allowed
     let state = &accounts[3].data.borrow();

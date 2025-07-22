@@ -6730,6 +6730,10 @@
         {
           "name": "ammInventorySpreadAdjustment",
           "type": "i8"
+        },
+        {
+          "name": "referencePriceOffset",
+          "type": "i32"
         }
       ]
     },
@@ -7521,26 +7525,6 @@
           "type": {
             "defined": "IfRebalanceConfigParams"
           }
-        }
-      ]
-    },
-    {
-      "name": "updateMmOracle",
-      "accounts": [
-        {
-          "name": "system",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "oraclePrice",
-          "type": "i64"
-        },
-        {
-          "name": "oracleSequenceId",
-          "type": "u64"
         }
       ]
     },

@@ -63,14 +63,16 @@ fn calculate_optimal_peg_and_budget_test() {
         delay: 2,
         has_sufficient_number_of_data_points: true,
     };
-    let mm_oracle_price_data = MMOraclePriceData {
+    let mut mm_oracle_price_data = MMOraclePriceData {
         mm_oracle_price: oracle_price_data.price,
         mm_oracle_delay: oracle_price_data.delay + 1,
+        oracle_confidence: None,
+
         oracle_price_data,
     };
 
     let (optimal_peg, budget, check_lb) =
-        calculate_optimal_peg_and_budget(&market, &mm_oracle_price_data).unwrap();
+        calculate_optimal_peg_and_budget(&market, &mut mm_oracle_price_data).unwrap();
 
     assert_eq!(optimal_peg, 13110290527);
     assert_eq!(optimal_peg > oracle_price_data.price as u128, true);
@@ -84,13 +86,15 @@ fn calculate_optimal_peg_and_budget_test() {
         delay: 21,
         has_sufficient_number_of_data_points: true,
     };
-    let mm_oracle_price_data = MMOraclePriceData {
+    let mut mm_oracle_price_data = MMOraclePriceData {
         mm_oracle_price: oracle_price_data.price,
         mm_oracle_delay: oracle_price_data.delay + 1,
+        oracle_confidence: None,
+
         oracle_price_data,
     };
     let (optimal_peg, budget, check_lb) =
-        calculate_optimal_peg_and_budget(&market, &mm_oracle_price_data).unwrap();
+        calculate_optimal_peg_and_budget(&market, &mut mm_oracle_price_data).unwrap();
 
     assert_eq!(optimal_peg, 19496270752);
     assert_eq!(budget, 39500000);
@@ -103,13 +107,15 @@ fn calculate_optimal_peg_and_budget_test() {
         delay: 21,
         has_sufficient_number_of_data_points: true,
     };
-    let mm_oracle_price_data = MMOraclePriceData {
+    let mut mm_oracle_price_data = MMOraclePriceData {
         mm_oracle_price: oracle_price_data.price,
         mm_oracle_delay: oracle_price_data.delay + 1,
+        oracle_confidence: None,
+
         oracle_price_data,
     };
     let (optimal_peg, budget, check_lb) =
-        calculate_optimal_peg_and_budget(&market, &mm_oracle_price_data).unwrap();
+        calculate_optimal_peg_and_budget(&market, &mut mm_oracle_price_data).unwrap();
 
     assert_eq!(optimal_peg, 19186822509);
     assert_eq!(budget, 39500000);
@@ -122,13 +128,15 @@ fn calculate_optimal_peg_and_budget_test() {
         delay: 21,
         has_sufficient_number_of_data_points: true,
     };
-    let mm_oracle_price_data = MMOraclePriceData {
+    let mut mm_oracle_price_data = MMOraclePriceData {
         mm_oracle_price: oracle_price_data.price,
         mm_oracle_delay: oracle_price_data.delay + 1,
+        oracle_confidence: None,
+
         oracle_price_data,
     };
     let (optimal_peg, budget, check_lb) =
-        calculate_optimal_peg_and_budget(&market, &mm_oracle_price_data).unwrap();
+        calculate_optimal_peg_and_budget(&market, &mut mm_oracle_price_data).unwrap();
 
     assert_eq!(optimal_peg, 21042480468);
     assert_eq!(budget, 39500000);
@@ -141,13 +149,15 @@ fn calculate_optimal_peg_and_budget_test() {
         delay: 2,
         has_sufficient_number_of_data_points: true,
     };
-    let mm_oracle_price_data = MMOraclePriceData {
+    let mut mm_oracle_price_data = MMOraclePriceData {
         mm_oracle_price: oracle_price_data.price,
         mm_oracle_delay: oracle_price_data.delay + 1,
+        oracle_confidence: None,
+
         oracle_price_data,
     };
     let (optimal_peg, budget, check_lb) =
-        calculate_optimal_peg_and_budget(&market, &mm_oracle_price_data).unwrap();
+        calculate_optimal_peg_and_budget(&market, &mut mm_oracle_price_data).unwrap();
 
     assert_eq!(optimal_peg, 43735351562);
     assert_eq!(budget, 39500000);
@@ -177,13 +187,15 @@ fn calculate_optimal_peg_and_budget_test() {
         delay: 2,
         has_sufficient_number_of_data_points: true,
     };
-    let mm_oracle_price_data = MMOraclePriceData {
+    let mut mm_oracle_price_data = MMOraclePriceData {
         mm_oracle_price: oracle_price_data.price,
         mm_oracle_delay: oracle_price_data.delay + 1,
+        oracle_confidence: None,
+
         oracle_price_data,
     };
     let (optimal_peg, budget, check_lb) =
-        calculate_optimal_peg_and_budget(&market, &mm_oracle_price_data).unwrap();
+        calculate_optimal_peg_and_budget(&market, &mut mm_oracle_price_data).unwrap();
 
     assert_eq!(optimal_peg, 42641967773);
     assert_eq!(budget, 22190932405); // $2219.032405
@@ -235,14 +247,16 @@ fn calculate_optimal_peg_and_budget_2_test() {
         delay: 2,
         has_sufficient_number_of_data_points: true,
     };
-    let mm_oracle_price_data = MMOraclePriceData {
+    let mut mm_oracle_price_data = MMOraclePriceData {
         mm_oracle_price: oracle_price_data.price,
         mm_oracle_delay: oracle_price_data.delay + 1,
+        oracle_confidence: None,
+
         oracle_price_data,
     };
 
     let (optimal_peg, budget, check_lb) =
-        calculate_optimal_peg_and_budget(&market, &mm_oracle_price_data).unwrap();
+        calculate_optimal_peg_and_budget(&market, &mut mm_oracle_price_data).unwrap();
 
     assert_eq!(optimal_peg, 17796790576);
     assert_eq!(optimal_peg > oracle_price_data.price as u128, false);
@@ -268,7 +282,7 @@ fn calculate_optimal_peg_and_budget_2_test() {
 
     // test amm update
     assert_eq!(market.amm.last_update_slot, 0);
-    let c = _update_amm(&mut market, &mm_oracle_price_data, &state, 1, 1337).unwrap();
+    let c = _update_amm(&mut market, &mut mm_oracle_price_data, &state, 1, 1337).unwrap();
     assert!(market.amm.is_recent_oracle_valid(1337).unwrap());
     assert!(!market.amm.is_recent_oracle_valid(1338).unwrap());
     assert!(!market.amm.is_recent_oracle_valid(1336).unwrap());

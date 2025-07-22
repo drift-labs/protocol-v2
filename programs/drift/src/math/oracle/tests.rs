@@ -39,7 +39,7 @@ fn calculate_oracle_valid() {
         contract_tier: ContractTier::B,
         ..PerpMarket::default()
     };
-    let mm_oracle_price_data = market
+    let mut mm_oracle_price_data = market
         .get_mm_oracle_price_data(oracle_price_data, 10000)
         .unwrap();
 
@@ -71,15 +71,9 @@ fn calculate_oracle_valid() {
     assert_eq!(oracle_status.oracle_reserve_price_spread_pct, 30303); //0.030303 ()
     assert!(!oracle_status.mark_too_divergent);
 
-    let _new_oracle_twap = update_oracle_price_twap(
-        &mut market.amm,
-        now,
-        &mm_oracle_price_data,
-        None,
-        None,
-        None,
-    )
-    .unwrap();
+    let _new_oracle_twap =
+        update_oracle_price_twap(&mut market.amm, now, &mut mm_oracle_price_data, None, None)
+            .unwrap();
     assert_eq!(
         market.amm.historical_oracle_data.last_oracle_price_twap,
         (34 * PRICE_PRECISION - PRICE_PRECISION / 100) as i64

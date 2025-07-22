@@ -653,9 +653,11 @@ fn unsettled_funding_pnl() {
     )
     .unwrap();
     let oracle_price_data = oracle_map.get_price_data(&market.oracle_id()).unwrap();
-    let mm_oracle_price_data = MMOraclePriceData {
+    let mut mm_oracle_price_data = MMOraclePriceData {
         mm_oracle_price: oracle_price_data.price,
         mm_oracle_delay: oracle_price_data.delay + 1,
+        oracle_confidence: None,
+
         oracle_price_data: *oracle_price_data,
     };
 
@@ -674,7 +676,7 @@ fn unsettled_funding_pnl() {
     now += 3600;
     slot += 3600 * 2;
 
-    let cost = _update_amm(&mut market, &mm_oracle_price_data, &state, now, slot).unwrap();
+    let cost = _update_amm(&mut market, &mut mm_oracle_price_data, &state, now, slot).unwrap();
     assert_eq!(cost, 0);
     assert_eq!(market.amm.last_update_slot, slot);
     assert_eq!(market.amm.last_mark_price_twap, 50000000);

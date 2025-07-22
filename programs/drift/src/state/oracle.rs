@@ -176,6 +176,7 @@ impl OracleSource {
 pub struct MMOraclePriceData {
     pub mm_oracle_price: i64,
     pub mm_oracle_delay: i64,
+    pub oracle_confidence: Option<u64>,
     pub oracle_price_data: OraclePriceData,
 }
 
@@ -184,6 +185,7 @@ impl MMOraclePriceData {
         MMOraclePriceData {
             mm_oracle_price: PRICE_PRECISION_I64,
             mm_oracle_delay: 0,
+            oracle_confidence: None,
             oracle_price_data: OraclePriceData::default_usd(),
         }
     }
@@ -204,9 +206,12 @@ impl MMOraclePriceData {
         }
     }
 
-    pub fn get_confidence(&self) -> DriftResult<u64> {
+    pub fn get_confidence(&mut self) -> DriftResult<u64> {
         if self.mm_oracle_price == 0 || self.oracle_price_data.price == self.get_oracle_price() {
             return Ok(self.oracle_price_data.confidence);
+        }
+        if self.oracle_confidence.is_some() {
+            return Ok(self.oracle_confidence.unwrap());
         }
         let price_diff_bps = self
             .mm_oracle_price
@@ -231,6 +236,7 @@ impl MMOraclePriceData {
         } else {
             self.oracle_price_data.confidence
         };
+        self.oracle_confidence = Some(adjusted_confidence);
         Ok(adjusted_confidence)
     }
 }

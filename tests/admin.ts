@@ -409,19 +409,6 @@ describe('admin', () => {
 		);
 	});
 
-	it('update MM oracle', async () => {
-		const oraclePrice = new BN(100);
-		const oracleTS = new BN(Date.now());
-		await driftClient.updateMmOracle(0, oraclePrice, oracleTS);
-
-		const perpMarket = driftClient.getPerpMarketAccount(0);
-		assert(perpMarket.amm.mmOraclePrice.eq(oraclePrice));
-
-		// Doesnt change if id doesnt increase
-		await driftClient.updateMmOracle(0, oraclePrice.addn(1), oracleTS);
-		assert(perpMarket.amm.mmOraclePrice.eq(oraclePrice));
-	});
-
 	it('update MM oracle native', async () => {
 		const oraclePrice = new BN(100);
 		const oracleTS = new BN(Date.now());
