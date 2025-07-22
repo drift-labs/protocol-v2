@@ -1,7 +1,11 @@
 import { PublicKey } from '@solana/web3.js';
 import * as anchor from '@coral-xyz/anchor';
 import { BN } from '@coral-xyz/anchor';
-import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import {
+	getAssociatedTokenAddress,
+	TOKEN_2022_PROGRAM_ID,
+	TOKEN_PROGRAM_ID,
+} from '@solana/spl-token';
 import { SpotMarketAccount } from '..';
 
 export async function getDriftStateAccountPublicKeyAndNonce(
@@ -494,4 +498,11 @@ export function getConstituentCorrelationsPublicKey(
 		],
 		programId
 	)[0];
+}
+
+export async function getLpPoolTokenTokenAccountPublicKey(
+	lpPoolTokenMint: PublicKey,
+	authority: PublicKey
+): Promise<PublicKey> {
+	return await getAssociatedTokenAddress(lpPoolTokenMint, authority, true);
 }

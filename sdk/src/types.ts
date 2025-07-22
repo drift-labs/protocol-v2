@@ -1625,7 +1625,7 @@ export type TargetDatum = {
 	lastSlot: BN;
 };
 
-export type ConstituentTargetBase = {
+export type ConstituentTargetBaseAccount = {
 	bump: number;
 	targets: TargetDatum[];
 };

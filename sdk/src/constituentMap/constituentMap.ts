@@ -1,5 +1,6 @@
 import {
 	Commitment,
+	Connection,
 	MemcmpFilter,
 	PublicKey,
 	RpcResponseAndContext,
@@ -12,10 +13,11 @@ import { DriftClient } from '../driftClient';
 import { getConstituentFilter } from '../memcmp';
 import { ZSTDDecoder } from 'zstddec';
 
-const MAX_CONSTITUENT_SIZE_BYTES = 272; // TODO: update this when account is finalized
+const MAX_CONSTITUENT_SIZE_BYTES = 304; // TODO: update this when account is finalized
 
 export type ConstituentMapConfig = {
 	driftClient: DriftClient;
+	connection?: Connection;
 	subscriptionConfig:
 		| {
 				type: 'polling';
@@ -48,11 +50,13 @@ export class ConstituentMap implements ConstituentMapInterface {
 	private constituentAccountSubscriber: ConstituentAccountSubscriber;
 	private additionalFilters?: MemcmpFilter[];
 	private commitment?: Commitment;
+	private connection?: Connection;
 
 	constructor(config: ConstituentMapConfig) {
 		this.driftClient = config.driftClient;
 		this.additionalFilters = config.additionalFilters;
 		this.commitment = config.subscriptionConfig.commitment;
+		this.connection = config.connection || this.driftClient.connection;
 
 		if (config.subscriptionConfig.type === 'polling') {
 			this.constituentAccountSubscriber =

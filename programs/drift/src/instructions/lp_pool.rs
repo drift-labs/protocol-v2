@@ -16,7 +16,6 @@ use crate::{
         constants::{PERCENTAGE_PRECISION_I64, PRICE_PRECISION},
         oracle::{is_oracle_valid_for_action, oracle_validity, DriftAction},
         safe_math::SafeMath,
-        spot_balance,
     },
     math_error, msg, safe_decrement, safe_increment,
     state::{
