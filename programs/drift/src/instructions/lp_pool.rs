@@ -25,6 +25,7 @@ use crate::{
             update_constituent_target_base_for_derivatives, AmmConstituentDatum,
             AmmConstituentMappingFixed, Constituent, ConstituentCorrelationsFixed,
             ConstituentTargetBaseFixed, LPPool, TargetsDatum, LP_POOL_SWAP_AUM_UPDATE_DELAY,
+            MAX_AMM_CACHE_ORACLE_STALENESS_FOR_TARGET_CALC,
             MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC,
         },
         oracle::OraclePriceData,
@@ -62,7 +63,7 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
     let amm_cache: AccountZeroCopy<'_, CacheInfo, AmmCacheFixed> =
         ctx.accounts.amm_cache.load_zc()?;
 
-    amm_cache.check_oracle_staleness(slot, MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC)?;
+    amm_cache.check_oracle_staleness(slot, MAX_AMM_CACHE_ORACLE_STALENESS_FOR_TARGET_CALC)?;
     amm_cache.check_perp_market_staleness(slot, MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC)?;
 
     let expected_cache_pda = &Pubkey::create_program_address(

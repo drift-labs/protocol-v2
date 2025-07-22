@@ -46,6 +46,11 @@ pub const MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC: u64 = 10000u64;
 #[cfg(not(feature = "anchor-test"))]
 pub const MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC: u64 = 0u64;
 
+#[cfg(feature = "anchor-test")]
+pub const MAX_AMM_CACHE_ORACLE_STALENESS_FOR_TARGET_CALC: u64 = 10000u64;
+#[cfg(not(feature = "anchor-test"))]
+pub const MAX_AMM_CACHE_ORACLE_STALENESS_FOR_TARGET_CALC: u64 = 1u64;
+
 #[cfg(test)]
 mod tests;
 
@@ -718,8 +723,10 @@ impl LPPool {
                 let constituent_target_notional = constituent_target_base
                     .get(constituent.constituent_index as u32)
                     .target_base
-                    .safe_mul(constituent.last_oracle_price)?
-                    .safe_div(10_i64.pow(constituent.decimals as u32))?;
+                    .cast::<i128>()?
+                    .safe_mul(constituent.last_oracle_price.cast::<i128>()?)?
+                    .safe_div(10_i128.pow(constituent.decimals as u32))?
+                    .cast::<i64>()?;
                 crypto_delta = crypto_delta.safe_add(constituent_target_notional.cast()?)?;
             }
             aum = aum.safe_add(constituent_aum.cast()?)?;
