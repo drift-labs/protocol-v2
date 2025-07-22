@@ -74,6 +74,9 @@ export enum UserStatus {
 export class MarginMode {
 	static readonly DEFAULT = { default: {} };
 	static readonly HIGH_LEVERAGE = { highLeverage: {} };
+	static readonly HIGH_LEVERAGE_MAINTENANCE = {
+		highLeverageMaintenance: {},
+	};
 }
 
 export class ContractType {
