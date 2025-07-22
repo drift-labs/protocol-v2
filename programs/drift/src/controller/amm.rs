@@ -287,13 +287,11 @@ pub fn update_spreads(
                 .cast::<i32>()?;
 
             full_offset_delta.signum().cast::<i32>()?
-                * (raw.abs().max(10).min(
-                    market
-                        .amm
-                        .reference_price_offset
-                        .abs()
-                        .max(reference_price_offset.abs()),
-                ))
+                * (raw.max(10).min(if market.amm.reference_price_offset != 0 {
+                    market.amm.reference_price_offset.abs()
+                } else {
+                    reference_price_offset.abs()
+                }))
         };
 
         market.amm.reference_price_offset = market
