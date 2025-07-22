@@ -205,6 +205,9 @@ impl MMOraclePriceData {
     }
 
     pub fn get_confidence(&self) -> DriftResult<u64> {
+        if self.mm_oracle_price == 0 || self.oracle_price_data.price == self.get_oracle_price() {
+            return Ok(self.oracle_price_data.confidence);
+        }
         let price_diff_bps = self
             .mm_oracle_price
             .abs_diff(self.oracle_price_data.price)
