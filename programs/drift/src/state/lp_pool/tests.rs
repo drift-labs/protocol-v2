@@ -402,8 +402,6 @@ mod tests {
         assert_eq!(target_zc_mut.len(), 1);
         assert_eq!(target_zc_mut.get(0).target_base, -1_000_000); // despite no aum, desire to reach target
         assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
-
-
     }
 
     #[test]

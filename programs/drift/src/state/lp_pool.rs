@@ -298,7 +298,9 @@ impl LPPool {
             .safe_div(PERCENTAGE_PRECISION_I128)?
             .cast::<i64>()?;
 
-        if dlp_total_supply.saturating_sub(lp_burn_amount) <= QUOTE_PRECISION_U64 && lp_fee_to_charge <= (QUOTE_PRECISION_U64 as i64) {
+        if dlp_total_supply.saturating_sub(lp_burn_amount) <= QUOTE_PRECISION_U64
+            && lp_fee_to_charge <= (QUOTE_PRECISION_U64 as i64)
+        {
             lp_fee_to_charge = (lp_burn_amount.min(QUOTE_PRECISION_U64) as i64);
         }
 
