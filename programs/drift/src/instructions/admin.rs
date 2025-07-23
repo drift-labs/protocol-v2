@@ -4846,6 +4846,7 @@ pub fn handle_update_if_rebalance_config(
 pub fn handle_update_mm_oracle_native(accounts: &[AccountInfo], data: &[u8]) -> Result<()> {
     // Verify this ix is allowed
     let state = &accounts[3].data.borrow();
+    msg!("state bytes: {:?}", &state[981..988]);
     assert!(state[982] & 1 == 0, "ix disabled by admin state");
 
     let signer_account = &accounts[1];
@@ -4893,7 +4894,7 @@ pub fn handle_update_amm_spread_adjustment_native(
 }
 
 pub fn handle_update_disable_bitflags_mm_oracle(
-    ctx: Context<AdminUpdateState>,
+    ctx: Context<HotAdminUpdateState>,
     disable: bool,
 ) -> Result<()> {
     let state = &mut ctx.accounts.state;
@@ -4901,6 +4902,11 @@ pub fn handle_update_disable_bitflags_mm_oracle(
         msg!("Setting first bit to 1, disabling mm oracle update");
         state.disable_bit_flags = state.disable_bit_flags | 1;
     } else {
+        validate!(
+            ctx.accounts.admin.key().eq(&state.admin),
+            ErrorCode::DefaultError,
+            "Only state admin can re-enable after kill switch"
+        )?;
         msg!("Setting first bit to 0, enabling mm oracle update");
         state.disable_bit_flags = state.disable_bit_flags & !1;
     }
@@ -5299,6 +5305,16 @@ pub struct AdminUpdateState<'info> {
         mut,
         has_one = admin
     )]
+    pub state: Box<Account<'info, State>>,
+}
+
+#[derive(Accounts)]
+pub struct HotAdminUpdateState<'info> {
+    #[account(
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+    #[account(mut)]
     pub state: Box<Account<'info, State>>,
 }
 
@@ -5712,27 +5728,4 @@ pub struct UpdateIfRebalanceConfig<'info> {
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
-}
-
-#[derive(Accounts)]
-pub struct UpdateAmmParams<'info> {
-    #[account(
-        mut,
-        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
-    )]
-    pub admin: Signer<'info>,
-    #[account(mut)]
-    pub perp_market: AccountLoader<'info, PerpMarket>,
-    #[account(
-        has_one = admin
-    )]
-    pub state: Box<Account<'info, State>>,
-}
-
-#[derive(Accounts)]
-pub struct Empty<'info> {
-    // this is not used
-    // it serves as a placeholder to satisfy 'info lifetime and Accounts macro
-    #[account()]
-    pub system: Program<'info, System>,
 }

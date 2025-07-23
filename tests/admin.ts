@@ -427,7 +427,7 @@ describe('admin', () => {
 		await driftClient.updateMmOracleNative(0, oraclePrice.addn(1), oracleTS);
 		assert(perpMarket.amm.mmOraclePrice.eq(oraclePrice));
 
-		// Doest update if we flip the admin switch
+		// Doesnt update if we flip the admin switch
 		await driftClient.updateDisableBitFlagsMMOracle(true);
 		try {
 			await driftClient.updateMmOracleNative(0, oraclePrice, oracleTS);

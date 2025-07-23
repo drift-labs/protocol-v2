@@ -1810,7 +1810,7 @@ pub mod drift {
     }
 
     pub fn update_disable_bitflags_mm_oracle(
-        ctx: Context<AdminUpdateState>,
+        ctx: Context<HotAdminUpdateState>,
         disable: bool,
     ) -> Result<()> {
         handle_update_disable_bitflags_mm_oracle(ctx, disable)
