@@ -500,7 +500,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             continue;
         }
 
-        if market_position.is_isolated_position() {
+        if market_position.is_isolated() {
             continue;
         }
 

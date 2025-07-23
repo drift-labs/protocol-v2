@@ -257,6 +257,29 @@ impl User {
         Ok(&mut self.perp_positions[position_index])
     }
 
+    pub fn force_get_isolated_perp_position_mut(
+        &mut self,
+        perp_market_index: u16,
+    ) -> DriftResult<&mut PerpPosition> {
+        if let Ok(position_index) = get_position_index(&self.perp_positions, perp_market_index) {
+            let perp_position = &mut self.perp_positions[position_index];
+            validate!(
+                perp_position.is_isolated(),
+                ErrorCode::InvalidPerpPosition,
+                "perp position is not isolated"
+            )?;
+
+            Ok(&mut self.perp_positions[position_index])
+        } else {
+            let position_index = add_new_position(&mut self.perp_positions, perp_market_index)?;
+
+            let perp_position = &mut self.perp_positions[position_index];
+            perp_position.position_type = 1;
+
+            Ok(&mut self.perp_positions[position_index])
+        }
+    }
+
     pub fn get_order_index(&self, order_id: u32) -> DriftResult<usize> {
         self.orders
             .iter()
@@ -1118,7 +1141,7 @@ impl PerpPosition {
         }
     }
 
-    pub fn is_isolated_position(&self) -> bool {
+    pub fn is_isolated(&self) -> bool {
         self.position_type == 1
     }
 }

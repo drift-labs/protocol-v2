@@ -193,8 +193,8 @@ pub enum ErrorCode {
     SpotMarketInsufficientDeposits,
     #[msg("UserMustSettleTheirOwnPositiveUnsettledPNL")]
     UserMustSettleTheirOwnPositiveUnsettledPNL,
-    #[msg("CantUpdatePoolBalanceType")]
-    CantUpdatePoolBalanceType,
+    #[msg("CantUpdateSpotBalanceType")]
+    CantUpdateSpotBalanceType,
     #[msg("InsufficientCollateralForSettlingPNL")]
     InsufficientCollateralForSettlingPNL,
     #[msg("AMMNotUpdatedInSameSlot")]
@@ -639,6 +639,8 @@ pub enum ErrorCode {
     InvalidIfRebalanceConfig,
     #[msg("Invalid If Rebalance Swap")]
     InvalidIfRebalanceSwap,
+    #[msg("Invalid Isolated Perp Market")]
+    InvalidIsolatedPerpMarket,
 }
 
 #[macro_export]
