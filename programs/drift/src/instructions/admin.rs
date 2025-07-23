@@ -4846,7 +4846,6 @@ pub fn handle_update_if_rebalance_config(
 pub fn handle_update_mm_oracle_native(accounts: &[AccountInfo], data: &[u8]) -> Result<()> {
     // Verify this ix is allowed
     let state = &accounts[3].data.borrow();
-    msg!("state bytes: {:?}", &state[981..988]);
     assert!(state[982] & 1 == 0, "ix disabled by admin state");
 
     let signer_account = &accounts[1];
