@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: fix reference price decay ([#1761](https://github.com/drift-labs/protocol-v2/pull/1761))
+
 ### Breaking
 
 ## [2.128.1] - 2025-07-21

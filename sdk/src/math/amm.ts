@@ -1028,12 +1028,42 @@ export function calculateSpreadReserves(
 		).toNumber();
 	}
 
-	const [longSpread, shortSpread] = calculateSpread(
+	let [longSpread, shortSpread] = calculateSpread(
 		amm,
 		oraclePriceData,
 		now,
 		reservePrice
 	);
+
+	const doReferencePricOffsetSmooth =
+		Math.sign(referencePriceOffset) !== Math.sign(amm.referencePriceOffset) &&
+		amm.curveUpdateIntensity > 100;
+
+	if (doReferencePricOffsetSmooth) {
+		if (oraclePriceData.slot !== amm.lastUpdateSlot) {
+			const slotsPassed =
+				oraclePriceData.slot.toNumber() - amm.lastUpdateSlot.toNumber();
+			const fullOffsetDelta = referencePriceOffset - amm.referencePriceOffset;
+			const raw = Math.trunc(
+				Math.min(Math.abs(fullOffsetDelta), slotsPassed * 1000) / 10
+			);
+			const maxAllowed =
+				Math.abs(amm.referencePriceOffset) || Math.abs(referencePriceOffset);
+
+			const magnitude = Math.min(Math.max(raw, 10), maxAllowed);
+			const referencePriceDelta = Math.sign(fullOffsetDelta) * magnitude;
+
+			referencePriceOffset = amm.referencePriceOffset + referencePriceDelta;
+
+			if (referencePriceDelta < 0) {
+				longSpread += Math.abs(referencePriceDelta);
+				shortSpread += Math.abs(referencePriceOffset);
+			} else {
+				shortSpread += Math.abs(referencePriceDelta);
+				longSpread += Math.abs(referencePriceOffset);
+			}
+		}
+	}
 
 	const askReserves = calculateSpreadReserve(
 		longSpread + referencePriceOffset,
