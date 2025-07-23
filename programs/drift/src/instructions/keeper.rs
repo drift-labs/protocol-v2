@@ -2322,7 +2322,13 @@ pub fn handle_update_funding_rate(
     let oracle_price_data = oracle_map.get_price_data(&perp_market.oracle_id())?;
     let mut mm_oracle_price_data =
         perp_market.get_mm_oracle_price_data(*oracle_price_data, clock_slot)?;
-    controller::repeg::_update_amm(perp_market, &mut mm_oracle_price_data, state, now, clock_slot)?;
+    controller::repeg::_update_amm(
+        perp_market,
+        &mut mm_oracle_price_data,
+        state,
+        now,
+        clock_slot,
+    )?;
 
     validate!(
         matches!(
