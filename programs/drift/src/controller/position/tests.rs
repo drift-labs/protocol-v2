@@ -40,6 +40,7 @@ use crate::test_utils::get_hardcoded_pyth_price;
 use crate::QUOTE_PRECISION_I64;
 use anchor_lang::prelude::{AccountLoader, Clock};
 use anchor_lang::Owner;
+use solana_program::clock;
 use solana_program::pubkey::Pubkey;
 use std::str::FromStr;
 
@@ -674,12 +675,9 @@ fn amm_ref_price_decay_tail_test() {
         delay: 1,
         has_sufficient_number_of_data_points: true,
     };
-    let mut mm_oracle_price_data = perp_market
-        .get_mm_oracle_price_data(oracle_price_data, clock_slot)
-        .unwrap();
     let cost = _update_amm(
         &mut perp_market,
-        &mut mm_oracle_price_data,
+        &oracle_price_data,
         &state,
         now,
         clock_slot,
@@ -702,13 +700,10 @@ fn amm_ref_price_decay_tail_test() {
             now += 250;
             clock_slot += 700;
         }
-        let mut mm_oracle_price_data = perp_market
-            .get_mm_oracle_price_data(oracle_price_data, clock_slot)
-            .unwrap();
 
         let cost = _update_amm(
             &mut perp_market,
-            &mut mm_oracle_price_data,
+            &oracle_price_data,
             &state,
             now,
             clock_slot,
@@ -842,12 +837,9 @@ fn amm_ref_price_offset_decay_logic() {
         delay: 1,
         has_sufficient_number_of_data_points: true,
     };
-    let mut mm_oracle_price_data = perp_market
-        .get_mm_oracle_price_data(oracle_price_data, clock_slot)
-        .unwrap();
     let cost = _update_amm(
         &mut perp_market,
-        &mut mm_oracle_price_data,
+        &oracle_price_data,
         &state,
         now,
         clock_slot,
@@ -877,13 +869,10 @@ fn amm_ref_price_offset_decay_logic() {
             now += 1;
             clock_slot += 2;
         }
-        let mut mm_oracle_price_data = perp_market
-            .get_mm_oracle_price_data(oracle_price_data, clock_slot)
-            .unwrap();
 
         let cost = _update_amm(
             &mut perp_market,
-            &mut mm_oracle_price_data,
+            &oracle_price_data,
             &state,
             now,
             clock_slot,
@@ -1007,12 +996,9 @@ fn amm_negative_ref_price_offset_decay_logic() {
         delay: 1,
         has_sufficient_number_of_data_points: true,
     };
-    let mut mm_oracle_price_data = perp_market
-        .get_mm_oracle_price_data(oracle_price_data, clock_slot)
-        .unwrap();
     let cost = _update_amm(
         &mut perp_market,
-        &mut mm_oracle_price_data,
+        &oracle_price_data,
         &state,
         now,
         clock_slot,
@@ -1043,13 +1029,10 @@ fn amm_negative_ref_price_offset_decay_logic() {
             now += 1;
             clock_slot += 2;
         }
-        let mut mm_oracle_price_data = perp_market
-            .get_mm_oracle_price_data(oracle_price_data, clock_slot)
-            .unwrap();
 
         let cost = _update_amm(
             &mut perp_market,
-            &mut mm_oracle_price_data,
+            &oracle_price_data,
             &state,
             now,
             clock_slot,

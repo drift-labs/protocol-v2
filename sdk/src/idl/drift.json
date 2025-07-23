@@ -1461,11 +1461,6 @@
           "name": "user",
           "isMut": true,
           "isSigner": false
-        },
-        {
-          "name": "signer",
-          "isMut": false,
-          "isSigner": true
         }
       ],
       "args": [

@@ -1044,10 +1044,9 @@ export function calculateSpreadReserves(
 		amm.curveUpdateIntensity > 100;
 
 	if (doReferencePricOffsetSmooth) {
-		if (mmOraclePriceData.oraclePriceData.slot !== amm.lastUpdateSlot) {
+		if (oraclePriceData.slot !== amm.lastUpdateSlot) {
 			const slotsPassed =
-				mmOraclePriceData.oraclePriceData.slot.toNumber() -
-				amm.lastUpdateSlot.toNumber();
+				oraclePriceData.slot.toNumber() - amm.lastUpdateSlot.toNumber();
 			const fullOffsetDelta = referencePriceOffset - amm.referencePriceOffset;
 			const raw = Math.trunc(
 				Math.min(Math.abs(fullOffsetDelta), slotsPassed * 1000) / 10
