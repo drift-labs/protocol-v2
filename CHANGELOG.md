@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program/sdk: introduce separate oracle for vamm ([#1738](https://github.com/drift-labs/protocol-v2/pull/1738))
+
 ### Fixes
 
 - program: fix reference price decay ([#1761](https://github.com/drift-labs/protocol-v2/pull/1761))

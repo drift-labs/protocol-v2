@@ -1,8 +1,8 @@
-use crate::math::amm::*;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, PEG_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I64,
     PRICE_PRECISION_U64, QUOTE_PRECISION,
 };
+use crate::math::{amm::*, oracle};
 use crate::state::oracle::HistoricalOracleData;
 use crate::state::perp_market::PerpMarket;
 use crate::state::user::PerpPosition;
@@ -483,8 +483,15 @@ fn calc_mark_std_tests() {
             delay: 2,
             has_sufficient_number_of_data_points: true,
         };
+        let mut mm_oracle_price_data = MMOraclePriceData {
+            mm_oracle_delay: 3,
+            mm_oracle_price: oracle_price_data.price,
+            oracle_confidence: None,
 
-        update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
+            oracle_price_data,
+        };
+
+        update_oracle_price_twap(&mut amm, now, &mut mm_oracle_price_data, None, None).unwrap();
 
         amm.peg_multiplier = px as u128;
         let trade_direction = PositionDirection::Long;
@@ -598,6 +605,13 @@ fn update_mark_twap_tests() {
         delay: 1,
         has_sufficient_number_of_data_points: true,
     };
+    let mut mm_oracle_price_data = MMOraclePriceData {
+        mm_oracle_delay: 3,
+        mm_oracle_price: oracle_price_data.price,
+        oracle_confidence: None,
+
+        oracle_price_data,
+    };
 
     // $40 everything init
     let mut amm = AMM {
@@ -622,7 +636,7 @@ fn update_mark_twap_tests() {
         ..AMM::default()
     };
 
-    update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
+    update_oracle_price_twap(&mut amm, now, &mut mm_oracle_price_data, None, None).unwrap();
     assert_eq!(
         amm.historical_oracle_data.last_oracle_price,
         oracle_price_data.price
@@ -656,7 +670,7 @@ fn update_mark_twap_tests() {
 
     while now < 3600 {
         now += 1;
-        update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
+        update_oracle_price_twap(&mut amm, now, &mut mm_oracle_price_data, None, None).unwrap();
         update_mark_twap_from_estimates(
             &mut amm,
             now,
@@ -690,10 +704,17 @@ fn update_mark_twap_tests() {
         delay: 14,
         has_sufficient_number_of_data_points: true,
     };
+    let mut mm_oracle_price_data = MMOraclePriceData {
+        mm_oracle_delay: 15,
+        mm_oracle_price: oracle_price_data.price,
+        oracle_confidence: None,
+
+        oracle_price_data,
+    };
 
     while now <= 3600 * 2 {
         now += 1;
-        update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
+        update_oracle_price_twap(&mut amm, now, &mut mm_oracle_price_data, None, None).unwrap();
         if now % 200 == 0 {
             update_mark_twap_from_estimates(
                 &mut amm,
@@ -752,9 +773,16 @@ fn calc_oracle_twap_tests() {
         delay: 1,
         has_sufficient_number_of_data_points: true,
     };
+    let mut mm_oracle_price_data = MMOraclePriceData {
+        mm_oracle_delay: 2,
+        mm_oracle_price: oracle_price_data.price,
+        oracle_confidence: None,
+
+        oracle_price_data,
+    };
 
     let _new_oracle_twap =
-        update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
+        update_oracle_price_twap(&mut amm, now, &mut mm_oracle_price_data, None, None).unwrap();
     assert_eq!(
         amm.historical_oracle_data.last_oracle_price_twap,
         (34 * PRICE_PRECISION - PRICE_PRECISION / 100) as i64
@@ -770,9 +798,17 @@ fn calc_oracle_twap_tests() {
         delay: 2,
         has_sufficient_number_of_data_points: true,
     };
+    let mut mm_oracle_price_data = MMOraclePriceData {
+        mm_oracle_delay: 3,
+        mm_oracle_price: oracle_price_data.price,
+        oracle_confidence: None,
+
+        oracle_price_data,
+    };
+
     // let old_oracle_twap_2 = amm.historical_oracle_data.last_oracle_price_twap;
     let _new_oracle_twap_2 =
-        update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
+        update_oracle_price_twap(&mut amm, now, &mut mm_oracle_price_data, None, None).unwrap();
     assert_eq!(amm.historical_oracle_data.last_oracle_price_twap, 33940167);
     assert_eq!(
         amm.historical_oracle_data.last_oracle_price_twap_5min,
@@ -780,8 +816,14 @@ fn calc_oracle_twap_tests() {
     );
     assert_eq!(amm.oracle_std, 2_990_000);
 
-    let _new_oracle_twap_2 =
-        update_oracle_price_twap(&mut amm, now + 60 * 5, &oracle_price_data, None, None).unwrap();
+    let _new_oracle_twap_2 = update_oracle_price_twap(
+        &mut amm,
+        now + 60 * 5,
+        &mut mm_oracle_price_data,
+        None,
+        None,
+    )
+    .unwrap();
 
     assert_eq!(amm.historical_oracle_data.last_oracle_price_twap, 33695154);
     assert_eq!(
@@ -796,10 +838,22 @@ fn calc_oracle_twap_tests() {
         delay: 2,
         has_sufficient_number_of_data_points: true,
     };
+    let mut mm_oracle_price_data = MMOraclePriceData {
+        mm_oracle_delay: 3,
+        mm_oracle_price: oracle_price_data.price,
+        oracle_confidence: None,
 
-    let _new_oracle_twap_2 =
-        update_oracle_price_twap(&mut amm, now + 60 * 5 + 60, &oracle_price_data, None, None)
-            .unwrap();
+        oracle_price_data,
+    };
+
+    let _new_oracle_twap_2 = update_oracle_price_twap(
+        &mut amm,
+        now + 60 * 5 + 60,
+        &mut mm_oracle_price_data,
+        None,
+        None,
+    )
+    .unwrap();
     assert_eq!(
         amm.historical_oracle_data.last_oracle_price_twap_5min,
         31200001
@@ -849,9 +903,16 @@ fn calc_oracle_twap_clamp_update_tests() {
         delay: 1,
         has_sufficient_number_of_data_points: true,
     };
+    let mut mm_oracle_price_data = MMOraclePriceData {
+        mm_oracle_delay: 2,
+        mm_oracle_price: oracle_price_data.price,
+        oracle_confidence: None,
+
+        oracle_price_data,
+    };
 
     while now < prev + 3600 {
-        update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
+        update_oracle_price_twap(&mut amm, now, &mut mm_oracle_price_data, None, None).unwrap();
         now += 1;
     }
     assert_eq!(
@@ -865,7 +926,7 @@ fn calc_oracle_twap_clamp_update_tests() {
     assert_eq!(amm.last_oracle_normalised_price, 24_188_600);
 
     while now < prev + 3600 * 2 {
-        update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
+        update_oracle_price_twap(&mut amm, now, &mut mm_oracle_price_data, None, None).unwrap();
         now += 1;
     }
 
@@ -880,7 +941,7 @@ fn calc_oracle_twap_clamp_update_tests() {
     assert_eq!(amm.last_oracle_normalised_price, 33_760_245);
 
     while now < prev + 3600 * 10 {
-        update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
+        update_oracle_price_twap(&mut amm, now, &mut mm_oracle_price_data, None, None).unwrap();
         now += 1;
     }
 
@@ -929,8 +990,15 @@ fn test_last_oracle_conf_update() {
         delay: 1,
         has_sufficient_number_of_data_points: true,
     };
+    let mut mm_oracle_price_data = MMOraclePriceData {
+        mm_oracle_delay: 2,
+        mm_oracle_price: oracle_price_data.price,
+        oracle_confidence: None,
 
-    update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
+        oracle_price_data,
+    };
+
+    update_oracle_price_twap(&mut amm, now, &mut mm_oracle_price_data, None, None).unwrap();
 
     assert_eq!(amm.last_oracle_conf_pct, 7692);
 
@@ -942,16 +1010,23 @@ fn test_last_oracle_conf_update() {
         has_sufficient_number_of_data_points: true,
     };
 
+    let mut mm_oracle_price_data = MMOraclePriceData {
+        mm_oracle_delay: 2,
+        mm_oracle_price: oracle_price_data.price,
+        oracle_confidence: None,
+        oracle_price_data,
+    };
+
     // unchanged if now hasnt changed
-    update_oracle_price_twap(&mut amm, now, &oracle_price_data, None, None).unwrap();
+    update_oracle_price_twap(&mut amm, now, &mut mm_oracle_price_data, None, None).unwrap();
     assert_eq!(amm.last_oracle_conf_pct, 7692);
 
-    update_oracle_price_twap(&mut amm, now + 1, &oracle_price_data, None, None).unwrap();
+    update_oracle_price_twap(&mut amm, now + 1, &mut mm_oracle_price_data, None, None).unwrap();
 
     assert_eq!(amm.last_oracle_conf_pct, 7692 - 7692 / 20); // 7287
 
     // longer time between update means delay is faster
-    update_oracle_price_twap(&mut amm, now + 60, &oracle_price_data, None, None).unwrap();
+    update_oracle_price_twap(&mut amm, now + 60, &mut mm_oracle_price_data, None, None).unwrap();
 
     assert_eq!(amm.last_oracle_conf_pct, 7307 - 7307 / 5 + 1); //5847
 }

@@ -130,7 +130,7 @@ import {
 import { findDirectionToClose, positionIsAvailable } from './math/position';
 import { getSignedTokenAmount, getTokenAmount } from './math/spotBalance';
 import { decodeName, DEFAULT_USER_NAME, encodeName } from './userName';
-import { OraclePriceData } from './oracles/types';
+import { MMOraclePriceData, OraclePriceData } from './oracles/types';
 import { DriftClientConfig } from './driftClientConfig';
 import { PollingDriftClientAccountSubscriber } from './accounts/pollingDriftClientAccountSubscriber';
 import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDriftClientAccountSubscriber';
@@ -8483,6 +8483,15 @@ export class DriftClient {
 		return this.accountSubscriber.getOraclePriceDataAndSlotForPerpMarket(
 			marketIndex
 		).data;
+	}
+
+	public getMMOracleDataForPerpMarket(marketIndex: number): MMOraclePriceData {
+		const perpMarket = this.getPerpMarketAccount(marketIndex);
+		return {
+			mmOraclePrice: perpMarket.amm.mmOraclePrice,
+			mmOracleSlot: perpMarket.amm.mmOracleSlot,
+			oraclePriceData: this.getOracleDataForPerpMarket(marketIndex),
+		};
 	}
 
 	public getOracleDataForSpotMarket(marketIndex: number): OraclePriceData {
