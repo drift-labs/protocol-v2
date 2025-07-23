@@ -86,7 +86,7 @@ import {
 	calculateMarginUSDCRequiredForTrade,
 	calculateWorstCaseBaseAssetAmount,
 } from './math/margin';
-import { OraclePriceData } from './oracles/types';
+import { MMOraclePriceData, OraclePriceData } from './oracles/types';
 import { UserConfig } from './userConfig';
 import { PollingUserAccountSubscriber } from './accounts/pollingUserAccountSubscriber';
 import { WebSocketUserAccountSubscriber } from './accounts/webSocketUserAccountSubscriber';
@@ -676,7 +676,10 @@ export class User {
 			  )
 			: ZERO;
 
-		const freeCollateral = this.getFreeCollateral().sub(collateralBuffer);
+		const freeCollateral = this.getFreeCollateral(
+			'Initial',
+			enterHighLeverageMode
+		).sub(collateralBuffer);
 
 		return this.getPerpBuyingPowerFromFreeCollateralAndBaseAssetAmount(
 			marketIndex,
@@ -707,11 +710,14 @@ export class User {
 	 * calculates Free Collateral = Total collateral - margin requirement
 	 * @returns : Precision QUOTE_PRECISION
 	 */
-	public getFreeCollateral(marginCategory: MarginCategory = 'Initial'): BN {
+	public getFreeCollateral(
+		marginCategory: MarginCategory = 'Initial',
+		enterHighLeverageMode = false
+	): BN {
 		const totalCollateral = this.getTotalCollateral(marginCategory, true);
 		const marginRequirement =
 			marginCategory === 'Initial'
-				? this.getInitialMarginRequirement()
+				? this.getInitialMarginRequirement(enterHighLeverageMode)
 				: this.getMaintenanceMarginRequirement();
 		const freeCollateral = totalCollateral.sub(marginRequirement);
 		return freeCollateral.gte(ZERO) ? freeCollateral : ZERO;
@@ -747,8 +753,14 @@ export class User {
 	/**
 	 * @returns The initial margin requirement in USDC. : QUOTE_PRECISION
 	 */
-	public getInitialMarginRequirement(): BN {
-		return this.getMarginRequirement('Initial', undefined, true);
+	public getInitialMarginRequirement(enterHighLeverageMode = false): BN {
+		return this.getMarginRequirement(
+			'Initial',
+			undefined,
+			true,
+			undefined,
+			enterHighLeverageMode
+		);
 	}
 
 	/**
@@ -980,7 +992,7 @@ export class User {
 
 					const twap5min = calculateLiveOracleTwap(
 						spotMarketAccount.historicalOracleData,
-						oraclePriceData,
+						oraclePriceData.price,
 						now,
 						FIVE_MINUTE // 5MIN
 					);
@@ -1087,7 +1099,7 @@ export class User {
 			if (strict) {
 				twap5min = calculateLiveOracleTwap(
 					spotMarketAccount.historicalOracleData,
-					oraclePriceData,
+					oraclePriceData.price,
 					now,
 					FIVE_MINUTE // 5MIN
 				);
@@ -1659,13 +1671,13 @@ export class User {
 
 		const entryPrice = calculateEntryPrice(position);
 
-		const oraclePriceData = this.getOracleDataForPerpMarket(
+		const mmOraclePriceData = this.getMMOracleDataForPerpMarket(
 			position.marketIndex
 		);
 
 		if (amountToClose) {
 			if (amountToClose.eq(ZERO)) {
-				return [calculateReservePrice(market, oraclePriceData), ZERO];
+				return [calculateReservePrice(market, mmOraclePriceData), ZERO];
 			}
 			position = {
 				baseAssetAmount: amountToClose,
@@ -1681,13 +1693,13 @@ export class User {
 			baseAssetValue = calculateBaseAssetValue(
 				market,
 				position,
-				oraclePriceData
+				mmOraclePriceData
 			);
 		} else {
 			baseAssetValue = calculateBaseAssetValueWithOracle(
 				market,
 				position,
-				oraclePriceData
+				mmOraclePriceData.oraclePriceData
 			);
 		}
 		if (position.baseAssetAmount.eq(ZERO)) {
@@ -2676,7 +2688,9 @@ export class User {
 					isVariant(market.contractType, 'prediction')
 				);
 				const totalCollateral = this.getTotalCollateral();
-				const marginRequirement = this.getInitialMarginRequirement();
+				const marginRequirement = this.getInitialMarginRequirement(
+					enterHighLeverageMode
+				);
 				const marginFreedByClosing = perpLiabilityValue
 					.mul(new BN(market.marginRatioInitial))
 					.div(MARGIN_PRECISION);
@@ -2705,7 +2719,10 @@ export class User {
 			}
 		}
 
-		const freeCollateral = this.getFreeCollateral();
+		const freeCollateral = this.getFreeCollateral(
+			'Initial',
+			enterHighLeverageMode
+		);
 
 		let baseTradeSize =
 			targetSide === 'long'
@@ -4068,6 +4085,10 @@ export class User {
 			liquidationBuffer,
 			includeOpenOrders
 		).sub(currentPerpPositionValueUSDC);
+	}
+
+	private getMMOracleDataForPerpMarket(marketIndex: number): MMOraclePriceData {
+		return this.driftClient.getMMOracleDataForPerpMarket(marketIndex);
 	}
 
 	private getOracleDataForPerpMarket(marketIndex: number): OraclePriceData {

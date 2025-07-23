@@ -306,6 +306,7 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
     let now = Clock::get()?.unix_timestamp;
     let state = &ctx.accounts.state;
     let lp_pool = &ctx.accounts.lp_pool.load()?;
+    let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
 
     if slot.saturating_sub(lp_pool.last_aum_slot) > LP_POOL_SWAP_AUM_UPDATE_DELAY {
         msg!(
@@ -498,6 +499,7 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         &ctx.accounts.authority,
         in_amount.cast::<u64>()?,
         &Some((*ctx.accounts.in_market_mint).clone()),
+        Some(remaining_accounts),
     )?;
 
     send_from_program_vault(
@@ -508,6 +510,7 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         state.signer_nonce,
         out_amount_net_fees.cast::<u64>()?,
         &Some((*ctx.accounts.out_market_mint).clone()),
+        Some(remaining_accounts),
     )?;
 
     ctx.accounts.constituent_in_token_account.reload()?;
@@ -542,6 +545,8 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
         return Err(ErrorCode::LpPoolAumDelayed.into());
     }
 
+    let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
+
     let mut in_constituent = ctx.accounts.in_constituent.load_mut()?;
 
     let constituent_target_base = ctx.accounts.constituent_target_base.load_zc()?;
@@ -551,7 +556,7 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
+        remaining_accounts,
         &MarketSet::new(),
         &get_writable_spot_market_set_from_many(vec![in_market_index]),
         slot,
@@ -643,6 +648,7 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
         &ctx.accounts.authority,
         in_amount.cast::<u64>()?,
         &Some((*ctx.accounts.in_market_mint).clone()),
+        Some(remaining_accounts),
     )?;
 
     msg!("mint_tokens");
@@ -664,6 +670,7 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
         state.signer_nonce,
         lp_mint_amount_net_fees,
         &Some((*ctx.accounts.lp_mint).clone()),
+        Some(remaining_accounts),
     )?;
 
     lp_pool.last_aum = lp_pool.last_aum.safe_add(
@@ -745,12 +752,14 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
 
     let constituent_target_base = ctx.accounts.constituent_target_base.load_zc()?;
 
+    let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
+
     let AccountMaps {
         perp_market_map: _,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
+        remaining_accounts,
         &MarketSet::new(),
         &get_writable_spot_market_set_from_many(vec![out_market_index]),
         slot,
@@ -846,6 +855,7 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
         &ctx.accounts.authority,
         lp_burn_amount,
         &None,
+        Some(remaining_accounts),
     )?;
 
     burn_tokens(
@@ -865,6 +875,7 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
         state.signer_nonce,
         out_amount_net_fees.cast::<u64>()?,
         &None,
+        Some(remaining_accounts),
     )?;
 
     lp_pool.last_aum = lp_pool.last_aum.safe_sub(
@@ -958,6 +969,7 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
         clock.slot,
         Some(ctx.accounts.state.oracle_guard_rails),
     )?;
+    let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
 
     constituent.sync_token_balance(ctx.accounts.constituent_token_account.amount);
     let balance_before = constituent.get_full_balance(&spot_market)?;
@@ -989,6 +1001,7 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
         ctx.accounts.state.signer_nonce,
         amount,
         &Some(*ctx.accounts.mint.clone()),
+        Some(remaining_accounts),
     )?;
 
     // Adjust BLPosition for the new deposits
@@ -1042,6 +1055,7 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
         clock.slot,
         Some(ctx.accounts.state.oracle_guard_rails),
     )?;
+    let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
 
     constituent.sync_token_balance(ctx.accounts.constituent_token_account.amount);
 
@@ -1088,6 +1102,7 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
         state.signer_nonce,
         amount_to_transfer,
         &Some(*ctx.accounts.mint.clone()),
+        Some(remaining_accounts),
     )?;
     ctx.accounts.constituent_token_account.reload()?;
     constituent.sync_token_balance(ctx.accounts.constituent_token_account.amount);

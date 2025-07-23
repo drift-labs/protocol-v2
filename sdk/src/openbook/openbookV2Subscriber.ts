@@ -141,7 +141,7 @@ export class OpenbookV2Subscriber implements L2OrderBookGenerator {
 
 	*getL2Levels(side: 'bids' | 'asks'): Generator<L2Level> {
 		const levels = side === 'bids' ? this.market.bids : this.market.asks;
-		for (const order of levels?.items()) {
+		for (const order of levels?.items() ?? []) {
 			const size = this.convertSizeInBaseLotsToMarketPrecision(order.sizeLots);
 			const price = this.convertPriceInLotsToPricePrecision(order.priceLots);
 			yield {

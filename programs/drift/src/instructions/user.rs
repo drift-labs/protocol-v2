@@ -637,6 +637,11 @@ pub fn handle_deposit<'c: 'info, 'info>(
         &ctx.accounts.authority,
         amount,
         &mint,
+        if spot_market.has_transfer_hook() {
+            Some(remaining_accounts_iter)
+        } else {
+            None
+        },
     )?;
     ctx.accounts.spot_market_vault.reload()?;
 
@@ -830,6 +835,11 @@ pub fn handle_withdraw<'c: 'info, 'info>(
         state.signer_nonce,
         amount,
         &mint,
+        if spot_market.has_transfer_hook() {
+            Some(remaining_accounts_iter)
+        } else {
+            None
+        },
     )?;
 
     // reload the spot market vault balance so it's up-to-date
@@ -1472,6 +1482,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             .find(|acc| acc.key() == spot_market_mint.key())
             .map(|acc| InterfaceAccount::try_from(acc).unwrap());
 
+        // TODO: support transfer hook tokens
         controller::token::send_from_program_vault(
             token_program,
             &ctx.accounts.deposit_from_spot_market_vault,
@@ -1480,6 +1491,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             state.signer_nonce,
             deposit_transfer,
             &mint_account_info,
+            None,
         )?;
     }
 
@@ -1500,6 +1512,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             .find(|acc| acc.key() == spot_market_mint.key())
             .map(|acc| InterfaceAccount::try_from(acc).unwrap());
 
+        // TODO: support transfer hook tokens
         controller::token::send_from_program_vault(
             token_program,
             &ctx.accounts.borrow_to_spot_market_vault,
@@ -1508,6 +1521,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             state.signer_nonce,
             borrow_transfer,
             &mint_account_info,
+            None,
         )?;
     }
 
@@ -2923,6 +2937,9 @@ pub fn handle_add_perp_lp_shares<'c: 'info, 'info>(
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
 
+    msg!("add_perp_lp_shares is disabled");
+    return Err(ErrorCode::DefaultError.into());
+
     let AccountMaps {
         perp_market_map,
         spot_market_map,
@@ -3040,9 +3057,10 @@ pub fn handle_remove_perp_lp_shares_in_expiring_market<'c: 'info, 'info>(
 
     // additional validate
     {
+        let signer_is_admin = ctx.accounts.signer.key() == admin_hot_wallet::id();
         let market = perp_market_map.get_ref(&market_index)?;
         validate!(
-            market.is_reduce_only()?,
+            market.is_reduce_only()? || signer_is_admin,
             ErrorCode::PerpMarketNotInReduceOnly,
             "Can only permissionless burn when market is in reduce only"
         )?;
@@ -3362,6 +3380,11 @@ pub fn handle_deposit_into_spot_market_revenue_pool<'c: 'info, 'info>(
         &ctx.accounts.authority,
         amount,
         &mint,
+        if spot_market.has_transfer_hook() {
+            Some(remaining_accounts_iter)
+        } else {
+            None
+        },
     )?;
 
     spot_market.validate_max_token_deposits_and_borrows(false)?;
@@ -3480,6 +3503,21 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
 
     let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
 
+    let in_spot_has_transfer_hook = in_spot_market.has_transfer_hook();
+    let out_spot_has_transfer_hook = out_spot_market.has_transfer_hook();
+
+    validate!(
+        !(in_spot_has_transfer_hook && out_spot_has_transfer_hook),
+        ErrorCode::InvalidSwap,
+        "both in and out spot markets cannot both have transfer hooks"
+    )?;
+
+    let in_remaining_accounts_for_hooks = if in_spot_has_transfer_hook {
+        Some(remaining_accounts_iter)
+    } else {
+        None
+    };
+
     validate!(
         out_spot_market.fills_enabled(),
         ErrorCode::MarketFillOrderPaused,
@@ -3531,6 +3569,7 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
         state.signer_nonce,
         amount_in,
         &mint,
+        in_remaining_accounts_for_hooks,
     )?;
 
     let ixs = ctx.accounts.instructions.as_ref();
@@ -3773,6 +3812,11 @@ pub fn handle_end_swap<'c: 'info, 'info>(
             &ctx.accounts.authority,
             residual,
             &in_mint,
+            if in_spot_market.has_transfer_hook() {
+                Some(remaining_accounts)
+            } else {
+                None
+            },
         )?;
         in_token_account.reload()?;
         in_vault.reload()?;
@@ -3853,6 +3897,11 @@ pub fn handle_end_swap<'c: 'info, 'info>(
                 &ctx.accounts.authority,
                 amount_out,
                 &out_mint,
+                if out_spot_market.has_transfer_hook() {
+                    Some(remaining_accounts)
+                } else {
+                    None
+                },
             )?;
         } else {
             controller::token::receive(
@@ -3862,6 +3911,11 @@ pub fn handle_end_swap<'c: 'info, 'info>(
                 &ctx.accounts.authority,
                 amount_out,
                 &out_mint,
+                if out_spot_market.has_transfer_hook() {
+                    Some(remaining_accounts)
+                } else {
+                    None
+                },
             )?;
         }
 
@@ -4580,6 +4634,7 @@ pub struct RemoveLiquidityInExpiredMarket<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub user: AccountLoader<'info, User>,
+    pub signer: Signer<'info>,
 }
 
 #[derive(Accounts)]

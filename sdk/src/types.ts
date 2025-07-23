@@ -99,6 +99,11 @@ export class AssetTier {
 	static readonly UNLISTED = { unlisted: {} };
 }
 
+export enum TokenProgramFlag {
+	Token2022 = 1,
+	TransferHook = 2,
+}
+
 export class SwapDirection {
 	static readonly ADD = { add: {} };
 	static readonly REMOVE = { remove: {} };
@@ -950,7 +955,7 @@ export type SpotMarketAccount = {
 	fuelBoostMaker: number;
 	fuelBoostInsurance: number;
 
-	tokenProgram: number;
+	tokenProgramFlag: number;
 
 	poolId: number;
 };
@@ -991,7 +996,7 @@ export type AMM = {
 	totalFeeMinusDistributions: BN;
 	totalFeeWithdrawn: BN;
 	totalFee: BN;
-	totalFeeEarnedPerLp: BN;
+	mmOracleSequenceId: BN;
 	userLpShares: BN;
 	baseAssetAmountWithUnsettledLp: BN;
 	orderStepSize: BN;
@@ -1036,13 +1041,12 @@ export type AMM = {
 
 	markStd: BN;
 	oracleStd: BN;
-	longIntensityCount: number;
 	longIntensityVolume: BN;
-	shortIntensityCount: number;
 	shortIntensityVolume: BN;
 	volume24H: BN;
 	minOrderSize: BN;
-	maxPositionSize: BN;
+	mmOraclePrice: BN;
+	mmOracleSlot: BN;
 
 	bidBaseAssetReserve: BN;
 	bidQuoteAssetReserve: BN;

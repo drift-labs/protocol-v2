@@ -1,4 +1,7 @@
 pub mod perp_lp_pool_settlement {
+    use core::slice::Iter;
+    use std::iter::Peekable;
+
     use crate::{
         math::safe_math::SafeMath,
         state::{
@@ -106,6 +109,7 @@ pub mod perp_lp_pool_settlement {
         signer_nonce: u8,
         amount: u64,
         mint: &Option<InterfaceAccount<'info, Mint>>,
+        remaining_accounts: Option<&mut Peekable<Iter<'info, AccountInfo<'info>>>>,
     ) -> Result<()> {
         controller::token::send_from_program_vault(
             token_program,
@@ -115,6 +119,7 @@ pub mod perp_lp_pool_settlement {
             signer_nonce,
             amount,
             mint,
+            remaining_accounts,
         )
     }
 

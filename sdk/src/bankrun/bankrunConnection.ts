@@ -17,7 +17,6 @@ import {
 	TransactionReturnData,
 	TransactionError,
 	SignatureResultCallback,
-	ClientSubscriptionId,
 	Connection as SolanaConnection,
 	SystemProgram,
 	Blockhash,
@@ -39,6 +38,7 @@ import { BN, Wallet } from '@coral-xyz/anchor';
 import { Account, unpackAccount } from '@solana/spl-token';
 import { isVersionedTransaction } from '../tx/utils';
 
+export type ClientSubscriptionId = number;
 export type Connection = SolanaConnection | BankrunConnection;
 
 type BankrunTransactionMetaNormalized = {

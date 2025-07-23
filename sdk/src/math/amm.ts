@@ -25,7 +25,7 @@ import {
 import { assert } from '../assert/assert';
 import { squareRootBN, sigNum, clampBN, standardizeBaseAssetAmount } from '..';
 
-import { OraclePriceData } from '../oracles/types';
+import { MMOraclePriceData } from '../oracles/types';
 import {
 	calculateRepegCost,
 	calculateAdjustKCost,
@@ -33,6 +33,10 @@ import {
 } from './repeg';
 
 import { calculateLiveOracleStd, getNewOracleConfPct } from './oracles';
+import {
+	getOracleConfidenceFromMMOracleData,
+	getOraclePriceFromMMOracleData,
+} from '../oracles/utils';
 
 export function calculatePegFromTargetPrice(
 	targetPrice: BN,
@@ -51,14 +55,14 @@ export function calculatePegFromTargetPrice(
 
 export function calculateOptimalPegAndBudget(
 	amm: AMM,
-	oraclePriceData: OraclePriceData
+	mmOraclePriceData: MMOraclePriceData
 ): [BN, BN, BN, boolean] {
 	const reservePriceBefore = calculatePrice(
 		amm.baseAssetReserve,
 		amm.quoteAssetReserve,
 		amm.pegMultiplier
 	);
-	const targetPrice = oraclePriceData.price;
+	const targetPrice = getOraclePriceFromMMOracleData(mmOraclePriceData);
 	const newPeg = calculatePegFromTargetPrice(
 		targetPrice,
 		amm.baseAssetReserve,
@@ -112,13 +116,13 @@ export function calculateOptimalPegAndBudget(
 
 export function calculateNewAmm(
 	amm: AMM,
-	oraclePriceData: OraclePriceData
+	mmOraclePriceData: MMOraclePriceData
 ): [BN, BN, BN, BN] {
 	let pKNumer = new BN(1);
 	let pKDenom = new BN(1);
 
 	const [targetPrice, _newPeg, budget, _checkLowerBound] =
-		calculateOptimalPegAndBudget(amm, oraclePriceData);
+		calculateOptimalPegAndBudget(amm, mmOraclePriceData);
 	let prePegCost = calculateRepegCost(amm, _newPeg);
 	let newPeg = _newPeg;
 
@@ -154,15 +158,15 @@ export function calculateNewAmm(
 
 export function calculateUpdatedAMM(
 	amm: AMM,
-	oraclePriceData: OraclePriceData
+	mmOraclePriceData: MMOraclePriceData
 ): AMM {
-	if (amm.curveUpdateIntensity == 0 || oraclePriceData === undefined) {
+	if (amm.curveUpdateIntensity == 0 || mmOraclePriceData === undefined) {
 		return amm;
 	}
 	const newAmm = Object.assign({}, amm);
 	const [prepegCost, pKNumer, pKDenom, newPeg] = calculateNewAmm(
 		amm,
-		oraclePriceData
+		mmOraclePriceData
 	);
 
 	newAmm.baseAssetReserve = newAmm.baseAssetReserve.mul(pKNumer).div(pKDenom);
@@ -195,13 +199,13 @@ export function calculateUpdatedAMM(
 export function calculateUpdatedAMMSpreadReserves(
 	amm: AMM,
 	direction: PositionDirection,
-	oraclePriceData: OraclePriceData,
+	mmOraclePriceData: MMOraclePriceData,
 	isPrediction = false
 ): { baseAssetReserve: BN; quoteAssetReserve: BN; sqrtK: BN; newPeg: BN } {
-	const newAmm = calculateUpdatedAMM(amm, oraclePriceData);
+	const newAmm = calculateUpdatedAMM(amm, mmOraclePriceData);
 	const [shortReserves, longReserves] = calculateSpreadReserves(
 		newAmm,
-		oraclePriceData,
+		mmOraclePriceData,
 		undefined,
 		isPrediction
 	);
@@ -222,20 +226,20 @@ export function calculateUpdatedAMMSpreadReserves(
 
 export function calculateBidAskPrice(
 	amm: AMM,
-	oraclePriceData: OraclePriceData,
+	mmOraclePriceData: MMOraclePriceData,
 	withUpdate = true,
 	isPrediction = false
 ): [BN, BN] {
 	let newAmm: AMM;
 	if (withUpdate) {
-		newAmm = calculateUpdatedAMM(amm, oraclePriceData);
+		newAmm = calculateUpdatedAMM(amm, mmOraclePriceData);
 	} else {
 		newAmm = amm;
 	}
 
 	const [bidReserves, askReserves] = calculateSpreadReserves(
 		newAmm,
-		oraclePriceData,
+		mmOraclePriceData,
 		undefined,
 		isPrediction
 	);
@@ -475,8 +479,8 @@ export function calculateReferencePriceOffset(
 
 	const inventoryPct = clampBN(
 		liquidityFraction.mul(new BN(maxOffsetPct)).div(PERCENTAGE_PRECISION),
-		maxOffsetInPrice.mul(new BN(-1)),
-		maxOffsetInPrice
+		new BN(maxOffsetPct).mul(new BN(-1)),
+		new BN(maxOffsetPct)
 	);
 
 	// Only apply when inventory is consistent with recent and 24h market premium
@@ -824,7 +828,7 @@ export function calculateSpreadBN(
 
 export function calculateSpread(
 	amm: AMM,
-	oraclePriceData: OraclePriceData,
+	mmOraclePriceData: MMOraclePriceData,
 	now?: BN,
 	reservePrice?: BN
 ): [number, number] {
@@ -839,18 +843,18 @@ export function calculateSpread(
 			amm.pegMultiplier
 		);
 	}
-
-	const targetPrice = oraclePriceData?.price || reservePrice;
+	const oraclePrice = getOraclePriceFromMMOracleData(mmOraclePriceData);
+	const targetPrice = oraclePrice || reservePrice;
 	const targetMarkSpreadPct = reservePrice
 		.sub(targetPrice)
 		.mul(BID_ASK_SPREAD_PRECISION)
 		.div(reservePrice);
 
 	now = now || new BN(new Date().getTime() / 1000); //todo
-	const liveOracleStd = calculateLiveOracleStd(amm, oraclePriceData, now);
+	const liveOracleStd = calculateLiveOracleStd(amm, oraclePrice, now);
 	const confIntervalPct = getNewOracleConfPct(
 		amm,
-		oraclePriceData,
+		getOracleConfidenceFromMMOracleData(mmOraclePriceData),
 		reservePrice,
 		now
 	);
@@ -936,7 +940,7 @@ export function getQuoteAssetReservePredictionMarketBounds(
 
 export function calculateSpreadReserves(
 	amm: AMM,
-	oraclePriceData: OraclePriceData,
+	mmOraclePriceData: MMOraclePriceData,
 	now?: BN,
 	isPrediction = false
 ) {
@@ -999,7 +1003,7 @@ export function calculateSpreadReserves(
 
 	// always allow 10 bps of price offset, up to a half of the market's max_spread
 	let maxOffset = 0;
-	let referencePriceOffset = ZERO;
+	let referencePriceOffset = 0;
 	if (amm.curveUpdateIntensity > 100) {
 		maxOffset = Math.max(
 			amm.maxSpread / 2,
@@ -1025,23 +1029,53 @@ export function calculateSpreadReserves(
 			amm.historicalOracleData.lastOraclePriceTwap,
 			amm.lastMarkPriceTwap,
 			maxOffset
-		);
+		).toNumber();
 	}
 
-	const [longSpread, shortSpread] = calculateSpread(
+	let [longSpread, shortSpread] = calculateSpread(
 		amm,
-		oraclePriceData,
+		mmOraclePriceData,
 		now,
 		reservePrice
 	);
 
+	const doReferencePricOffsetSmooth =
+		Math.sign(referencePriceOffset) !== Math.sign(amm.referencePriceOffset) &&
+		amm.curveUpdateIntensity > 100;
+
+	if (doReferencePricOffsetSmooth) {
+		if (oraclePriceData.slot !== amm.lastUpdateSlot) {
+			const slotsPassed =
+				oraclePriceData.slot.toNumber() - amm.lastUpdateSlot.toNumber();
+			const fullOffsetDelta = referencePriceOffset - amm.referencePriceOffset;
+			const raw = Math.trunc(
+				Math.min(Math.abs(fullOffsetDelta), slotsPassed * 1000) / 10
+			);
+			const maxAllowed =
+				Math.abs(amm.referencePriceOffset) || Math.abs(referencePriceOffset);
+
+			const magnitude = Math.min(Math.max(raw, 10), maxAllowed);
+			const referencePriceDelta = Math.sign(fullOffsetDelta) * magnitude;
+
+			referencePriceOffset = amm.referencePriceOffset + referencePriceDelta;
+
+			if (referencePriceDelta < 0) {
+				longSpread += Math.abs(referencePriceDelta);
+				shortSpread += Math.abs(referencePriceOffset);
+			} else {
+				shortSpread += Math.abs(referencePriceDelta);
+				longSpread += Math.abs(referencePriceOffset);
+			}
+		}
+	}
+
 	const askReserves = calculateSpreadReserve(
-		longSpread + referencePriceOffset.toNumber(),
+		longSpread + referencePriceOffset,
 		PositionDirection.LONG,
 		amm
 	);
 	const bidReserves = calculateSpreadReserve(
-		-shortSpread + referencePriceOffset.toNumber(),
+		-shortSpread + referencePriceOffset,
 		PositionDirection.SHORT,
 		amm
 	);
@@ -1127,7 +1161,7 @@ export function calculateMaxBaseAssetAmountToTrade(
 	amm: AMM,
 	limit_price: BN,
 	direction: PositionDirection,
-	oraclePriceData?: OraclePriceData,
+	mmOraclePriceData?: MMOraclePriceData,
 	now?: BN,
 	isPrediction = false
 ): [BN, PositionDirection] {
@@ -1142,7 +1176,7 @@ export function calculateMaxBaseAssetAmountToTrade(
 	const newBaseAssetReserve = squareRootBN(newBaseAssetReserveSquared);
 	const [shortSpreadReserves, longSpreadReserves] = calculateSpreadReserves(
 		amm,
-		oraclePriceData,
+		mmOraclePriceData,
 		now,
 		isPrediction
 	);

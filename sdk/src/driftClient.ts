@@ -18,6 +18,11 @@ import {
 	TOKEN_2022_PROGRAM_ID,
 	TOKEN_PROGRAM_ID,
 	getAssociatedTokenAddressSync,
+	getMint,
+	getTransferHook,
+	getExtraAccountMetaAddress,
+	getExtraAccountMetas,
+	resolveExtraAccountMeta,
 } from '@solana/spl-token';
 import {
 	DriftClientMetricsEvents,
@@ -58,6 +63,7 @@ import {
 	UserStatsAccount,
 	ProtectedMakerModeConfig,
 	SignedMsgOrderParamsDelegateMessage,
+	TokenProgramFlag,
 	LPPoolAccount,
 	ConstituentAccount,
 	ConstituentTargetBaseAccount,
@@ -136,7 +142,7 @@ import {
 import { findDirectionToClose, positionIsAvailable } from './math/position';
 import { getSignedTokenAmount, getTokenAmount } from './math/spotBalance';
 import { decodeName, DEFAULT_USER_NAME, encodeName } from './userName';
-import { OraclePriceData } from './oracles/types';
+import { MMOraclePriceData, OraclePriceData } from './oracles/types';
 import { DriftClientConfig } from './driftClientConfig';
 import { PollingDriftClientAccountSubscriber } from './accounts/pollingDriftClientAccountSubscriber';
 import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDriftClientAccountSubscriber';
@@ -1904,6 +1910,8 @@ export class DriftClient {
 				pubkey: keeperVault,
 			});
 			tokenPrograms.add(tokenProgram.toBase58());
+
+			this.addTokenMintToRemainingAccounts(spotMarket, remainingAccounts);
 		}
 
 		for (const tokenProgram of tokenPrograms) {
@@ -2658,6 +2666,13 @@ export class DriftClient {
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 
 		this.addTokenMintToRemainingAccounts(spotMarketAccount, remainingAccounts);
+		if (this.isTransferHook(spotMarketAccount)) {
+			await this.addExtraAccountMetasToRemainingAccounts(
+				spotMarketAccount.mint,
+				remainingAccounts
+			);
+		}
+
 		const tokenProgram = this.getTokenProgramForSpotMarket(spotMarketAccount);
 		return await this.program.instruction.deposit(
 			marketIndex,
@@ -2748,23 +2763,81 @@ export class DriftClient {
 	public getTokenProgramForSpotMarket(
 		spotMarketAccount: SpotMarketAccount
 	): PublicKey {
-		if (spotMarketAccount.tokenProgram === 1) {
+		if (this.isToken2022(spotMarketAccount)) {
 			return TOKEN_2022_PROGRAM_ID;
 		}
 		return TOKEN_PROGRAM_ID;
+	}
+
+	public isToken2022(spotMarketAccount: SpotMarketAccount): boolean {
+		return (
+			(spotMarketAccount.tokenProgramFlag & TokenProgramFlag.Token2022) > 0
+		);
+	}
+
+	public isTransferHook(spotMarketAccount: SpotMarketAccount): boolean {
+		return (
+			(spotMarketAccount.tokenProgramFlag & TokenProgramFlag.TransferHook) > 0
+		);
 	}
 
 	public addTokenMintToRemainingAccounts(
 		spotMarketAccount: SpotMarketAccount,
 		remainingAccounts: AccountMeta[]
 	) {
-		if (spotMarketAccount.tokenProgram === 1) {
+		if (this.isToken2022(spotMarketAccount)) {
 			remainingAccounts.push({
 				pubkey: spotMarketAccount.mint,
 				isSigner: false,
 				isWritable: false,
 			});
 		}
+	}
+
+	public async addExtraAccountMetasToRemainingAccounts(
+		mint: PublicKey,
+		remainingAccounts: AccountMeta[]
+	) {
+		const mintAccount = await getMint(
+			this.connection,
+			mint,
+			'confirmed',
+			TOKEN_2022_PROGRAM_ID
+		);
+		const hookAccount = getTransferHook(mintAccount)!;
+		if (hookAccount.programId.equals(PublicKey.default)) {
+			return;
+		}
+		const extraAccountMetasAddress = getExtraAccountMetaAddress(
+			mint,
+			hookAccount!.programId
+		);
+		const extraAccountMetas = getExtraAccountMetas(
+			await this.connection.getAccountInfo(extraAccountMetasAddress)!
+		);
+
+		for (const acc of extraAccountMetas) {
+			// assuming it's an extra account meta that does not rely on ix data
+			const resolvedAcc = await resolveExtraAccountMeta(
+				this.connection,
+				acc,
+				remainingAccounts,
+				Buffer.from([]),
+				hookAccount.programId
+			);
+			remainingAccounts.push(resolvedAcc);
+		}
+
+		remainingAccounts.push({
+			pubkey: hookAccount.programId,
+			isSigner: false,
+			isWritable: false,
+		});
+		remainingAccounts.push({
+			pubkey: extraAccountMetasAddress,
+			isSigner: false,
+			isWritable: false,
+		});
 	}
 
 	public getAssociatedTokenAccountCreationIx(
@@ -3251,6 +3324,13 @@ export class DriftClient {
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 
 		this.addTokenMintToRemainingAccounts(spotMarketAccount, remainingAccounts);
+		if (this.isTransferHook(spotMarketAccount)) {
+			await this.addExtraAccountMetasToRemainingAccounts(
+				spotMarketAccount.mint,
+				remainingAccounts
+			);
+		}
+
 		const tokenProgram = this.getTokenProgramForSpotMarket(spotMarketAccount);
 
 		return await this.program.instruction.withdraw(
@@ -5398,7 +5478,7 @@ export class DriftClient {
 			});
 		}
 
-		if (outSpotMarket.tokenProgram === 1 || inSpotMarket.tokenProgram === 1) {
+		if (this.isToken2022(outSpotMarket) || this.isToken2022(inSpotMarket)) {
 			remainingAccounts.push({
 				pubkey: inSpotMarket.mint,
 				isWritable: false,
@@ -5409,6 +5489,18 @@ export class DriftClient {
 				isWritable: false,
 				isSigner: false,
 			});
+			if (this.isTransferHook(outSpotMarket)) {
+				this.addExtraAccountMetasToRemainingAccounts(
+					outSpotMarket.mint,
+					remainingAccounts
+				);
+			}
+			if (this.isTransferHook(inSpotMarket)) {
+				this.addExtraAccountMetasToRemainingAccounts(
+					inSpotMarket.mint,
+					remainingAccounts
+				);
+			}
 		}
 
 		const beginSwapIx = await this.program.instruction.beginSwap(
@@ -7774,8 +7866,8 @@ export class DriftClient {
 		}
 
 		if (
-			liabilitySpotMarket.tokenProgram === 1 ||
-			assetSpotMarket.tokenProgram === 1
+			this.isToken2022(liabilitySpotMarket) ||
+			this.isToken2022(assetSpotMarket)
 		) {
 			remainingAccounts.push({
 				pubkey: assetSpotMarket.mint,
@@ -7787,6 +7879,18 @@ export class DriftClient {
 				isWritable: false,
 				isSigner: false,
 			});
+			if (this.isTransferHook(assetSpotMarket)) {
+				this.addExtraAccountMetasToRemainingAccounts(
+					assetSpotMarket.mint,
+					remainingAccounts
+				);
+			}
+			if (this.isTransferHook(liabilitySpotMarket)) {
+				this.addExtraAccountMetasToRemainingAccounts(
+					liabilitySpotMarket.mint,
+					remainingAccounts
+				);
+			}
 		}
 
 		const beginSwapIx =
@@ -7863,6 +7967,31 @@ export class DriftClient {
 
 		const inSpotMarket = this.getSpotMarketAccount(inMarketIndex);
 		const outSpotMarket = this.getSpotMarketAccount(outMarketIndex);
+
+		if (this.isToken2022(inSpotMarket) || this.isToken2022(outSpotMarket)) {
+			remainingAccounts.push({
+				pubkey: inSpotMarket.mint,
+				isWritable: false,
+				isSigner: false,
+			});
+			remainingAccounts.push({
+				pubkey: outSpotMarket.mint,
+				isWritable: false,
+				isSigner: false,
+			});
+			if (this.isTransferHook(inSpotMarket)) {
+				this.addExtraAccountMetasToRemainingAccounts(
+					inSpotMarket.mint,
+					remainingAccounts
+				);
+			}
+			if (this.isTransferHook(outSpotMarket)) {
+				this.addExtraAccountMetasToRemainingAccounts(
+					outSpotMarket.mint,
+					remainingAccounts
+				);
+			}
+		}
 
 		const ifRebalanceConfig = getIfRebalanceConfigPublicKey(
 			this.program.programId,
@@ -8180,6 +8309,12 @@ export class DriftClient {
 		const tokenProgramId = this.getTokenProgramForSpotMarket(spotMarket);
 
 		this.addTokenMintToRemainingAccounts(spotMarket, remainingAccounts);
+		if (this.isTransferHook(spotMarket)) {
+			await this.addExtraAccountMetasToRemainingAccounts(
+				spotMarket.mint,
+				remainingAccounts
+			);
+		}
 
 		return await this.program.instruction.resolveSpotBankruptcy(marketIndex, {
 			accounts: {
@@ -8365,6 +8500,15 @@ export class DriftClient {
 		).data;
 	}
 
+	public getMMOracleDataForPerpMarket(marketIndex: number): MMOraclePriceData {
+		const perpMarket = this.getPerpMarketAccount(marketIndex);
+		return {
+			mmOraclePrice: perpMarket.amm.mmOraclePrice,
+			mmOracleSlot: perpMarket.amm.mmOracleSlot,
+			oraclePriceData: this.getOracleDataForPerpMarket(marketIndex),
+		};
+	}
+
 	public getOracleDataForSpotMarket(marketIndex: number): OraclePriceData {
 		return this.accountSubscriber.getOraclePriceDataAndSlotForSpotMarket(
 			marketIndex
@@ -8431,6 +8575,13 @@ export class DriftClient {
 
 		const remainingAccounts = [];
 		this.addTokenMintToRemainingAccounts(spotMarket, remainingAccounts);
+		if (this.isTransferHook(spotMarket)) {
+			await this.addExtraAccountMetasToRemainingAccounts(
+				spotMarket.mint,
+				remainingAccounts
+			);
+		}
+
 		const tokenProgram = this.getTokenProgramForSpotMarket(spotMarket);
 		const ix = this.program.instruction.addInsuranceFundStake(
 			marketIndex,
@@ -8745,6 +8896,13 @@ export class DriftClient {
 
 		const remainingAccounts = [];
 		this.addTokenMintToRemainingAccounts(spotMarketAccount, remainingAccounts);
+		if (this.isTransferHook(spotMarketAccount)) {
+			await this.addExtraAccountMetasToRemainingAccounts(
+				spotMarketAccount.mint,
+				remainingAccounts
+			);
+		}
+
 		const tokenProgram = this.getTokenProgramForSpotMarket(spotMarketAccount);
 		const removeStakeIx =
 			await this.program.instruction.removeInsuranceFundStake(marketIndex, {
@@ -8915,6 +9073,13 @@ export class DriftClient {
 
 		const remainingAccounts = [];
 		this.addTokenMintToRemainingAccounts(spotMarketAccount, remainingAccounts);
+		if (this.isTransferHook(spotMarketAccount)) {
+			await this.addExtraAccountMetasToRemainingAccounts(
+				spotMarketAccount.mint,
+				remainingAccounts
+			);
+		}
+
 		const ix = await this.program.instruction.settleRevenueToInsuranceFund(
 			spotMarketIndex,
 			{
@@ -8987,6 +9152,13 @@ export class DriftClient {
 
 		const remainingAccounts = [];
 		this.addTokenMintToRemainingAccounts(spotMarket, remainingAccounts);
+		if (this.isTransferHook(spotMarket)) {
+			await this.addExtraAccountMetasToRemainingAccounts(
+				spotMarket.mint,
+				remainingAccounts
+			);
+		}
+
 		const tokenProgram = this.getTokenProgramForSpotMarket(spotMarket);
 		const ix = await this.program.instruction.depositIntoSpotMarketRevenuePool(
 			amount,

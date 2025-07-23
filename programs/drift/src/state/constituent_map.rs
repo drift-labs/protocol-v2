@@ -183,7 +183,7 @@ impl<'a> ConstituentMap<'a> {
         }
 
         // market index 1160 bytes from front of account
-        let constituent_index = u16::from_le_bytes(*array_ref![data, 42, 2]);
+        let constituent_index = u16::from_le_bytes(*array_ref![data, 292, 2]);
 
         let is_writable = account_info.is_writable;
         let account_loader: AccountLoader<Constituent> =
@@ -221,8 +221,15 @@ impl<'a> ConstituentMap<'a> {
                 return Err(ErrorCode::ConstituentCouldNotLoad);
             }
 
-            // constituent index 284 bytes from front of account
-            let constituent_index = u16::from_le_bytes(*array_ref![data, 284, 2]);
+            let constituent_index = u16::from_le_bytes(*array_ref![data, 292, 2]);
+
+            if constituent_map.0.contains_key(&constituent_index) {
+                msg!(
+                    "Can not include same constituent index twice {}",
+                    constituent_index
+                );
+                return Err(ErrorCode::InvalidConstituent);
+            }
 
             let is_writable = account_info.is_writable;
             let account_loader: AccountLoader<Constituent> = AccountLoader::try_from(account_info)

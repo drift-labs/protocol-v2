@@ -1,5 +1,5 @@
 {
-  "version": "2.126.0",
+  "version": "2.128.1",
   "name": "drift",
   "instructions": [
     {
@@ -1461,6 +1461,11 @@
           "name": "user",
           "isMut": true,
           "isSigner": false
+        },
+        {
+          "name": "signer",
+          "isMut": false,
+          "isSigner": true
         }
       ],
       "args": [
@@ -6849,6 +6854,10 @@
         {
           "name": "ammInventorySpreadAdjustment",
           "type": "i8"
+        },
+        {
+          "name": "referencePriceOffset",
+          "type": "i32"
         }
       ]
     },
@@ -7736,6 +7745,27 @@
           "type": {
             "defined": "IfRebalanceConfigParams"
           }
+        }
+      ]
+    },
+    {
+      "name": "updateDisableBitflagsMmOracle",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "disable",
+          "type": "bool"
         }
       ]
     },
@@ -10657,7 +10687,7 @@
             "type": "u8"
           },
           {
-            "name": "tokenProgram",
+            "name": "tokenProgramFlag",
             "type": "u8"
           },
           {
@@ -10784,11 +10814,15 @@
             "type": "u16"
           },
           {
+            "name": "disableBitFlags",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                10
+                9
               ]
             }
           }
@@ -12919,7 +12953,7 @@
             "type": "u64"
           },
           {
-            "name": "maxPositionSize",
+            "name": "mmOracleSlot",
             "docs": [
               "the max base size a single user can have",
               "precision: BASE_PRECISION"
@@ -13007,18 +13041,11 @@
             "type": "u32"
           },
           {
-            "name": "longIntensityCount",
+            "name": "mmOraclePrice",
             "docs": [
-              "the count intensity of long fills against AMM"
+              "MM oracle price"
             ],
-            "type": "u32"
-          },
-          {
-            "name": "shortIntensityCount",
-            "docs": [
-              "the count intensity of short fills against AMM"
-            ],
-            "type": "u32"
+            "type": "i64"
           },
           {
             "name": "maxFillReserveFraction",
@@ -13100,7 +13127,7 @@
             "type": "i8"
           },
           {
-            "name": "totalFeeEarnedPerLp",
+            "name": "mmOracleSequenceId",
             "type": "u64"
           },
           {
@@ -14898,6 +14925,20 @@
           },
           {
             "name": "Unlisted"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TokenProgramFlag",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Token2022"
+          },
+          {
+            "name": "TransferHook"
           }
         ]
       }

@@ -9,6 +9,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: lp reduce only ([#1749](https://github.com/drift-labs/protocol-v2/pull/1749))
+- program/sdk: introduce separate oracle for vamm ([#1738](https://github.com/drift-labs/protocol-v2/pull/1738))
+
+### Fixes
+
+- program: fix reference price decay ([#1761](https://github.com/drift-labs/protocol-v2/pull/1761))
+
+### Breaking
+
+## [2.128.1] - 2025-07-21
+
+### Features
+
+### Fixes
+
+- program: reference-price-offset-override ([#1760](https://github.com/drift-labs/protocol-v2/pull/1760))
+
+### Breaking
+
+## [2.128.0] - 2025-07-20
+
+### Features
+
+- program: smooth decay for reference price offset ([#1758)](https://github.com/drift-labs/protocol-v2/pull/1758))
+
+### Fixes
+
+### Breaking
+
+## [2.127.0] - 2025-07-12
+
+### Features
+
+- program: allow hot admin to update prelaunch oracle ([#1734](https://github.com/drift-labs/protocol-v2/pull/1734))
+- program: init passing in remaining accounts for transfer hook ([#1730](https://github.com/drift-labs/protocol-v2/pull/1730))
+
 ### Fixes
 
 ### Breaking
