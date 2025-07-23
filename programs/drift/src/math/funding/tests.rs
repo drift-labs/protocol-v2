@@ -12,7 +12,7 @@ use std::cmp::min;
 use crate::test_utils::get_pyth_price;
 
 // use crate::create_anchor_account_info;
-use crate::state::oracle::HistoricalOracleData;
+use crate::state::oracle::{HistoricalOracleData, MMOraclePriceData};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{ContractTier, PerpMarket, AMM};
 use crate::state::state::{OracleGuardRails, State, ValidityGuardRails};
@@ -653,6 +653,13 @@ fn unsettled_funding_pnl() {
     )
     .unwrap();
     let oracle_price_data = oracle_map.get_price_data(&market.oracle_id()).unwrap();
+    let mut mm_oracle_price_data = MMOraclePriceData {
+        mm_oracle_price: oracle_price_data.price,
+        mm_oracle_delay: oracle_price_data.delay + 1,
+        oracle_confidence: None,
+
+        oracle_price_data: *oracle_price_data,
+    };
 
     assert_eq!(time_until_next_update, 0);
     let block_funding_rate_update = block_operation(
@@ -669,7 +676,7 @@ fn unsettled_funding_pnl() {
     now += 3600;
     slot += 3600 * 2;
 
-    let cost = _update_amm(&mut market, oracle_price_data, &state, now, slot).unwrap();
+    let cost = _update_amm(&mut market, &mut mm_oracle_price_data, &state, now, slot).unwrap();
     assert_eq!(cost, 0);
     assert_eq!(market.amm.last_update_slot, slot);
     assert_eq!(market.amm.last_mark_price_twap, 50000000);
