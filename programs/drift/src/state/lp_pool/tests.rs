@@ -371,8 +371,9 @@ mod tests {
             }
         };
 
+        // tuple is (market_index, base, price)
         let amm_inventory_and_prices: Vec<(u16, i64, i64)> = vec![(0, 1_000_000, 142_000_000)];
-        let constituents_indexes_and_decimals_and_prices = vec![(1, 6, 142_000_000)];
+        let constituents_indexes_and_decimals_and_prices = vec![(1, 9, 142_000_000)];
 
         let prices = vec![142_000_000];
         let aum = 0;
@@ -399,8 +400,10 @@ mod tests {
             .unwrap();
 
         assert_eq!(target_zc_mut.len(), 1);
-        assert_eq!(target_zc_mut.get(0).target_base, -1_000); // despite no aum, desire to reach target
+        assert_eq!(target_zc_mut.get(0).target_base, -1_000_000); // despite no aum, desire to reach target
         assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
+
+
     }
 
     #[test]
