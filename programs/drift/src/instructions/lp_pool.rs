@@ -1,11 +1,9 @@
-use std::collections::BTreeMap;
-
 use anchor_lang::{prelude::*, Accounts, Key, Result};
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 use crate::{
     controller::{
-        self, lp,
+        self,
         spot_balance::update_spot_balances,
         token::{burn_tokens, mint_tokens},
     },
@@ -15,23 +13,20 @@ use crate::{
     math::{
         self,
         casting::Cast,
-        constants::{
-            BASE_PRECISION_I128, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
-            PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, QUOTE_PRECISION_I128,
-        },
+        constants::{PERCENTAGE_PRECISION_I64, PRICE_PRECISION},
         oracle::{is_oracle_valid_for_action, oracle_validity, DriftAction},
         safe_math::SafeMath,
     },
     math_error, msg, safe_decrement, safe_increment,
     state::{
         constituent_map::{ConstituentMap, ConstituentSet},
-        events::{LPMintRedeemRecord, LPSwapRecord},
+        events::{emit_stack, LPMintRedeemRecord, LPSwapRecord},
         lp_pool::{
-            calculate_target_weight, AmmConstituentDatum, AmmConstituentMappingFixed, Constituent,
-            ConstituentCorrelationsFixed, ConstituentTargetBaseFixed, LPPool, TargetsDatum,
-            WeightValidationFlags, CONSTITUENT_CORRELATIONS_PDA_SEED,
-            LP_POOL_SWAP_AUM_UPDATE_DELAY, MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC,
-            MAX_CONSTITUENT_ORACLE_SLOT_STALENESS_FOR_AUM,
+            update_constituent_target_base_for_derivatives, AmmConstituentDatum,
+            AmmConstituentMappingFixed, Constituent, ConstituentCorrelationsFixed,
+            ConstituentTargetBaseFixed, LPPool, TargetsDatum, LP_POOL_SWAP_AUM_UPDATE_DELAY,
+            MAX_AMM_CACHE_ORACLE_STALENESS_FOR_TARGET_CALC,
+            MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC,
         },
         oracle::OraclePriceData,
         oracle_map::OracleMap,
@@ -40,6 +35,7 @@ use crate::{
         spot_market::{SpotBalanceType, SpotMarket},
         spot_market_map::get_writable_spot_market_set_from_many,
         state::State,
+        traits::Size,
         user::MarketType,
         zero_copy::{AccountZeroCopy, AccountZeroCopyMut, ZeroCopyLoader},
     },
@@ -53,8 +49,7 @@ use crate::controller::spot_balance::update_spot_market_cumulative_interest;
 use crate::controller::token::{receive, send_from_program_vault};
 use crate::instructions::constraints::*;
 use crate::state::lp_pool::{
-    AMM_MAP_PDA_SEED, CONSTITUENT_PDA_SEED, CONSTITUENT_TARGET_BASE_PDA_SEED,
-    LP_POOL_TOKEN_VAULT_PDA_SEED,
+    CONSTITUENT_PDA_SEED, CONSTITUENT_TARGET_BASE_PDA_SEED, LP_POOL_TOKEN_VAULT_PDA_SEED,
 };
 
 pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
@@ -62,14 +57,13 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
 ) -> Result<()> {
     let slot = Clock::get()?.slot;
 
-    let lp_pool = &ctx.accounts.lp_pool.load()?;
     let lp_pool_key: &Pubkey = &ctx.accounts.lp_pool.key();
     let amm_cache_key: &Pubkey = &ctx.accounts.amm_cache.key();
 
     let amm_cache: AccountZeroCopy<'_, CacheInfo, AmmCacheFixed> =
         ctx.accounts.amm_cache.load_zc()?;
 
-    amm_cache.check_oracle_staleness(slot, MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC)?;
+    amm_cache.check_oracle_staleness(slot, MAX_AMM_CACHE_ORACLE_STALENESS_FOR_TARGET_CALC)?;
     amm_cache.check_perp_market_staleness(slot, MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC)?;
 
     let expected_cache_pda = &Pubkey::create_program_address(
@@ -87,29 +81,15 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
     )?;
 
     let state = &ctx.accounts.state;
-    let constituent_target_base_key = &ctx.accounts.constituent_target_base.key();
-    let amm_mapping_key = &ctx.accounts.amm_constituent_mapping.key();
-
     let mut constituent_target_base: AccountZeroCopyMut<
         '_,
         TargetsDatum,
         ConstituentTargetBaseFixed,
     > = ctx.accounts.constituent_target_base.load_zc_mut()?;
-
-    let bump = constituent_target_base.fixed.bump;
-    let expected_pda = &Pubkey::create_program_address(
-        &[
-            CONSTITUENT_TARGET_BASE_PDA_SEED.as_ref(),
-            lp_pool.pubkey.as_ref(),
-            bump.to_le_bytes().as_ref(),
-        ],
-        &crate::ID,
-    )
-    .map_err(|_| ErrorCode::InvalidPDA)?;
     validate!(
-        expected_pda.eq(constituent_target_base_key),
+        constituent_target_base.fixed.lp_pool.eq(lp_pool_key),
         ErrorCode::InvalidPDA,
-        "Constituent target weights PDA does not match expected PDA"
+        "Constituent target base lp pool pubkey does not match lp pool pubkey",
     )?;
 
     let num_constituents = constituent_target_base.len();
@@ -124,24 +104,18 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
         AmmConstituentDatum,
         AmmConstituentMappingFixed,
     > = ctx.accounts.amm_constituent_mapping.load_zc()?;
-
-    let amm_mapping_bump = amm_constituent_mapping.fixed.bump;
-    let expected_map_pda = &Pubkey::create_program_address(
-        &[
-            AMM_MAP_PDA_SEED.as_ref(),
-            lp_pool.pubkey.as_ref(),
-            amm_mapping_bump.to_le_bytes().as_ref(),
-        ],
-        &crate::ID,
-    )
-    .map_err(|_| ErrorCode::InvalidPDA)?;
     validate!(
-        expected_map_pda.eq(amm_mapping_key),
+        amm_constituent_mapping.fixed.lp_pool.eq(lp_pool_key),
         ErrorCode::InvalidPDA,
-        "Amm mapping PDA does not match expected PDA"
+        "Amm constituent mapping lp pool pubkey does not match lp pool pubkey",
     )?;
 
-    let mut amm_inventories: Vec<(u16, i64, i64)> = vec![];
+    let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
+    let constituent_map =
+        ConstituentMap::load(&ConstituentSet::new(), &lp_pool_key, remaining_accounts)?;
+
+    let mut amm_inventories: Vec<(u16, i64, i64)> =
+        Vec::with_capacity(amm_constituent_mapping.len() as usize);
     for (_, datum) in amm_constituent_mapping.iter().enumerate() {
         let cache_info = amm_cache.get(datum.perp_market_index as u32);
 
@@ -183,11 +157,8 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
         return Ok(());
     }
 
-    let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
-    let constituent_map =
-        ConstituentMap::load(&ConstituentSet::new(), &lp_pool_key, remaining_accounts)?;
-
-    let mut constituent_indexes_and_decimals_and_prices: Vec<(u16, u8, i64)> = vec![];
+    let mut constituent_indexes_and_decimals_and_prices: Vec<(u16, u8, i64)> =
+        Vec::with_capacity(constituent_map.0.len());
     for (index, loader) in &constituent_map.0 {
         let constituent_ref = loader.load()?;
         constituent_indexes_and_decimals_and_prices.push((
@@ -224,6 +195,7 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
     let state = &ctx.accounts.state;
 
     let slot = Clock::get()?.slot;
+    let now = Clock::get()?.unix_timestamp;
 
     let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
 
@@ -248,30 +220,20 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
         "Constituent map length does not match lp pool constituent count"
     )?;
 
-    let constituent_target_base_key = &ctx.accounts.constituent_target_base.key();
     let mut constituent_target_base: AccountZeroCopyMut<
         '_,
         TargetsDatum,
         ConstituentTargetBaseFixed,
     > = ctx.accounts.constituent_target_base.load_zc_mut()?;
-    let expected_pda = &Pubkey::create_program_address(
-        &[
-            CONSTITUENT_TARGET_BASE_PDA_SEED.as_ref(),
-            lp_pool.pubkey.as_ref(),
-            constituent_target_base.fixed.bump.to_le_bytes().as_ref(),
-        ],
-        &crate::ID,
-    )
-    .map_err(|_| ErrorCode::InvalidPDA)?;
     validate!(
-        expected_pda.eq(constituent_target_base_key),
+        constituent_target_base.fixed.lp_pool.eq(&lp_pool.pubkey),
         ErrorCode::InvalidPDA,
-        "Constituent target weights PDA does not match expected PDA"
+        "Constituent target base lp pool pubkey does not match lp pool pubkey",
     )?;
 
     let amm_cache_key: &Pubkey = &ctx.accounts.amm_cache.key();
-    let amm_cache: AccountZeroCopy<'_, CacheInfo, AmmCacheFixed> =
-        ctx.accounts.amm_cache.load_zc()?;
+    let amm_cache: AccountZeroCopyMut<'_, CacheInfo, AmmCacheFixed> =
+        ctx.accounts.amm_cache.load_zc_mut()?;
     let expected_amm_pda = &Pubkey::create_program_address(
         &[
             AMM_POSITIONS_CACHE.as_ref(),
@@ -286,90 +248,14 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
         "Amm cache PDA does not match expected PDA"
     )?;
 
-    let mut aum: u128 = 0;
-    let mut crypto_delta = 0_i128;
-    let mut oldest_slot = u64::MAX;
-    let mut derivative_groups: BTreeMap<u16, Vec<u16>> = BTreeMap::new();
-    for i in 0..lp_pool.constituents as usize {
-        let constituent = constituent_map.get_ref(&(i as u16))?;
-        if slot.saturating_sub(constituent.last_oracle_slot)
-            > MAX_CONSTITUENT_ORACLE_SLOT_STALENESS_FOR_AUM
-        {
-            msg!(
-                "Constituent {} oracle slot is too stale: {}, current slot: {}",
-                constituent.constituent_index,
-                constituent.last_oracle_slot,
-                slot
-            );
-            return Err(ErrorCode::ConstituentOracleStale.into());
-        }
-
-        if constituent.constituent_derivative_index >= 0 && constituent.derivative_weight != 0 {
-            if !derivative_groups.contains_key(&(constituent.constituent_derivative_index as u16)) {
-                derivative_groups.insert(
-                    constituent.constituent_derivative_index as u16,
-                    vec![constituent.constituent_index],
-                );
-            } else {
-                derivative_groups
-                    .get_mut(&(constituent.constituent_derivative_index as u16))
-                    .unwrap()
-                    .push(constituent.constituent_index);
-            }
-        }
-
-        let spot_market = spot_market_map.get_ref(&constituent.spot_market_index)?;
-
-        let oracle_slot = constituent.last_oracle_slot;
-
-        if oracle_slot < oldest_slot {
-            oldest_slot = oracle_slot;
-        }
-
-        let (numerator_scale, denominator_scale) = if spot_market.decimals > 6 {
-            (10_i128.pow(spot_market.decimals - 6), 1)
-        } else {
-            (1, 10_i128.pow(6 - spot_market.decimals))
-        };
-
-        let constituent_aum = constituent
-            .get_full_balance(&spot_market)?
-            .safe_mul(numerator_scale)?
-            .safe_div(denominator_scale)?
-            .safe_mul(constituent.last_oracle_price as i128)?
-            .safe_div(PRICE_PRECISION_I128)?
-            .max(0);
-        msg!(
-            "constituent: {}, aum: {}, deriv index: {}",
-            constituent.constituent_index,
-            constituent_aum,
-            constituent.constituent_derivative_index
-        );
-        if constituent.constituent_index != lp_pool.usdc_consituent_index
-            && constituent.constituent_derivative_index != lp_pool.usdc_consituent_index as i16
-        {
-            let constituent_target_notional = constituent_target_base
-                .get(constituent.constituent_index as u32)
-                .target_base
-                .safe_mul(constituent.last_oracle_price)?
-                .safe_div(10_i64.pow(constituent.decimals as u32))?;
-            crypto_delta = crypto_delta.safe_add(constituent_target_notional.cast()?)?;
-        }
-        aum = aum.safe_add(constituent_aum.cast()?)?;
-    }
-
-    for cache_datum in amm_cache.iter() {
-        if cache_datum.quote_owed_from_lp > 0 {
-            aum = aum.saturating_sub(cache_datum.quote_owed_from_lp.abs().cast::<u128>()?);
-        } else {
-            aum = aum.safe_add(cache_datum.quote_owed_from_lp.abs().cast::<u128>()?)?;
-        }
-    }
-
-    lp_pool.oldest_oracle_slot = oldest_slot;
-    lp_pool.last_aum = aum;
-    lp_pool.last_aum_slot = slot;
-    lp_pool.last_aum_ts = Clock::get()?.unix_timestamp;
+    let (aum, crypto_delta, derivative_groups) = lp_pool.update_aum(
+        now,
+        slot,
+        &constituent_map,
+        &spot_market_map,
+        &constituent_target_base,
+        &amm_cache,
+    )?;
 
     // Set USDC stable weight
     let total_stable_target_base = aum
@@ -378,16 +264,7 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
         .max(0_i128);
     constituent_target_base
         .get_mut(lp_pool.usdc_consituent_index as u32)
-        .target_base = total_stable_target_base
-        .safe_mul(
-            10_i128.pow(
-                constituent_map
-                    .get_ref(&lp_pool.usdc_consituent_index)?
-                    .decimals as u32,
-            ),
-        )?
-        .safe_div(QUOTE_PRECISION_I128)?
-        .cast::<i64>()?;
+        .target_base = total_stable_target_base.cast::<i64>()?;
 
     msg!(
         "stable target base: {}",
@@ -398,75 +275,13 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
     msg!("aum: {}, crypto_delta: {}", aum, crypto_delta);
     msg!("derivative groups: {:?}", derivative_groups);
 
-    // Handle all other derivatives
-    for (parent_index, constituent_indexes) in derivative_groups.iter() {
-        let parent_constituent = constituent_map.get_ref(&(parent_index))?;
-        let parent_target_base = constituent_target_base
-            .get(*parent_index as u32)
-            .target_base;
-        let target_parent_weight = calculate_target_weight(
-            parent_target_base,
-            &*spot_market_map.get_ref(&parent_constituent.spot_market_index)?,
-            parent_constituent.last_oracle_price,
-            aum,
-            WeightValidationFlags::NONE,
-        )?;
-        let mut derivative_weights_sum = 0;
-        for constituent_index in constituent_indexes {
-            let constituent = constituent_map.get_ref(constituent_index)?;
-            if constituent.last_oracle_price
-                < parent_constituent
-                    .last_oracle_price
-                    .safe_mul(9)?
-                    .safe_div(10)?
-            {
-                msg!(
-                    "Constituent {} last oracle price {} is too low compared to parent constituent {} last oracle price {}. Assuming depegging and setting target base to 0.",
-                    constituent.constituent_index,
-                    constituent.last_oracle_price,
-                    parent_constituent.constituent_index,
-                    parent_constituent.last_oracle_price
-                );
-                constituent_target_base
-                    .get_mut(*constituent_index as u32)
-                    .target_base = 0_i64;
-                continue;
-            }
-
-            derivative_weights_sum += constituent.derivative_weight;
-
-            let target_weight = target_parent_weight
-                .safe_mul(constituent.derivative_weight as i64)?
-                .safe_div(PERCENTAGE_PRECISION_I64)?;
-
-            msg!(
-                "constituent: {}, target weight: {}",
-                constituent_index,
-                target_weight,
-            );
-            let target_base = lp_pool
-                .last_aum
-                .cast::<i128>()?
-                .safe_mul(target_weight as i128)?
-                .safe_div(PERCENTAGE_PRECISION_I128)?
-                .safe_mul(10_i128.pow(constituent.decimals as u32))?
-                .safe_div(constituent.last_oracle_price as i128)?;
-
-            msg!(
-                "constituent: {}, target base: {}",
-                constituent_index,
-                target_base
-            );
-            constituent_target_base
-                .get_mut(*constituent_index as u32)
-                .target_base = target_base.cast::<i64>()?;
-        }
-        constituent_target_base
-            .get_mut(*parent_index as u32)
-            .target_base = parent_target_base
-            .safe_mul(PERCENTAGE_PRECISION_U64.safe_sub(derivative_weights_sum)? as i64)?
-            .safe_div(PERCENTAGE_PRECISION_I64)?;
-    }
+    update_constituent_target_base_for_derivatives(
+        aum,
+        &derivative_groups,
+        &constituent_map,
+        &spot_market_map,
+        &mut constituent_target_base,
+    )?;
 
     Ok(())
 }
@@ -504,40 +319,20 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
     let mut in_constituent = ctx.accounts.in_constituent.load_mut()?;
     let mut out_constituent = ctx.accounts.out_constituent.load_mut()?;
 
-    let constituent_target_base_key = &ctx.accounts.constituent_target_base.key();
     let constituent_target_base: AccountZeroCopy<'_, TargetsDatum, ConstituentTargetBaseFixed> =
         ctx.accounts.constituent_target_base.load_zc()?;
-    let expected_pda = &Pubkey::create_program_address(
-        &[
-            CONSTITUENT_TARGET_BASE_PDA_SEED.as_ref(),
-            lp_pool.pubkey.as_ref(),
-            constituent_target_base.fixed.bump.to_le_bytes().as_ref(),
-        ],
-        &crate::ID,
-    )
-    .map_err(|_| ErrorCode::InvalidPDA)?;
     validate!(
-        expected_pda.eq(constituent_target_base_key),
+        constituent_target_base.fixed.lp_pool.eq(&lp_pool.pubkey),
         ErrorCode::InvalidPDA,
-        "Constituent target weights PDA does not match expected PDA"
+        "Constituent target base lp pool pubkey does not match lp pool pubkey",
     )?;
 
-    let constituent_correlation_key = &ctx.accounts.constituent_correlations.key();
     let constituent_correlations: AccountZeroCopy<'_, i64, ConstituentCorrelationsFixed> =
         ctx.accounts.constituent_correlations.load_zc()?;
-    let expected_correlation_pda = &Pubkey::create_program_address(
-        &[
-            CONSTITUENT_CORRELATIONS_PDA_SEED.as_ref(),
-            lp_pool.pubkey.as_ref(),
-            constituent_correlations.fixed.bump.to_le_bytes().as_ref(),
-        ],
-        &crate::ID,
-    )
-    .map_err(|_| ErrorCode::InvalidPDA)?;
     validate!(
-        expected_correlation_pda.eq(constituent_correlation_key),
+        constituent_correlations.fixed.lp_pool.eq(&lp_pool.pubkey),
         ErrorCode::InvalidPDA,
-        "Constituent correlations PDA does not match expected PDA"
+        "Constituent correlations lp pool pubkey does not match lp pool pubkey",
     )?;
 
     let AccountMaps {
@@ -547,13 +342,13 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
     } = load_maps(
         &mut ctx.remaining_accounts.iter().peekable(),
         &MarketSet::new(),
-        &get_writable_spot_market_set_from_many(vec![in_market_index, out_market_index]),
+        &MarketSet::new(),
         slot,
         Some(state.oracle_guard_rails),
     )?;
 
-    let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
-    let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
+    let in_spot_market = spot_market_map.get_ref(&in_market_index)?;
+    let out_spot_market = spot_market_map.get_ref(&out_market_index)?;
 
     let in_oracle_id = in_spot_market.oracle_id();
     let out_oracle_id = out_spot_market.oracle_id();
@@ -594,9 +389,6 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         );
         return Err(ErrorCode::InvalidOracle.into());
     }
-
-    update_spot_market_cumulative_interest(&mut in_spot_market, Some(&in_oracle), now)?;
-    update_spot_market_cumulative_interest(&mut out_spot_market, Some(&out_oracle), now)?;
 
     let in_target_weight = constituent_target_base.get_target_weight(
         in_constituent.constituent_index,
@@ -665,7 +457,7 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
     let in_swap_id = get_then_update_id!(in_constituent, next_swap_id);
     let out_swap_id = get_then_update_id!(out_constituent, next_swap_id);
 
-    emit!(LPSwapRecord {
+    emit_stack::<_, { LPSwapRecord::SIZE }>(LPSwapRecord {
         ts: now,
         slot,
         authority: ctx.accounts.authority.key(),
@@ -679,27 +471,25 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         in_constituent_index: in_constituent.constituent_index,
         out_oracle_price: out_oracle.price,
         in_oracle_price: in_oracle.price,
-        out_mint: out_constituent.mint,
-        in_mint: in_constituent.mint,
         last_aum: lp_pool.last_aum,
         last_aum_slot: lp_pool.last_aum_slot,
         in_market_current_weight: in_constituent.get_weight(
             in_oracle.price,
             &in_spot_market,
             0,
-            lp_pool.last_aum
+            lp_pool.last_aum,
         )?,
         in_market_target_weight: in_target_weight,
         out_market_current_weight: out_constituent.get_weight(
             out_oracle.price,
             &out_spot_market,
             0,
-            lp_pool.last_aum
+            lp_pool.last_aum,
         )?,
         out_market_target_weight: out_target_weight,
         in_swap_id,
         out_swap_id,
-    });
+    })?;
 
     receive(
         &ctx.accounts.token_program,
@@ -889,28 +679,30 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
     in_constituent.sync_token_balance(ctx.accounts.constituent_in_token_account.amount);
 
     let dlp_total_supply = ctx.accounts.lp_mint.supply;
-    let lp_nav = if dlp_total_supply > 0 {
-        lp_pool.last_aum.safe_div(dlp_total_supply as u128)?
+    let lp_price = if dlp_total_supply > 0 {
+        lp_pool
+            .last_aum
+            .safe_mul(PRICE_PRECISION)?
+            .safe_div(dlp_total_supply as u128)?
     } else {
         0
     };
 
     let mint_redeem_id = get_then_update_id!(lp_pool, next_mint_redeem_id);
-    emit!(LPMintRedeemRecord {
+    emit_stack::<_, { LPMintRedeemRecord::SIZE }>(LPMintRedeemRecord {
         ts: now,
         slot,
         authority: ctx.accounts.authority.key(),
-        is_minting: true,
+        description: 1,
         amount: in_amount,
         fee: in_fee_amount,
         spot_market_index: in_market_index,
         constituent_index: in_constituent.constituent_index,
         oracle_price: in_oracle.price,
         mint: in_constituent.mint,
-        lp_mint: lp_pool.mint,
         lp_amount,
         lp_fee: lp_fee_amount,
-        lp_nav,
+        lp_price,
         mint_redeem_id,
         last_aum: lp_pool.last_aum,
         last_aum_slot: lp_pool.last_aum_slot,
@@ -918,10 +710,10 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
             in_oracle.price,
             &in_spot_market,
             0,
-            lp_pool.last_aum
+            lp_pool.last_aum,
         )?,
         in_market_target_weight: in_target_weight,
-    });
+    })?;
 
     Ok(())
 }
@@ -1031,6 +823,8 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
     } else {
         out_amount.safe_add(out_fee_amount.unsigned_abs())?
     };
+    let out_amount_net_fees =
+        out_amount_net_fees.min(ctx.accounts.constituent_out_token_account.amount as u128);
 
     validate!(
         out_amount_net_fees >= min_amount_out,
@@ -1086,28 +880,30 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
     out_constituent.sync_token_balance(ctx.accounts.constituent_out_token_account.amount);
 
     let dlp_total_supply = ctx.accounts.lp_mint.supply;
-    let lp_nav = if dlp_total_supply > 0 {
-        lp_pool.last_aum.safe_div(dlp_total_supply as u128)?
+    let lp_price = if dlp_total_supply > 0 {
+        lp_pool
+            .last_aum
+            .safe_mul(PRICE_PRECISION)?
+            .safe_div(dlp_total_supply as u128)?
     } else {
         0
     };
 
     let mint_redeem_id = get_then_update_id!(lp_pool, next_mint_redeem_id);
-    emit!(LPMintRedeemRecord {
+    emit_stack::<_, { LPMintRedeemRecord::SIZE }>(LPMintRedeemRecord {
         ts: now,
         slot,
         authority: ctx.accounts.authority.key(),
-        is_minting: false,
+        description: 0,
         amount: out_amount,
         fee: out_fee_amount,
         spot_market_index: out_market_index,
         constituent_index: out_constituent.constituent_index,
         oracle_price: out_oracle.price,
         mint: out_constituent.mint,
-        lp_mint: lp_pool.mint,
         lp_amount: lp_burn_amount,
         lp_fee: lp_fee_amount,
-        lp_nav,
+        lp_price,
         mint_redeem_id,
         last_aum: lp_pool.last_aum,
         last_aum_slot: lp_pool.last_aum_slot,
@@ -1115,10 +911,10 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
             out_oracle.price,
             &out_spot_market,
             0,
-            lp_pool.last_aum
+            lp_pool.last_aum,
         )?,
         in_market_target_weight: out_target_weight,
-    });
+    })?;
 
     Ok(())
 }
@@ -1163,9 +959,14 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
         Some(ctx.accounts.state.oracle_guard_rails),
     )?;
 
+    constituent.sync_token_balance(ctx.accounts.constituent_token_account.amount);
+    let balance_before = constituent.get_full_balance(&spot_market)?;
+
     if amount == 0 {
         return Err(ErrorCode::InsufficientDeposit.into());
     }
+
+    let deposit_plus_token_amount_before = amount.safe_add(spot_market_vault.amount)?;
 
     let oracle_data = oracle_map.get_price_data(&oracle_id)?;
     let oracle_data_slot = clock.slot - oracle_data.delay.max(0i64).cast::<u64>()?;
@@ -1203,7 +1004,24 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
     safe_increment!(spot_position.cumulative_deposits, amount.cast()?);
 
     ctx.accounts.spot_market_vault.reload()?;
+    ctx.accounts.constituent_token_account.reload()?;
+    constituent.sync_token_balance(ctx.accounts.constituent_token_account.amount);
     spot_market.validate_max_token_deposits_and_borrows(false)?;
+
+    validate!(
+        ctx.accounts.spot_market_vault.amount == deposit_plus_token_amount_before,
+        ErrorCode::LpInvariantFailed,
+        "Spot market vault amount mismatch after deposit"
+    )?;
+
+    validate!(
+        constituent
+            .get_full_balance(&spot_market)?
+            .abs_diff(balance_before)
+            <= 1,
+        ErrorCode::LpInvariantFailed,
+        "Constituent balance mismatch after desposit to program vault"
+    )?;
 
     Ok(())
 }
@@ -1225,6 +1043,10 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
         Some(ctx.accounts.state.oracle_guard_rails),
     )?;
 
+    constituent.sync_token_balance(ctx.accounts.constituent_token_account.amount);
+
+    let balance_before = constituent.get_full_balance(&spot_market)?;
+
     if amount == 0 {
         return Err(ErrorCode::InsufficientDeposit.into());
     }
@@ -1242,35 +1064,65 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
         clock.unix_timestamp,
     )?;
 
+    // Can only borrow up to the max
+    let token_amount = constituent.spot_balance.get_token_amount(&spot_market)?;
+    let amount_to_transfer = if constituent.spot_balance.balance_type == SpotBalanceType::Borrow {
+        amount.min(
+            constituent
+                .max_borrow_token_amount
+                .safe_sub(token_amount as u64)?,
+        )
+    } else {
+        amount.min(
+            constituent
+                .max_borrow_token_amount
+                .safe_add(token_amount as u64)?,
+        )
+    };
+
     controller::token::send_from_program_vault(
         &ctx.accounts.token_program,
         &spot_market_vault,
         &ctx.accounts.constituent_token_account,
         &ctx.accounts.drift_signer,
         state.signer_nonce,
-        amount,
+        amount_to_transfer,
         &Some(*ctx.accounts.mint.clone()),
     )?;
+    ctx.accounts.constituent_token_account.reload()?;
+    constituent.sync_token_balance(ctx.accounts.constituent_token_account.amount);
 
     // Adjust BLPosition for the new deposits
     let spot_position = &mut constituent.spot_balance;
     update_spot_balances(
-        amount as u128,
+        amount_to_transfer as u128,
         &SpotBalanceType::Borrow,
         &mut spot_market,
         spot_position,
         true,
     )?;
 
-    safe_decrement!(spot_position.cumulative_deposits, amount.cast()?);
+    safe_decrement!(
+        spot_position.cumulative_deposits,
+        amount_to_transfer.cast()?
+    );
 
     ctx.accounts.spot_market_vault.reload()?;
+    spot_market.validate_max_token_deposits_and_borrows(true)?;
+
     math::spot_withdraw::validate_spot_market_vault_amount(
         &spot_market,
         ctx.accounts.spot_market_vault.amount,
     )?;
 
-    spot_market.validate_max_token_deposits_and_borrows(true)?;
+    validate!(
+        constituent
+            .get_full_balance(&spot_market)?
+            .abs_diff(balance_before)
+            <= 1,
+        ErrorCode::LpInvariantFailed,
+        "Constituent balance mismatch after withdraw from program vault"
+    )?;
 
     Ok(())
 }
@@ -1357,6 +1209,7 @@ pub struct UpdateLPPoolAum<'info> {
     #[account(mut)]
     pub constituent_target_base: AccountInfo<'info>,
     /// CHECK: checked in AmmCacheZeroCopy checks
+    #[account(mut)]
     pub amm_cache: AccountInfo<'info>,
 }
 

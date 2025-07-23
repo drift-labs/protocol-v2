@@ -1,12 +1,16 @@
+use std::collections::BTreeMap;
+
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     BASE_PRECISION_I128, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
-    PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, QUOTE_PRECISION, QUOTE_PRECISION_I128,
-    QUOTE_PRECISION_U64,
+    PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, QUOTE_PRECISION_I128,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
+use crate::state::constituent_map::ConstituentMap;
+use crate::state::perp_market::{AmmCacheFixed, CacheInfo};
+use crate::state::spot_market_map::SpotMarketMap;
 use anchor_lang::prelude::*;
 use anchor_spl::token::Mint;
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -43,9 +47,9 @@ pub const MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC: u64 = 10000u64;
 pub const MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC: u64 = 0u64;
 
 #[cfg(feature = "anchor-test")]
-pub const MAX_CONSTITUENT_ORACLE_SLOT_STALENESS_FOR_AUM: u64 = 10000u64;
+pub const MAX_AMM_CACHE_ORACLE_STALENESS_FOR_TARGET_CALC: u64 = 10000u64;
 #[cfg(not(feature = "anchor-test"))]
-pub const MAX_CONSTITUENT_ORACLE_SLOT_STALENESS_FOR_AUM: u64 = 2u64;
+pub const MAX_AMM_CACHE_ORACLE_STALENESS_FOR_TARGET_CALC: u64 = 1u64;
 
 #[cfg(test)]
 mod tests;
@@ -60,9 +64,6 @@ pub struct LPPool {
     pub pubkey: Pubkey, // 32, 64
     // vault token mint
     pub mint: Pubkey, // 32, 96
-
-    /// token_supply? to simplify NAV calculation, or load from mint account
-    /// token_total_supply: u64
 
     /// The current number of VaultConstituents in the vault, each constituent is pda(LPPool.address, constituent_index)
     /// which constituent is the quote, receives revenue pool distributions. (maybe this should just be implied idx 0)
@@ -80,7 +81,7 @@ pub struct LPPool {
     pub last_aum_ts: i64, // 8, 160
 
     /// Oldest slot of constituent oracles
-    pub oldest_oracle_slot: u64,
+    pub max_settle_quote_amount: u64,
 
     /// timestamp of last vAMM revenue rebalance
     pub last_revenue_rebalance_ts: u64, // 8, 168
@@ -118,18 +119,6 @@ impl Size for LPPool {
 }
 
 impl LPPool {
-    pub fn get_nav(&self, mint: &Mint) -> Result<u128> {
-        match mint.supply {
-            0 => Ok(0),
-            supply => {
-                // TODO: assuming mint decimals = quote decimals = 6
-                self.last_aum
-                    .checked_div(supply.into())
-                    .ok_or(ErrorCode::MathError.into())
-            }
-        }
-    }
-
     pub fn get_price(&self, mint: &Mint) -> Result<u128> {
         match mint.supply {
             0 => Ok(0),
@@ -215,7 +204,6 @@ impl LPPool {
             .safe_div(swap_price_denom.cast::<i128>()?)?
             .cast::<u128>()?;
 
-        msg!("in_fee: {}, out_fee: {}", in_fee, out_fee);
         let out_fee_amount = out_amount
             .cast::<i128>()?
             .safe_mul(out_fee as i128)?
@@ -272,15 +260,8 @@ impl LPPool {
         let lp_amount = if self.last_aum == 0 {
             token_amount_usd.safe_div(token_precision_denominator)?
         } else {
-            msg!("token_amount_usd: {}", token_amount_usd);
-            msg!("dlp_total_supply: {}", dlp_total_supply);
-            msg!("last_aum: {}", self.last_aum);
-            msg!(
-                "token_precision_denominator: {}",
-                token_precision_denominator
-            );
             token_amount_usd
-                .safe_mul(dlp_total_supply as u128)?
+                .safe_mul(dlp_total_supply.max(1) as u128)?
                 .safe_div(self.last_aum.safe_mul(token_precision_denominator)?)?
         };
 
@@ -322,7 +303,6 @@ impl LPPool {
         }
 
         let lp_amount_less_fees = (lp_burn_amount as i128).safe_sub(lp_fee_to_charge as i128)?;
-        msg!("lp_amount_less_fees: {}", lp_amount_less_fees);
 
         let token_precision_denominator = 10_u128.pow(out_spot_market.decimals);
 
@@ -341,7 +321,6 @@ impl LPPool {
             .safe_div(PERCENTAGE_PRECISION)?
             .safe_div(PERCENTAGE_PRECISION)?
             .safe_div(out_oracle.price.cast::<u128>()?)?;
-        msg!("out_amount: {}", out_amount);
 
         let (in_fee_pct, out_fee_pct) = self.get_swap_fees(
             out_spot_market,
@@ -356,33 +335,12 @@ impl LPPool {
             0,
         )?;
         let out_fee_pct = in_fee_pct.safe_add(out_fee_pct)?;
-        msg!("out_fee_pct: {}", out_fee_pct);
-        msg!("out_amount: {}", out_amount);
         let out_fee_amount = out_amount
             .safe_mul(out_fee_pct.cast::<u128>()?)?
             .safe_div(PERCENTAGE_PRECISION)?
             .cast::<i128>()?;
 
         Ok((lp_burn_amount, out_amount, lp_fee_to_charge, out_fee_amount))
-    }
-
-    pub fn get_linear_fee_inventory(
-        &self,
-        notional_error: i128,
-        trade_notional: i128,
-        kappa_inventory: u64,
-    ) -> DriftResult<i128> {
-        msg!("notional_error: {}", notional_error);
-        msg!("trade_notional: {}", trade_notional);
-        msg!("kappa_inventory: {}", kappa_inventory);
-        notional_error
-            .safe_mul(-1_i128)?
-            .safe_mul(trade_notional.signum() as i128)?
-            .safe_mul(kappa_inventory.cast::<i128>()?)?
-            .safe_mul(PERCENTAGE_PRECISION_I128)?
-            .cast::<i128>()?
-            .safe_div(self.last_aum.cast::<i128>()?)?
-            .safe_div(QUOTE_PRECISION_I128)
     }
 
     pub fn get_quadratic_fee_inventory(
@@ -495,9 +453,6 @@ impl LPPool {
         out_target_weight: Option<i64>,
         correlation: i64,
     ) -> DriftResult<(i128, i128)> {
-        msg!("in target weight: {}", in_target_weight);
-        msg!("out target weight: {:?}", out_target_weight);
-
         let notional_trade_size =
             in_constituent.get_notional(in_oracle_price, in_spot_market, in_amount, false)?;
         let out_amount = if out_oracle_price.is_some() {
@@ -640,16 +595,13 @@ impl LPPool {
                 notional_trade_size,
             )?;
 
-        msg!("in_fee_execution_linear: {}", in_fee_execution_linear);
-        msg!("in_fee_execution_quadratic: {}", in_fee_execution_quadratic);
-        msg!("in_quadratic_inventory_fee: {}", in_quadratic_inventory_fee);
-        msg!("out_fee_execution_linear: {}", out_fee_execution_linear);
         msg!(
-            "out_fee_execution_quadratic: {}",
-            out_fee_execution_quadratic
-        );
-        msg!(
-            "out_quadratic_inventory_fee: {}",
+            "fee breakdown - in_exec_linear: {}, in_exec_quad: {}, in_inv_quad: {}, out_exec_linear: {}, out_exec_quad: {}, out_inv_quad: {}",
+            in_fee_execution_linear,
+            in_fee_execution_quadratic,
+            in_quadratic_inventory_fee,
+            out_fee_execution_linear,
+            out_fee_execution_quadratic,
             out_quadratic_inventory_fee
         );
         let total_in_fee = in_fee_execution_linear
@@ -702,6 +654,99 @@ impl LPPool {
             .total_mint_redeem_fees_paid
             .safe_add(amount.cast::<i128>()?)?;
         Ok(())
+    }
+
+    pub fn update_aum(
+        &mut self,
+        now: i64,
+        slot: u64,
+        constituent_map: &ConstituentMap,
+        spot_market_map: &SpotMarketMap,
+        constituent_target_base: &AccountZeroCopyMut<'_, TargetsDatum, ConstituentTargetBaseFixed>,
+        amm_cache: &AccountZeroCopyMut<'_, CacheInfo, AmmCacheFixed>,
+    ) -> DriftResult<(u128, i128, BTreeMap<u16, Vec<u16>>)> {
+        let mut aum: u128 = 0;
+        let mut crypto_delta = 0_i128;
+        let mut oldest_slot = u64::MAX;
+        let mut derivative_groups: BTreeMap<u16, Vec<u16>> = BTreeMap::new();
+        for i in 0..self.constituents as usize {
+            let constituent = constituent_map.get_ref(&(i as u16))?;
+            if slot.saturating_sub(constituent.last_oracle_slot)
+                > constituent.oracle_staleness_threshold
+            {
+                msg!(
+                    "Constituent {} oracle slot is too stale: {}, current slot: {}",
+                    constituent.constituent_index,
+                    constituent.last_oracle_slot,
+                    slot
+                );
+                return Err(ErrorCode::ConstituentOracleStale.into());
+            }
+
+            if constituent.constituent_derivative_index >= 0 && constituent.derivative_weight != 0 {
+                if !derivative_groups
+                    .contains_key(&(constituent.constituent_derivative_index as u16))
+                {
+                    derivative_groups.insert(
+                        constituent.constituent_derivative_index as u16,
+                        vec![constituent.constituent_index],
+                    );
+                } else {
+                    derivative_groups
+                        .get_mut(&(constituent.constituent_derivative_index as u16))
+                        .unwrap()
+                        .push(constituent.constituent_index);
+                }
+            }
+
+            let spot_market = spot_market_map.get_ref(&constituent.spot_market_index)?;
+
+            let oracle_slot = constituent.last_oracle_slot;
+
+            if oracle_slot < oldest_slot {
+                oldest_slot = oracle_slot;
+            }
+
+            let constituent_aum = constituent
+                .get_full_balance(&spot_market)?
+                .safe_mul(constituent.last_oracle_price as i128)?
+                .safe_div(10_i128.pow(spot_market.decimals))?
+                .max(0);
+            msg!(
+                "constituent: {}, balance: {}, aum: {}, deriv index: {}",
+                constituent.constituent_index,
+                constituent.get_full_balance(&spot_market)?,
+                constituent_aum,
+                constituent.constituent_derivative_index
+            );
+
+            // sum up crypto deltas (notional exposures for all non-stablecoins)
+            if constituent.constituent_index != self.usdc_consituent_index
+                && constituent.constituent_derivative_index != self.usdc_consituent_index as i16
+            {
+                let constituent_target_notional = constituent_target_base
+                    .get(constituent.constituent_index as u32)
+                    .target_base
+                    .cast::<i128>()?
+                    .safe_mul(constituent.last_oracle_price.cast::<i128>()?)?
+                    .safe_div(10_i128.pow(constituent.decimals as u32))?
+                    .cast::<i64>()?;
+                crypto_delta = crypto_delta.safe_add(constituent_target_notional.cast()?)?;
+            }
+            aum = aum.safe_add(constituent_aum.cast()?)?;
+        }
+
+        let mut aum_i128 = aum.cast::<i128>()?;
+        for cache_datum in amm_cache.iter() {
+            aum_i128 -= cache_datum.quote_owed_from_lp_pool as i128;
+        }
+        aum = aum_i128.max(0i128).cast::<u128>()?;
+
+        self.last_aum = aum;
+        self.last_aum_slot = slot;
+        self.last_aum_ts = now;
+
+        Ok((aum, crypto_delta, derivative_groups))
     }
 }
 
@@ -784,6 +829,10 @@ pub struct Constituent {
     /// precision: PERCENTAGE_PRECISION
     pub swap_fee_max: i64,
 
+    /// Max Borrow amount:
+    /// precision: token precision
+    pub max_borrow_token_amount: u64,
+
     /// ata token balance in token precision
     pub token_balance: u64,
 
@@ -801,7 +850,14 @@ pub struct Constituent {
 
     pub volatility: u64, // volatility in PERCENTAGE_PRECISION 1=1%
 
-    pub constituent_derivative_index: i16, // -1 if a parent index
+    // depeg threshold in relation top parent in PERCENTAGE_PRECISION
+    pub constituent_derivative_depeg_threshold: u64,
+
+    /// The `constituent_index` of the parent constituent. -1 if it is a parent index
+    /// Example: if in a pool with SOL (parent) and dSOL (derivative),
+    /// SOL.constituent_index = 1, SOL.constituent_derivative_index = -1,
+    /// dSOL.constituent_index = 2, dSOL.constituent_derivative_index = 1
+    pub constituent_derivative_index: i16,
 
     pub spot_market_index: u16,
     pub constituent_index: u16,
@@ -817,7 +873,7 @@ pub struct Constituent {
 }
 
 impl Size for Constituent {
-    const SIZE: usize = 288;
+    const SIZE: usize = 304;
 }
 
 impl Constituent {
@@ -947,6 +1003,7 @@ impl Default for AmmConstituentDatum {
 #[derive(Debug, Default)]
 #[repr(C)]
 pub struct AmmConstituentMappingFixed {
+    pub lp_pool: Pubkey,
     pub bump: u8,
     pub _pad: [u8; 3],
     pub len: u32,
@@ -962,6 +1019,7 @@ impl HasLen for AmmConstituentMappingFixed {
 #[derive(Debug)]
 #[repr(C)]
 pub struct AmmConstituentMapping {
+    pub lp_pool: Pubkey,
     pub bump: u8,
     _padding: [u8; 3],
     // PERCENTAGE_PRECISION. Each datum represents the target weight for a single (AMM, Constituent) pair.
@@ -971,7 +1029,7 @@ pub struct AmmConstituentMapping {
 
 impl AmmConstituentMapping {
     pub fn space(num_constituents: usize) -> usize {
-        8 + 8 + 4 + num_constituents * 24
+        8 + 40 + num_constituents * 24
     }
 
     pub fn validate(&self) -> DriftResult<()> {
@@ -1005,6 +1063,7 @@ pub struct TargetsDatum {
 #[derive(Debug, Default)]
 #[repr(C)]
 pub struct ConstituentTargetBaseFixed {
+    pub lp_pool: Pubkey,
     pub bump: u8,
     _pad: [u8; 3],
     /// total elements in the flattened `data` vec
@@ -1021,6 +1080,7 @@ impl HasLen for ConstituentTargetBaseFixed {
 #[derive(Debug)]
 #[repr(C)]
 pub struct ConstituentTargetBase {
+    pub lp_pool: Pubkey,
     pub bump: u8,
     _padding: [u8; 3],
     // PERCENTAGE_PRECISION. The weights of the target weight matrix. Updated async
@@ -1029,7 +1089,7 @@ pub struct ConstituentTargetBase {
 
 impl ConstituentTargetBase {
     pub fn space(num_constituents: usize) -> usize {
-        8 + 8 + 4 + num_constituents * 24
+        8 + 40 + num_constituents * 24
     }
 
     pub fn validate(&self) -> DriftResult<()> {
@@ -1059,6 +1119,7 @@ impl_zero_copy_loader!(
 impl Default for ConstituentTargetBase {
     fn default() -> Self {
         ConstituentTargetBase {
+            lp_pool: Pubkey::default(),
             bump: 0,
             _padding: [0; 3],
             targets: Vec::with_capacity(0),
@@ -1241,6 +1302,7 @@ impl<'a> AccountZeroCopyMut<'a, AmmConstituentDatum, AmmConstituentMappingFixed>
 #[derive(Debug, Default)]
 #[repr(C)]
 pub struct ConstituentCorrelationsFixed {
+    pub lp_pool: Pubkey,
     pub bump: u8,
     _pad: [u8; 3],
     /// total elements in the flattened `data` vec
@@ -1257,6 +1319,7 @@ impl HasLen for ConstituentCorrelationsFixed {
 #[derive(Debug)]
 #[repr(C)]
 pub struct ConstituentCorrelations {
+    pub lp_pool: Pubkey,
     pub bump: u8,
     _padding: [u8; 3],
     // PERCENTAGE_PRECISION. The weights of the target weight matrix. Updated async
@@ -1278,7 +1341,7 @@ impl_zero_copy_loader!(
 
 impl ConstituentCorrelations {
     pub fn space(num_constituents: usize) -> usize {
-        8 + 8 + 4 + num_constituents * num_constituents * 8
+        8 + 40 + num_constituents * num_constituents * 8
     }
 
     pub fn validate(&self) -> DriftResult<()> {
@@ -1463,4 +1526,90 @@ pub fn get_gamma_covar_matrix(
     }
 
     Ok(product)
+}
+
+pub fn update_constituent_target_base_for_derivatives(
+    aum: u128,
+    derivative_groups: &BTreeMap<u16, Vec<u16>>,
+    constituent_map: &ConstituentMap,
+    spot_market_map: &SpotMarketMap,
+    constituent_target_base: &mut AccountZeroCopyMut<'_, TargetsDatum, ConstituentTargetBaseFixed>,
+) -> DriftResult<()> {
+    for (parent_index, constituent_indexes) in derivative_groups.iter() {
+        let parent_constituent = constituent_map.get_ref(&(parent_index))?;
+        let parent_target_base = constituent_target_base
+            .get(*parent_index as u32)
+            .target_base;
+        let target_parent_weight = calculate_target_weight(
+            parent_target_base,
+            &*spot_market_map.get_ref(&parent_constituent.spot_market_index)?,
+            parent_constituent.last_oracle_price,
+            aum,
+            WeightValidationFlags::NONE,
+        )?;
+        let mut derivative_weights_sum = 0;
+        for constituent_index in constituent_indexes {
+            let constituent = constituent_map.get_ref(constituent_index)?;
+            if constituent.last_oracle_price
+                < parent_constituent
+                    .last_oracle_price
+                    .safe_mul(constituent.constituent_derivative_depeg_threshold as i64)?
+                    .safe_div(PERCENTAGE_PRECISION_I64)?
+            {
+                msg!(
+                    "Constituent {} last oracle price {} is too low compared to parent constituent {} last oracle price {}. Assuming depegging and setting target base to 0.",
+                    constituent.constituent_index,
+                    constituent.last_oracle_price,
+                    parent_constituent.constituent_index,
+                    parent_constituent.last_oracle_price
+                );
+                constituent_target_base
+                    .get_mut(*constituent_index as u32)
+                    .target_base = 0_i64;
+                continue;
+            }
+
+            derivative_weights_sum += constituent.derivative_weight;
+
+            let target_weight = target_parent_weight
+                .safe_mul(constituent.derivative_weight as i64)?
+                .safe_div(PERCENTAGE_PRECISION_I64)?;
+
+            msg!(
+                "constituent: {}, target weight: {}",
+                constituent_index,
+                target_weight,
+            );
+            let target_base = aum
+                .cast::<i128>()?
+                .safe_mul(target_weight as i128)?
+                .safe_div(PERCENTAGE_PRECISION_I128)?
+                .safe_mul(10_i128.pow(constituent.decimals as u32))?
+                .safe_div(constituent.last_oracle_price as i128)?;
+
+            msg!(
+                "constituent: {}, target base: {}",
+                constituent_index,
+                target_base
+            );
+            constituent_target_base
+                .get_mut(*constituent_index as u32)
+                .target_base = target_base.cast::<i64>()?;
+        }
+
+        validate!(
+            derivative_weights_sum <= PERCENTAGE_PRECISION_U64,
+            ErrorCode::InvalidConstituentDerivativeWeights,
+            "derivative_weights_sum for parent constituent {} must be less than or equal to 100%",
+            parent_index
+        )?;
+
+        constituent_target_base
+            .get_mut(*parent_index as u32)
+            .target_base = parent_target_base
+            .safe_mul(PERCENTAGE_PRECISION_U64.safe_sub(derivative_weights_sum)? as i64)?
+            .safe_div(PERCENTAGE_PRECISION_I64)?;
+    }
+
+    Ok(())
 }

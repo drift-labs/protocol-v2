@@ -611,7 +611,7 @@ pub struct TransferProtocolIfSharesToRevenuePoolRecord {
     pub shares: u128,
     pub if_vault_amount_before: u64,
     pub protocol_shares_before: u128,
-    pub current_in_amount_since_last_transfer: u64,
+    pub transfer_amount: u64,
 }
 
 impl Size for InsuranceFundSwapRecord {
@@ -760,10 +760,6 @@ pub struct LPSwapRecord {
     pub out_oracle_price: i64,
     /// precision: PRICE_PRECISION
     pub in_oracle_price: i64,
-    /// out token mint
-    pub out_mint: Pubkey,
-    /// in token mint
-    pub in_mint: Pubkey,
     /// LPPool last_aum, QUOTE_PRECISION
     pub last_aum: u128,
     pub last_aum_slot: u64,
@@ -779,13 +775,17 @@ pub struct LPSwapRecord {
     pub out_swap_id: u64,
 }
 
+impl Size for LPSwapRecord {
+    const SIZE: usize = 376;
+}
+
 #[event]
 #[derive(Default)]
 pub struct LPMintRedeemRecord {
     pub ts: i64,
     pub slot: u64,
     pub authority: Pubkey,
-    pub is_minting: bool,
+    pub description: u8,
     /// precision: continutent mint precision, gross fees
     pub amount: u128,
     /// precision: fee on amount, constituent market mint precision
@@ -798,14 +798,12 @@ pub struct LPMintRedeemRecord {
     pub oracle_price: i64,
     /// token mint
     pub mint: Pubkey,
-    /// lp mint
-    pub lp_mint: Pubkey,
     /// lp amount, lp mint precision
     pub lp_amount: u64,
     /// lp fee, lp mint precision
     pub lp_fee: i64,
-    /// lp nav, PRICE_PRECISION
-    pub lp_nav: u128,
+    /// the fair price of the lp token, PRICE_PRECISION
+    pub lp_price: u128,
     pub mint_redeem_id: u64,
     /// LPPool last_aum
     pub last_aum: u128,
@@ -813,4 +811,8 @@ pub struct LPMintRedeemRecord {
     /// PERCENTAGE_PRECISION
     pub in_market_current_weight: i64,
     pub in_market_target_weight: i64,
+}
+
+impl Size for LPMintRedeemRecord {
+    const SIZE: usize = 328;
 }

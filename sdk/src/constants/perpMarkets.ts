@@ -1291,6 +1291,16 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		launchTs: 1747318237000,
 		oracleSource: OracleSource.SWITCHBOARD_ON_DEMAND,
 	},
+	{
+		fullName: 'PUMP',
+		category: ['Launchpad'],
+		symbol: 'PUMP-PERP',
+		baseAssetSymbol: 'PUMP',
+		marketIndex: 75,
+		oracle: new PublicKey('7ezQA4H8XrdJjvvet6Jvd4NUtssFfQVN4S3HDDJeZy2M'),
+		launchTs: 1747318237000,
+		oracleSource: OracleSource.Prelaunch,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {

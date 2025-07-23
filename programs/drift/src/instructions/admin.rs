@@ -31,14 +31,16 @@ use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO, FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
-    IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX, INSURANCE_C_MAX,
-    INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION, MAX_CONCENTRATION_COEFFICIENT,
-    MAX_SQRT_K, MAX_UPDATE_K_PRICE_CHANGE, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I64,
-    PRICE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX, SPOT_CUMULATIVE_INTEREST_PRECISION,
-    SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION, THIRTEEN_DAY, TWENTY_FOUR_HOUR,
+    AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO, DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO,
+    FEE_POOL_TO_REVENUE_POOL_THRESHOLD, IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX,
+    INSURANCE_C_MAX, INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION,
+    MAX_CONCENTRATION_COEFFICIENT, MAX_SQRT_K, MAX_UPDATE_K_PRICE_CHANGE, PERCENTAGE_PRECISION,
+    PERCENTAGE_PRECISION_I64, PRICE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX,
+    SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION, THIRTEEN_DAY,
+    TWENTY_FOUR_HOUR,
 };
 use crate::math::cp_curve::get_update_k_result;
+use crate::math::helpers::get_proportion_u128;
 use crate::math::orders::is_multiple_of_step_size;
 use crate::math::repeg::get_total_fee_lower_bound;
 use crate::math::safe_math::SafeMath;
@@ -969,7 +971,8 @@ pub fn handle_initialize_perp_market(
         protected_maker_limit_price_divisor: 0,
         protected_maker_dynamic_divisor: 0,
         lp_fee_transfer_scalar: 1,
-        padding: [0; 35],
+        lp_status: 0,
+        padding: [0; 34],
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
             oracle_source,
@@ -1663,6 +1666,102 @@ pub fn handle_recenter_perp_market_amm(
         min_base_asset_reserve_after
     );
 
+    Ok(())
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_recenter_perp_market_amm_crank(
+    ctx: Context<AdminUpdatePerpMarketAmmSummaryStats>,
+    depth: Option<u128>,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    let spot_market = &mut load!(ctx.accounts.spot_market)?;
+
+    let clock = Clock::get()?;
+    let price_oracle = &ctx.accounts.oracle;
+
+    let OraclePriceData {
+        price: oracle_price,
+        ..
+    } = get_oracle_price(&perp_market.amm.oracle_source, price_oracle, clock.slot)?;
+
+    msg!(
+        "recentering amm crank for perp market {}",
+        perp_market.market_index
+    );
+
+    let base_asset_reserve_before = perp_market.amm.base_asset_reserve;
+    let quote_asset_reserve_before = perp_market.amm.quote_asset_reserve;
+    let sqrt_k_before = perp_market.amm.sqrt_k;
+    let peg_multiplier_before = perp_market.amm.peg_multiplier;
+    let max_base_asset_reserve_before = perp_market.amm.max_base_asset_reserve;
+    let min_base_asset_reserve_before = perp_market.amm.min_base_asset_reserve;
+
+    let mut sqrt_k = sqrt_k_before;
+    let peg_multiplier: u128 = oracle_price.cast()?;
+    let (max_bids_before, max_asks_before) =
+        amm::calculate_market_open_bids_asks(&perp_market.amm)?;
+
+    if let Some(depth) = depth {
+        let base_depth = max_bids_before
+            .safe_add(max_asks_before.abs())?
+            .safe_div(2)?
+            .unsigned_abs();
+        let quote_depth = base_depth
+            .safe_mul(peg_multiplier)?
+            .safe_div(AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO)?;
+        sqrt_k = get_proportion_u128(sqrt_k, depth, quote_depth)?;
+    }
+
+    controller::amm::recenter_perp_market_amm(perp_market, peg_multiplier, sqrt_k)?;
+    validate_perp_market(perp_market)?;
+
+    let base_asset_reserve_after = perp_market.amm.base_asset_reserve;
+    let quote_asset_reserve_after = perp_market.amm.quote_asset_reserve;
+    let sqrt_k_after = perp_market.amm.sqrt_k;
+    let peg_multiplier_after = perp_market.amm.peg_multiplier;
+    let max_base_asset_reserve_after = perp_market.amm.max_base_asset_reserve;
+    let min_base_asset_reserve_after = perp_market.amm.min_base_asset_reserve;
+
+    msg!(
+        "base_asset_reserve {} -> {}",
+        base_asset_reserve_before,
+        base_asset_reserve_after
+    );
+
+    msg!(
+        "quote_asset_reserve {} -> {}",
+        quote_asset_reserve_before,
+        quote_asset_reserve_after
+    );
+
+    msg!("sqrt_k {} -> {}", sqrt_k_before, sqrt_k_after);
+
+    msg!(
+        "peg_multiplier {} -> {}",
+        peg_multiplier_before,
+        peg_multiplier_after
+    );
+
+    msg!(
+        "max_base_asset_reserve {} -> {}",
+        max_base_asset_reserve_before,
+        max_base_asset_reserve_after
+    );
+
+    msg!(
+        "min_base_asset_reserve {} -> {}",
+        min_base_asset_reserve_before,
+        min_base_asset_reserve_after
+    );
+
+    let (max_bids_after, max_asks_after) = amm::calculate_market_open_bids_asks(&perp_market.amm)?;
+
+    msg!("max_bids {} -> {}", max_bids_before, max_bids_after);
+
+    msg!("max_asks {} -> {}", max_asks_before, max_asks_after);
     Ok(())
 }
 
@@ -4119,6 +4218,16 @@ pub fn handle_update_perp_market_protected_maker_params(
     Ok(())
 }
 
+pub fn handle_update_perp_market_lp_pool_status(
+    ctx: Context<AdminUpdatePerpMarket>,
+    lp_status: u8,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
+    perp_market.lp_status = lp_status;
+    Ok(())
+}
+
 #[access_control(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
@@ -4602,6 +4711,7 @@ pub fn handle_initialize_lp_pool(
     max_mint_fee: i64,
     revenue_rebalance_period: u64,
     max_aum: u128,
+    max_settle_quote_amount_per_market: u64,
 ) -> Result<()> {
     let mut lp_pool = ctx.accounts.lp_pool.load_init()?;
     let mint = ctx.accounts.mint.key();
@@ -4615,11 +4725,11 @@ pub fn handle_initialize_lp_pool(
         last_aum: 0,
         last_aum_slot: 0,
         last_aum_ts: 0,
+        max_settle_quote_amount: max_settle_quote_amount_per_market,
         last_revenue_rebalance_ts: 0,
         total_fees_received: 0,
         total_fees_paid: 0,
         total_mint_redeem_fees_paid: 0,
-        oldest_oracle_slot: 0,
         bump: ctx.bumps.lp_pool,
         min_mint_fee,
         max_mint_fee_premium: max_mint_fee,
@@ -4634,6 +4744,7 @@ pub fn handle_initialize_lp_pool(
     };
 
     let amm_constituent_mapping = &mut ctx.accounts.amm_constituent_mapping;
+    amm_constituent_mapping.lp_pool = ctx.accounts.lp_pool.key();
     amm_constituent_mapping.bump = ctx.bumps.amm_constituent_mapping;
     amm_constituent_mapping
         .weights
@@ -4641,6 +4752,7 @@ pub fn handle_initialize_lp_pool(
     amm_constituent_mapping.validate()?;
 
     let constituent_target_base = &mut ctx.accounts.constituent_target_base;
+    constituent_target_base.lp_pool = ctx.accounts.lp_pool.key();
     constituent_target_base.bump = ctx.bumps.constituent_target_base;
     constituent_target_base
         .targets
@@ -4648,6 +4760,7 @@ pub fn handle_initialize_lp_pool(
     constituent_target_base.validate()?;
 
     let consituent_correlations = &mut ctx.accounts.constituent_correlations;
+    consituent_correlations.lp_pool = ctx.accounts.lp_pool.key();
     consituent_correlations.bump = ctx.bumps.constituent_correlations;
     consituent_correlations.correlations.resize(0 as usize, 0);
     consituent_correlations.validate()?;
@@ -4904,9 +5017,11 @@ pub fn handle_initialize_constituent<'info>(
     max_weight_deviation: i64,
     swap_fee_min: i64,
     swap_fee_max: i64,
+    max_borrow_token_amount: u64,
     oracle_staleness_threshold: u64,
     cost_to_trade_bps: i32,
     constituent_derivative_index: Option<i16>,
+    constituent_derivative_depeg_threshold: u64,
     derivative_weight: u64,
     volatility: u64,
     gamma_execution: u8,
@@ -4954,10 +5069,12 @@ pub fn handle_initialize_constituent<'info>(
     constituent.mint = ctx.accounts.spot_market_mint.key();
     constituent.token_vault = ctx.accounts.constituent_vault.key();
     constituent.bump = ctx.bumps.constituent;
+    constituent.max_borrow_token_amount = max_borrow_token_amount;
     constituent.lp_pool = lp_pool.pubkey;
     constituent.constituent_index = (constituent_target_base.targets.len() - 1) as u16;
     constituent.next_swap_id = 1;
     constituent.constituent_derivative_index = constituent_derivative_index.unwrap_or(-1);
+    constituent.constituent_derivative_depeg_threshold = constituent_derivative_depeg_threshold;
     constituent.derivative_weight = derivative_weight;
     constituent.volatility = volatility;
     constituent.gamma_execution = gamma_execution;
@@ -4987,6 +5104,7 @@ pub struct ConstituentParams {
     pub max_weight_deviation: Option<i64>,
     pub swap_fee_min: Option<i64>,
     pub swap_fee_max: Option<i64>,
+    pub max_borrow_token_amount: Option<u64>,
     pub oracle_staleness_threshold: Option<u64>,
     pub cost_to_trade_bps: Option<i32>,
     pub constituent_derivative_index: Option<i16>,
@@ -5095,6 +5213,38 @@ pub fn handle_update_constituent_params<'info>(
     if constituent_params.xi.is_some() {
         msg!("xi: {:?} -> {:?}", constituent.xi, constituent_params.xi);
         constituent.xi = constituent_params.xi.unwrap();
+    }
+
+    if let Some(max_borrow_token_amount) = constituent_params.max_borrow_token_amount {
+        msg!(
+            "max_borrow_token_amount: {:?} -> {:?}",
+            constituent.max_borrow_token_amount,
+            max_borrow_token_amount
+        );
+        constituent.max_borrow_token_amount = max_borrow_token_amount;
+    }
+
+    Ok(())
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
+pub struct LpPoolParams {
+    pub max_settle_quote_amount: Option<u64>,
+}
+
+pub fn handle_update_lp_pool_params<'info>(
+    ctx: Context<UpdateLpPoolParams>,
+    lp_pool_params: LpPoolParams,
+) -> Result<()> {
+    let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
+
+    if let Some(max_settle_quote_amount) = lp_pool_params.max_settle_quote_amount {
+        msg!(
+            "max_settle_quote_amount: {:?} -> {:?}",
+            lp_pool.max_settle_quote_amount,
+            max_settle_quote_amount
+        );
+        lp_pool.max_settle_quote_amount = max_settle_quote_amount;
     }
 
     Ok(())
@@ -6567,6 +6717,18 @@ pub struct UpdateConstituentParams<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub constituent: AccountLoader<'info, Constituent>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateLpPoolParams<'info> {
+    #[account(mut)]
+    pub lp_pool: AccountLoader<'info, LPPool>,
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+    pub state: Box<Account<'info, State>>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]

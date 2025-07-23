@@ -989,7 +989,10 @@ export class DLOB {
 		const generatorList = [
 			orderLists.market.bid.getGenerator(),
 			orderLists.takingLimit.bid.getGenerator(),
-			orderLists.signedMsg.bid.getGenerator(),
+			this.signedMsgGenerator(
+				orderLists.signedMsg.bid,
+				(x: DLOBNode) => !isRestingLimitOrder(x.order, slot)
+			),
 		];
 
 		yield* this.getBestNode(
@@ -1021,7 +1024,10 @@ export class DLOB {
 		const generatorList = [
 			orderLists.market.ask.getGenerator(),
 			orderLists.takingLimit.ask.getGenerator(),
-			orderLists.signedMsg.ask.getGenerator(),
+			this.signedMsgGenerator(
+				orderLists.signedMsg.ask,
+				(x: DLOBNode) => !isRestingLimitOrder(x.order, slot)
+			),
 		];
 
 		yield* this.getBestNode(
@@ -1033,6 +1039,17 @@ export class DLOB {
 			},
 			filterFcn
 		);
+	}
+
+	protected *signedMsgGenerator(
+		signedMsgOrderList: NodeList<'signedMsg'>,
+		filter: (x: DLOBNode) => boolean
+	): Generator<DLOBNode> {
+		for (const signedMsgOrder of signedMsgOrderList.getGenerator()) {
+			if (filter(signedMsgOrder)) {
+				yield signedMsgOrder;
+			}
+		}
 	}
 
 	protected *getBestNode(
@@ -1119,6 +1136,9 @@ export class DLOB {
 			nodeLists.restingLimit.ask.getGenerator(),
 			nodeLists.floatingLimit.ask.getGenerator(),
 			nodeLists.protectedFloatingLimit.ask.getGenerator(),
+			this.signedMsgGenerator(nodeLists.signedMsg.ask, (x: DLOBNode) =>
+				isRestingLimitOrder(x.order, slot)
+			),
 		];
 
 		yield* this.getBestNode(
@@ -1158,6 +1178,9 @@ export class DLOB {
 			nodeLists.restingLimit.bid.getGenerator(),
 			nodeLists.floatingLimit.bid.getGenerator(),
 			nodeLists.protectedFloatingLimit.bid.getGenerator(),
+			this.signedMsgGenerator(nodeLists.signedMsg.bid, (x: DLOBNode) =>
+				isRestingLimitOrder(x.order, slot)
+			),
 		];
 
 		yield* this.getBestNode(

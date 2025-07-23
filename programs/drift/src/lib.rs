@@ -1037,6 +1037,13 @@ pub mod drift {
         handle_recenter_perp_market_amm(ctx, peg_multiplier, sqrt_k)
     }
 
+    pub fn recenter_perp_market_amm_crank(
+        ctx: Context<AdminUpdatePerpMarketAmmSummaryStats>,
+        depth: Option<u128>,
+    ) -> Result<()> {
+        handle_recenter_perp_market_amm_crank(ctx, depth)
+    }
+
     pub fn update_perp_market_amm_summary_stats(
         ctx: Context<AdminUpdatePerpMarketAmmSummaryStats>,
         params: UpdatePerpMarketSummaryStatsParams,
@@ -1049,6 +1056,20 @@ pub mod drift {
         expiry_ts: i64,
     ) -> Result<()> {
         handle_update_perp_market_expiry(ctx, expiry_ts)
+    }
+
+    pub fn update_perp_market_lp_pool_status(
+        ctx: Context<AdminUpdatePerpMarket>,
+        lp_status: u8,
+    ) -> Result<()> {
+        handle_update_perp_market_lp_pool_status(ctx, lp_status)
+    }
+
+    pub fn update_perp_market_lp_pool_fee_transfer_scalar(
+        ctx: Context<AdminUpdatePerpMarket>,
+        lp_fee_transfer_scalar: u8,
+    ) -> Result<()> {
+        handle_update_perp_market_lp_pool_fee_transfer_scalar(ctx, lp_fee_transfer_scalar)
     }
 
     pub fn settle_expired_market_pools_to_revenue_pool(
@@ -1745,6 +1766,7 @@ pub mod drift {
         max_mint_fee: i64,
         revenue_rebalance_period: u64,
         max_aum: u128,
+        max_settle_quote_amount_per_market: u64,
     ) -> Result<()> {
         handle_initialize_lp_pool(
             ctx,
@@ -1753,6 +1775,7 @@ pub mod drift {
             max_mint_fee,
             revenue_rebalance_period,
             max_aum,
+            max_settle_quote_amount_per_market,
         )
     }
 
@@ -1810,9 +1833,11 @@ pub mod drift {
         max_weight_deviation: i64,
         swap_fee_min: i64,
         swap_fee_max: i64,
+        max_borrow_token_amount: u64,
         oracle_staleness_threshold: u64,
         cost_to_trade: i32,
         constituent_derivative_index: Option<i16>,
+        constituent_derivative_depeg_threshold: u64,
         derivative_weight: u64,
         volatility: u64,
         gamma_execution: u8,
@@ -1827,9 +1852,11 @@ pub mod drift {
             max_weight_deviation,
             swap_fee_min,
             swap_fee_max,
+            max_borrow_token_amount,
             oracle_staleness_threshold,
             cost_to_trade,
             constituent_derivative_index,
+            constituent_derivative_depeg_threshold,
             derivative_weight,
             volatility,
             gamma_execution,
@@ -1844,6 +1871,13 @@ pub mod drift {
         constituent_params: ConstituentParams,
     ) -> Result<()> {
         handle_update_constituent_params(ctx, constituent_params)
+    }
+
+    pub fn update_lp_pool_params(
+        ctx: Context<UpdateLpPoolParams>,
+        lp_pool_params: LpPoolParams,
+    ) -> Result<()> {
+        handle_update_lp_pool_params(ctx, lp_pool_params)
     }
 
     pub fn add_amm_constituent_mapping_data(

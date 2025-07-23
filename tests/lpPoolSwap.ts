@@ -175,6 +175,7 @@ describe('LP Pool', () => {
 			periodicity,
 			new BN(224 * PEG_PRECISION.toNumber())
 		);
+		await adminClient.updatePerpMarketLpPoolStatus(0, 1);
 
 		await adminClient.initializePerpMarket(
 			1,
@@ -184,6 +185,7 @@ describe('LP Pool', () => {
 			periodicity,
 			new BN(224 * PEG_PRECISION.toNumber())
 		);
+		await adminClient.updatePerpMarketLpPoolStatus(1, 1);
 
 		const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(
 			new BN(2)
@@ -222,6 +224,7 @@ describe('LP Pool', () => {
 			ZERO, // 1 bps
 			new BN(3600),
 			new BN(100_000_000).mul(QUOTE_PRECISION),
+			new BN(1_000_000).mul(QUOTE_PRECISION),
 			Keypair.generate() // dlp mint
 		);
 		await adminClient.initializeConstituent(encodeName(lpPoolName), {
@@ -230,6 +233,7 @@ describe('LP Pool', () => {
 			maxWeightDeviation: PERCENTAGE_PRECISION.divn(10), // 10% max dev,
 			swapFeeMin: PERCENTAGE_PRECISION.divn(10000), // min fee 1 bps,
 			swapFeeMax: PERCENTAGE_PRECISION.divn(100),
+			maxBorrowTokenAmount: new BN(1_000_000).muln(10 ** 6),
 			oracleStalenessThreshold: new BN(100),
 			costToTrade: 1,
 			derivativeWeight: PERCENTAGE_PRECISION,
@@ -242,6 +246,7 @@ describe('LP Pool', () => {
 			maxWeightDeviation: PERCENTAGE_PRECISION.divn(10), // 10% max dev,
 			swapFeeMin: PERCENTAGE_PRECISION.divn(10000), // min fee 1 bps,
 			swapFeeMax: PERCENTAGE_PRECISION.divn(100),
+			maxBorrowTokenAmount: new BN(1_000_000).muln(10 ** 6),
 			oracleStalenessThreshold: new BN(100),
 			costToTrade: 1,
 			derivativeWeight: ZERO,
@@ -296,6 +301,7 @@ describe('LP Pool', () => {
 
 	after(async () => {
 		await adminClient.unsubscribe();
+		await serumDriftClient.unsubscribe();
 	});
 
 	it('LP Pool init properly', async () => {
@@ -693,6 +699,7 @@ describe('LP Pool', () => {
 			maxWeightDeviation: PERCENTAGE_PRECISION.divn(10), // 10% max dev,
 			swapFeeMin: PERCENTAGE_PRECISION.divn(10000), // min fee 1 bps,
 			swapFeeMax: PERCENTAGE_PRECISION.divn(100),
+			maxBorrowTokenAmount: new BN(1_000_000).muln(10 ** 6),
 			oracleStalenessThreshold: new BN(100),
 			costToTrade: 1,
 			derivativeWeight: ZERO,

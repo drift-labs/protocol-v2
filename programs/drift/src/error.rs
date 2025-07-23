@@ -662,6 +662,10 @@ pub enum ErrorCode {
     LpPoolAumDelayed,
     #[msg("Constituent oracle is stale")]
     ConstituentOracleStale,
+    #[msg("LP Invariant failed")]
+    LpInvariantFailed,
+    #[msg("Invalid constituent derivative weights")]
+    InvalidConstituentDerivativeWeights,
 }
 
 #[macro_export]

@@ -121,6 +121,10 @@ export class BankrunContextWrapper {
 	}
 
 	async moveTimeForward(increment: number): Promise<void> {
+		const approxSlots = increment / 0.4;
+		const slot = await this.connection.getSlot();
+		this.context.warpToSlot(BigInt(Math.floor(Number(slot) + approxSlots)));
+
 		const currentClock = await this.context.banksClient.getClock();
 		const newUnixTimestamp = currentClock.unixTimestamp + BigInt(increment);
 		const newClock = new Clock(
@@ -130,6 +134,7 @@ export class BankrunContextWrapper {
 			currentClock.leaderScheduleEpoch,
 			newUnixTimestamp
 		);
+
 		await this.context.setClock(newClock);
 	}
 
@@ -241,13 +246,31 @@ export class BankrunConnection {
 			: await internal.tryProcessLegacyTransaction(serialized);
 		const banksTransactionMeta = new BanksTransactionResultWithMeta(inner);
 
-		if (banksTransactionMeta.result) {
-			throw new Error(banksTransactionMeta.result);
-		}
 		const signature = isVersioned
 			? bs58.encode((tx as VersionedTransaction).signatures[0])
 			: bs58.encode((tx as Transaction).signatures[0].signature);
-		this.transactionToMeta.set(signature, banksTransactionMeta);
+
+		if (banksTransactionMeta.result) {
+			if (
+				!banksTransactionMeta.result
+					.toString()
+					.includes('This transaction has already been processed')
+			) {
+				throw new Error(banksTransactionMeta.result);
+			} else {
+				console.log(
+					`Tx already processed (sig: ${signature}): ${JSON.stringify(
+						banksTransactionMeta
+					)}`,
+					banksTransactionMeta,
+					banksTransactionMeta.result
+				);
+				console.log(tx);
+			}
+		}
+		if (!this.transactionToMeta.has(signature)) {
+			this.transactionToMeta.set(signature, banksTransactionMeta);
+		}
 		let finalizedCount = 0;
 		while (finalizedCount < 10) {
 			const signatureStatus = (await this.getSignatureStatus(signature)).value
@@ -290,7 +313,7 @@ export class BankrunConnection {
 		return signature;
 	}
 
-	private async updateSlotAndClock() {
+	async updateSlotAndClock() {
 		const currentSlot = await this.getSlot();
 		const nextSlot = currentSlot + BigInt(1);
 		this.context.warpToSlot(nextSlot);
@@ -404,6 +427,9 @@ export class BankrunConnection {
 		const transactionStatus = await this._banksClient.getTransactionStatus(
 			signature
 		);
+		if (txMeta.meta === null) {
+			throw new Error(`tx has no meta: ${JSON.stringify(txMeta)}`);
+		}
 		const meta: BankrunTransactionMetaNormalized = {
 			logMessages: txMeta.meta.logMessages,
 			err: txMeta.result,

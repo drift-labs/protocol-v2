@@ -723,7 +723,7 @@ export type TransferProtocolIfSharesToRevenuePoolRecord = {
 	ifVaultAmountBefore: BN;
 	protocolSharesBefore: BN;
 	protocolSharesAfter: BN;
-	currentInAmountSinceLastTransfer: BN;
+	transferAmount: BN;
 };
 
 export type LPSwapRecord = {
@@ -766,7 +766,7 @@ export type LPMintRedeemRecord = {
 	lpMint: PublicKey;
 	lpAmount: BN;
 	lpFee: BN;
-	lpNav: BN;
+	lpPrice: BN;
 	mintRedeemId: BN;
 	lastAum: BN;
 	lastAumSlot: BN;
@@ -1555,7 +1555,7 @@ export type IfRebalanceConfigAccount = {
 	totalInAmount: BN;
 	currentInAmount: BN;
 	currentOutAmount: BN;
-	currentInAmountSinceLastTransfer: BN;
+	currentOutAmountTransferred: BN;
 	epochStartTs: BN;
 	epochInAmount: BN;
 	epochMaxInAmount: BN;
@@ -1625,7 +1625,7 @@ export type TargetDatum = {
 	lastSlot: BN;
 };
 
-export type ConstituentTargetBase = {
+export type ConstituentTargetBaseAccount = {
 	bump: number;
 	targets: TargetDatum[];
 };
@@ -1659,10 +1659,12 @@ export type InitializeConstituentParams = {
 	maxWeightDeviation: BN;
 	swapFeeMin: BN;
 	swapFeeMax: BN;
+	maxBorrowTokenAmount: BN;
 	oracleStalenessThreshold: BN;
 	costToTrade: number;
 	derivativeWeight: BN;
 	constituentDerivativeIndex?: number;
+	constituentDerivativeDepegThreshold?: BN;
 	constituentCorrelations: BN[];
 	volatility: BN;
 	gammaExecution?: number;
@@ -1708,7 +1710,7 @@ export type CacheInfo = {
 	lastNetPnlPoolTokenAmount: BN;
 	lastSettleAmount: BN;
 	lastSettleTs: BN;
-	quoteOwedFromLp: BN;
+	quoteOwedFromLpPool: BN;
 };
 
 export type AmmCache = {

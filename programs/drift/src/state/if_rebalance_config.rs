@@ -89,7 +89,7 @@ impl IfRebalanceConfig {
         Ok(())
     }
 
-    pub fn next_transfer_amount(&self) -> DriftResult<u64> {
+    pub fn max_transfer_amount(&self) -> DriftResult<u64> {
         self.current_out_amount
             .safe_sub(self.current_out_amount_transferred)
     }

@@ -136,9 +136,7 @@ pub fn is_oracle_valid_for_action(
             }
             DriftAction::LpPoolSwap => !matches!(
                 oracle_validity,
-                OracleValidity::NonPositive
-                    | OracleValidity::StaleForAMM
-                    | OracleValidity::InsufficientDataPoints
+                OracleValidity::NonPositive | OracleValidity::InsufficientDataPoints
             ),
         },
         None => {
