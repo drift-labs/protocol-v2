@@ -2937,8 +2937,11 @@ pub fn handle_add_perp_lp_shares<'c: 'info, 'info>(
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
 
-    msg!("add_perp_lp_shares is disabled");
-    return Err(ErrorCode::DefaultError.into());
+    #[cfg(not(feature = "anchor-test"))]
+    {
+        msg!("add_perp_lp_shares is disabled");
+        return Err(ErrorCode::DefaultError.into());
+    }
 
     let AccountMaps {
         perp_market_map,
