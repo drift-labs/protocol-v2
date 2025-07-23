@@ -33,7 +33,7 @@ use num_integer::Roots;
 
 use crate::state::oracle::{
     get_prelaunch_price, get_sb_on_demand_price, get_switchboard_price, HistoricalOracleData,
-    MMOraclePriceData, OraclePriceData, OracleSource,
+    OracleSource,
 };
 use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType};
 use crate::state::traits::{MarketIndexOffset, Size};
@@ -747,21 +747,6 @@ impl PerpMarket {
             default_min_auction_duration
         }
     }
-
-    pub fn get_mm_oracle_price_data(
-        &self,
-        oracle_price_data: OraclePriceData,
-        clock_slot: u64,
-    ) -> DriftResult<MMOraclePriceData> {
-        Ok(MMOraclePriceData {
-            mm_oracle_price: self.amm.mm_oracle_price,
-            mm_oracle_delay: clock_slot
-                .cast::<i64>()?
-                .safe_sub(self.amm.mm_oracle_slot.cast::<i64>()?)?,
-            oracle_confidence: None,
-            oracle_price_data: oracle_price_data,
-        })
-    }
 }
 
 #[cfg(test)]
@@ -1013,7 +998,7 @@ pub struct AMM {
     pub min_order_size: u64,
     /// the max base size a single user can have
     /// precision: BASE_PRECISION
-    pub mm_oracle_slot: u64,
+    pub max_position_size: u64,
     /// estimated total of volume in market
     /// QUOTE_PRECISION
     pub volume_24h: u64,
@@ -1039,8 +1024,10 @@ pub struct AMM {
     pub long_spread: u32,
     /// the spread for bids vs the reserve price
     pub short_spread: u32,
-    /// MM oracle price
-    pub mm_oracle_price: i64,
+    /// the count intensity of long fills against AMM
+    pub long_intensity_count: u32,
+    /// the count intensity of short fills against AMM
+    pub short_intensity_count: u32,
     /// the fraction of total available liquidity a single fill on the AMM can consume
     pub max_fill_reserve_fraction: u16,
     /// the maximum slippage a single fill on the AMM can push
@@ -1065,7 +1052,7 @@ pub struct AMM {
     /// signed scale amm_spread similar to fee_adjustment logic (-100 = 0, 100 = double)
     pub amm_spread_adjustment: i8,
     pub oracle_slot_delay_override: i8,
-    pub mm_oracle_sequence_id: u64,
+    pub total_fee_earned_per_lp: u64,
     pub net_unsettled_funding_pnl: i64,
     pub quote_asset_amount_with_unsettled_lp: i64,
     pub reference_price_offset: i32,
@@ -1132,6 +1119,7 @@ impl Default for AMM {
             order_step_size: 0,
             order_tick_size: 0,
             min_order_size: 1,
+            max_position_size: 0,
             volume_24h: 0,
             long_intensity_volume: 0,
             short_intensity_volume: 0,
@@ -1143,8 +1131,8 @@ impl Default for AMM {
             max_spread: 0,
             long_spread: 0,
             short_spread: 0,
-            mm_oracle_price: 0,
-            mm_oracle_slot: 0,
+            long_intensity_count: 0,
+            short_intensity_count: 0,
             max_fill_reserve_fraction: 0,
             max_slippage_ratio: 0,
             curve_update_intensity: 0,
@@ -1156,7 +1144,7 @@ impl Default for AMM {
             taker_speed_bump_override: 0,
             amm_spread_adjustment: 0,
             oracle_slot_delay_override: 0,
-            mm_oracle_sequence_id: 0,
+            total_fee_earned_per_lp: 0,
             net_unsettled_funding_pnl: 0,
             quote_asset_amount_with_unsettled_lp: 0,
             reference_price_offset: 0,
@@ -1428,6 +1416,7 @@ impl AMM {
     pub fn bid_price(&self, reserve_price: u64) -> DriftResult<u64> {
         let adjusted_spread =
             (-(self.short_spread.cast::<i32>()?)).safe_add(self.reference_price_offset)?;
+
         let multiplier = BID_ASK_SPREAD_PRECISION_I128.safe_add(adjusted_spread.cast::<i128>()?)?;
 
         reserve_price
@@ -1647,16 +1636,6 @@ impl AMM {
 
     pub fn is_recent_oracle_valid(&self, current_slot: u64) -> DriftResult<bool> {
         Ok(self.last_oracle_valid && current_slot == self.last_update_slot)
-    }
-
-    pub fn update_mm_oracle_info(
-        &mut self,
-        mm_oracle_price: i64,
-        mm_oracle_slot: u64,
-    ) -> DriftResult {
-        self.mm_oracle_price = mm_oracle_price;
-        self.mm_oracle_slot = mm_oracle_slot;
-        Ok(())
     }
 }
 

@@ -10,7 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - program: lp reduce only ([#1749](https://github.com/drift-labs/protocol-v2/pull/1749))
-- program/sdk: introduce separate oracle for vamm ([#1738](https://github.com/drift-labs/protocol-v2/pull/1738))
 - program: new margin mode enum ([#1765](https://github.com/drift-labs/protocol-v2/pull/1765))
 
 ### Fixes

@@ -10,7 +10,7 @@ import {
 } from '../types';
 import { ZERO, TWO, ONE } from '../constants/numericConstants';
 import { BN } from '@coral-xyz/anchor';
-import { MMOraclePriceData, OraclePriceData } from '../oracles/types';
+import { OraclePriceData } from '../oracles/types';
 import {
 	getAuctionPrice,
 	isAuctionComplete,
@@ -232,7 +232,7 @@ export function hasAuctionPrice(order: Order, slot: number): boolean {
 export function isFillableByVAMM(
 	order: Order,
 	market: PerpMarketAccount,
-	mmOraclePriceData: MMOraclePriceData,
+	oraclePriceData: OraclePriceData,
 	slot: number,
 	ts: number,
 	minAuctionDuration: number
@@ -242,7 +242,7 @@ export function isFillableByVAMM(
 			calculateBaseAssetAmountForAmmToFulfill(
 				order,
 				market,
-				mmOraclePriceData,
+				oraclePriceData,
 				slot
 			).gte(market.amm.minOrderSize)) ||
 		isOrderExpired(order, ts)
@@ -252,27 +252,23 @@ export function isFillableByVAMM(
 export function calculateBaseAssetAmountForAmmToFulfill(
 	order: Order,
 	market: PerpMarketAccount,
-	mmOraclePriceData: MMOraclePriceData,
+	oraclePriceData: OraclePriceData,
 	slot: number
 ): BN {
 	if (mustBeTriggered(order) && !isTriggered(order)) {
 		return ZERO;
 	}
 
-	const limitPrice = getLimitPrice(
-		order,
-		mmOraclePriceData.oraclePriceData,
-		slot
-	);
+	const limitPrice = getLimitPrice(order, oraclePriceData, slot);
 	let baseAssetAmount;
 
-	const updatedAMM = calculateUpdatedAMM(market.amm, mmOraclePriceData);
+	const updatedAMM = calculateUpdatedAMM(market.amm, oraclePriceData);
 	if (limitPrice !== undefined) {
 		baseAssetAmount = calculateBaseAssetAmountToFillUpToLimitPrice(
 			order,
 			updatedAMM,
 			limitPrice,
-			mmOraclePriceData
+			oraclePriceData
 		);
 	} else {
 		baseAssetAmount = order.baseAssetAmount.sub(order.baseAssetAmountFilled);
@@ -290,7 +286,7 @@ export function calculateBaseAssetAmountToFillUpToLimitPrice(
 	order: Order,
 	amm: AMM,
 	limitPrice: BN,
-	mmOraclePriceData: MMOraclePriceData
+	oraclePriceData: OraclePriceData
 ): BN {
 	const adjustedLimitPrice = isVariant(order.direction, 'long')
 		? limitPrice.sub(amm.orderTickSize)
@@ -300,7 +296,7 @@ export function calculateBaseAssetAmountToFillUpToLimitPrice(
 		amm,
 		adjustedLimitPrice,
 		order.direction,
-		mmOraclePriceData
+		oraclePriceData
 	);
 
 	const baseAssetAmount = standardizeBaseAssetAmount(

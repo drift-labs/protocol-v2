@@ -948,7 +948,7 @@ export type AMM = {
 	totalFeeMinusDistributions: BN;
 	totalFeeWithdrawn: BN;
 	totalFee: BN;
-	mmOracleSequenceId: BN;
+	totalFeeEarnedPerLp: BN;
 	userLpShares: BN;
 	baseAssetAmountWithUnsettledLp: BN;
 	orderStepSize: BN;
@@ -993,12 +993,13 @@ export type AMM = {
 
 	markStd: BN;
 	oracleStd: BN;
+	longIntensityCount: number;
 	longIntensityVolume: BN;
+	shortIntensityCount: number;
 	shortIntensityVolume: BN;
 	volume24H: BN;
 	minOrderSize: BN;
-	mmOraclePrice: BN;
-	mmOracleSlot: BN;
+	maxPositionSize: BN;
 
 	bidBaseAssetReserve: BN;
 	bidQuoteAssetReserve: BN;

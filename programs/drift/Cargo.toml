@@ -14,7 +14,7 @@ no-entrypoint = []
 cpi = ["no-entrypoint"]
 mainnet-beta=[]
 anchor-test= []
-default=["mainnet-beta", "no-entrypoint"]
+default=["mainnet-beta"]
 drift-rs=[]
 
 [dependencies]

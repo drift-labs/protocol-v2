@@ -97,11 +97,7 @@ pub fn update_amm_test() {
     .unwrap();
     assert!(!too_diverge);
 
-    let mut mm_oracle_price_data = market
-        .get_mm_oracle_price_data(oracle_price_data, slot)
-        .unwrap();
-    let cost_of_update =
-        _update_amm(&mut market, &mut mm_oracle_price_data, &state, now, slot).unwrap();
+    let cost_of_update = _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
 
     assert_eq!(market.amm.sqrt_k, 63936000000);
     let is_oracle_valid = oracle::oracle_validity(
@@ -228,12 +224,8 @@ pub fn update_amm_test_bad_oracle() {
         delay: 12,
         has_sufficient_number_of_data_points: true,
     };
-    let mut mm_oracle_price_data = market
-        .get_mm_oracle_price_data(oracle_price_data, slot)
-        .unwrap();
 
-    let _cost_of_update =
-        _update_amm(&mut market, &mut mm_oracle_price_data, &state, now, slot).unwrap();
+    let _cost_of_update = _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
     assert!(!market.amm.last_oracle_valid);
     assert!(market.amm.last_update_slot == 0);
 
@@ -286,14 +278,10 @@ pub fn update_amm_larg_conf_test() {
         delay: 9,
         has_sufficient_number_of_data_points: true,
     };
-    let mut mm_oracle_price_data = market
-        .get_mm_oracle_price_data(oracle_price_data, slot)
-        .unwrap();
     assert_eq!(market.amm.long_spread, 0);
     assert_eq!(market.amm.short_spread, 0);
 
-    let cost_of_update =
-        _update_amm(&mut market, &mut mm_oracle_price_data, &state, now, slot).unwrap();
+    let cost_of_update = _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
     assert_eq!(cost_of_update, -42992787); // amm wins when price increases
 
     assert_eq!(market.amm.short_spread, 12576);
@@ -310,12 +298,9 @@ pub fn update_amm_larg_conf_test() {
         delay: 1,
         has_sufficient_number_of_data_points: true,
     };
-    let mut mm_oracle_price_data = market
-        .get_mm_oracle_price_data(oracle_price_data, slot)
-        .unwrap();
 
-    let cost_of_update =
-        _update_amm(&mut market, &mut mm_oracle_price_data, &state, now, slot).unwrap();
+    slot += 1;
+    let cost_of_update = _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
     assert_eq!(cost_of_update, 0);
 
     let mrk = market.amm.reserve_price().unwrap();
@@ -353,11 +338,7 @@ pub fn update_amm_larg_conf_test() {
     let optimal_peg_cost = calculate_repeg_cost(&market.amm, optimal_peg).unwrap();
     assert_eq!(optimal_peg_cost, 30468749);
 
-    let mut mm_oracle_price_data = market
-        .get_mm_oracle_price_data(oracle_price_data, slot)
-        .unwrap();
-    let cost_of_update =
-        _update_amm(&mut market, &mut mm_oracle_price_data, &state, now, slot).unwrap();
+    let cost_of_update = _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
     assert_eq!(cost_of_update, 30468749);
     assert_eq!(market.amm.long_spread, 1888);
     assert_eq!(market.amm.short_spread, 28443);
@@ -378,12 +359,8 @@ pub fn update_amm_larg_conf_test() {
         delay: 1,
         has_sufficient_number_of_data_points: true,
     };
-    let mut mm_oracle_price_data = market
-        .get_mm_oracle_price_data(oracle_price_data, slot)
-        .unwrap();
 
-    let cost_of_update =
-        _update_amm(&mut market, &mut mm_oracle_price_data, &state, now, slot).unwrap();
+    let cost_of_update = _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
     assert_eq!(cost_of_update, -3046875);
     assert_eq!(market.amm.long_spread, 1877);
     assert_eq!(market.amm.short_spread, 28289);
@@ -433,9 +410,6 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
         delay: 9,
         has_sufficient_number_of_data_points: true,
     };
-    let mut mm_oracle_price_data = market
-        .get_mm_oracle_price_data(oracle_price_data, slot)
-        .unwrap();
     assert_eq!(market.amm.long_spread, 0);
     assert_eq!(market.amm.short_spread, 0);
     assert_eq!(market.amm.last_update_slot, 0);
@@ -443,8 +417,7 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
     let prev_peg_multiplier = market.amm.peg_multiplier;
     let prev_total_fee_minus_distributions = market.amm.total_fee_minus_distributions;
 
-    let cost_of_update =
-        _update_amm(&mut market, &mut mm_oracle_price_data, &state, now, slot).unwrap();
+    let cost_of_update = _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
     assert!(market.amm.is_recent_oracle_valid(slot).unwrap());
     assert_eq!(cost_of_update, -42992787); // amm wins when price increases
     assert_eq!(market.amm.sqrt_k, 64000000000);
@@ -487,12 +460,9 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
         delay: 1,
         has_sufficient_number_of_data_points: true,
     };
-    let mut mm_oracle_price_data = market
-        .get_mm_oracle_price_data(oracle_price_data, slot)
-        .unwrap();
 
-    let cost_of_update =
-        _update_amm(&mut market, &mut mm_oracle_price_data, &state, now, slot).unwrap();
+    slot += 1;
+    let cost_of_update = _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
     assert_eq!(cost_of_update, 0);
 
     let mrk = market.amm.reserve_price().unwrap();
@@ -513,9 +483,6 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
         delay: 1,
         has_sufficient_number_of_data_points: true,
     };
-    let mut mm_oracle_price_data = market
-        .get_mm_oracle_price_data(oracle_price_data, slot)
-        .unwrap();
 
     let fee_budget = calculate_fee_pool(&market).unwrap();
     assert_eq!(market.amm.total_fee_minus_distributions, -9957007213);
@@ -535,8 +502,7 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
 
     let prev_peg_multiplier = market.amm.peg_multiplier;
     let prev_total_fee_minus_distributions = market.amm.total_fee_minus_distributions;
-    let cost_of_update =
-        _update_amm(&mut market, &mut mm_oracle_price_data, &state, now, slot).unwrap();
+    let cost_of_update = _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
     assert_eq!(cost_of_update, 21459587); // amm loses when price decreases (given users are net short)
     assert_eq!(market.amm.sqrt_k, 63936000000); // k lowered since cost_of_update is positive and total_fee_minus_distributions negative
     assert_eq!(market.amm.base_asset_reserve, 64935000065);
@@ -589,12 +555,8 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
         delay: 1,
         has_sufficient_number_of_data_points: true,
     };
-    let mut mm_oracle_price_data = market
-        .get_mm_oracle_price_data(oracle_price_data, slot)
-        .unwrap();
 
-    let cost_of_update =
-        _update_amm(&mut market, &mut mm_oracle_price_data, &state, now, slot).unwrap();
+    let cost_of_update = _update_amm(&mut market, &oracle_price_data, &state, now, slot).unwrap();
     assert_eq!(cost_of_update, 299367);
     assert_eq!(market.amm.long_spread, 11685);
     assert_eq!(market.amm.short_spread, 18426);

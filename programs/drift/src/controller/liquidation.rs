@@ -203,11 +203,10 @@ pub fn liquidate_perp(
 
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = oracle_map.get_price_data(&market.oracle_id())?;
-    let mut mm_oracle_price_data = market.get_mm_oracle_price_data(*oracle_price_data, slot)?;
 
     update_amm_and_check_validity(
         &mut market,
-        &mut mm_oracle_price_data,
+        oracle_price_data,
         state,
         now,
         slot,
@@ -847,11 +846,10 @@ pub fn liquidate_perp_with_fill(
 
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = oracle_map.get_price_data(&market.oracle_id())?;
-    let mut mm_oracle_price_data = market.get_mm_oracle_price_data(*oracle_price_data, slot)?;
 
     update_amm_and_check_validity(
         &mut market,
-        &mut mm_oracle_price_data,
+        oracle_price_data,
         state,
         now,
         slot,

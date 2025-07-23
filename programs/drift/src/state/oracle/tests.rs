@@ -2,10 +2,9 @@ use solana_program::pubkey::Pubkey;
 use std::str::FromStr;
 
 use crate::create_account_info;
-use crate::math::constants::{AMM_RESERVE_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
-use crate::state::oracle::{get_oracle_price, OraclePriceData, OracleSource};
+use crate::state::oracle::{get_oracle_price, OracleSource};
 use crate::state::oracle_map::OracleMap;
-use crate::state::perp_market::{PerpMarket, AMM};
+use crate::state::perp_market::AMM;
 use crate::test_utils::*;
 
 #[test]
@@ -157,104 +156,4 @@ fn oracle_map_diff_oracle_source() {
         .get_price_data(&(oracle_price_key, OracleSource::PythPull))
         .unwrap();
     assert_eq!(oracle_price_data.price, 34);
-}
-
-#[test]
-fn use_mm_oracle() {
-    let slot = 303030303;
-    let mut market = PerpMarket {
-        market_index: 0,
-        amm: AMM {
-            base_asset_reserve: 512295081967,
-            quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
-            sqrt_k: 500 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 22_100_000_000,
-            base_asset_amount_with_amm: (12295081967_i128),
-            max_spread: 1000,
-            mm_oracle_price: 131 * PRICE_PRECISION_I64 + 873,
-            mm_oracle_slot: slot,
-            // assume someone else has other half same entry,
-            ..AMM::default()
-        },
-        margin_ratio_initial: 1000,
-        margin_ratio_maintenance: 500,
-        imf_factor: 1000, // 1_000/1_000_000 = .001
-        unrealized_pnl_initial_asset_weight: 100,
-        unrealized_pnl_maintenance_asset_weight: 100,
-        ..PerpMarket::default()
-    };
-
-    let oracle_price_data = OraclePriceData {
-        price: 130 * PRICE_PRECISION_I64 + 873,
-        confidence: PRICE_PRECISION_U64 / 10,
-        delay: 1,
-        has_sufficient_number_of_data_points: true,
-    };
-    let mut mm_oracle_price_data = market
-        .get_mm_oracle_price_data(oracle_price_data, slot)
-        .unwrap();
-
-    // Use the MM oracle when it's recent
-    assert_eq!(
-        mm_oracle_price_data.get_oracle_price(),
-        mm_oracle_price_data.mm_oracle_price
-    );
-    assert_eq!(
-        mm_oracle_price_data.get_delay(),
-        mm_oracle_price_data.mm_oracle_delay
-    );
-
-    // Update the MM oracle slot to be delayed
-    market.amm.mm_oracle_slot = slot - 5;
-    let mut mm_oracle_price_data = market
-        .get_mm_oracle_price_data(oracle_price_data, slot)
-        .unwrap();
-    assert_eq!(
-        mm_oracle_price_data.get_oracle_price(),
-        oracle_price_data.price
-    );
-    assert_eq!(mm_oracle_price_data.get_delay(), oracle_price_data.delay,);
-}
-
-#[test]
-fn mm_oracle_confidence() {
-    let slot = 303030303;
-    let market = PerpMarket {
-        market_index: 0,
-        amm: AMM {
-            base_asset_reserve: 512295081967,
-            quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
-            sqrt_k: 500 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 22_100_000_000,
-            base_asset_amount_with_amm: (12295081967_i128),
-            max_spread: 1000,
-            mm_oracle_price: 132 * PRICE_PRECISION_I64 + 873,
-            mm_oracle_slot: slot,
-            // assume someone else has other half same entry,
-            ..AMM::default()
-        },
-        margin_ratio_initial: 1000,
-        margin_ratio_maintenance: 500,
-        imf_factor: 1000, // 1_000/1_000_000 = .001
-        unrealized_pnl_initial_asset_weight: 100,
-        unrealized_pnl_maintenance_asset_weight: 100,
-        ..PerpMarket::default()
-    };
-
-    let oracle_price_data = OraclePriceData {
-        price: 130 * PRICE_PRECISION_I64 + 873,
-        confidence: PRICE_PRECISION_U64 / 10,
-        delay: 1,
-        has_sufficient_number_of_data_points: true,
-    };
-
-    let mut mm_oracle_price_data = market
-        .get_mm_oracle_price_data(oracle_price_data, slot)
-        .unwrap();
-
-    let expected_confidence =
-        mm_oracle_price_data.oracle_price_data.confidence + PRICE_PRECISION_U64 * 2 / 5;
-
-    let confidence = mm_oracle_price_data.get_confidence().unwrap();
-    assert_eq!(confidence, expected_confidence);
 }

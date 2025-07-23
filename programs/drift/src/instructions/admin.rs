@@ -1,29 +1,31 @@
-use std::convert::{identity, TryInto};
+use std::convert::identity;
 use std::mem::size_of;
 
+use crate::math::amm::calculate_amm_available_liquidity;
 use crate::msg;
 use anchor_lang::prelude::*;
+use anchor_spl::token::Token;
 use anchor_spl::token_2022::Token2022;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use phoenix::quantities::WrapperU64;
 use pyth_solana_receiver_sdk::cpi::accounts::InitPriceUpdate;
 use pyth_solana_receiver_sdk::program::PythSolanaReceiver;
 use serum_dex::state::ToAlignedBytes;
-use solana_program::sysvar::SysvarId;
 
 use crate::controller::token::close_vault;
 use crate::error::ErrorCode;
-use crate::ids::{admin_hot_wallet, amm_spread_adjust_wallet, mm_oracle_crank_wallet};
+use crate::ids::admin_hot_wallet;
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO, DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO,
-    FEE_POOL_TO_REVENUE_POOL_THRESHOLD, IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX,
-    INSURANCE_C_MAX, INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION,
-    MAX_CONCENTRATION_COEFFICIENT, MAX_SQRT_K, MAX_UPDATE_K_PRICE_CHANGE, PERCENTAGE_PRECISION,
-    PERCENTAGE_PRECISION_I64, QUOTE_SPOT_MARKET_INDEX, SPOT_CUMULATIVE_INTEREST_PRECISION,
-    SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION, THIRTEEN_DAY, TWENTY_FOUR_HOUR,
+    AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
+    DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO, FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
+    IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX, INSURANCE_C_MAX,
+    INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION, MAX_CONCENTRATION_COEFFICIENT,
+    MAX_SQRT_K, MAX_UPDATE_K_PRICE_CHANGE, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I64,
+    QUOTE_SPOT_MARKET_INDEX, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION,
+    SPOT_WEIGHT_PRECISION, THIRTEEN_DAY, TWENTY_FOUR_HOUR,
 };
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::helpers::get_proportion_u128;
@@ -115,8 +117,7 @@ pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
         initial_pct_to_liquidate: 0,
         max_number_of_sub_accounts: 0,
         max_initialize_user_fee: 0,
-        disable_bit_flags: 0,
-        padding: [0; 9],
+        padding: [0; 10],
     };
 
     Ok(())
@@ -1015,7 +1016,7 @@ pub fn handle_initialize_perp_market(
             order_step_size,
             order_tick_size,
             min_order_size,
-            mm_oracle_price: 0,
+            max_position_size: 0,
             max_slippage_ratio: 50,         // ~2%
             max_fill_reserve_fraction: 100, // moves price ~2%
             base_spread,
@@ -1036,8 +1037,9 @@ pub fn handle_initialize_perp_market(
             mark_std: 0,
             oracle_std: 0,
             volume_24h: 0,
+            long_intensity_count: 0,
             long_intensity_volume: 0,
-            mm_oracle_slot: 0,
+            short_intensity_count: 0,
             short_intensity_volume: 0,
             last_trade_ts: now,
             curve_update_intensity,
@@ -1057,7 +1059,7 @@ pub fn handle_initialize_perp_market(
             oracle_slot_delay_override: 0,
             taker_speed_bump_override: 0,
             amm_spread_adjustment: 0,
-            mm_oracle_sequence_id: 0,
+            total_fee_earned_per_lp: 0,
             net_unsettled_funding_pnl: 0,
             quote_asset_amount_with_unsettled_lp: 0,
             reference_price_offset: 0,
@@ -4843,73 +4845,16 @@ pub fn handle_update_if_rebalance_config(
     Ok(())
 }
 
-pub fn handle_update_mm_oracle_native(accounts: &[AccountInfo], data: &[u8]) -> Result<()> {
-    // Verify this ix is allowed
-    let state = &accounts[3].data.borrow();
-    msg!("state bytes: {:?}", &state[981..988]);
-    assert!(state[982] & 1 == 0, "ix disabled by admin state");
-
-    let signer_account = &accounts[1];
-    #[cfg(not(feature = "anchor-test"))]
-    assert!(
-        signer_account.is_signer && *signer_account.key == mm_oracle_crank_wallet::id(),
-        "signer must be mm oracle crank wallet, signer: {}, mm oracle crank wallet: {}",
-        signer_account.key,
-        mm_oracle_crank_wallet::id()
+pub fn handle_zero_amm_fields_prep_mm_oracle_info(ctx: Context<UpdateAmmParams>) -> Result<()> {
+    let mut perp_market = ctx.accounts.perp_market.load_mut()?;
+    perp_market.amm.long_intensity_count = 0;
+    perp_market.amm.short_intensity_count = 0;
+    perp_market.amm.max_position_size = 0;
+    perp_market.amm.total_fee_earned_per_lp = 0;
+    msg!(
+        "zeroed amm fields for perp market {}",
+        perp_market.market_index
     );
-
-    let mut perp_market = accounts[0].data.borrow_mut();
-    let perp_market_sequence_id = u64::from_le_bytes(perp_market[936..944].try_into().unwrap());
-    let incoming_sequence_id = u64::from_le_bytes(data[8..16].try_into().unwrap());
-
-    if incoming_sequence_id > perp_market_sequence_id {
-        let clock_account = &accounts[2];
-        let clock_data = clock_account.data.borrow();
-
-        perp_market[832..840].copy_from_slice(&clock_data[0..8]);
-        // perp_market[832..840].copy_from_slice(Clock::get()?.slot.to_le_bytes().as_ref());
-        perp_market[912..920].copy_from_slice(&data[0..8]);
-        perp_market[936..944].copy_from_slice(&data[8..16]);
-    }
-
-    Ok(())
-}
-
-pub fn handle_update_amm_spread_adjustment_native(
-    accounts: &[AccountInfo],
-    data: &[u8],
-) -> Result<()> {
-    let signer_account = &accounts[1];
-    #[cfg(not(feature = "anchor-test"))]
-    assert!(
-        signer_account.is_signer && *signer_account.key == amm_spread_adjust_wallet::id(),
-        "signer must be amm spread adjust wallet, signer: {}, amm spread adjust wallet: {}",
-        signer_account.key,
-        amm_spread_adjust_wallet::id()
-    );
-    let mut perp_market = accounts[0].data.borrow_mut();
-    perp_market[934..935].copy_from_slice(&[data[0]]);
-
-    Ok(())
-}
-
-pub fn handle_update_disable_bitflags_mm_oracle(
-    ctx: Context<HotAdminUpdateState>,
-    disable: bool,
-) -> Result<()> {
-    let state = &mut ctx.accounts.state;
-    if disable {
-        msg!("Setting first bit to 1, disabling mm oracle update");
-        state.disable_bit_flags = state.disable_bit_flags | 1;
-    } else {
-        validate!(
-            ctx.accounts.admin.key().eq(&state.admin),
-            ErrorCode::DefaultError,
-            "Only state admin can re-enable after kill switch"
-        )?;
-        msg!("Setting first bit to 0, enabling mm oracle update");
-        state.disable_bit_flags = state.disable_bit_flags & !1;
-    }
     Ok(())
 }
 
@@ -5305,16 +5250,6 @@ pub struct AdminUpdateState<'info> {
         mut,
         has_one = admin
     )]
-    pub state: Box<Account<'info, State>>,
-}
-
-#[derive(Accounts)]
-pub struct HotAdminUpdateState<'info> {
-    #[account(
-        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
-    )]
-    pub admin: Signer<'info>,
-    #[account(mut)]
     pub state: Box<Account<'info, State>>,
 }
 
@@ -5728,4 +5663,15 @@ pub struct UpdateIfRebalanceConfig<'info> {
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateAmmParams<'info> {
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id()
+    )]
+    pub admin: Signer<'info>,
+    #[account(mut)]
+    pub perp_market: AccountLoader<'info, PerpMarket>,
 }

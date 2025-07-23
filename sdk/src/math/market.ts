@@ -19,7 +19,7 @@ import {
 	calculateSizeDiscountAssetWeight,
 	calculateSizePremiumLiabilityWeight,
 } from './margin';
-import { MMOraclePriceData, OraclePriceData } from '../oracles/types';
+import { OraclePriceData } from '../oracles/types';
 import {
 	BASE_PRECISION,
 	MARGIN_PRECISION,
@@ -30,7 +30,6 @@ import {
 import { getTokenAmount } from './spotBalance';
 import { DLOB } from '../dlob/DLOB';
 import { assert } from '../assert/assert';
-import { getOraclePriceFromMMOracleData } from '../oracles/utils';
 
 /**
  * Calculates market mark price
@@ -40,9 +39,9 @@ import { getOraclePriceFromMMOracleData } from '../oracles/utils';
  */
 export function calculateReservePrice(
 	market: PerpMarketAccount,
-	mmOraclePriceData: MMOraclePriceData
+	oraclePriceData: OraclePriceData
 ): BN {
-	const newAmm = calculateUpdatedAMM(market.amm, mmOraclePriceData);
+	const newAmm = calculateUpdatedAMM(market.amm, oraclePriceData);
 	return calculatePrice(
 		newAmm.baseAssetReserve,
 		newAmm.quoteAssetReserve,
@@ -58,13 +57,13 @@ export function calculateReservePrice(
  */
 export function calculateBidPrice(
 	market: PerpMarketAccount,
-	mmOraclePriceData: MMOraclePriceData
+	oraclePriceData: OraclePriceData
 ): BN {
 	const { baseAssetReserve, quoteAssetReserve, newPeg } =
 		calculateUpdatedAMMSpreadReserves(
 			market.amm,
 			PositionDirection.SHORT,
-			mmOraclePriceData
+			oraclePriceData
 		);
 
 	return calculatePrice(baseAssetReserve, quoteAssetReserve, newPeg);
@@ -78,13 +77,13 @@ export function calculateBidPrice(
  */
 export function calculateAskPrice(
 	market: PerpMarketAccount,
-	mmOraclePriceData: MMOraclePriceData
+	oraclePriceData: OraclePriceData
 ): BN {
 	const { baseAssetReserve, quoteAssetReserve, newPeg } =
 		calculateUpdatedAMMSpreadReserves(
 			market.amm,
 			PositionDirection.LONG,
-			mmOraclePriceData
+			oraclePriceData
 		);
 
 	return calculatePrice(baseAssetReserve, quoteAssetReserve, newPeg);
@@ -114,17 +113,17 @@ export function calculateNewMarketAfterTrade(
 
 export function calculateOracleReserveSpread(
 	market: PerpMarketAccount,
-	mmOraclePriceData: MMOraclePriceData
+	oraclePriceData: OraclePriceData
 ): BN {
-	const reservePrice = calculateReservePrice(market, mmOraclePriceData);
-	return calculateOracleSpread(
-		reservePrice,
-		getOraclePriceFromMMOracleData(mmOraclePriceData)
-	);
+	const reservePrice = calculateReservePrice(market, oraclePriceData);
+	return calculateOracleSpread(reservePrice, oraclePriceData);
 }
 
-export function calculateOracleSpread(price: BN, oraclePrice: BN): BN {
-	return price.sub(oraclePrice);
+export function calculateOracleSpread(
+	price: BN,
+	oraclePriceData: OraclePriceData
+): BN {
+	return price.sub(oraclePriceData.price);
 }
 
 export function calculateMarketMarginRatio(

@@ -6730,10 +6730,6 @@
         {
           "name": "ammInventorySpreadAdjustment",
           "type": "i8"
-        },
-        {
-          "name": "referencePriceOffset",
-          "type": "i32"
         }
       ]
     },
@@ -7529,25 +7525,20 @@
       ]
     },
     {
-      "name": "updateDisableBitflagsMmOracle",
+      "name": "zeroAmmFieldsPrepMmOracleInfo",
       "accounts": [
         {
           "name": "admin",
-          "isMut": false,
+          "isMut": true,
           "isSigner": true
         },
         {
-          "name": "state",
+          "name": "perpMarket",
           "isMut": true,
           "isSigner": false
         }
       ],
-      "args": [
-        {
-          "name": "disable",
-          "type": "bool"
-        }
-      ]
+      "args": []
     }
   ],
   "accounts": [
@@ -9037,15 +9028,11 @@
             "type": "u16"
           },
           {
-            "name": "disableBitFlags",
-            "type": "u8"
-          },
-          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                9
+                10
               ]
             }
           }
@@ -10854,7 +10841,7 @@
             "type": "u64"
           },
           {
-            "name": "mmOracleSlot",
+            "name": "maxPositionSize",
             "docs": [
               "the max base size a single user can have",
               "precision: BASE_PRECISION"
@@ -10942,11 +10929,18 @@
             "type": "u32"
           },
           {
-            "name": "mmOraclePrice",
+            "name": "longIntensityCount",
             "docs": [
-              "MM oracle price"
+              "the count intensity of long fills against AMM"
             ],
-            "type": "i64"
+            "type": "u32"
+          },
+          {
+            "name": "shortIntensityCount",
+            "docs": [
+              "the count intensity of short fills against AMM"
+            ],
+            "type": "u32"
           },
           {
             "name": "maxFillReserveFraction",
@@ -11028,7 +11022,7 @@
             "type": "i8"
           },
           {
-            "name": "mmOracleSequenceId",
+            "name": "totalFeeEarnedPerLp",
             "type": "u64"
           },
           {

@@ -2,12 +2,6 @@ import { BN } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
 import { OracleSource } from '../types';
 
-export type MMOraclePriceData = {
-	mmOraclePrice: BN;
-	mmOracleSlot: BN;
-	oraclePriceData: OraclePriceData;
-};
-
 export type OraclePriceData = {
 	price: BN;
 	slot: BN;
