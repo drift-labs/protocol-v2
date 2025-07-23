@@ -2319,8 +2319,16 @@ pub fn handle_update_funding_rate(
         Some(state.oracle_guard_rails),
     )?;
 
-    let oracle_price_data = &oracle_map.get_price_data(&perp_market.oracle_id())?;
-    controller::repeg::_update_amm(perp_market, oracle_price_data, state, now, clock_slot)?;
+    let oracle_price_data = oracle_map.get_price_data(&perp_market.oracle_id())?;
+    let mut mm_oracle_price_data =
+        perp_market.get_mm_oracle_price_data(*oracle_price_data, clock_slot)?;
+    controller::repeg::_update_amm(
+        perp_market,
+        &mut mm_oracle_price_data,
+        state,
+        now,
+        clock_slot,
+    )?;
 
     validate!(
         matches!(
@@ -2415,7 +2423,9 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
     )?;
 
     let oracle_price_data = oracle_map.get_price_data(&perp_market.oracle_id())?;
-    controller::repeg::_update_amm(perp_market, oracle_price_data, state, now, slot)?;
+    let mut mm_oracle_price_data =
+        perp_market.get_mm_oracle_price_data(*oracle_price_data, slot)?;
+    controller::repeg::_update_amm(perp_market, &mut mm_oracle_price_data, state, now, slot)?;
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let makers = load_user_map(remaining_accounts_iter, false)?;
@@ -2627,6 +2637,40 @@ pub fn handle_update_amms<'c: 'info, 'info>(
     )?;
 
     controller::repeg::update_amms(market_map, oracle_map, state, &clock)?;
+
+    Ok(())
+}
+
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn view_amm_liquidity<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, UpdateAMM<'info>>,
+    market_indexes: [u16; 5],
+) -> Result<()> {
+    // up to ~60k compute units (per amm) worst case
+
+    let clock = Clock::get()?;
+
+    let state = &ctx.accounts.state;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let oracle_map = &mut OracleMap::load(remaining_accounts_iter, clock.slot, None)?;
+    let market_map = &mut PerpMarketMap::load(
+        &get_market_set_from_list(market_indexes),
+        remaining_accounts_iter,
+    )?;
+
+    controller::repeg::update_amms(market_map, oracle_map, state, &clock)?;
+
+    for (_key, market_account_loader) in market_map.0.iter_mut() {
+        let market = &mut load_mut!(market_account_loader)?;
+        let oracle_price_data = &oracle_map.get_price_data(&market.oracle_id())?;
+
+        let reserve_price = market.amm.reserve_price()?;
+        let (bid, ask) = market.amm.bid_ask_price(reserve_price)?;
+        crate::dlog!(bid, ask, oracle_price_data.price);
+    }
 
     Ok(())
 }

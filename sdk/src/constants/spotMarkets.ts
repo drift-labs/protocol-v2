@@ -463,8 +463,10 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		symbol: 'CLOUD',
 		marketIndex: 21,
 		poolId: 0,
-		oracle: new PublicKey('FNFejcXENaPgKaCTfstew9vSSvdQPnXjGTkJjUnnYvHU'),
-		oracleSource: OracleSource.SWITCHBOARD_ON_DEMAND,
+		oracle: new PublicKey('4EgPYJkEyNkoUcaMDbeokUiR4b1f3Hs3DK5S4NzqseR2'),
+		oracleSource: OracleSource.PYTH_PULL,
+		pythFeedId:
+			'0x7358313661dcd4f842a1423aa4f7a05f009001c9113201c719621d3f1aa80a73',
 		mint: new PublicKey('CLoUDKc4Ane7HeQcPpE3YHnznRxhMimJ4MyaUqyHFzAu'),
 		precision: new BN(10).pow(NINE),
 		precisionExp: NINE,

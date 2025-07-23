@@ -1196,15 +1196,6 @@ pub fn fill_perp_order(
         }
     }
 
-    validate_perp_fill_possible(
-        state,
-        user,
-        order_index,
-        slot,
-        makers_and_referrer.0.len(),
-        fill_mode,
-    )?;
-
     let should_expire_order = should_expire_order_before_fill(user, order_index, now)?;
 
     let position_index =

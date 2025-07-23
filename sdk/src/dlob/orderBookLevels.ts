@@ -20,8 +20,10 @@ import {
 	PRICE_PRECISION,
 	AMM_TO_QUOTE_PRECISION_RATIO,
 	standardizeBaseAssetAmount,
+	MMOraclePriceData,
 } from '..';
 import { PublicKey } from '@solana/web3.js';
+import { getOraclePriceFromMMOracleData } from '../oracles/utils';
 
 type liquiditySource =
 	| 'serum'
@@ -175,12 +177,23 @@ export function getVammL2Generator({
 	topOfBookQuoteAmounts = [],
 }: {
 	marketAccount: PerpMarketAccount;
-	oraclePriceData: OraclePriceData;
+	oraclePriceData: OraclePriceData | MMOraclePriceData;
 	numOrders: number;
 	now?: BN;
 	topOfBookQuoteAmounts?: BN[];
 }): L2OrderBookGenerator {
-	const updatedAmm = calculateUpdatedAMM(marketAccount.amm, oraclePriceData);
+	let mmOraclePriceData: MMOraclePriceData;
+	if ('mmOraclePrice' in mmOraclePriceData) {
+		mmOraclePriceData = oraclePriceData as MMOraclePriceData;
+	} else {
+		mmOraclePriceData = {
+			mmOraclePrice: marketAccount.amm.mmOraclePrice,
+			mmOracleSlot: marketAccount.amm.mmOracleSlot,
+			oraclePriceData: oraclePriceData as OraclePriceData,
+		};
+	}
+
+	const updatedAmm = calculateUpdatedAMM(marketAccount.amm, mmOraclePriceData);
 	const paused = isOperationPaused(
 		marketAccount.pausedOperations,
 		PerpOperation.AMM_FILL
@@ -200,7 +213,7 @@ export function getVammL2Generator({
 
 	const [bidReserves, askReserves] = calculateSpreadReserves(
 		updatedAmm,
-		oraclePriceData,
+		mmOraclePriceData,
 		now,
 		isVariant(marketAccount.contractType, 'prediction')
 	);
@@ -209,7 +222,7 @@ export function getVammL2Generator({
 	const commonOpts = {
 		numOrders,
 		numBaseOrders,
-		oraclePriceData,
+		mmOraclePriceData,
 		orderTickSize: marketAccount.amm.orderTickSize,
 		orderStepSize: marketAccount.amm.orderStepSize,
 		pegMultiplier: updatedAmm.pegMultiplier,
@@ -244,7 +257,7 @@ export function getVammL2Generator({
 					const raw = commonOpts.topOfBookQuoteAmounts[count]
 						.mul(AMM_TO_QUOTE_PRECISION_RATIO)
 						.mul(PRICE_PRECISION)
-						.div(commonOpts.oraclePriceData.price);
+						.div(getOraclePriceFromMMOracleData(commonOpts.mmOraclePriceData));
 					baseSwap = standardizeBaseAssetAmount(raw, commonOpts.orderStepSize);
 					const remaining = openLiquidity.abs().sub(topSize);
 					if (remaining.lt(baseSwap)) baseSwap = remaining;

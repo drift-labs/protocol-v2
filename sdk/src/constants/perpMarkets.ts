@@ -790,9 +790,11 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'CLOUD-PERP',
 		baseAssetSymbol: 'CLOUD',
 		marketIndex: 31,
-		oracle: new PublicKey('FNFejcXENaPgKaCTfstew9vSSvdQPnXjGTkJjUnnYvHU'),
+		oracle: new PublicKey('4EgPYJkEyNkoUcaMDbeokUiR4b1f3Hs3DK5S4NzqseR2'),
 		launchTs: 1717597648000,
-		oracleSource: OracleSource.SWITCHBOARD_ON_DEMAND,
+		oracleSource: OracleSource.PYTH_PULL,
+		pythFeedId:
+			'0x7358313661dcd4f842a1423aa4f7a05f009001c9113201c719621d3f1aa80a73',
 	},
 	{
 		fullName: 'IO',
@@ -1287,9 +1289,11 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'LAUNCHCOIN-PERP',
 		baseAssetSymbol: 'LAUNCHCOIN',
 		marketIndex: 74,
-		oracle: new PublicKey('4zXs8GrbMwd9EhDwuaWLngX2yY5BApb2UxeHrTzu3Ckr'),
+		oracle: new PublicKey('6Dtdqcr6dEKYMRKCvdDa8mSf5qVFbQVDZHTi6WhU1Foj'),
 		launchTs: 1747318237000,
-		oracleSource: OracleSource.SWITCHBOARD_ON_DEMAND,
+		oracleSource: OracleSource.PYTH_PULL,
+		pythFeedId:
+			'0x6d74813ee17291d5be18a355fe4d43fd300d625caea6554d49f740e7d112141e',
 	},
 	{
 		fullName: 'PUMP',
