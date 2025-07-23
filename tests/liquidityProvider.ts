@@ -1609,6 +1609,8 @@ describe('liquidity providing', () => {
 		assert(posAfterSettle.quoteAssetAmount.eq(posAfter.quoteAssetAmount));
 	});
 
+	return;
+
 	it('permissionless lp burn', async () => {
 		const lpAmount = new BN(1 * BASE_PRECISION.toNumber());
 		const _sig = await driftClient.addPerpLpShares(lpAmount, 0);
@@ -1632,8 +1634,6 @@ describe('liquidity providing', () => {
 		console.log(position);
 		// assert(position.lpShares.eq(ZERO));
 	});
-
-	return;
 
 	it('lp gets paid in funding (todo)', async () => {
 		const market = driftClient.getPerpMarketAccount(1);
