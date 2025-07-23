@@ -2103,6 +2103,7 @@ pub enum MarginMode {
     #[default]
     Default,
     HighLeverage,
+    HighLeverageMaintenance,
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
