@@ -1144,6 +1144,10 @@ impl PerpPosition {
     pub fn is_isolated(&self) -> bool {
         self.position_type == 1
     }
+
+    pub fn get_isolated_position_token_amount(&self, spot_market: &SpotMarket) -> DriftResult<u128> {
+        get_token_amount(self.isolated_position_scaled_balance as u128, spot_market, &SpotBalanceType::Deposit)
+    }
 }
 
 impl SpotBalance for PerpPosition {
