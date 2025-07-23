@@ -78,7 +78,6 @@ import {
 	PublicKey,
 	Signer,
 	SystemProgram,
-	SYSVAR_CLOCK_PUBKEY,
 	SYSVAR_INSTRUCTIONS_PUBKEY,
 	Transaction,
 	TransactionInstruction,
@@ -178,10 +177,7 @@ import { WormholeCoreBridgeSolana } from '@pythnetwork/pyth-solana-receiver/lib/
 import { PythSolanaReceiver } from '@pythnetwork/pyth-solana-receiver/lib/idl/pyth_solana_receiver';
 import { getFeedIdUint8Array, trimFeedId } from './util/pythOracleUtils';
 import { createMinimalEd25519VerifyIx } from './util/ed25519Utils';
-import {
-	createNativeInstructionDiscriminatorBuffer,
-	isVersionedTransaction,
-} from './tx/utils';
+import { isVersionedTransaction } from './tx/utils';
 import pythSolanaReceiverIdl from './idl/pyth_solana_receiver.json';
 import { asV0Tx, PullFeed, AnchorUtils } from '@switchboard-xyz/on-demand';
 import { gprcDriftClientAccountSubscriber } from './accounts/grpcDriftClientAccountSubscriber';
@@ -9919,112 +9915,6 @@ export class DriftClient {
 			this.opts
 		);
 		return txSig;
-	}
-
-	public async updateMmOracleNative(
-		marketIndex: number,
-		oraclePrice: BN,
-		oracleSequenceId: BN
-	): Promise<TransactionSignature> {
-		const updateMmOracleIx = await this.getUpdateMmOracleNativeIx(
-			marketIndex,
-			oraclePrice,
-			oracleSequenceId
-		);
-
-		const tx = await this.buildTransaction(updateMmOracleIx, {
-			computeUnits: 5000,
-			computeUnitsPrice: 0,
-		});
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-
-		return txSig;
-	}
-
-	public async getUpdateMmOracleNativeIx(
-		marketIndex: number,
-		oraclePrice: BN,
-		oracleSequenceId: BN
-	): Promise<TransactionInstruction> {
-		const discriminatorBuffer = createNativeInstructionDiscriminatorBuffer(0);
-		const data = Buffer.alloc(discriminatorBuffer.length + 16);
-		data.set(discriminatorBuffer, 0);
-		data.set(oraclePrice.toArrayLike(Buffer, 'le', 8), 5); // next 8 bytes
-		data.set(oracleSequenceId.toArrayLike(Buffer, 'le', 8), 13); // next 8 bytes
-
-		// Build the instruction manually
-		return new TransactionInstruction({
-			programId: this.program.programId,
-			keys: [
-				{
-					pubkey: this.getPerpMarketAccount(marketIndex).pubkey,
-					isWritable: true,
-					isSigner: false,
-				},
-				{
-					pubkey: this.wallet.publicKey,
-					isWritable: false,
-					isSigner: true,
-				},
-				{
-					pubkey: SYSVAR_CLOCK_PUBKEY,
-					isWritable: false,
-					isSigner: false,
-				},
-				{
-					pubkey: await this.getStatePublicKey(),
-					isWritable: false,
-					isSigner: false,
-				},
-			],
-			data,
-		});
-	}
-
-	public async updateAmmSpreadAdjustmentNative(
-		marketIndex: number,
-		ammSpreadAdjustment: number
-	): Promise<TransactionSignature> {
-		const updateMmOracleIx = await this.getUpdateAmmSpreadAdjustmentNativeIx(
-			marketIndex,
-			ammSpreadAdjustment
-		);
-
-		const tx = await this.buildTransaction(updateMmOracleIx, {
-			computeUnits: 1000,
-			computeUnitsPrice: 0,
-		});
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-
-		return txSig;
-	}
-
-	public getUpdateAmmSpreadAdjustmentNativeIx(
-		marketIndex: number,
-		ammSpreadAdjustment: number // i8
-	): TransactionInstruction {
-		const discriminatorBuffer = createNativeInstructionDiscriminatorBuffer(1);
-		const data = Buffer.alloc(discriminatorBuffer.length + 4);
-		data.set(discriminatorBuffer, 0);
-		data.writeInt8(ammSpreadAdjustment, 5); // next byte
-
-		// Build the instruction manually
-		return new TransactionInstruction({
-			programId: this.program.programId,
-			keys: [
-				{
-					pubkey: this.getPerpMarketAccount(marketIndex).pubkey,
-					isWritable: true,
-					isSigner: false,
-				},
-				{
-					pubkey: this.wallet.publicKey,
-					isWritable: false,
-					isSigner: true,
-				},
-			],
-			data,
-		});
 	}
 
 	private handleSignedTransaction(signedTxs: SignedTxData[]) {

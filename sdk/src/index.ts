@@ -90,7 +90,6 @@ export * from './oracles/pythPullClient';
 export * from './oracles/pythLazerClient';
 export * from './oracles/switchboardOnDemandClient';
 export * from './oracles/oracleId';
-export * from './oracles/utils';
 export * from './swift/swiftOrderSubscriber';
 export * from './swift/signedMsgUserAccountSubscriber';
 export * from './swift/grpcSignedMsgUserAccountSubscriber';

@@ -1,6 +1,7 @@
 import {
 	PublicKey,
 	SystemProgram,
+	SYSVAR_CLOCK_PUBKEY,
 	SYSVAR_RENT_PUBKEY,
 	TransactionInstruction,
 	TransactionSignature,
@@ -57,6 +58,7 @@ import { PROGRAM_ID as PHOENIX_PROGRAM_ID } from '@ellipsis-labs/phoenix-sdk';
 import { DRIFT_ORACLE_RECEIVER_ID } from './config';
 import { getFeedIdUint8Array } from './util/pythOracleUtils';
 import { FUEL_RESET_LOG_ACCOUNT } from './constants/txConstants';
+import { createNativeInstructionDiscriminatorBuffer } from './tx/utils';
 
 const OPENBOOK_PROGRAM_ID = new PublicKey(
 	'opnb2LAfJYbRMAHHvqjCwQxanZn7ReEHp1k81EohpZb'
@@ -4549,6 +4551,112 @@ export class AdminClient extends DriftClient {
 					(await this.getAssociatedTokenAccount(marketIndex)),
 				tokenProgram: getTokenProgramForSpotMarket(spotMarket),
 			},
+		});
+	}
+
+	public async updateMmOracleNative(
+		marketIndex: number,
+		oraclePrice: BN,
+		oracleSequenceId: BN
+	): Promise<TransactionSignature> {
+		const updateMmOracleIx = await this.getUpdateMmOracleNativeIx(
+			marketIndex,
+			oraclePrice,
+			oracleSequenceId
+		);
+
+		const tx = await this.buildTransaction(updateMmOracleIx, {
+			computeUnits: 5000,
+			computeUnitsPrice: 0,
+		});
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateMmOracleNativeIx(
+		marketIndex: number,
+		oraclePrice: BN,
+		oracleSequenceId: BN
+	): Promise<TransactionInstruction> {
+		const discriminatorBuffer = createNativeInstructionDiscriminatorBuffer(0);
+		const data = Buffer.alloc(discriminatorBuffer.length + 16);
+		data.set(discriminatorBuffer, 0);
+		data.set(oraclePrice.toArrayLike(Buffer, 'le', 8), 5); // next 8 bytes
+		data.set(oracleSequenceId.toArrayLike(Buffer, 'le', 8), 13); // next 8 bytes
+
+		// Build the instruction manually
+		return new TransactionInstruction({
+			programId: this.program.programId,
+			keys: [
+				{
+					pubkey: this.getPerpMarketAccount(marketIndex).pubkey,
+					isWritable: true,
+					isSigner: false,
+				},
+				{
+					pubkey: this.wallet.publicKey,
+					isWritable: false,
+					isSigner: true,
+				},
+				{
+					pubkey: SYSVAR_CLOCK_PUBKEY,
+					isWritable: false,
+					isSigner: false,
+				},
+				{
+					pubkey: await this.getStatePublicKey(),
+					isWritable: false,
+					isSigner: false,
+				},
+			],
+			data,
+		});
+	}
+
+	public async updateAmmSpreadAdjustmentNative(
+		marketIndex: number,
+		ammSpreadAdjustment: number
+	): Promise<TransactionSignature> {
+		const updateMmOracleIx = await this.getUpdateAmmSpreadAdjustmentNativeIx(
+			marketIndex,
+			ammSpreadAdjustment
+		);
+
+		const tx = await this.buildTransaction(updateMmOracleIx, {
+			computeUnits: 1000,
+			computeUnitsPrice: 0,
+		});
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public getUpdateAmmSpreadAdjustmentNativeIx(
+		marketIndex: number,
+		ammSpreadAdjustment: number // i8
+	): TransactionInstruction {
+		const discriminatorBuffer = createNativeInstructionDiscriminatorBuffer(1);
+		const data = Buffer.alloc(discriminatorBuffer.length + 4);
+		data.set(discriminatorBuffer, 0);
+		data.writeInt8(ammSpreadAdjustment, 5); // next byte
+
+		// Build the instruction manually
+		return new TransactionInstruction({
+			programId: this.program.programId,
+			keys: [
+				{
+					pubkey: this.getPerpMarketAccount(marketIndex).pubkey,
+					isWritable: true,
+					isSigner: false,
+				},
+				{
+					pubkey: this.wallet.publicKey,
+					isWritable: false,
+					isSigner: true,
+				},
+			],
+			data,
 		});
 	}
 
