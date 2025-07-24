@@ -3434,7 +3434,7 @@ pub fn handle_enable_user_high_leverage_mode<'c: 'info, 'info>(
 
     let mut config = load_mut!(ctx.accounts.high_leverage_mode_config)?;
 
-    config.update_user(&mut user)?;
+    config.enable_high_leverage(&mut user)?;
 
     Ok(())
 }

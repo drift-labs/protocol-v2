@@ -15,7 +15,9 @@ pub struct HighLeverageModeConfig {
     pub max_users: u32,
     pub current_users: u32,
     pub reduce_only: u8,
-    pub padding: [u8; 31],
+    pub padding1: [u8; 3],
+    pub current_maintenance_users: u32,
+    pub padding2: [u8; 24],
 }
 
 // implement SIZE const for ProtocolIfSharesTransferConfig
@@ -44,9 +46,12 @@ impl HighLeverageModeConfig {
         (self.current_users >= self.max_users) || self.is_reduce_only()
     }
 
-    pub fn update_user(&mut self, user: &mut User) -> DriftResult {
+    pub fn enable_high_leverage(&mut self, user: &mut User) -> DriftResult {
         if user.margin_mode == MarginMode::HighLeverage {
             return Ok(());
+        }
+        if user.margin_mode == MarginMode::HighLeverageMaintenance {
+            self.current_maintenance_users = self.current_maintenance_users.saturating_sub(1);
         }
 
         user.margin_mode = MarginMode::HighLeverage;

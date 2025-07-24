@@ -9215,7 +9215,8 @@ export class DriftClient {
 	) {
 		let feeTier;
 		const userHLM =
-			(user?.isHighLeverageMode() ?? false) || enteringHighLeverageMode;
+			(user?.isHighLeverageMode('Initial') ?? false) ||
+			enteringHighLeverageMode;
 		if (user && !userHLM) {
 			feeTier = user.getUserFeeTier(marketType);
 		} else {

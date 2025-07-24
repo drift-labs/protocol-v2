@@ -491,8 +491,9 @@ pub mod drift {
 
     pub fn disable_user_high_leverage_mode<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, DisableUserHighLeverageMode<'info>>,
+        disable_maintenance: bool,
     ) -> Result<()> {
-        handle_disable_user_high_leverage_mode(ctx)
+        handle_disable_user_high_leverage_mode(ctx, disable_maintenance)
     }
 
     pub fn update_user_fuel_bonus<'c: 'info, 'info>(
