@@ -587,6 +587,7 @@ impl User {
         withdraw_amount: u128,
         user_stats: &mut UserStats,
         now: i64,
+        isolated_perp_position_market_index: Option<u16>,
     ) -> DriftResult<bool> {
         let strict = margin_requirement_type == MarginRequirementType::Initial;
         let context = MarginContext::standard(margin_requirement_type)
@@ -594,6 +595,11 @@ impl User {
             .ignore_invalid_deposit_oracles(true)
             .fuel_spot_delta(withdraw_market_index, withdraw_amount.cast::<i128>()?)
             .fuel_numerator(self, now);
+
+        // TODO check if this is correct
+        if let Some(isolated_perp_position_market_index) = isolated_perp_position_market_index {
+            context.isolated_position_market_index(isolated_perp_position_market_index);
+        }
 
         let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
             self,
