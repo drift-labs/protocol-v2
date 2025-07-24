@@ -216,64 +216,76 @@ export class BigNum {
 			'Tried to print a BN with precision lower than zero'
 		);
 
-		const isNeg = this.isNeg();
-		const plainString = this.abs().toString();
 		const precisionNum = this.precision.toNumber();
+		
+		// Early return for zero precision
+		if (precisionNum === 0) {
+			return this.val.toString();
+		}
 
-		// make a string with at least the precisionNum number of zeroes
-		let printString = [
-			...Array(this.precision.toNumber()).fill(0),
-			...plainString.split(''),
-		].join('');
+		const isNeg = this.val.isNeg();
+		const plainString = this.val.abs().toString();
 
-		// inject decimal
-		printString =
-			printString.substring(0, printString.length - precisionNum) +
-			BigNum.delim +
-			printString.substring(printString.length - precisionNum);
+		// Build padded string with leading zeros
+		let printString = '0'.repeat(precisionNum) + plainString;
 
-		// remove leading zeroes
-		printString = printString.replace(/^0+/, '');
+		// Insert decimal point
+		const insertPos = printString.length - precisionNum;
+		printString = printString.substring(0, insertPos) + BigNum.delim + printString.substring(insertPos);
 
-		// add zero if leading delim
-		if (printString[0] === BigNum.delim) printString = `0${printString}`;
+		// Remove leading zeros but keep at least one digit before decimal
+		printString = printString.replace(/^0+(?=\d)/, '') || '0';
 
-		// Add minus if negative
-		if (isNeg) printString = `-${printString}`;
+		// Handle case where we have leading decimal after zero removal
+		if (printString[0] === BigNum.delim) {
+			printString = '0' + printString;
+		}
 
-		// remove trailing delim
-		if (printString[printString.length - 1] === BigNum.delim)
-			printString = printString.slice(0, printString.length - 1);
+		// Remove trailing decimal if present
+		if (printString.endsWith(BigNum.delim)) {
+			printString = printString.slice(0, -1);
+		}
 
-		return printString;
+		return isNeg ? `-${printString}` : printString;
 	}
 
 	public prettyPrint(
 		useTradePrecision?: boolean,
 		precisionOverride?: number
 	): string {
-		const [leftSide, rightSide] = this.printShort(
-			useTradePrecision,
-			precisionOverride
-		).split(BigNum.delim);
-
-		let formattedLeftSide = leftSide;
-
-		const isNeg = formattedLeftSide.includes('-');
-		if (isNeg) {
-			formattedLeftSide = formattedLeftSide.replace('-', '');
+		const printVal = this.printShort(useTradePrecision, precisionOverride);
+		const delimIndex = printVal.indexOf(BigNum.delim);
+		
+		let leftSide: string;
+		let rightSide: string;
+		
+		if (delimIndex === -1) {
+			leftSide = printVal;
+			rightSide = '';
+		} else {
+			leftSide = printVal.substring(0, delimIndex);
+			rightSide = printVal.substring(delimIndex + 1);
 		}
 
-		let index = formattedLeftSide.length - 3;
+		const isNeg = leftSide.startsWith('-');
+		if (isNeg) {
+			leftSide = leftSide.substring(1);
+		}
 
-		while (index >= 1) {
-			const formattedLeftSideArray = formattedLeftSide.split('');
+		if (leftSide.length <= 3) {
+			return `${isNeg ? '-' : ''}${leftSide}${
+				rightSide ? `${BigNum.delim}${rightSide}` : ''
+			}`;
+		}
 
-			formattedLeftSideArray.splice(index, 0, BigNum.spacer);
-
-			formattedLeftSide = formattedLeftSideArray.join('');
-
-			index -= 3;
+		let formattedLeftSide = '';
+		const len = leftSide.length;
+		
+		for (let i = 0; i < len; i++) {
+			if (i > 0 && (len - i) % 3 === 0) {
+				formattedLeftSide += BigNum.spacer;
+			}
+			formattedLeftSide += leftSide[i];
 		}
 
 		return `${isNeg ? '-' : ''}${formattedLeftSide}${
@@ -317,15 +329,24 @@ export class BigNum {
 		}
 
 		const printString = this.print();
+		const delimIndex = printString.indexOf(BigNum.delim);
+		
+		let leftSide: string;
+		let rightSide: string;
+		
+		if (delimIndex === -1) {
+			leftSide = printString;
+			rightSide = '';
+		} else {
+			leftSide = printString.substring(0, delimIndex);
+			rightSide = printString.substring(delimIndex + 1);
+		}
 
-		const [leftSide, rightSide] = printString.split(BigNum.delim);
-
-		const filledRightSide = [
-			...(rightSide ?? '').slice(0, fixedPrecision),
-			...Array(fixedPrecision).fill('0'),
-		]
-			.slice(0, fixedPrecision)
-			.join('');
+		const truncatedRightSide = rightSide.length > fixedPrecision 
+			? rightSide.substring(0, fixedPrecision)
+			: rightSide;
+		
+		const filledRightSide = truncatedRightSide.padEnd(fixedPrecision, '0');
 
 		return `${leftSide}${BigNum.delim}${filledRightSide}`;
 	}
@@ -613,14 +634,12 @@ export class BigNum {
 
 		// Must convert any non-US delimiters and spacers to US format before using parseFloat
 		if (BigNum.delim !== '.' || BigNum.spacer !== ',') {
-			printedValue = printedValue
-				.split('')
-				.map((char) => {
-					if (char === BigNum.delim) return '.';
-					if (char === BigNum.spacer) return ',';
-					return char;
-				})
-				.join('');
+			if (BigNum.delim !== '.') {
+				printedValue = printedValue.replace(new RegExp('\\' + BigNum.delim, 'g'), '.');
+			}
+			if (BigNum.spacer !== ',') {
+				printedValue = printedValue.replace(new RegExp('\\' + BigNum.spacer, 'g'), ',');
+			}
 		}
 
 		return parseFloat(printedValue);
