@@ -2325,12 +2325,7 @@ pub fn handle_update_funding_rate(
         clock_slot,
         &state.oracle_guard_rails.validity,
     )?;
-    controller::repeg::_update_amm(
-        perp_market,
-&mm_oracle_price_data,      state,
-        now,
-        clock_slot,
-    )?;
+    controller::repeg::_update_amm(perp_market, &mm_oracle_price_data, state, now, clock_slot)?;
 
     validate!(
         matches!(

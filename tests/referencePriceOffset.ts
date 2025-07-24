@@ -37,7 +37,6 @@ import {
 	CustomBorshAccountsCoder,
 	CustomBorshCoder,
 } from '../sdk/src/decode/customCoder';
-import { getOraclePriceFromMMOracleData } from '../sdk/src/oracles/utils';
 dotenv.config();
 
 // 1MPEPE-PERP
@@ -342,8 +341,17 @@ describe('Reference Price Offset E2E', () => {
 			}`
 		);
 
-		expect(getOraclePriceFromMMOracleData(oracle).toNumber()).to.equal(
-			10118100
+		expect(oracle.price.toNumber()).to.equal(10118100);
+
+		console.log(
+			`vAmm mid before offset update: ${convertToNumber(
+				vAmmMidBeforeOffsetUpdate
+			)}`
+		);
+		console.log(
+			`vAmm mid after offset update: ${convertToNumber(
+				vAmmMidAfterOffsetUpdate
+			)}`
 		);
 		expect(vAmmMidAfterOffsetUpdate.gt(vAmmMidBeforeOffsetUpdate)).to.be.true;
 
@@ -384,13 +392,9 @@ describe('Reference Price Offset E2E', () => {
 				spread3 * 10000
 			}bps, mid: ${convertToNumber(vAmmMidAfterOffsetUpdate3)}`
 		);
-		expect(getOraclePriceFromMMOracleData(oracle).toNumber()).to.lt(
-			vBid3.toNumber()
-		); // bid above oracle
+		expect(oracle.price.toNumber()).to.lt(vBid3.toNumber()); // bid above oracle
 
-		expect(getOraclePriceFromMMOracleData(oracle).toNumber()).to.equal(
-			10118100
-		);
+		expect(oracle.price.toNumber()).to.equal(10118100);
 		expect(vAmmMidAfterOffsetUpdate.gt(vAmmMidBeforeOffsetUpdate)).to.be.true;
 	});
 
@@ -484,13 +488,9 @@ describe('Reference Price Offset E2E', () => {
 		);
 
 		const vAmmMidAfterOffsetUpdate3 = vBid3.add(vAsk3).divn(2);
-		expect(getOraclePriceFromMMOracleData(oracle).toNumber()).to.lt(
-			vBid3.toNumber()
-		); // bid above oracle
+		expect(oracle.price.toNumber()).to.lt(vBid3.toNumber()); // bid above oracle
 
-		expect(getOraclePriceFromMMOracleData(oracle).toNumber()).to.equal(
-			10118100
-		);
+		expect(oracle.price.toNumber()).to.equal(10118100);
 
 		const vammInventoryAfter = perpMarket3.amm.baseAssetAmountWithAmm.muln(-1);
 		console.log(

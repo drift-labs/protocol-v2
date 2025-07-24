@@ -86,7 +86,7 @@ import {
 	calculateMarginUSDCRequiredForTrade,
 	calculateWorstCaseBaseAssetAmount,
 } from './math/margin';
-import { MMOraclePriceData, OraclePriceData } from './oracles/types';
+import { OraclePriceData } from './oracles/types';
 import { UserConfig } from './userConfig';
 import { PollingUserAccountSubscriber } from './accounts/pollingUserAccountSubscriber';
 import { WebSocketUserAccountSubscriber } from './accounts/webSocketUserAccountSubscriber';
@@ -1671,13 +1671,13 @@ export class User {
 
 		const entryPrice = calculateEntryPrice(position);
 
-		const mmOraclePriceData = this.getMMOracleDataForPerpMarket(
+		const oraclePriceData = this.getMMOracleDataForPerpMarket(
 			position.marketIndex
 		);
 
 		if (amountToClose) {
 			if (amountToClose.eq(ZERO)) {
-				return [calculateReservePrice(market, mmOraclePriceData), ZERO];
+				return [calculateReservePrice(market, oraclePriceData), ZERO];
 			}
 			position = {
 				baseAssetAmount: amountToClose,
@@ -1693,13 +1693,13 @@ export class User {
 			baseAssetValue = calculateBaseAssetValue(
 				market,
 				position,
-				mmOraclePriceData
+				oraclePriceData
 			);
 		} else {
 			baseAssetValue = calculateBaseAssetValueWithOracle(
 				market,
 				position,
-				mmOraclePriceData.oraclePriceData
+				oraclePriceData
 			);
 		}
 		if (position.baseAssetAmount.eq(ZERO)) {
@@ -4087,7 +4087,7 @@ export class User {
 		).sub(currentPerpPositionValueUSDC);
 	}
 
-	private getMMOracleDataForPerpMarket(marketIndex: number): MMOraclePriceData {
+	private getMMOracleDataForPerpMarket(marketIndex: number): OraclePriceData {
 		return this.driftClient.getMMOracleDataForPerpMarket(marketIndex);
 	}
 
