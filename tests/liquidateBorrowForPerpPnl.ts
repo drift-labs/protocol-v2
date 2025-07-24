@@ -174,7 +174,7 @@ describe('liquidate borrow for perp pnl', () => {
 			new BN(0)
 		);
 
-		await driftClient.moveAmmToPrice(0, PRICE_PRECISION.muln(120).divn(100));
+		await driftClient.moveAmmToPrice(0, new BN(2).mul(PRICE_PRECISION));
 
 		await driftClient.closePosition(0);
 
@@ -256,15 +256,14 @@ describe('liquidate borrow for perp pnl', () => {
 			)
 		);
 		assert(liquidationRecord.liquidateBorrowForPerpPnl.perpMarketIndex === 0);
-
 		assert(
 			liquidationRecord.liquidateBorrowForPerpPnl.pnlTransfer.gt(
-				new BN(1977993 - 10)
+				new BN(9969992 - 10)
 			)
 		);
 		assert(
 			liquidationRecord.liquidateBorrowForPerpPnl.pnlTransfer.lt(
-				new BN(1977993 + 10)
+				new BN(9969992 + 10)
 			)
 		);
 		assert(
@@ -278,7 +277,7 @@ describe('liquidate borrow for perp pnl', () => {
 
 		assert(
 			liquidationRecord.liquidateBorrowForPerpPnl.liabilityTransfer.eq(
-				new BN(39559860)
+				new BN(199399800)
 			)
 		);
 	});
