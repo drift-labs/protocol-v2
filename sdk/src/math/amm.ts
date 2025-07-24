@@ -156,7 +156,7 @@ export function calculateUpdatedAMM(
 	amm: AMM,
 	oraclePriceData: OraclePriceData
 ): AMM {
-	if (!oraclePriceData.fetchedWithMMOracle) {
+	if (!oraclePriceData?.fetchedWithMMOracle) {
 		console.log(
 			'Use driftClient method getMMOracleDataForPerpMarket for accurate MM pricing'
 		);
@@ -203,7 +203,7 @@ export function calculateUpdatedAMMSpreadReserves(
 	oraclePriceData: OraclePriceData,
 	isPrediction = false
 ): { baseAssetReserve: BN; quoteAssetReserve: BN; sqrtK: BN; newPeg: BN } {
-	if (!oraclePriceData.fetchedWithMMOracle) {
+	if (!oraclePriceData?.fetchedWithMMOracle) {
 		console.log(
 			'Use driftClient method getMMOracleDataForPerpMarket for accurate MM pricing'
 		);
@@ -236,7 +236,7 @@ export function calculateBidAskPrice(
 	withUpdate = true,
 	isPrediction = false
 ): [BN, BN] {
-	if (!oraclePriceData.fetchedWithMMOracle) {
+	if (!oraclePriceData?.fetchedWithMMOracle) {
 		console.log(
 			'Use driftClient method getMMOracleDataForPerpMarket for accurate MM pricing'
 		);
