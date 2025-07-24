@@ -138,9 +138,26 @@ impl MarginContext {
         self
     }
 
-    pub fn liquidation(margin_buffer: u32) -> Self {
+    pub fn fill_liquidation(margin_buffer: u32) -> Self {
         Self {
             margin_type: MarginRequirementType::Maintenance,
+            mode: MarginCalculationMode::Liquidation {
+                market_to_track_margin_requirement: None,
+            },
+            margin_buffer: margin_buffer as u128,
+            strict: false,
+            ignore_invalid_deposit_oracles: false,
+            fuel_bonus_numerator: 0,
+            fuel_bonus: 0,
+            fuel_perp_delta: None,
+            fuel_spot_deltas: [(0, 0); 2],
+            margin_ratio_override: None,
+        }
+    }
+
+    pub fn liquidation(margin_buffer: u32) -> Self {
+        Self {
+            margin_type: MarginRequirementType::LiqMaintenance,
             mode: MarginCalculationMode::Liquidation {
                 market_to_track_margin_requirement: None,
             },
