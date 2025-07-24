@@ -286,11 +286,15 @@ pub fn place_perp_order(
 
     // Start with 0 and set bit flags
     let mut bit_flags: u8 = 0;
-    bit_flags = set_is_signed_msg_flag(bit_flags, options.is_signed_msg_order());
+    bit_flags = set_order_bit_flag(
+        bit_flags,
+        options.is_signed_msg_order(),
+        OrderBitFlag::SignedMessage,
+    );
 
     let reduce_only = params.reduce_only || force_reduce_only;
     if reduce_only {
-        bit_flags |= OrderBitFlag::NewReduceOnly as u8;
+        bit_flags = set_order_bit_flag(bit_flags, true, OrderBitFlag::NewReduceOnly);
     }
 
     let new_order = Order {
@@ -2368,9 +2372,10 @@ pub fn fulfill_perp_order_with_amm(
         _ => OrderActionExplanation::OrderFilledWithAMM,
     };
     let mut order_action_bit_flags: u8 = 0;
-    order_action_bit_flags = set_is_signed_msg_flag(
+    order_action_bit_flags = set_order_bit_flag(
         order_action_bit_flags,
         user.orders[order_index].is_signed_msg(),
+        OrderBitFlag::SignedMessage,
     );
     let (
         taker_existing_quote_entry_amount,
@@ -2836,9 +2841,10 @@ pub fn fulfill_perp_order_with_match(
         OrderActionExplanation::OrderFilledWithMatch
     };
     let mut order_action_bit_flags = 0;
-    order_action_bit_flags = set_is_signed_msg_flag(
+    order_action_bit_flags = set_order_bit_flag(
         order_action_bit_flags,
         taker.orders[taker_order_index].is_signed_msg(),
+        OrderBitFlag::SignedMessage,
     );
     let (taker_existing_quote_entry_amount, taker_existing_base_asset_amount) =
         calculate_existing_position_fields_for_order_action(
@@ -3676,7 +3682,7 @@ pub fn place_spot_order(
 
     let reduce_only = params.reduce_only || force_reduce_only;
     if reduce_only {
-        bit_flags |= OrderBitFlag::NewReduceOnly as u8;
+        bit_flags = set_order_bit_flag(bit_flags, true, OrderBitFlag::NewReduceOnly);
     }
 
     let new_order = Order {
