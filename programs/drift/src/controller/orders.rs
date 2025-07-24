@@ -4890,7 +4890,8 @@ pub fn fulfill_spot_order_with_match(
     )?;
 
     let taker_order_direction = taker.orders[taker_order_index].direction;
-    let taker_update_open_bids_and_asks = taker.orders[taker_order_index].update_open_bids_and_asks();
+    let taker_update_open_bids_and_asks =
+        taker.orders[taker_order_index].update_open_bids_and_asks();
     decrease_spot_open_bids_and_asks(
         &mut taker.spot_positions[taker_spot_position_index],
         &taker_order_direction,
@@ -4935,7 +4936,8 @@ pub fn fulfill_spot_order_with_match(
     )?;
 
     let maker_order_direction = maker.orders[maker_order_index].direction;
-    let maker_update_open_bids_and_asks = maker.orders[maker_order_index].update_open_bids_and_asks();
+    let maker_update_open_bids_and_asks =
+        maker.orders[maker_order_index].update_open_bids_and_asks();
     decrease_spot_open_bids_and_asks(
         &mut maker.spot_positions[maker_spot_position_index],
         &maker_order_direction,
@@ -5224,7 +5226,8 @@ pub fn fulfill_spot_order_with_external_market(
     )?;
 
     let taker_order_direction = taker.orders[taker_order_index].direction;
-    let taker_update_open_bids_and_asks = taker.orders[taker_order_index].update_open_bids_and_asks();
+    let taker_update_open_bids_and_asks =
+        taker.orders[taker_order_index].update_open_bids_and_asks();
     decrease_spot_open_bids_and_asks(
         taker.force_get_spot_position_mut(base_market.market_index)?,
         &taker_order_direction,

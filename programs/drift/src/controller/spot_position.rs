@@ -61,13 +61,13 @@ pub fn decrease_spot_open_bids_and_asks(
             spot_position.open_bids = spot_position
                 .open_bids
                 .safe_sub(base_asset_amount_unfilled.cast()?)?
-                .max(0); // account for previous reduce only orders counting as open bids
+                .max(0);
         }
         PositionDirection::Short => {
             spot_position.open_asks = spot_position
                 .open_asks
                 .safe_add(base_asset_amount_unfilled.cast()?)?
-                .min(0); // account for previous reduce only orders counting as open asks
+                .min(0);
         }
     }
 
