@@ -293,9 +293,7 @@ pub fn place_perp_order(
     );
 
     let reduce_only = params.reduce_only || force_reduce_only;
-    if reduce_only {
-        bit_flags = set_order_bit_flag(bit_flags, true, OrderBitFlag::NewReduceOnly);
-    }
+    bit_flags = set_order_bit_flag(bit_flags, reduce_only, OrderBitFlag::NewReduceOnly);
 
     let new_order = Order {
         status: OrderStatus::Open,
@@ -3681,9 +3679,7 @@ pub fn place_spot_order(
     let mut bit_flags = 0;
 
     let reduce_only = params.reduce_only || force_reduce_only;
-    if reduce_only {
-        bit_flags = set_order_bit_flag(bit_flags, true, OrderBitFlag::NewReduceOnly);
-    }
+    bit_flags = set_order_bit_flag(bit_flags, reduce_only, OrderBitFlag::NewReduceOnly);
 
     let new_order = Order {
         status: OrderStatus::Open,
