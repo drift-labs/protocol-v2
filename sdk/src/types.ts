@@ -802,6 +802,7 @@ export type PerpMarketAccount = {
 	highLeverageMarginRatioMaintenance: number;
 	protectedMakerLimitPriceDivisor: number;
 	protectedMakerDynamicDivisor: number;
+	lastFillPrice: BN;
 };
 
 export type HistoricalOracleData = {
@@ -1014,6 +1015,8 @@ export type AMM = {
 	takerSpeedBumpOverride: number;
 	ammSpreadAdjustment: number;
 	ammInventorySpreadAdjustment: number;
+
+	lastFundingOracleTwap: BN;
 };
 
 // # User Account Types
