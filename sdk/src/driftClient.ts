@@ -8504,7 +8504,7 @@ export class DriftClient {
 			perpMarket.amm.mmOraclePrice.eq(ZERO) ||
 			perpMarket.amm.mmOracleSlot < oracleData.slot
 		) {
-			return oracleData;
+			return { ...oracleData, fetchedWithMMOracle: true };
 		} else {
 			const conf = getOracleConfidenceFromMMOracleData({
 				mmOraclePrice: perpMarket.amm.mmOraclePrice,
@@ -8516,6 +8516,7 @@ export class DriftClient {
 				slot: perpMarket.amm.mmOracleSlot,
 				confidence: conf,
 				hasSufficientNumberOfDataPoints: true,
+				fetchedWithMMOracle: true,
 			};
 		}
 	}
