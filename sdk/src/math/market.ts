@@ -116,11 +116,14 @@ export function calculateOracleReserveSpread(
 	oraclePriceData: OraclePriceData
 ): BN {
 	const reservePrice = calculateReservePrice(market, oraclePriceData);
-	return calculateOracleSpread(reservePrice, oraclePriceData.price);
+	return calculateOracleSpread(reservePrice, oraclePriceData);
 }
 
-export function calculateOracleSpread(price: BN, oraclePrice: BN): BN {
-	return price.sub(oraclePrice);
+export function calculateOracleSpread(
+	price: BN,
+	oraclePriceData: OraclePriceData
+): BN {
+	return price.sub(oraclePriceData.price);
 }
 
 export function calculateMarketMarginRatio(

@@ -175,7 +175,7 @@ export function getVammL2Generator({
 	topOfBookQuoteAmounts = [],
 }: {
 	marketAccount: PerpMarketAccount;
-	oraclePriceData: OraclePriceData | OraclePriceData;
+	oraclePriceData: OraclePriceData;
 	numOrders: number;
 	now?: BN;
 	topOfBookQuoteAmounts?: BN[];

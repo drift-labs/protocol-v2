@@ -992,7 +992,7 @@ export class User {
 
 					const twap5min = calculateLiveOracleTwap(
 						spotMarketAccount.historicalOracleData,
-						oraclePriceData.price,
+						oraclePriceData,
 						now,
 						FIVE_MINUTE // 5MIN
 					);
@@ -1099,7 +1099,7 @@ export class User {
 			if (strict) {
 				twap5min = calculateLiveOracleTwap(
 					spotMarketAccount.historicalOracleData,
-					oraclePriceData.price,
+					oraclePriceData,
 					now,
 					FIVE_MINUTE // 5MIN
 				);
@@ -1671,7 +1671,7 @@ export class User {
 
 		const entryPrice = calculateEntryPrice(position);
 
-		const oraclePriceData = this.getMMOracleDataForPerpMarket(
+		const oraclePriceData = this.getOracleDataForPerpMarket(
 			position.marketIndex
 		);
 
@@ -4085,10 +4085,6 @@ export class User {
 			liquidationBuffer,
 			includeOpenOrders
 		).sub(currentPerpPositionValueUSDC);
-	}
-
-	private getMMOracleDataForPerpMarket(marketIndex: number): OraclePriceData {
-		return this.driftClient.getMMOracleDataForPerpMarket(marketIndex);
 	}
 
 	private getOracleDataForPerpMarket(marketIndex: number): OraclePriceData {

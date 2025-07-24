@@ -561,7 +561,7 @@ export function calculateEstimatedPerpEntryPrice(
 			!cumulativeQuoteFilled.eq(amount) &&
 			(ammLiquidity.gt(ZERO) || limitOrder)
 		) {
-			const limitOrderPrice = limitOrder?.getPrice(oraclePriceData.price, slot);
+			const limitOrderPrice = limitOrder?.getPrice(oraclePriceData, slot);
 
 			let maxAmmFill: BN;
 			if (limitOrderPrice) {

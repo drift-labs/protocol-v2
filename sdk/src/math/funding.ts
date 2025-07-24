@@ -122,7 +122,7 @@ function shrinkStaleTwaps(
  */
 export function calculateAllEstimatedFundingRate(
 	market: PerpMarketAccount,
-	oraclePriceData: OraclePriceData,
+	oraclePriceData?: OraclePriceData,
 	markPrice?: BN,
 	now?: BN
 ): [BN, BN, BN, BN, BN] {
@@ -141,10 +141,9 @@ export function calculateAllEstimatedFundingRate(
 		now,
 		market.amm.fundingPeriod
 	);
-
 	const liveOracleTwap = calculateLiveOracleTwap(
 		market.amm.historicalOracleData,
-		oraclePriceData?.price,
+		oraclePriceData,
 		now,
 		market.amm.fundingPeriod
 	);
