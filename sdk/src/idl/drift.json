@@ -11977,6 +11977,9 @@
           },
           {
             "name": "OracleOrderPrice"
+          },
+          {
+            "name": "UseMMOraclePrice"
           }
         ]
       }

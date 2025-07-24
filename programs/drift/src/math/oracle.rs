@@ -69,6 +69,7 @@ pub enum DriftAction {
     UpdateTwap,
     UpdateAMMCurve,
     OracleOrderPrice,
+    UseMMOraclePrice,
 }
 
 pub fn is_oracle_valid_for_action(
@@ -77,7 +78,7 @@ pub fn is_oracle_valid_for_action(
 ) -> DriftResult<bool> {
     let is_ok = match action {
         Some(action) => match action {
-            DriftAction::FillOrderAmm => {
+            DriftAction::FillOrderAmm | DriftAction::UseMMOraclePrice => {
                 matches!(oracle_validity, OracleValidity::Valid)
             }
             // relax oracle staleness, later checks for sufficiently recent amm slot update for funding update

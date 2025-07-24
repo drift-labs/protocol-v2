@@ -12,6 +12,7 @@ use switchboard::{AggregatorAccountData, SwitchboardDecimal};
 use switchboard_on_demand::{PullFeedAccountData, SB_ON_DEMAND_PRECISION};
 
 use crate::error::ErrorCode::{InvalidOracle, UnableToLoadOracle};
+use crate::math::oracle::{is_oracle_valid_for_action, DriftAction, OracleValidity};
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::load_ref::load_ref;
 use crate::state::perp_market::PerpMarket;
@@ -174,70 +175,71 @@ impl OracleSource {
 
 #[derive(Default, Clone, Copy, Debug)]
 pub struct MMOraclePriceData {
-    pub mm_oracle_price: i64,
-    pub mm_oracle_delay: i64,
-    pub oracle_confidence: Option<u64>,
-    pub oracle_price_data: OraclePriceData,
+    mm_oracle_price: i64,
+    mm_oracle_delay: i64,
+    oracle_price_data: OraclePriceData,
+    safe_oracle_price_data: OraclePriceData,
 }
 
 impl MMOraclePriceData {
+    pub fn new(
+        mm_oracle_price: i64,
+        mm_oracle_delay: i64,
+        mm_oracle_validity: OracleValidity,
+        oracle_price_data: OraclePriceData,
+    ) -> DriftResult<Self> {
+        let safe_oracle_price_data = if mm_oracle_delay > oracle_price_data.delay
+            || mm_oracle_price == 0i64
+            || !is_oracle_valid_for_action(mm_oracle_validity, Some(DriftAction::UseMMOraclePrice))?
+        {
+            oracle_price_data
+        } else {
+            let mm_oracle_diff_premium = mm_oracle_price
+                .abs_diff(oracle_price_data.price)
+                .safe_div(5)?;
+            let adjusted_confidence = oracle_price_data
+                .confidence
+                .safe_add(mm_oracle_diff_premium)?;
+
+            OraclePriceData {
+                price: mm_oracle_price,
+                confidence: adjusted_confidence,
+                delay: mm_oracle_delay,
+                has_sufficient_number_of_data_points: true,
+            }
+        };
+
+        Ok(MMOraclePriceData {
+            mm_oracle_price,
+            mm_oracle_delay,
+            oracle_price_data,
+            safe_oracle_price_data,
+        })
+    }
+
     pub fn default_usd() -> Self {
         MMOraclePriceData {
             mm_oracle_price: PRICE_PRECISION_I64,
             mm_oracle_delay: 0,
-            oracle_confidence: None,
             oracle_price_data: OraclePriceData::default_usd(),
+            safe_oracle_price_data: OraclePriceData::default_usd(),
         }
     }
 
-    pub fn get_oracle_price(&self) -> i64 {
-        if self.mm_oracle_delay <= self.oracle_price_data.delay && self.mm_oracle_price != 0i64 {
-            self.mm_oracle_price
-        } else {
-            self.oracle_price_data.price
-        }
+    pub fn get_price(&self) -> i64 {
+        self.safe_oracle_price_data.price
     }
 
     pub fn get_delay(&self) -> i64 {
-        if self.mm_oracle_delay <= self.oracle_price_data.delay && self.mm_oracle_price != 0i64 {
-            self.mm_oracle_delay
-        } else {
-            self.oracle_price_data.delay
-        }
+        self.safe_oracle_price_data.delay
     }
 
-    pub fn get_confidence(&mut self) -> DriftResult<u64> {
-        if self.mm_oracle_price == 0 || self.oracle_price_data.price == self.get_oracle_price() {
-            return Ok(self.oracle_price_data.confidence);
-        }
-        if self.oracle_confidence.is_some() {
-            return Ok(self.oracle_confidence.unwrap());
-        }
-        let price_diff_bps = self
-            .mm_oracle_price
-            .abs_diff(self.oracle_price_data.price)
-            .cast::<u128>()?
-            .safe_mul(PERCENTAGE_PRECISION)?
-            .cast::<i128>()?
-            .safe_div(self.oracle_price_data.price.max(1).cast::<i128>()?)?
-            .cast::<i64>()?;
-        let adjusted_confidence = if self.mm_oracle_delay.abs_diff(self.oracle_price_data.delay)
-            < 10
-            && price_diff_bps.abs() > PERCENTAGE_PRECISION_I64 / 2000
-        // 5bps
-        {
-            let mm_oracle_diff_premium = self
-                .mm_oracle_price
-                .abs_diff(self.oracle_price_data.price)
-                .safe_div(5)?;
-            self.oracle_price_data
-                .confidence
-                .safe_add(mm_oracle_diff_premium)?
-        } else {
-            self.oracle_price_data.confidence
-        };
-        self.oracle_confidence = Some(adjusted_confidence);
-        Ok(adjusted_confidence)
+    pub fn get_confidence(&self) -> u64 {
+        self.safe_oracle_price_data.confidence
+    }
+
+    pub fn get_safe_oracle_price_data(&self) -> OraclePriceData {
+        self.safe_oracle_price_data
     }
 }
 

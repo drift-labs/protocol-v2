@@ -113,10 +113,13 @@ pub fn update_amms(
     for (_key, market_account_loader) in perp_market_map.0.iter_mut() {
         let market = &mut load_mut!(market_account_loader)?;
         let oracle_price_data = oracle_map.get_price_data(&market.oracle_id())?;
-        let mut mm_oracle_price_data =
-            market.get_mm_oracle_price_data(*oracle_price_data, clock_slot)?;
+        let mm_oracle_price_data = market.get_mm_oracle_price_data(
+            *oracle_price_data,
+            clock_slot,
+            &state.oracle_guard_rails.validity,
+        )?;
 
-        _update_amm(market, &mut mm_oracle_price_data, state, now, clock_slot)?;
+        _update_amm(market, &mm_oracle_price_data, state, now, clock_slot)?;
     }
 
     Ok(updated)
@@ -131,12 +134,15 @@ pub fn update_amm(
 ) -> DriftResult<i128> {
     let market = &mut perp_market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = oracle_map.get_price_data(&market.oracle_id())?;
-    let mut mm_oracle_price_data =
-        market.get_mm_oracle_price_data(*oracle_price_data, clock.slot)?;
+    let mm_oracle_price_data = market.get_mm_oracle_price_data(
+        *oracle_price_data,
+        clock.slot,
+        &state.oracle_guard_rails.validity,
+    )?;
 
     let cost_of_update = _update_amm(
         market,
-        &mut mm_oracle_price_data,
+        &mm_oracle_price_data,
         state,
         clock.unix_timestamp,
         clock.slot,
@@ -147,7 +153,7 @@ pub fn update_amm(
 
 pub fn _update_amm(
     market: &mut PerpMarket,
-    mm_oracle_price_data: &mut MMOraclePriceData,
+    mm_oracle_price_data: &MMOraclePriceData,
     state: &State,
     now: i64,
     clock_slot: u64,
@@ -159,14 +165,7 @@ pub fn _update_amm(
         return Ok(0);
     }
 
-    let oracle_data = &OraclePriceData {
-        price: mm_oracle_price_data.get_oracle_price(),
-        delay: mm_oracle_price_data.get_delay(),
-        confidence: mm_oracle_price_data.get_confidence()?,
-        has_sufficient_number_of_data_points: mm_oracle_price_data
-            .oracle_price_data
-            .has_sufficient_number_of_data_points,
-    };
+    let oracle_data = &mm_oracle_price_data.get_safe_oracle_price_data();
     let oracle_validity = oracle::oracle_validity(
         MarketType::Perp,
         market.market_index,
@@ -245,7 +244,7 @@ pub fn _update_amm(
 
 pub fn update_amm_and_check_validity(
     market: &mut PerpMarket,
-    mm_oracle_price_data: &mut MMOraclePriceData,
+    mm_oracle_price_data: &MMOraclePriceData,
     state: &State,
     now: i64,
     clock_slot: u64,
@@ -260,7 +259,7 @@ pub fn update_amm_and_check_validity(
         MarketType::Perp,
         market.market_index,
         risk_ema_price,
-        &mut mm_oracle_price_data.oracle_price_data,
+        &mm_oracle_price_data.get_safe_oracle_price_data(),
         &state.oracle_guard_rails.validity,
         market.get_max_confidence_interval_multiplier()?,
         &market.amm.oracle_source,
@@ -272,7 +271,7 @@ pub fn update_amm_and_check_validity(
         is_oracle_valid_for_action(oracle_validity, action)?,
         ErrorCode::InvalidOracle,
         "Invalid Oracle ({:?} vs ema={:?}) for perp market index={} and action={:?}",
-        mm_oracle_price_data.oracle_price_data,
+        mm_oracle_price_data.get_safe_oracle_price_data(),
         risk_ema_price,
         market.market_index,
         action
