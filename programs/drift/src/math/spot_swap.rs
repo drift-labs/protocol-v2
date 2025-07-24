@@ -6,7 +6,7 @@ use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{get_strict_token_value, get_token_value};
 use crate::state::oracle::StrictOraclePrice;
 use crate::state::spot_market::SpotMarket;
-use crate::{PRICE_PRECISION, SPOT_WEIGHT_PRECISION_U128};
+use crate::{PositionDirection, PRICE_PRECISION, SPOT_WEIGHT_PRECISION_U128};
 
 #[cfg(test)]
 mod tests;
@@ -100,7 +100,7 @@ pub fn validate_price_bands_for_swap(
     out_price: i64,
     oracle_twap_5min_percent_divergence: u64,
 ) -> DriftResult {
-    let (fill_price, oracle_price, oracle_twap_5min, margin_ratio) = {
+    let (fill_price, direction, oracle_price, oracle_twap_5min, margin_ratio) = {
         let in_market_margin_ratio = in_market.get_margin_ratio(&MarginRequirementType::Initial)?;
 
         if in_market_margin_ratio != 0 {
@@ -113,6 +113,7 @@ pub fn validate_price_bands_for_swap(
 
             (
                 fill_price,
+                PositionDirection::Short,
                 in_price,
                 in_market.historical_oracle_data.last_oracle_price_twap_5min,
                 in_market_margin_ratio,
@@ -123,6 +124,7 @@ pub fn validate_price_bands_for_swap(
 
             (
                 fill_price,
+                PositionDirection::Long,
                 out_price,
                 out_market
                     .historical_oracle_data
@@ -134,6 +136,7 @@ pub fn validate_price_bands_for_swap(
 
     validate_fill_price_within_price_bands(
         fill_price,
+        direction,
         oracle_price,
         oracle_twap_5min,
         margin_ratio,
