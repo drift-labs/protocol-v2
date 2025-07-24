@@ -729,7 +729,7 @@ pub mod drift {
 
     pub fn update_amms<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, UpdateAMM<'info>>,
-        market_indexes: [u16; 5],
+        market_indexes: Vec<u16>,
     ) -> Result<()> {
         handle_update_amms(ctx, market_indexes)
     }

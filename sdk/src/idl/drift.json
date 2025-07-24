@@ -3115,10 +3115,7 @@
         {
           "name": "marketIndexes",
           "type": {
-            "array": [
-              "u16",
-              5
-            ]
+            "vec": "u16"
           }
         }
       ]

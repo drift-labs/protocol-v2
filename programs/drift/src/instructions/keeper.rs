@@ -2621,8 +2621,12 @@ pub fn handle_update_spot_market_cumulative_interest(
 )]
 pub fn handle_update_amms<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdateAMM<'info>>,
-    market_indexes: [u16; 5],
+    market_indexes: Vec<u16>,
 ) -> Result<()> {
+    if market_indexes.len() > 5 {
+        msg!("Too many markets passed, max 5");
+        return Err(ErrorCode::DefaultError.into());
+    }
     // up to ~60k compute units (per amm) worst case
 
     let clock = Clock::get()?;
@@ -2646,8 +2650,12 @@ pub fn handle_update_amms<'c: 'info, 'info>(
 )]
 pub fn view_amm_liquidity<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdateAMM<'info>>,
-    market_indexes: [u16; 5],
+    market_indexes: Vec<u16>,
 ) -> Result<()> {
+    if market_indexes.len() > 5 {
+        msg!("Too many markets passed, max 5");
+        return Err(ErrorCode::DefaultError.into());
+    }
     // up to ~60k compute units (per amm) worst case
 
     let clock = Clock::get()?;
