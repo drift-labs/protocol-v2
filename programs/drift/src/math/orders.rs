@@ -7,13 +7,11 @@ use crate::controller::position::PositionDelta;
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::amm::calculate_amm_available_liquidity;
-use crate::math::auction::is_amm_available_liquidity_source;
 use crate::math::casting::Cast;
-use crate::state::fill_mode::FillMode;
 use crate::state::protected_maker_mode_config::ProtectedMakerParams;
 use crate::state::user::OrderBitFlag;
 use crate::{
-    load, math, FeeTier, State, BASE_PRECISION_I128, FEE_ADJUSTMENT_MAX, MARGIN_PRECISION_I128,
+    load, math, FeeTier, BASE_PRECISION_I128, FEE_ADJUSTMENT_MAX, MARGIN_PRECISION_I128,
     MAX_PREDICTION_MARKET_PRICE, MAX_PREDICTION_MARKET_PRICE_I64, OPEN_ORDER_MARGIN_REQUIREMENT,
     PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, PRICE_PRECISION_U64,
     QUOTE_PRECISION_I128, SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_I128,
@@ -512,10 +510,6 @@ pub fn validate_fill_price_within_price_bands(
     let max_oracle_twap_diff = oracle_twap_5min_percent_divergence.cast::<u128>()?; // 50%
 
     if direction == PositionDirection::Long {
-        if fill_price < oracle_price && fill_price < oracle_twap_5min {
-            return Ok(());
-        }
-
         let percent_diff: u128 = fill_price
             .saturating_sub(oracle_price)
             .cast::<u128>()?
@@ -548,10 +542,6 @@ pub fn validate_fill_price_within_price_bands(
             oracle_twap_5min
         )?;
     } else {
-        if fill_price > oracle_price && fill_price > oracle_twap_5min {
-            return Ok(());
-        }
-
         let percent_diff: u128 = oracle_price
             .saturating_sub(fill_price)
             .cast::<u128>()?

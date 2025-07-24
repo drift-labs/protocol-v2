@@ -3,10 +3,7 @@ use std::cell::Ref;
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
-use crate::math::constants::{
-    PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I64, PRICE_PRECISION, PRICE_PRECISION_I64,
-    PRICE_PRECISION_U64,
-};
+use crate::math::constants::{PRICE_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
 use crate::math::safe_math::SafeMath;
 use switchboard::{AggregatorAccountData, SwitchboardDecimal};
 use switchboard_on_demand::{PullFeedAccountData, SB_ON_DEMAND_PRECISION};
@@ -177,7 +174,6 @@ impl OracleSource {
 pub struct MMOraclePriceData {
     mm_oracle_price: i64,
     mm_oracle_delay: i64,
-    oracle_price_data: OraclePriceData,
     safe_oracle_price_data: OraclePriceData,
 }
 
@@ -212,7 +208,6 @@ impl MMOraclePriceData {
         Ok(MMOraclePriceData {
             mm_oracle_price,
             mm_oracle_delay,
-            oracle_price_data,
             safe_oracle_price_data,
         })
     }
@@ -221,7 +216,6 @@ impl MMOraclePriceData {
         MMOraclePriceData {
             mm_oracle_price: PRICE_PRECISION_I64,
             mm_oracle_delay: 0,
-            oracle_price_data: OraclePriceData::default_usd(),
             safe_oracle_price_data: OraclePriceData::default_usd(),
         }
     }
@@ -240,6 +234,15 @@ impl MMOraclePriceData {
 
     pub fn get_safe_oracle_price_data(&self) -> OraclePriceData {
         self.safe_oracle_price_data
+    }
+
+    // For potential future observability
+    pub fn _get_mm_oracle_price(&self) -> i64 {
+        self.mm_oracle_price
+    }
+
+    pub fn _get_mm_oracle_delay(&self) -> i64 {
+        self.mm_oracle_delay
     }
 }
 

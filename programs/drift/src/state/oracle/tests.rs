@@ -257,8 +257,7 @@ fn mm_oracle_confidence() {
         .get_mm_oracle_price_data(oracle_price_data, slot, &state.oracle_guard_rails.validity)
         .unwrap();
 
-    let expected_confidence =
-        mm_oracle_price_data.oracle_price_data.confidence + PRICE_PRECISION_U64 * 2 / 5;
+    let expected_confidence = oracle_price_data.confidence + PRICE_PRECISION_U64 * 2 / 5;
 
     let confidence = mm_oracle_price_data.get_confidence();
     assert_eq!(confidence, expected_confidence);
