@@ -1903,7 +1903,7 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
     deposit_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_deposit_into_isolated_perp_position<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, DepositPerpPosition<'info>>,
+    ctx: Context<'_, '_, 'c, 'info, DepositIsolatedPerpPosition<'info>>,
     spot_market_index: u16,
     perp_market_index: u16,
     amount: u64,
@@ -2064,11 +2064,11 @@ pub fn handle_deposit_into_isolated_perp_position<'c: 'info, 'info>(
     deposit_not_paused(&ctx.accounts.state)
     withdraw_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_transfer_deposit_into_isolated_perp_position<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, TransferDepositIntoIsolatedPerpPosition<'info>>,
+pub fn handle_transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, TransferIsolatedPerpPositionDeposit<'info>>,
     spot_market_index: u16,
     perp_market_index: u16,
-    amount: u64,
+    amount: i64,
 ) -> anchor_lang::Result<()> {
     let authority_key = ctx.accounts.authority.key;
     let user_key = ctx.accounts.user.key();
@@ -2102,17 +2102,8 @@ pub fn handle_transfer_deposit_into_isolated_perp_position<'c: 'info, 'info>(
     )?;
 
     {
-        let spot_market = &mut spot_market_map.get_ref_mut(&spot_market_index)?;
-        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle_id())?;
-        controller::spot_balance::update_spot_market_cumulative_interest(
-            spot_market,
-            Some(oracle_price_data),
-            clock.unix_timestamp,
-        )?;
-    }
-
-    {
         let perp_market = &perp_market_map.get_ref(&perp_market_index)?;
+        let spot_market = &mut spot_market_map.get_ref_mut(&spot_market_index)?;
 
         validate!(
             perp_market.quote_spot_market_index == spot_market_index,
@@ -2121,68 +2112,121 @@ pub fn handle_transfer_deposit_into_isolated_perp_position<'c: 'info, 'info>(
             perp_market.quote_spot_market_index,
             spot_market_index
         )?;
-    }
-
-    {
-        let spot_market = &mut spot_market_map.get_ref_mut(&spot_market_index)?;
-
-        let spot_position_index = user.force_get_spot_position_index(spot_market.market_index)?;
-        update_spot_balances_and_cumulative_deposits(
-            amount as u128,
-            &SpotBalanceType::Borrow,
-            spot_market,
-            &mut user.spot_positions[spot_position_index],
-            false,
-            None,
-        )?;
-    }
-
-    user.meets_withdraw_margin_requirement_and_increment_fuel_bonus(
-        &perp_market_map,
-        &spot_market_map,
-        &mut oracle_map,
-        MarginRequirementType::Initial,
-        spot_market_index,
-        amount as u128,
-        user_stats,
-        now,
-        None,
-    )?;
-
-    validate_spot_margin_trading(
-        user,
-        &perp_market_map,
-        &spot_market_map,
-        &mut oracle_map,
-    )?;
-
-    if user.is_being_liquidated() {
-        user.exit_liquidation();
-    }
-
-    user.update_last_active_slot(slot);
-
-    {
-        let spot_market = &mut spot_market_map.get_ref_mut(&spot_market_index)?;
 
         validate!(
-            user.pool_id == spot_market.pool_id,
+            user.pool_id == spot_market.pool_id && user.pool_id == perp_market.pool_id,
             ErrorCode::InvalidPoolId,
             "user pool id ({}) != market pool id ({})",
             user.pool_id,
             spot_market.pool_id
         )?;
 
-        let perp_position = user.force_get_isolated_perp_position_mut(perp_market_index)?;
+        let oracle_price_data = oracle_map.get_price_data(&spot_market.oracle_id())?;
+        controller::spot_balance::update_spot_market_cumulative_interest(
+            spot_market,
+            Some(oracle_price_data),
+            clock.unix_timestamp,
+        )?;
+    }
+
+    if amount > 0 {
+        let mut spot_market = spot_market_map.get_ref_mut(&spot_market_index)?;
+
+        let spot_position_index = user.force_get_spot_position_index(spot_market.market_index)?;
+        update_spot_balances_and_cumulative_deposits(
+            amount as u128,
+            &SpotBalanceType::Borrow,
+            &mut spot_market,
+            &mut user.spot_positions[spot_position_index],
+            false,
+            None,
+        )?;
 
         update_spot_balances(
             amount as u128,
             &SpotBalanceType::Deposit,
-            spot_market,
-            perp_position,
+            &mut spot_market,
+            user.force_get_isolated_perp_position_mut(perp_market_index)?,
             false,
         )?;
+
+        drop(spot_market);
+
+        user.meets_withdraw_margin_requirement_and_increment_fuel_bonus(
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginRequirementType::Initial,
+            spot_market_index,
+            amount as u128,
+            user_stats,
+            now,
+            None,
+        )?;
+
+        validate_spot_margin_trading(
+            user,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+        )?;
+
+        if user.is_being_liquidated() {
+            user.exit_liquidation();
+        }
+    } else {
+        let mut spot_market = spot_market_map.get_ref_mut(&spot_market_index)?;
+
+        let isolated_perp_position_token_amount = user.force_get_isolated_perp_position_mut(perp_market_index)?.get_isolated_position_token_amount(&spot_market)?;
+
+        validate!(
+            amount.unsigned_abs() as u128 <= isolated_perp_position_token_amount,
+            ErrorCode::InsufficientCollateral,
+            "user has insufficient deposit for market {}",
+            spot_market_index
+        )?;
+
+        let spot_position_index = user.force_get_spot_position_index(spot_market.market_index)?;
+        update_spot_balances_and_cumulative_deposits(
+            amount as u128,
+            &SpotBalanceType::Deposit,
+            &mut spot_market,
+            &mut user.spot_positions[spot_position_index],
+            false,
+            None,
+        )?;
+
+        update_spot_balances(
+            amount as u128,
+            &SpotBalanceType::Borrow,
+            &mut spot_market,
+            user.force_get_isolated_perp_position_mut(perp_market_index)?,
+            false,
+        )?;
+
+        drop(spot_market);
+
+        user.meets_withdraw_margin_requirement_and_increment_fuel_bonus(
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginRequirementType::Initial,
+            spot_market_index,
+            amount as u128,
+            user_stats,
+            now,
+            Some(perp_market_index),
+        )?;
+
+        // TODO figure out what to do here
+        // if user.is_being_liquidated() {
+        //     user.exit_liquidation();
+        // }
     }
+
+
+
+    user.update_last_active_slot(slot);
 
     let spot_market = spot_market_map.get_ref(&spot_market_index)?;
     math::spot_withdraw::validate_spot_market_vault_amount(
@@ -2197,7 +2241,7 @@ pub fn handle_transfer_deposit_into_isolated_perp_position<'c: 'info, 'info>(
     withdraw_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_withdraw_from_isolated_perp_position<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, Withdraw<'info>>,
+    ctx: Context<'_, '_, 'c, 'info, WithdrawIsolatedPerpPosition<'info>>,
     spot_market_index: u16,
     perp_market_index: u16,
     amount: u64,
@@ -4780,7 +4824,7 @@ pub struct CancelOrder<'info> {
 
 #[derive(Accounts)]
 #[instruction(spot_market_index: u16,)]
-pub struct DepositPerpPosition<'info> {
+pub struct DepositIsolatedPerpPosition<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         mut,
@@ -4810,7 +4854,7 @@ pub struct DepositPerpPosition<'info> {
 
 #[derive(Accounts)]
 #[instruction(spot_market_index: u16,)]
-pub struct TransferDepositIntoIsolatedPerpPosition<'info> {
+pub struct TransferIsolatedPerpPositionDeposit<'info> {
     #[account(
         mut,
         constraint = can_sign_for_user(&user, &authority)?
@@ -4832,7 +4876,7 @@ pub struct TransferDepositIntoIsolatedPerpPosition<'info> {
 
 #[derive(Accounts)]
 #[instruction(spot_market_index: u16)]
-pub struct WithdrawFromIsolatedPerpPosition<'info> {
+pub struct WithdrawIsolatedPerpPosition<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         mut,
