@@ -798,7 +798,7 @@ pub fn liquidate_perp_with_fill(
         perp_market_map,
         spot_market_map,
         oracle_map,
-        MarginContext::liquidation(liquidation_margin_buffer_ratio)
+        MarginContext::fill_liquidation(liquidation_margin_buffer_ratio)
             .track_market_margin_requirement(MarketIdentifier::perp(market_index))?,
     )?;
 
