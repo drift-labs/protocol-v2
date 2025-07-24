@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.129.0] - 2025-07-23
+
+### Features
+
 - program: lp reduce only ([#1749](https://github.com/drift-labs/protocol-v2/pull/1749))
 - program: new margin mode enum ([#1765](https://github.com/drift-labs/protocol-v2/pull/1765))
 

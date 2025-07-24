@@ -9,7 +9,7 @@
 		"skipLibCheck": true,
 		"declarationMap": true,
 		"paths": {
-			"@solana/web3.js": ["./node_modules/@solana/web3.js/lib/index.d.ts"]
+			"@solana/web3.js": ["./node_modules/@solana/web3.js"]
 		}
 	},
 	"include": ["src"],
