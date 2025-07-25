@@ -4552,26 +4552,58 @@ export class AdminClient extends DriftClient {
 		});
 	}
 
-	public async zeroAmmFieldsPrepMmOracleInfo(
-		marketIndex: number
+	public async updateDisableBitFlagsMMOracle(
+		disable: boolean
 	): Promise<TransactionSignature> {
-		const zeroAmmFieldsPrepMmOracleInfoIx =
-			await this.getZeroAmmFieldsPrepMmOracleInfoIx(marketIndex);
+		const updateDisableBitFlagsMMOracleIx =
+			await this.getUpdateDisableBitFlagsMMOracleIx(disable);
 
-		const tx = await this.buildTransaction(zeroAmmFieldsPrepMmOracleInfoIx);
-
+		const tx = await this.buildTransaction(updateDisableBitFlagsMMOracleIx);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
 		return txSig;
 	}
+	public async getUpdateDisableBitFlagsMMOracleIx(
+		disable: boolean
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateDisableBitflagsMmOracle(
+			disable,
+			{
+				accounts: {
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
+	}
 
-	public async getZeroAmmFieldsPrepMmOracleInfoIx(
+	public async zeroMMOracleFields(
+		marketIndex: number
+	): Promise<TransactionSignature> {
+		const zeroMMOracleFieldsIx = await this.getZeroMMOracleFieldsIx(
+			marketIndex
+		);
+
+		const tx = await this.buildTransaction(zeroMMOracleFieldsIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+	public async getZeroMMOracleFieldsIx(
 		marketIndex: number
 	): Promise<TransactionInstruction> {
-		return await this.program.instruction.zeroAmmFieldsPrepMmOracleInfo({
+		return await this.program.instruction.zeroMmOracleFields({
 			accounts: {
-				admin: this.wallet.publicKey,
-				perpMarket: this.getPerpMarketAccount(marketIndex).pubkey,
+				admin: this.isSubscribed
+					? this.getStateAccount().admin
+					: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				perpMarket: await getPerpMarketPublicKey(
+					this.program.programId,
+					marketIndex
+				),
 			},
 		});
 	}

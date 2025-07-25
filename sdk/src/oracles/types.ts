@@ -2,6 +2,12 @@ import { BN } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
 import { OracleSource } from '../types';
 
+export type MMOraclePriceData = {
+	mmOraclePrice: BN;
+	mmOracleSlot: BN;
+	oraclePriceData: OraclePriceData;
+};
+
 export type OraclePriceData = {
 	price: BN;
 	slot: BN;
@@ -10,6 +16,7 @@ export type OraclePriceData = {
 	twap?: BN;
 	twapConfidence?: BN;
 	maxPrice?: BN; // pre-launch markets only
+	fetchedWithMMOracle?: boolean;
 };
 
 export type OracleInfo = {

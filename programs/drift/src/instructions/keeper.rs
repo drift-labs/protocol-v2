@@ -2319,8 +2319,13 @@ pub fn handle_update_funding_rate(
         Some(state.oracle_guard_rails),
     )?;
 
-    let oracle_price_data = &oracle_map.get_price_data(&perp_market.oracle_id())?;
-    controller::repeg::_update_amm(perp_market, oracle_price_data, state, now, clock_slot)?;
+    let oracle_price_data = oracle_map.get_price_data(&perp_market.oracle_id())?;
+    let mm_oracle_price_data = perp_market.get_mm_oracle_price_data(
+        *oracle_price_data,
+        clock_slot,
+        &state.oracle_guard_rails.validity,
+    )?;
+    controller::repeg::_update_amm(perp_market, &mm_oracle_price_data, state, now, clock_slot)?;
 
     validate!(
         matches!(
@@ -2415,7 +2420,12 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
     )?;
 
     let oracle_price_data = oracle_map.get_price_data(&perp_market.oracle_id())?;
-    controller::repeg::_update_amm(perp_market, oracle_price_data, state, now, slot)?;
+    let mm_oracle_price_data = perp_market.get_mm_oracle_price_data(
+        *oracle_price_data,
+        slot,
+        &state.oracle_guard_rails.validity,
+    )?;
+    controller::repeg::_update_amm(perp_market, &mm_oracle_price_data, state, now, slot)?;
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let makers = load_user_map(remaining_accounts_iter, false)?;
@@ -2611,8 +2621,12 @@ pub fn handle_update_spot_market_cumulative_interest(
 )]
 pub fn handle_update_amms<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdateAMM<'info>>,
-    market_indexes: [u16; 5],
+    market_indexes: Vec<u16>,
 ) -> Result<()> {
+    if market_indexes.len() > 5 {
+        msg!("Too many markets passed, max 5");
+        return Err(ErrorCode::DefaultError.into());
+    }
     // up to ~60k compute units (per amm) worst case
 
     let clock = Clock::get()?;
@@ -2636,8 +2650,12 @@ pub fn handle_update_amms<'c: 'info, 'info>(
 )]
 pub fn view_amm_liquidity<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdateAMM<'info>>,
-    market_indexes: [u16; 5],
+    market_indexes: Vec<u16>,
 ) -> Result<()> {
+    if market_indexes.len() > 5 {
+        msg!("Too many markets passed, max 5");
+        return Err(ErrorCode::DefaultError.into());
+    }
     // up to ~60k compute units (per amm) worst case
 
     let clock = Clock::get()?;

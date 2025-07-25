@@ -9,6 +9,7 @@ use switchboard::{AggregatorAccountData, SwitchboardDecimal};
 use switchboard_on_demand::{PullFeedAccountData, SB_ON_DEMAND_PRECISION};
 
 use crate::error::ErrorCode::{InvalidOracle, UnableToLoadOracle};
+use crate::math::oracle::{is_oracle_valid_for_action, DriftAction, OracleValidity};
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::load_ref::load_ref;
 use crate::state::perp_market::PerpMarket;
@@ -166,6 +167,82 @@ impl OracleSource {
                 panic!("Calling get_pyth_multiple on non-pyth oracle source");
             }
         }
+    }
+}
+
+#[derive(Default, Clone, Copy, Debug)]
+pub struct MMOraclePriceData {
+    mm_oracle_price: i64,
+    mm_oracle_delay: i64,
+    safe_oracle_price_data: OraclePriceData,
+}
+
+impl MMOraclePriceData {
+    pub fn new(
+        mm_oracle_price: i64,
+        mm_oracle_delay: i64,
+        mm_oracle_validity: OracleValidity,
+        oracle_price_data: OraclePriceData,
+    ) -> DriftResult<Self> {
+        let safe_oracle_price_data = if mm_oracle_delay > oracle_price_data.delay
+            || mm_oracle_price == 0i64
+            || !is_oracle_valid_for_action(mm_oracle_validity, Some(DriftAction::UseMMOraclePrice))?
+        {
+            oracle_price_data
+        } else {
+            let mm_oracle_diff_premium = mm_oracle_price
+                .abs_diff(oracle_price_data.price)
+                .safe_div(5)?;
+            let adjusted_confidence = oracle_price_data
+                .confidence
+                .safe_add(mm_oracle_diff_premium)?;
+
+            OraclePriceData {
+                price: mm_oracle_price,
+                confidence: adjusted_confidence,
+                delay: mm_oracle_delay,
+                has_sufficient_number_of_data_points: true,
+            }
+        };
+
+        Ok(MMOraclePriceData {
+            mm_oracle_price,
+            mm_oracle_delay,
+            safe_oracle_price_data,
+        })
+    }
+
+    pub fn default_usd() -> Self {
+        MMOraclePriceData {
+            mm_oracle_price: PRICE_PRECISION_I64,
+            mm_oracle_delay: 0,
+            safe_oracle_price_data: OraclePriceData::default_usd(),
+        }
+    }
+
+    pub fn get_price(&self) -> i64 {
+        self.safe_oracle_price_data.price
+    }
+
+    pub fn get_delay(&self) -> i64 {
+        self.safe_oracle_price_data.delay
+    }
+
+    pub fn get_confidence(&self) -> u64 {
+        self.safe_oracle_price_data.confidence
+    }
+
+    pub fn get_safe_oracle_price_data(&self) -> OraclePriceData {
+        self.safe_oracle_price_data
+    }
+
+    // For potential future observability
+    pub fn _get_mm_oracle_price(&self) -> i64 {
+        self.mm_oracle_price
+    }
+
+    pub fn _get_mm_oracle_delay(&self) -> i64 {
+        self.mm_oracle_delay
     }
 }
 
