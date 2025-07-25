@@ -70,6 +70,7 @@ import {
 	SpotMarketAccount,
 	standardizeBaseAssetAmount,
 	UserStats,
+	WebSocketProgramUserAccountSubscriber,
 } from '.';
 import {
 	calculateAssetWeight,
@@ -145,15 +146,23 @@ export class User {
 				}
 			);
 		} else {
-			this.accountSubscriber = new WebSocketUserAccountSubscriber(
-				config.driftClient.program,
-				config.userAccountPublicKey,
-				{
-					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
-					logResubMessages: config.accountSubscription?.logResubMessages,
-				},
-				config.accountSubscription?.commitment
-			);
+			if (config.accountSubscription?.type === 'websocket' && config.accountSubscription?.programUserAccountSubscriber) {
+				this.accountSubscriber = new WebSocketProgramUserAccountSubscriber(
+					config.driftClient.program,
+					config.userAccountPublicKey,
+					config.accountSubscription.programUserAccountSubscriber
+				);
+			} else {
+				this.accountSubscriber = new WebSocketUserAccountSubscriber(
+					config.driftClient.program,
+					config.userAccountPublicKey,
+					{
+						resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
+						logResubMessages: config.accountSubscription?.logResubMessages,
+					},
+					config.accountSubscription?.commitment
+				);
+			}
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
 	}

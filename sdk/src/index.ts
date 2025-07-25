@@ -12,6 +12,8 @@ export * from './accounts/fetch';
 export * from './accounts/webSocketDriftClientAccountSubscriber';
 export * from './accounts/webSocketInsuranceFundStakeAccountSubscriber';
 export * from './accounts/webSocketHighLeverageModeConfigAccountSubscriber';
+export { WebSocketProgramAccountSubscriber } from './accounts/webSocketProgramAccountSubscriber';
+export { WebSocketProgramUserAccountSubscriber } from './accounts/websocketProgramUserAccountSubscriber';
 export * from './accounts/bulkAccountLoader';
 export * from './accounts/bulkUserSubscription';
 export * from './accounts/bulkUserStatsSubscription';
@@ -132,5 +134,6 @@ export * from './clock/clockSubscriber';
 export * from './math/userStatus';
 export * from './constants/txConstants';
 export * from './indicative-quotes/indicativeQuotesSender';
+export { default as driftIDL } from './idl/drift.json';
 
 export { BN, PublicKey, pyth };
