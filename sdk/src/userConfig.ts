@@ -2,6 +2,9 @@ import { DriftClient } from './driftClient';
 import { Commitment, PublicKey } from '@solana/web3.js';
 import { BulkAccountLoader } from './accounts/bulkAccountLoader';
 import { GrpcConfigs, UserAccountSubscriber } from './accounts/types';
+import { WebSocketProgramAccountSubscriber } from './accounts/webSocketProgramAccountSubscriber';
+import { UserAccount } from '@drift-labs/sdk';
+import { WebSocketProgramUserAccountSubscriber } from './accounts/websocketProgramUserAccountSubscriber';
 
 export type UserConfig = {
 	accountSubscription?: UserSubscriptionConfig;
@@ -21,6 +24,7 @@ export type UserSubscriptionConfig =
 			resubTimeoutMs?: number;
 			logResubMessages?: boolean;
 			commitment?: Commitment;
+			programUserAccountSubscriber?: WebSocketProgramAccountSubscriber<UserAccount>;
 	  }
 	| {
 			type: 'polling';
