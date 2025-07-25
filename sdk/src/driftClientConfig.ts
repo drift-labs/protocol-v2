@@ -5,7 +5,7 @@ import {
 	PublicKey,
 	TransactionVersion,
 } from '@solana/web3.js';
-import { IWallet, TxParams } from './types';
+import { IWallet, TxParams, UserAccount } from './types';
 import { OracleInfo } from './oracles/types';
 import { BulkAccountLoader } from './accounts/bulkAccountLoader';
 import { DriftEnv } from './config';
@@ -19,6 +19,7 @@ import {
 import { Coder, Program } from '@coral-xyz/anchor';
 import { WebSocketAccountSubscriber } from './accounts/webSocketAccountSubscriber';
 import { WebSocketAccountSubscriberV2 } from './accounts/webSocketAccountSubscriberV2';
+import { WebSocketProgramAccountSubscriber } from './accounts/webSocketProgramAccountSubscriber';
 
 export type DriftClientConfig = {
 	connection: Connection;
@@ -79,6 +80,7 @@ export type DriftClientSubscriptionConfig =
 				resubOpts?: ResubOpts,
 				commitment?: Commitment
 			) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>;
+			programUserAccountSubscriber?: WebSocketProgramAccountSubscriber<UserAccount>;
 	  }
 	| {
 			type: 'polling';
