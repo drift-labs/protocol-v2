@@ -10757,6 +10757,16 @@ export class DriftClient {
 		});
 	}
 
+	public async getAllSettlePerpToLpPoolIxs(
+		lpPoolName: number[],
+		marketIndex: number
+	): Promise<TransactionInstruction[]> {
+		const ixs: TransactionInstruction[] = [];
+		ixs.push(await this.getUpdateAmmCacheIx([marketIndex]));
+		ixs.push(await this.getSettlePerpToLpPoolIx(lpPoolName, [marketIndex]));
+		return ixs;
+	}
+
 	/**
 	 * Below here are the transaction sending functions
 	 */
