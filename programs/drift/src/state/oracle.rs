@@ -1,5 +1,7 @@
 use anchor_lang::prelude::*;
+use bytemuck::{Pod, Zeroable};
 use std::cell::Ref;
+use std::convert::TryFrom;
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
@@ -9,6 +11,7 @@ use switchboard::{AggregatorAccountData, SwitchboardDecimal};
 use switchboard_on_demand::{PullFeedAccountData, SB_ON_DEMAND_PRECISION};
 
 use crate::error::ErrorCode::{InvalidOracle, UnableToLoadOracle};
+use crate::math::oracle::{is_oracle_valid_for_action, DriftAction, OracleValidity};
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::load_ref::load_ref;
 use crate::state::perp_market::PerpMarket;
@@ -166,6 +169,131 @@ impl OracleSource {
                 panic!("Calling get_pyth_multiple on non-pyth oracle source");
             }
         }
+    }
+}
+
+impl TryFrom<u8> for OracleSource {
+    type Error = ErrorCode;
+
+    fn try_from(v: u8) -> DriftResult<Self> {
+        match v {
+            0 => Ok(OracleSource::Pyth),
+            1 => Ok(OracleSource::Switchboard),
+            2 => Ok(OracleSource::QuoteAsset),
+            3 => Ok(OracleSource::Pyth1K),
+            4 => Ok(OracleSource::Pyth1M),
+            5 => Ok(OracleSource::PythStableCoin),
+            6 => Ok(OracleSource::Prelaunch),
+            7 => Ok(OracleSource::PythPull),
+            8 => Ok(OracleSource::Pyth1KPull),
+            9 => Ok(OracleSource::Pyth1MPull),
+            10 => Ok(OracleSource::PythStableCoinPull),
+            11 => Ok(OracleSource::SwitchboardOnDemand),
+            12 => Ok(OracleSource::PythLazer),
+            13 => Ok(OracleSource::PythLazer1K),
+            14 => Ok(OracleSource::PythLazer1M),
+            15 => Ok(OracleSource::PythLazerStableCoin),
+            _ => Err(ErrorCode::InvalidOracle),
+        }
+    }
+}
+
+impl From<OracleSource> for u8 {
+    fn from(src: OracleSource) -> u8 {
+        match src {
+            OracleSource::Pyth => 0,
+            OracleSource::Switchboard => 1,
+            OracleSource::QuoteAsset => 2,
+            OracleSource::Pyth1K => 3,
+            OracleSource::Pyth1M => 4,
+            OracleSource::PythStableCoin => 5,
+            OracleSource::Prelaunch => 6,
+            OracleSource::PythPull => 7,
+            OracleSource::Pyth1KPull => 8,
+            OracleSource::Pyth1MPull => 9,
+            OracleSource::PythStableCoinPull => 10,
+            OracleSource::SwitchboardOnDemand => 11,
+            OracleSource::PythLazer => 12,
+            OracleSource::PythLazer1K => 13,
+            OracleSource::PythLazer1M => 14,
+            OracleSource::PythLazerStableCoin => 15,
+        }
+    }
+}
+
+#[derive(Default, Clone, Copy, Debug)]
+pub struct MMOraclePriceData {
+    mm_oracle_price: i64,
+    mm_oracle_delay: i64,
+    safe_oracle_price_data: OraclePriceData,
+}
+
+impl MMOraclePriceData {
+    pub fn new(
+        mm_oracle_price: i64,
+        mm_oracle_delay: i64,
+        mm_oracle_validity: OracleValidity,
+        oracle_price_data: OraclePriceData,
+    ) -> DriftResult<Self> {
+        let safe_oracle_price_data = if mm_oracle_delay > oracle_price_data.delay
+            || mm_oracle_price == 0i64
+            || !is_oracle_valid_for_action(mm_oracle_validity, Some(DriftAction::UseMMOraclePrice))?
+        {
+            oracle_price_data
+        } else {
+            let mm_oracle_diff_premium = mm_oracle_price
+                .abs_diff(oracle_price_data.price)
+                .safe_div(5)?;
+            let adjusted_confidence = oracle_price_data
+                .confidence
+                .safe_add(mm_oracle_diff_premium)?;
+
+            OraclePriceData {
+                price: mm_oracle_price,
+                confidence: adjusted_confidence,
+                delay: mm_oracle_delay,
+                has_sufficient_number_of_data_points: true,
+            }
+        };
+
+        Ok(MMOraclePriceData {
+            mm_oracle_price,
+            mm_oracle_delay,
+            safe_oracle_price_data,
+        })
+    }
+
+    pub fn default_usd() -> Self {
+        MMOraclePriceData {
+            mm_oracle_price: PRICE_PRECISION_I64,
+            mm_oracle_delay: 0,
+            safe_oracle_price_data: OraclePriceData::default_usd(),
+        }
+    }
+
+    pub fn get_price(&self) -> i64 {
+        self.safe_oracle_price_data.price
+    }
+
+    pub fn get_delay(&self) -> i64 {
+        self.safe_oracle_price_data.delay
+    }
+
+    pub fn get_confidence(&self) -> u64 {
+        self.safe_oracle_price_data.confidence
+    }
+
+    pub fn get_safe_oracle_price_data(&self) -> OraclePriceData {
+        self.safe_oracle_price_data
+    }
+
+    // For potential future observability
+    pub fn _get_mm_oracle_price(&self) -> i64 {
+        self.mm_oracle_price
+    }
+
+    pub fn _get_mm_oracle_delay(&self) -> i64 {
+        self.mm_oracle_delay
     }
 }
 

@@ -20,6 +20,7 @@ import {
 	PositionDirection,
 	isVariant,
 	PEG_PRECISION,
+	EventSubscriber,
 } from '../sdk/src';
 import {
 	initializeQuoteSpotMarket,
@@ -60,6 +61,8 @@ describe('Reference Price Offset E2E', () => {
 	program.coder.accounts = new CustomBorshAccountsCoder(program.idl);
 	let bankrunContextWrapper: BankrunContextWrapper;
 	let bulkAccountLoader: TestBulkAccountLoader;
+
+	let eventSubscriber: EventSubscriber;
 
 	let adminClient: TestClient;
 	let fillerDriftClient: DriftClient;
@@ -108,6 +111,13 @@ describe('Reference Price Offset E2E', () => {
 			'processed',
 			1
 		);
+
+		eventSubscriber = new EventSubscriber(
+			bankrunContextWrapper.connection.toConnection(),
+			// @ts-ignore
+			program
+		);
+		await eventSubscriber.subscribe();
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 
@@ -206,6 +216,7 @@ describe('Reference Price Offset E2E', () => {
 	});
 
 	afterEach(async () => {
+		await eventSubscriber.unsubscribe();
 		await adminClient.unsubscribe();
 		await fillerDriftClient.unsubscribe();
 	});
@@ -213,7 +224,7 @@ describe('Reference Price Offset E2E', () => {
 	it('Reference price offset should shift vAMM mid', async () => {
 		await adminClient.fetchAccounts();
 
-		const oracle = adminClient.getOracleDataForPerpMarket(marketIndex);
+		const oracle = adminClient.getMMOracleDataForPerpMarket(marketIndex);
 
 		const perpMarket0 = adminClient.getPerpMarketAccount(marketIndex);
 		expect(perpMarket0.amm.curveUpdateIntensity).to.equal(100);
@@ -331,6 +342,17 @@ describe('Reference Price Offset E2E', () => {
 		);
 
 		expect(oracle.price.toNumber()).to.equal(10118100);
+
+		console.log(
+			`vAmm mid before offset update: ${convertToNumber(
+				vAmmMidBeforeOffsetUpdate
+			)}`
+		);
+		console.log(
+			`vAmm mid after offset update: ${convertToNumber(
+				vAmmMidAfterOffsetUpdate
+			)}`
+		);
 		expect(vAmmMidAfterOffsetUpdate.gt(vAmmMidBeforeOffsetUpdate)).to.be.true;
 
 		// flip reference price more
@@ -379,7 +401,7 @@ describe('Reference Price Offset E2E', () => {
 	it('Fills with vAMM should shift vAMM mid', async () => {
 		await adminClient.fetchAccounts();
 
-		const oracle = adminClient.getOracleDataForPerpMarket(marketIndex);
+		const oracle = adminClient.getMMOracleDataForPerpMarket(marketIndex);
 
 		const perpMarket0 = adminClient.getPerpMarketAccount(marketIndex);
 
@@ -501,5 +523,107 @@ describe('Reference Price Offset E2E', () => {
 			expect(vAmmMidAfterOffsetUpdate3.lt(vAmmMidBeforeOffsetUpdate)).to.be
 				.true;
 		}
+	});
+
+	it('Reference price offset should shift vAMM mid from MM oracle if its available', async () => {
+		const currentOraclePrice =
+			adminClient.getOracleDataForPerpMarket(marketIndex).price;
+		const currentOracleSlot =
+			adminClient.getOracleDataForPerpMarket(marketIndex).slot;
+
+		const perpMarketPre = adminClient.getPerpMarketAccount(marketIndex);
+		perpMarketPre.amm.referencePriceOffset = 20000; // 0.1%
+		await overWritePerpMarket(
+			adminClient,
+			bankrunContextWrapper,
+			perpMarketPre.pubkey,
+			perpMarketPre
+		);
+		await adminClient.updateAMMs([marketIndex]);
+
+		const perpMarket0 = adminClient.getPerpMarketAccount(marketIndex);
+		const [vBid, vAsk] = calculateBidAskPrice(
+			perpMarket0.amm,
+			adminClient.getMMOracleDataForPerpMarket(marketIndex),
+			true,
+			false
+		);
+		const vBidNum = convertToNumber(vBid);
+		const vAskNum = convertToNumber(vAsk);
+		const spread = (vAskNum - vBidNum) / ((vAskNum + vBidNum) / 2);
+
+		console.log(
+			`Before ref price: vBid: ${vBidNum}, vAsk: ${vAskNum}, spread: ${
+				spread * 10000
+			}bps`
+		);
+		console.log(
+			`Vamm inventory: ${
+				-1 *
+				convertToNumber(perpMarket0.amm.baseAssetAmountWithAmm, BASE_PRECISION)
+			}`
+		);
+
+		// Set the new mm oracle manually
+		const newOraclePrice = currentOraclePrice.muln(101).divn(100); // 1% higher
+		perpMarket0.amm.mmOraclePrice = newOraclePrice;
+		perpMarket0.amm.mmOracleSlot = currentOracleSlot;
+		await overWritePerpMarket(
+			adminClient,
+			bankrunContextWrapper,
+			perpMarket0.pubkey,
+			perpMarket0
+		);
+		const perpMarket1 = adminClient.getPerpMarketAccount(marketIndex);
+
+		const [vBidAfter, vAskAfter] = calculateBidAskPrice(
+			perpMarket1.amm,
+			adminClient.getMMOracleDataForPerpMarket(marketIndex),
+			true,
+			false
+		);
+		const vBidNumAfter = convertToNumber(vBidAfter);
+		const vAskNumAfter = convertToNumber(vAskAfter);
+		const spreadAfter =
+			(vAskNumAfter - vBidNumAfter) / ((vAskNumAfter + vBidNumAfter) / 2);
+		console.log(
+			`After mm offset: vBid: ${vBidNumAfter}, vAsk: ${vAskNumAfter}, spread: ${
+				spreadAfter * 10000
+			}bps`
+		);
+		console.log(
+			`Vamm inventory: ${
+				-1 *
+				convertToNumber(perpMarket0.amm.baseAssetAmountWithAmm, BASE_PRECISION)
+			}`
+		);
+
+		expect(vBidNumAfter).to.gt(vBidNum);
+		expect(vAskNumAfter).to.gt(vAskNum);
+
+		// Try and fill against the vamm
+		const now = bankrunContextWrapper.connection.getTime();
+		const txSig = await placeAndFillVammTrade({
+			bankrunContextWrapper,
+			orderClient: adminClient,
+			// @ts-ignore
+			fillerClient: fillerDriftClient,
+			marketIndex,
+			baseAssetAmount: BASE_PRECISION.muln(5),
+			auctionStartPrice: newOraclePrice.muln(101).divn(100),
+			auctionEndPrice: newOraclePrice.muln(102).divn(100),
+			oraclePrice: newOraclePrice.muln(102).divn(100),
+			auctionDuration: 5,
+			direction: PositionDirection.LONG,
+			maxTs: new BN(now + 60),
+		});
+
+		const events = eventSubscriber.getEventsByTx(txSig);
+		const fillEvent = events.find((e) => e.eventType == 'OrderActionRecord');
+		const fillPrice = fillEvent['takerOrderCumulativeQuoteAssetAmountFilled']
+			.mul(PRICE_PRECISION)
+			.mul(BASE_PRECISION.div(QUOTE_PRECISION))
+			.div(fillEvent['takerOrderCumulativeBaseAssetAmountFilled']);
+		expect(fillPrice.toNumber()).to.be.approximately(vAskAfter.toNumber(), 50);
 	});
 });

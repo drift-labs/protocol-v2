@@ -43,6 +43,8 @@ import {
 	PositionDirection,
 	DriftClient,
 	OrderType,
+	ConstituentAccount,
+	SpotMarketAccount,
 } from '../sdk';
 import {
 	TestClient,
@@ -1205,6 +1207,23 @@ export async function overWritePerpMarket(
 	});
 }
 
+export async function overWriteSpotMarket(
+	driftClient: TestClient,
+	bankrunContextWrapper: BankrunContextWrapper,
+	spotMarketKey: PublicKey,
+	spotMarket: SpotMarketAccount
+) {
+	bankrunContextWrapper.context.setAccount(spotMarketKey, {
+		executable: false,
+		owner: driftClient.program.programId,
+		lamports: LAMPORTS_PER_SOL,
+		data: await driftClient.program.account.spotMarket.coder.accounts.encode(
+			'SpotMarket',
+			spotMarket
+		),
+	});
+}
+
 export async function getPerpMarketDecoded(
 	driftClient: TestClient,
 	bankrunContextWrapper: BankrunContextWrapper,
@@ -1310,8 +1329,8 @@ export async function placeAndFillVammTrade({
 	direction,
 	maxTs,
 	dumpTxLogs = true,
-}: placeAndFillVammTradeParams) {
-	let tx = null;
+}: placeAndFillVammTradeParams): Promise<TransactionSignature> {
+	let tx: TransactionSignature | null = null;
 	try {
 		tx = await orderClient.placePerpOrder({
 			orderType: OrderType.LIMIT,
@@ -1353,8 +1372,35 @@ export async function placeAndFillVammTrade({
 		if (dumpTxLogs) {
 			await printTxLogs(bankrunContextWrapper.connection.toConnection(), tx);
 		}
+		return tx;
 	} catch (e) {
 		console.log('fill failed!');
 		console.error(e);
 	}
+}
+
+export async function overwriteConstituentAccount(
+	bankrunContextWrapper: BankrunContextWrapper,
+	program: Program,
+	constituentPublicKey: PublicKey,
+	overwriteFields: Array<[key: keyof ConstituentAccount, value: any]>
+) {
+	const acc = await program.account.constituent.fetch(constituentPublicKey);
+	if (!acc) {
+		throw new Error(
+			`Constituent account ${constituentPublicKey.toBase58()} not found`
+		);
+	}
+	for (const [key, value] of overwriteFields) {
+		acc[key] = value;
+	}
+	bankrunContextWrapper.context.setAccount(constituentPublicKey, {
+		executable: false,
+		owner: program.programId,
+		lamports: LAMPORTS_PER_SOL,
+		data: await program.account.constituent.coder.accounts.encode(
+			'Constituent',
+			acc
+		),
+	});
 }

@@ -64,6 +64,9 @@ import {
 	ProtectedMakerModeConfig,
 	SignedMsgOrderParamsDelegateMessage,
 	TokenProgramFlag,
+	LPPoolAccount,
+	ConstituentAccount,
+	ConstituentTargetBaseAccount,
 } from './types';
 import driftIDL from './idl/drift.json';
 
@@ -78,6 +81,7 @@ import {
 	PublicKey,
 	Signer,
 	SystemProgram,
+	SYSVAR_CLOCK_PUBKEY,
 	SYSVAR_INSTRUCTIONS_PUBKEY,
 	Transaction,
 	TransactionInstruction,
@@ -111,6 +115,15 @@ import {
 	getUserStatsAccountPublicKey,
 	getSignedMsgWsDelegatesAccountPublicKey,
 	getIfRebalanceConfigPublicKey,
+	getConstituentTargetBasePublicKey,
+	getAmmConstituentMappingPublicKey,
+	getLpPoolPublicKey,
+	getConstituentPublicKey,
+	getAmmCachePublicKey,
+	getLpPoolTokenVaultPublicKey,
+	getConstituentVaultPublicKey,
+	getConstituentCorrelationsPublicKey,
+	getLpPoolTokenTokenAccountPublicKey,
 } from './addresses/pda';
 import {
 	DataAndSlot,
@@ -177,7 +190,10 @@ import { WormholeCoreBridgeSolana } from '@pythnetwork/pyth-solana-receiver/lib/
 import { PythSolanaReceiver } from '@pythnetwork/pyth-solana-receiver/lib/idl/pyth_solana_receiver';
 import { getFeedIdUint8Array, trimFeedId } from './util/pythOracleUtils';
 import { createMinimalEd25519VerifyIx } from './util/ed25519Utils';
-import { isVersionedTransaction } from './tx/utils';
+import {
+	createNativeInstructionDiscriminatorBuffer,
+	isVersionedTransaction,
+} from './tx/utils';
 import pythSolanaReceiverIdl from './idl/pyth_solana_receiver.json';
 import { asV0Tx, PullFeed, AnchorUtils } from '@switchboard-xyz/on-demand';
 import { gprcDriftClientAccountSubscriber } from './accounts/grpcDriftClientAccountSubscriber';
@@ -186,6 +202,8 @@ import { Slothash } from './slot/SlothashSubscriber';
 import { getOracleId } from './oracles/oracleId';
 import { SignedMsgOrderParams } from './types';
 import { sha256 } from '@noble/hashes/sha256';
+import { getOracleConfidenceFromMMOracleData } from './oracles/utils';
+import { ConstituentMap } from './constituentMap/constituentMap';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -2451,17 +2469,19 @@ export class DriftClient {
 	public async getAssociatedTokenAccount(
 		marketIndex: number,
 		useNative = true,
-		tokenProgram = TOKEN_PROGRAM_ID
+		tokenProgram = TOKEN_PROGRAM_ID,
+		authority = this.wallet.publicKey,
+		allowOwnerOffCurve = false
 	): Promise<PublicKey> {
 		const spotMarket = this.getSpotMarketAccount(marketIndex);
 		if (useNative && spotMarket.mint.equals(WRAPPED_SOL_MINT)) {
-			return this.wallet.publicKey;
+			return authority;
 		}
 		const mint = spotMarket.mint;
 		return await getAssociatedTokenAddress(
 			mint,
-			this.wallet.publicKey,
-			undefined,
+			authority,
+			allowOwnerOffCurve,
 			tokenProgram
 		);
 	}
@@ -8485,6 +8505,37 @@ export class DriftClient {
 		).data;
 	}
 
+	public getMMOracleDataForPerpMarket(marketIndex: number): OraclePriceData {
+		const perpMarket = this.getPerpMarketAccount(marketIndex);
+		const oracleData = this.getOracleDataForPerpMarket(marketIndex);
+		const stateAccountAndSlot = this.accountSubscriber.getStateAccountAndSlot();
+		if (
+			!isOracleValid(
+				perpMarket,
+				oracleData,
+				stateAccountAndSlot.data.oracleGuardRails,
+				stateAccountAndSlot.slot
+			) ||
+			perpMarket.amm.mmOraclePrice.eq(ZERO) ||
+			perpMarket.amm.mmOracleSlot < oracleData.slot
+		) {
+			return { ...oracleData, fetchedWithMMOracle: true };
+		} else {
+			const conf = getOracleConfidenceFromMMOracleData({
+				mmOraclePrice: perpMarket.amm.mmOraclePrice,
+				mmOracleSlot: perpMarket.amm.mmOracleSlot,
+				oraclePriceData: oracleData,
+			});
+			return {
+				price: perpMarket.amm.mmOraclePrice,
+				slot: perpMarket.amm.mmOracleSlot,
+				confidence: conf,
+				hasSufficientNumberOfDataPoints: true,
+				fetchedWithMMOracle: true,
+			};
+		}
+	}
+
 	public getOracleDataForSpotMarket(marketIndex: number): OraclePriceData {
 		return this.accountSubscriber.getOraclePriceDataAndSlotForSpotMarket(
 			marketIndex
@@ -9907,6 +9958,818 @@ export class DriftClient {
 		);
 		return txSig;
 	}
+
+	public async updateMmOracleNative(
+		marketIndex: number,
+		oraclePrice: BN,
+		oracleSequenceId: BN
+	): Promise<TransactionSignature> {
+		const updateMmOracleIx = await this.getUpdateMmOracleNativeIx(
+			marketIndex,
+			oraclePrice,
+			oracleSequenceId
+		);
+
+		const tx = await this.buildTransaction(updateMmOracleIx, {
+			computeUnits: 5000,
+			computeUnitsPrice: 0,
+		});
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateMmOracleNativeIx(
+		marketIndex: number,
+		oraclePrice: BN,
+		oracleSequenceId: BN
+	): Promise<TransactionInstruction> {
+		const discriminatorBuffer = createNativeInstructionDiscriminatorBuffer(0);
+		const data = Buffer.alloc(discriminatorBuffer.length + 16);
+		data.set(discriminatorBuffer, 0);
+		data.set(oraclePrice.toArrayLike(Buffer, 'le', 8), 5); // next 8 bytes
+		data.set(oracleSequenceId.toArrayLike(Buffer, 'le', 8), 13); // next 8 bytes
+
+		// Build the instruction manually
+		return new TransactionInstruction({
+			programId: this.program.programId,
+			keys: [
+				{
+					pubkey: this.getPerpMarketAccount(marketIndex).pubkey,
+					isWritable: true,
+					isSigner: false,
+				},
+				{
+					pubkey: this.wallet.publicKey,
+					isWritable: false,
+					isSigner: true,
+				},
+				{
+					pubkey: SYSVAR_CLOCK_PUBKEY,
+					isWritable: false,
+					isSigner: false,
+				},
+				{
+					pubkey: await this.getStatePublicKey(),
+					isWritable: false,
+					isSigner: false,
+				},
+			],
+			data,
+		});
+	}
+
+	public async updateAmmSpreadAdjustmentNative(
+		marketIndex: number,
+		ammSpreadAdjustment: number
+	): Promise<TransactionSignature> {
+		const updateMmOracleIx = await this.getUpdateAmmSpreadAdjustmentNativeIx(
+			marketIndex,
+			ammSpreadAdjustment
+		);
+
+		const tx = await this.buildTransaction(updateMmOracleIx, {
+			computeUnits: 1000,
+			computeUnitsPrice: 0,
+		});
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public getUpdateAmmSpreadAdjustmentNativeIx(
+		marketIndex: number,
+		ammSpreadAdjustment: number // i8
+	): TransactionInstruction {
+		const discriminatorBuffer = createNativeInstructionDiscriminatorBuffer(1);
+		const data = Buffer.alloc(discriminatorBuffer.length + 4);
+		data.set(discriminatorBuffer, 0);
+		data.writeInt8(ammSpreadAdjustment, 5); // next byte
+
+		// Build the instruction manually
+		return new TransactionInstruction({
+			programId: this.program.programId,
+			keys: [
+				{
+					pubkey: this.getPerpMarketAccount(marketIndex).pubkey,
+					isWritable: true,
+					isSigner: false,
+				},
+				{
+					pubkey: this.wallet.publicKey,
+					isWritable: false,
+					isSigner: true,
+				},
+			],
+			data,
+		});
+	}
+
+	public async getLpPoolAccount(lpPoolName: number[]): Promise<LPPoolAccount> {
+		return (await this.program.account.lpPool.fetch(
+			getLpPoolPublicKey(this.program.programId, lpPoolName)
+		)) as LPPoolAccount;
+	}
+
+	public async getConstituentTargetBaseAccount(
+		lpPoolName: number[]
+	): Promise<ConstituentTargetBaseAccount> {
+		return (await this.program.account.constituentTargetBase.fetch(
+			getConstituentTargetBasePublicKey(
+				this.program.programId,
+				getLpPoolPublicKey(this.program.programId, lpPoolName)
+			)
+		)) as ConstituentTargetBaseAccount;
+	}
+
+	public async updateLpConstituentTargetBase(
+		lpPoolName: number[],
+		constituents: PublicKey[],
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getUpdateLpConstituentTargetBaseIx(lpPoolName, constituents),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getUpdateLpConstituentTargetBaseIx(
+		lpPoolName: number[],
+		constituents: PublicKey[]
+	): Promise<TransactionInstruction> {
+		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
+		const ammConstituentMappingPublicKey = getAmmConstituentMappingPublicKey(
+			this.program.programId,
+			lpPool
+		);
+		const constituentTargetBase = getConstituentTargetBasePublicKey(
+			this.program.programId,
+			lpPool
+		);
+
+		const ammCache = getAmmCachePublicKey(this.program.programId);
+
+		const remainingAccounts = constituents.map((constituent) => {
+			return {
+				isWritable: false,
+				isSigner: false,
+				pubkey: constituent,
+			};
+		});
+
+		return this.program.instruction.updateLpConstituentTargetBase({
+			accounts: {
+				keeper: this.wallet.publicKey,
+				lpPool,
+				ammConstituentMapping: ammConstituentMappingPublicKey,
+				constituentTargetBase,
+				state: await this.getStatePublicKey(),
+				ammCache,
+			},
+			remainingAccounts,
+		});
+	}
+
+	public async updateLpPoolAum(
+		lpPool: LPPoolAccount,
+		spotMarketIndexOfConstituents: number[],
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getUpdateLpPoolAumIxs(lpPool, spotMarketIndexOfConstituents),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getUpdateLpPoolAumIxs(
+		lpPool: LPPoolAccount,
+		spotMarketIndexOfConstituents: number[]
+	): Promise<TransactionInstruction> {
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [],
+			readableSpotMarketIndexes: spotMarketIndexOfConstituents,
+		});
+		remainingAccounts.push(
+			...spotMarketIndexOfConstituents.map((index) => {
+				return {
+					pubkey: getConstituentPublicKey(
+						this.program.programId,
+						lpPool.pubkey,
+						index
+					),
+					isSigner: false,
+					isWritable: true,
+				};
+			})
+		);
+		return this.program.instruction.updateLpPoolAum({
+			accounts: {
+				keeper: this.wallet.publicKey,
+				lpPool: lpPool.pubkey,
+				state: await this.getStatePublicKey(),
+				constituentTargetBase: getConstituentTargetBasePublicKey(
+					this.program.programId,
+					lpPool.pubkey
+				),
+				ammCache: getAmmCachePublicKey(this.program.programId),
+			},
+			remainingAccounts,
+		});
+	}
+
+	public async updateAmmCache(
+		perpMarketIndexes: number[],
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getUpdateAmmCacheIx(perpMarketIndexes),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getUpdateAmmCacheIx(
+		perpMarketIndexes: number[]
+	): Promise<TransactionInstruction> {
+		if (perpMarketIndexes.length > 50) {
+			throw new Error('Cant update more than 50 markets at once');
+		}
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [],
+			readablePerpMarketIndex: perpMarketIndexes,
+		});
+
+		return this.program.instruction.updateAmmCache({
+			accounts: {
+				keeper: this.wallet.publicKey,
+				ammCache: getAmmCachePublicKey(this.program.programId),
+				quoteMarket: this.getSpotMarketAccount(0).pubkey,
+			},
+			remainingAccounts,
+		});
+	}
+
+	public async updateConstituentOracleInfo(
+		constituent: ConstituentAccount
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getUpdateConstituentOracleInfoIx(constituent),
+				undefined
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getUpdateConstituentOracleInfoIx(
+		constituent: ConstituentAccount
+	): Promise<TransactionInstruction> {
+		const spotMarket = await this.getSpotMarketAccount(
+			constituent.spotMarketIndex
+		);
+		return this.program.instruction.updateConstituentOracleInfo({
+			accounts: {
+				keeper: this.wallet.publicKey,
+				constituent: constituent.pubkey,
+				state: await this.getStatePublicKey(),
+				oracle: spotMarket.oracle,
+				spotMarket: spotMarket.pubkey,
+			},
+		});
+	}
+
+	public async lpPoolSwap(
+		inMarketIndex: number,
+		outMarketIndex: number,
+		inAmount: BN,
+		minOutAmount: BN,
+		lpPool: PublicKey,
+		constituentTargetBase: PublicKey,
+		constituentInTokenAccount: PublicKey,
+		constituentOutTokenAccount: PublicKey,
+		userInTokenAccount: PublicKey,
+		userOutTokenAccount: PublicKey,
+		inConstituent: PublicKey,
+		outConstituent: PublicKey,
+		inMarketMint: PublicKey,
+		outMarketMint: PublicKey,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getLpPoolSwapIx(
+					inMarketIndex,
+					outMarketIndex,
+					inAmount,
+					minOutAmount,
+					lpPool,
+					constituentTargetBase,
+					constituentInTokenAccount,
+					constituentOutTokenAccount,
+					userInTokenAccount,
+					userOutTokenAccount,
+					inConstituent,
+					outConstituent,
+					inMarketMint,
+					outMarketMint
+				),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getLpPoolSwapIx(
+		inMarketIndex: number,
+		outMarketIndex: number,
+		inAmount: BN,
+		minOutAmount: BN,
+		lpPool: PublicKey,
+		constituentTargetBase: PublicKey,
+		constituentInTokenAccount: PublicKey,
+		constituentOutTokenAccount: PublicKey,
+		userInTokenAccount: PublicKey,
+		userOutTokenAccount: PublicKey,
+		inConstituent: PublicKey,
+		outConstituent: PublicKey,
+		inMarketMint: PublicKey,
+		outMarketMint: PublicKey
+	): Promise<TransactionInstruction> {
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [],
+			readableSpotMarketIndexes: [inMarketIndex, outMarketIndex],
+		});
+
+		return this.program.instruction.lpPoolSwap(
+			inMarketIndex,
+			outMarketIndex,
+			inAmount,
+			minOutAmount,
+			{
+				remainingAccounts,
+				accounts: {
+					driftSigner: this.getSignerPublicKey(),
+					state: await this.getStatePublicKey(),
+					lpPool,
+					constituentTargetBase,
+					constituentInTokenAccount,
+					constituentOutTokenAccount,
+					constituentCorrelations: getConstituentCorrelationsPublicKey(
+						this.program.programId,
+						lpPool
+					),
+					userInTokenAccount,
+					userOutTokenAccount,
+					inConstituent,
+					outConstituent,
+					inMarketMint,
+					outMarketMint,
+					authority: this.wallet.publicKey,
+					tokenProgram: TOKEN_PROGRAM_ID,
+				},
+			}
+		);
+	}
+
+	public async getCreateLpPoolTokenAccountIx(
+		lpPool: LPPoolAccount
+	): Promise<TransactionInstruction> {
+		const lpMint = lpPool.mint;
+		const userLpTokenAccount = await getLpPoolTokenTokenAccountPublicKey(
+			lpMint,
+			this.wallet.publicKey
+		);
+
+		return this.createAssociatedTokenAccountIdempotentInstruction(
+			userLpTokenAccount,
+			this.wallet.publicKey,
+			this.wallet.publicKey,
+			lpMint
+		);
+	}
+
+	public async createLpPoolTokenAccount(
+		lpPool: LPPoolAccount,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getCreateLpPoolTokenAccountIx(lpPool),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async lpPoolAddLiquidity({
+		inMarketIndex,
+		inAmount,
+		minMintAmount,
+		lpPool,
+		txParams,
+	}: {
+		inMarketIndex: number;
+		inAmount: BN;
+		minMintAmount: BN;
+		lpPool: LPPoolAccount;
+		txParams?: TxParams;
+	}): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getLpPoolAddLiquidityIx({
+					inMarketIndex,
+					inAmount,
+					minMintAmount,
+					lpPool,
+				}),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getLpPoolAddLiquidityIx({
+		inMarketIndex,
+		inAmount,
+		minMintAmount,
+		lpPool,
+	}: {
+		inMarketIndex: number;
+		inAmount: BN;
+		minMintAmount: BN;
+		lpPool: LPPoolAccount;
+	}): Promise<TransactionInstruction> {
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [],
+			writableSpotMarketIndexes: [inMarketIndex],
+		});
+
+		const spotMarket = this.getSpotMarketAccount(inMarketIndex);
+		const inMarketMint = spotMarket.mint;
+		const inConstituent = getConstituentPublicKey(
+			this.program.programId,
+			lpPool.pubkey,
+			inMarketIndex
+		);
+		const userInTokenAccount = await this.getAssociatedTokenAccount(
+			inMarketIndex
+		);
+		const constituentInTokenAccount = getConstituentVaultPublicKey(
+			this.program.programId,
+			lpPool.pubkey,
+			inMarketIndex
+		);
+		const lpMint = lpPool.mint;
+		const userLpTokenAccount = await getLpPoolTokenTokenAccountPublicKey(
+			lpMint,
+			this.wallet.publicKey
+		);
+
+		const constituentTargetBase = getConstituentTargetBasePublicKey(
+			this.program.programId,
+			lpPool.pubkey
+		);
+
+		return this.program.instruction.lpPoolAddLiquidity(
+			inMarketIndex,
+			inAmount,
+			minMintAmount,
+			{
+				remainingAccounts,
+				accounts: {
+					driftSigner: this.getSignerPublicKey(),
+					state: await this.getStatePublicKey(),
+					lpPool: lpPool.pubkey,
+					authority: this.wallet.publicKey,
+					inMarketMint,
+					inConstituent,
+					userInTokenAccount,
+					constituentInTokenAccount,
+					userLpTokenAccount,
+					lpMint,
+					lpPoolTokenVault: getLpPoolTokenVaultPublicKey(
+						this.program.programId,
+						lpPool.pubkey
+					),
+					constituentTargetBase,
+					tokenProgram: TOKEN_PROGRAM_ID,
+				},
+			}
+		);
+	}
+
+	public async lpPoolRemoveLiquidity({
+		outMarketIndex,
+		lpToBurn,
+		minAmountOut,
+		lpPool,
+		txParams,
+	}: {
+		outMarketIndex: number;
+		lpToBurn: BN;
+		minAmountOut: BN;
+		lpPool: LPPoolAccount;
+		txParams?: TxParams;
+	}): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getLpPoolRemoveLiquidityIx({
+					outMarketIndex,
+					lpToBurn,
+					minAmountOut,
+					lpPool,
+				}),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getLpPoolRemoveLiquidityIx({
+		outMarketIndex,
+		lpToBurn,
+		minAmountOut,
+		lpPool,
+	}: {
+		outMarketIndex: number;
+		lpToBurn: BN;
+		minAmountOut: BN;
+		lpPool: LPPoolAccount;
+	}): Promise<TransactionInstruction> {
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [],
+			writableSpotMarketIndexes: [outMarketIndex],
+		});
+
+		const spotMarket = this.getSpotMarketAccount(outMarketIndex);
+		const outMarketMint = spotMarket.mint;
+		const outConstituent = getConstituentPublicKey(
+			this.program.programId,
+			lpPool.pubkey,
+			outMarketIndex
+		);
+		const userOutTokenAccount = await this.getAssociatedTokenAccount(
+			outMarketIndex
+		);
+		const constituentOutTokenAccount = getConstituentVaultPublicKey(
+			this.program.programId,
+			lpPool.pubkey,
+			outMarketIndex
+		);
+		const lpMint = lpPool.mint;
+		const userLpTokenAccount = await getAssociatedTokenAddress(
+			lpMint,
+			this.wallet.publicKey,
+			true
+		);
+
+		const constituentTargetBase = getConstituentTargetBasePublicKey(
+			this.program.programId,
+			lpPool.pubkey
+		);
+
+		return this.program.instruction.lpPoolRemoveLiquidity(
+			outMarketIndex,
+			lpToBurn,
+			minAmountOut,
+			{
+				remainingAccounts,
+				accounts: {
+					driftSigner: this.getSignerPublicKey(),
+					state: await this.getStatePublicKey(),
+					lpPool: lpPool.pubkey,
+					authority: this.wallet.publicKey,
+					outMarketMint,
+					outConstituent,
+					userOutTokenAccount,
+					constituentOutTokenAccount,
+					userLpTokenAccount,
+					lpMint,
+					lpPoolTokenVault: getLpPoolTokenVaultPublicKey(
+						this.program.programId,
+						lpPool.pubkey
+					),
+					constituentTargetBase,
+					tokenProgram: TOKEN_PROGRAM_ID,
+				},
+			}
+		);
+	}
+
+	public async getAllLpPoolAddLiquidityIxs(
+		{
+			inMarketIndex,
+			inAmount,
+			minMintAmount,
+			lpPool,
+		}: {
+			inMarketIndex: number;
+			inAmount: BN;
+			minMintAmount: BN;
+			lpPool: LPPoolAccount;
+		},
+		constituentMap: ConstituentMap,
+		includeUpdateConstituentOracleInfo = true
+	): Promise<TransactionInstruction[]> {
+		const ixs: TransactionInstruction[] = [];
+
+		ixs.push(
+			...(await this.getAllUpdateLpPoolAumIxs(
+				lpPool,
+				constituentMap,
+				includeUpdateConstituentOracleInfo
+			))
+		);
+
+		ixs.push(
+			await this.getLpPoolAddLiquidityIx({
+				inMarketIndex,
+				inAmount,
+				minMintAmount,
+				lpPool,
+			})
+		);
+		return ixs;
+	}
+
+	public async getAllLpPoolRemoveLiquidityIxs(
+		{
+			outMarketIndex,
+			lpToBurn,
+			minAmountOut,
+			lpPool,
+		}: {
+			outMarketIndex: number;
+			lpToBurn: BN;
+			minAmountOut: BN;
+			lpPool: LPPoolAccount;
+		},
+		constituentMap: ConstituentMap,
+		includeUpdateConstituentOracleInfo = true
+	): Promise<TransactionInstruction[]> {
+		const ixs: TransactionInstruction[] = [];
+		ixs.push(
+			...(await this.getAllUpdateLpPoolAumIxs(
+				lpPool,
+				constituentMap,
+				includeUpdateConstituentOracleInfo
+			))
+		);
+		ixs.push(
+			await this.getLpPoolRemoveLiquidityIx({
+				outMarketIndex,
+				lpToBurn,
+				minAmountOut,
+				lpPool,
+			})
+		);
+		return ixs;
+	}
+
+	public async getAllUpdateLpPoolAumIxs(
+		lpPool: LPPoolAccount,
+		constituentMap: ConstituentMap,
+		includeUpdateConstituentOracleInfo = true
+	): Promise<TransactionInstruction[]> {
+		const ixs: TransactionInstruction[] = [];
+		const constituents: ConstituentAccount[] = Array.from(
+			constituentMap.values()
+		);
+
+		if (includeUpdateConstituentOracleInfo) {
+			for (const constituent of constituents) {
+				ixs.push(await this.getUpdateConstituentOracleInfoIx(constituent));
+			}
+		}
+
+		const spotMarketIndexes = constituents.map(
+			(constituent) => constituent.spotMarketIndex
+		);
+		ixs.push(await this.getUpdateLpPoolAumIxs(lpPool, spotMarketIndexes));
+		return ixs;
+	}
+
+	public async getAllUpdateConstituentTargetBaseIxs(
+		perpMarketIndexes: number[],
+		lpPool: LPPoolAccount,
+		constituentMap: ConstituentMap,
+		includeUpdateConstituentOracleInfo = true
+	): Promise<TransactionInstruction[]> {
+		const ixs: TransactionInstruction[] = [];
+
+		ixs.push(await this.getUpdateAmmCacheIx(perpMarketIndexes));
+
+		ixs.push(
+			await this.getUpdateLpConstituentTargetBaseIx(
+				lpPool.name,
+				Array.from(constituentMap.values()).map(
+					(constituent) => constituent.pubkey
+				)
+			)
+		);
+
+		ixs.push(
+			...(await this.getAllUpdateLpPoolAumIxs(
+				lpPool,
+				constituentMap,
+				includeUpdateConstituentOracleInfo
+			))
+		);
+
+		return ixs;
+	}
+
+	async settlePerpToLpPool(
+		lpPoolName: number[],
+		perpMarketIndexes: number[]
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getSettlePerpToLpPoolIx(lpPoolName, perpMarketIndexes),
+				undefined
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getSettlePerpToLpPoolIx(
+		lpPoolName: number[],
+		perpMarketIndexes: number[]
+	): Promise<TransactionInstruction> {
+		const remainingAccounts = [];
+		remainingAccounts.push(
+			...perpMarketIndexes.map((index) => {
+				return {
+					pubkey: this.getPerpMarketAccount(index).pubkey,
+					isSigner: false,
+					isWritable: true,
+				};
+			})
+		);
+		const quoteSpotMarketAccount = this.getQuoteSpotMarketAccount();
+		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
+		return this.program.instruction.settlePerpToLpPool({
+			accounts: {
+				driftSigner: this.getSignerPublicKey(),
+				state: await this.getStatePublicKey(),
+				keeper: this.wallet.publicKey,
+				ammCache: getAmmCachePublicKey(this.program.programId),
+				quoteMarket: quoteSpotMarketAccount.pubkey,
+				constituent: getConstituentPublicKey(this.program.programId, lpPool, 0),
+				constituentQuoteTokenAccount: getConstituentVaultPublicKey(
+					this.program.programId,
+					lpPool,
+					0
+				),
+				lpPool,
+				quoteTokenVault: quoteSpotMarketAccount.vault,
+				tokenProgram: this.getTokenProgramForSpotMarket(quoteSpotMarketAccount),
+				mint: quoteSpotMarketAccount.mint,
+			},
+			remainingAccounts,
+		});
+	}
+
+	public async getAllSettlePerpToLpPoolIxs(
+		lpPoolName: number[],
+		marketIndex: number
+	): Promise<TransactionInstruction[]> {
+		const ixs: TransactionInstruction[] = [];
+		ixs.push(await this.getUpdateAmmCacheIx([marketIndex]));
+		ixs.push(await this.getSettlePerpToLpPoolIx(lpPoolName, [marketIndex]));
+		return ixs;
+	}
+
+	/**
+	 * Below here are the transaction sending functions
+	 */
 
 	private handleSignedTransaction(signedTxs: SignedTxData[]) {
 		if (this.enableMetricsEvents && this.metricsEventEmitter) {
