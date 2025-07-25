@@ -193,6 +193,7 @@ import { getOracleId } from './oracles/oracleId';
 import { SignedMsgOrderParams } from './types';
 import { sha256 } from '@noble/hashes/sha256';
 import { getOracleConfidenceFromMMOracleData } from './oracles/utils';
+import { WebSocketDriftClientAccountSubscriberV2 } from './accounts/webSocketDriftClientAccountSubscriberV2';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -370,6 +371,7 @@ export class DriftClient {
 				resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
 				logResubMessages: config.accountSubscription?.logResubMessages,
 				commitment: config.accountSubscription?.commitment,
+				programUserAccountSubscriber: config.accountSubscription?.programUserAccountSubscriber,
 			};
 			this.userStatsAccountSubscriptionConfig = {
 				type: 'websocket',
@@ -435,7 +437,7 @@ export class DriftClient {
 				}
 			);
 		} else {
-			this.accountSubscriber = new WebSocketDriftClientAccountSubscriber(
+			this.accountSubscriber = new WebSocketDriftClientAccountSubscriberV2(
 				this.program,
 				config.perpMarketIndexes ?? [],
 				config.spotMarketIndexes ?? [],
@@ -608,7 +610,7 @@ export class DriftClient {
 	public getSpotMarketAccount(
 		marketIndex: number
 	): SpotMarketAccount | undefined {
-		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex).data;
+		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex)?.data;
 	}
 
 	/**
@@ -619,7 +621,7 @@ export class DriftClient {
 		marketIndex: number
 	): Promise<SpotMarketAccount | undefined> {
 		await this.accountSubscriber.fetch();
-		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex).data;
+		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex)?.data;
 	}
 
 	public getSpotMarketAccounts(): SpotMarketAccount[] {
@@ -928,6 +930,8 @@ export class DriftClient {
 		authority?: PublicKey,
 		userAccount?: UserAccount
 	): Promise<boolean> {
+
+		
 		authority = authority ?? this.authority;
 		const userKey = this.getUserMapKey(subAccountId, authority);
 
@@ -955,6 +959,7 @@ export class DriftClient {
 	 * Adds and subscribes to users based on params set by the constructor or by updateWallet.
 	 */
 	public async addAndSubscribeToUsers(authority?: PublicKey): Promise<boolean> {
+		console.log('adding and subscribing to users', this.users.size);
 		// save the rpc calls if driftclient is initialized without a real wallet
 		if (this.skipLoadUsers) return true;
 
