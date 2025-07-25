@@ -9,7 +9,6 @@ use phoenix::quantities::WrapperU64;
 use pyth_solana_receiver_sdk::cpi::accounts::InitPriceUpdate;
 use pyth_solana_receiver_sdk::program::PythSolanaReceiver;
 use serum_dex::state::ToAlignedBytes;
-use solana_program::sysvar::SysvarId;
 
 use crate::controller::token::close_vault;
 use crate::error::ErrorCode;
@@ -4840,6 +4839,14 @@ pub fn handle_update_if_rebalance_config(
 
     config.validate()?;
 
+    Ok(())
+}
+
+pub fn handle_zero_mm_oracle_fields(ctx: Context<HotAdminUpdatePerpMarket>) -> Result<()> {
+    let mut perp_market = load_mut!(ctx.accounts.perp_market)?;
+    perp_market.amm.mm_oracle_price = 0;
+    perp_market.amm.mm_oracle_sequence_id = 0;
+    perp_market.amm.mm_oracle_slot = 0;
     Ok(())
 }
 

@@ -1815,6 +1815,10 @@ pub mod drift {
     ) -> Result<()> {
         handle_update_disable_bitflags_mm_oracle(ctx, disable)
     }
+
+    pub fn zero_mm_oracle_fields(ctx: Context<HotAdminUpdatePerpMarket>) -> Result<()> {
+        handle_zero_mm_oracle_fields(ctx)
+    }
 }
 
 #[cfg(not(feature = "no-entrypoint"))]
