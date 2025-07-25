@@ -1,10 +1,11 @@
 use crate::math::spot_balance::get_token_amount;
 use crate::state::pyth_lazer_oracle::PythLazerOracle;
+use crate::state::user::MarketType;
 use crate::state::zero_copy::{AccountZeroCopy, AccountZeroCopyMut};
 use crate::{impl_zero_copy_loader, validate};
 use anchor_lang::prelude::*;
 
-use crate::state::state::State;
+use crate::state::state::{State, ValidityGuardRails};
 use std::cmp::max;
 use std::convert::TryFrom;
 
@@ -50,6 +51,7 @@ use static_assertions::const_assert_eq;
 use super::oracle_map::OracleIdentifier;
 use super::protected_maker_mode_config::ProtectedMakerParams;
 use super::zero_copy::HasLen;
+use crate::math::oracle::{oracle_validity, OracleValidity};
 
 #[cfg(test)]
 mod tests;
@@ -761,15 +763,38 @@ impl PerpMarket {
         &self,
         oracle_price_data: OraclePriceData,
         clock_slot: u64,
+        oracle_guard_rails: &ValidityGuardRails,
     ) -> DriftResult<MMOraclePriceData> {
-        Ok(MMOraclePriceData {
-            mm_oracle_price: self.amm.mm_oracle_price,
-            mm_oracle_delay: clock_slot
-                .cast::<i64>()?
-                .safe_sub(self.amm.mm_oracle_slot.cast::<i64>()?)?,
-            oracle_confidence: None,
-            oracle_price_data: oracle_price_data,
-        })
+        let delay = clock_slot
+            .cast::<i64>()?
+            .safe_sub(self.amm.mm_oracle_slot.cast::<i64>()?)?;
+        let oracle_data = OraclePriceData {
+            price: self.amm.mm_oracle_price,
+            delay,
+            confidence: oracle_price_data.confidence,
+            has_sufficient_number_of_data_points: true,
+        };
+        let oracle_validity = if self.amm.mm_oracle_price == 0 {
+            OracleValidity::NonPositive
+        } else {
+            oracle_validity(
+                MarketType::Perp,
+                self.market_index,
+                self.amm.historical_oracle_data.last_oracle_price_twap,
+                &oracle_data,
+                &oracle_guard_rails,
+                self.get_max_confidence_interval_multiplier()?,
+                &self.amm.oracle_source,
+                true,
+                self.amm.oracle_slot_delay_override,
+            )?
+        };
+        Ok(MMOraclePriceData::new(
+            self.amm.mm_oracle_price,
+            delay,
+            oracle_validity,
+            oracle_price_data,
+        )?)
     }
 }
 

@@ -1612,6 +1612,7 @@ describe('liquidity providing', () => {
 	return;
 
 	it('permissionless lp burn', async () => {
+		return;
 		const lpAmount = new BN(1 * BASE_PRECISION.toNumber());
 		const _sig = await driftClient.addPerpLpShares(lpAmount, 0);
 

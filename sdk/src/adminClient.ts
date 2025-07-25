@@ -4726,6 +4726,35 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async zeroMMOracleFields(
+		marketIndex: number
+	): Promise<TransactionSignature> {
+		const zeroMMOracleFieldsIx = await this.getZeroMMOracleFieldsIx(
+			marketIndex
+		);
+
+		const tx = await this.buildTransaction(zeroMMOracleFieldsIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+	public async getZeroMMOracleFieldsIx(
+		marketIndex: number
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.zeroMmOracleFields({
+			accounts: {
+				admin: this.isSubscribed
+					? this.getStateAccount().admin
+					: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				perpMarket: await getPerpMarketPublicKey(
+					this.program.programId,
+					marketIndex
+				),
+			},
+		});
+	}
+
 	public async initializeLpPool(
 		name: string,
 		minMintFee: BN,

@@ -1,5 +1,5 @@
 {
-  "version": "2.128.1",
+  "version": "2.129.0",
   "name": "drift",
   "instructions": [
     {
@@ -3115,10 +3115,7 @@
         {
           "name": "marketIndexes",
           "type": {
-            "array": [
-              "u16",
-              5
-            ]
+            "vec": "u16"
           }
         }
       ]
@@ -7768,6 +7765,27 @@
           "type": "bool"
         }
       ]
+    },
+    {
+      "name": "zeroMmOracleFields",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
     },
     {
       "name": "initializeConstituent",
@@ -14193,6 +14211,9 @@
           },
           {
             "name": "OracleOrderPrice"
+          },
+          {
+            "name": "UseMMOraclePrice"
           },
           {
             "name": "UpdateLpConstituentTargetBase"

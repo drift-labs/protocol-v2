@@ -9,7 +9,7 @@ import {
 } from '../constants/numericConstants';
 import { BigNum } from '../factory/bigNum';
 import { PerpMarketAccount, isVariant } from '../types';
-import { MMOraclePriceData, OraclePriceData } from '../oracles/types';
+import { OraclePriceData } from '../oracles/types';
 import { calculateBidAskPrice } from './amm';
 import { calculateLiveOracleTwap } from './oracles';
 import { clampBN } from './utils';
@@ -17,14 +17,10 @@ import {
 	FUNDING_RATE_BUFFER_PRECISION,
 	FUNDING_RATE_PRECISION_EXP,
 } from '../constants/numericConstants';
-import {
-	getOraclePriceFromMMOracleData,
-	getOracleSlotFromMMOracleData,
-} from '../oracles/utils';
 
 function calculateLiveMarkTwap(
 	market: PerpMarketAccount,
-	mmOraclePriceData?: MMOraclePriceData,
+	oraclePriceData?: OraclePriceData,
 	markPrice?: BN,
 	now?: BN,
 	period = new BN(3600)
@@ -41,7 +37,7 @@ function calculateLiveMarkTwap(
 	);
 
 	if (!markPrice) {
-		const [bid, ask] = calculateBidAskPrice(market.amm, mmOraclePriceData);
+		const [bid, ask] = calculateBidAskPrice(market.amm, oraclePriceData);
 		markPrice = bid.add(ask).div(new BN(2));
 	}
 
@@ -126,7 +122,7 @@ function shrinkStaleTwaps(
  */
 export function calculateAllEstimatedFundingRate(
 	market: PerpMarketAccount,
-	mmOraclePriceData?: MMOraclePriceData,
+	oraclePriceData?: OraclePriceData,
 	markPrice?: BN,
 	now?: BN
 ): [BN, BN, BN, BN, BN] {
@@ -140,24 +136,14 @@ export function calculateAllEstimatedFundingRate(
 	// calculate real-time mark and oracle twap
 	const liveMarkTwap = calculateLiveMarkTwap(
 		market,
-		mmOraclePriceData,
+		oraclePriceData,
 		markPrice,
 		now,
 		market.amm.fundingPeriod
 	);
-
-	let oraclePriceDataToUse: OraclePriceData | undefined;
-	if (mmOraclePriceData) {
-		oraclePriceDataToUse = {
-			price: getOraclePriceFromMMOracleData(mmOraclePriceData),
-			slot: getOracleSlotFromMMOracleData(mmOraclePriceData),
-			...mmOraclePriceData?.oraclePriceData,
-		};
-	}
-
 	const liveOracleTwap = calculateLiveOracleTwap(
 		market.amm.historicalOracleData,
-		oraclePriceDataToUse.price,
+		oraclePriceData,
 		now,
 		market.amm.fundingPeriod
 	);
@@ -279,7 +265,7 @@ const getFundingRatePct = (rawFundingRate: BN) => {
  */
 export function calculateFormattedLiveFundingRate(
 	market: PerpMarketAccount,
-	mmOraclePriceData: MMOraclePriceData,
+	oraclePriceData: OraclePriceData,
 	period: 'hour' | 'year'
 ): {
 	longRate: number;
@@ -292,7 +278,7 @@ export function calculateFormattedLiveFundingRate(
 	const [_markTwapLive, _oracleTwapLive, longFundingRate, shortFundingRate] =
 		calculateLongShortFundingRateAndLiveTwaps(
 			market,
-			mmOraclePriceData,
+			oraclePriceData,
 			undefined,
 			nowBN
 		);
@@ -363,13 +349,13 @@ function getMaxPriceDivergenceForFundingRate(
  */
 export function calculateLongShortFundingRate(
 	market: PerpMarketAccount,
-	mmOraclePriceData?: MMOraclePriceData,
+	oraclePriceData?: OraclePriceData,
 	markPrice?: BN,
 	now?: BN
 ): [BN, BN] {
 	const [_1, _2, _, cappedAltEst, interpEst] = calculateAllEstimatedFundingRate(
 		market,
-		mmOraclePriceData,
+		oraclePriceData,
 		markPrice,
 		now
 	);
@@ -394,12 +380,12 @@ export function calculateLongShortFundingRate(
  */
 export function calculateLongShortFundingRateAndLiveTwaps(
 	market: PerpMarketAccount,
-	mmOraclePriceData?: MMOraclePriceData,
+	oraclePriceData?: OraclePriceData,
 	markPrice?: BN,
 	now?: BN
 ): [BN, BN, BN, BN] {
 	const [markTwapLive, oracleTwapLive, _2, cappedAltEst, interpEst] =
-		calculateAllEstimatedFundingRate(market, mmOraclePriceData, markPrice, now);
+		calculateAllEstimatedFundingRate(market, oraclePriceData, markPrice, now);
 
 	if (
 		market.amm.baseAssetAmountLong.gt(market.amm.baseAssetAmountShort.abs())

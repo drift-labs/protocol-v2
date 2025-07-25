@@ -352,7 +352,7 @@ pub fn calculate_optimal_peg_and_budget(
 
     let mut fee_budget = calculate_fee_pool(market)?;
 
-    let target_price_i64 = mm_oracle_price_data.get_oracle_price();
+    let target_price_i64 = mm_oracle_price_data.get_price();
     let target_price = target_price_i64.cast()?;
     let mut optimal_peg = calculate_peg_from_target_price(
         market.amm.quote_asset_reserve,

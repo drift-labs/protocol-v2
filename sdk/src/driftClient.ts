@@ -143,7 +143,7 @@ import {
 import { findDirectionToClose, positionIsAvailable } from './math/position';
 import { getSignedTokenAmount, getTokenAmount } from './math/spotBalance';
 import { decodeName, DEFAULT_USER_NAME, encodeName } from './userName';
-import { MMOraclePriceData, OraclePriceData } from './oracles/types';
+import { OraclePriceData } from './oracles/types';
 import { DriftClientConfig } from './driftClientConfig';
 import { PollingDriftClientAccountSubscriber } from './accounts/pollingDriftClientAccountSubscriber';
 import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDriftClientAccountSubscriber';
@@ -202,6 +202,7 @@ import { Slothash } from './slot/SlothashSubscriber';
 import { getOracleId } from './oracles/oracleId';
 import { SignedMsgOrderParams } from './types';
 import { sha256 } from '@noble/hashes/sha256';
+import { getOracleConfidenceFromMMOracleData } from './oracles/utils';
 import { ConstituentMap } from './constituentMap/constituentMap';
 
 type RemainingAccountParams = {
@@ -8504,13 +8505,35 @@ export class DriftClient {
 		).data;
 	}
 
-	public getMMOracleDataForPerpMarket(marketIndex: number): MMOraclePriceData {
+	public getMMOracleDataForPerpMarket(marketIndex: number): OraclePriceData {
 		const perpMarket = this.getPerpMarketAccount(marketIndex);
-		return {
-			mmOraclePrice: perpMarket.amm.mmOraclePrice,
-			mmOracleSlot: perpMarket.amm.mmOracleSlot,
-			oraclePriceData: this.getOracleDataForPerpMarket(marketIndex),
-		};
+		const oracleData = this.getOracleDataForPerpMarket(marketIndex);
+		const stateAccountAndSlot = this.accountSubscriber.getStateAccountAndSlot();
+		if (
+			!isOracleValid(
+				perpMarket,
+				oracleData,
+				stateAccountAndSlot.data.oracleGuardRails,
+				stateAccountAndSlot.slot
+			) ||
+			perpMarket.amm.mmOraclePrice.eq(ZERO) ||
+			perpMarket.amm.mmOracleSlot < oracleData.slot
+		) {
+			return { ...oracleData, fetchedWithMMOracle: true };
+		} else {
+			const conf = getOracleConfidenceFromMMOracleData({
+				mmOraclePrice: perpMarket.amm.mmOraclePrice,
+				mmOracleSlot: perpMarket.amm.mmOracleSlot,
+				oraclePriceData: oracleData,
+			});
+			return {
+				price: perpMarket.amm.mmOraclePrice,
+				slot: perpMarket.amm.mmOracleSlot,
+				confidence: conf,
+				hasSufficientNumberOfDataPoints: true,
+				fetchedWithMMOracle: true,
+			};
+		}
 	}
 
 	public getOracleDataForSpotMarket(marketIndex: number): OraclePriceData {

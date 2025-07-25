@@ -729,7 +729,7 @@ pub mod drift {
 
     pub fn update_amms<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, UpdateAMM<'info>>,
-        market_indexes: [u16; 5],
+        market_indexes: Vec<u16>,
     ) -> Result<()> {
         handle_update_amms(ctx, market_indexes)
     }
@@ -1860,6 +1860,10 @@ pub mod drift {
         disable: bool,
     ) -> Result<()> {
         handle_update_disable_bitflags_mm_oracle(ctx, disable)
+    }
+
+    pub fn zero_mm_oracle_fields(ctx: Context<HotAdminUpdatePerpMarket>) -> Result<()> {
+        handle_zero_mm_oracle_fields(ctx)
     }
 
     pub fn initialize_constituent<'info>(

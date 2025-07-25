@@ -19,8 +19,6 @@ use phoenix::quantities::WrapperU64;
 use pyth_solana_receiver_sdk::cpi::accounts::InitPriceUpdate;
 use pyth_solana_receiver_sdk::program::PythSolanaReceiver;
 use serum_dex::state::ToAlignedBytes;
-use solana_program::sysvar::instructions;
-use solana_program::sysvar::SysvarId;
 
 use crate::controller::token::{close_vault, receive, send_from_program_vault};
 use crate::error::ErrorCode;
@@ -96,6 +94,7 @@ use crate::{load, FEE_ADJUSTMENT_MAX};
 use crate::{load_mut, PTYH_PRICE_FEED_SEED_PREFIX};
 use crate::{math, safe_decrement, safe_increment};
 use crate::{math_error, SPOT_BALANCE_PRECISION};
+use solana_program::sysvar::instructions;
 
 use super::optional_accounts::get_token_interface;
 use anchor_spl::token_2022::spl_token_2022::extension::transfer_hook::TransferHook;
@@ -5045,6 +5044,14 @@ pub fn handle_update_if_rebalance_config(
 
     config.validate()?;
 
+    Ok(())
+}
+
+pub fn handle_zero_mm_oracle_fields(ctx: Context<HotAdminUpdatePerpMarket>) -> Result<()> {
+    let mut perp_market = load_mut!(ctx.accounts.perp_market)?;
+    perp_market.amm.mm_oracle_price = 0;
+    perp_market.amm.mm_oracle_sequence_id = 0;
+    perp_market.amm.mm_oracle_slot = 0;
     Ok(())
 }
 
