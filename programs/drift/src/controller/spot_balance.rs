@@ -1,4 +1,4 @@
-use crate::math::oracle::oracle_validity;
+use crate::math::oracle::{oracle_validity, LogMode};
 use crate::state::state::ValidityGuardRails;
 use std::cmp::max; //, OracleValidity};
 
@@ -403,7 +403,7 @@ pub fn update_spot_market_and_check_validity(
         validity_guard_rails,
         spot_market.get_max_confidence_interval_multiplier()?,
         &spot_market.oracle_source,
-        false,
+        LogMode::ExchangeOracle,
         0,
     )?;
 

@@ -4,7 +4,7 @@ use crate::ids::{
     drift_oracle_receiver_program, pyth_program, switchboard_on_demand, switchboard_program,
 };
 use crate::math::constants::PRICE_PRECISION_I64;
-use crate::math::oracle::{oracle_validity, OracleValidity};
+use crate::math::oracle::{oracle_validity, LogMode, OracleValidity};
 use crate::msg;
 use crate::state::oracle::{get_oracle_price, OraclePriceData, OracleSource, PrelaunchOracle};
 use crate::state::state::OracleGuardRails;
@@ -108,7 +108,7 @@ impl<'a> OracleMap<'a> {
                     &self.oracle_guard_rails.validity,
                     max_confidence_interval_multiplier,
                     &oracle_id.1,
-                    true,
+                    LogMode::ExchangeOracle,
                     slots_before_stale_for_amm_override,
                 )?;
                 self.validity.insert(*oracle_id, oracle_validity);
@@ -138,7 +138,7 @@ impl<'a> OracleMap<'a> {
             &self.oracle_guard_rails.validity,
             max_confidence_interval_multiplier,
             &oracle_id.1,
-            true,
+            LogMode::ExchangeOracle,
             slots_before_stale_for_amm_override,
         )?;
         self.validity.insert(*oracle_id, oracle_validity);

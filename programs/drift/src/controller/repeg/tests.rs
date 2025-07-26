@@ -112,7 +112,7 @@ pub fn update_amm_test() {
         &state.oracle_guard_rails.validity,
         market.get_max_confidence_interval_multiplier().unwrap(),
         &market.amm.oracle_source,
-        false,
+        LogMode::ExchangeOracle,
         0,
     )
     .unwrap()
@@ -245,7 +245,7 @@ pub fn update_amm_test_bad_oracle() {
         &state.oracle_guard_rails.validity,
         market.get_max_confidence_interval_multiplier().unwrap(),
         &market.amm.oracle_source,
-        false,
+        LogMode::None,
         0,
     )
     .unwrap()
