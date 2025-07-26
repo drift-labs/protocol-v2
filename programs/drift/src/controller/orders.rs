@@ -43,7 +43,7 @@ use crate::math::matching::{
     calculate_filler_multiplier_for_matched_orders, do_orders_cross, is_maker_for_taker,
 };
 use crate::math::oracle::{
-    is_oracle_valid_for_action, oracle_validity, DriftAction, OracleValidity,
+    self, is_oracle_valid_for_action, oracle_validity, DriftAction, OracleValidity,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::safe_unwrap::SafeUnwrap;
@@ -1085,7 +1085,7 @@ pub fn fill_perp_order(
             &state.oracle_guard_rails.validity,
             market.get_max_confidence_interval_multiplier()?,
             &market.amm.oracle_source,
-            true,
+            oracle::LogMode::SafeMMOracle,
             market.amm.oracle_slot_delay_override,
         )?;
 

@@ -1,5 +1,6 @@
 use std::cmp::min;
 
+use crate::math::oracle::LogMode;
 use crate::msg;
 use crate::state::oracle::MMOraclePriceData;
 use crate::state::oracle::OraclePriceData;
@@ -174,7 +175,7 @@ pub fn _update_amm(
         &state.oracle_guard_rails.validity,
         market.get_max_confidence_interval_multiplier()?,
         &market.amm.oracle_source,
-        true,
+        oracle::LogMode::SafeMMOracle,
         0,
     )?;
 
@@ -263,7 +264,7 @@ pub fn update_amm_and_check_validity(
         &state.oracle_guard_rails.validity,
         market.get_max_confidence_interval_multiplier()?,
         &market.amm.oracle_source,
-        false,
+        LogMode::SafeMMOracle,
         0,
     )?;
 

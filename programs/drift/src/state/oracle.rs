@@ -227,16 +227,6 @@ impl MMOraclePriceData {
         })
     }
 
-    pub fn default_usd() -> Self {
-        MMOraclePriceData {
-            mm_oracle_price: PRICE_PRECISION_I64,
-            mm_oracle_delay: 0,
-            mm_exchange_diff_bps: 0,
-            mm_oracle_validity: OracleValidity::default(),
-            exchange_oracle_price_data: OraclePriceData::default_usd(),
-            safe_oracle_price_data: OraclePriceData::default_usd(),
-        }
-    }
     pub fn get_price(&self) -> i64 {
         self.safe_oracle_price_data.price
     }
@@ -289,17 +279,6 @@ pub struct OraclePriceData {
     pub confidence: u64,
     pub delay: i64,
     pub has_sufficient_number_of_data_points: bool,
-}
-
-impl OraclePriceData {
-    pub fn default_usd() -> Self {
-        OraclePriceData {
-            price: PRICE_PRECISION_I64,
-            confidence: 1,
-            delay: 0,
-            has_sufficient_number_of_data_points: true,
-        }
-    }
 }
 
 pub fn get_oracle_price(
