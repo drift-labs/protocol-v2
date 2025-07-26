@@ -2206,16 +2206,14 @@ pub fn handle_transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
 
         drop(spot_market);
 
-        user.meets_withdraw_margin_requirement_and_increment_fuel_bonus(
+        user.meets_withdraw_margin_requirement_for_isolated_perp_position(
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
             MarginRequirementType::Initial,
-            spot_market_index,
-            amount as u128,
             user_stats,
             now,
-            Some(perp_market_index),
+            perp_market_index,
         )?;
 
         // TODO figure out what to do here
