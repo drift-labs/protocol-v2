@@ -78,7 +78,7 @@ pub fn is_oracle_valid_for_action(
 ) -> DriftResult<bool> {
     let is_ok = match action {
         Some(action) => match action {
-            DriftAction::FillOrderAmm | DriftAction::UseMMOraclePrice => {
+            DriftAction::FillOrderAmm => {
                 matches!(oracle_validity, OracleValidity::Valid)
             }
             // relax oracle staleness, later checks for sufficiently recent amm slot update for funding update
@@ -129,6 +129,10 @@ pub fn is_oracle_valid_for_action(
             ),
             DriftAction::UpdateTwap => !matches!(oracle_validity, OracleValidity::NonPositive),
             DriftAction::UpdateAMMCurve => !matches!(oracle_validity, OracleValidity::NonPositive),
+            DriftAction::UseMMOraclePrice => !matches!(
+                oracle_validity,
+                OracleValidity::NonPositive | OracleValidity::TooVolatile,
+            ),
         },
         None => {
             matches!(oracle_validity, OracleValidity::Valid)

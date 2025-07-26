@@ -1102,6 +1102,17 @@ pub fn fill_perp_order(
         amm_is_available &= !market.is_operation_paused(PerpOperation::AmmFill);
         amm_is_available &= !market.has_too_much_drawdown()?;
 
+        // We are already using safe oracle data from MM oracle.
+        // But AMM isnt available if we could have used MM oracle but fell back due to price diff
+        let amm_available_mm_oracle_recent_but_volatile =
+            if mm_oracle_price_data.is_mm_oracle_as_recent() && market.amm.mm_oracle_slot != 0 {
+                let amm_available = !mm_oracle_price_data.is_mm_exchange_diff_bps_high();
+                amm_available
+            } else {
+                true
+            };
+        amm_is_available &= amm_available_mm_oracle_recent_but_volatile;
+
         let amm_wants_to_jit_make = market.amm.amm_wants_to_jit_make(order_direction)?;
         amm_lp_allowed_to_jit_make = market
             .amm
