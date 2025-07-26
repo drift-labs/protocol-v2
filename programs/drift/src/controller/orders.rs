@@ -1105,7 +1105,7 @@ pub fn fill_perp_order(
         // We are already using safe oracle data from MM oracle.
         // But AMM isnt available if we could have used MM oracle but fell back due to price diff
         let amm_available_mm_oracle_recent_but_volatile =
-            if mm_oracle_price_data.is_mm_oracle_as_recent() && market.amm.mm_oracle_slot != 0 {
+            if mm_oracle_price_data.is_enabled() && mm_oracle_price_data.is_mm_oracle_as_recent() {
                 let amm_available = !mm_oracle_price_data.is_mm_exchange_diff_bps_high();
                 amm_available
             } else {

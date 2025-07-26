@@ -263,6 +263,10 @@ impl MMOraclePriceData {
         self.mm_oracle_delay <= self.safe_oracle_price_data.delay
     }
 
+    pub fn is_enabled(&self) -> bool {
+        self.mm_oracle_price != 0 && self.mm_oracle_delay >= 0
+    }
+
     // For potential future observability
     pub fn _get_mm_oracle_price(&self) -> i64 {
         self.mm_oracle_price
