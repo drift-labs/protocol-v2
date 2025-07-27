@@ -246,6 +246,27 @@ pub fn validate_user_not_being_liquidated(
     Ok(())
 }
 
+pub fn is_isolated_position_being_liquidated(
+    user: &User,
+    market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    perp_market_index: u16,
+    liquidation_margin_buffer_ratio: u32,
+) -> DriftResult<bool> {
+    let margin_calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
+        user,
+        market_map,
+        spot_market_map,
+        oracle_map,
+        MarginContext::liquidation(liquidation_margin_buffer_ratio).isolated_position_market_index(perp_market_index),
+    )?;
+
+    let is_being_liquidated = !margin_calculation.can_exit_liquidation()?;
+
+    Ok(is_being_liquidated)
+}
+
 pub enum LiquidationMultiplierType {
     Discount,
     Premium,

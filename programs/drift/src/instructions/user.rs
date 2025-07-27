@@ -33,6 +33,7 @@ use crate::instructions::optional_accounts::{
 };
 use crate::instructions::SpotFulfillmentType;
 use crate::math::casting::Cast;
+use crate::math::liquidation::is_isolated_position_being_liquidated;
 use crate::math::liquidation::is_user_being_liquidated;
 use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_liability_info;
 use crate::math::margin::meets_initial_margin_requirement;
@@ -1980,15 +1981,17 @@ pub fn handle_deposit_into_isolated_perp_position<'c: 'info, 'info>(
     let total_deposits_after = user.total_deposits;
     let total_withdraws_after = user.total_withdraws;
 
-    let perp_position = user.force_get_isolated_perp_position_mut(perp_market_index)?;
+    {
+        let perp_position = user.force_get_isolated_perp_position_mut(perp_market_index)?;
 
-    update_spot_balances(
-        amount.cast::<u128>()?,
-        &SpotBalanceType::Deposit,
-        &mut spot_market,
-        perp_position,
-        false,
-    )?;
+        update_spot_balances(
+            amount.cast::<u128>()?,
+            &SpotBalanceType::Deposit,
+            &mut spot_market,
+            perp_position,
+            false,
+        )?;
+    }
 
     validate!(
         matches!(spot_market.status, MarketStatus::Active),
@@ -1997,21 +2000,22 @@ pub fn handle_deposit_into_isolated_perp_position<'c: 'info, 'info>(
     )?;
 
     drop(spot_market);
-    // TODO add back
-    // if user.is_being_liquidated() {
-    //     // try to update liquidation status if user is was already being liq'd
-    //     let is_being_liquidated = is_user_being_liquidated(
-    //         user,
-    //         &perp_market_map,
-    //         &spot_market_map,
-    //         &mut oracle_map,
-    //         state.liquidation_margin_buffer_ratio,
-    //     )?;
 
-    //     if !is_being_liquidated {
-    //         user.exit_liquidation();
-    //     }
-    // }
+    if user.is_isolated_position_being_liquidated(perp_market_index)? {
+        // try to update liquidation status if user is was already being liq'd
+        let is_being_liquidated = is_isolated_position_being_liquidated(
+            user,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            perp_market_index,
+            state.liquidation_margin_buffer_ratio,
+        )?;
+
+        if !is_being_liquidated {
+            user.exit_isolated_position_liquidation(perp_market_index)?;
+        }
+    }
 
     user.update_last_active_slot(slot);
 
@@ -2174,6 +2178,22 @@ pub fn handle_transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
         if user.is_being_liquidated() {
             user.exit_liquidation();
         }
+
+        if user.is_isolated_position_being_liquidated(perp_market_index)? {
+            // try to update liquidation status if user is was already being liq'd
+            let is_being_liquidated = is_isolated_position_being_liquidated(
+                user,
+                &perp_market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                perp_market_index,
+                state.liquidation_margin_buffer_ratio,
+            )?;
+    
+            if !is_being_liquidated {
+                user.exit_isolated_position_liquidation(perp_market_index)?;
+            }
+        }
     } else {
         let mut spot_market = spot_market_map.get_ref_mut(&spot_market_index)?;
 
@@ -2216,10 +2236,24 @@ pub fn handle_transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
             perp_market_index,
         )?;
 
-        // TODO figure out what to do here
-        // if user.is_being_liquidated() {
-        //     user.exit_liquidation();
-        // }
+        if user.is_isolated_position_being_liquidated(perp_market_index)? {
+            user.exit_isolated_position_liquidation(perp_market_index)?;
+        }
+
+        if user.is_being_liquidated() {
+            // try to update liquidation status if user is was already being liq'd
+            let is_being_liquidated = is_user_being_liquidated(
+                user,
+                &perp_market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                state.liquidation_margin_buffer_ratio,
+            )?;
+    
+            if !is_being_liquidated {
+                user.exit_liquidation();
+            }
+        }
     }
 
 
@@ -2315,23 +2349,19 @@ pub fn handle_withdraw_from_isolated_perp_position<'c: 'info, 'info>(
         )?;
     }
 
-    // this is wrong
-    user.meets_withdraw_margin_requirement_and_increment_fuel_bonus(
+    user.meets_withdraw_margin_requirement_for_isolated_perp_position(
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
         MarginRequirementType::Initial,
-        spot_market_index,
-        amount as u128,
         &mut user_stats,
         now,
-        Some(perp_market_index),
+        perp_market_index,
     )?;
 
-    // TODO figure out what to do here
-    // if user.is_being_liquidated() {
-    //     user.exit_liquidation();
-    // }
+    if user.is_isolated_position_being_liquidated(perp_market_index)? {
+        user.exit_isolated_position_liquidation(perp_market_index)?;
+    }
 
     user.update_last_active_slot(slot);
 

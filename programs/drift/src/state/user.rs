@@ -274,10 +274,21 @@ impl User {
             let position_index = add_new_position(&mut self.perp_positions, perp_market_index)?;
 
             let perp_position = &mut self.perp_positions[position_index];
-            perp_position.position_type = 1;
+            perp_position.position_flag = PositionFlag::IsolatedPosition as u8;
 
             Ok(&mut self.perp_positions[position_index])
         }
+    }
+
+    pub fn get_isolated_perp_position(&self, perp_market_index: u16) -> DriftResult<&PerpPosition> {
+        let position_index = get_position_index(&self.perp_positions, perp_market_index)?;
+        validate!(
+            self.perp_positions[position_index].is_isolated(),
+            ErrorCode::InvalidPerpPosition,
+            "perp position is not isolated"
+        )?;
+
+        Ok(&self.perp_positions[position_index])
     }
 
     pub fn get_order_index(&self, order_id: u32) -> DriftResult<usize> {
@@ -384,6 +395,29 @@ impl User {
         self.remove_user_status(UserStatus::BeingLiquidated);
         self.remove_user_status(UserStatus::Bankrupt);
         self.liquidation_margin_freed = 0;
+    }
+
+    pub fn enter_isolated_position_liquidation(&mut self, perp_market_index: u16) -> DriftResult<u16> {
+        if self.is_isolated_position_being_liquidated(perp_market_index)? {
+            return self.next_liquidation_id.safe_sub(1);
+        }
+
+        let perp_position = self.force_get_isolated_perp_position_mut(perp_market_index)?;
+
+        perp_position.position_flag |= PositionFlag::BeingLiquidated as u8;
+    
+        Ok(get_then_update_id!(self, next_liquidation_id))
+    }
+
+    pub fn exit_isolated_position_liquidation(&mut self, perp_market_index: u16) -> DriftResult {
+        let perp_position = self.force_get_isolated_perp_position_mut(perp_market_index)?;
+        perp_position.position_flag &= !(PositionFlag::BeingLiquidated as u8);
+        Ok(())
+    }
+
+    pub fn is_isolated_position_being_liquidated(&self, perp_market_index: u16) -> DriftResult<bool> {
+        let perp_position = self.get_isolated_perp_position(perp_market_index)?;
+        Ok(perp_position.position_flag & PositionFlag::BeingLiquidated as u8 != 0)
     }
 
     pub fn increment_margin_freed(&mut self, margin_free: u64) -> DriftResult {
@@ -1035,7 +1069,7 @@ pub struct PerpPosition {
     pub market_index: u16,
     /// The number of open orders
     pub open_orders: u8,
-    pub position_type: u8,
+    pub position_flag: u8,
 }
 
 impl PerpPosition {
@@ -1190,7 +1224,7 @@ impl PerpPosition {
     }
 
     pub fn is_isolated(&self) -> bool {
-        self.position_type == 1
+        self.position_flag & PositionFlag::IsolatedPosition as u8 == PositionFlag::IsolatedPosition as u8
     }
 
     pub fn get_isolated_position_token_amount(&self, spot_market: &SpotMarket) -> DriftResult<u128> {
@@ -1689,6 +1723,12 @@ pub enum OrderBitFlag {
     SignedMessage = 0b00000001,
     OracleTriggerMarket = 0b00000010,
     SafeTriggerOrder = 0b00000100,
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum PositionFlag {
+    IsolatedPosition = 0b00000001,
+    BeingLiquidated = 0b00000010,
 }
 
 #[account(zero_copy(unsafe))]
