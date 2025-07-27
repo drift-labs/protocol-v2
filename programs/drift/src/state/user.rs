@@ -398,6 +398,7 @@ impl User {
     }
 
     pub fn enter_isolated_position_liquidation(&mut self, perp_market_index: u16) -> DriftResult<u16> {
+        // todo figure out liquidation id
         if self.is_isolated_position_being_liquidated(perp_market_index)? {
             return self.next_liquidation_id.safe_sub(1);
         }

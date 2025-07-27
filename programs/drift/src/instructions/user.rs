@@ -39,7 +39,7 @@ use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_l
 use crate::math::margin::meets_initial_margin_requirement;
 use crate::math::margin::{
     calculate_max_withdrawable_amount, meets_maintenance_margin_requirement,
-    meets_place_order_margin_requirement, validate_spot_margin_trading, MarginRequirementType,
+    validate_spot_margin_trading, MarginRequirementType,
 };
 use crate::math::oracle::is_oracle_valid_for_action;
 use crate::math::oracle::DriftAction;
@@ -3515,7 +3515,7 @@ pub fn handle_update_user_pool_id<'c: 'info, 'info>(
     user.pool_id = pool_id;
 
     // will throw if user has deposits/positions in other pools
-    meets_initial_margin_requirement(&user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
+    meets_initial_margin_requirement(&user, &perp_market_map, &spot_market_map, &mut oracle_map, None)?;
 
     Ok(())
 }
@@ -3741,12 +3741,29 @@ pub fn handle_enable_user_high_leverage_mode<'c: 'info, 'info>(
         "user already in high leverage mode"
     )?;
 
-    meets_maintenance_margin_requirement(
-        &user,
-        &perp_market_map,
-        &spot_market_map,
-        &mut oracle_map,
-    )?;
+    let has_non_isolated_position = user.perp_positions.iter().any(|position| !position.is_isolated());
+
+    if has_non_isolated_position {
+        meets_maintenance_margin_requirement(
+            &user,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            None,
+        )?;
+    }
+
+    let isolated_position_market_indexes = user.perp_positions.iter().filter(|position| position.is_isolated()).map(|position| position.market_index).collect::<Vec<_>>();
+
+    for market_index in isolated_position_market_indexes.iter() {
+        meets_maintenance_margin_requirement(
+            &user,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            Some(*market_index),
+        )?;
+    }
 
     let mut config = load_mut!(ctx.accounts.high_leverage_mode_config)?;
 

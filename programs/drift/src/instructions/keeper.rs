@@ -989,12 +989,25 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    let meets_margin_requirement = meets_settle_pnl_maintenance_margin_requirement(
-        user,
-        &perp_market_map,
-        &spot_market_map,
-        &mut oracle_map,
-    )?;
+    let mut try_cache_margin_requirement = false;
+    for market_index in market_indexes.iter() {
+        if !user.get_perp_position(*market_index)?.is_isolated() {
+            try_cache_margin_requirement = true;
+            break;
+        }
+    }
+
+    let meets_margin_requirement = if try_cache_margin_requirement {
+        Some(meets_settle_pnl_maintenance_margin_requirement(
+            user,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            None,
+        )?)
+    } else {
+        None
+    };
 
     for market_index in market_indexes.iter() {
         let market_in_settlement =
@@ -1035,7 +1048,7 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
                 &mut oracle_map,
                 &clock,
                 state,
-                Some(meets_margin_requirement),
+                meets_margin_requirement,
                 mode,
             )
             .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;

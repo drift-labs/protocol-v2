@@ -83,15 +83,22 @@ pub fn settle_pnl(
 
     // cannot settle negative pnl this way on a user who is in liquidation territory
     if unrealized_pnl < 0 {
+        let isolated_position_market_index = if user.perp_positions[position_index].is_isolated() {
+            Some(market_index)
+        } else {
+            None
+        };
+
         // may already be cached
         let meets_margin_requirement = match meets_margin_requirement {
-            Some(meets_margin_requirement) if !user.perp_positions[position_index].is_isolated() => meets_margin_requirement,
+            Some(meets_margin_requirement) if !isolated_position_market_index.is_some() => meets_margin_requirement,
             // TODO check margin for isolate position
             _ => meets_settle_pnl_maintenance_margin_requirement(
                 user,
                 perp_market_map,
                 spot_market_map,
                 oracle_map,
+                isolated_position_market_index,
             )?,
         };
 
@@ -351,8 +358,14 @@ pub fn settle_expired_position(
 ) -> DriftResult {
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
+    let isolated_position_market_index = if user.get_perp_position(perp_market_index)?.is_isolated() {
+        Some(perp_market_index)
+    } else {
+        None
+    };
+
     // cannot settle pnl this way on a user who is in liquidation territory
-    if !(meets_maintenance_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?)
+    if !(meets_maintenance_margin_requirement(user, perp_market_map, spot_market_map, oracle_map, isolated_position_market_index)?)
     {
         return Err(ErrorCode::InsufficientCollateralForSettlingPNL);
     }

@@ -228,6 +228,7 @@ pub fn calculate_user_safest_position_tiers(
     Ok((safest_tier_spot_liablity, safest_tier_perp_liablity))
 }
 
+// todo make sure everything using this sets isolated_position_market_index correctly
 pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
     user: &User,
     perp_market_map: &PerpMarketMap,
@@ -848,6 +849,7 @@ pub fn meets_place_order_margin_requirement(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     risk_increasing: bool,
+    isolated_position_market_index: Option<u16>,
 ) -> DriftResult {
     let margin_type = if risk_increasing {
         MarginRequirementType::Initial
@@ -855,6 +857,10 @@ pub fn meets_place_order_margin_requirement(
         MarginRequirementType::Maintenance
     };
     let context = MarginContext::standard(margin_type).strict(true);
+
+    if let Some(isolated_position_market_index) = isolated_position_market_index {
+        let context = context.isolated_position_market_index(isolated_position_market_index);
+    }
 
     let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
         user,
@@ -884,13 +890,20 @@ pub fn meets_initial_margin_requirement(
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
+    isolated_position_market_index: Option<u16>,
 ) -> DriftResult<bool> {
+    let context = MarginContext::standard(MarginRequirementType::Initial);
+
+    if let Some(isolated_position_market_index) = isolated_position_market_index {
+        let context = context.isolated_position_market_index(isolated_position_market_index);
+    }
+
     calculate_margin_requirement_and_total_collateral_and_liability_info(
         user,
         perp_market_map,
         spot_market_map,
         oracle_map,
-        MarginContext::standard(MarginRequirementType::Initial),
+        context,
     )
     .map(|calc| calc.meets_margin_requirement())
 }
@@ -900,13 +913,20 @@ pub fn meets_settle_pnl_maintenance_margin_requirement(
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
+    isolated_position_market_index: Option<u16>,
 ) -> DriftResult<bool> {
+    let context = MarginContext::standard(MarginRequirementType::Maintenance).strict(true);
+
+    if let Some(isolated_position_market_index) = isolated_position_market_index {
+        let context = context.isolated_position_market_index(isolated_position_market_index);
+    }
+
     calculate_margin_requirement_and_total_collateral_and_liability_info(
         user,
         perp_market_map,
         spot_market_map,
         oracle_map,
-        MarginContext::standard(MarginRequirementType::Maintenance).strict(true),
+        context,
     )
     .map(|calc| calc.meets_margin_requirement())
 }
@@ -916,13 +936,20 @@ pub fn meets_maintenance_margin_requirement(
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
+    isolated_position_market_index: Option<u16>,
 ) -> DriftResult<bool> {
+    let context = MarginContext::standard(MarginRequirementType::Maintenance);
+
+    if let Some(isolated_position_market_index) = isolated_position_market_index {
+        let context = context.isolated_position_market_index(isolated_position_market_index);
+    }
+
     calculate_margin_requirement_and_total_collateral_and_liability_info(
         user,
         perp_market_map,
         spot_market_map,
         oracle_map,
-        MarginContext::standard(MarginRequirementType::Maintenance),
+        context,
     )
     .map(|calc| calc.meets_margin_requirement())
 }
@@ -1109,6 +1136,14 @@ pub fn calculate_user_equity(
 
             all_oracles_valid &=
                 is_oracle_valid_for_action(quote_oracle_validity, Some(DriftAction::MarginCalc))?;
+
+            if market_position.is_isolated() {
+                let quote_token_amount = market_position.get_isolated_position_token_amount(&quote_spot_market)?;
+
+                let token_value = get_token_value(quote_token_amount.cast()?, quote_spot_market.decimals, quote_oracle_price_data.price)?;
+
+                net_usd_value = net_usd_value.safe_add(token_value)?;
+            }
 
             quote_oracle_price_data.price
         };
