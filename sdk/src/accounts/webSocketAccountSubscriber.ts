@@ -13,6 +13,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 	dataAndSlot?: DataAndSlot<T>;
 	bufferAndSlot?: BufferAndSlot;
 	accountName: string;
+	logAccountName: string;
 	program: Program;
 	accountPublicKey: PublicKey;
 	decodeBufferFn: (buffer: Buffer) => T;
@@ -37,13 +38,14 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 		commitment?: Commitment
 	) {
 		this.accountName = accountName;
+		this.logAccountName = `${accountName}-${accountPublicKey.toBase58()}`;
 		this.program = program;
 		this.accountPublicKey = accountPublicKey;
 		this.decodeBufferFn = decodeBuffer;
 		this.resubOpts = resubOpts;
 		if (this.resubOpts?.resubTimeoutMs < 1000) {
 			console.log(
-				'resubTimeoutMs should be at least 1000ms to avoid spamming resub'
+				`resubTimeoutMs should be at least 1000ms to avoid spamming resub ${this.logAccountName}`
 			);
 		}
 		this.receivingData = false;
@@ -108,7 +110,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 				if (this.receivingData) {
 					if (this.resubOpts?.logResubMessages) {
 						console.log(
-							`No ws data from ${this.accountName} in ${this.resubOpts.resubTimeoutMs}ms, resubscribing`
+							`No ws data from ${this.logAccountName} in ${this.resubOpts.resubTimeoutMs}ms, resubscribing`
 						);
 					}
 					await this.unsubscribe(true);
