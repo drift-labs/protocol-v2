@@ -4873,7 +4873,6 @@ pub fn handle_update_mm_oracle_native(accounts: &[AccountInfo], data: &[u8]) -> 
         let clock_data = clock_account.data.borrow();
 
         perp_market[832..840].copy_from_slice(&clock_data[0..8]);
-        // perp_market[832..840].copy_from_slice(Clock::get()?.slot.to_le_bytes().as_ref());
         perp_market[912..920].copy_from_slice(&data[0..8]);
         perp_market[936..944].copy_from_slice(&data[8..16]);
     }

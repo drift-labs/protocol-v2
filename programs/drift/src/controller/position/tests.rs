@@ -1250,7 +1250,7 @@ fn amm_perp_ref_offset() {
     crate::validation::perp_market::validate_perp_market(&perp_market).unwrap();
 
     // Update MM oracle and reference price offset stays the same and is applied to the MM oracle
-    perp_market.amm.mm_oracle_price = 7200000;
+    perp_market.amm.mm_oracle_price = oracle_price_data.price * 1005 / 1000;
     perp_market.amm.mm_oracle_slot = clock_slot;
     let mm_oracle_price_data = perp_market
         .get_mm_oracle_price_data(
@@ -1272,13 +1272,13 @@ fn amm_perp_ref_offset() {
         .amm
         .bid_ask_price(reserve_price_mm_offset)
         .unwrap();
-    assert_eq!(perp_market.amm.reference_price_offset, 132);
-    assert_eq!(reserve_price_mm_offset, 7199999);
-    assert_eq!(b2, 7180271);
-    assert_eq!(a2, 7221656);
+    assert_eq!(perp_market.amm.reference_price_offset, 133);
+    assert_eq!(reserve_price_mm_offset, 7137107);
+    assert_eq!(b2, 7101549);
+    assert_eq!(a2, 7174591);
 
     // Uses the original oracle if the slot is old, ignoring MM oracle
-    perp_market.amm.mm_oracle_price = 7200000;
+    perp_market.amm.mm_oracle_price = mm_oracle_price_data.get_price() * 995 / 1000;
     perp_market.amm.mm_oracle_slot = clock_slot - 100;
     let mut mm_oracle_price = perp_market
         .get_mm_oracle_price_data(
@@ -1301,8 +1301,8 @@ fn amm_perp_ref_offset() {
         .bid_ask_price(reserve_price_mm_offset_3)
         .unwrap();
     assert_eq!(reserve_price_mm_offset_3, r);
-    assert_eq!(b3, 7082154);
-    assert_eq!(a3, 7122974);
+    assert_eq!(b3, 7066225);
+    assert_eq!(a3, 7138903);
 }
 
 #[test]

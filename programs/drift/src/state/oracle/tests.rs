@@ -236,7 +236,7 @@ fn mm_oracle_confidence() {
             peg_multiplier: 22_100_000_000,
             base_asset_amount_with_amm: (12295081967_i128),
             max_spread: 1000,
-            mm_oracle_price: 132 * PRICE_PRECISION_I64 + 873,
+            mm_oracle_price: 130 * PRICE_PRECISION_I64 + 999,
             mm_oracle_slot: slot,
             historical_oracle_data: HistoricalOracleData::default_with_current_oracle(
                 oracle_price_data,
@@ -257,7 +257,10 @@ fn mm_oracle_confidence() {
         .get_mm_oracle_price_data(oracle_price_data, slot, &state.oracle_guard_rails.validity)
         .unwrap();
 
-    let expected_confidence = oracle_price_data.confidence + PRICE_PRECISION_U64 * 2 / 5;
+    let expected_confidence = oracle_price_data.confidence
+        + (mm_oracle_price_data._get_mm_oracle_price()
+            - mm_oracle_price_data.get_exchange_oracle_price_data().price)
+            .abs() as u64;
 
     let confidence = mm_oracle_price_data.get_confidence();
     assert_eq!(confidence, expected_confidence);

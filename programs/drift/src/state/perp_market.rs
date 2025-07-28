@@ -46,7 +46,7 @@ use static_assertions::const_assert_eq;
 
 use super::oracle_map::OracleIdentifier;
 use super::protected_maker_mode_config::ProtectedMakerParams;
-use crate::math::oracle::{oracle_validity, OracleValidity};
+use crate::math::oracle::{oracle_validity, LogMode, OracleValidity};
 
 #[cfg(test)]
 mod tests;
@@ -776,7 +776,7 @@ impl PerpMarket {
                 &oracle_guard_rails,
                 self.get_max_confidence_interval_multiplier()?,
                 &self.amm.oracle_source,
-                true,
+                LogMode::MMOracle,
                 self.amm.oracle_slot_delay_override,
             )?
         };
