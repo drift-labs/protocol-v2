@@ -34,6 +34,33 @@ pub mod state;
 mod test_utils;
 mod validation;
 
+// main program entrypoint
+// anchor `#[program]` entrypoint is compiled out by `no-entrypoint`
+#[cfg(not(feature = "cpi"))]
+solana_program::entrypoint!(program_entry);
+
+pub fn program_entry<'info>(
+    program_id: &Pubkey,
+    accounts: &'info [AccountInfo<'info>],
+    data: &[u8],
+) -> anchor_lang::solana_program::entrypoint::ProgramResult {
+    if let [0xFF, 0xFF, 0xFF, 0xFF, discriminator, ref payload @ ..] = data {
+        match *discriminator {
+            0 => Ok(handle_update_mm_oracle_native(accounts, payload)?),
+            1 => Ok(handle_update_amm_spread_adjustment_native(
+                accounts, payload,
+            )?),
+            _ => Err(
+                anchor_lang::solana_program::program_error::ProgramError::InvalidInstructionData
+                    .into(),
+            ),
+        }
+    } else {
+        // Fallback to anchor generated entry
+        entry(program_id, accounts, data)
+    }
+}
+
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH");
 #[cfg(not(feature = "mainnet-beta"))]
@@ -703,7 +730,7 @@ pub mod drift {
 
     pub fn update_amms<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, UpdateAMM<'info>>,
-        market_indexes: [u16; 5],
+        market_indexes: Vec<u16>,
     ) -> Result<()> {
         handle_update_amms(ctx, market_indexes)
     }
@@ -1783,8 +1810,15 @@ pub mod drift {
         handle_update_if_rebalance_config(ctx, params)
     }
 
-    pub fn zero_amm_fields_prep_mm_oracle_info(ctx: Context<UpdateAmmParams>) -> Result<()> {
-        handle_zero_amm_fields_prep_mm_oracle_info(ctx)
+    pub fn update_disable_bitflags_mm_oracle(
+        ctx: Context<HotAdminUpdateState>,
+        disable: bool,
+    ) -> Result<()> {
+        handle_update_disable_bitflags_mm_oracle(ctx, disable)
+    }
+
+    pub fn zero_mm_oracle_fields(ctx: Context<HotAdminUpdatePerpMarket>) -> Result<()> {
+        handle_zero_mm_oracle_fields(ctx)
     }
 }
 

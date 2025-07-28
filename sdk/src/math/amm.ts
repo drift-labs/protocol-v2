@@ -157,6 +157,11 @@ export function calculateUpdatedAMM(
 	amm: AMM,
 	oraclePriceData: OraclePriceData
 ): AMM {
+	if (!oraclePriceData?.fetchedWithMMOracle) {
+		console.log(
+			'Use driftClient method getMMOracleDataForPerpMarket for accurate MM pricing'
+		);
+	}
 	if (amm.curveUpdateIntensity == 0 || oraclePriceData === undefined) {
 		return amm;
 	}
@@ -199,6 +204,11 @@ export function calculateUpdatedAMMSpreadReserves(
 	oraclePriceData: OraclePriceData,
 	isPrediction = false
 ): { baseAssetReserve: BN; quoteAssetReserve: BN; sqrtK: BN; newPeg: BN } {
+	if (!oraclePriceData?.fetchedWithMMOracle) {
+		console.log(
+			'Use driftClient method getMMOracleDataForPerpMarket for accurate MM pricing'
+		);
+	}
 	const newAmm = calculateUpdatedAMM(amm, oraclePriceData);
 	const [shortReserves, longReserves] = calculateSpreadReserves(
 		newAmm,
@@ -227,6 +237,11 @@ export function calculateBidAskPrice(
 	withUpdate = true,
 	isPrediction = false
 ): [BN, BN] {
+	if (!oraclePriceData?.fetchedWithMMOracle) {
+		console.log(
+			'Use driftClient method getMMOracleDataForPerpMarket for accurate MM pricing'
+		);
+	}
 	let newAmm: AMM;
 	if (withUpdate) {
 		newAmm = calculateUpdatedAMM(amm, oraclePriceData);
