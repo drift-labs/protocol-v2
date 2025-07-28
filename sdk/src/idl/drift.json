@@ -12003,6 +12003,26 @@
       }
     },
     {
+      "name": "LogMode",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "None"
+          },
+          {
+            "name": "ExchangeOracle"
+          },
+          {
+            "name": "MMOracle"
+          },
+          {
+            "name": "SafeMMOracle"
+          }
+        ]
+      }
+    },
+    {
       "name": "PositionUpdateType",
       "type": {
         "kind": "enum",
