@@ -8,7 +8,6 @@ import {
 import { BN } from '@coral-xyz/anchor';
 import { ZERO } from './constants/numericConstants';
 
-
 // Utility type which lets you denote record with values of type A mapped to a record with the same keys but values of type B
 export type MappedRecord<A extends Record<string, unknown>, B> = {
 	[K in keyof A]: B;
