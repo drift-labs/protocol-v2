@@ -1,5 +1,4 @@
 import { PublicKey } from '@solana/web3.js';
-import { BN, DriftEnv, OracleSource } from '../';
 import {
 	QUOTE_PRECISION,
 	QUOTE_PRECISION_EXP,
@@ -10,6 +9,9 @@ import {
 	NINE,
 	FIVE,
 } from './numericConstants';
+import { OracleSource } from '../types';
+import { BN } from '@coral-xyz/anchor';
+import { DriftEnv } from '../config';
 
 export type SpotMarketConfig = {
 	symbol: string;

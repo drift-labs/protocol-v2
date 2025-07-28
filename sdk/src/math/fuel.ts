@@ -1,5 +1,5 @@
 import { BN } from '@coral-xyz/anchor';
-import { SpotMarketAccount, PerpMarketAccount } from '..';
+import { SpotMarketAccount, PerpMarketAccount } from '../types';
 import {
 	QUOTE_PRECISION,
 	ZERO,

@@ -1,4 +1,9 @@
-import { isVariant, MarketTypeStr, Order, ProtectedMakerParams } from '..';
+import {
+	isVariant,
+	MarketTypeStr,
+	Order,
+	ProtectedMakerParams,
+} from '../types';
 import { createNode, DLOBNode, DLOBNodeMap } from './DLOBNode';
 
 export type SortDirection = 'asc' | 'desc';

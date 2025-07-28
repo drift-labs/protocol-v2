@@ -22,7 +22,8 @@
 		"patch-and-pub": "npm version patch --force && npm publish",
 		"prettify": "prettier --check './src/***/*.ts'",
 		"prettify:fix": "prettier --write './{src,tests}/***/*.ts'",
-		"version": "node ./scripts/updateVersion.js"
+		"version": "node ./scripts/updateVersion.js",
+		"circular-deps": "bunx madge --circular --circular --extensions ts src"
 	},
 	"keywords": [
 		"drift-labs",
@@ -78,6 +79,7 @@
 		"eslint-config-prettier": "8.3.0",
 		"eslint-plugin-prettier": "3.4.0",
 		"lodash": "4.17.21",
+		"madge": "^8.0.0",
 		"mocha": "10.7.3",
 		"object-sizeof": "2.6.5",
 		"prettier": "3.0.1",
