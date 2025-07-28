@@ -953,8 +953,6 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
             SettlePnlMode::MustSettle,
         )
         .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
-
-        user.update_last_active_slot(clock.slot);
     }
 
     let spot_market = spot_market_map.get_quote_spot_market()?;
@@ -1039,8 +1037,6 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
                 mode,
             )
             .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
-
-            user.update_last_active_slot(clock.slot);
         }
     }
 
@@ -2744,6 +2740,7 @@ pub fn handle_update_user_gov_token_insurance_stake_devnet(
 
 pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, DisableUserHighLeverageMode<'info>>,
+    disable_maintenance: bool,
 ) -> Result<()> {
     let state = &ctx.accounts.state;
     let mut user = load_mut!(ctx.accounts.user)?;
@@ -2762,13 +2759,45 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
+    let in_high_leverage_mode = user.is_high_leverage_mode(MarginRequirementType::Maintenance);
     validate!(
-        user.margin_mode == MarginMode::HighLeverage,
+        in_high_leverage_mode,
         ErrorCode::DefaultError,
-        "user must be in high leverage mode"
+        "user is not in high leverage mode"
     )?;
 
-    user.margin_mode = MarginMode::Default;
+    let old_margin_mode = user.margin_mode;
+
+    if disable_maintenance {
+        validate!(
+            user.margin_mode == MarginMode::HighLeverageMaintenance,
+            ErrorCode::DefaultError,
+            "user must be in high leverage maintenance mode"
+        )?;
+
+        user.margin_mode = MarginMode::Default;
+    } else {
+        let mut has_high_leverage_pos = false;
+        for position in user.perp_positions.iter().filter(|p| !p.is_available()) {
+            let perp_market = perp_market_map.get_ref(&position.market_index)?;
+            if perp_market.is_high_leverage_mode_enabled() {
+                has_high_leverage_pos = true;
+                break;
+            }
+        }
+
+        if !has_high_leverage_pos {
+            user.margin_mode = MarginMode::Default;
+        } else {
+            validate!(
+                user.margin_mode == MarginMode::HighLeverage,
+                ErrorCode::DefaultError,
+                "user must be in high leverage mode"
+            )?;
+
+            user.margin_mode = MarginMode::HighLeverageMaintenance;
+        }
+    }
 
     let custom_margin_ratio_before = user.max_margin_ratio;
     user.max_margin_ratio = 0;
@@ -2821,7 +2850,15 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
 
     let mut config = load_mut!(ctx.accounts.high_leverage_mode_config)?;
 
-    config.current_users = config.current_users.safe_sub(1)?;
+    if old_margin_mode == MarginMode::HighLeverageMaintenance {
+        config.current_maintenance_users = config.current_maintenance_users.safe_sub(1)?;
+    } else {
+        config.current_users = config.current_users.safe_sub(1)?;
+    }
+
+    if user.margin_mode == MarginMode::HighLeverageMaintenance {
+        config.current_maintenance_users = config.current_maintenance_users.safe_add(1)?;
+    }
 
     config.validate()?;
 
