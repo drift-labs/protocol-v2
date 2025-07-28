@@ -1,9 +1,9 @@
-import { ResubOpts, GrpcConfigs } from './types';
+import { ResubOpts, GrpcConfigs } from '../types';
 import { Program } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
-import { UserStatsAccount } from '../types';
+import { UserStatsAccount } from '../../types';
 import { WebSocketUserStatsAccountSubscriber } from './webSocketUserStatsAccountSubsriber';
-import { grpcAccountSubscriber } from './grpcAccountSubscriber';
+import { grpcAccountSubscriber } from '../baseSubscribers/grpcAccountSubscriber';
 
 export class grpcUserStatsAccountSubscriber extends WebSocketUserStatsAccountSubscriber {
 	private grpcConfigs: GrpcConfigs;

@@ -3,13 +3,13 @@ import {
 	NotSubscribedError,
 	OracleEvents,
 	OracleAccountSubscriber,
-} from './types';
+} from '../types';
 import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
-import { BulkAccountLoader } from './bulkAccountLoader';
-import { OracleClient, OraclePriceData } from '../oracles/types';
+import { BulkAccountLoader } from '../bulkAccountLoader/bulkAccountLoader';
+import { OracleClient, OraclePriceData } from '../../oracles/types';
 
 export class PollingOracleAccountSubscriber implements OracleAccountSubscriber {
 	isSubscribed: boolean;

@@ -1,8 +1,8 @@
 import { Commitment, PublicKey } from '@solana/web3.js';
-import { UserAccount } from '../types';
+import { UserAccount } from '../../types';
 import { BasicUserAccountSubscriber } from './basicUserAccountSubscriber';
 import { Program } from '@coral-xyz/anchor';
-import { UserAccountSubscriber } from './types';
+import { UserAccountSubscriber } from '../types';
 
 /**
  * Simple implementation of UserAccountSubscriber. It will fetch the UserAccount

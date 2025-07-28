@@ -16,8 +16,8 @@ import {
 import { WrappedEvent } from '../events/types';
 import { DLOB } from '../dlob/DLOB';
 import { UserSubscriptionConfig } from '../userConfig';
-import { DataAndSlot, UserEvents } from '../accounts/types';
-import { OneShotUserAccountSubscriber } from '../accounts/oneShotUserAccountSubscriber';
+import { DataAndSlot } from '../accounts/types';
+import { OneShotUserAccountSubscriber } from '../accounts/userAccount/oneShotUserAccountSubscriber';
 import { ProtectMakerParamsMap } from '../dlob/types';
 
 import {
@@ -45,6 +45,7 @@ import { decodeUser } from '../decode/user';
 import { grpcSubscription } from './grpcSubscription';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
+import { UserEvents } from './events';
 
 const MAX_USER_ACCOUNT_SIZE_BYTES = 4376;
 

@@ -5,13 +5,13 @@ import {
 	UserStatsAccountSubscriber,
 	UserStatsAccountEvents,
 	ResubOpts,
-} from './types';
+} from '../types';
 import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { Commitment, PublicKey } from '@solana/web3.js';
-import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
-import { UserStatsAccount } from '../types';
+import { WebSocketAccountSubscriber } from '../baseSubscribers/webSocketAccountSubscriber';
+import { UserStatsAccount } from '../../types';
 
 export class WebSocketUserStatsAccountSubscriber
 	implements UserStatsAccountSubscriber

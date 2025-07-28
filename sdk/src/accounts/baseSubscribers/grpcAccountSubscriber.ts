@@ -1,4 +1,4 @@
-import { ResubOpts, GrpcConfigs } from './types';
+import { ResubOpts, GrpcConfigs } from '../types';
 import { Program } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
 import * as Buffer from 'buffer';
@@ -11,7 +11,7 @@ import {
 	createClient,
 	SubscribeRequest,
 	SubscribeUpdate,
-} from '../isomorphic/grpc';
+} from '../../isomorphic/grpc';
 
 export class grpcAccountSubscriber<T> extends WebSocketAccountSubscriber<T> {
 	private client: Client;

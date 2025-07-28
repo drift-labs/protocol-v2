@@ -3,14 +3,14 @@ import {
 	NotSubscribedError,
 	TokenAccountEvents,
 	TokenAccountSubscriber,
-} from './types';
+} from '../types';
 import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
-import { BulkAccountLoader } from './bulkAccountLoader';
+import { BulkAccountLoader } from '../bulkAccountLoader/bulkAccountLoader';
 import { Account } from '@solana/spl-token';
-import { parseTokenAccount } from '../token';
+import { parseTokenAccount } from '../../token';
 
 export class PollingTokenAccountSubscriber implements TokenAccountSubscriber {
 	isSubscribed: boolean;

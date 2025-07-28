@@ -16,7 +16,7 @@ import { OraclePriceData } from '../oracles/types';
 import { calculateMarketMarginRatio } from './market';
 import { calculateScaledInitialAssetWeight } from './spotBalance';
 import { DriftClient } from '../driftClient';
-import { OneShotUserAccountSubscriber } from '../accounts/oneShotUserAccountSubscriber';
+import { OneShotUserAccountSubscriber } from '../accounts/userAccount/oneShotUserAccountSubscriber';
 import {
 	PerpMarketAccount,
 	PerpPosition,

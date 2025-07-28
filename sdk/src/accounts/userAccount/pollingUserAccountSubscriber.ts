@@ -3,13 +3,13 @@ import {
 	NotSubscribedError,
 	UserAccountEvents,
 	UserAccountSubscriber,
-} from './types';
-import { Connection } from '../bankrun/bankrunConnection';
+} from '../types';
+import { Connection } from '../../bankrun/bankrunConnection';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
-import { UserAccount } from '../types';
-import { BulkAccountLoader } from './bulkAccountLoader';
+import { UserAccount } from '../../types';
+import { BulkAccountLoader } from '../bulkAccountLoader/bulkAccountLoader';
 
 export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 	isSubscribed: boolean;

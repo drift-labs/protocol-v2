@@ -3,10 +3,10 @@ import {
 	BufferAndSlot,
 	AccountSubscriber,
 	ResubOpts,
-} from './types';
+} from '../types';
 import { AnchorProvider, Program } from '@coral-xyz/anchor';
 import { AccountInfo, Commitment, Context, PublicKey } from '@solana/web3.js';
-import { capitalize } from './utils';
+import { capitalize } from '../utils';
 import * as Buffer from 'buffer';
 
 export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
