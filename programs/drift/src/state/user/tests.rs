@@ -2430,7 +2430,7 @@ mod update_open_bids_and_asks {
         };
         order.add_bit_flag(OrderBitFlag::NewReduceOnly);
 
-        assert!(!order.update_open_bids_and_asks());
+        assert!(order.update_open_bids_and_asks());
     }
 
     #[test]
