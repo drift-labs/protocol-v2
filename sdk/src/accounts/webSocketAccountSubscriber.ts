@@ -214,9 +214,28 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 		this.timeoutId = undefined;
 
 		if (this.listenerId != null) {
-			const promise = this.program.provider.connection
-				.removeAccountChangeListener(this.listenerId)
+			const promise = Promise.race([
+				this.program.provider.connection.removeAccountChangeListener(
+					this.listenerId
+				),
+				new Promise((_, reject) =>
+					setTimeout(
+						() =>
+							reject(
+								new Error(
+									`Unsubscribe timeout for account ${this.logAccountName}`
+								)
+							),
+						10000
+					)
+				),
+			])
 				.then(() => {
+					this.listenerId = undefined;
+					this.isUnsubscribing = false;
+				})
+				.catch(() => {
+					// Force cleanup even if RPC call fails
 					this.listenerId = undefined;
 					this.isUnsubscribing = false;
 				});
