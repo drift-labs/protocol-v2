@@ -126,7 +126,7 @@ pub fn place_perp_order(
         if let Some(config) = high_leverage_mode_config {
             let mut config = load_mut!(config)?;
             if !config.is_full() || params.is_max_leverage_order() {
-                config.update_user(user)?;
+                config.enable_high_leverage(user)?;
             } else {
                 msg!("high leverage mode config is full");
             }
@@ -2114,7 +2114,7 @@ pub fn fulfill_perp_order_with_amm(
                 user_stats,
                 fee_structure,
                 &MarketType::Perp,
-                user.is_high_leverage_mode(),
+                user.is_high_leverage_mode(MarginRequirementType::Initial),
             )?;
             let (base_asset_amount, limit_price) = calculate_base_asset_amount_for_amm_to_fulfill(
                 &user.orders[order_index],
@@ -2223,7 +2223,7 @@ pub fn fulfill_perp_order_with_amm(
         quote_asset_amount_surplus,
         order_post_only,
         market.fee_adjustment,
-        user.is_high_leverage_mode(),
+        user.is_high_leverage_mode(MarginRequirementType::Initial),
     )?;
 
     let user_position_delta =
@@ -2714,7 +2714,7 @@ pub fn fulfill_perp_order_with_match(
         referrer_stats,
         &MarketType::Perp,
         market.fee_adjustment,
-        taker.is_high_leverage_mode(),
+        taker.is_high_leverage_mode(MarginRequirementType::Initial),
     )?;
 
     // Increment the markets house's total fee variables
@@ -3357,7 +3357,7 @@ pub fn burn_user_lp_shares_for_risk_reduction(
             quote_oracle_price,
             margin_calc.margin_shortage()?,
             user_custom_margin_ratio,
-            user.is_high_leverage_mode(),
+            user.is_high_leverage_mode(MarginRequirementType::Initial),
         )?;
 
     let (position_delta, pnl) = burn_lp_shares(
