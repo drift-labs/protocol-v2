@@ -234,8 +234,11 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 					this.listenerId = undefined;
 					this.isUnsubscribing = false;
 				})
-				.catch(() => {
-					// Force cleanup even if RPC call fails
+				.catch((error) => {
+					console.error(
+						`[${this.logAccountName}] Unsubscribe failed, forcing cleanup - listenerId=${this.listenerId}, isUnsubscribing=${this.isUnsubscribing}`,
+						error
+					);
 					this.listenerId = undefined;
 					this.isUnsubscribing = false;
 				});
