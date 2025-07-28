@@ -13,18 +13,18 @@ import {
 } from '../constants/numericConstants';
 import { BN } from '@coral-xyz/anchor';
 import { OraclePriceData } from '../oracles/types';
+import { calculateMarketMarginRatio } from './market';
+import { calculateScaledInitialAssetWeight } from './spotBalance';
+import { DriftClient } from '../driftClient';
+import { OneShotUserAccountSubscriber } from '../accounts/oneShotUserAccountSubscriber';
 import {
-	calculateMarketMarginRatio,
-	calculateScaledInitialAssetWeight,
-	DriftClient,
-	OneShotUserAccountSubscriber,
 	PerpMarketAccount,
 	PerpPosition,
 	PositionDirection,
-	PublicKey,
-	User,
 	UserAccount,
-} from '..';
+} from '../types';
+import { PublicKey } from '@solana/web3.js';
+import { User } from '../user';
 import { isVariant } from '../types';
 import { assert } from '../assert/assert';
 

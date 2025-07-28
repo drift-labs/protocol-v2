@@ -12,7 +12,8 @@ import {
 	pythSolanaReceiverIdl,
 } from '@pythnetwork/pyth-solana-receiver';
 import { PriceUpdateAccount } from '@pythnetwork/pyth-solana-receiver/lib/PythSolanaReceiver';
-import { DRIFT_ORACLE_RECEIVER_ID, Wallet } from '..';
+import { DRIFT_ORACLE_RECEIVER_ID } from '../config';
+import { Wallet } from '../wallet';
 
 export class PythPullClient implements OracleClient {
 	private connection: Connection;
