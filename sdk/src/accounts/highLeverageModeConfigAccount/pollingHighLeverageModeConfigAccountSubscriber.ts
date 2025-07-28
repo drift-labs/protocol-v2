@@ -8,7 +8,7 @@ import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
-import { BulkAccountLoader } from '../bulkAccountLoader';
+import { BulkAccountLoader } from '../bulkAccountLoader/bulkAccountLoader';
 import { HighLeverageModeConfig } from '../../types';
 
 export class PollingHighLeverageModeConfigAccountSubscriber

@@ -7,7 +7,7 @@ import {
 } from '@solana/web3.js';
 import { IWallet, TxParams } from './types';
 import { OracleInfo } from './oracles/types';
-import { BulkAccountLoader } from './accounts/bulkAccountLoader';
+import { BulkAccountLoader } from './accounts/bulkAccountLoader/bulkAccountLoader';
 import { DriftEnv } from './config';
 import { TxSender } from './tx/types';
 import { TxHandler, TxHandlerConfig } from './tx/txHandler';
