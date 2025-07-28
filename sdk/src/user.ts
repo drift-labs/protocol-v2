@@ -687,7 +687,7 @@ export class User {
 			baseAssetAmount,
 			'Initial',
 			this.getUserAccount().maxMarginRatio,
-			enterHighLeverageMode || this.isHighLeverageMode()
+			enterHighLeverageMode || this.isHighLeverageMode('Initial')
 		);
 
 		return freeCollateral.mul(MARGIN_PRECISION).div(new BN(marginRatio));
@@ -1465,7 +1465,7 @@ export class User {
 					baseAssetAmount.abs(),
 					marginCategory,
 					this.getUserAccount().maxMarginRatio,
-					this.isHighLeverageMode() || enteringHighLeverage
+					this.isHighLeverageMode(marginCategory) || enteringHighLeverage
 				)
 			);
 
@@ -1907,13 +1907,13 @@ export class User {
 					perpMarketIndex,
 					PositionDirection.LONG,
 					false,
-					enterHighLeverageMode || this.isHighLeverageMode()
+					enterHighLeverageMode || this.isHighLeverageMode('Initial')
 				).tradeSize,
 				this.getMaxTradeSizeUSDCForPerp(
 					perpMarketIndex,
 					PositionDirection.SHORT,
 					false,
-					enterHighLeverageMode || this.isHighLeverageMode()
+					enterHighLeverageMode || this.isHighLeverageMode('Initial')
 				).tradeSize
 			).sub(lpBuffer),
 			ZERO
@@ -2078,8 +2078,12 @@ export class User {
 		return (this.getUserAccount().status & UserStatus.BANKRUPT) > 0;
 	}
 
-	public isHighLeverageMode(): boolean {
-		return isVariant(this.getUserAccount().marginMode, 'highLeverage');
+	public isHighLeverageMode(marginCategory: MarginCategory): boolean {
+		return (
+			isVariant(this.getUserAccount().marginMode, 'highLeverage') ||
+			(isVariant(marginCategory, 'maintenance') &&
+				isVariant(this.getUserAccount().marginMode, 'highLeverageMaintenance'))
+		);
 	}
 
 	/**
@@ -2407,7 +2411,7 @@ export class User {
 				baseAssetAmount.abs(),
 				marginCategory,
 				this.getUserAccount().maxMarginRatio,
-				this.isHighLeverageMode() || enteringHighLeverage
+				this.isHighLeverageMode(marginCategory) || enteringHighLeverage
 			);
 
 			return liabilityValue.mul(new BN(marginRatio)).div(MARGIN_PRECISION);
@@ -2454,7 +2458,7 @@ export class User {
 			proposedBaseAssetAmount.abs(),
 			marginCategory,
 			this.getUserAccount().maxMarginRatio,
-			this.isHighLeverageMode() || enteringHighLeverage
+			this.isHighLeverageMode(marginCategory) || enteringHighLeverage
 		);
 
 		const marginRatioQuotePrecision = new BN(marginRatio)
@@ -3465,7 +3469,7 @@ export class User {
 
 		let feeTierIndex = 0;
 		if (isVariant(marketType, 'perp')) {
-			if (this.isHighLeverageMode()) {
+			if (this.isHighLeverageMode('Initial')) {
 				return state.perpFeeStructure.feeTiers[0];
 			}
 
@@ -3812,7 +3816,7 @@ export class User {
 				worstCaseBaseAmount.abs(),
 				marginCategory,
 				this.getUserAccount().maxMarginRatio,
-				this.isHighLeverageMode()
+				this.isHighLeverageMode(marginCategory)
 			)
 		);
 
