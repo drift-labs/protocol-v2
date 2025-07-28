@@ -953,7 +953,6 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
             SettlePnlMode::MustSettle,
         )
         .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
-
     }
 
     let spot_market = spot_market_map.get_quote_spot_market()?;
@@ -1038,7 +1037,6 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
                 mode,
             )
             .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
-
         }
     }
 
