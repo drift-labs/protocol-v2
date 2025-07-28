@@ -68,6 +68,14 @@ export class WebSocketDriftClientAccountSubscriber
 	initialPerpMarketAccountData: Map<number, PerpMarketAccount>;
 	initialSpotMarketAccountData: Map<number, SpotMarketAccount>;
 	initialOraclePriceData: Map<string, OraclePriceData>;
+	customAccountSubscriber?: new (
+		accountName: string,
+		program: Program,
+		accountPublicKey: PublicKey,
+		decodeBuffer?: (buffer: Buffer) => any,
+		resubOpts?: ResubOpts,
+		commitment?: Commitment
+	) => AccountSubscriber<any>;
 
 	protected isSubscribing = false;
 	protected subscriptionPromise: Promise<boolean>;
@@ -81,7 +89,15 @@ export class WebSocketDriftClientAccountSubscriber
 		shouldFindAllMarketsAndOracles: boolean,
 		delistedMarketSetting: DelistedMarketSetting,
 		resubOpts?: ResubOpts,
-		commitment?: Commitment
+		commitment?: Commitment,
+		customAccountSubscriber?: new (
+			accountName: string,
+			program: Program,
+			accountPublicKey: PublicKey,
+			decodeBuffer?: (buffer: Buffer) => any,
+			resubOpts?: ResubOpts,
+			commitment?: Commitment
+		) => AccountSubscriber<any>
 	) {
 		this.isSubscribed = false;
 		this.program = program;
@@ -93,6 +109,7 @@ export class WebSocketDriftClientAccountSubscriber
 		this.delistedMarketSetting = delistedMarketSetting;
 		this.resubOpts = resubOpts;
 		this.commitment = commitment;
+		this.customAccountSubscriber = customAccountSubscriber;
 	}
 
 	public async subscribe(): Promise<boolean> {
@@ -292,7 +309,9 @@ export class WebSocketDriftClientAccountSubscriber
 			this.program.programId,
 			marketIndex
 		);
-		const accountSubscriber = new WebSocketAccountSubscriber<PerpMarketAccount>(
+		const AccountSubscriberClass =
+			this.customAccountSubscriber || WebSocketAccountSubscriber;
+		const accountSubscriber = new AccountSubscriberClass<PerpMarketAccount>(
 			'perpMarket',
 			this.program,
 			perpMarketPublicKey,
