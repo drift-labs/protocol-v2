@@ -46,31 +46,18 @@ import {
 	UserAccountEvents,
 	UserAccountSubscriber,
 } from './accounts/types';
-import {
-	BigNum,
-	BN,
-	calculateBaseAssetValue,
-	calculateMarketMarginRatio,
-	calculatePerpLiabilityValue,
-	calculatePositionPNL,
-	calculateReservePrice,
-	calculateSpotMarketMarginRatio,
-	calculateUnrealizedAssetWeight,
-	calculateWorstCasePerpLiabilityValue,
-	divCeil,
-	getBalance,
-	getSignedTokenAmount,
-	getStrictTokenValue,
-	getTokenValue,
-	getUser30dRollingVolumeEstimate,
-	MarketType,
-	PositionDirection,
-	sigNum,
-	SpotBalanceType,
-	SpotMarketAccount,
-	standardizeBaseAssetAmount,
-	UserStats,
-} from '.';
+import { BigNum } from './factory/bigNum';
+import { BN } from '@coral-xyz/anchor';
+import { calculateBaseAssetValue, calculatePositionPNL } from './math/position';
+import { calculateMarketMarginRatio, calculateReservePrice, calculateUnrealizedAssetWeight } from './math/market';
+import { calculatePerpLiabilityValue, calculateWorstCasePerpLiabilityValue } from './math/margin';
+import { calculateSpotMarketMarginRatio } from './math/spotMarket';
+import { divCeil, sigNum } from './math/utils';
+import { getBalance, getSignedTokenAmount, getStrictTokenValue, getTokenValue } from './math/spotBalance';
+import { getUser30dRollingVolumeEstimate } from './math/trade';
+import { MarketType, PositionDirection, SpotBalanceType, SpotMarketAccount } from './types';
+import { standardizeBaseAssetAmount } from './math/orders';
+import { UserStats } from './userStats';
 import {
 	calculateAssetWeight,
 	calculateLiabilityWeight,
