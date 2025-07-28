@@ -1,5 +1,5 @@
-import { ConfirmOptions } from '@solana/web3.js';
-import { PerpMarketAccount, PublicKey, SpotMarketAccount } from '.';
+import { ConfirmOptions, PublicKey } from '@solana/web3.js';
+import { PerpMarketAccount, SpotMarketAccount } from './types';
 import {
 	DevnetPerpMarkets,
 	MainnetPerpMarkets,

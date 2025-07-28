@@ -16,10 +16,11 @@ import {
 	TransactionInstruction,
 	TransactionSignature,
 } from '@solana/web3.js';
-import { BN, DEFAULT_CONFIRMATION_OPTS } from '.';
 import tokenFaucet from './idl/token_faucet.json';
 import { IWallet } from './types';
 import { BankrunContextWrapper } from './bankrun/bankrunConnection';
+import { DEFAULT_CONFIRMATION_OPTS } from './config';
+import { BN } from '@coral-xyz/anchor';
 
 export class TokenFaucet {
 	context?: BankrunContextWrapper;

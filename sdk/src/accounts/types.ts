@@ -7,12 +7,14 @@ import {
 	UserStatsAccount,
 	InsuranceFundStake,
 	ConstituentAccount,
+	HighLeverageModeConfig,
 } from '../types';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { Context, PublicKey } from '@solana/web3.js';
 import { Account } from '@solana/spl-token';
-import { HighLeverageModeConfig, OracleInfo, OraclePriceData, User } from '..';
+import { OracleInfo, OraclePriceData } from '../oracles/types';
+import { User } from '../user';
 import { ChannelOptions, CommitmentLevel } from '../isomorphic/grpc';
 
 export interface AccountSubscriber<T> {

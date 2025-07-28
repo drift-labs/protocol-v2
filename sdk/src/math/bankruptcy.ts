@@ -1,4 +1,6 @@
-import { ZERO, hasOpenOrders, isVariant } from '..';
+import { ZERO } from '../constants/numericConstants';
+import { hasOpenOrders } from './position';
+import { isVariant } from '../types';
 import { User } from '../user';
 
 export function isUserBankrupt(user: User): boolean {

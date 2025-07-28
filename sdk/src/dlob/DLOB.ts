@@ -1,40 +1,40 @@
 import { getOrderSignature, NodeList } from './NodeList';
+import { BN } from '@coral-xyz/anchor';
 import {
 	BASE_PRECISION,
-	BN,
 	BN_MAX,
-	convertToNumber,
-	decodeName,
-	DLOBNode,
-	DLOBNodeType,
-	DriftClient,
+	PRICE_PRECISION,
+	QUOTE_PRECISION,
+	ZERO,
+} from '../constants/numericConstants';
+import { decodeName } from '../userName';
+import { DLOBNode, DLOBNodeType, TriggerOrderNode } from './DLOBNode';
+import { DriftClient } from '../driftClient';
+import {
 	getLimitPrice,
-	getVariant,
-	isFallbackAvailableLiquiditySource,
-	isOneOfVariant,
 	isOrderExpired,
 	isRestingLimitOrder,
 	isTriggered,
-	isUserProtectedMaker,
+	mustBeTriggered,
+} from '../math/orders';
+import {
+	getVariant,
+	isOneOfVariant,
 	isVariant,
 	MarketType,
 	MarketTypeStr,
-	mustBeTriggered,
-	OraclePriceData,
 	Order,
 	PerpMarketAccount,
 	PositionDirection,
-	PRICE_PRECISION,
 	ProtectedMakerParams,
-	ProtectMakerParamsMap,
-	QUOTE_PRECISION,
-	SlotSubscriber,
 	SpotMarketAccount,
 	StateAccount,
-	TriggerOrderNode,
-	UserMap,
-	ZERO,
-} from '..';
+} from '../types';
+import { isUserProtectedMaker } from '../math/userStatus';
+import { OraclePriceData } from '../oracles/types';
+import { ProtectMakerParamsMap } from './types';
+import { SlotSubscriber } from '../slot/SlotSubscriber';
+import { UserMap } from '../userMap/userMap';
 import { PublicKey } from '@solana/web3.js';
 import { ammPaused, exchangePaused, fillPaused } from '../math/exchangeStatus';
 import {
@@ -46,6 +46,8 @@ import {
 	L3OrderBook,
 	mergeL2LevelGenerators,
 } from './orderBookLevels';
+import { isFallbackAvailableLiquiditySource } from '../math/auction';
+import { convertToNumber } from '../math/conversion';
 
 export type DLOBOrder = { user: PublicKey; order: Order };
 export type DLOBOrders = DLOBOrder[];
