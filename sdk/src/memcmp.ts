@@ -112,3 +112,21 @@ export function getSignedMsgUserOrdersFilter(): MemcmpFilter {
 		},
 	};
 }
+
+export function getUserWithHighLeverageModeFilter(): MemcmpFilter {
+	return {
+		memcmp: {
+			offset: 4355,
+			bytes: bs58.encode(Uint8Array.from([1])),
+		},
+	};
+}
+
+export function getUserWithHighLeverageModeMaintenanceFilter(): MemcmpFilter {
+	return {
+		memcmp: {
+			offset: 4355,
+			bytes: bs58.encode(Uint8Array.from([2])),
+		},
+	};
+}
