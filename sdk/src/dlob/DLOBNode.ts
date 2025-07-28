@@ -1,15 +1,13 @@
+import { BN } from '@coral-xyz/anchor';
 import {
 	AMM_RESERVE_PRECISION,
-	BN,
-	convertToNumber,
-	getLimitPrice,
-	isVariant,
 	PRICE_PRECISION,
-	OraclePriceData,
-	Order,
 	ZERO,
-	ProtectedMakerParams,
-} from '..';
+} from '../constants/numericConstants';
+import { getLimitPrice } from '../math/orders';
+import { isVariant, Order, ProtectedMakerParams } from '../types';
+import { OraclePriceData } from '../oracles/types';
+import { convertToNumber } from '../math/conversion';
 import { getOrderSignature } from './NodeList';
 
 export interface DLOBNode {

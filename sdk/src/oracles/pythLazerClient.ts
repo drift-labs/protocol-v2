@@ -7,7 +7,8 @@ import {
 	QUOTE_PRECISION,
 	TEN,
 } from '../constants/numericConstants';
-import { DRIFT_PROGRAM_ID, Wallet } from '..';
+import { DRIFT_PROGRAM_ID } from '../config';
+import { Wallet } from '../wallet';
 import driftIDL from '../idl/drift.json';
 
 export class PythLazerClient implements OracleClient {

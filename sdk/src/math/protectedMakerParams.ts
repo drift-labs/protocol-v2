@@ -1,4 +1,5 @@
-import { BN, ProtectMakerParamsMap } from '..';
+import { BN } from '@coral-xyz/anchor';
+import { ProtectMakerParamsMap } from '../dlob/types';
 import { PerpMarketAccount, ProtectedMakerParams } from '../types';
 
 export function getProtectedMakerParams(

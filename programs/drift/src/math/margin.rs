@@ -252,7 +252,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
     }
 
     let user_pool_id = user.pool_id;
-    let user_high_leverage_mode = user.is_high_leverage_mode();
+    let user_high_leverage_mode = user.is_high_leverage_mode(context.margin_type);
 
     for spot_position in user.spot_positions.iter() {
         validation::position::validate_spot_position(spot_position)?;
