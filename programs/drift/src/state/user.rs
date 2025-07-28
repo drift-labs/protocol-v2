@@ -1597,7 +1597,9 @@ impl Order {
     }
 
     pub fn update_open_bids_and_asks(&self) -> bool {
-        !self.must_be_triggered() || (self.triggered() && !(self.reduce_only && self.is_bit_flag_set(OrderBitFlag::NewReduceOnly)))
+        !self.must_be_triggered()
+            || (self.triggered()
+                && !(self.reduce_only && self.is_bit_flag_set(OrderBitFlag::NewReduceOnly)))
     }
 }
 
