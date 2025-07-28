@@ -142,9 +142,9 @@ import {
 	DRIFT_ORACLE_RECEIVER_ID,
 	DEFAULT_CONFIRMATION_OPTS,
 	DRIFT_PROGRAM_ID,
-	DriftEnv,
 	PYTH_LAZER_STORAGE_ACCOUNT_KEY,
 } from './config';
+import { DriftEnv } from './config/types';
 import { WRAPPED_SOL_MINT } from './constants/spotMarkets';
 import { UserStats } from './userStats';
 import { isSpotPositionAvailable } from './math/spotPosition';

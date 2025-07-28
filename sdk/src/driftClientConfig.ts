@@ -8,7 +8,7 @@ import {
 import { IWallet, TxParams } from './types';
 import { OracleInfo } from './oracles/types';
 import { BulkAccountLoader } from './accounts/bulkAccountLoader/bulkAccountLoader';
-import { DriftEnv } from './config';
+import { DriftEnv } from './config/types';
 import { TxSender } from './tx/types';
 import { TxHandler, TxHandlerConfig } from './tx/txHandler';
 import { DelistedMarketSetting, GrpcConfigs } from './accounts/types';

@@ -1,24 +1,25 @@
 import { ConfirmOptions, PublicKey } from '@solana/web3.js';
-import { PerpMarketAccount, SpotMarketAccount } from './types';
+import { PerpMarketAccount, SpotMarketAccount } from '../types';
 import {
 	DevnetPerpMarkets,
 	MainnetPerpMarkets,
 	PerpMarketConfig,
 	PerpMarkets,
-} from './constants/perpMarkets';
+} from '../constants/perpMarkets';
 import {
 	SpotMarketConfig,
 	SpotMarkets,
 	DevnetSpotMarkets,
 	MainnetSpotMarkets,
-} from './constants/spotMarkets';
-import { OracleInfo } from './oracles/types';
+} from '../constants/spotMarkets';
+import { OracleInfo } from '../oracles/types';
 import { Program, ProgramAccount } from '@coral-xyz/anchor';
 import {
 	ON_DEMAND_DEVNET_PID,
 	ON_DEMAND_MAINNET_PID,
 } from '@switchboard-xyz/on-demand';
-import { getOracleId } from './oracles/oracleId';
+import { getOracleId } from '../oracles/oracleId';
+import { DriftEnv } from './types';
 
 type DriftConfig = {
 	ENV: DriftEnv;
@@ -40,8 +41,6 @@ type DriftConfig = {
 	PYTH_PULL_ORACLE_LOOKUP_TABLE?: string;
 	SB_ON_DEMAND_PID: PublicKey;
 };
-
-export type DriftEnv = 'devnet' | 'mainnet-beta';
 
 export const DRIFT_PROGRAM_ID = 'dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH';
 export const DRIFT_ORACLE_RECEIVER_ID =

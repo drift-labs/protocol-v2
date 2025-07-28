@@ -8,7 +8,7 @@ import { getLimitPrice } from '../math/orders';
 import { isVariant, Order, ProtectedMakerParams } from '../types';
 import { OraclePriceData } from '../oracles/types';
 import { convertToNumber } from '../math/conversion';
-import { getOrderSignature } from './NodeList';
+import { getOrderSignature } from './utils';
 
 export interface DLOBNode {
 	getPrice(oraclePriceData: OraclePriceData, slot: number): BN;

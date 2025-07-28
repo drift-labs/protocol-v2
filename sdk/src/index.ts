@@ -76,7 +76,11 @@ export * from './keypair';
 export * from './types';
 export * from './math/utils';
 export * from './math/fuel';
+
+/** Config */
 export * from './config';
+export * from './config/types';
+
 export * from './constants/numericConstants';
 export * from './serum/serumSubscriber';
 export * from './serum/serumFulfillmentConfigMap';
@@ -108,12 +112,15 @@ export * from './util/pythOracleUtils';
 export * from './math/spotBalance';
 export * from './constants/spotMarkets';
 export * from './driftClientConfig';
+
+/** DLOB */
 export * from './dlob/DLOB';
 export * from './dlob/DLOBNode';
 export * from './dlob/NodeList';
 export * from './dlob/DLOBSubscriber';
 export * from './dlob/types';
 export * from './dlob/orderBookLevels';
+export * from './dlob/utils';
 
 /** UserMap */
 export * from './userMap/userMap';
