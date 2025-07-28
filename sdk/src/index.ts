@@ -121,6 +121,7 @@ export * from './userMap/referrerMap';
 export * from './userMap/userStatsMap';
 export * from './userMap/userMapConfig';
 export * from './userMap/events';
+export * from './userMap/types';
 
 export * from './math/bankruptcy';
 export * from './orderSubscriber';

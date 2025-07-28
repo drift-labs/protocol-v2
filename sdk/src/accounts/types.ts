@@ -102,7 +102,6 @@ export interface UserAccountEvents {
 	error: (e: Error) => void;
 }
 
-
 export interface UserAccountSubscriber {
 	eventEmitter: StrictEventEmitter<EventEmitter, UserAccountEvents>;
 	isSubscribed: boolean;

@@ -7,7 +7,11 @@ import {
 	NotSubscribedError,
 	ResubOpts,
 } from '../types';
-import { PerpMarketAccount, SpotMarketAccount, StateAccount } from '../../types';
+import {
+	PerpMarketAccount,
+	SpotMarketAccount,
+	StateAccount,
+} from '../../types';
 import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';

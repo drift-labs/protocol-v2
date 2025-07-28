@@ -9,7 +9,11 @@ import {
 } from '../../addresses/pda';
 import { DelistedMarketSetting, GrpcConfigs, ResubOpts } from '../types';
 import { grpcAccountSubscriber } from '../baseSubscribers/grpcAccountSubscriber';
-import { PerpMarketAccount, SpotMarketAccount, StateAccount } from '../../types';
+import {
+	PerpMarketAccount,
+	SpotMarketAccount,
+	StateAccount,
+} from '../../types';
 import { getOracleId } from '../../oracles/oracleId';
 
 export class gprcDriftClientAccountSubscriber extends WebSocketDriftClientAccountSubscriber {

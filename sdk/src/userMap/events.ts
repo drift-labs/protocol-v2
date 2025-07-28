@@ -1,4 +1,4 @@
-import { User } from "../user";
+import { User } from '../user';
 
 export interface UserEvents {
 	userUpdate: (payload: User) => void;
