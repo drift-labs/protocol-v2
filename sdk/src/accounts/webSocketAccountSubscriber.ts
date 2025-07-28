@@ -55,6 +55,11 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 
 	async subscribe(onChange: (data: T) => void): Promise<void> {
 		if (this.listenerId != null || this.isUnsubscribing) {
+			if (this.resubOpts?.logResubMessages) {
+				console.log(
+					`[${this.logAccountName}] Subscribe returning early - listenerId=${this.listenerId}, isUnsubscribing=${this.isUnsubscribing}`
+				);
+			}
 			return;
 		}
 
@@ -104,18 +109,34 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 			async () => {
 				if (this.isUnsubscribing) {
 					// If we are in the process of unsubscribing, do not attempt to resubscribe
+					if (this.resubOpts?.logResubMessages) {
+						console.log(
+							`[${this.logAccountName}] Timeout fired but isUnsubscribing=true, skipping resubscribe`
+						);
+					}
 					return;
 				}
 
 				if (this.receivingData) {
 					if (this.resubOpts?.logResubMessages) {
 						console.log(
-							`No ws data from ${this.logAccountName} in ${this.resubOpts.resubTimeoutMs}ms, resubscribing`
+							`No ws data from ${this.logAccountName} in ${this.resubOpts.resubTimeoutMs}ms, resubscribing - listenerId=${this.listenerId}, isUnsubscribing=${this.isUnsubscribing}`
 						);
 					}
 					await this.unsubscribe(true);
 					this.receivingData = false;
 					await this.subscribe(this.onChange);
+					if (this.resubOpts?.logResubMessages) {
+						console.log(
+							`[${this.logAccountName}] Resubscribe completed - receivingData=${this.receivingData}, listenerId=${this.listenerId}, isUnsubscribing=${this.isUnsubscribing}`
+						);
+					}
+				} else {
+					if (this.resubOpts?.logResubMessages) {
+						console.log(
+							`[${this.logAccountName}] Timeout fired but receivingData=false, skipping resubscribe`
+						);
+					}
 				}
 			},
 			this.resubOpts?.resubTimeoutMs
