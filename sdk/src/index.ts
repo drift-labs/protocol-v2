@@ -31,7 +31,7 @@ export * from './adminClient';
 export * from './assert/assert';
 export * from './testClient';
 export * from './user';
-export * from './userConfig';
+export * from './user/types';
 export * from './userStats';
 export * from './userName';
 export * from './userStatsConfig';

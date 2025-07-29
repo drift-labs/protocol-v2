@@ -1,6 +1,6 @@
 import { PublicKey } from '@solana/web3.js';
 import { DataAndSlot, UserStatsAccountSubscriber } from '../accounts/types';
-import { UserStatsConfig } from '../userStatsConfig';
+import { UserStatsSubscriptionConfig } from '../userStatsConfig';
 import { PollingUserStatsAccountSubscriber } from '../accounts/userStatsAccount/pollingUserStatsAccountSubscriber';
 import { WebSocketUserStatsAccountSubscriber } from '../accounts/userStatsAccount/webSocketUserStatsAccountSubsriber';
 import { ReferrerInfo, SpotMarketAccount, UserStatsAccount } from '../types';
@@ -19,6 +19,12 @@ import { BN } from '@coral-xyz/anchor';
 import { calculateInsuranceFuelBonus } from '../math/fuel';
 import { IDriftClient } from '../driftClient/types';
 import { IUserStats } from './types';
+
+export type UserStatsConfig = {
+	accountSubscription?: UserStatsSubscriptionConfig;
+	driftClient: IDriftClient;
+	userStatsAccountPublicKey: PublicKey;
+};
 
 export class UserStats implements IUserStats {
 	driftClient: IDriftClient;
