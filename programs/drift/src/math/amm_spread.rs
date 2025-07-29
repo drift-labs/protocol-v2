@@ -607,17 +607,13 @@ pub fn calculate_reference_price_offset(
         .safe_mul(PRICE_PRECISION_I64)?
         .safe_div(reserve_price.cast()?)?;
 
-    let inventory_pct = liquidity_fraction
-        .cast::<i64>()?
-        .safe_mul(max_offset_pct)?
-        .safe_div(PERCENTAGE_PRECISION.cast::<i64>()?)?
-        .clamp(-max_offset_pct, max_offset_pct);
-
     // only apply when inventory is consistent with recent and 24h market premium
-    let offset_pct = if (mark_premium_avg_pct >= 0 && inventory_pct >= 0)
-        || (mark_premium_avg_pct <= 0 && inventory_pct <= 0)
+    let offset_pct = if (mark_premium_avg_pct >= 0 && liquidity_fraction >= 0)
+        || (mark_premium_avg_pct <= 0 && liquidity_fraction <= 0)
     {
-        mark_premium_avg_pct.safe_add(inventory_pct)?
+        mark_premium_avg_pct
+            .safe_mul(liquidity_fraction.cast::<i64>()?)?
+            .safe_div(5)?
     } else {
         0
     };
