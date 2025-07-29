@@ -38,6 +38,7 @@ export * from './userStatsConfig';
 export * from './decode/user';
 export * from './decode/customCoder';
 export * from './driftClient';
+export * from './driftClient/types';
 export * from './factory/oracleClient';
 export * from './factory/bigNum';
 export * from './events/types';
