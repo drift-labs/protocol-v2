@@ -43,7 +43,7 @@ use crate::math::matching::{
     calculate_filler_multiplier_for_matched_orders, do_orders_cross, is_maker_for_taker,
 };
 use crate::math::oracle::{
-    is_oracle_valid_for_action, oracle_validity, DriftAction, OracleValidity,
+    self, is_oracle_valid_for_action, oracle_validity, DriftAction, OracleValidity,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::safe_unwrap::SafeUnwrap;
@@ -1085,7 +1085,7 @@ pub fn fill_perp_order(
             &state.oracle_guard_rails.validity,
             market.get_max_confidence_interval_multiplier()?,
             &market.amm.oracle_source,
-            true,
+            oracle::LogMode::SafeMMOracle,
             market.amm.oracle_slot_delay_override,
         )?;
 
@@ -1101,6 +1101,17 @@ pub fn fill_perp_order(
         amm_is_available &= oracle_valid_for_amm_fill;
         amm_is_available &= !market.is_operation_paused(PerpOperation::AmmFill);
         amm_is_available &= !market.has_too_much_drawdown()?;
+
+        // We are already using safe oracle data from MM oracle.
+        // But AMM isnt available if we could have used MM oracle but fell back due to price diff
+        let amm_available_mm_oracle_recent_but_volatile =
+            if mm_oracle_price_data.is_enabled() && mm_oracle_price_data.is_mm_oracle_as_recent() {
+                let amm_available = !mm_oracle_price_data.is_mm_exchange_diff_bps_high();
+                amm_available
+            } else {
+                true
+            };
+        amm_is_available &= amm_available_mm_oracle_recent_but_volatile;
 
         let amm_wants_to_jit_make = market.amm.amm_wants_to_jit_make(order_direction)?;
         amm_lp_allowed_to_jit_make = market

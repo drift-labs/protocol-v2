@@ -5,7 +5,9 @@ use std::convert::TryFrom;
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
-use crate::math::constants::{PRICE_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
+use crate::math::constants::{
+    PERCENTAGE_PRECISION, PRICE_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64,
+};
 use crate::math::safe_math::SafeMath;
 use switchboard::{AggregatorAccountData, SwitchboardDecimal};
 use switchboard_on_demand::{PullFeedAccountData, SB_ON_DEMAND_PRECISION};
@@ -221,10 +223,14 @@ impl From<OracleSource> for u8 {
     }
 }
 
+const MM_EXCHANGE_FALLBACK_THRESHOLD: u128 = PERCENTAGE_PRECISION / 100; // 1%
 #[derive(Default, Clone, Copy, Debug)]
 pub struct MMOraclePriceData {
     mm_oracle_price: i64,
     mm_oracle_delay: i64,
+    mm_oracle_validity: OracleValidity,
+    mm_exchange_diff_bps: u128,
+    exchange_oracle_price_data: OraclePriceData,
     safe_oracle_price_data: OraclePriceData,
 }
 
@@ -235,15 +241,21 @@ impl MMOraclePriceData {
         mm_oracle_validity: OracleValidity,
         oracle_price_data: OraclePriceData,
     ) -> DriftResult<Self> {
+        let price_diff = mm_oracle_price.safe_sub(oracle_price_data.price)?;
+        let price_diff_bps = price_diff
+            .abs()
+            .cast::<u128>()?
+            .safe_mul(PERCENTAGE_PRECISION)?
+            .safe_div(oracle_price_data.price.abs().max(1).cast::<u128>()?)?;
         let safe_oracle_price_data = if mm_oracle_delay > oracle_price_data.delay
             || mm_oracle_price == 0i64
             || !is_oracle_valid_for_action(mm_oracle_validity, Some(DriftAction::UseMMOraclePrice))?
+            || price_diff_bps > MM_EXCHANGE_FALLBACK_THRESHOLD
+        // 1% price difference
         {
             oracle_price_data
         } else {
-            let mm_oracle_diff_premium = mm_oracle_price
-                .abs_diff(oracle_price_data.price)
-                .safe_div(5)?;
+            let mm_oracle_diff_premium = mm_oracle_price.abs_diff(oracle_price_data.price);
             let adjusted_confidence = oracle_price_data
                 .confidence
                 .safe_add(mm_oracle_diff_premium)?;
@@ -259,16 +271,11 @@ impl MMOraclePriceData {
         Ok(MMOraclePriceData {
             mm_oracle_price,
             mm_oracle_delay,
+            mm_oracle_validity,
+            mm_exchange_diff_bps: price_diff_bps,
+            exchange_oracle_price_data: oracle_price_data,
             safe_oracle_price_data,
         })
-    }
-
-    pub fn default_usd() -> Self {
-        MMOraclePriceData {
-            mm_oracle_price: PRICE_PRECISION_I64,
-            mm_oracle_delay: 0,
-            safe_oracle_price_data: OraclePriceData::default_usd(),
-        }
     }
 
     pub fn get_price(&self) -> i64 {
@@ -287,12 +294,36 @@ impl MMOraclePriceData {
         self.safe_oracle_price_data
     }
 
+    pub fn get_exchange_oracle_price_data(&self) -> OraclePriceData {
+        self.exchange_oracle_price_data
+    }
+
+    pub fn get_mm_oracle_validity(&self) -> OracleValidity {
+        self.mm_oracle_validity
+    }
+
+    pub fn get_mm_exchange_diff_bps(&self) -> u128 {
+        self.mm_exchange_diff_bps
+    }
+
+    pub fn is_mm_exchange_diff_bps_high(&self) -> bool {
+        self.mm_exchange_diff_bps > MM_EXCHANGE_FALLBACK_THRESHOLD
+    }
+
+    pub fn is_mm_oracle_as_recent(&self) -> bool {
+        self.mm_oracle_delay <= self.safe_oracle_price_data.delay
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.mm_oracle_price != 0 && self.mm_oracle_delay >= 0
+    }
+
     // For potential future observability
     pub fn _get_mm_oracle_price(&self) -> i64 {
         self.mm_oracle_price
     }
 
-    pub fn _get_mm_oracle_delay(&self) -> i64 {
+    pub fn get_mm_oracle_delay(&self) -> i64 {
         self.mm_oracle_delay
     }
 }
@@ -303,17 +334,6 @@ pub struct OraclePriceData {
     pub confidence: u64,
     pub delay: i64,
     pub has_sufficient_number_of_data_points: bool,
-}
-
-impl OraclePriceData {
-    pub fn default_usd() -> Self {
-        OraclePriceData {
-            price: PRICE_PRECISION_I64,
-            confidence: 1,
-            delay: 0,
-            has_sufficient_number_of_data_points: true,
-        }
-    }
 }
 
 pub fn get_oracle_price(

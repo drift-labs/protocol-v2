@@ -14,7 +14,7 @@ use crate::{
         self,
         casting::Cast,
         constants::{PERCENTAGE_PRECISION_I64, PRICE_PRECISION},
-        oracle::{is_oracle_valid_for_action, oracle_validity, DriftAction},
+        oracle::{is_oracle_valid_for_action, oracle_validity, DriftAction, LogMode},
         safe_math::SafeMath,
     },
     math_error, msg, safe_decrement, safe_increment,
@@ -132,7 +132,7 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
             &state.oracle_guard_rails.validity,
             cache_info.max_confidence_interval_multiplier,
             &cache_info.get_oracle_source()?,
-            true,
+            LogMode::ExchangeOracle,
             0,
         )?;
 
