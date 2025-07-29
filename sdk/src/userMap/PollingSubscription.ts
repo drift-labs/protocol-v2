@@ -1,7 +1,7 @@
-import { UserMap } from './userMap';
+import { UserMapInterface } from './types';
 
 export class PollingSubscription {
-	private userMap: UserMap;
+	private userMap: UserMapInterface;
 	private frequency: number;
 	private skipInitialLoad: boolean;
 
@@ -12,7 +12,7 @@ export class PollingSubscription {
 		frequency,
 		skipInitialLoad = false,
 	}: {
-		userMap: UserMap;
+		userMap: UserMapInterface;
 		frequency: number;
 		skipInitialLoad?: boolean;
 		includeIdle?: boolean;

@@ -6,7 +6,7 @@ import {
 	DriftClientAccountSubscriber,
 	NotSubscribedError,
 	OraclesToPoll,
-} from './types';
+} from '../types';
 import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
@@ -16,20 +16,20 @@ import {
 	StateAccount,
 	UserAccount,
 	OracleSource,
-} from '../types';
+} from '../../types';
 import {
 	getDriftStateAccountPublicKey,
 	getPerpMarketPublicKey,
 	getSpotMarketPublicKey,
-} from '../addresses/pda';
-import { BulkAccountLoader } from './bulkAccountLoader';
-import { capitalize, findDelistedPerpMarketsAndOracles } from './utils';
+} from '../../addresses/pda';
+import { BulkAccountLoader } from '../bulkAccountLoader/bulkAccountLoader';
+import { capitalize, findDelistedPerpMarketsAndOracles } from '../utils';
 import { PublicKey } from '@solana/web3.js';
-import { OracleInfo, OraclePriceData } from '../oracles/types';
-import { OracleClientCache } from '../oracles/oracleClientCache';
-import { QUOTE_ORACLE_PRICE_DATA } from '../oracles/quoteAssetOracleClient';
-import { findAllMarketAndOracles } from '../config';
-import { getOracleId } from '../oracles/oracleId';
+import { OracleInfo, OraclePriceData } from '../../oracles/types';
+import { OracleClientCache } from '../../oracles/oracleClientCache';
+import { QUOTE_ORACLE_PRICE_DATA } from '../../oracles/quoteAssetOracleClient';
+import { findAllMarketAndOracles } from '../../config';
+import { getOracleId } from '../../oracles/oracleId';
 
 const ORACLE_DEFAULT_ID = getOracleId(
 	PublicKey.default,

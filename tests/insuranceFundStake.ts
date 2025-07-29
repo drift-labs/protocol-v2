@@ -43,7 +43,7 @@ import {
 } from './testHelpers';
 import { ContractTier, PERCENTAGE_PRECISION, UserStatus } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/bulkAccountLoader/testBulkAccountLoader';
 import {
 	BankrunContextWrapper,
 	asBN,

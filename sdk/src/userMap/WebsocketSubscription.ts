@@ -1,12 +1,12 @@
-import { UserMap } from './userMap';
 import { getNonIdleUserFilter, getUserFilter } from '../memcmp';
-import { WebSocketProgramAccountSubscriber } from '../accounts/webSocketProgramAccountSubscriber';
+import { WebSocketProgramAccountSubscriber } from '../accounts/programAccount/webSocketProgramAccountSubscriber';
 import { UserAccount } from '../types';
 import { Commitment, Context, MemcmpFilter, PublicKey } from '@solana/web3.js';
 import { ResubOpts } from '../accounts/types';
+import { UserMapInterface } from './types';
 
 export class WebsocketSubscription {
-	private userMap: UserMap;
+	private userMap: UserMapInterface;
 	private commitment: Commitment;
 	private skipInitialLoad: boolean;
 	private resubOpts?: ResubOpts;
@@ -25,7 +25,7 @@ export class WebsocketSubscription {
 		decodeFn,
 		additionalFilters = undefined,
 	}: {
-		userMap: UserMap;
+		userMap: UserMapInterface;
 		commitment: Commitment;
 		skipInitialLoad?: boolean;
 		resubOpts?: ResubOpts;

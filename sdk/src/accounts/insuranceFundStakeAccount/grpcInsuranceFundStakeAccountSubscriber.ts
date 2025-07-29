@@ -1,9 +1,9 @@
-import { GrpcConfigs } from './types';
+import { GrpcConfigs } from '../types';
 import { Program } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
-import { InsuranceFundStake } from '../types';
+import { InsuranceFundStake } from '../../types';
 import { WebSocketInsuranceFundStakeAccountSubscriber } from './webSocketInsuranceFundStakeAccountSubscriber';
-import { grpcAccountSubscriber } from './grpcAccountSubscriber';
+import { grpcAccountSubscriber } from '../baseSubscribers/grpcAccountSubscriber';
 
 export class grpcInsuranceFundStakeAccountSubscriber extends WebSocketInsuranceFundStakeAccountSubscriber {
 	private grpcConfigs: GrpcConfigs;

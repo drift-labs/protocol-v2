@@ -3,7 +3,7 @@ import {
 	MainnetPerpMarkets,
 } from '../constants/perpMarkets';
 import { DriftClient } from '../driftClient';
-import { DriftEnv } from '../config';
+import { DriftEnv } from '../config/types';
 import {
 	getUserAccountPublicKey,
 	getUserStatsAccountPublicKey,

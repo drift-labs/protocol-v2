@@ -29,7 +29,7 @@ import { MARGIN_PRECISION, OrderType, SpotOperation } from '../sdk/src';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { ContractTier } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/bulkAccountLoader/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('multiple maker orders', () => {

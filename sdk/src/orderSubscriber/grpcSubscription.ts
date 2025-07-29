@@ -1,6 +1,6 @@
 import { Context, PublicKey } from '@solana/web3.js';
 import { Buffer } from 'buffer';
-import { grpcProgramAccountSubscriber } from '../accounts/grpcProgramAccountSubscriber';
+import { grpcProgramAccountSubscriber } from '../accounts/programAccount/grpcProgramAccountSubscriber';
 import { OrderSubscriber } from './OrderSubscriber';
 import { GrpcConfigs, ResubOpts } from '../accounts/types';
 import { UserAccount } from '../types';

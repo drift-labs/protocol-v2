@@ -1,5 +1,5 @@
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
-import { CustomizedCadenceBulkAccountLoader } from '../../src/accounts/customizedCadenceBulkAccountLoader';
+import { CustomizedCadenceBulkAccountLoader } from '../../src/accounts/bulkAccountLoader/customizedCadenceBulkAccountLoader';
 import { expect } from 'chai';
 
 describe('CustomizedCadenceBulkAccountLoader', () => {

@@ -5,15 +5,9 @@ import {
 	ProtectedMakerParams,
 } from '../types';
 import { createNode, DLOBNode, DLOBNodeMap } from './DLOBNode';
+import { getOrderSignature } from './utils';
 
 export type SortDirection = 'asc' | 'desc';
-
-export function getOrderSignature(
-	orderId: number,
-	userAccount: string
-): string {
-	return `${userAccount.toString()}-${orderId.toString()}`;
-}
 
 export interface DLOBNodeGenerator {
 	getGenerator(): Generator<DLOBNode>;

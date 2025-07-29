@@ -25,7 +25,7 @@ import {
 	BankrunContextWrapper,
 	Connection,
 } from '../sdk/src/bankrun/bankrunConnection';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/bulkAccountLoader/testBulkAccountLoader';
 
 describe('admin', () => {
 	const chProgram = anchor.workspace.Drift as Program;
