@@ -17,8 +17,8 @@ import {
 	DelistedMarketSetting,
 } from './accounts/types';
 import { Coder, Program } from '@coral-xyz/anchor';
-import { WebSocketAccountSubscriber } from './accounts/webSocketAccountSubscriber';
-import { WebSocketAccountSubscriberV2Gill } from './accounts/webSocketAccountSubscriberV2Gill';
+import { WebSocketAccountSubscriber } from './accounts/baseSubscribers/webSocketAccountSubscriber';
+import { WebSocketAccountSubscriberV2 } from './accounts/baseSubscribers/webSocketAccountSubscriberV2';
 
 export type DriftClientConfig = {
 	connection: Connection;
@@ -70,9 +70,7 @@ export type DriftClientSubscriptionConfig =
 				decodeBuffer?: (buffer: Buffer) => any,
 				resubOpts?: ResubOpts,
 				commitment?: Commitment
-			) =>
-				| WebSocketAccountSubscriberV2Gill<any>
-				| WebSocketAccountSubscriber<any>;
+			) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>;
 	  }
 	| {
 			type: 'polling';

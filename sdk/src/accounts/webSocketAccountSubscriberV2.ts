@@ -1,15 +1,22 @@
 import {
 	DataAndSlot,
-	BufferAndSlot,
 	AccountSubscriber,
 	ResubOpts,
-} from './types';
+	BufferAndSlot,
+} from '../types';
 import { AnchorProvider, Program } from '@coral-xyz/anchor';
-import { AccountInfo, Commitment, Context, PublicKey } from '@solana/web3.js';
-import { capitalize } from './utils';
-
-// TODO: Add gill dependency to package.json: npm install gill
-// import { createSolanaClient, type Address } from 'gill';
+import { capitalize } from '../utils';
+import {
+	AccountInfoBase,
+	AccountInfoWithBase58EncodedData,
+	AccountInfoWithBase64EncodedData,
+	createSolanaClient,
+	isAddress,
+	type Address,
+	type Commitment,
+} from 'gill';
+import { PublicKey } from '@solana/web3.js';
+import bs58 from 'bs58';
 
 export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 	dataAndSlot?: DataAndSlot<T>;
@@ -31,9 +38,12 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 
 	receivingData: boolean;
 
-	// Gill client components - uncomment when gill is installed
-	// private rpc: ReturnType<typeof createSolanaClient>['rpc'];
-	// private rpcSubscriptions: ReturnType<typeof createSolanaClient>['rpcSubscriptions'];
+	// Gill client components
+	private rpc: ReturnType<typeof createSolanaClient>['rpc'];
+	private rpcSubscriptions: ReturnType<
+		typeof createSolanaClient
+	>['rpcSubscriptions'];
+	private abortController?: AbortController;
 
 	public constructor(
 		accountName: string,
@@ -55,16 +65,29 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 			);
 		}
 		this.receivingData = false;
+		if (
+			['recent', 'single', 'singleGossip', 'root', 'max'].includes(
+				(this.program.provider as AnchorProvider).opts.commitment
+			)
+		) {
+			console.warn(
+				`using commitment ${
+					(this.program.provider as AnchorProvider).opts.commitment
+				} that is not supported by gill, this may cause issues`
+			);
+		}
 		this.commitment =
-			commitment ?? (this.program.provider as AnchorProvider).opts.commitment;
+			commitment ??
+			((this.program.provider as AnchorProvider).opts.commitment as Commitment);
 
-		// TODO: Initialize gill client when gill is installed
-		// const rpcUrl = (this.program.provider as AnchorProvider).connection.rpcEndpoint;
-		// const { rpc, rpcSubscriptions } = createSolanaClient({
-		// 	urlOrMoniker: rpcUrl,
-		// });
-		// this.rpc = rpc;
-		// this.rpcSubscriptions = rpcSubscriptions;
+		// Initialize gill client using the same RPC URL as the program provider
+		const rpcUrl = (this.program.provider as AnchorProvider).connection
+			.rpcEndpoint;
+		const { rpc, rpcSubscriptions } = createSolanaClient({
+			urlOrMoniker: rpcUrl,
+		});
+		this.rpc = rpc;
+		this.rpcSubscriptions = rpcSubscriptions;
 	}
 
 	async subscribe(onChange: (data: T) => void): Promise<void> {
@@ -82,37 +105,35 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 			await this.fetch();
 		}
 
-		// TODO: Use gill's rpcSubscriptions when gill is installed
-		// const accountAddress = this.accountPublicKey.toBase58() as Address;
-		// this.listenerId = this.rpcSubscriptions.accountNotifications(accountAddress).subscribe({
-		// 	commitment: this.commitment,
-		// 	encoding: 'base64',
-		// }, (notification) => {
-		// 	if (this.resubOpts?.resubTimeoutMs) {
-		// 		this.receivingData = true;
-		// 		clearTimeout(this.timeoutId);
-		// 		this.handleRpcResponse(notification.context, notification.value);
-		// 		this.setTimeout();
-		// 	} else {
-		// 		this.handleRpcResponse(notification.context, notification.value);
-		// 	}
-		// });
+		// Create abort controller for proper cleanup
+		const abortController = new AbortController();
+		this.abortController = abortController;
 
-		// Fallback to original implementation for now
-		this.listenerId = this.program.provider.connection.onAccountChange(
-			this.accountPublicKey,
-			(accountInfo, context) => {
+		// Subscribe to account changes using gill's rpcSubscriptions
+		const pubkey = this.accountPublicKey.toBase58();
+		if (isAddress(pubkey)) {
+			const subscription = await this.rpcSubscriptions
+				.accountNotifications(pubkey, {
+					commitment: this.commitment,
+					encoding: 'base64',
+				})
+				.subscribe({
+					abortSignal: abortController.signal,
+				});
+
+			for await (const notification of subscription) {
 				if (this.resubOpts?.resubTimeoutMs) {
 					this.receivingData = true;
 					clearTimeout(this.timeoutId);
-					this.handleRpcResponse(context, accountInfo);
+					this.handleRpcResponse(notification.context, notification.value);
 					this.setTimeout();
 				} else {
-					this.handleRpcResponse(context, accountInfo);
+					this.handleRpcResponse(notification.context, notification.value);
 				}
-			},
-			this.commitment
-		);
+			}
+		}
+
+		this.listenerId = Math.random(); // Unique ID for logging purposes
 
 		if (this.resubOpts?.resubTimeoutMs) {
 			this.receivingData = true;
@@ -175,61 +196,69 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 	}
 
 	async fetch(): Promise<void> {
-		// TODO: Use gill's rpc when gill is installed
-		// const accountAddress = this.accountPublicKey.toBase58() as Address;
-		// const rpcResponse = await this.rpc.getAccountInfo(accountAddress, {
-		// 	commitment: this.commitment,
-		// 	encoding: 'base64',
-		// }).send();
-		//
-		// // Convert gill response to match the expected format
-		// const context: Context = {
-		// 	slot: rpcResponse.context.slot,
-		// };
-		//
-		// const accountInfo: AccountInfo<Buffer> | undefined = rpcResponse.value ? {
-		// 	lamports: rpcResponse.value.lamports,
-		// 	owner: new PublicKey(rpcResponse.value.owner),
-		// 	executable: rpcResponse.value.executable,
-		// 	rentEpoch: rpcResponse.value.rentEpoch,
-		// 	data: Buffer.from(rpcResponse.value.data, 'base64'),
-		// } : undefined;
-		//
-		// this.handleRpcResponse(context, accountInfo);
+		// Use gill's rpc for fetching account info
+		const accountAddress = this.accountPublicKey.toBase58() as Address;
+		const rpcResponse = await this.rpc
+			.getAccountInfo(accountAddress, {
+				commitment: this.commitment,
+				encoding: 'base64',
+			})
+			.send();
 
-		// Fallback to original implementation for now
-		const rpcResponse =
-			await this.program.provider.connection.getAccountInfoAndContext(
-				this.accountPublicKey,
-				(this.program.provider as AnchorProvider).opts.commitment
-			);
-		this.handleRpcResponse(rpcResponse.context, rpcResponse?.value);
+		// Convert gill response to match the expected format
+		const context = {
+			slot: Number(rpcResponse.context.slot),
+		};
+
+		const accountInfo = rpcResponse.value;
+
+		this.handleRpcResponse({ slot: BigInt(context.slot) }, accountInfo);
 	}
 
-	handleRpcResponse(context: Context, accountInfo?: AccountInfo<Buffer>): void {
+	handleRpcResponse(
+		context: { slot: bigint },
+		accountInfo?: AccountInfoBase &
+			(AccountInfoWithBase58EncodedData | AccountInfoWithBase64EncodedData)
+	): void {
 		const newSlot = context.slot;
 		let newBuffer: Buffer | undefined = undefined;
+
 		if (accountInfo) {
-			newBuffer = accountInfo.data;
+			// Extract data from gill response
+			if (accountInfo.data) {
+				// Handle different data formats from gill
+				if (Array.isArray(accountInfo.data)) {
+					// If it's a tuple [data, encoding]
+					const [data, encoding] = accountInfo.data;
+
+					if (encoding === 'base58') {
+						// we know encoding will be base58
+						// Convert base58 to buffer using bs58
+						newBuffer = Buffer.from(bs58.decode(data));
+					} else {
+						newBuffer = Buffer.from(data, 'base64');
+					}
+				}
+			}
 		}
 
 		if (!this.bufferAndSlot) {
 			this.bufferAndSlot = {
 				buffer: newBuffer,
-				slot: newSlot,
+				slot: Number(newSlot),
 			};
 			if (newBuffer) {
 				const account = this.decodeBuffer(newBuffer);
 				this.dataAndSlot = {
 					data: account,
-					slot: newSlot,
+					slot: Number(newSlot),
 				};
 				this.onChange(account);
 			}
 			return;
 		}
 
-		if (newSlot < this.bufferAndSlot.slot) {
+		if (Number(newSlot) < this.bufferAndSlot.slot) {
 			return;
 		}
 
@@ -237,12 +266,12 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 		if (newBuffer && (!oldBuffer || !newBuffer.equals(oldBuffer))) {
 			this.bufferAndSlot = {
 				buffer: newBuffer,
-				slot: newSlot,
+				slot: Number(newSlot),
 			};
 			const account = this.decodeBuffer(newBuffer);
 			this.dataAndSlot = {
 				data: account,
-				slot: newSlot,
+				slot: Number(newSlot),
 			};
 			this.onChange(account);
 		}
@@ -267,42 +296,15 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 		clearTimeout(this.timeoutId);
 		this.timeoutId = undefined;
 
-		if (this.listenerId != null) {
-			const promise = Promise.race([
-				// TODO: Use gill's unsubscribe method when gill is installed
-				// this.rpcSubscriptions.accountNotifications(this.accountPublicKey.toBase58() as Address).unsubscribe(),
-
-				// Fallback to original implementation for now
-				this.program.provider.connection.removeAccountChangeListener(
-					this.listenerId
-				),
-				new Promise((_, reject) =>
-					setTimeout(
-						() =>
-							reject(
-								new Error(
-									`Unsubscribe timeout for account ${this.logAccountName}`
-								)
-							),
-						10000
-					)
-				),
-			])
-				.then(() => {
-					this.listenerId = undefined;
-					this.isUnsubscribing = false;
-				})
-				.catch((error) => {
-					console.error(
-						`[${this.logAccountName}] Unsubscribe failed, forcing cleanup - listenerId=${this.listenerId}, isUnsubscribing=${this.isUnsubscribing}`,
-						error
-					);
-					this.listenerId = undefined;
-					this.isUnsubscribing = false;
-				});
-			return promise;
-		} else {
-			this.isUnsubscribing = false;
+		// Abort the WebSocket subscription
+		if (this.abortController) {
+			this.abortController.abort('unsubscribing');
+			this.abortController = undefined;
 		}
+
+		this.listenerId = undefined;
+		this.isUnsubscribing = false;
+
+		return Promise.resolve();
 	}
 }

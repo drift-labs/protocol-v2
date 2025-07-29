@@ -28,7 +28,7 @@ import { findAllMarketAndOracles } from '../config';
 import { findDelistedPerpMarketsAndOracles } from './utils';
 import { getOracleId } from '../oracles/oracleId';
 import { OracleSource } from '../types';
-import { WebSocketAccountSubscriberV2Gill } from './webSocketAccountSubscriberV2Gill';
+import { WebSocketAccountSubscriberV2 } from './webSocketAccountSubscriberV2';
 
 const ORACLE_DEFAULT_ID = getOracleId(
 	PublicKey.default,
@@ -98,7 +98,7 @@ export class WebSocketDriftClientAccountSubscriber
 			decodeBuffer?: (buffer: Buffer) => any,
 			resubOpts?: ResubOpts,
 			commitment?: Commitment
-		) => WebSocketAccountSubscriberV2Gill<any> | WebSocketAccountSubscriber<any>
+		) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>
 	) {
 		this.isSubscribed = false;
 		this.program = program;

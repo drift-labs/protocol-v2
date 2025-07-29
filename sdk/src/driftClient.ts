@@ -193,7 +193,6 @@ import { getOracleId } from './oracles/oracleId';
 import { SignedMsgOrderParams } from './types';
 import { sha256 } from '@noble/hashes/sha256';
 import { getOracleConfidenceFromMMOracleData } from './oracles/utils';
-import { WebSocketAccountSubscriberV2Gill } from './accounts/webSocketAccountSubscriberV2Gill';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
