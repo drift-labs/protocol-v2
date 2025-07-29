@@ -36,7 +36,7 @@ import {
 	// sleep,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/bulkAccountLoader/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 let lastOrderRecordsLength = 0;
@@ -991,7 +991,7 @@ describe('lp jit', () => {
 		assert(market.amm.baseAssetAmountPerLp.eq(ZERO));
 		let [bid, ask] = calculateBidAskPrice(
 			driftClient.getPerpMarketAccount(marketIndex).amm,
-			driftClient.getOracleDataForPerpMarket(marketIndex)
+			driftClient.getMMOracleDataForPerpMarket(marketIndex)
 		);
 		console.log(bid.toString(), '/', ask.toString());
 		console.log('bid:', bid.toString());
@@ -1034,7 +1034,7 @@ describe('lp jit', () => {
 
 		[bid, ask] = calculateBidAskPrice(
 			driftClient.getPerpMarketAccount(marketIndex).amm,
-			driftClient.getOracleDataForPerpMarket(marketIndex)
+			driftClient.getMMOracleDataForPerpMarket(marketIndex)
 		);
 		console.log(bid.toString(), '/', ask.toString());
 		console.log('bid:', bid.toString());
@@ -1068,7 +1068,7 @@ describe('lp jit', () => {
 
 		[bid, ask] = calculateBidAskPrice(
 			driftClient.getPerpMarketAccount(marketIndex).amm,
-			driftClient.getOracleDataForPerpMarket(marketIndex)
+			driftClient.getMMOracleDataForPerpMarket(marketIndex)
 		);
 		console.log(bid.toString(), '/', ask.toString());
 		console.log('bid:', bid.toString());
@@ -1163,7 +1163,7 @@ describe('lp jit', () => {
 
 		[bid, ask] = calculateBidAskPrice(
 			driftClient.getPerpMarketAccount(marketIndex).amm,
-			driftClient.getOracleDataForPerpMarket(marketIndex)
+			driftClient.getMMOracleDataForPerpMarket(marketIndex)
 		);
 		console.log(bid.toString(), '/', ask.toString());
 		console.log('bid:', bid.toString());

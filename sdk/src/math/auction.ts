@@ -1,15 +1,13 @@
 import { isOneOfVariant, isVariant, Order, PositionDirection } from '../types';
+import { BN } from '@coral-xyz/anchor';
 import {
-	BN,
-	getVariant,
 	ONE,
-	OrderBitFlag,
 	ZERO,
-	PerpMarketAccount,
-	getPerpMarketTierNumber,
 	QUOTE_PRECISION,
 	PRICE_PRECISION,
-} from '../.';
+} from '../constants/numericConstants';
+import { getVariant, OrderBitFlag, PerpMarketAccount } from '../types';
+import { getPerpMarketTierNumber } from './tiers';
 
 export function isAuctionComplete(order: Order, slot: number): boolean {
 	if (order.auctionDuration === 0) {

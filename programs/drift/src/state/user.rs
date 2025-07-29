@@ -443,8 +443,10 @@ impl User {
         false
     }
 
-    pub fn is_high_leverage_mode(&self) -> bool {
+    pub fn is_high_leverage_mode(&self, margin_type: MarginRequirementType) -> bool {
         self.margin_mode == MarginMode::HighLeverage
+            || (margin_type == MarginRequirementType::Maintenance
+                && self.margin_mode == MarginMode::HighLeverageMaintenance)
     }
 
     pub fn get_fuel_bonus_numerator(&self, now: i64) -> DriftResult<i64> {
@@ -2110,6 +2112,7 @@ pub enum MarginMode {
     #[default]
     Default,
     HighLeverage,
+    HighLeverageMaintenance,
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]

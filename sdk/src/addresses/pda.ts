@@ -2,7 +2,7 @@ import { PublicKey } from '@solana/web3.js';
 import * as anchor from '@coral-xyz/anchor';
 import { BN } from '@coral-xyz/anchor';
 import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import { SpotMarketAccount, TokenProgramFlag } from '..';
+import { SpotMarketAccount, TokenProgramFlag } from '../types';
 
 export async function getDriftStateAccountPublicKeyAndNonce(
 	programId: PublicKey

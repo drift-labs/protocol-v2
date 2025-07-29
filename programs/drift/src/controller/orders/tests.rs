@@ -2973,7 +2973,9 @@ pub mod fulfill_order {
     use std::str::FromStr;
     use std::u64;
 
-    use crate::controller::orders::{fulfill_perp_order, validate_market_within_price_band};
+    use crate::controller::orders::{
+        fill_perp_order, fulfill_perp_order, validate_market_within_price_band,
+    };
     use crate::controller::position::PositionDirection;
     use crate::create_anchor_account_info;
     use crate::error::ErrorCode;
@@ -4843,6 +4845,182 @@ pub mod fulfill_order {
         let reserve_price = market_after.amm.reserve_price().unwrap();
         let ask_price = market_after.amm.ask_price(reserve_price).unwrap();
         assert_eq!(ask_price, 100069968); // ~ 100.1 * (0.9997)
+    }
+
+    #[test]
+    fn amm_unavailable_from_volatile_mm_oracle() {
+        use anchor_lang::prelude::{AccountLoader, Clock};
+
+        let slot = 56_u64;
+        let clock = Clock {
+            slot,
+            epoch_start_timestamp: 0,
+            epoch: 0,
+            leader_schedule_epoch: 0,
+            unix_timestamp: 0,
+        };
+
+        let mut oracle_price = get_pyth_price(100, 6);
+        let oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            oracle_price,
+            &oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                terminal_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 100 * PEG_PRECISION,
+                max_slippage_ratio: 50,
+                max_fill_reserve_fraction: 100,
+                order_step_size: 1000,
+                order_tick_size: 1,
+                oracle: oracle_price_key,
+                base_spread: 0, // 1 basis point
+                mm_oracle_price: 102 * PRICE_PRECISION_I64,
+                mm_oracle_slot: slot,
+                historical_oracle_data: HistoricalOracleData {
+                    last_oracle_price: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap: (100 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (100 * PRICE_PRECISION) as i64,
+
+                    ..HistoricalOracleData::default()
+                },
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default_test()
+        };
+        market.amm.max_base_asset_reserve = u128::MAX;
+        market.amm.min_base_asset_reserve = 0;
+        market.status = MarketStatus::Active;
+
+        create_anchor_account_info!(market, PerpMarket, market_account_info);
+        let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
+
+        let mut spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+        let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
+
+        let mut taker = User {
+            orders: get_orders(Order {
+                market_index: 0,
+                status: OrderStatus::Open,
+                order_type: OrderType::Market,
+                direction: PositionDirection::Long,
+                base_asset_amount: BASE_PRECISION_U64,
+                slot: 0,
+                auction_start_price: 0,
+                auction_end_price: 100 * PRICE_PRECISION_I64,
+                auction_duration: 0,
+                price: 150 * PRICE_PRECISION_U64,
+                order_id: 1,
+                ..Order::default()
+            }),
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                open_orders: 1,
+                open_bids: BASE_PRECISION_I64,
+                ..PerpPosition::default()
+            }),
+            spot_positions: get_spot_positions(SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+                ..SpotPosition::default()
+            }),
+            ..User::default()
+        };
+        create_anchor_account_info!(taker, User, user_account_info);
+        let user_account_loader: AccountLoader<User> =
+            AccountLoader::try_from(&user_account_info).unwrap();
+        create_anchor_account_info!(UserStats::default(), UserStats, user_stats_account_info);
+        let user_stats_account_loader: AccountLoader<UserStats> =
+            AccountLoader::try_from(&user_stats_account_info).unwrap();
+
+        let filler_key = Pubkey::from_str("My11111111111111111111111111111111111111111").unwrap();
+        create_anchor_account_info!(User::default(), &filler_key, User, user_account_info);
+        let filler_account_loader: AccountLoader<User> =
+            AccountLoader::try_from(&user_account_info).unwrap();
+
+        create_anchor_account_info!(UserStats::default(), UserStats, filler_stats_account_info);
+        let filler_stats_account_loader: AccountLoader<UserStats> =
+            AccountLoader::try_from(&filler_stats_account_info).unwrap();
+
+        let state = State {
+            min_perp_auction_duration: 1,
+            default_market_order_time_in_force: 10,
+            ..State::default()
+        };
+
+        let (base_asset_amount, _) = fill_perp_order(
+            1,
+            &state,
+            &user_account_loader,
+            &user_stats_account_loader,
+            &spot_market_map,
+            &market_map,
+            &mut oracle_map,
+            &filler_account_loader,
+            &filler_stats_account_loader,
+            &UserMap::empty(),
+            &UserStatsMap::empty(),
+            None,
+            &clock,
+            FillMode::Fill,
+        )
+        .unwrap();
+
+        assert_eq!(base_asset_amount, 0);
+
+        // Will fill if MM oracle price is not too volatile at mm oracle price
+        market.amm.mm_oracle_price = 101 * PRICE_PRECISION_I64;
+        create_anchor_account_info!(market, PerpMarket, market_account_info);
+        let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
+
+        let (base_asset_amount, quote_asset_amount) = fill_perp_order(
+            1,
+            &state,
+            &user_account_loader,
+            &user_stats_account_loader,
+            &spot_market_map,
+            &market_map,
+            &mut oracle_map,
+            &filler_account_loader,
+            &filler_stats_account_loader,
+            &UserMap::empty(),
+            &UserStatsMap::empty(),
+            None,
+            &clock,
+            FillMode::Fill,
+        )
+        .unwrap();
+
+        assert_eq!(base_asset_amount, BASE_PRECISION_U64);
+        assert_eq!(quote_asset_amount, 101010102);
     }
 
     // Add back if we check free collateral in fill again

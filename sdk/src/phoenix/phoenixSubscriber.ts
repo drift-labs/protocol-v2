@@ -1,5 +1,5 @@
 import { Connection, PublicKey, SYSVAR_CLOCK_PUBKEY } from '@solana/web3.js';
-import { BulkAccountLoader } from '../accounts/bulkAccountLoader';
+import { BulkAccountLoader } from '../accounts/bulkAccountLoader/bulkAccountLoader';
 import {
 	Client,
 	deserializeClockData,

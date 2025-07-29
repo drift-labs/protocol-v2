@@ -5,7 +5,8 @@ import {
 	TransactionVersion,
 	VersionedTransaction,
 } from '@solana/web3.js';
-import { BN, ZERO } from '.';
+import { BN } from '@coral-xyz/anchor';
+import { ZERO } from './constants/numericConstants';
 
 // Utility type which lets you denote record with values of type A mapped to a record with the same keys but values of type B
 export type MappedRecord<A extends Record<string, unknown>, B> = {
@@ -74,6 +75,9 @@ export enum UserStatus {
 export class MarginMode {
 	static readonly DEFAULT = { default: {} };
 	static readonly HIGH_LEVERAGE = { highLeverage: {} };
+	static readonly HIGH_LEVERAGE_MAINTENANCE = {
+		highLeverageMaintenance: {},
+	};
 }
 
 export class ContractType {
@@ -948,7 +952,7 @@ export type AMM = {
 	totalFeeMinusDistributions: BN;
 	totalFeeWithdrawn: BN;
 	totalFee: BN;
-	totalFeeEarnedPerLp: BN;
+	mmOracleSequenceId: BN;
 	userLpShares: BN;
 	baseAssetAmountWithUnsettledLp: BN;
 	orderStepSize: BN;
@@ -993,13 +997,12 @@ export type AMM = {
 
 	markStd: BN;
 	oracleStd: BN;
-	longIntensityCount: number;
 	longIntensityVolume: BN;
-	shortIntensityCount: number;
 	shortIntensityVolume: BN;
 	volume24H: BN;
 	minOrderSize: BN;
-	maxPositionSize: BN;
+	mmOraclePrice: BN;
+	mmOracleSlot: BN;
 
 	bidBaseAssetReserve: BN;
 	bidQuoteAssetReserve: BN;

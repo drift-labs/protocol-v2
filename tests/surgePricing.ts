@@ -26,7 +26,7 @@ import {
 import { QUOTE_PRECISION, getUserAccountPublicKey } from '../sdk/src';
 import { calculateInitUserFee } from '../sdk/src/math/state';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/bulkAccountLoader/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('surge pricing', () => {

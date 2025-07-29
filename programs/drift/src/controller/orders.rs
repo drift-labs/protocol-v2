@@ -42,7 +42,9 @@ use crate::math::matching::{
     are_orders_same_market_but_different_sides, calculate_fill_for_matched_orders,
     calculate_filler_multiplier_for_matched_orders, do_orders_cross, is_maker_for_taker,
 };
-use crate::math::oracle::{is_oracle_valid_for_action, DriftAction, OracleValidity};
+use crate::math::oracle::{
+    self, is_oracle_valid_for_action, oracle_validity, DriftAction, OracleValidity,
+};
 use crate::math::safe_math::SafeMath;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount};
@@ -126,7 +128,7 @@ pub fn place_perp_order(
         if let Some(config) = high_leverage_mode_config {
             let mut config = load_mut!(config)?;
             if !config.is_full() || params.is_max_leverage_order() {
-                config.update_user(user)?;
+                config.enable_high_leverage(user)?;
             } else {
                 msg!("high leverage mode config is full");
             }
@@ -1064,7 +1066,7 @@ pub fn fill_perp_order(
     }
 
     let reserve_price_before: u64;
-    let oracle_validity: OracleValidity;
+    let safe_oracle_validity: OracleValidity;
     let oracle_price: i64;
     let oracle_twap_5min: i64;
     let perp_market_index: u16;
@@ -1084,19 +1086,29 @@ pub fn fill_perp_order(
             "Market is in settlement mode",
         )?;
 
-        let (oracle_price_data, _oracle_validity) = oracle_map.get_price_data_and_validity(
+        let oracle_price_data = oracle_map.get_price_data(&market.oracle_id())?;
+        let mm_oracle_price_data = market.get_mm_oracle_price_data(
+            *oracle_price_data,
+            slot,
+            &state.oracle_guard_rails.validity,
+        )?;
+        let safe_oracle_price_data = mm_oracle_price_data.get_safe_oracle_price_data();
+        safe_oracle_validity = oracle_validity(
             MarketType::Perp,
             market.market_index,
-            &market.oracle_id(),
             market.amm.historical_oracle_data.last_oracle_price_twap,
+            &safe_oracle_price_data,
+            &state.oracle_guard_rails.validity,
             market.get_max_confidence_interval_multiplier()?,
+            &market.amm.oracle_source,
+            oracle::LogMode::SafeMMOracle,
             market.amm.oracle_slot_delay_override,
         )?;
 
         oracle_valid_for_amm_fill =
-            is_oracle_valid_for_action(_oracle_validity, Some(DriftAction::FillOrderAmm))?;
+            is_oracle_valid_for_action(safe_oracle_validity, Some(DriftAction::FillOrderAmm))?;
 
-        oracle_stale_for_margin = oracle_price_data.delay
+        oracle_stale_for_margin = mm_oracle_price_data.get_delay()
             > state
                 .oracle_guard_rails
                 .validity
@@ -1105,6 +1117,17 @@ pub fn fill_perp_order(
         amm_is_available &= oracle_valid_for_amm_fill;
         amm_is_available &= !market.is_operation_paused(PerpOperation::AmmFill);
         amm_is_available &= !market.has_too_much_drawdown()?;
+
+        // We are already using safe oracle data from MM oracle.
+        // But AMM isnt available if we could have used MM oracle but fell back due to price diff
+        let amm_available_mm_oracle_recent_but_volatile =
+            if mm_oracle_price_data.is_enabled() && mm_oracle_price_data.is_mm_oracle_as_recent() {
+                let amm_available = !mm_oracle_price_data.is_mm_exchange_diff_bps_high();
+                amm_available
+            } else {
+                true
+            };
+        amm_is_available &= amm_available_mm_oracle_recent_but_volatile;
 
         let amm_wants_to_jit_make = market.amm.amm_wants_to_jit_make(order_direction)?;
         amm_lp_allowed_to_jit_make = market
@@ -1116,12 +1139,11 @@ pub fn fill_perp_order(
         user_can_skip_duration = user.can_skip_auction_duration(user_stats)?;
 
         reserve_price_before = market.amm.reserve_price()?;
-        oracle_price = oracle_price_data.price;
+        oracle_price = mm_oracle_price_data.get_price();
         oracle_twap_5min = market
             .amm
             .historical_oracle_data
             .last_oracle_price_twap_5min;
-        oracle_validity = _oracle_validity;
         perp_market_index = market.market_index;
 
         min_auction_duration =
@@ -1130,7 +1152,7 @@ pub fn fill_perp_order(
 
     // allow oracle price to be used to calculate limit price if it's valid or stale for amm
     let valid_oracle_price =
-        if is_oracle_valid_for_action(oracle_validity, Some(DriftAction::OracleOrderPrice))? {
+        if is_oracle_valid_for_action(safe_oracle_validity, Some(DriftAction::OracleOrderPrice))? {
             Some(oracle_price)
         } else {
             msg!("Perp market = {} oracle deemed invalid", perp_market_index);
@@ -1211,15 +1233,6 @@ pub fn fill_perp_order(
             return Ok((0, 0));
         }
     }
-
-    validate_perp_fill_possible(
-        state,
-        user,
-        order_index,
-        slot,
-        makers_and_referrer.0.len(),
-        fill_mode,
-    )?;
 
     let should_expire_order = should_expire_order_before_fill(user, order_index, now)?;
 
@@ -2139,7 +2152,7 @@ pub fn fulfill_perp_order_with_amm(
                 user_stats,
                 fee_structure,
                 &MarketType::Perp,
-                user.is_high_leverage_mode(),
+                user.is_high_leverage_mode(MarginRequirementType::Initial),
             )?;
             let (base_asset_amount, limit_price) = calculate_base_asset_amount_for_amm_to_fulfill(
                 &user.orders[order_index],
@@ -2248,7 +2261,7 @@ pub fn fulfill_perp_order_with_amm(
         quote_asset_amount_surplus,
         order_post_only,
         market.fee_adjustment,
-        user.is_high_leverage_mode(),
+        user.is_high_leverage_mode(MarginRequirementType::Initial),
     )?;
 
     let user_position_delta =
@@ -2741,7 +2754,7 @@ pub fn fulfill_perp_order_with_match(
         referrer_stats,
         &MarketType::Perp,
         market.fee_adjustment,
-        taker.is_high_leverage_mode(),
+        taker.is_high_leverage_mode(MarginRequirementType::Initial),
     )?;
 
     // Increment the markets house's total fee variables
@@ -3393,7 +3406,7 @@ pub fn burn_user_lp_shares_for_risk_reduction(
             quote_oracle_price,
             margin_calc.margin_shortage()?,
             user_custom_margin_ratio,
-            user.is_high_leverage_mode(),
+            user.is_high_leverage_mode(MarginRequirementType::Initial),
         )?;
 
     let (position_delta, pnl) = burn_lp_shares(
