@@ -42,7 +42,9 @@ use crate::math::matching::{
     are_orders_same_market_but_different_sides, calculate_fill_for_matched_orders,
     calculate_filler_multiplier_for_matched_orders, do_orders_cross, is_maker_for_taker,
 };
-use crate::math::oracle::{is_oracle_valid_for_action, DriftAction, OracleValidity};
+use crate::math::oracle::{
+    self, is_oracle_valid_for_action, oracle_validity, DriftAction, OracleValidity,
+};
 use crate::math::safe_math::SafeMath;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount};
@@ -1048,7 +1050,7 @@ pub fn fill_perp_order(
     }
 
     let reserve_price_before: u64;
-    let oracle_validity: OracleValidity;
+    let safe_oracle_validity: OracleValidity;
     let oracle_price: i64;
     let oracle_twap_5min: i64;
     let perp_market_index: u16;
@@ -1068,19 +1070,29 @@ pub fn fill_perp_order(
             "Market is in settlement mode",
         )?;
 
-        let (oracle_price_data, _oracle_validity) = oracle_map.get_price_data_and_validity(
+        let oracle_price_data = oracle_map.get_price_data(&market.oracle_id())?;
+        let mm_oracle_price_data = market.get_mm_oracle_price_data(
+            *oracle_price_data,
+            slot,
+            &state.oracle_guard_rails.validity,
+        )?;
+        let safe_oracle_price_data = mm_oracle_price_data.get_safe_oracle_price_data();
+        safe_oracle_validity = oracle_validity(
             MarketType::Perp,
             market.market_index,
-            &market.oracle_id(),
             market.amm.historical_oracle_data.last_oracle_price_twap,
+            &safe_oracle_price_data,
+            &state.oracle_guard_rails.validity,
             market.get_max_confidence_interval_multiplier()?,
+            &market.amm.oracle_source,
+            oracle::LogMode::SafeMMOracle,
             market.amm.oracle_slot_delay_override,
         )?;
 
         oracle_valid_for_amm_fill =
-            is_oracle_valid_for_action(_oracle_validity, Some(DriftAction::FillOrderAmm))?;
+            is_oracle_valid_for_action(safe_oracle_validity, Some(DriftAction::FillOrderAmm))?;
 
-        oracle_stale_for_margin = oracle_price_data.delay
+        oracle_stale_for_margin = mm_oracle_price_data.get_delay()
             > state
                 .oracle_guard_rails
                 .validity
@@ -1089,6 +1101,17 @@ pub fn fill_perp_order(
         amm_is_available &= oracle_valid_for_amm_fill;
         amm_is_available &= !market.is_operation_paused(PerpOperation::AmmFill);
         amm_is_available &= !market.has_too_much_drawdown()?;
+
+        // We are already using safe oracle data from MM oracle.
+        // But AMM isnt available if we could have used MM oracle but fell back due to price diff
+        let amm_available_mm_oracle_recent_but_volatile =
+            if mm_oracle_price_data.is_enabled() && mm_oracle_price_data.is_mm_oracle_as_recent() {
+                let amm_available = !mm_oracle_price_data.is_mm_exchange_diff_bps_high();
+                amm_available
+            } else {
+                true
+            };
+        amm_is_available &= amm_available_mm_oracle_recent_but_volatile;
 
         let amm_wants_to_jit_make = market.amm.amm_wants_to_jit_make(order_direction)?;
         amm_lp_allowed_to_jit_make = market
@@ -1100,12 +1123,11 @@ pub fn fill_perp_order(
         user_can_skip_duration = user.can_skip_auction_duration(user_stats)?;
 
         reserve_price_before = market.amm.reserve_price()?;
-        oracle_price = oracle_price_data.price;
+        oracle_price = mm_oracle_price_data.get_price();
         oracle_twap_5min = market
             .amm
             .historical_oracle_data
             .last_oracle_price_twap_5min;
-        oracle_validity = _oracle_validity;
         perp_market_index = market.market_index;
 
         min_auction_duration =
@@ -1114,7 +1136,7 @@ pub fn fill_perp_order(
 
     // allow oracle price to be used to calculate limit price if it's valid or stale for amm
     let valid_oracle_price =
-        if is_oracle_valid_for_action(oracle_validity, Some(DriftAction::OracleOrderPrice))? {
+        if is_oracle_valid_for_action(safe_oracle_validity, Some(DriftAction::OracleOrderPrice))? {
             Some(oracle_price)
         } else {
             msg!("Perp market = {} oracle deemed invalid", perp_market_index);

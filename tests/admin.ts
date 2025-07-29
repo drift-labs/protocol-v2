@@ -1,14 +1,16 @@
 import * as anchor from '@coral-xyz/anchor';
 import { Program } from '@coral-xyz/anchor';
-import { assert } from 'chai';
+import { assert, expect } from 'chai';
 import { startAnchor } from 'solana-bankrun';
 import {
 	BN,
 	ExchangeStatus,
 	getPythLazerOraclePublicKey,
+	loadKeypair,
 	OracleGuardRails,
 	OracleSource,
 	TestClient,
+	Wallet,
 } from '../sdk/src';
 
 import { decodeName, DEFAULT_MARKET_NAME } from '../sdk/src/userName';
@@ -34,10 +36,12 @@ describe('admin', () => {
 
 	let usdcMint;
 
+	let bankrunContextWrapper: BankrunContextWrapper;
+
 	before(async () => {
 		const context = await startAnchor('', [], []);
 
-		const bankrunContextWrapper = new BankrunContextWrapper(context);
+		bankrunContextWrapper = new BankrunContextWrapper(context);
 
 		bulkAccountLoader = new TestBulkAccountLoader(
 			bankrunContextWrapper.connection,
@@ -47,9 +51,13 @@ describe('admin', () => {
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 
+		const wallet = new Wallet(loadKeypair(process.env.ANCHOR_WALLET));
+		//@ts-ignore
+		await bankrunContextWrapper.fundKeypair(wallet, 10 ** 9);
+
 		driftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(), // ugh.
-			wallet: bankrunContextWrapper.provider.wallet,
+			wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
@@ -399,6 +407,53 @@ describe('admin', () => {
 				getPythLazerOraclePublicKey(driftClient.program.programId, 0)
 			)
 		);
+	});
+
+	it('update MM oracle native', async () => {
+		const oraclePrice = new BN(100);
+		const oracleTS = new BN(Date.now());
+		await driftClient.updateMmOracleNative(0, oraclePrice, oracleTS);
+
+		let perpMarket = driftClient.getPerpMarketAccount(0);
+		assert(perpMarket.amm.mmOraclePrice.eq(oraclePrice));
+		const slot = (await bankrunContextWrapper.connection.getSlot()).toString();
+		expect(perpMarket.amm.mmOracleSlot.toNumber()).to.be.approximately(
+			+slot,
+			1
+		);
+		assert(perpMarket.amm.mmOracleSequenceId.eq(oracleTS));
+
+		// Doesnt change if id doesnt increase
+		await driftClient.updateMmOracleNative(0, oraclePrice.addn(1), oracleTS);
+		assert(perpMarket.amm.mmOraclePrice.eq(oraclePrice));
+
+		// Doesnt update if we flip the admin switch
+		await driftClient.updateDisableBitFlagsMMOracle(true);
+		try {
+			await driftClient.updateMmOracleNative(0, oraclePrice, oracleTS);
+			assert.fail('Should have thrown');
+		} catch (e) {
+			console.log(e.message);
+			assert(e.message.includes('Program failed to complete'));
+		}
+
+		// Re-enable and update
+		await driftClient.updateDisableBitFlagsMMOracle(false);
+		await driftClient.updateMmOracleNative(
+			0,
+			oraclePrice.addn(2),
+			oracleTS.addn(1)
+		);
+		perpMarket = driftClient.getPerpMarketAccount(0);
+		assert(perpMarket.amm.mmOraclePrice.eq(oraclePrice.addn(2)));
+		assert(perpMarket.amm.mmOracleSequenceId.eq(oracleTS.addn(1)));
+	});
+
+	it('update amm adjustment oracle native', async () => {
+		const ammSpreadAdjustment = 5;
+		await driftClient.updateAmmSpreadAdjustmentNative(0, ammSpreadAdjustment);
+		const perpMarket = driftClient.getPerpMarketAccount(0);
+		assert(perpMarket.amm.ammSpreadAdjustment == ammSpreadAdjustment);
 	});
 
 	it('Update admin', async () => {
