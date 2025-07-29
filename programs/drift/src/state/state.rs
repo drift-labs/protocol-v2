@@ -118,7 +118,7 @@ impl State {
     }
 
     pub fn use_median_trigger_price(&self) -> bool {
-        self.feature_bit_flags & (FeatureBitFlags::MedianTriggerPrice as u8) > 0
+        (self.feature_bit_flags & (FeatureBitFlags::MedianTriggerPrice as u8)) > 0
     }
 }
 
