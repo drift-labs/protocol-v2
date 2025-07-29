@@ -18,6 +18,7 @@ export class grpcAccountSubscriber<T> extends WebSocketAccountSubscriber<T> {
 	private stream: ClientDuplexStream<SubscribeRequest, SubscribeUpdate>;
 	private commitmentLevel: CommitmentLevel;
 	public listenerId?: number;
+	private enableReconnect: boolean;
 
 	private constructor(
 		client: Client,
@@ -26,11 +27,13 @@ export class grpcAccountSubscriber<T> extends WebSocketAccountSubscriber<T> {
 		program: Program,
 		accountPublicKey: PublicKey,
 		decodeBuffer?: (buffer: Buffer) => T,
-		resubOpts?: ResubOpts
+		resubOpts?: ResubOpts,
+		enableReconnect = false
 	) {
 		super(accountName, program, accountPublicKey, decodeBuffer, resubOpts);
 		this.client = client;
 		this.commitmentLevel = commitmentLevel;
+		this.enableReconnect = enableReconnect;
 	}
 
 	public static async create<U>(
@@ -57,7 +60,8 @@ export class grpcAccountSubscriber<T> extends WebSocketAccountSubscriber<T> {
 			program,
 			accountPublicKey,
 			decodeBuffer,
-			resubOpts
+			resubOpts,
+			grpcConfigs.enableReconnect
 		);
 	}
 
@@ -92,15 +96,24 @@ export class grpcAccountSubscriber<T> extends WebSocketAccountSubscriber<T> {
 			transactionsStatus: {},
 		};
 
-		this.stream.on('error', (error) => {
-			// @ts-ignore
-			if (error.code === 1) {
-				// expected: 1 CANCELLED: Cancelled on client
-				return;
-			} else {
-				console.error('GRPC unexpected error caught:', error);
-			}
-		});
+		if (this.enableReconnect) {
+			this.stream.on('error', (error) => {
+				// @ts-ignore
+				if (error.code === 1) {
+					// expected: 1 CANCELLED: Cancelled on client
+					console.error(
+						'GRPC (grpcAccountSubscriber) Cancelled on client caught:',
+						error
+					);
+					return;
+				} else {
+					console.error(
+						'GRPC (grpcAccountSubscriber) unexpected error caught:',
+						error
+					);
+				}
+			});
+		}
 
 		this.stream.on('data', (chunk: SubscribeUpdate) => {
 			if (!chunk.account) {
