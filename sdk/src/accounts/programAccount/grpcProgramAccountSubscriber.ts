@@ -1,4 +1,4 @@
-import { ResubOpts, GrpcConfigs } from './types';
+import { ResubOpts, GrpcConfigs } from '../types';
 import { Program } from '@coral-xyz/anchor';
 import bs58 from 'bs58';
 import { Context, MemcmpFilter, PublicKey } from '@solana/web3.js';
@@ -11,7 +11,7 @@ import {
 	createClient,
 	SubscribeRequest,
 	SubscribeUpdate,
-} from '../isomorphic/grpc';
+} from '../../isomorphic/grpc';
 
 export class grpcProgramAccountSubscriber<
 	T,

@@ -1,8 +1,12 @@
-import { DataAndSlot, UserAccountEvents, UserAccountSubscriber } from './types';
+import {
+	DataAndSlot,
+	UserAccountEvents,
+	UserAccountSubscriber,
+} from '../types';
 import { PublicKey } from '@solana/web3.js';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
-import { UserAccount } from '../types';
+import { UserAccount } from '../../types';
 
 /**
  * Basic implementation of UserAccountSubscriber. It will only take in UserAccount

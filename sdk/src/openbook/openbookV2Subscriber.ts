@@ -1,5 +1,5 @@
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
-import { BulkAccountLoader } from '../accounts/bulkAccountLoader';
+import { BulkAccountLoader } from '../accounts/bulkAccountLoader/bulkAccountLoader';
 import { PRICE_PRECISION } from '../constants/numericConstants';
 import { AnchorProvider, BN, Idl, Program, Wallet } from '@coral-xyz/anchor';
 import { L2Level, L2OrderBookGenerator } from '../dlob/orderBookLevels';

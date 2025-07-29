@@ -1,4 +1,5 @@
-import { getOrderSignature, NodeList } from './NodeList';
+import { NodeList } from './NodeList';
+import { getOrderSignature } from './utils';
 import { BN } from '@coral-xyz/anchor';
 import {
 	BASE_PRECISION,

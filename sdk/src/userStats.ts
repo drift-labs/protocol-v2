@@ -2,14 +2,14 @@ import { DriftClient } from './driftClient';
 import { PublicKey } from '@solana/web3.js';
 import { DataAndSlot, UserStatsAccountSubscriber } from './accounts/types';
 import { UserStatsConfig } from './userStatsConfig';
-import { PollingUserStatsAccountSubscriber } from './accounts/pollingUserStatsAccountSubscriber';
-import { WebSocketUserStatsAccountSubscriber } from './accounts/webSocketUserStatsAccountSubsriber';
+import { PollingUserStatsAccountSubscriber } from './accounts/userStatsAccount/pollingUserStatsAccountSubscriber';
+import { WebSocketUserStatsAccountSubscriber } from './accounts/userStatsAccount/webSocketUserStatsAccountSubsriber';
 import { ReferrerInfo, SpotMarketAccount, UserStatsAccount } from './types';
 import {
 	getUserAccountPublicKeySync,
 	getUserStatsAccountPublicKey,
 } from './addresses/pda';
-import { grpcUserStatsAccountSubscriber } from './accounts/grpcUserStatsAccountSubscriber';
+import { grpcUserStatsAccountSubscriber } from './accounts/userStatsAccount/grpcUserStatsAccountSubscriber';
 import { FUEL_START_TS } from './constants/numericConstants';
 import { ZERO } from './constants/numericConstants';
 import {

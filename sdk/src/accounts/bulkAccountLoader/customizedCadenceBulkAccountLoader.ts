@@ -1,4 +1,4 @@
-import { GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE } from '../constants/numericConstants';
+import { GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE } from '../../constants/numericConstants';
 import { BulkAccountLoader } from './bulkAccountLoader';
 import { Commitment, Connection, PublicKey } from '@solana/web3.js';
 import { v4 as uuidv4 } from 'uuid';

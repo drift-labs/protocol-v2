@@ -1,4 +1,4 @@
-import { BufferAndSlot, ProgramAccountSubscriber, ResubOpts } from './types';
+import { BufferAndSlot, ProgramAccountSubscriber, ResubOpts } from '../types';
 import { AnchorProvider, Program } from '@coral-xyz/anchor';
 import {
 	Commitment,

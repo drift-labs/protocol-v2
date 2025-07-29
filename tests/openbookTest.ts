@@ -12,7 +12,7 @@ import {
 } from '../sdk/src';
 import openbookIDL from '../sdk/src/idl/openbook.json';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/bulkAccountLoader/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import {
 	createOpenOrdersAccount,

@@ -1,14 +1,14 @@
-import { UserMap } from './userMap';
 import { getNonIdleUserFilter, getUserFilter } from '../memcmp';
-import { WebSocketProgramAccountSubscriber } from '../accounts/webSocketProgramAccountSubscriber';
+import { WebSocketProgramAccountSubscriber } from '../accounts/programAccount/webSocketProgramAccountSubscriber';
 import { UserAccount } from '../types';
 import { Context, MemcmpFilter, PublicKey } from '@solana/web3.js';
 import { GrpcConfigs, ResubOpts } from '../accounts/types';
-import { grpcProgramAccountSubscriber } from '../accounts/grpcProgramAccountSubscriber';
+import { grpcProgramAccountSubscriber } from '../accounts/programAccount/grpcProgramAccountSubscriber';
+import { UserMapInterface } from './types';
 
 export class grpcSubscription {
 	private grpcConfigs: GrpcConfigs;
-	private userMap: UserMap;
+	private userMap: UserMapInterface;
 	private skipInitialLoad: boolean;
 	private resubOpts?: ResubOpts;
 	private includeIdle?: boolean;
@@ -27,7 +27,7 @@ export class grpcSubscription {
 		additionalFilters = undefined,
 	}: {
 		grpcConfigs: GrpcConfigs;
-		userMap: UserMap;
+		userMap: UserMapInterface;
 		skipInitialLoad?: boolean;
 		resubOpts?: ResubOpts;
 		includeIdle?: boolean;

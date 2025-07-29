@@ -4,13 +4,13 @@ import {
 	NotSubscribedError,
 	HighLeverageModeConfigAccountEvents,
 	HighLeverageModeConfigAccountSubscriber,
-} from './types';
+} from '../types';
 import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { Commitment, PublicKey } from '@solana/web3.js';
-import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
-import { HighLeverageModeConfig } from '../types';
+import { WebSocketAccountSubscriber } from '../baseSubscribers/webSocketAccountSubscriber';
+import { HighLeverageModeConfig } from '../../types';
 
 export class WebSocketHighLeverageModeConfigAccountSubscriber
 	implements HighLeverageModeConfigAccountSubscriber

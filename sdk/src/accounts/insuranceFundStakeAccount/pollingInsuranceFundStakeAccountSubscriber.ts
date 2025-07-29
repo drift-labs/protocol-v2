@@ -1,32 +1,32 @@
 import {
 	DataAndSlot,
 	NotSubscribedError,
-	HighLeverageModeConfigAccountEvents,
-	HighLeverageModeConfigAccountSubscriber,
-} from './types';
+	InsuranceFundStakeAccountEvents,
+	InsuranceFundStakeAccountSubscriber,
+} from '../types';
 import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
-import { BulkAccountLoader } from './bulkAccountLoader';
-import { HighLeverageModeConfig } from '../types';
+import { BulkAccountLoader } from '../bulkAccountLoader/bulkAccountLoader';
+import { InsuranceFundStake } from '../../types';
 
-export class PollingHighLeverageModeConfigAccountSubscriber
-	implements HighLeverageModeConfigAccountSubscriber
+export class PollingInsuranceFundStakeAccountSubscriber
+	implements InsuranceFundStakeAccountSubscriber
 {
 	isSubscribed: boolean;
 	program: Program;
 	eventEmitter: StrictEventEmitter<
 		EventEmitter,
-		HighLeverageModeConfigAccountEvents
+		InsuranceFundStakeAccountEvents
 	>;
-	highLeverageModeConfigAccountPublicKey: PublicKey;
+	insuranceFundStakeAccountPublicKey: PublicKey;
 
 	accountLoader: BulkAccountLoader;
 	callbackId?: string;
 	errorCallbackId?: string;
 
-	highLeverageModeConfigAccountAndSlot?: DataAndSlot<HighLeverageModeConfig>;
+	insuranceFundStakeAccountAndSlot?: DataAndSlot<InsuranceFundStake>;
 
 	public constructor(
 		program: Program,
@@ -35,28 +35,24 @@ export class PollingHighLeverageModeConfigAccountSubscriber
 	) {
 		this.isSubscribed = false;
 		this.program = program;
-		this.highLeverageModeConfigAccountPublicKey = publicKey;
+		this.insuranceFundStakeAccountPublicKey = publicKey;
 		this.accountLoader = accountLoader;
 		this.eventEmitter = new EventEmitter();
 	}
 
-	async subscribe(
-		highLeverageModeConfig?: HighLeverageModeConfig
-	): Promise<boolean> {
+	async subscribe(insuranceFundStake?: InsuranceFundStake): Promise<boolean> {
 		if (this.isSubscribed) {
 			return true;
 		}
 
-		if (highLeverageModeConfig) {
-			this.highLeverageModeConfigAccountAndSlot = {
-				data: highLeverageModeConfig,
+		if (insuranceFundStake) {
+			this.insuranceFundStakeAccountAndSlot = {
+				data: insuranceFundStake,
 				slot: undefined,
 			};
 		}
 
 		await this.addToAccountLoader();
-
-		await this.fetchIfUnloaded();
 
 		if (this.doesAccountExist()) {
 			this.eventEmitter.emit('update');
@@ -72,25 +68,25 @@ export class PollingHighLeverageModeConfigAccountSubscriber
 		}
 
 		this.callbackId = await this.accountLoader.addAccount(
-			this.highLeverageModeConfigAccountPublicKey,
+			this.insuranceFundStakeAccountPublicKey,
 			(buffer, slot: number) => {
 				if (!buffer) {
 					return;
 				}
 
 				if (
-					this.highLeverageModeConfigAccountAndSlot &&
-					this.highLeverageModeConfigAccountAndSlot.slot > slot
+					this.insuranceFundStakeAccountAndSlot &&
+					this.insuranceFundStakeAccountAndSlot.slot > slot
 				) {
 					return;
 				}
 
 				const account = this.program.account.user.coder.accounts.decode(
-					'HighLeverageModeConfig',
+					'InsuranceFundStake',
 					buffer
 				);
-				this.highLeverageModeConfigAccountAndSlot = { data: account, slot };
-				this.eventEmitter.emit('highLeverageModeConfigAccountUpdate', account);
+				this.insuranceFundStakeAccountAndSlot = { data: account, slot };
+				this.eventEmitter.emit('insuranceFundStakeAccountUpdate', account);
 				this.eventEmitter.emit('update');
 			}
 		);
@@ -101,7 +97,7 @@ export class PollingHighLeverageModeConfigAccountSubscriber
 	}
 
 	async fetchIfUnloaded(): Promise<void> {
-		if (this.highLeverageModeConfigAccountAndSlot === undefined) {
+		if (this.insuranceFundStakeAccountAndSlot === undefined) {
 			await this.fetch();
 		}
 	}
@@ -109,28 +105,28 @@ export class PollingHighLeverageModeConfigAccountSubscriber
 	async fetch(): Promise<void> {
 		try {
 			const dataAndContext =
-				await this.program.account.highLeverageModeConfig.fetchAndContext(
-					this.highLeverageModeConfigAccountPublicKey,
+				await this.program.account.insuranceFundStake.fetchAndContext(
+					this.insuranceFundStakeAccountPublicKey,
 					this.accountLoader.commitment
 				);
 			if (
 				dataAndContext.context.slot >
-				(this.highLeverageModeConfigAccountAndSlot?.slot ?? 0)
+				(this.insuranceFundStakeAccountAndSlot?.slot ?? 0)
 			) {
-				this.highLeverageModeConfigAccountAndSlot = {
-					data: dataAndContext.data as HighLeverageModeConfig,
+				this.insuranceFundStakeAccountAndSlot = {
+					data: dataAndContext.data as InsuranceFundStake,
 					slot: dataAndContext.context.slot,
 				};
 			}
 		} catch (e) {
 			console.log(
-				`PollingHighLeverageModeConfigAccountSubscriber.fetch() HighLeverageModeConfig does not exist: ${e.message}`
+				`PollingInsuranceFundStakeAccountSubscriber.fetch() InsuranceFundStake does not exist: ${e.message}`
 			);
 		}
 	}
 
 	doesAccountExist(): boolean {
-		return this.highLeverageModeConfigAccountAndSlot !== undefined;
+		return this.insuranceFundStakeAccountAndSlot !== undefined;
 	}
 
 	async unsubscribe(): Promise<void> {
@@ -139,7 +135,7 @@ export class PollingHighLeverageModeConfigAccountSubscriber
 		}
 
 		this.accountLoader.removeAccount(
-			this.highLeverageModeConfigAccountPublicKey,
+			this.insuranceFundStakeAccountPublicKey,
 			this.callbackId
 		);
 		this.callbackId = undefined;
@@ -158,30 +154,30 @@ export class PollingHighLeverageModeConfigAccountSubscriber
 		}
 	}
 
-	public getHighLeverageModeConfigAccountAndSlot(): DataAndSlot<HighLeverageModeConfig> {
+	public getInsuranceFundStakeAccountAndSlot(): DataAndSlot<InsuranceFundStake> {
 		this.assertIsSubscribed();
-		return this.highLeverageModeConfigAccountAndSlot;
+		return this.insuranceFundStakeAccountAndSlot;
 	}
 
 	didSubscriptionSucceed(): boolean {
-		return !!this.highLeverageModeConfigAccountAndSlot;
+		return !!this.insuranceFundStakeAccountAndSlot;
 	}
 
 	public updateData(
-		highLeverageModeConfig: HighLeverageModeConfig,
+		insuranceFundStake: InsuranceFundStake,
 		slot: number
 	): void {
 		if (
-			!this.highLeverageModeConfigAccountAndSlot ||
-			this.highLeverageModeConfigAccountAndSlot.slot < slot
+			!this.insuranceFundStakeAccountAndSlot ||
+			this.insuranceFundStakeAccountAndSlot.slot < slot
 		) {
-			this.highLeverageModeConfigAccountAndSlot = {
-				data: highLeverageModeConfig,
+			this.insuranceFundStakeAccountAndSlot = {
+				data: insuranceFundStake,
 				slot,
 			};
 			this.eventEmitter.emit(
-				'highLeverageModeConfigAccountUpdate',
-				highLeverageModeConfig
+				'insuranceFundStakeAccountUpdate',
+				insuranceFundStake
 			);
 			this.eventEmitter.emit('update');
 		}

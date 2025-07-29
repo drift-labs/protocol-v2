@@ -1,5 +1,5 @@
 import { Commitment, Context, PublicKey } from '@solana/web3.js';
-import { grpcProgramAccountSubscriber } from '../accounts/grpcProgramAccountSubscriber';
+import { grpcProgramAccountSubscriber } from '../accounts/programAccount/grpcProgramAccountSubscriber';
 import { GrpcConfigs, ResubOpts } from '../accounts/types';
 import { SignedMsgUserOrdersAccount } from '../types';
 import { getSignedMsgUserOrdersFilter } from '../memcmp';

@@ -92,8 +92,8 @@ import {
 } from './math/margin';
 import { OraclePriceData } from './oracles/types';
 import { UserConfig } from './userConfig';
-import { PollingUserAccountSubscriber } from './accounts/pollingUserAccountSubscriber';
-import { WebSocketUserAccountSubscriber } from './accounts/webSocketUserAccountSubscriber';
+import { PollingUserAccountSubscriber } from './accounts/userAccount/pollingUserAccountSubscriber';
+import { WebSocketUserAccountSubscriber } from './accounts/userAccount/webSocketUserAccountSubscriber';
 import {
 	calculateWeightedTokenValue,
 	getWorstCaseTokenAmounts,
@@ -107,7 +107,7 @@ import { getPerpMarketTierNumber, getSpotMarketTierNumber } from './math/tiers';
 import { StrictOraclePrice } from './oracles/strictOraclePrice';
 
 import { calculateSpotFuelBonus, calculatePerpFuelBonus } from './math/fuel';
-import { grpcUserAccountSubscriber } from './accounts/grpcUserAccountSubscriber';
+import { grpcUserAccountSubscriber } from './accounts/userAccount/grpcUserAccountSubscriber';
 
 export class User {
 	driftClient: DriftClient;
