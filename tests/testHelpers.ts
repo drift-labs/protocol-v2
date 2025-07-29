@@ -58,7 +58,7 @@ import {
 	BankrunConnection,
 } from '../sdk/src/bankrun/bankrunConnection';
 import pythIDL from '../sdk/src/idl/pyth.json';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/bulkAccountLoader/testBulkAccountLoader';
 
 export async function mockOracle(
 	price: number = 50 * 10e7,

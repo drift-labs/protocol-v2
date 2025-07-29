@@ -34,7 +34,7 @@ import {
 import { NATIVE_MINT } from '@solana/spl-token';
 import { DexInstructions, Market, OpenOrders } from '@project-serum/serum';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/bulkAccountLoader/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('spot swap', () => {
