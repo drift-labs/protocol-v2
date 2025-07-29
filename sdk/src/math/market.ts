@@ -358,7 +358,7 @@ export function calculatePerpMarketBaseLiquidatorFee(
 /**
  * Calculates trigger price for a perp market based on oracle price and current time
  * Implements the same logic as the Rust get_trigger_price function
- * 
+ *
  * @param market - The perp market account
  * @param oraclePrice - Current oracle price (precision: PRICE_PRECISION)
  * @param now - Current timestamp in seconds
@@ -375,10 +375,11 @@ export function getTriggerPrice(
 	}
 
 	const lastFillPrice = market.lastFillPrice;
-	
+
 	// Calculate 5-minute basis
 	const markPrice5minTwap = market.amm.lastMarkPriceTwap5Min;
-	const lastOraclePriceTwap5min = market.amm.historicalOracleData.lastOraclePriceTwap5Min;
+	const lastOraclePriceTwap5min =
+		market.amm.historicalOracleData.lastOraclePriceTwap5Min;
 	const basis5min = markPrice5minTwap.sub(lastOraclePriceTwap5min);
 
 	const oraclePlusBasis5min = oraclePrice.add(basis5min);
@@ -449,7 +450,8 @@ function clampTriggerPrice(
 		maxBpsDiff = new BN(40); // 250 BPS
 	}
 	const maxOracleDiff = oraclePrice.div(maxBpsDiff);
-	return BN.min(BN.max(medianPrice, oraclePrice.sub(maxOracleDiff)), oraclePrice.add(maxOracleDiff));
+	return BN.min(
+		BN.max(medianPrice, oraclePrice.sub(maxOracleDiff)),
+		oraclePrice.add(maxOracleDiff)
+	);
 }
-
-

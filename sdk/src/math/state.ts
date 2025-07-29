@@ -34,5 +34,7 @@ export function getMaxNumberOfSubAccounts(stateAccount: StateAccount): BN {
 }
 
 export function useMedianTriggerPrice(stateAccount: StateAccount): boolean {
-	return (stateAccount.featureBitFlags & FeatureBitFlags.MEDIAN_TRIGGER_PRICE) > 0;
+	return (
+		(stateAccount.featureBitFlags & FeatureBitFlags.MEDIAN_TRIGGER_PRICE) > 0
+	);
 }

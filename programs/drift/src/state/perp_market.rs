@@ -754,7 +754,12 @@ impl PerpMarket {
         }
     }
 
-    pub fn get_trigger_price(&self, oracle_price: i64, now: i64, use_median_price: bool) -> DriftResult<u64> {
+    pub fn get_trigger_price(
+        &self,
+        oracle_price: i64,
+        now: i64,
+        use_median_price: bool,
+    ) -> DriftResult<u64> {
         if !use_median_price {
             return Ok(oracle_price.unsigned_abs());
         }

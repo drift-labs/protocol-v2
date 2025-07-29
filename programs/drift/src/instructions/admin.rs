@@ -4917,7 +4917,8 @@ pub fn handle_update_feature_bit_flags_mm_oracle(
         state.feature_bit_flags = state.feature_bit_flags | (FeatureBitFlags::MmOracleUpdate as u8);
     } else {
         msg!("Setting first bit to 0, disabling mm oracle update");
-        state.feature_bit_flags = state.feature_bit_flags & !(FeatureBitFlags::MmOracleUpdate as u8);
+        state.feature_bit_flags =
+            state.feature_bit_flags & !(FeatureBitFlags::MmOracleUpdate as u8);
     }
     Ok(())
 }
@@ -4935,10 +4936,12 @@ pub fn handle_update_feature_bit_flags_median_trigger_price(
         )?;
 
         msg!("Setting second bit to 1, enabling median trigger price");
-        state.feature_bit_flags = state.feature_bit_flags | (FeatureBitFlags::MedianTriggerPrice as u8);
+        state.feature_bit_flags =
+            state.feature_bit_flags | (FeatureBitFlags::MedianTriggerPrice as u8);
     } else {
         msg!("Setting second bit to 0, disabling median trigger price");
-        state.feature_bit_flags = state.feature_bit_flags & !(FeatureBitFlags::MedianTriggerPrice as u8);
+        state.feature_bit_flags =
+            state.feature_bit_flags & !(FeatureBitFlags::MedianTriggerPrice as u8);
     }
     Ok(())
 }
