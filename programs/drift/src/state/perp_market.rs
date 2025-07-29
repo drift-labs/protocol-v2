@@ -774,11 +774,14 @@ impl PerpMarket {
             .cast::<i64>()?
             .safe_sub(last_oracle_price_twap_5min)?;
 
-        let oracle_plus_basis_5min = oracle_price.safe_add(basis_5min)?.unsigned_abs();
+        let oracle_plus_basis_5min = oracle_price.safe_add(basis_5min)?.max(0).unsigned_abs();
 
         let last_funding_basis = self.get_last_funding_basis(oracle_price, now)?;
 
-        let oracle_plus_funding_basis = oracle_price.safe_add(last_funding_basis)?.unsigned_abs();
+        let oracle_plus_funding_basis = oracle_price
+            .safe_add(last_funding_basis)?
+            .max(0)
+            .unsigned_abs();
 
         let median_price = if last_fill_price > 0 {
             let mut prices = [
@@ -850,9 +853,10 @@ impl PerpMarket {
         };
         let max_oracle_diff = oracle_price / max_bps_diff;
 
-        Ok(median_price
-            .max(oracle_price.safe_sub(max_oracle_diff)?)
-            .min(oracle_price.safe_add(max_oracle_diff)?))
+        Ok(median_price.clamp(
+            oracle_price.safe_sub(max_oracle_diff)?,
+            oracle_price.safe_add(max_oracle_diff)?,
+        ))
     }
 
     #[inline(always)]
