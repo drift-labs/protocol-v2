@@ -1,4 +1,4 @@
-import { IDriftClient } from '../driftClient/types';
+import { DriftClient } from '../driftClient';
 import { UserAccount } from '../types';
 import {
 	getNonIdleUserFilter,
@@ -8,24 +8,20 @@ import {
 import { Commitment, PublicKey, RpcResponseAndContext } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import { DLOB } from '../dlob/DLOB';
-import {
-	IOrderSubscriber,
-	OrderSubscriberConfig,
-	OrderSubscriberEvents,
-} from './types';
+import { OrderSubscriberConfig, OrderSubscriberEvents } from './types';
 import { PollingSubscription } from './PollingSubscription';
 import { WebsocketSubscription } from './WebsocketSubscription';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { calculateOrderBaseAssetAmount, ZERO } from '../index';
+import { BN } from '@coral-xyz/anchor';
+import { ProtectMakerParamsMap } from '../dlob/types';
 import { decodeUser } from '../decode/user';
 import { grpcSubscription } from './grpcSubscription';
 import { isUserProtectedMaker } from '../math/userStatus';
-import { BN } from '@coral-xyz/anchor';
-import { ProtectMakerParamsMap } from '../dlob/types';
 
-export class OrderSubscriber implements IOrderSubscriber {
-	driftClient: IDriftClient;
+export class OrderSubscriber {
+	driftClient: DriftClient;
 	usersAccounts = new Map<string, { slot: number; userAccount: UserAccount }>();
 	subscription: PollingSubscription | WebsocketSubscription | grpcSubscription;
 	commitment: Commitment;
