@@ -123,6 +123,8 @@ import { TxSender, TxSigAndSlot } from '../tx/types';
 import {
 	BASE_PRECISION,
 	GOV_SPOT_MARKET_INDEX,
+	ONE,
+	PERCENTAGE_PRECISION,
 	PRICE_PRECISION,
 	QUOTE_PRECISION,
 	QUOTE_SPOT_MARKET_INDEX,
@@ -8487,15 +8489,25 @@ export class DriftClient implements IDriftClient {
 	}
 
 	public getOracleDataForPerpMarket(marketIndex: number): OraclePriceData {
-		return this.accountSubscriber.getOraclePriceDataAndSlotForPerpMarket(
-			marketIndex
-		).data;
+		const perpMarket = this.getPerpMarketAccount(marketIndex);
+		const isMMOracleActive = !perpMarket.amm.mmOracleSlot.eq(ZERO);
+		return {
+			...this.accountSubscriber.getOraclePriceDataAndSlotForPerpMarket(
+				marketIndex
+			).data,
+			isMMOracleActive,
+		};
 	}
 
 	public getMMOracleDataForPerpMarket(marketIndex: number): OraclePriceData {
 		const perpMarket = this.getPerpMarketAccount(marketIndex);
 		const oracleData = this.getOracleDataForPerpMarket(marketIndex);
 		const stateAccountAndSlot = this.accountSubscriber.getStateAccountAndSlot();
+		const pctDiff = perpMarket.amm.mmOraclePrice
+			.sub(oracleData.price)
+			.abs()
+			.mul(PERCENTAGE_PRECISION)
+			.div(BN.max(oracleData.price, ONE));
 		if (
 			!isOracleValid(
 				perpMarket,
@@ -8504,7 +8516,8 @@ export class DriftClient implements IDriftClient {
 				stateAccountAndSlot.slot
 			) ||
 			perpMarket.amm.mmOraclePrice.eq(ZERO) ||
-			perpMarket.amm.mmOracleSlot < oracleData.slot
+			perpMarket.amm.mmOracleSlot < oracleData.slot ||
+			pctDiff.gt(PERCENTAGE_PRECISION.divn(100)) // 1% threshold
 		) {
 			return { ...oracleData, fetchedWithMMOracle: true };
 		} else {
@@ -8519,6 +8532,7 @@ export class DriftClient implements IDriftClient {
 				confidence: conf,
 				hasSufficientNumberOfDataPoints: true,
 				fetchedWithMMOracle: true,
+				isMMOracleActive: oracleData.isMMOracleActive,
 			};
 		}
 	}

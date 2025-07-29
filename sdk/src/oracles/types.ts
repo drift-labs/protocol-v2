@@ -17,6 +17,7 @@ export type OraclePriceData = {
 	twapConfidence?: BN;
 	maxPrice?: BN; // pre-launch markets only
 	fetchedWithMMOracle?: boolean;
+	isMMOracleActive?: boolean;
 };
 
 export type OracleInfo = {
