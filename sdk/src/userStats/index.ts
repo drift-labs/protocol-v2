@@ -1,26 +1,27 @@
-import { DriftClient } from './driftClient';
 import { PublicKey } from '@solana/web3.js';
-import { DataAndSlot, UserStatsAccountSubscriber } from './accounts/types';
-import { UserStatsConfig } from './userStatsConfig';
-import { PollingUserStatsAccountSubscriber } from './accounts/userStatsAccount/pollingUserStatsAccountSubscriber';
-import { WebSocketUserStatsAccountSubscriber } from './accounts/userStatsAccount/webSocketUserStatsAccountSubsriber';
-import { ReferrerInfo, SpotMarketAccount, UserStatsAccount } from './types';
+import { DataAndSlot, UserStatsAccountSubscriber } from '../accounts/types';
+import { UserStatsConfig } from '../userStatsConfig';
+import { PollingUserStatsAccountSubscriber } from '../accounts/userStatsAccount/pollingUserStatsAccountSubscriber';
+import { WebSocketUserStatsAccountSubscriber } from '../accounts/userStatsAccount/webSocketUserStatsAccountSubsriber';
+import { ReferrerInfo, SpotMarketAccount, UserStatsAccount } from '../types';
 import {
 	getUserAccountPublicKeySync,
 	getUserStatsAccountPublicKey,
-} from './addresses/pda';
-import { grpcUserStatsAccountSubscriber } from './accounts/userStatsAccount/grpcUserStatsAccountSubscriber';
-import { FUEL_START_TS } from './constants/numericConstants';
-import { ZERO } from './constants/numericConstants';
+} from '../addresses/pda';
+import { grpcUserStatsAccountSubscriber } from '../accounts/userStatsAccount/grpcUserStatsAccountSubscriber';
+import { FUEL_START_TS } from '../constants/numericConstants';
+import { ZERO } from '../constants/numericConstants';
 import {
 	GOV_SPOT_MARKET_INDEX,
 	QUOTE_SPOT_MARKET_INDEX,
-} from './constants/numericConstants';
+} from '../constants/numericConstants';
 import { BN } from '@coral-xyz/anchor';
-import { calculateInsuranceFuelBonus } from './math/fuel';
+import { calculateInsuranceFuelBonus } from '../math/fuel';
+import { IDriftClient } from '../driftClient/types';
+import { IUserStats } from './types';
 
-export class UserStats {
-	driftClient: DriftClient;
+export class UserStats implements IUserStats {
+	driftClient: IDriftClient;
 	userStatsAccountPublicKey: PublicKey;
 	accountSubscriber: UserStatsAccountSubscriber;
 	isSubscribed: boolean;

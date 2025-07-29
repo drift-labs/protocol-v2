@@ -24,7 +24,7 @@ import {
 } from '../types';
 import { assert } from '../assert/assert';
 import { squareRootBN, sigNum, clampBN } from './utils';
-import { standardizeBaseAssetAmount } from './orders';
+import { standardizeBaseAssetAmount } from './utils';
 
 import { OraclePriceData } from '../oracles/types';
 import {

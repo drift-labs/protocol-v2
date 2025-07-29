@@ -4,11 +4,11 @@ import { UserAccount } from '../types';
 import { Context, MemcmpFilter, PublicKey } from '@solana/web3.js';
 import { GrpcConfigs, ResubOpts } from '../accounts/types';
 import { grpcProgramAccountSubscriber } from '../accounts/programAccount/grpcProgramAccountSubscriber';
-import { UserMapInterface } from './types';
+import { IUserMap } from './types';
 
 export class grpcSubscription {
 	private grpcConfigs: GrpcConfigs;
-	private userMap: UserMapInterface;
+	private userMap: IUserMap;
 	private skipInitialLoad: boolean;
 	private resubOpts?: ResubOpts;
 	private includeIdle?: boolean;
@@ -27,7 +27,7 @@ export class grpcSubscription {
 		additionalFilters = undefined,
 	}: {
 		grpcConfigs: GrpcConfigs;
-		userMap: UserMapInterface;
+		userMap: IUserMap;
 		skipInitialLoad?: boolean;
 		resubOpts?: ResubOpts;
 		includeIdle?: boolean;

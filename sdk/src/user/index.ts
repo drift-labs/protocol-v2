@@ -1,7 +1,7 @@
 import { PublicKey } from '@solana/web3.js';
 import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
-import { DriftClient } from './driftClient';
+import { DriftClient } from '../driftClient';
 import {
 	HealthComponent,
 	HealthComponents,
@@ -14,12 +14,12 @@ import {
 	UserAccount,
 	UserStatus,
 	UserStatsAccount,
-} from './types';
+} from '../types';
 import {
 	calculateEntryPrice,
 	calculateUnsettledFundingPnl,
 	positionIsAvailable,
-} from './math/position';
+} from '../math/position';
 import {
 	AMM_RESERVE_PRECISION,
 	AMM_RESERVE_PRECISION_EXP,
@@ -40,41 +40,43 @@ import {
 	TWO,
 	ZERO,
 	FUEL_START_TS,
-} from './constants/numericConstants';
+} from '../constants/numericConstants';
 import {
 	DataAndSlot,
 	UserAccountEvents,
 	UserAccountSubscriber,
-} from './accounts/types';
-import { BigNum } from './factory/bigNum';
+} from '../accounts/types';
+import { BigNum } from '../factory/bigNum';
 import { BN } from '@coral-xyz/anchor';
-import { calculateBaseAssetValue, calculatePositionPNL } from './math/position';
+import {
+	calculateBaseAssetValue,
+	calculatePositionPNL,
+} from '../math/position';
 import {
 	calculateMarketMarginRatio,
 	calculateReservePrice,
 	calculateUnrealizedAssetWeight,
-} from './math/market';
+} from '../math/market';
 import {
 	calculatePerpLiabilityValue,
 	calculateWorstCasePerpLiabilityValue,
-} from './math/margin';
-import { calculateSpotMarketMarginRatio } from './math/spotMarket';
-import { divCeil, sigNum } from './math/utils';
+} from '../math/margin';
+import { calculateSpotMarketMarginRatio } from '../math/spotMarket';
+import { divCeil, sigNum } from '../math/utils';
 import {
 	getBalance,
 	getSignedTokenAmount,
 	getStrictTokenValue,
 	getTokenValue,
-} from './math/spotBalance';
-import { getUser30dRollingVolumeEstimate } from './math/trade';
+} from '../math/spotBalance';
+import { getUser30dRollingVolumeEstimate } from '../math/trade';
 import {
 	MarketType,
 	PositionDirection,
 	SpotBalanceType,
 	SpotMarketAccount,
-} from './types';
-import { standardizeBaseAssetAmount } from './math/orders';
-import { UserStats } from './userStats';
+} from '../types';
+import { standardizeBaseAssetAmount } from '../math/utils';
 import {
 	calculateAssetWeight,
 	calculateLiabilityWeight,
@@ -82,34 +84,39 @@ import {
 	getSpotAssetValue,
 	getSpotLiabilityValue,
 	getTokenAmount,
-} from './math/spotBalance';
-import { calculateMarketOpenBidAsk } from './math/amm';
+} from '../math/spotBalance';
+import { calculateMarketOpenBidAsk } from '../math/amm';
 import {
 	calculateBaseAssetValueWithOracle,
 	calculateCollateralDepositRequiredForTrade,
 	calculateMarginUSDCRequiredForTrade,
 	calculateWorstCaseBaseAssetAmount,
-} from './math/margin';
-import { OraclePriceData } from './oracles/types';
-import { UserConfig } from './userConfig';
-import { PollingUserAccountSubscriber } from './accounts/userAccount/pollingUserAccountSubscriber';
-import { WebSocketUserAccountSubscriber } from './accounts/userAccount/webSocketUserAccountSubscriber';
+} from '../math/margin';
+import { OraclePriceData } from '../oracles/types';
+import { UserConfig } from '../userConfig';
+import { PollingUserAccountSubscriber } from '../accounts/userAccount/pollingUserAccountSubscriber';
+import { WebSocketUserAccountSubscriber } from '../accounts/userAccount/webSocketUserAccountSubscriber';
 import {
 	calculateWeightedTokenValue,
 	getWorstCaseTokenAmounts,
 	isSpotPositionAvailable,
-} from './math/spotPosition';
+} from '../math/spotPosition';
 import {
 	calculateLiveOracleTwap,
 	getMultipleBetweenOracleSources,
-} from './math/oracles';
-import { getPerpMarketTierNumber, getSpotMarketTierNumber } from './math/tiers';
-import { StrictOraclePrice } from './oracles/strictOraclePrice';
+} from '../math/oracles';
+import {
+	getPerpMarketTierNumber,
+	getSpotMarketTierNumber,
+} from '../math/tiers';
+import { StrictOraclePrice } from '../oracles/strictOraclePrice';
 
-import { calculateSpotFuelBonus, calculatePerpFuelBonus } from './math/fuel';
-import { grpcUserAccountSubscriber } from './accounts/userAccount/grpcUserAccountSubscriber';
+import { calculateSpotFuelBonus, calculatePerpFuelBonus } from '../math/fuel';
+import { grpcUserAccountSubscriber } from '../accounts/userAccount/grpcUserAccountSubscriber';
+import { IUserStats } from '../userStats/types';
+import { IUser } from './types';
 
-export class User {
+export class User implements IUser {
 	driftClient: DriftClient;
 	userAccountPublicKey: PublicKey;
 	accountSubscriber: UserAccountSubscriber;
@@ -935,7 +942,7 @@ export class User {
 		now: BN,
 		includeSettled = true,
 		includeUnsettled = true,
-		givenUserStats?: UserStats
+		givenUserStats?: IUserStats
 	): {
 		depositFuel: BN;
 		borrowFuel: BN;
