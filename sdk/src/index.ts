@@ -25,6 +25,9 @@ export * from './accounts/insuranceFundStakeAccount/pollingInsuranceFundStakeAcc
 export * from './accounts/highLeverageModeConfigAccount/pollingHighLeverageModeConfigAccountSubscriber';
 export * from './accounts/userAccount/basicUserAccountSubscriber';
 export * from './accounts/userAccount/oneShotUserAccountSubscriber';
+export * from './constituentMap/constituentMap';
+export * from './constituentMap/pollingConstituentAccountSubscriber';
+export * from './constituentMap/webSocketConstituentAccountSubscriber';
 export * from './accounts/types';
 export * from './addresses/pda';
 export * from './adminClient';

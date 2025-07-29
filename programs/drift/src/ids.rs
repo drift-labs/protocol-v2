@@ -88,6 +88,11 @@ pub mod lighthouse {
     declare_id!("L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95");
 }
 
+pub mod usdc_mint {
+    use solana_program::declare_id;
+    declare_id!("BJE5MMbqXjVwjAF7oxwPYXnTXDyspzZyt4vwenNw5ruG");
+}
+
 pub mod mm_oracle_crank_wallet {
     use solana_program::declare_id;
     #[cfg(not(feature = "anchor-test"))]
