@@ -8,7 +8,11 @@ import {
 import { Commitment, PublicKey, RpcResponseAndContext } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import { DLOB } from '../dlob/DLOB';
-import { OrderSubscriberConfig, OrderSubscriberEvents } from './types';
+import {
+	IOrderSubscriber,
+	OrderSubscriberConfig,
+	OrderSubscriberEvents,
+} from './types';
 import { PollingSubscription } from './PollingSubscription';
 import { WebsocketSubscription } from './WebsocketSubscription';
 import StrictEventEmitter from 'strict-event-emitter-types';
@@ -19,7 +23,7 @@ import { isUserProtectedMaker } from '../math/userStatus';
 import { BN } from '@coral-xyz/anchor';
 import { ProtectMakerParamsMap } from '../dlob/types';
 
-export class OrderSubscriber {
+export class OrderSubscriber implements IOrderSubscriber {
 	driftClient: IDriftClient;
 	usersAccounts = new Map<string, { slot: number; userAccount: UserAccount }>();
 	subscription: PollingSubscription | WebsocketSubscription | grpcSubscription;

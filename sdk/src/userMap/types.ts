@@ -2,10 +2,9 @@ import { User } from '../user';
 import { DriftClient } from '../driftClient';
 import { UserAccount, OrderRecord } from '../types';
 import { WrappedEvent } from '../events/types';
-import { DLOB } from '../dlob/DLOB';
 import { UserSubscriptionConfig } from '../userConfig';
 import { DataAndSlot } from '../accounts/types';
-import { ProtectMakerParamsMap } from '../dlob/types';
+import { IDLOB, ProtectMakerParamsMap } from '../dlob/types';
 import { PublicKey } from '@solana/web3.js';
 import { UserAccountFilterCriteria as UserFilterCriteria } from './userMapConfig';
 import StrictEventEmitter from 'strict-event-emitter-types';
@@ -68,7 +67,7 @@ export interface IUserMap {
 	getDLOB(
 		slot: number,
 		protectedMakerParamsMap?: ProtectMakerParamsMap
-	): Promise<DLOB>;
+	): Promise<IDLOB>;
 
 	updateWithOrderRecord(record: OrderRecord): Promise<void>;
 

@@ -13,7 +13,6 @@ import { DLOBNode, TriggerOrderNode } from './DLOBNode';
 import { BN } from '@coral-xyz/anchor';
 import { OraclePriceData } from '../oracles/types';
 import { NodeList } from './NodeList';
-import { UserMap } from '../userMap/userMap';
 import { SlotSubscriber } from '../slot/SlotSubscriber';
 import {
 	L2OrderBook,
@@ -21,6 +20,7 @@ import {
 	L3OrderBook,
 } from './orderBookLevels';
 import { IDriftClient } from '../driftClient/types';
+import { IUserMap } from '../userMap/types';
 
 export type DLOBSubscriptionConfig = {
 	driftClient: IDriftClient;
@@ -119,7 +119,7 @@ export interface IDLOB {
 	 *
 	 * @returns a promise that resolves when the DLOB is initialized
 	 */
-	initFromUserMap(userMap: UserMap, slot: number): Promise<boolean>;
+	initFromUserMap(userMap: IUserMap, slot: number): Promise<boolean>;
 
 	insertOrder(
 		order: Order,

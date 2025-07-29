@@ -1,5 +1,5 @@
 import { PERCENTAGE_PRECISION, ZERO } from '../constants/numericConstants';
-import {  SpotMarketAccount, SpotBalanceType } from '../types';
+import { SpotMarketAccount, SpotBalanceType } from '../types';
 import { getTokenAmount } from '../math/spotBalance';
 import { BN } from '@coral-xyz/anchor';
 

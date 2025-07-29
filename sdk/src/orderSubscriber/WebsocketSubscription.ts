@@ -1,12 +1,12 @@
-import { OrderSubscriber } from './OrderSubscriber';
 import { getNonIdleUserFilter, getUserFilter } from '../memcmp';
 import { WebSocketProgramAccountSubscriber } from '../accounts/programAccount/webSocketProgramAccountSubscriber';
 import { UserAccount } from '../types';
 import { Commitment, Context, PublicKey } from '@solana/web3.js';
 import { ResubOpts } from '../accounts/types';
+import { IOrderSubscriber } from './types';
 
 export class WebsocketSubscription {
-	private orderSubscriber: OrderSubscriber;
+	private orderSubscriber: IOrderSubscriber;
 	private commitment: Commitment;
 	private skipInitialLoad: boolean;
 	private resubOpts?: ResubOpts;
@@ -25,7 +25,7 @@ export class WebsocketSubscription {
 		resyncIntervalMs,
 		decoded = true,
 	}: {
-		orderSubscriber: OrderSubscriber;
+		orderSubscriber: IOrderSubscriber;
 		commitment: Commitment;
 		skipInitialLoad?: boolean;
 		resubOpts?: ResubOpts;
