@@ -64,8 +64,8 @@ import {
 	ProtectedMakerModeConfig,
 	SignedMsgOrderParamsDelegateMessage,
 	TokenProgramFlag,
-} from './types';
-import driftIDL from './idl/drift.json';
+} from '../types';
+import driftIDL from '../idl/drift.json';
 
 import {
 	AccountMeta,
@@ -87,7 +87,7 @@ import {
 	VersionedTransaction,
 } from '@solana/web3.js';
 
-import { TokenFaucet } from './tokenFaucet';
+import { TokenFaucet } from '../tokenFaucet';
 import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import {
@@ -112,14 +112,14 @@ import {
 	getUserStatsAccountPublicKey,
 	getSignedMsgWsDelegatesAccountPublicKey,
 	getIfRebalanceConfigPublicKey,
-} from './addresses/pda';
+} from '../addresses/pda';
 import {
 	DataAndSlot,
 	DelistedMarketSetting,
 	DriftClientAccountEvents,
 	DriftClientAccountSubscriber,
-} from './accounts/types';
-import { TxSender, TxSigAndSlot } from './tx/types';
+} from '../accounts/types';
+import { TxSender, TxSigAndSlot } from '../tx/types';
 import {
 	BASE_PRECISION,
 	GOV_SPOT_MARKET_INDEX,
@@ -127,44 +127,45 @@ import {
 	QUOTE_PRECISION,
 	QUOTE_SPOT_MARKET_INDEX,
 	ZERO,
-} from './constants/numericConstants';
-import { findDirectionToClose, positionIsAvailable } from './math/position';
-import { getSignedTokenAmount, getTokenAmount } from './math/spotBalance';
-import { decodeName, DEFAULT_USER_NAME, encodeName } from './userName';
-import { OraclePriceData } from './oracles/types';
-import { DriftClientConfig } from './driftClientConfig';
-import { PollingDriftClientAccountSubscriber } from './accounts/driftClientAccount/pollingDriftClientAccountSubscriber';
-import { WebSocketDriftClientAccountSubscriber } from './accounts/driftClientAccount/webSocketDriftClientAccountSubscriber';
-import { RetryTxSender } from './tx/retryTxSender';
-import { User } from './user';
-import { UserSubscriptionConfig } from './userConfig';
+} from '../constants/numericConstants';
+import { findDirectionToClose, positionIsAvailable } from '../math/position';
+import { getSignedTokenAmount, getTokenAmount } from '../math/spotBalance';
+import { decodeName, DEFAULT_USER_NAME, encodeName } from '../userName';
+import { OraclePriceData } from '../oracles/types';
+import { DriftClientConfig } from '../driftClientConfig';
+import { PollingDriftClientAccountSubscriber } from '../accounts/driftClientAccount/pollingDriftClientAccountSubscriber';
+import { WebSocketDriftClientAccountSubscriber } from '../accounts/driftClientAccount/webSocketDriftClientAccountSubscriber';
+import { RetryTxSender } from '../tx/retryTxSender';
+import { User } from '../user';
+import { UserSubscriptionConfig } from '../userConfig';
 import {
 	configs,
 	DRIFT_ORACLE_RECEIVER_ID,
 	DEFAULT_CONFIRMATION_OPTS,
 	DRIFT_PROGRAM_ID,
 	PYTH_LAZER_STORAGE_ACCOUNT_KEY,
-} from './config';
-import { DriftEnv } from './config/types';
-import { WRAPPED_SOL_MINT } from './constants/spotMarkets';
-import { UserStats } from './userStats';
-import { isSpotPositionAvailable } from './math/spotPosition';
-import { calculateMarketMaxAvailableInsurance } from './math/market';
-import { fetchUserStatsAccount } from './accounts/fetch';
-import { castNumberToSpotPrecision } from './math/spotMarket';
+} from '../config';
+import { DriftEnv } from '../config/types';
+import { WRAPPED_SOL_MINT } from '../constants/spotMarkets';
+import { IUserStats } from '../userStats/types';
+import { UserStats } from '../userStats';
+import { isSpotPositionAvailable } from '../math/spotPosition';
+import { calculateMarketMaxAvailableInsurance } from '../math/market';
+import { fetchUserStatsAccount } from '../accounts/fetch';
+import { castNumberToSpotPrecision } from '../math/spotMarket';
 import {
 	JupiterClient,
 	QuoteResponse,
 	SwapMode,
-} from './jupiter/jupiterClient';
-import { getNonIdleUserFilter } from './memcmp';
-import { UserStatsSubscriptionConfig } from './userStatsConfig';
-import { getMarinadeDepositIx, getMarinadeFinanceProgram } from './marinade';
-import { getOrderParams, isUpdateHighLeverageMode } from './orderParams';
-import { numberToSafeBN } from './math/utils';
-import { TransactionParamProcessor } from './tx/txParamProcessor';
-import { isOracleValid, trimVaaSignatures } from './math/oracles';
-import { TxHandler } from './tx/txHandler';
+} from '../jupiter/jupiterClient';
+import { getNonIdleUserFilter } from '../memcmp';
+import { UserStatsSubscriptionConfig } from '../userStatsConfig';
+import { getMarinadeDepositIx, getMarinadeFinanceProgram } from '../marinade';
+import { getOrderParams, isUpdateHighLeverageMode } from '../orderParams';
+import { numberToSafeBN } from '../math/utils';
+import { TransactionParamProcessor } from '../tx/txParamProcessor';
+import { isOracleValid, trimVaaSignatures } from '../math/oracles';
+import { TxHandler } from '../tx/txHandler';
 import {
 	DEFAULT_RECEIVER_PROGRAM_ID,
 	wormholeCoreBridgeIdl,
@@ -176,21 +177,22 @@ import {
 } from '@pythnetwork/pyth-solana-receiver/lib/address';
 import { WormholeCoreBridgeSolana } from '@pythnetwork/pyth-solana-receiver/lib/idl/wormhole_core_bridge_solana';
 import { PythSolanaReceiver } from '@pythnetwork/pyth-solana-receiver/lib/idl/pyth_solana_receiver';
-import { getFeedIdUint8Array, trimFeedId } from './util/pythOracleUtils';
-import { createMinimalEd25519VerifyIx } from './util/ed25519Utils';
+import { getFeedIdUint8Array, trimFeedId } from '../util/pythOracleUtils';
+import { createMinimalEd25519VerifyIx } from '../util/ed25519Utils';
 import {
 	createNativeInstructionDiscriminatorBuffer,
 	isVersionedTransaction,
-} from './tx/utils';
-import pythSolanaReceiverIdl from './idl/pyth_solana_receiver.json';
+} from '../tx/utils';
+import pythSolanaReceiverIdl from '../idl/pyth_solana_receiver.json';
 import { asV0Tx, PullFeed, AnchorUtils } from '@switchboard-xyz/on-demand';
-import { gprcDriftClientAccountSubscriber } from './accounts/driftClientAccount/grpcDriftClientAccountSubscriber';
+import { gprcDriftClientAccountSubscriber } from '../accounts/driftClientAccount/grpcDriftClientAccountSubscriber';
 import nacl from 'tweetnacl';
-import { Slothash } from './slot/SlothashSubscriber';
-import { getOracleId } from './oracles/oracleId';
-import { SignedMsgOrderParams } from './types';
+import { Slothash } from '../slot/SlothashSubscriber';
+import { getOracleId } from '../oracles/oracleId';
+import { SignedMsgOrderParams } from '../types';
 import { sha256 } from '@noble/hashes/sha256';
-import { getOracleConfidenceFromMMOracleData } from './oracles/utils';
+import { getOracleConfidenceFromMMOracleData } from '../oracles/utils';
+import { IDriftClient } from './types';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -205,7 +207,7 @@ type RemainingAccountParams = {
  * # DriftClient
  * This class is the main way to interact with Drift Protocol. It allows you to subscribe to the various accounts where the Market's state is stored, as well as: opening positions, liquidating, settling funding, depositing & withdrawing, and more.
  */
-export class DriftClient {
+export class DriftClient implements IDriftClient {
 	connection: Connection;
 	wallet: IWallet;
 	public program: Program;
@@ -214,7 +216,7 @@ export class DriftClient {
 	opts?: ConfirmOptions;
 	useHotWalletAdmin?: boolean;
 	users = new Map<string, User>();
-	userStats?: UserStats;
+	userStats?: IUserStats;
 	activeSubAccountId: number;
 	userAccountSubscriptionConfig: UserSubscriptionConfig;
 	userStatsAccountSubscriptionConfig: UserStatsSubscriptionConfig;
@@ -2048,7 +2050,7 @@ export class DriftClient {
 			);
 	}
 
-	public getUserStats(): UserStats {
+	public getUserStats(): IUserStats {
 		return this.userStats;
 	}
 
