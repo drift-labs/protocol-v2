@@ -690,7 +690,7 @@ describe('trigger orders', () => {
 
 		await fillerDriftClient.moveAmmPrice(
 			marketIndex,
-			ammInitialBaseAssetReserve.div(new BN(10)),
+			ammInitialBaseAssetReserve.div(new BN(2)),
 			ammInitialQuoteAssetReserve
 		);
 		await setFeedPriceNoProgram(bankrunContextWrapper, 2.01, solUsd);
@@ -901,7 +901,7 @@ describe('trigger orders', () => {
 
 		await fillerDriftClient.moveAmmPrice(
 			marketIndex,
-			ammInitialBaseAssetReserve.mul(new BN(10)),
+			ammInitialBaseAssetReserve.mul(new BN(2)),
 			ammInitialQuoteAssetReserve
 		);
 		await setFeedPriceNoProgram(bankrunContextWrapper, 0.49, solUsd);

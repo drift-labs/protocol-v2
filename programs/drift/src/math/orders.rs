@@ -1,6 +1,8 @@
 use std::cmp::min;
 use std::ops::Sub;
 
+use crate::math::constants::PERCENTAGE_PRECISION;
+use crate::math::constants::PERCENTAGE_PRECISION_I128;
 use crate::msg;
 
 use crate::controller::position::PositionDelta;
@@ -11,10 +13,10 @@ use crate::math::casting::Cast;
 use crate::state::protected_maker_mode_config::ProtectedMakerParams;
 use crate::state::user::OrderBitFlag;
 use crate::{
-    load, math, FeeTier, State, BASE_PRECISION_I128, FEE_ADJUSTMENT_MAX, MARGIN_PRECISION_I128,
+    load, math, FeeTier, BASE_PRECISION_I128, FEE_ADJUSTMENT_MAX, MARGIN_PRECISION_I128,
     MAX_PREDICTION_MARKET_PRICE, MAX_PREDICTION_MARKET_PRICE_I64, OPEN_ORDER_MARGIN_REQUIREMENT,
-    PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, PRICE_PRECISION_U64,
-    QUOTE_PRECISION_I128, SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_I128,
+    PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, PRICE_PRECISION_U64, QUOTE_PRECISION_I128,
+    SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_I128,
 };
 
 use crate::math::constants::MARGIN_PRECISION_U128;
@@ -484,7 +486,6 @@ pub fn limit_price_breaches_maker_oracle_price_bands(
 
 pub fn validate_fill_price_within_price_bands(
     fill_price: u64,
-    direction: PositionDirection,
     oracle_price: i64,
     oracle_twap_5min: i64,
     margin_ratio_initial: u32,
@@ -503,85 +504,44 @@ pub fn validate_fill_price_within_price_bands(
         return Ok(());
     }
 
-    let oracle_price = oracle_price.unsigned_abs();
-    let oracle_twap_5min = oracle_twap_5min.unsigned_abs();
-
     let max_oracle_diff = margin_ratio_initial.cast::<u128>()?;
     let max_oracle_twap_diff = oracle_twap_5min_percent_divergence.cast::<u128>()?; // 50%
 
-    if direction == PositionDirection::Long {
-        if fill_price < oracle_price && fill_price < oracle_twap_5min {
-            return Ok(());
-        }
+    let percent_diff = fill_price
+        .cast::<i64>()?
+        .safe_sub(oracle_price)?
+        .cast::<i128>()?
+        .safe_mul(MARGIN_PRECISION_I128)?
+        .safe_div(oracle_price.cast::<i128>()?)?
+        .unsigned_abs();
 
-        let percent_diff: u128 = fill_price
-            .saturating_sub(oracle_price)
-            .cast::<u128>()?
-            .safe_mul(MARGIN_PRECISION_U128)?
-            .safe_div(oracle_price.cast()?)?;
+    let percent_diff_twap = fill_price
+        .cast::<i64>()?
+        .safe_sub(oracle_twap_5min)?
+        .cast::<i128>()?
+        .safe_mul(PERCENTAGE_PRECISION_I128)?
+        .safe_div(oracle_twap_5min.cast::<i128>()?)?
+        .unsigned_abs();
 
-        validate!(
-            percent_diff < max_oracle_diff,
-            ErrorCode::PriceBandsBreached,
-            "Fill Price Breaches Oracle Price Bands: {} % <= {} % (fill: {} >= oracle: {})",
-            max_oracle_diff,
-            percent_diff,
-            fill_price,
-            oracle_price
-        )?;
+    validate!(
+        percent_diff < max_oracle_diff,
+        ErrorCode::PriceBandsBreached,
+        "Fill Price Breaches Oracle Price Bands: max_oracle_diff {} % , pct diff {} % (fill: {} , oracle: {})",
+        max_oracle_diff,
+        percent_diff,
+        fill_price,
+        oracle_price
+    )?;
 
-        let percent_diff = fill_price
-            .saturating_sub(oracle_twap_5min)
-            .cast::<u128>()?
-            .safe_mul(PERCENTAGE_PRECISION)?
-            .safe_div(oracle_twap_5min.cast()?)?;
-
-        validate!(
-            percent_diff < max_oracle_twap_diff,
-            ErrorCode::PriceBandsBreached,
-            "Fill Price Breaches Oracle TWAP Price Bands:  {} % <= {} % (fill: {} >= twap: {})",
-            max_oracle_twap_diff,
-            percent_diff,
-            fill_price,
-            oracle_twap_5min
-        )?;
-    } else {
-        if fill_price > oracle_price && fill_price > oracle_twap_5min {
-            return Ok(());
-        }
-
-        let percent_diff: u128 = oracle_price
-            .saturating_sub(fill_price)
-            .cast::<u128>()?
-            .safe_mul(MARGIN_PRECISION_U128)?
-            .safe_div(oracle_price.cast()?)?;
-
-        validate!(
-            percent_diff < max_oracle_diff,
-            ErrorCode::PriceBandsBreached,
-            "Fill Price Breaches Oracle Price Bands: {} % <= {} % (fill: {} <= oracle: {})",
-            max_oracle_diff,
-            percent_diff,
-            fill_price,
-            oracle_price
-        )?;
-
-        let percent_diff = oracle_twap_5min
-            .saturating_sub(fill_price)
-            .cast::<u128>()?
-            .safe_mul(PERCENTAGE_PRECISION)?
-            .safe_div(oracle_twap_5min.cast()?)?;
-
-        validate!(
-            percent_diff < max_oracle_twap_diff,
-            ErrorCode::PriceBandsBreached,
-            "Fill Price Breaches Oracle TWAP Price Bands:  {} % <= {} % (fill: {} <= twap: {})",
-            max_oracle_twap_diff,
-            percent_diff,
-            fill_price,
-            oracle_twap_5min
-        )?;
-    }
+    validate!(
+        percent_diff_twap < max_oracle_twap_diff,
+        ErrorCode::PriceBandsBreached,
+        "Fill Price Breaches Oracle TWAP Price Bands: max_oracle_twap_diff {} % , pct diff {} % (fill: {} , twap: {})",
+        max_oracle_twap_diff,
+        percent_diff,
+        fill_price,
+        oracle_twap_5min
+    )?;
 
     Ok(())
 }

@@ -3161,22 +3161,17 @@ mod calculate_max_perp_order_size {
 
 pub mod validate_fill_price_within_price_bands {
     use crate::math::orders::validate_fill_price_within_price_bands;
-    use crate::{
-        PositionDirection, MARGIN_PRECISION, PERCENTAGE_PRECISION, PRICE_PRECISION_I64,
-        PRICE_PRECISION_U64,
-    };
+    use crate::{MARGIN_PRECISION, PERCENTAGE_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
 
     #[test]
     fn valid_long() {
         let oracle_price = 100 * PRICE_PRECISION_I64;
         let twap = oracle_price;
         let fill_price = 105 * PRICE_PRECISION_U64;
-        let direction = PositionDirection::Long;
         let margin_ratio_initial = MARGIN_PRECISION / 10;
 
         assert!(validate_fill_price_within_price_bands(
             fill_price,
-            direction,
             oracle_price,
             twap,
             margin_ratio_initial,
@@ -3191,12 +3186,10 @@ pub mod validate_fill_price_within_price_bands {
         let oracle_price = 100 * PRICE_PRECISION_I64;
         let twap = oracle_price;
         let fill_price = 95 * PRICE_PRECISION_U64;
-        let direction = PositionDirection::Short;
         let margin_ratio_initial = MARGIN_PRECISION / 10;
 
         assert!(validate_fill_price_within_price_bands(
             fill_price,
-            direction,
             oracle_price,
             twap,
             margin_ratio_initial,
@@ -3212,12 +3205,10 @@ pub mod validate_fill_price_within_price_bands {
         let twap = oracle_price;
         // 11% greater than oracle price
         let fill_price = 111 * PRICE_PRECISION_U64;
-        let direction = PositionDirection::Long;
         let margin_ratio_initial = MARGIN_PRECISION / 10; // 10x
 
         assert!(validate_fill_price_within_price_bands(
             fill_price,
-            direction,
             oracle_price,
             twap,
             margin_ratio_initial,
@@ -3233,12 +3224,10 @@ pub mod validate_fill_price_within_price_bands {
         let twap = oracle_price;
         // 11% less than oracle price
         let fill_price = 89 * PRICE_PRECISION_U64;
-        let direction = PositionDirection::Short;
         let margin_ratio_initial = MARGIN_PRECISION / 10; // 10x
 
         assert!(validate_fill_price_within_price_bands(
             fill_price,
-            direction,
             oracle_price,
             twap,
             margin_ratio_initial,
@@ -3254,12 +3243,10 @@ pub mod validate_fill_price_within_price_bands {
         let twap = 100 * PRICE_PRECISION_I64;
         // 50% greater than twap
         let fill_price = 150 * PRICE_PRECISION_U64;
-        let direction = PositionDirection::Long;
         let margin_ratio_initial = MARGIN_PRECISION / 10; // 10x
 
         assert!(validate_fill_price_within_price_bands(
             fill_price,
-            direction,
             oracle_price,
             twap,
             margin_ratio_initial,
@@ -3275,12 +3262,48 @@ pub mod validate_fill_price_within_price_bands {
         let twap = 100 * PRICE_PRECISION_I64;
         // 50% less than twap
         let fill_price = 50 * PRICE_PRECISION_U64;
-        let direction = PositionDirection::Short;
         let margin_ratio_initial = MARGIN_PRECISION / 10; // 10x
 
         assert!(validate_fill_price_within_price_bands(
             fill_price,
-            direction,
+            oracle_price,
+            twap,
+            margin_ratio_initial,
+            (PERCENTAGE_PRECISION / 2) as u64,
+            false,
+        )
+        .is_err())
+    }
+
+    #[test]
+    fn invalid_volatile_taker_long() {
+        let oracle_price = 50 * PRICE_PRECISION_I64;
+        let twap = 100 * PRICE_PRECISION_I64;
+        // 50% less than twap
+        let fill_price = 1 * PRICE_PRECISION_U64;
+        let margin_ratio_initial = MARGIN_PRECISION / 10; // 10x
+
+        assert!(validate_fill_price_within_price_bands(
+            fill_price,
+            oracle_price,
+            twap,
+            margin_ratio_initial,
+            (PERCENTAGE_PRECISION / 2) as u64,
+            false,
+        )
+        .is_err())
+    }
+
+    #[test]
+    fn invalid_volatile_taker_short() {
+        let oracle_price = 50 * PRICE_PRECISION_I64;
+        let twap = 100 * PRICE_PRECISION_I64;
+        // 50% less than twap
+        let fill_price = 200 * PRICE_PRECISION_U64;
+        let margin_ratio_initial = MARGIN_PRECISION / 10; // 10x
+
+        assert!(validate_fill_price_within_price_bands(
+            fill_price,
             oracle_price,
             twap,
             margin_ratio_initial,

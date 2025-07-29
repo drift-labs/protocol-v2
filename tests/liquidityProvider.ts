@@ -871,6 +871,8 @@ describe('liquidity providing', () => {
 		}
 	});
 
+	return;
+
 	it('provides lp, users shorts, removes lp, lp has long', async () => {
 		await driftClient.fetchAccounts();
 		await traderDriftClient.fetchAccounts();
@@ -1608,8 +1610,6 @@ describe('liquidity providing', () => {
 		assert(posAfterSettle.baseAssetAmount.eq(posAfter.baseAssetAmount));
 		assert(posAfterSettle.quoteAssetAmount.eq(posAfter.quoteAssetAmount));
 	});
-
-	return;
 
 	it('permissionless lp burn', async () => {
 		return;

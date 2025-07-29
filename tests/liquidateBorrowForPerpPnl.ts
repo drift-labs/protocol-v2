@@ -54,10 +54,10 @@ describe('liquidate borrow for perp pnl', () => {
 
 	// ammInvariant == k == x * y
 	const mantissaSqrtScale = new BN(Math.sqrt(PRICE_PRECISION.toNumber()));
-	const ammInitialQuoteAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
+	const ammInitialQuoteAssetReserve = new anchor.BN(500 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
-	const ammInitialBaseAssetReserve = new anchor.BN(5 * 10 ** 13).mul(
+	const ammInitialBaseAssetReserve = new anchor.BN(500 * 10 ** 13).mul(
 		mantissaSqrtScale
 	);
 
@@ -174,7 +174,10 @@ describe('liquidate borrow for perp pnl', () => {
 			new BN(0)
 		);
 
-		await driftClient.moveAmmToPrice(0, new BN(2).mul(PRICE_PRECISION));
+		await driftClient.moveAmmToPrice(
+			0,
+			new BN(1).mul(PRICE_PRECISION).muln(101).divn(100)
+		);
 
 		await driftClient.closePosition(0);
 
@@ -256,14 +259,15 @@ describe('liquidate borrow for perp pnl', () => {
 			)
 		);
 		assert(liquidationRecord.liquidateBorrowForPerpPnl.perpMarketIndex === 0);
+
 		assert(
 			liquidationRecord.liquidateBorrowForPerpPnl.pnlTransfer.gt(
-				new BN(9969992 - 10)
+				new BN(79897 - 10)
 			)
 		);
 		assert(
 			liquidationRecord.liquidateBorrowForPerpPnl.pnlTransfer.lt(
-				new BN(9969992 + 10)
+				new BN(79897 + 10)
 			)
 		);
 		assert(
@@ -277,7 +281,7 @@ describe('liquidate borrow for perp pnl', () => {
 
 		assert(
 			liquidationRecord.liquidateBorrowForPerpPnl.liabilityTransfer.eq(
-				new BN(199399800)
+				new BN(1597940)
 			)
 		);
 	});
