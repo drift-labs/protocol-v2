@@ -41,7 +41,8 @@ pub struct State {
     pub initial_pct_to_liquidate: u16,
     pub max_number_of_sub_accounts: u16,
     pub max_initialize_user_fee: u16,
-    pub padding: [u8; 10],
+    pub feature_bit_flags: u8,
+    pub padding: [u8; 9],
 }
 
 #[derive(BitFlags, Clone, Copy, PartialEq, Debug, Eq)]
@@ -115,6 +116,12 @@ impl State {
 
         Ok(init_fee)
     }
+}
+
+#[derive(Clone, Copy, PartialEq, Debug, Eq)]
+pub enum FeatureBitFlags {
+    MmOracleUpdate = 0b00000001,
+    EnableMedianTriggerPrice = 0b00000010,
 }
 
 impl Size for State {

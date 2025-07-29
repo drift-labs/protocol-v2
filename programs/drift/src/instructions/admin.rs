@@ -1,10 +1,8 @@
-use std::convert::identity;
+use std::convert::{identity, TryInto};
 use std::mem::size_of;
 
-use crate::math::amm::calculate_amm_available_liquidity;
-use crate::msg;
+use crate::{msg, FeatureBitFlags};
 use anchor_lang::prelude::*;
-use anchor_spl::token::Token;
 use anchor_spl::token_2022::Token2022;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use phoenix::quantities::WrapperU64;
@@ -14,18 +12,17 @@ use serum_dex::state::ToAlignedBytes;
 
 use crate::controller::token::close_vault;
 use crate::error::ErrorCode;
-use crate::ids::admin_hot_wallet;
+use crate::ids::{admin_hot_wallet, amm_spread_adjust_wallet, mm_oracle_crank_wallet};
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO, AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128,
-    DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO, FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
-    IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX, INSURANCE_C_MAX,
-    INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION, MAX_CONCENTRATION_COEFFICIENT,
-    MAX_SQRT_K, MAX_UPDATE_K_PRICE_CHANGE, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I64,
-    QUOTE_SPOT_MARKET_INDEX, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION,
-    SPOT_WEIGHT_PRECISION, THIRTEEN_DAY, TWENTY_FOUR_HOUR,
+    AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO, DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO,
+    FEE_POOL_TO_REVENUE_POOL_THRESHOLD, IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX,
+    INSURANCE_C_MAX, INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION,
+    MAX_CONCENTRATION_COEFFICIENT, MAX_SQRT_K, MAX_UPDATE_K_PRICE_CHANGE, PERCENTAGE_PRECISION,
+    PERCENTAGE_PRECISION_I64, QUOTE_SPOT_MARKET_INDEX, SPOT_CUMULATIVE_INTEREST_PRECISION,
+    SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION, THIRTEEN_DAY, TWENTY_FOUR_HOUR,
 };
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::helpers::get_proportion_u128;
@@ -65,6 +62,7 @@ use crate::state::protected_maker_mode_config::ProtectedMakerModeConfig;
 use crate::state::pyth_lazer_oracle::{PythLazerOracle, PYTH_LAZER_ORACLE_SEED};
 use crate::state::spot_market::{
     AssetTier, InsuranceFund, SpotBalanceType, SpotFulfillmentConfigStatus, SpotMarket,
+    TokenProgramFlag,
 };
 use crate::state::spot_market_map::get_writable_spot_market_set;
 use crate::state::state::{ExchangeStatus, FeeStructure, OracleGuardRails, State};
@@ -81,6 +79,11 @@ use crate::{load, FEE_ADJUSTMENT_MAX};
 use crate::{load_mut, PTYH_PRICE_FEED_SEED_PREFIX};
 use crate::{math, safe_decrement, safe_increment};
 use crate::{math_error, SPOT_BALANCE_PRECISION};
+use anchor_spl::token_2022::spl_token_2022::extension::transfer_hook::TransferHook;
+use anchor_spl::token_2022::spl_token_2022::extension::{
+    BaseStateWithExtensions, StateWithExtensions,
+};
+use anchor_spl::token_2022::spl_token_2022::state::Mint as MintInner;
 
 pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
     let (drift_signer, drift_signer_nonce) =
@@ -111,7 +114,8 @@ pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
         initial_pct_to_liquidate: 0,
         max_number_of_sub_accounts: 0,
         max_initialize_user_fee: 0,
-        padding: [0; 10],
+        feature_bit_flags: 0,
+        padding: [0; 9],
     };
 
     Ok(())
@@ -237,14 +241,20 @@ pub fn handle_initialize_spot_market(
 
     let decimals = ctx.accounts.spot_market_mint.decimals.cast::<u32>()?;
 
-    let token_program = if ctx.accounts.token_program.key() == Token2022::id() {
-        1_u8
-    } else if ctx.accounts.token_program.key() == Token::id() {
-        0_u8
-    } else {
-        msg!("unexpected program {:?}", ctx.accounts.token_program.key());
-        return Err(ErrorCode::DefaultError.into());
-    };
+    let mut token_program = 0_u8;
+    if ctx.accounts.token_program.key() == Token2022::id() {
+        token_program |= TokenProgramFlag::Token2022 as u8;
+    }
+
+    let mint_account_info = ctx.accounts.spot_market_mint.to_account_info();
+    let mint_data = mint_account_info.try_borrow_data()?;
+    let mint_with_extension = StateWithExtensions::<MintInner>::unpack(&mint_data)?;
+    if let Ok(transfer_hook) = mint_with_extension.get_extension::<TransferHook>() {
+        let transfer_hook_program_id: Option<Pubkey> = transfer_hook.program_id.into();
+        if transfer_hook_program_id.is_some() {
+            token_program |= TokenProgramFlag::TransferHook as u8;
+        }
+    }
 
     if active_status {
         validate!(
@@ -323,7 +333,7 @@ pub fn handle_initialize_spot_market(
         fuel_boost_taker: 1,
         fuel_boost_maker: 1,
         fuel_boost_insurance: 0,
-        token_program,
+        token_program_flag: token_program,
         pool_id: 0,
         padding: [0; 40],
         insurance_fund: InsuranceFund {
@@ -1006,7 +1016,7 @@ pub fn handle_initialize_perp_market(
             order_step_size,
             order_tick_size,
             min_order_size,
-            max_position_size: 0,
+            mm_oracle_price: 0,
             max_slippage_ratio: 50,         // ~2%
             max_fill_reserve_fraction: 100, // moves price ~2%
             base_spread,
@@ -1027,9 +1037,8 @@ pub fn handle_initialize_perp_market(
             mark_std: 0,
             oracle_std: 0,
             volume_24h: 0,
-            long_intensity_count: 0,
             long_intensity_volume: 0,
-            short_intensity_count: 0,
+            mm_oracle_slot: 0,
             short_intensity_volume: 0,
             last_trade_ts: now,
             curve_update_intensity,
@@ -1049,7 +1058,7 @@ pub fn handle_initialize_perp_market(
             oracle_slot_delay_override: 0,
             taker_speed_bump_override: 0,
             amm_spread_adjustment: 0,
-            total_fee_earned_per_lp: 0,
+            mm_oracle_sequence_id: 0,
             net_unsettled_funding_pnl: 0,
             quote_asset_amount_with_unsettled_lp: 0,
             reference_price_offset: 0,
@@ -1948,6 +1957,11 @@ pub fn handle_deposit_into_perp_market_fee_pool<'c: 'info, 'info>(
         &ctx.accounts.admin.to_account_info(),
         amount,
         &mint,
+        if quote_spot_market.has_transfer_hook() {
+            Some(remaining_accounts_iter)
+        } else {
+            None
+        },
     )?;
 
     Ok(())
@@ -2018,6 +2032,11 @@ pub fn handle_deposit_into_spot_market_vault<'c: 'info, 'info>(
         &ctx.accounts.admin.to_account_info(),
         amount,
         &mint,
+        if spot_market.has_transfer_hook() {
+            Some(remaining_accounts_iter)
+        } else {
+            None
+        },
     )?;
 
     ctx.accounts.spot_market_vault.reload()?;
@@ -4119,6 +4138,7 @@ pub fn handle_update_perp_market_amm_spread_adjustment(
     ctx: Context<HotAdminUpdatePerpMarket>,
     amm_spread_adjustment: i8,
     amm_inventory_spread_adjustment: i8,
+    reference_price_offset: i32,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     msg!("perp market {}", perp_market.market_index);
@@ -4138,6 +4158,15 @@ pub fn handle_update_perp_market_amm_spread_adjustment(
     );
 
     perp_market.amm.amm_inventory_spread_adjustment = amm_inventory_spread_adjustment;
+
+    msg!(
+        "perp_market.amm.reference_price_offset: {:?} -> {:?}",
+        perp_market.amm.reference_price_offset,
+        reference_price_offset
+    );
+
+    perp_market.amm.reference_price_offset = reference_price_offset;
+
     Ok(())
 }
 
@@ -4738,6 +4767,11 @@ pub fn handle_admin_deposit<'c: 'info, 'info>(
         &ctx.accounts.admin,
         amount,
         &mint,
+        if spot_market.has_transfer_hook() {
+            Some(remaining_accounts_iter)
+        } else {
+            None
+        },
     )?;
     ctx.accounts.spot_market_vault.reload()?;
     validate_spot_market_vault_amount(spot_market, ctx.accounts.spot_market_vault.amount)?;
@@ -4808,6 +4842,83 @@ pub fn handle_update_if_rebalance_config(
 
     config.validate()?;
 
+    Ok(())
+}
+
+pub fn handle_zero_mm_oracle_fields(ctx: Context<HotAdminUpdatePerpMarket>) -> Result<()> {
+    let mut perp_market = load_mut!(ctx.accounts.perp_market)?;
+    perp_market.amm.mm_oracle_price = 0;
+    perp_market.amm.mm_oracle_sequence_id = 0;
+    perp_market.amm.mm_oracle_slot = 0;
+    Ok(())
+}
+
+pub fn handle_update_mm_oracle_native(accounts: &[AccountInfo], data: &[u8]) -> Result<()> {
+    // Verify this ix is allowed
+    let state = &accounts[3].data.borrow();
+    assert!(state[982] & 1 > 0, "ix disabled by admin state");
+
+    let signer_account = &accounts[1];
+    #[cfg(not(feature = "anchor-test"))]
+    assert!(
+        signer_account.is_signer && *signer_account.key == mm_oracle_crank_wallet::id(),
+        "signer must be mm oracle crank wallet, signer: {}, mm oracle crank wallet: {}",
+        signer_account.key,
+        mm_oracle_crank_wallet::id()
+    );
+
+    let mut perp_market = accounts[0].data.borrow_mut();
+    let perp_market_sequence_id = u64::from_le_bytes(perp_market[936..944].try_into().unwrap());
+    let incoming_sequence_id = u64::from_le_bytes(data[8..16].try_into().unwrap());
+
+    if incoming_sequence_id > perp_market_sequence_id {
+        let clock_account = &accounts[2];
+        let clock_data = clock_account.data.borrow();
+
+        perp_market[832..840].copy_from_slice(&clock_data[0..8]);
+        perp_market[912..920].copy_from_slice(&data[0..8]);
+        perp_market[936..944].copy_from_slice(&data[8..16]);
+    }
+
+    Ok(())
+}
+
+pub fn handle_update_amm_spread_adjustment_native(
+    accounts: &[AccountInfo],
+    data: &[u8],
+) -> Result<()> {
+    let signer_account = &accounts[1];
+    #[cfg(not(feature = "anchor-test"))]
+    assert!(
+        signer_account.is_signer && *signer_account.key == amm_spread_adjust_wallet::id(),
+        "signer must be amm spread adjust wallet, signer: {}, amm spread adjust wallet: {}",
+        signer_account.key,
+        amm_spread_adjust_wallet::id()
+    );
+    let mut perp_market = accounts[0].data.borrow_mut();
+    perp_market[934..935].copy_from_slice(&[data[0]]);
+
+    Ok(())
+}
+
+pub fn handle_update_feature_bit_flags_mm_oracle(
+    ctx: Context<HotAdminUpdateState>,
+    enable: bool,
+) -> Result<()> {
+    let state = &mut ctx.accounts.state;
+    if enable {
+        validate!(
+            ctx.accounts.admin.key().eq(&state.admin),
+            ErrorCode::DefaultError,
+            "Only state admin can re-enable after kill switch"
+        )?;
+
+        msg!("Setting first bit to 1, enabling mm oracle update");
+        state.feature_bit_flags = state.feature_bit_flags | (FeatureBitFlags::MmOracleUpdate as u8);
+    } else {
+        msg!("Setting first bit to 0, disabling mm oracle update");
+        state.feature_bit_flags = state.feature_bit_flags & !(FeatureBitFlags::MmOracleUpdate as u8);
+    }
     Ok(())
 }
 
@@ -5207,6 +5318,16 @@ pub struct AdminUpdateState<'info> {
 }
 
 #[derive(Accounts)]
+pub struct HotAdminUpdateState<'info> {
+    #[account(
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+    #[account(mut)]
+    pub state: Box<Account<'info, State>>,
+}
+
+#[derive(Accounts)]
 pub struct AdminUpdateK<'info> {
     pub admin: Signer<'info>,
     #[account(
@@ -5355,7 +5476,10 @@ pub struct InitializePrelaunchOracle<'info> {
 #[derive(Accounts)]
 #[instruction(params: PrelaunchOracleParams,)]
 pub struct UpdatePrelaunchOracleParams<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
     pub admin: Signer<'info>,
     #[account(
         mut,
@@ -5368,9 +5492,6 @@ pub struct UpdatePrelaunchOracleParams<'info> {
         constraint = perp_market.load()?.market_index == params.perp_market_index
     )]
     pub perp_market: AccountLoader<'info, PerpMarket>,
-    #[account(
-        has_one = admin
-    )]
     pub state: Box<Account<'info, State>>,
 }
 

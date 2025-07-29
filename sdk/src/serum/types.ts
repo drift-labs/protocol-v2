@@ -1,5 +1,5 @@
 import { Connection, PublicKey } from '@solana/web3.js';
-import { BulkAccountLoader } from '../accounts/bulkAccountLoader';
+import { BulkAccountLoader } from '../accounts/bulkAccountLoader/bulkAccountLoader';
 
 export type SerumMarketSubscriberConfig = {
 	connection: Connection;

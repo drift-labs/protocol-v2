@@ -34,6 +34,33 @@ pub mod state;
 mod test_utils;
 mod validation;
 
+// main program entrypoint
+// anchor `#[program]` entrypoint is compiled out by `no-entrypoint`
+#[cfg(not(feature = "cpi"))]
+solana_program::entrypoint!(program_entry);
+
+pub fn program_entry<'info>(
+    program_id: &Pubkey,
+    accounts: &'info [AccountInfo<'info>],
+    data: &[u8],
+) -> anchor_lang::solana_program::entrypoint::ProgramResult {
+    if let [0xFF, 0xFF, 0xFF, 0xFF, discriminator, ref payload @ ..] = data {
+        match *discriminator {
+            0 => Ok(handle_update_mm_oracle_native(accounts, payload)?),
+            1 => Ok(handle_update_amm_spread_adjustment_native(
+                accounts, payload,
+            )?),
+            _ => Err(
+                anchor_lang::solana_program::program_error::ProgramError::InvalidInstructionData
+                    .into(),
+            ),
+        }
+    } else {
+        // Fallback to anchor generated entry
+        entry(program_id, accounts, data)
+    }
+}
+
 #[cfg(feature = "mainnet-beta")]
 declare_id!("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH");
 #[cfg(not(feature = "mainnet-beta"))]
@@ -491,8 +518,9 @@ pub mod drift {
 
     pub fn disable_user_high_leverage_mode<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, DisableUserHighLeverageMode<'info>>,
+        disable_maintenance: bool,
     ) -> Result<()> {
-        handle_disable_user_high_leverage_mode(ctx)
+        handle_disable_user_high_leverage_mode(ctx, disable_maintenance)
     }
 
     pub fn update_user_fuel_bonus<'c: 'info, 'info>(
@@ -702,7 +730,7 @@ pub mod drift {
 
     pub fn update_amms<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, UpdateAMM<'info>>,
-        market_indexes: [u16; 5],
+        market_indexes: Vec<u16>,
     ) -> Result<()> {
         handle_update_amms(ctx, market_indexes)
     }
@@ -1576,11 +1604,13 @@ pub mod drift {
         ctx: Context<HotAdminUpdatePerpMarket>,
         amm_spread_adjustment: i8,
         amm_inventory_spread_adjustment: i8,
+        reference_price_offset: i32,
     ) -> Result<()> {
         handle_update_perp_market_amm_spread_adjustment(
             ctx,
             amm_spread_adjustment,
             amm_inventory_spread_adjustment,
+            reference_price_offset,
         )
     }
 
@@ -1778,6 +1808,17 @@ pub mod drift {
         params: IfRebalanceConfigParams,
     ) -> Result<()> {
         handle_update_if_rebalance_config(ctx, params)
+    }
+
+    pub fn update_feature_bit_flags_mm_oracle(
+        ctx: Context<HotAdminUpdateState>,
+        enable: bool,
+    ) -> Result<()> {
+        handle_update_feature_bit_flags_mm_oracle(ctx, enable)
+    }
+
+    pub fn zero_mm_oracle_fields(ctx: Context<HotAdminUpdatePerpMarket>) -> Result<()> {
+        handle_zero_mm_oracle_fields(ctx)
     }
 }
 

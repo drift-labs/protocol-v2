@@ -39,7 +39,7 @@ import {
 import { NATIVE_MINT } from '@solana/spl-token';
 import { DexInstructions, Market, OpenOrders } from '@project-serum/serum';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/bulkAccountLoader/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('spot swap', () => {
@@ -463,9 +463,6 @@ describe('spot swap', () => {
 		assert(transferRecord.shares.eq(new BN(1000000000)));
 		assert(transferRecord.ifVaultAmountBefore.eq(new BN(1000000000)));
 		assert(transferRecord.protocolSharesBefore.eq(new BN(1000000000)));
-		assert(
-			transferRecord.currentInAmountSinceLastTransfer.eq(new BN(100040000))
-		);
 
 		const revenuePoolVaultAmount = (
 			await bankrunContextWrapper.connection.getTokenAccount(
@@ -491,6 +488,8 @@ describe('spot swap', () => {
 				rebalanceConfigKey
 			)) as IfRebalanceConfigAccount;
 
-		assert(rebalanceConfigAfter.currentInAmountSinceLastTransfer.eq(new BN(0)));
+		assert(
+			rebalanceConfigAfter.currentOutAmountTransferred.eq(new BN(1000000000))
+		);
 	});
 });

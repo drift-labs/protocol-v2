@@ -1,4 +1,5 @@
-import { BN, ONE, ZERO } from '../';
+import { BN } from '@coral-xyz/anchor';
+import { ONE, ZERO } from '../constants/numericConstants';
 
 export function clampBN(x: BN, min: BN, max: BN): BN {
 	return BN.max(min, BN.min(x, max));
@@ -117,4 +118,12 @@ export function numberToSafeBN(number: number, precision: BN): BN {
 			return new BN(number).mul(precision);
 		}
 	}
+}
+
+export function standardizeBaseAssetAmount(
+	baseAssetAmount: BN,
+	stepSize: BN
+): BN {
+	const remainder = baseAssetAmount.mod(stepSize);
+	return baseAssetAmount.sub(remainder);
 }

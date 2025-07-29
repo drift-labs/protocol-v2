@@ -1,5 +1,4 @@
 import { PublicKey } from '@solana/web3.js';
-import { BN, DriftEnv, OracleSource } from '../';
 import {
 	QUOTE_PRECISION,
 	QUOTE_PRECISION_EXP,
@@ -10,6 +9,9 @@ import {
 	NINE,
 	FIVE,
 } from './numericConstants';
+import { OracleSource } from '../types';
+import { BN } from '@coral-xyz/anchor';
+import { DriftEnv } from '../config/types';
 
 export type SpotMarketConfig = {
 	symbol: string;
@@ -463,8 +465,10 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		symbol: 'CLOUD',
 		marketIndex: 21,
 		poolId: 0,
-		oracle: new PublicKey('FNFejcXENaPgKaCTfstew9vSSvdQPnXjGTkJjUnnYvHU'),
-		oracleSource: OracleSource.SWITCHBOARD_ON_DEMAND,
+		oracle: new PublicKey('4EgPYJkEyNkoUcaMDbeokUiR4b1f3Hs3DK5S4NzqseR2'),
+		oracleSource: OracleSource.PYTH_PULL,
+		pythFeedId:
+			'0x7358313661dcd4f842a1423aa4f7a05f009001c9113201c719621d3f1aa80a73',
 		mint: new PublicKey('CLoUDKc4Ane7HeQcPpE3YHnznRxhMimJ4MyaUqyHFzAu'),
 		precision: new BN(10).pow(NINE),
 		precisionExp: NINE,
@@ -878,6 +882,29 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		pythFeedId:
 			'0x76fa85158bf14ede77087fe3ae472f66213f6ea2f5b411cb2de472794990fa5c',
 		pythLazerId: 240,
+	},
+	{
+		symbol: 'PT-fragSOL-31OCT25-3',
+		marketIndex: 55,
+		poolId: 3,
+		oracle: new PublicKey('C41YpBLZfERAbV1p8DD48vDwbYhRQCbiryMx8Vp5sfo4'),
+		oracleSource: OracleSource.SWITCHBOARD_ON_DEMAND,
+		mint: new PublicKey('Aby6y5DYtTrhQD8i7JXLs4H3jdUTwSXDraYqnwn5tKbt'),
+		precision: new BN(10).pow(NINE),
+		precisionExp: NINE,
+	},
+	{
+		symbol: 'PUMP',
+		marketIndex: 56,
+		poolId: 0,
+		oracle: new PublicKey('5r8RWTaRiMgr9Lph3FTUE3sGb1vymhpCrm83Bovjfcps'),
+		oracleSource: OracleSource.PYTH_LAZER,
+		mint: new PublicKey('pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		pythFeedId:
+			'0x7a01fca212788bba7c5bf8c9efd576a8a722f070d2c17596ff7bb609b8d5c3b9',
+		pythLazerId: 1578,
 	},
 ];
 

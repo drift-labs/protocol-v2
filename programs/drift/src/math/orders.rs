@@ -7,9 +7,7 @@ use crate::controller::position::PositionDelta;
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::amm::calculate_amm_available_liquidity;
-use crate::math::auction::is_amm_available_liquidity_source;
 use crate::math::casting::Cast;
-use crate::state::fill_mode::FillMode;
 use crate::state::protected_maker_mode_config::ProtectedMakerParams;
 use crate::state::user::OrderBitFlag;
 use crate::{
@@ -355,30 +353,6 @@ pub fn get_position_delta_for_fill(
         },
         remainder_base_asset_amount: None,
     })
-}
-
-#[inline(always)]
-pub fn validate_perp_fill_possible(
-    state: &State,
-    user: &User,
-    order_index: usize,
-    slot: u64,
-    num_makers: usize,
-    fill_mode: FillMode,
-) -> DriftResult {
-    let amm_available = is_amm_available_liquidity_source(
-        &user.orders[order_index],
-        state.min_perp_auction_duration,
-        slot,
-        fill_mode,
-    )?;
-
-    if !amm_available && num_makers == 0 && user.orders[order_index].is_limit_order() {
-        msg!("invalid fill. order is limit order, amm is not available and no makers present");
-        return Err(ErrorCode::ImpossibleFill);
-    }
-
-    Ok(())
 }
 
 #[inline(always)]
@@ -860,7 +834,7 @@ pub fn calculate_max_perp_order_size(
     )?;
 
     let user_custom_margin_ratio = user.max_margin_ratio;
-    let user_high_leverage_mode = user.is_high_leverage_mode();
+    let user_high_leverage_mode = user.is_high_leverage_mode(MarginRequirementType::Initial);
 
     let free_collateral_before = total_collateral.safe_sub(margin_requirement.cast()?)?;
 

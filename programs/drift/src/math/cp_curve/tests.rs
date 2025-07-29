@@ -344,28 +344,28 @@ fn amm_spread_adj_logic() {
     market.amm.quote_asset_amount_per_lp = -QUOTE_PRECISION_I64 as i128;
 
     let reserve_price = market.amm.reserve_price().unwrap();
-    update_spreads(&mut market, reserve_price).unwrap();
+    update_spreads(&mut market, reserve_price, None).unwrap();
 
     assert_eq!(market.amm.long_spread, 50);
     assert_eq!(market.amm.short_spread, 50);
 
     market.amm.amm_spread_adjustment = -100;
-    update_spreads(&mut market, reserve_price).unwrap();
+    update_spreads(&mut market, reserve_price, None).unwrap();
     assert_eq!(market.amm.long_spread, 1);
     assert_eq!(market.amm.short_spread, 1);
 
     market.amm.amm_spread_adjustment = 100;
-    update_spreads(&mut market, reserve_price).unwrap();
+    update_spreads(&mut market, reserve_price, None).unwrap();
     assert_eq!(market.amm.long_spread, 100);
     assert_eq!(market.amm.short_spread, 100);
 
     market.amm.amm_spread_adjustment = 20;
-    update_spreads(&mut market, reserve_price).unwrap();
+    update_spreads(&mut market, reserve_price, None).unwrap();
     assert_eq!(market.amm.long_spread, 60);
     assert_eq!(market.amm.short_spread, 60);
 
     market.amm.amm_spread_adjustment = 120;
-    update_spreads(&mut market, reserve_price).unwrap();
+    update_spreads(&mut market, reserve_price, None).unwrap();
     assert_eq!(market.amm.long_spread, 110);
     assert_eq!(market.amm.short_spread, 110);
 }
@@ -401,7 +401,7 @@ fn calculate_k_with_lps_tests() {
     market.amm.quote_asset_amount_per_lp = -QUOTE_PRECISION_I64 as i128;
 
     let reserve_price = market.amm.reserve_price().unwrap();
-    update_spreads(&mut market, reserve_price).unwrap();
+    update_spreads(&mut market, reserve_price, None).unwrap();
 
     settle_lp_position(&mut position, &mut market).unwrap();
 

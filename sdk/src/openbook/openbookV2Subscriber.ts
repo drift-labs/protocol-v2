@@ -1,5 +1,5 @@
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
-import { BulkAccountLoader } from '../accounts/bulkAccountLoader';
+import { BulkAccountLoader } from '../accounts/bulkAccountLoader/bulkAccountLoader';
 import { PRICE_PRECISION } from '../constants/numericConstants';
 import { AnchorProvider, BN, Idl, Program, Wallet } from '@coral-xyz/anchor';
 import { L2Level, L2OrderBookGenerator } from '../dlob/orderBookLevels';
@@ -141,7 +141,7 @@ export class OpenbookV2Subscriber implements L2OrderBookGenerator {
 
 	*getL2Levels(side: 'bids' | 'asks'): Generator<L2Level> {
 		const levels = side === 'bids' ? this.market.bids : this.market.asks;
-		for (const order of levels?.items()) {
+		for (const order of levels?.items() ?? []) {
 			const size = this.convertSizeInBaseLotsToMarketPrecision(order.sizeLots);
 			const price = this.convertPriceInLotsToPricePrecision(order.priceLots);
 			yield {

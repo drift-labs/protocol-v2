@@ -46,7 +46,7 @@ import {
 import { NATIVE_MINT } from '@solana/spl-token';
 import { ContractTier } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/bulkAccountLoader/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('test function when spot market at >= 100% util', () => {

@@ -21,7 +21,7 @@ import {
 	FuelSeasonRecord,
 	InsuranceFundSwapRecord,
 	TransferProtocolIfSharesToRevenuePoolRecord,
-} from '../index';
+} from '../types';
 import { EventEmitter } from 'events';
 
 export type EventSubscriptionOptions = {

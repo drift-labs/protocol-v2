@@ -1,5 +1,4 @@
 import {
-	ClientSubscriptionId,
 	Connection,
 	Context,
 	RpcResponseAndContext,
@@ -8,13 +7,14 @@ import {
 	TransactionConfirmationStatus,
 } from '@solana/web3.js';
 import { DEFAULT_CONFIRMATION_OPTS } from '../config';
-import { TxSendError } from '..';
+import { TxSendError } from '../tx/types';
 import { NOT_CONFIRMED_ERROR_CODE } from '../constants/txConstants';
 import {
 	getTransactionErrorFromTxSig,
 	throwTransactionError,
 } from '../tx/reportTransactionError';
 import { promiseTimeout } from './promiseTimeout';
+import { ClientSubscriptionId } from '../bankrun/bankrunConnection';
 
 type ResolveReference = {
 	resolve?: () => void;

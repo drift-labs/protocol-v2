@@ -953,8 +953,6 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
             SettlePnlMode::MustSettle,
         )
         .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
-
-        user.update_last_active_slot(clock.slot);
     }
 
     let spot_market = spot_market_map.get_quote_spot_market()?;
@@ -1039,8 +1037,6 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
                 mode,
             )
             .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
-
-            user.update_last_active_slot(clock.slot);
         }
     }
 
@@ -1402,6 +1398,15 @@ pub fn handle_liquidate_spot_with_swap_begin<'c: 'info, 'info>(
 
     liability_spot_market.flash_loan_initial_token_amount = liability_token_account.amount;
 
+    let asset_spot_has_transfer_hook = asset_spot_market.has_transfer_hook();
+    let liability_spot_has_transfer_hook = liability_spot_market.has_transfer_hook();
+
+    validate!(
+        !(asset_spot_has_transfer_hook && liability_spot_has_transfer_hook),
+        ErrorCode::InvalidSwap,
+        "both asset and liability spot markets cannot both have transfer hooks"
+    )?;
+
     controller::token::send_from_program_vault(
         &ctx.accounts.token_program,
         asset_vault,
@@ -1410,6 +1415,11 @@ pub fn handle_liquidate_spot_with_swap_begin<'c: 'info, 'info>(
         state.signer_nonce,
         swap_amount,
         &mint,
+        if asset_spot_market.has_transfer_hook() {
+            Some(remaining_accounts_iter)
+        } else {
+            None
+        },
     )?;
 
     let ixs = ctx.accounts.instructions.as_ref();
@@ -1616,6 +1626,11 @@ pub fn handle_liquidate_spot_with_swap_end<'c: 'info, 'info>(
             &ctx.accounts.authority,
             residual,
             &asset_mint,
+            if asset_spot_market.has_transfer_hook() {
+                Some(remaining_accounts)
+            } else {
+                None
+            },
         )?;
         asset_token_account.reload()?;
         asset_vault.reload()?;
@@ -1643,6 +1658,11 @@ pub fn handle_liquidate_spot_with_swap_end<'c: 'info, 'info>(
                 &ctx.accounts.authority,
                 amount_out,
                 &liability_mint,
+                if liability_spot_market.has_transfer_hook() {
+                    Some(remaining_accounts)
+                } else {
+                    None
+                },
             )?;
         } else {
             controller::token::receive(
@@ -1652,6 +1672,11 @@ pub fn handle_liquidate_spot_with_swap_end<'c: 'info, 'info>(
                 &ctx.accounts.authority,
                 amount_out,
                 &liability_mint,
+                if liability_spot_market.has_transfer_hook() {
+                    Some(remaining_accounts)
+                } else {
+                    None
+                },
             )?;
         }
 
@@ -1908,16 +1933,31 @@ pub fn handle_resolve_perp_pnl_deficit<'c: 'info, 'info>(
 
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&spot_market_index)?;
-        controller::insurance::attempt_settle_revenue_to_insurance_fund(
-            &ctx.accounts.spot_market_vault,
-            &ctx.accounts.insurance_fund_vault,
-            spot_market,
-            now,
-            &ctx.accounts.token_program,
-            &ctx.accounts.drift_signer,
-            state,
-            &mint,
-        )?;
+        if spot_market.has_transfer_hook() {
+            controller::insurance::attempt_settle_revenue_to_insurance_fund(
+                &ctx.accounts.spot_market_vault,
+                &ctx.accounts.insurance_fund_vault,
+                spot_market,
+                now,
+                &ctx.accounts.token_program,
+                &ctx.accounts.drift_signer,
+                state,
+                &mint,
+                Some(&mut remaining_accounts_iter.clone()),
+            )?;
+        } else {
+            controller::insurance::attempt_settle_revenue_to_insurance_fund(
+                &ctx.accounts.spot_market_vault,
+                &ctx.accounts.insurance_fund_vault,
+                spot_market,
+                now,
+                &ctx.accounts.token_program,
+                &ctx.accounts.drift_signer,
+                state,
+                &mint,
+                None,
+            )?;
+        };
 
         // reload the spot market vault balance so it's up-to-date
         ctx.accounts.spot_market_vault.reload()?;
@@ -1976,6 +2016,7 @@ pub fn handle_resolve_perp_pnl_deficit<'c: 'info, 'info>(
             ctx.accounts.insurance_fund_vault.amount
         )?;
 
+        let spot_market = &mut spot_market_map.get_ref_mut(&spot_market_index)?;
         controller::token::send_from_program_vault(
             &ctx.accounts.token_program,
             &ctx.accounts.insurance_fund_vault,
@@ -1984,6 +2025,11 @@ pub fn handle_resolve_perp_pnl_deficit<'c: 'info, 'info>(
             state.signer_nonce,
             pay_from_insurance,
             &mint,
+            if spot_market.has_transfer_hook() {
+                Some(remaining_accounts_iter)
+            } else {
+                None
+            },
         )?;
 
         validate!(
@@ -2043,6 +2089,12 @@ pub fn handle_resolve_perp_bankruptcy<'c: 'info, 'info>(
 
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&quote_spot_market_index)?;
+        let mut transfer_hook_remaining_accounts_iter = remaining_accounts_iter.clone();
+        let remaining_accounts = if spot_market.has_transfer_hook() {
+            Some(&mut transfer_hook_remaining_accounts_iter)
+        } else {
+            None
+        };
         controller::insurance::attempt_settle_revenue_to_insurance_fund(
             &ctx.accounts.spot_market_vault,
             &ctx.accounts.insurance_fund_vault,
@@ -2052,6 +2104,7 @@ pub fn handle_resolve_perp_bankruptcy<'c: 'info, 'info>(
             &ctx.accounts.drift_signer,
             state,
             &mint,
+            remaining_accounts,
         )?;
 
         // reload the spot market vault balance so it's up-to-date
@@ -2085,6 +2138,14 @@ pub fn handle_resolve_perp_bankruptcy<'c: 'info, 'info>(
             ctx.accounts.insurance_fund_vault.amount
         )?;
 
+        let spot_market = &spot_market_map.get_ref(&quote_spot_market_index)?;
+        let mut transfer_hook_remaining_accounts_iter = remaining_accounts_iter.clone();
+        let remaining_accounts = if spot_market.has_transfer_hook() {
+            Some(&mut transfer_hook_remaining_accounts_iter)
+        } else {
+            None
+        };
+
         controller::token::send_from_program_vault(
             &ctx.accounts.token_program,
             &ctx.accounts.insurance_fund_vault,
@@ -2093,6 +2154,7 @@ pub fn handle_resolve_perp_bankruptcy<'c: 'info, 'info>(
             state.signer_nonce,
             pay_from_insurance,
             &mint,
+            remaining_accounts,
         )?;
 
         validate!(
@@ -2154,6 +2216,12 @@ pub fn handle_resolve_spot_bankruptcy<'c: 'info, 'info>(
 
     {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
+        let mut transfer_hook_remaining_accounts_iter = remaining_accounts_iter.clone();
+        let remaining_accounts = if spot_market.has_transfer_hook() {
+            Some(&mut transfer_hook_remaining_accounts_iter)
+        } else {
+            None
+        };
         controller::insurance::attempt_settle_revenue_to_insurance_fund(
             &ctx.accounts.spot_market_vault,
             &ctx.accounts.insurance_fund_vault,
@@ -2163,6 +2231,7 @@ pub fn handle_resolve_spot_bankruptcy<'c: 'info, 'info>(
             &ctx.accounts.drift_signer,
             state,
             &mint,
+            remaining_accounts,
         )?;
 
         // reload the spot market vault balance so it's up-to-date
@@ -2188,6 +2257,13 @@ pub fn handle_resolve_spot_bankruptcy<'c: 'info, 'info>(
     )?;
 
     if pay_from_insurance > 0 {
+        let spot_market = &spot_market_map.get_ref(&market_index)?;
+        let mut transfer_hook_remaining_accounts_iter = remaining_accounts_iter.clone();
+        let remaining_accounts = if spot_market.has_transfer_hook() {
+            Some(&mut transfer_hook_remaining_accounts_iter)
+        } else {
+            None
+        };
         controller::token::send_from_program_vault(
             &ctx.accounts.token_program,
             &ctx.accounts.insurance_fund_vault,
@@ -2196,6 +2272,7 @@ pub fn handle_resolve_spot_bankruptcy<'c: 'info, 'info>(
             ctx.accounts.state.signer_nonce,
             pay_from_insurance,
             &mint,
+            remaining_accounts,
         )?;
 
         validate!(
@@ -2238,8 +2315,13 @@ pub fn handle_update_funding_rate(
         Some(state.oracle_guard_rails),
     )?;
 
-    let oracle_price_data = &oracle_map.get_price_data(&perp_market.oracle_id())?;
-    controller::repeg::_update_amm(perp_market, oracle_price_data, state, now, clock_slot)?;
+    let oracle_price_data = oracle_map.get_price_data(&perp_market.oracle_id())?;
+    let mm_oracle_price_data = perp_market.get_mm_oracle_price_data(
+        *oracle_price_data,
+        clock_slot,
+        &state.oracle_guard_rails.validity,
+    )?;
+    controller::repeg::_update_amm(perp_market, &mm_oracle_price_data, state, now, clock_slot)?;
 
     validate!(
         matches!(
@@ -2334,7 +2416,12 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
     )?;
 
     let oracle_price_data = oracle_map.get_price_data(&perp_market.oracle_id())?;
-    controller::repeg::_update_amm(perp_market, oracle_price_data, state, now, slot)?;
+    let mm_oracle_price_data = perp_market.get_mm_oracle_price_data(
+        *oracle_price_data,
+        slot,
+        &state.oracle_guard_rails.validity,
+    )?;
+    controller::repeg::_update_amm(perp_market, &mm_oracle_price_data, state, now, slot)?;
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let makers = load_user_map(remaining_accounts_iter, false)?;
@@ -2463,6 +2550,11 @@ pub fn handle_settle_revenue_to_insurance_fund<'c: 'info, 'info>(
         state.signer_nonce,
         token_amount,
         &mint,
+        if spot_market.has_transfer_hook() {
+            Some(remaining_accounts_iter)
+        } else {
+            None
+        },
     )?;
 
     // reload the spot market vault balance so it's up-to-date
@@ -2525,8 +2617,12 @@ pub fn handle_update_spot_market_cumulative_interest(
 )]
 pub fn handle_update_amms<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdateAMM<'info>>,
-    market_indexes: [u16; 5],
+    market_indexes: Vec<u16>,
 ) -> Result<()> {
+    if market_indexes.len() > 5 {
+        msg!("Too many markets passed, max 5");
+        return Err(ErrorCode::DefaultError.into());
+    }
     // up to ~60k compute units (per amm) worst case
 
     let clock = Clock::get()?;
@@ -2541,6 +2637,44 @@ pub fn handle_update_amms<'c: 'info, 'info>(
     )?;
 
     controller::repeg::update_amms(market_map, oracle_map, state, &clock)?;
+
+    Ok(())
+}
+
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn view_amm_liquidity<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, UpdateAMM<'info>>,
+    market_indexes: Vec<u16>,
+) -> Result<()> {
+    if market_indexes.len() > 5 {
+        msg!("Too many markets passed, max 5");
+        return Err(ErrorCode::DefaultError.into());
+    }
+    // up to ~60k compute units (per amm) worst case
+
+    let clock = Clock::get()?;
+
+    let state = &ctx.accounts.state;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let oracle_map = &mut OracleMap::load(remaining_accounts_iter, clock.slot, None)?;
+    let market_map = &mut PerpMarketMap::load(
+        &get_market_set_from_list(market_indexes),
+        remaining_accounts_iter,
+    )?;
+
+    controller::repeg::update_amms(market_map, oracle_map, state, &clock)?;
+
+    for (_key, market_account_loader) in market_map.0.iter_mut() {
+        let market = &mut load_mut!(market_account_loader)?;
+        let oracle_price_data = &oracle_map.get_price_data(&market.oracle_id())?;
+
+        let reserve_price = market.amm.reserve_price()?;
+        let (bid, ask) = market.amm.bid_ask_price(reserve_price)?;
+        crate::dlog!(bid, ask, oracle_price_data.price);
+    }
 
     Ok(())
 }
@@ -2624,6 +2758,7 @@ pub fn handle_update_user_gov_token_insurance_stake_devnet(
 
 pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, DisableUserHighLeverageMode<'info>>,
+    disable_maintenance: bool,
 ) -> Result<()> {
     let state = &ctx.accounts.state;
     let mut user = load_mut!(ctx.accounts.user)?;
@@ -2642,13 +2777,48 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
+    let in_high_leverage_mode = user.is_high_leverage_mode(MarginRequirementType::Maintenance);
     validate!(
-        user.margin_mode == MarginMode::HighLeverage,
+        in_high_leverage_mode,
         ErrorCode::DefaultError,
-        "user must be in high leverage mode"
+        "user is not in high leverage mode"
     )?;
 
-    user.margin_mode = MarginMode::Default;
+    let old_margin_mode = user.margin_mode;
+
+    if disable_maintenance {
+        validate!(
+            user.margin_mode == MarginMode::HighLeverageMaintenance,
+            ErrorCode::DefaultError,
+            "user must be in high leverage maintenance mode"
+        )?;
+
+        user.margin_mode = MarginMode::Default;
+    } else {
+        let mut has_high_leverage_pos = false;
+        for position in user.perp_positions.iter().filter(|p| !p.is_available()) {
+            let perp_market = perp_market_map.get_ref(&position.market_index)?;
+            if perp_market.is_high_leverage_mode_enabled() {
+                has_high_leverage_pos = true;
+                break;
+            }
+        }
+
+        if !has_high_leverage_pos {
+            user.margin_mode = MarginMode::Default;
+        } else {
+            validate!(
+                user.margin_mode == MarginMode::HighLeverage,
+                ErrorCode::DefaultError,
+                "user must be in high leverage mode"
+            )?;
+
+            user.margin_mode = MarginMode::HighLeverageMaintenance;
+        }
+    }
+
+    let custom_margin_ratio_before = user.max_margin_ratio;
+    user.max_margin_ratio = 0;
 
     let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
         &user,
@@ -2658,6 +2828,8 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
         MarginContext::standard(MarginRequirementType::Initial)
             .margin_buffer(MARGIN_PRECISION / 100), // 1% buffer
     )?;
+
+    user.max_margin_ratio = custom_margin_ratio_before;
 
     if margin_calc.num_perp_liabilities > 0 {
         let mut requires_invariant_check = false;
@@ -2683,7 +2855,7 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
     if user.authority != *ctx.accounts.authority.key {
         let slots_since_last_active = slot.safe_sub(user.last_active_slot)?;
 
-        let min_slots_inactive = 9000; // 60 * 60 / .4
+        let min_slots_inactive = 2250; // 15 * 60 / .4
 
         validate!(
             slots_since_last_active >= min_slots_inactive || user.idle,
@@ -2696,7 +2868,15 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
 
     let mut config = load_mut!(ctx.accounts.high_leverage_mode_config)?;
 
-    config.current_users = config.current_users.safe_sub(1)?;
+    if old_margin_mode == MarginMode::HighLeverageMaintenance {
+        config.current_maintenance_users = config.current_maintenance_users.safe_sub(1)?;
+    } else {
+        config.current_users = config.current_users.safe_sub(1)?;
+    }
+
+    if user.margin_mode == MarginMode::HighLeverageMaintenance {
+        config.current_maintenance_users = config.current_maintenance_users.safe_add(1)?;
+    }
 
     config.validate()?;
 
@@ -2852,6 +3032,7 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
                 true,
             )?;
 
+            // TODO: support transfer hook tokens
             send_from_program_vault(
                 &token_program,
                 &spot_market_vault_account_info,
@@ -2860,6 +3041,7 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
                 state.signer_nonce,
                 token_amount.cast()?,
                 &mint_account_info,
+                None,
             )?;
         } else {
             update_spot_balances(
@@ -2870,6 +3052,7 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
                 false,
             )?;
 
+            // TODO: support transfer hook tokens
             receive(
                 token_program,
                 &keeper_vault_account_info,
@@ -2877,6 +3060,7 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
                 &ctx.accounts.keeper.to_account_info(),
                 token_amount.cast()?,
                 &mint_account_info,
+                None,
             )?;
         }
 

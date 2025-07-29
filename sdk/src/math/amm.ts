@@ -23,7 +23,8 @@ import {
 	isVariant,
 } from '../types';
 import { assert } from '../assert/assert';
-import { squareRootBN, sigNum, clampBN, standardizeBaseAssetAmount } from '..';
+import { squareRootBN, sigNum, clampBN } from './utils';
+import { standardizeBaseAssetAmount } from './utils';
 
 import { OraclePriceData } from '../oracles/types';
 import {
@@ -156,6 +157,11 @@ export function calculateUpdatedAMM(
 	amm: AMM,
 	oraclePriceData: OraclePriceData
 ): AMM {
+	if (!oraclePriceData?.fetchedWithMMOracle) {
+		console.log(
+			'Use driftClient method getMMOracleDataForPerpMarket for accurate MM pricing'
+		);
+	}
 	if (amm.curveUpdateIntensity == 0 || oraclePriceData === undefined) {
 		return amm;
 	}
@@ -198,6 +204,11 @@ export function calculateUpdatedAMMSpreadReserves(
 	oraclePriceData: OraclePriceData,
 	isPrediction = false
 ): { baseAssetReserve: BN; quoteAssetReserve: BN; sqrtK: BN; newPeg: BN } {
+	if (!oraclePriceData?.fetchedWithMMOracle) {
+		console.log(
+			'Use driftClient method getMMOracleDataForPerpMarket for accurate MM pricing'
+		);
+	}
 	const newAmm = calculateUpdatedAMM(amm, oraclePriceData);
 	const [shortReserves, longReserves] = calculateSpreadReserves(
 		newAmm,
@@ -226,6 +237,11 @@ export function calculateBidAskPrice(
 	withUpdate = true,
 	isPrediction = false
 ): [BN, BN] {
+	if (!oraclePriceData?.fetchedWithMMOracle) {
+		console.log(
+			'Use driftClient method getMMOracleDataForPerpMarket for accurate MM pricing'
+		);
+	}
 	let newAmm: AMM;
 	if (withUpdate) {
 		newAmm = calculateUpdatedAMM(amm, oraclePriceData);
@@ -475,8 +491,8 @@ export function calculateReferencePriceOffset(
 
 	const inventoryPct = clampBN(
 		liquidityFraction.mul(new BN(maxOffsetPct)).div(PERCENTAGE_PRECISION),
-		maxOffsetInPrice.mul(new BN(-1)),
-		maxOffsetInPrice
+		new BN(maxOffsetPct).mul(new BN(-1)),
+		new BN(maxOffsetPct)
 	);
 
 	// Only apply when inventory is consistent with recent and 24h market premium
@@ -999,7 +1015,7 @@ export function calculateSpreadReserves(
 
 	// always allow 10 bps of price offset, up to a half of the market's max_spread
 	let maxOffset = 0;
-	let referencePriceOffset = ZERO;
+	let referencePriceOffset = 0;
 	if (amm.curveUpdateIntensity > 100) {
 		maxOffset = Math.max(
 			amm.maxSpread / 2,
@@ -1025,23 +1041,53 @@ export function calculateSpreadReserves(
 			amm.historicalOracleData.lastOraclePriceTwap,
 			amm.lastMarkPriceTwap,
 			maxOffset
-		);
+		).toNumber();
 	}
 
-	const [longSpread, shortSpread] = calculateSpread(
+	let [longSpread, shortSpread] = calculateSpread(
 		amm,
 		oraclePriceData,
 		now,
 		reservePrice
 	);
 
+	const doReferencePricOffsetSmooth =
+		Math.sign(referencePriceOffset) !== Math.sign(amm.referencePriceOffset) &&
+		amm.curveUpdateIntensity > 100;
+
+	if (doReferencePricOffsetSmooth) {
+		if (oraclePriceData.slot !== amm.lastUpdateSlot) {
+			const slotsPassed =
+				oraclePriceData.slot.toNumber() - amm.lastUpdateSlot.toNumber();
+			const fullOffsetDelta = referencePriceOffset - amm.referencePriceOffset;
+			const raw = Math.trunc(
+				Math.min(Math.abs(fullOffsetDelta), slotsPassed * 1000) / 10
+			);
+			const maxAllowed =
+				Math.abs(amm.referencePriceOffset) || Math.abs(referencePriceOffset);
+
+			const magnitude = Math.min(Math.max(raw, 10), maxAllowed);
+			const referencePriceDelta = Math.sign(fullOffsetDelta) * magnitude;
+
+			referencePriceOffset = amm.referencePriceOffset + referencePriceDelta;
+
+			if (referencePriceDelta < 0) {
+				longSpread += Math.abs(referencePriceDelta);
+				shortSpread += Math.abs(referencePriceOffset);
+			} else {
+				shortSpread += Math.abs(referencePriceDelta);
+				longSpread += Math.abs(referencePriceOffset);
+			}
+		}
+	}
+
 	const askReserves = calculateSpreadReserve(
-		longSpread + referencePriceOffset.toNumber(),
+		longSpread + referencePriceOffset,
 		PositionDirection.LONG,
 		amm
 	);
 	const bidReserves = calculateSpreadReserve(
-		-shortSpread + referencePriceOffset.toNumber(),
+		-shortSpread + referencePriceOffset,
 		PositionDirection.SHORT,
 		amm
 	);

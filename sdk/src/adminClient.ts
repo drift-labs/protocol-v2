@@ -809,20 +809,23 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		depth: BN
 	): Promise<TransactionInstruction> {
-		const marketPublicKey = await getPerpMarketPublicKey(
-			this.program.programId,
-			perpMarketIndex
-		);
-
 		return await this.program.instruction.recenterPerpMarketAmmCrank(
 			depth ?? null,
 			{
 				accounts: {
-					state: await this.getStatePublicKey(),
 					admin: this.useHotWalletAdmin
 						? this.wallet.publicKey
 						: this.getStateAccount().admin,
-					perpMarket: marketPublicKey,
+					state: await this.getStatePublicKey(),
+					perpMarket: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
+					spotMarket: await getSpotMarketPublicKey(
+						this.program.programId,
+						QUOTE_SPOT_MARKET_INDEX
+					),
+					oracle: this.getPerpMarketAccount(perpMarketIndex).amm.oracle,
 				},
 			}
 		);
@@ -1104,6 +1107,13 @@ export class AdminClient extends DriftClient {
 
 		const remainingAccounts = [];
 		this.addTokenMintToRemainingAccounts(spotMarket, remainingAccounts);
+		if (this.isTransferHook(spotMarket)) {
+			await this.addExtraAccountMetasToRemainingAccounts(
+				spotMarket.mint,
+				remainingAccounts
+			);
+		}
+
 		const tokenProgram = this.getTokenProgramForSpotMarket(spotMarket);
 		return await this.program.instruction.depositIntoSpotMarketVault(amount, {
 			accounts: {
@@ -4520,6 +4530,13 @@ export class AdminClient extends DriftClient {
 			writableSpotMarketIndexes: [marketIndex],
 		});
 		this.addTokenMintToRemainingAccounts(spotMarket, remainingAccounts);
+		if (this.isTransferHook(spotMarket)) {
+			await this.addExtraAccountMetasToRemainingAccounts(
+				spotMarket.mint,
+				remainingAccounts
+			);
+		}
+
 		return this.program.instruction.adminDeposit(marketIndex, amount, {
 			remainingAccounts,
 			accounts: {
@@ -4533,5 +4550,63 @@ export class AdminClient extends DriftClient {
 				tokenProgram: getTokenProgramForSpotMarket(spotMarket),
 			},
 		});
+	}
+
+	public async zeroMMOracleFields(
+		marketIndex: number
+	): Promise<TransactionSignature> {
+		const zeroMMOracleFieldsIx = await this.getZeroMMOracleFieldsIx(
+			marketIndex
+		);
+
+		const tx = await this.buildTransaction(zeroMMOracleFieldsIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getZeroMMOracleFieldsIx(
+		marketIndex: number
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.zeroMmOracleFields({
+			accounts: {
+				admin: this.isSubscribed
+					? this.getStateAccount().admin
+					: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				perpMarket: await getPerpMarketPublicKey(
+					this.program.programId,
+					marketIndex
+				),
+			},
+		});
+	}
+
+	public async updateFeatureBitFlagsMMOracle(
+		enable: boolean
+	): Promise<TransactionSignature> {
+		const updateFeatureBitFlagsMMOracleIx =
+			await this.getUpdateFeatureBitFlagsMMOracleIx(enable);
+
+		const tx = await this.buildTransaction(updateFeatureBitFlagsMMOracleIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateFeatureBitFlagsMMOracleIx(
+		enable: boolean
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateFeatureBitFlagsMmOracle(
+			enable,
+			{
+				accounts: {
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
 	}
 }

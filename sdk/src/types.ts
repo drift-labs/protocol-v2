@@ -5,7 +5,8 @@ import {
 	TransactionVersion,
 	VersionedTransaction,
 } from '@solana/web3.js';
-import { BN, ZERO } from '.';
+import { BN } from '@coral-xyz/anchor';
+import { ZERO } from './constants/numericConstants';
 
 // Utility type which lets you denote record with values of type A mapped to a record with the same keys but values of type B
 export type MappedRecord<A extends Record<string, unknown>, B> = {
@@ -74,6 +75,9 @@ export enum UserStatus {
 export class MarginMode {
 	static readonly DEFAULT = { default: {} };
 	static readonly HIGH_LEVERAGE = { highLeverage: {} };
+	static readonly HIGH_LEVERAGE_MAINTENANCE = {
+		highLeverageMaintenance: {},
+	};
 }
 
 export class ContractType {
@@ -97,6 +101,11 @@ export class AssetTier {
 	static readonly CROSS = { cross: {} };
 	static readonly ISOLATED = { isolated: {} };
 	static readonly UNLISTED = { unlisted: {} };
+}
+
+export enum TokenProgramFlag {
+	Token2022 = 1,
+	TransferHook = 2,
 }
 
 export class SwapDirection {
@@ -723,7 +732,7 @@ export type TransferProtocolIfSharesToRevenuePoolRecord = {
 	ifVaultAmountBefore: BN;
 	protocolSharesBefore: BN;
 	protocolSharesAfter: BN;
-	currentInAmountSinceLastTransfer: BN;
+	transferAmount: BN;
 };
 
 export type StateAccount = {
@@ -903,7 +912,7 @@ export type SpotMarketAccount = {
 	fuelBoostMaker: number;
 	fuelBoostInsurance: number;
 
-	tokenProgram: number;
+	tokenProgramFlag: number;
 
 	poolId: number;
 };
@@ -944,7 +953,7 @@ export type AMM = {
 	totalFeeMinusDistributions: BN;
 	totalFeeWithdrawn: BN;
 	totalFee: BN;
-	totalFeeEarnedPerLp: BN;
+	mmOracleSequenceId: BN;
 	userLpShares: BN;
 	baseAssetAmountWithUnsettledLp: BN;
 	orderStepSize: BN;
@@ -989,13 +998,12 @@ export type AMM = {
 
 	markStd: BN;
 	oracleStd: BN;
-	longIntensityCount: number;
 	longIntensityVolume: BN;
-	shortIntensityCount: number;
 	shortIntensityVolume: BN;
 	volume24H: BN;
 	minOrderSize: BN;
-	maxPositionSize: BN;
+	mmOraclePrice: BN;
+	mmOracleSlot: BN;
 
 	bidBaseAssetReserve: BN;
 	bidQuoteAssetReserve: BN;
@@ -1510,7 +1518,7 @@ export type IfRebalanceConfigAccount = {
 	totalInAmount: BN;
 	currentInAmount: BN;
 	currentOutAmount: BN;
-	currentInAmountSinceLastTransfer: BN;
+	currentOutAmountTransferred: BN;
 	epochStartTs: BN;
 	epochInAmount: BN;
 	epochMaxInAmount: BN;

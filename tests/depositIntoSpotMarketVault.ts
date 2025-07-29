@@ -24,7 +24,7 @@ import {
 } from './testHelpers';
 import { SPOT_MARKET_BALANCE_PRECISION } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/bulkAccountLoader/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('spot deposit and withdraw', () => {
