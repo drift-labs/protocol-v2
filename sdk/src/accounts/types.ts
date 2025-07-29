@@ -226,6 +226,11 @@ export type GrpcConfigs = {
 	token: string;
 	commitmentLevel?: CommitmentLevel;
 	channelOptions?: ChannelOptions;
+	/**
+	 * Whether to enable automatic reconnection on connection loss .
+	 * Defaults to false, will throw on connection loss.
+	 */
+	enableReconnect?: boolean;
 };
 
 export interface HighLeverageModeConfigAccountSubscriber {
