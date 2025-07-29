@@ -59,7 +59,7 @@ import {
 } from '../accounts/types';
 import { TxSender, TxSigAndSlot } from '../tx/types';
 import { OraclePriceData } from '../oracles/types';
-import { UserSubscriptionConfig } from '../userConfig';
+import { UserSubscriptionConfig } from '../user/types';
 import { DriftEnv } from '../config/types';
 import { IUserStats } from '../userStats/types';
 import { UserStatsSubscriptionConfig } from '../userStatsConfig';

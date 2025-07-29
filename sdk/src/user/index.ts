@@ -92,7 +92,7 @@ import {
 	calculateWorstCaseBaseAssetAmount,
 } from '../math/margin';
 import { OraclePriceData } from '../oracles/types';
-import { UserSubscriptionConfig } from '../userConfig';
+import { UserSubscriptionConfig } from './types';
 import { PollingUserAccountSubscriber } from '../accounts/userAccount/pollingUserAccountSubscriber';
 import { WebSocketUserAccountSubscriber } from '../accounts/userAccount/webSocketUserAccountSubscriber';
 import {

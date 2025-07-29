@@ -14,7 +14,7 @@ import {
 } from '../types';
 import { WrappedEvent } from '../events/types';
 import { DLOB } from '../dlob/DLOB';
-import { UserSubscriptionConfig } from '../userConfig';
+import { UserSubscriptionConfig } from '../user/types';
 import { DataAndSlot } from '../accounts/types';
 import { OneShotUserAccountSubscriber } from '../accounts/userAccount/oneShotUserAccountSubscriber';
 import { ProtectMakerParamsMap } from '../dlob/types';

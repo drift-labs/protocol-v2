@@ -1,7 +1,6 @@
 import { IDriftClient } from '../driftClient/types';
 import { UserAccount, OrderRecord } from '../types';
 import { WrappedEvent } from '../events/types';
-import { UserSubscriptionConfig } from '../userConfig';
 import { DataAndSlot } from '../accounts/types';
 import { IDLOB, ProtectMakerParamsMap } from '../dlob/types';
 import { PublicKey } from '@solana/web3.js';
@@ -9,7 +8,7 @@ import { UserAccountFilterCriteria as UserFilterCriteria } from './userMapConfig
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { UserEvents } from './events';
-import { IUser } from '../user/types';
+import { IUser, UserSubscriptionConfig } from '../user/types';
 
 export interface IUserMap {
 	driftClient: IDriftClient;
