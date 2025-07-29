@@ -1,9 +1,15 @@
-import { DataAndSlot, AccountSubscriber, ResubOpts } from './types';
+import {
+	DataAndSlot,
+	AccountSubscriber,
+	ResubOpts,
+	BufferAndSlot,
+} from './types';
 import { AnchorProvider, Program } from '@coral-xyz/anchor';
 import { capitalize } from './utils';
 import {
 	AccountInfoBase,
 	AccountInfoWithBase58EncodedData,
+	AccountInfoWithBase64EncodedData,
 	createSolanaClient,
 	isAddress,
 	type Address,
@@ -16,6 +22,7 @@ export class WebSocketAccountSubscriberV2Gill<T>
 	implements AccountSubscriber<T>
 {
 	dataAndSlot?: DataAndSlot<T>;
+	bufferAndSlot?: BufferAndSlot;
 	accountName: string;
 	logAccountName: string;
 	program: Program;
@@ -38,6 +45,7 @@ export class WebSocketAccountSubscriberV2Gill<T>
 	private rpcSubscriptions: ReturnType<
 		typeof createSolanaClient
 	>['rpcSubscriptions'];
+	private abortController?: AbortController;
 
 	public constructor(
 		accountName: string,
@@ -99,38 +107,35 @@ export class WebSocketAccountSubscriberV2Gill<T>
 			await this.fetch();
 		}
 
+		// Create abort controller for proper cleanup
+		const abortController = new AbortController();
+		this.abortController = abortController;
+
 		// Subscribe to account changes using gill's rpcSubscriptions
 		const pubkey = this.accountPublicKey.toBase58();
 		if (isAddress(pubkey)) {
 			const subscription = await this.rpcSubscriptions
 				.accountNotifications(pubkey, {
 					commitment: this.commitment,
-					encoding: 'base58',
+					encoding: 'base64',
 				})
 				.subscribe({
-					abortSignal: new AbortController().signal,
+					abortSignal: abortController.signal,
 				});
 
 			for await (const notification of subscription) {
-				this.handleRpcResponse(notification.context, notification.value);
+				if (this.resubOpts?.resubTimeoutMs) {
+					this.receivingData = true;
+					clearTimeout(this.timeoutId);
+					this.handleRpcResponse(notification.context, notification.value);
+					this.setTimeout();
+				} else {
+					this.handleRpcResponse(notification.context, notification.value);
+				}
 			}
 		}
 
-		this.listenerId = Math.random(); // Unique ID for tracking subscription
-
-		// Set up polling for account changes
-		const pollInterval = setInterval(async () => {
-			if (this.isUnsubscribing) {
-				clearInterval(pollInterval);
-				return;
-			}
-
-			try {
-				await this.fetch();
-			} catch (error) {
-				console.error(`[${this.logAccountName}] Polling error:`, error);
-			}
-		}, 1000); // Poll every second
+		this.listenerId = Math.random(); // Unique ID for logging purposes
 
 		if (this.resubOpts?.resubTimeoutMs) {
 			this.receivingData = true;
@@ -198,7 +203,7 @@ export class WebSocketAccountSubscriberV2Gill<T>
 		const rpcResponse = await this.rpc
 			.getAccountInfo(accountAddress, {
 				commitment: this.commitment,
-				encoding: 'base58',
+				encoding: 'base64',
 			})
 			.send();
 
@@ -214,53 +219,63 @@ export class WebSocketAccountSubscriberV2Gill<T>
 
 	handleRpcResponse(
 		context: { slot: bigint },
-		accountInfo?: AccountInfoBase & AccountInfoWithBase58EncodedData
+		accountInfo?: AccountInfoBase &
+			(AccountInfoWithBase58EncodedData | AccountInfoWithBase64EncodedData)
 	): void {
 		const newSlot = context.slot;
+		let newBuffer: Buffer | undefined = undefined;
 
-		if (!accountInfo) {
-			return;
-		}
+		if (accountInfo) {
+			// Extract data from gill response
+			if (accountInfo.data) {
+				// Handle different data formats from gill
+				if (Array.isArray(accountInfo.data)) {
+					// If it's a tuple [data, encoding]
+					const [data, encoding] = accountInfo.data;
 
-		// Extract data from gill response
-		let buffer: Buffer | undefined;
-		if (accountInfo.data) {
-			// Handle different data formats from gill
-			if (typeof accountInfo.data === 'string') {
-				// If it's a base64 string
-				buffer = Buffer.from(accountInfo.data, 'base64');
-			} else if (Array.isArray(accountInfo.data)) {
-				// If it's a tuple [data, encoding]
-				const [data] = accountInfo.data;
-
-				// we know encoding will be base58
-				// Convert base58 to buffer using bs58
-				buffer = Buffer.from(bs58.decode(data));
+					if (encoding === 'base58') {
+						// we know encoding will be base58
+						// Convert base58 to buffer using bs58
+						newBuffer = Buffer.from(bs58.decode(data));
+					} else {
+						newBuffer = Buffer.from(data, 'base64');
+					}
+				}
 			}
 		}
 
-		if (buffer) {
-			const account = this.decodeBuffer(buffer);
+		if (!this.bufferAndSlot) {
+			this.bufferAndSlot = {
+				buffer: newBuffer,
+				slot: Number(newSlot),
+			};
+			if (newBuffer) {
+				const account = this.decodeBuffer(newBuffer);
+				this.dataAndSlot = {
+					data: account,
+					slot: Number(newSlot),
+				};
+				this.onChange(account);
+			}
+			return;
+		}
+
+		if (Number(newSlot) < this.bufferAndSlot.slot) {
+			return;
+		}
+
+		const oldBuffer = this.bufferAndSlot.buffer;
+		if (newBuffer && (!oldBuffer || !newBuffer.equals(oldBuffer))) {
+			this.bufferAndSlot = {
+				buffer: newBuffer,
+				slot: Number(newSlot),
+			};
+			const account = this.decodeBuffer(newBuffer);
 			this.dataAndSlot = {
 				data: account,
 				slot: Number(newSlot),
 			};
 			this.onChange(account);
-		}
-	}
-
-	// Helper method to convert base58 to base64
-	private base58ToBase64(base58String: string): string {
-		try {
-			// Decode base58 to buffer then encode to base64
-			const buffer = new Buffer(bs58.decode(base58String));
-			return buffer.toString('base64');
-		} catch (error) {
-			console.error(
-				`[${this.logAccountName}] Base58 conversion failed:`,
-				error
-			);
-			throw error;
 		}
 	}
 
@@ -283,25 +298,15 @@ export class WebSocketAccountSubscriberV2Gill<T>
 		clearTimeout(this.timeoutId);
 		this.timeoutId = undefined;
 
-		if (this.listenerId != null) {
-			// For gill subscriptions, we need to handle cleanup differently
-			// Since we don't have a direct unsubscribe method, we'll just mark as unsubscribed
-			const promise = Promise.resolve()
-				.then(() => {
-					this.listenerId = undefined;
-					this.isUnsubscribing = false;
-				})
-				.catch((error) => {
-					console.error(
-						`[${this.logAccountName}] Unsubscribe failed, forcing cleanup - listenerId=${this.listenerId}, isUnsubscribing=${this.isUnsubscribing}`,
-						error
-					);
-					this.listenerId = undefined;
-					this.isUnsubscribing = false;
-				});
-			return promise;
-		} else {
-			this.isUnsubscribing = false;
+		// Abort the WebSocket subscription
+		if (this.abortController) {
+			this.abortController.abort('unsubscribing');
+			this.abortController = undefined;
 		}
+
+		this.listenerId = undefined;
+		this.isUnsubscribing = false;
+
+		return Promise.resolve();
 	}
 }

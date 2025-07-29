@@ -448,7 +448,7 @@ export class DriftClient {
 					logResubMessages: config.accountSubscription?.logResubMessages,
 				},
 				config.accountSubscription?.commitment,
-				WebSocketAccountSubscriberV2Gill
+				config.accountSubscription?.accountSubscriber
 			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
