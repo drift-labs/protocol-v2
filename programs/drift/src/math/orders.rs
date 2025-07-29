@@ -1387,11 +1387,11 @@ pub fn get_posted_slot_from_clock_slot(slot: u64) -> u8 {
 }
 
 // Bit flag operators
-pub fn set_is_signed_msg_flag(mut flags: u8, value: bool) -> u8 {
+pub fn set_order_bit_flag(mut flags: u8, value: bool, flag: OrderBitFlag) -> u8 {
     if value {
-        flags |= OrderBitFlag::SignedMessage as u8;
+        flags |= flag as u8;
     } else {
-        flags &= !(OrderBitFlag::SignedMessage as u8);
+        flags &= !(flag as u8);
     }
     flags
 }

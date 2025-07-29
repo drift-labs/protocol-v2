@@ -126,6 +126,7 @@ export interface IDLOB {
 		userAccount: string,
 		slot: number,
 		isUserProtectedMaker: boolean,
+		baseAssetAmount: BN,
 		onInsert?: OrderBookCallback
 	): void;
 
@@ -133,6 +134,7 @@ export interface IDLOB {
 		order: Order,
 		userAccount: string,
 		isUserProtectedMaker: boolean,
+		baseAssetAmount: BN,
 		onInsert?: OrderBookCallback
 	): void;
 

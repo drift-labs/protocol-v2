@@ -20,6 +20,7 @@ export interface DLOBNode {
 	isProtectedMaker: boolean;
 	protectedMakerParams?: ProtectedMakerParams;
 	isSignedMsg: boolean | undefined;
+	baseAssetAmount: BN;
 }
 
 export abstract class OrderNode implements DLOBNode {
@@ -30,6 +31,7 @@ export abstract class OrderNode implements DLOBNode {
 	haveTrigger = false;
 	isProtectedMaker: boolean;
 	protectedMakerParams?: ProtectedMakerParams;
+	baseAssetAmount: BN;
 	isSignedMsg: boolean;
 
 	constructor(
@@ -37,6 +39,7 @@ export abstract class OrderNode implements DLOBNode {
 		userAccount: string,
 		isProtectedMaker: boolean,
 		protectedMakerParams?: ProtectedMakerParams,
+		baseAssetAmount?: BN,
 		isSignedMsg = false
 	) {
 		// Copy the order over to the node
@@ -45,6 +48,7 @@ export abstract class OrderNode implements DLOBNode {
 		this.sortValue = this.getSortValue(order);
 		this.isProtectedMaker = isProtectedMaker;
 		this.protectedMakerParams = protectedMakerParams;
+		this.baseAssetAmount = baseAssetAmount ?? order.baseAssetAmount;
 		this.isSignedMsg = isSignedMsg;
 	}
 
@@ -156,8 +160,8 @@ export class SignedMsgOrderNode extends OrderNode {
 	next?: SignedMsgOrderNode;
 	previous?: SignedMsgOrderNode;
 
-	constructor(order: Order, userAccount: string) {
-		super(order, userAccount, false, undefined, true);
+	constructor(order: Order, userAccount: string, baseAssetAmount?: BN) {
+		super(order, userAccount, false, undefined, baseAssetAmount, true);
 	}
 
 	getSortValue(order: Order): BN {
@@ -189,7 +193,8 @@ export function createNode<T extends DLOBNodeType>(
 	order: Order,
 	userAccount: string,
 	isProtectedMaker: boolean,
-	protectedMakerParams?: ProtectedMakerParams
+	protectedMakerParams?: ProtectedMakerParams,
+	baseAssetAmount?: BN
 ): DLOBNodeMap[T] {
 	switch (nodeType) {
 		case 'floatingLimit':
@@ -197,45 +202,51 @@ export function createNode<T extends DLOBNodeType>(
 				order,
 				userAccount,
 				isProtectedMaker,
-				protectedMakerParams
+				protectedMakerParams,
+				baseAssetAmount
 			);
 		case 'protectedFloatingLimit':
 			return new FloatingLimitOrderNode(
 				order,
 				userAccount,
 				isProtectedMaker,
-				protectedMakerParams
+				protectedMakerParams,
+				baseAssetAmount
 			);
 		case 'restingLimit':
 			return new RestingLimitOrderNode(
 				order,
 				userAccount,
 				isProtectedMaker,
-				protectedMakerParams
+				protectedMakerParams,
+				baseAssetAmount
 			);
 		case 'takingLimit':
 			return new TakingLimitOrderNode(
 				order,
 				userAccount,
 				isProtectedMaker,
-				protectedMakerParams
+				protectedMakerParams,
+				baseAssetAmount
 			);
 		case 'market':
 			return new MarketOrderNode(
 				order,
 				userAccount,
 				isProtectedMaker,
-				undefined
+				undefined,
+				baseAssetAmount
 			);
 		case 'trigger':
 			return new TriggerOrderNode(
 				order,
 				userAccount,
 				isProtectedMaker,
-				undefined
+				undefined,
+				baseAssetAmount
 			);
 		case 'signedMsg':
-			return new SignedMsgOrderNode(order, userAccount);
+			return new SignedMsgOrderNode(order, userAccount, baseAssetAmount);
 		default:
 			throw Error(`Unknown DLOBNode type ${nodeType}`);
 	}

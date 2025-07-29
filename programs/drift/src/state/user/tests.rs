@@ -2309,3 +2309,186 @@ mod update_referrer_status {
         assert_eq!(user_stats.referrer_status, 1);
     }
 }
+
+mod update_open_bids_and_asks {
+    use crate::state::user::{
+        Order, OrderBitFlag, OrderTriggerCondition, OrderType, PositionDirection,
+    };
+
+    #[test]
+    fn test_regular_limit_order() {
+        let order = Order {
+            order_type: OrderType::Limit,
+            trigger_condition: OrderTriggerCondition::Above,
+            reduce_only: false,
+            bit_flags: 0,
+            ..Order::default()
+        };
+
+        assert!(order.update_open_bids_and_asks());
+    }
+
+    #[test]
+    fn test_regular_market_order() {
+        let order = Order {
+            order_type: OrderType::Market,
+            trigger_condition: OrderTriggerCondition::Above,
+            reduce_only: false,
+            bit_flags: 0,
+            ..Order::default()
+        };
+
+        assert!(order.update_open_bids_and_asks());
+    }
+
+    #[test]
+    fn test_trigger_market_order_not_triggered() {
+        let order = Order {
+            order_type: OrderType::TriggerMarket,
+            trigger_condition: OrderTriggerCondition::Above,
+            reduce_only: false,
+            bit_flags: 0,
+            ..Order::default()
+        };
+
+        assert!(!order.update_open_bids_and_asks());
+    }
+
+    #[test]
+    fn test_trigger_market_order_triggered_above() {
+        let order = Order {
+            order_type: OrderType::TriggerMarket,
+            trigger_condition: OrderTriggerCondition::TriggeredAbove,
+            reduce_only: false,
+            bit_flags: 0,
+            ..Order::default()
+        };
+
+        assert!(order.update_open_bids_and_asks());
+    }
+
+    #[test]
+    fn test_trigger_market_order_triggered_below() {
+        let order = Order {
+            order_type: OrderType::TriggerMarket,
+            trigger_condition: OrderTriggerCondition::TriggeredBelow,
+            reduce_only: false,
+            bit_flags: 0,
+            ..Order::default()
+        };
+
+        assert!(order.update_open_bids_and_asks());
+    }
+
+    #[test]
+    fn test_trigger_limit_order_not_triggered() {
+        let order = Order {
+            order_type: OrderType::TriggerLimit,
+            trigger_condition: OrderTriggerCondition::Below,
+            reduce_only: false,
+            bit_flags: 0,
+            ..Order::default()
+        };
+
+        assert!(!order.update_open_bids_and_asks());
+    }
+
+    #[test]
+    fn test_trigger_limit_order_triggered() {
+        let order = Order {
+            order_type: OrderType::TriggerLimit,
+            trigger_condition: OrderTriggerCondition::TriggeredBelow,
+            reduce_only: false,
+            bit_flags: 0,
+            ..Order::default()
+        };
+
+        assert!(order.update_open_bids_and_asks());
+    }
+
+    #[test]
+    fn test_reduce_only_order_without_new_reduce_only_flag() {
+        let order = Order {
+            order_type: OrderType::Limit,
+            trigger_condition: OrderTriggerCondition::Above,
+            reduce_only: true,
+            bit_flags: 0,
+            ..Order::default()
+        };
+
+        assert!(order.update_open_bids_and_asks());
+    }
+
+    #[test]
+    fn test_reduce_only_order_with_new_reduce_only_flag() {
+        let mut order = Order {
+            order_type: OrderType::Limit,
+            trigger_condition: OrderTriggerCondition::Above,
+            reduce_only: true,
+            bit_flags: 0,
+            ..Order::default()
+        };
+        order.add_bit_flag(OrderBitFlag::NewTriggerReduceOnly);
+
+        assert!(order.update_open_bids_and_asks());
+    }
+
+    #[test]
+    fn test_triggered_reduce_only_order_with_new_reduce_only_flag() {
+        let mut order = Order {
+            order_type: OrderType::TriggerMarket,
+            trigger_condition: OrderTriggerCondition::TriggeredAbove,
+            reduce_only: true,
+            bit_flags: 0,
+            ..Order::default()
+        };
+        order.add_bit_flag(OrderBitFlag::NewTriggerReduceOnly);
+
+        assert!(!order.update_open_bids_and_asks());
+    }
+
+    #[test]
+    fn test_oracle_order() {
+        let order = Order {
+            order_type: OrderType::Oracle,
+            trigger_condition: OrderTriggerCondition::Above,
+            reduce_only: false,
+            bit_flags: 0,
+            ..Order::default()
+        };
+
+        assert!(order.update_open_bids_and_asks());
+    }
+
+    #[test]
+    fn test_order_with_other_bit_flags() {
+        let mut order = Order {
+            order_type: OrderType::Limit,
+            trigger_condition: OrderTriggerCondition::Above,
+            reduce_only: false,
+            bit_flags: 0,
+            ..Order::default()
+        };
+        order.add_bit_flag(OrderBitFlag::SignedMessage);
+        order.add_bit_flag(OrderBitFlag::OracleTriggerMarket);
+        order.add_bit_flag(OrderBitFlag::SafeTriggerOrder);
+
+        assert!(order.update_open_bids_and_asks());
+    }
+
+    #[test]
+    fn test_reduce_only_order_with_other_bit_flags() {
+        let mut order = Order {
+            order_type: OrderType::Limit,
+            trigger_condition: OrderTriggerCondition::Above,
+            reduce_only: true,
+            bit_flags: 0,
+            ..Order::default()
+        };
+        order.add_bit_flag(OrderBitFlag::SignedMessage);
+        order.add_bit_flag(OrderBitFlag::OracleTriggerMarket);
+        order.add_bit_flag(OrderBitFlag::SafeTriggerOrder);
+
+        assert!(order.update_open_bids_and_asks());
+    }
+}

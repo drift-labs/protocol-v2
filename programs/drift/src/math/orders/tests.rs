@@ -4186,3 +4186,22 @@ mod posted_slot_tail {
         }
     }
 }
+
+mod order_bit_flags {
+    use crate::math::orders::set_order_bit_flag;
+    use crate::state::user::OrderBitFlag;
+
+    #[test]
+    fn test_set_order_bit_flag() {
+        let mut flags = 0;
+
+        flags = set_order_bit_flag(flags, true, OrderBitFlag::SignedMessage);
+        assert_eq!(flags, 1);
+
+        flags = set_order_bit_flag(flags, true, OrderBitFlag::NewTriggerReduceOnly);
+        assert_eq!(flags, 9);
+
+        flags = set_order_bit_flag(flags, false, OrderBitFlag::SignedMessage);
+        assert_eq!(flags, 8);
+    }
+}
