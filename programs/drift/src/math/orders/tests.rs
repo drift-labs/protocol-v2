@@ -4198,7 +4198,7 @@ mod order_bit_flags {
         flags = set_order_bit_flag(flags, true, OrderBitFlag::SignedMessage);
         assert_eq!(flags, 1);
 
-        flags = set_order_bit_flag(flags, true, OrderBitFlag::NewReduceOnly);
+        flags = set_order_bit_flag(flags, true, OrderBitFlag::NewTriggerReduceOnly);
         assert_eq!(flags, 9);
 
         flags = set_order_bit_flag(flags, false, OrderBitFlag::SignedMessage);

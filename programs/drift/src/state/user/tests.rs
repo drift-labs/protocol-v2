@@ -2428,7 +2428,7 @@ mod update_open_bids_and_asks {
             bit_flags: 0,
             ..Order::default()
         };
-        order.add_bit_flag(OrderBitFlag::NewReduceOnly);
+        order.add_bit_flag(OrderBitFlag::NewTriggerReduceOnly);
 
         assert!(order.update_open_bids_and_asks());
     }
@@ -2442,7 +2442,7 @@ mod update_open_bids_and_asks {
             bit_flags: 0,
             ..Order::default()
         };
-        order.add_bit_flag(OrderBitFlag::NewReduceOnly);
+        order.add_bit_flag(OrderBitFlag::NewTriggerReduceOnly);
 
         assert!(!order.update_open_bids_and_asks());
     }
