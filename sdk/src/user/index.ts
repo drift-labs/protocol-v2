@@ -76,7 +76,7 @@ import {
 	SpotBalanceType,
 	SpotMarketAccount,
 } from '../types';
-import { standardizeBaseAssetAmount } from '../math/orders';
+import { standardizeBaseAssetAmount } from '../math/utils';
 import {
 	calculateAssetWeight,
 	calculateLiabilityWeight,

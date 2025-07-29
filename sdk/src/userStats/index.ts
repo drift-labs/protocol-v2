@@ -17,7 +17,7 @@ import {
 } from '../constants/numericConstants';
 import { BN } from '@coral-xyz/anchor';
 import { calculateInsuranceFuelBonus } from '../math/fuel';
-import { IDriftClient } from '../driftClient/IDriftClient';
+import { IDriftClient } from '../driftClient/types';
 import { IUserStats } from './types';
 
 export class UserStats implements IUserStats {

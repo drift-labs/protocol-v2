@@ -1,10 +1,10 @@
 import { Commitment, PublicKey } from '@solana/web3.js';
 import { Order, UserAccount } from '../types';
-import { DriftClient } from '../driftClient';
+import { IDriftClient } from '../driftClient/types';
 import { GrpcConfigs } from '../accounts/types';
 
 export type OrderSubscriberConfig = {
-	driftClient: DriftClient;
+	driftClient: IDriftClient;
 	subscriptionConfig:
 		| {
 				type: 'polling';

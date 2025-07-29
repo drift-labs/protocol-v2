@@ -21,6 +21,7 @@ import {
 	calculateMaxBaseAssetAmountToTrade,
 	calculateUpdatedAMM,
 } from './amm';
+import { standardizeBaseAssetAmount } from './utils';
 
 export function isOrderRiskIncreasing(user: User, order: Order): boolean {
 	if (!isVariant(order.status, 'open')) {
@@ -119,14 +120,6 @@ export function isOrderReduceOnly(user: User, order: Order): boolean {
 	}
 
 	return true;
-}
-
-export function standardizeBaseAssetAmount(
-	baseAssetAmount: BN,
-	stepSize: BN
-): BN {
-	const remainder = baseAssetAmount.mod(stepSize);
-	return baseAssetAmount.sub(remainder);
 }
 
 export function standardizePrice(

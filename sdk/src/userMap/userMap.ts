@@ -46,11 +46,11 @@ import { grpcSubscription } from './grpcSubscription';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { UserEvents } from './events';
-import { UserMapInterface } from './types';
+import { IUserMap } from './types';
 
 const MAX_USER_ACCOUNT_SIZE_BYTES = 4376;
 
-export class UserMap implements UserMapInterface {
+export class UserMap implements IUserMap {
 	private userMap = new Map<string, DataAndSlot<User>>();
 	driftClient: DriftClient;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserEvents>;

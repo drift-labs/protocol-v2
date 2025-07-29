@@ -28,7 +28,7 @@ import {
 	QUOTE_SPOT_MARKET_INDEX,
 } from '../constants/numericConstants';
 import { getTokenAmount } from './spotBalance';
-import { DLOB } from '../dlob/DLOB';
+import { IDLOB } from '../dlob/types';
 import { assert } from '../assert/assert';
 
 /**
@@ -295,7 +295,7 @@ export function calculateNetUserPnlImbalance(
 export function calculateAvailablePerpLiquidity(
 	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData,
-	dlob: DLOB,
+	dlob: IDLOB,
 	slot: number
 ): { bids: BN; asks: BN } {
 	let [bids, asks] = calculateMarketOpenBidAsk(

@@ -3,10 +3,10 @@ import { WebSocketProgramAccountSubscriber } from '../accounts/programAccount/we
 import { UserAccount } from '../types';
 import { Commitment, Context, MemcmpFilter, PublicKey } from '@solana/web3.js';
 import { ResubOpts } from '../accounts/types';
-import { UserMapInterface } from './types';
+import { IUserMap } from './types';
 
 export class WebsocketSubscription {
-	private userMap: UserMapInterface;
+	private userMap: IUserMap;
 	private commitment: Commitment;
 	private skipInitialLoad: boolean;
 	private resubOpts?: ResubOpts;
@@ -25,7 +25,7 @@ export class WebsocketSubscription {
 		decodeFn,
 		additionalFilters = undefined,
 	}: {
-		userMap: UserMapInterface;
+		userMap: IUserMap;
 		commitment: Commitment;
 		skipInitialLoad?: boolean;
 		resubOpts?: ResubOpts;

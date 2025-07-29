@@ -192,7 +192,7 @@ import { getOracleId } from '../oracles/oracleId';
 import { SignedMsgOrderParams } from '../types';
 import { sha256 } from '@noble/hashes/sha256';
 import { getOracleConfidenceFromMMOracleData } from '../oracles/utils';
-import { IDriftClient } from './IDriftClient';
+import { IDriftClient } from './types';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
