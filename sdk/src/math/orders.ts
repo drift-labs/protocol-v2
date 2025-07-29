@@ -380,3 +380,21 @@ const FLAG_IS_SIGNED_MSG = 0x01;
 export function isSignedMsgOrder(order: Order): boolean {
 	return (order.bitFlags & FLAG_IS_SIGNED_MSG) !== 0;
 }
+
+export function calculateOrderBaseAssetAmount(
+	order: Order,
+	existingBaseAssetAmount: BN
+): BN {
+	if (!order.reduceOnly) {
+		return order.baseAssetAmount;
+	}
+
+	if (isVariant(order.direction, 'long')) {
+		return BN.min(
+			BN.min(existingBaseAssetAmount, ZERO).abs(),
+			order.baseAssetAmount
+		);
+	} else {
+		return BN.min(BN.max(existingBaseAssetAmount, ZERO), order.baseAssetAmount);
+	}
+}
