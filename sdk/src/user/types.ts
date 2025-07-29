@@ -1,4 +1,4 @@
-import { Commitment, PublicKey } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import {
@@ -18,7 +18,6 @@ import {
 } from '../types';
 import {
 	DataAndSlot,
-	GrpcConfigs,
 	UserAccountEvents,
 	UserAccountSubscriber,
 } from '../accounts/types';
@@ -26,29 +25,6 @@ import { BN } from '@coral-xyz/anchor';
 import { OraclePriceData } from '../oracles/types';
 import { StrictOraclePrice } from '../oracles/strictOraclePrice';
 import { IUserStats } from '../userStats/types';
-import { BulkAccountLoader } from '../accounts/bulkAccountLoader/bulkAccountLoader';
-
-export type UserSubscriptionConfig =
-	| {
-			type: 'grpc';
-			resubTimeoutMs?: number;
-			logResubMessages?: boolean;
-			grpcConfigs: GrpcConfigs;
-	  }
-	| {
-			type: 'websocket';
-			resubTimeoutMs?: number;
-			logResubMessages?: boolean;
-			commitment?: Commitment;
-	  }
-	| {
-			type: 'polling';
-			accountLoader: BulkAccountLoader;
-	  }
-	| {
-			type: 'custom';
-			userAccountSubscriber: UserAccountSubscriber;
-	  };
 
 export interface IUser {
 	userAccountPublicKey: PublicKey;

@@ -139,7 +139,7 @@ import { PollingDriftClientAccountSubscriber } from '../accounts/driftClientAcco
 import { WebSocketDriftClientAccountSubscriber } from '../accounts/driftClientAccount/webSocketDriftClientAccountSubscriber';
 import { RetryTxSender } from '../tx/retryTxSender';
 import { User } from '../user';
-import { UserSubscriptionConfig } from '../user/types';
+import { UserSubscriptionConfig } from '../userConfig';
 import {
 	configs,
 	DRIFT_ORACLE_RECEIVER_ID,

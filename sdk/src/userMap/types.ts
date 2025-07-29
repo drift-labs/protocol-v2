@@ -1,6 +1,8 @@
-import { IDriftClient } from '../driftClient/types';
+import { User } from '../user';
+import { DriftClient } from '../driftClient';
 import { UserAccount, OrderRecord } from '../types';
 import { WrappedEvent } from '../events/types';
+import { UserSubscriptionConfig } from '../userConfig';
 import { DataAndSlot } from '../accounts/types';
 import { IDLOB, ProtectMakerParamsMap } from '../dlob/types';
 import { PublicKey } from '@solana/web3.js';
@@ -8,10 +10,9 @@ import { UserAccountFilterCriteria as UserFilterCriteria } from './userMapConfig
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { UserEvents } from './events';
-import { IUser, UserSubscriptionConfig } from '../user/types';
 
 export interface IUserMap {
-	driftClient: IDriftClient;
+	driftClient: DriftClient;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserEvents>;
 
 	subscribe(): Promise<void>;
@@ -30,9 +31,9 @@ export interface IUserMap {
 	 * @param key userAccountPublicKey to get User for
 	 * @returns user User | undefined
 	 */
-	get(key: string): IUser | undefined;
+	get(key: string): User | undefined;
 
-	getWithSlot(key: string): DataAndSlot<IUser> | undefined;
+	getWithSlot(key: string): DataAndSlot<User> | undefined;
 
 	/**
 	 * gets the User for a particular userAccountPublicKey, if no User exists, new one is created
@@ -42,12 +43,12 @@ export interface IUserMap {
 	mustGet(
 		key: string,
 		accountSubscription?: UserSubscriptionConfig
-	): Promise<IUser>;
+	): Promise<User>;
 
 	mustGetWithSlot(
 		key: string,
 		accountSubscription?: UserSubscriptionConfig
-	): Promise<DataAndSlot<IUser>>;
+	): Promise<DataAndSlot<User>>;
 
 	mustGetUserAccount(key: string): Promise<UserAccount>;
 
@@ -72,13 +73,13 @@ export interface IUserMap {
 
 	updateWithEventRecord(record: WrappedEvent<any>): Promise<void>;
 
-	values(): IterableIterator<IUser>;
+	values(): IterableIterator<User>;
 
-	valuesWithSlot(): IterableIterator<DataAndSlot<IUser>>;
+	valuesWithSlot(): IterableIterator<DataAndSlot<User>>;
 
-	entries(): IterableIterator<[string, IUser]>;
+	entries(): IterableIterator<[string, User]>;
 
-	entriesWithSlot(): IterableIterator<[string, DataAndSlot<IUser>]>;
+	entriesWithSlot(): IterableIterator<[string, DataAndSlot<User>]>;
 
 	size(): number;
 

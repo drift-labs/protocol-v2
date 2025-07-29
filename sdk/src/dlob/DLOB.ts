@@ -10,7 +10,7 @@ import {
 } from '../constants/numericConstants';
 import { decodeName } from '../userName';
 import { DLOBNode, DLOBNodeType } from './DLOBNode';
-import { IDriftClient } from '../driftClient/types';
+import { DriftClient } from '../driftClient';
 import {
 	calculateOrderBaseAssetAmount,
 	getLimitPrice,
@@ -1585,7 +1585,7 @@ export class DLOB implements IDLOB {
 	}
 
 	public printTop(
-		driftClient: IDriftClient,
+		driftClient: DriftClient,
 		slotSubscriber: SlotSubscriber,
 		marketIndex: number,
 		marketType: MarketType

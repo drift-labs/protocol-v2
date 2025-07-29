@@ -59,7 +59,8 @@ import {
 } from '../accounts/types';
 import { TxSender, TxSigAndSlot } from '../tx/types';
 import { OraclePriceData } from '../oracles/types';
-import { UserSubscriptionConfig } from '../user/types';
+import { User } from '../user';
+import { UserSubscriptionConfig } from '../userConfig';
 import { DriftEnv } from '../config/types';
 import { IUserStats } from '../userStats/types';
 import { UserStatsSubscriptionConfig } from '../userStatsConfig';
@@ -73,7 +74,6 @@ import {
 	SwapMode,
 } from '../jupiter/jupiterClient';
 import { TxHandler } from '../tx/txHandler';
-import { IUser } from '../user/types';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -93,7 +93,7 @@ export interface IDriftClient {
 	env: DriftEnv;
 	opts?: ConfirmOptions;
 	useHotWalletAdmin?: boolean;
-	users: Map<string, IUser>;
+	users: Map<string, User>;
 	userStats?: IUserStats;
 	activeSubAccountId: number;
 	userAccountSubscriptionConfig: UserSubscriptionConfig;
@@ -139,7 +139,7 @@ export interface IDriftClient {
 		subAccountId: number,
 		accountSubscriptionConfig: UserSubscriptionConfig,
 		authority?: PublicKey
-	): IUser;
+	): User;
 	subscribe(): Promise<boolean>;
 	subscribeUsers(): Promise<boolean>[];
 
@@ -427,9 +427,9 @@ export interface IDriftClient {
 	getReclaimRentIx(
 		userAccountPublicKey: PublicKey
 	): Promise<TransactionInstruction>;
-	getUser(subAccountId?: number, authority?: PublicKey): IUser;
+	getUser(subAccountId?: number, authority?: PublicKey): User;
 	hasUser(subAccountId?: number, authority?: PublicKey): boolean;
-	getUsers(): IUser[];
+	getUsers(): User[];
 	getUserStats(): IUserStats;
 	fetchReferrerNameAccount(
 		name: string
@@ -2018,7 +2018,7 @@ export interface IDriftClient {
 	getMarketFees(
 		marketType: MarketType,
 		marketIndex?: number,
-		user?: IUser,
+		user?: User,
 		enteringHighLeverageMode?: boolean
 	): { takerFee: number; makerFee: number };
 

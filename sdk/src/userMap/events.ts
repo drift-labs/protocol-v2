@@ -1,7 +1,7 @@
-import { IUser } from '../user/types';
+import { User } from '../user';
 
 export interface UserEvents {
-	userUpdate: (payload: IUser) => void;
+	userUpdate: (payload: User) => void;
 	update: void;
 	error: (e: Error) => void;
 }

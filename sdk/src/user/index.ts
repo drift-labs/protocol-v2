@@ -1,6 +1,7 @@
 import { PublicKey } from '@solana/web3.js';
 import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
+import { DriftClient } from '../driftClient';
 import {
 	HealthComponent,
 	HealthComponents,
@@ -92,7 +93,7 @@ import {
 	calculateWorstCaseBaseAssetAmount,
 } from '../math/margin';
 import { OraclePriceData } from '../oracles/types';
-import { UserSubscriptionConfig } from './types';
+import { UserConfig } from '../userConfig';
 import { PollingUserAccountSubscriber } from '../accounts/userAccount/pollingUserAccountSubscriber';
 import { WebSocketUserAccountSubscriber } from '../accounts/userAccount/webSocketUserAccountSubscriber';
 import {
@@ -114,16 +115,9 @@ import { calculateSpotFuelBonus, calculatePerpFuelBonus } from '../math/fuel';
 import { grpcUserAccountSubscriber } from '../accounts/userAccount/grpcUserAccountSubscriber';
 import { IUserStats } from '../userStats/types';
 import { IUser } from './types';
-import { IDriftClient } from '../driftClient/types';
-
-export type UserConfig = {
-	accountSubscription?: UserSubscriptionConfig;
-	driftClient: IDriftClient;
-	userAccountPublicKey: PublicKey;
-};
 
 export class User implements IUser {
-	driftClient: IDriftClient;
+	driftClient: DriftClient;
 	userAccountPublicKey: PublicKey;
 	accountSubscriber: UserAccountSubscriber;
 	_isSubscribed = false;
