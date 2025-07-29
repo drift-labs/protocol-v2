@@ -1,4 +1,3 @@
-import { User } from '../user';
 import {
 	isOneOfVariant,
 	isVariant,
@@ -22,8 +21,9 @@ import {
 	calculateUpdatedAMM,
 } from './amm';
 import { standardizeBaseAssetAmount } from './utils';
+import { IUser } from '../user/types';
 
-export function isOrderRiskIncreasing(user: User, order: Order): boolean {
+export function isOrderRiskIncreasing(user: IUser, order: Order): boolean {
 	if (!isVariant(order.status, 'open')) {
 		return false;
 	}
@@ -62,7 +62,7 @@ export function isOrderRiskIncreasing(user: User, order: Order): boolean {
 }
 
 export function isOrderRiskIncreasingInSameDirection(
-	user: User,
+	user: IUser,
 	order: Order
 ): boolean {
 	if (!isVariant(order.status, 'open')) {
@@ -94,7 +94,7 @@ export function isOrderRiskIncreasingInSameDirection(
 	return false;
 }
 
-export function isOrderReduceOnly(user: User, order: Order): boolean {
+export function isOrderReduceOnly(user: IUser, order: Order): boolean {
 	if (!isVariant(order.status, 'open')) {
 		return false;
 	}
