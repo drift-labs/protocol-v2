@@ -511,14 +511,9 @@ pub fn validate_fill_price_within_price_bands(
         .cast::<i64>()?
         .safe_sub(oracle_price)?
         .cast::<i128>()?
-        .safe_mul(PERCENTAGE_PRECISION_I128)?
+        .safe_mul(MARGIN_PRECISION_I128)?
         .safe_div(oracle_price.cast::<i128>()?)?
-        .abs()
-        .cast::<u128>()?
-        .safe_div(PERCENTAGE_PRECISION.safe_div(MARGIN_PRECISION_U128)?)?;
-
-    msg!("percent_diff: {} %", percent_diff);
-    msg!("margin_ratio_initial: {} %", margin_ratio_initial);
+        .unsigned_abs();
 
     let percent_diff_twap = fill_price
         .cast::<i64>()?
@@ -526,8 +521,7 @@ pub fn validate_fill_price_within_price_bands(
         .cast::<i128>()?
         .safe_mul(PERCENTAGE_PRECISION_I128)?
         .safe_div(oracle_twap_5min.cast::<i128>()?)?
-        .abs()
-        .cast::<u128>()?;
+        .unsigned_abs();
 
     validate!(
         percent_diff < max_oracle_diff,

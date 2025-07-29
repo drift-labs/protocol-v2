@@ -174,7 +174,10 @@ describe('liquidate borrow for perp pnl', () => {
 			new BN(0)
 		);
 
-		await driftClient.moveAmmToPrice(0, new BN(1).mul(PRICE_PRECISION).muln(101).divn(100));
+		await driftClient.moveAmmToPrice(
+			0,
+			new BN(1).mul(PRICE_PRECISION).muln(101).divn(100)
+		);
 
 		await driftClient.closePosition(0);
 
@@ -256,7 +259,6 @@ describe('liquidate borrow for perp pnl', () => {
 			)
 		);
 		assert(liquidationRecord.liquidateBorrowForPerpPnl.perpMarketIndex === 0);
-		
 
 		assert(
 			liquidationRecord.liquidateBorrowForPerpPnl.pnlTransfer.gt(

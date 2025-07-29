@@ -22,20 +22,20 @@ test_files=(
   # updateK.ts
   # postOnlyAmmFulfillment.ts
   # TODO BROKEN ^^
-  # decodeUser.ts
-  # fuel.ts
-  # fuelSweep.ts
-  # admin.ts
-  # assetTier.ts
-  # cancelAllOrders.ts
-  # curve.ts
-  # deleteInitializedSpotMarket.ts
-  # depositIntoSpotMarketVault.ts
-  # driftClient.ts
-  # fillSpot.ts
-  # highLeverageMode.ts
-  # ifRebalance.ts
-  # insuranceFundStake.ts
+  decodeUser.ts
+  fuel.ts
+  fuelSweep.ts
+  admin.ts
+  assetTier.ts
+  cancelAllOrders.ts
+  curve.ts
+  deleteInitializedSpotMarket.ts
+  depositIntoSpotMarketVault.ts
+  driftClient.ts
+  fillSpot.ts
+  highLeverageMode.ts
+  ifRebalance.ts
+  insuranceFundStake.ts
   liquidateBorrowForPerpPnl.ts
   liquidateMaxLps.ts
   liquidatePerp.ts
