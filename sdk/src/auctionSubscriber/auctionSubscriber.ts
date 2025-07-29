@@ -5,7 +5,7 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { UserAccount } from '../types';
 import { ConfirmOptions, Context, PublicKey } from '@solana/web3.js';
-import { WebSocketProgramAccountSubscriber } from '../accounts/programAccount/webSocketProgramAccountSubscriber';
+import { WebSocketProgramAccountSubscriber } from '../accounts/webSocketProgramAccountSubscriber';
 import { ResubOpts } from '../accounts/types';
 
 export class AuctionSubscriber {

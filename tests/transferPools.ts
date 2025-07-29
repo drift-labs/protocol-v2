@@ -26,7 +26,7 @@ import {
 } from './testHelpers';
 import { QUOTE_PRECISION, ZERO } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/bulkAccountLoader/testBulkAccountLoader';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import { NATIVE_MINT } from '@solana/spl-token';
 

@@ -15,7 +15,8 @@ import { BN } from '@coral-xyz/anchor';
 import { OraclePriceData } from '../oracles/types';
 import { calculateMarketMarginRatio } from './market';
 import { calculateScaledInitialAssetWeight } from './spotBalance';
-import { OneShotUserAccountSubscriber } from '../accounts/userAccount/oneShotUserAccountSubscriber';
+import { DriftClient } from '../driftClient';
+import { OneShotUserAccountSubscriber } from '../accounts/oneShotUserAccountSubscriber';
 import {
 	PerpMarketAccount,
 	PerpPosition,
@@ -26,7 +27,6 @@ import { PublicKey } from '@solana/web3.js';
 import { User } from '../user';
 import { isVariant } from '../types';
 import { assert } from '../assert/assert';
-import { IDriftClient } from '../driftClient/types';
 
 export function calculateSizePremiumLiabilityWeight(
 	size: BN, // AMM_RESERVE_PRECISION
@@ -216,7 +216,7 @@ export function calculatePerpLiabilityValue(
  * @returns
  */
 export function calculateMarginUSDCRequiredForTrade(
-	driftClient: IDriftClient,
+	driftClient: DriftClient,
 	targetMarketIndex: number,
 	baseSize: BN,
 	userMaxMarginRatio?: number,
@@ -256,7 +256,7 @@ export function calculateMarginUSDCRequiredForTrade(
  * Returns collateral required in the precision of the target collateral market.
  */
 export function calculateCollateralDepositRequiredForTrade(
-	driftClient: IDriftClient,
+	driftClient: DriftClient,
 	targetMarketIndex: number,
 	baseSize: BN,
 	collateralIndex: number,
@@ -298,7 +298,7 @@ export function calculateCollateralDepositRequiredForTrade(
 }
 
 export function calculateCollateralValueOfDeposit(
-	driftClient: IDriftClient,
+	driftClient: DriftClient,
 	collateralIndex: number,
 	baseSize: BN
 ): BN {
@@ -345,7 +345,7 @@ export function calculateLiquidationPrice(
 }
 
 export function calculateUserMaxPerpOrderSize(
-	driftClient: IDriftClient,
+	driftClient: DriftClient,
 	userAccountKey: PublicKey,
 	userAccount: UserAccount,
 	targetMarketIndex: number,

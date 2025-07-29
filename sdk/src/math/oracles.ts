@@ -1,11 +1,4 @@
-import {
-	AMM,
-	HistoricalOracleData,
-	OracleGuardRails,
-	OracleSource,
-	PerpMarketAccount,
-	isVariant,
-} from '../types';
+import { AMM, OracleGuardRails, isVariant } from '../types';
 import { OraclePriceData } from '../oracles/types';
 import {
 	BID_ASK_SPREAD_PRECISION,
@@ -16,8 +9,13 @@ import {
 	FIVE_MINUTE,
 	PERCENTAGE_PRECISION,
 } from '../constants/numericConstants';
+import {
+	BN,
+	HistoricalOracleData,
+	OracleSource,
+	PerpMarketAccount,
+} from '../index';
 import { assert } from '../assert/assert';
-import { BN } from '@coral-xyz/anchor';
 
 export function oraclePriceBands(
 	market: PerpMarketAccount,

@@ -45,7 +45,7 @@ import { deserializeMarketData, TokenConfig } from '@ellipsis-labs/phoenix-sdk';
 import * as Phoenix from '@ellipsis-labs/phoenix-sdk';
 import { assert } from 'chai';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/bulkAccountLoader/testBulkAccountLoader';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import { BankrunProvider } from 'anchor-bankrun';
 import {

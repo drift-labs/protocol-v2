@@ -9,36 +9,35 @@ export * from './oracles/strictOraclePrice';
 export * from './types';
 export * from './constants/perpMarkets';
 export * from './accounts/fetch';
-export * from './accounts/driftClientAccount/webSocketDriftClientAccountSubscriber';
-export * from './accounts/insuranceFundStakeAccount/webSocketInsuranceFundStakeAccountSubscriber';
-export * from './accounts/highLeverageModeConfigAccount/webSocketHighLeverageModeConfigAccountSubscriber';
-export * from './accounts/bulkAccountLoader/bulkAccountLoader';
+export * from './accounts/webSocketDriftClientAccountSubscriber';
+export * from './accounts/webSocketInsuranceFundStakeAccountSubscriber';
+export * from './accounts/webSocketHighLeverageModeConfigAccountSubscriber';
+export * from './accounts/bulkAccountLoader';
 export * from './accounts/bulkUserSubscription';
 export * from './accounts/bulkUserStatsSubscription';
-export { CustomizedCadenceBulkAccountLoader } from './accounts/bulkAccountLoader/customizedCadenceBulkAccountLoader';
-export * from './accounts/driftClientAccount/pollingDriftClientAccountSubscriber';
-export * from './accounts/oracleAccount/pollingOracleAccountSubscriber';
-export * from './accounts/tokenAccount/pollingTokenAccountSubscriber';
-export * from './accounts/userAccount/pollingUserAccountSubscriber';
-export * from './accounts/userStatsAccount/pollingUserStatsAccountSubscriber';
-export * from './accounts/insuranceFundStakeAccount/pollingInsuranceFundStakeAccountSubscriber';
-export * from './accounts/highLeverageModeConfigAccount/pollingHighLeverageModeConfigAccountSubscriber';
-export * from './accounts/userAccount/basicUserAccountSubscriber';
-export * from './accounts/userAccount/oneShotUserAccountSubscriber';
+export { CustomizedCadenceBulkAccountLoader } from './accounts/customizedCadenceBulkAccountLoader';
+export * from './accounts/pollingDriftClientAccountSubscriber';
+export * from './accounts/pollingOracleAccountSubscriber';
+export * from './accounts/pollingTokenAccountSubscriber';
+export * from './accounts/pollingUserAccountSubscriber';
+export * from './accounts/pollingUserStatsAccountSubscriber';
+export * from './accounts/pollingInsuranceFundStakeAccountSubscriber';
+export * from './accounts/pollingHighLeverageModeConfigAccountSubscriber';
+export * from './accounts/basicUserAccountSubscriber';
+export * from './accounts/oneShotUserAccountSubscriber';
 export * from './accounts/types';
 export * from './addresses/pda';
 export * from './adminClient';
 export * from './assert/assert';
 export * from './testClient';
 export * from './user';
-export * from './user/types';
+export * from './userConfig';
 export * from './userStats';
 export * from './userName';
 export * from './userStatsConfig';
 export * from './decode/user';
 export * from './decode/customCoder';
 export * from './driftClient';
-export * from './driftClient/types';
 export * from './factory/oracleClient';
 export * from './factory/bigNum';
 export * from './events/types';
@@ -77,11 +76,7 @@ export * from './keypair';
 export * from './types';
 export * from './math/utils';
 export * from './math/fuel';
-
-/** Config */
 export * from './config';
-export * from './config/types';
-
 export * from './constants/numericConstants';
 export * from './serum/serumSubscriber';
 export * from './serum/serumFulfillmentConfigMap';
@@ -114,24 +109,16 @@ export * from './util/pythOracleUtils';
 export * from './math/spotBalance';
 export * from './constants/spotMarkets';
 export * from './driftClientConfig';
-
-/** DLOB */
 export * from './dlob/DLOB';
 export * from './dlob/DLOBNode';
 export * from './dlob/NodeList';
 export * from './dlob/DLOBSubscriber';
 export * from './dlob/types';
 export * from './dlob/orderBookLevels';
-export * from './dlob/utils';
-
-/** UserMap */
 export * from './userMap/userMap';
 export * from './userMap/referrerMap';
 export * from './userMap/userStatsMap';
 export * from './userMap/userMapConfig';
-export * from './userMap/events';
-export * from './userMap/types';
-
 export * from './math/bankruptcy';
 export * from './orderSubscriber';
 export * from './orderSubscriber/types';
