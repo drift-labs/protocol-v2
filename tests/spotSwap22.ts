@@ -36,7 +36,7 @@ import {
 	createTransferInstruction,
 } from '@solana/spl-token';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/bulkAccountLoader/testBulkAccountLoader';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import { DRIFT_PROGRAM_ID } from '../sdk/src';
 

@@ -1,6 +1,6 @@
 import { PublicKey } from '@solana/web3.js';
 import { OracleSource } from '../types';
-import { DriftEnv } from '../config/types';
+import { DriftEnv } from '../config';
 
 export type PerpMarketConfig = {
 	fullName?: string;

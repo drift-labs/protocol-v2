@@ -135,8 +135,8 @@ import { getSignedTokenAmount, getTokenAmount } from './math/spotBalance';
 import { decodeName, DEFAULT_USER_NAME, encodeName } from './userName';
 import { OraclePriceData } from './oracles/types';
 import { DriftClientConfig } from './driftClientConfig';
-import { PollingDriftClientAccountSubscriber } from './accounts/driftClientAccount/pollingDriftClientAccountSubscriber';
-import { WebSocketDriftClientAccountSubscriber } from './accounts/driftClientAccount/webSocketDriftClientAccountSubscriber';
+import { PollingDriftClientAccountSubscriber } from './accounts/pollingDriftClientAccountSubscriber';
+import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDriftClientAccountSubscriber';
 import { RetryTxSender } from './tx/retryTxSender';
 import { User } from './user';
 import { UserSubscriptionConfig } from './userConfig';
@@ -145,9 +145,9 @@ import {
 	DRIFT_ORACLE_RECEIVER_ID,
 	DEFAULT_CONFIRMATION_OPTS,
 	DRIFT_PROGRAM_ID,
+	DriftEnv,
 	PYTH_LAZER_STORAGE_ACCOUNT_KEY,
 } from './config';
-import { DriftEnv } from './config/types';
 import { WRAPPED_SOL_MINT } from './constants/spotMarkets';
 import { UserStats } from './userStats';
 import { isSpotPositionAvailable } from './math/spotPosition';
@@ -186,7 +186,7 @@ import {
 } from './tx/utils';
 import pythSolanaReceiverIdl from './idl/pyth_solana_receiver.json';
 import { asV0Tx, PullFeed, AnchorUtils } from '@switchboard-xyz/on-demand';
-import { gprcDriftClientAccountSubscriber } from './accounts/driftClientAccount/grpcDriftClientAccountSubscriber';
+import { gprcDriftClientAccountSubscriber } from './accounts/grpcDriftClientAccountSubscriber';
 import nacl from 'tweetnacl';
 import { Slothash } from './slot/SlothashSubscriber';
 import { getOracleId } from './oracles/oracleId';

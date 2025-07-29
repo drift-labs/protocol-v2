@@ -35,7 +35,7 @@ import {
 	// sleep,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/bulkAccountLoader/testBulkAccountLoader';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 async function adjustOraclePostSwap(baa, swapDirection, market, context) {
