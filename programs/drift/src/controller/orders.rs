@@ -1327,7 +1327,6 @@ pub fn fill_perp_order(
         let perp_market = perp_market_map.get_ref(&market_index)?;
         validate_fill_price_within_price_bands(
             fill_price,
-            order_direction,
             oracle_price,
             oracle_twap_5min,
             perp_market.margin_ratio_initial,
@@ -4090,7 +4089,6 @@ pub fn fill_spot_order(
             .last_oracle_price_twap_5min;
         validate_fill_price_within_price_bands(
             fill_price,
-            order_direction,
             oracle_price,
             oracle_twap_5min,
             spot_market.get_margin_ratio(&MarginRequirementType::Initial)?,
