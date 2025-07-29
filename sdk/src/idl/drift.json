@@ -13621,7 +13621,7 @@
           {
             "name": "openBids",
             "docs": [
-              "How many spot bids the user has open",
+              "How many spot non reduce only trigger orders the user has open",
               "precision: token mint precision"
             ],
             "type": "i64"
@@ -13629,7 +13629,7 @@
           {
             "name": "openAsks",
             "docs": [
-              "How many spot asks the user has open",
+              "How many spot non reduce only trigger orders the user has open",
               "precision: token mint precision"
             ],
             "type": "i64"
@@ -13728,7 +13728,7 @@
           {
             "name": "openBids",
             "docs": [
-              "The amount of open bids the user has in this perp market",
+              "The amount of non reduce only trigger orders the user has open",
               "precision: BASE_PRECISION"
             ],
             "type": "i64"
@@ -13736,7 +13736,7 @@
           {
             "name": "openAsks",
             "docs": [
-              "The amount of open asks the user has in this perp market",
+              "The amount of non reduce only trigger orders the user has open",
               "precision: BASE_PRECISION"
             ],
             "type": "i64"
@@ -15161,6 +15161,9 @@
           },
           {
             "name": "SafeTriggerOrder"
+          },
+          {
+            "name": "NewTriggerReduceOnly"
           }
         ]
       }

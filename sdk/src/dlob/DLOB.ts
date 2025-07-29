@@ -1,4 +1,5 @@
-import { getOrderSignature, NodeList } from './NodeList';
+import { NodeList } from './NodeList';
+import { getOrderSignature } from './utils';
 import { BN } from '@coral-xyz/anchor';
 import {
 	BASE_PRECISION,
@@ -8,9 +9,10 @@ import {
 	ZERO,
 } from '../constants/numericConstants';
 import { decodeName } from '../userName';
-import { DLOBNode, DLOBNodeType, TriggerOrderNode } from './DLOBNode';
-import { DriftClient } from '../driftClient';
+import { DLOBNode, DLOBNodeType } from './DLOBNode';
+import { IDriftClient } from '../driftClient/types';
 import {
+	calculateOrderBaseAssetAmount,
 	getLimitPrice,
 	isOrderExpired,
 	isRestingLimitOrder,
@@ -32,9 +34,18 @@ import {
 } from '../types';
 import { isUserProtectedMaker } from '../math/userStatus';
 import { OraclePriceData } from '../oracles/types';
-import { ProtectMakerParamsMap } from './types';
+import {
+	DLOBFilterFcn,
+	DLOBOrders,
+	IDLOB,
+	MarketNodeLists,
+	NodeToFill,
+	NodeToTrigger,
+	OrderBookCallback,
+	ProtectMakerParamsMap,
+} from './types';
 import { SlotSubscriber } from '../slot/SlotSubscriber';
-import { UserMap } from '../userMap/userMap';
+import { IUserMap } from '../userMap/types';
 import { PublicKey } from '@solana/web3.js';
 import { ammPaused, exchangePaused, fillPaused } from '../math/exchangeStatus';
 import {
@@ -49,59 +60,6 @@ import {
 import { isFallbackAvailableLiquiditySource } from '../math/auction';
 import { convertToNumber } from '../math/conversion';
 
-export type DLOBOrder = { user: PublicKey; order: Order };
-export type DLOBOrders = DLOBOrder[];
-
-export type MarketNodeLists = {
-	restingLimit: {
-		ask: NodeList<'restingLimit'>;
-		bid: NodeList<'restingLimit'>;
-	};
-	floatingLimit: {
-		ask: NodeList<'floatingLimit'>;
-		bid: NodeList<'floatingLimit'>;
-	};
-	protectedFloatingLimit: {
-		ask: NodeList<'protectedFloatingLimit'>;
-		bid: NodeList<'protectedFloatingLimit'>;
-	};
-	takingLimit: {
-		ask: NodeList<'takingLimit'>;
-		bid: NodeList<'takingLimit'>;
-	};
-	market: {
-		ask: NodeList<'market'>;
-		bid: NodeList<'market'>;
-	};
-	trigger: {
-		above: NodeList<'trigger'>;
-		below: NodeList<'trigger'>;
-	};
-	signedMsg: {
-		ask: NodeList<'signedMsg'>;
-		bid: NodeList<'signedMsg'>;
-	};
-};
-
-type OrderBookCallback = () => void;
-
-/**
- *  Receives a DLOBNode and is expected to return true if the node should
- *  be taken into account when generating, or false otherwise.
- *
- * Currently used in functions that rely on getBestNode
- */
-export type DLOBFilterFcn = (node: DLOBNode) => boolean;
-
-export type NodeToFill = {
-	node: DLOBNode;
-	makerNodes: DLOBNode[];
-};
-
-export type NodeToTrigger = {
-	node: TriggerOrderNode;
-};
-
 const SUPPORTED_ORDER_TYPES = [
 	'market',
 	'limit',
@@ -110,7 +68,7 @@ const SUPPORTED_ORDER_TYPES = [
 	'oracle',
 ];
 
-export class DLOB {
+export class DLOB implements IDLOB {
 	openOrders = new Map<MarketTypeStr, Set<string>>();
 	orderLists = new Map<MarketTypeStr, Map<number, MarketNodeLists>>();
 	maxSlotForRestingLimitOrders = 0;
@@ -165,7 +123,7 @@ export class DLOB {
 	 * @returns a promise that resolves when the DLOB is initialized
 	 */
 	public async initFromUserMap(
-		userMap: UserMap,
+		userMap: IUserMap,
 		slot: number
 	): Promise<boolean> {
 		if (this.initialized) {
@@ -180,7 +138,26 @@ export class DLOB {
 			const protectedMaker = isUserProtectedMaker(userAccount);
 
 			for (const order of userAccount.orders) {
-				this.insertOrder(order, userAccountPubkeyString, slot, protectedMaker);
+				let baseAssetAmount = order.baseAssetAmount;
+				if (order.reduceOnly) {
+					const existingBaseAmount =
+						userAccount.perpPositions.find(
+							(pos) =>
+								pos.marketIndex === order.marketIndex && pos.openOrders > 0
+						)?.baseAssetAmount || ZERO;
+					baseAssetAmount = calculateOrderBaseAssetAmount(
+						order,
+						existingBaseAmount
+					);
+				}
+
+				this.insertOrder(
+					order,
+					userAccountPubkeyString,
+					slot,
+					protectedMaker,
+					baseAssetAmount
+				);
 			}
 		}
 
@@ -193,6 +170,7 @@ export class DLOB {
 		userAccount: string,
 		slot: number,
 		isUserProtectedMaker: boolean,
+		baseAssetAmount: BN,
 		onInsert?: OrderBookCallback
 	): void {
 		if (!isVariant(order.status, 'open')) {
@@ -220,7 +198,8 @@ export class DLOB {
 			marketType,
 			userAccount,
 			isUserProtectedMaker,
-			this.protectedMakerParamsMap[marketType].get(order.marketIndex)
+			this.protectedMakerParamsMap[marketType].get(order.marketIndex),
+			baseAssetAmount
 		);
 
 		if (onInsert) {
@@ -232,6 +211,7 @@ export class DLOB {
 		order: Order,
 		userAccount: string,
 		isUserProtectedMaker: boolean,
+		baseAssetAmount?: BN,
 		onInsert?: OrderBookCallback
 	): void {
 		const marketType = getVariant(order.marketType) as MarketTypeStr;
@@ -251,7 +231,8 @@ export class DLOB {
 				marketType,
 				userAccount,
 				isUserProtectedMaker,
-				this.protectedMakerParamsMap[marketType].get(order.marketIndex)
+				this.protectedMakerParamsMap[marketType].get(order.marketIndex),
+				baseAssetAmount
 			);
 		if (onInsert) {
 			onInsert();
@@ -1604,7 +1585,7 @@ export class DLOB {
 	}
 
 	public printTop(
-		driftClient: DriftClient,
+		driftClient: IDriftClient,
 		slotSubscriber: SlotSubscriber,
 		marketIndex: number,
 		marketType: MarketType

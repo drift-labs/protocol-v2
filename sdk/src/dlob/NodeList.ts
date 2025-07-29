@@ -5,15 +5,10 @@ import {
 	ProtectedMakerParams,
 } from '../types';
 import { createNode, DLOBNode, DLOBNodeMap } from './DLOBNode';
+import { getOrderSignature } from './utils';
+import { BN } from '../index';
 
 export type SortDirection = 'asc' | 'desc';
-
-export function getOrderSignature(
-	orderId: number,
-	userAccount: string
-): string {
-	return `${userAccount.toString()}-${orderId.toString()}`;
-}
 
 export interface DLOBNodeGenerator {
 	getGenerator(): Generator<DLOBNode>;
@@ -42,7 +37,8 @@ export class NodeList<NodeType extends keyof DLOBNodeMap>
 		marketType: MarketTypeStr,
 		userAccount: string,
 		isProtectedMaker: boolean,
-		protectedMakerParamsMap?: ProtectedMakerParams
+		protectedMakerParamsMap?: ProtectedMakerParams,
+		baseAssetAmount?: BN
 	): void {
 		if (!isVariant(order.status, 'open')) {
 			return;
@@ -53,7 +49,8 @@ export class NodeList<NodeType extends keyof DLOBNodeMap>
 			order,
 			userAccount,
 			isProtectedMaker,
-			protectedMakerParamsMap
+			protectedMakerParamsMap,
+			baseAssetAmount
 		);
 
 		const orderSignature = getOrderSignature(order.orderId, userAccount);

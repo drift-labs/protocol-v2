@@ -212,7 +212,9 @@ pub fn place_perp_order(
             market.amm.order_step_size
         )?;
 
-        let base_asset_amount = if params.base_asset_amount == u64::MAX {
+        let base_asset_amount = if params.base_asset_amount == u64::MAX
+            && !(params.is_trigger_order() && params.reduce_only)
+        {
             calculate_max_perp_order_size(
                 user,
                 position_index,
@@ -288,7 +290,18 @@ pub fn place_perp_order(
 
     // Start with 0 and set bit flags
     let mut bit_flags: u8 = 0;
-    bit_flags = set_is_signed_msg_flag(bit_flags, options.is_signed_msg_order());
+    bit_flags = set_order_bit_flag(
+        bit_flags,
+        options.is_signed_msg_order(),
+        OrderBitFlag::SignedMessage,
+    );
+
+    let reduce_only = params.reduce_only || force_reduce_only;
+    bit_flags = set_order_bit_flag(
+        bit_flags,
+        params.is_trigger_order() && reduce_only,
+        OrderBitFlag::NewTriggerReduceOnly,
+    );
 
     let new_order = Order {
         status: OrderStatus::Open,
@@ -309,7 +322,7 @@ pub fn place_perp_order(
         base_asset_amount_filled: 0,
         quote_asset_amount_filled: 0,
         direction: params.direction,
-        reduce_only: params.reduce_only || force_reduce_only,
+        reduce_only,
         trigger_price: standardize_price(
             params.trigger_price.unwrap_or(0),
             market.amm.order_tick_size,
@@ -350,13 +363,12 @@ pub fn place_perp_order(
     user.increment_open_orders(new_order.has_auction());
     user.orders[new_order_index] = new_order;
     user.perp_positions[position_index].open_orders += 1;
-    if !new_order.must_be_triggered() {
-        increase_open_bids_and_asks(
-            &mut user.perp_positions[position_index],
-            &params.direction,
-            order_base_asset_amount,
-        )?;
-    }
+    increase_open_bids_and_asks(
+        &mut user.perp_positions[position_index],
+        &params.direction,
+        order_base_asset_amount,
+        new_order.update_open_bids_and_asks(),
+    )?;
 
     options.update_risk_increasing(risk_increasing);
 
@@ -719,13 +731,15 @@ pub fn cancel_order(
         let position_index = get_position_index(&user.perp_positions, order_market_index)?;
 
         // only decrease open/bids ask if it's not a trigger order or if it's been triggered
-        if !user.orders[order_index].must_be_triggered() || user.orders[order_index].triggered() {
+        let update_open_bids_and_asks = user.orders[order_index].update_open_bids_and_asks();
+        if update_open_bids_and_asks {
             let base_asset_amount_unfilled =
                 user.orders[order_index].get_base_asset_amount_unfilled(None)?;
             position::decrease_open_bids_and_asks(
                 &mut user.perp_positions[position_index],
                 &order_direction,
                 base_asset_amount_unfilled.cast()?,
+                update_open_bids_and_asks,
             )?;
         }
 
@@ -735,13 +749,15 @@ pub fn cancel_order(
         let spot_position_index = user.get_spot_position_index(order_market_index)?;
 
         // only decrease open/bids ask if it's not a trigger order or if it's been triggered
-        if !user.orders[order_index].must_be_triggered() || user.orders[order_index].triggered() {
+        let update_open_bids_and_asks = user.orders[order_index].update_open_bids_and_asks();
+        if update_open_bids_and_asks {
             let base_asset_amount_unfilled =
                 user.orders[order_index].get_base_asset_amount_unfilled(None)?;
             decrease_spot_open_bids_and_asks(
                 &mut user.spot_positions[spot_position_index],
                 &order_direction,
                 base_asset_amount_unfilled,
+                update_open_bids_and_asks,
             )?;
         }
         user.spot_positions[spot_position_index].open_orders -= 1;
@@ -2359,6 +2375,7 @@ pub fn fulfill_perp_order_with_amm(
         &mut user.perp_positions[position_index],
         &order_direction,
         base_asset_amount,
+        user.orders[order_index].update_open_bids_and_asks(),
     )?;
 
     let (taker, taker_order, maker, maker_order) =
@@ -2371,9 +2388,10 @@ pub fn fulfill_perp_order_with_amm(
         _ => OrderActionExplanation::OrderFilledWithAMM,
     };
     let mut order_action_bit_flags: u8 = 0;
-    order_action_bit_flags = set_is_signed_msg_flag(
+    order_action_bit_flags = set_order_bit_flag(
         order_action_bit_flags,
         user.orders[order_index].is_signed_msg(),
+        OrderBitFlag::SignedMessage,
     );
     let (
         taker_existing_quote_entry_amount,
@@ -2814,6 +2832,7 @@ pub fn fulfill_perp_order_with_match(
         &mut taker.perp_positions[taker_position_index],
         &taker.orders[taker_order_index].direction,
         base_asset_amount_fulfilled_by_maker,
+        taker.orders[taker_order_index].update_open_bids_and_asks(),
     )?;
 
     update_order_after_fill(
@@ -2826,6 +2845,7 @@ pub fn fulfill_perp_order_with_match(
         &mut maker.perp_positions[maker_position_index],
         &maker.orders[maker_order_index].direction,
         base_asset_amount_fulfilled_by_maker,
+        maker.orders[maker_order_index].update_open_bids_and_asks(),
     )?;
 
     let fill_record_id = get_then_update_id!(market, next_fill_record_id);
@@ -2837,9 +2857,10 @@ pub fn fulfill_perp_order_with_match(
         OrderActionExplanation::OrderFilledWithMatch
     };
     let mut order_action_bit_flags = 0;
-    order_action_bit_flags = set_is_signed_msg_flag(
+    order_action_bit_flags = set_order_bit_flag(
         order_action_bit_flags,
         taker.orders[taker_order_index].is_signed_msg(),
+        OrderBitFlag::SignedMessage,
     );
     let (taker_existing_quote_entry_amount, taker_existing_base_asset_amount) =
         calculate_existing_position_fields_for_order_action(
@@ -3053,9 +3074,15 @@ pub fn trigger_order(
 
         let direction = user.orders[order_index].direction;
         let base_asset_amount = user.orders[order_index].base_asset_amount;
+        let update_open_bids_and_asks = user.orders[order_index].update_open_bids_and_asks();
 
         let user_position = user.get_perp_position_mut(market_index)?;
-        increase_open_bids_and_asks(user_position, &direction, base_asset_amount)?;
+        increase_open_bids_and_asks(
+            user_position,
+            &direction,
+            base_asset_amount,
+            update_open_bids_and_asks,
+        )?;
     }
 
     let is_filler_taker = user_key == filler_key;
@@ -3614,7 +3641,9 @@ pub fn place_spot_order(
             step_size
         )?;
 
-        let base_asset_amount = if params.base_asset_amount == u64::MAX {
+        let base_asset_amount = if params.base_asset_amount == u64::MAX
+            && !(params.is_trigger_order() && params.reduce_only)
+        {
             calculate_max_spot_order_size(
                 user,
                 params.market_index,
@@ -3667,6 +3696,15 @@ pub fn place_spot_order(
         "must be spot order"
     )?;
 
+    let mut bit_flags = 0;
+
+    let reduce_only = params.reduce_only || force_reduce_only;
+    bit_flags = set_order_bit_flag(
+        bit_flags,
+        params.is_trigger_order() && reduce_only,
+        OrderBitFlag::NewTriggerReduceOnly,
+    );
+
     let new_order = Order {
         status: OrderStatus::Open,
         order_type: params.order_type,
@@ -3681,7 +3719,7 @@ pub fn place_spot_order(
         base_asset_amount_filled: 0,
         quote_asset_amount_filled: 0,
         direction: params.direction,
-        reduce_only: params.reduce_only || force_reduce_only,
+        reduce_only,
         trigger_price: standardize_price(
             params.trigger_price.unwrap_or(0),
             spot_market.order_tick_size,
@@ -3696,7 +3734,7 @@ pub fn place_spot_order(
         auction_duration,
         max_ts,
         posted_slot_tail: get_posted_slot_from_clock_slot(slot),
-        bit_flags: 0,
+        bit_flags,
         padding: [0; 1],
     };
 
@@ -3716,13 +3754,12 @@ pub fn place_spot_order(
     user.increment_open_orders(new_order.has_auction());
     user.orders[new_order_index] = new_order;
     user.spot_positions[spot_position_index].open_orders += 1;
-    if !new_order.must_be_triggered() {
-        increase_spot_open_bids_and_asks(
-            &mut user.spot_positions[spot_position_index],
-            &params.direction,
-            order_base_asset_amount,
-        )?;
-    }
+    increase_spot_open_bids_and_asks(
+        &mut user.spot_positions[spot_position_index],
+        &params.direction,
+        order_base_asset_amount,
+        new_order.update_open_bids_and_asks(),
+    )?;
 
     options.update_risk_increasing(risk_increasing);
 
@@ -4878,10 +4915,13 @@ pub fn fulfill_spot_order_with_match(
     )?;
 
     let taker_order_direction = taker.orders[taker_order_index].direction;
+    let taker_update_open_bids_and_asks =
+        taker.orders[taker_order_index].update_open_bids_and_asks();
     decrease_spot_open_bids_and_asks(
         &mut taker.spot_positions[taker_spot_position_index],
         &taker_order_direction,
         base_asset_amount,
+        taker_update_open_bids_and_asks,
     )?;
 
     taker_stats.update_taker_volume_30d(base_market.fuel_boost_taker, quote_asset_amount, now)?;
@@ -4921,10 +4961,13 @@ pub fn fulfill_spot_order_with_match(
     )?;
 
     let maker_order_direction = maker.orders[maker_order_index].direction;
+    let maker_update_open_bids_and_asks =
+        maker.orders[maker_order_index].update_open_bids_and_asks();
     decrease_spot_open_bids_and_asks(
         &mut maker.spot_positions[maker_spot_position_index],
         &maker_order_direction,
         base_asset_amount,
+        maker_update_open_bids_and_asks,
     )?;
 
     if let Some(maker_stats) = maker_stats {
@@ -5208,10 +5251,13 @@ pub fn fulfill_spot_order_with_external_market(
     )?;
 
     let taker_order_direction = taker.orders[taker_order_index].direction;
+    let taker_update_open_bids_and_asks =
+        taker.orders[taker_order_index].update_open_bids_and_asks();
     decrease_spot_open_bids_and_asks(
         taker.force_get_spot_position_mut(base_market.market_index)?,
         &taker_order_direction,
         base_asset_amount_filled,
+        taker_update_open_bids_and_asks,
     )?;
 
     if let (Some(filler), Some(filler_stats)) = (filler, filler_stats) {
@@ -5424,9 +5470,15 @@ pub fn trigger_spot_order(
 
         let direction = user.orders[order_index].direction;
         let base_asset_amount = user.orders[order_index].base_asset_amount;
+        let update_open_bids_and_asks = user.orders[order_index].update_open_bids_and_asks();
 
         let user_position = user.force_get_spot_position_mut(market_index)?;
-        increase_spot_open_bids_and_asks(user_position, &direction, base_asset_amount.cast()?)?;
+        increase_spot_open_bids_and_asks(
+            user_position,
+            &direction,
+            base_asset_amount.cast()?,
+            update_open_bids_and_asks,
+        )?;
     }
 
     let is_filler_taker = user_key == filler_key;

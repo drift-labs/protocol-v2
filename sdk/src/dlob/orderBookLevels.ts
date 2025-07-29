@@ -24,7 +24,8 @@ import {
 } from '../types';
 import { OraclePriceData } from '../oracles/types';
 import { PublicKey } from '@solana/web3.js';
-import { standardizeBaseAssetAmount, standardizePrice } from '../math/orders';
+import { standardizePrice } from '../math/orders';
+import { standardizeBaseAssetAmount } from '../math/utils';
 
 type liquiditySource =
 	| 'serum'
@@ -78,22 +79,28 @@ export const MAJORS_TOP_OF_BOOK_QUOTE_AMOUNTS = [
 	new BN(50000).mul(QUOTE_PRECISION),
 ];
 
+const INDICATIVE_QUOTES_PUBKEY = 'inDNdu3ML4vG5LNExqcwuCQtLcCU8KfK5YM2qYV3JJz';
+
 /**
  * Get an {@link Generator<L2Level>} generator from a {@link Generator<DLOBNode>}
  * @param dlobNodes e.g. {@link DLOB#getRestingLimitAsks} or {@link DLOB#getRestingLimitBids}
  * @param oraclePriceData
  * @param slot
  */
-const INDICATIVE_QUOTES_PUBKEY = 'inDNdu3ML4vG5LNExqcwuCQtLcCU8KfK5YM2qYV3JJz';
 export function* getL2GeneratorFromDLOBNodes(
 	dlobNodes: Generator<DLOBNode>,
 	oraclePriceData: OraclePriceData,
 	slot: number
 ): Generator<L2Level> {
 	for (const dlobNode of dlobNodes) {
-		const size = dlobNode.order.baseAssetAmount.sub(
+		const size = dlobNode.baseAssetAmount.sub(
 			dlobNode.order.baseAssetAmountFilled
 		) as BN;
+
+		if (size.lte(ZERO)) {
+			continue;
+		}
+
 		yield {
 			size,
 			price: dlobNode.getPrice(oraclePriceData, slot),

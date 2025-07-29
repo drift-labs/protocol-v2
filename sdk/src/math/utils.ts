@@ -119,3 +119,11 @@ export function numberToSafeBN(number: number, precision: BN): BN {
 		}
 	}
 }
+
+export function standardizeBaseAssetAmount(
+	baseAssetAmount: BN,
+	stepSize: BN
+): BN {
+	const remainder = baseAssetAmount.mod(stepSize);
+	return baseAssetAmount.sub(remainder);
+}

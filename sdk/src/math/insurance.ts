@@ -1,6 +1,7 @@
 import { PERCENTAGE_PRECISION, ZERO } from '../constants/numericConstants';
-import { BN, SpotMarketAccount, SpotBalanceType } from '../index';
+import { SpotMarketAccount, SpotBalanceType } from '../types';
 import { getTokenAmount } from '../math/spotBalance';
+import { BN } from '@coral-xyz/anchor';
 
 export function nextRevenuePoolSettleApr(
 	spotMarket: SpotMarketAccount,
