@@ -761,7 +761,7 @@ impl PerpMarket {
         use_median_price: bool,
     ) -> DriftResult<u64> {
         if !use_median_price {
-            return Ok(oracle_price.unsigned_abs());
+            return oracle_price.cast::<u64>();
         }
 
         let last_fill_price = self.last_fill_price;
@@ -774,14 +774,11 @@ impl PerpMarket {
             .cast::<i64>()?
             .safe_sub(last_oracle_price_twap_5min)?;
 
-        let oracle_plus_basis_5min = oracle_price.safe_add(basis_5min)?.max(0).unsigned_abs();
+        let oracle_plus_basis_5min = oracle_price.safe_add(basis_5min)?.cast::<u64>()?;
 
         let last_funding_basis = self.get_last_funding_basis(oracle_price, now)?;
 
-        let oracle_plus_funding_basis = oracle_price
-            .safe_add(last_funding_basis)?
-            .max(0)
-            .unsigned_abs();
+        let oracle_plus_funding_basis = oracle_price.safe_add(last_funding_basis)?.cast::<u64>()?;
 
         let median_price = if last_fill_price > 0 {
             let mut prices = [
