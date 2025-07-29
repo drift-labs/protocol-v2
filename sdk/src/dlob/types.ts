@@ -9,7 +9,7 @@ import {
 } from '../types';
 import { MarketTypeStr } from '../types';
 import { PublicKey } from '@solana/web3.js';
-import { DLOBNode, TriggerOrderNode } from './DLOBNode';
+import { DLOBNode, DLOBNodeType, TriggerOrderNode } from './DLOBNode';
 import { BN } from '@coral-xyz/anchor';
 import { OraclePriceData } from '../oracles/types';
 import { NodeList } from './NodeList';
@@ -386,7 +386,7 @@ export interface IDLOB {
 
 	getDLOBOrders(): DLOBOrders;
 
-	getNodeLists(): Generator<NodeList<any>>;
+	getNodeLists(): Generator<NodeList<DLOBNodeType>>;
 
 	/**
 	 * Get an L2 view of the order book for a given market.
