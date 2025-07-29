@@ -1,6 +1,5 @@
 import { BN } from '@coral-xyz/anchor';
 import { User } from '../user';
-import { DriftClient } from '../driftClient';
 import {
 	UserAccount,
 	OrderRecord,
@@ -47,12 +46,13 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { UserEvents } from './events';
 import { IUserMap } from './types';
+import { IDriftClient } from '../driftClient/types';
 
 const MAX_USER_ACCOUNT_SIZE_BYTES = 4376;
 
 export class UserMap implements IUserMap {
 	private userMap = new Map<string, DataAndSlot<User>>();
-	driftClient: DriftClient;
+	driftClient: IDriftClient;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserEvents>;
 	private connection: Connection;
 	private commitment: Commitment;

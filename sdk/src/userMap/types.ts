@@ -1,5 +1,4 @@
-import { User } from '../user';
-import { DriftClient } from '../driftClient';
+import { IDriftClient } from '../driftClient/types';
 import { UserAccount, OrderRecord } from '../types';
 import { WrappedEvent } from '../events/types';
 import { UserSubscriptionConfig } from '../userConfig';
@@ -10,9 +9,10 @@ import { UserAccountFilterCriteria as UserFilterCriteria } from './userMapConfig
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { UserEvents } from './events';
+import { IUser } from '../user/types';
 
 export interface IUserMap {
-	driftClient: DriftClient;
+	driftClient: IDriftClient;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserEvents>;
 
 	subscribe(): Promise<void>;
@@ -31,9 +31,9 @@ export interface IUserMap {
 	 * @param key userAccountPublicKey to get User for
 	 * @returns user User | undefined
 	 */
-	get(key: string): User | undefined;
+	get(key: string): IUser | undefined;
 
-	getWithSlot(key: string): DataAndSlot<User> | undefined;
+	getWithSlot(key: string): DataAndSlot<IUser> | undefined;
 
 	/**
 	 * gets the User for a particular userAccountPublicKey, if no User exists, new one is created
@@ -43,12 +43,12 @@ export interface IUserMap {
 	mustGet(
 		key: string,
 		accountSubscription?: UserSubscriptionConfig
-	): Promise<User>;
+	): Promise<IUser>;
 
 	mustGetWithSlot(
 		key: string,
 		accountSubscription?: UserSubscriptionConfig
-	): Promise<DataAndSlot<User>>;
+	): Promise<DataAndSlot<IUser>>;
 
 	mustGetUserAccount(key: string): Promise<UserAccount>;
 
@@ -73,13 +73,13 @@ export interface IUserMap {
 
 	updateWithEventRecord(record: WrappedEvent<any>): Promise<void>;
 
-	values(): IterableIterator<User>;
+	values(): IterableIterator<IUser>;
 
-	valuesWithSlot(): IterableIterator<DataAndSlot<User>>;
+	valuesWithSlot(): IterableIterator<DataAndSlot<IUser>>;
 
-	entries(): IterableIterator<[string, User]>;
+	entries(): IterableIterator<[string, IUser]>;
 
-	entriesWithSlot(): IterableIterator<[string, DataAndSlot<User>]>;
+	entriesWithSlot(): IterableIterator<[string, DataAndSlot<IUser>]>;
 
 	size(): number;
 
