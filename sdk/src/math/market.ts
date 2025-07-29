@@ -367,8 +367,13 @@ export function calculatePerpMarketBaseLiquidatorFee(
 export function getTriggerPrice(
 	market: PerpMarketAccount,
 	oraclePrice: BN,
-	now: BN
+	now: BN,
+	useMedianPrice: boolean
 ): BN {
+	if (!useMedianPrice) {
+		return oraclePrice.abs();
+	}
+
 	const lastFillPrice = market.lastFillPrice;
 	
 	// Calculate 5-minute basis

@@ -116,12 +116,16 @@ impl State {
 
         Ok(init_fee)
     }
+
+    pub fn use_median_trigger_price(&self) -> bool {
+        self.feature_bit_flags & (FeatureBitFlags::MedianTriggerPrice as u8) > 0
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Debug, Eq)]
 pub enum FeatureBitFlags {
     MmOracleUpdate = 0b00000001,
-    EnableMedianTriggerPrice = 0b00000010,
+    MedianTriggerPrice = 0b00000010,
 }
 
 impl Size for State {

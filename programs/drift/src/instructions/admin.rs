@@ -4922,6 +4922,27 @@ pub fn handle_update_feature_bit_flags_mm_oracle(
     Ok(())
 }
 
+pub fn handle_update_feature_bit_flags_median_trigger_price(
+    ctx: Context<HotAdminUpdateState>,
+    enable: bool,
+) -> Result<()> {
+    let state = &mut ctx.accounts.state;
+    if enable {
+        validate!(
+            ctx.accounts.admin.key().eq(&state.admin),
+            ErrorCode::DefaultError,
+            "Only state admin can re-enable after kill switch"
+        )?;
+
+        msg!("Setting second bit to 1, enabling median trigger price");
+        state.feature_bit_flags = state.feature_bit_flags | (FeatureBitFlags::MedianTriggerPrice as u8);
+    } else {
+        msg!("Setting second bit to 0, disabling median trigger price");
+        state.feature_bit_flags = state.feature_bit_flags & !(FeatureBitFlags::MedianTriggerPrice as u8);
+    }
+    Ok(())
+}
+
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(mut)]

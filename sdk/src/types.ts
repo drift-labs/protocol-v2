@@ -28,6 +28,11 @@ export enum ExchangeStatus {
 	PAUSED = 255,
 }
 
+export enum FeatureBitFlags {
+	MM_ORACLE_UPDATE = 1,
+	MEDIAN_TRIGGER_PRICE = 2,
+}
+
 export class MarketStatus {
 	static readonly INITIALIZED = { initialized: {} };
 	static readonly ACTIVE = { active: {} };
@@ -760,6 +765,7 @@ export type StateAccount = {
 	initialPctToLiquidate: number;
 	liquidationDuration: number;
 	maxInitializeUserFee: number;
+	featureBitFlags: number;
 };
 
 export type PerpMarketAccount = {
