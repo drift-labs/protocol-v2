@@ -24,8 +24,7 @@ import {
 } from '../types';
 import { OraclePriceData } from '../oracles/types';
 import { PublicKey } from '@solana/web3.js';
-import { standardizePrice } from '../math/orders';
-import { standardizeBaseAssetAmount } from '../math/utils';
+import { standardizeBaseAssetAmount, standardizePrice } from '../math/orders';
 
 type liquiditySource =
 	| 'serum'

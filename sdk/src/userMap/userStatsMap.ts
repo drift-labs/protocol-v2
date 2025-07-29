@@ -14,8 +14,8 @@ import {
 } from '../types';
 import { UserStats } from '../userStats';
 import { WrappedEvent } from '../events/types';
-import { BulkAccountLoader } from '../accounts/bulkAccountLoader/bulkAccountLoader';
-import { PollingUserStatsAccountSubscriber } from '../accounts/userStatsAccount/pollingUserStatsAccountSubscriber';
+import { BulkAccountLoader } from '../accounts/bulkAccountLoader';
+import { PollingUserStatsAccountSubscriber } from '../accounts/pollingUserStatsAccountSubscriber';
 import { SyncConfig } from './userMapConfig';
 import { getUserStatsFilter } from '../memcmp';
 import { PublicKey } from '@solana/web3.js';

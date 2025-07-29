@@ -1,6 +1,6 @@
 import { UserStats } from '../userStats';
-import { BulkAccountLoader } from './bulkAccountLoader/bulkAccountLoader';
-import { PollingUserStatsAccountSubscriber } from './userStatsAccount/pollingUserStatsAccountSubscriber';
+import { BulkAccountLoader } from './bulkAccountLoader';
+import { PollingUserStatsAccountSubscriber } from './pollingUserStatsAccountSubscriber';
 
 /**
  * @param userStats

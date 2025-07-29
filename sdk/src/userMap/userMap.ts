@@ -1,5 +1,6 @@
 import { BN } from '@coral-xyz/anchor';
 import { User } from '../user';
+import { DriftClient } from '../driftClient';
 import {
 	UserAccount,
 	OrderRecord,
@@ -14,9 +15,9 @@ import {
 } from '../types';
 import { WrappedEvent } from '../events/types';
 import { DLOB } from '../dlob/DLOB';
-import { UserSubscriptionConfig } from '../user/types';
-import { DataAndSlot } from '../accounts/types';
-import { OneShotUserAccountSubscriber } from '../accounts/userAccount/oneShotUserAccountSubscriber';
+import { UserSubscriptionConfig } from '../userConfig';
+import { DataAndSlot, UserEvents } from '../accounts/types';
+import { OneShotUserAccountSubscriber } from '../accounts/oneShotUserAccountSubscriber';
 import { ProtectMakerParamsMap } from '../dlob/types';
 
 import {
@@ -44,15 +45,41 @@ import { decodeUser } from '../decode/user';
 import { grpcSubscription } from './grpcSubscription';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
-import { UserEvents } from './events';
-import { IUserMap } from './types';
-import { IDriftClient } from '../driftClient/types';
 
 const MAX_USER_ACCOUNT_SIZE_BYTES = 4376;
 
-export class UserMap implements IUserMap {
+export interface UserMapInterface {
+	eventEmitter: StrictEventEmitter<EventEmitter, UserEvents>;
+	subscribe(): Promise<void>;
+	unsubscribe(): Promise<void>;
+	addPubkey(
+		userAccountPublicKey: PublicKey,
+		userAccount?: UserAccount,
+		slot?: number,
+		accountSubscription?: UserSubscriptionConfig
+	): Promise<void>;
+	has(key: string): boolean;
+	get(key: string): User | undefined;
+	getWithSlot(key: string): DataAndSlot<User> | undefined;
+	mustGet(
+		key: string,
+		accountSubscription?: UserSubscriptionConfig
+	): Promise<User>;
+	mustGetWithSlot(
+		key: string,
+		accountSubscription?: UserSubscriptionConfig
+	): Promise<DataAndSlot<User>>;
+	getUserAuthority(key: string): PublicKey | undefined;
+	updateWithOrderRecord(record: OrderRecord): Promise<void>;
+	values(): IterableIterator<User>;
+	valuesWithSlot(): IterableIterator<DataAndSlot<User>>;
+	entries(): IterableIterator<[string, User]>;
+	entriesWithSlot(): IterableIterator<[string, DataAndSlot<User>]>;
+}
+
+export class UserMap implements UserMapInterface {
 	private userMap = new Map<string, DataAndSlot<User>>();
-	driftClient: IDriftClient;
+	driftClient: DriftClient;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserEvents>;
 	private connection: Connection;
 	private commitment: Commitment;

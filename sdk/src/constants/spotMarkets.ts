@@ -11,7 +11,7 @@ import {
 } from './numericConstants';
 import { OracleSource } from '../types';
 import { BN } from '@coral-xyz/anchor';
-import { DriftEnv } from '../config/types';
+import { DriftEnv } from '../config';
 
 export type SpotMarketConfig = {
 	symbol: string;

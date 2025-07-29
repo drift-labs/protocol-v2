@@ -33,7 +33,7 @@ import {
 } from './testHelpers';
 import { convertToNumber, PostOnlyParams } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/bulkAccountLoader/testBulkAccountLoader';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('post only maker order w/ amm fulfillments', () => {

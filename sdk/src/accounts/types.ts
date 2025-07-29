@@ -13,6 +13,7 @@ import { EventEmitter } from 'events';
 import { Context, PublicKey } from '@solana/web3.js';
 import { Account } from '@solana/spl-token';
 import { OracleInfo, OraclePriceData } from '../oracles/types';
+import { User } from '../user';
 import { ChannelOptions, CommitmentLevel } from '../isomorphic/grpc';
 
 export interface AccountSubscriber<T> {
@@ -98,6 +99,12 @@ export enum DelistedMarketSetting {
 
 export interface UserAccountEvents {
 	userAccountUpdate: (payload: UserAccount) => void;
+	update: void;
+	error: (e: Error) => void;
+}
+
+export interface UserEvents {
+	userUpdate: (payload: User) => void;
 	update: void;
 	error: (e: Error) => void;
 }

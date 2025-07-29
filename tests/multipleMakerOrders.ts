@@ -26,7 +26,7 @@ import {
 } from './testHelpers';
 import { ContractTier, MARGIN_PRECISION, OrderType } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/bulkAccountLoader/testBulkAccountLoader';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('multiple maker orders', () => {
