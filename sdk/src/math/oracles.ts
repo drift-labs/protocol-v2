@@ -1,4 +1,11 @@
-import { AMM, HistoricalOracleData, OracleGuardRails, OracleSource, PerpMarketAccount, isVariant } from '../types';
+import {
+	AMM,
+	HistoricalOracleData,
+	OracleGuardRails,
+	OracleSource,
+	PerpMarketAccount,
+	isVariant,
+} from '../types';
 import { OraclePriceData } from '../oracles/types';
 import {
 	BID_ASK_SPREAD_PRECISION,
