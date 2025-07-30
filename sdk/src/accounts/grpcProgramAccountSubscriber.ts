@@ -20,7 +20,6 @@ export class grpcProgramAccountSubscriber<
 	private stream: ClientDuplexStream<SubscribeRequest, SubscribeUpdate>;
 	private commitmentLevel: CommitmentLevel;
 	public listenerId?: number;
-	private enableReconnect: boolean;
 
 	private constructor(
 		client: Client,
@@ -32,8 +31,7 @@ export class grpcProgramAccountSubscriber<
 		options: { filters: MemcmpFilter[] } = {
 			filters: [],
 		},
-		resubOpts?: ResubOpts,
-		enableReconnect = false
+		resubOpts?: ResubOpts
 	) {
 		super(
 			subscriptionName,
@@ -45,7 +43,6 @@ export class grpcProgramAccountSubscriber<
 		);
 		this.client = client;
 		this.commitmentLevel = commitmentLevel;
-		this.enableReconnect = enableReconnect;
 	}
 
 	public static async create<U>(
@@ -76,8 +73,7 @@ export class grpcProgramAccountSubscriber<
 			program,
 			decodeBufferFn,
 			options,
-			resubOpts,
-			grpcConfigs.enableReconnect
+			resubOpts
 		);
 	}
 
@@ -123,26 +119,6 @@ export class grpcProgramAccountSubscriber<
 			entry: {},
 			transactionsStatus: {},
 		};
-
-		if (this.enableReconnect) {
-			this.stream.on('error', (error) => {
-				// @ts-ignore
-				if (error.code === 1) {
-					// expected: 1 CANCELLED: Cancelled on client
-					console.error(
-						'GRPC (grpcProgramAccountSubscriber) Cancelled on client caught:',
-						error
-					);
-					return;
-				} else {
-					console.error(
-						'GRPC (grpcProgramAccountSubscriber) unexpected error caught:',
-						error
-					);
-				}
-			});
-		}
-
 		this.stream.on('data', (chunk: SubscribeUpdate) => {
 			if (!chunk.account) {
 				return;
@@ -230,8 +206,6 @@ export class grpcProgramAccountSubscriber<
 						reject(err);
 					}
 				});
-				this.stream.cancel();
-				this.stream.destroy();
 			}).catch((reason) => {
 				console.error(reason);
 				throw reason;
