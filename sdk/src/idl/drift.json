@@ -7536,7 +7536,7 @@
       ]
     },
     {
-      "name": "updateDisableBitflagsMmOracle",
+      "name": "updateFeatureBitFlagsMmOracle",
       "accounts": [
         {
           "name": "admin",
@@ -7551,7 +7551,7 @@
       ],
       "args": [
         {
-          "name": "disable",
+          "name": "enable",
           "type": "bool"
         }
       ]
@@ -8343,11 +8343,19 @@
             "type": "u8"
           },
           {
+            "name": "padding1",
+            "type": "u32"
+          },
+          {
+            "name": "lastFillPrice",
+            "type": "u64"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                36
+                24
               ]
             }
           }
@@ -9078,7 +9086,7 @@
             "type": "u16"
           },
           {
-            "name": "disableBitFlags",
+            "name": "featureBitFlags",
             "type": "u8"
           },
           {
@@ -10658,7 +10666,7 @@
             "name": "lastFundingRate",
             "docs": [
               "last funding rate in this perp market (unit is quote per base)",
-              "precision: QUOTE_PRECISION"
+              "precision: FUNDING_RATE_PRECISION"
             ],
             "type": "i64"
           },
@@ -10666,7 +10674,7 @@
             "name": "lastFundingRateLong",
             "docs": [
               "last funding rate for longs in this perp market (unit is quote per base)",
-              "precision: QUOTE_PRECISION"
+              "precision: FUNDING_RATE_PRECISION"
             ],
             "type": "i64"
           },
@@ -11096,9 +11104,13 @@
             "type": {
               "array": [
                 "u8",
-                11
+                3
               ]
             }
+          },
+          {
+            "name": "lastFundingOracleTwap",
+            "type": "i64"
           }
         ]
       }
@@ -12790,6 +12802,20 @@
       }
     },
     {
+      "name": "FeatureBitFlags",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "MmOracleUpdate"
+          },
+          {
+            "name": "EnableMedianTriggerPrice"
+          }
+        ]
+      }
+    },
+    {
       "name": "UserStatus",
       "type": {
         "kind": "enum",
@@ -13708,6 +13734,13 @@
         },
         {
           "name": "makerExistingBaseAssetAmount",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "triggerPrice",
           "type": {
             "option": "u64"
           },

@@ -1,7 +1,7 @@
 use std::convert::{identity, TryInto};
 use std::mem::size_of;
 
-use crate::msg;
+use crate::{msg, FeatureBitFlags};
 use anchor_lang::prelude::*;
 use anchor_spl::token_2022::Token2022;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
@@ -114,7 +114,7 @@ pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
         initial_pct_to_liquidate: 0,
         max_number_of_sub_accounts: 0,
         max_initialize_user_fee: 0,
-        disable_bit_flags: 0,
+        feature_bit_flags: 0,
         padding: [0; 9],
     };
 
@@ -965,7 +965,9 @@ pub fn handle_initialize_perp_market(
         high_leverage_margin_ratio_maintenance: 0,
         protected_maker_limit_price_divisor: 0,
         protected_maker_dynamic_divisor: 0,
-        padding: [0; 36],
+        padding1: 0,
+        last_fill_price: 0,
+        padding: [0; 24],
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
             oracle_source,
@@ -1061,7 +1063,8 @@ pub fn handle_initialize_perp_market(
             quote_asset_amount_with_unsettled_lp: 0,
             reference_price_offset: 0,
             amm_inventory_spread_adjustment: 0,
-            padding: [0; 11],
+            padding: [0; 3],
+            last_funding_oracle_twap: 0,
         },
     };
 
@@ -4853,7 +4856,7 @@ pub fn handle_zero_mm_oracle_fields(ctx: Context<HotAdminUpdatePerpMarket>) -> R
 pub fn handle_update_mm_oracle_native(accounts: &[AccountInfo], data: &[u8]) -> Result<()> {
     // Verify this ix is allowed
     let state = &accounts[3].data.borrow();
-    assert!(state[982] & 1 == 0, "ix disabled by admin state");
+    assert!(state[982] & 1 > 0, "ix disabled by admin state");
 
     let signer_account = &accounts[1];
     #[cfg(not(feature = "anchor-test"))]
@@ -4898,22 +4901,47 @@ pub fn handle_update_amm_spread_adjustment_native(
     Ok(())
 }
 
-pub fn handle_update_disable_bitflags_mm_oracle(
+pub fn handle_update_feature_bit_flags_mm_oracle(
     ctx: Context<HotAdminUpdateState>,
-    disable: bool,
+    enable: bool,
 ) -> Result<()> {
     let state = &mut ctx.accounts.state;
-    if disable {
-        msg!("Setting first bit to 1, disabling mm oracle update");
-        state.disable_bit_flags = state.disable_bit_flags | 1;
-    } else {
+    if enable {
         validate!(
             ctx.accounts.admin.key().eq(&state.admin),
             ErrorCode::DefaultError,
             "Only state admin can re-enable after kill switch"
         )?;
-        msg!("Setting first bit to 0, enabling mm oracle update");
-        state.disable_bit_flags = state.disable_bit_flags & !1;
+
+        msg!("Setting first bit to 1, enabling mm oracle update");
+        state.feature_bit_flags = state.feature_bit_flags | (FeatureBitFlags::MmOracleUpdate as u8);
+    } else {
+        msg!("Setting first bit to 0, disabling mm oracle update");
+        state.feature_bit_flags =
+            state.feature_bit_flags & !(FeatureBitFlags::MmOracleUpdate as u8);
+    }
+    Ok(())
+}
+
+pub fn handle_update_feature_bit_flags_median_trigger_price(
+    ctx: Context<HotAdminUpdateState>,
+    enable: bool,
+) -> Result<()> {
+    let state = &mut ctx.accounts.state;
+    if enable {
+        validate!(
+            ctx.accounts.admin.key().eq(&state.admin),
+            ErrorCode::DefaultError,
+            "Only state admin can re-enable after kill switch"
+        )?;
+
+        msg!("Setting second bit to 1, enabling median trigger price");
+        state.feature_bit_flags =
+            state.feature_bit_flags | (FeatureBitFlags::MedianTriggerPrice as u8);
+    } else {
+        msg!("Setting second bit to 0, disabling median trigger price");
+        state.feature_bit_flags =
+            state.feature_bit_flags & !(FeatureBitFlags::MedianTriggerPrice as u8);
     }
     Ok(())
 }
