@@ -434,6 +434,11 @@ impl User {
         Ok(())
     }
 
+    pub fn is_isolated_position_bankrupt(&self, perp_market_index: u16) -> DriftResult<bool> {
+        let perp_position = self.get_isolated_perp_position(perp_market_index)?;
+        Ok(perp_position.position_flag & (PositionFlag::Bankruptcy as u8) != 0)
+    }
+
     pub fn increment_margin_freed(&mut self, margin_free: u64) -> DriftResult {
         self.liquidation_margin_freed = self.liquidation_margin_freed.safe_add(margin_free)?;
         Ok(())
