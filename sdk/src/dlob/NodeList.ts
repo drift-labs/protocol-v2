@@ -6,7 +6,7 @@ import {
 } from '../types';
 import { createNode, DLOBNode, DLOBNodeMap } from './DLOBNode';
 import { getOrderSignature } from './utils';
-import { BN } from '../index';
+import { BN } from '@coral-xyz/anchor';
 
 export type SortDirection = 'asc' | 'desc';
 
