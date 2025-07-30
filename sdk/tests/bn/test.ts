@@ -1,4 +1,3 @@
-import { BN, numberToSafeBN } from '../../src/index';
 import { expect } from 'chai';
 import { BigNum } from '../../src/factory/bigNum';
 import {
@@ -7,6 +6,8 @@ import {
 	BASE_PRECISION_EXP,
 	TEN_THOUSAND,
 } from '../../src/constants/numericConstants';
+import { BN } from '@coral-xyz/anchor';
+import { numberToSafeBN } from '../../src/math/utils';
 
 // if you used the '@types/mocha' method to install mocha type definitions, uncomment the following line
 // import 'mocha';
