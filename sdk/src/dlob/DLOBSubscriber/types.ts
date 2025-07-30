@@ -1,6 +1,5 @@
 import { IDriftClient } from '../../driftClient/types';
-import { DLOB } from '../DLOB';
-import { ProtectMakerParamsMap } from '../types';
+import { IDLOB, ProtectMakerParamsMap } from '../types';
 
 export type DLOBSubscriptionConfig = {
 	driftClient: IDriftClient;
@@ -18,10 +17,10 @@ export interface DLOBSource {
 	getDLOB(
 		slot: number,
 		protectedMakerParamsMap?: ProtectMakerParamsMap
-	): Promise<DLOB>;
+	): Promise<IDLOB>;
 }
 
 export interface DLOBSubscriberEvents {
-	update: (dlob: DLOB) => void;
+	update: (dlob: IDLOB) => void;
 	error: (e: Error) => void;
 }

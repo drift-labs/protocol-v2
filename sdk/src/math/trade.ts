@@ -32,10 +32,10 @@ import {
 import { squareRootBN } from './utils';
 import { isVariant } from '../types';
 import { OraclePriceData } from '../oracles/types';
-import { DLOB } from '../dlob/DLOB';
 import { PublicKey } from '@solana/web3.js';
 import { Orderbook } from '@project-serum/serum';
 import { L2OrderBook } from '../dlob/orderBookLevels';
+import { IDLOB } from '../dlob/types';
 
 const MAXPCT = new BN(1000); //percentage units are [0,1000] => [0,1]
 
@@ -388,7 +388,7 @@ export function calculateEstimatedPerpEntryPrice(
 	direction: PositionDirection,
 	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData,
-	dlob: DLOB,
+	dlob: IDLOB,
 	slot: number,
 	usersToSkip = new Map<PublicKey, boolean>()
 ): {
@@ -691,7 +691,7 @@ export function calculateEstimatedSpotEntryPrice(
 	direction: PositionDirection,
 	market: SpotMarketAccount,
 	oraclePriceData: OraclePriceData,
-	dlob: DLOB,
+	dlob: IDLOB,
 	serumBids: Orderbook,
 	serumAsks: Orderbook,
 	slot: number,

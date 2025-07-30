@@ -19,14 +19,15 @@ import { SyncConfig } from './userMapConfig';
 import { getUserStatsFilter } from '../memcmp';
 import { PublicKey } from '@solana/web3.js';
 
-import { UserMap } from './userMap';
 import { IDriftClient } from '../driftClient/types';
+import { IUserStats } from '../userStats/types';
+import { IUserMap } from './types';
 
 export class UserStatsMap {
 	/**
 	 * map from authority pubkey to UserStats
 	 */
-	private userStatsMap = new Map<string, UserStats>();
+	private userStatsMap = new Map<string, IUserStats>();
 	private driftClient: IDriftClient;
 	private bulkAccountLoader: BulkAccountLoader;
 	private decode;
@@ -108,7 +109,7 @@ export class UserStatsMap {
 		this.userStatsMap.set(authority.toString(), userStat);
 	}
 
-	public async updateWithOrderRecord(record: OrderRecord, userMap: UserMap) {
+	public async updateWithOrderRecord(record: OrderRecord, userMap: IUserMap) {
 		const user = await userMap.mustGet(record.user.toString());
 		if (!this.has(user.getUserAccount().authority.toString())) {
 			await this.addUserStat(user.getUserAccount().authority, undefined, false);
@@ -117,7 +118,7 @@ export class UserStatsMap {
 
 	public async updateWithEventRecord(
 		record: WrappedEvent<any>,
-		userMap?: UserMap
+		userMap?: IUserMap
 	) {
 		if (record.eventType === 'DepositRecord') {
 			const depositRecord = record as DepositRecord;
@@ -186,7 +187,7 @@ export class UserStatsMap {
 		return this.userStatsMap.has(authorityPublicKey);
 	}
 
-	public get(authorityPublicKey: string): UserStats {
+	public get(authorityPublicKey: string): IUserStats {
 		return this.userStatsMap.get(authorityPublicKey);
 	}
 
@@ -196,7 +197,7 @@ export class UserStatsMap {
 	 * @param authorityPublicKey
 	 * @returns
 	 */
-	public async mustGet(authorityPublicKey: string): Promise<UserStats> {
+	public async mustGet(authorityPublicKey: string): Promise<IUserStats> {
 		if (!this.has(authorityPublicKey)) {
 			await this.addUserStat(
 				new PublicKey(authorityPublicKey),
@@ -207,7 +208,7 @@ export class UserStatsMap {
 		return this.get(authorityPublicKey);
 	}
 
-	public values(): IterableIterator<UserStats> {
+	public values(): IterableIterator<IUserStats> {
 		return this.userStatsMap.values();
 	}
 

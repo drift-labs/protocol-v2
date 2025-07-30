@@ -18,7 +18,7 @@ import { WebsocketSubscription } from './WebsocketSubscription';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { BN } from '@coral-xyz/anchor';
-import { ProtectMakerParamsMap } from '../dlob/types';
+import { IDLOB, ProtectMakerParamsMap } from '../dlob/types';
 import { decodeUser } from '../decode/user';
 import { grpcSubscription } from './grpcSubscription';
 import { isUserProtectedMaker } from '../math/userStatus';
@@ -241,14 +241,14 @@ export class OrderSubscriber implements IOrderSubscriber {
 	 * caller to extend the DLOB Subscriber with a custom DLOB type.
 	 * @returns New, empty DLOB object.
 	 */
-	protected createDLOB(protectedMakerParamsMap?: ProtectMakerParamsMap): DLOB {
+	protected createDLOB(protectedMakerParamsMap?: ProtectMakerParamsMap): IDLOB {
 		return new DLOB(protectedMakerParamsMap);
 	}
 
 	public async getDLOB(
 		slot: number,
 		protectedMakerParamsMap?: ProtectMakerParamsMap
-	): Promise<DLOB> {
+	): Promise<IDLOB> {
 		const dlob = this.createDLOB(protectedMakerParamsMap);
 		for (const [key, { userAccount }] of this.usersAccounts.entries()) {
 			const protectedMaker = isUserProtectedMaker(userAccount);

@@ -2,6 +2,7 @@ import { DLOB } from '../DLOB';
 import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import {
+	IDLOB,
 	// IDLOB,
 	ProtectMakerParamsMap,
 } from '../types';
@@ -29,7 +30,7 @@ export class DLOBSubscriber {
 	slotSource: SlotSource;
 	updateFrequency: number;
 	intervalId?: ReturnType<typeof setTimeout>;
-	dlob: DLOB;
+	dlob: IDLOB;
 	public eventEmitter: StrictEventEmitter<EventEmitter, DLOBSubscriberEvents>;
 	protectedMakerView: boolean;
 	constructor(config: DLOBSubscriptionConfig) {
@@ -72,7 +73,7 @@ export class DLOBSubscriber {
 		);
 	}
 
-	public getDLOB(): DLOB {
+	public getDLOB(): IDLOB {
 		return this.dlob;
 	}
 
