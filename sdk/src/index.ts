@@ -14,6 +14,7 @@ export * from './accounts/webSocketHighLeverageModeConfigAccountSubscriber';
 export { WebSocketAccountSubscriberV2 } from './accounts/webSocketAccountSubscriberV2';
 export { WebSocketProgramAccountSubscriber } from './accounts/webSocketProgramAccountSubscriber';
 export { WebSocketProgramUserAccountSubscriber } from './accounts/websocketProgramUserAccountSubscriber';
+export { WebSocketAccountSubscriberV2 } from './accounts/webSocketAccountSubscriberV2';
 export * from './accounts/bulkAccountLoader';
 export * from './accounts/bulkUserSubscription';
 export * from './accounts/bulkUserStatsSubscription';
