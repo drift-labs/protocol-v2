@@ -269,7 +269,7 @@ impl LiquidatePerpMode for IsolatedLiquidatePerpMode {
         spot_market: &mut SpotMarket,
         cumulative_deposit_delta: Option<u128>,
     ) -> DriftResult<()> {
-        let perp_position = user.get_isolated_perp_position_mut(&self.market_index)?;
+        let perp_position = user.force_get_isolated_perp_position_mut(self.market_index)?;
 
         update_spot_balances(
             token_amount,

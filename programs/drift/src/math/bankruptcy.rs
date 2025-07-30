@@ -1,3 +1,4 @@
+use crate::error::DriftResult;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::user::User;
 
