@@ -12,7 +12,7 @@ export * from './accounts/fetch';
 export * from './accounts/webSocketDriftClientAccountSubscriber';
 export * from './accounts/webSocketInsuranceFundStakeAccountSubscriber';
 export * from './accounts/webSocketHighLeverageModeConfigAccountSubscriber';
-export { WebSocketAccountSubscriberV2 } from './accounts/webSocketAccountSubscriberV2'; 
+export { WebSocketAccountSubscriberV2 } from './accounts/webSocketAccountSubscriberV2';
 export * from './accounts/bulkAccountLoader';
 export * from './accounts/bulkUserSubscription';
 export * from './accounts/bulkUserStatsSubscription';
