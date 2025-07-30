@@ -28,6 +28,7 @@ import { findAllMarketAndOracles } from '../config';
 import { findDelistedPerpMarketsAndOracles } from './utils';
 import { getOracleId } from '../oracles/oracleId';
 import { OracleSource } from '../types';
+import { WebSocketAccountSubscriberV2 } from './webSocketAccountSubscriberV2';
 
 const ORACLE_DEFAULT_ID = getOracleId(
 	PublicKey.default,
@@ -68,6 +69,14 @@ export class WebSocketDriftClientAccountSubscriber
 	initialPerpMarketAccountData: Map<number, PerpMarketAccount>;
 	initialSpotMarketAccountData: Map<number, SpotMarketAccount>;
 	initialOraclePriceData: Map<string, OraclePriceData>;
+	customPerpMarketAccountSubscriber?: new (
+		accountName: string,
+		program: Program,
+		accountPublicKey: PublicKey,
+		decodeBuffer?: (buffer: Buffer) => any,
+		resubOpts?: ResubOpts,
+		commitment?: Commitment
+	) => AccountSubscriber<any>;
 
 	protected isSubscribing = false;
 	protected subscriptionPromise: Promise<boolean>;
@@ -81,7 +90,15 @@ export class WebSocketDriftClientAccountSubscriber
 		shouldFindAllMarketsAndOracles: boolean,
 		delistedMarketSetting: DelistedMarketSetting,
 		resubOpts?: ResubOpts,
-		commitment?: Commitment
+		commitment?: Commitment,
+		customPerpMarketAccountSubscriber?: new (
+			accountName: string,
+			program: Program,
+			accountPublicKey: PublicKey,
+			decodeBuffer?: (buffer: Buffer) => any,
+			resubOpts?: ResubOpts,
+			commitment?: Commitment
+		) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>
 	) {
 		this.isSubscribed = false;
 		this.program = program;
@@ -93,6 +110,7 @@ export class WebSocketDriftClientAccountSubscriber
 		this.delistedMarketSetting = delistedMarketSetting;
 		this.resubOpts = resubOpts;
 		this.commitment = commitment;
+		this.customPerpMarketAccountSubscriber = customPerpMarketAccountSubscriber;
 	}
 
 	public async subscribe(): Promise<boolean> {
@@ -292,7 +310,9 @@ export class WebSocketDriftClientAccountSubscriber
 			this.program.programId,
 			marketIndex
 		);
-		const accountSubscriber = new WebSocketAccountSubscriber<PerpMarketAccount>(
+		const AccountSubscriberClass =
+			this.customPerpMarketAccountSubscriber || WebSocketAccountSubscriber;
+		const accountSubscriber = new AccountSubscriberClass<PerpMarketAccount>(
 			'perpMarket',
 			this.program,
 			perpMarketPublicKey,
