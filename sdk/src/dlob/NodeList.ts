@@ -5,16 +5,10 @@ import {
 	ProtectedMakerParams,
 } from '../types';
 import { createNode, DLOBNode, DLOBNodeMap } from './DLOBNode';
-import { BN } from '@coral-xyz/anchor';
+import { getOrderSignature } from './utils';
+import { BN } from '../index';
 
 export type SortDirection = 'asc' | 'desc';
-
-export function getOrderSignature(
-	orderId: number,
-	userAccount: string
-): string {
-	return `${userAccount.toString()}-${orderId.toString()}`;
-}
 
 export interface DLOBNodeGenerator {
 	getGenerator(): Generator<DLOBNode>;

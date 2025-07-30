@@ -1,5 +1,5 @@
 import { getSignedMsgUserOrdersFilter } from '../memcmp';
-import { WebSocketProgramAccountSubscriber } from '../accounts/webSocketProgramAccountSubscriber';
+import { WebSocketProgramAccountSubscriber } from '../accounts/programAccount/webSocketProgramAccountSubscriber';
 import { SignedMsgOrderId, SignedMsgUserOrdersAccount } from '../types';
 import { Commitment, Context, PublicKey } from '@solana/web3.js';
 import { ResubOpts } from '../accounts/types';

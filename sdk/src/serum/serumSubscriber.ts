@@ -1,5 +1,5 @@
 import { Connection, PublicKey } from '@solana/web3.js';
-import { BulkAccountLoader } from '../accounts/bulkAccountLoader';
+import { BulkAccountLoader } from '../accounts/bulkAccountLoader/bulkAccountLoader';
 import { Market, Orderbook } from '@project-serum/serum';
 import { SerumMarketSubscriberConfig } from './types';
 import { BN } from '@coral-xyz/anchor';

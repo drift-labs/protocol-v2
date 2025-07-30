@@ -5,10 +5,10 @@ import {
 	DLOBSource,
 	DLOBSubscriberEvents,
 	DLOBSubscriptionConfig,
+	IDLOB,
 	ProtectMakerParamsMap,
 	SlotSource,
 } from './types';
-import { DriftClient } from '../driftClient';
 import { isVariant, MarketType } from '../types';
 import {
 	DEFAULT_TOP_OF_BOOK_QUOTE_AMOUNTS,
@@ -19,14 +19,15 @@ import {
 	L3OrderBook,
 } from './orderBookLevels';
 import { getProtectedMakerParamsMap } from '../math/protectedMakerParams';
+import { IDriftClient } from '../driftClient/types';
 
 export class DLOBSubscriber {
-	driftClient: DriftClient;
+	driftClient: IDriftClient;
 	dlobSource: DLOBSource;
 	slotSource: SlotSource;
 	updateFrequency: number;
 	intervalId?: ReturnType<typeof setTimeout>;
-	dlob: DLOB;
+	dlob: IDLOB;
 	public eventEmitter: StrictEventEmitter<EventEmitter, DLOBSubscriberEvents>;
 	protectedMakerView: boolean;
 	constructor(config: DLOBSubscriptionConfig) {
@@ -69,7 +70,7 @@ export class DLOBSubscriber {
 		);
 	}
 
-	public getDLOB(): DLOB {
+	public getDLOB(): IDLOB {
 		return this.dlob;
 	}
 
