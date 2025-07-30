@@ -125,11 +125,6 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 				if (this.resubOpts?.resubTimeoutMs) {
 					this.receivingData = true;
 					clearTimeout(this.timeoutId);
-					console.log(
-						'notification',
-						notification,
-						this.accountPublicKey.toBase58()
-					);
 					this.handleRpcResponse(notification.context, notification.value);
 					this.setTimeout();
 				} else {
@@ -216,13 +211,6 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 		};
 
 		const accountInfo = rpcResponse.value;
-
-		console.log(
-			'fetch',
-			context.slot,
-			accountInfo,
-			this.accountPublicKey.toBase58()
-		);
 
 		this.handleRpcResponse({ slot: BigInt(context.slot) }, accountInfo);
 	}
