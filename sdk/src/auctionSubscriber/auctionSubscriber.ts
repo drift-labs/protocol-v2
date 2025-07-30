@@ -1,5 +1,4 @@
 import { AuctionSubscriberConfig, AuctionSubscriberEvents } from './types';
-import { DriftClient } from '../driftClient';
 import { getUserFilter, getUserWithAuctionFilter } from '../memcmp';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
@@ -7,9 +6,10 @@ import { UserAccount } from '../types';
 import { ConfirmOptions, Context, PublicKey } from '@solana/web3.js';
 import { WebSocketProgramAccountSubscriber } from '../accounts/programAccount/webSocketProgramAccountSubscriber';
 import { ResubOpts } from '../accounts/types';
+import { IDriftClient } from '../driftClient/types';
 
 export class AuctionSubscriber {
-	private driftClient: DriftClient;
+	private driftClient: IDriftClient;
 	private opts: ConfirmOptions;
 	private resubOpts?: ResubOpts;
 

@@ -1,4 +1,3 @@
-import { DriftClient } from '../driftClient';
 import { getUserStatsAccountPublicKey } from '../addresses/pda';
 import {
 	OrderRecord,
@@ -21,13 +20,14 @@ import { getUserStatsFilter } from '../memcmp';
 import { PublicKey } from '@solana/web3.js';
 
 import { UserMap } from './userMap';
+import { IDriftClient } from '../driftClient/types';
 
 export class UserStatsMap {
 	/**
 	 * map from authority pubkey to UserStats
 	 */
 	private userStatsMap = new Map<string, UserStats>();
-	private driftClient: DriftClient;
+	private driftClient: IDriftClient;
 	private bulkAccountLoader: BulkAccountLoader;
 	private decode;
 	private syncConfig: SyncConfig;
@@ -38,11 +38,11 @@ export class UserStatsMap {
 	/**
 	 * Creates a new UserStatsMap instance.
 	 *
-	 * @param {DriftClient} driftClient - The DriftClient instance.
+	 * @param {IDriftClient} driftClient - The DriftClient instance.
 	 * @param {BulkAccountLoader} [bulkAccountLoader] - If not provided, a new BulkAccountLoader with polling disabled will be created.
 	 */
 	constructor(
-		driftClient: DriftClient,
+		driftClient: IDriftClient,
 		bulkAccountLoader?: BulkAccountLoader,
 		syncConfig?: SyncConfig
 	) {

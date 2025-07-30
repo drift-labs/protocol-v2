@@ -1,12 +1,12 @@
 import { PublicKey } from '@solana/web3.js';
 import { PhoenixV1FulfillmentConfigAccount } from '../types';
-import { DriftClient } from '../driftClient';
+import { IDriftClient } from '../driftClient/types';
 
 export class PhoenixFulfillmentConfigMap {
-	driftClient: DriftClient;
+	driftClient: IDriftClient;
 	map = new Map<number, PhoenixV1FulfillmentConfigAccount>();
 
-	public constructor(driftClient: DriftClient) {
+	public constructor(driftClient: IDriftClient) {
 		this.driftClient = driftClient;
 	}
 

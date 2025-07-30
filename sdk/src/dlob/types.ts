@@ -22,30 +22,6 @@ import {
 import { IDriftClient } from '../driftClient/types';
 import { IUserMap } from '../userMap/types';
 
-export type DLOBSubscriptionConfig = {
-	driftClient: IDriftClient;
-	dlobSource: DLOBSource;
-	slotSource: SlotSource;
-	updateFrequency: number;
-	protectedMakerView?: boolean;
-};
-
-export interface DLOBSubscriberEvents {
-	update: (dlob: IDLOB) => void;
-	error: (e: Error) => void;
-}
-
-export interface DLOBSource {
-	getDLOB(
-		slot: number,
-		protectedMakerParamsMap?: ProtectMakerParamsMap
-	): Promise<IDLOB>;
-}
-
-export interface SlotSource {
-	getSlot(): number;
-}
-
 export type ProtectMakerParamsMap = {
 	[marketType in MarketTypeStr]: Map<number, ProtectedMakerParams>;
 };

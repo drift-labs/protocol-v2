@@ -1,10 +1,10 @@
 import { GrpcConfigs } from '../accounts/types';
-import { DriftClient } from '../driftClient';
+import { IDriftClient } from '../driftClient/types';
 import { UserAccount } from '../types';
 import { ConfirmOptions, PublicKey } from '@solana/web3.js';
 
 export type AuctionSubscriberConfig = {
-	driftClient: DriftClient;
+	driftClient: IDriftClient;
 	opts?: ConfirmOptions;
 	resubTimeoutMs?: number;
 	logResubMessages?: boolean;

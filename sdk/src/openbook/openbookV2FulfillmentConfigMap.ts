@@ -1,12 +1,12 @@
 import { PublicKey } from '@solana/web3.js';
 import { OpenbookV2FulfillmentConfigAccount } from '../types';
-import { DriftClient } from '../driftClient';
+import { IDriftClient } from '../driftClient/types';
 
 export class OpenbookV2FulfillmentConfigMap {
-	driftClient: DriftClient;
+	driftClient: IDriftClient;
 	map = new Map<number, OpenbookV2FulfillmentConfigAccount>();
 
-	public constructor(driftClient: DriftClient) {
+	public constructor(driftClient: IDriftClient) {
 		this.driftClient = driftClient;
 	}
 

@@ -3,7 +3,6 @@ import {
 	PublicKey,
 	RpcResponseAndContext,
 } from '@solana/web3.js';
-import { DriftClient } from '../driftClient';
 import { ReferrerInfo } from '../types';
 import {
 	getUserAccountPublicKeySync,
@@ -15,6 +14,7 @@ import {
 	getUserStatsIsReferredOrReferrerFilter,
 } from '../memcmp';
 import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
+import { IDriftClient } from '../driftClient/types';
 
 const DEFAULT_PUBLIC_KEY = PublicKey.default.toBase58();
 
@@ -28,7 +28,7 @@ export class ReferrerMap {
 	 * Will be undefined if the referrer is not in the map yet.
 	 */
 	private referrerReferrerInfoMap = new Map<string, ReferrerInfo>();
-	private driftClient: DriftClient;
+	private driftClient: IDriftClient;
 	private parallelSync: boolean;
 
 	private fetchPromise?: Promise<void>;
@@ -37,9 +37,9 @@ export class ReferrerMap {
 	/**
 	 * Creates a new UserStatsMap instance.
 	 *
-	 * @param {DriftClient} driftClient - The DriftClient instance.
+	 * @param {IDriftClient} driftClient - The DriftClient instance.
 	 */
-	constructor(driftClient: DriftClient, parallelSync?: boolean) {
+	constructor(driftClient: IDriftClient, parallelSync?: boolean) {
 		this.driftClient = driftClient;
 		this.parallelSync = parallelSync !== undefined ? parallelSync : true;
 	}

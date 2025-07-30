@@ -1,12 +1,12 @@
 import { PublicKey } from '@solana/web3.js';
 import { SerumV3FulfillmentConfigAccount } from '../types';
-import { DriftClient } from '../driftClient';
+import { IDriftClient } from '../driftClient/types';
 
 export class SerumFulfillmentConfigMap {
-	driftClient: DriftClient;
+	driftClient: IDriftClient;
 	map = new Map<number, SerumV3FulfillmentConfigAccount>();
 
-	public constructor(driftClient: DriftClient) {
+	public constructor(driftClient: IDriftClient) {
 		this.driftClient = driftClient;
 	}
 
