@@ -13,12 +13,13 @@ import { PollingSubscription } from './PollingSubscription';
 import { WebsocketSubscription } from './WebsocketSubscription';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
-import { calculateOrderBaseAssetAmount, ZERO } from '../index';
 import { BN } from '@coral-xyz/anchor';
 import { ProtectMakerParamsMap } from '../dlob/types';
 import { decodeUser } from '../decode/user';
 import { grpcSubscription } from './grpcSubscription';
 import { isUserProtectedMaker } from '../math/userStatus';
+import { calculateOrderBaseAssetAmount } from '../math/orders';
+import { ZERO } from '../constants/numericConstants';
 
 export class OrderSubscriber {
 	driftClient: DriftClient;
