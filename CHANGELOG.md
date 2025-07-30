@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.130.0] - 2025-07-29
+
+### Features
+
 - program: new median price for trigger orders ([#1716](https://github.com/drift-labs/protocol-v2/pull/1716))
 - program: mm oracle ([#1767](https://github.com/drift-labs/protocol-v2/pull/1767))
 - program: add high leverage maintenance margin mode ([#1759](https://github.com/drift-labs/protocol-v2/pull/1759))
