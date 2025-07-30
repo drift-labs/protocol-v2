@@ -278,7 +278,8 @@ describe('AMM Tests', () => {
 			oracleStd,
 			longIntensity,
 			shortIntensity,
-			volume24H
+			volume24H,
+			0,
 		);
 		const l1 = spreads[0];
 		const s1 = spreads[1];
@@ -305,6 +306,7 @@ describe('AMM Tests', () => {
 			longIntensity,
 			shortIntensity,
 			volume24H,
+			0,
 			true
 		);
 		// console.log(terms1);
@@ -337,6 +339,7 @@ describe('AMM Tests', () => {
 			new BN(12358265776),
 			new BN(72230366233),
 			new BN(432067603632),
+			0,
 			true
 		);
 
@@ -369,6 +372,7 @@ describe('AMM Tests', () => {
 			new BN(12358265776),
 			new BN(72230366233),
 			new BN(432067603632),
+			0,
 			true
 		);
 
@@ -402,6 +406,7 @@ describe('AMM Tests', () => {
 			new BN(12358265776),
 			new BN(72230366233),
 			new BN(432067603632),
+			0,
 			true
 		);
 
@@ -436,6 +441,7 @@ describe('AMM Tests', () => {
 			new BN(768323534),
 			new BN(243875031),
 			new BN(130017761029),
+			0,
 			true
 		);
 
@@ -608,6 +614,7 @@ describe('AMM Tests', () => {
 			new BN(suiExample.amm.longIntensityVolume),
 			new BN(suiExample.amm.shortIntensityVolume),
 			new BN(suiExample.amm.volume24H),
+			0,
 			true
 		);
 
@@ -648,6 +655,7 @@ describe('AMM Tests', () => {
 			new BN(suiExample.amm.longIntensityVolume),
 			new BN(suiExample.amm.shortIntensityVolume),
 			new BN(suiExample.amm.volume24H),
+			0,
 			true
 		);
 		console.log(termsSuiExampleMod1);
@@ -676,6 +684,7 @@ describe('AMM Tests', () => {
 			new BN(suiExample.amm.longIntensityVolume),
 			new BN(suiExample.amm.shortIntensityVolume),
 			new BN(suiExample.amm.volume24H),
+			0,
 			true
 		);
 
