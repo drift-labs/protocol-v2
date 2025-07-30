@@ -13738,13 +13738,6 @@
             "option": "u64"
           },
           "index": false
-        },
-        {
-          "name": "triggerPrice",
-          "type": {
-            "option": "u64"
-          },
-          "index": false
         }
       ]
     },
