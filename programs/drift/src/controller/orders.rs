@@ -442,6 +442,7 @@ pub fn place_perp_order(
         None,
         None,
         None,
+        None,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -717,6 +718,7 @@ pub fn cancel_order(
             maker_order,
             oracle_map.get_price_data(&oracle_id)?.price,
             0,
+            None,
             None,
             None,
             None,
@@ -1324,7 +1326,7 @@ pub fn fill_perp_order(
         let fill_price =
             calculate_fill_price(quote_asset_amount, base_asset_amount, BASE_PRECISION_U64)?;
 
-        let perp_market = perp_market_map.get_ref(&market_index)?;
+        let mut perp_market = perp_market_map.get_ref_mut(&market_index)?;
         validate_fill_price_within_price_bands(
             fill_price,
             oracle_price,
@@ -1335,6 +1337,8 @@ pub fn fill_perp_order(
                 .max_oracle_twap_5min_percent_divergence(),
             perp_market.is_prediction_market(),
         )?;
+
+        perp_market.last_fill_price = fill_price;
     }
 
     let base_asset_amount_after = user.perp_positions[position_index].base_asset_amount;
@@ -2449,6 +2453,7 @@ pub fn fulfill_perp_order_with_amm(
         taker_existing_base_asset_amount,
         maker_existing_quote_entry_amount,
         maker_existing_base_asset_amount,
+        None,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -2897,6 +2902,7 @@ pub fn fulfill_perp_order_with_match(
         taker_existing_base_asset_amount,
         maker_existing_quote_entry_amount,
         maker_existing_base_asset_amount,
+        None,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -2989,11 +2995,10 @@ pub fn trigger_order(
         "Order is not triggerable"
     )?;
 
-    validate!(
-        !user.orders[order_index].triggered(),
-        ErrorCode::OrderNotTriggerable,
-        "Order is already triggered"
-    )?;
+    if user.orders[order_index].triggered() {
+        msg!("Order is already triggered");
+        return Ok(());
+    }
 
     validate!(
         market_type == MarketType::Perp,
@@ -3049,10 +3054,9 @@ pub fn trigger_order(
         "oracle price vs twap too divergent"
     )?;
 
-    let can_trigger = order_satisfies_trigger_condition(
-        &user.orders[order_index],
-        oracle_price.unsigned_abs().cast()?,
-    )?;
+    let trigger_price =
+        perp_market.get_trigger_price(oracle_price, now, state.use_median_trigger_price())?;
+    let can_trigger = order_satisfies_trigger_condition(&user.orders[order_index], trigger_price)?;
     validate!(can_trigger, ErrorCode::OrderDidNotSatisfyTriggerCondition)?;
 
     let (_, worst_case_liability_value_before) = user
@@ -3125,6 +3129,7 @@ pub fn trigger_order(
         None,
         None,
         None,
+        Some(trigger_price),
     )?;
     emit!(order_action_record);
 
@@ -3806,6 +3811,7 @@ pub fn place_spot_order(
         maker_order,
         oracle_price_data.price,
         0,
+        None,
         None,
         None,
         None,
@@ -5046,6 +5052,7 @@ pub fn fulfill_spot_order_with_match(
         None,
         None,
         None,
+        None,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -5319,6 +5326,7 @@ pub fn fulfill_spot_order_with_external_market(
         None,
         None,
         None,
+        None,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -5522,6 +5530,7 @@ pub fn trigger_spot_order(
         None,
         None,
         None,
+        Some(oracle_price.unsigned_abs()),
     )?;
 
     emit!(order_action_record);

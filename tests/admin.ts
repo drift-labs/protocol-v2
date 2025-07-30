@@ -412,6 +412,7 @@ describe('admin', () => {
 	it('update MM oracle native', async () => {
 		const oraclePrice = new BN(100);
 		const oracleTS = new BN(Date.now());
+		await driftClient.updateFeatureBitFlagsMMOracle(true);
 		await driftClient.updateMmOracleNative(0, oraclePrice, oracleTS);
 
 		let perpMarket = driftClient.getPerpMarketAccount(0);
@@ -428,7 +429,7 @@ describe('admin', () => {
 		assert(perpMarket.amm.mmOraclePrice.eq(oraclePrice));
 
 		// Doesnt update if we flip the admin switch
-		await driftClient.updateDisableBitFlagsMMOracle(true);
+		await driftClient.updateFeatureBitFlagsMMOracle(false);
 		try {
 			await driftClient.updateMmOracleNative(0, oraclePrice, oracleTS);
 			assert.fail('Should have thrown');
@@ -438,7 +439,7 @@ describe('admin', () => {
 		}
 
 		// Re-enable and update
-		await driftClient.updateDisableBitFlagsMMOracle(false);
+		await driftClient.updateFeatureBitFlagsMMOracle(true);
 		await driftClient.updateMmOracleNative(
 			0,
 			oraclePrice.addn(2),

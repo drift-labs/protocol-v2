@@ -1888,6 +1888,7 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         taker_existing_base_asset_amount: to_existing_base_asset_amount,
         maker_existing_quote_entry_amount: from_existing_quote_entry_amount,
         maker_existing_base_asset_amount: from_existing_base_asset_amount,
+        trigger_price: None,
     };
 
     emit_stack::<_, { OrderActionRecord::SIZE }>(fill_record)?;

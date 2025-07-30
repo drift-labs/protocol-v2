@@ -1810,15 +1810,22 @@ pub mod drift {
         handle_update_if_rebalance_config(ctx, params)
     }
 
-    pub fn update_disable_bitflags_mm_oracle(
+    pub fn update_feature_bit_flags_mm_oracle(
         ctx: Context<HotAdminUpdateState>,
-        disable: bool,
+        enable: bool,
     ) -> Result<()> {
-        handle_update_disable_bitflags_mm_oracle(ctx, disable)
+        handle_update_feature_bit_flags_mm_oracle(ctx, enable)
     }
 
     pub fn zero_mm_oracle_fields(ctx: Context<HotAdminUpdatePerpMarket>) -> Result<()> {
         handle_zero_mm_oracle_fields(ctx)
+    }
+
+    pub fn update_feature_bit_flags_median_trigger_price(
+        ctx: Context<HotAdminUpdateState>,
+        enable: bool,
+    ) -> Result<()> {
+        handle_update_feature_bit_flags_median_trigger_price(ctx, enable)
     }
 }
 
