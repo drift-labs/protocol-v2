@@ -36,7 +36,7 @@ import { Program } from '@coral-xyz/anchor';
 
 import { Keypair, PublicKey } from '@solana/web3.js';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/bulkAccountLoader/testBulkAccountLoader';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 async function updateFundingRateHelper(

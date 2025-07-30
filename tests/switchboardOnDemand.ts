@@ -1,7 +1,7 @@
 import * as anchor from '@coral-xyz/anchor';
 import { Program } from '@coral-xyz/anchor';
 import { AccountInfo, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/bulkAccountLoader/testBulkAccountLoader';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import { initializeQuoteSpotMarket, mockUSDCMint } from './testHelpers';
 import { OracleSource, TestClient } from '../sdk/src';

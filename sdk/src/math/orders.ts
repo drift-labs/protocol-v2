@@ -1,3 +1,4 @@
+import { User } from '../user';
 import {
 	isOneOfVariant,
 	isVariant,
@@ -20,10 +21,8 @@ import {
 	calculateMaxBaseAssetAmountToTrade,
 	calculateUpdatedAMM,
 } from './amm';
-import { standardizeBaseAssetAmount } from './utils';
-import { IUser } from '../user/types';
 
-export function isOrderRiskIncreasing(user: IUser, order: Order): boolean {
+export function isOrderRiskIncreasing(user: User, order: Order): boolean {
 	if (!isVariant(order.status, 'open')) {
 		return false;
 	}
@@ -62,7 +61,7 @@ export function isOrderRiskIncreasing(user: IUser, order: Order): boolean {
 }
 
 export function isOrderRiskIncreasingInSameDirection(
-	user: IUser,
+	user: User,
 	order: Order
 ): boolean {
 	if (!isVariant(order.status, 'open')) {
@@ -94,7 +93,7 @@ export function isOrderRiskIncreasingInSameDirection(
 	return false;
 }
 
-export function isOrderReduceOnly(user: IUser, order: Order): boolean {
+export function isOrderReduceOnly(user: User, order: Order): boolean {
 	if (!isVariant(order.status, 'open')) {
 		return false;
 	}
@@ -120,6 +119,14 @@ export function isOrderReduceOnly(user: IUser, order: Order): boolean {
 	}
 
 	return true;
+}
+
+export function standardizeBaseAssetAmount(
+	baseAssetAmount: BN,
+	stepSize: BN
+): BN {
+	const remainder = baseAssetAmount.mod(stepSize);
+	return baseAssetAmount.sub(remainder);
 }
 
 export function standardizePrice(
@@ -379,4 +386,22 @@ export function isTakingOrder(order: Order, slot: number): boolean {
 const FLAG_IS_SIGNED_MSG = 0x01;
 export function isSignedMsgOrder(order: Order): boolean {
 	return (order.bitFlags & FLAG_IS_SIGNED_MSG) !== 0;
+}
+
+export function calculateOrderBaseAssetAmount(
+	order: Order,
+	existingBaseAssetAmount: BN
+): BN {
+	if (!order.reduceOnly) {
+		return order.baseAssetAmount;
+	}
+
+	if (isVariant(order.direction, 'long')) {
+		return BN.min(
+			BN.min(existingBaseAssetAmount, ZERO).abs(),
+			order.baseAssetAmount
+		);
+	} else {
+		return BN.min(BN.max(existingBaseAssetAmount, ZERO), order.baseAssetAmount);
+	}
 }

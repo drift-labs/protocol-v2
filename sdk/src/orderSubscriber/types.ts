@@ -1,14 +1,10 @@
 import { Commitment, PublicKey } from '@solana/web3.js';
 import { Order, UserAccount } from '../types';
-import { IDriftClient } from '../driftClient/types';
+import { DriftClient } from '../driftClient';
 import { GrpcConfigs } from '../accounts/types';
-import { Buffer } from 'buffer';
-import StrictEventEmitter from 'strict-event-emitter-types';
-import { EventEmitter } from 'events';
-import { ProtectMakerParamsMap, IDLOB } from '../dlob/types';
 
 export type OrderSubscriberConfig = {
-	driftClient: IDriftClient;
+	driftClient: DriftClient;
 	subscriptionConfig:
 		| {
 				type: 'polling';
@@ -56,41 +52,4 @@ export interface OrderSubscriberEvents {
 		slot: number,
 		dataType: 'raw' | 'decoded' | 'buffer'
 	) => void;
-}
-
-export interface IOrderSubscriber {
-	driftClient: IDriftClient;
-	usersAccounts: Map<string, { slot: number; userAccount: UserAccount }>;
-	commitment: Commitment;
-	eventEmitter: StrictEventEmitter<EventEmitter, OrderSubscriberEvents>;
-	fetchPromise?: Promise<void>;
-	fetchPromiseResolver: () => void;
-	mostRecentSlot: number;
-	decodeFn: (name: string, data: Buffer) => UserAccount;
-	decodeData?: boolean;
-	fetchAllNonIdleUsers?: boolean;
-
-	subscribe(): Promise<void>;
-
-	fetch(): Promise<void>;
-
-	tryUpdateUserAccount(
-		key: string,
-		dataType: 'raw' | 'decoded' | 'buffer',
-		data: string[] | UserAccount | Buffer,
-		slot: number
-	): void;
-
-	getDLOB(
-		slot: number,
-		protectedMakerParamsMap?: ProtectMakerParamsMap
-	): Promise<IDLOB>;
-
-	getSlot(): number;
-
-	addPubkey(userAccountPublicKey: PublicKey): Promise<void>;
-
-	mustGetUserAccount(key: string): Promise<UserAccount>;
-
-	unsubscribe(): Promise<void>;
 }

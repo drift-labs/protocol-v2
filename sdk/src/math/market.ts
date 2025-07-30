@@ -32,7 +32,7 @@ import {
 	FUNDING_RATE_PRECISION,
 } from '../constants/numericConstants';
 import { getTokenAmount } from './spotBalance';
-import { IDLOB } from '../dlob/types';
+import { DLOB } from '../dlob/DLOB';
 import { assert } from '../assert/assert';
 
 /**
@@ -299,7 +299,7 @@ export function calculateNetUserPnlImbalance(
 export function calculateAvailablePerpLiquidity(
 	market: PerpMarketAccount,
 	oraclePriceData: OraclePriceData,
-	dlob: IDLOB,
+	dlob: DLOB,
 	slot: number
 ): { bids: BN; asks: BN } {
 	let [bids, asks] = calculateMarketOpenBidAsk(

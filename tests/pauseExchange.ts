@@ -19,7 +19,7 @@ import {
 	initializeQuoteSpotMarket,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/bulkAccountLoader/testBulkAccountLoader';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('Pause exchange', () => {
@@ -63,7 +63,7 @@ describe('Pause exchange', () => {
 			bankrunContextWrapper
 		);
 
-		const solOracle = await mockOracleNoProgram(bankrunContextWrapper, 30);
+		const solOracle = await mockOracleNoProgram(bankrunContextWrapper, 1);
 		const periodicity = new BN(60 * 60); // 1 HOUR
 
 		driftClient = new TestClient({

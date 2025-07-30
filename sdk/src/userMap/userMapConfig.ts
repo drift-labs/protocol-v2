@@ -1,5 +1,5 @@
 import { Commitment, Connection, MemcmpFilter } from '@solana/web3.js';
-import { IDriftClient } from '../driftClient/types';
+import { DriftClient } from '../driftClient';
 import { GrpcConfigs } from '../accounts/types';
 
 // passed into UserMap.getUniqueAuthorities to filter users
@@ -19,7 +19,7 @@ export type SyncConfig =
 	  };
 
 export type UserMapConfig = {
-	driftClient: IDriftClient;
+	driftClient: DriftClient;
 	// connection object to use specifically for the UserMap. If undefined, will use the driftClient's connection
 	connection?: Connection;
 	subscriptionConfig:

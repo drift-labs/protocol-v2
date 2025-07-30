@@ -1,13 +1,13 @@
 import { Context, PublicKey } from '@solana/web3.js';
 import { Buffer } from 'buffer';
-import { grpcProgramAccountSubscriber } from '../accounts/programAccount/grpcProgramAccountSubscriber';
+import { grpcProgramAccountSubscriber } from '../accounts/grpcProgramAccountSubscriber';
+import { OrderSubscriber } from './OrderSubscriber';
 import { GrpcConfigs, ResubOpts } from '../accounts/types';
 import { UserAccount } from '../types';
 import { getUserFilter, getNonIdleUserFilter } from '../memcmp';
-import { IOrderSubscriber } from './types';
 
 export class grpcSubscription {
-	private orderSubscriber: IOrderSubscriber;
+	private orderSubscriber: OrderSubscriber;
 	private skipInitialLoad: boolean;
 	private resubOpts?: ResubOpts;
 	private resyncIntervalMs?: number;
@@ -28,7 +28,7 @@ export class grpcSubscription {
 		decoded = true,
 	}: {
 		grpcConfigs: GrpcConfigs;
-		orderSubscriber: IOrderSubscriber;
+		orderSubscriber: OrderSubscriber;
 		skipInitialLoad?: boolean;
 		resubOpts?: ResubOpts;
 		resyncIntervalMs?: number;

@@ -24,7 +24,12 @@ pub fn increase_spot_open_bids_and_asks(
     spot_position: &mut SpotPosition,
     direction: &PositionDirection,
     base_asset_amount_unfilled: u64,
+    update: bool,
 ) -> DriftResult {
+    if !update {
+        return Ok(());
+    }
+
     match direction {
         PositionDirection::Long => {
             spot_position.open_bids = spot_position
@@ -45,17 +50,24 @@ pub fn decrease_spot_open_bids_and_asks(
     spot_position: &mut SpotPosition,
     direction: &PositionDirection,
     base_asset_amount_unfilled: u64,
+    update: bool,
 ) -> DriftResult {
+    if !update {
+        return Ok(());
+    }
+
     match direction {
         PositionDirection::Long => {
             spot_position.open_bids = spot_position
                 .open_bids
-                .safe_sub(base_asset_amount_unfilled.cast()?)?;
+                .safe_sub(base_asset_amount_unfilled.cast()?)?
+                .max(0);
         }
         PositionDirection::Short => {
             spot_position.open_asks = spot_position
                 .open_asks
-                .safe_add(base_asset_amount_unfilled.cast()?)?;
+                .safe_add(base_asset_amount_unfilled.cast()?)?
+                .min(0);
         }
     }
 
