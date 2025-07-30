@@ -5215,6 +5215,7 @@ export class DriftClient {
 		v6,
 		quote,
 		onlyDirectRoutes = false,
+		feeAccount,
 	}: {
 		jupiterClient: JupiterClient;
 		outMarketIndex: number;
@@ -5231,6 +5232,7 @@ export class DriftClient {
 			quote?: QuoteResponse;
 		};
 		quote?: QuoteResponse;
+		feeAccount?: string;
 	}): Promise<TransactionSignature> {
 		const quoteToUse = quote ?? v6?.quote;
 
@@ -5246,6 +5248,7 @@ export class DriftClient {
 			quote: quoteToUse,
 			reduceOnly,
 			onlyDirectRoutes,
+			feeAccount,
 		});
 		const ixs = res.ixs;
 		const lookupTables = res.lookupTables;
@@ -5277,6 +5280,7 @@ export class DriftClient {
 		quote,
 		reduceOnly,
 		userAccountPublicKey,
+		feeAccount,
 	}: {
 		jupiterClient: JupiterClient;
 		outMarketIndex: number;
@@ -5290,6 +5294,7 @@ export class DriftClient {
 		quote?: QuoteResponse;
 		reduceOnly?: SwapReduceOnly;
 		userAccountPublicKey?: PublicKey;
+		feeAccount?: string;
 	}): Promise<{
 		ixs: TransactionInstruction[];
 		lookupTables: AddressLookupTableAccount[];
@@ -5322,6 +5327,7 @@ export class DriftClient {
 			quote,
 			userPublicKey: this.provider.wallet.publicKey,
 			slippageBps,
+			feeAccount,
 		});
 
 		const { transactionMessage, lookupTables } =
