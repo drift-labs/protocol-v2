@@ -526,8 +526,10 @@ pub fn cancel_orders(
     market_type: Option<MarketType>,
     market_index: Option<u16>,
     direction: Option<PositionDirection>,
+    skip_isolated_positions: bool,
 ) -> DriftResult<Vec<u32>> {
     let mut canceled_order_ids: Vec<u32> = vec![];
+    let isolated_position_market_indexes = user.perp_positions.iter().filter(|position| position.is_isolated()).map(|position| position.market_index).collect::<Vec<u16>>();
     for order_index in 0..user.orders.len() {
         if user.orders[order_index].status != OrderStatus::Open {
             continue;
@@ -541,6 +543,8 @@ pub fn cancel_orders(
             if user.orders[order_index].market_index != market_index {
                 continue;
             }
+        } else if skip_isolated_positions && isolated_position_market_indexes.contains(&user.orders[order_index].market_index) {
+            continue;
         }
 
         if let Some(direction) = direction {
@@ -3234,6 +3238,11 @@ pub fn force_cancel_orders(
                     base_asset_amount,
                 )?;
                 if is_position_reducing {
+                    continue;
+                }
+
+                // TODO: handle force deleting these orders
+                if user.get_perp_position(market_index)?.is_isolated() {
                     continue;
                 }
 

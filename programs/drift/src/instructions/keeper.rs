@@ -2858,6 +2858,13 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
         None,
         None,
         None,
+        false,
+    )?;
+
+    validate!(
+        !user.perp_positions.iter().any(|p| !p.is_available()),
+        ErrorCode::DefaultError,
+        "user must have no perp positions"
     )?;
 
     for spot_position in user.spot_positions.iter_mut() {
