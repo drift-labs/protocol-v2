@@ -3,9 +3,9 @@ import {
 	AccountSubscriber,
 	ResubOpts,
 	BufferAndSlot,
-} from '../types';
+} from './types';
 import { AnchorProvider, Program } from '@coral-xyz/anchor';
-import { capitalize } from '../utils';
+import { capitalize } from './utils';
 import {
 	AccountInfoBase,
 	AccountInfoWithBase58EncodedData,

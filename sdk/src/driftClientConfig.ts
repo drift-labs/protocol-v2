@@ -17,8 +17,8 @@ import {
 	DelistedMarketSetting,
 } from './accounts/types';
 import { Coder, Program } from '@coral-xyz/anchor';
-import { WebSocketAccountSubscriber } from './accounts/baseSubscribers/webSocketAccountSubscriber';
-import { WebSocketAccountSubscriberV2 } from './accounts/baseSubscribers/webSocketAccountSubscriberV2';
+import { WebSocketAccountSubscriber } from './accounts/webSocketAccountSubscriber';
+import { WebSocketAccountSubscriberV2 } from './accounts/webSocketAccountSubscriberV2';
 
 export type DriftClientConfig = {
 	connection: Connection;
