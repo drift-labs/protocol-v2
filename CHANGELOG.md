@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: new median price for trigger orders ([#1716](https://github.com/drift-labs/protocol-v2/pull/1716))
+
 ### Fixes
 
 ### Breaking
