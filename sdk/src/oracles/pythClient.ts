@@ -75,9 +75,14 @@ function convertPythPrice(price: number, exponent: number, multiple: BN): BN {
 		.div(pythPrecision);
 }
 
-const fiveBPS = new BN(500);
+const twentyBPS = new BN(2000);
 function getStableCoinPrice(price: BN, confidence: BN): BN {
-	if (price.sub(QUOTE_PRECISION).abs().lt(BN.min(confidence, fiveBPS))) {
+	if (
+		price
+			.sub(QUOTE_PRECISION)
+			.abs()
+			.lt(BN.min(confidence.muln(5), twentyBPS))
+	) {
 		return QUOTE_PRECISION;
 	} else {
 		return price;
