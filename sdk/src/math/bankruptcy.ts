@@ -1,9 +1,9 @@
 import { ZERO } from '../constants/numericConstants';
 import { hasOpenOrders } from './position';
 import { isVariant } from '../types';
-import { User } from '../user';
+import { IUser } from '../user/types';
 
-export function isUserBankrupt(user: User): boolean {
+export function isUserBankrupt(user: IUser): boolean {
 	const userAccount = user.getUserAccount();
 	let hasLiability = false;
 	for (const position of userAccount.spotPositions) {

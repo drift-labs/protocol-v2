@@ -1,4 +1,4 @@
-import { User } from '../user';
+import { IUser } from '../user/types';
 import { BulkAccountLoader } from './bulkAccountLoader/bulkAccountLoader';
 import { PollingUserAccountSubscriber } from './userAccount/pollingUserAccountSubscriber';
 
@@ -7,7 +7,7 @@ import { PollingUserAccountSubscriber } from './userAccount/pollingUserAccountSu
  * @param accountLoader
  */
 export async function bulkPollingUserSubscribe(
-	users: User[],
+	users: IUser[],
 	accountLoader: BulkAccountLoader
 ): Promise<void> {
 	if (users.length === 0) {

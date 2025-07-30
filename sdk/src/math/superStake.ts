@@ -8,11 +8,11 @@ import { JupiterClient, QuoteResponse } from '../jupiter/jupiterClient';
 import { IDriftClient } from '../driftClient/types';
 import { getMarinadeFinanceProgram, getMarinadeMSolPrice } from '../marinade';
 import { BN } from '@coral-xyz/anchor';
-import { User } from '../user';
 import { DepositRecord, isVariant } from '../types';
 import { LAMPORTS_PRECISION, ZERO } from '../constants/numericConstants';
 import fetch from 'node-fetch';
 import { checkSameDate } from './utils';
+import { IUser } from '../user/types';
 
 export type BSOL_STATS_API_RESPONSE = {
 	success: boolean;
@@ -423,7 +423,7 @@ export async function calculateSolEarned({
 	depositRecords,
 }: {
 	marketIndex: number;
-	user: User;
+	user: IUser;
 	depositRecords: DepositRecord[];
 }): Promise<BN> {
 	const now = Date.now() / 1000;

@@ -139,7 +139,7 @@ import { PollingDriftClientAccountSubscriber } from '../accounts/driftClientAcco
 import { WebSocketDriftClientAccountSubscriber } from '../accounts/driftClientAccount/webSocketDriftClientAccountSubscriber';
 import { RetryTxSender } from '../tx/retryTxSender';
 import { User } from '../user';
-import { UserSubscriptionConfig } from '../user/types';
+import { IUser, UserSubscriptionConfig } from '../user/types';
 import {
 	configs,
 	DRIFT_ORACLE_RECEIVER_ID,
@@ -217,7 +217,7 @@ export class DriftClient implements IDriftClient {
 	env: DriftEnv;
 	opts?: ConfirmOptions;
 	useHotWalletAdmin?: boolean;
-	users = new Map<string, User>();
+	users = new Map<string, IUser>();
 	userStats?: IUserStats;
 	activeSubAccountId: number;
 	userAccountSubscriptionConfig: UserSubscriptionConfig;
@@ -479,7 +479,7 @@ export class DriftClient implements IDriftClient {
 		subAccountId: number,
 		accountSubscriptionConfig: UserSubscriptionConfig,
 		authority?: PublicKey
-	): User {
+	): IUser {
 		const userAccountPublicKey = getUserAccountPublicKeySync(
 			this.program.programId,
 			authority ?? this.authority,
@@ -2019,7 +2019,7 @@ export class DriftClient implements IDriftClient {
 		});
 	}
 
-	public getUser(subAccountId?: number, authority?: PublicKey): User {
+	public getUser(subAccountId?: number, authority?: PublicKey): IUser {
 		subAccountId = subAccountId ?? this.activeSubAccountId;
 		authority = authority ?? this.authority;
 		const userMapKey = this.getUserMapKey(subAccountId, authority);
@@ -2038,7 +2038,7 @@ export class DriftClient implements IDriftClient {
 		return this.users.has(userMapKey);
 	}
 
-	public getUsers(): User[] {
+	public getUsers(): IUser[] {
 		// delegate users get added to the end
 		return [...this.users.values()]
 			.filter((acct) =>
@@ -9262,7 +9262,7 @@ export class DriftClient implements IDriftClient {
 	public getMarketFees(
 		marketType: MarketType,
 		marketIndex?: number,
-		user?: User,
+		user?: IUser,
 		enteringHighLeverageMode?: boolean
 	) {
 		let feeTier;

@@ -14,7 +14,7 @@ import {
 } from '../types';
 import { WrappedEvent } from '../events/types';
 import { DLOB } from '../dlob/DLOB';
-import { UserSubscriptionConfig } from '../user/types';
+import { IUser, UserSubscriptionConfig } from '../user/types';
 import { DataAndSlot } from '../accounts/types';
 import { OneShotUserAccountSubscriber } from '../accounts/userAccount/oneShotUserAccountSubscriber';
 import { ProtectMakerParamsMap } from '../dlob/types';
@@ -51,7 +51,7 @@ import { IDriftClient } from '../driftClient/types';
 const MAX_USER_ACCOUNT_SIZE_BYTES = 4376;
 
 export class UserMap implements IUserMap {
-	private userMap = new Map<string, DataAndSlot<User>>();
+	private userMap = new Map<string, DataAndSlot<IUser>>();
 	driftClient: IDriftClient;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserEvents>;
 	private connection: Connection;
@@ -208,10 +208,10 @@ export class UserMap implements IUserMap {
 	 * @param key userAccountPublicKey to get User for
 	 * @returns user User | undefined
 	 */
-	public get(key: string): User | undefined {
+	public get(key: string): IUser | undefined {
 		return this.userMap.get(key)?.data;
 	}
-	public getWithSlot(key: string): DataAndSlot<User> | undefined {
+	public getWithSlot(key: string): DataAndSlot<IUser> | undefined {
 		return this.userMap.get(key);
 	}
 
@@ -223,7 +223,7 @@ export class UserMap implements IUserMap {
 	public async mustGet(
 		key: string,
 		accountSubscription?: UserSubscriptionConfig
-	): Promise<User> {
+	): Promise<IUser> {
 		if (!this.has(key)) {
 			await this.addPubkey(
 				new PublicKey(key),
@@ -237,7 +237,7 @@ export class UserMap implements IUserMap {
 	public async mustGetWithSlot(
 		key: string,
 		accountSubscription?: UserSubscriptionConfig
-	): Promise<DataAndSlot<User>> {
+	): Promise<DataAndSlot<IUser>> {
 		if (!this.has(key)) {
 			await this.addPubkey(
 				new PublicKey(key),
@@ -323,21 +323,21 @@ export class UserMap implements IUserMap {
 		}
 	}
 
-	public *values(): IterableIterator<User> {
+	public *values(): IterableIterator<IUser> {
 		for (const dataAndSlot of this.userMap.values()) {
 			yield dataAndSlot.data;
 		}
 	}
-	public valuesWithSlot(): IterableIterator<DataAndSlot<User>> {
+	public valuesWithSlot(): IterableIterator<DataAndSlot<IUser>> {
 		return this.userMap.values();
 	}
 
-	public *entries(): IterableIterator<[string, User]> {
+	public *entries(): IterableIterator<[string, IUser]> {
 		for (const [key, dataAndSlot] of this.userMap.entries()) {
 			yield [key, dataAndSlot.data];
 		}
 	}
-	public entriesWithSlot(): IterableIterator<[string, DataAndSlot<User>]> {
+	public entriesWithSlot(): IterableIterator<[string, DataAndSlot<IUser>]> {
 		return this.userMap.entries();
 	}
 
