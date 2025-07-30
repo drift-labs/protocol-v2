@@ -35,7 +35,9 @@ export class CustomizedCadenceBulkAccountLoader extends BulkAccountLoader {
 
 		for (const [key, frequency] of this.accountFrequencies.entries()) {
 			const lastPollTime = this.lastPollingTimes.get(key) || 0;
-			if (currentTime - lastPollTime >= frequency) {
+			// Add 200ms buffer to account for timing wiggle room with js execution
+			const timeDiff = currentTime - lastPollTime;
+			if (timeDiff >= frequency - 200) {
 				const account = this.accountsToLoad.get(key);
 				if (account) {
 					accountsToLoad.push(account);
