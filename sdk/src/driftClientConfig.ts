@@ -63,7 +63,7 @@ export type DriftClientSubscriptionConfig =
 			resubTimeoutMs?: number;
 			logResubMessages?: boolean;
 			commitment?: Commitment;
-			accountSubscriber?: new (
+			perpMarketAccountSubscriber?: new (
 				accountName: string,
 				program: Program,
 				accountPublicKey: PublicKey,
