@@ -90,6 +90,19 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 		this.rpcSubscriptions = rpcSubscriptions;
 	}
 
+	private async handleNotificationLoop(subscription: AsyncIterable<any>) {
+		for await (const notification of subscription) {
+			if (this.resubOpts?.resubTimeoutMs) {
+				this.receivingData = true;
+				clearTimeout(this.timeoutId);
+				this.handleRpcResponse(notification.context, notification.value);
+				this.setTimeout();
+			} else {
+				this.handleRpcResponse(notification.context, notification.value);
+			}
+		}
+	}
+
 	async subscribe(onChange: (data: T) => void): Promise<void> {
 		if (this.listenerId != null || this.isUnsubscribing) {
 			if (this.resubOpts?.logResubMessages) {
@@ -109,6 +122,13 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 		const abortController = new AbortController();
 		this.abortController = abortController;
 
+		this.listenerId = Math.random(); // Unique ID for logging purposes
+
+		if (this.resubOpts?.resubTimeoutMs) {
+			this.receivingData = true;
+			this.setTimeout();
+		}
+
 		// Subscribe to account changes using gill's rpcSubscriptions
 		const pubkey = this.accountPublicKey.toBase58();
 		if (isAddress(pubkey)) {
@@ -121,23 +141,8 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 					abortSignal: abortController.signal,
 				});
 
-			for await (const notification of subscription) {
-				if (this.resubOpts?.resubTimeoutMs) {
-					this.receivingData = true;
-					clearTimeout(this.timeoutId);
-					this.handleRpcResponse(notification.context, notification.value);
-					this.setTimeout();
-				} else {
-					this.handleRpcResponse(notification.context, notification.value);
-				}
-			}
-		}
-
-		this.listenerId = Math.random(); // Unique ID for logging purposes
-
-		if (this.resubOpts?.resubTimeoutMs) {
-			this.receivingData = true;
-			this.setTimeout();
+			// Start notification loop without awaiting
+			this.handleNotificationLoop(subscription);
 		}
 	}
 
