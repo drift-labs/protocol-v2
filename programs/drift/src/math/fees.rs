@@ -435,37 +435,32 @@ fn determine_perp_fee_tier<'a>(
     let total_30d_volume = user_stats.get_total_30d_volume()?;
     let staked_gov_token_amount = user_stats.if_staked_gov_token_amount;
 
-    if total_30d_volume >= ONE_HUNDRED_MILLION_QUOTE
-        || staked_gov_token_amount >= ONE_HUNDRED_THOUSAND_QUOTE + 19_500 * QUOTE_PRECISION_U64
-    {
-        return Ok(&fee_structure.fee_tiers[5]);
+    const TIER_LENGTH: usize = 5;
+
+    const VOLUME_THRESHOLDS: [u64; TIER_LENGTH] = [
+        ONE_MILLION_QUOTE,
+        FIVE_MILLION_QUOTE,
+        TEN_MILLION_QUOTE,
+        FIFTY_MILLION_QUOTE,
+        ONE_HUNDRED_MILLION_QUOTE,
+    ];
+
+    const STAKE_THRESHOLDS: [u64; TIER_LENGTH] = [
+        ONE_THOUSAND_QUOTE - QUOTE_PRECISION_U64,
+        TEN_THOUSAND_QUOTE - QUOTE_PRECISION_U64,
+        (TWENTY_FIVE_THOUSAND_QUOTE * 2) - QUOTE_PRECISION_U64,
+        ONE_HUNDRED_THOUSAND_QUOTE - QUOTE_PRECISION_U64,
+        ONE_HUNDRED_THOUSAND_QUOTE + 19_500 * QUOTE_PRECISION_U64,
+    ];
+
+    for i in 0..TIER_LENGTH {
+        if total_30d_volume < VOLUME_THRESHOLDS[i] && staked_gov_token_amount < STAKE_THRESHOLDS[i]
+        {
+            return Ok(&fee_structure.fee_tiers[i]);
+        }
     }
 
-    if total_30d_volume >= FIFTY_MILLION_QUOTE
-        || staked_gov_token_amount >= ONE_HUNDRED_THOUSAND_QUOTE - QUOTE_PRECISION_U64
-    {
-        return Ok(&fee_structure.fee_tiers[4]);
-    }
-
-    if total_30d_volume >= TEN_MILLION_QUOTE
-        || staked_gov_token_amount >= TWENTY_FIVE_THOUSAND_QUOTE * 2 - QUOTE_PRECISION_U64
-    {
-        return Ok(&fee_structure.fee_tiers[3]);
-    }
-
-    if total_30d_volume >= FIVE_MILLION_QUOTE
-        || staked_gov_token_amount >= TEN_THOUSAND_QUOTE - QUOTE_PRECISION_U64
-    {
-        return Ok(&fee_structure.fee_tiers[2]);
-    }
-
-    if total_30d_volume >= ONE_MILLION_QUOTE
-        || staked_gov_token_amount >= ONE_THOUSAND_QUOTE - QUOTE_PRECISION_U64
-    {
-        return Ok(&fee_structure.fee_tiers[1]);
-    }
-
-    Ok(&fee_structure.fee_tiers[0])
+    Ok(&fee_structure.fee_tiers[5])
 }
 
 fn determine_spot_fee_tier<'a>(
