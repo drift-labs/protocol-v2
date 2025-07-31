@@ -284,7 +284,7 @@ export class WebSocketDriftClientAccountSubscriberV2
 	 * @param marketIndex The spot market index to add (unused)
 	 * @returns Promise that resolves to true
 	 */
-	public addSpotMarket(marketIndex: number): Promise<boolean> {
+	public addSpotMarket(_marketIndex: number): Promise<boolean> {
 		return Promise.resolve(true);
 	}
 
