@@ -3,7 +3,7 @@ import { getNonIdleUserFilter, getUserFilter } from '../memcmp';
 import { UserAccount } from '../types';
 import { Commitment, Context, PublicKey } from '@solana/web3.js';
 import { ResubOpts } from '../accounts/types';
-import { WebSocketProgramAccountSubscriberV2 } from '../accounts/webSocketProgramAccountSubscriberV2';
+import { WebSocketProgramAccountSubscriber } from '../accounts/webSocketProgramAccountSubscriber';
 
 export class WebsocketSubscription {
 	private orderSubscriber: OrderSubscriber;
@@ -12,7 +12,7 @@ export class WebsocketSubscription {
 	private resubOpts?: ResubOpts;
 	private resyncIntervalMs?: number;
 
-	private subscriber?: WebSocketProgramAccountSubscriberV2<UserAccount>;
+	private subscriber?: WebSocketProgramAccountSubscriber<UserAccount>;
 	private resyncTimeoutId?: ReturnType<typeof setTimeout>;
 
 	private decoded?: boolean;
@@ -45,7 +45,7 @@ export class WebsocketSubscription {
 			return;
 		}
 
-		this.subscriber = new WebSocketProgramAccountSubscriberV2<UserAccount>(
+		this.subscriber = new WebSocketProgramAccountSubscriber<UserAccount>(
 			'OrderSubscriber',
 			'User',
 			this.orderSubscriber.driftClient.program,
