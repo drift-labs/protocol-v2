@@ -7576,6 +7576,27 @@
         }
       ],
       "args": []
+    },
+    {
+      "name": "updateFeatureBitFlagsMedianTriggerPrice",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "enable",
+          "type": "bool"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -11434,7 +11455,7 @@
           {
             "name": "openBids",
             "docs": [
-              "How many spot bids the user has open",
+              "How many spot non reduce only trigger orders the user has open",
               "precision: token mint precision"
             ],
             "type": "i64"
@@ -11442,7 +11463,7 @@
           {
             "name": "openAsks",
             "docs": [
-              "How many spot asks the user has open",
+              "How many spot non reduce only trigger orders the user has open",
               "precision: token mint precision"
             ],
             "type": "i64"
@@ -11541,7 +11562,7 @@
           {
             "name": "openBids",
             "docs": [
-              "The amount of open bids the user has in this perp market",
+              "The amount of non reduce only trigger orders the user has open",
               "precision: BASE_PRECISION"
             ],
             "type": "i64"
@@ -11549,7 +11570,7 @@
           {
             "name": "openAsks",
             "docs": [
-              "The amount of open asks the user has in this perp market",
+              "The amount of non reduce only trigger orders the user has open",
               "precision: BASE_PRECISION"
             ],
             "type": "i64"
@@ -12810,7 +12831,7 @@
             "name": "MmOracleUpdate"
           },
           {
-            "name": "EnableMedianTriggerPrice"
+            "name": "MedianTriggerPrice"
           }
         ]
       }
@@ -12942,6 +12963,9 @@
           },
           {
             "name": "SafeTriggerOrder"
+          },
+          {
+            "name": "NewTriggerReduceOnly"
           }
         ]
       }
@@ -13734,6 +13758,13 @@
         },
         {
           "name": "makerExistingBaseAssetAmount",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "triggerPrice",
           "type": {
             "option": "u64"
           },
