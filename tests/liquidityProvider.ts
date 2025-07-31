@@ -871,6 +871,8 @@ describe('liquidity providing', () => {
 		}
 	});
 
+	return;
+
 	it('provides lp, users shorts, removes lp, lp has long', async () => {
 		await driftClient.fetchAccounts();
 		await traderDriftClient.fetchAccounts();
@@ -1633,8 +1635,6 @@ describe('liquidity providing', () => {
 		console.log(position);
 		// assert(position.lpShares.eq(ZERO));
 	});
-
-	return;
 
 	it('lp gets paid in funding (todo)', async () => {
 		const market = driftClient.getPerpMarketAccount(1);

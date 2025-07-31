@@ -13,10 +13,13 @@ import { PollingSubscription } from './PollingSubscription';
 import { WebsocketSubscription } from './WebsocketSubscription';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
-import { BN, ProtectMakerParamsMap } from '../index';
+import { BN } from '@coral-xyz/anchor';
+import { ProtectMakerParamsMap } from '../dlob/types';
 import { decodeUser } from '../decode/user';
 import { grpcSubscription } from './grpcSubscription';
 import { isUserProtectedMaker } from '../math/userStatus';
+import { calculateOrderBaseAssetAmount } from '../math/orders';
+import { ZERO } from '../constants/numericConstants';
 
 export class OrderSubscriber {
 	driftClient: DriftClient;
@@ -246,7 +249,19 @@ export class OrderSubscriber {
 		for (const [key, { userAccount }] of this.usersAccounts.entries()) {
 			const protectedMaker = isUserProtectedMaker(userAccount);
 			for (const order of userAccount.orders) {
-				dlob.insertOrder(order, key, slot, protectedMaker);
+				let baseAssetAmount = order.baseAssetAmount;
+				if (order.reduceOnly) {
+					const existingBaseAmount =
+						userAccount.perpPositions.find(
+							(pos) =>
+								pos.marketIndex === order.marketIndex && pos.openOrders > 0
+						)?.baseAssetAmount || ZERO;
+					baseAssetAmount = calculateOrderBaseAssetAmount(
+						order,
+						existingBaseAmount
+					);
+				}
+				dlob.insertOrder(order, key, slot, protectedMaker, baseAssetAmount);
 			}
 		}
 		return dlob;

@@ -72,7 +72,10 @@ pub mod marinade_mainnet {
 
 pub mod admin_hot_wallet {
     use solana_program::declare_id;
+    #[cfg(not(feature = "anchor-test"))]
     declare_id!("5hMjmxexWu954pX9gB9jkHxMqdjpxArQS2XdvkaevRax");
+    #[cfg(feature = "anchor-test")]
+    declare_id!("1ucYHAGrBbi1PaecC4Ptq5ocZLWGLBmbGWysoDGNB1N");
 }
 
 pub mod if_rebalance_wallet {
@@ -83,4 +86,24 @@ pub mod if_rebalance_wallet {
 pub mod lighthouse {
     use solana_program::declare_id;
     declare_id!("L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95");
+}
+
+pub mod mm_oracle_crank_wallet {
+    use solana_program::declare_id;
+    #[cfg(not(feature = "anchor-test"))]
+    #[cfg(feature = "mainnet-beta")]
+    declare_id!("uZ1N4C9dc71Euu4GLYt5UURpFtg1WWSwo3F4Rn46Fr3");
+    #[cfg(not(feature = "anchor-test"))]
+    #[cfg(not(feature = "mainnet-beta"))]
+    declare_id!("8X35rQUK2u9hfn8rMPwwr6ZSEUhbmfDPEapp589XyoM1");
+    #[cfg(feature = "anchor-test")]
+    declare_id!("1ucYHAGrBbi1PaecC4Ptq5ocZLWGLBmbGWysoDGNB1N");
+}
+
+pub mod amm_spread_adjust_wallet {
+    use solana_program::declare_id;
+    #[cfg(not(feature = "anchor-test"))]
+    declare_id!("w1DrTeayRMutAiwzfJfK9zLcpkF7RzwPy1BLCgQA1aF");
+    #[cfg(feature = "anchor-test")]
+    declare_id!("1ucYHAGrBbi1PaecC4Ptq5ocZLWGLBmbGWysoDGNB1N");
 }

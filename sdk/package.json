@@ -1,6 +1,6 @@
 {
 	"name": "@drift-labs/sdk",
-	"version": "2.130.0-beta.1",
+	"version": "2.131.0-beta.7",
 	"main": "lib/node/index.js",
 	"types": "lib/node/index.d.ts",
 	"browser": "./lib/browser/index.js",
@@ -22,7 +22,8 @@
 		"patch-and-pub": "npm version patch --force && npm publish",
 		"prettify": "prettier --check './src/***/*.ts'",
 		"prettify:fix": "prettier --write './{src,tests}/***/*.ts'",
-		"version": "node ./scripts/updateVersion.js"
+		"version": "node ./scripts/updateVersion.js",
+		"circular-deps": "bunx madge --circular --circular --extensions ts src"
 	},
 	"keywords": [
 		"drift-labs",
@@ -52,6 +53,7 @@
 		"@switchboard-xyz/on-demand": "2.4.1",
 		"@triton-one/yellowstone-grpc": "1.3.0",
 		"anchor-bankrun": "0.3.0",
+		"gill": "^0.10.2",
 		"nanoid": "3.3.4",
 		"node-cache": "5.1.2",
 		"rpc-websockets": "7.5.1",
@@ -78,6 +80,7 @@
 		"eslint-config-prettier": "8.3.0",
 		"eslint-plugin-prettier": "3.4.0",
 		"lodash": "4.17.21",
+		"madge": "^8.0.0",
 		"mocha": "10.7.3",
 		"object-sizeof": "2.6.5",
 		"prettier": "3.0.1",

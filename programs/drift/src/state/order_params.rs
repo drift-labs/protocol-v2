@@ -850,6 +850,10 @@ impl OrderParams {
     pub fn is_max_leverage_order(&self) -> bool {
         self.base_asset_amount == u64::MAX
     }
+
+    pub fn is_trigger_order(&self) -> bool {
+        self.order_type == OrderType::TriggerMarket || self.order_type == OrderType::TriggerLimit
+    }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]

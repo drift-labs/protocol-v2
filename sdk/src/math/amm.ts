@@ -23,7 +23,8 @@ import {
 	isVariant,
 } from '../types';
 import { assert } from '../assert/assert';
-import { squareRootBN, sigNum, clampBN, standardizeBaseAssetAmount } from '..';
+import { squareRootBN, sigNum, clampBN } from './utils';
+import { standardizeBaseAssetAmount } from './orders';
 
 import { OraclePriceData } from '../oracles/types';
 import {
@@ -198,6 +199,14 @@ export function calculateUpdatedAMMSpreadReserves(
 	oraclePriceData: OraclePriceData,
 	isPrediction = false
 ): { baseAssetReserve: BN; quoteAssetReserve: BN; sqrtK: BN; newPeg: BN } {
+	if (
+		!oraclePriceData?.fetchedWithMMOracle &&
+		oraclePriceData?.isMMOracleActive
+	) {
+		console.log(
+			'Use driftClient method getMMOracleDataForPerpMarket for accurate updated AMM in calculateUpdatedAMMSpreadReserves'
+		);
+	}
 	const newAmm = calculateUpdatedAMM(amm, oraclePriceData);
 	const [shortReserves, longReserves] = calculateSpreadReserves(
 		newAmm,
@@ -220,6 +229,52 @@ export function calculateUpdatedAMMSpreadReserves(
 	return result;
 }
 
+export function calculateAMMBidAskPrice(
+	amm: AMM,
+	oraclePriceData: OraclePriceData,
+	withUpdate = true,
+	isPrediction = false
+): [BN, BN] {
+	if (
+		!oraclePriceData?.fetchedWithMMOracle &&
+		oraclePriceData?.isMMOracleActive
+	) {
+		console.log(
+			'Use driftClient method getMMOracleDataForPerpMarket for accurate MM pricing in calculateAMMBidAskPrice'
+		);
+	}
+	let newAmm: AMM;
+	if (withUpdate) {
+		newAmm = calculateUpdatedAMM(amm, oraclePriceData);
+	} else {
+		newAmm = amm;
+	}
+
+	const [bidReserves, askReserves] = calculateSpreadReserves(
+		newAmm,
+		oraclePriceData,
+		undefined,
+		isPrediction
+	);
+
+	const askPrice = calculatePrice(
+		askReserves.baseAssetReserve,
+		askReserves.quoteAssetReserve,
+		newAmm.pegMultiplier
+	);
+
+	const bidPrice = calculatePrice(
+		bidReserves.baseAssetReserve,
+		bidReserves.quoteAssetReserve,
+		newAmm.pegMultiplier
+	);
+
+	return [bidPrice, askPrice];
+}
+
+/**
+ * @deprecated Use calculateAMMBidAskPrice instead
+ */
 export function calculateBidAskPrice(
 	amm: AMM,
 	oraclePriceData: OraclePriceData,

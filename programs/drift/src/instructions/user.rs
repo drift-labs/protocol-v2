@@ -1888,6 +1888,7 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         taker_existing_base_asset_amount: to_existing_base_asset_amount,
         maker_existing_quote_entry_amount: from_existing_quote_entry_amount,
         maker_existing_base_asset_amount: from_existing_base_asset_amount,
+        trigger_price: None,
     };
 
     emit_stack::<_, { OrderActionRecord::SIZE }>(fill_record)?;
@@ -3434,7 +3435,7 @@ pub fn handle_enable_user_high_leverage_mode<'c: 'info, 'info>(
 
     let mut config = load_mut!(ctx.accounts.high_leverage_mode_config)?;
 
-    config.update_user(&mut user)?;
+    config.enable_high_leverage(&mut user)?;
 
     Ok(())
 }

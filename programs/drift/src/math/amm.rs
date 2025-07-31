@@ -11,12 +11,12 @@ use crate::math::constants::{
     BID_ASK_SPREAD_PRECISION_I128, CONCENTRATION_PRECISION,
     DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR, FIVE_MINUTE, ONE_HOUR, ONE_MINUTE,
     PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128,
-    PRICE_TO_PEG_PRECISION_RATIO, QUOTE_PRECISION_I64,
+    PRICE_TO_PEG_PRECISION_RATIO,
 };
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::quote_asset::reserve_to_asset_amount;
 use crate::math::stats::{calculate_new_twap, calculate_rolling_sum, calculate_weighted_average};
-use crate::state::oracle::OraclePriceData;
+use crate::state::oracle::{MMOraclePriceData, OraclePriceData};
 use crate::state::perp_market::AMM;
 use crate::state::state::PriceDivergenceGuardRails;
 use crate::{validate, PERCENTAGE_PRECISION_U64};
@@ -400,7 +400,7 @@ pub fn sanitize_new_price(
 pub fn update_oracle_price_twap(
     amm: &mut AMM,
     now: i64,
-    oracle_price_data: &OraclePriceData,
+    mm_oracle_price_data: &MMOraclePriceData,
     precomputed_reserve_price: Option<u64>,
     sanitize_clamp: Option<i64>,
 ) -> DriftResult<i64> {
@@ -408,8 +408,12 @@ pub fn update_oracle_price_twap(
         Some(reserve_price) => reserve_price,
         None => amm.reserve_price()?,
     };
-
-    let oracle_price = normalise_oracle_price(amm, oracle_price_data, Some(reserve_price))?;
+    let oracle_confidence = mm_oracle_price_data.get_confidence();
+    let oracle_price = normalise_oracle_price(
+        amm,
+        &mm_oracle_price_data.get_exchange_oracle_price_data(),
+        Some(reserve_price),
+    )?;
 
     let capped_oracle_update_price = sanitize_new_price(
         oracle_price,
@@ -435,15 +439,21 @@ pub fn update_oracle_price_twap(
         )?;
 
         amm.last_oracle_normalised_price = capped_oracle_update_price;
-        amm.historical_oracle_data.last_oracle_price = oracle_price_data.price;
+        amm.historical_oracle_data.last_oracle_price =
+            mm_oracle_price_data.get_exchange_oracle_price_data().price;
 
+        // Adjust confidence if the mm oracle and oracle price data are different by 5bps or more
         // use decayed last_oracle_conf_pct as lower bound
         amm.last_oracle_conf_pct =
-            amm.get_new_oracle_conf_pct(oracle_price_data.confidence, reserve_price, now)?;
+            amm.get_new_oracle_conf_pct(oracle_confidence, reserve_price, now)?;
 
-        amm.historical_oracle_data.last_oracle_delay = oracle_price_data.delay;
-        amm.last_oracle_reserve_price_spread_pct =
-            calculate_oracle_reserve_price_spread_pct(amm, oracle_price_data, Some(reserve_price))?;
+        amm.historical_oracle_data.last_oracle_delay =
+            mm_oracle_price_data.get_exchange_oracle_price_data().delay;
+        amm.last_oracle_reserve_price_spread_pct = calculate_oracle_reserve_price_spread_pct(
+            amm,
+            mm_oracle_price_data,
+            Some(reserve_price),
+        )?;
 
         // update std stat
         update_amm_oracle_std(
@@ -712,7 +722,7 @@ pub fn calculate_terminal_price_and_reserves(amm: &AMM) -> DriftResult<(u64, u12
 
 pub fn calculate_oracle_reserve_price_spread(
     amm: &AMM,
-    oracle_price_data: &OraclePriceData,
+    mm_oracle_price_data: &MMOraclePriceData,
     precomputed_reserve_price: Option<u64>,
 ) -> DriftResult<(i64, i64)> {
     let reserve_price = match precomputed_reserve_price {
@@ -720,7 +730,7 @@ pub fn calculate_oracle_reserve_price_spread(
         None => amm.reserve_price()?.cast::<i64>()?,
     };
 
-    let oracle_price = oracle_price_data.price;
+    let oracle_price = mm_oracle_price_data.get_price();
 
     let price_spread = reserve_price.safe_sub(oracle_price)?;
 
@@ -729,14 +739,10 @@ pub fn calculate_oracle_reserve_price_spread(
 
 pub fn normalise_oracle_price(
     amm: &AMM,
-    oracle_price: &OraclePriceData,
+    oracle_price_data: &OraclePriceData,
     precomputed_reserve_price: Option<u64>,
 ) -> DriftResult<i64> {
-    let OraclePriceData {
-        price: oracle_price,
-        confidence: oracle_conf,
-        ..
-    } = *oracle_price;
+    let oracle_price = oracle_price_data.price;
 
     let reserve_price = match precomputed_reserve_price {
         Some(reserve_price) => reserve_price.cast::<i64>()?,
@@ -745,7 +751,7 @@ pub fn normalise_oracle_price(
 
     // 2.5 bps of the mark price
     let reserve_price_2p5_bps = reserve_price.safe_div(4000)?;
-    let conf_int = oracle_conf.cast::<i64>()?;
+    let conf_int = oracle_price_data.confidence.cast::<i64>()?;
 
     //  normalises oracle toward mark price based on the oracle’s confidence interval
     //  if mark above oracle: use oracle+conf unless it exceeds .99975 * mark price
@@ -768,7 +774,7 @@ pub fn normalise_oracle_price(
 
 pub fn calculate_oracle_reserve_price_spread_pct(
     amm: &AMM,
-    oracle_price_data: &OraclePriceData,
+    mm_oracle_price_data: &MMOraclePriceData,
     precomputed_reserve_price: Option<u64>,
 ) -> DriftResult<i64> {
     let reserve_price = match precomputed_reserve_price {
@@ -776,7 +782,7 @@ pub fn calculate_oracle_reserve_price_spread_pct(
         None => amm.reserve_price()?,
     };
     let (_oracle_price, price_spread) =
-        calculate_oracle_reserve_price_spread(amm, oracle_price_data, Some(reserve_price))?;
+        calculate_oracle_reserve_price_spread(amm, mm_oracle_price_data, Some(reserve_price))?;
 
     price_spread
         .cast::<i128>()?

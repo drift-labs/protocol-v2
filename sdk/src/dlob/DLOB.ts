@@ -1,40 +1,41 @@
 import { getOrderSignature, NodeList } from './NodeList';
+import { BN } from '@coral-xyz/anchor';
 import {
 	BASE_PRECISION,
-	BN,
 	BN_MAX,
-	convertToNumber,
-	decodeName,
-	DLOBNode,
-	DLOBNodeType,
-	DriftClient,
+	PRICE_PRECISION,
+	QUOTE_PRECISION,
+	ZERO,
+} from '../constants/numericConstants';
+import { decodeName } from '../userName';
+import { DLOBNode, DLOBNodeType, TriggerOrderNode } from './DLOBNode';
+import { DriftClient } from '../driftClient';
+import {
+	calculateOrderBaseAssetAmount,
 	getLimitPrice,
-	getVariant,
-	isFallbackAvailableLiquiditySource,
-	isOneOfVariant,
 	isOrderExpired,
 	isRestingLimitOrder,
 	isTriggered,
-	isUserProtectedMaker,
+	mustBeTriggered,
+} from '../math/orders';
+import {
+	getVariant,
+	isOneOfVariant,
 	isVariant,
 	MarketType,
 	MarketTypeStr,
-	mustBeTriggered,
-	OraclePriceData,
 	Order,
 	PerpMarketAccount,
 	PositionDirection,
-	PRICE_PRECISION,
 	ProtectedMakerParams,
-	ProtectMakerParamsMap,
-	QUOTE_PRECISION,
-	SlotSubscriber,
 	SpotMarketAccount,
 	StateAccount,
-	TriggerOrderNode,
-	UserMap,
-	ZERO,
-} from '..';
+} from '../types';
+import { isUserProtectedMaker } from '../math/userStatus';
+import { OraclePriceData } from '../oracles/types';
+import { ProtectMakerParamsMap } from './types';
+import { SlotSubscriber } from '../slot/SlotSubscriber';
+import { UserMap } from '../userMap/userMap';
 import { PublicKey } from '@solana/web3.js';
 import { ammPaused, exchangePaused, fillPaused } from '../math/exchangeStatus';
 import {
@@ -46,6 +47,8 @@ import {
 	L3OrderBook,
 	mergeL2LevelGenerators,
 } from './orderBookLevels';
+import { isFallbackAvailableLiquiditySource } from '../math/auction';
+import { convertToNumber } from '../math/conversion';
 
 export type DLOBOrder = { user: PublicKey; order: Order };
 export type DLOBOrders = DLOBOrder[];
@@ -178,7 +181,26 @@ export class DLOB {
 			const protectedMaker = isUserProtectedMaker(userAccount);
 
 			for (const order of userAccount.orders) {
-				this.insertOrder(order, userAccountPubkeyString, slot, protectedMaker);
+				let baseAssetAmount = order.baseAssetAmount;
+				if (order.reduceOnly) {
+					const existingBaseAmount =
+						userAccount.perpPositions.find(
+							(pos) =>
+								pos.marketIndex === order.marketIndex && pos.openOrders > 0
+						)?.baseAssetAmount || ZERO;
+					baseAssetAmount = calculateOrderBaseAssetAmount(
+						order,
+						existingBaseAmount
+					);
+				}
+
+				this.insertOrder(
+					order,
+					userAccountPubkeyString,
+					slot,
+					protectedMaker,
+					baseAssetAmount
+				);
 			}
 		}
 
@@ -191,6 +213,7 @@ export class DLOB {
 		userAccount: string,
 		slot: number,
 		isUserProtectedMaker: boolean,
+		baseAssetAmount: BN,
 		onInsert?: OrderBookCallback
 	): void {
 		if (!isVariant(order.status, 'open')) {
@@ -218,7 +241,8 @@ export class DLOB {
 			marketType,
 			userAccount,
 			isUserProtectedMaker,
-			this.protectedMakerParamsMap[marketType].get(order.marketIndex)
+			this.protectedMakerParamsMap[marketType].get(order.marketIndex),
+			baseAssetAmount
 		);
 
 		if (onInsert) {
@@ -230,6 +254,7 @@ export class DLOB {
 		order: Order,
 		userAccount: string,
 		isUserProtectedMaker: boolean,
+		baseAssetAmount?: BN,
 		onInsert?: OrderBookCallback
 	): void {
 		const marketType = getVariant(order.marketType) as MarketTypeStr;
@@ -249,7 +274,8 @@ export class DLOB {
 				marketType,
 				userAccount,
 				isUserProtectedMaker,
-				this.protectedMakerParamsMap[marketType].get(order.marketIndex)
+				this.protectedMakerParamsMap[marketType].get(order.marketIndex),
+				baseAssetAmount
 			);
 		if (onInsert) {
 			onInsert();
@@ -1556,7 +1582,7 @@ export class DLOB {
 	public findNodesToTrigger(
 		marketIndex: number,
 		slot: number,
-		oraclePrice: BN,
+		triggerPrice: BN,
 		marketType: MarketType,
 		stateAccount: StateAccount
 	): NodeToTrigger[] {
@@ -1573,7 +1599,7 @@ export class DLOB {
 			: undefined;
 		if (triggerAboveList) {
 			for (const node of triggerAboveList.getGenerator()) {
-				if (oraclePrice.gt(node.order.triggerPrice)) {
+				if (triggerPrice.gt(node.order.triggerPrice)) {
 					nodesToTrigger.push({
 						node: node,
 					});
@@ -1588,7 +1614,7 @@ export class DLOB {
 			: undefined;
 		if (triggerBelowList) {
 			for (const node of triggerBelowList.getGenerator()) {
-				if (oraclePrice.lt(node.order.triggerPrice)) {
+				if (triggerPrice.lt(node.order.triggerPrice)) {
 					nodesToTrigger.push({
 						node: node,
 					});

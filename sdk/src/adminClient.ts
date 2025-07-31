@@ -4552,27 +4552,61 @@ export class AdminClient extends DriftClient {
 		});
 	}
 
-	public async zeroAmmFieldsPrepMmOracleInfo(
+	public async zeroMMOracleFields(
 		marketIndex: number
 	): Promise<TransactionSignature> {
-		const zeroAmmFieldsPrepMmOracleInfoIx =
-			await this.getZeroAmmFieldsPrepMmOracleInfoIx(marketIndex);
+		const zeroMMOracleFieldsIx = await this.getZeroMMOracleFieldsIx(
+			marketIndex
+		);
 
-		const tx = await this.buildTransaction(zeroAmmFieldsPrepMmOracleInfoIx);
-
+		const tx = await this.buildTransaction(zeroMMOracleFieldsIx);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
 		return txSig;
 	}
 
-	public async getZeroAmmFieldsPrepMmOracleInfoIx(
+	public async getZeroMMOracleFieldsIx(
 		marketIndex: number
 	): Promise<TransactionInstruction> {
-		return await this.program.instruction.zeroAmmFieldsPrepMmOracleInfo({
+		return await this.program.instruction.zeroMmOracleFields({
 			accounts: {
-				admin: this.wallet.publicKey,
-				perpMarket: this.getPerpMarketAccount(marketIndex).pubkey,
+				admin: this.isSubscribed
+					? this.getStateAccount().admin
+					: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				perpMarket: await getPerpMarketPublicKey(
+					this.program.programId,
+					marketIndex
+				),
 			},
 		});
+	}
+
+	public async updateFeatureBitFlagsMMOracle(
+		enable: boolean
+	): Promise<TransactionSignature> {
+		const updateFeatureBitFlagsMMOracleIx =
+			await this.getUpdateFeatureBitFlagsMMOracleIx(enable);
+
+		const tx = await this.buildTransaction(updateFeatureBitFlagsMMOracleIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateFeatureBitFlagsMMOracleIx(
+		enable: boolean
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateFeatureBitFlagsMmOracle(
+			enable,
+			{
+				accounts: {
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
 	}
 }

@@ -1,9 +1,9 @@
+import { BN } from '@coral-xyz/anchor';
+import { User } from '../user';
+import { DriftClient } from '../driftClient';
 import {
-	User,
-	DriftClient,
 	UserAccount,
 	OrderRecord,
-	WrappedEvent,
 	DepositRecord,
 	FundingPaymentRecord,
 	LiquidationRecord,
@@ -12,14 +12,13 @@ import {
 	NewUserRecord,
 	LPRecord,
 	StateAccount,
-	DLOB,
-	BN,
-	UserSubscriptionConfig,
-	DataAndSlot,
-	OneShotUserAccountSubscriber,
-	ProtectMakerParamsMap,
-	UserEvents,
-} from '..';
+} from '../types';
+import { WrappedEvent } from '../events/types';
+import { DLOB } from '../dlob/DLOB';
+import { UserSubscriptionConfig } from '../userConfig';
+import { DataAndSlot, UserEvents } from '../accounts/types';
+import { OneShotUserAccountSubscriber } from '../accounts/oneShotUserAccountSubscriber';
+import { ProtectMakerParamsMap } from '../dlob/types';
 
 import {
 	Commitment,
