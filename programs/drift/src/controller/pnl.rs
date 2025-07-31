@@ -17,9 +17,7 @@ use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 
 use crate::math::casting::Cast;
 use crate::math::margin::{
-    calculate_margin_requirement_and_total_collateral_and_liability_info,
     meets_maintenance_margin_requirement, meets_settle_pnl_maintenance_margin_requirement,
-    MarginRequirementType,
 };
 use crate::math::position::calculate_base_asset_value_with_expiry_price;
 use crate::math::safe_math::SafeMath;
@@ -83,11 +81,7 @@ pub fn settle_pnl(
 
     // cannot settle negative pnl this way on a user who is in liquidation territory
     if unrealized_pnl < 0 {
-        let isolated_position_market_index = if user.perp_positions[position_index].is_isolated() {
-            Some(market_index)
-        } else {
-            None
-        };
+        let isolated_position_market_index = user.perp_positions[position_index].is_isolated().then_some(market_index);
 
         // may already be cached
         let meets_margin_requirement = match meets_margin_requirement {

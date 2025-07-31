@@ -115,6 +115,7 @@ pub fn place_perp_order(
             spot_market_map,
             oracle_map,
             state.liquidation_margin_buffer_ratio,
+            Some(params.market_index),
         )?;
     }
 
@@ -1047,6 +1048,7 @@ pub fn fill_perp_order(
             spot_market_map,
             oracle_map,
             state.liquidation_margin_buffer_ratio,
+            Some(market_index),
         ) {
             Ok(_) => {}
             Err(_) => {
@@ -1737,6 +1739,8 @@ fn fulfill_perp_order(
     let user_order_position_decreasing =
         determine_if_user_order_is_position_decreasing(user, market_index, user_order_index)?;
 
+    let user_is_isolated_position = user.get_perp_position(market_index)?.is_isolated();
+
     let perp_market = perp_market_map.get_ref(&market_index)?;
     let limit_price = fill_mode.get_limit_price(
         &user.orders[user_order_index],
@@ -1772,7 +1776,7 @@ fn fulfill_perp_order(
 
     let mut base_asset_amount = 0_u64;
     let mut quote_asset_amount = 0_u64;
-    let mut maker_fills: BTreeMap<Pubkey, i64> = BTreeMap::new();
+    let mut maker_fills: BTreeMap<Pubkey, (i64, bool)> = BTreeMap::new();
     let maker_direction = user.orders[user_order_index].direction.opposite();
     for fulfillment_method in fulfillment_methods.iter() {
         if user.orders[user_order_index].status != OrderStatus::Open {
@@ -1849,6 +1853,8 @@ fn fulfill_perp_order(
                     Some(&maker),
                 )?;
 
+                let maker_is_isolated_position = maker.get_perp_position(market_index)?.is_isolated();
+
                 let (fill_base_asset_amount, fill_quote_asset_amount, maker_fill_base_asset_amount) =
                     fulfill_perp_order_with_match(
                         market.deref_mut(),
@@ -1882,6 +1888,7 @@ fn fulfill_perp_order(
                         maker_key,
                         maker_direction,
                         maker_fill_base_asset_amount,
+                        maker_is_isolated_position,
                     )?;
                 }
 
@@ -1904,7 +1911,7 @@ fn fulfill_perp_order(
         quote_asset_amount
     )?;
 
-    let total_maker_fill = maker_fills.values().sum::<i64>();
+    let total_maker_fill = maker_fills.values().map(|(fill, _)| fill).sum::<i64>();
 
     validate!(
         total_maker_fill.unsigned_abs() <= base_asset_amount,
@@ -1934,6 +1941,10 @@ fn fulfill_perp_order(
             context = context.margin_ratio_override(MARGIN_PRECISION);
         }
 
+        if user_is_isolated_position {
+            context = context.isolated_position_market_index(market_index);
+        }
+
         let taker_margin_calculation =
             calculate_margin_requirement_and_total_collateral_and_liability_info(
                 user,
@@ -1961,7 +1972,7 @@ fn fulfill_perp_order(
         }
     }
 
-    for (maker_key, maker_base_asset_amount_filled) in maker_fills {
+    for (maker_key, (maker_base_asset_amount_filled, maker_is_isolated_position)) in maker_fills {
         let mut maker = makers_and_referrer.get_ref_mut(&maker_key)?;
 
         let maker_stats = if maker.authority == user.authority {
@@ -1990,6 +2001,10 @@ fn fulfill_perp_order(
             if maker_risk_increasing {
                 context = context.margin_ratio_override(MARGIN_PRECISION);
             }
+        }
+
+        if maker_is_isolated_position {
+            context = context.isolated_position_market_index(market_index);
         }
 
         let maker_margin_calculation =
@@ -2060,20 +2075,21 @@ fn get_referrer<'a>(
 
 #[inline(always)]
 fn update_maker_fills_map(
-    map: &mut BTreeMap<Pubkey, i64>,
+    map: &mut BTreeMap<Pubkey, (i64, bool)>,
     maker_key: &Pubkey,
     maker_direction: PositionDirection,
     fill: u64,
+    is_isolated_position: bool,
 ) -> DriftResult {
     let signed_fill = match maker_direction {
         PositionDirection::Long => fill.cast::<i64>()?,
         PositionDirection::Short => -fill.cast::<i64>()?,
     };
 
-    if let Some(maker_filled) = map.get_mut(maker_key) {
+    if let Some((maker_filled, _)) = map.get_mut(maker_key) {
         *maker_filled = maker_filled.safe_add(signed_fill)?;
     } else {
-        map.insert(*maker_key, signed_fill);
+        map.insert(*maker_key, (signed_fill, is_isolated_position));
     }
 
     Ok(())
@@ -2958,6 +2974,7 @@ pub fn trigger_order(
         spot_market_map,
         oracle_map,
         state.liquidation_margin_buffer_ratio,
+        Some(market_index),
     )?;
 
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
@@ -3381,6 +3398,7 @@ pub fn place_spot_order(
         spot_market_map,
         oracle_map,
         state.liquidation_margin_buffer_ratio,
+        None,
     )?;
 
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
@@ -3725,6 +3743,7 @@ pub fn fill_spot_order(
         spot_market_map,
         oracle_map,
         state.liquidation_margin_buffer_ratio,
+        None,
     ) {
         Ok(_) => {}
         Err(_) => {
@@ -4241,7 +4260,7 @@ fn fulfill_spot_order(
 
     let mut base_asset_amount = 0_u64;
     let mut quote_asset_amount = 0_u64;
-    let mut maker_fills: BTreeMap<Pubkey, i64> = BTreeMap::new();
+    let mut maker_fills: BTreeMap<Pubkey, (i64, bool)> = BTreeMap::new();
     let maker_direction = user.orders[user_order_index].direction.opposite();
     for fulfillment_method in fulfillment_methods.iter() {
         if user.orders[user_order_index].status != OrderStatus::Open {
@@ -4283,6 +4302,7 @@ fn fulfill_spot_order(
                         maker_key,
                         maker_direction,
                         base_filled,
+                        false,
                     )?;
                 }
 
@@ -5205,6 +5225,7 @@ pub fn trigger_spot_order(
         spot_market_map,
         oracle_map,
         state.liquidation_margin_buffer_ratio,
+        None,
     )?;
 
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;

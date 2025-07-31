@@ -845,6 +845,13 @@ pub fn calculate_max_perp_order_size(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
 ) -> DriftResult<u64> {
+    let is_isolated_position = user.perp_positions[position_index].is_isolated();
+    let mut margin_context = MarginContext::standard(MarginRequirementType::Initial).strict(true);
+
+    if is_isolated_position {
+        margin_context = margin_context.isolated_position_market_index(user.perp_positions[position_index].market_index);
+    }
+
     // calculate initial margin requirement
     let MarginCalculation {
         margin_requirement,
@@ -855,7 +862,7 @@ pub fn calculate_max_perp_order_size(
         perp_market_map,
         spot_market_map,
         oracle_map,
-        MarginContext::standard(MarginRequirementType::Initial).strict(true),
+        margin_context,
     )?;
 
     let user_custom_margin_ratio = user.max_margin_ratio;

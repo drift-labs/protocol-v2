@@ -1731,12 +1731,16 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
     let (
         from_existing_quote_entry_amount,
         from_existing_base_asset_amount,
+        from_user_is_isolated_position,
         to_existing_quote_entry_amount,
         to_existing_base_asset_amount,
+        to_user_is_isolated_position,
     ) = {
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
         let from_user_position = from_user.force_get_perp_position_mut(market_index)?;
+
+        let from_user_is_isolated_position = from_user_position.is_isolated();
 
         let (from_existing_quote_entry_amount, from_existing_base_asset_amount) =
             calculate_existing_position_fields_for_order_action(
@@ -1748,6 +1752,8 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         update_position_and_market(from_user_position, &mut market, &from_user_position_delta)?;
 
         let to_user_position = to_user.force_get_perp_position_mut(market_index)?;
+
+        let to_user_is_isolated_position = to_user_position.is_isolated();
 
         let (to_existing_quote_entry_amount, to_existing_base_asset_amount) =
             calculate_existing_position_fields_for_order_action(
@@ -1764,10 +1770,19 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         (
             from_existing_quote_entry_amount,
             from_existing_base_asset_amount,
+            from_user_is_isolated_position,
             to_existing_quote_entry_amount,
             to_existing_base_asset_amount,
+            to_user_is_isolated_position,
         )
     };
+
+    let mut from_user_margin_context = MarginContext::standard(MarginRequirementType::Maintenance)
+        .fuel_perp_delta(market_index, transfer_amount);
+
+    if from_user_is_isolated_position {
+        from_user_margin_context = from_user_margin_context.isolated_position_market_index(market_index);
+    }
 
     let from_user_margin_calculation =
         calculate_margin_requirement_and_total_collateral_and_liability_info(
@@ -1775,8 +1790,7 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Maintenance)
-                .fuel_perp_delta(market_index, transfer_amount),
+            from_user_margin_context,
         )?;
 
     validate!(
@@ -1785,14 +1799,20 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         "from user margin requirement is greater than total collateral"
     )?;
 
+    let mut to_user_margin_context = MarginContext::standard(MarginRequirementType::Initial)
+        .fuel_perp_delta(market_index, -transfer_amount);
+
+    if to_user_is_isolated_position {
+        to_user_margin_context = to_user_margin_context.isolated_position_market_index(market_index);
+    }
+
     let to_user_margin_requirement =
         calculate_margin_requirement_and_total_collateral_and_liability_info(
             &to_user,
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial)
-                .fuel_perp_delta(market_index, -transfer_amount),
+            to_user_margin_context,
         )?;
 
     validate!(
@@ -3813,6 +3833,7 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
         &spot_market_map,
         &mut oracle_map,
         ctx.accounts.state.liquidation_margin_buffer_ratio,
+        None,
     )?;
 
     let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;

@@ -1,4 +1,6 @@
 use std::cell::RefMut;
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::convert::TryFrom;
 
 use anchor_lang::prelude::*;
@@ -2721,34 +2723,58 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
     let custom_margin_ratio_before = user.max_margin_ratio;
     user.max_margin_ratio = 0;
 
+    let margin_buffer= MARGIN_PRECISION / 100; // 1% buffer
     let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
         &user,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
         MarginContext::standard(MarginRequirementType::Initial)
-            .margin_buffer(MARGIN_PRECISION / 100), // 1% buffer
+            .margin_buffer(margin_buffer),
     )?;
+
+    let meets_cross_margin_margin_calc = margin_calc.meets_margin_requirement_with_buffer();
+
+    let isolated_position_market_indexes = user.perp_positions.iter().filter(|p| p.is_isolated()).map(|p| p.market_index).collect::<Vec<_>>();
+
+    let mut isolated_position_margin_calcs : BTreeMap<u16, bool> = BTreeMap::new();
+
+    for market_index in isolated_position_market_indexes {
+        let isolated_position_margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Initial)
+                .margin_buffer(margin_buffer)
+                .isolated_position_market_index(market_index),
+        )?;
+
+        isolated_position_margin_calcs.insert(market_index, isolated_position_margin_calc.meets_margin_requirement_with_buffer());
+    }
 
     user.max_margin_ratio = custom_margin_ratio_before;
 
-    if margin_calc.num_perp_liabilities > 0 {
-        let mut requires_invariant_check = false;
-
+    if margin_calc.num_perp_liabilities > 0 || isolated_position_margin_calcs.len() > 0 {
         for position in user.perp_positions.iter().filter(|p| !p.is_available()) {
             let perp_market = perp_market_map.get_ref(&position.market_index)?;
             if perp_market.is_high_leverage_mode_enabled() {
-                requires_invariant_check = true;
-                break; // Exit early if invariant check is required
+                if position.is_isolated() {
+                    let meets_isolated_position_margin_calc = isolated_position_margin_calcs.get(&position.market_index).unwrap();
+                    validate!(
+                        *meets_isolated_position_margin_calc,
+                        ErrorCode::DefaultError,
+                        "User does not meet margin requirement with buffer for isolated position (market index = {})",
+                        position.market_index
+                    )?;
+                } else {
+                    validate!(
+                        meets_cross_margin_margin_calc,
+                        ErrorCode::DefaultError,
+                        "User does not meet margin requirement with buffer"
+                    )?;
+                }
             }
-        }
-
-        if requires_invariant_check {
-            validate!(
-                margin_calc.meets_margin_requirement_with_buffer(),
-                ErrorCode::DefaultError,
-                "User does not meet margin requirement with buffer"
-            )?;
         }
     }
 
