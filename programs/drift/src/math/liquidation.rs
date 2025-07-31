@@ -224,18 +224,36 @@ pub fn validate_user_not_being_liquidated(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     liquidation_margin_buffer_ratio: u32,
+    perp_market_index: Option<u16>,
 ) -> DriftResult {
     if !user.is_being_liquidated() {
         return Ok(());
     }
 
-    let is_still_being_liquidated = is_user_being_liquidated(
-        user,
-        market_map,
-        spot_market_map,
-        oracle_map,
-        liquidation_margin_buffer_ratio,
-    )?;
+    let is_isolated_perp_market = if let Some(perp_market_index) = perp_market_index {
+        user.force_get_perp_position_mut(perp_market_index)?.is_isolated()
+    } else {
+        false
+    };
+
+    let is_still_being_liquidated = if is_isolated_perp_market {
+        is_isolated_position_being_liquidated(
+            user,
+            market_map,
+            spot_market_map,
+            oracle_map,
+            perp_market_index.unwrap(),
+            liquidation_margin_buffer_ratio,
+        )?
+    } else {
+        is_user_being_liquidated(
+            user,
+            market_map,
+            spot_market_map,
+            oracle_map,
+            liquidation_margin_buffer_ratio,
+        )?
+    };
 
     if is_still_being_liquidated {
         return Err(ErrorCode::UserIsBeingLiquidated);
@@ -244,6 +262,27 @@ pub fn validate_user_not_being_liquidated(
     }
 
     Ok(())
+}
+
+pub fn is_isolated_position_being_liquidated(
+    user: &User,
+    market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    perp_market_index: u16,
+    liquidation_margin_buffer_ratio: u32,
+) -> DriftResult<bool> {
+    let margin_calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
+        user,
+        market_map,
+        spot_market_map,
+        oracle_map,
+        MarginContext::liquidation(liquidation_margin_buffer_ratio).isolated_position_market_index(perp_market_index),
+    )?;
+
+    let is_being_liquidated = !margin_calculation.can_exit_liquidation()?;
+
+    Ok(is_being_liquidated)
 }
 
 pub enum LiquidationMultiplierType {

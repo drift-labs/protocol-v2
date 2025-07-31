@@ -17,9 +17,7 @@ use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 
 use crate::math::casting::Cast;
 use crate::math::margin::{
-    calculate_margin_requirement_and_total_collateral_and_liability_info,
     meets_maintenance_margin_requirement, meets_settle_pnl_maintenance_margin_requirement,
-    MarginRequirementType,
 };
 use crate::math::position::calculate_base_asset_value_with_expiry_price;
 use crate::math::safe_math::SafeMath;
@@ -83,14 +81,18 @@ pub fn settle_pnl(
 
     // cannot settle negative pnl this way on a user who is in liquidation territory
     if unrealized_pnl < 0 {
+        let isolated_position_market_index = user.perp_positions[position_index].is_isolated().then_some(market_index);
+
         // may already be cached
         let meets_margin_requirement = match meets_margin_requirement {
-            Some(meets_margin_requirement) => meets_margin_requirement,
-            None => meets_settle_pnl_maintenance_margin_requirement(
+            Some(meets_margin_requirement) if !isolated_position_market_index.is_some() => meets_margin_requirement,
+            // TODO check margin for isolate position
+            _ => meets_settle_pnl_maintenance_margin_requirement(
                 user,
                 perp_market_map,
                 spot_market_map,
                 oracle_map,
+                isolated_position_market_index,
             )?,
         };
 
@@ -268,17 +270,43 @@ pub fn settle_pnl(
         );
     }
 
-    update_spot_balances(
-        pnl_to_settle_with_user.unsigned_abs(),
-        if pnl_to_settle_with_user > 0 {
-            &SpotBalanceType::Deposit
-        } else {
-            &SpotBalanceType::Borrow
-        },
-        spot_market,
-        user.get_quote_spot_position_mut(),
-        false,
-    )?;
+    if user.perp_positions[position_index].is_isolated() {
+        let perp_position = &mut user.perp_positions[position_index];
+        if pnl_to_settle_with_user < 0 {
+            let token_amount = perp_position.get_isolated_position_token_amount(spot_market)?;
+
+            validate!(
+                token_amount >= pnl_to_settle_with_user.unsigned_abs(),
+                ErrorCode::InsufficientCollateralForSettlingPNL,
+                "user has insufficient deposit for market {}",
+                market_index
+            )?;
+        }
+
+        update_spot_balances(
+            pnl_to_settle_with_user.unsigned_abs(),
+            if pnl_to_settle_with_user > 0 {
+                &SpotBalanceType::Deposit
+            } else {
+                &SpotBalanceType::Borrow
+            },
+            spot_market,
+            perp_position,
+            false,
+        )?;
+    } else {
+        update_spot_balances(
+            pnl_to_settle_with_user.unsigned_abs(),
+            if pnl_to_settle_with_user > 0 {
+                &SpotBalanceType::Deposit
+            } else {
+                &SpotBalanceType::Borrow
+            },
+            spot_market,
+            user.get_quote_spot_position_mut(),
+            false,
+        )?;
+    }
 
     update_quote_asset_amount(
         &mut user.perp_positions[position_index],
@@ -324,8 +352,14 @@ pub fn settle_expired_position(
 ) -> DriftResult {
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
+    let isolated_position_market_index = if user.get_perp_position(perp_market_index)?.is_isolated() {
+        Some(perp_market_index)
+    } else {
+        None
+    };
+
     // cannot settle pnl this way on a user who is in liquidation territory
-    if !(meets_maintenance_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?)
+    if !(meets_maintenance_margin_requirement(user, perp_market_map, spot_market_map, oracle_map, isolated_position_market_index)?)
     {
         return Err(ErrorCode::InsufficientCollateralForSettlingPNL);
     }
@@ -359,6 +393,7 @@ pub fn settle_expired_position(
         Some(MarketType::Perp),
         Some(perp_market_index),
         None,
+        true,
     )?;
 
     let position_index = match get_position_index(&user.perp_positions, perp_market_index) {
