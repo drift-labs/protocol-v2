@@ -304,7 +304,7 @@ jobs:
           VERSION: ${{ needs.release.outputs.version }}
         working-directory: ./sdk
   check-for-program-version-changes:
-    runs-on: ubuntu-latest
+    runs-on: ubicloud
     # Set job outputs to values from filter step
     outputs:
       program: ${{ steps.filter.outputs.program }}
