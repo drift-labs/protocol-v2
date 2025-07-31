@@ -150,7 +150,10 @@ export class User {
 				}
 			);
 		} else {
-			if (config.accountSubscription?.type === 'websocket' && config.accountSubscription?.programUserAccountSubscriber) {
+			if (
+				config.accountSubscription?.type === 'websocket' &&
+				config.accountSubscription?.programUserAccountSubscriber
+			) {
 				this.accountSubscriber = new WebSocketProgramUserAccountSubscriber(
 					config.driftClient.program,
 					config.userAccountPublicKey,

@@ -81,15 +81,6 @@ export type DriftClientSubscriptionConfig =
 				commitment?: Commitment
 			) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>;
 			programUserAccountSubscriber?: WebSocketProgramAccountSubscriber<UserAccount>;
-			perpMarketAccountSubscriber?: new (
-				accountName: string,
-				program: Program,
-				accountPublicKey: PublicKey,
-				decodeBuffer?: (buffer: Buffer) => any,
-				resubOpts?: ResubOpts,
-				commitment?: Commitment
-			) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>;
-			programUserAccountSubscriber?: WebSocketProgramAccountSubscriber<UserAccount>;
 	  }
 	| {
 			type: 'polling';

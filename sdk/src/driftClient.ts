@@ -137,7 +137,6 @@ import { decodeName, DEFAULT_USER_NAME, encodeName } from './userName';
 import { MMOraclePriceData, OraclePriceData } from './oracles/types';
 import { DriftClientConfig } from './driftClientConfig';
 import { PollingDriftClientAccountSubscriber } from './accounts/pollingDriftClientAccountSubscriber';
-import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDriftClientAccountSubscriber';
 import { RetryTxSender } from './tx/retryTxSender';
 import { User } from './user';
 import { UserSubscriptionConfig } from './userConfig';
@@ -372,7 +371,8 @@ export class DriftClient {
 				resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
 				logResubMessages: config.accountSubscription?.logResubMessages,
 				commitment: config.accountSubscription?.commitment,
-				programUserAccountSubscriber: config.accountSubscription?.programUserAccountSubscriber,
+				programUserAccountSubscriber:
+					config.accountSubscription?.programUserAccountSubscriber,
 			};
 			this.userStatsAccountSubscriptionConfig = {
 				type: 'websocket',
@@ -450,8 +450,6 @@ export class DriftClient {
 					logResubMessages: config.accountSubscription?.logResubMessages,
 				},
 				config.accountSubscription?.commitment,
-				config.accountSubscription?.perpMarketAccountSubscriber,
-				config.accountSubscription?.oracleAccountSubscriber
 			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
@@ -612,7 +610,8 @@ export class DriftClient {
 	public getSpotMarketAccount(
 		marketIndex: number
 	): SpotMarketAccount | undefined {
-		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex)?.data;
+		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex)
+			?.data;
 	}
 
 	/**
@@ -623,7 +622,8 @@ export class DriftClient {
 		marketIndex: number
 	): Promise<SpotMarketAccount | undefined> {
 		await this.accountSubscriber.fetch();
-		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex)?.data;
+		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex)
+			?.data;
 	}
 
 	public getSpotMarketAccounts(): SpotMarketAccount[] {
@@ -932,8 +932,6 @@ export class DriftClient {
 		authority?: PublicKey,
 		userAccount?: UserAccount
 	): Promise<boolean> {
-
-		
 		authority = authority ?? this.authority;
 		const userKey = this.getUserMapKey(subAccountId, authority);
 
