@@ -4,7 +4,6 @@ import { BulkAccountLoader } from './accounts/bulkAccountLoader';
 import { GrpcConfigs, UserAccountSubscriber } from './accounts/types';
 import { WebSocketProgramAccountSubscriber } from './accounts/webSocketProgramAccountSubscriber';
 import { UserAccount } from '@drift-labs/sdk';
-import { WebSocketProgramUserAccountSubscriber } from './accounts/websocketProgramUserAccountSubscriber';
 
 export type UserConfig = {
 	accountSubscription?: UserSubscriptionConfig;

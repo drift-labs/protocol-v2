@@ -1,22 +1,22 @@
 import {
 	DataAndSlot,
-	AccountSubscriber,
 	NotSubscribedError,
 	UserAccountEvents,
 	UserAccountSubscriber,
-	ResubOpts,
 } from './types';
 import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
-import { Commitment, Context, PublicKey } from '@solana/web3.js';
+import { Context, PublicKey } from '@solana/web3.js';
 import { WebSocketProgramAccountSubscriber } from './webSocketProgramAccountSubscriber';
 import { UserAccount } from '../types';
 
-export class WebSocketProgramUserAccountSubscriber implements UserAccountSubscriber {
+export class WebSocketProgramUserAccountSubscriber
+	implements UserAccountSubscriber
+{
 	isSubscribed: boolean;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserAccountEvents>;
-	
+
 	private userAccountPublicKey: PublicKey;
 	private program: Program;
 	private programSubscriber: WebSocketProgramAccountSubscriber<UserAccount>;
