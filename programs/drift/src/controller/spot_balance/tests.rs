@@ -1743,12 +1743,18 @@ fn check_usdc_spot_market_twap() {
     );
 
     let wa_res =
-        calculate_weighted_average(PRICE_PRECISION_I64, PRICE_PRECISION_I64, 0, ONE_HOUR).unwrap();
+        calculate_weighted_average(PRICE_PRECISION_I64, PRICE_PRECISION_I64, 0, ONE_HOUR, None)
+            .unwrap();
 
     assert_eq!(wa_res, PRICE_PRECISION_I64);
-    let wa_res2 =
-        calculate_weighted_average(PRICE_PRECISION_I64, PRICE_PRECISION_I64 + 1, 0, ONE_HOUR)
-            .unwrap();
+    let wa_res2 = calculate_weighted_average(
+        PRICE_PRECISION_I64,
+        PRICE_PRECISION_I64 + 1,
+        0,
+        ONE_HOUR,
+        None,
+    )
+    .unwrap();
     assert_eq!(wa_res2, PRICE_PRECISION_I64 + 1);
 
     assert_eq!(

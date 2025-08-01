@@ -2446,13 +2446,9 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
         msg!("skipping mark twap update for disabled amm prediction market");
         return Ok(());
     }
-
-    msg!(
-        "before amm bid twap = {} ask twap = {} ts = {}",
-        perp_market.amm.last_bid_price_twap,
-        perp_market.amm.last_ask_price_twap,
-        perp_market.amm.last_mark_price_twap_ts
-    );
+    let before_bid_price_twap = perp_market.amm.last_bid_price_twap;
+    let before_ask_price_twap = perp_market.amm.last_ask_price_twap;
+    let before_mark_twap_ts = perp_market.amm.last_mark_price_twap_ts;
 
     let sanitize_clamp_denominator = perp_market.get_sanitize_clamp_denominator()?;
     math::amm::update_mark_twap_crank(
@@ -2465,11 +2461,32 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
     )?;
 
     msg!(
-        "after amm bid twap = {} ask twap = {} ts = {}",
+        "after amm bid twap = {} -> {} 
+        ask twap = {} -> {} 
+        ts = {} -> {}",
+        before_bid_price_twap,
         perp_market.amm.last_bid_price_twap,
+        before_ask_price_twap,
         perp_market.amm.last_ask_price_twap,
+        before_mark_twap_ts,
         perp_market.amm.last_mark_price_twap_ts
     );
+
+    if perp_market.amm.last_bid_price_twap == before_bid_price_twap
+        || perp_market.amm.last_ask_price_twap == before_ask_price_twap
+    {
+        validate!(
+            perp_market
+                .amm
+                .last_mark_price_twap_ts
+                .safe_sub(before_mark_twap_ts)?
+                >= 60
+                || estimated_bid.unwrap_or(0) == before_bid_price_twap
+                || estimated_ask.unwrap_or(0) == before_ask_price_twap,
+            ErrorCode::CantUpdatePerpBidAskTwap,
+            "bid or ask twap unchanged from small ts delta update",
+        )?;
+    }
 
     let funding_paused =
         state.funding_paused()? || perp_market.is_operation_paused(PerpOperation::UpdateFunding);
