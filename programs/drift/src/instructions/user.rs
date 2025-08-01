@@ -54,6 +54,13 @@ use crate::optional_accounts::{get_token_interface, get_token_mint};
 use crate::print_error;
 use crate::safe_decrement;
 use crate::safe_increment;
+use crate::state::builder::BuilderInfo;
+use crate::state::builder::RevenueShare;
+use crate::state::builder::RevenueShareEscrow;
+use crate::state::builder::RevenueShareOrder;
+use crate::state::builder::RevenueSharePosition;
+use crate::state::builder::REVENUE_SHARE_ESCROW_PDA_SEED;
+use crate::state::builder::REVENUE_SHARE_PDA_SEED;
 use crate::state::events::emit_stack;
 use crate::state::events::OrderAction;
 use crate::state::events::OrderActionRecord;
@@ -489,6 +496,119 @@ pub fn handle_reset_fuel_season<'c: 'info, 'info>(
     };
 
     user_stats.reset_fuel();
+
+    Ok(())
+}
+
+pub fn handle_initialize_revenue_share<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, InitializeRevenueShare<'info>>,
+    num_positions: u16,
+) -> Result<()> {
+    let revenue_share = &mut ctx.accounts.revenue_share;
+    revenue_share.authority = ctx.accounts.authority.key();
+    revenue_share
+        .positions
+        .resize_with(num_positions as usize, RevenueSharePosition::default);
+    revenue_share.validate()?;
+    Ok(())
+}
+
+pub fn handle_resize_revenue_share<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, ResizeRevenueShare<'info>>,
+    num_positions: u16,
+) -> Result<()> {
+    let revenue_share = &mut ctx.accounts.revenue_share;
+    validate!(
+        num_positions as usize >= revenue_share.positions.len(),
+        ErrorCode::InvalidRevenueShareResize,
+        "Invalid shrinking resize for revenue share"
+    )?;
+
+    msg!(
+        "Resizing revenue share positions: {} -> {} positions",
+        revenue_share.positions.len(),
+        num_positions
+    );
+
+    revenue_share
+        .positions
+        .resize_with(num_positions as usize, RevenueSharePosition::default);
+    revenue_share.validate()?;
+    Ok(())
+}
+
+pub fn handle_initialize_revenue_share_escrow<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, InitializeRevenueShareEscrow<'info>>,
+    num_orders: u16,
+) -> Result<()> {
+    let revenue_share_escrow = &mut ctx.accounts.revenue_share_escrow;
+    revenue_share_escrow.authority = ctx.accounts.authority.key();
+    revenue_share_escrow
+        .orders
+        .resize_with(num_orders as usize, RevenueShareOrder::default);
+    revenue_share_escrow.validate()?;
+    Ok(())
+}
+
+pub fn handle_resize_revenue_share_escrow_orders<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, ResizeRevenueShareEscrowOrders<'info>>,
+    num_orders: u16,
+) -> Result<()> {
+    let revenue_share_escrow = &mut ctx.accounts.revenue_share_escrow;
+    validate!(
+        num_orders as usize >= revenue_share_escrow.orders.len(),
+        ErrorCode::InvalidRevenueShareResize,
+        "Invalid shrinking resize for revenue share escrow"
+    )?;
+
+    revenue_share_escrow
+        .orders
+        .resize_with(num_orders as usize, RevenueShareOrder::default);
+    revenue_share_escrow.validate()?;
+    Ok(())
+}
+
+pub fn handle_change_approved_builder<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, ChangeApprovedBuilder<'info>>,
+    builder: Pubkey,
+    max_fee_bps: u16,
+    add: bool,
+) -> Result<()> {
+    if add {
+        let existing_builder_index = ctx
+            .accounts
+            .revenue_share_escrow
+            .approved_builders
+            .iter()
+            .position(|b| b.authority == builder);
+        if let Some(index) = existing_builder_index {
+            ctx.accounts.revenue_share_escrow.approved_builders[index].max_fee_bps = max_fee_bps;
+            msg!(
+                "Updated builder: {} with max fee bps: {}",
+                builder,
+                max_fee_bps
+            );
+        } else {
+            ctx.accounts
+                .revenue_share_escrow
+                .approved_builders
+                .push(BuilderInfo {
+                    authority: builder,
+                    max_fee_bps,
+                });
+            msg!(
+                "Added builder: {} with max fee bps: {}",
+                builder,
+                max_fee_bps
+            );
+        }
+    } else {
+        ctx.accounts
+            .revenue_share_escrow
+            .approved_builders
+            .retain(|&b| b.authority != builder);
+        msg!("Removed builder: {}", builder);
+    }
 
     Ok(())
 }
@@ -4783,4 +4903,101 @@ pub struct UpdateUserProtectedMakerMode<'info> {
     pub authority: Signer<'info>,
     #[account(mut)]
     pub protected_maker_mode_config: AccountLoader<'info, ProtectedMakerModeConfig>,
+}
+
+#[derive(Accounts)]
+#[instruction(num_positions: u16)]
+pub struct InitializeRevenueShare<'info> {
+    #[account(
+        init,
+        seeds = [REVENUE_SHARE_PDA_SEED.as_ref(), authority.key().as_ref()],
+        space = RevenueShare::space(num_positions as usize),
+        bump,
+        payer = payer
+    )]
+    pub revenue_share: Box<Account<'info, RevenueShare>>,
+    /// CHECK: The builder and/or referrer authority, beneficiary of revenue share
+    pub authority: Signer<'info>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(num_positions: u16)]
+pub struct ResizeRevenueShare<'info> {
+    #[account(
+        mut,
+        seeds = [REVENUE_SHARE_PDA_SEED.as_ref(), authority.key().as_ref()],
+        bump,
+        realloc = RevenueShare::space(num_positions as usize),
+        realloc::payer = payer,
+        realloc::zero = false,
+        has_one = authority
+    )]
+    pub revenue_share: Box<Account<'info, RevenueShare>>,
+    /// CHECK: The owner of RevenueShare
+    pub authority: AccountInfo<'info>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(num_orders: u16)]
+pub struct InitializeRevenueShareEscrow<'info> {
+    #[account(
+        init,
+        seeds = [REVENUE_SHARE_ESCROW_PDA_SEED.as_ref(), authority.key().as_ref()],
+        space = RevenueShareEscrow::space(num_orders as usize, 0),
+        bump,
+        payer = payer
+    )]
+    pub revenue_share_escrow: Box<Account<'info, RevenueShareEscrow>>,
+    /// CHECK: The auth owning this account, payer of revenue share
+    pub authority: Signer<'info>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(num_orders: u16)]
+pub struct ResizeRevenueShareEscrowOrders<'info> {
+    #[account(
+        mut,
+        seeds = [REVENUE_SHARE_ESCROW_PDA_SEED.as_ref(), authority.key().as_ref()],
+        bump,
+        realloc = RevenueShareEscrow::space(num_orders as usize, revenue_share_escrow.approved_builders.len()),
+        realloc::payer = payer,
+        realloc::zero = false,
+        has_one = authority
+    )]
+    pub revenue_share_escrow: Box<Account<'info, RevenueShareEscrow>>,
+    /// CHECK: The owner of RevenueShareEscrow
+    pub authority: AccountInfo<'info>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(builder: Pubkey, max_fee_bps: u16, add: bool)]
+pub struct ChangeApprovedBuilder<'info> {
+    #[account(
+        mut,
+        seeds = [REVENUE_SHARE_ESCROW_PDA_SEED.as_ref(), authority.key().as_ref()],
+        bump,
+        realloc = RevenueShareEscrow::space(revenue_share_escrow.orders.len(), if add { revenue_share_escrow.approved_builders.len() + 1 } else { revenue_share_escrow.approved_builders.len() - 1 }),
+        realloc::payer = payer,
+        realloc::zero = false,
+        has_one = authority
+    )]
+    pub revenue_share_escrow: Box<Account<'info, RevenueShareEscrow>>,
+    pub authority: Signer<'info>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub system_program: Program<'info, System>,
 }

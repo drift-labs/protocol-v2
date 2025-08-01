@@ -1,3 +1,4 @@
+pub mod builder;
 pub mod events;
 pub mod fill_mode;
 pub mod fulfillment;
@@ -25,3 +26,4 @@ pub mod state;
 pub mod traits;
 pub mod user;
 pub mod user_map;
+pub mod zero_copy;

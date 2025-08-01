@@ -639,6 +639,10 @@ pub enum ErrorCode {
     InvalidIfRebalanceConfig,
     #[msg("Invalid If Rebalance Swap")]
     InvalidIfRebalanceSwap,
+    #[msg("Invalid RevenueShare resize")]
+    InvalidRevenueShareResize,
+    #[msg("Invalid builder approval")]
+    InvalidBuilderApproval,
 }
 
 #[macro_export]

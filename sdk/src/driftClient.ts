@@ -112,6 +112,8 @@ import {
 	getUserStatsAccountPublicKey,
 	getSignedMsgWsDelegatesAccountPublicKey,
 	getIfRebalanceConfigPublicKey,
+	getRevenueShareAccountPublicKey,
+	getRevenueShareEscrowAccountPublicKey,
 } from './addresses/pda';
 import {
 	DataAndSlot,
@@ -1222,6 +1224,173 @@ export class DriftClient {
 			}
 		);
 		return ix;
+	}
+
+	public async initializeRevenueShare(
+		authority: PublicKey,
+		numPositions: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const ix = await this.getInitializeRevenueShareIx(authority, numPositions);
+		const tx = await this.buildTransaction([ix], txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getInitializeRevenueShareIx(
+		authority: PublicKey,
+		numPositions: number
+	): Promise<TransactionInstruction> {
+		const revenueShare = getRevenueShareAccountPublicKey(
+			this.program.programId,
+			authority
+		);
+		return this.program.instruction.initializeRevenueShare(numPositions, {
+			accounts: {
+				revenueShare,
+				authority,
+				payer: this.wallet.publicKey,
+				rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+				systemProgram: anchor.web3.SystemProgram.programId,
+			},
+		});
+	}
+
+	public async resizeRevenueShare(
+		authority: PublicKey,
+		numPositions: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const ix = await this.getResizeRevenueShareIx(authority, numPositions);
+		const tx = await this.buildTransaction([ix], txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getResizeRevenueShareIx(
+		authority: PublicKey,
+		numPositions: number
+	): Promise<TransactionInstruction> {
+		const revenueShare = getRevenueShareAccountPublicKey(
+			this.program.programId,
+			authority
+		);
+		return this.program.instruction.resizeRevenueShare(numPositions, {
+			accounts: {
+				revenueShare,
+				authority,
+				payer: this.wallet.publicKey,
+				systemProgram: anchor.web3.SystemProgram.programId,
+			},
+		});
+	}
+
+	public async initializeRevenueShareEscrow(
+		authority: PublicKey,
+		numOrders: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const ix = await this.getInitializeRevenueShareEscrowIx(
+			authority,
+			numOrders
+		);
+		const tx = await this.buildTransaction([ix], txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getInitializeRevenueShareEscrowIx(
+		authority: PublicKey,
+		numOrders: number
+	): Promise<TransactionInstruction> {
+		const revenueShareEscrow = getRevenueShareEscrowAccountPublicKey(
+			this.program.programId,
+			authority
+		);
+		return this.program.instruction.initializeRevenueShareEscrow(numOrders, {
+			accounts: {
+				revenueShareEscrow,
+				authority,
+				payer: this.wallet.publicKey,
+				rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+				systemProgram: anchor.web3.SystemProgram.programId,
+			},
+		});
+	}
+
+	public async resizeRevenueShareEscrowOrders(
+		authority: PublicKey,
+		numOrders: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const ix = await this.getResizeRevenueShareEscrowOrdersIx(
+			authority,
+			numOrders
+		);
+		const tx = await this.buildTransaction([ix], txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getResizeRevenueShareEscrowOrdersIx(
+		authority: PublicKey,
+		numOrders: number
+	): Promise<TransactionInstruction> {
+		const revenueShareEscrow = getRevenueShareEscrowAccountPublicKey(
+			this.program.programId,
+			authority
+		);
+		return this.program.instruction.resizeRevenueShareEscrowOrders(numOrders, {
+			accounts: {
+				revenueShareEscrow,
+				authority,
+				payer: this.wallet.publicKey,
+				systemProgram: anchor.web3.SystemProgram.programId,
+			},
+		});
+	}
+
+	public async changeApprovedBuilder(
+		authority: PublicKey,
+		builder: PublicKey,
+		maxFeeBps: number,
+		add: boolean,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const ix = await this.getChangeApprovedBuilderIx(
+			authority,
+			builder,
+			maxFeeBps,
+			add
+		);
+		const tx = await this.buildTransaction([ix], txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getChangeApprovedBuilderIx(
+		authority: PublicKey,
+		builder: PublicKey,
+		maxFeeBps: number,
+		add: boolean
+	): Promise<TransactionInstruction> {
+		const revenueShareEscrow = getRevenueShareEscrowAccountPublicKey(
+			this.program.programId,
+			authority
+		);
+		return this.program.instruction.changeApprovedBuilder(
+			builder,
+			maxFeeBps,
+			add,
+			{
+				accounts: {
+					revenueShareEscrow,
+					authority,
+					payer: this.wallet.publicKey,
+					systemProgram: anchor.web3.SystemProgram.programId,
+				},
+			}
+		);
 	}
 
 	public async addSignedMsgWsDelegate(

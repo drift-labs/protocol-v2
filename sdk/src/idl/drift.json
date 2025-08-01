@@ -7576,9 +7576,269 @@
         }
       ],
       "args": []
+    },
+    {
+      "name": "updateFeatureBitFlagsMedianTriggerPrice",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "enable",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "initializeRevenueShare",
+      "accounts": [
+        {
+          "name": "revenueShare",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "numPositions",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "resizeRevenueShare",
+      "accounts": [
+        {
+          "name": "revenueShare",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "numPositions",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "initializeRevenueShareEscrow",
+      "accounts": [
+        {
+          "name": "revenueShareEscrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "numOrders",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "resizeRevenueShareEscrowOrders",
+      "accounts": [
+        {
+          "name": "revenueShareEscrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "numOrders",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "changeApprovedBuilder",
+      "accounts": [
+        {
+          "name": "revenueShareEscrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "builder",
+          "type": "publicKey"
+        },
+        {
+          "name": "maxFeeBps",
+          "type": "u16"
+        },
+        {
+          "name": "add",
+          "type": "bool"
+        }
+      ]
     }
   ],
   "accounts": [
+    {
+      "name": "RevenueShare",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "docs": [
+              "the owner of this account, a builder or referrer"
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "totalReferrerRewards",
+            "type": "i64"
+          },
+          {
+            "name": "totalBuilderRewards",
+            "type": "i64"
+          },
+          {
+            "name": "positions",
+            "type": {
+              "vec": {
+                "defined": "RevenueSharePosition"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "RevenueShareEscrow",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "docs": [
+              "the owner of this account, a user"
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "referrer",
+            "type": "publicKey"
+          },
+          {
+            "name": "orders",
+            "type": {
+              "vec": {
+                "defined": "RevenueShareOrder"
+              }
+            }
+          },
+          {
+            "name": "approvedBuilders",
+            "type": {
+              "vec": {
+                "defined": "BuilderInfo"
+              }
+            }
+          }
+        ]
+      }
+    },
     {
       "name": "OpenbookV2FulfillmentConfig",
       "type": {
@@ -9678,6 +9938,167 @@
       }
     },
     {
+      "name": "RevenueShareFixed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "totalReferrerRewards",
+            "type": "i64"
+          },
+          {
+            "name": "totalBuilderRewards",
+            "type": "i64"
+          },
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                4
+              ]
+            }
+          },
+          {
+            "name": "len",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RevenueSharePosition",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                5
+              ]
+            }
+          },
+          {
+            "name": "marketType",
+            "type": "u8"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RevenueShareOrder",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "beneficiary",
+            "docs": [
+              "set in place_order"
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "orderId",
+            "type": "u32"
+          },
+          {
+            "name": "feeBps",
+            "type": "u8"
+          },
+          {
+            "name": "marketType",
+            "type": "u8"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "feeAccrued",
+            "docs": [
+              "set in fill_order",
+              "u64 max fee is $18T, u32 is $4k",
+              "this gets sweeped into into the Builder's RevenueShare in settle_pnl"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "bitFlags",
+            "docs": [
+              "set in fill_order or cancel_order",
+              "some way to signal that the order was filled or canceled",
+              "if order is complete, then zero out after sweeping",
+              "* should this also signal if it's a referrer or builder rev share?"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                15
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "BuilderInfo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "maxFeeBps",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RevenueShareEscrowFixed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "referrer",
+            "type": "publicKey"
+          },
+          {
+            "name": "ordersLen",
+            "type": "u32"
+          },
+          {
+            "name": "approvedBuildersLen",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
       "name": "LiquidatePerpRecord",
       "type": {
         "kind": "struct",
@@ -11434,7 +11855,7 @@
           {
             "name": "openBids",
             "docs": [
-              "How many spot bids the user has open",
+              "How many spot non reduce only trigger orders the user has open",
               "precision: token mint precision"
             ],
             "type": "i64"
@@ -11442,7 +11863,7 @@
           {
             "name": "openAsks",
             "docs": [
-              "How many spot asks the user has open",
+              "How many spot non reduce only trigger orders the user has open",
               "precision: token mint precision"
             ],
             "type": "i64"
@@ -11541,7 +11962,7 @@
           {
             "name": "openBids",
             "docs": [
-              "The amount of open bids the user has in this perp market",
+              "The amount of non reduce only trigger orders the user has open",
               "precision: BASE_PRECISION"
             ],
             "type": "i64"
@@ -11549,7 +11970,7 @@
           {
             "name": "openAsks",
             "docs": [
-              "The amount of open asks the user has in this perp market",
+              "The amount of non reduce only trigger orders the user has open",
               "precision: BASE_PRECISION"
             ],
             "type": "i64"
@@ -12810,7 +13231,7 @@
             "name": "MmOracleUpdate"
           },
           {
-            "name": "EnableMedianTriggerPrice"
+            "name": "MedianTriggerPrice"
           }
         ]
       }
@@ -12942,6 +13363,9 @@
           },
           {
             "name": "SafeTriggerOrder"
+          },
+          {
+            "name": "NewTriggerReduceOnly"
           }
         ]
       }
@@ -13734,6 +14158,13 @@
         },
         {
           "name": "makerExistingBaseAssetAmount",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "triggerPrice",
           "type": {
             "option": "u64"
           },
@@ -16041,6 +16472,16 @@
       "code": 6316,
       "name": "InvalidIfRebalanceSwap",
       "msg": "Invalid If Rebalance Swap"
+    },
+    {
+      "code": 6317,
+      "name": "InvalidRevenueShareResize",
+      "msg": "Invalid RevenueShare resize"
+    },
+    {
+      "code": 6318,
+      "name": "InvalidBuilderApproval",
+      "msg": "Invalid builder approval"
     }
   ],
   "metadata": {

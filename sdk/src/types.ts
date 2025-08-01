@@ -1571,3 +1571,40 @@ export type SignedMsgUserOrdersAccount = {
 	authorityPubkey: PublicKey;
 	signedMsgOrderData: SignedMsgOrderId[];
 };
+
+export type RevenueShareAccount = {
+	authority: PublicKey;
+	totalReferrerRewards: BN;
+	totalBuilderRewards: BN;
+	positions: RevenueSharePosition[];
+};
+
+export type RevenueSharePosition = {
+	amount: BN;
+	padding: number[];
+	marketType: number; // 0: spot, 1: perp
+	marketIndex: number;
+};
+
+export type RevenueShareEscrow = {
+	authority: PublicKey;
+	referrer: PublicKey;
+	orders: RevenueShareOrder[];
+	approvedBuilders: BuilderInfo[];
+};
+
+export type RevenueShareOrder = {
+	beneficiary: PublicKey;
+	orderId: number;
+	feeBps: number;
+	marketType: number; // 0: spot, 1: perp
+	marketIndex: number;
+	feeAccrued: BN;
+	bitFlags: number;
+	padding: number[];
+};
+
+export type BuilderInfo = {
+	authority: PublicKey;
+	maxFeeBps: number;
+};
