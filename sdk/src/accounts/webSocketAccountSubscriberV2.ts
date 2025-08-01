@@ -93,6 +93,16 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 
 	private async handleNotificationLoop(subscription: AsyncIterable<any>) {
 		for await (const notification of subscription) {
+			// If we're currently polling and receive a WebSocket event, stop polling
+			if (this.pollingTimeoutId) {
+				if (this.resubOpts?.logResubMessages) {
+					console.log(
+						`[${this.logAccountName}] Received WebSocket event while polling, stopping polling`
+					);
+				}
+				this.stopPolling();
+			}
+
 			if (this.resubOpts?.resubTimeoutMs) {
 				this.receivingData = true;
 				clearTimeout(this.timeoutId);
