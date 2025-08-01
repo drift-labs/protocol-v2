@@ -3177,6 +3177,7 @@ pub mod validate_fill_price_within_price_bands {
             margin_ratio_initial,
             (PERCENTAGE_PRECISION / 2) as u64,
             false,
+            None,
         )
         .is_ok())
     }
@@ -3195,6 +3196,7 @@ pub mod validate_fill_price_within_price_bands {
             margin_ratio_initial,
             (PERCENTAGE_PRECISION / 2) as u64,
             false,
+            None,
         )
         .is_ok())
     }
@@ -3214,6 +3216,7 @@ pub mod validate_fill_price_within_price_bands {
             margin_ratio_initial,
             (PERCENTAGE_PRECISION / 2) as u64,
             false,
+            None,
         )
         .is_err())
     }
@@ -3233,6 +3236,7 @@ pub mod validate_fill_price_within_price_bands {
             margin_ratio_initial,
             (PERCENTAGE_PRECISION / 2) as u64,
             false,
+            None,
         )
         .is_err())
     }
@@ -3252,6 +3256,7 @@ pub mod validate_fill_price_within_price_bands {
             margin_ratio_initial,
             (PERCENTAGE_PRECISION / 2) as u64,
             false,
+            None,
         )
         .is_err())
     }
@@ -3271,6 +3276,7 @@ pub mod validate_fill_price_within_price_bands {
             margin_ratio_initial,
             (PERCENTAGE_PRECISION / 2) as u64,
             false,
+            None,
         )
         .is_err())
     }
@@ -3290,6 +3296,7 @@ pub mod validate_fill_price_within_price_bands {
             margin_ratio_initial,
             (PERCENTAGE_PRECISION / 2) as u64,
             false,
+            None,
         )
         .is_err())
     }
@@ -3309,6 +3316,7 @@ pub mod validate_fill_price_within_price_bands {
             margin_ratio_initial,
             (PERCENTAGE_PRECISION / 2) as u64,
             false,
+            None,
         )
         .is_err())
     }
