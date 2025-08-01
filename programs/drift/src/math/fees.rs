@@ -424,7 +424,7 @@ pub fn determine_user_fee_tier<'a>(
     match market_type {
         MarketType::Perp if user_high_leverage_mode => Ok(fee_structure.fee_tiers[0]),
         MarketType::Perp => determine_perp_fee_tier(user_stats, fee_structure),
-        MarketType::Spot => Ok(*determine_spot_fee_tier(user_stats, fee_structure).unwrap()),
+        MarketType::Spot => Ok(*determine_spot_fee_tier(user_stats, fee_structure)?),
     }
 }
 
@@ -476,7 +476,7 @@ fn determine_perp_fee_tier(
     let mut tier = fee_structure.fee_tiers[fee_tier_index];
 
     if stake_benefit > 0 {
-        if let Some(div_scalar ) = match stake_benefit {
+        if let Some(div_scalar) = match stake_benefit {
             5 => Some(20),
             10 => Some(10),
             20 => Some(5),
