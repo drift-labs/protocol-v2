@@ -476,15 +476,32 @@ fn determine_perp_fee_tier(
     let mut tier = fee_structure.fee_tiers[fee_tier_index];
 
     if stake_benefit > 0 {
-        tier.fee_numerator = tier
-            .fee_numerator
-            .safe_mul(100 - stake_benefit)?
-            .safe_div_ceil(100)?;
+        if let Some(div_scalar ) = match stake_benefit {
+            5 => Some(20),
+            10 => Some(10),
+            20 => Some(5),
+            _ => None,
+        } {
+            // Fast path for 5%, 10%, 20% using no mul
+            tier.fee_numerator = tier
+                .fee_numerator
+                .safe_sub(tier.fee_numerator.safe_div_ceil(div_scalar)?)?;
 
-        tier.maker_rebate_numerator = tier
-            .maker_rebate_numerator
-            .safe_mul(100 + stake_benefit)?
-            .safe_div(100)?;
+            tier.maker_rebate_numerator = tier
+                .maker_rebate_numerator
+                .safe_add(tier.maker_rebate_numerator.safe_div(div_scalar)?)?;
+        } else {
+            // General path with mul/div
+            tier.fee_numerator = tier
+                .fee_numerator
+                .safe_mul(100_u32.saturating_sub(stake_benefit))?
+                .safe_div_ceil(100_u32)?;
+
+            tier.maker_rebate_numerator = tier
+                .maker_rebate_numerator
+                .safe_mul(100_u32.saturating_add(stake_benefit))?
+                .safe_div(100_u32)?;
+        }
     }
 
     Ok(tier)

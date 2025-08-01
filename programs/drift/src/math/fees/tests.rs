@@ -920,15 +920,14 @@ mod calculate_fee_for_fulfillment_with_serum {
 
 mod calcuate_fee_tiers {
 
-
     use crate::math::constants::QUOTE_PRECISION_U64;
     use crate::math::constants::{
-    FEE_DENOMINATOR, FEE_PERCENTAGE_DENOMINATOR, MAX_REFERRER_REWARD_EPOCH_UPPER_BOUND,
-};
+        FEE_DENOMINATOR, FEE_PERCENTAGE_DENOMINATOR, MAX_REFERRER_REWARD_EPOCH_UPPER_BOUND,
+    };
     use crate::math::fees::{determine_user_fee_tier, OrderFillerRewardStructure};
-    use crate::state::state::{FeeTier, FeeStructure};
-    use crate::state::user::UserStats;
+    use crate::state::state::{FeeStructure, FeeTier};
     use crate::state::user::MarketType;
+    use crate::state::user::UserStats;
 
     #[test]
     fn test_calc_taker_tiers() {
@@ -987,7 +986,7 @@ mod calcuate_fee_tiers {
         };
         fee_tiers[5] = FeeTier {
             fee_numerator: 20,
-            fee_denominator: FEE_DENOMINATOR , // 2 bps
+            fee_denominator: FEE_DENOMINATOR, // 2 bps
             maker_rebate_numerator: 25,
             maker_rebate_denominator: FEE_DENOMINATOR * 10, // .25 bps
             referrer_reward_numerator: 10,
@@ -1006,17 +1005,19 @@ mod calcuate_fee_tiers {
             referrer_reward_epoch_upper_bound: MAX_REFERRER_REWARD_EPOCH_UPPER_BOUND,
         };
 
-        let res = determine_user_fee_tier(&taker_stats, &fee_structure, &MarketType::Perp, false).unwrap();
+        let res = determine_user_fee_tier(&taker_stats, &fee_structure, &MarketType::Perp, false)
+            .unwrap();
         assert_eq!(res.fee_numerator, 35);
         assert_eq!(res.fee_denominator, 100000);
 
         assert_eq!(res.maker_rebate_numerator, 25);
         assert_eq!(res.maker_rebate_denominator, 1000000);
 
-
         taker_stats.taker_volume_30d = 80_000_000 * QUOTE_PRECISION_U64;
 
-        let res: FeeTier = determine_user_fee_tier(&taker_stats, &fee_structure, &MarketType::Perp, false).unwrap();
+        let res: FeeTier =
+            determine_user_fee_tier(&taker_stats, &fee_structure, &MarketType::Perp, false)
+                .unwrap();
         assert_eq!(res.fee_numerator, 25);
         assert_eq!(res.fee_denominator, 100000);
 
@@ -1024,7 +1025,9 @@ mod calcuate_fee_tiers {
         assert_eq!(res.maker_rebate_denominator, 1000000);
 
         taker_stats.if_staked_gov_token_amount = 50_000 * QUOTE_PRECISION_U64 - 8970; // still counts for 50K tier
-        let res: FeeTier = determine_user_fee_tier(&taker_stats, &fee_structure, &MarketType::Perp, false).unwrap();
+        let res: FeeTier =
+            determine_user_fee_tier(&taker_stats, &fee_structure, &MarketType::Perp, false)
+                .unwrap();
 
         assert_eq!(res.fee_numerator, 20);
         assert_eq!(res.fee_denominator, 100000);
@@ -1032,9 +1035,10 @@ mod calcuate_fee_tiers {
         assert_eq!(res.maker_rebate_numerator, 30);
         assert_eq!(res.maker_rebate_denominator, 1000000);
 
-
         taker_stats.if_staked_gov_token_amount = 150_000 * QUOTE_PRECISION_U64 - 8970; // still counts for 100K tier
-        let res: FeeTier = determine_user_fee_tier(&taker_stats, &fee_structure, &MarketType::Perp, false).unwrap();
+        let res: FeeTier =
+            determine_user_fee_tier(&taker_stats, &fee_structure, &MarketType::Perp, false)
+                .unwrap();
 
         assert_eq!(res.fee_numerator, 18);
         assert_eq!(res.fee_denominator, 100000);
@@ -1042,9 +1046,10 @@ mod calcuate_fee_tiers {
         assert_eq!(res.maker_rebate_numerator, 32);
         assert_eq!(res.maker_rebate_denominator, 1000000);
 
-
         taker_stats.if_staked_gov_token_amount = 800_000 * QUOTE_PRECISION_U64;
-        let res: FeeTier = determine_user_fee_tier(&taker_stats, &fee_structure, &MarketType::Perp, false).unwrap();
+        let res: FeeTier =
+            determine_user_fee_tier(&taker_stats, &fee_structure, &MarketType::Perp, false)
+                .unwrap();
 
         assert_eq!(res.fee_numerator, 15);
         assert_eq!(res.fee_denominator, 100000);
@@ -1053,7 +1058,9 @@ mod calcuate_fee_tiers {
         assert_eq!(res.maker_rebate_denominator, 1000000);
 
         taker_stats.taker_volume_30d = 280_000_000 * QUOTE_PRECISION_U64;
-        let res: FeeTier = determine_user_fee_tier(&taker_stats, &fee_structure, &MarketType::Perp, false).unwrap();
+        let res: FeeTier =
+            determine_user_fee_tier(&taker_stats, &fee_structure, &MarketType::Perp, false)
+                .unwrap();
 
         assert_eq!(res.fee_numerator, 12);
         assert_eq!(res.fee_denominator, 100000);
@@ -1061,15 +1068,13 @@ mod calcuate_fee_tiers {
         assert_eq!(res.maker_rebate_numerator, 35);
         assert_eq!(res.maker_rebate_denominator, 1000000);
 
-
-        let res: FeeTier = determine_user_fee_tier(&taker_stats, &fee_structure, &MarketType::Perp, true).unwrap();
+        let res: FeeTier =
+            determine_user_fee_tier(&taker_stats, &fee_structure, &MarketType::Perp, true).unwrap();
 
         assert_eq!(res.fee_numerator, 35);
         assert_eq!(res.fee_denominator, 100000);
 
         assert_eq!(res.maker_rebate_numerator, 25);
         assert_eq!(res.maker_rebate_denominator, 1000000);
-
     }
-    
 }
