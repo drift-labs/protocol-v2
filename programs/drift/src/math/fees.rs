@@ -473,7 +473,7 @@ fn determine_perp_fee_tier(
 
     let stake_benefit = STAKE_BENEFIT_FRAC[stake_benefit_index];
 
-    let mut tier = fee_structure.fee_tiers[fee_tier_index].clone();
+    let mut tier = fee_structure.fee_tiers[fee_tier_index];
 
     if stake_benefit > 0 {
         tier.fee_numerator = tier

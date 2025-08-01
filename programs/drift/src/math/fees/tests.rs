@@ -925,7 +925,7 @@ mod calcuate_fee_tiers {
     use crate::math::constants::{
     FEE_DENOMINATOR, FEE_PERCENTAGE_DENOMINATOR, MAX_REFERRER_REWARD_EPOCH_UPPER_BOUND,
 };
-    use crate::math::fees::{determine_user_fee_tier, ExternalFillFees, OrderFillerRewardStructure};
+    use crate::math::fees::{determine_user_fee_tier, OrderFillerRewardStructure};
     use crate::state::state::{FeeTier, FeeStructure};
     use crate::state::user::UserStats;
     use crate::state::user::MarketType;
