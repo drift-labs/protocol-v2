@@ -9854,17 +9854,20 @@ export class DriftClient {
 			  })
 			: undefined;
 
-		const ix = await this.program.instruction.disableUserHighLeverageMode({
-			accounts: {
-				state: await this.getStatePublicKey(),
-				user,
-				authority: this.wallet.publicKey,
-				highLeverageModeConfig: getHighLeverageModeConfigPublicKey(
-					this.program.programId
-				),
-			},
-			remainingAccounts,
-		});
+		const ix = await this.program.instruction.disableUserHighLeverageMode(
+			false,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user,
+					authority: this.wallet.publicKey,
+					highLeverageModeConfig: getHighLeverageModeConfigPublicKey(
+						this.program.programId
+					),
+				},
+				remainingAccounts,
+			}
+		);
 
 		return ix;
 	}
