@@ -4357,14 +4357,24 @@ export class DriftClient {
 		});
 	}
 
+	/**
+	 * Sends a transaction to cancel the provided order ids.
+	 *
+	 * @param orderIds - The order ids to cancel.
+	 * @param txParams - The transaction parameters.
+	 * @param subAccountId - The sub account id to cancel the orders for.
+	 * @param user - The user to cancel the orders for. If provided, it will be prioritized over the subAccountId.
+	 * @returns The transaction signature.
+	 */
 	public async cancelOrdersByIds(
 		orderIds?: number[],
 		txParams?: TxParams,
-		subAccountId?: number
+		subAccountId?: number,
+		user?: User
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
-				await this.getCancelOrdersByIdsIx(orderIds, subAccountId),
+				await this.getCancelOrdersByIdsIx(orderIds, subAccountId, user),
 				txParams
 			),
 			[],
@@ -4373,21 +4383,34 @@ export class DriftClient {
 		return txSig;
 	}
 
+	/**
+	 * Returns the transaction instruction to cancel the provided order ids.
+	 *
+	 * @param orderIds - The order ids to cancel.
+	 * @param subAccountId - The sub account id to cancel the orders for.
+	 * @param user - The user to cancel the orders for. If provided, it will be prioritized over the subAccountId.
+	 * @returns The transaction instruction to cancel the orders.
+	 */
 	public async getCancelOrdersByIdsIx(
 		orderIds?: number[],
-		subAccountId?: number
+		subAccountId?: number,
+		user?: User
 	): Promise<TransactionInstruction> {
-		const user = await this.getUserAccountPublicKey(subAccountId);
+		const userAccountPubKey =
+			user?.userAccountPublicKey ??
+			(await this.getUserAccountPublicKey(subAccountId));
+		const userAccount =
+			user?.getUserAccount() ?? this.getUserAccount(subAccountId);
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount(subAccountId)],
+			userAccounts: [userAccount],
 			useMarketLastSlotCache: true,
 		});
 
 		return await this.program.instruction.cancelOrdersByIds(orderIds, {
 			accounts: {
 				state: await this.getStatePublicKey(),
-				user,
+				user: userAccountPubKey,
 				authority: this.wallet.publicKey,
 			},
 			remainingAccounts,
