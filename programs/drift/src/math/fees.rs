@@ -8,7 +8,7 @@ use crate::math::casting::Cast;
 use crate::math::constants::{
     FIFTY_MILLION_QUOTE, FIVE_MILLION_QUOTE, ONE_HUNDRED_MILLION_QUOTE, ONE_HUNDRED_THOUSAND_QUOTE,
     ONE_MILLION_QUOTE, ONE_THOUSAND_QUOTE, TEN_BPS, TEN_MILLION_QUOTE, TEN_THOUSAND_QUOTE,
-    TWENTY_FIVE_THOUSAND_QUOTE,
+    TWENTY_FIVE_THOUSAND_QUOTE, TWO_HUNDRED_FIFTY_THOUSAND_QUOTE,
 };
 use crate::math::helpers::get_proportion_u128;
 use crate::math::safe_math::SafeMath;
@@ -55,7 +55,7 @@ pub fn calculate_fee_for_fulfillment_with_amm(
 
     // if there was a quote_asset_amount_surplus, the order was a maker order and fee_to_market comes from surplus
     if is_post_only {
-        let maker_rebate = calculate_maker_rebate(quote_asset_amount, fee_tier, fee_adjustment)?;
+        let maker_rebate = calculate_maker_rebate(quote_asset_amount, &fee_tier, fee_adjustment)?;
 
         let fee = quote_asset_amount_surplus
             .cast::<u64>()?
@@ -94,7 +94,7 @@ pub fn calculate_fee_for_fulfillment_with_amm(
             referee_discount: 0,
         })
     } else {
-        let mut fee = calculate_taker_fee(quote_asset_amount, fee_tier, fee_adjustment)?;
+        let mut fee = calculate_taker_fee(quote_asset_amount, &fee_tier, fee_adjustment)?;
 
         if user_high_leverage_mode {
             fee = fee.safe_mul(2)?;
@@ -103,7 +103,7 @@ pub fn calculate_fee_for_fulfillment_with_amm(
         let (fee, referee_discount, referrer_reward) = if reward_referrer {
             calculate_referee_fee_and_referrer_reward(
                 fee,
-                fee_tier,
+                &fee_tier,
                 fee_structure.referrer_reward_epoch_upper_bound,
                 referrer_stats,
             )?
@@ -299,7 +299,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
         determine_user_fee_tier(taker_stats, fee_structure, market_type, false)?
     };
 
-    let mut taker_fee = calculate_taker_fee(quote_asset_amount, taker_fee_tier, fee_adjustment)?;
+    let mut taker_fee = calculate_taker_fee(quote_asset_amount, &taker_fee_tier, fee_adjustment)?;
 
     if user_high_leverage_mode {
         taker_fee = taker_fee.safe_mul(2)?;
@@ -308,7 +308,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
     let (taker_fee, referee_discount, referrer_reward) = if reward_referrer {
         calculate_referee_fee_and_referrer_reward(
             taker_fee,
-            taker_fee_tier,
+            &taker_fee_tier,
             fee_structure.referrer_reward_epoch_upper_bound,
             referrer_stats,
         )?
@@ -316,7 +316,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
         (taker_fee, 0, 0)
     };
 
-    let maker_rebate = calculate_maker_rebate(quote_asset_amount, maker_fee_tier, fee_adjustment)?;
+    let maker_rebate = calculate_maker_rebate(quote_asset_amount, &maker_fee_tier, fee_adjustment)?;
 
     let filler_reward = if filler_multiplier == 0 {
         0_u64
@@ -370,7 +370,7 @@ pub fn calculate_fee_for_fulfillment_with_external_market(
     let taker_fee_tier =
         determine_user_fee_tier(user_stats, fee_structure, &MarketType::Spot, false)?;
 
-    let fee = calculate_taker_fee(quote_asset_amount, taker_fee_tier, fee_adjustment)?;
+    let fee = calculate_taker_fee(quote_asset_amount, &taker_fee_tier, fee_adjustment)?;
 
     let fee_plus_referrer_rebate = external_market_fee.safe_add(unsettled_referrer_rebate)?;
 
@@ -420,52 +420,91 @@ pub fn determine_user_fee_tier<'a>(
     fee_structure: &'a FeeStructure,
     market_type: &MarketType,
     user_high_leverage_mode: bool,
-) -> DriftResult<&'a FeeTier> {
+) -> DriftResult<FeeTier> {
     match market_type {
-        MarketType::Perp if user_high_leverage_mode => Ok(&fee_structure.fee_tiers[0]),
+        MarketType::Perp if user_high_leverage_mode => Ok(fee_structure.fee_tiers[0]),
         MarketType::Perp => determine_perp_fee_tier(user_stats, fee_structure),
-        MarketType::Spot => determine_spot_fee_tier(user_stats, fee_structure),
+        MarketType::Spot => Ok(*determine_spot_fee_tier(user_stats, fee_structure)?),
     }
 }
 
-fn determine_perp_fee_tier<'a>(
+fn determine_perp_fee_tier(
     user_stats: &UserStats,
-    fee_structure: &'a FeeStructure,
-) -> DriftResult<&'a FeeTier> {
+    fee_structure: &FeeStructure,
+) -> DriftResult<FeeTier> {
     let total_30d_volume = user_stats.get_total_30d_volume()?;
     let staked_gov_token_amount = user_stats.if_staked_gov_token_amount;
 
-    if total_30d_volume >= ONE_HUNDRED_MILLION_QUOTE
-        || staked_gov_token_amount >= ONE_HUNDRED_THOUSAND_QUOTE + 19_500 * QUOTE_PRECISION_U64
-    {
-        return Ok(&fee_structure.fee_tiers[5]);
+    const TIER_LENGTH: usize = 5;
+
+    const VOLUME_THRESHOLDS: [u64; TIER_LENGTH] = [
+        ONE_MILLION_QUOTE * 2,
+        FIVE_MILLION_QUOTE * 2,
+        TEN_MILLION_QUOTE * 2,
+        FIFTY_MILLION_QUOTE * 2,
+        ONE_HUNDRED_MILLION_QUOTE * 2,
+    ];
+
+    const STAKE_THRESHOLDS: [u64; TIER_LENGTH] = [
+        ONE_THOUSAND_QUOTE - QUOTE_PRECISION_U64,
+        TEN_THOUSAND_QUOTE - QUOTE_PRECISION_U64,
+        (TWENTY_FIVE_THOUSAND_QUOTE * 2) - QUOTE_PRECISION_U64,
+        ONE_HUNDRED_THOUSAND_QUOTE - QUOTE_PRECISION_U64,
+        TWO_HUNDRED_FIFTY_THOUSAND_QUOTE - QUOTE_PRECISION_U64 * 5,
+    ];
+
+    const STAKE_BENEFIT_FRAC: [u32; TIER_LENGTH + 1] = [0, 5, 10, 20, 30, 40];
+
+    let mut fee_tier_index = TIER_LENGTH;
+    for i in 0..TIER_LENGTH {
+        if total_30d_volume < VOLUME_THRESHOLDS[i] {
+            fee_tier_index = i;
+            break;
+        }
     }
 
-    if total_30d_volume >= FIFTY_MILLION_QUOTE
-        || staked_gov_token_amount >= ONE_HUNDRED_THOUSAND_QUOTE - QUOTE_PRECISION_U64
-    {
-        return Ok(&fee_structure.fee_tiers[4]);
+    let mut stake_benefit_index = TIER_LENGTH;
+    for i in 0..TIER_LENGTH {
+        if staked_gov_token_amount < STAKE_THRESHOLDS[i] {
+            stake_benefit_index = i;
+            break;
+        }
     }
 
-    if total_30d_volume >= TEN_MILLION_QUOTE
-        || staked_gov_token_amount >= TWENTY_FIVE_THOUSAND_QUOTE * 2 - QUOTE_PRECISION_U64
-    {
-        return Ok(&fee_structure.fee_tiers[3]);
+    let stake_benefit = STAKE_BENEFIT_FRAC[stake_benefit_index];
+
+    let mut tier = fee_structure.fee_tiers[fee_tier_index];
+
+    if stake_benefit > 0 {
+        if let Some(div_scalar) = match stake_benefit {
+            5 => Some(20),
+            10 => Some(10),
+            20 => Some(5),
+            _ => None,
+        } {
+            // Fast path for 5%, 10%, 20% using no mul
+            tier.fee_numerator = tier
+                .fee_numerator
+                .saturating_sub(tier.fee_numerator.safe_div_ceil(div_scalar)?);
+
+            tier.maker_rebate_numerator = tier
+                .maker_rebate_numerator
+                .safe_add(tier.maker_rebate_numerator.safe_div(div_scalar)?)?;
+        } else {
+            // General path with mul/div
+            tier.fee_numerator = tier
+                .fee_numerator
+                .safe_mul(100_u32.saturating_sub(stake_benefit))?
+                .safe_div_ceil(100_u32)?;
+
+            tier.maker_rebate_numerator = tier
+                .maker_rebate_numerator
+                .safe_mul(100_u32.saturating_add(stake_benefit))?
+                .safe_div(100_u32)?;
+        }
     }
 
-    if total_30d_volume >= FIVE_MILLION_QUOTE
-        || staked_gov_token_amount >= TEN_THOUSAND_QUOTE - QUOTE_PRECISION_U64
-    {
-        return Ok(&fee_structure.fee_tiers[2]);
-    }
-
-    if total_30d_volume >= ONE_MILLION_QUOTE
-        || staked_gov_token_amount >= ONE_THOUSAND_QUOTE - QUOTE_PRECISION_U64
-    {
-        return Ok(&fee_structure.fee_tiers[1]);
-    }
-
-    Ok(&fee_structure.fee_tiers[0])
+    Ok(tier)
 }
 
 fn determine_spot_fee_tier<'a>(

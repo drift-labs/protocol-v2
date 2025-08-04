@@ -2164,7 +2164,7 @@ pub fn fulfill_perp_order_with_amm(
                 limit_price,
                 override_fill_price,
                 existing_base_asset_amount,
-                fee_tier,
+                &fee_tier,
             )?;
 
             let fill_price = if user.orders[order_index].post_only {
