@@ -4103,7 +4103,11 @@ pub fn fill_spot_order(
                 .oracle_guard_rails
                 .max_oracle_twap_5min_percent_divergence(),
             false,
-            Some(order_direction),
+            if fulfillment_params.is_external() {
+                Some(order_direction)
+            } else {
+                None
+            },
         )?;
     }
 
