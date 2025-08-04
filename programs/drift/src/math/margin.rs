@@ -6,7 +6,6 @@ use crate::math::constants::{
 };
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 
-use crate::state::margin_calculation::IsolatedPositionMarginCalculation;
 use crate::{validate, PRICE_PRECISION_I128};
 use crate::{validation, PRICE_PRECISION_I64};
 
@@ -711,34 +710,23 @@ pub fn meets_place_order_margin_requirement(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     risk_increasing: bool,
-    isolated_position_market_index: Option<u16>,
 ) -> DriftResult {
     let margin_type = if risk_increasing {
         MarginRequirementType::Initial
     } else {
         MarginRequirementType::Maintenance
     };
-    let context = MarginContext::standard(margin_type).strict(true);
-
-    if let Some(isolated_position_market_index) = isolated_position_market_index {
-        let context = context.isolated_position_market_index(isolated_position_market_index);
-    }
 
     let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
         user,
         perp_market_map,
         spot_market_map,
         oracle_map,
-        context,
+        MarginContext::standard(margin_type).strict(true),
     )?;
 
     if !calculation.meets_margin_requirement() {
-        msg!(
-            "total_collateral={}, margin_requirement={} margin type = {:?}",
-            calculation.total_collateral,
-            calculation.margin_requirement,
-            margin_type
-        );
+        calculation.print_margin_calculations();
         return Err(ErrorCode::InsufficientCollateral);
     }
 
@@ -752,20 +740,13 @@ pub fn meets_initial_margin_requirement(
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
-    isolated_position_market_index: Option<u16>,
 ) -> DriftResult<bool> {
-    let context = MarginContext::standard(MarginRequirementType::Initial);
-
-    if let Some(isolated_position_market_index) = isolated_position_market_index {
-        let context = context.isolated_position_market_index(isolated_position_market_index);
-    }
-
     calculate_margin_requirement_and_total_collateral_and_liability_info(
         user,
         perp_market_map,
         spot_market_map,
         oracle_map,
-        context,
+        MarginContext::standard(MarginRequirementType::Initial),
     )
     .map(|calc| calc.meets_margin_requirement())
 }
@@ -775,20 +756,13 @@ pub fn meets_settle_pnl_maintenance_margin_requirement(
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
-    isolated_position_market_index: Option<u16>,
 ) -> DriftResult<bool> {
-    let context = MarginContext::standard(MarginRequirementType::Maintenance).strict(true);
-
-    if let Some(isolated_position_market_index) = isolated_position_market_index {
-        let context = context.isolated_position_market_index(isolated_position_market_index);
-    }
-
     calculate_margin_requirement_and_total_collateral_and_liability_info(
         user,
         perp_market_map,
         spot_market_map,
         oracle_map,
-        context,
+        MarginContext::standard(MarginRequirementType::Maintenance).strict(true),
     )
     .map(|calc| calc.meets_margin_requirement())
 }

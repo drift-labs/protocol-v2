@@ -559,10 +559,8 @@ pub fn liquidate_perp(
         liquidation_mode.enter_bankruptcy(user);
     }
 
-    let liquidator_isolated_position_market_index = liquidator.get_perp_position(market_index)?.is_isolated().then_some(market_index);
-
     let liquidator_meets_initial_margin_requirement =
-        meets_initial_margin_requirement(liquidator, perp_market_map, spot_market_map, oracle_map, liquidator_isolated_position_market_index)?;
+        meets_initial_margin_requirement(liquidator, perp_market_map, spot_market_map, oracle_map)?;
 
     validate!(
         liquidator_meets_initial_margin_requirement,
@@ -2722,7 +2720,7 @@ pub fn liquidate_borrow_for_perp_pnl(
     }
 
     let liquidator_meets_initial_margin_requirement =
-        meets_initial_margin_requirement(liquidator, perp_market_map, spot_market_map, oracle_map, None)?;
+        meets_initial_margin_requirement(liquidator, perp_market_map, spot_market_map, oracle_map)?;
 
     validate!(
         liquidator_meets_initial_margin_requirement,
@@ -3207,10 +3205,8 @@ pub fn liquidate_perp_pnl_for_deposit(
         liquidation_mode.enter_bankruptcy(user)?;
     }
 
-    let liquidator_isolated_position_market_index = liquidator.get_perp_position(perp_market_index)?.is_isolated().then_some(perp_market_index);
-
     let liquidator_meets_initial_margin_requirement =
-        meets_initial_margin_requirement(liquidator, perp_market_map, spot_market_map, oracle_map, liquidator_isolated_position_market_index)?;
+        meets_initial_margin_requirement(liquidator, perp_market_map, spot_market_map, oracle_map)?;
 
     validate!(
         liquidator_meets_initial_margin_requirement,

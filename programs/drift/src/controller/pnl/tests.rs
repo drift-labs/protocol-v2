@@ -410,7 +410,6 @@ pub fn user_does_not_meet_strict_maintenance_requirement() {
         &market_map,
         &spot_market_map,
         &mut oracle_map,
-        None,
     )
     .unwrap();
 

@@ -357,21 +357,14 @@ pub fn place_perp_order(
 
     options.update_risk_increasing(risk_increasing);
 
-    let isolated_position_market_index = if user.perp_positions[position_index].is_isolated() {
-        Some(market_index)
-    } else {
-        None
-    };
-
     // when orders are placed in bulk, only need to check margin on last place
-    if (options.enforce_margin_check || isolated_position_market_index.is_some()) && !options.is_liquidation() {
+    if options.enforce_margin_check && !options.is_liquidation() {
         meets_place_order_margin_requirement(
             user,
             perp_market_map,
             spot_market_map,
             oracle_map,
             options.risk_increasing,
-            isolated_position_market_index,
         )?;
     }
 
@@ -3107,7 +3100,7 @@ pub fn trigger_order(
         };
 
         let meets_initial_margin_requirement =
-            meets_initial_margin_requirement(user, perp_market_map, spot_market_map, oracle_map, isolated_position_market_index)?;
+            meets_initial_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?;
 
         if !meets_initial_margin_requirement {
             cancel_order(
@@ -3611,7 +3604,6 @@ pub fn place_spot_order(
             spot_market_map,
             oracle_map,
             options.risk_increasing,
-            None,
         )?;
     }
 
@@ -5375,7 +5367,7 @@ pub fn trigger_spot_order(
     // If order is risk increasing and user is below initial margin, cancel it
     if is_risk_increasing && !user.orders[order_index].reduce_only {
         let meets_initial_margin_requirement =
-            meets_initial_margin_requirement(user, perp_market_map, spot_market_map, oracle_map, None)?;
+            meets_initial_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?;
 
         if !meets_initial_margin_requirement {
             cancel_order(

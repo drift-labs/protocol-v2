@@ -3536,7 +3536,7 @@ pub fn handle_update_user_pool_id<'c: 'info, 'info>(
     user.pool_id = pool_id;
 
     // will throw if user has deposits/positions in other pools
-    meets_initial_margin_requirement(&user, &perp_market_map, &spot_market_map, &mut oracle_map, None)?;
+    meets_initial_margin_requirement(&user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
 
     Ok(())
 }

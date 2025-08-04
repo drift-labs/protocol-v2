@@ -81,18 +81,15 @@ pub fn settle_pnl(
 
     // cannot settle negative pnl this way on a user who is in liquidation territory
     if unrealized_pnl < 0 {
-        let isolated_position_market_index = user.perp_positions[position_index].is_isolated().then_some(market_index);
-
         // may already be cached
         let meets_margin_requirement = match meets_margin_requirement {
-            Some(meets_margin_requirement) if !isolated_position_market_index.is_some() => meets_margin_requirement,
+            Some(meets_margin_requirement) => meets_margin_requirement,
             // TODO check margin for isolate position
             _ => meets_settle_pnl_maintenance_margin_requirement(
                 user,
                 perp_market_map,
                 spot_market_map,
                 oracle_map,
-                isolated_position_market_index,
             )?,
         };
 

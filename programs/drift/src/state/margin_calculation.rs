@@ -430,13 +430,11 @@ impl MarginCalculation {
         let cross_margin_meets_margin_requirement = self.total_collateral >= self.margin_requirement as i128;
 
         if !cross_margin_meets_margin_requirement {
-            msg!("cross margin margin calculation doesnt meet margin requirement");
             return false;
         }
 
         for (market_index, isolated_position_margin_calculation) in &self.isolated_position_margin_calculation {
             if !isolated_position_margin_calculation.meets_margin_requirement() {
-                msg!("isolated position margin calculation for market {} does not meet margin requirement", market_index);
                 return false;
             }
         }
@@ -448,18 +446,23 @@ impl MarginCalculation {
         let cross_margin_meets_margin_requirement = self.get_total_collateral_plus_buffer() >= self.margin_requirement_plus_buffer as i128;
 
         if !cross_margin_meets_margin_requirement {
-            msg!("cross margin margin calculation doesnt meet margin requirement with buffer");
             return false;
         }
 
         for (market_index, isolated_position_margin_calculation) in &self.isolated_position_margin_calculation {
             if !isolated_position_margin_calculation.meets_margin_requirement_with_buffer() {
-                msg!("isolated position margin calculation for market {} does not meet margin requirement with buffer", market_index);
                 return false;
             }
         }
         
         true
+    }
+
+    pub fn print_margin_calculations(&self) {
+        msg!("cross_margin margin_requirement={}, total_collateral={}", self.margin_requirement, self.total_collateral);
+        for (market_index, isolated_position_margin_calculation) in &self.isolated_position_margin_calculation {
+            msg!("isolated_position for market {}: margin_requirement={}, total_collateral={}", market_index, isolated_position_margin_calculation.margin_requirement, isolated_position_margin_calculation.total_collateral);
+        }
     }
 
     pub fn positions_meets_margin_requirement(&self) -> DriftResult<bool> {
