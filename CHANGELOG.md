@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.131.1] - 2025-08-04
+
+### Features
+
+### Fixes
+- program: update-fee-tier-validates ([#1798](https://github.com/drift-labs/protocol-v2/pull/1798))
+
+### Breaking
+
 ## [2.131.0] - 2025-08-04
 
 ### Features
