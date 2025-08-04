@@ -6993,7 +6993,7 @@ export class DriftClient {
 	}
 
 	/**
-	 * @param orderParams: The parameters for the order to modify. 
+	 * @param orderParams: The parameters for the order to modify.
 	 * @param subAccountId: Optional - The subaccount ID of the user to modify the order for.
 	 * @param userPublicKey: Optional - The public key of the user to modify the order for. This takes precedence over subAccountId.
 	 * @returns
@@ -7035,7 +7035,8 @@ export class DriftClient {
 		subAccountId?: number,
 		userPublicKey?: PublicKey
 	): Promise<TransactionInstruction> {
-		const user = userPublicKey ?? (await this.getUserAccountPublicKey(subAccountId));
+		const user =
+			userPublicKey ?? (await this.getUserAccountPublicKey(subAccountId));
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [this.getUserAccount(subAccountId)],
