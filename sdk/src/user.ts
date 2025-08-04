@@ -3509,34 +3509,52 @@ export class User {
 				userStatsAccount,
 				now
 			);
-
 			const stakedGovAssetAmount = userStatsAccount.ifStakedGovTokenAmount;
-			const volumeTiers = [
-				new BN(100_000_000).mul(QUOTE_PRECISION),
-				new BN(50_000_000).mul(QUOTE_PRECISION),
-				new BN(10_000_000).mul(QUOTE_PRECISION),
-				new BN(5_000_000).mul(QUOTE_PRECISION),
-				new BN(1_000_000).mul(QUOTE_PRECISION),
-			];
-			const stakedTiers = [
-				new BN(120000 - 1).mul(QUOTE_PRECISION),
-				new BN(100000 - 1).mul(QUOTE_PRECISION),
-				new BN(25000 - 1).mul(QUOTE_PRECISION),
-				new BN(10000 - 1).mul(QUOTE_PRECISION),
-				new BN(1000 - 1).mul(QUOTE_PRECISION),
-			];
 
-			for (let i = 0; i < volumeTiers.length; i++) {
-				if (
-					total30dVolume.gte(volumeTiers[i]) ||
-					stakedGovAssetAmount.gte(stakedTiers[i])
-				) {
-					feeTierIndex = 5 - i;
+			const volumeThresholds = [
+				new BN(2_000_000).mul(QUOTE_PRECISION),
+				new BN(10_000_000).mul(QUOTE_PRECISION),
+				new BN(20_000_000).mul(QUOTE_PRECISION),
+				new BN(100_000_000).mul(QUOTE_PRECISION),
+				new BN(200_000_000).mul(QUOTE_PRECISION),
+			];
+			const stakeThresholds = [
+				new BN(1_000 - 1).mul(QUOTE_PRECISION),
+				new BN(10_000 - 1).mul(QUOTE_PRECISION),
+				new BN(50_000 - 1).mul(QUOTE_PRECISION),
+				new BN(100_000 - 1).mul(QUOTE_PRECISION),
+				new BN(250_000 - 5).mul(QUOTE_PRECISION),
+			];
+			const stakeBenefitFrac = [0, 5, 10, 20, 30, 40];
+
+			let feeTierIndex = 5;
+			for (let i = 0; i < volumeThresholds.length; i++) {
+				if (total30dVolume.lt(volumeThresholds[i])) {
+					feeTierIndex = i;
 					break;
 				}
 			}
 
-			return state.perpFeeStructure.feeTiers[feeTierIndex];
+			let stakeBenefitIndex = 5;
+			for (let i = 0; i < stakeThresholds.length; i++) {
+				if (stakedGovAssetAmount.lt(stakeThresholds[i])) {
+					stakeBenefitIndex = i;
+					break;
+				}
+			}
+
+			const stakeBenefit = stakeBenefitFrac[stakeBenefitIndex];
+
+			let tier = { ...state.perpFeeStructure.feeTiers[feeTierIndex] };
+
+			if (stakeBenefit > 0) {
+				tier.feeNumerator = (tier.feeNumerator * (100 - stakeBenefit)) / 100;
+
+				tier.makerRebateNumerator =
+					(tier.makerRebateNumerator * (100 + stakeBenefit)) / 100;
+			}
+
+			return tier;
 		}
 
 		return state.spotFeeStructure.feeTiers[feeTierIndex];
