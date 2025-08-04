@@ -485,7 +485,7 @@ fn determine_perp_fee_tier(
             // Fast path for 5%, 10%, 20% using no mul
             tier.fee_numerator = tier
                 .fee_numerator
-                .safe_sub(tier.fee_numerator.safe_div_ceil(div_scalar)?)?;
+                .saturating_sub(tier.fee_numerator.safe_div_ceil(div_scalar)?);
 
             tier.maker_rebate_numerator = tier
                 .maker_rebate_numerator
