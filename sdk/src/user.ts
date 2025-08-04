@@ -3486,61 +3486,65 @@ export class User {
 
 		let feeTierIndex = 0;
 		if (isVariant(marketType, 'perp')) {
-		if (this.isHighLeverageMode('Initial')) {
-			return state.perpFeeStructure.feeTiers[0];
-		}
-
-		const userStatsAccount: UserStatsAccount = this.driftClient
-			.getUserStats()
-			.getAccount();
-
-		const total30dVolume = getUser30dRollingVolumeEstimate(userStatsAccount, now);
-		const stakedGovAssetAmount = userStatsAccount.ifStakedGovTokenAmount;
-
-		const volumeThresholds = [
-			new BN(2_000_000).mul(QUOTE_PRECISION),
-			new BN(10_000_000).mul(QUOTE_PRECISION),
-			new BN(20_000_000).mul(QUOTE_PRECISION),
-			new BN(100_000_000).mul(QUOTE_PRECISION),
-			new BN(200_000_000).mul(QUOTE_PRECISION),
-		];
-		const stakeThresholds = [
-			new BN(1_000 - 1).mul(QUOTE_PRECISION),
-			new BN(10_000 - 1).mul(QUOTE_PRECISION),
-			new BN(50_000 - 1).mul(QUOTE_PRECISION),
-			new BN(100_000 - 1).mul(QUOTE_PRECISION),
-			new BN(250_000 - 5).mul(QUOTE_PRECISION),
-		];
-		const stakeBenefitFrac = [0, 5, 10, 20, 30, 40];
-
-		let feeTierIndex = 5;
-		for (let i = 0; i < volumeThresholds.length; i++) {
-			if (total30dVolume.lt(volumeThresholds[i])) {
-				feeTierIndex = i;
-				break;
+			if (this.isHighLeverageMode('Initial')) {
+				return state.perpFeeStructure.feeTiers[0];
 			}
-		}
 
-		let stakeBenefitIndex = 5;
-		for (let i = 0; i < stakeThresholds.length; i++) {
-			if (stakedGovAssetAmount.lt(stakeThresholds[i])) {
-				stakeBenefitIndex = i;
-				break;
+			const userStatsAccount: UserStatsAccount = this.driftClient
+				.getUserStats()
+				.getAccount();
+
+			const total30dVolume = getUser30dRollingVolumeEstimate(
+				userStatsAccount,
+				now
+			);
+			const stakedGovAssetAmount = userStatsAccount.ifStakedGovTokenAmount;
+
+			const volumeThresholds = [
+				new BN(2_000_000).mul(QUOTE_PRECISION),
+				new BN(10_000_000).mul(QUOTE_PRECISION),
+				new BN(20_000_000).mul(QUOTE_PRECISION),
+				new BN(100_000_000).mul(QUOTE_PRECISION),
+				new BN(200_000_000).mul(QUOTE_PRECISION),
+			];
+			const stakeThresholds = [
+				new BN(1_000 - 1).mul(QUOTE_PRECISION),
+				new BN(10_000 - 1).mul(QUOTE_PRECISION),
+				new BN(50_000 - 1).mul(QUOTE_PRECISION),
+				new BN(100_000 - 1).mul(QUOTE_PRECISION),
+				new BN(250_000 - 5).mul(QUOTE_PRECISION),
+			];
+			const stakeBenefitFrac = [0, 5, 10, 20, 30, 40];
+
+			let feeTierIndex = 5;
+			for (let i = 0; i < volumeThresholds.length; i++) {
+				if (total30dVolume.lt(volumeThresholds[i])) {
+					feeTierIndex = i;
+					break;
+				}
 			}
+
+			let stakeBenefitIndex = 5;
+			for (let i = 0; i < stakeThresholds.length; i++) {
+				if (stakedGovAssetAmount.lt(stakeThresholds[i])) {
+					stakeBenefitIndex = i;
+					break;
+				}
+			}
+
+			const stakeBenefit = stakeBenefitFrac[stakeBenefitIndex];
+
+			let tier = { ...state.perpFeeStructure.feeTiers[feeTierIndex] };
+
+			if (stakeBenefit > 0) {
+				tier.feeNumerator = (tier.feeNumerator * (100 - stakeBenefit)) / 100;
+
+				tier.makerRebateNumerator =
+					(tier.makerRebateNumerator * (100 + stakeBenefit)) / 100;
+			}
+
+			return tier;
 		}
-
-		const stakeBenefit = stakeBenefitFrac[stakeBenefitIndex];
-
-		let tier = { ...state.perpFeeStructure.feeTiers[feeTierIndex] };
-
-		if (stakeBenefit > 0) {
-			tier.feeNumerator = tier.feeNumerator * (100 - stakeBenefit) / 100;
-
-			tier.makerRebateNumerator = tier.makerRebateNumerator * (100 + stakeBenefit) / 100;
-		}
-
-		return tier;
-	}
 
 		return state.spotFeeStructure.feeTiers[feeTierIndex];
 	}
