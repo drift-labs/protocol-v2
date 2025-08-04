@@ -5,12 +5,14 @@ use crate::math::safe_math::SafeMath;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::events::OrderActionExplanation;
 use crate::state::perp_market::{ContractTier, PerpMarket};
+use crate::state::traits::Size;
 use crate::state::user::{MarketType, OrderTriggerCondition, OrderType};
 use crate::{
     MAX_PREDICTION_MARKET_PRICE_I64, ONE_HUNDRED_THOUSAND_QUOTE, PERCENTAGE_PRECISION_I64,
     PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I64,
 };
 use anchor_lang::prelude::*;
+use anchor_lang::Discriminator;
 use borsh::{BorshDeserialize, BorshSerialize};
 use std::ops::Div;
 
@@ -866,6 +868,26 @@ pub struct SignedMsgOrderParamsMessage {
     pub stop_loss_order_params: Option<SignedMsgTriggerOrderParams>,
 }
 
+impl Discriminator for SignedMsgOrderParamsMessage {
+    const DISCRIMINATOR: [u8; 8] = [200, 213, 166, 94, 34, 52, 245, 93];
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
+pub struct SignedMsgOrderParamsWithBuilderMessage {
+    pub signed_msg_order_params: OrderParams,
+    pub sub_account_id: u16,
+    pub slot: u64,
+    pub uuid: [u8; 8],
+    pub take_profit_order_params: Option<SignedMsgTriggerOrderParams>,
+    pub stop_loss_order_params: Option<SignedMsgTriggerOrderParams>,
+    pub builder_idx: Option<u8>,
+    pub builder_fee: Option<u16>,
+}
+
+impl Discriminator for SignedMsgOrderParamsWithBuilderMessage {
+    const DISCRIMINATOR: [u8; 8] = [157, 106, 150, 102, 56, 204, 43, 146];
+}
+
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
 pub struct SignedMsgOrderParamsDelegateMessage {
     pub signed_msg_order_params: OrderParams,
@@ -874,6 +896,26 @@ pub struct SignedMsgOrderParamsDelegateMessage {
     pub uuid: [u8; 8],
     pub take_profit_order_params: Option<SignedMsgTriggerOrderParams>,
     pub stop_loss_order_params: Option<SignedMsgTriggerOrderParams>,
+}
+
+impl Discriminator for SignedMsgOrderParamsDelegateMessage {
+    const DISCRIMINATOR: [u8; 8] = [66, 101, 102, 56, 199, 37, 158, 35];
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
+pub struct SignedMsgOrderParamsDelegateWithBuilderMessage {
+    pub signed_msg_order_params: OrderParams,
+    pub taker_pubkey: Pubkey,
+    pub slot: u64,
+    pub uuid: [u8; 8],
+    pub take_profit_order_params: Option<SignedMsgTriggerOrderParams>,
+    pub stop_loss_order_params: Option<SignedMsgTriggerOrderParams>,
+    pub builder_idx: Option<u8>,
+    pub builder_fee: Option<u16>,
+}
+
+impl Discriminator for SignedMsgOrderParamsDelegateWithBuilderMessage {
+    const DISCRIMINATOR: [u8; 8] = [249, 154, 6, 118, 193, 105, 18, 151];
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]

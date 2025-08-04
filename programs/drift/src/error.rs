@@ -643,6 +643,12 @@ pub enum ErrorCode {
     InvalidRevenueShareResize,
     #[msg("Invalid builder approval")]
     InvalidBuilderApproval,
+    #[msg("Could not deserialize revenue share escrow")]
+    CouldNotDeserializeRevenueShareEscrow,
+    #[msg("Builder has been revoked")]
+    BuilderRevoked,
+    #[msg("Builder fee is greater than max fee bps")]
+    InvalidBuilderFee
 }
 
 #[macro_export]

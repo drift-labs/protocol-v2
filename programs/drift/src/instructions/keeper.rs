@@ -23,6 +23,7 @@ use crate::error::ErrorCode;
 use crate::ids::admin_hot_wallet;
 use crate::ids::{jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, serum_program};
 use crate::instructions::constraints::*;
+use crate::instructions::optional_accounts::get_revenue_escrow_account;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
@@ -32,6 +33,7 @@ use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::optional_accounts::{get_token_mint, update_prelaunch_oracle};
+use crate::state::builder::RevenueShareEscrowZeroCopyMut;
 use crate::state::events::{DeleteUserRecord, OrderActionExplanation, SignedMsgOrderRecord};
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
@@ -627,6 +629,7 @@ pub fn handle_place_signed_msg_taker_order<'c: 'info, 'info>(
     )?;
 
     let high_leverage_mode_config = get_high_leverage_mode_config(&mut remaining_accounts)?;
+    let revenue_escrow = get_revenue_escrow_account(&mut remaining_accounts)?;
 
     let taker_key = ctx.accounts.user.key();
     let mut taker = load_mut!(ctx.accounts.user)?;
@@ -642,6 +645,7 @@ pub fn handle_place_signed_msg_taker_order<'c: 'info, 'info>(
         &spot_market_map,
         &mut oracle_map,
         high_leverage_mode_config,
+        revenue_escrow,
         state,
         is_delegate_signer,
     )?;
@@ -658,6 +662,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     high_leverage_mode_config: Option<AccountLoader<HighLeverageModeConfig>>,
+    revenue_escrow: Option<RevenueShareEscrowZeroCopyMut<'info>>,
     state: &State,
     is_delegate_signer: bool,
 ) -> Result<()> {
@@ -685,6 +690,34 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
         &taker_order_params_message_bytes[..],
         is_delegate_signer,
     )?;
+
+    if verified_message_and_signature.builder_idx.is_some() && verified_message_and_signature.builder_fee.is_some() {
+        if let Some(mut revenue_escrow) = revenue_escrow {
+            let builder_idx = verified_message_and_signature.builder_idx.unwrap();
+            let builder_fee = verified_message_and_signature.builder_fee.unwrap();
+            
+            // Check authority before mutable borrow
+            validate!(
+                revenue_escrow.fixed.authority == taker.authority,
+                ErrorCode::InvalidUserAccount,
+                "RevenueShareEscrow account must be owned by taker",
+            )?;
+            
+            let builder = revenue_escrow.get_approved_builder_mut(builder_idx as u32)?;
+
+            if builder.is_revoked() {
+                return Err(ErrorCode::BuilderRevoked.into());
+            }
+
+            if builder_fee > builder.max_fee_bps {
+                msg!("Builder fee is greater than max fee bps");
+                return Err(ErrorCode::InvalidBuilderFee.into())
+            }
+        } else {
+            msg!("RevenueEscrow account must be provided if builder fields are present in OrderParams");
+            return Err(ErrorCode::InvalidSignedMsgOrderParam.into())
+        }
+    }
 
     if is_delegate_signer {
         validate!(

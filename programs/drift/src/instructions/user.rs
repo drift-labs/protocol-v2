@@ -54,6 +54,7 @@ use crate::optional_accounts::{get_token_interface, get_token_mint};
 use crate::print_error;
 use crate::safe_decrement;
 use crate::safe_increment;
+use crate::state::builder::BuilderBitFlag;
 use crate::state::builder::BuilderInfo;
 use crate::state::builder::RevenueShare;
 use crate::state::builder::RevenueShareEscrow;
@@ -574,40 +575,47 @@ pub fn handle_change_approved_builder<'c: 'info, 'info>(
     max_fee_bps: u16,
     add: bool,
 ) -> Result<()> {
-    if add {
-        let existing_builder_index = ctx
-            .accounts
-            .revenue_share_escrow
-            .approved_builders
-            .iter()
-            .position(|b| b.authority == builder);
-        if let Some(index) = existing_builder_index {
-            ctx.accounts.revenue_share_escrow.approved_builders[index].max_fee_bps = max_fee_bps;
+    let existing_builder_index = ctx
+        .accounts
+        .revenue_share_escrow
+        .approved_builders
+        .iter()
+        .position(|b| b.authority == builder);
+    if let Some(index) = existing_builder_index {
+        if add {
             msg!(
-                "Updated builder: {} with max fee bps: {}",
+                "Updated builder: {} with max fee bps: {} -> {}",
                 builder,
+                ctx.accounts.revenue_share_escrow.approved_builders[index].max_fee_bps,
                 max_fee_bps
             );
+            ctx.accounts.revenue_share_escrow.approved_builders[index].max_fee_bps = max_fee_bps;
         } else {
+            msg!(
+                "Revoking builder: {}, max fee bps: {} -> 0",
+                builder,
+                ctx.accounts.revenue_share_escrow.approved_builders[index].max_fee_bps,
+            );
+            ctx.accounts.revenue_share_escrow.approved_builders[index].max_fee_bps = 0;
+        }
+    } else {
+        if add {
             ctx.accounts
                 .revenue_share_escrow
                 .approved_builders
                 .push(BuilderInfo {
                     authority: builder,
                     max_fee_bps,
+                    ..BuilderInfo::default()
                 });
             msg!(
                 "Added builder: {} with max fee bps: {}",
                 builder,
                 max_fee_bps
             );
+        } else {
+            msg!("Tried to revoke builder: {}, but it was not found", builder);
         }
-    } else {
-        ctx.accounts
-            .revenue_share_escrow
-            .approved_builders
-            .retain(|&b| b.authority != builder);
-        msg!("Removed builder: {}", builder);
     }
 
     Ok(())
@@ -4950,7 +4958,7 @@ pub struct InitializeRevenueShareEscrow<'info> {
     #[account(
         init,
         seeds = [REVENUE_SHARE_ESCROW_PDA_SEED.as_ref(), authority.key().as_ref()],
-        space = RevenueShareEscrow::space(num_orders as usize, 0),
+        space = RevenueShareEscrow::space(num_orders as usize, 1),
         bump,
         payer = payer
     )]
@@ -4990,7 +4998,8 @@ pub struct ChangeApprovedBuilder<'info> {
         mut,
         seeds = [REVENUE_SHARE_ESCROW_PDA_SEED.as_ref(), authority.key().as_ref()],
         bump,
-        realloc = RevenueShareEscrow::space(revenue_share_escrow.orders.len(), if add { revenue_share_escrow.approved_builders.len() + 1 } else { revenue_share_escrow.approved_builders.len() - 1 }),
+        // revoking a builder does not remove the slot to avoid unintended reuse
+        realloc = RevenueShareEscrow::space(revenue_share_escrow.orders.len(), if add { revenue_share_escrow.approved_builders.len() + 1 } else { revenue_share_escrow.approved_builders.len() }),
         realloc::payer = payer,
         realloc::zero = false,
         has_one = authority

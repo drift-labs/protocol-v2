@@ -10086,14 +10086,6 @@
           {
             "name": "referrer",
             "type": "publicKey"
-          },
-          {
-            "name": "ordersLen",
-            "type": "u32"
-          },
-          {
-            "name": "approvedBuildersLen",
-            "type": "u32"
           }
         ]
       }
@@ -10642,6 +10634,65 @@
       }
     },
     {
+      "name": "SignedMsgOrderParamsWithBuilderMessage",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "signedMsgOrderParams",
+            "type": {
+              "defined": "OrderParams"
+            }
+          },
+          {
+            "name": "subAccountId",
+            "type": "u16"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "uuid",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "takeProfitOrderParams",
+            "type": {
+              "option": {
+                "defined": "SignedMsgTriggerOrderParams"
+              }
+            }
+          },
+          {
+            "name": "stopLossOrderParams",
+            "type": {
+              "option": {
+                "defined": "SignedMsgTriggerOrderParams"
+              }
+            }
+          },
+          {
+            "name": "builderIdx",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "builderFee",
+            "type": {
+              "option": "u16"
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "SignedMsgOrderParamsDelegateMessage",
       "type": {
         "kind": "struct",
@@ -10683,6 +10734,65 @@
               "option": {
                 "defined": "SignedMsgTriggerOrderParams"
               }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "SignedMsgOrderParamsDelegateWithBuilderMessage",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "signedMsgOrderParams",
+            "type": {
+              "defined": "OrderParams"
+            }
+          },
+          {
+            "name": "takerPubkey",
+            "type": "publicKey"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "uuid",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "takeProfitOrderParams",
+            "type": {
+              "option": {
+                "defined": "SignedMsgTriggerOrderParams"
+              }
+            }
+          },
+          {
+            "name": "stopLossOrderParams",
+            "type": {
+              "option": {
+                "defined": "SignedMsgTriggerOrderParams"
+              }
+            }
+          },
+          {
+            "name": "builderIdx",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "builderFee",
+            "type": {
+              "option": "u16"
             }
           }
         ]
@@ -12492,6 +12602,31 @@
           },
           {
             "name": "Flip"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BuilderBitFlag",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Revoked"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RevenueShareOrderBitFlag",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Filled"
+          },
+          {
+            "name": "Canceled"
           }
         ]
       }
@@ -16482,6 +16617,21 @@
       "code": 6318,
       "name": "InvalidBuilderApproval",
       "msg": "Invalid builder approval"
+    },
+    {
+      "code": 6319,
+      "name": "CouldNotDeserializeRevenueShareEscrow",
+      "msg": "Could not deserialize revenue share escrow"
+    },
+    {
+      "code": 6320,
+      "name": "BuilderRevoked",
+      "msg": "Builder has been revoked"
+    },
+    {
+      "code": 6321,
+      "name": "InvalidBuilderFee",
+      "msg": "Builder fee is greater than max fee bps"
     }
   ],
   "metadata": {

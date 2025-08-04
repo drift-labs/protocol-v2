@@ -10,14 +10,27 @@ use super::zero_copy::{AccountZeroCopy, AccountZeroCopyMut, HasLen};
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::traits::Size;
+use crate::state::user::MarketType;
 use crate::validate;
 use crate::{impl_zero_copy_loader, msg, ID};
 
 pub const REVENUE_SHARE_PDA_SEED: &str = "REV_SHARE";
 pub const REVENUE_SHARE_ESCROW_PDA_SEED: &str = "REV_ESCROW";
 
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum BuilderBitFlag {
+    Revoked = 0b00000001,
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum RevenueShareOrderBitFlag {
+    Filled = 0b00000001,
+    Canceled = 0b00000010,
+}
+
 #[zero_copy]
 #[derive(Default, Eq, PartialEq, Debug)]
+#[repr(C)]
 pub struct RevenueShareFixed {
     pub total_referrer_rewards: i64,
     pub total_builder_rewards: i64,
@@ -34,7 +47,6 @@ impl HasLen for RevenueShareFixed {
 
 #[zero_copy]
 #[derive(Default, Eq, PartialEq, Debug, BorshDeserialize, BorshSerialize)]
-#[repr(C)]
 pub struct RevenueSharePosition {
     pub amount: u64, // pnl for perp, scaled_balance for spot
     pub padding: [u8; 5],
@@ -57,7 +69,6 @@ impl RevenueSharePosition {
 
 #[account]
 #[derive(Eq, PartialEq, Debug, Default)]
-#[repr(C)]
 pub struct RevenueShare {
     /// the owner of this account, a builder or referrer
     pub authority: Pubkey,
@@ -122,6 +133,22 @@ impl RevenueShareOrder {
     pub fn space() -> usize {
         32 + 4 + 1 + 1 + 2 + 8 + 1 + 15
     }
+
+    pub fn add_bit_flag(&mut self, flag: RevenueShareOrderBitFlag) {
+        self.bit_flags |= flag as u8;
+    }
+
+    pub fn is_bit_flag_set(&self, flag: RevenueShareOrderBitFlag) -> bool {
+        (self.bit_flags & flag as u8) != 0
+    }
+
+    pub fn is_filled(&self) -> bool {
+        self.is_bit_flag_set(RevenueShareOrderBitFlag::Filled)
+    }
+
+    pub fn is_canceled(&self) -> bool {
+        self.is_bit_flag_set(RevenueShareOrderBitFlag::Canceled)
+    }
 }
 
 #[zero_copy]
@@ -135,6 +162,10 @@ pub struct BuilderInfo {
 impl BuilderInfo {
     pub fn space() -> usize {
         32 + 2
+    }
+
+    pub fn is_revoked(&self) -> bool {
+        self.max_fee_bps == 0
     }
 }
 
@@ -150,21 +181,22 @@ pub struct RevenueShareEscrow {
 }
 
 impl Size for RevenueShareEscrow {
-    const SIZE: usize = 1000; // whats this for given that it can be reized?
+    const SIZE: usize = 5000; // whats this for given that it can be reized?
 }
 
 impl RevenueShareEscrow {
     pub fn space(num_orders: usize, num_builders: usize) -> usize {
-        8 + 32
-            + 32
-            + 32
-            + num_orders * RevenueShareOrder::space()
-            + 32
-            + num_builders * BuilderInfo::space()
+        8 + // discriminator
+        std::mem::size_of::<RevenueShareEscrowFixed>() + // fixed header
+        4 + // orders Vec length prefix
+        num_orders * std::mem::size_of::<RevenueShareOrder>() + // orders data
+        4 + // approved_builders Vec length prefix
+        num_builders * std::mem::size_of::<BuilderInfo>() // builders data
     }
 
     pub fn validate(&self) -> DriftResult<()> {
         validate!(
+            // self.orders.len() <= 128 && self.approved_builders.len() <= 128 && self.orders.len() > 0 && self.approved_builders.len() > 0,
             self.orders.len() <= 128 && self.approved_builders.len() <= 128,
             ErrorCode::DefaultError,
             "RevenueShareEscrow orders and approved_builders len must be between 1 and 128"
@@ -175,12 +207,9 @@ impl RevenueShareEscrow {
 
 #[zero_copy]
 #[derive(Default, Eq, PartialEq, Debug, BorshDeserialize, BorshSerialize)]
-#[repr(C)]
 pub struct RevenueShareEscrowFixed {
     pub authority: Pubkey,
     pub referrer: Pubkey,
-    pub orders_len: u32,
-    pub approved_builders_len: u32,
 }
 
 pub struct RevenueShareEscrowZeroCopy<'a> {
@@ -190,34 +219,53 @@ pub struct RevenueShareEscrowZeroCopy<'a> {
 
 impl<'a> RevenueShareEscrowZeroCopy<'a> {
     pub fn orders_len(&self) -> u32 {
-        self.fixed.orders_len
+        // Read the Vec length from the first 4 bytes of data
+        let length_bytes = &self.data[0..4];
+        u32::from_le_bytes([length_bytes[0], length_bytes[1], length_bytes[2], length_bytes[3]])
     }
     pub fn approved_builders_len(&self) -> u32 {
-        self.fixed.approved_builders_len
+        // Calculate offset to the approved_builders Vec length
+        let orders_data_size = self.orders_len() as usize * std::mem::size_of::<RevenueShareOrder>();
+        let offset = 4 + orders_data_size; // Skip orders Vec length + orders data
+        let length_bytes = &self.data[offset..offset + 4];
+        u32::from_le_bytes([length_bytes[0], length_bytes[1], length_bytes[2], length_bytes[3]])
     }
 
-    pub fn get_order(&self, index: u32) -> &RevenueShareOrder {
+    pub fn get_order(&self, index: u32) -> DriftResult<&RevenueShareOrder> {
+        validate!(
+            index < self.orders_len(),
+            ErrorCode::DefaultError,
+            "Order index out of bounds"
+        )?;
         let size = std::mem::size_of::<RevenueShareOrder>();
-        let start = index as usize * size;
-        bytemuck::from_bytes(&self.data[start..start + size])
+        let start = 4 + index as usize * size; // Skip Vec length prefix (4 bytes)
+        Ok(bytemuck::from_bytes(&self.data[start..start + size]))
     }
 
-    pub fn get_approved_builder(&self, index: u32) -> &BuilderInfo {
+    pub fn get_approved_builder(&self, index: u32) -> DriftResult<&BuilderInfo> {
+        validate!(
+            index < self.approved_builders_len(),
+            ErrorCode::DefaultError,
+            "Builder index out of bounds"
+        )?;
         let size = std::mem::size_of::<BuilderInfo>();
-        let offset = self.orders_len() as usize * std::mem::size_of::<RevenueShareOrder>();
+        let offset = 4 + // Skip orders Vec length prefix
+            self.orders_len() as usize * std::mem::size_of::<RevenueShareOrder>() + // orders data
+            4; // Skip approved_builders Vec length prefix
         let start = offset + index as usize * size;
-        bytemuck::from_bytes(&self.data[start..start + size])
+        Ok(bytemuck::from_bytes(&self.data[start..start + size]))
     }
 
-    pub fn iter_orders(&self) -> impl Iterator<Item = &RevenueShareOrder> + '_ {
+    pub fn iter_orders(&self) -> impl Iterator<Item = DriftResult<&RevenueShareOrder>> + '_ {
         (0..self.orders_len()).map(move |i| self.get_order(i))
     }
 
-    pub fn iter_approved_builders(&self) -> impl Iterator<Item = &BuilderInfo> + '_ {
+    pub fn iter_approved_builders(&self) -> impl Iterator<Item = DriftResult<&BuilderInfo>> + '_ {
         (0..self.approved_builders_len()).map(move |i| self.get_approved_builder(i))
     }
 }
 
+#[derive(Debug)] // TODO: remove
 pub struct RevenueShareEscrowZeroCopyMut<'a> {
     pub fixed: RefMut<'a, RevenueShareEscrowFixed>,
     pub data: RefMut<'a, [u8]>,
@@ -225,29 +273,53 @@ pub struct RevenueShareEscrowZeroCopyMut<'a> {
 
 impl<'a> RevenueShareEscrowZeroCopyMut<'a> {
     pub fn orders_len(&self) -> u32 {
-        self.fixed.orders_len
+        // Read the Vec length from the first 4 bytes of data
+        let length_bytes = &self.data[0..4];
+        u32::from_le_bytes([length_bytes[0], length_bytes[1], length_bytes[2], length_bytes[3]])
     }
     pub fn approved_builders_len(&self) -> u32 {
-        self.fixed.approved_builders_len
+        // Calculate offset to the approved_builders Vec length
+        let orders_data_size = self.orders_len() as usize * std::mem::size_of::<RevenueShareOrder>();
+        let offset = 4 + orders_data_size; // Skip orders Vec length + orders data
+        let length_bytes = &self.data[offset..offset + 4];
+        u32::from_le_bytes([length_bytes[0], length_bytes[1], length_bytes[2], length_bytes[3]])
     }
 
-    pub fn get_order_mut(&mut self, index: u32) -> &mut RevenueShareOrder {
+    pub fn get_order_mut(&mut self, index: u32) -> DriftResult<&mut RevenueShareOrder> {
+        validate!(
+            index < self.orders_len(),
+            ErrorCode::DefaultError,
+            "Order index out of bounds"
+        )?;
         let size = std::mem::size_of::<RevenueShareOrder>();
-        let start = index as usize * size;
-        bytemuck::from_bytes_mut(&mut self.data[start..start + size])
+        let start = 4 + index as usize * size; // Skip Vec length prefix (4 bytes)
+        Ok(bytemuck::from_bytes_mut(&mut self.data[start..start + size]))
     }
 
-    pub fn get_approved_builder_mut(&mut self, index: u32) -> &mut BuilderInfo {
+    pub fn get_approved_builder_mut(&mut self, index: u32) -> DriftResult<&mut BuilderInfo> {
+        validate!(
+            index < self.approved_builders_len(),
+            ErrorCode::DefaultError,
+            "Builder index out of bounds, index: {}, orderslen: {}, builderslen: {}",
+            index,
+            self.orders_len(),
+            self.approved_builders_len()
+        )?;
         let size = std::mem::size_of::<BuilderInfo>();
-        let offset = self.orders_len() as usize * std::mem::size_of::<RevenueShareOrder>();
+        let offset = 4 + // Skip orders Vec length prefix
+            self.orders_len() as usize * std::mem::size_of::<RevenueShareOrder>() + // orders data
+            4; // Skip approved_builders Vec length prefix
         let start = offset + index as usize * size;
-        bytemuck::from_bytes_mut(&mut self.data[start..start + size])
+        Ok(bytemuck::from_bytes_mut(&mut self.data[start..start + size]))
     }
 }
 
 pub trait RevenueShareEscrowLoader<'a> {
     fn load_zc(&self) -> DriftResult<RevenueShareEscrowZeroCopy>;
     fn load_zc_mut(&self) -> DriftResult<RevenueShareEscrowZeroCopyMut>;
+    fn load_zc_mut_from_data<'b>(
+        data: RefMut<'b, &mut [u8]>,
+    ) -> DriftResult<RevenueShareEscrowZeroCopyMut<'b>>;
 }
 
 impl<'a> RevenueShareEscrowLoader<'a> for AccountInfo<'a> {
@@ -269,7 +341,8 @@ impl<'a> RevenueShareEscrowLoader<'a> for AccountInfo<'a> {
             "invalid signed_msg user orders discriminator",
         )?;
 
-        let (fixed, data) = Ref::map_split(data, |d| d.split_at(40));
+        let hdr_size = std::mem::size_of::<RevenueShareEscrowFixed>();
+        let (fixed, data) = Ref::map_split(data, |d| d.split_at(hdr_size));
         Ok(RevenueShareEscrowZeroCopy {
             fixed: Ref::map(fixed, |b| bytemuck::from_bytes(b)),
             data,
@@ -294,7 +367,30 @@ impl<'a> RevenueShareEscrowLoader<'a> for AccountInfo<'a> {
             "invalid signed_msg user orders discriminator",
         )?;
 
-        let (fixed, data) = RefMut::map_split(data, |d| d.split_at_mut(40));
+        let hdr_size = std::mem::size_of::<RevenueShareEscrowFixed>();
+        let (fixed, data) = RefMut::map_split(data, |d| d.split_at_mut(hdr_size));
+        Ok(RevenueShareEscrowZeroCopyMut {
+            fixed: RefMut::map(fixed, |b| bytemuck::from_bytes_mut(b)),
+            data,
+        })
+    }
+
+    fn load_zc_mut_from_data<'b>(
+        data: RefMut<'b, &mut [u8]>,
+    ) -> DriftResult<RevenueShareEscrowZeroCopyMut<'b>> {
+        if data.len() < RevenueShareEscrow::discriminator().len() {
+            return Err(ErrorCode::DefaultError.into());
+        }
+
+        let (discriminator, data) = RefMut::map_split(data, |d| d.split_at_mut(8));
+        validate!(
+            *discriminator == RevenueShareEscrow::discriminator(),
+            ErrorCode::DefaultError,
+            "invalid signed_msg user orders discriminator",
+        )?;
+
+        let hdr_size = std::mem::size_of::<RevenueShareEscrowFixed>();
+        let (fixed, data) = RefMut::map_split(data, |d| d.split_at_mut(hdr_size));
         Ok(RevenueShareEscrowZeroCopyMut {
             fixed: RefMut::map(fixed, |b| bytemuck::from_bytes_mut(b)),
             data,

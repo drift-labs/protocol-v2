@@ -1,4 +1,5 @@
 use crate::error::{DriftResult, ErrorCode};
+use crate::state::builder::{RevenueShareEscrow, RevenueShareEscrowLoader, RevenueShareEscrowZeroCopyMut};
 use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use std::cell::RefMut;
 use std::convert::TryFrom;
@@ -272,4 +273,36 @@ pub fn get_high_leverage_mode_config<'a>(
             .or(Err(ErrorCode::CouldNotDeserializeHighLeverageModeConfig))?;
 
     Ok(Some(high_leverage_mode_config))
+}
+
+
+pub fn get_revenue_escrow_account<'a>(
+    account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'a>>>,
+) -> DriftResult<Option<RevenueShareEscrowZeroCopyMut<'a>>> {
+    let revenue_escrow_account_info = account_info_iter.peek();
+    if revenue_escrow_account_info.is_none() {
+        return Ok(None);
+    }
+
+    let revenue_escrow_account_info = revenue_escrow_account_info.safe_unwrap()?;
+
+    // Check size and discriminator without borrowing
+    if revenue_escrow_account_info.data_len() < 80 {
+        return Ok(None);
+    }
+
+    let revenue_escrow_discriminator: [u8; 8] = RevenueShareEscrow::discriminator();
+    let borrowed_data = revenue_escrow_account_info.data.borrow();
+    let account_discriminator = array_ref![&borrowed_data, 0, 8];
+    if account_discriminator != &revenue_escrow_discriminator {
+        return Ok(None);
+    }
+
+    let revenue_escrow_account_info = account_info_iter.next().safe_unwrap()?;
+
+    drop(borrowed_data);
+    let revenue_escrow: RevenueShareEscrowZeroCopyMut<'a> =
+        revenue_escrow_account_info.load_zc_mut()?;
+
+    Ok(Some(revenue_escrow))
 }

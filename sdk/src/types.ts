@@ -1255,6 +1255,28 @@ export type SignedMsgOrderParamsDelegateMessage = {
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
 };
 
+export type SignedMsgOrderParamsWithBuilderMessage = {
+	signedMsgOrderParams: OrderParams;
+	subAccountId: number;
+	slot: BN;
+	uuid: Uint8Array;
+	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
+	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
+	builderIdx: number | null;
+	builderFee: number | null;
+};
+
+export type SignedMsgOrderParamsDelegateWithBuilderMessage = {
+	signedMsgOrderParams: OrderParams;
+	slot: BN;
+	uuid: Uint8Array;
+	takerPubkey: PublicKey;
+	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
+	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
+	builderIdx: number | null;
+	builderFee: number | null;
+};
+
 export type SignedMsgTriggerOrderParams = {
 	triggerPrice: BN;
 	baseAssetAmount: BN;
@@ -1607,4 +1629,5 @@ export type RevenueShareOrder = {
 export type BuilderInfo = {
 	authority: PublicKey;
 	maxFeeBps: number;
+	bitFlags: number;
 };

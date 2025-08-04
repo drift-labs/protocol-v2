@@ -1,9 +1,12 @@
 use crate::error::ErrorCode;
+use crate::state::traits::Size;
 use crate::state::order_params::{
     OrderParams, SignedMsgOrderParamsDelegateMessage, SignedMsgOrderParamsMessage,
-    SignedMsgTriggerOrderParams,
+    SignedMsgTriggerOrderParams, SignedMsgOrderParamsDelegateWithBuilderMessage, SignedMsgOrderParamsWithBuilderMessage,
 };
+use crate::validate;
 use anchor_lang::prelude::*;
+use anchor_lang::Discriminator;
 use bytemuck::try_cast_slice;
 use bytemuck::{Pod, Zeroable};
 use byteorder::ByteOrder;
@@ -53,6 +56,8 @@ pub struct VerifiedMessage {
     pub uuid: [u8; 8],
     pub take_profit_order_params: Option<SignedMsgTriggerOrderParams>,
     pub stop_loss_order_params: Option<SignedMsgTriggerOrderParams>,
+    pub builder_idx: Option<u8>,
+    pub builder_fee: Option<u16>,
     pub signature: [u8; 64],
 }
 
@@ -209,7 +214,6 @@ pub fn verify_and_decode_ed25519_msg(
             .ok_or(SignatureVerificationError::MessageOffsetOverflow)?;
         &msg[start..end]
     };
-
     if public_key != signer {
         msg!("Invalid Ix: message signed by: {:?}", public_key);
         msg!("Invalid Ix: expected pubkey: {:?}", signer);
@@ -232,44 +236,111 @@ pub fn verify_and_decode_ed25519_msg(
     let payload =
         hex::decode(payload).map_err(|_| SignatureVerificationError::InvalidMessageHex)?;
 
-    if is_delegate_signer {
-        let deserialized = SignedMsgOrderParamsDelegateMessage::deserialize(
-            &mut &payload[8..], // 8 byte manual discriminator
-        )
-        .map_err(|_| {
-            msg!("Invalid message encoding for is_delegate_signer = true");
-            SignatureVerificationError::InvalidMessageDataSize
-        })?;
+    match payload[0..8].try_into().unwrap() {
+        SignedMsgOrderParamsMessage::DISCRIMINATOR => {
+            if is_delegate_signer {
+                msg!("Invalid delegate message encoding for with is_delegate_signer = true");
+                return Err(SignatureVerificationError::InvalidMessageDataSize.into());
+            }
 
-        return Ok(VerifiedMessage {
-            signed_msg_order_params: deserialized.signed_msg_order_params,
-            sub_account_id: None,
-            delegate_signed_taker_pubkey: Some(deserialized.taker_pubkey),
-            slot: deserialized.slot,
-            uuid: deserialized.uuid,
-            take_profit_order_params: deserialized.take_profit_order_params,
-            stop_loss_order_params: deserialized.stop_loss_order_params,
-            signature: *signature,
-        });
-    } else {
-        let deserialized = SignedMsgOrderParamsMessage::deserialize(
-            &mut &payload[8..], // 8 byte manual discriminator
-        )
-        .map_err(|_| {
-            msg!("Invalid delegate message encoding for with is_delegate_signer = false");
-            SignatureVerificationError::InvalidMessageDataSize
-        })?;
+            let deserialized = SignedMsgOrderParamsMessage::deserialize(&mut &payload[8..])
+            .map_err(|_| {
+                msg!("Invalid message encoding for SignedMsgOrderParamsMessage with is_delegate_signer = false");
+                SignatureVerificationError::InvalidMessageDataSize
+            })?;
 
-        return Ok(VerifiedMessage {
-            signed_msg_order_params: deserialized.signed_msg_order_params,
-            sub_account_id: Some(deserialized.sub_account_id),
-            delegate_signed_taker_pubkey: None,
-            slot: deserialized.slot,
-            uuid: deserialized.uuid,
-            take_profit_order_params: deserialized.take_profit_order_params,
-            stop_loss_order_params: deserialized.stop_loss_order_params,
-            signature: *signature,
-        });
+            Ok(VerifiedMessage {
+                signed_msg_order_params: deserialized.signed_msg_order_params,
+                sub_account_id: Some(deserialized.sub_account_id),
+                delegate_signed_taker_pubkey: None,
+                slot: deserialized.slot,
+                uuid: deserialized.uuid,
+                take_profit_order_params: deserialized.take_profit_order_params,
+                stop_loss_order_params: deserialized.stop_loss_order_params,
+                signature: *signature,
+                builder_idx: None,
+                builder_fee: None,
+            })
+        }
+        SignedMsgOrderParamsDelegateMessage::DISCRIMINATOR => {
+            if !is_delegate_signer {
+                msg!("Invalid delegate message encoding for with is_delegate_signer = false");
+                return Err(SignatureVerificationError::InvalidMessageDataSize.into());
+            }
+
+            let deserialized = SignedMsgOrderParamsDelegateMessage::deserialize(&mut &payload[8..])
+            .map_err(|_| {
+                msg!("Invalid message encoding for with is_delegate_signer = true");
+                SignatureVerificationError::InvalidMessageDataSize
+            })?;
+
+            Ok(VerifiedMessage {
+                signed_msg_order_params: deserialized.signed_msg_order_params,
+                sub_account_id: None,
+                delegate_signed_taker_pubkey: Some(deserialized.taker_pubkey),
+                slot: deserialized.slot,
+                uuid: deserialized.uuid,
+                take_profit_order_params: deserialized.take_profit_order_params,
+                stop_loss_order_params: deserialized.stop_loss_order_params,
+                signature: *signature,
+                builder_idx: None,
+                builder_fee: None,
+            })
+        }
+        SignedMsgOrderParamsWithBuilderMessage::DISCRIMINATOR => {
+            if is_delegate_signer {
+                msg!("Invalid delegate message encoding for with is_delegate_signer = true");
+                return Err(SignatureVerificationError::InvalidMessageDataSize.into());
+            }
+
+            let deserialized = SignedMsgOrderParamsWithBuilderMessage::deserialize(&mut &payload[8..])
+            .map_err(|_| {
+                msg!("Invalid message encoding for SignedMsgOrderParamsWithBuilderMessage with is_delegate_signer = false and builder");
+                SignatureVerificationError::InvalidMessageDataSize
+            })?;
+
+            Ok(VerifiedMessage {
+                signed_msg_order_params: deserialized.signed_msg_order_params,
+                sub_account_id: Some(deserialized.sub_account_id),
+                delegate_signed_taker_pubkey: None,
+                slot: deserialized.slot,
+                uuid: deserialized.uuid,
+                take_profit_order_params: deserialized.take_profit_order_params,
+                stop_loss_order_params: deserialized.stop_loss_order_params,
+                signature: *signature,
+                builder_idx: deserialized.builder_idx,
+                builder_fee: deserialized.builder_fee,
+            })
+        }
+        SignedMsgOrderParamsDelegateWithBuilderMessage::DISCRIMINATOR => {
+            if !is_delegate_signer {
+                msg!("Invalid delegate message encoding for with is_delegate_signer = false");
+                return Err(SignatureVerificationError::InvalidMessageDataSize.into());
+            }
+
+            let deserialized = SignedMsgOrderParamsDelegateWithBuilderMessage::deserialize(&mut &payload[8..])
+            .map_err(|_| {
+                msg!("Invalid message encoding for SignedMsgOrderParamsDelegateWithBuilderMessage with is_delegate_signer = true and builder");
+                SignatureVerificationError::InvalidMessageDataSize
+            })?;
+            
+            Ok(VerifiedMessage {
+                signed_msg_order_params: deserialized.signed_msg_order_params,
+                sub_account_id: None,
+                delegate_signed_taker_pubkey: Some(deserialized.taker_pubkey),
+                slot: deserialized.slot,
+                uuid: deserialized.uuid,
+                take_profit_order_params: deserialized.take_profit_order_params,
+                stop_loss_order_params: deserialized.stop_loss_order_params,
+                signature: *signature,
+                builder_idx: deserialized.builder_idx,
+                builder_fee: deserialized.builder_fee,
+            })
+        }
+        _ => {
+            msg!("Invalid message length: {}, is_delegate_signer: {}", payload.len(), is_delegate_signer);
+            Err(SignatureVerificationError::InvalidMessageDataSize.into())
+        }
     }
 }
 
