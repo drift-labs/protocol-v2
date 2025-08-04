@@ -3495,7 +3495,7 @@ export class User {
 	public getUserFeeTier(marketType: MarketType, now?: BN) {
 		const state = this.driftClient.getStateAccount();
 
-		let feeTierIndex = 0;
+		const feeTierIndex = 0;
 		if (isVariant(marketType, 'perp')) {
 			if (this.isHighLeverageMode('Initial')) {
 				return state.perpFeeStructure.feeTiers[0];
@@ -3545,7 +3545,7 @@ export class User {
 
 			const stakeBenefit = stakeBenefitFrac[stakeBenefitIndex];
 
-			let tier = { ...state.perpFeeStructure.feeTiers[feeTierIndex] };
+			const tier = { ...state.perpFeeStructure.feeTiers[feeTierIndex] };
 
 			if (stakeBenefit > 0) {
 				tier.feeNumerator = (tier.feeNumerator * (100 - stakeBenefit)) / 100;
