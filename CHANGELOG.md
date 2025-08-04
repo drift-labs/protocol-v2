@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: less aggressive fill bands for spot swaps ([#1796](https://github.com/drift-labs/protocol-v2/pull/1796))
+
 ### Breaking
 
 ## [2.130.0] - 2025-07-29
