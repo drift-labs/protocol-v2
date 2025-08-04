@@ -1598,7 +1598,7 @@ export class User {
 	 */
 	public getPerpPositionValue(
 		marketIndex: number,
-		oraclePriceData: OraclePriceData,
+		oraclePriceData: Pick<OraclePriceData, 'price'>,
 		includeOpenOrders = false
 	): BN {
 		const userPosition =
