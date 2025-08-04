@@ -6992,6 +6992,12 @@ export class DriftClient {
 		return txSig;
 	}
 
+	/**
+	 * @param orderParams: The parameters for the order to modify. 
+	 * @param subAccountId: Optional - The subaccount ID of the user to modify the order for.
+	 * @param userPublicKey: Optional - The public key of the user to modify the order for. This takes precedence over subAccountId.
+	 * @returns
+	 */
 	public async getModifyOrderIx(
 		{
 			orderId,
@@ -7026,9 +7032,10 @@ export class DriftClient {
 			maxTs?: BN;
 			policy?: number;
 		},
-		subAccountId?: number
+		subAccountId?: number,
+		userPublicKey?: PublicKey
 	): Promise<TransactionInstruction> {
-		const user = await this.getUserAccountPublicKey(subAccountId);
+		const user = userPublicKey ?? (await this.getUserAccountPublicKey(subAccountId));
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [this.getUserAccount(subAccountId)],
