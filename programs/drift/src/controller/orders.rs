@@ -1336,6 +1336,7 @@ pub fn fill_perp_order(
                 .oracle_guard_rails
                 .max_oracle_twap_5min_percent_divergence(),
             perp_market.is_prediction_market(),
+            None,
         )?;
 
         perp_market.last_fill_price = fill_price;
@@ -4102,6 +4103,11 @@ pub fn fill_spot_order(
                 .oracle_guard_rails
                 .max_oracle_twap_5min_percent_divergence(),
             false,
+            if fulfillment_params.is_external() {
+                Some(order_direction)
+            } else {
+                None
+            },
         )?;
     }
 
