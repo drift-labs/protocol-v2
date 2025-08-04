@@ -271,7 +271,7 @@ pub fn liquidate_perp(
 
         intermediate_margin_calculation
     } else {
-        margin_calculation
+        margin_calculation.clone()
     };
 
     if user.perp_positions[position_index].base_asset_amount == 0 {
@@ -898,7 +898,7 @@ pub fn liquidate_perp_with_fill(
 
         intermediate_margin_calculation
     } else {
-        margin_calculation
+        margin_calculation.clone()
     };
 
     if user.perp_positions[position_index].base_asset_amount == 0 {
@@ -1466,7 +1466,7 @@ pub fn liquidate_spot(
 
         intermediate_margin_calculation
     } else {
-        margin_calculation
+        margin_calculation.clone()
     };
 
     let margin_shortage = intermediate_margin_calculation.margin_shortage()?;
@@ -1997,7 +1997,7 @@ pub fn liquidate_spot_with_swap_begin(
 
         intermediate_margin_calculation
     } else {
-        margin_calculation
+        margin_calculation.clone()
     };
 
     let margin_shortage = intermediate_margin_calculation.margin_shortage()?;
@@ -2569,7 +2569,7 @@ pub fn liquidate_borrow_for_perp_pnl(
 
         intermediate_margin_calculation
     } else {
-        margin_calculation
+        margin_calculation.clone()
     };
 
     let margin_shortage = intermediate_margin_calculation.margin_shortage()?;
@@ -3053,7 +3053,7 @@ pub fn liquidate_perp_pnl_for_deposit(
 
         intermediate_margin_calculation
     } else {
-        margin_calculation
+        margin_calculation.clone()
     };
 
     if is_contract_tier_violation {

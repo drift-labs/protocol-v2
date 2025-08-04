@@ -609,7 +609,7 @@ impl User {
             )?;
         }
 
-        validate_any_isolated_tier_requirements(self, calculation)?;
+        validate_any_isolated_tier_requirements(self, &calculation)?;
 
         validate!(
             calculation.meets_margin_requirement(),
@@ -670,7 +670,7 @@ impl User {
             )?;
         }
 
-        validate_any_isolated_tier_requirements(self, calculation)?;
+        validate_any_isolated_tier_requirements(self, &calculation)?;
 
         validate!(
             calculation.meets_margin_requirement(),
