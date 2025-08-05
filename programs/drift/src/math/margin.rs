@@ -772,20 +772,13 @@ pub fn meets_maintenance_margin_requirement(
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
-    isolated_position_market_index: Option<u16>,
 ) -> DriftResult<bool> {
-    let context = MarginContext::standard(MarginRequirementType::Maintenance);
-
-    if let Some(isolated_position_market_index) = isolated_position_market_index {
-        let context = context.isolated_position_market_index(isolated_position_market_index);
-    }
-
     calculate_margin_requirement_and_total_collateral_and_liability_info(
         user,
         perp_market_map,
         spot_market_map,
         oracle_map,
-        context,
+        MarginContext::standard(MarginRequirementType::Maintenance),
     )
     .map(|calc| calc.meets_margin_requirement())
 }

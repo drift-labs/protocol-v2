@@ -510,6 +510,7 @@ impl MarginCalculation {
             .safe_div(self.margin_requirement)
     }
 
+    // todo check every where this is used
     pub fn get_free_collateral(&self) -> DriftResult<u128> {
         self.total_collateral
             .safe_sub(self.margin_requirement.cast::<i128>()?)?

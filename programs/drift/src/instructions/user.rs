@@ -3762,29 +3762,12 @@ pub fn handle_enable_user_high_leverage_mode<'c: 'info, 'info>(
         "user already in high leverage mode"
     )?;
 
-    let has_non_isolated_position = user.perp_positions.iter().any(|position| !position.is_isolated());
-
-    if has_non_isolated_position {
-        meets_maintenance_margin_requirement(
-            &user,
-            &perp_market_map,
-            &spot_market_map,
-            &mut oracle_map,
-            None,
-        )?;
-    }
-
-    let isolated_position_market_indexes = user.perp_positions.iter().filter(|position| position.is_isolated()).map(|position| position.market_index).collect::<Vec<_>>();
-
-    for market_index in isolated_position_market_indexes.iter() {
-        meets_maintenance_margin_requirement(
-            &user,
-            &perp_market_map,
-            &spot_market_map,
-            &mut oracle_map,
-            Some(*market_index),
-        )?;
-    }
+    meets_maintenance_margin_requirement(
+        &user,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+    )?;
 
     let mut config = load_mut!(ctx.accounts.high_leverage_mode_config)?;
 
