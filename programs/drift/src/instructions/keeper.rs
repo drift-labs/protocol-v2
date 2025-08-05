@@ -34,6 +34,7 @@ use crate::math::safe_math::SafeMath;
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::optional_accounts::{get_token_mint, update_prelaunch_oracle};
 use crate::state::builder::RevenueShareEscrowZeroCopyMut;
+use crate::state::builder::RevenueShareOrder;
 use crate::state::events::{DeleteUserRecord, OrderActionExplanation, SignedMsgOrderRecord};
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
@@ -691,12 +692,14 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
         is_delegate_signer,
     )?;
 
+    let mut revenue_escrow_zc: Option<RevenueShareEscrowZeroCopyMut<'info>> = None;
+    let mut builder_key: Option<Pubkey> = None;
+    let mut builder_fee_bps: Option<u16> = None;
     if verified_message_and_signature.builder_idx.is_some() && verified_message_and_signature.builder_fee.is_some() {
         if let Some(mut revenue_escrow) = revenue_escrow {
             let builder_idx = verified_message_and_signature.builder_idx.unwrap();
             let builder_fee = verified_message_and_signature.builder_fee.unwrap();
             
-            // Check authority before mutable borrow
             validate!(
                 revenue_escrow.fixed.authority == taker.authority,
                 ErrorCode::InvalidUserAccount,
@@ -713,6 +716,10 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
                 msg!("Builder fee is greater than max fee bps");
                 return Err(ErrorCode::InvalidBuilderFee.into())
             }
+
+            builder_key = Some(builder.authority);
+            builder_fee_bps = Some(builder_fee);
+            revenue_escrow_zc = Some(revenue_escrow);
         } else {
             msg!("RevenueEscrow account must be provided if builder fields are present in OrderParams");
             return Err(ErrorCode::InvalidSignedMsgOrderParam.into())
@@ -839,6 +846,16 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
                 ..PlaceOrderOptions::default()
             },
         )?;
+
+        if let Some(ref mut revenue_escrow_zc) = revenue_escrow_zc {
+            revenue_escrow_zc.add_order(RevenueShareOrder::new(
+                builder_key.unwrap(),
+                taker_order_id_to_use - 1,
+                builder_fee_bps.unwrap(),
+                MarketType::Perp as u8,
+                market_index,
+            ))?;
+        }
     }
 
     if let Some(take_profit_order_params) = verified_message_and_signature.take_profit_order_params
@@ -876,6 +893,15 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
                 ..PlaceOrderOptions::default()
             },
         )?;
+        if let Some(ref mut revenue_escrow_zc) = revenue_escrow_zc {
+            revenue_escrow_zc.add_order(RevenueShareOrder::new(
+                builder_key.unwrap(),
+                taker_order_id_to_use - 1,
+                builder_fee_bps.unwrap(),
+                MarketType::Perp as u8,
+                market_index,
+            ))?;
+        }
     }
     signed_msg_order_id.order_id = taker_order_id_to_use;
     signed_msg_account.add_signed_msg_order_id(signed_msg_order_id)?;
@@ -896,6 +922,17 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
             ..PlaceOrderOptions::default()
         },
     )?;
+    if let Some(ref mut revenue_escrow_zc) = revenue_escrow_zc {
+        msg!("Adding taker order to revenue escrow");
+        revenue_escrow_zc.add_order(RevenueShareOrder::new(
+            builder_key.unwrap(),
+            taker_order_id_to_use,
+            builder_fee_bps.unwrap(),
+            MarketType::Perp as u8,
+            market_index,
+        ))?;
+        msg!("Added taker order to revenue escrow");
+    }
 
     let order_params_hash =
         base64::encode(solana_program::hash::hash(&signature.try_to_vec().unwrap()).as_ref());

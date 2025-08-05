@@ -486,5 +486,18 @@ describe('builder codes', () => {
 
 		userOrders = userClient.getUser().getOpenOrders();
 		assert(userOrders.length === 1);
+
+		// Verify the builder was removed
+		let accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
+			getRevenueShareEscrowAccountPublicKey(
+				userClient.program.programId,
+				userClient.wallet.publicKey
+			)
+		);
+		let revShareEscrow = userClient.program.coder.accounts.decodeUnchecked(
+			'RevenueShareEscrow',
+			accountInfo.data
+		);
+		console.log(revShareEscrow);
 	});
 });

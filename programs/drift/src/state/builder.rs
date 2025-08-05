@@ -105,33 +105,50 @@ impl_zero_copy_loader!(
 );
 
 #[zero_copy]
+// #[repr(C)]
 #[derive(Default, Eq, PartialEq, Debug, BorshDeserialize, BorshSerialize)]
-#[repr(C)]
 pub struct RevenueShareOrder {
     /// set in place_order
     pub beneficiary: Pubkey, // builder/referrer, 111... if zeroed
+    pub fee_accrued: u64,
     pub order_id: u32,
-    pub fee_bps: u8,
-    pub market_type: u8,
+    pub fee_bps: u16,
     pub market_index: u16,
 
     /// set in fill_order
     /// u64 max fee is $18T, u32 is $4k
-    /// this gets sweeped into into the Builder's RevenueShare in settle_pnl
-    pub fee_accrued: u64,
+    /// This can be sweept into into the Builder's RevenueShare in settle_pnl
+    /// once the order is filled or canceled.
 
     /// set in fill_order or cancel_order
-    /// some way to signal that the order was filled or canceled
-    /// if order is complete, then zero out after sweeping
-    /// * should this also signal if it's a referrer or builder rev share?
+    /// Signals that the order was filled or canceled, and builder or referral.
+    /// This order slot is cleared once the fee_accrued is swept to the builder's
+    /// RevenueShare account.
     pub bit_flags: u8,
+    pub market_type: u8,
 
-    pub padding: [u8; 15], // idk if need padding
+    pub padding: [u8; 6],
 }
 
 impl RevenueShareOrder {
+    pub fn new(beneficiary: Pubkey, order_id: u32, fee_bps: u16, market_type: u8, market_index: u16) -> Self {
+        Self {
+            beneficiary,
+            order_id,
+            fee_bps,
+            market_type,
+            market_index,
+            fee_accrued: 0,
+            bit_flags: 0,
+            padding: [0; 6],
+        }
+    }
+
     pub fn space() -> usize {
-        32 + 4 + 1 + 1 + 2 + 8 + 1 + 15
+        32 + 
+        8 + 
+        4 + 2 + 2 + 
+        1 + 1 + 6
     }
 
     pub fn add_bit_flag(&mut self, flag: RevenueShareOrderBitFlag) {
@@ -148,6 +165,10 @@ impl RevenueShareOrder {
 
     pub fn is_canceled(&self) -> bool {
         self.is_bit_flag_set(RevenueShareOrderBitFlag::Canceled)
+    }
+    
+    pub fn is_available(&self) -> bool {
+        self.beneficiary != Pubkey::default() && !self.is_filled() && !self.is_canceled()
     }
 }
 
@@ -180,9 +201,9 @@ pub struct RevenueShareEscrow {
     pub approved_builders: Vec<BuilderInfo>,
 }
 
-impl Size for RevenueShareEscrow {
-    const SIZE: usize = 5000; // whats this for given that it can be reized?
-}
+// impl Size for RevenueShareEscrow {
+//     const SIZE: usize = 5000; // whats this for given that it can be reized?
+// }
 
 impl RevenueShareEscrow {
     pub fn space(num_orders: usize, num_builders: usize) -> usize {
@@ -292,8 +313,12 @@ impl<'a> RevenueShareEscrowZeroCopyMut<'a> {
             "Order index out of bounds"
         )?;
         let size = std::mem::size_of::<RevenueShareOrder>();
-        let start = 4 + index as usize * size; // Skip Vec length prefix (4 bytes)
-        Ok(bytemuck::from_bytes_mut(&mut self.data[start..start + size]))
+        msg!("size rev share order: {}", std::mem::size_of::<RevenueShareOrder>());
+        msg!("size builder info:    {}", std::mem::size_of::<BuilderInfo>());
+        msg!("self fixed size: {}", std::mem::size_of::<RevenueShareEscrowFixed>());
+        msg!("self data size:  {}", self.data.len());
+        let start = 4 + index as usize * size;
+        Ok(bytemuck::from_bytes_mut(&mut self.data[start..(start + size)]))
     }
 
     pub fn get_approved_builder_mut(&mut self, index: u32) -> DriftResult<&mut BuilderInfo> {
@@ -311,6 +336,24 @@ impl<'a> RevenueShareEscrowZeroCopyMut<'a> {
             4; // Skip approved_builders Vec length prefix
         let start = offset + index as usize * size;
         Ok(bytemuck::from_bytes_mut(&mut self.data[start..start + size]))
+    }
+
+    pub fn add_order(&mut self, order: RevenueShareOrder) -> DriftResult {
+
+        msg!("add_order order_len: {:?} builder_len: {:?}", self.orders_len(), self.approved_builders_len());
+        for i in 0..self.orders_len() {
+            msg!("getting i: {}", i);
+            let existing_order = self.get_order_mut(i)?;
+            msg!("got i: {}", i);
+            if existing_order.is_available() {
+                msg!("existing: {:?}", existing_order);
+                msg!("new:      {:?}", order);
+                *existing_order = order;
+                return Ok(());
+            }
+        }
+
+        Err(ErrorCode::RevenueShareEscrowOrdersAccountFull.into())
     }
 }
 
