@@ -102,7 +102,7 @@ export class WebSocketDriftClientAccountSubscriber
 		customPerpMarketAccountSubscriber?: new (
 			accountName: string,
 			program: Program,
-			accountPublicKey: PublicKey,
+			  accountPublicKey: PublicKey,
 			decodeBuffer?: (buffer: Buffer) => any,
 			resubOpts?: ResubOpts,
 			commitment?: Commitment

@@ -22,7 +22,8 @@ import {
 	getSpotMarketPublicKeySync,
 } from '../addresses/pda';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
-import { Commitment, Context, PublicKey } from '@solana/web3.js';
+import { Context, PublicKey } from '@solana/web3.js';
+import { Commitment } from 'gill';
 import { OracleInfo, OraclePriceData } from '../oracles/types';
 import { OracleClientCache } from '../oracles/oracleClientCache';
 import { QUOTE_ORACLE_PRICE_DATA } from '../oracles/quoteAssetOracleClient';
@@ -33,11 +34,12 @@ import {
 	getPublicKeyAndSourceFromOracleId,
 } from '../oracles/oracleId';
 import { OracleSource } from '../types';
-import { WebSocketProgramAccountSubscriber } from './webSocketProgramAccountSubscriber';
 import {
 	getPerpMarketAccountsFilter,
 	getSpotMarketAccountsFilter,
 } from '../memcmp';
+import { WebSocketProgramAccountSubscriberV2 } from './webSocketProgramAccountSubscriberV2';
+import { WebSocketAccountSubscriberV2 } from './webSocketAccountSubscriberV2';
 const ORACLE_DEFAULT_ID = getOracleId(
 	PublicKey.default,
 	OracleSource.QUOTE_ASSET
@@ -58,13 +60,13 @@ export class WebSocketDriftClientAccountSubscriberV2
 	shouldFindAllMarketsAndOracles: boolean;
 
 	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
-	stateAccountSubscriber?: WebSocketAccountSubscriber<StateAccount>;
-	perpMarketAllAccountsSubscriber: WebSocketProgramAccountSubscriber<PerpMarketAccount>;
+	stateAccountSubscriber?: WebSocketAccountSubscriberV2<StateAccount>;
+	perpMarketAllAccountsSubscriber: WebSocketProgramAccountSubscriberV2<PerpMarketAccount>;
 	perpMarketAccountLatestData = new Map<
 		number,
 		DataAndSlot<PerpMarketAccount>
 	>();
-	spotMarketAllAccountsSubscriber: WebSocketProgramAccountSubscriber<SpotMarketAccount>;
+	spotMarketAllAccountsSubscriber: WebSocketProgramAccountSubscriberV2<SpotMarketAccount>;
 	spotMarketAccountLatestData = new Map<
 		number,
 		DataAndSlot<SpotMarketAccount>
@@ -121,6 +123,13 @@ export class WebSocketDriftClientAccountSubscriberV2
 			this.subscriptionPromiseResolver = res;
 		});
 
+		const perpMarketAccountPubkeys = this.perpMarketIndexes.map((marketIndex) =>
+			getPerpMarketPublicKeySync(this.program.programId, marketIndex)
+		);
+		const spotMarketAccountPubkeys = this.spotMarketIndexes.map((marketIndex) =>
+			getSpotMarketPublicKeySync(this.program.programId, marketIndex)
+		);
+
 		if (this.shouldFindAllMarketsAndOracles) {
 			const {
 				perpMarketIndexes,
@@ -146,7 +155,7 @@ export class WebSocketDriftClientAccountSubscriberV2
 		);
 
 		this.perpMarketAllAccountsSubscriber =
-			new WebSocketProgramAccountSubscriber<PerpMarketAccount>(
+			new WebSocketProgramAccountSubscriberV2<PerpMarketAccount>(
 				'PerpMarketAccountsSubscriber',
 				'PerpMarket',
 				this.program,
@@ -157,7 +166,8 @@ export class WebSocketDriftClientAccountSubscriberV2
 					filters: [getPerpMarketAccountsFilter()],
 					commitment: this.commitment,
 				},
-				this.resubOpts
+				this.resubOpts,
+				perpMarketAccountPubkeys
 			);
 		await this.perpMarketAllAccountsSubscriber.subscribe(
 			(
@@ -182,7 +192,7 @@ export class WebSocketDriftClientAccountSubscriberV2
 		);
 
 		this.spotMarketAllAccountsSubscriber =
-			new WebSocketProgramAccountSubscriber<SpotMarketAccount>(
+			new WebSocketProgramAccountSubscriberV2<SpotMarketAccount>(
 				'SpotMarketAccountsSubscriber',
 				'SpotMarket',
 				this.program,
@@ -193,7 +203,8 @@ export class WebSocketDriftClientAccountSubscriberV2
 					filters: [getSpotMarketAccountsFilter()],
 					commitment: this.commitment,
 				},
-				this.resubOpts
+				this.resubOpts,
+				spotMarketAccountPubkeys
 			);
 
 		await this.spotMarketAllAccountsSubscriber.subscribe(
@@ -219,13 +230,13 @@ export class WebSocketDriftClientAccountSubscriberV2
 		);
 
 		// // create and activate main state account subscription
-		this.stateAccountSubscriber = new WebSocketAccountSubscriber(
+		this.stateAccountSubscriber = new WebSocketAccountSubscriberV2(
 			'state',
 			this.program,
 			statePublicKey,
 			undefined,
 			undefined,
-			this.commitment
+			this.commitment as Commitment
 		);
 		await this.stateAccountSubscriber.subscribe((data: StateAccount) => {
 			this.eventEmitter.emit('stateAccountUpdate', data);
