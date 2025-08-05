@@ -10099,14 +10099,6 @@
             "type": "u8"
           },
           {
-            "name": "padding1",
-            "type": "u32"
-          },
-          {
-            "name": "lastFillPrice",
-            "type": "u64"
-          },
-          {
             "name": "lpFeeTransferScalar",
             "type": "u8"
           },
@@ -10115,11 +10107,19 @@
             "type": "u8"
           },
           {
+            "name": "padding1",
+            "type": "u16"
+          },
+          {
+            "name": "lastFillPrice",
+            "type": "u64"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                22
+                24
               ]
             }
           }

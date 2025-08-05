@@ -258,11 +258,11 @@ pub struct PerpMarket {
     pub high_leverage_margin_ratio_maintenance: u16,
     pub protected_maker_limit_price_divisor: u8,
     pub protected_maker_dynamic_divisor: u8,
-    pub padding1: u32,
-    pub last_fill_price: u64,
     pub lp_fee_transfer_scalar: u8,
     pub lp_status: u8,
-    pub padding: [u8; 22],
+    pub padding1: u16,
+    pub last_fill_price: u64,
+    pub padding: [u8; 24],
 }
 
 impl Default for PerpMarket {
@@ -304,11 +304,11 @@ impl Default for PerpMarket {
             high_leverage_margin_ratio_maintenance: 0,
             protected_maker_limit_price_divisor: 0,
             protected_maker_dynamic_divisor: 0,
-            padding1: 0,
-            last_fill_price: 0,
             lp_fee_transfer_scalar: 1,
             lp_status: 0,
-            padding: [0; 22],
+            padding1: 0,
+            last_fill_price: 0,
+            padding: [0; 24],
         }
     }
 }
