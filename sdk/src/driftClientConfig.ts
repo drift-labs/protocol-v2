@@ -20,6 +20,8 @@ import { Coder, Program } from '@coral-xyz/anchor';
 import { WebSocketAccountSubscriber } from './accounts/webSocketAccountSubscriber';
 import { WebSocketAccountSubscriberV2 } from './accounts/webSocketAccountSubscriberV2';
 import { WebSocketProgramAccountSubscriber } from './accounts/webSocketProgramAccountSubscriber';
+import { WebSocketDriftClientAccountSubscriber } from '@drift-labs/sdk';
+import { WebSocketDriftClientAccountSubscriberV2 } from './accounts/webSocketDriftClientAccountSubscriberV2';
 
 export type DriftClientConfig = {
 	connection: Connection;
@@ -64,14 +66,6 @@ export type DriftClientSubscriptionConfig =
 			resubTimeoutMs?: number;
 			logResubMessages?: boolean;
 			commitment?: Commitment;
-			perpMarketAccountSubscriber?: new (
-				accountName: string,
-				program: Program,
-				accountPublicKey: PublicKey,
-				decodeBuffer?: (buffer: Buffer) => any,
-				resubOpts?: ResubOpts,
-				commitment?: Commitment
-			) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>;
 			programUserAccountSubscriber?: WebSocketProgramAccountSubscriber<UserAccount>;
 			perpMarketAccountSubscriber?: new (
 				accountName: string,
@@ -81,7 +75,16 @@ export type DriftClientSubscriptionConfig =
 				resubOpts?: ResubOpts,
 				commitment?: Commitment
 			) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>;
-			programUserAccountSubscriber?: WebSocketProgramAccountSubscriber<UserAccount>;
+			driftClientAccountSubscriber?: new (
+				program: Program,
+				perpMarketIndexes: number[],
+				spotMarketIndexes: number[],
+				oracleInfos: OracleInfo[],
+				shouldFindAllMarketsAndOracles: boolean,
+				delistedMarketSetting: DelistedMarketSetting
+			) =>
+				| WebSocketDriftClientAccountSubscriber
+				| WebSocketDriftClientAccountSubscriberV2;
 	  }
 	| {
 			type: 'polling';
