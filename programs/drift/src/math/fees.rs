@@ -441,7 +441,7 @@ fn determine_perp_fee_tier(
         ONE_MILLION_QUOTE * 2,
         FIVE_MILLION_QUOTE * 2,
         TEN_MILLION_QUOTE * 2,
-        FIFTY_MILLION_QUOTE * 2,
+        TEN_MILLION_QUOTE * 8,
         ONE_HUNDRED_MILLION_QUOTE * 2,
     ];
 
