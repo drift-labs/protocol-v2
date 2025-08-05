@@ -1,5 +1,7 @@
 use crate::error::{DriftResult, ErrorCode};
-use crate::state::builder::{RevenueShareEscrow, RevenueShareEscrowLoader, RevenueShareEscrowZeroCopyMut};
+use crate::state::builder::{
+    RevenueShareEscrow, RevenueShareEscrowLoader, RevenueShareEscrowZeroCopyMut,
+};
 use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use std::cell::RefMut;
 use std::convert::TryFrom;
@@ -274,7 +276,6 @@ pub fn get_high_leverage_mode_config<'a>(
 
     Ok(Some(high_leverage_mode_config))
 }
-
 
 pub fn get_revenue_escrow_account<'a>(
     account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'a>>>,

@@ -1,9 +1,10 @@
 use crate::error::ErrorCode;
-use crate::state::traits::Size;
 use crate::state::order_params::{
-    OrderParams, SignedMsgOrderParamsDelegateMessage, SignedMsgOrderParamsMessage,
-    SignedMsgTriggerOrderParams, SignedMsgOrderParamsDelegateWithBuilderMessage, SignedMsgOrderParamsWithBuilderMessage,
+    OrderParams, SignedMsgOrderParamsDelegateMessage,
+    SignedMsgOrderParamsDelegateWithBuilderMessage, SignedMsgOrderParamsMessage,
+    SignedMsgOrderParamsWithBuilderMessage, SignedMsgTriggerOrderParams,
 };
+use crate::state::traits::Size;
 use crate::validate;
 use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
@@ -269,10 +270,10 @@ pub fn verify_and_decode_ed25519_msg(
             }
 
             let deserialized = SignedMsgOrderParamsDelegateMessage::deserialize(&mut &payload[8..])
-            .map_err(|_| {
-                msg!("Invalid message encoding for with is_delegate_signer = true");
-                SignatureVerificationError::InvalidMessageDataSize
-            })?;
+                .map_err(|_| {
+                    msg!("Invalid message encoding for with is_delegate_signer = true");
+                    SignatureVerificationError::InvalidMessageDataSize
+                })?;
 
             Ok(VerifiedMessage {
                 signed_msg_order_params: deserialized.signed_msg_order_params,
@@ -323,7 +324,7 @@ pub fn verify_and_decode_ed25519_msg(
                 msg!("Invalid message encoding for SignedMsgOrderParamsDelegateWithBuilderMessage with is_delegate_signer = true and builder");
                 SignatureVerificationError::InvalidMessageDataSize
             })?;
-            
+
             Ok(VerifiedMessage {
                 signed_msg_order_params: deserialized.signed_msg_order_params,
                 sub_account_id: None,
@@ -338,7 +339,11 @@ pub fn verify_and_decode_ed25519_msg(
             })
         }
         _ => {
-            msg!("Invalid message length: {}, is_delegate_signer: {}", payload.len(), is_delegate_signer);
+            msg!(
+                "Invalid message length: {}, is_delegate_signer: {}",
+                payload.len(),
+                is_delegate_signer
+            );
             Err(SignatureVerificationError::InvalidMessageDataSize.into())
         }
     }

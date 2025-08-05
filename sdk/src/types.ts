@@ -1617,12 +1617,12 @@ export type RevenueShareEscrow = {
 
 export type RevenueShareOrder = {
 	beneficiary: PublicKey;
+	feeAccrued: BN;
 	orderId: number;
 	feeBps: number;
-	marketType: number; // 0: spot, 1: perp
 	marketIndex: number;
-	feeAccrued: BN;
 	bitFlags: number;
+	marketType: MarketType; // 0: spot, 1: perp
 	padding: number[];
 };
 

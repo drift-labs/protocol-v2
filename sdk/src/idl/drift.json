@@ -7821,12 +7821,20 @@
             "type": "publicKey"
           },
           {
+            "name": "padding0",
+            "type": "u32"
+          },
+          {
             "name": "orders",
             "type": {
               "vec": {
                 "defined": "RevenueShareOrder"
               }
             }
+          },
+          {
+            "name": "padding1",
+            "type": "u32"
           },
           {
             "name": "approvedBuilders",
@@ -10043,7 +10051,9 @@
           },
           {
             "name": "marketType",
-            "type": "u8"
+            "type": {
+              "defined": "MarketType"
+            }
           },
           {
             "name": "padding",
@@ -10069,6 +10079,15 @@
           {
             "name": "maxFeeBps",
             "type": "u16"
+          },
+          {
+            "name": "padding2",
+            "type": {
+              "array": [
+                "u8",
+                2
+              ]
+            }
           }
         ]
       }

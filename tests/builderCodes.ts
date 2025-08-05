@@ -30,6 +30,8 @@ import {
 	SignedMsgOrderParamsWithBuilderMessage,
 	calculateBaseAssetAmountToFillUpToLimitPrice,
 	PEG_PRECISION,
+	ZERO,
+	isVariant,
 } from '../sdk/src';
 
 import {
@@ -223,7 +225,7 @@ describe('builder codes', () => {
 	});
 
 	it('user can initialize a RevenueShareEscrow', async () => {
-		const numOrders = 10;
+		const numOrders = 2;
 
 		// Test the instruction creation
 		const ix = await userClient.getInitializeRevenueShareEscrowIx(
@@ -267,7 +269,7 @@ describe('builder codes', () => {
 	});
 
 	it('user can resize RevenueShareEscrow account', async () => {
-		const newNumOrders = 20;
+		const newNumOrders = 3;
 
 		// Test the instruction creation
 		const ix = await userClient.getResizeRevenueShareEscrowOrdersIx(
@@ -414,7 +416,7 @@ describe('builder codes', () => {
 		);
 	});
 
-	it('user can place swift order with builder and no delegate', async () => {
+	it('user can place swift order with tpsl, builder, no delegate', async () => {
 		// await userClient.deposit(usdcAmount, 0, userUSDCAccount.publicKey);
 
 		const slot = new BN(
@@ -452,15 +454,22 @@ describe('builder codes', () => {
 		let userOrders = userClient.getUser().getOpenOrders();
 		assert(userOrders.length === 0);
 
+		const builderFeeBps = 7;
 		const takerOrderParamsMessage: SignedMsgOrderParamsWithBuilderMessage = {
 			signedMsgOrderParams: takerOrderParams,
 			subAccountId: 0,
 			slot,
 			uuid,
-			takeProfitOrderParams: null,
-			stopLossOrderParams: null,
+			takeProfitOrderParams: {
+				triggerPrice: new BN(230).mul(PRICE_PRECISION),
+				baseAssetAmount: takerOrderParams.baseAssetAmount,
+			},
+			stopLossOrderParams: {
+				triggerPrice: new BN(220).mul(PRICE_PRECISION),
+				baseAssetAmount: takerOrderParams.baseAssetAmount,
+			},
 			builderIdx: 0,
-			builderFee: 5,
+			builderFee: builderFeeBps,
 		};
 
 		const signedOrderParams = userClient.signSignedMsgOrderParamsMessage(
@@ -485,19 +494,46 @@ describe('builder codes', () => {
 		await userClient.fetchAccounts();
 
 		userOrders = userClient.getUser().getOpenOrders();
-		assert(userOrders.length === 1);
+		assert(userOrders.length === 3);
+		assert(userOrders[0].orderId === 1);
+		assert(userOrders[0].reduceOnly === true);
+		assert(userOrders[1].orderId === 2);
+		assert(userOrders[1].reduceOnly === true);
+		assert(userOrders[2].orderId === 3);
+		assert(userOrders[2].reduceOnly === false);
 
-		// Verify the builder was removed
 		let accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
 			getRevenueShareEscrowAccountPublicKey(
 				userClient.program.programId,
 				userClient.wallet.publicKey
 			)
 		);
-		let revShareEscrow = userClient.program.coder.accounts.decodeUnchecked(
-			'RevenueShareEscrow',
-			accountInfo.data
+		let revShareEscrow: RevenueShareEscrow =
+			userClient.program.coder.accounts.decodeUnchecked(
+				'RevenueShareEscrow',
+				accountInfo.data
+			);
+		// console.log(revShareEscrow);
+		// console.log('revShareEscrow.authority:', revShareEscrow.authority.toBase58());
+		// console.log('revShareEscrow.referrer:', revShareEscrow.referrer.toBase58());
+		// console.log('revShareEscrow.orders.len:', revShareEscrow.orders.length);
+		// console.log('revShareEscrow.orders.0:', revShareEscrow.orders[0]);
+		// console.log('revShareEscrow.approvedBuilders.len:', revShareEscrow.approvedBuilders.length);
+		// console.log('revShareEscrow.approvedBuilders.0:', revShareEscrow.approvedBuilders[0]);
+
+		// check the corresponding revShareEscrow orders are added
+		for (let i = 0; i < userOrders.length; i++) {
+			assert(revShareEscrow.orders[i]!.beneficiary.equals(builder.publicKey));
+			assert(revShareEscrow.orders[i]!.feeAccrued.eq(ZERO));
+			assert(revShareEscrow.orders[i]!.feeBps === builderFeeBps);
+			assert(revShareEscrow.orders[i]!.orderId === i + 1);
+			assert(isVariant(revShareEscrow.orders[i]!.marketType, 'perp'));
+			assert(revShareEscrow.orders[i]!.marketIndex === marketIndex);
+		}
+
+		assert(
+			revShareEscrow.approvedBuilders[0]!.authority.equals(builder.publicKey)
 		);
-		console.log(revShareEscrow);
+		assert(revShareEscrow.approvedBuilders[0]!.maxFeeBps === maxFeeBps);
 	});
 });

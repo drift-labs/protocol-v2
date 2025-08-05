@@ -32,6 +32,7 @@ use crate::{safe_increment, SPOT_WEIGHT_PRECISION};
 use crate::{validate, MAX_PREDICTION_MARKET_PRICE};
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
+use bytemuck::{Pod, Zeroable};
 use std::cmp::max;
 use std::fmt;
 use std::ops::Neg;
@@ -1694,6 +1695,9 @@ impl From<MarketType> for u8 {
         }
     }
 }
+
+unsafe impl Zeroable for MarketType {}
+unsafe impl Pod for MarketType {}
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum OrderBitFlag {
