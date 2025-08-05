@@ -4,7 +4,7 @@ import {
 	PERCENTAGE_PRECISION,
 	ZERO,
 } from '../constants/numericConstants';
-import { StateAccount } from '../types';
+import { FeatureBitFlags, StateAccount } from '../types';
 
 export function calculateInitUserFee(stateAccount: StateAccount): BN {
 	const maxInitFee = new BN(stateAccount.maxInitializeUserFee)
@@ -31,4 +31,10 @@ export function getMaxNumberOfSubAccounts(stateAccount: StateAccount): BN {
 		return new BN(stateAccount.maxNumberOfSubAccounts);
 	}
 	return new BN(stateAccount.maxNumberOfSubAccounts).muln(100);
+}
+
+export function useMedianTriggerPrice(stateAccount: StateAccount): boolean {
+	return (
+		(stateAccount.featureBitFlags & FeatureBitFlags.MEDIAN_TRIGGER_PRICE) > 0
+	);
 }

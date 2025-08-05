@@ -917,3 +917,164 @@ mod calculate_fee_for_fulfillment_with_serum {
         assert_eq!(filler_reward, 2000);
     }
 }
+
+mod calcuate_fee_tiers {
+
+    use crate::math::constants::QUOTE_PRECISION_U64;
+    use crate::math::constants::{
+        FEE_DENOMINATOR, FEE_PERCENTAGE_DENOMINATOR, MAX_REFERRER_REWARD_EPOCH_UPPER_BOUND,
+    };
+    use crate::math::fees::{determine_user_fee_tier, OrderFillerRewardStructure};
+    use crate::state::state::{FeeStructure, FeeTier};
+    use crate::state::user::MarketType;
+    use crate::state::user::UserStats;
+
+    #[test]
+    fn test_calc_taker_tiers() {
+        let mut taker_stats = UserStats::default();
+        let mut fee_tiers = [FeeTier::default(); 10];
+
+        fee_tiers[0] = FeeTier {
+            fee_numerator: 35,
+            fee_denominator: FEE_DENOMINATOR, // 3.5 bps
+            maker_rebate_numerator: 25,
+            maker_rebate_denominator: FEE_DENOMINATOR * 10, // .25 bps
+            referrer_reward_numerator: 10,
+            referrer_reward_denominator: FEE_PERCENTAGE_DENOMINATOR, // 10% of taker fee
+            referee_fee_numerator: 5,
+            referee_fee_denominator: FEE_PERCENTAGE_DENOMINATOR, // 5%
+        };
+        fee_tiers[1] = FeeTier {
+            fee_numerator: 30,
+            fee_denominator: FEE_DENOMINATOR, // 3 bps
+            maker_rebate_numerator: 25,
+            maker_rebate_denominator: FEE_DENOMINATOR * 10, // .25 bps
+            referrer_reward_numerator: 10,
+            referrer_reward_denominator: FEE_PERCENTAGE_DENOMINATOR, // 10% of taker fee
+            referee_fee_numerator: 5,
+            referee_fee_denominator: FEE_PERCENTAGE_DENOMINATOR, // 5%
+        };
+        fee_tiers[2] = FeeTier {
+            fee_numerator: 275,
+            fee_denominator: FEE_DENOMINATOR * 10, // 2.75 bps
+            maker_rebate_numerator: 25,
+            maker_rebate_denominator: FEE_DENOMINATOR * 10, // .25 bps
+            referrer_reward_numerator: 10,
+            referrer_reward_denominator: FEE_PERCENTAGE_DENOMINATOR, // 10% of taker fee
+            referee_fee_numerator: 5,
+            referee_fee_denominator: FEE_PERCENTAGE_DENOMINATOR, // 5%
+        };
+        fee_tiers[3] = FeeTier {
+            fee_numerator: 25,
+            fee_denominator: FEE_DENOMINATOR, // 2.5 bps
+            maker_rebate_numerator: 25,
+            maker_rebate_denominator: FEE_DENOMINATOR * 10, // .25 bps
+            referrer_reward_numerator: 10,
+            referrer_reward_denominator: FEE_PERCENTAGE_DENOMINATOR, // 10% of taker fee
+            referee_fee_numerator: 5,
+            referee_fee_denominator: FEE_PERCENTAGE_DENOMINATOR, // 5%
+        };
+        fee_tiers[4] = FeeTier {
+            fee_numerator: 225,
+            fee_denominator: FEE_DENOMINATOR * 10, // 2.25 bps
+            maker_rebate_numerator: 25,
+            maker_rebate_denominator: FEE_DENOMINATOR * 10, // .25 bps
+            referrer_reward_numerator: 10,
+            referrer_reward_denominator: FEE_PERCENTAGE_DENOMINATOR, // 10% of taker fee
+            referee_fee_numerator: 5,
+            referee_fee_denominator: FEE_PERCENTAGE_DENOMINATOR, // 5%
+        };
+        fee_tiers[5] = FeeTier {
+            fee_numerator: 20,
+            fee_denominator: FEE_DENOMINATOR, // 2 bps
+            maker_rebate_numerator: 25,
+            maker_rebate_denominator: FEE_DENOMINATOR * 10, // .25 bps
+            referrer_reward_numerator: 10,
+            referrer_reward_denominator: FEE_PERCENTAGE_DENOMINATOR, // 10% of taker fee
+            referee_fee_numerator: 5,
+            referee_fee_denominator: FEE_PERCENTAGE_DENOMINATOR, // 5%
+        };
+        let fee_structure = FeeStructure {
+            fee_tiers,
+            filler_reward_structure: OrderFillerRewardStructure {
+                reward_numerator: 10,
+                reward_denominator: FEE_PERCENTAGE_DENOMINATOR,
+                time_based_reward_lower_bound: 10_000, // 1 cent
+            },
+            flat_filler_fee: 10_000,
+            referrer_reward_epoch_upper_bound: MAX_REFERRER_REWARD_EPOCH_UPPER_BOUND,
+        };
+
+        let res = determine_user_fee_tier(&taker_stats, &fee_structure, &MarketType::Perp, false)
+            .unwrap();
+        assert_eq!(res.fee_numerator, 35);
+        assert_eq!(res.fee_denominator, 100000);
+
+        assert_eq!(res.maker_rebate_numerator, 25);
+        assert_eq!(res.maker_rebate_denominator, 1000000);
+
+        taker_stats.taker_volume_30d = 80_000_000 * QUOTE_PRECISION_U64;
+
+        let res: FeeTier =
+            determine_user_fee_tier(&taker_stats, &fee_structure, &MarketType::Perp, false)
+                .unwrap();
+        assert_eq!(res.fee_numerator, 25);
+        assert_eq!(res.fee_denominator, 100000);
+
+        assert_eq!(res.maker_rebate_numerator, 25);
+        assert_eq!(res.maker_rebate_denominator, 1000000);
+
+        taker_stats.if_staked_gov_token_amount = 50_000 * QUOTE_PRECISION_U64 - 8970; // still counts for 50K tier
+        let res: FeeTier =
+            determine_user_fee_tier(&taker_stats, &fee_structure, &MarketType::Perp, false)
+                .unwrap();
+
+        assert_eq!(res.fee_numerator, 20);
+        assert_eq!(res.fee_denominator, 100000);
+
+        assert_eq!(res.maker_rebate_numerator, 30);
+        assert_eq!(res.maker_rebate_denominator, 1000000);
+
+        taker_stats.if_staked_gov_token_amount = 150_000 * QUOTE_PRECISION_U64 - 8970; // still counts for 100K tier
+        let res: FeeTier =
+            determine_user_fee_tier(&taker_stats, &fee_structure, &MarketType::Perp, false)
+                .unwrap();
+
+        assert_eq!(res.fee_numerator, 18);
+        assert_eq!(res.fee_denominator, 100000);
+
+        assert_eq!(res.maker_rebate_numerator, 32);
+        assert_eq!(res.maker_rebate_denominator, 1000000);
+
+        taker_stats.if_staked_gov_token_amount = 800_000 * QUOTE_PRECISION_U64;
+        let res: FeeTier =
+            determine_user_fee_tier(&taker_stats, &fee_structure, &MarketType::Perp, false)
+                .unwrap();
+
+        assert_eq!(res.fee_numerator, 15);
+        assert_eq!(res.fee_denominator, 100000);
+
+        assert_eq!(res.maker_rebate_numerator, 35);
+        assert_eq!(res.maker_rebate_denominator, 1000000);
+
+        taker_stats.taker_volume_30d = 280_000_000 * QUOTE_PRECISION_U64;
+        let res: FeeTier =
+            determine_user_fee_tier(&taker_stats, &fee_structure, &MarketType::Perp, false)
+                .unwrap();
+
+        assert_eq!(res.fee_numerator, 12);
+        assert_eq!(res.fee_denominator, 100000);
+
+        assert_eq!(res.maker_rebate_numerator, 35);
+        assert_eq!(res.maker_rebate_denominator, 1000000);
+
+        let res: FeeTier =
+            determine_user_fee_tier(&taker_stats, &fee_structure, &MarketType::Perp, true).unwrap();
+
+        assert_eq!(res.fee_numerator, 35);
+        assert_eq!(res.fee_denominator, 100000);
+
+        assert_eq!(res.maker_rebate_numerator, 25);
+        assert_eq!(res.maker_rebate_denominator, 1000000);
+    }
+}

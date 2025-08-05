@@ -8,7 +8,7 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { Commitment, Context, MemcmpFilter, PublicKey } from '@solana/web3.js';
 import { ConstituentAccount } from '../types';
-import { WebSocketProgramAccountSubscriber } from '../accounts/programAccount/webSocketProgramAccountSubscriber';
+import { WebSocketProgramAccountSubscriber } from '../accounts/webSocketProgramAccountSubscriber';
 import { getConstituentFilter } from '../memcmp';
 import { ConstituentMap } from './constituentMap';
 

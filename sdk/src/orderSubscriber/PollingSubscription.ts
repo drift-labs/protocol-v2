@@ -1,7 +1,7 @@
-import { IOrderSubscriber } from './types';
+import { OrderSubscriber } from './OrderSubscriber';
 
 export class PollingSubscription {
-	private orderSubscriber: IOrderSubscriber;
+	private orderSubscriber: OrderSubscriber;
 	private frequency: number;
 
 	intervalId?: ReturnType<typeof setTimeout>;
@@ -10,7 +10,7 @@ export class PollingSubscription {
 		orderSubscriber,
 		frequency,
 	}: {
-		orderSubscriber: IOrderSubscriber;
+		orderSubscriber: OrderSubscriber;
 		frequency: number;
 	}) {
 		this.orderSubscriber = orderSubscriber;

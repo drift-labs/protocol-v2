@@ -4699,33 +4699,6 @@ export class AdminClient extends DriftClient {
 		});
 	}
 
-	public async updateDisableBitFlagsMMOracle(
-		disable: boolean
-	): Promise<TransactionSignature> {
-		const updateDisableBitFlagsMMOracleIx =
-			await this.getUpdateDisableBitFlagsMMOracleIx(disable);
-
-		const tx = await this.buildTransaction(updateDisableBitFlagsMMOracleIx);
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-
-		return txSig;
-	}
-	public async getUpdateDisableBitFlagsMMOracleIx(
-		disable: boolean
-	): Promise<TransactionInstruction> {
-		return await this.program.instruction.updateDisableBitflagsMmOracle(
-			disable,
-			{
-				accounts: {
-					admin: this.isSubscribed
-						? this.getStateAccount().admin
-						: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-				},
-			}
-		);
-	}
-
 	public async zeroMMOracleFields(
 		marketIndex: number
 	): Promise<TransactionSignature> {
@@ -4738,6 +4711,7 @@ export class AdminClient extends DriftClient {
 
 		return txSig;
 	}
+
 	public async getZeroMMOracleFieldsIx(
 		marketIndex: number
 	): Promise<TransactionInstruction> {
@@ -4753,6 +4727,34 @@ export class AdminClient extends DriftClient {
 				),
 			},
 		});
+	}
+
+	public async updateFeatureBitFlagsMMOracle(
+		enable: boolean
+	): Promise<TransactionSignature> {
+		const updateFeatureBitFlagsMMOracleIx =
+			await this.getUpdateFeatureBitFlagsMMOracleIx(enable);
+
+		const tx = await this.buildTransaction(updateFeatureBitFlagsMMOracleIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateFeatureBitFlagsMMOracleIx(
+		enable: boolean
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateFeatureBitFlagsMmOracle(
+			enable,
+			{
+				accounts: {
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
 	}
 
 	public async initializeLpPool(

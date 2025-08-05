@@ -28,6 +28,11 @@ export enum ExchangeStatus {
 	PAUSED = 255,
 }
 
+export enum FeatureBitFlags {
+	MM_ORACLE_UPDATE = 1,
+	MEDIAN_TRIGGER_PRICE = 2,
+}
+
 export class MarketStatus {
 	static readonly INITIALIZED = { initialized: {} };
 	static readonly ACTIVE = { active: {} };
@@ -808,6 +813,7 @@ export type StateAccount = {
 	initialPctToLiquidate: number;
 	liquidationDuration: number;
 	maxInitializeUserFee: number;
+	featureBitFlags: number;
 };
 
 export type PerpMarketAccount = {
@@ -854,6 +860,7 @@ export type PerpMarketAccount = {
 	highLeverageMarginRatioMaintenance: number;
 	protectedMakerLimitPriceDivisor: number;
 	protectedMakerDynamicDivisor: number;
+	lastFillPrice: BN;
 };
 
 export type HistoricalOracleData = {
@@ -1065,6 +1072,9 @@ export type AMM = {
 	takerSpeedBumpOverride: number;
 	ammSpreadAdjustment: number;
 	ammInventorySpreadAdjustment: number;
+
+	lastFundingOracleTwap: BN;
+	lpStatus: number;
 };
 
 // # User Account Types

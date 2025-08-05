@@ -491,6 +491,7 @@ pub fn validate_fill_price_within_price_bands(
     margin_ratio_initial: u32,
     oracle_twap_5min_percent_divergence: u64,
     is_prediction_market: bool,
+    direction: Option<PositionDirection>,
 ) -> DriftResult {
     if is_prediction_market {
         validate!(
@@ -502,6 +503,22 @@ pub fn validate_fill_price_within_price_bands(
         )?;
 
         return Ok(());
+    }
+
+    if let Some(direction) = direction {
+        if direction == PositionDirection::Long {
+            if fill_price < oracle_price.cast::<u64>()?
+                && fill_price < oracle_twap_5min.cast::<u64>()?
+            {
+                return Ok(());
+            }
+        } else {
+            if fill_price > oracle_price.cast::<u64>()?
+                && fill_price > oracle_twap_5min.cast::<u64>()?
+            {
+                return Ok(());
+            }
+        }
     }
 
     let max_oracle_diff = margin_ratio_initial.cast::<u128>()?;
