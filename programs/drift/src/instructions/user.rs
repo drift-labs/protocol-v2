@@ -2232,8 +2232,6 @@ pub fn handle_transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
             &spot_market_map,
             &mut oracle_map,
             MarginRequirementType::Initial,
-            user_stats,
-            now,
             perp_market_index,
         )?;
 
@@ -2355,8 +2353,6 @@ pub fn handle_withdraw_from_isolated_perp_position<'c: 'info, 'info>(
         &spot_market_map,
         &mut oracle_map,
         MarginRequirementType::Initial,
-        &mut user_stats,
-        now,
         perp_market_index,
     )?;
 

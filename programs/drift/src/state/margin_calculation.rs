@@ -593,4 +593,12 @@ impl MarginCalculation {
 
         Ok(())
     }
+
+    pub fn get_isolated_position_margin_calculation(&self, market_index: u16) -> DriftResult<&IsolatedPositionMarginCalculation> {
+        if let Some(isolated_position_margin_calculation) = self.isolated_position_margin_calculation.get(&market_index) {
+            Ok(isolated_position_margin_calculation)
+        } else {
+            Err(ErrorCode::InvalidMarginCalculation)
+        }
+    }
 }

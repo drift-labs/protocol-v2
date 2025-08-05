@@ -691,8 +691,6 @@ impl User {
         spot_market_map: &SpotMarketMap,
         oracle_map: &mut OracleMap,
         margin_requirement_type: MarginRequirementType,
-        user_stats: &mut UserStats,
-        now: i64,
         isolated_perp_position_market_index: u16,
     ) -> DriftResult<bool> {
         let strict = margin_requirement_type == MarginRequirementType::Initial;
@@ -707,20 +705,20 @@ impl User {
             context,
         )?;
 
-        if calculation.margin_requirement > 0 || calculation.get_num_of_liabilities()? > 0 {
-            validate!(
-                calculation.all_liability_oracles_valid,
-                ErrorCode::InvalidOracle,
-                "User attempting to withdraw with outstanding liabilities when an oracle is invalid"
-            )?;
-        }
+        let isolated_position_margin_calculation = calculation.get_isolated_position_margin_calculation(isolated_perp_position_market_index)?;
 
         validate!(
-            calculation.meets_margin_requirement(),
+            calculation.all_liability_oracles_valid,
+            ErrorCode::InvalidOracle,
+            "User attempting to withdraw with outstanding liabilities when an oracle is invalid"
+        )?;
+
+        validate!(
+            isolated_position_margin_calculation.meets_margin_requirement(),
             ErrorCode::InsufficientCollateral,
             "User attempting to withdraw where total_collateral {} is below initial_margin_requirement {}",
-            calculation.total_collateral,
-            calculation.margin_requirement
+            isolated_position_margin_calculation.total_collateral,
+            isolated_position_margin_calculation.margin_requirement
         )?;
 
         Ok(true)
