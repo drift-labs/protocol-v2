@@ -17,9 +17,7 @@ use anchor_lang::{prelude::*, solana_program::msg};
 
 #[derive(Clone, Copy, Debug)]
 pub enum MarginCalculationMode {
-    Standard {
-        track_open_orders_fraction: bool,
-    },
+    Standard,
     Liquidation {
         market_to_track_margin_requirement: Option<MarketIdentifier>,
     },
@@ -65,9 +63,7 @@ impl MarginContext {
     pub fn standard(margin_type: MarginRequirementType) -> Self {
         Self {
             margin_type,
-            mode: MarginCalculationMode::Standard {
-                track_open_orders_fraction: false,
-            },
+            mode: MarginCalculationMode::Standard,
             strict: false,
             ignore_invalid_deposit_oracles: false,
             margin_buffer: 0,
@@ -114,21 +110,6 @@ impl MarginContext {
     pub fn fuel_numerator(mut self, user: &User, now: i64) -> Self {
         self.fuel_bonus_numerator = user.get_fuel_bonus_numerator(now).unwrap();
         self
-    }
-
-    pub fn track_open_orders_fraction(mut self) -> DriftResult<Self> {
-        match self.mode {
-            MarginCalculationMode::Standard {
-                track_open_orders_fraction: ref mut track,
-            } => {
-                *track = true;
-            }
-            _ => {
-                msg!("Cant track open orders fraction outside of standard mode");
-                return Err(ErrorCode::InvalidMarginCalculation);
-            }
-        }
-        Ok(self)
     }
 
     pub fn margin_ratio_override(mut self, margin_ratio_override: u32) -> Self {
@@ -524,15 +505,6 @@ impl MarginCalculation {
 
     fn is_liquidation_mode(&self) -> bool {
         matches!(self.context.mode, MarginCalculationMode::Liquidation { .. })
-    }
-
-    pub fn track_open_orders_fraction(&self) -> bool {
-        matches!(
-            self.context.mode,
-            MarginCalculationMode::Standard {
-                track_open_orders_fraction: true
-            }
-        )
     }
 
     pub fn update_fuel_perp_bonus(
