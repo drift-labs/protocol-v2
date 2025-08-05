@@ -861,6 +861,9 @@ export type PerpMarketAccount = {
 	protectedMakerLimitPriceDivisor: number;
 	protectedMakerDynamicDivisor: number;
 	lastFillPrice: BN;
+
+	lpFeeTransferScalar: number;
+	lpStatus: number;
 };
 
 export type HistoricalOracleData = {
@@ -1074,7 +1077,6 @@ export type AMM = {
 	ammInventorySpreadAdjustment: number;
 
 	lastFundingOracleTwap: BN;
-	lpStatus: number;
 };
 
 // # User Account Types
