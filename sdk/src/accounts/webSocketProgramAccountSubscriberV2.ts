@@ -92,6 +92,25 @@ export class WebSocketProgramAccountSubscriberV2<T>
 		this.rpcSubscriptions = rpcSubscriptions;
 	}
 
+	private async handleNotificationLoop(subscription: AsyncIterable<any>) {
+		for await (const notification of subscription) {
+			if (this.resubOpts?.resubTimeoutMs) {
+				this.receivingData = true;
+				clearTimeout(this.timeoutId);
+				this.handleRpcResponse(
+					notification.context,
+					notification.value.account
+				);
+				this.setTimeout();
+			} else {
+				this.handleRpcResponse(
+					notification.context,
+					notification.value.account
+				);
+			}
+		}
+	}
+
 	async subscribe(
 		onChange: (
 			accountId: PublicKey,
@@ -106,9 +125,19 @@ export class WebSocketProgramAccountSubscriberV2<T>
 
 		this.onChange = onChange;
 
+		// initial fetch of monitored data
+		await this.fetchAllMonitoredAccounts();
+
 		// Create abort controller for proper cleanup
 		const abortController = new AbortController();
 		this.abortController = abortController;
+
+		this.listenerId = Math.random(); // Unique ID for logging purposes
+
+		if (this.resubOpts?.resubTimeoutMs) {
+			this.receivingData = true;
+			this.setTimeout();
+		}
 
 		// Subscribe to program account changes using gill's rpcSubscriptions
 		const programId = this.program.programId.toBase58();
@@ -117,41 +146,30 @@ export class WebSocketProgramAccountSubscriberV2<T>
 				.programNotifications(programId, {
 					commitment: this.options.commitment as GillCommitment,
 					encoding: 'base64',
-					filters: this.options.filters.map((filter) => ({
-						memcmp: {
-							offset: BigInt(filter.memcmp.offset),
-							bytes: filter.memcmp.bytes as any,
-							encoding: 'base64' as const,
-						},
-					})),
+					filters: this.options.filters.map((filter) => {
+						// Convert filter bytes from base58 to base64 if needed
+						let bytes = filter.memcmp.bytes;
+						if (typeof bytes === 'string' && /^[1-9A-HJ-NP-Za-km-z]+$/.test(bytes)) {
+							// Looks like base58 - convert to base64
+							const decoded = bs58.decode(bytes);
+							bytes = Buffer.from(decoded).toString('base64');
+						}
+
+						return {
+							memcmp: {
+								offset: BigInt(filter.memcmp.offset),
+								bytes: bytes as any,
+								encoding: 'base64' as const,
+							},
+						};
+					}),
 				})
 				.subscribe({
 					abortSignal: abortController.signal,
 				});
 
-			for await (const notification of subscription) {
-				if (this.resubOpts?.resubTimeoutMs) {
-					this.receivingData = true;
-					clearTimeout(this.timeoutId);
-					this.handleRpcResponse(
-						notification.context,
-						notification.value.account
-					);
-					this.setTimeout();
-				} else {
-					this.handleRpcResponse(
-						notification.context,
-						notification.value.account
-					);
-				}
-			}
-		}
-
-		this.listenerId = Math.random(); // Unique ID for logging purposes
-
-		if (this.resubOpts?.resubTimeoutMs) {
-			this.receivingData = true;
-			this.setTimeout();
+			// Start notification loop without awaiting
+			this.handleNotificationLoop(subscription);
 		}
 
 		// Start monitoring for accounts that may need polling if no WS event is received
@@ -351,6 +369,107 @@ export class WebSocketProgramAccountSubscriberV2<T>
 			// Process each account response
 			for (let i = 0; i < accountsToPoll.length; i++) {
 				const accountIdString = accountsToPoll[i];
+				const accountInfo = rpcResponse.value[i];
+
+				if (!accountInfo) {
+					continue;
+				}
+
+				const existingBufferAndSlot =
+					this.bufferAndSlotMap.get(accountIdString);
+
+				if (!existingBufferAndSlot) {
+					// Account not in our map yet, add it
+					let newBuffer: Buffer | undefined = undefined;
+					if (accountInfo.data) {
+						if (Array.isArray(accountInfo.data)) {
+							const [data, encoding] = accountInfo.data;
+							newBuffer = Buffer.from(data, encoding);
+						}
+					}
+
+					if (newBuffer) {
+						this.bufferAndSlotMap.set(accountIdString, {
+							buffer: newBuffer,
+							slot: currentSlot,
+						});
+						const account = this.decodeBuffer(
+							this.accountDiscriminator,
+							newBuffer
+						);
+						const accountId = new PublicKey(accountIdString);
+						this.onChange(accountId, account, { slot: currentSlot }, newBuffer);
+					}
+					continue;
+				}
+
+				// Check if we missed an update
+				if (currentSlot > existingBufferAndSlot.slot) {
+					let newBuffer: Buffer | undefined = undefined;
+					if (accountInfo.data) {
+						if (Array.isArray(accountInfo.data)) {
+							const [data, encoding] = accountInfo.data;
+							if (encoding === ('base58' as any)) {
+								newBuffer = Buffer.from(bs58.decode(data));
+							} else {
+								newBuffer = Buffer.from(data, 'base64');
+							}
+						}
+					}
+
+					// Check if buffer has changed
+					if (
+						newBuffer &&
+						(!existingBufferAndSlot.buffer ||
+							!newBuffer.equals(existingBufferAndSlot.buffer))
+					) {
+						if (this.resubOpts?.logResubMessages) {
+							console.log(
+								`[${this.subscriptionName}] Batch polling detected missed update for account ${accountIdString}, resubscribing`
+							);
+						}
+						// We missed an update, resubscribe
+						await this.unsubscribe(true);
+						this.receivingData = false;
+						await this.subscribe(this.onChange);
+						return;
+					}
+				}
+			}
+		} catch (error) {
+			if (this.resubOpts?.logResubMessages) {
+				console.log(
+					`[${this.subscriptionName}] Error batch polling accounts:`,
+					error
+				);
+			}
+		}
+	}
+
+	private async fetchAllMonitoredAccounts(): Promise<void> {
+		try {
+			// Get all accounts currently being polled
+			const accountsToMonitor = Array.from(this.accountsToMonitor);
+			if (accountsToMonitor.length === 0) {
+				return;
+			}
+
+			// Fetch all accounts in a single batch request
+			const accountAddresses = accountsToMonitor.map(
+				(accountId) => accountId as Address
+			);
+			const rpcResponse = await this.rpc
+				.getMultipleAccounts(accountAddresses, {
+					commitment: this.options.commitment as GillCommitment,
+					encoding: 'base64',
+				})
+				.send();
+
+			const currentSlot = Number(rpcResponse.context.slot);
+
+			// Process each account response
+			for (let i = 0; i < accountsToMonitor.length; i++) {
+				const accountIdString = accountsToMonitor[i];
 				const accountInfo = rpcResponse.value[i];
 
 				if (!accountInfo) {
