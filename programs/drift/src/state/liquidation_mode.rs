@@ -187,7 +187,7 @@ impl IsolatedLiquidatePerpMode {
 
 impl LiquidatePerpMode for IsolatedLiquidatePerpMode {
     fn get_margin_context(&self, liquidation_margin_buffer_ratio: u32) -> DriftResult<MarginContext> {
-        Ok(MarginContext::liquidation(liquidation_margin_buffer_ratio).isolated_position_market_index(self.market_index))
+        Ok(MarginContext::liquidation(liquidation_margin_buffer_ratio))
     }
 
     fn user_is_being_liquidated(&self, user: &User) -> DriftResult<bool> {

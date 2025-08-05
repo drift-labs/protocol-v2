@@ -847,11 +847,6 @@ pub fn calculate_max_perp_order_size(
 ) -> DriftResult<u64> {
     let is_isolated_position = user.perp_positions[position_index].is_isolated();
     let mut margin_context = MarginContext::standard(MarginRequirementType::Initial).strict(true);
-
-    if is_isolated_position {
-        margin_context = margin_context.isolated_position_market_index(user.perp_positions[position_index].market_index);
-    }
-
     // calculate initial margin requirement
     let MarginCalculation {
         margin_requirement,
@@ -868,6 +863,7 @@ pub fn calculate_max_perp_order_size(
     let user_custom_margin_ratio = user.max_margin_ratio;
     let user_high_leverage_mode = user.is_high_leverage_mode();
 
+    // todo check if this is correct
     let free_collateral_before = total_collateral.safe_sub(margin_requirement.cast()?)?;
 
     let perp_market = perp_market_map.get_ref(&market_index)?;

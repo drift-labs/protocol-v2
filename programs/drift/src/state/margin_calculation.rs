@@ -37,7 +37,6 @@ pub struct MarginContext {
     pub fuel_perp_delta: Option<(u16, i64)>,
     pub fuel_spot_deltas: [(u16, i128); 2],
     pub margin_ratio_override: Option<u32>,
-    pub isolated_position_market_index: Option<u16>,
 }
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, AnchorSerialize, AnchorDeserialize)]
@@ -77,7 +76,6 @@ impl MarginContext {
             fuel_perp_delta: None,
             fuel_spot_deltas: [(0, 0); 2],
             margin_ratio_override: None,
-            isolated_position_market_index: None,
         }
     }
 
@@ -156,7 +154,6 @@ impl MarginContext {
             fuel_perp_delta: None,
             fuel_spot_deltas: [(0, 0); 2],
             margin_ratio_override: None,
-            isolated_position_market_index: None,
         }
     }
 
@@ -177,11 +174,6 @@ impl MarginContext {
             }
         }
         Ok(self)
-    }
-
-    pub fn isolated_position_market_index(mut self, market_index: u16) -> Self {
-        self.isolated_position_market_index = Some(market_index);
-        self
     }
 }
 

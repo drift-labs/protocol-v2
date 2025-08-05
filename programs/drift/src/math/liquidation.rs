@@ -264,6 +264,7 @@ pub fn validate_user_not_being_liquidated(
     Ok(())
 }
 
+// todo check if this is corrects
 pub fn is_isolated_position_being_liquidated(
     user: &User,
     market_map: &PerpMarketMap,
@@ -277,7 +278,7 @@ pub fn is_isolated_position_being_liquidated(
         market_map,
         spot_market_map,
         oracle_map,
-        MarginContext::liquidation(liquidation_margin_buffer_ratio).isolated_position_market_index(perp_market_index),
+        MarginContext::liquidation(liquidation_margin_buffer_ratio),
     )?;
 
     let is_being_liquidated = !margin_calculation.can_exit_liquidation()?;

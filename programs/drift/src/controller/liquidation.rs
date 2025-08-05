@@ -3681,26 +3681,27 @@ pub fn set_user_status_to_being_liquidated(
         MarginContext::liquidation(liquidation_margin_buffer_ratio),
     )?;
 
+    // todo handle this
     if !user.is_being_liquidated() && !margin_calculation.meets_margin_requirement() {
         user.enter_liquidation(slot)?;
     }
 
     let isolated_position_market_indexes = user.perp_positions.iter().filter_map(|position| position.is_isolated().then_some(position.market_index)).collect::<Vec<_>>();
 
-    for market_index in isolated_position_market_indexes {
-        let margin_calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
-            user,
-            perp_market_map,
-            spot_market_map,
-            oracle_map,
-            MarginContext::liquidation(liquidation_margin_buffer_ratio).isolated_position_market_index(market_index),
-        )?;
+    // for market_index in isolated_position_market_indexes {
+    //     let margin_calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
+    //         user,
+    //         perp_market_map,
+    //         spot_market_map,
+    //         oracle_map,
+    //         MarginContext::liquidation(liquidation_margin_buffer_ratio).isolated_position_market_index(market_index),
+    //     )?;
 
-        if !user.is_isolated_position_being_liquidated(market_index)? && !margin_calculation.meets_margin_requirement() {
-            user.enter_isolated_position_liquidation(market_index)?;
-        }
+    //     if !user.is_isolated_position_being_liquidated(market_index)? && !margin_calculation.meets_margin_requirement() {
+    //         user.enter_isolated_position_liquidation(market_index)?;
+    //     }
 
-    }
+    // }
 
     Ok(())
 }
