@@ -26,6 +26,7 @@ use crate::ids::{
     serum_program,
 };
 use crate::instructions::constraints::*;
+use crate::instructions::optional_accounts::get_revenue_escrow_account;
 use crate::instructions::optional_accounts::{
     get_referrer_and_referrer_stats, get_whitelist_token, load_maps, AccountMaps,
 };
@@ -54,7 +55,6 @@ use crate::optional_accounts::{get_token_interface, get_token_mint};
 use crate::print_error;
 use crate::safe_decrement;
 use crate::safe_increment;
-use crate::state::builder::BuilderBitFlag;
 use crate::state::builder::BuilderInfo;
 use crate::state::builder::RevenueShare;
 use crate::state::builder::RevenueShareEscrow;
@@ -2068,6 +2068,7 @@ pub fn handle_place_perp_order<'c: 'info, 'info>(
         clock,
         params,
         PlaceOrderOptions::default(),
+        &mut None,
     )?;
 
     Ok(())
@@ -2083,12 +2084,14 @@ pub fn handle_cancel_order<'c: 'info, 'info>(
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
+    let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
+
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
+        &mut remaining_accounts,
         &MarketSet::new(),
         &MarketSet::new(),
         clock.slot,
@@ -2100,6 +2103,11 @@ pub fn handle_cancel_order<'c: 'info, 'info>(
         None => load!(ctx.accounts.user)?.get_last_order_id(),
     };
 
+    let mut revenue_escrow = get_revenue_escrow_account(&mut remaining_accounts)?;
+    let mut revenue_escrow_order = revenue_escrow
+        .as_mut()
+        .and_then(|escrow| escrow.find_order(order_id));
+
     controller::orders::cancel_order_by_order_id(
         order_id,
         &ctx.accounts.user,
@@ -2107,6 +2115,7 @@ pub fn handle_cancel_order<'c: 'info, 'info>(
         &spot_market_map,
         &mut oracle_map,
         clock,
+        &mut revenue_escrow_order,
     )?;
 
     Ok(())
@@ -2122,17 +2131,21 @@ pub fn handle_cancel_order_by_user_id<'c: 'info, 'info>(
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
+    let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
+
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
+        &mut remaining_accounts,
         &MarketSet::new(),
         &MarketSet::new(),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
+
+    let mut revenue_escrow = get_revenue_escrow_account(&mut remaining_accounts)?;
 
     controller::orders::cancel_order_by_user_order_id(
         user_order_id,
@@ -2141,6 +2154,7 @@ pub fn handle_cancel_order_by_user_id<'c: 'info, 'info>(
         &spot_market_map,
         &mut oracle_map,
         clock,
+        &mut revenue_escrow.as_mut(),
     )?;
 
     Ok(())
@@ -2156,19 +2170,26 @@ pub fn handle_cancel_orders_by_ids<'c: 'info, 'info>(
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
+    let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
+
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
+        &mut remaining_accounts,
         &MarketSet::new(),
         &MarketSet::new(),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
 
+    let mut revenue_escrow = get_revenue_escrow_account(&mut remaining_accounts)?;
+
     for order_id in order_ids {
+        let mut revenue_escrow_order = revenue_escrow
+            .as_mut()
+            .and_then(|escrow| escrow.find_order(order_id));
         controller::orders::cancel_order_by_order_id(
             order_id,
             &ctx.accounts.user,
@@ -2176,6 +2197,7 @@ pub fn handle_cancel_orders_by_ids<'c: 'info, 'info>(
             &spot_market_map,
             &mut oracle_map,
             clock,
+            &mut revenue_escrow_order,
         )?;
     }
 
@@ -2194,12 +2216,14 @@ pub fn handle_cancel_orders<'c: 'info, 'info>(
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
+    let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
+
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
+        &mut remaining_accounts,
         &MarketSet::new(),
         &MarketSet::new(),
         clock.slot,
@@ -2208,6 +2232,7 @@ pub fn handle_cancel_orders<'c: 'info, 'info>(
 
     let user_key = ctx.accounts.user.key();
     let mut user = load_mut!(ctx.accounts.user)?;
+    let mut revenue_escrow = get_revenue_escrow_account(&mut remaining_accounts)?;
 
     cancel_orders(
         &mut user,
@@ -2222,6 +2247,7 @@ pub fn handle_cancel_orders<'c: 'info, 'info>(
         market_type,
         market_index,
         direction,
+        &mut revenue_escrow.as_mut(),
     )?;
 
     Ok(())
@@ -2238,12 +2264,14 @@ pub fn handle_modify_order<'c: 'info, 'info>(
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
+    let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
+
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
+        &mut remaining_accounts,
         &MarketSet::new(),
         &MarketSet::new(),
         clock.slot,
@@ -2255,6 +2283,8 @@ pub fn handle_modify_order<'c: 'info, 'info>(
         None => load!(ctx.accounts.user)?.get_last_order_id(),
     };
 
+    let mut revenue_escrow = get_revenue_escrow_account(&mut remaining_accounts)?;
+
     controller::orders::modify_order(
         ModifyOrderId::OrderId(order_id),
         modify_order_params,
@@ -2264,6 +2294,7 @@ pub fn handle_modify_order<'c: 'info, 'info>(
         &spot_market_map,
         &mut oracle_map,
         clock,
+        &mut revenue_escrow.as_mut(),
     )?;
 
     Ok(())
@@ -2280,17 +2311,21 @@ pub fn handle_modify_order_by_user_order_id<'c: 'info, 'info>(
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
+    let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
+
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
+        &mut remaining_accounts,
         &MarketSet::new(),
         &MarketSet::new(),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
+
+    let mut revenue_escrow = get_revenue_escrow_account(&mut remaining_accounts)?;
 
     controller::orders::modify_order(
         ModifyOrderId::UserOrderId(user_order_id),
@@ -2301,6 +2336,7 @@ pub fn handle_modify_order_by_user_order_id<'c: 'info, 'info>(
         &spot_market_map,
         &mut oracle_map,
         clock,
+        &mut revenue_escrow.as_mut(),
     )?;
 
     Ok(())
@@ -2370,6 +2406,7 @@ pub fn handle_place_orders<'c: 'info, 'info>(
                 clock,
                 *params,
                 options,
+                &mut None,
             )?;
         } else {
             controller::orders::place_spot_order(
@@ -2450,6 +2487,7 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
         &clock,
         params,
         PlaceOrderOptions::default(),
+        &mut None,
     )?;
 
     drop(user);
@@ -2475,6 +2513,7 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
             is_immediate_or_cancel || optional_params.is_some(),
             auction_duration_percentage,
         ),
+        &mut None,
     )?;
 
     let order_unfilled = load!(ctx.accounts.user)?
@@ -2490,6 +2529,7 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
             &spot_market_map,
             &mut oracle_map,
             &Clock::get()?,
+            &mut None,
         )?;
     }
 
@@ -2564,6 +2604,7 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         clock,
         params,
         PlaceOrderOptions::default(),
+        &mut None,
     )?;
 
     let (order_id, authority) = (user.get_last_order_id(), user.authority);
@@ -2574,6 +2615,8 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         load_user_maps(remaining_accounts_iter, true)?;
     makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
     makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
+
+    let mut revenue_escrow = get_revenue_escrow_account(remaining_accounts_iter)?;
 
     controller::orders::fill_perp_order(
         taker_order_id,
@@ -2590,6 +2633,7 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         Some(order_id),
         clock,
         FillMode::PlaceAndMake,
+        &mut revenue_escrow.as_mut(),
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -2598,6 +2642,9 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         .any(|order| order.order_id == order_id && order.status == OrderStatus::Open);
 
     if order_exists {
+        let mut revenue_escrow_order = revenue_escrow
+            .as_mut()
+            .and_then(|escrow| escrow.find_order(order_id));
         controller::orders::cancel_order_by_order_id(
             order_id,
             &ctx.accounts.user,
@@ -2605,6 +2652,7 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
             &spot_market_map,
             &mut oracle_map,
             clock,
+            &mut revenue_escrow_order,
         )?;
     }
 
@@ -2665,6 +2713,7 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
         clock,
         params,
         PlaceOrderOptions::default(),
+        &mut None,
     )?;
 
     let (order_id, authority) = (user.get_last_order_id(), user.authority);
@@ -2675,6 +2724,8 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
         load_user_maps(remaining_accounts_iter, true)?;
     makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
     makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
+
+    let mut revenue_escrow = get_revenue_escrow_account(remaining_accounts_iter)?;
 
     let taker_signed_msg_account = ctx.accounts.taker_signed_msg_user_orders.load()?;
     let taker_order_id = taker_signed_msg_account
@@ -2698,6 +2749,7 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
         Some(order_id),
         clock,
         FillMode::PlaceAndMake,
+        &mut revenue_escrow.as_mut(),
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -2713,6 +2765,9 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
             &spot_market_map,
             &mut oracle_map,
             clock,
+            &mut revenue_escrow
+                .as_mut()
+                .and_then(|escrow| escrow.find_order(order_id)),
         )?;
     }
 
@@ -2896,6 +2951,7 @@ pub fn handle_place_and_take_spot_order<'c: 'info, 'info>(
             &spot_market_map,
             &mut oracle_map,
             &clock,
+            &mut None,
         )?;
     }
 
@@ -3042,6 +3098,7 @@ pub fn handle_place_and_make_spot_order<'c: 'info, 'info>(
             &spot_market_map,
             &mut oracle_map,
             clock,
+            &mut None,
         )?;
     }
 

@@ -1,5 +1,6 @@
 use std::cmp::{max, min};
 
+use anchor_lang::prelude::Pubkey;
 use num_integer::Roots;
 
 use crate::error::DriftResult;
@@ -30,6 +31,7 @@ pub struct FillFees {
     pub filler_reward: u64,
     pub referrer_reward: u64,
     pub referee_discount: u64,
+    pub builder_fee: u64,
 }
 
 pub fn calculate_fee_for_fulfillment_with_amm(
@@ -45,6 +47,7 @@ pub fn calculate_fee_for_fulfillment_with_amm(
     is_post_only: bool,
     fee_adjustment: i16,
     user_high_leverage_mode: bool,
+    builder_fee_bps: Option<u16>,
 ) -> DriftResult<FillFees> {
     let fee_tier = determine_user_fee_tier(
         user_stats,
@@ -92,6 +95,7 @@ pub fn calculate_fee_for_fulfillment_with_amm(
             filler_reward,
             referrer_reward: 0,
             referee_discount: 0,
+            builder_fee: 0,
         })
     } else {
         let mut fee = calculate_taker_fee(quote_asset_amount, fee_tier, fee_adjustment)?;
@@ -123,6 +127,16 @@ pub fn calculate_fee_for_fulfillment_with_amm(
             )?
         };
 
+        let builder_fee = if let Some(builder_fee_bps) = builder_fee_bps {
+            quote_asset_amount
+                .safe_mul(builder_fee_bps.cast()?)?
+                .safe_div(10000)?
+        } else {
+            0
+        };
+
+        let fee = fee.safe_add(builder_fee)?;
+
         let fee_to_market = fee
             .safe_sub(filler_reward)?
             .safe_sub(referrer_reward)?
@@ -140,6 +154,7 @@ pub fn calculate_fee_for_fulfillment_with_amm(
             filler_reward,
             referrer_reward,
             referee_discount,
+            builder_fee,
         })
     }
 }
@@ -286,6 +301,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
     market_type: &MarketType,
     fee_adjustment: i16,
     user_high_leverage_mode: bool,
+    builder_fee_bps: Option<u16>,
 ) -> DriftResult<FillFees> {
     let taker_fee_tier = determine_user_fee_tier(
         taker_stats,
@@ -305,7 +321,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
         taker_fee = taker_fee.safe_mul(2)?;
     }
 
-    let (taker_fee, referee_discount, referrer_reward) = if reward_referrer {
+    let (mut taker_fee, referee_discount, referrer_reward) = if reward_referrer {
         calculate_referee_fee_and_referrer_reward(
             taker_fee,
             taker_fee_tier,
@@ -330,12 +346,22 @@ pub fn calculate_fee_for_fulfillment_with_match(
         )?
     };
 
+    let builder_fee = if let Some(builder_fee_bps) = builder_fee_bps {
+        quote_asset_amount
+            .safe_mul(builder_fee_bps.cast()?)?
+            .safe_div(10000)?
+    } else {
+        0
+    };
+
     // must be non-negative
     let fee_to_market = taker_fee
         .safe_sub(filler_reward)?
         .safe_sub(referrer_reward)?
         .safe_sub(maker_rebate)?
         .cast::<i64>()?;
+
+    taker_fee = taker_fee.safe_add(builder_fee)?;
 
     Ok(FillFees {
         user_fee: taker_fee,
@@ -345,6 +371,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
         referrer_reward,
         fee_to_market_for_lp: 0,
         referee_discount,
+        builder_fee,
     })
 }
 

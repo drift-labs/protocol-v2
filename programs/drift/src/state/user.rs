@@ -1705,6 +1705,7 @@ pub enum OrderBitFlag {
     OracleTriggerMarket = 0b00000010,
     SafeTriggerOrder = 0b00000100,
     NewTriggerReduceOnly = 0b00001000,
+    HasBuilder = 0b00010000,
 }
 
 #[account(zero_copy(unsafe))]

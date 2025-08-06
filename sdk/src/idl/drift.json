@@ -10020,7 +10020,7 @@
             "type": "publicKey"
           },
           {
-            "name": "feeAccrued",
+            "name": "feesAccrued",
             "type": "u64"
           },
           {
@@ -10042,7 +10042,7 @@
               "u64 max fee is $18T, u32 is $4k",
               "This can be sweept into into the Builder's RevenueShare in settle_pnl",
               "once the order is filled or canceled.",
-              "set in fill_order or cancel_order",
+              "set in fill_order or cancel_order [`RevenueShareOrderBitFlag`]",
               "Signals that the order was filled or canceled, and builder or referral.",
               "This order slot is cleared once the fee_accrued is swept to the builder's",
               "RevenueShare account."
@@ -12625,17 +12625,6 @@
       }
     },
     {
-      "name": "BuilderBitFlag",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "Revoked"
-          }
-        ]
-      }
-    },
-    {
       "name": "RevenueShareOrderBitFlag",
       "type": {
         "kind": "enum",
@@ -13519,6 +13508,9 @@
           },
           {
             "name": "NewTriggerReduceOnly"
+          },
+          {
+            "name": "HasBuilder"
           }
         ]
       }
@@ -16655,6 +16647,11 @@
       "code": 6322,
       "name": "RevenueShareEscrowOrdersAccountFull",
       "msg": "RevenueShareEscrow has too many active orders"
+    },
+    {
+      "code": 6323,
+      "name": "RevenueShareEscrowMissing",
+      "msg": "RevenueShareEscrow missing"
     }
   ],
   "metadata": {

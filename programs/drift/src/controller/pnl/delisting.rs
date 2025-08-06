@@ -810,6 +810,7 @@ pub mod delisting_test {
             &mut oracle_map,
             &clock,
             &state,
+            &mut None,
         )
         .unwrap();
 
@@ -1028,6 +1029,7 @@ pub mod delisting_test {
             &mut oracle_map,
             &clock,
             &state,
+            &mut None,
         )
         .unwrap();
 
@@ -1233,6 +1235,7 @@ pub mod delisting_test {
             &mut oracle_map,
             &clock,
             &state,
+            &mut None,
         )
         .unwrap();
 
@@ -1517,6 +1520,7 @@ pub mod delisting_test {
                 None,
                 0,
                 true,
+                &mut None,
             )
             .unwrap();
 
@@ -1555,6 +1559,7 @@ pub mod delisting_test {
                 &mut oracle_map,
                 &clock,
                 &state,
+                &mut None,
             )
             .unwrap();
 
@@ -1613,6 +1618,7 @@ pub mod delisting_test {
             &mut oracle_map,
             &clock,
             &state,
+            &mut None,
         )
         .unwrap();
 
@@ -1651,6 +1657,7 @@ pub mod delisting_test {
             &mut oracle_map,
             &clock,
             &state,
+            &mut None,
         )
         .unwrap();
         let market = market_map.get_ref_mut(&0).unwrap();
@@ -1963,7 +1970,8 @@ pub mod delisting_test {
                     &spot_market_map,
                     &mut oracle_map,
                     &clock,
-                    &state
+                    &state,
+                    &mut None,
                 )
                 .is_err(),
                 true
@@ -2321,6 +2329,7 @@ pub mod delisting_test {
                 None,
                 0,
                 true,
+                &mut None,
             )
             .unwrap();
 
@@ -2366,6 +2375,7 @@ pub mod delisting_test {
                 &mut oracle_map,
                 &clock,
                 &state,
+                &mut None,
             )
             .is_err());
 
@@ -2488,6 +2498,7 @@ pub mod delisting_test {
                 10,
                 PERCENTAGE_PRECISION,
                 150,
+                &mut None,
             )
             .unwrap();
 
@@ -2580,6 +2591,7 @@ pub mod delisting_test {
                 10,
                 PERCENTAGE_PRECISION,
                 150,
+                &mut None,
             )
             .unwrap();
 
@@ -2684,6 +2696,7 @@ pub mod delisting_test {
                 &mut oracle_map,
                 &clock,
                 &state,
+                &mut None,
             )
             .unwrap();
 
@@ -2777,6 +2790,7 @@ pub mod delisting_test {
                 None,
                 0,
                 true,
+                &mut None,
             )
             .unwrap();
 
@@ -2809,6 +2823,7 @@ pub mod delisting_test {
                 &mut oracle_map,
                 &clock,
                 &state,
+                &mut None,
             )
             .unwrap();
             assert_eq!(longer.perp_positions[0].quote_asset_amount, 0);

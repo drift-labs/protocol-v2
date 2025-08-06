@@ -651,6 +651,8 @@ pub enum ErrorCode {
     InvalidBuilderFee,
     #[msg("RevenueShareEscrow has too many active orders")]
     RevenueShareEscrowOrdersAccountFull,
+    #[msg("RevenueShareEscrow missing")]
+    RevenueShareEscrowMissing,
 }
 
 #[macro_export]

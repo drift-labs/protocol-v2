@@ -197,7 +197,7 @@ import { getOracleId } from './oracles/oracleId';
 import { SignedMsgOrderParams } from './types';
 import { sha256 } from '@noble/hashes/sha256';
 import { getOracleConfidenceFromMMOracleData } from './oracles/utils';
-import { BankrunConnection } from './bankrun/bankrunConnection';
+import { hasBuilder } from './math/orders';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -2053,6 +2053,20 @@ export class DriftClient {
 			userAccounts: [userAccount],
 			writableSpotMarketIndexes,
 		});
+
+		for (const order of userAccount.orders) {
+			if (hasBuilder(order)) {
+				remainingAccounts.push({
+					pubkey: getRevenueShareEscrowAccountPublicKey(
+						this.program.programId,
+						userAccount.authority
+					),
+					isWritable: true,
+					isSigner: false,
+				});
+				break;
+			}
+		}
 
 		const tokenPrograms = new Set<string>();
 		for (const spotPosition of userAccount.spotPositions) {
@@ -4615,6 +4629,32 @@ export class DriftClient {
 			useMarketLastSlotCache: true,
 		});
 
+		let includeRevenueShareEscrow = false;
+		for (const order of this.getUserAccount(subAccountId).orders) {
+			if (hasBuilder(order)) {
+				includeRevenueShareEscrow = true;
+				break;
+			}
+		}
+
+		if (includeRevenueShareEscrow) {
+			console.log(
+				'inclinding rv share',
+				getRevenueShareEscrowAccountPublicKey(
+					this.program.programId,
+					this.getUserAccount(subAccountId).authority
+				).toBase58()
+			);
+			remainingAccounts.push({
+				pubkey: getRevenueShareEscrowAccountPublicKey(
+					this.program.programId,
+					this.getUserAccount(subAccountId).authority
+				),
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+
 		return await this.program.instruction.cancelOrders(
 			marketType ?? null,
 			marketIndex ?? null,
@@ -4756,7 +4796,8 @@ export class DriftClient {
 		referrerInfo?: ReferrerInfo,
 		txParams?: TxParams,
 		fillerSubAccountId?: number,
-		fillerAuthority?: PublicKey
+		fillerAuthority?: PublicKey,
+		hasBuilderFee?: boolean
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
@@ -4768,7 +4809,8 @@ export class DriftClient {
 					referrerInfo,
 					fillerSubAccountId,
 					undefined,
-					fillerAuthority
+					fillerAuthority,
+					hasBuilderFee
 				),
 				txParams
 			),
@@ -4786,7 +4828,8 @@ export class DriftClient {
 		referrerInfo?: ReferrerInfo,
 		fillerSubAccountId?: number,
 		isSignedMsg?: boolean,
-		fillerAuthority?: PublicKey
+		fillerAuthority?: PublicKey,
+		hasBuilderFee?: boolean
 	): Promise<TransactionInstruction> {
 		const userStatsPublicKey = getUserStatsAccountPublicKey(
 			this.program.programId,
@@ -4866,6 +4909,34 @@ export class DriftClient {
 					isSigner: false,
 				});
 			}
+		}
+
+		let withBuilder = false;
+		if (hasBuilderFee) {
+			withBuilder = true;
+		} else {
+			// figure out if we need builder account or not
+			if (order && !isSignedMsg) {
+				const userOrder = userAccount.orders.find(
+					(o) => o.orderId === order.orderId
+				);
+				withBuilder = hasBuilder(userOrder);
+			} else if (isSignedMsg) {
+				// Order hasn't been placed yet, we cant tell if it has a builder or not.
+				// Include it optimistically
+				withBuilder = true;
+			}
+		}
+
+		if (withBuilder) {
+			remainingAccounts.push({
+				pubkey: getRevenueShareEscrowAccountPublicKey(
+					this.program.programId,
+					userAccount.authority
+				),
+				isWritable: true,
+				isSigner: false,
+			});
 		}
 
 		const orderId = isSignedMsg ? null : order.orderId;

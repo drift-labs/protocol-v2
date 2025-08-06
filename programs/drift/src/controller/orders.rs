@@ -4,6 +4,9 @@ use std::ops::{Deref, DerefMut};
 use std::u64;
 
 use crate::msg;
+use crate::state::builder::{
+    RevenueShareEscrowZeroCopyMut, RevenueShareOrder, RevenueShareOrderBitFlag,
+};
 use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use anchor_lang::prelude::*;
 
@@ -108,6 +111,7 @@ pub fn place_perp_order(
     clock: &Clock,
     mut params: OrderParams,
     mut options: PlaceOrderOptions,
+    revenue_escrow_order: &mut Option<&mut RevenueShareOrder>,
 ) -> DriftResult {
     let now = clock.unix_timestamp;
     let slot: u64 = clock.slot;
@@ -147,6 +151,7 @@ pub fn place_perp_order(
             oracle_map,
             now,
             slot,
+            revenue_escrow_order,
         )?;
     }
 
@@ -301,6 +306,12 @@ pub fn place_perp_order(
         bit_flags,
         params.is_trigger_order() && reduce_only,
         OrderBitFlag::NewTriggerReduceOnly,
+    );
+
+    bit_flags = set_order_bit_flag(
+        bit_flags,
+        revenue_escrow_order.is_some(),
+        OrderBitFlag::HasBuilder,
     );
 
     let new_order = Order {
@@ -536,6 +547,7 @@ pub fn cancel_orders(
     market_type: Option<MarketType>,
     market_index: Option<u16>,
     direction: Option<PositionDirection>,
+    revenue_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
 ) -> DriftResult<Vec<u32>> {
     let mut canceled_order_ids: Vec<u32> = vec![];
     for order_index in 0..user.orders.len() {
@@ -559,6 +571,12 @@ pub fn cancel_orders(
             }
         }
 
+        let mut revenue_escrow_order = if let Some(ref mut revenue_escrow) = revenue_escrow {
+            revenue_escrow.find_order(user.orders[order_index].order_id)
+        } else {
+            None
+        };
+
         canceled_order_ids.push(user.orders[order_index].order_id);
         cancel_order(
             order_index,
@@ -573,6 +591,7 @@ pub fn cancel_orders(
             filler_key,
             0,
             false,
+            &mut revenue_escrow_order,
         )?;
     }
 
@@ -588,6 +607,7 @@ pub fn cancel_order_by_order_id(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     clock: &Clock,
+    revenue_escrow_order: &mut Option<&mut RevenueShareOrder>,
 ) -> DriftResult {
     let user_key = user.key();
     let user = &mut load_mut!(user)?;
@@ -612,6 +632,7 @@ pub fn cancel_order_by_order_id(
         None,
         0,
         false,
+        revenue_escrow_order,
     )?;
 
     user.update_last_active_slot(clock.slot);
@@ -626,6 +647,7 @@ pub fn cancel_order_by_user_order_id(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     clock: &Clock,
+    revenue_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
 ) -> DriftResult {
     let user_key = user.key();
     let user = &mut load_mut!(user)?;
@@ -641,6 +663,12 @@ pub fn cancel_order_by_user_order_id(
         }
     };
 
+    let mut revenue_escrow_order = if let Some(ref mut revenue_escrow) = revenue_escrow {
+        revenue_escrow.find_order(user.orders[order_index].order_id)
+    } else {
+        None
+    };
+
     cancel_order(
         order_index,
         user,
@@ -654,6 +682,7 @@ pub fn cancel_order_by_user_order_id(
         None,
         0,
         false,
+        &mut revenue_escrow_order,
     )?;
 
     user.update_last_active_slot(clock.slot);
@@ -674,6 +703,7 @@ pub fn cancel_order(
     filler_key: Option<&Pubkey>,
     filler_reward: u64,
     skip_log: bool,
+    revenue_escrow_order: &mut Option<&mut RevenueShareOrder>,
 ) -> DriftResult {
     let (order_status, order_market_index, order_direction, order_market_type) = get_struct_values!(
         user.orders[order_index],
@@ -747,6 +777,16 @@ pub fn cancel_order(
 
         user.perp_positions[position_index].open_orders -= 1;
         user.orders[order_index].status = OrderStatus::Canceled;
+
+        if let Some(ref mut revenue_escrow_order) = revenue_escrow_order {
+            revenue_escrow_order.add_bit_flag(RevenueShareOrderBitFlag::Canceled);
+        } else if user.orders[order_index].is_bit_flag_set(OrderBitFlag::HasBuilder) {
+            msg!(
+                "Order {} has a builder but RevenueShareEscrow account is missing",
+                user.orders[order_index].order_id
+            );
+            return Err(ErrorCode::RevenueShareEscrowMissing.into());
+        }
     } else {
         let spot_position_index = user.get_spot_position_index(order_market_index)?;
 
@@ -783,6 +823,7 @@ pub fn modify_order(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     clock: &Clock,
+    revenue_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
 ) -> DriftResult {
     let user_key = user_loader.key();
     let mut user = load_mut!(user_loader)?;
@@ -816,6 +857,12 @@ pub fn modify_order(
 
     let existing_order = user.orders[order_index];
 
+    let mut revenue_escrow_order = if let Some(ref mut revenue_escrow) = revenue_escrow {
+        revenue_escrow.find_order(existing_order.order_id)
+    } else {
+        None
+    };
+
     cancel_order(
         order_index,
         &mut user,
@@ -829,6 +876,7 @@ pub fn modify_order(
         None,
         0,
         false,
+        &mut revenue_escrow_order,
     )?;
 
     user.update_last_active_slot(clock.slot);
@@ -849,6 +897,7 @@ pub fn modify_order(
                 clock,
                 order_params,
                 PlaceOrderOptions::default(),
+                &mut revenue_escrow_order,
             )?;
         } else {
             place_spot_order(
@@ -973,6 +1022,7 @@ pub fn fill_perp_order(
     jit_maker_order_id: Option<u32>,
     clock: &Clock,
     fill_mode: FillMode,
+    revenue_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
 ) -> DriftResult<(u64, u64)> {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -987,6 +1037,22 @@ pub fn fill_perp_order(
         .iter()
         .position(|order| order.order_id == order_id && order.status == OrderStatus::Open)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
+
+    if user.orders[order_index].is_bit_flag_set(OrderBitFlag::HasBuilder)
+        && revenue_escrow.is_none()
+    {
+        msg!(
+            "Order {} has a builder but RevenueShareEscrow account is missing",
+            order_id
+        );
+        return Err(ErrorCode::RevenueShareEscrowMissing.into());
+    }
+
+    let mut revenue_escrow_order = if let Some(revenue_escrow) = revenue_escrow.as_mut() {
+        revenue_escrow.find_order(order_id)
+    } else {
+        None
+    };
 
     let (
         order_status,
@@ -1281,6 +1347,7 @@ pub fn fill_perp_order(
             Some(&filler_key),
             filler_reward,
             false,
+            &mut revenue_escrow_order,
         )?;
 
         return Ok((0, 0));
@@ -1320,6 +1387,7 @@ pub fn fill_perp_order(
         amm_availability,
         fill_mode,
         oracle_stale_for_margin,
+        &mut revenue_escrow_order,
     )?;
 
     if base_asset_amount != 0 {
@@ -1378,6 +1446,7 @@ pub fn fill_perp_order(
             Some(&filler_key),
             filler_reward,
             false,
+            &mut revenue_escrow_order,
         )?
     }
 
@@ -1624,6 +1693,7 @@ fn get_maker_orders_info(
                     Some(filler_key),
                     filler_reward,
                     false,
+                    &mut None,
                 )?;
 
                 continue;
@@ -1753,6 +1823,7 @@ fn fulfill_perp_order(
     amm_availability: AMMAvailability,
     fill_mode: FillMode,
     oracle_stale_for_margin: bool,
+    revenue_escrow_order: &mut Option<&mut RevenueShareOrder>,
 ) -> DriftResult<(u64, u64)> {
     let market_index = user.orders[user_order_index].market_index;
 
@@ -1852,6 +1923,7 @@ fn fulfill_perp_order(
                         *maker_price,
                         AMMLiquiditySplit::Shared,
                         fill_mode.is_liquidation(),
+                        revenue_escrow_order,
                     )?;
 
                 (fill_base_asset_amount, fill_quote_asset_amount)
@@ -1897,6 +1969,7 @@ fn fulfill_perp_order(
                         oracle_map,
                         fill_mode.is_liquidation(),
                         None,
+                        revenue_escrow_order,
                     )?;
 
                 if maker_fill_base_asset_amount != 0 {
@@ -2141,6 +2214,7 @@ pub fn fulfill_perp_order_with_amm(
     override_fill_price: Option<u64>,
     liquidity_split: AMMLiquiditySplit,
     is_liquidation: bool,
+    revenue_escrow_order: &mut Option<&mut RevenueShareOrder>,
 ) -> DriftResult<(u64, u64)> {
     let position_index = get_position_index(&user.perp_positions, market.market_index)?;
     let existing_base_asset_amount = user.perp_positions[position_index].base_asset_amount;
@@ -2252,6 +2326,7 @@ pub fn fulfill_perp_order_with_amm(
         referrer_reward,
         fee_to_market_for_lp,
         maker_rebate,
+        builder_fee,
     } = fees::calculate_fee_for_fulfillment_with_amm(
         user_stats,
         quote_asset_amount,
@@ -2265,7 +2340,13 @@ pub fn fulfill_perp_order_with_amm(
         order_post_only,
         market.fee_adjustment,
         user.is_high_leverage_mode(MarginRequirementType::Initial),
+        revenue_escrow_order.as_ref().map(|o| o.fee_bps),
     )?;
+
+    // if let Some(mut builder_info) = builder_info {
+    if let Some(ref mut builder_info) = revenue_escrow_order {
+        builder_info.fees_accrued = builder_info.fees_accrued.safe_add(builder_fee)?;
+    }
 
     let user_position_delta =
         get_position_delta_for_fill(base_asset_amount, quote_asset_amount, order_direction)?;
@@ -2373,6 +2454,7 @@ pub fn fulfill_perp_order_with_amm(
         &mut user.orders[order_index],
         base_asset_amount,
         quote_asset_amount,
+        revenue_escrow_order,
     )?;
 
     decrease_open_bids_and_asks(
@@ -2523,6 +2605,7 @@ pub fn fulfill_perp_order_with_match(
     oracle_map: &mut OracleMap,
     is_liquidation: bool,
     amm_lp_allowed_to_jit_make: Option<bool>,
+    revenue_escrow_order: &mut Option<&mut RevenueShareOrder>,
 ) -> DriftResult<(u64, u64, u64)> {
     if !are_orders_same_market_but_different_sides(
         &maker.orders[maker_order_index],
@@ -2637,6 +2720,7 @@ pub fn fulfill_perp_order_with_match(
                 Some(maker_price), // match the makers price
                 amm_liquidity_split,
                 is_liquidation,
+                revenue_escrow_order,
             )?;
 
         total_base_asset_amount = base_asset_amount_filled_by_amm;
@@ -2745,6 +2829,7 @@ pub fn fulfill_perp_order_with_match(
         filler_reward,
         referrer_reward,
         referee_discount,
+        builder_fee,
         ..
     } = fees::calculate_fee_for_fulfillment_with_match(
         taker_stats,
@@ -2759,7 +2844,13 @@ pub fn fulfill_perp_order_with_match(
         &MarketType::Perp,
         market.fee_adjustment,
         taker.is_high_leverage_mode(MarginRequirementType::Initial),
+        revenue_escrow_order.as_ref().map(|o| o.fee_bps),
     )?;
+
+    if let Some(ref mut revenue_escrow_order) = revenue_escrow_order {
+        revenue_escrow_order.fees_accrued =
+            revenue_escrow_order.fees_accrued.safe_add(builder_fee)?;
+    }
 
     // Increment the markets house's total fee variables
     market.amm.total_fee = market.amm.total_fee.safe_add(fee_to_market.cast()?)?;
@@ -2831,6 +2922,7 @@ pub fn fulfill_perp_order_with_match(
         &mut taker.orders[taker_order_index],
         base_asset_amount_fulfilled_by_maker,
         quote_asset_amount,
+        revenue_escrow_order,
     )?;
 
     decrease_open_bids_and_asks(
@@ -2844,6 +2936,7 @@ pub fn fulfill_perp_order_with_match(
         &mut maker.orders[maker_order_index],
         base_asset_amount_fulfilled_by_maker,
         quote_asset_amount,
+        &mut None,
     )?;
 
     decrease_open_bids_and_asks(
@@ -2931,6 +3024,7 @@ pub fn update_order_after_fill(
     order: &mut Order,
     base_asset_amount: u64,
     quote_asset_amount: u64,
+    revenue_share_order: &mut Option<&mut RevenueShareOrder>,
 ) -> DriftResult {
     order.base_asset_amount_filled = order.base_asset_amount_filled.safe_add(base_asset_amount)?;
 
@@ -2940,6 +3034,10 @@ pub fn update_order_after_fill(
 
     if order.get_base_asset_amount_unfilled(None)? == 0 {
         order.status = OrderStatus::Filled;
+
+        if let Some(revenue_share_order) = revenue_share_order {
+            revenue_share_order.add_bit_flag(RevenueShareOrderBitFlag::Filled);
+        }
     }
 
     Ok(())
@@ -3160,6 +3258,7 @@ pub fn trigger_order(
                 Some(&filler_key),
                 0,
                 false,
+                &mut None,
             )?;
         }
     }
@@ -3224,6 +3323,7 @@ pub fn force_cancel_orders(
     oracle_map: &mut OracleMap,
     filler: &AccountLoader<User>,
     clock: &Clock,
+    revenue_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
 ) -> DriftResult {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -3301,6 +3401,12 @@ pub fn force_cancel_orders(
 
         total_fee = total_fee.safe_add(fee)?;
 
+        let mut revenue_escrow_order = if let Some(ref mut revenue_escrow) = revenue_escrow {
+            revenue_escrow.find_order(user.orders[order_index].order_id)
+        } else {
+            None
+        };
+
         cancel_order(
             order_index,
             user,
@@ -3314,6 +3420,7 @@ pub fn force_cancel_orders(
             Some(&filler_key),
             fee,
             false,
+            &mut revenue_escrow_order,
         )?;
     }
 
@@ -3454,6 +3561,7 @@ pub fn burn_user_lp_shares_for_risk_reduction(
             clock,
             params,
             PlaceOrderOptions::default().explanation(OrderActionExplanation::DeriskLp),
+            &mut None,
         )?;
     }
 
@@ -3566,6 +3674,7 @@ pub fn place_spot_order(
             oracle_map,
             now,
             slot,
+            &mut None,
         )?;
     }
 
@@ -4046,6 +4155,7 @@ pub fn fill_spot_order(
             Some(&filler_key),
             filler_reward,
             false,
+            &mut None,
         )?;
         return Ok(0);
     }
@@ -4164,6 +4274,7 @@ pub fn fill_spot_order(
             Some(&filler_key),
             filler_reward,
             false,
+            &mut None,
         )?
     }
 
@@ -4307,6 +4418,7 @@ fn get_spot_maker_orders_info(
                     Some(filler_key),
                     filler_reward,
                     false,
+                    &mut None,
                 )?;
 
                 continue;
@@ -4872,6 +4984,7 @@ pub fn fulfill_spot_order_with_match(
         maker_rebate,
         filler_reward,
         fee_to_market,
+        builder_fee,
         ..
     } = fees::calculate_fee_for_fulfillment_with_match(
         taker_stats,
@@ -4886,6 +4999,7 @@ pub fn fulfill_spot_order_with_match(
         &MarketType::Spot,
         base_market.fee_adjustment,
         false,
+        None,
     )?;
 
     // Update taker state
@@ -4918,6 +5032,7 @@ pub fn fulfill_spot_order_with_match(
         &mut taker.orders[taker_order_index],
         base_asset_amount,
         quote_asset_amount,
+        &mut None,
     )?;
 
     let taker_order_direction = taker.orders[taker_order_index].direction;
@@ -4964,6 +5079,7 @@ pub fn fulfill_spot_order_with_match(
         &mut maker.orders[maker_order_index],
         base_asset_amount,
         quote_asset_amount,
+        &mut None,
     )?;
 
     let maker_order_direction = maker.orders[maker_order_index].direction;
@@ -5255,6 +5371,7 @@ pub fn fulfill_spot_order_with_external_market(
         &mut taker.orders[taker_order_index],
         base_asset_amount_filled,
         quote_asset_amount_filled,
+        &mut None,
     )?;
 
     let taker_order_direction = taker.orders[taker_order_index].direction;
@@ -5569,6 +5686,7 @@ pub fn trigger_spot_order(
                 Some(&filler_key),
                 0,
                 false,
+                &mut None,
             )?;
         }
     }
@@ -5586,6 +5704,7 @@ pub fn expire_orders(
     oracle_map: &mut OracleMap,
     now: i64,
     slot: u64,
+    revenue_escrow_order: &mut Option<&mut RevenueShareOrder>,
 ) -> DriftResult {
     for order_index in 0..user.orders.len() {
         if !should_expire_order(user, order_index, now)? {
@@ -5605,6 +5724,7 @@ pub fn expire_orders(
             None,
             0,
             false,
+            revenue_escrow_order,
         )?;
     }
 

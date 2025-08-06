@@ -1617,7 +1617,7 @@ export type RevenueShareEscrow = {
 
 export type RevenueShareOrder = {
 	beneficiary: PublicKey;
-	feeAccrued: BN;
+	feesAccrued: BN;
 	orderId: number;
 	feeBps: number;
 	marketIndex: number;

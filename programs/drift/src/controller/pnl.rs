@@ -24,6 +24,7 @@ use crate::math::margin::{
 use crate::math::position::calculate_base_asset_value_with_expiry_price;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
+use crate::state::builder::RevenueShareEscrowZeroCopyMut;
 use crate::state::margin_calculation::MarginContext;
 
 use crate::msg;
@@ -362,6 +363,7 @@ pub fn settle_expired_position(
     oracle_map: &mut OracleMap,
     clock: &Clock,
     state: &State,
+    revenue_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
 ) -> DriftResult {
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
@@ -400,6 +402,7 @@ pub fn settle_expired_position(
         Some(MarketType::Perp),
         Some(perp_market_index),
         None,
+        revenue_escrow,
     )?;
 
     let position_index = match get_position_index(&user.perp_positions, perp_market_index) {

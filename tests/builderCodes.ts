@@ -32,6 +32,12 @@ import {
 	PEG_PRECISION,
 	ZERO,
 	isVariant,
+	hasBuilder,
+	calculateBidPrice,
+	calculatePrice,
+	calculateAMMBidAskPrice,
+	convertToNumber,
+	getVariant,
 } from '../sdk/src';
 
 import {
@@ -47,6 +53,8 @@ import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import dotenv from 'dotenv';
 import { PYTH_STORAGE_DATA } from './pythLazerData';
 import { nanoid } from 'nanoid';
+import { convertIdlToCamelCase } from '@coral-xyz/anchor-30/dist/cjs/idl';
+import { isRevenueShareOrderFilled } from '../sdk/src/math/builder';
 
 dotenv.config();
 
@@ -62,6 +70,8 @@ describe('builder codes', () => {
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let builderClient: TestClient;
+
+	let builderUSDCAccount: Keypair = null;
 
 	let usdcMint: Keypair;
 	let userUSDCAccount: PublicKey = null;
@@ -137,6 +147,16 @@ describe('builder codes', () => {
 			new BN(10 * 10 ** 13).mul(new BN(Math.sqrt(PRICE_PRECISION.toNumber()))),
 			periodicity,
 			new BN(224 * PEG_PRECISION.toNumber())
+		);
+		builderUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper,
+			builderClient.wallet.publicKey
+		);
+		await builderClient.initializeUserAccountAndDepositCollateral(
+			usdcAmount,
+			builderUSDCAccount.publicKey
 		);
 
 		[userClient, userUSDCAccount, userKeypair] =
@@ -439,9 +459,9 @@ describe('builder codes', () => {
 			marketIndex,
 			direction: PositionDirection.LONG,
 			baseAssetAmount: baseAssetAmount.muln(2),
-			price: new BN(224).mul(PRICE_PRECISION),
-			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
-			auctionEndPrice: new BN(224).mul(PRICE_PRECISION),
+			price: new BN(230).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(226).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(230).mul(PRICE_PRECISION),
 			auctionDuration: 10,
 			userOrderId: 1,
 			postOnly: PostOnlyParams.NONE,
@@ -461,7 +481,7 @@ describe('builder codes', () => {
 			slot,
 			uuid,
 			takeProfitOrderParams: {
-				triggerPrice: new BN(230).mul(PRICE_PRECISION),
+				triggerPrice: new BN(235).mul(PRICE_PRECISION),
 				baseAssetAmount: takerOrderParams.baseAssetAmount,
 			},
 			stopLossOrderParams: {
@@ -478,7 +498,7 @@ describe('builder codes', () => {
 			true
 		);
 
-		const txSig = await builderClient.placeSignedMsgTakerOrder(
+		await builderClient.placeSignedMsgTakerOrder(
 			signedOrderParams,
 			marketIndex,
 			{
@@ -497,10 +517,13 @@ describe('builder codes', () => {
 		assert(userOrders.length === 3);
 		assert(userOrders[0].orderId === 1);
 		assert(userOrders[0].reduceOnly === true);
+		assert(hasBuilder(userOrders[0]) === true);
 		assert(userOrders[1].orderId === 2);
 		assert(userOrders[1].reduceOnly === true);
+		assert(hasBuilder(userOrders[1]) === true);
 		assert(userOrders[2].orderId === 3);
 		assert(userOrders[2].reduceOnly === false);
+		assert(hasBuilder(userOrders[2]) === true);
 
 		let accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
 			getRevenueShareEscrowAccountPublicKey(
@@ -524,7 +547,7 @@ describe('builder codes', () => {
 		// check the corresponding revShareEscrow orders are added
 		for (let i = 0; i < userOrders.length; i++) {
 			assert(revShareEscrow.orders[i]!.beneficiary.equals(builder.publicKey));
-			assert(revShareEscrow.orders[i]!.feeAccrued.eq(ZERO));
+			assert(revShareEscrow.orders[i]!.feesAccrued.eq(ZERO));
 			assert(revShareEscrow.orders[i]!.feeBps === builderFeeBps);
 			assert(revShareEscrow.orders[i]!.orderId === i + 1);
 			assert(isVariant(revShareEscrow.orders[i]!.marketType, 'perp'));
@@ -535,5 +558,84 @@ describe('builder codes', () => {
 			revShareEscrow.approvedBuilders[0]!.authority.equals(builder.publicKey)
 		);
 		assert(revShareEscrow.approvedBuilders[0]!.maxFeeBps === maxFeeBps);
+
+		await userClient.fetchAccounts();
+		const [vBid, vAsk] = calculateAMMBidAskPrice(
+			userClient.getPerpMarketAccount(0).amm,
+			userClient.getOracleDataForPerpMarket(0),
+			true,
+			false
+		);
+
+		console.log('vBid', convertToNumber(vBid), 'vAsk', convertToNumber(vAsk));
+		console.log(
+			convertToNumber(userOrders[0].price),
+			getVariant(userOrders[0].direction)
+		);
+		console.log(
+			convertToNumber(userOrders[1].price),
+			getVariant(userOrders[1].direction)
+		);
+		console.log(
+			convertToNumber(userOrders[2].price),
+			getVariant(userOrders[2].direction)
+		);
+
+		// fill order with vamm
+		await builderClient.fetchAccounts();
+		await builderClient.fillPerpOrder(
+			await userClient.getUserAccountPublicKey(),
+			userClient.getUserAccount(),
+			{
+				marketIndex,
+				orderId: 3,
+			}
+		);
+
+		await userClient.fetchAccounts();
+		userOrders = userClient.getUser().getOpenOrders();
+		assert(userOrders.length === 2);
+
+		await bankrunContextWrapper.moveTimeForward(100);
+
+		accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
+			getRevenueShareEscrowAccountPublicKey(
+				userClient.program.programId,
+				userClient.wallet.publicKey
+			)
+		);
+		revShareEscrow = userClient.program.coder.accounts.decodeUnchecked(
+			'RevenueShareEscrow',
+			accountInfo.data
+		);
+		console.log(revShareEscrow);
+		// console.log('revShareEscrow.authority:', revShareEscrow.authority.toBase58());
+		// console.log('revShareEscrow.referrer:', revShareEscrow.referrer.toBase58());
+		// console.log('revShareEscrow.orders.len:', revShareEscrow.orders.length);
+		// console.log('revShareEscrow.orders.0:', revShareEscrow.orders[2]);
+		assert(revShareEscrow.orders[2].orderId === 3);
+		assert(revShareEscrow.orders[2].feesAccrued.gt(ZERO));
+		assert(isRevenueShareOrderFilled(revShareEscrow.orders[2]));
+
+		// cancel remaining orders
+		await userClient.cancelOrders();
+		await userClient.fetchAccounts();
+
+		userOrders = userClient.getUser().getOpenOrders();
+		assert(userOrders.length === 0);
+
+		accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
+			getRevenueShareEscrowAccountPublicKey(
+				userClient.program.programId,
+				userClient.wallet.publicKey
+			)
+		);
+		revShareEscrow = userClient.program.coder.accounts.decodeUnchecked(
+			'RevenueShareEscrow',
+			accountInfo.data
+		);
+		console.log('revShareEscrow.orders.0:', revShareEscrow.orders[0]);
+		console.log('revShareEscrow.orders.1:', revShareEscrow.orders[1]);
+		console.log('revShareEscrow.orders.2:', revShareEscrow.orders[2]);
 	});
 });

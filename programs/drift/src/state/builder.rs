@@ -6,24 +6,16 @@ use anchor_lang::{account, zero_copy};
 use borsh::{BorshDeserialize, BorshSerialize};
 use prelude::AccountInfo;
 
-use super::zero_copy::{AccountZeroCopy, AccountZeroCopyMut, HasLen};
+use super::zero_copy::HasLen;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::safe_unwrap::SafeUnwrap;
-use crate::state::signed_msg_user::SignedMsgOrderId;
 use crate::state::traits::Size;
 use crate::state::user::MarketType;
 use crate::validate;
 use crate::{impl_zero_copy_loader, msg, ID};
-use drift_macros::assert_no_slop;
-use static_assertions::const_assert_eq;
 
 pub const REVENUE_SHARE_PDA_SEED: &str = "REV_SHARE";
 pub const REVENUE_SHARE_ESCROW_PDA_SEED: &str = "REV_ESCROW";
-
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
-pub enum BuilderBitFlag {
-    Revoked = 0b00000001,
-}
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum RevenueShareOrderBitFlag {
@@ -113,7 +105,7 @@ impl_zero_copy_loader!(
 pub struct RevenueShareOrder {
     /// set in place_order
     pub beneficiary: Pubkey, // builder/referrer, 111... if zeroed
-    pub fee_accrued: u64,
+    pub fees_accrued: u64,
     pub order_id: u32,
     pub fee_bps: u16,
     pub market_index: u16,
@@ -123,7 +115,7 @@ pub struct RevenueShareOrder {
     /// This can be sweept into into the Builder's RevenueShare in settle_pnl
     /// once the order is filled or canceled.
 
-    /// set in fill_order or cancel_order
+    /// set in fill_order or cancel_order [`RevenueShareOrderBitFlag`]
     /// Signals that the order was filled or canceled, and builder or referral.
     /// This order slot is cleared once the fee_accrued is swept to the builder's
     /// RevenueShare account.
@@ -147,7 +139,7 @@ impl RevenueShareOrder {
             fee_bps,
             market_type,
             market_index,
-            fee_accrued: 0,
+            fees_accrued: 0,
             bit_flags: 0,
             padding: [0; 6],
         }
@@ -362,6 +354,19 @@ impl<'a> RevenueShareEscrowZeroCopyMut<'a> {
         ))
     }
 
+    pub fn get_order(&self, index: u32) -> DriftResult<&RevenueShareOrder> {
+        validate!(
+            index < self.orders_len(),
+            ErrorCode::DefaultError,
+            "Order index out of bounds"
+        )?;
+        let size = std::mem::size_of::<RevenueShareOrder>();
+        let start = 4 + // RevenueShareEscrow.padding0
+        4 + // vec len
+        index as usize * size; // orders data
+        Ok(bytemuck::from_bytes(&self.data[start..start + size]))
+    }
+
     pub fn get_approved_builder_mut(&mut self, index: u32) -> DriftResult<&mut BuilderInfo> {
         validate!(
             index < self.approved_builders_len(),
@@ -393,6 +398,17 @@ impl<'a> RevenueShareEscrowZeroCopyMut<'a> {
         }
 
         Err(ErrorCode::RevenueShareEscrowOrdersAccountFull.into())
+    }
+
+    pub fn find_order(&mut self, order_id: u32) -> Option<&mut RevenueShareOrder> {
+        for i in 0..self.orders_len() {
+            if let Ok(existing_order) = self.get_order(i) {
+                if existing_order.order_id == order_id {
+                    return self.get_order_mut(i).ok();
+                }
+            }
+        }
+        None
     }
 }
 
