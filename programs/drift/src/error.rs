@@ -639,6 +639,20 @@ pub enum ErrorCode {
     InvalidIfRebalanceConfig,
     #[msg("Invalid If Rebalance Swap")]
     InvalidIfRebalanceSwap,
+    #[msg("Invalid RevenueShare resize")]
+    InvalidRevenueShareResize,
+    #[msg("Invalid builder approval")]
+    InvalidBuilderApproval,
+    #[msg("Could not deserialize revenue share escrow")]
+    CouldNotDeserializeRevenueShareEscrow,
+    #[msg("Builder has been revoked")]
+    BuilderRevoked,
+    #[msg("Builder fee is greater than max fee bps")]
+    InvalidBuilderFee,
+    #[msg("RevenueShareEscrow has too many active orders")]
+    RevenueShareEscrowOrdersAccountFull,
+    #[msg("RevenueShareEscrow missing")]
+    RevenueShareEscrowMissing,
 }
 
 #[macro_export]

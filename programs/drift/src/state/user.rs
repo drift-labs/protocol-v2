@@ -32,6 +32,7 @@ use crate::{safe_increment, SPOT_WEIGHT_PRECISION};
 use crate::{validate, MAX_PREDICTION_MARKET_PRICE};
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
+use bytemuck::{Pod, Zeroable};
 use std::cmp::max;
 use std::fmt;
 use std::ops::Neg;
@@ -1686,12 +1687,25 @@ impl fmt::Display for MarketType {
     }
 }
 
+impl From<MarketType> for u8 {
+    fn from(market_type: MarketType) -> Self {
+        match market_type {
+            MarketType::Spot => 0,
+            MarketType::Perp => 1,
+        }
+    }
+}
+
+unsafe impl Zeroable for MarketType {}
+unsafe impl Pod for MarketType {}
+
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum OrderBitFlag {
     SignedMessage = 0b00000001,
     OracleTriggerMarket = 0b00000010,
     SafeTriggerOrder = 0b00000100,
     NewTriggerReduceOnly = 0b00001000,
+    HasBuilder = 0b00010000,
 }
 
 #[account(zero_copy(unsafe))]

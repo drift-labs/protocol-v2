@@ -264,6 +264,7 @@ pub mod fill_order_protected_maker {
             None,
             &clock,
             FillMode::Fill,
+            &mut None,
         )
         .unwrap();
 
@@ -373,6 +374,7 @@ pub mod fill_order_protected_maker {
             None,
             &clock,
             FillMode::Fill,
+            &mut None,
         )
         .unwrap();
 
@@ -4991,6 +4993,7 @@ pub mod fulfill_order {
             None,
             &clock,
             FillMode::Fill,
+            &mut None,
         )
         .unwrap();
 
@@ -5016,6 +5019,7 @@ pub mod fulfill_order {
             None,
             &clock,
             FillMode::Fill,
+            &mut None,
         )
         .unwrap();
 
@@ -5899,6 +5903,7 @@ pub mod fill_order {
             None,
             &clock,
             FillMode::Fill,
+            &mut None,
         )
         .unwrap();
 
@@ -6101,6 +6106,7 @@ pub mod fill_order {
             None,
             &clock,
             FillMode::Fill,
+            &mut None,
         )
         .unwrap();
 
@@ -6230,6 +6236,7 @@ pub mod fill_order {
             None,
             &clock,
             FillMode::Fill,
+            &mut None,
         )
         .unwrap();
 
@@ -6392,6 +6399,7 @@ pub mod fill_order {
             None,
             &clock,
             FillMode::Fill,
+            &mut None,
         );
 
         assert_eq!(err, Err(ErrorCode::MaxOpenInterest));

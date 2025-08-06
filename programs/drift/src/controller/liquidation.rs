@@ -1,6 +1,7 @@
 use std::ops::{Deref, DerefMut};
 
 use crate::msg;
+use crate::state::builder::RevenueShareEscrowZeroCopyMut;
 use anchor_lang::prelude::*;
 
 use crate::controller::amm::get_fee_pool_tokens;
@@ -91,6 +92,7 @@ pub fn liquidate_perp(
     slot: u64,
     now: i64,
     state: &State,
+    revenue_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
 ) -> DriftResult {
     let liquidation_margin_buffer_ratio = state.liquidation_margin_buffer_ratio;
     let initial_pct_to_liquidate = state.initial_pct_to_liquidate as u128;
@@ -199,6 +201,7 @@ pub fn liquidate_perp(
         None,
         None,
         None,
+        revenue_escrow,
     )?;
 
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
@@ -746,6 +749,7 @@ pub fn liquidate_perp_with_fill(
     oracle_map: &mut OracleMap,
     clock: &Clock,
     state: &State,
+    revenue_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
 ) -> DriftResult {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -850,6 +854,7 @@ pub fn liquidate_perp_with_fill(
         None,
         None,
         None,
+        revenue_escrow,
     )?;
 
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
@@ -1083,6 +1088,7 @@ pub fn liquidate_perp_with_fill(
         clock,
         order_params,
         PlaceOrderOptions::default().explanation(OrderActionExplanation::Liquidation),
+        &mut None,
     )?;
 
     drop(user);
@@ -1103,11 +1109,17 @@ pub fn liquidate_perp_with_fill(
         None,
         clock,
         FillMode::Liquidation,
+        revenue_escrow,
     )?;
 
     let mut user = load_mut!(user_loader)?;
 
     if let Ok(order_index) = user.get_order_index(order_id) {
+        let mut revenue_escrow_order = if let Some(ref mut revenue_escrow) = revenue_escrow {
+            revenue_escrow.find_order(user.orders[order_index].order_id)
+        } else {
+            None
+        };
         cancel_order(
             order_index,
             &mut user,
@@ -1121,6 +1133,7 @@ pub fn liquidate_perp_with_fill(
             Some(liquidator_key),
             0,
             false,
+            &mut revenue_escrow_order,
         )?;
     }
 
@@ -1458,6 +1471,7 @@ pub fn liquidate_spot(
         None,
         None,
         None,
+        &mut None,
     )?;
 
     // check if user exited liquidation territory
@@ -1986,6 +2000,7 @@ pub fn liquidate_spot_with_swap_begin(
         None,
         None,
         None,
+        &mut None,
     )?;
 
     // check if user exited liquidation territory
@@ -2345,6 +2360,7 @@ pub fn liquidate_borrow_for_perp_pnl(
     liquidation_margin_buffer_ratio: u32,
     initial_pct_to_liquidate: u128,
     liquidation_duration: u128,
+    revenue_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
 ) -> DriftResult {
     // liquidator takes over a user borrow in exchange for that user's positive perpetual pnl
     // can only be done once a user's perpetual position size is 0
@@ -2564,6 +2580,7 @@ pub fn liquidate_borrow_for_perp_pnl(
         None,
         None,
         None,
+        revenue_escrow,
     )?;
 
     // check if user exited liquidation territory
@@ -2822,6 +2839,7 @@ pub fn liquidate_perp_pnl_for_deposit(
     liquidation_margin_buffer_ratio: u32,
     initial_pct_to_liquidate: u128,
     liquidation_duration: u128,
+    revenue_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
 ) -> DriftResult {
     // liquidator takes over remaining negative perpetual pnl in exchange for a user deposit
     // can only be done once the perpetual position's size is 0
@@ -3049,6 +3067,7 @@ pub fn liquidate_perp_pnl_for_deposit(
         None,
         None,
         None,
+        revenue_escrow,
     )?;
 
     let (safest_tier_spot_liability, safest_tier_perp_liability) =

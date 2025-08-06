@@ -1255,6 +1255,28 @@ export type SignedMsgOrderParamsDelegateMessage = {
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
 };
 
+export type SignedMsgOrderParamsWithBuilderMessage = {
+	signedMsgOrderParams: OrderParams;
+	subAccountId: number;
+	slot: BN;
+	uuid: Uint8Array;
+	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
+	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
+	builderIdx: number | null;
+	builderFee: number | null;
+};
+
+export type SignedMsgOrderParamsDelegateWithBuilderMessage = {
+	signedMsgOrderParams: OrderParams;
+	slot: BN;
+	uuid: Uint8Array;
+	takerPubkey: PublicKey;
+	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
+	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
+	builderIdx: number | null;
+	builderFee: number | null;
+};
+
 export type SignedMsgTriggerOrderParams = {
 	triggerPrice: BN;
 	baseAssetAmount: BN;
@@ -1570,4 +1592,42 @@ export type SignedMsgOrderId = {
 export type SignedMsgUserOrdersAccount = {
 	authorityPubkey: PublicKey;
 	signedMsgOrderData: SignedMsgOrderId[];
+};
+
+export type RevenueShareAccount = {
+	authority: PublicKey;
+	totalReferrerRewards: BN;
+	totalBuilderRewards: BN;
+	positions: RevenueSharePosition[];
+};
+
+export type RevenueSharePosition = {
+	amount: BN;
+	padding: number[];
+	marketType: number; // 0: spot, 1: perp
+	marketIndex: number;
+};
+
+export type RevenueShareEscrow = {
+	authority: PublicKey;
+	referrer: PublicKey;
+	orders: RevenueShareOrder[];
+	approvedBuilders: BuilderInfo[];
+};
+
+export type RevenueShareOrder = {
+	beneficiary: PublicKey;
+	feesAccrued: BN;
+	orderId: number;
+	feeBps: number;
+	marketIndex: number;
+	bitFlags: number;
+	marketType: MarketType; // 0: spot, 1: perp
+	padding: number[];
+};
+
+export type BuilderInfo = {
+	authority: PublicKey;
+	maxFeeBps: number;
+	bitFlags: number;
 };

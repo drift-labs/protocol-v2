@@ -64,6 +64,8 @@ import {
 	ProtectedMakerModeConfig,
 	SignedMsgOrderParamsDelegateMessage,
 	TokenProgramFlag,
+	SignedMsgOrderParamsWithBuilderMessage,
+	SignedMsgOrderParamsDelegateWithBuilderMessage,
 } from './types';
 import driftIDL from './idl/drift.json';
 
@@ -112,6 +114,8 @@ import {
 	getUserStatsAccountPublicKey,
 	getSignedMsgWsDelegatesAccountPublicKey,
 	getIfRebalanceConfigPublicKey,
+	getRevenueShareAccountPublicKey,
+	getRevenueShareEscrowAccountPublicKey,
 } from './addresses/pda';
 import {
 	DataAndSlot,
@@ -193,6 +197,7 @@ import { getOracleId } from './oracles/oracleId';
 import { SignedMsgOrderParams } from './types';
 import { sha256 } from '@noble/hashes/sha256';
 import { getOracleConfidenceFromMMOracleData } from './oracles/utils';
+import { hasBuilder } from './math/orders';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -1224,6 +1229,173 @@ export class DriftClient {
 		return ix;
 	}
 
+	public async initializeRevenueShare(
+		authority: PublicKey,
+		numPositions: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const ix = await this.getInitializeRevenueShareIx(authority, numPositions);
+		const tx = await this.buildTransaction([ix], txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getInitializeRevenueShareIx(
+		authority: PublicKey,
+		numPositions: number
+	): Promise<TransactionInstruction> {
+		const revenueShare = getRevenueShareAccountPublicKey(
+			this.program.programId,
+			authority
+		);
+		return this.program.instruction.initializeRevenueShare(numPositions, {
+			accounts: {
+				revenueShare,
+				authority,
+				payer: this.wallet.publicKey,
+				rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+				systemProgram: anchor.web3.SystemProgram.programId,
+			},
+		});
+	}
+
+	public async resizeRevenueShare(
+		authority: PublicKey,
+		numPositions: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const ix = await this.getResizeRevenueShareIx(authority, numPositions);
+		const tx = await this.buildTransaction([ix], txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getResizeRevenueShareIx(
+		authority: PublicKey,
+		numPositions: number
+	): Promise<TransactionInstruction> {
+		const revenueShare = getRevenueShareAccountPublicKey(
+			this.program.programId,
+			authority
+		);
+		return this.program.instruction.resizeRevenueShare(numPositions, {
+			accounts: {
+				revenueShare,
+				authority,
+				payer: this.wallet.publicKey,
+				systemProgram: anchor.web3.SystemProgram.programId,
+			},
+		});
+	}
+
+	public async initializeRevenueShareEscrow(
+		authority: PublicKey,
+		numOrders: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const ix = await this.getInitializeRevenueShareEscrowIx(
+			authority,
+			numOrders
+		);
+		const tx = await this.buildTransaction([ix], txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getInitializeRevenueShareEscrowIx(
+		authority: PublicKey,
+		numOrders: number
+	): Promise<TransactionInstruction> {
+		const revenueShareEscrow = getRevenueShareEscrowAccountPublicKey(
+			this.program.programId,
+			authority
+		);
+		return this.program.instruction.initializeRevenueShareEscrow(numOrders, {
+			accounts: {
+				revenueShareEscrow,
+				authority,
+				payer: this.wallet.publicKey,
+				rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+				systemProgram: anchor.web3.SystemProgram.programId,
+			},
+		});
+	}
+
+	public async resizeRevenueShareEscrowOrders(
+		authority: PublicKey,
+		numOrders: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const ix = await this.getResizeRevenueShareEscrowOrdersIx(
+			authority,
+			numOrders
+		);
+		const tx = await this.buildTransaction([ix], txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getResizeRevenueShareEscrowOrdersIx(
+		authority: PublicKey,
+		numOrders: number
+	): Promise<TransactionInstruction> {
+		const revenueShareEscrow = getRevenueShareEscrowAccountPublicKey(
+			this.program.programId,
+			authority
+		);
+		return this.program.instruction.resizeRevenueShareEscrowOrders(numOrders, {
+			accounts: {
+				revenueShareEscrow,
+				authority,
+				payer: this.wallet.publicKey,
+				systemProgram: anchor.web3.SystemProgram.programId,
+			},
+		});
+	}
+
+	public async changeApprovedBuilder(
+		authority: PublicKey,
+		builder: PublicKey,
+		maxFeeBps: number,
+		add: boolean,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const ix = await this.getChangeApprovedBuilderIx(
+			authority,
+			builder,
+			maxFeeBps,
+			add
+		);
+		const tx = await this.buildTransaction([ix], txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getChangeApprovedBuilderIx(
+		authority: PublicKey,
+		builder: PublicKey,
+		maxFeeBps: number,
+		add: boolean
+	): Promise<TransactionInstruction> {
+		const revenueShareEscrow = getRevenueShareEscrowAccountPublicKey(
+			this.program.programId,
+			authority
+		);
+		return this.program.instruction.changeApprovedBuilder(
+			builder,
+			maxFeeBps,
+			add,
+			{
+				accounts: {
+					revenueShareEscrow,
+					authority,
+					payer: this.wallet.publicKey,
+					systemProgram: anchor.web3.SystemProgram.programId,
+				},
+			}
+		);
+	}
+
 	public async addSignedMsgWsDelegate(
 		authority: PublicKey,
 		delegate: PublicKey,
@@ -1881,6 +2053,20 @@ export class DriftClient {
 			userAccounts: [userAccount],
 			writableSpotMarketIndexes,
 		});
+
+		for (const order of userAccount.orders) {
+			if (hasBuilder(order)) {
+				remainingAccounts.push({
+					pubkey: getRevenueShareEscrowAccountPublicKey(
+						this.program.programId,
+						userAccount.authority
+					),
+					isWritable: true,
+					isSigner: false,
+				});
+				break;
+			}
+		}
 
 		const tokenPrograms = new Set<string>();
 		for (const spotPosition of userAccount.spotPositions) {
@@ -4461,6 +4647,32 @@ export class DriftClient {
 			useMarketLastSlotCache: true,
 		});
 
+		let includeRevenueShareEscrow = false;
+		for (const order of this.getUserAccount(subAccountId).orders) {
+			if (hasBuilder(order)) {
+				includeRevenueShareEscrow = true;
+				break;
+			}
+		}
+
+		if (includeRevenueShareEscrow) {
+			console.log(
+				'inclinding rv share',
+				getRevenueShareEscrowAccountPublicKey(
+					this.program.programId,
+					this.getUserAccount(subAccountId).authority
+				).toBase58()
+			);
+			remainingAccounts.push({
+				pubkey: getRevenueShareEscrowAccountPublicKey(
+					this.program.programId,
+					this.getUserAccount(subAccountId).authority
+				),
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+
 		return await this.program.instruction.cancelOrders(
 			marketType ?? null,
 			marketIndex ?? null,
@@ -4602,7 +4814,8 @@ export class DriftClient {
 		referrerInfo?: ReferrerInfo,
 		txParams?: TxParams,
 		fillerSubAccountId?: number,
-		fillerAuthority?: PublicKey
+		fillerAuthority?: PublicKey,
+		hasBuilderFee?: boolean
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
@@ -4614,7 +4827,8 @@ export class DriftClient {
 					referrerInfo,
 					fillerSubAccountId,
 					undefined,
-					fillerAuthority
+					fillerAuthority,
+					hasBuilderFee
 				),
 				txParams
 			),
@@ -4632,7 +4846,8 @@ export class DriftClient {
 		referrerInfo?: ReferrerInfo,
 		fillerSubAccountId?: number,
 		isSignedMsg?: boolean,
-		fillerAuthority?: PublicKey
+		fillerAuthority?: PublicKey,
+		hasBuilderFee?: boolean
 	): Promise<TransactionInstruction> {
 		const userStatsPublicKey = getUserStatsAccountPublicKey(
 			this.program.programId,
@@ -4712,6 +4927,34 @@ export class DriftClient {
 					isSigner: false,
 				});
 			}
+		}
+
+		let withBuilder = false;
+		if (hasBuilderFee) {
+			withBuilder = true;
+		} else {
+			// figure out if we need builder account or not
+			if (order && !isSignedMsg) {
+				const userOrder = userAccount.orders.find(
+					(o) => o.orderId === order.orderId
+				);
+				withBuilder = hasBuilder(userOrder);
+			} else if (isSignedMsg) {
+				// Order hasn't been placed yet, we cant tell if it has a builder or not.
+				// Include it optimistically
+				withBuilder = true;
+			}
+		}
+
+		if (withBuilder) {
+			remainingAccounts.push({
+				pubkey: getRevenueShareEscrowAccountPublicKey(
+					this.program.programId,
+					userAccount.authority
+				),
+				isWritable: true,
+				isSigner: false,
+			});
 		}
 
 		const orderId = isSignedMsg ? null : order.orderId;
@@ -6354,12 +6597,16 @@ export class DriftClient {
 	public signSignedMsgOrderParamsMessage(
 		orderParamsMessage:
 			| SignedMsgOrderParamsMessage
-			| SignedMsgOrderParamsDelegateMessage,
-		delegateSigner?: boolean
+			| SignedMsgOrderParamsDelegateMessage
+			| SignedMsgOrderParamsWithBuilderMessage
+			| SignedMsgOrderParamsDelegateWithBuilderMessage,
+		delegateSigner?: boolean,
+		withBuilder?: boolean
 	): SignedMsgOrderParams {
 		const borshBuf = this.encodeSignedMsgOrderParamsMessage(
 			orderParamsMessage,
-			delegateSigner
+			delegateSigner,
+			withBuilder
 		);
 		const orderParams = Buffer.from(borshBuf.toString('hex'));
 		return {
@@ -6374,26 +6621,60 @@ export class DriftClient {
 	public encodeSignedMsgOrderParamsMessage(
 		orderParamsMessage:
 			| SignedMsgOrderParamsMessage
-			| SignedMsgOrderParamsDelegateMessage,
-		delegateSigner?: boolean
+			| SignedMsgOrderParamsDelegateMessage
+			| SignedMsgOrderParamsWithBuilderMessage
+			| SignedMsgOrderParamsDelegateWithBuilderMessage,
+		delegateSigner?: boolean,
+		withBuilder?: boolean
 	): Buffer {
-		const anchorIxName = delegateSigner
-			? 'global' + ':' + 'SignedMsgOrderParamsDelegateMessage'
-			: 'global' + ':' + 'SignedMsgOrderParamsMessage';
+		const paramKeys = Object.keys(orderParamsMessage);
+		const hasBuilderOrderParams =
+			paramKeys.includes('builder') || paramKeys.includes('builderFee');
+		if (withBuilder && !hasBuilderOrderParams) {
+			throw new Error(
+				'Builder order params are required when withBuilder is true'
+			);
+		}
+		if (!withBuilder && hasBuilderOrderParams) {
+			throw new Error(
+				'Builder order params are not allowed when withBuilder is false'
+			);
+		}
+
+		let anchorIxName = 'global:';
+		let messageBuffer: Buffer = null;
+		if (delegateSigner) {
+			if (withBuilder) {
+				anchorIxName += 'SignedMsgOrderParamsDelegateWithBuilderMessage';
+				messageBuffer = this.program.coder.types.encode(
+					'SignedMsgOrderParamsDelegateWithBuilderMessage',
+					orderParamsMessage as SignedMsgOrderParamsDelegateWithBuilderMessage
+				);
+			} else {
+				anchorIxName += 'SignedMsgOrderParamsDelegateMessage';
+				messageBuffer = this.program.coder.types.encode(
+					'SignedMsgOrderParamsDelegateMessage',
+					orderParamsMessage as SignedMsgOrderParamsDelegateMessage
+				);
+			}
+		} else {
+			if (withBuilder) {
+				anchorIxName += 'SignedMsgOrderParamsWithBuilderMessage';
+				messageBuffer = this.program.coder.types.encode(
+					'SignedMsgOrderParamsWithBuilderMessage',
+					orderParamsMessage as SignedMsgOrderParamsWithBuilderMessage
+				);
+			} else {
+				anchorIxName += 'SignedMsgOrderParamsMessage';
+				messageBuffer = this.program.coder.types.encode(
+					'SignedMsgOrderParamsMessage',
+					orderParamsMessage as SignedMsgOrderParamsMessage
+				);
+			}
+		}
+
 		const prefix = Buffer.from(sha256(anchorIxName).slice(0, 8));
-		const buf = Buffer.concat([
-			prefix,
-			delegateSigner
-				? this.program.coder.types.encode(
-						'SignedMsgOrderParamsDelegateMessage',
-						orderParamsMessage as SignedMsgOrderParamsDelegateMessage
-				  )
-				: this.program.coder.types.encode(
-						'SignedMsgOrderParamsMessage',
-						orderParamsMessage as SignedMsgOrderParamsMessage
-				  ),
-		]);
-		return buf;
+		return Buffer.concat([prefix, messageBuffer]);
 	}
 
 	/*
@@ -6401,15 +6682,69 @@ export class DriftClient {
 	 */
 	public decodeSignedMsgOrderParamsMessage(
 		encodedMessage: Buffer,
-		delegateSigner?: boolean
-	): SignedMsgOrderParamsMessage | SignedMsgOrderParamsDelegateMessage {
-		const decodeStr = delegateSigner
-			? 'SignedMsgOrderParamsDelegateMessage'
-			: 'SignedMsgOrderParamsMessage';
-		return this.program.coder.types.decode(
-			decodeStr,
-			encodedMessage.slice(8) // assumes discriminator
-		);
+		_delegateSigner?: boolean
+	): {
+		signedMessage:
+			| SignedMsgOrderParamsMessage
+			| SignedMsgOrderParamsDelegateMessage
+			| SignedMsgOrderParamsWithBuilderMessage
+			| SignedMsgOrderParamsDelegateWithBuilderMessage;
+		isDelegateSigner: boolean;
+		withBuilder: boolean;
+	} {
+		let isDelegateSigner = false;
+		let withBuilder = false;
+
+		const msgDiscr = Buffer.from(Array.from(encodedMessage).slice(0, 8));
+		let decodeStr = null;
+		if (
+			msgDiscr.equals(
+				Buffer.from(sha256('global:SignedMsgOrderParamsMessage').slice(0, 8))
+			)
+		) {
+			decodeStr = 'SignedMsgOrderParamsMessage';
+		} else if (
+			msgDiscr.equals(
+				Buffer.from(
+					sha256('global:SignedMsgOrderParamsDelegateMessage').slice(0, 8)
+				)
+			)
+		) {
+			decodeStr = 'SignedMsgOrderParamsDelegateMessage';
+			isDelegateSigner = true;
+		} else if (
+			msgDiscr.equals(
+				Buffer.from(
+					sha256('global:SignedMsgOrderParamsWithBuilderMessage').slice(0, 8)
+				)
+			)
+		) {
+			decodeStr = 'SignedMsgOrderParamsWithBuilderMessage';
+			withBuilder = true;
+		} else if (
+			msgDiscr.equals(
+				Buffer.from(
+					sha256('global:SignedMsgOrderParamsDelegateWithBuilderMessage').slice(
+						0,
+						8
+					)
+				)
+			)
+		) {
+			decodeStr = 'SignedMsgOrderParamsDelegateWithBuilderMessage';
+			isDelegateSigner = true;
+			withBuilder = true;
+		} else {
+			throw new Error('Invalid signed msg order params message');
+		}
+		return {
+			signedMessage: this.program.coder.types.decode(
+				decodeStr,
+				encodedMessage.slice(8)
+			),
+			isDelegateSigner,
+			withBuilder,
+		};
 	}
 
 	public signMessage(
@@ -6473,20 +6808,25 @@ export class DriftClient {
 			signedSignedMsgOrderParams.orderParams.toString(),
 			'hex'
 		);
-		try {
-			const { signedMsgOrderParams } = this.decodeSignedMsgOrderParamsMessage(
-				borshBuf,
-				isDelegateSigner
-			);
-			if (isUpdateHighLeverageMode(signedMsgOrderParams.bitFlags)) {
-				remainingAccounts.push({
-					pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
-					isWritable: true,
-					isSigner: false,
-				});
-			}
-		} catch (err) {
-			console.error('invalid signed order encoding');
+
+		const { signedMessage, withBuilder } =
+			this.decodeSignedMsgOrderParamsMessage(borshBuf, isDelegateSigner);
+		if (isUpdateHighLeverageMode(signedMessage.signedMsgOrderParams.bitFlags)) {
+			remainingAccounts.push({
+				pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+		if (withBuilder) {
+			remainingAccounts.push({
+				pubkey: getRevenueShareEscrowAccountPublicKey(
+					this.program.programId,
+					takerInfo.takerUserAccount.authority
+				),
+				isWritable: true,
+				isSigner: false,
+			});
 		}
 
 		const messageLengthBuffer = Buffer.alloc(2);
