@@ -147,7 +147,8 @@ pub fn liquidate_perp(
         perp_market_map,
         spot_market_map,
         oracle_map,
-        liquidation_mode.get_margin_context(liquidation_margin_buffer_ratio)?.track_market_margin_requirement(MarketIdentifier::perp(market_index))?,
+        MarginContext::liquidation(liquidation_margin_buffer_ratio)
+            .track_market_margin_requirement(MarketIdentifier::perp(market_index))?,
     )?;
 
     let user_is_being_liquidated = liquidation_mode.user_is_being_liquidated(&user)?;
@@ -226,14 +227,14 @@ pub fn liquidate_perp(
 
     // check if user exited liquidation territory
     let intermediate_margin_calculation = if !canceled_order_ids.is_empty() {
-        let margin_context = liquidation_mode.get_margin_context(liquidation_margin_buffer_ratio)?.track_market_margin_requirement(MarketIdentifier::perp(market_index))?;
         let intermediate_margin_calculation =
             calculate_margin_requirement_and_total_collateral_and_liability_info(
                 user,
                 perp_market_map,
                 spot_market_map,
                 oracle_map,
-                margin_context,
+                MarginContext::liquidation(liquidation_margin_buffer_ratio)
+                    .track_market_margin_requirement(MarketIdentifier::perp(market_index))?,
             )?;
 
         let initial_margin_shortage = margin_calculation.margin_shortage()?;
@@ -548,7 +549,6 @@ pub fn liquidate_perp(
         oracle_map,
         liquidation_margin_buffer_ratio,
         margin_shortage,
-        liquidation_mode.get_margin_context(liquidation_margin_buffer_ratio)?,
     )?;
     margin_freed = margin_freed.safe_add(margin_freed_for_perp_position)?;
     liquidation_mode.increment_free_margin(user, margin_freed_for_perp_position);
@@ -777,13 +777,13 @@ pub fn liquidate_perp_with_fill(
         now,
     )?;
 
-    let margin_context = liquidation_mode.get_margin_context(liquidation_margin_buffer_ratio)?.track_market_margin_requirement(MarketIdentifier::perp(market_index))?;
     let margin_calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
         &user,
         perp_market_map,
         spot_market_map,
         oracle_map,
-        margin_context,
+        MarginContext::liquidation(liquidation_margin_buffer_ratio)
+            .track_market_margin_requirement(MarketIdentifier::perp(market_index))?,
     )?;
 
     if !liquidation_mode.user_is_being_liquidated(&user)? && margin_calculation.meets_margin_requirement() {
@@ -851,14 +851,14 @@ pub fn liquidate_perp_with_fill(
 
     // check if user exited liquidation territory
     let intermediate_margin_calculation = if !canceled_order_ids.is_empty() {
-        let margin_context = liquidation_mode.get_margin_context(liquidation_margin_buffer_ratio)?.track_market_margin_requirement(MarketIdentifier::perp(market_index))?;
         let intermediate_margin_calculation =
             calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &user,
                 perp_market_map,
                 spot_market_map,
                 oracle_map,
-                margin_context,
+                MarginContext::liquidation(liquidation_margin_buffer_ratio)
+                    .track_market_margin_requirement(MarketIdentifier::perp(market_index))?,
             )?;
 
         let initial_margin_shortage = margin_calculation.margin_shortage()?;
@@ -1103,7 +1103,6 @@ pub fn liquidate_perp_with_fill(
         oracle_map,
         liquidation_margin_buffer_ratio,
         margin_shortage,
-        liquidation_mode.get_margin_context(liquidation_margin_buffer_ratio)?,
     )?;
 
     margin_freed = margin_freed.safe_add(margin_freed_for_perp_position)?;
@@ -1673,7 +1672,6 @@ pub fn liquidate_spot(
         oracle_map,
         liquidation_margin_buffer_ratio,
         margin_shortage,
-        MarginContext::liquidation(liquidation_margin_buffer_ratio)
 
     )?;
     margin_freed = margin_freed.safe_add(margin_freed_from_liability)?;
@@ -2246,7 +2244,6 @@ pub fn liquidate_spot_with_swap_end(
         oracle_map,
         liquidation_margin_buffer_ratio,
         margin_shortage,
-        MarginContext::liquidation(liquidation_margin_buffer_ratio)
     )?;
 
     margin_freed = margin_freed.safe_add(margin_freed_from_liability)?;
@@ -2707,8 +2704,6 @@ pub fn liquidate_borrow_for_perp_pnl(
         oracle_map,
         liquidation_margin_buffer_ratio,
         margin_shortage,
-        MarginContext::liquidation(liquidation_margin_buffer_ratio)
-        
     )?;
     margin_freed = margin_freed.safe_add(margin_freed_from_liability)?;
     user.increment_margin_freed(margin_freed_from_liability)?;
@@ -2945,13 +2940,12 @@ pub fn liquidate_perp_pnl_for_deposit(
         )
     };
 
-    let margin_context = liquidation_mode.get_margin_context(liquidation_margin_buffer_ratio)?;
     let margin_calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
         user,
         perp_market_map,
         spot_market_map,
         oracle_map,
-        margin_context,
+        MarginContext::liquidation(liquidation_margin_buffer_ratio),
     )?;
 
     if !liquidation_mode.user_is_being_liquidated(&user)? && margin_calculation.meets_margin_requirement() {
@@ -2989,14 +2983,13 @@ pub fn liquidate_perp_pnl_for_deposit(
 
     // check if user exited liquidation territory
     let intermediate_margin_calculation = if !canceled_order_ids.is_empty() {
-        let margin_context = liquidation_mode.get_margin_context(liquidation_margin_buffer_ratio)?;
         let intermediate_margin_calculation =
             calculate_margin_requirement_and_total_collateral_and_liability_info(
                 user,
                 perp_market_map,
                 spot_market_map,
                 oracle_map,
-                margin_context,
+                MarginContext::liquidation(liquidation_margin_buffer_ratio),
             )?;
 
         let initial_margin_shortage = margin_calculation.margin_shortage()?;
@@ -3194,7 +3187,6 @@ pub fn liquidate_perp_pnl_for_deposit(
         oracle_map,
         liquidation_margin_buffer_ratio,
         margin_shortage,
-        liquidation_mode.get_margin_context(liquidation_margin_buffer_ratio)?,
     )?;
     margin_freed = margin_freed.safe_add(margin_freed_from_liability)?;
     liquidation_mode.increment_free_margin(user, margin_freed_from_liability);
@@ -3309,7 +3301,6 @@ pub fn resolve_perp_bankruptcy(
         "user must have negative pnl"
     )?;
 
-    let margin_context = liquidation_mode.get_margin_context(0)?;
     let MarginCalculation {
         margin_requirement,
         total_collateral,
@@ -3319,7 +3310,7 @@ pub fn resolve_perp_bankruptcy(
         perp_market_map,
         spot_market_map,
         oracle_map,
-        margin_context,
+        MarginContext::standard(MarginRequirementType::Maintenance),
     )?;
 
     // spot market's insurance fund draw attempt here (before social loss)
@@ -3632,7 +3623,6 @@ pub fn calculate_margin_freed(
     oracle_map: &mut OracleMap,
     liquidation_margin_buffer_ratio: u32,
     initial_margin_shortage: u128,
-    margin_context: MarginContext,
 ) -> DriftResult<(u64, MarginCalculation)> {
     let margin_calculation_after =
         calculate_margin_requirement_and_total_collateral_and_liability_info(
@@ -3640,7 +3630,7 @@ pub fn calculate_margin_freed(
             perp_market_map,
             spot_market_map,
             oracle_map,
-            margin_context,
+            MarginContext::liquidation(liquidation_margin_buffer_ratio),
         )?;
 
     let new_margin_shortage = margin_calculation_after.margin_shortage()?;

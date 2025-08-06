@@ -5,8 +5,6 @@ use crate::{controller::{spot_balance::update_spot_balances, spot_position::upda
 use super::{perp_market::ContractTier, perp_market_map::PerpMarketMap, spot_market::{AssetTier, SpotBalanceType, SpotMarket}, spot_market_map::SpotMarketMap, user::{MarketType, User}};
 
 pub trait LiquidatePerpMode {
-    fn get_margin_context(&self, liquidation_margin_buffer_ratio: u32) -> DriftResult<MarginContext>;
-
     fn user_is_being_liquidated(&self, user: &User) -> DriftResult<bool>;
 
     fn exit_liquidation(&self, user: &mut User) -> DriftResult<()>;
@@ -62,10 +60,6 @@ impl CrossMarginLiquidatePerpMode {
 }
 
 impl LiquidatePerpMode for CrossMarginLiquidatePerpMode {
-    fn get_margin_context(&self, liquidation_margin_buffer_ratio: u32) -> DriftResult<MarginContext> {
-        Ok(MarginContext::liquidation(liquidation_margin_buffer_ratio))
-    }
-
     fn user_is_being_liquidated(&self, user: &User) -> DriftResult<bool> {
         Ok(user.is_being_liquidated())
     }
@@ -186,10 +180,6 @@ impl IsolatedLiquidatePerpMode {
 }
 
 impl LiquidatePerpMode for IsolatedLiquidatePerpMode {
-    fn get_margin_context(&self, liquidation_margin_buffer_ratio: u32) -> DriftResult<MarginContext> {
-        Ok(MarginContext::liquidation(liquidation_margin_buffer_ratio))
-    }
-
     fn user_is_being_liquidated(&self, user: &User) -> DriftResult<bool> {
         user.is_isolated_position_being_liquidated(self.market_index)
     }
