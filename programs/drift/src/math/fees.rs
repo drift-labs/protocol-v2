@@ -127,16 +127,6 @@ pub fn calculate_fee_for_fulfillment_with_amm(
             )?
         };
 
-        let builder_fee = if let Some(builder_fee_bps) = builder_fee_bps {
-            quote_asset_amount
-                .safe_mul(builder_fee_bps.cast()?)?
-                .safe_div(10000)?
-        } else {
-            0
-        };
-
-        let fee = fee.safe_add(builder_fee)?;
-
         let fee_to_market = fee
             .safe_sub(filler_reward)?
             .safe_sub(referrer_reward)?
@@ -145,9 +135,18 @@ pub fn calculate_fee_for_fulfillment_with_amm(
 
         let fee_to_market_for_lp = fee_to_market.safe_sub(quote_asset_amount_surplus)?;
 
+        let builder_fee = if let Some(builder_fee_bps) = builder_fee_bps {
+            quote_asset_amount
+                .safe_mul(builder_fee_bps.cast()?)?
+                .safe_div(10000)?
+        } else {
+            0
+        };
+        let user_fee = fee.safe_add(builder_fee)?;
+
         // must be non-negative
         Ok(FillFees {
-            user_fee: fee,
+            user_fee,
             maker_rebate: 0,
             fee_to_market,
             fee_to_market_for_lp,
@@ -346,14 +345,6 @@ pub fn calculate_fee_for_fulfillment_with_match(
         )?
     };
 
-    let builder_fee = if let Some(builder_fee_bps) = builder_fee_bps {
-        quote_asset_amount
-            .safe_mul(builder_fee_bps.cast()?)?
-            .safe_div(10000)?
-    } else {
-        0
-    };
-
     // must be non-negative
     let fee_to_market = taker_fee
         .safe_sub(filler_reward)?
@@ -361,10 +352,17 @@ pub fn calculate_fee_for_fulfillment_with_match(
         .safe_sub(maker_rebate)?
         .cast::<i64>()?;
 
-    taker_fee = taker_fee.safe_add(builder_fee)?;
+    let builder_fee = if let Some(builder_fee_bps) = builder_fee_bps {
+        quote_asset_amount
+            .safe_mul(builder_fee_bps.cast()?)?
+            .safe_div(10000)?
+    } else {
+        0
+    };
+    let user_fee = taker_fee.safe_add(builder_fee)?;
 
     Ok(FillFees {
-        user_fee: taker_fee,
+        user_fee,
         maker_rebate,
         fee_to_market,
         filler_reward,
