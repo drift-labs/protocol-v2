@@ -588,10 +588,10 @@ export function calculateWithdrawLimit(
 			spotMarket.withdrawGuardThreshold,
 			BN.min(
 				BN.max(
-					marketDepositTokenAmount.div(new BN(6)),
-					borrowTokenTwapLive.add(lesserDepositAmount.div(new BN(5)))
+					marketDepositTokenAmount.div(new BN(3)),
+					borrowTokenTwapLive.add(lesserDepositAmount.div(new BN(7)))
 				),
-				lesserDepositAmount.sub(lesserDepositAmount.div(new BN(14)))
+				lesserDepositAmount.sub(lesserDepositAmount.div(new BN(8)))
 			)
 		); // main pool between ~30-92.5% utilization with friction on twap in 20% increments
 	} else {

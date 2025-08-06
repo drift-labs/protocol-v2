@@ -186,7 +186,7 @@ export function calculateUnrealizedAssetWeight(
 	quoteSpotMarket: SpotMarketAccount,
 	unrealizedPnl: BN,
 	marginCategory: MarginCategory,
-	oraclePriceData: OraclePriceData
+	oraclePriceData: Pick<OraclePriceData, 'price'>
 ): BN {
 	let assetWeight: BN;
 	switch (marginCategory) {
@@ -252,7 +252,7 @@ export function calculateMarketMaxAvailableInsurance(
 
 export function calculateNetUserPnl(
 	perpMarket: PerpMarketAccount,
-	oraclePriceData: OraclePriceData
+	oraclePriceData: Pick<OraclePriceData, 'price'>
 ): BN {
 	const netUserPositionValue = perpMarket.amm.baseAssetAmountWithAmm
 		.add(perpMarket.amm.baseAssetAmountWithUnsettledLp)
@@ -272,7 +272,7 @@ export function calculateNetUserPnl(
 export function calculateNetUserPnlImbalance(
 	perpMarket: PerpMarketAccount,
 	spotMarket: SpotMarketAccount,
-	oraclePriceData: OraclePriceData,
+	oraclePriceData: Pick<OraclePriceData, 'price'>,
 	applyFeePoolDiscount = true
 ): BN {
 	const netUserPnl = calculateNetUserPnl(perpMarket, oraclePriceData);

@@ -4166,25 +4166,20 @@ export class DriftClient {
 	public async getUpdateAMMsIx(
 		marketIndexes: number[]
 	): Promise<TransactionInstruction> {
-		for (let i = marketIndexes.length; i < 5; i++) {
-			marketIndexes.push(100);
-		}
 		const marketAccountInfos = [];
 		const oracleAccountInfos = [];
 		for (const marketIndex of marketIndexes) {
-			if (marketIndex !== 100) {
-				const market = this.getPerpMarketAccount(marketIndex);
-				marketAccountInfos.push({
-					pubkey: market.pubkey,
-					isWritable: true,
-					isSigner: false,
-				});
-				oracleAccountInfos.push({
-					pubkey: market.amm.oracle,
-					isWritable: false,
-					isSigner: false,
-				});
-			}
+			const market = this.getPerpMarketAccount(marketIndex);
+			marketAccountInfos.push({
+				pubkey: market.pubkey,
+				isWritable: true,
+				isSigner: false,
+			});
+			oracleAccountInfos.push({
+				pubkey: market.amm.oracle,
+				isWritable: false,
+				isSigner: false,
+			});
 		}
 		const remainingAccounts = oracleAccountInfos.concat(marketAccountInfos);
 
