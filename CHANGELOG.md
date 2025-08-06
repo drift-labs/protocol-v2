@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: update max borrow delta/utilization thresholds ([#1760](https://github.com/drift-labs/protocol-v2/pull/1801))
+
 ### Fixes
 
 ### Breaking
@@ -18,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 ### Fixes
+
 - program: update-fee-tier-validates ([#1798](https://github.com/drift-labs/protocol-v2/pull/1798))
 
 ### Breaking
@@ -25,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.131.0] - 2025-08-04
 
 ### Features
+
 - program: update stake + volume fee tier determination ([#1792](https://github.com/drift-labs/protocol-v2/pull/1792))
 
 ### Fixes
