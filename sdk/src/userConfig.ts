@@ -3,7 +3,7 @@ import { Commitment, PublicKey } from '@solana/web3.js';
 import { BulkAccountLoader } from './accounts/bulkAccountLoader';
 import { GrpcConfigs, UserAccountSubscriber } from './accounts/types';
 import { WebSocketProgramAccountSubscriber } from './accounts/webSocketProgramAccountSubscriber';
-import { UserAccount } from '@drift-labs/sdk';
+import { UserAccount } from './types';
 
 export type UserConfig = {
 	accountSubscription?: UserSubscriptionConfig;
