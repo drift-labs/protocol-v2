@@ -126,7 +126,7 @@ export function calculateOraclePriceForPerpMargin(
 export function calculateBaseAssetValueWithOracle(
 	market: PerpMarketAccount,
 	perpPosition: PerpPosition,
-	oraclePriceData: OraclePriceData,
+	oraclePriceData: Pick<OraclePriceData, 'price'>,
 	includeOpenOrders = false
 ): BN {
 	let price = oraclePriceData.price;

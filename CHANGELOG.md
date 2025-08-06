@@ -13,6 +13,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.131.1] - 2025-08-04
+
+### Features
+
+### Fixes
+- program: update-fee-tier-validates ([#1798](https://github.com/drift-labs/protocol-v2/pull/1798))
+
+### Breaking
+
+## [2.131.0] - 2025-08-04
+
+### Features
+- program: update stake + volume fee tier determination ([#1792](https://github.com/drift-labs/protocol-v2/pull/1792))
+
+### Fixes
+
+- program: less aggressive fill bands for spot swaps ([#1796](https://github.com/drift-labs/protocol-v2/pull/1796))
+
+### Breaking
+
 ## [2.130.0] - 2025-07-29
 
 ### Features
