@@ -960,7 +960,6 @@ export class DriftClient {
 	 * Adds and subscribes to users based on params set by the constructor or by updateWallet.
 	 */
 	public async addAndSubscribeToUsers(authority?: PublicKey): Promise<boolean> {
-		console.log('adding and subscribing to users', this.users.size);
 		// save the rpc calls if driftclient is initialized without a real wallet
 		if (this.skipLoadUsers) return true;
 

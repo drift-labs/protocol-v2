@@ -308,6 +308,10 @@ export class WebSocketProgramAccountSubscriberV2<T>
 				!lastNotificationTime ||
 				currentTime - lastNotificationTime >= this.pollingIntervalMs
 			) {
+				console.debug(
+					'No recent WS notification, starting polling for account',
+					accountIdString
+				);
 				// No recent WS notification, start polling
 				await this.pollAccount(accountIdString);
 				// Schedule next poll
@@ -352,6 +356,12 @@ export class WebSocketProgramAccountSubscriberV2<T>
 			if (accountsToPoll.length === 0) {
 				return;
 			}
+
+			console.debug(
+				'Polling all accounts',
+				accountsToPoll.length,
+				'accounts'
+			);
 
 			// Fetch all accounts in a single batch request
 			const accountAddresses = accountsToPoll.map(
