@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.132.0] - 2025-08-06
+
+### Features
+
 - program: update max borrow delta/utilization thresholds ([#1760](https://github.com/drift-labs/protocol-v2/pull/1801))
 
 ### Fixes
