@@ -97,8 +97,9 @@ export class WebSocketProgramAccountSubscriberV2<T>
 		this.rpcSubscriptions = rpcSubscriptions;
 	}
 
-	private async handleNotificationLoop(subscription: AsyncIterable<any>) {
-		for await (const notification of subscription) {
+	private async handleNotificationLoop(notificationPromise: Promise<AsyncIterable<any>>) {
+		const subscriptionIterable = await notificationPromise;
+		for await (const notification of subscriptionIterable) {
 			if (this.resubOpts?.resubTimeoutMs) {
 				this.receivingData = true;
 				clearTimeout(this.timeoutId);
@@ -124,6 +125,7 @@ export class WebSocketProgramAccountSubscriberV2<T>
 			buffer: Buffer
 		) => void
 	): Promise<void> {
+		const startTime = performance.now();
 		if (this.listenerId != null || this.isUnsubscribing) {
 			return;
 		}
@@ -147,7 +149,7 @@ export class WebSocketProgramAccountSubscriberV2<T>
 		// Subscribe to program account changes using gill's rpcSubscriptions
 		const programId = this.program.programId.toBase58();
 		if (isAddress(programId)) {
-			const subscription = await this.rpcSubscriptions
+			const subscriptionPromise = this.rpcSubscriptions
 				.programNotifications(programId, {
 					commitment: this.options.commitment as GillCommitment,
 					encoding: 'base64',
@@ -177,11 +179,12 @@ export class WebSocketProgramAccountSubscriberV2<T>
 				});
 
 			// Start notification loop without awaiting
-			this.handleNotificationLoop(subscription);
+			this.handleNotificationLoop(subscriptionPromise);
+			// Start monitoring for accounts that may need polling if no WS event is received
+			this.startMonitoringForAccounts();
 		}
-
-		// Start monitoring for accounts that may need polling if no WS event is received
-		this.startMonitoringForAccounts();
+		const endTime = performance.now();
+		console.log(`[PROFILING] ${this.subscriptionName}.subscribe() completed in ${endTime - startTime}ms`);
 	}
 
 	protected setTimeout(): void {

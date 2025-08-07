@@ -91,7 +91,8 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 		this.rpcSubscriptions = rpcSubscriptions;
 	}
 
-	private async handleNotificationLoop(subscription: AsyncIterable<any>) {
+	private async handleNotificationLoop(subscriptionPromise: Promise<AsyncIterable<any>>) {
+		const subscription = await subscriptionPromise;
 		for await (const notification of subscription) {
 			// If we're currently polling and receive a WebSocket event, stop polling
 			if (this.pollingTimeoutId) {
@@ -143,7 +144,7 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 		// Subscribe to account changes using gill's rpcSubscriptions
 		const pubkey = this.accountPublicKey.toBase58();
 		if (isAddress(pubkey)) {
-			const subscription = await this.rpcSubscriptions
+			const subscriptionPromise = this.rpcSubscriptions
 				.accountNotifications(pubkey, {
 					commitment: this.commitment,
 					encoding: 'base64',
@@ -152,8 +153,8 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 					abortSignal: abortController.signal,
 				});
 
-			// Start notification loop without awaiting
-			this.handleNotificationLoop(subscription);
+			// Start notification loop with the subscription promise
+			this.handleNotificationLoop(subscriptionPromise);
 		}
 	}
 

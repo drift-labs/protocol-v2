@@ -945,7 +945,7 @@ export class DriftClient {
 			this.userAccountSubscriptionConfig,
 			authority
 		);
-
+		
 		const result = await user.subscribe(userAccount);
 
 		if (result) {
