@@ -2309,3 +2309,46 @@ mod update_referrer_status {
         assert_eq!(user_stats.referrer_status, 1);
     }
 }
+
+mod next_liquidation_id {
+    use crate::state::user::{PerpPosition, PositionFlag, User};
+
+    #[test]
+    fn test() {
+        let mut user = User::default();
+        user.next_liquidation_id = 1;
+        let isolated_position = PerpPosition {
+            market_index: 1,
+            position_flag: PositionFlag::IsolatedPosition as u8,
+            base_asset_amount: 1,
+            ..PerpPosition::default()
+        };
+        user.perp_positions[0] = isolated_position;
+        let isolated_position_2 = PerpPosition {
+            market_index: 2,
+            position_flag: PositionFlag::IsolatedPosition as u8,
+            base_asset_amount: 1,
+            ..PerpPosition::default()
+        };
+        user.perp_positions[1] = isolated_position_2;
+
+        let liquidation_id = user.enter_liquidation(1).unwrap();
+        assert_eq!(liquidation_id, 1);
+
+        let liquidation_id = user.enter_isolated_position_liquidation(1).unwrap();
+        assert_eq!(liquidation_id, 1);
+
+        user.exit_isolated_position_liquidation(1).unwrap();
+
+        user.exit_liquidation();
+
+        let liquidation_id = user.enter_isolated_position_liquidation(1).unwrap();
+        assert_eq!(liquidation_id, 2);
+
+        let liquidation_id = user.enter_isolated_position_liquidation(2).unwrap();
+        assert_eq!(liquidation_id, 2);
+
+        let liquidation_id = user.enter_liquidation(1).unwrap();
+        assert_eq!(liquidation_id, 2);
+    }
+}

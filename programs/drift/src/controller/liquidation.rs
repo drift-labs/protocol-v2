@@ -263,6 +263,7 @@ pub fn liquidate_perp(
                     lp_shares: 0,
                     ..LiquidatePerpRecord::default()
                 },
+                bit_flags: liquidation_mode.get_event_bit_flags(),
                 ..LiquidationRecord::default()
             });
 
@@ -699,6 +700,7 @@ pub fn liquidate_perp(
             liquidator_fee: liquidator_fee.abs().cast()?,
             if_fee: if_fee.abs().cast()?,
         },
+        bit_flags: liquidation_mode.get_event_bit_flags(),
         ..LiquidationRecord::default()
     });
 
@@ -887,6 +889,7 @@ pub fn liquidate_perp_with_fill(
                     lp_shares: 0,
                     ..LiquidatePerpRecord::default()
                 },
+                bit_flags: liquidation_mode.get_event_bit_flags(),
                 ..LiquidationRecord::default()
             });
 
@@ -1143,6 +1146,7 @@ pub fn liquidate_perp_with_fill(
             liquidator_fee: 0,
             if_fee: if_fee.abs().cast()?,
         },
+        bit_flags: liquidation_mode.get_event_bit_flags(),
         ..LiquidationRecord::default()
     });
 
@@ -3025,6 +3029,7 @@ pub fn liquidate_perp_pnl_for_deposit(
                     asset_price,
                     asset_transfer: 0,
                 },
+                bit_flags: liquidation_mode.get_event_bit_flags(),
                 ..LiquidationRecord::default()
             });
 
@@ -3229,6 +3234,7 @@ pub fn liquidate_perp_pnl_for_deposit(
             asset_price,
             asset_transfer,
         },
+        bit_flags: liquidation_mode.get_event_bit_flags(),
         ..LiquidationRecord::default()
     });
 
@@ -3456,6 +3462,7 @@ pub fn resolve_perp_bankruptcy(
             clawback_user_payment: None,
             cumulative_funding_rate_delta,
         },
+        bit_flags: liquidation_mode.get_event_bit_flags(),
         ..LiquidationRecord::default()
     });
 

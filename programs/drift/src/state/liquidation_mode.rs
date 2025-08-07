@@ -2,7 +2,7 @@ use solana_program::msg;
 
 use crate::{controller::{spot_balance::update_spot_balances, spot_position::update_spot_balances_and_cumulative_deposits}, error::{DriftResult, ErrorCode}, math::{bankruptcy::{is_user_bankrupt, is_user_isolated_position_bankrupt}, liquidation::calculate_max_pct_to_liquidate, margin::calculate_user_safest_position_tiers}, state::margin_calculation::{MarginContext, MarketIdentifier}, validate, LIQUIDATION_PCT_PRECISION, QUOTE_SPOT_MARKET_INDEX};
 
-use super::{perp_market::ContractTier, perp_market_map::PerpMarketMap, spot_market::{AssetTier, SpotBalanceType, SpotMarket}, spot_market_map::SpotMarketMap, user::{MarketType, User}};
+use super::{events::LiquidationBitFlag, perp_market::ContractTier, perp_market_map::PerpMarketMap, spot_market::{AssetTier, SpotBalanceType, SpotMarket}, spot_market_map::SpotMarketMap, user::{MarketType, User}};
 
 pub trait LiquidatePerpMode {
     fn user_is_being_liquidated(&self, user: &User) -> DriftResult<bool>;
@@ -29,6 +29,8 @@ pub trait LiquidatePerpMode {
     fn enter_bankruptcy(&self, user: &mut User) -> DriftResult<()>;
 
     fn exit_bankruptcy(&self, user: &mut User) -> DriftResult<()>;
+
+    fn get_event_bit_flags(&self) -> u8;
 
     fn validate_spot_position(&self, user: &User, asset_market_index: u16) -> DriftResult<()>;
 
@@ -107,6 +109,10 @@ impl LiquidatePerpMode for CrossMarginLiquidatePerpMode {
 
     fn exit_bankruptcy(&self, user: &mut User) -> DriftResult<()> {
         Ok(user.exit_bankruptcy())
+    }
+
+    fn get_event_bit_flags(&self) -> u8 {
+        0
     }
 
     fn validate_spot_position(&self, user: &User, asset_market_index: u16) -> DriftResult<()> {
@@ -221,6 +227,10 @@ impl LiquidatePerpMode for IsolatedLiquidatePerpMode {
 
     fn exit_bankruptcy(&self, user: &mut User) -> DriftResult<()> {
         user.exit_isolated_position_bankruptcy(self.market_index)
+    }
+
+    fn get_event_bit_flags(&self) -> u8 {
+        LiquidationBitFlag::IsolatedPosition as u8
     }
 
     fn validate_spot_position(&self, user: &User, asset_market_index: u16) -> DriftResult<()> {
