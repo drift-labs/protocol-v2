@@ -67,6 +67,7 @@ import {
 	LPPoolAccount,
 	ConstituentAccount,
 	ConstituentTargetBaseAccount,
+	AmmCache,
 } from './types';
 import driftIDL from './idl/drift.json';
 
@@ -10130,6 +10131,12 @@ export class DriftClient {
 				getLpPoolPublicKey(this.program.programId, lpPoolName)
 			)
 		)) as ConstituentTargetBaseAccount;
+	}
+
+	public async getAmmCache(): Promise<AmmCache> {
+		return (await this.program.account.ammCache.fetch(
+			getAmmCachePublicKey(this.program.programId)
+		)) as AmmCache;
 	}
 
 	public async updateLpConstituentTargetBase(

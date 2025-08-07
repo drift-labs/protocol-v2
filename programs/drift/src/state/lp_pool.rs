@@ -1254,7 +1254,7 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
                 * -1; // Want to target opposite sign of total scaled notional inventory
 
             msg!(
-                "updating constituent index {} target base to {} from target notional {}",
+                "updating constituent index {} target base to {} from aggregated perp notional {}",
                 constituent_index,
                 target_base,
                 target_notional,

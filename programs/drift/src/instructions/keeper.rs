@@ -3367,7 +3367,10 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
 
         let oracle_data = oracle_map.get_price_data(&perp_market.oracle_id())?;
 
-        cached_info.position = perp_market.amm.get_protocol_owned_position()?;
+        cached_info.position = perp_market
+            .amm
+            .get_protocol_owned_position()?
+            .safe_mul(-1)?;
         cached_info.slot = slot;
         cached_info.last_oracle_price_twap = perp_market
             .amm
