@@ -8365,6 +8365,88 @@
       ]
     },
     {
+      "name": "viewLpPoolSwapFees",
+      "accounts": [
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "lpPool",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "constituentTargetBase",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "constituentCorrelations",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "constituentInTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "constituentOutTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inConstituent",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "outConstituent",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "inMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "outMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "inAmount",
+          "type": "u64"
+        },
+        {
+          "name": "inTargetWeight",
+          "type": "i64"
+        },
+        {
+          "name": "outTargetWeight",
+          "type": "i64"
+        }
+      ]
+    },
+    {
       "name": "lpPoolAddLiquidity",
       "accounts": [
         {

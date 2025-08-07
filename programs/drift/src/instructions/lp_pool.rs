@@ -522,6 +522,87 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
     Ok(())
 }
 
+pub fn handle_view_lp_pool_swap_fees<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, ViewLPPoolSwapFees<'info>>,
+    in_market_index: u16,
+    out_market_index: u16,
+    in_amount: u64,
+    in_target_weight: i64,
+    out_target_weight: i64,
+) -> Result<()> {
+    let slot = Clock::get()?.slot;
+    let state = &ctx.accounts.state;
+
+    let lp_pool = &ctx.accounts.lp_pool.load()?;
+    let in_constituent = ctx.accounts.in_constituent.load()?;
+    let out_constituent = ctx.accounts.out_constituent.load()?;
+    let constituent_correlations: AccountZeroCopy<'_, i64, ConstituentCorrelationsFixed> =
+        ctx.accounts.constituent_correlations.load_zc()?;
+
+    let AccountMaps {
+        perp_market_map: _,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &MarketSet::new(),
+        slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let in_spot_market = spot_market_map.get_ref(&in_market_index)?;
+    let out_spot_market = spot_market_map.get_ref(&out_market_index)?;
+
+    let in_oracle_id = in_spot_market.oracle_id();
+    let out_oracle_id = out_spot_market.oracle_id();
+
+    let (in_oracle, _) = oracle_map.get_price_data_and_validity(
+        MarketType::Spot,
+        in_spot_market.market_index,
+        &in_oracle_id,
+        in_spot_market.historical_oracle_data.last_oracle_price_twap,
+        in_spot_market.get_max_confidence_interval_multiplier()?,
+        0,
+    )?;
+    let in_oracle = in_oracle.clone();
+
+    let (out_oracle, _) = oracle_map.get_price_data_and_validity(
+        MarketType::Spot,
+        out_spot_market.market_index,
+        &out_oracle_id,
+        out_spot_market
+            .historical_oracle_data
+            .last_oracle_price_twap,
+        out_spot_market.get_max_confidence_interval_multiplier()?,
+        0,
+    )?;
+
+    let (in_amount, out_amount, in_fee, out_fee) = lp_pool.get_swap_amount(
+        &in_oracle,
+        &out_oracle,
+        &in_constituent,
+        &out_constituent,
+        &in_spot_market,
+        &out_spot_market,
+        in_target_weight,
+        out_target_weight,
+        in_amount as u128,
+        constituent_correlations.get_correlation(
+            in_constituent.constituent_index,
+            out_constituent.constituent_index,
+        )?,
+    )?;
+    msg!(
+        "in_amount: {}, out_amount: {}, in_fee: {}, out_fee: {}",
+        in_amount,
+        out_amount,
+        in_fee,
+        out_fee
+    );
+    Ok(())
+}
+
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
 )]
@@ -1292,6 +1373,55 @@ pub struct LPPoolSwap<'info> {
         constraint = out_market_mint.key() == out_constituent.load()?.mint,
     )]
     pub out_market_mint: Box<InterfaceAccount<'info, Mint>>,
+
+    pub authority: Signer<'info>,
+
+    // TODO: in/out token program
+    pub token_program: Interface<'info, TokenInterface>,
+}
+
+#[derive(Accounts)]
+#[instruction(
+    in_market_index: u16,
+    out_market_index: u16,
+)]
+pub struct ViewLPPoolSwapFees<'info> {
+    /// CHECK: forced drift_signer
+    pub drift_signer: AccountInfo<'info>,
+    pub state: Box<Account<'info, State>>,
+    pub lp_pool: AccountLoader<'info, LPPool>,
+
+    /// CHECK: checked in ConstituentTargetBaseZeroCopy checks and in ix
+    pub constituent_target_base: AccountInfo<'info>,
+
+    /// CHECK: checked in ConstituentCorrelationsZeroCopy checks and in ix
+    pub constituent_correlations: AccountInfo<'info>,
+
+    #[account(
+        mut,
+        address = in_constituent.load()?.token_vault,
+    )]
+    pub constituent_in_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        address = out_constituent.load()?.token_vault,
+    )]
+    pub constituent_out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    #[account(
+        mut,
+        seeds = [CONSTITUENT_PDA_SEED.as_ref(), lp_pool.key().as_ref(), in_market_index.to_le_bytes().as_ref()],
+        bump=in_constituent.load()?.bump,
+        constraint = in_constituent.load()?.mint.eq(&constituent_in_token_account.mint)
+    )]
+    pub in_constituent: AccountLoader<'info, Constituent>,
+    #[account(
+        mut,
+        seeds = [CONSTITUENT_PDA_SEED.as_ref(), lp_pool.key().as_ref(), out_market_index.to_le_bytes().as_ref()],
+        bump=out_constituent.load()?.bump,
+        constraint = out_constituent.load()?.mint.eq(&constituent_out_token_account.mint)
+    )]
+    pub out_constituent: AccountLoader<'info, Constituent>,
 
     pub authority: Signer<'info>,
 

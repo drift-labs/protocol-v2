@@ -10407,6 +10407,89 @@ export class DriftClient {
 		);
 	}
 
+	public async viewLpPoolSwapFees(
+		inMarketIndex: number,
+		outMarketIndex: number,
+		inAmount: BN,
+		inTargetWeight: BN,
+		outTargetWeight: BN,
+		lpPool: PublicKey,
+		constituentTargetBase: PublicKey,
+		constituentInTokenAccount: PublicKey,
+		constituentOutTokenAccount: PublicKey,
+		inConstituent: PublicKey,
+		outConstituent: PublicKey,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getViewLpPoolSwapFeesIx(
+					inMarketIndex,
+					outMarketIndex,
+					inAmount,
+					inTargetWeight,
+					outTargetWeight,
+					lpPool,
+					constituentTargetBase,
+					constituentInTokenAccount,
+					constituentOutTokenAccount,
+					inConstituent,
+					outConstituent
+				),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getViewLpPoolSwapFeesIx(
+		inMarketIndex: number,
+		outMarketIndex: number,
+		inAmount: BN,
+		inTargetWeight: BN,
+		outTargetWeight: BN,
+		lpPool: PublicKey,
+		constituentTargetBase: PublicKey,
+		constituentInTokenAccount: PublicKey,
+		constituentOutTokenAccount: PublicKey,
+		inConstituent: PublicKey,
+		outConstituent: PublicKey
+	): Promise<TransactionInstruction> {
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [],
+			readableSpotMarketIndexes: [inMarketIndex, outMarketIndex],
+		});
+
+		return this.program.instruction.viewLpPoolSwapFees(
+			inMarketIndex,
+			outMarketIndex,
+			inAmount,
+			inTargetWeight,
+			outTargetWeight,
+			{
+				remainingAccounts,
+				accounts: {
+					driftSigner: this.getSignerPublicKey(),
+					state: await this.getStatePublicKey(),
+					lpPool,
+					constituentTargetBase,
+					constituentInTokenAccount,
+					constituentOutTokenAccount,
+					constituentCorrelations: getConstituentCorrelationsPublicKey(
+						this.program.programId,
+						lpPool
+					),
+					inConstituent,
+					outConstituent,
+					authority: this.wallet.publicKey,
+					tokenProgram: TOKEN_PROGRAM_ID,
+				},
+			}
+		);
+	}
+
 	public async getCreateLpPoolTokenAccountIx(
 		lpPool: LPPoolAccount
 	): Promise<TransactionInstruction> {

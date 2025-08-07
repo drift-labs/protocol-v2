@@ -1993,6 +1993,24 @@ pub mod drift {
         )
     }
 
+    pub fn view_lp_pool_swap_fees<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, ViewLPPoolSwapFees<'info>>,
+        in_market_index: u16,
+        out_market_index: u16,
+        in_amount: u64,
+        in_target_weight: i64,
+        out_target_weight: i64,
+    ) -> Result<()> {
+        handle_view_lp_pool_swap_fees(
+            ctx,
+            in_market_index,
+            out_market_index,
+            in_amount,
+            in_target_weight,
+            out_target_weight,
+        )
+    }
+
     pub fn lp_pool_add_liquidity<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, LPPoolAddLiquidity<'info>>,
         in_market_index: u16,
