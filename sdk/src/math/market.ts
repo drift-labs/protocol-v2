@@ -298,7 +298,7 @@ export function calculateNetUserPnlImbalance(
 
 export function calculateAvailablePerpLiquidity(
 	market: PerpMarketAccount,
-	oraclePriceData: OraclePriceData,
+	mmOraclePriceData: MMOraclePriceData,
 	dlob: DLOB,
 	slot: number
 ): { bids: BN; asks: BN } {
@@ -315,7 +315,7 @@ export function calculateAvailablePerpLiquidity(
 		market.marketIndex,
 		slot,
 		MarketType.PERP,
-		oraclePriceData
+		mmOraclePriceData
 	)) {
 		bids = bids.add(
 			bid.order.baseAssetAmount.sub(bid.order.baseAssetAmountFilled)
@@ -326,7 +326,7 @@ export function calculateAvailablePerpLiquidity(
 		market.marketIndex,
 		slot,
 		MarketType.PERP,
-		oraclePriceData
+		mmOraclePriceData
 	)) {
 		asks = asks.add(
 			ask.order.baseAssetAmount.sub(ask.order.baseAssetAmountFilled)

@@ -446,21 +446,21 @@ export class DLOB {
 		return undefined;
 	}
 
-	public findNodesToFill(
+	public findNodesToFill<T extends MarketType>(
 		marketIndex: number,
 		fallbackBid: BN | undefined,
 		fallbackAsk: BN | undefined,
 		slot: number,
 		ts: number,
-		marketType: MarketType,
-		oraclePriceData: OraclePriceData | MMOraclePriceData,
+		marketType: T,
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData,
 		stateAccount: StateAccount,
-		marketAccount: PerpMarketAccount | SpotMarketAccount
+		marketAccount: T extends { spot: unknown }
+			? SpotMarketAccount
+			: PerpMarketAccount
 	): NodeToFill[] {
-		if (isVariant(marketType, 'perp') && !('mmOracleFlag' in oraclePriceData)) {
-			throw new Error('Use MMOraclePriceData for perp markets when getting L2');
-		}
-
 		if (fillPaused(stateAccount, marketAccount)) {
 			return [];
 		}
@@ -576,11 +576,13 @@ export class DLOB {
 		return Array.from(mergedNodesToFill.values());
 	}
 
-	public findRestingLimitOrderNodesToFill(
+	public findRestingLimitOrderNodesToFill<T extends MarketType>(
 		marketIndex: number,
 		slot: number,
-		marketType: MarketType,
-		oraclePriceData: OraclePriceData | MMOraclePriceData,
+		marketType: T,
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData,
 		isAmmPaused: boolean,
 		minAuctionDuration: number,
 		makerRebateNumerator: number,
@@ -588,11 +590,6 @@ export class DLOB {
 		fallbackAsk: BN | undefined,
 		fallbackBid: BN | undefined
 	): NodeToFill[] {
-		if (isVariant(marketType, 'perp') && !('mmOracleFlag' in oraclePriceData)) {
-			throw new Error(
-				'Use MMOraclePriceData for perp markets in findRestingLimitOrderNodesToFill()'
-			);
-		}
 		const nodesToFill = new Array<NodeToFill>();
 
 		const crossingNodes = this.findCrossingRestingLimitOrders(
@@ -665,21 +662,18 @@ export class DLOB {
 		return nodesToFill;
 	}
 
-	public findTakingNodesToFill(
+	public findTakingNodesToFill<T extends MarketType>(
 		marketIndex: number,
 		slot: number,
-		marketType: MarketType,
-		oraclePriceData: OraclePriceData | MMOraclePriceData,
+		marketType: T,
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData,
 		isAmmPaused: boolean,
 		minAuctionDuration: number,
 		fallbackAsk: BN | undefined,
 		fallbackBid?: BN | undefined
 	): NodeToFill[] {
-		if (isVariant(marketType, 'perp') && !('mmOracleFlag' in oraclePriceData)) {
-			throw new Error(
-				'Use MMOraclePriceData for perp markets in findTakingNodesToFill()'
-			);
-		}
 		const nodesToFill = new Array<NodeToFill>();
 
 		let takingOrderGenerator = this.getTakingAsks(
@@ -796,25 +790,24 @@ export class DLOB {
 		return nodesToFill;
 	}
 
-	public findTakingNodesCrossingMakerNodes(
+	public findTakingNodesCrossingMakerNodes<T extends MarketType>(
 		marketIndex: number,
 		slot: number,
-		marketType: MarketType,
-		oraclePriceData: OraclePriceData | MMOraclePriceData,
+		marketType: T,
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData,
 		takerNodeGenerator: Generator<DLOBNode>,
 		makerNodeGeneratorFn: (
 			marketIndex: number,
 			slot: number,
 			marketType: MarketType,
-			oraclePriceData: OraclePriceData
+			oraclePriceData: T extends { spot: unknown }
+				? OraclePriceData
+				: MMOraclePriceData
 		) => Generator<DLOBNode>,
 		doesCross: (takerPrice: BN | undefined, makerPrice: BN) => boolean
 	): NodeToFill[] {
-		if (isVariant(marketType, 'perp') && !('mmOracleFlag' in oraclePriceData)) {
-			throw new Error(
-				'Use MMOraclePriceData for perp markets in findTakingNodesCrossingMakerNodes()'
-			);
-		}
 		const nodesToFill = new Array<NodeToFill>();
 
 		for (const takerNode of takerNodeGenerator) {
@@ -897,19 +890,16 @@ export class DLOB {
 		return nodesToFill;
 	}
 
-	public findNodesCrossingFallbackLiquidity(
-		marketType: MarketType,
+	public findNodesCrossingFallbackLiquidity<T extends MarketType>(
+		marketType: T,
 		slot: number,
-		oraclePriceData: OraclePriceData | MMOraclePriceData,
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData,
 		nodeGenerator: Generator<DLOBNode>,
 		doesCross: (nodePrice: BN | undefined) => boolean,
 		minAuctionDuration: number
 	): NodeToFill[] {
-		if (isVariant(marketType, 'perp') && !('mmOracleFlag' in oraclePriceData)) {
-			throw new Error(
-				'Use MMOraclePriceData for perp markets in findNodesCrossingFallbackLiquidity()'
-			);
-		}
 		const nodesToFill = new Array<NodeToFill>();
 
 		let nextNode = nodeGenerator.next();
@@ -1021,18 +1011,15 @@ export class DLOB {
 		return nodesToFill;
 	}
 
-	*getTakingBids(
+	*getTakingBids<T extends MarketType>(
 		marketIndex: number,
-		marketType: MarketType,
+		marketType: T,
 		slot: number,
-		oraclePriceData: OraclePriceData | MMOraclePriceData,
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData,
 		filterFcn?: DLOBFilterFcn
 	): Generator<DLOBNode> {
-		if (isVariant(marketType, 'perp') && !('mmOracleFlag' in oraclePriceData)) {
-			throw new Error(
-				'Use MMOraclePriceData for perp markets in findNodesCrossingFallbackLiquidity()'
-			);
-		}
 		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
 		const orderLists = this.orderLists.get(marketTypeStr).get(marketIndex);
 		if (!orderLists) {
@@ -1061,18 +1048,15 @@ export class DLOB {
 		);
 	}
 
-	*getTakingAsks(
+	*getTakingAsks<T extends MarketType>(
 		marketIndex: number,
-		marketType: MarketType,
+		marketType: T,
 		slot: number,
-		oraclePriceData: OraclePriceData | MMOraclePriceData,
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData,
 		filterFcn?: DLOBFilterFcn
 	): Generator<DLOBNode> {
-		if (isVariant(marketType, 'perp') && !('mmOracleFlag' in oraclePriceData)) {
-			throw new Error(
-				'Use MMOraclePriceData for perp markets in findNodesCrossingFallbackLiquidity()'
-			);
-		}
 		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
 		const orderLists = this.orderLists.get(marketTypeStr).get(marketIndex);
 		if (!orderLists) {
@@ -1172,18 +1156,15 @@ export class DLOB {
 		}
 	}
 
-	*getRestingLimitAsks(
+	*getRestingLimitAsks<T extends MarketType>(
 		marketIndex: number,
 		slot: number,
-		marketType: MarketType,
-		oraclePriceData: OraclePriceData | MMOraclePriceData,
+		marketType: T,
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData,
 		filterFcn?: DLOBFilterFcn
 	): Generator<DLOBNode> {
-		if (isVariant(marketType, 'perp') && !('mmOracleFlag' in oraclePriceData)) {
-			throw new Error(
-				'Use MMOraclePriceData for perp markets in getRestingLimitAsks()'
-			);
-		}
 		if (isVariant(marketType, 'spot') && !oraclePriceData) {
 			throw new Error('Must provide OraclePriceData to get spot asks');
 		}
@@ -1219,18 +1200,15 @@ export class DLOB {
 		);
 	}
 
-	*getRestingLimitBids(
+	*getRestingLimitBids<T extends MarketType>(
 		marketIndex: number,
 		slot: number,
-		marketType: MarketType,
-		oraclePriceData: OraclePriceData | MMOraclePriceData,
+		marketType: T,
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData,
 		filterFcn?: DLOBFilterFcn
 	): Generator<DLOBNode> {
-		if (isVariant(marketType, 'perp') && !('mmOracleFlag' in oraclePriceData)) {
-			throw new Error(
-				'Use MMOraclePriceData for perp markets in getRestingLimitBids()'
-			);
-		}
 		if (isVariant(marketType, 'spot') && !oraclePriceData) {
 			throw new Error('Must provide OraclePriceData to get spot bids');
 		}
@@ -1275,17 +1253,16 @@ export class DLOB {
 	 * @param oraclePriceData
 	 * @param filterFcn
 	 */
-	*getAsks(
+	*getAsks<T extends MarketType>(
 		marketIndex: number,
 		_fallbackAsk: BN | undefined,
 		slot: number,
-		marketType: MarketType,
-		oraclePriceData: OraclePriceData | MMOraclePriceData,
+		marketType: T,
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData,
 		filterFcn?: DLOBFilterFcn
 	): Generator<DLOBNode> {
-		if (isVariant(marketType, 'perp') && !('mmOracleFlag' in oraclePriceData)) {
-			throw new Error('Use MMOraclePriceData for perp markets in getAsks()');
-		}
 		if (isVariant(marketType, 'spot') && !oraclePriceData) {
 			throw new Error('Must provide OraclePriceData to get spot asks');
 		}
@@ -1323,17 +1300,16 @@ export class DLOB {
 	 * @param oraclePriceData
 	 * @param filterFcn
 	 */
-	*getBids(
+	*getBids<T extends MarketType>(
 		marketIndex: number,
 		_fallbackBid: BN | undefined,
 		slot: number,
-		marketType: MarketType,
-		oraclePriceData: OraclePriceData | MMOraclePriceData,
+		marketType: T,
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData,
 		filterFcn?: DLOBFilterFcn
 	): Generator<DLOBNode> {
-		if (isVariant(marketType, 'perp') && !('mmOracleFlag' in oraclePriceData)) {
-			throw new Error('Use MMOraclePriceData for perp markets in getBids()');
-		}
 		if (isVariant(marketType, 'spot') && !oraclePriceData) {
 			throw new Error('Must provide OraclePriceData to get spot bids');
 		}
@@ -1363,17 +1339,14 @@ export class DLOB {
 		);
 	}
 
-	findCrossingRestingLimitOrders(
+	findCrossingRestingLimitOrders<T extends MarketType>(
 		marketIndex: number,
 		slot: number,
-		marketType: MarketType,
-		oraclePriceData: OraclePriceData | MMOraclePriceData
+		marketType: T,
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData
 	): NodeToFill[] {
-		if (isVariant(marketType, 'perp') && !('mmOracleFlag' in oraclePriceData)) {
-			throw new Error(
-				'Use MMOraclePriceData for perp markets in findCrossingRestingLimitOrders()'
-			);
-		}
 		const nodesToFill = new Array<NodeToFill>();
 
 		for (const askNode of this.getRestingLimitAsks(
@@ -1494,15 +1467,14 @@ export class DLOB {
 		}
 	}
 
-	public getBestAsk(
+	public getBestAsk<T extends MarketType>(
 		marketIndex: number,
 		slot: number,
-		marketType: MarketType,
-		oraclePriceData: OraclePriceData | MMOraclePriceData
+		marketType: T,
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData
 	): BN | undefined {
-		if (isVariant(marketType, 'perp') && !('mmOracleFlag' in oraclePriceData)) {
-			throw new Error('Use MMOraclePriceData for perp markets in getBestAsk()');
-		}
 		const bestAsk = this.getRestingLimitAsks(
 			marketIndex,
 			slot,
@@ -1516,15 +1488,14 @@ export class DLOB {
 		return undefined;
 	}
 
-	public getBestBid(
+	public getBestBid<T extends MarketType>(
 		marketIndex: number,
 		slot: number,
-		marketType: MarketType,
-		oraclePriceData: OraclePriceData | MMOraclePriceData
+		marketType: T,
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData
 	): BN | undefined {
-		if (isVariant(marketType, 'perp') && !('mmOracleFlag' in oraclePriceData)) {
-			throw new Error('Use MMOraclePriceData for perp markets in getBestBid()');
-		}
 		const bestBid = this.getRestingLimitBids(
 			marketIndex,
 			slot,
@@ -1697,7 +1668,7 @@ export class DLOB {
 		if (isVariant(marketType, 'perp')) {
 			const slot = slotSubscriber.getSlot();
 			const oraclePriceData =
-				driftClient.getOracleDataForPerpMarket(marketIndex);
+				driftClient.getMMOracleDataForPerpMarket(marketIndex);
 
 			const bestAsk = this.getBestAsk(
 				marketIndex,
@@ -1742,7 +1713,7 @@ export class DLOB {
 		} else if (isVariant(marketType, 'spot')) {
 			const slot = slotSubscriber.getSlot();
 			const oraclePriceData =
-				driftClient.getOracleDataForPerpMarket(marketIndex);
+				driftClient.getMMOracleDataForPerpMarket(marketIndex);
 
 			const bestAsk = this.getBestAsk(
 				marketIndex,
@@ -1844,7 +1815,7 @@ export class DLOB {
 	 * @param depth how many levels of the order book to return
 	 * @param fallbackL2Generators L2 generators for fallback liquidity e.g. vAMM {@link getVammL2Generator}, openbook {@link SerumSubscriber}
 	 */
-	public getL2({
+	public getL2<T extends MarketType>({
 		marketIndex,
 		marketType,
 		slot,
@@ -1853,16 +1824,14 @@ export class DLOB {
 		fallbackL2Generators = [],
 	}: {
 		marketIndex: number;
-		marketType: MarketType;
+		marketType: T;
 		slot: number;
-		oraclePriceData: OraclePriceData | MMOraclePriceData;
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData;
 		depth: number;
 		fallbackL2Generators?: L2OrderBookGenerator[];
 	}): L2OrderBook {
-		if (isVariant(marketType, 'perp') && !('mmOracleFlag' in oraclePriceData)) {
-			throw new Error('Use MMOraclePriceData for perp markets when getting L2');
-		}
-
 		const makerAskL2LevelGenerator = getL2GeneratorFromDLOBNodes(
 			this.getRestingLimitAsks(marketIndex, slot, marketType, oraclePriceData),
 			oraclePriceData,
@@ -1918,20 +1887,19 @@ export class DLOB {
 	 * @param slot
 	 * @param oraclePriceData
 	 */
-	public getL3({
+	public getL3<T extends MarketType>({
 		marketIndex,
 		marketType,
 		slot,
 		oraclePriceData,
 	}: {
 		marketIndex: number;
-		marketType: MarketType;
+		marketType: T;
 		slot: number;
-		oraclePriceData: OraclePriceData | MMOraclePriceData;
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData;
 	}): L3OrderBook {
-		if (isVariant(marketType, 'perp') && !('mmOracleFlag' in oraclePriceData)) {
-			throw new Error('Use MMOraclePriceData for perp markets when getting L2');
-		}
 		const bids: L3Level[] = [];
 		const asks: L3Level[] = [];
 
@@ -2013,7 +1981,7 @@ export class DLOB {
 	 * @param param.oraclePriceData the oracle price data
 	 * @returns the estimated quote amount filled: QUOTE_PRECISION
 	 */
-	public estimateFillWithExactBaseAmount({
+	public estimateFillWithExactBaseAmount<T extends MarketType>({
 		marketIndex,
 		marketType,
 		baseAmount,
@@ -2022,17 +1990,14 @@ export class DLOB {
 		oraclePriceData,
 	}: {
 		marketIndex: number;
-		marketType: MarketType;
+		marketType: T;
 		baseAmount: BN;
 		orderDirection: PositionDirection;
 		slot: number;
-		oraclePriceData: OraclePriceData | MMOraclePriceData;
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData;
 	}): BN {
-		if (isVariant(marketType, 'perp') && !('mmOracleFlag' in oraclePriceData)) {
-			throw new Error(
-				'Use MMOraclePriceData for perp markets in estimateFillWithExactBaseAmount()'
-			);
-		}
 		if (isVariant(orderDirection, 'long')) {
 			return this.estimateFillExactBaseAmountInForSide(
 				baseAmount,
@@ -2050,7 +2015,7 @@ export class DLOB {
 		}
 	}
 
-	public getBestMakers({
+	public getBestMakers<T extends MarketType>({
 		marketIndex,
 		marketType,
 		direction,
@@ -2059,17 +2024,14 @@ export class DLOB {
 		numMakers,
 	}: {
 		marketIndex: number;
-		marketType: MarketType;
+		marketType: T;
 		direction: PositionDirection;
 		slot: number;
-		oraclePriceData: OraclePriceData | MMOraclePriceData;
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData;
 		numMakers: number;
 	}): PublicKey[] {
-		if (isVariant(marketType, 'perp') && !('mmOracleFlag' in oraclePriceData)) {
-			throw new Error(
-				'Use MMOraclePriceData for perp markets in getBestMakers()'
-			);
-		}
 		const makers = new Map<string, PublicKey>();
 		const generator = isVariant(direction, 'long')
 			? this.getRestingLimitBids(marketIndex, slot, marketType, oraclePriceData)
