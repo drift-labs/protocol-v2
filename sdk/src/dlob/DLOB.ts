@@ -1713,18 +1713,18 @@ export class DLOB {
 		} else if (isVariant(marketType, 'spot')) {
 			const slot = slotSubscriber.getSlot();
 			const oraclePriceData =
-				driftClient.getMMOracleDataForPerpMarket(marketIndex);
+				driftClient.getOracleDataForSpotMarket(marketIndex);
 
 			const bestAsk = this.getBestAsk(
 				marketIndex,
 				slot,
-				marketType,
+				MarketType.SPOT,
 				oraclePriceData
 			);
 			const bestBid = this.getBestBid(
 				marketIndex,
 				slot,
-				marketType,
+				MarketType.SPOT,
 				oraclePriceData
 			);
 			const mid = bestAsk.add(bestBid).div(new BN(2));
