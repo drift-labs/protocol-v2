@@ -213,7 +213,7 @@ pub fn is_user_being_liquidated(
         MarginContext::liquidation(liquidation_margin_buffer_ratio),
     )?;
 
-    let is_being_liquidated = !margin_calculation.can_exit_liquidation()?;
+    let is_being_liquidated = !margin_calculation.cross_margin_can_exit_liquidation()?;
 
     Ok(is_being_liquidated)
 }
@@ -281,7 +281,7 @@ pub fn is_isolated_position_being_liquidated(
         MarginContext::liquidation(liquidation_margin_buffer_ratio),
     )?;
 
-    let is_being_liquidated = !margin_calculation.can_exit_liquidation()?;
+    let is_being_liquidated = !margin_calculation.cross_margin_can_exit_liquidation()?;
 
     Ok(is_being_liquidated)
 }

@@ -1,11 +1,15 @@
 use solana_program::msg;
 
-use crate::{controller::{spot_balance::update_spot_balances, spot_position::update_spot_balances_and_cumulative_deposits}, error::{DriftResult, ErrorCode}, math::{bankruptcy::{is_user_bankrupt, is_user_isolated_position_bankrupt}, liquidation::calculate_max_pct_to_liquidate, margin::calculate_user_safest_position_tiers}, state::margin_calculation::{MarginContext, MarketIdentifier}, validate, LIQUIDATION_PCT_PRECISION, QUOTE_SPOT_MARKET_INDEX};
+use crate::{controller::{spot_balance::update_spot_balances, spot_position::update_spot_balances_and_cumulative_deposits}, error::{DriftResult, ErrorCode}, math::{bankruptcy::{is_user_bankrupt, is_user_isolated_position_bankrupt}, liquidation::calculate_max_pct_to_liquidate, margin::calculate_user_safest_position_tiers, safe_unwrap::SafeUnwrap}, state::margin_calculation::{MarginCalculation, MarginContext, MarketIdentifier}, validate, LIQUIDATION_PCT_PRECISION, QUOTE_SPOT_MARKET_INDEX};
 
 use super::{events::LiquidationBitFlag, perp_market::ContractTier, perp_market_map::PerpMarketMap, spot_market::{AssetTier, SpotBalanceType, SpotMarket}, spot_market_map::SpotMarketMap, user::{MarketType, User}};
 
 pub trait LiquidatePerpMode {
     fn user_is_being_liquidated(&self, user: &User) -> DriftResult<bool>;
+
+    fn meets_margin_requirements(&self, margin_calculation: &MarginCalculation) -> DriftResult<bool>;
+
+    fn can_exit_liquidation(&self, margin_calculation: &MarginCalculation) -> DriftResult<bool>;
 
     fn exit_liquidation(&self, user: &mut User) -> DriftResult<()>;
 
@@ -20,7 +24,7 @@ pub trait LiquidatePerpMode {
         liquidation_duration: u128,
     ) -> DriftResult<u128>;
 
-    fn increment_free_margin(&self, user: &mut User, amount: u64);
+    fn increment_free_margin(&self, user: &mut User, amount: u64) -> DriftResult<()>;
 
     fn is_user_bankrupt(&self, user: &User) -> DriftResult<bool>;
 
@@ -30,7 +34,7 @@ pub trait LiquidatePerpMode {
 
     fn exit_bankruptcy(&self, user: &mut User) -> DriftResult<()>;
 
-    fn get_event_bit_flags(&self) -> u8;
+    fn get_event_fields(&self, margin_calculation: &MarginCalculation) -> DriftResult<(u128, i128, u8)>;
 
     fn validate_spot_position(&self, user: &User, asset_market_index: u16) -> DriftResult<()>;
 
@@ -66,6 +70,14 @@ impl LiquidatePerpMode for CrossMarginLiquidatePerpMode {
         Ok(user.is_being_liquidated())
     }
 
+    fn meets_margin_requirements(&self, margin_calculation: &MarginCalculation) -> DriftResult<bool> {
+        Ok(margin_calculation.cross_margin_meets_margin_requirement())
+    }
+
+    fn can_exit_liquidation(&self, margin_calculation: &MarginCalculation) -> DriftResult<bool> {
+        Ok(margin_calculation.cross_margin_can_exit_liquidation()?)
+    }
+
     fn exit_liquidation(&self, user: &mut User) -> DriftResult<()> {
         Ok(user.exit_liquidation())
     }
@@ -91,8 +103,8 @@ impl LiquidatePerpMode for CrossMarginLiquidatePerpMode {
         )
     }
 
-    fn increment_free_margin(&self, user: &mut User, amount: u64) {
-        user.increment_margin_freed(amount);
+    fn increment_free_margin(&self, user: &mut User, amount: u64) -> DriftResult<()> {
+        user.increment_margin_freed(amount)
     }
 
     fn is_user_bankrupt(&self, user: &User) -> DriftResult<bool> {
@@ -111,8 +123,8 @@ impl LiquidatePerpMode for CrossMarginLiquidatePerpMode {
         Ok(user.exit_bankruptcy())
     }
 
-    fn get_event_bit_flags(&self) -> u8 {
-        0
+    fn get_event_fields(&self, margin_calculation: &MarginCalculation) -> DriftResult<(u128, i128, u8)> {
+        Ok((margin_calculation.margin_requirement, margin_calculation.total_collateral, 0))
     }
 
     fn validate_spot_position(&self, user: &User, asset_market_index: u16) -> DriftResult<()> {
@@ -190,6 +202,14 @@ impl LiquidatePerpMode for IsolatedLiquidatePerpMode {
         user.is_isolated_position_being_liquidated(self.market_index)
     }
 
+    fn meets_margin_requirements(&self, margin_calculation: &MarginCalculation) -> DriftResult<bool> {
+        margin_calculation.isolated_position_meets_margin_requirement(self.market_index)
+    }
+
+    fn can_exit_liquidation(&self, margin_calculation: &MarginCalculation) -> DriftResult<bool> {
+        margin_calculation.isolated_position_can_exit_liquidation(self.market_index)
+    }
+
     fn exit_liquidation(&self, user: &mut User) -> DriftResult<()> {
         user.exit_isolated_position_liquidation(self.market_index)
     }
@@ -209,8 +229,8 @@ impl LiquidatePerpMode for IsolatedLiquidatePerpMode {
         Ok(LIQUIDATION_PCT_PRECISION)
     }
 
-    fn increment_free_margin(&self, user: &mut User, amount: u64) {
-        return;
+    fn increment_free_margin(&self, user: &mut User, amount: u64) -> DriftResult<()> {
+        Ok(())
     }
 
     fn is_user_bankrupt(&self, user: &User) -> DriftResult<bool> {
@@ -229,8 +249,9 @@ impl LiquidatePerpMode for IsolatedLiquidatePerpMode {
         user.exit_isolated_position_bankruptcy(self.market_index)
     }
 
-    fn get_event_bit_flags(&self) -> u8 {
-        LiquidationBitFlag::IsolatedPosition as u8
+    fn get_event_fields(&self, margin_calculation: &MarginCalculation) -> DriftResult<(u128, i128, u8)> {
+        let isolated_position_margin_calculation = margin_calculation.isolated_position_margin_calculation.get(&self.market_index).safe_unwrap()?;
+        Ok((isolated_position_margin_calculation.margin_requirement, isolated_position_margin_calculation.total_collateral, LiquidationBitFlag::IsolatedPosition as u8))
     }
 
     fn validate_spot_position(&self, user: &User, asset_market_index: u16) -> DriftResult<()> {
