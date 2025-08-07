@@ -58,6 +58,7 @@ export class WebSocketDriftClientAccountSubscriberV2
 
 	resubOpts?: ResubOpts;
 	shouldFindAllMarketsAndOracles: boolean;
+	skipInitialData: boolean = true;
 
 	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
 	stateAccountSubscriber?: WebSocketAccountSubscriberV2<StateAccount>;
@@ -94,7 +95,8 @@ export class WebSocketDriftClientAccountSubscriberV2
 		shouldFindAllMarketsAndOracles: boolean,
 		delistedMarketSetting: DelistedMarketSetting,
 		resubOpts?: ResubOpts,
-		commitment?: Commitment
+		commitment?: Commitment,
+		skipInitialData?: boolean
 	) {
 		this.isSubscribed = false;
 		this.program = program;
@@ -106,14 +108,26 @@ export class WebSocketDriftClientAccountSubscriberV2
 		this.delistedMarketSetting = delistedMarketSetting;
 		this.resubOpts = resubOpts;
 		this.commitment = commitment;
+		this.skipInitialData = skipInitialData ?? false;
 	}
 
 	public async subscribe(): Promise<boolean> {
+		const startTime = performance.now();
+		console.log(
+			`[PROFILING] WebSocketDriftClientAccountSubscriberV2.subscribe() started at ${new Date().toISOString()}`
+		);
+
 		if (this.isSubscribed) {
+			console.log(
+				`[PROFILING] WebSocketDriftClientAccountSubscriberV2.subscribe() skipped - already subscribed`
+			);
 			return true;
 		}
 
 		if (this.isSubscribing) {
+			console.log(
+				`[PROFILING] WebSocketDriftClientAccountSubscriberV2.subscribe() waiting for existing subscription`
+			);
 			return await this.subscriptionPromise;
 		}
 
@@ -123,14 +137,28 @@ export class WebSocketDriftClientAccountSubscriberV2
 			this.subscriptionPromiseResolver = res;
 		});
 
+		// Profile public key generation
+		const pubkeyStartTime = performance.now();
 		const perpMarketAccountPubkeys = this.perpMarketIndexes.map((marketIndex) =>
 			getPerpMarketPublicKeySync(this.program.programId, marketIndex)
 		);
 		const spotMarketAccountPubkeys = this.spotMarketIndexes.map((marketIndex) =>
 			getSpotMarketPublicKeySync(this.program.programId, marketIndex)
 		);
+		const pubkeyEndTime = performance.now();
+		const pubkeyDuration = pubkeyEndTime - pubkeyStartTime;
+		console.log(
+			`[PROFILING] Public key generation completed in ${pubkeyDuration.toFixed(
+				2
+			)}ms (${perpMarketAccountPubkeys.length} perp markets, ${
+				spotMarketAccountPubkeys.length
+			} spot markets)`
+		);
 
+		// Profile findAllMarketsAndOracles if needed
+		let findAllMarketsDuration = 0;
 		if (this.shouldFindAllMarketsAndOracles) {
+			const findAllMarketsStartTime = performance.now();
 			const {
 				perpMarketIndexes,
 				perpMarketAccounts,
@@ -148,12 +176,38 @@ export class WebSocketDriftClientAccountSubscriberV2
 			this.initialSpotMarketAccountData = new Map(
 				spotMarketAccounts.map((market) => [market.marketIndex, market])
 			);
+			const findAllMarketsEndTime = performance.now();
+			findAllMarketsDuration = findAllMarketsEndTime - findAllMarketsStartTime;
+			console.log(
+				`[PROFILING] findAllMarketAndOracles completed in ${findAllMarketsDuration.toFixed(
+					2
+				)}ms (${perpMarketAccounts.length} perp markets, ${
+					spotMarketAccounts.length
+				} spot markets, ${oracleInfos.length} oracles)`
+			);
+		} else {
+			console.log(
+				`[PROFILING] findAllMarketAndOracles skipped (shouldFindAllMarketsAndOracles=false)`
+			);
 		}
 
+		// Profile state public key generation
+		const statePubkeyStartTime = performance.now();
 		const statePublicKey = await getDriftStateAccountPublicKey(
 			this.program.programId
 		);
+		const statePubkeyEndTime = performance.now();
+		const statePubkeyDuration = statePubkeyEndTime - statePubkeyStartTime;
+		console.log(
+			`[PROFILING] State public key generation completed in ${statePubkeyDuration.toFixed(
+				2
+			)}ms`
+		);
 
+		// Profile parallel market and state subscriptions
+		const parallelSubStartTime = performance.now();
+
+		// Create subscribers
 		this.perpMarketAllAccountsSubscriber =
 			new WebSocketProgramAccountSubscriberV2<PerpMarketAccount>(
 				'PerpMarketAccountsSubscriber',
@@ -167,29 +221,8 @@ export class WebSocketDriftClientAccountSubscriberV2
 					commitment: this.commitment,
 				},
 				this.resubOpts,
-				perpMarketAccountPubkeys
+				perpMarketAccountPubkeys // because we pass these in, it will monitor these accounts and fetch them right away
 			);
-		await this.perpMarketAllAccountsSubscriber.subscribe(
-			(
-				_accountId: PublicKey,
-				data: PerpMarketAccount,
-				context: Context,
-				_buffer: Buffer
-			) => {
-				if (
-					this.delistedMarketSetting !== DelistedMarketSetting.Subscribe &&
-					isVariant(data.status, 'delisted')
-				) {
-					return;
-				}
-				this.perpMarketAccountLatestData.set(data.marketIndex, {
-					data,
-					slot: context.slot,
-				});
-				this.eventEmitter.emit('perpMarketAccountUpdate', data);
-				this.eventEmitter.emit('update');
-			}
-		);
 
 		this.spotMarketAllAccountsSubscriber =
 			new WebSocketProgramAccountSubscriberV2<SpotMarketAccount>(
@@ -204,32 +237,9 @@ export class WebSocketDriftClientAccountSubscriberV2
 					commitment: this.commitment,
 				},
 				this.resubOpts,
-				spotMarketAccountPubkeys
+				spotMarketAccountPubkeys // because we pass these in, it will monitor these accounts and fetch them right away
 			);
 
-		await this.spotMarketAllAccountsSubscriber.subscribe(
-			(
-				_accountId: PublicKey,
-				data: SpotMarketAccount,
-				context: Context,
-				_buffer: Buffer
-			) => {
-				if (
-					this.delistedMarketSetting !== DelistedMarketSetting.Subscribe &&
-					isVariant(data.status, 'delisted')
-				) {
-					return;
-				}
-				this.spotMarketAccountLatestData.set(data.marketIndex, {
-					data,
-					slot: context.slot,
-				});
-				this.eventEmitter.emit('spotMarketAccountUpdate', data);
-				this.eventEmitter.emit('update');
-			}
-		);
-
-		// // create and activate main state account subscription
 		this.stateAccountSubscriber = new WebSocketAccountSubscriberV2(
 			'state',
 			this.program,
@@ -238,21 +248,155 @@ export class WebSocketDriftClientAccountSubscriberV2
 			undefined,
 			this.commitment as Commitment
 		);
-		await this.stateAccountSubscriber.subscribe((data: StateAccount) => {
-			this.eventEmitter.emit('stateAccountUpdate', data);
-			this.eventEmitter.emit('update');
-		});
 
-		// set initial data to avoid spamming getAccountInfo calls in webSocketAccountSubscriber
-		await this.setInitialData();
+		// Run all subscriptions in parallel
+		await Promise.all([
+			// Perp market subscription
+			this.perpMarketAllAccountsSubscriber.subscribe(
+				(
+					_accountId: PublicKey,
+					data: PerpMarketAccount,
+					context: Context,
+					_buffer: Buffer
+				) => {
+					if (
+						this.delistedMarketSetting !== DelistedMarketSetting.Subscribe &&
+						isVariant(data.status, 'delisted')
+					) {
+						return;
+					}
+					this.perpMarketAccountLatestData.set(data.marketIndex, {
+						data,
+						slot: context.slot,
+					});
+					this.eventEmitter.emit('perpMarketAccountUpdate', data);
+					this.eventEmitter.emit('update');
+				}
+			),
+			// Spot market subscription
+			this.spotMarketAllAccountsSubscriber.subscribe(
+				(
+					_accountId: PublicKey,
+					data: SpotMarketAccount,
+					context: Context,
+					_buffer: Buffer
+				) => {
+					if (
+						this.delistedMarketSetting !== DelistedMarketSetting.Subscribe &&
+						isVariant(data.status, 'delisted')
+					) {
+						return;
+					}
+					this.spotMarketAccountLatestData.set(data.marketIndex, {
+						data,
+						slot: context.slot,
+					});
+					this.eventEmitter.emit('spotMarketAccountUpdate', data);
+					this.eventEmitter.emit('update');
+				}
+			),
+			// State account subscription
+			this.stateAccountSubscriber.subscribe((data: StateAccount) => {
+				this.eventEmitter.emit('stateAccountUpdate', data);
+				this.eventEmitter.emit('update');
+			}),
+			(async () => {
+				// Profile setInitialData
+				const setInitialDataStartTime = performance.now();
+				await this.setInitialData();
+				const setInitialDataEndTime = performance.now();
+				const setInitialDataDuration =
+					setInitialDataEndTime - setInitialDataStartTime;
+				console.log(
+					`[PROFILING] setInitialData completed in ${setInitialDataDuration.toFixed(
+						2
+					)}ms`
+				);
+				// Profile subscribeToOracles
+				const subscribeToOraclesStartTime = performance.now();
+				await this.subscribeToOracles();
+				const subscribeToOraclesEndTime = performance.now();
+				const subscribeToOraclesDuration =
+					subscribeToOraclesEndTime - subscribeToOraclesStartTime;
+				console.log(
+					`[PROFILING] subscribeToOracles completed in ${subscribeToOraclesDuration.toFixed(
+						2
+					)}ms`
+				);
+			})(),
+		]);
 
-		await this.subscribeToOracles();
+		const parallelSubEndTime = performance.now();
+		const parallelSubDuration = parallelSubEndTime - parallelSubStartTime;
+		console.log(
+			`[PROFILING] Parallel market and state subscriptions completed in ${parallelSubDuration.toFixed(
+				2
+			)}ms`
+		);
+
+		const initialPerpMarketDataFromLatestData = new Map(
+			Array.from(this.perpMarketAccountLatestData.values()).map((data) => [
+				data.data.marketIndex,
+				data.data,
+			])
+		);
+		const initialSpotMarketDataFromLatestData = new Map(
+			Array.from(this.spotMarketAccountLatestData.values()).map((data) => [
+				data.data.marketIndex,
+				data.data,
+			])
+		);
+		this.initialPerpMarketAccountData = initialPerpMarketDataFromLatestData;
+		this.initialSpotMarketAccountData = initialSpotMarketDataFromLatestData;
+
+		// // Profile setInitialData
+		// const setInitialDataStartTime = performance.now();
+		// await this.setInitialData();
+		// const setInitialDataEndTime = performance.now();
+		// const setInitialDataDuration =
+		// 	setInitialDataEndTime - setInitialDataStartTime;
+		// console.log(
+		// 	`[PROFILING] setInitialData completed in ${setInitialDataDuration.toFixed(
+		// 		2
+		// 	)}ms`
+		// );
+
+		// // Profile subscribeToOracles
+		// const subscribeToOraclesStartTime = performance.now();
+		// await this.subscribeToOracles();
+		// const subscribeToOraclesEndTime = performance.now();
+		// const subscribeToOraclesDuration =
+		// 	subscribeToOraclesEndTime - subscribeToOraclesStartTime;
+		// console.log(
+		// 	`[PROFILING] subscribeToOracles completed in ${subscribeToOraclesDuration.toFixed(
+		// 		2
+		// 	)}ms`
+		// );
 
 		this.eventEmitter.emit('update');
 
+		// Profile handleDelistedMarketOracles
+		const handleDelistedStartTime = performance.now();
 		await this.handleDelistedMarketOracles();
+		const handleDelistedEndTime = performance.now();
+		const handleDelistedDuration =
+			handleDelistedEndTime - handleDelistedStartTime;
+		console.log(
+			`[PROFILING] handleDelistedMarketOracles completed in ${handleDelistedDuration.toFixed(
+				2
+			)}ms`
+		);
 
+		// Profile oracle map setup
+		const oracleMapStartTime = performance.now();
 		await Promise.all([this.setPerpOracleMap(), this.setSpotOracleMap()]);
+		const oracleMapEndTime = performance.now();
+		const oracleMapDuration = oracleMapEndTime - oracleMapStartTime;
+		console.log(
+			`[PROFILING] Oracle map setup completed in ${oracleMapDuration.toFixed(
+				2
+			)}ms`
+		);
 
 		this.isSubscribing = false;
 		this.isSubscribed = true;
@@ -260,6 +404,30 @@ export class WebSocketDriftClientAccountSubscriberV2
 
 		// delete initial data
 		this.removeInitialData();
+
+		const totalDuration = performance.now() - startTime;
+		console.log(
+			`[PROFILING] WebSocketDriftClientAccountSubscriberV2.subscribe() completed in ${totalDuration.toFixed(
+				2
+			)}ms`
+		);
+		console.log(
+			`[PROFILING] Breakdown: pubkeys=${pubkeyDuration.toFixed(
+				2
+			)}ms, findAllMarkets=${findAllMarketsDuration.toFixed(
+				2
+			)}ms, statePubkey=${statePubkeyDuration.toFixed(
+				2
+			)}ms, parallelSubscriptions=${parallelSubDuration.toFixed(
+				2
+				// )}ms, setInitialData=${setInitialDataDuration.toFixed(
+				// 	2
+				// )}ms, subscribeToOracles=${subscribeToOraclesDuration.toFixed(
+				// 	2
+			)}ms, handleDelisted=${handleDelistedDuration.toFixed(
+				2
+			)}ms, oracleMap=${oracleMapDuration.toFixed(2)}ms`
+		);
 
 		return true;
 	}
@@ -299,84 +467,122 @@ export class WebSocketDriftClientAccountSubscriberV2
 		return Promise.resolve(true);
 	}
 
+	// TODO: need more options to skip loading perp market and spot market data. Because of how we fetch within the program account subscribers, I am commenting this all out
 	async setInitialData(): Promise<void> {
+		const startTime = performance.now();
+		console.log(
+			`[PROFILING] setInitialData() started at ${new Date().toISOString()}`
+		);
+
 		const connection = this.program.provider.connection;
 		const currentSlot = await connection.getSlot();
 
-		if (!this.initialPerpMarketAccountData) {
-			const perpMarketPublicKeys = this.perpMarketIndexes.map((marketIndex) =>
-				getPerpMarketPublicKeySync(this.program.programId, marketIndex)
-			);
-			const perpMarketPublicKeysChunks = this.chunks(perpMarketPublicKeys, 100);
-			const perpMarketAccountInfos = (
-				await Promise.all(
-					perpMarketPublicKeysChunks.map((perpMarketPublicKeysChunk) =>
-						connection.getMultipleAccountsInfo(perpMarketPublicKeysChunk)
-					)
-				)
-			).flat();
-			this.initialPerpMarketAccountData = new Map(
-				perpMarketAccountInfos
-					.filter((accountInfo) => !!accountInfo)
-					.map((accountInfo) => {
-						const perpMarket = this.program.coder.accounts.decode(
-							'PerpMarket',
-							accountInfo.data
-						);
-						return [perpMarket.marketIndex, perpMarket];
-					})
-			);
-		}
+		// Profile perp market initial data setup
+		// let perpMarketSetupDuration = 0;
+		// if (!this.initialPerpMarketAccountData) {
+		// 	const perpMarketSetupStartTime = performance.now();
+		// 	const perpMarketPublicKeys = this.perpMarketIndexes.map((marketIndex) =>
+		// 		getPerpMarketPublicKeySync(this.program.programId, marketIndex)
+		// 	);
+		// 	const perpMarketPublicKeysChunks = this.chunks(perpMarketPublicKeys, 100);
+		// 	const perpMarketAccountInfos = (
+		// 		await Promise.all(
+		// 			perpMarketPublicKeysChunks.map((perpMarketPublicKeysChunk) =>
+		// 				connection.getMultipleAccountsInfo(perpMarketPublicKeysChunk)
+		// 			)
+		// 		)
+		// 	).flat();
+		// 	this.initialPerpMarketAccountData = new Map(
+		// 		perpMarketAccountInfos
+		// 			.filter((accountInfo) => !!accountInfo)
+		// 			.map((accountInfo) => {
+		// 				const perpMarket = this.program.coder.accounts.decode(
+		// 					'PerpMarket',
+		// 					accountInfo.data
+		// 				);
+		// 				return [perpMarket.marketIndex, perpMarket];
+		// 			})
+		// 	);
+		// 	const perpMarketSetupEndTime = performance.now();
+		// 	perpMarketSetupDuration =
+		// 		perpMarketSetupEndTime - perpMarketSetupStartTime;
+		// 	console.log(
+		// 		`[PROFILING] Perp market initial data setup completed in ${perpMarketSetupDuration.toFixed(
+		// 			2
+		// 		)}ms (${this.initialPerpMarketAccountData.size} markets)`
+		// 	);
+		// } else {
+		// 	console.log(
+		// 		`[PROFILING] Perp market initial data skipped - already exists`
+		// 	);
+		// }
 
-		// emit initial perp market accounts data
-		Array.from(this.initialPerpMarketAccountData?.values() ?? []).forEach(
-			(perpMarketAccount) => {
-				this.eventEmitter.emit('perpMarketAccountUpdate', perpMarketAccount);
-				this.perpMarketAccountLatestData.set(perpMarketAccount.marketIndex, {
-					data: perpMarketAccount,
-					slot: currentSlot,
-				});
-			}
-		);
-		this.eventEmitter.emit('update');
+		// // emit initial perp market accounts data
+		// Array.from(this.initialPerpMarketAccountData?.values() ?? []).forEach(
+		// 	(perpMarketAccount) => {
+		// 		this.eventEmitter.emit('perpMarketAccountUpdate', perpMarketAccount);
+		// 		this.perpMarketAccountLatestData.set(perpMarketAccount.marketIndex, {
+		// 			data: perpMarketAccount,
+		// 			slot: currentSlot,
+		// 		});
+		// 	}
+		// );
+		// this.eventEmitter.emit('update');
 
-		if (!this.initialSpotMarketAccountData) {
-			const spotMarketPublicKeys = this.spotMarketIndexes.map((marketIndex) =>
-				getSpotMarketPublicKeySync(this.program.programId, marketIndex)
-			);
-			const spotMarketPublicKeysChunks = this.chunks(spotMarketPublicKeys, 100);
-			const spotMarketAccountInfos = (
-				await Promise.all(
-					spotMarketPublicKeysChunks.map((spotMarketPublicKeysChunk) =>
-						connection.getMultipleAccountsInfo(spotMarketPublicKeysChunk)
-					)
-				)
-			).flat();
-			this.initialSpotMarketAccountData = new Map(
-				spotMarketAccountInfos
-					.filter((accountInfo) => !!accountInfo)
-					.map((accountInfo) => {
-						const spotMarket = this.program.coder.accounts.decode(
-							'SpotMarket',
-							accountInfo.data
-						);
-						return [spotMarket.marketIndex, spotMarket];
-					})
-			);
-		}
+		// // Profile spot market initial data setup
+		// let spotMarketSetupDuration = 0;
+		// if (!this.initialSpotMarketAccountData) {
+		// 	const spotMarketSetupStartTime = performance.now();
+		// 	const spotMarketPublicKeys = this.spotMarketIndexes.map((marketIndex) =>
+		// 		getSpotMarketPublicKeySync(this.program.programId, marketIndex)
+		// 	);
+		// 	const spotMarketPublicKeysChunks = this.chunks(spotMarketPublicKeys, 100);
+		// 	const spotMarketAccountInfos = (
+		// 		await Promise.all(
+		// 			spotMarketPublicKeysChunks.map((spotMarketPublicKeysChunk) =>
+		// 				connection.getMultipleAccountsInfo(spotMarketPublicKeysChunk)
+		// 			)
+		// 		)
+		// 	).flat();
+		// 	this.initialSpotMarketAccountData = new Map(
+		// 		spotMarketAccountInfos
+		// 			.filter((accountInfo) => !!accountInfo)
+		// 			.map((accountInfo) => {
+		// 				const spotMarket = this.program.coder.accounts.decode(
+		// 					'SpotMarket',
+		// 					accountInfo.data
+		// 				);
+		// 				return [spotMarket.marketIndex, spotMarket];
+		// 			})
+		// 	);
+		// 	const spotMarketSetupEndTime = performance.now();
+		// 	spotMarketSetupDuration =
+		// 		spotMarketSetupEndTime - spotMarketSetupStartTime;
+		// 	console.log(
+		// 		`[PROFILING] Spot market initial data setup completed in ${spotMarketSetupDuration.toFixed(
+		// 			2
+		// 		)}ms (${this.initialSpotMarketAccountData.size} markets)`
+		// 	);
+		// } else {
+		// 	console.log(
+		// 		`[PROFILING] Spot market initial data skipped - already exists`
+		// 	);
+		// }
 
-		// emit initial spot market accounts data
-		Array.from(this.initialSpotMarketAccountData?.values() ?? []).forEach(
-			(spotMarketAccount) => {
-				this.eventEmitter.emit('spotMarketAccountUpdate', spotMarketAccount);
-				this.spotMarketAccountLatestData.set(spotMarketAccount.marketIndex, {
-					data: spotMarketAccount,
-					slot: currentSlot,
-				});
-			}
-		);
-		this.eventEmitter.emit('update');
+		// // emit initial spot market accounts data
+		// Array.from(this.initialSpotMarketAccountData?.values() ?? []).forEach(
+		// 	(spotMarketAccount) => {
+		// 		this.eventEmitter.emit('spotMarketAccountUpdate', spotMarketAccount);
+		// 		this.spotMarketAccountLatestData.set(spotMarketAccount.marketIndex, {
+		// 			data: spotMarketAccount,
+		// 			slot: currentSlot,
+		// 		});
+		// 	}
+		// );
+		// this.eventEmitter.emit('update');
 
+		// Profile oracle initial data setup
+		const oracleSetupStartTime = performance.now();
 		const oracleAccountPubkeyChunks = this.chunks(
 			this.oracleInfos.map((oracleInfo) => oracleInfo.publicKey),
 			100
@@ -411,6 +617,13 @@ export class WebSocketDriftClientAccountSubscriberV2
 				return result;
 			}, [])
 		);
+		const oracleSetupEndTime = performance.now();
+		const oracleSetupDuration = oracleSetupEndTime - oracleSetupStartTime;
+		console.log(
+			`[PROFILING] Oracle initial data setup completed in ${oracleSetupDuration.toFixed(
+				2
+			)}ms (${this.initialOraclePriceData.size} oracles)`
+		);
 
 		// emit initial oracle price data
 		Array.from(this.initialOraclePriceData.entries()).forEach(
@@ -427,7 +640,32 @@ export class WebSocketDriftClientAccountSubscriberV2
 		);
 		this.eventEmitter.emit('update');
 
+		// Profile state account fetch
+		const stateFetchStartTime = performance.now();
 		await this.stateAccountSubscriber.fetch();
+		const stateFetchEndTime = performance.now();
+		const stateFetchDuration = stateFetchEndTime - stateFetchStartTime;
+		console.log(
+			`[PROFILING] State account fetch completed in ${stateFetchDuration.toFixed(
+				2
+			)}ms`
+		);
+
+		const totalDuration = performance.now() - startTime;
+		console.log(
+			`[PROFILING] setInitialData() completed in ${totalDuration.toFixed(2)}ms`
+		);
+		// console.log(
+		// 	`[PROFILING] setInitialData Breakdown: perpMarketSetup=${perpMarketSetupDuration.toFixed(
+		// 		2
+		// 	// )}ms, spotMarketSetup=${spotMarketSetupDuration.toFixed(
+		// 	// 	2
+		// 	// )}ms,
+		// 	oracleSetup=${oracleSetupDuration.toFixed(
+		// 		2
+		// 	)}ms, stateFetch=${stateFetchDuration.toFixed(2)}ms
+		// 	`
+		// );
 	}
 
 	removeInitialData() {
@@ -437,23 +675,43 @@ export class WebSocketDriftClientAccountSubscriberV2
 	}
 
 	async subscribeToOracles(): Promise<boolean> {
+		const startTime = performance.now();
+		console.log(
+			`[PROFILING] subscribeToOracles() started at ${new Date().toISOString()}`
+		);
+
+		const validOracleInfos = this.oracleInfos.filter(
+			(oracleInfo) => !oracleInfo.publicKey.equals(PublicKey.default)
+		);
+		console.log(
+			`[PROFILING] Subscribing to ${validOracleInfos.length} oracles (filtered from ${this.oracleInfos.length} total)`
+		);
+
 		await Promise.all(
-			this.oracleInfos
-				.filter((oracleInfo) => !oracleInfo.publicKey.equals(PublicKey.default))
-				.map((oracleInfo) => this.subscribeToOracle(oracleInfo))
+			validOracleInfos.map((oracleInfo) => this.subscribeToOracle(oracleInfo))
+		);
+
+		const totalDuration = performance.now() - startTime;
+		console.log(
+			`[PROFILING] subscribeToOracles() completed in ${totalDuration.toFixed(
+				2
+			)}ms`
 		);
 
 		return true;
 	}
 
 	async subscribeToOracle(oracleInfo: OracleInfo): Promise<boolean> {
+		const startTime = performance.now();
 		const oracleId = getOracleId(oracleInfo.publicKey, oracleInfo.source);
+		// console.log(`[PROFILING] subscribeToOracle(${oracleInfo.publicKey.toString()}, ${oracleInfo.source}) started`);
+
 		const client = this.oracleClientCache.get(
 			oracleInfo.source,
 			this.program.provider.connection,
 			this.program
 		);
-		const accountSubscriber = new WebSocketAccountSubscriber<OraclePriceData>(
+		const accountSubscriber = new WebSocketAccountSubscriberV2<OraclePriceData>(
 			'oracle',
 			this.program,
 			oracleInfo.publicKey,
@@ -463,7 +721,7 @@ export class WebSocketDriftClientAccountSubscriberV2
 			this.resubOpts,
 			this.commitment
 		);
-		const initialOraclePriceData = this.initialOraclePriceData.get(oracleId);
+		const initialOraclePriceData = this.initialOraclePriceData?.get(oracleId);
 		if (initialOraclePriceData) {
 			accountSubscriber.setData(initialOraclePriceData);
 		}
@@ -478,6 +736,14 @@ export class WebSocketDriftClientAccountSubscriberV2
 		});
 
 		this.oracleSubscribers.set(oracleId, accountSubscriber);
+
+		const totalDuration = performance.now() - startTime;
+		console.log(
+			`[PROFILING] subscribeToOracle(${oracleInfo.publicKey.toString()}, ${
+				oracleInfo.source
+			}) completed in ${totalDuration.toFixed(2)}ms`
+		);
+
 		return true;
 	}
 
