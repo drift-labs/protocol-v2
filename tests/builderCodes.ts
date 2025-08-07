@@ -54,7 +54,7 @@ import dotenv from 'dotenv';
 import { PYTH_STORAGE_DATA } from './pythLazerData';
 import { nanoid } from 'nanoid';
 import { convertIdlToCamelCase } from '@coral-xyz/anchor-30/dist/cjs/idl';
-import { isRevenueShareOrderFilled } from '../sdk/src/math/builder';
+import { isRevenueShareOrderCompleted } from '../sdk/src/math/builder';
 
 dotenv.config();
 
@@ -536,7 +536,7 @@ describe('builder codes', () => {
 				'RevenueShareEscrow',
 				accountInfo.data
 			);
-		// console.log(revShareEscrow);
+		console.log(revShareEscrow);
 		// console.log('revShareEscrow.authority:', revShareEscrow.authority.toBase58());
 		// console.log('revShareEscrow.referrer:', revShareEscrow.referrer.toBase58());
 		// console.log('revShareEscrow.orders.len:', revShareEscrow.orders.length);
@@ -546,10 +546,10 @@ describe('builder codes', () => {
 
 		// check the corresponding revShareEscrow orders are added
 		for (let i = 0; i < userOrders.length; i++) {
-			assert(revShareEscrow.orders[i]!.beneficiary.equals(builder.publicKey));
+			assert(revShareEscrow.orders[i]!.builderIdx === 0);
 			assert(revShareEscrow.orders[i]!.feesAccrued.eq(ZERO));
 			assert(revShareEscrow.orders[i]!.feeBps === builderFeeBps);
-			assert(revShareEscrow.orders[i]!.orderId === i + 1);
+			assert(revShareEscrow.orders[i]!.orderId === i + 1, `orderId ${i} is ${revShareEscrow.orders[i]!.orderId}`);
 			assert(isVariant(revShareEscrow.orders[i]!.marketType, 'perp'));
 			assert(revShareEscrow.orders[i]!.marketIndex === marketIndex);
 		}
@@ -615,7 +615,7 @@ describe('builder codes', () => {
 		// console.log('revShareEscrow.orders.0:', revShareEscrow.orders[2]);
 		assert(revShareEscrow.orders[2].orderId === 3);
 		assert(revShareEscrow.orders[2].feesAccrued.gt(ZERO));
-		assert(isRevenueShareOrderFilled(revShareEscrow.orders[2]));
+		assert(isRevenueShareOrderCompleted(revShareEscrow.orders[2]));
 
 		// cancel remaining orders
 		await userClient.cancelOrders();

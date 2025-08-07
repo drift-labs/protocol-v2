@@ -779,7 +779,7 @@ pub fn cancel_order(
         user.orders[order_index].status = OrderStatus::Canceled;
 
         if let Some(ref mut revenue_escrow_order) = revenue_escrow_order {
-            revenue_escrow_order.add_bit_flag(RevenueShareOrderBitFlag::Canceled);
+            revenue_escrow_order.add_bit_flag(RevenueShareOrderBitFlag::Completed);
         } else if user.orders[order_index].is_bit_flag_set(OrderBitFlag::HasBuilder) {
             msg!(
                 "Order {} has a builder but RevenueShareEscrow account is missing",
@@ -3037,7 +3037,7 @@ pub fn update_order_after_fill(
         order.status = OrderStatus::Filled;
 
         if let Some(revenue_share_order) = revenue_share_order {
-            revenue_share_order.add_bit_flag(RevenueShareOrderBitFlag::Filled);
+            revenue_share_order.add_bit_flag(RevenueShareOrderBitFlag::Completed);
         }
     }
 

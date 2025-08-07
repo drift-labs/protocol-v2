@@ -701,7 +701,6 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
     )?;
 
     let mut revenue_escrow_zc: Option<RevenueShareEscrowZeroCopyMut<'info>> = None;
-    let mut builder_key: Option<Pubkey> = None;
     let mut builder_fee_bps: Option<u16> = None;
     if verified_message_and_signature.builder_idx.is_some()
         && verified_message_and_signature.builder_fee.is_some()
@@ -716,7 +715,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
                 "RevenueShareEscrow account must be owned by taker",
             )?;
 
-            let builder = revenue_escrow.get_approved_builder_mut(builder_idx as u32)?;
+            let builder = revenue_escrow.get_approved_builder_mut(builder_idx)?;
 
             if builder.is_revoked() {
                 return Err(ErrorCode::BuilderRevoked.into());
@@ -726,7 +725,6 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
                 return Err(ErrorCode::InvalidBuilderFee.into());
             }
 
-            builder_key = Some(builder.authority);
             builder_fee_bps = Some(builder_fee);
             revenue_escrow_zc = Some(revenue_escrow);
         } else {
@@ -842,7 +840,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
         let mut revenue_escrow_order = if let Some(ref mut revenue_escrow_zc) = revenue_escrow_zc {
             let new_order_id = taker_order_id_to_use - 1;
             revenue_escrow_zc.add_order(RevenueShareOrder::new(
-                builder_key.unwrap(),
+                verified_message_and_signature.builder_idx.unwrap(),
                 new_order_id,
                 builder_fee_bps.unwrap(),
                 MarketType::Perp,
@@ -894,7 +892,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
         let mut revenue_escrow_order = if let Some(ref mut revenue_escrow_zc) = revenue_escrow_zc {
             let new_order_id = taker_order_id_to_use - 1;
             revenue_escrow_zc.add_order(RevenueShareOrder::new(
-                builder_key.unwrap(),
+                verified_message_and_signature.builder_idx.unwrap(),
                 new_order_id,
                 builder_fee_bps.unwrap(),
                 MarketType::Perp,
@@ -929,7 +927,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
     let mut revenue_escrow_order = if let Some(ref mut revenue_escrow_zc) = revenue_escrow_zc {
         let new_order_id = taker_order_id_to_use;
         revenue_escrow_zc.add_order(RevenueShareOrder::new(
-            builder_key.unwrap(),
+            verified_message_and_signature.builder_idx.unwrap(),
             new_order_id,
             builder_fee_bps.unwrap(),
             MarketType::Perp,

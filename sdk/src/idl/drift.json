@@ -10013,11 +10013,20 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "beneficiary",
+            "name": "builderIdx",
             "docs": [
               "set in place_order"
             ],
-            "type": "publicKey"
+            "type": "u8"
+          },
+          {
+            "name": "padding0",
+            "type": {
+              "array": [
+                "u8",
+                7
+              ]
+            }
           },
           {
             "name": "feesAccrued",
@@ -12630,10 +12639,10 @@
         "kind": "enum",
         "variants": [
           {
-            "name": "Filled"
+            "name": "Open"
           },
           {
-            "name": "Canceled"
+            "name": "Completed"
           }
         ]
       }

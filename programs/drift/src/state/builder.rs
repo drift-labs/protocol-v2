@@ -8,6 +8,7 @@ use prelude::AccountInfo;
 
 use super::zero_copy::HasLen;
 use crate::error::{DriftResult, ErrorCode};
+use crate::math::casting::Cast;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::traits::Size;
 use crate::state::user::MarketType;
@@ -19,8 +20,8 @@ pub const REVENUE_SHARE_ESCROW_PDA_SEED: &str = "REV_ESCROW";
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum RevenueShareOrderBitFlag {
-    Filled = 0b00000001,
-    Canceled = 0b00000010,
+    Open = 0b00000001,
+    Completed = 0b00000010,
 }
 
 #[zero_copy]
@@ -104,7 +105,8 @@ impl_zero_copy_loader!(
 #[derive(Default, Eq, PartialEq, Debug, BorshDeserialize, BorshSerialize)]
 pub struct RevenueShareOrder {
     /// set in place_order
-    pub beneficiary: Pubkey, // builder/referrer, 111... if zeroed
+    pub builder_idx: u8, // builder/referrer, 111... if zeroed, TODO: replace with builder index
+    pub padding0: [u8; 7],
     pub fees_accrued: u64,
     pub order_id: u32,
     pub fee_bps: u16,
@@ -127,20 +129,21 @@ pub struct RevenueShareOrder {
 
 impl RevenueShareOrder {
     pub fn new(
-        beneficiary: Pubkey,
+        builder_idx: u8,
         order_id: u32,
         fee_bps: u16,
         market_type: MarketType,
         market_index: u16,
     ) -> Self {
         Self {
-            beneficiary,
+            builder_idx,
+            padding0: [0; 7],
             order_id,
             fee_bps,
             market_type,
             market_index,
             fees_accrued: 0,
-            bit_flags: 0,
+            bit_flags: RevenueShareOrderBitFlag::Open as u8,
             padding: [0; 6],
         }
     }
@@ -157,16 +160,20 @@ impl RevenueShareOrder {
         (self.bit_flags & flag as u8) != 0
     }
 
-    pub fn is_filled(&self) -> bool {
-        self.is_bit_flag_set(RevenueShareOrderBitFlag::Filled)
+    // An order is Open after it is created, the slot is in use and it is waiting to be filled or canceled.
+    pub fn is_open(&self) -> bool {
+        self.is_bit_flag_set(RevenueShareOrderBitFlag::Open)
     }
 
-    pub fn is_canceled(&self) -> bool {
-        self.is_bit_flag_set(RevenueShareOrderBitFlag::Canceled)
+    // An order is Completed after it is filled or canceled. It is waiting to be settled
+    // into the builder's account
+    pub fn is_completed(&self) -> bool {
+        self.is_bit_flag_set(RevenueShareOrderBitFlag::Completed)
     }
 
+    /// An order slot is available (can be written to) if it is neither Completed nor Open.
     pub fn is_available(&self) -> bool {
-        self.beneficiary == Pubkey::default() && !self.is_filled() && !self.is_canceled()
+        !self.is_completed() && !self.is_open()
     }
 }
 
@@ -367,9 +374,9 @@ impl<'a> RevenueShareEscrowZeroCopyMut<'a> {
         Ok(bytemuck::from_bytes(&self.data[start..start + size]))
     }
 
-    pub fn get_approved_builder_mut(&mut self, index: u32) -> DriftResult<&mut BuilderInfo> {
+    pub fn get_approved_builder_mut(&mut self, index: u8) -> DriftResult<&mut BuilderInfo> {
         validate!(
-            index < self.approved_builders_len(),
+            index < self.approved_builders_len().cast::<u8>()?,
             ErrorCode::DefaultError,
             "Builder index out of bounds, index: {}, orderslen: {}, builderslen: {}",
             index,
@@ -389,9 +396,11 @@ impl<'a> RevenueShareEscrowZeroCopyMut<'a> {
     }
 
     pub fn add_order(&mut self, order: RevenueShareOrder) -> DriftResult {
+        msg!("add_order: {:?}", order.order_id);
         for i in 0..self.orders_len() {
             let existing_order = self.get_order_mut(i)?;
             if existing_order.is_available() {
+                msg!("add_order: {:?} at index {}", existing_order.order_id, i);
                 *existing_order = order;
                 return Ok(());
             }
