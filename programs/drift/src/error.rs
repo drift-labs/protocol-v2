@@ -1,5 +1,4 @@
 use anchor_lang::prelude::*;
-
 pub type DriftResult<T = ()> = std::result::Result<T, ErrorCode>;
 
 #[error_code]
@@ -639,6 +638,34 @@ pub enum ErrorCode {
     InvalidIfRebalanceConfig,
     #[msg("Invalid If Rebalance Swap")]
     InvalidIfRebalanceSwap,
+    #[msg("Invalid Constituent")]
+    InvalidConstituent,
+    #[msg("Invalid Amm Constituent Mapping argument")]
+    InvalidAmmConstituentMappingArgument,
+    #[msg("Invalid update constituent update target weights argument")]
+    InvalidUpdateConstituentTargetBaseArgument,
+    #[msg("Constituent not found")]
+    ConstituentNotFound,
+    #[msg("Constituent could not load")]
+    ConstituentCouldNotLoad,
+    #[msg("Constituent wrong mutability")]
+    ConstituentWrongMutability,
+    #[msg("Wrong number of constituents passed to instruction")]
+    WrongNumberOfConstituents,
+    #[msg("Oracle too stale for LP AUM update")]
+    OracleTooStaleForLPAUMUpdate,
+    #[msg("Insufficient constituent token balance")]
+    InsufficientConstituentTokenBalance,
+    #[msg("Amm Cache data too stale")]
+    AMMCacheStale,
+    #[msg("LP Pool AUM not updated recently")]
+    LpPoolAumDelayed,
+    #[msg("Constituent oracle is stale")]
+    ConstituentOracleStale,
+    #[msg("LP Invariant failed")]
+    LpInvariantFailed,
+    #[msg("Invalid constituent derivative weights")]
+    InvalidConstituentDerivativeWeights,
 }
 
 #[macro_export]
