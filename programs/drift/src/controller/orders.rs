@@ -3191,6 +3191,8 @@ pub fn force_cancel_orders(
         ErrorCode::SufficientCollateral
     )?;
 
+    let cross_margin_meets_initial_margin_requirement = margin_calc.cross_margin_meets_margin_requirement();
+
     let mut total_fee = 0_u64;
 
     for order_index in 0..user.orders.len() {
@@ -3217,6 +3219,10 @@ pub fn force_cancel_orders(
                     continue;
                 }
 
+                if cross_margin_meets_initial_margin_requirement {
+                    continue;
+                }
+
                 state.spot_fee_structure.flat_filler_fee
             }
             MarketType::Perp => {
@@ -3231,9 +3237,15 @@ pub fn force_cancel_orders(
                     continue;
                 }
 
-                // TODO: handle force deleting these orders
-                if user.get_perp_position(market_index)?.is_isolated() {
-                    continue;
+                if !user.get_perp_position(market_index)?.is_isolated() {
+                    if cross_margin_meets_initial_margin_requirement {
+                        continue;
+                    }
+                } else {
+                    let isolated_position_meets_margin_requirement = margin_calc.isolated_position_meets_margin_requirement(market_index)?;
+                    if isolated_position_meets_margin_requirement {
+                        continue;
+                    }
                 }
 
                 state.perp_fee_structure.flat_filler_fee
