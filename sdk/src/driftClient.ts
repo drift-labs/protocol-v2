@@ -64,6 +64,7 @@ import {
 	ProtectedMakerModeConfig,
 	SignedMsgOrderParamsDelegateMessage,
 	TokenProgramFlag,
+	PostOnlyParams,
 } from './types';
 import driftIDL from './idl/drift.json';
 
@@ -6968,7 +6969,7 @@ export class DriftClient {
 			auctionStartPrice?: BN;
 			auctionEndPrice?: BN;
 			reduceOnly?: boolean;
-			postOnly?: boolean;
+			postOnly?: PostOnlyParams;
 			bitFlags?: number;
 			maxTs?: BN;
 			policy?: number;
@@ -7022,7 +7023,7 @@ export class DriftClient {
 			auctionStartPrice?: BN;
 			auctionEndPrice?: BN;
 			reduceOnly?: boolean;
-			postOnly?: boolean;
+			postOnly?: PostOnlyParams;
 			bitFlags?: number;
 			maxTs?: BN;
 			policy?: number;
@@ -7097,7 +7098,7 @@ export class DriftClient {
 			auctionStartPrice?: BN;
 			auctionEndPrice?: BN;
 			reduceOnly?: boolean;
-			postOnly?: boolean;
+			postOnly?: PostOnlyParams;
 			bitFlags?: number;
 			policy?: ModifyOrderPolicy;
 			maxTs?: BN;
@@ -7145,7 +7146,7 @@ export class DriftClient {
 			auctionStartPrice?: BN;
 			auctionEndPrice?: BN;
 			reduceOnly?: boolean;
-			postOnly?: boolean;
+			postOnly?: PostOnlyParams;
 			bitFlags?: number;
 			policy?: ModifyOrderPolicy;
 			maxTs?: BN;
