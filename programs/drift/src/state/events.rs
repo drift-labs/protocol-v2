@@ -425,6 +425,7 @@ pub struct LiquidationRecord {
     pub liquidate_perp_pnl_for_deposit: LiquidatePerpPnlForDepositRecord,
     pub perp_bankruptcy: PerpBankruptcyRecord,
     pub spot_bankruptcy: SpotBankruptcyRecord,
+    pub bit_flags: u8,
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Default)]
@@ -504,6 +505,11 @@ pub struct SpotBankruptcyRecord {
     pub borrow_amount: u128,
     pub if_payment: u128,
     pub cumulative_deposit_interest_delta: u128,
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum LiquidationBitFlag {
+    IsolatedPosition = 0b00000001,
 }
 
 #[event]

@@ -213,7 +213,7 @@ pub fn is_user_being_liquidated(
         MarginContext::liquidation(liquidation_margin_buffer_ratio),
     )?;
 
-    let is_being_liquidated = !margin_calculation.can_exit_liquidation()?;
+    let is_being_liquidated = !margin_calculation.cross_margin_can_exit_liquidation()?;
 
     Ok(is_being_liquidated)
 }
@@ -229,21 +229,54 @@ pub fn validate_user_not_being_liquidated(
         return Ok(());
     }
 
-    let is_still_being_liquidated = is_user_being_liquidated(
+    let margin_calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
         user,
         market_map,
         spot_market_map,
         oracle_map,
-        liquidation_margin_buffer_ratio,
+        MarginContext::liquidation(liquidation_margin_buffer_ratio),
     )?;
 
-    if is_still_being_liquidated {
-        return Err(ErrorCode::UserIsBeingLiquidated);
+    if user.is_cross_margin_being_liquidated() {
+        if margin_calculation.cross_margin_can_exit_liquidation()? {
+            user.exit_cross_margin_liquidation();
+        } else {
+            return Err(ErrorCode::UserIsBeingLiquidated);
+        }
     } else {
-        user.exit_liquidation()
+        let isolated_positions_being_liquidated = user.perp_positions.iter().filter(|position| position.is_isolated() && position.is_isolated_position_being_liquidated()).map(|position| position.market_index).collect::<Vec<_>>();
+        for perp_market_index in isolated_positions_being_liquidated {
+                if margin_calculation.isolated_position_can_exit_liquidation(perp_market_index)? {
+                    user.exit_isolated_position_liquidation(perp_market_index)?;
+                } else {
+                    return Err(ErrorCode::UserIsBeingLiquidated);
+                }
+        }
     }
 
     Ok(())
+}
+
+// todo check if this is corrects
+pub fn is_isolated_position_being_liquidated(
+    user: &User,
+    market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    perp_market_index: u16,
+    liquidation_margin_buffer_ratio: u32,
+) -> DriftResult<bool> {
+    let margin_calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
+        user,
+        market_map,
+        spot_market_map,
+        oracle_map,
+        MarginContext::liquidation(liquidation_margin_buffer_ratio),
+    )?;
+
+    let is_being_liquidated = !margin_calculation.isolated_position_can_exit_liquidation(perp_market_index)?;
+
+    Ok(is_being_liquidated)
 }
 
 pub enum LiquidationMultiplierType {

@@ -2708,34 +2708,30 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
     let custom_margin_ratio_before = user.max_margin_ratio;
     user.max_margin_ratio = 0;
 
+    let margin_buffer= MARGIN_PRECISION / 100; // 1% buffer
     let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
         &user,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
         MarginContext::standard(MarginRequirementType::Initial)
-            .margin_buffer(MARGIN_PRECISION / 100), // 1% buffer
+            .margin_buffer(margin_buffer),
     )?;
+
+    let meets_margin_calc = margin_calc.meets_margin_requirement_with_buffer();
 
     user.max_margin_ratio = custom_margin_ratio_before;
 
     if margin_calc.num_perp_liabilities > 0 {
-        let mut requires_invariant_check = false;
-
         for position in user.perp_positions.iter().filter(|p| !p.is_available()) {
             let perp_market = perp_market_map.get_ref(&position.market_index)?;
             if perp_market.is_high_leverage_mode_enabled() {
-                requires_invariant_check = true;
-                break; // Exit early if invariant check is required
+                validate!(
+                    meets_margin_calc,
+                    ErrorCode::DefaultError,
+                    "User does not meet margin requirement with buffer"
+                )?;
             }
-        }
-
-        if requires_invariant_check {
-            validate!(
-                margin_calc.meets_margin_requirement_with_buffer(),
-                ErrorCode::DefaultError,
-                "User does not meet margin requirement with buffer"
-            )?;
         }
     }
 
@@ -2845,6 +2841,13 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
         None,
         None,
         None,
+        false,
+    )?;
+
+    validate!(
+        !user.perp_positions.iter().any(|p| !p.is_available()),
+        ErrorCode::DefaultError,
+        "user must have no perp positions"
     )?;
 
     for spot_position in user.spot_positions.iter_mut() {

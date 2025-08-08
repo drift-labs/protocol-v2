@@ -285,14 +285,13 @@ mod test {
         assert_eq!(uaw, 9559);
 
         let strict_oracle_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
-        let (pmr, upnl, _, _, _) = calculate_perp_position_value_and_pnl(
+        let (pmr, upnl, _, _) = calculate_perp_position_value_and_pnl(
             &market_position,
             &market,
             &oracle_price_data,
             &strict_oracle_price,
             MarginRequirementType::Initial,
             0,
-            false,
             false,
         )
         .unwrap();
@@ -363,14 +362,13 @@ mod test {
         assert_eq!(position_unrealized_pnl * 800000, 19426229516800000); // 1.9 billion
 
         let strict_oracle_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
-        let (pmr_2, upnl_2, _, _, _) = calculate_perp_position_value_and_pnl(
+        let (pmr_2, upnl_2, _, _) = calculate_perp_position_value_and_pnl(
             &market_position,
             &market,
             &oracle_price_data,
             &strict_oracle_price,
             MarginRequirementType::Initial,
             0,
-            false,
             false,
         )
         .unwrap();
@@ -4084,7 +4082,7 @@ mod calculate_perp_position_value_and_pnl_prediction_market {
 
         let strict_oracle_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
 
-        let (margin_requirement, upnl, _, _, _) = calculate_perp_position_value_and_pnl(
+        let (margin_requirement, upnl, _, _) = calculate_perp_position_value_and_pnl(
             &market_position,
             &market,
             &oracle_price_data,
@@ -4092,21 +4090,19 @@ mod calculate_perp_position_value_and_pnl_prediction_market {
             MarginRequirementType::Initial,
             0,
             false,
-            false,
         )
         .unwrap();
 
         assert_eq!(margin_requirement, QUOTE_PRECISION * 3 / 4); //$.75
         assert_eq!(upnl, 0); //0
 
-        let (margin_requirement, upnl, _, _, _) = calculate_perp_position_value_and_pnl(
+        let (margin_requirement, upnl, _, _) = calculate_perp_position_value_and_pnl(
             &market_position,
             &market,
             &oracle_price_data,
             &strict_oracle_price,
             MarginRequirementType::Maintenance,
             0,
-            false,
             false,
         )
         .unwrap();
@@ -4147,7 +4143,7 @@ mod calculate_perp_position_value_and_pnl_prediction_market {
 
         let strict_oracle_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
 
-        let (margin_requirement, upnl, _, _, _) = calculate_perp_position_value_and_pnl(
+        let (margin_requirement, upnl, _, _) = calculate_perp_position_value_and_pnl(
             &market_position,
             &market,
             &oracle_price_data,
@@ -4155,21 +4151,19 @@ mod calculate_perp_position_value_and_pnl_prediction_market {
             MarginRequirementType::Initial,
             0,
             false,
-            false,
         )
         .unwrap();
 
         assert_eq!(margin_requirement, QUOTE_PRECISION * 3 / 4); //$.75
         assert_eq!(upnl, 0); //0
 
-        let (margin_requirement, upnl, _, _, _) = calculate_perp_position_value_and_pnl(
+        let (margin_requirement, upnl, _, _) = calculate_perp_position_value_and_pnl(
             &market_position,
             &market,
             &oracle_price_data,
             &strict_oracle_price,
             MarginRequirementType::Maintenance,
             0,
-            false,
             false,
         )
         .unwrap();

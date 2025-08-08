@@ -17,9 +17,7 @@ use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 
 use crate::math::casting::Cast;
 use crate::math::margin::{
-    calculate_margin_requirement_and_total_collateral_and_liability_info,
     meets_maintenance_margin_requirement, meets_settle_pnl_maintenance_margin_requirement,
-    MarginRequirementType,
 };
 use crate::math::position::calculate_base_asset_value_with_expiry_price;
 use crate::math::safe_math::SafeMath;
@@ -61,7 +59,7 @@ pub fn settle_pnl(
     meets_margin_requirement: Option<bool>,
     mode: SettlePnlMode,
 ) -> DriftResult {
-    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
+    validate!(!user.is_cross_margin_bankrupt(), ErrorCode::UserBankrupt)?;
     let now = clock.unix_timestamp;
     {
         let spot_market = &mut spot_market_map.get_quote_spot_market_mut()?;
@@ -268,17 +266,43 @@ pub fn settle_pnl(
         );
     }
 
-    update_spot_balances(
-        pnl_to_settle_with_user.unsigned_abs(),
-        if pnl_to_settle_with_user > 0 {
-            &SpotBalanceType::Deposit
-        } else {
-            &SpotBalanceType::Borrow
-        },
-        spot_market,
-        user.get_quote_spot_position_mut(),
-        false,
-    )?;
+    if user.perp_positions[position_index].is_isolated() {
+        let perp_position = &mut user.perp_positions[position_index];
+        if pnl_to_settle_with_user < 0 {
+            let token_amount = perp_position.get_isolated_position_token_amount(spot_market)?;
+
+            validate!(
+                token_amount >= pnl_to_settle_with_user.unsigned_abs(),
+                ErrorCode::InsufficientCollateralForSettlingPNL,
+                "user has insufficient deposit for market {}",
+                market_index
+            )?;
+        }
+
+        update_spot_balances(
+            pnl_to_settle_with_user.unsigned_abs(),
+            if pnl_to_settle_with_user > 0 {
+                &SpotBalanceType::Deposit
+            } else {
+                &SpotBalanceType::Borrow
+            },
+            spot_market,
+            perp_position,
+            false,
+        )?;
+    } else {
+        update_spot_balances(
+            pnl_to_settle_with_user.unsigned_abs(),
+            if pnl_to_settle_with_user > 0 {
+                &SpotBalanceType::Deposit
+            } else {
+                &SpotBalanceType::Borrow
+            },
+            spot_market,
+            user.get_quote_spot_position_mut(),
+            false,
+        )?;
+    }
 
     update_quote_asset_amount(
         &mut user.perp_positions[position_index],
@@ -322,7 +346,7 @@ pub fn settle_expired_position(
     clock: &Clock,
     state: &State,
 ) -> DriftResult {
-    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
+    validate!(!user.is_cross_margin_bankrupt(), ErrorCode::UserBankrupt)?;
 
     // cannot settle pnl this way on a user who is in liquidation territory
     if !(meets_maintenance_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?)
@@ -359,6 +383,7 @@ pub fn settle_expired_position(
         Some(MarketType::Perp),
         Some(perp_market_index),
         None,
+        true,
     )?;
 
     let position_index = match get_position_index(&user.perp_positions, perp_market_index) {
