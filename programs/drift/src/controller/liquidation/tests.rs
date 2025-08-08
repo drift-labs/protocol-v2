@@ -2197,7 +2197,7 @@ pub mod liquidate_perp {
         .unwrap();
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
-        assert!(!user.is_being_liquidated());
+        assert!(!user.is_cross_margin_being_liquidated());
         assert_eq!(market_after.amm.total_liquidation_fee, 41787043);
     }
 
@@ -2351,7 +2351,7 @@ pub mod liquidate_perp {
         .unwrap();
 
         // user out of liq territory
-        assert!(!user.is_being_liquidated());
+        assert!(!user.is_cross_margin_being_liquidated());
 
         let oracle_price = oracle_map
             .get_price_data(&(oracle_price_key, OracleSource::Pyth))
@@ -4256,7 +4256,7 @@ pub mod liquidate_spot {
         .unwrap();
 
         assert_eq!(user.last_active_slot, 1);
-        assert_eq!(user.is_being_liquidated(), true);
+        assert_eq!(user.is_cross_margin_being_liquidated(), true);
         assert_eq!(user.liquidation_margin_freed, 7000031);
         assert_eq!(user.spot_positions[0].scaled_balance, 990558159000);
         assert_eq!(user.spot_positions[1].scaled_balance, 9406768999);
@@ -4326,7 +4326,7 @@ pub mod liquidate_spot {
         let pct_margin_freed = (user.liquidation_margin_freed as u128) * PRICE_PRECISION
             / (margin_shortage + user.liquidation_margin_freed as u128);
         assert_eq!(pct_margin_freed, 433267); // ~43.3%
-        assert_eq!(user.is_being_liquidated(), true);
+        assert_eq!(user.is_cross_margin_being_liquidated(), true);
 
         let slot = 136_u64;
         liquidate_spot(
@@ -4353,7 +4353,7 @@ pub mod liquidate_spot {
         assert_eq!(user.liquidation_margin_freed, 0);
         assert_eq!(user.spot_positions[0].scaled_balance, 455580082000);
         assert_eq!(user.spot_positions[1].scaled_balance, 4067681997);
-        assert_eq!(user.is_being_liquidated(), false);
+        assert_eq!(user.is_cross_margin_being_liquidated(), false);
     }
 
     #[test]
@@ -8560,7 +8560,7 @@ pub mod liquidate_spot_with_swap {
         )
         .unwrap();
 
-        assert_eq!(user.is_being_liquidated(), false);
+        assert_eq!(user.is_cross_margin_being_liquidated(), false);
 
         let quote_spot_market = spot_market_map.get_ref(&0).unwrap();
         let sol_spot_market = spot_market_map.get_ref(&1).unwrap();

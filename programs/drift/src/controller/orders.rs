@@ -118,7 +118,7 @@ pub fn place_perp_order(
         )?;
     }
 
-    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
+    validate!(!user.is_cross_margin_bankrupt(), ErrorCode::UserBankrupt)?;
 
     if params.is_update_high_leverage_mode() {
         if let Some(config) = high_leverage_mode_config {
@@ -1028,7 +1028,7 @@ pub fn fill_perp_order(
         "Order must be triggered first"
     )?;
 
-    if user.is_bankrupt() {
+    if user.is_cross_margin_bankrupt() {
         msg!("user is bankrupt");
         return Ok((0, 0));
     }
@@ -1479,7 +1479,7 @@ fn get_maker_orders_info(
 
         let mut maker = load_mut!(user_account_loader)?;
 
-        if maker.is_being_liquidated() || maker.is_bankrupt() {
+        if maker.is_being_liquidated() {
             continue;
         }
 
@@ -1945,10 +1945,17 @@ fn fulfill_perp_order(
         )?;
 
         if !taker_margin_calculation.meets_margin_requirement() {
+            let (margin_requirement, total_collateral) = if taker_margin_calculation.has_isolated_position_margin_calculation(market_index) {
+                let isolated_position_margin_calculation = taker_margin_calculation.get_isolated_position_margin_calculation(market_index)?;
+                (isolated_position_margin_calculation.margin_requirement, isolated_position_margin_calculation.total_collateral)
+            } else {
+                (taker_margin_calculation.margin_requirement, taker_margin_calculation.total_collateral)
+            };
+
             msg!(
                 "taker breached fill requirements (margin requirement {}) (total_collateral {})",
-                taker_margin_calculation.margin_requirement,
-                taker_margin_calculation.total_collateral
+                margin_requirement,
+                total_collateral
             );
             return Err(ErrorCode::InsufficientCollateral);
         }
@@ -2005,11 +2012,18 @@ fn fulfill_perp_order(
         }
 
         if !maker_margin_calculation.meets_margin_requirement() {
+            let (margin_requirement, total_collateral) = if maker_margin_calculation.has_isolated_position_margin_calculation(market_index) {
+                let isolated_position_margin_calculation = maker_margin_calculation.get_isolated_position_margin_calculation(market_index)?;
+                (isolated_position_margin_calculation.margin_requirement, isolated_position_margin_calculation.total_collateral)
+            } else {
+                (maker_margin_calculation.margin_requirement, maker_margin_calculation.total_collateral)
+            };
+
             msg!(
                 "maker ({}) breached fill requirements (margin requirement {}) (total_collateral {})",
                 maker_key,
-                maker_margin_calculation.margin_requirement,
-                maker_margin_calculation.total_collateral
+                margin_requirement,
+                total_collateral
             );
             return Err(ErrorCode::InsufficientCollateral);
         }
@@ -2953,7 +2967,7 @@ pub fn trigger_order(
         state.liquidation_margin_buffer_ratio,
     )?;
 
-    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
+    validate!(!user.is_cross_margin_bankrupt(), ErrorCode::UserBankrupt)?;
 
     let mut perp_market = perp_market_map.get_ref_mut(&market_index)?;
     let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(
@@ -3171,7 +3185,7 @@ pub fn force_cancel_orders(
         ErrorCode::UserIsBeingLiquidated
     )?;
 
-    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
+    validate!(!user.is_cross_margin_bankrupt(), ErrorCode::UserBankrupt)?;
 
     let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
         user,
@@ -3382,7 +3396,7 @@ pub fn place_spot_order(
         state.liquidation_margin_buffer_ratio,
     )?;
 
-    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
+    validate!(!user.is_cross_margin_bankrupt(), ErrorCode::UserBankrupt)?;
 
     if options.try_expire_orders {
         expire_orders(
@@ -3712,7 +3726,7 @@ pub fn fill_spot_order(
         "Order must be triggered first"
     )?;
 
-    if user.is_bankrupt() {
+    if user.is_cross_margin_bankrupt() {
         msg!("User is bankrupt");
         return Ok(0);
     }
@@ -4020,7 +4034,7 @@ fn get_spot_maker_orders_info(
 
         let mut maker = load_mut!(user_account_loader)?;
 
-        if maker.is_being_liquidated() || maker.is_bankrupt() {
+        if maker.is_being_liquidated() {
             continue;
         }
 
@@ -5205,7 +5219,7 @@ pub fn trigger_spot_order(
         state.liquidation_margin_buffer_ratio,
     )?;
 
-    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
+    validate!(!user.is_cross_margin_bankrupt(), ErrorCode::UserBankrupt)?;
 
     let spot_market = spot_market_map.get_ref(&market_index)?;
     let (oracle_price_data, oracle_validity) = oracle_map.get_price_data_and_validity(

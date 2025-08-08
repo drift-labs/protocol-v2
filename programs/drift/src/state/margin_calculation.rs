@@ -646,4 +646,8 @@ impl MarginCalculation {
             Err(ErrorCode::InvalidMarginCalculation)
         }
     }
+
+    pub fn has_isolated_position_margin_calculation(&self, market_index: u16) -> bool {
+        self.isolated_position_margin_calculation.contains_key(&market_index)
+    }
 }

@@ -225,7 +225,7 @@ pub fn validate_user_not_being_liquidated(
     oracle_map: &mut OracleMap,
     liquidation_margin_buffer_ratio: u32,
 ) -> DriftResult {
-    if !user.is_being_liquidated() && !user.any_isolated_position_being_liquidated() {
+    if !user.is_being_liquidated() {
         return Ok(());
     }
 
@@ -237,9 +237,9 @@ pub fn validate_user_not_being_liquidated(
         MarginContext::liquidation(liquidation_margin_buffer_ratio),
     )?;
 
-    if user.is_being_liquidated() {
+    if user.is_cross_margin_being_liquidated() {
         if margin_calculation.cross_margin_can_exit_liquidation()? {
-            user.exit_liquidation();
+            user.exit_cross_margin_liquidation();
         } else {
             return Err(ErrorCode::UserIsBeingLiquidated);
         }

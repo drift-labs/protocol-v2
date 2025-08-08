@@ -1671,36 +1671,36 @@ mod update_user_status {
         let mut user = User::default();
         assert_eq!(user.status, 0);
 
-        user.enter_liquidation(0).unwrap();
+        user.enter_cross_margin_liquidation(0).unwrap();
 
         assert_eq!(user.status, UserStatus::BeingLiquidated as u8);
-        assert!(user.is_being_liquidated());
+        assert!(user.is_cross_margin_being_liquidated());
 
-        user.enter_bankruptcy();
+        user.enter_cross_margin_bankruptcy();
 
         assert_eq!(user.status, UserStatus::Bankrupt as u8);
-        assert!(user.is_being_liquidated());
-        assert!(user.is_bankrupt());
+        assert!(user.is_cross_margin_being_liquidated());
+        assert!(user.is_cross_margin_bankrupt());
 
         let mut user = User {
             status: UserStatus::ReduceOnly as u8,
             ..User::default()
         };
 
-        user.enter_liquidation(0).unwrap();
+        user.enter_cross_margin_liquidation(0).unwrap();
 
-        assert!(user.is_being_liquidated());
+        assert!(user.is_cross_margin_being_liquidated());
         assert!(user.status & UserStatus::ReduceOnly as u8 > 0);
 
-        user.enter_bankruptcy();
+        user.enter_cross_margin_bankruptcy();
 
-        assert!(user.is_being_liquidated());
-        assert!(user.is_bankrupt());
+        assert!(user.is_cross_margin_being_liquidated());
+        assert!(user.is_cross_margin_bankrupt());
         assert!(user.status & UserStatus::ReduceOnly as u8 > 0);
 
-        user.exit_liquidation();
-        assert!(!user.is_being_liquidated());
-        assert!(!user.is_bankrupt());
+        user.exit_cross_margin_liquidation();
+        assert!(!user.is_cross_margin_being_liquidated());
+        assert!(!user.is_cross_margin_bankrupt());
         assert!(user.status & UserStatus::ReduceOnly as u8 > 0);
     }
 }
@@ -2332,7 +2332,7 @@ mod next_liquidation_id {
         };
         user.perp_positions[1] = isolated_position_2;
 
-        let liquidation_id = user.enter_liquidation(1).unwrap();
+        let liquidation_id = user.enter_cross_margin_liquidation(1).unwrap();
         assert_eq!(liquidation_id, 1);
 
         let liquidation_id = user.enter_isolated_position_liquidation(1).unwrap();
@@ -2340,7 +2340,7 @@ mod next_liquidation_id {
 
         user.exit_isolated_position_liquidation(1).unwrap();
 
-        user.exit_liquidation();
+        user.exit_cross_margin_liquidation();
 
         let liquidation_id = user.enter_isolated_position_liquidation(1).unwrap();
         assert_eq!(liquidation_id, 2);
@@ -2348,7 +2348,7 @@ mod next_liquidation_id {
         let liquidation_id = user.enter_isolated_position_liquidation(2).unwrap();
         assert_eq!(liquidation_id, 2);
 
-        let liquidation_id = user.enter_liquidation(1).unwrap();
+        let liquidation_id = user.enter_cross_margin_liquidation(1).unwrap();
         assert_eq!(liquidation_id, 2);
     }
 }

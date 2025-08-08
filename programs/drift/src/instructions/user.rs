@@ -532,7 +532,7 @@ pub fn handle_deposit<'c: 'info, 'info>(
         return Err(ErrorCode::InsufficientDeposit.into());
     }
 
-    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
+    validate!(!user.is_cross_margin_bankrupt(), ErrorCode::UserBankrupt)?;
 
     let mut spot_market = spot_market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = *oracle_map.get_price_data(&spot_market.oracle_id())?;
@@ -614,7 +614,7 @@ pub fn handle_deposit<'c: 'info, 'info>(
     }
 
     drop(spot_market);
-    if user.is_being_liquidated() {
+    if user.is_cross_margin_being_liquidated() {
         // try to update liquidation status if user is was already being liq'd
         let is_being_liquidated = is_user_being_liquidated(
             user,
@@ -625,7 +625,7 @@ pub fn handle_deposit<'c: 'info, 'info>(
         )?;
 
         if !is_being_liquidated {
-            user.exit_liquidation();
+            user.exit_cross_margin_liquidation();
         }
     }
 
@@ -712,7 +712,7 @@ pub fn handle_withdraw<'c: 'info, 'info>(
 
     let mint = get_token_mint(remaining_accounts_iter)?;
 
-    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
+    validate!(!user.is_cross_margin_bankrupt(), ErrorCode::UserBankrupt)?;
 
     let spot_market_is_reduce_only = {
         let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
@@ -791,8 +791,8 @@ pub fn handle_withdraw<'c: 'info, 'info>(
 
     validate_spot_margin_trading(user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
 
-    if user.is_being_liquidated() {
-        user.exit_liquidation();
+    if user.is_cross_margin_being_liquidated() {
+        user.exit_cross_margin_liquidation();
     }
 
     user.update_last_active_slot(slot);
@@ -882,13 +882,13 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
     let now = clock.unix_timestamp;
 
     validate!(
-        !to_user.is_bankrupt(),
+        !to_user.is_cross_margin_bankrupt(),
         ErrorCode::UserBankrupt,
         "to_user bankrupt"
     )?;
 
     validate!(
-        !from_user.is_bankrupt(),
+        !from_user.is_cross_margin_bankrupt(),
         ErrorCode::UserBankrupt,
         "from_user bankrupt"
     )?;
@@ -970,8 +970,8 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
         &mut oracle_map,
     )?;
 
-    if from_user.is_being_liquidated() {
-        from_user.exit_liquidation();
+    if from_user.is_cross_margin_being_liquidated() {
+        from_user.exit_cross_margin_liquidation();
     }
 
     from_user.update_last_active_slot(slot);
@@ -1104,12 +1104,12 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
     let clock = Clock::get()?;
 
     validate!(
-        !to_user.is_bankrupt(),
+        !to_user.is_cross_margin_bankrupt(),
         ErrorCode::UserBankrupt,
         "to_user bankrupt"
     )?;
     validate!(
-        !from_user.is_bankrupt(),
+        !from_user.is_cross_margin_bankrupt(),
         ErrorCode::UserBankrupt,
         "from_user bankrupt"
     )?;
@@ -1455,12 +1455,12 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
 
     to_user.update_last_active_slot(slot);
 
-    if from_user.is_being_liquidated() {
-        from_user.exit_liquidation();
+    if from_user.is_cross_margin_being_liquidated() {
+        from_user.exit_cross_margin_liquidation();
     }
 
-    if to_user.is_being_liquidated() {
-        to_user.exit_liquidation();
+    if to_user.is_cross_margin_being_liquidated() {
+        to_user.exit_cross_margin_liquidation();
     }
 
     let deposit_from_spot_market = spot_market_map.get_ref(&deposit_from_market_index)?;
@@ -1577,13 +1577,13 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
     let now = clock.unix_timestamp;
 
     validate!(
-        !to_user.is_bankrupt(),
+        !to_user.is_cross_margin_bankrupt(),
         ErrorCode::UserBankrupt,
         "to_user bankrupt"
     )?;
 
     validate!(
-        !from_user.is_bankrupt(),
+        !from_user.is_cross_margin_bankrupt(),
         ErrorCode::UserBankrupt,
         "from_user bankrupt"
     )?;
@@ -1938,7 +1938,7 @@ pub fn handle_deposit_into_isolated_perp_position<'c: 'info, 'info>(
         return Err(ErrorCode::InsufficientDeposit.into());
     }
 
-    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
+    validate!(!user.is_cross_margin_bankrupt(), ErrorCode::UserBankrupt)?;
 
     let perp_market = perp_market_map.get_ref(&perp_market_index)?;
 
@@ -2090,7 +2090,7 @@ pub fn handle_transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
     let now = clock.unix_timestamp;
 
     validate!(
-        !user.is_bankrupt(),
+        !user.is_cross_margin_bankrupt(),
         ErrorCode::UserBankrupt,
         "user bankrupt"
     )?;
@@ -2176,8 +2176,8 @@ pub fn handle_transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
             &mut oracle_map,
         )?;
 
-        if user.is_being_liquidated() {
-            user.exit_liquidation();
+        if user.is_cross_margin_being_liquidated() {
+            user.exit_cross_margin_liquidation();
         }
 
         if user.is_isolated_position_being_liquidated(perp_market_index)? {
@@ -2239,7 +2239,7 @@ pub fn handle_transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
             user.exit_isolated_position_liquidation(perp_market_index)?;
         }
 
-        if user.is_being_liquidated() {
+        if user.is_cross_margin_being_liquidated() {
             // try to update liquidation status if user is was already being liq'd
             let is_being_liquidated = is_user_being_liquidated(
                 user,
@@ -2250,7 +2250,7 @@ pub fn handle_transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
             )?;
     
             if !is_being_liquidated {
-                user.exit_liquidation();
+                user.exit_cross_margin_liquidation();
             }
         }
     }
@@ -2300,7 +2300,7 @@ pub fn handle_withdraw_from_isolated_perp_position<'c: 'info, 'info>(
 
     let mint = get_token_mint(remaining_accounts_iter)?;
 
-    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
+    validate!(!user.is_cross_margin_bankrupt(), ErrorCode::UserBankrupt)?;
 
     {
         let perp_market = &perp_market_map.get_ref(&perp_market_index)?;
@@ -3535,7 +3535,7 @@ pub fn handle_update_user_reduce_only(
 ) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
 
-    validate!(!user.is_being_liquidated(), ErrorCode::LiquidationsOngoing)?;
+    validate!(!user.is_cross_margin_being_liquidated(), ErrorCode::LiquidationsOngoing)?;
 
     user.update_reduce_only_status(reduce_only)?;
     Ok(())
@@ -3548,7 +3548,7 @@ pub fn handle_update_user_advanced_lp(
 ) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
 
-    validate!(!user.is_being_liquidated(), ErrorCode::LiquidationsOngoing)?;
+    validate!(!user.is_cross_margin_being_liquidated(), ErrorCode::LiquidationsOngoing)?;
 
     user.update_advanced_lp_status(advanced_lp)?;
     Ok(())
@@ -3561,7 +3561,7 @@ pub fn handle_update_user_protected_maker_orders(
 ) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
 
-    validate!(!user.is_being_liquidated(), ErrorCode::LiquidationsOngoing)?;
+    validate!(!user.is_cross_margin_being_liquidated(), ErrorCode::LiquidationsOngoing)?;
 
     validate!(
         protected_maker_orders != user.is_protected_maker(),
@@ -3785,7 +3785,7 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
     let mut user = load_mut!(&ctx.accounts.user)?;
     let delegate_is_signer = user.delegate == ctx.accounts.authority.key();
 
-    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
+    validate!(!user.is_cross_margin_bankrupt(), ErrorCode::UserBankrupt)?;
 
     math::liquidation::validate_user_not_being_liquidated(
         &mut user,

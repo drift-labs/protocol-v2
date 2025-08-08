@@ -69,7 +69,7 @@ impl CrossMarginLiquidatePerpMode {
 
 impl LiquidatePerpMode for CrossMarginLiquidatePerpMode {
     fn user_is_being_liquidated(&self, user: &User) -> DriftResult<bool> {
-        Ok(user.is_being_liquidated())
+        Ok(user.is_cross_margin_being_liquidated())
     }
 
     fn meets_margin_requirements(&self, margin_calculation: &MarginCalculation) -> DriftResult<bool> {
@@ -81,7 +81,7 @@ impl LiquidatePerpMode for CrossMarginLiquidatePerpMode {
     }
 
     fn exit_liquidation(&self, user: &mut User) -> DriftResult<()> {
-        Ok(user.exit_liquidation())
+        Ok(user.exit_cross_margin_liquidation())
     }
 
     fn get_cancel_orders_params(&self) -> (Option<MarketType>, Option<u16>, bool) {
@@ -118,11 +118,11 @@ impl LiquidatePerpMode for CrossMarginLiquidatePerpMode {
     }
 
     fn enter_bankruptcy(&self, user: &mut User) -> DriftResult<()> {
-        Ok(user.enter_bankruptcy())
+        Ok(user.enter_cross_margin_bankruptcy())
     }
 
     fn exit_bankruptcy(&self, user: &mut User) -> DriftResult<()> {
-        Ok(user.exit_bankruptcy())
+        Ok(user.exit_cross_margin_bankruptcy())
     }
 
     fn get_event_fields(&self, margin_calculation: &MarginCalculation) -> DriftResult<(u128, i128, u8)> {

@@ -135,10 +135,14 @@ pub struct User {
 
 impl User {
     pub fn is_being_liquidated(&self) -> bool {
+        self.is_cross_margin_being_liquidated() || self.has_isolated_position_being_liquidated()
+    }
+
+    pub fn is_cross_margin_being_liquidated(&self) -> bool {
         self.status & (UserStatus::BeingLiquidated as u8 | UserStatus::Bankrupt as u8) > 0
     }
 
-    pub fn is_bankrupt(&self) -> bool {
+    pub fn is_cross_margin_bankrupt(&self) -> bool {
         self.status & (UserStatus::Bankrupt as u8) > 0
     }
 
@@ -369,8 +373,8 @@ impl User {
         Ok(())
     }
 
-    pub fn enter_liquidation(&mut self, slot: u64) -> DriftResult<u16> {
-        if self.is_being_liquidated() {
+    pub fn enter_cross_margin_liquidation(&mut self, slot: u64) -> DriftResult<u16> {
+        if self.is_cross_margin_being_liquidated() {
             return self.next_liquidation_id.safe_sub(1);
         }
 
@@ -379,7 +383,7 @@ impl User {
         self.last_active_slot = slot;
 
 
-        let liquidation_id = if self.any_isolated_position_being_liquidated() {
+        let liquidation_id = if self.has_isolated_position_being_liquidated() {
             self.next_liquidation_id.safe_sub(1)?
         } else {
             get_then_update_id!(self, next_liquidation_id)
@@ -388,24 +392,24 @@ impl User {
         Ok(liquidation_id)
     }
 
-    pub fn exit_liquidation(&mut self) {
+    pub fn exit_cross_margin_liquidation(&mut self) {
         self.remove_user_status(UserStatus::BeingLiquidated);
         self.remove_user_status(UserStatus::Bankrupt);
         self.liquidation_margin_freed = 0;
     }
 
-    pub fn enter_bankruptcy(&mut self) {
+    pub fn enter_cross_margin_bankruptcy(&mut self) {
         self.remove_user_status(UserStatus::BeingLiquidated);
         self.add_user_status(UserStatus::Bankrupt);
     }
 
-    pub fn exit_bankruptcy(&mut self) {
+    pub fn exit_cross_margin_bankruptcy(&mut self) {
         self.remove_user_status(UserStatus::BeingLiquidated);
         self.remove_user_status(UserStatus::Bankrupt);
         self.liquidation_margin_freed = 0;
     }
 
-    pub fn any_isolated_position_being_liquidated(&self) -> bool {
+    pub fn has_isolated_position_being_liquidated(&self) -> bool {
         self.perp_positions.iter().any(|position| position.is_isolated() && position.is_isolated_position_being_liquidated())
     }
 
@@ -414,7 +418,7 @@ impl User {
             return self.next_liquidation_id.safe_sub(1);
         }
 
-        let liquidation_id = if self.is_being_liquidated() || self.any_isolated_position_being_liquidated() {
+        let liquidation_id = if self.is_cross_margin_being_liquidated() || self.has_isolated_position_being_liquidated() {
             self.next_liquidation_id.safe_sub(1)?
         } else {
             get_then_update_id!(self, next_liquidation_id)
@@ -462,7 +466,7 @@ impl User {
     }
 
     pub fn update_last_active_slot(&mut self, slot: u64) {
-        if !self.is_being_liquidated() {
+        if !self.is_cross_margin_being_liquidated() {
             self.last_active_slot = slot;
         }
         self.idle = false;
