@@ -7,11 +7,31 @@ import {
 	AccountInfoWithBase64EncodedData,
 	createSolanaClient,
 	isAddress,
+	Lamports,
+	Slot,
 	type Address,
 	type Commitment as GillCommitment,
 } from 'gill';
 import bs58 from 'bs58';
 
+type ProgramAccountSubscriptionAsyncIterable = AsyncIterable<
+	Readonly<{
+		context: Readonly<{
+			slot: Slot;
+		}>;
+		value: Readonly<{
+			account: Readonly<{
+				executable: boolean;
+				lamports: Lamports;
+				owner: Address;
+				rentEpoch: bigint;
+				space: bigint;
+			}> &
+				Readonly<any>;
+			pubkey: Address;
+		}>;
+	}>
+>;
 export class WebSocketProgramAccountSubscriberV2<T>
 	implements ProgramAccountSubscriber<T>
 {
@@ -56,6 +76,11 @@ export class WebSocketProgramAccountSubscriberV2<T>
 	private initialFetchTimeout?: ReturnType<typeof setTimeout>; // Single timeout for initial monitoring batch fetch
 	private initialFetchBufferMs: number = 1000; // Buffer time to collect accounts for initial monitoring fetch
 
+	// Centralized resubscription handling
+	private missedChangeDetected = false; // Flag to track if any missed change was detected
+	private resubscriptionTimeout?: ReturnType<typeof setTimeout>; // Timeout for delayed resubscription
+	private accountsWithMissedUpdates: Set<string> = new Set(); // Track which accounts had missed updates
+
 	public constructor(
 		subscriptionName: string,
 		accountDiscriminator: string,
@@ -97,7 +122,9 @@ export class WebSocketProgramAccountSubscriberV2<T>
 		this.rpcSubscriptions = rpcSubscriptions;
 	}
 
-	private async handleNotificationLoop(notificationPromise: Promise<AsyncIterable<any>>) {
+	private async handleNotificationLoop(
+		notificationPromise: Promise<ProgramAccountSubscriptionAsyncIterable>
+	) {
 		const subscriptionIterable = await notificationPromise;
 		for await (const notification of subscriptionIterable) {
 			if (this.resubOpts?.resubTimeoutMs) {
@@ -105,13 +132,15 @@ export class WebSocketProgramAccountSubscriberV2<T>
 				clearTimeout(this.timeoutId);
 				this.handleRpcResponse(
 					notification.context,
-					notification.value.account
+					notification.value.pubkey,
+					notification.value.account.data
 				);
 				this.setTimeout();
 			} else {
 				this.handleRpcResponse(
 					notification.context,
-					notification.value.account
+					notification.value.pubkey,
+					notification.value.account.data
 				);
 			}
 		}
@@ -130,10 +159,16 @@ export class WebSocketProgramAccountSubscriberV2<T>
 			return;
 		}
 
+		if (this.resubOpts?.logResubMessages) {
+			console.log(
+				`[${this.subscriptionName}] initializing subscription. This many monitored accounts: ${this.accountsToMonitor.size}`
+			);
+		}
+
 		this.onChange = onChange;
 
-		// initial fetch of monitored data
-		await this.fetchAllMonitoredAccounts();
+		// initial fetch of monitored data - only fetch and populate, don't check for missed changes
+		await this.fetchAndPopulateAllMonitoredAccounts();
 
 		// Create abort controller for proper cleanup
 		const abortController = new AbortController();
@@ -184,7 +219,11 @@ export class WebSocketProgramAccountSubscriberV2<T>
 			this.startMonitoringForAccounts();
 		}
 		const endTime = performance.now();
-		console.log(`[PROFILING] ${this.subscriptionName}.subscribe() completed in ${endTime - startTime}ms`);
+		console.log(
+			`[PROFILING] ${this.subscriptionName}.subscribe() completed in ${
+				endTime - startTime
+			}ms`
+		);
 	}
 
 	protected setTimeout(): void {
@@ -201,12 +240,21 @@ export class WebSocketProgramAccountSubscriberV2<T>
 				if (this.receivingData) {
 					if (this.resubOpts?.logResubMessages) {
 						console.log(
-							`No ws data from ${this.subscriptionName} in ${this.resubOpts?.resubTimeoutMs}ms, resubscribing`
+							`No ws data from ${this.subscriptionName} in ${this.resubOpts?.resubTimeoutMs}ms, checking for missed changes`
 						);
 					}
-					await this.unsubscribe(true);
-					this.receivingData = false;
-					await this.subscribe(this.onChange);
+
+					// Check for missed changes in monitored accounts
+					const missedChangeDetected = await this.fetchAllMonitoredAccounts();
+
+					if (missedChangeDetected) {
+						// Signal missed change with a generic identifier since we don't have specific account IDs from this context
+						this.signalMissedChange('timeout-check');
+					} else {
+						// No missed changes, continue monitoring
+						this.receivingData = false;
+						this.setTimeout();
+					}
 				}
 			},
 			this.resubOpts?.resubTimeoutMs
@@ -215,19 +263,23 @@ export class WebSocketProgramAccountSubscriberV2<T>
 
 	handleRpcResponse(
 		context: { slot: bigint },
+		accountId: Address,
 		accountInfo?: AccountInfoBase &
-			(AccountInfoWithBase58EncodedData | AccountInfoWithBase64EncodedData)
+			(
+				| AccountInfoWithBase58EncodedData
+				| AccountInfoWithBase64EncodedData
+			)['data']
 	): void {
 		const newSlot = Number(context.slot);
 		let newBuffer: Buffer | undefined = undefined;
 
 		if (accountInfo) {
 			// Extract data from gill response
-			if (accountInfo.data) {
+			if (accountInfo) {
 				// Handle different data formats from gill
-				if (Array.isArray(accountInfo.data)) {
+				if (Array.isArray(accountInfo)) {
 					// If it's a tuple [data, encoding]
-					const [data, encoding] = accountInfo.data;
+					const [data, encoding] = accountInfo;
 
 					if (encoding === ('base58' as any)) {
 						// Convert base58 to buffer using bs58
@@ -239,12 +291,7 @@ export class WebSocketProgramAccountSubscriberV2<T>
 			}
 		}
 
-		// Convert gill's account key to PublicKey
-		// Note: accountInfo doesn't have a key property, we need to get it from the notification
-		// For now, we'll use a placeholder - this needs to be fixed based on the actual gill API
-		const accountId = new PublicKey('11111111111111111111111111111111'); // Placeholder
-		const accountIdString = accountId.toBase58();
-
+		const accountIdString = accountId.toString();
 		const existingBufferAndSlot = this.bufferAndSlotMap.get(accountIdString);
 
 		// Track WebSocket notification time for this account
@@ -271,7 +318,8 @@ export class WebSocketProgramAccountSubscriberV2<T>
 					slot: newSlot,
 				});
 				const account = this.decodeBuffer(this.accountDiscriminator, newBuffer);
-				this.onChange(accountId, account, { slot: newSlot }, newBuffer);
+				const accountIdPubkey = new PublicKey(accountId.toString());
+				this.onChange(accountIdPubkey, account, { slot: newSlot }, newBuffer);
 			}
 			return;
 		}
@@ -287,7 +335,12 @@ export class WebSocketProgramAccountSubscriberV2<T>
 				slot: newSlot,
 			});
 			const account = this.decodeBuffer(this.accountDiscriminator, newBuffer);
-			this.onChange(accountId, account, { slot: newSlot }, newBuffer);
+			this.onChange(
+				new PublicKey(accountId.toString()),
+				account,
+				{ slot: newSlot },
+				newBuffer
+			);
 		}
 	}
 
@@ -319,10 +372,12 @@ export class WebSocketProgramAccountSubscriberV2<T>
 				!lastNotificationTime ||
 				currentTime - lastNotificationTime >= this.pollingIntervalMs
 			) {
-				console.debug(
-					'No recent WS notification, starting initial fetch for account',
-					accountIdString
-				);
+				if (this.resubOpts?.logResubMessages) {
+					console.debug(
+						`[${this.subscriptionName}] No recent WS notification, starting initial fetch for account`,
+						accountIdString
+					);
+				}
 				// No recent WS notification, add to pending initial fetch
 				this.addToInitialFetchBatch(accountIdString);
 			} else {
@@ -334,18 +389,10 @@ export class WebSocketProgramAccountSubscriberV2<T>
 		this.pollingTimeouts.set(accountIdString, timeoutId);
 	}
 
-	private startPollingForAccount(accountIdString: string): void {
-		// Add account to polling set
-		this.accountsCurrentlyPolling.add(accountIdString);
-
-		// If this is the first account being polled, start batch polling
-		if (this.accountsCurrentlyPolling.size === 1) {
-			this.startBatchPolling();
-		}
-	}
-
 	private startBatchPolling(): void {
-		console.debug('Scheduling batch polling');
+		if (this.resubOpts?.logResubMessages) {
+			console.debug(`[${this.subscriptionName}] Scheduling batch polling`);
+		}
 		// Clear existing batch polling timeout
 		if (this.batchPollingTimeout) {
 			clearTimeout(this.batchPollingTimeout);
@@ -367,7 +414,13 @@ export class WebSocketProgramAccountSubscriberV2<T>
 				return;
 			}
 
-			console.debug('Polling all accounts', accountsToPoll.length, 'accounts');
+			if (this.resubOpts?.logResubMessages) {
+				console.debug(
+					`[${this.subscriptionName}] Polling all accounts`,
+					accountsToPoll.length,
+					'accounts'
+				);
+			}
 
 			// Use the shared batch fetch method
 			await this.fetchAccountsBatch(accountsToPoll);
@@ -381,12 +434,117 @@ export class WebSocketProgramAccountSubscriberV2<T>
 		}
 	}
 
-	private async fetchAllMonitoredAccounts(): Promise<void> {
+	/**
+	 * Fetches and populates all monitored accounts data without checking for missed changes
+	 * This is used during initial subscription to populate data
+	 */
+	private async fetchAndPopulateAllMonitoredAccounts(): Promise<void> {
 		try {
 			// Get all accounts currently being polled
 			const accountsToMonitor = Array.from(this.accountsToMonitor);
 			if (accountsToMonitor.length === 0) {
 				return;
+			}
+
+			// Fetch all accounts in a single batch request
+			const accountAddresses = accountsToMonitor.map(
+				(accountId) => accountId as Address
+			);
+			const rpcResponse = await this.rpc
+				.getMultipleAccounts(accountAddresses, {
+					commitment: this.options.commitment as GillCommitment,
+					encoding: 'base64',
+				})
+				.send();
+
+			const currentSlot = Number(rpcResponse.context.slot);
+
+			// Process each account response
+			for (let i = 0; i < accountsToMonitor.length; i++) {
+				const accountIdString = accountsToMonitor[i];
+				const accountInfo = rpcResponse.value[i];
+
+				if (!accountInfo) {
+					continue;
+				}
+
+				const existingBufferAndSlot =
+					this.bufferAndSlotMap.get(accountIdString);
+
+				if (!existingBufferAndSlot) {
+					// Account not in our map yet, add it
+					let newBuffer: Buffer | undefined = undefined;
+					if (accountInfo.data) {
+						if (Array.isArray(accountInfo.data)) {
+							const [data, encoding] = accountInfo.data;
+							newBuffer = Buffer.from(data, encoding);
+						}
+					}
+
+					if (newBuffer) {
+						this.bufferAndSlotMap.set(accountIdString, {
+							buffer: newBuffer,
+							slot: currentSlot,
+						});
+						const account = this.decodeBuffer(
+							this.accountDiscriminator,
+							newBuffer
+						);
+						const accountId = new PublicKey(accountIdString);
+						this.onChange(accountId, account, { slot: currentSlot }, newBuffer);
+					}
+					continue;
+				}
+
+				// For initial population, just update the slot if we have newer data
+				if (currentSlot > existingBufferAndSlot.slot) {
+					let newBuffer: Buffer | undefined = undefined;
+					if (accountInfo.data) {
+						if (Array.isArray(accountInfo.data)) {
+							const [data, encoding] = accountInfo.data;
+							if (encoding === ('base58' as any)) {
+								newBuffer = Buffer.from(bs58.decode(data));
+							} else {
+								newBuffer = Buffer.from(data, 'base64');
+							}
+						}
+					}
+
+					// Update with newer data if available
+					if (newBuffer) {
+						this.bufferAndSlotMap.set(accountIdString, {
+							buffer: newBuffer,
+							slot: currentSlot,
+						});
+						const account = this.decodeBuffer(
+							this.accountDiscriminator,
+							newBuffer
+						);
+						const accountId = new PublicKey(accountIdString);
+						this.onChange(accountId, account, { slot: currentSlot }, newBuffer);
+					}
+				}
+			}
+		} catch (error) {
+			if (this.resubOpts?.logResubMessages) {
+				console.log(
+					`[${this.subscriptionName}] Error fetching and populating monitored accounts:`,
+					error
+				);
+			}
+		}
+	}
+
+	/**
+	 * Fetches all monitored accounts and checks for missed changes
+	 * Returns true if a missed change was detected and resubscription is needed
+	 */
+	private async fetchAllMonitoredAccounts(): Promise<boolean> {
+		try {
+			// Get all accounts currently being polled
+			const accountsToMonitor = Array.from(this.accountsToMonitor);
+			if (accountsToMonitor.length === 0) {
+				return false;
 			}
 
 			// Fetch all accounts in a single batch request
@@ -464,14 +622,14 @@ export class WebSocketProgramAccountSubscriberV2<T>
 								`[${this.subscriptionName}] Batch polling detected missed update for account ${accountIdString}, resubscribing`
 							);
 						}
-						// We missed an update, resubscribe
-						await this.unsubscribe(true);
-						this.receivingData = false;
-						await this.subscribe(this.onChange);
-						return;
+						// We missed an update, return true to indicate resubscription is needed
+						return true;
 					}
 				}
 			}
+
+			// No missed changes detected
+			return false;
 		} catch (error) {
 			if (this.resubOpts?.logResubMessages) {
 				console.log(
@@ -479,91 +637,7 @@ export class WebSocketProgramAccountSubscriberV2<T>
 					error
 				);
 			}
-		}
-	}
-
-	private async pollAccount(accountIdString: string): Promise<void> {
-		try {
-			// Fetch current account data using gill's rpc
-			const accountAddress = accountIdString as Address;
-			const rpcResponse = await this.rpc
-				.getAccountInfo(accountAddress, {
-					commitment: this.options.commitment as GillCommitment,
-					encoding: 'base64',
-				})
-				.send();
-
-			const currentSlot = Number(rpcResponse.context.slot);
-			const existingBufferAndSlot = this.bufferAndSlotMap.get(accountIdString);
-
-			if (!existingBufferAndSlot) {
-				// Account not in our map yet, add it
-				if (rpcResponse.value) {
-					let newBuffer: Buffer | undefined = undefined;
-					if (rpcResponse.value.data) {
-						if (Array.isArray(rpcResponse.value.data)) {
-							const [data, encoding] = rpcResponse.value.data;
-							newBuffer = Buffer.from(data, encoding);
-						}
-					}
-
-					if (newBuffer) {
-						this.bufferAndSlotMap.set(accountIdString, {
-							buffer: newBuffer,
-							slot: currentSlot,
-						});
-						const account = this.decodeBuffer(
-							this.accountDiscriminator,
-							newBuffer
-						);
-						const accountId = new PublicKey(accountIdString);
-						this.onChange(accountId, account, { slot: currentSlot }, newBuffer);
-					}
-				}
-				return;
-			}
-
-			// Check if we missed an update
-			if (currentSlot > existingBufferAndSlot.slot) {
-				let newBuffer: Buffer | undefined = undefined;
-				if (rpcResponse.value) {
-					if (rpcResponse.value.data) {
-						if (Array.isArray(rpcResponse.value.data)) {
-							const [data, encoding] = rpcResponse.value.data;
-							if (encoding === ('base58' as any)) {
-								newBuffer = Buffer.from(bs58.decode(data));
-							} else {
-								newBuffer = Buffer.from(data, 'base64');
-							}
-						}
-					}
-				}
-
-				// Check if buffer has changed
-				if (
-					newBuffer &&
-					(!existingBufferAndSlot.buffer ||
-						!newBuffer.equals(existingBufferAndSlot.buffer))
-				) {
-					if (this.resubOpts?.logResubMessages) {
-						console.log(
-							`[${this.subscriptionName}] Polling detected missed update for account ${accountIdString}, resubscribing`
-						);
-					}
-					// We missed an update, resubscribe
-					await this.unsubscribe(true);
-					this.receivingData = false;
-					await this.subscribe(this.onChange);
-					return;
-				}
-			}
-		} catch (error) {
-			if (this.resubOpts?.logResubMessages) {
-				console.log(
-					`[${this.subscriptionName}] Error polling account ${accountIdString}:`,
-					error
-				);
-			}
+			return false;
 		}
 	}
 
@@ -599,11 +673,13 @@ export class WebSocketProgramAccountSubscriberV2<T>
 				return;
 			}
 
-			console.debug(
-				'Processing initial monitor fetch batch',
-				accountsToFetch.length,
-				'accounts'
-			);
+			if (this.resubOpts?.logResubMessages) {
+				console.debug(
+					`[${this.subscriptionName}] Processing initial monitor fetch batch`,
+					accountsToFetch.length,
+					'accounts'
+				);
+			}
 
 			// Use the same batch logic as pollAllAccounts
 			await this.fetchAccountsBatch(accountsToFetch);
@@ -620,13 +696,15 @@ export class WebSocketProgramAccountSubscriberV2<T>
 			if (this.accountsCurrentlyPolling.size === accountsToFetch.length) {
 				this.startBatchPolling();
 			} else {
-				console.debug(
-					'Not starting initial batch polling, we think it is not the first account being polled',
-					this.accountsCurrentlyPolling.size,
-					'accounts currently polling',
-					accountsToFetch.length,
-					'accounts to fetch'
-				);
+				if (this.resubOpts?.logResubMessages) {
+					console.debug(
+						`[${this.subscriptionName}] Not starting initial batch polling, we think it is not the first account being polled`,
+						this.accountsCurrentlyPolling.size,
+						'accounts currently polling',
+						accountsToFetch.length,
+						'accounts to fetch'
+					);
+				}
 			}
 		} catch (error) {
 			if (this.resubOpts?.logResubMessages) {
@@ -712,13 +790,11 @@ export class WebSocketProgramAccountSubscriberV2<T>
 					) {
 						if (this.resubOpts?.logResubMessages) {
 							console.log(
-								`[${this.subscriptionName}] Initial fetch detected missed update for account ${accountIdString}, resubscribing`
+								`[${this.subscriptionName}] Batch polling detected missed update for account ${accountIdString}, signaling resubscription`
 							);
 						}
-						// We missed an update, resubscribe
-						await this.unsubscribe(true);
-						this.receivingData = false;
-						await this.subscribe(this.onChange);
+						// Signal missed change instead of immediately resubscribing
+						this.signalMissedChange(accountIdString);
 						return;
 					}
 				}
@@ -751,11 +827,66 @@ export class WebSocketProgramAccountSubscriberV2<T>
 			this.initialFetchTimeout = undefined;
 		}
 
+		// Clear resubscription timeout
+		if (this.resubscriptionTimeout) {
+			clearTimeout(this.resubscriptionTimeout);
+			this.resubscriptionTimeout = undefined;
+		}
+
 		// Clear accounts currently polling
 		this.accountsCurrentlyPolling.clear();
 
 		// Clear accounts pending initial monitor fetch
 		this.accountsPendingInitialMonitorFetch.clear();
+
+		// Reset missed change flag and clear accounts with missed updates
+		this.missedChangeDetected = false;
+		this.accountsWithMissedUpdates.clear();
+	}
+
+	/**
+	 * Centralized resubscription handler that only resubscribes once after checking all accounts
+	 */
+	private async handleResubscription(): Promise<void> {
+		if (this.missedChangeDetected) {
+			if (this.resubOpts?.logResubMessages) {
+				console.log(
+					`[${this.subscriptionName}] Missed change detected for ${
+						this.accountsWithMissedUpdates.size
+					} accounts: ${Array.from(this.accountsWithMissedUpdates).join(
+						', '
+					)}, resubscribing`
+				);
+			}
+			await this.unsubscribe(true);
+			this.receivingData = false;
+			await this.subscribe(this.onChange);
+			this.missedChangeDetected = false;
+			this.accountsWithMissedUpdates.clear();
+		}
+	}
+
+	/**
+	 * Signal that a missed change was detected and schedule resubscription
+	 */
+	private signalMissedChange(accountIdString: string): void {
+		if (!this.missedChangeDetected) {
+			this.missedChangeDetected = true;
+			this.accountsWithMissedUpdates.add(accountIdString);
+
+			// Clear any existing resubscription timeout
+			if (this.resubscriptionTimeout) {
+				clearTimeout(this.resubscriptionTimeout);
+			}
+
+			// Schedule resubscription after a short delay to allow for batch processing
+			this.resubscriptionTimeout = setTimeout(async () => {
+				await this.handleResubscription();
+			}, 100); // 100ms delay to allow for batch processing
+		} else {
+			// If already detected, just add the account to the set
+			this.accountsWithMissedUpdates.add(accountIdString);
+		}
 	}
 
 	unsubscribe(onResub = false): Promise<void> {
