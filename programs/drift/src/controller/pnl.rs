@@ -84,8 +84,7 @@ pub fn settle_pnl(
         // may already be cached
         let meets_margin_requirement = match meets_margin_requirement {
             Some(meets_margin_requirement) => meets_margin_requirement,
-            // TODO check margin for isolate position
-            _ => meets_settle_pnl_maintenance_margin_requirement(
+            None => meets_settle_pnl_maintenance_margin_requirement(
                 user,
                 perp_market_map,
                 spot_market_map,
