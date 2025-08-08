@@ -3793,7 +3793,6 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
         &spot_market_map,
         &mut oracle_map,
         ctx.accounts.state.liquidation_margin_buffer_ratio,
-        None,
     )?;
 
     let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;

@@ -405,7 +405,7 @@ impl User {
         self.liquidation_margin_freed = 0;
     }
 
-    fn any_isolated_position_being_liquidated(&self) -> bool {
+    pub fn any_isolated_position_being_liquidated(&self) -> bool {
         self.perp_positions.iter().any(|position| position.is_isolated() && position.is_isolated_position_being_liquidated())
     }
 

@@ -115,7 +115,6 @@ pub fn place_perp_order(
             spot_market_map,
             oracle_map,
             state.liquidation_margin_buffer_ratio,
-            Some(params.market_index),
         )?;
     }
 
@@ -1041,7 +1040,6 @@ pub fn fill_perp_order(
             spot_market_map,
             oracle_map,
             state.liquidation_margin_buffer_ratio,
-            Some(market_index),
         ) {
             Ok(_) => {}
             Err(_) => {
@@ -2953,7 +2951,6 @@ pub fn trigger_order(
         spot_market_map,
         oracle_map,
         state.liquidation_margin_buffer_ratio,
-        Some(market_index),
     )?;
 
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
@@ -3383,7 +3380,6 @@ pub fn place_spot_order(
         spot_market_map,
         oracle_map,
         state.liquidation_margin_buffer_ratio,
-        None,
     )?;
 
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
@@ -3727,7 +3723,6 @@ pub fn fill_spot_order(
         spot_market_map,
         oracle_map,
         state.liquidation_margin_buffer_ratio,
-        None,
     ) {
         Ok(_) => {}
         Err(_) => {
@@ -5208,7 +5203,6 @@ pub fn trigger_spot_order(
         spot_market_map,
         oracle_map,
         state.liquidation_margin_buffer_ratio,
-        None,
     )?;
 
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;

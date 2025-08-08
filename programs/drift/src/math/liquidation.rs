@@ -224,41 +224,34 @@ pub fn validate_user_not_being_liquidated(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     liquidation_margin_buffer_ratio: u32,
-    perp_market_index: Option<u16>,
 ) -> DriftResult {
-    if !user.is_being_liquidated() {
+    if !user.is_being_liquidated() && !user.any_isolated_position_being_liquidated() {
         return Ok(());
     }
 
-    let is_isolated_perp_market = if let Some(perp_market_index) = perp_market_index {
-        user.force_get_perp_position_mut(perp_market_index)?.is_isolated()
-    } else {
-        false
-    };
+    let margin_calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
+        user,
+        market_map,
+        spot_market_map,
+        oracle_map,
+        MarginContext::liquidation(liquidation_margin_buffer_ratio),
+    )?;
 
-    let is_still_being_liquidated = if is_isolated_perp_market {
-        is_isolated_position_being_liquidated(
-            user,
-            market_map,
-            spot_market_map,
-            oracle_map,
-            perp_market_index.unwrap(),
-            liquidation_margin_buffer_ratio,
-        )?
+    if user.is_being_liquidated() {
+        if margin_calculation.cross_margin_can_exit_liquidation()? {
+            user.exit_liquidation();
+        } else {
+            return Err(ErrorCode::UserIsBeingLiquidated);
+        }
     } else {
-        is_user_being_liquidated(
-            user,
-            market_map,
-            spot_market_map,
-            oracle_map,
-            liquidation_margin_buffer_ratio,
-        )?
-    };
-
-    if is_still_being_liquidated {
-        return Err(ErrorCode::UserIsBeingLiquidated);
-    } else {
-        user.exit_liquidation()
+        let isolated_positions_being_liquidated = user.perp_positions.iter().filter(|position| position.is_isolated() && position.is_isolated_position_being_liquidated()).map(|position| position.market_index).collect::<Vec<_>>();
+        for perp_market_index in isolated_positions_being_liquidated {
+                if margin_calculation.isolated_position_can_exit_liquidation(perp_market_index)? {
+                    user.exit_isolated_position_liquidation(perp_market_index)?;
+                } else {
+                    return Err(ErrorCode::UserIsBeingLiquidated);
+                }
+        }
     }
 
     Ok(())
@@ -281,7 +274,7 @@ pub fn is_isolated_position_being_liquidated(
         MarginContext::liquidation(liquidation_margin_buffer_ratio),
     )?;
 
-    let is_being_liquidated = !margin_calculation.cross_margin_can_exit_liquidation()?;
+    let is_being_liquidated = !margin_calculation.isolated_position_can_exit_liquidation(perp_market_index)?;
 
     Ok(is_being_liquidated)
 }
