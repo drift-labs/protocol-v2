@@ -2029,6 +2029,22 @@ pub mod drift {
         handle_lp_pool_remove_liquidity(ctx, in_market_index, in_amount, min_out_amount)
     }
 
+    pub fn view_lp_pool_add_liquidity_fees<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, ViewLPPoolAddLiquidityFees<'info>>,
+        in_market_index: u16,
+        in_amount: u128,
+    ) -> Result<()> {
+        handle_view_lp_pool_add_liquidity_fees(ctx, in_market_index, in_amount)
+    }
+
+    pub fn view_lp_pool_remove_liquidity_fees<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, ViewLPPoolRemoveLiquidityFees<'info>>,
+        in_market_index: u16,
+        in_amount: u64,
+    ) -> Result<()> {
+        handle_view_lp_pool_remove_liquidity_fees(ctx, in_market_index, in_amount)
+    }
+
     pub fn begin_lp_swap<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, LPTakerSwap<'info>>,
         in_market_index: u16,

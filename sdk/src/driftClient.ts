@@ -10621,6 +10621,79 @@ export class DriftClient {
 		);
 	}
 
+	public async viewLpPoolAddLiquidityFees({
+		inMarketIndex,
+		inAmount,
+		lpPool,
+		txParams,
+	}: {
+		inMarketIndex: number;
+		inAmount: BN;
+		lpPool: LPPoolAccount;
+		txParams?: TxParams;
+	}): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getViewLpPoolAddLiquidityFeesIx({
+					inMarketIndex,
+					inAmount,
+					lpPool,
+				}),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getViewLpPoolAddLiquidityFeesIx({
+		inMarketIndex,
+		inAmount,
+		lpPool,
+	}: {
+		inMarketIndex: number;
+		inAmount: BN;
+		lpPool: LPPoolAccount;
+	}): Promise<TransactionInstruction> {
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [],
+			readableSpotMarketIndexes: [inMarketIndex],
+		});
+
+		const spotMarket = this.getSpotMarketAccount(inMarketIndex);
+		const inMarketMint = spotMarket.mint;
+		const inConstituent = getConstituentPublicKey(
+			this.program.programId,
+			lpPool.pubkey,
+			inMarketIndex
+		);
+		const lpMint = lpPool.mint;
+
+		const constituentTargetBase = getConstituentTargetBasePublicKey(
+			this.program.programId,
+			lpPool.pubkey
+		);
+
+		return this.program.instruction.viewLpPoolAddLiquidityFees(
+			inMarketIndex,
+			inAmount,
+			{
+				remainingAccounts,
+				accounts: {
+					driftSigner: this.getSignerPublicKey(),
+					state: await this.getStatePublicKey(),
+					lpPool: lpPool.pubkey,
+					authority: this.wallet.publicKey,
+					inMarketMint,
+					inConstituent,
+					lpMint,
+					constituentTargetBase,
+				},
+			}
+		);
+	}
+
 	public async lpPoolRemoveLiquidity({
 		outMarketIndex,
 		lpToBurn,
@@ -10721,6 +10794,78 @@ export class DriftClient {
 		);
 	}
 
+	public async viewLpPoolRemoveLiquidityFees({
+		outMarketIndex,
+		lpToBurn,
+		lpPool,
+		txParams,
+	}: {
+		outMarketIndex: number;
+		lpToBurn: BN;
+		lpPool: LPPoolAccount;
+		txParams?: TxParams;
+	}): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getViewLpPoolRemoveLiquidityFeesIx({
+					outMarketIndex,
+					lpToBurn,
+					lpPool,
+				}),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getViewLpPoolRemoveLiquidityFeesIx({
+		outMarketIndex,
+		lpToBurn,
+		lpPool,
+	}: {
+		outMarketIndex: number;
+		lpToBurn: BN;
+		lpPool: LPPoolAccount;
+	}): Promise<TransactionInstruction> {
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [],
+			writableSpotMarketIndexes: [outMarketIndex],
+		});
+
+		const spotMarket = this.getSpotMarketAccount(outMarketIndex);
+		const outMarketMint = spotMarket.mint;
+		const outConstituent = getConstituentPublicKey(
+			this.program.programId,
+			lpPool.pubkey,
+			outMarketIndex
+		);
+		const lpMint = lpPool.mint;
+		const constituentTargetBase = getConstituentTargetBasePublicKey(
+			this.program.programId,
+			lpPool.pubkey
+		);
+
+		return this.program.instruction.viewLpPoolRemoveLiquidityFees(
+			outMarketIndex,
+			lpToBurn,
+			{
+				remainingAccounts,
+				accounts: {
+					driftSigner: this.getSignerPublicKey(),
+					state: await this.getStatePublicKey(),
+					lpPool: lpPool.pubkey,
+					authority: this.wallet.publicKey,
+					outMarketMint,
+					outConstituent,
+					lpMint,
+					constituentTargetBase,
+				},
+			}
+		);
+	}
+
 	public async getAllLpPoolAddLiquidityIxs(
 		{
 			inMarketIndex,
@@ -10734,7 +10879,8 @@ export class DriftClient {
 			lpPool: LPPoolAccount;
 		},
 		constituentMap: ConstituentMap,
-		includeUpdateConstituentOracleInfo = true
+		includeUpdateConstituentOracleInfo = true,
+		view = false
 	): Promise<TransactionInstruction[]> {
 		const ixs: TransactionInstruction[] = [];
 
@@ -10746,14 +10892,25 @@ export class DriftClient {
 			))
 		);
 
-		ixs.push(
-			await this.getLpPoolAddLiquidityIx({
-				inMarketIndex,
-				inAmount,
-				minMintAmount,
-				lpPool,
-			})
-		);
+		if (view) {
+			ixs.push(
+				await this.getViewLpPoolAddLiquidityFeesIx({
+					inMarketIndex,
+					inAmount,
+					lpPool,
+				})
+			);
+		} else {
+			ixs.push(
+				await this.getLpPoolAddLiquidityIx({
+					inMarketIndex,
+					inAmount,
+					minMintAmount,
+					lpPool,
+				})
+			);
+		}
+
 		return ixs;
 	}
 
@@ -10770,7 +10927,8 @@ export class DriftClient {
 			lpPool: LPPoolAccount;
 		},
 		constituentMap: ConstituentMap,
-		includeUpdateConstituentOracleInfo = true
+		includeUpdateConstituentOracleInfo = true,
+		view = false
 	): Promise<TransactionInstruction[]> {
 		const ixs: TransactionInstruction[] = [];
 		ixs.push(
@@ -10780,14 +10938,25 @@ export class DriftClient {
 				includeUpdateConstituentOracleInfo
 			))
 		);
-		ixs.push(
-			await this.getLpPoolRemoveLiquidityIx({
-				outMarketIndex,
-				lpToBurn,
-				minAmountOut,
-				lpPool,
-			})
-		);
+		if (view) {
+			ixs.push(
+				await this.getViewLpPoolRemoveLiquidityFeesIx({
+					outMarketIndex,
+					lpToBurn,
+					lpPool,
+				})
+			);
+		} else {
+			ixs.push(
+				await this.getLpPoolRemoveLiquidityIx({
+					outMarketIndex,
+					lpToBurn,
+					minAmountOut,
+					lpPool,
+				})
+			);
+		}
+
 		return ixs;
 	}
 

@@ -806,6 +806,99 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
     Ok(())
 }
 
+pub fn handle_view_lp_pool_add_liquidity_fees<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, ViewLPPoolAddLiquidityFees<'info>>,
+    in_market_index: u16,
+    in_amount: u128,
+) -> Result<()> {
+    let slot = Clock::get()?.slot;
+    let now = Clock::get()?.unix_timestamp;
+    let state = &ctx.accounts.state;
+    let lp_pool = ctx.accounts.lp_pool.load_mut()?;
+
+    if slot.saturating_sub(lp_pool.last_aum_slot) > LP_POOL_SWAP_AUM_UPDATE_DELAY {
+        msg!(
+            "Must update LP pool AUM before swap, last_aum_slot: {}, current slot: {}",
+            lp_pool.last_aum_slot,
+            slot
+        );
+        return Err(ErrorCode::LpPoolAumDelayed.into());
+    }
+
+    let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
+    let mut in_constituent = ctx.accounts.in_constituent.load_mut()?;
+
+    let constituent_target_base = ctx.accounts.constituent_target_base.load_zc()?;
+
+    let AccountMaps {
+        perp_market_map: _,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        remaining_accounts,
+        &MarketSet::new(),
+        &MarketSet::new(),
+        slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let in_spot_market = spot_market_map.get_ref(&in_market_index)?;
+
+    let in_oracle_id = in_spot_market.oracle_id();
+
+    let (in_oracle, in_oracle_validity) = oracle_map.get_price_data_and_validity(
+        MarketType::Spot,
+        in_spot_market.market_index,
+        &in_oracle_id,
+        in_spot_market.historical_oracle_data.last_oracle_price_twap,
+        in_spot_market.get_max_confidence_interval_multiplier()?,
+        0,
+    )?;
+    let in_oracle = in_oracle.clone();
+
+    if !is_oracle_valid_for_action(in_oracle_validity, Some(DriftAction::LpPoolSwap))? {
+        msg!(
+            "In oracle data for spot market {} is invalid for lp pool swap.",
+            in_spot_market.market_index,
+        );
+        return Err(ErrorCode::InvalidOracle.into());
+    }
+
+    msg!("aum: {}", lp_pool.last_aum);
+    let in_target_weight = if lp_pool.last_aum == 0 {
+        PERCENTAGE_PRECISION_I64 // 100% weight if no aum
+    } else {
+        constituent_target_base.get_target_weight(
+            in_constituent.constituent_index,
+            &in_spot_market,
+            in_oracle.price,
+            lp_pool.last_aum, // TODO: add in_amount * in_oracle to est post add_liquidity aum
+        )?
+    };
+
+    let dlp_total_supply = ctx.accounts.lp_mint.supply;
+
+    let (lp_amount, in_amount, lp_fee_amount, in_fee_amount) = lp_pool
+        .get_add_liquidity_mint_amount(
+            now,
+            &in_spot_market,
+            &in_constituent,
+            in_amount,
+            &in_oracle,
+            in_target_weight,
+            dlp_total_supply,
+        )?;
+    msg!(
+        "lp_amount: {}, in_amount: {}, lp_fee_amount: {}, in_fee_amount: {}",
+        lp_amount,
+        in_amount,
+        lp_fee_amount,
+        in_fee_amount
+    );
+
+    Ok(())
+}
+
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
 )]
@@ -1007,6 +1100,102 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
         )?,
         in_market_target_weight: out_target_weight,
     })?;
+
+    Ok(())
+}
+
+#[access_control(
+    fill_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_view_lp_pool_remove_liquidity_fees<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, ViewLPPoolRemoveLiquidityFees<'info>>,
+    out_market_index: u16,
+    lp_to_burn: u64,
+) -> Result<()> {
+    let slot = Clock::get()?.slot;
+    let now = Clock::get()?.unix_timestamp;
+    let state = &ctx.accounts.state;
+    let lp_pool = ctx.accounts.lp_pool.load_mut()?;
+
+    if slot.saturating_sub(lp_pool.last_aum_slot) > LP_POOL_SWAP_AUM_UPDATE_DELAY {
+        msg!(
+            "Must update LP pool AUM before swap, last_aum_slot: {}, current slot: {}",
+            lp_pool.last_aum_slot,
+            slot
+        );
+        return Err(ErrorCode::LpPoolAumDelayed.into());
+    }
+
+    let out_constituent = ctx.accounts.out_constituent.load_mut()?;
+
+    let constituent_target_base = ctx.accounts.constituent_target_base.load_zc()?;
+
+    let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
+
+    let AccountMaps {
+        perp_market_map: _,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        remaining_accounts,
+        &MarketSet::new(),
+        &get_writable_spot_market_set_from_many(vec![out_market_index]),
+        slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
+
+    let out_oracle_id = out_spot_market.oracle_id();
+
+    let (out_oracle, out_oracle_validity) = oracle_map.get_price_data_and_validity(
+        MarketType::Spot,
+        out_spot_market.market_index,
+        &out_oracle_id,
+        out_spot_market
+            .historical_oracle_data
+            .last_oracle_price_twap,
+        out_spot_market.get_max_confidence_interval_multiplier()?,
+        0,
+    )?;
+    let out_oracle = out_oracle.clone();
+
+    // TODO: check self.aum validity
+
+    if !is_oracle_valid_for_action(out_oracle_validity, Some(DriftAction::LpPoolSwap))? {
+        msg!(
+            "Out oracle data for spot market {} is invalid for lp pool swap.",
+            out_spot_market.market_index,
+        );
+        return Err(ErrorCode::InvalidOracle.into());
+    }
+
+    let out_target_weight = constituent_target_base.get_target_weight(
+        out_constituent.constituent_index,
+        &out_spot_market,
+        out_oracle.price,
+        lp_pool.last_aum, // TODO: remove out_amount * out_oracle to est post remove_liquidity aum
+    )?;
+
+    let dlp_total_supply = ctx.accounts.lp_mint.supply;
+
+    let (lp_burn_amount, out_amount, lp_fee_amount, out_fee_amount) = lp_pool
+        .get_remove_liquidity_amount(
+            now,
+            &out_spot_market,
+            &out_constituent,
+            lp_to_burn,
+            &out_oracle,
+            out_target_weight,
+            dlp_total_supply,
+        )?;
+    msg!(
+        "lp_burn_amount: {}, out_amount: {}, lp_fee_amount: {}, out_fee_amount: {}",
+        lp_burn_amount,
+        out_amount,
+        lp_fee_amount,
+        out_fee_amount
+    );
 
     Ok(())
 }
@@ -1495,6 +1684,35 @@ pub struct LPPoolAddLiquidity<'info> {
 #[instruction(
     in_market_index: u16,
 )]
+pub struct ViewLPPoolAddLiquidityFees<'info> {
+    /// CHECK: forced drift_signer
+    pub drift_signer: AccountInfo<'info>,
+    pub state: Box<Account<'info, State>>,
+    pub lp_pool: AccountLoader<'info, LPPool>,
+    pub authority: Signer<'info>,
+    pub in_market_mint: Box<InterfaceAccount<'info, Mint>>,
+    #[account(
+        seeds = [CONSTITUENT_PDA_SEED.as_ref(), lp_pool.key().as_ref(), in_market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub in_constituent: AccountLoader<'info, Constituent>,
+
+    #[account(
+        constraint = lp_mint.key() == lp_pool.load()?.mint,
+    )]
+    pub lp_mint: Box<InterfaceAccount<'info, Mint>>,
+    #[account(
+        seeds = [CONSTITUENT_TARGET_BASE_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        bump,
+    )]
+    /// CHECK: checked in ConstituentTargetBaseZeroCopy checks
+    pub constituent_target_base: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(
+    in_market_index: u16,
+)]
 pub struct LPPoolRemoveLiquidity<'info> {
     /// CHECK: forced drift_signer
     pub drift_signer: AccountInfo<'info>,
@@ -1549,4 +1767,33 @@ pub struct LPPoolRemoveLiquidity<'info> {
     pub lp_pool_token_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
     pub token_program: Interface<'info, TokenInterface>,
+}
+
+#[derive(Accounts)]
+#[instruction(
+    in_market_index: u16,
+)]
+pub struct ViewLPPoolRemoveLiquidityFees<'info> {
+    /// CHECK: forced drift_signer
+    pub drift_signer: AccountInfo<'info>,
+    pub state: Box<Account<'info, State>>,
+    pub lp_pool: AccountLoader<'info, LPPool>,
+    pub authority: Signer<'info>,
+    pub out_market_mint: Box<InterfaceAccount<'info, Mint>>,
+    #[account(
+        seeds = [CONSTITUENT_PDA_SEED.as_ref(), lp_pool.key().as_ref(), in_market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub out_constituent: AccountLoader<'info, Constituent>,
+
+    #[account(
+        constraint = lp_mint.key() == lp_pool.load()?.mint,
+    )]
+    pub lp_mint: Box<InterfaceAccount<'info, Mint>>,
+    #[account(
+        seeds = [CONSTITUENT_TARGET_BASE_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        bump,
+    )]
+    /// CHECK: checked in ConstituentTargetBaseZeroCopy checks
+    pub constituent_target_base: AccountInfo<'info>,
 }
