@@ -20,7 +20,7 @@ import {
 	calculateSizeDiscountAssetWeight,
 	calculateSizePremiumLiabilityWeight,
 } from './margin';
-import { OraclePriceData } from '../oracles/types';
+import { MMOraclePriceData, OraclePriceData } from '../oracles/types';
 import {
 	BASE_PRECISION,
 	MARGIN_PRECISION,
@@ -43,9 +43,9 @@ import { assert } from '../assert/assert';
  */
 export function calculateReservePrice(
 	market: PerpMarketAccount,
-	oraclePriceData: OraclePriceData
+	mmOraclePriceData: MMOraclePriceData
 ): BN {
-	const newAmm = calculateUpdatedAMM(market.amm, oraclePriceData);
+	const newAmm = calculateUpdatedAMM(market.amm, mmOraclePriceData);
 	return calculatePrice(
 		newAmm.baseAssetReserve,
 		newAmm.quoteAssetReserve,
@@ -61,13 +61,13 @@ export function calculateReservePrice(
  */
 export function calculateBidPrice(
 	market: PerpMarketAccount,
-	oraclePriceData: OraclePriceData
+	mmOraclePriceData: MMOraclePriceData
 ): BN {
 	const { baseAssetReserve, quoteAssetReserve, newPeg } =
 		calculateUpdatedAMMSpreadReserves(
 			market.amm,
 			PositionDirection.SHORT,
-			oraclePriceData
+			mmOraclePriceData
 		);
 
 	return calculatePrice(baseAssetReserve, quoteAssetReserve, newPeg);
@@ -81,13 +81,13 @@ export function calculateBidPrice(
  */
 export function calculateAskPrice(
 	market: PerpMarketAccount,
-	oraclePriceData: OraclePriceData
+	mmOraclePriceData: MMOraclePriceData
 ): BN {
 	const { baseAssetReserve, quoteAssetReserve, newPeg } =
 		calculateUpdatedAMMSpreadReserves(
 			market.amm,
 			PositionDirection.LONG,
-			oraclePriceData
+			mmOraclePriceData
 		);
 
 	return calculatePrice(baseAssetReserve, quoteAssetReserve, newPeg);
@@ -117,10 +117,10 @@ export function calculateNewMarketAfterTrade(
 
 export function calculateOracleReserveSpread(
 	market: PerpMarketAccount,
-	oraclePriceData: OraclePriceData
+	mmOraclePriceData: MMOraclePriceData
 ): BN {
-	const reservePrice = calculateReservePrice(market, oraclePriceData);
-	return calculateOracleSpread(reservePrice, oraclePriceData);
+	const reservePrice = calculateReservePrice(market, mmOraclePriceData);
+	return calculateOracleSpread(reservePrice, mmOraclePriceData);
 }
 
 export function calculateOracleSpread(
@@ -298,7 +298,7 @@ export function calculateNetUserPnlImbalance(
 
 export function calculateAvailablePerpLiquidity(
 	market: PerpMarketAccount,
-	oraclePriceData: OraclePriceData,
+	mmOraclePriceData: MMOraclePriceData,
 	dlob: DLOB,
 	slot: number
 ): { bids: BN; asks: BN } {
@@ -315,7 +315,7 @@ export function calculateAvailablePerpLiquidity(
 		market.marketIndex,
 		slot,
 		MarketType.PERP,
-		oraclePriceData
+		mmOraclePriceData
 	)) {
 		bids = bids.add(
 			bid.order.baseAssetAmount.sub(bid.order.baseAssetAmountFilled)
@@ -326,7 +326,7 @@ export function calculateAvailablePerpLiquidity(
 		market.marketIndex,
 		slot,
 		MarketType.PERP,
-		oraclePriceData
+		mmOraclePriceData
 	)) {
 		asks = asks.add(
 			ask.order.baseAssetAmount.sub(ask.order.baseAssetAmountFilled)

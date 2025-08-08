@@ -1,11 +1,10 @@
 import { BN } from '@coral-xyz/anchor';
-import { MMOraclePriceData } from './types';
+import { OraclePriceData } from './types';
 
 export function getOracleConfidenceFromMMOracleData(
-	mmOracleData: MMOraclePriceData
+	mmOraclePrice: BN,
+	oraclePriceData: OraclePriceData
 ): BN {
-	const mmOracleDiffPremium = mmOracleData.mmOraclePrice
-		.sub(mmOracleData.oraclePriceData.price)
-		.abs();
-	return mmOracleData.oraclePriceData.confidence.add(mmOracleDiffPremium);
+	const mmOracleDiffPremium = mmOraclePrice.sub(oraclePriceData.price).abs();
+	return oraclePriceData.confidence.add(mmOracleDiffPremium);
 }
