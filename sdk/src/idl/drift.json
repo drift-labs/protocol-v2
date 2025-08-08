@@ -10030,6 +10030,10 @@
           },
           {
             "name": "feesAccrued",
+            "docs": [
+              "fees accrued so far for this order slot. This is not exclusively fees from this order_id and",
+              "may include fees from other orders in the same market."
+            ],
             "type": "u64"
           },
           {

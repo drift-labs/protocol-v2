@@ -53,7 +53,6 @@ import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import dotenv from 'dotenv';
 import { PYTH_STORAGE_DATA } from './pythLazerData';
 import { nanoid } from 'nanoid';
-import { convertIdlToCamelCase } from '@coral-xyz/anchor-30/dist/cjs/idl';
 import { isRevenueShareOrderCompleted } from '../sdk/src/math/builder';
 
 dotenv.config();

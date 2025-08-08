@@ -15,6 +15,9 @@ use crate::state::user::MarketType;
 use crate::validate;
 use crate::{impl_zero_copy_loader, msg, ID};
 
+#[cfg(test)]
+mod tests;
+
 pub const REVENUE_SHARE_PDA_SEED: &str = "REV_SHARE";
 pub const REVENUE_SHARE_ESCROW_PDA_SEED: &str = "REV_ESCROW";
 
@@ -107,6 +110,8 @@ pub struct RevenueShareOrder {
     /// set in place_order
     pub builder_idx: u8, // builder/referrer, 111... if zeroed, TODO: replace with builder index
     pub padding0: [u8; 7],
+    /// fees accrued so far for this order slot. This is not exclusively fees from this order_id and 
+    /// may include fees from other orders in the same market.
     pub fees_accrued: u64,
     pub order_id: u32,
     pub fee_bps: u16,
@@ -174,6 +179,26 @@ impl RevenueShareOrder {
     /// An order slot is available (can be written to) if it is neither Completed nor Open.
     pub fn is_available(&self) -> bool {
         !self.is_completed() && !self.is_open()
+    }
+
+    /// Checks if the order can be merged with another order. Merged orders track cumulative fees accrued
+    /// and are settled together, making more efficient use of the orders list.
+    pub fn is_mergeable(&self, other: &RevenueShareOrder) -> bool {
+        other.is_completed()
+            && other.market_index == self.market_index
+            && other.market_type == self.market_type
+            && other.builder_idx == self.builder_idx
+    }
+
+    /// Merges two orders into one. The orders must be mergeable.
+    pub fn merge(mut self, other: &RevenueShareOrder) -> DriftResult<RevenueShareOrder> {
+        validate!(
+            self.is_mergeable(other),
+            ErrorCode::DefaultError,
+            "Orders are not mergeable"
+        )?;
+        self.fees_accrued = self.fees_accrued.checked_add(other.fees_accrued).safe_unwrap()?;
+        Ok(self)
     }
 }
 
@@ -395,12 +420,14 @@ impl<'a> RevenueShareEscrowZeroCopyMut<'a> {
         ))
     }
 
+
     pub fn add_order(&mut self, order: RevenueShareOrder) -> DriftResult {
-        msg!("add_order: {:?}", order.order_id);
         for i in 0..self.orders_len() {
             let existing_order = self.get_order_mut(i)?;
-            if existing_order.is_available() {
-                msg!("add_order: {:?} at index {}", existing_order.order_id, i);
+            if existing_order.is_mergeable(&order) {
+                *existing_order = existing_order.merge(&order)?;
+                return Ok(());
+            } else if existing_order.is_available() {
                 *existing_order = order;
                 return Ok(());
             }
