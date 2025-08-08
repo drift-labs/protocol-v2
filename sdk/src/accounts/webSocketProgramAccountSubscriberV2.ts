@@ -718,87 +718,103 @@ export class WebSocketProgramAccountSubscriberV2<T>
 
 	private async fetchAccountsBatch(accountIds: string[]): Promise<void> {
 		try {
-			// Fetch all accounts in a single batch request
-			const accountAddresses = accountIds.map(
-				(accountId) => accountId as Address
-			);
-			const rpcResponse = await this.rpc
-				.getMultipleAccounts(accountAddresses, {
-					commitment: this.options.commitment as GillCommitment,
-					encoding: 'base64',
-				})
-				.send();
+			// Chunk account IDs into groups of 100 (getMultipleAccounts limit)
+			const chunkSize = 100;
+			const chunks: string[][] = [];
+			for (let i = 0; i < accountIds.length; i += chunkSize) {
+				chunks.push(accountIds.slice(i, i + chunkSize));
+			}
 
-			const currentSlot = Number(rpcResponse.context.slot);
+			// Process all chunks concurrently
+			await Promise.all(
+				chunks.map(async (chunk) => {
+					const accountAddresses = chunk.map(
+						(accountId) => accountId as Address
+					);
+					const rpcResponse = await this.rpc
+						.getMultipleAccounts(accountAddresses, {
+							commitment: this.options.commitment as GillCommitment,
+							encoding: 'base64',
+						})
+						.send();
 
-			// Process each account response
-			for (let i = 0; i < accountIds.length; i++) {
-				const accountIdString = accountIds[i];
-				const accountInfo = rpcResponse.value[i];
+					const currentSlot = Number(rpcResponse.context.slot);
 
-				if (!accountInfo) {
-					continue;
-				}
+					// Process each account response in this chunk
+					for (let i = 0; i < chunk.length; i++) {
+						const accountIdString = chunk[i];
+						const accountInfo = rpcResponse.value[i];
 
-				const existingBufferAndSlot =
-					this.bufferAndSlotMap.get(accountIdString);
-
-				if (!existingBufferAndSlot) {
-					// Account not in our map yet, add it
-					let newBuffer: Buffer | undefined = undefined;
-					if (accountInfo.data) {
-						if (Array.isArray(accountInfo.data)) {
-							const [data, encoding] = accountInfo.data;
-							newBuffer = Buffer.from(data, encoding);
+						if (!accountInfo) {
+							continue;
 						}
-					}
 
-					if (newBuffer) {
-						this.bufferAndSlotMap.set(accountIdString, {
-							buffer: newBuffer,
-							slot: currentSlot,
-						});
-						const account = this.decodeBuffer(
-							this.accountDiscriminator,
-							newBuffer
-						);
-						const accountId = new PublicKey(accountIdString);
-						this.onChange(accountId, account, { slot: currentSlot }, newBuffer);
-					}
-					continue;
-				}
+						const existingBufferAndSlot =
+							this.bufferAndSlotMap.get(accountIdString);
 
-				// Check if we missed an update
-				if (currentSlot > existingBufferAndSlot.slot) {
-					let newBuffer: Buffer | undefined = undefined;
-					if (accountInfo.data) {
-						if (Array.isArray(accountInfo.data)) {
-							const [data, encoding] = accountInfo.data;
-							if (encoding === ('base58' as any)) {
-								newBuffer = Buffer.from(bs58.decode(data));
-							} else {
-								newBuffer = Buffer.from(data, 'base64');
+						if (!existingBufferAndSlot) {
+							// Account not in our map yet, add it
+							let newBuffer: Buffer | undefined = undefined;
+							if (accountInfo.data) {
+								if (Array.isArray(accountInfo.data)) {
+									const [data, encoding] = accountInfo.data;
+									newBuffer = Buffer.from(data, encoding);
+								}
+							}
+
+							if (newBuffer) {
+								this.bufferAndSlotMap.set(accountIdString, {
+									buffer: newBuffer,
+									slot: currentSlot,
+								});
+								const account = this.decodeBuffer(
+									this.accountDiscriminator,
+									newBuffer
+								);
+								const accountId = new PublicKey(accountIdString);
+								this.onChange(
+									accountId,
+									account,
+									{ slot: currentSlot },
+									newBuffer
+								);
+							}
+							continue;
+						}
+
+						// Check if we missed an update
+						if (currentSlot > existingBufferAndSlot.slot) {
+							let newBuffer: Buffer | undefined = undefined;
+							if (accountInfo.data) {
+								if (Array.isArray(accountInfo.data)) {
+									const [data, encoding] = accountInfo.data;
+									if (encoding === ('base58' as any)) {
+										newBuffer = Buffer.from(bs58.decode(data));
+									} else {
+										newBuffer = Buffer.from(data, 'base64');
+									}
+								}
+							}
+
+							// Check if buffer has changed
+							if (
+								newBuffer &&
+								(!existingBufferAndSlot.buffer ||
+									!newBuffer.equals(existingBufferAndSlot.buffer))
+							) {
+								if (this.resubOpts?.logResubMessages) {
+									console.log(
+										`[${this.subscriptionName}] Batch polling detected missed update for account ${accountIdString}, signaling resubscription`
+									);
+								}
+								// Signal missed change instead of immediately resubscribing
+								this.signalMissedChange(accountIdString);
+								return;
 							}
 						}
 					}
-
-					// Check if buffer has changed
-					if (
-						newBuffer &&
-						(!existingBufferAndSlot.buffer ||
-							!newBuffer.equals(existingBufferAndSlot.buffer))
-					) {
-						if (this.resubOpts?.logResubMessages) {
-							console.log(
-								`[${this.subscriptionName}] Batch polling detected missed update for account ${accountIdString}, signaling resubscription`
-							);
-						}
-						// Signal missed change instead of immediately resubscribing
-						this.signalMissedChange(accountIdString);
-						return;
-					}
-				}
-			}
+				})
+			);
 		} catch (error) {
 			if (this.resubOpts?.logResubMessages) {
 				console.log(
