@@ -49,6 +49,8 @@ pub trait LiquidatePerpMode {
         spot_market: &mut SpotMarket,
         cumulative_deposit_delta: Option<u128>,
     ) -> DriftResult<()>;
+
+    fn margin_shortage(&self, margin_calculation: &MarginCalculation) -> DriftResult<u128>;
 }
 
 pub fn get_perp_liquidation_mode(user: &User, market_index: u16) -> Box<dyn LiquidatePerpMode> {
@@ -185,6 +187,10 @@ impl LiquidatePerpMode for CrossMarginLiquidatePerpMode {
 
         Ok(())
     }
+
+    fn margin_shortage(&self, margin_calculation: &MarginCalculation) -> DriftResult<u128> {
+        margin_calculation.cross_margin_margin_shortage()
+    }
 }
 
 pub struct IsolatedLiquidatePerpMode {
@@ -301,5 +307,9 @@ impl LiquidatePerpMode for IsolatedLiquidatePerpMode {
         )?;
 
         Ok(())
+    }
+
+    fn margin_shortage(&self, margin_calculation: &MarginCalculation) -> DriftResult<u128> {
+        margin_calculation.isolated_position_margin_shortage(self.market_index)
     }
 }

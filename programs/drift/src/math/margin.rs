@@ -707,7 +707,7 @@ pub fn meets_place_order_margin_requirement(
     )?;
 
     if !calculation.meets_margin_requirement() {
-        calculation.print_margin_calculations();
+        msg!("margin calculation: {:?}", calculation);
         return Err(ErrorCode::InsufficientCollateral);
     }
 
@@ -803,7 +803,7 @@ pub fn calculate_max_withdrawable_amount(
         return token_amount.cast();
     }
 
-    let free_collateral = calculation.get_free_collateral()?;
+    let free_collateral = calculation.get_cross_margin_free_collateral()?;
 
     let (numerator_scale, denominator_scale) = if spot_market.decimals > 6 {
         (10_u128.pow(spot_market.decimals - 6), 1)

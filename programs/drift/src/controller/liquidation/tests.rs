@@ -6873,7 +6873,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         )
         .unwrap();
 
-        let margin_shortage = calc.margin_shortage().unwrap();
+        let margin_shortage = calc.cross_margin_margin_shortage().unwrap();
 
         let pct_margin_freed = (user.liquidation_margin_freed as u128) * PRICE_PRECISION
             / (margin_shortage + user.liquidation_margin_freed as u128);
@@ -6914,7 +6914,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         )
         .unwrap();
 
-        let margin_shortage = calc.margin_shortage().unwrap();
+        let margin_shortage = calc.cross_margin_margin_shortage().unwrap();
 
         let pct_margin_freed = (user.liquidation_margin_freed as u128) * PRICE_PRECISION
             / (margin_shortage + user.liquidation_margin_freed as u128);

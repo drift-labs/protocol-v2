@@ -210,6 +210,10 @@ impl IsolatedPositionMarginCalculation {
     pub fn meets_margin_requirement_with_buffer(&self) -> bool {
         self.get_total_collateral_plus_buffer() >= self.margin_requirement_plus_buffer as i128
     }
+
+    pub fn margin_shortage(&self) -> DriftResult<u128> {
+        Ok(self.margin_requirement_plus_buffer.cast::<i128>()?.safe_sub(self.get_total_collateral_plus_buffer())?.unsigned_abs())
+    }
 }
 
 impl MarginCalculation {
@@ -280,7 +284,7 @@ impl MarginCalculation {
     }
 
     pub fn add_isolated_position_margin_calculation(&mut self, market_index: u16, deposit_value: i128, pnl: i128, liability_value: u128, margin_requirement: u128) -> DriftResult {
-        let total_collateral = deposit_value.cast::<i128>()?.safe_add(pnl)?;
+        let total_collateral = deposit_value.safe_add(pnl)?;
         
         let total_collateral_buffer = if self.context.margin_buffer > 0 && pnl < 0 {
             pnl.safe_mul(self.context.margin_buffer.cast::<i128>()?)? / MARGIN_PRECISION_I128
@@ -423,13 +427,6 @@ impl MarginCalculation {
         true
     }
 
-    pub fn print_margin_calculations(&self) {
-        msg!("cross_margin margin_requirement={}, total_collateral={}", self.margin_requirement, self.total_collateral);
-        for (market_index, isolated_position_margin_calculation) in &self.isolated_position_margin_calculation {
-            msg!("isolated_position for market {}: margin_requirement={}, total_collateral={}", market_index, isolated_position_margin_calculation.margin_requirement, isolated_position_margin_calculation.total_collateral);
-        }
-    }
-
     #[inline(always)]
     pub fn cross_margin_meets_margin_requirement(&self) -> bool {
         self.total_collateral >= self.margin_requirement as i128
@@ -468,7 +465,7 @@ impl MarginCalculation {
         Ok(self.isolated_position_margin_calculation.get(&market_index).safe_unwrap()?.meets_margin_requirement_with_buffer())
     }
 
-    pub fn margin_shortage(&self) -> DriftResult<u128> {
+    pub fn cross_margin_margin_shortage(&self) -> DriftResult<u128> {
         if self.context.margin_buffer == 0 {
             msg!("margin buffer mode not enabled");
             return Err(ErrorCode::InvalidMarginCalculation);
@@ -481,25 +478,60 @@ impl MarginCalculation {
             .unsigned_abs())
     }
 
-    pub fn tracked_market_margin_shortage(&self, margin_shortage: u128) -> DriftResult<u128> {
-        if self.market_to_track_margin_requirement().is_none() {
-            msg!("cant call tracked_market_margin_shortage");
+    pub fn isolated_position_margin_shortage(&self, market_index: u16) -> DriftResult<u128> {
+        if self.context.margin_buffer == 0 {
+            msg!("margin buffer mode not enabled");
             return Err(ErrorCode::InvalidMarginCalculation);
         }
 
-        if self.margin_requirement == 0 {
+        self.isolated_position_margin_calculation.get(&market_index).safe_unwrap()?.margin_shortage()
+    }
+
+    pub fn tracked_market_margin_shortage(&self, margin_shortage: u128) -> DriftResult<u128> {
+        let MarketIdentifier {
+            market_type,
+            market_index,
+        } = match self.market_to_track_margin_requirement() {
+            Some(market_to_track) => market_to_track,
+            None => {
+                msg!("no market to track margin requirement");
+                return Err(ErrorCode::InvalidMarginCalculation);
+            }
+        };
+
+        let margin_requirement = if market_type == MarketType::Perp {
+            match self.isolated_position_margin_calculation.get(&market_index) {
+                Some(isolated_position_margin_calculation) => {
+                    isolated_position_margin_calculation.margin_requirement
+                }
+                None => {
+                    self.margin_requirement
+                }
+            }
+        } else {
+            self.margin_requirement
+        };
+
+        if margin_requirement == 0 {
             return Ok(0);
         }
 
         margin_shortage
             .safe_mul(self.tracked_market_margin_requirement)?
-            .safe_div(self.margin_requirement)
+            .safe_div(margin_requirement)
     }
 
-    // todo check every where this is used
-    pub fn get_free_collateral(&self) -> DriftResult<u128> {
+    pub fn get_cross_margin_free_collateral(&self) -> DriftResult<u128> {
         self.total_collateral
             .safe_sub(self.margin_requirement.cast::<i128>()?)?
+            .max(0)
+            .cast()
+    }
+
+    pub fn get_isolated_position_free_collateral(&self, market_index: u16) -> DriftResult<u128> {
+        let isolated_position_margin_calculation = self.isolated_position_margin_calculation.get(&market_index).safe_unwrap()?;
+        isolated_position_margin_calculation.total_collateral
+            .safe_sub(isolated_position_margin_calculation.margin_requirement.cast::<i128>()?)?
             .max(0)
             .cast()
     }
