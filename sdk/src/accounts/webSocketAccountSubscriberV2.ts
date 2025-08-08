@@ -35,6 +35,7 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 	isUnsubscribing = false;
 
 	timeoutId?: ReturnType<typeof setTimeout>;
+	pollingTimeoutId?: ReturnType<typeof setTimeout>;
 
 	receivingData: boolean;
 
@@ -90,8 +91,19 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 		this.rpcSubscriptions = rpcSubscriptions;
 	}
 
-	private async handleNotificationLoop(subscription: AsyncIterable<any>) {
+	private async handleNotificationLoop(subscriptionPromise: Promise<AsyncIterable<any>>) {
+		const subscription = await subscriptionPromise;
 		for await (const notification of subscription) {
+			// If we're currently polling and receive a WebSocket event, stop polling
+			if (this.pollingTimeoutId) {
+				if (this.resubOpts?.logResubMessages) {
+					console.log(
+						`[${this.logAccountName}] Received WebSocket event while polling, stopping polling`
+					);
+				}
+				this.stopPolling();
+			}
+
 			if (this.resubOpts?.resubTimeoutMs) {
 				this.receivingData = true;
 				clearTimeout(this.timeoutId);
@@ -132,7 +144,7 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 		// Subscribe to account changes using gill's rpcSubscriptions
 		const pubkey = this.accountPublicKey.toBase58();
 		if (isAddress(pubkey)) {
-			const subscription = await this.rpcSubscriptions
+			const subscriptionPromise = this.rpcSubscriptions
 				.accountNotifications(pubkey, {
 					commitment: this.commitment,
 					encoding: 'base64',
@@ -141,8 +153,8 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 					abortSignal: abortController.signal,
 				});
 
-			// Start notification loop without awaiting
-			this.handleNotificationLoop(subscription);
+			// Start notification loop with the subscription promise
+			this.handleNotificationLoop(subscriptionPromise);
 		}
 	}
 
@@ -175,18 +187,29 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 				}
 
 				if (this.receivingData) {
-					if (this.resubOpts?.logResubMessages) {
-						console.log(
-							`No ws data from ${this.logAccountName} in ${this.resubOpts.resubTimeoutMs}ms, resubscribing - listenerId=${this.listenerId}, isUnsubscribing=${this.isUnsubscribing}`
-						);
-					}
-					await this.unsubscribe(true);
-					this.receivingData = false;
-					await this.subscribe(this.onChange);
-					if (this.resubOpts?.logResubMessages) {
-						console.log(
-							`[${this.logAccountName}] Resubscribe completed - receivingData=${this.receivingData}, listenerId=${this.listenerId}, isUnsubscribing=${this.isUnsubscribing}`
-						);
+					if (this.resubOpts?.usePollingInsteadOfResub) {
+						// Use polling instead of resubscribing
+						if (this.resubOpts?.logResubMessages) {
+							console.log(
+								`[${this.logAccountName}] No ws data in ${this.resubOpts.resubTimeoutMs}ms, starting polling - listenerId=${this.listenerId}`
+							);
+						}
+						this.startPolling();
+					} else {
+						// Original resubscribe behavior
+						if (this.resubOpts?.logResubMessages) {
+							console.log(
+								`No ws data from ${this.logAccountName} in ${this.resubOpts.resubTimeoutMs}ms, resubscribing - listenerId=${this.listenerId}, isUnsubscribing=${this.isUnsubscribing}`
+							);
+						}
+						await this.unsubscribe(true);
+						this.receivingData = false;
+						await this.subscribe(this.onChange);
+						if (this.resubOpts?.logResubMessages) {
+							console.log(
+								`[${this.logAccountName}] Resubscribe completed - receivingData=${this.receivingData}, listenerId=${this.listenerId}, isUnsubscribing=${this.isUnsubscribing}`
+							);
+						}
 					}
 				} else {
 					if (this.resubOpts?.logResubMessages) {
@@ -198,6 +221,68 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 			},
 			this.resubOpts?.resubTimeoutMs
 		);
+	}
+
+	private startPolling(): void {
+		const pollingInterval = this.resubOpts?.pollingIntervalMs || 30000; // Default to 30s
+
+		const poll = async () => {
+			if (this.isUnsubscribing) {
+				return;
+			}
+
+			try {
+				// Store current data and buffer before polling
+				const currentBuffer = this.bufferAndSlot?.buffer;
+
+				// Fetch latest account data
+				await this.fetch();
+
+				// Check if we got new data by comparing buffers
+				const newBuffer = this.bufferAndSlot?.buffer;
+				const hasNewData =
+					newBuffer && (!currentBuffer || !newBuffer.equals(currentBuffer));
+
+				if (hasNewData) {
+					// New data received, stop polling and resubscribe to websocket
+					if (this.resubOpts?.logResubMessages) {
+						console.log(
+							`[${this.logAccountName}] Polling detected account data change, resubscribing to websocket`
+						);
+					}
+					this.stopPolling();
+					this.receivingData = false;
+					await this.subscribe(this.onChange);
+				} else {
+					// No new data, continue polling
+					if (this.resubOpts?.logResubMessages) {
+						console.log(
+							`[${this.logAccountName}] Polling found no account changes, continuing to poll every ${pollingInterval}ms`
+						);
+					}
+					this.pollingTimeoutId = setTimeout(poll, pollingInterval);
+				}
+			} catch (error) {
+				if (this.resubOpts?.logResubMessages) {
+					console.error(
+						`[${this.logAccountName}] Error during polling:`,
+						error
+					);
+				}
+				// On error, continue polling
+				this.pollingTimeoutId = setTimeout(poll, pollingInterval);
+			}
+		};
+
+		// Start polling immediately
+		poll();
+	}
+
+	private stopPolling(): void {
+		if (this.pollingTimeoutId) {
+			clearTimeout(this.pollingTimeoutId);
+			this.pollingTimeoutId = undefined;
+		}
 	}
 
 	async fetch(): Promise<void> {
@@ -300,6 +385,9 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 		this.isUnsubscribing = true;
 		clearTimeout(this.timeoutId);
 		this.timeoutId = undefined;
+
+		// Stop polling if active
+		this.stopPolling();
 
 		// Abort the WebSocket subscription
 		if (this.abortController) {
