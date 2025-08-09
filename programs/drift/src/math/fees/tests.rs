@@ -1013,7 +1013,7 @@ mod calcuate_fee_tiers {
         assert_eq!(res.maker_rebate_numerator, 25);
         assert_eq!(res.maker_rebate_denominator, 1000000);
 
-        taker_stats.taker_volume_30d = 80_000_000 * QUOTE_PRECISION_U64;
+        taker_stats.taker_volume_30d = 70_000_000 * QUOTE_PRECISION_U64;
 
         let res: FeeTier =
             determine_user_fee_tier(&taker_stats, &fee_structure, &MarketType::Perp, false)

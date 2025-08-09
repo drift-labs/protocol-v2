@@ -3515,7 +3515,7 @@ export class User {
 				new BN(2_000_000).mul(QUOTE_PRECISION),
 				new BN(10_000_000).mul(QUOTE_PRECISION),
 				new BN(20_000_000).mul(QUOTE_PRECISION),
-				new BN(100_000_000).mul(QUOTE_PRECISION),
+				new BN(80_000_000).mul(QUOTE_PRECISION),
 				new BN(200_000_000).mul(QUOTE_PRECISION),
 			];
 			const stakeThresholds = [
