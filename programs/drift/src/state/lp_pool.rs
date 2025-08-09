@@ -265,7 +265,8 @@ impl LPPool {
                 .safe_div(self.last_aum.safe_mul(token_precision_denominator)?)?
         };
 
-        let lp_fee_to_charge_pct = self.get_mint_redeem_fee(now, true)?;
+        let lp_fee_to_charge_pct = self.min_mint_fee;
+        // let lp_fee_to_charge_pct = self.get_mint_redeem_fee(now, true)?;
         let lp_fee_to_charge = lp_amount
             .safe_mul(lp_fee_to_charge_pct as u128)?
             .safe_div(PERCENTAGE_PRECISION)?
@@ -291,7 +292,8 @@ impl LPPool {
         out_target_weight: i64,
         dlp_total_supply: u64,
     ) -> DriftResult<(u64, u128, i64, i128)> {
-        let lp_fee_to_charge_pct = self.get_mint_redeem_fee(now, false)?;
+        let lp_fee_to_charge_pct = self.min_mint_fee;
+        // let lp_fee_to_charge_pct = self.get_mint_redeem_fee(now, false)?;
         let lp_fee_to_charge = lp_burn_amount
             .cast::<i128>()?
             .safe_mul(lp_fee_to_charge_pct.cast::<i128>()?)?

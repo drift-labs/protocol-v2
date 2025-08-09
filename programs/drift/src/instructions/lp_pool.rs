@@ -1,6 +1,7 @@
 use anchor_lang::{prelude::*, Accounts, Key, Result};
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
+use crate::ids::DLP_WHITELIST;
 use crate::{
     controller::{
         self,
@@ -612,6 +613,13 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
     in_amount: u128,
     min_mint_amount: u64,
 ) -> Result<()> {
+    #[cfg(not(feature = "anchor-test"))]
+    validate!(
+        DLP_WHITELIST.contains(&ctx.accounts.authority.key()),
+        ErrorCode::UnauthorizedDlpAuthority,
+        "User is not whitelisted for DLP deposits"
+    )?;
+
     let slot = Clock::get()?.slot;
     let now = Clock::get()?.unix_timestamp;
     let state = &ctx.accounts.state;
@@ -721,7 +729,6 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
     in_constituent.record_swap_fees(in_fee_amount)?;
     lp_pool.record_mint_redeem_fees(lp_fee_amount)?;
 
-    msg!("receive");
     receive(
         &ctx.accounts.token_program,
         &ctx.accounts.user_in_token_account,
@@ -732,7 +739,6 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
         Some(remaining_accounts),
     )?;
 
-    msg!("mint_tokens");
     mint_tokens(
         &ctx.accounts.token_program,
         &ctx.accounts.lp_pool_token_vault,
@@ -742,7 +748,6 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
         &ctx.accounts.lp_mint,
     )?;
 
-    msg!("send_from_program_vault");
     send_from_program_vault(
         &ctx.accounts.token_program,
         &ctx.accounts.lp_pool_token_vault,
@@ -760,6 +765,10 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
             .safe_mul(in_oracle.price.cast::<u128>()?)?
             .safe_div(10_u128.pow(in_spot_market.decimals))?,
     )?;
+
+    if lp_pool.last_aum > lp_pool.max_aum {
+        return Err(ErrorCode::MaxDlpAumBreached.into());
+    }
 
     ctx.accounts.constituent_in_token_account.reload()?;
     ctx.accounts.lp_mint.reload()?;

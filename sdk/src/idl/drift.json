@@ -7532,6 +7532,32 @@
       ]
     },
     {
+      "name": "increaseLpPoolMaxAum",
+      "accounts": [
+        {
+          "name": "lpPool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "newMaxAum",
+          "type": "u128"
+        }
+      ]
+    },
+    {
       "name": "updateHighLeverageModeConfig",
       "accounts": [
         {
@@ -18784,6 +18810,16 @@
       "code": 6330,
       "name": "InvalidConstituentDerivativeWeights",
       "msg": "Invalid constituent derivative weights"
+    },
+    {
+      "code": 6331,
+      "name": "UnauthorizedDlpAuthority",
+      "msg": "Unauthorized dlp authority"
+    },
+    {
+      "code": 6332,
+      "name": "MaxDlpAumBreached",
+      "msg": "Max DLP AUM Breached"
     }
   ],
   "metadata": {

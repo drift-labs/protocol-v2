@@ -666,6 +666,10 @@ pub enum ErrorCode {
     LpInvariantFailed,
     #[msg("Invalid constituent derivative weights")]
     InvalidConstituentDerivativeWeights,
+    #[msg("Unauthorized dlp authority")]
+    UnauthorizedDlpAuthority,
+    #[msg("Max DLP AUM Breached")]
+    MaxDlpAumBreached,
 }
 
 #[macro_export]

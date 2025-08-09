@@ -4802,6 +4802,21 @@ pub fn handle_initialize_lp_pool(
 
     Ok(())
 }
+
+pub fn handle_increase_lp_pool_max_aum(
+    ctx: Context<UpdateLpPoolParams>,
+    new_max_aum: u128,
+) -> Result<()> {
+    let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
+    msg!(
+        "lp pool max aum: {:?} -> {:?}",
+        lp_pool.max_aum,
+        new_max_aum
+    );
+    lp_pool.max_aum = new_max_aum;
+    Ok(())
+}
+
 pub fn handle_update_high_leverage_mode_config(
     ctx: Context<UpdateHighLeverageModeConfig>,
     max_users: u32,
