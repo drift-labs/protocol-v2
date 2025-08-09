@@ -186,7 +186,7 @@ pub const MAX_LIQUIDATION_SLIPPAGE_U128: u128 = 10_000; // expo = -2
 pub const MAX_MARK_TWAP_DIVERGENCE: u128 = 500_000; // expo = -3
 
 pub const MAX_MARGIN_RATIO: u32 = MARGIN_PRECISION; // 1x leverage
-pub const MIN_MARGIN_RATIO: u32 = MARGIN_PRECISION / 50; // 50x leverage
+pub const MIN_MARGIN_RATIO: u32 = 125; // 80x leverage
 pub const HIGH_LEVERAGE_MIN_MARGIN_RATIO: u32 = MARGIN_PRECISION / 200; // 200x leverage
 
 pub const MAX_BID_ASK_INVENTORY_SKEW_FACTOR: u64 = 10 * BID_ASK_SPREAD_PRECISION;
