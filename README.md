@@ -37,6 +37,13 @@ rustup default stable-x86_64-apple-darwin
 ```bash
 # build v2
 anchor build
+# or
+anchor build --arch sbf 
+
+
+# if build failing due to stdsimd, try to use cargo:
+cargo +nightly-2024-01-05 bench
+
 # install packages
 yarn
 # build sdk
