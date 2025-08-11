@@ -15,6 +15,8 @@ use crate::math::constants::{
 use crate::math::margin::{
     meets_maintenance_margin_requirement, meets_settle_pnl_maintenance_margin_requirement,
 };
+use crate::math::safe_math::SafeMath;
+use crate::math::spot_balance::get_token_amount;
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{MarketStatus, PerpMarket, PoolBalance, AMM};
@@ -27,7 +29,285 @@ use crate::test_utils::*;
 use crate::test_utils::{get_positions, get_pyth_price, get_spot_positions};
 use crate::{create_account_info, SettlePnlMode};
 use crate::{create_anchor_account_info, PRICE_PRECISION_I64};
-use anchor_lang::prelude::Clock;
+use anchor_lang::prelude::{AccountLoader, Clock};
+#[test]
+pub fn user_settle_pnl_e() {
+    let state = State {
+        oracle_guard_rails: OracleGuardRails {
+            validity: ValidityGuardRails {
+                slots_before_stale_for_amm: 10,     // 5s
+                slots_before_stale_for_margin: 120, // 60s
+                confidence_interval_max_size: 1000,
+                too_volatile_ratio: 5,
+            },
+            ..OracleGuardRails::default()
+        },
+        ..State::default()
+    };
+
+    let market_index = 2;
+    let perp_market_str = String::from("Ct8MLGv1N/cP8V8Fb1epGNxhYovgt6QslGhUT6HV1zTpfCkrkbwLkndwx9kOHTTRdsq6+h4yZlyZWL2p6k8cVCwzZ4FGbCUqrtoZAAEAAAAAAAAAAAAAAAAAAAAAAAAA2BNCAAEAAACu0f7/AAAAAKk8mmgAAAAAPdV3AgAAAAAAAAAAAAAAAMZVogoAAAAAAAAAAAAAAACxmhG3M40FAAAAAAAAAAAAAAAAAAAAAACRd8X7JpsEAAAAAAAAAAAAza8BXOmaBAAAAAAAAAAAAFdKDwAAAAAAAAAAAAAAAADziVIDaZgEAAAAAAAAAAAAdpCttkmdBAAAAAAAAAAAADCCfCsImwQAAAAAAAAAAAC6PScAAQAAAAAAAAAAAAAAyh04oTebBAAAAAAAAAAAAIBOStUsCAAAAAAAAAAAAADAZAMBhff/////////////XWzku7H//////////////+NGaRoAAAAAAAAAAAAAAAAAID2IeS0AAAAAAAAAAAAAvO/pd3YCAAAAAAAAAAAAABpRjmDq4P////////////894ULZxB0AAAAAAAAAAAAA6GSxvsPg/////////////4PIQjoKHgAAAAAAAAAAAAAAkE8MyAAAAAAAAAAAAAAADijQAQAAAAAOKNABAAAAAA4o0AEAAAAAo0J+BQAAAACCgYeOvgMAAAAAAAAAAAAAXLQGiIYCAAAAAAAAAAAAAOlpgMc8AQAAAAAAAAAAAABlUVvpIwIAAAAAAAAAAAAA3HiBoDABAAAAAAAAAAAAABPobKXaAAAAAAAAAAAAAADXtByHBgEAAAAAAAAAAAAAbHHYhAYBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAiUKF38poEAAAAAAAAAAAAiPq93x2bBAAAAAAAAAAAALktd/axmwQAAAAAAAAAAABtBPJ4XpoEAAAAAAAAAAAArtoZAAEAAAAAAAAAAAAAAK9JLwABAAAAPgpJAAEAAAD2KTwAAQAAAMU0+v8AAAAAqf9rFQAAAADCAAAAAAAAAF/0CisAAAAAoy+aaAAAAAAQDgAAAAAAAEBCDwAAAAAAECcAAAAAAABAQg8AAAAAAAAAAAAAAAAA4UhJ2eq7AAASNErVNgIAAGyIcns1AwAAqTyaaAAAAAAhIUIAAAAAACo5KAAAAAAAqTyaaAAAAACvAAAA6AMAAFwBAACYAwAAAAAAAAAAAADcBTIAZAAMAcCmjPgABWT/AAAAAAAAAAB0a7Fc/v///wi4kMX/////AAAAAGQAAAB5uLoAAQAAAGnLGSFYIwEAAAAAAAAAAAAAAAAAAAAAAEVUSC1QRVJQICAgICAgICAgICAgICAgICAgICAgICAgAAAAAAAAAAAA4fUFAAAAAP8PpdToAAAAraHj0QwAAACGE5poAAAAAADh9QUAAAAAAAAAAAAAAAAAAAAAAAAAAAEMSwAAAAAAHFsAAAAAAABXCwAAAAAAAPoAAAAAAAAAiBMAAEwdAAD0AQAALAEAAAAAAAAQJwAAQwQAACYEAAACAAEAAQgAAJz/AAAAAGMAQgAAAAAAAAAgF/r/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==");
+    let mut decoded_bytes = base64::decode(perp_market_str).unwrap();
+    let perp_market_bytes = decoded_bytes.as_mut_slice();
+
+    let key = Pubkey::default();
+    let owner = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
+    let mut lamports = 0;
+    let perp_market_account_info =
+        create_account_info(&key, true, &mut lamports, perp_market_bytes, &owner);
+
+    let perp_market_loader: AccountLoader<PerpMarket> =
+        AccountLoader::try_from(&perp_market_account_info).unwrap();
+
+    let perp_market_map = PerpMarketMap::load_one(&perp_market_account_info, true).unwrap();
+    {
+        let mut perp_market = perp_market_map.get_ref_mut(&market_index).unwrap();
+        perp_market.amm.oracle_source = OracleSource::Pyth;
+        perp_market.paused_operations = 0;
+        // assert_eq!(perp_market.expiry_ts, 1725559200);
+    }
+
+    let now = 1754938689;
+    let clock_slot = 359409740;
+    let clock = Clock {
+        unix_timestamp: now,
+        slot: clock_slot,
+        ..Clock::default()
+    };
+
+    let mut spot_market = SpotMarket {
+        market_index: 0,
+        oracle_source: OracleSource::QuoteAsset,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        decimals: 6,
+        initial_asset_weight: SPOT_WEIGHT_PRECISION,
+        deposit_balance: 80_000_000 * SPOT_BALANCE_PRECISION,
+        historical_oracle_data: HistoricalOracleData {
+            last_oracle_price_twap_5min: PRICE_PRECISION_I64,
+            ..HistoricalOracleData::default_price(QUOTE_PRECISION_I64)
+        },
+        ..SpotMarket::default()
+    };
+    create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+    let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
+
+    let mut user = User {
+        perp_positions: get_positions(PerpPosition {
+            market_index: 2,
+            quote_asset_amount: 50000 * QUOTE_PRECISION_I64,
+            ..PerpPosition::default()
+        }),
+        spot_positions: get_spot_positions(SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+            ..SpotPosition::default()
+        }),
+        ..User::default()
+    };
+
+    let user_key = Pubkey::default();
+    let authority = Pubkey::default();
+    let mut oracle_price = get_pyth_price(4300, 6);
+    let oracle_price_key =
+        Pubkey::from_str("93FG52TzNKCnMiasV14Ba34BYcHDb9p4zK4GjZnLwqWR").unwrap();
+    let pyth_program = crate::ids::pyth_program::id();
+    create_account_info!(
+        oracle_price,
+        &oracle_price_key,
+        &pyth_program,
+        oracle_account_info
+    );
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
+
+    {
+        let mut perp_market = perp_market_map.get_ref_mut(&market_index).unwrap();
+        assert_eq!(perp_market.pnl_pool.scaled_balance, 320336396143465);
+        let pnl_pool_token_amount = get_token_amount(
+            perp_market.pnl_pool.scaled_balance,
+            &spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        let fee_pool_token_amount = get_token_amount(
+            perp_market.amm.fee_pool.scaled_balance,
+            &spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        let pnl_tokens_available: i128 = pnl_pool_token_amount
+            .safe_add(fee_pool_token_amount)
+            .unwrap()
+            .cast()
+            .unwrap();
+
+        assert_eq!(pnl_tokens_available, 1882964533929); // 1.8M
+        assert_eq!(perp_market.insurance_claim.revenue_withdraw_since_last_settle, 0);
+
+        // assert_eq!(perp_market.expiry_ts, 1725559200);
+    }
+
+    let result = settle_pnl(
+        2,
+        &mut user,
+        &authority,
+        &user_key,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        &clock,
+        &state,
+        None,
+        SettlePnlMode::MustSettle,
+    ).unwrap();
+
+    {
+        let mut perp_market = perp_market_map.get_ref_mut(&market_index).unwrap();
+
+        let pnl_pool_token_amount = get_token_amount(
+            perp_market.pnl_pool.scaled_balance,
+            &spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        let fee_pool_token_amount = get_token_amount(
+            perp_market.amm.fee_pool.scaled_balance,
+            &spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        let pnl_tokens_available: i128 = pnl_pool_token_amount
+            .safe_add(fee_pool_token_amount)
+            .unwrap()
+            .cast()
+            .unwrap();
+
+        assert_eq!(pnl_tokens_available, 1832864533929);
+        assert_eq!(perp_market.insurance_claim.revenue_withdraw_since_last_settle, -100000000);
+    }
+
+    let mut user2 = User {
+        perp_positions: get_positions(PerpPosition {
+            market_index: 2,
+            quote_asset_amount: 50000 * QUOTE_PRECISION_I64,
+            ..PerpPosition::default()
+        }),
+        spot_positions: get_spot_positions(SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+            ..SpotPosition::default()
+        }),
+        ..User::default()
+    };
+
+    let result = settle_pnl(
+        2,
+        &mut user2,
+        &authority,
+        &user_key,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        &clock,
+        &state,
+        None,
+        SettlePnlMode::MustSettle,
+    ).unwrap();
+
+
+    {
+        let mut perp_market = perp_market_map.get_ref_mut(&market_index).unwrap();
+
+        let pnl_pool_token_amount = get_token_amount(
+            perp_market.pnl_pool.scaled_balance,
+            &spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        let fee_pool_token_amount = get_token_amount(
+            perp_market.amm.fee_pool.scaled_balance,
+            &spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        let pnl_tokens_available: i128 = pnl_pool_token_amount
+            .safe_add(fee_pool_token_amount)
+            .unwrap()
+            .cast()
+            .unwrap();
+
+        assert_eq!(pnl_pool_token_amount, 220336396143);
+        assert_eq!(pnl_tokens_available, 1782864533929);
+        assert_eq!(perp_market.insurance_claim.revenue_withdraw_since_last_settle, -100000000);
+    }
+
+
+        let mut user3 = User {
+        perp_positions: get_positions(PerpPosition {
+            market_index: 2,
+            base_asset_amount: 1_000_000_000,
+            quote_asset_amount: 350_000 * QUOTE_PRECISION_I64,
+            ..PerpPosition::default()
+        }),
+        spot_positions: get_spot_positions(SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: 100000 * SPOT_BALANCE_PRECISION_U64,
+            ..SpotPosition::default()
+        }),
+        ..User::default()
+    };
+
+    let result = settle_pnl(
+        2,
+        &mut user3,
+        &authority,
+        &user_key,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        &clock,
+        &state,
+        None,
+        SettlePnlMode::MustSettle,
+    ).unwrap();
+
+
+    {
+        let mut perp_market = perp_market_map.get_ref_mut(&market_index).unwrap();
+
+        let pnl_pool_token_amount = get_token_amount(
+            perp_market.pnl_pool.scaled_balance,
+            &spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        let fee_pool_token_amount = get_token_amount(
+            perp_market.amm.fee_pool.scaled_balance,
+            &spot_market,
+            &SpotBalanceType::Deposit,
+        )
+        .unwrap();
+
+        let pnl_tokens_available: i128 = pnl_pool_token_amount
+            .safe_add(fee_pool_token_amount)
+            .unwrap()
+            .cast()
+            .unwrap();
+
+        assert_eq!(pnl_pool_token_amount, 0);
+        assert_eq!(pnl_tokens_available, 1562528137786);
+        assert_eq!(perp_market.insurance_claim.revenue_withdraw_since_last_settle, -100000000);
+    }
+}
 
 #[test]
 pub fn user_no_position() {
