@@ -112,10 +112,6 @@ export class WebSocketDriftClientAccountSubscriberV2
 
 	public async subscribe(): Promise<boolean> {
 		const startTime = performance.now();
-		console.log(
-			`[PROFILING] WebSocketDriftClientAccountSubscriberV2.subscribe() started at ${new Date().toISOString()}`
-		);
-
 		if (this.isSubscribed) {
 			console.log(
 				`[PROFILING] WebSocketDriftClientAccountSubscriberV2.subscribe() skipped - already subscribed`
@@ -154,13 +150,6 @@ export class WebSocketDriftClientAccountSubscriberV2
 			]);
 		const pubkeyEndTime = performance.now();
 		const pubkeyDuration = pubkeyEndTime - pubkeyStartTime;
-		console.log(
-			`[PROFILING] Public key generation completed in ${pubkeyDuration.toFixed(
-				2
-			)}ms (${perpMarketAccountPubkeys.length} perp markets, ${
-				spotMarketAccountPubkeys.length
-			} spot markets)`
-		);
 
 		// Profile findAllMarketsAndOracles if needed
 		let findAllMarketsDuration = 0;
@@ -197,23 +186,6 @@ export class WebSocketDriftClientAccountSubscriberV2
 				`[PROFILING] findAllMarketAndOracles skipped (shouldFindAllMarketsAndOracles=false)`
 			);
 		}
-
-		// Profile state public key generation
-		const statePubkeyStartTime = performance.now();
-		const statePublicKey = await getDriftStateAccountPublicKey(
-			this.program.programId
-		);
-		const statePubkeyEndTime = performance.now();
-		const statePubkeyDuration = statePubkeyEndTime - statePubkeyStartTime;
-		console.log(
-			`[PROFILING] State public key generation completed in ${statePubkeyDuration.toFixed(
-				2
-			)}ms`
-		);
-
-		// Profile parallel market and state subscriptions
-		const parallelSubStartTime = performance.now();
-
 		// Create subscribers
 		this.perpMarketAllAccountsSubscriber =
 			new WebSocketProgramAccountSubscriberV2<PerpMarketAccount>(
@@ -246,15 +218,6 @@ export class WebSocketDriftClientAccountSubscriberV2
 				this.resubOpts,
 				spotMarketAccountPubkeys // because we pass these in, it will monitor these accounts and fetch them right away
 			);
-
-		this.stateAccountSubscriber = new WebSocketAccountSubscriberV2(
-			'state',
-			this.program,
-			statePublicKey,
-			undefined,
-			undefined,
-			this.commitment as Commitment
-		);
 
 		// Run all subscriptions in parallel
 		await Promise.all([
@@ -303,10 +266,23 @@ export class WebSocketDriftClientAccountSubscriberV2
 				}
 			),
 			// State account subscription
-			this.stateAccountSubscriber.subscribe((data: StateAccount) => {
-				this.eventEmitter.emit('stateAccountUpdate', data);
-				this.eventEmitter.emit('update');
-			}),
+			(async () => {
+				const statePublicKey = await getDriftStateAccountPublicKey(
+					this.program.programId
+				);
+				this.stateAccountSubscriber = new WebSocketAccountSubscriberV2(
+					'state',
+					this.program,
+					statePublicKey,
+					undefined,
+					undefined,
+					this.commitment as Commitment
+				);
+				this.stateAccountSubscriber.subscribe((data: StateAccount) => {
+					this.eventEmitter.emit('stateAccountUpdate', data);
+					this.eventEmitter.emit('update');
+				});
+			})(),
 			(async () => {
 				await this.setInitialData();
 				const subscribeToOraclesStartTime = performance.now();
@@ -314,9 +290,6 @@ export class WebSocketDriftClientAccountSubscriberV2
 				const subscribeToOraclesEndTime = performance.now();
 				const duration =
 					subscribeToOraclesEndTime - subscribeToOraclesStartTime;
-				console.log(
-					`[PROFILING] subscribeToOracles completed in ${duration.toFixed(2)}ms`
-				);
 				return duration;
 			})(),
 			(async () => {
@@ -324,21 +297,8 @@ export class WebSocketDriftClientAccountSubscriberV2
 				await this.stateAccountSubscriber.fetch();
 				const stateFetchEndTime = performance.now();
 				const stateFetchDuration = stateFetchEndTime - stateFetchStartTime;
-				console.log(
-					`[PROFILING] State account fetch completed in ${stateFetchDuration.toFixed(
-						2
-					)}ms`
-				);
 			})(),
 		]);
-
-		const parallelSubEndTime = performance.now();
-		const parallelSubDuration = parallelSubEndTime - parallelSubStartTime;
-		console.log(
-			`[PROFILING] Parallel market and state subscriptions completed in ${parallelSubDuration.toFixed(
-				2
-			)}ms`
-		);
 
 		const initialPerpMarketDataFromLatestData = new Map(
 			Array.from(this.perpMarketAccountLatestData.values()).map((data) => [
@@ -357,28 +317,9 @@ export class WebSocketDriftClientAccountSubscriberV2
 
 		this.eventEmitter.emit('update');
 
-		// Profile handleDelistedMarketOracles
-		const handleDelistedStartTime = performance.now();
 		await this.handleDelistedMarketOracles();
-		const handleDelistedEndTime = performance.now();
-		const handleDelistedDuration =
-			handleDelistedEndTime - handleDelistedStartTime;
-		console.log(
-			`[PROFILING] handleDelistedMarketOracles completed in ${handleDelistedDuration.toFixed(
-				2
-			)}ms`
-		);
 
-		// Profile oracle map setup
-		const oracleMapStartTime = performance.now();
 		await Promise.all([this.setPerpOracleMap(), this.setSpotOracleMap()]);
-		const oracleMapEndTime = performance.now();
-		const oracleMapDuration = oracleMapEndTime - oracleMapStartTime;
-		console.log(
-			`[PROFILING] Oracle map setup completed in ${oracleMapDuration.toFixed(
-				2
-			)}ms`
-		);
 
 		this.isSubscribing = false;
 		this.isSubscribed = true;
@@ -392,23 +333,6 @@ export class WebSocketDriftClientAccountSubscriberV2
 			`[PROFILING] WebSocketDriftClientAccountSubscriberV2.subscribe() completed in ${totalDuration.toFixed(
 				2
 			)}ms`
-		);
-		console.log(
-			`[PROFILING] Breakdown: pubkeys=${pubkeyDuration.toFixed(
-				2
-			)}ms, findAllMarkets=${findAllMarketsDuration.toFixed(
-				2
-			)}ms, statePubkey=${statePubkeyDuration.toFixed(
-				2
-			)}ms, parallelSubscriptions=${parallelSubDuration.toFixed(
-				2
-				// )}ms, setInitialData=${setInitialDataDuration.toFixed(
-				// 	2
-				// )}ms, subscribeToOracles=${subscribeToOraclesDuration.toFixed(
-				// 	2
-			)}ms, handleDelisted=${handleDelistedDuration.toFixed(
-				2
-			)}ms, oracleMap=${oracleMapDuration.toFixed(2)}ms`
 		);
 
 		return true;
