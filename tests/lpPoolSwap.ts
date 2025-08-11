@@ -18,7 +18,7 @@ import {
 	PERCENTAGE_PRECISION,
 	PRICE_PRECISION,
 	PEG_PRECISION,
-	ConstituentTargetBase,
+	ConstituentTargetBaseAccount,
 	OracleSource,
 	SPOT_MARKET_RATE_PRECISION,
 	SPOT_MARKET_WEIGHT_PRECISION,
@@ -323,7 +323,7 @@ describe('LP Pool', () => {
 			const constituentTargetBase =
 				(await adminClient.program.account.constituentTargetBase.fetch(
 					constituentTargetBasePublicKey
-				)) as ConstituentTargetBase;
+				)) as ConstituentTargetBaseAccount;
 			expect(constituentTargetBase).to.not.be.null;
 			assert(constituentTargetBase.targets.length == 2);
 		} catch (e) {
@@ -554,12 +554,12 @@ describe('LP Pool', () => {
 		const tx = new Transaction();
 		tx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1]));
 		tx.add(
-			await adminClient.getLpPoolAddLiquidityIx({
+			...(await adminClient.getLpPoolAddLiquidityIx({
 				inMarketIndex: 0,
 				inAmount: tokensAdded,
 				minMintAmount: new BN(1),
 				lpPool: lpPool,
-			})
+			}))
 		);
 		await adminClient.sendTransaction(tx);
 

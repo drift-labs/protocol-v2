@@ -117,6 +117,9 @@ pub mod amm_spread_adjust_wallet {
 }
 
 #[cfg(not(feature = "mainnet-beta"))]
-pub const DLP_WHITELIST: [Pubkey; 1] = [pubkey!("4rmhwytmKH1XsgGAUyUUH7U64HS5FtT6gM8HGKAfwcFE")];
+pub const DLP_WHITELIST: [Pubkey; 2] = [
+    pubkey!("4rmhwytmKH1XsgGAUyUUH7U64HS5FtT6gM8HGKAfwcFE"),
+    pubkey!("1ucYHAGrBbi1PaecC4Ptq5ocZLWGLBmbGWysoDGNB1N"),
+];
 #[cfg(feature = "mainnet-beta")]
 pub const DLP_WHITELIST: [Pubkey; 1] = [pubkey!("1ucYHAGrBbi1PaecC4Ptq5ocZLWGLBmbGWysoDGNB1N")];

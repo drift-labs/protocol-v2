@@ -10561,7 +10561,8 @@ export class DriftClient {
 		inAmount: BN;
 		minMintAmount: BN;
 		lpPool: LPPoolAccount;
-	}): Promise<TransactionInstruction> {
+	}): Promise<TransactionInstruction[]> {
+		const ixs: TransactionInstruction[] = [];
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [],
 			writableSpotMarketIndexes: [inMarketIndex],
@@ -10569,14 +10570,24 @@ export class DriftClient {
 
 		const spotMarket = this.getSpotMarketAccount(inMarketIndex);
 		const inMarketMint = spotMarket.mint;
+		const isSolMarket = inMarketMint.equals(WRAPPED_SOL_MINT);
+
+		let wSolTokenAccount: PublicKey | undefined;
+		if (isSolMarket) {
+			const { ixs: wSolIxs, pubkey } =
+				await this.getWrappedSolAccountCreationIxs(inAmount, true);
+			wSolTokenAccount = pubkey;
+			ixs.push(...wSolIxs);
+		}
+
 		const inConstituent = getConstituentPublicKey(
 			this.program.programId,
 			lpPool.pubkey,
 			inMarketIndex
 		);
-		const userInTokenAccount = await this.getAssociatedTokenAccount(
-			inMarketIndex
-		);
+		const userInTokenAccount =
+			wSolTokenAccount ??
+			(await this.getAssociatedTokenAccount(inMarketIndex, false));
 		const constituentInTokenAccount = getConstituentVaultPublicKey(
 			this.program.programId,
 			lpPool.pubkey,
@@ -10587,13 +10598,23 @@ export class DriftClient {
 			lpMint,
 			this.wallet.publicKey
 		);
+		if (!(await this.checkIfAccountExists(userLpTokenAccount))) {
+			ixs.push(
+				this.createAssociatedTokenAccountIdempotentInstruction(
+					userLpTokenAccount,
+					this.wallet.publicKey,
+					this.wallet.publicKey,
+					lpMint
+				)
+			);
+		}
 
 		const constituentTargetBase = getConstituentTargetBasePublicKey(
 			this.program.programId,
 			lpPool.pubkey
 		);
 
-		return this.program.instruction.lpPoolAddLiquidity(
+		const lpPoolAddLiquidityIx = this.program.instruction.lpPoolAddLiquidity(
 			inMarketIndex,
 			inAmount,
 			minMintAmount,
@@ -10619,6 +10640,18 @@ export class DriftClient {
 				},
 			}
 		);
+		ixs.push(lpPoolAddLiquidityIx);
+
+		if (isSolMarket && wSolTokenAccount) {
+			ixs.push(
+				createCloseAccountInstruction(
+					wSolTokenAccount,
+					this.wallet.publicKey,
+					this.wallet.publicKey
+				)
+			);
+		}
+		return [...ixs];
 	}
 
 	public async viewLpPoolAddLiquidityFees({
@@ -10902,12 +10935,12 @@ export class DriftClient {
 			);
 		} else {
 			ixs.push(
-				await this.getLpPoolAddLiquidityIx({
+				...(await this.getLpPoolAddLiquidityIx({
 					inMarketIndex,
 					inAmount,
 					minMintAmount,
 					lpPool,
-				})
+				}))
 			);
 		}
 

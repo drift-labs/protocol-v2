@@ -4871,12 +4871,12 @@ export class AdminClient extends DriftClient {
 	): Promise<TransactionInstruction> {
 		const lpPool = getLpPoolPublicKey(this.program.programId, encodeName(name));
 		return this.program.instruction.increaseLpPoolMaxAum(newMaxAum, {
-				accounts: {
-					admin: this.wallet.publicKey,
-					lpPool,
-					state: await this.getStatePublicKey(),
-				},
-			});
+			accounts: {
+				admin: this.wallet.publicKey,
+				lpPool,
+				state: await this.getStatePublicKey(),
+			},
+		});
 	}
 
 	public async initializeConstituent(
