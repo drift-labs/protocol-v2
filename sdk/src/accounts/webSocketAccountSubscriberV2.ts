@@ -91,7 +91,9 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 		this.rpcSubscriptions = rpcSubscriptions;
 	}
 
-	private async handleNotificationLoop(subscriptionPromise: Promise<AsyncIterable<any>>) {
+	private async handleNotificationLoop(
+		subscriptionPromise: Promise<AsyncIterable<any>>
+	) {
 		const subscription = await subscriptionPromise;
 		for await (const notification of subscription) {
 			// If we're currently polling and receive a WebSocket event, stop polling
