@@ -1056,15 +1056,18 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
     }
 
     if let Some(ref mut revenue_escrow_zc) = revenue_escrow {
-        let builder_users = load_user_map(&mut remaining_accounts, true)?;
-        controller::revenue_share::sweep_completed_builder_fees_for_market(
-            market_index,
-            revenue_escrow_zc,
-            &mut perp_market_map,
-            &mut spot_market_map,
-            &builder_users,
-            clock.unix_timestamp,
-        )?;
+        if let Ok(builder_users) = load_user_map(&mut remaining_accounts, true) {
+            controller::revenue_share::sweep_completed_builder_fees_for_market(
+                market_index,
+                revenue_escrow_zc,
+                &mut perp_market_map,
+                &mut spot_market_map,
+                &builder_users,
+                clock.unix_timestamp,
+            )?;
+        } else {
+            msg!("Builder Users not provided, but RevenueEscrow was provided");
+        }
     }
 
     let spot_market = spot_market_map.get_quote_spot_market()?;
@@ -1156,15 +1159,18 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
         }
 
         if let Some(ref mut revenue_escrow_zc) = revenue_escrow {
-            let builder_users = load_user_map(&mut remaining_accounts, true)?;
-            controller::revenue_share::sweep_completed_builder_fees_for_market(
-                *market_index,
-                revenue_escrow_zc,
-                &mut perp_market_map,
-                &mut spot_market_map,
-                &builder_users,
-                clock.unix_timestamp,
-            )?;
+            if let Ok(builder_users) = load_user_map(&mut remaining_accounts, true) {
+                controller::revenue_share::sweep_completed_builder_fees_for_market(
+                    *market_index,
+                    revenue_escrow_zc,
+                    &mut perp_market_map,
+                    &mut spot_market_map,
+                    &builder_users,
+                    clock.unix_timestamp,
+                )?;
+            } else {
+                msg!("Builder Users not provided, but RevenueEscrow was provided");
+            }
         }
     }
 

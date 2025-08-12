@@ -12546,6 +12546,9 @@
         "kind": "enum",
         "variants": [
           {
+            "name": "Init"
+          },
+          {
             "name": "Open"
           },
           {
