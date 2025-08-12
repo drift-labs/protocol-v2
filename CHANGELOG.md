@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.133.0] - 2025-08-11
+
+### Features
+
+### Fixes
+
+### Breaking
+
 - program: have TRY_SETTLE pnl mode fail ([#1809](https://github.com/drift-labs/protocol-v2/pull/1809))
 
 ## [2.132.0] - 2025-08-06
