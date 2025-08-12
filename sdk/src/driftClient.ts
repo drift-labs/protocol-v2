@@ -2602,8 +2602,8 @@ export class DriftClient {
 	 * @param amount to deposit
 	 * @param marketIndex spot market index to deposit into
 	 * @param associatedTokenAccount can be the wallet public key if using native sol
-	 * @param subAccountId subaccountId to deposit
-	 * @param reduceOnly if true, deposit must not increase account risk
+	 * @param subAccountId subaccountId to deposita
+	 * @param reduceOnly if true, deposit must not increse account risk
 	 */
 	public async deposit(
 		amount: BN,

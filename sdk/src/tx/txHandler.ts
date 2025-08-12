@@ -7,6 +7,7 @@ import {
 	Connection,
 	Message,
 	MessageV0,
+	PublicKey,
 	Signer,
 	SimulatedTransactionResponse,
 	Transaction,
@@ -64,6 +65,7 @@ export type TxBuildingProps = {
 	wallet?: IWallet;
 	optionalIxs?: TransactionInstruction[]; // additional instructions to add to the front of ixs if there's enough room, such as oracle cranks
 	simulatedTx?: SimulatedTransactionResponse; // we could have pre-simulated the tx and we can use this later to get compute units
+	customPayer?: PublicKey; // optionally pass in a payer pubkey, otherwise it will use the Wallet or driftClient wallet
 };
 
 export type TxHandlerConfig = {
@@ -411,12 +413,13 @@ export class TxHandler {
 		recentBlockhash: BlockhashWithExpiryBlockHeight,
 		ixs: TransactionInstruction[],
 		lookupTableAccounts: AddressLookupTableAccount[],
-		wallet?: IWallet
+		wallet?: IWallet,
+		customPayer?: PublicKey
 	) {
 		[wallet] = this.getProps(wallet);
 
 		const message = new TransactionMessage({
-			payerKey: wallet.publicKey,
+			payerKey: customPayer ?? wallet.publicKey,
 			recentBlockhash: recentBlockhash.blockhash,
 			instructions: ixs,
 		}).compileToV0Message(lookupTableAccounts);
@@ -485,6 +488,7 @@ export class TxHandler {
 			fetchAllMarketLookupTableAccounts,
 			forceVersionedTransaction,
 			instructions,
+			customPayer,
 		} = props;
 
 		let { lookupTables } = props;
@@ -584,7 +588,9 @@ export class TxHandler {
 			return this.generateVersionedTransaction(
 				recentBlockhash,
 				allIx,
-				lookupTables
+				lookupTables,
+				undefined,
+				customPayer
 			);
 		}
 	}
