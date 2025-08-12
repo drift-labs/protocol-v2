@@ -1968,6 +1968,36 @@ pub fn handle_deposit_into_perp_market_fee_pool<'c: 'info, 'info>(
 }
 
 #[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_update_perp_market_pnl_pool<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, UpdatePerpMarketPnlPool<'info>>,
+    amount: u64,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+    controller::spot_balance::update_spot_balances(
+        amount.cast::<u128>()?,
+        &SpotBalanceType::Deposit,
+        spot_market,
+        &mut perp_market.pnl_pool,
+        false,
+    )?;
+
+    validate_spot_market_vault_amount(spot_market, ctx.accounts.spot_market_vault.amount)?;
+
+    msg!(
+        "updating perp market {} pnl pool with amount {}",
+        perp_market.market_index,
+        amount
+    );
+
+    Ok(())
+}
+
+#[access_control(
     deposit_not_paused(&ctx.accounts.state)
     spot_market_valid(&ctx.accounts.spot_market)
 )]
@@ -5257,6 +5287,29 @@ pub struct SettleExpiredMarketPoolsToRevenuePool<'info> {
         mut
     )]
     pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(mut)]
+    pub perp_market: AccountLoader<'info, PerpMarket>,
+}
+
+#[derive(Accounts)]
+pub struct UpdatePerpMarketPnlPool<'info> {
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    pub admin: Signer<'info>,
+    #[account(
+        seeds = [b"spot_market", 0_u16.to_le_bytes().as_ref()],
+        bump,
+        mut
+    )]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), 0_u16.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(mut)]
     pub perp_market: AccountLoader<'info, PerpMarket>,
 }
