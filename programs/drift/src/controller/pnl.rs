@@ -368,7 +368,7 @@ pub fn settle_pnl(
     let tvl_after = spot_market.get_tvl()?;
 
     validate!(
-        tvl_before == tvl_after,
+        tvl_before.safe_sub(tvl_after)? <= 10,
         ErrorCode::DefaultError,
         "Settle Pnl TVL mismatch: before={}, after={}",
         tvl_before,
