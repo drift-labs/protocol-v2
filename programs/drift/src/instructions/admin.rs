@@ -5386,6 +5386,9 @@ pub fn handle_update_constituent_params<'info>(
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
 pub struct LpPoolParams {
     pub max_settle_quote_amount: Option<u64>,
+    pub volatility: Option<u64>,
+    pub gamma_execution: Option<u8>,
+    pub xi: Option<u8>,
 }
 
 pub fn handle_update_lp_pool_params<'info>(
@@ -5401,6 +5404,25 @@ pub fn handle_update_lp_pool_params<'info>(
             max_settle_quote_amount
         );
         lp_pool.max_settle_quote_amount = max_settle_quote_amount;
+    }
+
+    if let Some(volatility) = lp_pool_params.volatility {
+        msg!("volatility: {:?} -> {:?}", lp_pool.volatility, volatility);
+        lp_pool.volatility = volatility;
+    }
+
+    if let Some(gamma_execution) = lp_pool_params.gamma_execution {
+        msg!(
+            "gamma_execution: {:?} -> {:?}",
+            lp_pool.gamma_execution,
+            gamma_execution
+        );
+        lp_pool.gamma_execution = gamma_execution;
+    }
+
+    if let Some(xi) = lp_pool_params.xi {
+        msg!("xi: {:?} -> {:?}", lp_pool.xi, xi);
+        lp_pool.xi = xi;
     }
 
     Ok(())

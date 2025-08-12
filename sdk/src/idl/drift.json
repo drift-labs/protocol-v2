@@ -11768,6 +11768,24 @@
             "type": {
               "option": "u64"
             }
+          },
+          {
+            "name": "volatility",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "gammaExecution",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "xi",
+            "type": {
+              "option": "u8"
+            }
           }
         ]
       }

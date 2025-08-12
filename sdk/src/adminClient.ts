@@ -5071,6 +5071,9 @@ export class AdminClient extends DriftClient {
 		lpPoolName: number[],
 		updateLpPoolParams: {
 			maxSettleQuoteAmount?: BN;
+			volatility?: BN;
+			gammaExecution?: number;
+			xi?: number;
 		}
 	): Promise<TransactionInstruction[]> {
 		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
@@ -5079,6 +5082,9 @@ export class AdminClient extends DriftClient {
 				Object.assign(
 					{
 						maxSettleQuoteAmount: null,
+						volatility: null,
+						gammaExecution: null,
+						xi: null,
 					},
 					updateLpPoolParams
 				),
