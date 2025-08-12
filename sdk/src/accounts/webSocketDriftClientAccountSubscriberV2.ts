@@ -132,9 +132,6 @@ export class WebSocketDriftClientAccountSubscriberV2
 			this.subscriptionPromiseResolver = res;
 		});
 
-		// Profile public key generation
-		const pubkeyStartTime = performance.now();
-
 		const [perpMarketAccountPubkeys, spotMarketAccountPubkeys] =
 			await Promise.all([
 				Promise.all(
@@ -148,8 +145,6 @@ export class WebSocketDriftClientAccountSubscriberV2
 					)
 				),
 			]);
-		const pubkeyEndTime = performance.now();
-		const pubkeyDuration = pubkeyEndTime - pubkeyStartTime;
 
 		// Profile findAllMarketsAndOracles if needed
 		let findAllMarketsDuration = 0;
@@ -292,12 +287,7 @@ export class WebSocketDriftClientAccountSubscriberV2
 					subscribeToOraclesEndTime - subscribeToOraclesStartTime;
 				return duration;
 			})(),
-			(async () => {
-				const stateFetchStartTime = performance.now();
-				await this.stateAccountSubscriber.fetch();
-				const stateFetchEndTime = performance.now();
-				const stateFetchDuration = stateFetchEndTime - stateFetchStartTime;
-			})(),
+			this.stateAccountSubscriber.fetch(),
 		]);
 
 		const initialPerpMarketDataFromLatestData = new Map(
