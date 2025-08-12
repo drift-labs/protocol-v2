@@ -4131,4 +4131,25 @@ export class User {
 	private getOracleDataForSpotMarket(marketIndex: number): OraclePriceData {
 		return this.driftClient.getOracleDataForSpotMarket(marketIndex);
 	}
+
+	/**
+	 * Get the active perp and spot positions of the user.
+	 */
+	public getActivePositions(): {
+		activePerpPositions: number[];
+		activeSpotPositions: number[];
+	} {
+		const activePerpMarkets = this.getActivePerpPositions().map(
+			(position) => position.marketIndex
+		);
+
+		const activeSpotMarkets = this.getActiveSpotPositions().map(
+			(position) => position.marketIndex
+		);
+
+		return {
+			activePerpPositions: activePerpMarkets,
+			activeSpotPositions: activeSpotMarkets,
+		};
+	}
 }
