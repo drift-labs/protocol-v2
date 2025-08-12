@@ -193,8 +193,8 @@ import { getOracleId } from './oracles/oracleId';
 import { SignedMsgOrderParams } from './types';
 import { sha256 } from '@noble/hashes/sha256';
 import { getOracleConfidenceFromMMOracleData } from './oracles/utils';
-import { WebSocketDriftClientAccountSubscriberV2 } from './accounts/webSocketDriftClientAccountSubscriberV2';
 import { Commitment } from 'gill';
+import { WebSocketDriftClientAccountSubscriber } from '@drift-labs/sdk';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -439,7 +439,10 @@ export class DriftClient {
 				}
 			);
 		} else {
-			this.accountSubscriber = new WebSocketDriftClientAccountSubscriberV2(
+			const accountSubscriberClass =
+				config.accountSubscription?.driftClientAccountSubscriber ??
+				WebSocketDriftClientAccountSubscriber;
+			this.accountSubscriber = new accountSubscriberClass(
 				this.program,
 				config.perpMarketIndexes ?? [],
 				config.spotMarketIndexes ?? [],
