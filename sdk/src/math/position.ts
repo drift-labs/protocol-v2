@@ -103,7 +103,7 @@ export function calculatePositionPNL(
 	market: PerpMarketAccount,
 	perpPosition: PerpPosition,
 	withFunding = false,
-	oraclePriceData: OraclePriceData
+	oraclePriceData: Pick<OraclePriceData, 'price'>
 ): BN {
 	if (perpPosition.baseAssetAmount.eq(ZERO)) {
 		return perpPosition.quoteAssetAmount;
@@ -135,7 +135,7 @@ export function calculateClaimablePnl(
 	market: PerpMarketAccount,
 	spotMarket: SpotMarketAccount,
 	perpPosition: PerpPosition,
-	oraclePriceData: OraclePriceData
+	oraclePriceData: Pick<OraclePriceData, 'price'>
 ): BN {
 	const unrealizedPnl = calculatePositionPNL(
 		market,

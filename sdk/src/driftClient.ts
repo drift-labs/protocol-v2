@@ -64,6 +64,7 @@ import {
 	ProtectedMakerModeConfig,
 	SignedMsgOrderParamsDelegateMessage,
 	TokenProgramFlag,
+	PostOnlyParams,
 	LPPoolAccount,
 	ConstituentAccount,
 	ConstituentTargetBaseAccount,
@@ -4182,25 +4183,20 @@ export class DriftClient {
 	public async getUpdateAMMsIx(
 		marketIndexes: number[]
 	): Promise<TransactionInstruction> {
-		for (let i = marketIndexes.length; i < 5; i++) {
-			marketIndexes.push(100);
-		}
 		const marketAccountInfos = [];
 		const oracleAccountInfos = [];
 		for (const marketIndex of marketIndexes) {
-			if (marketIndex !== 100) {
-				const market = this.getPerpMarketAccount(marketIndex);
-				marketAccountInfos.push({
-					pubkey: market.pubkey,
-					isWritable: true,
-					isSigner: false,
-				});
-				oracleAccountInfos.push({
-					pubkey: market.amm.oracle,
-					isWritable: false,
-					isSigner: false,
-				});
-			}
+			const market = this.getPerpMarketAccount(marketIndex);
+			marketAccountInfos.push({
+				pubkey: market.pubkey,
+				isWritable: true,
+				isSigner: false,
+			});
+			oracleAccountInfos.push({
+				pubkey: market.amm.oracle,
+				isWritable: false,
+				isSigner: false,
+			});
 		}
 		const remainingAccounts = oracleAccountInfos.concat(marketAccountInfos);
 
@@ -6989,7 +6985,7 @@ export class DriftClient {
 			auctionStartPrice?: BN;
 			auctionEndPrice?: BN;
 			reduceOnly?: boolean;
-			postOnly?: boolean;
+			postOnly?: PostOnlyParams;
 			bitFlags?: number;
 			maxTs?: BN;
 			policy?: number;
@@ -7043,7 +7039,7 @@ export class DriftClient {
 			auctionStartPrice?: BN;
 			auctionEndPrice?: BN;
 			reduceOnly?: boolean;
-			postOnly?: boolean;
+			postOnly?: PostOnlyParams;
 			bitFlags?: number;
 			maxTs?: BN;
 			policy?: number;
@@ -7118,7 +7114,7 @@ export class DriftClient {
 			auctionStartPrice?: BN;
 			auctionEndPrice?: BN;
 			reduceOnly?: boolean;
-			postOnly?: boolean;
+			postOnly?: PostOnlyParams;
 			bitFlags?: number;
 			policy?: ModifyOrderPolicy;
 			maxTs?: BN;
@@ -7166,7 +7162,7 @@ export class DriftClient {
 			auctionStartPrice?: BN;
 			auctionEndPrice?: BN;
 			reduceOnly?: boolean;
-			postOnly?: boolean;
+			postOnly?: PostOnlyParams;
 			bitFlags?: number;
 			policy?: ModifyOrderPolicy;
 			maxTs?: BN;
