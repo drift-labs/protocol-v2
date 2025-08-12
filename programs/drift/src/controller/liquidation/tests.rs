@@ -161,7 +161,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            &mut None,
         )
         .unwrap();
 
@@ -312,7 +311,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            &mut None,
         )
         .unwrap();
 
@@ -461,7 +459,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            &mut None,
         )
         .unwrap();
 
@@ -598,7 +595,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            &mut None,
         )
         .unwrap();
 
@@ -750,7 +746,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            &mut None,
         )
         .unwrap();
 
@@ -981,7 +976,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            &mut None,
         )
         .unwrap();
 
@@ -1130,7 +1124,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            &mut None,
         );
 
         assert_eq!(result, Err(ErrorCode::LiquidationDoesntSatisfyLimitPrice));
@@ -1263,7 +1256,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            &mut None,
         );
 
         assert_eq!(result, Err(ErrorCode::LiquidationDoesntSatisfyLimitPrice));
@@ -1388,7 +1380,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            &mut None,
         )
         .unwrap();
 
@@ -1544,7 +1535,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            &mut None,
         )
         .unwrap();
 
@@ -1570,7 +1560,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            &mut None,
         )
         .unwrap();
 
@@ -1616,7 +1605,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            &mut None,
         )
         .unwrap();
 
@@ -1642,7 +1630,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            &mut None,
         )
         .unwrap();
 
@@ -1688,7 +1675,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            &mut None,
         )
         .unwrap();
 
@@ -1826,7 +1812,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            &mut None,
         )
         .unwrap();
 
@@ -1952,7 +1937,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            &mut None,
         )
         .unwrap();
 
@@ -2081,7 +2065,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            &mut None,
         )
         .unwrap();
 
@@ -2210,7 +2193,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            &mut None,
         )
         .unwrap();
 
@@ -2349,7 +2331,6 @@ pub mod liquidate_perp {
             slot,
             now,
             &state,
-            &mut None,
         )
         .unwrap();
 
@@ -2619,6 +2600,7 @@ pub mod liquidate_perp_with_fill {
             &mut oracle_map,
             &clock,
             &state,
+            &mut None,
         )
         .unwrap();
 
@@ -2828,6 +2810,7 @@ pub mod liquidate_perp_with_fill {
             &mut oracle_map,
             &clock,
             &state,
+            &mut None,
         )
         .unwrap();
 
@@ -3003,6 +2986,7 @@ pub mod liquidate_perp_with_fill {
             &mut oracle_map,
             &clock,
             &state,
+            &mut None,
         )
         .unwrap();
 
@@ -3174,6 +3158,7 @@ pub mod liquidate_perp_with_fill {
             &mut oracle_map,
             &clock,
             &state,
+            &mut None,
         )
         .unwrap();
 
@@ -8776,7 +8761,6 @@ mod liquidate_dust_prediction_market {
             clock_slot,
             now,
             &state,
-            &mut None,
         );
 
         assert_eq!(result, Ok(()));

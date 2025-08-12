@@ -557,7 +557,6 @@ export async function printTxLogs(
 	const tx = await connection.getTransaction(txSig, {
 		commitment: 'confirmed',
 	});
-	console.log('tx logs', tx.meta.logMessages);
 	return tx.meta.logMessages;
 }
 

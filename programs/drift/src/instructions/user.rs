@@ -59,7 +59,6 @@ use crate::state::builder::BuilderInfo;
 use crate::state::builder::RevenueShare;
 use crate::state::builder::RevenueShareEscrow;
 use crate::state::builder::RevenueShareOrder;
-use crate::state::builder::RevenueSharePosition;
 use crate::state::builder::REVENUE_SHARE_ESCROW_PDA_SEED;
 use crate::state::builder::REVENUE_SHARE_PDA_SEED;
 use crate::state::events::emit_stack;
@@ -503,38 +502,12 @@ pub fn handle_reset_fuel_season<'c: 'info, 'info>(
 
 pub fn handle_initialize_revenue_share<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, InitializeRevenueShare<'info>>,
-    num_positions: u16,
 ) -> Result<()> {
     let revenue_share = &mut ctx.accounts.revenue_share;
     revenue_share.authority = ctx.accounts.authority.key();
-    revenue_share
-        .positions
-        .resize_with(num_positions as usize, RevenueSharePosition::default);
-    revenue_share.validate()?;
-    Ok(())
-}
-
-pub fn handle_resize_revenue_share<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, ResizeRevenueShare<'info>>,
-    num_positions: u16,
-) -> Result<()> {
-    let revenue_share = &mut ctx.accounts.revenue_share;
-    validate!(
-        num_positions as usize >= revenue_share.positions.len(),
-        ErrorCode::InvalidRevenueShareResize,
-        "Invalid shrinking resize for revenue share"
-    )?;
-
-    msg!(
-        "Resizing revenue share positions: {} -> {} positions",
-        revenue_share.positions.len(),
-        num_positions
-    );
-
-    revenue_share
-        .positions
-        .resize_with(num_positions as usize, RevenueSharePosition::default);
-    revenue_share.validate()?;
+    revenue_share.total_referrer_rewards = 0;
+    revenue_share.total_builder_rewards = 0;
+    revenue_share.padding = [0; 18];
     Ok(())
 }
 
@@ -2017,6 +1990,8 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         maker_existing_quote_entry_amount: from_existing_quote_entry_amount,
         maker_existing_base_asset_amount: from_existing_base_asset_amount,
         trigger_price: None,
+        builder_idx: None,
+        builder_fee: None,
     };
 
     emit_stack::<_, { OrderActionRecord::SIZE }>(fill_record)?;
@@ -2103,11 +2078,6 @@ pub fn handle_cancel_order<'c: 'info, 'info>(
         None => load!(ctx.accounts.user)?.get_last_order_id(),
     };
 
-    let mut revenue_escrow = get_revenue_escrow_account(&mut remaining_accounts)?;
-    let mut revenue_escrow_order = revenue_escrow
-        .as_mut()
-        .and_then(|escrow| escrow.find_order(order_id));
-
     controller::orders::cancel_order_by_order_id(
         order_id,
         &ctx.accounts.user,
@@ -2115,7 +2085,6 @@ pub fn handle_cancel_order<'c: 'info, 'info>(
         &spot_market_map,
         &mut oracle_map,
         clock,
-        &mut revenue_escrow_order,
     )?;
 
     Ok(())
@@ -2145,8 +2114,6 @@ pub fn handle_cancel_order_by_user_id<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    let mut revenue_escrow = get_revenue_escrow_account(&mut remaining_accounts)?;
-
     controller::orders::cancel_order_by_user_order_id(
         user_order_id,
         &ctx.accounts.user,
@@ -2154,7 +2121,6 @@ pub fn handle_cancel_order_by_user_id<'c: 'info, 'info>(
         &spot_market_map,
         &mut oracle_map,
         clock,
-        &mut revenue_escrow.as_mut(),
     )?;
 
     Ok(())
@@ -2184,12 +2150,7 @@ pub fn handle_cancel_orders_by_ids<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    let mut revenue_escrow = get_revenue_escrow_account(&mut remaining_accounts)?;
-
     for order_id in order_ids {
-        let mut revenue_escrow_order = revenue_escrow
-            .as_mut()
-            .and_then(|escrow| escrow.find_order(order_id));
         controller::orders::cancel_order_by_order_id(
             order_id,
             &ctx.accounts.user,
@@ -2197,7 +2158,6 @@ pub fn handle_cancel_orders_by_ids<'c: 'info, 'info>(
             &spot_market_map,
             &mut oracle_map,
             clock,
-            &mut revenue_escrow_order,
         )?;
     }
 
@@ -2232,8 +2192,6 @@ pub fn handle_cancel_orders<'c: 'info, 'info>(
 
     let user_key = ctx.accounts.user.key();
     let mut user = load_mut!(ctx.accounts.user)?;
-    let mut revenue_escrow = get_revenue_escrow_account(&mut remaining_accounts)?;
-
     cancel_orders(
         &mut user,
         &user_key,
@@ -2247,7 +2205,6 @@ pub fn handle_cancel_orders<'c: 'info, 'info>(
         market_type,
         market_index,
         direction,
-        &mut revenue_escrow.as_mut(),
     )?;
 
     Ok(())
@@ -2529,7 +2486,6 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
             &spot_market_map,
             &mut oracle_map,
             &Clock::get()?,
-            &mut None,
         )?;
     }
 
@@ -2642,9 +2598,6 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         .any(|order| order.order_id == order_id && order.status == OrderStatus::Open);
 
     if order_exists {
-        let mut revenue_escrow_order = revenue_escrow
-            .as_mut()
-            .and_then(|escrow| escrow.find_order(order_id));
         controller::orders::cancel_order_by_order_id(
             order_id,
             &ctx.accounts.user,
@@ -2652,7 +2605,6 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
             &spot_market_map,
             &mut oracle_map,
             clock,
-            &mut revenue_escrow_order,
         )?;
     }
 
@@ -2765,9 +2717,6 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
             &spot_market_map,
             &mut oracle_map,
             clock,
-            &mut revenue_escrow
-                .as_mut()
-                .and_then(|escrow| escrow.find_order(order_id)),
         )?;
     }
 
@@ -2951,7 +2900,6 @@ pub fn handle_place_and_take_spot_order<'c: 'info, 'info>(
             &spot_market_map,
             &mut oracle_map,
             &clock,
-            &mut None,
         )?;
     }
 
@@ -3098,7 +3046,6 @@ pub fn handle_place_and_make_spot_order<'c: 'info, 'info>(
             &spot_market_map,
             &mut oracle_map,
             clock,
-            &mut None,
         )?;
     }
 
@@ -4971,12 +4918,12 @@ pub struct UpdateUserProtectedMakerMode<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(num_positions: u16)]
+#[instruction()]
 pub struct InitializeRevenueShare<'info> {
     #[account(
         init,
         seeds = [REVENUE_SHARE_PDA_SEED.as_ref(), authority.key().as_ref()],
-        space = RevenueShare::space(num_positions as usize),
+        space = RevenueShare::space(),
         bump,
         payer = payer
     )]
@@ -4986,26 +4933,6 @@ pub struct InitializeRevenueShare<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-#[instruction(num_positions: u16)]
-pub struct ResizeRevenueShare<'info> {
-    #[account(
-        mut,
-        seeds = [REVENUE_SHARE_PDA_SEED.as_ref(), authority.key().as_ref()],
-        bump,
-        realloc = RevenueShare::space(num_positions as usize),
-        realloc::payer = payer,
-        realloc::zero = false,
-        has_one = authority
-    )]
-    pub revenue_share: Box<Account<'info, RevenueShare>>,
-    /// CHECK: The owner of RevenueShare
-    pub authority: AccountInfo<'info>,
-    #[account(mut)]
-    pub payer: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
 

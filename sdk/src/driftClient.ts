@@ -1231,58 +1231,27 @@ export class DriftClient {
 
 	public async initializeRevenueShare(
 		authority: PublicKey,
-		numPositions: number,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
-		const ix = await this.getInitializeRevenueShareIx(authority, numPositions);
+		const ix = await this.getInitializeRevenueShareIx(authority);
 		const tx = await this.buildTransaction([ix], txParams);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
 	}
 
 	public async getInitializeRevenueShareIx(
-		authority: PublicKey,
-		numPositions: number
+		authority: PublicKey
 	): Promise<TransactionInstruction> {
 		const revenueShare = getRevenueShareAccountPublicKey(
 			this.program.programId,
 			authority
 		);
-		return this.program.instruction.initializeRevenueShare(numPositions, {
+		return this.program.instruction.initializeRevenueShare({
 			accounts: {
 				revenueShare,
 				authority,
 				payer: this.wallet.publicKey,
 				rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-				systemProgram: anchor.web3.SystemProgram.programId,
-			},
-		});
-	}
-
-	public async resizeRevenueShare(
-		authority: PublicKey,
-		numPositions: number,
-		txParams?: TxParams
-	): Promise<TransactionSignature> {
-		const ix = await this.getResizeRevenueShareIx(authority, numPositions);
-		const tx = await this.buildTransaction([ix], txParams);
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-		return txSig;
-	}
-
-	public async getResizeRevenueShareIx(
-		authority: PublicKey,
-		numPositions: number
-	): Promise<TransactionInstruction> {
-		const revenueShare = getRevenueShareAccountPublicKey(
-			this.program.programId,
-			authority
-		);
-		return this.program.instruction.resizeRevenueShare(numPositions, {
-			accounts: {
-				revenueShare,
-				authority,
-				payer: this.wallet.publicKey,
 				systemProgram: anchor.web3.SystemProgram.programId,
 			},
 		});
@@ -4647,32 +4616,6 @@ export class DriftClient {
 			useMarketLastSlotCache: true,
 		});
 
-		let includeRevenueShareEscrow = false;
-		for (const order of this.getUserAccount(subAccountId).orders) {
-			if (hasBuilder(order)) {
-				includeRevenueShareEscrow = true;
-				break;
-			}
-		}
-
-		if (includeRevenueShareEscrow) {
-			console.log(
-				'inclinding rv share',
-				getRevenueShareEscrowAccountPublicKey(
-					this.program.programId,
-					this.getUserAccount(subAccountId).authority
-				).toBase58()
-			);
-			remainingAccounts.push({
-				pubkey: getRevenueShareEscrowAccountPublicKey(
-					this.program.programId,
-					this.getUserAccount(subAccountId).authority
-				),
-				isWritable: true,
-				isSigner: false,
-			});
-		}
-
 		return await this.program.instruction.cancelOrders(
 			marketType ?? null,
 			marketIndex ?? null,
@@ -7647,6 +7590,19 @@ export class DriftClient {
 			writablePerpMarketIndexes: [marketIndex],
 			writableSpotMarketIndexes: [QUOTE_SPOT_MARKET_INDEX],
 		});
+
+		for (const order of settleeUserAccount.orders) {
+			if (hasBuilder(order)) {
+				remainingAccounts.push({
+					pubkey: getRevenueShareEscrowAccountPublicKey(
+						this.program.programId,
+						settleeUserAccount.authority
+					),
+					isSigner: false,
+					isWritable: true,
+				});
+			}
+		}
 
 		return await this.program.instruction.settlePnl(marketIndex, {
 			accounts: {

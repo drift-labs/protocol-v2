@@ -6,10 +6,16 @@ export function isRevenueShareOrderOpen(order: RevenueShareOrder): boolean {
 }
 
 const FLAG_IS_COMPLETED = 0x02;
-export function isRevenueShareOrderCompleted(order: RevenueShareOrder): boolean {
+export function isRevenueShareOrderCompleted(
+	order: RevenueShareOrder
+): boolean {
 	return (order.bitFlags & FLAG_IS_COMPLETED) !== 0;
 }
 
-export function isRevenueShareOrderAvailable(order: RevenueShareOrder): boolean {
-	return !isRevenueShareOrderOpen(order) && !isRevenueShareOrderCompleted(order);
+export function isRevenueShareOrderAvailable(
+	order: RevenueShareOrder
+): boolean {
+	return (
+		!isRevenueShareOrderOpen(order) && !isRevenueShareOrderCompleted(order)
+	);
 }

@@ -363,7 +363,6 @@ pub fn settle_expired_position(
     oracle_map: &mut OracleMap,
     clock: &Clock,
     state: &State,
-    revenue_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
 ) -> DriftResult {
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
@@ -402,7 +401,6 @@ pub fn settle_expired_position(
         Some(MarketType::Perp),
         Some(perp_market_index),
         None,
-        revenue_escrow,
     )?;
 
     let position_index = match get_position_index(&user.perp_positions, perp_market_index) {

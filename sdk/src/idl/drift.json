@@ -7627,43 +7627,7 @@
           "isSigner": false
         }
       ],
-      "args": [
-        {
-          "name": "numPositions",
-          "type": "u16"
-        }
-      ]
-    },
-    {
-      "name": "resizeRevenueShare",
-      "accounts": [
-        {
-          "name": "revenueShare",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "payer",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "numPositions",
-          "type": "u16"
-        }
-      ]
+      "args": []
     },
     {
       "name": "initializeRevenueShareEscrow",
@@ -7794,11 +7758,12 @@
             "type": "i64"
           },
           {
-            "name": "positions",
+            "name": "padding",
             "type": {
-              "vec": {
-                "defined": "RevenueSharePosition"
-              }
+              "array": [
+                "u8",
+                18
+              ]
             }
           }
         ]
@@ -9941,68 +9906,6 @@
             "type": {
               "option": "bool"
             }
-          }
-        ]
-      }
-    },
-    {
-      "name": "RevenueShareFixed",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "totalReferrerRewards",
-            "type": "i64"
-          },
-          {
-            "name": "totalBuilderRewards",
-            "type": "i64"
-          },
-          {
-            "name": "authority",
-            "type": "publicKey"
-          },
-          {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u8",
-                4
-              ]
-            }
-          },
-          {
-            "name": "len",
-            "type": "u32"
-          }
-        ]
-      }
-    },
-    {
-      "name": "RevenueSharePosition",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "amount",
-            "type": "u64"
-          },
-          {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u8",
-                5
-              ]
-            }
-          },
-          {
-            "name": "marketType",
-            "type": "u8"
-          },
-          {
-            "name": "marketIndex",
-            "type": "u16"
           }
         ]
       }
@@ -14323,6 +14226,20 @@
         },
         {
           "name": "triggerPrice",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "builderIdx",
+          "type": {
+            "option": "u8"
+          },
+          "index": false
+        },
+        {
+          "name": "builderFee",
           "type": {
             "option": "u64"
           },

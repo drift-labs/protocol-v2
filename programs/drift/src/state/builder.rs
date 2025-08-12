@@ -1,4 +1,6 @@
 use std::cell::{Ref, RefMut};
+use std::iter::Peekable;
+use std::slice::Iter;
 
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::*;
@@ -11,7 +13,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::traits::Size;
-use crate::state::user::MarketType;
+use crate::state::user::{MarketType, OrderStatus, User};
 use crate::validate;
 use crate::{impl_zero_copy_loader, msg, ID};
 
@@ -21,50 +23,52 @@ mod tests;
 pub const REVENUE_SHARE_PDA_SEED: &str = "REV_SHARE";
 pub const REVENUE_SHARE_ESCROW_PDA_SEED: &str = "REV_ESCROW";
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum RevenueShareOrderBitFlag {
+    #[default]
+    Init = 0b00000000,
     Open = 0b00000001,
     Completed = 0b00000010,
 }
 
-#[zero_copy]
-#[derive(Default, Eq, PartialEq, Debug)]
-#[repr(C)]
-pub struct RevenueShareFixed {
-    pub total_referrer_rewards: i64,
-    pub total_builder_rewards: i64,
-    pub authority: Pubkey,
-    pub padding: [u8; 4],
-    pub len: u32,
-}
+// #[zero_copy]
+// #[derive(Default, Eq, PartialEq, Debug)]
+// #[repr(C)]
+// pub struct RevenueShareFixed {
+//     pub total_referrer_rewards: i64,
+//     pub total_builder_rewards: i64,
+//     pub authority: Pubkey,
+//     pub padding: [u8; 4],
+//     pub len: u32,
+// }
 
-impl HasLen for RevenueShareFixed {
-    fn len(&self) -> u32 {
-        self.len
-    }
-}
+// impl HasLen for RevenueShareFixed {
+//     fn len(&self) -> u32 {
+//         self.len
+//     }
+// }
 
-#[zero_copy]
-#[derive(Default, Eq, PartialEq, Debug, BorshDeserialize, BorshSerialize)]
-pub struct RevenueSharePosition {
-    pub amount: u64, // pnl for perp, scaled_balance for spot
-    pub padding: [u8; 5],
-    pub market_type: u8,
-    pub market_index: u16,
-    // should this include the user account_id that receives rev share rewards?
-    // or just always pay out to account_id 0
-}
+// #[zero_copy]
+// #[derive(Default, Eq, PartialEq, Debug, BorshDeserialize, BorshSerialize)]
+// pub struct RevenueSharePosition {
+//     pub amount: u64, // pnl for perp, scaled_balance for spot
+//     pub padding: [u8; 5],
+//     pub market_type: u8,
+//     pub market_index: u16,
+//     // should this include the user account_id that receives rev share rewards?
+//     // or just always pay out to account_id 0
+// }
 
-impl RevenueSharePosition {
-    pub fn new(amount: u64, market_type: u8, market_index: u16) -> Self {
-        Self {
-            amount,
-            market_type,
-            market_index,
-            padding: [0; 5],
-        }
-    }
-}
+// impl RevenueSharePosition {
+//     pub fn new(amount: u64, market_type: u8, market_index: u16) -> Self {
+//         Self {
+//             amount,
+//             market_type,
+//             market_index,
+//             padding: [0; 5],
+//         }
+//     }
+// }
 
 #[account]
 #[derive(Eq, PartialEq, Debug, Default)]
@@ -73,36 +77,38 @@ pub struct RevenueShare {
     pub authority: Pubkey,
     pub total_referrer_rewards: i64,
     pub total_builder_rewards: i64,
+    pub padding: [u8; 18],
     // might need padding for the len 4 bytes
-    pub positions: Vec<RevenueSharePosition>, // stores accrued referral rewards, init to large number to cover many markets
+    // pub positions: Vec<RevenueSharePosition>, // stores accrued referral rewards, init to large number to cover many markets
 }
 
-impl Size for RevenueShare {
-    const SIZE: usize = 1000; // whats this for given that it can be reized?
-}
+// impl Size for RevenueShare {
+//     const SIZE: usize = 1000; // whats this for given that it can be reized?
+// }
 
 impl RevenueShare {
-    pub fn space(num_positions: usize) -> usize {
-        8 + 32 + 8 + 8 + 32 + num_positions * 16
+    pub fn space() -> usize {
+        8 + 32 + 8 + 8 + 18
+        // 8 + 32 + 8 + 8 + 32 + num_positions * 16
         //               ^-- whats this for
     }
 
-    pub fn validate(&self) -> DriftResult<()> {
-        validate!(
-            self.positions.len() >= 1 && self.positions.len() <= 128,
-            ErrorCode::DefaultError,
-            "RevenueShare positions len must be between 1 and 128"
-        )?;
-        Ok(())
-    }
+    // pub fn validate(&self) -> DriftResult<()> {
+    //     validate!(
+    //         self.positions.len() >= 1 && self.positions.len() <= 128,
+    //         ErrorCode::DefaultError,
+    //         "RevenueShare positions len must be between 1 and 128"
+    //     )?;
+    //     Ok(())
+    // }
 }
 
-impl_zero_copy_loader!(
-    RevenueShare,
-    crate::id,
-    RevenueShareFixed,
-    RevenueSharePosition
-);
+// impl_zero_copy_loader!(
+//     RevenueShare,
+//     crate::id,
+//     RevenueShareFixed,
+//     RevenueSharePosition
+// );
 
 #[zero_copy]
 #[derive(Default, Eq, PartialEq, Debug, BorshDeserialize, BorshSerialize)]
@@ -110,7 +116,7 @@ pub struct RevenueShareOrder {
     /// set in place_order
     pub builder_idx: u8, // builder/referrer, 111... if zeroed, TODO: replace with builder index
     pub padding0: [u8; 7],
-    /// fees accrued so far for this order slot. This is not exclusively fees from this order_id and 
+    /// fees accrued so far for this order slot. This is not exclusively fees from this order_id and
     /// may include fees from other orders in the same market.
     pub fees_accrued: u64,
     pub order_id: u32,
@@ -165,7 +171,8 @@ impl RevenueShareOrder {
         (self.bit_flags & flag as u8) != 0
     }
 
-    // An order is Open after it is created, the slot is in use and it is waiting to be filled or canceled.
+    // An order is Open after it is created, the slot is considered occupied
+    // and it is waiting to become `Completed` (filled or canceled).
     pub fn is_open(&self) -> bool {
         self.is_bit_flag_set(RevenueShareOrderBitFlag::Open)
     }
@@ -190,14 +197,17 @@ impl RevenueShareOrder {
             && other.builder_idx == self.builder_idx
     }
 
-    /// Merges two orders into one. The orders must be mergeable.
+    /// Merges `other` into `self`. The orders must be mergeable.
     pub fn merge(mut self, other: &RevenueShareOrder) -> DriftResult<RevenueShareOrder> {
         validate!(
             self.is_mergeable(other),
             ErrorCode::DefaultError,
             "Orders are not mergeable"
         )?;
-        self.fees_accrued = self.fees_accrued.checked_add(other.fees_accrued).safe_unwrap()?;
+        self.fees_accrued = self
+            .fees_accrued
+            .checked_add(other.fees_accrued)
+            .ok_or(ErrorCode::MathError)?;
         Ok(self)
     }
 }
@@ -420,7 +430,6 @@ impl<'a> RevenueShareEscrowZeroCopyMut<'a> {
         ))
     }
 
-
     pub fn add_order(&mut self, order: RevenueShareOrder) -> DriftResult {
         for i in 0..self.orders_len() {
             let existing_order = self.get_order_mut(i)?;
@@ -446,14 +455,32 @@ impl<'a> RevenueShareEscrowZeroCopyMut<'a> {
         }
         None
     }
+
+    /// Marks any RevenueShare orders as Completed if there is no longer a corresponding
+    /// open order in the user's account. This is used to lazily reconcile state when
+    /// placing new orders instead of requiring explicit updates on cancels.
+    pub fn mark_missing_orders_completed(&mut self, user: &User) -> DriftResult<()> {
+        for i in 0..self.orders_len() {
+            if let Ok(order) = self.get_order_mut(i) {
+                if order.is_open() && !order.is_completed() {
+                    let still_open = user
+                        .orders
+                        .iter()
+                        .any(|o| o.order_id == order.order_id && o.status == OrderStatus::Open);
+                    if !still_open {
+                        order.add_bit_flag(RevenueShareOrderBitFlag::Completed);
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
 
 pub trait RevenueShareEscrowLoader<'a> {
     fn load_zc(&self) -> DriftResult<RevenueShareEscrowZeroCopy>;
     fn load_zc_mut(&self) -> DriftResult<RevenueShareEscrowZeroCopyMut>;
-    fn load_zc_mut_from_data<'b>(
-        data: RefMut<'b, &mut [u8]>,
-    ) -> DriftResult<RevenueShareEscrowZeroCopyMut<'b>>;
 }
 
 impl<'a> RevenueShareEscrowLoader<'a> for AccountInfo<'a> {
@@ -508,26 +535,24 @@ impl<'a> RevenueShareEscrowLoader<'a> for AccountInfo<'a> {
             data,
         })
     }
+}
 
-    fn load_zc_mut_from_data<'b>(
-        data: RefMut<'b, &mut [u8]>,
-    ) -> DriftResult<RevenueShareEscrowZeroCopyMut<'b>> {
-        if data.len() < RevenueShareEscrow::discriminator().len() {
-            return Err(ErrorCode::DefaultError.into());
+pub fn load_builder_list<'a: 'b, 'b>(
+    account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'b>>>,
+    revenue_escrow: &mut RevenueShareEscrowZeroCopyMut,
+) -> DriftResult<Vec<BuilderInfo>> {
+    let mut builder_list = Vec::with_capacity(revenue_escrow.approved_builders_len() as usize);
+
+    for i in 0..revenue_escrow.approved_builders_len() {
+        // TODO: not really mut, should add immutable getters to RevenueShareEscrowZeroCopyMut
+        if let Ok(builder) = revenue_escrow.get_approved_builder_mut(i as u8) {
+            if builder.is_revoked() {
+                continue;
+            }
+
+            // load User to builder_list (like usermap)
         }
-
-        let (discriminator, data) = RefMut::map_split(data, |d| d.split_at_mut(8));
-        validate!(
-            *discriminator == RevenueShareEscrow::discriminator(),
-            ErrorCode::DefaultError,
-            "invalid signed_msg user orders discriminator",
-        )?;
-
-        let hdr_size = std::mem::size_of::<RevenueShareEscrowFixed>();
-        let (fixed, data) = RefMut::map_split(data, |d| d.split_at_mut(hdr_size));
-        Ok(RevenueShareEscrowZeroCopyMut {
-            fixed: RefMut::map(fixed, |b| bytemuck::from_bytes_mut(b)),
-            data,
-        })
     }
+
+    Ok(builder_list)
 }

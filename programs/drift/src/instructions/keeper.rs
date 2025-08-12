@@ -412,8 +412,6 @@ pub fn handle_force_cancel_orders<'c: 'info, 'info>(
         None,
     )?;
 
-    let mut revenue_escrow = get_revenue_escrow_account(&mut remaining_accounts)?;
-
     controller::orders::force_cancel_orders(
         &ctx.accounts.state,
         &ctx.accounts.user,
@@ -422,7 +420,6 @@ pub fn handle_force_cancel_orders<'c: 'info, 'info>(
         &mut oracle_map,
         &ctx.accounts.filler,
         &Clock::get()?,
-        &mut revenue_escrow.as_mut(),
     )?;
 
     Ok(())
@@ -969,6 +966,10 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
         ts: clock.unix_timestamp,
     });
 
+    if let Some(ref mut revenue_escrow_zc) = revenue_escrow_zc {
+        revenue_escrow_zc.mark_missing_orders_completed(taker)?;
+    };
+
     Ok(())
 }
 
@@ -994,8 +995,8 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
     let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
 
     let AccountMaps {
-        perp_market_map,
-        spot_market_map,
+        mut perp_market_map,
+        mut spot_market_map,
         mut oracle_map,
     } = load_maps(
         &mut remaining_accounts,
@@ -1006,6 +1007,9 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
     )?;
 
     let mut revenue_escrow = get_revenue_escrow_account(&mut remaining_accounts)?;
+    if let Some(ref mut revenue_escrow_zc) = revenue_escrow {
+        revenue_escrow_zc.mark_missing_orders_completed(user)?;
+    }
 
     let market_in_settlement =
         perp_market_map.get_ref(&market_index)?.status == MarketStatus::Settlement;
@@ -1022,7 +1026,6 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
             &mut oracle_map,
             &clock,
             state,
-            &mut revenue_escrow.as_mut(),
         )?;
 
         user.update_last_active_slot(clock.slot);
@@ -1052,6 +1055,18 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
         .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
     }
 
+    if let Some(ref mut revenue_escrow_zc) = revenue_escrow {
+        let builder_users = load_user_map(&mut remaining_accounts, true)?;
+        controller::revenue_share::sweep_completed_builder_fees_for_market(
+            market_index,
+            revenue_escrow_zc,
+            &mut perp_market_map,
+            &mut spot_market_map,
+            &builder_users,
+            clock.unix_timestamp,
+        )?;
+    }
+
     let spot_market = spot_market_map.get_quote_spot_market()?;
     validate_spot_market_vault_amount(&spot_market, ctx.accounts.spot_market_vault.amount)?;
 
@@ -1075,8 +1090,8 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
     let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
 
     let AccountMaps {
-        perp_market_map,
-        spot_market_map,
+        mut perp_market_map,
+        mut spot_market_map,
         mut oracle_map,
     } = load_maps(
         &mut remaining_accounts,
@@ -1111,7 +1126,6 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
                 &mut oracle_map,
                 &clock,
                 state,
-                &mut revenue_escrow.as_mut(),
             )?;
 
             user.update_last_active_slot(clock.slot);
@@ -1139,6 +1153,18 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
                 mode,
             )
             .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
+        }
+
+        if let Some(ref mut revenue_escrow_zc) = revenue_escrow {
+            let builder_users = load_user_map(&mut remaining_accounts, true)?;
+            controller::revenue_share::sweep_completed_builder_fees_for_market(
+                *market_index,
+                revenue_escrow_zc,
+                &mut perp_market_map,
+                &mut spot_market_map,
+                &builder_users,
+                clock.unix_timestamp,
+            )?;
         }
     }
 
@@ -1247,8 +1273,6 @@ pub fn handle_liquidate_perp<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    let mut revenue_escrow = get_revenue_escrow_account(&mut remaining_accounts)?;
-
     controller::liquidation::liquidate_perp(
         market_index,
         liquidator_max_base_asset_amount,
@@ -1265,7 +1289,6 @@ pub fn handle_liquidate_perp<'c: 'info, 'info>(
         slot,
         now,
         state,
-        &mut revenue_escrow.as_mut(),
     )?;
 
     Ok(())
@@ -1892,8 +1915,6 @@ pub fn handle_liquidate_borrow_for_perp_pnl<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    let mut revenue_escrow = get_revenue_escrow_account(&mut remaining_accounts)?;
-
     controller::liquidation::liquidate_borrow_for_perp_pnl(
         perp_market_index,
         spot_market_index,
@@ -1911,7 +1932,6 @@ pub fn handle_liquidate_borrow_for_perp_pnl<'c: 'info, 'info>(
         state.liquidation_margin_buffer_ratio,
         state.initial_pct_to_liquidate as u128,
         state.liquidation_duration as u128,
-        &mut revenue_escrow.as_mut(),
     )?;
 
     Ok(())
@@ -3075,8 +3095,6 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
         )?;
     }
 
-    let mut revenue_escrow = get_revenue_escrow_account(&mut remaining_accounts)?;
-
     // cancel all open orders
     cancel_orders(
         user,
@@ -3091,7 +3109,6 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
         None,
         None,
         None,
-        &mut revenue_escrow.as_mut(),
     )?;
 
     for spot_position in user.spot_positions.iter_mut() {

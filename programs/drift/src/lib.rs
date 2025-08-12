@@ -1830,16 +1830,8 @@ pub mod drift {
 
     pub fn initialize_revenue_share<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, InitializeRevenueShare<'info>>,
-        num_positions: u16,
     ) -> Result<()> {
-        handle_initialize_revenue_share(ctx, num_positions)
-    }
-
-    pub fn resize_revenue_share<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, ResizeRevenueShare<'info>>,
-        num_positions: u16,
-    ) -> Result<()> {
-        handle_resize_revenue_share(ctx, num_positions)
+        handle_initialize_revenue_share(ctx)
     }
 
     pub fn initialize_revenue_share_escrow<'c: 'info, 'info>(

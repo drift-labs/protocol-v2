@@ -38,6 +38,7 @@ import {
 	calculateAMMBidAskPrice,
 	convertToNumber,
 	getVariant,
+	parseLogs,
 } from '../sdk/src';
 
 import {
@@ -46,6 +47,7 @@ import {
 	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
+	printTxLogs,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
@@ -186,11 +188,7 @@ describe('builder codes', () => {
 	});
 
 	it('builder can create revenue share', async () => {
-		const numPositions = 16;
-		await builderClient.initializeRevenueShare(
-			builderClient.wallet.publicKey,
-			numPositions
-		);
+		await builderClient.initializeRevenueShare(builderClient.wallet.publicKey);
 
 		const revenueShareAccountInfo =
 			await bankrunContextWrapper.connection.getAccountInfo(
@@ -211,36 +209,6 @@ describe('builder codes', () => {
 		);
 		assert(revenueShare.totalBuilderRewards.toNumber() === 0);
 		assert(revenueShare.totalReferrerRewards.toNumber() === 0);
-		assert(revenueShare.positions.length === numPositions);
-	});
-
-	it('builder can resize increase revenue share acc', async () => {
-		const newPos = 80;
-		await builderClient.resizeRevenueShare(
-			builderClient.wallet.publicKey,
-			newPos
-		);
-
-		const revenueShareAccountInfo =
-			await bankrunContextWrapper.connection.getAccountInfo(
-				getRevenueShareAccountPublicKey(
-					builderClient.program.programId,
-					builderClient.wallet.publicKey
-				)
-			);
-
-		const revenueShare: RevenueShareAccount =
-			builderClient.program.coder.accounts.decodeUnchecked(
-				'RevenueShare',
-				revenueShareAccountInfo.data
-			);
-		assert(
-			revenueShare.authority.toBase58() ===
-				builderClient.wallet.publicKey.toBase58()
-		);
-		assert(revenueShare.totalBuilderRewards.toNumber() === 0);
-		assert(revenueShare.totalReferrerRewards.toNumber() === 0);
-		assert(revenueShare.positions.length === newPos);
 	});
 
 	it('user can initialize a RevenueShareEscrow', async () => {
@@ -548,7 +516,10 @@ describe('builder codes', () => {
 			assert(revShareEscrow.orders[i]!.builderIdx === 0);
 			assert(revShareEscrow.orders[i]!.feesAccrued.eq(ZERO));
 			assert(revShareEscrow.orders[i]!.feeBps === builderFeeBps);
-			assert(revShareEscrow.orders[i]!.orderId === i + 1, `orderId ${i} is ${revShareEscrow.orders[i]!.orderId}`);
+			assert(
+				revShareEscrow.orders[i]!.orderId === i + 1,
+				`orderId ${i} is ${revShareEscrow.orders[i]!.orderId}`
+			);
 			assert(isVariant(revShareEscrow.orders[i]!.marketType, 'perp'));
 			assert(revShareEscrow.orders[i]!.marketIndex === marketIndex);
 		}
@@ -582,7 +553,7 @@ describe('builder codes', () => {
 
 		// fill order with vamm
 		await builderClient.fetchAccounts();
-		await builderClient.fillPerpOrder(
+		const fillTx = await builderClient.fillPerpOrder(
 			await userClient.getUserAccountPublicKey(),
 			userClient.getUserAccount(),
 			{
@@ -590,6 +561,19 @@ describe('builder codes', () => {
 				orderId: 3,
 			}
 		);
+		const logs = await printTxLogs(
+			bankrunContextWrapper.connection.toConnection(),
+			fillTx
+		);
+		const events = parseLogs(builderClient.program, logs);
+		// console.log('fill events:', events);
+		assert(events[0].name === 'OrderActionRecord');
+		const fillQuoteAssetAmount = events[0].data['quoteAssetAmountFilled'] as BN;
+		const builderFee = events[0].data['builderFee'] as BN;
+		const takerFee = events[0].data['takerFee'] as BN;
+		const totalFeePaid = takerFee.add(builderFee);
+		assert(builderFee.eq(fillQuoteAssetAmount.muln(builderFeeBps).divn(10000)));
+		// console.log('totalFeePaid', convertToNumber(totalFeePaid));
 
 		await userClient.fetchAccounts();
 		userOrders = userClient.getUser().getOpenOrders();
@@ -607,7 +591,7 @@ describe('builder codes', () => {
 			'RevenueShareEscrow',
 			accountInfo.data
 		);
-		console.log(revShareEscrow);
+		// console.log(revShareEscrow);
 		// console.log('revShareEscrow.authority:', revShareEscrow.authority.toBase58());
 		// console.log('revShareEscrow.referrer:', revShareEscrow.referrer.toBase58());
 		// console.log('revShareEscrow.orders.len:', revShareEscrow.orders.length);
@@ -623,6 +607,14 @@ describe('builder codes', () => {
 		userOrders = userClient.getUser().getOpenOrders();
 		assert(userOrders.length === 0);
 
+		// console.log('perp pos');
+		const perpPos = userClient.getUser().getPerpPosition(0);
+		// console.log(perpPos);
+		// console.log(`perpQuote: ${convertToNumber(perpPos.quoteAssetAmount)}, fillQuote: ${convertToNumber(fillQuoteAssetAmount)}, totalFeePaid: ${convertToNumber(totalFeePaid)}`);
+		assert(
+			perpPos.quoteAssetAmount.eq(fillQuoteAssetAmount.add(totalFeePaid).neg())
+		);
+
 		accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
 			getRevenueShareEscrowAccountPublicKey(
 				userClient.program.programId,
@@ -636,5 +628,33 @@ describe('builder codes', () => {
 		console.log('revShareEscrow.orders.0:', revShareEscrow.orders[0]);
 		console.log('revShareEscrow.orders.1:', revShareEscrow.orders[1]);
 		console.log('revShareEscrow.orders.2:', revShareEscrow.orders[2]);
+		assert(revShareEscrow.orders[2].bitFlags === 3);
+		assert(revShareEscrow.orders[2].feesAccrued.eq(builderFee));
+
+		const settleTx = await builderClient.settlePNL(
+			await userClient.getUserAccountPublicKey(),
+			userClient.getUserAccount(),
+			marketIndex,
+			undefined,
+			undefined
+		);
+		const settleLogs = await printTxLogs(
+			bankrunContextWrapper.connection.toConnection(),
+			settleTx
+		);
+		const settleEvents = parseLogs(builderClient.program, settleLogs);
+		console.log('settle events:', settleEvents);
+
+		accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
+			getRevenueShareEscrowAccountPublicKey(
+				userClient.program.programId,
+				userClient.wallet.publicKey
+			)
+		);
+		revShareEscrow = userClient.program.coder.accounts.decodeUnchecked(
+			'RevenueShareEscrow',
+			accountInfo.data
+		);
+		console.log('revShareEscrow.orders:', revShareEscrow.orders);
 	});
 });

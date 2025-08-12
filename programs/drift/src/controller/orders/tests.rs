@@ -489,6 +489,7 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             None,
+            &mut None,
         )
         .unwrap();
 
@@ -613,6 +614,7 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             None,
+            &mut None,
         )
         .unwrap();
 
@@ -737,6 +739,7 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             None,
+            &mut None,
         )
         .unwrap();
 
@@ -861,6 +864,7 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             None,
+            &mut None,
         )
         .unwrap();
 
@@ -984,6 +988,7 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             None,
+            &mut None,
         )
         .unwrap();
 
@@ -1074,6 +1079,7 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             None,
+            &mut None,
         )
         .unwrap();
 
@@ -1165,6 +1171,7 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             None,
+            &mut None,
         )
         .unwrap();
 
@@ -1256,6 +1263,7 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             None,
+            &mut None,
         )
         .unwrap();
 
@@ -1347,6 +1355,7 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             None,
+            &mut None,
         )
         .unwrap();
 
@@ -1458,6 +1467,7 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             None,
+            &mut None,
         )
         .unwrap();
 
@@ -1574,6 +1584,7 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             None,
+            &mut None,
         )
         .unwrap();
 
@@ -1695,6 +1706,7 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             None,
+            &mut None,
         )
         .unwrap();
 
@@ -1817,6 +1829,7 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             None,
+            &mut None,
         )
         .unwrap();
 
@@ -1963,6 +1976,7 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             None,
+            &mut None,
         )
         .unwrap();
 
@@ -2084,6 +2098,7 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             None,
+            &mut None,
         )
         .unwrap();
 
@@ -2215,6 +2230,7 @@ pub mod fulfill_order_with_maker_order {
             &mut oracle_map,
             false,
             None,
+            &mut None,
         )
         .unwrap();
 
@@ -2367,6 +2383,7 @@ pub mod fulfill_order_with_maker_order {
             &mut oracle_map,
             false,
             None,
+            &mut None,
         )
         .unwrap();
 
@@ -2517,6 +2534,7 @@ pub mod fulfill_order_with_maker_order {
             &mut oracle_map,
             false,
             None,
+            &mut None,
         )
         .unwrap();
 
@@ -2668,6 +2686,7 @@ pub mod fulfill_order_with_maker_order {
             &mut oracle_map,
             false,
             None,
+            &mut None,
         )
         .unwrap();
 
@@ -2800,6 +2819,7 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             None,
+            &mut None,
         )
         .unwrap();
 
@@ -2931,6 +2951,7 @@ pub mod fulfill_order_with_maker_order {
             &mut get_oracle_map(),
             false,
             None,
+            &mut None,
         )
         .unwrap();
 
@@ -3319,6 +3340,7 @@ pub mod fulfill_order {
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
             false,
+            &mut None,
         )
         .unwrap();
 
@@ -3563,6 +3585,7 @@ pub mod fulfill_order {
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
             false,
+            &mut None,
         )
         .unwrap();
 
@@ -3753,6 +3776,7 @@ pub mod fulfill_order {
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
             false,
+            &mut None,
         )
         .unwrap();
 
@@ -3959,6 +3983,7 @@ pub mod fulfill_order {
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
             false,
+            &mut None,
         )
         .unwrap();
 
@@ -4125,6 +4150,7 @@ pub mod fulfill_order {
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
             false,
+            &mut None,
         )
         .unwrap();
 
@@ -4323,6 +4349,7 @@ pub mod fulfill_order {
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
             false,
+            &mut None,
         );
 
         assert!(result.is_ok());
@@ -4510,6 +4537,7 @@ pub mod fulfill_order {
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
             false,
+            &mut None,
         );
 
         assert_eq!(result, Err(ErrorCode::InsufficientCollateral));
@@ -4650,6 +4678,7 @@ pub mod fulfill_order {
             crate::state::perp_market::AMMAvailability::Immediate,
             FillMode::Fill,
             false,
+            &mut None,
         )
         .unwrap();
 
@@ -4817,6 +4846,7 @@ pub mod fulfill_order {
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
             false,
+            &mut None,
         )
         .unwrap();
 
@@ -5169,6 +5199,7 @@ pub mod fulfill_order {
     //         slot,
     //         false,
     //         true,
+    //         &mut None,
     //     )
     //     .unwrap();
     //
@@ -5402,6 +5433,7 @@ pub mod fulfill_order {
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
             false,
+            &mut None,
         )
         .unwrap();
 
@@ -5646,6 +5678,7 @@ pub mod fulfill_order {
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
             false,
+            &mut None,
         )
         .unwrap();
 
