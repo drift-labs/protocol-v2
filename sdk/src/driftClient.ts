@@ -10704,7 +10704,6 @@ export class DriftClient {
 			lpPool.pubkey
 		);
 
-		console.log((await this.getStatePublicKey()).toBase58());
 		return this.program.instruction.viewLpPoolAddLiquidityFees(
 			inMarketIndex,
 			inAmount,

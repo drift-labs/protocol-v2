@@ -7115,15 +7115,11 @@ pub struct LPTakerSwap<'info> {
     #[account(
         mut,
         address = out_constituent.load()?.token_vault,
-        constraint = &out_constituent.load()?.mint.eq(&constituent_out_token_account.mint),
-        token::authority = drift_signer
     )]
     pub constituent_out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
         address = in_constituent.load()?.token_vault,
-        constraint = &in_constituent.load()?.mint.eq(&constituent_in_token_account.mint),
-        token::authority = drift_signer
     )]
     pub constituent_in_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
 

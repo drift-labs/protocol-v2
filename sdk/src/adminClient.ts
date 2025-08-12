@@ -59,6 +59,7 @@ import {
 import { squareRootBN } from './math/utils';
 import {
 	createInitializeMint2Instruction,
+	createTransferCheckedInstruction,
 	MINT_SIZE,
 	TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
@@ -5635,6 +5636,129 @@ export class AdminClient extends DriftClient {
 		];
 
 		return { ixs, lookupTables };
+	}
+
+	public async getDevnetLpSwapIxs(
+		amountIn: BN,
+		amountOut: BN,
+		externalUserAuthority: PublicKey,
+		externalUserInTokenAccount: PublicKey,
+		externalUserOutTokenAccount: PublicKey,
+		inSpotMarketIndex: number,
+		outSpotMarketIndex: number
+	): Promise<TransactionInstruction[]> {
+		const inSpotMarketAccount = this.getSpotMarketAccount(inSpotMarketIndex);
+		const outSpotMarketAccount = this.getSpotMarketAccount(outSpotMarketIndex);
+
+		const outTokenAccount = await this.getAssociatedTokenAccount(
+			outSpotMarketAccount.marketIndex,
+			false,
+			getTokenProgramForSpotMarket(outSpotMarketAccount)
+		);
+		const inTokenAccount = await this.getAssociatedTokenAccount(
+			inSpotMarketAccount.marketIndex,
+			false,
+			getTokenProgramForSpotMarket(inSpotMarketAccount)
+		);
+
+		const externalCreateInTokenAccountIx =
+			this.createAssociatedTokenAccountIdempotentInstruction(
+				externalUserInTokenAccount,
+				this.wallet.publicKey,
+				externalUserAuthority,
+				this.getSpotMarketAccount(inSpotMarketIndex)!.mint
+			);
+
+		const externalCreateOutTokenAccountIx =
+			this.createAssociatedTokenAccountIdempotentInstruction(
+				externalUserOutTokenAccount,
+				this.wallet.publicKey,
+				externalUserAuthority,
+				this.getSpotMarketAccount(outSpotMarketIndex)!.mint
+			);
+
+		const outTransferIx = createTransferCheckedInstruction(
+			externalUserOutTokenAccount,
+			outSpotMarketAccount.mint,
+			outTokenAccount,
+			externalUserAuthority,
+			amountOut.toNumber(),
+			outSpotMarketAccount.decimals,
+			undefined,
+			getTokenProgramForSpotMarket(outSpotMarketAccount)
+		);
+
+		const inTransferIx = createTransferCheckedInstruction(
+			inTokenAccount,
+			inSpotMarketAccount.mint,
+			externalUserInTokenAccount,
+			this.wallet.publicKey,
+			amountIn.toNumber(),
+			inSpotMarketAccount.decimals,
+			undefined,
+			getTokenProgramForSpotMarket(inSpotMarketAccount)
+		);
+
+		const ixs = [
+			externalCreateInTokenAccountIx,
+			externalCreateOutTokenAccountIx,
+			outTransferIx,
+			inTransferIx,
+		];
+		return ixs;
+	}
+
+	public async getAllDevnetLpSwapIxs(
+		lpPoolName: number[],
+		inMarketIndex: number,
+		outMarketIndex: number,
+		inAmount: BN,
+		minOutAmount: BN,
+		externalUserAuthority: PublicKey
+	) {
+		const { beginSwapIx, endSwapIx } = await this.getSwapIx(
+			{
+				lpPoolName,
+				inMarketIndex,
+				outMarketIndex,
+				amountIn: inAmount,
+				inTokenAccount: await this.getAssociatedTokenAccount(
+					inMarketIndex,
+					false
+				),
+				outTokenAccount: await this.getAssociatedTokenAccount(
+					outMarketIndex,
+					false
+				),
+			},
+			true
+		);
+
+		const devnetLpSwapIxs = await this.getDevnetLpSwapIxs(
+			inAmount,
+			minOutAmount,
+			externalUserAuthority,
+			await this.getAssociatedTokenAccount(
+				inMarketIndex,
+				false,
+				getTokenProgramForSpotMarket(this.getSpotMarketAccount(inMarketIndex)),
+				externalUserAuthority
+			),
+			await this.getAssociatedTokenAccount(
+				outMarketIndex,
+				false,
+				getTokenProgramForSpotMarket(this.getSpotMarketAccount(outMarketIndex)),
+				externalUserAuthority
+			),
+			inMarketIndex,
+			outMarketIndex
+		);
+
+		return [
+			beginSwapIx,
+			...devnetLpSwapIxs,
+			endSwapIx,
+		] as TransactionInstruction[];
 	}
 
 	public async depositWithdrawToProgramVault(
