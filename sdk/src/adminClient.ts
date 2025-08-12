@@ -700,6 +700,60 @@ export class AdminClient extends DriftClient {
 		});
 	}
 
+	public async overrideAmmCacheInfo(
+		perpMarketIndex: number,
+		params: {
+			quoteOwedFromLpPool?: BN;
+			lastSettleTs?: BN;
+			lastFeePoolTokenAmount?: BN;
+			lastNetPnlPoolTokenAmount?: BN;
+		},
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const initializeAmmCacheIx = await this.getOverrideAmmCacheInfoIx(
+			perpMarketIndex,
+			params
+		);
+		const tx = await this.buildTransaction(initializeAmmCacheIx, txParams);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getOverrideAmmCacheInfoIx(
+		perpMarketIndex: number,
+		params: {
+			quoteOwedFromLpPool?: BN;
+			lastSettleTs?: BN;
+			lastFeePoolTokenAmount?: BN;
+			lastNetPnlPoolTokenAmount?: BN;
+		}
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.overrideAmmCacheInfo(
+			perpMarketIndex,
+			Object.assign(
+				{},
+				{
+					quoteOwedFromLpPool: null,
+					lastSettleTs: null,
+					lastFeePoolTokenAmount: null,
+					lastNetPnlPoolTokenAmount: null,
+				},
+				params
+			),
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					ammCache: getAmmCachePublicKey(this.program.programId),
+				},
+			}
+		);
+	}
+
 	public async initializePredictionMarket(
 		perpMarketIndex: number
 	): Promise<TransactionSignature> {
@@ -4721,9 +4775,9 @@ export class AdminClient extends DriftClient {
 	): Promise<TransactionInstruction> {
 		return await this.program.instruction.zeroMmOracleFields({
 			accounts: {
-				admin: this.isSubscribed
-					? this.getStateAccount().admin
-					: this.wallet.publicKey,
+				admin: this.useHotWalletAdmin
+					? this.wallet.publicKey
+					: this.getStateAccount().admin,
 				state: await this.getStatePublicKey(),
 				perpMarket: await getPerpMarketPublicKey(
 					this.program.programId,
@@ -4749,6 +4803,34 @@ export class AdminClient extends DriftClient {
 		enable: boolean
 	): Promise<TransactionInstruction> {
 		return await this.program.instruction.updateFeatureBitFlagsMmOracle(
+			enable,
+			{
+				accounts: {
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
+	}
+
+	public async updateFeatureBitFlagsSettleLpPool(
+		enable: boolean
+	): Promise<TransactionSignature> {
+		const updateFeatureBitFlagsSettleLpPoolIx =
+			await this.getUpdateFeatureBitFlagsSettleLpPoolIx(enable);
+
+		const tx = await this.buildTransaction(updateFeatureBitFlagsSettleLpPoolIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateFeatureBitFlagsSettleLpPoolIx(
+		enable: boolean
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateFeatureBitFlagsSettleLpPool(
 			enable,
 			{
 				accounts: {

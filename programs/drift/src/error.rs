@@ -670,6 +670,8 @@ pub enum ErrorCode {
     UnauthorizedDlpAuthority,
     #[msg("Max DLP AUM Breached")]
     MaxDlpAumBreached,
+    #[msg("Settle Lp Pool Disabled")]
+    SettleLpPoolDisabled,
 }
 
 #[macro_export]

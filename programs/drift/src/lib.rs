@@ -1881,6 +1881,13 @@ pub mod drift {
         handle_update_feature_bit_flags_median_trigger_price(ctx, enable)
     }
 
+    pub fn update_feature_bit_flags_settle_lp_pool(
+        ctx: Context<HotAdminUpdateState>,
+        enable: bool,
+    ) -> Result<()> {
+        handle_update_feature_bit_flags_settle_lp_pool(ctx, enable)
+    }
+
     pub fn initialize_constituent<'info>(
         ctx: Context<'_, '_, '_, 'info, InitializeConstituent<'info>>,
         spot_market_index: u16,
@@ -1982,6 +1989,14 @@ pub mod drift {
         ctx: Context<'_, '_, 'c, 'info, UpdateAmmCache<'info>>,
     ) -> Result<()> {
         handle_update_amm_cache(ctx)
+    }
+
+    pub fn override_amm_cache_info<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdateInitAmmCacheInfo<'info>>,
+        market_index: u16,
+        override_params: OverrideAmmCacheParams,
+    ) -> Result<()> {
+        handle_override_amm_cache_info(ctx, market_index, override_params)
     }
 
     pub fn lp_pool_swap<'c: 'info, 'info>(

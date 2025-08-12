@@ -7840,6 +7840,27 @@
       ]
     },
     {
+      "name": "updateFeatureBitFlagsSettleLpPool",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "enable",
+          "type": "bool"
+        }
+      ]
+    },
+    {
       "name": "initializeConstituent",
       "accounts": [
         {
@@ -8291,6 +8312,38 @@
         }
       ],
       "args": []
+    },
+    {
+      "name": "overrideAmmCacheInfo",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "ammCache",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "overrideParams",
+          "type": {
+            "defined": "OverrideAmmCacheParams"
+          }
+        }
+      ]
     },
     {
       "name": "lpPoolSwap",
@@ -11646,6 +11699,38 @@
     }
   ],
   "types": [
+    {
+      "name": "OverrideAmmCacheParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "quoteOwedFromLpPool",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "lastSettleTs",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "lastFeePoolTokenAmount",
+            "type": {
+              "option": "u128"
+            }
+          },
+          {
+            "name": "lastNetPnlPoolTokenAmount",
+            "type": {
+              "option": "i128"
+            }
+          }
+        ]
+      }
+    },
     {
       "name": "UpdatePerpMarketSummaryStatsParams",
       "type": {
@@ -15303,6 +15388,9 @@
           },
           {
             "name": "MedianTriggerPrice"
+          },
+          {
+            "name": "SettleLpPool"
           }
         ]
       }
@@ -18828,6 +18916,11 @@
       "code": 6332,
       "name": "MaxDlpAumBreached",
       "msg": "Max DLP AUM Breached"
+    },
+    {
+      "code": 6333,
+      "name": "SettleLpPoolDisabled",
+      "msg": "Settle Lp Pool Disabled"
     }
   ],
   "metadata": {

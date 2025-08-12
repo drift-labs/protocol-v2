@@ -3139,6 +3139,11 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
     let timestamp = Clock::get()?.unix_timestamp;
     let state = &ctx.accounts.state;
 
+    if !state.allow_settle_lp_pool() {
+        msg!("settle lp pool disabled");
+        return Err(ErrorCode::SettleLpPoolDisabled.into());
+    }
+
     // Validation and setup code (unchanged)
     let amm_cache_key = &ctx.accounts.amm_cache.key();
     let mut amm_cache: AccountZeroCopyMut<'_, CacheInfo, _> =

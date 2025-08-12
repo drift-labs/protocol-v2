@@ -72,7 +72,7 @@ use crate::state::perp_market::{
     AmmCache, CacheInfo, ContractTier, ContractType, InsuranceClaim, MarketStatus, PerpMarket,
     PoolBalance, AMM, AMM_POSITIONS_CACHE,
 };
-use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
+use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet, PerpMarketMap};
 use crate::state::protected_maker_mode_config::ProtectedMakerModeConfig;
 use crate::state::pyth_lazer_oracle::{PythLazerOracle, PYTH_LAZER_ORACLE_SEED};
 use crate::state::spot_market::{
@@ -1175,6 +1175,43 @@ pub fn handle_update_init_amm_cache_info<'c: 'info, 'info>(
         )?
         .cast::<i128>()?
         .safe_sub(calculate_net_user_pnl(&perp_market.amm, oracle_data.price)?)?;
+    }
+
+    Ok(())
+}
+#[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq)]
+pub struct OverrideAmmCacheParams {
+    pub quote_owed_from_lp_pool: Option<i64>,
+    pub last_settle_ts: Option<i64>,
+    pub last_fee_pool_token_amount: Option<u128>,
+    pub last_net_pnl_pool_token_amount: Option<i128>,
+}
+
+pub fn handle_override_amm_cache_info<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, UpdateInitAmmCacheInfo<'info>>,
+    market_index: u16,
+    override_params: OverrideAmmCacheParams,
+) -> Result<()> {
+    let amm_cache = &mut ctx.accounts.amm_cache;
+
+    let cache_entry = amm_cache.cache.get_mut(market_index as usize);
+    if cache_entry.is_none() {
+        msg!("No cache entry found for market index {}", market_index);
+        return Ok(());
+    }
+
+    let cache_entry = cache_entry.unwrap();
+    if let Some(quote_owed_from_lp_pool) = override_params.quote_owed_from_lp_pool {
+        cache_entry.quote_owed_from_lp_pool = quote_owed_from_lp_pool;
+    }
+    if let Some(last_settle_ts) = override_params.last_settle_ts {
+        cache_entry.last_settle_ts = last_settle_ts;
+    }
+    if let Some(last_fee_pool_token_amount) = override_params.last_fee_pool_token_amount {
+        cache_entry.last_fee_pool_token_amount = last_fee_pool_token_amount;
+    }
+    if let Some(last_net_pnl_pool_token_amount) = override_params.last_net_pnl_pool_token_amount {
+        cache_entry.last_net_pnl_pool_token_amount = last_net_pnl_pool_token_amount;
     }
 
     Ok(())
@@ -5162,6 +5199,27 @@ pub fn handle_update_feature_bit_flags_median_trigger_price(
         msg!("Setting second bit to 0, disabling median trigger price");
         state.feature_bit_flags =
             state.feature_bit_flags & !(FeatureBitFlags::MedianTriggerPrice as u8);
+    }
+    Ok(())
+}
+
+pub fn handle_update_feature_bit_flags_settle_lp_pool(
+    ctx: Context<HotAdminUpdateState>,
+    enable: bool,
+) -> Result<()> {
+    let state = &mut ctx.accounts.state;
+    if enable {
+        validate!(
+            ctx.accounts.admin.key().eq(&state.admin),
+            ErrorCode::DefaultError,
+            "Only state admin can re-enable after kill switch"
+        )?;
+
+        msg!("Setting second bit to 1, enabling settle LP pool");
+        state.feature_bit_flags = state.feature_bit_flags | (FeatureBitFlags::SettleLpPool as u8);
+    } else {
+        msg!("Setting second bit to 0, disabling settle LP pool");
+        state.feature_bit_flags = state.feature_bit_flags & !(FeatureBitFlags::SettleLpPool as u8);
     }
     Ok(())
 }

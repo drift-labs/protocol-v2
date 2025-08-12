@@ -846,6 +846,8 @@ describe('LP Pool', () => {
 	});
 
 	it('can settle pnl from perp markets into the usdc account', async () => {
+		await adminClient.updateFeatureBitFlagsSettleLpPool(true);
+
 		let ammCache = (await adminClient.program.account.ammCache.fetch(
 			getAmmCachePublicKey(program.programId)
 		)) as AmmCache;
@@ -1460,5 +1462,19 @@ describe('LP Pool', () => {
 				.sub(spotBalanceBefore.scaledBalance)
 				.toNumber()
 		).to.be.approximately(10 * 10 ** 9, 1);
+	});
+
+	it('cant disable lp pool settling', async () => {
+		await adminClient.updateFeatureBitFlagsSettleLpPool(false);
+
+		try {
+			await adminClient.settlePerpToLpPool(encodeName(lpPoolName), [0, 1, 2]);
+			assert(false, 'Should have thrown');
+		} catch (e) {
+			console.log(e);
+			assert(e.message.includes('0x18bd'));
+		}
+
+		await adminClient.updateFeatureBitFlagsSettleLpPool(true);
 	});
 });
