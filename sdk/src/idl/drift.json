@@ -8644,11 +8644,6 @@
       "name": "viewLpPoolAddLiquidityFees",
       "accounts": [
         {
-          "name": "driftSigner",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "state",
           "isMut": false,
           "isSigner": false
@@ -8698,11 +8693,6 @@
     {
       "name": "viewLpPoolRemoveLiquidityFees",
       "accounts": [
-        {
-          "name": "driftSigner",
-          "isMut": false,
-          "isSigner": false
-        },
         {
           "name": "state",
           "isMut": false,

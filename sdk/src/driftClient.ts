@@ -10708,13 +10708,12 @@ export class DriftClient {
 			lpPool.pubkey
 		);
 
+		console.log((await this.getStatePublicKey()).toBase58());
 		return this.program.instruction.viewLpPoolAddLiquidityFees(
 			inMarketIndex,
 			inAmount,
 			{
-				remainingAccounts,
 				accounts: {
-					driftSigner: this.getSignerPublicKey(),
 					state: await this.getStatePublicKey(),
 					lpPool: lpPool.pubkey,
 					authority: this.wallet.publicKey,
@@ -10723,6 +10722,7 @@ export class DriftClient {
 					lpMint,
 					constituentTargetBase,
 				},
+				remainingAccounts,
 			}
 		);
 	}
@@ -10886,7 +10886,6 @@ export class DriftClient {
 			{
 				remainingAccounts,
 				accounts: {
-					driftSigner: this.getSignerPublicKey(),
 					state: await this.getStatePublicKey(),
 					lpPool: lpPool.pubkey,
 					authority: this.wallet.publicKey,

@@ -823,7 +823,7 @@ pub fn handle_view_lp_pool_add_liquidity_fees<'c: 'info, 'info>(
     let slot = Clock::get()?.slot;
     let now = Clock::get()?.unix_timestamp;
     let state = &ctx.accounts.state;
-    let lp_pool = ctx.accounts.lp_pool.load_mut()?;
+    let lp_pool = ctx.accounts.lp_pool.load()?;
 
     if slot.saturating_sub(lp_pool.last_aum_slot) > LP_POOL_SWAP_AUM_UPDATE_DELAY {
         msg!(
@@ -835,7 +835,7 @@ pub fn handle_view_lp_pool_add_liquidity_fees<'c: 'info, 'info>(
     }
 
     let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
-    let mut in_constituent = ctx.accounts.in_constituent.load_mut()?;
+    let in_constituent = ctx.accounts.in_constituent.load()?;
 
     let constituent_target_base = ctx.accounts.constituent_target_base.load_zc()?;
 
@@ -1124,7 +1124,7 @@ pub fn handle_view_lp_pool_remove_liquidity_fees<'c: 'info, 'info>(
     let slot = Clock::get()?.slot;
     let now = Clock::get()?.unix_timestamp;
     let state = &ctx.accounts.state;
-    let lp_pool = ctx.accounts.lp_pool.load_mut()?;
+    let lp_pool = ctx.accounts.lp_pool.load()?;
 
     if slot.saturating_sub(lp_pool.last_aum_slot) > LP_POOL_SWAP_AUM_UPDATE_DELAY {
         msg!(
@@ -1694,8 +1694,6 @@ pub struct LPPoolAddLiquidity<'info> {
     in_market_index: u16,
 )]
 pub struct ViewLPPoolAddLiquidityFees<'info> {
-    /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
     pub state: Box<Account<'info, State>>,
     pub lp_pool: AccountLoader<'info, LPPool>,
     pub authority: Signer<'info>,
@@ -1783,8 +1781,6 @@ pub struct LPPoolRemoveLiquidity<'info> {
     in_market_index: u16,
 )]
 pub struct ViewLPPoolRemoveLiquidityFees<'info> {
-    /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
     pub state: Box<Account<'info, State>>,
     pub lp_pool: AccountLoader<'info, LPPool>,
     pub authority: Signer<'info>,

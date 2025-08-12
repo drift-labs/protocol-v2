@@ -23,7 +23,7 @@ import {
 	PERCENTAGE_PRECISION,
 	PRICE_PRECISION,
 	PEG_PRECISION,
-	ConstituentTargetBase,
+	ConstituentTargetBaseAccount,
 	AmmConstituentMapping,
 	LPPoolAccount,
 	getConstituentVaultPublicKey,
@@ -330,7 +330,7 @@ describe('LP Pool', () => {
 		const constituentTargetBase =
 			(await adminClient.program.account.constituentTargetBase.fetch(
 				constituentTargetBasePublicKey
-			)) as ConstituentTargetBase;
+			)) as ConstituentTargetBaseAccount;
 		expect(constituentTargetBase).to.not.be.null;
 		assert(constituentTargetBase.targets.length == 0);
 
@@ -374,7 +374,7 @@ describe('LP Pool', () => {
 		const constituentTargetBase =
 			(await adminClient.program.account.constituentTargetBase.fetch(
 				constituentTargetBasePublicKey
-			)) as ConstituentTargetBase;
+			)) as ConstituentTargetBaseAccount;
 
 		const lpPool = (await adminClient.program.account.lpPool.fetch(
 			lpPoolKey
@@ -527,7 +527,7 @@ describe('LP Pool', () => {
 		const targets =
 			(await adminClient.program.account.constituentTargetBase.fetch(
 				constituentTargetBase
-			)) as ConstituentTargetBase;
+			)) as ConstituentTargetBaseAccount;
 		expect(targets).to.not.be.null;
 		assert(targets.targets[constituent.constituentIndex].costToTradeBps == 10);
 
@@ -617,12 +617,12 @@ describe('LP Pool', () => {
 		const tx = new Transaction();
 		tx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1]));
 		tx.add(
-			await adminClient.getLpPoolAddLiquidityIx({
+			...(await adminClient.getLpPoolAddLiquidityIx({
 				lpPool,
 				inAmount: new BN(1000).mul(QUOTE_PRECISION),
 				minMintAmount: new BN(1),
 				inMarketIndex: 0,
-			})
+			}))
 		);
 		await adminClient.sendTransaction(tx);
 
@@ -687,7 +687,7 @@ describe('LP Pool', () => {
 		const constituentTargetBase =
 			(await adminClient.program.account.constituentTargetBase.fetch(
 				constituentTargetBasePublicKey
-			)) as ConstituentTargetBase;
+			)) as ConstituentTargetBaseAccount;
 		expect(constituentTargetBase).to.not.be.null;
 		assert(constituentTargetBase.targets.length == 2);
 		assert(
@@ -754,7 +754,7 @@ describe('LP Pool', () => {
 		let constituentTargetBase =
 			(await adminClient.program.account.constituentTargetBase.fetch(
 				constituentTargetBasePublicKey
-			)) as ConstituentTargetBase;
+			)) as ConstituentTargetBaseAccount;
 
 		expect(constituentTargetBase).to.not.be.null;
 		console.log(
@@ -794,7 +794,7 @@ describe('LP Pool', () => {
 		constituentTargetBase =
 			(await adminClient.program.account.constituentTargetBase.fetch(
 				constituentTargetBasePublicKey
-			)) as ConstituentTargetBase;
+			)) as ConstituentTargetBaseAccount;
 		const derivativeBalanceAfter = constituentTargetBase.targets[2].targetBase;
 
 		console.log(
@@ -830,7 +830,7 @@ describe('LP Pool', () => {
 		constituentTargetBase =
 			(await adminClient.program.account.constituentTargetBase.fetch(
 				constituentTargetBasePublicKey
-			)) as ConstituentTargetBase;
+			)) as ConstituentTargetBaseAccount;
 		const parentBalanceAfter = constituentTargetBase.targets[1].targetBase;
 
 		console.log(
@@ -1189,12 +1189,12 @@ describe('LP Pool', () => {
 		const tx = new Transaction();
 		tx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1, 2]));
 		tx.add(
-			await adminClient.getLpPoolAddLiquidityIx({
+			...(await adminClient.getLpPoolAddLiquidityIx({
 				lpPool,
 				inAmount: new BN(1000).mul(QUOTE_PRECISION),
 				minMintAmount: new BN(1),
 				inMarketIndex: 0,
-			})
+			}))
 		);
 		await adminClient.sendTransaction(tx);
 		await adminClient.updateLpPoolAum(lpPool, [0, 1, 2]);
@@ -1353,7 +1353,7 @@ describe('LP Pool', () => {
 		let constituentTargetBase =
 			(await adminClient.program.account.constituentTargetBase.fetch(
 				constituentTargetBasePublicKey
-			)) as ConstituentTargetBase;
+			)) as ConstituentTargetBaseAccount;
 
 		expect(constituentTargetBase).to.not.be.null;
 		console.log(
@@ -1411,7 +1411,7 @@ describe('LP Pool', () => {
 		constituentTargetBase =
 			(await adminClient.program.account.constituentTargetBase.fetch(
 				constituentTargetBasePublicKey
-			)) as ConstituentTargetBase;
+			)) as ConstituentTargetBaseAccount;
 		console.log(
 			'constituentTargetBase.targets',
 			constituentTargetBase.targets.map((x) => x.targetBase.toString())
