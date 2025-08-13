@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.134.0] - 2025-08-13
+
+### Features
+
 - program: add new settle pnl invariants ([#1812](https://github.com/drift-labs/protocol-v2/pull/1812))
 - program: add update_perp_market_pnl_pool ([#1810](https://github.com/drift-labs/protocol-v2/pull/1810))
 - program: increase min margin ratio invariant constant ([#1802](https://github.com/drift-labs/protocol-v2/pull/1802))
