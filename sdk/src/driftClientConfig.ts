@@ -71,6 +71,14 @@ export type DriftClientSubscriptionConfig =
 				resubOpts?: ResubOpts,
 				commitment?: Commitment
 			) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>;
+			oracleAccountSubscriber?: new (
+				accountName: string,
+				program: Program,
+				accountPublicKey: PublicKey,
+				decodeBuffer?: (buffer: Buffer) => any,
+				resubOpts?: ResubOpts,
+				commitment?: Commitment
+			) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>;
 	  }
 	| {
 			type: 'polling';
