@@ -293,9 +293,7 @@ pub fn settle_pnl(
         || spot_market.borrow_balance != borrows_balance_before)
         && mode == SettlePnlMode::TrySettle
     {
-        msg!(
-            "Spot market balance has changed, switch to MUST_SETTLE mode"
-        );
+        msg!("Spot market balance has changed, switch to MUST_SETTLE mode");
         mode = SettlePnlMode::MustSettle;
     }
 
