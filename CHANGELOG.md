@@ -11,12 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - program: add new settle pnl invariants ([#1812](https://github.com/drift-labs/protocol-v2/pull/1812))
 - program: add update_perp_market_pnl_pool ([#1810](https://github.com/drift-labs/protocol-v2/pull/1810))
+- program: increase min margin ratio invariant constant ([#1802](https://github.com/drift-labs/protocol-v2/pull/1802))
 - program: update mark twap crank use 5min basis for bid/ask ([#1769](https://github.com/drift-labs/protocol-v2/pull/1769))
 
 ### Fixes
 
 - program: correct fee tier 5 volume requirement ([#1800](https://github.com/drift-labs/protocol-v2/pull/1800))
-
 - program: fix small number mark-twap-integer-bias ([#1783](https://github.com/drift-labs/protocol-v2/pull/1783))
 
 ### Breaking
