@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: fix small number mark-twap-integer-bias ([#1783](https://github.com/drift-labs/protocol-v2/pull/1783))
+
 ### Breaking
 
 ## [2.133.0] - 2025-08-11
