@@ -77,6 +77,14 @@ export class WebSocketDriftClientAccountSubscriber
 		resubOpts?: ResubOpts,
 		commitment?: Commitment
 	) => AccountSubscriber<any>;
+	customOracleAccountSubscriber?: new (
+		accountName: string,
+		program: Program,
+		accountPublicKey: PublicKey,
+		decodeBuffer?: (buffer: Buffer) => any,
+		resubOpts?: ResubOpts,
+		commitment?: Commitment
+	) => AccountSubscriber<any>;
 
 	protected isSubscribing = false;
 	protected subscriptionPromise: Promise<boolean>;
@@ -98,6 +106,14 @@ export class WebSocketDriftClientAccountSubscriber
 			decodeBuffer?: (buffer: Buffer) => any,
 			resubOpts?: ResubOpts,
 			commitment?: Commitment
+		) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>,
+		customOracleAccountSubscriber?: new (
+			accountName: string,
+			program: Program,
+			accountPublicKey: PublicKey,
+			decodeBuffer?: (buffer: Buffer) => any,
+			resubOpts?: ResubOpts,
+			commitment?: Commitment
 		) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>
 	) {
 		this.isSubscribed = false;
@@ -111,6 +127,7 @@ export class WebSocketDriftClientAccountSubscriber
 		this.resubOpts = resubOpts;
 		this.commitment = commitment;
 		this.customPerpMarketAccountSubscriber = customPerpMarketAccountSubscriber;
+		this.customOracleAccountSubscriber = customOracleAccountSubscriber;
 	}
 
 	public async subscribe(): Promise<boolean> {
@@ -381,7 +398,9 @@ export class WebSocketDriftClientAccountSubscriber
 			this.program.provider.connection,
 			this.program
 		);
-		const accountSubscriber = new WebSocketAccountSubscriber<OraclePriceData>(
+		const AccountSubscriberClass =
+			this.customOracleAccountSubscriber || WebSocketAccountSubscriber;
+		const accountSubscriber = new AccountSubscriberClass<OraclePriceData>(
 			'oracle',
 			this.program,
 			oracleInfo.publicKey,
