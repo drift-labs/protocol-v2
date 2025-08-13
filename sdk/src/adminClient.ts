@@ -1079,6 +1079,42 @@ export class AdminClient extends DriftClient {
 		});
 	}
 
+	public async updatePerpMarketPnlPool(
+		perpMarketIndex: number,
+		amount: BN
+	): Promise<TransactionSignature> {
+		const updatePerpMarketPnlPoolIx = await this.getUpdatePerpMarketPnlPoolIx(
+			perpMarketIndex,
+			amount
+		);
+
+		const tx = await this.buildTransaction(updatePerpMarketPnlPoolIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdatePerpMarketPnlPoolIx(
+		perpMarketIndex: number,
+		amount: BN
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updatePerpMarketPnlPool(amount, {
+			accounts: {
+				admin: this.isSubscribed
+					? this.getStateAccount().admin
+					: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				perpMarket: await getPerpMarketPublicKey(
+					this.program.programId,
+					perpMarketIndex
+				),
+				spotMarket: this.getQuoteSpotMarketAccount().pubkey,
+				spotMarketVault: this.getQuoteSpotMarketAccount().vault,
+			},
+		});
+	}
+
 	public async depositIntoSpotMarketVault(
 		spotMarketIndex: number,
 		amount: BN,
