@@ -1,7 +1,7 @@
 import { Commitment, Connection, SYSVAR_CLOCK_PUBKEY } from '@solana/web3.js';
 import { EventEmitter } from 'events';
 import StrictEventEmitter from 'strict-event-emitter-types/types/src';
-import { BN } from '..';
+import { BN } from '@coral-xyz/anchor';
 
 // eslint-disable-next-line @typescript-eslint/ban-types
 type ClockSubscriberConfig = {

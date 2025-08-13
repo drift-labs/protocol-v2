@@ -1,4 +1,11 @@
-import { AMM, OracleGuardRails, isVariant } from '../types';
+import {
+	AMM,
+	HistoricalOracleData,
+	OracleGuardRails,
+	OracleSource,
+	PerpMarketAccount,
+	isVariant,
+} from '../types';
 import { OraclePriceData } from '../oracles/types';
 import {
 	BID_ASK_SPREAD_PRECISION,
@@ -9,13 +16,8 @@ import {
 	FIVE_MINUTE,
 	PERCENTAGE_PRECISION,
 } from '../constants/numericConstants';
-import {
-	BN,
-	HistoricalOracleData,
-	OracleSource,
-	PerpMarketAccount,
-} from '../index';
 import { assert } from '../assert/assert';
+import { BN } from '@coral-xyz/anchor';
 
 export function oraclePriceBands(
 	market: PerpMarketAccount,
@@ -123,7 +125,7 @@ export function isOracleTooDivergent(
 
 export function calculateLiveOracleTwap(
 	histOracleData: HistoricalOracleData,
-	oraclePrice: BN,
+	oraclePriceData: OraclePriceData,
 	now: BN,
 	period: BN
 ): BN {
@@ -146,7 +148,7 @@ export function calculateLiveOracleTwap(
 
 	const clampedOraclePrice = BN.min(
 		oracleTwap.add(clampRange),
-		BN.max(oraclePrice, oracleTwap.sub(clampRange))
+		BN.max(oraclePriceData.price, oracleTwap.sub(clampRange))
 	);
 
 	const newOracleTwap = oracleTwap
@@ -157,7 +159,11 @@ export function calculateLiveOracleTwap(
 	return newOracleTwap;
 }
 
-export function calculateLiveOracleStd(amm: AMM, oraclePrice: BN, now: BN): BN {
+export function calculateLiveOracleStd(
+	amm: AMM,
+	oraclePriceData: OraclePriceData,
+	now: BN
+): BN {
 	const sinceLastUpdate = BN.max(
 		ONE,
 		now.sub(amm.historicalOracleData.lastOraclePriceTwapTs)
@@ -166,21 +172,21 @@ export function calculateLiveOracleStd(amm: AMM, oraclePrice: BN, now: BN): BN {
 
 	const liveOracleTwap = calculateLiveOracleTwap(
 		amm.historicalOracleData,
-		oraclePrice,
+		oraclePriceData,
 		now,
 		amm.fundingPeriod
 	);
 
 	const liveOracleTwap5MIN = calculateLiveOracleTwap(
 		amm.historicalOracleData,
-		oraclePrice,
+		oraclePriceData,
 		now,
 		FIVE_MINUTE
 	);
 
 	const priceDeltaVsTwap = BN.max(
-		oraclePrice.sub(liveOracleTwap).abs(),
-		oraclePrice.sub(liveOracleTwap5MIN).abs()
+		oraclePriceData.price.sub(liveOracleTwap).abs(),
+		oraclePriceData.price.sub(liveOracleTwap5MIN).abs()
 	);
 
 	const oracleStd = priceDeltaVsTwap.add(
@@ -192,11 +198,11 @@ export function calculateLiveOracleStd(amm: AMM, oraclePrice: BN, now: BN): BN {
 
 export function getNewOracleConfPct(
 	amm: AMM,
-	oracleConf: BN,
+	oraclePriceData: OraclePriceData,
 	reservePrice: BN,
 	now: BN
 ): BN {
-	const confInterval = oracleConf || ZERO;
+	const confInterval = oraclePriceData.confidence || ZERO;
 
 	const sinceLastUpdate = BN.max(
 		ZERO,

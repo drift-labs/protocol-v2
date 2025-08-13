@@ -45,7 +45,7 @@ pub fn calculate_repeg_validity_from_oracle_account(
         &oracle_guard_rails.validity,
         market.get_max_confidence_interval_multiplier()?,
         &market.amm.oracle_source,
-        true,
+        oracle::LogMode::ExchangeOracle,
         0,
     )? == OracleValidity::Valid;
 
@@ -352,7 +352,7 @@ pub fn calculate_optimal_peg_and_budget(
 
     let mut fee_budget = calculate_fee_pool(market)?;
 
-    let target_price_i64 = mm_oracle_price_data.get_oracle_price();
+    let target_price_i64 = mm_oracle_price_data.get_price();
     let target_price = target_price_i64.cast()?;
     let mut optimal_peg = calculate_peg_from_target_price(
         market.amm.quote_asset_reserve,

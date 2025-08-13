@@ -1,4 +1,6 @@
+import { BN } from '@coral-xyz/anchor';
 import {
+	MarginMode,
 	MarketType,
 	Order,
 	OrderStatus,
@@ -11,8 +13,7 @@ import {
 	UserAccount,
 } from '../types';
 import { PublicKey } from '@solana/web3.js';
-import { BN, MarginMode } from '../';
-import { ZERO } from '../';
+import { ZERO } from '../constants/numericConstants';
 
 function readUnsignedBigInt64LE(buffer: Buffer, offset: number): BN {
 	return new BN(buffer.subarray(offset, offset + 8), 10, 'le');

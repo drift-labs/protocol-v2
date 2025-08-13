@@ -37,7 +37,16 @@ module.exports = {
 						// Restrict importing BN from bn.js
 						"group": ["bn.js"],
 						"message": "Import BN from @drift-labs/sdk instead",
-					}
+					},
+					{
+						// Prevent imports from index files within the same package
+						group: [
+							'**/index',
+							'**/index.ts',
+						],
+						message:
+							'Do not import from index file within the same package. Import directly from source files instead. This prevents barrel imports.',
+					},
 				],
 			},
 		],

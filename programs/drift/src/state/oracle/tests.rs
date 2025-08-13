@@ -3,9 +3,10 @@ use std::str::FromStr;
 
 use crate::create_account_info;
 use crate::math::constants::{AMM_RESERVE_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64};
-use crate::state::oracle::{get_oracle_price, OraclePriceData, OracleSource};
+use crate::state::oracle::{get_oracle_price, HistoricalOracleData, OraclePriceData, OracleSource};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{PerpMarket, AMM};
+use crate::state::state::State;
 use crate::test_utils::*;
 
 #[test]
@@ -162,6 +163,12 @@ fn oracle_map_diff_oracle_source() {
 #[test]
 fn use_mm_oracle() {
     let slot = 303030303;
+    let oracle_price_data = OraclePriceData {
+        price: 130 * PRICE_PRECISION_I64 + 873,
+        confidence: PRICE_PRECISION_U64 / 10,
+        delay: 1,
+        has_sufficient_number_of_data_points: true,
+    };
     let mut market = PerpMarket {
         market_index: 0,
         amm: AMM {
@@ -171,8 +178,11 @@ fn use_mm_oracle() {
             peg_multiplier: 22_100_000_000,
             base_asset_amount_with_amm: (12295081967_i128),
             max_spread: 1000,
-            mm_oracle_price: 131 * PRICE_PRECISION_I64 + 873,
+            mm_oracle_price: 130 * PRICE_PRECISION_I64 + 973,
             mm_oracle_slot: slot,
+            historical_oracle_data: HistoricalOracleData::default_with_current_oracle(
+                oracle_price_data,
+            ),
             // assume someone else has other half same entry,
             ..AMM::default()
         },
@@ -183,20 +193,15 @@ fn use_mm_oracle() {
         unrealized_pnl_maintenance_asset_weight: 100,
         ..PerpMarket::default()
     };
+    let state = State::default();
 
-    let oracle_price_data = OraclePriceData {
-        price: 130 * PRICE_PRECISION_I64 + 873,
-        confidence: PRICE_PRECISION_U64 / 10,
-        delay: 1,
-        has_sufficient_number_of_data_points: true,
-    };
-    let mut mm_oracle_price_data = market
-        .get_mm_oracle_price_data(oracle_price_data, slot)
+    let mm_oracle_price_data = market
+        .get_mm_oracle_price_data(oracle_price_data, slot, &state.oracle_guard_rails.validity)
         .unwrap();
 
-    // Use the MM oracle when it's recent
+    // Use the MM oracle when it's recent and it's valid to use
     assert_eq!(
-        mm_oracle_price_data.get_oracle_price(),
+        mm_oracle_price_data.get_price(),
         mm_oracle_price_data.mm_oracle_price
     );
     assert_eq!(
@@ -204,21 +209,24 @@ fn use_mm_oracle() {
         mm_oracle_price_data.mm_oracle_delay
     );
 
-    // Update the MM oracle slot to be delayed
+    // Update the MM oracle slot to be delayed, should use oracle price data
     market.amm.mm_oracle_slot = slot - 5;
-    let mut mm_oracle_price_data = market
-        .get_mm_oracle_price_data(oracle_price_data, slot)
+    let mm_oracle_price_data = market
+        .get_mm_oracle_price_data(oracle_price_data, slot, &state.oracle_guard_rails.validity)
         .unwrap();
-    assert_eq!(
-        mm_oracle_price_data.get_oracle_price(),
-        oracle_price_data.price
-    );
+    assert_eq!(mm_oracle_price_data.get_price(), oracle_price_data.price);
     assert_eq!(mm_oracle_price_data.get_delay(), oracle_price_data.delay,);
 }
 
 #[test]
 fn mm_oracle_confidence() {
     let slot = 303030303;
+    let oracle_price_data = OraclePriceData {
+        price: 130 * PRICE_PRECISION_I64 + 873,
+        confidence: PRICE_PRECISION_U64 / 10,
+        delay: 1,
+        has_sufficient_number_of_data_points: true,
+    };
     let market = PerpMarket {
         market_index: 0,
         amm: AMM {
@@ -228,8 +236,11 @@ fn mm_oracle_confidence() {
             peg_multiplier: 22_100_000_000,
             base_asset_amount_with_amm: (12295081967_i128),
             max_spread: 1000,
-            mm_oracle_price: 132 * PRICE_PRECISION_I64 + 873,
+            mm_oracle_price: 130 * PRICE_PRECISION_I64 + 999,
             mm_oracle_slot: slot,
+            historical_oracle_data: HistoricalOracleData::default_with_current_oracle(
+                oracle_price_data,
+            ),
             // assume someone else has other half same entry,
             ..AMM::default()
         },
@@ -240,21 +251,17 @@ fn mm_oracle_confidence() {
         unrealized_pnl_maintenance_asset_weight: 100,
         ..PerpMarket::default()
     };
+    let state = State::default();
 
-    let oracle_price_data = OraclePriceData {
-        price: 130 * PRICE_PRECISION_I64 + 873,
-        confidence: PRICE_PRECISION_U64 / 10,
-        delay: 1,
-        has_sufficient_number_of_data_points: true,
-    };
-
-    let mut mm_oracle_price_data = market
-        .get_mm_oracle_price_data(oracle_price_data, slot)
+    let mm_oracle_price_data = market
+        .get_mm_oracle_price_data(oracle_price_data, slot, &state.oracle_guard_rails.validity)
         .unwrap();
 
-    let expected_confidence =
-        mm_oracle_price_data.oracle_price_data.confidence + PRICE_PRECISION_U64 * 2 / 5;
+    let expected_confidence = oracle_price_data.confidence
+        + (mm_oracle_price_data._get_mm_oracle_price()
+            - mm_oracle_price_data.get_exchange_oracle_price_data().price)
+            .abs() as u64;
 
-    let confidence = mm_oracle_price_data.get_confidence().unwrap();
+    let confidence = mm_oracle_price_data.get_confidence();
     assert_eq!(confidence, expected_confidence);
 }

@@ -1,5 +1,10 @@
-import { StateAccount } from '../types';
-import { BN, LAMPORTS_PRECISION, PERCENTAGE_PRECISION, ZERO } from '../';
+import { BN } from '@coral-xyz/anchor';
+import {
+	LAMPORTS_PRECISION,
+	PERCENTAGE_PRECISION,
+	ZERO,
+} from '../constants/numericConstants';
+import { FeatureBitFlags, StateAccount } from '../types';
 
 export function calculateInitUserFee(stateAccount: StateAccount): BN {
 	const maxInitFee = new BN(stateAccount.maxInitializeUserFee)
@@ -26,4 +31,10 @@ export function getMaxNumberOfSubAccounts(stateAccount: StateAccount): BN {
 		return new BN(stateAccount.maxNumberOfSubAccounts);
 	}
 	return new BN(stateAccount.maxNumberOfSubAccounts).muln(100);
+}
+
+export function useMedianTriggerPrice(stateAccount: StateAccount): boolean {
+	return (
+		(stateAccount.featureBitFlags & FeatureBitFlags.MEDIAN_TRIGGER_PRICE) > 0
+	);
 }

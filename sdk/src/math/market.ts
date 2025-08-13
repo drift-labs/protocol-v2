@@ -6,6 +6,7 @@ import {
 	SpotMarketAccount,
 	SpotBalanceType,
 	MarketType,
+	isVariant,
 } from '../types';
 import {
 	calculateAmmReservesAfterSwap,
@@ -19,18 +20,20 @@ import {
 	calculateSizeDiscountAssetWeight,
 	calculateSizePremiumLiabilityWeight,
 } from './margin';
-import { MMOraclePriceData, OraclePriceData } from '../oracles/types';
+import { OraclePriceData } from '../oracles/types';
 import {
 	BASE_PRECISION,
 	MARGIN_PRECISION,
 	PRICE_TO_QUOTE_PRECISION,
 	ZERO,
 	QUOTE_SPOT_MARKET_INDEX,
+	PRICE_PRECISION,
+	PERCENTAGE_PRECISION,
+	FUNDING_RATE_PRECISION,
 } from '../constants/numericConstants';
 import { getTokenAmount } from './spotBalance';
 import { DLOB } from '../dlob/DLOB';
 import { assert } from '../assert/assert';
-import { getOraclePriceFromMMOracleData } from '../oracles/utils';
 
 /**
  * Calculates market mark price
@@ -40,9 +43,9 @@ import { getOraclePriceFromMMOracleData } from '../oracles/utils';
  */
 export function calculateReservePrice(
 	market: PerpMarketAccount,
-	mmOraclePriceData: MMOraclePriceData
+	oraclePriceData: OraclePriceData
 ): BN {
-	const newAmm = calculateUpdatedAMM(market.amm, mmOraclePriceData);
+	const newAmm = calculateUpdatedAMM(market.amm, oraclePriceData);
 	return calculatePrice(
 		newAmm.baseAssetReserve,
 		newAmm.quoteAssetReserve,
@@ -58,13 +61,13 @@ export function calculateReservePrice(
  */
 export function calculateBidPrice(
 	market: PerpMarketAccount,
-	mmOraclePriceData: MMOraclePriceData
+	oraclePriceData: OraclePriceData
 ): BN {
 	const { baseAssetReserve, quoteAssetReserve, newPeg } =
 		calculateUpdatedAMMSpreadReserves(
 			market.amm,
 			PositionDirection.SHORT,
-			mmOraclePriceData
+			oraclePriceData
 		);
 
 	return calculatePrice(baseAssetReserve, quoteAssetReserve, newPeg);
@@ -78,13 +81,13 @@ export function calculateBidPrice(
  */
 export function calculateAskPrice(
 	market: PerpMarketAccount,
-	mmOraclePriceData: MMOraclePriceData
+	oraclePriceData: OraclePriceData
 ): BN {
 	const { baseAssetReserve, quoteAssetReserve, newPeg } =
 		calculateUpdatedAMMSpreadReserves(
 			market.amm,
 			PositionDirection.LONG,
-			mmOraclePriceData
+			oraclePriceData
 		);
 
 	return calculatePrice(baseAssetReserve, quoteAssetReserve, newPeg);
@@ -114,17 +117,17 @@ export function calculateNewMarketAfterTrade(
 
 export function calculateOracleReserveSpread(
 	market: PerpMarketAccount,
-	mmOraclePriceData: MMOraclePriceData
+	oraclePriceData: OraclePriceData
 ): BN {
-	const reservePrice = calculateReservePrice(market, mmOraclePriceData);
-	return calculateOracleSpread(
-		reservePrice,
-		getOraclePriceFromMMOracleData(mmOraclePriceData)
-	);
+	const reservePrice = calculateReservePrice(market, oraclePriceData);
+	return calculateOracleSpread(reservePrice, oraclePriceData);
 }
 
-export function calculateOracleSpread(price: BN, oraclePrice: BN): BN {
-	return price.sub(oraclePrice);
+export function calculateOracleSpread(
+	price: BN,
+	oraclePriceData: OraclePriceData
+): BN {
+	return price.sub(oraclePriceData.price);
 }
 
 export function calculateMarketMarginRatio(
@@ -183,7 +186,7 @@ export function calculateUnrealizedAssetWeight(
 	quoteSpotMarket: SpotMarketAccount,
 	unrealizedPnl: BN,
 	marginCategory: MarginCategory,
-	oraclePriceData: OraclePriceData
+	oraclePriceData: Pick<OraclePriceData, 'price'>
 ): BN {
 	let assetWeight: BN;
 	switch (marginCategory) {
@@ -249,7 +252,7 @@ export function calculateMarketMaxAvailableInsurance(
 
 export function calculateNetUserPnl(
 	perpMarket: PerpMarketAccount,
-	oraclePriceData: OraclePriceData
+	oraclePriceData: Pick<OraclePriceData, 'price'>
 ): BN {
 	const netUserPositionValue = perpMarket.amm.baseAssetAmountWithAmm
 		.add(perpMarket.amm.baseAssetAmountWithUnsettledLp)
@@ -269,7 +272,7 @@ export function calculateNetUserPnl(
 export function calculateNetUserPnlImbalance(
 	perpMarket: PerpMarketAccount,
 	spotMarket: SpotMarketAccount,
-	oraclePriceData: OraclePriceData,
+	oraclePriceData: Pick<OraclePriceData, 'price'>,
 	applyFeePoolDiscount = true
 ): BN {
 	const netUserPnl = calculateNetUserPnl(perpMarket, oraclePriceData);
@@ -350,4 +353,105 @@ export function calculatePerpMarketBaseLiquidatorFee(
 	} else {
 		return market.liquidatorFee;
 	}
+}
+
+/**
+ * Calculates trigger price for a perp market based on oracle price and current time
+ * Implements the same logic as the Rust get_trigger_price function
+ *
+ * @param market - The perp market account
+ * @param oraclePrice - Current oracle price (precision: PRICE_PRECISION)
+ * @param now - Current timestamp in seconds
+ * @returns trigger price (precision: PRICE_PRECISION)
+ */
+export function getTriggerPrice(
+	market: PerpMarketAccount,
+	oraclePrice: BN,
+	now: BN,
+	useMedianPrice: boolean
+): BN {
+	if (!useMedianPrice) {
+		return oraclePrice.abs();
+	}
+
+	const lastFillPrice = market.lastFillPrice;
+
+	// Calculate 5-minute basis
+	const markPrice5minTwap = market.amm.lastMarkPriceTwap5Min;
+	const lastOraclePriceTwap5min =
+		market.amm.historicalOracleData.lastOraclePriceTwap5Min;
+	const basis5min = markPrice5minTwap.sub(lastOraclePriceTwap5min);
+
+	const oraclePlusBasis5min = oraclePrice.add(basis5min);
+
+	// Calculate funding basis
+	const lastFundingBasis = getLastFundingBasis(market, oraclePrice, now);
+	const oraclePlusFundingBasis = oraclePrice.add(lastFundingBasis);
+
+	const prices = [
+		lastFillPrice.gt(ZERO) ? lastFillPrice : oraclePrice,
+		oraclePlusFundingBasis,
+		oraclePlusBasis5min,
+	].sort((a, b) => a.cmp(b));
+	const medianPrice = prices[1];
+
+	return clampTriggerPrice(market, oraclePrice.abs(), medianPrice);
+}
+
+/**
+ * Calculates the last funding basis for trigger price calculation
+ * Implements the same logic as the Rust get_last_funding_basis function
+ */
+function getLastFundingBasis(
+	market: PerpMarketAccount,
+	oraclePrice: BN,
+	now: BN
+): BN {
+	if (market.amm.lastFundingOracleTwap.gt(ZERO)) {
+		const lastFundingRate = market.amm.lastFundingRate
+			.mul(PRICE_PRECISION)
+			.div(market.amm.lastFundingOracleTwap)
+			.muln(24);
+		const lastFundingRatePreAdj = lastFundingRate.sub(
+			FUNDING_RATE_PRECISION.div(new BN(5000)) // FUNDING_RATE_OFFSET_PERCENTAGE
+		);
+		const timeLeftUntilFundingUpdate = BN.min(
+			BN.max(now.sub(market.amm.lastFundingRateTs), ZERO),
+			market.amm.fundingPeriod
+		);
+		const lastFundingBasis = oraclePrice
+			.mul(lastFundingRatePreAdj)
+			.div(PERCENTAGE_PRECISION)
+			.mul(market.amm.fundingPeriod.sub(timeLeftUntilFundingUpdate))
+			.div(market.amm.fundingPeriod)
+			.div(new BN(1000)); // FUNDING_RATE_BUFFER
+		return lastFundingBasis;
+	} else {
+		return ZERO;
+	}
+}
+
+/**
+ * Clamps trigger price based on contract tier
+ * Implements the same logic as the Rust clamp_trigger_price function
+ */
+function clampTriggerPrice(
+	market: PerpMarketAccount,
+	oraclePrice: BN,
+	medianPrice: BN
+): BN {
+	let maxBpsDiff: BN;
+	const tier = market.contractTier;
+	if (isVariant(tier, 'a') || isVariant(tier, 'b')) {
+		maxBpsDiff = new BN(500); // 20 BPS
+	} else if (isVariant(tier, 'c')) {
+		maxBpsDiff = new BN(100); // 100 BPS
+	} else {
+		maxBpsDiff = new BN(40); // 250 BPS
+	}
+	const maxOracleDiff = oraclePrice.div(maxBpsDiff);
+	return BN.min(
+		BN.max(medianPrice, oraclePrice.sub(maxOracleDiff)),
+		oraclePrice.add(maxOracleDiff)
+	);
 }

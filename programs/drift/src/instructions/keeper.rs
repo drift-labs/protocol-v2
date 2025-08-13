@@ -953,8 +953,6 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
             SettlePnlMode::MustSettle,
         )
         .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
-
-        user.update_last_active_slot(clock.slot);
     }
 
     let spot_market = spot_market_map.get_quote_spot_market()?;
@@ -1039,8 +1037,6 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
                 mode,
             )
             .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
-
-            user.update_last_active_slot(clock.slot);
         }
     }
 
@@ -2320,15 +2316,12 @@ pub fn handle_update_funding_rate(
     )?;
 
     let oracle_price_data = oracle_map.get_price_data(&perp_market.oracle_id())?;
-    let mut mm_oracle_price_data =
-        perp_market.get_mm_oracle_price_data(*oracle_price_data, clock_slot)?;
-    controller::repeg::_update_amm(
-        perp_market,
-        &mut mm_oracle_price_data,
-        state,
-        now,
+    let mm_oracle_price_data = perp_market.get_mm_oracle_price_data(
+        *oracle_price_data,
         clock_slot,
+        &state.oracle_guard_rails.validity,
     )?;
+    controller::repeg::_update_amm(perp_market, &mm_oracle_price_data, state, now, clock_slot)?;
 
     validate!(
         matches!(
@@ -2423,9 +2416,12 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
     )?;
 
     let oracle_price_data = oracle_map.get_price_data(&perp_market.oracle_id())?;
-    let mut mm_oracle_price_data =
-        perp_market.get_mm_oracle_price_data(*oracle_price_data, slot)?;
-    controller::repeg::_update_amm(perp_market, &mut mm_oracle_price_data, state, now, slot)?;
+    let mm_oracle_price_data = perp_market.get_mm_oracle_price_data(
+        *oracle_price_data,
+        slot,
+        &state.oracle_guard_rails.validity,
+    )?;
+    controller::repeg::_update_amm(perp_market, &mm_oracle_price_data, state, now, slot)?;
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let makers = load_user_map(remaining_accounts_iter, false)?;
@@ -2450,13 +2446,9 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
         msg!("skipping mark twap update for disabled amm prediction market");
         return Ok(());
     }
-
-    msg!(
-        "before amm bid twap = {} ask twap = {} ts = {}",
-        perp_market.amm.last_bid_price_twap,
-        perp_market.amm.last_ask_price_twap,
-        perp_market.amm.last_mark_price_twap_ts
-    );
+    let before_bid_price_twap = perp_market.amm.last_bid_price_twap;
+    let before_ask_price_twap = perp_market.amm.last_ask_price_twap;
+    let before_mark_twap_ts = perp_market.amm.last_mark_price_twap_ts;
 
     let sanitize_clamp_denominator = perp_market.get_sanitize_clamp_denominator()?;
     math::amm::update_mark_twap_crank(
@@ -2469,11 +2461,32 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
     )?;
 
     msg!(
-        "after amm bid twap = {} ask twap = {} ts = {}",
+        "after amm bid twap = {} -> {} 
+        ask twap = {} -> {} 
+        ts = {} -> {}",
+        before_bid_price_twap,
         perp_market.amm.last_bid_price_twap,
+        before_ask_price_twap,
         perp_market.amm.last_ask_price_twap,
+        before_mark_twap_ts,
         perp_market.amm.last_mark_price_twap_ts
     );
+
+    if perp_market.amm.last_bid_price_twap == before_bid_price_twap
+        || perp_market.amm.last_ask_price_twap == before_ask_price_twap
+    {
+        validate!(
+            perp_market
+                .amm
+                .last_mark_price_twap_ts
+                .safe_sub(before_mark_twap_ts)?
+                >= 60
+                || estimated_bid.unwrap_or(0) == before_bid_price_twap
+                || estimated_ask.unwrap_or(0) == before_ask_price_twap,
+            ErrorCode::CantUpdatePerpBidAskTwap,
+            "bid or ask twap unchanged from small ts delta update",
+        )?;
+    }
 
     let funding_paused =
         state.funding_paused()? || perp_market.is_operation_paused(PerpOperation::UpdateFunding);
@@ -2621,8 +2634,12 @@ pub fn handle_update_spot_market_cumulative_interest(
 )]
 pub fn handle_update_amms<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdateAMM<'info>>,
-    market_indexes: [u16; 5],
+    market_indexes: Vec<u16>,
 ) -> Result<()> {
+    if market_indexes.len() > 5 {
+        msg!("Too many markets passed, max 5");
+        return Err(ErrorCode::DefaultError.into());
+    }
     // up to ~60k compute units (per amm) worst case
 
     let clock = Clock::get()?;
@@ -2646,8 +2663,12 @@ pub fn handle_update_amms<'c: 'info, 'info>(
 )]
 pub fn view_amm_liquidity<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdateAMM<'info>>,
-    market_indexes: [u16; 5],
+    market_indexes: Vec<u16>,
 ) -> Result<()> {
+    if market_indexes.len() > 5 {
+        msg!("Too many markets passed, max 5");
+        return Err(ErrorCode::DefaultError.into());
+    }
     // up to ~60k compute units (per amm) worst case
 
     let clock = Clock::get()?;
@@ -2754,6 +2775,7 @@ pub fn handle_update_user_gov_token_insurance_stake_devnet(
 
 pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, DisableUserHighLeverageMode<'info>>,
+    disable_maintenance: bool,
 ) -> Result<()> {
     let state = &ctx.accounts.state;
     let mut user = load_mut!(ctx.accounts.user)?;
@@ -2772,13 +2794,45 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
+    let in_high_leverage_mode = user.is_high_leverage_mode(MarginRequirementType::Maintenance);
     validate!(
-        user.margin_mode == MarginMode::HighLeverage,
+        in_high_leverage_mode,
         ErrorCode::DefaultError,
-        "user must be in high leverage mode"
+        "user is not in high leverage mode"
     )?;
 
-    user.margin_mode = MarginMode::Default;
+    let old_margin_mode = user.margin_mode;
+
+    if disable_maintenance {
+        validate!(
+            user.margin_mode == MarginMode::HighLeverageMaintenance,
+            ErrorCode::DefaultError,
+            "user must be in high leverage maintenance mode"
+        )?;
+
+        user.margin_mode = MarginMode::Default;
+    } else {
+        let mut has_high_leverage_pos = false;
+        for position in user.perp_positions.iter().filter(|p| !p.is_available()) {
+            let perp_market = perp_market_map.get_ref(&position.market_index)?;
+            if perp_market.is_high_leverage_mode_enabled() {
+                has_high_leverage_pos = true;
+                break;
+            }
+        }
+
+        if !has_high_leverage_pos {
+            user.margin_mode = MarginMode::Default;
+        } else {
+            validate!(
+                user.margin_mode == MarginMode::HighLeverage,
+                ErrorCode::DefaultError,
+                "user must be in high leverage mode"
+            )?;
+
+            user.margin_mode = MarginMode::HighLeverageMaintenance;
+        }
+    }
 
     let custom_margin_ratio_before = user.max_margin_ratio;
     user.max_margin_ratio = 0;
@@ -2831,7 +2885,15 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
 
     let mut config = load_mut!(ctx.accounts.high_leverage_mode_config)?;
 
-    config.current_users = config.current_users.safe_sub(1)?;
+    if old_margin_mode == MarginMode::HighLeverageMaintenance {
+        config.current_maintenance_users = config.current_maintenance_users.safe_sub(1)?;
+    } else {
+        config.current_users = config.current_users.safe_sub(1)?;
+    }
+
+    if user.margin_mode == MarginMode::HighLeverageMaintenance {
+        config.current_maintenance_users = config.current_maintenance_users.safe_add(1)?;
+    }
 
     config.validate()?;
 

@@ -14,6 +14,7 @@ use crate::math::constants::{
     SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
 };
 use crate::math::lp::calculate_settle_lp_metrics;
+use crate::math::oracle::OracleValidity;
 use crate::math::position::swap_direction_to_close_position;
 use crate::math::repeg;
 use crate::state::oracle::{MMOraclePriceData, OraclePriceData, PrelaunchOracle};
@@ -540,8 +541,12 @@ fn amm_pred_market_example() {
         delay: 1,
         has_sufficient_number_of_data_points: true,
     };
-    let mut mm_oracle_price_data = perp_market
-        .get_mm_oracle_price_data(oracle_price_data, clock_slot)
+    let mm_oracle_price_data = perp_market
+        .get_mm_oracle_price_data(
+            oracle_price_data,
+            clock_slot,
+            &state.oracle_guard_rails.validity,
+        )
         .unwrap();
 
     let (max_bids, max_asks) = calculate_market_open_bids_asks(&perp_market.amm).unwrap();
@@ -553,7 +558,7 @@ fn amm_pred_market_example() {
     assert_eq!(perp_market.amm.sqrt_k, 56_649_660_613_272);
 
     let (optimal_peg, fee_budget, _check_lower_bound) =
-        repeg::calculate_optimal_peg_and_budget(&perp_market, &mut mm_oracle_price_data).unwrap();
+        repeg::calculate_optimal_peg_and_budget(&perp_market, &mm_oracle_price_data).unwrap();
 
     assert_eq!(perp_market.amm.terminal_quote_asset_reserve, 56405211622548);
     assert_eq!(perp_market.amm.quote_asset_reserve, 56933567973708);
@@ -584,7 +589,7 @@ fn amm_pred_market_example() {
 
     let cost = _update_amm(
         &mut perp_market,
-        &mut mm_oracle_price_data,
+        &mm_oracle_price_data,
         &state,
         now,
         clock_slot,
@@ -674,12 +679,16 @@ fn amm_ref_price_decay_tail_test() {
         delay: 1,
         has_sufficient_number_of_data_points: true,
     };
-    let mut mm_oracle_price_data = perp_market
-        .get_mm_oracle_price_data(oracle_price_data, clock_slot)
+    let mm_oracle_price_data = perp_market
+        .get_mm_oracle_price_data(
+            oracle_price_data,
+            clock_slot,
+            &state.oracle_guard_rails.validity,
+        )
         .unwrap();
     let cost = _update_amm(
         &mut perp_market,
-        &mut mm_oracle_price_data,
+        &mm_oracle_price_data,
         &state,
         now,
         clock_slot,
@@ -702,13 +711,17 @@ fn amm_ref_price_decay_tail_test() {
             now += 250;
             clock_slot += 700;
         }
-        let mut mm_oracle_price_data = perp_market
-            .get_mm_oracle_price_data(oracle_price_data, clock_slot)
+        let mm_oracle_price_data = perp_market
+            .get_mm_oracle_price_data(
+                oracle_price_data,
+                clock_slot,
+                &state.oracle_guard_rails.validity,
+            )
             .unwrap();
 
         let cost = _update_amm(
             &mut perp_market,
-            &mut mm_oracle_price_data,
+            &mm_oracle_price_data,
             &state,
             now,
             clock_slot,
@@ -842,12 +855,16 @@ fn amm_ref_price_offset_decay_logic() {
         delay: 1,
         has_sufficient_number_of_data_points: true,
     };
-    let mut mm_oracle_price_data = perp_market
-        .get_mm_oracle_price_data(oracle_price_data, clock_slot)
+    let mm_oracle_price_data = perp_market
+        .get_mm_oracle_price_data(
+            oracle_price_data,
+            clock_slot,
+            &state.oracle_guard_rails.validity,
+        )
         .unwrap();
     let cost = _update_amm(
         &mut perp_market,
-        &mut mm_oracle_price_data,
+        &mm_oracle_price_data,
         &state,
         now,
         clock_slot,
@@ -877,13 +894,17 @@ fn amm_ref_price_offset_decay_logic() {
             now += 1;
             clock_slot += 2;
         }
-        let mut mm_oracle_price_data = perp_market
-            .get_mm_oracle_price_data(oracle_price_data, clock_slot)
+        let mm_oracle_price_data = perp_market
+            .get_mm_oracle_price_data(
+                oracle_price_data,
+                clock_slot,
+                &state.oracle_guard_rails.validity,
+            )
             .unwrap();
 
         let cost = _update_amm(
             &mut perp_market,
-            &mut mm_oracle_price_data,
+            &mm_oracle_price_data,
             &state,
             now,
             clock_slot,
@@ -919,10 +940,10 @@ fn amm_ref_price_offset_decay_logic() {
     assert_eq!(
         sspreads,
         [
-            7147, 6937, 6727, 6517, 6307, 6097, 6077, 6057, 6037, 6017, 5807, 5596, 5386, 5176,
-            4966, 4756, 4546, 4336, 4126, 3916, 3706, 3496, 3286, 3076, 2866, 2656, 2446, 2236,
-            2026, 1816, 1626, 1455, 1302, 1164, 1040, 928, 827, 736, 654, 581, 515, 456, 402, 354,
-            311, 272, 237, 205, 177, 151, 128, 107, 87, 67, 47, 27, 7, 6, 6, 6
+            7150, 6940, 6730, 6520, 6310, 6100, 6080, 6060, 6040, 6020, 5810, 5600, 5390, 5180,
+            4970, 4760, 4550, 4340, 4130, 3920, 3710, 3500, 3290, 3080, 2870, 2660, 2450, 2240,
+            2030, 1820, 1630, 1459, 1306, 1168, 1044, 932, 831, 740, 658, 585, 519, 460, 406, 358,
+            315, 276, 241, 209, 181, 155, 132, 111, 91, 71, 51, 31, 11, 10, 10, 10
         ]
     );
 }
@@ -1007,12 +1028,16 @@ fn amm_negative_ref_price_offset_decay_logic() {
         delay: 1,
         has_sufficient_number_of_data_points: true,
     };
-    let mut mm_oracle_price_data = perp_market
-        .get_mm_oracle_price_data(oracle_price_data, clock_slot)
+    let mm_oracle_price_data = perp_market
+        .get_mm_oracle_price_data(
+            oracle_price_data,
+            clock_slot,
+            &state.oracle_guard_rails.validity,
+        )
         .unwrap();
     let cost = _update_amm(
         &mut perp_market,
-        &mut mm_oracle_price_data,
+        &mm_oracle_price_data,
         &state,
         now,
         clock_slot,
@@ -1043,13 +1068,17 @@ fn amm_negative_ref_price_offset_decay_logic() {
             now += 1;
             clock_slot += 2;
         }
-        let mut mm_oracle_price_data = perp_market
-            .get_mm_oracle_price_data(oracle_price_data, clock_slot)
+        let mm_oracle_price_data = perp_market
+            .get_mm_oracle_price_data(
+                oracle_price_data,
+                clock_slot,
+                &state.oracle_guard_rails.validity,
+            )
             .unwrap();
 
         let cost = _update_amm(
             &mut perp_market,
-            &mut mm_oracle_price_data,
+            &mm_oracle_price_data,
             &state,
             now,
             clock_slot,
@@ -1079,10 +1108,11 @@ fn amm_negative_ref_price_offset_decay_logic() {
     assert_eq!(
         sspreads,
         [
-            207, 207, 207, 207, 207, 207, 17, 17, 17, 17, 207, 206, 206, 206, 206, 206, 206, 206,
-            206, 206, 206, 206, 206, 206, 206, 206, 206, 206, 206, 206, 206, 206, 206, 206, 206,
-            206, 206, 206, 126, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
-            6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6
+            210, 210, 210, 210, 210, 210, 20, 20, 20, 20, 210, 210, 210, 210, 210, 210, 210, 210,
+            210, 210, 210, 210, 210, 210, 210, 210, 210, 210, 210, 210, 210, 210, 210, 210, 210,
+            210, 210, 210, 130, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+            10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+            10, 10
         ]
     );
     assert_eq!(
@@ -1185,12 +1215,16 @@ fn amm_perp_ref_offset() {
         delay: 1,
         has_sufficient_number_of_data_points: true,
     };
-    let mut mm_oracle_price_data = perp_market
-        .get_mm_oracle_price_data(oracle_price_data, clock_slot)
+    let mm_oracle_price_data = perp_market
+        .get_mm_oracle_price_data(
+            oracle_price_data,
+            clock_slot,
+            &state.oracle_guard_rails.validity,
+        )
         .unwrap();
     let cost = _update_amm(
         &mut perp_market,
-        &mut mm_oracle_price_data,
+        &mm_oracle_price_data,
         &state,
         now,
         clock_slot,
@@ -1217,15 +1251,19 @@ fn amm_perp_ref_offset() {
     crate::validation::perp_market::validate_perp_market(&perp_market).unwrap();
 
     // Update MM oracle and reference price offset stays the same and is applied to the MM oracle
-    perp_market.amm.mm_oracle_price = 7200000;
+    perp_market.amm.mm_oracle_price = oracle_price_data.price * 1005 / 1000;
     perp_market.amm.mm_oracle_slot = clock_slot;
-    let mut mm_oracle_price_data = perp_market
-        .get_mm_oracle_price_data(oracle_price_data, clock_slot)
+    let mm_oracle_price_data = perp_market
+        .get_mm_oracle_price_data(
+            oracle_price_data,
+            clock_slot,
+            &state.oracle_guard_rails.validity,
+        )
         .unwrap();
 
     let _ = _update_amm(
         &mut perp_market,
-        &mut mm_oracle_price_data,
+        &mm_oracle_price_data,
         &state,
         now,
         clock_slot,
@@ -1235,16 +1273,20 @@ fn amm_perp_ref_offset() {
         .amm
         .bid_ask_price(reserve_price_mm_offset)
         .unwrap();
-    assert_eq!(perp_market.amm.reference_price_offset, 132);
-    assert_eq!(reserve_price_mm_offset, 7199999);
-    assert_eq!(b2, 7180271);
-    assert_eq!(a2, 7221656);
+    assert_eq!(perp_market.amm.reference_price_offset, 133);
+    assert_eq!(reserve_price_mm_offset, 7137107);
+    assert_eq!(b2, 7101549);
+    assert_eq!(a2, 7174591);
 
     // Uses the original oracle if the slot is old, ignoring MM oracle
-    perp_market.amm.mm_oracle_price = 7200000;
+    perp_market.amm.mm_oracle_price = mm_oracle_price_data.get_price() * 995 / 1000;
     perp_market.amm.mm_oracle_slot = clock_slot - 100;
     let mut mm_oracle_price = perp_market
-        .get_mm_oracle_price_data(oracle_price_data, clock_slot)
+        .get_mm_oracle_price_data(
+            oracle_price_data,
+            clock_slot,
+            &state.oracle_guard_rails.validity,
+        )
         .unwrap();
 
     let _ = _update_amm(
@@ -1260,8 +1302,8 @@ fn amm_perp_ref_offset() {
         .bid_ask_price(reserve_price_mm_offset_3)
         .unwrap();
     assert_eq!(reserve_price_mm_offset_3, r);
-    assert_eq!(b3, 7082154);
-    assert_eq!(a3, 7122974);
+    assert_eq!(b3, 7066225);
+    assert_eq!(a3, 7138903);
 }
 
 #[test]
@@ -1689,7 +1731,11 @@ fn amm_split_large_k_with_rebase() {
         has_sufficient_number_of_data_points: true,
     };
     let mut mm_oracle_price = perp_market
-        .get_mm_oracle_price_data(oracle_price_data, clock_slot)
+        .get_mm_oracle_price_data(
+            oracle_price_data,
+            clock_slot,
+            &state.oracle_guard_rails.validity,
+        )
         .unwrap();
 
     let cost = _update_amm(
@@ -2782,6 +2828,8 @@ fn update_amm_near_boundary() {
     let mut decoded_bytes = base64::decode(oracle_market_str).unwrap();
     let oracle_market_bytes = decoded_bytes.as_mut_slice();
 
+    let state: State = State::default();
+
     let key = Pubkey::from_str("8ihFLu5FimgTQ1Unh4dVyEHUGodJ5gJQCrQf4KUVB9bN").unwrap();
     let owner = Pubkey::from_str("FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH").unwrap();
     let mut lamports = 0;
@@ -2798,20 +2846,13 @@ fn update_amm_near_boundary() {
     println!("perp_market: {:?}", perp_market.amm.last_update_slot);
 
     let oracle_price_data = oracle_map.get_price_data(&perp_market.oracle_id()).unwrap();
-    let mut mm_oracle_price_data = perp_market
-        .get_mm_oracle_price_data(*oracle_price_data, slot)
+    let mm_oracle_price_data = perp_market
+        .get_mm_oracle_price_data(*oracle_price_data, slot, &state.oracle_guard_rails.validity)
         .unwrap();
 
     let state = State::default();
 
-    let cost = _update_amm(
-        &mut perp_market,
-        &mut mm_oracle_price_data,
-        &state,
-        now,
-        slot,
-    )
-    .unwrap();
+    let cost = _update_amm(&mut perp_market, &mm_oracle_price_data, &state, now, slot).unwrap();
 
     assert_eq!(cost, 18803837952);
 }
@@ -2822,6 +2863,8 @@ fn update_amm_near_boundary2() {
     let mut decoded_bytes = base64::decode(perp_market_str).unwrap();
     let perp_market_bytes = decoded_bytes.as_mut_slice();
 
+    let state: State = State::default();
+
     let key = Pubkey::from_str("2QeqpeJUVo2LBWNELRfcBwJgrNoxJQSd7gokcaM5nvaa").unwrap();
     let owner = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
     let mut lamports = 0;
@@ -2850,19 +2893,13 @@ fn update_amm_near_boundary2() {
     println!("perp_market: {:?}", perp_market.amm.last_update_slot);
 
     let oracle_price_data = oracle_map.get_price_data(&perp_market.oracle_id()).unwrap();
-    let mut mm_oracle_price_data = perp_market
-        .get_mm_oracle_price_data(*oracle_price_data, slot)
+    let mm_oracle_price_data = perp_market
+        .get_mm_oracle_price_data(*oracle_price_data, slot, &state.oracle_guard_rails.validity)
         .unwrap();
     let state = State::default();
 
-    let cost: i128 = _update_amm(
-        &mut perp_market,
-        &mut mm_oracle_price_data,
-        &state,
-        now,
-        slot,
-    )
-    .unwrap();
+    let cost: i128 =
+        _update_amm(&mut perp_market, &mm_oracle_price_data, &state, now, slot).unwrap();
     assert!(perp_market.amm.last_oracle_valid);
     assert_eq!(cost, 2987010);
 }
@@ -2873,6 +2910,8 @@ fn recenter_amm_1() {
     let mut decoded_bytes = base64::decode(perp_market_str).unwrap();
     let perp_market_bytes = decoded_bytes.as_mut_slice();
 
+    let state: State = State::default();
+
     let key = Pubkey::from_str("2QeqpeJUVo2LBWNELRfcBwJgrNoxJQSd7gokcaM5nvaa").unwrap();
     let owner = Pubkey::from_str("dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH").unwrap();
     let mut lamports = 0;
@@ -2901,20 +2940,13 @@ fn recenter_amm_1() {
     println!("perp_market: {:?}", perp_market.amm.last_update_slot);
 
     let oracle_price_data = oracle_map.get_price_data(&perp_market.oracle_id()).unwrap();
-    let mut mm_oracle_price_data = perp_market
-        .get_mm_oracle_price_data(*oracle_price_data, slot)
+    let mm_oracle_price_data = perp_market
+        .get_mm_oracle_price_data(*oracle_price_data, slot, &state.oracle_guard_rails.validity)
         .unwrap();
 
     let state = State::default();
 
-    let cost = _update_amm(
-        &mut perp_market,
-        &mut mm_oracle_price_data,
-        &state,
-        now,
-        slot,
-    )
-    .unwrap();
+    let cost = _update_amm(&mut perp_market, &mm_oracle_price_data, &state, now, slot).unwrap();
 
     assert_eq!(cost, 2987010);
 
@@ -3011,23 +3043,17 @@ fn recenter_amm_2() {
     let oracle_price_data = oracle_map
         .get_price_data(&(oracle_price_key, OracleSource::Pyth))
         .unwrap();
-    let mut mm_oracle_price_data = MMOraclePriceData {
-        mm_oracle_price: oracle_price_data.price,
-        mm_oracle_delay: oracle_price_data.delay + 1,
-        oracle_confidence: None,
-        oracle_price_data: *oracle_price_data,
-    };
+    let mm_oracle_price_data = MMOraclePriceData::new(
+        oracle_price_data.price,
+        oracle_price_data.delay + 1,
+        OracleValidity::default(),
+        *oracle_price_data,
+    )
+    .unwrap();
 
     let state = State::default();
 
-    let cost = _update_amm(
-        &mut perp_market,
-        &mut mm_oracle_price_data,
-        &state,
-        now,
-        slot,
-    )
-    .unwrap();
+    let cost = _update_amm(&mut perp_market, &mm_oracle_price_data, &state, now, slot).unwrap();
 
     assert_eq!(cost, 0);
 
@@ -3153,23 +3179,17 @@ fn test_move_amm() {
     let oracle_price_data = oracle_map
         .get_price_data(&(oracle_price_key, OracleSource::Pyth))
         .unwrap();
-    let mut mm_oracle_price_data = MMOraclePriceData {
-        mm_oracle_price: oracle_price_data.price,
-        mm_oracle_delay: oracle_price_data.delay + 1,
-        oracle_confidence: None,
-        oracle_price_data: *oracle_price_data,
-    };
+    let mm_oracle_price_data = MMOraclePriceData::new(
+        oracle_price_data.price,
+        oracle_price_data.delay + 1,
+        OracleValidity::default(),
+        *oracle_price_data,
+    )
+    .unwrap();
 
     let state = State::default();
 
-    let cost = _update_amm(
-        &mut perp_market,
-        &mut mm_oracle_price_data,
-        &state,
-        now,
-        slot,
-    )
-    .unwrap();
+    let cost = _update_amm(&mut perp_market, &mm_oracle_price_data, &state, now, slot).unwrap();
 
     assert_eq!(cost, 0);
 

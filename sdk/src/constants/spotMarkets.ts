@@ -1,5 +1,4 @@
 import { PublicKey } from '@solana/web3.js';
-import { BN, DriftEnv, OracleSource } from '../';
 import {
 	QUOTE_PRECISION,
 	QUOTE_PRECISION_EXP,
@@ -10,6 +9,9 @@ import {
 	NINE,
 	FIVE,
 } from './numericConstants';
+import { OracleSource } from '../types';
+import { BN } from '@coral-xyz/anchor';
+import { DriftEnv } from '../config';
 
 export type SpotMarketConfig = {
 	symbol: string;
@@ -463,14 +465,15 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		symbol: 'CLOUD',
 		marketIndex: 21,
 		poolId: 0,
-		oracle: new PublicKey('4EgPYJkEyNkoUcaMDbeokUiR4b1f3Hs3DK5S4NzqseR2'),
-		oracleSource: OracleSource.PYTH_PULL,
+		oracle: new PublicKey('9Ennia27iT83kNAk3JtRKxSMzuCzsVtT4MzuxpE7anME'),
+		oracleSource: OracleSource.PYTH_LAZER,
 		pythFeedId:
 			'0x7358313661dcd4f842a1423aa4f7a05f009001c9113201c719621d3f1aa80a73',
 		mint: new PublicKey('CLoUDKc4Ane7HeQcPpE3YHnznRxhMimJ4MyaUqyHFzAu'),
 		precision: new BN(10).pow(NINE),
 		precisionExp: NINE,
 		launchTs: 1721316817000,
+		pythLazerId: 404,
 	},
 	{
 		symbol: 'PYUSD',
@@ -526,13 +529,14 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		symbol: 'MOTHER',
 		marketIndex: 26,
 		poolId: 0,
-		oracle: new PublicKey('56ap2coZG7FPWUigVm9XrpQs3xuCwnwQaWtjWZcffEUG'),
-		oracleSource: OracleSource.PYTH_PULL,
+		oracle: new PublicKey('469WQgfJ6AJ3eJ8FUcdhiZawf7yNChA3hseTSyhFatHZ'),
+		oracleSource: OracleSource.PYTH_LAZER,
 		mint: new PublicKey('3S8qX1MsMqRbiwKg2cQyx7nis1oHMgaCuc9c4VfvVdPN'),
 		precision: new BN(10).pow(SIX),
 		precisionExp: SIX,
 		pythFeedId:
 			'0x62742a997d01f7524f791fdb2dd43aaf0e567d765ebf8fd0406a994239e874d4',
+		pythLazerId: 501,
 	},
 	{
 		symbol: 'cbBTC',
@@ -781,14 +785,15 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		symbol: 'ZEUS',
 		marketIndex: 46,
 		poolId: 0,
-		oracle: new PublicKey('ABetWkmf1dpQX8gbtrt947ma2j7KzTPjVAdFWHkuEzi3'),
-		oracleSource: OracleSource.PYTH_PULL,
+		oracle: new PublicKey('8cH72H3vqYPArV9QvkYJkwzTdsdNPPgVPrusz9sMmgNN'),
+		oracleSource: OracleSource.PYTH_LAZER,
 		mint: new PublicKey('ZEUS1aR7aX8DFFJf5QjWj2ftDDdNTroMNGo8YoQm3Gq'),
 		precision: new BN(10).pow(SIX),
 		precisionExp: SIX,
 		pythFeedId:
 			'0x31558e9ccb18c151af6c52bf78afd03098a7aca1b9cf171a65b693b464c2f066',
 		launchTs: 1747155600000,
+		pythLazerId: 643,
 	},
 	{
 		symbol: 'USDC-4',
@@ -903,6 +908,18 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		pythFeedId:
 			'0x7a01fca212788bba7c5bf8c9efd576a8a722f070d2c17596ff7bb609b8d5c3b9',
 		pythLazerId: 1578,
+	},
+	{
+		symbol: 'syrupUSDC',
+		marketIndex: 57,
+		poolId: 0,
+		oracle: new PublicKey('GqqkoqHU5pqgTvL88xSCipH9txbPETyzvAvybQ3zRpzw'),
+		oracleSource: OracleSource.PYTH_PULL,
+		mint: new PublicKey('AvZZF1YaZDziPY2RCK4oJrRVrbN3mTD9NL24hPeaZeUj'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		pythFeedId:
+			'0x2ad31d1c4a85fbf2156ce57fab4104124c5ef76a6386375ecfc8da1ed5ce1486',
 	},
 ];
 

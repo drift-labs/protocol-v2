@@ -1,10 +1,8 @@
+import { DriftClient } from '../driftClient';
+import { getUserStatsAccountPublicKey } from '../addresses/pda';
 import {
-	DriftClient,
-	getUserStatsAccountPublicKey,
 	OrderRecord,
 	UserStatsAccount,
-	UserStats,
-	WrappedEvent,
 	DepositRecord,
 	FundingPaymentRecord,
 	LiquidationRecord,
@@ -13,11 +11,13 @@ import {
 	NewUserRecord,
 	LPRecord,
 	InsuranceFundStakeRecord,
-	BulkAccountLoader,
-	PollingUserStatsAccountSubscriber,
-	SyncConfig,
-	getUserStatsFilter,
-} from '..';
+} from '../types';
+import { UserStats } from '../userStats';
+import { WrappedEvent } from '../events/types';
+import { BulkAccountLoader } from '../accounts/bulkAccountLoader';
+import { PollingUserStatsAccountSubscriber } from '../accounts/pollingUserStatsAccountSubscriber';
+import { SyncConfig } from './userMapConfig';
+import { getUserStatsFilter } from '../memcmp';
 import { PublicKey } from '@solana/web3.js';
 
 import { UserMap } from './userMap';

@@ -1,17 +1,21 @@
 import {
 	DevnetPerpMarkets,
-	DriftClient,
-	DriftEnv,
+	MainnetPerpMarkets,
+} from '../constants/perpMarkets';
+import { DriftClient } from '../driftClient';
+import { DriftEnv } from '../config';
+import {
 	getUserAccountPublicKey,
 	getUserStatsAccountPublicKey,
-	MainnetPerpMarkets,
+} from '../addresses/pda';
+import {
 	MarketType,
 	OptionalOrderParams,
 	PostOnlyParams,
 	SignedMsgOrderParamsDelegateMessage,
 	SignedMsgOrderParamsMessage,
 	UserAccount,
-} from '..';
+} from '../types';
 import { Keypair, PublicKey, TransactionInstruction } from '@solana/web3.js';
 import nacl from 'tweetnacl';
 import { decodeUTF8 } from 'tweetnacl-util';
