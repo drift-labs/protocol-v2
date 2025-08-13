@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: remove burn lp shares invariant ([#1816](https://github.com/drift-labs/protocol-v2/pull/1816))
 - program: correct fee tier 5 volume requirement ([#1800](https://github.com/drift-labs/protocol-v2/pull/1800))
 - program: fix small number mark-twap-integer-bias ([#1783](https://github.com/drift-labs/protocol-v2/pull/1783))
 
