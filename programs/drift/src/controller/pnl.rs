@@ -59,13 +59,20 @@ pub fn settle_pnl(
     clock: &Clock,
     state: &State,
     meets_margin_requirement: Option<bool>,
-    mode: SettlePnlMode,
+    mut mode: SettlePnlMode,
 ) -> DriftResult {
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
     let now = clock.unix_timestamp;
+    let tvl_before;
+    let deposits_balance_before;
+    let borrows_balance_before;
     {
         let spot_market = &mut spot_market_map.get_quote_spot_market_mut()?;
         update_spot_market_cumulative_interest(spot_market, None, now)?;
+
+        tvl_before = spot_market.get_tvl()?;
+        deposits_balance_before = spot_market.deposit_balance;
+        borrows_balance_before = spot_market.borrow_balance;
     }
 
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
@@ -281,6 +288,15 @@ pub fn settle_pnl(
         now,
     )?;
 
+    // if the spot market balance has changed, we have to fail if we are in try settle mode
+    if (spot_market.deposit_balance != deposits_balance_before
+        || spot_market.borrow_balance != borrows_balance_before)
+        && mode == SettlePnlMode::TrySettle
+    {
+        msg!("Spot market balance has changed, switch to MUST_SETTLE mode");
+        mode = SettlePnlMode::MustSettle;
+    }
+
     if user_unsettled_pnl == 0 {
         let msg = format!("User has no unsettled pnl for market {}", market_index);
         return mode.result(ErrorCode::NoUnsettledPnl, market_index, &msg);
@@ -349,6 +365,16 @@ pub fn settle_pnl(
         settle_price: oracle_price,
         explanation: SettlePnlExplanation::None,
     });
+
+    let tvl_after = spot_market.get_tvl()?;
+
+    validate!(
+        tvl_before.safe_sub(tvl_after)? <= 10,
+        ErrorCode::DefaultError,
+        "Settle Pnl TVL mismatch: before={}, after={}",
+        tvl_before,
+        tvl_after
+    )?;
 
     Ok(())
 }
