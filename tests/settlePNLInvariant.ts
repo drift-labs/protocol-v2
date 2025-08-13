@@ -26,9 +26,7 @@ import {
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpers';
-import {
-	getBalance,
-} from '../sdk/src/math/spotBalance';
+import { getBalance } from '../sdk/src/math/spotBalance';
 import { NATIVE_MINT } from '@solana/spl-token';
 import {
 	QUOTE_PRECISION,
@@ -62,7 +60,6 @@ describe('spot deposit and withdraw', () => {
 
 	let secondUserDriftClient: TestClient;
 	let secondUserDriftClientWSOLAccount: PublicKey;
-	let secondUserDriftClientUSDCAccount: PublicKey;
 
 	const usdcAmount = new BN(10 * 10 ** 6);
 	const largeUsdcAmount = new BN(10_000 * 10 ** 6);
@@ -381,7 +378,6 @@ describe('spot deposit and withdraw', () => {
 	});
 
 	it('Initialize Market', async () => {
-		const marketIndex = 0;
 		const periodicity = new BN(60 * 60); // 1 HOUR
 		const mantissaSqrtScale = new BN(100000);
 		const ammInitialQuoteAssetAmount = new anchor.BN(5 * 10 ** 13).mul(
@@ -390,7 +386,7 @@ describe('spot deposit and withdraw', () => {
 		const ammInitialBaseAssetAmount = new anchor.BN(5 * 10 ** 13).mul(
 			mantissaSqrtScale
 		);
-		const txSig = await admin.initializePerpMarket(
+		await admin.initializePerpMarket(
 			0,
 			solOracle,
 			ammInitialBaseAssetAmount,
@@ -405,7 +401,7 @@ describe('spot deposit and withdraw', () => {
 	it('Trade and settle pnl', async () => {
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
-		const txSig = await secondUserDriftClient.openPosition(
+		await secondUserDriftClient.openPosition(
 			PositionDirection.LONG,
 			baseAssetAmount,
 			marketIndex
