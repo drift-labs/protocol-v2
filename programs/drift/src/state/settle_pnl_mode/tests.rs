@@ -9,10 +9,10 @@ mod test {
         assert_eq!(result, Err(ErrorCode::DefaultError));
     }
 
-    // #[test]
-    // fn test_try_settle_returns_ok() {
-    //     let mode = SettlePnlMode::TrySettle;
-    //     let result = mode.result(ErrorCode::DefaultError, 0, "Try settle error");
-    //     assert_eq!(result, Ok(()));
-    // }
+    #[test]
+    fn test_try_settle_returns_ok() {
+        let mode = SettlePnlMode::TrySettle;
+        let result = mode.result(ErrorCode::DefaultError, 0, "Try settle error");
+        assert_eq!(result, Ok(()));
+    }
 }
