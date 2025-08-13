@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: add new settle pnl invariants ([#1812](https://github.com/drift-labs/protocol-v2/pull/1812))
+- program: add update_perp_market_pnl_pool ([#1810](https://github.com/drift-labs/protocol-v2/pull/1810))
+
+### Fixes
+
+- program: correct fee tier 5 volume requirement ([#1800](https://github.com/drift-labs/protocol-v2/pull/1800))
+
+- program: fix small number mark-twap-integer-bias ([#1783](https://github.com/drift-labs/protocol-v2/pull/1783))
+
+### Breaking
+
+## [2.133.0] - 2025-08-11
+
+### Features
+
+### Fixes
+
+### Breaking
+
+- program: have TRY_SETTLE pnl mode fail ([#1809](https://github.com/drift-labs/protocol-v2/pull/1809))
+
+## [2.132.0] - 2025-08-06
+
+### Features
+
+- program: update max borrow delta/utilization thresholds ([#1760](https://github.com/drift-labs/protocol-v2/pull/1801))
+
 ### Fixes
 
 ### Breaking
@@ -18,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 ### Fixes
+
 - program: update-fee-tier-validates ([#1798](https://github.com/drift-labs/protocol-v2/pull/1798))
 
 ### Breaking
@@ -25,6 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.131.0] - 2025-08-04
 
 ### Features
+
 - program: update stake + volume fee tier determination ([#1792](https://github.com/drift-labs/protocol-v2/pull/1792))
 
 ### Fixes

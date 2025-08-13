@@ -23,6 +23,7 @@ pub fn calculate_weighted_average(
     data2: i64,
     weight1: i64,
     weight2: i64,
+    bias: Option<i64>,
 ) -> DriftResult<i64> {
     let denominator = weight1.safe_add(weight2)?.cast::<i128>()?;
     let prev_twap_99 = data1.cast::<i128>()?.safe_mul(weight1.cast()?)?;
@@ -36,17 +37,19 @@ pub fn calculate_weighted_average(
         return Ok(data1);
     }
 
-    let bias: i64 = if weight2 > 1 {
-        if latest_price_01 < prev_twap_99 {
-            -1
-        } else if latest_price_01 > prev_twap_99 {
-            1
+    let bias: i64 = bias.unwrap_or_else(|| {
+        if weight2 > 1 {
+            if latest_price_01 < prev_twap_99 {
+                -1
+            } else if latest_price_01 > prev_twap_99 {
+                1
+            } else {
+                0
+            }
         } else {
             0
         }
-    } else {
-        0
-    };
+    });
 
     let twap = prev_twap_99
         .safe_add(latest_price_01)?
@@ -70,5 +73,5 @@ pub fn calculate_new_twap(
     let since_last = max(0_i64, current_ts.safe_sub(last_ts)?);
     let from_start = max(1_i64, period.safe_sub(since_last)?);
 
-    calculate_weighted_average(current_price, last_twap, since_last, from_start)
+    calculate_weighted_average(current_price, last_twap, since_last, from_start, None)
 }

@@ -3515,7 +3515,7 @@ export class User {
 				new BN(2_000_000).mul(QUOTE_PRECISION),
 				new BN(10_000_000).mul(QUOTE_PRECISION),
 				new BN(20_000_000).mul(QUOTE_PRECISION),
-				new BN(100_000_000).mul(QUOTE_PRECISION),
+				new BN(80_000_000).mul(QUOTE_PRECISION),
 				new BN(200_000_000).mul(QUOTE_PRECISION),
 			];
 			const stakeThresholds = [
@@ -4130,5 +4130,26 @@ export class User {
 
 	private getOracleDataForSpotMarket(marketIndex: number): OraclePriceData {
 		return this.driftClient.getOracleDataForSpotMarket(marketIndex);
+	}
+
+	/**
+	 * Get the active perp and spot positions of the user.
+	 */
+	public getActivePositions(): {
+		activePerpPositions: number[];
+		activeSpotPositions: number[];
+	} {
+		const activePerpMarkets = this.getActivePerpPositions().map(
+			(position) => position.marketIndex
+		);
+
+		const activeSpotMarkets = this.getActiveSpotPositions().map(
+			(position) => position.marketIndex
+		);
+
+		return {
+			activePerpPositions: activePerpMarkets,
+			activeSpotPositions: activeSpotMarkets,
+		};
 	}
 }
