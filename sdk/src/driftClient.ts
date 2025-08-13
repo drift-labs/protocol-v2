@@ -448,7 +448,8 @@ export class DriftClient {
 					logResubMessages: config.accountSubscription?.logResubMessages,
 				},
 				config.accountSubscription?.commitment,
-				config.accountSubscription?.perpMarketAccountSubscriber
+				config.accountSubscription?.perpMarketAccountSubscriber,
+				config.accountSubscription?.oracleAccountSubscriber
 			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
