@@ -125,7 +125,13 @@ pub fn update_mark_twap_crank(
 
     // handle crossing bid/ask
     if best_bid_price > best_ask_price {
-        if best_bid_price >= oracle_price_data.price.cast()? {
+        let market_basis = amm
+            .last_mark_price_twap_5min
+            .cast::<i64>()?
+            .safe_sub(amm.historical_oracle_data.last_oracle_price_twap_5min)?
+            .clamp(-oracle_price_data.price/100,  oracle_price_data.price/100);
+
+        if best_bid_price >= oracle_price_data.price.safe_add(market_basis)?.cast()? {
             best_bid_price = best_ask_price;
         } else {
             best_ask_price = best_bid_price;
@@ -267,6 +273,12 @@ pub fn update_mark_twap(
                 amm.last_bid_price_twap.cast()?,
                 last_valid_trade_since_oracle_twap_update,
                 from_start_valid,
+                Some(
+                    amm.historical_oracle_data
+                        .last_oracle_price_twap
+                        .safe_sub(amm.last_bid_price_twap.cast()?)?
+                        .signum(),
+                ),
             )?,
             calculate_weighted_average(
                 amm.historical_oracle_data
@@ -275,6 +287,12 @@ pub fn update_mark_twap(
                 amm.last_ask_price_twap.cast()?,
                 last_valid_trade_since_oracle_twap_update,
                 from_start_valid,
+                Some(
+                    amm.historical_oracle_data
+                        .last_oracle_price_twap
+                        .safe_sub(amm.last_ask_price_twap.cast()?)?
+                        .signum(),
+                ),
             )?,
         )
     } else {
@@ -527,6 +545,7 @@ pub fn calculate_new_oracle_price_twap(
                 oracle_price,
                 since_last_valid,
                 from_start_valid,
+                None,
             )?
         } else {
             oracle_price
@@ -537,6 +556,7 @@ pub fn calculate_new_oracle_price_twap(
         last_oracle_twap.cast()?,
         since_last,
         from_start,
+        None,
     )
 }
 
