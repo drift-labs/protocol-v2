@@ -9,7 +9,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: add new settle pnl invariants ([#1812](https://github.com/drift-labs/protocol-v2/pull/1812))
+- program: add update_perp_market_pnl_pool ([#1810](https://github.com/drift-labs/protocol-v2/pull/1810))
+
 ### Fixes
+
+### Breaking
+
+## [2.133.0] - 2025-08-11
+
+### Features
+
+### Fixes
+
+### Breaking
+
+- program: have TRY_SETTLE pnl mode fail ([#1809](https://github.com/drift-labs/protocol-v2/pull/1809))
+
+## [2.132.0] - 2025-08-06
+
+### Features
+
+- program: update max borrow delta/utilization thresholds ([#1760](https://github.com/drift-labs/protocol-v2/pull/1801))
+
+### Fixes
+
+### Breaking
+
+## [2.131.1] - 2025-08-04
+
+### Features
+
+### Fixes
+
+- program: update-fee-tier-validates ([#1798](https://github.com/drift-labs/protocol-v2/pull/1798))
+
+### Breaking
+
+## [2.131.0] - 2025-08-04
+
+### Features
+
+- program: update stake + volume fee tier determination ([#1792](https://github.com/drift-labs/protocol-v2/pull/1792))
+
+### Fixes
+
+- program: less aggressive fill bands for spot swaps ([#1796](https://github.com/drift-labs/protocol-v2/pull/1796))
+
+### Breaking
+
+## [2.130.0] - 2025-07-29
+
+### Features
+
+- program: new median price for trigger orders ([#1716](https://github.com/drift-labs/protocol-v2/pull/1716))
+- program: mm oracle ([#1767](https://github.com/drift-labs/protocol-v2/pull/1767))
+- program: add high leverage maintenance margin mode ([#1759](https://github.com/drift-labs/protocol-v2/pull/1759))
+
+### Fixes
+
+- program: update validate fill price to work both directions ([#1772](https://github.com/drift-labs/protocol-v2/pull/1772))
 
 ### Breaking
 

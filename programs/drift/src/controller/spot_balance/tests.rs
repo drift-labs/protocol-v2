@@ -489,7 +489,7 @@ fn test_check_withdraw_limits() {
         0,
     )
     .unwrap();
-    assert_eq!(mbt, 642857);
+    assert_eq!(mbt, 700000);
 
     let valid_withdraw = check_withdraw_limits(&spot_market, Some(&user), Some(0)).unwrap();
     assert!(valid_withdraw);
@@ -578,7 +578,7 @@ fn test_check_withdraw_limits_below_optimal_utilization() {
     assert_eq!(mdt_dep, 153000000000000);
 
     assert_eq!(max_bor, 142800000000000);
-    assert_eq!(mbt_bor, 151342857142857);
+    assert_eq!(mbt_bor, 163000000000000);
 
     let valid_withdraw = check_withdraw_limits(&sol_spot_market, None, None).unwrap();
     assert_eq!(valid_withdraw, true);
@@ -626,17 +626,17 @@ fn test_check_withdraw_limits_above_optimal_utilization() {
         initial_liability_weight: 12 * SPOT_WEIGHT_PRECISION / 10,
         maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
         deposit_balance: 200_000 * SPOT_BALANCE_PRECISION, // 200k sol
-        borrow_balance: 155_000 * SPOT_BALANCE_PRECISION,
+        borrow_balance: 160_000 * SPOT_BALANCE_PRECISION,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
         deposit_token_twap: 204000000000000_u64,
-        borrow_token_twap: 192200000000000_u64,
-        utilization_twap: 890000, // 89%
+        borrow_token_twap: 199200000000000_u64,
+        utilization_twap: 929000, // 92.9%
         status: MarketStatus::Active,
 
         ..SpotMarket::default()
     };
 
-    assert_eq!(sol_spot_market.get_utilization().unwrap(), 928480);
+    assert_eq!(sol_spot_market.get_utilization().unwrap(), 958431);
     assert!(
         sol_spot_market.get_utilization().unwrap() > sol_spot_market.optimal_utilization as u128
     ); // below optimal util
@@ -673,14 +673,14 @@ fn test_check_withdraw_limits_above_optimal_utilization() {
             .unwrap();
 
     assert_eq!(deposit_tokens_1, 204000000000000);
-    assert_eq!(borrow_tokens_1, 189410000000000);
+    assert_eq!(borrow_tokens_1, 195520000000000);
 
     // utilization bands differ from others
-    assert_eq!(min_dep, 200433862433862);
+    assert_eq!(min_dep, 202716433385173);
     assert_eq!(mdt_dep, 153000000000000);
 
-    assert_eq!(max_bor, 192780000000000);
-    assert_eq!(mbt_bor, 178500000000000);
+    assert_eq!(max_bor, 196758000000000);
+    assert_eq!(mbt_bor, 189428571428572);
 
     // without passing a user, since borrows are above the built in limit of 80% will fail
     let valid_withdraw = check_withdraw_limits(&sol_spot_market, None, None).unwrap();

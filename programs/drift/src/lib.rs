@@ -1087,6 +1087,13 @@ pub mod drift {
         handle_deposit_into_perp_market_fee_pool(ctx, amount)
     }
 
+    pub fn update_perp_market_pnl_pool<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdatePerpMarketPnlPool<'info>>,
+        amount: u64,
+    ) -> Result<()> {
+        handle_update_perp_market_pnl_pool(ctx, amount)
+    }
+
     pub fn deposit_into_spot_market_vault<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, DepositIntoSpotMarketVault<'info>>,
         amount: u64,
@@ -1810,15 +1817,22 @@ pub mod drift {
         handle_update_if_rebalance_config(ctx, params)
     }
 
-    pub fn update_disable_bitflags_mm_oracle(
+    pub fn update_feature_bit_flags_mm_oracle(
         ctx: Context<HotAdminUpdateState>,
-        disable: bool,
+        enable: bool,
     ) -> Result<()> {
-        handle_update_disable_bitflags_mm_oracle(ctx, disable)
+        handle_update_feature_bit_flags_mm_oracle(ctx, enable)
     }
 
     pub fn zero_mm_oracle_fields(ctx: Context<HotAdminUpdatePerpMarket>) -> Result<()> {
         handle_zero_mm_oracle_fields(ctx)
+    }
+
+    pub fn update_feature_bit_flags_median_trigger_price(
+        ctx: Context<HotAdminUpdateState>,
+        enable: bool,
+    ) -> Result<()> {
+        handle_update_feature_bit_flags_median_trigger_price(ctx, enable)
     }
 }
 

@@ -1,6 +1,6 @@
 {
 	"name": "@drift-labs/sdk",
-	"version": "2.130.0-beta.8",
+	"version": "2.134.0-beta.5",
 	"main": "lib/node/index.js",
 	"types": "lib/node/index.d.ts",
 	"browser": "./lib/browser/index.js",
@@ -53,6 +53,7 @@
 		"@switchboard-xyz/on-demand": "2.4.1",
 		"@triton-one/yellowstone-grpc": "1.3.0",
 		"anchor-bankrun": "0.3.0",
+		"gill": "^0.10.2",
 		"nanoid": "3.3.4",
 		"node-cache": "5.1.2",
 		"rpc-websockets": "7.5.1",

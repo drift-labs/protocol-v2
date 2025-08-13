@@ -41,7 +41,7 @@ pub struct State {
     pub initial_pct_to_liquidate: u16,
     pub max_number_of_sub_accounts: u16,
     pub max_initialize_user_fee: u16,
-    pub disable_bit_flags: u8,
+    pub feature_bit_flags: u8,
     pub padding: [u8; 9],
 }
 
@@ -116,6 +116,16 @@ impl State {
 
         Ok(init_fee)
     }
+
+    pub fn use_median_trigger_price(&self) -> bool {
+        (self.feature_bit_flags & (FeatureBitFlags::MedianTriggerPrice as u8)) > 0
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Debug, Eq)]
+pub enum FeatureBitFlags {
+    MmOracleUpdate = 0b00000001,
+    MedianTriggerPrice = 0b00000010,
 }
 
 impl Size for State {

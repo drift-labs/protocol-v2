@@ -1079,6 +1079,42 @@ export class AdminClient extends DriftClient {
 		});
 	}
 
+	public async updatePerpMarketPnlPool(
+		perpMarketIndex: number,
+		amount: BN
+	): Promise<TransactionSignature> {
+		const updatePerpMarketPnlPoolIx = await this.getUpdatePerpMarketPnlPoolIx(
+			perpMarketIndex,
+			amount
+		);
+
+		const tx = await this.buildTransaction(updatePerpMarketPnlPoolIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdatePerpMarketPnlPoolIx(
+		perpMarketIndex: number,
+		amount: BN
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updatePerpMarketPnlPool(amount, {
+			accounts: {
+				admin: this.isSubscribed
+					? this.getStateAccount().admin
+					: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				perpMarket: await getPerpMarketPublicKey(
+					this.program.programId,
+					perpMarketIndex
+				),
+				spotMarket: this.getQuoteSpotMarketAccount().pubkey,
+				spotMarketVault: this.getQuoteSpotMarketAccount().vault,
+			},
+		});
+	}
+
 	public async depositIntoSpotMarketVault(
 		spotMarketIndex: number,
 		amount: BN,
@@ -4052,13 +4088,15 @@ export class AdminClient extends DriftClient {
 	public async updatePerpMarketAmmSpreadAdjustment(
 		perpMarketIndex: number,
 		ammSpreadAdjustment: number,
-		ammInventorySpreadAdjustment: number
+		ammInventorySpreadAdjustment: number,
+		referencePriceOffset: number
 	): Promise<TransactionSignature> {
 		const updatePerpMarketAmmSpreadAdjustmentIx =
 			await this.getUpdatePerpMarketAmmSpreadAdjustmentIx(
 				perpMarketIndex,
 				ammSpreadAdjustment,
-				ammInventorySpreadAdjustment
+				ammInventorySpreadAdjustment,
+				referencePriceOffset
 			);
 		const tx = await this.buildTransaction(
 			updatePerpMarketAmmSpreadAdjustmentIx
@@ -4071,7 +4109,8 @@ export class AdminClient extends DriftClient {
 	public async getUpdatePerpMarketAmmSpreadAdjustmentIx(
 		perpMarketIndex: number,
 		ammSpreadAdjustment: number,
-		ammInventorySpreadAdjustment: number
+		ammInventorySpreadAdjustment: number,
+		referencePriceOffset: number
 	): Promise<TransactionInstruction> {
 		const perpMarketPublicKey = await getPerpMarketPublicKey(
 			this.program.programId,
@@ -4081,6 +4120,7 @@ export class AdminClient extends DriftClient {
 		return await this.program.instruction.updatePerpMarketAmmSpreadAdjustment(
 			ammSpreadAdjustment,
 			ammInventorySpreadAdjustment,
+			referencePriceOffset,
 			{
 				accounts: {
 					admin: this.useHotWalletAdmin
@@ -4552,33 +4592,6 @@ export class AdminClient extends DriftClient {
 		});
 	}
 
-	public async updateDisableBitFlagsMMOracle(
-		disable: boolean
-	): Promise<TransactionSignature> {
-		const updateDisableBitFlagsMMOracleIx =
-			await this.getUpdateDisableBitFlagsMMOracleIx(disable);
-
-		const tx = await this.buildTransaction(updateDisableBitFlagsMMOracleIx);
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-
-		return txSig;
-	}
-	public async getUpdateDisableBitFlagsMMOracleIx(
-		disable: boolean
-	): Promise<TransactionInstruction> {
-		return await this.program.instruction.updateDisableBitflagsMmOracle(
-			disable,
-			{
-				accounts: {
-					admin: this.isSubscribed
-						? this.getStateAccount().admin
-						: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-				},
-			}
-		);
-	}
-
 	public async zeroMMOracleFields(
 		marketIndex: number
 	): Promise<TransactionSignature> {
@@ -4591,6 +4604,7 @@ export class AdminClient extends DriftClient {
 
 		return txSig;
 	}
+
 	public async getZeroMMOracleFieldsIx(
 		marketIndex: number
 	): Promise<TransactionInstruction> {
@@ -4606,5 +4620,33 @@ export class AdminClient extends DriftClient {
 				),
 			},
 		});
+	}
+
+	public async updateFeatureBitFlagsMMOracle(
+		enable: boolean
+	): Promise<TransactionSignature> {
+		const updateFeatureBitFlagsMMOracleIx =
+			await this.getUpdateFeatureBitFlagsMMOracleIx(enable);
+
+		const tx = await this.buildTransaction(updateFeatureBitFlagsMMOracleIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateFeatureBitFlagsMMOracleIx(
+		enable: boolean
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateFeatureBitFlagsMmOracle(
+			enable,
+			{
+				accounts: {
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
 	}
 }

@@ -6,9 +6,11 @@ import {
 	BN,
 	ExchangeStatus,
 	getPythLazerOraclePublicKey,
+	getTokenAmount,
 	loadKeypair,
 	OracleGuardRails,
 	OracleSource,
+	SpotBalanceType,
 	TestClient,
 	Wallet,
 } from '../sdk/src';
@@ -19,6 +21,7 @@ import {
 	initializeQuoteSpotMarket,
 	mockOracleNoProgram,
 	mockUSDCMint,
+	mockUserUSDCAccount,
 } from './testHelpers';
 import { PublicKey } from '@solana/web3.js';
 import {
@@ -26,6 +29,7 @@ import {
 	Connection,
 } from '../sdk/src/bankrun/bankrunConnection';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { createTransferCheckedInstruction } from '@solana/spl-token';
 
 describe('admin', () => {
 	const chProgram = anchor.workspace.Drift as Program;
@@ -35,6 +39,10 @@ describe('admin', () => {
 	let driftClient: TestClient;
 
 	let usdcMint;
+
+	let userUSDCAccount;
+
+	const usdcAmount = new BN(10 * 10 ** 6);
 
 	let bankrunContextWrapper: BankrunContextWrapper;
 
@@ -71,6 +79,13 @@ describe('admin', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
+
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper,
+			driftClient.wallet.publicKey
+		);
 
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
@@ -412,6 +427,7 @@ describe('admin', () => {
 	it('update MM oracle native', async () => {
 		const oraclePrice = new BN(100);
 		const oracleTS = new BN(Date.now());
+		await driftClient.updateFeatureBitFlagsMMOracle(true);
 		await driftClient.updateMmOracleNative(0, oraclePrice, oracleTS);
 
 		let perpMarket = driftClient.getPerpMarketAccount(0);
@@ -428,7 +444,7 @@ describe('admin', () => {
 		assert(perpMarket.amm.mmOraclePrice.eq(oraclePrice));
 
 		// Doesnt update if we flip the admin switch
-		await driftClient.updateDisableBitFlagsMMOracle(true);
+		await driftClient.updateFeatureBitFlagsMMOracle(false);
 		try {
 			await driftClient.updateMmOracleNative(0, oraclePrice, oracleTS);
 			assert.fail('Should have thrown');
@@ -438,7 +454,7 @@ describe('admin', () => {
 		}
 
 		// Re-enable and update
-		await driftClient.updateDisableBitFlagsMMOracle(false);
+		await driftClient.updateFeatureBitFlagsMMOracle(true);
 		await driftClient.updateMmOracleNative(
 			0,
 			oraclePrice.addn(2),
@@ -454,6 +470,38 @@ describe('admin', () => {
 		await driftClient.updateAmmSpreadAdjustmentNative(0, ammSpreadAdjustment);
 		const perpMarket = driftClient.getPerpMarketAccount(0);
 		assert(perpMarket.amm.ammSpreadAdjustment == ammSpreadAdjustment);
+	});
+
+	it('update pnl pool', async () => {
+		const quoteVault = driftClient.getSpotMarketAccount(0).vault;
+
+		const splTransferIx = createTransferCheckedInstruction(
+			userUSDCAccount.publicKey,
+			usdcMint.publicKey,
+			quoteVault,
+			driftClient.wallet.publicKey,
+			usdcAmount.toNumber(),
+			6
+		);
+
+		const tx = await driftClient.buildTransaction(splTransferIx);
+		// @ts-ignore
+		await driftClient.sendTransaction(tx);
+
+		await driftClient.updatePerpMarketPnlPool(0, usdcAmount);
+
+		await driftClient.fetchAccounts();
+
+		const perpMarket = driftClient.getPerpMarketAccount(0);
+		const spotMarket = driftClient.getSpotMarketAccount(0);
+
+		const tokenAmount = getTokenAmount(
+			perpMarket.pnlPool.scaledBalance,
+			spotMarket,
+			SpotBalanceType.DEPOSIT
+		);
+
+		assert(tokenAmount.eq(usdcAmount));
 	});
 
 	it('Update admin', async () => {

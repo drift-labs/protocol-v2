@@ -45,7 +45,7 @@ pub fn validate_fee_tier(
     fee_tier: &FeeTier,
     filler_reward_numerator: u32,
 ) -> DriftResult {
-    let fee_valid = fee_tier.fee_numerator <= 100 && fee_tier.fee_denominator == FEE_DENOMINATOR; // <= 10bps
+    let fee_valid = fee_tier.fee_numerator <= 300 && fee_tier.fee_denominator >= FEE_DENOMINATOR; // <= 30bps
 
     validate!(
         fee_valid,
@@ -56,7 +56,7 @@ pub fn validate_fee_tier(
     )?;
 
     let maker_rebate_valid = fee_tier.maker_rebate_numerator <= 30
-        && fee_tier.maker_rebate_denominator == FEE_DENOMINATOR; // <= 3bps
+        && fee_tier.maker_rebate_denominator >= FEE_DENOMINATOR; // <= 3bps
 
     validate!(
         maker_rebate_valid,
