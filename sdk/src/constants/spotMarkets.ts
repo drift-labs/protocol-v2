@@ -906,6 +906,18 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 			'0x7a01fca212788bba7c5bf8c9efd576a8a722f070d2c17596ff7bb609b8d5c3b9',
 		pythLazerId: 1578,
 	},
+	{
+		symbol: 'syrupUSDC',
+		marketIndex: 57,
+		poolId: 0,
+		oracle: new PublicKey('GqqkoqHU5pqgTvL88xSCipH9txbPETyzvAvybQ3zRpzw'),
+		oracleSource: OracleSource.PYTH_PULL,
+		mint: new PublicKey('AvZZF1YaZDziPY2RCK4oJrRVrbN3mTD9NL24hPeaZeUj'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		pythFeedId:
+			'0x2ad31d1c4a85fbf2156ce57fab4104124c5ef76a6386375ecfc8da1ed5ce1486',
+	},
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {
