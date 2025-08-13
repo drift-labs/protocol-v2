@@ -311,16 +311,16 @@ describe('spot deposit and withdraw', () => {
 	it('Second User Deposit SOL', async () => {
 		[secondUserDriftClient, secondUserDriftClientWSOLAccount] =
 			await createUserWithUSDCAndWSOLAccount(
-			bankrunContextWrapper,
-			usdcMint,
-			chProgram,
-			solAmount,
-			ZERO,
-			marketIndexes,
-			spotMarketIndexes,
-			oracleInfos,
-			bulkAccountLoader
-		);
+				bankrunContextWrapper,
+				usdcMint,
+				chProgram,
+				solAmount,
+				ZERO,
+				marketIndexes,
+				spotMarketIndexes,
+				oracleInfos,
+				bulkAccountLoader
+			);
 
 		const marketIndex = 1;
 		const txSig = await secondUserDriftClient.deposit(
