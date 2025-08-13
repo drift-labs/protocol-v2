@@ -129,7 +129,10 @@ pub fn update_mark_twap_crank(
             .last_mark_price_twap_5min
             .cast::<i64>()?
             .safe_sub(amm.historical_oracle_data.last_oracle_price_twap_5min)?
-            .clamp(-oracle_price_data.price/100,  oracle_price_data.price/100);
+            .clamp(
+                -oracle_price_data.price / 100,
+                oracle_price_data.price / 100,
+            );
 
         if best_bid_price >= oracle_price_data.price.safe_add(market_basis)?.cast()? {
             best_bid_price = best_ask_price;
