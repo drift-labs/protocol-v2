@@ -783,14 +783,15 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		symbol: 'ZEUS',
 		marketIndex: 46,
 		poolId: 0,
-		oracle: new PublicKey('ABetWkmf1dpQX8gbtrt947ma2j7KzTPjVAdFWHkuEzi3'),
-		oracleSource: OracleSource.PYTH_PULL,
+		oracle: new PublicKey('8cH72H3vqYPArV9QvkYJkwzTdsdNPPgVPrusz9sMmgNN'),
+		oracleSource: OracleSource.PYTH_LAZER,
 		mint: new PublicKey('ZEUS1aR7aX8DFFJf5QjWj2ftDDdNTroMNGo8YoQm3Gq'),
 		precision: new BN(10).pow(SIX),
 		precisionExp: SIX,
 		pythFeedId:
 			'0x31558e9ccb18c151af6c52bf78afd03098a7aca1b9cf171a65b693b464c2f066',
 		launchTs: 1747155600000,
+		pythLazerId: 643,
 	},
 	{
 		symbol: 'USDC-4',

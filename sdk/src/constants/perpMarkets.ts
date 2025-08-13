@@ -752,11 +752,12 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'KMNO-PERP',
 		baseAssetSymbol: 'KMNO',
 		marketIndex: 28,
-		oracle: new PublicKey('7aqj2wH1BH8XT3QQ3MWtvt3My7RAGf5Stm3vx5fiysJz'),
+		oracle: new PublicKey('6ua3DK1sHoYyNi15dsxy6RYwUcZPDDXfyChzaRMaheQF'),
 		launchTs: 1712240681000,
-		oracleSource: OracleSource.PYTH_PULL,
+		oracleSource: OracleSource.PYTH_LAZER,
 		pythFeedId:
 			'0xb17e5bc5de742a8a378b54c9c75442b7d51e30ada63f28d9bd28d3c0e26511a0',
+		pythLazerId: 464,
 	},
 	{
 		fullName: 'Tensor',
@@ -790,11 +791,12 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'CLOUD-PERP',
 		baseAssetSymbol: 'CLOUD',
 		marketIndex: 31,
-		oracle: new PublicKey('4EgPYJkEyNkoUcaMDbeokUiR4b1f3Hs3DK5S4NzqseR2'),
+		oracle: new PublicKey('9Ennia27iT83kNAk3JtRKxSMzuCzsVtT4MzuxpE7anME'),
 		launchTs: 1717597648000,
-		oracleSource: OracleSource.PYTH_PULL,
+		oracleSource: OracleSource.PYTH_LAZER,
 		pythFeedId:
 			'0x7358313661dcd4f842a1423aa4f7a05f009001c9113201c719621d3f1aa80a73',
+		pythLazerId: 404,
 	},
 	{
 		fullName: 'IO',
@@ -935,11 +937,12 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'MOTHER-PERP',
 		baseAssetSymbol: 'MOTHER',
 		marketIndex: 44,
-		oracle: new PublicKey('56ap2coZG7FPWUigVm9XrpQs3xuCwnwQaWtjWZcffEUG'),
+		oracle: new PublicKey('469WQgfJ6AJ3eJ8FUcdhiZawf7yNChA3hseTSyhFatHZ'),
 		launchTs: 1727291859000,
-		oracleSource: OracleSource.PYTH_PULL,
+		oracleSource: OracleSource.PYTH_LAZER,
 		pythFeedId:
 			'0x62742a997d01f7524f791fdb2dd43aaf0e567d765ebf8fd0406a994239e874d4',
+		pythLazerId: 501,
 	},
 	{
 		fullName: 'MOODENG',
@@ -947,11 +950,12 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'MOODENG-PERP',
 		baseAssetSymbol: 'MOODENG',
 		marketIndex: 45,
-		oracle: new PublicKey('21gjgEcuDppthwV16J1QpFzje3vmgMp2uSzh7pJsG7ob'),
+		oracle: new PublicKey('CVy5m6JqhEdjbz11idgVeb2KnH5NpFowKnYPVMdfc7FC'),
 		launchTs: 1727965864000,
-		oracleSource: OracleSource.PYTH_PULL,
+		oracleSource: OracleSource.PYTH_LAZER,
 		pythFeedId:
 			'0xffff73128917a90950cd0473fd2551d7cd274fd5a6cc45641881bbcc6ee73417',
+		pythLazerId: 500,
 	},
 	{
 		fullName: 'WARWICK-FIGHT-WIN-BET',
@@ -1036,11 +1040,12 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'GOAT-PERP',
 		baseAssetSymbol: 'GOAT',
 		marketIndex: 53,
-		oracle: new PublicKey('5RgXW13Kq1RgCLEsJhhchWt3W4R2XLJnd6KqgZk6dSY7'),
+		oracle: new PublicKey('4uBrnNZyD2wUkpzytuyfiEYp2eWA3WdxXSbWEQbZzs45'),
 		launchTs: 1731443152000,
-		oracleSource: OracleSource.PYTH_PULL,
+		oracleSource: OracleSource.PYTH_LAZER,
 		pythFeedId:
 			'0xf7731dc812590214d3eb4343bfb13d1b4cfa9b1d4e020644b5d5d8e07d60c66c',
+		pythLazerId: 437,
 	},
 	{
 		fullName: 'FWOG',
@@ -1289,11 +1294,12 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		symbol: 'LAUNCHCOIN-PERP',
 		baseAssetSymbol: 'LAUNCHCOIN',
 		marketIndex: 74,
-		oracle: new PublicKey('6Dtdqcr6dEKYMRKCvdDa8mSf5qVFbQVDZHTi6WhU1Foj'),
+		oracle: new PublicKey('GAzR3C5cn7gGVvuqJB57wSYTPWP3n2Lw4mRJRxvTvqYy'),
 		launchTs: 1747318237000,
-		oracleSource: OracleSource.PYTH_PULL,
+		oracleSource: OracleSource.PYTH_LAZER,
 		pythFeedId:
 			'0x6d74813ee17291d5be18a355fe4d43fd300d625caea6554d49f740e7d112141e',
+		pythLazerId: 1571,
 	},
 	{
 		fullName: 'PUMP',
