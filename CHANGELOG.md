@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: remove burn lp shares invariant ([#1816](https://github.com/drift-labs/protocol-v2/pull/1816))
+
 ### Breaking
 
 ## [2.133.0] - 2025-08-11
