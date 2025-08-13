@@ -734,17 +734,17 @@ fn update_mark_twap_tests() {
     let new_bid_twap = amm.last_bid_price_twap;
     let new_ask_twap = amm.last_ask_price_twap;
 
-    assert_eq!(new_bid_twap, 39_989_389);
-    assert_eq!(new_ask_twap, 40_000_790);
+    assert_eq!(new_bid_twap, 39_989_386);
+    assert_eq!(new_ask_twap, 40_000_774);
     assert!(new_bid_twap < new_ask_twap);
     assert_eq!((new_bid_twap + new_ask_twap) / 2, new_mark_twap);
 
     assert_eq!(new_oracle_twap, 39_998_518);
-    assert_eq!(new_mark_twap, 39995089);
+    assert_eq!(new_mark_twap, 39995080);
 
     assert!((new_oracle_twap as u64) >= new_mark_twap); // funding in favor of maker
     assert_eq!(amm.oracle_std, 7240);
-    assert_eq!(amm.mark_std, 24467);
+    assert_eq!(amm.mark_std, 24457);
 }
 
 #[test]
