@@ -1,4 +1,5 @@
 pub mod builder;
+pub mod builder_map;
 pub mod events;
 pub mod fill_mode;
 pub mod fulfillment;

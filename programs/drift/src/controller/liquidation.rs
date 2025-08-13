@@ -1,7 +1,7 @@
 use std::ops::{Deref, DerefMut};
 
 use crate::msg;
-use crate::state::builder::RevenueShareEscrowZeroCopyMut;
+use crate::state::builder::BuilderEscrowZeroCopyMut;
 use anchor_lang::prelude::*;
 
 use crate::controller::amm::get_fee_pool_tokens;
@@ -749,7 +749,7 @@ pub fn liquidate_perp_with_fill(
     oracle_map: &mut OracleMap,
     clock: &Clock,
     state: &State,
-    revenue_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
+    revenue_escrow: &mut Option<&mut BuilderEscrowZeroCopyMut>,
 ) -> DriftResult {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -2828,7 +2828,7 @@ pub fn liquidate_perp_pnl_for_deposit(
     liquidation_margin_buffer_ratio: u32,
     initial_pct_to_liquidate: u128,
     liquidation_duration: u128,
-    revenue_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
+    revenue_escrow: &mut Option<&mut BuilderEscrowZeroCopyMut>,
 ) -> DriftResult {
     // liquidator takes over remaining negative perpetual pnl in exchange for a user deposit
     // can only be done once the perpetual position's size is 0

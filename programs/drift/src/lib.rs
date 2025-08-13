@@ -1828,24 +1828,24 @@ pub mod drift {
         handle_update_feature_bit_flags_median_trigger_price(ctx, enable)
     }
 
-    pub fn initialize_revenue_share<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, InitializeRevenueShare<'info>>,
+    pub fn initialize_builder<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InitializeBuilder<'info>>,
     ) -> Result<()> {
-        handle_initialize_revenue_share(ctx)
+        handle_initialize_builder(ctx)
     }
 
-    pub fn initialize_revenue_share_escrow<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, InitializeRevenueShareEscrow<'info>>,
+    pub fn initialize_builder_escrow<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InitializeBuilderEscrow<'info>>,
         num_orders: u16,
     ) -> Result<()> {
-        handle_initialize_revenue_share_escrow(ctx, num_orders)
+        handle_initialize_builder_escrow(ctx, num_orders)
     }
 
-    pub fn resize_revenue_share_escrow_orders<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, ResizeRevenueShareEscrowOrders<'info>>,
+    pub fn resize_builder_escrow_orders<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, ResizeBuilderEscrowOrders<'info>>,
         num_orders: u16,
     ) -> Result<()> {
-        handle_resize_revenue_share_escrow_orders(ctx, num_orders)
+        handle_resize_builder_escrow_orders(ctx, num_orders)
     }
 
     pub fn change_approved_builder<'c: 'info, 'info>(

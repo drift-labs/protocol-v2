@@ -7599,10 +7599,10 @@
       ]
     },
     {
-      "name": "initializeRevenueShare",
+      "name": "initializeBuilder",
       "accounts": [
         {
-          "name": "revenueShare",
+          "name": "builder",
           "isMut": true,
           "isSigner": false
         },
@@ -7630,10 +7630,10 @@
       "args": []
     },
     {
-      "name": "initializeRevenueShareEscrow",
+      "name": "initializeBuilderEscrow",
       "accounts": [
         {
-          "name": "revenueShareEscrow",
+          "name": "builderEscrow",
           "isMut": true,
           "isSigner": false
         },
@@ -7666,10 +7666,10 @@
       ]
     },
     {
-      "name": "resizeRevenueShareEscrowOrders",
+      "name": "resizeBuilderEscrowOrders",
       "accounts": [
         {
-          "name": "revenueShareEscrow",
+          "name": "builderEscrow",
           "isMut": true,
           "isSigner": false
         },
@@ -7700,7 +7700,7 @@
       "name": "changeApprovedBuilder",
       "accounts": [
         {
-          "name": "revenueShareEscrow",
+          "name": "builderEscrow",
           "isMut": true,
           "isSigner": false
         },
@@ -7738,7 +7738,7 @@
   ],
   "accounts": [
     {
-      "name": "RevenueShare",
+      "name": "Builder",
       "type": {
         "kind": "struct",
         "fields": [
@@ -7770,7 +7770,7 @@
       }
     },
     {
-      "name": "RevenueShareEscrow",
+      "name": "BuilderEscrow",
       "type": {
         "kind": "struct",
         "fields": [
@@ -7793,7 +7793,7 @@
             "name": "orders",
             "type": {
               "vec": {
-                "defined": "RevenueShareOrder"
+                "defined": "BuilderOrder"
               }
             }
           },
@@ -9911,7 +9911,7 @@
       }
     },
     {
-      "name": "RevenueShareOrder",
+      "name": "BuilderOrder",
       "type": {
         "kind": "struct",
         "fields": [
@@ -9934,13 +9934,17 @@
           {
             "name": "feesAccrued",
             "docs": [
-              "fees accrued so far for this order slot. This is not exclusively fees from this order_id and",
-              "may include fees from other orders in the same market."
+              "fees accrued so far for this order slot. This is not exclusively fees from this order_id",
+              "and may include fees from other orders in the same market. This may be swept to the",
+              "builder's SpotPosition during settle_pnl."
             ],
             "type": "u64"
           },
           {
             "name": "orderId",
+            "docs": [
+              "the order_id of the current active order in this slot."
+            ],
             "type": "u32"
           },
           {
@@ -9953,16 +9957,6 @@
           },
           {
             "name": "bitFlags",
-            "docs": [
-              "set in fill_order",
-              "u64 max fee is $18T, u32 is $4k",
-              "This can be sweept into into the Builder's RevenueShare in settle_pnl",
-              "once the order is filled or canceled.",
-              "set in fill_order or cancel_order [`RevenueShareOrderBitFlag`]",
-              "Signals that the order was filled or canceled, and builder or referral.",
-              "This order slot is cleared once the fee_accrued is swept to the builder's",
-              "RevenueShare account."
-            ],
             "type": "u8"
           },
           {
@@ -10009,7 +10003,7 @@
       }
     },
     {
-      "name": "RevenueShareEscrowFixed",
+      "name": "BuilderEscrowFixed",
       "type": {
         "kind": "struct",
         "fields": [
@@ -12541,7 +12535,7 @@
       }
     },
     {
-      "name": "RevenueShareOrderBitFlag",
+      "name": "BuilderOrderBitFlag",
       "type": {
         "kind": "enum",
         "variants": [
@@ -16553,8 +16547,8 @@
     },
     {
       "code": 6317,
-      "name": "InvalidRevenueShareResize",
-      "msg": "Invalid RevenueShare resize"
+      "name": "InvalidBuilderResize",
+      "msg": "Invalid Builder resize"
     },
     {
       "code": 6318,
@@ -16563,8 +16557,8 @@
     },
     {
       "code": 6319,
-      "name": "CouldNotDeserializeRevenueShareEscrow",
-      "msg": "Could not deserialize revenue share escrow"
+      "name": "CouldNotDeserializeBuilderEscrow",
+      "msg": "Could not deserialize builder escrow"
     },
     {
       "code": 6320,
@@ -16578,13 +16572,23 @@
     },
     {
       "code": 6322,
-      "name": "RevenueShareEscrowOrdersAccountFull",
-      "msg": "RevenueShareEscrow has too many active orders"
+      "name": "BuilderEscrowOrdersAccountFull",
+      "msg": "BuilderEscrow has too many active orders"
     },
     {
       "code": 6323,
-      "name": "RevenueShareEscrowMissing",
-      "msg": "RevenueShareEscrow missing"
+      "name": "BuilderEscrowMissing",
+      "msg": "BuilderEscrow missing"
+    },
+    {
+      "code": 6324,
+      "name": "BuilderMissing",
+      "msg": "Builder missing"
+    },
+    {
+      "code": 6325,
+      "name": "InvalidBuilderAccount",
+      "msg": "Invalid BuilderAccount"
     }
   ],
   "metadata": {

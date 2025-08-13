@@ -257,7 +257,7 @@ pub struct OrderActionRecord {
     /// precision: PRICE_PRECISION
     pub trigger_price: Option<u64>,
 
-    /// the idx of the builder in the taker's `RevenueShareEscrow` account
+    /// the idx of the builder in the taker's [`BuilderEscrow`] account
     pub builder_idx: Option<u8>,
     /// precision: QUOTE_PRECISION builder fee paid by the taker
     pub builder_fee: Option<u64>,

@@ -1,21 +1,15 @@
-import { RevenueShareOrder } from '../types';
+import { BuilderOrder } from '../types';
 
 const FLAG_IS_OPEN = 0x01;
-export function isRevenueShareOrderOpen(order: RevenueShareOrder): boolean {
+export function isBuilderOrderOpen(order: BuilderOrder): boolean {
 	return (order.bitFlags & FLAG_IS_OPEN) !== 0;
 }
 
 const FLAG_IS_COMPLETED = 0x02;
-export function isRevenueShareOrderCompleted(
-	order: RevenueShareOrder
-): boolean {
+export function isBuilderOrderCompleted(order: BuilderOrder): boolean {
 	return (order.bitFlags & FLAG_IS_COMPLETED) !== 0;
 }
 
-export function isRevenueShareOrderAvailable(
-	order: RevenueShareOrder
-): boolean {
-	return (
-		!isRevenueShareOrderOpen(order) && !isRevenueShareOrderCompleted(order)
-	);
+export function isBuilderOrderAvailable(order: BuilderOrder): boolean {
+	return !isBuilderOrderOpen(order) && !isBuilderOrderCompleted(order);
 }

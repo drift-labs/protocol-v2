@@ -15,10 +15,10 @@ import {
 	PYTH_LAZER_STORAGE_ACCOUNT_KEY,
 	PTYH_LAZER_PROGRAM_ID,
 	assert,
-	getRevenueShareAccountPublicKey,
-	getRevenueShareEscrowAccountPublicKey,
-	RevenueShareAccount,
-	RevenueShareEscrow,
+	getBuilderAccountPublicKey,
+	getBuilderEscrowAccountPublicKey,
+	BuilderAccount,
+	BuilderEscrow,
 	BASE_PRECISION,
 	BN,
 	PRICE_PRECISION,
@@ -39,6 +39,7 @@ import {
 	convertToNumber,
 	getVariant,
 	parseLogs,
+	BuilderEscrowMap,
 } from '../sdk/src';
 
 import {
@@ -55,7 +56,7 @@ import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import dotenv from 'dotenv';
 import { PYTH_STORAGE_DATA } from './pythLazerData';
 import { nanoid } from 'nanoid';
-import { isRevenueShareOrderCompleted } from '../sdk/src/math/builder';
+import { isBuilderOrderCompleted } from '../sdk/src/math/builder';
 
 dotenv.config();
 
@@ -78,6 +79,8 @@ describe('builder codes', () => {
 	let userUSDCAccount: PublicKey = null;
 	let userKeypair: Keypair = null;
 	let userClient: TestClient;
+
+	let builderEscrowMap: BuilderEscrowMap;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 
@@ -180,6 +183,7 @@ describe('builder codes', () => {
 			undefined,
 			true
 		);
+		builderEscrowMap = new BuilderEscrowMap(userClient, false);
 	});
 
 	after(async () => {
@@ -188,34 +192,34 @@ describe('builder codes', () => {
 	});
 
 	it('builder can create revenue share', async () => {
-		await builderClient.initializeRevenueShare(builderClient.wallet.publicKey);
+		await builderClient.initializeBuilder(builderClient.wallet.publicKey);
 
-		const revenueShareAccountInfo =
+		const builderAccountInfo =
 			await bankrunContextWrapper.connection.getAccountInfo(
-				getRevenueShareAccountPublicKey(
+				getBuilderAccountPublicKey(
 					builderClient.program.programId,
 					builderClient.wallet.publicKey
 				)
 			);
 
-		const revenueShare: RevenueShareAccount =
-			builderClient.program.account.revenueShare.coder.accounts.decodeUnchecked(
-				'RevenueShare',
-				revenueShareAccountInfo.data
+		const builderAcc: BuilderAccount =
+			builderClient.program.account.builder.coder.accounts.decodeUnchecked(
+				'Builder',
+				builderAccountInfo.data
 			);
 		assert(
-			revenueShare.authority.toBase58() ===
+			builderAcc.authority.toBase58() ===
 				builderClient.wallet.publicKey.toBase58()
 		);
-		assert(revenueShare.totalBuilderRewards.toNumber() === 0);
-		assert(revenueShare.totalReferrerRewards.toNumber() === 0);
+		assert(builderAcc.totalBuilderRewards.toNumber() === 0);
+		assert(builderAcc.totalReferrerRewards.toNumber() === 0);
 	});
 
-	it('user can initialize a RevenueShareEscrow', async () => {
+	it('user can initialize a BuilderEscrow', async () => {
 		const numOrders = 2;
 
 		// Test the instruction creation
-		const ix = await userClient.getInitializeRevenueShareEscrowIx(
+		const ix = await userClient.getInitializeBuilderEscrowIx(
 			userClient.wallet.publicKey,
 			numOrders
 		);
@@ -224,26 +228,26 @@ describe('builder codes', () => {
 		assert(ix.programId.toBase58() === userClient.program.programId.toBase58());
 
 		// Test the full transaction
-		await userClient.initializeRevenueShareEscrow(
+		await userClient.initializeBuilderEscrow(
 			userClient.wallet.publicKey,
 			numOrders
 		);
 
 		const accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
-			getRevenueShareEscrowAccountPublicKey(
+			getBuilderEscrowAccountPublicKey(
 				userClient.program.programId,
 				userClient.wallet.publicKey
 			)
 		);
 
-		assert(accountInfo !== null, 'RevenueShareEscrow account should exist');
+		assert(accountInfo !== null, 'BuilderEscrow account should exist');
 		assert(
 			accountInfo.owner.toBase58() === userClient.program.programId.toBase58()
 		);
 
-		const revShareEscrow: RevenueShareEscrow =
+		const revShareEscrow: BuilderEscrow =
 			builderClient.program.coder.accounts.decodeUnchecked(
-				'RevenueShareEscrow',
+				'BuilderEscrow',
 				accountInfo.data
 			);
 		assert(
@@ -255,11 +259,11 @@ describe('builder codes', () => {
 		assert(revShareEscrow.approvedBuilders.length === 0);
 	});
 
-	it('user can resize RevenueShareEscrow account', async () => {
+	it('user can resize BuilderEscrow account', async () => {
 		const newNumOrders = 3;
 
 		// Test the instruction creation
-		const ix = await userClient.getResizeRevenueShareEscrowOrdersIx(
+		const ix = await userClient.getResizeBuilderEscrowOrdersIx(
 			userClient.wallet.publicKey,
 			newNumOrders
 		);
@@ -268,13 +272,13 @@ describe('builder codes', () => {
 		assert(ix.programId.toBase58() === userClient.program.programId.toBase58());
 
 		// Test the full transaction
-		await userClient.resizeRevenueShareEscrowOrders(
+		await userClient.resizeBuilderEscrowOrders(
 			userClient.wallet.publicKey,
 			newNumOrders
 		);
 
 		const accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
-			getRevenueShareEscrowAccountPublicKey(
+			getBuilderEscrowAccountPublicKey(
 				userClient.program.programId,
 				userClient.wallet.publicKey
 			)
@@ -282,15 +286,15 @@ describe('builder codes', () => {
 
 		assert(
 			accountInfo !== null,
-			'RevenueShareEscrow account should exist after resize'
+			'BuilderEscrow account should exist after resize'
 		);
 		assert(
 			accountInfo.owner.toBase58() === userClient.program.programId.toBase58()
 		);
 
-		const revShareEscrow: RevenueShareEscrow =
+		const revShareEscrow: BuilderEscrow =
 			builderClient.program.coder.accounts.decodeUnchecked(
-				'RevenueShareEscrow',
+				'BuilderEscrow',
 				accountInfo.data
 			);
 		assert(
@@ -301,7 +305,7 @@ describe('builder codes', () => {
 		assert(revShareEscrow.orders.length === newNumOrders);
 	});
 
-	it('user can add/update/remove approved builder from RevenueShareEscrow', async () => {
+	it('user can add/update/remove approved builder from BuilderEscrow', async () => {
 		const builder = builderClient.wallet;
 		const maxFeeBps = 150; // 1.5%
 
@@ -315,15 +319,15 @@ describe('builder codes', () => {
 
 		// Verify the builder was added
 		let accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
-			getRevenueShareEscrowAccountPublicKey(
+			getBuilderEscrowAccountPublicKey(
 				userClient.program.programId,
 				userClient.wallet.publicKey
 			)
 		);
 
-		let revShareEscrow: RevenueShareEscrow =
+		let revShareEscrow: BuilderEscrow =
 			userClient.program.coder.accounts.decodeUnchecked(
-				'RevenueShareEscrow',
+				'BuilderEscrow',
 				accountInfo.data
 			);
 		const addedBuilder = revShareEscrow.approvedBuilders.find(
@@ -352,14 +356,14 @@ describe('builder codes', () => {
 
 		// Verify the builder was updated
 		accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
-			getRevenueShareEscrowAccountPublicKey(
+			getBuilderEscrowAccountPublicKey(
 				userClient.program.programId,
 				userClient.wallet.publicKey
 			)
 		);
 
 		revShareEscrow = userClient.program.coder.accounts.decodeUnchecked(
-			'RevenueShareEscrow',
+			'BuilderEscrow',
 			accountInfo.data
 		);
 		const updatedBuilder = revShareEscrow.approvedBuilders.find(
@@ -384,14 +388,14 @@ describe('builder codes', () => {
 
 		// Verify the builder was removed
 		accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
-			getRevenueShareEscrowAccountPublicKey(
+			getBuilderEscrowAccountPublicKey(
 				userClient.program.programId,
 				userClient.wallet.publicKey
 			)
 		);
 
 		revShareEscrow = userClient.program.coder.accounts.decodeUnchecked(
-			'RevenueShareEscrow',
+			'BuilderEscrow',
 			accountInfo.data
 		);
 		const removedBuilder = revShareEscrow.approvedBuilders.find(
@@ -493,14 +497,14 @@ describe('builder codes', () => {
 		assert(hasBuilder(userOrders[2]) === true);
 
 		let accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
-			getRevenueShareEscrowAccountPublicKey(
+			getBuilderEscrowAccountPublicKey(
 				userClient.program.programId,
 				userClient.wallet.publicKey
 			)
 		);
-		let revShareEscrow: RevenueShareEscrow =
+		let revShareEscrow: BuilderEscrow =
 			userClient.program.coder.accounts.decodeUnchecked(
-				'RevenueShareEscrow',
+				'BuilderEscrow',
 				accountInfo.data
 			);
 		console.log(revShareEscrow);
@@ -582,13 +586,13 @@ describe('builder codes', () => {
 		await bankrunContextWrapper.moveTimeForward(100);
 
 		accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
-			getRevenueShareEscrowAccountPublicKey(
+			getBuilderEscrowAccountPublicKey(
 				userClient.program.programId,
 				userClient.wallet.publicKey
 			)
 		);
 		revShareEscrow = userClient.program.coder.accounts.decodeUnchecked(
-			'RevenueShareEscrow',
+			'BuilderEscrow',
 			accountInfo.data
 		);
 		// console.log(revShareEscrow);
@@ -598,7 +602,7 @@ describe('builder codes', () => {
 		// console.log('revShareEscrow.orders.0:', revShareEscrow.orders[2]);
 		assert(revShareEscrow.orders[2].orderId === 3);
 		assert(revShareEscrow.orders[2].feesAccrued.gt(ZERO));
-		assert(isRevenueShareOrderCompleted(revShareEscrow.orders[2]));
+		assert(isBuilderOrderCompleted(revShareEscrow.orders[2]));
 
 		// cancel remaining orders
 		await userClient.cancelOrders();
@@ -616,13 +620,13 @@ describe('builder codes', () => {
 		);
 
 		accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
-			getRevenueShareEscrowAccountPublicKey(
+			getBuilderEscrowAccountPublicKey(
 				userClient.program.programId,
 				userClient.wallet.publicKey
 			)
 		);
 		revShareEscrow = userClient.program.coder.accounts.decodeUnchecked(
-			'RevenueShareEscrow',
+			'BuilderEscrow',
 			accountInfo.data
 		);
 		console.log('revShareEscrow.orders.0:', revShareEscrow.orders[0]);
@@ -636,7 +640,8 @@ describe('builder codes', () => {
 			userClient.getUserAccount(),
 			marketIndex,
 			undefined,
-			undefined
+			undefined,
+			builderEscrowMap
 		);
 		const settleLogs = await printTxLogs(
 			bankrunContextWrapper.connection.toConnection(),
@@ -646,13 +651,13 @@ describe('builder codes', () => {
 		console.log('settle events:', settleEvents);
 
 		accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
-			getRevenueShareEscrowAccountPublicKey(
+			getBuilderEscrowAccountPublicKey(
 				userClient.program.programId,
 				userClient.wallet.publicKey
 			)
 		);
 		revShareEscrow = userClient.program.coder.accounts.decodeUnchecked(
-			'RevenueShareEscrow',
+			'BuilderEscrow',
 			accountInfo.data
 		);
 		console.log('revShareEscrow.orders:', revShareEscrow.orders);

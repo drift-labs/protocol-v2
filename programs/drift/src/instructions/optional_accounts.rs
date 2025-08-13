@@ -1,7 +1,5 @@
 use crate::error::{DriftResult, ErrorCode};
-use crate::state::builder::{
-    RevenueShareEscrow, RevenueShareEscrowLoader, RevenueShareEscrowZeroCopyMut,
-};
+use crate::state::builder::{BuilderEscrow, BuilderEscrowLoader, BuilderEscrowZeroCopyMut};
 use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use std::cell::RefMut;
 use std::convert::TryFrom;
@@ -279,7 +277,7 @@ pub fn get_high_leverage_mode_config<'a>(
 
 pub fn get_revenue_escrow_account<'a>(
     account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'a>>>,
-) -> DriftResult<Option<RevenueShareEscrowZeroCopyMut<'a>>> {
+) -> DriftResult<Option<BuilderEscrowZeroCopyMut<'a>>> {
     let revenue_escrow_account_info = account_info_iter.peek();
     if revenue_escrow_account_info.is_none() {
         return Ok(None);
@@ -292,7 +290,7 @@ pub fn get_revenue_escrow_account<'a>(
         return Ok(None);
     }
 
-    let revenue_escrow_discriminator: [u8; 8] = RevenueShareEscrow::discriminator();
+    let revenue_escrow_discriminator: [u8; 8] = BuilderEscrow::discriminator();
     let borrowed_data = revenue_escrow_account_info.data.borrow();
     let account_discriminator = array_ref![&borrowed_data, 0, 8];
     if account_discriminator != &revenue_escrow_discriminator {
@@ -302,8 +300,7 @@ pub fn get_revenue_escrow_account<'a>(
     let revenue_escrow_account_info = account_info_iter.next().safe_unwrap()?;
 
     drop(borrowed_data);
-    let revenue_escrow: RevenueShareEscrowZeroCopyMut<'a> =
-        revenue_escrow_account_info.load_zc_mut()?;
+    let revenue_escrow: BuilderEscrowZeroCopyMut<'a> = revenue_escrow_account_info.load_zc_mut()?;
 
     Ok(Some(revenue_escrow))
 }
