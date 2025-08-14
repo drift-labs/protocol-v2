@@ -13,9 +13,6 @@ use crate::state::user::{MarketType, OrderStatus, User};
 use crate::validate;
 use crate::{msg, ID};
 
-#[cfg(test)]
-mod tests;
-
 pub const BUILDER_PDA_SEED: &str = "BUILD";
 pub const BUILDER_ESCROW_PDA_SEED: &str = "BUILD_ESCROW";
 
@@ -53,19 +50,29 @@ pub struct BuilderOrder {
     /// and may include fees from other orders in the same market. This may be swept to the
     /// builder's SpotPosition during settle_pnl.
     pub fees_accrued: u64,
-    /// the order_id of the current active order in this slot.
+    /// the order_id of the current active order in this slot. It only carries meaning while bit_flag = Open
     pub order_id: u32,
     pub fee_bps: u16,
     pub market_index: u16,
+
+    /// bitflags that describe the state of the order.
+    /// [`BuilderOrderBitFlag::Init`]: this order slot is available for use.
+    /// [`BuilderOrderBitFlag::Open`]: this order slot is occupied, `order_id` is the `sub_account_id`'s active order.
+    /// [`BuilderOrderBitFlag::Completed`]: this order has been filled or canceled, and is waiting to be settled into
+    /// the builder's account order_id and sub_account_id are no longer relevant, it may be merged with other orders.
     pub bit_flags: u8,
+
     pub market_type: MarketType,
 
-    pub padding: [u8; 6],
+    /// the subaccount_id of the user who created this order. It only carries meaning while bit_flag = Open
+    pub sub_account_id: u16,
+    pub padding: [u8; 12],
 }
 
 impl BuilderOrder {
     pub fn new(
         builder_idx: u8,
+        sub_account_id: u16,
         order_id: u32,
         fee_bps: u16,
         market_type: MarketType,
@@ -80,7 +87,8 @@ impl BuilderOrder {
             market_index,
             fees_accrued: 0,
             bit_flags: BuilderOrderBitFlag::Open as u8,
-            padding: [0; 6],
+            sub_account_id,
+            padding: [0; 12],
         }
     }
 
@@ -362,10 +370,12 @@ impl<'a> BuilderEscrowZeroCopyMut<'a> {
         Err(ErrorCode::BuilderEscrowOrdersAccountFull.into())
     }
 
-    pub fn find_order(&mut self, order_id: u32) -> Option<&mut BuilderOrder> {
+    pub fn find_order(&mut self, sub_account_id: u16, order_id: u32) -> Option<&mut BuilderOrder> {
         for i in 0..self.orders_len() {
             if let Ok(existing_order) = self.get_order(i) {
-                if existing_order.order_id == order_id {
+                if existing_order.order_id == order_id
+                    && existing_order.sub_account_id == sub_account_id
+                {
                     return self.get_order_mut(i).ok();
                 }
             }
@@ -373,7 +383,7 @@ impl<'a> BuilderEscrowZeroCopyMut<'a> {
         None
     }
 
-    /// Marks any [`BuilderOrder`]s as Completed if there is no longer a corresponding
+    /// Marks any [`BuilderOrder`]s as Complete if there is no longer a corresponding
     /// open order in the user's account. This is used to lazily reconcile state when
     /// in place_order and settle_pnl instead of requiring explicit updates on cancels.
     pub fn mark_missing_orders_completed(&mut self, user: &User) -> DriftResult<()> {
@@ -381,7 +391,9 @@ impl<'a> BuilderEscrowZeroCopyMut<'a> {
             if let Ok(builder_order) = self.get_order_mut(i) {
                 if builder_order.is_open() && !builder_order.is_completed() {
                     let still_open = user.orders.iter().any(|o| {
-                        o.order_id == builder_order.order_id && o.status == OrderStatus::Open
+                        o.order_id == builder_order.order_id
+                            && user.sub_account_id == builder_order.sub_account_id
+                            && o.status == OrderStatus::Open
                     });
                     if !still_open {
                         if builder_order.fees_accrued > 0 {

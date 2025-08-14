@@ -96,6 +96,7 @@ pub fn sweep_completed_builder_fees_for_market<'a>(
             emit!(BuilderSettleRecord {
                 ts: now_ts,
                 builder: builder_authority,
+                referrer: Pubkey::default(),
                 payer: builder_escrow.fixed.authority,
                 fee_settled: fees_accrued as u64,
                 market_index: order_market_index,

@@ -839,12 +839,13 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
             let new_order_id = taker_order_id_to_use - 1;
             builder_escrow_zc.add_order(BuilderOrder::new(
                 verified_message_and_signature.builder_idx.unwrap(),
+                taker.sub_account_id,
                 new_order_id,
                 builder_fee_bps.unwrap(),
                 MarketType::Perp,
                 market_index,
             ))?;
-            builder_escrow_zc.find_order(new_order_id)
+            builder_escrow_zc.find_order(taker.sub_account_id, new_order_id)
         } else {
             None
         };
@@ -891,12 +892,13 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
             let new_order_id = taker_order_id_to_use - 1;
             builder_escrow_zc.add_order(BuilderOrder::new(
                 verified_message_and_signature.builder_idx.unwrap(),
+                taker.sub_account_id,
                 new_order_id,
                 builder_fee_bps.unwrap(),
                 MarketType::Perp,
                 market_index,
             ))?;
-            builder_escrow_zc.find_order(new_order_id)
+            builder_escrow_zc.find_order(taker.sub_account_id, new_order_id)
         } else {
             None
         };
@@ -926,12 +928,13 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
         let new_order_id = taker_order_id_to_use;
         builder_escrow_zc.add_order(BuilderOrder::new(
             verified_message_and_signature.builder_idx.unwrap(),
+            taker.sub_account_id,
             new_order_id,
             builder_fee_bps.unwrap(),
             MarketType::Perp,
             market_index,
         ))?;
-        builder_escrow_zc.find_order(new_order_id)
+        builder_escrow_zc.find_order(taker.sub_account_id, new_order_id)
     } else {
         None
     };

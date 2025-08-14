@@ -1012,7 +1012,7 @@ pub fn fill_perp_order(
     }
 
     let mut builder_order = if let Some(builder_escrow) = builder_escrow.as_mut() {
-        builder_escrow.find_order(order_id)
+        builder_escrow.find_order(user.sub_account_id, order_id)
     } else {
         None
     };

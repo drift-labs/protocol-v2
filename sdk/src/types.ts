@@ -1628,6 +1628,7 @@ export type BuilderInfo = {
 export type BuilderSettleRecord = {
 	ts: number;
 	builder: PublicKey;
+	referrer: PublicKey;
 	payer: PublicKey;
 	feeSettled: BN;
 	marketIndex: number;

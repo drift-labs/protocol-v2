@@ -9993,6 +9993,11 @@
           },
           {
             "name": "bitFlags",
+            "docs": [
+              "bitflags that describe the state of the order:",
+              "Init: this order slot is available for use",
+              "Open: this order slot is occupied, `order_id` is the corresponding order"
+            ],
             "type": "u8"
           },
           {
@@ -10002,11 +10007,18 @@
             }
           },
           {
+            "name": "subAccountId",
+            "docs": [
+              "the subaccount_id of the user who created this order"
+            ],
+            "type": "u16"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                6
+                12
               ]
             }
           }
@@ -15004,6 +15016,11 @@
         },
         {
           "name": "builder",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "referrer",
           "type": "publicKey",
           "index": false
         },

@@ -751,6 +751,7 @@ pub fn emit_buffers<T: AnchorSerialize + Discriminator>(
 pub struct BuilderSettleRecord {
     pub ts: i64,
     pub builder: Pubkey,
+    pub referrer: Pubkey,
     pub payer: Pubkey,
     pub fee_settled: u64,
     pub market_index: u16,
@@ -760,5 +761,5 @@ pub struct BuilderSettleRecord {
 }
 
 impl Size for BuilderSettleRecord {
-    const SIZE: usize = 480;
+    const SIZE: usize = 140;
 }
