@@ -504,10 +504,23 @@ export class DLOB {
 			new BN(slot)
 		);
 
+		const stepSize = isVariant(marketType, 'perp')
+			? (marketAccount as PerpMarketAccount).amm.orderStepSize
+			: (marketAccount as SpotMarketAccount).orderStepSize;
+
+		const cancelReduceOnlyNodesToFill =
+			this.findUnfillableReduceOnlyOrdersToCancel(
+				marketIndex,
+				marketType,
+				stepSize
+			);
+
 		return this.mergeNodesToFill(
 			restingLimitOrderNodesToFill,
 			takingOrderNodesToFill
-		).concat(expiredNodesToFill);
+		)
+			.concat(expiredNodesToFill)
+			.concat(cancelReduceOnlyNodesToFill);
 	}
 
 	getMakerRebate(
@@ -988,6 +1001,53 @@ export class DLOB {
 				} else if (isOrderExpired(ask.order, ts, true, 25)) {
 					nodesToFill.push({
 						node: ask,
+						makerNodes: [],
+					});
+				}
+			}
+		}
+
+		return nodesToFill;
+	}
+
+	public findUnfillableReduceOnlyOrdersToCancel(
+		marketIndex: number,
+		marketType: MarketType,
+		stepSize: BN
+	): NodeToFill[] {
+		const nodesToFill = new Array<NodeToFill>();
+
+		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
+		const nodeLists = this.orderLists.get(marketTypeStr).get(marketIndex);
+
+		if (!nodeLists) {
+			return nodesToFill;
+		}
+
+		const generators = [
+			nodeLists.takingLimit.bid.getGenerator(),
+			nodeLists.restingLimit.bid.getGenerator(),
+			nodeLists.floatingLimit.bid.getGenerator(),
+			nodeLists.market.bid.getGenerator(),
+			nodeLists.signedMsg.bid.getGenerator(),
+			nodeLists.takingLimit.ask.getGenerator(),
+			nodeLists.restingLimit.ask.getGenerator(),
+			nodeLists.floatingLimit.ask.getGenerator(),
+			nodeLists.market.ask.getGenerator(),
+			nodeLists.signedMsg.ask.getGenerator(),
+			nodeLists.trigger.above.getGenerator(),
+			nodeLists.trigger.below.getGenerator(),
+		];
+
+		for (const generator of generators) {
+			for (const node of generator) {
+				if (!node.order.reduceOnly) {
+					continue;
+				}
+
+				if (node.baseAssetAmount.lt(stepSize)) {
+					nodesToFill.push({
+						node,
 						makerNodes: [],
 					});
 				}

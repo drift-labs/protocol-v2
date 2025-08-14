@@ -26,6 +26,7 @@ import {
 	PRICE_PRECISION,
 	DataAndSlot,
 } from '../../src';
+import { EventEmitter } from 'events';
 
 export const mockPerpPosition: PerpPosition = {
 	baseAssetAmount: new BN(0),
@@ -62,7 +63,6 @@ export const mockAMM: AMM = {
 	lastMarkPriceTwap: new BN(0),
 	lastMarkPriceTwap5Min: new BN(0),
 	lastMarkPriceTwapTs: new BN(0),
-	totalFeeEarnedPerLp: new BN(0),
 	historicalOracleData: {
 		lastOraclePrice: new BN(0),
 		lastOracleConf: new BN(0),
@@ -130,13 +130,10 @@ export const mockAMM: AMM = {
 
 	markStd: new BN(0),
 	oracleStd: new BN(0),
-	longIntensityCount: 0,
 	longIntensityVolume: new BN(0),
-	shortIntensityCount: 0,
 	shortIntensityVolume: new BN(0),
 	volume24H: new BN(0),
 	minOrderSize: new BN(0),
-	maxPositionSize: new BN(0),
 
 	bidBaseAssetReserve: new BN(0),
 	bidQuoteAssetReserve: new BN(0),
@@ -150,11 +147,16 @@ export const mockAMM: AMM = {
 	takerSpeedBumpOverride: 0,
 	ammSpreadAdjustment: 0,
 	ammInventorySpreadAdjustment: 0,
+	mmOracleSequenceId: new BN(0),
+	mmOraclePrice: new BN(0),
+	mmOracleSlot: new BN(0),
+	lastFundingOracleTwap: new BN(0),
 };
 
 export const mockPerpMarkets: Array<PerpMarketAccount> = [
 	{
 		status: MarketStatus.INITIALIZED,
+		lastFillPrice: new BN(0),
 		name: [],
 		contractType: ContractType.PERPETUAL,
 		contractTier: ContractTier.A,
@@ -201,6 +203,7 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 	},
 	{
 		status: MarketStatus.INITIALIZED,
+		lastFillPrice: new BN(0),
 		contractTier: ContractTier.A,
 		nextFundingRateRecordId: new BN(0),
 		nextCurveRecordId: new BN(0),
@@ -247,6 +250,7 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 	},
 	{
 		status: MarketStatus.INITIALIZED,
+		lastFillPrice: new BN(0),
 		contractTier: ContractTier.A,
 		nextFundingRateRecordId: new BN(0),
 		nextCurveRecordId: new BN(0),
@@ -574,6 +578,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 
 export const mockStateAccount: StateAccount = {
 	admin: PublicKey.default,
+	featureBitFlags: 0,
 	defaultMarketOrderTimeInForce: 0,
 	defaultSpotAuctionDuration: 0,
 	discountMint: PublicKey.default,
@@ -651,6 +656,7 @@ export const mockStateAccount: StateAccount = {
 };
 
 export class MockUserMap implements UserMapInterface {
+	eventEmitter: EventEmitter = new EventEmitter();
 	private userMap = new Map<string, User>();
 	private userAccountToAuthority = new Map<string, string>();
 	private driftClient: DriftClient;
