@@ -568,6 +568,16 @@ pub fn handle_change_approved_builder<'c: 'info, 'info>(
             );
             ctx.accounts.builder_escrow.approved_builders[index].max_fee_bps = max_fee_bps;
         } else {
+            if ctx
+                .accounts
+                .builder_escrow
+                .orders
+                .iter()
+                .any(|o| (o.builder_idx == index as u8) && (!o.is_available()))
+            {
+                msg!("Builder has open orders, must cancel orders and settle_pnl before revoking");
+                return Err(ErrorCode::CannotRevokeBuilderWithOpenOrders.into());
+            }
             msg!(
                 "Revoking builder: {}, max fee bps: {} -> 0",
                 builder,

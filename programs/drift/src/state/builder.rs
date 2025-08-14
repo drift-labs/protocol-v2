@@ -36,8 +36,8 @@ pub enum BuilderOrderBitFlag {
 pub struct Builder {
     /// the owner of this account, a builder or referrer
     pub authority: Pubkey,
-    pub total_referrer_rewards: i64,
-    pub total_builder_rewards: i64,
+    pub total_referrer_rewards: u64,
+    pub total_builder_rewards: u64,
     pub padding: [u8; 18],
 }
 
@@ -379,17 +379,21 @@ impl<'a> BuilderEscrowZeroCopyMut<'a> {
 
     /// Marks any [`BuilderOrder`]s as Completed if there is no longer a corresponding
     /// open order in the user's account. This is used to lazily reconcile state when
-    /// placing new orders instead of requiring explicit updates on cancels.
+    /// in place_order and settle_pnl instead of requiring explicit updates on cancels.
     pub fn mark_missing_orders_completed(&mut self, user: &User) -> DriftResult<()> {
         for i in 0..self.orders_len() {
-            if let Ok(order) = self.get_order_mut(i) {
-                if order.is_open() && !order.is_completed() {
-                    let still_open = user
-                        .orders
-                        .iter()
-                        .any(|o| o.order_id == order.order_id && o.status == OrderStatus::Open);
+            if let Ok(builder_order) = self.get_order_mut(i) {
+                if builder_order.is_open() && !builder_order.is_completed() {
+                    let still_open = user.orders.iter().any(|o| {
+                        o.order_id == builder_order.order_id && o.status == OrderStatus::Open
+                    });
                     if !still_open {
-                        order.add_bit_flag(BuilderOrderBitFlag::Completed);
+                        if builder_order.fees_accrued > 0 {
+                            builder_order.add_bit_flag(BuilderOrderBitFlag::Completed);
+                        } else {
+                            // order had no fees accrued, we can just clear out the slot
+                            *builder_order = BuilderOrder::default();
+                        }
                     }
                 }
             }

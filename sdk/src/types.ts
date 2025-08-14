@@ -1624,3 +1624,14 @@ export type BuilderInfo = {
 	maxFeeBps: number;
 	bitFlags: number;
 };
+
+export type BuilderSettleRecord = {
+	ts: number;
+	builder: PublicKey;
+	payer: PublicKey;
+	feeSettled: BN;
+	marketIndex: number;
+	marketType: MarketType;
+	builderTotalReferrerRewards: BN;
+	builderTotalBuilderRewards: BN;
+};

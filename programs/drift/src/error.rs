@@ -657,6 +657,8 @@ pub enum ErrorCode {
     BuilderMissing,
     #[msg("Invalid BuilderAccount")]
     InvalidBuilderAccount,
+    #[msg("Cannot revoke builder with open orders")]
+    CannotRevokeBuilderWithOpenOrders,
 }
 
 #[macro_export]

@@ -13,9 +13,7 @@ import {
 	OptionalOrderParams,
 	PostOnlyParams,
 	SignedMsgOrderParamsDelegateMessage,
-	SignedMsgOrderParamsDelegateWithBuilderMessage,
 	SignedMsgOrderParamsMessage,
-	SignedMsgOrderParamsWithBuilderMessage,
 	UserAccount,
 } from '../types';
 import { Keypair, PublicKey, TransactionInstruction } from '@solana/web3.js';

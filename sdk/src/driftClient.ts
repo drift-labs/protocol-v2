@@ -199,11 +199,7 @@ import { sha256 } from '@noble/hashes/sha256';
 import { getOracleConfidenceFromMMOracleData } from './oracles/utils';
 import { hasBuilder } from './math/orders';
 import { BuilderEscrowMap } from './userMap/builderEscrowMap';
-import {
-	isBuilderOrderAvailable,
-	isBuilderOrderCompleted,
-} from './math/builder';
-import { transactionToBase64WithSigners } from 'gill';
+import { isBuilderOrderAvailable } from './math/builder';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -4910,7 +4906,9 @@ export class DriftClient {
 				const userOrder = userAccount.orders.find(
 					(o) => o.orderId === order.orderId
 				);
-				withBuilder = hasBuilder(userOrder);
+				if (userOrder) {
+					withBuilder = hasBuilder(userOrder);
+				}
 			} else if (isSignedMsg) {
 				// Order hasn't been placed yet, we cant tell if it has a builder or not.
 				// Include it optimistically
@@ -7623,21 +7621,21 @@ export class DriftClient {
 			writableSpotMarketIndexes: [QUOTE_SPOT_MARKET_INDEX],
 		});
 
-		for (const order of settleeUserAccount.orders) {
-			if (hasBuilder(order)) {
-				remainingAccounts.push({
-					pubkey: getBuilderEscrowAccountPublicKey(
-						this.program.programId,
-						settleeUserAccount.authority
-					),
-					isSigner: false,
-					isWritable: true,
-				});
-				break;
-			}
-		}
-
 		if (builderEscrowMap) {
+			for (const order of settleeUserAccount.orders) {
+				if (hasBuilder(order)) {
+					remainingAccounts.push({
+						pubkey: getBuilderEscrowAccountPublicKey(
+							this.program.programId,
+							settleeUserAccount.authority
+						),
+						isSigner: false,
+						isWritable: true,
+					});
+					break;
+				}
+			}
+
 			const builderEscrow = await builderEscrowMap.mustGet(
 				settleeUserAccount.authority.toBase58()
 			);
@@ -7649,18 +7647,10 @@ export class DriftClient {
 							order.builderIdx,
 							builderEscrow.approvedBuilders[order.builderIdx].authority
 						);
-						console.log(
-							'ADDING: ',
-							order.builderIdx,
-							builderEscrow.approvedBuilders[
-								order.builderIdx
-							].authority.toBase58()
-						);
 					}
 				}
 			}
 			if (builders.size > 0) {
-				console.log('builders: ', builders);
 				this.addBuilderToRemainingAccounts(
 					Array.from(builders.values()),
 					remainingAccounts

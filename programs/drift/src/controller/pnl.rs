@@ -24,7 +24,6 @@ use crate::math::margin::{
 use crate::math::position::calculate_base_asset_value_with_expiry_price;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
-use crate::state::builder::BuilderEscrowZeroCopyMut;
 use crate::state::margin_calculation::MarginContext;
 
 use crate::msg;

@@ -1007,11 +1007,6 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    let mut revenue_escrow = get_revenue_escrow_account(&mut remaining_accounts)?;
-    if let Some(ref mut revenue_escrow_zc) = revenue_escrow {
-        revenue_escrow_zc.mark_missing_orders_completed(user)?;
-    }
-
     let market_in_settlement =
         perp_market_map.get_ref(&market_index)?.status == MarketStatus::Settlement;
 
@@ -1056,12 +1051,13 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
         .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
     }
 
-    if let Some(ref mut revenue_escrow_zc) = revenue_escrow {
-        // if let Ok(builder_users) = load_user_map(&mut remaining_accounts, true) {
+    let mut builder_escrow = get_revenue_escrow_account(&mut remaining_accounts)?;
+    if let Some(ref mut builder_escrow_zc) = builder_escrow {
+        builder_escrow_zc.mark_missing_orders_completed(user)?;
         if let Ok(builder_map) = load_builder_map(&mut remaining_accounts) {
             controller::revenue_share::sweep_completed_builder_fees_for_market(
                 market_index,
-                revenue_escrow_zc,
+                builder_escrow_zc,
                 &mut perp_market_map,
                 &mut spot_market_map,
                 builder_map,
@@ -1161,7 +1157,6 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
         }
 
         if let Some(ref mut revenue_escrow_zc) = revenue_escrow {
-            // if let Ok(builder_users) = load_user_map(&mut remaining_accounts, true) {
             if let Ok(builder_map) = load_builder_map(&mut remaining_accounts) {
                 controller::revenue_share::sweep_completed_builder_fees_for_market(
                     *market_index,

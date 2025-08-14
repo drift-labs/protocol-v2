@@ -1,13 +1,8 @@
-import {
-	MemcmpFilter,
-	PublicKey,
-	RpcResponseAndContext,
-} from '@solana/web3.js';
+import { PublicKey, RpcResponseAndContext } from '@solana/web3.js';
 import { DriftClient } from '../driftClient';
 import { BuilderEscrow } from '../types';
 import { getBuilderEscrowAccountPublicKey } from '../addresses/pda';
 import { getBuilderEscrowFilter } from '../memcmp';
-import { bs58 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
 
 export class BuilderEscrowMap {
 	/**
@@ -113,6 +108,31 @@ export class BuilderEscrowMap {
 		} finally {
 			this.fetchPromiseResolver();
 			this.fetchPromise = undefined;
+		}
+	}
+
+	/**
+	 * A slow, bankrun test friendly version of sync(), uses getAccountInfo on every cached account to refresh data
+	 * @returns
+	 */
+	public async slowSync(): Promise<void> {
+		if (this.fetchPromise) {
+			return this.fetchPromise;
+		}
+		for (const authority of this.authorityEscrowMap.keys()) {
+			const accountInfo = await this.driftClient.connection.getAccountInfo(
+				getBuilderEscrowAccountPublicKey(
+					this.driftClient.program.programId,
+					new PublicKey(authority)
+				),
+				'confirmed'
+			);
+			const builderEscrowNew =
+				this.driftClient.program.account.builderEscrow.coder.accounts.decode(
+					'BuilderEscrow',
+					accountInfo.data
+				) as BuilderEscrow;
+			this.authorityEscrowMap.set(authority, builderEscrowNew);
 		}
 	}
 

@@ -7751,11 +7751,11 @@
           },
           {
             "name": "totalReferrerRewards",
-            "type": "i64"
+            "type": "u64"
           },
           {
             "name": "totalBuilderRewards",
-            "type": "i64"
+            "type": "u64"
           },
           {
             "name": "padding",
@@ -14957,6 +14957,53 @@
           "index": false
         }
       ]
+    },
+    {
+      "name": "BuilderSettleRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "builder",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "payer",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "feeSettled",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "marketIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "marketType",
+          "type": {
+            "defined": "MarketType"
+          },
+          "index": false
+        },
+        {
+          "name": "builderTotalReferrerRewards",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "builderTotalBuilderRewards",
+          "type": "u64",
+          "index": false
+        }
+      ]
     }
   ],
   "errors": [
@@ -16589,6 +16636,11 @@
       "code": 6325,
       "name": "InvalidBuilderAccount",
       "msg": "Invalid BuilderAccount"
+    },
+    {
+      "code": 6326,
+      "name": "CannotRevokeBuilderWithOpenOrders",
+      "msg": "Cannot revoke builder with open orders"
     }
   ],
   "metadata": {
