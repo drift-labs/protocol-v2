@@ -139,7 +139,7 @@ export class DLOBSubscriber {
 			fallbackL2Generators = [
 				getVammL2Generator({
 					marketAccount: this.driftClient.getPerpMarketAccount(marketIndex),
-					oraclePriceData:
+					mmOraclePriceData:
 						this.driftClient.getMMOracleDataForPerpMarket(marketIndex),
 					numOrders: numVammOrders ?? depth,
 					topOfBookQuoteAmounts:

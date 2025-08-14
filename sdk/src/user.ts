@@ -90,7 +90,7 @@ import {
 	calculateMarginUSDCRequiredForTrade,
 	calculateWorstCaseBaseAssetAmount,
 } from './math/margin';
-import { OraclePriceData } from './oracles/types';
+import { MMOraclePriceData, OraclePriceData } from './oracles/types';
 import { UserConfig } from './userConfig';
 import { PollingUserAccountSubscriber } from './accounts/pollingUserAccountSubscriber';
 import { WebSocketUserAccountSubscriber } from './accounts/webSocketUserAccountSubscriber';
@@ -671,7 +671,7 @@ export class User {
 		)[0];
 
 		const perpMarket = this.driftClient.getPerpMarketAccount(marketIndex);
-		const oraclePriceData = this.getOracleDataForPerpMarket(marketIndex);
+		const oraclePriceData = this.getMMOracleDataForPerpMarket(marketIndex);
 		const worstCaseBaseAssetAmount = perpPosition
 			? calculateWorstCaseBaseAssetAmount(
 					perpPosition,
@@ -843,7 +843,7 @@ export class User {
 				const market = this.driftClient.getPerpMarketAccount(
 					perpPosition.marketIndex
 				);
-				const oraclePriceData = this.getOracleDataForPerpMarket(
+				const oraclePriceData = this.getMMOracleDataForPerpMarket(
 					market.marketIndex
 				);
 
@@ -1031,7 +1031,7 @@ export class User {
 				}
 
 				for (const perpPosition of this.getActivePerpPositions()) {
-					const oraclePriceData = this.getOracleDataForPerpMarket(
+					const oraclePriceData = this.getMMOracleDataForPerpMarket(
 						perpPosition.marketIndex
 					);
 
@@ -1447,7 +1447,7 @@ export class User {
 			)[0];
 		}
 
-		let valuationPrice = this.getOracleDataForPerpMarket(
+		let valuationPrice = this.getMMOracleDataForPerpMarket(
 			market.marketIndex
 		).price;
 
@@ -1679,7 +1679,7 @@ export class User {
 
 		const entryPrice = calculateEntryPrice(position);
 
-		const oraclePriceData = this.getOracleDataForPerpMarket(
+		const oraclePriceData = this.getMMOracleDataForPerpMarket(
 			position.marketIndex
 		);
 
@@ -2660,7 +2660,7 @@ export class User {
 			? true
 			: targetSide === currentPositionSide;
 
-		const oracleData = this.getOracleDataForPerpMarket(targetMarketIndex);
+		const oracleData = this.getMMOracleDataForPerpMarket(targetMarketIndex);
 
 		const marketAccount =
 			this.driftClient.getPerpMarketAccount(targetMarketIndex);
@@ -3426,7 +3426,7 @@ export class User {
 			this.getEmptyPosition(targetMarketIndex);
 
 		const perpMarket = this.driftClient.getPerpMarketAccount(targetMarketIndex);
-		const oracleData = this.getOracleDataForPerpMarket(targetMarketIndex);
+		const oracleData = this.getMMOracleDataForPerpMarket(targetMarketIndex);
 
 		let {
 			// eslint-disable-next-line prefer-const
@@ -4106,7 +4106,7 @@ export class User {
 				!!marginCategory
 			)[0] || this.getEmptyPosition(marketToIgnore);
 
-		const oracleData = this.getOracleDataForPerpMarket(marketToIgnore);
+		const oracleData = this.getMMOracleDataForPerpMarket(marketToIgnore);
 
 		let currentPerpPositionValueUSDC = ZERO;
 		if (currentPerpPosition) {
@@ -4124,8 +4124,8 @@ export class User {
 		).sub(currentPerpPositionValueUSDC);
 	}
 
-	private getOracleDataForPerpMarket(marketIndex: number): OraclePriceData {
-		return this.driftClient.getOracleDataForPerpMarket(marketIndex);
+	private getMMOracleDataForPerpMarket(marketIndex: number): MMOraclePriceData {
+		return this.driftClient.getMMOracleDataForPerpMarket(marketIndex);
 	}
 
 	private getOracleDataForSpotMarket(marketIndex: number): OraclePriceData {
