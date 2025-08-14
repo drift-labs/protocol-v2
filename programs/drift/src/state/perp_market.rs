@@ -1890,7 +1890,7 @@ pub struct CacheInfo {
     pub max_confidence_interval_multiplier: u64,
     pub last_oracle_price_twap: i64,
     pub last_settle_amount: u64,
-    pub last_settle_ts: i64,
+    pub last_settle_slot: u64,
     pub quote_owed_from_lp_pool: i64,
     pub oracle_price: i64,
     pub oracle_confidence: u64,
@@ -1921,7 +1921,7 @@ impl Default for CacheInfo {
             last_fee_pool_token_amount: 0u128,
             last_net_pnl_pool_token_amount: 0i128,
             last_settle_amount: 0u64,
-            last_settle_ts: 0i64,
+            last_settle_slot: 0u64,
             oracle_source: 0u8,
             quote_owed_from_lp_pool: 0i64,
         }
@@ -1980,12 +1980,12 @@ impl AmmCache {
 impl_zero_copy_loader!(AmmCache, crate::id, AmmCacheFixed, CacheInfo);
 
 impl<'a> AccountZeroCopy<'a, CacheInfo, AmmCacheFixed> {
-    pub fn check_settle_staleness(&self, now: i64, threshold_ms: i64) -> DriftResult<()> {
+    pub fn check_settle_staleness(&self, slot: u64, threshold_slot_diff: u64) -> DriftResult<()> {
         for (i, cache_info) in self.iter().enumerate() {
             if cache_info.slot == 0 {
                 continue;
             }
-            if cache_info.last_settle_ts < now.saturating_sub(threshold_ms) {
+            if cache_info.last_settle_slot < slot.saturating_sub(threshold_slot_diff) {
                 msg!("AMM settle data is stale for perp market {}", i);
                 return Err(ErrorCode::AMMCacheStale.into());
             }

@@ -11711,9 +11711,9 @@
             }
           },
           {
-            "name": "lastSettleTs",
+            "name": "lastSettleSlot",
             "type": {
-              "option": "i64"
+              "option": "u64"
             }
           },
           {
@@ -13578,8 +13578,8 @@
             "type": "u64"
           },
           {
-            "name": "lastSettleTs",
-            "type": "i64"
+            "name": "lastSettleSlot",
+            "type": "u64"
           },
           {
             "name": "quoteOwedFromLpPool",

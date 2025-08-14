@@ -1182,7 +1182,7 @@ pub fn handle_update_init_amm_cache_info<'c: 'info, 'info>(
 #[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq)]
 pub struct OverrideAmmCacheParams {
     pub quote_owed_from_lp_pool: Option<i64>,
-    pub last_settle_ts: Option<i64>,
+    pub last_settle_slot: Option<u64>,
     pub last_fee_pool_token_amount: Option<u128>,
     pub last_net_pnl_pool_token_amount: Option<i128>,
 }
@@ -1204,8 +1204,8 @@ pub fn handle_override_amm_cache_info<'c: 'info, 'info>(
     if let Some(quote_owed_from_lp_pool) = override_params.quote_owed_from_lp_pool {
         cache_entry.quote_owed_from_lp_pool = quote_owed_from_lp_pool;
     }
-    if let Some(last_settle_ts) = override_params.last_settle_ts {
-        cache_entry.last_settle_ts = last_settle_ts;
+    if let Some(last_settle_slot) = override_params.last_settle_slot {
+        cache_entry.last_settle_slot = last_settle_slot;
     }
     if let Some(last_fee_pool_token_amount) = override_params.last_fee_pool_token_amount {
         cache_entry.last_fee_pool_token_amount = last_fee_pool_token_amount;

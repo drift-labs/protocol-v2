@@ -1664,6 +1664,9 @@ export type LPPoolAccount = {
 	lastRevenueRebalanceTs: BN;
 	totalFeesReceived: BN;
 	totalFeesPaid: BN;
+	totalMintRedeemFeesPaid: BN;
+	cumulativeUsdcSentToPerpMarkets: BN;
+	cumulativeUsdcReceivedFromPerpMarkets: BN;
 	constituents: number;
 };
 
@@ -1730,7 +1733,7 @@ export type CacheInfo = {
 	lastFeePoolTokenAmount: BN;
 	lastNetPnlPoolTokenAmount: BN;
 	lastSettleAmount: BN;
-	lastSettleTs: BN;
+	lastSettleSlot: BN;
 	quoteOwedFromLpPool: BN;
 };
 

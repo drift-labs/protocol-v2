@@ -157,11 +157,11 @@ pub mod perp_lp_pool_settlement {
         cache_info: &mut CacheInfo,
         result: &SettlementResult,
         new_quote_owed: i64,
-        timestamp: i64,
+        slot: u64,
     ) -> Result<()> {
         cache_info.quote_owed_from_lp_pool = new_quote_owed;
         cache_info.last_settle_amount = result.amount_transferred;
-        cache_info.last_settle_ts = timestamp;
+        cache_info.last_settle_slot = slot;
 
         match result.direction {
             SettlementDirection::FromLpPool => {

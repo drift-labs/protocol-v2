@@ -3136,7 +3136,6 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
     use perp_lp_pool_settlement::*;
 
     let slot = Clock::get()?.slot;
-    let timestamp = Clock::get()?.unix_timestamp;
     let state = &ctx.accounts.state;
 
     if !state.allow_settle_lp_pool() {
@@ -3292,7 +3291,7 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
         };
 
         // Update cache info
-        update_cache_info(cached_info, &settlement_result, new_quote_owed, timestamp)?;
+        update_cache_info(cached_info, &settlement_result, new_quote_owed, slot)?;
 
         // Update LP pool stats
         match settlement_result.direction {

@@ -1887,7 +1887,7 @@ mod settle_tests {
             last_fee_pool_token_amount: 2_000,
             last_net_pnl_pool_token_amount: 500,
             last_settle_amount: 0,
-            last_settle_ts: 0,
+            last_settle_slot: 0,
             ..Default::default()
         };
 
@@ -1906,7 +1906,7 @@ mod settle_tests {
         assert_eq!(cache.quote_owed_from_lp_pool, new_quote_owed);
         // settle fields updated
         assert_eq!(cache.last_settle_amount, 200);
-        assert_eq!(cache.last_settle_ts, ts);
+        assert_eq!(cache.last_settle_slot, ts);
         // fee pool decreases by fee_pool_used
         assert_eq!(cache.last_fee_pool_token_amount, 2_000 - 120);
         // pnl pool decreases by pnl_pool_used
@@ -1920,7 +1920,7 @@ mod settle_tests {
             last_fee_pool_token_amount: 1_000,
             last_net_pnl_pool_token_amount: 200,
             last_settle_amount: 0,
-            last_settle_ts: 0,
+            last_settle_slot: 0,
             ..Default::default()
         };
 
@@ -1939,7 +1939,7 @@ mod settle_tests {
         assert_eq!(cache.quote_owed_from_lp_pool, new_quote_owed);
         // settle fields updated
         assert_eq!(cache.last_settle_amount, 150);
-        assert_eq!(cache.last_settle_ts, ts);
+        assert_eq!(cache.last_settle_slot, ts);
         // fee pool increases by amount_transferred
         assert_eq!(cache.last_fee_pool_token_amount, 1_000 + 150);
         // pnl pool untouched
@@ -2063,7 +2063,7 @@ mod settle_tests {
             last_fee_pool_token_amount: 1000,
             last_net_pnl_pool_token_amount: 500,
             last_settle_amount: 50,
-            last_settle_ts: 12345,
+            last_settle_slot: 12345,
             ..Default::default()
         };
 
@@ -2082,7 +2082,7 @@ mod settle_tests {
         assert_eq!(cache.quote_owed_from_lp_pool, 100);
         // settle fields updated with new timestamp but zero amount
         assert_eq!(cache.last_settle_amount, 0);
-        assert_eq!(cache.last_settle_ts, ts);
+        assert_eq!(cache.last_settle_slot, ts);
         // pool amounts unchanged
         assert_eq!(cache.last_fee_pool_token_amount, 1000);
         assert_eq!(cache.last_net_pnl_pool_token_amount, 500);
@@ -2095,7 +2095,7 @@ mod settle_tests {
             last_fee_pool_token_amount: u128::MAX / 2,
             last_net_pnl_pool_token_amount: i128::MAX / 2,
             last_settle_amount: 0,
-            last_settle_ts: 0,
+            last_settle_slot: 0,
             ..Default::default()
         };
 
@@ -2106,9 +2106,9 @@ mod settle_tests {
             pnl_pool_used: 0,
         };
         let new_quote_owed = cache.quote_owed_from_lp_pool - (result.amount_transferred as i64);
-        let ts = i64::MAX / 2;
+        let slot = u64::MAX / 2;
 
-        let update_result = update_cache_info(&mut cache, &result, new_quote_owed, ts);
+        let update_result = update_cache_info(&mut cache, &result, new_quote_owed, slot);
         assert!(update_result.is_ok());
     }
 
@@ -2119,7 +2119,7 @@ mod settle_tests {
             last_fee_pool_token_amount: 1000,
             last_net_pnl_pool_token_amount: i128::MIN / 2,
             last_settle_amount: 0,
-            last_settle_ts: 0,
+            last_settle_slot: 0,
             ..Default::default()
         };
 
@@ -2143,7 +2143,7 @@ mod settle_tests {
             last_fee_pool_token_amount: 5000,
             last_net_pnl_pool_token_amount: 3000,
             last_settle_amount: 0,
-            last_settle_ts: 0,
+            last_settle_slot: 0,
             ..Default::default()
         };
 
@@ -2174,7 +2174,7 @@ mod settle_tests {
         assert_eq!(cache.quote_owed_from_lp_pool, 1100);
         assert_eq!(cache.last_fee_pool_token_amount, 5050);
         assert_eq!(cache.last_net_pnl_pool_token_amount, 2850);
-        assert_eq!(cache.last_settle_ts, 200);
+        assert_eq!(cache.last_settle_slot, 200);
     }
 
     #[test]
@@ -2281,7 +2281,7 @@ mod settle_tests {
             };
 
             update_cache_info(&mut cache, &result, 0, ts).unwrap();
-            assert_eq!(cache.last_settle_ts, ts);
+            assert_eq!(cache.last_settle_slot, ts);
             assert_eq!(cache.last_settle_amount, 100);
         }
     }
