@@ -158,7 +158,7 @@ describe('builder codes', () => {
 			builderUSDCAccount.publicKey
 		);
 
-		[userClient, userUSDCAccount, _] = await createUserWithUSDCAccount(
+		[userClient, userUSDCAccount] = await createUserWithUSDCAccount(
 			bankrunContextWrapper,
 			usdcMint,
 			chProgram,

@@ -4,9 +4,7 @@ use crate::msg;
 use crate::state::builder::Builder;
 use crate::state::traits::Size;
 use crate::state::user::User;
-use crate::state::user_map::UserMap;
 use crate::validate;
-use anchor_lang::accounts::account::Account;
 use anchor_lang::prelude::AccountLoader;
 use anchor_lang::Discriminator;
 use arrayref::array_ref;
@@ -117,7 +115,7 @@ impl<'a> BuilderMap<'a> {
                     caller.file(),
                     caller.line()
                 );
-                return Err(ErrorCode::DefaultError);
+                return Err(ErrorCode::UnableToLoadBuilderAccount);
             }
         };
 
@@ -126,7 +124,13 @@ impl<'a> BuilderMap<'a> {
             Err(e) => {
                 let caller = Location::caller();
                 msg!("{:?}", e);
-                Err(ErrorCode::DefaultError)
+                msg!(
+                    "Could not load builder for authority {} at {}:{}",
+                    authority,
+                    caller.file(),
+                    caller.line()
+                );
+                Err(ErrorCode::UnableToLoadBuilderAccount)
             }
         }
     }

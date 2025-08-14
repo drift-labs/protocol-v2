@@ -2600,7 +2600,6 @@ pub mod liquidate_perp_with_fill {
             &mut oracle_map,
             &clock,
             &state,
-            &mut None,
         )
         .unwrap();
 
@@ -2810,7 +2809,6 @@ pub mod liquidate_perp_with_fill {
             &mut oracle_map,
             &clock,
             &state,
-            &mut None,
         )
         .unwrap();
 
@@ -2986,7 +2984,6 @@ pub mod liquidate_perp_with_fill {
             &mut oracle_map,
             &clock,
             &state,
-            &mut None,
         )
         .unwrap();
 
@@ -3158,7 +3155,6 @@ pub mod liquidate_perp_with_fill {
             &mut oracle_map,
             &clock,
             &state,
-            &mut None,
         )
         .unwrap();
 
@@ -5939,7 +5935,6 @@ pub mod liquidate_perp_pnl_for_deposit {
             10,
             PERCENTAGE_PRECISION,
             150,
-            &mut None,
         )
         .unwrap();
 
@@ -6096,7 +6091,6 @@ pub mod liquidate_perp_pnl_for_deposit {
             MARGIN_PRECISION / 50,
             PERCENTAGE_PRECISION,
             150,
-            &mut None,
         )
         .unwrap();
 
@@ -6255,7 +6249,6 @@ pub mod liquidate_perp_pnl_for_deposit {
             10,
             PERCENTAGE_PRECISION,
             150,
-            &mut None,
         )
         .unwrap();
 
@@ -6412,7 +6405,6 @@ pub mod liquidate_perp_pnl_for_deposit {
             10,
             PERCENTAGE_PRECISION,
             150,
-            &mut None,
         );
 
         assert_eq!(result, Err(ErrorCode::LiquidationDoesntSatisfyLimitPrice));
@@ -6560,7 +6552,6 @@ pub mod liquidate_perp_pnl_for_deposit {
             10,
             PERCENTAGE_PRECISION,
             150,
-            &mut None,
         );
 
         assert_eq!(result, Ok(()));
@@ -6708,7 +6699,6 @@ pub mod liquidate_perp_pnl_for_deposit {
             MARGIN_PRECISION / 50,
             PERCENTAGE_PRECISION,
             150,
-            &mut None,
         )
         .unwrap();
 
@@ -6866,7 +6856,6 @@ pub mod liquidate_perp_pnl_for_deposit {
             liquidation_buffer,
             LIQUIDATION_PCT_PRECISION / 10,
             150,
-            &mut None,
         )
         .unwrap();
 
@@ -6908,7 +6897,6 @@ pub mod liquidate_perp_pnl_for_deposit {
             liquidation_buffer,
             LIQUIDATION_PCT_PRECISION / 10,
             150,
-            &mut None,
         )
         .unwrap();
 
@@ -6950,7 +6938,6 @@ pub mod liquidate_perp_pnl_for_deposit {
             liquidation_buffer,
             LIQUIDATION_PCT_PRECISION / 10,
             150,
-            &mut None,
         )
         .unwrap();
 
@@ -7110,7 +7097,6 @@ pub mod liquidate_perp_pnl_for_deposit {
             10,
             PERCENTAGE_PRECISION,
             150,
-            &mut None,
         )
         .is_err());
 
@@ -7160,7 +7146,6 @@ pub mod liquidate_perp_pnl_for_deposit {
             10,
             PERCENTAGE_PRECISION,
             150,
-            &mut None,
         )
         .unwrap();
         assert_eq!(user.perp_positions[0].quote_asset_amount, -50000000);
@@ -7184,7 +7169,6 @@ pub mod liquidate_perp_pnl_for_deposit {
             10,
             PERCENTAGE_PRECISION,
             150,
-            &mut None,
         )
         .unwrap();
         assert_eq!(user.spot_positions[0].scaled_balance, 0);
@@ -7385,7 +7369,6 @@ pub mod liquidate_perp_pnl_for_deposit {
             10,
             PERCENTAGE_PRECISION,
             150,
-            &mut None,
         )
         .is_err());
         assert_eq!(user.perp_positions[0].quote_asset_amount, -100000000);
@@ -7407,7 +7390,6 @@ pub mod liquidate_perp_pnl_for_deposit {
             10,
             PERCENTAGE_PRECISION,
             150,
-            &mut None,
         )
         .unwrap();
         assert_eq!(user.perp_positions[0].quote_asset_amount, 0);
@@ -7429,7 +7411,6 @@ pub mod liquidate_perp_pnl_for_deposit {
             10,
             PERCENTAGE_PRECISION,
             150,
-            &mut None,
         )
         .unwrap();
 

@@ -275,32 +275,32 @@ pub fn get_high_leverage_mode_config<'a>(
     Ok(Some(high_leverage_mode_config))
 }
 
-pub fn get_revenue_escrow_account<'a>(
+pub fn get_builder_escrow_account<'a>(
     account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'a>>>,
 ) -> DriftResult<Option<BuilderEscrowZeroCopyMut<'a>>> {
-    let revenue_escrow_account_info = account_info_iter.peek();
-    if revenue_escrow_account_info.is_none() {
+    let account_info = account_info_iter.peek();
+    if account_info.is_none() {
         return Ok(None);
     }
 
-    let revenue_escrow_account_info = revenue_escrow_account_info.safe_unwrap()?;
+    let account_info = account_info.safe_unwrap()?;
 
     // Check size and discriminator without borrowing
-    if revenue_escrow_account_info.data_len() < 80 {
+    if account_info.data_len() < 80 {
         return Ok(None);
     }
 
-    let revenue_escrow_discriminator: [u8; 8] = BuilderEscrow::discriminator();
-    let borrowed_data = revenue_escrow_account_info.data.borrow();
+    let discriminator: [u8; 8] = BuilderEscrow::discriminator();
+    let borrowed_data = account_info.data.borrow();
     let account_discriminator = array_ref![&borrowed_data, 0, 8];
-    if account_discriminator != &revenue_escrow_discriminator {
+    if account_discriminator != &discriminator {
         return Ok(None);
     }
 
-    let revenue_escrow_account_info = account_info_iter.next().safe_unwrap()?;
+    let account_info = account_info_iter.next().safe_unwrap()?;
 
     drop(borrowed_data);
-    let revenue_escrow: BuilderEscrowZeroCopyMut<'a> = revenue_escrow_account_info.load_zc_mut()?;
+    let builder_escrow: BuilderEscrowZeroCopyMut<'a> = account_info.load_zc_mut()?;
 
-    Ok(Some(revenue_escrow))
+    Ok(Some(builder_escrow))
 }

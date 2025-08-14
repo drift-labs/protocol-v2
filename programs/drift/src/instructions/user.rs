@@ -26,7 +26,7 @@ use crate::ids::{
     serum_program,
 };
 use crate::instructions::constraints::*;
-use crate::instructions::optional_accounts::get_revenue_escrow_account;
+use crate::instructions::optional_accounts::get_builder_escrow_account;
 use crate::instructions::optional_accounts::{
     get_referrer_and_referrer_stats, get_whitelist_token, load_maps, AccountMaps,
 };
@@ -2254,8 +2254,6 @@ pub fn handle_modify_order<'c: 'info, 'info>(
         None => load!(ctx.accounts.user)?.get_last_order_id(),
     };
 
-    let mut revenue_escrow = get_revenue_escrow_account(&mut remaining_accounts)?;
-
     controller::orders::modify_order(
         ModifyOrderId::OrderId(order_id),
         modify_order_params,
@@ -2265,7 +2263,6 @@ pub fn handle_modify_order<'c: 'info, 'info>(
         &spot_market_map,
         &mut oracle_map,
         clock,
-        &mut revenue_escrow.as_mut(),
     )?;
 
     Ok(())
@@ -2296,8 +2293,6 @@ pub fn handle_modify_order_by_user_order_id<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    let mut revenue_escrow = get_revenue_escrow_account(&mut remaining_accounts)?;
-
     controller::orders::modify_order(
         ModifyOrderId::UserOrderId(user_order_id),
         modify_order_params,
@@ -2307,7 +2302,6 @@ pub fn handle_modify_order_by_user_order_id<'c: 'info, 'info>(
         &spot_market_map,
         &mut oracle_map,
         clock,
-        &mut revenue_escrow.as_mut(),
     )?;
 
     Ok(())
@@ -2586,7 +2580,7 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
     makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
     makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
 
-    let mut revenue_escrow = get_revenue_escrow_account(remaining_accounts_iter)?;
+    let mut builder_escrow = get_builder_escrow_account(remaining_accounts_iter)?;
 
     controller::orders::fill_perp_order(
         taker_order_id,
@@ -2603,7 +2597,7 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         Some(order_id),
         clock,
         FillMode::PlaceAndMake,
-        &mut revenue_escrow.as_mut(),
+        &mut builder_escrow.as_mut(),
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -2691,7 +2685,7 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
     makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
     makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
 
-    let mut revenue_escrow = get_revenue_escrow_account(remaining_accounts_iter)?;
+    let mut builder_escrow = get_builder_escrow_account(remaining_accounts_iter)?;
 
     let taker_signed_msg_account = ctx.accounts.taker_signed_msg_user_orders.load()?;
     let taker_order_id = taker_signed_msg_account
@@ -2715,7 +2709,7 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
         Some(order_id),
         clock,
         FillMode::PlaceAndMake,
-        &mut revenue_escrow.as_mut(),
+        &mut builder_escrow.as_mut(),
     )?;
 
     let order_exists = load!(ctx.accounts.user)?

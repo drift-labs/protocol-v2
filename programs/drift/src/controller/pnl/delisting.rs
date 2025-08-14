@@ -2488,7 +2488,6 @@ pub mod delisting_test {
                 10,
                 PERCENTAGE_PRECISION,
                 150,
-                &mut None,
             )
             .unwrap();
 
@@ -2581,7 +2580,6 @@ pub mod delisting_test {
                 10,
                 PERCENTAGE_PRECISION,
                 150,
-                &mut None,
             )
             .unwrap();
 

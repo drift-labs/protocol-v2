@@ -16677,6 +16677,11 @@
       "code": 6326,
       "name": "CannotRevokeBuilderWithOpenOrders",
       "msg": "Cannot revoke builder with open orders"
+    },
+    {
+      "code": 6327,
+      "name": "UnableToLoadBuilderAccount",
+      "msg": "Unable to load builder account"
     }
   ],
   "metadata": {

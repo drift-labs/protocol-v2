@@ -1,6 +1,4 @@
 use std::cell::{Ref, RefMut};
-use std::iter::Peekable;
-use std::slice::Iter;
 
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::*;
@@ -8,14 +6,12 @@ use anchor_lang::{account, zero_copy};
 use borsh::{BorshDeserialize, BorshSerialize};
 use prelude::AccountInfo;
 
-use super::zero_copy::HasLen;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::safe_unwrap::SafeUnwrap;
-use crate::state::traits::Size;
 use crate::state::user::{MarketType, OrderStatus, User};
 use crate::validate;
-use crate::{impl_zero_copy_loader, msg, ID};
+use crate::{msg, ID};
 
 #[cfg(test)]
 mod tests;

@@ -110,7 +110,7 @@ pub fn place_perp_order(
     clock: &Clock,
     mut params: OrderParams,
     mut options: PlaceOrderOptions,
-    revenue_escrow_order: &mut Option<&mut BuilderOrder>,
+    builder_order: &mut Option<&mut BuilderOrder>,
 ) -> DriftResult {
     let now = clock.unix_timestamp;
     let slot: u64 = clock.slot;
@@ -306,11 +306,9 @@ pub fn place_perp_order(
         OrderBitFlag::NewTriggerReduceOnly,
     );
 
-    bit_flags = set_order_bit_flag(
-        bit_flags,
-        revenue_escrow_order.is_some(),
-        OrderBitFlag::HasBuilder,
-    );
+    if builder_order.is_some() {
+        bit_flags = set_order_bit_flag(bit_flags, true, OrderBitFlag::HasBuilder);
+    }
 
     let new_order = Order {
         status: OrderStatus::Open,
@@ -796,7 +794,6 @@ pub fn modify_order(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     clock: &Clock,
-    revenue_escrow: &mut Option<&mut BuilderEscrowZeroCopyMut>,
 ) -> DriftResult {
     let user_key = user_loader.key();
     let mut user = load_mut!(user_loader)?;
@@ -988,7 +985,7 @@ pub fn fill_perp_order(
     jit_maker_order_id: Option<u32>,
     clock: &Clock,
     fill_mode: FillMode,
-    revenue_escrow: &mut Option<&mut BuilderEscrowZeroCopyMut>,
+    builder_escrow: &mut Option<&mut BuilderEscrowZeroCopyMut>,
 ) -> DriftResult<(u64, u64)> {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -1005,7 +1002,7 @@ pub fn fill_perp_order(
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
 
     if user.orders[order_index].is_bit_flag_set(OrderBitFlag::HasBuilder)
-        && revenue_escrow.is_none()
+        && builder_escrow.is_none()
     {
         msg!(
             "Order {} has a builder but BuilderEscrow account is missing",
@@ -1014,8 +1011,8 @@ pub fn fill_perp_order(
         return Err(ErrorCode::BuilderEscrowMissing.into());
     }
 
-    let mut revenue_escrow_order = if let Some(revenue_escrow) = revenue_escrow.as_mut() {
-        revenue_escrow.find_order(order_id)
+    let mut builder_order = if let Some(builder_escrow) = builder_escrow.as_mut() {
+        builder_escrow.find_order(order_id)
     } else {
         None
     };
@@ -1352,7 +1349,7 @@ pub fn fill_perp_order(
         amm_availability,
         fill_mode,
         oracle_stale_for_margin,
-        &mut revenue_escrow_order,
+        &mut builder_order,
     )?;
 
     if base_asset_amount != 0 {
@@ -1787,7 +1784,7 @@ fn fulfill_perp_order(
     amm_availability: AMMAvailability,
     fill_mode: FillMode,
     oracle_stale_for_margin: bool,
-    revenue_escrow_order: &mut Option<&mut BuilderOrder>,
+    builder_order: &mut Option<&mut BuilderOrder>,
 ) -> DriftResult<(u64, u64)> {
     let market_index = user.orders[user_order_index].market_index;
 
@@ -1887,7 +1884,7 @@ fn fulfill_perp_order(
                         *maker_price,
                         AMMLiquiditySplit::Shared,
                         fill_mode.is_liquidation(),
-                        revenue_escrow_order,
+                        builder_order,
                     )?;
 
                 (fill_base_asset_amount, fill_quote_asset_amount)
@@ -1933,7 +1930,7 @@ fn fulfill_perp_order(
                         oracle_map,
                         fill_mode.is_liquidation(),
                         None,
-                        revenue_escrow_order,
+                        builder_order,
                     )?;
 
                 if maker_fill_base_asset_amount != 0 {
@@ -2178,7 +2175,7 @@ pub fn fulfill_perp_order_with_amm(
     override_fill_price: Option<u64>,
     liquidity_split: AMMLiquiditySplit,
     is_liquidation: bool,
-    revenue_escrow_order: &mut Option<&mut BuilderOrder>,
+    builder_order: &mut Option<&mut BuilderOrder>,
 ) -> DriftResult<(u64, u64)> {
     let position_index = get_position_index(&user.perp_positions, market.market_index)?;
     let existing_base_asset_amount = user.perp_positions[position_index].base_asset_amount;
@@ -2304,10 +2301,10 @@ pub fn fulfill_perp_order_with_amm(
         order_post_only,
         market.fee_adjustment,
         user.is_high_leverage_mode(MarginRequirementType::Initial),
-        revenue_escrow_order.as_ref().map(|o| o.fee_bps),
+        builder_order.as_ref().map(|o| o.fee_bps),
     )?;
 
-    if let Some(ref mut builder_info) = revenue_escrow_order {
+    if let Some(ref mut builder_info) = builder_order {
         builder_info.fees_accrued = builder_info.fees_accrued.safe_add(builder_fee)?;
     }
 
@@ -2417,7 +2414,7 @@ pub fn fulfill_perp_order_with_amm(
         &mut user.orders[order_index],
         base_asset_amount,
         quote_asset_amount,
-        revenue_escrow_order,
+        builder_order,
     )?;
 
     decrease_open_bids_and_asks(
@@ -2499,8 +2496,8 @@ pub fn fulfill_perp_order_with_amm(
         maker_existing_quote_entry_amount,
         maker_existing_base_asset_amount,
         None,
-        revenue_escrow_order.as_ref().map(|o| o.builder_idx),
-        revenue_escrow_order.as_ref().map(|_| builder_fee),
+        builder_order.as_ref().map(|o| o.builder_idx),
+        builder_order.as_ref().map(|_| builder_fee),
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -2570,7 +2567,7 @@ pub fn fulfill_perp_order_with_match(
     oracle_map: &mut OracleMap,
     is_liquidation: bool,
     amm_lp_allowed_to_jit_make: Option<bool>,
-    revenue_escrow_order: &mut Option<&mut BuilderOrder>,
+    builder_order: &mut Option<&mut BuilderOrder>,
 ) -> DriftResult<(u64, u64, u64)> {
     if !are_orders_same_market_but_different_sides(
         &maker.orders[maker_order_index],
@@ -2685,7 +2682,7 @@ pub fn fulfill_perp_order_with_match(
                 Some(maker_price), // match the makers price
                 amm_liquidity_split,
                 is_liquidation,
-                revenue_escrow_order,
+                builder_order,
             )?;
 
         total_base_asset_amount = base_asset_amount_filled_by_amm;
@@ -2809,12 +2806,11 @@ pub fn fulfill_perp_order_with_match(
         &MarketType::Perp,
         market.fee_adjustment,
         taker.is_high_leverage_mode(MarginRequirementType::Initial),
-        revenue_escrow_order.as_ref().map(|o| o.fee_bps),
+        builder_order.as_ref().map(|o| o.fee_bps),
     )?;
 
-    if let Some(ref mut revenue_escrow_order) = revenue_escrow_order {
-        revenue_escrow_order.fees_accrued =
-            revenue_escrow_order.fees_accrued.safe_add(builder_fee)?;
+    if let Some(ref mut builder_order) = builder_order {
+        builder_order.fees_accrued = builder_order.fees_accrued.safe_add(builder_fee)?;
     }
 
     // Increment the markets house's total fee variables
@@ -2887,7 +2883,7 @@ pub fn fulfill_perp_order_with_match(
         &mut taker.orders[taker_order_index],
         base_asset_amount_fulfilled_by_maker,
         quote_asset_amount,
-        revenue_escrow_order,
+        builder_order,
     )?;
 
     decrease_open_bids_and_asks(
@@ -2961,8 +2957,8 @@ pub fn fulfill_perp_order_with_match(
         maker_existing_quote_entry_amount,
         maker_existing_base_asset_amount,
         None,
-        revenue_escrow_order.as_ref().map(|o| o.builder_idx),
-        revenue_escrow_order.as_ref().map(|_| builder_fee),
+        builder_order.as_ref().map(|o| o.builder_idx),
+        builder_order.as_ref().map(|_| builder_fee),
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -2991,7 +2987,7 @@ pub fn update_order_after_fill(
     order: &mut Order,
     base_asset_amount: u64,
     quote_asset_amount: u64,
-    revenue_share_order: &mut Option<&mut BuilderOrder>,
+    builder_order: &mut Option<&mut BuilderOrder>,
 ) -> DriftResult {
     order.base_asset_amount_filled = order.base_asset_amount_filled.safe_add(base_asset_amount)?;
 
@@ -3002,8 +2998,8 @@ pub fn update_order_after_fill(
     if order.get_base_asset_amount_unfilled(None)? == 0 {
         order.status = OrderStatus::Filled;
 
-        if let Some(revenue_share_order) = revenue_share_order {
-            revenue_share_order.add_bit_flag(BuilderOrderBitFlag::Completed);
+        if let Some(builder_order) = builder_order {
+            builder_order.add_bit_flag(BuilderOrderBitFlag::Completed);
         }
     }
 
