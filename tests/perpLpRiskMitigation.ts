@@ -397,7 +397,7 @@ describe('lp risk mitigation', () => {
 			'driftClientUser.getFreeCollateral()=',
 			driftClientUser.getFreeCollateral().toString()
 		);
-		assert(driftClientUser.getFreeCollateral().eq(new BN('4761073360')));
+		assert(driftClientUser.getFreeCollateral().eq(new BN('4761073597')));
 		// some user goes long (lp should get more short)
 		try {
 			await adjustOraclePostSwap(

@@ -64,6 +64,7 @@ import {
 	ProtectedMakerModeConfig,
 	SignedMsgOrderParamsDelegateMessage,
 	TokenProgramFlag,
+	PostOnlyParams,
 	SignedMsgOrderParamsWithBuilderMessage,
 	SignedMsgOrderParamsDelegateWithBuilderMessage,
 } from './types';
@@ -454,7 +455,8 @@ export class DriftClient {
 					logResubMessages: config.accountSubscription?.logResubMessages,
 				},
 				config.accountSubscription?.commitment,
-				config.accountSubscription?.perpMarketAccountSubscriber
+				config.accountSubscription?.perpMarketAccountSubscriber,
+				config.accountSubscription?.oracleAccountSubscriber
 			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
@@ -7278,7 +7280,7 @@ export class DriftClient {
 			auctionStartPrice?: BN;
 			auctionEndPrice?: BN;
 			reduceOnly?: boolean;
-			postOnly?: boolean;
+			postOnly?: PostOnlyParams;
 			bitFlags?: number;
 			maxTs?: BN;
 			policy?: number;
@@ -7332,7 +7334,7 @@ export class DriftClient {
 			auctionStartPrice?: BN;
 			auctionEndPrice?: BN;
 			reduceOnly?: boolean;
-			postOnly?: boolean;
+			postOnly?: PostOnlyParams;
 			bitFlags?: number;
 			maxTs?: BN;
 			policy?: number;
@@ -7407,7 +7409,7 @@ export class DriftClient {
 			auctionStartPrice?: BN;
 			auctionEndPrice?: BN;
 			reduceOnly?: boolean;
-			postOnly?: boolean;
+			postOnly?: PostOnlyParams;
 			bitFlags?: number;
 			policy?: ModifyOrderPolicy;
 			maxTs?: BN;
@@ -7455,7 +7457,7 @@ export class DriftClient {
 			auctionStartPrice?: BN;
 			auctionEndPrice?: BN;
 			reduceOnly?: boolean;
-			postOnly?: boolean;
+			postOnly?: PostOnlyParams;
 			bitFlags?: number;
 			policy?: ModifyOrderPolicy;
 			maxTs?: BN;
