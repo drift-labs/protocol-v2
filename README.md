@@ -38,7 +38,11 @@ rustup default stable-x86_64-apple-darwin
 # build v2
 anchor build
 # or
-anchor build --arch sbf 
+anchor build --arch sbf
+# or on mac if package custom builds fail:
+SDKROOT=$(xcrun --show-sdk-path) CC=/usr/bin/clang CXX=/usr/bin/clang++ \
+CFLAGS="-isysroot $(xcrun --show-sdk-path)" CXXFLAGS="-isysroot $(xcrun --show-sdk-path)" \
+anchor build
 
 
 # if build failing due to stdsimd, try to use cargo:
