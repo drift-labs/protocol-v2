@@ -176,7 +176,7 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
     validate!(
         !exists_invalid_constituent_index,
         ErrorCode::InvalidUpdateConstituentTargetBaseArgument,
-        "Constituent index larger than number of constituent target weights"
+        "Constituent index larger than numr of constituent target weights"
     )?;
 
     constituent_target_base.update_target_base(

@@ -855,7 +855,7 @@ mod swap_tests {
 
     fn get_mint_redeem_fee_scenario(now: i64, is_mint: bool, expected_fee: i64) {
         let lp_pool = LPPool {
-            last_revenue_rebalance_ts: 0,
+            last_hedge_ts: 0,
             revenue_rebalance_period: 3600, // hourly
             max_mint_fee_premium: 2000,     // 20 bps
             min_mint_fee: 100,              // 1 bps
@@ -912,7 +912,7 @@ mod swap_tests {
     ) {
         let lp_pool = LPPool {
             last_aum,
-            last_revenue_rebalance_ts: 0,
+            last_hedge_ts: 0,
             revenue_rebalance_period: 3600,
             max_mint_fee_premium: 0,
             min_mint_fee: 0,
@@ -1095,7 +1095,7 @@ mod swap_tests {
     ) {
         let lp_pool = LPPool {
             last_aum,
-            last_revenue_rebalance_ts: 0,
+            last_hedge_ts: 0,
             revenue_rebalance_period: 3600,
             max_mint_fee_premium: 2000, // 20 bps
             min_mint_fee: 100,          // 1 bps

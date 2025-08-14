@@ -1658,6 +1658,7 @@ export type LPPoolAccount = {
 	lastAum: BN;
 	lastAumSlot: BN;
 	lastAumTs: BN;
+	lastHedgeTs: BN;
 	bump: number;
 	oldestOracleSlot: BN;
 	lastRevenueRebalanceTs: BN;

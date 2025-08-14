@@ -39,6 +39,11 @@ export interface ConstituentMapInterface {
 	unsubscribe(): Promise<void>;
 	has(key: string): boolean;
 	get(key: string): ConstituentAccount | undefined;
+	getFromSpotMarketIndex(
+		spotMarketIndex: number): ConstituentAccount | undefined;
+	getFromConstituentIndex(
+		constituentIndex: number): ConstituentAccount | undefined;
+		
 	getWithSlot(key: string): DataAndSlot<ConstituentAccount> | undefined;
 	mustGet(key: string): Promise<ConstituentAccount>;
 	mustGetWithSlot(key: string): Promise<DataAndSlot<ConstituentAccount>>;
@@ -51,6 +56,9 @@ export class ConstituentMap implements ConstituentMapInterface {
 	private additionalFilters?: MemcmpFilter[];
 	private commitment?: Commitment;
 	private connection?: Connection;
+
+	private constituentIndexToKeyMap = new Map<number, string>();
+	private spotMarketIndexToKeyMap = new Map<number, string>();
 
 	constructor(config: ConstituentMapConfig) {
 		this.driftClient = config.driftClient;
@@ -172,6 +180,16 @@ export class ConstituentMap implements ConstituentMapInterface {
 		return this.constituentMap.get(key)?.data;
 	}
 
+	public getFromConstituentIndex(constituentIndex: number): ConstituentAccount | undefined {
+		const key = this.constituentIndexToKeyMap.get(constituentIndex);
+		return key ? this.get(key) : undefined;
+	}
+
+	public getFromSpotMarketIndex(spotMarketIndex: number): ConstituentAccount | undefined {
+		const key = this.spotMarketIndexToKeyMap.get(spotMarketIndex);
+		return key ? this.get(key) : undefined;
+	}
+
 	public getWithSlot(key: string): DataAndSlot<ConstituentAccount> | undefined {
 		return this.constituentMap.get(key);
 	}
@@ -245,5 +263,13 @@ export class ConstituentMap implements ConstituentMapInterface {
 				slot,
 			});
 		}
+		this.constituentIndexToKeyMap.set(
+			constituentAccount.constituentIndex,
+			key
+		);
+		this.spotMarketIndexToKeyMap.set(
+			constituentAccount.spotMarketIndex,
+			key
+		);
 	}
 }

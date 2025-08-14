@@ -9700,7 +9700,7 @@
             "type": "u64"
           },
           {
-            "name": "lastRevenueRebalanceTs",
+            "name": "lastHedgeTs",
             "docs": [
               "timestamp of last vAMM revenue rebalance"
             ],

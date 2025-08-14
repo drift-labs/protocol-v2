@@ -5867,12 +5867,10 @@ export class AdminClient extends DriftClient {
 		depositMarketIndex: number,
 		amountToDeposit: BN
 	): Promise<TransactionSignature> {
-		const { depositIx } = await this.getDepositWithdrawToProgramVaultIxs(
+		const depositIx = await this.getDepositToProgramVaultIx(
 			lpPoolName,
 			depositMarketIndex,
-			depositMarketIndex,
 			amountToDeposit,
-			new BN(0)
 		);
 
 		const tx = await this.buildTransaction([depositIx]);
@@ -5885,6 +5883,36 @@ export class AdminClient extends DriftClient {
 		borrowMarketIndex: number,
 		amountToWithdraw: BN
 	): Promise<TransactionSignature> {
+		const withdrawIx = await this.getWithdrawFromProgramVaultIx(
+			lpPoolName,
+			borrowMarketIndex,
+			amountToWithdraw
+		);
+		const tx = await this.buildTransaction([withdrawIx]);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getDepositToProgramVaultIx(
+		lpPoolName: number[],
+		depositMarketIndex: number,
+		amountToDeposit: BN
+	): Promise<TransactionInstruction> {
+		const { depositIx } = await this.getDepositWithdrawToProgramVaultIxs(
+			lpPoolName,
+			depositMarketIndex,
+			depositMarketIndex,
+			amountToDeposit,
+			new BN(0)
+		);
+		return depositIx;
+	}
+
+	public async getWithdrawFromProgramVaultIx(
+		lpPoolName: number[],
+		borrowMarketIndex: number,
+		amountToWithdraw: BN
+	): Promise<TransactionInstruction> {
 		const { withdrawIx } = await this.getDepositWithdrawToProgramVaultIxs(
 			lpPoolName,
 			borrowMarketIndex,
@@ -5892,10 +5920,7 @@ export class AdminClient extends DriftClient {
 			new BN(0),
 			amountToWithdraw
 		);
-
-		const tx = await this.buildTransaction([withdrawIx]);
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-		return txSig;
+		return withdrawIx;
 	}
 
 	public async updatePerpMarketLpPoolFeeTransferScalar(

@@ -84,7 +84,7 @@ pub struct LPPool {
     pub max_settle_quote_amount: u64,
 
     /// timestamp of last vAMM revenue rebalance
-    pub last_revenue_rebalance_ts: u64, // 8, 168
+    pub last_hedge_ts: u64, // 8, 168
     pub revenue_rebalance_period: u64,
 
     /// Every mint/redeem has a monotonically increasing id. This is the next id to use
@@ -619,8 +619,7 @@ impl LPPool {
 
     /// Returns the fee to charge for a mint or redeem in PERCENTAGE_PRECISION
     pub fn get_mint_redeem_fee(&self, now: i64, is_minting: bool) -> DriftResult<i64> {
-        let time_since_last_rebalance =
-            now.safe_sub(self.last_revenue_rebalance_ts.cast::<i64>()?)?;
+        let time_since_last_rebalance = now.safe_sub(self.last_hedge_ts.cast::<i64>()?)?;
         if is_minting {
             // mint fee
             self.min_mint_fee.safe_add(

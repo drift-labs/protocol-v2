@@ -4798,7 +4798,7 @@ pub fn handle_initialize_lp_pool(
         last_aum_slot: 0,
         last_aum_ts: 0,
         max_settle_quote_amount: max_settle_quote_amount_per_market,
-        last_revenue_rebalance_ts: 0,
+        last_hedge_ts: 0,
         total_fees_received: 0,
         total_fees_paid: 0,
         total_mint_redeem_fees_paid: 0,
@@ -5692,6 +5692,9 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
 
     in_constituent.flash_loan_initial_token_amount = ctx.accounts.signer_in_token_account.amount;
     out_constituent.flash_loan_initial_token_amount = ctx.accounts.signer_out_token_account.amount;
+
+    drop(in_constituent);
+    drop(out_constituent);
 
     send_from_program_vault(
         &ctx.accounts.token_program,
