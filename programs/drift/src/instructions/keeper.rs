@@ -399,14 +399,12 @@ pub fn handle_trigger_order<'c: 'info, 'info>(
 pub fn handle_force_cancel_orders<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, ForceCancelOrder>,
 ) -> Result<()> {
-    let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
-
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut remaining_accounts,
+        &mut ctx.remaining_accounts.iter().peekable(),
         &MarketSet::new(),
         &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
         Clock::get()?.slot,
@@ -999,8 +997,8 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
     let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
 
     let AccountMaps {
-        mut perp_market_map,
-        mut spot_market_map,
+        perp_market_map,
+        spot_market_map,
         mut oracle_map,
     } = load_maps(
         &mut remaining_accounts,
@@ -1061,8 +1059,8 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
             controller::builder::sweep_completed_builder_fees_for_market(
                 market_index,
                 builder_escrow_zc,
-                &mut perp_market_map,
-                &mut spot_market_map,
+                &perp_market_map,
+                &spot_market_map,
                 builder_map,
                 clock.unix_timestamp,
             )?;
@@ -1094,8 +1092,8 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
     let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
 
     let AccountMaps {
-        mut perp_market_map,
-        mut spot_market_map,
+        perp_market_map,
+        spot_market_map,
         mut oracle_map,
     } = load_maps(
         &mut remaining_accounts,
@@ -1164,8 +1162,8 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
                 controller::builder::sweep_completed_builder_fees_for_market(
                     *market_index,
                     builder_escrow_zc,
-                    &mut perp_market_map,
-                    &mut spot_market_map,
+                    &perp_market_map,
+                    &spot_market_map,
                     builder_map,
                     clock.unix_timestamp,
                 )?;
@@ -1266,14 +1264,12 @@ pub fn handle_liquidate_perp<'c: 'info, 'info>(
     let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
     let liquidator_stats = &mut load_mut!(ctx.accounts.liquidator_stats)?;
 
-    let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
-
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut remaining_accounts,
+        &mut ctx.remaining_accounts.iter().peekable(),
         &get_writable_perp_market_set(market_index),
         &MarketSet::new(),
         clock.slot,
@@ -1904,14 +1900,12 @@ pub fn handle_liquidate_borrow_for_perp_pnl<'c: 'info, 'info>(
     let user = &mut load_mut!(ctx.accounts.user)?;
     let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
 
-    let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
-
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut remaining_accounts,
+        &mut ctx.remaining_accounts.iter().peekable(),
         &MarketSet::new(),
         &get_writable_spot_market_set(spot_market_index),
         clock.slot,
@@ -1965,14 +1959,12 @@ pub fn handle_liquidate_perp_pnl_for_deposit<'c: 'info, 'info>(
     let user = &mut load_mut!(ctx.accounts.user)?;
     let liquidator = &mut load_mut!(ctx.accounts.liquidator)?;
 
-    let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
-
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut remaining_accounts,
+        &mut ctx.remaining_accounts.iter().peekable(),
         &MarketSet::new(),
         &get_writable_spot_market_set(spot_market_index),
         clock.slot,
@@ -3072,15 +3064,12 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
 
     let slot = Clock::get()?.slot;
     let now = Clock::get()?.unix_timestamp;
-
-    let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
-
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut remaining_accounts,
+        &mut ctx.remaining_accounts.iter().peekable(),
         &MarketSet::new(),
         &get_market_set_for_spot_positions(&user.spot_positions),
         slot,

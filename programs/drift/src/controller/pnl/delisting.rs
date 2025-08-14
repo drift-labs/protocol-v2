@@ -1963,7 +1963,7 @@ pub mod delisting_test {
                     &spot_market_map,
                     &mut oracle_map,
                     &clock,
-                    &state,
+                    &state
                 )
                 .is_err(),
                 true

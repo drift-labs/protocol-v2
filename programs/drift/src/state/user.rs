@@ -1687,15 +1687,6 @@ impl fmt::Display for MarketType {
     }
 }
 
-impl From<MarketType> for u8 {
-    fn from(market_type: MarketType) -> Self {
-        match market_type {
-            MarketType::Spot => 0,
-            MarketType::Perp => 1,
-        }
-    }
-}
-
 unsafe impl Zeroable for MarketType {}
 unsafe impl Pod for MarketType {}
 

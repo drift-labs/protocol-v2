@@ -4,8 +4,6 @@ use crate::state::order_params::{
     SignedMsgOrderParamsDelegateWithBuilderMessage, SignedMsgOrderParamsMessage,
     SignedMsgOrderParamsWithBuilderMessage, SignedMsgTriggerOrderParams,
 };
-use crate::state::traits::Size;
-use crate::validate;
 use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
 use bytemuck::try_cast_slice;
@@ -215,6 +213,7 @@ pub fn verify_and_decode_ed25519_msg(
             .ok_or(SignatureVerificationError::MessageOffsetOverflow)?;
         &msg[start..end]
     };
+
     if public_key != signer {
         msg!("Invalid Ix: message signed by: {:?}", public_key);
         msg!("Invalid Ix: expected pubkey: {:?}", signer);

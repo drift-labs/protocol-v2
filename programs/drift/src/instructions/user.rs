@@ -2073,14 +2073,12 @@ pub fn handle_cancel_order<'c: 'info, 'info>(
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
-    let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
-
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut remaining_accounts,
+        &mut ctx.remaining_accounts.iter().peekable(),
         &MarketSet::new(),
         &MarketSet::new(),
         clock.slot,
@@ -2114,14 +2112,12 @@ pub fn handle_cancel_order_by_user_id<'c: 'info, 'info>(
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
-    let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
-
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut remaining_accounts,
+        &mut ctx.remaining_accounts.iter().peekable(),
         &MarketSet::new(),
         &MarketSet::new(),
         clock.slot,
@@ -2150,14 +2146,12 @@ pub fn handle_cancel_orders_by_ids<'c: 'info, 'info>(
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
-    let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
-
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut remaining_accounts,
+        &mut ctx.remaining_accounts.iter().peekable(),
         &MarketSet::new(),
         &MarketSet::new(),
         clock.slot,
@@ -2190,14 +2184,12 @@ pub fn handle_cancel_orders<'c: 'info, 'info>(
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
-    let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
-
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut remaining_accounts,
+        &mut ctx.remaining_accounts.iter().peekable(),
         &MarketSet::new(),
         &MarketSet::new(),
         clock.slot,
@@ -2206,6 +2198,7 @@ pub fn handle_cancel_orders<'c: 'info, 'info>(
 
     let user_key = ctx.accounts.user.key();
     let mut user = load_mut!(ctx.accounts.user)?;
+
     cancel_orders(
         &mut user,
         &user_key,
@@ -2235,14 +2228,12 @@ pub fn handle_modify_order<'c: 'info, 'info>(
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
-    let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
-
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut remaining_accounts,
+        &mut ctx.remaining_accounts.iter().peekable(),
         &MarketSet::new(),
         &MarketSet::new(),
         clock.slot,
@@ -2279,14 +2270,12 @@ pub fn handle_modify_order_by_user_order_id<'c: 'info, 'info>(
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
-    let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
-
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut remaining_accounts,
+        &mut ctx.remaining_accounts.iter().peekable(),
         &MarketSet::new(),
         &MarketSet::new(),
         clock.slot,

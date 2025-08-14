@@ -7,7 +7,6 @@ use crate::msg;
 use crate::state::builder::{BuilderEscrowZeroCopyMut, BuilderOrder, BuilderOrderBitFlag};
 use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use anchor_lang::prelude::*;
-use anchor_lang::system_program::CreateNonceAccountBumps;
 
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::lp::burn_lp_shares;

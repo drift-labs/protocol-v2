@@ -9979,7 +9979,7 @@
           {
             "name": "orderId",
             "docs": [
-              "the order_id of the current active order in this slot."
+              "the order_id of the current active order in this slot. It only carries meaning while bit_flag = Open"
             ],
             "type": "u32"
           },
@@ -9994,9 +9994,11 @@
           {
             "name": "bitFlags",
             "docs": [
-              "bitflags that describe the state of the order:",
-              "Init: this order slot is available for use",
-              "Open: this order slot is occupied, `order_id` is the corresponding order"
+              "bitflags that describe the state of the order.",
+              "[`BuilderOrderBitFlag::Init`]: this order slot is available for use.",
+              "[`BuilderOrderBitFlag::Open`]: this order slot is occupied, `order_id` is the `sub_account_id`'s active order.",
+              "[`BuilderOrderBitFlag::Completed`]: this order has been filled or canceled, and is waiting to be settled into",
+              "the builder's account order_id and sub_account_id are no longer relevant, it may be merged with other orders."
             ],
             "type": "u8"
           },
@@ -10009,7 +10011,7 @@
           {
             "name": "subAccountId",
             "docs": [
-              "the subaccount_id of the user who created this order"
+              "the subaccount_id of the user who created this order. It only carries meaning while bit_flag = Open"
             ],
             "type": "u16"
           },

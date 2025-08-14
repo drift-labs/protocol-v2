@@ -320,7 +320,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
         taker_fee = taker_fee.safe_mul(2)?;
     }
 
-    let (mut taker_fee, referee_discount, referrer_reward) = if reward_referrer {
+    let (taker_fee, referee_discount, referrer_reward) = if reward_referrer {
         calculate_referee_fee_and_referrer_reward(
             taker_fee,
             &taker_fee_tier,

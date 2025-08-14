@@ -5,7 +5,6 @@ use crate::math::safe_math::SafeMath;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::events::OrderActionExplanation;
 use crate::state::perp_market::{ContractTier, PerpMarket};
-use crate::state::traits::Size;
 use crate::state::user::{MarketType, OrderTriggerCondition, OrderType};
 use crate::{
     MAX_PREDICTION_MARKET_PRICE_I64, ONE_HUNDRED_THOUSAND_QUOTE, PERCENTAGE_PRECISION_I64,

@@ -14,8 +14,8 @@ use crate::state::user::MarketType;
 pub fn sweep_completed_builder_fees_for_market<'a>(
     market_index: u16,
     builder_escrow: &mut BuilderEscrowZeroCopyMut,
-    perp_market_map: &mut PerpMarketMap<'a>,
-    spot_market_map: &mut SpotMarketMap<'a>,
+    perp_market_map: &PerpMarketMap<'a>,
+    spot_market_map: &SpotMarketMap<'a>,
     builder_map: BuilderMap<'a>,
     now_ts: i64,
 ) -> crate::error::DriftResult<()> {
