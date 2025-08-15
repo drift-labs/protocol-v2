@@ -2,6 +2,7 @@ pub mod perp_lp_pool_settlement {
     use core::slice::Iter;
     use std::iter::Peekable;
 
+    use crate::state::spot_market::SpotBalanceType;
     use crate::{
         math::safe_math::SafeMath,
         state::{
@@ -124,28 +125,39 @@ pub mod perp_lp_pool_settlement {
     }
 
     // Market state updates
-    pub fn update_perp_market_pools(
+    pub fn update_perp_market_pools_and_quote_market_balance(
         perp_market: &mut PerpMarket,
         result: &SettlementResult,
-        precision_increase: u128,
+        quote_spot_market: &mut SpotMarket,
     ) -> Result<()> {
         match result.direction {
             SettlementDirection::FromLpPool => {
-                perp_market.amm.fee_pool.increase_balance(
-                    (result.amount_transferred as u128).safe_mul(precision_increase)?,
+                controller::spot_balance::update_spot_balances(
+                    (result.amount_transferred as u128),
+                    &SpotBalanceType::Deposit,
+                    quote_spot_market,
+                    &mut perp_market.amm.fee_pool,
+                    false,
                 )?;
             }
             SettlementDirection::ToLpPool => {
                 if result.fee_pool_used > 0 {
-                    perp_market
-                        .amm
-                        .fee_pool
-                        .decrease_balance(result.fee_pool_used.safe_mul(precision_increase)?)?;
+                    controller::spot_balance::update_spot_balances(
+                        result.fee_pool_used,
+                        &SpotBalanceType::Borrow,
+                        quote_spot_market,
+                        &mut perp_market.amm.fee_pool,
+                        true,
+                    )?;
                 }
                 if result.pnl_pool_used > 0 {
-                    perp_market
-                        .pnl_pool
-                        .decrease_balance(result.pnl_pool_used.safe_mul(precision_increase)?)?;
+                    controller::spot_balance::update_spot_balances(
+                        result.pnl_pool_used,
+                        &SpotBalanceType::Borrow,
+                        quote_spot_market,
+                        &mut perp_market.pnl_pool,
+                        true,
+                    )?;
                 }
             }
             SettlementDirection::None => {}

@@ -984,7 +984,9 @@ describe('LP Pool', () => {
 		console.log('feePoolBalanceBefore', feePoolBalance0.toString());
 		console.log('feePoolBalanceAfter', feePoolBalanceAfter.toString());
 		// Fee pool can cover it all in first perp market
-		assert(feePoolBalance0.sub(feePoolBalanceAfter).eq(expectedTransfer0));
+		expect(
+			feePoolBalance0.sub(feePoolBalanceAfter).toNumber()
+		).to.be.approximately(expectedTransfer0.toNumber(), 1);
 
 		// Constituent sync worked successfully
 		constituent = (await adminClient.program.account.constituent.fetch(
@@ -1110,12 +1112,13 @@ describe('LP Pool', () => {
 				new BN(constituentUSDCBalanceBefore.toString())
 			)
 		);
-		assert(
-			ammCache.cache[0].quoteOwedFromLpPool.eq(
-				expectedTransferAmount.sub(
-					new BN(constituentUSDCBalanceBefore.toString())
-				)
-			)
+		expect(
+			ammCache.cache[0].quoteOwedFromLpPool.toNumber()
+		).to.be.approximately(
+			expectedTransferAmount
+				.sub(new BN(constituentUSDCBalanceBefore.toString()))
+				.toNumber(),
+			1
 		);
 		assert(
 			adminClient
@@ -1471,7 +1474,6 @@ describe('LP Pool', () => {
 			await adminClient.settlePerpToLpPool(encodeName(lpPoolName), [0, 1, 2]);
 			assert(false, 'Should have thrown');
 		} catch (e) {
-			console.log(e);
 			assert(e.message.includes('0x18bd'));
 		}
 

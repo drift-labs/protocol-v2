@@ -2074,6 +2074,12 @@ pub fn handle_deposit_into_perp_market_fee_pool<'c: 'info, 'info>(
 
     let quote_spot_market = &mut load_mut!(ctx.accounts.quote_spot_market)?;
 
+    controller::spot_balance::update_spot_market_cumulative_interest(
+        &mut *quote_spot_market,
+        None,
+        Clock::get()?.unix_timestamp,
+    )?;
+
     controller::spot_balance::update_spot_balances(
         amount.cast::<u128>()?,
         &SpotBalanceType::Deposit,
