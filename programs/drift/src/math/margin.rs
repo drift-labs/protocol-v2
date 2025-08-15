@@ -119,8 +119,6 @@ pub fn calculate_perp_position_value_and_pnl(
         market_position,
     )?;
 
-    let market_position = market_position.simulate_settled_lp_position(market, valuation_price)?;
-
     let (base_asset_value, unrealized_pnl) =
         calculate_base_asset_value_and_pnl_with_oracle_price(&market_position, valuation_price)?;
 
@@ -149,12 +147,8 @@ pub fn calculate_perp_position_value_and_pnl(
     };
 
     // add small margin requirement for every open order
-    margin_requirement = margin_requirement
-        .safe_add(market_position.margin_requirement_for_open_orders()?)?
-        .safe_add(
-            market_position
-                .margin_requirement_for_lp_shares(market.amm.order_step_size, valuation_price)?,
-        )?;
+    margin_requirement =
+        margin_requirement.safe_add(market_position.margin_requirement_for_open_orders()?)?;
 
     let unrealized_asset_weight =
         market.get_unrealized_asset_weight(total_unrealized_pnl, margin_requirement_type)?;
@@ -584,8 +578,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
         let has_perp_liability = market_position.base_asset_amount != 0
             || market_position.quote_asset_amount < 0
-            || market_position.has_open_order()
-            || market_position.is_lp();
+            || market_position.has_open_order();
 
         if has_perp_liability {
             calculation.add_perp_liability()?;
@@ -977,9 +970,6 @@ pub fn calculate_user_equity(
             },
             market_position,
         )?;
-
-        let market_position =
-            market_position.simulate_settled_lp_position(market, valuation_price)?;
 
         let (_, unrealized_pnl) = calculate_base_asset_value_and_pnl_with_oracle_price(
             &market_position,

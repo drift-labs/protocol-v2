@@ -22,7 +22,6 @@ pub fn is_user_bankrupt(user: &User) -> bool {
         if perp_position.base_asset_amount != 0
             || perp_position.quote_asset_amount > 0
             || perp_position.has_open_order()
-            || perp_position.is_lp()
         {
             return false;
         }

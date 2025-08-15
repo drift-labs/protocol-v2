@@ -348,7 +348,7 @@ pub fn settle_expired_market(
     )?;
 
     validate!(
-        market.amm.base_asset_amount_with_unsettled_lp == 0 && market.amm.user_lp_shares == 0,
+        market.amm.base_asset_amount_with_unsettled_lp == 0,
         ErrorCode::MarketSettlementRequiresSettledLP,
         "Outstanding LP in market"
     )?;
