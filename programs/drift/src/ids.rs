@@ -1,3 +1,6 @@
+use anchor_lang::prelude::Pubkey;
+use solana_program::pubkey;
+
 pub mod pyth_program {
     use solana_program::declare_id;
     #[cfg(feature = "mainnet-beta")]
@@ -88,6 +91,11 @@ pub mod lighthouse {
     declare_id!("L2TExMFKdjpN9kozasaurPirfHy9P8sbXoAN1qA3S95");
 }
 
+pub mod usdc_mint {
+    use solana_program::declare_id;
+    declare_id!("BJE5MMbqXjVwjAF7oxwPYXnTXDyspzZyt4vwenNw5ruG");
+}
+
 pub mod mm_oracle_crank_wallet {
     use solana_program::declare_id;
     #[cfg(not(feature = "anchor-test"))]
@@ -107,3 +115,11 @@ pub mod amm_spread_adjust_wallet {
     #[cfg(feature = "anchor-test")]
     declare_id!("1ucYHAGrBbi1PaecC4Ptq5ocZLWGLBmbGWysoDGNB1N");
 }
+
+#[cfg(not(feature = "mainnet-beta"))]
+pub const DLP_WHITELIST: [Pubkey; 2] = [
+    pubkey!("4rmhwytmKH1XsgGAUyUUH7U64HS5FtT6gM8HGKAfwcFE"),
+    pubkey!("1ucYHAGrBbi1PaecC4Ptq5ocZLWGLBmbGWysoDGNB1N"),
+];
+#[cfg(feature = "mainnet-beta")]
+pub const DLP_WHITELIST: [Pubkey; 1] = [pubkey!("1ucYHAGrBbi1PaecC4Ptq5ocZLWGLBmbGWysoDGNB1N")];

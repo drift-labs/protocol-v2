@@ -131,5 +131,6 @@ export * from './clock/clockSubscriber';
 export * from './math/userStatus';
 export * from './indicative-quotes/indicativeQuotesSender';
 export * from './constants';
+export * from './constituentMap/constituentMap';
 
 export { BN, PublicKey, pyth };
