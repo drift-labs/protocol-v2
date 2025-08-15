@@ -10,7 +10,11 @@ import {
 	PublicKey,
 	Transaction,
 } from '@solana/web3.js';
-import { getAssociatedTokenAddress, getMint } from '@solana/spl-token';
+import {
+	createTransferCheckedInstruction,
+	getAssociatedTokenAddress,
+	getMint,
+} from '@solana/spl-token';
 
 import {
 	BN,
@@ -44,6 +48,7 @@ import {
 	SpotBalanceType,
 	getTokenAmount,
 	TWO,
+	getSpotMarketVaultPublicKey,
 } from '../sdk/src';
 
 import {
@@ -855,16 +860,39 @@ describe('LP Pool', () => {
 			lpPoolKey
 		)) as LPPoolAccount;
 
-		await adminClient.depositIntoPerpMarketFeePool(
-			0,
-			new BN(100).mul(QUOTE_PRECISION),
-			await adminClient.getAssociatedTokenAccount(0)
+		const transferIx = createTransferCheckedInstruction(
+			await adminClient.getAssociatedTokenAccount(0),
+			adminClient.getSpotMarketAccount(0).mint,
+			await getSpotMarketVaultPublicKey(adminClient.program.programId, 0),
+			adminClient.wallet.publicKey,
+			200 * QUOTE_PRECISION.toNumber(),
+			6
+		);
+		const transferTx = new Transaction().add(transferIx);
+		await adminClient.sendTransaction(transferTx);
+
+		const perpMarket0 = adminClient.getPerpMarketAccount(0);
+		perpMarket0.amm.feePool.scaledBalance =
+			perpMarket0.amm.feePool.scaledBalance.add(
+				new BN(100).mul(SPOT_MARKET_BALANCE_PRECISION)
+			);
+		await overWritePerpMarket(
+			adminClient,
+			bankrunContextWrapper,
+			perpMarket0.pubkey,
+			perpMarket0
 		);
 
-		await adminClient.depositIntoPerpMarketFeePool(
-			1,
-			new BN(100).mul(QUOTE_PRECISION),
-			await adminClient.getAssociatedTokenAccount(0)
+		const perpMarket1 = adminClient.getPerpMarketAccount(1);
+		perpMarket1.amm.feePool.scaledBalance =
+			perpMarket1.amm.feePool.scaledBalance.add(
+				new BN(100).mul(SPOT_MARKET_BALANCE_PRECISION)
+			);
+		await overWritePerpMarket(
+			adminClient,
+			bankrunContextWrapper,
+			perpMarket1.pubkey,
+			perpMarket1
 		);
 
 		let constituent = (await adminClient.program.account.constituent.fetch(
@@ -1471,7 +1499,6 @@ describe('LP Pool', () => {
 			await adminClient.settlePerpToLpPool(encodeName(lpPoolName), [0, 1, 2]);
 			assert(false, 'Should have thrown');
 		} catch (e) {
-			console.log(e);
 			assert(e.message.includes('0x18bd'));
 		}
 
