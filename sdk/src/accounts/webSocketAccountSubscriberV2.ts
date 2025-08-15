@@ -8,10 +8,13 @@ import { AnchorProvider, Program } from '@coral-xyz/anchor';
 import { capitalize } from './utils';
 import {
 	AccountInfoBase,
-	AccountInfoWithBase58EncodedData,
 	AccountInfoWithBase64EncodedData,
+	AccountInfoWithBase58EncodedData,
 	createSolanaClient,
 	isAddress,
+	Rpc,
+	RpcSubscriptions,
+	SolanaRpcSubscriptionsApi,
 	type Address,
 	type Commitment,
 } from 'gill';
@@ -52,7 +55,9 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 		accountPublicKey: PublicKey,
 		decodeBuffer?: (buffer: Buffer) => T,
 		resubOpts?: ResubOpts,
-		commitment?: Commitment
+		commitment?: Commitment,
+		rpcSubscriptions?: RpcSubscriptions<SolanaRpcSubscriptionsApi> & string,
+		rpc?: Rpc<any>
 	) {
 		this.accountName = accountName;
 		this.logAccountName = `${accountName}-${accountPublicKey.toBase58()}-ws-acct-subscriber-v2`;
@@ -82,13 +87,27 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 			((this.program.provider as AnchorProvider).opts.commitment as Commitment);
 
 		// Initialize gill client using the same RPC URL as the program provider
-		const rpcUrl = (this.program.provider as AnchorProvider).connection
-			.rpcEndpoint;
-		const { rpc, rpcSubscriptions } = createSolanaClient({
-			urlOrMoniker: rpcUrl,
-		});
-		this.rpc = rpc;
-		this.rpcSubscriptions = rpcSubscriptions;
+
+		this.rpc = rpc
+			? rpc
+			: (() => {
+					const rpcUrl = (this.program.provider as AnchorProvider).connection
+						.rpcEndpoint;
+					const { rpc } = createSolanaClient({
+						urlOrMoniker: rpcUrl,
+					});
+					return rpc;
+			  })();
+		this.rpcSubscriptions = rpcSubscriptions
+			? rpcSubscriptions
+			: (() => {
+					const rpcUrl = (this.program.provider as AnchorProvider).connection
+						.rpcEndpoint;
+					const { rpcSubscriptions } = createSolanaClient({
+						urlOrMoniker: rpcUrl,
+					});
+					return rpcSubscriptions;
+			  })();
 	}
 
 	private async handleNotificationLoop(
