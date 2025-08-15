@@ -2442,6 +2442,12 @@ pub fn liquidate_borrow_for_perp_pnl(
             "Perp position must have position pnl"
         )?;
 
+        validate!(
+            !user_position.is_isolated_position(),
+            ErrorCode::InvalidPerpPositionToLiquidate,
+            "Perp position is an isolated position"
+        )?;
+
         let market = perp_market_map.get_ref(&perp_market_index)?;
 
         let quote_spot_market = spot_market_map.get_ref(&market.quote_spot_market_index)?;
