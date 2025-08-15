@@ -75,6 +75,7 @@ export type DriftClientSubscriptionConfig =
 				resubOpts?: ResubOpts,
 				commitment?: Commitment
 			) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>;
+			/** If you use V2 here, whatever you pass for perpMarketAccountSubscriber and oracleAccountSubscriber will be ignored and it will use v2 under the hood regardless */
 			driftClientAccountSubscriber?: new (
 				program: Program,
 				perpMarketIndexes: number[],

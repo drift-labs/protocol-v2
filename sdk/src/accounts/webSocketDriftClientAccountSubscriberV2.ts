@@ -540,11 +540,12 @@ export class WebSocketDriftClientAccountSubscriberV2
 			return;
 		}
 
-		await this.stateAccountSubscriber.unsubscribe();
-
-		await this.unsubscribeFromMarketAccounts();
-		await this.unsubscribeFromSpotMarketAccounts();
-		await this.unsubscribeFromOracles();
+		await Promise.all([
+			this.stateAccountSubscriber?.unsubscribe(),
+			this.unsubscribeFromMarketAccounts(),
+			this.unsubscribeFromSpotMarketAccounts(),
+			this.unsubscribeFromOracles(),
+		]);
 
 		this.isSubscribed = false;
 	}
