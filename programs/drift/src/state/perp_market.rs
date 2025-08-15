@@ -1331,7 +1331,9 @@ impl AMM {
     }
 
     pub fn get_lower_bound_sqrt_k(self) -> DriftResult<u128> {
-        Ok(self.sqrt_k)
+        Ok(self
+            .sqrt_k
+            .min((self.min_order_size.cast::<u128>()?).max(self.base_asset_amount_with_amm.unsigned_abs())))
     }
 
     pub fn get_protocol_owned_position(self) -> DriftResult<i64> {

@@ -11,8 +11,7 @@ use crate::math::orders::{
     apply_protected_maker_limit_price_offset, standardize_base_asset_amount, standardize_price,
 };
 use crate::math::position::{
-    calculate_base_asset_value_and_pnl_with_oracle_price,
-    calculate_perp_liability_value,
+    calculate_base_asset_value_and_pnl_with_oracle_price, calculate_perp_liability_value,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{
@@ -21,7 +20,7 @@ use crate::math::spot_balance::{
 use crate::math::stats::calculate_rolling_sum;
 use crate::msg;
 use crate::state::oracle::StrictOraclePrice;
-use crate::state::perp_market::{ContractType};
+use crate::state::perp_market::ContractType;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::traits::Size;
 use crate::{get_then_update_id, ID, QUOTE_PRECISION_U64};
@@ -976,9 +975,7 @@ impl PerpPosition {
     }
 
     pub fn is_available(&self) -> bool {
-        !self.is_open_position()
-            && !self.has_open_order()
-            && !self.has_unsettled_pnl()
+        !self.is_open_position() && !self.has_open_order() && !self.has_unsettled_pnl()
     }
 
     pub fn is_open_position(&self) -> bool {

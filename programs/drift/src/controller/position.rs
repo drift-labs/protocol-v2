@@ -95,10 +95,8 @@ pub fn update_position_and_market(
     let update_type = get_position_update_type(position, delta)?;
 
     // Update User
-    let (
-        new_base_asset_amount,
-        new_quote_asset_amount,
-    ) = get_new_position_amounts(position, delta)?;
+    let (new_base_asset_amount, new_quote_asset_amount) =
+        get_new_position_amounts(position, delta)?;
 
     let (new_quote_entry_amount, new_quote_break_even_amount, pnl) = match update_type {
         PositionUpdateType::Open | PositionUpdateType::Increase => {
@@ -475,9 +473,7 @@ pub fn update_quote_asset_amount(
         return Ok(());
     }
 
-    if position.quote_asset_amount == 0
-        && position.base_asset_amount == 0
-    {
+    if position.quote_asset_amount == 0 && position.base_asset_amount == 0 {
         market.number_of_users = market.number_of_users.safe_add(1)?;
     }
 
@@ -485,9 +481,7 @@ pub fn update_quote_asset_amount(
 
     market.amm.quote_asset_amount = market.amm.quote_asset_amount.safe_add(delta.cast()?)?;
 
-    if position.quote_asset_amount == 0
-        && position.base_asset_amount == 0
-    {
+    if position.quote_asset_amount == 0 && position.base_asset_amount == 0 {
         market.number_of_users = market.number_of_users.saturating_sub(1);
     }
 

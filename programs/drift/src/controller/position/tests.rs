@@ -1,9 +1,7 @@
 use crate::controller::amm::{
     calculate_base_swap_output_with_spread, move_price, recenter_perp_market_amm, swap_base_asset,
 };
-use crate::controller::position::{
-    update_position_and_market, PositionDelta,
-};
+use crate::controller::position::{update_position_and_market, PositionDelta};
 use crate::controller::repeg::_update_amm;
 
 use crate::math::amm::calculate_market_open_bids_asks;
@@ -41,7 +39,6 @@ use anchor_lang::prelude::{AccountLoader, Clock};
 use anchor_lang::Owner;
 use solana_program::pubkey::Pubkey;
 use std::str::FromStr;
-
 
 #[test]
 fn amm_pool_balance_liq_fees_example() {
@@ -1114,6 +1111,8 @@ fn amm_perp_ref_offset() {
     let perp_market_loader: AccountLoader<PerpMarket> =
         AccountLoader::try_from(&perp_market_account_info).unwrap();
     let mut perp_market = perp_market_loader.load_mut().unwrap();
+
+    perp_market.amm.base_asset_amount_with_amm = 40000000000; // override old LP related fields
 
     let reserve_price = perp_market.amm.reserve_price().unwrap();
     let (b1, a1) = perp_market.amm.bid_ask_price(reserve_price).unwrap();
@@ -2232,7 +2231,15 @@ fn update_amm_near_boundary() {
         OracleMap::load_one(&jto_market_account_info, slot, None).unwrap();
 
     let mut perp_market = perp_market_loader.load_mut().unwrap();
+    assert_eq!(perp_market.amm.base_asset_amount_with_amm, 23831444927173);
+    assert_eq!(
+        perp_market.amm.base_asset_amount_with_unsettled_lp,
+        562555072827
+    );
 
+    perp_market.amm.base_asset_amount_with_amm +=
+        perp_market.amm.base_asset_amount_with_unsettled_lp;
+    perp_market.amm.base_asset_amount_with_unsettled_lp = 0;
     println!("perp_market: {:?}", perp_market.amm.last_update_slot);
 
     let oracle_price_data = oracle_map.get_price_data(&perp_market.oracle_id()).unwrap();
@@ -2241,9 +2248,12 @@ fn update_amm_near_boundary() {
         .unwrap();
 
     let state = State::default();
+    // perp_market.amm.sqrt_k -= perp_market.amm.user_lp_shares;
+    // perp_market.amm.user_lp_shares = 0;
 
     let cost = _update_amm(&mut perp_market, &mm_oracle_price_data, &state, now, slot).unwrap();
-
+    // assert_eq!(perp_market.amm.sqrt_k,        3295995551718929);
+    // assert_eq!(perp_market.amm.user_lp_shares, 267371000000000);
     assert_eq!(cost, 18803837952);
 }
 
@@ -2555,7 +2565,7 @@ fn test_move_amm() {
     // let perp_market_old = market_map.get_ref(&4).unwrap();
 
     let mut perp_market = market_map.get_ref_mut(&9).unwrap();
-
+    perp_market.amm.base_asset_amount_with_amm = -3092 * BASE_PRECISION as i128;
     println!(
         "perp_market latest slot: {:?}",
         perp_market.amm.last_update_slot
@@ -2584,7 +2594,7 @@ fn test_move_amm() {
     assert_eq!(cost, 0);
 
     let inv = perp_market.amm.base_asset_amount_with_amm;
-    assert_eq!(inv, -291516212);
+    assert_eq!(inv, -3092000000000);
 
     let (_, _, r1_orig, r2_orig) = calculate_base_swap_output_with_spread(
         &perp_market.amm,
@@ -2593,8 +2603,8 @@ fn test_move_amm() {
     )
     .unwrap();
 
-    assert_eq!(r1_orig, 326219);
-    assert_eq!(r2_orig, 20707);
+    assert_eq!(r1_orig, 3489128798);
+    assert_eq!(r2_orig, 215737299);
     let current_bar = perp_market.amm.base_asset_reserve;
     let _current_qar = perp_market.amm.quote_asset_reserve;
     let current_k = perp_market.amm.sqrt_k;

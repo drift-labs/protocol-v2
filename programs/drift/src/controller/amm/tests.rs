@@ -255,7 +255,6 @@ fn iterative_no_bounds_formualic_k_tests() {
     assert_eq!(market.amm.total_fee_minus_distributions, 985625029);
 }
 
-
 #[test]
 fn update_pool_balances_test_high_util_borrow() {
     let mut market = PerpMarket {

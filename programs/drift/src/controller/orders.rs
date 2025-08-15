@@ -11,8 +11,7 @@ use crate::controller::funding::settle_funding_payment;
 use crate::controller::position;
 use crate::controller::position::{
     add_new_position, decrease_open_bids_and_asks, get_position_index, increase_open_bids_and_asks,
-    update_position_and_market, update_quote_asset_amount,
-    PositionDirection,
+    update_position_and_market, update_quote_asset_amount, PositionDirection,
 };
 use crate::controller::spot_balance::{
     update_spot_balances, update_spot_market_cumulative_interest,
