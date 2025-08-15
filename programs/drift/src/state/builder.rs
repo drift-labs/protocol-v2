@@ -8,6 +8,7 @@ use prelude::AccountInfo;
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
+use crate::math::orders::set_order_bit_flag;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::user::{MarketType, OrderStatus, User};
 use crate::validate;
@@ -22,6 +23,7 @@ pub enum BuilderOrderBitFlag {
     Init = 0b00000000,
     Open = 0b00000001,
     Completed = 0b00000010,
+    Referral = 0b00000100,
 }
 
 #[account(zero_copy(unsafe))]
@@ -43,8 +45,9 @@ impl Builder {
 #[zero_copy]
 #[derive(Default, Eq, PartialEq, Debug, BorshDeserialize, BorshSerialize)]
 pub struct BuilderOrder {
-    /// set in place_order
-    pub builder_idx: u8, // builder/referrer, 111... if zeroed, TODO: replace with builder index
+    /// the index of the BuilderEscrow.approved_builders list, that this order's fee will settle to. Ignored
+    /// if bit_flag = Referral.
+    pub builder_idx: u8,
     pub padding0: [u8; 7],
     /// fees accrued so far for this order slot. This is not exclusively fees from this order_id
     /// and may include fees from other orders in the same market. This may be swept to the
@@ -58,8 +61,10 @@ pub struct BuilderOrder {
     /// bitflags that describe the state of the order.
     /// [`BuilderOrderBitFlag::Init`]: this order slot is available for use.
     /// [`BuilderOrderBitFlag::Open`]: this order slot is occupied, `order_id` is the `sub_account_id`'s active order.
-    /// [`BuilderOrderBitFlag::Completed`]: this order has been filled or canceled, and is waiting to be settled into
+    /// [`BuilderOrderBitFlag::Completed`]: this order has been filled or canceled, and is waiting to be settled into.
     /// the builder's account order_id and sub_account_id are no longer relevant, it may be merged with other orders.
+    /// [`BuilderOrderBitFlag::Referral`]: this order stores referral rewards waiting to be settled. If it is set, no
+    /// other bitflag should be set.
     pub bit_flags: u8,
 
     pub market_type: MarketType,
@@ -77,6 +82,7 @@ impl BuilderOrder {
         fee_bps: u16,
         market_type: MarketType,
         market_index: u16,
+        bit_flags: u8,
     ) -> Self {
         Self {
             builder_idx,
@@ -86,7 +92,7 @@ impl BuilderOrder {
             market_type,
             market_index,
             fees_accrued: 0,
-            bit_flags: BuilderOrderBitFlag::Open as u8,
+            bit_flags,
             sub_account_id,
             padding: [0; 12],
         }
@@ -118,13 +124,19 @@ impl BuilderOrder {
 
     /// An order slot is available (can be written to) if it is neither Completed nor Open.
     pub fn is_available(&self) -> bool {
-        !self.is_completed() && !self.is_open()
+        !self.is_completed() && !self.is_open() && !self.is_referral_order()
+    }
+
+    pub fn is_referral_order(&self) -> bool {
+        self.is_bit_flag_set(BuilderOrderBitFlag::Referral)
     }
 
     /// Checks if the order can be merged with another order. Merged orders track cumulative fees accrued
     /// and are settled together, making more efficient use of the orders list.
     pub fn is_mergeable(&self, other: &BuilderOrder) -> bool {
-        other.is_completed()
+        !self.is_referral_order()
+            && !other.is_referral_order()
+            && other.is_completed()
             && other.market_index == self.market_index
             && other.market_type == self.market_type
             && other.builder_idx == self.builder_idx
@@ -193,7 +205,6 @@ impl BuilderEscrow {
 
     pub fn validate(&self) -> DriftResult<()> {
         validate!(
-            // self.orders.len() <= 128 && self.approved_builders.len() <= 128 && self.orders.len() > 0 && self.approved_builders.len() > 0,
             self.orders.len() <= 128 && self.approved_builders.len() <= 128,
             ErrorCode::DefaultError,
             "BuilderEscrow orders and approved_builders len must be between 1 and 128"
@@ -280,6 +291,18 @@ pub struct BuilderEscrowZeroCopyMut<'a> {
 }
 
 impl<'a> BuilderEscrowZeroCopyMut<'a> {
+    pub fn has_referrer(&self) -> bool {
+        self.fixed.referrer != Pubkey::default()
+    }
+
+    pub fn get_referrer(&self) -> Option<Pubkey> {
+        if self.has_referrer() {
+            Some(self.fixed.referrer)
+        } else {
+            None
+        }
+    }
+
     pub fn orders_len(&self) -> u32 {
         // skip BuilderEscrow.padding0
         let length_bytes = &self.data[4..8];
@@ -321,6 +344,85 @@ impl<'a> BuilderEscrowZeroCopyMut<'a> {
         ))
     }
 
+    /// Returns the index of an order for a given sub_account_id and order_id, if present.
+    pub fn find_order_index(&self, sub_account_id: u16, order_id: u32) -> Option<u32> {
+        for i in 0..self.orders_len() {
+            if let Ok(existing_order) = self.get_order(i) {
+                if existing_order.order_id == order_id
+                    && existing_order.sub_account_id == sub_account_id
+                {
+                    return Some(i);
+                }
+            }
+        }
+        None
+    }
+
+    /// Returns the index for the referral order, creating one if necessary.
+    pub fn find_or_create_referral_index(&mut self) -> Option<u32> {
+        // look for an existing referral order
+        for i in 0..self.orders_len() {
+            if let Ok(existing_order) = self.get_order(i) {
+                if existing_order.is_referral_order() {
+                    return Some(i);
+                }
+            }
+        }
+
+        // try to create a referral order in an available order slot
+        match self.add_order(BuilderOrder::new(
+            0,
+            0,
+            0,
+            0,
+            MarketType::Spot,
+            0,
+            BuilderOrderBitFlag::Referral as u8,
+        )) {
+            Ok(idx) => Some(idx),
+            Err(_) => {
+                msg!("Failed to add referral order, BuilderEscrow is full");
+                None
+            }
+        }
+    }
+
+    /// Returns two distinct mutable references to orders by indices in one borrow of `self`.
+    /// Either index may be None. If both Some, they must be distinct.
+    pub fn get_two_orders_mut_by_indices(
+        &mut self,
+        a: Option<u32>,
+        b: Option<u32>,
+    ) -> DriftResult<(Option<&mut BuilderOrder>, Option<&mut BuilderOrder>)> {
+        match (a, b) {
+            (None, None) => Ok((None, None)),
+            (Some(i), None) => Ok((Some(self.get_order_mut(i)?), None)),
+            (None, Some(j)) => Ok((None, Some(self.get_order_mut(j)?))),
+            (Some(i), Some(j)) => {
+                validate!(i != j, ErrorCode::DefaultError, "indices must be distinct")?;
+
+                let size = core::mem::size_of::<BuilderOrder>();
+                let base_offset = 4 + 4; // padding0 + vec len
+                let start_i = base_offset + i as usize * size;
+                let start_j = base_offset + j as usize * size;
+
+                if start_i < start_j {
+                    let (left, right) = self.data.split_at_mut(start_j);
+                    let order_i: &mut BuilderOrder =
+                        bytemuck::from_bytes_mut(&mut left[start_i..start_i + size]);
+                    let order_j: &mut BuilderOrder = bytemuck::from_bytes_mut(&mut right[0..size]);
+                    Ok((Some(order_i), Some(order_j)))
+                } else {
+                    let (left, right) = self.data.split_at_mut(start_i);
+                    let order_j: &mut BuilderOrder =
+                        bytemuck::from_bytes_mut(&mut left[start_j..start_j + size]);
+                    let order_i: &mut BuilderOrder = bytemuck::from_bytes_mut(&mut right[0..size]);
+                    Ok((Some(order_i), Some(order_j)))
+                }
+            }
+        }
+    }
+
     pub fn get_order(&self, index: u32) -> DriftResult<&BuilderOrder> {
         validate!(
             index < self.orders_len(),
@@ -355,15 +457,15 @@ impl<'a> BuilderEscrowZeroCopyMut<'a> {
         ))
     }
 
-    pub fn add_order(&mut self, order: BuilderOrder) -> DriftResult {
+    pub fn add_order(&mut self, order: BuilderOrder) -> DriftResult<u32> {
         for i in 0..self.orders_len() {
             let existing_order = self.get_order_mut(i)?;
             if existing_order.is_mergeable(&order) {
                 *existing_order = existing_order.merge(&order)?;
-                return Ok(());
+                return Ok(i);
             } else if existing_order.is_available() {
                 *existing_order = order;
-                return Ok(());
+                return Ok(i);
             }
         }
 
@@ -389,6 +491,9 @@ impl<'a> BuilderEscrowZeroCopyMut<'a> {
     pub fn mark_missing_orders_completed(&mut self, user: &User) -> DriftResult<()> {
         for i in 0..self.orders_len() {
             if let Ok(builder_order) = self.get_order_mut(i) {
+                if builder_order.is_referral_order() {
+                    continue;
+                }
                 if builder_order.is_open() && !builder_order.is_completed() {
                     let still_open = user.orders.iter().any(|o| {
                         o.order_id == builder_order.order_id

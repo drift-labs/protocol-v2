@@ -36,6 +36,7 @@ import {
 	BuilderEscrowMap,
 	getTokenAmount,
 	BuilderSettleRecord,
+	getLimitOrderParams,
 } from '../sdk/src';
 
 import {
@@ -52,7 +53,10 @@ import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import dotenv from 'dotenv';
 import { PYTH_STORAGE_DATA } from './pythLazerData';
 import { nanoid } from 'nanoid';
-import { isBuilderOrderCompleted } from '../sdk/src/math/builder';
+import {
+	isBuilderOrderCompleted,
+	isBuilderOrderReferral,
+} from '../sdk/src/math/builder';
 
 dotenv.config();
 
@@ -67,18 +71,19 @@ const PYTH_STORAGE_ACCOUNT_INFO: AccountInfo<Buffer> = {
 describe('builder codes', () => {
 	const chProgram = anchor.workspace.Drift as Program;
 
-	let builderClient: TestClient;
+	let usdcMint: Keypair;
 
+	let builderClient: TestClient;
 	let builderUSDCAccount: Keypair = null;
 
-	let usdcMint: Keypair;
+	let makerClient: TestClient;
+	let makerUSDCAccount: PublicKey = null;
+
 	let userUSDCAccount: PublicKey = null;
 	let userClient: TestClient;
 
 	let builderEscrowMap: BuilderEscrowMap;
-
 	let bulkAccountLoader: TestBulkAccountLoader;
-
 	let bankrunContextWrapper: BankrunContextWrapper;
 
 	let solUsd: PublicKey;
@@ -166,7 +171,11 @@ describe('builder codes', () => {
 			marketIndexes,
 			spotMarketIndexes,
 			oracleInfos,
-			bulkAccountLoader
+			bulkAccountLoader,
+			{
+				referrer: await builderClient.getUserAccountPublicKey(),
+				referrerStats: builderClient.getUserStatsAccountPublicKey(),
+			}
 		);
 		await userClient.deposit(
 			usdcAmount,
@@ -177,12 +186,34 @@ describe('builder codes', () => {
 			undefined,
 			true
 		);
+
+		[makerClient, makerUSDCAccount] = await createUserWithUSDCAccount(
+			bankrunContextWrapper,
+			usdcMint,
+			chProgram,
+			usdcAmount,
+			marketIndexes,
+			spotMarketIndexes,
+			oracleInfos,
+			bulkAccountLoader
+		);
+		await makerClient.deposit(
+			usdcAmount,
+			0,
+			makerUSDCAccount,
+			undefined,
+			false,
+			undefined,
+			true
+		);
+
 		builderEscrowMap = new BuilderEscrowMap(userClient, false);
 	});
 
 	after(async () => {
 		await builderClient.unsubscribe();
 		await userClient.unsubscribe();
+		await makerClient.unsubscribe();
 	});
 
 	it('builder can create revenue share', async () => {
@@ -248,13 +279,16 @@ describe('builder codes', () => {
 			revShareEscrow.authority.toBase58() ===
 				userClient.wallet.publicKey.toBase58()
 		);
-		assert(revShareEscrow.referrer.toBase58() === PublicKey.default.toBase58());
+		assert(
+			revShareEscrow.referrer.toBase58() ===
+				builderClient.wallet.publicKey.toBase58()
+		);
 		assert(revShareEscrow.orders.length === numOrders);
 		assert(revShareEscrow.approvedBuilders.length === 0);
 	});
 
 	it('user can resize BuilderEscrow account', async () => {
-		const newNumOrders = 3;
+		const newNumOrders = 10;
 
 		// Test the instruction creation
 		const ix = await userClient.getResizeBuilderEscrowOrdersIx(
@@ -295,7 +329,10 @@ describe('builder codes', () => {
 			revShareEscrow.authority.toBase58() ===
 				userClient.wallet.publicKey.toBase58()
 		);
-		assert(revShareEscrow.referrer.toBase58() === PublicKey.default.toBase58());
+		assert(
+			revShareEscrow.referrer.toBase58() ===
+				builderClient.wallet.publicKey.toBase58()
+		);
 		assert(revShareEscrow.orders.length === newNumOrders);
 	});
 
@@ -531,13 +568,22 @@ describe('builder codes', () => {
 
 		// fill order with vamm
 		await builderClient.fetchAccounts();
-		const fillTx = await builderClient.fillPerpOrder(
+		const fillTx = await makerClient.fillPerpOrder(
 			await userClient.getUserAccountPublicKey(),
 			userClient.getUserAccount(),
 			{
 				marketIndex,
 				orderId: 3,
-			}
+			},
+			undefined,
+			{
+				referrer: await builderClient.getUserAccountPublicKey(),
+				referrerStats: builderClient.getUserStatsAccountPublicKey(),
+			},
+			undefined,
+			undefined,
+			undefined,
+			true
 		);
 		const logs = await printTxLogs(
 			bankrunContextWrapper.connection.toConnection(),
@@ -549,6 +595,7 @@ describe('builder codes', () => {
 		const builderFee = events[0].data['builderFee'] as BN;
 		const takerFee = events[0].data['takerFee'] as BN;
 		const totalFeePaid = takerFee.add(builderFee);
+		const referrerReward = events[0].data['referrerReward'] as number;
 		assert(builderFee.eq(fillQuoteAssetAmount.muln(builderFeeBps).divn(10000)));
 
 		await userClient.fetchAccounts();
@@ -606,18 +653,29 @@ describe('builder codes', () => {
 			settleTx
 		);
 		const settleEvents = parseLogs(builderClient.program, settleLogs);
+		const builderSettleEvents = settleEvents
+			.filter((e) => e.name === 'BuilderSettleRecord')
+			.map((e) => e.data) as BuilderSettleRecord[];
+		assert(builderSettleEvents.length === 2);
+		assert(builderSettleEvents[0].builder.equals(builder.publicKey));
+		assert(builderSettleEvents[0].referrer == null);
+		assert(builderSettleEvents[0].feeSettled.eq(builderFee));
+		assert(builderSettleEvents[0].marketIndex === marketIndex);
+		assert(isVariant(builderSettleEvents[0].marketType, 'perp'));
+		assert(builderSettleEvents[0].builderTotalReferrerRewards.eq(ZERO));
+		assert(builderSettleEvents[0].builderTotalBuilderRewards.eq(builderFee));
+
+		assert(builderSettleEvents[1].builder === null);
+		assert(builderSettleEvents[1].referrer.equals(builder.publicKey));
+		assert(builderSettleEvents[1].feeSettled.eq(new BN(referrerReward)));
+		assert(builderSettleEvents[1].marketIndex === marketIndex);
+		assert(isVariant(builderSettleEvents[1].marketType, 'spot'));
 		assert(
-			settleEvents[settleEvents.length - 1].name === 'BuilderSettleRecord'
+			builderSettleEvents[1].builderTotalReferrerRewards.eq(
+				new BN(referrerReward)
+			)
 		);
-		const lastSettleEvent = settleEvents[settleEvents.length - 1]
-			.data as BuilderSettleRecord;
-		assert(lastSettleEvent.builder.equals(builder.publicKey));
-		assert(lastSettleEvent.payer.equals(userClient.wallet.publicKey));
-		assert(lastSettleEvent.feeSettled.eq(builderFee));
-		assert(lastSettleEvent.marketIndex === marketIndex);
-		assert(isVariant(lastSettleEvent.marketType, 'perp'));
-		assert(lastSettleEvent.builderTotalReferrerRewards.eq(ZERO));
-		assert(lastSettleEvent.builderTotalBuilderRewards.eq(builderFee));
+		assert(builderSettleEvents[1].builderTotalBuilderRewards.eq(builderFee));
 
 		await builderEscrowMap.slowSync();
 		builderEscrow = (await builderEscrowMap.mustGet(
@@ -634,7 +692,12 @@ describe('builder codes', () => {
 			builderClient.getSpotMarketAccount(0),
 			usdcPos.balanceType
 		);
-		assert(builderUsdcAfterSettle.sub(builderUsdcBeforeSettle).eq(builderFee));
+		assert(
+			builderUsdcAfterSettle
+				.sub(builderUsdcBeforeSettle)
+				.sub(new BN(referrerReward))
+				.eq(builderFee)
+		);
 	});
 
 	it('user can place and cancel with no fill (no fees accrued, escrow unchanged)', async () => {
@@ -704,16 +767,6 @@ describe('builder codes', () => {
 		await userClient.fetchAccounts();
 		assert(userClient.getUser().getOpenOrders().length === 0);
 
-		// Force escrow reconciliation and verify no fees accrued
-		// await builderClient.settlePNL(
-		// 	await userClient.getUserAccountPublicKey(),
-		// 	userClient.getUserAccount(),
-		// 	marketIndex,
-		// 	undefined,
-		// 	undefined,
-		// 	builderEscrowMap
-		// );
-
 		await builderEscrowMap.slowSync();
 		const afterEscrow = (await builderEscrowMap.mustGet(
 			userClient.wallet.publicKey.toBase58()
@@ -763,6 +816,15 @@ describe('builder codes', () => {
 			} as SignedMsgOrderParamsWithBuilderMessage;
 		}
 
+		await builderEscrowMap.slowSync();
+		const escrowStart = (await builderEscrowMap.mustGet(
+			userClient.wallet.publicKey.toBase58()
+		)) as BuilderEscrow;
+		const totalFeesInEscrowStart = escrowStart.orders.reduce(
+			(sum, o) => sum.add(o.feesAccrued ?? ZERO),
+			ZERO
+		);
+
 		const slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
@@ -811,10 +873,19 @@ describe('builder codes', () => {
 		assert(userOrders.length === 2);
 
 		// Fill both orders
-		const fillTxA = await builderClient.fillPerpOrder(
+		const fillTxA = await makerClient.fillPerpOrder(
 			await userClient.getUserAccountPublicKey(),
 			userClient.getUserAccount(),
-			{ marketIndex, orderId: userOrders[0].orderId }
+			{ marketIndex, orderId: userOrders[0].orderId },
+			undefined,
+			{
+				referrer: await builderClient.getUserAccountPublicKey(),
+				referrerStats: builderClient.getUserStatsAccountPublicKey(),
+			},
+			undefined,
+			undefined,
+			undefined,
+			true
 		);
 		const logsA = await printTxLogs(
 			bankrunContextWrapper.connection.toConnection(),
@@ -824,11 +895,21 @@ describe('builder codes', () => {
 		const fillEventA = eventsA.find((e) => e.name === 'OrderActionRecord');
 		assert(fillEventA !== undefined);
 		const builderFeeA = fillEventA.data['builderFee'] as BN;
+		const referrerRewardA = new BN(fillEventA.data['referrerReward'] as number);
 
-		const fillTxB = await builderClient.fillPerpOrder(
+		const fillTxB = await makerClient.fillPerpOrder(
 			await userClient.getUserAccountPublicKey(),
 			userClient.getUserAccount(),
-			{ marketIndex, orderId: userOrders[1].orderId }
+			{ marketIndex, orderId: userOrders[1].orderId },
+			undefined,
+			{
+				referrer: await builderClient.getUserAccountPublicKey(),
+				referrerStats: builderClient.getUserStatsAccountPublicKey(),
+			},
+			undefined,
+			undefined,
+			undefined,
+			true
 		);
 		const logsB = await printTxLogs(
 			bankrunContextWrapper.connection.toConnection(),
@@ -838,6 +919,7 @@ describe('builder codes', () => {
 		const fillEventB = eventsB.find((e) => e.name === 'OrderActionRecord');
 		assert(fillEventB !== undefined);
 		const builderFeeB = fillEventB.data['builderFee'] as BN;
+		const referrerRewardB = new BN(fillEventB.data['referrerReward'] as number);
 
 		await bankrunContextWrapper.moveTimeForward(100);
 
@@ -849,8 +931,14 @@ describe('builder codes', () => {
 			(sum, o) => sum.add(o.feesAccrued ?? ZERO),
 			ZERO
 		);
-		const expectedTotal = builderFeeA.add(builderFeeB);
-		assert(totalFeesAccrued.eq(expectedTotal));
+		const expectedTotal = builderFeeA
+			.add(builderFeeB)
+			.add(referrerRewardA)
+			.add(referrerRewardB);
+		assert(
+			totalFeesAccrued.sub(totalFeesInEscrowStart).eq(expectedTotal),
+			`totalFeesAccrued: ${totalFeesAccrued.toString()}, expectedTotal: ${expectedTotal.toString()}`
+		);
 
 		// Settle and verify fees swept to builder
 		await builderClient.fetchAccounts();
@@ -885,6 +973,209 @@ describe('builder codes', () => {
 			builderClient.getSpotMarketAccount(0),
 			usdcPos.balanceType
 		);
-		assert(builderUsdcAfter.sub(builderUsdcBefore).eq(expectedTotal));
+		const usdcDiff = builderUsdcAfter.sub(builderUsdcBefore);
+		assert(
+			usdcDiff.eq(expectedTotal),
+			`usdcDiff: ${usdcDiff.toString()}, expectedTotal: ${expectedTotal.toString()}`
+		);
+	});
+
+	it('user can place and fill with multiple maker orders', async () => {
+		const builder = builderClient.wallet;
+		const maxFeeBps = 150;
+		await userClient.changeApprovedBuilder(
+			userClient.wallet.publicKey,
+			builder.publicKey,
+			maxFeeBps,
+			true
+		);
+
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+
+		function buildMsg(userOrderId: number, feeBps: number, slot: BN) {
+			const params = getMarketOrderParams({
+				marketIndex,
+				direction: PositionDirection.LONG,
+				baseAssetAmount,
+				price: new BN(230).mul(PRICE_PRECISION),
+				auctionStartPrice: new BN(226).mul(PRICE_PRECISION),
+				auctionEndPrice: new BN(230).mul(PRICE_PRECISION),
+				auctionDuration: 10,
+				userOrderId,
+				postOnly: PostOnlyParams.NONE,
+				marketType: MarketType.PERP,
+			}) as OrderParams;
+			return {
+				signedMsgOrderParams: params,
+				subAccountId: 0,
+				slot,
+				uuid: Uint8Array.from(Buffer.from(nanoid(8))),
+				builderIdx: 0,
+				builderFee: feeBps,
+				takeProfitOrderParams: null,
+				stopLossOrderParams: null,
+			} as SignedMsgOrderParamsWithBuilderMessage;
+		}
+
+		// place maker orders
+		await makerClient.placeOrders([
+			getLimitOrderParams({
+				marketIndex: 0,
+				baseAssetAmount: baseAssetAmount.divn(3),
+				direction: PositionDirection.SHORT,
+				price: new BN(223000000),
+				marketType: MarketType.PERP,
+				postOnly: PostOnlyParams.SLIDE,
+			}) as OrderParams,
+			getLimitOrderParams({
+				marketIndex: 0,
+				baseAssetAmount: baseAssetAmount.divn(3),
+				direction: PositionDirection.SHORT,
+				price: new BN(223500000),
+				marketType: MarketType.PERP,
+				postOnly: PostOnlyParams.SLIDE,
+			}) as OrderParams,
+		]);
+		await makerClient.fetchAccounts();
+		const makerOrders = makerClient.getUser().getOpenOrders();
+		assert(makerOrders.length === 2);
+
+		const slot = new BN(
+			await bankrunContextWrapper.connection.toConnection().getSlot()
+		);
+		const feeBpsA = 6;
+
+		const signedA = userClient.signSignedMsgOrderParamsMessage(
+			buildMsg(10, feeBpsA, slot),
+			false,
+			true
+		);
+		await builderClient.placeSignedMsgTakerOrder(
+			signedA,
+			marketIndex,
+			{
+				taker: await userClient.getUserAccountPublicKey(),
+				takerUserAccount: userClient.getUserAccount(),
+				takerStats: userClient.getUserStatsAccountPublicKey(),
+				signingAuthority: userClient.wallet.publicKey,
+			},
+			undefined,
+			2
+		);
+		await userClient.fetchAccounts();
+
+		const userOrders = userClient.getUser().getOpenOrders();
+		assert(userOrders.length === 1);
+
+		// Fill taker against maker orders
+		const fillTxA = await makerClient.fillPerpOrder(
+			await userClient.getUserAccountPublicKey(),
+			userClient.getUserAccount(),
+			{ marketIndex, orderId: userOrders[0].orderId },
+			{
+				maker: await makerClient.getUserAccountPublicKey(),
+				makerStats: makerClient.getUserStatsAccountPublicKey(),
+				makerUserAccount: makerClient.getUserAccount(),
+				// order?: Order;
+			},
+			{
+				referrer: await builderClient.getUserAccountPublicKey(),
+				referrerStats: builderClient.getUserStatsAccountPublicKey(),
+			},
+			undefined,
+			undefined,
+			undefined,
+			true
+		);
+		const logsA = await printTxLogs(
+			bankrunContextWrapper.connection.toConnection(),
+			fillTxA
+		);
+		const eventsA = parseLogs(builderClient.program, logsA);
+		const fillEventA = eventsA.filter((e) => e.name === 'OrderActionRecord');
+		assert(fillEventA !== undefined);
+		const builderFeeA = fillEventA.reduce(
+			(sum, e) => sum.add(e.data['builderFee'] as BN),
+			ZERO
+		);
+		const referrerRewardA = fillEventA.reduce(
+			(sum, e) => sum.add(new BN(e.data['referrerReward'] as number)),
+			ZERO
+		);
+
+		await bankrunContextWrapper.moveTimeForward(100);
+
+		await builderEscrowMap.slowSync();
+		const escrowAfterFills = (await builderEscrowMap.mustGet(
+			userClient.wallet.publicKey.toBase58()
+		)) as BuilderEscrow;
+		const totalFeesAccrued = escrowAfterFills.orders
+			.filter((o) => !isBuilderOrderReferral(o))
+			.reduce((sum, o) => sum.add(o.feesAccrued ?? ZERO), ZERO);
+		assert(
+			totalFeesAccrued.eq(builderFeeA),
+			`totalFeesAccrued: ${totalFeesAccrued.toString()}, builderFeeA: ${builderFeeA.toString()}`
+		);
+
+		// Settle and verify fees swept to builder
+		await builderClient.fetchAccounts();
+		let usdcPos = builderClient.getSpotPosition(0);
+		const builderUsdcBefore = getTokenAmount(
+			usdcPos.scaledBalance,
+			builderClient.getSpotMarketAccount(0),
+			usdcPos.balanceType
+		);
+
+		const settleTx = await builderClient.settlePNL(
+			await userClient.getUserAccountPublicKey(),
+			userClient.getUserAccount(),
+			marketIndex,
+			undefined,
+			undefined,
+			builderEscrowMap
+		);
+		await printTxLogs(
+			bankrunContextWrapper.connection.toConnection(),
+			settleTx
+		);
+
+		await builderEscrowMap.slowSync();
+		const escrowAfterSettle = (await builderEscrowMap.mustGet(
+			userClient.wallet.publicKey.toBase58()
+		)) as BuilderEscrow;
+		for (const order of escrowAfterSettle.orders) {
+			assert(order.feesAccrued.eq(ZERO));
+		}
+
+		await builderClient.fetchAccounts();
+		usdcPos = builderClient.getSpotPosition(0);
+		const builderUsdcAfter = getTokenAmount(
+			usdcPos.scaledBalance,
+			builderClient.getSpotMarketAccount(0),
+			usdcPos.balanceType
+		);
+		assert(
+			builderUsdcAfter
+				.sub(builderUsdcBefore)
+				.eq(builderFeeA.add(referrerRewardA))
+		);
+
+		const builderAccountInfo =
+			await bankrunContextWrapper.connection.getAccountInfo(
+				getBuilderAccountPublicKey(
+					builderClient.program.programId,
+					builderClient.wallet.publicKey
+				)
+			);
+		const builderAcc: BuilderAccount =
+			builderClient.program.account.builder.coder.accounts.decodeUnchecked(
+				'Builder',
+				builderAccountInfo.data
+			);
+		assert(
+			builderAcc.authority.toBase58() ===
+				builderClient.wallet.publicKey.toBase58()
+		);
 	});
 });

@@ -1285,6 +1285,10 @@ export class DriftClient {
 				builderEscrow,
 				authority,
 				payer: this.wallet.publicKey,
+				userStats: getUserStatsAccountPublicKey(
+					this.program.programId,
+					authority
+				),
 				rent: anchor.web3.SYSVAR_RENT_PUBKEY,
 				systemProgram: anchor.web3.SystemProgram.programId,
 			},
@@ -7676,6 +7680,7 @@ export class DriftClient {
 		settleeUserAccount: UserAccount,
 		marketIndexes: number[],
 		mode: SettlePnlMode,
+		builderEscrowMap?: BuilderEscrowMap,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
@@ -7684,7 +7689,8 @@ export class DriftClient {
 					settleeUserAccountPublicKey,
 					settleeUserAccount,
 					marketIndexes,
-					mode
+					mode,
+					builderEscrowMap
 				),
 				txParams
 			),
@@ -7700,7 +7706,8 @@ export class DriftClient {
 		marketIndexes: number[],
 		mode: SettlePnlMode,
 		txParams?: TxParams,
-		optionalIxs?: TransactionInstruction[]
+		optionalIxs?: TransactionInstruction[],
+		builderEscrowMap?: BuilderEscrowMap
 	): Promise<TransactionSignature[]> {
 		// need multiple TXs because settling more than 4 markets won't fit in a single TX
 		const txsToSign: (Transaction | VersionedTransaction)[] = [];
@@ -7714,7 +7721,8 @@ export class DriftClient {
 				settleeUserAccountPublicKey,
 				settleeUserAccount,
 				marketIndexes,
-				mode
+				mode,
+				builderEscrowMap
 			);
 			const computeUnits = Math.min(300_000 * marketIndexes.length, 1_400_000);
 			const tx = await this.buildTransaction(
@@ -7756,13 +7764,51 @@ export class DriftClient {
 		settleeUserAccountPublicKey: PublicKey,
 		settleeUserAccount: UserAccount,
 		marketIndexes: number[],
-		mode: SettlePnlMode
+		mode: SettlePnlMode,
+		builderEscrowMap?: BuilderEscrowMap
 	): Promise<TransactionInstruction> {
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [settleeUserAccount],
 			writablePerpMarketIndexes: marketIndexes,
 			writableSpotMarketIndexes: [QUOTE_SPOT_MARKET_INDEX],
 		});
+
+		if (builderEscrowMap) {
+			for (const order of settleeUserAccount.orders) {
+				if (hasBuilder(order)) {
+					remainingAccounts.push({
+						pubkey: getBuilderEscrowAccountPublicKey(
+							this.program.programId,
+							settleeUserAccount.authority
+						),
+						isSigner: false,
+						isWritable: true,
+					});
+					break;
+				}
+			}
+
+			const builderEscrow = await builderEscrowMap.mustGet(
+				settleeUserAccount.authority.toBase58()
+			);
+			const builders = new Map<number, PublicKey>();
+			for (const order of builderEscrow.orders) {
+				if (!isBuilderOrderAvailable(order)) {
+					if (!builders.has(order.builderIdx)) {
+						builders.set(
+							order.builderIdx,
+							builderEscrow.approvedBuilders[order.builderIdx].authority
+						);
+					}
+				}
+			}
+			if (builders.size > 0) {
+				this.addBuilderToRemainingAccounts(
+					Array.from(builders.values()),
+					remainingAccounts
+				);
+			}
+		}
 
 		return await this.program.instruction.settleMultiplePnls(
 			marketIndexes,

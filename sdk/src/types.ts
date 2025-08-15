@@ -1627,12 +1627,12 @@ export type BuilderInfo = {
 
 export type BuilderSettleRecord = {
 	ts: number;
-	builder: PublicKey;
-	referrer: PublicKey;
-	payer: PublicKey;
+	builder: PublicKey | null;
+	referrer: PublicKey | null;
 	feeSettled: BN;
 	marketIndex: number;
 	marketType: MarketType;
 	builderTotalReferrerRewards: BN;
 	builderTotalBuilderRewards: BN;
+	builderSubAccountId: number;
 };

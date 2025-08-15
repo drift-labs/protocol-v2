@@ -524,6 +524,7 @@ pub fn handle_initialize_builder_escrow<'c: 'info, 'info>(
     builder_escrow
         .orders
         .resize_with(num_orders as usize, BuilderOrder::default);
+    builder_escrow.referrer = ctx.accounts.user_stats.load()?.referrer;
     builder_escrow.validate()?;
     Ok(())
 }
@@ -4946,6 +4947,10 @@ pub struct InitializeBuilderEscrow<'info> {
     pub builder_escrow: Box<Account<'info, BuilderEscrow>>,
     /// CHECK: The auth owning this account, payer of builder/ref fees
     pub authority: Signer<'info>,
+    #[account(
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
     #[account(mut)]
     pub payer: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,

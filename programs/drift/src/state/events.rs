@@ -750,12 +750,12 @@ pub fn emit_buffers<T: AnchorSerialize + Discriminator>(
 #[event]
 pub struct BuilderSettleRecord {
     pub ts: i64,
-    pub builder: Pubkey,
-    pub referrer: Pubkey,
-    pub payer: Pubkey,
+    pub builder: Option<Pubkey>,
+    pub referrer: Option<Pubkey>,
     pub fee_settled: u64,
     pub market_index: u16,
     pub market_type: MarketType,
+    pub builder_sub_account_id: u16,
     pub builder_total_referrer_rewards: u64,
     pub builder_total_builder_rewards: u64,
 }

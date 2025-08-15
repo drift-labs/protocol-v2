@@ -35,6 +35,7 @@ use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::optional_accounts::{get_token_mint, update_prelaunch_oracle};
 use crate::state::builder::BuilderEscrowZeroCopyMut;
 use crate::state::builder::BuilderOrder;
+use crate::state::builder::BuilderOrderBitFlag;
 use crate::state::builder_map::load_builder_map;
 use crate::state::events::{DeleteUserRecord, OrderActionExplanation, SignedMsgOrderRecord};
 use crate::state::fill_mode::FillMode;
@@ -842,6 +843,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
                 builder_fee_bps.unwrap(),
                 MarketType::Perp,
                 market_index,
+                BuilderOrderBitFlag::Open as u8,
             ))?;
             builder_escrow_zc.find_order(taker.sub_account_id, new_order_id)
         } else {
@@ -895,6 +897,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
                 builder_fee_bps.unwrap(),
                 MarketType::Perp,
                 market_index,
+                BuilderOrderBitFlag::Open as u8,
             ))?;
             builder_escrow_zc.find_order(taker.sub_account_id, new_order_id)
         } else {
@@ -931,6 +934,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
             builder_fee_bps.unwrap(),
             MarketType::Perp,
             market_index,
+            BuilderOrderBitFlag::Open as u8,
         ))?;
         builder_escrow_zc.find_order(taker.sub_account_id, new_order_id)
     } else {

@@ -10,6 +10,11 @@ export function isBuilderOrderCompleted(order: BuilderOrder): boolean {
 	return (order.bitFlags & FLAG_IS_COMPLETED) !== 0;
 }
 
+const FLAG_IS_REFERRAL = 0x04;
+export function isBuilderOrderReferral(order: BuilderOrder): boolean {
+	return (order.bitFlags & FLAG_IS_REFERRAL) !== 0;
+}
+
 export function isBuilderOrderAvailable(order: BuilderOrder): boolean {
 	return !isBuilderOrderOpen(order) && !isBuilderOrderCompleted(order);
 }

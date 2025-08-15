@@ -1000,21 +1000,19 @@ pub fn fill_perp_order(
         .position(|order| order.order_id == order_id && order.status == OrderStatus::Open)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
 
-    if user.orders[order_index].is_bit_flag_set(OrderBitFlag::HasBuilder)
-        && builder_escrow.is_none()
-    {
-        msg!(
-            "Order {} has a builder but BuilderEscrow account is missing",
-            order_id
-        );
-        return Err(ErrorCode::BuilderEscrowMissing.into());
-    }
-
-    let mut builder_order = if let Some(builder_escrow) = builder_escrow.as_mut() {
-        builder_escrow.find_order(user.sub_account_id, order_id)
-    } else {
-        None
-    };
+    let (mut builder_order, mut builder_order_for_referrer) =
+        if let Some(escrow) = builder_escrow.as_mut() {
+            let user_idx = escrow.find_order_index(user.sub_account_id, order_id);
+            let ref_idx = if escrow.has_referrer() {
+                escrow.find_or_create_referral_index()
+            } else {
+                None
+            };
+            let (order_opt, ref_opt) = escrow.get_two_orders_mut_by_indices(user_idx, ref_idx)?;
+            (order_opt, ref_opt)
+        } else {
+            (None, None)
+        };
 
     let (
         order_status,
@@ -1349,6 +1347,7 @@ pub fn fill_perp_order(
         fill_mode,
         oracle_stale_for_margin,
         &mut builder_order,
+        &mut builder_order_for_referrer,
     )?;
 
     if base_asset_amount != 0 {
@@ -1784,6 +1783,7 @@ fn fulfill_perp_order(
     fill_mode: FillMode,
     oracle_stale_for_margin: bool,
     builder_order: &mut Option<&mut BuilderOrder>,
+    builder_order_for_referrer: &mut Option<&mut BuilderOrder>,
 ) -> DriftResult<(u64, u64)> {
     let market_index = user.orders[user_order_index].market_index;
 
@@ -1884,6 +1884,7 @@ fn fulfill_perp_order(
                         AMMLiquiditySplit::Shared,
                         fill_mode.is_liquidation(),
                         builder_order,
+                        builder_order_for_referrer,
                     )?;
 
                 (fill_base_asset_amount, fill_quote_asset_amount)
@@ -1930,6 +1931,7 @@ fn fulfill_perp_order(
                         fill_mode.is_liquidation(),
                         None,
                         builder_order,
+                        builder_order_for_referrer,
                     )?;
 
                 if maker_fill_base_asset_amount != 0 {
@@ -2175,6 +2177,7 @@ pub fn fulfill_perp_order_with_amm(
     liquidity_split: AMMLiquiditySplit,
     is_liquidation: bool,
     builder_order: &mut Option<&mut BuilderOrder>,
+    builder_order_for_referrer: &mut Option<&mut BuilderOrder>,
 ) -> DriftResult<(u64, u64)> {
     let position_index = get_position_index(&user.perp_positions, market.market_index)?;
     let existing_base_asset_amount = user.perp_positions[position_index].base_asset_amount;
@@ -2354,7 +2357,13 @@ pub fn fulfill_perp_order_with_amm(
     user_stats.increment_total_rebate(maker_rebate)?;
     user_stats.increment_total_referee_discount(referee_discount)?;
 
-    if let (Some(referrer), Some(referrer_stats)) = (referrer.as_mut(), referrer_stats.as_mut()) {
+    if let Some(builder_order_for_referrer) = builder_order_for_referrer.as_mut() {
+        builder_order_for_referrer.fees_accrued = builder_order_for_referrer
+            .fees_accrued
+            .safe_add(referrer_reward)?;
+    } else if let (Some(referrer), Some(referrer_stats)) =
+        (referrer.as_mut(), referrer_stats.as_mut())
+    {
         if let Ok(referrer_position) = referrer.force_get_perp_position_mut(market.market_index) {
             if referrer_reward > 0 {
                 update_quote_asset_amount(referrer_position, market, referrer_reward.cast()?)?;
@@ -2567,6 +2576,7 @@ pub fn fulfill_perp_order_with_match(
     is_liquidation: bool,
     amm_lp_allowed_to_jit_make: Option<bool>,
     builder_order: &mut Option<&mut BuilderOrder>,
+    builder_order_for_referrer: &mut Option<&mut BuilderOrder>,
 ) -> DriftResult<(u64, u64, u64)> {
     if !are_orders_same_market_but_different_sides(
         &maker.orders[maker_order_index],
@@ -2682,6 +2692,7 @@ pub fn fulfill_perp_order_with_match(
                 amm_liquidity_split,
                 is_liquidation,
                 builder_order,
+                builder_order_for_referrer,
             )?;
 
         total_base_asset_amount = base_asset_amount_filled_by_amm;
@@ -2869,7 +2880,13 @@ pub fn fulfill_perp_order_with_match(
         filler.update_last_active_slot(slot);
     }
 
-    if let (Some(referrer), Some(referrer_stats)) = (referrer.as_mut(), referrer_stats.as_mut()) {
+    if let Some(builder_order_for_referrer) = builder_order_for_referrer.as_mut() {
+        builder_order_for_referrer.fees_accrued = builder_order_for_referrer
+            .fees_accrued
+            .safe_add(referrer_reward)?;
+    } else if let (Some(referrer), Some(referrer_stats)) =
+        (referrer.as_mut(), referrer_stats.as_mut())
+    {
         if let Ok(referrer_position) = referrer.force_get_perp_position_mut(market.market_index) {
             if referrer_reward > 0 {
                 update_quote_asset_amount(referrer_position, market, referrer_reward.cast()?)?;

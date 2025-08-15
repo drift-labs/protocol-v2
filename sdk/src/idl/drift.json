@@ -7679,6 +7679,11 @@
           "isSigner": true
         },
         {
+          "name": "userStats",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "payer",
           "isMut": true,
           "isSigner": true
@@ -9954,7 +9959,8 @@
           {
             "name": "builderIdx",
             "docs": [
-              "set in place_order"
+              "the index of the BuilderEscrow.approved_builders list, that this order's fee will settle to. Ignored",
+              "if bit_flag = Referral."
             ],
             "type": "u8"
           },
@@ -9997,8 +10003,10 @@
               "bitflags that describe the state of the order.",
               "[`BuilderOrderBitFlag::Init`]: this order slot is available for use.",
               "[`BuilderOrderBitFlag::Open`]: this order slot is occupied, `order_id` is the `sub_account_id`'s active order.",
-              "[`BuilderOrderBitFlag::Completed`]: this order has been filled or canceled, and is waiting to be settled into",
-              "the builder's account order_id and sub_account_id are no longer relevant, it may be merged with other orders."
+              "[`BuilderOrderBitFlag::Completed`]: this order has been filled or canceled, and is waiting to be settled into.",
+              "the builder's account order_id and sub_account_id are no longer relevant, it may be merged with other orders.",
+              "[`BuilderOrderBitFlag::Referral`]: this order stores referral rewards waiting to be settled. If it is set, no",
+              "other bitflag should be set."
             ],
             "type": "u8"
           },
@@ -12597,6 +12605,9 @@
           },
           {
             "name": "Completed"
+          },
+          {
+            "name": "Referral"
           }
         ]
       }
@@ -13337,6 +13348,9 @@
           },
           {
             "name": "MedianTriggerPrice"
+          },
+          {
+            "name": "BuilderReferral"
           }
         ]
       }
@@ -15018,17 +15032,16 @@
         },
         {
           "name": "builder",
-          "type": "publicKey",
+          "type": {
+            "option": "publicKey"
+          },
           "index": false
         },
         {
           "name": "referrer",
-          "type": "publicKey",
-          "index": false
-        },
-        {
-          "name": "payer",
-          "type": "publicKey",
+          "type": {
+            "option": "publicKey"
+          },
           "index": false
         },
         {
@@ -15046,6 +15059,11 @@
           "type": {
             "defined": "MarketType"
           },
+          "index": false
+        },
+        {
+          "name": "builderSubAccountId",
+          "type": "u16",
           "index": false
         },
         {
