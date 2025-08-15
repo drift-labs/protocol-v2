@@ -524,7 +524,32 @@ pub fn handle_initialize_builder_escrow<'c: 'info, 'info>(
     builder_escrow
         .orders
         .resize_with(num_orders as usize, BuilderOrder::default);
+
+    let state = &mut ctx.accounts.state;
+    if state.builder_referral_enabled() {
+        let mut user_stats = ctx.accounts.user_stats.load_mut()?;
+        builder_escrow.referrer = user_stats.referrer;
+        user_stats.update_builder_referral_status();
+    }
+
+    builder_escrow.validate()?;
+    Ok(())
+}
+
+pub fn handle_migrate_referrer<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, MigrateReferrer<'info>>,
+) -> Result<()> {
+    let state = &mut ctx.accounts.state;
+    if !state.builder_referral_enabled() {
+        if state.admin != ctx.accounts.payer.key() {
+            msg!("Only admin can migrate referrer until builder referral feature is enabled");
+            return Err(anchor_lang::error::ErrorCode::ConstraintSigner.into());
+        }
+    }
+
+    let builder_escrow = &mut ctx.accounts.builder_escrow;
     builder_escrow.referrer = ctx.accounts.user_stats.load()?.referrer;
+
     builder_escrow.validate()?;
     Ok(())
 }
@@ -4948,13 +4973,33 @@ pub struct InitializeBuilderEscrow<'info> {
     /// CHECK: The auth owning this account, payer of builder/ref fees
     pub authority: Signer<'info>,
     #[account(
+        mut,
         has_one = authority
     )]
     pub user_stats: AccountLoader<'info, UserStats>,
+    pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub payer: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct MigrateReferrer<'info> {
+    #[account(
+        mut,
+        seeds = [BUILDER_ESCROW_PDA_SEED.as_ref(), authority.key().as_ref()],
+        bump,
+    )]
+    pub builder_escrow: Box<Account<'info, BuilderEscrow>>,
+    /// CHECK: The auth owning this account, payer of builder/ref fees
+    pub authority: AccountInfo<'info>,
+    #[account(
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub state: Box<Account<'info, State>>,
+    pub payer: Signer<'info>,
 }
 
 #[derive(Accounts)]

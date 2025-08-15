@@ -1773,6 +1773,7 @@ pub struct UserStats {
 pub enum ReferrerStatus {
     IsReferrer = 0b00000001,
     IsReferred = 0b00000010,
+    BuilderReferral = 0b00000100,
 }
 
 impl ReferrerStatus {
@@ -1782,6 +1783,10 @@ impl ReferrerStatus {
 
     pub fn is_referred(status: u8) -> bool {
         status & ReferrerStatus::IsReferred as u8 != 0
+    }
+
+    pub fn has_builder_referral(status: u8) -> bool {
+        status & ReferrerStatus::BuilderReferral as u8 != 0
     }
 }
 
@@ -1986,6 +1991,14 @@ impl UserStats {
             self.referrer_status |= ReferrerStatus::IsReferred as u8;
         } else {
             self.referrer_status &= !(ReferrerStatus::IsReferred as u8);
+        }
+    }
+
+    pub fn update_builder_referral_status(&mut self) {
+        if !self.referrer.eq(&Pubkey::default()) {
+            self.referrer_status |= ReferrerStatus::BuilderReferral as u8;
+        } else {
+            self.referrer_status &= !(ReferrerStatus::BuilderReferral as u8);
         }
     }
 

@@ -75,7 +75,8 @@ use crate::state::state::FeeStructure;
 use crate::state::state::*;
 use crate::state::traits::Size;
 use crate::state::user::{
-    AssetType, Order, OrderBitFlag, OrderStatus, OrderTriggerCondition, OrderType, UserStats,
+    AssetType, Order, OrderBitFlag, OrderStatus, OrderTriggerCondition, OrderType, ReferrerStatus,
+    UserStats,
 };
 use crate::state::user::{MarketType, User};
 use crate::state::user_map::{UserMap, UserStatsMap};
@@ -1011,6 +1012,12 @@ pub fn fill_perp_order(
             let (order_opt, ref_opt) = escrow.get_two_orders_mut_by_indices(user_idx, ref_idx)?;
             (order_opt, ref_opt)
         } else {
+            validate!(
+                !state.builder_referral_enabled()
+                    || !ReferrerStatus::has_builder_referral(user_stats.referrer_status),
+                ErrorCode::BuilderEscrowMissing,
+                "BuilderEscrow account must be included when for referred user"
+            )?;
             (None, None)
         };
 

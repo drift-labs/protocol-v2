@@ -7635,6 +7635,27 @@
       ]
     },
     {
+      "name": "updateFeatureBitFlagsBuilderReferral",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "enable",
+          "type": "bool"
+        }
+      ]
+    },
+    {
       "name": "initializeBuilder",
       "accounts": [
         {
@@ -7680,6 +7701,11 @@
         },
         {
           "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
           "isMut": false,
           "isSigner": false
         },
@@ -7705,6 +7731,37 @@
           "type": "u16"
         }
       ]
+    },
+    {
+      "name": "migrateReferrer",
+      "accounts": [
+        {
+          "name": "builderEscrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": []
     },
     {
       "name": "resizeBuilderEscrowOrders",
@@ -13502,6 +13559,9 @@
           },
           {
             "name": "IsReferred"
+          },
+          {
+            "name": "BuilderReferral"
           }
         ]
       }

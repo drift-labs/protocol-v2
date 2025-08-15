@@ -145,6 +145,8 @@ describe('builder codes', () => {
 		await builderClient.initialize(usdcMint.publicKey, true);
 		await builderClient.subscribe();
 
+		await builderClient.updateFeatureBitFlagsBuilderReferral(true);
+
 		await initializeQuoteSpotMarket(builderClient, usdcMint.publicKey);
 
 		const periodicity = new BN(0);
@@ -251,7 +253,7 @@ describe('builder codes', () => {
 		await makerClient.unsubscribe();
 	});
 
-	it('builder can create revenue share', async () => {
+	it('builder can create builder', async () => {
 		await builderClient.initializeBuilder(builderClient.wallet.publicKey);
 
 		const builderAccountInfo =
@@ -580,7 +582,7 @@ describe('builder codes', () => {
 		const totalFeePaid = takerFee;
 		const referrerReward = new BN(events[0].data['referrerReward'] as number);
 		assert(builderFee == null);
-		assert(referrerReward > 0);
+		assert(referrerReward.gt(ZERO));
 
 		await user2Client.fetchAccounts();
 		userOrders = user2Client.getUser().getOpenOrders();

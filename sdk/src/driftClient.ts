@@ -1289,8 +1289,40 @@ export class DriftClient {
 					this.program.programId,
 					authority
 				),
+				state: await this.getStatePublicKey(),
 				rent: anchor.web3.SYSVAR_RENT_PUBKEY,
 				systemProgram: anchor.web3.SystemProgram.programId,
+			},
+		});
+	}
+
+	public async migrateReferrer(
+		authority: PublicKey,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const ix = await this.getMigrateReferrerIx(authority);
+		const tx = await this.buildTransaction([ix], txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getMigrateReferrerIx(
+		authority: PublicKey
+	): Promise<TransactionInstruction> {
+		const builderEscrow = getBuilderEscrowAccountPublicKey(
+			this.program.programId,
+			authority
+		);
+		return this.program.instruction.migrateReferrer({
+			accounts: {
+				builderEscrow,
+				authority,
+				userStats: getUserStatsAccountPublicKey(
+					this.program.programId,
+					authority
+				),
+				state: await this.getStatePublicKey(),
+				payer: this.wallet.publicKey,
 			},
 		});
 	}

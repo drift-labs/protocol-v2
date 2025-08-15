@@ -1835,6 +1835,13 @@ pub mod drift {
         handle_update_feature_bit_flags_median_trigger_price(ctx, enable)
     }
 
+    pub fn update_feature_bit_flags_builder_referral(
+        ctx: Context<HotAdminUpdateState>,
+        enable: bool,
+    ) -> Result<()> {
+        handle_update_feature_bit_flags_builder_referral(ctx, enable)
+    }
+
     pub fn initialize_builder<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, InitializeBuilder<'info>>,
     ) -> Result<()> {
@@ -1846,6 +1853,12 @@ pub mod drift {
         num_orders: u16,
     ) -> Result<()> {
         handle_initialize_builder_escrow(ctx, num_orders)
+    }
+
+    pub fn migrate_referrer<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, MigrateReferrer<'info>>,
+    ) -> Result<()> {
+        handle_migrate_referrer(ctx)
     }
 
     pub fn resize_builder_escrow_orders<'c: 'info, 'info>(
