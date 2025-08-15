@@ -1,9 +1,9 @@
 import { OrderSubscriber } from './OrderSubscriber';
 import { getNonIdleUserFilter, getUserFilter } from '../memcmp';
-import { WebSocketProgramAccountSubscriber } from '../accounts/webSocketProgramAccountSubscriber';
 import { UserAccount } from '../types';
 import { Commitment, Context, PublicKey } from '@solana/web3.js';
 import { ResubOpts } from '../accounts/types';
+import { WebSocketProgramAccountSubscriber } from '../accounts/webSocketProgramAccountSubscriber';
 
 export class WebsocketSubscription {
 	private orderSubscriber: OrderSubscriber;

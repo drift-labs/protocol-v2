@@ -188,11 +188,13 @@ pub fn update_funding_rate(
     if valid_funding_update {
         let oracle_price_data = oracle_map.get_price_data(&market.oracle_id())?;
         let sanitize_clamp_denominator = market.get_sanitize_clamp_denominator()?;
+        let mm_oracle_price_data =
+            market.get_mm_oracle_price_data(*oracle_price_data, slot, &guard_rails.validity)?;
 
         let oracle_price_twap = amm::update_oracle_price_twap(
             &mut market.amm,
             now,
-            oracle_price_data,
+            &mm_oracle_price_data,
             Some(reserve_price),
             sanitize_clamp_denominator,
         )?;
@@ -269,6 +271,7 @@ pub fn update_funding_rate(
             .safe_add(funding_rate_short)?;
 
         market.amm.last_funding_rate = funding_rate;
+        market.amm.last_funding_oracle_twap = oracle_price_twap;
         market.amm.last_funding_rate_long = funding_rate_long.cast()?;
         market.amm.last_funding_rate_short = funding_rate_short.cast()?;
         market.amm.last_24h_avg_funding_rate = calculate_new_twap(

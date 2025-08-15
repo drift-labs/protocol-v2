@@ -1,4 +1,4 @@
-import { BN, SpotMarketAccount } from '../';
+import { BN } from '@coral-xyz/anchor';
 import {
 	AMM_RESERVE_PRECISION,
 	AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO,
@@ -9,7 +9,12 @@ import {
 	ZERO,
 } from '../constants/numericConstants';
 import { OraclePriceData } from '../oracles/types';
-import { PerpMarketAccount, PositionDirection, PerpPosition } from '../types';
+import {
+	PerpMarketAccount,
+	PositionDirection,
+	PerpPosition,
+	SpotMarketAccount,
+} from '../types';
 import {
 	calculateUpdatedAMM,
 	calculateUpdatedAMMSpreadReserves,
@@ -98,7 +103,7 @@ export function calculatePositionPNL(
 	market: PerpMarketAccount,
 	perpPosition: PerpPosition,
 	withFunding = false,
-	oraclePriceData: OraclePriceData
+	oraclePriceData: Pick<OraclePriceData, 'price'>
 ): BN {
 	if (perpPosition.baseAssetAmount.eq(ZERO)) {
 		return perpPosition.quoteAssetAmount;
@@ -130,7 +135,7 @@ export function calculateClaimablePnl(
 	market: PerpMarketAccount,
 	spotMarket: SpotMarketAccount,
 	perpPosition: PerpPosition,
-	oraclePriceData: OraclePriceData
+	oraclePriceData: Pick<OraclePriceData, 'price'>
 ): BN {
 	const unrealizedPnl = calculatePositionPNL(
 		market,

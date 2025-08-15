@@ -5,7 +5,8 @@ import {
 	TransactionVersion,
 	VersionedTransaction,
 } from '@solana/web3.js';
-import { BN, ZERO } from '.';
+import { BN } from '@coral-xyz/anchor';
+import { ZERO } from './constants/numericConstants';
 
 // Utility type which lets you denote record with values of type A mapped to a record with the same keys but values of type B
 export type MappedRecord<A extends Record<string, unknown>, B> = {
@@ -25,6 +26,11 @@ export enum ExchangeStatus {
 	SETTLE_PNL_PAUSED = 64,
 	AMM_IMMEDIATE_FILL_PAUSED = 128,
 	PAUSED = 255,
+}
+
+export enum FeatureBitFlags {
+	MM_ORACLE_UPDATE = 1,
+	MEDIAN_TRIGGER_PRICE = 2,
 }
 
 export class MarketStatus {
@@ -74,6 +80,9 @@ export enum UserStatus {
 export class MarginMode {
 	static readonly DEFAULT = { default: {} };
 	static readonly HIGH_LEVERAGE = { highLeverage: {} };
+	static readonly HIGH_LEVERAGE_MAINTENANCE = {
+		highLeverageMaintenance: {},
+	};
 }
 
 export class ContractType {
@@ -756,6 +765,7 @@ export type StateAccount = {
 	initialPctToLiquidate: number;
 	liquidationDuration: number;
 	maxInitializeUserFee: number;
+	featureBitFlags: number;
 };
 
 export type PerpMarketAccount = {
@@ -802,6 +812,7 @@ export type PerpMarketAccount = {
 	highLeverageMarginRatioMaintenance: number;
 	protectedMakerLimitPriceDivisor: number;
 	protectedMakerDynamicDivisor: number;
+	lastFillPrice: BN;
 };
 
 export type HistoricalOracleData = {
@@ -948,7 +959,7 @@ export type AMM = {
 	totalFeeMinusDistributions: BN;
 	totalFeeWithdrawn: BN;
 	totalFee: BN;
-	totalFeeEarnedPerLp: BN;
+	mmOracleSequenceId: BN;
 	userLpShares: BN;
 	baseAssetAmountWithUnsettledLp: BN;
 	orderStepSize: BN;
@@ -993,13 +1004,12 @@ export type AMM = {
 
 	markStd: BN;
 	oracleStd: BN;
-	longIntensityCount: number;
 	longIntensityVolume: BN;
-	shortIntensityCount: number;
 	shortIntensityVolume: BN;
 	volume24H: BN;
 	minOrderSize: BN;
-	maxPositionSize: BN;
+	mmOraclePrice: BN;
+	mmOracleSlot: BN;
 
 	bidBaseAssetReserve: BN;
 	bidQuoteAssetReserve: BN;
@@ -1014,6 +1024,8 @@ export type AMM = {
 	takerSpeedBumpOverride: number;
 	ammSpreadAdjustment: number;
 	ammInventorySpreadAdjustment: number;
+
+	lastFundingOracleTwap: BN;
 };
 
 // # User Account Types

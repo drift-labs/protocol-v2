@@ -1,14 +1,18 @@
 import * as anchor from '@coral-xyz/anchor';
 import { Program } from '@coral-xyz/anchor';
-import { assert } from 'chai';
+import { assert, expect } from 'chai';
 import { startAnchor } from 'solana-bankrun';
 import {
 	BN,
 	ExchangeStatus,
 	getPythLazerOraclePublicKey,
+	getTokenAmount,
+	loadKeypair,
 	OracleGuardRails,
 	OracleSource,
+	SpotBalanceType,
 	TestClient,
+	Wallet,
 } from '../sdk/src';
 
 import { decodeName, DEFAULT_MARKET_NAME } from '../sdk/src/userName';
@@ -17,6 +21,7 @@ import {
 	initializeQuoteSpotMarket,
 	mockOracleNoProgram,
 	mockUSDCMint,
+	mockUserUSDCAccount,
 } from './testHelpers';
 import { PublicKey } from '@solana/web3.js';
 import {
@@ -24,6 +29,7 @@ import {
 	Connection,
 } from '../sdk/src/bankrun/bankrunConnection';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { createTransferCheckedInstruction } from '@solana/spl-token';
 
 describe('admin', () => {
 	const chProgram = anchor.workspace.Drift as Program;
@@ -34,10 +40,16 @@ describe('admin', () => {
 
 	let usdcMint;
 
+	let userUSDCAccount;
+
+	const usdcAmount = new BN(10 * 10 ** 6);
+
+	let bankrunContextWrapper: BankrunContextWrapper;
+
 	before(async () => {
 		const context = await startAnchor('', [], []);
 
-		const bankrunContextWrapper = new BankrunContextWrapper(context);
+		bankrunContextWrapper = new BankrunContextWrapper(context);
 
 		bulkAccountLoader = new TestBulkAccountLoader(
 			bankrunContextWrapper.connection,
@@ -47,9 +59,13 @@ describe('admin', () => {
 
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 
+		const wallet = new Wallet(loadKeypair(process.env.ANCHOR_WALLET));
+		//@ts-ignore
+		await bankrunContextWrapper.fundKeypair(wallet, 10 ** 9);
+
 		driftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(), // ugh.
-			wallet: bankrunContextWrapper.provider.wallet,
+			wallet,
 			programID: chProgram.programId,
 			opts: {
 				commitment: 'confirmed',
@@ -63,6 +79,13 @@ describe('admin', () => {
 				accountLoader: bulkAccountLoader,
 			},
 		});
+
+		userUSDCAccount = await mockUserUSDCAccount(
+			usdcMint,
+			usdcAmount,
+			bankrunContextWrapper,
+			driftClient.wallet.publicKey
+		);
 
 		await driftClient.initialize(usdcMint.publicKey, true);
 		await driftClient.subscribe();
@@ -399,6 +422,86 @@ describe('admin', () => {
 				getPythLazerOraclePublicKey(driftClient.program.programId, 0)
 			)
 		);
+	});
+
+	it('update MM oracle native', async () => {
+		const oraclePrice = new BN(100);
+		const oracleTS = new BN(Date.now());
+		await driftClient.updateFeatureBitFlagsMMOracle(true);
+		await driftClient.updateMmOracleNative(0, oraclePrice, oracleTS);
+
+		let perpMarket = driftClient.getPerpMarketAccount(0);
+		assert(perpMarket.amm.mmOraclePrice.eq(oraclePrice));
+		const slot = (await bankrunContextWrapper.connection.getSlot()).toString();
+		expect(perpMarket.amm.mmOracleSlot.toNumber()).to.be.approximately(
+			+slot,
+			1
+		);
+		assert(perpMarket.amm.mmOracleSequenceId.eq(oracleTS));
+
+		// Doesnt change if id doesnt increase
+		await driftClient.updateMmOracleNative(0, oraclePrice.addn(1), oracleTS);
+		assert(perpMarket.amm.mmOraclePrice.eq(oraclePrice));
+
+		// Doesnt update if we flip the admin switch
+		await driftClient.updateFeatureBitFlagsMMOracle(false);
+		try {
+			await driftClient.updateMmOracleNative(0, oraclePrice, oracleTS);
+			assert.fail('Should have thrown');
+		} catch (e) {
+			console.log(e.message);
+			assert(e.message.includes('Program failed to complete'));
+		}
+
+		// Re-enable and update
+		await driftClient.updateFeatureBitFlagsMMOracle(true);
+		await driftClient.updateMmOracleNative(
+			0,
+			oraclePrice.addn(2),
+			oracleTS.addn(1)
+		);
+		perpMarket = driftClient.getPerpMarketAccount(0);
+		assert(perpMarket.amm.mmOraclePrice.eq(oraclePrice.addn(2)));
+		assert(perpMarket.amm.mmOracleSequenceId.eq(oracleTS.addn(1)));
+	});
+
+	it('update amm adjustment oracle native', async () => {
+		const ammSpreadAdjustment = 5;
+		await driftClient.updateAmmSpreadAdjustmentNative(0, ammSpreadAdjustment);
+		const perpMarket = driftClient.getPerpMarketAccount(0);
+		assert(perpMarket.amm.ammSpreadAdjustment == ammSpreadAdjustment);
+	});
+
+	it('update pnl pool', async () => {
+		const quoteVault = driftClient.getSpotMarketAccount(0).vault;
+
+		const splTransferIx = createTransferCheckedInstruction(
+			userUSDCAccount.publicKey,
+			usdcMint.publicKey,
+			quoteVault,
+			driftClient.wallet.publicKey,
+			usdcAmount.toNumber(),
+			6
+		);
+
+		const tx = await driftClient.buildTransaction(splTransferIx);
+		// @ts-ignore
+		await driftClient.sendTransaction(tx);
+
+		await driftClient.updatePerpMarketPnlPool(0, usdcAmount);
+
+		await driftClient.fetchAccounts();
+
+		const perpMarket = driftClient.getPerpMarketAccount(0);
+		const spotMarket = driftClient.getSpotMarketAccount(0);
+
+		const tokenAmount = getTokenAmount(
+			perpMarket.pnlPool.scaledBalance,
+			spotMarket,
+			SpotBalanceType.DEPOSIT
+		);
+
+		assert(tokenAmount.eq(usdcAmount));
 	});
 
 	it('Update admin', async () => {

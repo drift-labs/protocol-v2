@@ -64,6 +64,7 @@ import {
 	ProtectedMakerModeConfig,
 	SignedMsgOrderParamsDelegateMessage,
 	TokenProgramFlag,
+	PostOnlyParams,
 } from './types';
 import driftIDL from './idl/drift.json';
 
@@ -78,6 +79,7 @@ import {
 	PublicKey,
 	Signer,
 	SystemProgram,
+	SYSVAR_CLOCK_PUBKEY,
 	SYSVAR_INSTRUCTIONS_PUBKEY,
 	Transaction,
 	TransactionInstruction,
@@ -122,6 +124,8 @@ import { TxSender, TxSigAndSlot } from './tx/types';
 import {
 	BASE_PRECISION,
 	GOV_SPOT_MARKET_INDEX,
+	ONE,
+	PERCENTAGE_PRECISION,
 	PRICE_PRECISION,
 	QUOTE_PRECISION,
 	QUOTE_SPOT_MARKET_INDEX,
@@ -177,7 +181,10 @@ import { WormholeCoreBridgeSolana } from '@pythnetwork/pyth-solana-receiver/lib/
 import { PythSolanaReceiver } from '@pythnetwork/pyth-solana-receiver/lib/idl/pyth_solana_receiver';
 import { getFeedIdUint8Array, trimFeedId } from './util/pythOracleUtils';
 import { createMinimalEd25519VerifyIx } from './util/ed25519Utils';
-import { isVersionedTransaction } from './tx/utils';
+import {
+	createNativeInstructionDiscriminatorBuffer,
+	isVersionedTransaction,
+} from './tx/utils';
 import pythSolanaReceiverIdl from './idl/pyth_solana_receiver.json';
 import { asV0Tx, PullFeed, AnchorUtils } from '@switchboard-xyz/on-demand';
 import { gprcDriftClientAccountSubscriber } from './accounts/grpcDriftClientAccountSubscriber';
@@ -186,6 +193,7 @@ import { Slothash } from './slot/SlothashSubscriber';
 import { getOracleId } from './oracles/oracleId';
 import { SignedMsgOrderParams } from './types';
 import { sha256 } from '@noble/hashes/sha256';
+import { getOracleConfidenceFromMMOracleData } from './oracles/utils';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -439,7 +447,9 @@ export class DriftClient {
 					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
 					logResubMessages: config.accountSubscription?.logResubMessages,
 				},
-				config.accountSubscription?.commitment
+				config.accountSubscription?.commitment,
+				config.accountSubscription?.perpMarketAccountSubscriber,
+				config.accountSubscription?.oracleAccountSubscriber
 			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
@@ -4158,25 +4168,20 @@ export class DriftClient {
 	public async getUpdateAMMsIx(
 		marketIndexes: number[]
 	): Promise<TransactionInstruction> {
-		for (let i = marketIndexes.length; i < 5; i++) {
-			marketIndexes.push(100);
-		}
 		const marketAccountInfos = [];
 		const oracleAccountInfos = [];
 		for (const marketIndex of marketIndexes) {
-			if (marketIndex !== 100) {
-				const market = this.getPerpMarketAccount(marketIndex);
-				marketAccountInfos.push({
-					pubkey: market.pubkey,
-					isWritable: true,
-					isSigner: false,
-				});
-				oracleAccountInfos.push({
-					pubkey: market.amm.oracle,
-					isWritable: false,
-					isSigner: false,
-				});
-			}
+			const market = this.getPerpMarketAccount(marketIndex);
+			marketAccountInfos.push({
+				pubkey: market.pubkey,
+				isWritable: true,
+				isSigner: false,
+			});
+			oracleAccountInfos.push({
+				pubkey: market.amm.oracle,
+				isWritable: false,
+				isSigner: false,
+			});
 		}
 		const remainingAccounts = oracleAccountInfos.concat(marketAccountInfos);
 
@@ -4349,14 +4354,24 @@ export class DriftClient {
 		});
 	}
 
+	/**
+	 * Sends a transaction to cancel the provided order ids.
+	 *
+	 * @param orderIds - The order ids to cancel.
+	 * @param txParams - The transaction parameters.
+	 * @param subAccountId - The sub account id to cancel the orders for.
+	 * @param user - The user to cancel the orders for. If provided, it will be prioritized over the subAccountId.
+	 * @returns The transaction signature.
+	 */
 	public async cancelOrdersByIds(
 		orderIds?: number[],
 		txParams?: TxParams,
-		subAccountId?: number
+		subAccountId?: number,
+		user?: User
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
-				await this.getCancelOrdersByIdsIx(orderIds, subAccountId),
+				await this.getCancelOrdersByIdsIx(orderIds, subAccountId, user),
 				txParams
 			),
 			[],
@@ -4365,21 +4380,34 @@ export class DriftClient {
 		return txSig;
 	}
 
+	/**
+	 * Returns the transaction instruction to cancel the provided order ids.
+	 *
+	 * @param orderIds - The order ids to cancel.
+	 * @param subAccountId - The sub account id to cancel the orders for.
+	 * @param user - The user to cancel the orders for. If provided, it will be prioritized over the subAccountId.
+	 * @returns The transaction instruction to cancel the orders.
+	 */
 	public async getCancelOrdersByIdsIx(
 		orderIds?: number[],
-		subAccountId?: number
+		subAccountId?: number,
+		user?: User
 	): Promise<TransactionInstruction> {
-		const user = await this.getUserAccountPublicKey(subAccountId);
+		const userAccountPubKey =
+			user?.userAccountPublicKey ??
+			(await this.getUserAccountPublicKey(subAccountId));
+		const userAccount =
+			user?.getUserAccount() ?? this.getUserAccount(subAccountId);
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount(subAccountId)],
+			userAccounts: [userAccount],
 			useMarketLastSlotCache: true,
 		});
 
 		return await this.program.instruction.cancelOrdersByIds(orderIds, {
 			accounts: {
 				state: await this.getStatePublicKey(),
-				user,
+				user: userAccountPubKey,
 				authority: this.wallet.publicKey,
 			},
 			remainingAccounts,
@@ -6942,7 +6970,7 @@ export class DriftClient {
 			auctionStartPrice?: BN;
 			auctionEndPrice?: BN;
 			reduceOnly?: boolean;
-			postOnly?: boolean;
+			postOnly?: PostOnlyParams;
 			bitFlags?: number;
 			maxTs?: BN;
 			policy?: number;
@@ -6961,6 +6989,12 @@ export class DriftClient {
 		return txSig;
 	}
 
+	/**
+	 * @param orderParams: The parameters for the order to modify.
+	 * @param subAccountId: Optional - The subaccount ID of the user to modify the order for.
+	 * @param userPublicKey: Optional - The public key of the user to modify the order for. This takes precedence over subAccountId.
+	 * @returns
+	 */
 	public async getModifyOrderIx(
 		{
 			orderId,
@@ -6990,14 +7024,16 @@ export class DriftClient {
 			auctionStartPrice?: BN;
 			auctionEndPrice?: BN;
 			reduceOnly?: boolean;
-			postOnly?: boolean;
+			postOnly?: PostOnlyParams;
 			bitFlags?: number;
 			maxTs?: BN;
 			policy?: number;
 		},
-		subAccountId?: number
+		subAccountId?: number,
+		userPublicKey?: PublicKey
 	): Promise<TransactionInstruction> {
-		const user = await this.getUserAccountPublicKey(subAccountId);
+		const user =
+			userPublicKey ?? (await this.getUserAccountPublicKey(subAccountId));
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [this.getUserAccount(subAccountId)],
@@ -7063,7 +7099,7 @@ export class DriftClient {
 			auctionStartPrice?: BN;
 			auctionEndPrice?: BN;
 			reduceOnly?: boolean;
-			postOnly?: boolean;
+			postOnly?: PostOnlyParams;
 			bitFlags?: number;
 			policy?: ModifyOrderPolicy;
 			maxTs?: BN;
@@ -7111,7 +7147,7 @@ export class DriftClient {
 			auctionStartPrice?: BN;
 			auctionEndPrice?: BN;
 			reduceOnly?: boolean;
-			postOnly?: boolean;
+			postOnly?: PostOnlyParams;
 			bitFlags?: number;
 			policy?: ModifyOrderPolicy;
 			maxTs?: BN;
@@ -8480,9 +8516,52 @@ export class DriftClient {
 	}
 
 	public getOracleDataForPerpMarket(marketIndex: number): OraclePriceData {
-		return this.accountSubscriber.getOraclePriceDataAndSlotForPerpMarket(
-			marketIndex
-		).data;
+		const perpMarket = this.getPerpMarketAccount(marketIndex);
+		const isMMOracleActive = !perpMarket.amm.mmOracleSlot.eq(ZERO);
+		return {
+			...this.accountSubscriber.getOraclePriceDataAndSlotForPerpMarket(
+				marketIndex
+			).data,
+			isMMOracleActive,
+		};
+	}
+
+	public getMMOracleDataForPerpMarket(marketIndex: number): OraclePriceData {
+		const perpMarket = this.getPerpMarketAccount(marketIndex);
+		const oracleData = this.getOracleDataForPerpMarket(marketIndex);
+		const stateAccountAndSlot = this.accountSubscriber.getStateAccountAndSlot();
+		const pctDiff = perpMarket.amm.mmOraclePrice
+			.sub(oracleData.price)
+			.abs()
+			.mul(PERCENTAGE_PRECISION)
+			.div(BN.max(oracleData.price, ONE));
+		if (
+			!isOracleValid(
+				perpMarket,
+				oracleData,
+				stateAccountAndSlot.data.oracleGuardRails,
+				stateAccountAndSlot.slot
+			) ||
+			perpMarket.amm.mmOraclePrice.eq(ZERO) ||
+			perpMarket.amm.mmOracleSlot < oracleData.slot ||
+			pctDiff.gt(PERCENTAGE_PRECISION.divn(100)) // 1% threshold
+		) {
+			return { ...oracleData, fetchedWithMMOracle: true };
+		} else {
+			const conf = getOracleConfidenceFromMMOracleData({
+				mmOraclePrice: perpMarket.amm.mmOraclePrice,
+				mmOracleSlot: perpMarket.amm.mmOracleSlot,
+				oraclePriceData: oracleData,
+			});
+			return {
+				price: perpMarket.amm.mmOraclePrice,
+				slot: perpMarket.amm.mmOracleSlot,
+				confidence: conf,
+				hasSufficientNumberOfDataPoints: true,
+				fetchedWithMMOracle: true,
+				isMMOracleActive: oracleData.isMMOracleActive,
+			};
+		}
 	}
 
 	public getOracleDataForSpotMarket(marketIndex: number): OraclePriceData {
@@ -9215,7 +9294,8 @@ export class DriftClient {
 	) {
 		let feeTier;
 		const userHLM =
-			(user?.isHighLeverageMode() ?? false) || enteringHighLeverageMode;
+			(user?.isHighLeverageMode('Initial') ?? false) ||
+			enteringHighLeverageMode;
 		if (user && !userHLM) {
 			feeTier = user.getUserFeeTier(marketType);
 		} else {
@@ -9802,17 +9882,20 @@ export class DriftClient {
 			  })
 			: undefined;
 
-		const ix = await this.program.instruction.disableUserHighLeverageMode({
-			accounts: {
-				state: await this.getStatePublicKey(),
-				user,
-				authority: this.wallet.publicKey,
-				highLeverageModeConfig: getHighLeverageModeConfigPublicKey(
-					this.program.programId
-				),
-			},
-			remainingAccounts,
-		});
+		const ix = await this.program.instruction.disableUserHighLeverageMode(
+			false,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user,
+					authority: this.wallet.publicKey,
+					highLeverageModeConfig: getHighLeverageModeConfigPublicKey(
+						this.program.programId
+					),
+				},
+				remainingAccounts,
+			}
+		);
 
 		return ix;
 	}
@@ -9906,6 +9989,112 @@ export class DriftClient {
 			this.opts
 		);
 		return txSig;
+	}
+
+	public async updateMmOracleNative(
+		marketIndex: number,
+		oraclePrice: BN,
+		oracleSequenceId: BN
+	): Promise<TransactionSignature> {
+		const updateMmOracleIx = await this.getUpdateMmOracleNativeIx(
+			marketIndex,
+			oraclePrice,
+			oracleSequenceId
+		);
+
+		const tx = await this.buildTransaction(updateMmOracleIx, {
+			computeUnits: 5000,
+			computeUnitsPrice: 0,
+		});
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateMmOracleNativeIx(
+		marketIndex: number,
+		oraclePrice: BN,
+		oracleSequenceId: BN
+	): Promise<TransactionInstruction> {
+		const discriminatorBuffer = createNativeInstructionDiscriminatorBuffer(0);
+		const data = Buffer.alloc(discriminatorBuffer.length + 16);
+		data.set(discriminatorBuffer, 0);
+		data.set(oraclePrice.toArrayLike(Buffer, 'le', 8), 5); // next 8 bytes
+		data.set(oracleSequenceId.toArrayLike(Buffer, 'le', 8), 13); // next 8 bytes
+
+		// Build the instruction manually
+		return new TransactionInstruction({
+			programId: this.program.programId,
+			keys: [
+				{
+					pubkey: this.getPerpMarketAccount(marketIndex).pubkey,
+					isWritable: true,
+					isSigner: false,
+				},
+				{
+					pubkey: this.wallet.publicKey,
+					isWritable: false,
+					isSigner: true,
+				},
+				{
+					pubkey: SYSVAR_CLOCK_PUBKEY,
+					isWritable: false,
+					isSigner: false,
+				},
+				{
+					pubkey: await this.getStatePublicKey(),
+					isWritable: false,
+					isSigner: false,
+				},
+			],
+			data,
+		});
+	}
+
+	public async updateAmmSpreadAdjustmentNative(
+		marketIndex: number,
+		ammSpreadAdjustment: number
+	): Promise<TransactionSignature> {
+		const updateMmOracleIx = await this.getUpdateAmmSpreadAdjustmentNativeIx(
+			marketIndex,
+			ammSpreadAdjustment
+		);
+
+		const tx = await this.buildTransaction(updateMmOracleIx, {
+			computeUnits: 1000,
+			computeUnitsPrice: 0,
+		});
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public getUpdateAmmSpreadAdjustmentNativeIx(
+		marketIndex: number,
+		ammSpreadAdjustment: number // i8
+	): TransactionInstruction {
+		const discriminatorBuffer = createNativeInstructionDiscriminatorBuffer(1);
+		const data = Buffer.alloc(discriminatorBuffer.length + 4);
+		data.set(discriminatorBuffer, 0);
+		data.writeInt8(ammSpreadAdjustment, 5); // next byte
+
+		// Build the instruction manually
+		return new TransactionInstruction({
+			programId: this.program.programId,
+			keys: [
+				{
+					pubkey: this.getPerpMarketAccount(marketIndex).pubkey,
+					isWritable: true,
+					isSigner: false,
+				},
+				{
+					pubkey: this.wallet.publicKey,
+					isWritable: false,
+					isSigner: true,
+				},
+			],
+			data,
+		});
 	}
 
 	private handleSignedTransaction(signedTxs: SignedTxData[]) {

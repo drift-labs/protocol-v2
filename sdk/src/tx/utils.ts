@@ -6,6 +6,7 @@ import {
 } from '@solana/web3.js';
 
 export const MAX_TX_BYTE_SIZE = 1232;
+export const NATIVE_INSTRUCTION_MAGIC_BYTES = [0xff, 0xff, 0xff, 0xff];
 
 export const isVersionedTransaction = (
 	tx: Transaction | VersionedTransaction
@@ -89,4 +90,13 @@ export const getSizeOfTransaction = (
 
 function getSizeOfCompressedU16(n: number) {
 	return 1 + Number(n >= 128) + Number(n >= 16384);
+}
+
+export function createNativeInstructionDiscriminatorBuffer(
+	discriminator: number
+): Uint8Array {
+	const buffer = new Uint8Array(5);
+	buffer.set(NATIVE_INSTRUCTION_MAGIC_BYTES, 0);
+	buffer.set([discriminator], 4);
+	return buffer;
 }
