@@ -3137,6 +3137,7 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
 
     let slot = Clock::get()?.slot;
     let state = &ctx.accounts.state;
+    let now = Clock::get()?.unix_timestamp;
 
     if !state.allow_settle_lp_pool() {
         msg!("settle lp pool disabled");
@@ -3147,7 +3148,7 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
     let amm_cache_key = &ctx.accounts.amm_cache.key();
     let mut amm_cache: AccountZeroCopyMut<'_, CacheInfo, _> =
         ctx.accounts.amm_cache.load_zc_mut()?;
-    let quote_market = &ctx.accounts.quote_market.load_mut()?;
+    let quote_market = &mut ctx.accounts.quote_market.load_mut()?;
     let mut quote_constituent = ctx.accounts.constituent.load_mut()?;
     let constituent_token_account = &mut ctx.accounts.constituent_quote_token_account;
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
@@ -3182,6 +3183,12 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
 
     let precision_increase = SPOT_BALANCE_PRECISION.safe_div(QUOTE_PRECISION)?;
     let mint = Some(*ctx.accounts.mint.clone());
+
+    controller::spot_balance::update_spot_market_cumulative_interest(
+        &mut *quote_market,
+        None,
+        now,
+    )?;
 
     for (_, perp_market_loader) in perp_market_map.0.iter() {
         let mut perp_market = perp_market_loader.load_mut()?;
@@ -3314,6 +3321,7 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
     }
 
     // Final validation
+    ctx.accounts.quote_token_vault.reload()?;
     math::spot_withdraw::validate_spot_market_vault_amount(
         quote_market,
         ctx.accounts.quote_token_vault.amount,
