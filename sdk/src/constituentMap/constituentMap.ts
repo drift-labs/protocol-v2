@@ -40,10 +40,12 @@ export interface ConstituentMapInterface {
 	has(key: string): boolean;
 	get(key: string): ConstituentAccount | undefined;
 	getFromSpotMarketIndex(
-		spotMarketIndex: number): ConstituentAccount | undefined;
+		spotMarketIndex: number
+	): ConstituentAccount | undefined;
 	getFromConstituentIndex(
-		constituentIndex: number): ConstituentAccount | undefined;
-		
+		constituentIndex: number
+	): ConstituentAccount | undefined;
+
 	getWithSlot(key: string): DataAndSlot<ConstituentAccount> | undefined;
 	mustGet(key: string): Promise<ConstituentAccount>;
 	mustGetWithSlot(key: string): Promise<DataAndSlot<ConstituentAccount>>;
@@ -180,12 +182,16 @@ export class ConstituentMap implements ConstituentMapInterface {
 		return this.constituentMap.get(key)?.data;
 	}
 
-	public getFromConstituentIndex(constituentIndex: number): ConstituentAccount | undefined {
+	public getFromConstituentIndex(
+		constituentIndex: number
+	): ConstituentAccount | undefined {
 		const key = this.constituentIndexToKeyMap.get(constituentIndex);
 		return key ? this.get(key) : undefined;
 	}
 
-	public getFromSpotMarketIndex(spotMarketIndex: number): ConstituentAccount | undefined {
+	public getFromSpotMarketIndex(
+		spotMarketIndex: number
+	): ConstituentAccount | undefined {
 		const key = this.spotMarketIndexToKeyMap.get(spotMarketIndex);
 		return key ? this.get(key) : undefined;
 	}
@@ -263,13 +269,7 @@ export class ConstituentMap implements ConstituentMapInterface {
 				slot,
 			});
 		}
-		this.constituentIndexToKeyMap.set(
-			constituentAccount.constituentIndex,
-			key
-		);
-		this.spotMarketIndexToKeyMap.set(
-			constituentAccount.spotMarketIndex,
-			key
-		);
+		this.constituentIndexToKeyMap.set(constituentAccount.constituentIndex, key);
+		this.spotMarketIndexToKeyMap.set(constituentAccount.spotMarketIndex, key);
 	}
 }

@@ -5870,7 +5870,7 @@ export class AdminClient extends DriftClient {
 		const depositIx = await this.getDepositToProgramVaultIx(
 			lpPoolName,
 			depositMarketIndex,
-			amountToDeposit,
+			amountToDeposit
 		);
 
 		const tx = await this.buildTransaction([depositIx]);

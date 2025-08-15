@@ -3181,7 +3181,6 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
         None,
     )?;
 
-    let precision_increase = SPOT_BALANCE_PRECISION.safe_div(QUOTE_PRECISION)?;
     let mint = Some(*ctx.accounts.mint.clone());
 
     controller::spot_balance::update_spot_market_cumulative_interest(
@@ -3284,7 +3283,11 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
         }
 
         // Update market pools
-        update_perp_market_pools(&mut perp_market, &settlement_result, precision_increase)?;
+        update_perp_market_pools_and_quote_market_balance(
+            &mut perp_market,
+            &settlement_result,
+            quote_market,
+        )?;
 
         // Calculate new quote owed amount
         let new_quote_owed = match settlement_result.direction {

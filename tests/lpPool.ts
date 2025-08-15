@@ -10,11 +10,7 @@ import {
 	PublicKey,
 	Transaction,
 } from '@solana/web3.js';
-import {
-	createTransferCheckedInstruction,
-	getAssociatedTokenAddress,
-	getMint,
-} from '@solana/spl-token';
+import { getAssociatedTokenAddress, getMint } from '@solana/spl-token';
 
 import {
 	BN,
@@ -48,7 +44,6 @@ import {
 	SpotBalanceType,
 	getTokenAmount,
 	TWO,
-	getSpotMarketVaultPublicKey,
 } from '../sdk/src';
 
 import {
@@ -860,39 +855,16 @@ describe('LP Pool', () => {
 			lpPoolKey
 		)) as LPPoolAccount;
 
-		const transferIx = createTransferCheckedInstruction(
-			await adminClient.getAssociatedTokenAccount(0),
-			adminClient.getSpotMarketAccount(0).mint,
-			await getSpotMarketVaultPublicKey(adminClient.program.programId, 0),
-			adminClient.wallet.publicKey,
-			200 * QUOTE_PRECISION.toNumber(),
-			6
-		);
-		const transferTx = new Transaction().add(transferIx);
-		await adminClient.sendTransaction(transferTx);
-
-		const perpMarket0 = adminClient.getPerpMarketAccount(0);
-		perpMarket0.amm.feePool.scaledBalance =
-			perpMarket0.amm.feePool.scaledBalance.add(
-				new BN(100).mul(SPOT_MARKET_BALANCE_PRECISION)
-			);
-		await overWritePerpMarket(
-			adminClient,
-			bankrunContextWrapper,
-			perpMarket0.pubkey,
-			perpMarket0
+		await adminClient.depositIntoPerpMarketFeePool(
+			0,
+			new BN(100).mul(QUOTE_PRECISION),
+			await adminClient.getAssociatedTokenAccount(0)
 		);
 
-		const perpMarket1 = adminClient.getPerpMarketAccount(1);
-		perpMarket1.amm.feePool.scaledBalance =
-			perpMarket1.amm.feePool.scaledBalance.add(
-				new BN(100).mul(SPOT_MARKET_BALANCE_PRECISION)
-			);
-		await overWritePerpMarket(
-			adminClient,
-			bankrunContextWrapper,
-			perpMarket1.pubkey,
-			perpMarket1
+		await adminClient.depositIntoPerpMarketFeePool(
+			1,
+			new BN(100).mul(QUOTE_PRECISION),
+			await adminClient.getAssociatedTokenAccount(0)
 		);
 
 		let constituent = (await adminClient.program.account.constituent.fetch(
@@ -1012,7 +984,9 @@ describe('LP Pool', () => {
 		console.log('feePoolBalanceBefore', feePoolBalance0.toString());
 		console.log('feePoolBalanceAfter', feePoolBalanceAfter.toString());
 		// Fee pool can cover it all in first perp market
-		assert(feePoolBalance0.sub(feePoolBalanceAfter).eq(expectedTransfer0));
+		expect(
+			feePoolBalance0.sub(feePoolBalanceAfter).toNumber()
+		).to.be.approximately(expectedTransfer0.toNumber(), 1);
 
 		// Constituent sync worked successfully
 		constituent = (await adminClient.program.account.constituent.fetch(
@@ -1138,12 +1112,13 @@ describe('LP Pool', () => {
 				new BN(constituentUSDCBalanceBefore.toString())
 			)
 		);
-		assert(
-			ammCache.cache[0].quoteOwedFromLpPool.eq(
-				expectedTransferAmount.sub(
-					new BN(constituentUSDCBalanceBefore.toString())
-				)
-			)
+		expect(
+			ammCache.cache[0].quoteOwedFromLpPool.toNumber()
+		).to.be.approximately(
+			expectedTransferAmount
+				.sub(new BN(constituentUSDCBalanceBefore.toString()))
+				.toNumber(),
+			1
 		);
 		assert(
 			adminClient
