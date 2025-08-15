@@ -82,6 +82,10 @@ describe('builder codes', () => {
 	let userUSDCAccount: PublicKey = null;
 	let userClient: TestClient;
 
+	// user without BuilderEscrow
+	let user2USDCAccount: PublicKey = null;
+	let user2Client: TestClient;
+
 	let builderEscrowMap: BuilderEscrowMap;
 	let bulkAccountLoader: TestBulkAccountLoader;
 	let bankrunContextWrapper: BankrunContextWrapper;
@@ -154,12 +158,18 @@ describe('builder codes', () => {
 		);
 		builderUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
-			usdcAmount,
+			usdcAmount.add(new BN(1000000000)),
 			bankrunContextWrapper,
 			builderClient.wallet.publicKey
 		);
 		await builderClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,
+			builderUSDCAccount.publicKey
+		);
+		// await builderClient.depositIntoSpotMarketRevenuePool(0, new BN(1000000000), builderUSDCAccount.publicKey);
+		await builderClient.depositIntoPerpMarketFeePool(
+			0,
+			new BN(1000000000),
 			builderUSDCAccount.publicKey
 		);
 
@@ -181,6 +191,30 @@ describe('builder codes', () => {
 			usdcAmount,
 			0,
 			userUSDCAccount,
+			undefined,
+			false,
+			undefined,
+			true
+		);
+
+		[user2Client, user2USDCAccount] = await createUserWithUSDCAccount(
+			bankrunContextWrapper,
+			usdcMint,
+			chProgram,
+			usdcAmount,
+			marketIndexes,
+			spotMarketIndexes,
+			oracleInfos,
+			bulkAccountLoader,
+			{
+				referrer: await builderClient.getUserAccountPublicKey(),
+				referrerStats: builderClient.getUserStatsAccountPublicKey(),
+			}
+		);
+		await user2Client.deposit(
+			usdcAmount,
+			0,
+			user2USDCAccount,
 			undefined,
 			false,
 			undefined,
@@ -213,6 +247,7 @@ describe('builder codes', () => {
 	after(async () => {
 		await builderClient.unsubscribe();
 		await userClient.unsubscribe();
+		await user2Client.unsubscribe();
 		await makerClient.unsubscribe();
 	});
 
@@ -438,7 +473,152 @@ describe('builder codes', () => {
 		);
 	});
 
-	it('user can place swift order with tpsl, builder, no delegate', async () => {
+	it('user with no BuilderEscrow can place and fill order with no builder', async () => {
+		const slot = new BN(
+			await bankrunContextWrapper.connection.toConnection().getSlot()
+		);
+
+		const marketIndex = 0;
+		const baseAssetAmount = BASE_PRECISION;
+		const takerOrderParams = getMarketOrderParams({
+			marketIndex,
+			direction: PositionDirection.LONG,
+			baseAssetAmount: baseAssetAmount.muln(2),
+			price: new BN(230).mul(PRICE_PRECISION),
+			auctionStartPrice: new BN(226).mul(PRICE_PRECISION),
+			auctionEndPrice: new BN(230).mul(PRICE_PRECISION),
+			auctionDuration: 10,
+			userOrderId: 1,
+			postOnly: PostOnlyParams.NONE,
+			marketType: MarketType.PERP,
+		}) as OrderParams;
+		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
+
+		let userOrders = user2Client.getUser().getOpenOrders();
+		assert(userOrders.length === 0);
+
+		const takerOrderParamsMessage: SignedMsgOrderParamsWithBuilderMessage = {
+			signedMsgOrderParams: takerOrderParams,
+			subAccountId: 0,
+			slot,
+			uuid,
+			takeProfitOrderParams: {
+				triggerPrice: new BN(235).mul(PRICE_PRECISION),
+				baseAssetAmount: takerOrderParams.baseAssetAmount,
+			},
+			stopLossOrderParams: {
+				triggerPrice: new BN(220).mul(PRICE_PRECISION),
+				baseAssetAmount: takerOrderParams.baseAssetAmount,
+			},
+			builderIdx: null,
+			builderFee: null,
+		};
+
+		const signedOrderParams = user2Client.signSignedMsgOrderParamsMessage(
+			takerOrderParamsMessage,
+			false,
+			true
+		);
+
+		await builderClient.placeSignedMsgTakerOrder(
+			signedOrderParams,
+			marketIndex,
+			{
+				taker: await user2Client.getUserAccountPublicKey(),
+				takerUserAccount: user2Client.getUserAccount(),
+				takerStats: user2Client.getUserStatsAccountPublicKey(),
+				signingAuthority: user2Client.wallet.publicKey,
+			},
+			undefined,
+			2
+		);
+
+		await user2Client.fetchAccounts();
+
+		userOrders = user2Client.getUser().getOpenOrders();
+		assert(userOrders.length === 3);
+		assert(userOrders[0].orderId === 1);
+		assert(userOrders[0].reduceOnly === true);
+		assert(hasBuilder(userOrders[0]) === false);
+		assert(userOrders[1].orderId === 2);
+		assert(userOrders[1].reduceOnly === true);
+		assert(hasBuilder(userOrders[1]) === false);
+		assert(userOrders[2].orderId === 3);
+		assert(userOrders[2].reduceOnly === false);
+		assert(hasBuilder(userOrders[2]) === false);
+
+		await user2Client.fetchAccounts();
+
+		// fill order with vamm
+		await builderClient.fetchAccounts();
+		const fillTx = await makerClient.fillPerpOrder(
+			await user2Client.getUserAccountPublicKey(),
+			user2Client.getUserAccount(),
+			{
+				marketIndex,
+				orderId: 3,
+			},
+			undefined,
+			{
+				referrer: await builderClient.getUserAccountPublicKey(),
+				referrerStats: builderClient.getUserStatsAccountPublicKey(),
+			},
+			undefined,
+			undefined,
+			undefined,
+			true
+		);
+		const logs = await printTxLogs(
+			bankrunContextWrapper.connection.toConnection(),
+			fillTx
+		);
+		const events = parseLogs(builderClient.program, logs);
+		assert(events[0].name === 'OrderActionRecord');
+		const fillQuoteAssetAmount = events[0].data['quoteAssetAmountFilled'] as BN;
+		const builderFee = events[0].data['builderFee'];
+		const takerFee = events[0].data['takerFee'] as BN;
+		const totalFeePaid = takerFee;
+		const referrerReward = new BN(events[0].data['referrerReward'] as number);
+		assert(builderFee == null);
+		assert(referrerReward > 0);
+
+		await user2Client.fetchAccounts();
+		userOrders = user2Client.getUser().getOpenOrders();
+		assert(userOrders.length === 2);
+
+		await bankrunContextWrapper.moveTimeForward(100);
+
+		// cancel remaining orders
+		await user2Client.cancelOrders();
+		await user2Client.fetchAccounts();
+
+		userOrders = user2Client.getUser().getOpenOrders();
+		assert(userOrders.length === 0);
+
+		const perpPos = user2Client.getUser().getPerpPosition(0);
+		assert(
+			perpPos.quoteAssetAmount.eq(fillQuoteAssetAmount.add(totalFeePaid).neg())
+		);
+
+		await builderClient.fetchAccounts();
+		let usdcPos = builderClient.getSpotPosition(0);
+		const builderUsdcBeforeSettle = getTokenAmount(
+			usdcPos.scaledBalance,
+			builderClient.getSpotMarketAccount(0),
+			usdcPos.balanceType
+		);
+
+		await builderClient.fetchAccounts();
+		usdcPos = builderClient.getSpotPosition(0);
+		const builderUsdcAfterSettle = getTokenAmount(
+			usdcPos.scaledBalance,
+			builderClient.getSpotMarketAccount(0),
+			usdcPos.balanceType
+		);
+		assert(builderUsdcAfterSettle.eq(builderUsdcBeforeSettle));
+	});
+
+	it('user can place and fill order with builder', async () => {
 		const slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);

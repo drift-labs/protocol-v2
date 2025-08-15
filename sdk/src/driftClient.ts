@@ -7645,22 +7645,24 @@ export class DriftClient {
 			const builderEscrow = await builderEscrowMap.mustGet(
 				settleeUserAccount.authority.toBase58()
 			);
-			const builders = new Map<number, PublicKey>();
-			for (const order of builderEscrow.orders) {
-				if (!isBuilderOrderAvailable(order)) {
-					if (!builders.has(order.builderIdx)) {
-						builders.set(
-							order.builderIdx,
-							builderEscrow.approvedBuilders[order.builderIdx].authority
-						);
+			if (builderEscrow) {
+				const builders = new Map<number, PublicKey>();
+				for (const order of builderEscrow.orders) {
+					if (!isBuilderOrderAvailable(order)) {
+						if (!builders.has(order.builderIdx)) {
+							builders.set(
+								order.builderIdx,
+								builderEscrow.approvedBuilders[order.builderIdx].authority
+							);
+						}
 					}
 				}
-			}
-			if (builders.size > 0) {
-				this.addBuilderToRemainingAccounts(
-					Array.from(builders.values()),
-					remainingAccounts
-				);
+				if (builders.size > 0) {
+					this.addBuilderToRemainingAccounts(
+						Array.from(builders.values()),
+						remainingAccounts
+					);
+				}
 			}
 		}
 
