@@ -22,7 +22,13 @@ import {
 	getSpotMarketPublicKey,
 } from '../addresses/pda';
 import { Context, PublicKey } from '@solana/web3.js';
-import { Commitment } from 'gill';
+import {
+	Commitment,
+	SolanaRpcSubscriptionsApi,
+	Rpc,
+	RpcSubscriptions,
+	createSolanaClient,
+} from 'gill';
 import { OracleInfo, OraclePriceData } from '../oracles/types';
 import { OracleClientCache } from '../oracles/oracleClientCache';
 import { QUOTE_ORACLE_PRICE_DATA } from '../oracles/quoteAssetOracleClient';
@@ -86,6 +92,10 @@ export class WebSocketDriftClientAccountSubscriberV2
 	protected subscriptionPromise: Promise<boolean>;
 	protected subscriptionPromiseResolver: (val: boolean) => void;
 
+	private rpc: Rpc<any>;
+	private rpcSubscriptions: RpcSubscriptions<SolanaRpcSubscriptionsApi> &
+		string;
+
 	public constructor(
 		program: Program,
 		perpMarketIndexes: number[],
@@ -108,6 +118,12 @@ export class WebSocketDriftClientAccountSubscriberV2
 		this.resubOpts = resubOpts;
 		this.commitment = commitment;
 		this.skipInitialData = skipInitialData ?? false;
+
+		const { rpc, rpcSubscriptions } = createSolanaClient({
+			urlOrMoniker: this.program.provider.connection.rpcEndpoint,
+		});
+		this.rpc = rpc;
+		this.rpcSubscriptions = rpcSubscriptions;
 	}
 
 	public async subscribe(): Promise<boolean> {
@@ -271,12 +287,17 @@ export class WebSocketDriftClientAccountSubscriberV2
 					statePublicKey,
 					undefined,
 					undefined,
-					this.commitment as Commitment
+					this.commitment as Commitment,
+					this.rpcSubscriptions,
+					this.rpc
 				);
-				this.stateAccountSubscriber.subscribe((data: StateAccount) => {
-					this.eventEmitter.emit('stateAccountUpdate', data);
-					this.eventEmitter.emit('update');
-				});
+				await Promise.all([
+					this.stateAccountSubscriber.fetch(),
+					this.stateAccountSubscriber.subscribe((data: StateAccount) => {
+						this.eventEmitter.emit('stateAccountUpdate', data);
+						this.eventEmitter.emit('update');
+					}),
+				]);
 			})(),
 			(async () => {
 				await this.setInitialData();
@@ -287,7 +308,6 @@ export class WebSocketDriftClientAccountSubscriberV2
 					subscribeToOraclesEndTime - subscribeToOraclesStartTime;
 				return duration;
 			})(),
-			this.stateAccountSubscriber.fetch(),
 		]);
 
 		const initialPerpMarketDataFromLatestData = new Map(
@@ -476,7 +496,9 @@ export class WebSocketDriftClientAccountSubscriberV2
 				return client.getOraclePriceDataFromBuffer(buffer);
 			},
 			this.resubOpts,
-			this.commitment
+			this.commitment,
+			this.rpcSubscriptions,
+			this.rpc
 		);
 		const initialOraclePriceData = this.initialOraclePriceData?.get(oracleId);
 		if (initialOraclePriceData) {
