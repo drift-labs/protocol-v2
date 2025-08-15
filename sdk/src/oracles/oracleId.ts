@@ -24,9 +24,43 @@ export function getOracleSourceNum(source: OracleSource): number {
 	throw new Error('Invalid oracle source');
 }
 
+export function getOracleSourceFromNum(sourceNum: number): OracleSource {
+	if (sourceNum === OracleSourceNum.PYTH) return 'pyth';
+	if (sourceNum === OracleSourceNum.PYTH_1K) return 'pyth1K';
+	if (sourceNum === OracleSourceNum.PYTH_1M) return 'pyth1M';
+	if (sourceNum === OracleSourceNum.PYTH_PULL) return 'pythPull';
+	if (sourceNum === OracleSourceNum.PYTH_1K_PULL) return 'pyth1KPull';
+	if (sourceNum === OracleSourceNum.PYTH_1M_PULL) return 'pyth1MPull';
+	if (sourceNum === OracleSourceNum.SWITCHBOARD) return 'switchboard';
+	if (sourceNum === OracleSourceNum.QUOTE_ASSET) return 'quoteAsset';
+	if (sourceNum === OracleSourceNum.PYTH_STABLE_COIN) return 'pythStableCoin';
+	if (sourceNum === OracleSourceNum.PYTH_STABLE_COIN_PULL)
+		return 'pythStableCoinPull';
+	if (sourceNum === OracleSourceNum.PRELAUNCH) return 'prelaunch';
+	if (sourceNum === OracleSourceNum.SWITCHBOARD_ON_DEMAND)
+		return 'switchboardOnDemand';
+	if (sourceNum === OracleSourceNum.PYTH_LAZER) return 'pythLazer';
+	if (sourceNum === OracleSourceNum.PYTH_LAZER_1K) return 'pythLazer1K';
+	if (sourceNum === OracleSourceNum.PYTH_LAZER_1M) return 'pythLazer1M';
+	if (sourceNum === OracleSourceNum.PYTH_LAZER_STABLE_COIN)
+		return 'pythLazerStableCoin';
+	throw new Error('Invalid oracle source');
+}
+
 export function getOracleId(
 	publicKey: PublicKey,
 	source: OracleSource
 ): string {
 	return `${publicKey.toBase58()}-${getOracleSourceNum(source)}`;
+}
+
+export function getPublicKeyAndSourceFromOracleId(oracleId: string): {
+	publicKey: PublicKey;
+	source: OracleSource;
+} {
+	const [publicKey, source] = oracleId.split('-');
+	return {
+		publicKey: new PublicKey(publicKey),
+		source: getOracleSourceFromNum(parseInt(source)),
+	};
 }
