@@ -382,7 +382,6 @@ impl User {
         self.liquidation_margin_freed = 0;
         self.last_active_slot = slot;
 
-
         let liquidation_id = if self.has_isolated_position_being_liquidated() {
             self.next_liquidation_id.safe_sub(1)?
         } else {
@@ -410,15 +409,22 @@ impl User {
     }
 
     pub fn has_isolated_position_being_liquidated(&self) -> bool {
-        self.perp_positions.iter().any(|position| position.is_isolated() && position.is_isolated_position_being_liquidated())
+        self.perp_positions.iter().any(|position| {
+            position.is_isolated() && position.is_isolated_position_being_liquidated()
+        })
     }
 
-    pub fn enter_isolated_position_liquidation(&mut self, perp_market_index: u16) -> DriftResult<u16> {
+    pub fn enter_isolated_position_liquidation(
+        &mut self,
+        perp_market_index: u16,
+    ) -> DriftResult<u16> {
         if self.is_isolated_position_being_liquidated(perp_market_index)? {
             return self.next_liquidation_id.safe_sub(1);
         }
 
-        let liquidation_id = if self.is_cross_margin_being_liquidated() || self.has_isolated_position_being_liquidated() {
+        let liquidation_id = if self.is_cross_margin_being_liquidated()
+            || self.has_isolated_position_being_liquidated()
+        {
             self.next_liquidation_id.safe_sub(1)?
         } else {
             get_then_update_id!(self, next_liquidation_id)
@@ -427,7 +433,7 @@ impl User {
         let perp_position = self.force_get_isolated_perp_position_mut(perp_market_index)?;
 
         perp_position.position_flag |= PositionFlag::BeingLiquidated as u8;
-    
+
         Ok(liquidation_id)
     }
 
@@ -437,7 +443,10 @@ impl User {
         Ok(())
     }
 
-    pub fn is_isolated_position_being_liquidated(&self, perp_market_index: u16) -> DriftResult<bool> {
+    pub fn is_isolated_position_being_liquidated(
+        &self,
+        perp_market_index: u16,
+    ) -> DriftResult<bool> {
         let perp_position = self.get_isolated_perp_position(perp_market_index)?;
         Ok(perp_position.is_isolated_position_being_liquidated())
     }
@@ -715,8 +724,7 @@ impl User {
         isolated_perp_position_market_index: u16,
     ) -> DriftResult<bool> {
         let strict = margin_requirement_type == MarginRequirementType::Initial;
-        let context = MarginContext::standard(margin_requirement_type)
-            .strict(strict);
+        let context = MarginContext::standard(margin_requirement_type).strict(strict);
 
         let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
             self,
@@ -726,7 +734,8 @@ impl User {
             context,
         )?;
 
-        let isolated_position_margin_calculation = calculation.get_isolated_position_margin_calculation(isolated_perp_position_market_index)?;
+        let isolated_position_margin_calculation = calculation
+            .get_isolated_position_margin_calculation(isolated_perp_position_market_index)?;
 
         validate!(
             calculation.all_liability_oracles_valid,
@@ -1255,15 +1264,24 @@ impl PerpPosition {
     }
 
     pub fn is_isolated(&self) -> bool {
-        self.position_flag & PositionFlag::IsolatedPosition as u8 == PositionFlag::IsolatedPosition as u8
+        self.position_flag & PositionFlag::IsolatedPosition as u8
+            == PositionFlag::IsolatedPosition as u8
     }
 
-    pub fn get_isolated_position_token_amount(&self, spot_market: &SpotMarket) -> DriftResult<u128> {
-        get_token_amount(self.isolated_position_scaled_balance as u128, spot_market, &SpotBalanceType::Deposit)
+    pub fn get_isolated_position_token_amount(
+        &self,
+        spot_market: &SpotMarket,
+    ) -> DriftResult<u128> {
+        get_token_amount(
+            self.isolated_position_scaled_balance as u128,
+            spot_market,
+            &SpotBalanceType::Deposit,
+        )
     }
 
     pub fn is_isolated_position_being_liquidated(&self) -> bool {
-        self.position_flag & (PositionFlag::BeingLiquidated as u8 | PositionFlag::Bankruptcy as u8) != 0
+        self.position_flag & (PositionFlag::BeingLiquidated as u8 | PositionFlag::Bankruptcy as u8)
+            != 0
     }
 }
 
@@ -1281,14 +1299,16 @@ impl SpotBalance for PerpPosition {
     }
 
     fn increase_balance(&mut self, delta: u128) -> DriftResult {
-        self.isolated_position_scaled_balance =
-            self.isolated_position_scaled_balance.safe_add(delta.cast::<u64>()?)?;
+        self.isolated_position_scaled_balance = self
+            .isolated_position_scaled_balance
+            .safe_add(delta.cast::<u64>()?)?;
         Ok(())
     }
 
     fn decrease_balance(&mut self, delta: u128) -> DriftResult {
-        self.isolated_position_scaled_balance =
-            self.isolated_position_scaled_balance.safe_sub(delta.cast::<u64>()?)?;
+        self.isolated_position_scaled_balance = self
+            .isolated_position_scaled_balance
+            .safe_sub(delta.cast::<u64>()?)?;
         Ok(())
     }
 

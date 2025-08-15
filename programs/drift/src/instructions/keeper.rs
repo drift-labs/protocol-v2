@@ -2708,14 +2708,13 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
     let custom_margin_ratio_before = user.max_margin_ratio;
     user.max_margin_ratio = 0;
 
-    let margin_buffer= MARGIN_PRECISION / 100; // 1% buffer
+    let margin_buffer = MARGIN_PRECISION / 100; // 1% buffer
     let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
         &user,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
-        MarginContext::standard(MarginRequirementType::Initial)
-            .margin_buffer(margin_buffer),
+        MarginContext::standard(MarginRequirementType::Initial).margin_buffer(margin_buffer),
     )?;
 
     let meets_margin_calc = margin_calc.meets_margin_requirement_with_buffer();

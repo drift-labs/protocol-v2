@@ -11,8 +11,7 @@ use crate::controller::funding::settle_funding_payment;
 use crate::controller::position;
 use crate::controller::position::{
     add_new_position, decrease_open_bids_and_asks, get_position_index, increase_open_bids_and_asks,
-    update_position_and_market, update_quote_asset_amount,
-    PositionDirection,
+    update_position_and_market, update_quote_asset_amount, PositionDirection,
 };
 use crate::controller::spot_balance::{
     update_spot_balances, update_spot_market_cumulative_interest,
@@ -522,7 +521,12 @@ pub fn cancel_orders(
     skip_isolated_positions: bool,
 ) -> DriftResult<Vec<u32>> {
     let mut canceled_order_ids: Vec<u32> = vec![];
-    let isolated_position_market_indexes = user.perp_positions.iter().filter(|position| position.is_isolated()).map(|position| position.market_index).collect::<Vec<u16>>();
+    let isolated_position_market_indexes = user
+        .perp_positions
+        .iter()
+        .filter(|position| position.is_isolated())
+        .map(|position| position.market_index)
+        .collect::<Vec<u16>>();
     for order_index in 0..user.orders.len() {
         if user.orders[order_index].status != OrderStatus::Open {
             continue;
@@ -536,7 +540,9 @@ pub fn cancel_orders(
             if user.orders[order_index].market_index != market_index {
                 continue;
             }
-        } else if skip_isolated_positions && isolated_position_market_indexes.contains(&user.orders[order_index].market_index) {
+        } else if skip_isolated_positions
+            && isolated_position_market_indexes.contains(&user.orders[order_index].market_index)
+        {
             continue;
         }
 
@@ -1945,11 +1951,20 @@ fn fulfill_perp_order(
         )?;
 
         if !taker_margin_calculation.meets_margin_requirement() {
-            let (margin_requirement, total_collateral) = if taker_margin_calculation.has_isolated_position_margin_calculation(market_index) {
-                let isolated_position_margin_calculation = taker_margin_calculation.get_isolated_position_margin_calculation(market_index)?;
-                (isolated_position_margin_calculation.margin_requirement, isolated_position_margin_calculation.total_collateral)
+            let (margin_requirement, total_collateral) = if taker_margin_calculation
+                .has_isolated_position_margin_calculation(market_index)
+            {
+                let isolated_position_margin_calculation = taker_margin_calculation
+                    .get_isolated_position_margin_calculation(market_index)?;
+                (
+                    isolated_position_margin_calculation.margin_requirement,
+                    isolated_position_margin_calculation.total_collateral,
+                )
             } else {
-                (taker_margin_calculation.margin_requirement, taker_margin_calculation.total_collateral)
+                (
+                    taker_margin_calculation.margin_requirement,
+                    taker_margin_calculation.total_collateral,
+                )
             };
 
             msg!(
@@ -2012,11 +2027,20 @@ fn fulfill_perp_order(
         }
 
         if !maker_margin_calculation.meets_margin_requirement() {
-            let (margin_requirement, total_collateral) = if maker_margin_calculation.has_isolated_position_margin_calculation(market_index) {
-                let isolated_position_margin_calculation = maker_margin_calculation.get_isolated_position_margin_calculation(market_index)?;
-                (isolated_position_margin_calculation.margin_requirement, isolated_position_margin_calculation.total_collateral)
+            let (margin_requirement, total_collateral) = if maker_margin_calculation
+                .has_isolated_position_margin_calculation(market_index)
+            {
+                let isolated_position_margin_calculation = maker_margin_calculation
+                    .get_isolated_position_margin_calculation(market_index)?;
+                (
+                    isolated_position_margin_calculation.margin_requirement,
+                    isolated_position_margin_calculation.total_collateral,
+                )
             } else {
-                (maker_margin_calculation.margin_requirement, maker_margin_calculation.total_collateral)
+                (
+                    maker_margin_calculation.margin_requirement,
+                    maker_margin_calculation.total_collateral,
+                )
             };
 
             msg!(
@@ -3202,7 +3226,8 @@ pub fn force_cancel_orders(
         ErrorCode::SufficientCollateral
     )?;
 
-    let cross_margin_meets_initial_margin_requirement = margin_calc.cross_margin_meets_margin_requirement();
+    let cross_margin_meets_initial_margin_requirement =
+        margin_calc.cross_margin_meets_margin_requirement();
 
     let mut total_fee = 0_u64;
 
@@ -3253,7 +3278,8 @@ pub fn force_cancel_orders(
                         continue;
                     }
                 } else {
-                    let isolated_position_meets_margin_requirement = margin_calc.isolated_position_meets_margin_requirement(market_index)?;
+                    let isolated_position_meets_margin_requirement =
+                        margin_calc.isolated_position_meets_margin_requirement(market_index)?;
                     if isolated_position_meets_margin_requirement {
                         continue;
                     }

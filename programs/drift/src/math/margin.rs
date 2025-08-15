@@ -525,20 +525,16 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             0,
         )?;
 
-        let (
-            perp_margin_requirement,
-            weighted_pnl,
-            worst_case_liability_value,
-            base_asset_value,
-        ) = calculate_perp_position_value_and_pnl(
-            market_position,
-            market,
-            oracle_price_data,
-            &strict_quote_price,
-            context.margin_type,
-            user_custom_margin_ratio,
-            user_high_leverage_mode,
-        )?;
+        let (perp_margin_requirement, weighted_pnl, worst_case_liability_value, base_asset_value) =
+            calculate_perp_position_value_and_pnl(
+                market_position,
+                market,
+                oracle_price_data,
+                &strict_quote_price,
+                context.margin_type,
+                user_custom_margin_ratio,
+                user_high_leverage_mode,
+            )?;
 
         calculation.update_fuel_perp_bonus(
             market,
@@ -556,7 +552,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &quote_spot_market,
                 &SpotBalanceType::Deposit,
             )?;
-        
+
             let quote_token_value = get_strict_token_value(
                 quote_token_amount.cast::<i128>()?,
                 quote_spot_market.decimals,
@@ -579,7 +575,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 worst_case_liability_value,
                 MarketIdentifier::perp(market.market_index),
             )?;
-    
+
             calculation.add_total_collateral(weighted_pnl)?;
         }
 
@@ -948,9 +944,14 @@ pub fn calculate_user_equity(
                 is_oracle_valid_for_action(quote_oracle_validity, Some(DriftAction::MarginCalc))?;
 
             if market_position.is_isolated() {
-                let quote_token_amount = market_position.get_isolated_position_token_amount(&quote_spot_market)?;
+                let quote_token_amount =
+                    market_position.get_isolated_position_token_amount(&quote_spot_market)?;
 
-                let token_value = get_token_value(quote_token_amount.cast()?, quote_spot_market.decimals, quote_oracle_price_data.price)?;
+                let token_value = get_token_value(
+                    quote_token_amount.cast()?,
+                    quote_spot_market.decimals,
+                    quote_oracle_price_data.price,
+                )?;
 
                 net_usd_value = net_usd_value.safe_add(token_value)?;
             }

@@ -2601,7 +2601,7 @@ pub mod delisting_test {
                         &strict_quote_price,
                         MarginRequirementType::Initial,
                         0,
-                        false
+                        false,
                     )
                     .unwrap();
 

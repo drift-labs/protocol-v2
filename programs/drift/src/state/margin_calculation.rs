@@ -198,9 +198,9 @@ pub struct IsolatedPositionMarginCalculation {
 }
 
 impl IsolatedPositionMarginCalculation {
-
     pub fn get_total_collateral_plus_buffer(&self) -> i128 {
-        self.total_collateral.saturating_add(self.total_collateral_buffer)
+        self.total_collateral
+            .saturating_add(self.total_collateral_buffer)
     }
 
     pub fn meets_margin_requirement(&self) -> bool {
@@ -212,7 +212,11 @@ impl IsolatedPositionMarginCalculation {
     }
 
     pub fn margin_shortage(&self) -> DriftResult<u128> {
-        Ok(self.margin_requirement_plus_buffer.cast::<i128>()?.safe_sub(self.get_total_collateral_plus_buffer())?.unsigned_abs())
+        Ok(self
+            .margin_requirement_plus_buffer
+            .cast::<i128>()?
+            .safe_sub(self.get_total_collateral_plus_buffer())?
+            .unsigned_abs())
     }
 }
 
@@ -283,9 +287,16 @@ impl MarginCalculation {
         Ok(())
     }
 
-    pub fn add_isolated_position_margin_calculation(&mut self, market_index: u16, deposit_value: i128, pnl: i128, liability_value: u128, margin_requirement: u128) -> DriftResult {
+    pub fn add_isolated_position_margin_calculation(
+        &mut self,
+        market_index: u16,
+        deposit_value: i128,
+        pnl: i128,
+        liability_value: u128,
+        margin_requirement: u128,
+    ) -> DriftResult {
         let total_collateral = deposit_value.safe_add(pnl)?;
-        
+
         let total_collateral_buffer = if self.context.margin_buffer > 0 && pnl < 0 {
             pnl.safe_mul(self.context.margin_buffer.cast::<i128>()?)? / MARGIN_PRECISION_I128
         } else {
@@ -293,7 +304,9 @@ impl MarginCalculation {
         };
 
         let margin_requirement_plus_buffer = if self.context.margin_buffer > 0 {
-            margin_requirement.safe_add(liability_value.safe_mul(self.context.margin_buffer)? / MARGIN_PRECISION_U128)?
+            margin_requirement.safe_add(
+                liability_value.safe_mul(self.context.margin_buffer)? / MARGIN_PRECISION_U128,
+            )?
         } else {
             0
         };
@@ -305,13 +318,14 @@ impl MarginCalculation {
             margin_requirement_plus_buffer,
         };
 
-        self.isolated_position_margin_calculation.insert(market_index, isolated_position_margin_calculation);
+        self.isolated_position_margin_calculation
+            .insert(market_index, isolated_position_margin_calculation);
 
         if let Some(market_to_track) = self.market_to_track_margin_requirement() {
             if market_to_track == MarketIdentifier::perp(market_index) {
                 self.tracked_market_margin_requirement = self
                     .tracked_market_margin_requirement
-                    .safe_add(margin_requirement_plus_buffer)?;
+                    .safe_add(margin_requirement)?;
             }
         }
 
@@ -402,7 +416,8 @@ impl MarginCalculation {
             return false;
         }
 
-        for (_, isolated_position_margin_calculation) in &self.isolated_position_margin_calculation {
+        for (_, isolated_position_margin_calculation) in &self.isolated_position_margin_calculation
+        {
             if !isolated_position_margin_calculation.meets_margin_requirement() {
                 return false;
             }
@@ -412,18 +427,20 @@ impl MarginCalculation {
     }
 
     pub fn meets_margin_requirement_with_buffer(&self) -> bool {
-        let cross_margin_meets_margin_requirement = self.cross_margin_meets_margin_requirement_with_buffer();
+        let cross_margin_meets_margin_requirement =
+            self.cross_margin_meets_margin_requirement_with_buffer();
 
         if !cross_margin_meets_margin_requirement {
             return false;
         }
 
-        for (_, isolated_position_margin_calculation) in &self.isolated_position_margin_calculation {
+        for (_, isolated_position_margin_calculation) in &self.isolated_position_margin_calculation
+        {
             if !isolated_position_margin_calculation.meets_margin_requirement_with_buffer() {
                 return false;
             }
         }
-        
+
         true
     }
 
@@ -438,13 +455,27 @@ impl MarginCalculation {
     }
 
     #[inline(always)]
-    pub fn isolated_position_meets_margin_requirement(&self, market_index: u16) -> DriftResult<bool> {
-        Ok(self.isolated_position_margin_calculation.get(&market_index).safe_unwrap()?.meets_margin_requirement())
+    pub fn isolated_position_meets_margin_requirement(
+        &self,
+        market_index: u16,
+    ) -> DriftResult<bool> {
+        Ok(self
+            .isolated_position_margin_calculation
+            .get(&market_index)
+            .safe_unwrap()?
+            .meets_margin_requirement())
     }
 
     #[inline(always)]
-    pub fn isolated_position_meets_margin_requirement_with_buffer(&self, market_index: u16) -> DriftResult<bool> {
-        Ok(self.isolated_position_margin_calculation.get(&market_index).safe_unwrap()?.meets_margin_requirement_with_buffer())
+    pub fn isolated_position_meets_margin_requirement_with_buffer(
+        &self,
+        market_index: u16,
+    ) -> DriftResult<bool> {
+        Ok(self
+            .isolated_position_margin_calculation
+            .get(&market_index)
+            .safe_unwrap()?
+            .meets_margin_requirement_with_buffer())
     }
 
     pub fn cross_margin_can_exit_liquidation(&self) -> DriftResult<bool> {
@@ -461,8 +492,12 @@ impl MarginCalculation {
             msg!("liquidation mode not enabled");
             return Err(ErrorCode::InvalidMarginCalculation);
         }
-        
-        Ok(self.isolated_position_margin_calculation.get(&market_index).safe_unwrap()?.meets_margin_requirement_with_buffer())
+
+        Ok(self
+            .isolated_position_margin_calculation
+            .get(&market_index)
+            .safe_unwrap()?
+            .meets_margin_requirement_with_buffer())
     }
 
     pub fn cross_margin_margin_shortage(&self) -> DriftResult<u128> {
@@ -484,7 +519,10 @@ impl MarginCalculation {
             return Err(ErrorCode::InvalidMarginCalculation);
         }
 
-        self.isolated_position_margin_calculation.get(&market_index).safe_unwrap()?.margin_shortage()
+        self.isolated_position_margin_calculation
+            .get(&market_index)
+            .safe_unwrap()?
+            .margin_shortage()
     }
 
     pub fn tracked_market_margin_shortage(&self, margin_shortage: u128) -> DriftResult<u128> {
@@ -504,9 +542,7 @@ impl MarginCalculation {
                 Some(isolated_position_margin_calculation) => {
                     isolated_position_margin_calculation.margin_requirement
                 }
-                None => {
-                    self.margin_requirement
-                }
+                None => self.margin_requirement,
             }
         } else {
             self.margin_requirement
@@ -529,9 +565,17 @@ impl MarginCalculation {
     }
 
     pub fn get_isolated_position_free_collateral(&self, market_index: u16) -> DriftResult<u128> {
-        let isolated_position_margin_calculation = self.isolated_position_margin_calculation.get(&market_index).safe_unwrap()?;
-        isolated_position_margin_calculation.total_collateral
-            .safe_sub(isolated_position_margin_calculation.margin_requirement.cast::<i128>()?)?
+        let isolated_position_margin_calculation = self
+            .isolated_position_margin_calculation
+            .get(&market_index)
+            .safe_unwrap()?;
+        isolated_position_margin_calculation
+            .total_collateral
+            .safe_sub(
+                isolated_position_margin_calculation
+                    .margin_requirement
+                    .cast::<i128>()?,
+            )?
             .max(0)
             .cast()
     }
@@ -639,8 +683,13 @@ impl MarginCalculation {
         Ok(())
     }
 
-    pub fn get_isolated_position_margin_calculation(&self, market_index: u16) -> DriftResult<&IsolatedPositionMarginCalculation> {
-        if let Some(isolated_position_margin_calculation) = self.isolated_position_margin_calculation.get(&market_index) {
+    pub fn get_isolated_position_margin_calculation(
+        &self,
+        market_index: u16,
+    ) -> DriftResult<&IsolatedPositionMarginCalculation> {
+        if let Some(isolated_position_margin_calculation) =
+            self.isolated_position_margin_calculation.get(&market_index)
+        {
             Ok(isolated_position_margin_calculation)
         } else {
             Err(ErrorCode::InvalidMarginCalculation)
@@ -648,6 +697,7 @@ impl MarginCalculation {
     }
 
     pub fn has_isolated_position_margin_calculation(&self, market_index: u16) -> bool {
-        self.isolated_position_margin_calculation.contains_key(&market_index)
+        self.isolated_position_margin_calculation
+            .contains_key(&market_index)
     }
 }

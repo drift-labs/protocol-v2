@@ -42,5 +42,7 @@ pub fn is_user_isolated_position_bankrupt(user: &User, market_index: u16) -> Dri
         return Ok(false);
     }
 
-    return Ok(perp_position.base_asset_amount == 0 && perp_position.quote_asset_amount < 0 && !perp_position.has_open_order());
+    return Ok(perp_position.base_asset_amount == 0
+        && perp_position.quote_asset_amount < 0
+        && !perp_position.has_open_order());
 }

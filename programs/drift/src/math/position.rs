@@ -199,8 +199,5 @@ pub fn get_new_position_amounts(
         .base_asset_amount
         .safe_add(delta.base_asset_amount)?;
 
-    Ok((
-        new_base_asset_amount,
-        new_quote_asset_amount,
-    ))
+    Ok((new_base_asset_amount, new_quote_asset_amount))
 }

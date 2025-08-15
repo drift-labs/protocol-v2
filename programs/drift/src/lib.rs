@@ -174,7 +174,12 @@ pub mod drift {
         perp_market_index: u16,
         amount: u64,
     ) -> Result<()> {
-        handle_deposit_into_isolated_perp_position(ctx, spot_market_index, perp_market_index, amount)
+        handle_deposit_into_isolated_perp_position(
+            ctx,
+            spot_market_index,
+            perp_market_index,
+            amount,
+        )
     }
 
     pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
@@ -183,7 +188,12 @@ pub mod drift {
         perp_market_index: u16,
         amount: i64,
     ) -> Result<()> {
-        handle_transfer_isolated_perp_position_deposit(ctx, spot_market_index, perp_market_index, amount)
+        handle_transfer_isolated_perp_position_deposit(
+            ctx,
+            spot_market_index,
+            perp_market_index,
+            amount,
+        )
     }
 
     pub fn withdraw_from_isolated_perp_position<'c: 'info, 'info>(
@@ -192,7 +202,12 @@ pub mod drift {
         perp_market_index: u16,
         amount: u64,
     ) -> Result<()> {
-        handle_withdraw_from_isolated_perp_position(ctx, spot_market_index, perp_market_index, amount)
+        handle_withdraw_from_isolated_perp_position(
+            ctx,
+            spot_market_index,
+            perp_market_index,
+            amount,
+        )
     }
 
     pub fn place_perp_order<'c: 'info, 'info>(

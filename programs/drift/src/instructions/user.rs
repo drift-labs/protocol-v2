@@ -1950,7 +1950,6 @@ pub fn handle_deposit_into_isolated_perp_position<'c: 'info, 'info>(
         spot_market_index
     )?;
 
-
     let mut spot_market = spot_market_map.get_ref_mut(&spot_market_index)?;
     let oracle_price_data = *oracle_map.get_price_data(&spot_market.oracle_id())?;
 
@@ -2169,12 +2168,7 @@ pub fn handle_transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
             now,
         )?;
 
-        validate_spot_margin_trading(
-            user,
-            &perp_market_map,
-            &spot_market_map,
-            &mut oracle_map,
-        )?;
+        validate_spot_margin_trading(user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
 
         if user.is_cross_margin_being_liquidated() {
             user.exit_cross_margin_liquidation();
@@ -2190,7 +2184,7 @@ pub fn handle_transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
                 perp_market_index,
                 state.liquidation_margin_buffer_ratio,
             )?;
-    
+
             if !is_being_liquidated {
                 user.exit_isolated_position_liquidation(perp_market_index)?;
             }
@@ -2198,7 +2192,9 @@ pub fn handle_transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
     } else {
         let mut spot_market = spot_market_map.get_ref_mut(&spot_market_index)?;
 
-        let isolated_perp_position_token_amount = user.force_get_isolated_perp_position_mut(perp_market_index)?.get_isolated_position_token_amount(&spot_market)?;
+        let isolated_perp_position_token_amount = user
+            .force_get_isolated_perp_position_mut(perp_market_index)?
+            .get_isolated_position_token_amount(&spot_market)?;
 
         validate!(
             amount.unsigned_abs() as u128 <= isolated_perp_position_token_amount,
@@ -2248,14 +2244,12 @@ pub fn handle_transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
                 &mut oracle_map,
                 state.liquidation_margin_buffer_ratio,
             )?;
-    
+
             if !is_being_liquidated {
                 user.exit_cross_margin_liquidation();
             }
         }
     }
-
-
 
     user.update_last_active_slot(slot);
 
@@ -2328,9 +2322,11 @@ pub fn handle_withdraw_from_isolated_perp_position<'c: 'info, 'info>(
             spot_market.get_precision().cast()?,
         )?;
 
-        let isolated_perp_position = user.force_get_isolated_perp_position_mut(perp_market_index)?;
+        let isolated_perp_position =
+            user.force_get_isolated_perp_position_mut(perp_market_index)?;
 
-        let isolated_position_token_amount = isolated_perp_position.get_isolated_position_token_amount(spot_market)?;
+        let isolated_position_token_amount =
+            isolated_perp_position.get_isolated_position_token_amount(spot_market)?;
 
         validate!(
             amount as u128 <= isolated_position_token_amount,
@@ -3535,7 +3531,10 @@ pub fn handle_update_user_reduce_only(
 ) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
 
-    validate!(!user.is_cross_margin_being_liquidated(), ErrorCode::LiquidationsOngoing)?;
+    validate!(
+        !user.is_cross_margin_being_liquidated(),
+        ErrorCode::LiquidationsOngoing
+    )?;
 
     user.update_reduce_only_status(reduce_only)?;
     Ok(())
@@ -3548,7 +3547,10 @@ pub fn handle_update_user_advanced_lp(
 ) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
 
-    validate!(!user.is_cross_margin_being_liquidated(), ErrorCode::LiquidationsOngoing)?;
+    validate!(
+        !user.is_cross_margin_being_liquidated(),
+        ErrorCode::LiquidationsOngoing
+    )?;
 
     user.update_advanced_lp_status(advanced_lp)?;
     Ok(())
@@ -3561,7 +3563,10 @@ pub fn handle_update_user_protected_maker_orders(
 ) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
 
-    validate!(!user.is_cross_margin_being_liquidated(), ErrorCode::LiquidationsOngoing)?;
+    validate!(
+        !user.is_cross_margin_being_liquidated(),
+        ErrorCode::LiquidationsOngoing
+    )?;
 
     validate!(
         protected_maker_orders != user.is_protected_maker(),

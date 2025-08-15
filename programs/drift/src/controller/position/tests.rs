@@ -1,9 +1,7 @@
 use crate::controller::amm::{
     calculate_base_swap_output_with_spread, move_price, recenter_perp_market_amm, swap_base_asset,
 };
-use crate::controller::position::{
-    update_position_and_market, PositionDelta,
-};
+use crate::controller::position::{update_position_and_market, PositionDelta};
 use crate::controller::repeg::_update_amm;
 
 use crate::math::amm::calculate_market_open_bids_asks;
@@ -40,7 +38,6 @@ use anchor_lang::prelude::{AccountLoader, Clock};
 use anchor_lang::Owner;
 use solana_program::pubkey::Pubkey;
 use std::str::FromStr;
-
 
 #[test]
 fn amm_pool_balance_liq_fees_example() {
