@@ -13,3 +13,4 @@ sdk/src/**/*.js.map
 migrations
 /**/*.env
 vendor
+.env.local

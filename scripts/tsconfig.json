@@ -1,0 +1,17 @@
+{
+	"extends": "../sdk/tsconfig.json",
+	"compilerOptions": {
+		"outDir": "./dist",
+		"rootDir": "..",
+		"baseUrl": ".",
+		"paths": {
+			"@solana/web3.js": ["../sdk/node_modules/@solana/web3.js"],
+			"@coral-xyz/anchor": ["../sdk/node_modules/@coral-xyz/anchor"]
+		},
+		"skipLibCheck": true,
+		"strict": false,
+		"noImplicitAny": false
+	},
+	"include": ["./**/*.ts"],
+	"exclude": ["node_modules", "dist"]
+}
