@@ -2443,7 +2443,7 @@ pub fn liquidate_borrow_for_perp_pnl(
         )?;
 
         validate!(
-            !user_position.is_isolated_position(),
+            !user_position.is_isolated(),
             ErrorCode::InvalidPerpPositionToLiquidate,
             "Perp position is an isolated position"
         )?;
