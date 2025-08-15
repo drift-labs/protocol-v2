@@ -32,6 +32,67 @@ type ProgramAccountSubscriptionAsyncIterable = AsyncIterable<
 		}>;
 	}>
 >;
+/**
+ * WebSocketProgramAccountSubscriberV2
+ *
+ * High-level overview
+ * - WebSocket-first subscriber for Solana program accounts that also layers in
+ *   targeted polling to detect missed updates reliably.
+ * - Emits decoded account updates via the provided `onChange` callback.
+ * - Designed to focus extra work on the specific accounts the consumer cares
+ *   about ("monitored accounts") while keeping baseline WS behavior for the
+ *   full program subscription.
+ *
+ * Why polling if this is a WebSocket subscriber?
+ * - WS infra can stall, drop, or reorder notifications under network stress or
+ *   provider hiccups. When that happens, critical account changes can be missed.
+ * - To mitigate this, the class maintains a small set of accounts(provided via constructor) to monitor
+ *   and uses light polling to verify whether a WS change was missed.
+ * - If polling detects a newer slot with different data than the last seen
+ *   buffer, a centralized resubscription is triggered to restore a clean stream.
+ *
+ * Initial polling (on subscribe)
+ * - On `subscribe()`, we first perform a single batched fetch of all monitored
+ *   accounts ("initial monitor fetch").
+ * - Purpose: seed the internal `bufferAndSlotMap` and emit the latest state so
+ *   consumers have up-to-date data immediately, even before WS events arrive.
+ * - This step does not decide resubscription; it only establishes ground truth.
+ *
+ * Continuous polling (only for monitored accounts)
+ * - After seeding, each monitored account is put into a monitoring cycle:
+ *   1) If no WS notification for an account is observed for `pollingIntervalMs`,
+ *      we enqueue it for a batched fetch (buffered for a short window).
+ *   2) Once an account enters the "currently polling" set, a shared batch poll
+ *      runs every `pollingIntervalMs` across all such accounts.
+ *   3) If WS notifications resume for an account, that account is removed from
+ *      the polling set and returns to passive monitoring.
+ * - Polling compares the newly fetched buffer with the last stored buffer at a
+ *   later slot. A difference indicates a missed update; we schedule a single
+ *   resubscription (coalesced across accounts) to re-sync.
+ *
+ * Accounts the consumer cares about
+ * - Provide accounts up-front via the constructor `accountsToMonitor`, or add
+ *   them dynamically with `addAccountToMonitor()` and remove with
+ *   `removeAccountFromMonitor()`.
+ * - Only these accounts incur additional polling safeguards; other accounts are
+ *   still processed from the WS stream normally.
+ *
+ * Resubscription strategy
+ * - Missed updates from any monitored account are coalesced and trigger a single
+ *   resubscription after a short delay. This avoids rapid churn.
+ * - If `resubOpts.resubTimeoutMs` is set, an inactivity timer also performs a
+ *   batch check of monitored accounts. If a missed update is found, the same
+ *   centralized resubscription flow is used.
+ *
+ * Tuning knobs
+ * - `setPollingInterval(ms)`: adjust how often monitoring/polling runs
+ *   (default 30s). Shorter = faster detection, higher RPC load.
+ * - `initialFetchBufferMs` (internal): small delay to batch initial monitoring
+ *   fetch requests, minimizing RPC calls when many accounts are added at once.
+ * - Batch size for `getMultipleAccounts` is limited to 100, requests are chunked
+ *   and processed concurrently.
+ */
+
 export class WebSocketProgramAccountSubscriberV2<T>
 	implements ProgramAccountSubscriber<T>
 {
@@ -154,6 +215,21 @@ export class WebSocketProgramAccountSubscriberV2<T>
 			buffer: Buffer
 		) => void
 	): Promise<void> {
+		/**
+		 * Start the WebSocket subscription and initialize polling safeguards.
+		 *
+		 * Flow
+		 * - Seeds all monitored accounts with a single batched RPC fetch and emits
+		 *   their current state.
+		 * - Subscribes to program notifications via WS using gill.
+		 * - If `resubOpts.resubTimeoutMs` is set, starts an inactivity timer that
+		 *   batch-checks monitored accounts when WS goes quiet.
+		 * - Begins monitoring for accounts that may need polling when WS
+		 *   notifications are not observed within `pollingIntervalMs`.
+		 *
+		 * @param onChange Callback invoked with decoded account data when an update
+		 * is detected (via WS or batch RPC fetch).
+		 */
 		const startTime = performance.now();
 		if (this.listenerId != null || this.isUnsubscribing) {
 			return;
@@ -929,6 +1005,11 @@ export class WebSocketProgramAccountSubscriberV2<T>
 	}
 
 	// Method to add accounts to the polling list
+	/**
+	 * Add an account to the monitored set.
+	 * - Monitored accounts are subject to initial fetch and periodic batch polls
+	 *   if WS notifications are not observed within `pollingIntervalMs`.
+	 */
 	addAccountToMonitor(accountId: PublicKey): void {
 		const accountIdString = accountId.toBase58();
 		this.accountsToMonitor.add(accountIdString);
@@ -962,6 +1043,10 @@ export class WebSocketProgramAccountSubscriberV2<T>
 	}
 
 	// Method to set polling interval
+	/**
+	 * Set the monitoring/polling interval for monitored accounts.
+	 * Shorter intervals detect missed updates sooner but increase RPC load.
+	 */
 	setPollingInterval(intervalMs: number): void {
 		this.pollingIntervalMs = intervalMs;
 		// Restart monitoring with new interval if already subscribed
