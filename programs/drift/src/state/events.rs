@@ -256,10 +256,15 @@ pub struct OrderActionRecord {
     pub maker_existing_base_asset_amount: Option<u64>,
     /// precision: PRICE_PRECISION
     pub trigger_price: Option<u64>,
+
+    /// the idx of the builder in the taker's [`BuilderEscrow`] account
+    pub builder_idx: Option<u8>,
+    /// precision: QUOTE_PRECISION builder fee paid by the taker
+    pub builder_fee: Option<u64>,
 }
 
 impl Size for OrderActionRecord {
-    const SIZE: usize = 464;
+    const SIZE: usize = 480;
 }
 
 pub fn get_order_action_record(
@@ -288,6 +293,8 @@ pub fn get_order_action_record(
     maker_existing_quote_entry_amount: Option<u64>,
     maker_existing_base_asset_amount: Option<u64>,
     trigger_price: Option<u64>,
+    builder_idx: Option<u8>,
+    builder_fee: Option<u64>,
 ) -> DriftResult<OrderActionRecord> {
     Ok(OrderActionRecord {
         ts,
@@ -341,6 +348,8 @@ pub fn get_order_action_record(
         maker_existing_quote_entry_amount,
         maker_existing_base_asset_amount,
         trigger_price,
+        builder_idx,
+        builder_fee,
     })
 }
 
@@ -736,4 +745,21 @@ pub fn emit_buffers<T: AnchorSerialize + Discriminator>(
     msg!(msg_str);
 
     Ok(())
+}
+
+#[event]
+pub struct BuilderSettleRecord {
+    pub ts: i64,
+    pub builder: Option<Pubkey>,
+    pub referrer: Option<Pubkey>,
+    pub fee_settled: u64,
+    pub market_index: u16,
+    pub market_type: MarketType,
+    pub builder_sub_account_id: u16,
+    pub builder_total_referrer_rewards: u64,
+    pub builder_total_builder_rewards: u64,
+}
+
+impl Size for BuilderSettleRecord {
+    const SIZE: usize = 140;
 }

@@ -7633,9 +7633,283 @@
           "type": "bool"
         }
       ]
+    },
+    {
+      "name": "updateFeatureBitFlagsBuilderReferral",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "enable",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "initializeBuilder",
+      "accounts": [
+        {
+          "name": "builder",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initializeBuilderEscrow",
+      "accounts": [
+        {
+          "name": "builderEscrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "numOrders",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "migrateReferrer",
+      "accounts": [
+        {
+          "name": "builderEscrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "resizeBuilderEscrowOrders",
+      "accounts": [
+        {
+          "name": "builderEscrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "numOrders",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "changeApprovedBuilder",
+      "accounts": [
+        {
+          "name": "builderEscrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "builder",
+          "type": "publicKey"
+        },
+        {
+          "name": "maxFeeBps",
+          "type": "u16"
+        },
+        {
+          "name": "add",
+          "type": "bool"
+        }
+      ]
     }
   ],
   "accounts": [
+    {
+      "name": "Builder",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "docs": [
+              "the owner of this account, a builder or referrer"
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "totalReferrerRewards",
+            "type": "u64"
+          },
+          {
+            "name": "totalBuilderRewards",
+            "type": "u64"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                18
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "BuilderEscrow",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "docs": [
+              "the owner of this account, a user"
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "referrer",
+            "type": "publicKey"
+          },
+          {
+            "name": "padding0",
+            "type": "u32"
+          },
+          {
+            "name": "orders",
+            "type": {
+              "vec": {
+                "defined": "BuilderOrder"
+              }
+            }
+          },
+          {
+            "name": "padding1",
+            "type": "u32"
+          },
+          {
+            "name": "approvedBuilders",
+            "type": {
+              "vec": {
+                "defined": "BuilderInfo"
+              }
+            }
+          }
+        ]
+      }
+    },
     {
       "name": "OpenbookV2FulfillmentConfig",
       "type": {
@@ -9735,6 +10009,131 @@
       }
     },
     {
+      "name": "BuilderOrder",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "builderIdx",
+            "docs": [
+              "the index of the BuilderEscrow.approved_builders list, that this order's fee will settle to. Ignored",
+              "if bit_flag = Referral."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "padding0",
+            "type": {
+              "array": [
+                "u8",
+                7
+              ]
+            }
+          },
+          {
+            "name": "feesAccrued",
+            "docs": [
+              "fees accrued so far for this order slot. This is not exclusively fees from this order_id",
+              "and may include fees from other orders in the same market. This may be swept to the",
+              "builder's SpotPosition during settle_pnl."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "orderId",
+            "docs": [
+              "the order_id of the current active order in this slot. It only carries meaning while bit_flag = Open"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "feeBps",
+            "type": "u16"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "bitFlags",
+            "docs": [
+              "bitflags that describe the state of the order.",
+              "[`BuilderOrderBitFlag::Init`]: this order slot is available for use.",
+              "[`BuilderOrderBitFlag::Open`]: this order slot is occupied, `order_id` is the `sub_account_id`'s active order.",
+              "[`BuilderOrderBitFlag::Completed`]: this order has been filled or canceled, and is waiting to be settled into.",
+              "the builder's account order_id and sub_account_id are no longer relevant, it may be merged with other orders.",
+              "[`BuilderOrderBitFlag::Referral`]: this order stores referral rewards waiting to be settled. If it is set, no",
+              "other bitflag should be set."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "marketType",
+            "type": {
+              "defined": "MarketType"
+            }
+          },
+          {
+            "name": "subAccountId",
+            "docs": [
+              "the subaccount_id of the user who created this order. It only carries meaning while bit_flag = Open"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                12
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "BuilderInfo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "maxFeeBps",
+            "type": "u16"
+          },
+          {
+            "name": "padding2",
+            "type": {
+              "array": [
+                "u8",
+                2
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "BuilderEscrowFixed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "referrer",
+            "type": "publicKey"
+          }
+        ]
+      }
+    },
+    {
       "name": "LiquidatePerpRecord",
       "type": {
         "kind": "struct",
@@ -10278,6 +10677,65 @@
       }
     },
     {
+      "name": "SignedMsgOrderParamsWithBuilderMessage",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "signedMsgOrderParams",
+            "type": {
+              "defined": "OrderParams"
+            }
+          },
+          {
+            "name": "subAccountId",
+            "type": "u16"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "uuid",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "takeProfitOrderParams",
+            "type": {
+              "option": {
+                "defined": "SignedMsgTriggerOrderParams"
+              }
+            }
+          },
+          {
+            "name": "stopLossOrderParams",
+            "type": {
+              "option": {
+                "defined": "SignedMsgTriggerOrderParams"
+              }
+            }
+          },
+          {
+            "name": "builderIdx",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "builderFee",
+            "type": {
+              "option": "u16"
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "SignedMsgOrderParamsDelegateMessage",
       "type": {
         "kind": "struct",
@@ -10319,6 +10777,65 @@
               "option": {
                 "defined": "SignedMsgTriggerOrderParams"
               }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "SignedMsgOrderParamsDelegateWithBuilderMessage",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "signedMsgOrderParams",
+            "type": {
+              "defined": "OrderParams"
+            }
+          },
+          {
+            "name": "takerPubkey",
+            "type": "publicKey"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "uuid",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "takeProfitOrderParams",
+            "type": {
+              "option": {
+                "defined": "SignedMsgTriggerOrderParams"
+              }
+            }
+          },
+          {
+            "name": "stopLossOrderParams",
+            "type": {
+              "option": {
+                "defined": "SignedMsgTriggerOrderParams"
+              }
+            }
+          },
+          {
+            "name": "builderIdx",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "builderFee",
+            "type": {
+              "option": "u16"
             }
           }
         ]
@@ -12133,6 +12650,26 @@
       }
     },
     {
+      "name": "BuilderOrderBitFlag",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Init"
+          },
+          {
+            "name": "Open"
+          },
+          {
+            "name": "Completed"
+          },
+          {
+            "name": "Referral"
+          }
+        ]
+      }
+    },
+    {
       "name": "DepositExplanation",
       "type": {
         "kind": "enum",
@@ -12868,6 +13405,9 @@
           },
           {
             "name": "MedianTriggerPrice"
+          },
+          {
+            "name": "BuilderReferral"
           }
         ]
       }
@@ -13002,6 +13542,9 @@
           },
           {
             "name": "NewTriggerReduceOnly"
+          },
+          {
+            "name": "HasBuilder"
           }
         ]
       }
@@ -13016,6 +13559,9 @@
           },
           {
             "name": "IsReferred"
+          },
+          {
+            "name": "BuilderReferral"
           }
         ]
       }
@@ -13805,6 +14351,20 @@
             "option": "u64"
           },
           "index": false
+        },
+        {
+          "name": "builderIdx",
+          "type": {
+            "option": "u8"
+          },
+          "index": false
+        },
+        {
+          "name": "builderFee",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
         }
       ]
     },
@@ -14518,6 +15078,62 @@
         {
           "name": "fuelTotal",
           "type": "u128",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "BuilderSettleRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "builder",
+          "type": {
+            "option": "publicKey"
+          },
+          "index": false
+        },
+        {
+          "name": "referrer",
+          "type": {
+            "option": "publicKey"
+          },
+          "index": false
+        },
+        {
+          "name": "feeSettled",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "marketIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "marketType",
+          "type": {
+            "defined": "MarketType"
+          },
+          "index": false
+        },
+        {
+          "name": "builderSubAccountId",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "builderTotalReferrerRewards",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "builderTotalBuilderRewards",
+          "type": "u64",
           "index": false
         }
       ]
@@ -16108,6 +16724,61 @@
       "code": 6316,
       "name": "InvalidIfRebalanceSwap",
       "msg": "Invalid If Rebalance Swap"
+    },
+    {
+      "code": 6317,
+      "name": "InvalidBuilderResize",
+      "msg": "Invalid Builder resize"
+    },
+    {
+      "code": 6318,
+      "name": "InvalidBuilderApproval",
+      "msg": "Invalid builder approval"
+    },
+    {
+      "code": 6319,
+      "name": "CouldNotDeserializeBuilderEscrow",
+      "msg": "Could not deserialize builder escrow"
+    },
+    {
+      "code": 6320,
+      "name": "BuilderRevoked",
+      "msg": "Builder has been revoked"
+    },
+    {
+      "code": 6321,
+      "name": "InvalidBuilderFee",
+      "msg": "Builder fee is greater than max fee bps"
+    },
+    {
+      "code": 6322,
+      "name": "BuilderEscrowOrdersAccountFull",
+      "msg": "BuilderEscrow has too many active orders"
+    },
+    {
+      "code": 6323,
+      "name": "BuilderEscrowMissing",
+      "msg": "BuilderEscrow missing"
+    },
+    {
+      "code": 6324,
+      "name": "BuilderMissing",
+      "msg": "Builder missing"
+    },
+    {
+      "code": 6325,
+      "name": "InvalidBuilderAccount",
+      "msg": "Invalid BuilderAccount"
+    },
+    {
+      "code": 6326,
+      "name": "CannotRevokeBuilderWithOpenOrders",
+      "msg": "Cannot revoke builder with open orders"
+    },
+    {
+      "code": 6327,
+      "name": "UnableToLoadBuilderAccount",
+      "msg": "Unable to load builder account"
     }
   ],
   "metadata": {

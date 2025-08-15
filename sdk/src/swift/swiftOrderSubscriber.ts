@@ -168,9 +168,7 @@ export class SwiftOrderSubscriber {
 								).slice(0, 8)
 							)
 						);
-					const signedMessage:
-						| SignedMsgOrderParamsMessage
-						| SignedMsgOrderParamsDelegateMessage =
+					const { signedMessage } =
 						this.driftClient.decodeSignedMsgOrderParamsMessage(
 							signedMsgOrderParamsBuf,
 							isDelegateSigner
@@ -248,9 +246,7 @@ export class SwiftOrderSubscriber {
 					).slice(0, 8)
 				)
 			);
-		const signedMessage:
-			| SignedMsgOrderParamsMessage
-			| SignedMsgOrderParamsDelegateMessage =
+		const { signedMessage } =
 			this.driftClient.decodeSignedMsgOrderParamsMessage(
 				signedMsgOrderParamsBuf,
 				isDelegateSigner

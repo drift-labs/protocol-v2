@@ -1834,6 +1834,48 @@ pub mod drift {
     ) -> Result<()> {
         handle_update_feature_bit_flags_median_trigger_price(ctx, enable)
     }
+
+    pub fn update_feature_bit_flags_builder_referral(
+        ctx: Context<HotAdminUpdateState>,
+        enable: bool,
+    ) -> Result<()> {
+        handle_update_feature_bit_flags_builder_referral(ctx, enable)
+    }
+
+    pub fn initialize_builder<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InitializeBuilder<'info>>,
+    ) -> Result<()> {
+        handle_initialize_builder(ctx)
+    }
+
+    pub fn initialize_builder_escrow<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InitializeBuilderEscrow<'info>>,
+        num_orders: u16,
+    ) -> Result<()> {
+        handle_initialize_builder_escrow(ctx, num_orders)
+    }
+
+    pub fn migrate_referrer<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, MigrateReferrer<'info>>,
+    ) -> Result<()> {
+        handle_migrate_referrer(ctx)
+    }
+
+    pub fn resize_builder_escrow_orders<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, ResizeBuilderEscrowOrders<'info>>,
+        num_orders: u16,
+    ) -> Result<()> {
+        handle_resize_builder_escrow_orders(ctx, num_orders)
+    }
+
+    pub fn change_approved_builder<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, ChangeApprovedBuilder<'info>>,
+        builder: Pubkey,
+        max_fee_bps: u16,
+        add: bool,
+    ) -> Result<()> {
+        handle_change_approved_builder(ctx, builder, max_fee_bps, add)
+    }
 }
 
 #[cfg(not(feature = "no-entrypoint"))]

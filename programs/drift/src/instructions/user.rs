@@ -26,6 +26,7 @@ use crate::ids::{
     serum_program,
 };
 use crate::instructions::constraints::*;
+use crate::instructions::optional_accounts::get_builder_escrow_account;
 use crate::instructions::optional_accounts::{
     get_referrer_and_referrer_stats, get_whitelist_token, load_maps, AccountMaps,
 };
@@ -54,6 +55,12 @@ use crate::optional_accounts::{get_token_interface, get_token_mint};
 use crate::print_error;
 use crate::safe_decrement;
 use crate::safe_increment;
+use crate::state::builder::Builder;
+use crate::state::builder::BuilderEscrow;
+use crate::state::builder::BuilderInfo;
+use crate::state::builder::BuilderOrder;
+use crate::state::builder::BUILDER_ESCROW_PDA_SEED;
+use crate::state::builder::BUILDER_PDA_SEED;
 use crate::state::events::emit_stack;
 use crate::state::events::OrderAction;
 use crate::state::events::OrderActionRecord;
@@ -489,6 +496,140 @@ pub fn handle_reset_fuel_season<'c: 'info, 'info>(
     };
 
     user_stats.reset_fuel();
+
+    Ok(())
+}
+
+pub fn handle_initialize_builder<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, InitializeBuilder<'info>>,
+) -> Result<()> {
+    let mut builder = ctx
+        .accounts
+        .builder
+        .load_init()
+        .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
+    builder.authority = ctx.accounts.authority.key();
+    builder.total_referrer_rewards = 0;
+    builder.total_builder_rewards = 0;
+    builder.padding = [0; 18];
+    Ok(())
+}
+
+pub fn handle_initialize_builder_escrow<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, InitializeBuilderEscrow<'info>>,
+    num_orders: u16,
+) -> Result<()> {
+    let builder_escrow = &mut ctx.accounts.builder_escrow;
+    builder_escrow.authority = ctx.accounts.authority.key();
+    builder_escrow
+        .orders
+        .resize_with(num_orders as usize, BuilderOrder::default);
+
+    let state = &mut ctx.accounts.state;
+    if state.builder_referral_enabled() {
+        let mut user_stats = ctx.accounts.user_stats.load_mut()?;
+        builder_escrow.referrer = user_stats.referrer;
+        user_stats.update_builder_referral_status();
+    }
+
+    builder_escrow.validate()?;
+    Ok(())
+}
+
+pub fn handle_migrate_referrer<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, MigrateReferrer<'info>>,
+) -> Result<()> {
+    let state = &mut ctx.accounts.state;
+    if !state.builder_referral_enabled() {
+        if state.admin != ctx.accounts.payer.key() {
+            msg!("Only admin can migrate referrer until builder referral feature is enabled");
+            return Err(anchor_lang::error::ErrorCode::ConstraintSigner.into());
+        }
+    }
+
+    let builder_escrow = &mut ctx.accounts.builder_escrow;
+    builder_escrow.referrer = ctx.accounts.user_stats.load()?.referrer;
+
+    builder_escrow.validate()?;
+    Ok(())
+}
+
+pub fn handle_resize_builder_escrow_orders<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, ResizeBuilderEscrowOrders<'info>>,
+    num_orders: u16,
+) -> Result<()> {
+    let builder_escrow = &mut ctx.accounts.builder_escrow;
+    validate!(
+        num_orders as usize >= builder_escrow.orders.len(),
+        ErrorCode::InvalidBuilderResize,
+        "Invalid shrinking resize for revenue share escrow"
+    )?;
+
+    builder_escrow
+        .orders
+        .resize_with(num_orders as usize, BuilderOrder::default);
+    builder_escrow.validate()?;
+    Ok(())
+}
+
+pub fn handle_change_approved_builder<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, ChangeApprovedBuilder<'info>>,
+    builder: Pubkey,
+    max_fee_bps: u16,
+    add: bool,
+) -> Result<()> {
+    let existing_builder_index = ctx
+        .accounts
+        .builder_escrow
+        .approved_builders
+        .iter()
+        .position(|b| b.authority == builder);
+    if let Some(index) = existing_builder_index {
+        if add {
+            msg!(
+                "Updated builder: {} with max fee bps: {} -> {}",
+                builder,
+                ctx.accounts.builder_escrow.approved_builders[index].max_fee_bps,
+                max_fee_bps
+            );
+            ctx.accounts.builder_escrow.approved_builders[index].max_fee_bps = max_fee_bps;
+        } else {
+            if ctx
+                .accounts
+                .builder_escrow
+                .orders
+                .iter()
+                .any(|o| (o.builder_idx == index as u8) && (!o.is_available()))
+            {
+                msg!("Builder has open orders, must cancel orders and settle_pnl before revoking");
+                return Err(ErrorCode::CannotRevokeBuilderWithOpenOrders.into());
+            }
+            msg!(
+                "Revoking builder: {}, max fee bps: {} -> 0",
+                builder,
+                ctx.accounts.builder_escrow.approved_builders[index].max_fee_bps,
+            );
+            ctx.accounts.builder_escrow.approved_builders[index].max_fee_bps = 0;
+        }
+    } else {
+        if add {
+            ctx.accounts
+                .builder_escrow
+                .approved_builders
+                .push(BuilderInfo {
+                    authority: builder,
+                    max_fee_bps,
+                    ..BuilderInfo::default()
+                });
+            msg!(
+                "Added builder: {} with max fee bps: {}",
+                builder,
+                max_fee_bps
+            );
+        } else {
+            msg!("Tried to revoke builder: {}, but it was not found", builder);
+        }
+    }
 
     Ok(())
 }
@@ -1889,6 +2030,8 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         maker_existing_quote_entry_amount: from_existing_quote_entry_amount,
         maker_existing_base_asset_amount: from_existing_base_asset_amount,
         trigger_price: None,
+        builder_idx: None,
+        builder_fee: None,
     };
 
     emit_stack::<_, { OrderActionRecord::SIZE }>(fill_record)?;
@@ -1940,6 +2083,7 @@ pub fn handle_place_perp_order<'c: 'info, 'info>(
         clock,
         params,
         PlaceOrderOptions::default(),
+        &mut None,
     )?;
 
     Ok(())
@@ -2242,6 +2386,7 @@ pub fn handle_place_orders<'c: 'info, 'info>(
                 clock,
                 *params,
                 options,
+                &mut None,
             )?;
         } else {
             controller::orders::place_spot_order(
@@ -2322,6 +2467,7 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
         &clock,
         params,
         PlaceOrderOptions::default(),
+        &mut None,
     )?;
 
     drop(user);
@@ -2347,6 +2493,7 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
             is_immediate_or_cancel || optional_params.is_some(),
             auction_duration_percentage,
         ),
+        &mut None,
     )?;
 
     let order_unfilled = load!(ctx.accounts.user)?
@@ -2436,6 +2583,7 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         clock,
         params,
         PlaceOrderOptions::default(),
+        &mut None,
     )?;
 
     let (order_id, authority) = (user.get_last_order_id(), user.authority);
@@ -2446,6 +2594,8 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         load_user_maps(remaining_accounts_iter, true)?;
     makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
     makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
+
+    let mut builder_escrow = get_builder_escrow_account(remaining_accounts_iter)?;
 
     controller::orders::fill_perp_order(
         taker_order_id,
@@ -2462,6 +2612,7 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         Some(order_id),
         clock,
         FillMode::PlaceAndMake,
+        &mut builder_escrow.as_mut(),
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -2537,6 +2688,7 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
         clock,
         params,
         PlaceOrderOptions::default(),
+        &mut None,
     )?;
 
     let (order_id, authority) = (user.get_last_order_id(), user.authority);
@@ -2547,6 +2699,8 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
         load_user_maps(remaining_accounts_iter, true)?;
     makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
     makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
+
+    let mut builder_escrow = get_builder_escrow_account(remaining_accounts_iter)?;
 
     let taker_signed_msg_account = ctx.accounts.taker_signed_msg_user_orders.load()?;
     let taker_order_id = taker_signed_msg_account
@@ -2570,6 +2724,7 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
         Some(order_id),
         clock,
         FillMode::PlaceAndMake,
+        &mut builder_escrow.as_mut(),
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -4783,4 +4938,106 @@ pub struct UpdateUserProtectedMakerMode<'info> {
     pub authority: Signer<'info>,
     #[account(mut)]
     pub protected_maker_mode_config: AccountLoader<'info, ProtectedMakerModeConfig>,
+}
+
+#[derive(Accounts)]
+#[instruction()]
+pub struct InitializeBuilder<'info> {
+    #[account(
+        init,
+        seeds = [BUILDER_PDA_SEED.as_ref(), authority.key().as_ref()],
+        space = Builder::space(),
+        bump,
+        payer = payer
+    )]
+    pub builder: AccountLoader<'info, Builder>,
+    /// CHECK: The builder and/or referrer authority, beneficiary of builder/ref fees
+    pub authority: Signer<'info>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(num_orders: u16)]
+pub struct InitializeBuilderEscrow<'info> {
+    #[account(
+        init,
+        seeds = [BUILDER_ESCROW_PDA_SEED.as_ref(), authority.key().as_ref()],
+        space = BuilderEscrow::space(num_orders as usize, 1),
+        bump,
+        payer = payer
+    )]
+    pub builder_escrow: Box<Account<'info, BuilderEscrow>>,
+    /// CHECK: The auth owning this account, payer of builder/ref fees
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct MigrateReferrer<'info> {
+    #[account(
+        mut,
+        seeds = [BUILDER_ESCROW_PDA_SEED.as_ref(), authority.key().as_ref()],
+        bump,
+    )]
+    pub builder_escrow: Box<Account<'info, BuilderEscrow>>,
+    /// CHECK: The auth owning this account, payer of builder/ref fees
+    pub authority: AccountInfo<'info>,
+    #[account(
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub state: Box<Account<'info, State>>,
+    pub payer: Signer<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(num_orders: u16)]
+pub struct ResizeBuilderEscrowOrders<'info> {
+    #[account(
+        mut,
+        seeds = [BUILDER_ESCROW_PDA_SEED.as_ref(), authority.key().as_ref()],
+        bump,
+        realloc = BuilderEscrow::space(num_orders as usize, builder_escrow.approved_builders.len()),
+        realloc::payer = payer,
+        realloc::zero = false,
+        has_one = authority
+    )]
+    pub builder_escrow: Box<Account<'info, BuilderEscrow>>,
+    /// CHECK: The owner of BuilderEscrow
+    pub authority: AccountInfo<'info>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(builder: Pubkey, max_fee_bps: u16, add: bool)]
+pub struct ChangeApprovedBuilder<'info> {
+    #[account(
+        mut,
+        seeds = [BUILDER_ESCROW_PDA_SEED.as_ref(), authority.key().as_ref()],
+        bump,
+        // revoking a builder does not remove the slot to avoid unintended reuse
+        realloc = BuilderEscrow::space(builder_escrow.orders.len(), if add { builder_escrow.approved_builders.len() + 1 } else { builder_escrow.approved_builders.len() }),
+        realloc::payer = payer,
+        realloc::zero = false,
+        has_one = authority
+    )]
+    pub builder_escrow: Box<Account<'info, BuilderEscrow>>,
+    pub authority: Signer<'info>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub system_program: Program<'info, System>,
 }

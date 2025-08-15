@@ -4649,4 +4649,34 @@ export class AdminClient extends DriftClient {
 			}
 		);
 	}
+
+	public async updateFeatureBitFlagsBuilderReferral(
+		enable: boolean
+	): Promise<TransactionSignature> {
+		const updateFeatureBitFlagsBuilderReferralIx =
+			await this.getUpdateFeatureBitFlagsBuilderReferralIx(enable);
+
+		const tx = await this.buildTransaction(
+			updateFeatureBitFlagsBuilderReferralIx
+		);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateFeatureBitFlagsBuilderReferralIx(
+		enable: boolean
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateFeatureBitFlagsBuilderReferral(
+			enable,
+			{
+				accounts: {
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
+	}
 }

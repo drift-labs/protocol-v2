@@ -639,6 +639,28 @@ pub enum ErrorCode {
     InvalidIfRebalanceConfig,
     #[msg("Invalid If Rebalance Swap")]
     InvalidIfRebalanceSwap,
+    #[msg("Invalid Builder resize")]
+    InvalidBuilderResize,
+    #[msg("Invalid builder approval")]
+    InvalidBuilderApproval,
+    #[msg("Could not deserialize builder escrow")]
+    CouldNotDeserializeBuilderEscrow,
+    #[msg("Builder has been revoked")]
+    BuilderRevoked,
+    #[msg("Builder fee is greater than max fee bps")]
+    InvalidBuilderFee,
+    #[msg("BuilderEscrow has too many active orders")]
+    BuilderEscrowOrdersAccountFull,
+    #[msg("BuilderEscrow missing")]
+    BuilderEscrowMissing,
+    #[msg("Builder missing")]
+    BuilderMissing,
+    #[msg("Invalid BuilderAccount")]
+    InvalidBuilderAccount,
+    #[msg("Cannot revoke builder with open orders")]
+    CannotRevokeBuilderWithOpenOrders,
+    #[msg("Unable to load builder account")]
+    UnableToLoadBuilderAccount,
 }
 
 #[macro_export]
