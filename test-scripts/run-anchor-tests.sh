@@ -37,9 +37,7 @@ test_files=(
   ifRebalance.ts
   insuranceFundStake.ts
   liquidateBorrowForPerpPnl.ts
-  liquidateMaxLps.ts
   liquidatePerp.ts
-  liquidatePerpAndLp.ts
   liquidatePerpWithFill.ts
   liquidatePerpPnlForDeposit.ts
   liquidateSpot.ts

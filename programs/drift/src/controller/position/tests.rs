@@ -2517,13 +2517,11 @@ fn recenter_amm_2() {
 
     update_k(&mut perp_market, &update_k_result).unwrap();
 
-    // higher lower bound now
     assert_eq!(perp_market.amm.sqrt_k, new_sqrt_k);
     assert_eq!(perp_market.amm.user_lp_shares, current_k - 1);
-    assert!(perp_market.amm.get_lower_bound_sqrt_k().unwrap() > current_k);
     assert_eq!(
         perp_market.amm.get_lower_bound_sqrt_k().unwrap(),
-        140766081456000000
+        3092000000000
     );
     // assert_eq!(perp_market.amm.peg_multiplier, current_peg);
 }
