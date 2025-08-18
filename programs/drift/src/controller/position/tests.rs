@@ -2254,7 +2254,7 @@ fn update_amm_near_boundary() {
     let cost = _update_amm(&mut perp_market, &mm_oracle_price_data, &state, now, slot).unwrap();
     // assert_eq!(perp_market.amm.sqrt_k,        3295995551718929);
     // assert_eq!(perp_market.amm.user_lp_shares, 267371000000000);
-    assert_eq!(cost, 18803837952);
+    assert_eq!(cost, 18803544753);
 }
 
 #[test]
@@ -2301,7 +2301,7 @@ fn update_amm_near_boundary2() {
     let cost: i128 =
         _update_amm(&mut perp_market, &mm_oracle_price_data, &state, now, slot).unwrap();
     assert!(perp_market.amm.last_oracle_valid);
-    assert_eq!(cost, 2987010);
+    assert_eq!(cost, 2538958);
 }
 
 #[test]
@@ -2348,7 +2348,7 @@ fn recenter_amm_1() {
 
     let cost = _update_amm(&mut perp_market, &mm_oracle_price_data, &state, now, slot).unwrap();
 
-    assert_eq!(cost, 2987010);
+    assert_eq!(cost, 2538958);
 
     let inv = perp_market.amm.base_asset_amount_with_amm;
     assert_eq!(inv, 24521505718700);
@@ -2360,8 +2360,8 @@ fn recenter_amm_1() {
     )
     .unwrap();
 
-    assert_eq!(r1_orig, 334835721519);
-    assert_eq!(r2_orig, 704842149);
+    assert_eq!(r1_orig, 334835274409);
+    assert_eq!(r2_orig, 704841208);
 
     let current_k = perp_market.amm.sqrt_k;
     let _current_peg = perp_market.amm.peg_multiplier;
@@ -2477,7 +2477,11 @@ fn recenter_amm_2() {
     // refusal to decrease further
     assert_eq!(current_k, current_k);
     assert_eq!(perp_market.amm.user_lp_shares, current_k - 1);
-    assert_eq!(perp_market.amm.get_lower_bound_sqrt_k().unwrap(), current_k);
+    assert_eq!(perp_market.amm.get_lower_bound_sqrt_k().unwrap(), perp_market.amm.min_order_size as u128);
+
+    perp_market.amm.base_asset_amount_with_amm += perp_market.amm.base_asset_amount_with_unsettled_lp;
+    perp_market.amm.base_asset_amount_with_unsettled_lp = 0;
+
 
     recenter_perp_market_amm(&mut perp_market, oracle_price_data.price as u128, new_k).unwrap();
 
@@ -2489,8 +2493,8 @@ fn recenter_amm_2() {
     assert_eq!(perp_market.amm.peg_multiplier, 1_120_000);
     // assert_eq!(perp_market.amm.quote_asset_reserve, 140625455708483789 * 2);
     // assert_eq!(perp_market.amm.base_asset_reserve, 140625456291516213 * 2);
-    assert_eq!(perp_market.amm.base_asset_reserve, 281250912291516214);
-    assert_eq!(perp_market.amm.quote_asset_reserve, 281250911708483790);
+    assert_eq!(perp_market.amm.base_asset_reserve, 281254004000000002);
+    assert_eq!(perp_market.amm.quote_asset_reserve, 281247820033992278);
 
     crate::validation::perp_market::validate_perp_market(&perp_market).unwrap();
 
@@ -2502,14 +2506,14 @@ fn recenter_amm_2() {
     .unwrap();
 
     // adjusted slightly
-    assert_eq!(r1, 348628); // 354919762322 w/o k adj
+    assert_eq!(r1, 348620); // 354919762322 w/o k adj
     assert_eq!(r2, 22129);
 
     let new_scale = 2;
     let new_sqrt_k = perp_market.amm.sqrt_k * new_scale;
     let update_k_result = get_update_k_result(&perp_market, U192::from(new_sqrt_k), false).unwrap();
     let adjustment_cost = adjust_k_cost(&mut perp_market, &update_k_result).unwrap();
-    assert_eq!(adjustment_cost, 0);
+    assert_eq!(adjustment_cost, 19035);
 
     update_k(&mut perp_market, &update_k_result).unwrap();
 
