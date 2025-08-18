@@ -134,7 +134,7 @@ import {
 import { findDirectionToClose, positionIsAvailable } from './math/position';
 import { getSignedTokenAmount, getTokenAmount } from './math/spotBalance';
 import { decodeName, DEFAULT_USER_NAME, encodeName } from './userName';
-import { OraclePriceData } from './oracles/types';
+import { MMOraclePriceData, OraclePriceData } from './oracles/types';
 import { DriftClientConfig } from './driftClientConfig';
 import { PollingDriftClientAccountSubscriber } from './accounts/pollingDriftClientAccountSubscriber';
 import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDriftClientAccountSubscriber';
@@ -8516,20 +8516,16 @@ export class DriftClient {
 	}
 
 	public getOracleDataForPerpMarket(marketIndex: number): OraclePriceData {
-		const perpMarket = this.getPerpMarketAccount(marketIndex);
-		const isMMOracleActive = !perpMarket.amm.mmOracleSlot.eq(ZERO);
-		return {
-			...this.accountSubscriber.getOraclePriceDataAndSlotForPerpMarket(
-				marketIndex
-			).data,
-			isMMOracleActive,
-		};
+		return this.accountSubscriber.getOraclePriceDataAndSlotForPerpMarket(
+			marketIndex
+		).data;
 	}
 
-	public getMMOracleDataForPerpMarket(marketIndex: number): OraclePriceData {
+	public getMMOracleDataForPerpMarket(marketIndex: number): MMOraclePriceData {
 		const perpMarket = this.getPerpMarketAccount(marketIndex);
 		const oracleData = this.getOracleDataForPerpMarket(marketIndex);
 		const stateAccountAndSlot = this.accountSubscriber.getStateAccountAndSlot();
+		const isMMOracleActive = !perpMarket.amm.mmOracleSlot.eq(ZERO);
 		const pctDiff = perpMarket.amm.mmOraclePrice
 			.sub(oracleData.price)
 			.abs()
@@ -8546,20 +8542,18 @@ export class DriftClient {
 			perpMarket.amm.mmOracleSlot < oracleData.slot ||
 			pctDiff.gt(PERCENTAGE_PRECISION.divn(100)) // 1% threshold
 		) {
-			return { ...oracleData, fetchedWithMMOracle: true };
+			return { ...oracleData, isMMOracleActive };
 		} else {
-			const conf = getOracleConfidenceFromMMOracleData({
-				mmOraclePrice: perpMarket.amm.mmOraclePrice,
-				mmOracleSlot: perpMarket.amm.mmOracleSlot,
-				oraclePriceData: oracleData,
-			});
+			const conf = getOracleConfidenceFromMMOracleData(
+				perpMarket.amm.mmOraclePrice,
+				oracleData
+			);
 			return {
 				price: perpMarket.amm.mmOraclePrice,
 				slot: perpMarket.amm.mmOracleSlot,
 				confidence: conf,
 				hasSufficientNumberOfDataPoints: true,
-				fetchedWithMMOracle: true,
-				isMMOracleActive: oracleData.isMMOracleActive,
+				isMMOracleActive,
 			};
 		}
 	}
