@@ -221,44 +221,6 @@ export function calculateUpdatedAMMSpreadReserves(
 	return result;
 }
 
-export function calculateAMMBidAskPrice(
-	amm: AMM,
-	mmOraclePriceData: MMOraclePriceData,
-	withUpdate = true,
-	isPrediction = false
-): [BN, BN] {
-	let newAmm: AMM;
-	if (withUpdate) {
-		newAmm = calculateUpdatedAMM(amm, mmOraclePriceData);
-	} else {
-		newAmm = amm;
-	}
-
-	const [bidReserves, askReserves] = calculateSpreadReserves(
-		newAmm,
-		mmOraclePriceData,
-		undefined,
-		isPrediction
-	);
-
-	const askPrice = calculatePrice(
-		askReserves.baseAssetReserve,
-		askReserves.quoteAssetReserve,
-		newAmm.pegMultiplier
-	);
-
-	const bidPrice = calculatePrice(
-		bidReserves.baseAssetReserve,
-		bidReserves.quoteAssetReserve,
-		newAmm.pegMultiplier
-	);
-
-	return [bidPrice, askPrice];
-}
-
-/**
- * @deprecated Use calculateAMMBidAskPrice instead
- */
 export function calculateBidAskPrice(
 	amm: AMM,
 	mmOraclePriceData: MMOraclePriceData,
