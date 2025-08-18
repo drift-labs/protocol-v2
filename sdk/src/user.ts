@@ -2102,7 +2102,7 @@ export class User {
 	public isHighLeverageMode(marginCategory: MarginCategory): boolean {
 		return (
 			isVariant(this.getUserAccount().marginMode, 'highLeverage') ||
-			(isVariant(marginCategory, 'maintenance') &&
+			(marginCategory === 'Maintenance' &&
 				isVariant(this.getUserAccount().marginMode, 'highLeverageMaintenance'))
 		);
 	}
