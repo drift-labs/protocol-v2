@@ -1590,21 +1590,26 @@ export class DriftClient {
 	public async getUpdateUserDelegateIx(
 		delegate: PublicKey,
 		overrides: {
-			subAccountId?: number,
-			userAccountPublicKey?: PublicKey,
-			authority?: PublicKey,
+			subAccountId?: number;
+			userAccountPublicKey?: PublicKey;
+			authority?: PublicKey;
 		}
 	): Promise<TransactionInstruction> {
 		const subAccountId = overrides.subAccountId ?? this.activeSubAccountId;
-		const userAccountPublicKey = overrides.userAccountPublicKey ?? await this.getUserAccountPublicKey();
+		const userAccountPublicKey =
+			overrides.userAccountPublicKey ?? (await this.getUserAccountPublicKey());
 		const authority = overrides.authority ?? this.wallet.publicKey;
 
-		return await this.program.instruction.updateUserDelegate(subAccountId, delegate, {
-			accounts: {
-				user: userAccountPublicKey,
-				authority,
-			},
-		});
+		return await this.program.instruction.updateUserDelegate(
+			subAccountId,
+			delegate,
+			{
+				accounts: {
+					user: userAccountPublicKey,
+					authority,
+				},
+			}
+		);
 	}
 
 	public async updateUserDelegate(

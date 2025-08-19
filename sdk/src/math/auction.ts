@@ -32,7 +32,7 @@ export function isFallbackAvailableLiquiditySource(
 export function getAuctionPrice(
 	order: Order,
 	slot: number,
-	oraclePrice: BN
+	oraclePrice: BN // MMOraclePriceData source for perps vs OraclePriceData for spot
 ): BN {
 	if (
 		isOneOfVariant(order.orderType, ['market', 'triggerLimit']) ||
