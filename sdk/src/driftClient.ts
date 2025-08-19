@@ -1587,6 +1587,26 @@ export class DriftClient {
 		return txSig;
 	}
 
+	public async getUpdateUserDelegateIx(
+		delegate: PublicKey,
+		overrides: {
+			subAccountId?: number,
+			userAccountPublicKey?: PublicKey,
+			authority?: PublicKey,
+		}
+	): Promise<TransactionInstruction> {
+		const subAccountId = overrides.subAccountId ?? this.activeSubAccountId;
+		const userAccountPublicKey = overrides.userAccountPublicKey ?? await this.getUserAccountPublicKey();
+		const authority = overrides.authority ?? this.wallet.publicKey;
+
+		return await this.program.instruction.updateUserDelegate(subAccountId, delegate, {
+			accounts: {
+				user: userAccountPublicKey,
+				authority,
+			},
+		});
+	}
+
 	public async updateUserDelegate(
 		delegate: PublicKey,
 		subAccountId = 0
@@ -7406,7 +7426,10 @@ export class DriftClient {
 		settleeUserAccountPublicKey: PublicKey,
 		settleeUserAccount: UserAccount,
 		marketIndexes: number[],
-		mode: SettlePnlMode
+		mode: SettlePnlMode,
+		overrides?: {
+			authority?: PublicKey;
+		}
 	): Promise<TransactionInstruction> {
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [settleeUserAccount],
@@ -7420,7 +7443,7 @@ export class DriftClient {
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
-					authority: this.wallet.publicKey,
+					authority: overrides?.authority ?? this.wallet.publicKey,
 					user: settleeUserAccountPublicKey,
 					spotMarketVault: this.getQuoteSpotMarketAccount().vault,
 				},
