@@ -1479,4 +1479,10 @@ describe('LP Pool', () => {
 
 		await adminClient.updateFeatureBitFlagsSettleLpPool(true);
 	});
+
+	it('can do spot vault withdraws', async () => {
+		await adminClient.updateFeatureBitFlagsSettleLpPool(false);
+		await adminClient.withdrawFromProgramVault(encodeName(lpPoolName), 0, new BN(100).mul(QUOTE_PRECISION));
+	});
+
 });

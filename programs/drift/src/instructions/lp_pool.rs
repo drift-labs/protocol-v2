@@ -1240,7 +1240,6 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
     let clock = Clock::get()?;
 
     let mut spot_market = ctx.accounts.spot_market.load_mut()?;
-    let mut constituent = ctx.accounts.constituent.load_mut()?;
     let spot_market_vault = &ctx.accounts.spot_market_vault;
     let oracle_id = spot_market.oracle_id();
     let mut oracle_map = OracleMap::load_one(
@@ -1250,27 +1249,27 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
     )?;
     let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
 
-    constituent.sync_token_balance(ctx.accounts.constituent_token_account.amount);
-    let balance_before = constituent.get_full_balance(&spot_market)?;
-
     if amount == 0 {
         return Err(ErrorCode::InsufficientDeposit.into());
     }
-
     let deposit_plus_token_amount_before = amount.safe_add(spot_market_vault.amount)?;
 
     let oracle_data = oracle_map.get_price_data(&oracle_id)?;
     let oracle_data_slot = clock.slot - oracle_data.delay.max(0i64).cast::<u64>()?;
-    if constituent.last_oracle_slot < oracle_data_slot {
-        constituent.last_oracle_price = oracle_data.price;
-        constituent.last_oracle_slot = oracle_data_slot;
-    }
 
     controller::spot_balance::update_spot_market_cumulative_interest(
         &mut spot_market,
         Some(&oracle_data),
         clock.unix_timestamp,
     )?;
+
+    let mut constituent = ctx.accounts.constituent.load_mut()?;
+    if constituent.last_oracle_slot < oracle_data_slot {
+        constituent.last_oracle_price = oracle_data.price;
+        constituent.last_oracle_slot = oracle_data_slot;
+    }
+    constituent.sync_token_balance(ctx.accounts.constituent_token_account.amount);
+    let balance_before = constituent.get_full_balance(&spot_market)?;
 
     controller::token::send_from_program_vault(
         &ctx.accounts.token_program,
@@ -1326,7 +1325,7 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
     let clock = Clock::get()?;
 
     let mut spot_market = ctx.accounts.spot_market.load_mut()?;
-    let mut constituent = ctx.accounts.constituent.load_mut()?;
+
     let spot_market_vault = &ctx.accounts.spot_market_vault;
     let oracle_id = spot_market.oracle_id();
     let mut oracle_map = OracleMap::load_one(
@@ -1336,43 +1335,46 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
     )?;
     let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
 
-    constituent.sync_token_balance(ctx.accounts.constituent_token_account.amount);
-
-    let balance_before = constituent.get_full_balance(&spot_market)?;
-
     if amount == 0 {
         return Err(ErrorCode::InsufficientDeposit.into());
     }
 
     let oracle_data = oracle_map.get_price_data(&oracle_id)?;
     let oracle_data_slot = clock.slot - oracle_data.delay.max(0i64).cast::<u64>()?;
-    if constituent.last_oracle_slot < oracle_data_slot {
-        constituent.last_oracle_price = oracle_data.price;
-        constituent.last_oracle_slot = oracle_data_slot;
-    }
-
     controller::spot_balance::update_spot_market_cumulative_interest(
         &mut spot_market,
         Some(&oracle_data),
         clock.unix_timestamp,
     )?;
 
+    let mut constituent = ctx.accounts.constituent.load_mut()?;
+    if constituent.last_oracle_slot < oracle_data_slot {
+        constituent.last_oracle_price = oracle_data.price;
+        constituent.last_oracle_slot = oracle_data_slot;
+    }
+    constituent.sync_token_balance(ctx.accounts.constituent_token_account.amount);
+    let balance_before = constituent.get_full_balance(&spot_market)?;
+    msg!("bl position before: {:?}", constituent.spot_balance);
+    msg!("token position before: {:?}", constituent.token_balance);
+
     // Can only borrow up to the max
-    let token_amount = constituent.spot_balance.get_token_amount(&spot_market)?;
+    let bl_token_balance = constituent.spot_balance.get_token_amount(&spot_market)?;
     let amount_to_transfer = if constituent.spot_balance.balance_type == SpotBalanceType::Borrow {
         amount.min(
             constituent
                 .max_borrow_token_amount
-                .safe_sub(token_amount as u64)?,
+                .saturating_sub(bl_token_balance as u64),
         )
     } else {
         amount.min(
             constituent
                 .max_borrow_token_amount
-                .safe_add(token_amount as u64)?,
+                .saturating_add(bl_token_balance as u64),
         )
     };
+    msg!("amount to transfer: {}", amount_to_transfer);
 
+    // Execute transfer and sync new balance in the constituent account
     controller::token::send_from_program_vault(
         &ctx.accounts.token_program,
         &spot_market_vault,
@@ -1388,6 +1390,7 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
 
     // Adjust BLPosition for the new deposits
     let spot_position = &mut constituent.spot_balance;
+    msg!("spot position before: {:?}", spot_position);
     update_spot_balances(
         amount_to_transfer as u128,
         &SpotBalanceType::Borrow,
@@ -1395,24 +1398,27 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
         spot_position,
         true,
     )?;
+    msg!("spot position after: {:?}", spot_position);
 
     safe_decrement!(
         spot_position.cumulative_deposits,
         amount_to_transfer.cast()?
     );
 
+    // Re-check spot market invariants
     ctx.accounts.spot_market_vault.reload()?;
     spot_market.validate_max_token_deposits_and_borrows(true)?;
-
     math::spot_withdraw::validate_spot_market_vault_amount(
         &spot_market,
         ctx.accounts.spot_market_vault.amount,
     )?;
 
-    msg!(
-        "constituent full balance: {}",
-        constituent.get_full_balance(&spot_market)?
-    );
+    // Verify withdraw fully accounted for in BLPosition
+    let balance_after = constituent.get_full_balance(&spot_market)?;
+    msg!("bl position after: {:?}", constituent.spot_balance);
+    msg!("token position after: {:?}", constituent.token_balance);
+
+    msg!("balance after: {}", balance_after);
     msg!("balance before: {}", balance_before);
 
     validate!(
