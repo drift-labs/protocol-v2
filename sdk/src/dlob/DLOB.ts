@@ -1096,15 +1096,15 @@ export class DLOB {
 		}
 	}
 
-	protected *getBestNode(
+	protected *getBestNode<T extends MarketTypeStr>(
 		generatorList: Array<Generator<DLOBNode>>,
-		oraclePriceData: OraclePriceData,
+		oraclePriceData: T extends 'spot' ? OraclePriceData : MMOraclePriceData,
 		slot: number,
 		compareFcn: (
 			bestDLOBNode: DLOBNode,
 			currentDLOBNode: DLOBNode,
 			slot: number,
-			oraclePriceData: OraclePriceData
+			oraclePriceData: T extends 'spot' ? OraclePriceData : MMOraclePriceData
 		) => boolean,
 		filterFcn?: DLOBFilterFcn
 	): Generator<DLOBNode> {

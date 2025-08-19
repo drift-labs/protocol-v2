@@ -671,7 +671,7 @@ export class User {
 		)[0];
 
 		const perpMarket = this.driftClient.getPerpMarketAccount(marketIndex);
-		const oraclePriceData = this.getMMOracleDataForPerpMarket(marketIndex);
+		const oraclePriceData = this.getOracleDataForPerpMarket(marketIndex);
 		const worstCaseBaseAssetAmount = perpPosition
 			? calculateWorstCaseBaseAssetAmount(
 					perpPosition,
@@ -1447,7 +1447,7 @@ export class User {
 			)[0];
 		}
 
-		let valuationPrice = this.getMMOracleDataForPerpMarket(
+		let valuationPrice = this.getOracleDataForPerpMarket(
 			market.marketIndex
 		).price;
 
@@ -3426,7 +3426,7 @@ export class User {
 			this.getEmptyPosition(targetMarketIndex);
 
 		const perpMarket = this.driftClient.getPerpMarketAccount(targetMarketIndex);
-		const oracleData = this.getMMOracleDataForPerpMarket(targetMarketIndex);
+		const oracleData = this.getOracleDataForPerpMarket(targetMarketIndex);
 
 		let {
 			// eslint-disable-next-line prefer-const
@@ -4106,7 +4106,7 @@ export class User {
 				!!marginCategory
 			)[0] || this.getEmptyPosition(marketToIgnore);
 
-		const oracleData = this.getMMOracleDataForPerpMarket(marketToIgnore);
+		const oracleData = this.getOracleDataForPerpMarket(marketToIgnore);
 
 		let currentPerpPositionValueUSDC = ZERO;
 		if (currentPerpPosition) {
@@ -4126,6 +4126,10 @@ export class User {
 
 	private getMMOracleDataForPerpMarket(marketIndex: number): MMOraclePriceData {
 		return this.driftClient.getMMOracleDataForPerpMarket(marketIndex);
+	}
+
+	private getOracleDataForPerpMarket(marketIndex: number): OraclePriceData {
+		return this.driftClient.getOracleDataForPerpMarket(marketIndex);
 	}
 
 	private getOracleDataForSpotMarket(marketIndex: number): OraclePriceData {
