@@ -2477,11 +2477,14 @@ fn recenter_amm_2() {
     // refusal to decrease further
     assert_eq!(current_k, current_k);
     assert_eq!(perp_market.amm.user_lp_shares, current_k - 1);
-    assert_eq!(perp_market.amm.get_lower_bound_sqrt_k().unwrap(), perp_market.amm.min_order_size as u128);
+    assert_eq!(
+        perp_market.amm.get_lower_bound_sqrt_k().unwrap(),
+        perp_market.amm.min_order_size as u128
+    );
 
-    perp_market.amm.base_asset_amount_with_amm += perp_market.amm.base_asset_amount_with_unsettled_lp;
+    perp_market.amm.base_asset_amount_with_amm +=
+        perp_market.amm.base_asset_amount_with_unsettled_lp;
     perp_market.amm.base_asset_amount_with_unsettled_lp = 0;
-
 
     recenter_perp_market_amm(&mut perp_market, oracle_price_data.price as u128, new_k).unwrap();
 

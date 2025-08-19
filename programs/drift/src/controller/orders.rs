@@ -1071,7 +1071,7 @@ pub fn fill_perp_order(
     let perp_market_index: u16;
     let user_can_skip_duration: bool;
     let amm_can_skip_duration: bool;
-    let amm_lp_allowed_to_jit_make: bool;
+    let amm_has_low_enough_inventory: bool;
     let oracle_valid_for_amm_fill: bool;
     let oracle_stale_for_margin: bool;
     let min_auction_duration: u8;
@@ -1129,12 +1129,11 @@ pub fn fill_perp_order(
         amm_is_available &= amm_available_mm_oracle_recent_but_volatile;
 
         let amm_wants_to_jit_make = market.amm.amm_wants_to_jit_make(order_direction)?;
-        amm_lp_allowed_to_jit_make = market
+        amm_has_low_enough_inventory = market
             .amm
-            .amm_lp_allowed_to_jit_make(amm_wants_to_jit_make)?;
-        // TODO what do do here?
+            .amm_has_low_enough_inventory(amm_wants_to_jit_make)?;
         amm_can_skip_duration =
-            market.can_skip_auction_duration(&state, amm_lp_allowed_to_jit_make)?;
+            market.can_skip_auction_duration(&state, amm_has_low_enough_inventory)?;
 
         user_can_skip_duration = user.can_skip_auction_duration(user_stats)?;
 

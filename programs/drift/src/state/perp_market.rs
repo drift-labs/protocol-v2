@@ -337,7 +337,7 @@ impl PerpMarket {
     pub fn can_skip_auction_duration(
         &self,
         state: &State,
-        amm_lp_allowed_to_jit_make: bool,
+        amm_has_low_enough_inventory: bool,
     ) -> DriftResult<bool> {
         if state.amm_immediate_fill_paused()? {
             return Ok(false);
@@ -345,7 +345,7 @@ impl PerpMarket {
 
         let amm_low_inventory_and_profitable = self.amm.net_revenue_since_last_funding
             >= DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT
-            && amm_lp_allowed_to_jit_make;
+            && amm_has_low_enough_inventory;
         let amm_oracle_no_latency = self.amm.oracle_source == OracleSource::Prelaunch
             || (self.amm.historical_oracle_data.last_oracle_delay == 0
                 && self.amm.oracle_source == OracleSource::PythLazer);
@@ -1331,9 +1331,10 @@ impl AMM {
     }
 
     pub fn get_lower_bound_sqrt_k(self) -> DriftResult<u128> {
-        Ok(self
-            .sqrt_k
-            .min((self.min_order_size.cast::<u128>()?).max(self.base_asset_amount_with_amm.unsigned_abs())))
+        Ok(self.sqrt_k.min(
+            (self.min_order_size.cast::<u128>()?)
+                .max(self.base_asset_amount_with_amm.unsigned_abs()),
+        ))
     }
 
     pub fn get_protocol_owned_position(self) -> DriftResult<i64> {
@@ -1368,8 +1369,8 @@ impl AMM {
         Ok(amm_wants_to_jit_make && self.amm_jit_is_active())
     }
 
-    pub fn amm_lp_allowed_to_jit_make(&self, amm_wants_to_jit_make: bool) -> DriftResult<bool> {
-        // only allow lps to make when the amm inventory is below a certain level of available liquidity
+    pub fn amm_has_low_enough_inventory(&self, amm_wants_to_jit_make: bool) -> DriftResult<bool> {
+        // mark low inventory if below a certain level of available liquidity
         // i.e. 10%
         if amm_wants_to_jit_make {
             // inventory scale
