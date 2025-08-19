@@ -107,7 +107,7 @@ pub fn liquidate_perp(
     )?;
 
     validate!(
-        !liquidator.is_cross_margin_bankrupt(),
+        !liquidator.is_being_liquidated(),
         ErrorCode::UserBankrupt,
         "liquidator bankrupt",
     )?;
@@ -184,7 +184,7 @@ pub fn liquidate_perp(
             e
         })?;
 
-    let liquidation_id = user.enter_cross_margin_liquidation(slot)?;
+    let liquidation_id = liquidation_mode.enter_liquidation(user, slot)?;
     let mut margin_freed = 0_u64;
 
     let position_index = get_position_index(&user.perp_positions, market_index)?;
@@ -264,7 +264,7 @@ pub fn liquidate_perp(
                 liquidator: *liquidator_key,
                 margin_requirement,
                 total_collateral,
-                bankrupt: user.is_cross_margin_bankrupt(),
+                bankrupt: liquidation_mode.is_user_bankrupt(user)?,
                 canceled_order_ids,
                 margin_freed,
                 liquidate_perp: LiquidatePerpRecord {
@@ -563,12 +563,12 @@ pub fn liquidate_perp(
         Some(liquidation_mode.as_ref()),
     )?;
     margin_freed = margin_freed.safe_add(margin_freed_for_perp_position)?;
-    liquidation_mode.increment_free_margin(user, margin_freed_for_perp_position);
+    liquidation_mode.increment_free_margin(user, margin_freed_for_perp_position)?;
 
     if base_asset_amount >= base_asset_amount_to_cover_margin_shortage {
         liquidation_mode.exit_liquidation(user)?;
     } else if liquidation_mode.should_user_enter_bankruptcy(user)? {
-        liquidation_mode.enter_bankruptcy(user);
+        liquidation_mode.enter_bankruptcy(user)?;
     }
 
     let liquidator_meets_initial_margin_requirement =
@@ -698,7 +698,7 @@ pub fn liquidate_perp(
         liquidator: *liquidator_key,
         margin_requirement,
         total_collateral,
-        bankrupt: user.is_cross_margin_bankrupt(),
+        bankrupt: liquidation_mode.is_user_bankrupt(&user)?,
         canceled_order_ids,
         margin_freed,
         liquidate_perp: LiquidatePerpRecord {
@@ -762,7 +762,7 @@ pub fn liquidate_perp_with_fill(
     )?;
 
     validate!(
-        !liquidator.is_cross_margin_bankrupt(),
+        !liquidator.is_being_liquidated(),
         ErrorCode::UserBankrupt,
         "liquidator bankrupt",
     )?;
@@ -822,7 +822,7 @@ pub fn liquidate_perp_with_fill(
         e
     })?;
 
-    let liquidation_id = user.enter_cross_margin_liquidation(slot)?;
+    let liquidation_id = liquidation_mode.enter_liquidation(&mut user, slot)?;
     let mut margin_freed = 0_u64;
 
     let position_index = get_position_index(&user.perp_positions, market_index)?;
@@ -889,7 +889,7 @@ pub fn liquidate_perp_with_fill(
         margin_freed = initial_margin_shortage
             .saturating_sub(new_margin_shortage)
             .cast::<u64>()?;
-        liquidation_mode.increment_free_margin(&mut user, margin_freed);
+        liquidation_mode.increment_free_margin(&mut user, margin_freed)?;
 
         if liquidation_mode.can_exit_liquidation(&intermediate_margin_calculation)? {
             let (margin_requirement, total_collateral, bit_flags) =
@@ -902,7 +902,7 @@ pub fn liquidate_perp_with_fill(
                 liquidator: *liquidator_key,
                 margin_requirement,
                 total_collateral,
-                bankrupt: user.is_cross_margin_bankrupt(),
+                bankrupt: liquidation_mode.is_user_bankrupt(&user)?,
                 canceled_order_ids,
                 margin_freed,
                 liquidate_perp: LiquidatePerpRecord {
@@ -1132,7 +1132,7 @@ pub fn liquidate_perp_with_fill(
     )?;
 
     margin_freed = margin_freed.safe_add(margin_freed_for_perp_position)?;
-    liquidation_mode.increment_free_margin(&mut user, margin_freed_for_perp_position);
+    liquidation_mode.increment_free_margin(&mut user, margin_freed_for_perp_position)?;
 
     if margin_calculation_after.meets_margin_requirement() {
         liquidation_mode.exit_liquidation(&mut user)?;
@@ -1156,7 +1156,7 @@ pub fn liquidate_perp_with_fill(
         liquidator: *liquidator_key,
         margin_requirement,
         total_collateral,
-        bankrupt: user.is_cross_margin_bankrupt(),
+        bankrupt: liquidation_mode.is_user_bankrupt(&user)?,
         canceled_order_ids,
         margin_freed,
         liquidate_perp: LiquidatePerpRecord {
@@ -1207,7 +1207,7 @@ pub fn liquidate_spot(
     )?;
 
     validate!(
-        !liquidator.is_cross_margin_bankrupt(),
+        !liquidator.is_being_liquidated(),
         ErrorCode::UserBankrupt,
         "liquidator bankrupt",
     )?;
@@ -1791,7 +1791,7 @@ pub fn liquidate_spot_with_swap_begin(
     )?;
 
     validate!(
-        !liquidator.is_cross_margin_bankrupt(),
+        !liquidator.is_being_liquidated(),
         ErrorCode::UserBankrupt,
         "liquidator bankrupt",
     )?;
@@ -2343,7 +2343,7 @@ pub fn liquidate_borrow_for_perp_pnl(
     )?;
 
     validate!(
-        !liquidator.is_cross_margin_bankrupt(),
+        !liquidator.is_being_liquidated(),
         ErrorCode::UserBankrupt,
         "liquidator bankrupt",
     )?;
@@ -2827,7 +2827,7 @@ pub fn liquidate_perp_pnl_for_deposit(
     )?;
 
     validate!(
-        !liquidator.is_cross_margin_bankrupt(),
+        !liquidator.is_being_liquidated(),
         ErrorCode::UserBankrupt,
         "liquidator bankrupt",
     )?;
@@ -3004,7 +3004,7 @@ pub fn liquidate_perp_pnl_for_deposit(
         return Ok(());
     }
 
-    let liquidation_id = user.enter_cross_margin_liquidation(slot)?;
+    let liquidation_id = liquidation_mode.enter_liquidation(user, slot)?;
     let mut margin_freed = 0_u64;
 
     let (cancel_orders_market_type, cancel_orders_market_index) =
@@ -3048,7 +3048,7 @@ pub fn liquidate_perp_pnl_for_deposit(
         margin_freed = initial_margin_shortage
             .saturating_sub(new_margin_shortage)
             .cast::<u64>()?;
-        liquidation_mode.increment_free_margin(user, margin_freed);
+        liquidation_mode.increment_free_margin(user, margin_freed)?;
 
         let exiting_liq_territory =
             liquidation_mode.can_exit_liquidation(&intermediate_margin_calculation)?;
@@ -3067,7 +3067,7 @@ pub fn liquidate_perp_pnl_for_deposit(
                 liquidator: *liquidator_key,
                 margin_requirement,
                 total_collateral,
-                bankrupt: user.is_cross_margin_bankrupt(),
+                bankrupt: liquidation_mode.is_user_bankrupt(&user)?,
                 canceled_order_ids,
                 margin_freed,
                 liquidate_perp_pnl_for_deposit: LiquidatePerpPnlForDepositRecord {
@@ -3244,7 +3244,7 @@ pub fn liquidate_perp_pnl_for_deposit(
         Some(liquidation_mode.as_ref()),
     )?;
     margin_freed = margin_freed.safe_add(margin_freed_from_liability)?;
-    liquidation_mode.increment_free_margin(user, margin_freed_from_liability);
+    liquidation_mode.increment_free_margin(user, margin_freed_from_liability)?;
 
     if pnl_transfer >= pnl_transfer_to_cover_margin_shortage {
         liquidation_mode.exit_liquidation(user)?;
@@ -3276,7 +3276,7 @@ pub fn liquidate_perp_pnl_for_deposit(
         liquidator: *liquidator_key,
         margin_requirement,
         total_collateral,
-        bankrupt: user.is_cross_margin_bankrupt(),
+        bankrupt: liquidation_mode.is_user_bankrupt(&user)?,
         margin_freed,
         liquidate_perp_pnl_for_deposit: LiquidatePerpPnlForDepositRecord {
             perp_market_index,
@@ -3320,15 +3320,9 @@ pub fn resolve_perp_bankruptcy(
     )?;
 
     validate!(
-        !liquidator.is_cross_margin_being_liquidated(),
+        !liquidator.is_being_liquidated(),
         ErrorCode::UserIsBeingLiquidated,
         "liquidator being liquidated",
-    )?;
-
-    validate!(
-        !liquidator.is_cross_margin_bankrupt(),
-        ErrorCode::UserBankrupt,
-        "liquidator bankrupt",
     )?;
 
     let market = perp_market_map.get_ref(&market_index)?;
@@ -3544,15 +3538,9 @@ pub fn resolve_spot_bankruptcy(
     )?;
 
     validate!(
-        !liquidator.is_cross_margin_being_liquidated(),
+        !liquidator.is_being_liquidated(),
         ErrorCode::UserIsBeingLiquidated,
         "liquidator being liquidated",
-    )?;
-
-    validate!(
-        !liquidator.is_cross_margin_bankrupt(),
-        ErrorCode::UserBankrupt,
-        "liquidator bankrupt",
     )?;
 
     let market = spot_market_map.get_ref(&market_index)?;
@@ -3715,13 +3703,7 @@ pub fn set_user_status_to_being_liquidated(
     state: &State,
 ) -> DriftResult {
     validate!(
-        !user.is_cross_margin_bankrupt(),
-        ErrorCode::UserBankrupt,
-        "user bankrupt",
-    )?;
-
-    validate!(
-        !user.is_cross_margin_being_liquidated(),
+        !user.is_being_liquidated(),
         ErrorCode::UserIsBeingLiquidated,
         "user is already being liquidated",
     )?;
@@ -3740,7 +3722,7 @@ pub fn set_user_status_to_being_liquidated(
         user.enter_cross_margin_liquidation(slot)?;
     }
 
-    for (market_index, isolated_position_margin_calculation) in margin_calculation.isolated_position_margin_calculation.iter() {
+    for (market_index, isolated_position_margin_calculation) in margin_calculation.isolated_margin_calculations.iter() {
         if !user.is_isolated_position_being_liquidated(*market_index)? && !isolated_position_margin_calculation.meets_margin_requirement() {
             user.enter_isolated_position_liquidation(*market_index)?;
         }

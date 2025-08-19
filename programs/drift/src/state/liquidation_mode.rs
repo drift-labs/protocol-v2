@@ -33,6 +33,8 @@ pub trait LiquidatePerpMode {
         margin_calculation: &MarginCalculation,
     ) -> DriftResult<bool>;
 
+    fn enter_liquidation(&self, user: &mut User, slot: u64) -> DriftResult<u16>;
+
     fn can_exit_liquidation(&self, margin_calculation: &MarginCalculation) -> DriftResult<bool>;
 
     fn exit_liquidation(&self, user: &mut User) -> DriftResult<()>;
@@ -119,6 +121,10 @@ impl LiquidatePerpMode for CrossMarginLiquidatePerpMode {
         margin_calculation: &MarginCalculation,
     ) -> DriftResult<bool> {
         Ok(margin_calculation.cross_margin_meets_margin_requirement())
+    }
+
+    fn enter_liquidation(&self, user: &mut User, slot: u64) -> DriftResult<u16> {
+        user.enter_cross_margin_liquidation(slot)
     }
 
     fn can_exit_liquidation(&self, margin_calculation: &MarginCalculation) -> DriftResult<bool> {
@@ -276,6 +282,10 @@ impl LiquidatePerpMode for IsolatedLiquidatePerpMode {
         margin_calculation.isolated_position_can_exit_liquidation(self.market_index)
     }
 
+    fn enter_liquidation(&self, user: &mut User, slot: u64) -> DriftResult<u16> {
+        user.enter_isolated_position_liquidation(self.market_index)
+    }
+
     fn exit_liquidation(&self, user: &mut User) -> DriftResult<()> {
         user.exit_isolated_position_liquidation(self.market_index)
     }
@@ -320,7 +330,7 @@ impl LiquidatePerpMode for IsolatedLiquidatePerpMode {
         margin_calculation: &MarginCalculation,
     ) -> DriftResult<(u128, i128, u8)> {
         let isolated_position_margin_calculation = margin_calculation
-            .isolated_position_margin_calculation
+            .isolated_margin_calculations
             .get(&self.market_index)
             .safe_unwrap()?;
         Ok((
