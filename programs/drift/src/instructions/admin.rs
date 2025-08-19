@@ -5299,6 +5299,7 @@ pub fn handle_initialize_constituent<'info>(
     constituent.volatility = volatility;
     constituent.gamma_execution = gamma_execution;
     constituent.gamma_inventory = gamma_inventory;
+    constituent.spot_balance.market_index = spot_market_index;
     constituent.xi = xi;
     lp_pool.constituents += 1;
 
@@ -5340,6 +5341,10 @@ pub fn handle_update_constituent_params<'info>(
     constituent_params: ConstituentParams,
 ) -> Result<()> {
     let mut constituent = ctx.accounts.constituent.load_mut()?;
+    if constituent.spot_balance.market_index != constituent.spot_market_index {
+        constituent.spot_balance.market_index = constituent.spot_market_index;
+    }
+
     if constituent_params.max_weight_deviation.is_some() {
         msg!(
             "max_weight_deviation: {:?} -> {:?}",
