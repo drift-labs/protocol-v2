@@ -861,11 +861,11 @@ pub fn calculate_max_perp_order_size(
     let is_isolated_position = user.perp_positions[position_index].is_isolated();
     let free_collateral_before = if is_isolated_position {
         margin_calculation
-            .get_isolated_position_free_collateral(market_index)?
+            .get_isolated_free_collateral(market_index)?
             .cast::<i128>()?
     } else {
         margin_calculation
-            .get_cross_margin_free_collateral()?
+            .get_cross_free_collateral()?
             .cast::<i128>()?
     };
 

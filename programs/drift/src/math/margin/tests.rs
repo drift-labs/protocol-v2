@@ -2794,7 +2794,7 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         assert_eq!(calculation.total_collateral, 0);
 
         assert_eq!(
-            calculation.get_total_collateral_plus_buffer(),
+            calculation.get_cross_total_collateral_plus_buffer(),
             -QUOTE_PRECISION_I128
         );
     }
@@ -4454,7 +4454,7 @@ mod isolated_position {
         let cross_margin_margin_requirement = margin_calculation.margin_requirement;
         let cross_total_collateral = margin_calculation.total_collateral;
 
-        let isolated_margin_calculation = margin_calculation.get_isolated_position_margin_calculation(0).unwrap();
+        let isolated_margin_calculation = margin_calculation.get_isolated_margin_calculation(0).unwrap();
         let isolated_margin_requirement = isolated_margin_calculation.margin_requirement;
         let isolated_total_collateral = isolated_margin_calculation.total_collateral;
 
@@ -4463,9 +4463,9 @@ mod isolated_position {
         assert_eq!(isolated_margin_requirement, 1000000000);
         assert_eq!(isolated_total_collateral, -900000000);
         assert_eq!(margin_calculation.meets_margin_requirement(), false);
-        assert_eq!(margin_calculation.cross_margin_meets_margin_requirement(), true);
+        assert_eq!(margin_calculation.meets_cross_margin_requirement(), true);
         assert_eq!(isolated_margin_calculation.meets_margin_requirement(), false);
-        assert_eq!(margin_calculation.isolated_position_meets_margin_requirement(0).unwrap(), false);
+        assert_eq!(margin_calculation.meets_isolated_margin_requirement(0).unwrap(), false);
 
         let margin_calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
             &user,
@@ -4477,9 +4477,9 @@ mod isolated_position {
         .unwrap();
 
         let cross_margin_margin_requirement = margin_calculation.margin_requirement_plus_buffer;
-        let cross_total_collateral = margin_calculation.get_total_collateral_plus_buffer();
+        let cross_total_collateral = margin_calculation.get_cross_total_collateral_plus_buffer();
 
-        let isolated_margin_calculation = margin_calculation.get_isolated_position_margin_calculation(0).unwrap();
+        let isolated_margin_calculation = margin_calculation.get_isolated_margin_calculation(0).unwrap();
         let isolated_margin_requirement = isolated_margin_calculation.margin_requirement_plus_buffer;
         let isolated_total_collateral = isolated_margin_calculation.get_total_collateral_plus_buffer();
 

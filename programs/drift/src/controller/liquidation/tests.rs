@@ -9396,7 +9396,7 @@ pub mod liquidate_isolated_perp {
             .unwrap();
 
         let isolated_margin_calculation = margin_calculation
-            .get_isolated_position_margin_calculation(0)
+            .get_isolated_margin_calculation(0)
             .unwrap();
         let total_collateral = isolated_margin_calculation.total_collateral;
         let margin_requirement_plus_buffer =
@@ -9558,7 +9558,7 @@ pub mod liquidate_isolated_perp {
 
         assert_eq!(user.perp_positions[0].base_asset_amount, 2000000000);
         assert_eq!(
-            user.perp_positions[0].is_isolated_position_being_liquidated(),
+            user.perp_positions[0].is_being_liquidated(),
             false
         );
     }
@@ -9807,7 +9807,7 @@ pub mod liquidate_isolated_perp {
         .unwrap();
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
-        assert!(!user.is_isolated_position_being_liquidated(0).unwrap());
+        assert!(!user.is_isolated_margin_being_liquidated(0).unwrap());
         assert_eq!(market_after.amm.total_liquidation_fee, 41787043);
     }
 }

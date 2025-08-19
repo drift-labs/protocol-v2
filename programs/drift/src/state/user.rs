@@ -135,7 +135,7 @@ pub struct User {
 
 impl User {
     pub fn is_being_liquidated(&self) -> bool {
-        self.is_cross_margin_being_liquidated() || self.has_isolated_position_being_liquidated()
+        self.is_cross_margin_being_liquidated() || self.has_isolated_margin_being_liquidated()
     }
 
     pub fn is_cross_margin_being_liquidated(&self) -> bool {
@@ -382,7 +382,7 @@ impl User {
         self.liquidation_margin_freed = 0;
         self.last_active_slot = slot;
 
-        let liquidation_id = if self.has_isolated_position_being_liquidated() {
+        let liquidation_id = if self.has_isolated_margin_being_liquidated() {
             self.next_liquidation_id.safe_sub(1)?
         } else {
             get_then_update_id!(self, next_liquidation_id)
@@ -408,22 +408,22 @@ impl User {
         self.liquidation_margin_freed = 0;
     }
 
-    pub fn has_isolated_position_being_liquidated(&self) -> bool {
+    pub fn has_isolated_margin_being_liquidated(&self) -> bool {
         self.perp_positions.iter().any(|position| {
-            position.is_isolated() && position.is_isolated_position_being_liquidated()
+            position.is_isolated() && position.is_being_liquidated()
         })
     }
 
-    pub fn enter_isolated_position_liquidation(
+    pub fn enter_isolated_margin_liquidation(
         &mut self,
         perp_market_index: u16,
     ) -> DriftResult<u16> {
-        if self.is_isolated_position_being_liquidated(perp_market_index)? {
+        if self.is_isolated_margin_being_liquidated(perp_market_index)? {
             return self.next_liquidation_id.safe_sub(1);
         }
 
         let liquidation_id = if self.is_cross_margin_being_liquidated()
-            || self.has_isolated_position_being_liquidated()
+            || self.has_isolated_margin_being_liquidated()
         {
             self.next_liquidation_id.safe_sub(1)?
         } else {
@@ -437,34 +437,34 @@ impl User {
         Ok(liquidation_id)
     }
 
-    pub fn exit_isolated_position_liquidation(&mut self, perp_market_index: u16) -> DriftResult {
+    pub fn exit_isolated_margin_liquidation(&mut self, perp_market_index: u16) -> DriftResult {
         let perp_position = self.force_get_isolated_perp_position_mut(perp_market_index)?;
         perp_position.position_flag &= !(PositionFlag::BeingLiquidated as u8);
         Ok(())
     }
 
-    pub fn is_isolated_position_being_liquidated(
+    pub fn is_isolated_margin_being_liquidated(
         &self,
         perp_market_index: u16,
     ) -> DriftResult<bool> {
         let perp_position = self.get_isolated_perp_position(perp_market_index)?;
-        Ok(perp_position.is_isolated_position_being_liquidated())
+        Ok(perp_position.is_being_liquidated())
     }
 
-    pub fn enter_isolated_position_bankruptcy(&mut self, perp_market_index: u16) -> DriftResult {
+    pub fn enter_isolated_margin_bankruptcy(&mut self, perp_market_index: u16) -> DriftResult {
         let perp_position = self.force_get_isolated_perp_position_mut(perp_market_index)?;
         perp_position.position_flag &= !(PositionFlag::BeingLiquidated as u8);
         perp_position.position_flag |= PositionFlag::Bankruptcy as u8;
         Ok(())
     }
 
-    pub fn exit_isolated_position_bankruptcy(&mut self, perp_market_index: u16) -> DriftResult {
+    pub fn exit_isolated_margin_bankruptcy(&mut self, perp_market_index: u16) -> DriftResult {
         let perp_position = self.force_get_isolated_perp_position_mut(perp_market_index)?;
         perp_position.position_flag &= !(PositionFlag::Bankruptcy as u8);
         Ok(())
     }
 
-    pub fn is_isolated_position_bankrupt(&self, perp_market_index: u16) -> DriftResult<bool> {
+    pub fn is_isolated_margin_bankrupt(&self, perp_market_index: u16) -> DriftResult<bool> {
         let perp_position = self.get_isolated_perp_position(perp_market_index)?;
         Ok(perp_position.position_flag & (PositionFlag::Bankruptcy as u8) != 0)
     }
@@ -735,7 +735,7 @@ impl User {
         )?;
 
         let isolated_position_margin_calculation = calculation
-            .get_isolated_position_margin_calculation(isolated_perp_position_market_index)?;
+            .get_isolated_margin_calculation(isolated_perp_position_market_index)?;
 
         validate!(
             calculation.all_liability_oracles_valid,
@@ -1268,7 +1268,7 @@ impl PerpPosition {
             == PositionFlag::IsolatedPosition as u8
     }
 
-    pub fn get_isolated_position_token_amount(
+    pub fn get_isolated_token_amount(
         &self,
         spot_market: &SpotMarket,
     ) -> DriftResult<u128> {
@@ -1279,7 +1279,7 @@ impl PerpPosition {
         )
     }
 
-    pub fn is_isolated_position_being_liquidated(&self) -> bool {
+    pub fn is_being_liquidated(&self) -> bool {
         self.position_flag & (PositionFlag::BeingLiquidated as u8 | PositionFlag::Bankruptcy as u8)
             != 0
     }

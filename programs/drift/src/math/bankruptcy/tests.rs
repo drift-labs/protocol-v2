@@ -1,4 +1,4 @@
-use crate::math::bankruptcy::is_user_bankrupt;
+use crate::math::bankruptcy::is_cross_margin_bankrupt;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::user::{PerpPosition, PositionFlag, SpotPosition, User};
 use crate::test_utils::{get_positions, get_spot_positions};
@@ -13,7 +13,7 @@ fn user_has_position_with_base() {
         ..User::default()
     };
 
-    let is_bankrupt = is_user_bankrupt(&user);
+    let is_bankrupt = is_cross_margin_bankrupt(&user);
     assert!(!is_bankrupt);
 }
 
@@ -27,7 +27,7 @@ fn user_has_position_with_positive_quote() {
         ..User::default()
     };
 
-    let is_bankrupt = is_user_bankrupt(&user);
+    let is_bankrupt = is_cross_margin_bankrupt(&user);
     assert!(!is_bankrupt);
 }
 
@@ -42,7 +42,7 @@ fn user_with_deposit() {
         ..User::default()
     };
 
-    let is_bankrupt = is_user_bankrupt(&user);
+    let is_bankrupt = is_cross_margin_bankrupt(&user);
     assert!(!is_bankrupt);
 }
 
@@ -56,7 +56,7 @@ fn user_has_position_with_negative_quote() {
         ..User::default()
     };
 
-    let is_bankrupt = is_user_bankrupt(&user);
+    let is_bankrupt = is_cross_margin_bankrupt(&user);
     assert!(is_bankrupt);
 }
 
@@ -71,14 +71,14 @@ fn user_with_borrow() {
         ..User::default()
     };
 
-    let is_bankrupt = is_user_bankrupt(&user);
+    let is_bankrupt = is_cross_margin_bankrupt(&user);
     assert!(is_bankrupt);
 }
 
 #[test]
 fn user_with_empty_position_and_balances() {
     let user = User::default();
-    let is_bankrupt = is_user_bankrupt(&user);
+    let is_bankrupt = is_cross_margin_bankrupt(&user);
     assert!(!is_bankrupt);
 }
 
@@ -95,30 +95,30 @@ fn user_with_isolated_position() {
     let mut user_with_scaled_balance = user.clone();
     user_with_scaled_balance.perp_positions[0].isolated_position_scaled_balance = 1000000000000000000;
 
-    let is_bankrupt = is_user_bankrupt(&user_with_scaled_balance);
+    let is_bankrupt = is_cross_margin_bankrupt(&user_with_scaled_balance);
     assert!(!is_bankrupt);
 
     let mut user_with_base_asset_amount = user.clone();
     user_with_base_asset_amount.perp_positions[0].base_asset_amount = 1000000000000000000;
 
-    let is_bankrupt = is_user_bankrupt(&user_with_base_asset_amount);
+    let is_bankrupt = is_cross_margin_bankrupt(&user_with_base_asset_amount);
     assert!(!is_bankrupt);
 
     let mut user_with_open_order = user.clone();
     user_with_open_order.perp_positions[0].open_orders = 1;
 
-    let is_bankrupt = is_user_bankrupt(&user_with_open_order);
+    let is_bankrupt = is_cross_margin_bankrupt(&user_with_open_order);
     assert!(!is_bankrupt);
 
     let mut user_with_positive_pnl = user.clone();
     user_with_positive_pnl.perp_positions[0].quote_asset_amount = 1000000000000000000;
 
-    let is_bankrupt = is_user_bankrupt(&user_with_positive_pnl);
+    let is_bankrupt = is_cross_margin_bankrupt(&user_with_positive_pnl);
     assert!(!is_bankrupt);
 
     let mut user_with_negative_pnl = user.clone();
     user_with_negative_pnl.perp_positions[0].quote_asset_amount = -1000000000000000000;
 
-    let is_bankrupt = is_user_bankrupt(&user_with_negative_pnl);
+    let is_bankrupt = is_cross_margin_bankrupt(&user_with_negative_pnl);
     assert!(is_bankrupt);
 }

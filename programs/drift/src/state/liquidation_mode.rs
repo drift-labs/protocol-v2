@@ -7,7 +7,7 @@ use crate::{
     },
     error::{DriftResult, ErrorCode},
     math::{
-        bankruptcy::{is_user_bankrupt, is_user_isolated_position_bankrupt},
+        bankruptcy::{is_cross_margin_bankrupt, is_isolated_margin_bankrupt},
         liquidation::calculate_max_pct_to_liquidate,
         margin::calculate_user_safest_position_tiers,
         safe_unwrap::SafeUnwrap,
@@ -93,7 +93,7 @@ pub fn get_perp_liquidation_mode(
 ) -> DriftResult<Box<dyn LiquidatePerpMode>> {
     let perp_position = user.get_perp_position(market_index)?;
     let mode: Box<dyn LiquidatePerpMode> = if perp_position.is_isolated() {
-        Box::new(IsolatedLiquidatePerpMode::new(market_index))
+        Box::new(IsolatedMarginLiquidatePerpMode::new(market_index))
     } else {
         Box::new(CrossMarginLiquidatePerpMode::new(market_index))
     };
@@ -120,7 +120,7 @@ impl LiquidatePerpMode for CrossMarginLiquidatePerpMode {
         &self,
         margin_calculation: &MarginCalculation,
     ) -> DriftResult<bool> {
-        Ok(margin_calculation.cross_margin_meets_margin_requirement())
+        Ok(margin_calculation.meets_cross_margin_requirement())
     }
 
     fn enter_liquidation(&self, user: &mut User, slot: u64) -> DriftResult<u16> {
@@ -128,7 +128,7 @@ impl LiquidatePerpMode for CrossMarginLiquidatePerpMode {
     }
 
     fn can_exit_liquidation(&self, margin_calculation: &MarginCalculation) -> DriftResult<bool> {
-        Ok(margin_calculation.cross_margin_can_exit_liquidation()?)
+        Ok(margin_calculation.can_exit_cross_margin_liquidation()?)
     }
 
     fn exit_liquidation(&self, user: &mut User) -> DriftResult<()> {
@@ -161,11 +161,11 @@ impl LiquidatePerpMode for CrossMarginLiquidatePerpMode {
     }
 
     fn is_user_bankrupt(&self, user: &User) -> DriftResult<bool> {
-        Ok(is_user_bankrupt(user))
+        Ok(user.is_cross_margin_bankrupt())
     }
 
     fn should_user_enter_bankruptcy(&self, user: &User) -> DriftResult<bool> {
-        Ok(is_user_bankrupt(user))
+        Ok(is_cross_margin_bankrupt(user))
     }
 
     fn enter_bankruptcy(&self, user: &mut User) -> DriftResult<()> {
@@ -256,38 +256,38 @@ impl LiquidatePerpMode for CrossMarginLiquidatePerpMode {
     }
 }
 
-pub struct IsolatedLiquidatePerpMode {
+pub struct IsolatedMarginLiquidatePerpMode {
     pub market_index: u16,
 }
 
-impl IsolatedLiquidatePerpMode {
+impl IsolatedMarginLiquidatePerpMode {
     pub fn new(market_index: u16) -> Self {
         Self { market_index }
     }
 }
 
-impl LiquidatePerpMode for IsolatedLiquidatePerpMode {
+impl LiquidatePerpMode for IsolatedMarginLiquidatePerpMode {
     fn user_is_being_liquidated(&self, user: &User) -> DriftResult<bool> {
-        user.is_isolated_position_being_liquidated(self.market_index)
+        user.is_isolated_margin_being_liquidated(self.market_index)
     }
 
     fn meets_margin_requirements(
         &self,
         margin_calculation: &MarginCalculation,
     ) -> DriftResult<bool> {
-        margin_calculation.isolated_position_meets_margin_requirement(self.market_index)
+        margin_calculation.meets_isolated_margin_requirement(self.market_index)
     }
 
     fn can_exit_liquidation(&self, margin_calculation: &MarginCalculation) -> DriftResult<bool> {
-        margin_calculation.isolated_position_can_exit_liquidation(self.market_index)
+        margin_calculation.can_exit_isolated_margin_liquidation(self.market_index)
     }
 
     fn enter_liquidation(&self, user: &mut User, slot: u64) -> DriftResult<u16> {
-        user.enter_isolated_position_liquidation(self.market_index)
+        user.enter_isolated_margin_liquidation(self.market_index)
     }
 
     fn exit_liquidation(&self, user: &mut User) -> DriftResult<()> {
-        user.exit_isolated_position_liquidation(self.market_index)
+        user.exit_isolated_margin_liquidation(self.market_index)
     }
 
     fn get_cancel_orders_params(&self) -> (Option<MarketType>, Option<u16>) {
@@ -310,32 +310,32 @@ impl LiquidatePerpMode for IsolatedLiquidatePerpMode {
     }
 
     fn is_user_bankrupt(&self, user: &User) -> DriftResult<bool> {
-        user.is_isolated_position_bankrupt(self.market_index)
+        user.is_isolated_margin_bankrupt(self.market_index)
     }
 
     fn should_user_enter_bankruptcy(&self, user: &User) -> DriftResult<bool> {
-        is_user_isolated_position_bankrupt(user, self.market_index)
+        is_isolated_margin_bankrupt(user, self.market_index)
     }
 
     fn enter_bankruptcy(&self, user: &mut User) -> DriftResult<()> {
-        user.enter_isolated_position_bankruptcy(self.market_index)
+        user.enter_isolated_margin_bankruptcy(self.market_index)
     }
 
     fn exit_bankruptcy(&self, user: &mut User) -> DriftResult<()> {
-        user.exit_isolated_position_bankruptcy(self.market_index)
+        user.exit_isolated_margin_bankruptcy(self.market_index)
     }
 
     fn get_event_fields(
         &self,
         margin_calculation: &MarginCalculation,
     ) -> DriftResult<(u128, i128, u8)> {
-        let isolated_position_margin_calculation = margin_calculation
+        let isolated_margin_calculation = margin_calculation
             .isolated_margin_calculations
             .get(&self.market_index)
             .safe_unwrap()?;
         Ok((
-            isolated_position_margin_calculation.margin_requirement,
-            isolated_position_margin_calculation.total_collateral,
+            isolated_margin_calculation.margin_requirement,
+            isolated_margin_calculation.total_collateral,
             LiquidationBitFlag::IsolatedPosition as u8,
         ))
     }
@@ -352,7 +352,7 @@ impl LiquidatePerpMode for IsolatedLiquidatePerpMode {
         let isolated_perp_position = user.get_isolated_perp_position(self.market_index)?;
 
         let token_amount =
-            isolated_perp_position.get_isolated_position_token_amount(spot_market)?;
+            isolated_perp_position.get_isolated_token_amount(spot_market)?;
 
         validate!(
             token_amount != 0,
@@ -396,6 +396,6 @@ impl LiquidatePerpMode for IsolatedLiquidatePerpMode {
     }
 
     fn margin_shortage(&self, margin_calculation: &MarginCalculation) -> DriftResult<u128> {
-        margin_calculation.isolated_position_margin_shortage(self.market_index)
+        margin_calculation.isolated_margin_shortage(self.market_index)
     }
 }

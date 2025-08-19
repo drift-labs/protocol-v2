@@ -2335,17 +2335,17 @@ mod next_liquidation_id {
         let liquidation_id = user.enter_cross_margin_liquidation(1).unwrap();
         assert_eq!(liquidation_id, 1);
 
-        let liquidation_id = user.enter_isolated_position_liquidation(1).unwrap();
+        let liquidation_id = user.enter_isolated_margin_liquidation(1).unwrap();
         assert_eq!(liquidation_id, 1);
 
-        user.exit_isolated_position_liquidation(1).unwrap();
+        user.exit_isolated_margin_liquidation(1).unwrap();
 
         user.exit_cross_margin_liquidation();
 
-        let liquidation_id = user.enter_isolated_position_liquidation(1).unwrap();
+        let liquidation_id = user.enter_isolated_margin_liquidation(1).unwrap();
         assert_eq!(liquidation_id, 2);
 
-        let liquidation_id = user.enter_isolated_position_liquidation(2).unwrap();
+        let liquidation_id = user.enter_isolated_margin_liquidation(2).unwrap();
         assert_eq!(liquidation_id, 2);
 
         let liquidation_id = user.enter_cross_margin_liquidation(1).unwrap();

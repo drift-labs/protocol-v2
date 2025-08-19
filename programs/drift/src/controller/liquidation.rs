@@ -21,7 +21,7 @@ use crate::controller::spot_balance::{
 };
 use crate::controller::spot_position::update_spot_balances_and_cumulative_deposits;
 use crate::error::{DriftResult, ErrorCode};
-use crate::math::bankruptcy::is_user_bankrupt;
+use crate::math::bankruptcy::is_cross_margin_bankrupt;
 use crate::math::casting::Cast;
 use crate::math::constants::{
     LIQUIDATION_FEE_PRECISION_U128, LIQUIDATION_PCT_PRECISION, QUOTE_PRECISION,
@@ -1416,7 +1416,7 @@ pub fn liquidate_spot(
         msg!("margin calculation: {:?}", margin_calculation);
         return Err(ErrorCode::SufficientCollateral);
     } else if user.is_cross_margin_being_liquidated()
-        && margin_calculation.cross_margin_can_exit_liquidation()?
+        && margin_calculation.can_exit_cross_margin_liquidation()?
     {
         user.exit_cross_margin_liquidation();
         return Ok(());
@@ -1464,7 +1464,7 @@ pub fn liquidate_spot(
             .cast::<u64>()?;
         user.increment_margin_freed(margin_freed)?;
 
-        if intermediate_margin_calculation.cross_margin_can_exit_liquidation()? {
+        if intermediate_margin_calculation.can_exit_cross_margin_liquidation()? {
             emit!(LiquidationRecord {
                 ts: now,
                 liquidation_id,
@@ -1710,7 +1710,7 @@ pub fn liquidate_spot(
 
     if liability_transfer >= liability_transfer_to_cover_margin_shortage {
         user.exit_cross_margin_liquidation();
-    } else if is_user_bankrupt(user) {
+    } else if is_cross_margin_bankrupt(user) {
         user.enter_cross_margin_bankruptcy();
     }
 
@@ -1949,7 +1949,7 @@ pub fn liquidate_spot_with_swap_begin(
         msg!("margin calculation: {:?}", margin_calculation);
         return Err(ErrorCode::SufficientCollateral);
     } else if user.is_cross_margin_being_liquidated()
-        && margin_calculation.cross_margin_can_exit_liquidation()?
+        && margin_calculation.can_exit_cross_margin_liquidation()?
     {
         msg!("margin calculation: {:?}", margin_calculation);
         return Err(ErrorCode::InvalidLiquidation);
@@ -2020,7 +2020,7 @@ pub fn liquidate_spot_with_swap_begin(
         });
 
         // must throw error to stop swap
-        if intermediate_margin_calculation.cross_margin_can_exit_liquidation()? {
+        if intermediate_margin_calculation.can_exit_cross_margin_liquidation()? {
             return Err(ErrorCode::InvalidLiquidation);
         }
 
@@ -2283,9 +2283,9 @@ pub fn liquidate_spot_with_swap_end(
     margin_freed = margin_freed.safe_add(margin_freed_from_liability)?;
     user.increment_margin_freed(margin_freed_from_liability)?;
 
-    if margin_calulcation_after.cross_margin_can_exit_liquidation()? {
+    if margin_calulcation_after.can_exit_cross_margin_liquidation()? {
         user.exit_cross_margin_liquidation();
-    } else if is_user_bankrupt(user) {
+    } else if is_cross_margin_bankrupt(user) {
         user.enter_cross_margin_bankruptcy();
     }
 
@@ -2530,7 +2530,7 @@ pub fn liquidate_borrow_for_perp_pnl(
         msg!("margin calculation {:?}", margin_calculation);
         return Err(ErrorCode::SufficientCollateral);
     } else if user.is_cross_margin_being_liquidated()
-        && margin_calculation.cross_margin_can_exit_liquidation()?
+        && margin_calculation.can_exit_cross_margin_liquidation()?
     {
         user.exit_cross_margin_liquidation();
         return Ok(());
@@ -2574,7 +2574,7 @@ pub fn liquidate_borrow_for_perp_pnl(
             .cast::<u64>()?;
         user.increment_margin_freed(margin_freed)?;
 
-        if intermediate_margin_calculation.cross_margin_can_exit_liquidation()? {
+        if intermediate_margin_calculation.can_exit_cross_margin_liquidation()? {
             let market = perp_market_map.get_ref(&perp_market_index)?;
             let market_oracle_price = oracle_map.get_price_data(&market.oracle_id())?.price;
 
@@ -2753,7 +2753,7 @@ pub fn liquidate_borrow_for_perp_pnl(
 
     if liability_transfer >= liability_transfer_to_cover_margin_shortage {
         user.exit_cross_margin_liquidation();
-    } else if is_user_bankrupt(user) {
+    } else if is_cross_margin_bankrupt(user) {
         user.enter_cross_margin_bankruptcy();
     }
 
@@ -3527,7 +3527,7 @@ pub fn resolve_spot_bankruptcy(
     now: i64,
     insurance_fund_vault_balance: u64,
 ) -> DriftResult<u64> {
-    if !user.is_cross_margin_bankrupt() && is_user_bankrupt(user) {
+    if !user.is_cross_margin_bankrupt() && is_cross_margin_bankrupt(user) {
         user.enter_cross_margin_bankruptcy();
     }
 
@@ -3636,7 +3636,7 @@ pub fn resolve_spot_bankruptcy(
     }
 
     // exit bankruptcy
-    if !is_user_bankrupt(user) {
+    if !is_cross_margin_bankrupt(user) {
         user.exit_cross_margin_bankruptcy();
     }
 
@@ -3722,9 +3722,9 @@ pub fn set_user_status_to_being_liquidated(
         user.enter_cross_margin_liquidation(slot)?;
     }
 
-    for (market_index, isolated_position_margin_calculation) in margin_calculation.isolated_margin_calculations.iter() {
-        if !user.is_isolated_position_being_liquidated(*market_index)? && !isolated_position_margin_calculation.meets_margin_requirement() {
-            user.enter_isolated_position_liquidation(*market_index)?;
+    for (market_index, isolated_margin_calculation) in margin_calculation.isolated_margin_calculations.iter() {
+        if !user.is_isolated_margin_being_liquidated(*market_index)? && !isolated_margin_calculation.meets_margin_requirement() {
+            user.enter_isolated_margin_liquidation(*market_index)?;
         }
     }
 

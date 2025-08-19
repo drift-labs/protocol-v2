@@ -213,7 +213,7 @@ pub fn is_user_being_liquidated(
         MarginContext::liquidation(liquidation_margin_buffer_ratio),
     )?;
 
-    let is_being_liquidated = !margin_calculation.cross_margin_can_exit_liquidation()?;
+    let is_being_liquidated = !margin_calculation.can_exit_cross_margin_liquidation()?;
 
     Ok(is_being_liquidated)
 }
@@ -238,7 +238,7 @@ pub fn validate_user_not_being_liquidated(
     )?;
 
     if user.is_cross_margin_being_liquidated() {
-        if margin_calculation.cross_margin_can_exit_liquidation()? {
+        if margin_calculation.can_exit_cross_margin_liquidation()? {
             user.exit_cross_margin_liquidation();
         } else {
             return Err(ErrorCode::UserIsBeingLiquidated);
@@ -248,13 +248,14 @@ pub fn validate_user_not_being_liquidated(
             .perp_positions
             .iter()
             .filter(|position| {
-                position.is_isolated() && position.is_isolated_position_being_liquidated()
+                position.is_isolated() && position.is_being_liquidated()
             })
             .map(|position| position.market_index)
             .collect::<Vec<_>>();
+
         for perp_market_index in isolated_positions_being_liquidated {
-            if margin_calculation.isolated_position_can_exit_liquidation(perp_market_index)? {
-                user.exit_isolated_position_liquidation(perp_market_index)?;
+            if margin_calculation.can_exit_isolated_margin_liquidation(perp_market_index)? {
+                user.exit_isolated_margin_liquidation(perp_market_index)?;
             } else {
                 return Err(ErrorCode::UserIsBeingLiquidated);
             }
@@ -265,7 +266,7 @@ pub fn validate_user_not_being_liquidated(
 }
 
 // todo check if this is corrects
-pub fn is_isolated_position_being_liquidated(
+pub fn is_isolated_margin_being_liquidated(
     user: &User,
     market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
@@ -282,7 +283,7 @@ pub fn is_isolated_position_being_liquidated(
     )?;
 
     let is_being_liquidated =
-        !margin_calculation.isolated_position_can_exit_liquidation(perp_market_index)?;
+        !margin_calculation.can_exit_isolated_margin_liquidation(perp_market_index)?;
 
     Ok(is_being_liquidated)
 }

@@ -266,7 +266,7 @@ pub fn settle_pnl(
     if user.perp_positions[position_index].is_isolated() {
         let perp_position = &mut user.perp_positions[position_index];
         if pnl_to_settle_with_user < 0 {
-            let token_amount = perp_position.get_isolated_position_token_amount(spot_market)?;
+            let token_amount = perp_position.get_isolated_token_amount(spot_market)?;
 
             validate!(
                 token_amount >= pnl_to_settle_with_user.unsigned_abs(),

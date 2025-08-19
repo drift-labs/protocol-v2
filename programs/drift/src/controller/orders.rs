@@ -1952,13 +1952,13 @@ fn fulfill_perp_order(
 
         if !taker_margin_calculation.meets_margin_requirement() {
             let (margin_requirement, total_collateral) = if taker_margin_calculation
-                .has_isolated_position_margin_calculation(market_index)
+                .has_isolated_margin_calculation(market_index)
             {
-                let isolated_position_margin_calculation = taker_margin_calculation
-                    .get_isolated_position_margin_calculation(market_index)?;
+                let isolated_margin_calculation = taker_margin_calculation
+                    .get_isolated_margin_calculation(market_index)?;
                 (
-                    isolated_position_margin_calculation.margin_requirement,
-                    isolated_position_margin_calculation.total_collateral,
+                    isolated_margin_calculation.margin_requirement,
+                    isolated_margin_calculation.total_collateral,
                 )
             } else {
                 (
@@ -2028,13 +2028,13 @@ fn fulfill_perp_order(
 
         if !maker_margin_calculation.meets_margin_requirement() {
             let (margin_requirement, total_collateral) = if maker_margin_calculation
-                .has_isolated_position_margin_calculation(market_index)
+                .has_isolated_margin_calculation(market_index)
             {
-                let isolated_position_margin_calculation = maker_margin_calculation
-                    .get_isolated_position_margin_calculation(market_index)?;
+                let isolated_margin_calculation = maker_margin_calculation
+                    .get_isolated_margin_calculation(market_index)?;
                 (
-                    isolated_position_margin_calculation.margin_requirement,
-                    isolated_position_margin_calculation.total_collateral,
+                    isolated_margin_calculation.margin_requirement,
+                    isolated_margin_calculation.total_collateral,
                 )
             } else {
                 (
@@ -3227,7 +3227,7 @@ pub fn force_cancel_orders(
     )?;
 
     let cross_margin_meets_initial_margin_requirement =
-        margin_calc.cross_margin_meets_margin_requirement();
+        margin_calc.meets_cross_margin_requirement();
 
     let mut total_fee = 0_u64;
 
@@ -3278,9 +3278,9 @@ pub fn force_cancel_orders(
                         continue;
                     }
                 } else {
-                    let isolated_position_meets_margin_requirement =
-                        margin_calc.isolated_position_meets_margin_requirement(market_index)?;
-                    if isolated_position_meets_margin_requirement {
+                    let meets_isolated_margin_requirement =
+                        margin_calc.meets_isolated_margin_requirement(market_index)?;
+                    if meets_isolated_margin_requirement {
                         continue;
                     }
                 }
