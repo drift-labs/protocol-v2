@@ -1296,7 +1296,7 @@ pub fn fill_perp_order(
         AMMAvailability::Unavailable
     };
 
-    let (base_asset_amount, quote_asset_amount) = fulfill_perp_order(
+    let (base_asset_amount, quote_asset_amount, initial_amm_price) = fulfill_perp_order(
         user,
         order_index,
         &user_key,
@@ -1339,7 +1339,13 @@ pub fn fill_perp_order(
             None,
         )?;
 
-        perp_market.last_fill_price = fill_price;
+        if initial_amm_price != 0 {
+            if order_direction == PositionDirection::Long {
+                perp_market.last_fill_price = initial_amm_price.min(fill_price);
+            } else {
+                perp_market.last_fill_price = initial_amm_price.max(fill_price);
+            }
+        }
     }
 
     let base_asset_amount_after = user.perp_positions[position_index].base_asset_amount;
@@ -1754,7 +1760,7 @@ fn fulfill_perp_order(
     amm_availability: AMMAvailability,
     fill_mode: FillMode,
     oracle_stale_for_margin: bool,
-) -> DriftResult<(u64, u64)> {
+) -> DriftResult<(u64, u64, u64)> {
     let market_index = user.orders[user_order_index].market_index;
 
     let user_order_position_decreasing =
@@ -1771,7 +1777,7 @@ fn fulfill_perp_order(
     let perp_market_oi_before = perp_market.get_open_interest();
     drop(perp_market);
 
-    let fulfillment_methods = {
+    let (fulfillment_methods, initial_amm_price) = {
         let market = perp_market_map.get_ref(&market_index)?;
         let oracle_price = oracle_map.get_price_data(&market.oracle_id())?.price;
 
@@ -1790,7 +1796,7 @@ fn fulfill_perp_order(
     };
 
     if fulfillment_methods.is_empty() {
-        return Ok((0, 0));
+        return Ok((0, 0, initial_amm_price));
     }
 
     let mut base_asset_amount = 0_u64;
@@ -2055,7 +2061,7 @@ fn fulfill_perp_order(
         )?;
     }
 
-    Ok((base_asset_amount, quote_asset_amount))
+    Ok((base_asset_amount, quote_asset_amount, initial_amm_price))
 }
 
 #[allow(clippy::type_complexity)]
