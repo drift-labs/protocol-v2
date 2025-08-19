@@ -30,16 +30,16 @@ export function isFallbackAvailableLiquiditySource(
 }
 
 /**
- * 
- * @param order 
- * @param slot 
+ *
+ * @param order
+ * @param slot
  * @param oraclePrice Use MMOraclePriceData source for perp orders, OraclePriceData for spot
  * @returns BN
  */
 export function getAuctionPrice(
 	order: Order,
 	slot: number,
-	oraclePrice: BN 
+	oraclePrice: BN
 ): BN {
 	if (
 		isOneOfVariant(order.orderType, ['market', 'triggerLimit']) ||
@@ -100,11 +100,11 @@ export function getAuctionPriceForFixedAuction(order: Order, slot: number): BN {
 }
 
 /**
- * 
- * @param order 
- * @param slot 
+ *
+ * @param order
+ * @param slot
  * @param oraclePrice Use MMOraclePriceData source for perp orders, OraclePriceData for spot
- * @returns 
+ * @returns
  */
 export function getAuctionPriceForOracleOffsetAuction(
 	order: Order,
@@ -201,9 +201,9 @@ export function deriveOracleAuctionParams({
 }
 
 /**
- * 
+ *
  * @param params Use OraclePriceData.price for oraclePrice param
- * @returns 
+ * @returns
  */
 export function getTriggerAuctionStartPrice(params: {
 	perpMarket: PerpMarketAccount;
