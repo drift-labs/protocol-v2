@@ -194,7 +194,7 @@ pub fn liquidate_perp(
         ErrorCode::PositionDoesntHaveOpenPositionOrOrders
     )?;
 
-    let (cancel_order_market_type, cancel_order_market_index, cancel_order_skip_isolated_positions) =
+    let (cancel_order_market_type, cancel_order_market_index) =
         liquidation_mode.get_cancel_orders_params();
     let canceled_order_ids = orders::cancel_orders(
         user,
@@ -209,7 +209,7 @@ pub fn liquidate_perp(
         cancel_order_market_type,
         cancel_order_market_index,
         None,
-        cancel_order_skip_isolated_positions,
+        true,
     )?;
 
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
@@ -832,7 +832,7 @@ pub fn liquidate_perp_with_fill(
         ErrorCode::PositionDoesntHaveOpenPositionOrOrders
     )?;
 
-    let (cancel_orders_market_type, cancel_orders_market_index, cancel_orders_is_isolated) =
+    let (cancel_orders_market_type, cancel_orders_market_index) =
         liquidation_mode.get_cancel_orders_params();
     let canceled_order_ids = orders::cancel_orders(
         &mut user,
@@ -847,7 +847,7 @@ pub fn liquidate_perp_with_fill(
         cancel_orders_market_type,
         cancel_orders_market_index,
         None,
-        cancel_orders_is_isolated,
+        true,
     )?;
 
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
@@ -3007,7 +3007,7 @@ pub fn liquidate_perp_pnl_for_deposit(
     let liquidation_id = user.enter_cross_margin_liquidation(slot)?;
     let mut margin_freed = 0_u64;
 
-    let (cancel_orders_market_type, cancel_orders_market_index, cancel_orders_is_isolated) =
+    let (cancel_orders_market_type, cancel_orders_market_index) =
         liquidation_mode.get_cancel_orders_params();
     let canceled_order_ids = orders::cancel_orders(
         user,
@@ -3022,7 +3022,7 @@ pub fn liquidate_perp_pnl_for_deposit(
         cancel_orders_market_type,
         cancel_orders_market_index,
         None,
-        cancel_orders_is_isolated,
+        true,
     )?;
 
     let (safest_tier_spot_liability, safest_tier_perp_liability) = liquidation_mode

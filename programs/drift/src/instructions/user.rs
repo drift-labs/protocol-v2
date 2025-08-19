@@ -2607,7 +2607,7 @@ pub fn handle_cancel_orders<'c: 'info, 'info>(
         market_type,
         market_index,
         direction,
-        true,
+        false,
     )?;
 
     Ok(())

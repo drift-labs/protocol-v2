@@ -37,7 +37,7 @@ pub trait LiquidatePerpMode {
 
     fn exit_liquidation(&self, user: &mut User) -> DriftResult<()>;
 
-    fn get_cancel_orders_params(&self) -> (Option<MarketType>, Option<u16>, bool);
+    fn get_cancel_orders_params(&self) -> (Option<MarketType>, Option<u16>);
 
     fn calculate_max_pct_to_liquidate(
         &self,
@@ -129,8 +129,8 @@ impl LiquidatePerpMode for CrossMarginLiquidatePerpMode {
         Ok(user.exit_cross_margin_liquidation())
     }
 
-    fn get_cancel_orders_params(&self) -> (Option<MarketType>, Option<u16>, bool) {
-        (None, None, true)
+    fn get_cancel_orders_params(&self) -> (Option<MarketType>, Option<u16>) {
+        (None, None)
     }
 
     fn calculate_max_pct_to_liquidate(
@@ -280,8 +280,8 @@ impl LiquidatePerpMode for IsolatedLiquidatePerpMode {
         user.exit_isolated_position_liquidation(self.market_index)
     }
 
-    fn get_cancel_orders_params(&self) -> (Option<MarketType>, Option<u16>, bool) {
-        (Some(MarketType::Perp), Some(self.market_index), true)
+    fn get_cancel_orders_params(&self) -> (Option<MarketType>, Option<u16>) {
+        (Some(MarketType::Perp), Some(self.market_index))
     }
 
     fn calculate_max_pct_to_liquidate(
