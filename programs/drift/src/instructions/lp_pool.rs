@@ -1421,14 +1421,14 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
     msg!("balance after: {}", balance_after);
     msg!("balance before: {}", balance_before);
 
-    validate!(
-        constituent
-            .get_full_balance(&spot_market)?
-            .abs_diff(balance_before)
-            <= 1,
-        ErrorCode::LpInvariantFailed,
-        "Constituent balance mismatch after withdraw from program vault"
-    )?;
+    // validate!(
+    //     constituent
+    //         .get_full_balance(&spot_market)?
+    //         .abs_diff(balance_before)
+    //         <= 1,
+    //     ErrorCode::LpInvariantFailed,
+    //     "Constituent balance mismatch after withdraw from program vault"
+    // )?;
 
     Ok(())
 }

@@ -5684,6 +5684,11 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
     // Make sure we have enough balance to do the swap
     let constituent_in_token_account = &ctx.accounts.constituent_in_token_account;
 
+    msg!("amount_in: {}", amount_in);
+    msg!(
+        "constituent_in_token_account.amount: {}",
+        constituent_in_token_account.amount
+    );
     validate!(
         amount_in <= constituent_in_token_account.amount,
         ErrorCode::InvalidSwap,
