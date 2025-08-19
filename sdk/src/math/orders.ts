@@ -7,6 +7,7 @@ import {
 	Order,
 	PositionDirection,
 	ProtectedMakerParams,
+	MarketTypeStr,
 } from '../types';
 import { ZERO, TWO, ONE } from '../constants/numericConstants';
 import { BN } from '@coral-xyz/anchor';
@@ -151,9 +152,9 @@ export function standardizePrice(
 	}
 }
 
-export function getLimitPrice(
+export function getLimitPrice<T extends MarketTypeStr>(
 	order: Order,
-	oraclePriceData: OraclePriceData | MMOraclePriceData,
+	oraclePriceData: T extends 'spot' ? OraclePriceData : MMOraclePriceData,
 	slot: number,
 	fallbackPrice?: BN,
 	protectedMakerParams?: ProtectedMakerParams
