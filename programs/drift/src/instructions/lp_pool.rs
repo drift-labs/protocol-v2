@@ -1409,6 +1409,12 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
         ctx.accounts.spot_market_vault.amount,
     )?;
 
+    msg!(
+        "constituent full balance: {}",
+        constituent.get_full_balance(&spot_market)?
+    );
+    msg!("balance before: {}", balance_before);
+
     validate!(
         constituent
             .get_full_balance(&spot_market)?

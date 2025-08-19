@@ -334,9 +334,9 @@ impl LPPool {
         )?;
         let out_fee_pct = in_fee_pct.safe_add(out_fee_pct)?;
         let out_fee_amount = out_amount
-            .safe_mul(out_fee_pct.cast::<u128>()?)?
-            .safe_div(PERCENTAGE_PRECISION)?
-            .cast::<i128>()?;
+            .cast::<i128>()?
+            .safe_mul(out_fee_pct)?
+            .safe_div(PERCENTAGE_PRECISION_I128)?;
 
         Ok((lp_burn_amount, out_amount, lp_fee_to_charge, out_fee_amount))
     }
