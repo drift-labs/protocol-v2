@@ -197,14 +197,16 @@ export function calculateUpdatedAMMSpreadReserves(
 	amm: AMM,
 	direction: PositionDirection,
 	mmOraclePriceData: MMOraclePriceData,
-	isPrediction = false
+	isPrediction = false,
+	latestSlot?: BN
 ): { baseAssetReserve: BN; quoteAssetReserve: BN; sqrtK: BN; newPeg: BN } {
 	const newAmm = calculateUpdatedAMM(amm, mmOraclePriceData);
 	const [shortReserves, longReserves] = calculateSpreadReserves(
 		newAmm,
 		mmOraclePriceData,
 		undefined,
-		isPrediction
+		isPrediction,
+		latestSlot
 	);
 
 	const dirReserves = isVariant(direction, 'long')
@@ -225,7 +227,8 @@ export function calculateBidAskPrice(
 	amm: AMM,
 	mmOraclePriceData: MMOraclePriceData,
 	withUpdate = true,
-	isPrediction = false
+	isPrediction = false,
+	latestSlot?: BN
 ): [BN, BN] {
 	let newAmm: AMM;
 	if (withUpdate) {
@@ -238,7 +241,8 @@ export function calculateBidAskPrice(
 		newAmm,
 		mmOraclePriceData,
 		undefined,
-		isPrediction
+		isPrediction,
+		latestSlot
 	);
 
 	const askPrice = calculatePrice(
