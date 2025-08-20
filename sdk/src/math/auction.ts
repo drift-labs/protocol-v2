@@ -289,3 +289,39 @@ export function getTriggerAuctionStartPrice(params: {
 
 	return auctionStartPrice;
 }
+
+/**
+ *
+ * @param params Use OraclePriceData.price for oraclePrice param and MMOraclePriceData.price for mmOraclePrice
+ * @returns
+ */
+export function getTriggerAuctionStartAndExecutionPrice(params: {
+	perpMarket: PerpMarketAccount;
+	direction: PositionDirection;
+	oraclePrice: BN;
+	mmOraclePrice: BN;
+	limitPrice?: BN;
+}): { startPrice: BN; executionPrice: BN } {
+	const { perpMarket, direction, oraclePrice, limitPrice, mmOraclePrice } =
+		params;
+
+	const startPrice = getTriggerAuctionStartPrice({
+		perpMarket,
+		direction,
+		oraclePrice,
+		limitPrice,
+	});
+
+	const offsetPlusBuffer = startPrice.sub(oraclePrice);
+	let executionPrice = mmOraclePrice.add(offsetPlusBuffer);
+
+	if (limitPrice) {
+		if (isVariant(direction, 'long')) {
+			executionPrice = BN.min(executionPrice, limitPrice);
+		} else {
+			executionPrice = BN.max(executionPrice, limitPrice);
+		}
+	}
+
+	return { startPrice, executionPrice };
+}
