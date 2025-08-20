@@ -2332,23 +2332,28 @@ mod next_liquidation_id {
         };
         user.perp_positions[1] = isolated_position_2;
 
-        let liquidation_id = user.enter_cross_margin_liquidation(1).unwrap();
+        let liquidation_id = user.enter_cross_margin_liquidation(2).unwrap();
         assert_eq!(liquidation_id, 1);
+        assert_eq!(user.last_active_slot, 2);
 
-        let liquidation_id = user.enter_isolated_margin_liquidation(1).unwrap();
+        let liquidation_id = user.enter_isolated_margin_liquidation(1, 3).unwrap();
         assert_eq!(liquidation_id, 1);
+        assert_eq!(user.last_active_slot, 2);
 
         user.exit_isolated_margin_liquidation(1).unwrap();
 
         user.exit_cross_margin_liquidation();
 
-        let liquidation_id = user.enter_isolated_margin_liquidation(1).unwrap();
+        let liquidation_id = user.enter_isolated_margin_liquidation(1, 4).unwrap();
         assert_eq!(liquidation_id, 2);
+        assert_eq!(user.last_active_slot, 4);
 
-        let liquidation_id = user.enter_isolated_margin_liquidation(2).unwrap();
+        let liquidation_id = user.enter_isolated_margin_liquidation(2, 5).unwrap();
         assert_eq!(liquidation_id, 2);
+        assert_eq!(user.last_active_slot, 4);
 
-        let liquidation_id = user.enter_cross_margin_liquidation(1).unwrap();
+        let liquidation_id = user.enter_cross_margin_liquidation(6).unwrap();
         assert_eq!(liquidation_id, 2);
+        assert_eq!(user.last_active_slot, 4);
     }
 }

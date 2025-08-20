@@ -283,7 +283,7 @@ impl LiquidatePerpMode for IsolatedMarginLiquidatePerpMode {
     }
 
     fn enter_liquidation(&self, user: &mut User, slot: u64) -> DriftResult<u16> {
-        user.enter_isolated_margin_liquidation(self.market_index)
+        user.enter_isolated_margin_liquidation(self.market_index, slot)
     }
 
     fn exit_liquidation(&self, user: &mut User) -> DriftResult<()> {

@@ -109,7 +109,7 @@ pub fn liquidate_perp(
     validate!(
         !liquidator.is_being_liquidated(),
         ErrorCode::UserBankrupt,
-        "liquidator bankrupt",
+        "liquidator being liquidated",
     )?;
 
     validate!(
@@ -255,7 +255,7 @@ pub fn liquidate_perp(
 
         if liquidation_mode.can_exit_liquidation(&intermediate_margin_calculation)? {
             let (margin_requirement, total_collateral, bit_flags) =
-                liquidation_mode.get_event_fields(&intermediate_margin_calculation)?;
+                liquidation_mode.get_event_fields(&margin_calculation)?;
             emit!(LiquidationRecord {
                 ts: now,
                 liquidation_id,
@@ -764,7 +764,7 @@ pub fn liquidate_perp_with_fill(
     validate!(
         !liquidator.is_being_liquidated(),
         ErrorCode::UserBankrupt,
-        "liquidator bankrupt",
+        "liquidator being liquidated",
     )?;
 
     let market = perp_market_map.get_ref(&market_index)?;
@@ -893,7 +893,7 @@ pub fn liquidate_perp_with_fill(
 
         if liquidation_mode.can_exit_liquidation(&intermediate_margin_calculation)? {
             let (margin_requirement, total_collateral, bit_flags) =
-                liquidation_mode.get_event_fields(&intermediate_margin_calculation)?;
+                liquidation_mode.get_event_fields(&margin_calculation)?;
             emit!(LiquidationRecord {
                 ts: now,
                 liquidation_id,
@@ -1209,7 +1209,7 @@ pub fn liquidate_spot(
     validate!(
         !liquidator.is_being_liquidated(),
         ErrorCode::UserBankrupt,
-        "liquidator bankrupt",
+        "liquidator being liquidated",
     )?;
 
     let asset_spot_market = spot_market_map.get_ref(&asset_market_index)?;
@@ -1793,7 +1793,7 @@ pub fn liquidate_spot_with_swap_begin(
     validate!(
         !liquidator.is_being_liquidated(),
         ErrorCode::UserBankrupt,
-        "liquidator bankrupt",
+        "liquidator being liquidated",
     )?;
 
     let asset_spot_market = spot_market_map.get_ref(&asset_market_index)?;
@@ -2345,7 +2345,7 @@ pub fn liquidate_borrow_for_perp_pnl(
     validate!(
         !liquidator.is_being_liquidated(),
         ErrorCode::UserBankrupt,
-        "liquidator bankrupt",
+        "liquidator being liquidated",
     )?;
 
     validate!(
@@ -2829,7 +2829,7 @@ pub fn liquidate_perp_pnl_for_deposit(
     validate!(
         !liquidator.is_being_liquidated(),
         ErrorCode::UserBankrupt,
-        "liquidator bankrupt",
+        "liquidator being liquidated",
     )?;
 
     validate!(
@@ -3058,7 +3058,7 @@ pub fn liquidate_perp_pnl_for_deposit(
             let market_oracle_price = oracle_map.get_price_data(&market.oracle_id())?.price;
 
             let (margin_requirement, total_collateral, bit_flags) =
-                liquidation_mode.get_event_fields(&intermediate_margin_calculation)?;
+                liquidation_mode.get_event_fields(&margin_calculation)?;
             emit!(LiquidationRecord {
                 ts: now,
                 liquidation_id,
@@ -3724,7 +3724,7 @@ pub fn set_user_status_to_being_liquidated(
 
     for (market_index, isolated_margin_calculation) in margin_calculation.isolated_margin_calculations.iter() {
         if !user.is_isolated_margin_being_liquidated(*market_index)? && !isolated_margin_calculation.meets_margin_requirement() {
-            user.enter_isolated_margin_liquidation(*market_index)?;
+            user.enter_isolated_margin_liquidation(*market_index, slot)?;
         }
     }
 

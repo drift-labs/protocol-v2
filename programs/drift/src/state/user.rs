@@ -380,11 +380,11 @@ impl User {
 
         self.add_user_status(UserStatus::BeingLiquidated);
         self.liquidation_margin_freed = 0;
-        self.last_active_slot = slot;
 
         let liquidation_id = if self.has_isolated_margin_being_liquidated() {
             self.next_liquidation_id.safe_sub(1)?
         } else {
+            self.last_active_slot = slot;
             get_then_update_id!(self, next_liquidation_id)
         };
 
@@ -417,6 +417,7 @@ impl User {
     pub fn enter_isolated_margin_liquidation(
         &mut self,
         perp_market_index: u16,
+        slot: u64,
     ) -> DriftResult<u16> {
         if self.is_isolated_margin_being_liquidated(perp_market_index)? {
             return self.next_liquidation_id.safe_sub(1);
@@ -427,6 +428,7 @@ impl User {
         {
             self.next_liquidation_id.safe_sub(1)?
         } else {
+            self.last_active_slot = slot;
             get_then_update_id!(self, next_liquidation_id)
         };
 
@@ -734,7 +736,7 @@ impl User {
             context,
         )?;
 
-        let isolated_position_margin_calculation = calculation
+        let isolated_margin_calculation = calculation
             .get_isolated_margin_calculation(isolated_perp_position_market_index)?;
 
         validate!(
@@ -744,11 +746,11 @@ impl User {
         )?;
 
         validate!(
-            isolated_position_margin_calculation.meets_margin_requirement(),
+            isolated_margin_calculation.meets_margin_requirement(),
             ErrorCode::InsufficientCollateral,
             "User attempting to withdraw where total_collateral {} is below initial_margin_requirement {}",
-            isolated_position_margin_calculation.total_collateral,
-            isolated_position_margin_calculation.margin_requirement
+            isolated_margin_calculation.total_collateral,
+            isolated_margin_calculation.margin_requirement
         )?;
 
         Ok(true)
