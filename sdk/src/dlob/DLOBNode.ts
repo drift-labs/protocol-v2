@@ -16,7 +16,10 @@ import { convertToNumber } from '../math/conversion';
 import { getOrderSignature } from './NodeList';
 
 export interface DLOBNode {
-	getPrice(oraclePriceData: OraclePriceData, slot: number): BN;
+	getPrice<T extends MarketTypeStr>(
+		oraclePriceData: T extends 'spot' ? OraclePriceData : MMOraclePriceData,
+		slot: number
+	): BN;
 	isVammNode(): boolean;
 	order: Order | undefined;
 	isBaseFilled(): boolean;
