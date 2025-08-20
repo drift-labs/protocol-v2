@@ -1,5 +1,5 @@
 {
-  "version": "2.130.0",
+  "version": "2.134.0",
   "name": "drift",
   "instructions": [
     {
@@ -4833,6 +4833,42 @@
       ]
     },
     {
+      "name": "updatePerpMarketPnlPool",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "depositIntoSpotMarketVault",
       "accounts": [
         {
@@ -7576,6 +7612,27 @@
         }
       ],
       "args": []
+    },
+    {
+      "name": "updateFeatureBitFlagsMedianTriggerPrice",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "enable",
+          "type": "bool"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -11434,7 +11491,7 @@
           {
             "name": "openBids",
             "docs": [
-              "How many spot bids the user has open",
+              "How many spot non reduce only trigger orders the user has open",
               "precision: token mint precision"
             ],
             "type": "i64"
@@ -11442,7 +11499,7 @@
           {
             "name": "openAsks",
             "docs": [
-              "How many spot asks the user has open",
+              "How many spot non reduce only trigger orders the user has open",
               "precision: token mint precision"
             ],
             "type": "i64"
@@ -11541,7 +11598,7 @@
           {
             "name": "openBids",
             "docs": [
-              "The amount of open bids the user has in this perp market",
+              "The amount of non reduce only trigger orders the user has open",
               "precision: BASE_PRECISION"
             ],
             "type": "i64"
@@ -11549,7 +11606,7 @@
           {
             "name": "openAsks",
             "docs": [
-              "The amount of open asks the user has in this perp market",
+              "The amount of non reduce only trigger orders the user has open",
               "precision: BASE_PRECISION"
             ],
             "type": "i64"
@@ -12810,7 +12867,7 @@
             "name": "MmOracleUpdate"
           },
           {
-            "name": "EnableMedianTriggerPrice"
+            "name": "MedianTriggerPrice"
           }
         ]
       }
@@ -12942,6 +12999,9 @@
           },
           {
             "name": "SafeTriggerOrder"
+          },
+          {
+            "name": "NewTriggerReduceOnly"
           }
         ]
       }

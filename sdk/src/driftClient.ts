@@ -64,6 +64,7 @@ import {
 	ProtectedMakerModeConfig,
 	SignedMsgOrderParamsDelegateMessage,
 	TokenProgramFlag,
+	PostOnlyParams,
 } from './types';
 import driftIDL from './idl/drift.json';
 
@@ -133,7 +134,7 @@ import {
 import { findDirectionToClose, positionIsAvailable } from './math/position';
 import { getSignedTokenAmount, getTokenAmount } from './math/spotBalance';
 import { decodeName, DEFAULT_USER_NAME, encodeName } from './userName';
-import { OraclePriceData } from './oracles/types';
+import { MMOraclePriceData, OraclePriceData } from './oracles/types';
 import { DriftClientConfig } from './driftClientConfig';
 import { PollingDriftClientAccountSubscriber } from './accounts/pollingDriftClientAccountSubscriber';
 import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDriftClientAccountSubscriber';
@@ -446,7 +447,9 @@ export class DriftClient {
 					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
 					logResubMessages: config.accountSubscription?.logResubMessages,
 				},
-				config.accountSubscription?.commitment
+				config.accountSubscription?.commitment,
+				config.accountSubscription?.perpMarketAccountSubscriber,
+				config.accountSubscription?.oracleAccountSubscriber
 			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
@@ -1582,6 +1585,31 @@ export class DriftClient {
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
+	}
+
+	public async getUpdateUserDelegateIx(
+		delegate: PublicKey,
+		overrides: {
+			subAccountId?: number;
+			userAccountPublicKey?: PublicKey;
+			authority?: PublicKey;
+		}
+	): Promise<TransactionInstruction> {
+		const subAccountId = overrides.subAccountId ?? this.activeSubAccountId;
+		const userAccountPublicKey =
+			overrides.userAccountPublicKey ?? (await this.getUserAccountPublicKey());
+		const authority = overrides.authority ?? this.wallet.publicKey;
+
+		return await this.program.instruction.updateUserDelegate(
+			subAccountId,
+			delegate,
+			{
+				accounts: {
+					user: userAccountPublicKey,
+					authority,
+				},
+			}
+		);
 	}
 
 	public async updateUserDelegate(
@@ -4165,25 +4193,20 @@ export class DriftClient {
 	public async getUpdateAMMsIx(
 		marketIndexes: number[]
 	): Promise<TransactionInstruction> {
-		for (let i = marketIndexes.length; i < 5; i++) {
-			marketIndexes.push(100);
-		}
 		const marketAccountInfos = [];
 		const oracleAccountInfos = [];
 		for (const marketIndex of marketIndexes) {
-			if (marketIndex !== 100) {
-				const market = this.getPerpMarketAccount(marketIndex);
-				marketAccountInfos.push({
-					pubkey: market.pubkey,
-					isWritable: true,
-					isSigner: false,
-				});
-				oracleAccountInfos.push({
-					pubkey: market.amm.oracle,
-					isWritable: false,
-					isSigner: false,
-				});
-			}
+			const market = this.getPerpMarketAccount(marketIndex);
+			marketAccountInfos.push({
+				pubkey: market.pubkey,
+				isWritable: true,
+				isSigner: false,
+			});
+			oracleAccountInfos.push({
+				pubkey: market.amm.oracle,
+				isWritable: false,
+				isSigner: false,
+			});
 		}
 		const remainingAccounts = oracleAccountInfos.concat(marketAccountInfos);
 
@@ -4356,14 +4379,24 @@ export class DriftClient {
 		});
 	}
 
+	/**
+	 * Sends a transaction to cancel the provided order ids.
+	 *
+	 * @param orderIds - The order ids to cancel.
+	 * @param txParams - The transaction parameters.
+	 * @param subAccountId - The sub account id to cancel the orders for.
+	 * @param user - The user to cancel the orders for. If provided, it will be prioritized over the subAccountId.
+	 * @returns The transaction signature.
+	 */
 	public async cancelOrdersByIds(
 		orderIds?: number[],
 		txParams?: TxParams,
-		subAccountId?: number
+		subAccountId?: number,
+		user?: User
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
-				await this.getCancelOrdersByIdsIx(orderIds, subAccountId),
+				await this.getCancelOrdersByIdsIx(orderIds, subAccountId, user),
 				txParams
 			),
 			[],
@@ -4372,21 +4405,34 @@ export class DriftClient {
 		return txSig;
 	}
 
+	/**
+	 * Returns the transaction instruction to cancel the provided order ids.
+	 *
+	 * @param orderIds - The order ids to cancel.
+	 * @param subAccountId - The sub account id to cancel the orders for.
+	 * @param user - The user to cancel the orders for. If provided, it will be prioritized over the subAccountId.
+	 * @returns The transaction instruction to cancel the orders.
+	 */
 	public async getCancelOrdersByIdsIx(
 		orderIds?: number[],
-		subAccountId?: number
+		subAccountId?: number,
+		user?: User
 	): Promise<TransactionInstruction> {
-		const user = await this.getUserAccountPublicKey(subAccountId);
+		const userAccountPubKey =
+			user?.userAccountPublicKey ??
+			(await this.getUserAccountPublicKey(subAccountId));
+		const userAccount =
+			user?.getUserAccount() ?? this.getUserAccount(subAccountId);
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount(subAccountId)],
+			userAccounts: [userAccount],
 			useMarketLastSlotCache: true,
 		});
 
 		return await this.program.instruction.cancelOrdersByIds(orderIds, {
 			accounts: {
 				state: await this.getStatePublicKey(),
-				user,
+				user: userAccountPubKey,
 				authority: this.wallet.publicKey,
 			},
 			remainingAccounts,
@@ -6949,7 +6995,7 @@ export class DriftClient {
 			auctionStartPrice?: BN;
 			auctionEndPrice?: BN;
 			reduceOnly?: boolean;
-			postOnly?: boolean;
+			postOnly?: PostOnlyParams;
 			bitFlags?: number;
 			maxTs?: BN;
 			policy?: number;
@@ -6968,6 +7014,12 @@ export class DriftClient {
 		return txSig;
 	}
 
+	/**
+	 * @param orderParams: The parameters for the order to modify.
+	 * @param subAccountId: Optional - The subaccount ID of the user to modify the order for.
+	 * @param userPublicKey: Optional - The public key of the user to modify the order for. This takes precedence over subAccountId.
+	 * @returns
+	 */
 	public async getModifyOrderIx(
 		{
 			orderId,
@@ -6997,14 +7049,16 @@ export class DriftClient {
 			auctionStartPrice?: BN;
 			auctionEndPrice?: BN;
 			reduceOnly?: boolean;
-			postOnly?: boolean;
+			postOnly?: PostOnlyParams;
 			bitFlags?: number;
 			maxTs?: BN;
 			policy?: number;
 		},
-		subAccountId?: number
+		subAccountId?: number,
+		userPublicKey?: PublicKey
 	): Promise<TransactionInstruction> {
-		const user = await this.getUserAccountPublicKey(subAccountId);
+		const user =
+			userPublicKey ?? (await this.getUserAccountPublicKey(subAccountId));
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [this.getUserAccount(subAccountId)],
@@ -7070,7 +7124,7 @@ export class DriftClient {
 			auctionStartPrice?: BN;
 			auctionEndPrice?: BN;
 			reduceOnly?: boolean;
-			postOnly?: boolean;
+			postOnly?: PostOnlyParams;
 			bitFlags?: number;
 			policy?: ModifyOrderPolicy;
 			maxTs?: BN;
@@ -7118,7 +7172,7 @@ export class DriftClient {
 			auctionStartPrice?: BN;
 			auctionEndPrice?: BN;
 			reduceOnly?: boolean;
-			postOnly?: boolean;
+			postOnly?: PostOnlyParams;
 			bitFlags?: number;
 			policy?: ModifyOrderPolicy;
 			maxTs?: BN;
@@ -7377,7 +7431,10 @@ export class DriftClient {
 		settleeUserAccountPublicKey: PublicKey,
 		settleeUserAccount: UserAccount,
 		marketIndexes: number[],
-		mode: SettlePnlMode
+		mode: SettlePnlMode,
+		overrides?: {
+			authority?: PublicKey;
+		}
 	): Promise<TransactionInstruction> {
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [settleeUserAccount],
@@ -7391,7 +7448,7 @@ export class DriftClient {
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
-					authority: this.wallet.publicKey,
+					authority: overrides?.authority ?? this.wallet.publicKey,
 					user: settleeUserAccountPublicKey,
 					spotMarketVault: this.getQuoteSpotMarketAccount().vault,
 				},
@@ -8487,20 +8544,16 @@ export class DriftClient {
 	}
 
 	public getOracleDataForPerpMarket(marketIndex: number): OraclePriceData {
-		const perpMarket = this.getPerpMarketAccount(marketIndex);
-		const isMMOracleActive = !perpMarket.amm.mmOracleSlot.eq(ZERO);
-		return {
-			...this.accountSubscriber.getOraclePriceDataAndSlotForPerpMarket(
-				marketIndex
-			).data,
-			isMMOracleActive,
-		};
+		return this.accountSubscriber.getOraclePriceDataAndSlotForPerpMarket(
+			marketIndex
+		).data;
 	}
 
-	public getMMOracleDataForPerpMarket(marketIndex: number): OraclePriceData {
+	public getMMOracleDataForPerpMarket(marketIndex: number): MMOraclePriceData {
 		const perpMarket = this.getPerpMarketAccount(marketIndex);
 		const oracleData = this.getOracleDataForPerpMarket(marketIndex);
 		const stateAccountAndSlot = this.accountSubscriber.getStateAccountAndSlot();
+		const isMMOracleActive = !perpMarket.amm.mmOracleSlot.eq(ZERO);
 		const pctDiff = perpMarket.amm.mmOraclePrice
 			.sub(oracleData.price)
 			.abs()
@@ -8517,20 +8570,18 @@ export class DriftClient {
 			perpMarket.amm.mmOracleSlot < oracleData.slot ||
 			pctDiff.gt(PERCENTAGE_PRECISION.divn(100)) // 1% threshold
 		) {
-			return { ...oracleData, fetchedWithMMOracle: true };
+			return { ...oracleData, isMMOracleActive };
 		} else {
-			const conf = getOracleConfidenceFromMMOracleData({
-				mmOraclePrice: perpMarket.amm.mmOraclePrice,
-				mmOracleSlot: perpMarket.amm.mmOracleSlot,
-				oraclePriceData: oracleData,
-			});
+			const conf = getOracleConfidenceFromMMOracleData(
+				perpMarket.amm.mmOraclePrice,
+				oracleData
+			);
 			return {
 				price: perpMarket.amm.mmOraclePrice,
 				slot: perpMarket.amm.mmOracleSlot,
 				confidence: conf,
 				hasSufficientNumberOfDataPoints: true,
-				fetchedWithMMOracle: true,
-				isMMOracleActive: oracleData.isMMOracleActive,
+				isMMOracleActive,
 			};
 		}
 	}
@@ -9853,17 +9904,20 @@ export class DriftClient {
 			  })
 			: undefined;
 
-		const ix = await this.program.instruction.disableUserHighLeverageMode({
-			accounts: {
-				state: await this.getStatePublicKey(),
-				user,
-				authority: this.wallet.publicKey,
-				highLeverageModeConfig: getHighLeverageModeConfigPublicKey(
-					this.program.programId
-				),
-			},
-			remainingAccounts,
-		});
+		const ix = await this.program.instruction.disableUserHighLeverageMode(
+			false,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user,
+					authority: this.wallet.publicKey,
+					highLeverageModeConfig: getHighLeverageModeConfigPublicKey(
+						this.program.programId
+					),
+				},
+				remainingAccounts,
+			}
+		);
 
 		return ix;
 	}
