@@ -32,7 +32,7 @@ import {
 	StateAccount,
 } from '../types';
 import { isUserProtectedMaker } from '../math/userStatus';
-import { OraclePriceData } from '../oracles/types';
+import { MMOraclePriceData, OraclePriceData } from '../oracles/types';
 import { ProtectMakerParamsMap } from './types';
 import { SlotSubscriber } from '../slot/SlotSubscriber';
 import { UserMap } from '../userMap/userMap';
@@ -446,16 +446,20 @@ export class DLOB {
 		return undefined;
 	}
 
-	public findNodesToFill(
+	public findNodesToFill<T extends MarketType>(
 		marketIndex: number,
 		fallbackBid: BN | undefined,
 		fallbackAsk: BN | undefined,
 		slot: number,
 		ts: number,
-		marketType: MarketType,
-		oraclePriceData: OraclePriceData,
+		marketType: T,
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData,
 		stateAccount: StateAccount,
-		marketAccount: PerpMarketAccount | SpotMarketAccount
+		marketAccount: T extends { spot: unknown }
+			? SpotMarketAccount
+			: PerpMarketAccount
 	): NodeToFill[] {
 		if (fillPaused(stateAccount, marketAccount)) {
 			return [];
@@ -504,10 +508,23 @@ export class DLOB {
 			new BN(slot)
 		);
 
+		const stepSize = isVariant(marketType, 'perp')
+			? (marketAccount as PerpMarketAccount).amm.orderStepSize
+			: (marketAccount as SpotMarketAccount).orderStepSize;
+
+		const cancelReduceOnlyNodesToFill =
+			this.findUnfillableReduceOnlyOrdersToCancel(
+				marketIndex,
+				marketType,
+				stepSize
+			);
+
 		return this.mergeNodesToFill(
 			restingLimitOrderNodesToFill,
 			takingOrderNodesToFill
-		).concat(expiredNodesToFill);
+		)
+			.concat(expiredNodesToFill)
+			.concat(cancelReduceOnlyNodesToFill);
 	}
 
 	getMakerRebate(
@@ -572,11 +589,13 @@ export class DLOB {
 		return Array.from(mergedNodesToFill.values());
 	}
 
-	public findRestingLimitOrderNodesToFill(
+	public findRestingLimitOrderNodesToFill<T extends MarketType>(
 		marketIndex: number,
 		slot: number,
-		marketType: MarketType,
-		oraclePriceData: OraclePriceData,
+		marketType: T,
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData,
 		isAmmPaused: boolean,
 		minAuctionDuration: number,
 		makerRebateNumerator: number,
@@ -656,11 +675,13 @@ export class DLOB {
 		return nodesToFill;
 	}
 
-	public findTakingNodesToFill(
+	public findTakingNodesToFill<T extends MarketType>(
 		marketIndex: number,
 		slot: number,
-		marketType: MarketType,
-		oraclePriceData: OraclePriceData,
+		marketType: T,
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData,
 		isAmmPaused: boolean,
 		minAuctionDuration: number,
 		fallbackAsk: BN | undefined,
@@ -782,17 +803,21 @@ export class DLOB {
 		return nodesToFill;
 	}
 
-	public findTakingNodesCrossingMakerNodes(
+	public findTakingNodesCrossingMakerNodes<T extends MarketType>(
 		marketIndex: number,
 		slot: number,
-		marketType: MarketType,
-		oraclePriceData: OraclePriceData,
+		marketType: T,
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData,
 		takerNodeGenerator: Generator<DLOBNode>,
 		makerNodeGeneratorFn: (
 			marketIndex: number,
 			slot: number,
 			marketType: MarketType,
-			oraclePriceData: OraclePriceData
+			oraclePriceData: T extends { spot: unknown }
+				? OraclePriceData
+				: MMOraclePriceData
 		) => Generator<DLOBNode>,
 		doesCross: (takerPrice: BN | undefined, makerPrice: BN) => boolean
 	): NodeToFill[] {
@@ -878,10 +903,12 @@ export class DLOB {
 		return nodesToFill;
 	}
 
-	public findNodesCrossingFallbackLiquidity(
-		marketType: MarketType,
+	public findNodesCrossingFallbackLiquidity<T extends MarketType>(
+		marketType: T,
 		slot: number,
-		oraclePriceData: OraclePriceData,
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData,
 		nodeGenerator: Generator<DLOBNode>,
 		doesCross: (nodePrice: BN | undefined) => boolean,
 		minAuctionDuration: number
@@ -997,11 +1024,59 @@ export class DLOB {
 		return nodesToFill;
 	}
 
-	*getTakingBids(
+	public findUnfillableReduceOnlyOrdersToCancel(
 		marketIndex: number,
 		marketType: MarketType,
+		stepSize: BN
+	): NodeToFill[] {
+		const nodesToFill = new Array<NodeToFill>();
+
+		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
+		const nodeLists = this.orderLists.get(marketTypeStr).get(marketIndex);
+
+		if (!nodeLists) {
+			return nodesToFill;
+		}
+
+		const generators = [
+			nodeLists.takingLimit.bid.getGenerator(),
+			nodeLists.restingLimit.bid.getGenerator(),
+			nodeLists.floatingLimit.bid.getGenerator(),
+			nodeLists.market.bid.getGenerator(),
+			nodeLists.signedMsg.bid.getGenerator(),
+			nodeLists.takingLimit.ask.getGenerator(),
+			nodeLists.restingLimit.ask.getGenerator(),
+			nodeLists.floatingLimit.ask.getGenerator(),
+			nodeLists.market.ask.getGenerator(),
+			nodeLists.signedMsg.ask.getGenerator(),
+			nodeLists.trigger.above.getGenerator(),
+			nodeLists.trigger.below.getGenerator(),
+		];
+
+		for (const generator of generators) {
+			for (const node of generator) {
+				if (!node.order.reduceOnly) {
+					continue;
+				}
+
+				if (node.baseAssetAmount.lt(stepSize)) {
+					nodesToFill.push({
+						node,
+						makerNodes: [],
+					});
+				}
+			}
+		}
+
+		return nodesToFill;
+	}
+	*getTakingBids<T extends MarketType>(
+		marketIndex: number,
+		marketType: T,
 		slot: number,
-		oraclePriceData: OraclePriceData,
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData,
 		filterFcn?: DLOBFilterFcn
 	): Generator<DLOBNode> {
 		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
@@ -1032,11 +1107,13 @@ export class DLOB {
 		);
 	}
 
-	*getTakingAsks(
+	*getTakingAsks<T extends MarketType>(
 		marketIndex: number,
-		marketType: MarketType,
+		marketType: T,
 		slot: number,
-		oraclePriceData: OraclePriceData,
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData,
 		filterFcn?: DLOBFilterFcn
 	): Generator<DLOBNode> {
 		const marketTypeStr = getVariant(marketType) as MarketTypeStr;
@@ -1078,15 +1155,15 @@ export class DLOB {
 		}
 	}
 
-	protected *getBestNode(
+	protected *getBestNode<T extends MarketTypeStr>(
 		generatorList: Array<Generator<DLOBNode>>,
-		oraclePriceData: OraclePriceData,
+		oraclePriceData: T extends 'spot' ? OraclePriceData : MMOraclePriceData,
 		slot: number,
 		compareFcn: (
 			bestDLOBNode: DLOBNode,
 			currentDLOBNode: DLOBNode,
 			slot: number,
-			oraclePriceData: OraclePriceData
+			oraclePriceData: T extends 'spot' ? OraclePriceData : MMOraclePriceData
 		) => boolean,
 		filterFcn?: DLOBFilterFcn
 	): Generator<DLOBNode> {
@@ -1138,11 +1215,13 @@ export class DLOB {
 		}
 	}
 
-	*getRestingLimitAsks(
+	*getRestingLimitAsks<T extends MarketType>(
 		marketIndex: number,
 		slot: number,
-		marketType: MarketType,
-		oraclePriceData: OraclePriceData,
+		marketType: T,
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData,
 		filterFcn?: DLOBFilterFcn
 	): Generator<DLOBNode> {
 		if (isVariant(marketType, 'spot') && !oraclePriceData) {
@@ -1180,11 +1259,13 @@ export class DLOB {
 		);
 	}
 
-	*getRestingLimitBids(
+	*getRestingLimitBids<T extends MarketType>(
 		marketIndex: number,
 		slot: number,
-		marketType: MarketType,
-		oraclePriceData: OraclePriceData,
+		marketType: T,
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData,
 		filterFcn?: DLOBFilterFcn
 	): Generator<DLOBNode> {
 		if (isVariant(marketType, 'spot') && !oraclePriceData) {
@@ -1231,12 +1312,14 @@ export class DLOB {
 	 * @param oraclePriceData
 	 * @param filterFcn
 	 */
-	*getAsks(
+	*getAsks<T extends MarketType>(
 		marketIndex: number,
 		_fallbackAsk: BN | undefined,
 		slot: number,
-		marketType: MarketType,
-		oraclePriceData: OraclePriceData,
+		marketType: T,
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData,
 		filterFcn?: DLOBFilterFcn
 	): Generator<DLOBNode> {
 		if (isVariant(marketType, 'spot') && !oraclePriceData) {
@@ -1276,12 +1359,14 @@ export class DLOB {
 	 * @param oraclePriceData
 	 * @param filterFcn
 	 */
-	*getBids(
+	*getBids<T extends MarketType>(
 		marketIndex: number,
 		_fallbackBid: BN | undefined,
 		slot: number,
-		marketType: MarketType,
-		oraclePriceData: OraclePriceData,
+		marketType: T,
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData,
 		filterFcn?: DLOBFilterFcn
 	): Generator<DLOBNode> {
 		if (isVariant(marketType, 'spot') && !oraclePriceData) {
@@ -1313,11 +1398,13 @@ export class DLOB {
 		);
 	}
 
-	findCrossingRestingLimitOrders(
+	findCrossingRestingLimitOrders<T extends MarketType>(
 		marketIndex: number,
 		slot: number,
-		marketType: MarketType,
-		oraclePriceData: OraclePriceData
+		marketType: T,
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData
 	): NodeToFill[] {
 		const nodesToFill = new Array<NodeToFill>();
 
@@ -1439,11 +1526,13 @@ export class DLOB {
 		}
 	}
 
-	public getBestAsk(
+	public getBestAsk<T extends MarketType>(
 		marketIndex: number,
 		slot: number,
-		marketType: MarketType,
-		oraclePriceData: OraclePriceData
+		marketType: T,
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData
 	): BN | undefined {
 		const bestAsk = this.getRestingLimitAsks(
 			marketIndex,
@@ -1458,11 +1547,13 @@ export class DLOB {
 		return undefined;
 	}
 
-	public getBestBid(
+	public getBestBid<T extends MarketType>(
 		marketIndex: number,
 		slot: number,
-		marketType: MarketType,
-		oraclePriceData: OraclePriceData
+		marketType: T,
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData
 	): BN | undefined {
 		const bestBid = this.getRestingLimitBids(
 			marketIndex,
@@ -1636,7 +1727,7 @@ export class DLOB {
 		if (isVariant(marketType, 'perp')) {
 			const slot = slotSubscriber.getSlot();
 			const oraclePriceData =
-				driftClient.getOracleDataForPerpMarket(marketIndex);
+				driftClient.getMMOracleDataForPerpMarket(marketIndex);
 
 			const bestAsk = this.getBestAsk(
 				marketIndex,
@@ -1681,18 +1772,18 @@ export class DLOB {
 		} else if (isVariant(marketType, 'spot')) {
 			const slot = slotSubscriber.getSlot();
 			const oraclePriceData =
-				driftClient.getOracleDataForPerpMarket(marketIndex);
+				driftClient.getOracleDataForSpotMarket(marketIndex);
 
 			const bestAsk = this.getBestAsk(
 				marketIndex,
 				slot,
-				marketType,
+				MarketType.SPOT,
 				oraclePriceData
 			);
 			const bestBid = this.getBestBid(
 				marketIndex,
 				slot,
-				marketType,
+				MarketType.SPOT,
 				oraclePriceData
 			);
 			const mid = bestAsk.add(bestBid).div(new BN(2));
@@ -1783,7 +1874,7 @@ export class DLOB {
 	 * @param depth how many levels of the order book to return
 	 * @param fallbackL2Generators L2 generators for fallback liquidity e.g. vAMM {@link getVammL2Generator}, openbook {@link SerumSubscriber}
 	 */
-	public getL2({
+	public getL2<T extends MarketType>({
 		marketIndex,
 		marketType,
 		slot,
@@ -1792,9 +1883,11 @@ export class DLOB {
 		fallbackL2Generators = [],
 	}: {
 		marketIndex: number;
-		marketType: MarketType;
+		marketType: T;
 		slot: number;
-		oraclePriceData: OraclePriceData;
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData;
 		depth: number;
 		fallbackL2Generators?: L2OrderBookGenerator[];
 	}): L2OrderBook {
@@ -1853,16 +1946,18 @@ export class DLOB {
 	 * @param slot
 	 * @param oraclePriceData
 	 */
-	public getL3({
+	public getL3<T extends MarketType>({
 		marketIndex,
 		marketType,
 		slot,
 		oraclePriceData,
 	}: {
 		marketIndex: number;
-		marketType: MarketType;
+		marketType: T;
 		slot: number;
-		oraclePriceData: OraclePriceData;
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData;
 	}): L3OrderBook {
 		const bids: L3Level[] = [];
 		const asks: L3Level[] = [];
@@ -1945,7 +2040,7 @@ export class DLOB {
 	 * @param param.oraclePriceData the oracle price data
 	 * @returns the estimated quote amount filled: QUOTE_PRECISION
 	 */
-	public estimateFillWithExactBaseAmount({
+	public estimateFillWithExactBaseAmount<T extends MarketType>({
 		marketIndex,
 		marketType,
 		baseAmount,
@@ -1954,11 +2049,13 @@ export class DLOB {
 		oraclePriceData,
 	}: {
 		marketIndex: number;
-		marketType: MarketType;
+		marketType: T;
 		baseAmount: BN;
 		orderDirection: PositionDirection;
 		slot: number;
-		oraclePriceData: OraclePriceData;
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData;
 	}): BN {
 		if (isVariant(orderDirection, 'long')) {
 			return this.estimateFillExactBaseAmountInForSide(
@@ -1977,7 +2074,7 @@ export class DLOB {
 		}
 	}
 
-	public getBestMakers({
+	public getBestMakers<T extends MarketType>({
 		marketIndex,
 		marketType,
 		direction,
@@ -1986,10 +2083,12 @@ export class DLOB {
 		numMakers,
 	}: {
 		marketIndex: number;
-		marketType: MarketType;
+		marketType: T;
 		direction: PositionDirection;
 		slot: number;
-		oraclePriceData: OraclePriceData;
+		oraclePriceData: T extends { spot: unknown }
+			? OraclePriceData
+			: MMOraclePriceData;
 		numMakers: number;
 	}): PublicKey[] {
 		const makers = new Map<string, PublicKey>();

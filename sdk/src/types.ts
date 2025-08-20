@@ -196,6 +196,7 @@ export class OrderBitFlag {
 	static readonly SignedMessage = 1;
 	static readonly OracleTriggerMarket = 2;
 	static readonly SafeTriggerOrder = 4;
+	static readonly NewTriggerReduceOnly = 8;
 }
 
 export class OrderAction {

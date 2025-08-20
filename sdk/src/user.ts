@@ -90,7 +90,7 @@ import {
 	calculateMarginUSDCRequiredForTrade,
 	calculateWorstCaseBaseAssetAmount,
 } from './math/margin';
-import { OraclePriceData } from './oracles/types';
+import { MMOraclePriceData, OraclePriceData } from './oracles/types';
 import { UserConfig } from './userConfig';
 import { PollingUserAccountSubscriber } from './accounts/pollingUserAccountSubscriber';
 import { WebSocketUserAccountSubscriber } from './accounts/webSocketUserAccountSubscriber';
@@ -843,7 +843,7 @@ export class User {
 				const market = this.driftClient.getPerpMarketAccount(
 					perpPosition.marketIndex
 				);
-				const oraclePriceData = this.getOracleDataForPerpMarket(
+				const oraclePriceData = this.getMMOracleDataForPerpMarket(
 					market.marketIndex
 				);
 
@@ -1031,7 +1031,7 @@ export class User {
 				}
 
 				for (const perpPosition of this.getActivePerpPositions()) {
-					const oraclePriceData = this.getOracleDataForPerpMarket(
+					const oraclePriceData = this.getMMOracleDataForPerpMarket(
 						perpPosition.marketIndex
 					);
 
@@ -1679,7 +1679,7 @@ export class User {
 
 		const entryPrice = calculateEntryPrice(position);
 
-		const oraclePriceData = this.getOracleDataForPerpMarket(
+		const oraclePriceData = this.getMMOracleDataForPerpMarket(
 			position.marketIndex
 		);
 
@@ -2102,7 +2102,7 @@ export class User {
 	public isHighLeverageMode(marginCategory: MarginCategory): boolean {
 		return (
 			isVariant(this.getUserAccount().marginMode, 'highLeverage') ||
-			(isVariant(marginCategory, 'maintenance') &&
+			(marginCategory === 'Maintenance' &&
 				isVariant(this.getUserAccount().marginMode, 'highLeverageMaintenance'))
 		);
 	}
@@ -2660,7 +2660,7 @@ export class User {
 			? true
 			: targetSide === currentPositionSide;
 
-		const oracleData = this.getOracleDataForPerpMarket(targetMarketIndex);
+		const oracleData = this.getMMOracleDataForPerpMarket(targetMarketIndex);
 
 		const marketAccount =
 			this.driftClient.getPerpMarketAccount(targetMarketIndex);
@@ -4122,6 +4122,10 @@ export class User {
 			liquidationBuffer,
 			includeOpenOrders
 		).sub(currentPerpPositionValueUSDC);
+	}
+
+	private getMMOracleDataForPerpMarket(marketIndex: number): MMOraclePriceData {
+		return this.driftClient.getMMOracleDataForPerpMarket(marketIndex);
 	}
 
 	private getOracleDataForPerpMarket(marketIndex: number): OraclePriceData {
