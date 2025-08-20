@@ -125,7 +125,11 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 		this.program = program;
 		this.accountPublicKey = accountPublicKey;
 		this.decodeBufferFn = decodeBuffer;
-		this.resubOpts = resubOpts;
+		this.resubOpts = resubOpts ?? {
+			resubTimeoutMs: 30000,
+			usePollingInsteadOfResub: true,
+			logResubMessages: false,
+		};
 		if (this.resubOpts?.resubTimeoutMs < 1000) {
 			console.log(
 				`resubTimeoutMs should be at least 1000ms to avoid spamming resub ${this.logAccountName}`

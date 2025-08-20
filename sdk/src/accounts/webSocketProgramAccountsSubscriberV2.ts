@@ -109,7 +109,7 @@ export class WebSocketProgramAccountsSubscriberV2<T>
 		buffer: Buffer
 	) => void;
 	listenerId?: number;
-	resubOpts?: ResubOpts;
+	resubOpts: ResubOpts;
 	isUnsubscribing = false;
 	timeoutId?: ReturnType<typeof setTimeout>;
 	options: { filters: MemcmpFilter[]; commitment?: Commitment };
@@ -157,7 +157,11 @@ export class WebSocketProgramAccountsSubscriberV2<T>
 		this.accountDiscriminator = accountDiscriminator;
 		this.program = program;
 		this.decodeBuffer = decodeBufferFn;
-		this.resubOpts = resubOpts;
+		this.resubOpts = resubOpts ?? {
+			resubTimeoutMs: 30000,
+			usePollingInsteadOfResub: true,
+			logResubMessages: false,
+		};
 		if (this.resubOpts?.resubTimeoutMs < 1000) {
 			console.log(
 				'resubTimeoutMs should be at least 1000ms to avoid spamming resub'
