@@ -47,7 +47,9 @@ import {
 } from '../sdk/src';
 
 import {
+	createWSolTokenAccountForUser,
 	initializeQuoteSpotMarket,
+	initializeSolSpotMarket,
 	mockAtaTokenAccountForMint,
 	mockOracleNoProgram,
 	mockUSDCMint,
@@ -243,20 +245,7 @@ describe('LP Pool', () => {
 			maintenanceLiabilityWeight,
 			imfFactor
 		);
-
-		await adminClient.initializeSpotMarket(
-			spotTokenMint.publicKey,
-			optimalUtilization,
-			optimalRate,
-			maxRate,
-			spotMarketOracle2,
-			OracleSource.PYTH,
-			initialAssetWeight,
-			maintenanceAssetWeight,
-			initialLiabilityWeight,
-			maintenanceLiabilityWeight,
-			imfFactor
-		);
+		await initializeSolSpotMarket(adminClient, spotMarketOracle2);
 
 		await adminClient.initializeSpotMarket(
 			spotTokenMint.publicKey,
@@ -1483,12 +1472,34 @@ describe('LP Pool', () => {
 		await adminClient.updateFeatureBitFlagsSettleLpPool(true);
 	});
 
-	it('can do spot vault withdraws', async () => {
-		await adminClient.updateFeatureBitFlagsSettleLpPool(false);
+	it('can do spot vault withdraws when there are borrows', async () => {
+		// First deposit into wsol account from subaccount 1
+		await adminClient.initializeUserAccount(1);
+		const publickey = await createWSolTokenAccountForUser(
+			bankrunContextWrapper,
+			adminClient.wallet.payer,
+			new BN(500).mul(new BN(10 ** 9))
+		);
+
+		await adminClient.deposit(
+			new BN(500).mul(new BN(10 ** 9)),
+			2,
+			publickey,
+			1
+		);
+
+		// Withdraw from subaccount 0
+		await adminClient.switchActiveUser(0);
+		await adminClient.withdraw(
+			new BN(100).mul(new BN(10 ** 9)),
+			2,
+			await adminClient.getAssociatedTokenAccount(2)
+		);
+
 		await adminClient.withdrawFromProgramVault(
 			encodeName(lpPoolName),
-			0,
-			new BN(100).mul(QUOTE_PRECISION)
+			2,
+			new BN(100).mul(new BN(10 ** 9))
 		);
 	});
 });

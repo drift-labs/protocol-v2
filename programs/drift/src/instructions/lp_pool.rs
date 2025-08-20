@@ -1323,7 +1323,7 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
         constituent
             .get_full_balance(&spot_market)?
             .abs_diff(balance_before)
-            <= balance_before.abs().cast::<u128>()?.safe_div(10000)?,
+            <= 1,
         ErrorCode::LpInvariantFailed,
         "Constituent balance mismatch after desposit to program vault"
     )?;
@@ -1439,7 +1439,7 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
         constituent
             .get_full_balance(&spot_market)?
             .abs_diff(balance_before)
-            <= balance_before.abs().cast::<u128>()?.safe_div(10000)?,
+            <= 1,
         ErrorCode::LpInvariantFailed,
         "Constituent balance mismatch after withdraw from program vault"
     )?;
