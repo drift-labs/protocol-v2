@@ -939,7 +939,8 @@ export function calculateSpreadReserves(
 	amm: AMM,
 	mmOraclePriceData: MMOraclePriceData,
 	now?: BN,
-	isPrediction = false
+	isPrediction = false,
+	latestSlot?: BN
 ) {
 	function calculateSpreadReserve(
 		spread: number,
@@ -1041,28 +1042,28 @@ export function calculateSpreadReserves(
 		amm.curveUpdateIntensity > 100;
 
 	if (doReferencePricOffsetSmooth) {
-		if (mmOraclePriceData.slot !== amm.lastUpdateSlot) {
-			const slotsPassed =
-				mmOraclePriceData.slot.toNumber() - amm.lastUpdateSlot.toNumber();
-			const fullOffsetDelta = referencePriceOffset - amm.referencePriceOffset;
-			const raw = Math.trunc(
-				Math.min(Math.abs(fullOffsetDelta), slotsPassed * 1000) / 10
-			);
-			const maxAllowed =
-				Math.abs(amm.referencePriceOffset) || Math.abs(referencePriceOffset);
+		const slotsPassed =
+			latestSlot != null
+				? BN.max(latestSlot.sub(amm.lastUpdateSlot), ZERO).toNumber()
+				: 0;
+		const fullOffsetDelta = referencePriceOffset - amm.referencePriceOffset;
+		const raw = Math.trunc(
+			Math.min(Math.abs(fullOffsetDelta), slotsPassed * 1000) / 10
+		);
+		const maxAllowed =
+			Math.abs(amm.referencePriceOffset) || Math.abs(referencePriceOffset);
 
-			const magnitude = Math.min(Math.max(raw, 10), maxAllowed);
-			const referencePriceDelta = Math.sign(fullOffsetDelta) * magnitude;
+		const magnitude = Math.min(Math.max(raw, 10), maxAllowed);
+		const referencePriceDelta = Math.sign(fullOffsetDelta) * magnitude;
 
-			referencePriceOffset = amm.referencePriceOffset + referencePriceDelta;
+		referencePriceOffset = amm.referencePriceOffset + referencePriceDelta;
 
-			if (referencePriceDelta < 0) {
-				longSpread += Math.abs(referencePriceDelta);
-				shortSpread += Math.abs(referencePriceOffset);
-			} else {
-				shortSpread += Math.abs(referencePriceDelta);
-				longSpread += Math.abs(referencePriceOffset);
-			}
+		if (referencePriceDelta < 0) {
+			longSpread += Math.abs(referencePriceDelta);
+			shortSpread += Math.abs(referencePriceOffset);
+		} else {
+			shortSpread += Math.abs(referencePriceDelta);
+			longSpread += Math.abs(referencePriceOffset);
 		}
 	}
 
