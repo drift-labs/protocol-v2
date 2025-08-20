@@ -10817,6 +10817,7 @@ export class DriftClient {
 					),
 					constituentTargetBase,
 					tokenProgram: TOKEN_PROGRAM_ID,
+					ammCache: getAmmCachePublicKey(this.program.programId),
 				},
 			}
 		);
@@ -10959,6 +10960,14 @@ export class DriftClient {
 	): Promise<TransactionInstruction[]> {
 		const ixs: TransactionInstruction[] = [];
 		ixs.push(
+			...(await this.getAllSettlePerpToLpPoolIxs(
+				lpPool.name,
+				this.getPerpMarketAccounts()
+					.filter((marketAccount) => marketAccount.lpStatus > 0)
+					.map((marketAccount) => marketAccount.marketIndex)
+			))
+		);
+		ixs.push(
 			...(await this.getAllUpdateLpPoolAumIxs(
 				lpPool,
 				constituentMap,
@@ -11095,11 +11104,11 @@ export class DriftClient {
 
 	public async getAllSettlePerpToLpPoolIxs(
 		lpPoolName: number[],
-		marketIndex: number
+		marketIndexes: number[]
 	): Promise<TransactionInstruction[]> {
 		const ixs: TransactionInstruction[] = [];
-		ixs.push(await this.getUpdateAmmCacheIx([marketIndex]));
-		ixs.push(await this.getSettlePerpToLpPoolIx(lpPoolName, [marketIndex]));
+		ixs.push(await this.getUpdateAmmCacheIx(marketIndexes));
+		ixs.push(await this.getSettlePerpToLpPoolIx(lpPoolName, marketIndexes));
 		return ixs;
 	}
 

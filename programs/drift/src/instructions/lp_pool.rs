@@ -922,6 +922,20 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
     let state = &ctx.accounts.state;
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
 
+    // Verify previous settle
+    let amm_cache: AccountZeroCopy<'_, CacheInfo, _> = ctx.accounts.amm_cache.load_zc()?;
+    for (i, _) in amm_cache.iter().enumerate() {
+        let cache_info = amm_cache.get(i as u32);
+        if cache_info.last_fee_pool_token_amount != 0 && cache_info.last_settle_slot != slot {
+            msg!(
+                "Market {} has not been settled in current slot. Last slot: {}",
+                i,
+                cache_info.last_settle_slot
+            );
+            return Err(ErrorCode::AMMCacheStale.into());
+        }
+    }
+
     if slot.saturating_sub(lp_pool.last_aum_slot) > LP_POOL_SWAP_AUM_UPDATE_DELAY {
         msg!(
             "Must update LP pool AUM before swap, last_aum_slot: {}, current slot: {}",
@@ -1786,6 +1800,13 @@ pub struct LPPoolRemoveLiquidity<'info> {
     pub lp_pool_token_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
     pub token_program: Interface<'info, TokenInterface>,
+
+    #[account(
+        seeds = [AMM_POSITIONS_CACHE.as_ref()],
+        bump,
+    )]
+    /// CHECK: checked in AmmCacheZeroCopy checks
+    pub amm_cache: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]

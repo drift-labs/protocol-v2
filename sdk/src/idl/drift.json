@@ -8676,6 +8676,11 @@
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
+        },
+        {
+          "name": "ammCache",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": [

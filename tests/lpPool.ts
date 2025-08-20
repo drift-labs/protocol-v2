@@ -1030,6 +1030,9 @@ describe('LP Pool', () => {
 			);
 
 		const tx = new Transaction();
+		tx.add(
+			...(await adminClient.getAllSettlePerpToLpPoolIxs(lpPool.name, [0, 1, 2]))
+		);
 		tx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1, 2]));
 		tx.add(
 			await adminClient.getLpPoolRemoveLiquidityIx({
@@ -1482,7 +1485,10 @@ describe('LP Pool', () => {
 
 	it('can do spot vault withdraws', async () => {
 		await adminClient.updateFeatureBitFlagsSettleLpPool(false);
-		await adminClient.withdrawFromProgramVault(encodeName(lpPoolName), 0, new BN(100).mul(QUOTE_PRECISION));
+		await adminClient.withdrawFromProgramVault(
+			encodeName(lpPoolName),
+			0,
+			new BN(100).mul(QUOTE_PRECISION)
+		);
 	});
-
 });

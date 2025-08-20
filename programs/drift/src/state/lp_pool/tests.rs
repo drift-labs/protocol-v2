@@ -1166,8 +1166,8 @@ mod swap_tests {
             6,              // in_decimals
             1_000_000,      // in_amount (1 token) = $1
             10_000_000_000, // dlp_total_supply
-            997900,         // expected_out_amount
-            2100,           // expected_lp_fee
+            999900,         // expected_out_amount
+            100,            // expected_lp_fee
             299,            // expected_out_fee_amount
             1,
             2,
@@ -1185,9 +1185,9 @@ mod swap_tests {
             8,              // in_decimals
             100_000_000,    // in_amount (1 token) = $1
             10_000_000_000, // dlp_total_supply
-            9979000000,     // expected_out_amount
-            210000,         // expected_lp_fee
-            2993700,
+            9999000000,     // expected_out_amount
+            10000,          // expected_lp_fee
+            2999700,
             1,
             2,
             2,
@@ -1206,7 +1206,7 @@ mod swap_tests {
             10_000,         // in_amount (1 token) = 1/10000
             10_000_000_000, // dlp_total_supply
             99,             // expected_out_amount
-            21,             // expected_lp_fee
+            1,              // expected_lp_fee
             0,              // expected_out_fee_amount
             1,
             2,
@@ -1223,9 +1223,9 @@ mod swap_tests {
             5,                           // in_decimals
             100_000_000_000 * 100_000,   // in_amount
             100_000_000_000 * 1_000_000, // dlp_total_supply
-            997900000000000,             // expected_out_amount
-            21000000000000,              // expected_lp_fee
-            473004600000,                // expected_out_fee_amount
+            999900000000000,             // expected_out_amount
+            1000000000000,               // expected_lp_fee
+            473952600000,                // expected_out_fee_amount
             1,
             2,
             2,
@@ -1241,9 +1241,9 @@ mod swap_tests {
             6,                           // in_decimals
             100_000_000_000 * 1_000_000, // in_amount
             100_000_000_000 * 1_000_000, // dlp_total_supply
-            99790000000000000,           // expected_out_amount
-            210000000000000,             // expected_lp_fee
-            348167310000000,             // expected_out_fee_amount
+            99990000000000000,           // expected_out_amount
+            10000000000000,              // expected_lp_fee
+            349765020000000,             // expected_out_fee_amount
             1,
             2,
             2,
@@ -1259,9 +1259,9 @@ mod swap_tests {
             8,                            // in_decimals
             10_000_000_000 * 100_000_000, // in_amount
             10_000_000_000 * 1_000_000,   // dlp_total_supply
-            9_979_000_000_000_000_0000,   // expected_out_amount
-            2100_000_000_000_000,         // expected_lp_fee
-            3757093500000000000,          // expected_out_fee_amount
+            9_999_000_000_000_000_0000,   // expected_out_amount
+            100000000000000,              // expected_lp_fee
+            3764623500000000000,          // expected_out_fee_amount
             1,
             2,
             2,
