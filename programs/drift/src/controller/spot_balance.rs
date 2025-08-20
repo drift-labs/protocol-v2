@@ -9,7 +9,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::amm::sanitize_new_price;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    FIVE_MINUTE, IF_FACTOR_PRECISION, ONE_HOUR, QUOTE_SPOT_MARKET_INDEX,
+    FIVE_MINUTE, IF_FACTOR_PRECISION, ONE_HOUR, ONE_MINUTE, QUOTE_SPOT_MARKET_INDEX,
     SPOT_MARKET_TOKEN_TWAP_WINDOW,
 };
 use crate::math::spot_balance::{
@@ -55,6 +55,7 @@ pub fn update_spot_market_twap_stats(
         spot_market.deposit_token_twap.cast()?,
         since_last,
         from_start,
+        None,
     )?
     .cast()?;
 
@@ -63,6 +64,7 @@ pub fn update_spot_market_twap_stats(
         spot_market.borrow_token_twap.cast()?,
         since_last,
         from_start,
+        None,
     )?
     .cast()?;
 
@@ -73,6 +75,7 @@ pub fn update_spot_market_twap_stats(
         spot_market.utilization_twap.cast()?,
         since_last,
         from_start,
+        None,
     )?
     .cast()?;
 
@@ -103,15 +106,19 @@ pub fn update_spot_market_twap_stats(
             FIVE_MINUTE as i64,
         )?;
 
-        spot_market.historical_oracle_data.last_oracle_price_twap = oracle_price_twap;
-        spot_market
-            .historical_oracle_data
-            .last_oracle_price_twap_5min = oracle_price_twap_5min;
-
         spot_market.historical_oracle_data.last_oracle_price = oracle_price_data.price;
         spot_market.historical_oracle_data.last_oracle_conf = oracle_price_data.confidence;
         spot_market.historical_oracle_data.last_oracle_delay = oracle_price_data.delay;
-        spot_market.historical_oracle_data.last_oracle_price_twap_ts = now;
+
+        if oracle_price_twap != spot_market.historical_oracle_data.last_oracle_price_twap
+            || since_last >= (ONE_MINUTE as i64)
+        {
+            spot_market.historical_oracle_data.last_oracle_price_twap = oracle_price_twap;
+            spot_market
+                .historical_oracle_data
+                .last_oracle_price_twap_5min = oracle_price_twap_5min;
+            spot_market.historical_oracle_data.last_oracle_price_twap_ts = now;
+        }
     }
 
     spot_market.last_twap_ts = now.cast()?;

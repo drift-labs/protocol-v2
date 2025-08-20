@@ -27,7 +27,7 @@ impl SettlePnlMode {
         );
         match self {
             SettlePnlMode::MustSettle => Err(error_code),
-            SettlePnlMode::TrySettle => Err(error_code),
+            SettlePnlMode::TrySettle => Ok(()),
         }
     }
 }
