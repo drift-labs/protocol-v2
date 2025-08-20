@@ -43,7 +43,7 @@ import {
 	getPerpMarketAccountsFilter,
 	getSpotMarketAccountsFilter,
 } from '../memcmp';
-import { WebSocketProgramAccountSubscriberV2 } from './webSocketProgramAccountSubscriberV2';
+import { WebSocketProgramAccountsSubscriberV2 } from './webSocketProgramAccountsSubscriberV2';
 import { WebSocketAccountSubscriberV2 } from './webSocketAccountSubscriberV2';
 const ORACLE_DEFAULT_ID = getOracleId(
 	PublicKey.default,
@@ -67,12 +67,12 @@ export class WebSocketDriftClientAccountSubscriberV2
 
 	eventEmitter: StrictEventEmitter<EventEmitter, DriftClientAccountEvents>;
 	stateAccountSubscriber?: WebSocketAccountSubscriberV2<StateAccount>;
-	perpMarketAllAccountsSubscriber: WebSocketProgramAccountSubscriberV2<PerpMarketAccount>;
+	perpMarketAllAccountsSubscriber: WebSocketProgramAccountsSubscriberV2<PerpMarketAccount>;
 	perpMarketAccountLatestData = new Map<
 		number,
 		DataAndSlot<PerpMarketAccount>
 	>();
-	spotMarketAllAccountsSubscriber: WebSocketProgramAccountSubscriberV2<SpotMarketAccount>;
+	spotMarketAllAccountsSubscriber: WebSocketProgramAccountsSubscriberV2<SpotMarketAccount>;
 	spotMarketAccountLatestData = new Map<
 		number,
 		DataAndSlot<SpotMarketAccount>
@@ -127,225 +127,236 @@ export class WebSocketDriftClientAccountSubscriberV2
 	}
 
 	public async subscribe(): Promise<boolean> {
-		const startTime = performance.now();
-		if (this.isSubscribed) {
-			console.log(
-				`[PROFILING] WebSocketDriftClientAccountSubscriberV2.subscribe() skipped - already subscribed`
-			);
-			return true;
-		}
+		try {
+			const startTime = performance.now();
+			if (this.isSubscribed) {
+				console.log(
+					`[PROFILING] WebSocketDriftClientAccountSubscriberV2.subscribe() skipped - already subscribed`
+				);
+				return true;
+			}
 
-		if (this.isSubscribing) {
-			console.log(
-				`[PROFILING] WebSocketDriftClientAccountSubscriberV2.subscribe() waiting for existing subscription`
-			);
-			return await this.subscriptionPromise;
-		}
+			if (this.isSubscribing) {
+				console.log(
+					`[PROFILING] WebSocketDriftClientAccountSubscriberV2.subscribe() waiting for existing subscription`
+				);
+				return await this.subscriptionPromise;
+			}
 
-		this.isSubscribing = true;
+			this.isSubscribing = true;
 
-		this.subscriptionPromise = new Promise((res) => {
-			this.subscriptionPromiseResolver = res;
-		});
+			// Initialize subscriptionPromiseResolver to a no-op function
+			this.subscriptionPromiseResolver = () => {};
 
-		const [perpMarketAccountPubkeys, spotMarketAccountPubkeys] =
+			this.subscriptionPromise = new Promise((res) => {
+				this.subscriptionPromiseResolver = res;
+			});
+
+			const [perpMarketAccountPubkeys, spotMarketAccountPubkeys] =
+				await Promise.all([
+					Promise.all(
+						this.perpMarketIndexes.map((marketIndex) =>
+							getPerpMarketPublicKey(this.program.programId, marketIndex)
+						)
+					),
+					Promise.all(
+						this.spotMarketIndexes.map((marketIndex) =>
+							getSpotMarketPublicKey(this.program.programId, marketIndex)
+						)
+					),
+				]);
+
+			// Profile findAllMarketsAndOracles if needed
+			let findAllMarketsDuration = 0;
+			if (this.shouldFindAllMarketsAndOracles) {
+				const findAllMarketsStartTime = performance.now();
+				const {
+					perpMarketIndexes,
+					perpMarketAccounts,
+					spotMarketIndexes,
+					spotMarketAccounts,
+					oracleInfos,
+				} = await findAllMarketAndOracles(this.program);
+				this.perpMarketIndexes = perpMarketIndexes;
+				this.spotMarketIndexes = spotMarketIndexes;
+				this.oracleInfos = oracleInfos;
+				// front run and set the initial data here to save extra gma call in set initial data
+				this.initialPerpMarketAccountData = new Map(
+					perpMarketAccounts.map((market) => [market.marketIndex, market])
+				);
+				this.initialSpotMarketAccountData = new Map(
+					spotMarketAccounts.map((market) => [market.marketIndex, market])
+				);
+				const findAllMarketsEndTime = performance.now();
+				findAllMarketsDuration =
+					findAllMarketsEndTime - findAllMarketsStartTime;
+				console.log(
+					`[PROFILING] findAllMarketAndOracles completed in ${findAllMarketsDuration.toFixed(
+						2
+					)}ms (${perpMarketAccounts.length} perp markets, ${
+						spotMarketAccounts.length
+					} spot markets)`
+				);
+			}
+
+			// Create subscribers
+			this.perpMarketAllAccountsSubscriber =
+				new WebSocketProgramAccountsSubscriberV2<PerpMarketAccount>(
+					'PerpMarketAccountsSubscriber',
+					'PerpMarket',
+					this.program,
+					this.program.account.perpMarket.coder.accounts.decodeUnchecked.bind(
+						this.program.account.perpMarket.coder.accounts
+					),
+					{
+						filters: [getPerpMarketAccountsFilter()],
+						commitment: this.commitment,
+					},
+					this.resubOpts,
+					perpMarketAccountPubkeys // because we pass these in, it will monitor these accounts and fetch them right away
+				);
+
+			this.spotMarketAllAccountsSubscriber =
+				new WebSocketProgramAccountsSubscriberV2<SpotMarketAccount>(
+					'SpotMarketAccountsSubscriber',
+					'SpotMarket',
+					this.program,
+					this.program.account.spotMarket.coder.accounts.decodeUnchecked.bind(
+						this.program.account.spotMarket.coder.accounts
+					),
+					{
+						filters: [getSpotMarketAccountsFilter()],
+						commitment: this.commitment,
+					},
+					this.resubOpts,
+					spotMarketAccountPubkeys // because we pass these in, it will monitor these accounts and fetch them right away
+				);
+
+			// Run all subscriptions in parallel
 			await Promise.all([
-				Promise.all(
-					this.perpMarketIndexes.map((marketIndex) =>
-						getPerpMarketPublicKey(this.program.programId, marketIndex)
-					)
+				// Perp market subscription
+				this.perpMarketAllAccountsSubscriber.subscribe(
+					(
+						_accountId: PublicKey,
+						data: PerpMarketAccount,
+						context: Context,
+						_buffer: Buffer
+					) => {
+						if (
+							this.delistedMarketSetting !== DelistedMarketSetting.Subscribe &&
+							isVariant(data.status, 'delisted')
+						) {
+							return;
+						}
+						this.perpMarketAccountLatestData.set(data.marketIndex, {
+							data,
+							slot: context.slot,
+						});
+						this.eventEmitter.emit('perpMarketAccountUpdate', data);
+						this.eventEmitter.emit('update');
+					}
 				),
-				Promise.all(
-					this.spotMarketIndexes.map((marketIndex) =>
-						getSpotMarketPublicKey(this.program.programId, marketIndex)
-					)
+				// Spot market subscription
+				this.spotMarketAllAccountsSubscriber.subscribe(
+					(
+						_accountId: PublicKey,
+						data: SpotMarketAccount,
+						context: Context,
+						_buffer: Buffer
+					) => {
+						if (
+							this.delistedMarketSetting !== DelistedMarketSetting.Subscribe &&
+							isVariant(data.status, 'delisted')
+						) {
+							return;
+						}
+						this.spotMarketAccountLatestData.set(data.marketIndex, {
+							data,
+							slot: context.slot,
+						});
+						this.eventEmitter.emit('spotMarketAccountUpdate', data);
+						this.eventEmitter.emit('update');
+					}
 				),
+				// State account subscription
+				(async () => {
+					const statePublicKey = await getDriftStateAccountPublicKey(
+						this.program.programId
+					);
+					this.stateAccountSubscriber = new WebSocketAccountSubscriberV2(
+						'state',
+						this.program,
+						statePublicKey,
+						undefined,
+						undefined,
+						this.commitment as Commitment,
+						this.rpcSubscriptions,
+						this.rpc
+					);
+					await Promise.all([
+						this.stateAccountSubscriber.fetch(),
+						this.stateAccountSubscriber.subscribe((data: StateAccount) => {
+							this.eventEmitter.emit('stateAccountUpdate', data);
+							this.eventEmitter.emit('update');
+						}),
+					]);
+				})(),
+				(async () => {
+					await this.setInitialData();
+					const subscribeToOraclesStartTime = performance.now();
+					await this.subscribeToOracles();
+					const subscribeToOraclesEndTime = performance.now();
+					const duration =
+						subscribeToOraclesEndTime - subscribeToOraclesStartTime;
+					return duration;
+				})(),
 			]);
 
-		// Profile findAllMarketsAndOracles if needed
-		let findAllMarketsDuration = 0;
-		if (this.shouldFindAllMarketsAndOracles) {
-			const findAllMarketsStartTime = performance.now();
-			const {
-				perpMarketIndexes,
-				perpMarketAccounts,
-				spotMarketIndexes,
-				spotMarketAccounts,
-				oracleInfos,
-			} = await findAllMarketAndOracles(this.program);
-			this.perpMarketIndexes = perpMarketIndexes;
-			this.spotMarketIndexes = spotMarketIndexes;
-			this.oracleInfos = oracleInfos;
-			// front run and set the initial data here to save extra gma call in set initial data
-			this.initialPerpMarketAccountData = new Map(
-				perpMarketAccounts.map((market) => [market.marketIndex, market])
-			);
-			this.initialSpotMarketAccountData = new Map(
-				spotMarketAccounts.map((market) => [market.marketIndex, market])
-			);
-			const findAllMarketsEndTime = performance.now();
-			findAllMarketsDuration = findAllMarketsEndTime - findAllMarketsStartTime;
+			// const initialPerpMarketDataFromLatestData = new Map(
+			// 	Array.from(this.perpMarketAccountLatestData.values()).map((data) => [
+			// 		data.data.marketIndex,
+			// 		data.data,
+			// 	])
+			// );
+			// const initialSpotMarketDataFromLatestData = new Map(
+			// 	Array.from(this.spotMarketAccountLatestData.values()).map((data) => [
+			// 		data.data.marketIndex,
+			// 		data.data,
+			// 	])
+			// );
+			// this.initialPerpMarketAccountData = initialPerpMarketDataFromLatestData;
+			// this.initialSpotMarketAccountData = initialSpotMarketDataFromLatestData;
+
+			await this.handleDelistedMarketOracles();
+
+			await Promise.all([this.setPerpOracleMap(), this.setSpotOracleMap()]);
+
+			this.eventEmitter.emit('update');
+			// delete initial data
+			this.removeInitialData();
+
+			const totalDuration = performance.now() - startTime;
 			console.log(
-				`[PROFILING] findAllMarketAndOracles completed in ${findAllMarketsDuration.toFixed(
+				`[PROFILING] WebSocketDriftClientAccountSubscriberV2.subscribe() completed in ${totalDuration.toFixed(
 					2
-				)}ms (${perpMarketAccounts.length} perp markets, ${
-					spotMarketAccounts.length
-				} spot markets, ${oracleInfos.length} oracles)`
+				)}ms`
 			);
-		} else {
-			console.log(
-				`[PROFILING] findAllMarketAndOracles skipped (shouldFindAllMarketsAndOracles=false)`
-			);
+
+			// Resolve the subscription promise
+			this.isSubscribed = true;
+			this.isSubscribing = false;
+			// Before calling subscriptionPromiseResolver, check if it's defined
+			if (this.subscriptionPromiseResolver) {
+				this.subscriptionPromiseResolver(true);
+			}
+
+			return true;
+		} catch (error) {
+			console.error('Subscription failed:', error);
+			this.isSubscribing = false;
+			this.subscriptionPromiseResolver(false);
+			return false;
 		}
-		// Create subscribers
-		this.perpMarketAllAccountsSubscriber =
-			new WebSocketProgramAccountSubscriberV2<PerpMarketAccount>(
-				'PerpMarketAccountsSubscriber',
-				'PerpMarket',
-				this.program,
-				this.program.account.perpMarket.coder.accounts.decodeUnchecked.bind(
-					this.program.account.perpMarket.coder.accounts
-				),
-				{
-					filters: [getPerpMarketAccountsFilter()],
-					commitment: this.commitment,
-				},
-				this.resubOpts,
-				perpMarketAccountPubkeys // because we pass these in, it will monitor these accounts and fetch them right away
-			);
-
-		this.spotMarketAllAccountsSubscriber =
-			new WebSocketProgramAccountSubscriberV2<SpotMarketAccount>(
-				'SpotMarketAccountsSubscriber',
-				'SpotMarket',
-				this.program,
-				this.program.account.spotMarket.coder.accounts.decodeUnchecked.bind(
-					this.program.account.spotMarket.coder.accounts
-				),
-				{
-					filters: [getSpotMarketAccountsFilter()],
-					commitment: this.commitment,
-				},
-				this.resubOpts,
-				spotMarketAccountPubkeys // because we pass these in, it will monitor these accounts and fetch them right away
-			);
-
-		// Run all subscriptions in parallel
-		await Promise.all([
-			// Perp market subscription
-			this.perpMarketAllAccountsSubscriber.subscribe(
-				(
-					_accountId: PublicKey,
-					data: PerpMarketAccount,
-					context: Context,
-					_buffer: Buffer
-				) => {
-					if (
-						this.delistedMarketSetting !== DelistedMarketSetting.Subscribe &&
-						isVariant(data.status, 'delisted')
-					) {
-						return;
-					}
-					this.perpMarketAccountLatestData.set(data.marketIndex, {
-						data,
-						slot: context.slot,
-					});
-					this.eventEmitter.emit('perpMarketAccountUpdate', data);
-					this.eventEmitter.emit('update');
-				}
-			),
-			// Spot market subscription
-			this.spotMarketAllAccountsSubscriber.subscribe(
-				(
-					_accountId: PublicKey,
-					data: SpotMarketAccount,
-					context: Context,
-					_buffer: Buffer
-				) => {
-					if (
-						this.delistedMarketSetting !== DelistedMarketSetting.Subscribe &&
-						isVariant(data.status, 'delisted')
-					) {
-						return;
-					}
-					this.spotMarketAccountLatestData.set(data.marketIndex, {
-						data,
-						slot: context.slot,
-					});
-					this.eventEmitter.emit('spotMarketAccountUpdate', data);
-					this.eventEmitter.emit('update');
-				}
-			),
-			// State account subscription
-			(async () => {
-				const statePublicKey = await getDriftStateAccountPublicKey(
-					this.program.programId
-				);
-				this.stateAccountSubscriber = new WebSocketAccountSubscriberV2(
-					'state',
-					this.program,
-					statePublicKey,
-					undefined,
-					undefined,
-					this.commitment as Commitment,
-					this.rpcSubscriptions,
-					this.rpc
-				);
-				await Promise.all([
-					this.stateAccountSubscriber.fetch(),
-					this.stateAccountSubscriber.subscribe((data: StateAccount) => {
-						this.eventEmitter.emit('stateAccountUpdate', data);
-						this.eventEmitter.emit('update');
-					}),
-				]);
-			})(),
-			(async () => {
-				await this.setInitialData();
-				const subscribeToOraclesStartTime = performance.now();
-				await this.subscribeToOracles();
-				const subscribeToOraclesEndTime = performance.now();
-				const duration =
-					subscribeToOraclesEndTime - subscribeToOraclesStartTime;
-				return duration;
-			})(),
-		]);
-
-		const initialPerpMarketDataFromLatestData = new Map(
-			Array.from(this.perpMarketAccountLatestData.values()).map((data) => [
-				data.data.marketIndex,
-				data.data,
-			])
-		);
-		const initialSpotMarketDataFromLatestData = new Map(
-			Array.from(this.spotMarketAccountLatestData.values()).map((data) => [
-				data.data.marketIndex,
-				data.data,
-			])
-		);
-		this.initialPerpMarketAccountData = initialPerpMarketDataFromLatestData;
-		this.initialSpotMarketAccountData = initialSpotMarketDataFromLatestData;
-
-		this.eventEmitter.emit('update');
-
-		await this.handleDelistedMarketOracles();
-
-		await Promise.all([this.setPerpOracleMap(), this.setSpotOracleMap()]);
-
-		this.isSubscribing = false;
-		this.isSubscribed = true;
-		this.subscriptionPromiseResolver(true);
-
-		// delete initial data
-		this.removeInitialData();
-
-		const totalDuration = performance.now() - startTime;
-		console.log(
-			`[PROFILING] WebSocketDriftClientAccountSubscriberV2.subscribe() completed in ${totalDuration.toFixed(
-				2
-			)}ms`
-		);
-
-		return true;
 	}
 
 	chunks = <T>(array: readonly T[], size: number): T[][] => {
@@ -481,42 +492,51 @@ export class WebSocketDriftClientAccountSubscriberV2
 	}
 
 	async subscribeToOracle(oracleInfo: OracleInfo): Promise<boolean> {
-		const oracleId = getOracleId(oracleInfo.publicKey, oracleInfo.source);
+		try {
+			const oracleId = getOracleId(oracleInfo.publicKey, oracleInfo.source);
 
-		const client = this.oracleClientCache.get(
-			oracleInfo.source,
-			this.program.provider.connection,
-			this.program
-		);
-		const accountSubscriber = new WebSocketAccountSubscriberV2<OraclePriceData>(
-			'oracle',
-			this.program,
-			oracleInfo.publicKey,
-			(buffer: Buffer) => {
-				return client.getOraclePriceDataFromBuffer(buffer);
-			},
-			this.resubOpts,
-			this.commitment,
-			this.rpcSubscriptions,
-			this.rpc
-		);
-		const initialOraclePriceData = this.initialOraclePriceData?.get(oracleId);
-		if (initialOraclePriceData) {
-			accountSubscriber.setData(initialOraclePriceData);
-		}
-		await accountSubscriber.subscribe((data: OraclePriceData) => {
-			this.eventEmitter.emit(
-				'oraclePriceUpdate',
-				oracleInfo.publicKey,
+			const client = this.oracleClientCache.get(
 				oracleInfo.source,
-				data
+				this.program.provider.connection,
+				this.program
 			);
-			this.eventEmitter.emit('update');
-		});
+			const accountSubscriber =
+				new WebSocketAccountSubscriberV2<OraclePriceData>(
+					'oracle',
+					this.program,
+					oracleInfo.publicKey,
+					(buffer: Buffer) => {
+						return client.getOraclePriceDataFromBuffer(buffer);
+					},
+					this.resubOpts,
+					this.commitment,
+					this.rpcSubscriptions,
+					this.rpc
+				);
+			const initialOraclePriceData = this.initialOraclePriceData?.get(oracleId);
+			if (initialOraclePriceData) {
+				accountSubscriber.setData(initialOraclePriceData);
+			}
+			await accountSubscriber.subscribe((data: OraclePriceData) => {
+				this.eventEmitter.emit(
+					'oraclePriceUpdate',
+					oracleInfo.publicKey,
+					oracleInfo.source,
+					data
+				);
+				this.eventEmitter.emit('update');
+			});
 
-		this.oracleSubscribers.set(oracleId, accountSubscriber);
+			this.oracleSubscribers.set(oracleId, accountSubscriber);
 
-		return true;
+			return true;
+		} catch (error) {
+			console.error(
+				`Failed to subscribe to oracle ${oracleInfo.publicKey.toString()}:`,
+				error
+			);
+			return false;
+		}
 	}
 
 	async unsubscribeFromMarketAccounts(): Promise<void> {
@@ -540,6 +560,9 @@ export class WebSocketDriftClientAccountSubscriberV2
 			return;
 		}
 
+		if (this.subscriptionPromise) {
+			await this.subscriptionPromise;
+		}
 		await Promise.all([
 			this.stateAccountSubscriber?.unsubscribe(),
 			this.unsubscribeFromMarketAccounts(),
@@ -548,6 +571,8 @@ export class WebSocketDriftClientAccountSubscriberV2
 		]);
 
 		this.isSubscribed = false;
+		this.isSubscribing = false;
+		this.subscriptionPromiseResolver = () => {};
 	}
 
 	async addOracle(oracleInfo: OracleInfo): Promise<boolean> {
@@ -679,7 +704,7 @@ export class WebSocketDriftClientAccountSubscriberV2
 				slot: 0,
 			};
 		}
-		return this.oracleSubscribers.get(oracleId).dataAndSlot;
+		return this.oracleSubscribers.get(oracleId)?.dataAndSlot;
 	}
 
 	public getOraclePriceDataAndSlotForPerpMarket(

@@ -54,8 +54,8 @@ const subscriber = new WebSocketAccountSubscriberV2(
 
 **How it works:**
 1. Initially subscribes to WebSocket updates
-2. If no WebSocket data is received for `resubTimeoutMs` (30s), switches to polling mode if `usePollingInsteadOfResub` is specified true, else just resubscribes(unsub, sub).
-3. Polls every `pollingIntervalMs` (30s) to check for updates by:
+2. If no WebSocket data is received for `resubTimeoutMs` (30s), switches to websocket+polling mode if `usePollingInsteadOfResub` is specified true, else just resubscribes(unsub, sub).
+3. Polls every `pollingIntervalMs` (alongside websocket connection) to check for updates by:
    - Storing current account buffer state
    - Fetching latest account data
    - Comparing buffers to detect any missed updates

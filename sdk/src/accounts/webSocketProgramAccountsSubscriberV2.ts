@@ -33,7 +33,7 @@ type ProgramAccountSubscriptionAsyncIterable = AsyncIterable<
 	}>
 >;
 /**
- * WebSocketProgramAccountSubscriberV2
+ * WebSocketProgramAccountsSubscriberV2
  *
  * High-level overview
  * - WebSocket-first subscriber for Solana program accounts that also layers in
@@ -93,7 +93,7 @@ type ProgramAccountSubscriptionAsyncIterable = AsyncIterable<
  *   and processed concurrently.
  */
 
-export class WebSocketProgramAccountSubscriberV2<T>
+export class WebSocketProgramAccountsSubscriberV2<T>
 	implements ProgramAccountSubscriber<T>
 {
 	subscriptionName: string;
@@ -186,24 +186,38 @@ export class WebSocketProgramAccountSubscriberV2<T>
 	private async handleNotificationLoop(
 		notificationPromise: Promise<ProgramAccountSubscriptionAsyncIterable>
 	) {
-		const subscriptionIterable = await notificationPromise;
-		for await (const notification of subscriptionIterable) {
-			if (this.resubOpts?.resubTimeoutMs) {
-				this.receivingData = true;
-				clearTimeout(this.timeoutId);
-				this.handleRpcResponse(
-					notification.context,
-					notification.value.pubkey,
-					notification.value.account.data
-				);
-				this.setTimeout();
-			} else {
-				this.handleRpcResponse(
-					notification.context,
-					notification.value.pubkey,
-					notification.value.account.data
-				);
+		try {
+			const subscriptionIterable = await notificationPromise;
+			for await (const notification of subscriptionIterable) {
+				try {
+					if (this.resubOpts?.resubTimeoutMs) {
+						this.receivingData = true;
+						clearTimeout(this.timeoutId);
+						this.handleRpcResponse(
+							notification.context,
+							notification.value.pubkey,
+							notification.value.account.data
+						);
+						this.setTimeout();
+					} else {
+						this.handleRpcResponse(
+							notification.context,
+							notification.value.pubkey,
+							notification.value.account.data
+						);
+					}
+				} catch (error) {
+					console.error(
+						`Error handling RPC response for pubkey ${notification.value.pubkey}:`,
+						error
+					);
+				}
 			}
+		} catch (error) {
+			console.error(
+				`[${this.subscriptionName}] Error in notification loop:`,
+				error
+			);
 		}
 	}
 
@@ -550,7 +564,7 @@ export class WebSocketProgramAccountSubscriberV2<T>
 				if (!existingBufferAndSlot) {
 					// Account not in our map yet, add it
 					let newBuffer: Buffer | undefined = undefined;
-					if (accountInfo.data) {
+					if (accountInfo) {
 						if (Array.isArray(accountInfo.data)) {
 							const [data, encoding] = accountInfo.data;
 							newBuffer = Buffer.from(data, encoding);
