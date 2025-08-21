@@ -19,6 +19,7 @@ import {
 	L3OrderBook,
 } from './orderBookLevels';
 import { getProtectedMakerParamsMap } from '../math/protectedMakerParams';
+import { BN } from '..';
 
 export class DLOBSubscriber {
 	driftClient: DriftClient;
@@ -91,6 +92,7 @@ export class DLOBSubscriber {
 		includeVamm = false,
 		numVammOrders,
 		fallbackL2Generators = [],
+		latestSlot,
 	}: {
 		marketName?: string;
 		marketIndex?: number;
@@ -99,6 +101,7 @@ export class DLOBSubscriber {
 		includeVamm?: boolean;
 		numVammOrders?: number;
 		fallbackL2Generators?: L2OrderBookGenerator[];
+		latestSlot?: BN;
 	}): L2OrderBook {
 		if (marketName) {
 			const derivedMarketInfo =
@@ -146,6 +149,7 @@ export class DLOBSubscriber {
 						marketIndex < 3
 							? MAJORS_TOP_OF_BOOK_QUOTE_AMOUNTS
 							: DEFAULT_TOP_OF_BOOK_QUOTE_AMOUNTS,
+					latestSlot,
 				}),
 			];
 		}
