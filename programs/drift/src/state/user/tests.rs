@@ -2357,3 +2357,55 @@ mod next_liquidation_id {
         assert_eq!(user.last_active_slot, 4);
     }
 }
+
+mod force_get_isolated_perp_position_mut {
+    use crate::state::user::{PerpPosition, PositionFlag, User};
+
+    #[test]
+    fn test() {
+        let mut user = User::default();
+
+        let isolated_position = PerpPosition {
+            market_index: 1,
+            position_flag: PositionFlag::IsolatedPosition as u8,
+            base_asset_amount: 1,
+            ..PerpPosition::default()
+        };
+        user.perp_positions[0] = isolated_position;
+
+
+        {
+            let isolated_position_mut = user.force_get_isolated_perp_position_mut(1).unwrap();
+            assert_eq!(isolated_position_mut.base_asset_amount, 1);
+        }
+
+        {
+            let isolated_position = user.get_isolated_perp_position(1).unwrap();
+            assert_eq!(isolated_position.base_asset_amount, 1);
+        }
+
+        {
+            let isolated_position = user.get_isolated_perp_position(2);
+            assert_eq!(isolated_position.is_err(), true);
+        }
+
+        {
+            let isolated_position_mut = user.force_get_isolated_perp_position_mut(2).unwrap();
+            assert_eq!(isolated_position_mut.market_index, 2);
+            assert_eq!(isolated_position_mut.position_flag, PositionFlag::IsolatedPosition as u8);
+        }
+
+        let isolated_position = PerpPosition {
+            market_index: 1,
+            base_asset_amount: 1,
+            ..PerpPosition::default()
+        };
+
+        user.perp_positions[0] = isolated_position;
+
+        {
+            let isolated_position_mut = user.force_get_isolated_perp_position_mut(1);
+            assert_eq!(isolated_position_mut.is_err(), true);
+        }
+    }
+}
