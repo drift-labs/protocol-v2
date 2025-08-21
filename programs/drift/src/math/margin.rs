@@ -311,7 +311,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                         token_value = 0;
                     }
 
-                    calculation.add_isolated_total_collateral(token_value)?;
+                    calculation.add_cross_margin_total_collateral(token_value)?;
 
                     calculation.update_all_deposit_oracles_valid(oracle_valid);
 
@@ -329,7 +329,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                         spot_market.market_index,
                     )?;
 
-                    calculation.add_isolated_margin_requirement(
+                    calculation.add_cross_margin_margin_requirement(
                         token_value,
                         token_value,
                         MarketIdentifier::spot(0),
@@ -382,7 +382,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 )?;
             }
 
-            calculation.add_isolated_margin_requirement(
+            calculation.add_cross_margin_margin_requirement(
                 spot_position.margin_requirement_for_open_orders()?,
                 0,
                 MarketIdentifier::spot(spot_market.market_index),
@@ -398,7 +398,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                         worst_case_weighted_token_value = 0;
                     }
 
-                    calculation.add_isolated_total_collateral(
+                    calculation.add_cross_margin_total_collateral(
                         worst_case_weighted_token_value.cast::<i128>()?,
                     )?;
 
@@ -423,7 +423,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                         spot_market.market_index,
                     )?;
 
-                    calculation.add_isolated_margin_requirement(
+                    calculation.add_cross_margin_margin_requirement(
                         worst_case_weighted_token_value.unsigned_abs(),
                         worst_case_token_value.unsigned_abs(),
                         MarketIdentifier::spot(spot_market.market_index),
@@ -461,13 +461,13 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     }
 
                     calculation
-                        .add_isolated_total_collateral(worst_case_orders_value.cast::<i128>()?)?;
+                        .add_cross_margin_total_collateral(worst_case_orders_value.cast::<i128>()?)?;
 
                     #[cfg(feature = "drift-rs")]
                     calculation.add_spot_asset_value(worst_case_orders_value)?;
                 }
                 Ordering::Less => {
-                    calculation.add_isolated_margin_requirement(
+                    calculation.add_cross_margin_margin_requirement(
                         worst_case_orders_value.unsigned_abs(),
                         worst_case_orders_value.unsigned_abs(),
                         MarketIdentifier::spot(0),
@@ -572,13 +572,13 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             #[cfg(feature = "drift-rs")]
             calculation.add_spot_asset_value(quote_token_value)?;
         } else {
-            calculation.add_isolated_margin_requirement(
+            calculation.add_cross_margin_margin_requirement(
                 perp_margin_requirement,
                 worst_case_liability_value,
                 MarketIdentifier::perp(market.market_index),
             )?;
 
-            calculation.add_isolated_total_collateral(weighted_pnl)?;
+            calculation.add_cross_margin_total_collateral(weighted_pnl)?;
         }
 
         #[cfg(feature = "drift-rs")]

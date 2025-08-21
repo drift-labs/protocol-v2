@@ -246,7 +246,7 @@ impl MarginCalculation {
         }
     }
 
-    pub fn add_isolated_total_collateral(&mut self, total_collateral: i128) -> DriftResult {
+    pub fn add_cross_margin_total_collateral(&mut self, total_collateral: i128) -> DriftResult {
         self.total_collateral = self.total_collateral.safe_add(total_collateral)?;
 
         if self.context.margin_buffer > 0 && total_collateral < 0 {
@@ -259,7 +259,7 @@ impl MarginCalculation {
         Ok(())
     }
 
-    pub fn add_isolated_margin_requirement(
+    pub fn add_cross_margin_margin_requirement(
         &mut self,
         margin_requirement: u128,
         liability_value: u128,
