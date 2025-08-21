@@ -61,13 +61,16 @@ export function calculateReservePrice(
  */
 export function calculateBidPrice(
 	market: PerpMarketAccount,
-	mmOraclePriceData: MMOraclePriceData
+	mmOraclePriceData: MMOraclePriceData,
+	latestSlot?: BN
 ): BN {
 	const { baseAssetReserve, quoteAssetReserve, newPeg } =
 		calculateUpdatedAMMSpreadReserves(
 			market.amm,
 			PositionDirection.SHORT,
-			mmOraclePriceData
+			mmOraclePriceData,
+			undefined,
+			latestSlot
 		);
 
 	return calculatePrice(baseAssetReserve, quoteAssetReserve, newPeg);
@@ -81,13 +84,16 @@ export function calculateBidPrice(
  */
 export function calculateAskPrice(
 	market: PerpMarketAccount,
-	mmOraclePriceData: MMOraclePriceData
+	mmOraclePriceData: MMOraclePriceData,
+	latestSlot?: BN
 ): BN {
 	const { baseAssetReserve, quoteAssetReserve, newPeg } =
 		calculateUpdatedAMMSpreadReserves(
 			market.amm,
 			PositionDirection.LONG,
-			mmOraclePriceData
+			mmOraclePriceData,
+			undefined,
+			latestSlot
 		);
 
 	return calculatePrice(baseAssetReserve, quoteAssetReserve, newPeg);

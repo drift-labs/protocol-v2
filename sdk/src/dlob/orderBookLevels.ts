@@ -182,12 +182,14 @@ export function getVammL2Generator({
 	numOrders,
 	now = new BN(Math.floor(Date.now() / 1000)),
 	topOfBookQuoteAmounts = [],
+	latestSlot,
 }: {
 	marketAccount: PerpMarketAccount;
 	mmOraclePriceData: MMOraclePriceData;
 	numOrders: number;
 	now?: BN;
 	topOfBookQuoteAmounts?: BN[];
+	latestSlot?: BN;
 }): L2OrderBookGenerator {
 	const updatedAmm = calculateUpdatedAMM(marketAccount.amm, mmOraclePriceData);
 	const paused = isOperationPaused(
@@ -211,7 +213,8 @@ export function getVammL2Generator({
 		updatedAmm,
 		mmOraclePriceData,
 		now,
-		isVariant(marketAccount.contractType, 'prediction')
+		isVariant(marketAccount.contractType, 'prediction'),
+		latestSlot
 	);
 
 	const numBaseOrders = Math.max(1, numOrders - topOfBookQuoteAmounts.length);
