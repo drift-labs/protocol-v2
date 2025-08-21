@@ -11,6 +11,7 @@ import {
 	Transaction,
 } from '@solana/web3.js';
 import { getAssociatedTokenAddress, getMint } from '@solana/spl-token';
+import { Clock } from 'solana-bankrun';
 
 import {
 	BN,
@@ -1478,15 +1479,47 @@ describe('LP Pool', () => {
 		const publickey = await createWSolTokenAccountForUser(
 			bankrunContextWrapper,
 			adminClient.wallet.payer,
-			new BN(500).mul(new BN(10 ** 9))
+			new BN(700).mul(new BN(10 ** 9))
 		);
-
+		const lpPool = await adminClient.getLpPoolAccount(encodeName(lpPoolName));
 		await adminClient.deposit(
 			new BN(500).mul(new BN(10 ** 9)),
 			2,
 			publickey,
 			1
 		);
+
+		// Deposit into LP pool some balance
+		const ixs = [];
+		ixs.push(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1, 2, 3]));
+		ixs.push(
+			...(await adminClient.getLpPoolAddLiquidityIx({
+				inMarketIndex: 2,
+				minMintAmount: new BN(1),
+				lpPool,
+				inAmount: new BN(100).mul(new BN(10 ** 9)),
+			}))
+		);
+		await adminClient.sendTransaction(new Transaction().add(...ixs));
+
+		await adminClient.depositToProgramVault(
+			lpPool.name,
+			2,
+			new BN(100).mul(new BN(10 ** 9))
+		);
+
+		let curClock =
+			await bankrunContextWrapper.provider.context.banksClient.getClock();
+		bankrunContextWrapper.provider.context.setClock(
+			new Clock(
+				curClock.slot,
+				curClock.epochStartTimestamp,
+				curClock.epoch,
+				curClock.leaderScheduleEpoch,
+				curClock.unixTimestamp + BigInt(60 * 60 * 24 * 365 * 4)
+			)
+		);
+		await bankrunContextWrapper.provider.context.banksClient.getClock();
 
 		// Withdraw from subaccount 0
 		await adminClient.switchActiveUser(0);
@@ -1496,10 +1529,22 @@ describe('LP Pool', () => {
 			await adminClient.getAssociatedTokenAccount(2)
 		);
 
+		curClock =
+			await bankrunContextWrapper.provider.context.banksClient.getClock();
+		bankrunContextWrapper.provider.context.setClock(
+			new Clock(
+				curClock.slot,
+				curClock.epochStartTimestamp,
+				curClock.epoch,
+				curClock.leaderScheduleEpoch,
+				curClock.unixTimestamp + BigInt(60 * 60 * 24 * 365)
+			)
+		);
+
 		await adminClient.withdrawFromProgramVault(
 			encodeName(lpPoolName),
 			2,
-			new BN(100).mul(new BN(10 ** 9))
+			new BN(300).mul(new BN(10 ** 9))
 		);
 	});
 });
