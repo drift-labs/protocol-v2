@@ -68,7 +68,9 @@ use crate::state::user::{
     MarginMode, MarketType, OrderStatus, OrderTriggerCondition, OrderType, User, UserStats,
 };
 use crate::state::user_map::{load_user_map, load_user_maps, UserMap, UserStatsMap};
+use crate::validation::sig_verification::is_signed_msg_bit_flag_set;
 use crate::validation::sig_verification::verify_and_decode_ed25519_msg;
+use crate::validation::sig_verification::SignedMsgBitflag;
 use crate::validation::user::{validate_user_deletion, validate_user_is_idle};
 use crate::{
     controller, load, math, print_error, safe_decrement, OracleSource, GOV_SPOT_MARKET_INDEX,
@@ -616,7 +618,7 @@ pub fn handle_update_user_open_orders_count<'info>(ctx: Context<UpdateUserIdle>)
 pub fn handle_place_signed_msg_taker_order<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, PlaceSignedMsgTakerOrder<'info>>,
     signed_msg_order_params_message_bytes: Vec<u8>,
-    is_delegate_signer: bool,
+    is_delegate_signer_bit_flag: u8,
 ) -> Result<()> {
     let state = &ctx.accounts.state;
 
@@ -653,7 +655,7 @@ pub fn handle_place_signed_msg_taker_order<'c: 'info, 'info>(
         high_leverage_mode_config,
         builder_escrow,
         state,
-        is_delegate_signer,
+        is_delegate_signer_bit_flag,
     )?;
     Ok(())
 }
@@ -670,7 +672,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
     high_leverage_mode_config: Option<AccountLoader<HighLeverageModeConfig>>,
     builder_escrow: Option<BuilderEscrowZeroCopyMut<'info>>,
     state: &State,
-    is_delegate_signer: bool,
+    is_delegate_signer_bit_flag: u8,
 ) -> Result<()> {
     // Authenticate the signed msg order param message
     let ix_idx = load_current_index_checked(ix_sysvar)?;
@@ -683,6 +685,11 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
     // Verify data from verify ix
     let ix: Instruction = load_instruction_at_checked(ix_idx as usize - 1, ix_sysvar)?;
 
+    let is_delegate_signer = is_signed_msg_bit_flag_set(
+        is_delegate_signer_bit_flag,
+        SignedMsgBitflag::DelegateSigner,
+    );
+
     let signer = if is_delegate_signer {
         taker.delegate.to_bytes()
     } else {
@@ -694,7 +701,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
         ix_idx,
         &signer,
         &taker_order_params_message_bytes[..],
-        is_delegate_signer,
+        is_delegate_signer_bit_flag,
     )?;
 
     let mut builder_escrow_zc: Option<BuilderEscrowZeroCopyMut<'info>> = None;
