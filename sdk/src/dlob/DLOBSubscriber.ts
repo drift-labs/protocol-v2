@@ -19,7 +19,7 @@ import {
 	L3OrderBook,
 } from './orderBookLevels';
 import { getProtectedMakerParamsMap } from '../math/protectedMakerParams';
-import { BN } from '..';
+import { BN } from '@coral-xyz/anchor';
 
 export class DLOBSubscriber {
 	driftClient: DriftClient;
