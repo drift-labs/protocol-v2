@@ -416,8 +416,7 @@ impl MarginCalculation {
             return false;
         }
 
-        for (_, isolated_margin_calculation) in &self.isolated_margin_calculations
-        {
+        for (_, isolated_margin_calculation) in &self.isolated_margin_calculations {
             if !isolated_margin_calculation.meets_margin_requirement() {
                 return false;
             }
@@ -434,8 +433,7 @@ impl MarginCalculation {
             return false;
         }
 
-        for (_, isolated_margin_calculation) in &self.isolated_margin_calculations
-        {
+        for (_, isolated_margin_calculation) in &self.isolated_margin_calculations {
             if !isolated_margin_calculation.meets_margin_requirement_with_buffer() {
                 return false;
             }
@@ -455,10 +453,7 @@ impl MarginCalculation {
     }
 
     #[inline(always)]
-    pub fn meets_isolated_margin_requirement(
-        &self,
-        market_index: u16,
-    ) -> DriftResult<bool> {
+    pub fn meets_isolated_margin_requirement(&self, market_index: u16) -> DriftResult<bool> {
         Ok(self
             .isolated_margin_calculations
             .get(&market_index)
@@ -539,9 +534,7 @@ impl MarginCalculation {
 
         let margin_requirement = if market_type == MarketType::Perp {
             match self.isolated_margin_calculations.get(&market_index) {
-                Some(isolated_margin_calculation) => {
-                    isolated_margin_calculation.margin_requirement
-                }
+                Some(isolated_margin_calculation) => isolated_margin_calculation.margin_requirement,
                 None => self.margin_requirement,
             }
         } else {

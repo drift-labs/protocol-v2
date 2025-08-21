@@ -93,7 +93,8 @@ fn user_with_isolated_position() {
     };
 
     let mut user_with_scaled_balance = user.clone();
-    user_with_scaled_balance.perp_positions[0].isolated_position_scaled_balance = 1000000000000000000;
+    user_with_scaled_balance.perp_positions[0].isolated_position_scaled_balance =
+        1000000000000000000;
 
     let is_bankrupt = is_cross_margin_bankrupt(&user_with_scaled_balance);
     assert!(!is_bankrupt);

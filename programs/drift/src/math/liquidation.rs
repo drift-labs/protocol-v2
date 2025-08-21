@@ -247,9 +247,7 @@ pub fn validate_user_not_being_liquidated(
         let isolated_positions_being_liquidated = user
             .perp_positions
             .iter()
-            .filter(|position| {
-                position.is_isolated() && position.is_being_liquidated()
-            })
+            .filter(|position| position.is_isolated() && position.is_being_liquidated())
             .map(|position| position.market_index)
             .collect::<Vec<_>>();
 

@@ -351,8 +351,7 @@ impl LiquidatePerpMode for IsolatedMarginLiquidatePerpMode {
     fn get_spot_token_amount(&self, user: &User, spot_market: &SpotMarket) -> DriftResult<u128> {
         let isolated_perp_position = user.get_isolated_perp_position(self.market_index)?;
 
-        let token_amount =
-            isolated_perp_position.get_isolated_token_amount(spot_market)?;
+        let token_amount = isolated_perp_position.get_isolated_token_amount(spot_market)?;
 
         validate!(
             token_amount != 0,

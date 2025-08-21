@@ -1951,21 +1951,20 @@ fn fulfill_perp_order(
         )?;
 
         if !taker_margin_calculation.meets_margin_requirement() {
-            let (margin_requirement, total_collateral) = if taker_margin_calculation
-                .has_isolated_margin_calculation(market_index)
-            {
-                let isolated_margin_calculation = taker_margin_calculation
-                    .get_isolated_margin_calculation(market_index)?;
-                (
-                    isolated_margin_calculation.margin_requirement,
-                    isolated_margin_calculation.total_collateral,
-                )
-            } else {
-                (
-                    taker_margin_calculation.margin_requirement,
-                    taker_margin_calculation.total_collateral,
-                )
-            };
+            let (margin_requirement, total_collateral) =
+                if taker_margin_calculation.has_isolated_margin_calculation(market_index) {
+                    let isolated_margin_calculation =
+                        taker_margin_calculation.get_isolated_margin_calculation(market_index)?;
+                    (
+                        isolated_margin_calculation.margin_requirement,
+                        isolated_margin_calculation.total_collateral,
+                    )
+                } else {
+                    (
+                        taker_margin_calculation.margin_requirement,
+                        taker_margin_calculation.total_collateral,
+                    )
+                };
 
             msg!(
                 "taker breached fill requirements (margin requirement {}) (total_collateral {})",
@@ -2027,21 +2026,20 @@ fn fulfill_perp_order(
         }
 
         if !maker_margin_calculation.meets_margin_requirement() {
-            let (margin_requirement, total_collateral) = if maker_margin_calculation
-                .has_isolated_margin_calculation(market_index)
-            {
-                let isolated_margin_calculation = maker_margin_calculation
-                    .get_isolated_margin_calculation(market_index)?;
-                (
-                    isolated_margin_calculation.margin_requirement,
-                    isolated_margin_calculation.total_collateral,
-                )
-            } else {
-                (
-                    maker_margin_calculation.margin_requirement,
-                    maker_margin_calculation.total_collateral,
-                )
-            };
+            let (margin_requirement, total_collateral) =
+                if maker_margin_calculation.has_isolated_margin_calculation(market_index) {
+                    let isolated_margin_calculation =
+                        maker_margin_calculation.get_isolated_margin_calculation(market_index)?;
+                    (
+                        isolated_margin_calculation.margin_requirement,
+                        isolated_margin_calculation.total_collateral,
+                    )
+                } else {
+                    (
+                        maker_margin_calculation.margin_requirement,
+                        maker_margin_calculation.total_collateral,
+                    )
+                };
 
             msg!(
                 "maker ({}) breached fill requirements (margin requirement {}) (total_collateral {})",

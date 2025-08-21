@@ -2373,7 +2373,6 @@ mod force_get_isolated_perp_position_mut {
         };
         user.perp_positions[0] = isolated_position;
 
-
         {
             let isolated_position_mut = user.force_get_isolated_perp_position_mut(1).unwrap();
             assert_eq!(isolated_position_mut.base_asset_amount, 1);
@@ -2392,7 +2391,10 @@ mod force_get_isolated_perp_position_mut {
         {
             let isolated_position_mut = user.force_get_isolated_perp_position_mut(2).unwrap();
             assert_eq!(isolated_position_mut.market_index, 2);
-            assert_eq!(isolated_position_mut.position_flag, PositionFlag::IsolatedPosition as u8);
+            assert_eq!(
+                isolated_position_mut.position_flag,
+                PositionFlag::IsolatedPosition as u8
+            );
         }
 
         let isolated_position = PerpPosition {

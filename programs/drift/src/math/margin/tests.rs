@@ -4320,11 +4320,11 @@ mod isolated_position {
     use anchor_lang::Owner;
     use solana_program::pubkey::Pubkey;
 
-    use crate::{create_anchor_account_info, QUOTE_PRECISION_I64};
+    use crate::create_account_info;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION_I64, LIQUIDATION_FEE_PRECISION,
-        PEG_PRECISION, SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION_I64, LIQUIDATION_FEE_PRECISION, PEG_PRECISION,
+        SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
+        SPOT_WEIGHT_PRECISION,
     };
     use crate::math::margin::{
         calculate_margin_requirement_and_total_collateral_and_liability_info, MarginRequirementType,
@@ -4339,7 +4339,7 @@ mod isolated_position {
     use crate::state::user::{Order, PerpPosition, PositionFlag, SpotPosition, User};
     use crate::test_utils::*;
     use crate::test_utils::{get_positions, get_pyth_price};
-    use crate::{create_account_info};
+    use crate::{create_anchor_account_info, QUOTE_PRECISION_I64};
 
     #[test]
     pub fn isolated_position_margin_requirement() {
@@ -4442,19 +4442,22 @@ mod isolated_position {
             ..User::default()
         };
 
-        let margin_calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
-            &user,
-            &perp_market_map,
-            &spot_market_map,
-            &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial),
-        )
-        .unwrap();
+        let margin_calculation =
+            calculate_margin_requirement_and_total_collateral_and_liability_info(
+                &user,
+                &perp_market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                MarginContext::standard(MarginRequirementType::Initial),
+            )
+            .unwrap();
 
         let cross_margin_margin_requirement = margin_calculation.margin_requirement;
         let cross_total_collateral = margin_calculation.total_collateral;
 
-        let isolated_margin_calculation = margin_calculation.get_isolated_margin_calculation(0).unwrap();
+        let isolated_margin_calculation = margin_calculation
+            .get_isolated_margin_calculation(0)
+            .unwrap();
         let isolated_margin_requirement = isolated_margin_calculation.margin_requirement;
         let isolated_total_collateral = isolated_margin_calculation.total_collateral;
 
@@ -4464,24 +4467,37 @@ mod isolated_position {
         assert_eq!(isolated_total_collateral, -900000000);
         assert_eq!(margin_calculation.meets_margin_requirement(), false);
         assert_eq!(margin_calculation.meets_cross_margin_requirement(), true);
-        assert_eq!(isolated_margin_calculation.meets_margin_requirement(), false);
-        assert_eq!(margin_calculation.meets_isolated_margin_requirement(0).unwrap(), false);
+        assert_eq!(
+            isolated_margin_calculation.meets_margin_requirement(),
+            false
+        );
+        assert_eq!(
+            margin_calculation
+                .meets_isolated_margin_requirement(0)
+                .unwrap(),
+            false
+        );
 
-        let margin_calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
-            &user,
-            &perp_market_map,
-            &spot_market_map,
-            &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial).margin_buffer(1000),
-        )
-        .unwrap();
+        let margin_calculation =
+            calculate_margin_requirement_and_total_collateral_and_liability_info(
+                &user,
+                &perp_market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                MarginContext::standard(MarginRequirementType::Initial).margin_buffer(1000),
+            )
+            .unwrap();
 
         let cross_margin_margin_requirement = margin_calculation.margin_requirement_plus_buffer;
         let cross_total_collateral = margin_calculation.get_cross_total_collateral_plus_buffer();
 
-        let isolated_margin_calculation = margin_calculation.get_isolated_margin_calculation(0).unwrap();
-        let isolated_margin_requirement = isolated_margin_calculation.margin_requirement_plus_buffer;
-        let isolated_total_collateral = isolated_margin_calculation.get_total_collateral_plus_buffer();
+        let isolated_margin_calculation = margin_calculation
+            .get_isolated_margin_calculation(0)
+            .unwrap();
+        let isolated_margin_requirement =
+            isolated_margin_calculation.margin_requirement_plus_buffer;
+        let isolated_total_collateral =
+            isolated_margin_calculation.get_total_collateral_plus_buffer();
 
         assert_eq!(cross_margin_margin_requirement, 13000000000);
         assert_eq!(cross_total_collateral, 20000000000);

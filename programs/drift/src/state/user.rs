@@ -409,9 +409,9 @@ impl User {
     }
 
     pub fn has_isolated_margin_being_liquidated(&self) -> bool {
-        self.perp_positions.iter().any(|position| {
-            position.is_isolated() && position.is_being_liquidated()
-        })
+        self.perp_positions
+            .iter()
+            .any(|position| position.is_isolated() && position.is_being_liquidated())
     }
 
     pub fn enter_isolated_margin_liquidation(
@@ -445,10 +445,7 @@ impl User {
         Ok(())
     }
 
-    pub fn is_isolated_margin_being_liquidated(
-        &self,
-        perp_market_index: u16,
-    ) -> DriftResult<bool> {
+    pub fn is_isolated_margin_being_liquidated(&self, perp_market_index: u16) -> DriftResult<bool> {
         let perp_position = self.get_isolated_perp_position(perp_market_index)?;
         Ok(perp_position.is_being_liquidated())
     }
@@ -736,8 +733,8 @@ impl User {
             context,
         )?;
 
-        let isolated_margin_calculation = calculation
-            .get_isolated_margin_calculation(isolated_perp_position_market_index)?;
+        let isolated_margin_calculation =
+            calculation.get_isolated_margin_calculation(isolated_perp_position_market_index)?;
 
         validate!(
             calculation.all_liability_oracles_valid,
@@ -1270,10 +1267,7 @@ impl PerpPosition {
             == PositionFlag::IsolatedPosition as u8
     }
 
-    pub fn get_isolated_token_amount(
-        &self,
-        spot_market: &SpotMarket,
-    ) -> DriftResult<u128> {
+    pub fn get_isolated_token_amount(&self, spot_market: &SpotMarket) -> DriftResult<u128> {
         get_token_amount(
             self.isolated_position_scaled_balance as u128,
             spot_market,

@@ -9557,10 +9557,7 @@ pub mod liquidate_isolated_perp {
         .unwrap();
 
         assert_eq!(user.perp_positions[0].base_asset_amount, 2000000000);
-        assert_eq!(
-            user.perp_positions[0].is_being_liquidated(),
-            false
-        );
+        assert_eq!(user.perp_positions[0].is_being_liquidated(), false);
     }
 
     #[test]
