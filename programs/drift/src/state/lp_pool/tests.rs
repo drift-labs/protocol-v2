@@ -1714,7 +1714,7 @@ mod swap_fee_tests {
                     -4_000_000 * QUOTE_PRECISION_I128,
                     4_500_000 * QUOTE_PRECISION_I128,
                 ],
-                5_000_000 * QUOTE_PRECISION_I128,
+                5_000_000 * QUOTE_PRECISION,
             )
             .unwrap();
 

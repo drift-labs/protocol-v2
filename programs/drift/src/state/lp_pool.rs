@@ -346,7 +346,7 @@ impl LPPool {
         gamma_covar: [[i128; 2]; 2],
         pre_notional_errors: [i128; 2],
         post_notional_errors: [i128; 2],
-        trade_notional: i128,
+        trade_notional: u128,
     ) -> DriftResult<(i128, i128)> {
         let gamma_covar_error_pre_in = gamma_covar[0][0]
             .safe_mul(pre_notional_errors[0])?
@@ -387,13 +387,13 @@ impl LPPool {
         let in_fee = c_post_in
             .safe_sub(c_pre_in)?
             .safe_mul(PERCENTAGE_PRECISION_I128)?
-            .safe_div(trade_notional)?
+            .safe_div(trade_notional.cast::<i128>()?)?
             .safe_mul(QUOTE_PRECISION_I128)?
             .safe_div(self.last_aum.cast::<i128>()?)?;
         let out_fee = c_post_out
             .safe_sub(c_pre_out)?
             .safe_mul(PERCENTAGE_PRECISION_I128)?
-            .safe_div(trade_notional)?
+            .safe_div(trade_notional.cast::<i128>()?)?
             .safe_mul(QUOTE_PRECISION_I128)?
             .safe_div(self.last_aum.cast::<i128>()?)?;
 
@@ -590,7 +590,7 @@ impl LPPool {
                 )?,
                 [in_notional_error_pre, out_notional_error_pre],
                 [in_notional_error_post, out_notional_error_post],
-                notional_trade_size,
+                notional_trade_size.abs().cast::<u128>()?,
             )?;
 
         msg!(
