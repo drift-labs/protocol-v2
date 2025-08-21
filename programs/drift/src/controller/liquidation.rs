@@ -342,7 +342,6 @@ pub fn liquidate_perp(
         .get_price_data(&quote_spot_market.oracle_id())?
         .price;
 
-    // todo how to handle slot not being on perp position?
     let liquidator_fee = get_liquidation_fee(
         market.get_base_liquidator_fee(user.is_high_leverage_mode()),
         market.get_max_liquidation_fee()?,
@@ -1134,7 +1133,7 @@ pub fn liquidate_perp_with_fill(
     margin_freed = margin_freed.safe_add(margin_freed_for_perp_position)?;
     liquidation_mode.increment_free_margin(&mut user, margin_freed_for_perp_position)?;
 
-    if margin_calculation_after.meets_margin_requirement() {
+    if liquidation_mode.can_exit_liquidation(&margin_calculation_after)? {
         liquidation_mode.exit_liquidation(&mut user)?;
     } else if liquidation_mode.should_user_enter_bankruptcy(&user)? {
         liquidation_mode.enter_bankruptcy(&mut user)?;
@@ -1412,7 +1411,7 @@ pub fn liquidate_spot(
         now,
     )?;
 
-    if !user.is_cross_margin_being_liquidated() && margin_calculation.meets_margin_requirement() {
+    if !user.is_cross_margin_being_liquidated() && margin_calculation.meets_cross_margin_requirement() {
         msg!("margin calculation: {:?}", margin_calculation);
         return Err(ErrorCode::SufficientCollateral);
     } else if user.is_cross_margin_being_liquidated()
@@ -1945,7 +1944,7 @@ pub fn liquidate_spot_with_swap_begin(
         now,
     )?;
 
-    if !user.is_cross_margin_being_liquidated() && margin_calculation.meets_margin_requirement() {
+    if !user.is_cross_margin_being_liquidated() && margin_calculation.meets_cross_margin_requirement() {
         msg!("margin calculation: {:?}", margin_calculation);
         return Err(ErrorCode::SufficientCollateral);
     } else if user.is_cross_margin_being_liquidated()
@@ -2526,7 +2525,7 @@ pub fn liquidate_borrow_for_perp_pnl(
         MarginContext::liquidation(liquidation_margin_buffer_ratio),
     )?;
 
-    if !user.is_cross_margin_being_liquidated() && margin_calculation.meets_margin_requirement() {
+    if !user.is_cross_margin_being_liquidated() && margin_calculation.meets_cross_margin_requirement() {
         msg!("margin calculation {:?}", margin_calculation);
         return Err(ErrorCode::SufficientCollateral);
     } else if user.is_cross_margin_being_liquidated()
@@ -3718,7 +3717,7 @@ pub fn set_user_status_to_being_liquidated(
     )?;
 
     // todo handle this
-    if !user.is_cross_margin_being_liquidated() && !margin_calculation.meets_margin_requirement() {
+    if !user.is_cross_margin_being_liquidated() && !margin_calculation.meets_cross_margin_requirement() {
         user.enter_cross_margin_liquidation(slot)?;
     }
 
