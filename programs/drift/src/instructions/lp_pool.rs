@@ -1319,11 +1319,9 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
         "Spot market vault amount mismatch after deposit"
     )?;
 
+    let balance_after = constituent.get_full_balance(&spot_market)?;
     validate!(
-        constituent
-            .get_full_balance(&spot_market)?
-            .abs_diff(balance_before)
-            <= 1,
+        balance_after.safe_sub(balance_before)? <= 0,
         ErrorCode::LpInvariantFailed,
         "Constituent balance mismatch after desposit to program vault"
     )?;
@@ -1436,10 +1434,7 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
     msg!("balance before: {}", balance_before);
 
     validate!(
-        constituent
-            .get_full_balance(&spot_market)?
-            .abs_diff(balance_before)
-            <= 1,
+        balance_after.safe_sub(balance_before)? <= 0,
         ErrorCode::LpInvariantFailed,
         "Constituent balance mismatch after withdraw from program vault"
     )?;

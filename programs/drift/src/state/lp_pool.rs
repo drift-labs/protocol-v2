@@ -877,17 +877,20 @@ impl Constituent {
     /// Returns the full balance of the Constituent, the total of the amount in Constituent's token
     /// account and in Drift Borrow-Lend.
     pub fn get_full_balance(&self, spot_market: &SpotMarket) -> DriftResult<i128> {
+        let bl_token_balance = self
+            .spot_balance
+            .get_token_amount(spot_market)?
+            .cast::<i128>()?;
+
         match self.spot_balance.balance_type() {
-            SpotBalanceType::Deposit => self.token_balance.cast::<i128>()?.safe_add(
-                self.spot_balance
-                    .get_token_amount(spot_market)?
-                    .cast::<i128>()?,
-            ),
-            SpotBalanceType::Borrow => self.token_balance.cast::<i128>()?.safe_sub(
-                self.spot_balance
-                    .get_token_amount(spot_market)?
-                    .cast::<i128>()?,
-            ),
+            SpotBalanceType::Deposit => self
+                .token_balance
+                .cast::<i128>()?
+                .safe_add(bl_token_balance),
+            SpotBalanceType::Borrow => self
+                .token_balance
+                .cast::<i128>()?
+                .safe_sub(bl_token_balance),
         }
     }
 
