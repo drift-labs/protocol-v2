@@ -3058,7 +3058,15 @@ pub fn trigger_order(
     let trigger_price =
         perp_market.get_trigger_price(oracle_price, now, state.use_median_trigger_price())?;
     let can_trigger = order_satisfies_trigger_condition(&user.orders[order_index], trigger_price)?;
-    validate!(can_trigger, ErrorCode::OrderDidNotSatisfyTriggerCondition)?;
+
+    validate!(
+        can_trigger,
+        ErrorCode::OrderDidNotSatisfyTriggerCondition,
+        "Order did not satisfy trigger condition. trigger_price: {} oracle_price: {} trigger_condition: {:?}",
+        trigger_price,
+        &user.orders[order_index].trigger_price,
+        &user.orders[order_index].trigger_condition
+    )?;
 
     let (_, worst_case_liability_value_before) = user
         .get_perp_position(market_index)?
