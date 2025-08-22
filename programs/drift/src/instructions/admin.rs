@@ -2106,6 +2106,36 @@ pub fn handle_deposit_into_perp_market_fee_pool<'c: 'info, 'info>(
 }
 
 #[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_update_perp_market_pnl_pool<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, UpdatePerpMarketPnlPool<'info>>,
+    amount: u64,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+    controller::spot_balance::update_spot_balances(
+        amount.cast::<u128>()?,
+        &SpotBalanceType::Deposit,
+        spot_market,
+        &mut perp_market.pnl_pool,
+        false,
+    )?;
+
+    validate_spot_market_vault_amount(spot_market, ctx.accounts.spot_market_vault.amount)?;
+
+    msg!(
+        "updating perp market {} pnl pool with amount {}",
+        perp_market.market_index,
+        amount
+    );
+
+    Ok(())
+}
+
+#[access_control(
     deposit_not_paused(&ctx.accounts.state)
     spot_market_valid(&ctx.accounts.spot_market)
 )]
@@ -5299,6 +5329,7 @@ pub fn handle_initialize_constituent<'info>(
     constituent.volatility = volatility;
     constituent.gamma_execution = gamma_execution;
     constituent.gamma_inventory = gamma_inventory;
+    constituent.spot_balance.market_index = spot_market_index;
     constituent.xi = xi;
     lp_pool.constituents += 1;
 
@@ -5340,6 +5371,10 @@ pub fn handle_update_constituent_params<'info>(
     constituent_params: ConstituentParams,
 ) -> Result<()> {
     let mut constituent = ctx.accounts.constituent.load_mut()?;
+    if constituent.spot_balance.market_index != constituent.spot_market_index {
+        constituent.spot_balance.market_index = constituent.spot_market_index;
+    }
+
     if constituent_params.max_weight_deviation.is_some() {
         msg!(
             "max_weight_deviation: {:?} -> {:?}",
@@ -5684,6 +5719,11 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
     // Make sure we have enough balance to do the swap
     let constituent_in_token_account = &ctx.accounts.constituent_in_token_account;
 
+    msg!("amount_in: {}", amount_in);
+    msg!(
+        "constituent_in_token_account.amount: {}",
+        constituent_in_token_account.amount
+    );
     validate!(
         amount_in <= constituent_in_token_account.amount,
         ErrorCode::InvalidSwap,
@@ -6314,6 +6354,29 @@ pub struct SettleExpiredMarketPoolsToRevenuePool<'info> {
         mut
     )]
     pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(mut)]
+    pub perp_market: AccountLoader<'info, PerpMarket>,
+}
+
+#[derive(Accounts)]
+pub struct UpdatePerpMarketPnlPool<'info> {
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    pub admin: Signer<'info>,
+    #[account(
+        seeds = [b"spot_market", 0_u16.to_le_bytes().as_ref()],
+        bump,
+        mut
+    )]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), 0_u16.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(mut)]
     pub perp_market: AccountLoader<'info, PerpMarket>,
 }

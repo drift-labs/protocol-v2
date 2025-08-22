@@ -1,6 +1,6 @@
 {
 	"name": "@drift-labs/sdk",
-	"version": "2.134.0-beta.1",
+	"version": "2.135.0-beta.5",
 	"main": "lib/node/index.js",
 	"types": "lib/node/index.d.ts",
 	"browser": "./lib/browser/index.js",
@@ -63,6 +63,7 @@
 		"tweetnacl-util": "0.15.1",
 		"uuid": "8.3.2",
 		"yargs": "17.7.2",
+		"zod": "4.0.17",
 		"zstddec": "0.1.0"
 	},
 	"devDependencies": {

@@ -31,7 +31,7 @@ import {
 } from './amm';
 import { squareRootBN } from './utils';
 import { isVariant } from '../types';
-import { OraclePriceData } from '../oracles/types';
+import { MMOraclePriceData, OraclePriceData } from '../oracles/types';
 import { DLOB } from '../dlob/DLOB';
 import { PublicKey } from '@solana/web3.js';
 import { Orderbook } from '@project-serum/serum';
@@ -77,19 +77,19 @@ export function calculateTradeSlippage(
 	amount: BN,
 	market: PerpMarketAccount,
 	inputAssetType: AssetType = 'quote',
-	oraclePriceData: OraclePriceData,
+	mmOraclePriceData: MMOraclePriceData,
 	useSpread = true
 ): [BN, BN, BN, BN] {
 	let oldPrice: BN;
 
 	if (useSpread && market.amm.baseSpread > 0) {
 		if (isVariant(direction, 'long')) {
-			oldPrice = calculateAskPrice(market, oraclePriceData);
+			oldPrice = calculateAskPrice(market, mmOraclePriceData);
 		} else {
-			oldPrice = calculateBidPrice(market, oraclePriceData);
+			oldPrice = calculateBidPrice(market, mmOraclePriceData);
 		}
 	} else {
-		oldPrice = calculateReservePrice(market, oraclePriceData);
+		oldPrice = calculateReservePrice(market, mmOraclePriceData);
 	}
 	if (amount.eq(ZERO)) {
 		return [ZERO, ZERO, oldPrice, oldPrice];
@@ -100,7 +100,7 @@ export function calculateTradeSlippage(
 			amount,
 			market,
 			inputAssetType,
-			oraclePriceData,
+			mmOraclePriceData,
 			useSpread
 		);
 
@@ -112,7 +112,11 @@ export function calculateTradeSlippage(
 	let amm: Parameters<typeof calculateAmmReservesAfterSwap>[0];
 	if (useSpread && market.amm.baseSpread > 0) {
 		const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
-			calculateUpdatedAMMSpreadReserves(market.amm, direction, oraclePriceData);
+			calculateUpdatedAMMSpreadReserves(
+				market.amm,
+				direction,
+				mmOraclePriceData
+			);
 		amm = {
 			baseAssetReserve,
 			quoteAssetReserve,
@@ -165,7 +169,7 @@ export function calculateTradeAcquiredAmounts(
 	amount: BN,
 	market: PerpMarketAccount,
 	inputAssetType: AssetType = 'quote',
-	oraclePriceData: OraclePriceData,
+	mmOraclePriceData: MMOraclePriceData,
 	useSpread = true
 ): [BN, BN, BN] {
 	if (amount.eq(ZERO)) {
@@ -177,7 +181,11 @@ export function calculateTradeAcquiredAmounts(
 	let amm: Parameters<typeof calculateAmmReservesAfterSwap>[0];
 	if (useSpread && market.amm.baseSpread > 0) {
 		const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
-			calculateUpdatedAMMSpreadReserves(market.amm, direction, oraclePriceData);
+			calculateUpdatedAMMSpreadReserves(
+				market.amm,
+				direction,
+				mmOraclePriceData
+			);
 		amm = {
 			baseAssetReserve,
 			quoteAssetReserve,
@@ -227,16 +235,16 @@ export function calculateTargetPriceTrade(
 	targetPrice: BN,
 	pct: BN = MAXPCT,
 	outputAssetType: AssetType = 'quote',
-	oraclePriceData?: OraclePriceData,
+	mmOraclePriceData?: MMOraclePriceData,
 	useSpread = true
 ): [PositionDirection, BN, BN, BN] {
 	assert(market.amm.baseAssetReserve.gt(ZERO));
 	assert(targetPrice.gt(ZERO));
 	assert(pct.lte(MAXPCT) && pct.gt(ZERO));
 
-	const reservePriceBefore = calculateReservePrice(market, oraclePriceData);
-	const bidPriceBefore = calculateBidPrice(market, oraclePriceData);
-	const askPriceBefore = calculateAskPrice(market, oraclePriceData);
+	const reservePriceBefore = calculateReservePrice(market, mmOraclePriceData);
+	const bidPriceBefore = calculateBidPrice(market, mmOraclePriceData);
+	const askPriceBefore = calculateAskPrice(market, mmOraclePriceData);
 
 	let direction;
 	if (targetPrice.gt(reservePriceBefore)) {
@@ -261,7 +269,11 @@ export function calculateTargetPriceTrade(
 
 	if (useSpread && market.amm.baseSpread > 0) {
 		const { baseAssetReserve, quoteAssetReserve, newPeg } =
-			calculateUpdatedAMMSpreadReserves(market.amm, direction, oraclePriceData);
+			calculateUpdatedAMMSpreadReserves(
+				market.amm,
+				direction,
+				mmOraclePriceData
+			);
 		baseAssetReserveBefore = baseAssetReserve;
 		quoteAssetReserveBefore = quoteAssetReserve;
 		peg = newPeg;
@@ -387,7 +399,7 @@ export function calculateEstimatedPerpEntryPrice(
 	amount: BN,
 	direction: PositionDirection,
 	market: PerpMarketAccount,
-	oraclePriceData: OraclePriceData,
+	mmOraclePriceData: MMOraclePriceData,
 	dlob: DLOB,
 	slot: number,
 	usersToSkip = new Map<PublicKey, boolean>()
@@ -413,12 +425,12 @@ export function calculateEstimatedPerpEntryPrice(
 	const takerIsLong = isVariant(direction, 'long');
 	const limitOrders = dlob[
 		takerIsLong ? 'getRestingLimitAsks' : 'getRestingLimitBids'
-	](market.marketIndex, slot, MarketType.PERP, oraclePriceData);
+	](market.marketIndex, slot, MarketType.PERP, mmOraclePriceData);
 
 	const swapDirection = getSwapDirection(assetType, direction);
 
 	const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
-		calculateUpdatedAMMSpreadReserves(market.amm, direction, oraclePriceData);
+		calculateUpdatedAMMSpreadReserves(market.amm, direction, mmOraclePriceData);
 	const amm = {
 		baseAssetReserve,
 		quoteAssetReserve,
@@ -464,7 +476,7 @@ export function calculateEstimatedPerpEntryPrice(
 
 	let limitOrder = limitOrders.next().value;
 	if (limitOrder) {
-		const limitOrderPrice = limitOrder.getPrice(oraclePriceData, slot);
+		const limitOrderPrice = limitOrder.getPrice(mmOraclePriceData, slot);
 		bestPrice = takerIsLong
 			? BN.min(limitOrderPrice, bestPrice)
 			: BN.max(limitOrderPrice, bestPrice);
@@ -477,7 +489,7 @@ export function calculateEstimatedPerpEntryPrice(
 			!cumulativeBaseFilled.eq(amount) &&
 			(ammLiquidity.gt(ZERO) || limitOrder)
 		) {
-			const limitOrderPrice = limitOrder?.getPrice(oraclePriceData, slot);
+			const limitOrderPrice = limitOrder?.getPrice(mmOraclePriceData, slot);
 
 			let maxAmmFill: BN;
 			if (limitOrderPrice) {
@@ -561,7 +573,7 @@ export function calculateEstimatedPerpEntryPrice(
 			!cumulativeQuoteFilled.eq(amount) &&
 			(ammLiquidity.gt(ZERO) || limitOrder)
 		) {
-			const limitOrderPrice = limitOrder?.getPrice(oraclePriceData, slot);
+			const limitOrderPrice = limitOrder?.getPrice(mmOraclePriceData, slot);
 
 			let maxAmmFill: BN;
 			if (limitOrderPrice) {

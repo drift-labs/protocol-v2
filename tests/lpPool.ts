@@ -47,7 +47,9 @@ import {
 } from '../sdk/src';
 
 import {
+	createWSolTokenAccountForUser,
 	initializeQuoteSpotMarket,
+	initializeSolSpotMarket,
 	mockAtaTokenAccountForMint,
 	mockOracleNoProgram,
 	mockUSDCMint,
@@ -243,20 +245,7 @@ describe('LP Pool', () => {
 			maintenanceLiabilityWeight,
 			imfFactor
 		);
-
-		await adminClient.initializeSpotMarket(
-			spotTokenMint.publicKey,
-			optimalUtilization,
-			optimalRate,
-			maxRate,
-			spotMarketOracle2,
-			OracleSource.PYTH,
-			initialAssetWeight,
-			maintenanceAssetWeight,
-			initialLiabilityWeight,
-			maintenanceLiabilityWeight,
-			imfFactor
-		);
+		await initializeSolSpotMarket(adminClient, spotMarketOracle2);
 
 		await adminClient.initializeSpotMarket(
 			spotTokenMint.publicKey,
@@ -277,7 +266,7 @@ describe('LP Pool', () => {
 			ZERO,
 			ZERO,
 			new BN(3600),
-			new BN(1_000_000).mul(QUOTE_PRECISION),
+			new BN(1_000_000_000_000).mul(QUOTE_PRECISION),
 			new BN(1_000_000).mul(QUOTE_PRECISION),
 			Keypair.generate()
 		);
@@ -1030,6 +1019,9 @@ describe('LP Pool', () => {
 			);
 
 		const tx = new Transaction();
+		tx.add(
+			...(await adminClient.getAllSettlePerpToLpPoolIxs(lpPool.name, [0, 1, 2]))
+		);
 		tx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1, 2]));
 		tx.add(
 			await adminClient.getLpPoolRemoveLiquidityIx({
@@ -1478,5 +1470,65 @@ describe('LP Pool', () => {
 		}
 
 		await adminClient.updateFeatureBitFlagsSettleLpPool(true);
+	});
+
+	it('can do spot vault withdraws when there are borrows', async () => {
+		// First deposit into wsol account from subaccount 1
+		await adminClient.initializeUserAccount(1);
+		const pubkey = await createWSolTokenAccountForUser(
+			bankrunContextWrapper,
+			adminClient.wallet.payer,
+			new BN(7_000).mul(new BN(10 ** 9))
+		);
+		await adminClient.deposit(new BN(1000).mul(new BN(10 ** 9)), 2, pubkey, 1);
+		const lpPool = await adminClient.getLpPoolAccount(encodeName(lpPoolName));
+
+		// Deposit into LP pool some balance
+		const ixs = [];
+		ixs.push(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1, 2, 3]));
+		ixs.push(
+			...(await adminClient.getLpPoolAddLiquidityIx({
+				inMarketIndex: 2,
+				minMintAmount: new BN(1),
+				lpPool,
+				inAmount: new BN(100).mul(new BN(10 ** 9)),
+			}))
+		);
+		await adminClient.sendTransaction(new Transaction().add(...ixs));
+		await adminClient.depositToProgramVault(
+			lpPool.name,
+			2,
+			new BN(100).mul(new BN(10 ** 9))
+		);
+
+		const spotMarket = adminClient.getSpotMarketAccount(2);
+		spotMarket.depositBalance = new BN(1_186_650_830_132);
+		spotMarket.borrowBalance = new BN(320_916_317_572);
+		spotMarket.cumulativeBorrowInterest = new BN(697_794_836_247_770);
+		spotMarket.cumulativeDepositInterest = new BN(188_718_954_233_794);
+		await overWriteSpotMarket(
+			adminClient,
+			bankrunContextWrapper,
+			spotMarket.pubkey,
+			spotMarket
+		);
+
+		// const curClock =
+		// 	await bankrunContextWrapper.provider.context.banksClient.getClock();
+		// bankrunContextWrapper.provider.context.setClock(
+		// 	new Clock(
+		// 		curClock.slot,
+		// 		curClock.epochStartTimestamp,
+		// 		curClock.epoch,
+		// 		curClock.leaderScheduleEpoch,
+		// 		curClock.unixTimestamp + BigInt(60 * 60 * 24 * 365 * 10)
+		// 	)
+		// );
+
+		await adminClient.withdrawFromProgramVault(
+			encodeName(lpPoolName),
+			2,
+			new BN(500).mul(new BN(10 ** 9))
+		);
 	});
 });

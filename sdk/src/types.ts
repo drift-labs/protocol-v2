@@ -1704,6 +1704,7 @@ export type ConstituentAccount = {
 	bump: number;
 	constituentDerivativeIndex: number;
 	maxWeightDeviation: BN;
+	maxBorrowTokenAmount: BN;
 	swapFeeMin: BN;
 	swapFeeMax: BN;
 	totalSwapFees: BN;

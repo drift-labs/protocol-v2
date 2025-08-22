@@ -2,6 +2,7 @@ use anchor_lang::{prelude::*, Accounts, Key, Result};
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 use crate::ids::DLP_WHITELIST;
+use crate::math::constants::PRICE_PRECISION_I64;
 use crate::{
     controller::{
         self,
@@ -922,6 +923,20 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
     let state = &ctx.accounts.state;
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
 
+    // Verify previous settle
+    let amm_cache: AccountZeroCopy<'_, CacheInfo, _> = ctx.accounts.amm_cache.load_zc()?;
+    for (i, _) in amm_cache.iter().enumerate() {
+        let cache_info = amm_cache.get(i as u32);
+        if cache_info.last_fee_pool_token_amount != 0 && cache_info.last_settle_slot != slot {
+            msg!(
+                "Market {} has not been settled in current slot. Last slot: {}",
+                i,
+                cache_info.last_settle_slot
+            );
+            return Err(ErrorCode::AMMCacheStale.into());
+        }
+    }
+
     if slot.saturating_sub(lp_pool.last_aum_slot) > LP_POOL_SWAP_AUM_UPDATE_DELAY {
         msg!(
             "Must update LP pool AUM before swap, last_aum_slot: {}, current slot: {}",
@@ -1240,7 +1255,6 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
     let clock = Clock::get()?;
 
     let mut spot_market = ctx.accounts.spot_market.load_mut()?;
-    let mut constituent = ctx.accounts.constituent.load_mut()?;
     let spot_market_vault = &ctx.accounts.spot_market_vault;
     let oracle_id = spot_market.oracle_id();
     let mut oracle_map = OracleMap::load_one(
@@ -1250,27 +1264,27 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
     )?;
     let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
 
-    constituent.sync_token_balance(ctx.accounts.constituent_token_account.amount);
-    let balance_before = constituent.get_full_balance(&spot_market)?;
-
     if amount == 0 {
         return Err(ErrorCode::InsufficientDeposit.into());
     }
-
     let deposit_plus_token_amount_before = amount.safe_add(spot_market_vault.amount)?;
 
     let oracle_data = oracle_map.get_price_data(&oracle_id)?;
     let oracle_data_slot = clock.slot - oracle_data.delay.max(0i64).cast::<u64>()?;
-    if constituent.last_oracle_slot < oracle_data_slot {
-        constituent.last_oracle_price = oracle_data.price;
-        constituent.last_oracle_slot = oracle_data_slot;
-    }
 
     controller::spot_balance::update_spot_market_cumulative_interest(
         &mut spot_market,
         Some(&oracle_data),
         clock.unix_timestamp,
     )?;
+
+    let mut constituent = ctx.accounts.constituent.load_mut()?;
+    if constituent.last_oracle_slot < oracle_data_slot {
+        constituent.last_oracle_price = oracle_data.price;
+        constituent.last_oracle_slot = oracle_data_slot;
+    }
+    constituent.sync_token_balance(ctx.accounts.constituent_token_account.amount);
+    let balance_before = constituent.get_full_balance(&spot_market)?;
 
     controller::token::send_from_program_vault(
         &ctx.accounts.token_program,
@@ -1306,13 +1320,29 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
         "Spot market vault amount mismatch after deposit"
     )?;
 
-    validate!(
-        constituent
-            .get_full_balance(&spot_market)?
+    let balance_after = constituent.get_full_balance(&spot_market)?;
+    let balance_diff_notional = if spot_market.decimals > 6 {
+        balance_after
             .abs_diff(balance_before)
-            <= 1,
+            .cast::<i64>()?
+            .safe_mul(oracle_data.price)?
+            .safe_div(PRICE_PRECISION_I64)?
+            .safe_div(10_i64.pow(spot_market.decimals - 6))?
+    } else {
+        balance_after
+            .abs_diff(balance_before)
+            .cast::<i64>()?
+            .safe_mul(10_i64.pow(6 - spot_market.decimals))?
+            .safe_mul(oracle_data.price)?
+            .safe_div(PRICE_PRECISION_I64)?
+    };
+
+    msg!("Balance difference (notional): {}", balance_diff_notional);
+
+    validate!(
+        balance_diff_notional <= PRICE_PRECISION_I64 / 100,
         ErrorCode::LpInvariantFailed,
-        "Constituent balance mismatch after desposit to program vault"
+        "Constituent balance mismatch after withdraw from program vault"
     )?;
 
     Ok(())
@@ -1326,7 +1356,7 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
     let clock = Clock::get()?;
 
     let mut spot_market = ctx.accounts.spot_market.load_mut()?;
-    let mut constituent = ctx.accounts.constituent.load_mut()?;
+
     let spot_market_vault = &ctx.accounts.spot_market_vault;
     let oracle_id = spot_market.oracle_id();
     let mut oracle_map = OracleMap::load_one(
@@ -1336,43 +1366,43 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
     )?;
     let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
 
-    constituent.sync_token_balance(ctx.accounts.constituent_token_account.amount);
-
-    let balance_before = constituent.get_full_balance(&spot_market)?;
-
     if amount == 0 {
         return Err(ErrorCode::InsufficientDeposit.into());
     }
 
     let oracle_data = oracle_map.get_price_data(&oracle_id)?;
     let oracle_data_slot = clock.slot - oracle_data.delay.max(0i64).cast::<u64>()?;
-    if constituent.last_oracle_slot < oracle_data_slot {
-        constituent.last_oracle_price = oracle_data.price;
-        constituent.last_oracle_slot = oracle_data_slot;
-    }
-
     controller::spot_balance::update_spot_market_cumulative_interest(
         &mut spot_market,
         Some(&oracle_data),
         clock.unix_timestamp,
     )?;
 
+    let mut constituent = ctx.accounts.constituent.load_mut()?;
+    if constituent.last_oracle_slot < oracle_data_slot {
+        constituent.last_oracle_price = oracle_data.price;
+        constituent.last_oracle_slot = oracle_data_slot;
+    }
+    constituent.sync_token_balance(ctx.accounts.constituent_token_account.amount);
+    let balance_before = constituent.get_full_balance(&spot_market)?;
+
     // Can only borrow up to the max
-    let token_amount = constituent.spot_balance.get_token_amount(&spot_market)?;
+    let bl_token_balance = constituent.spot_balance.get_token_amount(&spot_market)?;
     let amount_to_transfer = if constituent.spot_balance.balance_type == SpotBalanceType::Borrow {
         amount.min(
             constituent
                 .max_borrow_token_amount
-                .safe_sub(token_amount as u64)?,
+                .saturating_sub(bl_token_balance as u64),
         )
     } else {
         amount.min(
             constituent
                 .max_borrow_token_amount
-                .safe_add(token_amount as u64)?,
+                .saturating_add(bl_token_balance as u64),
         )
     };
 
+    // Execute transfer and sync new balance in the constituent account
     controller::token::send_from_program_vault(
         &ctx.accounts.token_program,
         &spot_market_vault,
@@ -1401,25 +1431,37 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
         amount_to_transfer.cast()?
     );
 
+    // Re-check spot market invariants
     ctx.accounts.spot_market_vault.reload()?;
     spot_market.validate_max_token_deposits_and_borrows(true)?;
-
     math::spot_withdraw::validate_spot_market_vault_amount(
         &spot_market,
         ctx.accounts.spot_market_vault.amount,
     )?;
 
-    msg!(
-        "constituent full balance: {}",
-        constituent.get_full_balance(&spot_market)?
-    );
-    msg!("balance before: {}", balance_before);
+    // Verify withdraw fully accounted for in BLPosition
+    let balance_after = constituent.get_full_balance(&spot_market)?;
+
+    let balance_diff_notional = if spot_market.decimals > 6 {
+        balance_after
+            .abs_diff(balance_before)
+            .cast::<i64>()?
+            .safe_mul(oracle_data.price)?
+            .safe_div(PRICE_PRECISION_I64)?
+            .safe_div(10_i64.pow(spot_market.decimals - 6))?
+    } else {
+        balance_after
+            .abs_diff(balance_before)
+            .cast::<i64>()?
+            .safe_mul(10_i64.pow(6 - spot_market.decimals))?
+            .safe_mul(oracle_data.price)?
+            .safe_div(PRICE_PRECISION_I64)?
+    };
+
+    msg!("Balance difference (notional): {}", balance_diff_notional);
 
     validate!(
-        constituent
-            .get_full_balance(&spot_market)?
-            .abs_diff(balance_before)
-            <= 1,
+        balance_diff_notional <= PRICE_PRECISION_I64 / 100,
         ErrorCode::LpInvariantFailed,
         "Constituent balance mismatch after withdraw from program vault"
     )?;
@@ -1780,6 +1822,13 @@ pub struct LPPoolRemoveLiquidity<'info> {
     pub lp_pool_token_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
     pub token_program: Interface<'info, TokenInterface>,
+
+    #[account(
+        seeds = [AMM_POSITIONS_CACHE.as_ref()],
+        bump,
+    )]
+    /// CHECK: checked in AmmCacheZeroCopy checks
+    pub amm_cache: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
