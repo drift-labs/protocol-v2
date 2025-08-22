@@ -11,7 +11,6 @@ import {
 	Transaction,
 } from '@solana/web3.js';
 import { getAssociatedTokenAddress, getMint } from '@solana/spl-token';
-import { Clock } from 'solana-bankrun';
 
 import {
 	BN,
@@ -267,7 +266,7 @@ describe('LP Pool', () => {
 			ZERO,
 			ZERO,
 			new BN(3600),
-			new BN(1_000_000).mul(QUOTE_PRECISION),
+			new BN(1_000_000_000_000).mul(QUOTE_PRECISION),
 			new BN(1_000_000).mul(QUOTE_PRECISION),
 			Keypair.generate()
 		);
@@ -1476,18 +1475,13 @@ describe('LP Pool', () => {
 	it('can do spot vault withdraws when there are borrows', async () => {
 		// First deposit into wsol account from subaccount 1
 		await adminClient.initializeUserAccount(1);
-		const publickey = await createWSolTokenAccountForUser(
+		const pubkey = await createWSolTokenAccountForUser(
 			bankrunContextWrapper,
 			adminClient.wallet.payer,
-			new BN(700).mul(new BN(10 ** 9))
+			new BN(7_000).mul(new BN(10 ** 9))
 		);
+		await adminClient.deposit(new BN(1000).mul(new BN(10 ** 9)), 2, pubkey, 1);
 		const lpPool = await adminClient.getLpPoolAccount(encodeName(lpPoolName));
-		await adminClient.deposit(
-			new BN(500).mul(new BN(10 ** 9)),
-			2,
-			publickey,
-			1
-		);
 
 		// Deposit into LP pool some balance
 		const ixs = [];
@@ -1501,50 +1495,40 @@ describe('LP Pool', () => {
 			}))
 		);
 		await adminClient.sendTransaction(new Transaction().add(...ixs));
-
 		await adminClient.depositToProgramVault(
 			lpPool.name,
 			2,
 			new BN(100).mul(new BN(10 ** 9))
 		);
 
-		let curClock =
-			await bankrunContextWrapper.provider.context.banksClient.getClock();
-		bankrunContextWrapper.provider.context.setClock(
-			new Clock(
-				curClock.slot,
-				curClock.epochStartTimestamp,
-				curClock.epoch,
-				curClock.leaderScheduleEpoch,
-				curClock.unixTimestamp + BigInt(60 * 60 * 24 * 365 * 4)
-			)
-		);
-		await bankrunContextWrapper.provider.context.banksClient.getClock();
-
-		// Withdraw from subaccount 0
-		await adminClient.switchActiveUser(0);
-		await adminClient.withdraw(
-			new BN(100).mul(new BN(10 ** 9)),
-			2,
-			await adminClient.getAssociatedTokenAccount(2)
+		const spotMarket = adminClient.getSpotMarketAccount(2);
+		spotMarket.depositBalance = new BN(1_186_650_830_132);
+		spotMarket.borrowBalance = new BN(320_916_317_572);
+		spotMarket.cumulativeBorrowInterest = new BN(697_794_836_247_770);
+		spotMarket.cumulativeDepositInterest = new BN(188_718_954_233_794);
+		await overWriteSpotMarket(
+			adminClient,
+			bankrunContextWrapper,
+			spotMarket.pubkey,
+			spotMarket
 		);
 
-		curClock =
-			await bankrunContextWrapper.provider.context.banksClient.getClock();
-		bankrunContextWrapper.provider.context.setClock(
-			new Clock(
-				curClock.slot,
-				curClock.epochStartTimestamp,
-				curClock.epoch,
-				curClock.leaderScheduleEpoch,
-				curClock.unixTimestamp + BigInt(60 * 60 * 24 * 365)
-			)
-		);
+		// const curClock =
+		// 	await bankrunContextWrapper.provider.context.banksClient.getClock();
+		// bankrunContextWrapper.provider.context.setClock(
+		// 	new Clock(
+		// 		curClock.slot,
+		// 		curClock.epochStartTimestamp,
+		// 		curClock.epoch,
+		// 		curClock.leaderScheduleEpoch,
+		// 		curClock.unixTimestamp + BigInt(60 * 60 * 24 * 365 * 10)
+		// 	)
+		// );
 
 		await adminClient.withdrawFromProgramVault(
 			encodeName(lpPoolName),
 			2,
-			new BN(300).mul(new BN(10 ** 9))
+			new BN(500).mul(new BN(10 ** 9))
 		);
 	});
 });
