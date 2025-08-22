@@ -2,6 +2,7 @@ use anchor_lang::{prelude::*, Accounts, Key, Result};
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 use crate::ids::DLP_WHITELIST;
+use crate::math::constants::PRICE_PRECISION_I64;
 use crate::{
     controller::{
         self,
@@ -1320,10 +1321,28 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
     )?;
 
     let balance_after = constituent.get_full_balance(&spot_market)?;
+    let balance_diff_notional = if spot_market.decimals > 6 {
+        balance_after
+            .abs_diff(balance_before)
+            .cast::<i64>()?
+            .safe_mul(oracle_data.price)?
+            .safe_div(PRICE_PRECISION_I64)?
+            .safe_div(10_i64.pow(spot_market.decimals - 6))?
+    } else {
+        balance_after
+            .abs_diff(balance_before)
+            .cast::<i64>()?
+            .safe_mul(10_i64.pow(6 - spot_market.decimals))?
+            .safe_mul(oracle_data.price)?
+            .safe_div(PRICE_PRECISION_I64)?
+    };
+
+    msg!("Balance difference (notional): {}", balance_diff_notional);
+
     validate!(
-        balance_after.safe_sub(balance_before)? <= 0,
+        balance_diff_notional <= PRICE_PRECISION_I64 / 100,
         ErrorCode::LpInvariantFailed,
-        "Constituent balance mismatch after desposit to program vault"
+        "Constituent balance mismatch after withdraw from program vault"
     )?;
 
     Ok(())
@@ -1366,8 +1385,6 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
     }
     constituent.sync_token_balance(ctx.accounts.constituent_token_account.amount);
     let balance_before = constituent.get_full_balance(&spot_market)?;
-    msg!("bl position before: {:?}", constituent.spot_balance);
-    msg!("token position before: {:?}", constituent.token_balance);
 
     // Can only borrow up to the max
     let bl_token_balance = constituent.spot_balance.get_token_amount(&spot_market)?;
@@ -1384,7 +1401,6 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
                 .saturating_add(bl_token_balance as u64),
         )
     };
-    msg!("amount to transfer: {}", amount_to_transfer);
 
     // Execute transfer and sync new balance in the constituent account
     controller::token::send_from_program_vault(
@@ -1402,7 +1418,6 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
 
     // Adjust BLPosition for the new deposits
     let spot_position = &mut constituent.spot_balance;
-    msg!("spot position before: {:?}", spot_position);
     update_spot_balances(
         amount_to_transfer as u128,
         &SpotBalanceType::Borrow,
@@ -1410,7 +1425,6 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
         spot_position,
         true,
     )?;
-    msg!("spot position after: {:?}", spot_position);
 
     safe_decrement!(
         spot_position.cumulative_deposits,
@@ -1427,14 +1441,27 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
 
     // Verify withdraw fully accounted for in BLPosition
     let balance_after = constituent.get_full_balance(&spot_market)?;
-    msg!("bl position after: {:?}", constituent.spot_balance);
-    msg!("token position after: {:?}", constituent.token_balance);
 
-    msg!("balance after: {}", balance_after);
-    msg!("balance before: {}", balance_before);
+    let balance_diff_notional = if spot_market.decimals > 6 {
+        balance_after
+            .abs_diff(balance_before)
+            .cast::<i64>()?
+            .safe_mul(oracle_data.price)?
+            .safe_div(PRICE_PRECISION_I64)?
+            .safe_div(10_i64.pow(spot_market.decimals - 6))?
+    } else {
+        balance_after
+            .abs_diff(balance_before)
+            .cast::<i64>()?
+            .safe_mul(10_i64.pow(6 - spot_market.decimals))?
+            .safe_mul(oracle_data.price)?
+            .safe_div(PRICE_PRECISION_I64)?
+    };
+
+    msg!("Balance difference (notional): {}", balance_diff_notional);
 
     validate!(
-        balance_after.safe_sub(balance_before)? <= 0,
+        balance_diff_notional <= PRICE_PRECISION_I64 / 100,
         ErrorCode::LpInvariantFailed,
         "Constituent balance mismatch after withdraw from program vault"
     )?;
