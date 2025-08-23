@@ -1,4 +1,3 @@
-use crate::controller::lp::apply_lp_rebase_to_perp_position;
 use crate::controller::position::{add_new_position, get_position_index, PositionDirection};
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
@@ -7,14 +6,12 @@ use crate::math::constants::{
     EPOCH_DURATION, FUEL_OVERFLOW_THRESHOLD_U32, FUEL_START_TS, OPEN_ORDER_MARGIN_REQUIREMENT,
     PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY,
 };
-use crate::math::lp::{calculate_lp_open_bids_asks, calculate_settle_lp_metrics};
 use crate::math::margin::MarginRequirementType;
 use crate::math::orders::{
     apply_protected_maker_limit_price_offset, standardize_base_asset_amount, standardize_price,
 };
 use crate::math::position::{
-    calculate_base_asset_value_and_pnl_with_oracle_price,
-    calculate_base_asset_value_with_oracle_price, calculate_perp_liability_value,
+    calculate_base_asset_value_and_pnl_with_oracle_price, calculate_perp_liability_value,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{
@@ -23,10 +20,10 @@ use crate::math::spot_balance::{
 use crate::math::stats::calculate_rolling_sum;
 use crate::msg;
 use crate::state::oracle::StrictOraclePrice;
-use crate::state::perp_market::{ContractType, PerpMarket};
+use crate::state::perp_market::ContractType;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::traits::Size;
-use crate::{get_then_update_id, ID, PERCENTAGE_PRECISION_I64, QUOTE_PRECISION_U64};
+use crate::{get_then_update_id, ID, QUOTE_PRECISION_U64};
 use crate::{math_error, SPOT_WEIGHT_PRECISION_I128};
 use crate::{safe_increment, SPOT_WEIGHT_PRECISION};
 use crate::{validate, MAX_PREDICTION_MARKET_PRICE};
@@ -978,10 +975,7 @@ impl PerpPosition {
     }
 
     pub fn is_available(&self) -> bool {
-        !self.is_open_position()
-            && !self.has_open_order()
-            && !self.has_unsettled_pnl()
-            && !self.is_lp()
+        !self.is_open_position() && !self.has_open_order() && !self.has_unsettled_pnl()
     }
 
     pub fn is_open_position(&self) -> bool {
@@ -992,101 +986,10 @@ impl PerpPosition {
         self.open_orders != 0 || self.open_bids != 0 || self.open_asks != 0
     }
 
-    pub fn margin_requirement_for_lp_shares(
-        &self,
-        order_step_size: u64,
-        valuation_price: i64,
-    ) -> DriftResult<u128> {
-        if !self.is_lp() {
-            return Ok(0);
-        }
-        Ok(QUOTE_PRECISION.max(
-            order_step_size
-                .cast::<u128>()?
-                .safe_mul(valuation_price.cast()?)?
-                .safe_div(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO)?,
-        ))
-    }
-
     pub fn margin_requirement_for_open_orders(&self) -> DriftResult<u128> {
         self.open_orders
             .cast::<u128>()?
             .safe_mul(OPEN_ORDER_MARGIN_REQUIREMENT)
-    }
-
-    pub fn is_lp(&self) -> bool {
-        self.lp_shares > 0
-    }
-
-    pub fn simulate_settled_lp_position(
-        &self,
-        market: &PerpMarket,
-        valuation_price: i64,
-    ) -> DriftResult<PerpPosition> {
-        let mut settled_position = *self;
-
-        if !settled_position.is_lp() {
-            return Ok(settled_position);
-        }
-
-        apply_lp_rebase_to_perp_position(market, &mut settled_position)?;
-
-        // compute lp metrics
-        let mut lp_metrics = calculate_settle_lp_metrics(&market.amm, &settled_position)?;
-
-        // compute settled position
-        let base_asset_amount = settled_position
-            .base_asset_amount
-            .safe_add(lp_metrics.base_asset_amount.cast()?)?;
-
-        let mut quote_asset_amount = settled_position
-            .quote_asset_amount
-            .safe_add(lp_metrics.quote_asset_amount.cast()?)?;
-
-        let mut new_remainder_base_asset_amount = settled_position
-            .remainder_base_asset_amount
-            .cast::<i64>()?
-            .safe_add(lp_metrics.remainder_base_asset_amount.cast()?)?;
-
-        if new_remainder_base_asset_amount.unsigned_abs() >= market.amm.order_step_size {
-            let (standardized_remainder_base_asset_amount, remainder_base_asset_amount) =
-                crate::math::orders::standardize_base_asset_amount_with_remainder_i128(
-                    new_remainder_base_asset_amount.cast()?,
-                    market.amm.order_step_size.cast()?,
-                )?;
-
-            lp_metrics.base_asset_amount = lp_metrics
-                .base_asset_amount
-                .safe_add(standardized_remainder_base_asset_amount)?;
-
-            new_remainder_base_asset_amount = remainder_base_asset_amount.cast()?;
-        } else {
-            new_remainder_base_asset_amount = new_remainder_base_asset_amount.cast()?;
-        }
-
-        // dust position in baa/qaa
-        if new_remainder_base_asset_amount != 0 {
-            let dust_base_asset_value = calculate_base_asset_value_with_oracle_price(
-                new_remainder_base_asset_amount.cast()?,
-                valuation_price,
-            )?
-            .safe_add(1)?;
-
-            quote_asset_amount = quote_asset_amount.safe_sub(dust_base_asset_value.cast()?)?;
-        }
-
-        let (lp_bids, lp_asks) = calculate_lp_open_bids_asks(&settled_position, market)?;
-
-        let open_bids = settled_position.open_bids.safe_add(lp_bids)?;
-
-        let open_asks = settled_position.open_asks.safe_add(lp_asks)?;
-
-        settled_position.base_asset_amount = base_asset_amount;
-        settled_position.quote_asset_amount = quote_asset_amount;
-        settled_position.open_bids = open_bids;
-        settled_position.open_asks = open_asks;
-
-        Ok(settled_position)
     }
 
     pub fn has_unsettled_pnl(&self) -> bool {
@@ -1164,18 +1067,12 @@ impl PerpPosition {
         Ok(unrealized_pnl)
     }
 
-    pub fn get_base_asset_amount_with_remainder(&self) -> DriftResult<i128> {
-        if self.remainder_base_asset_amount != 0 {
-            self.base_asset_amount
-                .cast::<i128>()?
-                .safe_add(self.remainder_base_asset_amount.cast::<i128>()?)
-        } else {
-            self.base_asset_amount.cast::<i128>()
-        }
+    pub fn get_base_asset_amount(&self) -> DriftResult<i128> {
+        self.base_asset_amount.cast::<i128>()
     }
 
-    pub fn get_base_asset_amount_with_remainder_abs(&self) -> DriftResult<i128> {
-        Ok(self.get_base_asset_amount_with_remainder()?.abs())
+    pub fn get_base_asset_amount_abs(&self) -> DriftResult<i128> {
+        Ok(self.get_base_asset_amount()?.abs())
     }
 
     pub fn get_claimable_pnl(&self, oracle_price: i64, pnl_pool_excess: i128) -> DriftResult<i128> {
@@ -1233,7 +1130,7 @@ use super::protected_maker_mode_config::ProtectedMakerParams;
 #[cfg(test)]
 impl PerpPosition {
     pub fn get_breakeven_price(&self) -> DriftResult<i128> {
-        let base_with_remainder = self.get_base_asset_amount_with_remainder()?;
+        let base_with_remainder = self.get_base_asset_amount()?;
         if base_with_remainder == 0 {
             return Ok(0);
         }
@@ -1245,7 +1142,7 @@ impl PerpPosition {
     }
 
     pub fn get_entry_price(&self) -> DriftResult<i128> {
-        let base_with_remainder = self.get_base_asset_amount_with_remainder()?;
+        let base_with_remainder = self.get_base_asset_amount()?;
         if base_with_remainder == 0 {
             return Ok(0);
         }
