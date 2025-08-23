@@ -137,7 +137,6 @@ import { decodeName, DEFAULT_USER_NAME, encodeName } from './userName';
 import { MMOraclePriceData, OraclePriceData } from './oracles/types';
 import { DriftClientConfig } from './driftClientConfig';
 import { PollingDriftClientAccountSubscriber } from './accounts/pollingDriftClientAccountSubscriber';
-import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDriftClientAccountSubscriber';
 import { RetryTxSender } from './tx/retryTxSender';
 import { User } from './user';
 import { UserSubscriptionConfig } from './userConfig';
@@ -194,6 +193,8 @@ import { getOracleId } from './oracles/oracleId';
 import { SignedMsgOrderParams } from './types';
 import { sha256 } from '@noble/hashes/sha256';
 import { getOracleConfidenceFromMMOracleData } from './oracles/utils';
+import { Commitment } from 'gill';
+import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDriftClientAccountSubscriber';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -371,6 +372,8 @@ export class DriftClient {
 				resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
 				logResubMessages: config.accountSubscription?.logResubMessages,
 				commitment: config.accountSubscription?.commitment,
+				programUserAccountSubscriber:
+					config.accountSubscription?.programUserAccountSubscriber,
 			};
 			this.userStatsAccountSubscriptionConfig = {
 				type: 'websocket',
@@ -436,7 +439,10 @@ export class DriftClient {
 				}
 			);
 		} else {
-			this.accountSubscriber = new WebSocketDriftClientAccountSubscriber(
+			const accountSubscriberClass =
+				config.accountSubscription?.driftClientAccountSubscriber ??
+				WebSocketDriftClientAccountSubscriber;
+			this.accountSubscriber = new accountSubscriberClass(
 				this.program,
 				config.perpMarketIndexes ?? [],
 				config.spotMarketIndexes ?? [],
@@ -447,9 +453,7 @@ export class DriftClient {
 					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
 					logResubMessages: config.accountSubscription?.logResubMessages,
 				},
-				config.accountSubscription?.commitment,
-				config.accountSubscription?.perpMarketAccountSubscriber,
-				config.accountSubscription?.oracleAccountSubscriber
+				config.accountSubscription?.commitment as Commitment
 			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
@@ -610,7 +614,8 @@ export class DriftClient {
 	public getSpotMarketAccount(
 		marketIndex: number
 	): SpotMarketAccount | undefined {
-		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex).data;
+		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex)
+			?.data;
 	}
 
 	/**
@@ -621,7 +626,8 @@ export class DriftClient {
 		marketIndex: number
 	): Promise<SpotMarketAccount | undefined> {
 		await this.accountSubscriber.fetch();
-		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex).data;
+		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex)
+			?.data;
 	}
 
 	public getSpotMarketAccounts(): SpotMarketAccount[] {
