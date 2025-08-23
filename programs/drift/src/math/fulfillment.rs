@@ -24,7 +24,7 @@ pub fn determine_perp_fulfillment_methods(
     slot: u64,
     min_auction_duration: u8,
     fill_mode: FillMode,
-) -> DriftResult<Vec<PerpFulfillmentMethod>> {
+) -> DriftResult<(Vec<PerpFulfillmentMethod>, u64)> {
     if order.post_only {
         return determine_perp_fulfillment_methods_for_maker(
             order,
@@ -52,10 +52,12 @@ pub fn determine_perp_fulfillment_methods(
 
     let maker_direction = order.direction.opposite();
 
-    let mut amm_price = match maker_direction {
+    let initial_amm_price = match maker_direction {
         PositionDirection::Long => amm.bid_price(amm_reserve_price)?,
         PositionDirection::Short => amm.ask_price(amm_reserve_price)?,
     };
+
+    let mut amm_price = initial_amm_price;
 
     for (maker_key, maker_order_index, maker_price) in maker_orders_info.iter() {
         let taker_crosses_maker = match limit_price {
@@ -101,7 +103,7 @@ pub fn determine_perp_fulfillment_methods(
         }
     }
 
-    Ok(fulfillment_methods)
+    Ok((fulfillment_methods, initial_amm_price))
 }
 
 fn determine_perp_fulfillment_methods_for_maker(
@@ -114,8 +116,13 @@ fn determine_perp_fulfillment_methods_for_maker(
     slot: u64,
     min_auction_duration: u8,
     fill_mode: FillMode,
-) -> DriftResult<Vec<PerpFulfillmentMethod>> {
+) -> DriftResult<(Vec<PerpFulfillmentMethod>, u64)> {
     let maker_direction = order.direction;
+
+    let amm_price = match maker_direction {
+        PositionDirection::Long => amm.ask_price(amm_reserve_price)?,
+        PositionDirection::Short => amm.bid_price(amm_reserve_price)?,
+    };
 
     let can_fill_with_amm = can_fill_with_amm(
         amm_availability,
@@ -127,22 +134,17 @@ fn determine_perp_fulfillment_methods_for_maker(
     )?;
 
     if !can_fill_with_amm {
-        return Ok(vec![]);
+        return Ok((vec![], amm_price));
     }
-
-    let amm_price = match maker_direction {
-        PositionDirection::Long => amm.ask_price(amm_reserve_price)?,
-        PositionDirection::Short => amm.bid_price(amm_reserve_price)?,
-    };
 
     let maker_price = limit_price.safe_unwrap()?;
 
     let amm_crosses_maker = do_orders_cross(maker_direction, maker_price, amm_price);
 
     if amm_crosses_maker {
-        Ok(vec![PerpFulfillmentMethod::AMM(None)])
+        Ok((vec![PerpFulfillmentMethod::AMM(None)], amm_price))
     } else {
-        Ok(vec![])
+        Ok((vec![], amm_price))
     }
 }
 
