@@ -5,10 +5,11 @@ use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 use crate::state::builder::{BuilderEscrowZeroCopyMut, BuilderOrder, BuilderOrderBitFlag};
 use crate::state::builder_map::BuilderMap;
-use crate::state::events::BuilderSettleRecord;
+use crate::state::events::{emit_stack, BuilderSettleRecord};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::SpotBalance;
 use crate::state::spot_market_map::SpotMarketMap;
+use crate::state::traits::Size;
 use crate::state::user::MarketType;
 
 /// Runs through the user's BuilderEscrow account and sweeps any accrued fees to the corresponding
@@ -105,7 +106,7 @@ pub fn sweep_completed_builder_fees_for_market<'a>(
                     .total_referrer_rewards
                     .safe_add(fees_accrued as u64)?;
 
-                emit!(BuilderSettleRecord {
+                emit_stack::<_, { BuilderSettleRecord::SIZE }>(BuilderSettleRecord {
                     ts: now_ts,
                     builder: None,
                     referrer: Some(referrer_authority),
@@ -115,7 +116,7 @@ pub fn sweep_completed_builder_fees_for_market<'a>(
                     builder_total_referrer_rewards: referrer_builder.total_referrer_rewards,
                     builder_total_builder_rewards: referrer_builder.total_builder_rewards,
                     builder_sub_account_id: referrer_user.sub_account_id,
-                });
+                })?;
 
                 // zero out the order
                 if let Ok(builder_order) = builder_escrow.get_order_mut(i) {
@@ -151,7 +152,7 @@ pub fn sweep_completed_builder_fees_for_market<'a>(
                     .total_builder_rewards
                     .safe_add(fees_accrued as u64)?;
 
-                emit!(BuilderSettleRecord {
+                emit_stack::<_, { BuilderSettleRecord::SIZE }>(BuilderSettleRecord {
                     ts: now_ts,
                     builder: Some(builder_authority),
                     referrer: None,
@@ -161,12 +162,17 @@ pub fn sweep_completed_builder_fees_for_market<'a>(
                     builder_total_referrer_rewards: builder_revenue_share.total_referrer_rewards,
                     builder_total_builder_rewards: builder_revenue_share.total_builder_rewards,
                     builder_sub_account_id: builder_user.sub_account_id,
-                });
+                })?;
 
                 // remove order
                 if let Ok(builder_order) = builder_escrow.get_order_mut(i) {
                     *builder_order = BuilderOrder::default();
                 }
+            } else {
+                msg!(
+                    "Builder user or builder not found for builder authority: {}",
+                    builder_authority
+                );
             }
         }
     }

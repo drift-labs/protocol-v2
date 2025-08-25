@@ -706,7 +706,7 @@ describe('builder codes', () => {
 				'should throw error when revoking builder with open orders'
 			);
 		} catch (e) {
-			assert(e.message.includes('0x18b6'));
+			assert(e.message.includes('0x18b3'));
 		}
 
 		userOrders = userClient.getUser().getOpenOrders();

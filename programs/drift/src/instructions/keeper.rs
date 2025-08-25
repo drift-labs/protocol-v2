@@ -836,6 +836,11 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
 
         let mut builder_order = if let Some(ref mut builder_escrow_zc) = builder_escrow_zc {
             let new_order_id = taker_order_id_to_use - 1;
+            let new_order_index = taker
+                .orders
+                .iter()
+                .position(|order| order.is_available())
+                .ok_or(ErrorCode::MaxNumberOfOrders)?;
             builder_escrow_zc.add_order(BuilderOrder::new(
                 verified_message_and_signature.builder_idx.unwrap(),
                 taker.sub_account_id,
@@ -844,6 +849,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
                 MarketType::Perp,
                 market_index,
                 BuilderOrderBitFlag::Open as u8,
+                new_order_index as u8,
             ))?;
             builder_escrow_zc.find_order(taker.sub_account_id, new_order_id)
         } else {
@@ -890,6 +896,11 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
 
         let mut builder_order = if let Some(ref mut builder_escrow_zc) = builder_escrow_zc {
             let new_order_id = taker_order_id_to_use - 1;
+            let new_order_index = taker
+                .orders
+                .iter()
+                .position(|order| order.is_available())
+                .ok_or(ErrorCode::MaxNumberOfOrders)?;
             builder_escrow_zc.add_order(BuilderOrder::new(
                 verified_message_and_signature.builder_idx.unwrap(),
                 taker.sub_account_id,
@@ -898,6 +909,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
                 MarketType::Perp,
                 market_index,
                 BuilderOrderBitFlag::Open as u8,
+                new_order_index as u8,
             ))?;
             builder_escrow_zc.find_order(taker.sub_account_id, new_order_id)
         } else {
@@ -927,6 +939,11 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
 
     let mut builder_order = if let Some(ref mut builder_escrow_zc) = builder_escrow_zc {
         let new_order_id = taker_order_id_to_use;
+        let new_order_index = taker
+            .orders
+            .iter()
+            .position(|order| order.is_available())
+            .ok_or(ErrorCode::MaxNumberOfOrders)?;
         builder_escrow_zc.add_order(BuilderOrder::new(
             verified_message_and_signature.builder_idx.unwrap(),
             taker.sub_account_id,
@@ -935,6 +952,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
             MarketType::Perp,
             market_index,
             BuilderOrderBitFlag::Open as u8,
+            new_order_index as u8,
         ))?;
         builder_escrow_zc.find_order(taker.sub_account_id, new_order_id)
     } else {
@@ -973,7 +991,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
     });
 
     if let Some(ref mut builder_escrow_zc) = builder_escrow_zc {
-        builder_escrow_zc.mark_missing_orders_completed(taker)?;
+        builder_escrow_zc.revoke_completed_orders(taker)?;
     };
 
     Ok(())
@@ -1058,7 +1076,7 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
 
     let mut builder_escrow = get_builder_escrow_account(&mut remaining_accounts)?;
     if let Some(ref mut builder_escrow_zc) = builder_escrow {
-        builder_escrow_zc.mark_missing_orders_completed(user)?;
+        builder_escrow_zc.revoke_completed_orders(user)?;
         if let Ok(builder_map) = load_builder_map(&mut remaining_accounts) {
             controller::builder::sweep_completed_builder_fees_for_market(
                 market_index,

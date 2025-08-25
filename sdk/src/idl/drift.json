@@ -7666,7 +7666,7 @@
         {
           "name": "authority",
           "isMut": false,
-          "isSigner": true
+          "isSigner": false
         },
         {
           "name": "payer",
@@ -7697,7 +7697,7 @@
         {
           "name": "authority",
           "isMut": false,
-          "isSigner": true
+          "isSigner": false
         },
         {
           "name": "userStats",
@@ -10014,23 +10014,6 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "builderIdx",
-            "docs": [
-              "the index of the BuilderEscrow.approved_builders list, that this order's fee will settle to. Ignored",
-              "if bit_flag = Referral."
-            ],
-            "type": "u8"
-          },
-          {
-            "name": "padding0",
-            "type": {
-              "array": [
-                "u8",
-                7
-              ]
-            }
-          },
-          {
             "name": "feesAccrued",
             "docs": [
               "fees accrued so far for this order slot. This is not exclusively fees from this order_id",
@@ -10042,7 +10025,7 @@
           {
             "name": "orderId",
             "docs": [
-              "the order_id of the current active order in this slot. It only carries meaning while bit_flag = Open"
+              "the order_id of the current active order in this slot. It's only relevant while bit_flag = Open"
             ],
             "type": "u32"
           },
@@ -10053,6 +10036,21 @@
           {
             "name": "marketIndex",
             "type": "u16"
+          },
+          {
+            "name": "subAccountId",
+            "docs": [
+              "the subaccount_id of the user who created this order. It's only relevant while bit_flag = Open"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "builderIdx",
+            "docs": [
+              "the index of the BuilderEscrow.approved_builders list, that this order's fee will settle to. Ignored",
+              "if bit_flag = Referral."
+            ],
+            "type": "u8"
           },
           {
             "name": "bitFlags",
@@ -10068,24 +10066,24 @@
             "type": "u8"
           },
           {
+            "name": "userOrderIndex",
+            "docs": [
+              "the index into the User's orders list when this BuilderOrder was created, make sure to verify that order_id matches."
+            ],
+            "type": "u8"
+          },
+          {
             "name": "marketType",
             "type": {
               "defined": "MarketType"
             }
           },
           {
-            "name": "subAccountId",
-            "docs": [
-              "the subaccount_id of the user who created this order. It only carries meaning while bit_flag = Open"
-            ],
-            "type": "u16"
-          },
-          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                12
+                10
               ]
             }
           }
@@ -16638,51 +16636,36 @@
     },
     {
       "code": 6318,
-      "name": "InvalidBuilderApproval",
-      "msg": "Invalid builder approval"
-    },
-    {
-      "code": 6319,
-      "name": "CouldNotDeserializeBuilderEscrow",
-      "msg": "Could not deserialize builder escrow"
-    },
-    {
-      "code": 6320,
       "name": "BuilderRevoked",
       "msg": "Builder has been revoked"
     },
     {
-      "code": 6321,
+      "code": 6319,
       "name": "InvalidBuilderFee",
       "msg": "Builder fee is greater than max fee bps"
     },
     {
-      "code": 6322,
+      "code": 6320,
       "name": "BuilderEscrowOrdersAccountFull",
       "msg": "BuilderEscrow has too many active orders"
     },
     {
-      "code": 6323,
+      "code": 6321,
       "name": "BuilderEscrowMissing",
       "msg": "BuilderEscrow missing"
     },
     {
-      "code": 6324,
-      "name": "BuilderMissing",
-      "msg": "Builder missing"
-    },
-    {
-      "code": 6325,
+      "code": 6322,
       "name": "InvalidBuilderAccount",
       "msg": "Invalid BuilderAccount"
     },
     {
-      "code": 6326,
+      "code": 6323,
       "name": "CannotRevokeBuilderWithOpenOrders",
       "msg": "Cannot revoke builder with open orders"
     },
     {
-      "code": 6327,
+      "code": 6324,
       "name": "UnableToLoadBuilderAccount",
       "msg": "Unable to load builder account"
     }

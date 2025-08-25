@@ -414,7 +414,7 @@ export function getBuilderEscrowAccountPublicKey(
 ): PublicKey {
 	return PublicKey.findProgramAddressSync(
 		[
-			Buffer.from(anchor.utils.bytes.utf8.encode('BUILD_ESCROW')),
+			Buffer.from(anchor.utils.bytes.utf8.encode('B_ESCROW')),
 			authority.toBuffer(),
 		],
 		programId

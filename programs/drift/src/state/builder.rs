@@ -8,14 +8,13 @@ use prelude::AccountInfo;
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
-use crate::math::orders::set_order_bit_flag;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::user::{MarketType, OrderStatus, User};
 use crate::validate;
 use crate::{msg, ID};
 
 pub const BUILDER_PDA_SEED: &str = "BUILD";
-pub const BUILDER_ESCROW_PDA_SEED: &str = "BUILD_ESCROW";
+pub const BUILDER_ESCROW_PDA_SEED: &str = "B_ESCROW";
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum BuilderOrderBitFlag {
@@ -45,19 +44,19 @@ impl Builder {
 #[zero_copy]
 #[derive(Default, Eq, PartialEq, Debug, BorshDeserialize, BorshSerialize)]
 pub struct BuilderOrder {
-    /// the index of the BuilderEscrow.approved_builders list, that this order's fee will settle to. Ignored
-    /// if bit_flag = Referral.
-    pub builder_idx: u8,
-    pub padding0: [u8; 7],
     /// fees accrued so far for this order slot. This is not exclusively fees from this order_id
     /// and may include fees from other orders in the same market. This may be swept to the
     /// builder's SpotPosition during settle_pnl.
     pub fees_accrued: u64,
-    /// the order_id of the current active order in this slot. It only carries meaning while bit_flag = Open
+    /// the order_id of the current active order in this slot. It's only relevant while bit_flag = Open
     pub order_id: u32,
     pub fee_bps: u16,
     pub market_index: u16,
-
+    /// the subaccount_id of the user who created this order. It's only relevant while bit_flag = Open
+    pub sub_account_id: u16,
+    /// the index of the BuilderEscrow.approved_builders list, that this order's fee will settle to. Ignored
+    /// if bit_flag = Referral.
+    pub builder_idx: u8,
     /// bitflags that describe the state of the order.
     /// [`BuilderOrderBitFlag::Init`]: this order slot is available for use.
     /// [`BuilderOrderBitFlag::Open`]: this order slot is occupied, `order_id` is the `sub_account_id`'s active order.
@@ -66,12 +65,10 @@ pub struct BuilderOrder {
     /// [`BuilderOrderBitFlag::Referral`]: this order stores referral rewards waiting to be settled. If it is set, no
     /// other bitflag should be set.
     pub bit_flags: u8,
-
+    /// the index into the User's orders list when this BuilderOrder was created, make sure to verify that order_id matches.
+    pub user_order_index: u8,
     pub market_type: MarketType,
-
-    /// the subaccount_id of the user who created this order. It only carries meaning while bit_flag = Open
-    pub sub_account_id: u16,
-    pub padding: [u8; 12],
+    pub padding: [u8; 10],
 }
 
 impl BuilderOrder {
@@ -83,10 +80,10 @@ impl BuilderOrder {
         market_type: MarketType,
         market_index: u16,
         bit_flags: u8,
+        user_order_index: u8,
     ) -> Self {
         Self {
             builder_idx,
-            padding0: [0; 7],
             order_id,
             fee_bps,
             market_type,
@@ -94,7 +91,8 @@ impl BuilderOrder {
             fees_accrued: 0,
             bit_flags,
             sub_account_id,
-            padding: [0; 12],
+            user_order_index,
+            padding: [0; 10],
         }
     }
 
@@ -378,6 +376,7 @@ impl<'a> BuilderEscrowZeroCopyMut<'a> {
             MarketType::Spot,
             0,
             BuilderOrderBitFlag::Referral as u8,
+            0,
         )) {
             Ok(idx) => Some(idx),
             Err(_) => {
@@ -488,18 +487,19 @@ impl<'a> BuilderEscrowZeroCopyMut<'a> {
     /// Marks any [`BuilderOrder`]s as Complete if there is no longer a corresponding
     /// open order in the user's account. This is used to lazily reconcile state when
     /// in place_order and settle_pnl instead of requiring explicit updates on cancels.
-    pub fn mark_missing_orders_completed(&mut self, user: &User) -> DriftResult<()> {
+    pub fn revoke_completed_orders(&mut self, user: &User) -> DriftResult<()> {
         for i in 0..self.orders_len() {
             if let Ok(builder_order) = self.get_order_mut(i) {
                 if builder_order.is_referral_order() {
                     continue;
                 }
+                if user.sub_account_id != builder_order.sub_account_id {
+                    continue;
+                }
                 if builder_order.is_open() && !builder_order.is_completed() {
-                    let still_open = user.orders.iter().any(|o| {
-                        o.order_id == builder_order.order_id
-                            && user.sub_account_id == builder_order.sub_account_id
-                            && o.status == OrderStatus::Open
-                    });
+                    let user_order = user.orders[builder_order.user_order_index as usize];
+                    let still_open = user_order.status == OrderStatus::Open
+                        && user_order.order_id == builder_order.order_id;
                     if !still_open {
                         if builder_order.fees_accrued > 0 {
                             builder_order.add_bit_flag(BuilderOrderBitFlag::Completed);

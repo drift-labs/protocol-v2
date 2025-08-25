@@ -641,10 +641,6 @@ pub enum ErrorCode {
     InvalidIfRebalanceSwap,
     #[msg("Invalid Builder resize")]
     InvalidBuilderResize,
-    #[msg("Invalid builder approval")]
-    InvalidBuilderApproval,
-    #[msg("Could not deserialize builder escrow")]
-    CouldNotDeserializeBuilderEscrow,
     #[msg("Builder has been revoked")]
     BuilderRevoked,
     #[msg("Builder fee is greater than max fee bps")]
@@ -653,8 +649,6 @@ pub enum ErrorCode {
     BuilderEscrowOrdersAccountFull,
     #[msg("BuilderEscrow missing")]
     BuilderEscrowMissing,
-    #[msg("Builder missing")]
-    BuilderMissing,
     #[msg("Invalid BuilderAccount")]
     InvalidBuilderAccount,
     #[msg("Cannot revoke builder with open orders")]

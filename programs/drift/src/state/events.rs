@@ -706,6 +706,23 @@ pub struct FuelSeasonRecord {
     pub fuel_total: u128,
 }
 
+#[event]
+pub struct BuilderSettleRecord {
+    pub ts: i64,
+    pub builder: Option<Pubkey>,
+    pub referrer: Option<Pubkey>,
+    pub fee_settled: u64,
+    pub market_index: u16,
+    pub market_type: MarketType,
+    pub builder_sub_account_id: u16,
+    pub builder_total_referrer_rewards: u64,
+    pub builder_total_builder_rewards: u64,
+}
+
+impl Size for BuilderSettleRecord {
+    const SIZE: usize = 140;
+}
+
 pub fn emit_stack<T: AnchorSerialize + Discriminator, const N: usize>(event: T) -> DriftResult {
     #[cfg(not(feature = "drift-rs"))]
     {
@@ -745,21 +762,4 @@ pub fn emit_buffers<T: AnchorSerialize + Discriminator>(
     msg!(msg_str);
 
     Ok(())
-}
-
-#[event]
-pub struct BuilderSettleRecord {
-    pub ts: i64,
-    pub builder: Option<Pubkey>,
-    pub referrer: Option<Pubkey>,
-    pub fee_settled: u64,
-    pub market_index: u16,
-    pub market_type: MarketType,
-    pub builder_sub_account_id: u16,
-    pub builder_total_referrer_rewards: u64,
-    pub builder_total_builder_rewards: u64,
-}
-
-impl Size for BuilderSettleRecord {
-    const SIZE: usize = 140;
 }

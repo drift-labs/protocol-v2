@@ -511,7 +511,6 @@ pub fn handle_initialize_builder<'c: 'info, 'info>(
     builder.authority = ctx.accounts.authority.key();
     builder.total_referrer_rewards = 0;
     builder.total_builder_rewards = 0;
-    builder.padding = [0; 18];
     Ok(())
 }
 
@@ -4952,7 +4951,7 @@ pub struct InitializeBuilder<'info> {
     )]
     pub builder: AccountLoader<'info, Builder>,
     /// CHECK: The builder and/or referrer authority, beneficiary of builder/ref fees
-    pub authority: Signer<'info>,
+    pub authority: AccountInfo<'info>,
     #[account(mut)]
     pub payer: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
@@ -4971,7 +4970,7 @@ pub struct InitializeBuilderEscrow<'info> {
     )]
     pub builder_escrow: Box<Account<'info, BuilderEscrow>>,
     /// CHECK: The auth owning this account, payer of builder/ref fees
-    pub authority: Signer<'info>,
+    pub authority: AccountInfo<'info>,
     #[account(
         mut,
         has_one = authority
