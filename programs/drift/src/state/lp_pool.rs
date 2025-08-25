@@ -4,7 +4,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     BASE_PRECISION_I128, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
-    PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, QUOTE_PRECISION_I128,
+    PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128, QUOTE_PRECISION_I128,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
@@ -12,7 +12,6 @@ use crate::state::constituent_map::ConstituentMap;
 use crate::state::perp_market::{AmmCacheFixed, CacheInfo};
 use crate::state::spot_market_map::SpotMarketMap;
 use anchor_lang::prelude::*;
-use anchor_spl::token::Mint;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use super::oracle::OraclePriceData;
@@ -119,14 +118,15 @@ impl Size for LPPool {
 }
 
 impl LPPool {
-    pub fn get_price(&self, mint: &Mint) -> Result<u128> {
-        match mint.supply {
+    pub fn get_price(&self, mint_supply: u64) -> Result<u128> {
+        match mint_supply {
             0 => Ok(0),
             supply => {
                 // TODO: assuming mint decimals = quote decimals = 6
-                (supply as u128)
-                    .checked_div(self.last_aum)
-                    .ok_or(ErrorCode::MathError.into())
+                Ok(self
+                    .last_aum
+                    .safe_mul(PRICE_PRECISION)?
+                    .safe_div(supply as u128)?)
             }
         }
     }
