@@ -80,7 +80,7 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 	onChange: (data: T) => void;
 	listenerId?: number;
 
-	resubOpts?: ResubOpts;
+	resubOpts: ResubOpts;
 
 	commitment?: Commitment;
 	isUnsubscribing = false;
@@ -130,7 +130,7 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 			usePollingInsteadOfResub: true,
 			logResubMessages: false,
 		};
-		if (this.resubOpts?.resubTimeoutMs < 1000) {
+		if (this.resubOpts.resubTimeoutMs < 1000) {
 			console.log(
 				`resubTimeoutMs should be at least 1000ms to avoid spamming resub ${this.logAccountName}`
 			);
@@ -182,7 +182,7 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 		for await (const notification of subscription) {
 			// If we're currently polling and receive a WebSocket event, stop polling
 			if (this.pollingTimeoutId) {
-				if (this.resubOpts?.logResubMessages) {
+				if (this.resubOpts.logResubMessages) {
 					console.log(
 						`[${this.logAccountName}] Received WebSocket event while polling, stopping polling`
 					);
@@ -190,14 +190,10 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 				this.stopPolling();
 			}
 
-			if (this.resubOpts?.resubTimeoutMs) {
-				this.receivingData = true;
-				clearTimeout(this.timeoutId);
-				this.handleRpcResponse(notification.context, notification.value);
-				this.setTimeout();
-			} else {
-				this.handleRpcResponse(notification.context, notification.value);
-			}
+			this.receivingData = true;
+			clearTimeout(this.timeoutId);
+			this.handleRpcResponse(notification.context, notification.value);
+			this.setTimeout();
 		}
 	}
 
@@ -216,7 +212,7 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 		 *   - otherwise, resubscribe to WS immediately.
 		 */
 		if (this.listenerId != null || this.isUnsubscribing) {
-			if (this.resubOpts?.logResubMessages) {
+			if (this.resubOpts.logResubMessages) {
 				console.log(
 					`[${this.logAccountName}] Subscribe returning early - listenerId=${this.listenerId}, isUnsubscribing=${this.isUnsubscribing}`
 				);
@@ -235,7 +231,7 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 
 		this.listenerId = Math.random(); // Unique ID for logging purposes
 
-		if (this.resubOpts?.resubTimeoutMs) {
+		if (this.resubOpts.resubTimeoutMs) {
 			this.receivingData = true;
 			this.setTimeout();
 		}
@@ -254,6 +250,8 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 
 			// Start notification loop with the subscription promise
 			this.handleNotificationLoop(subscriptionPromise);
+		} else {
+			throw new Error('Invalid account public key');
 		}
 	}
 
@@ -282,7 +280,7 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 			async () => {
 				if (this.isUnsubscribing) {
 					// If we are in the process of unsubscribing, do not attempt to resubscribe
-					if (this.resubOpts?.logResubMessages) {
+					if (this.resubOpts.logResubMessages) {
 						console.log(
 							`[${this.logAccountName}] Timeout fired but isUnsubscribing=true, skipping resubscribe`
 						);
@@ -291,9 +289,9 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 				}
 
 				if (this.receivingData) {
-					if (this.resubOpts?.usePollingInsteadOfResub) {
+					if (this.resubOpts.usePollingInsteadOfResub) {
 						// Use polling instead of resubscribing
-						if (this.resubOpts?.logResubMessages) {
+						if (this.resubOpts.logResubMessages) {
 							console.log(
 								`[${this.logAccountName}] No ws data in ${this.resubOpts.resubTimeoutMs}ms, starting polling - listenerId=${this.listenerId}`
 							);
@@ -301,7 +299,7 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 						this.startPolling();
 					} else {
 						// Original resubscribe behavior
-						if (this.resubOpts?.logResubMessages) {
+						if (this.resubOpts.logResubMessages) {
 							console.log(
 								`No ws data from ${this.logAccountName} in ${this.resubOpts.resubTimeoutMs}ms, resubscribing - listenerId=${this.listenerId}, isUnsubscribing=${this.isUnsubscribing}`
 							);
@@ -309,21 +307,21 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 						await this.unsubscribe(true);
 						this.receivingData = false;
 						await this.subscribe(this.onChange);
-						if (this.resubOpts?.logResubMessages) {
+						if (this.resubOpts.logResubMessages) {
 							console.log(
 								`[${this.logAccountName}] Resubscribe completed - receivingData=${this.receivingData}, listenerId=${this.listenerId}, isUnsubscribing=${this.isUnsubscribing}`
 							);
 						}
 					}
 				} else {
-					if (this.resubOpts?.logResubMessages) {
+					if (this.resubOpts.logResubMessages) {
 						console.log(
 							`[${this.logAccountName}] Timeout fired but receivingData=false, skipping resubscribe`
 						);
 					}
 				}
 			},
-			this.resubOpts?.resubTimeoutMs
+			this.resubOpts.resubTimeoutMs
 		);
 	}
 
@@ -333,7 +331,7 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 	 * - On detected change, stops polling and resubscribes to WS.
 	 */
 	private startPolling(): void {
-		const pollingInterval = this.resubOpts?.pollingIntervalMs || 30000; // Default to 30s
+		const pollingInterval = this.resubOpts.pollingIntervalMs || 30000; // Default to 30s
 
 		const poll = async () => {
 			if (this.isUnsubscribing) {
@@ -354,17 +352,17 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 
 				if (hasNewData) {
 					// New data received, stop polling and resubscribe to websocket
-					if (this.resubOpts?.logResubMessages) {
+					if (this.resubOpts.logResubMessages) {
 						console.log(
 							`[${this.logAccountName}] Polling detected account data change, resubscribing to websocket`
 						);
 					}
-					this.stopPolling();
+					await this.unsubscribe(true);
 					this.receivingData = false;
 					await this.subscribe(this.onChange);
 				} else {
 					// No new data, continue polling
-					if (this.resubOpts?.logResubMessages) {
+					if (this.resubOpts.logResubMessages) {
 						console.log(
 							`[${this.logAccountName}] Polling found no account changes, continuing to poll every ${pollingInterval}ms`
 						);
@@ -372,7 +370,7 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 					this.pollingTimeoutId = setTimeout(poll, pollingInterval);
 				}
 			} catch (error) {
-				if (this.resubOpts?.logResubMessages) {
+				if (this.resubOpts.logResubMessages) {
 					console.error(
 						`[${this.logAccountName}] Error during polling:`,
 						error
