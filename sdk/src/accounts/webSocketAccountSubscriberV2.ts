@@ -276,53 +276,50 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 		if (!this.onChange) {
 			throw new Error('onChange callback function must be set');
 		}
-		this.timeoutId = setTimeout(
-			async () => {
-				if (this.isUnsubscribing) {
-					// If we are in the process of unsubscribing, do not attempt to resubscribe
-					if (this.resubOpts.logResubMessages) {
-						console.log(
-							`[${this.logAccountName}] Timeout fired but isUnsubscribing=true, skipping resubscribe`
-						);
-					}
-					return;
+		this.timeoutId = setTimeout(async () => {
+			if (this.isUnsubscribing) {
+				// If we are in the process of unsubscribing, do not attempt to resubscribe
+				if (this.resubOpts.logResubMessages) {
+					console.log(
+						`[${this.logAccountName}] Timeout fired but isUnsubscribing=true, skipping resubscribe`
+					);
 				}
+				return;
+			}
 
-				if (this.receivingData) {
-					if (this.resubOpts.usePollingInsteadOfResub) {
-						// Use polling instead of resubscribing
-						if (this.resubOpts.logResubMessages) {
-							console.log(
-								`[${this.logAccountName}] No ws data in ${this.resubOpts.resubTimeoutMs}ms, starting polling - listenerId=${this.listenerId}`
-							);
-						}
-						this.startPolling();
-					} else {
-						// Original resubscribe behavior
-						if (this.resubOpts.logResubMessages) {
-							console.log(
-								`No ws data from ${this.logAccountName} in ${this.resubOpts.resubTimeoutMs}ms, resubscribing - listenerId=${this.listenerId}, isUnsubscribing=${this.isUnsubscribing}`
-							);
-						}
-						await this.unsubscribe(true);
-						this.receivingData = false;
-						await this.subscribe(this.onChange);
-						if (this.resubOpts.logResubMessages) {
-							console.log(
-								`[${this.logAccountName}] Resubscribe completed - receivingData=${this.receivingData}, listenerId=${this.listenerId}, isUnsubscribing=${this.isUnsubscribing}`
-							);
-						}
-					}
-				} else {
+			if (this.receivingData) {
+				if (this.resubOpts.usePollingInsteadOfResub) {
+					// Use polling instead of resubscribing
 					if (this.resubOpts.logResubMessages) {
 						console.log(
-							`[${this.logAccountName}] Timeout fired but receivingData=false, skipping resubscribe`
+							`[${this.logAccountName}] No ws data in ${this.resubOpts.resubTimeoutMs}ms, starting polling - listenerId=${this.listenerId}`
+						);
+					}
+					this.startPolling();
+				} else {
+					// Original resubscribe behavior
+					if (this.resubOpts.logResubMessages) {
+						console.log(
+							`No ws data from ${this.logAccountName} in ${this.resubOpts.resubTimeoutMs}ms, resubscribing - listenerId=${this.listenerId}, isUnsubscribing=${this.isUnsubscribing}`
+						);
+					}
+					await this.unsubscribe(true);
+					this.receivingData = false;
+					await this.subscribe(this.onChange);
+					if (this.resubOpts.logResubMessages) {
+						console.log(
+							`[${this.logAccountName}] Resubscribe completed - receivingData=${this.receivingData}, listenerId=${this.listenerId}, isUnsubscribing=${this.isUnsubscribing}`
 						);
 					}
 				}
-			},
-			this.resubOpts.resubTimeoutMs
-		);
+			} else {
+				if (this.resubOpts.logResubMessages) {
+					console.log(
+						`[${this.logAccountName}] Timeout fired but receivingData=false, skipping resubscribe`
+					);
+				}
+			}
+		}, this.resubOpts.resubTimeoutMs);
 	}
 
 	/**
