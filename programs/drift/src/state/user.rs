@@ -643,9 +643,8 @@ impl User {
         validate!(
             calculation.meets_margin_requirement(),
             ErrorCode::InsufficientCollateral,
-            "User attempting to withdraw where total_collateral {} is below initial_margin_requirement {}",
-            calculation.total_collateral,
-            calculation.margin_requirement
+            "margin calculation: {:?}",
+            calculation
         )?;
 
         user_stats.update_fuel_bonus(
@@ -698,9 +697,8 @@ impl User {
         validate!(
             calculation.meets_margin_requirement(),
             ErrorCode::InsufficientCollateral,
-            "User attempting to withdraw where total_collateral {} is below initial_margin_requirement {}",
-            calculation.total_collateral,
-            calculation.margin_requirement
+            "margin calculation: {:?}",
+            calculation
         )?;
 
         user_stats.update_fuel_bonus(
@@ -709,45 +707,6 @@ impl User {
             calculation.fuel_borrows,
             calculation.fuel_positions,
             now,
-        )?;
-
-        Ok(true)
-    }
-
-    pub fn meets_withdraw_margin_requirement_for_isolated_perp_position(
-        &mut self,
-        perp_market_map: &PerpMarketMap,
-        spot_market_map: &SpotMarketMap,
-        oracle_map: &mut OracleMap,
-        margin_requirement_type: MarginRequirementType,
-        isolated_perp_position_market_index: u16,
-    ) -> DriftResult<bool> {
-        let strict = margin_requirement_type == MarginRequirementType::Initial;
-        let context = MarginContext::standard(margin_requirement_type).strict(strict);
-
-        let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
-            self,
-            perp_market_map,
-            spot_market_map,
-            oracle_map,
-            context,
-        )?;
-
-        let isolated_margin_calculation =
-            calculation.get_isolated_margin_calculation(isolated_perp_position_market_index)?;
-
-        validate!(
-            calculation.all_liability_oracles_valid,
-            ErrorCode::InvalidOracle,
-            "User attempting to withdraw with outstanding liabilities when an oracle is invalid"
-        )?;
-
-        validate!(
-            isolated_margin_calculation.meets_margin_requirement(),
-            ErrorCode::InsufficientCollateral,
-            "User attempting to withdraw where total_collateral {} is below initial_margin_requirement {}",
-            isolated_margin_calculation.total_collateral,
-            isolated_margin_calculation.margin_requirement
         )?;
 
         Ok(true)

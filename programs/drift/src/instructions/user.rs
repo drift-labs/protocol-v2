@@ -2223,12 +2223,15 @@ pub fn handle_transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
 
         drop(spot_market);
 
-        user.meets_withdraw_margin_requirement_for_isolated_perp_position(
+        user.meets_withdraw_margin_requirement_and_increment_fuel_bonus(
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
             MarginRequirementType::Initial,
-            perp_market_index,
+            0,
+            0,
+            user_stats,
+            now,
         )?;
 
         if user.is_isolated_margin_being_liquidated(perp_market_index)? {
@@ -2344,12 +2347,15 @@ pub fn handle_withdraw_from_isolated_perp_position<'c: 'info, 'info>(
         )?;
     }
 
-    user.meets_withdraw_margin_requirement_for_isolated_perp_position(
+    user.meets_withdraw_margin_requirement_and_increment_fuel_bonus(
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
         MarginRequirementType::Initial,
-        perp_market_index,
+        0,
+        0,
+        &mut user_stats,
+        now,
     )?;
 
     if user.is_isolated_margin_being_liquidated(perp_market_index)? {
