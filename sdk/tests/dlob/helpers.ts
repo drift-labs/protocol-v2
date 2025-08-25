@@ -26,6 +26,9 @@ import {
 	PRICE_PRECISION,
 	DataAndSlot,
 } from '../../src';
+import { EventEmitter } from 'events';
+import StrictEventEmitter from 'strict-event-emitter-types';
+import { UserEvents } from '../../src/accounts/types';
 
 export const mockPerpPosition: PerpPosition = {
 	baseAssetAmount: new BN(0),
@@ -654,6 +657,7 @@ export class MockUserMap implements UserMapInterface {
 	private userMap = new Map<string, User>();
 	private userAccountToAuthority = new Map<string, string>();
 	private driftClient: DriftClient;
+	eventEmitter: StrictEventEmitter<EventEmitter, UserEvents>;
 
 	constructor() {
 		this.userMap = new Map();
@@ -663,6 +667,7 @@ export class MockUserMap implements UserMapInterface {
 			wallet: new Wallet(new Keypair()),
 			programID: PublicKey.default,
 		});
+		this.eventEmitter = new EventEmitter();
 	}
 
 	public async subscribe(): Promise<void> {}
