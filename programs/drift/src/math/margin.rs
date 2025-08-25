@@ -460,8 +460,9 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                         worst_case_orders_value = 0;
                     }
 
-                    calculation
-                        .add_cross_margin_total_collateral(worst_case_orders_value.cast::<i128>()?)?;
+                    calculation.add_cross_margin_total_collateral(
+                        worst_case_orders_value.cast::<i128>()?,
+                    )?;
 
                     #[cfg(feature = "drift-rs")]
                     calculation.add_spot_asset_value(worst_case_orders_value)?;
