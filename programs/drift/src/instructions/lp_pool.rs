@@ -2,7 +2,7 @@ use anchor_lang::{prelude::*, Accounts, Key, Result};
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 use crate::ids::DLP_WHITELIST;
-use crate::math::constants::PRICE_PRECISION_I64;
+use crate::math::constants::{PERCENTAGE_PRECISION, PRICE_PRECISION_I64};
 use crate::{
     controller::{
         self,
@@ -15,7 +15,7 @@ use crate::{
     math::{
         self,
         casting::Cast,
-        constants::{PERCENTAGE_PRECISION_I64, PRICE_PRECISION},
+        constants::PERCENTAGE_PRECISION_I64,
         oracle::{is_oracle_valid_for_action, oracle_validity, DriftAction, LogMode},
         safe_math::SafeMath,
     },
@@ -626,6 +626,8 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
     let state = &ctx.accounts.state;
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
 
+    let lp_price_before = lp_pool.get_price(ctx.accounts.lp_mint.supply)?;
+
     if slot.saturating_sub(lp_pool.last_aum_slot) > LP_POOL_SWAP_AUM_UPDATE_DELAY {
         msg!(
             "Must update LP pool AUM before swap, last_aum_slot: {}, current slot: {}",
@@ -776,15 +778,20 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
 
     in_constituent.sync_token_balance(ctx.accounts.constituent_in_token_account.amount);
 
-    let dlp_total_supply = ctx.accounts.lp_mint.supply;
-    let lp_price = if dlp_total_supply > 0 {
-        lp_pool
-            .last_aum
-            .safe_mul(PRICE_PRECISION)?
-            .safe_div(dlp_total_supply as u128)?
-    } else {
-        0
-    };
+    ctx.accounts.lp_mint.reload()?;
+    let lp_price_after = lp_pool.get_price(ctx.accounts.lp_mint.supply)?;
+    if lp_price_before != 0 {
+        let price_diff_percent = lp_price_after
+            .abs_diff(lp_price_before)
+            .safe_mul(PERCENTAGE_PRECISION)?
+            .safe_div(lp_price_before)?;
+
+        validate!(
+            price_diff_percent <= PERCENTAGE_PRECISION / 5,
+            ErrorCode::LpInvariantFailed,
+            "Removing liquidity resulted in DLP token difference of > 5%"
+        )?;
+    }
 
     let mint_redeem_id = get_then_update_id!(lp_pool, next_mint_redeem_id);
     emit_stack::<_, { LPMintRedeemRecord::SIZE }>(LPMintRedeemRecord {
@@ -800,7 +807,7 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
         mint: in_constituent.mint,
         lp_amount,
         lp_fee: lp_fee_amount,
-        lp_price,
+        lp_price: lp_price_after,
         mint_redeem_id,
         last_aum: lp_pool.last_aum,
         last_aum_slot: lp_pool.last_aum_slot,
@@ -922,6 +929,8 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
     let now = Clock::get()?.unix_timestamp;
     let state = &ctx.accounts.state;
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
+
+    let lp_price_before = lp_pool.get_price(ctx.accounts.lp_mint.supply)?;
 
     // Verify previous settle
     let amm_cache: AccountZeroCopy<'_, CacheInfo, _> = ctx.accounts.amm_cache.load_zc()?;
@@ -1088,15 +1097,20 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
 
     out_constituent.sync_token_balance(ctx.accounts.constituent_out_token_account.amount);
 
-    let dlp_total_supply = ctx.accounts.lp_mint.supply;
-    let lp_price = if dlp_total_supply > 0 {
-        lp_pool
-            .last_aum
-            .safe_mul(PRICE_PRECISION)?
-            .safe_div(dlp_total_supply as u128)?
-    } else {
-        0
-    };
+    ctx.accounts.lp_mint.reload()?;
+    let lp_price_after = lp_pool.get_price(ctx.accounts.lp_mint.supply)?;
+
+    if lp_price_after != 0 {
+        let price_diff_percent = lp_price_after
+            .abs_diff(lp_price_before)
+            .safe_mul(PERCENTAGE_PRECISION)?
+            .safe_div(lp_price_before)?;
+        validate!(
+            price_diff_percent <= PERCENTAGE_PRECISION / 5,
+            ErrorCode::LpInvariantFailed,
+            "Removing liquidity resulted in DLP token difference of > 5%"
+        )?;
+    }
 
     let mint_redeem_id = get_then_update_id!(lp_pool, next_mint_redeem_id);
     emit_stack::<_, { LPMintRedeemRecord::SIZE }>(LPMintRedeemRecord {
@@ -1112,7 +1126,7 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
         mint: out_constituent.mint,
         lp_amount: lp_burn_amount,
         lp_fee: lp_fee_amount,
-        lp_price,
+        lp_price: lp_price_after,
         mint_redeem_id,
         last_aum: lp_pool.last_aum,
         last_aum_slot: lp_pool.last_aum_slot,
