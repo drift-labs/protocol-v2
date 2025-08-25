@@ -65,8 +65,6 @@ import {
 	SignedMsgOrderParamsDelegateMessage,
 	TokenProgramFlag,
 	PostOnlyParams,
-	SignedMsgOrderParamsWithBuilderMessage,
-	SignedMsgOrderParamsDelegateWithBuilderMessage,
 } from './types';
 import driftIDL from './idl/drift.json';
 
@@ -6630,16 +6628,12 @@ export class DriftClient {
 	public signSignedMsgOrderParamsMessage(
 		orderParamsMessage:
 			| SignedMsgOrderParamsMessage
-			| SignedMsgOrderParamsDelegateMessage
-			| SignedMsgOrderParamsWithBuilderMessage
-			| SignedMsgOrderParamsDelegateWithBuilderMessage,
-		delegateSigner?: boolean,
-		withBuilder?: boolean
+			| SignedMsgOrderParamsDelegateMessage,
+		delegateSigner?: boolean
 	): SignedMsgOrderParams {
 		const borshBuf = this.encodeSignedMsgOrderParamsMessage(
 			orderParamsMessage,
-			delegateSigner,
-			withBuilder
+			delegateSigner
 		);
 		const orderParams = Buffer.from(borshBuf.toString('hex'));
 		return {
@@ -6654,60 +6648,39 @@ export class DriftClient {
 	public encodeSignedMsgOrderParamsMessage(
 		orderParamsMessage:
 			| SignedMsgOrderParamsMessage
-			| SignedMsgOrderParamsDelegateMessage
-			| SignedMsgOrderParamsWithBuilderMessage
-			| SignedMsgOrderParamsDelegateWithBuilderMessage,
-		delegateSigner?: boolean,
-		withBuilder?: boolean
+			| SignedMsgOrderParamsDelegateMessage,
+		delegateSigner?: boolean
 	): Buffer {
-		const paramKeys = Object.keys(orderParamsMessage);
-		const hasBuilderOrderParams =
-			paramKeys.includes('builder') || paramKeys.includes('builderFee');
-		if (withBuilder && !hasBuilderOrderParams) {
-			throw new Error(
-				'Builder order params are required when withBuilder is true'
-			);
-		}
-		if (!withBuilder && hasBuilderOrderParams) {
-			throw new Error(
-				'Builder order params are not allowed when withBuilder is false'
-			);
-		}
-
-		let anchorIxName = 'global:';
-		let messageBuffer: Buffer = null;
-		if (delegateSigner) {
-			if (withBuilder) {
-				anchorIxName += 'SignedMsgOrderParamsDelegateWithBuilderMessage';
-				messageBuffer = this.program.coder.types.encode(
-					'SignedMsgOrderParamsDelegateWithBuilderMessage',
-					orderParamsMessage as SignedMsgOrderParamsDelegateWithBuilderMessage
-				);
-			} else {
-				anchorIxName += 'SignedMsgOrderParamsDelegateMessage';
-				messageBuffer = this.program.coder.types.encode(
-					'SignedMsgOrderParamsDelegateMessage',
-					orderParamsMessage as SignedMsgOrderParamsDelegateMessage
-				);
-			}
-		} else {
-			if (withBuilder) {
-				anchorIxName += 'SignedMsgOrderParamsWithBuilderMessage';
-				messageBuffer = this.program.coder.types.encode(
-					'SignedMsgOrderParamsWithBuilderMessage',
-					orderParamsMessage as SignedMsgOrderParamsWithBuilderMessage
-				);
-			} else {
-				anchorIxName += 'SignedMsgOrderParamsMessage';
-				messageBuffer = this.program.coder.types.encode(
-					'SignedMsgOrderParamsMessage',
-					orderParamsMessage as SignedMsgOrderParamsMessage
-				);
-			}
-		}
-
+		const anchorIxName = delegateSigner
+			? 'global' + ':' + 'SignedMsgOrderParamsDelegateMessage'
+			: 'global' + ':' + 'SignedMsgOrderParamsMessage';
 		const prefix = Buffer.from(sha256(anchorIxName).slice(0, 8));
-		return Buffer.concat([prefix, messageBuffer]);
+
+		// Backwards-compat: normalize optional builder fields to null for encoding
+		const withBuilderDefaults = {
+			...orderParamsMessage,
+			builderIdx:
+				orderParamsMessage.builderIdx !== undefined
+					? orderParamsMessage.builderIdx
+					: null,
+			builderFeeBps:
+				orderParamsMessage.builderFeeBps !== undefined
+					? orderParamsMessage.builderFeeBps
+					: null,
+		};
+		const buf = Buffer.concat([
+			prefix,
+			delegateSigner
+				? this.program.coder.types.encode(
+						'SignedMsgOrderParamsDelegateMessage',
+						withBuilderDefaults as SignedMsgOrderParamsDelegateMessage
+				  )
+				: this.program.coder.types.encode(
+						'SignedMsgOrderParamsMessage',
+						withBuilderDefaults as SignedMsgOrderParamsMessage
+				  ),
+		]);
+		return buf;
 	}
 
 	/*
@@ -6715,69 +6688,15 @@ export class DriftClient {
 	 */
 	public decodeSignedMsgOrderParamsMessage(
 		encodedMessage: Buffer,
-		_delegateSigner?: boolean
-	): {
-		signedMessage:
-			| SignedMsgOrderParamsMessage
-			| SignedMsgOrderParamsDelegateMessage
-			| SignedMsgOrderParamsWithBuilderMessage
-			| SignedMsgOrderParamsDelegateWithBuilderMessage;
-		isDelegateSigner: boolean;
-		withBuilder: boolean;
-	} {
-		let isDelegateSigner = false;
-		let withBuilder = false;
-
-		const msgDiscr = Buffer.from(Array.from(encodedMessage).slice(0, 8));
-		let decodeStr = null;
-		if (
-			msgDiscr.equals(
-				Buffer.from(sha256('global:SignedMsgOrderParamsMessage').slice(0, 8))
-			)
-		) {
-			decodeStr = 'SignedMsgOrderParamsMessage';
-		} else if (
-			msgDiscr.equals(
-				Buffer.from(
-					sha256('global:SignedMsgOrderParamsDelegateMessage').slice(0, 8)
-				)
-			)
-		) {
-			decodeStr = 'SignedMsgOrderParamsDelegateMessage';
-			isDelegateSigner = true;
-		} else if (
-			msgDiscr.equals(
-				Buffer.from(
-					sha256('global:SignedMsgOrderParamsWithBuilderMessage').slice(0, 8)
-				)
-			)
-		) {
-			decodeStr = 'SignedMsgOrderParamsWithBuilderMessage';
-			withBuilder = true;
-		} else if (
-			msgDiscr.equals(
-				Buffer.from(
-					sha256('global:SignedMsgOrderParamsDelegateWithBuilderMessage').slice(
-						0,
-						8
-					)
-				)
-			)
-		) {
-			decodeStr = 'SignedMsgOrderParamsDelegateWithBuilderMessage';
-			isDelegateSigner = true;
-			withBuilder = true;
-		} else {
-			throw new Error('Invalid signed msg order params message');
-		}
-		return {
-			signedMessage: this.program.coder.types.decode(
-				decodeStr,
-				encodedMessage.slice(8)
-			),
-			isDelegateSigner,
-			withBuilder,
-		};
+		delegateSigner?: boolean
+	): SignedMsgOrderParamsMessage | SignedMsgOrderParamsDelegateMessage {
+		const decodeStr = delegateSigner
+			? 'SignedMsgOrderParamsDelegateMessage'
+			: 'SignedMsgOrderParamsMessage';
+		return this.program.coder.types.decode(
+			decodeStr,
+			encodedMessage.slice(8) // assumes discriminator
+		);
 	}
 
 	public signMessage(
@@ -6842,8 +6761,10 @@ export class DriftClient {
 			'hex'
 		);
 
-		const { signedMessage, withBuilder } =
-			this.decodeSignedMsgOrderParamsMessage(borshBuf, isDelegateSigner);
+		const signedMessage = this.decodeSignedMsgOrderParamsMessage(
+			borshBuf,
+			isDelegateSigner
+		);
 		if (isUpdateHighLeverageMode(signedMessage.signedMsgOrderParams.bitFlags)) {
 			remainingAccounts.push({
 				pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
@@ -6851,7 +6772,10 @@ export class DriftClient {
 				isSigner: false,
 			});
 		}
-		if (withBuilder) {
+		if (
+			signedMessage.builderFeeBps !== null &&
+			signedMessage.builderIdx !== null
+		) {
 			remainingAccounts.push({
 				pubkey: getBuilderEscrowAccountPublicKey(
 					this.program.programId,
@@ -7749,6 +7673,7 @@ export class DriftClient {
 					settleeUserAccount,
 					marketIndexes,
 					mode,
+					undefined,
 					builderEscrowMap
 				),
 				txParams
@@ -7781,6 +7706,7 @@ export class DriftClient {
 				settleeUserAccount,
 				marketIndexes,
 				mode,
+				undefined,
 				builderEscrowMap
 			);
 			const computeUnits = Math.min(300_000 * marketIndexes.length, 1_400_000);

@@ -10672,53 +10672,6 @@
                 "defined": "SignedMsgTriggerOrderParams"
               }
             }
-          }
-        ]
-      }
-    },
-    {
-      "name": "SignedMsgOrderParamsWithBuilderMessage",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "signedMsgOrderParams",
-            "type": {
-              "defined": "OrderParams"
-            }
-          },
-          {
-            "name": "subAccountId",
-            "type": "u16"
-          },
-          {
-            "name": "slot",
-            "type": "u64"
-          },
-          {
-            "name": "uuid",
-            "type": {
-              "array": [
-                "u8",
-                8
-              ]
-            }
-          },
-          {
-            "name": "takeProfitOrderParams",
-            "type": {
-              "option": {
-                "defined": "SignedMsgTriggerOrderParams"
-              }
-            }
-          },
-          {
-            "name": "stopLossOrderParams",
-            "type": {
-              "option": {
-                "defined": "SignedMsgTriggerOrderParams"
-              }
-            }
           },
           {
             "name": "builderIdx",
@@ -10727,7 +10680,7 @@
             }
           },
           {
-            "name": "builderFee",
+            "name": "builderFeeBps",
             "type": {
               "option": "u16"
             }
@@ -10778,53 +10731,6 @@
                 "defined": "SignedMsgTriggerOrderParams"
               }
             }
-          }
-        ]
-      }
-    },
-    {
-      "name": "SignedMsgOrderParamsDelegateWithBuilderMessage",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "signedMsgOrderParams",
-            "type": {
-              "defined": "OrderParams"
-            }
-          },
-          {
-            "name": "takerPubkey",
-            "type": "publicKey"
-          },
-          {
-            "name": "slot",
-            "type": "u64"
-          },
-          {
-            "name": "uuid",
-            "type": {
-              "array": [
-                "u8",
-                8
-              ]
-            }
-          },
-          {
-            "name": "takeProfitOrderParams",
-            "type": {
-              "option": {
-                "defined": "SignedMsgTriggerOrderParams"
-              }
-            }
-          },
-          {
-            "name": "stopLossOrderParams",
-            "type": {
-              "option": {
-                "defined": "SignedMsgTriggerOrderParams"
-              }
-            }
           },
           {
             "name": "builderIdx",
@@ -10833,7 +10739,7 @@
             }
           },
           {
-            "name": "builderFee",
+            "name": "builderFeeBps",
             "type": {
               "option": "u16"
             }

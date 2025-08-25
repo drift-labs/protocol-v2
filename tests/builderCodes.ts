@@ -27,7 +27,6 @@ import {
 	PostOnlyParams,
 	MarketType,
 	OrderParams,
-	SignedMsgOrderParamsWithBuilderMessage,
 	PEG_PRECISION,
 	ZERO,
 	isVariant,
@@ -37,6 +36,7 @@ import {
 	getTokenAmount,
 	BuilderSettleRecord,
 	getLimitOrderParams,
+	SignedMsgOrderParamsMessage,
 } from '../sdk/src';
 
 import {
@@ -499,7 +499,7 @@ describe('builder codes', () => {
 		let userOrders = user2Client.getUser().getOpenOrders();
 		assert(userOrders.length === 0);
 
-		const takerOrderParamsMessage: SignedMsgOrderParamsWithBuilderMessage = {
+		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
 			signedMsgOrderParams: takerOrderParams,
 			subAccountId: 0,
 			slot,
@@ -513,13 +513,12 @@ describe('builder codes', () => {
 				baseAssetAmount: takerOrderParams.baseAssetAmount,
 			},
 			builderIdx: null,
-			builderFee: null,
+			builderFeeBps: null,
 		};
 
 		const signedOrderParams = user2Client.signSignedMsgOrderParamsMessage(
 			takerOrderParamsMessage,
-			false,
-			true
+			false
 		);
 
 		await builderClient.placeSignedMsgTakerOrder(
@@ -657,7 +656,7 @@ describe('builder codes', () => {
 		assert(userOrders.length === 0);
 
 		const builderFeeBps = 7;
-		const takerOrderParamsMessage: SignedMsgOrderParamsWithBuilderMessage = {
+		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
 			signedMsgOrderParams: takerOrderParams,
 			subAccountId: 0,
 			slot,
@@ -671,13 +670,12 @@ describe('builder codes', () => {
 				baseAssetAmount: takerOrderParams.baseAssetAmount,
 			},
 			builderIdx: 0,
-			builderFee: builderFeeBps,
+			builderFeeBps: builderFeeBps,
 		};
 
 		const signedOrderParams = userClient.signSignedMsgOrderParamsMessage(
 			takerOrderParamsMessage,
-			false,
-			true
+			false
 		);
 
 		await builderClient.placeSignedMsgTakerOrder(
@@ -920,7 +918,7 @@ describe('builder codes', () => {
 		);
 		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
 		const builderFeeBps = 5;
-		const msg: SignedMsgOrderParamsWithBuilderMessage = {
+		const msg: SignedMsgOrderParamsMessage = {
 			signedMsgOrderParams: orderParams,
 			subAccountId: 0,
 			slot,
@@ -928,10 +926,10 @@ describe('builder codes', () => {
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
 			builderIdx: 0,
-			builderFee: builderFeeBps,
+			builderFeeBps,
 		};
 
-		const signed = userClient.signSignedMsgOrderParamsMessage(msg, false, true);
+		const signed = userClient.signSignedMsgOrderParamsMessage(msg, false);
 		await builderClient.placeSignedMsgTakerOrder(
 			signed,
 			marketIndex,
@@ -992,10 +990,10 @@ describe('builder codes', () => {
 				slot,
 				uuid: Uint8Array.from(Buffer.from(nanoid(8))),
 				builderIdx: 0,
-				builderFee: feeBps,
+				builderFeeBps: feeBps,
 				takeProfitOrderParams: null,
 				stopLossOrderParams: null,
-			} as SignedMsgOrderParamsWithBuilderMessage;
+			} as SignedMsgOrderParamsMessage;
 		}
 
 		await builderEscrowMap.slowSync();
@@ -1015,8 +1013,7 @@ describe('builder codes', () => {
 
 		const signedA = userClient.signSignedMsgOrderParamsMessage(
 			buildMsg(10, feeBpsA, slot),
-			false,
-			true
+			false
 		);
 		await builderClient.placeSignedMsgTakerOrder(
 			signedA,
@@ -1034,8 +1031,7 @@ describe('builder codes', () => {
 
 		const signedB = userClient.signSignedMsgOrderParamsMessage(
 			buildMsg(11, feeBpsB, slot),
-			false,
-			true
+			false
 		);
 		await builderClient.placeSignedMsgTakerOrder(
 			signedB,
@@ -1194,10 +1190,10 @@ describe('builder codes', () => {
 				slot,
 				uuid: Uint8Array.from(Buffer.from(nanoid(8))),
 				builderIdx: 0,
-				builderFee: feeBps,
+				builderFeeBps: feeBps,
 				takeProfitOrderParams: null,
 				stopLossOrderParams: null,
-			} as SignedMsgOrderParamsWithBuilderMessage;
+			} as SignedMsgOrderParamsMessage;
 		}
 
 		// place maker orders
@@ -1230,8 +1226,7 @@ describe('builder codes', () => {
 
 		const signedA = userClient.signSignedMsgOrderParamsMessage(
 			buildMsg(10, feeBpsA, slot),
-			false,
-			true
+			false
 		);
 		await builderClient.placeSignedMsgTakerOrder(
 			signedA,

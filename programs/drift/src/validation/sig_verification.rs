@@ -1,9 +1,8 @@
 use crate::error::ErrorCode;
 use crate::state::order_params::{
     OrderParams, SignedMsgOrderParamsDelegateMessage, SignedMsgOrderParamsMessage,
-    SignedMsgOrderParamsMessageV2, SignedMsgTriggerOrderParams,
+    SignedMsgTriggerOrderParams,
 };
-use crate::state::traits::Size;
 use anchor_lang::prelude::*;
 use bytemuck::try_cast_slice;
 use bytemuck::{Pod, Zeroable};
@@ -14,6 +13,9 @@ use solana_program::instruction::Instruction;
 use solana_program::program_memory::sol_memcmp;
 use solana_program::sysvar;
 use std::convert::TryInto;
+
+#[cfg(test)]
+mod tests;
 
 const ED25519_PROGRAM_INPUT_HEADER_LEN: usize = 2;
 
@@ -46,6 +48,7 @@ pub struct Ed25519SignatureOffsets {
     pub message_instruction_index: u16,
 }
 
+#[derive(Debug)]
 pub struct VerifiedMessage {
     pub signed_msg_order_params: OrderParams,
     pub sub_account_id: Option<u16>,
@@ -55,31 +58,77 @@ pub struct VerifiedMessage {
     pub take_profit_order_params: Option<SignedMsgTriggerOrderParams>,
     pub stop_loss_order_params: Option<SignedMsgTriggerOrderParams>,
     pub builder_idx: Option<u8>,
-    pub builder_fee: Option<u16>,
+    pub builder_fee_bps: Option<u16>,
     pub signature: [u8; 64],
-}
-
-pub enum SignedMsgBitflag {
-    DelegateSigner = 0b00000001,
-    V2SignedMessage = 0b00000010,
-}
-
-// Bit flag operators
-pub fn set_signed_msg_bit_flag(mut flags: u8, value: bool, flag: SignedMsgBitflag) -> u8 {
-    if value {
-        flags |= flag as u8;
-    } else {
-        flags &= !(flag as u8);
-    }
-    flags
-}
-
-pub fn is_signed_msg_bit_flag_set(flags: u8, flag: SignedMsgBitflag) -> bool {
-    (flags & flag as u8) != 0
 }
 
 fn slice_eq(a: &[u8], b: &[u8]) -> bool {
     a.len() == b.len() && sol_memcmp(a, b, a.len()) == 0
+}
+
+pub fn deserialize_into_verified_message(
+    payload: Vec<u8>,
+    signature: &[u8; 64],
+    is_delegate_signer: bool,
+) -> Result<VerifiedMessage> {
+    if is_delegate_signer {
+        if payload.len() < 8 {
+            return Err(SignatureVerificationError::InvalidMessageDataSize.into());
+        }
+        let min_len: usize = std::mem::size_of::<SignedMsgOrderParamsDelegateMessage>();
+        let mut owned = payload;
+        if owned.len() < min_len {
+            owned.resize(min_len, 0);
+        }
+        let deserialized = SignedMsgOrderParamsDelegateMessage::deserialize(
+            &mut &owned[8..], // 8 byte manual discriminator
+        )
+        .map_err(|_| {
+            msg!("Invalid message encoding for is_delegate_signer = true");
+            SignatureVerificationError::InvalidMessageDataSize
+        })?;
+
+        return Ok(VerifiedMessage {
+            signed_msg_order_params: deserialized.signed_msg_order_params,
+            sub_account_id: None,
+            delegate_signed_taker_pubkey: Some(deserialized.taker_pubkey),
+            slot: deserialized.slot,
+            uuid: deserialized.uuid,
+            take_profit_order_params: deserialized.take_profit_order_params,
+            stop_loss_order_params: deserialized.stop_loss_order_params,
+            signature: *signature,
+            builder_idx: deserialized.builder_idx,
+            builder_fee_bps: deserialized.builder_fee_bps,
+        });
+    } else {
+        if payload.len() < 8 {
+            return Err(SignatureVerificationError::InvalidMessageDataSize.into());
+        }
+        let min_len: usize = std::mem::size_of::<SignedMsgOrderParamsMessage>();
+        let mut owned = payload;
+        if owned.len() < min_len {
+            owned.resize(min_len, 0);
+        }
+        let deserialized = SignedMsgOrderParamsMessage::deserialize(
+            &mut &owned[8..], // 8 byte manual discriminator
+        )
+        .map_err(|_| {
+            msg!("Invalid delegate message encoding for with is_delegate_signer = false");
+            SignatureVerificationError::InvalidMessageDataSize
+        })?;
+        return Ok(VerifiedMessage {
+            signed_msg_order_params: deserialized.signed_msg_order_params,
+            sub_account_id: Some(deserialized.sub_account_id),
+            delegate_signed_taker_pubkey: None,
+            slot: deserialized.slot,
+            uuid: deserialized.uuid,
+            take_profit_order_params: deserialized.take_profit_order_params,
+            stop_loss_order_params: deserialized.stop_loss_order_params,
+            signature: *signature,
+            builder_idx: deserialized.builder_idx,
+            builder_fee_bps: deserialized.builder_fee_bps,
+        });
+    }
 }
 
 /// Check Ed25519Program instruction data verifies the given msg
@@ -96,7 +145,7 @@ pub fn verify_and_decode_ed25519_msg(
     current_ix_index: u16,
     signer: &[u8; 32],
     msg: &[u8],
-    is_delegate_signer_bit_flag: u8,
+    is_delegate_signer: bool,
 ) -> Result<VerifiedMessage> {
     if ed25519_ix.program_id != ED25519_ID || ed25519_ix.accounts.len() != 0 {
         msg!("Invalid Ix: program ID: {:?}", ed25519_ix.program_id);
@@ -253,86 +302,8 @@ pub fn verify_and_decode_ed25519_msg(
 
     let payload =
         hex::decode(payload).map_err(|_| SignatureVerificationError::InvalidMessageHex)?;
-    let payload_data = &payload[8..];
 
-    let is_delegate_signer = is_signed_msg_bit_flag_set(
-        is_delegate_signer_bit_flag,
-        SignedMsgBitflag::DelegateSigner,
-    );
-    let is_v2_signed_message = is_signed_msg_bit_flag_set(
-        is_delegate_signer_bit_flag,
-        SignedMsgBitflag::V2SignedMessage,
-    );
-    if is_v2_signed_message {
-        // v2 message payload
-        const max_payload_size: usize = SignedMsgOrderParamsMessageV2::SIZE;
-        let mut buffer = [0u8; max_payload_size];
-        let copy_len = payload_data.len().min(max_payload_size);
-        buffer[..copy_len].copy_from_slice(&payload_data[..copy_len]);
-
-        let deserialized =
-            SignedMsgOrderParamsMessageV2::deserialize(&mut &buffer[..]).map_err(|_| {
-                msg!("Invalid message encoding for SignedMsgOrderParamsMessageV2");
-                SignatureVerificationError::InvalidMessageDataSize
-            })?;
-
-        return Ok(VerifiedMessage {
-            signed_msg_order_params: deserialized.signed_msg_order_params,
-            sub_account_id: deserialized.sub_account_id,
-            delegate_signed_taker_pubkey: deserialized.taker_pubkey,
-            slot: deserialized.slot,
-            uuid: deserialized.uuid,
-            take_profit_order_params: deserialized.take_profit_order_params,
-            stop_loss_order_params: deserialized.stop_loss_order_params,
-            signature: *signature,
-            builder_idx: deserialized.builder_idx,
-            builder_fee: deserialized.builder_fee,
-        });
-    } else {
-        // v1 message payload
-        if is_delegate_signer {
-            let deserialized = SignedMsgOrderParamsDelegateMessage::deserialize(
-                &mut &payload[8..], // 8 byte manual discriminator
-            )
-            .map_err(|_| {
-                msg!("Invalid message encoding for is_delegate_signer = true");
-                SignatureVerificationError::InvalidMessageDataSize
-            })?;
-
-            return Ok(VerifiedMessage {
-                signed_msg_order_params: deserialized.signed_msg_order_params,
-                sub_account_id: None,
-                delegate_signed_taker_pubkey: Some(deserialized.taker_pubkey),
-                slot: deserialized.slot,
-                uuid: deserialized.uuid,
-                take_profit_order_params: deserialized.take_profit_order_params,
-                stop_loss_order_params: deserialized.stop_loss_order_params,
-                signature: *signature,
-                builder_idx: None,
-                builder_fee: None,
-            });
-        } else {
-            let deserialized = SignedMsgOrderParamsMessage::deserialize(
-                &mut &payload[8..], // 8 byte manual discriminator
-            )
-            .map_err(|_| {
-                msg!("Invalid delegate message encoding for with is_delegate_signer = false");
-                SignatureVerificationError::InvalidMessageDataSize
-            })?;
-            return Ok(VerifiedMessage {
-                signed_msg_order_params: deserialized.signed_msg_order_params,
-                sub_account_id: Some(deserialized.sub_account_id),
-                delegate_signed_taker_pubkey: None,
-                slot: deserialized.slot,
-                uuid: deserialized.uuid,
-                take_profit_order_params: deserialized.take_profit_order_params,
-                stop_loss_order_params: deserialized.stop_loss_order_params,
-                signature: *signature,
-                builder_idx: None,
-                builder_fee: None,
-            });
-        }
-    }
+    deserialize_into_verified_message(payload, signature, is_delegate_signer)
 }
 
 #[error_code]

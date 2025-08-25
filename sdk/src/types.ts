@@ -1245,6 +1245,8 @@ export type SignedMsgOrderParamsMessage = {
 	uuid: Uint8Array;
 	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
+	builderIdx?: number | null;
+	builderFeeBps?: number | null;
 };
 
 export type SignedMsgOrderParamsDelegateMessage = {
@@ -1254,28 +1256,8 @@ export type SignedMsgOrderParamsDelegateMessage = {
 	takerPubkey: PublicKey;
 	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
-};
-
-export type SignedMsgOrderParamsWithBuilderMessage = {
-	signedMsgOrderParams: OrderParams;
-	subAccountId: number;
-	slot: BN;
-	uuid: Uint8Array;
-	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
-	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
-	builderIdx: number | null;
-	builderFee: number | null;
-};
-
-export type SignedMsgOrderParamsDelegateWithBuilderMessage = {
-	signedMsgOrderParams: OrderParams;
-	slot: BN;
-	uuid: Uint8Array;
-	takerPubkey: PublicKey;
-	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
-	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
-	builderIdx: number | null;
-	builderFee: number | null;
+	builderIdx?: number | null;
+	builderFeeBps?: number | null;
 };
 
 export type SignedMsgTriggerOrderParams = {

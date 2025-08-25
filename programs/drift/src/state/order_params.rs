@@ -865,6 +865,8 @@ pub struct SignedMsgOrderParamsMessage {
     pub uuid: [u8; 8],
     pub take_profit_order_params: Option<SignedMsgTriggerOrderParams>,
     pub stop_loss_order_params: Option<SignedMsgTriggerOrderParams>,
+    pub builder_idx: Option<u8>,
+    pub builder_fee_bps: Option<u16>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
@@ -875,27 +877,8 @@ pub struct SignedMsgOrderParamsDelegateMessage {
     pub uuid: [u8; 8],
     pub take_profit_order_params: Option<SignedMsgTriggerOrderParams>,
     pub stop_loss_order_params: Option<SignedMsgTriggerOrderParams>,
-}
-
-impl Size for SignedMsgOrderParamsDelegateMessage {
-    const SIZE: usize = std::mem::size_of::<Self>();
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
-pub struct SignedMsgOrderParamsMessageV2 {
-    pub signed_msg_order_params: OrderParams,
-    pub sub_account_id: Option<u16>,
-    pub taker_pubkey: Option<Pubkey>,
-    pub slot: u64,
-    pub uuid: [u8; 8],
-    pub take_profit_order_params: Option<SignedMsgTriggerOrderParams>,
-    pub stop_loss_order_params: Option<SignedMsgTriggerOrderParams>,
     pub builder_idx: Option<u8>,
-    pub builder_fee: Option<u16>,
-}
-
-impl Size for SignedMsgOrderParamsMessageV2 {
-    const SIZE: usize = std::mem::size_of::<Self>();
+    pub builder_fee_bps: Option<u16>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
