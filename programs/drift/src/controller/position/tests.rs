@@ -540,6 +540,7 @@ fn amm_pred_market_example() {
         confidence: 47843,
         delay: 1,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     let mm_oracle_price_data = perp_market
         .get_mm_oracle_price_data(
@@ -678,6 +679,7 @@ fn amm_ref_price_decay_tail_test() {
         confidence: PRICE_PRECISION_U64 / 100000,
         delay: 1,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     let mm_oracle_price_data = perp_market
         .get_mm_oracle_price_data(
@@ -854,6 +856,7 @@ fn amm_ref_price_offset_decay_logic() {
         confidence: PRICE_PRECISION_U64 / 1000,
         delay: 1,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     let mm_oracle_price_data = perp_market
         .get_mm_oracle_price_data(
@@ -1027,6 +1030,7 @@ fn amm_negative_ref_price_offset_decay_logic() {
         confidence: PRICE_PRECISION_U64 / 1000,
         delay: 1,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     let mm_oracle_price_data = perp_market
         .get_mm_oracle_price_data(
@@ -1214,6 +1218,7 @@ fn amm_perp_ref_offset() {
         confidence: PRICE_PRECISION_U64 / 1000,
         delay: 1,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     let mm_oracle_price_data = perp_market
         .get_mm_oracle_price_data(
@@ -1729,6 +1734,7 @@ fn amm_split_large_k_with_rebase() {
         confidence: PRICE_PRECISION_U64 / 100,
         delay: 14,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     let mut mm_oracle_price = perp_market
         .get_mm_oracle_price_data(
@@ -3046,6 +3052,7 @@ fn recenter_amm_2() {
     let mm_oracle_price_data = MMOraclePriceData::new(
         oracle_price_data.price,
         oracle_price_data.delay + 1,
+        1,
         OracleValidity::default(),
         *oracle_price_data,
     )
@@ -3182,6 +3189,7 @@ fn test_move_amm() {
     let mm_oracle_price_data = MMOraclePriceData::new(
         oracle_price_data.price,
         oracle_price_data.delay + 1,
+        1,
         OracleValidity::default(),
         *oracle_price_data,
     )

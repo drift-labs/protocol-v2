@@ -8559,6 +8559,20 @@ export class DriftClient {
 			.abs()
 			.mul(PERCENTAGE_PRECISION)
 			.div(BN.max(oracleData.price, ONE));
+
+		let isExchangeOracleMoreRecent = true;
+		if (
+			oracleData.sequenceId != null &&
+			oracleData.sequenceId.gt(perpMarket.amm.mmOracleSequenceId)
+		) {
+			isExchangeOracleMoreRecent = false;
+		} else if (
+			oracleData.sequenceId == null &&
+			oracleData.slot > perpMarket.amm.mmOracleSlot
+		) {
+			isExchangeOracleMoreRecent = false;
+		}
+
 		if (
 			!isOracleValid(
 				perpMarket,
@@ -8567,7 +8581,7 @@ export class DriftClient {
 				stateAccountAndSlot.slot
 			) ||
 			perpMarket.amm.mmOraclePrice.eq(ZERO) ||
-			perpMarket.amm.mmOracleSlot < oracleData.slot ||
+			isExchangeOracleMoreRecent ||
 			pctDiff.gt(PERCENTAGE_PRECISION.divn(100)) // 1% threshold
 		) {
 			return { ...oracleData, isMMOracleActive };

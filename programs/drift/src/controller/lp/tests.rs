@@ -701,6 +701,7 @@ fn test_lp_margin_calc() {
         confidence: 100000,
         delay: 1,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
 
     assert_eq!(market.amm.base_asset_amount_per_lp, 100000000000);

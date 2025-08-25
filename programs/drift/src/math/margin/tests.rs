@@ -265,6 +265,7 @@ mod test {
             confidence: 0,
             delay: 2,
             has_sufficient_number_of_data_points: true,
+            sequence_id: None,
         };
 
         let market_position = PerpPosition {
@@ -425,6 +426,7 @@ mod test {
             confidence: 0,
             delay: 2,
             has_sufficient_number_of_data_points: true,
+            sequence_id: None,
         };
 
         let strict_oracle_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
@@ -499,6 +501,7 @@ mod test {
             confidence: 0,
             delay: 2,
             has_sufficient_number_of_data_points: true,
+            sequence_id: None,
         };
 
         let strict_oracle_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
@@ -4219,6 +4222,7 @@ mod calculate_perp_position_value_and_pnl_prediction_market {
             confidence: 0,
             delay: 2,
             has_sufficient_number_of_data_points: true,
+            sequence_id: None,
         };
 
         let market_position = PerpPosition {
@@ -4282,6 +4286,7 @@ mod calculate_perp_position_value_and_pnl_prediction_market {
             confidence: 0,
             delay: 2,
             has_sufficient_number_of_data_points: true,
+            sequence_id: None,
         };
 
         let market_position = PerpPosition {
