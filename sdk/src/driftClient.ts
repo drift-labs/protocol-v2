@@ -8563,12 +8563,12 @@ export class DriftClient {
 		let isExchangeOracleMoreRecent = true;
 		if (
 			oracleData.sequenceId != null &&
-			oracleData.sequenceId.gt(perpMarket.amm.mmOracleSequenceId)
+			oracleData.sequenceId.lt(perpMarket.amm.mmOracleSequenceId)
 		) {
 			isExchangeOracleMoreRecent = false;
 		} else if (
 			oracleData.sequenceId == null &&
-			oracleData.slot > perpMarket.amm.mmOracleSlot
+			oracleData.slot < perpMarket.amm.mmOracleSlot
 		) {
 			isExchangeOracleMoreRecent = false;
 		}
