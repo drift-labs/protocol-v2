@@ -1245,6 +1245,8 @@ export type SignedMsgOrderParamsMessage = {
 	uuid: Uint8Array;
 	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
+	builderIdx?: number | null;
+	builderFeeBps?: number | null;
 };
 
 export type SignedMsgOrderParamsDelegateMessage = {
@@ -1254,6 +1256,8 @@ export type SignedMsgOrderParamsDelegateMessage = {
 	takerPubkey: PublicKey;
 	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
+	builderIdx?: number | null;
+	builderFeeBps?: number | null;
 };
 
 export type SignedMsgTriggerOrderParams = {
@@ -1571,4 +1575,47 @@ export type SignedMsgOrderId = {
 export type SignedMsgUserOrdersAccount = {
 	authorityPubkey: PublicKey;
 	signedMsgOrderData: SignedMsgOrderId[];
+};
+
+export type BuilderAccount = {
+	authority: PublicKey;
+	totalReferrerRewards: BN;
+	totalBuilderRewards: BN;
+	padding: number[];
+};
+
+export type BuilderEscrow = {
+	authority: PublicKey;
+	referrer: PublicKey;
+	orders: BuilderOrder[];
+	approvedBuilders: BuilderInfo[];
+};
+
+export type BuilderOrder = {
+	builderIdx: number;
+	feesAccrued: BN;
+	orderId: number;
+	feeBps: number;
+	marketIndex: number;
+	bitFlags: number;
+	marketType: MarketType; // 0: spot, 1: perp
+	padding: number[];
+};
+
+export type BuilderInfo = {
+	authority: PublicKey;
+	maxFeeBps: number;
+	bitFlags: number;
+};
+
+export type BuilderSettleRecord = {
+	ts: number;
+	builder: PublicKey | null;
+	referrer: PublicKey | null;
+	feeSettled: BN;
+	marketIndex: number;
+	marketType: MarketType;
+	builderTotalReferrerRewards: BN;
+	builderTotalBuilderRewards: BN;
+	builderSubAccountId: number;
 };

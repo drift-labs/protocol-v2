@@ -5,6 +5,7 @@ use crate::math::safe_math::SafeMath;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::events::OrderActionExplanation;
 use crate::state::perp_market::{ContractTier, PerpMarket};
+use crate::state::traits::Size;
 use crate::state::user::{MarketType, OrderTriggerCondition, OrderType};
 use crate::{
     MAX_PREDICTION_MARKET_PRICE_I64, ONE_HUNDRED_THOUSAND_QUOTE, PERCENTAGE_PRECISION_I64,
@@ -864,6 +865,8 @@ pub struct SignedMsgOrderParamsMessage {
     pub uuid: [u8; 8],
     pub take_profit_order_params: Option<SignedMsgTriggerOrderParams>,
     pub stop_loss_order_params: Option<SignedMsgTriggerOrderParams>,
+    pub builder_idx: Option<u8>,
+    pub builder_fee_bps: Option<u16>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
@@ -874,6 +877,8 @@ pub struct SignedMsgOrderParamsDelegateMessage {
     pub uuid: [u8; 8],
     pub take_profit_order_params: Option<SignedMsgTriggerOrderParams>,
     pub stop_loss_order_params: Option<SignedMsgTriggerOrderParams>,
+    pub builder_idx: Option<u8>,
+    pub builder_fee_bps: Option<u16>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
