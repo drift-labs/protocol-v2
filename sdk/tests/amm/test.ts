@@ -279,7 +279,7 @@ describe('AMM Tests', () => {
 			longIntensity,
 			shortIntensity,
 			volume24H,
-			0
+			0,
 		);
 		const l1 = spreads[0];
 		const s1 = spreads[1];
