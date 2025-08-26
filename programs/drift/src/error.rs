@@ -655,6 +655,8 @@ pub enum ErrorCode {
     CannotRevokeBuilderWithOpenOrders,
     #[msg("Unable to load builder account")]
     UnableToLoadBuilderAccount,
+    #[msg("Builder order not found")]
+    BuilderOrderNotFound,
 }
 
 #[macro_export]

@@ -851,7 +851,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
                 BuilderOrderBitFlag::Open as u8,
                 new_order_index as u8,
             ))?;
-            builder_escrow_zc.find_order(taker.sub_account_id, new_order_id)
+            builder_escrow_zc.find_order_mut(taker.sub_account_id, new_order_id)
         } else {
             None
         };
@@ -911,7 +911,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
                 BuilderOrderBitFlag::Open as u8,
                 new_order_index as u8,
             ))?;
-            builder_escrow_zc.find_order(taker.sub_account_id, new_order_id)
+            builder_escrow_zc.find_order_mut(taker.sub_account_id, new_order_id)
         } else {
             None
         };
@@ -954,7 +954,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
             BuilderOrderBitFlag::Open as u8,
             new_order_index as u8,
         ))?;
-        builder_escrow_zc.find_order(taker.sub_account_id, new_order_id)
+        builder_escrow_zc.find_order_mut(taker.sub_account_id, new_order_id)
     } else {
         None
     };

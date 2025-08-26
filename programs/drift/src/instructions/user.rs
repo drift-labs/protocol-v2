@@ -2030,7 +2030,7 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         maker_existing_base_asset_amount: from_existing_base_asset_amount,
         trigger_price: None,
         builder_idx: None,
-        builder_fee: None,
+        builder_fee: 0,
     };
 
     emit_stack::<_, { OrderActionRecord::SIZE }>(fill_record)?;

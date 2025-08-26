@@ -357,11 +357,12 @@ impl<'a> BuilderEscrowZeroCopyMut<'a> {
     }
 
     /// Returns the index for the referral order, creating one if necessary.
-    pub fn find_or_create_referral_index(&mut self) -> Option<u32> {
+    pub fn find_or_create_referral_index(&mut self, market_index: u16) -> Option<u32> {
         // look for an existing referral order
         for i in 0..self.orders_len() {
             if let Ok(existing_order) = self.get_order(i) {
-                if existing_order.is_referral_order() {
+                if existing_order.is_referral_order() && existing_order.market_index == market_index
+                {
                     return Some(i);
                 }
             }
@@ -382,42 +383,6 @@ impl<'a> BuilderEscrowZeroCopyMut<'a> {
             Err(_) => {
                 msg!("Failed to add referral order, BuilderEscrow is full");
                 None
-            }
-        }
-    }
-
-    /// Returns two distinct mutable references to orders by indices in one borrow of `self`.
-    /// Either index may be None. If both Some, they must be distinct.
-    pub fn get_two_orders_mut_by_indices(
-        &mut self,
-        a: Option<u32>,
-        b: Option<u32>,
-    ) -> DriftResult<(Option<&mut BuilderOrder>, Option<&mut BuilderOrder>)> {
-        match (a, b) {
-            (None, None) => Ok((None, None)),
-            (Some(i), None) => Ok((Some(self.get_order_mut(i)?), None)),
-            (None, Some(j)) => Ok((None, Some(self.get_order_mut(j)?))),
-            (Some(i), Some(j)) => {
-                validate!(i != j, ErrorCode::DefaultError, "indices must be distinct")?;
-
-                let size = core::mem::size_of::<BuilderOrder>();
-                let base_offset = 4 + 4; // padding0 + vec len
-                let start_i = base_offset + i as usize * size;
-                let start_j = base_offset + j as usize * size;
-
-                if start_i < start_j {
-                    let (left, right) = self.data.split_at_mut(start_j);
-                    let order_i: &mut BuilderOrder =
-                        bytemuck::from_bytes_mut(&mut left[start_i..start_i + size]);
-                    let order_j: &mut BuilderOrder = bytemuck::from_bytes_mut(&mut right[0..size]);
-                    Ok((Some(order_i), Some(order_j)))
-                } else {
-                    let (left, right) = self.data.split_at_mut(start_i);
-                    let order_j: &mut BuilderOrder =
-                        bytemuck::from_bytes_mut(&mut left[start_j..start_j + size]);
-                    let order_i: &mut BuilderOrder = bytemuck::from_bytes_mut(&mut right[0..size]);
-                    Ok((Some(order_i), Some(order_j)))
-                }
             }
         }
     }
@@ -471,13 +436,30 @@ impl<'a> BuilderEscrowZeroCopyMut<'a> {
         Err(ErrorCode::BuilderEscrowOrdersAccountFull.into())
     }
 
-    pub fn find_order(&mut self, sub_account_id: u16, order_id: u32) -> Option<&mut BuilderOrder> {
+    pub fn find_order_mut(
+        &mut self,
+        sub_account_id: u16,
+        order_id: u32,
+    ) -> Option<&mut BuilderOrder> {
         for i in 0..self.orders_len() {
             if let Ok(existing_order) = self.get_order(i) {
                 if existing_order.order_id == order_id
                     && existing_order.sub_account_id == sub_account_id
                 {
                     return self.get_order_mut(i).ok();
+                }
+            }
+        }
+        None
+    }
+
+    pub fn find_order(&mut self, sub_account_id: u16, order_id: u32) -> Option<&BuilderOrder> {
+        for i in 0..self.orders_len() {
+            if let Ok(existing_order) = self.get_order(i) {
+                if existing_order.order_id == order_id
+                    && existing_order.sub_account_id == sub_account_id
+                {
+                    return self.get_order(i).ok();
                 }
             }
         }

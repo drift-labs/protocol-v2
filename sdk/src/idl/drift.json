@@ -14265,9 +14265,7 @@
         },
         {
           "name": "builderFee",
-          "type": {
-            "option": "u64"
-          },
+          "type": "u64",
           "index": false
         }
       ]
@@ -16668,6 +16666,11 @@
       "code": 6324,
       "name": "UnableToLoadBuilderAccount",
       "msg": "Unable to load builder account"
+    },
+    {
+      "code": 6325,
+      "name": "BuilderOrderNotFound",
+      "msg": "Builder order not found"
     }
   ],
   "metadata": {

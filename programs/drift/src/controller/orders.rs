@@ -451,7 +451,7 @@ pub fn place_perp_order(
         None,
         None,
         None,
-        None,
+        0,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -733,7 +733,7 @@ pub fn cancel_order(
             None,
             None,
             None,
-            None,
+            0,
         )?;
         emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
     }
@@ -1000,26 +1000,6 @@ pub fn fill_perp_order(
         .iter()
         .position(|order| order.order_id == order_id && order.status == OrderStatus::Open)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
-
-    let (mut builder_order, mut builder_order_for_referrer) =
-        if let Some(escrow) = builder_escrow.as_mut() {
-            let user_idx = escrow.find_order_index(user.sub_account_id, order_id);
-            let ref_idx = if escrow.has_referrer() {
-                escrow.find_or_create_referral_index()
-            } else {
-                None
-            };
-            let (order_opt, ref_opt) = escrow.get_two_orders_mut_by_indices(user_idx, ref_idx)?;
-            (order_opt, ref_opt)
-        } else {
-            validate!(
-                !state.builder_referral_enabled()
-                    || !ReferrerStatus::has_builder_referral(user_stats.referrer_status),
-                ErrorCode::BuilderEscrowMissing,
-                "BuilderEscrow account must be included when for referred user"
-            )?;
-            (None, None)
-        };
 
     let (
         order_status,
@@ -1353,8 +1333,7 @@ pub fn fill_perp_order(
         amm_availability,
         fill_mode,
         oracle_stale_for_margin,
-        &mut builder_order,
-        &mut builder_order_for_referrer,
+        builder_escrow,
     )?;
 
     if base_asset_amount != 0 {
@@ -1789,8 +1768,7 @@ fn fulfill_perp_order(
     amm_availability: AMMAvailability,
     fill_mode: FillMode,
     oracle_stale_for_margin: bool,
-    builder_order: &mut Option<&mut BuilderOrder>,
-    builder_order_for_referrer: &mut Option<&mut BuilderOrder>,
+    builder_escrow: &mut Option<&mut BuilderEscrowZeroCopyMut>,
 ) -> DriftResult<(u64, u64)> {
     let market_index = user.orders[user_order_index].market_index;
 
@@ -1890,8 +1868,7 @@ fn fulfill_perp_order(
                         *maker_price,
                         AMMLiquiditySplit::Shared,
                         fill_mode.is_liquidation(),
-                        builder_order,
-                        builder_order_for_referrer,
+                        builder_escrow,
                     )?;
 
                 (fill_base_asset_amount, fill_quote_asset_amount)
@@ -1937,8 +1914,7 @@ fn fulfill_perp_order(
                         oracle_map,
                         fill_mode.is_liquidation(),
                         None,
-                        builder_order,
-                        builder_order_for_referrer,
+                        builder_escrow,
                     )?;
 
                 if maker_fill_base_asset_amount != 0 {
@@ -2183,8 +2159,7 @@ pub fn fulfill_perp_order_with_amm(
     override_fill_price: Option<u64>,
     liquidity_split: AMMLiquiditySplit,
     is_liquidation: bool,
-    builder_order: &mut Option<&mut BuilderOrder>,
-    builder_order_for_referrer: &mut Option<&mut BuilderOrder>,
+    builder_escrow: &mut Option<&mut BuilderEscrowZeroCopyMut>,
 ) -> DriftResult<(u64, u64)> {
     let position_index = get_position_index(&user.perp_positions, market.market_index)?;
     let existing_base_asset_amount = user.perp_positions[position_index].base_asset_amount;
@@ -2241,8 +2216,13 @@ pub fn fulfill_perp_order_with_amm(
         return Ok((0, 0));
     }
 
-    let (order_post_only, order_slot, order_direction) =
-        get_struct_values!(user.orders[order_index], post_only, slot, direction);
+    let (order_post_only, order_slot, order_direction, order_id) = get_struct_values!(
+        user.orders[order_index],
+        post_only,
+        slot,
+        direction,
+        order_id
+    );
 
     validation::perp_market::validate_amm_account_for_fill(&market.amm, order_direction)?;
 
@@ -2288,6 +2268,26 @@ pub fn fulfill_perp_order_with_amm(
     let reward_filler = can_reward_user_with_perp_pnl(filler, market.market_index)
         || can_reward_user_with_perp_pnl(maker, market.market_index);
 
+    let (builder_order_idx, referrer_builder_order_idx, builder_order_fee_bps, builder_idx) =
+        if let Some(escrow) = builder_escrow {
+            let builder_order_idx = escrow.find_order_index(user.sub_account_id, order_id);
+            let referrer_builder_order_idx =
+                escrow.find_or_create_referral_index(market.market_index);
+
+            let builder_order = builder_order_idx.and_then(|idx| escrow.get_order(idx).ok());
+            let builder_order_fee_bps = builder_order.map(|order| order.fee_bps);
+            let builder_idx = builder_order.map(|order| order.builder_idx);
+
+            (
+                builder_order_idx,
+                referrer_builder_order_idx,
+                builder_order_fee_bps,
+                builder_idx,
+            )
+        } else {
+            (None, None, None, None)
+        };
+
     let FillFees {
         user_fee,
         fee_to_market,
@@ -2310,11 +2310,12 @@ pub fn fulfill_perp_order_with_amm(
         order_post_only,
         market.fee_adjustment,
         user.is_high_leverage_mode(MarginRequirementType::Initial),
-        builder_order.as_ref().map(|o| o.fee_bps),
+        builder_order_fee_bps,
     )?;
 
-    if let Some(ref mut builder_info) = builder_order {
-        builder_info.fees_accrued = builder_info.fees_accrued.safe_add(builder_fee)?;
+    if let Some((idx, escrow)) = builder_order_idx.zip(builder_escrow.as_mut()) {
+        let mut order = escrow.get_order_mut(idx)?;
+        order.fees_accrued = order.fees_accrued.safe_add(builder_fee)?;
     }
 
     let user_position_delta =
@@ -2364,10 +2365,9 @@ pub fn fulfill_perp_order_with_amm(
     user_stats.increment_total_rebate(maker_rebate)?;
     user_stats.increment_total_referee_discount(referee_discount)?;
 
-    if let Some(builder_order_for_referrer) = builder_order_for_referrer.as_mut() {
-        builder_order_for_referrer.fees_accrued = builder_order_for_referrer
-            .fees_accrued
-            .safe_add(referrer_reward)?;
+    if let Some((idx, escrow)) = referrer_builder_order_idx.zip(builder_escrow.as_mut()) {
+        let mut order = escrow.get_order_mut(idx)?;
+        order.fees_accrued = order.fees_accrued.safe_add(referrer_reward)?;
     } else if let (Some(referrer), Some(referrer_stats)) =
         (referrer.as_mut(), referrer_stats.as_mut())
     {
@@ -2425,12 +2425,18 @@ pub fn fulfill_perp_order_with_amm(
         )?;
     }
 
-    update_order_after_fill(
+    let is_filled = update_order_after_fill(
         &mut user.orders[order_index],
         base_asset_amount,
         quote_asset_amount,
-        builder_order,
     )?;
+    if is_filled {
+        if let Some((idx, escrow)) = builder_order_idx.zip(builder_escrow.as_mut()) {
+            let builder_order = escrow
+                .get_order_mut(idx)
+                .map(|order| order.add_bit_flag(BuilderOrderBitFlag::Completed));
+        }
+    }
 
     decrease_open_bids_and_asks(
         &mut user.perp_positions[position_index],
@@ -2511,8 +2517,8 @@ pub fn fulfill_perp_order_with_amm(
         maker_existing_quote_entry_amount,
         maker_existing_base_asset_amount,
         None,
-        builder_order.as_ref().map(|o| o.builder_idx),
-        builder_order.as_ref().map(|_| builder_fee),
+        builder_idx,
+        builder_fee,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -2582,8 +2588,7 @@ pub fn fulfill_perp_order_with_match(
     oracle_map: &mut OracleMap,
     is_liquidation: bool,
     amm_lp_allowed_to_jit_make: Option<bool>,
-    builder_order: &mut Option<&mut BuilderOrder>,
-    builder_order_for_referrer: &mut Option<&mut BuilderOrder>,
+    builder_escrow: &mut Option<&mut BuilderEscrowZeroCopyMut>,
 ) -> DriftResult<(u64, u64, u64)> {
     if !are_orders_same_market_but_different_sides(
         &maker.orders[maker_order_index],
@@ -2698,8 +2703,7 @@ pub fn fulfill_perp_order_with_match(
                 Some(maker_price), // match the makers price
                 amm_liquidity_split,
                 is_liquidation,
-                builder_order,
-                builder_order_for_referrer,
+                builder_escrow,
             )?;
 
         total_base_asset_amount = base_asset_amount_filled_by_amm;
@@ -2795,6 +2799,29 @@ pub fn fulfill_perp_order_with_match(
     let reward_referrer = can_reward_user_with_perp_pnl(referrer, market.market_index);
     let reward_filler = can_reward_user_with_perp_pnl(filler, market.market_index);
 
+    let (builder_order_idx, referrer_builder_order_idx, builder_order_fee_bps, builder_idx) =
+        if let Some(escrow) = builder_escrow {
+            let builder_order_idx = escrow.find_order_index(
+                taker.sub_account_id,
+                taker.orders[taker_order_index].order_id,
+            );
+            let referrer_builder_order_idx =
+                escrow.find_or_create_referral_index(market.market_index);
+
+            let builder_order = builder_order_idx.and_then(|idx| escrow.get_order(idx).ok());
+            let builder_order_fee_bps = builder_order.map(|order| order.fee_bps);
+            let builder_idx = builder_order.map(|order| order.builder_idx);
+
+            (
+                builder_order_idx,
+                referrer_builder_order_idx,
+                builder_order_fee_bps,
+                builder_idx,
+            )
+        } else {
+            (None, None, None, None)
+        };
+
     let filler_multiplier = if reward_filler {
         calculate_filler_multiplier_for_matched_orders(maker_price, maker_direction, oracle_price)?
     } else {
@@ -2823,11 +2850,12 @@ pub fn fulfill_perp_order_with_match(
         &MarketType::Perp,
         market.fee_adjustment,
         taker.is_high_leverage_mode(MarginRequirementType::Initial),
-        builder_order.as_ref().map(|o| o.fee_bps),
+        builder_order_fee_bps,
     )?;
 
-    if let Some(ref mut builder_order) = builder_order {
-        builder_order.fees_accrued = builder_order.fees_accrued.safe_add(builder_fee)?;
+    if let (Some(idx), Some(escrow)) = (builder_order_idx, builder_escrow.as_deref_mut()) {
+        let mut order = escrow.get_order_mut(idx)?;
+        order.fees_accrued = order.fees_accrued.safe_add(builder_fee)?;
     }
 
     // Increment the markets house's total fee variables
@@ -2887,10 +2915,9 @@ pub fn fulfill_perp_order_with_match(
         filler.update_last_active_slot(slot);
     }
 
-    if let Some(builder_order_for_referrer) = builder_order_for_referrer.as_mut() {
-        builder_order_for_referrer.fees_accrued = builder_order_for_referrer
-            .fees_accrued
-            .safe_add(referrer_reward)?;
+    if let (Some(idx), Some(escrow)) = (referrer_builder_order_idx, builder_escrow.as_deref_mut()) {
+        let mut order = escrow.get_order_mut(idx)?;
+        order.fees_accrued = order.fees_accrued.safe_add(referrer_reward)?;
     } else if let (Some(referrer), Some(referrer_stats)) =
         (referrer.as_mut(), referrer_stats.as_mut())
     {
@@ -2902,12 +2929,19 @@ pub fn fulfill_perp_order_with_match(
         }
     }
 
-    update_order_after_fill(
+    let is_filled = update_order_after_fill(
         &mut taker.orders[taker_order_index],
         base_asset_amount_fulfilled_by_maker,
         quote_asset_amount,
-        builder_order,
     )?;
+
+    if is_filled {
+        if let (Some(idx), Some(escrow)) = (builder_order_idx, builder_escrow.as_deref_mut()) {
+            escrow
+                .get_order_mut(idx)?
+                .add_bit_flag(BuilderOrderBitFlag::Completed);
+        }
+    }
 
     decrease_open_bids_and_asks(
         &mut taker.perp_positions[taker_position_index],
@@ -2920,7 +2954,6 @@ pub fn fulfill_perp_order_with_match(
         &mut maker.orders[maker_order_index],
         base_asset_amount_fulfilled_by_maker,
         quote_asset_amount,
-        &mut None,
     )?;
 
     decrease_open_bids_and_asks(
@@ -2980,8 +3013,8 @@ pub fn fulfill_perp_order_with_match(
         maker_existing_quote_entry_amount,
         maker_existing_base_asset_amount,
         None,
-        builder_order.as_ref().map(|o| o.builder_idx),
-        builder_order.as_ref().map(|_| builder_fee),
+        builder_idx,
+        builder_fee,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -3010,23 +3043,19 @@ pub fn update_order_after_fill(
     order: &mut Order,
     base_asset_amount: u64,
     quote_asset_amount: u64,
-    builder_order: &mut Option<&mut BuilderOrder>,
-) -> DriftResult {
+) -> DriftResult<bool> {
     order.base_asset_amount_filled = order.base_asset_amount_filled.safe_add(base_asset_amount)?;
 
     order.quote_asset_amount_filled = order
         .quote_asset_amount_filled
         .safe_add(quote_asset_amount)?;
 
-    if order.get_base_asset_amount_unfilled(None)? == 0 {
+    let is_filled = order.get_base_asset_amount_unfilled(None)? == 0;
+    if is_filled {
         order.status = OrderStatus::Filled;
-
-        if let Some(builder_order) = builder_order {
-            builder_order.add_bit_flag(BuilderOrderBitFlag::Completed);
-        }
     }
 
-    Ok(())
+    Ok(is_filled)
 }
 
 #[allow(clippy::type_complexity)]
@@ -3215,7 +3244,7 @@ pub fn trigger_order(
         None,
         Some(trigger_price),
         None,
-        None,
+        0,
     )?;
     emit!(order_action_record);
 
@@ -3904,7 +3933,7 @@ pub fn place_spot_order(
         None,
         None,
         None,
-        None,
+        0,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -5013,7 +5042,6 @@ pub fn fulfill_spot_order_with_match(
         &mut taker.orders[taker_order_index],
         base_asset_amount,
         quote_asset_amount,
-        &mut None,
     )?;
 
     let taker_order_direction = taker.orders[taker_order_index].direction;
@@ -5060,7 +5088,6 @@ pub fn fulfill_spot_order_with_match(
         &mut maker.orders[maker_order_index],
         base_asset_amount,
         quote_asset_amount,
-        &mut None,
     )?;
 
     let maker_order_direction = maker.orders[maker_order_index].direction;
@@ -5151,7 +5178,7 @@ pub fn fulfill_spot_order_with_match(
         None,
         None,
         None,
-        None,
+        0,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -5354,7 +5381,6 @@ pub fn fulfill_spot_order_with_external_market(
         &mut taker.orders[taker_order_index],
         base_asset_amount_filled,
         quote_asset_amount_filled,
-        &mut None,
     )?;
 
     let taker_order_direction = taker.orders[taker_order_index].direction;
@@ -5428,7 +5454,7 @@ pub fn fulfill_spot_order_with_external_market(
         None,
         None,
         None,
-        None,
+        0,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -5634,7 +5660,7 @@ pub fn trigger_spot_order(
         None,
         Some(oracle_price.unsigned_abs()),
         None,
-        None,
+        0,
     )?;
 
     emit!(order_action_record);

@@ -700,7 +700,7 @@ pub fn liquidate_perp(
         maker_existing_base_asset_amount: maker_existing_base_asset_amount,
         trigger_price: None,
         builder_idx: None,
-        builder_fee: None,
+        builder_fee: 0,
     };
     emit!(fill_record);
 
