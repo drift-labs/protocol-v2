@@ -17,7 +17,7 @@ pub fn validate_user_deletion(
     )?;
 
     validate!(
-        !user.is_cross_margin_bankrupt(),
+        !user.is_bankrupt(),
         ErrorCode::UserCantBeDeleted,
         "user bankrupt"
     )?;
@@ -87,7 +87,7 @@ pub fn validate_user_is_idle(user: &User, slot: u64, accelerated: bool) -> Drift
     )?;
 
     validate!(
-        !user.is_cross_margin_bankrupt(),
+        !user.is_bankrupt(),
         ErrorCode::UserNotInactive,
         "user bankrupt"
     )?;

@@ -142,6 +142,10 @@ impl User {
         self.status & (UserStatus::BeingLiquidated as u8 | UserStatus::Bankrupt as u8) > 0
     }
 
+    pub fn is_bankrupt(&self) -> bool {
+        self.is_cross_margin_bankrupt() || self.has_isolated_margin_bankrupt()
+    }
+
     pub fn is_cross_margin_bankrupt(&self) -> bool {
         self.status & (UserStatus::Bankrupt as u8) > 0
     }
@@ -442,12 +446,19 @@ impl User {
     pub fn exit_isolated_margin_liquidation(&mut self, perp_market_index: u16) -> DriftResult {
         let perp_position = self.force_get_isolated_perp_position_mut(perp_market_index)?;
         perp_position.position_flag &= !(PositionFlag::BeingLiquidated as u8);
+        perp_position.position_flag &= !(PositionFlag::Bankruptcy as u8);
         Ok(())
     }
 
     pub fn is_isolated_margin_being_liquidated(&self, perp_market_index: u16) -> DriftResult<bool> {
         let perp_position = self.get_isolated_perp_position(perp_market_index)?;
         Ok(perp_position.is_being_liquidated())
+    }
+
+    pub fn has_isolated_margin_bankrupt(&self) -> bool {
+        self.perp_positions
+            .iter()
+            .any(|position| position.is_isolated() && position.is_bankrupt())
     }
 
     pub fn enter_isolated_margin_bankruptcy(&mut self, perp_market_index: u16) -> DriftResult {
@@ -1237,6 +1248,10 @@ impl PerpPosition {
     pub fn is_being_liquidated(&self) -> bool {
         self.position_flag & (PositionFlag::BeingLiquidated as u8 | PositionFlag::Bankruptcy as u8)
             != 0
+    }
+
+    pub fn is_bankrupt(&self) -> bool {
+        self.position_flag & PositionFlag::Bankruptcy as u8 == PositionFlag::Bankruptcy as u8
     }
 }
 
