@@ -8,16 +8,67 @@ import { AnchorProvider, Program } from '@coral-xyz/anchor';
 import { capitalize } from './utils';
 import {
 	AccountInfoBase,
-	AccountInfoWithBase58EncodedData,
 	AccountInfoWithBase64EncodedData,
+	AccountInfoWithBase58EncodedData,
 	createSolanaClient,
 	isAddress,
+	Rpc,
+	RpcSubscriptions,
+	SolanaRpcSubscriptionsApi,
 	type Address,
 	type Commitment,
 } from 'gill';
 import { PublicKey } from '@solana/web3.js';
 import bs58 from 'bs58';
 
+/**
+ * WebSocketAccountSubscriberV2
+ *
+ * High-level overview
+ * - WebSocket-first subscriber for a single Solana account with optional
+ *   polling safeguards when the WS feed goes quiet.
+ * - Emits decoded updates via `onChange` and maintains the latest
+ *   `{buffer, slot}` and decoded `{data, slot}` internally.
+ *
+ * Why polling if this is a WebSocket subscriber?
+ * - Under real-world conditions, WS notifications can stall or get dropped.
+ * - When `resubOpts.resubTimeoutMs` elapses without WS data, you can either:
+ *   - resubscribe to the WS stream (default), or
+ *   - enable `resubOpts.usePollingInsteadOfResub` to start polling this single
+ *     account via RPC to check for missed changes.
+ * - Polling compares the fetched buffer to the last known buffer. If different
+ *   at an equal-or-later slot, it indicates a missed update and we resubscribe
+ *   to WS to restore a clean stream.
+ *
+ * Initial fetch (on subscribe)
+ * - On `subscribe()`, we do a one-time RPC `fetch()` to seed internal state and
+ *   emit the latest account state, ensuring consumers start from ground truth
+ *   even before WS events arrive.
+ *
+ * Continuous polling (opt-in)
+ * - If `usePollingInsteadOfResub` is set, the inactivity timeout triggers a
+ *   polling loop that periodically `fetch()`es the account and checks for
+ *   changes. On change, polling stops and we resubscribe to WS.
+ * - If not set (default), the inactivity timeout immediately triggers a WS
+ *   resubscription (no polling loop).
+ *
+ * Account focus
+ * - This class tracks exactly one account — the one passed to the constructor —
+ *   which is by definition the account the consumer cares about. The extra
+ *   logic is narrowly scoped to this account to minimize overhead.
+ *
+ * Tuning knobs
+ * - `resubOpts.resubTimeoutMs`: WS inactivity threshold before fallback.
+ * - `resubOpts.usePollingInsteadOfResub`: toggle polling vs immediate resub.
+ * - `resubOpts.pollingIntervalMs`: polling cadence (default 30s).
+ * - `resubOpts.logResubMessages`: verbose logs for diagnostics.
+ * - `commitment`: WS/RPC commitment used for reads and notifications.
+ * - `decodeBufferFn`: optional custom decode; defaults to Anchor coder.
+ *
+ * Implementation notes
+ * - Uses `gill` for both WS (`rpcSubscriptions`) and RPC (`rpc`) to match the
+ *   program provider’s RPC endpoint. Handles base58/base64 encoded data.
+ */
 export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 	dataAndSlot?: DataAndSlot<T>;
 	bufferAndSlot?: BufferAndSlot;
@@ -29,12 +80,13 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 	onChange: (data: T) => void;
 	listenerId?: number;
 
-	resubOpts?: ResubOpts;
+	resubOpts: ResubOpts;
 
 	commitment?: Commitment;
 	isUnsubscribing = false;
 
 	timeoutId?: ReturnType<typeof setTimeout>;
+	pollingTimeoutId?: ReturnType<typeof setTimeout>;
 
 	receivingData: boolean;
 
@@ -45,21 +97,40 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 	>['rpcSubscriptions'];
 	private abortController?: AbortController;
 
+	/**
+	 * Create a single-account WebSocket subscriber with optional polling fallback.
+	 *
+	 * @param accountName Name of the Anchor account type (used for default decode).
+	 * @param program Anchor `Program` used for decoding and provider access.
+	 * @param accountPublicKey Public key of the account to track.
+	 * @param decodeBuffer Optional custom decode function; if omitted, uses
+	 *   program coder to decode `accountName`.
+	 * @param resubOpts Resubscription/polling options. See class docs.
+	 * @param commitment Commitment for WS and RPC operations.
+	 * @param rpcSubscriptions Optional override/injection for testing.
+	 * @param rpc Optional override/injection for testing.
+	 */
 	public constructor(
 		accountName: string,
 		program: Program,
 		accountPublicKey: PublicKey,
 		decodeBuffer?: (buffer: Buffer) => T,
 		resubOpts?: ResubOpts,
-		commitment?: Commitment
+		commitment?: Commitment,
+		rpcSubscriptions?: RpcSubscriptions<SolanaRpcSubscriptionsApi> & string,
+		rpc?: Rpc<any>
 	) {
 		this.accountName = accountName;
 		this.logAccountName = `${accountName}-${accountPublicKey.toBase58()}-ws-acct-subscriber-v2`;
 		this.program = program;
 		this.accountPublicKey = accountPublicKey;
 		this.decodeBufferFn = decodeBuffer;
-		this.resubOpts = resubOpts;
-		if (this.resubOpts?.resubTimeoutMs < 1000) {
+		this.resubOpts = resubOpts ?? {
+			resubTimeoutMs: 30000,
+			usePollingInsteadOfResub: true,
+			logResubMessages: false,
+		};
+		if (this.resubOpts.resubTimeoutMs < 1000) {
 			console.log(
 				`resubTimeoutMs should be at least 1000ms to avoid spamming resub ${this.logAccountName}`
 			);
@@ -81,31 +152,67 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 			((this.program.provider as AnchorProvider).opts.commitment as Commitment);
 
 		// Initialize gill client using the same RPC URL as the program provider
-		const rpcUrl = (this.program.provider as AnchorProvider).connection
-			.rpcEndpoint;
-		const { rpc, rpcSubscriptions } = createSolanaClient({
-			urlOrMoniker: rpcUrl,
-		});
-		this.rpc = rpc;
-		this.rpcSubscriptions = rpcSubscriptions;
+
+		this.rpc = rpc
+			? rpc
+			: (() => {
+					const rpcUrl = (this.program.provider as AnchorProvider).connection
+						.rpcEndpoint;
+					const { rpc } = createSolanaClient({
+						urlOrMoniker: rpcUrl,
+					});
+					return rpc;
+			  })();
+		this.rpcSubscriptions = rpcSubscriptions
+			? rpcSubscriptions
+			: (() => {
+					const rpcUrl = (this.program.provider as AnchorProvider).connection
+						.rpcEndpoint;
+					const { rpcSubscriptions } = createSolanaClient({
+						urlOrMoniker: rpcUrl,
+					});
+					return rpcSubscriptions;
+			  })();
 	}
 
-	private async handleNotificationLoop(subscription: AsyncIterable<any>) {
+	private async handleNotificationLoop(
+		subscriptionPromise: Promise<AsyncIterable<any>>
+	) {
+		const subscription = await subscriptionPromise;
 		for await (const notification of subscription) {
-			if (this.resubOpts?.resubTimeoutMs) {
-				this.receivingData = true;
-				clearTimeout(this.timeoutId);
-				this.handleRpcResponse(notification.context, notification.value);
-				this.setTimeout();
-			} else {
-				this.handleRpcResponse(notification.context, notification.value);
+			// If we're currently polling and receive a WebSocket event, stop polling
+			if (this.pollingTimeoutId) {
+				if (this.resubOpts.logResubMessages) {
+					console.log(
+						`[${this.logAccountName}] Received WebSocket event while polling, stopping polling`
+					);
+				}
+				this.stopPolling();
 			}
+
+			this.receivingData = true;
+			clearTimeout(this.timeoutId);
+			this.handleRpcResponse(notification.context, notification.value);
+			this.setTimeout();
 		}
 	}
 
 	async subscribe(onChange: (data: T) => void): Promise<void> {
+		/**
+		 * Start the WebSocket subscription and (optionally) setup inactivity
+		 * fallback.
+		 *
+		 * Flow
+		 * - If we do not have initial state, perform a one-time `fetch()` to seed
+		 *   internal buffers and emit current data.
+		 * - Subscribe to account notifications via WS.
+		 * - If `resubOpts.resubTimeoutMs` is set, schedule an inactivity timeout.
+		 *   When it fires:
+		 *   - if `usePollingInsteadOfResub` is true, start polling loop;
+		 *   - otherwise, resubscribe to WS immediately.
+		 */
 		if (this.listenerId != null || this.isUnsubscribing) {
-			if (this.resubOpts?.logResubMessages) {
+			if (this.resubOpts.logResubMessages) {
 				console.log(
 					`[${this.logAccountName}] Subscribe returning early - listenerId=${this.listenerId}, isUnsubscribing=${this.isUnsubscribing}`
 				);
@@ -124,7 +231,7 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 
 		this.listenerId = Math.random(); // Unique ID for logging purposes
 
-		if (this.resubOpts?.resubTimeoutMs) {
+		if (this.resubOpts.resubTimeoutMs) {
 			this.receivingData = true;
 			this.setTimeout();
 		}
@@ -132,7 +239,7 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 		// Subscribe to account changes using gill's rpcSubscriptions
 		const pubkey = this.accountPublicKey.toBase58();
 		if (isAddress(pubkey)) {
-			const subscription = await this.rpcSubscriptions
+			const subscriptionPromise = this.rpcSubscriptions
 				.accountNotifications(pubkey, {
 					commitment: this.commitment,
 					encoding: 'base64',
@@ -141,8 +248,10 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 					abortSignal: abortController.signal,
 				});
 
-			// Start notification loop without awaiting
-			this.handleNotificationLoop(subscription);
+			// Start notification loop with the subscription promise
+			this.handleNotificationLoop(subscriptionPromise);
+		} else {
+			throw new Error('Invalid account public key');
 		}
 	}
 
@@ -159,23 +268,37 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 	}
 
 	protected setTimeout(): void {
+		/**
+		 * Schedule inactivity handling. If WS is quiet for
+		 * `resubOpts.resubTimeoutMs` and `receivingData` is true, trigger either
+		 * a polling loop or a resubscribe depending on options.
+		 */
 		if (!this.onChange) {
 			throw new Error('onChange callback function must be set');
 		}
-		this.timeoutId = setTimeout(
-			async () => {
-				if (this.isUnsubscribing) {
-					// If we are in the process of unsubscribing, do not attempt to resubscribe
-					if (this.resubOpts?.logResubMessages) {
+		this.timeoutId = setTimeout(async () => {
+			if (this.isUnsubscribing) {
+				// If we are in the process of unsubscribing, do not attempt to resubscribe
+				if (this.resubOpts.logResubMessages) {
+					console.log(
+						`[${this.logAccountName}] Timeout fired but isUnsubscribing=true, skipping resubscribe`
+					);
+				}
+				return;
+			}
+
+			if (this.receivingData) {
+				if (this.resubOpts.usePollingInsteadOfResub) {
+					// Use polling instead of resubscribing
+					if (this.resubOpts.logResubMessages) {
 						console.log(
-							`[${this.logAccountName}] Timeout fired but isUnsubscribing=true, skipping resubscribe`
+							`[${this.logAccountName}] No ws data in ${this.resubOpts.resubTimeoutMs}ms, starting polling - listenerId=${this.listenerId}`
 						);
 					}
-					return;
-				}
-
-				if (this.receivingData) {
-					if (this.resubOpts?.logResubMessages) {
+					this.startPolling();
+				} else {
+					// Original resubscribe behavior
+					if (this.resubOpts.logResubMessages) {
 						console.log(
 							`No ws data from ${this.logAccountName} in ${this.resubOpts.resubTimeoutMs}ms, resubscribing - listenerId=${this.listenerId}, isUnsubscribing=${this.isUnsubscribing}`
 						);
@@ -183,23 +306,93 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 					await this.unsubscribe(true);
 					this.receivingData = false;
 					await this.subscribe(this.onChange);
-					if (this.resubOpts?.logResubMessages) {
+					if (this.resubOpts.logResubMessages) {
 						console.log(
 							`[${this.logAccountName}] Resubscribe completed - receivingData=${this.receivingData}, listenerId=${this.listenerId}, isUnsubscribing=${this.isUnsubscribing}`
 						);
 					}
-				} else {
-					if (this.resubOpts?.logResubMessages) {
-						console.log(
-							`[${this.logAccountName}] Timeout fired but receivingData=false, skipping resubscribe`
-						);
-					}
 				}
-			},
-			this.resubOpts?.resubTimeoutMs
-		);
+			} else {
+				if (this.resubOpts.logResubMessages) {
+					console.log(
+						`[${this.logAccountName}] Timeout fired but receivingData=false, skipping resubscribe`
+					);
+				}
+			}
+		}, this.resubOpts.resubTimeoutMs);
 	}
 
+	/**
+	 * Start the polling loop (single-account).
+	 * - Periodically calls `fetch()` and compares buffers to detect changes.
+	 * - On detected change, stops polling and resubscribes to WS.
+	 */
+	private startPolling(): void {
+		const pollingInterval = this.resubOpts.pollingIntervalMs || 30000; // Default to 30s
+
+		const poll = async () => {
+			if (this.isUnsubscribing) {
+				return;
+			}
+
+			try {
+				// Store current data and buffer before polling
+				const currentBuffer = this.bufferAndSlot?.buffer;
+
+				// Fetch latest account data
+				await this.fetch();
+
+				// Check if we got new data by comparing buffers
+				const newBuffer = this.bufferAndSlot?.buffer;
+				const hasNewData =
+					newBuffer && (!currentBuffer || !newBuffer.equals(currentBuffer));
+
+				if (hasNewData) {
+					// New data received, stop polling and resubscribe to websocket
+					if (this.resubOpts.logResubMessages) {
+						console.log(
+							`[${this.logAccountName}] Polling detected account data change, resubscribing to websocket`
+						);
+					}
+					await this.unsubscribe(true);
+					this.receivingData = false;
+					await this.subscribe(this.onChange);
+				} else {
+					// No new data, continue polling
+					if (this.resubOpts.logResubMessages) {
+						console.log(
+							`[${this.logAccountName}] Polling found no account changes, continuing to poll every ${pollingInterval}ms`
+						);
+					}
+					this.pollingTimeoutId = setTimeout(poll, pollingInterval);
+				}
+			} catch (error) {
+				if (this.resubOpts.logResubMessages) {
+					console.error(
+						`[${this.logAccountName}] Error during polling:`,
+						error
+					);
+				}
+				// On error, continue polling
+				this.pollingTimeoutId = setTimeout(poll, pollingInterval);
+			}
+		};
+
+		// Start polling immediately
+		poll();
+	}
+
+	private stopPolling(): void {
+		if (this.pollingTimeoutId) {
+			clearTimeout(this.pollingTimeoutId);
+			this.pollingTimeoutId = undefined;
+		}
+	}
+
+	/**
+	 * Fetch the current account state via RPC and process it through the same
+	 * decoding and update pathway as WS notifications.
+	 */
 	async fetch(): Promise<void> {
 		// Use gill's rpc for fetching account info
 		const accountAddress = this.accountPublicKey.toBase58() as Address;
@@ -294,12 +487,20 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 	}
 
 	unsubscribe(onResub = false): Promise<void> {
+		/**
+		 * Stop timers, polling, and WS subscription.
+		 * - When called during a resubscribe (`onResub=true`), we preserve
+		 *   `resubOpts.resubTimeoutMs` for the restarted subscription.
+		 */
 		if (!onResub && this.resubOpts) {
 			this.resubOpts.resubTimeoutMs = undefined;
 		}
 		this.isUnsubscribing = true;
 		clearTimeout(this.timeoutId);
 		this.timeoutId = undefined;
+
+		// Stop polling if active
+		this.stopPolling();
 
 		// Abort the WebSocket subscription
 		if (this.abortController) {
