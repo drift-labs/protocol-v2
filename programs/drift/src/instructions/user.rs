@@ -33,8 +33,8 @@ use crate::instructions::optional_accounts::{
 };
 use crate::instructions::SpotFulfillmentType;
 use crate::math::casting::Cast;
-use crate::math::liquidation::is_isolated_margin_being_liquidated;
 use crate::math::liquidation::is_cross_margin_being_liquidated;
+use crate::math::liquidation::is_isolated_margin_being_liquidated;
 use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_liability_info;
 use crate::math::margin::meets_initial_margin_requirement;
 use crate::math::margin::{
@@ -2060,6 +2060,12 @@ pub fn handle_deposit_into_isolated_perp_position<'c: 'info, 'info>(
     };
     emit!(deposit_record);
 
+    ctx.accounts.spot_market_vault.reload()?;
+    math::spot_withdraw::validate_spot_market_vault_amount(
+        &spot_market,
+        ctx.accounts.spot_market_vault.amount,
+    )?;
+
     spot_market.validate_max_token_deposits_and_borrows(false)?;
 
     Ok(())
@@ -3514,10 +3520,7 @@ pub fn handle_update_user_reduce_only(
 ) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
 
-    validate!(
-        !user.is_being_liquidated(),
-        ErrorCode::LiquidationsOngoing
-    )?;
+    validate!(!user.is_being_liquidated(), ErrorCode::LiquidationsOngoing)?;
 
     user.update_reduce_only_status(reduce_only)?;
     Ok(())
@@ -3530,10 +3533,7 @@ pub fn handle_update_user_advanced_lp(
 ) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
 
-    validate!(
-        !user.is_being_liquidated(),
-        ErrorCode::LiquidationsOngoing
-    )?;
+    validate!(!user.is_being_liquidated(), ErrorCode::LiquidationsOngoing)?;
 
     user.update_advanced_lp_status(advanced_lp)?;
     Ok(())
@@ -3546,10 +3546,7 @@ pub fn handle_update_user_protected_maker_orders(
 ) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
 
-    validate!(
-        !user.is_being_liquidated(),
-        ErrorCode::LiquidationsOngoing
-    )?;
+    validate!(!user.is_being_liquidated(), ErrorCode::LiquidationsOngoing)?;
 
     validate!(
         protected_maker_orders != user.is_protected_maker(),

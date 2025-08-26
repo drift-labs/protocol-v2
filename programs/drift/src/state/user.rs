@@ -1233,8 +1233,7 @@ impl PerpPosition {
     }
 
     pub fn is_isolated(&self) -> bool {
-        self.position_flag & PositionFlag::IsolatedPosition as u8
-            == PositionFlag::IsolatedPosition as u8
+        self.position_flag & PositionFlag::IsolatedPosition as u8 > 0
     }
 
     pub fn get_isolated_token_amount(&self, spot_market: &SpotMarket) -> DriftResult<u128> {
@@ -1247,11 +1246,11 @@ impl PerpPosition {
 
     pub fn is_being_liquidated(&self) -> bool {
         self.position_flag & (PositionFlag::BeingLiquidated as u8 | PositionFlag::Bankruptcy as u8)
-            != 0
+            > 0
     }
 
     pub fn is_bankrupt(&self) -> bool {
-        self.position_flag & PositionFlag::Bankruptcy as u8 == PositionFlag::Bankruptcy as u8
+        self.position_flag & PositionFlag::Bankruptcy as u8 > 0
     }
 }
 

@@ -2609,11 +2609,32 @@ pub mod meets_withdraw_margin_requirement_and_increment_fuel_bonus {
             ..Default::default()
         };
 
-        let result = user.meets_withdraw_margin_requirement_and_increment_fuel_bonus(&perp_market_map, &spot_market_map, &mut oracle_map, MarginRequirementType::Initial, 1, 0, &mut user_stats, now);
+        let result = user.meets_withdraw_margin_requirement_and_increment_fuel_bonus(
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginRequirementType::Initial,
+            1,
+            0,
+            &mut user_stats,
+            now,
+        );
 
         assert_eq!(result, Err(ErrorCode::InsufficientCollateral));
 
-        let result: Result<bool, ErrorCode> = user.meets_withdraw_margin_requirement_and_increment_fuel_bonus_swap(&perp_market_map, &spot_market_map, &mut oracle_map, MarginRequirementType::Initial, 0, 0, 0, 0, &mut user_stats, now);
+        let result: Result<bool, ErrorCode> = user
+            .meets_withdraw_margin_requirement_and_increment_fuel_bonus_swap(
+                &perp_market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                MarginRequirementType::Initial,
+                0,
+                0,
+                0,
+                0,
+                &mut user_stats,
+                now,
+            );
 
         assert_eq!(result, Err(ErrorCode::InsufficientCollateral));
     }

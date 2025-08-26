@@ -12,7 +12,7 @@ use crate::{
         margin::calculate_user_safest_position_tiers,
         safe_unwrap::SafeUnwrap,
     },
-    state::margin_calculation::{MarginCalculation, MarginContext, MarketIdentifier},
+    state::margin_calculation::MarginCalculation,
     validate, LIQUIDATION_PCT_PRECISION, QUOTE_SPOT_MARKET_INDEX,
 };
 
@@ -296,11 +296,11 @@ impl LiquidatePerpMode for IsolatedMarginLiquidatePerpMode {
 
     fn calculate_max_pct_to_liquidate(
         &self,
-        user: &User,
-        margin_shortage: u128,
-        slot: u64,
-        initial_pct_to_liquidate: u128,
-        liquidation_duration: u128,
+        _user: &User,
+        _margin_shortage: u128,
+        _slot: u64,
+        _initial_pct_to_liquidate: u128,
+        _liquidation_duration: u128,
     ) -> DriftResult<u128> {
         Ok(LIQUIDATION_PCT_PRECISION)
     }
@@ -340,7 +340,7 @@ impl LiquidatePerpMode for IsolatedMarginLiquidatePerpMode {
         ))
     }
 
-    fn validate_spot_position(&self, user: &User, asset_market_index: u16) -> DriftResult<()> {
+    fn validate_spot_position(&self, _user: &User, asset_market_index: u16) -> DriftResult<()> {
         validate!(
             asset_market_index == QUOTE_SPOT_MARKET_INDEX,
             ErrorCode::CouldNotFindSpotPosition,
@@ -365,9 +365,9 @@ impl LiquidatePerpMode for IsolatedMarginLiquidatePerpMode {
 
     fn calculate_user_safest_position_tiers(
         &self,
-        user: &User,
+        _user: &User,
         perp_market_map: &PerpMarketMap,
-        spot_market_map: &SpotMarketMap,
+        _spot_market_map: &SpotMarketMap,
     ) -> DriftResult<(AssetTier, ContractTier)> {
         let contract_tier = perp_market_map.get_ref(&self.market_index)?.contract_tier;
 
@@ -379,7 +379,7 @@ impl LiquidatePerpMode for IsolatedMarginLiquidatePerpMode {
         user: &mut User,
         token_amount: u128,
         spot_market: &mut SpotMarket,
-        cumulative_deposit_delta: Option<u128>,
+        _cumulative_deposit_delta: Option<u128>,
     ) -> DriftResult<()> {
         let perp_position = user.force_get_isolated_perp_position_mut(self.market_index)?;
 

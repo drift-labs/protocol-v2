@@ -263,7 +263,6 @@ pub fn validate_user_not_being_liquidated(
     Ok(())
 }
 
-// todo check if this is corrects
 pub fn is_isolated_margin_being_liquidated(
     user: &User,
     market_map: &PerpMarketMap,
