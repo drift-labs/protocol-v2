@@ -485,7 +485,7 @@ impl User {
     }
 
     pub fn update_last_active_slot(&mut self, slot: u64) {
-        if !self.is_cross_margin_being_liquidated() {
+        if !self.is_being_liquidated() {
             self.last_active_slot = slot;
         }
         self.idle = false;

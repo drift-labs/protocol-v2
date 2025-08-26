@@ -1411,9 +1411,7 @@ pub fn liquidate_spot(
         now,
     )?;
 
-    if !user.is_cross_margin_being_liquidated()
-        && margin_calculation.meets_cross_margin_requirement()
-    {
+    if !user.is_cross_margin_being_liquidated() && margin_calculation.meets_cross_margin_requirement() {
         msg!("margin calculation: {:?}", margin_calculation);
         return Err(ErrorCode::SufficientCollateral);
     } else if user.is_cross_margin_being_liquidated()
@@ -1946,9 +1944,7 @@ pub fn liquidate_spot_with_swap_begin(
         now,
     )?;
 
-    if !user.is_cross_margin_being_liquidated()
-        && margin_calculation.meets_cross_margin_requirement()
-    {
+    if !user.is_cross_margin_being_liquidated() && margin_calculation.meets_cross_margin_requirement() {
         msg!("margin calculation: {:?}", margin_calculation);
         return Err(ErrorCode::SufficientCollateral);
     } else if user.is_cross_margin_being_liquidated()
@@ -2529,9 +2525,7 @@ pub fn liquidate_borrow_for_perp_pnl(
         MarginContext::liquidation(liquidation_margin_buffer_ratio),
     )?;
 
-    if !user.is_cross_margin_being_liquidated()
-        && margin_calculation.meets_cross_margin_requirement()
-    {
+    if !user.is_cross_margin_being_liquidated() && margin_calculation.meets_cross_margin_requirement() {
         msg!("margin calculation {:?}", margin_calculation);
         return Err(ErrorCode::SufficientCollateral);
     } else if user.is_cross_margin_being_liquidated()
@@ -3722,19 +3716,12 @@ pub fn set_user_status_to_being_liquidated(
         MarginContext::liquidation(liquidation_margin_buffer_ratio),
     )?;
 
-    // todo handle this
-    if !user.is_cross_margin_being_liquidated()
-        && !margin_calculation.meets_cross_margin_requirement()
-    {
+    if !user.is_cross_margin_being_liquidated() && !margin_calculation.meets_cross_margin_requirement() {
         user.enter_cross_margin_liquidation(slot)?;
     }
 
-    for (market_index, isolated_margin_calculation) in
-        margin_calculation.isolated_margin_calculations.iter()
-    {
-        if !user.is_isolated_margin_being_liquidated(*market_index)?
-            && !isolated_margin_calculation.meets_margin_requirement()
-        {
+    for (market_index, isolated_margin_calculation) in margin_calculation.isolated_margin_calculations.iter() {
+        if !user.is_isolated_margin_being_liquidated(*market_index)? && !isolated_margin_calculation.meets_margin_requirement() {
             user.enter_isolated_margin_liquidation(*market_index, slot)?;
         }
     }
