@@ -56,7 +56,7 @@ pub fn settle_pnl(
     meets_margin_requirement: Option<bool>,
     mode: SettlePnlMode,
 ) -> DriftResult {
-    validate!(!user.is_cross_margin_bankrupt(), ErrorCode::UserBankrupt)?;
+    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
     let now = clock.unix_timestamp;
     {
         let spot_market = &mut spot_market_map.get_quote_spot_market_mut()?;
@@ -343,7 +343,7 @@ pub fn settle_expired_position(
     clock: &Clock,
     state: &State,
 ) -> DriftResult {
-    validate!(!user.is_cross_margin_bankrupt(), ErrorCode::UserBankrupt)?;
+    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
     // cannot settle pnl this way on a user who is in liquidation territory
     if !(meets_maintenance_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?)

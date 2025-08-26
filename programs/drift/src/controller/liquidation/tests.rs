@@ -17,7 +17,7 @@ pub mod liquidate_perp {
         QUOTE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION_U64,
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
-    use crate::math::liquidation::is_user_being_liquidated;
+    use crate::math::liquidation::is_cross_margin_being_liquidated;
     use crate::math::margin::{
         calculate_margin_requirement_and_total_collateral_and_liability_info, MarginRequirementType,
     };
@@ -904,7 +904,7 @@ pub mod liquidate_perp {
         )
         .unwrap();
         assert_eq!(margin_req, 140014010000);
-        assert!(!is_user_being_liquidated(
+        assert!(!is_cross_margin_being_liquidated(
             &user,
             &perp_market_map,
             &spot_market_map,
@@ -930,7 +930,7 @@ pub mod liquidate_perp {
         )
         .unwrap();
         assert_eq!(margin_req2, 1040104010000);
-        assert!(is_user_being_liquidated(
+        assert!(is_cross_margin_being_liquidated(
             &user,
             &perp_market_map,
             &spot_market_map,
@@ -8931,7 +8931,7 @@ pub mod liquidate_isolated_perp {
         QUOTE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION_U64,
         SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
-    use crate::math::liquidation::is_user_being_liquidated;
+    use crate::math::liquidation::is_cross_margin_being_liquidated;
     use crate::math::margin::{
         calculate_margin_requirement_and_total_collateral_and_liability_info, MarginRequirementType,
     };

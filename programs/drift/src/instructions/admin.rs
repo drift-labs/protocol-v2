@@ -4612,7 +4612,7 @@ pub fn handle_admin_deposit<'c: 'info, 'info>(
         return Err(ErrorCode::InsufficientDeposit.into());
     }
 
-    validate!(!user.is_cross_margin_bankrupt(), ErrorCode::UserBankrupt)?;
+    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
     let mut spot_market = spot_market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = *oracle_map.get_price_data(&spot_market.oracle_id())?;

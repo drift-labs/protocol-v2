@@ -34,7 +34,7 @@ use crate::instructions::optional_accounts::{
 use crate::instructions::SpotFulfillmentType;
 use crate::math::casting::Cast;
 use crate::math::liquidation::is_isolated_margin_being_liquidated;
-use crate::math::liquidation::is_user_being_liquidated;
+use crate::math::liquidation::is_cross_margin_being_liquidated;
 use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_liability_info;
 use crate::math::margin::meets_initial_margin_requirement;
 use crate::math::margin::{
@@ -616,7 +616,7 @@ pub fn handle_deposit<'c: 'info, 'info>(
     drop(spot_market);
     if user.is_cross_margin_being_liquidated() {
         // try to update liquidation status if user is was already being liq'd
-        let is_being_liquidated = is_user_being_liquidated(
+        let is_being_liquidated = is_cross_margin_being_liquidated(
             user,
             &perp_market_map,
             &spot_market_map,
@@ -3515,7 +3515,7 @@ pub fn handle_update_user_reduce_only(
     let mut user = load_mut!(ctx.accounts.user)?;
 
     validate!(
-        !user.is_cross_margin_being_liquidated(),
+        !user.is_being_liquidated(),
         ErrorCode::LiquidationsOngoing
     )?;
 
@@ -3531,7 +3531,7 @@ pub fn handle_update_user_advanced_lp(
     let mut user = load_mut!(ctx.accounts.user)?;
 
     validate!(
-        !user.is_cross_margin_being_liquidated(),
+        !user.is_being_liquidated(),
         ErrorCode::LiquidationsOngoing
     )?;
 
@@ -3547,7 +3547,7 @@ pub fn handle_update_user_protected_maker_orders(
     let mut user = load_mut!(ctx.accounts.user)?;
 
     validate!(
-        !user.is_cross_margin_being_liquidated(),
+        !user.is_being_liquidated(),
         ErrorCode::LiquidationsOngoing
     )?;
 

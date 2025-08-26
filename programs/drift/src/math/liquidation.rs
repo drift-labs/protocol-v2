@@ -198,7 +198,7 @@ pub fn calculate_asset_transfer_for_liability_transfer(
     Ok(asset_transfer)
 }
 
-pub fn is_user_being_liquidated(
+pub fn is_cross_margin_being_liquidated(
     user: &User,
     market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
