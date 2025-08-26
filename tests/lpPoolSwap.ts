@@ -470,6 +470,19 @@ describe('LP Pool', () => {
 				spotTokenMint.publicKey
 			)
 		);
+
+		// Should throw since we havnet enabled swaps yet
+		try {
+			await adminClient.sendTransaction(swapTx);
+			assert(false, 'Should have thrown');
+		} catch (error) {
+			assert(error.message.includes('0x17f1'));
+		}
+
+		// Enable swaps
+		await adminClient.updateFeatureBitFlagsSwapLpPool(true);
+
+		// Send swap
 		await adminClient.sendTransaction(swapTx);
 
 		const inTokenBalanceAfter =

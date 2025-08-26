@@ -1895,6 +1895,13 @@ pub mod drift {
         handle_update_feature_bit_flags_settle_lp_pool(ctx, enable)
     }
 
+    pub fn update_feature_bit_flags_swap_lp_pool(
+        ctx: Context<HotAdminUpdateState>,
+        enable: bool,
+    ) -> Result<()> {
+        handle_update_feature_bit_flags_swap_lp_pool(ctx, enable)
+    }
+
     pub fn initialize_constituent<'info>(
         ctx: Context<'_, '_, '_, 'info, InitializeConstituent<'info>>,
         spot_market_index: u16,

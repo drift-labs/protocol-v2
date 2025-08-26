@@ -298,6 +298,13 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
     in_amount: u64,
     min_out_amount: u64,
 ) -> Result<()> {
+    let state = &ctx.accounts.state;
+    validate!(
+        state.allow_swap_lp_pool(),
+        ErrorCode::DefaultError,
+        "Swapping with LP Pool is disabled"
+    )?;
+
     validate!(
         in_market_index != out_market_index,
         ErrorCode::InvalidSpotMarketAccount,
@@ -306,7 +313,6 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
 
     let slot = Clock::get()?.slot;
     let now = Clock::get()?.unix_timestamp;
-    let state = &ctx.accounts.state;
     let lp_pool = &ctx.accounts.lp_pool.load()?;
     let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
 

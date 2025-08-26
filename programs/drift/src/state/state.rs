@@ -124,6 +124,10 @@ impl State {
     pub fn allow_settle_lp_pool(&self) -> bool {
         (self.feature_bit_flags & (FeatureBitFlags::SettleLpPool as u8)) > 0
     }
+
+    pub fn allow_swap_lp_pool(&self) -> bool {
+        (self.feature_bit_flags & (FeatureBitFlags::SwapLpPool as u8)) > 0
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Debug, Eq)]
@@ -131,6 +135,7 @@ pub enum FeatureBitFlags {
     MmOracleUpdate = 0b00000001,
     MedianTriggerPrice = 0b00000010,
     SettleLpPool = 0b00000100,
+    SwapLpPool = 0b00001000,
 }
 
 impl Size for State {
