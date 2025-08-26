@@ -4880,6 +4880,34 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async updateFeatureBitFlagsSwapLpPool(
+		enable: boolean
+	): Promise<TransactionSignature> {
+		const updateFeatureBitFlagsSettleLpPoolIx =
+			await this.getUpdateFeatureBitFlagsSwapLpPoolIx(enable);
+
+		const tx = await this.buildTransaction(updateFeatureBitFlagsSettleLpPoolIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateFeatureBitFlagsSwapLpPoolIx(
+		enable: boolean
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateFeatureBitFlagsSwapLpPool(
+			enable,
+			{
+				accounts: {
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
+	}
+
 	public async initializeLpPool(
 		name: string,
 		minMintFee: BN,

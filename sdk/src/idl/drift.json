@@ -7897,6 +7897,27 @@
       ]
     },
     {
+      "name": "updateFeatureBitFlagsSwapLpPool",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "enable",
+          "type": "bool"
+        }
+      ]
+    },
+    {
       "name": "initializeConstituent",
       "accounts": [
         {
@@ -15432,6 +15453,9 @@
           },
           {
             "name": "SettleLpPool"
+          },
+          {
+            "name": "SwapLpPool"
           }
         ]
       }

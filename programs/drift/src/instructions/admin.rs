@@ -5251,11 +5251,32 @@ pub fn handle_update_feature_bit_flags_settle_lp_pool(
             "Only state admin can re-enable after kill switch"
         )?;
 
-        msg!("Setting second bit to 1, enabling settle LP pool");
+        msg!("Setting third bit to 1, enabling settle LP pool");
         state.feature_bit_flags = state.feature_bit_flags | (FeatureBitFlags::SettleLpPool as u8);
     } else {
-        msg!("Setting second bit to 0, disabling settle LP pool");
+        msg!("Setting third bit to 0, disabling settle LP pool");
         state.feature_bit_flags = state.feature_bit_flags & !(FeatureBitFlags::SettleLpPool as u8);
+    }
+    Ok(())
+}
+
+pub fn handle_update_feature_bit_flags_swap_lp_pool(
+    ctx: Context<HotAdminUpdateState>,
+    enable: bool,
+) -> Result<()> {
+    let state = &mut ctx.accounts.state;
+    if enable {
+        validate!(
+            ctx.accounts.admin.key().eq(&state.admin),
+            ErrorCode::DefaultError,
+            "Only state admin can re-enable after kill switch"
+        )?;
+
+        msg!("Setting fourth bit to 1, enabling swapping with LP pool");
+        state.feature_bit_flags = state.feature_bit_flags | (FeatureBitFlags::SwapLpPool as u8);
+    } else {
+        msg!("Setting fourth bit to 0, disabling swapping with LP pool");
+        state.feature_bit_flags = state.feature_bit_flags & !(FeatureBitFlags::SwapLpPool as u8);
     }
     Ok(())
 }
