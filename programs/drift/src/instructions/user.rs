@@ -2175,19 +2175,7 @@ pub fn handle_transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
         }
 
         if user.is_isolated_margin_being_liquidated(perp_market_index)? {
-            // try to update liquidation status if user is was already being liq'd
-            let is_being_liquidated = is_isolated_margin_being_liquidated(
-                user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
-                perp_market_index,
-                state.liquidation_margin_buffer_ratio,
-            )?;
-
-            if !is_being_liquidated {
-                user.exit_isolated_margin_liquidation(perp_market_index)?;
-            }
+            user.exit_isolated_margin_liquidation(perp_market_index)?;
         }
     } else {
         let mut spot_market = spot_market_map.get_ref_mut(&spot_market_index)?;
@@ -2239,18 +2227,7 @@ pub fn handle_transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
         }
 
         if user.is_cross_margin_being_liquidated() {
-            // try to update liquidation status if user is was already being liq'd
-            let is_being_liquidated = is_user_being_liquidated(
-                user,
-                &perp_market_map,
-                &spot_market_map,
-                &mut oracle_map,
-                state.liquidation_margin_buffer_ratio,
-            )?;
-
-            if !is_being_liquidated {
-                user.exit_cross_margin_liquidation();
-            }
+            user.exit_cross_margin_liquidation();
         }
     }
 
