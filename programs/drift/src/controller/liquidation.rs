@@ -107,9 +107,9 @@ pub fn liquidate_perp(
     )?;
 
     validate!(
-        !liquidator.is_being_liquidated(),
+        !liquidator.is_bankrupt(),
         ErrorCode::UserBankrupt,
-        "liquidator being liquidated",
+        "liquidator bankrupt",
     )?;
 
     validate!(
@@ -761,9 +761,9 @@ pub fn liquidate_perp_with_fill(
     )?;
 
     validate!(
-        !liquidator.is_being_liquidated(),
+        !liquidator.is_bankrupt(),
         ErrorCode::UserBankrupt,
-        "liquidator being liquidated",
+        "liquidator bankrupt",
     )?;
 
     let market = perp_market_map.get_ref(&market_index)?;
@@ -1206,9 +1206,9 @@ pub fn liquidate_spot(
     )?;
 
     validate!(
-        !liquidator.is_being_liquidated(),
+        !liquidator.is_bankrupt(),
         ErrorCode::UserBankrupt,
-        "liquidator being liquidated",
+        "liquidator bankrupt",
     )?;
 
     let asset_spot_market = spot_market_map.get_ref(&asset_market_index)?;
@@ -1790,9 +1790,9 @@ pub fn liquidate_spot_with_swap_begin(
     )?;
 
     validate!(
-        !liquidator.is_being_liquidated(),
+        !liquidator.is_bankrupt(),
         ErrorCode::UserBankrupt,
-        "liquidator being liquidated",
+        "liquidator bankrupt",
     )?;
 
     let asset_spot_market = spot_market_map.get_ref(&asset_market_index)?;
@@ -2342,9 +2342,9 @@ pub fn liquidate_borrow_for_perp_pnl(
     )?;
 
     validate!(
-        !liquidator.is_being_liquidated(),
+        !liquidator.is_bankrupt(),
         ErrorCode::UserBankrupt,
-        "liquidator being liquidated",
+        "liquidator bankrupt",
     )?;
 
     validate!(
@@ -2826,9 +2826,9 @@ pub fn liquidate_perp_pnl_for_deposit(
     )?;
 
     validate!(
-        !liquidator.is_being_liquidated(),
+        !liquidator.is_bankrupt(),
         ErrorCode::UserBankrupt,
-        "liquidator being liquidated",
+        "liquidator bankrupt",
     )?;
 
     validate!(
@@ -3319,9 +3319,9 @@ pub fn resolve_perp_bankruptcy(
     )?;
 
     validate!(
-        !liquidator.is_being_liquidated(),
-        ErrorCode::UserIsBeingLiquidated,
-        "liquidator being liquidated",
+        !liquidator.is_bankrupt(),
+        ErrorCode::UserBankrupt,
+        "liquidator bankrupt",
     )?;
 
     let market = perp_market_map.get_ref(&market_index)?;
@@ -3537,9 +3537,9 @@ pub fn resolve_spot_bankruptcy(
     )?;
 
     validate!(
-        !liquidator.is_being_liquidated(),
-        ErrorCode::UserIsBeingLiquidated,
-        "liquidator being liquidated",
+        !liquidator.is_bankrupt(),
+        ErrorCode::UserBankrupt,
+        "liquidator bankrupt",
     )?;
 
     let market = spot_market_map.get_ref(&market_index)?;
