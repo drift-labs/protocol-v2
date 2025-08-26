@@ -5883,8 +5883,8 @@ pub fn handle_end_lp_swap<'c: 'info, 'info>(
 
     let admin_account_info = ctx.accounts.admin.to_account_info();
 
-    let constituent_in_token_account = &ctx.accounts.constituent_in_token_account;
-    let constituent_out_token_account = &ctx.accounts.constituent_out_token_account;
+    let constituent_in_token_account = &mut ctx.accounts.constituent_in_token_account;
+    let constituent_out_token_account = &mut ctx.accounts.constituent_out_token_account;
 
     let mut in_constituent = ctx.accounts.in_constituent.load_mut()?;
     let mut out_constituent = ctx.accounts.out_constituent.load_mut()?;
@@ -5972,6 +5972,8 @@ pub fn handle_end_lp_swap<'c: 'info, 'info>(
     }
 
     // Update the balance on the token accounts for after swap
+    constituent_out_token_account.reload()?;
+    constituent_in_token_account.reload()?;
     out_constituent.sync_token_balance(constituent_out_token_account.amount);
     in_constituent.sync_token_balance(constituent_in_token_account.amount);
 

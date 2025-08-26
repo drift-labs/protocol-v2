@@ -733,6 +733,8 @@ impl LPPool {
             aum = aum.safe_add(constituent_aum.cast()?)?;
         }
 
+        msg!("Aum before quote owed from lp pool: {}", aum);
+
         let mut aum_i128 = aum.cast::<i128>()?;
         for cache_datum in amm_cache.iter() {
             aum_i128 -= cache_datum.quote_owed_from_lp_pool as i128;
