@@ -3324,6 +3324,12 @@ pub fn resolve_perp_bankruptcy(
         "liquidator bankrupt",
     )?;
 
+    validate!(
+        !liquidator.is_being_liquidated(),
+        ErrorCode::UserIsBeingLiquidated,
+        "liquidator being liquidated",
+    )?;
+
     let market = perp_market_map.get_ref(&market_index)?;
 
     validate!(
@@ -3542,6 +3548,12 @@ pub fn resolve_spot_bankruptcy(
         "liquidator bankrupt",
     )?;
 
+    validate!(
+        !liquidator.is_being_liquidated(),
+        ErrorCode::UserIsBeingLiquidated,
+        "liquidator being liquidated",
+    )?;
+
     let market = spot_market_map.get_ref(&market_index)?;
 
     validate!(
@@ -3701,6 +3713,12 @@ pub fn set_user_status_to_being_liquidated(
     slot: u64,
     state: &State,
 ) -> DriftResult {
+    validate!(
+        !user.is_bankrupt(),
+        ErrorCode::UserBankrupt,
+        "user bankrupt",
+    )?;
+
     validate!(
         !user.is_being_liquidated(),
         ErrorCode::UserIsBeingLiquidated,
