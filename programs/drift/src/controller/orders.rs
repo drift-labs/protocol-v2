@@ -2315,7 +2315,7 @@ pub fn fulfill_perp_order_with_amm(
         builder_order_fee_bps,
     )?;
 
-    if let Some((idx, escrow)) = builder_order_idx.zip(rev_share_escrow.as_mut()) {
+    if let (Some(idx), Some(escrow)) = (builder_order_idx, rev_share_escrow.as_mut()) {
         let mut order = escrow.get_order_mut(idx)?;
         order.fees_accrued = order.fees_accrued.safe_add(builder_fee)?;
     }
@@ -2367,7 +2367,7 @@ pub fn fulfill_perp_order_with_amm(
     user_stats.increment_total_rebate(maker_rebate)?;
     user_stats.increment_total_referee_discount(referee_discount)?;
 
-    if let Some((idx, escrow)) = referrer_builder_order_idx.zip(rev_share_escrow.as_mut()) {
+    if let (Some(idx), Some(escrow)) = (referrer_builder_order_idx, rev_share_escrow.as_mut()) {
         let mut order = escrow.get_order_mut(idx)?;
         order.fees_accrued = order.fees_accrued.safe_add(referrer_reward)?;
     } else if let (Some(referrer), Some(referrer_stats)) =
@@ -2433,8 +2433,8 @@ pub fn fulfill_perp_order_with_amm(
         quote_asset_amount,
     )?;
     if is_filled {
-        if let Some((idx, escrow)) = builder_order_idx.zip(rev_share_escrow.as_mut()) {
-            let builder_order = escrow
+        if let (Some(idx), Some(escrow)) = (builder_order_idx, rev_share_escrow.as_mut()) {
+            escrow
                 .get_order_mut(idx)
                 .map(|order| order.add_bit_flag(RevenueShareOrderBitFlag::Completed));
         }

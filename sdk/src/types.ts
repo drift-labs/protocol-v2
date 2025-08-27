@@ -1584,7 +1584,7 @@ export type RevenueShareAccount = {
 	padding: number[];
 };
 
-export type RevenueShareEscrow = {
+export type RevenueShareEscrowAccount = {
 	authority: PublicKey;
 	referrer: PublicKey;
 	orders: RevenueShareOrder[];
