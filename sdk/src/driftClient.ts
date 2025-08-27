@@ -8560,21 +8560,27 @@ export class DriftClient {
 			.mul(PERCENTAGE_PRECISION)
 			.div(BN.max(oracleData.price, ONE));
 
-		const areSequenceIdsTooDivergent = oracleData.sequenceId
-			.sub(perpMarket.amm.mmOracleSequenceId)
-			.abs()
-			.gt(oracleData.sequenceId.div(new BN(10_000)));
+		const mmOracleSequenceId = perpMarket.amm.mmOracleSequenceId;
+
+		// Do slot check for recency if sequence ids are zero or they're too divergent
+		const doSlotCheckForRecency =
+			oracleData.sequenceId == null ||
+			oracleData.sequenceId.eq(ZERO) ||
+			mmOracleSequenceId.eq(ZERO) ||
+			oracleData.sequenceId
+				.sub(perpMarket.amm.mmOracleSequenceId)
+				.abs()
+				.gt(oracleData.sequenceId.div(new BN(10_000)));
 
 		let isExchangeOracleMoreRecent = true;
 		if (
-			oracleData.sequenceId != null &&
-			oracleData.sequenceId.lt(perpMarket.amm.mmOracleSequenceId) &&
-			!areSequenceIdsTooDivergent
+			doSlotCheckForRecency &&
+			oracleData.slot <= perpMarket.amm.mmOracleSlot
 		) {
 			isExchangeOracleMoreRecent = false;
 		} else if (
-			oracleData.sequenceId == null &&
-			oracleData.slot < perpMarket.amm.mmOracleSlot
+			!doSlotCheckForRecency &&
+			oracleData.sequenceId < mmOracleSequenceId
 		) {
 			isExchangeOracleMoreRecent = false;
 		}
