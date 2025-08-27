@@ -1912,7 +1912,7 @@ pub fn handle_deposit_into_isolated_perp_position<'c: 'info, 'info>(
     amount: u64,
 ) -> Result<()> {
     let user_key = ctx.accounts.user.key();
-    let user = &mut load_mut!(ctx.accounts.user)?;
+    let mut user = load_mut!(ctx.accounts.user)?;
 
     let state = &ctx.accounts.state;
     let clock = Clock::get()?;
@@ -1936,7 +1936,7 @@ pub fn handle_deposit_into_isolated_perp_position<'c: 'info, 'info>(
 
     controller::isolated_position::deposit_into_isolated_perp_position(
         user_key,
-        user,
+        &mut user,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,

@@ -3,7 +3,7 @@ use std::cell::RefMut;
 use anchor_lang::prelude::*;
 use crate::controller::spot_balance::update_spot_balances;
 use crate::controller::spot_position::update_spot_balances_and_cumulative_deposits;
-use crate::error::ErrorCode;
+use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::liquidation::is_isolated_margin_being_liquidated;
 use crate::math::margin::{validate_spot_margin_trading, MarginRequirementType};
@@ -23,9 +23,12 @@ use crate::validate;
 use crate::controller;
 use crate::get_then_update_id;
 
+#[cfg(test)]
+mod tests;
+
 pub fn deposit_into_isolated_perp_position<'c: 'info, 'info>(
     user_key: Pubkey,
-    user: &mut RefMut<User>,
+    user: &mut User,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
@@ -35,7 +38,7 @@ pub fn deposit_into_isolated_perp_position<'c: 'info, 'info>(
     spot_market_index: u16,
     perp_market_index: u16,
     amount: u64,
-) -> Result<()> {
+) -> DriftResult<()> {
     validate!(
         amount != 0,
         ErrorCode::InsufficientDeposit,
@@ -154,8 +157,8 @@ pub fn deposit_into_isolated_perp_position<'c: 'info, 'info>(
 }
 
 pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
-    user: &mut RefMut<User>,
-    user_stats: &mut RefMut<UserStats>,
+    user: &mut User,
+    user_stats: &mut UserStats,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
@@ -164,7 +167,7 @@ pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
     spot_market_index: u16,
     perp_market_index: u16,
     amount: i64,
-) -> Result<()> {
+) -> DriftResult<()> {
     validate!(
         amount != 0,
         ErrorCode::DefaultError,
@@ -260,7 +263,7 @@ pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
 
         let spot_position_index = user.force_get_spot_position_index(spot_market.market_index)?;
         update_spot_balances_and_cumulative_deposits(
-            amount as u128,
+            amount.abs() as u128,
             &SpotBalanceType::Deposit,
             &mut spot_market,
             &mut user.spot_positions[spot_position_index],
@@ -269,7 +272,7 @@ pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
         )?;
 
         update_spot_balances(
-            amount as u128,
+            amount.abs() as u128,
             &SpotBalanceType::Borrow,
             &mut spot_market,
             user.force_get_isolated_perp_position_mut(perp_market_index)?,
@@ -305,8 +308,8 @@ pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
 
 pub fn withdraw_from_isolated_perp_position<'c: 'info, 'info>(
     user_key: Pubkey,
-    user: &mut RefMut<User>,
-    user_stats: &mut RefMut<UserStats>,
+    user: &mut User,
+    user_stats: &mut UserStats,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
@@ -315,7 +318,7 @@ pub fn withdraw_from_isolated_perp_position<'c: 'info, 'info>(
     spot_market_index: u16,
     perp_market_index: u16,
     amount: u64,
-) -> Result<()> {
+) -> DriftResult<()> {
     validate!(
         amount != 0,
         ErrorCode::DefaultError,

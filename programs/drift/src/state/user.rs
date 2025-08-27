@@ -451,8 +451,11 @@ impl User {
     }
 
     pub fn is_isolated_margin_being_liquidated(&self, perp_market_index: u16) -> DriftResult<bool> {
-        let perp_position = self.get_isolated_perp_position(perp_market_index)?;
-        Ok(perp_position.is_being_liquidated())
+        if let Ok(perp_position) = self.get_isolated_perp_position(perp_market_index) {
+            Ok(perp_position.is_being_liquidated())
+        } else {
+            Ok(false)
+        }
     }
 
     pub fn has_isolated_margin_bankrupt(&self) -> bool {
@@ -1087,7 +1090,7 @@ impl PerpPosition {
     }
 
     pub fn is_available(&self) -> bool {
-        !self.is_open_position() && !self.has_open_order() && !self.has_unsettled_pnl()
+        !self.is_open_position() && !self.has_open_order() && !self.has_unsettled_pnl() && self.isolated_position_scaled_balance == 0
     }
 
     pub fn is_open_position(&self) -> bool {
