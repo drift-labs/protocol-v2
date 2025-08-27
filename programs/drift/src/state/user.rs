@@ -446,7 +446,7 @@ impl User {
     pub fn exit_isolated_margin_liquidation(&mut self, perp_market_index: u16) -> DriftResult {
         let perp_position = self.force_get_isolated_perp_position_mut(perp_market_index)?;
         perp_position.position_flag &= !(PositionFlag::BeingLiquidated as u8);
-        perp_position.position_flag &= !(PositionFlag::Bankruptcy as u8);
+        perp_position.position_flag &= !(PositionFlag::Bankrupt as u8);
         Ok(())
     }
 
@@ -464,19 +464,19 @@ impl User {
     pub fn enter_isolated_margin_bankruptcy(&mut self, perp_market_index: u16) -> DriftResult {
         let perp_position = self.force_get_isolated_perp_position_mut(perp_market_index)?;
         perp_position.position_flag &= !(PositionFlag::BeingLiquidated as u8);
-        perp_position.position_flag |= PositionFlag::Bankruptcy as u8;
+        perp_position.position_flag |= PositionFlag::Bankrupt as u8;
         Ok(())
     }
 
     pub fn exit_isolated_margin_bankruptcy(&mut self, perp_market_index: u16) -> DriftResult {
         let perp_position = self.force_get_isolated_perp_position_mut(perp_market_index)?;
-        perp_position.position_flag &= !(PositionFlag::Bankruptcy as u8);
+        perp_position.position_flag &= !(PositionFlag::Bankrupt as u8);
         Ok(())
     }
 
     pub fn is_isolated_margin_bankrupt(&self, perp_market_index: u16) -> DriftResult<bool> {
         let perp_position = self.get_isolated_perp_position(perp_market_index)?;
-        Ok(perp_position.position_flag & (PositionFlag::Bankruptcy as u8) != 0)
+        Ok(perp_position.position_flag & (PositionFlag::Bankrupt as u8) != 0)
     }
 
     pub fn increment_margin_freed(&mut self, margin_free: u64) -> DriftResult {
@@ -1245,12 +1245,12 @@ impl PerpPosition {
     }
 
     pub fn is_being_liquidated(&self) -> bool {
-        self.position_flag & (PositionFlag::BeingLiquidated as u8 | PositionFlag::Bankruptcy as u8)
+        self.position_flag & (PositionFlag::BeingLiquidated as u8 | PositionFlag::Bankrupt as u8)
             > 0
     }
 
     pub fn is_bankrupt(&self) -> bool {
-        self.position_flag & PositionFlag::Bankruptcy as u8 > 0
+        self.position_flag & PositionFlag::Bankrupt as u8 > 0
     }
 }
 
@@ -1753,7 +1753,7 @@ pub enum OrderBitFlag {
 pub enum PositionFlag {
     IsolatedPosition = 0b00000001,
     BeingLiquidated = 0b00000010,
-    Bankruptcy = 0b00000100,
+    Bankrupt = 0b00000100,
 }
 
 #[account(zero_copy(unsafe))]

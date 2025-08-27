@@ -216,7 +216,7 @@ impl IsolatedMarginCalculation {
             .margin_requirement_plus_buffer
             .cast::<i128>()?
             .safe_sub(self.get_total_collateral_plus_buffer())?
-            .min(0)
+            .max(0)
             .unsigned_abs())
     }
 }
@@ -506,7 +506,7 @@ impl MarginCalculation {
             .margin_requirement_plus_buffer
             .cast::<i128>()?
             .safe_sub(self.get_cross_total_collateral_plus_buffer())?
-            .min(0)
+            .max(0)
             .unsigned_abs())
     }
 
