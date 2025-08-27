@@ -168,7 +168,7 @@ fn use_mm_oracle() {
         confidence: PRICE_PRECISION_U64 / 10,
         delay: 1,
         has_sufficient_number_of_data_points: true,
-        sequence_id: Some(10),
+        sequence_id: Some(1756262481),
     };
     let mut market = PerpMarket {
         market_index: 0,
@@ -181,7 +181,7 @@ fn use_mm_oracle() {
             max_spread: 1000,
             mm_oracle_price: 130 * PRICE_PRECISION_I64 + 973,
             mm_oracle_slot: slot,
-            mm_oracle_sequence_id: 11,
+            mm_oracle_sequence_id: 1756262481,
             historical_oracle_data: HistoricalOracleData::default_with_current_oracle(
                 oracle_price_data,
             ),
@@ -212,7 +212,7 @@ fn use_mm_oracle() {
     );
 
     // Update the MM oracle slot to be equal but the sequence number to be behind, should use exchange oracle
-    market.amm.mm_oracle_sequence_id = 9;
+    market.amm.mm_oracle_sequence_id = 1756262481 - 10;
     let mm_oracle_price_data = market
         .get_mm_oracle_price_data(oracle_price_data, slot, &state.oracle_guard_rails.validity)
         .unwrap();
@@ -243,6 +243,15 @@ fn use_mm_oracle() {
         mm_oracle_price_data.get_delay(),
         mm_oracle_price_data.mm_oracle_delay
     );
+
+    // With really off sequence id and up to date mm oracle slot, should fall back to slot comparison
+    market.amm.mm_oracle_sequence_id = 1756262481000; // wrong resolution
+    market.amm.mm_oracle_slot = slot - 5;
+    let mm_oracle_price_data = market
+        .get_mm_oracle_price_data(oracle_price_data, slot, &state.oracle_guard_rails.validity)
+        .unwrap();
+    assert_eq!(mm_oracle_price_data.get_price(), oracle_price_data.price);
+    assert_eq!(mm_oracle_price_data.get_delay(), oracle_price_data.delay);
 }
 
 #[test]

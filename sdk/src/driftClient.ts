@@ -8560,10 +8560,16 @@ export class DriftClient {
 			.mul(PERCENTAGE_PRECISION)
 			.div(BN.max(oracleData.price, ONE));
 
+		const areSequenceIdsTooDivergent = oracleData.sequenceId
+			.sub(perpMarket.amm.mmOracleSequenceId)
+			.abs()
+			.gt(oracleData.sequenceId.div(new BN(10_000)));
+
 		let isExchangeOracleMoreRecent = true;
 		if (
 			oracleData.sequenceId != null &&
-			oracleData.sequenceId.lt(perpMarket.amm.mmOracleSequenceId)
+			oracleData.sequenceId.lt(perpMarket.amm.mmOracleSequenceId) &&
+			!areSequenceIdsTooDivergent
 		) {
 			isExchangeOracleMoreRecent = false;
 		} else if (

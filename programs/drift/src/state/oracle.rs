@@ -201,7 +201,13 @@ impl MMOraclePriceData {
 
         let exchange_oracle_is_more_recent =
             if let Some(exchange_seq_id) = oracle_price_data.sequence_id {
-                exchange_seq_id > mm_oracle_sequence_id
+                if exchange_seq_id.abs_diff(mm_oracle_sequence_id)
+                    < exchange_seq_id.safe_div_ceil(10_000)?
+                {
+                    exchange_seq_id > mm_oracle_sequence_id
+                } else {
+                    mm_oracle_delay > oracle_price_data.delay
+                }
             } else {
                 mm_oracle_delay > oracle_price_data.delay
             };
@@ -533,12 +539,7 @@ pub fn get_sb_on_demand_price(
         confidence,
         delay,
         has_sufficient_number_of_data_points,
-        sequence_id: Some(
-            pull_feed_account_info
-                .last_update_timestamp
-                .max(0)
-                .cast::<u64>()?,
-        ),
+        sequence_id: None,
     })
 }
 
