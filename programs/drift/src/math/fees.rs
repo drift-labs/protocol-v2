@@ -142,11 +142,10 @@ pub fn calculate_fee_for_fulfillment_with_amm(
         } else {
             0
         };
-        let user_fee = fee.safe_add(builder_fee)?;
 
         // must be non-negative
         Ok(FillFees {
-            user_fee,
+            user_fee: fee,
             maker_rebate: 0,
             fee_to_market,
             fee_to_market_for_lp,
@@ -359,10 +358,9 @@ pub fn calculate_fee_for_fulfillment_with_match(
     } else {
         0
     };
-    let user_fee = taker_fee.safe_add(builder_fee)?;
 
     Ok(FillFees {
-        user_fee,
+        user_fee: taker_fee,
         maker_rebate,
         fee_to_market,
         filler_reward,

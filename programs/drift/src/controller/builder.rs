@@ -74,8 +74,10 @@ pub fn sweep_completed_builder_fees_for_market<'a>(
         // TODO: should we add buffer on pnl pool?
         if pnl_pool_token_amount < fees_accrued as u128 {
             msg!(
-                "market {} PNL pool has insufficient balance to sweep fees for builder",
-                market_index
+                "market {} PNL pool has insufficient balance to sweep fees for builder. pnl_pool_token_amount: {}, fees_accrued: {}",
+                market_index,
+                pnl_pool_token_amount,
+                fees_accrued
             );
             break;
         }

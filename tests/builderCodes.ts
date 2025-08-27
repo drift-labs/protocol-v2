@@ -7,6 +7,8 @@ import {
 	Keypair,
 	LAMPORTS_PER_SOL,
 	PublicKey,
+	Signer,
+	Transaction,
 } from '@solana/web3.js';
 
 import {
@@ -37,6 +39,9 @@ import {
 	BuilderSettleRecord,
 	getLimitOrderParams,
 	SignedMsgOrderParamsMessage,
+	SpotBalanceType,
+	QUOTE_PRECISION,
+	convertToNumber,
 } from '../sdk/src';
 
 import {
@@ -57,6 +62,7 @@ import {
 	isBuilderOrderCompleted,
 	isBuilderOrderReferral,
 } from '../sdk/src/math/builder';
+import { createTransferInstruction } from '@solana/spl-token';
 
 dotenv.config();
 
@@ -160,7 +166,7 @@ describe('builder codes', () => {
 		);
 		builderUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
-			usdcAmount.add(new BN(1000000000)),
+			usdcAmount.add(new BN(1e9).mul(QUOTE_PRECISION)),
 			bankrunContextWrapper,
 			builderClient.wallet.publicKey
 		);
@@ -168,10 +174,27 @@ describe('builder codes', () => {
 			usdcAmount,
 			builderUSDCAccount.publicKey
 		);
-		// await builderClient.depositIntoSpotMarketRevenuePool(0, new BN(1000000000), builderUSDCAccount.publicKey);
+
+		// top up pnl pool for SOL-PERP
+		const spotMarket = builderClient.getSpotMarketAccount(0);
+		const pnlPoolTopupAmount = new BN(500).mul(QUOTE_PRECISION);
+		const transferIx = createTransferInstruction(
+			builderUSDCAccount.publicKey,
+			spotMarket.vault,
+			builderClient.wallet.publicKey,
+			pnlPoolTopupAmount.toNumber()
+		);
+		const tx = new Transaction().add(transferIx);
+		tx.recentBlockhash = (
+			await bankrunContextWrapper.connection.getLatestBlockhash()
+		).blockhash;
+		tx.sign(builderClient.wallet.payer);
+		await bankrunContextWrapper.connection.sendTransaction(tx);
+
+		await builderClient.updatePerpMarketPnlPool(0, pnlPoolTopupAmount);
 		await builderClient.depositIntoPerpMarketFeePool(
 			0,
-			new BN(1000000000),
+			new BN(1e6).mul(QUOTE_PRECISION),
 			builderUSDCAccount.publicKey
 		);
 
@@ -576,11 +599,11 @@ describe('builder codes', () => {
 		const events = parseLogs(builderClient.program, logs);
 		assert(events[0].name === 'OrderActionRecord');
 		const fillQuoteAssetAmount = events[0].data['quoteAssetAmountFilled'] as BN;
-		const builderFee = events[0].data['builderFee'];
+		const builderFee = events[0].data['builderFee'] as BN;
 		const takerFee = events[0].data['takerFee'] as BN;
 		const totalFeePaid = takerFee;
 		const referrerReward = new BN(events[0].data['referrerReward'] as number);
-		assert(builderFee == null);
+		assert(builderFee.eq(ZERO));
 		assert(referrerReward.gt(ZERO));
 
 		await user2Client.fetchAccounts();
@@ -782,6 +805,30 @@ describe('builder codes', () => {
 		userOrders = userClient.getUser().getOpenOrders();
 		assert(userOrders.length === 2);
 
+		const pos = userClient.getUser().getPerpPosition(0);
+		const takerOrderCumulativeQuoteAssetAmountFilled = events[0].data[
+			'takerOrderCumulativeQuoteAssetAmountFilled'
+		] as BN;
+		assert(
+			pos.quoteEntryAmount.abs().eq(takerOrderCumulativeQuoteAssetAmountFilled),
+			`pos.quoteEntryAmount ${pos.quoteEntryAmount.toNumber()} !== takerOrderCumulativeQuoteAssetAmountFilled ${takerOrderCumulativeQuoteAssetAmountFilled.toNumber()}`
+		);
+
+		const builderFeePaidBps =
+			(builderFee.toNumber() * 10000) /
+			Math.abs(pos.quoteEntryAmount.toNumber());
+		assert(
+			Math.round(builderFeePaidBps) === builderFeeBps,
+			`builderFeePaidBps ${builderFeePaidBps} !== builderFeeBps ${builderFeeBps}`
+		);
+
+		const takerFeePaidBps =
+			(takerFee.toNumber() * 10000) / Math.abs(pos.quoteEntryAmount.toNumber());
+		assert(
+			Math.round(takerFeePaidBps * 10) === 95,
+			`takerFeePaidBps ${takerFeePaidBps} !== 95`
+		); // 10bps with 5 bps referrer
+
 		await bankrunContextWrapper.moveTimeForward(100);
 
 		await builderEscrowMap.slowSync();
@@ -836,6 +883,28 @@ describe('builder codes', () => {
 		const builderSettleEvents = settleEvents
 			.filter((e) => e.name === 'BuilderSettleRecord')
 			.map((e) => e.data) as BuilderSettleRecord[];
+
+		console.log('FEE POOOL?');
+		const usdcMarket = builderClient.getQuoteSpotMarketAccount();
+		const mkt = builderClient.getPerpMarketAccount(0);
+		console.log(
+			'feepoolbal:',
+			getTokenAmount(
+				mkt.amm.feePool.scaledBalance,
+				usdcMarket,
+				SpotBalanceType.DEPOSIT
+			).toString()
+		);
+		console.log(
+			'pnlpool:',
+			getTokenAmount(
+				mkt.pnlPool.scaledBalance,
+				usdcMarket,
+				SpotBalanceType.DEPOSIT
+			).toString()
+		);
+		console.log(builderSettleEvents);
+
 		assert(builderSettleEvents.length === 2);
 		assert(builderSettleEvents[0].builder.equals(builder.publicKey));
 		assert(builderSettleEvents[0].referrer == null);

@@ -129,11 +129,10 @@ impl BuilderOrder {
         self.is_bit_flag_set(BuilderOrderBitFlag::Referral)
     }
 
-    /// Checks if the order can be merged with another order. Merged orders track cumulative fees accrued
+    /// Checks if `self` can be merged with `other`. Merged orders track cumulative fees accrued
     /// and are settled together, making more efficient use of the orders list.
     pub fn is_mergeable(&self, other: &BuilderOrder) -> bool {
-        !self.is_referral_order()
-            && !other.is_referral_order()
+        (self.is_referral_order() == other.is_referral_order())
             && other.is_completed()
             && other.market_index == self.market_index
             && other.market_type == self.market_type
