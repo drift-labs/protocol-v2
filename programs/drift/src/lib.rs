@@ -1842,17 +1842,17 @@ pub mod drift {
         handle_update_feature_bit_flags_builder_referral(ctx, enable)
     }
 
-    pub fn initialize_builder<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, InitializeBuilder<'info>>,
+    pub fn initialize_revenue_share<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InitializeRevenueShare<'info>>,
     ) -> Result<()> {
-        handle_initialize_builder(ctx)
+        handle_initialize_revenue_share(ctx)
     }
 
-    pub fn initialize_builder_escrow<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, InitializeBuilderEscrow<'info>>,
+    pub fn initialize_revenue_share_escrow<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, InitializeRevenueShareEscrow<'info>>,
         num_orders: u16,
     ) -> Result<()> {
-        handle_initialize_builder_escrow(ctx, num_orders)
+        handle_initialize_revenue_share_escrow(ctx, num_orders)
     }
 
     pub fn migrate_referrer<'c: 'info, 'info>(
@@ -1861,11 +1861,11 @@ pub mod drift {
         handle_migrate_referrer(ctx)
     }
 
-    pub fn resize_builder_escrow_orders<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, ResizeBuilderEscrowOrders<'info>>,
+    pub fn resize_revenue_share_escrow_orders<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, ResizeRevenueShareEscrowOrders<'info>>,
         num_orders: u16,
     ) -> Result<()> {
-        handle_resize_builder_escrow_orders(ctx, num_orders)
+        handle_resize_revenue_share_escrow_orders(ctx, num_orders)
     }
 
     pub fn change_approved_builder<'c: 'info, 'info>(

@@ -7,7 +7,6 @@ import {
 	Keypair,
 	LAMPORTS_PER_SOL,
 	PublicKey,
-	Signer,
 	Transaction,
 } from '@solana/web3.js';
 
@@ -17,10 +16,10 @@ import {
 	PYTH_LAZER_STORAGE_ACCOUNT_KEY,
 	PTYH_LAZER_PROGRAM_ID,
 	assert,
-	getBuilderAccountPublicKey,
-	getBuilderEscrowAccountPublicKey,
-	BuilderAccount,
-	BuilderEscrow,
+	getRevenueShareAccountPublicKey,
+	getRevenueShareEscrowAccountPublicKey,
+	RevenueShareAccount,
+	RevenueShareEscrow,
 	BASE_PRECISION,
 	BN,
 	PRICE_PRECISION,
@@ -34,14 +33,13 @@ import {
 	isVariant,
 	hasBuilder,
 	parseLogs,
-	BuilderEscrowMap,
+	RevenueShareEscrowMap,
 	getTokenAmount,
-	BuilderSettleRecord,
+	RevenueShareSettleRecord,
 	getLimitOrderParams,
 	SignedMsgOrderParamsMessage,
 	SpotBalanceType,
 	QUOTE_PRECISION,
-	convertToNumber,
 } from '../sdk/src';
 
 import {
@@ -88,11 +86,11 @@ describe('builder codes', () => {
 	let userUSDCAccount: PublicKey = null;
 	let userClient: TestClient;
 
-	// user without BuilderEscrow
+	// user without RevenueShareEscrow
 	let user2USDCAccount: PublicKey = null;
 	let user2Client: TestClient;
 
-	let builderEscrowMap: BuilderEscrowMap;
+	let escrowMap: RevenueShareEscrowMap;
 	let bulkAccountLoader: TestBulkAccountLoader;
 	let bankrunContextWrapper: BankrunContextWrapper;
 
@@ -266,7 +264,7 @@ describe('builder codes', () => {
 			true
 		);
 
-		builderEscrowMap = new BuilderEscrowMap(userClient, false);
+		escrowMap = new RevenueShareEscrowMap(userClient, false);
 	});
 
 	after(async () => {
@@ -277,19 +275,19 @@ describe('builder codes', () => {
 	});
 
 	it('builder can create builder', async () => {
-		await builderClient.initializeBuilder(builderClient.wallet.publicKey);
+		await builderClient.initializeRevenueShare(builderClient.wallet.publicKey);
 
 		const builderAccountInfo =
 			await bankrunContextWrapper.connection.getAccountInfo(
-				getBuilderAccountPublicKey(
+				getRevenueShareAccountPublicKey(
 					builderClient.program.programId,
 					builderClient.wallet.publicKey
 				)
 			);
 
-		const builderAcc: BuilderAccount =
-			builderClient.program.account.builder.coder.accounts.decodeUnchecked(
-				'Builder',
+		const builderAcc: RevenueShareAccount =
+			builderClient.program.account.revenueShare.coder.accounts.decodeUnchecked(
+				'RevenueShare',
 				builderAccountInfo.data
 			);
 		assert(
@@ -300,11 +298,11 @@ describe('builder codes', () => {
 		assert(builderAcc.totalReferrerRewards.toNumber() === 0);
 	});
 
-	it('user can initialize a BuilderEscrow', async () => {
+	it('user can initialize a RevenueShareEscrow', async () => {
 		const numOrders = 2;
 
 		// Test the instruction creation
-		const ix = await userClient.getInitializeBuilderEscrowIx(
+		const ix = await userClient.getInitializeRevenueShareEscrowIx(
 			userClient.wallet.publicKey,
 			numOrders
 		);
@@ -313,26 +311,26 @@ describe('builder codes', () => {
 		assert(ix.programId.toBase58() === userClient.program.programId.toBase58());
 
 		// Test the full transaction
-		await userClient.initializeBuilderEscrow(
+		await userClient.initializeRevenueShareEscrow(
 			userClient.wallet.publicKey,
 			numOrders
 		);
 
 		const accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
-			getBuilderEscrowAccountPublicKey(
+			getRevenueShareEscrowAccountPublicKey(
 				userClient.program.programId,
 				userClient.wallet.publicKey
 			)
 		);
 
-		assert(accountInfo !== null, 'BuilderEscrow account should exist');
+		assert(accountInfo !== null, 'RevenueShareEscrow account should exist');
 		assert(
 			accountInfo.owner.toBase58() === userClient.program.programId.toBase58()
 		);
 
-		const revShareEscrow: BuilderEscrow =
+		const revShareEscrow: RevenueShareEscrow =
 			builderClient.program.coder.accounts.decodeUnchecked(
-				'BuilderEscrow',
+				'RevenueShareEscrow',
 				accountInfo.data
 			);
 		assert(
@@ -347,11 +345,11 @@ describe('builder codes', () => {
 		assert(revShareEscrow.approvedBuilders.length === 0);
 	});
 
-	it('user can resize BuilderEscrow account', async () => {
+	it('user can resize RevenueShareEscrow account', async () => {
 		const newNumOrders = 10;
 
 		// Test the instruction creation
-		const ix = await userClient.getResizeBuilderEscrowOrdersIx(
+		const ix = await userClient.getResizeRevenueShareEscrowOrdersIx(
 			userClient.wallet.publicKey,
 			newNumOrders
 		);
@@ -360,13 +358,13 @@ describe('builder codes', () => {
 		assert(ix.programId.toBase58() === userClient.program.programId.toBase58());
 
 		// Test the full transaction
-		await userClient.resizeBuilderEscrowOrders(
+		await userClient.resizeRevenueShareEscrowOrders(
 			userClient.wallet.publicKey,
 			newNumOrders
 		);
 
 		const accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
-			getBuilderEscrowAccountPublicKey(
+			getRevenueShareEscrowAccountPublicKey(
 				userClient.program.programId,
 				userClient.wallet.publicKey
 			)
@@ -374,15 +372,15 @@ describe('builder codes', () => {
 
 		assert(
 			accountInfo !== null,
-			'BuilderEscrow account should exist after resize'
+			'RevenueShareEscrow account should exist after resize'
 		);
 		assert(
 			accountInfo.owner.toBase58() === userClient.program.programId.toBase58()
 		);
 
-		const revShareEscrow: BuilderEscrow =
+		const revShareEscrow: RevenueShareEscrow =
 			builderClient.program.coder.accounts.decodeUnchecked(
-				'BuilderEscrow',
+				'RevenueShareEscrow',
 				accountInfo.data
 			);
 		assert(
@@ -396,7 +394,7 @@ describe('builder codes', () => {
 		assert(revShareEscrow.orders.length === newNumOrders);
 	});
 
-	it('user can add/update/remove approved builder from BuilderEscrow', async () => {
+	it('user can add/update/remove approved builder from RevenueShareEscrow', async () => {
 		const builder = builderClient.wallet;
 		const maxFeeBps = 150; // 1.5%
 
@@ -410,15 +408,15 @@ describe('builder codes', () => {
 
 		// Verify the builder was added
 		let accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
-			getBuilderEscrowAccountPublicKey(
+			getRevenueShareEscrowAccountPublicKey(
 				userClient.program.programId,
 				userClient.wallet.publicKey
 			)
 		);
 
-		let revShareEscrow: BuilderEscrow =
+		let revShareEscrow: RevenueShareEscrow =
 			userClient.program.coder.accounts.decodeUnchecked(
-				'BuilderEscrow',
+				'RevenueShareEscrow',
 				accountInfo.data
 			);
 		const addedBuilder = revShareEscrow.approvedBuilders.find(
@@ -447,14 +445,14 @@ describe('builder codes', () => {
 
 		// Verify the builder was updated
 		accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
-			getBuilderEscrowAccountPublicKey(
+			getRevenueShareEscrowAccountPublicKey(
 				userClient.program.programId,
 				userClient.wallet.publicKey
 			)
 		);
 
 		revShareEscrow = userClient.program.coder.accounts.decodeUnchecked(
-			'BuilderEscrow',
+			'RevenueShareEscrow',
 			accountInfo.data
 		);
 		const updatedBuilder = revShareEscrow.approvedBuilders.find(
@@ -479,14 +477,14 @@ describe('builder codes', () => {
 
 		// Verify the builder was removed
 		accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
-			getBuilderEscrowAccountPublicKey(
+			getRevenueShareEscrowAccountPublicKey(
 				userClient.program.programId,
 				userClient.wallet.publicKey
 			)
 		);
 
 		revShareEscrow = userClient.program.coder.accounts.decodeUnchecked(
-			'BuilderEscrow',
+			'RevenueShareEscrow',
 			accountInfo.data
 		);
 		const removedBuilder = revShareEscrow.approvedBuilders.find(
@@ -498,7 +496,7 @@ describe('builder codes', () => {
 		);
 	});
 
-	it('user with no BuilderEscrow can place and fill order with no builder', async () => {
+	it('user with no RevenueShareEscrow can place and fill order with no builder', async () => {
 		const slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
@@ -744,28 +742,26 @@ describe('builder codes', () => {
 		assert(userOrders[2].reduceOnly === false);
 		assert(hasBuilder(userOrders[2]) === true);
 
-		await builderEscrowMap.slowSync();
-		let builderEscrow = (await builderEscrowMap.mustGet(
+		await escrowMap.slowSync();
+		let escrow = (await escrowMap.mustGet(
 			userClient.wallet.publicKey.toBase58()
-		)) as BuilderEscrow;
+		)) as RevenueShareEscrow;
 
 		// check the corresponding revShareEscrow orders are added
 		for (let i = 0; i < userOrders.length; i++) {
-			assert(builderEscrow.orders[i]!.builderIdx === 0);
-			assert(builderEscrow.orders[i]!.feesAccrued.eq(ZERO));
-			assert(builderEscrow.orders[i]!.feeBps === builderFeeBps);
+			assert(escrow.orders[i]!.builderIdx === 0);
+			assert(escrow.orders[i]!.feesAccrued.eq(ZERO));
+			assert(escrow.orders[i]!.feeBps === builderFeeBps);
 			assert(
-				builderEscrow.orders[i]!.orderId === i + 1,
-				`orderId ${i} is ${builderEscrow.orders[i]!.orderId}`
+				escrow.orders[i]!.orderId === i + 1,
+				`orderId ${i} is ${escrow.orders[i]!.orderId}`
 			);
-			assert(isVariant(builderEscrow.orders[i]!.marketType, 'perp'));
-			assert(builderEscrow.orders[i]!.marketIndex === marketIndex);
+			assert(isVariant(escrow.orders[i]!.marketType, 'perp'));
+			assert(escrow.orders[i]!.marketIndex === marketIndex);
 		}
 
-		assert(
-			builderEscrow.approvedBuilders[0]!.authority.equals(builder.publicKey)
-		);
-		assert(builderEscrow.approvedBuilders[0]!.maxFeeBps === maxFeeBps);
+		assert(escrow.approvedBuilders[0]!.authority.equals(builder.publicKey));
+		assert(escrow.approvedBuilders[0]!.maxFeeBps === maxFeeBps);
 
 		await userClient.fetchAccounts();
 
@@ -831,13 +827,13 @@ describe('builder codes', () => {
 
 		await bankrunContextWrapper.moveTimeForward(100);
 
-		await builderEscrowMap.slowSync();
-		builderEscrow = (await builderEscrowMap.mustGet(
+		await escrowMap.slowSync();
+		escrow = (await escrowMap.mustGet(
 			userClient.wallet.publicKey.toBase58()
-		)) as BuilderEscrow;
-		assert(builderEscrow.orders[2].orderId === 3);
-		assert(builderEscrow.orders[2].feesAccrued.gt(ZERO));
-		assert(isBuilderOrderCompleted(builderEscrow.orders[2]));
+		)) as RevenueShareEscrow;
+		assert(escrow.orders[2].orderId === 3);
+		assert(escrow.orders[2].feesAccrued.gt(ZERO));
+		assert(isBuilderOrderCompleted(escrow.orders[2]));
 
 		// cancel remaining orders
 		await userClient.cancelOrders();
@@ -851,12 +847,12 @@ describe('builder codes', () => {
 			perpPos.quoteAssetAmount.eq(fillQuoteAssetAmount.add(totalFeePaid).neg())
 		);
 
-		await builderEscrowMap.slowSync();
-		builderEscrow = (await builderEscrowMap.mustGet(
+		await escrowMap.slowSync();
+		escrow = (await escrowMap.mustGet(
 			userClient.wallet.publicKey.toBase58()
-		)) as BuilderEscrow;
-		assert(builderEscrow.orders[2].bitFlags === 3);
-		assert(builderEscrow.orders[2].feesAccrued.eq(builderFee));
+		)) as RevenueShareEscrow;
+		assert(escrow.orders[2].bitFlags === 3);
+		assert(escrow.orders[2].feesAccrued.eq(builderFee));
 
 		await builderClient.fetchAccounts();
 		let usdcPos = builderClient.getSpotPosition(0);
@@ -872,7 +868,7 @@ describe('builder codes', () => {
 			marketIndex,
 			undefined,
 			undefined,
-			builderEscrowMap
+			escrowMap
 		);
 
 		const settleLogs = await printTxLogs(
@@ -881,8 +877,8 @@ describe('builder codes', () => {
 		);
 		const settleEvents = parseLogs(builderClient.program, settleLogs);
 		const builderSettleEvents = settleEvents
-			.filter((e) => e.name === 'BuilderSettleRecord')
-			.map((e) => e.data) as BuilderSettleRecord[];
+			.filter((e) => e.name === 'RevenueShareSettleRecord')
+			.map((e) => e.data) as RevenueShareSettleRecord[];
 
 		console.log('FEE POOOL?');
 		const usdcMarket = builderClient.getQuoteSpotMarketAccount();
@@ -903,6 +899,7 @@ describe('builder codes', () => {
 				SpotBalanceType.DEPOSIT
 			).toString()
 		);
+		console.log('wtfff====');
 		console.log(builderSettleEvents);
 
 		assert(builderSettleEvents.length === 2);
@@ -926,11 +923,11 @@ describe('builder codes', () => {
 		);
 		assert(builderSettleEvents[1].builderTotalBuilderRewards.eq(builderFee));
 
-		await builderEscrowMap.slowSync();
-		builderEscrow = (await builderEscrowMap.mustGet(
+		await escrowMap.slowSync();
+		escrow = (await escrowMap.mustGet(
 			userClient.wallet.publicKey.toBase58()
-		)) as BuilderEscrow;
-		for (const order of builderEscrow.orders) {
+		)) as RevenueShareEscrow;
+		for (const order of escrow.orders) {
 			assert(order.feesAccrued.eq(ZERO));
 		}
 
@@ -959,10 +956,10 @@ describe('builder codes', () => {
 			true
 		);
 
-		await builderEscrowMap.slowSync();
-		const beforeEscrow = (await builderEscrowMap.mustGet(
+		await escrowMap.slowSync();
+		const beforeEscrow = (await escrowMap.mustGet(
 			userClient.wallet.publicKey.toBase58()
-		)) as BuilderEscrow;
+		)) as RevenueShareEscrow;
 		const beforeTotalFees = beforeEscrow.orders.reduce(
 			(sum, o) => sum.add(o.feesAccrued ?? ZERO),
 			ZERO
@@ -1016,10 +1013,10 @@ describe('builder codes', () => {
 		await userClient.fetchAccounts();
 		assert(userClient.getUser().getOpenOrders().length === 0);
 
-		await builderEscrowMap.slowSync();
-		const afterEscrow = (await builderEscrowMap.mustGet(
+		await escrowMap.slowSync();
+		const afterEscrow = (await escrowMap.mustGet(
 			userClient.wallet.publicKey.toBase58()
-		)) as BuilderEscrow;
+		)) as RevenueShareEscrow;
 		const afterTotalFees = afterEscrow.orders.reduce(
 			(sum, o) => sum.add(o.feesAccrued ?? ZERO),
 			ZERO
@@ -1065,10 +1062,10 @@ describe('builder codes', () => {
 			} as SignedMsgOrderParamsMessage;
 		}
 
-		await builderEscrowMap.slowSync();
-		const escrowStart = (await builderEscrowMap.mustGet(
+		await escrowMap.slowSync();
+		const escrowStart = (await escrowMap.mustGet(
 			userClient.wallet.publicKey.toBase58()
-		)) as BuilderEscrow;
+		)) as RevenueShareEscrow;
 		const totalFeesInEscrowStart = escrowStart.orders.reduce(
 			(sum, o) => sum.add(o.feesAccrued ?? ZERO),
 			ZERO
@@ -1170,10 +1167,10 @@ describe('builder codes', () => {
 
 		await bankrunContextWrapper.moveTimeForward(100);
 
-		await builderEscrowMap.slowSync();
-		const escrowAfterFills = (await builderEscrowMap.mustGet(
+		await escrowMap.slowSync();
+		const escrowAfterFills = (await escrowMap.mustGet(
 			userClient.wallet.publicKey.toBase58()
-		)) as BuilderEscrow;
+		)) as RevenueShareEscrow;
 		const totalFeesAccrued = escrowAfterFills.orders.reduce(
 			(sum, o) => sum.add(o.feesAccrued ?? ZERO),
 			ZERO
@@ -1202,13 +1199,13 @@ describe('builder codes', () => {
 			marketIndex,
 			undefined,
 			undefined,
-			builderEscrowMap
+			escrowMap
 		);
 
-		await builderEscrowMap.slowSync();
-		const escrowAfterSettle = (await builderEscrowMap.mustGet(
+		await escrowMap.slowSync();
+		const escrowAfterSettle = (await escrowMap.mustGet(
 			userClient.wallet.publicKey.toBase58()
-		)) as BuilderEscrow;
+		)) as RevenueShareEscrow;
 		for (const order of escrowAfterSettle.orders) {
 			assert(order.feesAccrued.eq(ZERO));
 		}
@@ -1352,10 +1349,10 @@ describe('builder codes', () => {
 
 		await bankrunContextWrapper.moveTimeForward(100);
 
-		await builderEscrowMap.slowSync();
-		const escrowAfterFills = (await builderEscrowMap.mustGet(
+		await escrowMap.slowSync();
+		const escrowAfterFills = (await escrowMap.mustGet(
 			userClient.wallet.publicKey.toBase58()
-		)) as BuilderEscrow;
+		)) as RevenueShareEscrow;
 		const totalFeesAccrued = escrowAfterFills.orders
 			.filter((o) => !isBuilderOrderReferral(o))
 			.reduce((sum, o) => sum.add(o.feesAccrued ?? ZERO), ZERO);
@@ -1379,17 +1376,17 @@ describe('builder codes', () => {
 			marketIndex,
 			undefined,
 			undefined,
-			builderEscrowMap
+			escrowMap
 		);
 		await printTxLogs(
 			bankrunContextWrapper.connection.toConnection(),
 			settleTx
 		);
 
-		await builderEscrowMap.slowSync();
-		const escrowAfterSettle = (await builderEscrowMap.mustGet(
+		await escrowMap.slowSync();
+		const escrowAfterSettle = (await escrowMap.mustGet(
 			userClient.wallet.publicKey.toBase58()
-		)) as BuilderEscrow;
+		)) as RevenueShareEscrow;
 		for (const order of escrowAfterSettle.orders) {
 			assert(order.feesAccrued.eq(ZERO));
 		}
@@ -1409,14 +1406,14 @@ describe('builder codes', () => {
 
 		const builderAccountInfo =
 			await bankrunContextWrapper.connection.getAccountInfo(
-				getBuilderAccountPublicKey(
+				getRevenueShareAccountPublicKey(
 					builderClient.program.programId,
 					builderClient.wallet.publicKey
 				)
 			);
-		const builderAcc: BuilderAccount =
-			builderClient.program.account.builder.coder.accounts.decodeUnchecked(
-				'Builder',
+		const builderAcc: RevenueShareAccount =
+			builderClient.program.account.revenueShare.coder.accounts.decodeUnchecked(
+				'RevenueShare',
 				builderAccountInfo.data
 			);
 		assert(

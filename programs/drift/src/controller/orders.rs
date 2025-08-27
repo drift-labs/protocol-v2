@@ -4,8 +4,10 @@ use std::ops::{Deref, DerefMut};
 use std::u64;
 
 use crate::msg;
-use crate::state::builder::{BuilderEscrowZeroCopyMut, BuilderOrder, BuilderOrderBitFlag};
 use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
+use crate::state::revenue_share::{
+    RevenueShareEscrowZeroCopyMut, RevenueShareOrder, RevenueShareOrderBitFlag,
+};
 use anchor_lang::prelude::*;
 
 use crate::controller::funding::settle_funding_payment;
@@ -110,7 +112,7 @@ pub fn place_perp_order(
     clock: &Clock,
     mut params: OrderParams,
     mut options: PlaceOrderOptions,
-    builder_order: &mut Option<&mut BuilderOrder>,
+    rev_share_order: &mut Option<&mut RevenueShareOrder>,
 ) -> DriftResult {
     let now = clock.unix_timestamp;
     let slot: u64 = clock.slot;
@@ -306,7 +308,7 @@ pub fn place_perp_order(
         OrderBitFlag::NewTriggerReduceOnly,
     );
 
-    if builder_order.is_some() {
+    if rev_share_order.is_some() {
         bit_flags = set_order_bit_flag(bit_flags, true, OrderBitFlag::HasBuilder);
     }
 
@@ -985,7 +987,7 @@ pub fn fill_perp_order(
     jit_maker_order_id: Option<u32>,
     clock: &Clock,
     fill_mode: FillMode,
-    builder_escrow: &mut Option<&mut BuilderEscrowZeroCopyMut>,
+    rev_share_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
 ) -> DriftResult<(u64, u64)> {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -1333,7 +1335,7 @@ pub fn fill_perp_order(
         amm_availability,
         fill_mode,
         oracle_stale_for_margin,
-        builder_escrow,
+        rev_share_escrow,
     )?;
 
     if base_asset_amount != 0 {
@@ -1768,7 +1770,7 @@ fn fulfill_perp_order(
     amm_availability: AMMAvailability,
     fill_mode: FillMode,
     oracle_stale_for_margin: bool,
-    builder_escrow: &mut Option<&mut BuilderEscrowZeroCopyMut>,
+    rev_share_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
 ) -> DriftResult<(u64, u64)> {
     let market_index = user.orders[user_order_index].market_index;
 
@@ -1868,7 +1870,7 @@ fn fulfill_perp_order(
                         *maker_price,
                         AMMLiquiditySplit::Shared,
                         fill_mode.is_liquidation(),
-                        builder_escrow,
+                        rev_share_escrow,
                     )?;
 
                 (fill_base_asset_amount, fill_quote_asset_amount)
@@ -1914,7 +1916,7 @@ fn fulfill_perp_order(
                         oracle_map,
                         fill_mode.is_liquidation(),
                         None,
-                        builder_escrow,
+                        rev_share_escrow,
                     )?;
 
                 if maker_fill_base_asset_amount != 0 {
@@ -2159,7 +2161,7 @@ pub fn fulfill_perp_order_with_amm(
     override_fill_price: Option<u64>,
     liquidity_split: AMMLiquiditySplit,
     is_liquidation: bool,
-    builder_escrow: &mut Option<&mut BuilderEscrowZeroCopyMut>,
+    rev_share_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
 ) -> DriftResult<(u64, u64)> {
     let position_index = get_position_index(&user.perp_positions, market.market_index)?;
     let existing_base_asset_amount = user.perp_positions[position_index].base_asset_amount;
@@ -2269,7 +2271,7 @@ pub fn fulfill_perp_order_with_amm(
         || can_reward_user_with_perp_pnl(maker, market.market_index);
 
     let (builder_order_idx, referrer_builder_order_idx, builder_order_fee_bps, builder_idx) =
-        if let Some(escrow) = builder_escrow {
+        if let Some(escrow) = rev_share_escrow {
             let builder_order_idx = escrow.find_order_index(user.sub_account_id, order_id);
             let referrer_builder_order_idx =
                 escrow.find_or_create_referral_index(market.market_index);
@@ -2313,7 +2315,7 @@ pub fn fulfill_perp_order_with_amm(
         builder_order_fee_bps,
     )?;
 
-    if let Some((idx, escrow)) = builder_order_idx.zip(builder_escrow.as_mut()) {
+    if let Some((idx, escrow)) = builder_order_idx.zip(rev_share_escrow.as_mut()) {
         let mut order = escrow.get_order_mut(idx)?;
         order.fees_accrued = order.fees_accrued.safe_add(builder_fee)?;
     }
@@ -2365,7 +2367,7 @@ pub fn fulfill_perp_order_with_amm(
     user_stats.increment_total_rebate(maker_rebate)?;
     user_stats.increment_total_referee_discount(referee_discount)?;
 
-    if let Some((idx, escrow)) = referrer_builder_order_idx.zip(builder_escrow.as_mut()) {
+    if let Some((idx, escrow)) = referrer_builder_order_idx.zip(rev_share_escrow.as_mut()) {
         let mut order = escrow.get_order_mut(idx)?;
         order.fees_accrued = order.fees_accrued.safe_add(referrer_reward)?;
     } else if let (Some(referrer), Some(referrer_stats)) =
@@ -2431,10 +2433,10 @@ pub fn fulfill_perp_order_with_amm(
         quote_asset_amount,
     )?;
     if is_filled {
-        if let Some((idx, escrow)) = builder_order_idx.zip(builder_escrow.as_mut()) {
+        if let Some((idx, escrow)) = builder_order_idx.zip(rev_share_escrow.as_mut()) {
             let builder_order = escrow
                 .get_order_mut(idx)
-                .map(|order| order.add_bit_flag(BuilderOrderBitFlag::Completed));
+                .map(|order| order.add_bit_flag(RevenueShareOrderBitFlag::Completed));
         }
     }
 
@@ -2588,7 +2590,7 @@ pub fn fulfill_perp_order_with_match(
     oracle_map: &mut OracleMap,
     is_liquidation: bool,
     amm_lp_allowed_to_jit_make: Option<bool>,
-    builder_escrow: &mut Option<&mut BuilderEscrowZeroCopyMut>,
+    builder_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
 ) -> DriftResult<(u64, u64, u64)> {
     if !are_orders_same_market_but_different_sides(
         &maker.orders[maker_order_index],
@@ -2939,7 +2941,7 @@ pub fn fulfill_perp_order_with_match(
         if let (Some(idx), Some(escrow)) = (builder_order_idx, builder_escrow.as_deref_mut()) {
             escrow
                 .get_order_mut(idx)?
-                .add_bit_flag(BuilderOrderBitFlag::Completed);
+                .add_bit_flag(RevenueShareOrderBitFlag::Completed);
         }
     }
 

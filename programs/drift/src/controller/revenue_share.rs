@@ -3,23 +3,25 @@ use anchor_lang::prelude::*;
 use crate::controller::spot_balance;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
-use crate::state::builder::{BuilderEscrowZeroCopyMut, BuilderOrder, BuilderOrderBitFlag};
-use crate::state::builder_map::BuilderMap;
-use crate::state::events::{emit_stack, BuilderSettleRecord};
+use crate::state::events::{emit_stack, RevenueShareSettleRecord};
 use crate::state::perp_market_map::PerpMarketMap;
+use crate::state::revenue_share::{
+    RevenueShareEscrowZeroCopyMut, RevenueShareOrder, RevenueShareOrderBitFlag,
+};
+use crate::state::revenue_share_map::RevenueShareMap;
 use crate::state::spot_market::SpotBalance;
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::traits::Size;
 use crate::state::user::MarketType;
 
-/// Runs through the user's BuilderEscrow account and sweeps any accrued fees to the corresponding
+/// Runs through the user's RevenueShareEscrow account and sweeps any accrued fees to the corresponding
 /// builders and referrer.
-pub fn sweep_completed_builder_fees_for_market<'a>(
+pub fn sweep_completed_revenue_share_for_market<'a>(
     market_index: u16,
-    builder_escrow: &mut BuilderEscrowZeroCopyMut,
+    revenue_share_escrow: &mut RevenueShareEscrowZeroCopyMut,
     perp_market_map: &PerpMarketMap<'a>,
     spot_market_map: &SpotMarketMap<'a>,
-    builder_map: BuilderMap<'a>,
+    revenue_share_map: RevenueShareMap<'a>,
     now_ts: i64,
 ) -> crate::error::DriftResult<()> {
     let perp_market = &mut perp_market_map.get_ref_mut(&market_index)?;
@@ -27,7 +29,7 @@ pub fn sweep_completed_builder_fees_for_market<'a>(
 
     spot_balance::update_spot_market_cumulative_interest(quote_spot_market, None, now_ts)?;
 
-    let orders_len = builder_escrow.orders_len();
+    let orders_len = revenue_share_escrow.orders_len();
     for i in 0..orders_len {
         let (
             is_completed,
@@ -37,7 +39,7 @@ pub fn sweep_completed_builder_fees_for_market<'a>(
             fees_accrued,
             builder_idx,
         ) = {
-            let ord_ro = match builder_escrow.get_order(i) {
+            let ord_ro = match revenue_share_escrow.get_order(i) {
                 Ok(o) => o,
                 Err(_) => {
                     continue;
@@ -83,19 +85,20 @@ pub fn sweep_completed_builder_fees_for_market<'a>(
         }
 
         if is_referral_order {
-            let referrer_authority = if let Some(referrer_authority) = builder_escrow.get_referrer()
-            {
-                referrer_authority
-            } else {
-                continue;
-            };
+            let referrer_authority =
+                if let Some(referrer_authority) = revenue_share_escrow.get_referrer() {
+                    referrer_authority
+                } else {
+                    continue;
+                };
 
-            let referrer_user = builder_map.get_user_ref_mut(&referrer_authority);
-            let referrer_builder = builder_map.get_builder_account_mut(&referrer_authority);
+            let referrer_user = revenue_share_map.get_user_ref_mut(&referrer_authority);
+            let referrer_rev_share =
+                revenue_share_map.get_revenue_share_account_mut(&referrer_authority);
 
-            if referrer_user.is_ok() && referrer_builder.is_ok() {
+            if referrer_user.is_ok() && referrer_rev_share.is_ok() {
                 let mut referrer_user = referrer_user.unwrap();
-                let mut referrer_builder = referrer_builder.unwrap();
+                let mut referrer_rev_share = referrer_rev_share.unwrap();
 
                 spot_balance::transfer_spot_balances(
                     fees_accrued as i128,
@@ -104,29 +107,29 @@ pub fn sweep_completed_builder_fees_for_market<'a>(
                     referrer_user.get_quote_spot_position_mut(),
                 )?;
 
-                referrer_builder.total_referrer_rewards = referrer_builder
+                referrer_rev_share.total_referrer_rewards = referrer_rev_share
                     .total_referrer_rewards
                     .safe_add(fees_accrued as u64)?;
 
-                emit_stack::<_, { BuilderSettleRecord::SIZE }>(BuilderSettleRecord {
+                emit_stack::<_, { RevenueShareSettleRecord::SIZE }>(RevenueShareSettleRecord {
                     ts: now_ts,
                     builder: None,
                     referrer: Some(referrer_authority),
                     fee_settled: fees_accrued as u64,
                     market_index: order_market_index,
                     market_type: order_market_type,
-                    builder_total_referrer_rewards: referrer_builder.total_referrer_rewards,
-                    builder_total_builder_rewards: referrer_builder.total_builder_rewards,
+                    builder_total_referrer_rewards: referrer_rev_share.total_referrer_rewards,
+                    builder_total_builder_rewards: referrer_rev_share.total_builder_rewards,
                     builder_sub_account_id: referrer_user.sub_account_id,
                 })?;
 
                 // zero out the order
-                if let Ok(builder_order) = builder_escrow.get_order_mut(i) {
+                if let Ok(builder_order) = revenue_share_escrow.get_order_mut(i) {
                     builder_order.fees_accrued = 0;
                 }
             }
         } else {
-            let builder_authority = match builder_escrow
+            let builder_authority = match revenue_share_escrow
                 .get_approved_builder_mut(builder_idx)
                 .map(|builder| builder.authority)
             {
@@ -136,12 +139,13 @@ pub fn sweep_completed_builder_fees_for_market<'a>(
                 }
             };
 
-            let builder_user = builder_map.get_user_ref_mut(&builder_authority);
-            let builder = builder_map.get_builder_account_mut(&builder_authority);
+            let builder_user = revenue_share_map.get_user_ref_mut(&builder_authority);
+            let builder_rev_share =
+                revenue_share_map.get_revenue_share_account_mut(&builder_authority);
 
-            if builder_user.is_ok() && builder.is_ok() {
+            if builder_user.is_ok() && builder_rev_share.is_ok() {
                 let mut builder_user = builder_user.unwrap();
-                let mut builder_revenue_share = builder.unwrap();
+                let mut builder_revenue_share = builder_rev_share.unwrap();
 
                 spot_balance::transfer_spot_balances(
                     fees_accrued as i128,
@@ -154,7 +158,7 @@ pub fn sweep_completed_builder_fees_for_market<'a>(
                     .total_builder_rewards
                     .safe_add(fees_accrued as u64)?;
 
-                emit_stack::<_, { BuilderSettleRecord::SIZE }>(BuilderSettleRecord {
+                emit_stack::<_, { RevenueShareSettleRecord::SIZE }>(RevenueShareSettleRecord {
                     ts: now_ts,
                     builder: Some(builder_authority),
                     referrer: None,
@@ -167,8 +171,8 @@ pub fn sweep_completed_builder_fees_for_market<'a>(
                 })?;
 
                 // remove order
-                if let Ok(builder_order) = builder_escrow.get_order_mut(i) {
-                    *builder_order = BuilderOrder::default();
+                if let Ok(builder_order) = revenue_share_escrow.get_order_mut(i) {
+                    *builder_order = RevenueShareOrder::default();
                 }
             } else {
                 msg!(

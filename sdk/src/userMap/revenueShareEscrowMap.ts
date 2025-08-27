@@ -1,14 +1,14 @@
 import { PublicKey, RpcResponseAndContext } from '@solana/web3.js';
 import { DriftClient } from '../driftClient';
-import { BuilderEscrow } from '../types';
-import { getBuilderEscrowAccountPublicKey } from '../addresses/pda';
-import { getBuilderEscrowFilter } from '../memcmp';
+import { RevenueShareEscrow } from '../types';
+import { getRevenueShareEscrowAccountPublicKey } from '../addresses/pda';
+import { getRevenueShareEscrowFilter } from '../memcmp';
 
-export class BuilderEscrowMap {
+export class RevenueShareEscrowMap {
 	/**
-	 * map from authority pubkey to BuilderEscrow account data.
+	 * map from authority pubkey to RevenueShareEscrow account data.
 	 */
-	private authorityEscrowMap = new Map<string, BuilderEscrow>();
+	private authorityEscrowMap = new Map<string, RevenueShareEscrow>();
 	private driftClient: DriftClient;
 	private parallelSync: boolean;
 
@@ -16,7 +16,7 @@ export class BuilderEscrowMap {
 	private fetchPromiseResolver: () => void;
 
 	/**
-	 * Creates a new BuilderEscrowMap instance.
+	 * Creates a new RevenueShareEscrowMap instance.
 	 *
 	 * @param {DriftClient} driftClient - The DriftClient instance.
 	 * @param {boolean} parallelSync - Whether to sync accounts in parallel.
@@ -27,7 +27,7 @@ export class BuilderEscrowMap {
 	}
 
 	/**
-	 * Subscribe to all BuilderEscrow accounts.
+	 * Subscribe to all RevenueShareEscrow accounts.
 	 */
 	public async subscribe() {
 		if (this.size() > 0) {
@@ -42,50 +42,50 @@ export class BuilderEscrowMap {
 		return this.authorityEscrowMap.has(authorityPublicKey);
 	}
 
-	public get(authorityPublicKey: string): BuilderEscrow | undefined {
+	public get(authorityPublicKey: string): RevenueShareEscrow | undefined {
 		return this.authorityEscrowMap.get(authorityPublicKey);
 	}
 
 	/**
-	 * Enforce that a BuilderEscrow will exist for the given authorityPublicKey,
+	 * Enforce that a RevenueShareEscrow will exist for the given authorityPublicKey,
 	 * reading one from the blockchain if necessary.
 	 * @param authorityPublicKey
 	 * @returns
 	 */
 	public async mustGet(
 		authorityPublicKey: string
-	): Promise<BuilderEscrow | undefined> {
+	): Promise<RevenueShareEscrow | undefined> {
 		if (!this.has(authorityPublicKey)) {
-			await this.addBuilderEscrow(authorityPublicKey);
+			await this.addRevenueShareEscrow(authorityPublicKey);
 		}
 		return this.get(authorityPublicKey);
 	}
 
-	public async addBuilderEscrow(authority: string) {
-		const builderEscrowAccountPublicKey = getBuilderEscrowAccountPublicKey(
+	public async addRevenueShareEscrow(authority: string) {
+		const escrowAccountPublicKey = getRevenueShareEscrowAccountPublicKey(
 			this.driftClient.program.programId,
 			new PublicKey(authority)
 		);
 
 		try {
 			const accountInfo = await this.driftClient.connection.getAccountInfo(
-				builderEscrowAccountPublicKey,
+				escrowAccountPublicKey,
 				'processed'
 			);
 
 			if (accountInfo && accountInfo.data) {
-				const builderEscrow =
-					this.driftClient.program.account.builderEscrow.coder.accounts.decode(
-						'BuilderEscrow',
+				const escrow =
+					this.driftClient.program.account.revenueShareEscrow.coder.accounts.decode(
+						'RevenueShareEscrow',
 						accountInfo.data
-					) as BuilderEscrow;
+					) as RevenueShareEscrow;
 
-				this.authorityEscrowMap.set(authority, builderEscrow);
+				this.authorityEscrowMap.set(authority, escrow);
 			}
 		} catch (error) {
-			// BuilderEscrow account doesn't exist for this authority, which is normal
+			// RevenueShareEscrow account doesn't exist for this authority, which is normal
 			console.debug(
-				`No BuilderEscrow account found for authority: ${authority}`
+				`No RevenueShareEscrow account found for authority: ${authority}`
 			);
 		}
 	}
@@ -121,18 +121,18 @@ export class BuilderEscrowMap {
 		}
 		for (const authority of this.authorityEscrowMap.keys()) {
 			const accountInfo = await this.driftClient.connection.getAccountInfo(
-				getBuilderEscrowAccountPublicKey(
+				getRevenueShareEscrowAccountPublicKey(
 					this.driftClient.program.programId,
 					new PublicKey(authority)
 				),
 				'confirmed'
 			);
-			const builderEscrowNew =
-				this.driftClient.program.account.builderEscrow.coder.accounts.decode(
-					'BuilderEscrow',
+			const escrowNew =
+				this.driftClient.program.account.revenueShareEscrow.coder.accounts.decode(
+					'RevenueShareEscrow',
 					accountInfo.data
-				) as BuilderEscrow;
-			this.authorityEscrowMap.set(authority, builderEscrowNew);
+				) as RevenueShareEscrow;
+			this.authorityEscrowMap.set(authority, escrowNew);
 		}
 	}
 
@@ -141,7 +141,7 @@ export class BuilderEscrowMap {
 			this.driftClient.program.programId.toBase58(),
 			{
 				commitment: this.driftClient.opts.commitment,
-				filters: [getBuilderEscrowFilter()],
+				filters: [getRevenueShareEscrowFilter()],
 				encoding: 'base64',
 				withContext: true,
 			},
@@ -177,18 +177,18 @@ export class BuilderEscrowMap {
 								programAccount.account.data[1]
 							);
 
-							const builderEscrow =
-								this.driftClient.program.account.builderEscrow.coder.accounts.decode(
-									'BuilderEscrow',
+							const escrow =
+								this.driftClient.program.account.revenueShareEscrow.coder.accounts.decode(
+									'RevenueShareEscrow',
 									buffer
-								) as BuilderEscrow;
+								) as RevenueShareEscrow;
 
 							// Extract authority from the account data
-							const authorityKey = builderEscrow.authority.toBase58();
-							this.authorityEscrowMap.set(authorityKey, builderEscrow);
+							const authorityKey = escrow.authority.toBase58();
+							this.authorityEscrowMap.set(authorityKey, escrow);
 						} catch (error) {
 							console.warn(
-								`Failed to decode BuilderEscrow account ${programAccount.pubkey}:`,
+								`Failed to decode RevenueShareEscrow account ${programAccount.pubkey}:`,
 								error
 							);
 						}
@@ -203,18 +203,18 @@ export class BuilderEscrowMap {
 							programAccount.account.data[1]
 						);
 
-						const builderEscrow =
-							this.driftClient.program.account.builderEscrow.coder.accounts.decode(
-								'BuilderEscrow',
+						const escrow =
+							this.driftClient.program.account.revenueShareEscrow.coder.accounts.decode(
+								'RevenueShareEscrow',
 								buffer
-							) as BuilderEscrow;
+							) as RevenueShareEscrow;
 
 						// Extract authority from the account data
-						const authorityKey = builderEscrow.authority.toBase58();
-						this.authorityEscrowMap.set(authorityKey, builderEscrow);
+						const authorityKey = escrow.authority.toBase58();
+						this.authorityEscrowMap.set(authorityKey, escrow);
 					} catch (error) {
 						console.warn(
-							`Failed to decode BuilderEscrow account ${programAccount.pubkey}:`,
+							`Failed to decode RevenueShareEscrow account ${programAccount.pubkey}:`,
 							error
 						);
 					}
@@ -227,24 +227,24 @@ export class BuilderEscrowMap {
 	}
 
 	/**
-	 * Get all BuilderEscrow accounts
+	 * Get all RevenueShareEscrow accounts
 	 */
-	public getAll(): Map<string, BuilderEscrow> {
+	public getAll(): Map<string, RevenueShareEscrow> {
 		return new Map(this.authorityEscrowMap);
 	}
 
 	/**
-	 * Get all authorities that have BuilderEscrow accounts
+	 * Get all authorities that have RevenueShareEscrow accounts
 	 */
 	public getAuthorities(): string[] {
 		return Array.from(this.authorityEscrowMap.keys());
 	}
 
 	/**
-	 * Get BuilderEscrow accounts that have approved builders
+	 * Get RevenueShareEscrow accounts that have approved referrers
 	 */
-	public getEscrowsWithApprovedBuilders(): Map<string, BuilderEscrow> {
-		const result = new Map<string, BuilderEscrow>();
+	public getEscrowsWithApprovedReferrers(): Map<string, RevenueShareEscrow> {
+		const result = new Map<string, RevenueShareEscrow>();
 		for (const [authority, escrow] of this.authorityEscrowMap) {
 			if (escrow.approvedBuilders && escrow.approvedBuilders.length > 0) {
 				result.set(authority, escrow);
@@ -254,10 +254,10 @@ export class BuilderEscrowMap {
 	}
 
 	/**
-	 * Get BuilderEscrow accounts that have active orders
+	 * Get RevenueShareEscrow accounts that have active orders
 	 */
-	public getEscrowsWithOrders(): Map<string, BuilderEscrow> {
-		const result = new Map<string, BuilderEscrow>();
+	public getEscrowsWithOrders(): Map<string, RevenueShareEscrow> {
+		const result = new Map<string, RevenueShareEscrow>();
 		for (const [authority, escrow] of this.authorityEscrowMap) {
 			if (escrow.orders && escrow.orders.length > 0) {
 				result.set(authority, escrow);
@@ -267,9 +267,11 @@ export class BuilderEscrowMap {
 	}
 
 	/**
-	 * Get BuilderEscrow account by referrer
+	 * Get RevenueShareEscrow account by referrer
 	 */
-	public getByReferrer(referrerPublicKey: string): BuilderEscrow | undefined {
+	public getByReferrer(
+		referrerPublicKey: string
+	): RevenueShareEscrow | undefined {
 		for (const escrow of this.authorityEscrowMap.values()) {
 			if (escrow.referrer.toBase58() === referrerPublicKey) {
 				return escrow;
@@ -279,10 +281,10 @@ export class BuilderEscrowMap {
 	}
 
 	/**
-	 * Get all BuilderEscrow accounts for a specific referrer
+	 * Get all RevenueShareEscrow accounts for a specific referrer
 	 */
-	public getAllByReferrer(referrerPublicKey: string): BuilderEscrow[] {
-		const result: BuilderEscrow[] = [];
+	public getAllByReferrer(referrerPublicKey: string): RevenueShareEscrow[] {
+		const result: RevenueShareEscrow[] = [];
 		for (const escrow of this.authorityEscrowMap.values()) {
 			if (escrow.referrer.toBase58() === referrerPublicKey) {
 				result.push(escrow);

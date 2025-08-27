@@ -257,7 +257,7 @@ pub struct OrderActionRecord {
     /// precision: PRICE_PRECISION
     pub trigger_price: Option<u64>,
 
-    /// the idx of the builder in the taker's [`BuilderEscrow`] account
+    /// the idx of the builder in the taker's [`RevenueShareEscrow`] account
     pub builder_idx: Option<u8>,
     /// precision: QUOTE_PRECISION builder fee paid by the taker
     pub builder_fee: u64,
@@ -707,7 +707,7 @@ pub struct FuelSeasonRecord {
 }
 
 #[event]
-pub struct BuilderSettleRecord {
+pub struct RevenueShareSettleRecord {
     pub ts: i64,
     pub builder: Option<Pubkey>,
     pub referrer: Option<Pubkey>,
@@ -719,7 +719,7 @@ pub struct BuilderSettleRecord {
     pub builder_total_builder_rewards: u64,
 }
 
-impl Size for BuilderSettleRecord {
+impl Size for RevenueShareSettleRecord {
     const SIZE: usize = 140;
 }
 

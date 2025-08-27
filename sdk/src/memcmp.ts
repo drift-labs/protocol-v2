@@ -113,12 +113,12 @@ export function getSignedMsgUserOrdersFilter(): MemcmpFilter {
 	};
 }
 
-export function getBuilderEscrowFilter(): MemcmpFilter {
+export function getRevenueShareEscrowFilter(): MemcmpFilter {
 	return {
 		memcmp: {
 			offset: 0,
 			bytes: bs58.encode(
-				BorshAccountsCoder.accountDiscriminator('BuilderEscrow')
+				BorshAccountsCoder.accountDiscriminator('RevenueShareEscrow')
 			),
 		},
 	};

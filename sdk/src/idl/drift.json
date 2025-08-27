@@ -7656,10 +7656,10 @@
       ]
     },
     {
-      "name": "initializeBuilder",
+      "name": "initializeRevenueShare",
       "accounts": [
         {
-          "name": "builder",
+          "name": "revenueShare",
           "isMut": true,
           "isSigner": false
         },
@@ -7687,10 +7687,10 @@
       "args": []
     },
     {
-      "name": "initializeBuilderEscrow",
+      "name": "initializeRevenueShareEscrow",
       "accounts": [
         {
-          "name": "builderEscrow",
+          "name": "escrow",
           "isMut": true,
           "isSigner": false
         },
@@ -7736,7 +7736,7 @@
       "name": "migrateReferrer",
       "accounts": [
         {
-          "name": "builderEscrow",
+          "name": "escrow",
           "isMut": true,
           "isSigner": false
         },
@@ -7764,10 +7764,10 @@
       "args": []
     },
     {
-      "name": "resizeBuilderEscrowOrders",
+      "name": "resizeRevenueShareEscrowOrders",
       "accounts": [
         {
-          "name": "builderEscrow",
+          "name": "escrow",
           "isMut": true,
           "isSigner": false
         },
@@ -7798,7 +7798,7 @@
       "name": "changeApprovedBuilder",
       "accounts": [
         {
-          "name": "builderEscrow",
+          "name": "escrow",
           "isMut": true,
           "isSigner": false
         },
@@ -7835,81 +7835,6 @@
     }
   ],
   "accounts": [
-    {
-      "name": "Builder",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "authority",
-            "docs": [
-              "the owner of this account, a builder or referrer"
-            ],
-            "type": "publicKey"
-          },
-          {
-            "name": "totalReferrerRewards",
-            "type": "u64"
-          },
-          {
-            "name": "totalBuilderRewards",
-            "type": "u64"
-          },
-          {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u8",
-                18
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "BuilderEscrow",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "authority",
-            "docs": [
-              "the owner of this account, a user"
-            ],
-            "type": "publicKey"
-          },
-          {
-            "name": "referrer",
-            "type": "publicKey"
-          },
-          {
-            "name": "padding0",
-            "type": "u32"
-          },
-          {
-            "name": "orders",
-            "type": {
-              "vec": {
-                "defined": "BuilderOrder"
-              }
-            }
-          },
-          {
-            "name": "padding1",
-            "type": "u32"
-          },
-          {
-            "name": "approvedBuilders",
-            "type": {
-              "vec": {
-                "defined": "BuilderInfo"
-              }
-            }
-          }
-        ]
-      }
-    },
     {
       "name": "OpenbookV2FulfillmentConfig",
       "type": {
@@ -8755,6 +8680,81 @@
           {
             "name": "conf",
             "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RevenueShare",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "docs": [
+              "the owner of this account, a builder or referrer"
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "totalReferrerRewards",
+            "type": "u64"
+          },
+          {
+            "name": "totalBuilderRewards",
+            "type": "u64"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                18
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "RevenueShareEscrow",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "docs": [
+              "the owner of this account, a user"
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "referrer",
+            "type": "publicKey"
+          },
+          {
+            "name": "padding0",
+            "type": "u32"
+          },
+          {
+            "name": "orders",
+            "type": {
+              "vec": {
+                "defined": "RevenueShareOrder"
+              }
+            }
+          },
+          {
+            "name": "padding1",
+            "type": "u32"
+          },
+          {
+            "name": "approvedBuilders",
+            "type": {
+              "vec": {
+                "defined": "BuilderInfo"
+              }
+            }
           }
         ]
       }
@@ -10004,129 +10004,6 @@
             "type": {
               "option": "bool"
             }
-          }
-        ]
-      }
-    },
-    {
-      "name": "BuilderOrder",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "feesAccrued",
-            "docs": [
-              "fees accrued so far for this order slot. This is not exclusively fees from this order_id",
-              "and may include fees from other orders in the same market. This may be swept to the",
-              "builder's SpotPosition during settle_pnl."
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "orderId",
-            "docs": [
-              "the order_id of the current active order in this slot. It's only relevant while bit_flag = Open"
-            ],
-            "type": "u32"
-          },
-          {
-            "name": "feeBps",
-            "type": "u16"
-          },
-          {
-            "name": "marketIndex",
-            "type": "u16"
-          },
-          {
-            "name": "subAccountId",
-            "docs": [
-              "the subaccount_id of the user who created this order. It's only relevant while bit_flag = Open"
-            ],
-            "type": "u16"
-          },
-          {
-            "name": "builderIdx",
-            "docs": [
-              "the index of the BuilderEscrow.approved_builders list, that this order's fee will settle to. Ignored",
-              "if bit_flag = Referral."
-            ],
-            "type": "u8"
-          },
-          {
-            "name": "bitFlags",
-            "docs": [
-              "bitflags that describe the state of the order.",
-              "[`BuilderOrderBitFlag::Init`]: this order slot is available for use.",
-              "[`BuilderOrderBitFlag::Open`]: this order slot is occupied, `order_id` is the `sub_account_id`'s active order.",
-              "[`BuilderOrderBitFlag::Completed`]: this order has been filled or canceled, and is waiting to be settled into.",
-              "the builder's account order_id and sub_account_id are no longer relevant, it may be merged with other orders.",
-              "[`BuilderOrderBitFlag::Referral`]: this order stores referral rewards waiting to be settled. If it is set, no",
-              "other bitflag should be set."
-            ],
-            "type": "u8"
-          },
-          {
-            "name": "userOrderIndex",
-            "docs": [
-              "the index into the User's orders list when this BuilderOrder was created, make sure to verify that order_id matches."
-            ],
-            "type": "u8"
-          },
-          {
-            "name": "marketType",
-            "type": {
-              "defined": "MarketType"
-            }
-          },
-          {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u8",
-                10
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "BuilderInfo",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "authority",
-            "type": "publicKey"
-          },
-          {
-            "name": "maxFeeBps",
-            "type": "u16"
-          },
-          {
-            "name": "padding2",
-            "type": {
-              "array": [
-                "u8",
-                2
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "BuilderEscrowFixed",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "authority",
-            "type": "publicKey"
-          },
-          {
-            "name": "referrer",
-            "type": "publicKey"
           }
         ]
       }
@@ -11594,6 +11471,129 @@
       }
     },
     {
+      "name": "RevenueShareOrder",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "feesAccrued",
+            "docs": [
+              "fees accrued so far for this order slot. This is not exclusively fees from this order_id",
+              "and may include fees from other orders in the same market. This may be swept to the",
+              "builder's SpotPosition during settle_pnl."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "orderId",
+            "docs": [
+              "the order_id of the current active order in this slot. It's only relevant while bit_flag = Open"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "feeBps",
+            "type": "u16"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "subAccountId",
+            "docs": [
+              "the subaccount_id of the user who created this order. It's only relevant while bit_flag = Open"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "builderIdx",
+            "docs": [
+              "the index of the RevenueShareEscrow.approved_builders list, that this order's fee will settle to. Ignored",
+              "if bit_flag = Referral."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "bitFlags",
+            "docs": [
+              "bitflags that describe the state of the order.",
+              "[`RevenueShareOrderBitFlag::Init`]: this order slot is available for use.",
+              "[`RevenueShareOrderBitFlag::Open`]: this order slot is occupied, `order_id` is the `sub_account_id`'s active order.",
+              "[`RevenueShareOrderBitFlag::Completed`]: this order has been filled or canceled, and is waiting to be settled into.",
+              "the builder's account order_id and sub_account_id are no longer relevant, it may be merged with other orders.",
+              "[`RevenueShareOrderBitFlag::Referral`]: this order stores referral rewards waiting to be settled. If it is set, no",
+              "other bitflag should be set."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "userOrderIndex",
+            "docs": [
+              "the index into the User's orders list when this RevenueShareOrder was created, make sure to verify that order_id matches."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "marketType",
+            "type": {
+              "defined": "MarketType"
+            }
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                10
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "BuilderInfo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "maxFeeBps",
+            "type": "u16"
+          },
+          {
+            "name": "padding2",
+            "type": {
+              "array": [
+                "u8",
+                2
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "RevenueShareEscrowFixed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "referrer",
+            "type": "publicKey"
+          }
+        ]
+      }
+    },
+    {
       "name": "SignedMsgOrderId",
       "type": {
         "kind": "struct",
@@ -12554,26 +12554,6 @@
       }
     },
     {
-      "name": "BuilderOrderBitFlag",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "Init"
-          },
-          {
-            "name": "Open"
-          },
-          {
-            "name": "Completed"
-          },
-          {
-            "name": "Referral"
-          }
-        ]
-      }
-    },
-    {
       "name": "DepositExplanation",
       "type": {
         "kind": "enum",
@@ -13184,6 +13164,26 @@
           },
           {
             "name": "Unavailable"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RevenueShareOrderBitFlag",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Init"
+          },
+          {
+            "name": "Open"
+          },
+          {
+            "name": "Completed"
+          },
+          {
+            "name": "Referral"
           }
         ]
       }
@@ -14985,7 +14985,7 @@
       ]
     },
     {
-      "name": "BuilderSettleRecord",
+      "name": "RevenueShareSettleRecord",
       "fields": [
         {
           "name": "ts",
@@ -16629,8 +16629,8 @@
     },
     {
       "code": 6317,
-      "name": "InvalidBuilderResize",
-      "msg": "Invalid Builder resize"
+      "name": "InvalidRevenueShareResize",
+      "msg": "Invalid RevenueShare resize"
     },
     {
       "code": 6318,
@@ -16644,18 +16644,18 @@
     },
     {
       "code": 6320,
-      "name": "BuilderEscrowOrdersAccountFull",
-      "msg": "BuilderEscrow has too many active orders"
+      "name": "RevenueShareEscrowOrdersAccountFull",
+      "msg": "RevenueShareEscrow has too many active orders"
     },
     {
       "code": 6321,
-      "name": "BuilderEscrowMissing",
-      "msg": "BuilderEscrow missing"
+      "name": "RevenueShareEscrowMissing",
+      "msg": "RevenueShareEscrow missing"
     },
     {
       "code": 6322,
-      "name": "InvalidBuilderAccount",
-      "msg": "Invalid BuilderAccount"
+      "name": "InvalidRevenueShareAccount",
+      "msg": "Invalid RevenueShareAccount"
     },
     {
       "code": 6323,
@@ -16664,13 +16664,13 @@
     },
     {
       "code": 6324,
-      "name": "UnableToLoadBuilderAccount",
+      "name": "UnableToLoadRevenueShareAccount",
       "msg": "Unable to load builder account"
     },
     {
       "code": 6325,
-      "name": "BuilderOrderNotFound",
-      "msg": "Builder order not found"
+      "name": "RevenueShareOrderNotFound",
+      "msg": "RevenueShare order not found"
     }
   ],
   "metadata": {

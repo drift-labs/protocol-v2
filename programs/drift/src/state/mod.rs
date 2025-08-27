@@ -1,5 +1,3 @@
-pub mod builder;
-pub mod builder_map;
 pub mod events;
 pub mod fill_mode;
 pub mod fulfillment;
@@ -17,6 +15,8 @@ pub mod perp_market;
 pub mod perp_market_map;
 pub mod protected_maker_mode_config;
 pub mod pyth_lazer_oracle;
+pub mod revenue_share;
+pub mod revenue_share_map;
 pub mod settle_pnl_mode;
 pub mod signed_msg_user;
 pub mod spot_fulfillment_params;

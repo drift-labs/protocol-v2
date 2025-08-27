@@ -1,5 +1,4 @@
 pub mod amm;
-pub mod builder;
 pub mod funding;
 pub mod insurance;
 pub mod liquidation;
@@ -9,6 +8,7 @@ pub mod pda;
 pub mod pnl;
 pub mod position;
 pub mod repeg;
+pub mod revenue_share;
 pub mod spot_balance;
 pub mod spot_position;
 pub mod token;

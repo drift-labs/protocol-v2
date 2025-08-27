@@ -13,11 +13,11 @@ use crate::state::user::{MarketType, OrderStatus, User};
 use crate::validate;
 use crate::{msg, ID};
 
-pub const BUILDER_PDA_SEED: &str = "BUILD";
-pub const BUILDER_ESCROW_PDA_SEED: &str = "B_ESCROW";
+pub const REVENUE_SHARE_PDA_SEED: &str = "REV_SHARE";
+pub const REVENUE_SHARE_ESCROW_PDA_SEED: &str = "REV_ESCROW";
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
-pub enum BuilderOrderBitFlag {
+pub enum RevenueShareOrderBitFlag {
     #[default]
     Init = 0b00000000,
     Open = 0b00000001,
@@ -27,7 +27,7 @@ pub enum BuilderOrderBitFlag {
 
 #[account(zero_copy(unsafe))]
 #[derive(Eq, PartialEq, Debug, Default)]
-pub struct Builder {
+pub struct RevenueShare {
     /// the owner of this account, a builder or referrer
     pub authority: Pubkey,
     pub total_referrer_rewards: u64,
@@ -35,7 +35,7 @@ pub struct Builder {
     pub padding: [u8; 18],
 }
 
-impl Builder {
+impl RevenueShare {
     pub fn space() -> usize {
         8 + 32 + 8 + 8 + 18
     }
@@ -43,7 +43,7 @@ impl Builder {
 
 #[zero_copy]
 #[derive(Default, Eq, PartialEq, Debug, BorshDeserialize, BorshSerialize)]
-pub struct BuilderOrder {
+pub struct RevenueShareOrder {
     /// fees accrued so far for this order slot. This is not exclusively fees from this order_id
     /// and may include fees from other orders in the same market. This may be swept to the
     /// builder's SpotPosition during settle_pnl.
@@ -54,24 +54,24 @@ pub struct BuilderOrder {
     pub market_index: u16,
     /// the subaccount_id of the user who created this order. It's only relevant while bit_flag = Open
     pub sub_account_id: u16,
-    /// the index of the BuilderEscrow.approved_builders list, that this order's fee will settle to. Ignored
+    /// the index of the RevenueShareEscrow.approved_builders list, that this order's fee will settle to. Ignored
     /// if bit_flag = Referral.
     pub builder_idx: u8,
     /// bitflags that describe the state of the order.
-    /// [`BuilderOrderBitFlag::Init`]: this order slot is available for use.
-    /// [`BuilderOrderBitFlag::Open`]: this order slot is occupied, `order_id` is the `sub_account_id`'s active order.
-    /// [`BuilderOrderBitFlag::Completed`]: this order has been filled or canceled, and is waiting to be settled into.
+    /// [`RevenueShareOrderBitFlag::Init`]: this order slot is available for use.
+    /// [`RevenueShareOrderBitFlag::Open`]: this order slot is occupied, `order_id` is the `sub_account_id`'s active order.
+    /// [`RevenueShareOrderBitFlag::Completed`]: this order has been filled or canceled, and is waiting to be settled into.
     /// the builder's account order_id and sub_account_id are no longer relevant, it may be merged with other orders.
-    /// [`BuilderOrderBitFlag::Referral`]: this order stores referral rewards waiting to be settled. If it is set, no
+    /// [`RevenueShareOrderBitFlag::Referral`]: this order stores referral rewards waiting to be settled. If it is set, no
     /// other bitflag should be set.
     pub bit_flags: u8,
-    /// the index into the User's orders list when this BuilderOrder was created, make sure to verify that order_id matches.
+    /// the index into the User's orders list when this RevenueShareOrder was created, make sure to verify that order_id matches.
     pub user_order_index: u8,
     pub market_type: MarketType,
     pub padding: [u8; 10],
 }
 
-impl BuilderOrder {
+impl RevenueShareOrder {
     pub fn new(
         builder_idx: u8,
         sub_account_id: u16,
@@ -97,27 +97,27 @@ impl BuilderOrder {
     }
 
     pub fn space() -> usize {
-        std::mem::size_of::<BuilderOrder>()
+        std::mem::size_of::<RevenueShareOrder>()
     }
 
-    pub fn add_bit_flag(&mut self, flag: BuilderOrderBitFlag) {
+    pub fn add_bit_flag(&mut self, flag: RevenueShareOrderBitFlag) {
         self.bit_flags |= flag as u8;
     }
 
-    pub fn is_bit_flag_set(&self, flag: BuilderOrderBitFlag) -> bool {
+    pub fn is_bit_flag_set(&self, flag: RevenueShareOrderBitFlag) -> bool {
         (self.bit_flags & flag as u8) != 0
     }
 
     // An order is Open after it is created, the slot is considered occupied
     // and it is waiting to become `Completed` (filled or canceled).
     pub fn is_open(&self) -> bool {
-        self.is_bit_flag_set(BuilderOrderBitFlag::Open)
+        self.is_bit_flag_set(RevenueShareOrderBitFlag::Open)
     }
 
     // An order is Completed after it is filled or canceled. It is waiting to be settled
     // into the builder's account
     pub fn is_completed(&self) -> bool {
-        self.is_bit_flag_set(BuilderOrderBitFlag::Completed)
+        self.is_bit_flag_set(RevenueShareOrderBitFlag::Completed)
     }
 
     /// An order slot is available (can be written to) if it is neither Completed nor Open.
@@ -126,12 +126,12 @@ impl BuilderOrder {
     }
 
     pub fn is_referral_order(&self) -> bool {
-        self.is_bit_flag_set(BuilderOrderBitFlag::Referral)
+        self.is_bit_flag_set(RevenueShareOrderBitFlag::Referral)
     }
 
     /// Checks if `self` can be merged with `other`. Merged orders track cumulative fees accrued
     /// and are settled together, making more efficient use of the orders list.
-    pub fn is_mergeable(&self, other: &BuilderOrder) -> bool {
+    pub fn is_mergeable(&self, other: &RevenueShareOrder) -> bool {
         (self.is_referral_order() == other.is_referral_order())
             && other.is_completed()
             && other.market_index == self.market_index
@@ -140,7 +140,7 @@ impl BuilderOrder {
     }
 
     /// Merges `other` into `self`. The orders must be mergeable.
-    pub fn merge(mut self, other: &BuilderOrder) -> DriftResult<BuilderOrder> {
+    pub fn merge(mut self, other: &RevenueShareOrder) -> DriftResult<RevenueShareOrder> {
         validate!(
             self.is_mergeable(other),
             ErrorCode::DefaultError,
@@ -178,23 +178,23 @@ impl BuilderInfo {
 #[account]
 #[derive(Eq, PartialEq, Debug, Default)]
 #[repr(C)]
-pub struct BuilderEscrow {
+pub struct RevenueShareEscrow {
     /// the owner of this account, a user
     pub authority: Pubkey,
     pub referrer: Pubkey,
     pub padding0: u32, // align with orders 4 bytes len prefix
-    pub orders: Vec<BuilderOrder>,
+    pub orders: Vec<RevenueShareOrder>,
     pub padding1: u32, // align with approved_builders 4 bytes len prefix
     pub approved_builders: Vec<BuilderInfo>,
 }
 
-impl BuilderEscrow {
+impl RevenueShareEscrow {
     pub fn space(num_orders: usize, num_builders: usize) -> usize {
         8 + // discriminator
-        std::mem::size_of::<BuilderEscrowFixed>() + // fixed header
+        std::mem::size_of::<RevenueShareEscrowFixed>() + // fixed header
         4 + // orders Vec length prefix
         4 + // padding0
-        num_orders * std::mem::size_of::<BuilderOrder>() + // orders data
+        num_orders * std::mem::size_of::<RevenueShareOrder>() + // orders data
         4 + // approved_builders Vec length prefix
         4 + // padding1
         num_builders * std::mem::size_of::<BuilderInfo>() // builders data
@@ -204,7 +204,7 @@ impl BuilderEscrow {
         validate!(
             self.orders.len() <= 128 && self.approved_builders.len() <= 128,
             ErrorCode::DefaultError,
-            "BuilderEscrow orders and approved_builders len must be between 1 and 128"
+            "RevenueShareEscrow orders and approved_builders len must be between 1 and 128"
         )?;
         Ok(())
     }
@@ -212,17 +212,17 @@ impl BuilderEscrow {
 
 #[zero_copy]
 #[derive(Default, Eq, PartialEq, Debug, BorshDeserialize, BorshSerialize)]
-pub struct BuilderEscrowFixed {
+pub struct RevenueShareEscrowFixed {
     pub authority: Pubkey,
     pub referrer: Pubkey,
 }
 
-pub struct BuilderEscrowZeroCopy<'a> {
-    pub fixed: Ref<'a, BuilderEscrowFixed>,
+pub struct RevenueShareEscrowZeroCopy<'a> {
+    pub fixed: Ref<'a, RevenueShareEscrowFixed>,
     pub data: Ref<'a, [u8]>,
 }
 
-impl<'a> BuilderEscrowZeroCopy<'a> {
+impl<'a> RevenueShareEscrowZeroCopy<'a> {
     pub fn orders_len(&self) -> u32 {
         let length_bytes = &self.data[4..8];
         u32::from_le_bytes([
@@ -233,10 +233,11 @@ impl<'a> BuilderEscrowZeroCopy<'a> {
         ])
     }
     pub fn approved_builders_len(&self) -> u32 {
-        let orders_data_size = self.orders_len() as usize * std::mem::size_of::<BuilderOrder>();
-        let offset = 4 + // BuilderEscrow.padding0
+        let orders_data_size =
+            self.orders_len() as usize * std::mem::size_of::<RevenueShareOrder>();
+        let offset = 4 + // RevenueShareEscrow.padding0
         4 + // vec len
-        orders_data_size + 4; // BuilderEscrow.padding1
+        orders_data_size + 4; // RevenueShareEscrow.padding1
         let length_bytes = &self.data[offset..offset + 4];
         u32::from_le_bytes([
             length_bytes[0],
@@ -246,14 +247,14 @@ impl<'a> BuilderEscrowZeroCopy<'a> {
         ])
     }
 
-    pub fn get_order(&self, index: u32) -> DriftResult<&BuilderOrder> {
+    pub fn get_order(&self, index: u32) -> DriftResult<&RevenueShareOrder> {
         validate!(
             index < self.orders_len(),
             ErrorCode::DefaultError,
             "Order index out of bounds"
         )?;
-        let size = std::mem::size_of::<BuilderOrder>();
-        let start = 4 + // BuilderEscrow.padding0
+        let size = std::mem::size_of::<RevenueShareOrder>();
+        let start = 4 + // RevenueShareEscrow.padding0
         4 + // vec len
         index as usize * size; // orders data
         Ok(bytemuck::from_bytes(&self.data[start..start + size]))
@@ -267,13 +268,13 @@ impl<'a> BuilderEscrowZeroCopy<'a> {
         )?;
         let size = std::mem::size_of::<BuilderInfo>();
         let offset = 4 + 4 + // Skip orders Vec length prefix + padding0
-            self.orders_len() as usize * std::mem::size_of::<BuilderOrder>() + // orders data
+            self.orders_len() as usize * std::mem::size_of::<RevenueShareOrder>() + // orders data
             4; // Skip approved_builders Vec length prefix + padding1
         let start = offset + index as usize * size;
         Ok(bytemuck::from_bytes(&self.data[start..start + size]))
     }
 
-    pub fn iter_orders(&self) -> impl Iterator<Item = DriftResult<&BuilderOrder>> + '_ {
+    pub fn iter_orders(&self) -> impl Iterator<Item = DriftResult<&RevenueShareOrder>> + '_ {
         (0..self.orders_len()).map(move |i| self.get_order(i))
     }
 
@@ -282,12 +283,12 @@ impl<'a> BuilderEscrowZeroCopy<'a> {
     }
 }
 
-pub struct BuilderEscrowZeroCopyMut<'a> {
-    pub fixed: RefMut<'a, BuilderEscrowFixed>,
+pub struct RevenueShareEscrowZeroCopyMut<'a> {
+    pub fixed: RefMut<'a, RevenueShareEscrowFixed>,
     pub data: RefMut<'a, [u8]>,
 }
 
-impl<'a> BuilderEscrowZeroCopyMut<'a> {
+impl<'a> RevenueShareEscrowZeroCopyMut<'a> {
     pub fn has_referrer(&self) -> bool {
         self.fixed.referrer != Pubkey::default()
     }
@@ -301,7 +302,7 @@ impl<'a> BuilderEscrowZeroCopyMut<'a> {
     }
 
     pub fn orders_len(&self) -> u32 {
-        // skip BuilderEscrow.padding0
+        // skip RevenueShareEscrow.padding0
         let length_bytes = &self.data[4..8];
         u32::from_le_bytes([
             length_bytes[0],
@@ -312,11 +313,12 @@ impl<'a> BuilderEscrowZeroCopyMut<'a> {
     }
     pub fn approved_builders_len(&self) -> u32 {
         // Calculate offset to the approved_builders Vec length
-        let orders_data_size = self.orders_len() as usize * std::mem::size_of::<BuilderOrder>();
-        let offset = 4 + // BuilderEscrow.padding0
+        let orders_data_size =
+            self.orders_len() as usize * std::mem::size_of::<RevenueShareOrder>();
+        let offset = 4 + // RevenueShareEscrow.padding0
         4 + // vec len
         orders_data_size +
-        4; // BuilderEscrow.padding1
+        4; // RevenueShareEscrow.padding1
         let length_bytes = &self.data[offset..offset + 4];
         u32::from_le_bytes([
             length_bytes[0],
@@ -326,14 +328,14 @@ impl<'a> BuilderEscrowZeroCopyMut<'a> {
         ])
     }
 
-    pub fn get_order_mut(&mut self, index: u32) -> DriftResult<&mut BuilderOrder> {
+    pub fn get_order_mut(&mut self, index: u32) -> DriftResult<&mut RevenueShareOrder> {
         validate!(
             index < self.orders_len(),
             ErrorCode::DefaultError,
             "Order index out of bounds"
         )?;
-        let size = std::mem::size_of::<BuilderOrder>();
-        let start = 4 + // BuilderEscrow.padding0
+        let size = std::mem::size_of::<RevenueShareOrder>();
+        let start = 4 + // RevenueShareEscrow.padding0
         4 + // vec len
         index as usize * size;
         Ok(bytemuck::from_bytes_mut(
@@ -368,32 +370,32 @@ impl<'a> BuilderEscrowZeroCopyMut<'a> {
         }
 
         // try to create a referral order in an available order slot
-        match self.add_order(BuilderOrder::new(
+        match self.add_order(RevenueShareOrder::new(
             0,
             0,
             0,
             0,
             MarketType::Spot,
             0,
-            BuilderOrderBitFlag::Referral as u8,
+            RevenueShareOrderBitFlag::Referral as u8,
             0,
         )) {
             Ok(idx) => Some(idx),
             Err(_) => {
-                msg!("Failed to add referral order, BuilderEscrow is full");
+                msg!("Failed to add referral order, RevenueShareEscrow is full");
                 None
             }
         }
     }
 
-    pub fn get_order(&self, index: u32) -> DriftResult<&BuilderOrder> {
+    pub fn get_order(&self, index: u32) -> DriftResult<&RevenueShareOrder> {
         validate!(
             index < self.orders_len(),
             ErrorCode::DefaultError,
             "Order index out of bounds"
         )?;
-        let size = std::mem::size_of::<BuilderOrder>();
-        let start = 4 + // BuilderEscrow.padding0
+        let size = std::mem::size_of::<RevenueShareOrder>();
+        let start = 4 + // RevenueShareEscrow.padding0
         4 + // vec len
         index as usize * size; // orders data
         Ok(bytemuck::from_bytes(&self.data[start..start + size]))
@@ -409,10 +411,10 @@ impl<'a> BuilderEscrowZeroCopyMut<'a> {
             self.approved_builders_len()
         )?;
         let size = std::mem::size_of::<BuilderInfo>();
-        let offset = 4 + // BuilderEscrow.padding0
+        let offset = 4 + // RevenueShareEscrow.padding0
             4 + // vec len
-            self.orders_len() as usize * std::mem::size_of::<BuilderOrder>() + // orders data
-            4 + // BuilderEscrow.padding1
+            self.orders_len() as usize * std::mem::size_of::<RevenueShareOrder>() + // orders data
+            4 + // RevenueShareEscrow.padding1
             4; // vec len
         let start = offset + index as usize * size;
         Ok(bytemuck::from_bytes_mut(
@@ -420,7 +422,7 @@ impl<'a> BuilderEscrowZeroCopyMut<'a> {
         ))
     }
 
-    pub fn add_order(&mut self, order: BuilderOrder) -> DriftResult<u32> {
+    pub fn add_order(&mut self, order: RevenueShareOrder) -> DriftResult<u32> {
         for i in 0..self.orders_len() {
             let existing_order = self.get_order_mut(i)?;
             if existing_order.is_mergeable(&order) {
@@ -432,14 +434,14 @@ impl<'a> BuilderEscrowZeroCopyMut<'a> {
             }
         }
 
-        Err(ErrorCode::BuilderEscrowOrdersAccountFull.into())
+        Err(ErrorCode::RevenueShareEscrowOrdersAccountFull.into())
     }
 
     pub fn find_order_mut(
         &mut self,
         sub_account_id: u16,
         order_id: u32,
-    ) -> Option<&mut BuilderOrder> {
+    ) -> Option<&mut RevenueShareOrder> {
         for i in 0..self.orders_len() {
             if let Ok(existing_order) = self.get_order(i) {
                 if existing_order.order_id == order_id
@@ -452,7 +454,7 @@ impl<'a> BuilderEscrowZeroCopyMut<'a> {
         None
     }
 
-    pub fn find_order(&mut self, sub_account_id: u16, order_id: u32) -> Option<&BuilderOrder> {
+    pub fn find_order(&mut self, sub_account_id: u16, order_id: u32) -> Option<&RevenueShareOrder> {
         for i in 0..self.orders_len() {
             if let Ok(existing_order) = self.get_order(i) {
                 if existing_order.order_id == order_id
@@ -465,28 +467,28 @@ impl<'a> BuilderEscrowZeroCopyMut<'a> {
         None
     }
 
-    /// Marks any [`BuilderOrder`]s as Complete if there is no longer a corresponding
+    /// Marks any [`RevenueShareOrder`]s as Complete if there is no longer a corresponding
     /// open order in the user's account. This is used to lazily reconcile state when
     /// in place_order and settle_pnl instead of requiring explicit updates on cancels.
     pub fn revoke_completed_orders(&mut self, user: &User) -> DriftResult<()> {
         for i in 0..self.orders_len() {
-            if let Ok(builder_order) = self.get_order_mut(i) {
-                if builder_order.is_referral_order() {
+            if let Ok(rev_share_order) = self.get_order_mut(i) {
+                if rev_share_order.is_referral_order() {
                     continue;
                 }
-                if user.sub_account_id != builder_order.sub_account_id {
+                if user.sub_account_id != rev_share_order.sub_account_id {
                     continue;
                 }
-                if builder_order.is_open() && !builder_order.is_completed() {
-                    let user_order = user.orders[builder_order.user_order_index as usize];
+                if rev_share_order.is_open() && !rev_share_order.is_completed() {
+                    let user_order = user.orders[rev_share_order.user_order_index as usize];
                     let still_open = user_order.status == OrderStatus::Open
-                        && user_order.order_id == builder_order.order_id;
+                        && user_order.order_id == rev_share_order.order_id;
                     if !still_open {
-                        if builder_order.fees_accrued > 0 {
-                            builder_order.add_bit_flag(BuilderOrderBitFlag::Completed);
+                        if rev_share_order.fees_accrued > 0 {
+                            rev_share_order.add_bit_flag(RevenueShareOrderBitFlag::Completed);
                         } else {
                             // order had no fees accrued, we can just clear out the slot
-                            *builder_order = BuilderOrder::default();
+                            *rev_share_order = RevenueShareOrder::default();
                         }
                     }
                 }
@@ -497,59 +499,59 @@ impl<'a> BuilderEscrowZeroCopyMut<'a> {
     }
 }
 
-pub trait BuilderEscrowLoader<'a> {
-    fn load_zc(&self) -> DriftResult<BuilderEscrowZeroCopy>;
-    fn load_zc_mut(&self) -> DriftResult<BuilderEscrowZeroCopyMut>;
+pub trait RevenueShareEscrowLoader<'a> {
+    fn load_zc(&self) -> DriftResult<RevenueShareEscrowZeroCopy>;
+    fn load_zc_mut(&self) -> DriftResult<RevenueShareEscrowZeroCopyMut>;
 }
 
-impl<'a> BuilderEscrowLoader<'a> for AccountInfo<'a> {
-    fn load_zc(&self) -> DriftResult<BuilderEscrowZeroCopy> {
+impl<'a> RevenueShareEscrowLoader<'a> for AccountInfo<'a> {
+    fn load_zc(&self) -> DriftResult<RevenueShareEscrowZeroCopy> {
         let owner = self.owner;
 
         validate!(
             owner == &ID,
             ErrorCode::DefaultError,
-            "invalid BuilderEscrow owner",
+            "invalid RevenueShareEscrow owner",
         )?;
 
         let data = self.try_borrow_data().safe_unwrap()?;
 
         let (discriminator, data) = Ref::map_split(data, |d| d.split_at(8));
         validate!(
-            *discriminator == BuilderEscrow::discriminator(),
+            *discriminator == RevenueShareEscrow::discriminator(),
             ErrorCode::DefaultError,
             "invalid signed_msg user orders discriminator",
         )?;
 
-        let hdr_size = std::mem::size_of::<BuilderEscrowFixed>();
+        let hdr_size = std::mem::size_of::<RevenueShareEscrowFixed>();
         let (fixed, data) = Ref::map_split(data, |d| d.split_at(hdr_size));
-        Ok(BuilderEscrowZeroCopy {
+        Ok(RevenueShareEscrowZeroCopy {
             fixed: Ref::map(fixed, |b| bytemuck::from_bytes(b)),
             data,
         })
     }
 
-    fn load_zc_mut(&self) -> DriftResult<BuilderEscrowZeroCopyMut> {
+    fn load_zc_mut(&self) -> DriftResult<RevenueShareEscrowZeroCopyMut> {
         let owner = self.owner;
 
         validate!(
             owner == &ID,
             ErrorCode::DefaultError,
-            "invalid BuilderEscrow owner",
+            "invalid RevenueShareEscrow owner",
         )?;
 
         let data = self.try_borrow_mut_data().safe_unwrap()?;
 
         let (discriminator, data) = RefMut::map_split(data, |d| d.split_at_mut(8));
         validate!(
-            *discriminator == BuilderEscrow::discriminator(),
+            *discriminator == RevenueShareEscrow::discriminator(),
             ErrorCode::DefaultError,
             "invalid signed_msg user orders discriminator",
         )?;
 
-        let hdr_size = std::mem::size_of::<BuilderEscrowFixed>();
+        let hdr_size = std::mem::size_of::<RevenueShareEscrowFixed>();
         let (fixed, data) = RefMut::map_split(data, |d| d.split_at_mut(hdr_size));
-        Ok(BuilderEscrowZeroCopyMut {
+        Ok(RevenueShareEscrowZeroCopyMut {
             fixed: RefMut::map(fixed, |b| bytemuck::from_bytes_mut(b)),
             data,
         })

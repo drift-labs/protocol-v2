@@ -1577,21 +1577,21 @@ export type SignedMsgUserOrdersAccount = {
 	signedMsgOrderData: SignedMsgOrderId[];
 };
 
-export type BuilderAccount = {
+export type RevenueShareAccount = {
 	authority: PublicKey;
 	totalReferrerRewards: BN;
 	totalBuilderRewards: BN;
 	padding: number[];
 };
 
-export type BuilderEscrow = {
+export type RevenueShareEscrow = {
 	authority: PublicKey;
 	referrer: PublicKey;
-	orders: BuilderOrder[];
+	orders: RevenueShareOrder[];
 	approvedBuilders: BuilderInfo[];
 };
 
-export type BuilderOrder = {
+export type RevenueShareOrder = {
 	builderIdx: number;
 	feesAccrued: BN;
 	orderId: number;
@@ -1608,7 +1608,7 @@ export type BuilderInfo = {
 	bitFlags: number;
 };
 
-export type BuilderSettleRecord = {
+export type RevenueShareSettleRecord = {
 	ts: number;
 	builder: PublicKey | null;
 	referrer: PublicKey | null;

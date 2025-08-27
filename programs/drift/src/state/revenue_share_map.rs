@@ -1,7 +1,7 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::msg;
-use crate::state::builder::Builder;
+use crate::state::revenue_share::RevenueShare;
 use crate::state::traits::Size;
 use crate::state::user::User;
 use crate::validate;
@@ -16,25 +16,25 @@ use std::iter::Peekable;
 use std::panic::Location;
 use std::slice::Iter;
 
-pub struct BuilderEntry<'a> {
+pub struct RevenueShareEntry<'a> {
     pub user: Option<AccountLoader<'a, User>>,
-    pub builder: Option<AccountLoader<'a, Builder>>,
+    pub revenue_share: Option<AccountLoader<'a, RevenueShare>>,
 }
 
-impl<'a> Default for BuilderEntry<'a> {
+impl<'a> Default for RevenueShareEntry<'a> {
     fn default() -> Self {
         Self {
             user: None,
-            builder: None,
+            revenue_share: None,
         }
     }
 }
 
-pub struct BuilderMap<'a>(pub BTreeMap<Pubkey, BuilderEntry<'a>>);
+pub struct RevenueShareMap<'a>(pub BTreeMap<Pubkey, RevenueShareEntry<'a>>);
 
-impl<'a> BuilderMap<'a> {
+impl<'a> RevenueShareMap<'a> {
     pub fn empty() -> Self {
-        BuilderMap(BTreeMap::new())
+        RevenueShareMap(BTreeMap::new())
     }
 
     pub fn insert_user(
@@ -53,19 +53,19 @@ impl<'a> BuilderMap<'a> {
         Ok(())
     }
 
-    pub fn insert_builder(
+    pub fn insert_revenue_share(
         &mut self,
         authority: Pubkey,
-        builder_loader: AccountLoader<'a, Builder>,
+        revenue_share_loader: AccountLoader<'a, RevenueShare>,
     ) -> DriftResult {
         let entry = self.0.entry(authority).or_default();
         validate!(
-            entry.builder.is_none(),
+            entry.revenue_share.is_none(),
             ErrorCode::DefaultError,
-            "Duplicate Builder for authority {:?}",
+            "Duplicate RevenueShare for authority {:?}",
             authority
         )?;
-        entry.builder = Some(builder_loader);
+        entry.revenue_share = Some(revenue_share_loader);
         Ok(())
     }
 
@@ -104,45 +104,48 @@ impl<'a> BuilderMap<'a> {
 
     #[track_caller]
     #[inline(always)]
-    pub fn get_builder_account_mut(&self, authority: &Pubkey) -> DriftResult<RefMut<Builder>> {
-        let loader = match self.0.get(authority).and_then(|e| e.builder.as_ref()) {
+    pub fn get_revenue_share_account_mut(
+        &self,
+        authority: &Pubkey,
+    ) -> DriftResult<RefMut<RevenueShare>> {
+        let loader = match self.0.get(authority).and_then(|e| e.revenue_share.as_ref()) {
             Some(loader) => loader,
             None => {
                 let caller = Location::caller();
                 msg!(
-                    "Could not find builder for authority {} at {}:{}",
+                    "Could not find revenue share for authority {} at {}:{}",
                     authority,
                     caller.file(),
                     caller.line()
                 );
-                return Err(ErrorCode::UnableToLoadBuilderAccount);
+                return Err(ErrorCode::UnableToLoadRevenueShareAccount);
             }
         };
 
         match loader.load_mut() {
-            Ok(builder) => Ok(builder),
+            Ok(revenue_share) => Ok(revenue_share),
             Err(e) => {
                 let caller = Location::caller();
                 msg!("{:?}", e);
                 msg!(
-                    "Could not load builder for authority {} at {}:{}",
+                    "Could not load revenue share for authority {} at {}:{}",
                     authority,
                     caller.file(),
                     caller.line()
                 );
-                Err(ErrorCode::UnableToLoadBuilderAccount)
+                Err(ErrorCode::UnableToLoadRevenueShareAccount)
             }
         }
     }
 }
 
-pub fn load_builder_map<'a: 'b, 'b>(
+pub fn load_revenue_share_map<'a: 'b, 'b>(
     account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'b>>>,
-) -> DriftResult<BuilderMap<'b>> {
-    let mut builder_map = BuilderMap::empty();
+) -> DriftResult<RevenueShareMap<'b>> {
+    let mut revenue_share_map = RevenueShareMap::empty();
 
     let user_discriminator: [u8; 8] = User::discriminator();
-    let builder_discriminator: [u8; 8] = Builder::discriminator();
+    let rev_share_discriminator: [u8; 8] = RevenueShare::discriminator();
 
     while let Some(account_info) = account_info_iter.peek() {
         let data = account_info
@@ -177,13 +180,13 @@ pub fn load_builder_map<'a: 'b, 'b>(
                 AccountLoader::try_from(user_account_info)
                     .or(Err(ErrorCode::InvalidUserAccount))?;
 
-            builder_map.insert_user(authority, user_account_loader)?;
+            revenue_share_map.insert_user(authority, user_account_loader)?;
             continue;
         }
 
-        if account_discriminator == &builder_discriminator {
-            let builder_account_info = account_info_iter.next().safe_unwrap()?;
-            let is_writable = builder_account_info.is_writable;
+        if account_discriminator == &rev_share_discriminator {
+            let revenue_share_account_info = account_info_iter.next().safe_unwrap()?;
+            let is_writable = revenue_share_account_info.is_writable;
             if !is_writable {
                 return Err(ErrorCode::DefaultError);
             }
@@ -191,16 +194,16 @@ pub fn load_builder_map<'a: 'b, 'b>(
             let authority_slice = array_ref![data, 8, 32];
             let authority = Pubkey::from(*authority_slice);
 
-            let builder_account_loader: AccountLoader<Builder> =
-                AccountLoader::try_from(builder_account_info)
-                    .or(Err(ErrorCode::InvalidBuilderAccount))?;
+            let revenue_share_account_loader: AccountLoader<RevenueShare> =
+                AccountLoader::try_from(revenue_share_account_info)
+                    .or(Err(ErrorCode::InvalidRevenueShareAccount))?;
 
-            builder_map.insert_builder(authority, builder_account_loader)?;
+            revenue_share_map.insert_revenue_share(authority, revenue_share_account_loader)?;
             continue;
         }
 
         break;
     }
 
-    Ok(builder_map)
+    Ok(revenue_share_map)
 }

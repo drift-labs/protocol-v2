@@ -639,24 +639,24 @@ pub enum ErrorCode {
     InvalidIfRebalanceConfig,
     #[msg("Invalid If Rebalance Swap")]
     InvalidIfRebalanceSwap,
-    #[msg("Invalid Builder resize")]
-    InvalidBuilderResize,
+    #[msg("Invalid RevenueShare resize")]
+    InvalidRevenueShareResize,
     #[msg("Builder has been revoked")]
     BuilderRevoked,
     #[msg("Builder fee is greater than max fee bps")]
     InvalidBuilderFee,
-    #[msg("BuilderEscrow has too many active orders")]
-    BuilderEscrowOrdersAccountFull,
-    #[msg("BuilderEscrow missing")]
-    BuilderEscrowMissing,
-    #[msg("Invalid BuilderAccount")]
-    InvalidBuilderAccount,
+    #[msg("RevenueShareEscrow has too many active orders")]
+    RevenueShareEscrowOrdersAccountFull,
+    #[msg("RevenueShareEscrow missing")]
+    RevenueShareEscrowMissing,
+    #[msg("Invalid RevenueShareAccount")]
+    InvalidRevenueShareAccount,
     #[msg("Cannot revoke builder with open orders")]
     CannotRevokeBuilderWithOpenOrders,
     #[msg("Unable to load builder account")]
-    UnableToLoadBuilderAccount,
-    #[msg("Builder order not found")]
-    BuilderOrderNotFound,
+    UnableToLoadRevenueShareAccount,
+    #[msg("RevenueShare order not found")]
+    RevenueShareOrderNotFound,
 }
 
 #[macro_export]

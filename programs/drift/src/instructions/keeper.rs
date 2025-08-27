@@ -23,7 +23,7 @@ use crate::error::ErrorCode;
 use crate::ids::admin_hot_wallet;
 use crate::ids::{jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, serum_program};
 use crate::instructions::constraints::*;
-use crate::instructions::optional_accounts::get_builder_escrow_account;
+use crate::instructions::optional_accounts::get_revenue_share_escrow_account;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
@@ -33,10 +33,6 @@ use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::optional_accounts::{get_token_mint, update_prelaunch_oracle};
-use crate::state::builder::BuilderEscrowZeroCopyMut;
-use crate::state::builder::BuilderOrder;
-use crate::state::builder::BuilderOrderBitFlag;
-use crate::state::builder_map::load_builder_map;
 use crate::state::events::{DeleteUserRecord, OrderActionExplanation, SignedMsgOrderRecord};
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
@@ -53,6 +49,10 @@ use crate::state::perp_market_map::{
     get_market_set_for_spot_positions, get_market_set_for_user_positions, get_market_set_from_list,
     get_writable_perp_market_set, get_writable_perp_market_set_from_vec, MarketSet, PerpMarketMap,
 };
+use crate::state::revenue_share::RevenueShareEscrowZeroCopyMut;
+use crate::state::revenue_share::RevenueShareOrder;
+use crate::state::revenue_share::RevenueShareOrderBitFlag;
+use crate::state::revenue_share_map::load_revenue_share_map;
 use crate::state::settle_pnl_mode::SettlePnlMode;
 use crate::state::signed_msg_user::{
     SignedMsgOrderId, SignedMsgUserOrdersLoader, SignedMsgUserOrdersZeroCopyMut,
@@ -145,7 +145,7 @@ fn fill_order<'c: 'info, 'info>(
     let (makers_and_referrer, makers_and_referrer_stats) =
         load_user_maps(remaining_accounts_iter, true)?;
 
-    let mut builder_escrow = get_builder_escrow_account(&mut remaining_accounts_iter)?;
+    let mut escrow = get_revenue_share_escrow_account(&mut remaining_accounts_iter)?;
 
     controller::repeg::update_amm(
         market_index,
@@ -170,7 +170,7 @@ fn fill_order<'c: 'info, 'info>(
         None,
         clock,
         FillMode::Fill,
-        &mut builder_escrow.as_mut(),
+        &mut escrow.as_mut(),
     )?;
 
     Ok(())
@@ -635,7 +635,7 @@ pub fn handle_place_signed_msg_taker_order<'c: 'info, 'info>(
     )?;
 
     let high_leverage_mode_config = get_high_leverage_mode_config(&mut remaining_accounts)?;
-    let builder_escrow = get_builder_escrow_account(&mut remaining_accounts)?;
+    let escrow = get_revenue_share_escrow_account(&mut remaining_accounts)?;
 
     let taker_key = ctx.accounts.user.key();
     let mut taker = load_mut!(ctx.accounts.user)?;
@@ -651,7 +651,7 @@ pub fn handle_place_signed_msg_taker_order<'c: 'info, 'info>(
         &spot_market_map,
         &mut oracle_map,
         high_leverage_mode_config,
-        builder_escrow,
+        escrow,
         state,
         is_delegate_signer,
     )?;
@@ -668,7 +668,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     high_leverage_mode_config: Option<AccountLoader<HighLeverageModeConfig>>,
-    builder_escrow: Option<BuilderEscrowZeroCopyMut<'info>>,
+    escrow: Option<RevenueShareEscrowZeroCopyMut<'info>>,
     state: &State,
     is_delegate_signer: bool,
 ) -> Result<()> {
@@ -697,22 +697,22 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
         is_delegate_signer,
     )?;
 
-    let mut builder_escrow_zc: Option<BuilderEscrowZeroCopyMut<'info>> = None;
+    let mut escrow_zc: Option<RevenueShareEscrowZeroCopyMut<'info>> = None;
     let mut builder_fee_bps: Option<u16> = None;
     if verified_message_and_signature.builder_idx.is_some()
         && verified_message_and_signature.builder_fee_bps.is_some()
     {
-        if let Some(mut builder_escrow) = builder_escrow {
+        if let Some(mut escrow) = escrow {
             let builder_idx = verified_message_and_signature.builder_idx.unwrap();
             let builder_fee = verified_message_and_signature.builder_fee_bps.unwrap();
 
             validate!(
-                builder_escrow.fixed.authority == taker.authority,
+                escrow.fixed.authority == taker.authority,
                 ErrorCode::InvalidUserAccount,
-                "BuilderEscrow account must be owned by taker",
+                "RevenueShareEscrow account must be owned by taker",
             )?;
 
-            let builder = builder_escrow.get_approved_builder_mut(builder_idx)?;
+            let builder = escrow.get_approved_builder_mut(builder_idx)?;
 
             if builder.is_revoked() {
                 return Err(ErrorCode::BuilderRevoked.into());
@@ -723,7 +723,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
             }
 
             builder_fee_bps = Some(builder_fee);
-            builder_escrow_zc = Some(builder_escrow);
+            escrow_zc = Some(escrow);
         } else {
             msg!("RevenueEscrow account must be provided if builder fields are present in OrderParams");
             return Err(ErrorCode::InvalidSignedMsgOrderParam.into());
@@ -834,24 +834,24 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
             ..OrderParams::default()
         };
 
-        let mut builder_order = if let Some(ref mut builder_escrow_zc) = builder_escrow_zc {
+        let mut builder_order = if let Some(ref mut escrow) = escrow_zc {
             let new_order_id = taker_order_id_to_use - 1;
             let new_order_index = taker
                 .orders
                 .iter()
                 .position(|order| order.is_available())
                 .ok_or(ErrorCode::MaxNumberOfOrders)?;
-            builder_escrow_zc.add_order(BuilderOrder::new(
+            escrow.add_order(RevenueShareOrder::new(
                 verified_message_and_signature.builder_idx.unwrap(),
                 taker.sub_account_id,
                 new_order_id,
                 builder_fee_bps.unwrap(),
                 MarketType::Perp,
                 market_index,
-                BuilderOrderBitFlag::Open as u8,
+                RevenueShareOrderBitFlag::Open as u8,
                 new_order_index as u8,
             ))?;
-            builder_escrow_zc.find_order_mut(taker.sub_account_id, new_order_id)
+            escrow.find_order_mut(taker.sub_account_id, new_order_id)
         } else {
             None
         };
@@ -894,24 +894,24 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
             ..OrderParams::default()
         };
 
-        let mut builder_order = if let Some(ref mut builder_escrow_zc) = builder_escrow_zc {
+        let mut builder_order = if let Some(ref mut escrow) = escrow_zc {
             let new_order_id = taker_order_id_to_use - 1;
             let new_order_index = taker
                 .orders
                 .iter()
                 .position(|order| order.is_available())
                 .ok_or(ErrorCode::MaxNumberOfOrders)?;
-            builder_escrow_zc.add_order(BuilderOrder::new(
+            escrow.add_order(RevenueShareOrder::new(
                 verified_message_and_signature.builder_idx.unwrap(),
                 taker.sub_account_id,
                 new_order_id,
                 builder_fee_bps.unwrap(),
                 MarketType::Perp,
                 market_index,
-                BuilderOrderBitFlag::Open as u8,
+                RevenueShareOrderBitFlag::Open as u8,
                 new_order_index as u8,
             ))?;
-            builder_escrow_zc.find_order_mut(taker.sub_account_id, new_order_id)
+            escrow.find_order_mut(taker.sub_account_id, new_order_id)
         } else {
             None
         };
@@ -937,24 +937,24 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
     signed_msg_order_id.order_id = taker_order_id_to_use;
     signed_msg_account.add_signed_msg_order_id(signed_msg_order_id)?;
 
-    let mut builder_order = if let Some(ref mut builder_escrow_zc) = builder_escrow_zc {
+    let mut builder_order = if let Some(ref mut escrow) = escrow_zc {
         let new_order_id = taker_order_id_to_use;
         let new_order_index = taker
             .orders
             .iter()
             .position(|order| order.is_available())
             .ok_or(ErrorCode::MaxNumberOfOrders)?;
-        builder_escrow_zc.add_order(BuilderOrder::new(
+        escrow.add_order(RevenueShareOrder::new(
             verified_message_and_signature.builder_idx.unwrap(),
             taker.sub_account_id,
             new_order_id,
             builder_fee_bps.unwrap(),
             MarketType::Perp,
             market_index,
-            BuilderOrderBitFlag::Open as u8,
+            RevenueShareOrderBitFlag::Open as u8,
             new_order_index as u8,
         ))?;
-        builder_escrow_zc.find_order_mut(taker.sub_account_id, new_order_id)
+        escrow.find_order_mut(taker.sub_account_id, new_order_id)
     } else {
         None
     };
@@ -990,8 +990,8 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
         ts: clock.unix_timestamp,
     });
 
-    if let Some(ref mut builder_escrow_zc) = builder_escrow_zc {
-        builder_escrow_zc.revoke_completed_orders(taker)?;
+    if let Some(ref mut escrow) = escrow_zc {
+        escrow.revoke_completed_orders(taker)?;
     };
 
     Ok(())
@@ -1074,13 +1074,13 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
         .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
     }
 
-    let mut builder_escrow = get_builder_escrow_account(&mut remaining_accounts)?;
-    if let Some(ref mut builder_escrow_zc) = builder_escrow {
-        builder_escrow_zc.revoke_completed_orders(user)?;
-        if let Ok(builder_map) = load_builder_map(&mut remaining_accounts) {
-            controller::builder::sweep_completed_builder_fees_for_market(
+    let mut builder_escrow = get_revenue_share_escrow_account(&mut remaining_accounts)?;
+    if let Some(ref mut escrow) = builder_escrow {
+        escrow.revoke_completed_orders(user)?;
+        if let Ok(builder_map) = load_revenue_share_map(&mut remaining_accounts) {
+            controller::revenue_share::sweep_completed_revenue_share_for_market(
                 market_index,
-                builder_escrow_zc,
+                escrow,
                 &perp_market_map,
                 &spot_market_map,
                 builder_map,
@@ -1125,7 +1125,7 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    let mut builder_escrow = get_builder_escrow_account(&mut remaining_accounts)?;
+    let mut builder_escrow = get_revenue_share_escrow_account(&mut remaining_accounts)?;
 
     let meets_margin_requirement = meets_settle_pnl_maintenance_margin_requirement(
         user,
@@ -1179,11 +1179,11 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
             .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
         }
 
-        if let Some(ref mut builder_escrow_zc) = builder_escrow {
-            if let Ok(builder_map) = load_builder_map(&mut remaining_accounts) {
-                controller::builder::sweep_completed_builder_fees_for_market(
+        if let Some(ref mut escrow_zc) = builder_escrow {
+            if let Ok(builder_map) = load_revenue_share_map(&mut remaining_accounts) {
+                controller::revenue_share::sweep_completed_revenue_share_for_market(
                     *market_index,
-                    builder_escrow_zc,
+                    escrow_zc,
                     &perp_market_map,
                     &spot_market_map,
                     builder_map,

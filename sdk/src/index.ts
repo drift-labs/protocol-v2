@@ -116,7 +116,7 @@ export * from './dlob/orderBookLevels';
 export * from './userMap/userMap';
 export * from './userMap/referrerMap';
 export * from './userMap/userStatsMap';
-export * from './userMap/builderEscrowMap';
+export * from './userMap/revenueShareEscrowMap';
 export * from './userMap/userMapConfig';
 export * from './math/bankruptcy';
 export * from './orderSubscriber';
