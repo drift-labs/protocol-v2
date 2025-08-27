@@ -710,11 +710,14 @@ impl LPPool {
                 .safe_div(10_i128.pow(spot_market.decimals))?
                 .max(0);
             msg!(
-                "constituent: {}, balance: {}, aum: {}, deriv index: {}",
+                "constituent: {}, balance: {}, aum: {}, deriv index: {}, bl token balance {}, bl balance type {}, vault balance: {}",
                 constituent.constituent_index,
                 constituent.get_full_balance(&spot_market)?,
                 constituent_aum,
-                constituent.constituent_derivative_index
+                constituent.constituent_derivative_index,
+                constituent.spot_balance.get_token_amount(&spot_market)?,
+                constituent.spot_balance.balance_type,
+                constituent.token_balance
             );
 
             // sum up crypto deltas (notional exposures for all non-stablecoins)
