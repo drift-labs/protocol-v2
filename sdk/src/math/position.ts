@@ -37,7 +37,8 @@ export function calculateBaseAssetValue(
 	userPosition: PerpPosition,
 	mmOraclePriceData: MMOraclePriceData,
 	useSpread = true,
-	skipUpdate = false
+	skipUpdate = false,
+	latestSlot?: BN
 ): BN {
 	if (userPosition.baseAssetAmount.eq(ZERO)) {
 		return ZERO;
@@ -52,7 +53,9 @@ export function calculateBaseAssetValue(
 				calculateUpdatedAMMSpreadReserves(
 					market.amm,
 					directionToClose,
-					mmOraclePriceData
+					mmOraclePriceData,
+					undefined,
+					latestSlot
 				);
 			prepegAmm = {
 				baseAssetReserve,
