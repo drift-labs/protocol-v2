@@ -921,6 +921,19 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		pythFeedId:
 			'0x2ad31d1c4a85fbf2156ce57fab4104124c5ef76a6386375ecfc8da1ed5ce1486',
 	},
+	{
+		symbol: 'LBTC',
+		marketIndex: 58,
+		poolId: 0,
+		oracle: new PublicKey('Fa3VKWbdb9yQ89vA9JfYnR6micY9LwGneoQ1So9JgXHT'),
+		oracleSource: OracleSource.PYTH_PULL,
+		mint: new PublicKey('LBTCgU4b3wsFKsPwBn1rRZDx5DoFutM6RPiEt1TPDsY'),
+		precision: new BN(10).pow(EIGHT),
+		precisionExp: EIGHT,
+		pythFeedId:
+			'0x8f257aab6e7698bb92b15511915e593d6f8eae914452f781874754b03d0c612b',
+		launchTs: 1756392947000,
+	},
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {
