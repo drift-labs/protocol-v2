@@ -191,7 +191,7 @@ export class TxHandler {
 
 		[wallet, confirmationOpts] = this.getProps(wallet, confirmationOpts);
 
-		tx.feePayer = wallet.payer?.publicKey ?? wallet.publicKey;
+		tx.feePayer = wallet.publicKey;
 		recentBlockhash = recentBlockhash
 			? recentBlockhash
 			: await this.getLatestBlockhashForTransaction();
@@ -398,7 +398,7 @@ export class TxHandler {
 		[wallet] = this.getProps(wallet);
 
 		const message = new TransactionMessage({
-			payerKey: wallet.payer?.publicKey ?? wallet.publicKey,
+			payerKey: wallet.publicKey,
 			recentBlockhash: recentBlockhash.blockhash,
 			instructions: ixs,
 		}).compileToLegacyMessage();
@@ -420,7 +420,7 @@ export class TxHandler {
 		[wallet] = this.getProps(wallet);
 
 		const message = new TransactionMessage({
-			payerKey: wallet.payer?.publicKey ?? wallet.publicKey,
+			payerKey: wallet.publicKey,
 			recentBlockhash: recentBlockhash.blockhash,
 			instructions: ixs,
 		}).compileToV0Message(lookupTableAccounts);
@@ -649,8 +649,7 @@ export class TxHandler {
 		for (const tx of Object.values(txsMap)) {
 			if (!tx) continue;
 			tx.recentBlockhash = recentBlockhash.blockhash;
-			tx.feePayer =
-				wallet?.payer?.publicKey ?? wallet?.publicKey ?? this.wallet?.publicKey;
+			tx.feePayer = wallet?.publicKey ?? this.wallet?.publicKey;
 
 			// @ts-ignore
 			tx.SIGNATURE_BLOCK_AND_EXPIRY = recentBlockhash;
@@ -690,8 +689,7 @@ export class TxHandler {
 		// Extra handling for legacy transactions
 		for (const [_key, tx] of filteredTxEntries) {
 			if (this.isLegacyTransaction(tx)) {
-				(tx as Transaction).feePayer =
-					wallet.payer?.publicKey ?? wallet.publicKey;
+				(tx as Transaction).feePayer = wallet.publicKey;
 			}
 		}
 
