@@ -38,8 +38,8 @@ import {
 	RevenueShareSettleRecord,
 	getLimitOrderParams,
 	SignedMsgOrderParamsMessage,
-	SpotBalanceType,
 	QUOTE_PRECISION,
+	SettlePnlMode,
 } from '../sdk/src';
 
 import {
@@ -71,6 +71,37 @@ const PYTH_STORAGE_ACCOUNT_INFO: AccountInfo<Buffer> = {
 	rentEpoch: 0,
 	data: Buffer.from(PYTH_STORAGE_DATA, 'base64'),
 };
+
+function buildMsg(
+	marketIndex: number,
+	baseAssetAmount: BN,
+	userOrderId: number,
+	feeBps: number,
+	slot: BN
+) {
+	const params = getMarketOrderParams({
+		marketIndex,
+		direction: PositionDirection.LONG,
+		baseAssetAmount,
+		price: new BN(230).mul(PRICE_PRECISION),
+		auctionStartPrice: new BN(226).mul(PRICE_PRECISION),
+		auctionEndPrice: new BN(230).mul(PRICE_PRECISION),
+		auctionDuration: 10,
+		userOrderId,
+		postOnly: PostOnlyParams.NONE,
+		marketType: MarketType.PERP,
+	}) as OrderParams;
+	return {
+		signedMsgOrderParams: params,
+		subAccountId: 0,
+		slot,
+		uuid: Uint8Array.from(Buffer.from(nanoid(8))),
+		builderIdx: 0,
+		builderFeeBps: feeBps,
+		takeProfitOrderParams: null,
+		stopLossOrderParams: null,
+	} as SignedMsgOrderParamsMessage;
+}
 
 describe('builder codes', () => {
 	const chProgram = anchor.workspace.Drift as Program;
@@ -125,7 +156,7 @@ describe('builder codes', () => {
 		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 224.3);
 		usdcMint = await mockUSDCMint(bankrunContextWrapper);
 
-		marketIndexes = [0];
+		marketIndexes = [0, 1];
 		spotMarketIndexes = [0, 1];
 		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
 
@@ -162,6 +193,14 @@ describe('builder codes', () => {
 			periodicity,
 			new BN(224 * PEG_PRECISION.toNumber())
 		);
+		await builderClient.initializePerpMarket(
+			1,
+			solUsd,
+			new BN(10 * 10 ** 13).mul(new BN(Math.sqrt(PRICE_PRECISION.toNumber()))),
+			new BN(10 * 10 ** 13).mul(new BN(Math.sqrt(PRICE_PRECISION.toNumber()))),
+			periodicity,
+			new BN(224 * PEG_PRECISION.toNumber())
+		);
 		builderUSDCAccount = await mockUserUSDCAccount(
 			usdcMint,
 			usdcAmount.add(new BN(1e9).mul(QUOTE_PRECISION)),
@@ -173,28 +212,45 @@ describe('builder codes', () => {
 			builderUSDCAccount.publicKey
 		);
 
-		// top up pnl pool for SOL-PERP
+		// top up pnl pool for mkt 0 and mkt 1
 		const spotMarket = builderClient.getSpotMarketAccount(0);
 		const pnlPoolTopupAmount = new BN(500).mul(QUOTE_PRECISION);
-		const transferIx = createTransferInstruction(
+
+		const transferIx0 = createTransferInstruction(
 			builderUSDCAccount.publicKey,
 			spotMarket.vault,
 			builderClient.wallet.publicKey,
 			pnlPoolTopupAmount.toNumber()
 		);
-		const tx = new Transaction().add(transferIx);
-		tx.recentBlockhash = (
+		const tx0 = new Transaction().add(transferIx0);
+		tx0.recentBlockhash = (
 			await bankrunContextWrapper.connection.getLatestBlockhash()
 		).blockhash;
-		tx.sign(builderClient.wallet.payer);
-		await bankrunContextWrapper.connection.sendTransaction(tx);
+		tx0.sign(builderClient.wallet.payer);
+		await bankrunContextWrapper.connection.sendTransaction(tx0);
+
+		// top up pnl pool for mkt 1
+		const transferIx1 = createTransferInstruction(
+			builderUSDCAccount.publicKey,
+			spotMarket.vault,
+			builderClient.wallet.publicKey,
+			pnlPoolTopupAmount.toNumber()
+		);
+		const tx1 = new Transaction().add(transferIx1);
+		tx1.recentBlockhash = (
+			await bankrunContextWrapper.connection.getLatestBlockhash()
+		).blockhash;
+		tx1.sign(builderClient.wallet.payer);
+		await bankrunContextWrapper.connection.sendTransaction(tx1);
 
 		await builderClient.updatePerpMarketPnlPool(0, pnlPoolTopupAmount);
-		await builderClient.depositIntoPerpMarketFeePool(
-			0,
-			new BN(1e6).mul(QUOTE_PRECISION),
-			builderUSDCAccount.publicKey
-		);
+		await builderClient.updatePerpMarketPnlPool(1, pnlPoolTopupAmount);
+
+		// await builderClient.depositIntoPerpMarketFeePool(
+		// 	0,
+		// 	new BN(1e6).mul(QUOTE_PRECISION),
+		// 	builderUSDCAccount.publicKey
+		// );
 
 		[userClient, userUSDCAccount] = await createUserWithUSDCAccount(
 			bankrunContextWrapper,
@@ -1015,31 +1071,6 @@ describe('builder codes', () => {
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
 
-		function buildMsg(userOrderId: number, feeBps: number, slot: BN) {
-			const params = getMarketOrderParams({
-				marketIndex,
-				direction: PositionDirection.LONG,
-				baseAssetAmount,
-				price: new BN(230).mul(PRICE_PRECISION),
-				auctionStartPrice: new BN(226).mul(PRICE_PRECISION),
-				auctionEndPrice: new BN(230).mul(PRICE_PRECISION),
-				auctionDuration: 10,
-				userOrderId,
-				postOnly: PostOnlyParams.NONE,
-				marketType: MarketType.PERP,
-			}) as OrderParams;
-			return {
-				signedMsgOrderParams: params,
-				subAccountId: 0,
-				slot,
-				uuid: Uint8Array.from(Buffer.from(nanoid(8))),
-				builderIdx: 0,
-				builderFeeBps: feeBps,
-				takeProfitOrderParams: null,
-				stopLossOrderParams: null,
-			} as SignedMsgOrderParamsMessage;
-		}
-
 		await escrowMap.slowSync();
 		const escrowStart = (await escrowMap.mustGet(
 			userClient.wallet.publicKey.toBase58()
@@ -1056,7 +1087,7 @@ describe('builder codes', () => {
 		const feeBpsB = 9;
 
 		const signedA = userClient.signSignedMsgOrderParamsMessage(
-			buildMsg(10, feeBpsA, slot),
+			buildMsg(marketIndex, baseAssetAmount, 10, feeBpsA, slot),
 			false
 		);
 		await builderClient.placeSignedMsgTakerOrder(
@@ -1074,7 +1105,7 @@ describe('builder codes', () => {
 		await userClient.fetchAccounts();
 
 		const signedB = userClient.signSignedMsgOrderParamsMessage(
-			buildMsg(11, feeBpsB, slot),
+			buildMsg(marketIndex, baseAssetAmount, 11, feeBpsB, slot),
 			false
 		);
 		await builderClient.placeSignedMsgTakerOrder(
@@ -1228,31 +1259,6 @@ describe('builder codes', () => {
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
 
-		function buildMsg(userOrderId: number, feeBps: number, slot: BN) {
-			const params = getMarketOrderParams({
-				marketIndex,
-				direction: PositionDirection.LONG,
-				baseAssetAmount,
-				price: new BN(230).mul(PRICE_PRECISION),
-				auctionStartPrice: new BN(226).mul(PRICE_PRECISION),
-				auctionEndPrice: new BN(230).mul(PRICE_PRECISION),
-				auctionDuration: 10,
-				userOrderId,
-				postOnly: PostOnlyParams.NONE,
-				marketType: MarketType.PERP,
-			}) as OrderParams;
-			return {
-				signedMsgOrderParams: params,
-				subAccountId: 0,
-				slot,
-				uuid: Uint8Array.from(Buffer.from(nanoid(8))),
-				builderIdx: 0,
-				builderFeeBps: feeBps,
-				takeProfitOrderParams: null,
-				stopLossOrderParams: null,
-			} as SignedMsgOrderParamsMessage;
-		}
-
 		// place maker orders
 		await makerClient.placeOrders([
 			getLimitOrderParams({
@@ -1282,7 +1288,7 @@ describe('builder codes', () => {
 		const feeBpsA = 6;
 
 		const signedA = userClient.signSignedMsgOrderParamsMessage(
-			buildMsg(10, feeBpsA, slot),
+			buildMsg(marketIndex, baseAssetAmount, 10, feeBpsA, slot),
 			false
 		);
 		await builderClient.placeSignedMsgTakerOrder(
@@ -1420,5 +1426,188 @@ describe('builder codes', () => {
 		);
 		assert(builderFeeChange.eq(builderFeeA));
 		assert(referrerRewardChange.eq(referrerRewardA));
+	});
+
+	it('can track referral rewards for 2 markets', async () => {
+		const builderAccountInfoBefore =
+			await bankrunContextWrapper.connection.getAccountInfo(
+				getRevenueShareAccountPublicKey(
+					builderClient.program.programId,
+					builderClient.wallet.publicKey
+				)
+			);
+		const builderAccBefore: RevenueShareAccount =
+			builderClient.program.account.revenueShare.coder.accounts.decodeUnchecked(
+				'RevenueShare',
+				builderAccountInfoBefore.data
+			);
+		// await escrowMap.slowSync();
+		// const escrowBeforeFills = (await escrowMap.mustGet(
+		// 	userClient.wallet.publicKey.toBase58()
+		// )) as RevenueShareEscrowAccount;
+
+		const slot = new BN(
+			await bankrunContextWrapper.connection.toConnection().getSlot()
+		);
+
+		// place 2 orders in different markets
+
+		const signedA = userClient.signSignedMsgOrderParamsMessage(
+			buildMsg(0, BASE_PRECISION, 1, 5, slot),
+			false
+		);
+		await builderClient.placeSignedMsgTakerOrder(
+			signedA,
+			0,
+			{
+				taker: await userClient.getUserAccountPublicKey(),
+				takerUserAccount: userClient.getUserAccount(),
+				takerStats: userClient.getUserStatsAccountPublicKey(),
+				signingAuthority: userClient.wallet.publicKey,
+			},
+			undefined,
+			2
+		);
+
+		const signedB = userClient.signSignedMsgOrderParamsMessage(
+			buildMsg(1, BASE_PRECISION, 2, 5, slot),
+			false
+		);
+		await builderClient.placeSignedMsgTakerOrder(
+			signedB,
+			1,
+			{
+				taker: await userClient.getUserAccountPublicKey(),
+				takerUserAccount: userClient.getUserAccount(),
+				takerStats: userClient.getUserStatsAccountPublicKey(),
+				signingAuthority: userClient.wallet.publicKey,
+			},
+			undefined,
+			2
+		);
+
+		await userClient.fetchAccounts();
+		const openOrders = userClient.getUser().getOpenOrders();
+
+		const fillTxA = await makerClient.fillPerpOrder(
+			await userClient.getUserAccountPublicKey(),
+			userClient.getUserAccount(),
+			{
+				marketIndex: 0,
+				orderId: openOrders.find(
+					(o) => isVariant(o.status, 'open') && o.marketIndex === 0
+				)!.orderId,
+			},
+			undefined,
+			{
+				referrer: await builderClient.getUserAccountPublicKey(),
+				referrerStats: builderClient.getUserStatsAccountPublicKey(),
+			},
+			undefined,
+			undefined,
+			undefined,
+			true
+		);
+		const logsA = await printTxLogs(
+			bankrunContextWrapper.connection.toConnection(),
+			fillTxA
+		);
+		const eventsA = parseLogs(builderClient.program, logsA);
+		const fillsA = eventsA.filter((e) => e.name === 'OrderActionRecord');
+		const fillAReferrerReward = fillsA[0]['data']['referrerReward'] as number;
+		assert(fillsA.length > 0);
+		console.log(fillsA[0]['data']);
+
+		const fillTxB = await makerClient.fillPerpOrder(
+			await userClient.getUserAccountPublicKey(),
+			userClient.getUserAccount(),
+			{
+				marketIndex: 1,
+				orderId: openOrders.find(
+					(o) => isVariant(o.status, 'open') && o.marketIndex === 1
+				)!.orderId,
+			},
+			undefined,
+			{
+				referrer: await builderClient.getUserAccountPublicKey(),
+				referrerStats: builderClient.getUserStatsAccountPublicKey(),
+			},
+			undefined,
+			undefined,
+			undefined,
+			true
+		);
+		const logsB = await printTxLogs(
+			bankrunContextWrapper.connection.toConnection(),
+			fillTxB
+		);
+		const eventsB = parseLogs(builderClient.program, logsB);
+		const fillsB = eventsB.filter((e) => e.name === 'OrderActionRecord');
+		assert(fillsB.length > 0);
+		const fillBReferrerReward = fillsB[0]['data']['referrerReward'] as number;
+		console.log(fillsB[0]['data']);
+
+		await escrowMap.slowSync();
+		const escrowAfterFills = (await escrowMap.mustGet(
+			userClient.wallet.publicKey.toBase58()
+		)) as RevenueShareEscrowAccount;
+
+		const referrerOrdersMarket0 = escrowAfterFills.orders.filter(
+			(o) => o.marketIndex === 0 && isBuilderOrderReferral(o)
+		);
+		const referrerOrdersMarket1 = escrowAfterFills.orders.filter(
+			(o) => o.marketIndex === 1 && isBuilderOrderReferral(o)
+		);
+		assert(referrerOrdersMarket0[0].marketIndex === 0);
+		assert(
+			referrerOrdersMarket0[0].feesAccrued.eq(new BN(fillAReferrerReward))
+		);
+		assert(referrerOrdersMarket1[0].marketIndex === 1);
+		assert(
+			referrerOrdersMarket1[0].feesAccrued.eq(new BN(fillBReferrerReward))
+		);
+
+		// settle pnl
+		const settleTxA = await builderClient.settleMultiplePNLs(
+			await userClient.getUserAccountPublicKey(),
+			userClient.getUserAccount(),
+			[0, 1],
+			SettlePnlMode.MUST_SETTLE,
+			escrowMap
+		);
+		await printTxLogs(
+			bankrunContextWrapper.connection.toConnection(),
+			settleTxA
+		);
+
+		await escrowMap.slowSync();
+		const escrowAfterSettle = (await escrowMap.mustGet(
+			userClient.wallet.publicKey.toBase58()
+		)) as RevenueShareEscrowAccount;
+		const referrerOrdersMarket0AfterSettle = escrowAfterSettle.orders.filter(
+			(o) => o.marketIndex === 0 && isBuilderOrderReferral(o)
+		);
+		const referrerOrdersMarket1AfterSettle = escrowAfterSettle.orders.filter(
+			(o) => o.marketIndex === 1 && isBuilderOrderReferral(o)
+		);
+		assert(referrerOrdersMarket0AfterSettle.length === 1);
+		assert(referrerOrdersMarket1AfterSettle.length === 1);
+		assert(referrerOrdersMarket0AfterSettle[0].feesAccrued.eq(ZERO));
+		assert(referrerOrdersMarket1AfterSettle[0].feesAccrued.eq(ZERO));
+
+		const builderAccountInfoAfter =
+			await bankrunContextWrapper.connection.getAccountInfo(
+				getRevenueShareAccountPublicKey(
+					builderClient.program.programId,
+					builderClient.wallet.publicKey
+				)
+			);
+		const builderAccAfter: RevenueShareAccount =
+			builderClient.program.account.revenueShare.coder.accounts.decodeUnchecked(
+				'RevenueShare',
+				builderAccountInfoAfter.data
+			);
+		const referrerRewards = builderAccAfter.totalReferrerRewards.sub(builderAccBefore.totalReferrerRewards);
+		assert(referrerRewards.eq(new BN(fillAReferrerReward + fillBReferrerReward)));
 	});
 });

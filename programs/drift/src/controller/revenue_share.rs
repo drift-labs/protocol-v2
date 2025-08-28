@@ -21,7 +21,7 @@ pub fn sweep_completed_revenue_share_for_market<'a>(
     revenue_share_escrow: &mut RevenueShareEscrowZeroCopyMut,
     perp_market_map: &PerpMarketMap<'a>,
     spot_market_map: &SpotMarketMap<'a>,
-    revenue_share_map: RevenueShareMap<'a>,
+    revenue_share_map: &RevenueShareMap<'a>,
     now_ts: i64,
 ) -> crate::error::DriftResult<()> {
     let perp_market = &mut perp_market_map.get_ref_mut(&market_index)?;

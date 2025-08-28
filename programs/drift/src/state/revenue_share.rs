@@ -376,7 +376,7 @@ impl<'a> RevenueShareEscrowZeroCopyMut<'a> {
             0,
             0,
             MarketType::Spot,
-            0,
+            market_index,
             RevenueShareOrderBitFlag::Referral as u8,
             0,
         )) {

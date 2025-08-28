@@ -1075,9 +1075,10 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
     }
 
     let mut builder_escrow = get_revenue_share_escrow_account(&mut remaining_accounts)?;
+    let maybe_rev_share_map = load_revenue_share_map(&mut remaining_accounts).ok();
     if let Some(ref mut escrow) = builder_escrow {
         escrow.revoke_completed_orders(user)?;
-        if let Ok(builder_map) = load_revenue_share_map(&mut remaining_accounts) {
+        if let Some(ref builder_map) = maybe_rev_share_map {
             controller::revenue_share::sweep_completed_revenue_share_for_market(
                 market_index,
                 escrow,
@@ -1126,6 +1127,8 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
     )?;
 
     let mut builder_escrow = get_revenue_share_escrow_account(&mut remaining_accounts)?;
+    // Load the revenue share map once; reuse in the markets loop below
+    let maybe_rev_share_map = load_revenue_share_map(&mut remaining_accounts).ok();
 
     let meets_margin_requirement = meets_settle_pnl_maintenance_margin_requirement(
         user,
@@ -1180,7 +1183,7 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
         }
 
         if let Some(ref mut escrow_zc) = builder_escrow {
-            if let Ok(builder_map) = load_revenue_share_map(&mut remaining_accounts) {
+            if let Some(ref builder_map) = maybe_rev_share_map {
                 controller::revenue_share::sweep_completed_revenue_share_for_market(
                     *market_index,
                     escrow_zc,

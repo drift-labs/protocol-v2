@@ -199,7 +199,10 @@ import { Commitment } from 'gill';
 import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDriftClientAccountSubscriber';
 import { hasBuilder } from './math/orders';
 import { RevenueShareEscrowMap } from './userMap/revenueShareEscrowMap';
-import { isBuilderOrderAvailable } from './math/builder';
+import {
+	isBuilderOrderAvailable,
+	isBuilderOrderReferral,
+} from './math/builder';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -7656,6 +7659,56 @@ export class DriftClient {
 						remainingAccounts
 					);
 				}
+
+				// Include escrow and referrer accounts if referral rewards exist for this market
+				const hasReferralForMarket = escrow.orders.some(
+					(o) =>
+						isBuilderOrderReferral(o) &&
+						o.feesAccrued.gt(ZERO) &&
+						o.marketIndex === marketIndex
+				);
+
+				if (hasReferralForMarket) {
+					const escrowPk = getRevenueShareEscrowAccountPublicKey(
+						this.program.programId,
+						settleeUserAccount.authority
+					);
+					if (!remainingAccounts.find((a) => a.pubkey.equals(escrowPk))) {
+						remainingAccounts.push({
+							pubkey: escrowPk,
+							isSigner: false,
+							isWritable: true,
+						});
+					}
+
+					if (!escrow.referrer.equals(PublicKey.default)) {
+						const refUser = getUserAccountPublicKeySync(
+							this.program.programId,
+							escrow.referrer,
+							0
+						);
+						if (!remainingAccounts.find((a) => a.pubkey.equals(refUser))) {
+							remainingAccounts.push({
+								pubkey: refUser,
+								isSigner: false,
+								isWritable: true,
+							});
+						}
+						const refRevenueShare = getRevenueShareAccountPublicKey(
+							this.program.programId,
+							escrow.referrer
+						);
+						if (
+							!remainingAccounts.find((a) => a.pubkey.equals(refRevenueShare))
+						) {
+							remainingAccounts.push({
+								pubkey: refRevenueShare,
+								isSigner: false,
+								isWritable: true,
+							});
+						}
+					}
+				}
 			}
 		}
 
@@ -7807,6 +7860,66 @@ export class DriftClient {
 					Array.from(builders.values()),
 					remainingAccounts
 				);
+			}
+
+			// Include escrow and referrer accounts when there are referral rewards
+			// for any of the markets we are settling, so on-chain sweep can find them.
+			const hasReferralForRequestedMarkets = escrow.orders.some(
+				(o) =>
+					isBuilderOrderReferral(o) &&
+					o.feesAccrued.gt(ZERO) &&
+					marketIndexes.includes(o.marketIndex)
+			);
+			console.log(
+				'hasReferralForRequestedMarkets',
+				hasReferralForRequestedMarkets
+			);
+
+			if (hasReferralForRequestedMarkets) {
+				// Ensure the user's RevenueShareEscrow is included if not already
+				const escrowPk = getRevenueShareEscrowAccountPublicKey(
+					this.program.programId,
+					settleeUserAccount.authority
+				);
+				if (!remainingAccounts.find((a) => a.pubkey.equals(escrowPk))) {
+					remainingAccounts.push({
+						pubkey: escrowPk,
+						isSigner: false,
+						isWritable: true,
+					});
+				}
+
+				// Add referrer's User and RevenueShare accounts
+				if (!escrow.referrer.equals(PublicKey.default)) {
+					const refUser = getUserAccountPublicKeySync(
+						this.program.programId,
+						escrow.referrer,
+						0
+					);
+					console.log(
+						`adding referrer user and rev share ${escrow.referrer.toBase58()} to remaining accounts`
+					);
+					if (!remainingAccounts.find((a) => a.pubkey.equals(refUser))) {
+						remainingAccounts.push({
+							pubkey: refUser,
+							isSigner: false,
+							isWritable: true,
+						});
+					}
+					const refRevenueShare = getRevenueShareAccountPublicKey(
+						this.program.programId,
+						escrow.referrer
+					);
+					if (
+						!remainingAccounts.find((a) => a.pubkey.equals(refRevenueShare))
+					) {
+						remainingAccounts.push({
+							pubkey: refRevenueShare,
+							isSigner: false,
+							isWritable: true,
+						});
+					}
+				}
 			}
 		}
 
