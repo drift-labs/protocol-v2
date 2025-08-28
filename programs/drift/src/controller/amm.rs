@@ -516,7 +516,7 @@ fn calculate_revenue_pool_transfer(
 pub fn update_pool_balances(
     market: &mut PerpMarket,
     spot_market: &mut SpotMarket,
-    user_quote_position: &SpotPosition,
+    user_quote_token_amount: i128,
     user_unsettled_pnl: i128,
     now: i64,
 ) -> DriftResult<i128> {
@@ -664,11 +664,9 @@ pub fn update_pool_balances(
     let pnl_to_settle_with_user = if user_unsettled_pnl > 0 {
         min(user_unsettled_pnl, pnl_pool_token_amount.cast::<i128>()?)
     } else {
-        let token_amount = user_quote_position.get_signed_token_amount(spot_market)?;
-
         // dont settle negative pnl to spot borrows when utilization is high (> 80%)
         let max_withdraw_amount =
-            -get_max_withdraw_for_market_with_token_amount(spot_market, token_amount, false)?
+            -get_max_withdraw_for_market_with_token_amount(spot_market, user_quote_token_amount, false)?
                 .cast::<i128>()?;
 
         max_withdraw_amount.max(user_unsettled_pnl)

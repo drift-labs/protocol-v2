@@ -121,10 +121,11 @@ fn amm_pool_balance_liq_fees_example() {
         assert_eq!(new_total_fee_minus_distributions, 640881949608);
 
         let unsettled_pnl = -10_000_000;
+        let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
         let to_settle_with_user = update_pool_balances(
             &mut perp_market,
             &mut spot_market,
-            &spot_position,
+            user_quote_token_amount,
             unsettled_pnl,
             now,
         )

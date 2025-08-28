@@ -227,10 +227,18 @@ pub fn settle_pnl(
     let user_unsettled_pnl: i128 =
         user.perp_positions[position_index].get_claimable_pnl(oracle_price, max_pnl_pool_excess)?;
 
+    let is_isolated_position = user.perp_positions[position_index].is_isolated();
+
+    let user_quote_token_amount = if is_isolated_position {
+        user.perp_positions[position_index].get_isolated_token_amount(spot_market)?.cast()?
+    } else {
+        user.get_quote_spot_position().get_signed_token_amount(spot_market)?
+    };
+
     let pnl_to_settle_with_user = update_pool_balances(
         perp_market,
         spot_market,
-        user.get_quote_spot_position(),
+        user_quote_token_amount,
         user_unsettled_pnl,
         now,
     )?;
@@ -263,7 +271,7 @@ pub fn settle_pnl(
         );
     }
 
-    if user.perp_positions[position_index].is_isolated() {
+    if is_isolated_position {
         let perp_position = &mut user.perp_positions[position_index];
         if pnl_to_settle_with_user < 0 {
             let token_amount = perp_position.get_isolated_token_amount(spot_market)?;
