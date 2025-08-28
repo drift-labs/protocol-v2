@@ -173,18 +173,18 @@ export abstract class BaseTxSender implements TxSender {
 
 		if (preSigned) {
 			signedTx = tx;
+			// @ts-ignore
+		} else if (this.wallet.payer) {
+			// @ts-ignore
+			tx.sign((additionalSigners ?? []).concat(this.wallet.payer));
+			signedTx = tx;
 		} else {
-			// Sign with user first for instruction authorities
 			signedTx = await this.txHandler.signVersionedTx(
 				tx,
 				additionalSigners,
 				undefined,
 				this.wallet
 			);
-			// Add payer signature if available
-			if (this.wallet.payer) {
-				signedTx.sign([this.wallet.payer]);
-			}
 		}
 
 		if (opts === undefined) {
