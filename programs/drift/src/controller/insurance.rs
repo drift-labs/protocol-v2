@@ -1098,6 +1098,14 @@ pub fn handle_if_end_swap(
         if_rebalance_config.epoch_max_in_amount
     )?;
 
+    validate!(
+        if_rebalance_config.current_in_amount <= if_rebalance_config.total_in_amount,
+        ErrorCode::InvalidIfRebalanceSwap,
+        "current_in_amount={} > total_in_amount={}",
+        if_rebalance_config.current_in_amount,
+        if_rebalance_config.total_in_amount
+    )?;
+
     let oracle_twap = out_spot_market
         .historical_oracle_data
         .last_oracle_price_twap;
