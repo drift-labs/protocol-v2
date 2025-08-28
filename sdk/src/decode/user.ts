@@ -84,6 +84,7 @@ export function decodeUser(buffer: Buffer): UserAccount {
 		const quoteAssetAmount = readSignedBigInt64LE(buffer, offset + 16);
 		const lpShares = readUnsignedBigInt64LE(buffer, offset + 64);
 		const openOrders = buffer.readUInt8(offset + 94);
+		const positionFlag = buffer.readUInt8(offset + 95);
 
 		if (
 			baseAssetAmount.eq(ZERO) &&
@@ -116,9 +117,6 @@ export function decodeUser(buffer: Buffer): UserAccount {
 		const marketIndex = buffer.readUInt16LE(offset);
 		offset += 3;
 		const perLpBase = buffer.readUInt8(offset);
-		offset += 1;
-		// TODO: verify this works
-		const positionFlag = buffer.readUInt8(offset);
 		offset += 1;
 		perpPositions.push({
 			lastCumulativeFundingRate,

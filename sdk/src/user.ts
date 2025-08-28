@@ -110,7 +110,6 @@ import { grpcUserAccountSubscriber } from './accounts/grpcUserAccountSubscriber'
 import {
 	MarginCalculation as JsMarginCalculation,
 	MarginContext,
-	MarketIdentifier,
 	IsolatedMarginCalculation,
 } from './marginCalculation';
 
@@ -215,7 +214,7 @@ export class User {
 						spotMarket.decimals,
 						strictOracle
 					);
-					calc.addIsolatedTotalCollateral(tokenValue);
+					calc.addCrossMarginTotalCollateral(tokenValue);
 				} else {
 					// borrow on quote contributes to margin requirement
 					const tokenValueAbs = getStrictTokenValue(
@@ -223,10 +222,9 @@ export class User {
 						spotMarket.decimals,
 						strictOracle
 					).abs();
-					calc.addIsolatedMarginRequirement(
+					calc.addCrossMarginRequirement(
 						tokenValueAbs,
 						tokenValueAbs,
-						MarketIdentifier.spot(0)
 					);
 					calc.addSpotLiability();
 				}
@@ -249,23 +247,21 @@ export class User {
 
 			// open order IM
 			if (includeOpenOrders) {
-				calc.addIsolatedMarginRequirement(
+				calc.addCrossMarginRequirement(
 					new BN(spotPosition.openOrders).mul(OPEN_ORDER_MARGIN_REQUIREMENT),
 					ZERO,
-					MarketIdentifier.spot(spotPosition.marketIndex)
 				);
 			}
 
 			if (worstCaseTokenAmount.gt(ZERO)) {
 				// asset side increases total collateral (weighted)
-				calc.addIsolatedTotalCollateral(worstCaseWeightedTokenValue);
+				calc.addCrossMarginTotalCollateral(worstCaseWeightedTokenValue);
 			} else if (worstCaseTokenAmount.lt(ZERO)) {
 				// liability side increases margin requirement (weighted >= abs(token_value))
 				const liabilityWeighted = worstCaseWeightedTokenValue.abs();
-				calc.addIsolatedMarginRequirement(
+				calc.addCrossMarginRequirement(
 					liabilityWeighted,
 					worstCaseTokenValue.abs(),
-					MarketIdentifier.spot(spotPosition.marketIndex)
 				);
 				calc.addSpotLiability();
 			} else if (spotPosition.openOrders !== 0) {
@@ -274,13 +270,12 @@ export class User {
 
 			// orders value contributes to collateral or requirement
 			if (worstCaseOrdersValue.gt(ZERO)) {
-				calc.addIsolatedTotalCollateral(worstCaseOrdersValue);
+				calc.addCrossMarginTotalCollateral(worstCaseOrdersValue);
 			} else if (worstCaseOrdersValue.lt(ZERO)) {
 				const absVal = worstCaseOrdersValue.abs();
-				calc.addIsolatedMarginRequirement(
+				calc.addCrossMarginRequirement(
 					absVal,
 					absVal,
-					MarketIdentifier.spot(0)
 				);
 			}
 		}
@@ -403,12 +398,11 @@ export class User {
 				calc.addPerpLiability();
 			} else {
 				// cross: add to global requirement and collateral
-				calc.addIsolatedMarginRequirement(
+				calc.addCrossMarginRequirement(
 					perpMarginRequirement,
 					worstCaseLiabilityValue,
-					MarketIdentifier.perp(market.marketIndex)
 				);
-				calc.addIsolatedTotalCollateral(positionUnrealizedPnl);
+				calc.addCrossMarginTotalCollateral(positionUnrealizedPnl);
 				const hasPerpLiability =
 					!marketPosition.baseAssetAmount.eq(ZERO) ||
 					marketPosition.quoteAssetAmount.lt(ZERO) ||
@@ -1951,7 +1945,7 @@ export class User {
 			return {
 				perpLiabilityValue: perpLiability,
 				perpPnl: positionUnrealizedPnl,
-				spotAssetValue: ZERO,
+				spotAssetValue: perpPosition.isolatedPositionScaledBalance,
 				spotLiabilityValue: ZERO,
 			};
 		}

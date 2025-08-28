@@ -504,6 +504,7 @@ export type LiquidationRecord = {
 	liquidatePerpPnlForDeposit: LiquidatePerpPnlForDepositRecord;
 	perpBankruptcy: PerpBankruptcyRecord;
 	spotBankruptcy: SpotBankruptcyRecord;
+    bitFlags: number;
 };
 
 export class LiquidationType {
@@ -581,6 +582,10 @@ export type SpotBankruptcyRecord = {
 	cumulativeDepositInterestDelta: BN;
 	ifPayment: BN;
 };
+
+export class LiquidationBitFlag {
+    static readonly IsolatedPosition = 1;
+}
 
 export type SettlePnlRecord = {
 	ts: BN;
