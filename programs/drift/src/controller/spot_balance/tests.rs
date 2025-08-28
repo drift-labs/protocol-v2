@@ -8,6 +8,7 @@ use crate::controller::spot_balance::*;
 use crate::controller::spot_position::update_spot_balances_and_cumulative_deposits_with_limits;
 use crate::create_account_info;
 use crate::create_anchor_account_info;
+use crate::error::ErrorCode;
 use crate::math::constants::{
     AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, LIQUIDATION_FEE_PRECISION,
     PEG_PRECISION, PRICE_PRECISION_I64, PRICE_PRECISION_U64, QUOTE_PRECISION, QUOTE_PRECISION_I128,
@@ -31,6 +32,7 @@ use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{InsuranceFund, SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
+use crate::state::user::PositionFlag;
 use crate::state::user::{Order, PerpPosition, SpotPosition, User};
 use crate::test_utils::*;
 use crate::test_utils::{get_pyth_price, get_spot_positions};
@@ -1947,4 +1949,66 @@ fn check_spot_market_min_borrow_rate() {
 
     assert_eq!(accum_interest.borrow_interest, 317107433);
     assert_eq!(accum_interest.deposit_interest, 3171074);
+}
+
+#[test]
+fn isolated_perp_position() {
+    let now = 30_i64;
+    let _slot = 0_u64;
+
+    let mut spot_market = SpotMarket {
+        market_index: 0,
+        oracle_source: OracleSource::QuoteAsset,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        decimals: 6,
+        initial_asset_weight: SPOT_WEIGHT_PRECISION,
+        maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+        deposit_balance: 100_000_000 * SPOT_BALANCE_PRECISION, //$100M usdc
+        borrow_balance: 0,
+        deposit_token_twap: QUOTE_PRECISION_U64 / 2,
+        historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
+        status: MarketStatus::Active,
+        ..SpotMarket::default()
+    };
+
+    let mut perp_position = PerpPosition {
+        market_index: 0,
+        position_flag: PositionFlag::IsolatedPosition as u8,
+        ..PerpPosition::default()
+    };
+
+    let amount = QUOTE_PRECISION;
+
+    update_spot_balances(
+        amount,
+        &SpotBalanceType::Deposit,
+        &mut spot_market,
+        &mut perp_position,
+        false,
+    )
+    .unwrap();
+
+    assert_eq!(perp_position.isolated_position_scaled_balance, 1000000000);
+    assert_eq!(perp_position.get_isolated_token_amount(&spot_market).unwrap(), amount);
+
+    update_spot_balances(
+        amount,
+        &SpotBalanceType::Borrow,
+        &mut spot_market,
+        &mut perp_position,
+        false,
+    ).unwrap();
+
+    assert_eq!(perp_position.isolated_position_scaled_balance, 0);
+
+    let result = update_spot_balances(
+        amount,
+        &SpotBalanceType::Borrow,
+        &mut spot_market,
+        &mut perp_position,
+        false,
+    );
+
+    assert_eq!(result, Err(ErrorCode::CantUpdateSpotBalanceType));
 }
