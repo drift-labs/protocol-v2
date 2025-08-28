@@ -1033,6 +1033,8 @@ export type PerpPosition = {
 	lastBaseAssetAmountPerLp: BN;
 	lastQuoteAssetAmountPerLp: BN;
 	perLpBase: number;
+	positionFlag: number; // TODO: make this deserializes properly
+	isolatedPositionScaledBalance?: BN;
 };
 
 export type UserStatsAccount = {
@@ -1183,6 +1185,12 @@ export class PostOnlyParams {
 export class OrderParamsBitFlag {
 	static readonly ImmediateOrCancel = 1;
 	static readonly UpdateHighLeverageMode = 2;
+}
+
+export class PositionFlag {
+	static readonly IsolatedPosition = 1;
+	static readonly BeingLiquidated = 2;
+	static readonly Bankruptcy = 3;
 }
 
 export type NecessaryOrderParams = {
