@@ -6679,8 +6679,8 @@ export class DriftClient {
 					? orderParamsMessage.builderIdx
 					: null,
 			builderFeeBps:
-				orderParamsMessage.builderFeeBps !== undefined
-					? orderParamsMessage.builderFeeBps
+				orderParamsMessage.builderFeeTenthBps !== undefined
+					? orderParamsMessage.builderFeeTenthBps
 					: null,
 		};
 		const buf = Buffer.concat([
@@ -6788,7 +6788,7 @@ export class DriftClient {
 			});
 		}
 		if (
-			signedMessage.builderFeeBps !== null &&
+			signedMessage.builderFeeTenthBps !== null &&
 			signedMessage.builderIdx !== null
 		) {
 			remainingAccounts.push({

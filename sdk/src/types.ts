@@ -1246,7 +1246,7 @@ export type SignedMsgOrderParamsMessage = {
 	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
 	builderIdx?: number | null;
-	builderFeeBps?: number | null;
+	builderFeeTenthBps?: number | null;
 };
 
 export type SignedMsgOrderParamsDelegateMessage = {
@@ -1257,7 +1257,7 @@ export type SignedMsgOrderParamsDelegateMessage = {
 	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
 	builderIdx?: number | null;
-	builderFeeBps?: number | null;
+	builderFeeTenthBps?: number | null;
 };
 
 export type SignedMsgTriggerOrderParams = {
@@ -1595,7 +1595,7 @@ export type RevenueShareOrder = {
 	builderIdx: number;
 	feesAccrued: BN;
 	orderId: number;
-	feeBps: number;
+	feeTenthBps: number;
 	marketIndex: number;
 	bitFlags: number;
 	marketType: MarketType; // 0: spot, 1: perp
@@ -1604,7 +1604,7 @@ export type RevenueShareOrder = {
 
 export type BuilderInfo = {
 	authority: PublicKey;
-	maxFeeBps: number;
+	maxFeeTenthBps: number;
 	bitFlags: number;
 };
 

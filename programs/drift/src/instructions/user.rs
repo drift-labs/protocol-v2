@@ -574,7 +574,7 @@ pub fn handle_resize_revenue_share_escrow_orders<'c: 'info, 'info>(
 pub fn handle_change_approved_builder<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, ChangeApprovedBuilder<'info>>,
     builder: Pubkey,
-    max_fee_bps: u16,
+    max_fee_tenth_bps: u16,
     add: bool,
 ) -> Result<()> {
     let existing_builder_index = ctx
@@ -586,12 +586,12 @@ pub fn handle_change_approved_builder<'c: 'info, 'info>(
     if let Some(index) = existing_builder_index {
         if add {
             msg!(
-                "Updated builder: {} with max fee bps: {} -> {}",
+                "Updated builder: {} with max fee tenth bps: {} -> {}",
                 builder,
-                ctx.accounts.escrow.approved_builders[index].max_fee_bps,
-                max_fee_bps
+                ctx.accounts.escrow.approved_builders[index].max_fee_tenth_bps,
+                max_fee_tenth_bps
             );
-            ctx.accounts.escrow.approved_builders[index].max_fee_bps = max_fee_bps;
+            ctx.accounts.escrow.approved_builders[index].max_fee_tenth_bps = max_fee_tenth_bps;
         } else {
             if ctx
                 .accounts
@@ -604,23 +604,23 @@ pub fn handle_change_approved_builder<'c: 'info, 'info>(
                 return Err(ErrorCode::CannotRevokeBuilderWithOpenOrders.into());
             }
             msg!(
-                "Revoking builder: {}, max fee bps: {} -> 0",
+                "Revoking builder: {}, max fee tenth bps: {} -> 0",
                 builder,
-                ctx.accounts.escrow.approved_builders[index].max_fee_bps,
+                ctx.accounts.escrow.approved_builders[index].max_fee_tenth_bps,
             );
-            ctx.accounts.escrow.approved_builders[index].max_fee_bps = 0;
+            ctx.accounts.escrow.approved_builders[index].max_fee_tenth_bps = 0;
         }
     } else {
         if add {
             ctx.accounts.escrow.approved_builders.push(BuilderInfo {
                 authority: builder,
-                max_fee_bps,
+                max_fee_tenth_bps,
                 ..BuilderInfo::default()
             });
             msg!(
-                "Added builder: {} with max fee bps: {}",
+                "Added builder: {} with max fee tenth bps: {}",
                 builder,
-                max_fee_bps
+                max_fee_tenth_bps
             );
         } else {
             msg!("Tried to revoke builder: {}, but it was not found", builder);
@@ -5019,7 +5019,7 @@ pub struct ResizeRevenueShareEscrowOrders<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(builder: Pubkey, max_fee_bps: u16, add: bool)]
+#[instruction(builder: Pubkey, max_fee_tenth_bps: u16, add: bool)]
 pub struct ChangeApprovedBuilder<'info> {
     #[account(
         mut,

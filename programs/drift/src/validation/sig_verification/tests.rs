@@ -31,7 +31,7 @@ mod sig_verification {
         assert!(verified_message.take_profit_order_params.is_none());
         assert!(verified_message.stop_loss_order_params.is_none());
         assert!(verified_message.builder_idx.is_none());
-        assert!(verified_message.builder_fee_bps.is_none());
+        assert!(verified_message.builder_fee_tenth_bps.is_none());
 
         // Verify order params
         let order_params = &verified_message.signed_msg_order_params;
@@ -80,7 +80,7 @@ mod sig_verification {
         assert_eq!(sl.trigger_price, 225000000u64);
 
         assert!(verified_message.builder_idx.is_none());
-        assert!(verified_message.builder_fee_bps.is_none());
+        assert!(verified_message.builder_fee_tenth_bps.is_none());
 
         // Verify order params
         let order_params = &verified_message.signed_msg_order_params;
@@ -130,8 +130,8 @@ mod sig_verification {
 
         assert!(verified_message.builder_idx.is_some());
         assert_eq!(verified_message.builder_idx.unwrap(), 1);
-        assert!(verified_message.builder_fee_bps.is_some());
-        assert_eq!(verified_message.builder_fee_bps.unwrap(), 8);
+        assert!(verified_message.builder_fee_tenth_bps.is_some());
+        assert_eq!(verified_message.builder_fee_tenth_bps.unwrap(), 8);
 
         // Verify order params
         let order_params = &verified_message.signed_msg_order_params;
@@ -175,7 +175,7 @@ mod sig_verification {
         assert!(verified_message.take_profit_order_params.is_none());
         assert!(verified_message.stop_loss_order_params.is_none());
         assert!(verified_message.builder_idx.is_none());
-        assert!(verified_message.builder_fee_bps.is_none());
+        assert!(verified_message.builder_fee_tenth_bps.is_none());
 
         // Verify order params
         let order_params = &verified_message.signed_msg_order_params;
@@ -229,7 +229,7 @@ mod sig_verification {
         assert_eq!(sl.trigger_price, 250000000u64);
 
         assert!(verified_message.builder_idx.is_none());
-        assert!(verified_message.builder_fee_bps.is_none());
+        assert!(verified_message.builder_fee_tenth_bps.is_none());
 
         // Verify order params
         let order_params = &verified_message.signed_msg_order_params;
@@ -284,8 +284,8 @@ mod sig_verification {
 
         assert!(verified_message.builder_idx.is_some());
         assert_eq!(verified_message.builder_idx.unwrap(), 1);
-        assert!(verified_message.builder_fee_bps.is_some());
-        assert_eq!(verified_message.builder_fee_bps.unwrap(), 8);
+        assert!(verified_message.builder_fee_tenth_bps.is_some());
+        assert_eq!(verified_message.builder_fee_tenth_bps.unwrap(), 8);
 
         // Verify order params
         let order_params = &verified_message.signed_msg_order_params;

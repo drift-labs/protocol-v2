@@ -10555,7 +10555,7 @@
             }
           },
           {
-            "name": "builderFeeBps",
+            "name": "builderFeeTenthBps",
             "type": {
               "option": "u16"
             }
@@ -10614,7 +10614,7 @@
             }
           },
           {
-            "name": "builderFeeBps",
+            "name": "builderFeeTenthBps",
             "type": {
               "option": "u16"
             }
@@ -11492,7 +11492,10 @@
             "type": "u32"
           },
           {
-            "name": "feeBps",
+            "name": "feeTenthBps",
+            "docs": [
+              "the builder fee on this order, in tenths of a bps, e.g. 100 = 0.01%"
+            ],
             "type": "u16"
           },
           {
@@ -11562,7 +11565,7 @@
             "type": "publicKey"
           },
           {
-            "name": "maxFeeBps",
+            "name": "maxFeeTenthBps",
             "type": "u16"
           },
           {

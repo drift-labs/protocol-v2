@@ -2277,7 +2277,7 @@ pub fn fulfill_perp_order_with_amm(
                 escrow.find_or_create_referral_index(market.market_index);
 
             let builder_order = builder_order_idx.and_then(|idx| escrow.get_order(idx).ok());
-            let builder_order_fee_bps = builder_order.map(|order| order.fee_bps);
+            let builder_order_fee_bps = builder_order.map(|order| order.fee_tenth_bps);
             let builder_idx = builder_order.map(|order| order.builder_idx);
 
             (
@@ -2434,7 +2434,7 @@ pub fn fulfill_perp_order_with_amm(
     )?;
     if is_filled {
         if let (Some(idx), Some(escrow)) = (builder_order_idx, rev_share_escrow.as_mut()) {
-            escrow
+            let _ = escrow
                 .get_order_mut(idx)
                 .map(|order| order.add_bit_flag(RevenueShareOrderBitFlag::Completed));
         }
@@ -2811,7 +2811,7 @@ pub fn fulfill_perp_order_with_match(
                 escrow.find_or_create_referral_index(market.market_index);
 
             let builder_order = builder_order_idx.and_then(|idx| escrow.get_order(idx).ok());
-            let builder_order_fee_bps = builder_order.map(|order| order.fee_bps);
+            let builder_order_fee_bps = builder_order.map(|order| order.fee_tenth_bps);
             let builder_idx = builder_order.map(|order| order.builder_idx);
 
             (

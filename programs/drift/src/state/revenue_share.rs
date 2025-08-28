@@ -50,7 +50,8 @@ pub struct RevenueShareOrder {
     pub fees_accrued: u64,
     /// the order_id of the current active order in this slot. It's only relevant while bit_flag = Open
     pub order_id: u32,
-    pub fee_bps: u16,
+    /// the builder fee on this order, in tenths of a bps, e.g. 100 = 0.01%
+    pub fee_tenth_bps: u16,
     pub market_index: u16,
     /// the subaccount_id of the user who created this order. It's only relevant while bit_flag = Open
     pub sub_account_id: u16,
@@ -76,7 +77,7 @@ impl RevenueShareOrder {
         builder_idx: u8,
         sub_account_id: u16,
         order_id: u32,
-        fee_bps: u16,
+        fee_tenth_bps: u16,
         market_type: MarketType,
         market_index: u16,
         bit_flags: u8,
@@ -85,7 +86,7 @@ impl RevenueShareOrder {
         Self {
             builder_idx,
             order_id,
-            fee_bps,
+            fee_tenth_bps,
             market_type,
             market_index,
             fees_accrued: 0,
@@ -161,7 +162,7 @@ pub struct BuilderInfo {
     // pub padding0: u32,
     pub authority: Pubkey, // builder authority
     // pub padding: u64, // force alignment to 8 bytes
-    pub max_fee_bps: u16,
+    pub max_fee_tenth_bps: u16,
     pub padding2: [u8; 2],
 }
 
@@ -171,7 +172,7 @@ impl BuilderInfo {
     }
 
     pub fn is_revoked(&self) -> bool {
-        self.max_fee_bps == 0
+        self.max_fee_tenth_bps == 0
     }
 }
 

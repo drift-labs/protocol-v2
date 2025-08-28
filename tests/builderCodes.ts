@@ -97,7 +97,7 @@ function buildMsg(
 		slot,
 		uuid: Uint8Array.from(Buffer.from(nanoid(8))),
 		builderIdx: 0,
-		builderFeeBps: feeBps,
+		builderFeeTenthBps: feeBps,
 		takeProfitOrderParams: null,
 		stopLossOrderParams: null,
 	} as SignedMsgOrderParamsMessage;
@@ -452,7 +452,7 @@ describe('builder codes', () => {
 
 	it('user can add/update/remove approved builder from RevenueShareEscrow', async () => {
 		const builder = builderClient.wallet;
-		const maxFeeBps = 150; // 1.5%
+		const maxFeeBps = 150 * 10; // 1.5%
 
 		// First add a builder
 		await userClient.changeApprovedBuilder(
@@ -487,7 +487,7 @@ describe('builder codes', () => {
 			'Approved builders list should contain 1 builder'
 		);
 		assert(
-			addedBuilder.maxFeeBps === maxFeeBps,
+			addedBuilder.maxFeeTenthBps === maxFeeBps,
 			'Builder should have correct max fee bps before removal'
 		);
 
@@ -495,7 +495,7 @@ describe('builder codes', () => {
 		await userClient.changeApprovedBuilder(
 			userClient.wallet.publicKey,
 			builder.publicKey,
-			maxFeeBps * 5,
+			maxFeeBps * 2,
 			true // update existing builder
 		);
 
@@ -519,7 +519,7 @@ describe('builder codes', () => {
 			'Builder should be in approved builders list after update'
 		);
 		assert(
-			updatedBuilder.maxFeeBps === maxFeeBps * 5,
+			updatedBuilder.maxFeeTenthBps === maxFeeBps * 2,
 			'Builder should have correct max fee bps after update'
 		);
 
@@ -547,7 +547,7 @@ describe('builder codes', () => {
 			(b) => b.authority.toBase58() === builder.publicKey.toBase58()
 		);
 		assert(
-			removedBuilder.maxFeeBps === 0,
+			removedBuilder.maxFeeTenthBps === 0,
 			'Builder should have 0 max fee bps after removal'
 		);
 	});
@@ -590,7 +590,7 @@ describe('builder codes', () => {
 				baseAssetAmount: takerOrderParams.baseAssetAmount,
 			},
 			builderIdx: null,
-			builderFeeBps: null,
+			builderFeeTenthBps: null,
 		};
 
 		const signedOrderParams = user2Client.signSignedMsgOrderParamsMessage(
@@ -703,7 +703,7 @@ describe('builder codes', () => {
 
 		// approve builder again
 		const builder = builderClient.wallet;
-		const maxFeeBps = 150; // 1.5%
+		const maxFeeBps = 150 * 10; // 1.5%
 		await userClient.changeApprovedBuilder(
 			userClient.wallet.publicKey,
 			builder.publicKey,
@@ -732,7 +732,7 @@ describe('builder codes', () => {
 		let userOrders = userClient.getUser().getOpenOrders();
 		assert(userOrders.length === 0);
 
-		const builderFeeBps = 7;
+		const builderFeeBps = 7 * 10;
 		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
 			signedMsgOrderParams: takerOrderParams,
 			subAccountId: 0,
@@ -747,7 +747,7 @@ describe('builder codes', () => {
 				baseAssetAmount: takerOrderParams.baseAssetAmount,
 			},
 			builderIdx: 0,
-			builderFeeBps: builderFeeBps,
+			builderFeeTenthBps: builderFeeBps,
 		};
 
 		const signedOrderParams = userClient.signSignedMsgOrderParamsMessage(
@@ -807,7 +807,10 @@ describe('builder codes', () => {
 		for (let i = 0; i < userOrders.length; i++) {
 			assert(escrow.orders[i]!.builderIdx === 0);
 			assert(escrow.orders[i]!.feesAccrued.eq(ZERO));
-			assert(escrow.orders[i]!.feeBps === builderFeeBps);
+			assert(
+				escrow.orders[i]!.feeTenthBps === builderFeeBps,
+				`builderFeeBps ${escrow.orders[i]!.feeTenthBps} !== ${builderFeeBps}`
+			);
 			assert(
 				escrow.orders[i]!.orderId === i + 1,
 				`orderId ${i} is ${escrow.orders[i]!.orderId}`
@@ -817,7 +820,7 @@ describe('builder codes', () => {
 		}
 
 		assert(escrow.approvedBuilders[0]!.authority.equals(builder.publicKey));
-		assert(escrow.approvedBuilders[0]!.maxFeeBps === maxFeeBps);
+		assert(escrow.approvedBuilders[0]!.maxFeeTenthBps === maxFeeBps);
 
 		await userClient.fetchAccounts();
 
@@ -851,7 +854,9 @@ describe('builder codes', () => {
 		const takerFee = events[0].data['takerFee'] as BN;
 		const totalFeePaid = takerFee.add(builderFee);
 		const referrerReward = events[0].data['referrerReward'] as number;
-		assert(builderFee.eq(fillQuoteAssetAmount.muln(builderFeeBps).divn(10000)));
+		assert(
+			builderFee.eq(fillQuoteAssetAmount.muln(builderFeeBps).divn(100000))
+		);
 
 		await userClient.fetchAccounts();
 		userOrders = userClient.getUser().getOpenOrders();
@@ -867,17 +872,20 @@ describe('builder codes', () => {
 		);
 
 		const builderFeePaidBps =
-			(builderFee.toNumber() * 10000) /
-			Math.abs(pos.quoteEntryAmount.toNumber());
+			(builderFee.toNumber() / Math.abs(pos.quoteEntryAmount.toNumber())) *
+			10_000;
 		assert(
-			Math.round(builderFeePaidBps) === builderFeeBps,
-			`builderFeePaidBps ${builderFeePaidBps} !== builderFeeBps ${builderFeeBps}`
+			Math.round(builderFeePaidBps) === builderFeeBps / 10,
+			`builderFeePaidBps ${builderFeePaidBps} !== builderFeeBps ${
+				builderFeeBps / 10
+			}`
 		);
 
 		const takerFeePaidBps =
-			(takerFee.toNumber() * 10000) / Math.abs(pos.quoteEntryAmount.toNumber());
+			(takerFee.toNumber() * 100_000) /
+			Math.abs(pos.quoteEntryAmount.toNumber());
 		assert(
-			Math.round(takerFeePaidBps * 10) === 95,
+			Math.round(takerFeePaidBps) === 95,
 			`takerFeePaidBps ${takerFeePaidBps} !== 95`
 		); // 10bps with 5 bps referrer
 
@@ -982,7 +990,7 @@ describe('builder codes', () => {
 
 	it('user can place and cancel with no fill (no fees accrued, escrow unchanged)', async () => {
 		const builder = builderClient.wallet;
-		const maxFeeBps = 150;
+		const maxFeeBps = 150 * 10;
 		await userClient.changeApprovedBuilder(
 			userClient.wallet.publicKey,
 			builder.publicKey,
@@ -1026,7 +1034,7 @@ describe('builder codes', () => {
 			takeProfitOrderParams: null,
 			stopLossOrderParams: null,
 			builderIdx: 0,
-			builderFeeBps,
+			builderFeeTenthBps: builderFeeBps,
 		};
 
 		const signed = userClient.signSignedMsgOrderParamsMessage(msg, false);
@@ -1060,7 +1068,7 @@ describe('builder codes', () => {
 
 	it('user can place and fill multiple orders (fees accumulate and settle)', async () => {
 		const builder = builderClient.wallet;
-		const maxFeeBps = 150;
+		const maxFeeBps = 150 * 10;
 		await userClient.changeApprovedBuilder(
 			userClient.wallet.publicKey,
 			builder.publicKey,
@@ -1235,7 +1243,7 @@ describe('builder codes', () => {
 
 	it('user can place and fill with multiple maker orders', async () => {
 		const builder = builderClient.wallet;
-		const maxFeeBps = 150;
+		const maxFeeBps = 150 * 10;
 		await userClient.changeApprovedBuilder(
 			userClient.wallet.publicKey,
 			builder.publicKey,
@@ -1607,7 +1615,11 @@ describe('builder codes', () => {
 				'RevenueShare',
 				builderAccountInfoAfter.data
 			);
-		const referrerRewards = builderAccAfter.totalReferrerRewards.sub(builderAccBefore.totalReferrerRewards);
-		assert(referrerRewards.eq(new BN(fillAReferrerReward + fillBReferrerReward)));
+		const referrerRewards = builderAccAfter.totalReferrerRewards.sub(
+			builderAccBefore.totalReferrerRewards
+		);
+		assert(
+			referrerRewards.eq(new BN(fillAReferrerReward + fillBReferrerReward))
+		);
 	});
 });

@@ -700,11 +700,15 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
     let mut escrow_zc: Option<RevenueShareEscrowZeroCopyMut<'info>> = None;
     let mut builder_fee_bps: Option<u16> = None;
     if verified_message_and_signature.builder_idx.is_some()
-        && verified_message_and_signature.builder_fee_bps.is_some()
+        && verified_message_and_signature
+            .builder_fee_tenth_bps
+            .is_some()
     {
         if let Some(mut escrow) = escrow {
             let builder_idx = verified_message_and_signature.builder_idx.unwrap();
-            let builder_fee = verified_message_and_signature.builder_fee_bps.unwrap();
+            let builder_fee = verified_message_and_signature
+                .builder_fee_tenth_bps
+                .unwrap();
 
             validate!(
                 escrow.fixed.authority == taker.authority,
@@ -718,7 +722,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
                 return Err(ErrorCode::BuilderRevoked.into());
             }
 
-            if builder_fee > builder.max_fee_bps {
+            if builder_fee > builder.max_fee_tenth_bps {
                 return Err(ErrorCode::InvalidBuilderFee.into());
             }
 

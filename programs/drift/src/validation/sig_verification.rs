@@ -58,7 +58,7 @@ pub struct VerifiedMessage {
     pub take_profit_order_params: Option<SignedMsgTriggerOrderParams>,
     pub stop_loss_order_params: Option<SignedMsgTriggerOrderParams>,
     pub builder_idx: Option<u8>,
-    pub builder_fee_bps: Option<u16>,
+    pub builder_fee_tenth_bps: Option<u16>,
     pub signature: [u8; 64],
 }
 
@@ -98,7 +98,7 @@ pub fn deserialize_into_verified_message(
             stop_loss_order_params: deserialized.stop_loss_order_params,
             signature: *signature,
             builder_idx: deserialized.builder_idx,
-            builder_fee_bps: deserialized.builder_fee_bps,
+            builder_fee_tenth_bps: deserialized.builder_fee_tenth_bps,
         });
     } else {
         if payload.len() < 8 {
@@ -126,7 +126,7 @@ pub fn deserialize_into_verified_message(
             stop_loss_order_params: deserialized.stop_loss_order_params,
             signature: *signature,
             builder_idx: deserialized.builder_idx,
-            builder_fee_bps: deserialized.builder_fee_bps,
+            builder_fee_tenth_bps: deserialized.builder_fee_tenth_bps,
         });
     }
 }

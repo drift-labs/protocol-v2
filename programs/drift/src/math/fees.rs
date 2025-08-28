@@ -7,9 +7,9 @@ use crate::error::DriftResult;
 use crate::math::casting::Cast;
 
 use crate::math::constants::{
-    FIFTY_MILLION_QUOTE, FIVE_MILLION_QUOTE, ONE_HUNDRED_MILLION_QUOTE, ONE_HUNDRED_THOUSAND_QUOTE,
-    ONE_MILLION_QUOTE, ONE_THOUSAND_QUOTE, TEN_BPS, TEN_MILLION_QUOTE, TEN_THOUSAND_QUOTE,
-    TWENTY_FIVE_THOUSAND_QUOTE, TWO_HUNDRED_FIFTY_THOUSAND_QUOTE,
+    FIVE_MILLION_QUOTE, ONE_HUNDRED_MILLION_QUOTE, ONE_HUNDRED_THOUSAND_QUOTE, ONE_MILLION_QUOTE,
+    ONE_THOUSAND_QUOTE, TEN_BPS, TEN_MILLION_QUOTE, TEN_THOUSAND_QUOTE, TWENTY_FIVE_THOUSAND_QUOTE,
+    TWO_HUNDRED_FIFTY_THOUSAND_QUOTE,
 };
 use crate::math::helpers::get_proportion_u128;
 use crate::math::safe_math::SafeMath;
@@ -138,7 +138,7 @@ pub fn calculate_fee_for_fulfillment_with_amm(
         let builder_fee = if let Some(builder_fee_bps) = builder_fee_bps {
             quote_asset_amount
                 .safe_mul(builder_fee_bps.cast()?)?
-                .safe_div(10000)?
+                .safe_div(100_000)?
         } else {
             0
         };
@@ -354,7 +354,7 @@ pub fn calculate_fee_for_fulfillment_with_match(
     let builder_fee = if let Some(builder_fee_bps) = builder_fee_bps {
         quote_asset_amount
             .safe_mul(builder_fee_bps.cast()?)?
-            .safe_div(10000)?
+            .safe_div(100_000)?
     } else {
         0
     };
