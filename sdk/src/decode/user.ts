@@ -117,7 +117,9 @@ export function decodeUser(buffer: Buffer): UserAccount {
 		offset += 3;
 		const perLpBase = buffer.readUInt8(offset);
 		offset += 1;
-
+		// TODO: verify this works
+		const positionFlag = buffer.readUInt8(offset);
+		offset += 1;
 		perpPositions.push({
 			lastCumulativeFundingRate,
 			baseAssetAmount,
@@ -135,6 +137,7 @@ export function decodeUser(buffer: Buffer): UserAccount {
 			openOrders,
 			perLpBase,
 			maxMarginRatio,
+			positionFlag,
 		});
 	}
 

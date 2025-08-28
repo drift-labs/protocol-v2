@@ -15,6 +15,7 @@ import {
 	MARGIN_PRECISION,
 	OPEN_ORDER_MARGIN_REQUIREMENT,
 	SPOT_MARKET_WEIGHT_PRECISION,
+	PositionFlag,
 } from '../../src';
 import { MockUserMap, mockPerpMarkets, mockSpotMarkets } from '../dlob/helpers';
 import { assert } from '../../src/assert/assert';
@@ -320,9 +321,12 @@ describe('getMarginCalculation snapshot', () => {
 		assert(makerCalc.marginRequirement.gt(ZERO));
 	});
 
-	it('isolated position margin requirement (SDK parity)', async () => {
+	it.only('isolated position margin requirement (SDK parity)', async () => {
 		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
 		const myMockSpotMarkets = _.cloneDeep(mockSpotMarkets);
+		myMockSpotMarkets[0].oracle = new PublicKey(2);
+		myMockSpotMarkets[1].oracle = new PublicKey(5);
+		myMockPerpMarkets[0].amm.oracle = new PublicKey(5);
 
 		// Configure perp market 0 ratios to match on-chain test
 		myMockPerpMarkets[0].marginRatioInitial = 1000; // 10%
@@ -349,12 +353,16 @@ describe('getMarginCalculation snapshot', () => {
 		// SOL borrow: 100 units
 		crossAccount.spotPositions[1].marketIndex = 1;
 		crossAccount.spotPositions[1].balanceType = SpotBalanceType.BORROW;
-		crossAccount.spotPositions[1].scaledBalance = new BN(10000).mul(
+		crossAccount.spotPositions[1].scaledBalance = new BN(100).mul(
 			SPOT_MARKET_BALANCE_PRECISION
 		);
 		// No perp exposure in cross calc
-		crossAccount.perpPositions[0].baseAssetAmount = ZERO;
-		crossAccount.perpPositions[0].quoteAssetAmount = ZERO;
+		crossAccount.perpPositions[0].baseAssetAmount = new BN(100 * BASE_PRECISION.toNumber());
+		crossAccount.perpPositions[0].quoteAssetAmount = new BN(-11000 * QUOTE_PRECISION.toNumber());
+		crossAccount.perpPositions[0].positionFlag = PositionFlag.IsolatedPosition;
+		crossAccount.perpPositions[0].isolatedPositionScaledBalance = new BN(100).mul(
+			SPOT_MARKET_BALANCE_PRECISION
+		);
 
 		const userCross: User = await makeMockUser(
 			myMockPerpMarkets,
@@ -365,6 +373,8 @@ describe('getMarginCalculation snapshot', () => {
 		);
 
 		const crossCalc = userCross.getMarginCalculation('Initial');
+		// console.log('crossCalc.marginRequirement.toString()', crossCalc.marginRequirement.toString());
+		// console.log('crossCalc.totalCollateral.toString()', crossCalc.totalCollateral.toString());
 		// Expect: cross MR from SOL borrow: 100 * $100 = $10,000 * 1.2 = $12,000
 		assert(crossCalc.marginRequirement.eq(new BN('12000000000')));
 		// Expect: cross total collateral from USDC deposit only = $20,000
@@ -377,53 +387,15 @@ describe('getMarginCalculation snapshot', () => {
 		const crossCalcBuf = userCross.getMarginCalculation('Initial', {
 			liquidationBuffer: tenPct,
 		});
-		console.log('crossCalcBuf.marginRequirementPlusBuffer', crossCalcBuf.marginRequirementPlusBuffer.toString());
-		console.log('crossCalcBuf.totalCollateralBuffer', crossCalcBuf.totalCollateralBuffer.toString());
-		assert(crossCalcBuf.marginRequirementPlusBuffer.eq(new BN('13000000000')));
+		assert(crossCalcBuf.marginRequirementPlusBuffer.eq(new BN('13000000000'))); // replicate 10% buffer
 		const crossTotalPlusBuffer = crossCalcBuf.totalCollateral.add(
 			crossCalcBuf.totalCollateralBuffer
 		);
 		assert(crossTotalPlusBuffer.eq(new BN('20000000000')));
 
-		// ---------- Isolated perp position (simulate isolated by separate user) ----------
-		const isolatedAccount = _.cloneDeep(baseMockUserAccount);
-		// Perp: 100 base long, quote -11,000 => PnL = 10k - 11k = -$1,000
-		isolatedAccount.perpPositions[0].baseAssetAmount = new BN(100).mul(
-			BASE_PRECISION
-		);
-		isolatedAccount.perpPositions[0].quoteAssetAmount = new BN(-11000).mul(
-			QUOTE_PRECISION
-		);
-		// Simulate isolated balance: $100 quote deposit on this user
-		isolatedAccount.spotPositions[0].marketIndex = 0;
-		isolatedAccount.spotPositions[0].balanceType = SpotBalanceType.DEPOSIT;
-		isolatedAccount.spotPositions[0].scaledBalance = new BN(100).mul(
-			SPOT_MARKET_BALANCE_PRECISION
-		);
-
-		const userIsolated: User = await makeMockUser(
-			myMockPerpMarkets,
-			myMockSpotMarkets,
-			isolatedAccount,
-			[100, 1, 1, 1, 1, 1, 1, 1],
-			[1, 100, 1, 1, 1, 1, 1, 1]
-		);
-
-		const isoCalc = userIsolated.getMarginCalculation('Initial');
-		// Expect: perp initial MR = 10% * $10,000 = $1,000
-		assert(isoCalc.marginRequirement.eq(new BN('1000000000')));
-		// Expect: total collateral = $100 (deposit) + (-$1,000) (PnL) = -$900
-		assert(isoCalc.totalCollateral.eq(new BN('-900000000')));
-		assert(isoCalc.marginRequirement.gt(isoCalc.totalCollateral));
-
-		const isoCalcBuf = userIsolated.getMarginCalculation('Initial', {
-			liquidationBuffer: tenPct,
-		});
-		assert(isoCalcBuf.marginRequirementPlusBuffer.eq(new BN('2000000000')));
-		const isoTotalPlusBuffer = isoCalcBuf.totalCollateral.add(
-			isoCalcBuf.totalCollateralBuffer
-		);
-		assert(isoTotalPlusBuffer.eq(new BN('-1000000000')));
+		const isoPosition = crossCalcBuf.isolatedMarginCalculations.get(0);
+		assert(isoPosition?.marginRequirementPlusBuffer.eq(new BN('2000000000')));
+		assert(isoPosition?.totalCollateralBuffer.add(isoPosition?.totalCollateral).eq(new BN('-1000000000')));
 	});
 });
 

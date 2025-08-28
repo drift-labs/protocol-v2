@@ -1264,6 +1264,12 @@ export class OrderParamsBitFlag {
 	static readonly UpdateHighLeverageMode = 2;
 }
 
+export class PositionFlag {
+	static readonly IsolatedPosition = 1;
+	static readonly BeingLiquidated = 2;
+	static readonly Bankruptcy = 3;
+}
+
 export type NecessaryOrderParams = {
 	orderType: OrderType;
 	marketIndex: number;
