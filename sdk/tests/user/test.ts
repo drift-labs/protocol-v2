@@ -49,7 +49,6 @@ async function makeMockUser(
 		oraclePriceMap[myMockSpotMarkets[i].oracle.toString()] =
 			spotOraclePriceList[i];
 	}
-	// console.log(oraclePriceMap);
 
 	function getMockUserAccount(): UserAccount {
 		return myMockUserAccount;
@@ -61,12 +60,6 @@ async function makeMockUser(
 		return myMockSpotMarkets[marketIndex];
 	}
 	function getMockOracle(oracleKey: PublicKey) {
-		// console.log('oracleKey.toString():', oracleKey.toString());
-		// console.log(
-		// 	'oraclePriceMap[oracleKey.toString()]:',
-		// 	oraclePriceMap[oracleKey.toString()]
-		// );
-
 		const QUOTE_ORACLE_PRICE_DATA: OraclePriceData = {
 			price: new BN(
 				oraclePriceMap[oracleKey.toString()] * PRICE_PRECISION.toNumber()
