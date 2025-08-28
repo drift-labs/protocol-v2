@@ -62,10 +62,12 @@ fn calculate_optimal_peg_and_budget_test() {
         confidence: 0,
         delay: 2,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     let mm_oracle_price_data = MMOraclePriceData::new(
         oracle_price_data.price,
         oracle_price_data.delay + 1,
+        0,
         OracleValidity::default(),
         oracle_price_data,
     )
@@ -85,10 +87,12 @@ fn calculate_optimal_peg_and_budget_test() {
         confidence: 167,
         delay: 21,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     let mm_oracle_price_data = MMOraclePriceData::new(
         oracle_price_data.price,
         oracle_price_data.delay + 1,
+        0,
         OracleValidity::default(),
         oracle_price_data,
     )
@@ -106,10 +110,12 @@ fn calculate_optimal_peg_and_budget_test() {
         confidence: 167,
         delay: 21,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     let mm_oracle_price_data = MMOraclePriceData::new(
         oracle_price_data.price,
         oracle_price_data.delay + 1,
+        0,
         OracleValidity::default(),
         oracle_price_data,
     )
@@ -127,10 +133,12 @@ fn calculate_optimal_peg_and_budget_test() {
         confidence: 1234567,
         delay: 21,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     let mm_oracle_price_data = MMOraclePriceData::new(
         oracle_price_data.price,
         oracle_price_data.delay + 1,
+        0,
         OracleValidity::default(),
         oracle_price_data,
     )
@@ -148,10 +156,12 @@ fn calculate_optimal_peg_and_budget_test() {
         confidence: 0,
         delay: 2,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     let mm_oracle_price_data = MMOraclePriceData::new(
         oracle_price_data.price,
         oracle_price_data.delay + 1,
+        0,
         OracleValidity::default(),
         oracle_price_data,
     )
@@ -186,10 +196,12 @@ fn calculate_optimal_peg_and_budget_test() {
         confidence: 0,
         delay: 2,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     let mm_oracle_price_data = MMOraclePriceData::new(
         oracle_price_data.price,
         oracle_price_data.delay + 1,
+        0,
         OracleValidity::default(),
         oracle_price_data,
     )
@@ -246,10 +258,12 @@ fn calculate_optimal_peg_and_budget_2_test() {
         confidence: 10233,
         delay: 2,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     let mm_oracle_price_data = MMOraclePriceData::new(
         oracle_price_data.price,
         oracle_price_data.delay + 1,
+        0,
         OracleValidity::default(),
         oracle_price_data,
     )

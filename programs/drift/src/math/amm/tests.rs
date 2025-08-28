@@ -22,6 +22,7 @@ fn calculate_amm_available_guards() {
         confidence: PRICE_PRECISION_U64 / 100,
         delay: 1,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
 
     assert_eq!(market.amm.net_revenue_since_last_funding, 0);
@@ -98,6 +99,7 @@ fn calculate_net_user_pnl_test() {
         confidence: PRICE_PRECISION_U64 / 100,
         delay: 1,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
 
     let net_user_pnl = calculate_net_user_pnl(&amm, oracle_price_data.price).unwrap();
@@ -127,6 +129,7 @@ fn calculate_expiry_price_long_imbalance_with_loss_test() {
         confidence: 0,
         delay: 2,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
 
     let market_position = PerpPosition {
@@ -209,6 +212,7 @@ fn calculate_expiry_price_long_imbalance_test() {
         confidence: 0,
         delay: 2,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
 
     let market_position = PerpPosition {
@@ -307,6 +311,7 @@ fn calculate_expiry_price_test() {
         confidence: PRICE_PRECISION_U64 / 100,
         delay: 1,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
 
     let mut expiry_price = calculate_expiry_price(&amm, oracle_price_data.price, 0).unwrap();
@@ -324,6 +329,7 @@ fn calculate_expiry_price_test() {
         confidence: 0,
         delay: 2,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
 
     let market_position = PerpPosition {
@@ -483,10 +489,12 @@ fn calc_mark_std_tests() {
             confidence: 0,
             delay: 2,
             has_sufficient_number_of_data_points: true,
+            sequence_id: None,
         };
         let mm_oracle_price_data = MMOraclePriceData::new(
             oracle_price_data.price,
             3,
+            1,
             OracleValidity::default(),
             oracle_price_data,
         )
@@ -605,10 +613,12 @@ fn update_mark_twap_tests() {
         confidence: PRICE_PRECISION_U64 / 100,
         delay: 1,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     let mm_oracle_price_data = MMOraclePriceData::new(
         oracle_price_data.price,
         3,
+        1,
         OracleValidity::default(),
         oracle_price_data,
     )
@@ -704,10 +714,12 @@ fn update_mark_twap_tests() {
         confidence: PRICE_PRECISION_U64 / 80,
         delay: 14,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     let mm_oracle_price_data = MMOraclePriceData::new(
         oracle_price_data.price,
         15,
+        1,
         OracleValidity::default(),
         oracle_price_data,
     )
@@ -773,10 +785,12 @@ fn calc_oracle_twap_tests() {
         confidence: PRICE_PRECISION_U64 / 100,
         delay: 1,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     let mm_oracle_price_data = MMOraclePriceData::new(
         oracle_price_data.price,
         2,
+        1,
         OracleValidity::default(),
         oracle_price_data,
     )
@@ -798,10 +812,12 @@ fn calc_oracle_twap_tests() {
         confidence: 0,
         delay: 2,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     let mm_oracle_price_data = MMOraclePriceData::new(
         oracle_price_data.price,
         3,
+        1,
         OracleValidity::default(),
         oracle_price_data,
     )
@@ -833,10 +849,12 @@ fn calc_oracle_twap_tests() {
         confidence: 0,
         delay: 2,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     let mm_oracle_price_data = MMOraclePriceData::new(
         oracle_price_data.price,
         3,
+        1,
         OracleValidity::default(),
         oracle_price_data,
     )
@@ -898,10 +916,12 @@ fn calc_oracle_twap_clamp_update_tests() {
         confidence: PRICE_PRECISION_U64 / 10,
         delay: 1,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     let mm_oracle_price_data = MMOraclePriceData::new(
         oracle_price_data.price,
         2,
+        1,
         OracleValidity::default(),
         oracle_price_data,
     )
@@ -985,10 +1005,12 @@ fn test_last_oracle_conf_update() {
         confidence: PRICE_PRECISION_U64 / 10,
         delay: 1,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     let mm_oracle_price_data = MMOraclePriceData::new(
         oracle_price_data.price,
         2,
+        1,
         OracleValidity::default(),
         oracle_price_data,
     )
@@ -1004,11 +1026,13 @@ fn test_last_oracle_conf_update() {
         confidence: 1,
         delay: 5,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
 
     let mm_oracle_price_data = MMOraclePriceData::new(
         oracle_price_data.price,
         2,
+        1,
         OracleValidity::default(),
         oracle_price_data,
     )
