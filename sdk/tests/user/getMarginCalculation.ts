@@ -148,7 +148,7 @@ describe('getMarginCalculation snapshot', () => {
 			[1, 1, 1, 1, 1, 1, 1, 1]
 		);
 
-		const tenPercent = MARGIN_PRECISION.divn(10);
+		const tenPercent = new BN(1000);
 		const calc = user.getMarginCalculation('Initial', {
 			liquidationBuffer: tenPercent,
 		});
@@ -157,7 +157,7 @@ describe('getMarginCalculation snapshot', () => {
 		assert(calc.marginRequirement.eq(liability));
 		assert(
 			calc.marginRequirementPlusBuffer.eq(
-				liability.mul(tenPercent).div(MARGIN_PRECISION)
+				liability.div(new BN(10)).add(calc.marginRequirement) // 10% of liability + margin requirement
 			)
 		);
 		assert(calc.numSpotLiabilities === 1);
@@ -211,26 +211,20 @@ describe('getMarginCalculation snapshot', () => {
 		assert(calc.marginRequirement.eq(new BN('2000000')));
 	});
 
-	it.skip('maker position reducing: collateral equals maintenance requirement', async () => {
+	it.only('maker position reducing: collateral equals maintenance requirement', async () => {
 		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
 		const myMockSpotMarkets = _.cloneDeep(mockSpotMarkets);
 		const myMockUserAccount = _.cloneDeep(baseMockUserAccount);
 
 		// Perp exposure: 20 base notional at oracle price 1 → maintenance MR = 10% of $20 = $2
-		myMockUserAccount.perpPositions[0].baseAssetAmount = new BN(20).mul(
+		myMockUserAccount.perpPositions[0].baseAssetAmount = new BN(2).mul(
 			BASE_PRECISION
 		);
-		// Set entry/breakeven at $1 so unrealized PnL = $0
-		myMockUserAccount.perpPositions[0].quoteEntryAmount = new BN(-20).mul(
+		myMockUserAccount.perpPositions[0].quoteEntryAmount = new BN(-20000000000).mul(
 			QUOTE_PRECISION
 		);
-		myMockUserAccount.perpPositions[0].quoteBreakEvenAmount = new BN(-20).mul(
+		myMockUserAccount.perpPositions[0].quoteBreakEvenAmount = new BN(-20000000000).mul(
 			QUOTE_PRECISION
-		);
-		// Provide exactly $2 in quote collateral
-		myMockUserAccount.spotPositions[0].balanceType = SpotBalanceType.DEPOSIT;
-		myMockUserAccount.spotPositions[0].scaledBalance = new BN(2).mul(
-			SPOT_MARKET_BALANCE_PRECISION
 		);
 
 		const user: User = await makeMockUser(
@@ -321,7 +315,7 @@ describe('getMarginCalculation snapshot', () => {
 		assert(makerCalc.marginRequirement.gt(ZERO));
 	});
 
-	it.only('isolated position margin requirement (SDK parity)', async () => {
+	it('isolated position margin requirement (SDK parity)', async () => {
 		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
 		const myMockSpotMarkets = _.cloneDeep(mockSpotMarkets);
 		myMockSpotMarkets[0].oracle = new PublicKey(2);
@@ -373,8 +367,7 @@ describe('getMarginCalculation snapshot', () => {
 		);
 
 		const crossCalc = userCross.getMarginCalculation('Initial');
-		// console.log('crossCalc.marginRequirement.toString()', crossCalc.marginRequirement.toString());
-		// console.log('crossCalc.totalCollateral.toString()', crossCalc.totalCollateral.toString());
+		const isolatedMarginCalc = crossCalc.isolatedMarginCalculations.get(0);
 		// Expect: cross MR from SOL borrow: 100 * $100 = $10,000 * 1.2 = $12,000
 		assert(crossCalc.marginRequirement.eq(new BN('12000000000')));
 		// Expect: cross total collateral from USDC deposit only = $20,000
@@ -382,6 +375,8 @@ describe('getMarginCalculation snapshot', () => {
 		// Meets cross margin requirement
 		assert(crossCalc.marginRequirement.lte(crossCalc.totalCollateral));
 
+		assert(isolatedMarginCalc?.marginRequirement.eq(new BN('1000000000')));
+		assert(isolatedMarginCalc?.totalCollateral.eq(new BN('-900000000')));
 		// With 10% buffer
 		const tenPct = new BN(1000);
 		const crossCalcBuf = userCross.getMarginCalculation('Initial', {

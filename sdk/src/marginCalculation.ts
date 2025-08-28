@@ -1,4 +1,4 @@
-import { BN } from './';
+import { BN } from '@coral-xyz/anchor';
 import { MARGIN_PRECISION } from './constants/numericConstants';
 import { MarketType } from './types';
 
@@ -6,7 +6,7 @@ export type MarginCategory = 'Initial' | 'Maintenance' | 'Fill';
 
 export type MarginCalculationMode =
 	| { type: 'Standard' }
-	| { type: 'Liquidation'; marketToTrackMarginRequirement?: MarketIdentifier };
+	| { type: 'Liquidation' };
 
 export class MarketIdentifier {
 	marketType: MarketType;
@@ -40,10 +40,6 @@ export class MarginContext {
 	strict: boolean;
 	ignoreInvalidDepositOracles: boolean;
 	marginBuffer: BN; // scaled by MARGIN_PRECISION
-	fuelBonusNumerator: BN; // seconds since last update
-	fuelBonus: BN; // not used in calculation aggregation here
-	fuelPerpDelta?: { marketIndex: number; delta: BN };
-	fuelSpotDeltas: Array<{ marketIndex: number; delta: BN }>; // up to 2 in rust
 	marginRatioOverride?: number;
 
 	private constructor(marginType: MarginCategory) {
@@ -52,9 +48,6 @@ export class MarginContext {
 		this.strict = false;
 		this.ignoreInvalidDepositOracles = false;
 		this.marginBuffer = new BN(0);
-		this.fuelBonusNumerator = new BN(0);
-		this.fuelBonus = new BN(0);
-		this.fuelSpotDeltas = [];
 	}
 
 	static standard(marginType: MarginCategory): MarginContext {
@@ -83,26 +76,6 @@ export class MarginContext {
 		return this;
 	}
 
-	setFuelPerpDelta(marketIndex: number, delta: BN): this {
-		this.fuelPerpDelta = { marketIndex, delta };
-		return this;
-	}
-
-	setFuelSpotDelta(marketIndex: number, delta: BN): this {
-		this.fuelSpotDeltas = [{ marketIndex, delta }];
-		return this;
-	}
-
-	setFuelSpotDeltas(deltas: Array<{ marketIndex: number; delta: BN }>): this {
-		this.fuelSpotDeltas = deltas;
-		return this;
-	}
-
-	setFuelNumerator(numerator: BN): this {
-		this.fuelBonusNumerator = numerator ?? new BN(0);
-		return this;
-	}
-
 	setMarginRatioOverride(ratio: number): this {
 		this.marginRatioOverride = ratio;
 		return this;
@@ -114,7 +87,6 @@ export class MarginContext {
 				'InvalidMarginCalculation: Cant track market outside of liquidation mode'
 			);
 		}
-		this.mode.marketToTrackMarginRequirement = marketIdentifier;
 		return this;
 	}
 }
@@ -191,7 +163,7 @@ export class MarginCalculation {
 		this.fuelPositions = 0;
 	}
 
-	addIsolatedTotalCollateral(delta: BN): void {
+	addCrossMarginTotalCollateral(delta: BN): void {
 		this.totalCollateral = this.totalCollateral.add(delta);
 		if (this.context.marginBuffer.gt(new BN(0)) && delta.isNeg()) {
 			this.totalCollateralBuffer = this.totalCollateralBuffer.add(
@@ -200,10 +172,9 @@ export class MarginCalculation {
 		}
 	}
 
-	addIsolatedMarginRequirement(
+	addCrossMarginRequirement(
 		marginRequirement: BN,
 		liabilityValue: BN,
-		marketIdentifier: MarketIdentifier
 	): void {
 		this.marginRequirement = this.marginRequirement.add(marginRequirement);
 		if (this.context.marginBuffer.gt(new BN(0))) {
@@ -212,11 +183,6 @@ export class MarginCalculation {
 					liabilityValue.mul(this.context.marginBuffer).div(MARGIN_PRECISION)
 				)
 			);
-		}
-		const tracked = this.marketToTrackMarginRequirement();
-		if (tracked && tracked.equals(marketIdentifier)) {
-			this.trackedMarketMarginRequirement =
-				this.trackedMarketMarginRequirement.add(marginRequirement);
 		}
 	}
 
@@ -245,12 +211,6 @@ export class MarginCalculation {
 		iso.totalCollateralBuffer = totalCollateralBuffer;
 		iso.marginRequirementPlusBuffer = marginRequirementPlusBuffer;
 		this.isolatedMarginCalculations.set(marketIndex, iso);
-
-		const tracked = this.marketToTrackMarginRequirement();
-		if (tracked && tracked.equals(MarketIdentifier.perp(marketIndex))) {
-			this.trackedMarketMarginRequirement =
-				this.trackedMarketMarginRequirement.add(marginRequirement);
-		}
 	}
 
 	addSpotLiability(): void {
@@ -340,12 +300,5 @@ export class MarginCalculation {
 
 	hasIsolatedMarginCalculation(marketIndex: number): boolean {
 		return this.isolatedMarginCalculations.has(marketIndex);
-	}
-
-	private marketToTrackMarginRequirement(): MarketIdentifier | undefined {
-		if (this.context.mode.type === 'Liquidation') {
-			return this.context.mode.marketToTrackMarginRequirement;
-		}
-		return undefined;
 	}
 }
