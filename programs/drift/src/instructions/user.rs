@@ -540,7 +540,9 @@ pub fn handle_migrate_referrer<'c: 'info, 'info>(
 ) -> Result<()> {
     let state = &mut ctx.accounts.state;
     if !state.builder_referral_enabled() {
-        if state.admin != ctx.accounts.payer.key() {
+        if state.admin != ctx.accounts.payer.key()
+            || ctx.accounts.payer.key() == admin_hot_wallet::id()
+        {
             msg!("Only admin can migrate referrer until builder referral feature is enabled");
             return Err(anchor_lang::error::ErrorCode::ConstraintSigner.into());
         }
