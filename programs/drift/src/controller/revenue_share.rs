@@ -23,6 +23,8 @@ pub fn sweep_completed_revenue_share_for_market<'a>(
     spot_market_map: &SpotMarketMap<'a>,
     revenue_share_map: &RevenueShareMap<'a>,
     now_ts: i64,
+    builder_codes_feature_enabled: bool,
+    builder_referral_feature_enabled: bool,
 ) -> crate::error::DriftResult<()> {
     let perp_market = &mut perp_market_map.get_ref_mut(&market_index)?;
     let quote_spot_market = &mut spot_market_map.get_quote_spot_market_mut()?;
@@ -84,7 +86,7 @@ pub fn sweep_completed_revenue_share_for_market<'a>(
             break;
         }
 
-        if is_referral_order {
+        if is_referral_order && builder_referral_feature_enabled {
             let referrer_authority =
                 if let Some(referrer_authority) = revenue_share_escrow.get_referrer() {
                     referrer_authority
@@ -128,7 +130,7 @@ pub fn sweep_completed_revenue_share_for_market<'a>(
                     builder_order.fees_accrued = 0;
                 }
             }
-        } else {
+        } else if builder_codes_feature_enabled {
             let builder_authority = match revenue_share_escrow
                 .get_approved_builder_mut(builder_idx)
                 .map(|builder| builder.authority)
@@ -180,6 +182,8 @@ pub fn sweep_completed_revenue_share_for_market<'a>(
                     builder_authority
                 );
             }
+        } else {
+            msg!("Builder codes nor builder referral feature is not enabled");
         }
     }
 

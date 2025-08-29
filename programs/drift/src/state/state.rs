@@ -121,6 +121,10 @@ impl State {
         (self.feature_bit_flags & (FeatureBitFlags::MedianTriggerPrice as u8)) > 0
     }
 
+    pub fn builder_codes_enabled(&self) -> bool {
+        (self.feature_bit_flags & (FeatureBitFlags::BuilderCodes as u8)) > 0
+    }
+
     pub fn builder_referral_enabled(&self) -> bool {
         (self.feature_bit_flags & (FeatureBitFlags::BuilderReferral as u8)) > 0
     }
@@ -130,7 +134,8 @@ impl State {
 pub enum FeatureBitFlags {
     MmOracleUpdate = 0b00000001,
     MedianTriggerPrice = 0b00000010,
-    BuilderReferral = 0b00000100,
+    BuilderCodes = 0b00000100,
+    BuilderReferral = 0b00001000,
 }
 
 impl Size for State {

@@ -4976,6 +4976,27 @@ pub fn handle_update_feature_bit_flags_median_trigger_price(
     Ok(())
 }
 
+pub fn handle_update_feature_bit_flags_builder_codes(
+    ctx: Context<HotAdminUpdateState>,
+    enable: bool,
+) -> Result<()> {
+    let state = &mut ctx.accounts.state;
+    if enable {
+        validate!(
+            ctx.accounts.admin.key().eq(&state.admin),
+            ErrorCode::DefaultError,
+            "Only state admin can enable feature bit flags"
+        )?;
+
+        msg!("Setting 3rd bit to 1, enabling builder codes");
+        state.feature_bit_flags = state.feature_bit_flags | (FeatureBitFlags::BuilderCodes as u8);
+    } else {
+        msg!("Setting 3rd bit to 0, disabling builder codes");
+        state.feature_bit_flags = state.feature_bit_flags & !(FeatureBitFlags::BuilderCodes as u8);
+    }
+    Ok(())
+}
+
 pub fn handle_update_feature_bit_flags_builder_referral(
     ctx: Context<HotAdminUpdateState>,
     enable: bool,

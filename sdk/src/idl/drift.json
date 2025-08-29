@@ -7656,6 +7656,27 @@
       ]
     },
     {
+      "name": "updateFeatureBitFlagsBuilderCodes",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "enable",
+          "type": "bool"
+        }
+      ]
+    },
+    {
       "name": "initializeRevenueShare",
       "accounts": [
         {
@@ -13312,6 +13333,9 @@
           },
           {
             "name": "MedianTriggerPrice"
+          },
+          {
+            "name": "BuilderCodes"
           },
           {
             "name": "BuilderReferral"

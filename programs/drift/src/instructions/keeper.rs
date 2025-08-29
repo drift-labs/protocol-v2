@@ -145,7 +145,11 @@ fn fill_order<'c: 'info, 'info>(
     let (makers_and_referrer, makers_and_referrer_stats) =
         load_user_maps(remaining_accounts_iter, true)?;
 
-    let mut escrow = get_revenue_share_escrow_account(&mut remaining_accounts_iter)?;
+    let mut escrow = if state.builder_codes_enabled() {
+        get_revenue_share_escrow_account(&mut remaining_accounts_iter)?
+    } else {
+        None
+    };
 
     controller::repeg::update_amm(
         market_index,
@@ -635,7 +639,12 @@ pub fn handle_place_signed_msg_taker_order<'c: 'info, 'info>(
     )?;
 
     let high_leverage_mode_config = get_high_leverage_mode_config(&mut remaining_accounts)?;
-    let escrow = get_revenue_share_escrow_account(&mut remaining_accounts)?;
+
+    let escrow = if state.builder_codes_enabled() {
+        get_revenue_share_escrow_account(&mut remaining_accounts)?
+    } else {
+        None
+    };
 
     let taker_key = ctx.accounts.user.key();
     let mut taker = load_mut!(ctx.accounts.user)?;
@@ -699,7 +708,8 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
 
     let mut escrow_zc: Option<RevenueShareEscrowZeroCopyMut<'info>> = None;
     let mut builder_fee_bps: Option<u16> = None;
-    if verified_message_and_signature.builder_idx.is_some()
+    if state.builder_codes_enabled()
+        && verified_message_and_signature.builder_idx.is_some()
         && verified_message_and_signature
             .builder_fee_tenth_bps
             .is_some()
@@ -1034,6 +1044,16 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
+    let (mut builder_escrow, maybe_rev_share_map) =
+        if state.builder_codes_enabled() || state.builder_referral_enabled() {
+            (
+                get_revenue_share_escrow_account(&mut remaining_accounts)?,
+                load_revenue_share_map(&mut remaining_accounts).ok(),
+            )
+        } else {
+            (None, None)
+        };
+
     let market_in_settlement =
         perp_market_map.get_ref(&market_index)?.status == MarketStatus::Settlement;
 
@@ -1078,21 +1098,23 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
         .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
     }
 
-    let mut builder_escrow = get_revenue_share_escrow_account(&mut remaining_accounts)?;
-    let maybe_rev_share_map = load_revenue_share_map(&mut remaining_accounts).ok();
-    if let Some(ref mut escrow) = builder_escrow {
-        escrow.revoke_completed_orders(user)?;
-        if let Some(ref builder_map) = maybe_rev_share_map {
-            controller::revenue_share::sweep_completed_revenue_share_for_market(
-                market_index,
-                escrow,
-                &perp_market_map,
-                &spot_market_map,
-                builder_map,
-                clock.unix_timestamp,
-            )?;
-        } else {
-            msg!("Builder Users not provided, but RevenueEscrow was provided");
+    if state.builder_codes_enabled() || state.builder_referral_enabled() {
+        if let Some(ref mut escrow) = builder_escrow {
+            escrow.revoke_completed_orders(user)?;
+            if let Some(ref builder_map) = maybe_rev_share_map {
+                controller::revenue_share::sweep_completed_revenue_share_for_market(
+                    market_index,
+                    escrow,
+                    &perp_market_map,
+                    &spot_market_map,
+                    builder_map,
+                    clock.unix_timestamp,
+                    state.builder_codes_enabled(),
+                    state.builder_referral_enabled(),
+                )?;
+            } else {
+                msg!("Builder Users not provided, but RevenueEscrow was provided");
+            }
         }
     }
 
@@ -1130,9 +1152,15 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    let mut builder_escrow = get_revenue_share_escrow_account(&mut remaining_accounts)?;
-    // Load the revenue share map once; reuse in the markets loop below
-    let maybe_rev_share_map = load_revenue_share_map(&mut remaining_accounts).ok();
+    let (mut builder_escrow, maybe_rev_share_map) =
+        if state.builder_codes_enabled() || state.builder_referral_enabled() {
+            (
+                get_revenue_share_escrow_account(&mut remaining_accounts)?,
+                load_revenue_share_map(&mut remaining_accounts).ok(),
+            )
+        } else {
+            (None, None)
+        };
 
     let meets_margin_requirement = meets_settle_pnl_maintenance_margin_requirement(
         user,
@@ -1186,18 +1214,23 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
             .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
         }
 
-        if let Some(ref mut escrow_zc) = builder_escrow {
-            if let Some(ref builder_map) = maybe_rev_share_map {
-                controller::revenue_share::sweep_completed_revenue_share_for_market(
-                    *market_index,
-                    escrow_zc,
-                    &perp_market_map,
-                    &spot_market_map,
-                    builder_map,
-                    clock.unix_timestamp,
-                )?;
-            } else {
-                msg!("Builder Users not provided, but RevenueEscrow was provided");
+        if state.builder_codes_enabled() || state.builder_referral_enabled() {
+            if let Some(ref mut escrow) = builder_escrow {
+                escrow.revoke_completed_orders(user)?;
+                if let Some(ref builder_map) = maybe_rev_share_map {
+                    controller::revenue_share::sweep_completed_revenue_share_for_market(
+                        *market_index,
+                        escrow,
+                        &perp_market_map,
+                        &spot_market_map,
+                        builder_map,
+                        clock.unix_timestamp,
+                        state.builder_codes_enabled(),
+                        state.builder_referral_enabled(),
+                    )?;
+                } else {
+                    msg!("Builder Users not provided, but RevenueEscrow was provided");
+                }
             }
         }
     }

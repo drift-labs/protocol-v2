@@ -4650,6 +4650,31 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async updateFeatureBitFlagsBuilderCodes(
+		enable: boolean
+	): Promise<TransactionSignature> {
+		const updateFeatureBitFlagsBuilderCodesIx =
+			await this.getUpdateFeatureBitFlagsBuilderCodesIx(enable);
+
+		const tx = await this.buildTransaction(updateFeatureBitFlagsBuilderCodesIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateFeatureBitFlagsBuilderCodesIx(
+		enable: boolean
+	): Promise<TransactionInstruction> {
+		return this.program.instruction.updateFeatureBitFlagsBuilderCodes(enable, {
+			accounts: {
+				admin: this.useHotWalletAdmin
+					? this.wallet.publicKey
+					: this.getStateAccount().admin,
+				state: await this.getStatePublicKey(),
+			},
+		});
+	}
+
 	public async updateFeatureBitFlagsBuilderReferral(
 		enable: boolean
 	): Promise<TransactionSignature> {
@@ -4667,7 +4692,7 @@ export class AdminClient extends DriftClient {
 	public async getUpdateFeatureBitFlagsBuilderReferralIx(
 		enable: boolean
 	): Promise<TransactionInstruction> {
-		return await this.program.instruction.updateFeatureBitFlagsBuilderReferral(
+		return this.program.instruction.updateFeatureBitFlagsBuilderReferral(
 			enable,
 			{
 				accounts: {
