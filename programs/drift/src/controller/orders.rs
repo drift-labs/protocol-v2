@@ -1746,6 +1746,32 @@ fn get_referrer_info(
     Ok(Some((referrer_authority_key, referrer_user_key)))
 }
 
+#[inline(always)]
+fn get_builder_escrow_info(
+    escrow_opt: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
+    sub_account_id: u16,
+    order_id: u32,
+    market_index: u16,
+) -> (Option<u32>, Option<u32>, Option<u16>, Option<u8>) {
+    if let Some(escrow) = escrow_opt {
+        let builder_order_idx = escrow.find_order_index(sub_account_id, order_id);
+        let referrer_builder_order_idx = escrow.find_or_create_referral_index(market_index);
+
+        let builder_order = builder_order_idx.and_then(|idx| escrow.get_order(idx).ok());
+        let builder_order_fee_bps = builder_order.map(|order| order.fee_tenth_bps);
+        let builder_idx = builder_order.map(|order| order.builder_idx);
+
+        (
+            builder_order_idx,
+            referrer_builder_order_idx,
+            builder_order_fee_bps,
+            builder_idx,
+        )
+    } else {
+        (None, None, None, None)
+    }
+}
+
 fn fulfill_perp_order(
     user: &mut User,
     user_order_index: usize,
@@ -2271,24 +2297,12 @@ pub fn fulfill_perp_order_with_amm(
         || can_reward_user_with_perp_pnl(maker, market.market_index);
 
     let (builder_order_idx, referrer_builder_order_idx, builder_order_fee_bps, builder_idx) =
-        if let Some(escrow) = rev_share_escrow {
-            let builder_order_idx = escrow.find_order_index(user.sub_account_id, order_id);
-            let referrer_builder_order_idx =
-                escrow.find_or_create_referral_index(market.market_index);
-
-            let builder_order = builder_order_idx.and_then(|idx| escrow.get_order(idx).ok());
-            let builder_order_fee_bps = builder_order.map(|order| order.fee_tenth_bps);
-            let builder_idx = builder_order.map(|order| order.builder_idx);
-
-            (
-                builder_order_idx,
-                referrer_builder_order_idx,
-                builder_order_fee_bps,
-                builder_idx,
-            )
-        } else {
-            (None, None, None, None)
-        };
+        get_builder_escrow_info(
+            rev_share_escrow,
+            user.sub_account_id,
+            order_id,
+            market.market_index,
+        );
 
     let FillFees {
         user_fee,
@@ -2368,7 +2382,7 @@ pub fn fulfill_perp_order_with_amm(
     user_stats.increment_total_referee_discount(referee_discount)?;
 
     if let (Some(idx), Some(escrow)) = (referrer_builder_order_idx, rev_share_escrow.as_mut()) {
-        let mut order = escrow.get_order_mut(idx)?;
+        let order = escrow.get_order_mut(idx)?;
         order.fees_accrued = order.fees_accrued.safe_add(referrer_reward)?;
     } else if let (Some(referrer), Some(referrer_stats)) =
         (referrer.as_mut(), referrer_stats.as_mut())
@@ -2499,7 +2513,7 @@ pub fn fulfill_perp_order_with_amm(
         Some(filler_reward),
         Some(base_asset_amount),
         Some(quote_asset_amount),
-        Some(user_fee),
+        Some(user_fee.safe_add(builder_fee)?),
         if maker_rebate != 0 {
             Some(maker_rebate)
         } else {
@@ -2802,27 +2816,12 @@ pub fn fulfill_perp_order_with_match(
     let reward_filler = can_reward_user_with_perp_pnl(filler, market.market_index);
 
     let (builder_order_idx, referrer_builder_order_idx, builder_order_fee_bps, builder_idx) =
-        if let Some(escrow) = builder_escrow {
-            let builder_order_idx = escrow.find_order_index(
-                taker.sub_account_id,
-                taker.orders[taker_order_index].order_id,
-            );
-            let referrer_builder_order_idx =
-                escrow.find_or_create_referral_index(market.market_index);
-
-            let builder_order = builder_order_idx.and_then(|idx| escrow.get_order(idx).ok());
-            let builder_order_fee_bps = builder_order.map(|order| order.fee_tenth_bps);
-            let builder_idx = builder_order.map(|order| order.builder_idx);
-
-            (
-                builder_order_idx,
-                referrer_builder_order_idx,
-                builder_order_fee_bps,
-                builder_idx,
-            )
-        } else {
-            (None, None, None, None)
-        };
+        get_builder_escrow_info(
+            builder_escrow,
+            taker.sub_account_id,
+            taker.orders[taker_order_index].order_id,
+            market.market_index,
+        );
 
     let filler_multiplier = if reward_filler {
         calculate_filler_multiplier_for_matched_orders(maker_price, maker_direction, oracle_price)?
@@ -2999,7 +2998,7 @@ pub fn fulfill_perp_order_with_match(
         Some(filler_reward),
         Some(base_asset_amount_fulfilled_by_maker),
         Some(quote_asset_amount),
-        Some(taker_fee),
+        Some(taker_fee.safe_add(builder_fee)?),
         Some(maker_rebate),
         Some(referrer_reward),
         None,

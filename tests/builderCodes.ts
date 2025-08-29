@@ -852,7 +852,6 @@ describe('builder codes', () => {
 		const fillQuoteAssetAmount = events[0].data['quoteAssetAmountFilled'] as BN;
 		const builderFee = events[0].data['builderFee'] as BN;
 		const takerFee = events[0].data['takerFee'] as BN;
-		const totalFeePaid = takerFee.add(builderFee);
 		const referrerReward = events[0].data['referrerReward'] as number;
 		assert(
 			builderFee.eq(fillQuoteAssetAmount.muln(builderFeeBps).divn(100000))
@@ -881,13 +880,14 @@ describe('builder codes', () => {
 			}`
 		);
 
+		// expect 9.5 bps (taker fee - discount) + 7 bps (builder fee)
 		const takerFeePaidBps =
-			(takerFee.toNumber() * 100_000) /
-			Math.abs(pos.quoteEntryAmount.toNumber());
+			(takerFee.toNumber() / Math.abs(pos.quoteEntryAmount.toNumber())) *
+			10_000;
 		assert(
-			Math.round(takerFeePaidBps) === 95,
-			`takerFeePaidBps ${takerFeePaidBps} !== 95`
-		); // 10bps with 5 bps referrer
+			Math.round(takerFeePaidBps * 10) === 165,
+			`takerFeePaidBps ${takerFeePaidBps} !== 16.5 bps`
+		);
 
 		await bankrunContextWrapper.moveTimeForward(100);
 
@@ -908,7 +908,7 @@ describe('builder codes', () => {
 
 		const perpPos = userClient.getUser().getPerpPosition(0);
 		assert(
-			perpPos.quoteAssetAmount.eq(fillQuoteAssetAmount.add(totalFeePaid).neg())
+			perpPos.quoteAssetAmount.eq(fillQuoteAssetAmount.add(takerFee).neg())
 		);
 
 		await escrowMap.slowSync();
