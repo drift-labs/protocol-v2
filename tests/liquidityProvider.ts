@@ -309,6 +309,7 @@ describe('liquidity providing', () => {
 
 	it('burn with standardized baa', async () => {
 		console.log('adding liquidity...');
+		await driftClientUser.fetchAccounts();
 		const initMarginReq = driftClientUser.getInitialMarginRequirement();
 		assert(initMarginReq.eq(ZERO));
 

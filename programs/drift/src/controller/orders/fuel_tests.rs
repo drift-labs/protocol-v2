@@ -245,6 +245,7 @@ pub mod fuel_scoring {
             crate::state::perp_market::AMMAvailability::AfterMinDuration,
             FillMode::Fill,
             false,
+            &mut None,
         )
         .unwrap();
 
