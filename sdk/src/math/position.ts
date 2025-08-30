@@ -119,7 +119,6 @@ export function calculatePositionPNL(
 
 	if (withFunding) {
 		const fundingRatePnL = calculateUnsettledFundingPnl(market, perpPosition);
-
 		pnl = pnl.add(fundingRatePnL);
 	}
 
