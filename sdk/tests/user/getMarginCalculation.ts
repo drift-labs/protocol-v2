@@ -216,14 +216,10 @@ describe('getMarginCalculation snapshot', () => {
 		const myMockSpotMarkets = _.cloneDeep(mockSpotMarkets);
 		const myMockUserAccount = _.cloneDeep(baseMockUserAccount);
 
-		// Perp exposure: 20 base notional at oracle price 1 → maintenance MR = 10% of $20 = $2
-		myMockUserAccount.perpPositions[0].baseAssetAmount = new BN(2).mul(
+		myMockUserAccount.perpPositions[0].baseAssetAmount = new BN(200000000).mul(
 			BASE_PRECISION
 		);
-		myMockUserAccount.perpPositions[0].quoteEntryAmount = new BN(-20000000000).mul(
-			QUOTE_PRECISION
-		);
-		myMockUserAccount.perpPositions[0].quoteBreakEvenAmount = new BN(-20000000000).mul(
+		myMockUserAccount.perpPositions[0].quoteAssetAmount = new BN(-180000000).mul(
 			QUOTE_PRECISION
 		);
 
