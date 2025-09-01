@@ -6678,7 +6678,7 @@ export class DriftClient {
 				orderParamsMessage.builderIdx !== undefined
 					? orderParamsMessage.builderIdx
 					: null,
-			builderFeeBps:
+			builderFeeTenthBps:
 				orderParamsMessage.builderFeeTenthBps !== undefined
 					? orderParamsMessage.builderFeeTenthBps
 					: null,
