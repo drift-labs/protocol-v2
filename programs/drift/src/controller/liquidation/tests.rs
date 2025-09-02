@@ -2378,7 +2378,7 @@ pub mod liquidate_perp {
     }
 
     #[test]
-    pub fn cross_margin_doesnt_affect_isolated_margin() {
+    pub fn unhealthy_cross_margin_doesnt_cause_isolated_position_liquidation() {
         let now = 0_i64;
         let slot = 0_u64;
 
