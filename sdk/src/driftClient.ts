@@ -327,6 +327,40 @@ export class DriftClient {
 		);
 	}
 
+	public async getTransferIsolatedPerpPositionDepositIx({
+		perpMarketIndex,
+		amount,
+		spotMarketIndex,
+		subAccountId,
+	}: {
+		perpMarketIndex: number;
+		amount: BN;
+		spotMarketIndex?: number; // defaults to perp.quoteSpotMarketIndex
+		subAccountId?: number;
+	}): Promise<TransactionInstruction> {
+		const user = await this.getUserAccountPublicKey(subAccountId);
+		const userStats = this.getUserStatsAccountPublicKey();
+		const statePk = await this.getStatePublicKey();
+		const perp = this.getPerpMarketAccount(perpMarketIndex);
+		const spotIndex = spotMarketIndex ?? perp.quoteSpotMarketIndex;
+		const spot = this.getSpotMarketAccount(spotIndex);
+
+		return await this.program.instruction.transferIsolatedPerpPositionDeposit(
+			spotIndex,
+			perpMarketIndex,
+			amount,
+			{
+				accounts: {
+					user,
+					userStats,
+					authority: this.wallet.publicKey,
+					state: statePk,
+					spotMarketVault: spot.vault,
+				},
+			}
+		);
+	}
+
 	public set isSubscribed(val: boolean) {
 		this._isSubscribed = val;
 	}
@@ -4354,7 +4388,7 @@ export class DriftClient {
 		const preIxs: TransactionInstruction[] = [];
 		if (isVariant(orderParams.marketType, 'perp') && isolatedPositionDepositAmount?.gt?.(ZERO)) {
 			preIxs.push(
-				await this.getDepositIntoIsolatedPerpPositionIx({
+				await this.getTransferIsolatedPerpPositionDepositIx({
 					perpMarketIndex: orderParams.marketIndex,
 					amount: isolatedPositionDepositAmount as BN,
 					subAccountId: userAccount.subAccountId,
@@ -4496,7 +4530,7 @@ export class DriftClient {
 		const preIxs: TransactionInstruction[] = [];
 		if (isolatedPositionDepositAmount?.gt?.(ZERO)) {
 			preIxs.push(
-				await this.getDepositIntoIsolatedPerpPositionIx({
+				await this.getTransferIsolatedPerpPositionDepositIx({
 					perpMarketIndex: orderParams.marketIndex,
 					amount: isolatedPositionDepositAmount as BN,
 					subAccountId,
@@ -4961,7 +4995,7 @@ export class DriftClient {
 			const p = params[0];
 			if (isVariant(p.marketType, 'perp') && isolatedPositionDepositAmount?.gt?.(ZERO)) {
 				preIxs.push(
-					await this.getDepositIntoIsolatedPerpPositionIx({
+					await this.getTransferIsolatedPerpPositionDepositIx({
 						perpMarketIndex: p.marketIndex,
 						amount: isolatedPositionDepositAmount as BN,
 						subAccountId,
@@ -6438,7 +6472,7 @@ export class DriftClient {
 
 			if (isVariant(orderParams.marketType, 'perp') && isolatedPositionDepositAmount?.gt?.(ZERO)) {
 				placeAndTakeIxs.push(
-					await this.getDepositIntoIsolatedPerpPositionIx({
+					await this.getTransferIsolatedPerpPositionDepositIx({
 						perpMarketIndex: orderParams.marketIndex,
 						amount: isolatedPositionDepositAmount as BN,
 						subAccountId,
