@@ -873,6 +873,7 @@ impl PerpMarket {
         let oracle_data = OraclePriceData {
             price: self.amm.mm_oracle_price,
             delay,
+            sequence_id: None,
             confidence: oracle_price_data.confidence,
             has_sufficient_number_of_data_points: true,
         };
@@ -894,6 +895,7 @@ impl PerpMarket {
         Ok(MMOraclePriceData::new(
             self.amm.mm_oracle_price,
             delay,
+            self.amm.mm_oracle_sequence_id,
             oracle_validity,
             oracle_price_data,
         )?)

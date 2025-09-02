@@ -76,6 +76,7 @@ pub fn update_amm_test() {
         confidence: 0,
         delay: 2,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
 
     let reserve_price_before = market.amm.reserve_price().unwrap();
@@ -227,6 +228,7 @@ pub fn update_amm_test_bad_oracle() {
         confidence: 0,
         delay: 12,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     let mm_oracle_price_data = market
         .get_mm_oracle_price_data(oracle_price_data, slot, &state.oracle_guard_rails.validity)
@@ -285,6 +287,7 @@ pub fn update_amm_larg_conf_test() {
         confidence: 0,
         delay: 9,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     let mm_oracle_price_data = market
         .get_mm_oracle_price_data(oracle_price_data, slot, &state.oracle_guard_rails.validity)
@@ -309,6 +312,7 @@ pub fn update_amm_larg_conf_test() {
         confidence: 100 * PRICE_PRECISION_U64,
         delay: 1,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     let mm_oracle_price_data = market
         .get_mm_oracle_price_data(oracle_price_data, slot, &state.oracle_guard_rails.validity)
@@ -335,6 +339,7 @@ pub fn update_amm_larg_conf_test() {
         confidence: 100 * PRICE_PRECISION_U64,
         delay: 1,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
 
     let fee_budget = calculate_fee_pool(&market).unwrap();
@@ -377,6 +382,7 @@ pub fn update_amm_larg_conf_test() {
         confidence: 121 * PRICE_PRECISION_U64,
         delay: 1,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     let mm_oracle_price_data = market
         .get_mm_oracle_price_data(oracle_price_data, slot, &state.oracle_guard_rails.validity)
@@ -432,6 +438,7 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
         confidence: 0,
         delay: 9,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     let mm_oracle_price_data = market
         .get_mm_oracle_price_data(oracle_price_data, slot, &state.oracle_guard_rails.validity)
@@ -486,6 +493,7 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
         confidence: 100 * PRICE_PRECISION_U64,
         delay: 1,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     let mm_oracle_price_data = market
         .get_mm_oracle_price_data(oracle_price_data, slot, &state.oracle_guard_rails.validity)
@@ -512,6 +520,7 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
         confidence: 100 * PRICE_PRECISION_U64,
         delay: 1,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     let mm_oracle_price_data = market
         .get_mm_oracle_price_data(oracle_price_data, slot, &state.oracle_guard_rails.validity)
@@ -588,6 +597,7 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
         confidence: 121 * PRICE_PRECISION_U64,
         delay: 1,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     let mm_oracle_price_data = market
         .get_mm_oracle_price_data(oracle_price_data, slot, &state.oracle_guard_rails.validity)

@@ -83,6 +83,7 @@ export class PythLazerClient implements OracleClient {
 				this.multiple
 			),
 			hasSufficientNumberOfDataPoints: true,
+			sequenceId: priceData.publishTime,
 		};
 	}
 }
