@@ -159,11 +159,9 @@ impl RevenueShareOrder {
 #[derive(Default, Eq, PartialEq, Debug, BorshDeserialize, BorshSerialize)]
 #[repr(C)]
 pub struct BuilderInfo {
-    // pub padding0: u32,
     pub authority: Pubkey, // builder authority
-    // pub padding: u64, // force alignment to 8 bytes
     pub max_fee_tenth_bps: u16,
-    pub padding2: [u8; 2],
+    pub padding: [u8; 6],
 }
 
 impl BuilderInfo {
@@ -177,15 +175,20 @@ impl BuilderInfo {
 }
 
 #[account]
-#[derive(Eq, PartialEq, Debug, Default)]
+#[derive(Eq, PartialEq, Debug)]
 #[repr(C)]
 pub struct RevenueShareEscrow {
     /// the owner of this account, a user
     pub authority: Pubkey,
     pub referrer: Pubkey,
-    pub padding0: u32, // align with orders 4 bytes len prefix
+    pub referrer_boost_expire_ts: u32,
+    pub referrer_reward_offset: i8,
+    pub referee_fee_numerator_offset: i8,
+    pub referrer_boost_numerator: i8,
+    pub reserved_fixed: [u8; 17],
+    pub padding0: u32, // align with [`RevenueShareEscrow::orders`] 4 bytes len prefix
     pub orders: Vec<RevenueShareOrder>,
-    pub padding1: u32, // align with approved_builders 4 bytes len prefix
+    pub padding1: u32, // align with [`RevenueShareEscrow::approved_builders`] 4 bytes len prefix
     pub approved_builders: Vec<BuilderInfo>,
 }
 
@@ -212,10 +215,48 @@ impl RevenueShareEscrow {
 }
 
 #[zero_copy]
-#[derive(Default, Eq, PartialEq, Debug, BorshDeserialize, BorshSerialize)]
+#[derive(Eq, PartialEq, Debug, BorshDeserialize, BorshSerialize)]
+#[repr(C)]
 pub struct RevenueShareEscrowFixed {
     pub authority: Pubkey,
     pub referrer: Pubkey,
+    pub referrer_boost_expire_ts: u32,
+    pub referrer_reward_offset: i8,
+    pub referee_fee_numerator_offset: i8,
+    pub referrer_boost_numerator: i8,
+    pub reserved_fixed: [u8; 17],
+}
+
+impl Default for RevenueShareEscrowFixed {
+    fn default() -> Self {
+        Self {
+            authority: Pubkey::default(),
+            referrer: Pubkey::default(),
+            referrer_boost_expire_ts: 0,
+            referrer_reward_offset: 0,
+            referee_fee_numerator_offset: 0,
+            referrer_boost_numerator: 0,
+            reserved_fixed: [0; 17],
+        }
+    }
+}
+
+impl Default for RevenueShareEscrow {
+    fn default() -> Self {
+        Self {
+            authority: Pubkey::default(),
+            referrer: Pubkey::default(),
+            referrer_boost_expire_ts: 0,
+            referrer_reward_offset: 0,
+            referee_fee_numerator_offset: 0,
+            referrer_boost_numerator: 0,
+            reserved_fixed: [0; 17],
+            padding0: 0,
+            orders: Vec::new(),
+            padding1: 0,
+            approved_builders: Vec::new(),
+        }
+    }
 }
 
 pub struct RevenueShareEscrowZeroCopy<'a> {

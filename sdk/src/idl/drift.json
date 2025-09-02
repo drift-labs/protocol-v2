@@ -8754,6 +8754,31 @@
             "type": "publicKey"
           },
           {
+            "name": "referrerBoostExpireTs",
+            "type": "u32"
+          },
+          {
+            "name": "referrerRewardOffset",
+            "type": "i8"
+          },
+          {
+            "name": "refereeFeeNumeratorOffset",
+            "type": "i8"
+          },
+          {
+            "name": "referrerBoostNumerator",
+            "type": "i8"
+          },
+          {
+            "name": "reservedFixed",
+            "type": {
+              "array": [
+                "u8",
+                17
+              ]
+            }
+          },
+          {
             "name": "padding0",
             "type": "u32"
           },
@@ -11590,11 +11615,11 @@
             "type": "u16"
           },
           {
-            "name": "padding2",
+            "name": "padding",
             "type": {
               "array": [
                 "u8",
-                2
+                6
               ]
             }
           }
@@ -11613,6 +11638,31 @@
           {
             "name": "referrer",
             "type": "publicKey"
+          },
+          {
+            "name": "referrerBoostExpireTs",
+            "type": "u32"
+          },
+          {
+            "name": "referrerRewardOffset",
+            "type": "i8"
+          },
+          {
+            "name": "refereeFeeNumeratorOffset",
+            "type": "i8"
+          },
+          {
+            "name": "referrerBoostNumerator",
+            "type": "i8"
+          },
+          {
+            "name": "reservedFixed",
+            "type": {
+              "array": [
+                "u8",
+                17
+              ]
+            }
           }
         ]
       }

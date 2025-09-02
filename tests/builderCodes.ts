@@ -62,8 +62,6 @@ import {
 } from '../sdk/src/math/builder';
 import { createTransferInstruction } from '@solana/spl-token';
 
-const DEBUG_LOGS = !!process.env.DEBUG_LOGS;
-
 dotenv.config();
 
 const PYTH_STORAGE_ACCOUNT_INFO: AccountInfo<Buffer> = {
@@ -649,12 +647,10 @@ describe('builder codes', () => {
 			undefined,
 			true
 		);
-		const logs = DEBUG_LOGS
-			? await printTxLogs(
-					bankrunContextWrapper.connection.toConnection(),
-					fillTx
-			  )
-			: [];
+		const logs = await printTxLogs(
+			bankrunContextWrapper.connection.toConnection(),
+			fillTx
+		);
 		const events = parseLogs(builderClient.program, logs);
 		assert(events[0].name === 'OrderActionRecord');
 		const fillQuoteAssetAmount = events[0].data['quoteAssetAmountFilled'] as BN;
@@ -848,12 +844,10 @@ describe('builder codes', () => {
 			undefined,
 			true
 		);
-		const logs = DEBUG_LOGS
-			? await printTxLogs(
-					bankrunContextWrapper.connection.toConnection(),
-					fillTx
-			  )
-			: [];
+		const logs = await printTxLogs(
+			bankrunContextWrapper.connection.toConnection(),
+			fillTx
+		);
 		const events = parseLogs(builderClient.program, logs);
 		assert(events[0].name === 'OrderActionRecord');
 		const fillQuoteAssetAmount = events[0].data['quoteAssetAmountFilled'] as BN;
@@ -942,12 +936,10 @@ describe('builder codes', () => {
 			escrowMap
 		);
 
-		const settleLogs = DEBUG_LOGS
-			? await printTxLogs(
-					bankrunContextWrapper.connection.toConnection(),
-					settleTx
-			  )
-			: [];
+		const settleLogs = await printTxLogs(
+			bankrunContextWrapper.connection.toConnection(),
+			settleTx
+		);
 		const settleEvents = parseLogs(builderClient.program, settleLogs);
 		const builderSettleEvents = settleEvents
 			.filter((e) => e.name === 'RevenueShareSettleRecord')
@@ -1157,12 +1149,10 @@ describe('builder codes', () => {
 			undefined,
 			true
 		);
-		const logsA = DEBUG_LOGS
-			? await printTxLogs(
-					bankrunContextWrapper.connection.toConnection(),
-					fillTxA
-			  )
-			: [];
+		const logsA = await printTxLogs(
+			bankrunContextWrapper.connection.toConnection(),
+			fillTxA
+		);
 		const eventsA = parseLogs(builderClient.program, logsA);
 		const fillEventA = eventsA.find((e) => e.name === 'OrderActionRecord');
 		assert(fillEventA !== undefined);
@@ -1183,12 +1173,10 @@ describe('builder codes', () => {
 			undefined,
 			true
 		);
-		const logsB = DEBUG_LOGS
-			? await printTxLogs(
-					bankrunContextWrapper.connection.toConnection(),
-					fillTxB
-			  )
-			: [];
+		const logsB = await printTxLogs(
+			bankrunContextWrapper.connection.toConnection(),
+			fillTxB
+		);
 		const eventsB = parseLogs(builderClient.program, logsB);
 		const fillEventB = eventsB.find((e) => e.name === 'OrderActionRecord');
 		assert(fillEventB !== undefined);
@@ -1349,12 +1337,10 @@ describe('builder codes', () => {
 			undefined,
 			true
 		);
-		const logsA = DEBUG_LOGS
-			? await printTxLogs(
-					bankrunContextWrapper.connection.toConnection(),
-					fillTxA
-			  )
-			: [];
+		const logsA = await printTxLogs(
+			bankrunContextWrapper.connection.toConnection(),
+			fillTxA
+		);
 		const eventsA = parseLogs(builderClient.program, logsA);
 		const fillEventA = eventsA.filter((e) => e.name === 'OrderActionRecord');
 		assert(fillEventA !== undefined);
@@ -1398,12 +1384,10 @@ describe('builder codes', () => {
 			undefined,
 			escrowMap
 		);
-		if (DEBUG_LOGS) {
-			await printTxLogs(
-				bankrunContextWrapper.connection.toConnection(),
-				settleTx
-			);
-		}
+		await printTxLogs(
+			bankrunContextWrapper.connection.toConnection(),
+			settleTx
+		);
 
 		await escrowMap.slowSync();
 		const escrowAfterSettle = (await escrowMap.mustGet(
@@ -1533,12 +1517,10 @@ describe('builder codes', () => {
 			undefined,
 			true
 		);
-		const logsA = DEBUG_LOGS
-			? await printTxLogs(
-					bankrunContextWrapper.connection.toConnection(),
-					fillTxA
-			  )
-			: [];
+		const logsA = await printTxLogs(
+			bankrunContextWrapper.connection.toConnection(),
+			fillTxA
+		);
 		const eventsA = parseLogs(builderClient.program, logsA);
 		const fillsA = eventsA.filter((e) => e.name === 'OrderActionRecord');
 		const fillAReferrerReward = fillsA[0]['data']['referrerReward'] as number;
@@ -1564,12 +1546,10 @@ describe('builder codes', () => {
 			undefined,
 			true
 		);
-		const logsB = DEBUG_LOGS
-			? await printTxLogs(
-					bankrunContextWrapper.connection.toConnection(),
-					fillTxB
-			  )
-			: [];
+		const logsB = await printTxLogs(
+			bankrunContextWrapper.connection.toConnection(),
+			fillTxB
+		);
 		const eventsB = parseLogs(builderClient.program, logsB);
 		const fillsB = eventsB.filter((e) => e.name === 'OrderActionRecord');
 		assert(fillsB.length > 0);
@@ -1604,12 +1584,10 @@ describe('builder codes', () => {
 			SettlePnlMode.MUST_SETTLE,
 			escrowMap
 		);
-		if (DEBUG_LOGS) {
-			await printTxLogs(
-				bankrunContextWrapper.connection.toConnection(),
-				settleTxA
-			);
-		}
+		await printTxLogs(
+			bankrunContextWrapper.connection.toConnection(),
+			settleTxA
+		);
 
 		await escrowMap.slowSync();
 		const escrowAfterSettle = (await escrowMap.mustGet(

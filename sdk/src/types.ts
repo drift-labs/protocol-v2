@@ -1587,6 +1587,11 @@ export type RevenueShareAccount = {
 export type RevenueShareEscrowAccount = {
 	authority: PublicKey;
 	referrer: PublicKey;
+	referrerBoostExpireTs: number;
+	referrerRewardOffset: number;
+	refereeFeeNumeratorOffset: number;
+	referrerBoostNumerator: number;
+	reservedFixed: number[];
 	orders: RevenueShareOrder[];
 	approvedBuilders: BuilderInfo[];
 };
@@ -1605,7 +1610,7 @@ export type RevenueShareOrder = {
 export type BuilderInfo = {
 	authority: PublicKey;
 	maxFeeTenthBps: number;
-	bitFlags: number;
+	padding: number[];
 };
 
 export type RevenueShareSettleRecord = {
