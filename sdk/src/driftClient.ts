@@ -6404,7 +6404,7 @@ export class DriftClient {
 	/**
 	 * Builds a deposit and place request for Swift service
 	 *
-	 * @param depositTx - The signed deposit transaction (see `createDepositTxn`)
+	 * @param depositTx - The signed tx containing a drift deposit (e.g. see `createDepositTxn`)
 	 * @param orderParamsMessage - The order parameters message to sign
 	 * @param delegateSigner - Whether this is a delegate signer
 	 *
