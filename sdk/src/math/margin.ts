@@ -160,8 +160,20 @@ export function calculateWorstCaseBaseAssetAmount(
 export function calculateWorstCasePerpLiabilityValue(
 	perpPosition: PerpPosition,
 	perpMarket: PerpMarketAccount,
-	oraclePrice: BN
+	oraclePrice: BN,
+	includeOpenOrders: boolean = true
 ): { worstCaseBaseAssetAmount: BN; worstCaseLiabilityValue: BN } {
+	// return early if no open orders required
+	if (!includeOpenOrders) {
+		return {
+			worstCaseBaseAssetAmount: perpPosition.baseAssetAmount,
+			worstCaseLiabilityValue: calculatePerpLiabilityValue(
+				perpPosition.baseAssetAmount,
+				oraclePrice,
+				isVariant(perpMarket.contractType, 'prediction')
+			),
+		};
+	}
 	const allBids = perpPosition.baseAssetAmount.add(perpPosition.openBids);
 	const allAsks = perpPosition.baseAssetAmount.add(perpPosition.openAsks);
 
