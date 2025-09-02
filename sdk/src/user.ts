@@ -290,12 +290,13 @@ export class User {
 				);
 
 			// margin ratio for this perp
+			const customMarginRatio = Math.max(this.getUserAccount().maxMarginRatio, marketPosition.customMarginRatio);
 			let marginRatio = new BN(
 				calculateMarketMarginRatio(
 					market,
 					worstCaseBaseAssetAmount.abs(),
 					marginCategory,
-					this.getUserAccount().maxMarginRatio,
+					customMarginRatio,
 					this.isHighLeverageMode() || enteringHighLeverage
 				)
 			);
@@ -350,7 +351,7 @@ export class User {
 			if (isIsolated) {
 				// derive isolated quote deposit value, mirroring on-chain logic
 				let depositValue = ZERO;
-				if (marketPosition.isolatedPositionScaledBalance?.gt(ZERO)) {
+				if (marketPosition.isolatedPositionScaledBalance.gt(ZERO)) {
 					const quoteSpotMarket = this.driftClient.getSpotMarketAccount(
 						market.quoteSpotMarketIndex
 					);
