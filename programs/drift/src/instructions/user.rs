@@ -3163,6 +3163,20 @@ pub fn handle_update_user_custom_margin_ratio(
     Ok(())
 }
 
+pub fn handle_update_user_perp_position_custom_margin_ratio(
+    ctx: Context<UpdateUserPerpPositionCustomMarginRatio>,
+    _sub_account_id: u16,
+    perp_market_index: u16,
+    margin_ratio: u16,
+) -> Result<()> {
+    let mut user = load_mut!(ctx.accounts.user)?;
+
+    let perp_position = user.force_get_perp_position_mut(perp_market_index)?;
+    perp_position.max_margin_ratio = margin_ratio;
+    Ok(())
+}
+
+
 pub fn handle_update_user_margin_trading_enabled<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdateUser<'info>>,
     _sub_account_id: u16,
@@ -4731,6 +4745,21 @@ pub struct UpdateUser<'info> {
         mut,
         seeds = [b"user", authority.key.as_ref(), sub_account_id.to_le_bytes().as_ref()],
         bump,
+    )]
+    pub user: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(
+    sub_account_id: u16,
+)]
+pub struct UpdateUserPerpPositionCustomMarginRatio<'info> {
+    #[account(
+        mut,
+        seeds = [b"user", authority.key.as_ref(), sub_account_id.to_le_bytes().as_ref()],
+        bump,
+        constraint = can_sign_for_user(&user, &authority)?
     )]
     pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,

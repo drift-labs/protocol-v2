@@ -1,4 +1,5 @@
 use std::cell::RefMut;
+use std::collections::BTreeMap;
 use std::convert::TryFrom;
 
 use anchor_lang::prelude::*;
@@ -2708,6 +2709,16 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
     let custom_margin_ratio_before = user.max_margin_ratio;
     user.max_margin_ratio = 0;
 
+    let mut perp_position_max_margin_ratio_map = BTreeMap::new();
+    for (index, position) in user.perp_positions.iter_mut().enumerate() {
+        if position.max_margin_ratio == 0 {
+            continue;
+        }
+
+        perp_position_max_margin_ratio_map.insert(index, position.max_margin_ratio);
+        position.max_margin_ratio = 0;
+    }
+
     let margin_buffer = MARGIN_PRECISION / 100; // 1% buffer
     let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
         &user,
@@ -2720,6 +2731,10 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
     let meets_margin_calc = margin_calc.meets_margin_requirement_with_buffer();
 
     user.max_margin_ratio = custom_margin_ratio_before;
+    // loop through margin ratio map and set max margin ratio
+    for (index, position) in perp_position_max_margin_ratio_map.iter() {
+        user.perp_positions[*index].max_margin_ratio = *position;
+    }
 
     if margin_calc.num_perp_liabilities > 0 {
         for position in user.perp_positions.iter().filter(|p| !p.is_available()) {
