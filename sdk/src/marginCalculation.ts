@@ -139,6 +139,8 @@ export class MarginCalculation {
 	allLiabilityOraclesValid: boolean;
 	withPerpIsolatedLiability: boolean;
 	withSpotIsolatedLiability: boolean;
+	totalSpotLiabilityValue: BN;
+	totalPerpLiabilityValue: BN;
 	trackedMarketMarginRequirement: BN;
 	fuelDeposits: number;
 	fuelBorrows: number;
@@ -157,6 +159,8 @@ export class MarginCalculation {
 		this.allLiabilityOraclesValid = true;
 		this.withPerpIsolatedLiability = false;
 		this.withSpotIsolatedLiability = false;
+		this.totalSpotLiabilityValue = new BN(0);
+		this.totalPerpLiabilityValue = new BN(0);
 		this.trackedMarketMarginRequirement = new BN(0);
 		this.fuelDeposits = 0;
 		this.fuelBorrows = 0;
@@ -172,10 +176,7 @@ export class MarginCalculation {
 		}
 	}
 
-	addCrossMarginRequirement(
-		marginRequirement: BN,
-		liabilityValue: BN,
-	): void {
+	addCrossMarginRequirement(marginRequirement: BN, liabilityValue: BN): void {
 		this.marginRequirement = this.marginRequirement.add(marginRequirement);
 		if (this.context.marginBuffer.gt(new BN(0))) {
 			this.marginRequirementPlusBuffer = this.marginRequirementPlusBuffer.add(
@@ -219,6 +220,16 @@ export class MarginCalculation {
 
 	addPerpLiability(): void {
 		this.numPerpLiabilities += 1;
+	}
+
+	addSpotLiabilityValue(spotLiabilityValue: BN): void {
+		this.totalSpotLiabilityValue =
+			this.totalSpotLiabilityValue.add(spotLiabilityValue);
+	}
+
+	addPerpLiabilityValue(perpLiabilityValue: BN): void {
+		this.totalPerpLiabilityValue =
+			this.totalPerpLiabilityValue.add(perpLiabilityValue);
 	}
 
 	updateAllDepositOraclesValid(valid: boolean): void {

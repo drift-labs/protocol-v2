@@ -1038,8 +1038,9 @@ export type PerpPosition = {
 	lastBaseAssetAmountPerLp: BN;
 	lastQuoteAssetAmountPerLp: BN;
 	perLpBase: number;
-	positionFlag: number; // TODO: make this deserializes properly
-	isolatedPositionScaledBalance?: BN;
+	positionFlag: number;
+	isolatedPositionScaledBalance: BN;
+	customMarginRatio: number;
 };
 
 export type UserStatsAccount = {
