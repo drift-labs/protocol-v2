@@ -19,6 +19,7 @@ import {
 	L3OrderBook,
 } from './orderBookLevels';
 import { getProtectedMakerParamsMap } from '../math/protectedMakerParams';
+import { BN } from '@coral-xyz/anchor';
 
 export class DLOBSubscriber {
 	driftClient: DriftClient;
@@ -82,6 +83,7 @@ export class DLOBSubscriber {
 	 * @param depth Number of orders to include in the order book. Defaults to 10.
 	 * @param includeVamm Whether to include the VAMM orders in the order book. Defaults to false. If true, creates vAMM generator {@link getVammL2Generator} and adds it to fallbackL2Generators.
 	 * @param fallbackL2Generators L2 generators for fallback liquidity e.g. vAMM {@link getVammL2Generator}, openbook {@link SerumSubscriber}
+	 * @param latestSlot Latest slot observed via slot subscriber or similar for accuarate vamm quotes (if including the vAMM).
 	 */
 	public getL2({
 		marketName,
@@ -91,6 +93,7 @@ export class DLOBSubscriber {
 		includeVamm = false,
 		numVammOrders,
 		fallbackL2Generators = [],
+		latestSlot,
 	}: {
 		marketName?: string;
 		marketIndex?: number;
@@ -99,6 +102,7 @@ export class DLOBSubscriber {
 		includeVamm?: boolean;
 		numVammOrders?: number;
 		fallbackL2Generators?: L2OrderBookGenerator[];
+		latestSlot?: BN;
 	}): L2OrderBook {
 		if (marketName) {
 			const derivedMarketInfo =
@@ -146,6 +150,7 @@ export class DLOBSubscriber {
 						marketIndex < 3
 							? MAJORS_TOP_OF_BOOK_QUOTE_AMOUNTS
 							: DEFAULT_TOP_OF_BOOK_QUOTE_AMOUNTS,
+					latestSlot,
 				}),
 			];
 		}

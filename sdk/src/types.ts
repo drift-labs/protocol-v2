@@ -196,6 +196,7 @@ export class OrderBitFlag {
 	static readonly SignedMessage = 1;
 	static readonly OracleTriggerMarket = 2;
 	static readonly SafeTriggerOrder = 4;
+	static readonly NewTriggerReduceOnly = 8;
 }
 
 export class OrderAction {
@@ -1295,6 +1296,8 @@ export type SignedMsgOrderParamsMessage = {
 	uuid: Uint8Array;
 	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
+	builderIdx?: number | null;
+	builderFeeTenthBps?: number | null;
 };
 
 export type SignedMsgOrderParamsDelegateMessage = {
@@ -1304,6 +1307,8 @@ export type SignedMsgOrderParamsDelegateMessage = {
 	takerPubkey: PublicKey;
 	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
+	builderIdx?: number | null;
+	builderFeeTenthBps?: number | null;
 };
 
 export type SignedMsgTriggerOrderParams = {
@@ -1621,6 +1626,54 @@ export type SignedMsgOrderId = {
 export type SignedMsgUserOrdersAccount = {
 	authorityPubkey: PublicKey;
 	signedMsgOrderData: SignedMsgOrderId[];
+};
+
+export type RevenueShareAccount = {
+	authority: PublicKey;
+	totalReferrerRewards: BN;
+	totalBuilderRewards: BN;
+	padding: number[];
+};
+
+export type RevenueShareEscrowAccount = {
+	authority: PublicKey;
+	referrer: PublicKey;
+	referrerBoostExpireTs: number;
+	referrerRewardOffset: number;
+	refereeFeeNumeratorOffset: number;
+	referrerBoostNumerator: number;
+	reservedFixed: number[];
+	orders: RevenueShareOrder[];
+	approvedBuilders: BuilderInfo[];
+};
+
+export type RevenueShareOrder = {
+	builderIdx: number;
+	feesAccrued: BN;
+	orderId: number;
+	feeTenthBps: number;
+	marketIndex: number;
+	bitFlags: number;
+	marketType: MarketType; // 0: spot, 1: perp
+	padding: number[];
+};
+
+export type BuilderInfo = {
+	authority: PublicKey;
+	maxFeeTenthBps: number;
+	padding: number[];
+};
+
+export type RevenueShareSettleRecord = {
+	ts: number;
+	builder: PublicKey | null;
+	referrer: PublicKey | null;
+	feeSettled: BN;
+	marketIndex: number;
+	marketType: MarketType;
+	builderTotalReferrerRewards: BN;
+	builderTotalBuilderRewards: BN;
+	builderSubAccountId: number;
 };
 
 export type AddAmmConstituentMappingDatum = {
