@@ -4658,7 +4658,7 @@ mod get_margin_calculation_for_disable_high_leverage_mode {
     use crate::create_anchor_account_info;
 
     #[test]
-    pub fn get_margin_calculation_for_disable_high_leverage_mode() {
+    pub fn check_user_not_changed() {
         let slot = 0_u64;
 
         let mut sol_oracle_price = get_pyth_price(100, 6);
