@@ -1074,37 +1074,6 @@ pub fn handle_settle_funding_payment<'c: 'info, 'info>(
 }
 
 #[access_control(
-    amm_not_paused(&ctx.accounts.state)
-)]
-pub fn handle_settle_lp<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, SettleLP>,
-    market_index: u16,
-) -> Result<()> {
-    let user_key = ctx.accounts.user.key();
-    let user = &mut load_mut!(ctx.accounts.user)?;
-
-    let state = &ctx.accounts.state;
-    let clock = Clock::get()?;
-    let now = clock.unix_timestamp;
-
-    let AccountMaps {
-        perp_market_map, ..
-    } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
-        &get_writable_perp_market_set(market_index),
-        &MarketSet::new(),
-        clock.slot,
-        Some(state.oracle_guard_rails),
-    )?;
-
-    let market = &mut perp_market_map.get_ref_mut(&market_index)?;
-    controller::lp::settle_funding_payment_then_lp(user, &user_key, market, now)?;
-    user.update_last_active_slot(clock.slot);
-
-    Ok(())
-}
-
-#[access_control(
     liq_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_liquidate_perp<'c: 'info, 'info>(

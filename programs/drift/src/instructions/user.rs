@@ -11,6 +11,7 @@ use anchor_spl::{
 use solana_program::program::invoke;
 use solana_program::system_instruction::transfer;
 
+use crate::controller::funding::settle_funding_payment;
 use crate::controller::orders::{cancel_orders, ModifyOrderId};
 use crate::controller::position::update_position_and_market;
 use crate::controller::position::PositionDirection;
@@ -1611,14 +1612,14 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         &clock,
     )?;
 
-    controller::lp::settle_funding_payment_then_lp(
+    settle_funding_payment(
         &mut from_user,
         &from_user_key,
         perp_market_map.get_ref_mut(&market_index)?.deref_mut(),
         now,
     )?;
 
-    controller::lp::settle_funding_payment_then_lp(
+    settle_funding_payment(
         &mut to_user,
         &to_user_key,
         perp_market_map.get_ref_mut(&market_index)?.deref_mut(),
@@ -2920,211 +2921,6 @@ pub fn handle_place_and_make_spot_order<'c: 'info, 'info>(
     let base_market = spot_market_map.get_ref(&market_index)?;
     let quote_market = spot_market_map.get_quote_spot_market()?;
     fulfillment_params.validate_vault_amounts(&base_market, &quote_market)?;
-
-    Ok(())
-}
-
-#[access_control(
-    amm_not_paused(&ctx.accounts.state)
-)]
-pub fn handle_add_perp_lp_shares<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, AddRemoveLiquidity<'info>>,
-    n_shares: u64,
-    market_index: u16,
-) -> Result<()> {
-    let user_key = ctx.accounts.user.key();
-    let user = &mut load_mut!(ctx.accounts.user)?;
-    let state = &ctx.accounts.state;
-    let clock = Clock::get()?;
-    let now = clock.unix_timestamp;
-
-    #[cfg(not(feature = "anchor-test"))]
-    {
-        msg!("add_perp_lp_shares is disabled");
-        return Err(ErrorCode::DefaultError.into());
-    }
-
-    let AccountMaps {
-        perp_market_map,
-        spot_market_map,
-        mut oracle_map,
-    } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
-        &get_writable_perp_market_set(market_index),
-        &MarketSet::new(),
-        clock.slot,
-        Some(state.oracle_guard_rails),
-    )?;
-
-    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
-    math::liquidation::validate_user_not_being_liquidated(
-        user,
-        &perp_market_map,
-        &spot_market_map,
-        &mut oracle_map,
-        state.liquidation_margin_buffer_ratio,
-    )?;
-
-    {
-        let mut market = perp_market_map.get_ref_mut(&market_index)?;
-
-        validate!(
-            matches!(market.status, MarketStatus::Active),
-            ErrorCode::MarketStatusInvalidForNewLP,
-            "Market Status doesn't allow for new LP liquidity"
-        )?;
-
-        validate!(
-            !matches!(market.contract_type, ContractType::Prediction),
-            ErrorCode::MarketStatusInvalidForNewLP,
-            "Contract Type doesn't allow for LP liquidity"
-        )?;
-
-        validate!(
-            !market.is_operation_paused(PerpOperation::AmmFill),
-            ErrorCode::MarketStatusInvalidForNewLP,
-            "Market amm fills paused"
-        )?;
-
-        validate!(
-            n_shares >= market.amm.order_step_size,
-            ErrorCode::NewLPSizeTooSmall,
-            "minting {} shares is less than step size {}",
-            n_shares,
-            market.amm.order_step_size,
-        )?;
-
-        controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
-
-        // standardize n shares to mint
-        let n_shares = crate::math::orders::standardize_base_asset_amount(
-            n_shares.cast()?,
-            market.amm.order_step_size,
-        )?
-        .cast::<u64>()?;
-
-        controller::lp::mint_lp_shares(
-            user.force_get_perp_position_mut(market_index)?,
-            &mut market,
-            n_shares,
-        )?;
-
-        user.last_add_perp_lp_shares_ts = now;
-    }
-
-    // check margin requirements
-    meets_place_order_margin_requirement(
-        user,
-        &perp_market_map,
-        &spot_market_map,
-        &mut oracle_map,
-        true,
-    )?;
-
-    user.update_last_active_slot(clock.slot);
-
-    emit!(LPRecord {
-        ts: now,
-        action: LPAction::AddLiquidity,
-        user: user_key,
-        n_shares,
-        market_index,
-        ..LPRecord::default()
-    });
-
-    Ok(())
-}
-
-pub fn handle_remove_perp_lp_shares_in_expiring_market<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, RemoveLiquidityInExpiredMarket<'info>>,
-    shares_to_burn: u64,
-    market_index: u16,
-) -> Result<()> {
-    let user_key = ctx.accounts.user.key();
-    let user = &mut load_mut!(ctx.accounts.user)?;
-
-    let state = &ctx.accounts.state;
-    let clock = Clock::get()?;
-    let now = clock.unix_timestamp;
-
-    let AccountMaps {
-        perp_market_map,
-        mut oracle_map,
-        ..
-    } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
-        &get_writable_perp_market_set(market_index),
-        &MarketSet::new(),
-        clock.slot,
-        Some(state.oracle_guard_rails),
-    )?;
-
-    // additional validate
-    {
-        let signer_is_admin = ctx.accounts.signer.key() == admin_hot_wallet::id();
-        let market = perp_market_map.get_ref(&market_index)?;
-        validate!(
-            market.is_reduce_only()? || signer_is_admin,
-            ErrorCode::PerpMarketNotInReduceOnly,
-            "Can only permissionless burn when market is in reduce only"
-        )?;
-    }
-
-    controller::lp::remove_perp_lp_shares(
-        perp_market_map,
-        &mut oracle_map,
-        state,
-        user,
-        user_key,
-        shares_to_burn,
-        market_index,
-        now,
-    )?;
-
-    user.update_last_active_slot(clock.slot);
-
-    Ok(())
-}
-
-#[access_control(
-    amm_not_paused(&ctx.accounts.state)
-)]
-pub fn handle_remove_perp_lp_shares<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, AddRemoveLiquidity<'info>>,
-    shares_to_burn: u64,
-    market_index: u16,
-) -> Result<()> {
-    let user_key = ctx.accounts.user.key();
-    let user = &mut load_mut!(ctx.accounts.user)?;
-
-    let state = &ctx.accounts.state;
-    let clock = Clock::get()?;
-    let now = clock.unix_timestamp;
-
-    let AccountMaps {
-        perp_market_map,
-        mut oracle_map,
-        ..
-    } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
-        &get_writable_perp_market_set(market_index),
-        &MarketSet::new(),
-        clock.slot,
-        Some(state.oracle_guard_rails),
-    )?;
-
-    controller::lp::remove_perp_lp_shares(
-        perp_market_map,
-        &mut oracle_map,
-        state,
-        user,
-        user_key,
-        shares_to_burn,
-        market_index,
-        now,
-    )?;
-
-    user.update_last_active_slot(clock.slot);
 
     Ok(())
 }
@@ -4620,25 +4416,6 @@ pub struct PlaceAndMatchRFQOrders<'info> {
     /// in the Anchor framework yet, so this is the safe approach.
     #[account(address = IX_ID)]
     pub ix_sysvar: AccountInfo<'info>,
-}
-
-#[derive(Accounts)]
-pub struct AddRemoveLiquidity<'info> {
-    pub state: Box<Account<'info, State>>,
-    #[account(
-        mut,
-        constraint = can_sign_for_user(&user, &authority)?,
-    )]
-    pub user: AccountLoader<'info, User>,
-    pub authority: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct RemoveLiquidityInExpiredMarket<'info> {
-    pub state: Box<Account<'info, State>>,
-    #[account(mut)]
-    pub user: AccountLoader<'info, User>,
-    pub signer: Signer<'info>,
 }
 
 #[derive(Accounts)]

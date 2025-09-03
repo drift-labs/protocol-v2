@@ -1,9 +1,6 @@
 use crate::controller::amm::{update_pnl_pool_and_user_balance, update_pool_balances};
 use crate::controller::funding::settle_funding_payment;
-use crate::controller::orders::{
-    attempt_burn_user_lp_shares_for_risk_reduction, cancel_orders,
-    validate_market_within_price_band,
-};
+use crate::controller::orders::{cancel_orders, validate_market_within_price_band};
 use crate::controller::position::{
     get_position_index, update_position_and_market, update_quote_asset_amount,
     update_quote_asset_and_break_even_amount, update_settled_pnl, PositionDelta,
@@ -81,7 +78,7 @@ pub fn settle_pnl(
 
     validate_market_within_price_band(&market, state, oracle_price)?;
 
-    crate::controller::lp::settle_funding_payment_then_lp(user, user_key, &mut market, now)?;
+    settle_funding_payment(user, user_key, &mut market, now)?;
 
     drop(market);
 
@@ -89,48 +86,7 @@ pub fn settle_pnl(
     let unrealized_pnl = user.perp_positions[position_index].get_unrealized_pnl(oracle_price)?;
 
     // cannot settle negative pnl this way on a user who is in liquidation territory
-    if user.perp_positions[position_index].is_lp() && !user.is_advanced_lp() {
-        let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
-            user,
-            perp_market_map,
-            spot_market_map,
-            oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial)
-                .margin_buffer(state.liquidation_margin_buffer_ratio),
-        )?;
-
-        if !margin_calc.meets_margin_requirement() {
-            msg!("market={} lp does not meet initial margin requirement, attempting to burn shares for risk reduction",
-            market_index);
-            attempt_burn_user_lp_shares_for_risk_reduction(
-                state,
-                user,
-                *user_key,
-                margin_calc,
-                perp_market_map,
-                spot_market_map,
-                oracle_map,
-                clock,
-                market_index,
-            )?;
-
-            // if the unrealized pnl is negative, return early after trying to burn shares
-            if unrealized_pnl < 0
-                && !(meets_settle_pnl_maintenance_margin_requirement(
-                    user,
-                    perp_market_map,
-                    spot_market_map,
-                    oracle_map,
-                )?)
-            {
-                msg!(
-                    "Unable to settle market={} negative pnl as user is in liquidation territory",
-                    market_index
-                );
-                return Ok(());
-            }
-        }
-    } else if unrealized_pnl < 0 {
+    if unrealized_pnl < 0 {
         // may already be cached
         let meets_margin_requirement = match meets_margin_requirement {
             Some(meets_margin_requirement) => meets_margin_requirement,
@@ -462,12 +418,6 @@ pub fn settle_expired_position(
         "User must first cancel open orders for expired market"
     )?;
 
-    validate!(
-        user.perp_positions[position_index].lp_shares == 0,
-        ErrorCode::PerpMarketSettlementUserHasActiveLP,
-        "User must first burn lp shares for expired market"
-    )?;
-
     let base_asset_value = calculate_base_asset_value_with_expiry_price(
         &user.perp_positions[position_index],
         perp_market.expiry_price,
@@ -479,7 +429,6 @@ pub fn settle_expired_position(
     let position_delta = PositionDelta {
         quote_asset_amount: base_asset_value,
         base_asset_amount: -user.perp_positions[position_index].base_asset_amount,
-        remainder_base_asset_amount: None,
     };
 
     update_position_and_market(

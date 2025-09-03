@@ -8,12 +8,10 @@ use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use anchor_lang::prelude::*;
 
 use crate::controller::funding::settle_funding_payment;
-use crate::controller::lp::burn_lp_shares;
 use crate::controller::position;
 use crate::controller::position::{
     add_new_position, decrease_open_bids_and_asks, get_position_index, increase_open_bids_and_asks,
-    update_lp_market_position, update_position_and_market, update_quote_asset_amount,
-    PositionDirection,
+    update_position_and_market, update_quote_asset_amount, PositionDirection,
 };
 use crate::controller::spot_balance::{
     update_spot_balances, update_spot_market_cumulative_interest,
@@ -37,7 +35,6 @@ use crate::math::fulfillment::{
     determine_perp_fulfillment_methods, determine_spot_fulfillment_methods,
 };
 use crate::math::liquidation::validate_user_not_being_liquidated;
-use crate::math::lp::calculate_lp_shares_to_burn_for_risk_reduction;
 use crate::math::matching::{
     are_orders_same_market_but_different_sides, calculate_fill_for_matched_orders,
     calculate_filler_multiplier_for_matched_orders, do_orders_cross, is_maker_for_taker,
@@ -64,7 +61,7 @@ use crate::state::order_params::{
     ModifyOrderParams, OrderParams, PlaceOrderOptions, PostOnlyParam,
 };
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
-use crate::state::perp_market::{AMMAvailability, AMMLiquiditySplit, MarketStatus, PerpMarket};
+use crate::state::perp_market::{AMMAvailability, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::protected_maker_mode_config::ProtectedMakerParams;
 use crate::state::spot_fulfillment_params::{ExternalSpotFill, SpotFulfillmentParams};
@@ -1015,7 +1012,7 @@ pub fn fill_perp_order(
 
     // settle lp position so its tradeable
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
-    controller::lp::settle_funding_payment_then_lp(user, &user_key, &mut market, now)?;
+    settle_funding_payment(user, &user_key, &mut market, now)?;
 
     validate!(
         matches!(
@@ -1074,7 +1071,7 @@ pub fn fill_perp_order(
     let perp_market_index: u16;
     let user_can_skip_duration: bool;
     let amm_can_skip_duration: bool;
-    let amm_lp_allowed_to_jit_make: bool;
+    let amm_has_low_enough_inventory: bool;
     let oracle_valid_for_amm_fill: bool;
     let oracle_stale_for_margin: bool;
     let min_auction_duration: u8;
@@ -1132,11 +1129,11 @@ pub fn fill_perp_order(
         amm_is_available &= amm_available_mm_oracle_recent_but_volatile;
 
         let amm_wants_to_jit_make = market.amm.amm_wants_to_jit_make(order_direction)?;
-        amm_lp_allowed_to_jit_make = market
+        amm_has_low_enough_inventory = market
             .amm
-            .amm_lp_allowed_to_jit_make(amm_wants_to_jit_make)?;
+            .amm_has_low_enough_inventory(amm_wants_to_jit_make)?;
         amm_can_skip_duration =
-            market.can_skip_auction_duration(&state, amm_lp_allowed_to_jit_make)?;
+            market.can_skip_auction_duration(&state, amm_has_low_enough_inventory)?;
 
         user_can_skip_duration = user.can_skip_auction_duration(user_stats)?;
 
@@ -1851,7 +1848,6 @@ fn fulfill_perp_order(
                         limit_price,
                         None,
                         *maker_price,
-                        AMMLiquiditySplit::Shared,
                         fill_mode.is_liquidation(),
                     )?;
 
@@ -1897,7 +1893,6 @@ fn fulfill_perp_order(
                         fee_structure,
                         oracle_map,
                         fill_mode.is_liquidation(),
-                        None,
                     )?;
 
                 if maker_fill_base_asset_amount != 0 {
@@ -2140,7 +2135,6 @@ pub fn fulfill_perp_order_with_amm(
     limit_price: Option<u64>,
     override_base_asset_amount: Option<u64>,
     override_fill_price: Option<u64>,
-    liquidity_split: AMMLiquiditySplit,
     is_liquidation: bool,
 ) -> DriftResult<(u64, u64)> {
     let position_index = get_position_index(&user.perp_positions, market.market_index)?;
@@ -2271,29 +2265,6 @@ pub fn fulfill_perp_order_with_amm(
     let user_position_delta =
         get_position_delta_for_fill(base_asset_amount, quote_asset_amount, order_direction)?;
 
-    if liquidity_split != AMMLiquiditySplit::ProtocolOwned {
-        update_lp_market_position(
-            market,
-            &user_position_delta,
-            fee_to_market_for_lp.cast()?,
-            liquidity_split,
-        )?;
-    }
-
-    if market.amm.user_lp_shares > 0 {
-        let (new_terminal_quote_reserve, new_terminal_base_reserve) =
-            crate::math::amm::calculate_terminal_reserves(&market.amm)?;
-        market.amm.terminal_quote_asset_reserve = new_terminal_quote_reserve;
-
-        let (min_base_asset_reserve, max_base_asset_reserve) =
-            crate::math::amm::calculate_bid_ask_bounds(
-                market.amm.concentration_coef,
-                new_terminal_base_reserve,
-            )?;
-        market.amm.min_base_asset_reserve = min_base_asset_reserve;
-        market.amm.max_base_asset_reserve = max_base_asset_reserve;
-    }
-
     // Increment the protocol's total fee variables
     market.amm.total_fee = market.amm.total_fee.safe_add(fee_to_market.cast()?)?;
     market.amm.total_exchange_fee = market.amm.total_exchange_fee.safe_add(user_fee.cast()?)?;
@@ -2389,7 +2360,7 @@ pub fn fulfill_perp_order_with_amm(
     let fill_record_id = get_then_update_id!(market, next_fill_record_id);
     let order_action_explanation = match (override_base_asset_amount, override_fill_price) {
         _ if is_liquidation => OrderActionExplanation::Liquidation,
-        (Some(_), Some(_)) => liquidity_split.get_order_action_explanation(),
+        (Some(_), Some(_)) => OrderActionExplanation::OrderFilledWithAMMJit,
         _ => OrderActionExplanation::OrderFilledWithAMM,
     };
     let mut order_action_bit_flags: u8 = 0;
@@ -2523,7 +2494,6 @@ pub fn fulfill_perp_order_with_match(
     fee_structure: &FeeStructure,
     oracle_map: &mut OracleMap,
     is_liquidation: bool,
-    amm_lp_allowed_to_jit_make: Option<bool>,
 ) -> DriftResult<(u64, u64, u64)> {
     if !are_orders_same_market_but_different_sides(
         &maker.orders[maker_order_index],
@@ -2601,7 +2571,7 @@ pub fn fulfill_perp_order_with_match(
     let mut total_quote_asset_amount = 0_u64;
     let mut total_base_asset_amount = 0_u64;
 
-    let (jit_base_asset_amount, amm_liquidity_split) = calculate_amm_jit_liquidity(
+    let jit_base_asset_amount = calculate_amm_jit_liquidity(
         market,
         taker_direction,
         maker_price,
@@ -2610,7 +2580,6 @@ pub fn fulfill_perp_order_with_match(
         taker_base_asset_amount,
         maker_base_asset_amount,
         taker.orders[taker_order_index].has_limit_price(slot)?,
-        amm_lp_allowed_to_jit_make,
     )?;
 
     if jit_base_asset_amount > 0 {
@@ -2636,7 +2605,6 @@ pub fn fulfill_perp_order_with_match(
                 taker_limit_price,
                 Some(jit_base_asset_amount),
                 Some(maker_price), // match the makers price
-                amm_liquidity_split,
                 is_liquidation,
             )?;
 
@@ -3344,129 +3312,6 @@ pub fn can_reward_user_with_perp_pnl(user: &mut Option<&mut User>, market_index:
         Some(user) => user.force_get_perp_position_mut(market_index).is_ok(),
         None => false,
     }
-}
-
-pub fn attempt_burn_user_lp_shares_for_risk_reduction(
-    state: &State,
-    user: &mut User,
-    user_key: Pubkey,
-    margin_calc: MarginCalculation,
-    perp_market_map: &PerpMarketMap,
-    spot_market_map: &SpotMarketMap,
-    oracle_map: &mut OracleMap,
-    clock: &Clock,
-    market_index: u16,
-) -> DriftResult {
-    let now = clock.unix_timestamp;
-    let time_since_last_liquidity_change: i64 = now.safe_sub(user.last_add_perp_lp_shares_ts)?;
-    // avoid spamming update if orders have already been set
-    if time_since_last_liquidity_change >= state.lp_cooldown_time.cast()? {
-        burn_user_lp_shares_for_risk_reduction(
-            state,
-            user,
-            user_key,
-            market_index,
-            margin_calc,
-            perp_market_map,
-            spot_market_map,
-            oracle_map,
-            clock,
-        )?;
-        user.last_add_perp_lp_shares_ts = now;
-    }
-
-    Ok(())
-}
-
-pub fn burn_user_lp_shares_for_risk_reduction(
-    state: &State,
-    user: &mut User,
-    user_key: Pubkey,
-    market_index: u16,
-    margin_calc: MarginCalculation,
-    perp_market_map: &PerpMarketMap,
-    spot_market_map: &SpotMarketMap,
-    oracle_map: &mut OracleMap,
-    clock: &Clock,
-) -> DriftResult {
-    let position_index = get_position_index(&user.perp_positions, market_index)?;
-    let is_lp = user.perp_positions[position_index].is_lp();
-    if !is_lp {
-        return Ok(());
-    }
-
-    let mut market = perp_market_map.get_ref_mut(&market_index)?;
-
-    let quote_oracle_id = spot_market_map
-        .get_ref(&market.quote_spot_market_index)?
-        .oracle_id();
-    let quote_oracle_price = oracle_map.get_price_data(&quote_oracle_id)?.price;
-
-    let oracle_price_data = oracle_map.get_price_data(&market.oracle_id())?;
-
-    let oracle_price = if market.status == MarketStatus::Settlement {
-        market.expiry_price
-    } else {
-        oracle_price_data.price
-    };
-
-    let user_custom_margin_ratio = user.max_margin_ratio;
-    let (lp_shares_to_burn, base_asset_amount_to_close) =
-        calculate_lp_shares_to_burn_for_risk_reduction(
-            &user.perp_positions[position_index],
-            &market,
-            oracle_price,
-            quote_oracle_price,
-            margin_calc.margin_shortage()?,
-            user_custom_margin_ratio,
-            user.is_high_leverage_mode(MarginRequirementType::Initial),
-        )?;
-
-    let (position_delta, pnl) = burn_lp_shares(
-        &mut user.perp_positions[position_index],
-        &mut market,
-        lp_shares_to_burn,
-        oracle_price,
-    )?;
-
-    // emit LP record for shares removed
-    emit_stack::<_, { LPRecord::SIZE }>(LPRecord {
-        ts: clock.unix_timestamp,
-        action: LPAction::RemoveLiquidityDerisk,
-        user: user_key,
-        n_shares: lp_shares_to_burn,
-        market_index,
-        delta_base_asset_amount: position_delta.base_asset_amount,
-        delta_quote_asset_amount: position_delta.quote_asset_amount,
-        pnl,
-    })?;
-
-    let direction_to_close = user.perp_positions[position_index].get_direction_to_close();
-
-    let params = OrderParams::get_close_perp_params(
-        &market,
-        direction_to_close,
-        base_asset_amount_to_close,
-    )?;
-
-    drop(market);
-
-    if user.has_room_for_new_order() {
-        controller::orders::place_perp_order(
-            state,
-            user,
-            user_key,
-            perp_market_map,
-            spot_market_map,
-            oracle_map,
-            &None,
-            clock,
-            params,
-            PlaceOrderOptions::default().explanation(OrderActionExplanation::DeriskLp),
-        )?;
-    }
-
-    Ok(())
 }
 
 pub fn pay_keeper_flat_reward_for_perps(
