@@ -535,6 +535,12 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             0,
         )?;
 
+        let perp_position_custom_margin_ratio = if context.margin_type == MarginRequirementType::Initial {
+            market_position.max_margin_ratio as u32
+        } else {
+            0_u32
+        };
+
         let (
             perp_margin_requirement,
             weighted_pnl,
@@ -547,7 +553,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             oracle_price_data,
             &strict_quote_price,
             context.margin_type,
-            user_custom_margin_ratio,
+            user_custom_margin_ratio.max(perp_position_custom_margin_ratio),
             user_high_leverage_mode,
             calculation.track_open_orders_fraction(),
         )?;

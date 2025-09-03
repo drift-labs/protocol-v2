@@ -958,10 +958,9 @@ pub struct PerpPosition {
     /// Used to settle the users lp position
     /// precision: QUOTE_PRECISION
     pub last_quote_asset_amount_per_lp: i64,
-    /// Settling LP position can lead to a small amount of base asset being left over smaller than step size
-    /// This records that remainder so it can be settled later on
-    /// precision: BASE_PRECISION
-    pub remainder_base_asset_amount: i32,
+    pub padding: [u8; 2],
+    // custom max margin ratio for perp market
+    pub max_margin_ratio: u16,
     /// The market index for the perp market
     pub market_index: u16,
     /// The number of open orders
