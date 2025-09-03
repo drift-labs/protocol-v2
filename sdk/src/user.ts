@@ -2223,12 +2223,13 @@ export class User {
 		canBeLiquidated: boolean;
 		marginRequirement: BN;
 		totalCollateral: BN;
+		liquidationStatuses: Map<'cross' | number, { canBeLiquidated: boolean; marginRequirement: BN; totalCollateral: BN }>;
 	} {
 		// Deprecated signature retained for backward compatibility in type only
 		// but implementation now delegates to the new Map-based API and returns cross margin status.
 		const map = this.getLiquidationStatuses();
 		const cross = map.get('cross');
-		return cross ?? { canBeLiquidated: false, marginRequirement: ZERO, totalCollateral: ZERO };
+		return cross ? { ...cross, liquidationStatuses: map } : { canBeLiquidated: false, marginRequirement: ZERO, totalCollateral: ZERO, liquidationStatuses: map };
 	}
 
 	/**
