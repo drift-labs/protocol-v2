@@ -456,7 +456,6 @@ describe('builder codes', () => {
 
 		// First add a builder
 		await userClient.changeApprovedBuilder(
-			userClient.wallet.publicKey,
 			builder.publicKey,
 			maxFeeBps,
 			true // add
@@ -493,7 +492,6 @@ describe('builder codes', () => {
 
 		// update the user fee
 		await userClient.changeApprovedBuilder(
-			userClient.wallet.publicKey,
 			builder.publicKey,
 			maxFeeBps * 2,
 			true // update existing builder
@@ -525,7 +523,6 @@ describe('builder codes', () => {
 
 		// Now remove the builder
 		await userClient.changeApprovedBuilder(
-			userClient.wallet.publicKey,
 			builder.publicKey,
 			maxFeeBps,
 			false // remove
@@ -705,7 +702,6 @@ describe('builder codes', () => {
 		const builder = builderClient.wallet;
 		const maxFeeBps = 150 * 10; // 1.5%
 		await userClient.changeApprovedBuilder(
-			userClient.wallet.publicKey,
 			builder.publicKey,
 			maxFeeBps,
 			true // update existing builder
@@ -773,7 +769,6 @@ describe('builder codes', () => {
 		// try to revoke builder with open orders
 		try {
 			await userClient.changeApprovedBuilder(
-				userClient.wallet.publicKey,
 				builder.publicKey,
 				0,
 				false // remove
@@ -992,12 +987,7 @@ describe('builder codes', () => {
 	it('user can place and cancel with no fill (no fees accrued, escrow unchanged)', async () => {
 		const builder = builderClient.wallet;
 		const maxFeeBps = 150 * 10;
-		await userClient.changeApprovedBuilder(
-			userClient.wallet.publicKey,
-			builder.publicKey,
-			maxFeeBps,
-			true
-		);
+		await userClient.changeApprovedBuilder(builder.publicKey, maxFeeBps, true);
 
 		await escrowMap.slowSync();
 		const beforeEscrow = (await escrowMap.mustGet(
@@ -1070,12 +1060,7 @@ describe('builder codes', () => {
 	it('user can place and fill multiple orders (fees accumulate and settle)', async () => {
 		const builder = builderClient.wallet;
 		const maxFeeBps = 150 * 10;
-		await userClient.changeApprovedBuilder(
-			userClient.wallet.publicKey,
-			builder.publicKey,
-			maxFeeBps,
-			true
-		);
+		await userClient.changeApprovedBuilder(builder.publicKey, maxFeeBps, true);
 
 		const marketIndex = 0;
 		const baseAssetAmount = BASE_PRECISION;
@@ -1244,12 +1229,7 @@ describe('builder codes', () => {
 	it('user can place and fill with multiple maker orders', async () => {
 		const builder = builderClient.wallet;
 		const maxFeeBps = 150 * 10;
-		await userClient.changeApprovedBuilder(
-			userClient.wallet.publicKey,
-			builder.publicKey,
-			maxFeeBps,
-			true
-		);
+		await userClient.changeApprovedBuilder(builder.publicKey, maxFeeBps, true);
 
 		const builderAccountInfoBefore =
 			await bankrunContextWrapper.connection.getAccountInfo(
