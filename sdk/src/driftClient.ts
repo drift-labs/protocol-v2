@@ -134,10 +134,9 @@ import {
 import { findDirectionToClose, positionIsAvailable } from './math/position';
 import { getSignedTokenAmount, getTokenAmount } from './math/spotBalance';
 import { decodeName, DEFAULT_USER_NAME, encodeName } from './userName';
-import { OraclePriceData } from './oracles/types';
+import { MMOraclePriceData, OraclePriceData } from './oracles/types';
 import { DriftClientConfig } from './driftClientConfig';
 import { PollingDriftClientAccountSubscriber } from './accounts/pollingDriftClientAccountSubscriber';
-import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDriftClientAccountSubscriber';
 import { RetryTxSender } from './tx/retryTxSender';
 import { User } from './user';
 import { UserSubscriptionConfig } from './userConfig';
@@ -194,6 +193,8 @@ import { getOracleId } from './oracles/oracleId';
 import { SignedMsgOrderParams } from './types';
 import { sha256 } from '@noble/hashes/sha256';
 import { getOracleConfidenceFromMMOracleData } from './oracles/utils';
+import { Commitment } from 'gill';
+import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDriftClientAccountSubscriber';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -371,6 +372,8 @@ export class DriftClient {
 				resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
 				logResubMessages: config.accountSubscription?.logResubMessages,
 				commitment: config.accountSubscription?.commitment,
+				programUserAccountSubscriber:
+					config.accountSubscription?.programUserAccountSubscriber,
 			};
 			this.userStatsAccountSubscriptionConfig = {
 				type: 'websocket',
@@ -436,7 +439,10 @@ export class DriftClient {
 				}
 			);
 		} else {
-			this.accountSubscriber = new WebSocketDriftClientAccountSubscriber(
+			const accountSubscriberClass =
+				config.accountSubscription?.driftClientAccountSubscriber ??
+				WebSocketDriftClientAccountSubscriber;
+			this.accountSubscriber = new accountSubscriberClass(
 				this.program,
 				config.perpMarketIndexes ?? [],
 				config.spotMarketIndexes ?? [],
@@ -447,9 +453,7 @@ export class DriftClient {
 					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
 					logResubMessages: config.accountSubscription?.logResubMessages,
 				},
-				config.accountSubscription?.commitment,
-				config.accountSubscription?.perpMarketAccountSubscriber,
-				config.accountSubscription?.oracleAccountSubscriber
+				config.accountSubscription?.commitment as Commitment
 			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
@@ -610,7 +614,8 @@ export class DriftClient {
 	public getSpotMarketAccount(
 		marketIndex: number
 	): SpotMarketAccount | undefined {
-		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex).data;
+		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex)
+			?.data;
 	}
 
 	/**
@@ -621,7 +626,8 @@ export class DriftClient {
 		marketIndex: number
 	): Promise<SpotMarketAccount | undefined> {
 		await this.accountSubscriber.fetch();
-		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex).data;
+		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex)
+			?.data;
 	}
 
 	public getSpotMarketAccounts(): SpotMarketAccount[] {
@@ -1585,6 +1591,31 @@ export class DriftClient {
 
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
+	}
+
+	public async getUpdateUserDelegateIx(
+		delegate: PublicKey,
+		overrides: {
+			subAccountId?: number;
+			userAccountPublicKey?: PublicKey;
+			authority?: PublicKey;
+		}
+	): Promise<TransactionInstruction> {
+		const subAccountId = overrides.subAccountId ?? this.activeSubAccountId;
+		const userAccountPublicKey =
+			overrides.userAccountPublicKey ?? (await this.getUserAccountPublicKey());
+		const authority = overrides.authority ?? this.wallet.publicKey;
+
+		return await this.program.instruction.updateUserDelegate(
+			subAccountId,
+			delegate,
+			{
+				accounts: {
+					user: userAccountPublicKey,
+					authority,
+				},
+			}
+		);
 	}
 
 	public async updateUserDelegate(
@@ -6370,6 +6401,40 @@ export class DriftClient {
 		};
 	}
 
+	/**
+	 * Builds a deposit and place request for Swift service
+	 *
+	 * @param depositTx - The signed tx containing a drift deposit (e.g. see `createDepositTxn`)
+	 * @param orderParamsMessage - The order parameters message to sign
+	 * @param delegateSigner - Whether this is a delegate signer
+	 *
+	 * @returns request object for Swift service
+	 */
+	public buildDepositAndPlaceSignedMsgOrderRequest(
+		depositTx: VersionedTransaction,
+		orderParamsMessage:
+			| SignedMsgOrderParamsMessage
+			| SignedMsgOrderParamsDelegateMessage,
+		delegateSigner?: boolean
+	): {
+		deposit_tx: Buffer;
+		swift_order: SignedMsgOrderParams;
+	} {
+		// Serialize the deposit transaction
+		const serializedDepositTx = Buffer.from(depositTx.serialize());
+
+		// Get the signed swift order using the existing method
+		const swiftOrder = this.signSignedMsgOrderParamsMessage(
+			orderParamsMessage,
+			delegateSigner
+		);
+
+		return {
+			deposit_tx: serializedDepositTx,
+			swift_order: swiftOrder,
+		};
+	}
+
 	/*
 	 * Borsh encode signedMsg taker order params
 	 */
@@ -7406,7 +7471,10 @@ export class DriftClient {
 		settleeUserAccountPublicKey: PublicKey,
 		settleeUserAccount: UserAccount,
 		marketIndexes: number[],
-		mode: SettlePnlMode
+		mode: SettlePnlMode,
+		overrides?: {
+			authority?: PublicKey;
+		}
 	): Promise<TransactionInstruction> {
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [settleeUserAccount],
@@ -7420,7 +7488,7 @@ export class DriftClient {
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
-					authority: this.wallet.publicKey,
+					authority: overrides?.authority ?? this.wallet.publicKey,
 					user: settleeUserAccountPublicKey,
 					spotMarketVault: this.getQuoteSpotMarketAccount().vault,
 				},
@@ -8516,20 +8584,16 @@ export class DriftClient {
 	}
 
 	public getOracleDataForPerpMarket(marketIndex: number): OraclePriceData {
-		const perpMarket = this.getPerpMarketAccount(marketIndex);
-		const isMMOracleActive = !perpMarket.amm.mmOracleSlot.eq(ZERO);
-		return {
-			...this.accountSubscriber.getOraclePriceDataAndSlotForPerpMarket(
-				marketIndex
-			).data,
-			isMMOracleActive,
-		};
+		return this.accountSubscriber.getOraclePriceDataAndSlotForPerpMarket(
+			marketIndex
+		).data;
 	}
 
-	public getMMOracleDataForPerpMarket(marketIndex: number): OraclePriceData {
+	public getMMOracleDataForPerpMarket(marketIndex: number): MMOraclePriceData {
 		const perpMarket = this.getPerpMarketAccount(marketIndex);
 		const oracleData = this.getOracleDataForPerpMarket(marketIndex);
 		const stateAccountAndSlot = this.accountSubscriber.getStateAccountAndSlot();
+		const isMMOracleActive = !perpMarket.amm.mmOracleSlot.eq(ZERO);
 		const pctDiff = perpMarket.amm.mmOraclePrice
 			.sub(oracleData.price)
 			.abs()
@@ -8546,20 +8610,18 @@ export class DriftClient {
 			perpMarket.amm.mmOracleSlot < oracleData.slot ||
 			pctDiff.gt(PERCENTAGE_PRECISION.divn(100)) // 1% threshold
 		) {
-			return { ...oracleData, fetchedWithMMOracle: true };
+			return { ...oracleData, isMMOracleActive };
 		} else {
-			const conf = getOracleConfidenceFromMMOracleData({
-				mmOraclePrice: perpMarket.amm.mmOraclePrice,
-				mmOracleSlot: perpMarket.amm.mmOracleSlot,
-				oraclePriceData: oracleData,
-			});
+			const conf = getOracleConfidenceFromMMOracleData(
+				perpMarket.amm.mmOraclePrice,
+				oracleData
+			);
 			return {
 				price: perpMarket.amm.mmOraclePrice,
 				slot: perpMarket.amm.mmOracleSlot,
 				confidence: conf,
 				hasSufficientNumberOfDataPoints: true,
-				fetchedWithMMOracle: true,
-				isMMOracleActive: oracleData.isMMOracleActive,
+				isMMOracleActive,
 			};
 		}
 	}

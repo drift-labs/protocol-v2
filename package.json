@@ -30,8 +30,8 @@
 	"dependencies": {
 		"@ellipsis-labs/phoenix-sdk": "1.4.2",
 		"@pythnetwork/pyth-solana-receiver": "0.8.0",
-		"@switchboard-xyz/on-demand": "2.4.1",
 		"@switchboard-xyz/common": "3.0.14",
+		"@switchboard-xyz/on-demand": "2.4.1",
 		"anchor-bankrun": "0.3.0",
 		"chai-bn": "0.2.2",
 		"csvtojson": "2.0.10",
@@ -40,6 +40,7 @@
 		"nanoid": "3.3.4",
 		"rpc-websockets": "7.5.1",
 		"solana-bankrun": "0.3.0",
+		"zod": "4.0.17",
 		"zstddec": "0.1.0"
 	},
 	"scripts": {

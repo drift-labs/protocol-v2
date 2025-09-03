@@ -22,7 +22,7 @@ import {
 	PositionDirection,
 	SwapDirection,
 } from '../types';
-import { OraclePriceData } from '../oracles/types';
+import { MMOraclePriceData, OraclePriceData } from '../oracles/types';
 import { PublicKey } from '@solana/web3.js';
 import { standardizeBaseAssetAmount, standardizePrice } from '../math/orders';
 
@@ -178,18 +178,20 @@ export function createL2Levels(
 
 export function getVammL2Generator({
 	marketAccount,
-	oraclePriceData,
+	mmOraclePriceData,
 	numOrders,
 	now = new BN(Math.floor(Date.now() / 1000)),
 	topOfBookQuoteAmounts = [],
+	latestSlot,
 }: {
 	marketAccount: PerpMarketAccount;
-	oraclePriceData: OraclePriceData;
+	mmOraclePriceData: MMOraclePriceData;
 	numOrders: number;
 	now?: BN;
 	topOfBookQuoteAmounts?: BN[];
+	latestSlot?: BN;
 }): L2OrderBookGenerator {
-	const updatedAmm = calculateUpdatedAMM(marketAccount.amm, oraclePriceData);
+	const updatedAmm = calculateUpdatedAMM(marketAccount.amm, mmOraclePriceData);
 	const paused = isOperationPaused(
 		marketAccount.pausedOperations,
 		PerpOperation.AMM_FILL
@@ -209,16 +211,17 @@ export function getVammL2Generator({
 
 	const [bidReserves, askReserves] = calculateSpreadReserves(
 		updatedAmm,
-		oraclePriceData,
+		mmOraclePriceData,
 		now,
-		isVariant(marketAccount.contractType, 'prediction')
+		isVariant(marketAccount.contractType, 'prediction'),
+		latestSlot
 	);
 
 	const numBaseOrders = Math.max(1, numOrders - topOfBookQuoteAmounts.length);
 	const commonOpts = {
 		numOrders,
 		numBaseOrders,
-		oraclePriceData,
+		mmOraclePriceData,
 		orderTickSize: marketAccount.amm.orderTickSize,
 		orderStepSize: marketAccount.amm.orderStepSize,
 		pegMultiplier: updatedAmm.pegMultiplier,
@@ -253,7 +256,7 @@ export function getVammL2Generator({
 					const raw = commonOpts.topOfBookQuoteAmounts[count]
 						.mul(AMM_TO_QUOTE_PRECISION_RATIO)
 						.mul(PRICE_PRECISION)
-						.div(commonOpts.oraclePriceData.price);
+						.div(commonOpts.mmOraclePriceData.price);
 					baseSwap = standardizeBaseAssetAmount(raw, commonOpts.orderStepSize);
 					const remaining = openLiquidity.abs().sub(topSize);
 					if (remaining.lt(baseSwap)) baseSwap = remaining;

@@ -75,6 +75,7 @@ import {
 } from './types';
 import { standardizeBaseAssetAmount } from './math/orders';
 import { UserStats } from './userStats';
+import { WebSocketProgramUserAccountSubscriber } from './accounts/websocketProgramUserAccountSubscriber';
 import {
 	calculateAssetWeight,
 	calculateLiabilityWeight,
@@ -90,7 +91,7 @@ import {
 	calculateMarginUSDCRequiredForTrade,
 	calculateWorstCaseBaseAssetAmount,
 } from './math/margin';
-import { OraclePriceData } from './oracles/types';
+import { MMOraclePriceData, OraclePriceData } from './oracles/types';
 import { UserConfig } from './userConfig';
 import { PollingUserAccountSubscriber } from './accounts/pollingUserAccountSubscriber';
 import { WebSocketUserAccountSubscriber } from './accounts/webSocketUserAccountSubscriber';
@@ -149,15 +150,26 @@ export class User {
 				}
 			);
 		} else {
-			this.accountSubscriber = new WebSocketUserAccountSubscriber(
-				config.driftClient.program,
-				config.userAccountPublicKey,
-				{
-					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
-					logResubMessages: config.accountSubscription?.logResubMessages,
-				},
-				config.accountSubscription?.commitment
-			);
+			if (
+				config.accountSubscription?.type === 'websocket' &&
+				config.accountSubscription?.programUserAccountSubscriber
+			) {
+				this.accountSubscriber = new WebSocketProgramUserAccountSubscriber(
+					config.driftClient.program,
+					config.userAccountPublicKey,
+					config.accountSubscription.programUserAccountSubscriber
+				);
+			} else {
+				this.accountSubscriber = new WebSocketUserAccountSubscriber(
+					config.driftClient.program,
+					config.userAccountPublicKey,
+					{
+						resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
+						logResubMessages: config.accountSubscription?.logResubMessages,
+					},
+					config.accountSubscription?.commitment
+				);
+			}
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
 	}
@@ -615,7 +627,7 @@ export class User {
 				const market = this.driftClient.getPerpMarketAccount(
 					perpPosition.marketIndex
 				);
-				const oraclePriceData = this.getOracleDataForPerpMarket(
+				const oraclePriceData = this.getMMOracleDataForPerpMarket(
 					market.marketIndex
 				);
 
@@ -795,7 +807,7 @@ export class User {
 				}
 
 				for (const perpPosition of this.getActivePerpPositions()) {
-					const oraclePriceData = this.getOracleDataForPerpMarket(
+					const oraclePriceData = this.getMMOracleDataForPerpMarket(
 						perpPosition.marketIndex
 					);
 
@@ -1409,7 +1421,7 @@ export class User {
 
 		const entryPrice = calculateEntryPrice(position);
 
-		const oraclePriceData = this.getOracleDataForPerpMarket(
+		const oraclePriceData = this.getMMOracleDataForPerpMarket(
 			position.marketIndex
 		);
 
@@ -1832,7 +1844,7 @@ export class User {
 	public isHighLeverageMode(marginCategory: MarginCategory): boolean {
 		return (
 			isVariant(this.getUserAccount().marginMode, 'highLeverage') ||
-			(isVariant(marginCategory, 'maintenance') &&
+			(marginCategory === 'Maintenance' &&
 				isVariant(this.getUserAccount().marginMode, 'highLeverageMaintenance'))
 		);
 	}
@@ -2379,7 +2391,7 @@ export class User {
 			? true
 			: targetSide === currentPositionSide;
 
-		const oracleData = this.getOracleDataForPerpMarket(targetMarketIndex);
+		const oracleData = this.getMMOracleDataForPerpMarket(targetMarketIndex);
 
 		const marketAccount =
 			this.driftClient.getPerpMarketAccount(targetMarketIndex);
@@ -3812,6 +3824,10 @@ export class User {
 			liquidationBuffer,
 			includeOpenOrders
 		).sub(currentPerpPositionValueUSDC);
+	}
+
+	private getMMOracleDataForPerpMarket(marketIndex: number): MMOraclePriceData {
+		return this.driftClient.getMMOracleDataForPerpMarket(marketIndex);
 	}
 
 	private getOracleDataForPerpMarket(marketIndex: number): OraclePriceData {

@@ -99,7 +99,8 @@ function insertOrderToDLOB(
 		},
 		userAccount.toString(),
 		slot.toNumber(),
-		false
+		false,
+		baseAssetAmount
 	);
 }
 
@@ -153,7 +154,8 @@ function insertTriggerOrderToDLOB(
 		},
 		userAccount.toString(),
 		slot.toNumber(),
-		false
+		false,
+		baseAssetAmount
 	);
 }
 

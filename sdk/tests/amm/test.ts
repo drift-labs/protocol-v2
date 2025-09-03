@@ -15,7 +15,6 @@ import {
 	calculateInventoryScale,
 	calculateAllEstimatedFundingRate,
 	calculateLongShortFundingRateAndLiveTwaps,
-	OraclePriceData,
 	getVammL2Generator,
 	BASE_PRECISION,
 	PerpMarketAccount,
@@ -32,6 +31,7 @@ import {
 	isOracleValid,
 	OracleGuardRails,
 	getNewOracleConfPct,
+	MMOraclePriceData,
 	// calculateReservePrice,
 } from '../../src';
 import { mockPerpMarkets } from '../dlob/helpers';
@@ -278,7 +278,8 @@ describe('AMM Tests', () => {
 			oracleStd,
 			longIntensity,
 			shortIntensity,
-			volume24H
+			volume24H,
+			0
 		);
 		const l1 = spreads[0];
 		const s1 = spreads[1];
@@ -305,6 +306,7 @@ describe('AMM Tests', () => {
 			longIntensity,
 			shortIntensity,
 			volume24H,
+			0,
 			true
 		);
 		// console.log(terms1);
@@ -337,6 +339,7 @@ describe('AMM Tests', () => {
 			new BN(12358265776),
 			new BN(72230366233),
 			new BN(432067603632),
+			0,
 			true
 		);
 
@@ -369,6 +372,7 @@ describe('AMM Tests', () => {
 			new BN(12358265776),
 			new BN(72230366233),
 			new BN(432067603632),
+			0,
 			true
 		);
 
@@ -402,6 +406,7 @@ describe('AMM Tests', () => {
 			new BN(12358265776),
 			new BN(72230366233),
 			new BN(432067603632),
+			0,
 			true
 		);
 
@@ -436,6 +441,7 @@ describe('AMM Tests', () => {
 			new BN(768323534),
 			new BN(243875031),
 			new BN(130017761029),
+			0,
 			true
 		);
 
@@ -608,6 +614,7 @@ describe('AMM Tests', () => {
 			new BN(suiExample.amm.longIntensityVolume),
 			new BN(suiExample.amm.shortIntensityVolume),
 			new BN(suiExample.amm.volume24H),
+			0,
 			true
 		);
 
@@ -648,6 +655,7 @@ describe('AMM Tests', () => {
 			new BN(suiExample.amm.longIntensityVolume),
 			new BN(suiExample.amm.shortIntensityVolume),
 			new BN(suiExample.amm.volume24H),
+			0,
 			true
 		);
 		console.log(termsSuiExampleMod1);
@@ -676,6 +684,7 @@ describe('AMM Tests', () => {
 			new BN(suiExample.amm.longIntensityVolume),
 			new BN(suiExample.amm.shortIntensityVolume),
 			new BN(suiExample.amm.volume24H),
+			0,
 			true
 		);
 
@@ -713,7 +722,8 @@ describe('AMM Tests', () => {
 			slot: new BN(68 + 1),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
-		};
+			isMMOracleActive: true,
+		} as MMOraclePriceData;
 
 		const reserves = calculateSpreadReserves(mockAmm, oraclePriceData, now);
 		assert(reserves[0].baseAssetReserve.eq(new BN('1000000000')));
@@ -924,7 +934,8 @@ describe('AMM Tests', () => {
 			slot: new BN(68 + 1),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
-		};
+			isMMOracleActive: true,
+		} as MMOraclePriceData;
 
 		const reserves = calculateSpreadReserves(mockAmm, oraclePriceData, now);
 		assert(reserves[0].baseAssetReserve.eq(new BN('1000000000')));
@@ -1142,7 +1153,8 @@ describe('AMM Tests', () => {
 			slot: new BN(slot),
 			confidence: new BN(1000),
 			hasSufficientNumberOfDataPoints: true,
-		};
+			isMMOracleActive: true,
+		} as MMOraclePriceData;
 		mockAmm.oracleStd = new BN(0.18 * PRICE_PRECISION.toNumber());
 		mockAmm.fundingPeriod = new BN(3600);
 		mockAmm.historicalOracleData.lastOraclePriceTwap = oraclePriceData.price
@@ -1206,7 +1218,8 @@ describe('AMM Tests', () => {
 					slot: new BN(slot),
 					confidence: new BN(13.553 * PRICE_PRECISION.toNumber() * 0.021),
 					hasSufficientNumberOfDataPoints: true,
-				},
+					isMMOracleActive: true,
+				} as MMOraclePriceData,
 				oracleGuardRails,
 				slot
 			)
@@ -1221,7 +1234,8 @@ describe('AMM Tests', () => {
 					slot: new BN(slot),
 					confidence: new BN(1),
 					hasSufficientNumberOfDataPoints: false,
-				},
+					isMMOracleActive: true,
+				} as MMOraclePriceData,
 				oracleGuardRails,
 				slot
 			)
@@ -1236,7 +1250,8 @@ describe('AMM Tests', () => {
 					slot: new BN(slot),
 					confidence: new BN(1),
 					hasSufficientNumberOfDataPoints: true,
-				},
+					isMMOracleActive: true,
+				} as MMOraclePriceData,
 				oracleGuardRails,
 				slot
 			)
@@ -1251,7 +1266,8 @@ describe('AMM Tests', () => {
 					slot: new BN(slot),
 					confidence: new BN(1),
 					hasSufficientNumberOfDataPoints: true,
-				},
+					isMMOracleActive: true,
+				} as MMOraclePriceData,
 				oracleGuardRails,
 				slot + 100
 			)
@@ -1266,7 +1282,8 @@ describe('AMM Tests', () => {
 					slot: new BN(slot + 100),
 					confidence: new BN(1),
 					hasSufficientNumberOfDataPoints: true,
-				},
+					isMMOracleActive: true,
+				} as MMOraclePriceData,
 				oracleGuardRails,
 				slot
 			)
@@ -1281,7 +1298,8 @@ describe('AMM Tests', () => {
 					slot: new BN(slot + 5),
 					confidence: new BN(1),
 					hasSufficientNumberOfDataPoints: true,
-				},
+					isMMOracleActive: true,
+				} as MMOraclePriceData,
 				oracleGuardRails,
 				slot
 			)
@@ -1296,7 +1314,8 @@ describe('AMM Tests', () => {
 					slot: new BN(slot + 5),
 					confidence: new BN(1),
 					hasSufficientNumberOfDataPoints: true,
-				},
+					isMMOracleActive: true,
+				} as MMOraclePriceData,
 				oracleGuardRails,
 				slot
 			)
@@ -1314,11 +1333,12 @@ describe('AMM Tests', () => {
 		mockMarket1.amm.lastFundingRateTs = new BN(1688860817);
 
 		const currentMarkPrice = new BN(1.9843 * PRICE_PRECISION.toNumber()); // trading at a premium
-		const oraclePriceData: OraclePriceData = {
+		const mmOraclePriceData: MMOraclePriceData = {
 			price: new BN(1.9535 * PRICE_PRECISION.toNumber()),
 			slot: new BN(0),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 		mockMarket1.amm.historicalOracleData.lastOraclePrice = new BN(
 			1.9535 * PRICE_PRECISION.toNumber()
@@ -1352,7 +1372,8 @@ describe('AMM Tests', () => {
 			_interpEst,
 		] = calculateAllEstimatedFundingRate(
 			mockMarket1,
-			oraclePriceData,
+			mmOraclePriceData,
+			undefined,
 			currentMarkPrice,
 			now
 		);
@@ -1360,7 +1381,8 @@ describe('AMM Tests', () => {
 		const [markTwapLive, oracleTwapLive, est1, est2] =
 			calculateLongShortFundingRateAndLiveTwaps(
 				mockMarket1,
-				oraclePriceData,
+				mmOraclePriceData,
+				undefined,
 				currentMarkPrice,
 				now
 			);
@@ -1387,11 +1409,12 @@ describe('AMM Tests', () => {
 		mockMarket1.amm.lastFundingRateTs = new BN(1688864415);
 
 		const currentMarkPrice = new BN(1.2242 * PRICE_PRECISION.toNumber()); // trading at a premium
-		const oraclePriceData: OraclePriceData = {
+		const mmOraclePriceData: MMOraclePriceData = {
 			price: new BN(1.224 * PRICE_PRECISION.toNumber()),
 			slot: new BN(0),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 		mockMarket1.amm.historicalOracleData.lastOraclePrice = new BN(
 			1.9535 * PRICE_PRECISION.toNumber()
@@ -1425,7 +1448,8 @@ describe('AMM Tests', () => {
 			_interpEst,
 		] = calculateAllEstimatedFundingRate(
 			mockMarket1,
-			oraclePriceData,
+			mmOraclePriceData,
+			undefined,
 			currentMarkPrice,
 			now
 		);
@@ -1440,7 +1464,8 @@ describe('AMM Tests', () => {
 		const [markTwapLive, oracleTwapLive, est1, est2] =
 			calculateLongShortFundingRateAndLiveTwaps(
 				mockMarket1,
-				oraclePriceData,
+				mmOraclePriceData,
+				undefined,
 				currentMarkPrice,
 				now
 			);
@@ -1476,12 +1501,13 @@ describe('AMM Tests', () => {
 		mockMarket1.amm.lastFundingRateTs = new BN(1688864415);
 
 		const currentMarkPrice = new BN(1.2242 * PRICE_PRECISION.toNumber()); // trading at a premium
-		const oraclePriceData: OraclePriceData = {
+		const mmOraclePriceData: MMOraclePriceData = {
 			price: new BN(1.924 * PRICE_PRECISION.toNumber()),
 			slot: new BN(0),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
-		};
+			isMMOracleActive: true,
+		} as MMOraclePriceData;
 		mockMarket1.amm.historicalOracleData.lastOraclePrice = new BN(
 			1.9535 * PRICE_PRECISION.toNumber()
 		);
@@ -1515,7 +1541,8 @@ describe('AMM Tests', () => {
 			_interpEst,
 		] = calculateAllEstimatedFundingRate(
 			mockMarket1,
-			oraclePriceData,
+			mmOraclePriceData,
+			undefined,
 			currentMarkPrice,
 			now
 		);
@@ -1530,7 +1557,8 @@ describe('AMM Tests', () => {
 		let [markTwapLive, oracleTwapLive, est1, est2] =
 			calculateLongShortFundingRateAndLiveTwaps(
 				mockMarket1,
-				oraclePriceData,
+				mmOraclePriceData,
+				undefined,
 				currentMarkPrice,
 				now
 			);
@@ -1559,7 +1587,8 @@ describe('AMM Tests', () => {
 		[markTwapLive, oracleTwapLive, est1, est2] =
 			calculateLongShortFundingRateAndLiveTwaps(
 				mockMarket1,
-				oraclePriceData,
+				mmOraclePriceData,
+				undefined,
 				currentMarkPrice,
 				now
 			);
@@ -1588,7 +1617,8 @@ describe('AMM Tests', () => {
 		[markTwapLive, oracleTwapLive, est1, est2] =
 			calculateLongShortFundingRateAndLiveTwaps(
 				mockMarket1,
-				oraclePriceData,
+				mmOraclePriceData,
+				undefined,
 				currentMarkPrice,
 				now
 			);
@@ -1630,17 +1660,18 @@ describe('AMM Tests', () => {
 
 		const now = new BN(1688881915);
 
-		const oraclePriceData: OraclePriceData = {
+		const mmOraclePriceData: MMOraclePriceData = {
 			price: new BN(18.624 * PRICE_PRECISION.toNumber()),
 			slot: new BN(0),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
-		};
+			isMMOracleActive: true,
+		} as MMOraclePriceData;
 		mockMarket1.amm.historicalOracleData.lastOraclePrice = new BN(
 			18.5535 * PRICE_PRECISION.toNumber()
 		);
 
-		const updatedAmm = calculateUpdatedAMM(mockMarket1.amm, oraclePriceData);
+		const updatedAmm = calculateUpdatedAMM(mockMarket1.amm, mmOraclePriceData);
 
 		const [openBids, openAsks] = calculateMarketOpenBidAsk(
 			updatedAmm.baseAssetReserve,
@@ -1651,7 +1682,7 @@ describe('AMM Tests', () => {
 
 		const generator = getVammL2Generator({
 			marketAccount: mockMarket1,
-			oraclePriceData,
+			mmOraclePriceData,
 			numOrders: 10,
 			now,
 			topOfBookQuoteAmounts: [],
@@ -1706,17 +1737,18 @@ describe('AMM Tests', () => {
 
 		const now = new BN(1688881915);
 
-		const oraclePriceData: OraclePriceData = {
+		const mmOraclePriceData: MMOraclePriceData = {
 			price: new BN(18.624 * PRICE_PRECISION.toNumber()),
 			slot: new BN(0),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
-		};
+			isMMOracleActive: true,
+		} as MMOraclePriceData;
 		mockMarket1.amm.historicalOracleData.lastOraclePrice = new BN(
 			18.5535 * PRICE_PRECISION.toNumber()
 		);
 
-		const updatedAmm = calculateUpdatedAMM(mockMarket1.amm, oraclePriceData);
+		const updatedAmm = calculateUpdatedAMM(mockMarket1.amm, mmOraclePriceData);
 
 		const [openBids, openAsks] = calculateMarketOpenBidAsk(
 			updatedAmm.baseAssetReserve,
@@ -1727,7 +1759,7 @@ describe('AMM Tests', () => {
 
 		const generator = getVammL2Generator({
 			marketAccount: mockMarket1,
-			oraclePriceData,
+			mmOraclePriceData,
 			numOrders: 10,
 			now,
 			topOfBookQuoteAmounts: [],
@@ -1781,17 +1813,18 @@ describe('AMM Tests', () => {
 
 		const now = new BN(1688881915);
 
-		const oraclePriceData: OraclePriceData = {
+		const mmOraclePriceData: MMOraclePriceData = {
 			price: new BN(18.624 * PRICE_PRECISION.toNumber()),
 			slot: new BN(0),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
-		};
+			isMMOracleActive: true,
+		} as MMOraclePriceData;
 		mockMarket1.amm.historicalOracleData.lastOraclePrice = new BN(
 			18.5535 * PRICE_PRECISION.toNumber()
 		);
 
-		const updatedAmm = calculateUpdatedAMM(mockMarket1.amm, oraclePriceData);
+		const updatedAmm = calculateUpdatedAMM(mockMarket1.amm, mmOraclePriceData);
 
 		const [openBids, openAsks] = calculateMarketOpenBidAsk(
 			updatedAmm.baseAssetReserve,
@@ -1804,7 +1837,7 @@ describe('AMM Tests', () => {
 
 		const generator = getVammL2Generator({
 			marketAccount: mockMarket1,
-			oraclePriceData,
+			mmOraclePriceData,
 			numOrders: 10,
 			now,
 			topOfBookQuoteAmounts: [
@@ -1862,17 +1895,18 @@ describe('AMM Tests', () => {
 
 		const now = new BN(1688881915);
 
-		const oraclePriceData: OraclePriceData = {
+		const mmOraclePriceData: MMOraclePriceData = {
 			price: new BN(18.624 * PRICE_PRECISION.toNumber()),
 			slot: new BN(0),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
-		};
+			isMMOracleActive: true,
+		} as MMOraclePriceData;
 		mockMarket1.amm.historicalOracleData.lastOraclePrice = new BN(
 			18.5535 * PRICE_PRECISION.toNumber()
 		);
 
-		const updatedAmm = calculateUpdatedAMM(mockMarket1.amm, oraclePriceData);
+		const updatedAmm = calculateUpdatedAMM(mockMarket1.amm, mmOraclePriceData);
 
 		const [openBids, openAsks] = calculateMarketOpenBidAsk(
 			updatedAmm.baseAssetReserve,
@@ -1885,7 +1919,7 @@ describe('AMM Tests', () => {
 
 		const generator = getVammL2Generator({
 			marketAccount: mockMarket1,
-			oraclePriceData,
+			mmOraclePriceData,
 			numOrders: 10,
 			now,
 			topOfBookQuoteAmounts: [
@@ -1946,17 +1980,18 @@ describe('AMM Tests', () => {
 
 		const now = new BN(1688881915);
 
-		const oraclePriceData: OraclePriceData = {
+		const mmOraclePriceData: MMOraclePriceData = {
 			price: new BN(18.624 * PRICE_PRECISION.toNumber()),
 			slot: new BN(0),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
+			isMMOracleActive: true,
 		};
 		mockMarket1.amm.historicalOracleData.lastOraclePrice = new BN(
 			18.5535 * PRICE_PRECISION.toNumber()
 		);
 
-		const updatedAmm = calculateUpdatedAMM(mockMarket1.amm, oraclePriceData);
+		const updatedAmm = calculateUpdatedAMM(mockMarket1.amm, mmOraclePriceData);
 
 		const [openBids, openAsks] = calculateMarketOpenBidAsk(
 			updatedAmm.baseAssetReserve,
@@ -1969,7 +2004,7 @@ describe('AMM Tests', () => {
 
 		const generator = getVammL2Generator({
 			marketAccount: mockMarket1,
-			oraclePriceData,
+			mmOraclePriceData,
 			numOrders: 10,
 			now,
 			topOfBookQuoteAmounts: [
@@ -2030,17 +2065,18 @@ describe('AMM Tests', () => {
 
 		const now = new BN(1688881915);
 
-		const oraclePriceData: OraclePriceData = {
+		const mmOraclePriceData: MMOraclePriceData = {
 			price: new BN(18.624 * PRICE_PRECISION.toNumber()),
 			slot: new BN(0),
 			confidence: new BN(1),
 			hasSufficientNumberOfDataPoints: true,
-		};
+			isMMOracleActive: true,
+		} as MMOraclePriceData;
 		mockMarket1.amm.historicalOracleData.lastOraclePrice = new BN(
 			18.5535 * PRICE_PRECISION.toNumber()
 		);
 
-		const updatedAmm = calculateUpdatedAMM(mockMarket1.amm, oraclePriceData);
+		const updatedAmm = calculateUpdatedAMM(mockMarket1.amm, mmOraclePriceData);
 
 		const [openBids, openAsks] = calculateMarketOpenBidAsk(
 			updatedAmm.baseAssetReserve,
@@ -2051,7 +2087,7 @@ describe('AMM Tests', () => {
 
 		const generator = getVammL2Generator({
 			marketAccount: mockMarket1,
-			oraclePriceData,
+			mmOraclePriceData,
 			numOrders: 10,
 			now,
 			topOfBookQuoteAmounts: [],

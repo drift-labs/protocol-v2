@@ -9,7 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: update referral fee validate rules ([#1843](https://github.com/drift-labs/protocol-v2/pull/1843))
+
 ### Fixes
+
+### Breaking
+
+## [2.135.0] - 2025-08-22
+
+### Features
+
+### Fixes
+
+- program: trigger price use 5min mark price ([#1830](https://github.com/drift-labs/protocol-v2/pull/1830))
 
 ### Breaking
 
