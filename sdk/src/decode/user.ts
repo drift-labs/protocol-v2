@@ -84,6 +84,7 @@ export function decodeUser(buffer: Buffer): UserAccount {
 		const quoteAssetAmount = readSignedBigInt64LE(buffer, offset + 16);
 		const lpShares = readUnsignedBigInt64LE(buffer, offset + 64);
 		const openOrders = buffer.readUInt8(offset + 94);
+		const customMarginRatio = buffer.readUInt32LE(offset + 95);
 
 		if (
 			baseAssetAmount.eq(ZERO) &&
@@ -134,6 +135,7 @@ export function decodeUser(buffer: Buffer): UserAccount {
 			marketIndex,
 			openOrders,
 			perLpBase,
+			customMarginRatio,
 		});
 	}
 
