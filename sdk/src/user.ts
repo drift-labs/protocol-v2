@@ -330,7 +330,7 @@ export class User {
 			lastBaseAssetAmountPerLp: ZERO,
 			lastQuoteAssetAmountPerLp: ZERO,
 			perLpBase: 0,
-			customMarginRatio: 0,
+			maxMarginRatio: 0,
 		};
 	}
 
@@ -485,7 +485,7 @@ export class User {
 		perpPosition?: PerpPosition
 	): BN {
 		const userCustomMargin = Math.max(
-			perpPosition?.customMarginRatio ?? 0,
+			perpPosition?.maxMarginRatio ?? 0,
 			this.getUserAccount().maxMarginRatio
 		);
 		const marginRatio = calculateMarketMarginRatio(
@@ -2170,7 +2170,7 @@ export class User {
 			}
 
 			const userCustomMargin = Math.max(
-				perpPosition.customMarginRatio,
+				perpPosition.maxMarginRatio,
 				this.getUserAccount().maxMarginRatio
 			);
 			const marginRatio = calculateMarketMarginRatio(
@@ -2223,7 +2223,7 @@ export class User {
 		const proposedBaseAssetAmount = baseAssetAmount.add(positionBaseSizeChange);
 
 		const userCustomMargin = Math.max(
-			perpPosition.customMarginRatio,
+			perpPosition.maxMarginRatio,
 			this.getUserAccount().maxMarginRatio
 		);
 
@@ -3592,7 +3592,7 @@ export class User {
 		);
 
 		const userCustomMargin = Math.max(
-			perpPosition.customMarginRatio,
+			perpPosition.maxMarginRatio,
 			this.getUserAccount().maxMarginRatio
 		);
 		const marginRatio = new BN(

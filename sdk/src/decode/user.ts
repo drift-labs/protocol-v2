@@ -84,7 +84,6 @@ export function decodeUser(buffer: Buffer): UserAccount {
 		const quoteAssetAmount = readSignedBigInt64LE(buffer, offset + 16);
 		const lpShares = readUnsignedBigInt64LE(buffer, offset + 64);
 		const openOrders = buffer.readUInt8(offset + 94);
-		const customMarginRatio = buffer.readUInt32LE(offset + 95);
 
 		if (
 			baseAssetAmount.eq(ZERO) &&
@@ -112,7 +111,7 @@ export function decodeUser(buffer: Buffer): UserAccount {
 		offset += 8;
 		const lastQuoteAssetAmountPerLp = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
-		const remainderBaseAssetAmount = buffer.readInt32LE(offset);
+		const maxMarginRatio = buffer.readInt32LE(offset);
 		offset += 4;
 		const marketIndex = buffer.readUInt16LE(offset);
 		offset += 3;
@@ -129,13 +128,13 @@ export function decodeUser(buffer: Buffer): UserAccount {
 			openAsks,
 			settledPnl,
 			lpShares,
+			remainderBaseAssetAmount: 0,
 			lastBaseAssetAmountPerLp,
 			lastQuoteAssetAmountPerLp,
-			remainderBaseAssetAmount,
 			marketIndex,
 			openOrders,
 			perLpBase,
-			customMarginRatio,
+			maxMarginRatio,
 		});
 	}
 
