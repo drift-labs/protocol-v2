@@ -113,6 +113,34 @@ export function getSignedMsgUserOrdersFilter(): MemcmpFilter {
 	};
 }
 
+export function getPerpMarketAccountsFilter(): MemcmpFilter {
+	return {
+		memcmp: {
+			offset: 0,
+			bytes: bs58.encode(BorshAccountsCoder.accountDiscriminator('PerpMarket')),
+		},
+	};
+}
+export function getSpotMarketAccountsFilter(): MemcmpFilter {
+	return {
+		memcmp: {
+			offset: 0,
+			bytes: bs58.encode(BorshAccountsCoder.accountDiscriminator('SpotMarket')),
+		},
+	};
+}
+
+export function getRevenueShareEscrowFilter(): MemcmpFilter {
+	return {
+		memcmp: {
+			offset: 0,
+			bytes: bs58.encode(
+				BorshAccountsCoder.accountDiscriminator('RevenueShareEscrow')
+			),
+		},
+	};
+}
+
 export function getConstituentFilter(): MemcmpFilter {
 	return {
 		memcmp: {

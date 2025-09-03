@@ -78,7 +78,8 @@ export function calculateTradeSlippage(
 	market: PerpMarketAccount,
 	inputAssetType: AssetType = 'quote',
 	mmOraclePriceData: MMOraclePriceData,
-	useSpread = true
+	useSpread = true,
+	latestSlot?: BN
 ): [BN, BN, BN, BN] {
 	let oldPrice: BN;
 
@@ -115,7 +116,9 @@ export function calculateTradeSlippage(
 			calculateUpdatedAMMSpreadReserves(
 				market.amm,
 				direction,
-				mmOraclePriceData
+				mmOraclePriceData,
+				undefined,
+				latestSlot
 			);
 		amm = {
 			baseAssetReserve,
@@ -170,7 +173,8 @@ export function calculateTradeAcquiredAmounts(
 	market: PerpMarketAccount,
 	inputAssetType: AssetType = 'quote',
 	mmOraclePriceData: MMOraclePriceData,
-	useSpread = true
+	useSpread = true,
+	latestSlot?: BN
 ): [BN, BN, BN] {
 	if (amount.eq(ZERO)) {
 		return [ZERO, ZERO, ZERO];
@@ -184,7 +188,9 @@ export function calculateTradeAcquiredAmounts(
 			calculateUpdatedAMMSpreadReserves(
 				market.amm,
 				direction,
-				mmOraclePriceData
+				mmOraclePriceData,
+				undefined,
+				latestSlot
 			);
 		amm = {
 			baseAssetReserve,
@@ -236,7 +242,8 @@ export function calculateTargetPriceTrade(
 	pct: BN = MAXPCT,
 	outputAssetType: AssetType = 'quote',
 	mmOraclePriceData?: MMOraclePriceData,
-	useSpread = true
+	useSpread = true,
+	latestSlot?: BN
 ): [PositionDirection, BN, BN, BN] {
 	assert(market.amm.baseAssetReserve.gt(ZERO));
 	assert(targetPrice.gt(ZERO));
@@ -272,7 +279,9 @@ export function calculateTargetPriceTrade(
 			calculateUpdatedAMMSpreadReserves(
 				market.amm,
 				direction,
-				mmOraclePriceData
+				mmOraclePriceData,
+				undefined,
+				latestSlot
 			);
 		baseAssetReserveBefore = baseAssetReserve;
 		quoteAssetReserveBefore = quoteAssetReserve;
@@ -430,7 +439,13 @@ export function calculateEstimatedPerpEntryPrice(
 	const swapDirection = getSwapDirection(assetType, direction);
 
 	const { baseAssetReserve, quoteAssetReserve, sqrtK, newPeg } =
-		calculateUpdatedAMMSpreadReserves(market.amm, direction, mmOraclePriceData);
+		calculateUpdatedAMMSpreadReserves(
+			market.amm,
+			direction,
+			mmOraclePriceData,
+			undefined,
+			new BN(slot)
+		);
 	const amm = {
 		baseAssetReserve,
 		quoteAssetReserve,

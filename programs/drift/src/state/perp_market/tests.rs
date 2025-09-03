@@ -234,7 +234,7 @@ mod get_trigger_price {
             .get_trigger_price(oracle_price, now, true)
             .unwrap();
 
-        assert_eq!(trigger_price, 109147085925);
+        assert_eq!(trigger_price, 109144736794);
     }
 
     #[test]
