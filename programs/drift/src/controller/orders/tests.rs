@@ -265,6 +265,7 @@ pub mod fill_order_protected_maker {
             &clock,
             FillMode::Fill,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -375,6 +376,7 @@ pub mod fill_order_protected_maker {
             &clock,
             FillMode::Fill,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -490,6 +492,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             None,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -615,6 +618,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             None,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -740,6 +744,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             None,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -865,6 +870,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             None,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -989,6 +995,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             None,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -1080,6 +1087,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             None,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -1172,6 +1180,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             None,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -1264,6 +1273,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             None,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -1356,6 +1366,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             None,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -1468,6 +1479,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             None,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -1585,6 +1597,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             None,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -1707,6 +1720,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             None,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -1830,6 +1844,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             None,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -1977,6 +1992,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             None,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -2099,6 +2115,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             None,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -2231,6 +2248,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             None,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -2384,6 +2402,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             None,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -2535,6 +2554,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             None,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -2687,6 +2707,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             None,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -2820,6 +2841,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             None,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -2952,6 +2974,7 @@ pub mod fulfill_order_with_maker_order {
             false,
             None,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -3341,6 +3364,7 @@ pub mod fulfill_order {
             FillMode::Fill,
             false,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -3586,6 +3610,7 @@ pub mod fulfill_order {
             FillMode::Fill,
             false,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -3777,6 +3802,7 @@ pub mod fulfill_order {
             FillMode::Fill,
             false,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -3984,6 +4010,7 @@ pub mod fulfill_order {
             FillMode::Fill,
             false,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -4151,6 +4178,7 @@ pub mod fulfill_order {
             FillMode::Fill,
             false,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -4350,6 +4378,7 @@ pub mod fulfill_order {
             FillMode::Fill,
             false,
             &mut None,
+            false,
         );
 
         assert!(result.is_ok());
@@ -4538,6 +4567,7 @@ pub mod fulfill_order {
             FillMode::Fill,
             false,
             &mut None,
+            false,
         );
 
         assert_eq!(result, Err(ErrorCode::InsufficientCollateral));
@@ -4679,6 +4709,7 @@ pub mod fulfill_order {
             FillMode::Fill,
             false,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -4847,6 +4878,7 @@ pub mod fulfill_order {
             FillMode::Fill,
             false,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -5024,6 +5056,7 @@ pub mod fulfill_order {
             &clock,
             FillMode::Fill,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -5050,6 +5083,7 @@ pub mod fulfill_order {
             &clock,
             FillMode::Fill,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -5200,6 +5234,7 @@ pub mod fulfill_order {
     //         false,
     //         true,
     //         &mut None,
+    //         false,
     //     )
     //     .unwrap();
     //
@@ -5434,6 +5469,7 @@ pub mod fulfill_order {
             FillMode::Fill,
             false,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -5679,6 +5715,7 @@ pub mod fulfill_order {
             FillMode::Fill,
             false,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -5937,6 +5974,7 @@ pub mod fill_order {
             &clock,
             FillMode::Fill,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -6140,6 +6178,7 @@ pub mod fill_order {
             &clock,
             FillMode::Fill,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -6270,6 +6309,7 @@ pub mod fill_order {
             &clock,
             FillMode::Fill,
             &mut None,
+            false,
         )
         .unwrap();
 
@@ -6433,6 +6473,7 @@ pub mod fill_order {
             &clock,
             FillMode::Fill,
             &mut None,
+            false,
         );
 
         assert_eq!(err, Err(ErrorCode::MaxOpenInterest));

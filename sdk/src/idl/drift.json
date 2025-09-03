@@ -7876,27 +7876,6 @@
       ]
     },
     {
-      "name": "updateFeatureBitFlagsBuilderReferral",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "enable",
-          "type": "bool"
-        }
-      ]
-    },
-    {
       "name": "updateFeatureBitFlagsBuilderCodes",
       "accounts": [
         {
@@ -7993,37 +7972,6 @@
           "type": "u16"
         }
       ]
-    },
-    {
-      "name": "migrateReferrer",
-      "accounts": [
-        {
-          "name": "escrow",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "userStats",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "payer",
-          "isMut": false,
-          "isSigner": true
-        }
-      ],
-      "args": []
     },
     {
       "name": "resizeRevenueShareEscrowOrders",

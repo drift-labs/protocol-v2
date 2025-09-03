@@ -246,6 +246,7 @@ pub mod fuel_scoring {
             FillMode::Fill,
             false,
             &mut None,
+            false,
         )
         .unwrap();
 

@@ -1888,12 +1888,12 @@ pub mod drift {
         handle_update_feature_bit_flags_median_trigger_price(ctx, enable)
     }
 
-    pub fn update_feature_bit_flags_builder_referral(
-        ctx: Context<HotAdminUpdateState>,
-        enable: bool,
-    ) -> Result<()> {
-        handle_update_feature_bit_flags_builder_referral(ctx, enable)
-    }
+    // pub fn update_feature_bit_flags_builder_referral(
+    //     ctx: Context<HotAdminUpdateState>,
+    //     enable: bool,
+    // ) -> Result<()> {
+    //     handle_update_feature_bit_flags_builder_referral(ctx, enable)
+    // }
 
     pub fn update_feature_bit_flags_builder_codes(
         ctx: Context<HotAdminUpdateState>,
@@ -1915,11 +1915,11 @@ pub mod drift {
         handle_initialize_revenue_share_escrow(ctx, num_orders)
     }
 
-    pub fn migrate_referrer<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, MigrateReferrer<'info>>,
-    ) -> Result<()> {
-        handle_migrate_referrer(ctx)
-    }
+    // pub fn migrate_referrer<'c: 'info, 'info>(
+    //     ctx: Context<'_, '_, 'c, 'info, MigrateReferrer<'info>>,
+    // ) -> Result<()> {
+    //     handle_migrate_referrer(ctx)
+    // }
 
     pub fn resize_revenue_share_escrow_orders<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, ResizeRevenueShareEscrowOrders<'info>>,

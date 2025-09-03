@@ -86,48 +86,53 @@ pub fn sweep_completed_revenue_share_for_market<'a>(
             break;
         }
 
-        if is_referral_order && builder_referral_feature_enabled {
-            let referrer_authority =
-                if let Some(referrer_authority) = revenue_share_escrow.get_referrer() {
-                    referrer_authority
-                } else {
-                    continue;
-                };
+        if is_referral_order {
+            if builder_referral_feature_enabled {
+                let referrer_authority =
+                    if let Some(referrer_authority) = revenue_share_escrow.get_referrer() {
+                        referrer_authority
+                    } else {
+                        continue;
+                    };
 
-            let referrer_user = revenue_share_map.get_user_ref_mut(&referrer_authority);
-            let referrer_rev_share =
-                revenue_share_map.get_revenue_share_account_mut(&referrer_authority);
+                let referrer_user = revenue_share_map.get_user_ref_mut(&referrer_authority);
+                let referrer_rev_share =
+                    revenue_share_map.get_revenue_share_account_mut(&referrer_authority);
 
-            if referrer_user.is_ok() && referrer_rev_share.is_ok() {
-                let mut referrer_user = referrer_user.unwrap();
-                let mut referrer_rev_share = referrer_rev_share.unwrap();
+                if referrer_user.is_ok() && referrer_rev_share.is_ok() {
+                    let mut referrer_user = referrer_user.unwrap();
+                    let mut referrer_rev_share = referrer_rev_share.unwrap();
 
-                spot_balance::transfer_spot_balances(
-                    fees_accrued as i128,
-                    quote_spot_market,
-                    &mut perp_market.pnl_pool,
-                    referrer_user.get_quote_spot_position_mut(),
-                )?;
+                    spot_balance::transfer_spot_balances(
+                        fees_accrued as i128,
+                        quote_spot_market,
+                        &mut perp_market.pnl_pool,
+                        referrer_user.get_quote_spot_position_mut(),
+                    )?;
 
-                referrer_rev_share.total_referrer_rewards = referrer_rev_share
-                    .total_referrer_rewards
-                    .safe_add(fees_accrued as u64)?;
+                    referrer_rev_share.total_referrer_rewards = referrer_rev_share
+                        .total_referrer_rewards
+                        .safe_add(fees_accrued as u64)?;
 
-                emit_stack::<_, { RevenueShareSettleRecord::SIZE }>(RevenueShareSettleRecord {
-                    ts: now_ts,
-                    builder: None,
-                    referrer: Some(referrer_authority),
-                    fee_settled: fees_accrued as u64,
-                    market_index: order_market_index,
-                    market_type: order_market_type,
-                    builder_total_referrer_rewards: referrer_rev_share.total_referrer_rewards,
-                    builder_total_builder_rewards: referrer_rev_share.total_builder_rewards,
-                    builder_sub_account_id: referrer_user.sub_account_id,
-                })?;
+                    emit_stack::<_, { RevenueShareSettleRecord::SIZE }>(
+                        RevenueShareSettleRecord {
+                            ts: now_ts,
+                            builder: None,
+                            referrer: Some(referrer_authority),
+                            fee_settled: fees_accrued as u64,
+                            market_index: order_market_index,
+                            market_type: order_market_type,
+                            builder_total_referrer_rewards: referrer_rev_share
+                                .total_referrer_rewards,
+                            builder_total_builder_rewards: referrer_rev_share.total_builder_rewards,
+                            builder_sub_account_id: referrer_user.sub_account_id,
+                        },
+                    )?;
 
-                // zero out the order
-                if let Ok(builder_order) = revenue_share_escrow.get_order_mut(i) {
-                    builder_order.fees_accrued = 0;
+                    // zero out the order
+                    if let Ok(builder_order) = revenue_share_escrow.get_order_mut(i) {
+                        builder_order.fees_accrued = 0;
+                    }
                 }
             }
         } else if builder_codes_feature_enabled {
