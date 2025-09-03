@@ -1042,11 +1042,12 @@ export type PerpPosition = {
 	openAsks: BN;
 	settledPnl: BN;
 	lpShares: BN;
+	/**	 TODO: remove this field - it doesn't exist on chain */
 	remainderBaseAssetAmount: number;
+	maxMarginRatio: number;
 	lastBaseAssetAmountPerLp: BN;
 	lastQuoteAssetAmountPerLp: BN;
 	perLpBase: number;
-	customMarginRatio: number;
 };
 
 export type UserStatsAccount = {
