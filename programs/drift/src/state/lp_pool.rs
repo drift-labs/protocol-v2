@@ -662,7 +662,7 @@ impl LPPool {
         constituent_target_base: &AccountZeroCopyMut<'_, TargetsDatum, ConstituentTargetBaseFixed>,
         amm_cache: &AccountZeroCopyMut<'_, CacheInfo, AmmCacheFixed>,
     ) -> DriftResult<(u128, i128, BTreeMap<u16, Vec<u16>>)> {
-        let mut aum: u128 = 0;
+        let mut aum: i128 = 0;
         let mut crypto_delta = 0_i128;
         let mut oldest_slot = u64::MAX;
         let mut derivative_groups: BTreeMap<u16, Vec<u16>> = BTreeMap::new();
@@ -707,8 +707,7 @@ impl LPPool {
             let constituent_aum = constituent
                 .get_full_balance(&spot_market)?
                 .safe_mul(constituent.last_oracle_price as i128)?
-                .safe_div(10_i128.pow(spot_market.decimals))?
-                .max(0);
+                .safe_div(10_i128.pow(spot_market.decimals))?;
             msg!(
                 "constituent: {}, balance: {}, aum: {}, deriv index: {}, bl token balance {}, bl balance type {}, vault balance: {}",
                 constituent.constituent_index,
@@ -733,22 +732,21 @@ impl LPPool {
                     .cast::<i64>()?;
                 crypto_delta = crypto_delta.safe_add(constituent_target_notional.cast()?)?;
             }
-            aum = aum.safe_add(constituent_aum.cast()?)?;
+            aum = aum.safe_add(constituent_aum)?;
         }
 
         msg!("Aum before quote owed from lp pool: {}", aum);
 
-        let mut aum_i128 = aum.cast::<i128>()?;
         for cache_datum in amm_cache.iter() {
-            aum_i128 -= cache_datum.quote_owed_from_lp_pool as i128;
+            aum -= cache_datum.quote_owed_from_lp_pool as i128;
         }
-        aum = aum_i128.max(0i128).cast::<u128>()?;
 
-        self.last_aum = aum;
+        let aum_u128 = aum.max(0i128).cast::<u128>()?;
+        self.last_aum = aum_u128;
         self.last_aum_slot = slot;
         self.last_aum_ts = now;
 
-        Ok((aum, crypto_delta, derivative_groups))
+        Ok((aum_u128, crypto_delta, derivative_groups))
     }
 }
 
