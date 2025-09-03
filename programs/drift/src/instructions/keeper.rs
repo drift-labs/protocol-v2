@@ -27,6 +27,7 @@ use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
+use crate::math::margin::get_margin_calculation_for_disable_high_leverage_mode;
 use crate::math::margin::{calculate_user_equity, meets_settle_pnl_maintenance_margin_requirement};
 use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
@@ -2804,33 +2805,12 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
         }
     }
 
-    let custom_margin_ratio_before = user.max_margin_ratio;
-    user.max_margin_ratio = 0;
-
-    let mut perp_position_max_margin_ratio_map = BTreeMap::new();
-    for (index, position) in user.perp_positions.iter_mut().enumerate() {
-        if position.max_margin_ratio == 0 {
-            continue;
-        }
-
-        perp_position_max_margin_ratio_map.insert(index, position.max_margin_ratio);
-        position.max_margin_ratio = 0;
-    }
-
-    let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
-        &user,
+    let margin_calc = get_margin_calculation_for_disable_high_leverage_mode(
+        &mut user,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
-        MarginContext::standard(MarginRequirementType::Initial)
-            .margin_buffer(MARGIN_PRECISION / 100), // 1% buffer
     )?;
-
-    user.max_margin_ratio = custom_margin_ratio_before;
-    // loop through margin ratio map and set max margin ratio
-    for (index, position) in perp_position_max_margin_ratio_map.iter() {
-        user.perp_positions[*index].max_margin_ratio = *position;
-    }
 
     if margin_calc.num_perp_liabilities > 0 {
         let mut requires_invariant_check = false;
