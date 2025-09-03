@@ -1046,6 +1046,7 @@ export type PerpPosition = {
 	lastBaseAssetAmountPerLp: BN;
 	lastQuoteAssetAmountPerLp: BN;
 	perLpBase: number;
+	customMarginRatio: number;
 };
 
 export type UserStatsAccount = {
