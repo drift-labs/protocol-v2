@@ -47,7 +47,7 @@ pub mod amm_lp_jit {
     use crate::math::constants::{CONCENTRATION_PRECISION, PRICE_PRECISION_U64};
     use crate::state::fill_mode::FillMode;
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
-    use crate::state::perp_market::{AMMLiquiditySplit, MarketStatus, PerpMarket, AMM};
+    use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
@@ -106,7 +106,6 @@ pub mod amm_lp_jit {
             100 * PRICE_PRECISION_U64,
             Some(100 * PRICE_PRECISION_I64),
             PositionDirection::Short,
-            AMMLiquiditySplit::Shared,
         )
         .unwrap();
         assert_eq!(jit_base_asset_amount, 500000000);
@@ -117,7 +116,6 @@ pub mod amm_lp_jit {
             100 * PRICE_PRECISION_U64,
             Some(100 * PRICE_PRECISION_I64),
             PositionDirection::Long,
-            AMMLiquiditySplit::Shared,
         )
         .unwrap();
         assert_eq!(jit_base_asset_amount, 500000000);
@@ -128,7 +126,6 @@ pub mod amm_lp_jit {
             99_920_000,
             Some(100 * PRICE_PRECISION_I64),
             PositionDirection::Long,
-            AMMLiquiditySplit::Shared,
         )
         .unwrap();
         assert_eq!(jit_base_asset_amount, 300000000);
@@ -139,7 +136,6 @@ pub mod amm_lp_jit {
             99 * PRICE_PRECISION_U64,
             Some(100 * PRICE_PRECISION_I64),
             PositionDirection::Long,
-            AMMLiquiditySplit::Shared,
         )
         .unwrap();
         assert_eq!(jit_base_asset_amount, 0);
@@ -153,7 +149,6 @@ pub mod amm_lp_jit {
             99 * PRICE_PRECISION_U64,
             Some(100 * PRICE_PRECISION_I64),
             PositionDirection::Long,
-            AMMLiquiditySplit::Shared,
         )
         .unwrap();
         assert_eq!(jit_base_asset_amount, 45454000);
@@ -164,7 +159,6 @@ pub mod amm_lp_jit {
             101 * PRICE_PRECISION_U64,
             Some(100 * PRICE_PRECISION_I64),
             PositionDirection::Short,
-            AMMLiquiditySplit::Shared,
         )
         .unwrap();
         assert_eq!(jit_base_asset_amount, 45454000);
@@ -175,7 +169,6 @@ pub mod amm_lp_jit {
             102 * PRICE_PRECISION_U64,
             Some(100 * PRICE_PRECISION_I64),
             PositionDirection::Short,
-            AMMLiquiditySplit::Shared,
         )
         .unwrap();
         assert_eq!(jit_base_asset_amount, 0);
@@ -186,7 +179,6 @@ pub mod amm_lp_jit {
             104 * PRICE_PRECISION_U64,
             Some(100 * PRICE_PRECISION_I64),
             PositionDirection::Short,
-            AMMLiquiditySplit::Shared,
         )
         .unwrap();
         assert_eq!(jit_base_asset_amount, 0);
@@ -199,7 +191,6 @@ pub mod amm_lp_jit {
             104 * PRICE_PRECISION_U64,
             Some(100 * PRICE_PRECISION_I64),
             PositionDirection::Short,
-            AMMLiquiditySplit::Shared,
         )
         .unwrap();
         assert_eq!(jit_base_asset_amount, 0);
@@ -210,7 +201,6 @@ pub mod amm_lp_jit {
             105 * PRICE_PRECISION_U64,
             Some(100 * PRICE_PRECISION_I64),
             PositionDirection::Short,
-            AMMLiquiditySplit::Shared,
         )
         .unwrap();
         assert_eq!(jit_base_asset_amount, 0);
@@ -222,7 +212,6 @@ pub mod amm_lp_jit {
             105 * PRICE_PRECISION_U64,
             Some(100 * PRICE_PRECISION_I64),
             PositionDirection::Short,
-            AMMLiquiditySplit::Shared,
         )
         .unwrap();
         assert_eq!(jit_base_asset_amount, 9803000);
@@ -233,7 +222,6 @@ pub mod amm_lp_jit {
             95 * PRICE_PRECISION_U64,
             Some(100 * PRICE_PRECISION_I64),
             PositionDirection::Long,
-            AMMLiquiditySplit::Shared,
         )
         .unwrap();
         assert_eq!(jit_base_asset_amount, 0);
@@ -301,7 +289,6 @@ pub mod amm_lp_jit {
             100 * PRICE_PRECISION_U64,
             Some(100 * PRICE_PRECISION_I64),
             PositionDirection::Short,
-            AMMLiquiditySplit::Shared,
         )
         .unwrap();
         assert_eq!(jit_base_asset_amount, 500000000);
@@ -312,12 +299,11 @@ pub mod amm_lp_jit {
             100 * PRICE_PRECISION_U64,
             Some(100 * PRICE_PRECISION_I64),
             PositionDirection::Long,
-            AMMLiquiditySplit::Shared,
         )
         .unwrap();
         assert_eq!(jit_base_asset_amount, 500000000);
 
-        let (jit_base_asset_amount, amm_liquidity_split) = calculate_amm_jit_liquidity(
+        let jit_base_asset_amount = calculate_amm_jit_liquidity(
             &mut market,
             PositionDirection::Short,
             100 * PRICE_PRECISION_U64,
@@ -328,7 +314,6 @@ pub mod amm_lp_jit {
             false,
         )
         .unwrap();
-        assert_eq!(amm_liquidity_split, AMMLiquiditySplit::ProtocolOwned);
         assert_eq!(jit_base_asset_amount, 500000000);
     }
 

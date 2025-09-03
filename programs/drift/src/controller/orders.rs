@@ -61,7 +61,7 @@ use crate::state::order_params::{
     ModifyOrderParams, OrderParams, PlaceOrderOptions, PostOnlyParam,
 };
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
-use crate::state::perp_market::{AMMAvailability, AMMLiquiditySplit, MarketStatus, PerpMarket};
+use crate::state::perp_market::{AMMAvailability, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::protected_maker_mode_config::ProtectedMakerParams;
 use crate::state::spot_fulfillment_params::{ExternalSpotFill, SpotFulfillmentParams};
@@ -1848,7 +1848,6 @@ fn fulfill_perp_order(
                         limit_price,
                         None,
                         *maker_price,
-                        AMMLiquiditySplit::Shared,
                         fill_mode.is_liquidation(),
                     )?;
 
@@ -2136,7 +2135,6 @@ pub fn fulfill_perp_order_with_amm(
     limit_price: Option<u64>,
     override_base_asset_amount: Option<u64>,
     override_fill_price: Option<u64>,
-    liquidity_split: AMMLiquiditySplit,
     is_liquidation: bool,
 ) -> DriftResult<(u64, u64)> {
     let position_index = get_position_index(&user.perp_positions, market.market_index)?;
@@ -2362,7 +2360,7 @@ pub fn fulfill_perp_order_with_amm(
     let fill_record_id = get_then_update_id!(market, next_fill_record_id);
     let order_action_explanation = match (override_base_asset_amount, override_fill_price) {
         _ if is_liquidation => OrderActionExplanation::Liquidation,
-        (Some(_), Some(_)) => liquidity_split.get_order_action_explanation(),
+        (Some(_), Some(_)) => OrderActionExplanation::OrderFilledWithAMMJit,
         _ => OrderActionExplanation::OrderFilledWithAMM,
     };
     let mut order_action_bit_flags: u8 = 0;
@@ -2573,7 +2571,7 @@ pub fn fulfill_perp_order_with_match(
     let mut total_quote_asset_amount = 0_u64;
     let mut total_base_asset_amount = 0_u64;
 
-    let (jit_base_asset_amount, amm_liquidity_split) = calculate_amm_jit_liquidity(
+    let jit_base_asset_amount = calculate_amm_jit_liquidity(
         market,
         taker_direction,
         maker_price,
@@ -2607,7 +2605,6 @@ pub fn fulfill_perp_order_with_match(
                 taker_limit_price,
                 Some(jit_base_asset_amount),
                 Some(maker_price), // match the makers price
-                amm_liquidity_split,
                 is_liquidation,
             )?;
 

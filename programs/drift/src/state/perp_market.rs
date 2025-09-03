@@ -138,23 +138,6 @@ impl ContractTier {
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord)]
-pub enum AMMLiquiditySplit {
-    ProtocolOwned,
-    LPOwned,
-    Shared,
-}
-
-impl AMMLiquiditySplit {
-    pub fn get_order_action_explanation(&self) -> OrderActionExplanation {
-        match &self {
-            AMMLiquiditySplit::ProtocolOwned => OrderActionExplanation::OrderFilledWithAMMJit,
-            AMMLiquiditySplit::LPOwned => OrderActionExplanation::OrderFilledWithLPJit,
-            AMMLiquiditySplit::Shared => OrderActionExplanation::OrderFilledWithAMMJitLPSplit,
-        }
-    }
-}
-
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord)]
 pub enum AMMAvailability {
     Immediate,
     AfterMinDuration,

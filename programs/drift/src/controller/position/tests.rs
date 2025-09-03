@@ -15,7 +15,7 @@ use crate::math::position::swap_direction_to_close_position;
 use crate::math::repeg;
 use crate::state::oracle::{MMOraclePriceData, OraclePriceData, PrelaunchOracle};
 use crate::state::oracle_map::OracleMap;
-use crate::state::perp_market::{AMMLiquiditySplit, PerpMarket, AMM};
+use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::state::State;
 use crate::state::user::PerpPosition;
