@@ -22,14 +22,12 @@ import {
 } from './math/position';
 import {
 	AMM_RESERVE_PRECISION,
-	AMM_RESERVE_PRECISION_EXP,
 	AMM_TO_QUOTE_PRECISION_RATIO,
 	BASE_PRECISION,
 	BN_MAX,
 	DUST_POSITION_SIZE,
 	FIVE_MINUTE,
 	MARGIN_PRECISION,
-	ONE,
 	OPEN_ORDER_MARGIN_REQUIREMENT,
 	PRICE_PRECISION,
 	QUOTE_PRECISION,
@@ -84,7 +82,6 @@ import {
 	getSpotLiabilityValue,
 	getTokenAmount,
 } from './math/spotBalance';
-import { calculateMarketOpenBidAsk } from './math/amm';
 import {
 	calculateBaseAssetValueWithOracle,
 	calculateCollateralDepositRequiredForTrade,
