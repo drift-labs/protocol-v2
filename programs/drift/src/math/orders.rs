@@ -353,7 +353,6 @@ pub fn get_position_delta_for_fill(
             PositionDirection::Long => base_asset_amount.cast()?,
             PositionDirection::Short => -base_asset_amount.cast()?,
         },
-        remainder_base_asset_amount: None,
     })
 }
 

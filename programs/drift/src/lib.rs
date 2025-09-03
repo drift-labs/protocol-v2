@@ -351,30 +351,6 @@ pub mod drift {
         )
     }
 
-    pub fn add_perp_lp_shares<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, AddRemoveLiquidity<'info>>,
-        n_shares: u64,
-        market_index: u16,
-    ) -> Result<()> {
-        handle_add_perp_lp_shares(ctx, n_shares, market_index)
-    }
-
-    pub fn remove_perp_lp_shares<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, AddRemoveLiquidity<'info>>,
-        shares_to_burn: u64,
-        market_index: u16,
-    ) -> Result<()> {
-        handle_remove_perp_lp_shares(ctx, shares_to_burn, market_index)
-    }
-
-    pub fn remove_perp_lp_shares_in_expiring_market<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, RemoveLiquidityInExpiredMarket<'info>>,
-        shares_to_burn: u64,
-        market_index: u16,
-    ) -> Result<()> {
-        handle_remove_perp_lp_shares_in_expiring_market(ctx, shares_to_burn, market_index)
-    }
-
     pub fn update_user_name(
         ctx: Context<UpdateUser>,
         _sub_account_id: u16,
@@ -565,13 +541,6 @@ pub mod drift {
         ctx: Context<'_, '_, 'c, 'info, SettleFunding>,
     ) -> Result<()> {
         handle_settle_funding_payment(ctx)
-    }
-
-    pub fn settle_lp<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, SettleLP>,
-        market_index: u16,
-    ) -> Result<()> {
-        handle_settle_lp(ctx, market_index)
     }
 
     pub fn settle_expired_market<'c: 'info, 'info>(
@@ -1395,23 +1364,6 @@ pub mod drift {
         curve_update_intensity: u8,
     ) -> Result<()> {
         handle_update_perp_market_curve_update_intensity(ctx, curve_update_intensity)
-    }
-
-    pub fn update_perp_market_target_base_asset_amount_per_lp(
-        ctx: Context<AdminUpdatePerpMarket>,
-        target_base_asset_amount_per_lp: i32,
-    ) -> Result<()> {
-        handle_update_perp_market_target_base_asset_amount_per_lp(
-            ctx,
-            target_base_asset_amount_per_lp,
-        )
-    }
-
-    pub fn update_perp_market_per_lp_base(
-        ctx: Context<AdminUpdatePerpMarket>,
-        per_lp_base: i8,
-    ) -> Result<()> {
-        handle_update_perp_market_per_lp_base(ctx, per_lp_base)
     }
 
     pub fn update_lp_cooldown_time(

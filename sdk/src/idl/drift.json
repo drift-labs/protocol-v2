@@ -1390,96 +1390,6 @@
       ]
     },
     {
-      "name": "addPerpLpShares",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        }
-      ],
-      "args": [
-        {
-          "name": "nShares",
-          "type": "u64"
-        },
-        {
-          "name": "marketIndex",
-          "type": "u16"
-        }
-      ]
-    },
-    {
-      "name": "removePerpLpShares",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        }
-      ],
-      "args": [
-        {
-          "name": "sharesToBurn",
-          "type": "u64"
-        },
-        {
-          "name": "marketIndex",
-          "type": "u16"
-        }
-      ]
-    },
-    {
-      "name": "removePerpLpSharesInExpiringMarket",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "signer",
-          "isMut": false,
-          "isSigner": true
-        }
-      ],
-      "args": [
-        {
-          "name": "sharesToBurn",
-          "type": "u64"
-        },
-        {
-          "name": "marketIndex",
-          "type": "u16"
-        }
-      ]
-    },
-    {
       "name": "updateUserName",
       "accounts": [
         {
@@ -2290,27 +2200,6 @@
         }
       ],
       "args": []
-    },
-    {
-      "name": "settleLp",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "marketIndex",
-          "type": "u16"
-        }
-      ]
     },
     {
       "name": "settleExpiredMarket",
@@ -6000,58 +5889,6 @@
         {
           "name": "curveUpdateIntensity",
           "type": "u8"
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketTargetBaseAssetAmountPerLp",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "targetBaseAssetAmountPerLp",
-          "type": "i32"
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketPerLpBase",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "perLpBase",
-          "type": "i8"
         }
       ]
     },
@@ -12709,23 +12546,6 @@
           },
           {
             "name": "Isolated"
-          }
-        ]
-      }
-    },
-    {
-      "name": "AMMLiquiditySplit",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "ProtocolOwned"
-          },
-          {
-            "name": "LPOwned"
-          },
-          {
-            "name": "Shared"
           }
         ]
       }

@@ -15,8 +15,8 @@ import {
 	Rpc,
 	RpcSubscriptions,
 	SolanaRpcSubscriptionsApi,
-	type Address,
-	type Commitment,
+	Address,
+	Commitment,
 } from 'gill';
 import { PublicKey } from '@solana/web3.js';
 import bs58 from 'bs58';
