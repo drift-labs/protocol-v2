@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.136.0] - 2025-09-03
+
+### Features
+
 - program: update referral fee validate rules ([#1843](https://github.com/drift-labs/protocol-v2/pull/1843))
 
 ### Fixes
