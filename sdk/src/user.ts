@@ -1530,11 +1530,11 @@ export class User {
 	 * @returns : number (value from [0, 100])
 	 */
 	public getHealth(perpMarketIndex?: number): number {
-		if (this.isBeingLiquidated() && !perpMarketIndex) {
+		const marginCalc = this.getMarginCalculation('Maintenance');
+		if (this.isCrossMarginBeingLiquidated(marginCalc) && !perpMarketIndex) {
 			return 0;
 		}
 
-		const marginCalc = this.getMarginCalculation('Maintenance');
 
 		let totalCollateral: BN;
 		let maintenanceMarginReq: BN;
