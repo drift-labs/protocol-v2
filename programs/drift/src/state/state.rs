@@ -128,14 +128,6 @@ impl State {
     pub fn builder_referral_enabled(&self) -> bool {
         (self.feature_bit_flags & (FeatureBitFlags::BuilderReferral as u8)) > 0
     }
-
-    pub fn allow_settle_lp_pool(&self) -> bool {
-        (self.feature_bit_flags & (FeatureBitFlags::SettleLpPool as u8)) > 0
-    }
-
-    pub fn allow_swap_lp_pool(&self) -> bool {
-        (self.feature_bit_flags & (FeatureBitFlags::SwapLpPool as u8)) > 0
-    }
 }
 
 #[derive(Clone, Copy, PartialEq, Debug, Eq)]
@@ -144,8 +136,6 @@ pub enum FeatureBitFlags {
     MedianTriggerPrice = 0b00000010,
     BuilderCodes = 0b00000100,
     BuilderReferral = 0b00001000,
-    SettleLpPool = 0b00010000,
-    SwapLpPool = 0b00100000,
 }
 
 impl Size for State {

@@ -2492,7 +2492,6 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
             auction_duration_percentage,
         ),
         &mut None,
-        false,
     )?;
 
     let order_unfilled = load!(ctx.accounts.user)?
@@ -2612,7 +2611,6 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         clock,
         FillMode::PlaceAndMake,
         &mut escrow.as_mut(),
-        state.builder_referral_enabled(),
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -2725,7 +2723,6 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
         clock,
         FillMode::PlaceAndMake,
         &mut escrow.as_mut(),
-        state.builder_referral_enabled(),
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
