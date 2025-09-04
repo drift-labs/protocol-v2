@@ -988,6 +988,7 @@ pub fn fill_perp_order(
     clock: &Clock,
     fill_mode: FillMode,
     rev_share_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
+    builder_referral_feature_enabled: bool,
 ) -> DriftResult<(u64, u64)> {
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -1336,6 +1337,7 @@ pub fn fill_perp_order(
         fill_mode,
         oracle_stale_for_margin,
         rev_share_escrow,
+        builder_referral_feature_enabled,
     )?;
 
     if base_asset_amount != 0 {
@@ -1752,10 +1754,15 @@ fn get_builder_escrow_info(
     sub_account_id: u16,
     order_id: u32,
     market_index: u16,
+    builder_referral_feature_enabled: bool,
 ) -> (Option<u32>, Option<u32>, Option<u16>, Option<u8>) {
     if let Some(escrow) = escrow_opt {
         let builder_order_idx = escrow.find_order_index(sub_account_id, order_id);
-        let referrer_builder_order_idx = escrow.find_or_create_referral_index(market_index);
+        let referrer_builder_order_idx = if builder_referral_feature_enabled {
+            escrow.find_or_create_referral_index(market_index)
+        } else {
+            None
+        };
 
         let builder_order = builder_order_idx.and_then(|idx| escrow.get_order(idx).ok());
         let builder_order_fee_bps = builder_order.map(|order| order.fee_tenth_bps);
@@ -1797,6 +1804,7 @@ fn fulfill_perp_order(
     fill_mode: FillMode,
     oracle_stale_for_margin: bool,
     rev_share_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
+    builder_referral_feature_enabled: bool,
 ) -> DriftResult<(u64, u64)> {
     let market_index = user.orders[user_order_index].market_index;
 
@@ -1897,6 +1905,7 @@ fn fulfill_perp_order(
                         AMMLiquiditySplit::Shared,
                         fill_mode.is_liquidation(),
                         rev_share_escrow,
+                        builder_referral_feature_enabled,
                     )?;
 
                 (fill_base_asset_amount, fill_quote_asset_amount)
@@ -1943,6 +1952,7 @@ fn fulfill_perp_order(
                         fill_mode.is_liquidation(),
                         None,
                         rev_share_escrow,
+                        builder_referral_feature_enabled,
                     )?;
 
                 if maker_fill_base_asset_amount != 0 {
@@ -2188,6 +2198,7 @@ pub fn fulfill_perp_order_with_amm(
     liquidity_split: AMMLiquiditySplit,
     is_liquidation: bool,
     rev_share_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
+    builder_referral_feature_enabled: bool,
 ) -> DriftResult<(u64, u64)> {
     let position_index = get_position_index(&user.perp_positions, market.market_index)?;
     let existing_base_asset_amount = user.perp_positions[position_index].base_asset_amount;
@@ -2302,6 +2313,7 @@ pub fn fulfill_perp_order_with_amm(
             user.sub_account_id,
             order_id,
             market.market_index,
+            builder_referral_feature_enabled,
         );
 
     let FillFees {
@@ -2605,6 +2617,7 @@ pub fn fulfill_perp_order_with_match(
     is_liquidation: bool,
     amm_lp_allowed_to_jit_make: Option<bool>,
     builder_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
+    builder_referral_feature_enabled: bool,
 ) -> DriftResult<(u64, u64, u64)> {
     if !are_orders_same_market_but_different_sides(
         &maker.orders[maker_order_index],
@@ -2720,6 +2733,7 @@ pub fn fulfill_perp_order_with_match(
                 amm_liquidity_split,
                 is_liquidation,
                 builder_escrow,
+                builder_referral_feature_enabled,
             )?;
 
         total_base_asset_amount = base_asset_amount_filled_by_amm;
@@ -2821,6 +2835,7 @@ pub fn fulfill_perp_order_with_match(
             taker.sub_account_id,
             taker.orders[taker_order_index].order_id,
             market.market_index,
+            builder_referral_feature_enabled,
         );
 
     let filler_multiplier = if reward_filler {

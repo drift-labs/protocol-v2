@@ -175,6 +175,7 @@ fn fill_order<'c: 'info, 'info>(
         clock,
         FillMode::Fill,
         &mut escrow.as_mut(),
+        state.builder_referral_enabled(),
     )?;
 
     Ok(())
