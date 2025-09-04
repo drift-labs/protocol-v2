@@ -9,8 +9,8 @@ import {
 	isAddress,
 	Lamports,
 	Slot,
-	type Address,
-	type Commitment as GillCommitment,
+	Address,
+	Commitment as GillCommitment,
 } from 'gill';
 import bs58 from 'bs58';
 

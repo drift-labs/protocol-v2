@@ -138,23 +138,6 @@ impl ContractTier {
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord)]
-pub enum AMMLiquiditySplit {
-    ProtocolOwned,
-    LPOwned,
-    Shared,
-}
-
-impl AMMLiquiditySplit {
-    pub fn get_order_action_explanation(&self) -> OrderActionExplanation {
-        match &self {
-            AMMLiquiditySplit::ProtocolOwned => OrderActionExplanation::OrderFilledWithAMMJit,
-            AMMLiquiditySplit::LPOwned => OrderActionExplanation::OrderFilledWithLPJit,
-            AMMLiquiditySplit::Shared => OrderActionExplanation::OrderFilledWithAMMJitLPSplit,
-        }
-    }
-}
-
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord)]
 pub enum AMMAvailability {
     Immediate,
     AfterMinDuration,
@@ -337,7 +320,7 @@ impl PerpMarket {
     pub fn can_skip_auction_duration(
         &self,
         state: &State,
-        amm_lp_allowed_to_jit_make: bool,
+        amm_has_low_enough_inventory: bool,
     ) -> DriftResult<bool> {
         if state.amm_immediate_fill_paused()? {
             return Ok(false);
@@ -345,7 +328,7 @@ impl PerpMarket {
 
         let amm_low_inventory_and_profitable = self.amm.net_revenue_since_last_funding
             >= DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT
-            && amm_lp_allowed_to_jit_make;
+            && amm_has_low_enough_inventory;
         let amm_oracle_no_latency = self.amm.oracle_source == OracleSource::Prelaunch
             || (self.amm.historical_oracle_data.last_oracle_delay == 0
                 && self.amm.oracle_source == OracleSource::PythLazer);
@@ -593,29 +576,6 @@ impl PerpMarket {
         );
 
         Ok(depth)
-    }
-
-    pub fn update_market_with_counterparty(
-        &mut self,
-        delta: &PositionDelta,
-        new_settled_base_asset_amount: i64,
-    ) -> DriftResult {
-        // indicates that position delta is settling lp counterparty
-        if delta.remainder_base_asset_amount.is_some() {
-            // todo: name for this is confusing, but adding is correct as is
-            // definition: net position of users in the market that has the LP as a counterparty (which have NOT settled)
-            self.amm.base_asset_amount_with_unsettled_lp = self
-                .amm
-                .base_asset_amount_with_unsettled_lp
-                .safe_add(new_settled_base_asset_amount.cast()?)?;
-
-            self.amm.quote_asset_amount_with_unsettled_lp = self
-                .amm
-                .quote_asset_amount_with_unsettled_lp
-                .safe_add(delta.quote_asset_amount.cast()?)?;
-        }
-
-        Ok(())
     }
 
     pub fn is_price_divergence_ok_for_settle_pnl(&self, oracle_price: i64) -> DriftResult<bool> {
@@ -1359,17 +1319,13 @@ impl AMM {
 
     pub fn get_lower_bound_sqrt_k(self) -> DriftResult<u128> {
         Ok(self.sqrt_k.min(
-            self.user_lp_shares
-                .safe_add(self.user_lp_shares.safe_div(1000)?)?
-                .max(self.min_order_size.cast()?)
-                .max(self.base_asset_amount_with_amm.unsigned_abs().cast()?),
+            (self.min_order_size.cast::<u128>()?)
+                .max(self.base_asset_amount_with_amm.unsigned_abs()),
         ))
     }
 
     pub fn get_protocol_owned_position(self) -> DriftResult<i64> {
-        self.base_asset_amount_with_amm
-            .safe_add(self.base_asset_amount_with_unsettled_lp)?
-            .cast::<i64>()
+        self.base_asset_amount_with_amm.cast::<i64>()
     }
 
     pub fn get_max_reference_price_offset(self) -> DriftResult<i64> {
@@ -1388,109 +1344,6 @@ impl AMM {
         Ok(max_offset)
     }
 
-    pub fn get_per_lp_base_unit(self) -> DriftResult<i128> {
-        let scalar: i128 = 10_i128.pow(self.per_lp_base.abs().cast()?);
-
-        if self.per_lp_base > 0 {
-            AMM_RESERVE_PRECISION_I128.safe_mul(scalar)
-        } else {
-            AMM_RESERVE_PRECISION_I128.safe_div(scalar)
-        }
-    }
-
-    pub fn calculate_lp_base_delta(
-        &self,
-        per_lp_delta_base: i128,
-        base_unit: i128,
-    ) -> DriftResult<i128> {
-        // calculate dedicated for user lp shares
-        let lp_delta_base =
-            get_proportion_i128(per_lp_delta_base, self.user_lp_shares, base_unit.cast()?)?;
-
-        Ok(lp_delta_base)
-    }
-
-    pub fn calculate_per_lp_delta(
-        &self,
-        delta: &PositionDelta,
-        fee_to_market: i128,
-        liquidity_split: AMMLiquiditySplit,
-        base_unit: i128,
-    ) -> DriftResult<(i128, i128, i128)> {
-        let total_lp_shares = if liquidity_split == AMMLiquiditySplit::LPOwned {
-            self.user_lp_shares
-        } else {
-            self.sqrt_k
-        };
-
-        // update Market per lp position
-        let per_lp_delta_base = get_proportion_i128(
-            delta.base_asset_amount.cast()?,
-            base_unit.cast()?,
-            total_lp_shares, //.safe_div_ceil(rebase_divisor.cast()?)?,
-        )?;
-
-        let mut per_lp_delta_quote = get_proportion_i128(
-            delta.quote_asset_amount.cast()?,
-            base_unit.cast()?,
-            total_lp_shares, //.safe_div_ceil(rebase_divisor.cast()?)?,
-        )?;
-
-        // user position delta is short => lp position delta is long
-        if per_lp_delta_base < 0 {
-            // add one => lp subtract 1
-            per_lp_delta_quote = per_lp_delta_quote.safe_add(1)?;
-        }
-
-        // 1/5 of fee auto goes to market
-        // the rest goes to lps/market proportional
-        let per_lp_fee: i128 = if fee_to_market > 0 {
-            get_proportion_i128(
-                fee_to_market,
-                LP_FEE_SLICE_NUMERATOR,
-                LP_FEE_SLICE_DENOMINATOR,
-            )?
-            .safe_mul(base_unit)?
-            .safe_div(total_lp_shares.cast::<i128>()?)?
-        } else {
-            0
-        };
-
-        Ok((per_lp_delta_base, per_lp_delta_quote, per_lp_fee))
-    }
-
-    pub fn get_target_base_asset_amount_per_lp(&self) -> DriftResult<i128> {
-        if self.target_base_asset_amount_per_lp == 0 {
-            return Ok(0_i128);
-        }
-
-        let target_base_asset_amount_per_lp: i128 = if self.per_lp_base > 0 {
-            let rebase_divisor = 10_i128.pow(self.per_lp_base.abs().cast()?);
-            self.target_base_asset_amount_per_lp
-                .cast::<i128>()?
-                .safe_mul(rebase_divisor)?
-        } else if self.per_lp_base < 0 {
-            let rebase_divisor = 10_i128.pow(self.per_lp_base.abs().cast()?);
-            self.target_base_asset_amount_per_lp
-                .cast::<i128>()?
-                .safe_div(rebase_divisor)?
-        } else {
-            self.target_base_asset_amount_per_lp.cast::<i128>()?
-        };
-
-        Ok(target_base_asset_amount_per_lp)
-    }
-
-    pub fn imbalanced_base_asset_amount_with_lp(&self) -> DriftResult<i128> {
-        let target_lp_gap = self
-            .base_asset_amount_per_lp
-            .safe_sub(self.get_target_base_asset_amount_per_lp()?)?;
-
-        let base_unit = self.get_per_lp_base_unit()?.cast()?;
-
-        get_proportion_i128(target_lp_gap, self.user_lp_shares, base_unit)
-    }
-
     pub fn amm_wants_to_jit_make(&self, taker_direction: PositionDirection) -> DriftResult<bool> {
         let amm_wants_to_jit_make = match taker_direction {
             PositionDirection::Long => {
@@ -1503,27 +1356,8 @@ impl AMM {
         Ok(amm_wants_to_jit_make && self.amm_jit_is_active())
     }
 
-    pub fn amm_lp_wants_to_jit_make(
-        &self,
-        taker_direction: PositionDirection,
-    ) -> DriftResult<bool> {
-        if self.user_lp_shares == 0 {
-            return Ok(false);
-        }
-
-        let amm_lp_wants_to_jit_make = match taker_direction {
-            PositionDirection::Long => {
-                self.base_asset_amount_per_lp > self.get_target_base_asset_amount_per_lp()?
-            }
-            PositionDirection::Short => {
-                self.base_asset_amount_per_lp < self.get_target_base_asset_amount_per_lp()?
-            }
-        };
-        Ok(amm_lp_wants_to_jit_make && self.amm_lp_jit_is_active())
-    }
-
-    pub fn amm_lp_allowed_to_jit_make(&self, amm_wants_to_jit_make: bool) -> DriftResult<bool> {
-        // only allow lps to make when the amm inventory is below a certain level of available liquidity
+    pub fn amm_has_low_enough_inventory(&self, amm_wants_to_jit_make: bool) -> DriftResult<bool> {
+        // mark low inventory if below a certain level of available liquidity
         // i.e. 10%
         if amm_wants_to_jit_make {
             // inventory scale
@@ -1533,12 +1367,7 @@ impl AMM {
                 self.max_base_asset_reserve,
             )?;
 
-            let min_side_liquidity = max_bids.min(max_asks.abs());
-            let protocol_owned_min_side_liquidity = get_proportion_i128(
-                min_side_liquidity,
-                self.sqrt_k.safe_sub(self.user_lp_shares)?,
-                self.sqrt_k,
-            )?;
+            let protocol_owned_min_side_liquidity = max_bids.min(max_asks.abs());
 
             Ok(self.base_asset_amount_with_amm.abs()
                 < protocol_owned_min_side_liquidity.safe_div(10)?)
@@ -1549,10 +1378,6 @@ impl AMM {
 
     pub fn amm_jit_is_active(&self) -> bool {
         self.amm_jit_intensity > 0
-    }
-
-    pub fn amm_lp_jit_is_active(&self) -> bool {
-        self.amm_jit_intensity > 100
     }
 
     pub fn reserve_price(&self) -> DriftResult<u64> {
@@ -1620,7 +1445,7 @@ impl AMM {
                 .base_asset_amount_with_amm
                 .unsigned_abs()
                 .max(min_order_size_u128)
-                < self.sqrt_k.safe_sub(self.user_lp_shares)?)
+                < self.sqrt_k)
             && (min_order_size_u128 < max_bids.unsigned_abs().max(max_asks.unsigned_abs()));
 
         Ok(can_lower)

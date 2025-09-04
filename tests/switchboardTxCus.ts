@@ -60,7 +60,6 @@ describe('switchboard place orders cus', () => {
 	);
 
 	const usdcAmount = new BN(10 * 10 ** 6);
-	const nLpShares = new BN(10000000);
 
 	let oracle: PublicKey;
 	const numMkts = 8;
@@ -152,8 +151,6 @@ describe('switchboard place orders cus', () => {
 				i,
 				new BN(0)
 			);
-
-			await driftClient.addPerpLpShares(nLpShares.divn(numMkts * 4), i);
 		}
 
 		await bankrunContextWrapper.fundKeypair(traderKeyPair, 10 ** 9);

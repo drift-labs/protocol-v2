@@ -2,7 +2,6 @@ pub mod amm;
 pub mod funding;
 pub mod insurance;
 pub mod liquidation;
-pub mod lp;
 pub mod orders;
 pub mod pda;
 pub mod pnl;
