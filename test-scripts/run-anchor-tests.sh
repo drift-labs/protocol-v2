@@ -22,7 +22,7 @@ test_files=(
   # updateK.ts
   # postOnlyAmmFulfillment.ts
   # TODO BROKEN ^^
-  builderCodes.ts
+	builderCodes.ts
   decodeUser.ts
   fuel.ts
   fuelSweep.ts
@@ -46,8 +46,6 @@ test_files=(
   liquidateSpot.ts
   liquidateSpotSocialLoss.ts
   liquidityProvider.ts
-  lpPool.ts
-  lpPoolSwap.ts
   marketOrder.ts
   marketOrderBaseAssetAmount.ts
   maxDeposit.ts

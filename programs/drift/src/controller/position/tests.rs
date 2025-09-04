@@ -1203,7 +1203,7 @@ fn amm_perp_ref_offset() {
         max_ref_offset,
     )
     .unwrap();
-    assert_eq!(res, 45000);
+    assert_eq!(res, (perp_market.amm.max_spread / 2) as i32);
     assert_eq!(perp_market.amm.reference_price_offset, 18000); // not updated vs market account
 
     let now = 1741207620 + 1;
@@ -1281,7 +1281,7 @@ fn amm_perp_ref_offset() {
     // Uses the original oracle if the slot is old, ignoring MM oracle
     perp_market.amm.mm_oracle_price = mm_oracle_price_data.get_price() * 995 / 1000;
     perp_market.amm.mm_oracle_slot = clock_slot - 100;
-    let mm_oracle_price = perp_market
+    let mut mm_oracle_price = perp_market
         .get_mm_oracle_price_data(
             oracle_price_data,
             clock_slot,
@@ -1289,7 +1289,13 @@ fn amm_perp_ref_offset() {
         )
         .unwrap();
 
-    let _ = _update_amm(&mut perp_market, &mm_oracle_price, &state, now, clock_slot);
+    let _ = _update_amm(
+        &mut perp_market,
+        &mut mm_oracle_price,
+        &state,
+        now,
+        clock_slot,
+    );
     let reserve_price_mm_offset_3 = perp_market.amm.reserve_price().unwrap();
     let (b3, a3) = perp_market
         .amm
@@ -1724,7 +1730,7 @@ fn amm_split_large_k_with_rebase() {
         delay: 14,
         has_sufficient_number_of_data_points: true,
     };
-    let mm_oracle_price_data = perp_market
+    let mut mm_oracle_price = perp_market
         .get_mm_oracle_price_data(
             oracle_price_data,
             clock_slot,
@@ -1734,7 +1740,7 @@ fn amm_split_large_k_with_rebase() {
 
     let cost = _update_amm(
         &mut perp_market,
-        &mm_oracle_price_data,
+        &mut mm_oracle_price,
         &state,
         now,
         clock_slot,

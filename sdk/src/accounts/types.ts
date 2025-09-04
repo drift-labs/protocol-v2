@@ -6,7 +6,6 @@ import {
 	UserAccount,
 	UserStatsAccount,
 	InsuranceFundStake,
-	ConstituentAccount,
 	HighLeverageModeConfig,
 } from '../types';
 import StrictEventEmitter from 'strict-event-emitter-types';
@@ -256,25 +255,6 @@ export interface HighLeverageModeConfigAccountSubscriber {
 export interface HighLeverageModeConfigAccountEvents {
 	highLeverageModeConfigAccountUpdate: (
 		payload: HighLeverageModeConfig
-	) => void;
-	update: void;
-	error: (e: Error) => void;
-}
-
-export interface ConstituentAccountSubscriber {
-	eventEmitter: StrictEventEmitter<EventEmitter, ConstituentAccountEvents>;
-	isSubscribed: boolean;
-
-	subscribe(constituentAccount?: ConstituentAccount): Promise<boolean>;
-	sync(): Promise<void>;
-	unsubscribe(): Promise<void>;
-}
-
-export interface ConstituentAccountEvents {
-	onAccountUpdate: (
-		account: ConstituentAccount,
-		pubkey: PublicKey,
-		slot: number
 	) => void;
 	update: void;
 	error: (e: Error) => void;

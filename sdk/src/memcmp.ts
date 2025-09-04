@@ -140,14 +140,3 @@ export function getRevenueShareEscrowFilter(): MemcmpFilter {
 		},
 	};
 }
-
-export function getConstituentFilter(): MemcmpFilter {
-	return {
-		memcmp: {
-			offset: 0,
-			bytes: bs58.encode(
-				BorshAccountsCoder.accountDiscriminator('Constituent')
-			),
-		},
-	};
-}

@@ -741,54 +741,6 @@ export type TransferProtocolIfSharesToRevenuePoolRecord = {
 	transferAmount: BN;
 };
 
-export type LPSwapRecord = {
-	ts: BN;
-	slot: BN;
-	authority: PublicKey;
-	outAmount: BN;
-	inAmount: BN;
-	outFee: BN;
-	inFee: BN;
-	outSpotMarketIndex: number;
-	inSpotMarketIndex: number;
-	outConstituentIndex: number;
-	inConstituentIndex: number;
-	outOraclePrice: BN;
-	inOraclePrice: BN;
-	outMint: PublicKey;
-	inMint: PublicKey;
-	lastAum: BN;
-	lastAumSlot: BN;
-	inMarketCurrentWeight: BN;
-	outMarketCurrentWeight: BN;
-	inMarketTargetWeight: BN;
-	outMarketTargetWeight: BN;
-	inSwapId: BN;
-	outSwapId: BN;
-};
-
-export type LPMintRedeemRecord = {
-	ts: BN;
-	slot: BN;
-	authority: PublicKey;
-	isMinting: boolean;
-	amount: BN;
-	fee: BN;
-	spotMarketIndex: number;
-	constituentIndex: number;
-	oraclePrice: BN;
-	mint: PublicKey;
-	lpMint: PublicKey;
-	lpAmount: BN;
-	lpFee: BN;
-	lpPrice: BN;
-	mintRedeemId: BN;
-	lastAum: BN;
-	lastAumSlot: BN;
-	inMarketCurrentWeight: BN;
-	inMarketTargetWeight: BN;
-};
-
 export type StateAccount = {
 	admin: PublicKey;
 	exchangeStatus: number;
@@ -862,9 +814,6 @@ export type PerpMarketAccount = {
 	protectedMakerLimitPriceDivisor: number;
 	protectedMakerDynamicDivisor: number;
 	lastFillPrice: BN;
-
-	lpFeeTransferScalar: number;
-	lpStatus: number;
 };
 
 export type HistoricalOracleData = {
@@ -1674,123 +1623,4 @@ export type RevenueShareSettleRecord = {
 	builderTotalReferrerRewards: BN;
 	builderTotalBuilderRewards: BN;
 	builderSubAccountId: number;
-};
-
-export type AddAmmConstituentMappingDatum = {
-	constituentIndex: number;
-	perpMarketIndex: number;
-	weight: BN;
-};
-
-export type AmmConstituentDatum = AddAmmConstituentMappingDatum & {
-	lastSlot: BN;
-};
-
-export type AmmConstituentMapping = {
-	bump: number;
-	weights: AmmConstituentDatum[];
-};
-
-export type TargetDatum = {
-	costToTradeBps: number;
-	beta: number;
-	targetBase: BN;
-	lastSlot: BN;
-};
-
-export type ConstituentTargetBaseAccount = {
-	bump: number;
-	targets: TargetDatum[];
-};
-
-export type LPPoolAccount = {
-	name: number[];
-	pubkey: PublicKey;
-	mint: PublicKey;
-	maxAum: BN;
-	lastAum: BN;
-	lastAumSlot: BN;
-	lastAumTs: BN;
-	lastHedgeTs: BN;
-	bump: number;
-	oldestOracleSlot: BN;
-	lastRevenueRebalanceTs: BN;
-	totalFeesReceived: BN;
-	totalFeesPaid: BN;
-	totalMintRedeemFeesPaid: BN;
-	cumulativeUsdcSentToPerpMarkets: BN;
-	cumulativeUsdcReceivedFromPerpMarkets: BN;
-	constituents: number;
-};
-
-export type BLPosition = {
-	scaledBalance: BN;
-	cumulativeDeposits: BN;
-	marketIndex: number;
-	balanceType: SpotBalanceType;
-};
-
-export type InitializeConstituentParams = {
-	spotMarketIndex: number;
-	decimals: number;
-	maxWeightDeviation: BN;
-	swapFeeMin: BN;
-	swapFeeMax: BN;
-	maxBorrowTokenAmount: BN;
-	oracleStalenessThreshold: BN;
-	costToTrade: number;
-	derivativeWeight: BN;
-	constituentDerivativeIndex?: number;
-	constituentDerivativeDepegThreshold?: BN;
-	constituentCorrelations: BN[];
-	volatility: BN;
-	gammaExecution?: number;
-	gammaInventory?: number;
-	xi?: number;
-};
-
-export type ConstituentAccount = {
-	pubkey: PublicKey;
-	spotMarketIndex: number;
-	constituentIndex: number;
-	decimals: number;
-	bump: number;
-	constituentDerivativeIndex: number;
-	maxWeightDeviation: BN;
-	maxBorrowTokenAmount: BN;
-	swapFeeMin: BN;
-	swapFeeMax: BN;
-	totalSwapFees: BN;
-	tokenBalance: BN;
-	spotBalance: BLPosition;
-	lastOraclePrice: BN;
-	lastOracleSlot: BN;
-	mint: PublicKey;
-	oracleStalenessThreshold: BN;
-	lpPool: PublicKey;
-	tokenVault: PublicKey;
-	nextSwapId: BN;
-	derivativeWeight: BN;
-	flashLoanInitialTokenAmount: BN;
-};
-
-export type CacheInfo = {
-	slot: BN;
-	position: BN;
-	maxConfidenceIntervalMultiplier: BN;
-	lastOraclePriceTwap: BN;
-	oracle: PublicKey;
-	oracleSource: number;
-	oraclePrice: BN;
-	oracleDelay: BN;
-	oracleConfidence: BN;
-	lastFeePoolTokenAmount: BN;
-	lastNetPnlPoolTokenAmount: BN;
-	lastSettleAmount: BN;
-	lastSettleSlot: BN;
-	quoteOwedFromLpPool: BN;
-};
-
-export type AmmCache = {
-	cache: CacheInfo[];
 };
