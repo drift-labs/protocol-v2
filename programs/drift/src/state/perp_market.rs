@@ -1917,7 +1917,7 @@ impl<'a> AccountZeroCopyMut<'a, CacheInfo, AmmCacheFixed> {
             .safe_sub(
                 exchange_fee_delta
                     .cast::<i128>()?
-                    .safe_div_ceil(perp_market.amm.total_exchange_fee as i128)?,
+                    .safe_div_ceil(perp_market.lp_exchange_fee_excluscion_scalar as i128)?,
             )?;
 
         cached_info.quote_owed_from_lp_pool = cached_info

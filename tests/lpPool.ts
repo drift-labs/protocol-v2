@@ -844,6 +844,19 @@ describe('LP Pool', () => {
 			lpPoolKey
 		)) as LPPoolAccount;
 
+		// Exclude 25% of exchange fees, put 100 dollars there to make sure that the
+		await adminClient.updatePerpMarketLpPoolFeeTransferScalar(0, undefined, 4);
+		const perpMarket = adminClient.getPerpMarketAccount(0);
+		perpMarket.amm.totalExchangeFee = perpMarket.amm.totalExchangeFee.add(
+			QUOTE_PRECISION.muln(100)
+		);
+		await overWritePerpMarket(
+			adminClient,
+			bankrunContextWrapper,
+			perpMarket.pubkey,
+			perpMarket
+		);
+
 		await adminClient.depositIntoPerpMarketFeePool(
 			0,
 			new BN(100).mul(QUOTE_PRECISION),
@@ -878,7 +891,7 @@ describe('LP Pool', () => {
 		assert(
 			ammCache.cache[0].quoteOwedFromLpPool.eq(
 				ammCacheBeforeAdjust.cache[0].quoteOwedFromLpPool.sub(
-					new BN(100).mul(QUOTE_PRECISION)
+					new BN(75).mul(QUOTE_PRECISION)
 				)
 			)
 		);
@@ -899,7 +912,7 @@ describe('LP Pool', () => {
 		const lpAumAfterUpdateCacheBeforeSettle = lpPool.lastAum;
 		assert(
 			lpAumAfterUpdateCacheBeforeSettle.eq(
-				lpAumAfterDeposit.add(new BN(200).mul(QUOTE_PRECISION))
+				lpAumAfterDeposit.add(new BN(175).mul(QUOTE_PRECISION))
 			)
 		);
 
@@ -930,7 +943,7 @@ describe('LP Pool', () => {
 		// Expected transfers per pool are capital constrained by the actual balances
 		const expectedTransfer0 = BN.min(
 			ammCache.cache[0].quoteOwedFromLpPool.muln(-1),
-			pnlPoolBalance0.add(feePoolBalance0)
+			pnlPoolBalance0.add(feePoolBalance0).sub(QUOTE_PRECISION.muln(25))
 		);
 		const expectedTransfer1 = BN.min(
 			ammCache.cache[1].quoteOwedFromLpPool.muln(-1),

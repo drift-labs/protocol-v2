@@ -1785,6 +1785,7 @@ export type CacheInfo = {
 	oraclePrice: BN;
 	oracleDelay: BN;
 	oracleConfidence: BN;
+	lastExchangeFees: BN;
 	lastFeePoolTokenAmount: BN;
 	lastNetPnlPoolTokenAmount: BN;
 	lastSettleAmount: BN;
