@@ -1370,16 +1370,14 @@ export class DriftClient {
 	}
 
 	public async changeApprovedBuilder(
-		authority: PublicKey,
 		builder: PublicKey,
-		maxFeeBps: number,
+		maxFeeTenthBps: number,
 		add: boolean,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const ix = await this.getChangeApprovedBuilderIx(
-			authority,
 			builder,
-			maxFeeBps,
+			maxFeeTenthBps,
 			add
 		);
 		const tx = await this.buildTransaction([ix], txParams);
@@ -1388,18 +1386,18 @@ export class DriftClient {
 	}
 
 	public async getChangeApprovedBuilderIx(
-		authority: PublicKey,
 		builder: PublicKey,
-		maxFeeBps: number,
+		maxFeeTenthBps: number,
 		add: boolean
 	): Promise<TransactionInstruction> {
+		const authority = this.wallet.publicKey;
 		const escrow = getRevenueShareEscrowAccountPublicKey(
 			this.program.programId,
 			authority
 		);
 		return this.program.instruction.changeApprovedBuilder(
 			builder,
-			maxFeeBps,
+			maxFeeTenthBps,
 			add,
 			{
 				accounts: {
