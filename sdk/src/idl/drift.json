@@ -15576,6 +15576,23 @@
       }
     },
     {
+      "name": "AMMAvailability",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Immediate"
+          },
+          {
+            "name": "AfterMinDuration"
+          },
+          {
+            "name": "Unavailable"
+          }
+        ]
+      }
+    },
+    {
       "name": "RevenueShareOrderBitFlag",
       "type": {
         "kind": "enum",

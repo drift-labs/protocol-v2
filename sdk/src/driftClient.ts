@@ -150,7 +150,6 @@ import { findDirectionToClose, positionIsAvailable } from './math/position';
 import { getSignedTokenAmount, getTokenAmount } from './math/spotBalance';
 import { decodeName, DEFAULT_USER_NAME, encodeName } from './userName';
 import { MMOraclePriceData, OraclePriceData } from './oracles/types';
-import { MMOraclePriceData, OraclePriceData } from './oracles/types';
 import { DriftClientConfig } from './driftClientConfig';
 import { PollingDriftClientAccountSubscriber } from './accounts/pollingDriftClientAccountSubscriber';
 import { RetryTxSender } from './tx/retryTxSender';
