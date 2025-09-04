@@ -864,6 +864,7 @@ export type PerpMarketAccount = {
 	lastFillPrice: BN;
 
 	lpFeeTransferScalar: number;
+	lpExchangeFeeExcluscionScalar: number;
 	lpStatus: number;
 };
 

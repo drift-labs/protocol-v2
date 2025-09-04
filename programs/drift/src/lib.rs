@@ -1064,9 +1064,14 @@ pub mod drift {
 
     pub fn update_perp_market_lp_pool_fee_transfer_scalar(
         ctx: Context<AdminUpdatePerpMarket>,
-        lp_fee_transfer_scalar: u8,
+        optional_lp_fee_transfer_scalar: Option<u8>,
+        optional_lp_net_pnl_transfer_scalar: Option<u8>,
     ) -> Result<()> {
-        handle_update_perp_market_lp_pool_fee_transfer_scalar(ctx, lp_fee_transfer_scalar)
+        handle_update_perp_market_lp_pool_fee_transfer_scalar(
+            ctx,
+            optional_lp_fee_transfer_scalar,
+            optional_lp_net_pnl_transfer_scalar,
+        )
     }
 
     pub fn settle_expired_market_pools_to_revenue_pool(

@@ -245,7 +245,8 @@ pub struct PerpMarket {
     pub lp_status: u8,
     pub padding1: u16,
     pub last_fill_price: u64,
-    pub padding: [u8; 24],
+    pub lp_exchange_fee_excluscion_scalar: u8,
+    pub padding: [u8; 23],
 }
 
 impl Default for PerpMarket {
@@ -291,7 +292,8 @@ impl Default for PerpMarket {
             lp_status: 0,
             padding1: 0,
             last_fill_price: 0,
-            padding: [0; 24],
+            lp_exchange_fee_excluscion_scalar: 1,
+            padding: [0; 23],
         }
     }
 }
@@ -1713,6 +1715,7 @@ pub struct AmmCache {
 pub struct CacheInfo {
     pub last_fee_pool_token_amount: u128,
     pub last_net_pnl_pool_token_amount: i128,
+    pub last_exchange_fees: u128,
     /// BASE PRECISION
     pub position: i64,
     pub slot: u64,
@@ -1749,6 +1752,7 @@ impl Default for CacheInfo {
             oracle: Pubkey::default(),
             last_fee_pool_token_amount: 0u128,
             last_net_pnl_pool_token_amount: 0i128,
+            last_exchange_fees: 0u128,
             last_settle_amount: 0u64,
             last_settle_slot: 0u64,
             oracle_source: 0u8,
@@ -1860,9 +1864,11 @@ impl<'a> AccountZeroCopyMut<'a, CacheInfo, AmmCacheFixed> {
         perp_market: &PerpMarket,
         quote_market: &SpotMarket,
     ) -> DriftResult<()> {
-        if perp_market.lp_fee_transfer_scalar == 0 {
+        if perp_market.lp_fee_transfer_scalar == 0
+            && perp_market.lp_exchange_fee_excluscion_scalar == 0
+        {
             msg!(
-                "lp_fee_transfer_scalar is 0 for perp market {}. not updating quote amount owed in cache",
+                "lp_fee_transfer_scalar and lp_net_pnl_transfer_scalar are 0 for perp market {}. not updating quote amount owed in cache",
                 perp_market.market_index
             );
             return Ok(());
@@ -1892,29 +1898,35 @@ impl<'a> AccountZeroCopyMut<'a, CacheInfo, AmmCacheFixed> {
 
         if cached_info.last_net_pnl_pool_token_amount == 0
             && cached_info.last_fee_pool_token_amount == 0
+            && cached_info.last_exchange_fees == 0
         {
             cached_info.last_fee_pool_token_amount = fee_pool_token_amount;
             cached_info.last_net_pnl_pool_token_amount = net_pnl_pool_token_amount;
+            cached_info.last_exchange_fees = perp_market.amm.total_exchange_fee;
             return Ok(());
         }
 
-        let amount_to_send = amm_amount_available
-            .abs_diff(cached_info.get_last_available_amm_balance()?)
-            .safe_div_ceil(perp_market.lp_fee_transfer_scalar as u128)?
-            .cast::<u64>()?;
+        let exchange_fee_delta = perp_market
+            .amm
+            .total_exchange_fee
+            .saturating_sub(cached_info.last_exchange_fees);
 
-        if amm_amount_available < cached_info.get_last_available_amm_balance()? {
-            cached_info.quote_owed_from_lp_pool = cached_info
-                .quote_owed_from_lp_pool
-                .safe_add(amount_to_send.cast::<i64>()?)?;
-        } else {
-            cached_info.quote_owed_from_lp_pool = cached_info
-                .quote_owed_from_lp_pool
-                .safe_sub(amount_to_send.cast::<i64>()?)?;
-        }
+        let amount_to_send_to_lp_pool = amm_amount_available
+            .safe_sub(cached_info.get_last_available_amm_balance()?)?
+            .safe_div_ceil(perp_market.lp_fee_transfer_scalar as i128)?
+            .safe_sub(
+                exchange_fee_delta
+                    .cast::<i128>()?
+                    .safe_div_ceil(perp_market.amm.total_exchange_fee as i128)?,
+            )?;
+
+        cached_info.quote_owed_from_lp_pool = cached_info
+            .quote_owed_from_lp_pool
+            .safe_sub(amount_to_send_to_lp_pool.cast::<i64>()?)?;
 
         cached_info.last_fee_pool_token_amount = fee_pool_token_amount;
         cached_info.last_net_pnl_pool_token_amount = net_pnl_pool_token_amount;
+        cached_info.last_exchange_fees = perp_market.amm.total_exchange_fee;
 
         Ok(())
     }

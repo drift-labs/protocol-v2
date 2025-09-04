@@ -4748,8 +4748,16 @@
       ],
       "args": [
         {
-          "name": "lpFeeTransferScalar",
-          "type": "u8"
+          "name": "optionalLpFeeTransferScalar",
+          "type": {
+            "option": "u8"
+          }
+        },
+        {
+          "name": "optionalLpNetPnlTransferScalar",
+          "type": {
+            "option": "u8"
+          }
         }
       ]
     },
@@ -10443,11 +10451,15 @@
             "type": "u64"
           },
           {
+            "name": "lpExchangeFeeExcluscionScalar",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                24
+                23
               ]
             }
           }
@@ -13744,6 +13756,10 @@
           {
             "name": "lastNetPnlPoolTokenAmount",
             "type": "i128"
+          },
+          {
+            "name": "lastExchangeFees",
+            "type": "u128"
           },
           {
             "name": "position",

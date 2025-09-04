@@ -987,7 +987,8 @@ pub fn handle_initialize_perp_market(
         lp_status: 0,
         padding1: 0,
         last_fill_price: 0,
-        padding: [0; 24],
+        lp_exchange_fee_excluscion_scalar: 1,
+        padding: [0; 23],
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
             oracle_source,
@@ -3967,17 +3968,32 @@ pub fn handle_update_perp_market_min_order_size(
 )]
 pub fn handle_update_perp_market_lp_pool_fee_transfer_scalar(
     ctx: Context<AdminUpdatePerpMarket>,
-    lp_fee_transfer_scalar: u8,
+    optional_lp_fee_transfer_scalar: Option<u8>,
+    optional_lp_net_pnl_transfer_scalar: Option<u8>,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     msg!("perp market {}", perp_market.market_index);
-    msg!(
-        "perp_market.: {:?} -> {:?}",
-        perp_market.lp_fee_transfer_scalar,
-        lp_fee_transfer_scalar
-    );
 
-    perp_market.lp_fee_transfer_scalar = lp_fee_transfer_scalar;
+    if let Some(lp_fee_transfer_scalar) = optional_lp_fee_transfer_scalar {
+        msg!(
+            "perp_market.: {:?} -> {:?}",
+            perp_market.lp_fee_transfer_scalar,
+            lp_fee_transfer_scalar
+        );
+
+        perp_market.lp_fee_transfer_scalar = lp_fee_transfer_scalar;
+    }
+
+    if let Some(lp_net_pnl_transfer_scalar) = optional_lp_net_pnl_transfer_scalar {
+        msg!(
+            "perp_market.: {:?} -> {:?}",
+            perp_market.lp_exchange_fee_excluscion_scalar,
+            lp_net_pnl_transfer_scalar
+        );
+
+        perp_market.lp_exchange_fee_excluscion_scalar = lp_net_pnl_transfer_scalar;
+    }
+
     Ok(())
 }
 
