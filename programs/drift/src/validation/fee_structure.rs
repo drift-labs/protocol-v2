@@ -66,8 +66,8 @@ pub fn validate_fee_tier(
         fee_tier.maker_rebate_denominator
     )?;
 
-    let referee_discount_valid = fee_tier.referee_fee_numerator <= 20
-        && fee_tier.referee_fee_denominator == FEE_PERCENTAGE_DENOMINATOR; // <= 20%
+    let referee_discount_valid = fee_tier.referee_fee_numerator <= FEE_PERCENTAGE_DENOMINATOR
+        && fee_tier.referee_fee_denominator == FEE_PERCENTAGE_DENOMINATOR; // <= 100%
 
     validate!(
         referee_discount_valid,
@@ -77,8 +77,8 @@ pub fn validate_fee_tier(
         fee_tier.referee_fee_denominator
     )?;
 
-    let referrer_reward_valid = fee_tier.referrer_reward_numerator <= 20
-        && fee_tier.referrer_reward_denominator == FEE_PERCENTAGE_DENOMINATOR; // <= 20%
+    let referrer_reward_valid = fee_tier.referrer_reward_numerator <= FEE_PERCENTAGE_DENOMINATOR
+        && fee_tier.referrer_reward_denominator == FEE_PERCENTAGE_DENOMINATOR; // <= 100%
 
     validate!(
         referrer_reward_valid,

@@ -150,6 +150,7 @@ import { findDirectionToClose, positionIsAvailable } from './math/position';
 import { getSignedTokenAmount, getTokenAmount } from './math/spotBalance';
 import { decodeName, DEFAULT_USER_NAME, encodeName } from './userName';
 import { MMOraclePriceData, OraclePriceData } from './oracles/types';
+import { MMOraclePriceData, OraclePriceData } from './oracles/types';
 import { DriftClientConfig } from './driftClientConfig';
 import { PollingDriftClientAccountSubscriber } from './accounts/pollingDriftClientAccountSubscriber';
 import { RetryTxSender } from './tx/retryTxSender';
@@ -6670,6 +6671,40 @@ export class DriftClient {
 		return {
 			orderParams,
 			signature: this.signMessage(Buffer.from(borshBuf.toString('hex'))),
+		};
+	}
+
+	/**
+	 * Builds a deposit and place request for Swift service
+	 *
+	 * @param depositTx - The signed tx containing a drift deposit (e.g. see `createDepositTxn`)
+	 * @param orderParamsMessage - The order parameters message to sign
+	 * @param delegateSigner - Whether this is a delegate signer
+	 *
+	 * @returns request object for Swift service
+	 */
+	public buildDepositAndPlaceSignedMsgOrderRequest(
+		depositTx: VersionedTransaction,
+		orderParamsMessage:
+			| SignedMsgOrderParamsMessage
+			| SignedMsgOrderParamsDelegateMessage,
+		delegateSigner?: boolean
+	): {
+		deposit_tx: Buffer;
+		swift_order: SignedMsgOrderParams;
+	} {
+		// Serialize the deposit transaction
+		const serializedDepositTx = Buffer.from(depositTx.serialize());
+
+		// Get the signed swift order using the existing method
+		const swiftOrder = this.signSignedMsgOrderParamsMessage(
+			orderParamsMessage,
+			delegateSigner
+		);
+
+		return {
+			deposit_tx: serializedDepositTx,
+			swift_order: swiftOrder,
 		};
 	}
 

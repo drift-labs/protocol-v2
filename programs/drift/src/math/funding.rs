@@ -27,10 +27,7 @@ pub fn calculate_funding_rate_long_short(
 ) -> DriftResult<(i128, i128, i128)> {
     // Calculate the funding payment owed by the net_market_position if funding is not capped
     // If the net market position owes funding payment, the protocol receives payment
-    let settled_net_market_position = market
-        .amm
-        .base_asset_amount_with_amm
-        .safe_add(market.amm.base_asset_amount_with_unsettled_lp)?;
+    let settled_net_market_position = market.amm.base_asset_amount_with_amm;
 
     let net_market_position_funding_payment =
         calculate_funding_payment_in_quote_precision(funding_rate, settled_net_market_position)?;

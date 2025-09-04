@@ -490,7 +490,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
             &mut None,
             false,
         )
@@ -616,7 +615,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
             &mut None,
             false,
         )
@@ -742,7 +740,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
             &mut None,
             false,
         )
@@ -868,7 +865,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
             &mut None,
             false,
         )
@@ -993,7 +989,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
             &mut None,
             false,
         )
@@ -1085,7 +1080,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
             &mut None,
             false,
         )
@@ -1178,7 +1172,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
             &mut None,
             false,
         )
@@ -1271,7 +1264,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
             &mut None,
             false,
         )
@@ -1364,7 +1356,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
             &mut None,
             false,
         )
@@ -1477,7 +1468,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
             &mut None,
             false,
         )
@@ -1595,7 +1585,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
             &mut None,
             false,
         )
@@ -1718,7 +1707,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
             &mut None,
             false,
         )
@@ -1842,7 +1830,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
             &mut None,
             false,
         )
@@ -1990,7 +1977,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
             &mut None,
             false,
         )
@@ -2113,7 +2099,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
             &mut None,
             false,
         )
@@ -2246,7 +2231,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut oracle_map,
             false,
-            None,
             &mut None,
             false,
         )
@@ -2400,7 +2384,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut oracle_map,
             false,
-            None,
             &mut None,
             false,
         )
@@ -2552,7 +2535,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut oracle_map,
             false,
-            None,
             &mut None,
             false,
         )
@@ -2705,7 +2687,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut oracle_map,
             false,
-            None,
             &mut None,
             false,
         )
@@ -2839,7 +2820,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
             &mut None,
             false,
         )
@@ -2972,7 +2952,6 @@ pub mod fulfill_order_with_maker_order {
             &fee_structure,
             &mut get_oracle_map(),
             false,
-            None,
             &mut None,
             false,
         )
