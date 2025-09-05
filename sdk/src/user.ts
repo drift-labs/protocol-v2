@@ -73,7 +73,6 @@ import {
 } from './types';
 import { standardizeBaseAssetAmount } from './math/orders';
 import { UserStats } from './userStats';
-import { WebSocketProgramUserAccountSubscriber } from './accounts/websocketProgramUserAccountSubscriber';
 import {
 	calculateAssetWeight,
 	calculateLiabilityWeight,
@@ -147,26 +146,15 @@ export class User {
 				}
 			);
 		} else {
-			if (
-				config.accountSubscription?.type === 'websocket' &&
-				config.accountSubscription?.programUserAccountSubscriber
-			) {
-				this.accountSubscriber = new WebSocketProgramUserAccountSubscriber(
-					config.driftClient.program,
-					config.userAccountPublicKey,
-					config.accountSubscription.programUserAccountSubscriber
-				);
-			} else {
-				this.accountSubscriber = new WebSocketUserAccountSubscriber(
-					config.driftClient.program,
-					config.userAccountPublicKey,
-					{
-						resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
-						logResubMessages: config.accountSubscription?.logResubMessages,
-					},
-					config.accountSubscription?.commitment
-				);
-			}
+			this.accountSubscriber = new WebSocketUserAccountSubscriber(
+				config.driftClient.program,
+				config.userAccountPublicKey,
+				{
+					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
+					logResubMessages: config.accountSubscription?.logResubMessages,
+				},
+				config.accountSubscription?.commitment
+			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
 	}

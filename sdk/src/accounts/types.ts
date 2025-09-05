@@ -203,9 +203,6 @@ export type DataAndSlot<T> = {
 export type ResubOpts = {
 	resubTimeoutMs?: number;
 	logResubMessages?: boolean;
-	// New options for polling-based resubscription
-	usePollingInsteadOfResub?: boolean;
-	pollingIntervalMs?: number;
 };
 
 export interface UserStatsAccountEvents {

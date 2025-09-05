@@ -43,10 +43,9 @@ import {
 	PositionDirection,
 	DriftClient,
 	OrderType,
-	ReferrerInfo,
+	ConstituentAccount,
 	SpotMarketAccount,
 } from '../sdk';
-import { ConstituentAccount } from '../sdk/src/types';
 import {
 	TestClient,
 	SPOT_MARKET_RATE_PRECISION,
@@ -404,8 +403,7 @@ export async function initializeAndSubscribeDriftClient(
 	marketIndexes: number[],
 	bankIndexes: number[],
 	oracleInfos: OracleInfo[] = [],
-	accountLoader?: TestBulkAccountLoader,
-	referrerInfo?: ReferrerInfo
+	accountLoader?: TestBulkAccountLoader
 ): Promise<TestClient> {
 	const driftClient = new TestClient({
 		connection,
@@ -430,7 +428,7 @@ export async function initializeAndSubscribeDriftClient(
 			  },
 	});
 	await driftClient.subscribe();
-	await driftClient.initializeUserAccount(0, undefined, referrerInfo);
+	await driftClient.initializeUserAccount();
 	return driftClient;
 }
 
@@ -442,8 +440,7 @@ export async function createUserWithUSDCAccount(
 	marketIndexes: number[],
 	bankIndexes: number[],
 	oracleInfos: OracleInfo[] = [],
-	accountLoader?: TestBulkAccountLoader,
-	referrerInfo?: ReferrerInfo
+	accountLoader?: TestBulkAccountLoader
 ): Promise<[TestClient, PublicKey, Keypair]> {
 	const userKeyPair = await createFundedKeyPair(context);
 	const usdcAccount = await createUSDCAccountForUser(
@@ -459,8 +456,7 @@ export async function createUserWithUSDCAccount(
 		marketIndexes,
 		bankIndexes,
 		oracleInfos,
-		accountLoader,
-		referrerInfo
+		accountLoader
 	);
 
 	return [driftClient, usdcAccount, userKeyPair];
@@ -563,6 +559,7 @@ export async function printTxLogs(
 	const tx = await connection.getTransaction(txSig, {
 		commitment: 'confirmed',
 	});
+	console.log('tx logs', tx.meta.logMessages);
 	return tx.meta.logMessages;
 }
 

@@ -250,8 +250,7 @@ export class BigNum {
 
 	public prettyPrint(
 		useTradePrecision?: boolean,
-		precisionOverride?: number,
-		decimalOverride?: number
+		precisionOverride?: number
 	): string {
 		const [leftSide, rightSide] = this.printShort(
 			useTradePrecision,
@@ -259,21 +258,6 @@ export class BigNum {
 		).split(BigNum.delim);
 
 		let formattedLeftSide = leftSide;
-		let formattedRightSide = rightSide;
-
-		// Apply decimal override if specified
-		if (decimalOverride !== undefined) {
-			if (decimalOverride === 0) {
-				formattedRightSide = undefined;
-			} else {
-				// If no decimal part exists, create one with zeros
-				const currentRightSide = rightSide || '';
-				// Pad with zeros if needed or truncate if too long
-				formattedRightSide = currentRightSide
-					.padEnd(decimalOverride, '0')
-					.substring(0, decimalOverride);
-			}
-		}
 
 		const isNeg = formattedLeftSide.includes('-');
 		if (isNeg) {
@@ -293,7 +277,7 @@ export class BigNum {
 		}
 
 		return `${isNeg ? '-' : ''}${formattedLeftSide}${
-			formattedRightSide ? `${BigNum.delim}${formattedRightSide}` : ''
+			rightSide ? `${BigNum.delim}${rightSide}` : ''
 		}`;
 	}
 
@@ -519,16 +503,15 @@ export class BigNum {
 	 */
 	public toNotional(
 		useTradePrecision?: boolean,
-		precisionOverride?: number,
-		decimalOverride?: number
+		precisionOverride?: number
 	): string {
 		const prefix = `${this.lt(BigNum.zero()) ? `-` : ``}$`;
 
 		const usingCustomPrecision =
-			true && (useTradePrecision || precisionOverride || decimalOverride);
+			true && (useTradePrecision || precisionOverride);
 
 		let val = usingCustomPrecision
-			? this.prettyPrint(useTradePrecision, precisionOverride, decimalOverride)
+			? this.prettyPrint(useTradePrecision, precisionOverride)
 			: BigNum.fromPrint(this.toFixed(2), new BN(2)).prettyPrint();
 
 		// Append trailing zeroes out to 2 decimal places if not using custom precision
