@@ -404,7 +404,8 @@ mod tests {
 #[cfg(test)]
 mod swap_tests {
     use crate::math::constants::{
-        PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I64, SPOT_BALANCE_PRECISION,
+        PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I128, PRICE_PRECISION_I64,
+        SPOT_BALANCE_PRECISION,
     };
     use crate::state::lp_pool::*;
 
@@ -561,7 +562,7 @@ mod swap_tests {
             150_000_000_000,
             642577120822,
             22500000,
-            281448778,
+            282091356,
             1,
             2,
             1,

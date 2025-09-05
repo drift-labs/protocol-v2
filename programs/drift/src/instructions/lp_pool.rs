@@ -50,9 +50,7 @@ use super::optional_accounts::{load_maps, AccountMaps};
 use crate::controller::spot_balance::update_spot_market_cumulative_interest;
 use crate::controller::token::{receive, send_from_program_vault};
 use crate::instructions::constraints::*;
-use crate::state::lp_pool::{
-    CONSTITUENT_PDA_SEED, CONSTITUENT_TARGET_BASE_PDA_SEED, LP_POOL_TOKEN_VAULT_PDA_SEED,
-};
+use crate::state::lp_pool::{CONSTITUENT_PDA_SEED, LP_POOL_TOKEN_VAULT_PDA_SEED};
 
 pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdateConstituentTargetBase<'info>>,
@@ -61,7 +59,6 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
 
     let lp_pool_key: &Pubkey = &ctx.accounts.lp_pool.key();
     let lp_pool = ctx.accounts.lp_pool.load()?;
-    let amm_cache_key: &Pubkey = &ctx.accounts.amm_cache.key();
     let constituent_target_base_key: &Pubkey = &ctx.accounts.constituent_target_base.key();
 
     let amm_cache: AccountZeroCopy<'_, CacheInfo, AmmCacheFixed> =
@@ -69,20 +66,6 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
 
     amm_cache.check_oracle_staleness(slot, MAX_AMM_CACHE_ORACLE_STALENESS_FOR_TARGET_CALC)?;
     amm_cache.check_perp_market_staleness(slot, MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC)?;
-
-    let expected_cache_pda = &Pubkey::create_program_address(
-        &[
-            AMM_POSITIONS_CACHE.as_ref(),
-            amm_cache.fixed.bump.to_le_bytes().as_ref(),
-        ],
-        &crate::ID,
-    )
-    .map_err(|_| ErrorCode::InvalidPDA)?;
-    validate!(
-        expected_cache_pda.eq(amm_cache_key),
-        ErrorCode::InvalidPDA,
-        "Amm cache PDA does not match expected PDA"
-    )?;
 
     let state = &ctx.accounts.state;
     let mut constituent_target_base: AccountZeroCopyMut<
@@ -238,22 +221,8 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
         "Constituent target base lp pool pubkey does not match lp pool pubkey",
     )?;
 
-    let amm_cache_key: &Pubkey = &ctx.accounts.amm_cache.key();
     let amm_cache: AccountZeroCopyMut<'_, CacheInfo, AmmCacheFixed> =
         ctx.accounts.amm_cache.load_zc_mut()?;
-    let expected_amm_pda = &Pubkey::create_program_address(
-        &[
-            AMM_POSITIONS_CACHE.as_ref(),
-            amm_cache.fixed.bump.to_le_bytes().as_ref(),
-        ],
-        &crate::ID,
-    )
-    .map_err(|_| ErrorCode::InvalidPDA)?;
-    validate!(
-        amm_cache_key.eq(expected_amm_pda),
-        ErrorCode::InvalidPDA,
-        "Amm cache PDA does not match expected PDA"
-    )?;
 
     let (aum, crypto_delta, derivative_groups) = lp_pool.update_aum(
         now,
@@ -344,10 +313,12 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         "Constituent target base lp pool pubkey does not match lp pool pubkey",
     )?;
 
+    let constituent_correlations_key = &ctx.accounts.constituent_correlations.key();
     let constituent_correlations: AccountZeroCopy<'_, i64, ConstituentCorrelationsFixed> =
         ctx.accounts.constituent_correlations.load_zc()?;
     validate!(
-        constituent_correlations.fixed.lp_pool.eq(&lp_pool_key),
+        constituent_correlations.fixed.lp_pool.eq(&lp_pool_key)
+            && constituent_correlations_key.eq(&lp_pool.constituent_correlations),
         ErrorCode::InvalidPDA,
         "Constituent correlations lp pool pubkey does not match lp pool pubkey",
     )?;

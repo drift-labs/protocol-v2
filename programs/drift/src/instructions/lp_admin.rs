@@ -60,6 +60,7 @@ pub fn handle_initialize_lp_pool(
         pubkey: ctx.accounts.lp_pool.key(),
         mint: mint.key(),
         constituent_target_base: ctx.accounts.constituent_target_base.key(),
+        constituent_correlations: ctx.accounts.constituent_correlations.key(),
         constituents: 0,
         max_aum,
         last_aum: 0,
@@ -235,44 +236,43 @@ pub fn handle_update_constituent_params<'info>(
         constituent.spot_balance.market_index = constituent.spot_market_index;
     }
 
-    if constituent_params.max_weight_deviation.is_some() {
+    if let Some(max_weight_deviation) = constituent_params.max_weight_deviation {
         msg!(
             "max_weight_deviation: {:?} -> {:?}",
             constituent.max_weight_deviation,
-            constituent_params.max_weight_deviation
+            max_weight_deviation
         );
-        constituent.max_weight_deviation = constituent_params.max_weight_deviation.unwrap();
+        constituent.max_weight_deviation = max_weight_deviation;
     }
 
-    if constituent_params.swap_fee_min.is_some() {
+    if let Some(swap_fee_min) = constituent_params.swap_fee_min {
         msg!(
             "swap_fee_min: {:?} -> {:?}",
             constituent.swap_fee_min,
-            constituent_params.swap_fee_min
+            swap_fee_min
         );
-        constituent.swap_fee_min = constituent_params.swap_fee_min.unwrap();
+        constituent.swap_fee_min = swap_fee_min;
     }
 
-    if constituent_params.swap_fee_max.is_some() {
+    if let Some(swap_fee_max) = constituent_params.swap_fee_max {
         msg!(
             "swap_fee_max: {:?} -> {:?}",
             constituent.swap_fee_max,
-            constituent_params.swap_fee_max
+            swap_fee_max
         );
-        constituent.swap_fee_max = constituent_params.swap_fee_max.unwrap();
+        constituent.swap_fee_max = swap_fee_max;
     }
 
-    if constituent_params.oracle_staleness_threshold.is_some() {
+    if let Some(oracle_staleness_threshold) = constituent_params.oracle_staleness_threshold {
         msg!(
             "oracle_staleness_threshold: {:?} -> {:?}",
             constituent.oracle_staleness_threshold,
-            constituent_params.oracle_staleness_threshold
+            oracle_staleness_threshold
         );
-        constituent.oracle_staleness_threshold =
-            constituent_params.oracle_staleness_threshold.unwrap();
+        constituent.oracle_staleness_threshold = oracle_staleness_threshold;
     }
 
-    if constituent_params.cost_to_trade_bps.is_some() {
+    if let Some(cost_to_trade_bps) = constituent_params.cost_to_trade_bps {
         let constituent_target_base = &mut ctx.accounts.constituent_target_base;
 
         let target = constituent_target_base
@@ -283,51 +283,50 @@ pub fn handle_update_constituent_params<'info>(
         msg!(
             "cost_to_trade: {:?} -> {:?}",
             target.cost_to_trade_bps,
-            constituent_params.cost_to_trade_bps
+            cost_to_trade_bps
         );
-        target.cost_to_trade_bps = constituent_params.cost_to_trade_bps.unwrap();
+        target.cost_to_trade_bps = cost_to_trade_bps;
     }
 
-    if constituent_params.derivative_weight.is_some() {
+    if let Some(derivative_weight) = constituent_params.derivative_weight {
         msg!(
             "derivative_weight: {:?} -> {:?}",
             constituent.derivative_weight,
-            constituent_params.derivative_weight
+            derivative_weight
         );
-        constituent.derivative_weight = constituent_params.derivative_weight.unwrap();
+        constituent.derivative_weight = derivative_weight;
     }
 
-    if constituent_params.constituent_derivative_index.is_some() {
+    if let Some(constituent_derivative_index) = constituent_params.constituent_derivative_index {
         msg!(
             "constituent_derivative_index: {:?} -> {:?}",
             constituent.constituent_derivative_index,
-            constituent_params.constituent_derivative_index
+            constituent_derivative_index
         );
-        constituent.constituent_derivative_index =
-            constituent_params.constituent_derivative_index.unwrap();
+        constituent.constituent_derivative_index = constituent_derivative_index;
     }
 
-    if constituent_params.gamma_execution.is_some() {
+    if let Some(gamma_execution) = constituent_params.gamma_execution {
         msg!(
             "gamma_execution: {:?} -> {:?}",
             constituent.gamma_execution,
-            constituent_params.gamma_execution
+            gamma_execution
         );
-        constituent.gamma_execution = constituent_params.gamma_execution.unwrap();
+        constituent.gamma_execution = gamma_execution;
     }
 
-    if constituent_params.gamma_inventory.is_some() {
+    if let Some(gamma_inventory) = constituent_params.gamma_inventory {
         msg!(
             "gamma_inventory: {:?} -> {:?}",
             constituent.gamma_inventory,
-            constituent_params.gamma_inventory
+            gamma_inventory
         );
-        constituent.gamma_inventory = constituent_params.gamma_inventory.unwrap();
+        constituent.gamma_inventory = gamma_inventory;
     }
 
-    if constituent_params.xi.is_some() {
-        msg!("xi: {:?} -> {:?}", constituent.xi, constituent_params.xi);
-        constituent.xi = constituent_params.xi.unwrap();
+    if let Some(xi) = constituent_params.xi {
+        msg!("xi: {:?} -> {:?}", constituent.xi, xi);
+        constituent.xi = xi;
     }
 
     if let Some(max_borrow_token_amount) = constituent_params.max_borrow_token_amount {
