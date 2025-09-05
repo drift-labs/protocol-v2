@@ -12,9 +12,6 @@ import {
 	AccountInfoWithBase64EncodedData,
 	createSolanaClient,
 	isAddress,
-	Rpc,
-	RpcSubscriptions,
-	SolanaRpcSubscriptionsApi,
 	Address,
 	Commitment,
 } from 'gill';
