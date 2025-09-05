@@ -7809,11 +7809,6 @@
           "isSigner": false
         },
         {
-          "name": "spotMarket",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "spotMarketMint",
           "isMut": false,
           "isSigner": false
@@ -9584,10 +9579,6 @@
           },
           {
             "name": "mint",
-            "type": "publicKey"
-          },
-          {
-            "name": "constituentTargetBase",
             "type": "publicKey"
           },
           {

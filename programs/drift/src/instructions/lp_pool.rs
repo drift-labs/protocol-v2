@@ -60,9 +60,7 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
     let slot = Clock::get()?.slot;
 
     let lp_pool_key: &Pubkey = &ctx.accounts.lp_pool.key();
-    let lp_pool = ctx.accounts.lp_pool.load()?;
     let amm_cache_key: &Pubkey = &ctx.accounts.amm_cache.key();
-    let constituent_target_base_key: &Pubkey = &ctx.accounts.constituent_target_base.key();
 
     let amm_cache: AccountZeroCopy<'_, CacheInfo, AmmCacheFixed> =
         ctx.accounts.amm_cache.load_zc()?;
@@ -91,8 +89,7 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
         ConstituentTargetBaseFixed,
     > = ctx.accounts.constituent_target_base.load_zc_mut()?;
     validate!(
-        constituent_target_base.fixed.lp_pool.eq(lp_pool_key)
-            && constituent_target_base_key.eq(&lp_pool.constituent_target_base),
+        constituent_target_base.fixed.lp_pool.eq(lp_pool_key),
         ErrorCode::InvalidPDA,
         "Constituent target base lp pool pubkey does not match lp pool pubkey",
     )?;
@@ -225,15 +222,13 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
         "Constituent map length does not match lp pool constituent count"
     )?;
 
-    let constituent_target_base_key = &ctx.accounts.constituent_target_base.key();
     let mut constituent_target_base: AccountZeroCopyMut<
         '_,
         TargetsDatum,
         ConstituentTargetBaseFixed,
     > = ctx.accounts.constituent_target_base.load_zc_mut()?;
     validate!(
-        constituent_target_base.fixed.lp_pool.eq(&lp_pool.pubkey)
-            && constituent_target_base_key.eq(&lp_pool.constituent_target_base),
+        constituent_target_base.fixed.lp_pool.eq(&lp_pool.pubkey),
         ErrorCode::InvalidPDA,
         "Constituent target base lp pool pubkey does not match lp pool pubkey",
     )?;
@@ -318,7 +313,6 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
 
     let slot = Clock::get()?.slot;
     let now = Clock::get()?.unix_timestamp;
-    let lp_pool_key = ctx.accounts.lp_pool.key();
     let lp_pool = &ctx.accounts.lp_pool.load()?;
     let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
 
@@ -334,12 +328,10 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
     let mut in_constituent = ctx.accounts.in_constituent.load_mut()?;
     let mut out_constituent = ctx.accounts.out_constituent.load_mut()?;
 
-    let constituent_target_base_key = &ctx.accounts.constituent_target_base.key();
     let constituent_target_base: AccountZeroCopy<'_, TargetsDatum, ConstituentTargetBaseFixed> =
         ctx.accounts.constituent_target_base.load_zc()?;
     validate!(
-        constituent_target_base.fixed.lp_pool.eq(&lp_pool_key)
-            && constituent_target_base_key.eq(&lp_pool.constituent_target_base),
+        constituent_target_base.fixed.lp_pool.eq(&lp_pool.pubkey),
         ErrorCode::InvalidPDA,
         "Constituent target base lp pool pubkey does not match lp pool pubkey",
     )?;
@@ -347,7 +339,7 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
     let constituent_correlations: AccountZeroCopy<'_, i64, ConstituentCorrelationsFixed> =
         ctx.accounts.constituent_correlations.load_zc()?;
     validate!(
-        constituent_correlations.fixed.lp_pool.eq(&lp_pool_key),
+        constituent_correlations.fixed.lp_pool.eq(&lp_pool.pubkey),
         ErrorCode::InvalidPDA,
         "Constituent correlations lp pool pubkey does not match lp pool pubkey",
     )?;
@@ -644,7 +636,6 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
 
     let slot = Clock::get()?.slot;
     let now = Clock::get()?.unix_timestamp;
-    let lp_pool_key = ctx.accounts.lp_pool.key();
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
 
     let lp_price_before = lp_pool.get_price(ctx.accounts.lp_mint.supply)?;
@@ -662,15 +653,7 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
 
     let mut in_constituent = ctx.accounts.in_constituent.load_mut()?;
 
-    let constituent_target_base_key = &ctx.accounts.constituent_target_base.key();
-    let constituent_target_base: AccountZeroCopy<'_, TargetsDatum, ConstituentTargetBaseFixed> =
-        ctx.accounts.constituent_target_base.load_zc()?;
-    validate!(
-        constituent_target_base.fixed.lp_pool.eq(&lp_pool_key)
-            && constituent_target_base_key.eq(&lp_pool.constituent_target_base),
-        ErrorCode::InvalidPDA,
-        "Constituent target base lp pool pubkey does not match lp pool pubkey",
-    )?;
+    let constituent_target_base = ctx.accounts.constituent_target_base.load_zc()?;
 
     let AccountMaps {
         perp_market_map: _,
@@ -964,7 +947,6 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
         "Mint/redeem LP pool is disabled"
     )?;
 
-    let lp_pool_key = ctx.accounts.lp_pool.key();
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
 
     let lp_price_before = lp_pool.get_price(ctx.accounts.lp_mint.supply)?;
@@ -994,15 +976,7 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
 
     let mut out_constituent = ctx.accounts.out_constituent.load_mut()?;
 
-    let constituent_target_base_key = &ctx.accounts.constituent_target_base.key();
-    let constituent_target_base: AccountZeroCopy<'_, TargetsDatum, ConstituentTargetBaseFixed> =
-        ctx.accounts.constituent_target_base.load_zc()?;
-    validate!(
-        constituent_target_base.fixed.lp_pool.eq(&lp_pool_key)
-            && constituent_target_base_key.eq(&lp_pool.constituent_target_base),
-        ErrorCode::InvalidPDA,
-        "Constituent target base lp pool pubkey does not match lp pool pubkey",
-    )?;
+    let constituent_target_base = ctx.accounts.constituent_target_base.load_zc()?;
 
     let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
 
@@ -1779,6 +1753,10 @@ pub struct LPPoolAddLiquidity<'info> {
         constraint = lp_mint.key() == lp_pool.load()?.mint,
     )]
     pub lp_mint: Box<InterfaceAccount<'info, Mint>>,
+    #[account(
+        seeds = [CONSTITUENT_TARGET_BASE_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        bump,
+    )]
     /// CHECK: checked in ConstituentTargetBaseZeroCopy checks
     pub constituent_target_base: AccountInfo<'info>,
 
@@ -1811,7 +1789,11 @@ pub struct ViewLPPoolAddLiquidityFees<'info> {
         constraint = lp_mint.key() == lp_pool.load()?.mint,
     )]
     pub lp_mint: Box<InterfaceAccount<'info, Mint>>,
-    /// CHECK: checked in ConstituentTargetBaseZeroCopy checks and address checked in code
+    #[account(
+        seeds = [CONSTITUENT_TARGET_BASE_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        bump,
+    )]
+    /// CHECK: checked in ConstituentTargetBaseZeroCopy checks
     pub constituent_target_base: AccountInfo<'info>,
 }
 
@@ -1858,7 +1840,11 @@ pub struct LPPoolRemoveLiquidity<'info> {
         constraint = lp_mint.key() == lp_pool.load()?.mint,
     )]
     pub lp_mint: Box<InterfaceAccount<'info, Mint>>,
-    /// CHECK: checked in ConstituentTargetBaseZeroCopy checks and address checked in code
+    #[account(
+        seeds = [CONSTITUENT_TARGET_BASE_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        bump,
+    )]
+    /// CHECK: checked in ConstituentTargetBaseZeroCopy checks
     pub constituent_target_base: AccountInfo<'info>,
 
     #[account(
@@ -1897,7 +1883,10 @@ pub struct ViewLPPoolRemoveLiquidityFees<'info> {
         constraint = lp_mint.key() == lp_pool.load()?.mint,
     )]
     pub lp_mint: Box<InterfaceAccount<'info, Mint>>,
-
-    /// CHECK: checked in ConstituentTargetBaseZeroCopy checks and address checked in code
+    #[account(
+        seeds = [CONSTITUENT_TARGET_BASE_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        bump,
+    )]
+    /// CHECK: checked in ConstituentTargetBaseZeroCopy checks
     pub constituent_target_base: AccountInfo<'info>,
 }

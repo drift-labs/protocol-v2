@@ -5139,7 +5139,6 @@ export class AdminClient extends DriftClient {
 							this.program.programId,
 							lpPool
 						),
-						spotMarket: spotMarketAccount.pubkey,
 						driftSigner: this.getSignerPublicKey(),
 						tokenProgram: TOKEN_PROGRAM_ID,
 					},
