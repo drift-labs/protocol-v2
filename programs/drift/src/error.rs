@@ -638,24 +638,6 @@ pub enum ErrorCode {
     InvalidIfRebalanceConfig,
     #[msg("Invalid If Rebalance Swap")]
     InvalidIfRebalanceSwap,
-    #[msg("Invalid RevenueShare resize")]
-    InvalidRevenueShareResize,
-    #[msg("Builder has been revoked")]
-    BuilderRevoked,
-    #[msg("Builder fee is greater than max fee bps")]
-    InvalidBuilderFee,
-    #[msg("RevenueShareEscrow has too many active orders")]
-    RevenueShareEscrowOrdersAccountFull,
-    #[msg("RevenueShareEscrow missing")]
-    RevenueShareEscrowMissing,
-    #[msg("Invalid RevenueShareAccount")]
-    InvalidRevenueShareAccount,
-    #[msg("Cannot revoke builder with open orders")]
-    CannotRevokeBuilderWithOpenOrders,
-    #[msg("Unable to load builder account")]
-    UnableToLoadRevenueShareAccount,
-    #[msg("RevenueShare order not found")]
-    RevenueShareOrderNotFound,
     #[msg("Invalid Constituent")]
     InvalidConstituent,
     #[msg("Invalid Amm Constituent Mapping argument")]

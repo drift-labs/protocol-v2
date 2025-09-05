@@ -548,7 +548,7 @@ describe('LP Pool', () => {
 			expect.fail('should have failed');
 		} catch (e) {
 			console.log(e.message);
-			expect(e.message).to.contain('0x18b7'); // InvalidAmmConstituentMappingArgument
+			expect(e.message).to.contain('0x18ae');
 		}
 
 		// Bad constituent index
@@ -562,7 +562,7 @@ describe('LP Pool', () => {
 			]);
 			expect.fail('should have failed');
 		} catch (e) {
-			expect(e.message).to.contain('0x18b7'); // InvalidAmmConstituentMappingArgument
+			expect(e.message).to.contain('0x18ae');
 		}
 	});
 
@@ -579,7 +579,7 @@ describe('LP Pool', () => {
 			});
 			expect.fail('should have failed');
 		} catch (e) {
-			assert(e.message.includes('0x18c0')); // LpPoolAumDelayed
+			assert(e.message.includes('0x18b7'));
 		}
 	});
 
@@ -633,7 +633,7 @@ describe('LP Pool', () => {
 			await adminClient.updateLpPoolAum(lpPool, [0]);
 			expect.fail('should have failed');
 		} catch (e) {
-			assert(e.message.includes('0x18bc')); // WrongNumberOfConstituents
+			assert(e.message.includes('0x18b3'));
 		}
 	});
 
@@ -1466,7 +1466,7 @@ describe('LP Pool', () => {
 			await adminClient.settlePerpToLpPool(encodeName(lpPoolName), [0, 1, 2]);
 			assert(false, 'Should have thrown');
 		} catch (e) {
-			assert(e.message.includes('0x18c6')); // SettleLpPoolDisabled
+			assert(e.message.includes('0x18bd'));
 		}
 
 		await adminClient.updateFeatureBitFlagsSettleLpPool(true);

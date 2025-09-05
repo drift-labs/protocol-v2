@@ -1539,7 +1539,7 @@ describe('place and make signedMsg order', () => {
 			);
 			assert.fail('should fail');
 		} catch (e) {
-			assert(e['code'] === 'ERR_OUT_OF_RANGE');
+			assert(e.toString().includes('0x1776'));
 			const takerOrders = takerDriftClient.getUser().getOpenOrders();
 			assert(takerOrders.length == 0);
 		}
@@ -1564,7 +1564,7 @@ describe('place and make signedMsg order', () => {
 			);
 			assert.fail('should fail');
 		} catch (e) {
-			assert(e.toString().includes('Error: Invalid option'));
+			assert(e.toString().includes('0x1776'));
 			const takerOrders = takerDriftClient.getUser().getOpenOrders();
 			assert(takerOrders.length == 0);
 		}
