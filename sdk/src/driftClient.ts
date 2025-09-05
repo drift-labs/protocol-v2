@@ -150,7 +150,6 @@ import { decodeName, DEFAULT_USER_NAME, encodeName } from './userName';
 import { MMOraclePriceData, OraclePriceData } from './oracles/types';
 import { DriftClientConfig } from './driftClientConfig';
 import { PollingDriftClientAccountSubscriber } from './accounts/pollingDriftClientAccountSubscriber';
-import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDriftClientAccountSubscriber';
 import { RetryTxSender } from './tx/retryTxSender';
 import { User } from './user';
 import { UserSubscriptionConfig } from './userConfig';
@@ -207,7 +206,8 @@ import { getOracleId } from './oracles/oracleId';
 import { SignedMsgOrderParams } from './types';
 import { sha256 } from '@noble/hashes/sha256';
 import { getOracleConfidenceFromMMOracleData } from './oracles/utils';
-import { ConstituentMap } from './constituentMap/constituentMap';
+import { Commitment } from 'gill';
+import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDriftClientAccountSubscriber';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -385,6 +385,8 @@ export class DriftClient {
 				resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
 				logResubMessages: config.accountSubscription?.logResubMessages,
 				commitment: config.accountSubscription?.commitment,
+				programUserAccountSubscriber:
+					config.accountSubscription?.programUserAccountSubscriber,
 			};
 			this.userStatsAccountSubscriptionConfig = {
 				type: 'websocket',
@@ -450,7 +452,10 @@ export class DriftClient {
 				}
 			);
 		} else {
-			this.accountSubscriber = new WebSocketDriftClientAccountSubscriber(
+			const accountSubscriberClass =
+				config.accountSubscription?.driftClientAccountSubscriber ??
+				WebSocketDriftClientAccountSubscriber;
+			this.accountSubscriber = new accountSubscriberClass(
 				this.program,
 				config.perpMarketIndexes ?? [],
 				config.spotMarketIndexes ?? [],
@@ -461,9 +466,7 @@ export class DriftClient {
 					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
 					logResubMessages: config.accountSubscription?.logResubMessages,
 				},
-				config.accountSubscription?.commitment,
-				config.accountSubscription?.perpMarketAccountSubscriber,
-				config.accountSubscription?.oracleAccountSubscriber
+				config.accountSubscription?.commitment as Commitment
 			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
@@ -624,7 +627,8 @@ export class DriftClient {
 	public getSpotMarketAccount(
 		marketIndex: number
 	): SpotMarketAccount | undefined {
-		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex).data;
+		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex)
+			?.data;
 	}
 
 	/**
@@ -635,7 +639,8 @@ export class DriftClient {
 		marketIndex: number
 	): Promise<SpotMarketAccount | undefined> {
 		await this.accountSubscriber.fetch();
-		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex).data;
+		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex)
+			?.data;
 	}
 
 	public getSpotMarketAccounts(): SpotMarketAccount[] {
@@ -6408,6 +6413,40 @@ export class DriftClient {
 		return {
 			orderParams,
 			signature: this.signMessage(Buffer.from(borshBuf.toString('hex'))),
+		};
+	}
+
+	/**
+	 * Builds a deposit and place request for Swift service
+	 *
+	 * @param depositTx - The signed tx containing a drift deposit (e.g. see `createDepositTxn`)
+	 * @param orderParamsMessage - The order parameters message to sign
+	 * @param delegateSigner - Whether this is a delegate signer
+	 *
+	 * @returns request object for Swift service
+	 */
+	public buildDepositAndPlaceSignedMsgOrderRequest(
+		depositTx: VersionedTransaction,
+		orderParamsMessage:
+			| SignedMsgOrderParamsMessage
+			| SignedMsgOrderParamsDelegateMessage,
+		delegateSigner?: boolean
+	): {
+		deposit_tx: Buffer;
+		swift_order: SignedMsgOrderParams;
+	} {
+		// Serialize the deposit transaction
+		const serializedDepositTx = Buffer.from(depositTx.serialize());
+
+		// Get the signed swift order using the existing method
+		const swiftOrder = this.signSignedMsgOrderParamsMessage(
+			orderParamsMessage,
+			delegateSigner
+		);
+
+		return {
+			deposit_tx: serializedDepositTx,
+			swift_order: swiftOrder,
 		};
 	}
 
