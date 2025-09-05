@@ -49,8 +49,19 @@ pub fn add_new_position(
         .position(|market_position| market_position.is_available())
         .ok_or(ErrorCode::MaxNumberOfPositions)?;
 
+    let max_margin_ratio = {
+        let old_position = &user_positions[new_position_index];
+
+        if old_position.market_index == market_index {
+            old_position.max_margin_ratio
+        } else {
+            0_u16
+        }
+    };
+
     let new_market_position = PerpPosition {
         market_index,
+        max_margin_ratio,
         ..PerpPosition::default()
     };
 
