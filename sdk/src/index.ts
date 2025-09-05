@@ -120,6 +120,7 @@ export * from './dlob/orderBookLevels';
 export * from './userMap/userMap';
 export * from './userMap/referrerMap';
 export * from './userMap/userStatsMap';
+export * from './userMap/revenueShareEscrowMap';
 export * from './userMap/userMapConfig';
 export * from './math/bankruptcy';
 export * from './orderSubscriber';
@@ -135,5 +136,6 @@ export * from './clock/clockSubscriber';
 export * from './math/userStatus';
 export * from './indicative-quotes/indicativeQuotesSender';
 export * from './constants';
+export * from './constituentMap/constituentMap';
 
 export { BN, PublicKey, pyth };

@@ -129,3 +129,25 @@ export function getSpotMarketAccountsFilter(): MemcmpFilter {
 		},
 	};
 }
+
+export function getRevenueShareEscrowFilter(): MemcmpFilter {
+	return {
+		memcmp: {
+			offset: 0,
+			bytes: bs58.encode(
+				BorshAccountsCoder.accountDiscriminator('RevenueShareEscrow')
+			),
+		},
+	};
+}
+
+export function getConstituentFilter(): MemcmpFilter {
+	return {
+		memcmp: {
+			offset: 0,
+			bytes: bs58.encode(
+				BorshAccountsCoder.accountDiscriminator('Constituent')
+			),
+		},
+	};
+}

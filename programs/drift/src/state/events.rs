@@ -256,10 +256,15 @@ pub struct OrderActionRecord {
     pub maker_existing_base_asset_amount: Option<u64>,
     /// precision: PRICE_PRECISION
     pub trigger_price: Option<u64>,
+
+    /// the idx of the builder in the taker's [`RevenueShareEscrow`] account
+    pub builder_idx: Option<u8>,
+    /// precision: QUOTE_PRECISION builder fee paid by the taker
+    pub builder_fee: u64,
 }
 
 impl Size for OrderActionRecord {
-    const SIZE: usize = 464;
+    const SIZE: usize = 472;
 }
 
 pub fn get_order_action_record(
@@ -288,6 +293,8 @@ pub fn get_order_action_record(
     maker_existing_quote_entry_amount: Option<u64>,
     maker_existing_base_asset_amount: Option<u64>,
     trigger_price: Option<u64>,
+    builder_idx: Option<u8>,
+    builder_fee: u64,
 ) -> DriftResult<OrderActionRecord> {
     Ok(OrderActionRecord {
         ts,
@@ -341,6 +348,8 @@ pub fn get_order_action_record(
         maker_existing_quote_entry_amount,
         maker_existing_base_asset_amount,
         trigger_price,
+        builder_idx,
+        builder_fee,
     })
 }
 
@@ -697,6 +706,23 @@ pub struct FuelSeasonRecord {
     pub fuel_total: u128,
 }
 
+#[event]
+pub struct RevenueShareSettleRecord {
+    pub ts: i64,
+    pub builder: Option<Pubkey>,
+    pub referrer: Option<Pubkey>,
+    pub fee_settled: u64,
+    pub market_index: u16,
+    pub market_type: MarketType,
+    pub builder_sub_account_id: u16,
+    pub builder_total_referrer_rewards: u64,
+    pub builder_total_builder_rewards: u64,
+}
+
+impl Size for RevenueShareSettleRecord {
+    const SIZE: usize = 140;
+}
+
 pub fn emit_stack<T: AnchorSerialize + Discriminator, const N: usize>(event: T) -> DriftResult {
     #[cfg(not(feature = "drift-rs"))]
     {
@@ -736,4 +762,87 @@ pub fn emit_buffers<T: AnchorSerialize + Discriminator>(
     msg!(msg_str);
 
     Ok(())
+}
+
+#[event]
+#[derive(Default)]
+pub struct LPSwapRecord {
+    pub ts: i64,
+    pub slot: u64,
+    pub authority: Pubkey,
+    /// precision: out market mint precision, gross fees
+    pub out_amount: u128,
+    /// precision: in market mint precision, gross fees
+    pub in_amount: u128,
+    /// precision: fee on amount_out, in market mint precision
+    pub out_fee: i128,
+    /// precision: fee on amount_in, out market mint precision
+    pub in_fee: i128,
+    // out spot market index
+    pub out_spot_market_index: u16,
+    // in spot market index
+    pub in_spot_market_index: u16,
+    // out constituent index
+    pub out_constituent_index: u16,
+    // in constituent index
+    pub in_constituent_index: u16,
+    /// precision: PRICE_PRECISION
+    pub out_oracle_price: i64,
+    /// precision: PRICE_PRECISION
+    pub in_oracle_price: i64,
+    /// LPPool last_aum, QUOTE_PRECISION
+    pub last_aum: u128,
+    pub last_aum_slot: u64,
+    /// PERCENTAGE_PRECISION
+    pub in_market_current_weight: i64,
+    /// PERCENTAGE_PRECISION
+    pub out_market_current_weight: i64,
+    /// PERCENTAGE_PRECISION
+    pub in_market_target_weight: i64,
+    /// PERCENTAGE_PRECISION
+    pub out_market_target_weight: i64,
+    pub in_swap_id: u64,
+    pub out_swap_id: u64,
+}
+
+impl Size for LPSwapRecord {
+    const SIZE: usize = 376;
+}
+
+#[event]
+#[derive(Default)]
+pub struct LPMintRedeemRecord {
+    pub ts: i64,
+    pub slot: u64,
+    pub authority: Pubkey,
+    pub description: u8,
+    /// precision: continutent mint precision, gross fees
+    pub amount: u128,
+    /// precision: fee on amount, constituent market mint precision
+    pub fee: i128,
+    // spot market index
+    pub spot_market_index: u16,
+    // constituent index
+    pub constituent_index: u16,
+    /// precision: PRICE_PRECISION
+    pub oracle_price: i64,
+    /// token mint
+    pub mint: Pubkey,
+    /// lp amount, lp mint precision
+    pub lp_amount: u64,
+    /// lp fee, lp mint precision
+    pub lp_fee: i64,
+    /// the fair price of the lp token, PRICE_PRECISION
+    pub lp_price: u128,
+    pub mint_redeem_id: u64,
+    /// LPPool last_aum
+    pub last_aum: u128,
+    pub last_aum_slot: u64,
+    /// PERCENTAGE_PRECISION
+    pub in_market_current_weight: i64,
+    pub in_market_target_weight: i64,
+}
+
+impl Size for LPMintRedeemRecord {
+    const SIZE: usize = 328;
 }
