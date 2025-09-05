@@ -2492,3 +2492,34 @@ mod update_open_bids_and_asks {
         assert!(order.update_open_bids_and_asks());
     }
 }
+
+mod force_get_user_perp_position_mut {
+    use crate::state::user::{PerpPosition, PositionFlag, User};
+
+    #[test]
+    fn test() {
+        let mut user = User::default();
+
+        let perp_position = PerpPosition {
+            market_index: 0,
+            max_margin_ratio: 1,
+            ..PerpPosition::default()
+        };
+        user.perp_positions[0] = perp_position;
+
+        // if next available slot is same market index and has max margin ratio, persist it
+        {
+            let perp_position_mut = user.force_get_perp_position_mut(0).unwrap();
+            assert_eq!(perp_position_mut.max_margin_ratio, 1);
+        }
+
+        // if next available slot is has max margin but different market index, dont persist it
+        {
+            let perp_position_mut = user.force_get_perp_position_mut(2).unwrap();
+            assert_eq!(perp_position_mut.max_margin_ratio, 0);
+        }
+        
+        assert_eq!(user.perp_positions[0].market_index, 2);
+        assert_eq!(user.perp_positions[0].max_margin_ratio, 0);
+    }
+}
