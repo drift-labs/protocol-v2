@@ -1538,6 +1538,50 @@ export class DriftClient {
 		return ix;
 	}
 
+	public async getUpdateUserPerpPositionCustomMarginRatioIx(
+		perpMarketIndex: number,
+		marginRatio: number,
+		subAccountId = 0
+	): Promise<TransactionInstruction> {
+		const userAccountPublicKey = getUserAccountPublicKeySync(
+			this.program.programId,
+			this.wallet.publicKey,
+			subAccountId
+		);
+
+		await this.addUser(subAccountId, this.wallet.publicKey);
+
+		const ix = this.program.instruction.updateUserPerpPositionCustomMarginRatio(
+			subAccountId,
+			perpMarketIndex,
+			marginRatio,
+			{
+				accounts: {
+					user: userAccountPublicKey,
+					authority: this.wallet.publicKey,
+				},
+			}
+		);
+
+		return ix;
+	}
+
+	public async updateUserPerpPositionCustomMarginRatio(
+		perpMarketIndex: number,
+		marginRatio: number,
+		subAccountId = 0,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const ix = await this.getUpdateUserPerpPositionCustomMarginRatioIx(
+			perpMarketIndex,
+			marginRatio,
+			subAccountId
+		);
+		const tx = await this.buildTransaction(ix, txParams ?? this.txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
 	public async getUpdateUserMarginTradingEnabledIx(
 		marginTradingEnabled: boolean,
 		subAccountId = 0,
