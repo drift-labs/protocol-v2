@@ -4,7 +4,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     BASE_PRECISION_I128, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
-    PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128, QUOTE_PRECISION_I128,
+    PERCENTAGE_PRECISION_U64, PRICE_PRECISION, QUOTE_PRECISION_I128,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount};
@@ -65,6 +65,8 @@ pub struct LPPool {
     pub mint: Pubkey, // 32, 96
     // constituent target base pubkey
     pub constituent_target_base: Pubkey,
+    // constituent correlations pubkey
+    pub constituent_correlations: Pubkey,
 
     /// The current number of VaultConstituents in the vault, each constituent is pda(LPPool.address, constituent_index)
     /// which constituent is the quote, receives revenue pool distributions. (maybe this should just be implied idx 0)
@@ -117,7 +119,7 @@ pub struct LPPool {
 }
 
 impl Size for LPPool {
-    const SIZE: usize = 296;
+    const SIZE: usize = 328;
 }
 
 impl LPPool {
@@ -311,7 +313,7 @@ impl LPPool {
         // Calculate proportion of LP tokens being burned
         let proportion = lp_amount_less_fees
             .cast::<u128>()?
-            .safe_mul(PERCENTAGE_PRECISION)?
+            .safe_mul(10u128.pow(3))?
             .safe_mul(PERCENTAGE_PRECISION)?
             .safe_div(dlp_total_supply as u128)?;
 
@@ -321,7 +323,7 @@ impl LPPool {
             .safe_mul(proportion)?
             .safe_mul(token_precision_denominator)?
             .safe_div(PERCENTAGE_PRECISION)?
-            .safe_div(PERCENTAGE_PRECISION)?
+            .safe_div(10u128.pow(3))?
             .safe_div(out_oracle.price.cast::<u128>()?)?;
 
         let (in_fee_pct, out_fee_pct) = self.get_swap_fees(
@@ -471,8 +473,8 @@ impl LPPool {
             let out_spot_market = out_spot_market.unwrap();
             let out_oracle_price = out_oracle_price.unwrap();
             let out_amount = notional_trade_size
-                .safe_div(out_oracle_price.cast::<i128>()?)?
-                .safe_mul(10_i128.pow(out_spot_market.decimals as u32))?;
+                .safe_mul(10_i128.pow(out_spot_market.decimals as u32))?
+                .safe_div(out_oracle_price.cast::<i128>()?)?;
             (
                 false,
                 out_constituent.volatility,
@@ -1142,19 +1144,17 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
         slot: u64,
     ) -> DriftResult<Vec<i128>> {
         let mut results = Vec::with_capacity(constituents_indexes_and_decimals_and_prices.len());
-        for (i, constituent_index_and_price) in constituents_indexes_and_decimals_and_prices
-            .iter()
-            .enumerate()
+        for (i, (constituent_index, decimals, price)) in
+            constituents_indexes_and_decimals_and_prices
+                .iter()
+                .enumerate()
         {
             let mut target_notional = 0i128;
-            let constituent_index = constituent_index_and_price.0;
-            let decimals = constituent_index_and_price.1;
-            let price = constituent_index_and_price.2;
 
             for (perp_market_index, inventory, price) in amm_inventory_and_prices.iter() {
                 if let Some(idx) = mapping.iter().position(|d| {
                     &d.perp_market_index == perp_market_index
-                        && d.constituent_index == constituent_index
+                        && d.constituent_index == *constituent_index
                 }) {
                     let weight = mapping.get(idx as u32).weight; // PERCENTAGE_PRECISION
 
@@ -1172,8 +1172,8 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
 
             let cell = self.get_mut(i as u32);
             let target_base = target_notional
-                .safe_mul(10_i128.pow(decimals as u32))?
-                .safe_div(price as i128)?
+                .safe_mul(10_i128.pow(*decimals as u32))?
+                .safe_div(*price as i128)?
                 * -1; // Want to target opposite sign of total scaled notional inventory
 
             msg!(

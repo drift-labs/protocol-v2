@@ -9599,6 +9599,10 @@
             "type": "publicKey"
           },
           {
+            "name": "constituentCorrelations",
+            "type": "publicKey"
+          },
+          {
             "name": "maxAum",
             "docs": [
               "The current number of VaultConstituents in the vault, each constituent is pda(LPPool.address, constituent_index)",
