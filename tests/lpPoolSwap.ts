@@ -371,7 +371,7 @@ describe('LP Pool', () => {
 			bankrunContextWrapper,
 			adminClient.program,
 			const0Key,
-			[['vaultTokenBalance', c0TokenBalance]]
+			[['tokenBalance', c0TokenBalance]]
 		);
 
 		await overWriteTokenAccountBalance(
@@ -383,30 +383,26 @@ describe('LP Pool', () => {
 			bankrunContextWrapper,
 			adminClient.program,
 			const1Key,
-			[['vaultTokenBalance', c1TokenBalance]]
+			[['tokenBalance', c1TokenBalance]]
 		);
 
 		// check fields overwritten correctly
 		const c0 = (await adminClient.program.account.constituent.fetch(
 			const0Key
 		)) as ConstituentAccount;
-		expect(c0.vaultTokenBalance.toString()).to.equal(c0TokenBalance.toString());
+		expect(c0.tokenBalance.toString()).to.equal(c0TokenBalance.toString());
 
 		const c1 = (await adminClient.program.account.constituent.fetch(
 			const1Key
 		)) as ConstituentAccount;
-		expect(c1.vaultTokenBalance.toString()).to.equal(c1TokenBalance.toString());
+		expect(c1.tokenBalance.toString()).to.equal(c1TokenBalance.toString());
 
 		await adminClient.updateConstituentOracleInfo(c1);
 		await adminClient.updateConstituentOracleInfo(c0);
 
 		const prec = new BN(10).pow(new BN(tokenDecimals));
-		console.log(
-			`const0 balance: ${convertToNumber(c0.vaultTokenBalance, prec)}`
-		);
-		console.log(
-			`const1 balance: ${convertToNumber(c1.vaultTokenBalance, prec)}`
-		);
+		console.log(`const0 balance: ${convertToNumber(c0.tokenBalance, prec)}`);
+		console.log(`const1 balance: ${convertToNumber(c1.tokenBalance, prec)}`);
 
 		const lpPool1 = (await adminClient.program.account.lpPool.fetch(
 			lpPoolKey

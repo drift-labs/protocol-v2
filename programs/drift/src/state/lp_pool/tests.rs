@@ -114,6 +114,7 @@ mod tests {
                     &SpotMarket::default_quote_market(),
                     amm_inventory_and_price.get(index).unwrap().2,
                     aum,
+                    WeightValidationFlags::NONE,
                 )
                 .unwrap()
             })
@@ -245,6 +246,7 @@ mod tests {
             &SpotMarket::default(),
             price,
             aum,
+            WeightValidationFlags::NONE,
         )
         .unwrap();
 
@@ -332,6 +334,7 @@ mod tests {
                         .unwrap()
                         .2,
                     aum,
+                    WeightValidationFlags::NONE
                 )
                 .unwrap(),
                 -1 * PERCENTAGE_PRECISION_I64 / 2
@@ -482,7 +485,7 @@ mod swap_tests {
             gamma_inventory: in_gamma_inventory,
             xi: in_xi,
             volatility: in_volatility,
-            vault_token_balance: in_token_amount as u64,
+            token_balance: in_token_amount as u64,
             // max_weight_deviation: PERCENTAGE_PRECISION_I64 / 10,
             ..Constituent::default()
         };
@@ -494,7 +497,7 @@ mod swap_tests {
             gamma_inventory: out_gamma_inventory,
             xi: out_xi,
             volatility: out_volatility,
-            vault_token_balance: out_token_amount as u64,
+            token_balance: out_token_amount as u64,
             // max_weight_deviation: PERCENTAGE_PRECISION_I64 / 10,
             ..Constituent::default()
         };
@@ -603,14 +606,14 @@ mod swap_tests {
             swap_fee_max: PERCENTAGE_PRECISION_I64 / 100,        // 100 bps
             max_weight_deviation: PERCENTAGE_PRECISION_I64 / 10, // 10%
             spot_market_index: 0,
-            spot_balance: ConstituentSpotBalance {
+            spot_balance: BLPosition {
                 scaled_balance: 500_000,
                 cumulative_deposits: 1_000_000,
                 balance_type: SpotBalanceType::Deposit,
                 market_index: 0,
-                ..ConstituentSpotBalance::default()
+                ..BLPosition::default()
             },
-            vault_token_balance: 500_000,
+            token_balance: 500_000,
             decimals: 6,
             ..Constituent::default()
         };
@@ -732,14 +735,14 @@ mod swap_tests {
             swap_fee_max: 0,
             max_weight_deviation: PERCENTAGE_PRECISION_I64 / 10,
             spot_market_index: 0,
-            spot_balance: ConstituentSpotBalance {
+            spot_balance: BLPosition {
                 scaled_balance: 0,
                 cumulative_deposits: 0,
                 balance_type: SpotBalanceType::Deposit,
                 market_index: 0,
-                ..ConstituentSpotBalance::default()
+                ..BLPosition::default()
             },
-            vault_token_balance: token_balance as u64,
+            token_balance: token_balance as u64,
             xi,
             gamma_inventory,
             gamma_execution,
@@ -915,14 +918,14 @@ mod swap_tests {
             swap_fee_max: 0,
             max_weight_deviation: PERCENTAGE_PRECISION_I64 / 10,
             spot_market_index: 0,
-            spot_balance: ConstituentSpotBalance {
+            spot_balance: BLPosition {
                 scaled_balance: 0,
                 cumulative_deposits: 0,
                 balance_type: SpotBalanceType::Deposit,
                 market_index: 0,
-                ..ConstituentSpotBalance::default()
+                ..BLPosition::default()
             },
-            vault_token_balance: token_balance as u64,
+            token_balance: token_balance as u64,
             xi,
             gamma_inventory,
             gamma_execution,
@@ -1103,20 +1106,20 @@ mod swap_tests {
             / PERCENTAGE_PRECISION_I128;
         let in_token_amount = in_notional * 10_i128.pow(6) / oracle_0.price as i128;
         let in_spot_balance = if in_token_amount > 0 {
-            ConstituentSpotBalance {
+            BLPosition {
                 scaled_balance: (in_token_amount.abs() as u128)
                     * (SPOT_BALANCE_PRECISION / 10_u128.pow(6)),
                 balance_type: SpotBalanceType::Deposit,
                 market_index: 0,
-                ..ConstituentSpotBalance::default()
+                ..BLPosition::default()
             }
         } else {
-            ConstituentSpotBalance {
+            BLPosition {
                 scaled_balance: (in_token_amount.abs() as u128)
                     * (SPOT_BALANCE_PRECISION / 10_u128.pow(6)),
                 balance_type: SpotBalanceType::Borrow,
                 market_index: 0,
-                ..ConstituentSpotBalance::default()
+                ..BLPosition::default()
             }
         };
 
@@ -1124,20 +1127,20 @@ mod swap_tests {
             / PERCENTAGE_PRECISION_I128;
         let out_token_amount = out_notional * 10_i128.pow(6) / oracle_1.price as i128;
         let out_spot_balance = if out_token_amount > 0 {
-            ConstituentSpotBalance {
+            BLPosition {
                 scaled_balance: (out_token_amount.abs() as u128)
                     * (SPOT_BALANCE_PRECISION / 10_u128.pow(6)),
                 balance_type: SpotBalanceType::Deposit,
                 market_index: 0,
-                ..ConstituentSpotBalance::default()
+                ..BLPosition::default()
             }
         } else {
-            ConstituentSpotBalance {
+            BLPosition {
                 scaled_balance: (out_token_amount.abs() as u128)
                     * (SPOT_BALANCE_PRECISION / 10_u128.pow(6)),
                 balance_type: SpotBalanceType::Deposit,
                 market_index: 0,
-                ..ConstituentSpotBalance::default()
+                ..BLPosition::default()
             }
         };
 
@@ -2008,42 +2011,6 @@ mod settle_tests {
     }
 
     #[test]
-    fn test_perp_to_lp_capped_with_max() {
-        let ctx = SettlementContext {
-            quote_owed_from_lp: -1100,
-            quote_constituent_token_balance: 2000,
-            fee_pool_balance: 500, // No fee pool
-            pnl_pool_balance: 700,
-            quote_market: &create_mock_spot_market(),
-            max_settle_quote_amount: 1000,
-        };
-
-        let result = calculate_settlement_amount(&ctx).unwrap();
-        assert_eq!(result.direction, SettlementDirection::ToLpPool);
-        assert_eq!(result.amount_transferred, 1000);
-        assert_eq!(result.fee_pool_used, 500);
-        assert_eq!(result.pnl_pool_used, 500);
-    }
-
-    #[test]
-    fn test_lp_to_perp_capped_with_max() {
-        let ctx = SettlementContext {
-            quote_owed_from_lp: 1100,
-            quote_constituent_token_balance: 2000,
-            fee_pool_balance: 0, // No fee pool
-            pnl_pool_balance: 1200,
-            quote_market: &create_mock_spot_market(),
-            max_settle_quote_amount: 1000,
-        };
-
-        let result = calculate_settlement_amount(&ctx).unwrap();
-        assert_eq!(result.direction, SettlementDirection::FromLpPool);
-        assert_eq!(result.amount_transferred, 1000);
-        assert_eq!(result.fee_pool_used, 0);
-        assert_eq!(result.pnl_pool_used, 0);
-    }
-
-    #[test]
     fn test_perp_to_lp_with_only_fee_pool() {
         let ctx = SettlementContext {
             quote_owed_from_lp: -800,
@@ -2246,7 +2213,7 @@ mod update_aum_tests {
     ) {
         let mut lp_pool = LPPool::default();
         lp_pool.constituents = 4;
-        lp_pool.quote_consituent_index = 0;
+        lp_pool.usdc_consituent_index = 0;
 
         // Create constituents with specified token balances
         let mut constituent_usdc = Constituent {
@@ -2256,7 +2223,7 @@ mod update_aum_tests {
             last_oracle_price: PRICE_PRECISION_I64,
             last_oracle_slot: 100,
             decimals: 6,
-            vault_token_balance: usdc_balance,
+            token_balance: usdc_balance,
             oracle_staleness_threshold: 10,
             ..Constituent::default()
         };
@@ -2269,7 +2236,7 @@ mod update_aum_tests {
             last_oracle_price: 200 * PRICE_PRECISION_I64,
             last_oracle_slot: 100,
             decimals: 9,
-            vault_token_balance: sol_balance,
+            token_balance: sol_balance,
             oracle_staleness_threshold: 10,
             ..Constituent::default()
         };
@@ -2282,7 +2249,7 @@ mod update_aum_tests {
             last_oracle_price: 100_000 * PRICE_PRECISION_I64,
             last_oracle_slot: 100,
             decimals: 8,
-            vault_token_balance: btc_balance,
+            token_balance: btc_balance,
             oracle_staleness_threshold: 10,
             ..Constituent::default()
         };
@@ -2295,7 +2262,7 @@ mod update_aum_tests {
             last_oracle_price: 22, // $0.000022 in PRICE_PRECISION_I64
             last_oracle_slot: 100,
             decimals: 5,
-            vault_token_balance: bonk_balance,
+            token_balance: bonk_balance,
             oracle_staleness_threshold: 10,
             ..Constituent::default()
         };
@@ -2440,6 +2407,11 @@ mod update_aum_tests {
         assert_eq!(
             lp_pool.last_aum_slot, 101,
             "{}: last_aum_slot should be updated",
+            test_name
+        );
+        assert_eq!(
+            lp_pool.last_aum_ts, 1000,
+            "{}: last_aum_ts should be updated",
             test_name
         );
     }

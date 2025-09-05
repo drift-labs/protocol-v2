@@ -265,13 +265,13 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
         .safe_sub(crypto_delta.abs())?
         .max(0_i128);
     constituent_target_base
-        .get_mut(lp_pool.quote_consituent_index as u32)
+        .get_mut(lp_pool.usdc_consituent_index as u32)
         .target_base = total_stable_target_base.cast::<i64>()?;
 
     msg!(
         "stable target base: {}",
         constituent_target_base
-            .get(lp_pool.quote_consituent_index as u32)
+            .get(lp_pool.usdc_consituent_index as u32)
             .target_base
     );
     msg!("aum: {}, crypto_delta: {}", aum, crypto_delta);
@@ -451,11 +451,11 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
     )?;
 
     validate!(
-        out_amount_net_fees.cast::<u64>()? <= out_constituent.vault_token_balance,
+        out_amount_net_fees.cast::<u64>()? <= out_constituent.token_balance,
         ErrorCode::InsufficientConstituentTokenBalance,
         format!(
             "Insufficient out constituent balance: out_amount_net_fees({}) > out_constituent.token_balance({})",
-            out_amount_net_fees, out_constituent.vault_token_balance
+            out_amount_net_fees, out_constituent.token_balance
         )
         .as_str()
     )?;
@@ -1516,7 +1516,7 @@ pub struct DepositWithdrawProgramVault<'info> {
     pub constituent: AccountLoader<'info, Constituent>,
     #[account(
         mut,
-        address = constituent.load()?.vault,
+        address = constituent.load()?.token_vault,
         constraint = &constituent.load()?.mint.eq(&constituent_token_account.mint),
         token::authority = drift_signer
     )]
@@ -1609,12 +1609,12 @@ pub struct LPPoolSwap<'info> {
 
     #[account(
         mut,
-        address = in_constituent.load()?.vault,
+        address = in_constituent.load()?.token_vault,
     )]
     pub constituent_in_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
-        address = out_constituent.load()?.vault,
+        address = out_constituent.load()?.token_vault,
     )]
     pub constituent_out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
 
@@ -1678,12 +1678,12 @@ pub struct ViewLPPoolSwapFees<'info> {
 
     #[account(
         mut,
-        address = in_constituent.load()?.vault,
+        address = in_constituent.load()?.token_vault,
     )]
     pub constituent_in_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
-        address = out_constituent.load()?.vault,
+        address = out_constituent.load()?.token_vault,
     )]
     pub constituent_out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
 

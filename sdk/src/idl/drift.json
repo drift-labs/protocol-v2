@@ -4468,7 +4468,7 @@
       "args": []
     },
     {
-      "name": "updateInitialAmmCacheInfo",
+      "name": "updateInitAmmCacheInfo",
       "accounts": [
         {
           "name": "state",
@@ -9599,29 +9599,18 @@
             "type": "u128"
           },
           {
-            "name": "cumulativeQuoteSentToPerpMarkets",
-            "docs": [
-              "QUOTE PRECISION: Cumulative quotes from settles"
-            ],
-            "type": "u128"
-          },
-          {
-            "name": "cumulativeQuoteReceivedFromPerpMarkets",
-            "type": "u128"
-          },
-          {
-            "name": "totalMintRedeemFeesPaid",
-            "docs": [
-              "QUOTE_PRECISION: Total fees paid for minting and redeeming LP tokens"
-            ],
-            "type": "i128"
-          },
-          {
             "name": "lastAumSlot",
             "docs": [
               "timestamp of last AUM slot"
             ],
             "type": "u64"
+          },
+          {
+            "name": "lastAumTs",
+            "docs": [
+              "timestamp of last AUM update"
+            ],
+            "type": "i64"
           },
           {
             "name": "maxSettleQuoteAmount",
@@ -9649,10 +9638,33 @@
             "type": "u64"
           },
           {
-            "name": "minMintFee",
+            "name": "totalFeesReceived",
             "docs": [
-              "PERCENTAGE_PRECISION"
+              "all revenue settles recieved"
             ],
+            "type": "u128"
+          },
+          {
+            "name": "totalFeesPaid",
+            "docs": [
+              "all revenues paid out"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "cumulativeUsdcSentToPerpMarkets",
+            "type": "u128"
+          },
+          {
+            "name": "cumulativeUsdcReceivedFromPerpMarkets",
+            "type": "u128"
+          },
+          {
+            "name": "totalMintRedeemFeesPaid",
+            "type": "i128"
+          },
+          {
+            "name": "minMintFee",
             "type": "i64"
           },
           {
@@ -9660,20 +9672,16 @@
             "type": "i64"
           },
           {
-            "name": "volatility",
-            "type": "u64"
-          },
-          {
             "name": "constituents",
-            "type": "u16"
-          },
-          {
-            "name": "quoteConsituentIndex",
             "type": "u16"
           },
           {
             "name": "bump",
             "type": "u8"
+          },
+          {
+            "name": "usdcConsituentIndex",
+            "type": "u16"
           },
           {
             "name": "gammaExecution",
@@ -9684,8 +9692,8 @@
             "type": "u8"
           },
           {
-            "name": "padding",
-            "type": "u8"
+            "name": "volatility",
+            "type": "u64"
           }
         ]
       }
@@ -9711,7 +9719,7 @@
             "type": "publicKey"
           },
           {
-            "name": "vault",
+            "name": "tokenVault",
             "type": "publicKey"
           },
           {
@@ -9727,7 +9735,7 @@
               "spot borrow-lend balance for constituent"
             ],
             "type": {
-              "defined": "ConstituentSpotBalance"
+              "defined": "BLPosition"
             }
           },
           {
@@ -9763,7 +9771,7 @@
             "type": "u64"
           },
           {
-            "name": "vaultTokenBalance",
+            "name": "tokenBalance",
             "docs": [
               "ata token balance in token precision"
             ],
@@ -12075,7 +12083,7 @@
       }
     },
     {
-      "name": "ConstituentSpotBalance",
+      "name": "BLPosition",
       "type": {
         "kind": "struct",
         "fields": [
@@ -18834,16 +18842,6 @@
       "code": 6333,
       "name": "SettleLpPoolDisabled",
       "msg": "Settle Lp Pool Disabled"
-    },
-    {
-      "code": 6334,
-      "name": "MintRedeemLpPoolDisabled",
-      "msg": "Mint/Redeem Lp Pool Disabled"
-    },
-    {
-      "code": 6335,
-      "name": "LpPoolSettleInvariantBreached",
-      "msg": "Settlement amount exceeded"
     }
   ],
   "metadata": {

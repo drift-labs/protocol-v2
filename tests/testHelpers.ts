@@ -45,7 +45,7 @@ import {
 	OrderType,
 	ConstituentAccount,
 	SpotMarketAccount,
-} from '../sdk/src';
+} from '../sdk';
 import {
 	TestClient,
 	SPOT_MARKET_RATE_PRECISION,

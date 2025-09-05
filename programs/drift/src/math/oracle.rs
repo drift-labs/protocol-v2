@@ -279,9 +279,7 @@ pub fn oracle_validity(
         oracle_delay.gt(&valid_oracle_guard_rails.slots_before_stale_for_margin)
     };
 
-    let oracle_validity = if is_oracle_price_nonpositive {
-        OracleValidity::NonPositive
-    } else if is_oracle_price_too_volatile {
+    let oracle_validity = if is_oracle_price_too_volatile {
         OracleValidity::TooVolatile
     } else if is_conf_too_large {
         OracleValidity::TooUncertain
