@@ -111,7 +111,7 @@ export function decodeUser(buffer: Buffer): UserAccount {
 		offset += 8;
 		const lastQuoteAssetAmountPerLp = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
-		const maxMarginRatio = buffer.readInt32LE(offset);
+		const maxMarginRatio = buffer.readUInt16LE(offset);
 		offset += 4;
 		const marketIndex = buffer.readUInt16LE(offset);
 		offset += 3;
