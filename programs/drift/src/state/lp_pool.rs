@@ -58,21 +58,23 @@ mod tests;
 #[repr(C)]
 pub struct LPPool {
     /// name of vault, TODO: check type + size
-    pub name: [u8; 32], // 32
+    pub name: [u8; 32],
     /// address of the vault.
-    pub pubkey: Pubkey, // 32, 64
+    pub pubkey: Pubkey,
     // vault token mint
     pub mint: Pubkey, // 32, 96
+    // constituent target base pubkey
+    pub constituent_target_base: Pubkey,
 
     /// The current number of VaultConstituents in the vault, each constituent is pda(LPPool.address, constituent_index)
     /// which constituent is the quote, receives revenue pool distributions. (maybe this should just be implied idx 0)
     /// pub quote_constituent_index: u16,
 
     /// QUOTE_PRECISION: Max AUM, Prohibit minting new DLP beyond this
-    pub max_aum: u128, // 8, 136
+    pub max_aum: u128,
 
     /// QUOTE_PRECISION: AUM of the vault in USD, updated lazily
-    pub last_aum: u128, // 8, 144
+    pub last_aum: u128,
 
     /// QUOTE PRECISION: Cumulative quotes from settles
     pub cumulative_quote_sent_to_perp_markets: u128,
@@ -82,13 +84,13 @@ pub struct LPPool {
     pub total_mint_redeem_fees_paid: i128,
 
     /// timestamp of last AUM slot
-    pub last_aum_slot: u64, // 8, 152
+    pub last_aum_slot: u64,
 
     /// Oldest slot of constituent oracles
     pub max_settle_quote_amount: u64,
 
     /// timestamp of last vAMM revenue rebalance
-    pub last_hedge_ts: u64, // 8, 168
+    pub last_hedge_ts: u64,
     pub revenue_rebalance_period: u64,
 
     /// Every mint/redeem has a monotonically increasing id. This is the next id to use
@@ -101,7 +103,7 @@ pub struct LPPool {
     // PERCENTAGE_PRECISION: percentage precision const = 100%
     pub volatility: u64,
 
-    pub constituents: u16, // 2, 194
+    pub constituents: u16,
     pub quote_consituent_index: u16,
 
     pub bump: u8,

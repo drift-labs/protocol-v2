@@ -50,10 +50,9 @@ use crate::math::safe_math::SafeMath;
 
 use crate::math::spot_balance::get_token_value;
 use crate::state::events::{
-    emit_stack, LPAction, LPRecord, LiquidateBorrowForPerpPnlRecord,
-    LiquidatePerpPnlForDepositRecord, LiquidatePerpRecord, LiquidateSpotRecord, LiquidationRecord,
-    LiquidationType, OrderAction, OrderActionExplanation, OrderActionRecord, OrderRecord,
-    PerpBankruptcyRecord, SpotBankruptcyRecord,
+    LiquidateBorrowForPerpPnlRecord, LiquidatePerpPnlForDepositRecord, LiquidatePerpRecord,
+    LiquidateSpotRecord, LiquidationRecord, LiquidationType, OrderAction, OrderActionExplanation,
+    OrderActionRecord, OrderRecord, PerpBankruptcyRecord, SpotBankruptcyRecord,
 };
 use crate::state::fill_mode::FillMode;
 use crate::state::margin_calculation::{MarginCalculation, MarginContext, MarketIdentifier};
@@ -65,7 +64,6 @@ use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::State;
-use crate::state::traits::Size;
 use crate::state::user::{MarketType, Order, OrderStatus, OrderType, User, UserStats};
 use crate::state::user_map::{UserMap, UserStatsMap};
 use crate::{get_then_update_id, load_mut, LST_POOL_ID};
