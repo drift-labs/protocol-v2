@@ -16,24 +16,20 @@ use crate::math::casting::Cast;
 #[cfg(test)]
 use crate::math::constants::{AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT};
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION,
-    BID_ASK_SPREAD_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128,
-    DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT, FUNDING_RATE_BUFFER_I128,
-    FUNDING_RATE_OFFSET_PERCENTAGE, LIQUIDATION_FEE_PRECISION,
-    LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, LP_FEE_SLICE_DENOMINATOR, LP_FEE_SLICE_NUMERATOR,
-    MARGIN_PRECISION, MARGIN_PRECISION_U128, MAX_LIQUIDATION_MULTIPLIER, PEG_PRECISION,
-    PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
-    PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128, PRICE_PRECISION_I64,
+    AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
+    BID_ASK_SPREAD_PRECISION_U128, DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
+    FUNDING_RATE_BUFFER_I128, FUNDING_RATE_OFFSET_PERCENTAGE, LIQUIDATION_FEE_PRECISION,
+    LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, MARGIN_PRECISION, MARGIN_PRECISION_U128,
+    MAX_LIQUIDATION_MULTIPLIER, PEG_PRECISION, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128,
+    PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128,
     SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
 };
-use crate::math::helpers::get_proportion_i128;
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::stats;
-use crate::state::events::OrderActionExplanation;
 use num_integer::Roots;
 
 use crate::state::oracle::{
@@ -1633,6 +1629,8 @@ impl AMM {
 #[cfg(test)]
 impl AMM {
     pub fn default_test() -> Self {
+        use crate::math::constants::PRICE_PRECISION_I64;
+
         let default_reserves = 100 * AMM_RESERVE_PRECISION;
         // make sure tests dont have the default sqrt_k = 0
         AMM {
@@ -1658,6 +1656,8 @@ impl AMM {
     }
 
     pub fn default_btc_test() -> Self {
+        use crate::math::constants::PRICE_PRECISION_I64;
+
         AMM {
             base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 63015384615,

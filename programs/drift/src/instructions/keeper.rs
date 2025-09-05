@@ -3130,29 +3130,12 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
         return Err(ErrorCode::SettleLpPoolDisabled.into());
     }
 
-    // Validation and setup code (unchanged)
-    let amm_cache_key = &ctx.accounts.amm_cache.key();
     let mut amm_cache: AccountZeroCopyMut<'_, CacheInfo, _> =
         ctx.accounts.amm_cache.load_zc_mut()?;
     let quote_market = &mut ctx.accounts.quote_market.load_mut()?;
     let mut quote_constituent = ctx.accounts.constituent.load_mut()?;
     let constituent_token_account = &mut ctx.accounts.constituent_quote_token_account;
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
-
-    // PDA validation (unchanged)
-    let expected_pda = &Pubkey::create_program_address(
-        &[
-            AMM_POSITIONS_CACHE.as_ref(),
-            amm_cache.fixed.bump.to_le_bytes().as_ref(),
-        ],
-        &crate::ID,
-    )
-    .map_err(|_| ErrorCode::InvalidPDA)?;
-    validate!(
-        expected_pda.eq(amm_cache_key),
-        ErrorCode::InvalidPDA,
-        "Amm cache PDA does not match expected PDA"
-    )?;
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
@@ -3211,7 +3194,7 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
         // Create settlement context
         let settlement_ctx = SettlementContext {
             quote_owed_from_lp: cached_info.quote_owed_from_lp_pool,
-            quote_constituent_token_balance: quote_constituent.token_balance,
+            quote_constituent_token_balance: quote_constituent.vault_token_balance,
             fee_pool_balance: get_token_amount(
                 perp_market.amm.fee_pool.scaled_balance,
                 quote_market,
@@ -3287,13 +3270,13 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
         // Update LP pool stats
         match settlement_result.direction {
             SettlementDirection::FromLpPool => {
-                lp_pool.cumulative_usdc_sent_to_perp_markets = lp_pool
-                    .cumulative_usdc_sent_to_perp_markets
+                lp_pool.cumulative_quote_sent_to_perp_markets = lp_pool
+                    .cumulative_quote_sent_to_perp_markets
                     .saturating_add(settlement_result.amount_transferred as u128);
             }
             SettlementDirection::ToLpPool => {
-                lp_pool.cumulative_usdc_received_from_perp_markets = lp_pool
-                    .cumulative_usdc_received_from_perp_markets
+                lp_pool.cumulative_quote_received_from_perp_markets = lp_pool
+                    .cumulative_quote_received_from_perp_markets
                     .saturating_add(settlement_result.amount_transferred as u128);
             }
             SettlementDirection::None => {}
@@ -3318,25 +3301,10 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdateAmmCache<'info>>,
 ) -> Result<()> {
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let amm_cache_key = &ctx.accounts.amm_cache.key();
     let mut amm_cache: AccountZeroCopyMut<'_, CacheInfo, _> =
         ctx.accounts.amm_cache.load_zc_mut()?;
 
     let quote_market = ctx.accounts.quote_market.load()?;
-
-    let expected_pda = &Pubkey::create_program_address(
-        &[
-            AMM_POSITIONS_CACHE.as_ref(),
-            amm_cache.fixed.bump.to_le_bytes().as_ref(),
-        ],
-        &crate::ID,
-    )
-    .map_err(|_| ErrorCode::InvalidPDA)?;
-    validate!(
-        expected_pda.eq(amm_cache_key),
-        ErrorCode::InvalidPDA,
-        "Amm cache PDA does not match expected PDA"
-    )?;
 
     let AccountMaps {
         perp_market_map,
@@ -3414,7 +3382,7 @@ pub struct SettleAmmPnlToLp<'info> {
     pub constituent: AccountLoader<'info, Constituent>,
     #[account(
         mut,
-        address = constituent.load()?.token_vault,
+        address = constituent.load()?.vault,
     )]
     pub constituent_quote_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(

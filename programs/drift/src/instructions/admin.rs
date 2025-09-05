@@ -1136,8 +1136,8 @@ pub fn handle_initialize_amm_cache(ctx: Context<InitializeAmmCache>) -> Result<(
     Ok(())
 }
 
-pub fn handle_update_init_amm_cache_info<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, UpdateInitAmmCacheInfo<'info>>,
+pub fn handle_update_initial_amm_cache_info<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, UpdateInitialAmmCacheInfo<'info>>,
 ) -> Result<()> {
     let amm_cache = &mut ctx.accounts.amm_cache;
 
@@ -1192,7 +1192,7 @@ pub struct OverrideAmmCacheParams {
 }
 
 pub fn handle_override_amm_cache_info<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, UpdateInitAmmCacheInfo<'info>>,
+    ctx: Context<'_, '_, 'c, 'info, UpdateInitialAmmCacheInfo<'info>>,
     market_index: u16,
     override_params: OverrideAmmCacheParams,
 ) -> Result<()> {
@@ -4802,23 +4802,21 @@ pub fn handle_initialize_lp_pool(
         max_aum,
         last_aum: 0,
         last_aum_slot: 0,
-        last_aum_ts: 0,
         max_settle_quote_amount: max_settle_quote_amount_per_market,
         last_hedge_ts: 0,
-        total_fees_received: 0,
-        total_fees_paid: 0,
         total_mint_redeem_fees_paid: 0,
         bump: ctx.bumps.lp_pool,
         min_mint_fee,
         max_mint_fee_premium: max_mint_fee,
         revenue_rebalance_period,
         next_mint_redeem_id: 1,
-        usdc_consituent_index: 0,
-        cumulative_usdc_sent_to_perp_markets: 0,
-        cumulative_usdc_received_from_perp_markets: 0,
+        quote_consituent_index: 0,
+        cumulative_quote_sent_to_perp_markets: 0,
+        cumulative_quote_received_from_perp_markets: 0,
         gamma_execution: 2,
         volatility: 4,
         xi: 2,
+        padding: 0,
     };
 
     let amm_constituent_mapping = &mut ctx.accounts.amm_constituent_mapping;
@@ -5335,7 +5333,7 @@ pub fn handle_initialize_constituent<'info>(
     constituent.oracle_staleness_threshold = oracle_staleness_threshold;
     constituent.pubkey = ctx.accounts.constituent.key();
     constituent.mint = ctx.accounts.spot_market_mint.key();
-    constituent.token_vault = ctx.accounts.constituent_vault.key();
+    constituent.vault = ctx.accounts.constituent_vault.key();
     constituent.bump = ctx.bumps.constituent;
     constituent.max_borrow_token_amount = max_borrow_token_amount;
     constituent.lp_pool = lp_pool.pubkey;
@@ -5352,7 +5350,7 @@ pub fn handle_initialize_constituent<'info>(
     lp_pool.constituents += 1;
 
     if constituent.mint.eq(&usdc_mint::ID) {
-        lp_pool.usdc_consituent_index = constituent.constituent_index;
+        lp_pool.quote_consituent_index = constituent.constituent_index;
     }
 
     let constituent_correlations = &mut ctx.accounts.constituent_correlations;
@@ -6276,7 +6274,7 @@ pub struct InitializeAmmCache<'info> {
 }
 
 #[derive(Accounts)]
-pub struct UpdateInitAmmCacheInfo<'info> {
+pub struct UpdateInitialAmmCacheInfo<'info> {
     #[account(
         mut,
         constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
@@ -7205,12 +7203,12 @@ pub struct LPTakerSwap<'info> {
     /// Constituent token accounts
     #[account(
         mut,
-        address = out_constituent.load()?.token_vault,
+        address = out_constituent.load()?.vault,
     )]
     pub constituent_out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
-        address = in_constituent.load()?.token_vault,
+        address = in_constituent.load()?.vault,
     )]
     pub constituent_in_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
 

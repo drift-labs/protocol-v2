@@ -1662,17 +1662,13 @@ export type LPPoolAccount = {
 	lastAumTs: BN;
 	lastHedgeTs: BN;
 	bump: number;
-	oldestOracleSlot: BN;
-	lastRevenueRebalanceTs: BN;
-	totalFeesReceived: BN;
-	totalFeesPaid: BN;
 	totalMintRedeemFeesPaid: BN;
-	cumulativeUsdcSentToPerpMarkets: BN;
-	cumulativeUsdcReceivedFromPerpMarkets: BN;
+	cumulativeQuoteSentToPerpMarkets: BN;
+	cumulativeQuoteReceivedFromPerpMarkets: BN;
 	constituents: number;
 };
 
-export type BLPosition = {
+export type ConstituentSpotBalance = {
 	scaledBalance: BN;
 	cumulativeDeposits: BN;
 	marketIndex: number;
@@ -1710,14 +1706,14 @@ export type ConstituentAccount = {
 	swapFeeMin: BN;
 	swapFeeMax: BN;
 	totalSwapFees: BN;
-	tokenBalance: BN;
-	spotBalance: BLPosition;
+	vaultTokenBalance: BN;
+	spotBalance: ConstituentSpotBalance;
 	lastOraclePrice: BN;
 	lastOracleSlot: BN;
 	mint: PublicKey;
 	oracleStalenessThreshold: BN;
 	lpPool: PublicKey;
-	tokenVault: PublicKey;
+	vault: PublicKey;
 	nextSwapId: BN;
 	derivativeWeight: BN;
 	flashLoanInitialTokenAmount: BN;
