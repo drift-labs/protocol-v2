@@ -18807,5 +18807,8 @@
       "name": "SettleLpPoolDisabled",
       "msg": "Settle Lp Pool Disabled"
     }
-  ]
+  ],
+  "metadata": {
+    "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
+  }
 }
