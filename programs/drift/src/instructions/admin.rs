@@ -80,7 +80,9 @@ use crate::state::spot_market::{
     SpotMarket, TokenProgramFlag,
 };
 use crate::state::spot_market_map::get_writable_spot_market_set;
-use crate::state::state::{ExchangeStatus, FeeStructure, OracleGuardRails, State};
+use crate::state::state::{
+    ExchangeStatus, FeeStructure, LpPoolFeatureBitFlags, OracleGuardRails, State,
+};
 use crate::state::traits::Size;
 use crate::state::user::{User, UserStats};
 use crate::validate;
@@ -133,7 +135,8 @@ pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
         max_number_of_sub_accounts: 0,
         max_initialize_user_fee: 0,
         feature_bit_flags: 0,
-        padding: [0; 9],
+        lp_pool_feature_bit_flags: 0,
+        padding: [0; 8],
     };
 
     Ok(())
@@ -4761,12 +4764,24 @@ pub fn handle_initialize_lp_pool(
     max_settle_quote_amount_per_market: u64,
 ) -> Result<()> {
     let mut lp_pool = ctx.accounts.lp_pool.load_init()?;
-    let mint = ctx.accounts.mint.key();
+    let mint = &ctx.accounts.mint;
+
+    validate!(
+        mint.decimals == 6,
+        ErrorCode::DefaultError,
+        "lp mint must have 6 decimals"
+    )?;
+
+    validate!(
+        mint.mint_authority == Some(ctx.accounts.drift_signer.key()).into(),
+        ErrorCode::DefaultError,
+        "lp mint must have drift_signer as mint authority"
+    )?;
 
     *lp_pool = LPPool {
         name,
         pubkey: ctx.accounts.lp_pool.key(),
-        mint,
+        mint: mint.key(),
         constituents: 0,
         max_aum,
         last_aum: 0,
@@ -5190,11 +5205,13 @@ pub fn handle_update_feature_bit_flags_settle_lp_pool(
             "Only state admin can re-enable after kill switch"
         )?;
 
-        msg!("Setting third bit to 1, enabling settle LP pool");
-        state.feature_bit_flags = state.feature_bit_flags | (FeatureBitFlags::SettleLpPool as u8);
+        msg!("Setting first bit to 1, enabling settle LP pool");
+        state.lp_pool_feature_bit_flags =
+            state.lp_pool_feature_bit_flags | (LpPoolFeatureBitFlags::SettleLpPool as u8);
     } else {
-        msg!("Setting third bit to 0, disabling settle LP pool");
-        state.feature_bit_flags = state.feature_bit_flags & !(FeatureBitFlags::SettleLpPool as u8);
+        msg!("Setting first bit to 0, disabling settle LP pool");
+        state.lp_pool_feature_bit_flags =
+            state.lp_pool_feature_bit_flags & !(LpPoolFeatureBitFlags::SettleLpPool as u8);
     }
     Ok(())
 }
@@ -5211,11 +5228,36 @@ pub fn handle_update_feature_bit_flags_swap_lp_pool(
             "Only state admin can re-enable after kill switch"
         )?;
 
-        msg!("Setting fourth bit to 1, enabling swapping with LP pool");
-        state.feature_bit_flags = state.feature_bit_flags | (FeatureBitFlags::SwapLpPool as u8);
+        msg!("Setting second bit to 1, enabling swapping with LP pool");
+        state.lp_pool_feature_bit_flags =
+            state.lp_pool_feature_bit_flags | (LpPoolFeatureBitFlags::SwapLpPool as u8);
     } else {
-        msg!("Setting fourth bit to 0, disabling swapping with LP pool");
-        state.feature_bit_flags = state.feature_bit_flags & !(FeatureBitFlags::SwapLpPool as u8);
+        msg!("Setting second bit to 0, disabling swapping with LP pool");
+        state.lp_pool_feature_bit_flags =
+            state.lp_pool_feature_bit_flags & !(LpPoolFeatureBitFlags::SwapLpPool as u8);
+    }
+    Ok(())
+}
+
+pub fn handle_update_feature_bit_flags_mint_redeem_lp_pool(
+    ctx: Context<HotAdminUpdateState>,
+    enable: bool,
+) -> Result<()> {
+    let state = &mut ctx.accounts.state;
+    if enable {
+        validate!(
+            ctx.accounts.admin.key().eq(&state.admin),
+            ErrorCode::DefaultError,
+            "Only state admin can re-enable after kill switch"
+        )?;
+
+        msg!("Setting third bit to 1, enabling minting and redeeming with LP pool");
+        state.lp_pool_feature_bit_flags =
+            state.lp_pool_feature_bit_flags | (LpPoolFeatureBitFlags::MintRedeemLpPool as u8);
+    } else {
+        msg!("Setting third bit to 0, disabling minting and redeeming with LP pool");
+        state.lp_pool_feature_bit_flags =
+            state.lp_pool_feature_bit_flags & !(LpPoolFeatureBitFlags::MintRedeemLpPool as u8);
     }
     Ok(())
 }
@@ -6866,7 +6908,6 @@ pub struct InitializeLpPool<'info> {
         payer = admin
     )]
     pub lp_pool: AccountLoader<'info, LPPool>,
-
     pub mint: Account<'info, anchor_spl::token::Mint>,
 
     #[account(

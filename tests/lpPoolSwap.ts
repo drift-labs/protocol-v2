@@ -240,6 +240,8 @@ describe('LP Pool', () => {
 			volatility: ZERO,
 			constituentCorrelations: [],
 		});
+		await adminClient.updateFeatureBitFlagsMintRedeemLpPool(true);
+
 		await adminClient.initializeConstituent(encodeName(lpPoolName), {
 			spotMarketIndex: 1,
 			decimals: 6,

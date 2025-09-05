@@ -271,6 +271,8 @@ describe('LP Pool', () => {
 			Keypair.generate()
 		);
 
+		await adminClient.updateFeatureBitFlagsMintRedeemLpPool(true);
+
 		// Give the vamm some inventory
 		await adminClient.openPosition(PositionDirection.LONG, BASE_PRECISION, 0);
 		await adminClient.openPosition(PositionDirection.SHORT, BASE_PRECISION, 1);

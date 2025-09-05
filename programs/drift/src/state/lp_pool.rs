@@ -738,7 +738,7 @@ impl LPPool {
         msg!("Aum before quote owed from lp pool: {}", aum);
 
         for cache_datum in amm_cache.iter() {
-            aum -= cache_datum.quote_owed_from_lp_pool as i128;
+            aum = aum.saturating_sub(cache_datum.quote_owed_from_lp_pool as i128);
         }
 
         let aum_u128 = aum.max(0i128).cast::<u128>()?;
@@ -942,35 +942,6 @@ impl Constituent {
             .safe_mul(QUOTE_PRECISION_I128)?
             .safe_div(PRICE_PRECISION_I128)?
             .safe_div(token_precision)
-    }
-
-    /// Returns the fee to charge for a swap to/from this constituent
-    /// The fee is a linear interpolation between the swap_fee_min and swap_fee_max based on the post-swap deviation from the target weight
-    /// precision: PERCENTAGE_PRECISION
-    pub fn get_fee_to_charge(&self, post_swap_weight: i64, target_weight: i64) -> DriftResult<i64> {
-        let min_weight = target_weight.safe_sub(self.max_weight_deviation as i64)?;
-        let max_weight = target_weight.safe_add(self.max_weight_deviation as i64)?;
-        let (slope_numerator, slope_denominator) = if post_swap_weight > target_weight {
-            let num = self.swap_fee_max.safe_sub(self.swap_fee_min)?;
-            let denom = max_weight.safe_sub(target_weight)?;
-            (num, denom)
-        } else {
-            let num = self.swap_fee_min.safe_sub(self.swap_fee_max)?;
-            let denom = target_weight.safe_sub(min_weight)?;
-            (num, denom)
-        };
-        if slope_denominator == 0 {
-            return Ok(self.swap_fee_min);
-        }
-        let b = self
-            .swap_fee_min
-            .safe_mul(slope_denominator)?
-            .safe_sub(target_weight.safe_mul(slope_numerator)?)?;
-        Ok(post_swap_weight
-            .safe_mul(slope_numerator)?
-            .safe_add(b)?
-            .safe_div(slope_denominator)?
-            .clamp(self.swap_fee_min, self.swap_fee_max))
     }
 
     pub fn sync_token_balance(&mut self, token_account_amount: u64) {
@@ -1249,9 +1220,11 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
                     .safe_mul(*price as i128)?
                     .safe_div(BASE_PRECISION_I128)?;
 
-                target_notional += notional
-                    .saturating_mul(weight as i128)
-                    .saturating_div(PERCENTAGE_PRECISION_I128);
+                target_notional = target_notional.saturating_add(
+                    notional
+                        .saturating_mul(weight as i128)
+                        .saturating_div(PERCENTAGE_PRECISION_I128),
+                );
             }
 
             let cell = self.get_mut(i as u32);
@@ -1550,7 +1523,7 @@ pub fn update_constituent_target_base_for_derivatives(
             aum,
             WeightValidationFlags::NONE,
         )?;
-        let mut derivative_weights_sum = 0;
+        let mut derivative_weights_sum: u64 = 0;
         for constituent_index in constituent_indexes {
             let constituent = constituent_map.get_ref(constituent_index)?;
             if constituent.last_oracle_price
@@ -1572,11 +1545,12 @@ pub fn update_constituent_target_base_for_derivatives(
                 continue;
             }
 
-            derivative_weights_sum += constituent.derivative_weight;
+            derivative_weights_sum =
+                derivative_weights_sum.saturating_add(constituent.derivative_weight);
 
-            let target_weight = target_parent_weight
-                .safe_mul(constituent.derivative_weight as i64)?
-                .safe_div(PERCENTAGE_PRECISION_I64)?;
+            let target_weight = (target_parent_weight as i128)
+                .safe_mul(constituent.derivative_weight.cast::<i128>()?)?
+                .safe_div(PERCENTAGE_PRECISION_I128)?;
 
             msg!(
                 "constituent: {}, target weight: {}",
@@ -1585,7 +1559,7 @@ pub fn update_constituent_target_base_for_derivatives(
             );
             let target_base = aum
                 .cast::<i128>()?
-                .safe_mul(target_weight as i128)?
+                .safe_mul(target_weight)?
                 .safe_div(PERCENTAGE_PRECISION_I128)?
                 .safe_mul(10_i128.pow(constituent.decimals as u32))?
                 .safe_div(constituent.last_oracle_price as i128)?;

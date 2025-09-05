@@ -402,59 +402,6 @@ mod tests {
         assert_eq!(target_zc_mut.get(0).target_base, -1_000); // despite no aum, desire to reach target
         assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
     }
-
-    #[test]
-    fn test_constituent_fee_to_charge() {
-        let mut constituent = Constituent::default();
-        constituent.swap_fee_min = PERCENTAGE_PRECISION_I64 / 10000; // 1 bps
-        constituent.swap_fee_max = PERCENTAGE_PRECISION_I64 / 1000; // 10 bps;
-        constituent.max_weight_deviation = PERCENTAGE_PRECISION_I64 / 10; // max 10% deviation from target
-
-        // target weight is 50%, push the Constituent to 40% (max below target)
-        let fee = constituent
-            .get_fee_to_charge(
-                PERCENTAGE_PRECISION_I64 * 40 / 100,
-                PERCENTAGE_PRECISION_I64 / 2,
-            )
-            .unwrap();
-        assert_eq!(fee, PERCENTAGE_PRECISION_I64 / 1000); // 10 bps
-
-        // target weight is 50%, push the Constituent to 60% (max above target)
-        let fee = constituent
-            .get_fee_to_charge(
-                PERCENTAGE_PRECISION_I64 * 60 / 100,
-                PERCENTAGE_PRECISION_I64 / 2,
-            )
-            .unwrap();
-        assert_eq!(fee, PERCENTAGE_PRECISION_I64 / 1000); // 10 bps
-
-        // target weight is 50%, push the Constituent to 45% (half to min target)
-        let fee = constituent
-            .get_fee_to_charge(
-                PERCENTAGE_PRECISION_I64 * 45 / 100,
-                PERCENTAGE_PRECISION_I64 / 2,
-            )
-            .unwrap();
-        assert_eq!(fee, PERCENTAGE_PRECISION_I64 * 55 / 100000); // 5.5 bps
-
-        // target weight is 50%, push the Constituent to 55% (half to max target)
-        let fee = constituent
-            .get_fee_to_charge(
-                PERCENTAGE_PRECISION_I64 * 55 / 100,
-                PERCENTAGE_PRECISION_I64 / 2,
-            )
-            .unwrap();
-        assert_eq!(fee, PERCENTAGE_PRECISION_I64 * 55 / 100000); // 5.5 bps
-
-        // target weight is 50%, push the Constituent to 50% (target)
-        let fee = constituent
-            .get_fee_to_charge(
-                PERCENTAGE_PRECISION_I64 * 50 / 100,
-                PERCENTAGE_PRECISION_I64 / 2,
-            )
-            .unwrap();
-        assert_eq!(fee, PERCENTAGE_PRECISION_I64 / 10000); // 1 bps (min fee)
-    }
 }
 
 #[cfg(test)]
@@ -650,154 +597,6 @@ mod swap_tests {
             0u64,
             PERCENTAGE_PRECISION_U64 * 4 / 100,
         );
-    }
-
-    #[test]
-    fn test_get_fee_to_charge_positive_min_fee() {
-        let c = Constituent {
-            swap_fee_min: PERCENTAGE_PRECISION_I64 / 10000, // 1 bps
-            swap_fee_max: PERCENTAGE_PRECISION_I64 / 100,   // 100 bps
-            max_weight_deviation: PERCENTAGE_PRECISION_I64 / 10, // 10%
-            ..Constituent::default()
-        };
-
-        // swapping to target should incur minimum fee
-        let target_weight = PERCENTAGE_PRECISION_I64 / 2; // 50%
-        let post_swap_weight = target_weight; // 50%
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, target_weight)
-            .unwrap();
-        assert_eq!(fee, c.swap_fee_min);
-
-        // positive target: swapping to max deviation above target should incur maximum fee
-        let post_swap_weight = target_weight + c.max_weight_deviation;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, target_weight)
-            .unwrap();
-        assert_eq!(fee, c.swap_fee_max);
-
-        // positive target: swapping to max deviation below target should incur minimum fee
-        let post_swap_weight = target_weight - c.max_weight_deviation;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, target_weight)
-            .unwrap();
-        assert_eq!(fee, c.swap_fee_max);
-
-        // negative target: swapping to max deviation above target should incur maximum fee
-        let post_swap_weight = -1 * target_weight + c.max_weight_deviation;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, -1 * target_weight)
-            .unwrap();
-        assert_eq!(fee, c.swap_fee_max);
-
-        // negative target: swapping to max deviation below target should incur minimum fee
-        let post_swap_weight = -1 * target_weight - c.max_weight_deviation;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, -1 * target_weight)
-            .unwrap();
-        assert_eq!(fee, c.swap_fee_max);
-
-        // positive target: swaps to +max_weight_deviation/2, should incur half of the max fee
-        let post_swap_weight = target_weight + c.max_weight_deviation / 2;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, target_weight)
-            .unwrap();
-        assert_eq!(fee, (c.swap_fee_max + c.swap_fee_min) / 2);
-
-        // positive target: swaps to -max_weight_deviation/2, should incur half of the max fee
-        let post_swap_weight = target_weight - c.max_weight_deviation / 2;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, target_weight)
-            .unwrap();
-        assert_eq!(fee, (c.swap_fee_max + c.swap_fee_min) / 2);
-
-        // negative target: swaps to +max_weight_deviation/2, should incur half of the max fee
-        let post_swap_weight = -1 * target_weight + c.max_weight_deviation / 2;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, -1 * target_weight)
-            .unwrap();
-        assert_eq!(fee, (c.swap_fee_max + c.swap_fee_min) / 2);
-
-        // negative target: swaps to -max_weight_deviation/2, should incur half of the max fee
-        let post_swap_weight = -1 * target_weight - c.max_weight_deviation / 2;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, -1 * target_weight)
-            .unwrap();
-        assert_eq!(fee, (c.swap_fee_max + c.swap_fee_min) / 2);
-    }
-
-    #[test]
-    fn test_get_fee_to_charge_negative_min_fee() {
-        let c = Constituent {
-            swap_fee_min: -1 * PERCENTAGE_PRECISION_I64 / 10000, // -1 bps (rebate)
-            swap_fee_max: PERCENTAGE_PRECISION_I64 / 100,        // 100 bps
-            max_weight_deviation: PERCENTAGE_PRECISION_I64 / 10, // 10%
-            ..Constituent::default()
-        };
-
-        // swapping to target should incur minimum fee
-        let target_weight = PERCENTAGE_PRECISION_I64 / 2; // 50%
-        let post_swap_weight = target_weight; // 50%
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, target_weight)
-            .unwrap();
-        assert_eq!(fee, c.swap_fee_min);
-
-        // positive target: swapping to max deviation above target should incur maximum fee
-        let post_swap_weight = target_weight + c.max_weight_deviation;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, target_weight)
-            .unwrap();
-        assert_eq!(fee, c.swap_fee_max);
-
-        // positive target: swapping to max deviation below target should incur minimum fee
-        let post_swap_weight = target_weight - c.max_weight_deviation;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, target_weight)
-            .unwrap();
-        assert_eq!(fee, c.swap_fee_max);
-
-        // negative target: swapping to max deviation above target should incur maximum fee
-        let post_swap_weight = -1 * target_weight + c.max_weight_deviation;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, -1 * target_weight)
-            .unwrap();
-        assert_eq!(fee, c.swap_fee_max);
-
-        // negative target: swapping to max deviation below target should incur minimum fee
-        let post_swap_weight = -1 * target_weight - c.max_weight_deviation;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, -1 * target_weight)
-            .unwrap();
-        assert_eq!(fee, c.swap_fee_max);
-
-        // positive target: swaps to +max_weight_deviation/2, should incur half of the max fee
-        let post_swap_weight = target_weight + c.max_weight_deviation / 2;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, target_weight)
-            .unwrap();
-        assert_eq!(fee, (c.swap_fee_max + c.swap_fee_min) / 2);
-
-        // positive target: swaps to -max_weight_deviation/2, should incur half of the max fee
-        let post_swap_weight = target_weight - c.max_weight_deviation / 2;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, target_weight)
-            .unwrap();
-        assert_eq!(fee, (c.swap_fee_max + c.swap_fee_min) / 2);
-
-        // negative target: swaps to +max_weight_deviation/2, should incur half of the max fee
-        let post_swap_weight = -1 * target_weight + c.max_weight_deviation / 2;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, -1 * target_weight)
-            .unwrap();
-        assert_eq!(fee, (c.swap_fee_max + c.swap_fee_min) / 2);
-
-        // negative target: swaps to -max_weight_deviation/2, should incur half of the max fee
-        let post_swap_weight = -1 * target_weight - c.max_weight_deviation / 2;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, -1 * target_weight)
-            .unwrap();
-        assert_eq!(fee, (c.swap_fee_max + c.swap_fee_min) / 2);
     }
 
     #[test]
@@ -1744,6 +1543,7 @@ mod settle_tests {
             fee_pool_balance: 500,
             pnl_pool_balance: 300,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -1759,6 +1559,7 @@ mod settle_tests {
             fee_pool_balance: 300,
             pnl_pool_balance: 200,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -1776,6 +1577,7 @@ mod settle_tests {
             fee_pool_balance: 300,
             pnl_pool_balance: 200,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -1791,6 +1593,7 @@ mod settle_tests {
             fee_pool_balance: 300,
             pnl_pool_balance: 200,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -1806,6 +1609,7 @@ mod settle_tests {
             fee_pool_balance: 800,
             pnl_pool_balance: 200,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -1823,6 +1627,7 @@ mod settle_tests {
             fee_pool_balance: 300,
             pnl_pool_balance: 800,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -1840,6 +1645,7 @@ mod settle_tests {
             fee_pool_balance: 300,
             pnl_pool_balance: 200,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -1858,6 +1664,7 @@ mod settle_tests {
             fee_pool_balance: 0,
             pnl_pool_balance: 800,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -1872,6 +1679,7 @@ mod settle_tests {
             fee_pool_balance: 300,
             pnl_pool_balance: 0,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -1955,6 +1763,7 @@ mod settle_tests {
             fee_pool_balance: u128::MAX / 4,
             pnl_pool_balance: u128::MAX / 4,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -1970,6 +1779,7 @@ mod settle_tests {
             fee_pool_balance: u128::MAX / 4,
             pnl_pool_balance: u128::MAX / 4,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -1986,6 +1796,7 @@ mod settle_tests {
             fee_pool_balance: 500,
             pnl_pool_balance: 300,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -1999,6 +1810,7 @@ mod settle_tests {
             fee_pool_balance: 500,
             pnl_pool_balance: 300,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -2017,6 +1829,7 @@ mod settle_tests {
             fee_pool_balance: 1,
             pnl_pool_balance: 1,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -2030,6 +1843,7 @@ mod settle_tests {
             fee_pool_balance: 1,
             pnl_pool_balance: 0,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -2047,6 +1861,7 @@ mod settle_tests {
             fee_pool_balance: 0,
             pnl_pool_balance: 0,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -2185,6 +2000,7 @@ mod settle_tests {
             fee_pool_balance: 0, // No fee pool
             pnl_pool_balance: 1200,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -2202,6 +2018,7 @@ mod settle_tests {
             fee_pool_balance: 1000,
             pnl_pool_balance: 0, // No PnL pool
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -2220,6 +2037,7 @@ mod settle_tests {
             fee_pool_balance: 300,
             pnl_pool_balance: 500,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -2239,6 +2057,7 @@ mod settle_tests {
                 fee_pool_balance: 300,
                 pnl_pool_balance: 200,
                 quote_market: &create_mock_spot_market(),
+                max_settle_quote_amount: 10000,
             };
 
             let result = calculate_settlement_amount(&ctx).unwrap();
@@ -2256,6 +2075,7 @@ mod settle_tests {
                 fee_pool_balance: 300,
                 pnl_pool_balance: 200,
                 quote_market: &create_mock_spot_market(),
+                max_settle_quote_amount: 10000,
             };
 
             let result = calculate_settlement_amount(&ctx).unwrap();
@@ -2303,6 +2123,7 @@ mod settle_tests {
                 fee_pool_balance: fee_pool,
                 pnl_pool_balance: pnl_pool,
                 quote_market: &create_mock_spot_market(),
+                max_settle_quote_amount: 10000,
             };
 
             let result = calculate_settlement_amount(&ctx).unwrap();

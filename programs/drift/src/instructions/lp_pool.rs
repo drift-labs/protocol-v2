@@ -626,10 +626,16 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
         ErrorCode::UnauthorizedDlpAuthority,
         "User is not whitelisted for DLP deposits"
     )?;
+    let state = &ctx.accounts.state;
+
+    validate!(
+        state.allow_mint_redeem_lp_pool(),
+        ErrorCode::MintRedeemLpPoolDisabled,
+        "Mint/redeem LP pool is disabled"
+    )?;
 
     let slot = Clock::get()?.slot;
     let now = Clock::get()?.unix_timestamp;
-    let state = &ctx.accounts.state;
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
 
     let lp_price_before = lp_pool.get_price(ctx.accounts.lp_mint.supply)?;
@@ -934,6 +940,13 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
     let slot = Clock::get()?.slot;
     let now = Clock::get()?.unix_timestamp;
     let state = &ctx.accounts.state;
+
+    validate!(
+        state.allow_mint_redeem_lp_pool(),
+        ErrorCode::MintRedeemLpPoolDisabled,
+        "Mint/redeem LP pool is disabled"
+    )?;
+
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
 
     let lp_price_before = lp_pool.get_price(ctx.accounts.lp_mint.supply)?;

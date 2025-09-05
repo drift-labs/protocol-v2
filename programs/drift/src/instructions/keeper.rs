@@ -3223,17 +3223,12 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
                 &SpotBalanceType::Deposit,
             )?,
             quote_market,
+            max_settle_quote_amount: lp_pool.max_settle_quote_amount,
         };
 
         // Calculate settlement
-        let mut settlement_result = calculate_settlement_amount(&settlement_ctx)?;
-
-        // If transfering from perp market, dont do more than the max allowed
-        if settlement_result.direction == SettlementDirection::ToLpPool {
-            settlement_result.amount_transferred = settlement_result
-                .amount_transferred
-                .min(lp_pool.max_settle_quote_amount);
-        }
+        let settlement_result = calculate_settlement_amount(&settlement_ctx)?;
+        validate_settlement_amount(&settlement_ctx, &settlement_result)?;
 
         if settlement_result.direction == SettlementDirection::None {
             continue;

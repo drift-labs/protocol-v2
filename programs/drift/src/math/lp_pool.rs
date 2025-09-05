@@ -2,12 +2,14 @@ pub mod perp_lp_pool_settlement {
     use core::slice::Iter;
     use std::iter::Peekable;
 
+    use crate::error::ErrorCode;
+    use crate::math::casting::Cast;
     use crate::state::spot_market::SpotBalanceType;
     use crate::{
         math::safe_math::SafeMath,
         state::{
             perp_market::{CacheInfo, PerpMarket},
-            spot_market::{SpotBalance, SpotMarket},
+            spot_market::SpotMarket,
         },
         *,
     };
@@ -34,6 +36,7 @@ pub mod perp_lp_pool_settlement {
         pub fee_pool_balance: u128,
         pub pnl_pool_balance: u128,
         pub quote_market: &'a SpotMarket,
+        pub max_settle_quote_amount: u64,
     }
 
     pub fn calculate_settlement_amount(ctx: &SettlementContext) -> Result<SettlementResult> {
@@ -51,6 +54,21 @@ pub mod perp_lp_pool_settlement {
         }
     }
 
+    pub fn validate_settlement_amount(
+        ctx: &SettlementContext,
+        result: &SettlementResult,
+    ) -> Result<()> {
+        if result.amount_transferred > ctx.max_settle_quote_amount as u64 {
+            msg!(
+                "Amount to settle exceeds maximum allowed, {} > {}",
+                result.amount_transferred,
+                ctx.max_settle_quote_amount
+            );
+            return Err(ErrorCode::LpPoolSettleInvariantBreached.into());
+        }
+        Ok(())
+    }
+
     fn calculate_lp_to_perp_settlement(ctx: &SettlementContext) -> Result<SettlementResult> {
         if ctx.quote_constituent_token_balance == 0 {
             return Ok(SettlementResult {
@@ -61,12 +79,11 @@ pub mod perp_lp_pool_settlement {
             });
         }
 
-        let amount_to_send = if ctx.quote_owed_from_lp > ctx.quote_constituent_token_balance as i64
-        {
-            ctx.quote_constituent_token_balance
-        } else {
-            ctx.quote_owed_from_lp as u64
-        };
+        let amount_to_send = ctx
+            .quote_owed_from_lp
+            .cast::<u64>()?
+            .min(ctx.quote_constituent_token_balance)
+            .min(ctx.max_settle_quote_amount);
 
         Ok(SettlementResult {
             amount_transferred: amount_to_send,
@@ -77,7 +94,7 @@ pub mod perp_lp_pool_settlement {
     }
 
     fn calculate_perp_to_lp_settlement(ctx: &SettlementContext) -> Result<SettlementResult> {
-        let amount_to_send = ctx.quote_owed_from_lp.abs() as u64;
+        let amount_to_send = (ctx.quote_owed_from_lp.abs() as u64).min(ctx.max_settle_quote_amount);
 
         if ctx.fee_pool_balance >= amount_to_send as u128 {
             // Fee pool can cover entire amount
@@ -133,7 +150,7 @@ pub mod perp_lp_pool_settlement {
         match result.direction {
             SettlementDirection::FromLpPool => {
                 controller::spot_balance::update_spot_balances(
-                    (result.amount_transferred as u128),
+                    result.amount_transferred as u128,
                     &SpotBalanceType::Deposit,
                     quote_spot_market,
                     &mut perp_market.amm.fee_pool,

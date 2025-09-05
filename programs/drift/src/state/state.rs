@@ -42,7 +42,8 @@ pub struct State {
     pub max_number_of_sub_accounts: u16,
     pub max_initialize_user_fee: u16,
     pub feature_bit_flags: u8,
-    pub padding: [u8; 9],
+    pub lp_pool_feature_bit_flags: u8,
+    pub padding: [u8; 8],
 }
 
 #[derive(BitFlags, Clone, Copy, PartialEq, Debug, Eq)]
@@ -122,11 +123,15 @@ impl State {
     }
 
     pub fn allow_settle_lp_pool(&self) -> bool {
-        (self.feature_bit_flags & (FeatureBitFlags::SettleLpPool as u8)) > 0
+        (self.lp_pool_feature_bit_flags & (LpPoolFeatureBitFlags::SettleLpPool as u8)) > 0
     }
 
     pub fn allow_swap_lp_pool(&self) -> bool {
-        (self.feature_bit_flags & (FeatureBitFlags::SwapLpPool as u8)) > 0
+        (self.lp_pool_feature_bit_flags & (LpPoolFeatureBitFlags::SwapLpPool as u8)) > 0
+    }
+
+    pub fn allow_mint_redeem_lp_pool(&self) -> bool {
+        (self.lp_pool_feature_bit_flags & (LpPoolFeatureBitFlags::MintRedeemLpPool as u8)) > 0
     }
 }
 
@@ -134,8 +139,13 @@ impl State {
 pub enum FeatureBitFlags {
     MmOracleUpdate = 0b00000001,
     MedianTriggerPrice = 0b00000010,
-    SettleLpPool = 0b00000100,
-    SwapLpPool = 0b00001000,
+}
+
+#[derive(Clone, Copy, PartialEq, Debug, Eq)]
+pub enum LpPoolFeatureBitFlags {
+    SettleLpPool = 0b00000001,
+    SwapLpPool = 0b00000010,
+    MintRedeemLpPool = 0b00000100,
 }
 
 impl Size for State {

@@ -672,6 +672,10 @@ pub enum ErrorCode {
     MaxDlpAumBreached,
     #[msg("Settle Lp Pool Disabled")]
     SettleLpPoolDisabled,
+    #[msg("Mint/Redeem Lp Pool Disabled")]
+    MintRedeemLpPoolDisabled,
+    #[msg("Settlement amount exceeded")]
+    LpPoolSettleInvariantBreached,
 }
 
 #[macro_export]
