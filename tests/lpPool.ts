@@ -892,7 +892,7 @@ describe('LP Pool', () => {
 			)
 		);
 
-		const usdcBefore = constituent.tokenBalance;
+		const usdcBefore = constituent.vaultTokenBalance;
 		// Update Amm Cache to update the aum
 		await adminClient.updateLpPoolAum(lpPool, [0, 1, 2]);
 		lpPool = (await adminClient.program.account.lpPool.fetch(
@@ -961,7 +961,7 @@ describe('LP Pool', () => {
 			getConstituentPublicKey(program.programId, lpPoolKey, 0)
 		)) as ConstituentAccount;
 
-		const usdcAfter = constituent.tokenBalance;
+		const usdcAfter = constituent.vaultTokenBalance;
 		const feePoolBalanceAfter = getTokenAmount(
 			adminClient.getPerpMarketAccount(0).amm.feePool.scaledBalance,
 			adminClient.getQuoteSpotMarketAccount(),
@@ -994,7 +994,9 @@ describe('LP Pool', () => {
 				constituentVaultPublicKey
 			);
 		assert(
-			new BN(constituentVault.amount.toString()).eq(constituent.tokenBalance)
+			new BN(constituentVault.amount.toString()).eq(
+				constituent.vaultTokenBalance
+			)
 		);
 	});
 
@@ -1097,7 +1099,7 @@ describe('LP Pool', () => {
 			getAmmCachePublicKey(program.programId)
 		)) as AmmCache;
 		// No more usdc left in the constituent vault
-		assert(constituent.tokenBalance.eq(ZERO));
+		assert(constituent.vaultTokenBalance.eq(ZERO));
 		assert(new BN(constituentVault.amount.toString()).eq(ZERO));
 
 		// Should have recorded the amount left over to the amm cache and increased the amount in the fee pool
@@ -1175,7 +1177,7 @@ describe('LP Pool', () => {
 		)) as LPPoolAccount;
 
 		assert(ammCache.cache[0].quoteOwedFromLpPool.eq(owedAmount.divn(2)));
-		assert(constituent.tokenBalance.eq(ZERO));
+		assert(constituent.vaultTokenBalance.eq(ZERO));
 		assert(lpPool.lastAum.eq(ZERO));
 
 		// Deposit here to DLP to make sure aum calc work with perp market debt
@@ -1208,7 +1210,7 @@ describe('LP Pool', () => {
 				getConstituentPublicKey(program.programId, lpPoolKey, i)
 			)) as ConstituentAccount;
 			aum = aum.add(
-				constituent.tokenBalance
+				constituent.vaultTokenBalance
 					.mul(constituent.lastOraclePrice)
 					.div(QUOTE_PRECISION)
 			);
@@ -1237,7 +1239,7 @@ describe('LP Pool', () => {
 			getAmmCachePublicKey(program.programId)
 		)) as AmmCache;
 
-		const balanceBefore = constituent.tokenBalance;
+		const balanceBefore = constituent.vaultTokenBalance;
 		const owedAmount = ammCache.cache[0].quoteOwedFromLpPool;
 
 		// Give the perp market half of its owed amount
@@ -1278,7 +1280,7 @@ describe('LP Pool', () => {
 		)) as LPPoolAccount;
 
 		assert(ammCache.cache[0].quoteOwedFromLpPool.eq(ZERO));
-		assert(constituent.tokenBalance.eq(balanceBefore.add(owedAmount)));
+		assert(constituent.vaultTokenBalance.eq(balanceBefore.add(owedAmount)));
 		assert(lpPool.lastAum.eq(aumBefore.add(owedAmount.muln(2))));
 	});
 
@@ -1436,7 +1438,7 @@ describe('LP Pool', () => {
 		let constituent = (await adminClient.program.account.constituent.fetch(
 			getConstituentPublicKey(program.programId, lpPoolKey, 0)
 		)) as ConstituentAccount;
-		const balanceBefore = constituent.tokenBalance;
+		const balanceBefore = constituent.vaultTokenBalance;
 		const spotBalanceBefore = constituent.spotBalance;
 
 		await adminClient.withdrawFromProgramVault(
@@ -1450,7 +1452,7 @@ describe('LP Pool', () => {
 		)) as ConstituentAccount;
 
 		assert(
-			constituent.tokenBalance
+			constituent.vaultTokenBalance
 				.sub(balanceBefore)
 				.eq(new BN(10).mul(QUOTE_PRECISION))
 		);

@@ -666,11 +666,11 @@ export class AdminClient extends DriftClient {
 		});
 	}
 
-	public async updateInitAmmCacheInfo(
+	public async updateInitialAmmCacheInfo(
 		perpMarketIndexes: number[],
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
-		const initializeAmmCacheIx = await this.getUpdateInitAmmCacheInfoIx(
+		const initializeAmmCacheIx = await this.getUpdateInitialAmmCacheInfoIx(
 			perpMarketIndexes
 		);
 
@@ -681,7 +681,7 @@ export class AdminClient extends DriftClient {
 		return txSig;
 	}
 
-	public async getUpdateInitAmmCacheInfoIx(
+	public async getUpdateInitialAmmCacheInfoIx(
 		perpMarketIndexes: number[]
 	): Promise<TransactionInstruction> {
 		const remainingAccounts = this.getRemainingAccounts({
@@ -689,7 +689,7 @@ export class AdminClient extends DriftClient {
 			readablePerpMarketIndex: perpMarketIndexes,
 			readableSpotMarketIndexes: [QUOTE_SPOT_MARKET_INDEX],
 		});
-		return await this.program.instruction.updateInitAmmCacheInfo({
+		return await this.program.instruction.updateInitialAmmCacheInfo({
 			accounts: {
 				state: await this.getStatePublicKey(),
 				admin: this.isSubscribed

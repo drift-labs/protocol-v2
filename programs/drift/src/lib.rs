@@ -998,10 +998,10 @@ pub mod drift {
         handle_initialize_amm_cache(ctx)
     }
 
-    pub fn update_init_amm_cache_info<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, UpdateInitAmmCacheInfo<'info>>,
+    pub fn update_initial_amm_cache_info<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdateInitialAmmCacheInfo<'info>>,
     ) -> Result<()> {
-        handle_update_init_amm_cache_info(ctx)
+        handle_update_initial_amm_cache_info(ctx)
     }
 
     pub fn initialize_prediction_market<'c: 'info, 'info>(
@@ -1965,7 +1965,7 @@ pub mod drift {
     }
 
     pub fn override_amm_cache_info<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, UpdateInitAmmCacheInfo<'info>>,
+        ctx: Context<'_, '_, 'c, 'info, UpdateInitialAmmCacheInfo<'info>>,
         market_index: u16,
         override_params: OverrideAmmCacheParams,
     ) -> Result<()> {
