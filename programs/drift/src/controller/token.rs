@@ -25,7 +25,31 @@ pub fn send_from_program_vault<'info>(
     remaining_accounts: Option<&mut Peekable<Iter<'info, AccountInfo<'info>>>>,
 ) -> Result<()> {
     let signature_seeds = get_signer_seeds(&nonce);
-    let signers = &[&signature_seeds[..]];
+
+    send_from_program_vault_with_signature_seeds(
+        token_program,
+        from,
+        to,
+        authority,
+        &signature_seeds,
+        amount,
+        mint,
+        remaining_accounts,
+    )
+}
+
+#[inline]
+pub fn send_from_program_vault_with_signature_seeds<'info>(
+    token_program: &Interface<'info, TokenInterface>,
+    from: &InterfaceAccount<'info, TokenAccount>,
+    to: &InterfaceAccount<'info, TokenAccount>,
+    authority: &AccountInfo<'info>,
+    signature_seeds: &[&[u8]],
+    amount: u64,
+    mint: &Option<InterfaceAccount<'info, Mint>>,
+    remaining_accounts: Option<&mut Peekable<Iter<'info, AccountInfo<'info>>>>,
+) -> Result<()> {
+    let signers = &[signature_seeds];
 
     if let Some(mint) = mint {
         if let Some(remaining_accounts) = remaining_accounts {

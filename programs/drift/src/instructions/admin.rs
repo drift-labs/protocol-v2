@@ -5321,6 +5321,7 @@ pub fn handle_initialize_constituent<'info>(
     constituent.mint = ctx.accounts.spot_market_mint.key();
     constituent.token_vault = ctx.accounts.constituent_vault.key();
     constituent.bump = ctx.bumps.constituent;
+    constituent.vault_bump = ctx.bumps.constituent_vault;
     constituent.max_borrow_token_amount = max_borrow_token_amount;
     constituent.lp_pool = lp_pool.pubkey;
     constituent.constituent_index = (constituent_target_base.targets.len() - 1) as u16;
@@ -7011,14 +7012,14 @@ pub struct InitializeConstituent<'info> {
         bump,
         payer = admin,
         token::mint = spot_market_mint,
-        token::authority = drift_signer
+        token::authority = constituent_vault
     )]
     pub constituent_vault: Box<InterfaceAccount<'info, TokenAccount>>,
-    #[account(
-        constraint = state.signer.eq(&drift_signer.key())
-    )]
-    /// CHECK: program signer
-    pub drift_signer: AccountInfo<'info>,
+    // #[account(
+    //     constraint = state.signer.eq(&drift_signer.key())
+    // )]
+    // /// CHECK: program signer
+    // pub drift_signer: AccountInfo<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
     pub token_program: Interface<'info, TokenInterface>,
