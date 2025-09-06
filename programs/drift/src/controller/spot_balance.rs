@@ -250,10 +250,12 @@ pub fn update_spot_balances(
         }
 
         if token_amount > 0 {
+            msg!("token amount to transfer: {}", token_amount);
             spot_balance.update_balance_type(*update_direction)?;
             let round_up = update_direction == &SpotBalanceType::Borrow;
             let balance_delta =
                 get_spot_balance(token_amount, spot_market, update_direction, round_up)?;
+            msg!("balance delta {}", balance_delta);
             spot_balance.increase_balance(balance_delta)?;
             increase_spot_balance(balance_delta, spot_market, update_direction)?;
         }
