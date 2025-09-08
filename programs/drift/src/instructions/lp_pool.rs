@@ -48,7 +48,7 @@ use solana_program::sysvar::clock::Clock;
 
 use super::optional_accounts::{load_maps, AccountMaps};
 use crate::controller::spot_balance::update_spot_market_cumulative_interest;
-use crate::controller::token::{receive, send_from_program_vault};
+use crate::controller::token::{receive, send_from_program_vault, send_from_program_vault_with_signature_seeds};
 use crate::instructions::constraints::*;
 use crate::state::lp_pool::{
     CONSTITUENT_PDA_SEED, CONSTITUENT_TARGET_BASE_PDA_SEED, LP_POOL_TOKEN_VAULT_PDA_SEED,
@@ -510,12 +510,12 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         Some(remaining_accounts),
     )?;
 
-    send_from_program_vault(
+    send_from_program_vault_with_signature_seeds(
         &ctx.accounts.token_program,
         &ctx.accounts.constituent_out_token_account,
         &ctx.accounts.user_out_token_account,
-        &ctx.accounts.drift_signer,
-        state.signer_nonce,
+        &ctx.accounts.constituent_out_token_account.to_account_info(),
+        &Constituent::get_vault_signer_seeds(&out_constituent.lp_pool, &out_constituent.spot_market_index, &out_constituent.vault_bump),
         out_amount_net_fees.cast::<u64>()?,
         &Some((*ctx.accounts.out_market_mint).clone()),
         Some(remaining_accounts),
@@ -744,6 +744,13 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
     in_constituent.record_swap_fees(in_fee_amount)?;
     lp_pool.record_mint_redeem_fees(lp_fee_amount)?;
 
+    let lp_name = lp_pool.name;
+    let lp_bump = lp_pool.bump;
+
+    let lp_vault_signer_seeds = LPPool::get_lp_pool_signer_seeds(&lp_name, &lp_bump);
+
+    drop(lp_pool);
+
     receive(
         &ctx.accounts.token_program,
         &ctx.accounts.user_in_token_account,
@@ -757,22 +764,24 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
     mint_tokens(
         &ctx.accounts.token_program,
         &ctx.accounts.lp_pool_token_vault,
-        &ctx.accounts.drift_signer,
-        state.signer_nonce,
+        &ctx.accounts.lp_pool.to_account_info(),
+        &lp_vault_signer_seeds,
         lp_amount,
         &ctx.accounts.lp_mint,
     )?;
 
-    send_from_program_vault(
+    send_from_program_vault_with_signature_seeds(
         &ctx.accounts.token_program,
         &ctx.accounts.lp_pool_token_vault,
         &ctx.accounts.user_lp_token_account,
-        &ctx.accounts.drift_signer,
-        state.signer_nonce,
+        &ctx.accounts.lp_pool.to_account_info(),
+        &lp_vault_signer_seeds,
         lp_mint_amount_net_fees,
         &Some((*ctx.accounts.lp_mint).clone()),
         Some(remaining_accounts),
     )?;
+
+    let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
 
     lp_pool.last_aum = lp_pool.last_aum.safe_add(
         in_amount
@@ -1074,6 +1083,13 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
     out_constituent.record_swap_fees(out_fee_amount)?;
     lp_pool.record_mint_redeem_fees(lp_fee_amount)?;
 
+    let lp_name = lp_pool.name;
+    let lp_bump = lp_pool.bump;
+
+    let lp_vault_signer_seeds = LPPool::get_lp_pool_signer_seeds(&lp_name, &lp_bump);
+
+    drop(lp_pool);
+
     receive(
         &ctx.accounts.token_program,
         &ctx.accounts.user_lp_token_account,
@@ -1087,22 +1103,24 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
     burn_tokens(
         &ctx.accounts.token_program,
         &ctx.accounts.lp_pool_token_vault,
-        &ctx.accounts.drift_signer,
-        state.signer_nonce,
+        &ctx.accounts.lp_pool.to_account_info(),
+        &lp_vault_signer_seeds,
         lp_burn_amount_net_fees,
         &ctx.accounts.lp_mint,
     )?;
 
-    send_from_program_vault(
+    send_from_program_vault_with_signature_seeds(
         &ctx.accounts.token_program,
         &ctx.accounts.constituent_out_token_account,
         &ctx.accounts.user_out_token_account,
-        &ctx.accounts.drift_signer,
-        state.signer_nonce,
+        &ctx.accounts.constituent_out_token_account.to_account_info(),
+        &Constituent::get_vault_signer_seeds(&out_constituent.lp_pool, &out_constituent.spot_market_index, &out_constituent.vault_bump),
         out_amount_net_fees.cast::<u64>()?,
         &None,
         Some(remaining_accounts),
     )?;
+
+    let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
 
     lp_pool.last_aum = lp_pool.last_aum.safe_sub(
         out_amount_net_fees
@@ -1282,7 +1300,7 @@ pub fn handle_update_constituent_oracle_info<'c: 'info, 'info>(
 }
 
 pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, DepositWithdrawProgramVault<'info>>,
+    ctx: Context<'_, '_, 'c, 'info, DepositProgramVault<'info>>,
     amount: u64,
 ) -> Result<()> {
     let clock = Clock::get()?;
@@ -1319,12 +1337,12 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
     constituent.sync_token_balance(ctx.accounts.constituent_token_account.amount);
     let balance_before = constituent.get_full_balance(&spot_market)?;
 
-    controller::token::send_from_program_vault(
+    controller::token::send_from_program_vault_with_signature_seeds(
         &ctx.accounts.token_program,
         &ctx.accounts.constituent_token_account,
         &spot_market_vault,
-        &ctx.accounts.drift_signer,
-        ctx.accounts.state.signer_nonce,
+        &ctx.accounts.constituent_token_account.to_account_info(),
+        &Constituent::get_vault_signer_seeds(&constituent.lp_pool, &constituent.spot_market_index, &constituent.vault_bump),
         amount,
         &Some(*ctx.accounts.mint.clone()),
         Some(remaining_accounts),
@@ -1382,7 +1400,7 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
 }
 
 pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, DepositWithdrawProgramVault<'info>>,
+    ctx: Context<'_, '_, 'c, 'info, WithdrawProgramVault<'info>>,
     amount: u64,
 ) -> Result<()> {
     let state = &ctx.accounts.state;
@@ -1503,7 +1521,43 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
 }
 
 #[derive(Accounts)]
-pub struct DepositWithdrawProgramVault<'info> {
+pub struct DepositProgramVault<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+    #[account(mut)]
+    pub constituent: AccountLoader<'info, Constituent>,
+    #[account(
+        mut,
+        address = constituent.load()?.token_vault,
+        constraint = &constituent.load()?.mint.eq(&constituent_token_account.mint),
+    )]
+    pub constituent_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        owner = crate::ID,
+        constraint = spot_market.load()?.market_index == constituent.load()?.spot_market_index
+    )]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        mut,
+        address = spot_market.load()?.vault,
+    )]
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Interface<'info, TokenInterface>,
+    #[account(
+        address = spot_market.load()?.mint,
+    )]
+    pub mint: Box<InterfaceAccount<'info, Mint>>,
+    /// CHECK: checked when loading oracle in oracle map
+    pub oracle: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct WithdrawProgramVault<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         mut,
@@ -1518,7 +1572,6 @@ pub struct DepositWithdrawProgramVault<'info> {
         mut,
         address = constituent.load()?.token_vault,
         constraint = &constituent.load()?.mint.eq(&constituent_token_account.mint),
-        token::authority = drift_signer
     )]
     pub constituent_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
@@ -1596,8 +1649,6 @@ pub struct UpdateLPPoolAum<'info> {
     out_market_index: u16,
 )]
 pub struct LPPoolSwap<'info> {
-    /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
     pub state: Box<Account<'info, State>>,
     pub lp_pool: AccountLoader<'info, LPPool>,
 
@@ -1713,8 +1764,6 @@ pub struct ViewLPPoolSwapFees<'info> {
     in_market_index: u16,
 )]
 pub struct LPPoolAddLiquidity<'info> {
-    /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub lp_pool: AccountLoader<'info, LPPool>,
@@ -1802,8 +1851,6 @@ pub struct ViewLPPoolAddLiquidityFees<'info> {
     in_market_index: u16,
 )]
 pub struct LPPoolRemoveLiquidity<'info> {
-    /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub lp_pool: AccountLoader<'info, LPPool>,

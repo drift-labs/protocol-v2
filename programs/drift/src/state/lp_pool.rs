@@ -21,6 +21,7 @@ use crate::state::spot_market::{SpotBalance, SpotBalanceType};
 use crate::state::traits::Size;
 use crate::{impl_zero_copy_loader, validate};
 
+pub const LP_POOL_PDA_SEED: &str = "lp_pool";
 pub const AMM_MAP_PDA_SEED: &str = "AMM_MAP";
 pub const CONSTITUENT_PDA_SEED: &str = "CONSTITUENT";
 pub const CONSTITUENT_TARGET_BASE_PDA_SEED: &str = "constituent_target_base";
@@ -748,6 +749,10 @@ impl LPPool {
 
         Ok((aum_u128, crypto_delta, derivative_groups))
     }
+
+    pub fn get_lp_pool_signer_seeds<'a>(name: &'a [u8; 32], bump: &'a u8) -> [&'a [u8]; 3] {
+        [LP_POOL_PDA_SEED.as_ref(), name, bytemuck::bytes_of(bump)]
+    }
 }
 
 #[zero_copy(unsafe)]
@@ -864,12 +869,13 @@ pub struct Constituent {
 
     pub decimals: u8,
     pub bump: u8,
+    pub vault_bump: u8,
 
     // Fee params
     pub gamma_inventory: u8,
     pub gamma_execution: u8,
     pub xi: u8,
-    pub _padding: [u8; 5],
+    pub _padding: [u8; 4],
 }
 
 impl Size for Constituent {
@@ -946,6 +952,10 @@ impl Constituent {
 
     pub fn sync_token_balance(&mut self, token_account_amount: u64) {
         self.token_balance = token_account_amount;
+    }
+
+    pub fn get_vault_signer_seeds<'a>(lp_pool: &'a Pubkey, spot_market_index: &'a u16, bump: &'a u8) -> [&'a [u8]; 4] {
+        [CONSTITUENT_VAULT_PDA_SEED.as_ref(),  lp_pool.as_ref(), bytemuck::bytes_of(spot_market_index), bytemuck::bytes_of(bump)]
     }
 }
 

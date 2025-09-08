@@ -4992,7 +4992,7 @@ export class AdminClient extends DriftClient {
 		const createMintIx = createInitializeMint2Instruction(
 			mint.publicKey,
 			6,
-			this.getSignerPublicKey(),
+			lpPool,
 			null,
 			TOKEN_PROGRAM_ID
 		);
@@ -5023,7 +5023,6 @@ export class AdminClient extends DriftClient {
 						constituentTargetBase,
 						mint: mint.publicKey,
 						state: await this.getStatePublicKey(),
-						driftSigner: this.getSignerPublicKey(),
 						tokenProgram: TOKEN_PROGRAM_ID,
 						rent: SYSVAR_RENT_PUBKEY,
 						systemProgram: SystemProgram.programId,
@@ -5139,7 +5138,6 @@ export class AdminClient extends DriftClient {
 							this.program.programId,
 							lpPool
 						),
-						driftSigner: this.getSignerPublicKey(),
 						tokenProgram: TOKEN_PROGRAM_ID,
 					},
 					signers: [],
@@ -5545,7 +5543,6 @@ export class AdminClient extends DriftClient {
 					lpPool,
 					instructions: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
 					tokenProgram: inTokenProgram,
-					driftSigner: getDriftSignerPublicKey(this.program.programId),
 				},
 				remainingAccounts: [
 					{
@@ -5590,7 +5587,6 @@ export class AdminClient extends DriftClient {
 					lpPool,
 					tokenProgram: inTokenProgram,
 					instructions: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
-					driftSigner: getDriftSignerPublicKey(this.program.programId),
 				},
 				remainingAccounts,
 			}
@@ -5927,7 +5923,6 @@ export class AdminClient extends DriftClient {
 					spotMarketVault: depositSpotMarket.vault,
 					tokenProgram: depositTokenProgram,
 					mint: depositSpotMarket.mint,
-					driftSigner: getDriftSignerPublicKey(this.program.programId),
 					oracle: depositSpotMarket.oracle,
 				},
 			}
