@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: add padding to swift messages ([#1845](https://github.com/drift-labs/protocol-v2/pull/1845))
 - program: rm lp ([#1755](https://github.com/drift-labs/protocol-v2/pull/1755))
 
 ### Fixes
