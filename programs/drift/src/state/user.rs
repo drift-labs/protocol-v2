@@ -618,6 +618,19 @@ impl User {
 
         return Ok(true);
     }
+
+    pub fn update_perp_position_max_margin_ratio(&mut self, market_index: u16, margin_ratio: u16) -> DriftResult<()> {
+        if self.max_margin_ratio > margin_ratio as u32 {
+            msg!("user.max_margin_ratio ({}) > margin_ratio ({}), setting user.max_margin_ratio to margin_ratio", self.max_margin_ratio, margin_ratio);
+            self.max_margin_ratio = margin_ratio as u32;
+        }
+
+        let perp_position = self.force_get_perp_position_mut(market_index)?;
+        msg!("perp_position.max_margin_ratio ({}) -> {}", perp_position.max_margin_ratio, margin_ratio);
+        perp_position.max_margin_ratio = margin_ratio;
+
+        Ok(())
+    }
 }
 
 pub fn derive_user_account(authority: &Pubkey, sub_account_id: u16) -> Pubkey {
@@ -958,10 +971,9 @@ pub struct PerpPosition {
     /// Used to settle the users lp position
     /// precision: QUOTE_PRECISION
     pub last_quote_asset_amount_per_lp: i64,
-    /// Settling LP position can lead to a small amount of base asset being left over smaller than step size
-    /// This records that remainder so it can be settled later on
-    /// precision: BASE_PRECISION
-    pub remainder_base_asset_amount: i32,
+    pub padding: [u8; 2],
+    // custom max margin ratio for perp market
+    pub max_margin_ratio: u16,
     /// The market index for the perp market
     pub market_index: u16,
     /// The number of open orders

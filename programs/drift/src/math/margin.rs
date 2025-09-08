@@ -6,6 +6,7 @@ use crate::math::constants::{
 };
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 
+use crate::MARGIN_PRECISION;
 use crate::{validate, PRICE_PRECISION_I128};
 use crate::{validation, PRICE_PRECISION_I64};
 
@@ -27,6 +28,7 @@ use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::{MarketType, OrderFillSimulation, PerpPosition, User};
 use num_integer::Roots;
 use std::cmp::{max, min, Ordering};
+use std::collections::BTreeMap;
 
 #[cfg(test)]
 mod tests;
@@ -535,6 +537,12 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             0,
         )?;
 
+        let perp_position_custom_margin_ratio = if context.margin_type == MarginRequirementType::Initial {
+            market_position.max_margin_ratio as u32
+        } else {
+            0_u32
+        };
+
         let (
             perp_margin_requirement,
             weighted_pnl,
@@ -547,7 +555,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             oracle_price_data,
             &strict_quote_price,
             context.margin_type,
-            user_custom_margin_ratio,
+            user_custom_margin_ratio.max(perp_position_custom_margin_ratio),
             user_high_leverage_mode,
             calculation.track_open_orders_fraction(),
         )?;
@@ -882,6 +890,42 @@ pub fn validate_spot_margin_trading(
     )?;
 
     Ok(())
+}
+
+pub fn get_margin_calculation_for_disable_high_leverage_mode(
+    user: &mut User,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+) -> DriftResult<MarginCalculation> {
+    let custom_margin_ratio_before = user.max_margin_ratio;
+    
+
+    let mut perp_position_max_margin_ratio_map = BTreeMap::new();
+    for (index, position) in user.perp_positions.iter_mut().enumerate() {
+        if position.max_margin_ratio == 0 {
+            continue;
+        }
+
+        perp_position_max_margin_ratio_map.insert(index, position.max_margin_ratio);
+        position.max_margin_ratio = 0;
+    }
+
+    let margin_buffer = MARGIN_PRECISION / 100; // 1% buffer
+    let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
+        user,
+        perp_market_map,
+        spot_market_map,
+        oracle_map,
+        MarginContext::standard(MarginRequirementType::Initial).margin_buffer(margin_buffer),
+    )?;
+
+    user.max_margin_ratio = custom_margin_ratio_before;
+    for (index, perp_position_max_margin_ratio) in perp_position_max_margin_ratio_map.iter() {
+        user.perp_positions[*index].max_margin_ratio = *perp_position_max_margin_ratio;
+    }
+
+    Ok(margin_calc)
 }
 
 pub fn calculate_user_equity(
