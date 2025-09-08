@@ -864,6 +864,7 @@ export type PerpMarketAccount = {
 	lastFillPrice: BN;
 
 	lpFeeTransferScalar: number;
+	lpExchangeFeeExcluscionScalar: number;
 	lpStatus: number;
 };
 
@@ -1732,6 +1733,7 @@ export type CacheInfo = {
 	oraclePrice: BN;
 	oracleDelay: BN;
 	oracleConfidence: BN;
+	lastExchangeFees: BN;
 	lastFeePoolTokenAmount: BN;
 	lastNetPnlPoolTokenAmount: BN;
 	lastSettleAmount: BN;

@@ -6017,11 +6017,13 @@ export class AdminClient extends DriftClient {
 
 	public async updatePerpMarketLpPoolFeeTransferScalar(
 		marketIndex: number,
-		lpFeeTransferScalar: number
+		lpFeeTransferScalar?: number,
+		lpExchangeFeeExcluscionScalar?: number
 	) {
 		const ix = await this.getUpdatePerpMarketLpPoolFeeTransferScalarIx(
 			marketIndex,
-			lpFeeTransferScalar
+			lpFeeTransferScalar,
+			lpExchangeFeeExcluscionScalar
 		);
 		const tx = await this.buildTransaction(ix);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
@@ -6030,10 +6032,12 @@ export class AdminClient extends DriftClient {
 
 	public async getUpdatePerpMarketLpPoolFeeTransferScalarIx(
 		marketIndex: number,
-		lpFeeTransferScalar: number
+		lpFeeTransferScalar?: number,
+		lpExchangeFeeExcluscionScalar?: number
 	): Promise<TransactionInstruction> {
-		return await this.program.instruction.updatePerpMarketLpPoolFeeTransferScalar(
-			lpFeeTransferScalar,
+		return this.program.instruction.updatePerpMarketLpPoolFeeTransferScalar(
+			lpFeeTransferScalar ?? null,
+			lpExchangeFeeExcluscionScalar ?? null,
 			{
 				accounts: {
 					admin: this.isSubscribed
