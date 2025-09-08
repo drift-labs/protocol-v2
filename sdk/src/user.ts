@@ -330,6 +330,7 @@ export class User {
 			lastBaseAssetAmountPerLp: ZERO,
 			lastQuoteAssetAmountPerLp: ZERO,
 			perLpBase: 0,
+			maxMarginRatio: 0,
 		};
 	}
 
@@ -471,7 +472,8 @@ export class User {
 			marketIndex,
 			freeCollateral,
 			worstCaseBaseAssetAmount,
-			enterHighLeverageMode
+			enterHighLeverageMode,
+			perpPosition
 		);
 	}
 
@@ -479,13 +481,18 @@ export class User {
 		marketIndex: number,
 		freeCollateral: BN,
 		baseAssetAmount: BN,
-		enterHighLeverageMode = undefined
+		enterHighLeverageMode = undefined,
+		perpPosition?: PerpPosition
 	): BN {
+		const userCustomMargin = Math.max(
+			perpPosition?.maxMarginRatio ?? 0,
+			this.getUserAccount().maxMarginRatio
+		);
 		const marginRatio = calculateMarketMarginRatio(
 			this.driftClient.getPerpMarketAccount(marketIndex),
 			baseAssetAmount,
 			'Initial',
-			this.getUserAccount().maxMarginRatio,
+			userCustomMargin,
 			enterHighLeverageMode || this.isHighLeverageMode('Initial')
 		);
 
@@ -2162,7 +2169,10 @@ export class User {
 				);
 			}
 
-			const userCustomMargin = this.getUserAccount().maxMarginRatio;
+			const userCustomMargin = Math.max(
+				perpPosition.maxMarginRatio,
+				this.getUserAccount().maxMarginRatio
+			);
 			const marginRatio = calculateMarketMarginRatio(
 				market,
 				baseAssetAmount.abs(),
@@ -2212,7 +2222,10 @@ export class User {
 
 		const proposedBaseAssetAmount = baseAssetAmount.add(positionBaseSizeChange);
 
-		const userCustomMargin = this.getUserAccount().maxMarginRatio;
+		const userCustomMargin = Math.max(
+			perpPosition.maxMarginRatio,
+			this.getUserAccount().maxMarginRatio
+		);
 
 		const marginRatio = calculateMarketMarginRatio(
 			market,
@@ -3578,12 +3591,16 @@ export class User {
 			oraclePrice
 		);
 
+		const userCustomMargin = Math.max(
+			perpPosition.maxMarginRatio,
+			this.getUserAccount().maxMarginRatio
+		);
 		const marginRatio = new BN(
 			calculateMarketMarginRatio(
 				perpMarket,
 				worstCaseBaseAmount.abs(),
 				marginCategory,
-				this.getUserAccount().maxMarginRatio,
+				userCustomMargin,
 				this.isHighLeverageMode(marginCategory)
 			)
 		);
