@@ -288,11 +288,11 @@ impl Default for PerpMarket {
             high_leverage_margin_ratio_maintenance: 0,
             protected_maker_limit_price_divisor: 0,
             protected_maker_dynamic_divisor: 0,
-            lp_fee_transfer_scalar: 1,
+            lp_fee_transfer_scalar: 0,
             lp_status: 0,
             padding1: 0,
             last_fill_price: 0,
-            lp_exchange_fee_excluscion_scalar: 1,
+            lp_exchange_fee_excluscion_scalar: 0,
             padding: [0; 23],
         }
     }
@@ -1913,11 +1913,13 @@ impl<'a> AccountZeroCopyMut<'a, CacheInfo, AmmCacheFixed> {
 
         let amount_to_send_to_lp_pool = amm_amount_available
             .safe_sub(cached_info.get_last_available_amm_balance()?)?
-            .safe_div_ceil(perp_market.lp_fee_transfer_scalar as i128)?
+            .safe_mul(perp_market.lp_fee_transfer_scalar as i128)?
+            .safe_div_ceil(100)?
             .safe_sub(
                 exchange_fee_delta
                     .cast::<i128>()?
-                    .safe_div_ceil(perp_market.lp_exchange_fee_excluscion_scalar as i128)?,
+                    .safe_mul(perp_market.lp_exchange_fee_excluscion_scalar as i128)?
+                    .safe_div_ceil(100)?,
             )?;
 
         cached_info.quote_owed_from_lp_pool = cached_info

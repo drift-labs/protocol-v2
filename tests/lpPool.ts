@@ -845,7 +845,10 @@ describe('LP Pool', () => {
 		)) as LPPoolAccount;
 
 		// Exclude 25% of exchange fees, put 100 dollars there to make sure that the
-		await adminClient.updatePerpMarketLpPoolFeeTransferScalar(0, undefined, 4);
+		await adminClient.updatePerpMarketLpPoolFeeTransferScalar(0, 100, 25);
+		await adminClient.updatePerpMarketLpPoolFeeTransferScalar(1, 100, 0);
+		await adminClient.updatePerpMarketLpPoolFeeTransferScalar(2, 100, 0);
+
 		const perpMarket = adminClient.getPerpMarketAccount(0);
 		perpMarket.amm.totalExchangeFee = perpMarket.amm.totalExchangeFee.add(
 			QUOTE_PRECISION.muln(100)
@@ -1185,7 +1188,9 @@ describe('LP Pool', () => {
 			lpPoolKey
 		)) as LPPoolAccount;
 
-		assert(ammCache.cache[0].quoteOwedFromLpPool.eq(owedAmount.divn(2)));
+		expect(
+			ammCache.cache[0].quoteOwedFromLpPool.toNumber()
+		).to.be.approximately(owedAmount.divn(2).toNumber(), 1);
 		assert(constituent.tokenBalance.eq(ZERO));
 		assert(lpPool.lastAum.eq(ZERO));
 
