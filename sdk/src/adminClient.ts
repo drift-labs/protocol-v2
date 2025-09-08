@@ -4992,7 +4992,7 @@ export class AdminClient extends DriftClient {
 		const createMintIx = createInitializeMint2Instruction(
 			mint.publicKey,
 			6,
-			this.getSignerPublicKey(),
+			lpPool,
 			null,
 			TOKEN_PROGRAM_ID
 		);
@@ -5023,7 +5023,6 @@ export class AdminClient extends DriftClient {
 						constituentTargetBase,
 						mint: mint.publicKey,
 						state: await this.getStatePublicKey(),
-						driftSigner: this.getSignerPublicKey(),
 						tokenProgram: TOKEN_PROGRAM_ID,
 						rent: SYSVAR_RENT_PUBKEY,
 						systemProgram: SystemProgram.programId,

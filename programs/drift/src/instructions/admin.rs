@@ -4763,6 +4763,7 @@ pub fn handle_initialize_lp_pool(
     max_aum: u128,
     max_settle_quote_amount_per_market: u64,
 ) -> Result<()> {
+    let lp_key = ctx.accounts.lp_pool.key();
     let mut lp_pool = ctx.accounts.lp_pool.load_init()?;
     let mint = &ctx.accounts.mint;
 
@@ -4773,7 +4774,7 @@ pub fn handle_initialize_lp_pool(
     )?;
 
     validate!(
-        mint.mint_authority == Some(ctx.accounts.drift_signer.key()).into(),
+        mint.mint_authority == Some(lp_key).into(),
         ErrorCode::DefaultError,
         "lp mint must have drift_signer as mint authority"
     )?;
@@ -6918,7 +6919,7 @@ pub struct InitializeLpPool<'info> {
         bump,
         payer = admin,
         token::mint = mint,
-        token::authority = drift_signer
+        token::authority = lp_pool,
     )]
     pub lp_pool_token_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
@@ -6953,8 +6954,6 @@ pub struct InitializeLpPool<'info> {
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
-    /// CHECK: program signer
-    pub drift_signer: AccountInfo<'info>,
 
     pub token_program: Program<'info, Token>,
 

@@ -10673,7 +10673,6 @@ export class DriftClient {
 			{
 				remainingAccounts,
 				accounts: {
-					driftSigner: this.getSignerPublicKey(),
 					state: await this.getStatePublicKey(),
 					lpPool: lpPool.pubkey,
 					authority: this.wallet.publicKey,
@@ -10857,7 +10856,6 @@ export class DriftClient {
 			{
 				remainingAccounts,
 				accounts: {
-					driftSigner: this.getSignerPublicKey(),
 					state: await this.getStatePublicKey(),
 					lpPool: lpPool.pubkey,
 					authority: this.wallet.publicKey,

@@ -333,7 +333,7 @@ describe('LP Pool', () => {
 		expect(mintInfo.decimals).to.equal(tokenDecimals);
 		expect(Number(mintInfo.supply)).to.equal(0);
 		expect(mintInfo.mintAuthority?.toBase58()).to.equal(
-			adminClient.getSignerPublicKey().toBase58()
+			lpPoolKey.toBase58()
 		);
 	});
 

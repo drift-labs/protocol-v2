@@ -744,6 +744,13 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
     in_constituent.record_swap_fees(in_fee_amount)?;
     lp_pool.record_mint_redeem_fees(lp_fee_amount)?;
 
+    let lp_name = lp_pool.name;
+    let lp_bump = lp_pool.bump;
+
+    let lp_vault_signer_seeds = LPPool::get_lp_pool_signer_seeds(&lp_name, &lp_bump);
+
+    drop(lp_pool);
+
     receive(
         &ctx.accounts.token_program,
         &ctx.accounts.user_in_token_account,
@@ -757,22 +764,24 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
     mint_tokens(
         &ctx.accounts.token_program,
         &ctx.accounts.lp_pool_token_vault,
-        &ctx.accounts.drift_signer,
-        state.signer_nonce,
+        &ctx.accounts.lp_pool.to_account_info(),
+        &lp_vault_signer_seeds,
         lp_amount,
         &ctx.accounts.lp_mint,
     )?;
 
-    send_from_program_vault(
+    send_from_program_vault_with_signature_seeds(
         &ctx.accounts.token_program,
         &ctx.accounts.lp_pool_token_vault,
         &ctx.accounts.user_lp_token_account,
-        &ctx.accounts.drift_signer,
-        state.signer_nonce,
+        &ctx.accounts.lp_pool.to_account_info(),
+        &lp_vault_signer_seeds,
         lp_mint_amount_net_fees,
         &Some((*ctx.accounts.lp_mint).clone()),
         Some(remaining_accounts),
     )?;
+
+    let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
 
     lp_pool.last_aum = lp_pool.last_aum.safe_add(
         in_amount
@@ -1074,6 +1083,13 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
     out_constituent.record_swap_fees(out_fee_amount)?;
     lp_pool.record_mint_redeem_fees(lp_fee_amount)?;
 
+    let lp_name = lp_pool.name;
+    let lp_bump = lp_pool.bump;
+
+    let lp_vault_signer_seeds = LPPool::get_lp_pool_signer_seeds(&lp_name, &lp_bump);
+
+    drop(lp_pool);
+
     receive(
         &ctx.accounts.token_program,
         &ctx.accounts.user_lp_token_account,
@@ -1087,8 +1103,8 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
     burn_tokens(
         &ctx.accounts.token_program,
         &ctx.accounts.lp_pool_token_vault,
-        &ctx.accounts.drift_signer,
-        state.signer_nonce,
+        &ctx.accounts.lp_pool.to_account_info(),
+        &lp_vault_signer_seeds,
         lp_burn_amount_net_fees,
         &ctx.accounts.lp_mint,
     )?;
@@ -1103,6 +1119,8 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
         &None,
         Some(remaining_accounts),
     )?;
+
+    let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
 
     lp_pool.last_aum = lp_pool.last_aum.safe_sub(
         out_amount_net_fees
@@ -1746,8 +1764,6 @@ pub struct ViewLPPoolSwapFees<'info> {
     in_market_index: u16,
 )]
 pub struct LPPoolAddLiquidity<'info> {
-    /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub lp_pool: AccountLoader<'info, LPPool>,
@@ -1835,8 +1851,6 @@ pub struct ViewLPPoolAddLiquidityFees<'info> {
     in_market_index: u16,
 )]
 pub struct LPPoolRemoveLiquidity<'info> {
-    /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub lp_pool: AccountLoader<'info, LPPool>,

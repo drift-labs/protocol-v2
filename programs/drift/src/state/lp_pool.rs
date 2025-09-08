@@ -21,6 +21,7 @@ use crate::state::spot_market::{SpotBalance, SpotBalanceType};
 use crate::state::traits::Size;
 use crate::{impl_zero_copy_loader, validate};
 
+pub const LP_POOL_PDA_SEED: &str = "lp_pool";
 pub const AMM_MAP_PDA_SEED: &str = "AMM_MAP";
 pub const CONSTITUENT_PDA_SEED: &str = "CONSTITUENT";
 pub const CONSTITUENT_TARGET_BASE_PDA_SEED: &str = "constituent_target_base";
@@ -747,6 +748,10 @@ impl LPPool {
         self.last_aum_ts = now;
 
         Ok((aum_u128, crypto_delta, derivative_groups))
+    }
+
+    pub fn get_lp_pool_signer_seeds<'a>(name: &'a [u8; 32], bump: &'a u8) -> [&'a [u8]; 3] {
+        [LP_POOL_PDA_SEED.as_ref(), name, bytemuck::bytes_of(bump)]
     }
 }
 

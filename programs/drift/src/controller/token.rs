@@ -165,12 +165,11 @@ pub fn mint_tokens<'info>(
     token_program: &Interface<'info, TokenInterface>,
     destination: &InterfaceAccount<'info, TokenAccount>,
     authority: &AccountInfo<'info>,
-    nonce: u8,
+    signature_seeds: &[&[u8]],
     amount: u64,
     mint: &InterfaceAccount<'info, Mint>,
 ) -> Result<()> {
-    let signature_seeds = get_signer_seeds(&nonce);
-    let signers = &[&signature_seeds[..]];
+    let signers = &[signature_seeds];
 
     let mint_account_info = mint.to_account_info();
 
@@ -191,12 +190,11 @@ pub fn burn_tokens<'info>(
     token_program: &Interface<'info, TokenInterface>,
     destination: &InterfaceAccount<'info, TokenAccount>,
     authority: &AccountInfo<'info>,
-    nonce: u8,
+    signature_seeds: &[&[u8]],
     amount: u64,
     mint: &InterfaceAccount<'info, Mint>,
 ) -> Result<()> {
-    let signature_seeds = get_signer_seeds(&nonce);
-    let signers = &[&signature_seeds[..]];
+    let signers = &[signature_seeds];
 
     let mint_account_info = mint.to_account_info();
 
