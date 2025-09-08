@@ -10437,7 +10437,6 @@ export class DriftClient {
 			{
 				remainingAccounts,
 				accounts: {
-					driftSigner: this.getSignerPublicKey(),
 					state: await this.getStatePublicKey(),
 					lpPool,
 					constituentTargetBase,

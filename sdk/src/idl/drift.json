@@ -7819,11 +7819,6 @@
           "isSigner": false
         },
         {
-          "name": "driftSigner",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "rent",
           "isMut": false,
           "isSigner": false
@@ -8263,11 +8258,6 @@
     {
       "name": "lpPoolSwap",
       "accounts": [
-        {
-          "name": "driftSigner",
-          "isMut": false,
-          "isSigner": false
-        },
         {
           "name": "state",
           "isMut": false,
@@ -8782,11 +8772,6 @@
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
-        },
-        {
-          "name": "driftSigner",
-          "isMut": false,
-          "isSigner": false
         }
       ],
       "args": [
@@ -8873,11 +8858,6 @@
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
-        },
-        {
-          "name": "driftSigner",
-          "isMut": false,
-          "isSigner": false
         }
       ],
       "args": [
@@ -8934,11 +8914,6 @@
           "name": "admin",
           "isMut": true,
           "isSigner": true
-        },
-        {
-          "name": "driftSigner",
-          "isMut": false,
-          "isSigner": false
         },
         {
           "name": "constituent",
@@ -9842,6 +9817,10 @@
             "type": "u8"
           },
           {
+            "name": "vaultBump",
+            "type": "u8"
+          },
+          {
             "name": "gammaInventory",
             "type": "u8"
           },
@@ -9858,7 +9837,7 @@
             "type": {
               "array": [
                 "u8",
-                5
+                4
               ]
             }
           }
@@ -18842,6 +18821,16 @@
       "code": 6333,
       "name": "SettleLpPoolDisabled",
       "msg": "Settle Lp Pool Disabled"
+    },
+    {
+      "code": 6334,
+      "name": "MintRedeemLpPoolDisabled",
+      "msg": "Mint/Redeem Lp Pool Disabled"
+    },
+    {
+      "code": 6335,
+      "name": "LpPoolSettleInvariantBreached",
+      "msg": "Settlement amount exceeded"
     }
   ],
   "metadata": {

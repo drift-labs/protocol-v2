@@ -1282,7 +1282,7 @@ pub fn handle_update_constituent_oracle_info<'c: 'info, 'info>(
 }
 
 pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, DepositWithdrawProgramVault<'info>>,
+    ctx: Context<'_, '_, 'c, 'info, DepositProgramVault<'info>>,
     amount: u64,
 ) -> Result<()> {
     let clock = Clock::get()?;
@@ -1382,7 +1382,7 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
 }
 
 pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, DepositWithdrawProgramVault<'info>>,
+    ctx: Context<'_, '_, 'c, 'info, WithdrawProgramVault<'info>>,
     amount: u64,
 ) -> Result<()> {
     let state = &ctx.accounts.state;
@@ -1503,7 +1503,43 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
 }
 
 #[derive(Accounts)]
-pub struct DepositWithdrawProgramVault<'info> {
+pub struct DepositProgramVault<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+    #[account(mut)]
+    pub constituent: AccountLoader<'info, Constituent>,
+    #[account(
+        mut,
+        address = constituent.load()?.token_vault,
+        constraint = &constituent.load()?.mint.eq(&constituent_token_account.mint),
+    )]
+    pub constituent_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        owner = crate::ID,
+        constraint = spot_market.load()?.market_index == constituent.load()?.spot_market_index
+    )]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        mut,
+        address = spot_market.load()?.vault,
+    )]
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Interface<'info, TokenInterface>,
+    #[account(
+        address = spot_market.load()?.mint,
+    )]
+    pub mint: Box<InterfaceAccount<'info, Mint>>,
+    /// CHECK: checked when loading oracle in oracle map
+    pub oracle: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct WithdrawProgramVault<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         mut,
@@ -1595,8 +1631,6 @@ pub struct UpdateLPPoolAum<'info> {
     out_market_index: u16,
 )]
 pub struct LPPoolSwap<'info> {
-    /// CHECK: forced drift_signer
-    pub drift_signer: AccountInfo<'info>,
     pub state: Box<Account<'info, State>>,
     pub lp_pool: AccountLoader<'info, LPPool>,
 

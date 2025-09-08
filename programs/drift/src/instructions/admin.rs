@@ -7016,11 +7016,6 @@ pub struct InitializeConstituent<'info> {
         token::authority = constituent_vault
     )]
     pub constituent_vault: Box<InterfaceAccount<'info, TokenAccount>>,
-    // #[account(
-    //     constraint = state.signer.eq(&drift_signer.key())
-    // )]
-    // /// CHECK: program signer
-    // pub drift_signer: AccountInfo<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
     pub token_program: Interface<'info, TokenInterface>,
@@ -7220,6 +7215,4 @@ pub struct LPTakerSwap<'info> {
     #[account(address = instructions::ID)]
     pub instructions: UncheckedAccount<'info>,
     pub token_program: Interface<'info, TokenInterface>,
-    /// CHECK: program signer
-    pub drift_signer: AccountInfo<'info>,
 }
