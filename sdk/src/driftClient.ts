@@ -10818,7 +10818,8 @@ export class DriftClient {
 		lpToBurn: BN;
 		minAmountOut: BN;
 		lpPool: LPPoolAccount;
-	}): Promise<TransactionInstruction> {
+	}): Promise<TransactionInstruction[]> {
+		const ixs: TransactionInstruction[] = [];
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [],
 			writableSpotMarketIndexes: [outMarketIndex],
@@ -10831,8 +10832,19 @@ export class DriftClient {
 			lpPool.pubkey,
 			outMarketIndex
 		);
+		if (outMarketMint.equals(WRAPPED_SOL_MINT)) {
+			ixs.push(
+				createAssociatedTokenAccountIdempotentInstruction(
+					this.wallet.publicKey,
+					await this.getAssociatedTokenAccount(outMarketIndex, false),
+					this.wallet.publicKey,
+					WRAPPED_SOL_MINT
+				)
+			);
+		}
 		const userOutTokenAccount = await this.getAssociatedTokenAccount(
-			outMarketIndex
+			outMarketIndex,
+			false
 		);
 		const constituentOutTokenAccount = getConstituentVaultPublicKey(
 			this.program.programId,
@@ -10851,33 +10863,36 @@ export class DriftClient {
 			lpPool.pubkey
 		);
 
-		return this.program.instruction.lpPoolRemoveLiquidity(
-			outMarketIndex,
-			lpToBurn,
-			minAmountOut,
-			{
-				remainingAccounts,
-				accounts: {
-					driftSigner: this.getSignerPublicKey(),
-					state: await this.getStatePublicKey(),
-					lpPool: lpPool.pubkey,
-					authority: this.wallet.publicKey,
-					outMarketMint,
-					outConstituent,
-					userOutTokenAccount,
-					constituentOutTokenAccount,
-					userLpTokenAccount,
-					lpMint,
-					lpPoolTokenVault: getLpPoolTokenVaultPublicKey(
-						this.program.programId,
-						lpPool.pubkey
-					),
-					constituentTargetBase,
-					tokenProgram: TOKEN_PROGRAM_ID,
-					ammCache: getAmmCachePublicKey(this.program.programId),
-				},
-			}
+		ixs.push(
+			this.program.instruction.lpPoolRemoveLiquidity(
+				outMarketIndex,
+				lpToBurn,
+				minAmountOut,
+				{
+					remainingAccounts,
+					accounts: {
+						driftSigner: this.getSignerPublicKey(),
+						state: await this.getStatePublicKey(),
+						lpPool: lpPool.pubkey,
+						authority: this.wallet.publicKey,
+						outMarketMint,
+						outConstituent,
+						userOutTokenAccount,
+						constituentOutTokenAccount,
+						userLpTokenAccount,
+						lpMint,
+						lpPoolTokenVault: getLpPoolTokenVaultPublicKey(
+							this.program.programId,
+							lpPool.pubkey
+						),
+						constituentTargetBase,
+						tokenProgram: TOKEN_PROGRAM_ID,
+						ammCache: getAmmCachePublicKey(this.program.programId),
+					},
+				}
+			)
 		);
+		return ixs;
 	}
 
 	public async viewLpPoolRemoveLiquidityFees({
@@ -11041,12 +11056,12 @@ export class DriftClient {
 			);
 		} else {
 			ixs.push(
-				await this.getLpPoolRemoveLiquidityIx({
+				...(await this.getLpPoolRemoveLiquidityIx({
 					outMarketIndex,
 					lpToBurn,
 					minAmountOut,
 					lpPool,
-				})
+				}))
 			);
 		}
 
