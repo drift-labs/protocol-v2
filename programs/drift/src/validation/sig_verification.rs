@@ -14,6 +14,9 @@ use solana_program::program_memory::sol_memcmp;
 use solana_program::sysvar;
 use std::convert::TryInto;
 
+#[cfg(test)]
+mod tests;
+
 const ED25519_PROGRAM_INPUT_HEADER_LEN: usize = 2;
 
 const SIGNATURE_LEN: u16 = 64;
