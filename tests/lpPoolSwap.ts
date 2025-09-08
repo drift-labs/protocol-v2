@@ -615,7 +615,7 @@ describe('LP Pool', () => {
 		const removeTx = new Transaction();
 		removeTx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1]));
 		removeTx.add(
-			await adminClient.getLpPoolRemoveLiquidityIx({
+			...await adminClient.getLpPoolRemoveLiquidityIx({
 				outMarketIndex: 0,
 				lpToBurn: new BN(userLpTokenBalanceAfter.amount.toString()),
 				minAmountOut: new BN(1),

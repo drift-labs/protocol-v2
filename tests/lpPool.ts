@@ -1044,7 +1044,7 @@ describe('LP Pool', () => {
 		);
 		tx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1, 2]));
 		tx.add(
-			await adminClient.getLpPoolRemoveLiquidityIx({
+			...await adminClient.getLpPoolRemoveLiquidityIx({
 				outMarketIndex: 0,
 				lpToBurn: new BN(lpTokenBalance.amount.toString()),
 				minAmountOut: new BN(1000).mul(QUOTE_PRECISION),
