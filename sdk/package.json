@@ -11,7 +11,7 @@
 		"url": "git@github.com:drift-labs/protocol-v2.git"
 	},
 	"scripts": {
-		"lint": "eslint './**/*.{ts,tsx}' --quiet",
+		"lint": "eslint './**/*.{ts,tsx}' --quiet --format unix",
 		"build": "yarn clean && tsc -p tsconfig.json && tsc -p tsconfig.browser.json && node scripts/postbuild.js",
 		"build:browser": "yarn clean && tsc -p tsconfig.json && tsc -p tsconfig.browser.json && node scripts/postbuild.js --force-env browser",
 		"clean": "rm -rf lib",
@@ -118,7 +118,7 @@
 		"has-ansi": "<6.0.1"
 	},
 	"overrides": {
-		"chalk": "<4.1.2",
+		"chalk": "<5.6.1",
 		"debug": "<4.4.2",
 		"ansi-styles": "<6.2.2",
 		"supports-color": "<10.2.1",
@@ -133,7 +133,7 @@
 		"slice-ansi": "<7.1.1",
 		"error-ex": "<1.3.3",
 		"backslash": "<0.2.1",
-		"chalk-template": "<0.4.0",
+		"chalk-template": "<1.1.1",
 		"supports-hyperlinks": "<4.1.1",
 		"has-ansi": "<6.0.1"
 	}
