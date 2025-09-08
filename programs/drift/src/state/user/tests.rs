@@ -2494,7 +2494,7 @@ mod update_open_bids_and_asks {
 }
 
 mod force_get_user_perp_position_mut {
-    use crate::state::user::{PerpPosition, PositionFlag, User};
+    use crate::state::user::{PerpPosition, User};
 
     #[test]
     fn test() {
