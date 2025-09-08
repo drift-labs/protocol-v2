@@ -373,7 +373,12 @@ pub mod drift {
         perp_market_index: u16,
         margin_ratio: u16,
     ) -> Result<()> {
-        handle_update_user_perp_position_custom_margin_ratio(ctx, _sub_account_id, perp_market_index, margin_ratio)
+        handle_update_user_perp_position_custom_margin_ratio(
+            ctx,
+            _sub_account_id,
+            perp_market_index,
+            margin_ratio,
+        )
     }
 
     pub fn update_user_margin_trading_enabled<'c: 'info, 'info>(

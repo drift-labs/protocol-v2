@@ -2958,7 +2958,6 @@ pub fn handle_update_user_perp_position_custom_margin_ratio(
     Ok(())
 }
 
-
 pub fn handle_update_user_margin_trading_enabled<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdateUser<'info>>,
     _sub_account_id: u16,

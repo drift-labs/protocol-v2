@@ -2518,7 +2518,7 @@ mod force_get_user_perp_position_mut {
             let perp_position_mut = user.force_get_perp_position_mut(2).unwrap();
             assert_eq!(perp_position_mut.max_margin_ratio, 0);
         }
-        
+
         assert_eq!(user.perp_positions[0].market_index, 2);
         assert_eq!(user.perp_positions[0].max_margin_ratio, 0);
     }

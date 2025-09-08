@@ -537,11 +537,12 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             0,
         )?;
 
-        let perp_position_custom_margin_ratio = if context.margin_type == MarginRequirementType::Initial {
-            market_position.max_margin_ratio as u32
-        } else {
-            0_u32
-        };
+        let perp_position_custom_margin_ratio =
+            if context.margin_type == MarginRequirementType::Initial {
+                market_position.max_margin_ratio as u32
+            } else {
+                0_u32
+            };
 
         let (
             perp_margin_requirement,
@@ -899,7 +900,6 @@ pub fn get_margin_calculation_for_disable_high_leverage_mode(
     oracle_map: &mut OracleMap,
 ) -> DriftResult<MarginCalculation> {
     let custom_margin_ratio_before = user.max_margin_ratio;
-    
 
     let mut perp_position_max_margin_ratio_map = BTreeMap::new();
     for (index, position) in user.perp_positions.iter_mut().enumerate() {
