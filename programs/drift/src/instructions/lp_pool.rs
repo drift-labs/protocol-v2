@@ -510,12 +510,12 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         Some(remaining_accounts),
     )?;
 
-    send_from_program_vault(
+    send_from_program_vault_with_signature_seeds(
         &ctx.accounts.token_program,
         &ctx.accounts.constituent_out_token_account,
         &ctx.accounts.user_out_token_account,
-        &ctx.accounts.drift_signer,
-        state.signer_nonce,
+        &ctx.accounts.constituent_out_token_account.to_account_info(),
+        &Constituent::get_vault_signer_seeds(&out_constituent.lp_pool, &out_constituent.spot_market_index, &out_constituent.vault_bump),
         out_amount_net_fees.cast::<u64>()?,
         &Some((*ctx.accounts.out_market_mint).clone()),
         Some(remaining_accounts),

@@ -20,7 +20,7 @@ use pyth_solana_receiver_sdk::cpi::accounts::InitPriceUpdate;
 use pyth_solana_receiver_sdk::program::PythSolanaReceiver;
 use serum_dex::state::ToAlignedBytes;
 
-use crate::controller::token::{close_vault, receive, send_from_program_vault};
+use crate::controller::token::{close_vault, receive, send_from_program_vault, send_from_program_vault_with_signature_seeds};
 use crate::error::ErrorCode;
 use crate::ids::{
     jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, lighthouse, marinade_mainnet,
@@ -5742,19 +5742,20 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
     in_constituent.flash_loan_initial_token_amount = ctx.accounts.signer_in_token_account.amount;
     out_constituent.flash_loan_initial_token_amount = ctx.accounts.signer_out_token_account.amount;
 
-    drop(in_constituent);
     drop(out_constituent);
 
-    send_from_program_vault(
+    send_from_program_vault_with_signature_seeds(
         &ctx.accounts.token_program,
         constituent_in_token_account,
         &ctx.accounts.signer_in_token_account,
-        &ctx.accounts.drift_signer.to_account_info(),
-        state.signer_nonce,
+        &constituent_in_token_account.to_account_info(),
+        &Constituent::get_vault_signer_seeds(&in_constituent.lp_pool, &in_constituent.spot_market_index, &in_constituent.vault_bump),
         amount_in,
         &Some(mint),
         Some(remaining_accounts_iter),
     )?;
+
+    drop(in_constituent);
 
     // The only other drift program allowed is SwapEnd
     let mut index = current_index + 1;
