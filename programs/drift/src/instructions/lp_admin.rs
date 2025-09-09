@@ -1,5 +1,5 @@
 use crate::controller;
-use crate::controller::token::{receive, send_from_program_vault};
+use crate::controller::token::{receive, send_from_program_vault_with_signature_seeds};
 use crate::error::ErrorCode;
 use crate::ids::admin_hot_wallet;
 use crate::instructions::optional_accounts::get_token_mint;
@@ -40,6 +40,7 @@ pub fn handle_initialize_lp_pool(
     max_aum: u128,
     max_settle_quote_amount_per_market: u64,
 ) -> Result<()> {
+    let lp_key = ctx.accounts.lp_pool.key();
     let mut lp_pool = ctx.accounts.lp_pool.load_init()?;
     let mint = &ctx.accounts.mint;
 
@@ -50,7 +51,7 @@ pub fn handle_initialize_lp_pool(
     )?;
 
     validate!(
-        mint.mint_authority == Some(ctx.accounts.drift_signer.key()).into(),
+        mint.mint_authority == Some(lp_key).into(),
         ErrorCode::DefaultError,
         "lp mint must have drift_signer as mint authority"
     )?;
@@ -178,8 +179,9 @@ pub fn handle_initialize_constituent<'info>(
     constituent.oracle_staleness_threshold = oracle_staleness_threshold;
     constituent.pubkey = ctx.accounts.constituent.key();
     constituent.mint = ctx.accounts.spot_market_mint.key();
-    constituent.vault = ctx.accounts.constituent_vault.key();
+    constituent.token_vault = ctx.accounts.constituent_vault.key();
     constituent.bump = ctx.bumps.constituent;
+    constituent.vault_bump = ctx.bumps.constituent_vault;
     constituent.max_borrow_token_amount = max_borrow_token_amount;
     constituent.lp_pool = lp_pool.pubkey;
     constituent.constituent_index = (constituent_target_base.targets.len() - 1) as u16;
@@ -532,7 +534,6 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
     out_market_index: u16,
     amount_in: u64,
 ) -> Result<()> {
-    let state = &ctx.accounts.state;
     let ixs = ctx.accounts.instructions.as_ref();
     let current_index = instructions::load_current_index_checked(ixs)? as usize;
 
@@ -598,19 +599,25 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
     in_constituent.flash_loan_initial_token_amount = ctx.accounts.signer_in_token_account.amount;
     out_constituent.flash_loan_initial_token_amount = ctx.accounts.signer_out_token_account.amount;
 
-    drop(in_constituent);
-    drop(out_constituent);
+    // drop(in_constituent);
+    // drop(out_constituent);
 
-    send_from_program_vault(
+    send_from_program_vault_with_signature_seeds(
         &ctx.accounts.token_program,
         constituent_in_token_account,
         &ctx.accounts.signer_in_token_account,
-        &ctx.accounts.drift_signer.to_account_info(),
-        state.signer_nonce,
+        &constituent_in_token_account.to_account_info(),
+        &Constituent::get_vault_signer_seeds(
+            &in_constituent.lp_pool,
+            &in_constituent.spot_market_index,
+            &in_constituent.vault_bump,
+        ),
         amount_in,
         &Some(mint),
         Some(remaining_accounts_iter),
     )?;
+
+    drop(in_constituent);
 
     // The only other drift program allowed is SwapEnd
     let mut index = current_index + 1;
@@ -865,7 +872,7 @@ pub struct InitializeLpPool<'info> {
         bump,
         payer = admin,
         token::mint = mint,
-        token::authority = drift_signer
+        token::authority = lp_pool
     )]
     pub lp_pool_token_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
@@ -900,9 +907,6 @@ pub struct InitializeLpPool<'info> {
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
-    /// CHECK: program signer
-    pub drift_signer: AccountInfo<'info>,
-
     pub token_program: Program<'info, Token>,
 
     pub rent: Sysvar<'info, Rent>,
@@ -968,14 +972,9 @@ pub struct InitializeConstituent<'info> {
         bump,
         payer = admin,
         token::mint = spot_market_mint,
-        token::authority = drift_signer
+        token::authority = constituent_vault
     )]
     pub constituent_vault: Box<InterfaceAccount<'info, TokenAccount>>,
-    #[account(
-        constraint = state.signer.eq(&drift_signer.key())
-    )]
-    /// CHECK: program signer
-    pub drift_signer: AccountInfo<'info>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
     pub token_program: Interface<'info, TokenInterface>,
@@ -1146,12 +1145,12 @@ pub struct LPTakerSwap<'info> {
     /// Constituent token accounts
     #[account(
         mut,
-        address = out_constituent.load()?.vault,
+        address = out_constituent.load()?.token_vault,
     )]
     pub constituent_out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
-        address = in_constituent.load()?.vault,
+        address = in_constituent.load()?.token_vault,
     )]
     pub constituent_in_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
 
@@ -1175,6 +1174,4 @@ pub struct LPTakerSwap<'info> {
     #[account(address = instructions::ID)]
     pub instructions: UncheckedAccount<'info>,
     pub token_program: Interface<'info, TokenInterface>,
-    /// CHECK: program signer
-    pub drift_signer: AccountInfo<'info>,
 }

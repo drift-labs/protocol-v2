@@ -124,17 +124,17 @@ pub mod perp_lp_pool_settlement {
         from_vault: &InterfaceAccount<'info, TokenAccount>,
         to_vault: &InterfaceAccount<'info, TokenAccount>,
         signer: &AccountInfo<'info>,
-        signer_nonce: u8,
+        signer_seed: &[&[u8]],
         amount: u64,
         mint: &Option<InterfaceAccount<'info, Mint>>,
         remaining_accounts: Option<&mut Peekable<Iter<'info, AccountInfo<'info>>>>,
     ) -> Result<()> {
-        controller::token::send_from_program_vault(
+        controller::token::send_from_program_vault_with_signature_seeds(
             token_program,
             from_vault,
             to_vault,
             signer,
-            signer_nonce,
+            signer_seed,
             amount,
             mint,
             remaining_accounts,

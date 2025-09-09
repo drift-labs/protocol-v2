@@ -1,4 +1,5 @@
 use std::cell::RefMut;
+use std::collections::BTreeMap;
 use std::convert::TryFrom;
 
 use anchor_lang::prelude::*;
@@ -31,6 +32,7 @@ use crate::math::constants::QUOTE_PRECISION;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::constants::SPOT_BALANCE_PRECISION;
 use crate::math::lp_pool::perp_lp_pool_settlement;
+use crate::math::margin::get_margin_calculation_for_disable_high_leverage_mode;
 use crate::math::margin::{calculate_user_equity, meets_settle_pnl_maintenance_margin_requirement};
 use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
@@ -38,6 +40,7 @@ use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::optional_accounts::{get_token_mint, update_prelaunch_oracle};
+use crate::signer::get_signer_seeds;
 use crate::state::events::{DeleteUserRecord, OrderActionExplanation, SignedMsgOrderRecord};
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
@@ -2818,19 +2821,12 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
         }
     }
 
-    let custom_margin_ratio_before = user.max_margin_ratio;
-    user.max_margin_ratio = 0;
-
-    let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
-        &user,
+    let margin_calc = get_margin_calculation_for_disable_high_leverage_mode(
+        &mut user,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
-        MarginContext::standard(MarginRequirementType::Initial)
-            .margin_buffer(MARGIN_PRECISION / 100), // 1% buffer
     )?;
-
-    user.max_margin_ratio = custom_margin_ratio_before;
 
     if margin_calc.num_perp_liabilities > 0 {
         let mut requires_invariant_check = false;
@@ -3134,7 +3130,6 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
         ctx.accounts.amm_cache.load_zc_mut()?;
     let quote_market = &mut ctx.accounts.quote_market.load_mut()?;
     let mut quote_constituent = ctx.accounts.constituent.load_mut()?;
-    let constituent_token_account = &mut ctx.accounts.constituent_quote_token_account;
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
@@ -3222,10 +3217,16 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
             SettlementDirection::FromLpPool => {
                 execute_token_transfer(
                     &ctx.accounts.token_program,
-                    constituent_token_account,
+                    &ctx.accounts.constituent_quote_token_account,
                     &ctx.accounts.quote_token_vault,
-                    &ctx.accounts.drift_signer,
-                    state.signer_nonce,
+                    &ctx.accounts
+                        .constituent_quote_token_account
+                        .to_account_info(),
+                    &Constituent::get_vault_signer_seeds(
+                        &quote_constituent.lp_pool,
+                        &quote_constituent.spot_market_index,
+                        &quote_constituent.vault_bump,
+                    ),
                     settlement_result.amount_transferred,
                     &mint,
                     Some(remaining_accounts_iter),
@@ -3235,9 +3236,9 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
                 execute_token_transfer(
                     &ctx.accounts.token_program,
                     &ctx.accounts.quote_token_vault,
-                    constituent_token_account,
+                    &ctx.accounts.constituent_quote_token_account,
                     &ctx.accounts.drift_signer,
-                    state.signer_nonce,
+                    &get_signer_seeds(&state.signer_nonce),
                     settlement_result.amount_transferred,
                     &mint,
                     Some(remaining_accounts_iter),
@@ -3283,6 +3284,7 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
         }
 
         // Sync constituent token balance
+        let constituent_token_account = &mut ctx.accounts.constituent_quote_token_account;
         constituent_token_account.reload()?;
         quote_constituent.sync_token_balance(constituent_token_account.amount);
     }
@@ -3382,7 +3384,7 @@ pub struct SettleAmmPnlToLp<'info> {
     pub constituent: AccountLoader<'info, Constituent>,
     #[account(
         mut,
-        address = constituent.load()?.vault,
+        address = constituent.load()?.token_vault,
     )]
     pub constituent_quote_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
