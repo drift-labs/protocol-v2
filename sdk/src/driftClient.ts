@@ -6390,6 +6390,10 @@ export class DriftClient {
 			| SignedMsgOrderParamsDelegateMessage,
 		delegateSigner?: boolean
 	): SignedMsgOrderParams {
+		if (orderParamsMessage.maxMarginRatio === undefined) {
+			orderParamsMessage.maxMarginRatio = null;
+		}
+
 		const borshBuf = this.encodeSignedMsgOrderParamsMessage(
 			orderParamsMessage,
 			delegateSigner
