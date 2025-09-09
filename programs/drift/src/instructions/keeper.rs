@@ -3384,7 +3384,7 @@ pub struct SettleAmmPnlToLp<'info> {
     pub constituent: AccountLoader<'info, Constituent>,
     #[account(
         mut,
-        address = constituent.load()?.token_vault,
+        address = constituent.load()?.vault,
     )]
     pub constituent_quote_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(

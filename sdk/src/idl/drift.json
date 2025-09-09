@@ -9635,9 +9635,6 @@
           },
           {
             "name": "maxSettleQuoteAmount",
-            "docs": [
-              "Oldest slot of constituent oracles"
-            ],
             "type": "u64"
           },
           {
@@ -9721,7 +9718,7 @@
             "type": "publicKey"
           },
           {
-            "name": "tokenVault",
+            "name": "vault",
             "type": "publicKey"
           },
           {

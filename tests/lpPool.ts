@@ -332,9 +332,7 @@ describe('LP Pool', () => {
 		);
 		expect(mintInfo.decimals).to.equal(tokenDecimals);
 		expect(Number(mintInfo.supply)).to.equal(0);
-		expect(mintInfo.mintAuthority?.toBase58()).to.equal(
-			lpPoolKey.toBase58()
-		);
+		expect(mintInfo.mintAuthority?.toBase58()).to.equal(lpPoolKey.toBase58());
 	});
 
 	it('can add constituents to LP Pool', async () => {
@@ -1044,12 +1042,12 @@ describe('LP Pool', () => {
 		);
 		tx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1, 2]));
 		tx.add(
-			...await adminClient.getLpPoolRemoveLiquidityIx({
+			...(await adminClient.getLpPoolRemoveLiquidityIx({
 				outMarketIndex: 0,
 				lpToBurn: new BN(lpTokenBalance.amount.toString()),
 				minAmountOut: new BN(1000).mul(QUOTE_PRECISION),
 				lpPool: lpPool,
-			})
+			}))
 		);
 		await adminClient.sendTransaction(tx);
 

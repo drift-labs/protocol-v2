@@ -1767,7 +1767,7 @@ impl CacheInfo {
         Ok((self.oracle, oracle_source))
     }
 
-    pub fn get_last_available_amm_balance(&self) -> DriftResult<i128> {
+    pub fn get_last_available_amm_token_amount(&self) -> DriftResult<i128> {
         let last_available_balance = self
             .last_fee_pool_token_amount
             .cast::<i128>()?
@@ -1908,7 +1908,7 @@ impl<'a> AccountZeroCopyMut<'a, CacheInfo, AmmCacheFixed> {
             .saturating_sub(cached_info.last_exchange_fees);
 
         let amount_to_send_to_lp_pool = amm_amount_available
-            .safe_sub(cached_info.get_last_available_amm_balance()?)?
+            .safe_sub(cached_info.get_last_available_amm_token_amount()?)?
             .safe_mul(perp_market.lp_fee_transfer_scalar as i128)?
             .safe_div_ceil(100)?
             .safe_sub(

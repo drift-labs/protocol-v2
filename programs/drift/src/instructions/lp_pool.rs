@@ -1541,7 +1541,7 @@ pub struct DepositProgramVault<'info> {
     pub constituent: AccountLoader<'info, Constituent>,
     #[account(
         mut,
-        address = constituent.load()?.token_vault,
+        address = constituent.load()?.vault,
         constraint = &constituent.load()?.mint.eq(&constituent_token_account.mint),
     )]
     pub constituent_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
@@ -1579,7 +1579,7 @@ pub struct WithdrawProgramVault<'info> {
     pub constituent: AccountLoader<'info, Constituent>,
     #[account(
         mut,
-        address = constituent.load()?.token_vault,
+        address = constituent.load()?.vault,
         constraint = &constituent.load()?.mint.eq(&constituent_token_account.mint),
     )]
     pub constituent_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
@@ -1669,12 +1669,12 @@ pub struct LPPoolSwap<'info> {
 
     #[account(
         mut,
-        address = in_constituent.load()?.token_vault,
+        address = in_constituent.load()?.vault,
     )]
     pub constituent_in_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
-        address = out_constituent.load()?.token_vault,
+        address = out_constituent.load()?.vault,
     )]
     pub constituent_out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
 
@@ -1738,12 +1738,12 @@ pub struct ViewLPPoolSwapFees<'info> {
 
     #[account(
         mut,
-        address = in_constituent.load()?.token_vault,
+        address = in_constituent.load()?.vault,
     )]
     pub constituent_in_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
-        address = out_constituent.load()?.token_vault,
+        address = out_constituent.load()?.vault,
     )]
     pub constituent_out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
 

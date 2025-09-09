@@ -179,7 +179,7 @@ pub fn handle_initialize_constituent<'info>(
     constituent.oracle_staleness_threshold = oracle_staleness_threshold;
     constituent.pubkey = ctx.accounts.constituent.key();
     constituent.mint = ctx.accounts.spot_market_mint.key();
-    constituent.token_vault = ctx.accounts.constituent_vault.key();
+    constituent.vault = ctx.accounts.constituent_vault.key();
     constituent.bump = ctx.bumps.constituent;
     constituent.vault_bump = ctx.bumps.constituent_vault;
     constituent.max_borrow_token_amount = max_borrow_token_amount;
@@ -1145,12 +1145,12 @@ pub struct LPTakerSwap<'info> {
     /// Constituent token accounts
     #[account(
         mut,
-        address = out_constituent.load()?.token_vault,
+        address = out_constituent.load()?.vault,
     )]
     pub constituent_out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
-        address = in_constituent.load()?.token_vault,
+        address = in_constituent.load()?.vault,
     )]
     pub constituent_in_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
 

@@ -89,7 +89,6 @@ pub struct LPPool {
     /// timestamp of last AUM slot
     pub last_aum_slot: u64,
 
-    /// Oldest slot of constituent oracles
     pub max_settle_quote_amount: u64,
 
     /// timestamp of last vAMM revenue rebalance
@@ -810,7 +809,7 @@ pub struct Constituent {
     pub pubkey: Pubkey,
     pub mint: Pubkey,
     pub lp_pool: Pubkey,
-    pub token_vault: Pubkey,
+    pub vault: Pubkey,
 
     /// total fees received by the constituent. Positive = fees received, Negative = fees paid
     pub total_swap_fees: i128,

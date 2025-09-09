@@ -1713,7 +1713,7 @@ export type ConstituentAccount = {
 	mint: PublicKey;
 	oracleStalenessThreshold: BN;
 	lpPool: PublicKey;
-	tokenVault: PublicKey;
+	vault: PublicKey;
 	nextSwapId: BN;
 	derivativeWeight: BN;
 	flashLoanInitialTokenAmount: BN;
