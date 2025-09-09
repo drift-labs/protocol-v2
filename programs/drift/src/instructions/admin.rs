@@ -1125,6 +1125,7 @@ pub fn handle_update_initial_amm_cache_info<'c: 'info, 'info>(
 ) -> Result<()> {
     let amm_cache = &mut ctx.accounts.amm_cache;
     let slot = Clock::get()?.slot;
+    let state = &ctx.accounts.state;
 
     let AccountMaps {
         perp_market_map,
@@ -1148,7 +1149,7 @@ pub fn handle_update_initial_amm_cache_info<'c: 'info, 'info>(
         )?;
 
         amm_cache.update_perp_market_fields(&perp_market)?;
-        amm_cache.update_oracle_info(slot, perp_market.market_index, &mm_oracle_data)?;
+        amm_cache.update_oracle_info(slot, perp_market.market_index, &mm_oracle_data, &perp_market, &state.oracle_guard_rails)?;
     }
 
     Ok(())

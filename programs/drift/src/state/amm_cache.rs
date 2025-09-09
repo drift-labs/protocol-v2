@@ -1,9 +1,10 @@
 use std::convert::TryFrom;
 
 use crate::error::{DriftResult, ErrorCode};
-use crate::impl_zero_copy_loader;
+use crate::{impl_zero_copy_loader, OracleGuardRails};
 use crate::math::amm::calculate_net_user_pnl;
 use crate::math::casting::Cast;
+use crate::math::oracle::{oracle_validity, LogMode};
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 use crate::state::oracle::MMOraclePriceData;
@@ -18,6 +19,8 @@ use crate::validate;
 use crate::OracleSource;
 
 use anchor_lang::prelude::*;
+
+use super::user::MarketType;
 
 pub const AMM_POSITIONS_CACHE: &str = "amm_positions_cache";
 
@@ -50,7 +53,8 @@ pub struct CacheInfo {
     pub oracle_delay: i64,
     pub oracle_slot: u64,
     pub oracle_source: u8,
-    pub _padding: [u8; 7],
+    pub oracle_validity: u8,
+    pub _padding: [u8; 6],
     pub oracle: Pubkey,
 }
 
@@ -69,7 +73,8 @@ impl Default for CacheInfo {
             oracle_confidence: 0u64,
             oracle_delay: 0i64,
             oracle_slot: 0u64,
-            _padding: [0u8; 7],
+            oracle_validity: 0u8,
+            _padding: [0u8; 6],
             oracle: Pubkey::default(),
             last_fee_pool_token_amount: 0u128,
             last_net_pnl_pool_token_amount: 0i128,
@@ -120,6 +125,8 @@ impl CacheInfo {
         &mut self,
         clock_slot: u64,
         oracle_price_data: &MMOraclePriceData,
+        perp_market: &PerpMarket,
+        oracle_guard_rails: &OracleGuardRails,
     ) -> DriftResult<()> {
         let safe_oracle_data = oracle_price_data.get_safe_oracle_price_data();
         self.oracle_price = safe_oracle_data.price;
@@ -127,6 +134,18 @@ impl CacheInfo {
         self.oracle_delay = safe_oracle_data.delay;
         self.oracle_slot = clock_slot.safe_sub(safe_oracle_data.delay.max(0) as u64)?;
         self.slot = clock_slot;
+        let validity = oracle_validity(
+            MarketType::Perp,
+            perp_market.market_index,
+            perp_market.amm.historical_oracle_data.last_oracle_price_twap,
+            &safe_oracle_data,
+            &oracle_guard_rails.validity,
+            perp_market.get_max_confidence_interval_multiplier()?,
+            &perp_market.amm.oracle_source,
+            LogMode::SafeMMOracle,
+            perp_market.amm.oracle_slot_delay_override,
+        )?;
+        self.oracle_validity = u8::from(validity);
         Ok(())
     }
 }
@@ -180,10 +199,12 @@ impl AmmCache {
         clock_slot: u64,
         market_index: u16,
         oracle_price_data: &MMOraclePriceData,
+        perp_market: &PerpMarket,
+        oracle_guard_rails: &OracleGuardRails,
     ) -> DriftResult<()> {
         let cache_info = self.cache.get_mut(market_index as usize);
         if let Some(cache_info) = cache_info {
-            cache_info.update_oracle_info(clock_slot, oracle_price_data)?;
+            cache_info.update_oracle_info(clock_slot, oracle_price_data, perp_market, oracle_guard_rails)?;
         } else {
             msg!(
                 "Updating amm cache from admin with perp market index not found in cache: {}",
@@ -323,17 +344,6 @@ impl<'a> AccountZeroCopyMut<'a, CacheInfo, AmmCacheFixed> {
         let cache_info = self.get_mut(perp_market.market_index as u32);
         cache_info.update_perp_market_fields(perp_market)?;
 
-        Ok(())
-    }
-
-    pub fn update_oracle_info(
-        &mut self,
-        clock_slot: u64,
-        market_index: u16,
-        oracle_price_data: &MMOraclePriceData,
-    ) -> DriftResult<()> {
-        let cache_info = self.get_mut(market_index as u32);
-        cache_info.update_oracle_info(clock_slot, oracle_price_data)?;
         Ok(())
     }
 }
