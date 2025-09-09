@@ -39,6 +39,7 @@ pub fn handle_initialize_lp_pool(
     revenue_rebalance_period: u64,
     max_aum: u128,
     max_settle_quote_amount_per_market: u64,
+    whitelist_mint: Pubkey,
 ) -> Result<()> {
     let lp_key = ctx.accounts.lp_pool.key();
     let mut lp_pool = ctx.accounts.lp_pool.load_init()?;
@@ -81,6 +82,7 @@ pub fn handle_initialize_lp_pool(
         volatility: 4,
         xi: 2,
         padding: 0,
+        whitelist_mint,
     };
 
     let amm_constituent_mapping = &mut ctx.accounts.amm_constituent_mapping;
@@ -349,6 +351,7 @@ pub struct LpPoolParams {
     pub volatility: Option<u64>,
     pub gamma_execution: Option<u8>,
     pub xi: Option<u8>,
+    pub whitelist_mint: Option<Pubkey>,
 }
 
 pub fn handle_update_lp_pool_params<'info>(
