@@ -1,5 +1,4 @@
 use std::cell::RefMut;
-use std::collections::BTreeMap;
 use std::convert::TryFrom;
 
 use anchor_lang::prelude::*;
@@ -28,9 +27,7 @@ use crate::ids::{jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, serum_
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
-use crate::math::constants::QUOTE_PRECISION;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
-use crate::math::constants::SPOT_BALANCE_PRECISION;
 use crate::math::lp_pool::perp_lp_pool_settlement;
 use crate::math::margin::get_margin_calculation_for_disable_high_leverage_mode;
 use crate::math::margin::{calculate_user_equity, meets_settle_pnl_maintenance_margin_requirement};
@@ -41,6 +38,7 @@ use crate::math::spot_balance::get_token_amount;
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::optional_accounts::{get_token_mint, update_prelaunch_oracle};
 use crate::signer::get_signer_seeds;
+use crate::state::amm_cache::CacheInfo;
 use crate::state::events::{DeleteUserRecord, OrderActionExplanation, SignedMsgOrderRecord};
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
@@ -56,8 +54,6 @@ use crate::state::lp_pool::SETTLE_AMM_ORACLE_MAX_DELAY;
 use crate::state::oracle_map::OracleMap;
 use crate::state::order_params::{OrderParams, PlaceOrderOptions};
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
-use crate::state::perp_market::CacheInfo;
-use crate::state::perp_market::AMM_POSITIONS_CACHE;
 use crate::state::perp_market::{ContractType, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::{
     get_market_set_for_spot_positions, get_market_set_for_user_positions, get_market_set_from_list,
@@ -69,7 +65,6 @@ use crate::state::signed_msg_user::{
     SIGNED_MSG_PDA_SEED,
 };
 use crate::state::spot_fulfillment_params::SpotFulfillmentParams;
-use crate::state::spot_market::SpotBalance;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::{
     get_writable_spot_market_set, get_writable_spot_market_set_from_many, SpotMarketMap,
@@ -85,7 +80,6 @@ use crate::validation::sig_verification::verify_and_decode_ed25519_msg;
 use crate::validation::user::{validate_user_deletion, validate_user_is_idle};
 use crate::{
     controller, load, math, print_error, safe_decrement, OracleSource, GOV_SPOT_MARKET_INDEX,
-    MARGIN_PRECISION,
 };
 use crate::{load_mut, QUOTE_PRECISION_U64};
 use crate::{math_error, ID};
@@ -3332,22 +3326,14 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
         )?;
 
         let oracle_data = oracle_map.get_price_data(&perp_market.oracle_id())?;
+        let mm_oracle_price_data = perp_market.get_mm_oracle_price_data(
+            *oracle_data,
+            slot,
+            &ctx.accounts.state.oracle_guard_rails.validity,
+        )?;
 
-        cached_info.position = perp_market
-            .amm
-            .get_protocol_owned_position()?
-            .safe_mul(-1)?;
-        cached_info.slot = slot;
-        cached_info.last_oracle_price_twap = perp_market
-            .amm
-            .historical_oracle_data
-            .last_oracle_price_twap;
-        cached_info.oracle_price = oracle_data.price;
-        cached_info.oracle_slot = slot.saturating_sub(oracle_data.delay.max(0i64).cast::<u64>()?);
-        cached_info.oracle_delay = oracle_data.delay;
-        cached_info.oracle_confidence = oracle_data.confidence;
-        cached_info.max_confidence_interval_multiplier =
-            perp_market.get_max_confidence_interval_multiplier()?;
+        cached_info.update_perp_market_fields(&perp_market)?;
+        cached_info.update_oracle_info(slot, &mm_oracle_price_data)?;
 
         if perp_market.lp_status != 0 {
             amm_cache.update_amount_owed_from_lp_pool(&perp_market, &quote_market)?;
@@ -3406,6 +3392,7 @@ pub struct SettleAmmPnlToLp<'info> {
 pub struct UpdateAmmCache<'info> {
     #[account(mut)]
     pub keeper: Signer<'info>,
+    pub state: Box<Account<'info, State>>,
     /// CHECK: checked in AmmCacheZeroCopy checks
     #[account(mut)]
     pub amm_cache: AccountInfo<'info>,

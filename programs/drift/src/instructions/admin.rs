@@ -21,9 +21,8 @@ use crate::math::constants::{
     FEE_POOL_TO_REVENUE_POOL_THRESHOLD, IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX,
     INSURANCE_C_MAX, INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION,
     MAX_CONCENTRATION_COEFFICIENT, MAX_SQRT_K, MAX_UPDATE_K_PRICE_CHANGE, PERCENTAGE_PRECISION,
-    PERCENTAGE_PRECISION_I64, PRICE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX,
-    SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION, THIRTEEN_DAY,
-    TWENTY_FOUR_HOUR,
+    PERCENTAGE_PRECISION_I64, QUOTE_SPOT_MARKET_INDEX, SPOT_CUMULATIVE_INTEREST_PRECISION,
+    SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION, THIRTEEN_DAY, TWENTY_FOUR_HOUR,
 };
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::helpers::get_proportion_u128;
@@ -34,6 +33,7 @@ use crate::math::spot_balance::get_token_amount;
 use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::math::{amm, bn};
 use crate::optional_accounts::get_token_mint;
+use crate::state::amm_cache::{AmmCache, CacheInfo, AMM_POSITIONS_CACHE};
 use crate::state::events::{
     CurveRecord, DepositDirection, DepositExplanation, DepositRecord, SpotMarketVaultDepositRecord,
 };
@@ -56,8 +56,7 @@ use crate::state::oracle::{
 use crate::state::oracle_map::OracleMap;
 use crate::state::paused_operations::{InsuranceFundOperation, PerpOperation, SpotOperation};
 use crate::state::perp_market::{
-    AmmCache, CacheInfo, ContractTier, ContractType, InsuranceClaim, MarketStatus, PerpMarket,
-    PoolBalance, AMM, AMM_POSITIONS_CACHE,
+    ContractTier, ContractType, InsuranceClaim, MarketStatus, PerpMarket, PoolBalance, AMM,
 };
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::protected_maker_mode_config::ProtectedMakerModeConfig;
@@ -1125,10 +1124,11 @@ pub fn handle_update_initial_amm_cache_info<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdateInitialAmmCacheInfo<'info>>,
 ) -> Result<()> {
     let amm_cache = &mut ctx.accounts.amm_cache;
+    let slot = Clock::get()?.slot;
 
     let AccountMaps {
         perp_market_map,
-        spot_market_map,
+        spot_market_map: _,
         mut oracle_map,
     } = load_maps(
         &mut ctx.remaining_accounts.iter().peekable(),
@@ -1138,32 +1138,17 @@ pub fn handle_update_initial_amm_cache_info<'c: 'info, 'info>(
         None,
     )?;
 
-    let quote_market = spot_market_map.get_quote_spot_market()?;
-
     for (_, perp_market_loader) in perp_market_map.0 {
         let perp_market = perp_market_loader.load()?;
         let oracle_data = oracle_map.get_price_data(&perp_market.oracle_id())?;
-
-        let market_index = perp_market.market_index as usize;
-        let cache = amm_cache.cache.get_mut(market_index).unwrap();
-        cache.oracle = perp_market.amm.oracle;
-        cache.oracle_source = u8::from(perp_market.amm.oracle_source);
-        cache.last_oracle_price_twap = perp_market
-            .amm
-            .historical_oracle_data
-            .last_oracle_price_twap;
-        cache.last_fee_pool_token_amount = get_token_amount(
-            perp_market.amm.fee_pool.scaled_balance,
-            &quote_market,
-            perp_market.amm.fee_pool.balance_type(),
+        let mm_oracle_data = perp_market.get_mm_oracle_price_data(
+            *oracle_data,
+            slot,
+            &ctx.accounts.state.oracle_guard_rails.validity,
         )?;
-        cache.last_net_pnl_pool_token_amount = get_token_amount(
-            perp_market.pnl_pool.scaled_balance,
-            &quote_market,
-            perp_market.pnl_pool.balance_type(),
-        )?
-        .cast::<i128>()?
-        .safe_sub(calculate_net_user_pnl(&perp_market.amm, oracle_data.price)?)?;
+
+        amm_cache.update_perp_market_fields(&perp_market)?;
+        amm_cache.update_oracle_info(slot, perp_market.market_index, &mm_oracle_data)?;
     }
 
     Ok(())
@@ -3412,13 +3397,7 @@ pub fn handle_update_perp_market_contract_tier(
     );
 
     perp_market.contract_tier = contract_tier;
-    let max_confidence_interval_multiplier =
-        perp_market.get_max_confidence_interval_multiplier()?;
-    amm_cache
-        .cache
-        .get_mut(perp_market.market_index as usize)
-        .expect("value should exist for market index")
-        .max_confidence_interval_multiplier = max_confidence_interval_multiplier;
+    amm_cache.update_perp_market_fields(perp_market)?;
 
     Ok(())
 }
@@ -3793,13 +3772,7 @@ pub fn handle_update_perp_market_oracle(
     perp_market.amm.oracle = oracle;
     perp_market.amm.oracle_source = oracle_source;
 
-    let amm_position_cache_info = amm_cache
-        .cache
-        .get_mut(perp_market.market_index as usize)
-        .expect("value should exist for market index");
-
-    amm_position_cache_info.oracle = oracle;
-    amm_position_cache_info.oracle_source = u8::from(oracle_source);
+    amm_cache.update_perp_market_fields(perp_market)?;
 
     Ok(())
 }

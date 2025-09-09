@@ -10326,6 +10326,7 @@ export class DriftClient {
 
 		return this.program.instruction.updateAmmCache({
 			accounts: {
+				state: await this.getStatePublicKey(),
 				keeper: this.wallet.publicKey,
 				ammCache: getAmmCachePublicKey(this.program.programId),
 				quoteMarket: this.getSpotMarketAccount(0).pubkey,

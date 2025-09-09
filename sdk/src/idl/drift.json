@@ -8248,6 +8248,11 @@
           "isSigner": true
         },
         {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "ammCache",
           "isMut": true,
           "isSigner": false
@@ -9109,6 +9114,35 @@
     }
   ],
   "accounts": [
+    {
+      "name": "AmmCache",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                3
+              ]
+            }
+          },
+          {
+            "name": "cache",
+            "type": {
+              "vec": {
+                "defined": "CacheInfo"
+              }
+            }
+          }
+        ]
+      }
+    },
     {
       "name": "OpenbookV2FulfillmentConfig",
       "type": {
@@ -10309,35 +10343,6 @@
                 "u8",
                 23
               ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "AmmCache",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "bump",
-            "type": "u8"
-          },
-          {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u8",
-                3
-              ]
-            }
-          },
-          {
-            "name": "cache",
-            "type": {
-              "vec": {
-                "defined": "CacheInfo"
-              }
             }
           }
         ]
@@ -11822,6 +11827,115 @@
           {
             "name": "weight",
             "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CacheInfo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lastFeePoolTokenAmount",
+            "type": "u128"
+          },
+          {
+            "name": "lastNetPnlPoolTokenAmount",
+            "type": "i128"
+          },
+          {
+            "name": "lastExchangeFees",
+            "type": "u128"
+          },
+          {
+            "name": "position",
+            "docs": [
+              "BASE PRECISION"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "maxConfidenceIntervalMultiplier",
+            "type": "u64"
+          },
+          {
+            "name": "lastOraclePriceTwap",
+            "type": "i64"
+          },
+          {
+            "name": "lastSettleAmount",
+            "type": "u64"
+          },
+          {
+            "name": "lastSettleSlot",
+            "type": "u64"
+          },
+          {
+            "name": "quoteOwedFromLpPool",
+            "type": "i64"
+          },
+          {
+            "name": "oraclePrice",
+            "type": "i64"
+          },
+          {
+            "name": "oracleConfidence",
+            "type": "u64"
+          },
+          {
+            "name": "oracleDelay",
+            "type": "i64"
+          },
+          {
+            "name": "oracleSlot",
+            "type": "u64"
+          },
+          {
+            "name": "oracleSource",
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                7
+              ]
+            }
+          },
+          {
+            "name": "oracle",
+            "type": "publicKey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AmmCacheFixed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "pad",
+            "type": {
+              "array": [
+                "u8",
+                3
+              ]
+            }
+          },
+          {
+            "name": "len",
+            "type": "u32"
           }
         ]
       }
@@ -13468,115 +13582,6 @@
           {
             "name": "lastFundingOracleTwap",
             "type": "i64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "CacheInfo",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "lastFeePoolTokenAmount",
-            "type": "u128"
-          },
-          {
-            "name": "lastNetPnlPoolTokenAmount",
-            "type": "i128"
-          },
-          {
-            "name": "lastExchangeFees",
-            "type": "u128"
-          },
-          {
-            "name": "position",
-            "docs": [
-              "BASE PRECISION"
-            ],
-            "type": "i64"
-          },
-          {
-            "name": "slot",
-            "type": "u64"
-          },
-          {
-            "name": "maxConfidenceIntervalMultiplier",
-            "type": "u64"
-          },
-          {
-            "name": "lastOraclePriceTwap",
-            "type": "i64"
-          },
-          {
-            "name": "lastSettleAmount",
-            "type": "u64"
-          },
-          {
-            "name": "lastSettleSlot",
-            "type": "u64"
-          },
-          {
-            "name": "quoteOwedFromLpPool",
-            "type": "i64"
-          },
-          {
-            "name": "oraclePrice",
-            "type": "i64"
-          },
-          {
-            "name": "oracleConfidence",
-            "type": "u64"
-          },
-          {
-            "name": "oracleDelay",
-            "type": "i64"
-          },
-          {
-            "name": "oracleSlot",
-            "type": "u64"
-          },
-          {
-            "name": "oracleSource",
-            "type": "u8"
-          },
-          {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u8",
-                7
-              ]
-            }
-          },
-          {
-            "name": "oracle",
-            "type": "publicKey"
-          }
-        ]
-      }
-    },
-    {
-      "name": "AmmCacheFixed",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "bump",
-            "type": "u8"
-          },
-          {
-            "name": "pad",
-            "type": {
-              "array": [
-                "u8",
-                3
-              ]
-            }
-          },
-          {
-            "name": "len",
-            "type": "u32"
           }
         ]
       }

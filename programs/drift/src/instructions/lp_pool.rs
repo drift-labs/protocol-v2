@@ -21,6 +21,7 @@ use crate::{
     },
     math_error, msg, safe_decrement, safe_increment,
     state::{
+        amm_cache::{AmmCacheFixed, CacheInfo, AMM_POSITIONS_CACHE},
         constituent_map::{ConstituentMap, ConstituentSet},
         events::{emit_stack, LPMintRedeemRecord, LPSwapRecord},
         lp_pool::{
@@ -32,7 +33,6 @@ use crate::{
         },
         oracle::OraclePriceData,
         oracle_map::OracleMap,
-        perp_market::{AmmCacheFixed, CacheInfo, AMM_POSITIONS_CACHE},
         perp_market_map::MarketSet,
         spot_market::{SpotBalanceType, SpotMarket},
         spot_market_map::get_writable_spot_market_set_from_many,
