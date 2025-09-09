@@ -7,7 +7,7 @@ use crate::math::constants::PRICE_PRECISION_U64;
 use crate::math::safe_math::SafeMath;
 use crate::state::lp_pool::{
     AmmConstituentDatum, AmmConstituentMapping, Constituent, ConstituentCorrelations,
-    ConstituentTargetBase, LPPool, TargetsDatum, AMM_MAP_PDA_SEED,
+    ConstituentStatus, ConstituentTargetBase, LPPool, TargetsDatum, AMM_MAP_PDA_SEED,
     CONSTITUENT_CORRELATIONS_PDA_SEED, CONSTITUENT_PDA_SEED, CONSTITUENT_TARGET_BASE_PDA_SEED,
     CONSTITUENT_VAULT_PDA_SEED,
 };

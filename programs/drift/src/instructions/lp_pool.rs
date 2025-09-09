@@ -3,6 +3,7 @@ use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 use crate::ids::DLP_WHITELIST;
 use crate::math::constants::{PERCENTAGE_PRECISION, PRICE_PRECISION_I64};
+use crate::state::paused_operations::ConstituentLpOperation;
 use crate::{
     controller::{
         self,
@@ -50,7 +51,9 @@ use super::optional_accounts::{load_maps, AccountMaps};
 use crate::controller::spot_balance::update_spot_market_cumulative_interest;
 use crate::controller::token::{receive, send_from_program_vault_with_signature_seeds};
 use crate::instructions::constraints::*;
-use crate::state::lp_pool::{CONSTITUENT_PDA_SEED, LP_POOL_TOKEN_VAULT_PDA_SEED};
+use crate::state::lp_pool::{
+    ConstituentStatus, CONSTITUENT_PDA_SEED, LP_POOL_TOKEN_VAULT_PDA_SEED,
+};
 
 pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdateConstituentTargetBase<'info>>,
@@ -303,6 +306,9 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
     let mut in_constituent = ctx.accounts.in_constituent.load_mut()?;
     let mut out_constituent = ctx.accounts.out_constituent.load_mut()?;
 
+    in_constituent.does_constituent_allow_operation(ConstituentLpOperation::Swap)?;
+    out_constituent.does_constituent_allow_operation(ConstituentLpOperation::Swap)?;
+
     let constituent_target_base_key = &ctx.accounts.constituent_target_base.key();
     let constituent_target_base: AccountZeroCopy<'_, TargetsDatum, ConstituentTargetBaseFixed> =
         ctx.accounts.constituent_target_base.load_zc()?;
@@ -337,6 +343,20 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
 
     let in_spot_market = spot_market_map.get_ref(&in_market_index)?;
     let out_spot_market = spot_market_map.get_ref(&out_market_index)?;
+
+    if in_constituent.is_reduce_only()?
+        && !in_constituent.is_operation_reducing(&in_spot_market, true)?
+    {
+        msg!("In constituent in reduce only mode");
+        return Err(ErrorCode::InvalidConstituentOperation.into());
+    }
+
+    if out_constituent.is_reduce_only()?
+        && !out_constituent.is_operation_reducing(&out_spot_market, false)?
+    {
+        msg!("Out constituent in reduce only mode");
+        return Err(ErrorCode::InvalidConstituentOperation.into());
+    }
 
     let in_oracle_id = in_spot_market.oracle_id();
     let out_oracle_id = out_spot_market.oracle_id();
@@ -617,6 +637,9 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
         "Mint/redeem LP pool is disabled"
     )?;
 
+    let mut in_constituent = ctx.accounts.in_constituent.load_mut()?;
+    in_constituent.does_constituent_allow_operation(ConstituentLpOperation::Deposit)?;
+
     let slot = Clock::get()?.slot;
     let now = Clock::get()?.unix_timestamp;
     let lp_pool_key = ctx.accounts.lp_pool.key();
@@ -634,8 +657,6 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
     }
 
     let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
-
-    let mut in_constituent = ctx.accounts.in_constituent.load_mut()?;
 
     let constituent_target_base_key = &ctx.accounts.constituent_target_base.key();
     let constituent_target_base: AccountZeroCopy<'_, TargetsDatum, ConstituentTargetBaseFixed> =
@@ -660,6 +681,13 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
     )?;
 
     let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
+
+    if in_constituent.is_reduce_only()?
+        && !in_constituent.is_operation_reducing(&in_spot_market, true)?
+    {
+        msg!("In constituent in reduce only mode");
+        return Err(ErrorCode::InvalidConstituentOperation.into());
+    }
 
     let in_oracle_id = in_spot_market.oracle_id();
 
@@ -953,6 +981,9 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
 
     let lp_price_before = lp_pool.get_price(ctx.accounts.lp_mint.supply)?;
 
+    let mut out_constituent = ctx.accounts.out_constituent.load_mut()?;
+    out_constituent.does_constituent_allow_operation(ConstituentLpOperation::Withdraw)?;
+
     // Verify previous settle
     let amm_cache: AccountZeroCopy<'_, CacheInfo, _> = ctx.accounts.amm_cache.load_zc()?;
     for (i, _) in amm_cache.iter().enumerate() {
@@ -975,8 +1006,6 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
         );
         return Err(ErrorCode::LpPoolAumDelayed.into());
     }
-
-    let mut out_constituent = ctx.accounts.out_constituent.load_mut()?;
 
     let constituent_target_base_key = &ctx.accounts.constituent_target_base.key();
     let constituent_target_base: AccountZeroCopy<'_, TargetsDatum, ConstituentTargetBaseFixed> =
@@ -1003,6 +1032,13 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
     )?;
 
     let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
+
+    if out_constituent.is_reduce_only()?
+        && !out_constituent.is_operation_reducing(&out_spot_market, false)?
+    {
+        msg!("Out constituent in reduce only mode");
+        return Err(ErrorCode::InvalidConstituentOperation.into());
+    }
 
     let out_oracle_id = out_spot_market.oracle_id();
 

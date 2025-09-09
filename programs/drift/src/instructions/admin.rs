@@ -972,10 +972,10 @@ pub fn handle_initialize_perp_market(
         protected_maker_dynamic_divisor: 0,
         lp_fee_transfer_scalar: 1,
         lp_status: 0,
-        padding1: 0,
+        lp_exchange_fee_excluscion_scalar: 0,
+        lp_paused_operations: 0,
         last_fill_price: 0,
-        lp_exchange_fee_excluscion_scalar: 1,
-        padding: [0; 23],
+        padding: [0; 24],
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
             oracle_source,

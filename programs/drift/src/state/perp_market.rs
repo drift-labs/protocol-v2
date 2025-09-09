@@ -1,17 +1,13 @@
-use crate::math::spot_balance::get_token_amount;
 use crate::state::pyth_lazer_oracle::PythLazerOracle;
 use crate::state::user::MarketType;
-use crate::state::zero_copy::{AccountZeroCopy, AccountZeroCopyMut};
-use crate::{impl_zero_copy_loader, validate};
 use anchor_lang::prelude::*;
 
 use crate::state::state::{State, ValidityGuardRails};
 use std::cmp::max;
-use std::convert::TryFrom;
 
-use crate::controller::position::{PositionDelta, PositionDirection};
+use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
-use crate::math::amm::{self, calculate_net_user_pnl};
+use crate::math::amm::{self};
 use crate::math::casting::Cast;
 #[cfg(test)]
 use crate::math::constants::{AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT};
@@ -36,7 +32,7 @@ use crate::state::oracle::{
     get_prelaunch_price, get_sb_on_demand_price, get_switchboard_price, HistoricalOracleData,
     MMOraclePriceData, OraclePriceData, OracleSource,
 };
-use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType, SpotMarket};
+use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType};
 use crate::state::traits::{MarketIndexOffset, Size};
 use borsh::{BorshDeserialize, BorshSerialize};
 
@@ -46,7 +42,6 @@ use static_assertions::const_assert_eq;
 
 use super::oracle_map::OracleIdentifier;
 use super::protected_maker_mode_config::ProtectedMakerParams;
-use super::zero_copy::HasLen;
 use crate::math::oracle::{oracle_validity, LogMode, OracleValidity};
 
 #[cfg(test)]
@@ -89,6 +84,23 @@ impl MarketStatus {
         } else {
             Ok(())
         }
+    }
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
+pub enum LpStatus {
+    /// Not considered
+    #[default]
+    Uncollateralized,
+    /// all operations allowed
+    Active,
+    /// Decommissioning
+    Decommissioning,
+}
+
+impl LpStatus {
+    pub fn is_collateralized(&self) -> bool {
+        !matches!(self, LpStatus::Uncollateralized)
     }
 }
 
@@ -239,10 +251,10 @@ pub struct PerpMarket {
     pub protected_maker_dynamic_divisor: u8,
     pub lp_fee_transfer_scalar: u8,
     pub lp_status: u8,
-    pub padding1: u16,
-    pub last_fill_price: u64,
+    pub lp_paused_operations: u8,
     pub lp_exchange_fee_excluscion_scalar: u8,
-    pub padding: [u8; 23],
+    pub last_fill_price: u64,
+    pub padding: [u8; 24],
 }
 
 impl Default for PerpMarket {
@@ -286,10 +298,10 @@ impl Default for PerpMarket {
             protected_maker_dynamic_divisor: 0,
             lp_fee_transfer_scalar: 0,
             lp_status: 0,
-            padding1: 0,
-            last_fill_price: 0,
             lp_exchange_fee_excluscion_scalar: 0,
-            padding: [0; 23],
+            lp_paused_operations: 0,
+            last_fill_price: 0,
+            padding: [0; 24],
         }
     }
 }
