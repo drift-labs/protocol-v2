@@ -1445,6 +1445,35 @@
       ]
     },
     {
+      "name": "updateUserPerpPositionCustomMarginRatio",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "subAccountId",
+          "type": "u16"
+        },
+        {
+          "name": "perpMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "marginRatio",
+          "type": "u16"
+        }
+      ]
+    },
+    {
       "name": "updateUserMarginTradingEnabled",
       "accounts": [
         {
@@ -11484,13 +11513,17 @@
             "type": "i64"
           },
           {
-            "name": "remainderBaseAssetAmount",
-            "docs": [
-              "Settling LP position can lead to a small amount of base asset being left over smaller than step size",
-              "This records that remainder so it can be settled later on",
-              "precision: BASE_PRECISION"
-            ],
-            "type": "i32"
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                2
+              ]
+            }
+          },
+          {
+            "name": "maxMarginRatio",
+            "type": "u16"
           },
           {
             "name": "marketIndex",
