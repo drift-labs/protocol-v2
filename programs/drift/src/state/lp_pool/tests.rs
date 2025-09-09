@@ -1526,7 +1526,7 @@ mod settle_tests {
         calculate_settlement_amount, update_cache_info, SettlementContext, SettlementDirection,
         SettlementResult,
     };
-    use crate::state::perp_market::CacheInfo;
+    use crate::state::amm_cache::CacheInfo;
     use crate::state::spot_market::SpotMarket;
 
     fn create_mock_spot_market() -> SpotMarket {
@@ -2225,10 +2225,10 @@ mod update_aum_tests {
         create_anchor_account_info,
         math::constants::SPOT_CUMULATIVE_INTEREST_PRECISION,
         math::constants::{PRICE_PRECISION_I64, QUOTE_PRECISION},
+        state::amm_cache::{AmmCacheFixed, CacheInfo},
         state::lp_pool::*,
         state::oracle::HistoricalOracleData,
         state::oracle::OracleSource,
-        state::perp_market::{AmmCacheFixed, CacheInfo},
         state::spot_market::SpotMarket,
         state::spot_market_map::SpotMarketMap,
         state::zero_copy::AccountZeroCopyMut,

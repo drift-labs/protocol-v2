@@ -7,10 +7,7 @@ pub mod perp_lp_pool_settlement {
     use crate::state::spot_market::SpotBalanceType;
     use crate::{
         math::safe_math::SafeMath,
-        state::{
-            perp_market::{CacheInfo, PerpMarket},
-            spot_market::SpotMarket,
-        },
+        state::{amm_cache::CacheInfo, perp_market::PerpMarket, spot_market::SpotMarket},
         *,
     };
     use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
