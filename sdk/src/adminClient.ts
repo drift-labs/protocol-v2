@@ -4943,7 +4943,8 @@ export class AdminClient extends DriftClient {
 		revenueRebalancePeriod: BN,
 		maxAum: BN,
 		maxSettleQuoteAmountPerMarket: BN,
-		mint: Keypair
+		mint: Keypair,
+		whitelistMint?: PublicKey
 	): Promise<TransactionSignature> {
 		const ixs = await this.getInitializeLpPoolIx(
 			name,
@@ -4952,7 +4953,8 @@ export class AdminClient extends DriftClient {
 			revenueRebalancePeriod,
 			maxAum,
 			maxSettleQuoteAmountPerMarket,
-			mint
+			mint,
+			whitelistMint
 		);
 		const tx = await this.buildTransaction(ixs);
 		const { txSig } = await this.sendTransaction(tx, [mint]);
@@ -4966,7 +4968,8 @@ export class AdminClient extends DriftClient {
 		revenueRebalancePeriod: BN,
 		maxAum: BN,
 		maxSettleQuoteAmountPerMarket: BN,
-		mint: Keypair
+		mint: Keypair,
+		whitelistMint?: PublicKey
 	): Promise<TransactionInstruction[]> {
 		const lpPool = getLpPoolPublicKey(this.program.programId, encodeName(name));
 		const ammConstituentMapping = getAmmConstituentMappingPublicKey(
@@ -5007,6 +5010,7 @@ export class AdminClient extends DriftClient {
 				revenueRebalancePeriod,
 				maxAum,
 				maxSettleQuoteAmountPerMarket,
+				whitelistMint ?? PublicKey.default,
 				{
 					accounts: {
 						admin: this.wallet.publicKey,
@@ -5234,6 +5238,10 @@ export class AdminClient extends DriftClient {
 		lpPoolName: number[],
 		updateLpPoolParams: {
 			maxSettleQuoteAmount?: BN;
+			volatility?: BN;
+			gammaExecution?: number;
+			xi?: number;
+			whitelistMint?: PublicKey;
 		}
 	): Promise<TransactionSignature> {
 		const ixs = await this.getUpdateLpPoolParamsIx(
@@ -5252,6 +5260,7 @@ export class AdminClient extends DriftClient {
 			volatility?: BN;
 			gammaExecution?: number;
 			xi?: number;
+			whitelistMint?: PublicKey;
 		}
 	): Promise<TransactionInstruction[]> {
 		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
@@ -5263,6 +5272,7 @@ export class AdminClient extends DriftClient {
 						volatility: null,
 						gammaExecution: null,
 						xi: null,
+						whitelistMint: null,
 					},
 					updateLpPoolParams
 				),

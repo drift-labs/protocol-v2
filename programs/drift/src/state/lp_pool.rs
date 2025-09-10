@@ -64,6 +64,8 @@ pub struct LPPool {
     pub pubkey: Pubkey,
     // vault token mint
     pub mint: Pubkey, // 32, 96
+    // whitelist mint
+    pub whitelist_mint: Pubkey,
     // constituent target base pubkey
     pub constituent_target_base: Pubkey,
     // constituent correlations pubkey
@@ -119,7 +121,7 @@ pub struct LPPool {
 }
 
 impl Size for LPPool {
-    const SIZE: usize = 328;
+    const SIZE: usize = 360;
 }
 
 impl LPPool {
