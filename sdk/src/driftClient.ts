@@ -9984,7 +9984,8 @@ export class DriftClient {
 
 	public async getDisableHighLeverageModeIx(
 		user: PublicKey,
-		userAccount?: UserAccount
+		userAccount?: UserAccount,
+		maintenance = false
 	): Promise<TransactionInstruction> {
 		const remainingAccounts = userAccount
 			? this.getRemainingAccounts({
@@ -9993,7 +9994,7 @@ export class DriftClient {
 			: undefined;
 
 		const ix = await this.program.instruction.disableUserHighLeverageMode(
-			false,
+			maintenance,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
