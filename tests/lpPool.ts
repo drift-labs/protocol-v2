@@ -11,7 +11,17 @@ import {
 	SystemProgram,
 	Transaction,
 } from '@solana/web3.js';
-import { createAssociatedTokenAccountIdempotentInstruction, createAssociatedTokenAccountInstruction, createInitializeMint2Instruction, createMintToInstruction, getAssociatedTokenAddress, getAssociatedTokenAddressSync, getMint, MINT_SIZE, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import {
+	createAssociatedTokenAccountIdempotentInstruction,
+	createAssociatedTokenAccountInstruction,
+	createInitializeMint2Instruction,
+	createMintToInstruction,
+	getAssociatedTokenAddress,
+	getAssociatedTokenAddressSync,
+	getMint,
+	MINT_SIZE,
+	TOKEN_PROGRAM_ID,
+} from '@solana/spl-token';
 
 import {
 	BN,
@@ -116,8 +126,7 @@ describe('LP Pool', () => {
 	before(async () => {
 		const context = await startAnchor(
 			'',
-			[
-			],
+			[],
 			[
 				{
 					address: PYTH_LAZER_STORAGE_ACCOUNT_KEY,
@@ -299,9 +308,14 @@ describe('LP Pool', () => {
 			)
 		);
 
-		await bankrunContextWrapper.sendTransaction(transaction, [whitelistKeypair]);
+		await bankrunContextWrapper.sendTransaction(transaction, [
+			whitelistKeypair,
+		]);
 
-		const whitelistMintInfo = await bankrunContextWrapper.connection.getAccountInfo(whitelistKeypair.publicKey)
+		const whitelistMintInfo =
+			await bankrunContextWrapper.connection.getAccountInfo(
+				whitelistKeypair.publicKey
+			);
 		console.log('whitelistMintInfo', whitelistMintInfo);
 
 		whitelistMint = whitelistKeypair.publicKey;
@@ -1598,26 +1612,25 @@ describe('LP Pool', () => {
 		try {
 			await adminClient.sendTransaction(tx);
 			assert(false, 'Should have thrown');
-
 		} catch (e) {
 			assert(e.toString().includes('0x1789')); // invalid whitelist token
 		}
 
 		const whitelistMintAta = getAssociatedTokenAddressSync(
 			whitelistMint,
-			adminClient.wallet.publicKey,
+			adminClient.wallet.publicKey
 		);
 		const ix = createAssociatedTokenAccountInstruction(
 			bankrunContextWrapper.context.payer.publicKey,
 			whitelistMintAta,
 			adminClient.wallet.publicKey,
-			whitelistMint,
+			whitelistMint
 		);
 		const mintToIx = createMintToInstruction(
 			whitelistMint,
 			whitelistMintAta,
 			bankrunContextWrapper.provider.wallet.publicKey,
-			1,
+			1
 		);
 		await bankrunContextWrapper.sendTransaction(
 			new Transaction().add(ix, mintToIx)
