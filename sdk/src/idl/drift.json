@@ -4731,6 +4731,32 @@
       ]
     },
     {
+      "name": "updatePerpMarketLpPoolPausedOperations",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "lpPausedOperations",
+          "type": "u8"
+        }
+      ]
+    },
+    {
       "name": "updatePerpMarketLpPoolStatus",
       "accounts": [
         {
