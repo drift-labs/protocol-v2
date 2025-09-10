@@ -61,8 +61,8 @@ use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::protected_maker_mode_config::ProtectedMakerModeConfig;
 use crate::state::pyth_lazer_oracle::{PythLazerOracle, PYTH_LAZER_ORACLE_SEED};
 use crate::state::spot_market::{
-    AssetTier, InsuranceFund, SpotBalance, SpotBalanceType, SpotFulfillmentConfigStatus,
-    SpotMarket, TokenProgramFlag,
+    AssetTier, InsuranceFund, SpotBalanceType, SpotFulfillmentConfigStatus, SpotMarket,
+    TokenProgramFlag,
 };
 use crate::state::spot_market_map::get_writable_spot_market_set;
 use crate::state::state::{
@@ -4238,6 +4238,16 @@ pub fn handle_update_perp_market_lp_pool_status(
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     msg!("perp market {}", perp_market.market_index);
     perp_market.lp_status = lp_status;
+    Ok(())
+}
+
+pub fn handle_update_perp_market_lp_pool_paused_operations(
+    ctx: Context<AdminUpdatePerpMarket>,
+    lp_paused_operations: u8,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
+    perp_market.lp_paused_operations = lp_paused_operations;
     Ok(())
 }
 

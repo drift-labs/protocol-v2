@@ -1069,6 +1069,13 @@ pub mod drift {
         handle_update_perp_market_expiry(ctx, expiry_ts)
     }
 
+    pub fn update_perp_market_lp_pool_paused_operations(
+        ctx: Context<AdminUpdatePerpMarket>,
+        lp_paused_operations: u8,
+    ) -> Result<()> {
+        handle_update_perp_market_lp_pool_paused_operations(ctx, lp_paused_operations)
+    }
+
     pub fn update_perp_market_lp_pool_status(
         ctx: Context<AdminUpdatePerpMarket>,
         lp_status: u8,

@@ -53,6 +53,7 @@ use crate::state::lp_pool::CONSTITUENT_PDA_SEED;
 use crate::state::lp_pool::SETTLE_AMM_ORACLE_MAX_DELAY;
 use crate::state::oracle_map::OracleMap;
 use crate::state::order_params::{OrderParams, PlaceOrderOptions};
+use crate::state::paused_operations::PerpLpOperation;
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
 use crate::state::perp_market::{ContractType, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::{
@@ -3149,7 +3150,12 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
 
     for (_, perp_market_loader) in perp_market_map.0.iter() {
         let mut perp_market = perp_market_loader.load_mut()?;
-        if perp_market.lp_status == 0 {
+        if perp_market.lp_status == 0
+            || PerpLpOperation::is_operation_paused(
+                perp_market.lp_paused_operations,
+                PerpLpOperation::SettleQuoteOwed,
+            )
+        {
             continue;
         }
 
@@ -3335,7 +3341,12 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
         cached_info.update_perp_market_fields(&perp_market)?;
         cached_info.update_oracle_info(slot, &mm_oracle_price_data)?;
 
-        if perp_market.lp_status != 0 {
+        if perp_market.lp_status != 0
+            && !PerpLpOperation::is_operation_paused(
+                perp_market.lp_paused_operations,
+                PerpLpOperation::TrackAmmRevenue,
+            )
+        {
             amm_cache.update_amount_owed_from_lp_pool(&perp_market, &quote_market)?;
         }
     }
