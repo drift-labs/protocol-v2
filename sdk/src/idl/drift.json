@@ -11851,6 +11851,10 @@
         "kind": "struct",
         "fields": [
           {
+            "name": "oracle",
+            "type": "publicKey"
+          },
+          {
             "name": "lastFeePoolTokenAmount",
             "type": "u128"
           },
@@ -11874,14 +11878,6 @@
             "type": "u64"
           },
           {
-            "name": "maxConfidenceIntervalMultiplier",
-            "type": "u64"
-          },
-          {
-            "name": "lastOraclePriceTwap",
-            "type": "i64"
-          },
-          {
             "name": "lastSettleAmount",
             "type": "u64"
           },
@@ -11898,14 +11894,6 @@
             "type": "i64"
           },
           {
-            "name": "oracleConfidence",
-            "type": "u64"
-          },
-          {
-            "name": "oracleDelay",
-            "type": "i64"
-          },
-          {
             "name": "oracleSlot",
             "type": "u64"
           },
@@ -11914,17 +11902,17 @@
             "type": "u8"
           },
           {
+            "name": "oracleValidity",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                7
+                6
               ]
             }
-          },
-          {
-            "name": "oracle",
-            "type": "publicKey"
           }
         ]
       }
