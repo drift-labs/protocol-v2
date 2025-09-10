@@ -484,15 +484,11 @@ export class User {
 		enterHighLeverageMode = undefined,
 		perpPosition?: PerpPosition
 	): BN {
-		const userCustomMargin = Math.max(
-			perpPosition?.maxMarginRatio ?? 0,
-			this.getUserAccount().maxMarginRatio
-		);
 		const marginRatio = calculateMarketMarginRatio(
 			this.driftClient.getPerpMarketAccount(marketIndex),
 			baseAssetAmount,
 			'Initial',
-			userCustomMargin,
+			this.getUserAccount().maxMarginRatio,
 			enterHighLeverageMode || this.isHighLeverageMode('Initial')
 		);
 
@@ -2169,10 +2165,7 @@ export class User {
 				);
 			}
 
-			const userCustomMargin = Math.max(
-				perpPosition.maxMarginRatio,
-				this.getUserAccount().maxMarginRatio
-			);
+			const userCustomMargin = this.getUserAccount().maxMarginRatio;
 			const marginRatio = calculateMarketMarginRatio(
 				market,
 				baseAssetAmount.abs(),
