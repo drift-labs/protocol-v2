@@ -864,6 +864,7 @@ pub struct SignedMsgOrderParamsMessage {
     pub uuid: [u8; 8],
     pub take_profit_order_params: Option<SignedMsgTriggerOrderParams>,
     pub stop_loss_order_params: Option<SignedMsgTriggerOrderParams>,
+    pub max_margin_ratio: Option<u16>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
@@ -874,6 +875,7 @@ pub struct SignedMsgOrderParamsDelegateMessage {
     pub uuid: [u8; 8],
     pub take_profit_order_params: Option<SignedMsgTriggerOrderParams>,
     pub stop_loss_order_params: Option<SignedMsgTriggerOrderParams>,
+    pub max_margin_ratio: Option<u16>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
