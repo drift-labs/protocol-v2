@@ -10139,6 +10139,12 @@
                 "defined": "SignedMsgTriggerOrderParams"
               }
             }
+          },
+          {
+            "name": "maxMarginRatio",
+            "type": {
+              "option": "u16"
+            }
           }
         ]
       }
@@ -10185,6 +10191,12 @@
               "option": {
                 "defined": "SignedMsgTriggerOrderParams"
               }
+            }
+          },
+          {
+            "name": "maxMarginRatio",
+            "type": {
+              "option": "u16"
             }
           }
         ]
