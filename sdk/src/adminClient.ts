@@ -5238,6 +5238,10 @@ export class AdminClient extends DriftClient {
 		lpPoolName: number[],
 		updateLpPoolParams: {
 			maxSettleQuoteAmount?: BN;
+			volatility?: BN;
+			gammaExecution?: number;
+			xi?: number;
+			whitelistMint?: PublicKey;
 		}
 	): Promise<TransactionSignature> {
 		const ixs = await this.getUpdateLpPoolParamsIx(

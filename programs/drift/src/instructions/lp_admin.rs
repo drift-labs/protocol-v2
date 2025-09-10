@@ -388,6 +388,11 @@ pub fn handle_update_lp_pool_params<'info>(
         lp_pool.xi = xi;
     }
 
+    if let Some(whitelist_mint) = lp_pool_params.whitelist_mint {
+        msg!("whitelist_mint: {:?} -> {:?}", lp_pool.whitelist_mint, whitelist_mint);
+        lp_pool.whitelist_mint = whitelist_mint;
+    }
+
     Ok(())
 }
 

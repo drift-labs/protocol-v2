@@ -10667,6 +10667,18 @@ export class DriftClient {
 			lpPool.pubkey
 		);
 
+		if (!lpPool.whitelistMint.equals(PublicKey.default)) {
+			const associatedTokenPublicKey = await getAssociatedTokenAddress(
+				lpPool.whitelistMint,
+				this.wallet.publicKey
+			);
+			remainingAccounts.push({
+				pubkey: associatedTokenPublicKey,
+				isWritable: false,
+				isSigner: false,
+			});
+		}
+
 		const lpPoolAddLiquidityIx = this.program.instruction.lpPoolAddLiquidity(
 			inMarketIndex,
 			inAmount,
