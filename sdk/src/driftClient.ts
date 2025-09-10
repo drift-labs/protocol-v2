@@ -340,8 +340,8 @@ export class DriftClient {
 		this.authoritySubAccountMap = config.authoritySubAccountMap
 			? config.authoritySubAccountMap
 			: config.subAccountIds
-			? new Map([[this.authority.toString(), config.subAccountIds]])
-			: new Map<string, number[]>();
+				? new Map([[this.authority.toString(), config.subAccountIds]])
+				: new Map<string, number[]>();
 
 		this.includeDelegates = config.includeDelegates ?? false;
 		if (config.accountSubscription?.type === 'polling') {
@@ -828,8 +828,8 @@ export class DriftClient {
 		this.authoritySubAccountMap = authoritySubaccountMap
 			? authoritySubaccountMap
 			: subAccountIds
-			? new Map([[this.authority.toString(), subAccountIds]])
-			: new Map<string, number[]>();
+				? new Map([[this.authority.toString(), subAccountIds]])
+				: new Map<string, number[]>();
 
 		/* Reset user stats account */
 		if (this.userStats?.isSubscribed) {
@@ -981,7 +981,7 @@ export class DriftClient {
 					[...this.authoritySubAccountMap.values()][0][0] ?? 0,
 					new PublicKey(
 						[...this.authoritySubAccountMap.keys()][0] ??
-							this.authority.toString()
+						this.authority.toString()
 					)
 				);
 			}
@@ -2631,6 +2631,59 @@ export class DriftClient {
 		return instructions;
 	}
 
+	public async buildSwiftDepositTx(
+		signedOrderParams: SignedMsgOrderParams,
+		takerInfo: {
+			taker: PublicKey;
+			takerStats: PublicKey;
+			takerUserAccount: UserAccount;
+			signingAuthority: PublicKey;
+		},
+		depositAmount: BN,
+		depositSpotMarketIndex: number,
+		tradePerpMarketIndex: number,
+		subAccountId: number,
+		takerAssociatedTokenAccount: PublicKey,
+		initSwiftAccount = false
+	) {
+		const instructions = await this.getDepositTxnIx(
+			depositAmount,
+			depositSpotMarketIndex,
+			takerAssociatedTokenAccount,
+			subAccountId,
+			false
+		);
+
+		if (initSwiftAccount) {
+			const isSignedMsgUserOrdersAccountInitialized =
+				await this.isSignedMsgUserOrdersAccountInitialized(
+					this.wallet.publicKey
+				);
+
+			if (!isSignedMsgUserOrdersAccountInitialized) {
+				const [, initializeSignedMsgUserOrdersAccountIx] =
+					await this.getInitializeSignedMsgUserOrdersAccountIx(
+						this.wallet.publicKey,
+						8
+					);
+
+				instructions.push(initializeSignedMsgUserOrdersAccountIx);
+			}
+		}
+
+		const ixsWithPlace = await this.getPlaceSignedMsgTakerPerpOrderIxs(
+			signedOrderParams,
+			tradePerpMarketIndex,
+			takerInfo,
+			instructions
+		);
+
+		await this.buildTransaction(ixsWithPlace, {
+			computeUnitsPrice: 1_000,
+			computeUnits: 100_000,
+		});
+	}
+
 	public async createDepositTxn(
 		amount: BN,
 		marketIndex: number,
@@ -2997,19 +3050,19 @@ export class DriftClient {
 
 		const depositCollateralIx = isFromSubaccount
 			? await this.getTransferDepositIx(
-					amount,
-					marketIndex,
-					fromSubAccountId,
-					subAccountId
-			  )
+				amount,
+				marketIndex,
+				fromSubAccountId,
+				subAccountId
+			)
 			: await this.getDepositInstruction(
-					amount,
-					marketIndex,
-					userTokenAccount,
-					subAccountId,
-					false,
-					false
-			  );
+				amount,
+				marketIndex,
+				userTokenAccount,
+				subAccountId,
+				false,
+				false
+			);
 
 		if (subAccountId === 0) {
 			if (
@@ -4189,10 +4242,10 @@ export class DriftClient {
 
 		const user = isDepositToTradeTx
 			? getUserAccountPublicKeySync(
-					this.program.programId,
-					this.authority,
-					subAccountId
-			  )
+				this.program.programId,
+				this.authority,
+				subAccountId
+			)
 			: await this.getUserAccountPublicKey(subAccountId);
 
 		const remainingAccounts = this.getRemainingAccounts({
@@ -4742,14 +4795,14 @@ export class DriftClient {
 		const marketIndex = order
 			? order.marketIndex
 			: userAccount.orders.find(
-					(order) => order.orderId === userAccount.nextOrderId - 1
-			  ).marketIndex;
+				(order) => order.orderId === userAccount.nextOrderId - 1
+			).marketIndex;
 
 		makerInfo = Array.isArray(makerInfo)
 			? makerInfo
 			: makerInfo
-			? [makerInfo]
-			: [];
+				? [makerInfo]
+				: [];
 
 		const userAccounts = [userAccount];
 		for (const maker of makerInfo) {
@@ -4935,14 +4988,14 @@ export class DriftClient {
 		const marketIndex = order
 			? order.marketIndex
 			: userAccount.orders.find(
-					(order) => order.orderId === userAccount.nextOrderId - 1
-			  ).marketIndex;
+				(order) => order.orderId === userAccount.nextOrderId - 1
+			).marketIndex;
 
 		makerInfo = Array.isArray(makerInfo)
 			? makerInfo
 			: makerInfo
-			? [makerInfo]
-			: [];
+				? [makerInfo]
+				: [];
 
 		const userAccounts = [userAccount];
 		for (const maker of makerInfo) {
@@ -6278,8 +6331,8 @@ export class DriftClient {
 		makerInfo = Array.isArray(makerInfo)
 			? makerInfo
 			: makerInfo
-			? [makerInfo]
-			: [];
+				? [makerInfo]
+				: [];
 
 		const userAccounts = [this.getUserAccount(subAccountId)];
 		for (const maker of makerInfo) {
@@ -6452,7 +6505,7 @@ export class DriftClient {
 	/**
 	 * Builds a deposit and place request for Swift service
 	 *
-	 * @param depositTx - The signed tx containing a drift deposit (e.g. see `createDepositTxn`)
+	 * @param depositTx - The signed tx containing a drift deposit (e.g. see `buildSwiftDepositTx`)
 	 * @param orderParamsMessage - The order parameters message to sign
 	 * @param delegateSigner - Whether this is a delegate signer
 	 *
@@ -6500,13 +6553,13 @@ export class DriftClient {
 			prefix,
 			delegateSigner
 				? this.program.coder.types.encode(
-						'SignedMsgOrderParamsDelegateMessage',
-						orderParamsMessage as SignedMsgOrderParamsDelegateMessage
-				  )
+					'SignedMsgOrderParamsDelegateMessage',
+					orderParamsMessage as SignedMsgOrderParamsDelegateMessage
+				)
 				: this.program.coder.types.encode(
-						'SignedMsgOrderParamsMessage',
-						orderParamsMessage as SignedMsgOrderParamsMessage
-				  ),
+					'SignedMsgOrderParamsMessage',
+					orderParamsMessage as SignedMsgOrderParamsMessage
+				),
 		]);
 		return buf;
 	}
@@ -9988,8 +10041,8 @@ export class DriftClient {
 	): Promise<TransactionInstruction> {
 		const remainingAccounts = userAccount
 			? this.getRemainingAccounts({
-					userAccounts: [userAccount],
-			  })
+				userAccounts: [userAccount],
+			})
 			: undefined;
 
 		const ix = await this.program.instruction.disableUserHighLeverageMode(
