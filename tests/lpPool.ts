@@ -8,9 +8,20 @@ import {
 	Keypair,
 	LAMPORTS_PER_SOL,
 	PublicKey,
+	SystemProgram,
 	Transaction,
 } from '@solana/web3.js';
-import { getAssociatedTokenAddress, getMint } from '@solana/spl-token';
+import {
+	createAssociatedTokenAccountIdempotentInstruction,
+	createAssociatedTokenAccountInstruction,
+	createInitializeMint2Instruction,
+	createMintToInstruction,
+	getAssociatedTokenAddress,
+	getAssociatedTokenAddressSync,
+	getMint,
+	MINT_SIZE,
+	TOKEN_PROGRAM_ID,
+} from '@solana/spl-token';
 
 import {
 	BN,
@@ -110,17 +121,12 @@ describe('LP Pool', () => {
 		encodeName(lpPoolName)
 	);
 
+	let whitelistMint: PublicKey;
+
 	before(async () => {
 		const context = await startAnchor(
 			'',
-			[
-				{
-					name: 'token_2022',
-					programId: new PublicKey(
-						'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'
-					),
-				},
-			],
+			[],
 			[
 				{
 					address: PYTH_LAZER_STORAGE_ACCOUNT_KEY,
@@ -282,6 +288,37 @@ describe('LP Pool', () => {
 				.getActivePerpPositions()
 				.filter((x) => !x.baseAssetAmount.eq(ZERO)).length == 2
 		);
+
+		console.log('create whitelist mint');
+		const whitelistKeypair = Keypair.generate();
+		const transaction = new Transaction().add(
+			SystemProgram.createAccount({
+				fromPubkey: bankrunContextWrapper.provider.wallet.publicKey,
+				newAccountPubkey: whitelistKeypair.publicKey,
+				space: MINT_SIZE,
+				lamports: 10_000_000_000,
+				programId: TOKEN_PROGRAM_ID,
+			}),
+			createInitializeMint2Instruction(
+				whitelistKeypair.publicKey,
+				0,
+				bankrunContextWrapper.provider.wallet.publicKey,
+				bankrunContextWrapper.provider.wallet.publicKey,
+				TOKEN_PROGRAM_ID
+			)
+		);
+
+		await bankrunContextWrapper.sendTransaction(transaction, [
+			whitelistKeypair,
+		]);
+
+		const whitelistMintInfo =
+			await bankrunContextWrapper.connection.getAccountInfo(
+				whitelistKeypair.publicKey
+			);
+		console.log('whitelistMintInfo', whitelistMintInfo);
+
+		whitelistMint = whitelistKeypair.publicKey;
 	});
 
 	after(async () => {
@@ -1550,5 +1587,67 @@ describe('LP Pool', () => {
 			2,
 			new BN(500).mul(new BN(10 ** 9))
 		);
+	});
+
+	it('whitelist mint', async () => {
+		await adminClient.updateLpPoolParams(encodeName(lpPoolName), {
+			whitelistMint: whitelistMint,
+		});
+
+		const lpPool = await adminClient.getLpPoolAccount(encodeName(lpPoolName));
+		assert(lpPool.whitelistMint.equals(whitelistMint));
+
+		console.log('lpPool.whitelistMint', lpPool.whitelistMint.toString());
+
+		const tx = new Transaction();
+		tx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1, 2, 3]));
+		tx.add(
+			...(await adminClient.getLpPoolAddLiquidityIx({
+				lpPool,
+				inAmount: new BN(1000).mul(QUOTE_PRECISION),
+				minMintAmount: new BN(1),
+				inMarketIndex: 0,
+			}))
+		);
+		try {
+			await adminClient.sendTransaction(tx);
+			assert(false, 'Should have thrown');
+		} catch (e) {
+			assert(e.toString().includes('0x1789')); // invalid whitelist token
+		}
+
+		const whitelistMintAta = getAssociatedTokenAddressSync(
+			whitelistMint,
+			adminClient.wallet.publicKey
+		);
+		const ix = createAssociatedTokenAccountInstruction(
+			bankrunContextWrapper.context.payer.publicKey,
+			whitelistMintAta,
+			adminClient.wallet.publicKey,
+			whitelistMint
+		);
+		const mintToIx = createMintToInstruction(
+			whitelistMint,
+			whitelistMintAta,
+			bankrunContextWrapper.provider.wallet.publicKey,
+			1
+		);
+		await bankrunContextWrapper.sendTransaction(
+			new Transaction().add(ix, mintToIx)
+		);
+
+		const txAfter = new Transaction();
+		txAfter.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1, 2, 3]));
+		txAfter.add(
+			...(await adminClient.getLpPoolAddLiquidityIx({
+				lpPool,
+				inAmount: new BN(1000).mul(QUOTE_PRECISION),
+				minMintAmount: new BN(1),
+				inMarketIndex: 0,
+			}))
+		);
+
+		// successfully call add liquidity
+		await adminClient.sendTransaction(txAfter);
 	});
 });

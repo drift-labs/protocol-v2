@@ -1,9 +1,9 @@
 use anchor_lang::{prelude::*, Accounts, Key, Result};
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
-use crate::ids::DLP_WHITELIST;
 use crate::math::constants::{PERCENTAGE_PRECISION, PRICE_PRECISION_I64};
 use crate::math::oracle::OracleValidity;
+use crate::validation::whitelist::validate_whitelist_token;
 use crate::{
     controller::{
         self,
@@ -47,7 +47,7 @@ use std::convert::TryFrom;
 
 use solana_program::sysvar::clock::Clock;
 
-use super::optional_accounts::{load_maps, AccountMaps};
+use super::optional_accounts::{load_maps, AccountMaps, get_whitelist_token};
 use crate::controller::spot_balance::update_spot_market_cumulative_interest;
 use crate::controller::token::{receive, send_from_program_vault_with_signature_seeds};
 use crate::instructions::constraints::*;
@@ -587,12 +587,6 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
     in_amount: u128,
     min_mint_amount: u64,
 ) -> Result<()> {
-    #[cfg(not(feature = "anchor-test"))]
-    validate!(
-        DLP_WHITELIST.contains(&ctx.accounts.authority.key()),
-        ErrorCode::UnauthorizedDlpAuthority,
-        "User is not whitelisted for DLP deposits"
-    )?;
     let state = &ctx.accounts.state;
 
     validate!(
@@ -642,6 +636,15 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
         slot,
         Some(state.oracle_guard_rails),
     )?;
+
+    let whitelist_mint = &lp_pool.whitelist_mint;
+    if !whitelist_mint.eq(&Pubkey::default()) {
+        validate_whitelist_token(
+            get_whitelist_token(remaining_accounts)?,
+            whitelist_mint,
+            &ctx.accounts.authority.key(),
+        )?;
+    }
 
     let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
 

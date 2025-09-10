@@ -1666,6 +1666,7 @@ export type LPPoolAccount = {
 	cumulativeQuoteSentToPerpMarkets: BN;
 	cumulativeQuoteReceivedFromPerpMarkets: BN;
 	constituents: number;
+	whitelistMint: PublicKey;
 };
 
 export type ConstituentSpotBalance = {

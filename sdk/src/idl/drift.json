@@ -7433,6 +7433,10 @@
         {
           "name": "maxSettleQuoteAmountPerMarket",
           "type": "u64"
+        },
+        {
+          "name": "whitelistMint",
+          "type": "publicKey"
         }
       ]
     },
@@ -9615,6 +9619,10 @@
           },
           {
             "name": "mint",
+            "type": "publicKey"
+          },
+          {
+            "name": "whitelistMint",
             "type": "publicKey"
           },
           {
@@ -11806,6 +11814,12 @@
             "name": "xi",
             "type": {
               "option": "u8"
+            }
+          },
+          {
+            "name": "whitelistMint",
+            "type": {
+              "option": "publicKey"
             }
           }
         ]
