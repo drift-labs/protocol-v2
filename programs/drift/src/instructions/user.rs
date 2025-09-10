@@ -3109,11 +3109,10 @@ pub fn handle_update_user_perp_position_custom_margin_ratio(
 ) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
 
-    let perp_position = user.force_get_perp_position_mut(perp_market_index)?;
-    perp_position.max_margin_ratio = margin_ratio;
+    user.update_perp_position_max_margin_ratio(perp_market_index, margin_ratio)?;
+
     Ok(())
 }
-
 
 pub fn handle_update_user_margin_trading_enabled<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdateUser<'info>>,

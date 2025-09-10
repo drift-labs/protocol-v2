@@ -1093,7 +1093,9 @@ export type PerpPosition = {
 	openAsks: BN;
 	settledPnl: BN;
 	lpShares: BN;
+	/**	 TODO: remove this field - it doesn't exist on chain */
 	remainderBaseAssetAmount: number;
+	maxMarginRatio: number;
 	lastBaseAssetAmountPerLp: BN;
 	lastQuoteAssetAmountPerLp: BN;
 	perLpBase: number;
@@ -1298,6 +1300,7 @@ export type SignedMsgOrderParamsMessage = {
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
 	builderIdx?: number | null;
 	builderFeeTenthBps?: number | null;
+	maxMarginRatio?: number | null;
 };
 
 export type SignedMsgOrderParamsDelegateMessage = {
@@ -1309,6 +1312,7 @@ export type SignedMsgOrderParamsDelegateMessage = {
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
 	builderIdx?: number | null;
 	builderFeeTenthBps?: number | null;
+	maxMarginRatio?: number | null;
 };
 
 export type SignedMsgTriggerOrderParams = {

@@ -4452,11 +4452,10 @@ mod get_margin_calculation_for_disable_high_leverage_mode {
     use anchor_lang::Owner;
     use solana_program::pubkey::Pubkey;
 
-    use crate::{create_account_info, MARGIN_PRECISION};
+    use crate::create_anchor_account_info;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, LIQUIDATION_FEE_PRECISION, PEG_PRECISION,
-        SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
-        SPOT_WEIGHT_PRECISION,
+        AMM_RESERVE_PRECISION, LIQUIDATION_FEE_PRECISION, PEG_PRECISION, SPOT_BALANCE_PRECISION,
+        SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::margin::get_margin_calculation_for_disable_high_leverage_mode;
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
@@ -4466,9 +4465,9 @@ mod get_margin_calculation_for_disable_high_leverage_mode {
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
-    use crate::test_utils::*;
     use crate::test_utils::get_pyth_price;
-    use crate::create_anchor_account_info;
+    use crate::test_utils::*;
+    use crate::{create_account_info, MARGIN_PRECISION};
 
     #[test]
     pub fn check_user_not_changed() {
