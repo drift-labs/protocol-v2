@@ -3,6 +3,7 @@ use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 use crate::ids::DLP_WHITELIST;
 use crate::math::constants::{PERCENTAGE_PRECISION, PRICE_PRECISION_I64};
+use crate::math::oracle::OracleValidity;
 use crate::{
     controller::{
         self,
@@ -16,7 +17,7 @@ use crate::{
         self,
         casting::Cast,
         constants::PERCENTAGE_PRECISION_I64,
-        oracle::{is_oracle_valid_for_action, oracle_validity, DriftAction, LogMode},
+        oracle::{is_oracle_valid_for_action, DriftAction},
         safe_math::SafeMath,
     },
     math_error, msg, safe_decrement, safe_increment,
@@ -31,7 +32,6 @@ use crate::{
             MAX_AMM_CACHE_ORACLE_STALENESS_FOR_TARGET_CALC,
             MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC,
         },
-        oracle::OraclePriceData,
         oracle_map::OracleMap,
         perp_market_map::MarketSet,
         spot_market::{SpotBalanceType, SpotMarket},
@@ -43,6 +43,7 @@ use crate::{
     },
     validate,
 };
+use std::convert::TryFrom;
 
 use solana_program::sysvar::clock::Clock;
 
@@ -107,25 +108,8 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
     for (_, datum) in amm_constituent_mapping.iter().enumerate() {
         let cache_info = amm_cache.get(datum.perp_market_index as u32);
 
-        let oracle_validity = oracle_validity(
-            MarketType::Perp,
-            datum.perp_market_index,
-            cache_info.last_oracle_price_twap,
-            &OraclePriceData {
-                price: cache_info.oracle_price,
-                confidence: cache_info.oracle_confidence,
-                delay: cache_info.oracle_delay,
-                has_sufficient_number_of_data_points: true,
-            },
-            &state.oracle_guard_rails.validity,
-            cache_info.max_confidence_interval_multiplier,
-            &cache_info.get_oracle_source()?,
-            LogMode::ExchangeOracle,
-            0,
-        )?;
-
         if !is_oracle_valid_for_action(
-            oracle_validity,
+            OracleValidity::try_from(cache_info.oracle_validity)?,
             Some(DriftAction::UpdateLpConstituentTargetBase),
         )? {
             msg!("Oracle data for perp market {} and constituent index {} is invalid. Skipping update",
