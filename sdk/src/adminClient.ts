@@ -22,6 +22,7 @@ import {
 	TxParams,
 	SwapReduceOnly,
 	InitializeConstituentParams,
+	ConstituentStatus,
 } from './types';
 import { DEFAULT_MARKET_NAME, encodeName } from './userName';
 import { BN } from '@coral-xyz/anchor';
@@ -5145,6 +5146,75 @@ export class AdminClient extends DriftClient {
 				}
 			),
 		];
+	}
+
+	public async updateConstituentStatus(
+		constituent: PublicKey,
+		constituentStatus: ConstituentStatus
+	): Promise<TransactionSignature> {
+		const updateConstituentStatusIx = await this.getUpdateConstituentStatusIx(
+			constituent,
+			constituentStatus
+		);
+
+		const tx = await this.buildTransaction(updateConstituentStatusIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateConstituentStatusIx(
+		constituent: PublicKey,
+		constituentStatus: ConstituentStatus
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateConstituentStatus(
+			constituentStatus,
+			{
+				accounts: {
+					constituent,
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
+	}
+
+	public async updateConstituentPausedOperations(
+		constituent: PublicKey,
+		pausedOperations: number
+	): Promise<TransactionSignature> {
+		const updateConstituentPausedOperationsIx =
+			await this.getUpdateConstituentPausedOperationsIx(
+				constituent,
+				pausedOperations
+			);
+
+		const tx = await this.buildTransaction(updateConstituentPausedOperationsIx);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateConstituentPausedOperationsIx(
+		constituent: PublicKey,
+		pausedOperations: number
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateConstituentPausedOperations(
+			pausedOperations,
+			{
+				accounts: {
+					constituent,
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
 	}
 
 	public async updateConstituentParams(

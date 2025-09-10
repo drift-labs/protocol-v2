@@ -935,10 +935,10 @@ impl Constituent {
         is_increasing: bool,
     ) -> DriftResult<bool> {
         let current_balance_sign = self.get_full_balance(spot_market)?.signum();
-        if current_balance_sign < 0 {
-            Ok(is_increasing)
-        } else {
+        if current_balance_sign > 0 {
             Ok(!is_increasing)
+        } else {
+            Ok(is_increasing)
         }
     }
 

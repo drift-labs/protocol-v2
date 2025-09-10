@@ -1,4 +1,3 @@
-use crate::math::amm::calculate_net_user_pnl;
 use crate::{msg, FeatureBitFlags};
 use anchor_lang::prelude::*;
 use anchor_spl::token_2022::Token2022;

@@ -31,6 +31,7 @@ import {
 	getSerumSignerPublicKey,
 	BN_MAX,
 	isVariant,
+	ConstituentStatus,
 } from '../sdk/src';
 import {
 	initializeQuoteSpotMarket,
@@ -570,7 +571,7 @@ describe('LP Pool', () => {
 		);
 
 		const tokensAdded = new BN(1_000_000_000_000);
-		const tx = new Transaction();
+		let tx = new Transaction();
 		tx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1]));
 		tx.add(
 			...(await adminClient.getLpPoolAddLiquidityIx({
@@ -581,6 +582,31 @@ describe('LP Pool', () => {
 			}))
 		);
 		await adminClient.sendTransaction(tx);
+
+		// Should fail to add more liquidity if it's in redulce only mode;
+		await adminClient.updateConstituentStatus(
+			c0.pubkey,
+			ConstituentStatus.REDUCE_ONLY
+		);
+		tx = new Transaction();
+		tx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1]));
+		tx.add(
+			...(await adminClient.getLpPoolAddLiquidityIx({
+				inMarketIndex: 0,
+				inAmount: tokensAdded,
+				minMintAmount: new BN(1),
+				lpPool: lpPool,
+			}))
+		);
+		try {
+			await adminClient.sendTransaction(tx);
+		} catch (e) {
+			assert(e.message.includes('0x18c0'));
+		}
+		await adminClient.updateConstituentStatus(
+			c0.pubkey,
+			ConstituentStatus.ACTIVE
+		);
 
 		const userC0TokenBalanceAfter =
 			await bankrunContextWrapper.connection.getTokenAccount(
@@ -836,6 +862,22 @@ describe('LP Pool', () => {
 			.add(serumBidIx)
 			.add(settleFundsIx)
 			.add(endSwapIx);
+
+		// Should fail if usdc is in reduce only
+		const c0pubkey = getConstituentPublicKey(program.programId, lpPoolKey, 0);
+		await adminClient.updateConstituentStatus(
+			c0pubkey,
+			ConstituentStatus.REDUCE_ONLY
+		);
+		try {
+			await adminClient.sendTransaction(tx);
+		} catch (e) {
+			assert(e.message.includes('0x18c0'));
+		}
+		await adminClient.updateConstituentStatus(
+			c0pubkey,
+			ConstituentStatus.ACTIVE
+		);
 
 		const { txSig } = await adminClient.sendTransaction(tx);
 

@@ -213,6 +213,34 @@ pub fn handle_initialize_constituent<'info>(
     Ok(())
 }
 
+pub fn handle_update_constituent_status<'info>(
+    ctx: Context<UpdateConstituentStatus>,
+    new_status: u8,
+) -> Result<()> {
+    let mut constituent = ctx.accounts.constituent.load_mut()?;
+    msg!(
+        "constituent status: {:?} -> {:?}",
+        constituent.status,
+        new_status
+    );
+    constituent.status = new_status;
+    Ok(())
+}
+
+pub fn handle_update_constituent_paused_operations<'info>(
+    ctx: Context<UpdateConstituentPausedOperations>,
+    paused_operations: u8,
+) -> Result<()> {
+    let mut constituent = ctx.accounts.constituent.load_mut()?;
+    msg!(
+        "constituent paused operations: {:?} -> {:?}",
+        constituent.paused_operations,
+        paused_operations
+    );
+    constituent.paused_operations = paused_operations;
+    Ok(())
+}
+
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default)]
 pub struct ConstituentParams {
     pub max_weight_deviation: Option<i64>,
@@ -990,6 +1018,30 @@ pub struct UpdateConstituentParams<'info> {
         constraint = constituent.load()?.lp_pool == lp_pool.key()
     )]
     pub constituent_target_base: Box<Account<'info, ConstituentTargetBase>>,
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub constituent: AccountLoader<'info, Constituent>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateConstituentStatus<'info> {
+    #[account(
+        mut,
+        constraint = admin.key() == state.admin 
+    )]
+    pub admin: Signer<'info>,
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub constituent: AccountLoader<'info, Constituent>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateConstituentPausedOperations<'info> {
     #[account(
         mut,
         constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin

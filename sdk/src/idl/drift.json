@@ -7943,6 +7943,58 @@
       ]
     },
     {
+      "name": "updateConstituentStatus",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "constituent",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "newStatus",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "updateConstituentPausedOperations",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "constituent",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "pausedOperations",
+          "type": "u8"
+        }
+      ]
+    },
+    {
       "name": "updateConstituentParams",
       "accounts": [
         {
@@ -9891,11 +9943,19 @@
             "type": "u8"
           },
           {
+            "name": "status",
+            "type": "u8"
+          },
+          {
+            "name": "pausedOperations",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                4
+                2
               ]
             }
           }
@@ -10325,23 +10385,23 @@
             "type": "u8"
           },
           {
-            "name": "padding1",
-            "type": "u16"
-          },
-          {
-            "name": "lastFillPrice",
-            "type": "u64"
+            "name": "lpPausedOperations",
+            "type": "u8"
           },
           {
             "name": "lpExchangeFeeExcluscionScalar",
             "type": "u8"
           },
           {
+            "name": "lastFillPrice",
+            "type": "u64"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                23
+                24
               ]
             }
           }
@@ -14860,6 +14920,20 @@
       }
     },
     {
+      "name": "ConstituentStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "ReduceOnly"
+          },
+          {
+            "name": "Decommissioned"
+          }
+        ]
+      }
+    },
+    {
       "name": "WeightValidationFlags",
       "type": {
         "kind": "enum",
@@ -15100,6 +15174,37 @@
       }
     },
     {
+      "name": "PerpLpOperation",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "TrackAmmRevenue"
+          },
+          {
+            "name": "SettleQuoteOwed"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ConstituentLpOperation",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Swap"
+          },
+          {
+            "name": "Deposit"
+          },
+          {
+            "name": "Withdraw"
+          }
+        ]
+      }
+    },
+    {
       "name": "MarketStatus",
       "type": {
         "kind": "enum",
@@ -15130,6 +15235,23 @@
           },
           {
             "name": "Delisted"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LpStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Uncollateralized"
+          },
+          {
+            "name": "Active"
+          },
+          {
+            "name": "Decommissioning"
           }
         ]
       }
@@ -18872,6 +18994,11 @@
       "code": 6335,
       "name": "LpPoolSettleInvariantBreached",
       "msg": "Settlement amount exceeded"
+    },
+    {
+      "code": 6336,
+      "name": "InvalidConstituentOperation",
+      "msg": "Invalid constituent operation"
     }
   ],
   "metadata": {

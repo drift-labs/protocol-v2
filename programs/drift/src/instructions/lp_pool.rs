@@ -51,9 +51,7 @@ use super::optional_accounts::{load_maps, AccountMaps};
 use crate::controller::spot_balance::update_spot_market_cumulative_interest;
 use crate::controller::token::{receive, send_from_program_vault_with_signature_seeds};
 use crate::instructions::constraints::*;
-use crate::state::lp_pool::{
-    ConstituentStatus, CONSTITUENT_PDA_SEED, LP_POOL_TOKEN_VAULT_PDA_SEED,
-};
+use crate::state::lp_pool::{CONSTITUENT_PDA_SEED, LP_POOL_TOKEN_VAULT_PDA_SEED};
 
 pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdateConstituentTargetBase<'info>>,

@@ -44,6 +44,7 @@ import {
 	SpotBalanceType,
 	getTokenAmount,
 	TWO,
+	ConstituentLpOperation,
 } from '../sdk/src';
 
 import {
@@ -581,6 +582,36 @@ describe('LP Pool', () => {
 		} catch (e) {
 			assert(e.message.includes('0x18b7'));
 		}
+	});
+
+	it('fails to add liquidity if a paused operation', async () => {
+		await adminClient.updateConstituentPausedOperations(
+			getConstituentPublicKey(program.programId, lpPoolKey, 0),
+			ConstituentLpOperation.Deposit
+		);
+		try {
+			const lpPool = (await adminClient.program.account.lpPool.fetch(
+				lpPoolKey
+			)) as LPPoolAccount;
+			const tx = new Transaction();
+			tx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1]));
+			tx.add(
+				...(await adminClient.getLpPoolAddLiquidityIx({
+					lpPool,
+					inAmount: new BN(1000).mul(QUOTE_PRECISION),
+					minMintAmount: new BN(1),
+					inMarketIndex: 0,
+				}))
+			);
+			await adminClient.sendTransaction(tx);
+		} catch (e) {
+			console.log(e.message);
+			assert(e.message.includes('0x18c0'));
+		}
+		await adminClient.updateConstituentPausedOperations(
+			getConstituentPublicKey(program.programId, lpPoolKey, 0),
+			0
+		);
 	});
 
 	it('can update pool aum', async () => {
