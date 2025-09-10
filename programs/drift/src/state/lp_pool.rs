@@ -1154,37 +1154,75 @@ pub fn calculate_target_weight(
 }
 
 /// Update target base based on amm_inventory and mapping
+pub struct AmmInventoryAndPrices {
+    pub perp_market_index: u16,
+    pub inventory: i64,
+    pub price: i64,
+}
+
+pub struct ConstituentIndexAndDecimalAndPrice {
+    pub constituent_index: u16,
+    pub decimals: u8,
+    pub price: i64,
+}
+
 impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
     pub fn update_target_base(
         &mut self,
         mapping: &AccountZeroCopy<'a, AmmConstituentDatum, AmmConstituentMappingFixed>,
         // (perp market index, inventory, price)
-        amm_inventory_and_prices: &[(u16, i64, i64)],
-        constituents_indexes_and_decimals_and_prices: &[(u16, u8, i64)],
+        amm_inventory_and_prices: &[AmmInventoryAndPrices],
+        constituents_indexes_and_decimals_and_prices: &[ConstituentIndexAndDecimalAndPrice],
         slot: u64,
     ) -> DriftResult<Vec<i128>> {
+        // Precompute notional by perp market index
+        let mut notional_by_perp: Vec<(u16, i128)> =
+            Vec::with_capacity(amm_inventory_and_prices.len());
+        for &AmmInventoryAndPrices {
+            perp_market_index,
+            inventory,
+            price,
+        } in amm_inventory_and_prices.iter()
+        {
+            let notional = (inventory as i128)
+                .safe_mul(price as i128)?
+                .safe_div(BASE_PRECISION_I128)?;
+            notional_by_perp.push((perp_market_index, notional));
+        }
+        notional_by_perp.sort_by_key(|&(idx, _)| idx);
+
+        #[inline]
+        fn find_notional(sorted: &[(u16, i128)], idx: u16) -> Option<i128> {
+            match sorted.binary_search_by_key(&idx, |&(p, _)| p) {
+                Ok(i) => Some(sorted[i].1),
+                Err(_) => None,
+            }
+        }
+
         let mut results = Vec::with_capacity(constituents_indexes_and_decimals_and_prices.len());
-        for (i, (constituent_index, decimals, price)) in
-            constituents_indexes_and_decimals_and_prices
-                .iter()
-                .enumerate()
+        for (
+            i,
+            &ConstituentIndexAndDecimalAndPrice {
+                constituent_index,
+                decimals,
+                price,
+            },
+        ) in constituents_indexes_and_decimals_and_prices
+            .iter()
+            .enumerate()
         {
             let mut target_notional = 0i128;
 
-            for (perp_market_index, inventory, price) in amm_inventory_and_prices.iter() {
-                if let Some(idx) = mapping.iter().position(|d| {
-                    &d.perp_market_index == perp_market_index
-                        && d.constituent_index == *constituent_index
-                }) {
-                    let weight = mapping.get(idx as u32).weight; // PERCENTAGE_PRECISION
+            for d in mapping.iter() {
+                if d.constituent_index != constituent_index {
+                    continue;
+                }
 
-                    let notional: i128 = (*inventory as i128)
-                        .safe_mul(*price as i128)?
-                        .safe_div(BASE_PRECISION_I128)?;
-
+                if let Some(perp_notional) = find_notional(&notional_by_perp, d.perp_market_index) {
+                    let w = d.weight as i128;
                     target_notional = target_notional.saturating_add(
-                        notional
-                            .saturating_mul(weight as i128)
+                        perp_notional
+                            .saturating_mul(w)
                             .saturating_div(PERCENTAGE_PRECISION_I128),
                     );
                 }
@@ -1192,8 +1230,8 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
 
             let cell = self.get_mut(i as u32);
             let target_base = target_notional
-                .safe_mul(10_i128.pow(*decimals as u32))?
-                .safe_div(*price as i128)?
+                .safe_mul(10_i128.pow(decimals as u32))?
+                .safe_div(price as i128)?
                 * -1; // Want to target opposite sign of total scaled notional inventory
 
             msg!(

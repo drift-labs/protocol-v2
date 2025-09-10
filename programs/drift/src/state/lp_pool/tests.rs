@@ -68,17 +68,49 @@ mod tests {
             }
         };
 
-        let amm_inventory_and_price: Vec<(u16, i64, i64)> = vec![
-            (0, 4 * BASE_PRECISION_I64, 100_000 * PRICE_PRECISION_I64), // $400k BTC
-            (1, 2000 * BASE_PRECISION_I64, 200 * PRICE_PRECISION_I64),  // $400k SOL
-            (2, 200 * BASE_PRECISION_I64, 1500 * PRICE_PRECISION_I64),  // $300k ETH
-            (3, 16500 * BASE_PRECISION_I64, PRICE_PRECISION_I64),       // $16.5k FARTCOIN
+        let amm_inventory_and_price: Vec<AmmInventoryAndPrices> = vec![
+            AmmInventoryAndPrices {
+                perp_market_index: 0,
+                inventory: 4 * BASE_PRECISION_I64,
+                price: 100_000 * PRICE_PRECISION_I64,
+            }, // $400k BTC
+            AmmInventoryAndPrices {
+                perp_market_index: 1,
+                inventory: 2000 * BASE_PRECISION_I64,
+                price: 200 * PRICE_PRECISION_I64,
+            }, // $400k SOL
+            AmmInventoryAndPrices {
+                perp_market_index: 2,
+                inventory: 200 * BASE_PRECISION_I64,
+                price: 1500 * PRICE_PRECISION_I64,
+            }, // $300k ETH
+            AmmInventoryAndPrices {
+                perp_market_index: 3,
+                inventory: 16500 * BASE_PRECISION_I64,
+                price: PRICE_PRECISION_I64,
+            }, // $16.5k FARTCOIN
         ];
         let constituents_indexes_and_decimals_and_prices = vec![
-            (0, 6, 100_000 * PRICE_PRECISION_I64),
-            (1, 6, 200 * PRICE_PRECISION_I64),
-            (2, 6, 1500 * PRICE_PRECISION_I64),
-            (3, 6, PRICE_PRECISION_I64), // USDC
+            ConstituentIndexAndDecimalAndPrice {
+                constituent_index: 0,
+                decimals: 6,
+                price: 100_000 * PRICE_PRECISION_I64,
+            },
+            ConstituentIndexAndDecimalAndPrice {
+                constituent_index: 1,
+                decimals: 6,
+                price: 200 * PRICE_PRECISION_I64,
+            },
+            ConstituentIndexAndDecimalAndPrice {
+                constituent_index: 2,
+                decimals: 6,
+                price: 1500 * PRICE_PRECISION_I64,
+            },
+            ConstituentIndexAndDecimalAndPrice {
+                constituent_index: 3,
+                decimals: 6,
+                price: PRICE_PRECISION_I64,
+            }, // USDC
         ];
         let aum = 2_000_000 * QUOTE_PRECISION; // $2M AUM
 
@@ -112,7 +144,7 @@ mod tests {
                 calculate_target_weight(
                     base.cast::<i64>().unwrap(),
                     &SpotMarket::default_quote_market(),
-                    amm_inventory_and_price.get(index).unwrap().2,
+                    amm_inventory_and_price.get(index).unwrap().price,
                     aum,
                 )
                 .unwrap()
@@ -155,8 +187,17 @@ mod tests {
             }
         };
 
-        let amm_inventory_and_prices: Vec<(u16, i64, i64)> = vec![(0, 1_000_000, 1_000_000)];
-        let constituents_indexes_and_decimals_and_prices = vec![(1, 6, 1_000_000)];
+        let amm_inventory_and_prices: Vec<AmmInventoryAndPrices> = vec![AmmInventoryAndPrices {
+            perp_market_index: 0,
+            inventory: 1_000_000,
+            price: 1_000_000,
+        }];
+        let constituents_indexes_and_decimals_and_prices =
+            vec![ConstituentIndexAndDecimalAndPrice {
+                constituent_index: 1,
+                decimals: 6,
+                price: 1_000_000,
+            }];
         let aum = 1_000_000;
         let now_ts = 1000;
 
@@ -215,8 +256,17 @@ mod tests {
         };
 
         let price = PRICE_PRECISION_I64;
-        let amm_inventory_and_prices: Vec<(u16, i64, i64)> = vec![(0, BASE_PRECISION_I64, price)];
-        let constituents_indexes_and_decimals_and_prices = vec![(1, 6, price)];
+        let amm_inventory_and_prices: Vec<AmmInventoryAndPrices> = vec![AmmInventoryAndPrices {
+            perp_market_index: 0,
+            inventory: BASE_PRECISION_I64,
+            price,
+        }];
+        let constituents_indexes_and_decimals_and_prices =
+            vec![ConstituentIndexAndDecimalAndPrice {
+                constituent_index: 1,
+                decimals: 6,
+                price,
+            }];
         let aum = 1_000_000;
         let now_ts = 1234;
 
@@ -293,9 +343,23 @@ mod tests {
             }
         };
 
-        let amm_inventory_and_prices: Vec<(u16, i64, i64)> = vec![(0, 1_000_000_000, 1_000_000)];
-        let constituents_indexes_and_decimals_and_prices =
-            vec![(1, 6, 1_000_000), (2, 6, 1_000_000)];
+        let amm_inventory_and_prices: Vec<AmmInventoryAndPrices> = vec![AmmInventoryAndPrices {
+            perp_market_index: 0,
+            inventory: 1_000_000_000,
+            price: 1_000_000,
+        }];
+        let constituents_indexes_and_decimals_and_prices = vec![
+            ConstituentIndexAndDecimalAndPrice {
+                constituent_index: 1,
+                decimals: 6,
+                price: 1_000_000,
+            },
+            ConstituentIndexAndDecimalAndPrice {
+                constituent_index: 2,
+                decimals: 6,
+                price: 1_000_000,
+            },
+        ];
 
         let aum = 1_000_000;
         let now_ts = 999;
@@ -330,7 +394,7 @@ mod tests {
                     constituents_indexes_and_decimals_and_prices
                         .get(i as usize)
                         .unwrap()
-                        .2,
+                        .price,
                     aum,
                 )
                 .unwrap(),
@@ -368,8 +432,17 @@ mod tests {
             }
         };
 
-        let amm_inventory_and_prices: Vec<(u16, i64, i64)> = vec![(0, 1_000_000, 142_000_000)];
-        let constituents_indexes_and_decimals_and_prices = vec![(1, 6, 142_000_000)];
+        let amm_inventory_and_prices: Vec<AmmInventoryAndPrices> = vec![AmmInventoryAndPrices {
+            perp_market_index: 0,
+            inventory: 1_000_000,
+            price: 142_000_000,
+        }];
+        let constituents_indexes_and_decimals_and_prices =
+            vec![ConstituentIndexAndDecimalAndPrice {
+                constituent_index: 1,
+                decimals: 6,
+                price: 142_000_000,
+            }];
 
         let prices = vec![142_000_000];
         let aum = 0;
