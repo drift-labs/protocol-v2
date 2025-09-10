@@ -623,7 +623,7 @@ mod swap_tests {
             ..SpotMarket::default()
         };
 
-        let full_balance = c.get_full_balance(&spot_market).unwrap();
+        let full_balance = c.get_full_token_amount(&spot_market).unwrap();
         assert_eq!(full_balance, 1_000_000);
 
         // 1/10 = 10%

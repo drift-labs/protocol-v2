@@ -3,7 +3,7 @@ use crate::controller::token::{receive, send_from_program_vault_with_signature_s
 use crate::error::ErrorCode;
 use crate::ids::admin_hot_wallet;
 use crate::instructions::optional_accounts::get_token_mint;
-use crate::math::constants::PRICE_PRECISION_U64;
+use crate::math::constants::{PRICE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX};
 use crate::math::safe_math::SafeMath;
 use crate::state::lp_pool::{
     AmmConstituentDatum, AmmConstituentMapping, Constituent, ConstituentCorrelations,
@@ -23,7 +23,7 @@ use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 use crate::ids::{
     jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, lighthouse, marinade_mainnet,
-    serum_program, usdc_mint,
+    serum_program,
 };
 
 use crate::state::traits::Size;
@@ -198,7 +198,7 @@ pub fn handle_initialize_constituent<'info>(
     constituent.xi = xi;
     lp_pool.constituents += 1;
 
-    if constituent.mint.eq(&usdc_mint::ID) {
+    if constituent.spot_market_index == QUOTE_SPOT_MARKET_INDEX {
         lp_pool.quote_consituent_index = constituent.constituent_index;
     }
 
@@ -389,7 +389,11 @@ pub fn handle_update_lp_pool_params<'info>(
     }
 
     if let Some(whitelist_mint) = lp_pool_params.whitelist_mint {
-        msg!("whitelist_mint: {:?} -> {:?}", lp_pool.whitelist_mint, whitelist_mint);
+        msg!(
+            "whitelist_mint: {:?} -> {:?}",
+            lp_pool.whitelist_mint,
+            whitelist_mint
+        );
         lp_pool.whitelist_mint = whitelist_mint;
     }
 

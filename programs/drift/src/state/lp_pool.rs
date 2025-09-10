@@ -697,13 +697,13 @@ impl LPPool {
             let spot_market = spot_market_map.get_ref(&constituent.spot_market_index)?;
 
             let constituent_aum = constituent
-                .get_full_balance(&spot_market)?
+                .get_full_token_amount(&spot_market)?
                 .safe_mul(constituent.last_oracle_price as i128)?
                 .safe_div(10_i128.pow(spot_market.decimals))?;
             msg!(
                 "constituent: {}, balance: {}, aum: {}, deriv index: {}, bl token balance {}, bl balance type {}, vault balance: {}",
                 constituent.constituent_index,
-                constituent.get_full_balance(&spot_market)?,
+                constituent.get_full_token_amount(&spot_market)?,
                 constituent_aum,
                 constituent.constituent_derivative_index,
                 constituent.spot_balance.get_token_amount(&spot_market)?,
@@ -880,7 +880,7 @@ impl Size for Constituent {
 impl Constituent {
     /// Returns the full balance of the Constituent, the total of the amount in Constituent's token
     /// account and in Drift Borrow-Lend.
-    pub fn get_full_balance(&self, spot_market: &SpotMarket) -> DriftResult<i128> {
+    pub fn get_full_token_amount(&self, spot_market: &SpotMarket) -> DriftResult<i128> {
         let token_amount = self.spot_balance.get_signed_token_amount(spot_market)?;
         let vault_balance = self.vault_token_balance.cast::<i128>()?;
         token_amount.safe_add(vault_balance)
@@ -924,7 +924,7 @@ impl Constituent {
         token_amount: i128,
     ) -> DriftResult<i128> {
         let token_precision = 10_i128.pow(self.decimals as u32);
-        let balance = self.get_full_balance(spot_market)?.cast::<i128>()?;
+        let balance = self.get_full_token_amount(spot_market)?.cast::<i128>()?;
         let amount = balance.safe_add(token_amount)?;
         let value_usd = amount.safe_mul(price.cast::<i128>()?)?;
         value_usd.safe_div(token_precision)

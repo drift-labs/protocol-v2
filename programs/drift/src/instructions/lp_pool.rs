@@ -47,7 +47,7 @@ use std::convert::TryFrom;
 
 use solana_program::sysvar::clock::Clock;
 
-use super::optional_accounts::{load_maps, AccountMaps, get_whitelist_token};
+use super::optional_accounts::{get_whitelist_token, load_maps, AccountMaps};
 use crate::controller::spot_balance::update_spot_market_cumulative_interest;
 use crate::controller::token::{receive, send_from_program_vault_with_signature_seeds};
 use crate::instructions::constraints::*;
@@ -1327,7 +1327,7 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
         constituent.last_oracle_slot = oracle_data_slot;
     }
     constituent.sync_token_balance(ctx.accounts.constituent_token_account.amount);
-    let balance_before = constituent.get_full_balance(&spot_market)?;
+    let balance_before = constituent.get_full_token_amount(&spot_market)?;
 
     controller::token::send_from_program_vault_with_signature_seeds(
         &ctx.accounts.token_program,
@@ -1367,7 +1367,7 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
         "Spot market vault amount mismatch after deposit"
     )?;
 
-    let balance_after = constituent.get_full_balance(&spot_market)?;
+    let balance_after = constituent.get_full_token_amount(&spot_market)?;
     let balance_diff_notional = if spot_market.decimals > 6 {
         balance_after
             .abs_diff(balance_before)
@@ -1431,7 +1431,7 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
         constituent.last_oracle_slot = oracle_data_slot;
     }
     constituent.sync_token_balance(ctx.accounts.constituent_token_account.amount);
-    let balance_before = constituent.get_full_balance(&spot_market)?;
+    let balance_before = constituent.get_full_token_amount(&spot_market)?;
 
     // Can only borrow up to the max
     let bl_token_balance = constituent.spot_balance.get_token_amount(&spot_market)?;
@@ -1487,7 +1487,7 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
     )?;
 
     // Verify withdraw fully accounted for in BLPosition
-    let balance_after = constituent.get_full_balance(&spot_market)?;
+    let balance_after = constituent.get_full_token_amount(&spot_market)?;
 
     let balance_diff_notional = if spot_market.decimals > 6 {
         balance_after
