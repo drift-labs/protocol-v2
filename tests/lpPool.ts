@@ -12,7 +12,6 @@ import {
 	Transaction,
 } from '@solana/web3.js';
 import {
-	createAssociatedTokenAccountIdempotentInstruction,
 	createAssociatedTokenAccountInstruction,
 	createInitializeMint2Instruction,
 	createMintToInstruction,

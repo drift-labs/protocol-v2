@@ -10352,9 +10352,7 @@ export class DriftClient {
 	public async getUpdateConstituentOracleInfoIx(
 		constituent: ConstituentAccount
 	): Promise<TransactionInstruction> {
-		const spotMarket = await this.getSpotMarketAccount(
-			constituent.spotMarketIndex
-		);
+		const spotMarket = this.getSpotMarketAccount(constituent.spotMarketIndex);
 		return this.program.instruction.updateConstituentOracleInfo({
 			accounts: {
 				keeper: this.wallet.publicKey,
