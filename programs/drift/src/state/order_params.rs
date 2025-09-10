@@ -878,7 +878,7 @@ pub struct SignedMsgOrderParamsDelegateMessage {
     pub ext: SignedMsgExtensions,
 }
 
-#[derive(Clone, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Eq, AnchorSerialize, PartialEq, Debug, Default)]
 pub enum SignedMsgExtensions {
     #[default]
     V0,
@@ -896,30 +896,7 @@ impl SignedMsgExtensions {
     }
 }
 
-impl borsh::ser::BorshSerialize for SignedMsgExtensions
-where
-    Option<u16>: borsh::ser::BorshSerialize,
-{
-    fn serialize<W: borsh::maybestd::io::Write>(
-        &self,
-        writer: &mut W,
-    ) -> ::core::result::Result<(), borsh::maybestd::io::Error> {
-        let variant_idx: u8 = match self {
-            SignedMsgExtensions::V0 => 0u8,
-            SignedMsgExtensions::V1 { .. } => 1u8,
-        };
-        writer.write_all(&variant_idx.to_le_bytes())?;
-        match self {
-            SignedMsgExtensions::V0 => {}
-
-            SignedMsgExtensions::V1 { max_margin_ratio } => {
-                borsh::BorshSerialize::serialize(max_margin_ratio, writer)?;
-            }
-        }
-        Ok(())
-    }
-}
-
+// manual impl to handle missing tag byte as V0 ext
 impl borsh::de::BorshDeserialize for SignedMsgExtensions
 where
     Option<u16>: borsh::BorshDeserialize,
@@ -929,6 +906,7 @@ where
     ) -> ::core::result::Result<Self, borsh::maybestd::io::Error> {
         match <u8 as borsh::de::BorshDeserialize>::deserialize_reader(reader) {
             Ok(tag) => <Self as borsh::de::EnumExt>::deserialize_variant(reader, tag),
+            // missing tag byte == v0
             Err(_) => Ok(Self::V0),
         }
     }
