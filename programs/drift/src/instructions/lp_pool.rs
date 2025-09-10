@@ -44,6 +44,8 @@ use crate::{
     validate,
 };
 use std::convert::TryFrom;
+use std::iter::Peekable;
+use std::slice::Iter;
 
 use solana_program::sysvar::clock::Clock;
 
@@ -1404,7 +1406,6 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
 
     let mut spot_market = ctx.accounts.spot_market.load_mut()?;
 
-    let spot_market_vault = &ctx.accounts.spot_market_vault;
     let oracle_id = spot_market.oracle_id();
     let mut oracle_map = OracleMap::load_one(
         &ctx.accounts.oracle,
@@ -1430,45 +1431,79 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
         constituent.last_oracle_price = oracle_data.price;
         constituent.last_oracle_slot = oracle_data_slot;
     }
-    constituent.sync_token_balance(ctx.accounts.constituent_token_account.amount);
+
+    let mint = &Some(*ctx.accounts.mint.clone());
+    transfer_from_program_vault(
+        amount,
+        &mut spot_market,
+        &mut constituent,
+        oracle_data.price,
+        &state,
+        &mut ctx.accounts.spot_market_vault,
+        &mut ctx.accounts.constituent_token_account,
+        &ctx.accounts.token_program,
+        &ctx.accounts.drift_signer,
+        mint,
+        Some(remaining_accounts),
+    )?;
+
+    Ok(())
+}
+
+fn transfer_from_program_vault<'info>(
+    amount: u64,
+    spot_market: &mut SpotMarket,
+    constituent: &mut Constituent,
+    oracle_price: i64,
+    state: &State,
+    spot_market_vault: &mut InterfaceAccount<'info, TokenAccount>,
+    constituent_token_account: &mut InterfaceAccount<'info, TokenAccount>,
+    token_program: &Interface<'info, TokenInterface>,
+    drift_signer: &AccountInfo<'info>,
+    mint: &Option<InterfaceAccount<'info, Mint>>,
+    remaining_accounts: Option<&mut Peekable<Iter<'info, AccountInfo<'info>>>>,
+) -> Result<()> {
+    constituent.sync_token_balance(constituent_token_account.amount);
+
     let balance_before = constituent.get_full_token_amount(&spot_market)?;
 
     // Can only borrow up to the max
-    let bl_token_balance = constituent.spot_balance.get_token_amount(&spot_market)?;
+    let bl_token_amount = constituent.spot_balance.get_token_amount(&spot_market)?;
+
     let amount_to_transfer = if constituent.spot_balance.balance_type == SpotBalanceType::Borrow {
         amount.min(
             constituent
                 .max_borrow_token_amount
-                .saturating_sub(bl_token_balance as u64),
+                .saturating_sub(bl_token_amount as u64),
         )
     } else {
         amount.min(
             constituent
                 .max_borrow_token_amount
-                .saturating_add(bl_token_balance as u64),
+                .saturating_add(bl_token_amount as u64),
         )
     };
 
     // Execute transfer and sync new balance in the constituent account
     controller::token::send_from_program_vault(
-        &ctx.accounts.token_program,
+        &token_program,
         &spot_market_vault,
-        &ctx.accounts.constituent_token_account,
-        &ctx.accounts.drift_signer,
+        &constituent_token_account,
+        &drift_signer,
         state.signer_nonce,
         amount_to_transfer,
-        &Some(*ctx.accounts.mint.clone()),
-        Some(remaining_accounts),
+        mint,
+        remaining_accounts,
     )?;
-    ctx.accounts.constituent_token_account.reload()?;
-    constituent.sync_token_balance(ctx.accounts.constituent_token_account.amount);
+    constituent_token_account.reload()?;
+    constituent.sync_token_balance(constituent_token_account.amount);
 
     // Adjust BLPosition for the new deposits
     let spot_position = &mut constituent.spot_balance;
     update_spot_balances(
         amount_to_transfer as u128,
         &SpotBalanceType::Borrow,
-        &mut spot_market,
+        spot_market,
         spot_position,
         true,
     )?;
@@ -1479,12 +1514,9 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
     );
 
     // Re-check spot market invariants
-    ctx.accounts.spot_market_vault.reload()?;
+    spot_market_vault.reload()?;
     spot_market.validate_max_token_deposits_and_borrows(true)?;
-    math::spot_withdraw::validate_spot_market_vault_amount(
-        &spot_market,
-        ctx.accounts.spot_market_vault.amount,
-    )?;
+    math::spot_withdraw::validate_spot_market_vault_amount(&spot_market, spot_market_vault.amount)?;
 
     // Verify withdraw fully accounted for in BLPosition
     let balance_after = constituent.get_full_token_amount(&spot_market)?;
@@ -1493,7 +1525,7 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
         balance_after
             .abs_diff(balance_before)
             .cast::<i64>()?
-            .safe_mul(oracle_data.price)?
+            .safe_mul(oracle_price)?
             .safe_div(PRICE_PRECISION_I64)?
             .safe_div(10_i64.pow(spot_market.decimals - 6))?
     } else {
@@ -1501,11 +1533,9 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
             .abs_diff(balance_before)
             .cast::<i64>()?
             .safe_mul(10_i64.pow(6 - spot_market.decimals))?
-            .safe_mul(oracle_data.price)?
+            .safe_mul(oracle_price)?
             .safe_div(PRICE_PRECISION_I64)?
     };
-
-    msg!("Balance difference (notional): {}", balance_diff_notional);
 
     validate!(
         balance_diff_notional <= PRICE_PRECISION_I64 / 100,
@@ -1836,7 +1866,7 @@ pub struct ViewLPPoolAddLiquidityFees<'info> {
 
 #[derive(Accounts)]
 #[instruction(
-    in_market_index: u16,
+    out_market_index: u16,
 )]
 pub struct LPPoolRemoveLiquidity<'info> {
     pub state: Box<Account<'info, State>>,
@@ -1846,7 +1876,7 @@ pub struct LPPoolRemoveLiquidity<'info> {
     pub out_market_mint: Box<InterfaceAccount<'info, Mint>>,
     #[account(
         mut,
-        seeds = [CONSTITUENT_PDA_SEED.as_ref(), lp_pool.key().as_ref(), in_market_index.to_le_bytes().as_ref()],
+        seeds = [CONSTITUENT_PDA_SEED.as_ref(), lp_pool.key().as_ref(), out_market_index.to_le_bytes().as_ref()],
         bump,
         constraint =
             out_constituent.load()?.mint.eq(&constituent_out_token_account.mint)
@@ -1860,7 +1890,7 @@ pub struct LPPoolRemoveLiquidity<'info> {
     pub user_out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
-        seeds = ["CONSTITUENT_VAULT".as_ref(), lp_pool.key().as_ref(), in_market_index.to_le_bytes().as_ref()],
+        seeds = ["CONSTITUENT_VAULT".as_ref(), lp_pool.key().as_ref(), out_market_index.to_le_bytes().as_ref()],
         bump,
     )]
     pub constituent_out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
