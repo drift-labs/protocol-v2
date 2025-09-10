@@ -864,7 +864,7 @@ pub struct SignedMsgOrderParamsMessage {
     pub uuid: [u8; 8],
     pub take_profit_order_params: Option<SignedMsgTriggerOrderParams>,
     pub stop_loss_order_params: Option<SignedMsgTriggerOrderParams>,
-    pub max_margin_ratio: Option<u16>,
+    pub ext: SignedMsgExtensions,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
@@ -875,7 +875,87 @@ pub struct SignedMsgOrderParamsDelegateMessage {
     pub uuid: [u8; 8],
     pub take_profit_order_params: Option<SignedMsgTriggerOrderParams>,
     pub stop_loss_order_params: Option<SignedMsgTriggerOrderParams>,
-    pub max_margin_ratio: Option<u16>,
+    pub ext: SignedMsgExtensions,
+}
+
+#[derive(Clone, Eq, PartialEq, Debug, Default)]
+pub enum SignedMsgExtensions {
+    #[default]
+    V0,
+    V1 {
+        max_margin_ratio: Option<u16>,
+    },
+}
+
+impl SignedMsgExtensions {
+    pub fn max_margin_ratio(&self) -> Option<u16> {
+        match self {
+            Self::V0 => None,
+            Self::V1 { max_margin_ratio } => *max_margin_ratio,
+        }
+    }
+}
+
+impl borsh::ser::BorshSerialize for SignedMsgExtensions
+where
+    Option<u16>: borsh::ser::BorshSerialize,
+{
+    fn serialize<W: borsh::maybestd::io::Write>(
+        &self,
+        writer: &mut W,
+    ) -> ::core::result::Result<(), borsh::maybestd::io::Error> {
+        let variant_idx: u8 = match self {
+            SignedMsgExtensions::V0 => 0u8,
+            SignedMsgExtensions::V1 { .. } => 1u8,
+        };
+        writer.write_all(&variant_idx.to_le_bytes())?;
+        match self {
+            SignedMsgExtensions::V0 => {}
+
+            SignedMsgExtensions::V1 { max_margin_ratio } => {
+                borsh::BorshSerialize::serialize(max_margin_ratio, writer)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl borsh::de::BorshDeserialize for SignedMsgExtensions
+where
+    Option<u16>: borsh::BorshDeserialize,
+{
+    fn deserialize_reader<R: borsh::maybestd::io::Read>(
+        reader: &mut R,
+    ) -> ::core::result::Result<Self, borsh::maybestd::io::Error> {
+        match <u8 as borsh::de::BorshDeserialize>::deserialize_reader(reader) {
+            Ok(tag) => <Self as borsh::de::EnumExt>::deserialize_variant(reader, tag),
+            Err(_) => Ok(Self::V0),
+        }
+    }
+}
+
+impl borsh::de::EnumExt for SignedMsgExtensions
+where
+    Option<u16>: borsh::BorshDeserialize,
+{
+    fn deserialize_variant<R: borsh::maybestd::io::Read>(
+        reader: &mut R,
+        variant_idx: u8,
+    ) -> ::core::result::Result<Self, borsh::maybestd::io::Error> {
+        let mut return_value = match variant_idx {
+            0u8 => SignedMsgExtensions::V0,
+            1u8 => SignedMsgExtensions::V1 {
+                max_margin_ratio: borsh::BorshDeserialize::deserialize_reader(reader)?,
+            },
+            _ => {
+                return Err(borsh::maybestd::io::Error::new(
+                    borsh::maybestd::io::ErrorKind::InvalidInput,
+                    borsh::maybestd::format!("Unexpected variant index: {:?}", variant_idx),
+                ))
+            }
+        };
+        Ok(return_value)
+    }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]

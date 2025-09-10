@@ -74,13 +74,8 @@ pub fn deserialize_into_verified_message(
         if payload.len() < 8 {
             return Err(SignatureVerificationError::InvalidMessageDataSize.into());
         }
-        let min_len: usize = std::mem::size_of::<SignedMsgOrderParamsDelegateMessage>();
-        let mut owned = payload;
-        if owned.len() < min_len {
-            owned.resize(min_len, 0);
-        }
         let deserialized = SignedMsgOrderParamsDelegateMessage::deserialize(
-            &mut &owned[8..], // 8 byte manual discriminator
+            &mut &payload[8..], // 8 byte manual discriminator
         )
         .map_err(|_| {
             msg!("Invalid message encoding for is_delegate_signer = true");
@@ -95,20 +90,15 @@ pub fn deserialize_into_verified_message(
             uuid: deserialized.uuid,
             take_profit_order_params: deserialized.take_profit_order_params,
             stop_loss_order_params: deserialized.stop_loss_order_params,
-            max_margin_ratio: deserialized.max_margin_ratio,
+            max_margin_ratio: deserialized.ext.max_margin_ratio(),
             signature: *signature,
         });
     } else {
         if payload.len() < 8 {
             return Err(SignatureVerificationError::InvalidMessageDataSize.into());
         }
-        let min_len: usize = std::mem::size_of::<SignedMsgOrderParamsMessage>();
-        let mut owned = payload;
-        if owned.len() < min_len {
-            owned.resize(min_len, 0);
-        }
         let deserialized = SignedMsgOrderParamsMessage::deserialize(
-            &mut &owned[8..], // 8 byte manual discriminator
+            &mut &payload[8..], // 8 byte manual discriminator
         )
         .map_err(|_| {
             msg!("Invalid delegate message encoding for with is_delegate_signer = false");
@@ -122,7 +112,7 @@ pub fn deserialize_into_verified_message(
             uuid: deserialized.uuid,
             take_profit_order_params: deserialized.take_profit_order_params,
             stop_loss_order_params: deserialized.stop_loss_order_params,
-            max_margin_ratio: deserialized.max_margin_ratio,
+            max_margin_ratio: deserialized.ext.max_margin_ratio(),
             signature: *signature,
         });
     }
