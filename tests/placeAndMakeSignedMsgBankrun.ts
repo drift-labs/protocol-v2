@@ -1636,27 +1636,6 @@ describe('place and make signedMsg order', () => {
 			postOnly: PostOnlyParams.NONE,
 			marketType: MarketType.PERP,
 		}) as OrderParams;
-		const stopLossTakerParams = getTriggerLimitOrderParams({
-			marketIndex,
-			direction: PositionDirection.SHORT,
-			baseAssetAmount,
-			price: new BN(220).mul(PRICE_PRECISION),
-			triggerPrice: new BN(220).mul(PRICE_PRECISION),
-			userOrderId: 2,
-			triggerCondition: OrderTriggerCondition.BELOW,
-			marketType: MarketType.PERP,
-		});
-
-		const takeProfitTakerParams = getTriggerLimitOrderParams({
-			marketIndex,
-			direction: PositionDirection.SHORT,
-			baseAssetAmount,
-			price: new BN(240).mul(PRICE_PRECISION),
-			triggerPrice: new BN(240).mul(PRICE_PRECISION),
-			userOrderId: 3,
-			triggerCondition: OrderTriggerCondition.ABOVE,
-			marketType: MarketType.PERP,
-		});
 
 		await takerDriftClientUser.fetchAccounts();
 		const makerOrderParams = getLimitOrderParams({
@@ -1724,7 +1703,6 @@ describe('place and make signedMsg order', () => {
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();
 	});
-
 });
 
 async function initializeNewTakerClientAndUser(
