@@ -762,10 +762,6 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
         return Ok(());
     }
 
-    if let Some(max_margin_ratio) = verified_message_and_signature.max_margin_ratio {
-        taker.update_perp_position_max_margin_ratio(market_index, max_margin_ratio)?;
-    }
-
     // Dont place order if signed msg order already exists
     let mut taker_order_id_to_use = taker.next_order_id;
     let mut signed_msg_order_id =
