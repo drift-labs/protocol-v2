@@ -49,6 +49,7 @@ import {
 	createWSolTokenAccountForUser,
 	initializeSolSpotMarket,
 	createUserWithUSDCAndWSOLAccount,
+	sleep,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
@@ -610,6 +611,8 @@ describe('LP Pool', () => {
 			c0.pubkey,
 			ConstituentStatus.ACTIVE
 		);
+
+		await sleep(500);
 
 		const userC0TokenBalanceAfter =
 			await bankrunContextWrapper.connection.getTokenAccount(

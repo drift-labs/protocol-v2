@@ -678,6 +678,8 @@ pub enum ErrorCode {
     LpPoolSettleInvariantBreached,
     #[msg("Invalid constituent operation")]
     InvalidConstituentOperation,
+    #[msg("Unauthorized for operation")]
+    Unauthorized,
 }
 
 #[macro_export]

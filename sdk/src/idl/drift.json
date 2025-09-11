@@ -19037,6 +19037,11 @@
       "code": 6336,
       "name": "InvalidConstituentOperation",
       "msg": "Invalid constituent operation"
+    },
+    {
+      "code": 6337,
+      "name": "Unauthorized",
+      "msg": "Unauthorized for operation"
     }
   ],
   "metadata": {

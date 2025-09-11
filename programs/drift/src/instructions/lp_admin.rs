@@ -172,6 +172,14 @@ pub fn handle_initialize_constituent<'info>(
         "stablecoin_weight must be between 0 and 1",
     )?;
 
+    if let Some(constituent_derivative_index) = constituent_derivative_index {
+        validate!(
+            constituent_derivative_index < lp_pool.constituents as i16,
+            ErrorCode::InvalidConstituent,
+            "constituent_derivative_index must be less than lp_pool.constituents"
+        )?;
+    }
+
     constituent.spot_market_index = spot_market_index;
     constituent.constituent_index = lp_pool.constituents;
     constituent.decimals = decimals;
@@ -575,6 +583,7 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
     amount_in: u64,
 ) -> Result<()> {
     // Check admin
+    let state = &ctx.accounts.state;
     let admin = &ctx.accounts.admin;
     #[cfg(feature = "anchor-test")]
     validate!(
@@ -1203,7 +1212,6 @@ pub struct LPTakerSwap<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub admin: Signer<'info>,
-
     /// Signer token accounts
     #[account(
         mut,
