@@ -523,7 +523,7 @@ describe('LP Pool', () => {
 		}
 	});
 
-		it('can add all addresses to lookup tables', async () => {
+	it('can add all addresses to lookup tables', async () => {
 		const slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
@@ -536,17 +536,22 @@ describe('LP Pool', () => {
 			});
 
 		const extendInstruction = AddressLookupTableProgram.extendLookupTable({
-				payer: adminClient.wallet.publicKey,
-				authority: adminClient.wallet.publicKey,
-				lookupTable: lookupTableAddress,
-				addresses: CONSTITUENT_INDEXES.map((i) => getConstituentPublicKey(program.programId, lpPoolKey, i)),
+			payer: adminClient.wallet.publicKey,
+			authority: adminClient.wallet.publicKey,
+			lookupTable: lookupTableAddress,
+			addresses: CONSTITUENT_INDEXES.map((i) =>
+				getConstituentPublicKey(program.programId, lpPoolKey, i)
+			),
 		});
 
 		const tx = new Transaction().add(lookupTableInst).add(extendInstruction);
 		await adminClient.sendTransaction(tx);
 		lutAddress = lookupTableAddress;
 
-		const chunkies = chunks(adminClient.getPerpMarketAccounts().map((account) => account.pubkey), 20);
+		const chunkies = chunks(
+			adminClient.getPerpMarketAccounts().map((account) => account.pubkey),
+			20
+		);
 		for (const chunk of chunkies) {
 			const extendTx = new Transaction();
 			const extendInstruction = AddressLookupTableProgram.extendLookupTable({
@@ -567,7 +572,8 @@ describe('LP Pool', () => {
 
 		for (const chunk of chunks(PERP_MARKET_INDEXES, 20)) {
 			const txSig = await adminClient.updateAmmCache(chunk);
-			const cus = bankrunContextWrapper.connection.findComputeUnitConsumption(txSig);
+			const cus =
+				bankrunContextWrapper.connection.findComputeUnitConsumption(txSig);
 			console.log(cus);
 			assert(cus < 200_000);
 		}
@@ -577,7 +583,6 @@ describe('LP Pool', () => {
 		)) as AmmCache;
 		expect(ammCache).to.not.be.null;
 		assert(ammCache.cache.length == NUMBER_OF_PERP_MARKETS);
-
 	});
 
 	it('can update target balances', async () => {
@@ -592,9 +597,11 @@ describe('LP Pool', () => {
 		const cuIx = ComputeBudgetProgram.setComputeUnitLimit({
 			units: 1_400_000,
 		});
-		const ammCacheIxs = await Promise.all(chunks(PERP_MARKET_INDEXES, 50).map(async (chunk) => await adminClient.getUpdateAmmCacheIx(
-				chunk
-		)));
+		const ammCacheIxs = await Promise.all(
+			chunks(PERP_MARKET_INDEXES, 50).map(
+				async (chunk) => await adminClient.getUpdateAmmCacheIx(chunk)
+			)
+		);
 		const updateBaseIx = await adminClient.getUpdateLpConstituentTargetBaseIx(
 			encodeName(lpPoolName),
 			[getConstituentPublicKey(program.programId, lpPoolKey, 1)]

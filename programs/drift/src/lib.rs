@@ -1069,6 +1069,13 @@ pub mod drift {
         handle_update_perp_market_expiry(ctx, expiry_ts)
     }
 
+    pub fn update_perp_market_lp_pool_paused_operations(
+        ctx: Context<AdminUpdatePerpMarket>,
+        lp_paused_operations: u8,
+    ) -> Result<()> {
+        handle_update_perp_market_lp_pool_paused_operations(ctx, lp_paused_operations)
+    }
+
     pub fn update_perp_market_lp_pool_status(
         ctx: Context<AdminUpdatePerpMarket>,
         lp_status: u8,
@@ -1920,6 +1927,20 @@ pub mod drift {
             xi,
             new_constituent_correlations,
         )
+    }
+
+    pub fn update_constituent_status<'info>(
+        ctx: Context<'_, '_, '_, 'info, UpdateConstituentStatus<'info>>,
+        new_status: u8,
+    ) -> Result<()> {
+        handle_update_constituent_status(ctx, new_status)
+    }
+
+    pub fn update_constituent_paused_operations<'info>(
+        ctx: Context<'_, '_, '_, 'info, UpdateConstituentPausedOperations<'info>>,
+        paused_operations: u8,
+    ) -> Result<()> {
+        handle_update_constituent_paused_operations(ctx, paused_operations)
     }
 
     pub fn update_constituent_params(

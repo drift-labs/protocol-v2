@@ -676,6 +676,8 @@ pub enum ErrorCode {
     MintRedeemLpPoolDisabled,
     #[msg("Settlement amount exceeded")]
     LpPoolSettleInvariantBreached,
+    #[msg("Invalid constituent operation")]
+    InvalidConstituentOperation,
 }
 
 #[macro_export]

@@ -1695,6 +1695,17 @@ export type InitializeConstituentParams = {
 	xi?: number;
 };
 
+export enum ConstituentStatus {
+	ACTIVE = 0,
+	REDUCE_ONLY = 1,
+	DECOMMISSIONED = 2,
+}
+export enum ConstituentLpOperation {
+	Swap = 0b00000001,
+	Deposit = 0b00000010,
+	Withdraw = 0b00000100,
+}
+
 export type ConstituentAccount = {
 	pubkey: PublicKey;
 	spotMarketIndex: number;
@@ -1718,6 +1729,8 @@ export type ConstituentAccount = {
 	nextSwapId: BN;
 	derivativeWeight: BN;
 	flashLoanInitialTokenAmount: BN;
+	status: number;
+	pausedOperations: number;
 };
 
 export type CacheInfo = {

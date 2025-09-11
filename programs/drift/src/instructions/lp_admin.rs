@@ -1,13 +1,13 @@
 use crate::controller;
 use crate::controller::token::{receive, send_from_program_vault_with_signature_seeds};
 use crate::error::ErrorCode;
-use crate::ids::admin_hot_wallet;
+use crate::ids::{admin_hot_wallet, lp_pool_swap_wallet};
 use crate::instructions::optional_accounts::get_token_mint;
 use crate::math::constants::{PRICE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX};
 use crate::math::safe_math::SafeMath;
 use crate::state::lp_pool::{
     AmmConstituentDatum, AmmConstituentMapping, Constituent, ConstituentCorrelations,
-    ConstituentTargetBase, LPPool, TargetsDatum, AMM_MAP_PDA_SEED,
+    ConstituentStatus, ConstituentTargetBase, LPPool, TargetsDatum, AMM_MAP_PDA_SEED,
     CONSTITUENT_CORRELATIONS_PDA_SEED, CONSTITUENT_PDA_SEED, CONSTITUENT_TARGET_BASE_PDA_SEED,
     CONSTITUENT_VAULT_PDA_SEED,
 };
@@ -212,6 +212,34 @@ pub fn handle_initialize_constituent<'info>(
     )?;
     constituent_correlations.add_new_constituent(&new_constituent_correlations)?;
 
+    Ok(())
+}
+
+pub fn handle_update_constituent_status<'info>(
+    ctx: Context<UpdateConstituentStatus>,
+    new_status: u8,
+) -> Result<()> {
+    let mut constituent = ctx.accounts.constituent.load_mut()?;
+    msg!(
+        "constituent status: {:?} -> {:?}",
+        constituent.status,
+        new_status
+    );
+    constituent.status = new_status;
+    Ok(())
+}
+
+pub fn handle_update_constituent_paused_operations<'info>(
+    ctx: Context<UpdateConstituentPausedOperations>,
+    paused_operations: u8,
+) -> Result<()> {
+    let mut constituent = ctx.accounts.constituent.load_mut()?;
+    msg!(
+        "constituent paused operations: {:?} -> {:?}",
+        constituent.paused_operations,
+        paused_operations
+    );
+    constituent.paused_operations = paused_operations;
     Ok(())
 }
 
@@ -546,6 +574,21 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
     out_market_index: u16,
     amount_in: u64,
 ) -> Result<()> {
+    // Check admin
+    let admin = &ctx.accounts.admin;
+    #[cfg(feature = "anchor-test")]
+    validate!(
+        admin.key() == admin_hot_wallet::id() || admin.key() == state.admin,
+        ErrorCode::Unauthorized,
+        "Wrong signer for lp taker swap"
+    )?;
+    #[cfg(not(feature = "anchor-test"))]
+    validate!(
+        admin.key() == lp_pool_swap_wallet::id(),
+        ErrorCode::DefaultError,
+        "Wrong signer for lp taker swap"
+    )?;
+
     let ixs = ctx.accounts.instructions.as_ref();
     let current_index = instructions::load_current_index_checked(ixs)? as usize;
 
@@ -1013,6 +1056,30 @@ pub struct UpdateConstituentParams<'info> {
 }
 
 #[derive(Accounts)]
+pub struct UpdateConstituentStatus<'info> {
+    #[account(
+        mut,
+        constraint = admin.key() == state.admin 
+    )]
+    pub admin: Signer<'info>,
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub constituent: AccountLoader<'info, Constituent>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateConstituentPausedOperations<'info> {
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub constituent: AccountLoader<'info, Constituent>,
+}
+
+#[derive(Accounts)]
 pub struct UpdateLpPoolParams<'info> {
     #[account(mut)]
     pub lp_pool: AccountLoader<'info, LPPool>,
@@ -1134,10 +1201,7 @@ pub struct UpdateConstituentCorrelation<'info> {
 )]
 pub struct LPTakerSwap<'info> {
     pub state: Box<Account<'info, State>>,
-    #[account(
-        mut,
-        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
-    )]
+    #[account(mut)]
     pub admin: Signer<'info>,
 
     /// Signer token accounts

@@ -110,3 +110,8 @@ pub mod amm_spread_adjust_wallet {
     #[cfg(feature = "anchor-test")]
     declare_id!("1ucYHAGrBbi1PaecC4Ptq5ocZLWGLBmbGWysoDGNB1N");
 }
+
+pub mod lp_pool_swap_wallet {
+    use solana_program::declare_id;
+    declare_id!("1ucYHAGrBbi1PaecC4Ptq5ocZLWGLBmbGWysoDGNB1N");
+}

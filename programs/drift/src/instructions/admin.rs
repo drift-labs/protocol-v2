@@ -1,4 +1,3 @@
-use crate::math::amm::calculate_net_user_pnl;
 use crate::{msg, FeatureBitFlags};
 use anchor_lang::prelude::*;
 use anchor_spl::token_2022::Token2022;
@@ -62,8 +61,8 @@ use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::protected_maker_mode_config::ProtectedMakerModeConfig;
 use crate::state::pyth_lazer_oracle::{PythLazerOracle, PYTH_LAZER_ORACLE_SEED};
 use crate::state::spot_market::{
-    AssetTier, InsuranceFund, SpotBalance, SpotBalanceType, SpotFulfillmentConfigStatus,
-    SpotMarket, TokenProgramFlag,
+    AssetTier, InsuranceFund, SpotBalanceType, SpotFulfillmentConfigStatus, SpotMarket,
+    TokenProgramFlag,
 };
 use crate::state::spot_market_map::get_writable_spot_market_set;
 use crate::state::state::{
@@ -972,10 +971,10 @@ pub fn handle_initialize_perp_market(
         protected_maker_dynamic_divisor: 0,
         lp_fee_transfer_scalar: 1,
         lp_status: 0,
-        padding1: 0,
+        lp_exchange_fee_excluscion_scalar: 0,
+        lp_paused_operations: 0,
         last_fill_price: 0,
-        lp_exchange_fee_excluscion_scalar: 1,
-        padding: [0; 23],
+        padding: [0; 24],
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
             oracle_source,
@@ -4241,6 +4240,16 @@ pub fn handle_update_perp_market_lp_pool_status(
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     msg!("perp market {}", perp_market.market_index);
     perp_market.lp_status = lp_status;
+    Ok(())
+}
+
+pub fn handle_update_perp_market_lp_pool_paused_operations(
+    ctx: Context<AdminUpdatePerpMarket>,
+    lp_paused_operations: u8,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
+    perp_market.lp_paused_operations = lp_paused_operations;
     Ok(())
 }
 

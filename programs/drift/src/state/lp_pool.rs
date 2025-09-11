@@ -7,12 +7,15 @@ use crate::math::constants::{
     PERCENTAGE_PRECISION_U64, PRICE_PRECISION, QUOTE_PRECISION_I128,
 };
 use crate::math::safe_math::SafeMath;
+use crate::math::safe_unwrap::SafeUnwrap;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount};
 use crate::state::amm_cache::{AmmCacheFixed, CacheInfo};
 use crate::state::constituent_map::ConstituentMap;
+use crate::state::paused_operations::ConstituentLpOperation;
 use crate::state::spot_market_map::SpotMarketMap;
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
+use enumflags2::BitFlags;
 
 use super::oracle::OraclePriceData;
 use super::spot_market::SpotMarket;
@@ -815,14 +818,77 @@ pub struct Constituent {
     pub gamma_inventory: u8,
     pub gamma_execution: u8,
     pub xi: u8,
-    pub _padding: [u8; 4],
+
+    // Status
+    pub status: u8,
+    pub paused_operations: u8,
+    pub _padding: [u8; 2],
 }
 
 impl Size for Constituent {
     const SIZE: usize = 304;
 }
 
+#[derive(BitFlags, Clone, Copy, PartialEq, Debug, Eq)]
+pub enum ConstituentStatus {
+    /// fills only able to reduce liability
+    ReduceOnly = 0b00000001,
+    /// market has no remaining participants
+    Decommissioned = 0b00000010,
+}
+
 impl Constituent {
+    pub fn get_status(&self) -> DriftResult<BitFlags<ConstituentStatus>> {
+        BitFlags::<ConstituentStatus>::from_bits(usize::from(self.status)).safe_unwrap()
+    }
+
+    pub fn is_decommissioned(&self) -> DriftResult<bool> {
+        Ok(self
+            .get_status()?
+            .contains(ConstituentStatus::Decommissioned))
+    }
+
+    pub fn is_reduce_only(&self) -> DriftResult<bool> {
+        Ok(self.get_status()?.contains(ConstituentStatus::ReduceOnly))
+    }
+
+    pub fn does_constituent_allow_operation(
+        &self,
+        operation: ConstituentLpOperation,
+    ) -> DriftResult<()> {
+        if self.is_decommissioned()? {
+            msg!(
+                "Constituent {:?}, spot market {}, is decommissioned",
+                self.pubkey,
+                self.spot_market_index
+            );
+            return Err(ErrorCode::InvalidConstituentOperation.into());
+        } else if ConstituentLpOperation::is_operation_paused(self.paused_operations, operation) {
+            msg!(
+                "Constituent {:?}, spot market {}, is paused for operation {:?}",
+                self.pubkey,
+                self.spot_market_index,
+                operation
+            );
+            return Err(ErrorCode::InvalidConstituentOperation.into());
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn is_operation_reducing(
+        &self,
+        spot_market: &SpotMarket,
+        is_increasing: bool,
+    ) -> DriftResult<bool> {
+        let current_balance_sign = self.get_full_token_amount(spot_market)?.signum();
+        if current_balance_sign > 0 {
+            Ok(!is_increasing)
+        } else {
+            Ok(is_increasing)
+        }
+    }
+
     /// Returns the full balance of the Constituent, the total of the amount in Constituent's token
     /// account and in Drift Borrow-Lend.
     pub fn get_full_token_amount(&self, spot_market: &SpotMarket) -> DriftResult<i128> {

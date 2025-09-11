@@ -54,6 +54,7 @@ import {
 	SpotBalanceType,
 	getTokenAmount,
 	TWO,
+	ConstituentLpOperation,
 } from '../sdk/src';
 
 import {
@@ -619,6 +620,36 @@ describe('LP Pool', () => {
 		}
 	});
 
+	it('fails to add liquidity if a paused operation', async () => {
+		await adminClient.updateConstituentPausedOperations(
+			getConstituentPublicKey(program.programId, lpPoolKey, 0),
+			ConstituentLpOperation.Deposit
+		);
+		try {
+			const lpPool = (await adminClient.program.account.lpPool.fetch(
+				lpPoolKey
+			)) as LPPoolAccount;
+			const tx = new Transaction();
+			tx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1]));
+			tx.add(
+				...(await adminClient.getLpPoolAddLiquidityIx({
+					lpPool,
+					inAmount: new BN(1000).mul(QUOTE_PRECISION),
+					minMintAmount: new BN(1),
+					inMarketIndex: 0,
+				}))
+			);
+			await adminClient.sendTransaction(tx);
+		} catch (e) {
+			console.log(e.message);
+			assert(e.message.includes('0x18c0'));
+		}
+		await adminClient.updateConstituentPausedOperations(
+			getConstituentPublicKey(program.programId, lpPoolKey, 0),
+			0
+		);
+	});
+
 	it('can update pool aum', async () => {
 		let lpPool = (await adminClient.program.account.lpPool.fetch(
 			lpPoolKey
@@ -920,24 +951,39 @@ describe('LP Pool', () => {
 		// Make sure the amount recorded goes into the cache and that the quote amount owed is adjusted
 		// for new influx in fees
 		const ammCacheBeforeAdjust = ammCache;
+		// Test pausing tracking for market 0
+		await adminClient.updatePerpMarketLpPoolPausedOperations(0, 1);
 		await adminClient.updateAmmCache([0, 1, 2]);
 		ammCache = (await adminClient.program.account.ammCache.fetch(
 			getAmmCachePublicKey(program.programId)
 		)) as AmmCache;
 
-		assert(ammCache.cache[0].lastFeePoolTokenAmount.eq(new BN(100000000)));
-		assert(ammCache.cache[1].lastFeePoolTokenAmount.eq(new BN(100000000)));
+		assert(ammCache.cache[0].lastFeePoolTokenAmount.eq(ZERO));
 		assert(
 			ammCache.cache[0].quoteOwedFromLpPool.eq(
-				ammCacheBeforeAdjust.cache[0].quoteOwedFromLpPool.sub(
-					new BN(75).mul(QUOTE_PRECISION)
-				)
+				ammCacheBeforeAdjust.cache[0].quoteOwedFromLpPool
 			)
 		);
+		assert(ammCache.cache[1].lastFeePoolTokenAmount.eq(new BN(100000000)));
 		assert(
 			ammCache.cache[1].quoteOwedFromLpPool.eq(
 				ammCacheBeforeAdjust.cache[1].quoteOwedFromLpPool.sub(
 					new BN(100).mul(QUOTE_PRECISION)
+				)
+			)
+		);
+
+		// Market 0 on the amm cache will update now that tracking is permissioned again
+		await adminClient.updatePerpMarketLpPoolPausedOperations(0, 0);
+		await adminClient.updateAmmCache([0, 1, 2]);
+		ammCache = (await adminClient.program.account.ammCache.fetch(
+			getAmmCachePublicKey(program.programId)
+		)) as AmmCache;
+		assert(ammCache.cache[0].lastFeePoolTokenAmount.eq(new BN(100000000)));
+		assert(
+			ammCache.cache[0].quoteOwedFromLpPool.eq(
+				ammCacheBeforeAdjust.cache[0].quoteOwedFromLpPool.sub(
+					new BN(75).mul(QUOTE_PRECISION)
 				)
 			)
 		);
