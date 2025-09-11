@@ -408,16 +408,10 @@ impl LPPool {
 
     pub fn get_linear_fee_execution(
         &self,
-        trade_notional: i128,
+        trade_ratio: i128,
         kappa_execution: u128,
         xi: u8,
-        spot_depth: u128,
     ) -> DriftResult<i128> {
-        let trade_ratio: i128 = trade_notional
-            .abs()
-            .safe_mul(PERCENTAGE_PRECISION_I128)?
-            .safe_div(spot_depth.cast::<i128>()?)?;
-
         trade_ratio
             .safe_mul(kappa_execution.safe_mul(xi as u128)?.cast::<i128>()?)?
             .safe_div(PERCENTAGE_PRECISION_I128)
@@ -425,20 +419,14 @@ impl LPPool {
 
     pub fn get_quadratic_fee_execution(
         &self,
-        trade_notional: i128,
+        trade_ratio: i128,
         kappa_execution: u128,
         xi: u8,
-        spot_depth: u128,
     ) -> DriftResult<i128> {
-        let scaled_abs_trade_notional = trade_notional
-            .abs()
-            .safe_mul(PERCENTAGE_PRECISION_I128)?
-            .safe_div(spot_depth.cast::<i128>()?)?;
-
         kappa_execution
             .cast::<i128>()?
             .safe_mul(xi.safe_mul(xi)?.cast::<i128>()?)?
-            .safe_mul(scaled_abs_trade_notional.safe_mul(scaled_abs_trade_notional)?)?
+            .safe_mul(trade_ratio.safe_mul(trade_ratio)?)?
             .safe_div(PERCENTAGE_PRECISION_I128)?
             .safe_div(PERCENTAGE_PRECISION_I128)
     }
@@ -548,34 +536,23 @@ impl LPPool {
         let out_notional_error_pre = out_notional_pre.safe_sub(out_notional_target)?;
         let out_notional_error_post = out_notional_post.safe_sub(out_notional_target)?;
 
-        // Linear fee computation amount
-        let in_fee_execution_linear = self.get_linear_fee_execution(
-            notional_trade_size,
-            in_kappa_execution,
-            in_constituent.xi,
-            self.last_aum.max(MIN_AUM_EXECUTION_FEE),
-        )?;
+        let trade_ratio: i128 = notional_trade_size
+            .abs()
+            .safe_mul(PERCENTAGE_PRECISION_I128)?
+            .safe_div(self.last_aum.max(MIN_AUM_EXECUTION_FEE).cast::<i128>()?)?;
 
-        let out_fee_execution_linear = self.get_linear_fee_execution(
-            notional_trade_size,
-            out_kappa_execution,
-            out_xi,
-            self.last_aum.max(MIN_AUM_EXECUTION_FEE),
-        )?;
+        // Linear fee computation amount
+        let in_fee_execution_linear =
+            self.get_linear_fee_execution(trade_ratio, in_kappa_execution, in_constituent.xi)?;
+
+        let out_fee_execution_linear =
+            self.get_linear_fee_execution(trade_ratio, out_kappa_execution, out_xi)?;
 
         // Quadratic fee components
-        let in_fee_execution_quadratic = self.get_quadratic_fee_execution(
-            notional_trade_size,
-            in_kappa_execution,
-            in_constituent.xi,
-            self.last_aum.max(MIN_AUM_EXECUTION_FEE), // use 10M at very least
-        )?;
-        let out_fee_execution_quadratic = self.get_quadratic_fee_execution(
-            notional_trade_size,
-            out_kappa_execution,
-            out_xi,
-            self.last_aum.max(MIN_AUM_EXECUTION_FEE),
-        )?;
+        let in_fee_execution_quadratic =
+            self.get_quadratic_fee_execution(trade_ratio, in_kappa_execution, in_constituent.xi)?;
+        let out_fee_execution_quadratic =
+            self.get_quadratic_fee_execution(trade_ratio, out_kappa_execution, out_xi)?;
         let (in_quadratic_inventory_fee, out_quadratic_inventory_fee) = self
             .get_quadratic_fee_inventory(
                 get_gamma_covar_matrix(
@@ -1142,7 +1119,7 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
         amm_inventory_and_prices: &[AmmInventoryAndPrices],
         constituents_indexes_and_decimals_and_prices: &[ConstituentIndexAndDecimalAndPrice],
         slot: u64,
-    ) -> DriftResult<Vec<i128>> {
+    ) -> DriftResult<()> {
         // Precompute notional by perp market index
         let mut notional_by_perp: Vec<(u16, i128)> =
             Vec::with_capacity(amm_inventory_and_prices.len());
@@ -1167,7 +1144,6 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
             }
         }
 
-        let mut results = Vec::with_capacity(constituents_indexes_and_decimals_and_prices.len());
         for (
             i,
             &ConstituentIndexAndDecimalAndPrice {
@@ -1210,11 +1186,9 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
             );
             cell.target_base = target_base.cast::<i64>()?;
             cell.last_slot = slot;
-
-            results.push(target_base);
         }
 
-        Ok(results)
+        Ok(())
     }
 }
 

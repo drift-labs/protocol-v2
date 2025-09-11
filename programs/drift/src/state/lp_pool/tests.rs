@@ -126,7 +126,7 @@ mod tests {
             _marker: PhantomData::<TargetsDatum>,
         };
 
-        let target_base = target_zc_mut
+        target_zc_mut
             .update_target_base(
                 &mapping_zc,
                 &amm_inventory_and_price,
@@ -135,14 +135,12 @@ mod tests {
             )
             .unwrap();
 
-        msg!("Target Base: {:?}", target_base);
-
-        let target_weights: Vec<i64> = target_base
+        let target_weights: Vec<i64> = target_zc_mut
             .iter()
             .enumerate()
-            .map(|(index, base)| {
+            .map(|(index, datum)| {
                 calculate_target_weight(
-                    base.cast::<i64>().unwrap(),
+                    datum.target_base.cast::<i64>().unwrap(),
                     &SpotMarket::default_quote_market(),
                     amm_inventory_and_price.get(index).unwrap().price,
                     aum,
@@ -211,7 +209,7 @@ mod tests {
             _marker: PhantomData::<TargetsDatum>,
         };
 
-        let totalw = target_zc_mut
+        target_zc_mut
             .update_target_base(
                 &mapping_zc,
                 &amm_inventory_and_prices,
@@ -220,7 +218,7 @@ mod tests {
             )
             .unwrap();
 
-        assert!(totalw.iter().all(|&x| x == 0));
+        assert!(target_zc_mut.iter().all(|&x| x.target_base == 0));
         assert_eq!(target_zc_mut.len(), 1);
         assert_eq!(target_zc_mut.get(0).target_base, 0);
         assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
@@ -280,7 +278,7 @@ mod tests {
             _marker: PhantomData::<TargetsDatum>,
         };
 
-        let base = target_zc_mut
+        target_zc_mut
             .update_target_base(
                 &mapping_zc,
                 &amm_inventory_and_prices,
@@ -290,14 +288,17 @@ mod tests {
             .unwrap();
 
         let weight = calculate_target_weight(
-            *base.get(0).unwrap() as i64,
+            target_zc_mut.get(0).target_base as i64,
             &SpotMarket::default(),
             price,
             aum,
         )
         .unwrap();
 
-        assert_eq!(*base.get(0).unwrap(), -1 * 10_i128.pow(6_u32));
+        assert_eq!(
+            target_zc_mut.get(0).target_base as i128,
+            -1 * 10_i128.pow(6_u32)
+        );
         assert_eq!(weight, -1000000);
         assert_eq!(target_zc_mut.len(), 1);
         assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
@@ -1487,12 +1488,14 @@ mod swap_fee_tests {
             ..LPPool::default()
         };
 
+        let trade_ratio = 5_000_000 * QUOTE_PRECISION_I128 * PERCENTAGE_PRECISION_I128
+            / (15_000_000 * QUOTE_PRECISION_I128);
+
         let fee_execution_linear = lp_pool
             .get_linear_fee_execution(
-                5_000_000 * QUOTE_PRECISION_I128,
+                trade_ratio,
                 1600, // 0.0016
                 2,
-                15_000_000 * QUOTE_PRECISION,
             )
             .unwrap();
 
@@ -1506,12 +1509,14 @@ mod swap_fee_tests {
             ..LPPool::default()
         };
 
+        let trade_ratio = 5_000_000 * QUOTE_PRECISION_I128 * PERCENTAGE_PRECISION_I128
+            / (15_000_000 * QUOTE_PRECISION_I128);
+
         let fee_execution_quadratic = lp_pool
             .get_quadratic_fee_execution(
-                5_000_000 * QUOTE_PRECISION_I128,
+                trade_ratio,
                 1600, // 0.0016
                 2,
-                15_000_000 * QUOTE_PRECISION,
             )
             .unwrap();
 
