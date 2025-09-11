@@ -1057,17 +1057,39 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
     } else {
         out_amount.safe_add(out_fee_amount.unsigned_abs())?
     };
-    let out_amount_net_fees =
-        out_amount_net_fees.min(ctx.accounts.constituent_out_token_account.amount as u128);
 
     validate!(
         out_amount_net_fees >= min_amount_out,
         ErrorCode::SlippageOutsideLimit,
-        format!(
-            "Slippage outside limit: lp_mint_amount_net_fees({}) < min_mint_amount({})",
-            out_amount_net_fees, min_amount_out
-        )
-        .as_str()
+        "Slippage outside limit: out_amount_net_fees({}) < min_amount_out({})",
+        out_amount_net_fees,
+        min_amount_out
+    )?;
+
+    if out_amount_net_fees > out_constituent.vault_token_balance.cast()? {
+        let transfer_amount = out_amount_net_fees.cast::<u64>()?.safe_sub(out_constituent.vault_token_balance)?;
+        msg!("transfering from program vault to constituent vault: {}", transfer_amount);
+        transfer_from_program_vault(
+            transfer_amount,
+            &mut out_spot_market,
+            &mut out_constituent,
+            out_oracle.price,
+            &ctx.accounts.state,
+            &mut ctx.accounts.spot_market_token_account,
+            &mut ctx.accounts.constituent_out_token_account,
+            &ctx.accounts.token_program,
+            &ctx.accounts.drift_signer,
+            &None,
+            Some(remaining_accounts),
+        )?;
+    }
+
+    validate!(
+        out_amount_net_fees <= out_constituent.vault_token_balance.cast()?,
+        ErrorCode::InsufficientConstituentTokenBalance,
+        "Insufficient out constituent balance: out_amount_net_fees({}) > out_constituent.token_balance({})",
+        out_amount_net_fees,
+        out_constituent.vault_token_balance
     )?;
 
     out_constituent.record_swap_fees(out_fee_amount)?;
@@ -1467,23 +1489,14 @@ fn transfer_from_program_vault<'info>(
 
     let balance_before = constituent.get_full_token_amount(&spot_market)?;
 
-    // Can only borrow up to the max
-    let bl_token_amount = constituent.spot_balance.get_token_amount(&spot_market)?;
-
-    let max_transfer = if constituent.spot_balance.balance_type == SpotBalanceType::Borrow {
-            constituent
-                .max_borrow_token_amount
-                .saturating_sub(bl_token_amount as u64),
-    } else {
-            constituent
-                .max_borrow_token_amount
-                .saturating_add(bl_token_amount as u64),
-    };
+    let max_transfer = constituent.get_max_transfer(&spot_market)?;
 
     validate!(
         max_transfer >= amount,
         ErrorCode::LpInvariantFailed,
-        "Max transfer is less than amount"
+        "Max transfer ({} is less than amount ({})",
+        max_transfer,
+        amount
     )?;
 
     // Execute transfer and sync new balance in the constituent account
@@ -1872,6 +1885,11 @@ pub struct ViewLPPoolAddLiquidityFees<'info> {
 )]
 pub struct LPPoolRemoveLiquidity<'info> {
     pub state: Box<Account<'info, State>>,
+    #[account(
+        constraint = drift_signer.key() == state.signer
+    )]
+    /// CHECK: drift_signer
+    pub drift_signer: AccountInfo<'info>,
     #[account(mut)]
     pub lp_pool: AccountLoader<'info, LPPool>,
     pub authority: Signer<'info>,
@@ -1901,6 +1919,12 @@ pub struct LPPoolRemoveLiquidity<'info> {
         constraint = user_lp_token_account.mint.eq(&lp_mint.key())
     )]
     pub user_lp_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), out_market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
 
     #[account(
         mut,
