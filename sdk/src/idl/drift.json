@@ -8564,6 +8564,11 @@
           "isSigner": false
         },
         {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "lpPool",
           "isMut": true,
           "isSigner": false
@@ -8595,6 +8600,11 @@
         },
         {
           "name": "userLpTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketTokenAccount",
           "isMut": true,
           "isSigner": false
         },
