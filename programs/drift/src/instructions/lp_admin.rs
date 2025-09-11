@@ -1,7 +1,7 @@
 use crate::controller;
 use crate::controller::token::{receive, send_from_program_vault_with_signature_seeds};
 use crate::error::ErrorCode;
-use crate::ids::admin_hot_wallet;
+use crate::ids::{admin_hot_wallet, lp_pool_swap_wallet};
 use crate::instructions::optional_accounts::get_token_mint;
 use crate::math::constants::{PRICE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX};
 use crate::math::safe_math::SafeMath;
@@ -574,6 +574,21 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
     out_market_index: u16,
     amount_in: u64,
 ) -> Result<()> {
+    // Check admin
+    let admin = &ctx.accounts.admin;
+    #[cfg(feature = "anchor-test")]
+    validate!(
+        admin.key() == admin_hot_wallet::id() || admin.key() == state.admin,
+        ErrorCode::Unauthorized,
+        "Wrong signer for lp taker swap"
+    )?;
+    #[cfg(not(feature = "anchor-test"))]
+    validate!(
+        admin.key() == lp_pool_swap_wallet::id(),
+        ErrorCode::DefaultError,
+        "Wrong signer for lp taker swap"
+    )?;
+
     let ixs = ctx.accounts.instructions.as_ref();
     let current_index = instructions::load_current_index_checked(ixs)? as usize;
 
@@ -1186,10 +1201,7 @@ pub struct UpdateConstituentCorrelation<'info> {
 )]
 pub struct LPTakerSwap<'info> {
     pub state: Box<Account<'info, State>>,
-    #[account(
-        mut,
-        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
-    )]
+    #[account(mut)]
     pub admin: Signer<'info>,
 
     /// Signer token accounts
