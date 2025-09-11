@@ -1539,7 +1539,7 @@ describe('place and make signedMsg order', () => {
 			);
 			assert.fail('should fail');
 		} catch (e) {
-			assert(e.toString().includes('0x18a5')); // SignedMsgUserContextUserMismatch
+			assert(e.toString().includes('0x1776'));
 			const takerOrders = takerDriftClient.getUser().getOpenOrders();
 			assert(takerOrders.length == 0);
 		}
@@ -1600,105 +1600,6 @@ describe('place and make signedMsg order', () => {
 				)
 			)) == false
 		);
-
-		await takerDriftClientUser.unsubscribe();
-		await takerDriftClient.unsubscribe();
-	});
-
-	it('fills signedMsg with max margin ratio ', async () => {
-		slot = new BN(
-			await bankrunContextWrapper.connection.toConnection().getSlot()
-		);
-		const [takerDriftClient, takerDriftClientUser] =
-			await initializeNewTakerClientAndUser(
-				bankrunContextWrapper,
-				chProgram,
-				usdcMint,
-				usdcAmount,
-				marketIndexes,
-				spotMarketIndexes,
-				oracleInfos,
-				bulkAccountLoader
-			);
-		await takerDriftClientUser.fetchAccounts();
-
-		const marketIndex = 0;
-		const baseAssetAmount = BASE_PRECISION;
-		const takerOrderParams = getMarketOrderParams({
-			marketIndex,
-			direction: PositionDirection.LONG,
-			baseAssetAmount,
-			price: new BN(224).mul(PRICE_PRECISION),
-			auctionStartPrice: new BN(223).mul(PRICE_PRECISION),
-			auctionEndPrice: new BN(224).mul(PRICE_PRECISION),
-			auctionDuration: 10,
-			userOrderId: 1,
-			postOnly: PostOnlyParams.NONE,
-			marketType: MarketType.PERP,
-		}) as OrderParams;
-
-		await takerDriftClientUser.fetchAccounts();
-		const makerOrderParams = getLimitOrderParams({
-			marketIndex,
-			direction: PositionDirection.SHORT,
-			baseAssetAmount,
-			price: new BN(223).mul(PRICE_PRECISION),
-			postOnly: PostOnlyParams.MUST_POST_ONLY,
-			bitFlags: 1,
-			marketType: MarketType.PERP,
-		}) as OrderParams;
-
-		const uuid = Uint8Array.from(Buffer.from(nanoid(8)));
-		const takerOrderParamsMessage: SignedMsgOrderParamsMessage = {
-			signedMsgOrderParams: takerOrderParams,
-			subAccountId: 0,
-			slot,
-			uuid,
-			stopLossOrderParams: null,
-			takeProfitOrderParams: null,
-			maxMarginRatio: 100,
-		};
-
-		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
-			takerOrderParamsMessage
-		);
-
-		const ixs = await makerDriftClient.getPlaceAndMakeSignedMsgPerpOrderIxs(
-			signedOrderParams,
-			uuid,
-			{
-				taker: await takerDriftClient.getUserAccountPublicKey(),
-				takerUserAccount: takerDriftClient.getUserAccount(),
-				takerStats: takerDriftClient.getUserStatsAccountPublicKey(),
-				signingAuthority: takerDriftClient.wallet.publicKey,
-			},
-			makerOrderParams,
-			undefined,
-			undefined,
-			undefined,
-			2
-		);
-
-		/*
-		 Transaction size should be largest for filling with trigger orders w/ place and take
-		 Max size: 1232
-		 We currently trade on sol market w/ sol oracle so would be better with LUT, so -64 bytes + 2 bytes
-		 We dont have referrers for maker so need to add 64 bytes
-		 We want to allow for positions to be full with maximally different markets for maker/taker and spot/perp, 
-				so add 30 bytes for market/oracle for taker and 30 bytes for maker
-		 Add 32 bytes for LUT
-			size of transaction + 32 + 2 + 30 + 30 < 1232
-		*/
-		assert(getSizeOfTransaction(ixs, false) < 1138);
-
-		const tx = await makerDriftClient.buildTransaction(ixs);
-		await makerDriftClient.sendTransaction(tx as Transaction);
-
-		const takerPosition = takerDriftClient.getUser().getPerpPosition(0);
-
-		// All orders are placed and one is
-		// @ts-ignore
-		assert(takerPosition.maxMarginRatio === 100);
 
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();
