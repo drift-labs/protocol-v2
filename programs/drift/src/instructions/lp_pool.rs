@@ -1470,19 +1470,21 @@ fn transfer_from_program_vault<'info>(
     // Can only borrow up to the max
     let bl_token_amount = constituent.spot_balance.get_token_amount(&spot_market)?;
 
-    let amount_to_transfer = if constituent.spot_balance.balance_type == SpotBalanceType::Borrow {
-        amount.min(
+    let max_transfer = if constituent.spot_balance.balance_type == SpotBalanceType::Borrow {
             constituent
                 .max_borrow_token_amount
                 .saturating_sub(bl_token_amount as u64),
-        )
     } else {
-        amount.min(
             constituent
                 .max_borrow_token_amount
                 .saturating_add(bl_token_amount as u64),
-        )
     };
+
+    validate!(
+        max_transfer >= amount,
+        ErrorCode::LpInvariantFailed,
+        "Max transfer is less than amount"
+    )?;
 
     // Execute transfer and sync new balance in the constituent account
     controller::token::send_from_program_vault(
@@ -1491,7 +1493,7 @@ fn transfer_from_program_vault<'info>(
         &constituent_token_account,
         &drift_signer,
         state.signer_nonce,
-        amount_to_transfer,
+        amount,
         mint,
         remaining_accounts,
     )?;
@@ -1501,7 +1503,7 @@ fn transfer_from_program_vault<'info>(
     // Adjust BLPosition for the new deposits
     let spot_position = &mut constituent.spot_balance;
     update_spot_balances(
-        amount_to_transfer as u128,
+        amount as u128,
         &SpotBalanceType::Borrow,
         spot_market,
         spot_position,
@@ -1510,7 +1512,7 @@ fn transfer_from_program_vault<'info>(
 
     safe_decrement!(
         spot_position.cumulative_deposits,
-        amount_to_transfer.cast()?
+        amount.cast()?
     );
 
     // Re-check spot market invariants
