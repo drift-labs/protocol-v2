@@ -198,7 +198,6 @@ mod tests {
                 decimals: 6,
                 price: 1_000_000,
             }];
-        let aum = 1_000_000;
         let now_ts = 1000;
 
         let target_fixed = RefCell::new(ConstituentTargetBaseFixed {
@@ -444,8 +443,6 @@ mod tests {
                 price: 142_000_000,
             }];
 
-        let prices = vec![142_000_000];
-        let aum = 0;
         let now_ts = 111;
 
         let target_fixed = RefCell::new(ConstituentTargetBaseFixed {
@@ -723,49 +720,6 @@ mod swap_tests {
         assert_eq!(weight, 50_000);
     }
 
-    fn get_mint_redeem_fee_scenario(now: i64, is_mint: bool, expected_fee: i64) {
-        let lp_pool = LPPool {
-            last_hedge_ts: 0,
-            revenue_rebalance_period: 3600, // hourly
-            max_mint_fee_premium: 2000,     // 20 bps
-            min_mint_fee: 100,              // 1 bps
-            ..LPPool::default()
-        };
-
-        let fee = lp_pool.get_mint_redeem_fee(now, is_mint).unwrap();
-        assert_eq!(fee, expected_fee);
-    }
-
-    #[test]
-    fn test_get_mint_fee_before_dist() {
-        get_mint_redeem_fee_scenario(0, true, 100);
-    }
-
-    #[test]
-    fn test_get_mint_fee_during_dist() {
-        get_mint_redeem_fee_scenario(1800, true, 1100);
-    }
-
-    #[test]
-    fn test_get_mint_fee_after_dist() {
-        get_mint_redeem_fee_scenario(3600, true, 2100);
-    }
-
-    #[test]
-    fn test_get_redeem_fee_before_dist() {
-        get_mint_redeem_fee_scenario(0, false, 2100);
-    }
-
-    #[test]
-    fn test_get_redeem_fee_during_dist() {
-        get_mint_redeem_fee_scenario(1800, false, 1100);
-    }
-
-    #[test]
-    fn test_get_redeem_fee_after_dist() {
-        get_mint_redeem_fee_scenario(3600, false, 100);
-    }
-
     fn get_add_liquidity_mint_amount_scenario(
         last_aum: u128,
         now: i64,
@@ -828,7 +782,6 @@ mod swap_tests {
 
         let (lp_amount, in_amount_1, lp_fee, in_fee_amount) = lp_pool
             .get_add_liquidity_mint_amount(
-                now,
                 &spot_market,
                 &constituent,
                 in_amount,
@@ -1011,7 +964,6 @@ mod swap_tests {
 
         let (lp_amount_1, out_amount, lp_fee, out_fee_amount) = lp_pool
             .get_remove_liquidity_amount(
-                now,
                 &spot_market,
                 &constituent,
                 lp_burn_amount,
@@ -2462,8 +2414,7 @@ mod update_aum_tests {
 
         // Call update_aum
         let result = lp_pool.update_aum(
-            1000, // now (timestamp)
-            101,  // slot
+            101, // slot
             &constituent_map,
             &spot_market_map,
             &constituent_target_base,

@@ -68,9 +68,6 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
     let amm_cache: AccountZeroCopy<'_, CacheInfo, AmmCacheFixed> =
         ctx.accounts.amm_cache.load_zc()?;
 
-    amm_cache.check_oracle_staleness(slot, MAX_AMM_CACHE_ORACLE_STALENESS_FOR_TARGET_CALC)?;
-    amm_cache.check_perp_market_staleness(slot, MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC)?;
-
     let mut constituent_target_base: AccountZeroCopyMut<
         '_,
         TargetsDatum,
@@ -109,6 +106,22 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
         )? {
             msg!("Oracle data for perp market {} and constituent index {} is invalid. Skipping update",
                 datum.perp_market_index, datum.constituent_index);
+            continue;
+        }
+
+        if slot.safe_sub(cache_info.slot)? > MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC {
+            msg!(
+                "Amm cache for perp market {}. Skipping update",
+                datum.perp_market_index,
+            );
+            continue;
+        }
+
+        if slot.safe_sub(cache_info.oracle_slot)? > MAX_AMM_CACHE_ORACLE_STALENESS_FOR_TARGET_CALC {
+            msg!(
+                "Amm cache oracle for perp market {} is stale. Skipping update",
+                datum.perp_market_index,
+            );
             continue;
         }
 
@@ -152,7 +165,6 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
     let state = &ctx.accounts.state;
 
     let slot = Clock::get()?.slot;
-    let now = Clock::get()?.unix_timestamp;
 
     let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
 
@@ -194,7 +206,6 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
         ctx.accounts.amm_cache.load_zc_mut()?;
 
     let (aum, crypto_delta, derivative_groups) = lp_pool.update_aum(
-        now,
         slot,
         &constituent_map,
         &spot_market_map,
@@ -673,7 +684,6 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
 
     let (lp_amount, in_amount, lp_fee_amount, in_fee_amount) = lp_pool
         .get_add_liquidity_mint_amount(
-            now,
             &in_spot_market,
             &in_constituent,
             in_amount,
@@ -882,7 +892,6 @@ pub fn handle_view_lp_pool_add_liquidity_fees<'c: 'info, 'info>(
 
     let (lp_amount, in_amount, lp_fee_amount, in_fee_amount) = lp_pool
         .get_add_liquidity_mint_amount(
-            now,
             &in_spot_market,
             &in_constituent,
             in_amount,
@@ -1013,7 +1022,6 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
 
     let (lp_burn_amount, out_amount, lp_fee_amount, out_fee_amount) = lp_pool
         .get_remove_liquidity_amount(
-            now,
             &out_spot_market,
             &out_constituent,
             lp_to_burn,
@@ -1233,7 +1241,6 @@ pub fn handle_view_lp_pool_remove_liquidity_fees<'c: 'info, 'info>(
 
     let (lp_burn_amount, out_amount, lp_fee_amount, out_fee_amount) = lp_pool
         .get_remove_liquidity_amount(
-            now,
             &out_spot_market,
             &out_constituent,
             lp_to_burn,

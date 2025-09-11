@@ -223,7 +223,6 @@ impl LPPool {
     /// Returns the mint_amount in lp token precision and fee to charge in constituent mint precision
     pub fn get_add_liquidity_mint_amount(
         &self,
-        now: i64,
         in_spot_market: &SpotMarket,
         in_constituent: &Constituent,
         in_amount: u128,
@@ -292,7 +291,6 @@ impl LPPool {
     /// Returns the mint_amount in lp token precision and fee to charge in constituent mint precision
     pub fn get_remove_liquidity_amount(
         &self,
-        now: i64,
         out_spot_market: &SpotMarket,
         out_constituent: &Constituent,
         lp_burn_amount: u64,
@@ -616,35 +614,6 @@ impl LPPool {
         ))
     }
 
-    /// Returns the fee to charge for a mint or redeem in PERCENTAGE_PRECISION
-    pub fn get_mint_redeem_fee(&self, now: i64, is_minting: bool) -> DriftResult<i64> {
-        let time_since_last_rebalance = now.safe_sub(self.last_hedge_ts.cast::<i64>()?)?;
-        if is_minting {
-            // mint fee
-            self.min_mint_fee.safe_add(
-                self.max_mint_fee_premium.min(
-                    self.max_mint_fee_premium
-                        .safe_mul(time_since_last_rebalance)?
-                        .safe_div(self.revenue_rebalance_period.cast::<i64>()?)?,
-                ),
-            )
-        } else {
-            // burn fee
-            self.min_mint_fee.safe_add(
-                0_i64.max(
-                    self.max_mint_fee_premium.min(
-                        self.revenue_rebalance_period
-                            .cast::<i64>()?
-                            .safe_sub(time_since_last_rebalance)?
-                            .cast::<i64>()?
-                            .safe_mul(self.max_mint_fee_premium.cast::<i64>()?)?
-                            .safe_div(self.revenue_rebalance_period.cast::<i64>()?)?,
-                    ),
-                ),
-            )
-        }
-    }
-
     pub fn record_mint_redeem_fees(&mut self, amount: i64) -> DriftResult {
         self.total_mint_redeem_fees_paid = self
             .total_mint_redeem_fees_paid
@@ -654,7 +623,6 @@ impl LPPool {
 
     pub fn update_aum(
         &mut self,
-        now: i64,
         slot: u64,
         constituent_map: &ConstituentMap,
         spot_market_map: &SpotMarketMap,

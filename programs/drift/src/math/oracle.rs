@@ -152,7 +152,10 @@ pub fn is_oracle_valid_for_action(
                     | OracleValidity::InsufficientDataPoints
                     | OracleValidity::StaleForMargin
             ),
-            DriftAction::FillOrderMatch => !matches!(
+            DriftAction::FillOrderMatch
+            | DriftAction::UpdateLpConstituentTargetBase
+            | DriftAction::UpdateLpPoolAum
+            | DriftAction::LpPoolSwap => !matches!(
                 oracle_validity,
                 OracleValidity::NonPositive
                     | OracleValidity::TooVolatile
@@ -167,13 +170,6 @@ pub fn is_oracle_valid_for_action(
             DriftAction::UseMMOraclePrice => !matches!(
                 oracle_validity,
                 OracleValidity::NonPositive | OracleValidity::TooVolatile,
-            ),
-            DriftAction::UpdateLpConstituentTargetBase | DriftAction::UpdateLpPoolAum => {
-                !matches!(oracle_validity, OracleValidity::NonPositive)
-            }
-            DriftAction::LpPoolSwap => !matches!(
-                oracle_validity,
-                OracleValidity::NonPositive | OracleValidity::InsufficientDataPoints
             ),
         },
         None => {

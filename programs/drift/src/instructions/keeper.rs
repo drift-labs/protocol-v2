@@ -3318,6 +3318,9 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
 
     for (_, perp_market_loader) in perp_market_map.0.iter() {
         let perp_market = perp_market_loader.load()?;
+        if perp_market.lp_status == 0 {
+            continue;
+        }
         let cached_info = amm_cache.get_mut(perp_market.market_index as u32);
 
         validate!(
@@ -3334,11 +3337,14 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
         )?;
 
         cached_info.update_perp_market_fields(&perp_market)?;
-        cached_info.update_oracle_info(slot, &mm_oracle_price_data, &perp_market, &state.oracle_guard_rails)?;
+        cached_info.update_oracle_info(
+            slot,
+            &mm_oracle_price_data,
+            &perp_market,
+            &state.oracle_guard_rails,
+        )?;
 
-        if perp_market.lp_status != 0 {
-            amm_cache.update_amount_owed_from_lp_pool(&perp_market, &quote_market)?;
-        }
+        amm_cache.update_amount_owed_from_lp_pool(&perp_market, &quote_market)?;
     }
 
     Ok(())

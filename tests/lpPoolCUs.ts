@@ -45,7 +45,6 @@ import {
 	getConstituentPublicKey,
 	ConstituentAccount,
 	PositionDirection,
-	getPythLazerOraclePublicKey,
 	PYTH_LAZER_STORAGE_ACCOUNT_KEY,
 	PTYH_LAZER_PROGRAM_ID,
 	BASE_PRECISION,
@@ -71,8 +70,8 @@ import {
 } from '../sdk/src/decode/customCoder';
 dotenv.config();
 
-const NUMBER_OF_CONSTITUENTS = 8;
-const NUMBER_OF_PERP_MARKETS = 20;
+const NUMBER_OF_CONSTITUENTS = 10;
+const NUMBER_OF_PERP_MARKETS = 60;
 const NUMBER_OF_USERS = Math.ceil(NUMBER_OF_PERP_MARKETS / 8);
 
 const PERP_MARKET_INDEXES = Array.from(
@@ -125,7 +124,6 @@ describe('LP Pool', () => {
 		mantissaSqrtScale
 	);
 	let solUsd: PublicKey;
-	let solUsdLazer: PublicKey;
 
 	const lpPoolName = 'test pool 1';
 	const tokenDecimals = 6;
@@ -133,8 +131,6 @@ describe('LP Pool', () => {
 		program.programId,
 		encodeName(lpPoolName)
 	);
-
-	let whitelistMint: PublicKey;
 
 	const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(
 		new BN(2)
@@ -215,7 +211,6 @@ describe('LP Pool', () => {
 			userUSDCAccount
 		);
 
-		solUsdLazer = getPythLazerOraclePublicKey(program.programId, 6);
 		await adminClient.initializePythLazerOracle(6);
 
 		await adminClient.updatePerpAuctionDuration(new BN(0));
@@ -248,8 +243,6 @@ describe('LP Pool', () => {
 				whitelistKeypair.publicKey
 			);
 		console.log('whitelistMintInfo', whitelistMintInfo);
-
-		whitelistMint = whitelistKeypair.publicKey;
 	});
 
 	after(async () => {
@@ -459,7 +452,7 @@ describe('LP Pool', () => {
 		for (let i = 0; i < NUMBER_OF_USERS; i++) {
 			const keypair = new Keypair();
 			await bankrunContextWrapper.fundKeypair(keypair, 10 ** 9);
-			await sleep(2);
+			await sleep(100);
 			const userClient = new TestClient({
 				connection: bankrunContextWrapper.connection.toConnection(),
 				wallet: new anchor.Wallet(keypair),
@@ -479,7 +472,7 @@ describe('LP Pool', () => {
 				coder: new CustomBorshCoder(program.idl),
 			});
 			await userClient.subscribe();
-			await sleep(50);
+			await sleep(100);
 
 			const userUSDCAccount = await mockUserUSDCAccountWithAuthority(
 				usdcMint,
@@ -487,13 +480,13 @@ describe('LP Pool', () => {
 				bankrunContextWrapper,
 				keypair
 			);
-			await sleep(2);
+			await sleep(100);
 
 			await userClient.initializeUserAccountAndDepositCollateral(
 				new BN(10_000_000).mul(QUOTE_PRECISION),
 				userUSDCAccount
 			);
-			await sleep(2);
+			await sleep(100);
 			userClients.push(userClient);
 		}
 
@@ -517,12 +510,12 @@ describe('LP Pool', () => {
 	it('can add lots of mapping data', async () => {
 		// Assume that constituent 0 is USDC
 		for (let i = 0; i < NUMBER_OF_PERP_MARKETS; i++) {
-			for (let j = 1; j < NUMBER_OF_CONSTITUENTS; j++) {
+			for (let j = 1; j <= 3; j++) {
 				await adminClient.addAmmConstituentMappingData(encodeName(lpPoolName), [
 					{
 						perpMarketIndex: i,
 						constituentIndex: j,
-						weight: PERCENTAGE_PRECISION.divn(NUMBER_OF_CONSTITUENTS - 1),
+						weight: PERCENTAGE_PRECISION.divn(3),
 					},
 				]);
 				await sleep(50);
@@ -530,27 +523,7 @@ describe('LP Pool', () => {
 		}
 	});
 
-	it('can crank amm info into the cache', async () => {
-		let ammCache = (await adminClient.program.account.ammCache.fetch(
-			getAmmCachePublicKey(program.programId)
-		)) as AmmCache;
-
-		const txSig = await adminClient.updateAmmCache([0, 1, 2]);
-		bankrunContextWrapper.printTxLogs(txSig);
-
-		const cus =
-			bankrunContextWrapper.connection.findComputeUnitConsumption(txSig);
-		console.log(cus);
-		ammCache = (await adminClient.program.account.ammCache.fetch(
-			getAmmCachePublicKey(program.programId)
-		)) as AmmCache;
-		expect(ammCache).to.not.be.null;
-		assert(ammCache.cache.length == NUMBER_OF_PERP_MARKETS);
-
-		assert(cus < 100_000);
-	});
-
-	it('can add all addresses to lookup tables', async () => {
+		it('can add all addresses to lookup tables', async () => {
 		const slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
@@ -563,19 +536,48 @@ describe('LP Pool', () => {
 			});
 
 		const extendInstruction = AddressLookupTableProgram.extendLookupTable({
-			payer: adminClient.wallet.publicKey,
-			authority: adminClient.wallet.publicKey,
-			lookupTable: lookupTableAddress,
-			addresses: [
-				SystemProgram.programId,
-				solUsd,
-				...adminClient.getPerpMarketAccounts().map((account) => account.pubkey),
-			],
+				payer: adminClient.wallet.publicKey,
+				authority: adminClient.wallet.publicKey,
+				lookupTable: lookupTableAddress,
+				addresses: CONSTITUENT_INDEXES.map((i) => getConstituentPublicKey(program.programId, lpPoolKey, i)),
 		});
 
 		const tx = new Transaction().add(lookupTableInst).add(extendInstruction);
 		await adminClient.sendTransaction(tx);
 		lutAddress = lookupTableAddress;
+
+		const chunkies = chunks(adminClient.getPerpMarketAccounts().map((account) => account.pubkey), 20);
+		for (const chunk of chunkies) {
+			const extendTx = new Transaction();
+			const extendInstruction = AddressLookupTableProgram.extendLookupTable({
+				payer: adminClient.wallet.publicKey,
+				authority: adminClient.wallet.publicKey,
+				lookupTable: lookupTableAddress,
+				addresses: chunk,
+			});
+			extendTx.add(extendInstruction);
+			await adminClient.sendTransaction(extendTx);
+		}
+	});
+
+	it('can crank amm info into the cache', async () => {
+		let ammCache = (await adminClient.program.account.ammCache.fetch(
+			getAmmCachePublicKey(program.programId)
+		)) as AmmCache;
+
+		for (const chunk of chunks(PERP_MARKET_INDEXES, 20)) {
+			const txSig = await adminClient.updateAmmCache(chunk);
+			const cus = bankrunContextWrapper.connection.findComputeUnitConsumption(txSig);
+			console.log(cus);
+			assert(cus < 200_000);
+		}
+
+		ammCache = (await adminClient.program.account.ammCache.fetch(
+			getAmmCachePublicKey(program.programId)
+		)) as AmmCache;
+		expect(ammCache).to.not.be.null;
+		assert(ammCache.cache.length == NUMBER_OF_PERP_MARKETS);
+
 	});
 
 	it('can update target balances', async () => {
@@ -590,21 +592,19 @@ describe('LP Pool', () => {
 		const cuIx = ComputeBudgetProgram.setComputeUnitLimit({
 			units: 1_400_000,
 		});
-		const ammCacheIx = await adminClient.getUpdateAmmCacheIx(
-			PERP_MARKET_INDEXES
-		);
+		const ammCacheIxs = await Promise.all(chunks(PERP_MARKET_INDEXES, 50).map(async (chunk) => await adminClient.getUpdateAmmCacheIx(
+				chunk
+		)));
 		const updateBaseIx = await adminClient.getUpdateLpConstituentTargetBaseIx(
 			encodeName(lpPoolName),
-			Array.from({ length: 1 }, (_, i) =>
-				getConstituentPublicKey(program.programId, lpPoolKey, i)
-			)
+			[getConstituentPublicKey(program.programId, lpPoolKey, 1)]
 		);
 
 		const txMessage = new TransactionMessage({
 			payerKey: adminClient.wallet.publicKey,
 			recentBlockhash: (await adminClient.connection.getLatestBlockhash())
 				.blockhash,
-			instructions: [cuIx, ammCacheIx, updateBaseIx],
+			instructions: [cuIx, ...ammCacheIxs, updateBaseIx],
 		});
 
 		const lookupTableAccount = (
@@ -649,3 +649,10 @@ describe('LP Pool', () => {
 		console.log(cus);
 	});
 });
+
+const chunks = <T>(array: readonly T[], size: number): T[][] => {
+	return new Array(Math.ceil(array.length / size))
+		.fill(null)
+		.map((_, index) => index * size)
+		.map((begin) => array.slice(begin, begin + size));
+};
