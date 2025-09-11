@@ -1782,6 +1782,7 @@ pub mod drift {
         revenue_rebalance_period: u64,
         max_aum: u128,
         max_settle_quote_amount_per_market: u64,
+        whitelist_mint: Pubkey,
     ) -> Result<()> {
         handle_initialize_lp_pool(
             ctx,
@@ -1791,6 +1792,7 @@ pub mod drift {
             revenue_rebalance_period,
             max_aum,
             max_settle_quote_amount_per_market,
+            whitelist_mint,
         )
     }
 

@@ -68,17 +68,49 @@ mod tests {
             }
         };
 
-        let amm_inventory_and_price: Vec<(u16, i64, i64)> = vec![
-            (0, 4 * BASE_PRECISION_I64, 100_000 * PRICE_PRECISION_I64), // $400k BTC
-            (1, 2000 * BASE_PRECISION_I64, 200 * PRICE_PRECISION_I64),  // $400k SOL
-            (2, 200 * BASE_PRECISION_I64, 1500 * PRICE_PRECISION_I64),  // $300k ETH
-            (3, 16500 * BASE_PRECISION_I64, PRICE_PRECISION_I64),       // $16.5k FARTCOIN
+        let amm_inventory_and_price: Vec<AmmInventoryAndPrices> = vec![
+            AmmInventoryAndPrices {
+                perp_market_index: 0,
+                inventory: 4 * BASE_PRECISION_I64,
+                price: 100_000 * PRICE_PRECISION_I64,
+            }, // $400k BTC
+            AmmInventoryAndPrices {
+                perp_market_index: 1,
+                inventory: 2000 * BASE_PRECISION_I64,
+                price: 200 * PRICE_PRECISION_I64,
+            }, // $400k SOL
+            AmmInventoryAndPrices {
+                perp_market_index: 2,
+                inventory: 200 * BASE_PRECISION_I64,
+                price: 1500 * PRICE_PRECISION_I64,
+            }, // $300k ETH
+            AmmInventoryAndPrices {
+                perp_market_index: 3,
+                inventory: 16500 * BASE_PRECISION_I64,
+                price: PRICE_PRECISION_I64,
+            }, // $16.5k FARTCOIN
         ];
         let constituents_indexes_and_decimals_and_prices = vec![
-            (0, 6, 100_000 * PRICE_PRECISION_I64),
-            (1, 6, 200 * PRICE_PRECISION_I64),
-            (2, 6, 1500 * PRICE_PRECISION_I64),
-            (3, 6, PRICE_PRECISION_I64), // USDC
+            ConstituentIndexAndDecimalAndPrice {
+                constituent_index: 0,
+                decimals: 6,
+                price: 100_000 * PRICE_PRECISION_I64,
+            },
+            ConstituentIndexAndDecimalAndPrice {
+                constituent_index: 1,
+                decimals: 6,
+                price: 200 * PRICE_PRECISION_I64,
+            },
+            ConstituentIndexAndDecimalAndPrice {
+                constituent_index: 2,
+                decimals: 6,
+                price: 1500 * PRICE_PRECISION_I64,
+            },
+            ConstituentIndexAndDecimalAndPrice {
+                constituent_index: 3,
+                decimals: 6,
+                price: PRICE_PRECISION_I64,
+            }, // USDC
         ];
         let aum = 2_000_000 * QUOTE_PRECISION; // $2M AUM
 
@@ -94,7 +126,7 @@ mod tests {
             _marker: PhantomData::<TargetsDatum>,
         };
 
-        let target_base = target_zc_mut
+        target_zc_mut
             .update_target_base(
                 &mapping_zc,
                 &amm_inventory_and_price,
@@ -103,16 +135,14 @@ mod tests {
             )
             .unwrap();
 
-        msg!("Target Base: {:?}", target_base);
-
-        let target_weights: Vec<i64> = target_base
+        let target_weights: Vec<i64> = target_zc_mut
             .iter()
             .enumerate()
-            .map(|(index, base)| {
+            .map(|(index, datum)| {
                 calculate_target_weight(
-                    base.cast::<i64>().unwrap(),
+                    datum.target_base.cast::<i64>().unwrap(),
                     &SpotMarket::default_quote_market(),
-                    amm_inventory_and_price.get(index).unwrap().2,
+                    amm_inventory_and_price.get(index).unwrap().price,
                     aum,
                 )
                 .unwrap()
@@ -155,9 +185,17 @@ mod tests {
             }
         };
 
-        let amm_inventory_and_prices: Vec<(u16, i64, i64)> = vec![(0, 1_000_000, 1_000_000)];
-        let constituents_indexes_and_decimals_and_prices = vec![(1, 6, 1_000_000)];
-        let aum = 1_000_000;
+        let amm_inventory_and_prices: Vec<AmmInventoryAndPrices> = vec![AmmInventoryAndPrices {
+            perp_market_index: 0,
+            inventory: 1_000_000,
+            price: 1_000_000,
+        }];
+        let constituents_indexes_and_decimals_and_prices =
+            vec![ConstituentIndexAndDecimalAndPrice {
+                constituent_index: 1,
+                decimals: 6,
+                price: 1_000_000,
+            }];
         let now_ts = 1000;
 
         let target_fixed = RefCell::new(ConstituentTargetBaseFixed {
@@ -171,7 +209,7 @@ mod tests {
             _marker: PhantomData::<TargetsDatum>,
         };
 
-        let totalw = target_zc_mut
+        target_zc_mut
             .update_target_base(
                 &mapping_zc,
                 &amm_inventory_and_prices,
@@ -180,7 +218,7 @@ mod tests {
             )
             .unwrap();
 
-        assert!(totalw.iter().all(|&x| x == 0));
+        assert!(target_zc_mut.iter().all(|&x| x.target_base == 0));
         assert_eq!(target_zc_mut.len(), 1);
         assert_eq!(target_zc_mut.get(0).target_base, 0);
         assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
@@ -215,8 +253,17 @@ mod tests {
         };
 
         let price = PRICE_PRECISION_I64;
-        let amm_inventory_and_prices: Vec<(u16, i64, i64)> = vec![(0, BASE_PRECISION_I64, price)];
-        let constituents_indexes_and_decimals_and_prices = vec![(1, 6, price)];
+        let amm_inventory_and_prices: Vec<AmmInventoryAndPrices> = vec![AmmInventoryAndPrices {
+            perp_market_index: 0,
+            inventory: BASE_PRECISION_I64,
+            price,
+        }];
+        let constituents_indexes_and_decimals_and_prices =
+            vec![ConstituentIndexAndDecimalAndPrice {
+                constituent_index: 1,
+                decimals: 6,
+                price,
+            }];
         let aum = 1_000_000;
         let now_ts = 1234;
 
@@ -231,7 +278,7 @@ mod tests {
             _marker: PhantomData::<TargetsDatum>,
         };
 
-        let base = target_zc_mut
+        target_zc_mut
             .update_target_base(
                 &mapping_zc,
                 &amm_inventory_and_prices,
@@ -241,14 +288,17 @@ mod tests {
             .unwrap();
 
         let weight = calculate_target_weight(
-            *base.get(0).unwrap() as i64,
+            target_zc_mut.get(0).target_base as i64,
             &SpotMarket::default(),
             price,
             aum,
         )
         .unwrap();
 
-        assert_eq!(*base.get(0).unwrap(), -1 * 10_i128.pow(6_u32));
+        assert_eq!(
+            target_zc_mut.get(0).target_base as i128,
+            -1 * 10_i128.pow(6_u32)
+        );
         assert_eq!(weight, -1000000);
         assert_eq!(target_zc_mut.len(), 1);
         assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
@@ -293,9 +343,23 @@ mod tests {
             }
         };
 
-        let amm_inventory_and_prices: Vec<(u16, i64, i64)> = vec![(0, 1_000_000_000, 1_000_000)];
-        let constituents_indexes_and_decimals_and_prices =
-            vec![(1, 6, 1_000_000), (2, 6, 1_000_000)];
+        let amm_inventory_and_prices: Vec<AmmInventoryAndPrices> = vec![AmmInventoryAndPrices {
+            perp_market_index: 0,
+            inventory: 1_000_000_000,
+            price: 1_000_000,
+        }];
+        let constituents_indexes_and_decimals_and_prices = vec![
+            ConstituentIndexAndDecimalAndPrice {
+                constituent_index: 1,
+                decimals: 6,
+                price: 1_000_000,
+            },
+            ConstituentIndexAndDecimalAndPrice {
+                constituent_index: 2,
+                decimals: 6,
+                price: 1_000_000,
+            },
+        ];
 
         let aum = 1_000_000;
         let now_ts = 999;
@@ -330,7 +394,7 @@ mod tests {
                     constituents_indexes_and_decimals_and_prices
                         .get(i as usize)
                         .unwrap()
-                        .2,
+                        .price,
                     aum,
                 )
                 .unwrap(),
@@ -368,11 +432,18 @@ mod tests {
             }
         };
 
-        let amm_inventory_and_prices: Vec<(u16, i64, i64)> = vec![(0, 1_000_000, 142_000_000)];
-        let constituents_indexes_and_decimals_and_prices = vec![(1, 6, 142_000_000)];
+        let amm_inventory_and_prices: Vec<AmmInventoryAndPrices> = vec![AmmInventoryAndPrices {
+            perp_market_index: 0,
+            inventory: 1_000_000,
+            price: 142_000_000,
+        }];
+        let constituents_indexes_and_decimals_and_prices =
+            vec![ConstituentIndexAndDecimalAndPrice {
+                constituent_index: 1,
+                decimals: 6,
+                price: 142_000_000,
+            }];
 
-        let prices = vec![142_000_000];
-        let aum = 0;
         let now_ts = 111;
 
         let target_fixed = RefCell::new(ConstituentTargetBaseFixed {
@@ -623,7 +694,7 @@ mod swap_tests {
             ..SpotMarket::default()
         };
 
-        let full_balance = c.get_full_balance(&spot_market).unwrap();
+        let full_balance = c.get_full_token_amount(&spot_market).unwrap();
         assert_eq!(full_balance, 1_000_000);
 
         // 1/10 = 10%
@@ -648,49 +719,6 @@ mod swap_tests {
             .get_weight(1_000_000, &spot_market, -500_000, 10_000_000)
             .unwrap();
         assert_eq!(weight, 50_000);
-    }
-
-    fn get_mint_redeem_fee_scenario(now: i64, is_mint: bool, expected_fee: i64) {
-        let lp_pool = LPPool {
-            last_hedge_ts: 0,
-            revenue_rebalance_period: 3600, // hourly
-            max_mint_fee_premium: 2000,     // 20 bps
-            min_mint_fee: 100,              // 1 bps
-            ..LPPool::default()
-        };
-
-        let fee = lp_pool.get_mint_redeem_fee(now, is_mint).unwrap();
-        assert_eq!(fee, expected_fee);
-    }
-
-    #[test]
-    fn test_get_mint_fee_before_dist() {
-        get_mint_redeem_fee_scenario(0, true, 100);
-    }
-
-    #[test]
-    fn test_get_mint_fee_during_dist() {
-        get_mint_redeem_fee_scenario(1800, true, 1100);
-    }
-
-    #[test]
-    fn test_get_mint_fee_after_dist() {
-        get_mint_redeem_fee_scenario(3600, true, 2100);
-    }
-
-    #[test]
-    fn test_get_redeem_fee_before_dist() {
-        get_mint_redeem_fee_scenario(0, false, 2100);
-    }
-
-    #[test]
-    fn test_get_redeem_fee_during_dist() {
-        get_mint_redeem_fee_scenario(1800, false, 1100);
-    }
-
-    #[test]
-    fn test_get_redeem_fee_after_dist() {
-        get_mint_redeem_fee_scenario(3600, false, 100);
     }
 
     fn get_add_liquidity_mint_amount_scenario(
@@ -755,7 +783,6 @@ mod swap_tests {
 
         let (lp_amount, in_amount_1, lp_fee, in_fee_amount) = lp_pool
             .get_add_liquidity_mint_amount(
-                now,
                 &spot_market,
                 &constituent,
                 in_amount,
@@ -938,7 +965,6 @@ mod swap_tests {
 
         let (lp_amount_1, out_amount, lp_fee, out_fee_amount) = lp_pool
             .get_remove_liquidity_amount(
-                now,
                 &spot_market,
                 &constituent,
                 lp_burn_amount,
@@ -1462,12 +1488,14 @@ mod swap_fee_tests {
             ..LPPool::default()
         };
 
+        let trade_ratio = 5_000_000 * QUOTE_PRECISION_I128 * PERCENTAGE_PRECISION_I128
+            / (15_000_000 * QUOTE_PRECISION_I128);
+
         let fee_execution_linear = lp_pool
             .get_linear_fee_execution(
-                5_000_000 * QUOTE_PRECISION_I128,
+                trade_ratio,
                 1600, // 0.0016
                 2,
-                15_000_000 * QUOTE_PRECISION,
             )
             .unwrap();
 
@@ -1481,12 +1509,14 @@ mod swap_fee_tests {
             ..LPPool::default()
         };
 
+        let trade_ratio = 5_000_000 * QUOTE_PRECISION_I128 * PERCENTAGE_PRECISION_I128
+            / (15_000_000 * QUOTE_PRECISION_I128);
+
         let fee_execution_quadratic = lp_pool
             .get_quadratic_fee_execution(
-                5_000_000 * QUOTE_PRECISION_I128,
+                trade_ratio,
                 1600, // 0.0016
                 2,
-                15_000_000 * QUOTE_PRECISION,
             )
             .unwrap();
 
@@ -2389,8 +2419,7 @@ mod update_aum_tests {
 
         // Call update_aum
         let result = lp_pool.update_aum(
-            1000, // now (timestamp)
-            101,  // slot
+            101, // slot
             &constituent_map,
             &spot_market_map,
             &constituent_target_base,

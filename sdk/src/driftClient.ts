@@ -10352,9 +10352,7 @@ export class DriftClient {
 	public async getUpdateConstituentOracleInfoIx(
 		constituent: ConstituentAccount
 	): Promise<TransactionInstruction> {
-		const spotMarket = await this.getSpotMarketAccount(
-			constituent.spotMarketIndex
-		);
+		const spotMarket = this.getSpotMarketAccount(constituent.spotMarketIndex);
 		return this.program.instruction.updateConstituentOracleInfo({
 			accounts: {
 				keeper: this.wallet.publicKey,
@@ -10666,6 +10664,18 @@ export class DriftClient {
 			this.program.programId,
 			lpPool.pubkey
 		);
+
+		if (!lpPool.whitelistMint.equals(PublicKey.default)) {
+			const associatedTokenPublicKey = await getAssociatedTokenAddress(
+				lpPool.whitelistMint,
+				this.wallet.publicKey
+			);
+			remainingAccounts.push({
+				pubkey: associatedTokenPublicKey,
+				isWritable: false,
+				isSigner: false,
+			});
+		}
 
 		const lpPoolAddLiquidityIx = this.program.instruction.lpPoolAddLiquidity(
 			inMarketIndex,

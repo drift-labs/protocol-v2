@@ -1084,13 +1084,8 @@ pub fn handle_initialize_perp_market(
         .resize_with(current_len + 1, CacheInfo::default);
     let current_market_info = amm_cache.cache.get_mut(current_len).unwrap();
     current_market_info.slot = clock_slot;
-
     current_market_info.oracle = perp_market.amm.oracle;
     current_market_info.oracle_source = u8::from(perp_market.amm.oracle_source);
-    current_market_info.last_oracle_price_twap = perp_market
-        .amm
-        .historical_oracle_data
-        .last_oracle_price_twap;
     amm_cache.validate(state)?;
 
     controller::amm::update_concentration_coef(perp_market, concentration_coef_scale)?;
@@ -1124,6 +1119,7 @@ pub fn handle_update_initial_amm_cache_info<'c: 'info, 'info>(
 ) -> Result<()> {
     let amm_cache = &mut ctx.accounts.amm_cache;
     let slot = Clock::get()?.slot;
+    let state = &ctx.accounts.state;
 
     let AccountMaps {
         perp_market_map,
@@ -1147,7 +1143,13 @@ pub fn handle_update_initial_amm_cache_info<'c: 'info, 'info>(
         )?;
 
         amm_cache.update_perp_market_fields(&perp_market)?;
-        amm_cache.update_oracle_info(slot, perp_market.market_index, &mm_oracle_data)?;
+        amm_cache.update_oracle_info(
+            slot,
+            perp_market.market_index,
+            &mm_oracle_data,
+            &perp_market,
+            &state.oracle_guard_rails,
+        )?;
     }
 
     Ok(())

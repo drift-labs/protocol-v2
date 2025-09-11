@@ -11,6 +11,7 @@ use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::PerpMarket;
 use crate::state::state::{OracleGuardRails, ValidityGuardRails};
 use crate::state::user::MarketType;
+use std::convert::TryFrom;
 use std::fmt;
 
 #[cfg(test)]
@@ -53,6 +54,37 @@ impl fmt::Display for OracleValidity {
             OracleValidity::InsufficientDataPoints => write!(f, "InsufficientDataPoints"),
             OracleValidity::StaleForAMM => write!(f, "StaleForAMM"),
             OracleValidity::Valid => write!(f, "Valid"),
+        }
+    }
+}
+
+impl TryFrom<u8> for OracleValidity {
+    type Error = ErrorCode;
+
+    fn try_from(v: u8) -> DriftResult<Self> {
+        match v {
+            0 => Ok(OracleValidity::NonPositive),
+            1 => Ok(OracleValidity::TooVolatile),
+            2 => Ok(OracleValidity::TooUncertain),
+            3 => Ok(OracleValidity::StaleForMargin),
+            4 => Ok(OracleValidity::InsufficientDataPoints),
+            5 => Ok(OracleValidity::StaleForAMM),
+            6 => Ok(OracleValidity::Valid),
+            _ => panic!("Invalid OracleValidity"),
+        }
+    }
+}
+
+impl From<OracleValidity> for u8 {
+    fn from(src: OracleValidity) -> u8 {
+        match src {
+            OracleValidity::NonPositive => 0,
+            OracleValidity::TooVolatile => 1,
+            OracleValidity::TooUncertain => 2,
+            OracleValidity::StaleForMargin => 3,
+            OracleValidity::InsufficientDataPoints => 4,
+            OracleValidity::StaleForAMM => 5,
+            OracleValidity::Valid => 6,
         }
     }
 }
@@ -120,7 +152,10 @@ pub fn is_oracle_valid_for_action(
                     | OracleValidity::InsufficientDataPoints
                     | OracleValidity::StaleForMargin
             ),
-            DriftAction::FillOrderMatch => !matches!(
+            DriftAction::FillOrderMatch
+            | DriftAction::UpdateLpConstituentTargetBase
+            | DriftAction::UpdateLpPoolAum
+            | DriftAction::LpPoolSwap => !matches!(
                 oracle_validity,
                 OracleValidity::NonPositive
                     | OracleValidity::TooVolatile
@@ -135,13 +170,6 @@ pub fn is_oracle_valid_for_action(
             DriftAction::UseMMOraclePrice => !matches!(
                 oracle_validity,
                 OracleValidity::NonPositive | OracleValidity::TooVolatile,
-            ),
-            DriftAction::UpdateLpConstituentTargetBase | DriftAction::UpdateLpPoolAum => {
-                !matches!(oracle_validity, OracleValidity::NonPositive)
-            }
-            DriftAction::LpPoolSwap => !matches!(
-                oracle_validity,
-                OracleValidity::NonPositive | OracleValidity::InsufficientDataPoints
             ),
         },
         None => {

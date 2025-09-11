@@ -3,7 +3,7 @@ use crate::controller::token::{receive, send_from_program_vault_with_signature_s
 use crate::error::ErrorCode;
 use crate::ids::admin_hot_wallet;
 use crate::instructions::optional_accounts::get_token_mint;
-use crate::math::constants::PRICE_PRECISION_U64;
+use crate::math::constants::{PRICE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX};
 use crate::math::safe_math::SafeMath;
 use crate::state::lp_pool::{
     AmmConstituentDatum, AmmConstituentMapping, Constituent, ConstituentCorrelations,
@@ -23,7 +23,7 @@ use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 use crate::ids::{
     jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, lighthouse, marinade_mainnet,
-    serum_program, usdc_mint,
+    serum_program,
 };
 
 use crate::state::traits::Size;
@@ -39,6 +39,7 @@ pub fn handle_initialize_lp_pool(
     revenue_rebalance_period: u64,
     max_aum: u128,
     max_settle_quote_amount_per_market: u64,
+    whitelist_mint: Pubkey,
 ) -> Result<()> {
     let lp_key = ctx.accounts.lp_pool.key();
     let mut lp_pool = ctx.accounts.lp_pool.load_init()?;
@@ -81,6 +82,7 @@ pub fn handle_initialize_lp_pool(
         volatility: 4,
         xi: 2,
         padding: 0,
+        whitelist_mint,
     };
 
     let amm_constituent_mapping = &mut ctx.accounts.amm_constituent_mapping;
@@ -196,7 +198,7 @@ pub fn handle_initialize_constituent<'info>(
     constituent.xi = xi;
     lp_pool.constituents += 1;
 
-    if constituent.mint.eq(&usdc_mint::ID) {
+    if constituent.spot_market_index == QUOTE_SPOT_MARKET_INDEX {
         lp_pool.quote_consituent_index = constituent.constituent_index;
     }
 
@@ -377,6 +379,7 @@ pub struct LpPoolParams {
     pub volatility: Option<u64>,
     pub gamma_execution: Option<u8>,
     pub xi: Option<u8>,
+    pub whitelist_mint: Option<Pubkey>,
 }
 
 pub fn handle_update_lp_pool_params<'info>(
@@ -411,6 +414,15 @@ pub fn handle_update_lp_pool_params<'info>(
     if let Some(xi) = lp_pool_params.xi {
         msg!("xi: {:?} -> {:?}", lp_pool.xi, xi);
         lp_pool.xi = xi;
+    }
+
+    if let Some(whitelist_mint) = lp_pool_params.whitelist_mint {
+        msg!(
+            "whitelist_mint: {:?} -> {:?}",
+            lp_pool.whitelist_mint,
+            whitelist_mint
+        );
+        lp_pool.whitelist_mint = whitelist_mint;
     }
 
     Ok(())

@@ -1,9 +1,10 @@
 use anchor_lang::{prelude::*, Accounts, Key, Result};
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
-use crate::ids::DLP_WHITELIST;
 use crate::math::constants::{PERCENTAGE_PRECISION, PRICE_PRECISION_I64};
+use crate::math::oracle::OracleValidity;
 use crate::state::paused_operations::ConstituentLpOperation;
+use crate::validation::whitelist::validate_whitelist_token;
 use crate::{
     controller::{
         self,
@@ -17,7 +18,7 @@ use crate::{
         self,
         casting::Cast,
         constants::PERCENTAGE_PRECISION_I64,
-        oracle::{is_oracle_valid_for_action, oracle_validity, DriftAction, LogMode},
+        oracle::{is_oracle_valid_for_action, DriftAction},
         safe_math::SafeMath,
     },
     math_error, msg, safe_decrement, safe_increment,
@@ -32,7 +33,6 @@ use crate::{
             MAX_AMM_CACHE_ORACLE_STALENESS_FOR_TARGET_CALC,
             MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC,
         },
-        oracle::OraclePriceData,
         oracle_map::OracleMap,
         perp_market_map::MarketSet,
         spot_market::{SpotBalanceType, SpotMarket},
@@ -44,14 +44,18 @@ use crate::{
     },
     validate,
 };
+use std::convert::TryFrom;
 
 use solana_program::sysvar::clock::Clock;
 
-use super::optional_accounts::{load_maps, AccountMaps};
+use super::optional_accounts::{get_whitelist_token, load_maps, AccountMaps};
 use crate::controller::spot_balance::update_spot_market_cumulative_interest;
 use crate::controller::token::{receive, send_from_program_vault_with_signature_seeds};
 use crate::instructions::constraints::*;
-use crate::state::lp_pool::{CONSTITUENT_PDA_SEED, LP_POOL_TOKEN_VAULT_PDA_SEED};
+use crate::state::lp_pool::{
+    AmmInventoryAndPrices, ConstituentIndexAndDecimalAndPrice, CONSTITUENT_PDA_SEED,
+    LP_POOL_TOKEN_VAULT_PDA_SEED,
+};
 
 pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdateConstituentTargetBase<'info>>,
@@ -65,10 +69,6 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
     let amm_cache: AccountZeroCopy<'_, CacheInfo, AmmCacheFixed> =
         ctx.accounts.amm_cache.load_zc()?;
 
-    amm_cache.check_oracle_staleness(slot, MAX_AMM_CACHE_ORACLE_STALENESS_FOR_TARGET_CALC)?;
-    amm_cache.check_perp_market_staleness(slot, MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC)?;
-
-    let state = &ctx.accounts.state;
     let mut constituent_target_base: AccountZeroCopyMut<
         '_,
         TargetsDatum,
@@ -80,13 +80,6 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
         ErrorCode::InvalidPDA,
         "Constituent target base lp pool pubkey does not match lp pool pubkey",
     )?;
-
-    let num_constituents = constituent_target_base.len();
-    for datum in constituent_target_base.iter() {
-        msg!("weight datum: {:?}", datum);
-    }
-
-    let slot = Clock::get()?.slot;
 
     let amm_constituent_mapping: AccountZeroCopy<
         '_,
@@ -103,30 +96,13 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
     let constituent_map =
         ConstituentMap::load(&ConstituentSet::new(), &lp_pool_key, remaining_accounts)?;
 
-    let mut amm_inventories: Vec<(u16, i64, i64)> =
+    let mut amm_inventories: Vec<AmmInventoryAndPrices> =
         Vec::with_capacity(amm_constituent_mapping.len() as usize);
     for (_, datum) in amm_constituent_mapping.iter().enumerate() {
         let cache_info = amm_cache.get(datum.perp_market_index as u32);
 
-        let oracle_validity = oracle_validity(
-            MarketType::Perp,
-            datum.perp_market_index,
-            cache_info.last_oracle_price_twap,
-            &OraclePriceData {
-                price: cache_info.oracle_price,
-                confidence: cache_info.oracle_confidence,
-                delay: cache_info.oracle_delay,
-                has_sufficient_number_of_data_points: true,
-            },
-            &state.oracle_guard_rails.validity,
-            cache_info.max_confidence_interval_multiplier,
-            &cache_info.get_oracle_source()?,
-            LogMode::ExchangeOracle,
-            0,
-        )?;
-
         if !is_oracle_valid_for_action(
-            oracle_validity,
+            OracleValidity::try_from(cache_info.oracle_validity)?,
             Some(DriftAction::UpdateLpConstituentTargetBase),
         )? {
             msg!("Oracle data for perp market {} and constituent index {} is invalid. Skipping update",
@@ -134,11 +110,27 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
             continue;
         }
 
-        amm_inventories.push((
-            datum.perp_market_index,
-            cache_info.position,
-            cache_info.oracle_price,
-        ));
+        if slot.safe_sub(cache_info.slot)? > MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC {
+            msg!(
+                "Amm cache for perp market {}. Skipping update",
+                datum.perp_market_index,
+            );
+            continue;
+        }
+
+        if slot.safe_sub(cache_info.oracle_slot)? > MAX_AMM_CACHE_ORACLE_STALENESS_FOR_TARGET_CALC {
+            msg!(
+                "Amm cache oracle for perp market {} is stale. Skipping update",
+                datum.perp_market_index,
+            );
+            continue;
+        }
+
+        amm_inventories.push(AmmInventoryAndPrices {
+            perp_market_index: datum.perp_market_index,
+            inventory: cache_info.position,
+            price: cache_info.oracle_price,
+        });
     }
 
     if amm_inventories.is_empty() {
@@ -146,26 +138,16 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
         return Ok(());
     }
 
-    let mut constituent_indexes_and_decimals_and_prices: Vec<(u16, u8, i64)> =
+    let mut constituent_indexes_and_decimals_and_prices: Vec<ConstituentIndexAndDecimalAndPrice> =
         Vec::with_capacity(constituent_map.0.len());
     for (index, loader) in &constituent_map.0 {
         let constituent_ref = loader.load()?;
-        constituent_indexes_and_decimals_and_prices.push((
-            *index,
-            constituent_ref.decimals,
-            constituent_ref.last_oracle_price,
-        ));
+        constituent_indexes_and_decimals_and_prices.push(ConstituentIndexAndDecimalAndPrice {
+            constituent_index: *index,
+            decimals: constituent_ref.decimals,
+            price: constituent_ref.last_oracle_price,
+        });
     }
-
-    let exists_invalid_constituent_index = constituent_indexes_and_decimals_and_prices
-        .iter()
-        .any(|(index, _, _)| *index as u32 >= num_constituents);
-
-    validate!(
-        !exists_invalid_constituent_index,
-        ErrorCode::InvalidUpdateConstituentTargetBaseArgument,
-        "Constituent index larger than numr of constituent target weights"
-    )?;
 
     constituent_target_base.update_target_base(
         &amm_constituent_mapping,
@@ -184,7 +166,6 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
     let state = &ctx.accounts.state;
 
     let slot = Clock::get()?.slot;
-    let now = Clock::get()?.unix_timestamp;
 
     let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
 
@@ -226,7 +207,6 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
         ctx.accounts.amm_cache.load_zc_mut()?;
 
     let (aum, crypto_delta, derivative_groups) = lp_pool.update_aum(
-        now,
         slot,
         &constituent_map,
         &spot_market_map,
@@ -621,12 +601,6 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
     in_amount: u128,
     min_mint_amount: u64,
 ) -> Result<()> {
-    #[cfg(not(feature = "anchor-test"))]
-    validate!(
-        DLP_WHITELIST.contains(&ctx.accounts.authority.key()),
-        ErrorCode::UnauthorizedDlpAuthority,
-        "User is not whitelisted for DLP deposits"
-    )?;
     let state = &ctx.accounts.state;
 
     validate!(
@@ -678,6 +652,15 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
+    let whitelist_mint = &lp_pool.whitelist_mint;
+    if !whitelist_mint.eq(&Pubkey::default()) {
+        validate_whitelist_token(
+            get_whitelist_token(remaining_accounts)?,
+            whitelist_mint,
+            &ctx.accounts.authority.key(),
+        )?;
+    }
+
     let mut in_spot_market = spot_market_map.get_ref_mut(&in_market_index)?;
 
     if in_constituent.is_reduce_only()?
@@ -727,7 +710,6 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
 
     let (lp_amount, in_amount, lp_fee_amount, in_fee_amount) = lp_pool
         .get_add_liquidity_mint_amount(
-            now,
             &in_spot_market,
             &in_constituent,
             in_amount,
@@ -936,7 +918,6 @@ pub fn handle_view_lp_pool_add_liquidity_fees<'c: 'info, 'info>(
 
     let (lp_amount, in_amount, lp_fee_amount, in_fee_amount) = lp_pool
         .get_add_liquidity_mint_amount(
-            now,
             &in_spot_market,
             &in_constituent,
             in_amount,
@@ -1075,7 +1056,6 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
 
     let (lp_burn_amount, out_amount, lp_fee_amount, out_fee_amount) = lp_pool
         .get_remove_liquidity_amount(
-            now,
             &out_spot_market,
             &out_constituent,
             lp_to_burn,
@@ -1295,7 +1275,6 @@ pub fn handle_view_lp_pool_remove_liquidity_fees<'c: 'info, 'info>(
 
     let (lp_burn_amount, out_amount, lp_fee_amount, out_fee_amount) = lp_pool
         .get_remove_liquidity_amount(
-            now,
             &out_spot_market,
             &out_constituent,
             lp_to_burn,
@@ -1374,7 +1353,7 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
         constituent.last_oracle_slot = oracle_data_slot;
     }
     constituent.sync_token_balance(ctx.accounts.constituent_token_account.amount);
-    let balance_before = constituent.get_full_balance(&spot_market)?;
+    let balance_before = constituent.get_full_token_amount(&spot_market)?;
 
     controller::token::send_from_program_vault_with_signature_seeds(
         &ctx.accounts.token_program,
@@ -1414,7 +1393,7 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
         "Spot market vault amount mismatch after deposit"
     )?;
 
-    let balance_after = constituent.get_full_balance(&spot_market)?;
+    let balance_after = constituent.get_full_token_amount(&spot_market)?;
     let balance_diff_notional = if spot_market.decimals > 6 {
         balance_after
             .abs_diff(balance_before)
@@ -1478,7 +1457,7 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
         constituent.last_oracle_slot = oracle_data_slot;
     }
     constituent.sync_token_balance(ctx.accounts.constituent_token_account.amount);
-    let balance_before = constituent.get_full_balance(&spot_market)?;
+    let balance_before = constituent.get_full_token_amount(&spot_market)?;
 
     // Can only borrow up to the max
     let bl_token_balance = constituent.spot_balance.get_token_amount(&spot_market)?;
@@ -1534,7 +1513,7 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
     )?;
 
     // Verify withdraw fully accounted for in BLPosition
-    let balance_after = constituent.get_full_balance(&spot_market)?;
+    let balance_after = constituent.get_full_token_amount(&spot_market)?;
 
     let balance_diff_notional = if spot_market.decimals > 6 {
         balance_after

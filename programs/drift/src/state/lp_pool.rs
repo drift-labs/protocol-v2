@@ -67,6 +67,8 @@ pub struct LPPool {
     pub pubkey: Pubkey,
     // vault token mint
     pub mint: Pubkey, // 32, 96
+    // whitelist mint
+    pub whitelist_mint: Pubkey,
     // constituent target base pubkey
     pub constituent_target_base: Pubkey,
     // constituent correlations pubkey
@@ -122,7 +124,7 @@ pub struct LPPool {
 }
 
 impl Size for LPPool {
-    const SIZE: usize = 328;
+    const SIZE: usize = 360;
 }
 
 impl LPPool {
@@ -224,7 +226,6 @@ impl LPPool {
     /// Returns the mint_amount in lp token precision and fee to charge in constituent mint precision
     pub fn get_add_liquidity_mint_amount(
         &self,
-        now: i64,
         in_spot_market: &SpotMarket,
         in_constituent: &Constituent,
         in_amount: u128,
@@ -293,7 +294,6 @@ impl LPPool {
     /// Returns the mint_amount in lp token precision and fee to charge in constituent mint precision
     pub fn get_remove_liquidity_amount(
         &self,
-        now: i64,
         out_spot_market: &SpotMarket,
         out_constituent: &Constituent,
         lp_burn_amount: u64,
@@ -411,16 +411,10 @@ impl LPPool {
 
     pub fn get_linear_fee_execution(
         &self,
-        trade_notional: i128,
+        trade_ratio: i128,
         kappa_execution: u128,
         xi: u8,
-        spot_depth: u128,
     ) -> DriftResult<i128> {
-        let trade_ratio: i128 = trade_notional
-            .abs()
-            .safe_mul(PERCENTAGE_PRECISION_I128)?
-            .safe_div(spot_depth.cast::<i128>()?)?;
-
         trade_ratio
             .safe_mul(kappa_execution.safe_mul(xi as u128)?.cast::<i128>()?)?
             .safe_div(PERCENTAGE_PRECISION_I128)
@@ -428,20 +422,14 @@ impl LPPool {
 
     pub fn get_quadratic_fee_execution(
         &self,
-        trade_notional: i128,
+        trade_ratio: i128,
         kappa_execution: u128,
         xi: u8,
-        spot_depth: u128,
     ) -> DriftResult<i128> {
-        let scaled_abs_trade_notional = trade_notional
-            .abs()
-            .safe_mul(PERCENTAGE_PRECISION_I128)?
-            .safe_div(spot_depth.cast::<i128>()?)?;
-
         kappa_execution
             .cast::<i128>()?
             .safe_mul(xi.safe_mul(xi)?.cast::<i128>()?)?
-            .safe_mul(scaled_abs_trade_notional.safe_mul(scaled_abs_trade_notional)?)?
+            .safe_mul(trade_ratio.safe_mul(trade_ratio)?)?
             .safe_div(PERCENTAGE_PRECISION_I128)?
             .safe_div(PERCENTAGE_PRECISION_I128)
     }
@@ -551,34 +539,23 @@ impl LPPool {
         let out_notional_error_pre = out_notional_pre.safe_sub(out_notional_target)?;
         let out_notional_error_post = out_notional_post.safe_sub(out_notional_target)?;
 
-        // Linear fee computation amount
-        let in_fee_execution_linear = self.get_linear_fee_execution(
-            notional_trade_size,
-            in_kappa_execution,
-            in_constituent.xi,
-            self.last_aum.max(MIN_AUM_EXECUTION_FEE),
-        )?;
+        let trade_ratio: i128 = notional_trade_size
+            .abs()
+            .safe_mul(PERCENTAGE_PRECISION_I128)?
+            .safe_div(self.last_aum.max(MIN_AUM_EXECUTION_FEE).cast::<i128>()?)?;
 
-        let out_fee_execution_linear = self.get_linear_fee_execution(
-            notional_trade_size,
-            out_kappa_execution,
-            out_xi,
-            self.last_aum.max(MIN_AUM_EXECUTION_FEE),
-        )?;
+        // Linear fee computation amount
+        let in_fee_execution_linear =
+            self.get_linear_fee_execution(trade_ratio, in_kappa_execution, in_constituent.xi)?;
+
+        let out_fee_execution_linear =
+            self.get_linear_fee_execution(trade_ratio, out_kappa_execution, out_xi)?;
 
         // Quadratic fee components
-        let in_fee_execution_quadratic = self.get_quadratic_fee_execution(
-            notional_trade_size,
-            in_kappa_execution,
-            in_constituent.xi,
-            self.last_aum.max(MIN_AUM_EXECUTION_FEE), // use 10M at very least
-        )?;
-        let out_fee_execution_quadratic = self.get_quadratic_fee_execution(
-            notional_trade_size,
-            out_kappa_execution,
-            out_xi,
-            self.last_aum.max(MIN_AUM_EXECUTION_FEE),
-        )?;
+        let in_fee_execution_quadratic =
+            self.get_quadratic_fee_execution(trade_ratio, in_kappa_execution, in_constituent.xi)?;
+        let out_fee_execution_quadratic =
+            self.get_quadratic_fee_execution(trade_ratio, out_kappa_execution, out_xi)?;
         let (in_quadratic_inventory_fee, out_quadratic_inventory_fee) = self
             .get_quadratic_fee_inventory(
                 get_gamma_covar_matrix(
@@ -617,35 +594,6 @@ impl LPPool {
         ))
     }
 
-    /// Returns the fee to charge for a mint or redeem in PERCENTAGE_PRECISION
-    pub fn get_mint_redeem_fee(&self, now: i64, is_minting: bool) -> DriftResult<i64> {
-        let time_since_last_rebalance = now.safe_sub(self.last_hedge_ts.cast::<i64>()?)?;
-        if is_minting {
-            // mint fee
-            self.min_mint_fee.safe_add(
-                self.max_mint_fee_premium.min(
-                    self.max_mint_fee_premium
-                        .safe_mul(time_since_last_rebalance)?
-                        .safe_div(self.revenue_rebalance_period.cast::<i64>()?)?,
-                ),
-            )
-        } else {
-            // burn fee
-            self.min_mint_fee.safe_add(
-                0_i64.max(
-                    self.max_mint_fee_premium.min(
-                        self.revenue_rebalance_period
-                            .cast::<i64>()?
-                            .safe_sub(time_since_last_rebalance)?
-                            .cast::<i64>()?
-                            .safe_mul(self.max_mint_fee_premium.cast::<i64>()?)?
-                            .safe_div(self.revenue_rebalance_period.cast::<i64>()?)?,
-                    ),
-                ),
-            )
-        }
-    }
-
     pub fn record_mint_redeem_fees(&mut self, amount: i64) -> DriftResult {
         self.total_mint_redeem_fees_paid = self
             .total_mint_redeem_fees_paid
@@ -655,7 +603,6 @@ impl LPPool {
 
     pub fn update_aum(
         &mut self,
-        now: i64,
         slot: u64,
         constituent_map: &ConstituentMap,
         spot_market_map: &SpotMarketMap,
@@ -698,13 +645,13 @@ impl LPPool {
             let spot_market = spot_market_map.get_ref(&constituent.spot_market_index)?;
 
             let constituent_aum = constituent
-                .get_full_balance(&spot_market)?
+                .get_full_token_amount(&spot_market)?
                 .safe_mul(constituent.last_oracle_price as i128)?
                 .safe_div(10_i128.pow(spot_market.decimals))?;
             msg!(
                 "constituent: {}, balance: {}, aum: {}, deriv index: {}, bl token balance {}, bl balance type {}, vault balance: {}",
                 constituent.constituent_index,
-                constituent.get_full_balance(&spot_market)?,
+                constituent.get_full_token_amount(&spot_market)?,
                 constituent_aum,
                 constituent.constituent_derivative_index,
                 constituent.spot_balance.get_token_amount(&spot_market)?,
@@ -934,7 +881,7 @@ impl Constituent {
         spot_market: &SpotMarket,
         is_increasing: bool,
     ) -> DriftResult<bool> {
-        let current_balance_sign = self.get_full_balance(spot_market)?.signum();
+        let current_balance_sign = self.get_full_token_amount(spot_market)?.signum();
         if current_balance_sign > 0 {
             Ok(!is_increasing)
         } else {
@@ -944,7 +891,7 @@ impl Constituent {
 
     /// Returns the full balance of the Constituent, the total of the amount in Constituent's token
     /// account and in Drift Borrow-Lend.
-    pub fn get_full_balance(&self, spot_market: &SpotMarket) -> DriftResult<i128> {
+    pub fn get_full_token_amount(&self, spot_market: &SpotMarket) -> DriftResult<i128> {
         let token_amount = self.spot_balance.get_signed_token_amount(spot_market)?;
         let vault_balance = self.vault_token_balance.cast::<i128>()?;
         token_amount.safe_add(vault_balance)
@@ -988,7 +935,7 @@ impl Constituent {
         token_amount: i128,
     ) -> DriftResult<i128> {
         let token_precision = 10_i128.pow(self.decimals as u32);
-        let balance = self.get_full_balance(spot_market)?.cast::<i128>()?;
+        let balance = self.get_full_token_amount(spot_market)?.cast::<i128>()?;
         let amount = balance.safe_add(token_amount)?;
         let value_usd = amount.safe_mul(price.cast::<i128>()?)?;
         value_usd.safe_div(token_precision)
@@ -1218,37 +1165,74 @@ pub fn calculate_target_weight(
 }
 
 /// Update target base based on amm_inventory and mapping
+pub struct AmmInventoryAndPrices {
+    pub perp_market_index: u16,
+    pub inventory: i64,
+    pub price: i64,
+}
+
+pub struct ConstituentIndexAndDecimalAndPrice {
+    pub constituent_index: u16,
+    pub decimals: u8,
+    pub price: i64,
+}
+
 impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
     pub fn update_target_base(
         &mut self,
         mapping: &AccountZeroCopy<'a, AmmConstituentDatum, AmmConstituentMappingFixed>,
         // (perp market index, inventory, price)
-        amm_inventory_and_prices: &[(u16, i64, i64)],
-        constituents_indexes_and_decimals_and_prices: &[(u16, u8, i64)],
+        amm_inventory_and_prices: &[AmmInventoryAndPrices],
+        constituents_indexes_and_decimals_and_prices: &[ConstituentIndexAndDecimalAndPrice],
         slot: u64,
-    ) -> DriftResult<Vec<i128>> {
-        let mut results = Vec::with_capacity(constituents_indexes_and_decimals_and_prices.len());
-        for (i, (constituent_index, decimals, price)) in
-            constituents_indexes_and_decimals_and_prices
-                .iter()
-                .enumerate()
+    ) -> DriftResult<()> {
+        // Precompute notional by perp market index
+        let mut notional_by_perp: Vec<(u16, i128)> =
+            Vec::with_capacity(amm_inventory_and_prices.len());
+        for &AmmInventoryAndPrices {
+            perp_market_index,
+            inventory,
+            price,
+        } in amm_inventory_and_prices.iter()
+        {
+            let notional = (inventory as i128)
+                .safe_mul(price as i128)?
+                .safe_div(BASE_PRECISION_I128)?;
+            notional_by_perp.push((perp_market_index, notional));
+        }
+        notional_by_perp.sort_by_key(|&(idx, _)| idx);
+
+        #[inline]
+        fn find_notional(sorted: &[(u16, i128)], idx: u16) -> Option<i128> {
+            match sorted.binary_search_by_key(&idx, |&(p, _)| p) {
+                Ok(i) => Some(sorted[i].1),
+                Err(_) => None,
+            }
+        }
+
+        for (
+            i,
+            &ConstituentIndexAndDecimalAndPrice {
+                constituent_index,
+                decimals,
+                price,
+            },
+        ) in constituents_indexes_and_decimals_and_prices
+            .iter()
+            .enumerate()
         {
             let mut target_notional = 0i128;
 
-            for (perp_market_index, inventory, price) in amm_inventory_and_prices.iter() {
-                if let Some(idx) = mapping.iter().position(|d| {
-                    &d.perp_market_index == perp_market_index
-                        && d.constituent_index == *constituent_index
-                }) {
-                    let weight = mapping.get(idx as u32).weight; // PERCENTAGE_PRECISION
+            for d in mapping.iter() {
+                if d.constituent_index != constituent_index {
+                    continue;
+                }
 
-                    let notional: i128 = (*inventory as i128)
-                        .safe_mul(*price as i128)?
-                        .safe_div(BASE_PRECISION_I128)?;
-
+                if let Some(perp_notional) = find_notional(&notional_by_perp, d.perp_market_index) {
+                    let w = d.weight as i128;
                     target_notional = target_notional.saturating_add(
-                        notional
-                            .saturating_mul(weight as i128)
+                        perp_notional
+                            .saturating_mul(w)
                             .saturating_div(PERCENTAGE_PRECISION_I128),
                     );
                 }
@@ -1256,8 +1240,8 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
 
             let cell = self.get_mut(i as u32);
             let target_base = target_notional
-                .safe_mul(10_i128.pow(*decimals as u32))?
-                .safe_div(*price as i128)?
+                .safe_mul(10_i128.pow(decimals as u32))?
+                .safe_div(price as i128)?
                 * -1; // Want to target opposite sign of total scaled notional inventory
 
             msg!(
@@ -1268,11 +1252,9 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
             );
             cell.target_base = target_base.cast::<i64>()?;
             cell.last_slot = slot;
-
-            results.push(target_base);
         }
 
-        Ok(results)
+        Ok(())
     }
 }
 

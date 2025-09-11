@@ -3306,6 +3306,7 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
     let mut amm_cache: AccountZeroCopyMut<'_, CacheInfo, _> =
         ctx.accounts.amm_cache.load_zc_mut()?;
 
+    let state = &ctx.accounts.state;
     let quote_market = ctx.accounts.quote_market.load()?;
 
     let AccountMaps {
@@ -3323,6 +3324,9 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
 
     for (_, perp_market_loader) in perp_market_map.0.iter() {
         let perp_market = perp_market_loader.load()?;
+        if perp_market.lp_status == 0 {
+            continue;
+        }
         let cached_info = amm_cache.get_mut(perp_market.market_index as u32);
 
         validate!(
@@ -3339,7 +3343,12 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
         )?;
 
         cached_info.update_perp_market_fields(&perp_market)?;
-        cached_info.update_oracle_info(slot, &mm_oracle_price_data)?;
+        cached_info.update_oracle_info(
+            slot,
+            &mm_oracle_price_data,
+            &perp_market,
+            &state.oracle_guard_rails,
+        )?;
 
         if perp_market.lp_status != 0
             && !PerpLpOperation::is_operation_paused(
