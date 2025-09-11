@@ -71,7 +71,7 @@ import {
 dotenv.config();
 
 const NUMBER_OF_CONSTITUENTS = 10;
-const NUMBER_OF_PERP_MARKETS = 80;
+const NUMBER_OF_PERP_MARKETS = 60;
 const NUMBER_OF_USERS = Math.ceil(NUMBER_OF_PERP_MARKETS / 8);
 
 const PERP_MARKET_INDEXES = Array.from(

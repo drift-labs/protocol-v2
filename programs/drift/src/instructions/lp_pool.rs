@@ -99,37 +99,34 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
         ConstituentMap::load(&ConstituentSet::new(), &lp_pool_key, remaining_accounts)?;
 
     let mut amm_inventories: Vec<AmmInventoryAndPrices> =
-        Vec::with_capacity(amm_constituent_mapping.len() as usize);
-    for (_, datum) in amm_constituent_mapping.iter().enumerate() {
-        let cache_info = amm_cache.get(datum.perp_market_index as u32);
-
+        Vec::with_capacity(amm_cache.len() as usize);
+    for (idx, cache_info) in amm_cache.iter().enumerate() {
         if !is_oracle_valid_for_action(
             OracleValidity::try_from(cache_info.oracle_validity)?,
             Some(DriftAction::UpdateLpConstituentTargetBase),
         )? {
-            msg!("Oracle data for perp market {} and constituent index {} is invalid. Skipping update",
-                datum.perp_market_index, datum.constituent_index);
+            msg!(
+                "Oracle data for perp market {} is invalid. Skipping update",
+                idx,
+            );
             continue;
         }
 
         if slot.safe_sub(cache_info.slot)? > MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC {
-            msg!(
-                "Amm cache for perp market {}. Skipping update",
-                datum.perp_market_index,
-            );
+            msg!("Amm cache for perp market {}. Skipping update", idx);
             continue;
         }
 
         if slot.safe_sub(cache_info.oracle_slot)? > MAX_AMM_CACHE_ORACLE_STALENESS_FOR_TARGET_CALC {
             msg!(
                 "Amm cache oracle for perp market {} is stale. Skipping update",
-                datum.perp_market_index,
+                idx
             );
             continue;
         }
 
         amm_inventories.push(AmmInventoryAndPrices {
-            perp_market_index: datum.perp_market_index,
+            perp_market_index: idx as u16,
             inventory: cache_info.position,
             price: cache_info.oracle_price,
         });
@@ -1094,8 +1091,13 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
     )?;
 
     if out_amount_net_fees > out_constituent.vault_token_balance.cast()? {
-        let transfer_amount = out_amount_net_fees.cast::<u64>()?.safe_sub(out_constituent.vault_token_balance)?;
-        msg!("transfering from program vault to constituent vault: {}", transfer_amount);
+        let transfer_amount = out_amount_net_fees
+            .cast::<u64>()?
+            .safe_sub(out_constituent.vault_token_balance)?;
+        msg!(
+            "transfering from program vault to constituent vault: {}",
+            transfer_amount
+        );
         transfer_from_program_vault(
             transfer_amount,
             &mut out_spot_market,
@@ -1549,10 +1551,7 @@ fn transfer_from_program_vault<'info>(
         true,
     )?;
 
-    safe_decrement!(
-        spot_position.cumulative_deposits,
-        amount.cast()?
-    );
+    safe_decrement!(spot_position.cumulative_deposits, amount.cast()?);
 
     // Re-check spot market invariants
     spot_market_vault.reload()?;
