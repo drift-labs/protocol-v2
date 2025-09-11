@@ -2631,6 +2631,59 @@ export class DriftClient {
 		return instructions;
 	}
 
+	public async buildSwiftDepositTx(
+		signedOrderParams: SignedMsgOrderParams,
+		takerInfo: {
+			taker: PublicKey;
+			takerStats: PublicKey;
+			takerUserAccount: UserAccount;
+			signingAuthority: PublicKey;
+		},
+		depositAmount: BN,
+		depositSpotMarketIndex: number,
+		tradePerpMarketIndex: number,
+		subAccountId: number,
+		takerAssociatedTokenAccount: PublicKey,
+		initSwiftAccount = false
+	) {
+		const instructions = await this.getDepositTxnIx(
+			depositAmount,
+			depositSpotMarketIndex,
+			takerAssociatedTokenAccount,
+			subAccountId,
+			false
+		);
+
+		if (initSwiftAccount) {
+			const isSignedMsgUserOrdersAccountInitialized =
+				await this.isSignedMsgUserOrdersAccountInitialized(
+					this.wallet.publicKey
+				);
+
+			if (!isSignedMsgUserOrdersAccountInitialized) {
+				const [, initializeSignedMsgUserOrdersAccountIx] =
+					await this.getInitializeSignedMsgUserOrdersAccountIx(
+						this.wallet.publicKey,
+						8
+					);
+
+				instructions.push(initializeSignedMsgUserOrdersAccountIx);
+			}
+		}
+
+		const ixsWithPlace = await this.getPlaceSignedMsgTakerPerpOrderIxs(
+			signedOrderParams,
+			tradePerpMarketIndex,
+			takerInfo,
+			instructions
+		);
+
+		await this.buildTransaction(ixsWithPlace, {
+			computeUnitsPrice: 1_000,
+			computeUnits: 100_000,
+		});
+	}
+
 	public async createDepositTxn(
 		amount: BN,
 		marketIndex: number,
@@ -6448,7 +6501,7 @@ export class DriftClient {
 	/**
 	 * Builds a deposit and place request for Swift service
 	 *
-	 * @param depositTx - The signed tx containing a drift deposit (e.g. see `createDepositTxn`)
+	 * @param depositTx - The signed tx containing a drift deposit (e.g. see `buildSwiftDepositTx`)
 	 * @param orderParamsMessage - The order parameters message to sign
 	 * @param delegateSigner - Whether this is a delegate signer
 	 *
