@@ -6567,9 +6567,6 @@ export class DriftClient {
 			| SignedMsgOrderParamsDelegateMessage,
 		delegateSigner?: boolean
 	): Buffer {
-		if (orderParamsMessage.maxMarginRatio === undefined) {
-			orderParamsMessage.maxMarginRatio = null;
-		}
 		const anchorIxName = delegateSigner
 			? 'global' + ':' + 'SignedMsgOrderParamsDelegateMessage'
 			: 'global' + ':' + 'SignedMsgOrderParamsMessage';
