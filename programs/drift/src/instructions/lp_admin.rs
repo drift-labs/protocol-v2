@@ -603,12 +603,6 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let mint = get_token_mint(remaining_accounts_iter)?;
-    validate!(
-        mint.is_some(),
-        ErrorCode::InvalidSwap,
-        "BeginLpSwap must have a mint for in token passed in"
-    )?;
-    let mint = mint.unwrap();
 
     let mut in_constituent = ctx.accounts.in_constituent.load_mut()?;
     let mut out_constituent = ctx.accounts.out_constituent.load_mut()?;
@@ -630,14 +624,6 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
         amount_in != 0,
         ErrorCode::InvalidSwap,
         "amount_in cannot be zero"
-    )?;
-
-    // Validate that the passed mint is accpetable
-    let mint_key = mint.key();
-    validate!(
-        mint_key == ctx.accounts.constituent_in_token_account.mint,
-        ErrorCode::InvalidSwap,
-        "mint passed to SwapBegin does not match the mint constituent in token account"
     )?;
 
     // Make sure we have enough balance to do the swap
@@ -677,7 +663,7 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
             &in_constituent.vault_bump,
         ),
         amount_in,
-        &Some(mint),
+        &mint,
         Some(remaining_accounts_iter),
     )?;
 
@@ -825,36 +811,6 @@ pub fn handle_end_lp_swap<'c: 'info, 'info>(
     let in_mint = get_token_mint(remaining_accounts)?;
     let out_mint = get_token_mint(remaining_accounts)?;
 
-    validate!(
-        in_mint.is_some(),
-        ErrorCode::InvalidSwap,
-        "EndLpSwap must have a mint for in token passed in"
-    )?;
-
-    validate!(
-        out_mint.is_some(),
-        ErrorCode::InvalidSwap,
-        "EndLpSwap must have a mint for out token passed in"
-    )?;
-
-    let in_mint = in_mint.unwrap();
-    let out_mint = out_mint.unwrap();
-
-    // Validate that the passed mint is accpetable
-    let mint_key = out_mint.key();
-    validate!(
-        mint_key == constituent_out_token_account.mint,
-        ErrorCode::InvalidSwap,
-        "mint passed to EndLpSwap does not match the mint constituent out token account"
-    )?;
-
-    let mint_key = in_mint.key();
-    validate!(
-        mint_key == constituent_in_token_account.mint,
-        ErrorCode::InvalidSwap,
-        "mint passed to EndLpSwap does not match the mint constituent in token account"
-    )?;
-
     // Residual of what wasnt swapped
     if signer_in_token_account.amount > in_constituent.flash_loan_initial_token_amount {
         let residual = signer_in_token_account
@@ -867,7 +823,7 @@ pub fn handle_end_lp_swap<'c: 'info, 'info>(
             constituent_in_token_account,
             &admin_account_info,
             residual,
-            &Some(in_mint),
+            &in_mint,
             Some(remaining_accounts),
         )?;
     }
@@ -885,7 +841,7 @@ pub fn handle_end_lp_swap<'c: 'info, 'info>(
                 constituent_out_token_account,
                 &admin_account_info,
                 residual,
-                &Some(out_mint),
+                &out_mint,
                 Some(remaining_accounts),
             )?;
         } else {
@@ -895,7 +851,7 @@ pub fn handle_end_lp_swap<'c: 'info, 'info>(
                 constituent_out_token_account,
                 &admin_account_info,
                 residual,
-                &Some(out_mint),
+                &out_mint,
                 Some(remaining_accounts),
             )?;
         }
