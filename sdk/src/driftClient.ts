@@ -4035,7 +4035,10 @@ export class DriftClient {
 		const marketIndex = orderParams.marketIndex;
 		const orderId = userAccount.nextOrderId;
 
-		const ixPromisesForTxs: Record<TxKeys, Promise<TransactionInstruction | TransactionInstruction[]>> = {
+		const ixPromisesForTxs: Record<
+			TxKeys,
+			Promise<TransactionInstruction | TransactionInstruction[]>
+		> = {
 			cancelExistingOrdersTx: undefined,
 			settlePnlTx: undefined,
 			fillTx: undefined,
@@ -4044,14 +4047,16 @@ export class DriftClient {
 
 		const txKeys = Object.keys(ixPromisesForTxs);
 
-		const marketOrderTxIxs = positionMaxLev ? this.getPlaceOrdersAndSetPositionMaxLevIx(
-			[orderParams, ...bracketOrdersParams],
-			positionMaxLev,
-			userAccount.subAccountId
-		) : this.getPlaceOrdersIx(
-			[orderParams, ...bracketOrdersParams],
-			userAccount.subAccountId
-		);
+		const marketOrderTxIxs = positionMaxLev
+			? this.getPlaceOrdersAndSetPositionMaxLevIx(
+					[orderParams, ...bracketOrdersParams],
+					positionMaxLev,
+					userAccount.subAccountId
+			  )
+			: this.getPlaceOrdersIx(
+					[orderParams, ...bracketOrdersParams],
+					userAccount.subAccountId
+			  );
 
 		ixPromisesForTxs.marketOrderTx = marketOrderTxIxs;
 
@@ -4094,7 +4099,10 @@ export class DriftClient {
 		const ixsMap = ixs.reduce((acc, ix, i) => {
 			acc[txKeys[i]] = ix;
 			return acc;
-		}, {}) as MappedRecord<typeof ixPromisesForTxs, TransactionInstruction | TransactionInstruction[]>;
+		}, {}) as MappedRecord<
+			typeof ixPromisesForTxs,
+			TransactionInstruction | TransactionInstruction[]
+		>;
 
 		const txsMap = (await this.buildTransactionsMap(
 			ixsMap,
@@ -4717,22 +4725,26 @@ export class DriftClient {
 
 		const formattedParams = params.map((item) => getOrderParams(item));
 
-		const placeOrdersIxs = await this.program.instruction.placeOrders(formattedParams, {
-			accounts: {
-				state: await this.getStatePublicKey(),
-				user,
-				userStats: this.getUserStatsAccountPublicKey(),
-				authority: this.wallet.publicKey,
-			},
-			remainingAccounts,
-		});
+		const placeOrdersIxs = await this.program.instruction.placeOrders(
+			formattedParams,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user,
+					userStats: this.getUserStatsAccountPublicKey(),
+					authority: this.wallet.publicKey,
+				},
+				remainingAccounts,
+			}
+		);
 
 		// TODO: Handle multiple markets?
-		const setPositionMaxLevIxs = await this.getUpdateUserPerpPositionCustomMarginRatioIx(
-			readablePerpMarketIndex[0],
-			1 / positionMaxLev,
-			subAccountId
-		);
+		const setPositionMaxLevIxs =
+			await this.getUpdateUserPerpPositionCustomMarginRatioIx(
+				readablePerpMarketIndex[0],
+				1 / positionMaxLev,
+				subAccountId
+			);
 
 		return [placeOrdersIxs, setPositionMaxLevIxs];
 	}
@@ -4893,8 +4905,9 @@ export class DriftClient {
 		subAccountId?: number
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
-			(await this.preparePlaceSpotOrderTx(orderParams, txParams, subAccountId))
-				.placeSpotOrderTx,
+			(
+				await this.preparePlaceSpotOrderTx(orderParams, txParams, subAccountId)
+			).placeSpotOrderTx,
 			[],
 			this.opts,
 			false
@@ -6554,6 +6567,9 @@ export class DriftClient {
 			| SignedMsgOrderParamsDelegateMessage,
 		delegateSigner?: boolean
 	): Buffer {
+		if (orderParamsMessage.maxMarginRatio === undefined) {
+			orderParamsMessage.maxMarginRatio = null;
+		}
 		const anchorIxName = delegateSigner
 			? 'global' + ':' + 'SignedMsgOrderParamsDelegateMessage'
 			: 'global' + ':' + 'SignedMsgOrderParamsMessage';
