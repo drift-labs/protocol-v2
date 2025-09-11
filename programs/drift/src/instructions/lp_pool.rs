@@ -24,7 +24,7 @@ use crate::{
     state::{
         amm_cache::{AmmCacheFixed, CacheInfo, AMM_POSITIONS_CACHE},
         constituent_map::{ConstituentMap, ConstituentSet},
-        events::{emit_stack, LPMintRedeemRecord, LPSwapRecord},
+        events::{emit_stack, LPMintRedeemRecord, LPSettleRecord, LPSwapRecord},
         lp_pool::{
             update_constituent_target_base_for_derivatives, AmmConstituentDatum,
             AmmConstituentMappingFixed, Constituent, ConstituentCorrelationsFixed,

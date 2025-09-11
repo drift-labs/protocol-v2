@@ -3334,7 +3334,12 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
         )?;
 
         cached_info.update_perp_market_fields(&perp_market)?;
-        cached_info.update_oracle_info(slot, &mm_oracle_price_data, &perp_market, &state.oracle_guard_rails)?;
+        cached_info.update_oracle_info(
+            slot,
+            &mm_oracle_price_data,
+            &perp_market,
+            &state.oracle_guard_rails,
+        )?;
 
         if perp_market.lp_status != 0 {
             amm_cache.update_amount_owed_from_lp_pool(&perp_market, &quote_market)?;
