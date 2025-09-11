@@ -32,6 +32,9 @@ import {
 	BN_MAX,
 	isVariant,
 	ConstituentStatus,
+	getSignedTokenAmount,
+	getTokenAmount,
+	MAX_LEVERAGE_ORDER_SIZE,
 } from '../sdk/src';
 import {
 	initializeQuoteSpotMarket,
@@ -637,9 +640,22 @@ describe('LP Pool', () => {
 			(((tokensAdded.toNumber() * 9997) / 10000) * 9999) / 10000
 		); // max weight deviation: expect min swap% fee on constituent, + 0.01% lp mint fee
 
+		const constituentBalanceBefore = +(
+			await bankrunContextWrapper.connection.getTokenAccount(
+				getConstituentVaultPublicKey(program.programId, lpPoolKey, 0)
+			)
+		).amount.toString();
+
+		console.log(`constituentBalanceBefore: ${constituentBalanceBefore}`);
+
 		// remove liquidity
 		const removeTx = new Transaction();
 		removeTx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1]));
+		removeTx.add(await adminClient.getDepositToProgramVaultIx(
+			encodeName(lpPoolName),
+			0,
+			new BN(constituentBalanceBefore)
+		));
 		removeTx.add(
 			...(await adminClient.getLpPoolRemoveLiquidityIx({
 				outMarketIndex: 0,
@@ -649,6 +665,20 @@ describe('LP Pool', () => {
 			}))
 		);
 		await adminClient.sendTransaction(removeTx);
+
+		const constituentAfterRemoveLiquidity = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 0)
+		)) as ConstituentAccount;
+
+		const blTokenAmountAfterRemoveLiquidity = getSignedTokenAmount(getTokenAmount(constituentAfterRemoveLiquidity.spotBalance.scaledBalance, adminClient.getSpotMarketAccount(0), constituentAfterRemoveLiquidity.spotBalance.balanceType), constituentAfterRemoveLiquidity.spotBalance.balanceType);
+
+		const withdrawFromProgramVaultTx = new Transaction();
+		withdrawFromProgramVaultTx.add(await adminClient.getWithdrawFromProgramVaultIx(
+			encodeName(lpPoolName),
+			0,
+			blTokenAmountAfterRemoveLiquidity.abs()
+		));
+		await adminClient.sendTransaction(withdrawFromProgramVaultTx);
 
 		const userC0TokenBalanceAfterBurn =
 			await bankrunContextWrapper.connection.getTokenAccount(
