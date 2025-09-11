@@ -151,7 +151,7 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
     constituent_target_base.update_target_base(
         &amm_constituent_mapping,
         amm_inventories.as_slice(),
-        constituent_indexes_and_decimals_and_prices.as_slice(),
+        constituent_indexes_and_decimals_and_prices.as_mut_slice(),
         slot,
     )?;
 

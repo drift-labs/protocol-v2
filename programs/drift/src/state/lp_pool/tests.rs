@@ -90,7 +90,7 @@ mod tests {
                 price: PRICE_PRECISION_I64,
             }, // $16.5k FARTCOIN
         ];
-        let constituents_indexes_and_decimals_and_prices = vec![
+        let mut constituents_indexes_and_decimals_and_prices = vec![
             ConstituentIndexAndDecimalAndPrice {
                 constituent_index: 0,
                 decimals: 6,
@@ -130,7 +130,7 @@ mod tests {
             .update_target_base(
                 &mapping_zc,
                 &amm_inventory_and_price,
-                &constituents_indexes_and_decimals_and_prices,
+                constituents_indexes_and_decimals_and_prices.as_mut_slice(),
                 now_ts,
             )
             .unwrap();
@@ -190,7 +190,7 @@ mod tests {
             inventory: 1_000_000,
             price: 1_000_000,
         }];
-        let constituents_indexes_and_decimals_and_prices =
+        let mut constituents_indexes_and_decimals_and_prices =
             vec![ConstituentIndexAndDecimalAndPrice {
                 constituent_index: 1,
                 decimals: 6,
@@ -213,7 +213,7 @@ mod tests {
             .update_target_base(
                 &mapping_zc,
                 &amm_inventory_and_prices,
-                &constituents_indexes_and_decimals_and_prices,
+                constituents_indexes_and_decimals_and_prices.as_mut_slice(),
                 now_ts,
             )
             .unwrap();
@@ -258,7 +258,7 @@ mod tests {
             inventory: BASE_PRECISION_I64,
             price,
         }];
-        let constituents_indexes_and_decimals_and_prices =
+        let mut constituents_indexes_and_decimals_and_prices =
             vec![ConstituentIndexAndDecimalAndPrice {
                 constituent_index: 1,
                 decimals: 6,
@@ -282,7 +282,7 @@ mod tests {
             .update_target_base(
                 &mapping_zc,
                 &amm_inventory_and_prices,
-                &constituents_indexes_and_decimals_and_prices,
+                constituents_indexes_and_decimals_and_prices.as_mut_slice(),
                 now_ts,
             )
             .unwrap();
@@ -348,7 +348,7 @@ mod tests {
             inventory: 1_000_000_000,
             price: 1_000_000,
         }];
-        let constituents_indexes_and_decimals_and_prices = vec![
+        let mut constituents_indexes_and_decimals_and_prices = vec![
             ConstituentIndexAndDecimalAndPrice {
                 constituent_index: 1,
                 decimals: 6,
@@ -379,7 +379,7 @@ mod tests {
             .update_target_base(
                 &mapping_zc,
                 &amm_inventory_and_prices,
-                &constituents_indexes_and_decimals_and_prices,
+                constituents_indexes_and_decimals_and_prices.as_mut_slice(),
                 now_ts,
             )
             .unwrap();
@@ -437,7 +437,7 @@ mod tests {
             inventory: 1_000_000,
             price: 142_000_000,
         }];
-        let constituents_indexes_and_decimals_and_prices =
+        let mut constituents_indexes_and_decimals_and_prices =
             vec![ConstituentIndexAndDecimalAndPrice {
                 constituent_index: 1,
                 decimals: 6,
@@ -461,7 +461,7 @@ mod tests {
             .update_target_base(
                 &mapping_zc,
                 &amm_inventory_and_prices,
-                &constituents_indexes_and_decimals_and_prices,
+                constituents_indexes_and_decimals_and_prices.as_mut_slice(),
                 now_ts,
             )
             .unwrap();

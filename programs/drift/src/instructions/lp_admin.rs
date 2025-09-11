@@ -473,6 +473,8 @@ pub fn handle_update_amm_constituent_mapping_data<'info>(
         );
     }
 
+    amm_mapping.sort();
+
     Ok(())
 }
 
@@ -499,6 +501,7 @@ pub fn handle_remove_amm_constituent_mapping_data<'info>(
 
     amm_mapping.weights.remove(position.unwrap());
     amm_mapping.weights.shrink_to_fit();
+    amm_mapping.sort();
 
     Ok(())
 }
@@ -551,6 +554,7 @@ pub fn handle_add_amm_constituent_data<'info>(
         current_len += 1;
         amm_mapping.weights.resize(current_len, datum);
     }
+    amm_mapping.sort();
 
     Ok(())
 }

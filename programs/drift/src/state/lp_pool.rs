@@ -962,9 +962,11 @@ impl Constituent {
         let token_amount = self.get_full_token_amount(spot_market)?;
 
         let max_transfer = if self.spot_balance.balance_type == SpotBalanceType::Borrow {
-            self.max_borrow_token_amount.saturating_sub(token_amount as u64)
+            self.max_borrow_token_amount
+                .saturating_sub(token_amount as u64)
         } else {
-            self.max_borrow_token_amount.saturating_add(token_amount as u64)
+            self.max_borrow_token_amount
+                .saturating_add(token_amount as u64)
         };
 
         Ok(max_transfer)
@@ -1035,6 +1037,10 @@ impl AmmConstituentMapping {
             "Number of constituents len must be between 1 and 128"
         )?;
         Ok(())
+    }
+
+    pub fn sort(&mut self) {
+        self.weights.sort_by_key(|datum| datum.constituent_index);
     }
 }
 
@@ -1193,11 +1199,13 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
     pub fn update_target_base(
         &mut self,
         mapping: &AccountZeroCopy<'a, AmmConstituentDatum, AmmConstituentMappingFixed>,
-        // (perp market index, inventory, price)
         amm_inventory_and_prices: &[AmmInventoryAndPrices],
-        constituents_indexes_and_decimals_and_prices: &[ConstituentIndexAndDecimalAndPrice],
+        constituents_indexes_and_decimals_and_prices: &mut [ConstituentIndexAndDecimalAndPrice],
         slot: u64,
     ) -> DriftResult<()> {
+        // Sorts by constituent index
+        constituents_indexes_and_decimals_and_prices.sort_by_key(|c| c.constituent_index);
+
         // Precompute notional by perp market index
         let mut notional_by_perp: Vec<(u16, i128)> =
             Vec::with_capacity(amm_inventory_and_prices.len());
@@ -1222,6 +1230,7 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
             }
         }
 
+        let mut mapping_index = 0;
         for (
             i,
             &ConstituentIndexAndDecimalAndPrice {
@@ -1235,23 +1244,27 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
         {
             let mut target_notional = 0i128;
 
-            for d in mapping.iter() {
+            let mut j = mapping_index;
+            while j < mapping.len() {
+                let d = mapping.get(j);
                 if d.constituent_index != constituent_index {
-                    continue;
+                    while j < mapping.len() && mapping.get(j).constituent_index < constituent_index
+                    {
+                        j += 1;
+                    }
+                    break;
                 }
-
                 if let Some(perp_notional) = find_notional(&notional_by_perp, d.perp_market_index) {
-                    let w = d.weight as i128;
-                    target_notional = target_notional.saturating_add(
-                        perp_notional
-                            .saturating_mul(w)
-                            .saturating_div(PERCENTAGE_PRECISION_I128),
-                    );
+                    target_notional = target_notional
+                        .saturating_add(perp_notional.saturating_mul(d.weight as i128));
                 }
+                j += 1;
             }
+            mapping_index = j;
 
             let cell = self.get_mut(i as u32);
             let target_base = target_notional
+                .safe_div(PERCENTAGE_PRECISION_I128)?
                 .safe_mul(10_i128.pow(decimals as u32))?
                 .safe_div(price as i128)?
                 * -1; // Want to target opposite sign of total scaled notional inventory
@@ -1292,6 +1305,22 @@ impl<'a> AccountZeroCopyMut<'a, AmmConstituentDatum, AmmConstituentMappingFixed>
         let cell = self.get_mut(open_slot);
         *cell = datum;
 
+        self.sort()?;
+        Ok(())
+    }
+
+    #[cfg(test)]
+    pub fn sort(&mut self) -> DriftResult<()> {
+        let len = self.len();
+        let mut data: Vec<AmmConstituentDatum> = Vec::with_capacity(len as usize);
+        for i in 0..len {
+            data.push(*self.get(i as u32));
+        }
+        data.sort_by_key(|datum| datum.constituent_index);
+        for i in 0..len {
+            let cell = self.get_mut(i as u32);
+            *cell = data[i as usize];
+        }
         Ok(())
     }
 }
