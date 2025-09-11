@@ -1207,8 +1207,7 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
         constituents_indexes_and_decimals_and_prices.sort_by_key(|c| c.constituent_index);
 
         // Precompute notional by perp market index
-        let mut notional_by_perp: Vec<(u16, i128)> =
-            Vec::with_capacity(amm_inventory_and_prices.len());
+        let mut notionals: Vec<i128> = Vec::with_capacity(amm_inventory_and_prices.len());
         for &AmmInventoryAndPrices {
             perp_market_index,
             inventory,
@@ -1218,16 +1217,7 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
             let notional = (inventory as i128)
                 .safe_mul(price as i128)?
                 .safe_div(BASE_PRECISION_I128)?;
-            notional_by_perp.push((perp_market_index, notional));
-        }
-        notional_by_perp.sort_by_key(|&(idx, _)| idx);
-
-        #[inline]
-        fn find_notional(sorted: &[(u16, i128)], idx: u16) -> Option<i128> {
-            match sorted.binary_search_by_key(&idx, |&(p, _)| p) {
-                Ok(i) => Some(sorted[i].1),
-                Err(_) => None,
-            }
+            notionals.push(notional);
         }
 
         let mut mapping_index = 0;
@@ -1254,7 +1244,7 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
                     }
                     break;
                 }
-                if let Some(perp_notional) = find_notional(&notional_by_perp, d.perp_market_index) {
+                if let Some(perp_notional) = notionals.get(d.perp_market_index as usize) {
                     target_notional = target_notional
                         .saturating_add(perp_notional.saturating_mul(d.weight as i128));
                 }
