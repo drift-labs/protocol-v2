@@ -41,6 +41,27 @@ export type SwiftOrderSubscriberConfig = {
 	keypair: Keypair;
 };
 
+/**
+ * Swift order message received from WebSocket
+ */
+export interface SwiftOrderMessage {
+	/** Hex string of the order message */
+	order_message: string;
+	/** Base58 string of taker authority */
+	taker_authority: string;
+	/** Base58 string of signing authority */
+	signing_authority: string;
+	/** Base64 string containing the order signature */
+	order_signature: string;
+	/** Swift order UUID */
+	uuid: string;
+	/** Whether the order auction params are likely to be sanitized on submission to program */
+	will_sanitize?: boolean;
+	/** Base64 string of a prerequisite deposit tx. The swift order_message should be bundled
+	 * after the deposit when present  */
+	depositTx?: string;
+}
+
 export class SwiftOrderSubscriber {
 	private heartbeatTimeout: ReturnType<typeof setTimeout> | null = null;
 	private readonly heartbeatIntervalMs = 60000;
@@ -48,7 +69,7 @@ export class SwiftOrderSubscriber {
 	private driftClient: DriftClient;
 	public userAccountGetter?: AccountGetter; // In practice, this for now is just an OrderSubscriber or a UserMap
 	public onOrder: (
-		orderMessageRaw: any,
+		orderMessageRaw: SwiftOrderMessage,
 		signedMessage:
 			| SignedMsgOrderParamsMessage
 			| SignedMsgOrderParamsDelegateMessage,
@@ -120,13 +141,14 @@ export class SwiftOrderSubscriber {
 
 	async subscribe(
 		onOrder: (
-			orderMessageRaw: any,
+			orderMessageRaw: SwiftOrderMessage,
 			signedMessage:
 				| SignedMsgOrderParamsMessage
 				| SignedMsgOrderParamsDelegateMessage,
 			isDelegateSigner?: boolean
 		) => Promise<void>,
-		acceptSanitized = false
+		acceptSanitized = false,
+		acceptDepositTrade = false
 	): Promise<void> {
 		this.onOrder = onOrder;
 
@@ -150,13 +172,20 @@ export class SwiftOrderSubscriber {
 				}
 
 				if (message['order']) {
-					const order = message['order'];
+					const order = message['order'] as SwiftOrderMessage;
 					// ignore likely sanitized orders by default
-					if (order['will_sanitize'] === true && !acceptSanitized) {
+					if (order.will_sanitize === true && !acceptSanitized) {
 						return;
 					}
+					// order has a prerequisite deposit tx attached
+					if (message['deposit']) {
+						order.depositTx = message['deposit'];
+						if (!acceptDepositTrade) {
+							return;
+						}
+					}
 					const signedMsgOrderParamsBuf = Buffer.from(
-						order['order_message'],
+						order.order_message,
 						'hex'
 					);
 					const isDelegateSigner = signedMsgOrderParamsBuf
@@ -224,7 +253,7 @@ export class SwiftOrderSubscriber {
 	}
 
 	async getPlaceAndMakeSignedMsgOrderIxs(
-		orderMessageRaw: any,
+		orderMessageRaw: SwiftOrderMessage,
 		signedMsgOrderParamsMessage:
 			| SignedMsgOrderParamsMessage
 			| SignedMsgOrderParamsDelegateMessage,
@@ -235,7 +264,7 @@ export class SwiftOrderSubscriber {
 		}
 
 		const signedMsgOrderParamsBuf = Buffer.from(
-			orderMessageRaw['order_message'],
+			orderMessageRaw.order_message,
 			'hex'
 		);
 
@@ -256,10 +285,8 @@ export class SwiftOrderSubscriber {
 				isDelegateSigner
 			);
 
-		const takerAuthority = new PublicKey(orderMessageRaw['taker_authority']);
-		const signingAuthority = new PublicKey(
-			orderMessageRaw['signing_authority']
-		);
+		const takerAuthority = new PublicKey(orderMessageRaw.taker_authority);
+		const signingAuthority = new PublicKey(orderMessageRaw.signing_authority);
 		const takerUserPubkey = isDelegateSigner
 			? (signedMessage as SignedMsgOrderParamsDelegateMessage).takerPubkey
 			: await getUserAccountPublicKey(
@@ -273,9 +300,9 @@ export class SwiftOrderSubscriber {
 		const ixs = await this.driftClient.getPlaceAndMakeSignedMsgPerpOrderIxs(
 			{
 				orderParams: signedMsgOrderParamsBuf,
-				signature: Buffer.from(orderMessageRaw['order_signature'], 'base64'),
+				signature: Buffer.from(orderMessageRaw.order_signature, 'base64'),
 			},
-			decodeUTF8(orderMessageRaw['uuid']),
+			decodeUTF8(orderMessageRaw.uuid),
 			{
 				taker: takerUserPubkey,
 				takerUserAccount,
