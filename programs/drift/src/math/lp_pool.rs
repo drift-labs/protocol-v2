@@ -188,6 +188,8 @@ pub mod perp_lp_pool_settlement {
         cache_info.quote_owed_from_lp_pool = new_quote_owed;
         cache_info.last_settle_amount = result.amount_transferred;
         cache_info.last_settle_slot = slot;
+        cache_info.last_settle_amm_ex_fees = cache_info.last_exchange_fees;
+        cache_info.last_settle_amm_pnl = cache_info.last_net_pnl_pool_token_amount;
 
         match result.direction {
             SettlementDirection::FromLpPool => {

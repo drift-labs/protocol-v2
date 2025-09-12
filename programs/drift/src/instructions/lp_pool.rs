@@ -600,7 +600,8 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
     let lp_pool_key = ctx.accounts.lp_pool.key();
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
 
-    let lp_price_before = lp_pool.get_price(ctx.accounts.lp_mint.supply)?;
+    lp_pool.sync_token_supply(ctx.accounts.lp_mint.supply);
+    let lp_price_before = lp_pool.get_price(lp_pool.token_supply)?;
 
     if slot.saturating_sub(lp_pool.last_aum_slot) > LP_POOL_SWAP_AUM_UPDATE_DELAY {
         msg!(
@@ -775,11 +776,12 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
 
     ctx.accounts.constituent_in_token_account.reload()?;
     ctx.accounts.lp_mint.reload()?;
+    lp_pool.sync_token_supply(ctx.accounts.lp_mint.supply);
 
     in_constituent.sync_token_balance(ctx.accounts.constituent_in_token_account.amount);
 
     ctx.accounts.lp_mint.reload()?;
-    let lp_price_after = lp_pool.get_price(ctx.accounts.lp_mint.supply)?;
+    let lp_price_after = lp_pool.get_price(lp_pool.token_supply)?;
     if lp_price_before != 0 {
         let price_diff_percent = lp_price_after
             .abs_diff(lp_price_before)
@@ -793,7 +795,7 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
         )?;
     }
 
-    let mint_redeem_id = get_then_update_id!(lp_pool, next_mint_redeem_id);
+    let mint_redeem_id = get_then_update_id!(lp_pool, mint_redeem_id);
     emit_stack::<_, { LPMintRedeemRecord::SIZE }>(LPMintRedeemRecord {
         ts: now,
         slot,
@@ -937,8 +939,9 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
 
     let lp_pool_key = ctx.accounts.lp_pool.key();
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
+    lp_pool.sync_token_supply(ctx.accounts.lp_mint.supply);
 
-    let lp_price_before = lp_pool.get_price(ctx.accounts.lp_mint.supply)?;
+    let lp_price_before = lp_pool.get_price(lp_pool.token_supply)?;
 
     // Verify previous settle
     let amm_cache: AccountZeroCopy<'_, CacheInfo, _> = ctx.accounts.amm_cache.load_zc()?;
@@ -1123,11 +1126,12 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
 
     ctx.accounts.constituent_out_token_account.reload()?;
     ctx.accounts.lp_mint.reload()?;
+    lp_pool.sync_token_supply(ctx.accounts.lp_mint.supply);
 
     out_constituent.sync_token_balance(ctx.accounts.constituent_out_token_account.amount);
 
     ctx.accounts.lp_mint.reload()?;
-    let lp_price_after = lp_pool.get_price(ctx.accounts.lp_mint.supply)?;
+    let lp_price_after = lp_pool.get_price(lp_pool.token_supply)?;
 
     if lp_price_after != 0 {
         let price_diff_percent = lp_price_after
@@ -1141,7 +1145,7 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
         )?;
     }
 
-    let mint_redeem_id = get_then_update_id!(lp_pool, next_mint_redeem_id);
+    let mint_redeem_id = get_then_update_id!(lp_pool, mint_redeem_id);
     emit_stack::<_, { LPMintRedeemRecord::SIZE }>(LPMintRedeemRecord {
         ts: now,
         slot,

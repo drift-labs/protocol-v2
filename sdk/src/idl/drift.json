@@ -9691,10 +9691,14 @@
             "type": "u64"
           },
           {
-            "name": "nextMintRedeemId",
+            "name": "mintRedeemId",
             "docs": [
               "Every mint/redeem has a monotonically increasing id. This is the next id to use"
             ],
+            "type": "u64"
+          },
+          {
+            "name": "settleId",
             "type": "u64"
           },
           {
@@ -9707,6 +9711,10 @@
           {
             "name": "maxMintFeePremium",
             "type": "i64"
+          },
+          {
+            "name": "tokenSupply",
+            "type": "u64"
           },
           {
             "name": "volatility",
@@ -11884,6 +11892,14 @@
           {
             "name": "lastSettleSlot",
             "type": "u64"
+          },
+          {
+            "name": "lastSettleAmmExFees",
+            "type": "u128"
+          },
+          {
+            "name": "lastSettleAmmPnl",
+            "type": "i128"
           },
           {
             "name": "quoteOwedFromLpPool",
@@ -16983,6 +16999,61 @@
         },
         {
           "name": "fuelTotal",
+          "type": "u128",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "LPSettleRecord",
+      "fields": [
+        {
+          "name": "recordId",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "lastSlot",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "slot",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "perpMarketIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "settleToLpAmount",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "perpAmmPnlDelta",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "perpAmmExFeeDelta",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "lpAum",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "lpPrice",
           "type": "u128",
           "index": false
         }

@@ -743,15 +743,13 @@ pub fn emit_buffers<T: AnchorSerialize + Discriminator>(
 pub struct LPSettleRecord {
     pub record_id: u64,
     // previous settle unix timestamp
-    pub last_ts: i64,
+    pub last_slot: u64,
     // current settle unix timestamp
     pub ts: i64,
     // current slot
     pub slot: u64,
     // amm perp market index
     pub perp_market_index: u16,
-    // quote spot market index
-    pub spot_market_index: u16,
     // token amount to settle to lp (positive is from amm to lp, negative lp to amm)
     pub settle_to_lp_amount: i64,
     // quote pnl of amm since last settle
@@ -759,9 +757,9 @@ pub struct LPSettleRecord {
     // exchange fees earned by market/amm since last settle
     pub perp_amm_ex_fee_delta: i64,
     // current aum of lp
-    pub lp_aum: u64,
+    pub lp_aum: u128,
     // current mint price of lp
-    pub lp_price: u64,
+    pub lp_price: u128,
 }
 
 #[event]

@@ -46,6 +46,8 @@ pub struct CacheInfo {
     pub slot: u64,
     pub last_settle_amount: u64,
     pub last_settle_slot: u64,
+    pub last_settle_amm_ex_fees: u128,
+    pub last_settle_amm_pnl: i128,
     pub quote_owed_from_lp_pool: i64,
     pub oracle_price: i64,
     pub oracle_slot: u64,
@@ -72,6 +74,8 @@ impl Default for CacheInfo {
             last_exchange_fees: 0u128,
             last_settle_amount: 0u64,
             last_settle_slot: 0u64,
+            last_settle_amm_pnl: 0i128,
+            last_settle_amm_ex_fees: 0u128,
             oracle_source: 0u8,
             quote_owed_from_lp_pool: 0i64,
             _padding: [0u8; 6],
@@ -302,6 +306,8 @@ impl<'a> AccountZeroCopyMut<'a, CacheInfo, AmmCacheFixed> {
             cached_info.last_fee_pool_token_amount = fee_pool_token_amount;
             cached_info.last_net_pnl_pool_token_amount = net_pnl_pool_token_amount;
             cached_info.last_exchange_fees = perp_market.amm.total_exchange_fee;
+            cached_info.last_settle_amm_ex_fees = perp_market.amm.total_exchange_fee;
+            cached_info.last_settle_amm_pnl = net_pnl_pool_token_amount;
             return Ok(());
         }
 
