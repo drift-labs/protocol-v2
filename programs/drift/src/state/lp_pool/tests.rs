@@ -1735,14 +1735,15 @@ mod settle_tests {
         };
         let new_quote_owed = cache.quote_owed_from_lp_pool + result.amount_transferred as i64;
         let ts = 99;
+        let slot = 100;
 
-        update_cache_info(&mut cache, &result, new_quote_owed, ts).unwrap();
+        update_cache_info(&mut cache, &result, new_quote_owed, slot, ts).unwrap();
 
         // quote_owed updated
         assert_eq!(cache.quote_owed_from_lp_pool, new_quote_owed);
         // settle fields updated
         assert_eq!(cache.last_settle_amount, 200);
-        assert_eq!(cache.last_settle_slot, ts);
+        assert_eq!(cache.last_settle_slot, slot);
         // fee pool decreases by fee_pool_used
         assert_eq!(cache.last_fee_pool_token_amount, 2_000 - 120);
         // pnl pool decreases by pnl_pool_used
@@ -1768,14 +1769,15 @@ mod settle_tests {
         };
         let new_quote_owed = cache.quote_owed_from_lp_pool - result.amount_transferred as i64;
         let ts = 42;
+        let slot = 100;
 
-        update_cache_info(&mut cache, &result, new_quote_owed, ts).unwrap();
+        update_cache_info(&mut cache, &result, new_quote_owed, slot, ts).unwrap();
 
         // quote_owed updated
         assert_eq!(cache.quote_owed_from_lp_pool, new_quote_owed);
         // settle fields updated
         assert_eq!(cache.last_settle_amount, 150);
-        assert_eq!(cache.last_settle_slot, ts);
+        assert_eq!(cache.last_settle_slot, slot);
         // fee pool increases by amount_transferred
         assert_eq!(cache.last_fee_pool_token_amount, 1_000 + 150);
         // pnl pool untouched
@@ -1918,14 +1920,15 @@ mod settle_tests {
         };
         let new_quote_owed = 100; // No change
         let ts = 67890;
+        let slot = 100000000;
 
-        update_cache_info(&mut cache, &result, new_quote_owed, ts).unwrap();
+        update_cache_info(&mut cache, &result, new_quote_owed, slot, ts).unwrap();
 
         // quote_owed unchanged
         assert_eq!(cache.quote_owed_from_lp_pool, 100);
         // settle fields updated with new timestamp but zero amount
         assert_eq!(cache.last_settle_amount, 0);
-        assert_eq!(cache.last_settle_slot, ts);
+        assert_eq!(cache.last_settle_slot, slot);
         // pool amounts unchanged
         assert_eq!(cache.last_fee_pool_token_amount, 1000);
         assert_eq!(cache.last_net_pnl_pool_token_amount, 500);
@@ -1950,8 +1953,9 @@ mod settle_tests {
         };
         let new_quote_owed = cache.quote_owed_from_lp_pool - (result.amount_transferred as i64);
         let slot = u64::MAX / 2;
+        let ts = i64::MAX / 2;
 
-        let update_result = update_cache_info(&mut cache, &result, new_quote_owed, slot);
+        let update_result = update_cache_info(&mut cache, &result, new_quote_owed, slot, ts);
         assert!(update_result.is_ok());
     }
 
@@ -1973,9 +1977,10 @@ mod settle_tests {
             pnl_pool_used: 300,
         };
         let new_quote_owed = cache.quote_owed_from_lp_pool + (result.amount_transferred as i64);
+        let slot = u64::MAX / 2;
         let ts = 42;
 
-        let update_result = update_cache_info(&mut cache, &result, new_quote_owed, ts);
+        let update_result = update_cache_info(&mut cache, &result, new_quote_owed, slot, ts);
         assert!(update_result.is_ok());
     }
 
@@ -1998,7 +2003,7 @@ mod settle_tests {
             pnl_pool_used: 0,
         };
         let new_quote_owed1 = cache.quote_owed_from_lp_pool - (result1.amount_transferred as i64);
-        update_cache_info(&mut cache, &result1, new_quote_owed1, 100).unwrap();
+        update_cache_info(&mut cache, &result1, new_quote_owed1, 101010101, 100).unwrap();
 
         assert_eq!(cache.quote_owed_from_lp_pool, 700);
         assert_eq!(cache.last_fee_pool_token_amount, 5300);
@@ -2012,12 +2017,12 @@ mod settle_tests {
             pnl_pool_used: 150,
         };
         let new_quote_owed2 = cache.quote_owed_from_lp_pool + (result2.amount_transferred as i64);
-        update_cache_info(&mut cache, &result2, new_quote_owed2, 200).unwrap();
+        update_cache_info(&mut cache, &result2, new_quote_owed2, 10101010, 200).unwrap();
 
         assert_eq!(cache.quote_owed_from_lp_pool, 1100);
         assert_eq!(cache.last_fee_pool_token_amount, 5050);
         assert_eq!(cache.last_net_pnl_pool_token_amount, 2850);
-        assert_eq!(cache.last_settle_slot, 200);
+        assert_eq!(cache.last_settle_slot, 10101010);
     }
 
     #[test]
@@ -2164,8 +2169,8 @@ mod settle_tests {
                 pnl_pool_used: 0,
             };
 
-            update_cache_info(&mut cache, &result, 0, ts).unwrap();
-            assert_eq!(cache.last_settle_slot, ts);
+            update_cache_info(&mut cache, &result, 0, 1010101, ts).unwrap();
+            assert_eq!(cache.last_settle_ts, ts);
             assert_eq!(cache.last_settle_amount, 100);
         }
     }
@@ -2241,7 +2246,7 @@ mod settle_tests {
                 SettlementDirection::None => {}
             }
 
-            update_cache_info(&mut cache, &result, 0, 1000).unwrap();
+            update_cache_info(&mut cache, &result, 0, 1000, 0).unwrap();
 
             assert_eq!(cache.last_fee_pool_token_amount, expected_fee_pool);
             assert_eq!(cache.last_net_pnl_pool_token_amount, expected_pnl_pool);

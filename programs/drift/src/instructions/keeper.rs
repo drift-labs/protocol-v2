@@ -23,6 +23,7 @@ use crate::controller::position::PositionDirection;
 use crate::controller::spot_balance::update_spot_balances;
 use crate::controller::token::{receive, send_from_program_vault};
 use crate::error::ErrorCode;
+use crate::get_then_update_id;
 use crate::ids::admin_hot_wallet;
 use crate::ids::{jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, serum_program};
 use crate::instructions::constraints::*;
@@ -40,6 +41,8 @@ use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::optional_accounts::{get_token_mint, update_prelaunch_oracle};
 use crate::signer::get_signer_seeds;
 use crate::state::amm_cache::CacheInfo;
+use crate::state::events::emit_stack;
+use crate::state::events::LPSettleRecord;
 use crate::state::events::{DeleteUserRecord, OrderActionExplanation, SignedMsgOrderRecord};
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
@@ -3162,7 +3165,7 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
 
         let cached_info = amm_cache.get_mut(perp_market.market_index as u32);
 
-        // Early validation checks (unchanged)
+        // Early validation checks
         if slot.saturating_sub(cached_info.oracle_slot) > SETTLE_AMM_ORACLE_MAX_DELAY {
             msg!(
                 "Skipping settling perp market {} to dlp because oracle slot is not up to date",
@@ -3255,6 +3258,36 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
             quote_market,
         )?;
 
+        // Emit settle event
+        let record_id = get_then_update_id!(lp_pool, settle_id);
+        emit!(LPSettleRecord {
+            record_id,
+            last_ts: cached_info.last_settle_ts,
+            last_slot: cached_info.last_settle_slot,
+            slot,
+            ts: now,
+            perp_market_index: perp_market.market_index,
+            settle_to_lp_amount: match settlement_result.direction {
+                SettlementDirection::FromLpPool => settlement_result
+                    .amount_transferred
+                    .cast::<i64>()?
+                    .saturating_mul(-1),
+                SettlementDirection::ToLpPool =>
+                    settlement_result.amount_transferred.cast::<i64>()?,
+                SettlementDirection::None => unreachable!(),
+            },
+            perp_amm_pnl_delta: cached_info
+                .last_net_pnl_pool_token_amount
+                .safe_sub(cached_info.last_settle_amm_pnl)?
+                .cast::<i64>()?,
+            perp_amm_ex_fee_delta: cached_info
+                .last_exchange_fees
+                .safe_sub(cached_info.last_settle_amm_ex_fees)?
+                .cast::<i64>()?,
+            lp_aum: lp_pool.last_aum,
+            lp_price: lp_pool.get_price(lp_pool.token_supply)?,
+        });
+
         // Calculate new quote owed amount
         let new_quote_owed = match settlement_result.direction {
             SettlementDirection::FromLpPool => cached_info
@@ -3267,7 +3300,7 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
         };
 
         // Update cache info
-        update_cache_info(cached_info, &settlement_result, new_quote_owed, slot)?;
+        update_cache_info(cached_info, &settlement_result, new_quote_owed, slot, now)?;
 
         // Update LP pool stats
         match settlement_result.direction {

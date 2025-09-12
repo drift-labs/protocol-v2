@@ -101,11 +101,14 @@ pub struct LPPool {
     pub revenue_rebalance_period: u64,
 
     /// Every mint/redeem has a monotonically increasing id. This is the next id to use
-    pub next_mint_redeem_id: u64,
+    pub mint_redeem_id: u64,
+    pub settle_id: u64,
 
     /// PERCENTAGE_PRECISION
     pub min_mint_fee: i64,
     pub max_mint_fee_premium: i64,
+
+    pub token_supply: u64,
 
     // PERCENTAGE_PRECISION: percentage precision const = 100%
     pub volatility: u64,
@@ -124,10 +127,14 @@ pub struct LPPool {
 }
 
 impl Size for LPPool {
-    const SIZE: usize = 360;
+    const SIZE: usize = 376;
 }
 
 impl LPPool {
+    pub fn sync_token_supply(&mut self, supply: u64) {
+        self.token_supply = supply;
+    }
+
     pub fn get_price(&self, mint_supply: u64) -> Result<u128> {
         match mint_supply {
             0 => Ok(0),
