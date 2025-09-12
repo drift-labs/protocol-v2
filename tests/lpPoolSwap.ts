@@ -31,6 +31,10 @@ import {
 	getSerumSignerPublicKey,
 	BN_MAX,
 	isVariant,
+	ConstituentStatus,
+	getSignedTokenAmount,
+	getTokenAmount,
+	MAX_LEVERAGE_ORDER_SIZE,
 } from '../sdk/src';
 import {
 	initializeQuoteSpotMarket,
@@ -45,6 +49,7 @@ import {
 	createWSolTokenAccountForUser,
 	initializeSolSpotMarket,
 	createUserWithUSDCAndWSOLAccount,
+	sleep,
 } from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
@@ -240,6 +245,8 @@ describe('LP Pool', () => {
 			volatility: ZERO,
 			constituentCorrelations: [],
 		});
+		await adminClient.updateFeatureBitFlagsMintRedeemLpPool(true);
+
 		await adminClient.initializeConstituent(encodeName(lpPoolName), {
 			spotMarketIndex: 1,
 			decimals: 6,
@@ -369,7 +376,7 @@ describe('LP Pool', () => {
 			bankrunContextWrapper,
 			adminClient.program,
 			const0Key,
-			[['tokenBalance', c0TokenBalance]]
+			[['vaultTokenBalance', c0TokenBalance]]
 		);
 
 		await overWriteTokenAccountBalance(
@@ -381,26 +388,30 @@ describe('LP Pool', () => {
 			bankrunContextWrapper,
 			adminClient.program,
 			const1Key,
-			[['tokenBalance', c1TokenBalance]]
+			[['vaultTokenBalance', c1TokenBalance]]
 		);
 
 		// check fields overwritten correctly
 		const c0 = (await adminClient.program.account.constituent.fetch(
 			const0Key
 		)) as ConstituentAccount;
-		expect(c0.tokenBalance.toString()).to.equal(c0TokenBalance.toString());
+		expect(c0.vaultTokenBalance.toString()).to.equal(c0TokenBalance.toString());
 
 		const c1 = (await adminClient.program.account.constituent.fetch(
 			const1Key
 		)) as ConstituentAccount;
-		expect(c1.tokenBalance.toString()).to.equal(c1TokenBalance.toString());
+		expect(c1.vaultTokenBalance.toString()).to.equal(c1TokenBalance.toString());
 
 		await adminClient.updateConstituentOracleInfo(c1);
 		await adminClient.updateConstituentOracleInfo(c0);
 
 		const prec = new BN(10).pow(new BN(tokenDecimals));
-		console.log(`const0 balance: ${convertToNumber(c0.tokenBalance, prec)}`);
-		console.log(`const1 balance: ${convertToNumber(c1.tokenBalance, prec)}`);
+		console.log(
+			`const0 balance: ${convertToNumber(c0.vaultTokenBalance, prec)}`
+		);
+		console.log(
+			`const1 balance: ${convertToNumber(c1.vaultTokenBalance, prec)}`
+		);
 
 		const lpPool1 = (await adminClient.program.account.lpPool.fetch(
 			lpPoolKey
@@ -564,7 +575,7 @@ describe('LP Pool', () => {
 		);
 
 		const tokensAdded = new BN(1_000_000_000_000);
-		const tx = new Transaction();
+		let tx = new Transaction();
 		tx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1]));
 		tx.add(
 			...(await adminClient.getLpPoolAddLiquidityIx({
@@ -575,6 +586,33 @@ describe('LP Pool', () => {
 			}))
 		);
 		await adminClient.sendTransaction(tx);
+
+		// Should fail to add more liquidity if it's in redulce only mode;
+		await adminClient.updateConstituentStatus(
+			c0.pubkey,
+			ConstituentStatus.REDUCE_ONLY
+		);
+		tx = new Transaction();
+		tx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1]));
+		tx.add(
+			...(await adminClient.getLpPoolAddLiquidityIx({
+				inMarketIndex: 0,
+				inAmount: tokensAdded,
+				minMintAmount: new BN(1),
+				lpPool: lpPool,
+			}))
+		);
+		try {
+			await adminClient.sendTransaction(tx);
+		} catch (e) {
+			assert(e.message.includes('0x18c0'));
+		}
+		await adminClient.updateConstituentStatus(
+			c0.pubkey,
+			ConstituentStatus.ACTIVE
+		);
+
+		await sleep(500);
 
 		const userC0TokenBalanceAfter =
 			await bankrunContextWrapper.connection.getTokenAccount(
@@ -605,18 +643,45 @@ describe('LP Pool', () => {
 			(((tokensAdded.toNumber() * 9997) / 10000) * 9999) / 10000
 		); // max weight deviation: expect min swap% fee on constituent, + 0.01% lp mint fee
 
+		const constituentBalanceBefore = +(
+			await bankrunContextWrapper.connection.getTokenAccount(
+				getConstituentVaultPublicKey(program.programId, lpPoolKey, 0)
+			)
+		).amount.toString();
+
+		console.log(`constituentBalanceBefore: ${constituentBalanceBefore}`);
+
 		// remove liquidity
 		const removeTx = new Transaction();
 		removeTx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1]));
+		removeTx.add(await adminClient.getDepositToProgramVaultIx(
+			encodeName(lpPoolName),
+			0,
+			new BN(constituentBalanceBefore)
+		));
 		removeTx.add(
-			await adminClient.getLpPoolRemoveLiquidityIx({
+			...(await adminClient.getLpPoolRemoveLiquidityIx({
 				outMarketIndex: 0,
 				lpToBurn: new BN(userLpTokenBalanceAfter.amount.toString()),
 				minAmountOut: new BN(1),
 				lpPool: lpPool,
-			})
+			}))
 		);
 		await adminClient.sendTransaction(removeTx);
+
+		const constituentAfterRemoveLiquidity = (await adminClient.program.account.constituent.fetch(
+			getConstituentPublicKey(program.programId, lpPoolKey, 0)
+		)) as ConstituentAccount;
+
+		const blTokenAmountAfterRemoveLiquidity = getSignedTokenAmount(getTokenAmount(constituentAfterRemoveLiquidity.spotBalance.scaledBalance, adminClient.getSpotMarketAccount(0), constituentAfterRemoveLiquidity.spotBalance.balanceType), constituentAfterRemoveLiquidity.spotBalance.balanceType);
+
+		const withdrawFromProgramVaultTx = new Transaction();
+		withdrawFromProgramVaultTx.add(await adminClient.getWithdrawFromProgramVaultIx(
+			encodeName(lpPoolName),
+			0,
+			blTokenAmountAfterRemoveLiquidity.abs()
+		));
+		await adminClient.sendTransaction(withdrawFromProgramVaultTx);
 
 		const userC0TokenBalanceAfterBurn =
 			await bankrunContextWrapper.connection.getTokenAccount(
@@ -830,6 +895,22 @@ describe('LP Pool', () => {
 			.add(serumBidIx)
 			.add(settleFundsIx)
 			.add(endSwapIx);
+
+		// Should fail if usdc is in reduce only
+		const c0pubkey = getConstituentPublicKey(program.programId, lpPoolKey, 0);
+		await adminClient.updateConstituentStatus(
+			c0pubkey,
+			ConstituentStatus.REDUCE_ONLY
+		);
+		try {
+			await adminClient.sendTransaction(tx);
+		} catch (e) {
+			assert(e.message.includes('0x18c0'));
+		}
+		await adminClient.updateConstituentStatus(
+			c0pubkey,
+			ConstituentStatus.ACTIVE
+		);
 
 		const { txSig } = await adminClient.sendTransaction(tx);
 

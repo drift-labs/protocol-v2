@@ -389,11 +389,6 @@ export function isSignedMsgOrder(order: Order): boolean {
 	return (order.bitFlags & FLAG_IS_SIGNED_MSG) !== 0;
 }
 
-const FLAG_HAS_BUILDER = 0x10;
-export function hasBuilder(order: Order): boolean {
-	return (order.bitFlags & FLAG_HAS_BUILDER) !== 0;
-}
-
 export function calculateOrderBaseAssetAmount(
 	order: Order,
 	existingBaseAssetAmount: BN

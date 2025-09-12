@@ -33,7 +33,7 @@ mod sig_verification {
         assert!(verified_message.builder_idx.is_none());
         assert!(verified_message.builder_fee_tenth_bps.is_none());
         assert!(verified_message.max_margin_ratio.is_none());
- 
+
         // Verify order params
         let order_params = &verified_message.signed_msg_order_params;
         assert_eq!(order_params.user_order_id, 1);

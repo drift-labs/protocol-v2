@@ -168,7 +168,9 @@ export class SwiftOrderSubscriber {
 								).slice(0, 8)
 							)
 						);
-					const signedMessage =
+					const signedMessage:
+						| SignedMsgOrderParamsMessage
+						| SignedMsgOrderParamsDelegateMessage =
 						this.driftClient.decodeSignedMsgOrderParamsMessage(
 							signedMsgOrderParamsBuf,
 							isDelegateSigner
@@ -246,10 +248,13 @@ export class SwiftOrderSubscriber {
 					).slice(0, 8)
 				)
 			);
-		const signedMessage = this.driftClient.decodeSignedMsgOrderParamsMessage(
-			signedMsgOrderParamsBuf,
-			isDelegateSigner
-		);
+		const signedMessage:
+			| SignedMsgOrderParamsMessage
+			| SignedMsgOrderParamsDelegateMessage =
+			this.driftClient.decodeSignedMsgOrderParamsMessage(
+				signedMsgOrderParamsBuf,
+				isDelegateSigner
+			);
 
 		const takerAuthority = new PublicKey(orderMessageRaw['taker_authority']);
 		const signingAuthority = new PublicKey(

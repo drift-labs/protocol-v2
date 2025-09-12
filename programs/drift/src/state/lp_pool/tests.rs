@@ -68,17 +68,49 @@ mod tests {
             }
         };
 
-        let amm_inventory_and_price: Vec<(u16, i64, i64)> = vec![
-            (0, 4 * BASE_PRECISION_I64, 100_000 * PRICE_PRECISION_I64), // $400k BTC
-            (1, 2000 * BASE_PRECISION_I64, 200 * PRICE_PRECISION_I64),  // $400k SOL
-            (2, 200 * BASE_PRECISION_I64, 1500 * PRICE_PRECISION_I64),  // $300k ETH
-            (3, 16500 * BASE_PRECISION_I64, PRICE_PRECISION_I64),       // $16.5k FARTCOIN
+        let amm_inventory_and_price: Vec<AmmInventoryAndPrices> = vec![
+            AmmInventoryAndPrices {
+                perp_market_index: 0,
+                inventory: 4 * BASE_PRECISION_I64,
+                price: 100_000 * PRICE_PRECISION_I64,
+            }, // $400k BTC
+            AmmInventoryAndPrices {
+                perp_market_index: 1,
+                inventory: 2000 * BASE_PRECISION_I64,
+                price: 200 * PRICE_PRECISION_I64,
+            }, // $400k SOL
+            AmmInventoryAndPrices {
+                perp_market_index: 2,
+                inventory: 200 * BASE_PRECISION_I64,
+                price: 1500 * PRICE_PRECISION_I64,
+            }, // $300k ETH
+            AmmInventoryAndPrices {
+                perp_market_index: 3,
+                inventory: 16500 * BASE_PRECISION_I64,
+                price: PRICE_PRECISION_I64,
+            }, // $16.5k FARTCOIN
         ];
-        let constituents_indexes_and_decimals_and_prices = vec![
-            (0, 6, 100_000 * PRICE_PRECISION_I64),
-            (1, 6, 200 * PRICE_PRECISION_I64),
-            (2, 6, 1500 * PRICE_PRECISION_I64),
-            (3, 6, PRICE_PRECISION_I64), // USDC
+        let mut constituents_indexes_and_decimals_and_prices = vec![
+            ConstituentIndexAndDecimalAndPrice {
+                constituent_index: 0,
+                decimals: 6,
+                price: 100_000 * PRICE_PRECISION_I64,
+            },
+            ConstituentIndexAndDecimalAndPrice {
+                constituent_index: 1,
+                decimals: 6,
+                price: 200 * PRICE_PRECISION_I64,
+            },
+            ConstituentIndexAndDecimalAndPrice {
+                constituent_index: 2,
+                decimals: 6,
+                price: 1500 * PRICE_PRECISION_I64,
+            },
+            ConstituentIndexAndDecimalAndPrice {
+                constituent_index: 3,
+                decimals: 6,
+                price: PRICE_PRECISION_I64,
+            }, // USDC
         ];
         let aum = 2_000_000 * QUOTE_PRECISION; // $2M AUM
 
@@ -94,27 +126,24 @@ mod tests {
             _marker: PhantomData::<TargetsDatum>,
         };
 
-        let target_base = target_zc_mut
+        target_zc_mut
             .update_target_base(
                 &mapping_zc,
                 &amm_inventory_and_price,
-                &constituents_indexes_and_decimals_and_prices,
+                constituents_indexes_and_decimals_and_prices.as_mut_slice(),
                 now_ts,
             )
             .unwrap();
 
-        msg!("Target Base: {:?}", target_base);
-
-        let target_weights: Vec<i64> = target_base
+        let target_weights: Vec<i64> = target_zc_mut
             .iter()
             .enumerate()
-            .map(|(index, base)| {
+            .map(|(index, datum)| {
                 calculate_target_weight(
-                    base.cast::<i64>().unwrap(),
+                    datum.target_base.cast::<i64>().unwrap(),
                     &SpotMarket::default_quote_market(),
-                    amm_inventory_and_price.get(index).unwrap().2,
+                    amm_inventory_and_price.get(index).unwrap().price,
                     aum,
-                    WeightValidationFlags::NONE,
                 )
                 .unwrap()
             })
@@ -156,9 +185,17 @@ mod tests {
             }
         };
 
-        let amm_inventory_and_prices: Vec<(u16, i64, i64)> = vec![(0, 1_000_000, 1_000_000)];
-        let constituents_indexes_and_decimals_and_prices = vec![(1, 6, 1_000_000)];
-        let aum = 1_000_000;
+        let amm_inventory_and_prices: Vec<AmmInventoryAndPrices> = vec![AmmInventoryAndPrices {
+            perp_market_index: 0,
+            inventory: 1_000_000,
+            price: 1_000_000,
+        }];
+        let mut constituents_indexes_and_decimals_and_prices =
+            vec![ConstituentIndexAndDecimalAndPrice {
+                constituent_index: 1,
+                decimals: 6,
+                price: 1_000_000,
+            }];
         let now_ts = 1000;
 
         let target_fixed = RefCell::new(ConstituentTargetBaseFixed {
@@ -172,16 +209,16 @@ mod tests {
             _marker: PhantomData::<TargetsDatum>,
         };
 
-        let totalw = target_zc_mut
+        target_zc_mut
             .update_target_base(
                 &mapping_zc,
                 &amm_inventory_and_prices,
-                &constituents_indexes_and_decimals_and_prices,
+                constituents_indexes_and_decimals_and_prices.as_mut_slice(),
                 now_ts,
             )
             .unwrap();
 
-        assert!(totalw.iter().all(|&x| x == 0));
+        assert!(target_zc_mut.iter().all(|&x| x.target_base == 0));
         assert_eq!(target_zc_mut.len(), 1);
         assert_eq!(target_zc_mut.get(0).target_base, 0);
         assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
@@ -216,8 +253,17 @@ mod tests {
         };
 
         let price = PRICE_PRECISION_I64;
-        let amm_inventory_and_prices: Vec<(u16, i64, i64)> = vec![(0, BASE_PRECISION_I64, price)];
-        let constituents_indexes_and_decimals_and_prices = vec![(1, 6, price)];
+        let amm_inventory_and_prices: Vec<AmmInventoryAndPrices> = vec![AmmInventoryAndPrices {
+            perp_market_index: 0,
+            inventory: BASE_PRECISION_I64,
+            price,
+        }];
+        let mut constituents_indexes_and_decimals_and_prices =
+            vec![ConstituentIndexAndDecimalAndPrice {
+                constituent_index: 1,
+                decimals: 6,
+                price,
+            }];
         let aum = 1_000_000;
         let now_ts = 1234;
 
@@ -232,25 +278,27 @@ mod tests {
             _marker: PhantomData::<TargetsDatum>,
         };
 
-        let base = target_zc_mut
+        target_zc_mut
             .update_target_base(
                 &mapping_zc,
                 &amm_inventory_and_prices,
-                &constituents_indexes_and_decimals_and_prices,
+                constituents_indexes_and_decimals_and_prices.as_mut_slice(),
                 now_ts,
             )
             .unwrap();
 
         let weight = calculate_target_weight(
-            *base.get(0).unwrap() as i64,
+            target_zc_mut.get(0).target_base as i64,
             &SpotMarket::default(),
             price,
             aum,
-            WeightValidationFlags::NONE,
         )
         .unwrap();
 
-        assert_eq!(*base.get(0).unwrap(), -1 * 10_i128.pow(6_u32));
+        assert_eq!(
+            target_zc_mut.get(0).target_base as i128,
+            -1 * 10_i128.pow(6_u32)
+        );
         assert_eq!(weight, -1000000);
         assert_eq!(target_zc_mut.len(), 1);
         assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
@@ -295,9 +343,23 @@ mod tests {
             }
         };
 
-        let amm_inventory_and_prices: Vec<(u16, i64, i64)> = vec![(0, 1_000_000_000, 1_000_000)];
-        let constituents_indexes_and_decimals_and_prices =
-            vec![(1, 6, 1_000_000), (2, 6, 1_000_000)];
+        let amm_inventory_and_prices: Vec<AmmInventoryAndPrices> = vec![AmmInventoryAndPrices {
+            perp_market_index: 0,
+            inventory: 1_000_000_000,
+            price: 1_000_000,
+        }];
+        let mut constituents_indexes_and_decimals_and_prices = vec![
+            ConstituentIndexAndDecimalAndPrice {
+                constituent_index: 1,
+                decimals: 6,
+                price: 1_000_000,
+            },
+            ConstituentIndexAndDecimalAndPrice {
+                constituent_index: 2,
+                decimals: 6,
+                price: 1_000_000,
+            },
+        ];
 
         let aum = 1_000_000;
         let now_ts = 999;
@@ -317,7 +379,7 @@ mod tests {
             .update_target_base(
                 &mapping_zc,
                 &amm_inventory_and_prices,
-                &constituents_indexes_and_decimals_and_prices,
+                constituents_indexes_and_decimals_and_prices.as_mut_slice(),
                 now_ts,
             )
             .unwrap();
@@ -332,9 +394,8 @@ mod tests {
                     constituents_indexes_and_decimals_and_prices
                         .get(i as usize)
                         .unwrap()
-                        .2,
+                        .price,
                     aum,
-                    WeightValidationFlags::NONE
                 )
                 .unwrap(),
                 -1 * PERCENTAGE_PRECISION_I64 / 2
@@ -371,11 +432,18 @@ mod tests {
             }
         };
 
-        let amm_inventory_and_prices: Vec<(u16, i64, i64)> = vec![(0, 1_000_000, 142_000_000)];
-        let constituents_indexes_and_decimals_and_prices = vec![(1, 6, 142_000_000)];
+        let amm_inventory_and_prices: Vec<AmmInventoryAndPrices> = vec![AmmInventoryAndPrices {
+            perp_market_index: 0,
+            inventory: 1_000_000,
+            price: 142_000_000,
+        }];
+        let mut constituents_indexes_and_decimals_and_prices =
+            vec![ConstituentIndexAndDecimalAndPrice {
+                constituent_index: 1,
+                decimals: 6,
+                price: 142_000_000,
+            }];
 
-        let prices = vec![142_000_000];
-        let aum = 0;
         let now_ts = 111;
 
         let target_fixed = RefCell::new(ConstituentTargetBaseFixed {
@@ -393,7 +461,7 @@ mod tests {
             .update_target_base(
                 &mapping_zc,
                 &amm_inventory_and_prices,
-                &constituents_indexes_and_decimals_and_prices,
+                constituents_indexes_and_decimals_and_prices.as_mut_slice(),
                 now_ts,
             )
             .unwrap();
@@ -402,65 +470,13 @@ mod tests {
         assert_eq!(target_zc_mut.get(0).target_base, -1_000); // despite no aum, desire to reach target
         assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
     }
-
-    #[test]
-    fn test_constituent_fee_to_charge() {
-        let mut constituent = Constituent::default();
-        constituent.swap_fee_min = PERCENTAGE_PRECISION_I64 / 10000; // 1 bps
-        constituent.swap_fee_max = PERCENTAGE_PRECISION_I64 / 1000; // 10 bps;
-        constituent.max_weight_deviation = PERCENTAGE_PRECISION_I64 / 10; // max 10% deviation from target
-
-        // target weight is 50%, push the Constituent to 40% (max below target)
-        let fee = constituent
-            .get_fee_to_charge(
-                PERCENTAGE_PRECISION_I64 * 40 / 100,
-                PERCENTAGE_PRECISION_I64 / 2,
-            )
-            .unwrap();
-        assert_eq!(fee, PERCENTAGE_PRECISION_I64 / 1000); // 10 bps
-
-        // target weight is 50%, push the Constituent to 60% (max above target)
-        let fee = constituent
-            .get_fee_to_charge(
-                PERCENTAGE_PRECISION_I64 * 60 / 100,
-                PERCENTAGE_PRECISION_I64 / 2,
-            )
-            .unwrap();
-        assert_eq!(fee, PERCENTAGE_PRECISION_I64 / 1000); // 10 bps
-
-        // target weight is 50%, push the Constituent to 45% (half to min target)
-        let fee = constituent
-            .get_fee_to_charge(
-                PERCENTAGE_PRECISION_I64 * 45 / 100,
-                PERCENTAGE_PRECISION_I64 / 2,
-            )
-            .unwrap();
-        assert_eq!(fee, PERCENTAGE_PRECISION_I64 * 55 / 100000); // 5.5 bps
-
-        // target weight is 50%, push the Constituent to 55% (half to max target)
-        let fee = constituent
-            .get_fee_to_charge(
-                PERCENTAGE_PRECISION_I64 * 55 / 100,
-                PERCENTAGE_PRECISION_I64 / 2,
-            )
-            .unwrap();
-        assert_eq!(fee, PERCENTAGE_PRECISION_I64 * 55 / 100000); // 5.5 bps
-
-        // target weight is 50%, push the Constituent to 50% (target)
-        let fee = constituent
-            .get_fee_to_charge(
-                PERCENTAGE_PRECISION_I64 * 50 / 100,
-                PERCENTAGE_PRECISION_I64 / 2,
-            )
-            .unwrap();
-        assert_eq!(fee, PERCENTAGE_PRECISION_I64 / 10000); // 1 bps (min fee)
-    }
 }
 
 #[cfg(test)]
 mod swap_tests {
     use crate::math::constants::{
-        PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I64, SPOT_BALANCE_PRECISION,
+        PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I128, PRICE_PRECISION_I64,
+        SPOT_BALANCE_PRECISION,
     };
     use crate::state::lp_pool::*;
 
@@ -538,7 +554,7 @@ mod swap_tests {
             gamma_inventory: in_gamma_inventory,
             xi: in_xi,
             volatility: in_volatility,
-            token_balance: in_token_amount as u64,
+            vault_token_balance: in_token_amount as u64,
             // max_weight_deviation: PERCENTAGE_PRECISION_I64 / 10,
             ..Constituent::default()
         };
@@ -550,7 +566,7 @@ mod swap_tests {
             gamma_inventory: out_gamma_inventory,
             xi: out_xi,
             volatility: out_volatility,
-            token_balance: out_token_amount as u64,
+            vault_token_balance: out_token_amount as u64,
             // max_weight_deviation: PERCENTAGE_PRECISION_I64 / 10,
             ..Constituent::default()
         };
@@ -617,7 +633,7 @@ mod swap_tests {
             150_000_000_000,
             642577120822,
             22500000,
-            281448778,
+            282091356,
             1,
             2,
             1,
@@ -653,168 +669,20 @@ mod swap_tests {
     }
 
     #[test]
-    fn test_get_fee_to_charge_positive_min_fee() {
-        let c = Constituent {
-            swap_fee_min: PERCENTAGE_PRECISION_I64 / 10000, // 1 bps
-            swap_fee_max: PERCENTAGE_PRECISION_I64 / 100,   // 100 bps
-            max_weight_deviation: PERCENTAGE_PRECISION_I64 / 10, // 10%
-            ..Constituent::default()
-        };
-
-        // swapping to target should incur minimum fee
-        let target_weight = PERCENTAGE_PRECISION_I64 / 2; // 50%
-        let post_swap_weight = target_weight; // 50%
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, target_weight)
-            .unwrap();
-        assert_eq!(fee, c.swap_fee_min);
-
-        // positive target: swapping to max deviation above target should incur maximum fee
-        let post_swap_weight = target_weight + c.max_weight_deviation;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, target_weight)
-            .unwrap();
-        assert_eq!(fee, c.swap_fee_max);
-
-        // positive target: swapping to max deviation below target should incur minimum fee
-        let post_swap_weight = target_weight - c.max_weight_deviation;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, target_weight)
-            .unwrap();
-        assert_eq!(fee, c.swap_fee_max);
-
-        // negative target: swapping to max deviation above target should incur maximum fee
-        let post_swap_weight = -1 * target_weight + c.max_weight_deviation;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, -1 * target_weight)
-            .unwrap();
-        assert_eq!(fee, c.swap_fee_max);
-
-        // negative target: swapping to max deviation below target should incur minimum fee
-        let post_swap_weight = -1 * target_weight - c.max_weight_deviation;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, -1 * target_weight)
-            .unwrap();
-        assert_eq!(fee, c.swap_fee_max);
-
-        // positive target: swaps to +max_weight_deviation/2, should incur half of the max fee
-        let post_swap_weight = target_weight + c.max_weight_deviation / 2;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, target_weight)
-            .unwrap();
-        assert_eq!(fee, (c.swap_fee_max + c.swap_fee_min) / 2);
-
-        // positive target: swaps to -max_weight_deviation/2, should incur half of the max fee
-        let post_swap_weight = target_weight - c.max_weight_deviation / 2;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, target_weight)
-            .unwrap();
-        assert_eq!(fee, (c.swap_fee_max + c.swap_fee_min) / 2);
-
-        // negative target: swaps to +max_weight_deviation/2, should incur half of the max fee
-        let post_swap_weight = -1 * target_weight + c.max_weight_deviation / 2;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, -1 * target_weight)
-            .unwrap();
-        assert_eq!(fee, (c.swap_fee_max + c.swap_fee_min) / 2);
-
-        // negative target: swaps to -max_weight_deviation/2, should incur half of the max fee
-        let post_swap_weight = -1 * target_weight - c.max_weight_deviation / 2;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, -1 * target_weight)
-            .unwrap();
-        assert_eq!(fee, (c.swap_fee_max + c.swap_fee_min) / 2);
-    }
-
-    #[test]
-    fn test_get_fee_to_charge_negative_min_fee() {
-        let c = Constituent {
-            swap_fee_min: -1 * PERCENTAGE_PRECISION_I64 / 10000, // -1 bps (rebate)
-            swap_fee_max: PERCENTAGE_PRECISION_I64 / 100,        // 100 bps
-            max_weight_deviation: PERCENTAGE_PRECISION_I64 / 10, // 10%
-            ..Constituent::default()
-        };
-
-        // swapping to target should incur minimum fee
-        let target_weight = PERCENTAGE_PRECISION_I64 / 2; // 50%
-        let post_swap_weight = target_weight; // 50%
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, target_weight)
-            .unwrap();
-        assert_eq!(fee, c.swap_fee_min);
-
-        // positive target: swapping to max deviation above target should incur maximum fee
-        let post_swap_weight = target_weight + c.max_weight_deviation;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, target_weight)
-            .unwrap();
-        assert_eq!(fee, c.swap_fee_max);
-
-        // positive target: swapping to max deviation below target should incur minimum fee
-        let post_swap_weight = target_weight - c.max_weight_deviation;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, target_weight)
-            .unwrap();
-        assert_eq!(fee, c.swap_fee_max);
-
-        // negative target: swapping to max deviation above target should incur maximum fee
-        let post_swap_weight = -1 * target_weight + c.max_weight_deviation;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, -1 * target_weight)
-            .unwrap();
-        assert_eq!(fee, c.swap_fee_max);
-
-        // negative target: swapping to max deviation below target should incur minimum fee
-        let post_swap_weight = -1 * target_weight - c.max_weight_deviation;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, -1 * target_weight)
-            .unwrap();
-        assert_eq!(fee, c.swap_fee_max);
-
-        // positive target: swaps to +max_weight_deviation/2, should incur half of the max fee
-        let post_swap_weight = target_weight + c.max_weight_deviation / 2;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, target_weight)
-            .unwrap();
-        assert_eq!(fee, (c.swap_fee_max + c.swap_fee_min) / 2);
-
-        // positive target: swaps to -max_weight_deviation/2, should incur half of the max fee
-        let post_swap_weight = target_weight - c.max_weight_deviation / 2;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, target_weight)
-            .unwrap();
-        assert_eq!(fee, (c.swap_fee_max + c.swap_fee_min) / 2);
-
-        // negative target: swaps to +max_weight_deviation/2, should incur half of the max fee
-        let post_swap_weight = -1 * target_weight + c.max_weight_deviation / 2;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, -1 * target_weight)
-            .unwrap();
-        assert_eq!(fee, (c.swap_fee_max + c.swap_fee_min) / 2);
-
-        // negative target: swaps to -max_weight_deviation/2, should incur half of the max fee
-        let post_swap_weight = -1 * target_weight - c.max_weight_deviation / 2;
-        let fee = c
-            .get_fee_to_charge(post_swap_weight, -1 * target_weight)
-            .unwrap();
-        assert_eq!(fee, (c.swap_fee_max + c.swap_fee_min) / 2);
-    }
-
-    #[test]
     fn test_get_weight() {
         let c = Constituent {
             swap_fee_min: -1 * PERCENTAGE_PRECISION_I64 / 10000, // -1 bps (rebate)
             swap_fee_max: PERCENTAGE_PRECISION_I64 / 100,        // 100 bps
             max_weight_deviation: PERCENTAGE_PRECISION_I64 / 10, // 10%
             spot_market_index: 0,
-            spot_balance: BLPosition {
+            spot_balance: ConstituentSpotBalance {
                 scaled_balance: 500_000,
                 cumulative_deposits: 1_000_000,
                 balance_type: SpotBalanceType::Deposit,
                 market_index: 0,
-                ..BLPosition::default()
+                ..ConstituentSpotBalance::default()
             },
-            token_balance: 500_000,
+            vault_token_balance: 500_000,
             decimals: 6,
             ..Constituent::default()
         };
@@ -826,7 +694,7 @@ mod swap_tests {
             ..SpotMarket::default()
         };
 
-        let full_balance = c.get_full_balance(&spot_market).unwrap();
+        let full_balance = c.get_full_token_amount(&spot_market).unwrap();
         assert_eq!(full_balance, 1_000_000);
 
         // 1/10 = 10%
@@ -851,49 +719,6 @@ mod swap_tests {
             .get_weight(1_000_000, &spot_market, -500_000, 10_000_000)
             .unwrap();
         assert_eq!(weight, 50_000);
-    }
-
-    fn get_mint_redeem_fee_scenario(now: i64, is_mint: bool, expected_fee: i64) {
-        let lp_pool = LPPool {
-            last_hedge_ts: 0,
-            revenue_rebalance_period: 3600, // hourly
-            max_mint_fee_premium: 2000,     // 20 bps
-            min_mint_fee: 100,              // 1 bps
-            ..LPPool::default()
-        };
-
-        let fee = lp_pool.get_mint_redeem_fee(now, is_mint).unwrap();
-        assert_eq!(fee, expected_fee);
-    }
-
-    #[test]
-    fn test_get_mint_fee_before_dist() {
-        get_mint_redeem_fee_scenario(0, true, 100);
-    }
-
-    #[test]
-    fn test_get_mint_fee_during_dist() {
-        get_mint_redeem_fee_scenario(1800, true, 1100);
-    }
-
-    #[test]
-    fn test_get_mint_fee_after_dist() {
-        get_mint_redeem_fee_scenario(3600, true, 2100);
-    }
-
-    #[test]
-    fn test_get_redeem_fee_before_dist() {
-        get_mint_redeem_fee_scenario(0, false, 2100);
-    }
-
-    #[test]
-    fn test_get_redeem_fee_during_dist() {
-        get_mint_redeem_fee_scenario(1800, false, 1100);
-    }
-
-    #[test]
-    fn test_get_redeem_fee_after_dist() {
-        get_mint_redeem_fee_scenario(3600, false, 100);
     }
 
     fn get_add_liquidity_mint_amount_scenario(
@@ -936,14 +761,14 @@ mod swap_tests {
             swap_fee_max: 0,
             max_weight_deviation: PERCENTAGE_PRECISION_I64 / 10,
             spot_market_index: 0,
-            spot_balance: BLPosition {
+            spot_balance: ConstituentSpotBalance {
                 scaled_balance: 0,
                 cumulative_deposits: 0,
                 balance_type: SpotBalanceType::Deposit,
                 market_index: 0,
-                ..BLPosition::default()
+                ..ConstituentSpotBalance::default()
             },
-            token_balance: token_balance as u64,
+            vault_token_balance: token_balance as u64,
             xi,
             gamma_inventory,
             gamma_execution,
@@ -958,7 +783,6 @@ mod swap_tests {
 
         let (lp_amount, in_amount_1, lp_fee, in_fee_amount) = lp_pool
             .get_add_liquidity_mint_amount(
-                now,
                 &spot_market,
                 &constituent,
                 in_amount,
@@ -1119,14 +943,14 @@ mod swap_tests {
             swap_fee_max: 0,
             max_weight_deviation: PERCENTAGE_PRECISION_I64 / 10,
             spot_market_index: 0,
-            spot_balance: BLPosition {
+            spot_balance: ConstituentSpotBalance {
                 scaled_balance: 0,
                 cumulative_deposits: 0,
                 balance_type: SpotBalanceType::Deposit,
                 market_index: 0,
-                ..BLPosition::default()
+                ..ConstituentSpotBalance::default()
             },
-            token_balance: token_balance as u64,
+            vault_token_balance: token_balance as u64,
             xi,
             gamma_inventory,
             gamma_execution,
@@ -1141,7 +965,6 @@ mod swap_tests {
 
         let (lp_amount_1, out_amount, lp_fee, out_fee_amount) = lp_pool
             .get_remove_liquidity_amount(
-                now,
                 &spot_market,
                 &constituent,
                 lp_burn_amount,
@@ -1307,20 +1130,20 @@ mod swap_tests {
             / PERCENTAGE_PRECISION_I128;
         let in_token_amount = in_notional * 10_i128.pow(6) / oracle_0.price as i128;
         let in_spot_balance = if in_token_amount > 0 {
-            BLPosition {
+            ConstituentSpotBalance {
                 scaled_balance: (in_token_amount.abs() as u128)
                     * (SPOT_BALANCE_PRECISION / 10_u128.pow(6)),
                 balance_type: SpotBalanceType::Deposit,
                 market_index: 0,
-                ..BLPosition::default()
+                ..ConstituentSpotBalance::default()
             }
         } else {
-            BLPosition {
+            ConstituentSpotBalance {
                 scaled_balance: (in_token_amount.abs() as u128)
                     * (SPOT_BALANCE_PRECISION / 10_u128.pow(6)),
                 balance_type: SpotBalanceType::Borrow,
                 market_index: 0,
-                ..BLPosition::default()
+                ..ConstituentSpotBalance::default()
             }
         };
 
@@ -1328,20 +1151,20 @@ mod swap_tests {
             / PERCENTAGE_PRECISION_I128;
         let out_token_amount = out_notional * 10_i128.pow(6) / oracle_1.price as i128;
         let out_spot_balance = if out_token_amount > 0 {
-            BLPosition {
+            ConstituentSpotBalance {
                 scaled_balance: (out_token_amount.abs() as u128)
                     * (SPOT_BALANCE_PRECISION / 10_u128.pow(6)),
                 balance_type: SpotBalanceType::Deposit,
                 market_index: 0,
-                ..BLPosition::default()
+                ..ConstituentSpotBalance::default()
             }
         } else {
-            BLPosition {
+            ConstituentSpotBalance {
                 scaled_balance: (out_token_amount.abs() as u128)
                     * (SPOT_BALANCE_PRECISION / 10_u128.pow(6)),
                 balance_type: SpotBalanceType::Deposit,
                 market_index: 0,
-                ..BLPosition::default()
+                ..ConstituentSpotBalance::default()
             }
         };
 
@@ -1665,12 +1488,14 @@ mod swap_fee_tests {
             ..LPPool::default()
         };
 
+        let trade_ratio = 5_000_000 * QUOTE_PRECISION_I128 * PERCENTAGE_PRECISION_I128
+            / (15_000_000 * QUOTE_PRECISION_I128);
+
         let fee_execution_linear = lp_pool
             .get_linear_fee_execution(
-                5_000_000 * QUOTE_PRECISION_I128,
+                trade_ratio,
                 1600, // 0.0016
                 2,
-                15_000_000 * QUOTE_PRECISION,
             )
             .unwrap();
 
@@ -1684,12 +1509,14 @@ mod swap_fee_tests {
             ..LPPool::default()
         };
 
+        let trade_ratio = 5_000_000 * QUOTE_PRECISION_I128 * PERCENTAGE_PRECISION_I128
+            / (15_000_000 * QUOTE_PRECISION_I128);
+
         let fee_execution_quadratic = lp_pool
             .get_quadratic_fee_execution(
-                5_000_000 * QUOTE_PRECISION_I128,
+                trade_ratio,
                 1600, // 0.0016
                 2,
-                15_000_000 * QUOTE_PRECISION,
             )
             .unwrap();
 
@@ -1729,7 +1556,7 @@ mod settle_tests {
         calculate_settlement_amount, update_cache_info, SettlementContext, SettlementDirection,
         SettlementResult,
     };
-    use crate::state::perp_market::CacheInfo;
+    use crate::state::amm_cache::CacheInfo;
     use crate::state::spot_market::SpotMarket;
 
     fn create_mock_spot_market() -> SpotMarket {
@@ -1744,6 +1571,7 @@ mod settle_tests {
             fee_pool_balance: 500,
             pnl_pool_balance: 300,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -1759,6 +1587,7 @@ mod settle_tests {
             fee_pool_balance: 300,
             pnl_pool_balance: 200,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -1776,6 +1605,7 @@ mod settle_tests {
             fee_pool_balance: 300,
             pnl_pool_balance: 200,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -1791,6 +1621,7 @@ mod settle_tests {
             fee_pool_balance: 300,
             pnl_pool_balance: 200,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -1806,6 +1637,7 @@ mod settle_tests {
             fee_pool_balance: 800,
             pnl_pool_balance: 200,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -1823,6 +1655,7 @@ mod settle_tests {
             fee_pool_balance: 300,
             pnl_pool_balance: 800,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -1840,6 +1673,7 @@ mod settle_tests {
             fee_pool_balance: 300,
             pnl_pool_balance: 200,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -1858,6 +1692,7 @@ mod settle_tests {
             fee_pool_balance: 0,
             pnl_pool_balance: 800,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -1872,6 +1707,7 @@ mod settle_tests {
             fee_pool_balance: 300,
             pnl_pool_balance: 0,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -1899,14 +1735,15 @@ mod settle_tests {
         };
         let new_quote_owed = cache.quote_owed_from_lp_pool + result.amount_transferred as i64;
         let ts = 99;
+        let slot = 100;
 
-        update_cache_info(&mut cache, &result, new_quote_owed, ts).unwrap();
+        update_cache_info(&mut cache, &result, new_quote_owed, slot, ts).unwrap();
 
         // quote_owed updated
         assert_eq!(cache.quote_owed_from_lp_pool, new_quote_owed);
         // settle fields updated
         assert_eq!(cache.last_settle_amount, 200);
-        assert_eq!(cache.last_settle_slot, ts);
+        assert_eq!(cache.last_settle_slot, slot);
         // fee pool decreases by fee_pool_used
         assert_eq!(cache.last_fee_pool_token_amount, 2_000 - 120);
         // pnl pool decreases by pnl_pool_used
@@ -1932,14 +1769,15 @@ mod settle_tests {
         };
         let new_quote_owed = cache.quote_owed_from_lp_pool - result.amount_transferred as i64;
         let ts = 42;
+        let slot = 100;
 
-        update_cache_info(&mut cache, &result, new_quote_owed, ts).unwrap();
+        update_cache_info(&mut cache, &result, new_quote_owed, slot, ts).unwrap();
 
         // quote_owed updated
         assert_eq!(cache.quote_owed_from_lp_pool, new_quote_owed);
         // settle fields updated
         assert_eq!(cache.last_settle_amount, 150);
-        assert_eq!(cache.last_settle_slot, ts);
+        assert_eq!(cache.last_settle_slot, slot);
         // fee pool increases by amount_transferred
         assert_eq!(cache.last_fee_pool_token_amount, 1_000 + 150);
         // pnl pool untouched
@@ -1955,6 +1793,7 @@ mod settle_tests {
             fee_pool_balance: u128::MAX / 4,
             pnl_pool_balance: u128::MAX / 4,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -1970,6 +1809,7 @@ mod settle_tests {
             fee_pool_balance: u128::MAX / 4,
             pnl_pool_balance: u128::MAX / 4,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -1986,6 +1826,7 @@ mod settle_tests {
             fee_pool_balance: 500,
             pnl_pool_balance: 300,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -1999,6 +1840,7 @@ mod settle_tests {
             fee_pool_balance: 500,
             pnl_pool_balance: 300,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -2017,6 +1859,7 @@ mod settle_tests {
             fee_pool_balance: 1,
             pnl_pool_balance: 1,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -2030,6 +1873,7 @@ mod settle_tests {
             fee_pool_balance: 1,
             pnl_pool_balance: 0,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -2047,6 +1891,7 @@ mod settle_tests {
             fee_pool_balance: 0,
             pnl_pool_balance: 0,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -2075,14 +1920,15 @@ mod settle_tests {
         };
         let new_quote_owed = 100; // No change
         let ts = 67890;
+        let slot = 100000000;
 
-        update_cache_info(&mut cache, &result, new_quote_owed, ts).unwrap();
+        update_cache_info(&mut cache, &result, new_quote_owed, slot, ts).unwrap();
 
         // quote_owed unchanged
         assert_eq!(cache.quote_owed_from_lp_pool, 100);
         // settle fields updated with new timestamp but zero amount
         assert_eq!(cache.last_settle_amount, 0);
-        assert_eq!(cache.last_settle_slot, ts);
+        assert_eq!(cache.last_settle_slot, slot);
         // pool amounts unchanged
         assert_eq!(cache.last_fee_pool_token_amount, 1000);
         assert_eq!(cache.last_net_pnl_pool_token_amount, 500);
@@ -2107,8 +1953,9 @@ mod settle_tests {
         };
         let new_quote_owed = cache.quote_owed_from_lp_pool - (result.amount_transferred as i64);
         let slot = u64::MAX / 2;
+        let ts = i64::MAX / 2;
 
-        let update_result = update_cache_info(&mut cache, &result, new_quote_owed, slot);
+        let update_result = update_cache_info(&mut cache, &result, new_quote_owed, slot, ts);
         assert!(update_result.is_ok());
     }
 
@@ -2130,9 +1977,10 @@ mod settle_tests {
             pnl_pool_used: 300,
         };
         let new_quote_owed = cache.quote_owed_from_lp_pool + (result.amount_transferred as i64);
+        let slot = u64::MAX / 2;
         let ts = 42;
 
-        let update_result = update_cache_info(&mut cache, &result, new_quote_owed, ts);
+        let update_result = update_cache_info(&mut cache, &result, new_quote_owed, slot, ts);
         assert!(update_result.is_ok());
     }
 
@@ -2155,7 +2003,7 @@ mod settle_tests {
             pnl_pool_used: 0,
         };
         let new_quote_owed1 = cache.quote_owed_from_lp_pool - (result1.amount_transferred as i64);
-        update_cache_info(&mut cache, &result1, new_quote_owed1, 100).unwrap();
+        update_cache_info(&mut cache, &result1, new_quote_owed1, 101010101, 100).unwrap();
 
         assert_eq!(cache.quote_owed_from_lp_pool, 700);
         assert_eq!(cache.last_fee_pool_token_amount, 5300);
@@ -2169,12 +2017,12 @@ mod settle_tests {
             pnl_pool_used: 150,
         };
         let new_quote_owed2 = cache.quote_owed_from_lp_pool + (result2.amount_transferred as i64);
-        update_cache_info(&mut cache, &result2, new_quote_owed2, 200).unwrap();
+        update_cache_info(&mut cache, &result2, new_quote_owed2, 10101010, 200).unwrap();
 
         assert_eq!(cache.quote_owed_from_lp_pool, 1100);
         assert_eq!(cache.last_fee_pool_token_amount, 5050);
         assert_eq!(cache.last_net_pnl_pool_token_amount, 2850);
-        assert_eq!(cache.last_settle_slot, 200);
+        assert_eq!(cache.last_settle_slot, 10101010);
     }
 
     #[test]
@@ -2185,6 +2033,7 @@ mod settle_tests {
             fee_pool_balance: 0, // No fee pool
             pnl_pool_balance: 1200,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -2195,6 +2044,42 @@ mod settle_tests {
     }
 
     #[test]
+    fn test_perp_to_lp_capped_with_max() {
+        let ctx = SettlementContext {
+            quote_owed_from_lp: -1100,
+            quote_constituent_token_balance: 2000,
+            fee_pool_balance: 500, // No fee pool
+            pnl_pool_balance: 700,
+            quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 1000,
+        };
+
+        let result = calculate_settlement_amount(&ctx).unwrap();
+        assert_eq!(result.direction, SettlementDirection::ToLpPool);
+        assert_eq!(result.amount_transferred, 1000);
+        assert_eq!(result.fee_pool_used, 500);
+        assert_eq!(result.pnl_pool_used, 500);
+    }
+
+    #[test]
+    fn test_lp_to_perp_capped_with_max() {
+        let ctx = SettlementContext {
+            quote_owed_from_lp: 1100,
+            quote_constituent_token_balance: 2000,
+            fee_pool_balance: 0, // No fee pool
+            pnl_pool_balance: 1200,
+            quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 1000,
+        };
+
+        let result = calculate_settlement_amount(&ctx).unwrap();
+        assert_eq!(result.direction, SettlementDirection::FromLpPool);
+        assert_eq!(result.amount_transferred, 1000);
+        assert_eq!(result.fee_pool_used, 0);
+        assert_eq!(result.pnl_pool_used, 0);
+    }
+
+    #[test]
     fn test_perp_to_lp_with_only_fee_pool() {
         let ctx = SettlementContext {
             quote_owed_from_lp: -800,
@@ -2202,6 +2087,7 @@ mod settle_tests {
             fee_pool_balance: 1000,
             pnl_pool_balance: 0, // No PnL pool
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -2220,6 +2106,7 @@ mod settle_tests {
             fee_pool_balance: 300,
             pnl_pool_balance: 500,
             quote_market: &create_mock_spot_market(),
+            max_settle_quote_amount: 10000,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
@@ -2239,6 +2126,7 @@ mod settle_tests {
                 fee_pool_balance: 300,
                 pnl_pool_balance: 200,
                 quote_market: &create_mock_spot_market(),
+                max_settle_quote_amount: 10000,
             };
 
             let result = calculate_settlement_amount(&ctx).unwrap();
@@ -2256,6 +2144,7 @@ mod settle_tests {
                 fee_pool_balance: 300,
                 pnl_pool_balance: 200,
                 quote_market: &create_mock_spot_market(),
+                max_settle_quote_amount: 10000,
             };
 
             let result = calculate_settlement_amount(&ctx).unwrap();
@@ -2280,8 +2169,8 @@ mod settle_tests {
                 pnl_pool_used: 0,
             };
 
-            update_cache_info(&mut cache, &result, 0, ts).unwrap();
-            assert_eq!(cache.last_settle_slot, ts);
+            update_cache_info(&mut cache, &result, 0, 1010101, ts).unwrap();
+            assert_eq!(cache.last_settle_ts, ts);
             assert_eq!(cache.last_settle_amount, 100);
         }
     }
@@ -2303,6 +2192,7 @@ mod settle_tests {
                 fee_pool_balance: fee_pool,
                 pnl_pool_balance: pnl_pool,
                 quote_market: &create_mock_spot_market(),
+                max_settle_quote_amount: 10000,
             };
 
             let result = calculate_settlement_amount(&ctx).unwrap();
@@ -2356,7 +2246,7 @@ mod settle_tests {
                 SettlementDirection::None => {}
             }
 
-            update_cache_info(&mut cache, &result, 0, 1000).unwrap();
+            update_cache_info(&mut cache, &result, 0, 1000, 0).unwrap();
 
             assert_eq!(cache.last_fee_pool_token_amount, expected_fee_pool);
             assert_eq!(cache.last_net_pnl_pool_token_amount, expected_pnl_pool);
@@ -2370,10 +2260,10 @@ mod update_aum_tests {
         create_anchor_account_info,
         math::constants::SPOT_CUMULATIVE_INTEREST_PRECISION,
         math::constants::{PRICE_PRECISION_I64, QUOTE_PRECISION},
+        state::amm_cache::{AmmCacheFixed, CacheInfo},
         state::lp_pool::*,
         state::oracle::HistoricalOracleData,
         state::oracle::OracleSource,
-        state::perp_market::{AmmCacheFixed, CacheInfo},
         state::spot_market::SpotMarket,
         state::spot_market_map::SpotMarketMap,
         state::zero_copy::AccountZeroCopyMut,
@@ -2392,7 +2282,7 @@ mod update_aum_tests {
     ) {
         let mut lp_pool = LPPool::default();
         lp_pool.constituents = 4;
-        lp_pool.usdc_consituent_index = 0;
+        lp_pool.quote_consituent_index = 0;
 
         // Create constituents with specified token balances
         let mut constituent_usdc = Constituent {
@@ -2402,7 +2292,7 @@ mod update_aum_tests {
             last_oracle_price: PRICE_PRECISION_I64,
             last_oracle_slot: 100,
             decimals: 6,
-            token_balance: usdc_balance,
+            vault_token_balance: usdc_balance,
             oracle_staleness_threshold: 10,
             ..Constituent::default()
         };
@@ -2415,7 +2305,7 @@ mod update_aum_tests {
             last_oracle_price: 200 * PRICE_PRECISION_I64,
             last_oracle_slot: 100,
             decimals: 9,
-            token_balance: sol_balance,
+            vault_token_balance: sol_balance,
             oracle_staleness_threshold: 10,
             ..Constituent::default()
         };
@@ -2428,7 +2318,7 @@ mod update_aum_tests {
             last_oracle_price: 100_000 * PRICE_PRECISION_I64,
             last_oracle_slot: 100,
             decimals: 8,
-            token_balance: btc_balance,
+            vault_token_balance: btc_balance,
             oracle_staleness_threshold: 10,
             ..Constituent::default()
         };
@@ -2441,7 +2331,7 @@ mod update_aum_tests {
             last_oracle_price: 22, // $0.000022 in PRICE_PRECISION_I64
             last_oracle_slot: 100,
             decimals: 5,
-            token_balance: bonk_balance,
+            vault_token_balance: bonk_balance,
             oracle_staleness_threshold: 10,
             ..Constituent::default()
         };
@@ -2534,8 +2424,7 @@ mod update_aum_tests {
 
         // Call update_aum
         let result = lp_pool.update_aum(
-            1000, // now (timestamp)
-            101,  // slot
+            101, // slot
             &constituent_map,
             &spot_market_map,
             &constituent_target_base,
@@ -2586,11 +2475,6 @@ mod update_aum_tests {
         assert_eq!(
             lp_pool.last_aum_slot, 101,
             "{}: last_aum_slot should be updated",
-            test_name
-        );
-        assert_eq!(
-            lp_pool.last_aum_ts, 1000,
-            "{}: last_aum_ts should be updated",
             test_name
         );
     }

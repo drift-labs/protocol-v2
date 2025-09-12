@@ -1,46 +1,38 @@
-use crate::math::spot_balance::get_token_amount;
 use crate::state::pyth_lazer_oracle::PythLazerOracle;
 use crate::state::user::MarketType;
-use crate::state::zero_copy::{AccountZeroCopy, AccountZeroCopyMut};
-use crate::{impl_zero_copy_loader, validate};
 use anchor_lang::prelude::*;
 
 use crate::state::state::{State, ValidityGuardRails};
 use std::cmp::max;
-use std::convert::TryFrom;
 
-use crate::controller::position::{PositionDelta, PositionDirection};
+use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
-use crate::math::amm::{self, calculate_net_user_pnl};
+use crate::math::amm::{self};
 use crate::math::casting::Cast;
 #[cfg(test)]
 use crate::math::constants::{AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT};
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION_I128, AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION,
-    BID_ASK_SPREAD_PRECISION_I128, BID_ASK_SPREAD_PRECISION_U128,
-    DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT, FUNDING_RATE_BUFFER_I128,
-    FUNDING_RATE_OFFSET_PERCENTAGE, LIQUIDATION_FEE_PRECISION,
-    LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, LP_FEE_SLICE_DENOMINATOR, LP_FEE_SLICE_NUMERATOR,
-    MARGIN_PRECISION, MARGIN_PRECISION_U128, MAX_LIQUIDATION_MULTIPLIER, PEG_PRECISION,
-    PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
-    PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128, PRICE_PRECISION_I64,
+    AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
+    BID_ASK_SPREAD_PRECISION_U128, DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
+    FUNDING_RATE_BUFFER_I128, FUNDING_RATE_OFFSET_PERCENTAGE, LIQUIDATION_FEE_PRECISION,
+    LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, MARGIN_PRECISION, MARGIN_PRECISION_U128,
+    MAX_LIQUIDATION_MULTIPLIER, PEG_PRECISION, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128,
+    PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128,
     SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
 };
-use crate::math::helpers::get_proportion_i128;
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::stats;
-use crate::state::events::OrderActionExplanation;
 use num_integer::Roots;
 
 use crate::state::oracle::{
     get_prelaunch_price, get_sb_on_demand_price, get_switchboard_price, HistoricalOracleData,
     MMOraclePriceData, OraclePriceData, OracleSource,
 };
-use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType, SpotMarket};
+use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType};
 use crate::state::traits::{MarketIndexOffset, Size};
 use borsh::{BorshDeserialize, BorshSerialize};
 
@@ -50,7 +42,6 @@ use static_assertions::const_assert_eq;
 
 use super::oracle_map::OracleIdentifier;
 use super::protected_maker_mode_config::ProtectedMakerParams;
-use super::zero_copy::HasLen;
 use crate::math::oracle::{oracle_validity, LogMode, OracleValidity};
 
 #[cfg(test)]
@@ -93,6 +84,23 @@ impl MarketStatus {
         } else {
             Ok(())
         }
+    }
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
+pub enum LpStatus {
+    /// Not considered
+    #[default]
+    Uncollateralized,
+    /// all operations allowed
+    Active,
+    /// Decommissioning
+    Decommissioning,
+}
+
+impl LpStatus {
+    pub fn is_collateralized(&self) -> bool {
+        !matches!(self, LpStatus::Uncollateralized)
     }
 }
 
@@ -243,7 +251,8 @@ pub struct PerpMarket {
     pub protected_maker_dynamic_divisor: u8,
     pub lp_fee_transfer_scalar: u8,
     pub lp_status: u8,
-    pub padding1: u16,
+    pub lp_paused_operations: u8,
+    pub lp_exchange_fee_excluscion_scalar: u8,
     pub last_fill_price: u64,
     pub padding: [u8; 24],
 }
@@ -287,9 +296,10 @@ impl Default for PerpMarket {
             high_leverage_margin_ratio_maintenance: 0,
             protected_maker_limit_price_divisor: 0,
             protected_maker_dynamic_divisor: 0,
-            lp_fee_transfer_scalar: 1,
+            lp_fee_transfer_scalar: 0,
             lp_status: 0,
-            padding1: 0,
+            lp_exchange_fee_excluscion_scalar: 0,
+            lp_paused_operations: 0,
             last_fill_price: 0,
             padding: [0; 24],
         }
@@ -735,7 +745,7 @@ impl PerpMarket {
 
         let last_fill_price = self.last_fill_price;
 
-        let mark_price_5min_twap = self.amm.last_mark_price_twap_5min;
+        let mark_price_5min_twap = self.amm.last_mark_price_twap;
         let last_oracle_price_twap_5min =
             self.amm.historical_oracle_data.last_oracle_price_twap_5min;
 
@@ -750,10 +760,6 @@ impl PerpMarket {
         let oracle_plus_funding_basis = oracle_price.safe_add(last_funding_basis)?.cast::<u64>()?;
 
         let median_price = if last_fill_price > 0 {
-            println!(
-                "last_fill_price: {} oracle_plus_funding_basis: {} oracle_plus_basis_5min: {}",
-                last_fill_price, oracle_plus_funding_basis, oracle_plus_basis_5min
-            );
             let mut prices = [
                 last_fill_price,
                 oracle_plus_funding_basis,
@@ -1635,6 +1641,8 @@ impl AMM {
 #[cfg(test)]
 impl AMM {
     pub fn default_test() -> Self {
+        use crate::math::constants::PRICE_PRECISION_I64;
+
         let default_reserves = 100 * AMM_RESERVE_PRECISION;
         // make sure tests dont have the default sqrt_k = 0
         AMM {
@@ -1660,6 +1668,8 @@ impl AMM {
     }
 
     pub fn default_btc_test() -> Self {
+        use crate::math::constants::PRICE_PRECISION_I64;
+
         AMM {
             base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 63015384615,
@@ -1693,229 +1703,5 @@ impl AMM {
             last_oracle_valid: true,
             ..AMM::default()
         }
-    }
-}
-
-pub const AMM_POSITIONS_CACHE: &str = "amm_positions_cache";
-
-#[account]
-#[derive(Debug)]
-#[repr(C)]
-pub struct AmmCache {
-    pub bump: u8,
-    _padding: [u8; 3],
-    pub cache: Vec<CacheInfo>,
-}
-
-#[zero_copy]
-#[derive(AnchorSerialize, AnchorDeserialize, Debug)]
-#[repr(C)]
-pub struct CacheInfo {
-    pub last_fee_pool_token_amount: u128,
-    pub last_net_pnl_pool_token_amount: i128,
-    /// BASE PRECISION
-    pub position: i64,
-    pub slot: u64,
-    pub max_confidence_interval_multiplier: u64,
-    pub last_oracle_price_twap: i64,
-    pub last_settle_amount: u64,
-    pub last_settle_slot: u64,
-    pub quote_owed_from_lp_pool: i64,
-    pub oracle_price: i64,
-    pub oracle_confidence: u64,
-    pub oracle_delay: i64,
-    pub oracle_slot: u64,
-    pub oracle_source: u8,
-    pub _padding: [u8; 7],
-    pub oracle: Pubkey,
-}
-
-impl Size for CacheInfo {
-    const SIZE: usize = 160 + 8 + 8 + 8;
-}
-
-impl Default for CacheInfo {
-    fn default() -> Self {
-        CacheInfo {
-            position: 0i64,
-            slot: 0u64,
-            max_confidence_interval_multiplier: 1u64,
-            last_oracle_price_twap: 0i64,
-            oracle_price: 0i64,
-            oracle_confidence: 0u64,
-            oracle_delay: 0i64,
-            oracle_slot: 0u64,
-            _padding: [0u8; 7],
-            oracle: Pubkey::default(),
-            last_fee_pool_token_amount: 0u128,
-            last_net_pnl_pool_token_amount: 0i128,
-            last_settle_amount: 0u64,
-            last_settle_slot: 0u64,
-            oracle_source: 0u8,
-            quote_owed_from_lp_pool: 0i64,
-        }
-    }
-}
-
-impl CacheInfo {
-    pub fn get_oracle_source(&self) -> DriftResult<OracleSource> {
-        Ok(OracleSource::try_from(self.oracle_source)?)
-    }
-
-    pub fn oracle_id(&self) -> DriftResult<OracleIdentifier> {
-        let oracle_source = self.get_oracle_source()?;
-        Ok((self.oracle, oracle_source))
-    }
-
-    pub fn get_last_available_amm_balance(&self) -> DriftResult<i128> {
-        let last_available_balance = self
-            .last_fee_pool_token_amount
-            .cast::<i128>()?
-            .safe_add(self.last_net_pnl_pool_token_amount)?;
-        Ok(last_available_balance)
-    }
-}
-
-#[zero_copy]
-#[derive(Default, Debug)]
-#[repr(C)]
-pub struct AmmCacheFixed {
-    pub bump: u8,
-    _pad: [u8; 3],
-    pub len: u32,
-}
-
-impl HasLen for AmmCacheFixed {
-    fn len(&self) -> u32 {
-        self.len
-    }
-}
-
-impl AmmCache {
-    pub fn space(num_markets: usize) -> usize {
-        8 + 8 + 4 + num_markets * CacheInfo::SIZE
-    }
-
-    pub fn validate(&self, state: &State) -> DriftResult<()> {
-        validate!(
-            self.cache.len() == state.number_of_markets as usize,
-            ErrorCode::DefaultError,
-            "Number of amm positions is different than number of markets"
-        )?;
-        Ok(())
-    }
-}
-
-impl_zero_copy_loader!(AmmCache, crate::id, AmmCacheFixed, CacheInfo);
-
-impl<'a> AccountZeroCopy<'a, CacheInfo, AmmCacheFixed> {
-    pub fn check_settle_staleness(&self, slot: u64, threshold_slot_diff: u64) -> DriftResult<()> {
-        for (i, cache_info) in self.iter().enumerate() {
-            if cache_info.slot == 0 {
-                continue;
-            }
-            if cache_info.last_settle_slot < slot.saturating_sub(threshold_slot_diff) {
-                msg!("AMM settle data is stale for perp market {}", i);
-                return Err(ErrorCode::AMMCacheStale.into());
-            }
-        }
-        Ok(())
-    }
-
-    pub fn check_perp_market_staleness(&self, slot: u64, threshold: u64) -> DriftResult<()> {
-        for (i, cache_info) in self.iter().enumerate() {
-            if cache_info.slot == 0 {
-                continue;
-            }
-            if cache_info.slot < slot.saturating_sub(threshold) {
-                msg!("Perp market cache info is stale for perp market {}", i);
-                return Err(ErrorCode::AMMCacheStale.into());
-            }
-        }
-        Ok(())
-    }
-
-    pub fn check_oracle_staleness(&self, slot: u64, threshold: u64) -> DriftResult<()> {
-        for (i, cache_info) in self.iter().enumerate() {
-            if cache_info.slot == 0 {
-                continue;
-            }
-            if cache_info.oracle_slot < slot.saturating_sub(threshold) {
-                msg!(
-                    "Perp market cache info is stale for perp market {}. oracle slot: {}, slot: {}",
-                    i,
-                    cache_info.oracle_slot,
-                    slot
-                );
-                return Err(ErrorCode::AMMCacheStale.into());
-            }
-        }
-        Ok(())
-    }
-}
-
-impl<'a> AccountZeroCopyMut<'a, CacheInfo, AmmCacheFixed> {
-    pub fn update_amount_owed_from_lp_pool(
-        &mut self,
-        perp_market: &PerpMarket,
-        quote_market: &SpotMarket,
-    ) -> DriftResult<()> {
-        if perp_market.lp_fee_transfer_scalar == 0 {
-            msg!(
-                "lp_fee_transfer_scalar is 0 for perp market {}. not updating quote amount owed in cache",
-                perp_market.market_index
-            );
-            return Ok(());
-        }
-
-        let cached_info = self.get_mut(perp_market.market_index as u32);
-
-        let fee_pool_token_amount = get_token_amount(
-            perp_market.amm.fee_pool.scaled_balance,
-            &quote_market,
-            perp_market.amm.fee_pool.balance_type(),
-        )?;
-
-        let net_pnl_pool_token_amount = get_token_amount(
-            perp_market.pnl_pool.scaled_balance,
-            &quote_market,
-            perp_market.pnl_pool.balance_type(),
-        )?
-        .cast::<i128>()?
-        .safe_sub(calculate_net_user_pnl(
-            &perp_market.amm,
-            cached_info.oracle_price,
-        )?)?;
-
-        let amm_amount_available =
-            net_pnl_pool_token_amount.safe_add(fee_pool_token_amount.cast::<i128>()?)?;
-
-        if cached_info.last_net_pnl_pool_token_amount == 0
-            && cached_info.last_fee_pool_token_amount == 0
-        {
-            cached_info.last_fee_pool_token_amount = fee_pool_token_amount;
-            cached_info.last_net_pnl_pool_token_amount = net_pnl_pool_token_amount;
-            return Ok(());
-        }
-
-        let amount_to_send = amm_amount_available
-            .abs_diff(cached_info.get_last_available_amm_balance()?)
-            .safe_div_ceil(perp_market.lp_fee_transfer_scalar as u128)?
-            .cast::<u64>()?;
-
-        if amm_amount_available < cached_info.get_last_available_amm_balance()? {
-            cached_info.quote_owed_from_lp_pool = cached_info
-                .quote_owed_from_lp_pool
-                .safe_add(amount_to_send.cast::<i64>()?)?;
-        } else {
-            cached_info.quote_owed_from_lp_pool = cached_info
-                .quote_owed_from_lp_pool
-                .safe_sub(amount_to_send.cast::<i64>()?)?;
-        }
-
-        cached_info.last_fee_pool_token_amount = fee_pool_token_amount;
-        cached_info.last_net_pnl_pool_token_amount = net_pnl_pool_token_amount;
-
-        Ok(())
     }
 }

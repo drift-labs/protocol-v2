@@ -864,6 +864,7 @@ export type PerpMarketAccount = {
 	lastFillPrice: BN;
 
 	lpFeeTransferScalar: number;
+	lpExchangeFeeExcluscionScalar: number;
 	lpStatus: number;
 };
 
@@ -1632,54 +1633,6 @@ export type SignedMsgUserOrdersAccount = {
 	signedMsgOrderData: SignedMsgOrderId[];
 };
 
-export type RevenueShareAccount = {
-	authority: PublicKey;
-	totalReferrerRewards: BN;
-	totalBuilderRewards: BN;
-	padding: number[];
-};
-
-export type RevenueShareEscrowAccount = {
-	authority: PublicKey;
-	referrer: PublicKey;
-	referrerBoostExpireTs: number;
-	referrerRewardOffset: number;
-	refereeFeeNumeratorOffset: number;
-	referrerBoostNumerator: number;
-	reservedFixed: number[];
-	orders: RevenueShareOrder[];
-	approvedBuilders: BuilderInfo[];
-};
-
-export type RevenueShareOrder = {
-	builderIdx: number;
-	feesAccrued: BN;
-	orderId: number;
-	feeTenthBps: number;
-	marketIndex: number;
-	bitFlags: number;
-	marketType: MarketType; // 0: spot, 1: perp
-	padding: number[];
-};
-
-export type BuilderInfo = {
-	authority: PublicKey;
-	maxFeeTenthBps: number;
-	padding: number[];
-};
-
-export type RevenueShareSettleRecord = {
-	ts: number;
-	builder: PublicKey | null;
-	referrer: PublicKey | null;
-	feeSettled: BN;
-	marketIndex: number;
-	marketType: MarketType;
-	builderTotalReferrerRewards: BN;
-	builderTotalBuilderRewards: BN;
-	builderSubAccountId: number;
-};
-
 export type AddAmmConstituentMappingDatum = {
 	constituentIndex: number;
 	perpMarketIndex: number;
@@ -1717,17 +1670,14 @@ export type LPPoolAccount = {
 	lastAumTs: BN;
 	lastHedgeTs: BN;
 	bump: number;
-	oldestOracleSlot: BN;
-	lastRevenueRebalanceTs: BN;
-	totalFeesReceived: BN;
-	totalFeesPaid: BN;
 	totalMintRedeemFeesPaid: BN;
-	cumulativeUsdcSentToPerpMarkets: BN;
-	cumulativeUsdcReceivedFromPerpMarkets: BN;
+	cumulativeQuoteSentToPerpMarkets: BN;
+	cumulativeQuoteReceivedFromPerpMarkets: BN;
 	constituents: number;
+	whitelistMint: PublicKey;
 };
 
-export type BLPosition = {
+export type ConstituentSpotBalance = {
 	scaledBalance: BN;
 	cumulativeDeposits: BN;
 	marketIndex: number;
@@ -1753,6 +1703,17 @@ export type InitializeConstituentParams = {
 	xi?: number;
 };
 
+export enum ConstituentStatus {
+	ACTIVE = 0,
+	REDUCE_ONLY = 1,
+	DECOMMISSIONED = 2,
+}
+export enum ConstituentLpOperation {
+	Swap = 0b00000001,
+	Deposit = 0b00000010,
+	Withdraw = 0b00000100,
+}
+
 export type ConstituentAccount = {
 	pubkey: PublicKey;
 	spotMarketIndex: number;
@@ -1765,17 +1726,19 @@ export type ConstituentAccount = {
 	swapFeeMin: BN;
 	swapFeeMax: BN;
 	totalSwapFees: BN;
-	tokenBalance: BN;
-	spotBalance: BLPosition;
+	vaultTokenBalance: BN;
+	spotBalance: ConstituentSpotBalance;
 	lastOraclePrice: BN;
 	lastOracleSlot: BN;
 	mint: PublicKey;
 	oracleStalenessThreshold: BN;
 	lpPool: PublicKey;
-	tokenVault: PublicKey;
+	vault: PublicKey;
 	nextSwapId: BN;
 	derivativeWeight: BN;
 	flashLoanInitialTokenAmount: BN;
+	status: number;
+	pausedOperations: number;
 };
 
 export type CacheInfo = {
@@ -1788,6 +1751,7 @@ export type CacheInfo = {
 	oraclePrice: BN;
 	oracleDelay: BN;
 	oracleConfidence: BN;
+	lastExchangeFees: BN;
 	lastFeePoolTokenAmount: BN;
 	lastNetPnlPoolTokenAmount: BN;
 	lastSettleAmount: BN;

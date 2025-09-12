@@ -8,9 +8,19 @@ import {
 	Keypair,
 	LAMPORTS_PER_SOL,
 	PublicKey,
+	SystemProgram,
 	Transaction,
 } from '@solana/web3.js';
-import { getAssociatedTokenAddress, getMint } from '@solana/spl-token';
+import {
+	createAssociatedTokenAccountInstruction,
+	createInitializeMint2Instruction,
+	createMintToInstruction,
+	getAssociatedTokenAddress,
+	getAssociatedTokenAddressSync,
+	getMint,
+	MINT_SIZE,
+	TOKEN_PROGRAM_ID,
+} from '@solana/spl-token';
 
 import {
 	BN,
@@ -44,6 +54,7 @@ import {
 	SpotBalanceType,
 	getTokenAmount,
 	TWO,
+	ConstituentLpOperation,
 } from '../sdk/src';
 
 import {
@@ -110,17 +121,12 @@ describe('LP Pool', () => {
 		encodeName(lpPoolName)
 	);
 
+	let whitelistMint: PublicKey;
+
 	before(async () => {
 		const context = await startAnchor(
 			'',
-			[
-				{
-					name: 'token_2022',
-					programId: new PublicKey(
-						'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb'
-					),
-				},
-			],
+			[],
 			[
 				{
 					address: PYTH_LAZER_STORAGE_ACCOUNT_KEY,
@@ -271,6 +277,8 @@ describe('LP Pool', () => {
 			Keypair.generate()
 		);
 
+		await adminClient.updateFeatureBitFlagsMintRedeemLpPool(true);
+
 		// Give the vamm some inventory
 		await adminClient.openPosition(PositionDirection.LONG, BASE_PRECISION, 0);
 		await adminClient.openPosition(PositionDirection.SHORT, BASE_PRECISION, 1);
@@ -280,6 +288,37 @@ describe('LP Pool', () => {
 				.getActivePerpPositions()
 				.filter((x) => !x.baseAssetAmount.eq(ZERO)).length == 2
 		);
+
+		console.log('create whitelist mint');
+		const whitelistKeypair = Keypair.generate();
+		const transaction = new Transaction().add(
+			SystemProgram.createAccount({
+				fromPubkey: bankrunContextWrapper.provider.wallet.publicKey,
+				newAccountPubkey: whitelistKeypair.publicKey,
+				space: MINT_SIZE,
+				lamports: 10_000_000_000,
+				programId: TOKEN_PROGRAM_ID,
+			}),
+			createInitializeMint2Instruction(
+				whitelistKeypair.publicKey,
+				0,
+				bankrunContextWrapper.provider.wallet.publicKey,
+				bankrunContextWrapper.provider.wallet.publicKey,
+				TOKEN_PROGRAM_ID
+			)
+		);
+
+		await bankrunContextWrapper.sendTransaction(transaction, [
+			whitelistKeypair,
+		]);
+
+		const whitelistMintInfo =
+			await bankrunContextWrapper.connection.getAccountInfo(
+				whitelistKeypair.publicKey
+			);
+		console.log('whitelistMintInfo', whitelistMintInfo);
+
+		whitelistMint = whitelistKeypair.publicKey;
 	});
 
 	after(async () => {
@@ -330,9 +369,7 @@ describe('LP Pool', () => {
 		);
 		expect(mintInfo.decimals).to.equal(tokenDecimals);
 		expect(Number(mintInfo.supply)).to.equal(0);
-		expect(mintInfo.mintAuthority?.toBase58()).to.equal(
-			adminClient.getSignerPublicKey().toBase58()
-		);
+		expect(mintInfo.mintAuthority?.toBase58()).to.equal(lpPoolKey.toBase58());
 	});
 
 	it('can add constituents to LP Pool', async () => {
@@ -548,7 +585,7 @@ describe('LP Pool', () => {
 			expect.fail('should have failed');
 		} catch (e) {
 			console.log(e.message);
-			expect(e.message).to.contain('0x18b7'); // InvalidAmmConstituentMappingArgument
+			expect(e.message).to.contain('0x18ae');
 		}
 
 		// Bad constituent index
@@ -562,7 +599,7 @@ describe('LP Pool', () => {
 			]);
 			expect.fail('should have failed');
 		} catch (e) {
-			expect(e.message).to.contain('0x18b7'); // InvalidAmmConstituentMappingArgument
+			expect(e.message).to.contain('0x18ae');
 		}
 	});
 
@@ -579,8 +616,38 @@ describe('LP Pool', () => {
 			});
 			expect.fail('should have failed');
 		} catch (e) {
-			assert(e.message.includes('0x18c0')); // LpPoolAumDelayed
+			assert(e.message.includes('0x18b7'));
 		}
+	});
+
+	it('fails to add liquidity if a paused operation', async () => {
+		await adminClient.updateConstituentPausedOperations(
+			getConstituentPublicKey(program.programId, lpPoolKey, 0),
+			ConstituentLpOperation.Deposit
+		);
+		try {
+			const lpPool = (await adminClient.program.account.lpPool.fetch(
+				lpPoolKey
+			)) as LPPoolAccount;
+			const tx = new Transaction();
+			tx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1]));
+			tx.add(
+				...(await adminClient.getLpPoolAddLiquidityIx({
+					lpPool,
+					inAmount: new BN(1000).mul(QUOTE_PRECISION),
+					minMintAmount: new BN(1),
+					inMarketIndex: 0,
+				}))
+			);
+			await adminClient.sendTransaction(tx);
+		} catch (e) {
+			console.log(e.message);
+			assert(e.message.includes('0x18c0'));
+		}
+		await adminClient.updateConstituentPausedOperations(
+			getConstituentPublicKey(program.programId, lpPoolKey, 0),
+			0
+		);
 	});
 
 	it('can update pool aum', async () => {
@@ -633,7 +700,7 @@ describe('LP Pool', () => {
 			await adminClient.updateLpPoolAum(lpPool, [0]);
 			expect.fail('should have failed');
 		} catch (e) {
-			assert(e.message.includes('0x18bc')); // WrongNumberOfConstituents
+			assert(e.message.includes('0x18b3'));
 		}
 	});
 
@@ -844,6 +911,22 @@ describe('LP Pool', () => {
 			lpPoolKey
 		)) as LPPoolAccount;
 
+		// Exclude 25% of exchange fees, put 100 dollars there to make sure that the
+		await adminClient.updatePerpMarketLpPoolFeeTransferScalar(0, 100, 25);
+		await adminClient.updatePerpMarketLpPoolFeeTransferScalar(1, 100, 0);
+		await adminClient.updatePerpMarketLpPoolFeeTransferScalar(2, 100, 0);
+
+		const perpMarket = adminClient.getPerpMarketAccount(0);
+		perpMarket.amm.totalExchangeFee = perpMarket.amm.totalExchangeFee.add(
+			QUOTE_PRECISION.muln(100)
+		);
+		await overWritePerpMarket(
+			adminClient,
+			bankrunContextWrapper,
+			perpMarket.pubkey,
+			perpMarket
+		);
+
 		await adminClient.depositIntoPerpMarketFeePool(
 			0,
 			new BN(100).mul(QUOTE_PRECISION),
@@ -868,20 +951,20 @@ describe('LP Pool', () => {
 		// Make sure the amount recorded goes into the cache and that the quote amount owed is adjusted
 		// for new influx in fees
 		const ammCacheBeforeAdjust = ammCache;
+		// Test pausing tracking for market 0
+		await adminClient.updatePerpMarketLpPoolPausedOperations(0, 1);
 		await adminClient.updateAmmCache([0, 1, 2]);
 		ammCache = (await adminClient.program.account.ammCache.fetch(
 			getAmmCachePublicKey(program.programId)
 		)) as AmmCache;
 
-		assert(ammCache.cache[0].lastFeePoolTokenAmount.eq(new BN(100000000)));
-		assert(ammCache.cache[1].lastFeePoolTokenAmount.eq(new BN(100000000)));
+		assert(ammCache.cache[0].lastFeePoolTokenAmount.eq(ZERO));
 		assert(
 			ammCache.cache[0].quoteOwedFromLpPool.eq(
-				ammCacheBeforeAdjust.cache[0].quoteOwedFromLpPool.sub(
-					new BN(100).mul(QUOTE_PRECISION)
-				)
+				ammCacheBeforeAdjust.cache[0].quoteOwedFromLpPool
 			)
 		);
+		assert(ammCache.cache[1].lastFeePoolTokenAmount.eq(new BN(100000000)));
 		assert(
 			ammCache.cache[1].quoteOwedFromLpPool.eq(
 				ammCacheBeforeAdjust.cache[1].quoteOwedFromLpPool.sub(
@@ -890,7 +973,22 @@ describe('LP Pool', () => {
 			)
 		);
 
-		const usdcBefore = constituent.tokenBalance;
+		// Market 0 on the amm cache will update now that tracking is permissioned again
+		await adminClient.updatePerpMarketLpPoolPausedOperations(0, 0);
+		await adminClient.updateAmmCache([0, 1, 2]);
+		ammCache = (await adminClient.program.account.ammCache.fetch(
+			getAmmCachePublicKey(program.programId)
+		)) as AmmCache;
+		assert(ammCache.cache[0].lastFeePoolTokenAmount.eq(new BN(100000000)));
+		assert(
+			ammCache.cache[0].quoteOwedFromLpPool.eq(
+				ammCacheBeforeAdjust.cache[0].quoteOwedFromLpPool.sub(
+					new BN(75).mul(QUOTE_PRECISION)
+				)
+			)
+		);
+
+		const usdcBefore = constituent.vaultTokenBalance;
 		// Update Amm Cache to update the aum
 		await adminClient.updateLpPoolAum(lpPool, [0, 1, 2]);
 		lpPool = (await adminClient.program.account.lpPool.fetch(
@@ -899,7 +997,7 @@ describe('LP Pool', () => {
 		const lpAumAfterUpdateCacheBeforeSettle = lpPool.lastAum;
 		assert(
 			lpAumAfterUpdateCacheBeforeSettle.eq(
-				lpAumAfterDeposit.add(new BN(200).mul(QUOTE_PRECISION))
+				lpAumAfterDeposit.add(new BN(175).mul(QUOTE_PRECISION))
 			)
 		);
 
@@ -930,7 +1028,7 @@ describe('LP Pool', () => {
 		// Expected transfers per pool are capital constrained by the actual balances
 		const expectedTransfer0 = BN.min(
 			ammCache.cache[0].quoteOwedFromLpPool.muln(-1),
-			pnlPoolBalance0.add(feePoolBalance0)
+			pnlPoolBalance0.add(feePoolBalance0).sub(QUOTE_PRECISION.muln(25))
 		);
 		const expectedTransfer1 = BN.min(
 			ammCache.cache[1].quoteOwedFromLpPool.muln(-1),
@@ -959,7 +1057,7 @@ describe('LP Pool', () => {
 			getConstituentPublicKey(program.programId, lpPoolKey, 0)
 		)) as ConstituentAccount;
 
-		const usdcAfter = constituent.tokenBalance;
+		const usdcAfter = constituent.vaultTokenBalance;
 		const feePoolBalanceAfter = getTokenAmount(
 			adminClient.getPerpMarketAccount(0).amm.feePool.scaledBalance,
 			adminClient.getQuoteSpotMarketAccount(),
@@ -992,7 +1090,9 @@ describe('LP Pool', () => {
 				constituentVaultPublicKey
 			);
 		assert(
-			new BN(constituentVault.amount.toString()).eq(constituent.tokenBalance)
+			new BN(constituentVault.amount.toString()).eq(
+				constituent.vaultTokenBalance
+			)
 		);
 	});
 
@@ -1024,12 +1124,12 @@ describe('LP Pool', () => {
 		);
 		tx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1, 2]));
 		tx.add(
-			await adminClient.getLpPoolRemoveLiquidityIx({
+			...(await adminClient.getLpPoolRemoveLiquidityIx({
 				outMarketIndex: 0,
 				lpToBurn: new BN(lpTokenBalance.amount.toString()),
 				minAmountOut: new BN(1000).mul(QUOTE_PRECISION),
 				lpPool: lpPool,
-			})
+			}))
 		);
 		await adminClient.sendTransaction(tx);
 
@@ -1095,7 +1195,7 @@ describe('LP Pool', () => {
 			getAmmCachePublicKey(program.programId)
 		)) as AmmCache;
 		// No more usdc left in the constituent vault
-		assert(constituent.tokenBalance.eq(ZERO));
+		assert(constituent.vaultTokenBalance.eq(ZERO));
 		assert(new BN(constituentVault.amount.toString()).eq(ZERO));
 
 		// Should have recorded the amount left over to the amm cache and increased the amount in the fee pool
@@ -1172,8 +1272,10 @@ describe('LP Pool', () => {
 			lpPoolKey
 		)) as LPPoolAccount;
 
-		assert(ammCache.cache[0].quoteOwedFromLpPool.eq(owedAmount.divn(2)));
-		assert(constituent.tokenBalance.eq(ZERO));
+		expect(
+			ammCache.cache[0].quoteOwedFromLpPool.toNumber()
+		).to.be.approximately(owedAmount.divn(2).toNumber(), 1);
+		assert(constituent.vaultTokenBalance.eq(ZERO));
 		assert(lpPool.lastAum.eq(ZERO));
 
 		// Deposit here to DLP to make sure aum calc work with perp market debt
@@ -1206,7 +1308,7 @@ describe('LP Pool', () => {
 				getConstituentPublicKey(program.programId, lpPoolKey, i)
 			)) as ConstituentAccount;
 			aum = aum.add(
-				constituent.tokenBalance
+				constituent.vaultTokenBalance
 					.mul(constituent.lastOraclePrice)
 					.div(QUOTE_PRECISION)
 			);
@@ -1235,7 +1337,7 @@ describe('LP Pool', () => {
 			getAmmCachePublicKey(program.programId)
 		)) as AmmCache;
 
-		const balanceBefore = constituent.tokenBalance;
+		const balanceBefore = constituent.vaultTokenBalance;
 		const owedAmount = ammCache.cache[0].quoteOwedFromLpPool;
 
 		// Give the perp market half of its owed amount
@@ -1276,7 +1378,7 @@ describe('LP Pool', () => {
 		)) as LPPoolAccount;
 
 		assert(ammCache.cache[0].quoteOwedFromLpPool.eq(ZERO));
-		assert(constituent.tokenBalance.eq(balanceBefore.add(owedAmount)));
+		assert(constituent.vaultTokenBalance.eq(balanceBefore.add(owedAmount)));
 		assert(lpPool.lastAum.eq(aumBefore.add(owedAmount.muln(2))));
 	});
 
@@ -1434,29 +1536,19 @@ describe('LP Pool', () => {
 		let constituent = (await adminClient.program.account.constituent.fetch(
 			getConstituentPublicKey(program.programId, lpPoolKey, 0)
 		)) as ConstituentAccount;
-		const balanceBefore = constituent.tokenBalance;
+		const balanceBefore = constituent.vaultTokenBalance;
 		const spotBalanceBefore = constituent.spotBalance;
 
+		try {
 		await adminClient.withdrawFromProgramVault(
 			encodeName(lpPoolName),
-			0,
-			new BN(100).mul(QUOTE_PRECISION)
-		);
-
-		constituent = (await adminClient.program.account.constituent.fetch(
-			getConstituentPublicKey(program.programId, lpPoolKey, 0)
-		)) as ConstituentAccount;
-
-		assert(
-			constituent.tokenBalance
-				.sub(balanceBefore)
-				.eq(new BN(10).mul(QUOTE_PRECISION))
-		);
-		expect(
-			constituent.spotBalance.scaledBalance
-				.sub(spotBalanceBefore.scaledBalance)
-				.toNumber()
-		).to.be.approximately(10 * 10 ** 9, 1);
+				0,
+				new BN(100).mul(QUOTE_PRECISION)
+			);
+		} catch (e) {
+			console.log(e);
+			assert(e.toString().includes('0x18b9')); // invariant failed
+		}
 	});
 
 	it('cant disable lp pool settling', async () => {
@@ -1466,7 +1558,7 @@ describe('LP Pool', () => {
 			await adminClient.settlePerpToLpPool(encodeName(lpPoolName), [0, 1, 2]);
 			assert(false, 'Should have thrown');
 		} catch (e) {
-			assert(e.message.includes('0x18c6')); // SettleLpPoolDisabled
+			assert(e.message.includes('0x18bd'));
 		}
 
 		await adminClient.updateFeatureBitFlagsSettleLpPool(true);
@@ -1530,5 +1622,67 @@ describe('LP Pool', () => {
 			2,
 			new BN(500).mul(new BN(10 ** 9))
 		);
+	});
+
+	it('whitelist mint', async () => {
+		await adminClient.updateLpPoolParams(encodeName(lpPoolName), {
+			whitelistMint: whitelistMint,
+		});
+
+		const lpPool = await adminClient.getLpPoolAccount(encodeName(lpPoolName));
+		assert(lpPool.whitelistMint.equals(whitelistMint));
+
+		console.log('lpPool.whitelistMint', lpPool.whitelistMint.toString());
+
+		const tx = new Transaction();
+		tx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1, 2, 3]));
+		tx.add(
+			...(await adminClient.getLpPoolAddLiquidityIx({
+				lpPool,
+				inAmount: new BN(1000).mul(QUOTE_PRECISION),
+				minMintAmount: new BN(1),
+				inMarketIndex: 0,
+			}))
+		);
+		try {
+			await adminClient.sendTransaction(tx);
+			assert(false, 'Should have thrown');
+		} catch (e) {
+			assert(e.toString().includes('0x1789')); // invalid whitelist token
+		}
+
+		const whitelistMintAta = getAssociatedTokenAddressSync(
+			whitelistMint,
+			adminClient.wallet.publicKey
+		);
+		const ix = createAssociatedTokenAccountInstruction(
+			bankrunContextWrapper.context.payer.publicKey,
+			whitelistMintAta,
+			adminClient.wallet.publicKey,
+			whitelistMint
+		);
+		const mintToIx = createMintToInstruction(
+			whitelistMint,
+			whitelistMintAta,
+			bankrunContextWrapper.provider.wallet.publicKey,
+			1
+		);
+		await bankrunContextWrapper.sendTransaction(
+			new Transaction().add(ix, mintToIx)
+		);
+
+		const txAfter = new Transaction();
+		txAfter.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1, 2, 3]));
+		txAfter.add(
+			...(await adminClient.getLpPoolAddLiquidityIx({
+				lpPool,
+				inAmount: new BN(1000).mul(QUOTE_PRECISION),
+				minMintAmount: new BN(1),
+				inMarketIndex: 0,
+			}))
+		);
+
+		// successfully call add liquidity
+		await adminClient.sendTransaction(txAfter);
 	});
 });

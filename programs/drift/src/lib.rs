@@ -1012,10 +1012,10 @@ pub mod drift {
         handle_initialize_amm_cache(ctx)
     }
 
-    pub fn update_init_amm_cache_info<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, UpdateInitAmmCacheInfo<'info>>,
+    pub fn update_initial_amm_cache_info<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, UpdateInitialAmmCacheInfo<'info>>,
     ) -> Result<()> {
-        handle_update_init_amm_cache_info(ctx)
+        handle_update_initial_amm_cache_info(ctx)
     }
 
     pub fn initialize_prediction_market<'c: 'info, 'info>(
@@ -1069,6 +1069,13 @@ pub mod drift {
         handle_update_perp_market_expiry(ctx, expiry_ts)
     }
 
+    pub fn update_perp_market_lp_pool_paused_operations(
+        ctx: Context<AdminUpdatePerpMarket>,
+        lp_paused_operations: u8,
+    ) -> Result<()> {
+        handle_update_perp_market_lp_pool_paused_operations(ctx, lp_paused_operations)
+    }
+
     pub fn update_perp_market_lp_pool_status(
         ctx: Context<AdminUpdatePerpMarket>,
         lp_status: u8,
@@ -1078,9 +1085,14 @@ pub mod drift {
 
     pub fn update_perp_market_lp_pool_fee_transfer_scalar(
         ctx: Context<AdminUpdatePerpMarket>,
-        lp_fee_transfer_scalar: u8,
+        optional_lp_fee_transfer_scalar: Option<u8>,
+        optional_lp_net_pnl_transfer_scalar: Option<u8>,
     ) -> Result<()> {
-        handle_update_perp_market_lp_pool_fee_transfer_scalar(ctx, lp_fee_transfer_scalar)
+        handle_update_perp_market_lp_pool_fee_transfer_scalar(
+            ctx,
+            optional_lp_fee_transfer_scalar,
+            optional_lp_net_pnl_transfer_scalar,
+        )
     }
 
     pub fn settle_expired_market_pools_to_revenue_pool(
@@ -1770,6 +1782,7 @@ pub mod drift {
         revenue_rebalance_period: u64,
         max_aum: u128,
         max_settle_quote_amount_per_market: u64,
+        whitelist_mint: Pubkey,
     ) -> Result<()> {
         handle_initialize_lp_pool(
             ctx,
@@ -1779,6 +1792,7 @@ pub mod drift {
             revenue_rebalance_period,
             max_aum,
             max_settle_quote_amount_per_market,
+            whitelist_mint,
         )
     }
 
@@ -1854,55 +1868,6 @@ pub mod drift {
         handle_update_feature_bit_flags_median_trigger_price(ctx, enable)
     }
 
-    // pub fn update_feature_bit_flags_builder_referral(
-    //     ctx: Context<HotAdminUpdateState>,
-    //     enable: bool,
-    // ) -> Result<()> {
-    //     handle_update_feature_bit_flags_builder_referral(ctx, enable)
-    // }
-
-    pub fn update_feature_bit_flags_builder_codes(
-        ctx: Context<HotAdminUpdateState>,
-        enable: bool,
-    ) -> Result<()> {
-        handle_update_feature_bit_flags_builder_codes(ctx, enable)
-    }
-
-    pub fn initialize_revenue_share<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, InitializeRevenueShare<'info>>,
-    ) -> Result<()> {
-        handle_initialize_revenue_share(ctx)
-    }
-
-    pub fn initialize_revenue_share_escrow<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, InitializeRevenueShareEscrow<'info>>,
-        num_orders: u16,
-    ) -> Result<()> {
-        handle_initialize_revenue_share_escrow(ctx, num_orders)
-    }
-
-    // pub fn migrate_referrer<'c: 'info, 'info>(
-    //     ctx: Context<'_, '_, 'c, 'info, MigrateReferrer<'info>>,
-    // ) -> Result<()> {
-    //     handle_migrate_referrer(ctx)
-    // }
-
-    pub fn resize_revenue_share_escrow_orders<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, ResizeRevenueShareEscrowOrders<'info>>,
-        num_orders: u16,
-    ) -> Result<()> {
-        handle_resize_revenue_share_escrow_orders(ctx, num_orders)
-    }
-
-    pub fn change_approved_builder<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, ChangeApprovedBuilder<'info>>,
-        builder: Pubkey,
-        max_fee_bps: u16,
-        add: bool,
-    ) -> Result<()> {
-        handle_change_approved_builder(ctx, builder, max_fee_bps, add)
-    }
-
     pub fn update_feature_bit_flags_settle_lp_pool(
         ctx: Context<HotAdminUpdateState>,
         enable: bool,
@@ -1915,6 +1880,13 @@ pub mod drift {
         enable: bool,
     ) -> Result<()> {
         handle_update_feature_bit_flags_swap_lp_pool(ctx, enable)
+    }
+
+    pub fn update_feature_bit_flags_mint_redeem_lp_pool(
+        ctx: Context<HotAdminUpdateState>,
+        enable: bool,
+    ) -> Result<()> {
+        handle_update_feature_bit_flags_mint_redeem_lp_pool(ctx, enable)
     }
 
     pub fn initialize_constituent<'info>(
@@ -1955,6 +1927,20 @@ pub mod drift {
             xi,
             new_constituent_correlations,
         )
+    }
+
+    pub fn update_constituent_status<'info>(
+        ctx: Context<'_, '_, '_, 'info, UpdateConstituentStatus<'info>>,
+        new_status: u8,
+    ) -> Result<()> {
+        handle_update_constituent_status(ctx, new_status)
+    }
+
+    pub fn update_constituent_paused_operations<'info>(
+        ctx: Context<'_, '_, '_, 'info, UpdateConstituentPausedOperations<'info>>,
+        paused_operations: u8,
+    ) -> Result<()> {
+        handle_update_constituent_paused_operations(ctx, paused_operations)
     }
 
     pub fn update_constituent_params(
@@ -2021,7 +2007,7 @@ pub mod drift {
     }
 
     pub fn override_amm_cache_info<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, UpdateInitAmmCacheInfo<'info>>,
+        ctx: Context<'_, '_, 'c, 'info, UpdateInitialAmmCacheInfo<'info>>,
         market_index: u16,
         override_params: OverrideAmmCacheParams,
     ) -> Result<()> {
@@ -2120,14 +2106,14 @@ pub mod drift {
     }
 
     pub fn deposit_to_program_vault<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, DepositWithdrawProgramVault<'info>>,
+        ctx: Context<'_, '_, 'c, 'info, DepositProgramVault<'info>>,
         amount: u64,
     ) -> Result<()> {
         handle_deposit_to_program_vault(ctx, amount)
     }
 
     pub fn withdraw_from_program_vault<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, DepositWithdrawProgramVault<'info>>,
+        ctx: Context<'_, '_, 'c, 'info, WithdrawProgramVault<'info>>,
         amount: u64,
     ) -> Result<()> {
         handle_withdraw_from_program_vault(ctx, amount)
