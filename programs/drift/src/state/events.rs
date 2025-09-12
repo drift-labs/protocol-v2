@@ -743,6 +743,8 @@ pub fn emit_buffers<T: AnchorSerialize + Discriminator>(
 pub struct LPSettleRecord {
     pub record_id: u64,
     // previous settle unix timestamp
+    pub last_ts: i64,
+    // previous settle slot
     pub last_slot: u64,
     // current settle unix timestamp
     pub ts: i64,

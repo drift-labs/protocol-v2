@@ -3255,6 +3255,7 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
         let record_id = get_then_update_id!(lp_pool, settle_id);
         emit!(LPSettleRecord {
             record_id,
+            last_ts: cached_info.last_settle_ts,
             last_slot: cached_info.last_settle_slot,
             slot,
             ts: now,
@@ -3292,7 +3293,7 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
         };
 
         // Update cache info
-        update_cache_info(cached_info, &settlement_result, new_quote_owed, slot)?;
+        update_cache_info(cached_info, &settlement_result, new_quote_owed, slot, now)?;
 
         // Update LP pool stats
         match settlement_result.direction {

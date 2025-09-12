@@ -11875,6 +11875,14 @@
             "type": "u128"
           },
           {
+            "name": "lastSettleAmmExFees",
+            "type": "u128"
+          },
+          {
+            "name": "lastSettleAmmPnl",
+            "type": "i128"
+          },
+          {
             "name": "position",
             "docs": [
               "BASE PRECISION"
@@ -11894,12 +11902,8 @@
             "type": "u64"
           },
           {
-            "name": "lastSettleAmmExFees",
-            "type": "u128"
-          },
-          {
-            "name": "lastSettleAmmPnl",
-            "type": "i128"
+            "name": "lastSettleTs",
+            "type": "i64"
           },
           {
             "name": "quoteOwedFromLpPool",
@@ -11926,7 +11930,7 @@
             "type": {
               "array": [
                 "u8",
-                6
+                14
               ]
             }
           }
@@ -17010,6 +17014,11 @@
         {
           "name": "recordId",
           "type": "u64",
+          "index": false
+        },
+        {
+          "name": "lastTs",
+          "type": "i64",
           "index": false
         },
         {
