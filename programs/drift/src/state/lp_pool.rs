@@ -98,7 +98,6 @@ pub struct LPPool {
 
     /// timestamp of last vAMM revenue rebalance
     pub last_hedge_ts: u64,
-    pub revenue_rebalance_period: u64,
 
     /// Every mint/redeem has a monotonically increasing id. This is the next id to use
     pub mint_redeem_id: u64,
@@ -106,8 +105,6 @@ pub struct LPPool {
 
     /// PERCENTAGE_PRECISION
     pub min_mint_fee: i64,
-    pub max_mint_fee_premium: i64,
-
     pub token_supply: u64,
 
     // PERCENTAGE_PRECISION: percentage precision const = 100%

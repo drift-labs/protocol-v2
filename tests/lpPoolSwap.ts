@@ -34,7 +34,6 @@ import {
 	ConstituentStatus,
 	getSignedTokenAmount,
 	getTokenAmount,
-	MAX_LEVERAGE_ORDER_SIZE,
 } from '../sdk/src';
 import {
 	initializeQuoteSpotMarket,
@@ -226,8 +225,6 @@ describe('LP Pool', () => {
 		await adminClient.initializeLpPool(
 			lpPoolName,
 			new BN(100), // 1 bps
-			ZERO, // 1 bps
-			new BN(3600),
 			new BN(100_000_000).mul(QUOTE_PRECISION),
 			new BN(1_000_000).mul(QUOTE_PRECISION),
 			Keypair.generate() // dlp mint
@@ -654,11 +651,13 @@ describe('LP Pool', () => {
 		// remove liquidity
 		const removeTx = new Transaction();
 		removeTx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1]));
-		removeTx.add(await adminClient.getDepositToProgramVaultIx(
-			encodeName(lpPoolName),
-			0,
-			new BN(constituentBalanceBefore)
-		));
+		removeTx.add(
+			await adminClient.getDepositToProgramVaultIx(
+				encodeName(lpPoolName),
+				0,
+				new BN(constituentBalanceBefore)
+			)
+		);
 		removeTx.add(
 			...(await adminClient.getLpPoolRemoveLiquidityIx({
 				outMarketIndex: 0,
@@ -669,18 +668,28 @@ describe('LP Pool', () => {
 		);
 		await adminClient.sendTransaction(removeTx);
 
-		const constituentAfterRemoveLiquidity = (await adminClient.program.account.constituent.fetch(
-			getConstituentPublicKey(program.programId, lpPoolKey, 0)
-		)) as ConstituentAccount;
+		const constituentAfterRemoveLiquidity =
+			(await adminClient.program.account.constituent.fetch(
+				getConstituentPublicKey(program.programId, lpPoolKey, 0)
+			)) as ConstituentAccount;
 
-		const blTokenAmountAfterRemoveLiquidity = getSignedTokenAmount(getTokenAmount(constituentAfterRemoveLiquidity.spotBalance.scaledBalance, adminClient.getSpotMarketAccount(0), constituentAfterRemoveLiquidity.spotBalance.balanceType), constituentAfterRemoveLiquidity.spotBalance.balanceType);
+		const blTokenAmountAfterRemoveLiquidity = getSignedTokenAmount(
+			getTokenAmount(
+				constituentAfterRemoveLiquidity.spotBalance.scaledBalance,
+				adminClient.getSpotMarketAccount(0),
+				constituentAfterRemoveLiquidity.spotBalance.balanceType
+			),
+			constituentAfterRemoveLiquidity.spotBalance.balanceType
+		);
 
 		const withdrawFromProgramVaultTx = new Transaction();
-		withdrawFromProgramVaultTx.add(await adminClient.getWithdrawFromProgramVaultIx(
-			encodeName(lpPoolName),
-			0,
-			blTokenAmountAfterRemoveLiquidity.abs()
-		));
+		withdrawFromProgramVaultTx.add(
+			await adminClient.getWithdrawFromProgramVaultIx(
+				encodeName(lpPoolName),
+				0,
+				blTokenAmountAfterRemoveLiquidity.abs()
+			)
+		);
 		await adminClient.sendTransaction(withdrawFromProgramVaultTx);
 
 		const userC0TokenBalanceAfterBurn =

@@ -7,7 +7,7 @@ use crate::math::constants::{PRICE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX};
 use crate::math::safe_math::SafeMath;
 use crate::state::lp_pool::{
     AmmConstituentDatum, AmmConstituentMapping, Constituent, ConstituentCorrelations,
-    ConstituentStatus, ConstituentTargetBase, LPPool, TargetsDatum, AMM_MAP_PDA_SEED,
+    ConstituentTargetBase, LPPool, TargetsDatum, AMM_MAP_PDA_SEED,
     CONSTITUENT_CORRELATIONS_PDA_SEED, CONSTITUENT_PDA_SEED, CONSTITUENT_TARGET_BASE_PDA_SEED,
     CONSTITUENT_VAULT_PDA_SEED,
 };
@@ -35,8 +35,6 @@ pub fn handle_initialize_lp_pool(
     ctx: Context<InitializeLpPool>,
     name: [u8; 32],
     min_mint_fee: i64,
-    max_mint_fee: i64,
-    revenue_rebalance_period: u64,
     max_aum: u128,
     max_settle_quote_amount_per_market: u64,
     whitelist_mint: Pubkey,
@@ -72,9 +70,7 @@ pub fn handle_initialize_lp_pool(
         total_mint_redeem_fees_paid: 0,
         bump: ctx.bumps.lp_pool,
         min_mint_fee,
-        max_mint_fee_premium: max_mint_fee,
         token_supply: 0,
-        revenue_rebalance_period,
         mint_redeem_id: 1,
         settle_id: 1,
         quote_consituent_index: 0,
