@@ -7445,14 +7445,6 @@
           "type": "i64"
         },
         {
-          "name": "maxMintFee",
-          "type": "i64"
-        },
-        {
-          "name": "revenueRebalancePeriod",
-          "type": "u64"
-        },
-        {
           "name": "maxAum",
           "type": "u128"
         },
@@ -9775,10 +9767,6 @@
             "type": "u64"
           },
           {
-            "name": "revenueRebalancePeriod",
-            "type": "u64"
-          },
-          {
             "name": "mintRedeemId",
             "docs": [
               "Every mint/redeem has a monotonically increasing id. This is the next id to use"
@@ -9794,10 +9782,6 @@
             "docs": [
               "PERCENTAGE_PRECISION"
             ],
-            "type": "i64"
-          },
-          {
-            "name": "maxMintFeePremium",
             "type": "i64"
           },
           {
