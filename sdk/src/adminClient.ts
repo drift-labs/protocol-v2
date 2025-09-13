@@ -4940,8 +4940,6 @@ export class AdminClient extends DriftClient {
 	public async initializeLpPool(
 		name: string,
 		minMintFee: BN,
-		maxMintFee: BN,
-		revenueRebalancePeriod: BN,
 		maxAum: BN,
 		maxSettleQuoteAmountPerMarket: BN,
 		mint: Keypair,
@@ -4950,8 +4948,6 @@ export class AdminClient extends DriftClient {
 		const ixs = await this.getInitializeLpPoolIx(
 			name,
 			minMintFee,
-			maxMintFee,
-			revenueRebalancePeriod,
 			maxAum,
 			maxSettleQuoteAmountPerMarket,
 			mint,
@@ -4965,8 +4961,6 @@ export class AdminClient extends DriftClient {
 	public async getInitializeLpPoolIx(
 		name: string,
 		minMintFee: BN,
-		maxMintFee: BN,
-		revenueRebalancePeriod: BN,
 		maxAum: BN,
 		maxSettleQuoteAmountPerMarket: BN,
 		mint: Keypair,
@@ -5007,8 +5001,6 @@ export class AdminClient extends DriftClient {
 			this.program.instruction.initializeLpPool(
 				encodeName(name),
 				minMintFee,
-				maxMintFee,
-				revenueRebalancePeriod,
 				maxAum,
 				maxSettleQuoteAmountPerMarket,
 				whitelistMint ?? PublicKey.default,

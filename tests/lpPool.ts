@@ -270,8 +270,6 @@ describe('LP Pool', () => {
 		await adminClient.initializeLpPool(
 			lpPoolName,
 			ZERO,
-			ZERO,
-			new BN(3600),
 			new BN(1_000_000_000_000).mul(QUOTE_PRECISION),
 			new BN(1_000_000).mul(QUOTE_PRECISION),
 			Keypair.generate()
@@ -1533,15 +1531,9 @@ describe('LP Pool', () => {
 			}
 		);
 
-		let constituent = (await adminClient.program.account.constituent.fetch(
-			getConstituentPublicKey(program.programId, lpPoolKey, 0)
-		)) as ConstituentAccount;
-		const balanceBefore = constituent.vaultTokenBalance;
-		const spotBalanceBefore = constituent.spotBalance;
-
 		try {
-		await adminClient.withdrawFromProgramVault(
-			encodeName(lpPoolName),
+			await adminClient.withdrawFromProgramVault(
+				encodeName(lpPoolName),
 				0,
 				new BN(100).mul(QUOTE_PRECISION)
 			);

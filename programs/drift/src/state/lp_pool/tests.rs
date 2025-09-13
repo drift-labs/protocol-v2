@@ -738,8 +738,6 @@ mod swap_tests {
         let lp_pool = LPPool {
             last_aum,
             last_hedge_ts: 0,
-            revenue_rebalance_period: 3600,
-            max_mint_fee_premium: 0,
             min_mint_fee: 0,
             ..LPPool::default()
         };
@@ -920,9 +918,7 @@ mod swap_tests {
         let lp_pool = LPPool {
             last_aum,
             last_hedge_ts: 0,
-            revenue_rebalance_period: 3600,
-            max_mint_fee_premium: 2000, // 20 bps
-            min_mint_fee: 100,          // 1 bps
+            min_mint_fee: 100, // 1 bps
             ..LPPool::default()
         };
 
