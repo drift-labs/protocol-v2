@@ -921,6 +921,7 @@ pub fn get_margin_calculation_for_disable_high_leverage_mode(
     )?;
 
     user.max_margin_ratio = custom_margin_ratio_before;
+
     for (index, perp_position_max_margin_ratio) in perp_position_max_margin_ratio_map.iter() {
         user.perp_positions[*index].max_margin_ratio = *perp_position_max_margin_ratio;
     }

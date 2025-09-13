@@ -1,3 +1,6 @@
+use anchor_lang::prelude::Pubkey;
+use solana_program::pubkey;
+
 pub mod pyth_program {
     use solana_program::declare_id;
     #[cfg(feature = "mainnet-beta")]
@@ -105,5 +108,10 @@ pub mod amm_spread_adjust_wallet {
     #[cfg(not(feature = "anchor-test"))]
     declare_id!("w1DrTeayRMutAiwzfJfK9zLcpkF7RzwPy1BLCgQA1aF");
     #[cfg(feature = "anchor-test")]
+    declare_id!("1ucYHAGrBbi1PaecC4Ptq5ocZLWGLBmbGWysoDGNB1N");
+}
+
+pub mod lp_pool_swap_wallet {
+    use solana_program::declare_id;
     declare_id!("1ucYHAGrBbi1PaecC4Ptq5ocZLWGLBmbGWysoDGNB1N");
 }
