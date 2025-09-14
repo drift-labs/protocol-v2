@@ -11851,7 +11851,7 @@
           {
             "name": "volatility",
             "type": {
-              "option": "u8"
+              "option": "u64"
             }
           },
           {
