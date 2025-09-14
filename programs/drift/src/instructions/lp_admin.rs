@@ -259,7 +259,7 @@ pub struct ConstituentParams {
     pub cost_to_trade_bps: Option<i32>,
     pub constituent_derivative_index: Option<i16>,
     pub derivative_weight: Option<u64>,
-    pub volatility: Option<u8>,
+    pub volatility: Option<u64>,
     pub gamma_execution: Option<u8>,
     pub gamma_inventory: Option<u8>,
     pub xi: Option<u8>,
@@ -374,6 +374,15 @@ pub fn handle_update_constituent_params<'info>(
             max_borrow_token_amount
         );
         constituent.max_borrow_token_amount = max_borrow_token_amount;
+    }
+
+    if let Some(volatility) = constituent_params.volatility {
+        msg!(
+            "volatility: {:?} -> {:?}",
+            constituent.volatility,
+            volatility
+        );
+        constituent.volatility = volatility;
     }
 
     Ok(())

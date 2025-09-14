@@ -5225,7 +5225,7 @@ export class AdminClient extends DriftClient {
 			costToTradeBps?: number;
 			derivativeWeight?: BN;
 			constituentDerivativeIndex?: number;
-			volatility?: number;
+			volatility?: BN;
 			gammaExecution?: number;
 			gammaInventory?: number;
 			xi?: number;
@@ -5252,7 +5252,7 @@ export class AdminClient extends DriftClient {
 			oracleStalenessThreshold?: BN;
 			derivativeWeight?: BN;
 			constituentDerivativeIndex?: number;
-			volatility?: number;
+			volatility?: BN;
 			gammaExecution?: number;
 			gammaInventory?: number;
 			xi?: number;
