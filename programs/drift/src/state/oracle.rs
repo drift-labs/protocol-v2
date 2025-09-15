@@ -199,20 +199,20 @@ impl MMOraclePriceData {
             .safe_mul(PERCENTAGE_PRECISION)?
             .safe_div(oracle_price_data.price.abs().max(1).cast::<u128>()?)?;
 
-        let exchange_oracle_is_more_recent =
-            if let Some(exchange_seq_id) = oracle_price_data.sequence_id {
-                if exchange_seq_id.abs_diff(mm_oracle_sequence_id)
-                    < exchange_seq_id.safe_div(10_000)?
-                    && exchange_seq_id != 0
-                    && mm_oracle_sequence_id != 0
-                {
-                    exchange_seq_id > mm_oracle_sequence_id
-                } else {
-                    mm_oracle_delay > oracle_price_data.delay
-                }
+        let exchange_oracle_is_more_recent = if let Some(exchange_seq_id) =
+            oracle_price_data.sequence_id
+        {
+            if exchange_seq_id.abs_diff(mm_oracle_sequence_id) < exchange_seq_id.safe_div(10_000)?
+                && exchange_seq_id != 0
+                && mm_oracle_sequence_id != 0
+            {
+                exchange_seq_id > mm_oracle_sequence_id
             } else {
                 mm_oracle_delay > oracle_price_data.delay
-            };
+            }
+        } else {
+            mm_oracle_delay > oracle_price_data.delay
+        };
 
         let safe_oracle_price_data = if exchange_oracle_is_more_recent
             || mm_oracle_price == 0i64
