@@ -95,7 +95,7 @@ pub fn deserialize_into_verified_message(
             uuid: deserialized.uuid,
             take_profit_order_params: deserialized.take_profit_order_params,
             stop_loss_order_params: deserialized.stop_loss_order_params,
-            max_margin_ratio: deserialized.max_margin_ratio,
+            max_margin_ratio: deserialized.ext.max_margin_ratio(),
             signature: *signature,
         });
     } else {
@@ -122,7 +122,7 @@ pub fn deserialize_into_verified_message(
             uuid: deserialized.uuid,
             take_profit_order_params: deserialized.take_profit_order_params,
             stop_loss_order_params: deserialized.stop_loss_order_params,
-            max_margin_ratio: deserialized.max_margin_ratio,
+            max_margin_ratio: deserialized.ext.max_margin_ratio(),
             signature: *signature,
         });
     }

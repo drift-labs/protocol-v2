@@ -1247,7 +1247,7 @@ export type SignedMsgOrderParamsMessage = {
 	uuid: Uint8Array;
 	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
-	maxMarginRatio?: number | null;
+	ext: SignedMsgExtensions;
 };
 
 export type SignedMsgOrderParamsDelegateMessage = {
@@ -1257,8 +1257,15 @@ export type SignedMsgOrderParamsDelegateMessage = {
 	takerPubkey: PublicKey;
 	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
-	maxMarginRatio?: number | null;
+	ext: SignedMsgExtensions;
 };
+
+export class SignedMsgExtensions {
+	static readonly V0 = { v0: {} };
+	static V1(params: { maxMarginRatio: number }) {
+		return { v1: params } as const;
+	}
+}
 
 export type SignedMsgTriggerOrderParams = {
 	triggerPrice: BN;

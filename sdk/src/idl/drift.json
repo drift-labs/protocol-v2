@@ -10141,9 +10141,9 @@
             }
           },
           {
-            "name": "maxMarginRatio",
+            "name": "ext",
             "type": {
-              "option": "u16"
+              "defined": "SignedMsgExtensions"
             }
           }
         ]
@@ -10194,9 +10194,9 @@
             }
           },
           {
-            "name": "maxMarginRatio",
+            "name": "ext",
             "type": {
-              "option": "u16"
+              "defined": "SignedMsgExtensions"
             }
           }
         ]
@@ -12393,6 +12393,28 @@
           },
           {
             "name": "UpdateHighLeverageMode"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SignedMsgExtensions",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "V0"
+          },
+          {
+            "name": "V1",
+            "fields": [
+              {
+                "name": "maxMarginRatio",
+                "type": {
+                  "option": "u16"
+                }
+              }
+            ]
           }
         ]
       }
@@ -15974,8 +15996,5 @@
       "name": "InvalidIfRebalanceSwap",
       "msg": "Invalid If Rebalance Swap"
     }
-  ],
-  "metadata": {
-    "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
-  }
+  ]
 }
