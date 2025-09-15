@@ -621,6 +621,7 @@ mod get_worst_case_fill_simulation {
             confidence: 1,
             delay: 0,
             has_sufficient_number_of_data_points: true,
+            sequence_id: None,
         };
 
         let strict_price = StrictOraclePrice {
@@ -718,6 +719,7 @@ mod get_worst_case_fill_simulation {
             confidence: 1,
             delay: 0,
             has_sufficient_number_of_data_points: true,
+            sequence_id: None,
         };
 
         let strict_price = StrictOraclePrice {
@@ -818,6 +820,7 @@ mod get_worst_case_fill_simulation {
             confidence: 1,
             delay: 0,
             has_sufficient_number_of_data_points: true,
+            sequence_id: None,
         };
 
         let strict_price = StrictOraclePrice {
@@ -915,6 +918,7 @@ mod get_worst_case_fill_simulation {
             confidence: 1,
             delay: 0,
             has_sufficient_number_of_data_points: true,
+            sequence_id: None,
         };
 
         let strict_price = StrictOraclePrice {
@@ -1012,6 +1016,7 @@ mod get_worst_case_fill_simulation {
             confidence: 1,
             delay: 0,
             has_sufficient_number_of_data_points: true,
+            sequence_id: None,
         };
 
         let strict_price = StrictOraclePrice {
@@ -1109,6 +1114,7 @@ mod get_worst_case_fill_simulation {
             confidence: 1,
             delay: 0,
             has_sufficient_number_of_data_points: true,
+            sequence_id: None,
         };
 
         let strict_price = StrictOraclePrice {
@@ -1206,6 +1212,7 @@ mod get_worst_case_fill_simulation {
             confidence: 1,
             delay: 0,
             has_sufficient_number_of_data_points: true,
+            sequence_id: None,
         };
 
         let strict_price = StrictOraclePrice {
@@ -1303,6 +1310,7 @@ mod get_worst_case_fill_simulation {
             confidence: 1,
             delay: 0,
             has_sufficient_number_of_data_points: true,
+            sequence_id: None,
         };
 
         let strict_price = StrictOraclePrice {

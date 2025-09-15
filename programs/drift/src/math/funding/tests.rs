@@ -415,6 +415,7 @@ fn unsettled_funding_pnl() {
     let mm_oracle_price_data = MMOraclePriceData::new(
         oracle_price_data.price,
         oracle_price_data.delay + 1,
+        0,
         OracleValidity::default(),
         *oracle_price_data,
     )

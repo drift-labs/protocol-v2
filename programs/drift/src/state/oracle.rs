@@ -228,6 +228,7 @@ const MM_EXCHANGE_FALLBACK_THRESHOLD: u128 = PERCENTAGE_PRECISION / 100; // 1%
 pub struct MMOraclePriceData {
     mm_oracle_price: i64,
     mm_oracle_delay: i64,
+    mm_oracle_sequence_id: u64,
     mm_oracle_validity: OracleValidity,
     mm_exchange_diff_bps: u128,
     exchange_oracle_price_data: OraclePriceData,
@@ -238,6 +239,7 @@ impl MMOraclePriceData {
     pub fn new(
         mm_oracle_price: i64,
         mm_oracle_delay: i64,
+        mm_oracle_sequence_id: u64,
         mm_oracle_validity: OracleValidity,
         oracle_price_data: OraclePriceData,
     ) -> DriftResult<Self> {
@@ -247,7 +249,23 @@ impl MMOraclePriceData {
             .cast::<u128>()?
             .safe_mul(PERCENTAGE_PRECISION)?
             .safe_div(oracle_price_data.price.abs().max(1).cast::<u128>()?)?;
-        let safe_oracle_price_data = if mm_oracle_delay > oracle_price_data.delay
+
+        let exchange_oracle_is_more_recent = if let Some(exchange_seq_id) =
+            oracle_price_data.sequence_id
+        {
+            if exchange_seq_id.abs_diff(mm_oracle_sequence_id) < exchange_seq_id.safe_div(10_000)?
+                && exchange_seq_id != 0
+                && mm_oracle_sequence_id != 0
+            {
+                exchange_seq_id > mm_oracle_sequence_id
+            } else {
+                mm_oracle_delay > oracle_price_data.delay
+            }
+        } else {
+            mm_oracle_delay > oracle_price_data.delay
+        };
+
+        let safe_oracle_price_data = if exchange_oracle_is_more_recent
             || mm_oracle_price == 0i64
             || !is_oracle_valid_for_action(mm_oracle_validity, Some(DriftAction::UseMMOraclePrice))?
             || price_diff_bps > MM_EXCHANGE_FALLBACK_THRESHOLD
@@ -265,6 +283,7 @@ impl MMOraclePriceData {
                 confidence: adjusted_confidence,
                 delay: mm_oracle_delay,
                 has_sufficient_number_of_data_points: true,
+                sequence_id: Some(mm_oracle_sequence_id),
             }
         };
 
@@ -275,6 +294,7 @@ impl MMOraclePriceData {
             mm_exchange_diff_bps: price_diff_bps,
             exchange_oracle_price_data: oracle_price_data,
             safe_oracle_price_data,
+            mm_oracle_sequence_id,
         })
     }
 
@@ -326,6 +346,11 @@ impl MMOraclePriceData {
     pub fn get_mm_oracle_delay(&self) -> i64 {
         self.mm_oracle_delay
     }
+
+    // For potential future observability
+    pub fn _get_mm_oracle_sequence_id(&self) -> u64 {
+        self.mm_oracle_sequence_id
+    }
 }
 
 #[derive(Default, Clone, Copy, Debug)]
@@ -334,6 +359,7 @@ pub struct OraclePriceData {
     pub confidence: u64,
     pub delay: i64,
     pub has_sufficient_number_of_data_points: bool,
+    pub sequence_id: Option<u64>,
 }
 
 pub fn get_oracle_price(
@@ -355,6 +381,7 @@ pub fn get_oracle_price(
             confidence: 1,
             delay: 0,
             has_sufficient_number_of_data_points: true,
+            sequence_id: None,
         }),
         OracleSource::Prelaunch => get_prelaunch_price(price_oracle, clock_slot),
         OracleSource::PythPull => get_pyth_price(price_oracle, clock_slot, oracle_source),
@@ -387,6 +414,7 @@ pub fn get_pyth_price(
     let mut has_sufficient_number_of_data_points: bool = true;
     let mut oracle_precision: u128;
     let published_slot: u64;
+    let sequence_id: Option<u64>;
 
     if oracle_source.is_pyth_pull_oracle() {
         let price_message = pyth_solana_receiver_sdk::price_update::PriceUpdateV2::try_deserialize(
@@ -397,6 +425,13 @@ pub fn get_pyth_price(
         oracle_conf = price_message.price_message.conf;
         oracle_precision = 10_u128.pow(price_message.price_message.exponent.unsigned_abs());
         published_slot = price_message.posted_slot;
+        sequence_id = Some(
+            price_message
+                .price_message
+                .publish_time
+                .max(0)
+                .cast::<u64>()?,
+        );
     } else if oracle_source.is_pyth_push_oracle() {
         let price_data = pyth_client::cast::<pyth_client::Price>(pyth_price_data);
         oracle_price = price_data.agg.price;
@@ -415,12 +450,14 @@ pub fn get_pyth_price(
 
         oracle_precision = 10_u128.pow(price_data.expo.unsigned_abs());
         published_slot = price_data.valid_slot;
+        sequence_id = None;
     } else {
         let price_data = PythLazerOracle::try_deserialize(&mut pyth_price_data).unwrap();
         oracle_price = price_data.price;
         oracle_conf = price_data.conf;
         oracle_precision = 10_u128.pow(price_data.exponent.unsigned_abs());
         published_slot = price_data.posted_slot;
+        sequence_id = Some(price_data.publish_time.max(0).cast::<u64>()?);
     }
 
     if oracle_precision <= multiple {
@@ -457,6 +494,7 @@ pub fn get_pyth_price(
         confidence: oracle_conf_scaled,
         delay: oracle_delay,
         has_sufficient_number_of_data_points,
+        sequence_id,
     })
 }
 
@@ -514,6 +552,7 @@ pub fn get_switchboard_price(
         confidence,
         delay,
         has_sufficient_number_of_data_points,
+        sequence_id: None,
     })
 }
 
@@ -553,6 +592,7 @@ pub fn get_sb_on_demand_price(
         confidence,
         delay,
         has_sufficient_number_of_data_points,
+        sequence_id: None,
     })
 }
 
@@ -592,6 +632,7 @@ pub fn get_prelaunch_price(price_oracle: &AccountInfo, slot: u64) -> DriftResult
         confidence: oracle.confidence,
         delay: oracle.amm_last_update_slot.saturating_sub(slot).cast()?,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     })
 }
 
