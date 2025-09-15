@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.137.0] - 2025-09-15
+
+### Features
+
 - program: post only respects reduce only ([#1878](https://github.com/drift-labs/protocol-v2/pull/1878))
 - program: add sequence id to exchange/mm oracle ([#1834](https://github.com/drift-labs/protocol-v2/pull/1834))
 - program: perp position max margin ratio ([#1847](https://github.com/drift-labs/protocol-v2/pull/1847))
