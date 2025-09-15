@@ -101,13 +101,13 @@ pub fn validate_fee_tier(
         fee_tier_index,
     )?;
 
-    let fee_to_market = fee_to_market_pre_maker as u128 * PERCENTAGE_PRECISION
+    let has_fee_for_market = fee_to_market_pre_maker as u128 * PERCENTAGE_PRECISION
         / fee_tier.fee_denominator as u128
-        - fee_tier.maker_rebate_numerator as u128 * PERCENTAGE_PRECISION
+        > fee_tier.maker_rebate_numerator as u128 * PERCENTAGE_PRECISION
             / fee_tier.maker_rebate_denominator as u128;
 
     validate!(
-        fee_to_market >= 0,
+        has_fee_for_market,
         ErrorCode::InvalidFeeStructure,
         "invalid maker fee to market ({}) for index ({})",
         fee_tier.referrer_reward_numerator,
