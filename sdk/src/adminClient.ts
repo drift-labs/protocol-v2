@@ -5617,29 +5617,12 @@ export class AdminClient extends DriftClient {
 					instructions: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
 					tokenProgram: inTokenProgram,
 				},
-				remainingAccounts: [
-					{
-						pubkey: inSpotMarket.mint,
-						isWritable: false,
-						isSigner: false,
-					},
-				],
 			}
 		);
 
 		const remainingAccounts = [];
 		remainingAccounts.push({
 			pubkey: outTokenProgram,
-			isWritable: false,
-			isSigner: false,
-		});
-		remainingAccounts.push({
-			pubkey: inSpotMarket.mint,
-			isWritable: false,
-			isSigner: false,
-		});
-		remainingAccounts.push({
-			pubkey: outSpotMarket.mint,
 			isWritable: false,
 			isSigner: false,
 		});

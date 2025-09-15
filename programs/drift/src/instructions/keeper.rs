@@ -3144,8 +3144,6 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
         None,
     )?;
 
-    let mint = Some(*ctx.accounts.mint.clone());
-
     controller::spot_balance::update_spot_market_cumulative_interest(
         &mut *quote_market,
         None,
@@ -3232,7 +3230,6 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
                         &quote_constituent.vault_bump,
                     ),
                     settlement_result.amount_transferred,
-                    &mint,
                     Some(remaining_accounts_iter),
                 )?;
             }
@@ -3244,7 +3241,6 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
                     &ctx.accounts.drift_signer,
                     &get_signer_seeds(&state.signer_nonce),
                     settlement_result.amount_transferred,
-                    &mint,
                     Some(remaining_accounts_iter),
                 )?;
             }
@@ -3434,10 +3430,6 @@ pub struct SettleAmmPnlToLp<'info> {
     )]
     pub quote_token_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     pub token_program: Interface<'info, TokenInterface>,
-    #[account(
-        address = quote_market.load()?.mint,
-    )]
-    pub mint: Box<InterfaceAccount<'info, Mint>>,
     /// CHECK: program signer
     pub drift_signer: AccountInfo<'info>,
 }

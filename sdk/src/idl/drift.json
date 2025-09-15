@@ -9184,11 +9184,6 @@
           "isSigner": false
         },
         {
-          "name": "mint",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "driftSigner",
           "isMut": false,
           "isSigner": false

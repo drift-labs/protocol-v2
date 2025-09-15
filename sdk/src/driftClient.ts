@@ -11275,7 +11275,6 @@ export class DriftClient {
 				lpPool,
 				quoteTokenVault: quoteSpotMarketAccount.vault,
 				tokenProgram: this.getTokenProgramForSpotMarket(quoteSpotMarketAccount),
-				mint: quoteSpotMarketAccount.mint,
 			},
 			remainingAccounts,
 		});
