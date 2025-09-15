@@ -202,7 +202,7 @@ impl MMOraclePriceData {
         let exchange_oracle_is_more_recent =
             if let Some(exchange_seq_id) = oracle_price_data.sequence_id {
                 if exchange_seq_id.abs_diff(mm_oracle_sequence_id)
-                    < exchange_seq_id.safe_div_ceil(10_000)?
+                    < exchange_seq_id.safe_div(10_000)?
                     && exchange_seq_id != 0
                     && mm_oracle_sequence_id != 0
                 {
