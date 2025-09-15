@@ -1,5 +1,5 @@
 {
-  "version": "2.135.0",
+  "version": "2.136.0",
   "name": "drift",
   "instructions": [
     {
@@ -1390,96 +1390,6 @@
       ]
     },
     {
-      "name": "addPerpLpShares",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        }
-      ],
-      "args": [
-        {
-          "name": "nShares",
-          "type": "u64"
-        },
-        {
-          "name": "marketIndex",
-          "type": "u16"
-        }
-      ]
-    },
-    {
-      "name": "removePerpLpShares",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        }
-      ],
-      "args": [
-        {
-          "name": "sharesToBurn",
-          "type": "u64"
-        },
-        {
-          "name": "marketIndex",
-          "type": "u16"
-        }
-      ]
-    },
-    {
-      "name": "removePerpLpSharesInExpiringMarket",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "signer",
-          "isMut": false,
-          "isSigner": true
-        }
-      ],
-      "args": [
-        {
-          "name": "sharesToBurn",
-          "type": "u64"
-        },
-        {
-          "name": "marketIndex",
-          "type": "u16"
-        }
-      ]
-    },
-    {
       "name": "updateUserName",
       "accounts": [
         {
@@ -1531,6 +1441,35 @@
         {
           "name": "marginRatio",
           "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "updateUserPerpPositionCustomMarginRatio",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "subAccountId",
+          "type": "u16"
+        },
+        {
+          "name": "perpMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "marginRatio",
+          "type": "u16"
         }
       ]
     },
@@ -2290,27 +2229,6 @@
         }
       ],
       "args": []
-    },
-    {
-      "name": "settleLp",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "marketIndex",
-          "type": "u16"
-        }
-      ]
     },
     {
       "name": "settleExpiredMarket",
@@ -6000,58 +5918,6 @@
         {
           "name": "curveUpdateIntensity",
           "type": "u8"
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketTargetBaseAssetAmountPerLp",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "targetBaseAssetAmountPerLp",
-          "type": "i32"
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketPerLpBase",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "perLpBase",
-          "type": "i8"
         }
       ]
     },
@@ -11647,13 +11513,17 @@
             "type": "i64"
           },
           {
-            "name": "remainderBaseAssetAmount",
-            "docs": [
-              "Settling LP position can lead to a small amount of base asset being left over smaller than step size",
-              "This records that remainder so it can be settled later on",
-              "precision: BASE_PRECISION"
-            ],
-            "type": "i32"
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                2
+              ]
+            }
+          },
+          {
+            "name": "maxMarginRatio",
+            "type": "u16"
           },
           {
             "name": "marketIndex",
@@ -12709,23 +12579,6 @@
           },
           {
             "name": "Isolated"
-          }
-        ]
-      }
-    },
-    {
-      "name": "AMMLiquiditySplit",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "ProtocolOwned"
-          },
-          {
-            "name": "LPOwned"
-          },
-          {
-            "name": "Shared"
           }
         ]
       }

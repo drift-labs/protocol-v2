@@ -137,7 +137,6 @@ import { decodeName, DEFAULT_USER_NAME, encodeName } from './userName';
 import { MMOraclePriceData, OraclePriceData } from './oracles/types';
 import { DriftClientConfig } from './driftClientConfig';
 import { PollingDriftClientAccountSubscriber } from './accounts/pollingDriftClientAccountSubscriber';
-import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDriftClientAccountSubscriber';
 import { RetryTxSender } from './tx/retryTxSender';
 import { User } from './user';
 import { UserSubscriptionConfig } from './userConfig';
@@ -194,6 +193,8 @@ import { getOracleId } from './oracles/oracleId';
 import { SignedMsgOrderParams } from './types';
 import { sha256 } from '@noble/hashes/sha256';
 import { getOracleConfidenceFromMMOracleData } from './oracles/utils';
+import { Commitment } from 'gill';
+import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDriftClientAccountSubscriber';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -371,6 +372,8 @@ export class DriftClient {
 				resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
 				logResubMessages: config.accountSubscription?.logResubMessages,
 				commitment: config.accountSubscription?.commitment,
+				programUserAccountSubscriber:
+					config.accountSubscription?.programUserAccountSubscriber,
 			};
 			this.userStatsAccountSubscriptionConfig = {
 				type: 'websocket',
@@ -436,7 +439,10 @@ export class DriftClient {
 				}
 			);
 		} else {
-			this.accountSubscriber = new WebSocketDriftClientAccountSubscriber(
+			const accountSubscriberClass =
+				config.accountSubscription?.driftClientAccountSubscriber ??
+				WebSocketDriftClientAccountSubscriber;
+			this.accountSubscriber = new accountSubscriberClass(
 				this.program,
 				config.perpMarketIndexes ?? [],
 				config.spotMarketIndexes ?? [],
@@ -447,9 +453,7 @@ export class DriftClient {
 					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
 					logResubMessages: config.accountSubscription?.logResubMessages,
 				},
-				config.accountSubscription?.commitment,
-				config.accountSubscription?.perpMarketAccountSubscriber,
-				config.accountSubscription?.oracleAccountSubscriber
+				config.accountSubscription?.commitment as Commitment
 			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
@@ -610,7 +614,8 @@ export class DriftClient {
 	public getSpotMarketAccount(
 		marketIndex: number
 	): SpotMarketAccount | undefined {
-		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex).data;
+		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex)
+			?.data;
 	}
 
 	/**
@@ -621,7 +626,8 @@ export class DriftClient {
 		marketIndex: number
 	): Promise<SpotMarketAccount | undefined> {
 		await this.accountSubscriber.fetch();
-		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex).data;
+		return this.accountSubscriber.getSpotMarketAccountAndSlot(marketIndex)
+			?.data;
 	}
 
 	public getSpotMarketAccounts(): SpotMarketAccount[] {
@@ -1530,6 +1536,50 @@ export class DriftClient {
 		);
 
 		return ix;
+	}
+
+	public async getUpdateUserPerpPositionCustomMarginRatioIx(
+		perpMarketIndex: number,
+		marginRatio: number,
+		subAccountId = 0
+	): Promise<TransactionInstruction> {
+		const userAccountPublicKey = getUserAccountPublicKeySync(
+			this.program.programId,
+			this.wallet.publicKey,
+			subAccountId
+		);
+
+		await this.addUser(subAccountId, this.wallet.publicKey);
+
+		const ix = this.program.instruction.updateUserPerpPositionCustomMarginRatio(
+			subAccountId,
+			perpMarketIndex,
+			marginRatio,
+			{
+				accounts: {
+					user: userAccountPublicKey,
+					authority: this.wallet.publicKey,
+				},
+			}
+		);
+
+		return ix;
+	}
+
+	public async updateUserPerpPositionCustomMarginRatio(
+		perpMarketIndex: number,
+		marginRatio: number,
+		subAccountId = 0,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const ix = await this.getUpdateUserPerpPositionCustomMarginRatioIx(
+			perpMarketIndex,
+			marginRatio,
+			subAccountId
+		);
+		const tx = await this.buildTransaction(ix, txParams ?? this.txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
 	}
 
 	public async getUpdateUserMarginTradingEnabledIx(
@@ -2579,6 +2629,59 @@ export class DriftClient {
 		}
 
 		return instructions;
+	}
+
+	public async buildSwiftDepositTx(
+		signedOrderParams: SignedMsgOrderParams,
+		takerInfo: {
+			taker: PublicKey;
+			takerStats: PublicKey;
+			takerUserAccount: UserAccount;
+			signingAuthority: PublicKey;
+		},
+		depositAmount: BN,
+		depositSpotMarketIndex: number,
+		tradePerpMarketIndex: number,
+		subAccountId: number,
+		takerAssociatedTokenAccount: PublicKey,
+		initSwiftAccount = false
+	) {
+		const instructions = await this.getDepositTxnIx(
+			depositAmount,
+			depositSpotMarketIndex,
+			takerAssociatedTokenAccount,
+			subAccountId,
+			false
+		);
+
+		if (initSwiftAccount) {
+			const isSignedMsgUserOrdersAccountInitialized =
+				await this.isSignedMsgUserOrdersAccountInitialized(
+					this.wallet.publicKey
+				);
+
+			if (!isSignedMsgUserOrdersAccountInitialized) {
+				const [, initializeSignedMsgUserOrdersAccountIx] =
+					await this.getInitializeSignedMsgUserOrdersAccountIx(
+						this.wallet.publicKey,
+						8
+					);
+
+				instructions.push(initializeSignedMsgUserOrdersAccountIx);
+			}
+		}
+
+		const ixsWithPlace = await this.getPlaceSignedMsgTakerPerpOrderIxs(
+			signedOrderParams,
+			tradePerpMarketIndex,
+			takerInfo,
+			instructions
+		);
+
+		await this.buildTransaction(ixsWithPlace, {
+			computeUnitsPrice: 1_000,
+			computeUnits: 100_000,
+		});
 	}
 
 	public async createDepositTxn(
@@ -6392,6 +6495,40 @@ export class DriftClient {
 		return {
 			orderParams,
 			signature: this.signMessage(Buffer.from(borshBuf.toString('hex'))),
+		};
+	}
+
+	/**
+	 * Builds a deposit and place request for Swift service
+	 *
+	 * @param depositTx - The signed tx containing a drift deposit (e.g. see `buildSwiftDepositTx`)
+	 * @param orderParamsMessage - The order parameters message to sign
+	 * @param delegateSigner - Whether this is a delegate signer
+	 *
+	 * @returns request object for Swift service
+	 */
+	public buildDepositAndPlaceSignedMsgOrderRequest(
+		depositTx: VersionedTransaction,
+		orderParamsMessage:
+			| SignedMsgOrderParamsMessage
+			| SignedMsgOrderParamsDelegateMessage,
+		delegateSigner?: boolean
+	): {
+		deposit_tx: Buffer;
+		swift_order: SignedMsgOrderParams;
+	} {
+		// Serialize the deposit transaction
+		const serializedDepositTx = Buffer.from(depositTx.serialize());
+
+		// Get the signed swift order using the existing method
+		const swiftOrder = this.signSignedMsgOrderParamsMessage(
+			orderParamsMessage,
+			delegateSigner
+		);
+
+		return {
+			deposit_tx: serializedDepositTx,
+			swift_order: swiftOrder,
 		};
 	}
 
