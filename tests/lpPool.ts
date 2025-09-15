@@ -1540,8 +1540,8 @@ describe('LP Pool', () => {
 		const spotBalanceBefore = constituent.spotBalance;
 
 		try {
-		await adminClient.withdrawFromProgramVault(
-			encodeName(lpPoolName),
+			await adminClient.withdrawFromProgramVault(
+				encodeName(lpPoolName),
 				0,
 				new BN(100).mul(QUOTE_PRECISION)
 			);

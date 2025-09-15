@@ -10889,7 +10889,7 @@ export class DriftClient {
 						userOutTokenAccount,
 						constituentOutTokenAccount,
 						userLpTokenAccount,
-						spotMarketTokenAccount: spotMarket.vault, 
+						spotMarketTokenAccount: spotMarket.vault,
 						lpMint,
 						lpPoolTokenVault: getLpPoolTokenVaultPublicKey(
 							this.program.programId,
@@ -11178,7 +11178,6 @@ export class DriftClient {
 				lpPool,
 				quoteTokenVault: quoteSpotMarketAccount.vault,
 				tokenProgram: this.getTokenProgramForSpotMarket(quoteSpotMarketAccount),
-				mint: quoteSpotMarketAccount.mint,
 			},
 			remainingAccounts,
 		});
