@@ -1077,7 +1077,7 @@ pub mod drift {
     }
 
     pub fn update_perp_market_lp_pool_status(
-        ctx: Context<AdminUpdatePerpMarket>,
+        ctx: Context<UpdatePerpMarketLpPoolStatus>,
         lp_status: u8,
     ) -> Result<()> {
         handle_update_perp_market_lp_pool_status(ctx, lp_status)

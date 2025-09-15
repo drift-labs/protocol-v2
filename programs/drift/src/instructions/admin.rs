@@ -4233,16 +4233,6 @@ pub fn handle_update_perp_market_protected_maker_params(
     Ok(())
 }
 
-pub fn handle_update_perp_market_lp_pool_status(
-    ctx: Context<AdminUpdatePerpMarket>,
-    lp_status: u8,
-) -> Result<()> {
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    msg!("perp market {}", perp_market.market_index);
-    perp_market.lp_status = lp_status;
-    Ok(())
-}
-
 pub fn handle_update_perp_market_lp_pool_paused_operations(
     ctx: Context<AdminUpdatePerpMarket>,
     lp_paused_operations: u8,

@@ -1,16 +1,18 @@
-use crate::controller;
+use crate::{controller, load_mut};
 use crate::controller::token::{receive, send_from_program_vault_with_signature_seeds};
 use crate::error::ErrorCode;
 use crate::ids::{admin_hot_wallet, lp_pool_swap_wallet};
 use crate::instructions::optional_accounts::get_token_mint;
 use crate::math::constants::{PRICE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX};
 use crate::math::safe_math::SafeMath;
+use crate::state::amm_cache::AmmCache;
 use crate::state::lp_pool::{
     AmmConstituentDatum, AmmConstituentMapping, Constituent, ConstituentCorrelations,
     ConstituentTargetBase, LPPool, TargetsDatum, AMM_MAP_PDA_SEED,
     CONSTITUENT_CORRELATIONS_PDA_SEED, CONSTITUENT_PDA_SEED, CONSTITUENT_TARGET_BASE_PDA_SEED,
     CONSTITUENT_VAULT_PDA_SEED,
 };
+use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::SpotMarket;
 use crate::state::state::State;
 use crate::validate;
@@ -880,6 +882,20 @@ pub fn handle_end_lp_swap<'c: 'info, 'info>(
     Ok(())
 }
 
+pub fn handle_update_perp_market_lp_pool_status(
+    ctx: Context<UpdatePerpMarketLpPoolStatus>,
+    lp_status: u8,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    let amm_cache = &mut ctx.accounts.amm_cache;
+
+    msg!("perp market {}", perp_market.market_index);
+    perp_market.lp_status = lp_status;
+    amm_cache.update_perp_market_fields(&perp_market)?;
+    
+    Ok(())
+}
+
 #[derive(Accounts)]
 #[instruction(
     name: [u8; 32],
@@ -1225,4 +1241,17 @@ pub struct LPTakerSwap<'info> {
     #[account(address = instructions::ID)]
     pub instructions: UncheckedAccount<'info>,
     pub token_program: Interface<'info, TokenInterface>,
+}
+
+#[derive(Accounts)]
+pub struct UpdatePerpMarketLpPoolStatus<'info> {
+    pub admin: Signer<'info>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub perp_market: AccountLoader<'info, PerpMarket>,
+    #[account(mut)]
+    pub amm_cache: Box<Account<'info, AmmCache>>,
 }

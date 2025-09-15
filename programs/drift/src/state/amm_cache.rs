@@ -54,7 +54,8 @@ pub struct CacheInfo {
     pub oracle_slot: u64,
     pub oracle_source: u8,
     pub oracle_validity: u8,
-    pub _padding: [u8; 14],
+    pub lp_status_for_perp_market: u8,
+    pub _padding: [u8; 13],
 }
 
 impl Size for CacheInfo {
@@ -80,7 +81,8 @@ impl Default for CacheInfo {
             last_settle_amm_ex_fees: 0u128,
             oracle_source: 0u8,
             quote_owed_from_lp_pool: 0i64,
-            _padding: [0u8; 14],
+            lp_status_for_perp_market: 0u8,
+            _padding: [0u8; 13],
         }
     }
 }
@@ -110,6 +112,7 @@ impl CacheInfo {
             .amm
             .get_protocol_owned_position()?
             .safe_mul(-1)?;
+        self.lp_status_for_perp_market = perp_market.lp_status;
         Ok(())
     }
 
