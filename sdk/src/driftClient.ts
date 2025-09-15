@@ -11208,6 +11208,16 @@ export class DriftClient {
 
 		ixs.push(await this.getUpdateAmmCacheIx(perpMarketIndexes));
 
+		const constituents: ConstituentAccount[] = Array.from(
+			constituentMap.values()
+		);
+
+		if (includeUpdateConstituentOracleInfo) {
+			for (const constituent of constituents) {
+				ixs.push(await this.getUpdateConstituentOracleInfoIx(constituent));
+			}
+		}
+
 		ixs.push(
 			await this.getUpdateLpConstituentTargetBaseIx(
 				lpPool.name,
@@ -11215,13 +11225,13 @@ export class DriftClient {
 					(constituent) => constituent.pubkey
 				)
 			)
-		);
+		);		
 
 		ixs.push(
 			...(await this.getAllUpdateLpPoolAumIxs(
 				lpPool,
 				constituentMap,
-				includeUpdateConstituentOracleInfo
+				false
 			))
 		);
 
