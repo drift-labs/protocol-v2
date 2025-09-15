@@ -5,13 +5,21 @@ import {
 	ZERO,
 } from '../constants/numericConstants';
 import { getLimitPrice } from '../math/orders';
-import { isVariant, Order, ProtectedMakerParams } from '../types';
-import { OraclePriceData } from '../oracles/types';
+import {
+	isVariant,
+	MarketTypeStr,
+	Order,
+	ProtectedMakerParams,
+} from '../types';
+import { MMOraclePriceData, OraclePriceData } from '../oracles/types';
 import { convertToNumber } from '../math/conversion';
 import { getOrderSignature } from './NodeList';
 
 export interface DLOBNode {
-	getPrice(oraclePriceData: OraclePriceData, slot: number): BN;
+	getPrice<T extends MarketTypeStr>(
+		oraclePriceData: T extends 'spot' ? OraclePriceData : MMOraclePriceData,
+		slot: number
+	): BN;
 	isVammNode(): boolean;
 	order: Order | undefined;
 	isBaseFilled(): boolean;
@@ -81,8 +89,11 @@ export abstract class OrderNode implements DLOBNode {
 		return msg;
 	}
 
-	getPrice(oraclePriceData: OraclePriceData, slot: number): BN {
-		return getLimitPrice(
+	getPrice<T extends MarketTypeStr>(
+		oraclePriceData: T extends 'spot' ? OraclePriceData : MMOraclePriceData,
+		slot: number
+	): BN {
+		return getLimitPrice<T>(
 			this.order,
 			oraclePriceData,
 			slot,

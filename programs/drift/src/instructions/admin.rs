@@ -1968,6 +1968,36 @@ pub fn handle_deposit_into_perp_market_fee_pool<'c: 'info, 'info>(
 }
 
 #[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_update_perp_market_pnl_pool<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, UpdatePerpMarketPnlPool<'info>>,
+    amount: u64,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+    controller::spot_balance::update_spot_balances(
+        amount.cast::<u128>()?,
+        &SpotBalanceType::Deposit,
+        spot_market,
+        &mut perp_market.pnl_pool,
+        false,
+    )?;
+
+    validate_spot_market_vault_amount(spot_market, ctx.accounts.spot_market_vault.amount)?;
+
+    msg!(
+        "updating perp market {} pnl pool with amount {}",
+        perp_market.market_index,
+        amount
+    );
+
+    Ok(())
+}
+
+#[access_control(
     deposit_not_paused(&ctx.accounts.state)
     spot_market_valid(&ctx.accounts.spot_market)
 )]
@@ -2319,14 +2349,6 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
         ErrorCode::InvalidUpdateK,
         "cannot increase sqrt_k={} past MAX_SQRT_K",
         perp_market.amm.sqrt_k
-    )?;
-
-    validate!(
-        perp_market.amm.sqrt_k > perp_market.amm.user_lp_shares,
-        ErrorCode::InvalidUpdateK,
-        "cannot decrease sqrt_k={} below user_lp_shares={}",
-        perp_market.amm.sqrt_k,
-        perp_market.amm.user_lp_shares
     )?;
 
     perp_market.amm.total_fee_minus_distributions = perp_market
@@ -3399,59 +3421,6 @@ pub fn handle_update_perp_market_curve_update_intensity(
     );
 
     perp_market.amm.curve_update_intensity = curve_update_intensity;
-    Ok(())
-}
-
-#[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
-pub fn handle_update_perp_market_target_base_asset_amount_per_lp(
-    ctx: Context<AdminUpdatePerpMarket>,
-    target_base_asset_amount_per_lp: i32,
-) -> Result<()> {
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    msg!("perp market {}", perp_market.market_index);
-
-    msg!(
-        "perp_market.amm.target_base_asset_amount_per_lp: {} -> {}",
-        perp_market.amm.target_base_asset_amount_per_lp,
-        target_base_asset_amount_per_lp
-    );
-
-    perp_market.amm.target_base_asset_amount_per_lp = target_base_asset_amount_per_lp;
-    Ok(())
-}
-
-pub fn handle_update_perp_market_per_lp_base(
-    ctx: Context<AdminUpdatePerpMarket>,
-    per_lp_base: i8,
-) -> Result<()> {
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    msg!("perp market {}", perp_market.market_index);
-
-    let old_per_lp_base = perp_market.amm.per_lp_base;
-    msg!(
-        "updated perp_market per_lp_base {} -> {}",
-        old_per_lp_base,
-        per_lp_base
-    );
-
-    let expo_diff = per_lp_base.safe_sub(old_per_lp_base)?;
-
-    validate!(
-        expo_diff.abs() == 1,
-        ErrorCode::DefaultError,
-        "invalid expo update (must be 1)",
-    )?;
-
-    validate!(
-        per_lp_base.abs() <= 9,
-        ErrorCode::DefaultError,
-        "only consider lp_base within range of AMM_RESERVE_PRECISION",
-    )?;
-
-    controller::lp::apply_lp_rebase_to_perp_market(perp_market, expo_diff)?;
-
     Ok(())
 }
 
@@ -5257,6 +5226,29 @@ pub struct SettleExpiredMarketPoolsToRevenuePool<'info> {
         mut
     )]
     pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(mut)]
+    pub perp_market: AccountLoader<'info, PerpMarket>,
+}
+
+#[derive(Accounts)]
+pub struct UpdatePerpMarketPnlPool<'info> {
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    pub admin: Signer<'info>,
+    #[account(
+        seeds = [b"spot_market", 0_u16.to_le_bytes().as_ref()],
+        bump,
+        mut
+    )]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), 0_u16.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(mut)]
     pub perp_market: AccountLoader<'info, PerpMarket>,
 }

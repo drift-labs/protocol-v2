@@ -196,6 +196,7 @@ export class OrderBitFlag {
 	static readonly SignedMessage = 1;
 	static readonly OracleTriggerMarket = 2;
 	static readonly SafeTriggerOrder = 4;
+	static readonly NewTriggerReduceOnly = 8;
 }
 
 export class OrderAction {
@@ -1041,7 +1042,9 @@ export type PerpPosition = {
 	openAsks: BN;
 	settledPnl: BN;
 	lpShares: BN;
+	/**	 TODO: remove this field - it doesn't exist on chain */
 	remainderBaseAssetAmount: number;
+	maxMarginRatio: number;
 	lastBaseAssetAmountPerLp: BN;
 	lastQuoteAssetAmountPerLp: BN;
 	perLpBase: number;

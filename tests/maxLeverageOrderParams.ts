@@ -209,7 +209,7 @@ describe('max leverage order params', () => {
 		);
 
 		let leverage = driftClient.getUser().getLeverage().toNumber() / 10000;
-		assert(leverage === 4.9949);
+		assert(leverage === 4.995);
 
 		await driftClient.cancelOrderByUserId(1);
 
@@ -224,7 +224,7 @@ describe('max leverage order params', () => {
 		);
 
 		leverage = driftClient.getUser().getLeverage().toNumber() / 10000;
-		assert(leverage === 4.9949);
+		assert(leverage === 4.995);
 
 		await driftClient.cancelOrderByUserId(1);
 	});

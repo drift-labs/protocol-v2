@@ -1,4 +1,5 @@
 use std::cell::RefMut;
+use std::collections::BTreeMap;
 use std::convert::TryFrom;
 
 use anchor_lang::prelude::*;
@@ -26,6 +27,7 @@ use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
+use crate::math::margin::get_margin_calculation_for_disable_high_leverage_mode;
 use crate::math::margin::{calculate_user_equity, meets_settle_pnl_maintenance_margin_requirement};
 use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
@@ -1070,37 +1072,6 @@ pub fn handle_settle_funding_payment<'c: 'info, 'info>(
 
     controller::funding::settle_funding_payments(user, &user_key, &perp_market_map, now)?;
     user.update_last_active_slot(clock.slot);
-    Ok(())
-}
-
-#[access_control(
-    amm_not_paused(&ctx.accounts.state)
-)]
-pub fn handle_settle_lp<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, SettleLP>,
-    market_index: u16,
-) -> Result<()> {
-    let user_key = ctx.accounts.user.key();
-    let user = &mut load_mut!(ctx.accounts.user)?;
-
-    let state = &ctx.accounts.state;
-    let clock = Clock::get()?;
-    let now = clock.unix_timestamp;
-
-    let AccountMaps {
-        perp_market_map, ..
-    } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
-        &get_writable_perp_market_set(market_index),
-        &MarketSet::new(),
-        clock.slot,
-        Some(state.oracle_guard_rails),
-    )?;
-
-    let market = &mut perp_market_map.get_ref_mut(&market_index)?;
-    controller::lp::settle_funding_payment_then_lp(user, &user_key, market, now)?;
-    user.update_last_active_slot(clock.slot);
-
     Ok(())
 }
 
@@ -2446,13 +2417,9 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
         msg!("skipping mark twap update for disabled amm prediction market");
         return Ok(());
     }
-
-    msg!(
-        "before amm bid twap = {} ask twap = {} ts = {}",
-        perp_market.amm.last_bid_price_twap,
-        perp_market.amm.last_ask_price_twap,
-        perp_market.amm.last_mark_price_twap_ts
-    );
+    let before_bid_price_twap = perp_market.amm.last_bid_price_twap;
+    let before_ask_price_twap = perp_market.amm.last_ask_price_twap;
+    let before_mark_twap_ts = perp_market.amm.last_mark_price_twap_ts;
 
     let sanitize_clamp_denominator = perp_market.get_sanitize_clamp_denominator()?;
     math::amm::update_mark_twap_crank(
@@ -2465,11 +2432,32 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
     )?;
 
     msg!(
-        "after amm bid twap = {} ask twap = {} ts = {}",
+        "after amm bid twap = {} -> {} 
+        ask twap = {} -> {} 
+        ts = {} -> {}",
+        before_bid_price_twap,
         perp_market.amm.last_bid_price_twap,
+        before_ask_price_twap,
         perp_market.amm.last_ask_price_twap,
+        before_mark_twap_ts,
         perp_market.amm.last_mark_price_twap_ts
     );
+
+    if perp_market.amm.last_bid_price_twap == before_bid_price_twap
+        || perp_market.amm.last_ask_price_twap == before_ask_price_twap
+    {
+        validate!(
+            perp_market
+                .amm
+                .last_mark_price_twap_ts
+                .safe_sub(before_mark_twap_ts)?
+                >= 60
+                || estimated_bid.unwrap_or(0) == before_bid_price_twap
+                || estimated_ask.unwrap_or(0) == before_ask_price_twap,
+            ErrorCode::CantUpdatePerpBidAskTwap,
+            "bid or ask twap unchanged from small ts delta update",
+        )?;
+    }
 
     let funding_paused =
         state.funding_paused()? || perp_market.is_operation_paused(PerpOperation::UpdateFunding);
@@ -2817,19 +2805,12 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
         }
     }
 
-    let custom_margin_ratio_before = user.max_margin_ratio;
-    user.max_margin_ratio = 0;
-
-    let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
-        &user,
+    let margin_calc = get_margin_calculation_for_disable_high_leverage_mode(
+        &mut user,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
-        MarginContext::standard(MarginRequirementType::Initial)
-            .margin_buffer(MARGIN_PRECISION / 100), // 1% buffer
     )?;
-
-    user.max_margin_ratio = custom_margin_ratio_before;
 
     if margin_calc.num_perp_liabilities > 0 {
         let mut requires_invariant_check = false;

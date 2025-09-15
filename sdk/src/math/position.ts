@@ -8,7 +8,7 @@ import {
 	ONE,
 	ZERO,
 } from '../constants/numericConstants';
-import { OraclePriceData } from '../oracles/types';
+import { MMOraclePriceData, OraclePriceData } from '../oracles/types';
 import {
 	PerpMarketAccount,
 	PositionDirection,
@@ -35,9 +35,10 @@ import { calculateNetUserPnlImbalance } from './market';
 export function calculateBaseAssetValue(
 	market: PerpMarketAccount,
 	userPosition: PerpPosition,
-	oraclePriceData: OraclePriceData,
+	mmOraclePriceData: MMOraclePriceData,
 	useSpread = true,
-	skipUpdate = false
+	skipUpdate = false,
+	latestSlot?: BN
 ): BN {
 	if (userPosition.baseAssetAmount.eq(ZERO)) {
 		return ZERO;
@@ -52,7 +53,9 @@ export function calculateBaseAssetValue(
 				calculateUpdatedAMMSpreadReserves(
 					market.amm,
 					directionToClose,
-					oraclePriceData
+					mmOraclePriceData,
+					undefined,
+					latestSlot
 				);
 			prepegAmm = {
 				baseAssetReserve,
@@ -61,7 +64,7 @@ export function calculateBaseAssetValue(
 				pegMultiplier: newPeg,
 			};
 		} else {
-			prepegAmm = calculateUpdatedAMM(market.amm, oraclePriceData);
+			prepegAmm = calculateUpdatedAMM(market.amm, mmOraclePriceData);
 		}
 	} else {
 		prepegAmm = market.amm;
@@ -103,7 +106,7 @@ export function calculatePositionPNL(
 	market: PerpMarketAccount,
 	perpPosition: PerpPosition,
 	withFunding = false,
-	oraclePriceData: OraclePriceData
+	oraclePriceData: Pick<OraclePriceData, 'price'>
 ): BN {
 	if (perpPosition.baseAssetAmount.eq(ZERO)) {
 		return perpPosition.quoteAssetAmount;
@@ -135,7 +138,7 @@ export function calculateClaimablePnl(
 	market: PerpMarketAccount,
 	spotMarket: SpotMarketAccount,
 	perpPosition: PerpPosition,
-	oraclePriceData: OraclePriceData
+	oraclePriceData: Pick<OraclePriceData, 'price'>
 ): BN {
 	const unrealizedPnl = calculatePositionPNL(
 		market,
