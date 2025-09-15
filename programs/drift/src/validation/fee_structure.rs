@@ -103,7 +103,7 @@ pub fn validate_fee_tier(
 
     let has_fee_for_market = fee_to_market_pre_maker as u128 * PERCENTAGE_PRECISION
         / fee_tier.fee_denominator as u128
-        > fee_tier.maker_rebate_numerator as u128 * PERCENTAGE_PRECISION
+        >= fee_tier.maker_rebate_numerator as u128 * PERCENTAGE_PRECISION
             / fee_tier.maker_rebate_denominator as u128;
 
     validate!(
