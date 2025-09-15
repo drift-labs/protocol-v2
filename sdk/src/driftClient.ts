@@ -2631,6 +2631,59 @@ export class DriftClient {
 		return instructions;
 	}
 
+	public async buildSwiftDepositTx(
+		signedOrderParams: SignedMsgOrderParams,
+		takerInfo: {
+			taker: PublicKey;
+			takerStats: PublicKey;
+			takerUserAccount: UserAccount;
+			signingAuthority: PublicKey;
+		},
+		depositAmount: BN,
+		depositSpotMarketIndex: number,
+		tradePerpMarketIndex: number,
+		subAccountId: number,
+		takerAssociatedTokenAccount: PublicKey,
+		initSwiftAccount = false
+	) {
+		const instructions = await this.getDepositTxnIx(
+			depositAmount,
+			depositSpotMarketIndex,
+			takerAssociatedTokenAccount,
+			subAccountId,
+			false
+		);
+
+		if (initSwiftAccount) {
+			const isSignedMsgUserOrdersAccountInitialized =
+				await this.isSignedMsgUserOrdersAccountInitialized(
+					this.wallet.publicKey
+				);
+
+			if (!isSignedMsgUserOrdersAccountInitialized) {
+				const [, initializeSignedMsgUserOrdersAccountIx] =
+					await this.getInitializeSignedMsgUserOrdersAccountIx(
+						this.wallet.publicKey,
+						8
+					);
+
+				instructions.push(initializeSignedMsgUserOrdersAccountIx);
+			}
+		}
+
+		const ixsWithPlace = await this.getPlaceSignedMsgTakerPerpOrderIxs(
+			signedOrderParams,
+			tradePerpMarketIndex,
+			takerInfo,
+			instructions
+		);
+
+		await this.buildTransaction(ixsWithPlace, {
+			computeUnitsPrice: 1_000,
+			computeUnits: 100_000,
+		});
+	}
+
 	public async createDepositTxn(
 		amount: BN,
 		marketIndex: number,
@@ -6448,7 +6501,7 @@ export class DriftClient {
 	/**
 	 * Builds a deposit and place request for Swift service
 	 *
-	 * @param depositTx - The signed tx containing a drift deposit (e.g. see `createDepositTxn`)
+	 * @param depositTx - The signed tx containing a drift deposit (e.g. see `buildSwiftDepositTx`)
 	 * @param orderParamsMessage - The order parameters message to sign
 	 * @param delegateSigner - Whether this is a delegate signer
 	 *
@@ -8643,6 +8696,32 @@ export class DriftClient {
 			.abs()
 			.mul(PERCENTAGE_PRECISION)
 			.div(BN.max(oracleData.price, ONE));
+
+		const mmOracleSequenceId = perpMarket.amm.mmOracleSequenceId;
+
+		// Do slot check for recency if sequence ids are zero or they're too divergent
+		const doSlotCheckForRecency =
+			oracleData.sequenceId == null ||
+			oracleData.sequenceId.eq(ZERO) ||
+			mmOracleSequenceId.eq(ZERO) ||
+			oracleData.sequenceId
+				.sub(perpMarket.amm.mmOracleSequenceId)
+				.abs()
+				.gt(oracleData.sequenceId.div(new BN(10_000)));
+
+		let isExchangeOracleMoreRecent = true;
+		if (
+			doSlotCheckForRecency &&
+			oracleData.slot <= perpMarket.amm.mmOracleSlot
+		) {
+			isExchangeOracleMoreRecent = false;
+		} else if (
+			!doSlotCheckForRecency &&
+			oracleData.sequenceId < mmOracleSequenceId
+		) {
+			isExchangeOracleMoreRecent = false;
+		}
+
 		if (
 			!isOracleValid(
 				perpMarket,
@@ -8651,7 +8730,7 @@ export class DriftClient {
 				stateAccountAndSlot.slot
 			) ||
 			perpMarket.amm.mmOraclePrice.eq(ZERO) ||
-			perpMarket.amm.mmOracleSlot < oracleData.slot ||
+			isExchangeOracleMoreRecent ||
 			pctDiff.gt(PERCENTAGE_PRECISION.divn(100)) // 1% threshold
 		) {
 			return { ...oracleData, isMMOracleActive };
@@ -9980,7 +10059,8 @@ export class DriftClient {
 
 	public async getDisableHighLeverageModeIx(
 		user: PublicKey,
-		userAccount?: UserAccount
+		userAccount?: UserAccount,
+		maintenance = false
 	): Promise<TransactionInstruction> {
 		const remainingAccounts = userAccount
 			? this.getRemainingAccounts({
@@ -9989,7 +10069,7 @@ export class DriftClient {
 			: undefined;
 
 		const ix = await this.program.instruction.disableUserHighLeverageMode(
-			false,
+			maintenance,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
