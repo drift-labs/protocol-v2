@@ -1408,7 +1408,7 @@ impl Order {
         };
 
         // if order is post only, can disregard reduce only
-        if !self.reduce_only || self.post_only {
+        if !self.reduce_only {
             return Ok(base_asset_amount_unfilled);
         }
 
