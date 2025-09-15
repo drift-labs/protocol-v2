@@ -1188,7 +1188,6 @@ pub fn calculate_target_weight(
 
 /// Update target base based on amm_inventory and mapping
 pub struct AmmInventoryAndPrices {
-    pub perp_market_index: u16,
     pub inventory: i64,
     pub price: i64,
 }
@@ -1212,12 +1211,7 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
 
         // Precompute notional by perp market index
         let mut notionals: Vec<i128> = Vec::with_capacity(amm_inventory_and_prices.len());
-        for &AmmInventoryAndPrices {
-            perp_market_index,
-            inventory,
-            price,
-        } in amm_inventory_and_prices.iter()
-        {
+        for &AmmInventoryAndPrices { inventory, price } in amm_inventory_and_prices.iter() {
             let notional = (inventory as i128)
                 .safe_mul(price as i128)?
                 .safe_div(BASE_PRECISION_I128)?;

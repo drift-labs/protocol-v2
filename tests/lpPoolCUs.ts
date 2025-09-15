@@ -256,8 +256,6 @@ describe('LP Pool', () => {
 		await adminClient.initializeLpPool(
 			lpPoolName,
 			ZERO,
-			ZERO,
-			new BN(3600),
 			new BN(1_000_000_000_000).mul(QUOTE_PRECISION),
 			new BN(1_000_000).mul(QUOTE_PRECISION),
 			new Keypair()

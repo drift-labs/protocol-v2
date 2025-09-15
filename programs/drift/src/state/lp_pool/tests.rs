@@ -70,22 +70,18 @@ mod tests {
 
         let amm_inventory_and_price: Vec<AmmInventoryAndPrices> = vec![
             AmmInventoryAndPrices {
-                perp_market_index: 0,
                 inventory: 4 * BASE_PRECISION_I64,
                 price: 100_000 * PRICE_PRECISION_I64,
             }, // $400k BTC
             AmmInventoryAndPrices {
-                perp_market_index: 1,
                 inventory: 2000 * BASE_PRECISION_I64,
                 price: 200 * PRICE_PRECISION_I64,
             }, // $400k SOL
             AmmInventoryAndPrices {
-                perp_market_index: 2,
                 inventory: 200 * BASE_PRECISION_I64,
                 price: 1500 * PRICE_PRECISION_I64,
             }, // $300k ETH
             AmmInventoryAndPrices {
-                perp_market_index: 3,
                 inventory: 16500 * BASE_PRECISION_I64,
                 price: PRICE_PRECISION_I64,
             }, // $16.5k FARTCOIN
@@ -186,7 +182,6 @@ mod tests {
         };
 
         let amm_inventory_and_prices: Vec<AmmInventoryAndPrices> = vec![AmmInventoryAndPrices {
-            perp_market_index: 0,
             inventory: 1_000_000,
             price: 1_000_000,
         }];
@@ -254,7 +249,6 @@ mod tests {
 
         let price = PRICE_PRECISION_I64;
         let amm_inventory_and_prices: Vec<AmmInventoryAndPrices> = vec![AmmInventoryAndPrices {
-            perp_market_index: 0,
             inventory: BASE_PRECISION_I64,
             price,
         }];
@@ -344,7 +338,6 @@ mod tests {
         };
 
         let amm_inventory_and_prices: Vec<AmmInventoryAndPrices> = vec![AmmInventoryAndPrices {
-            perp_market_index: 0,
             inventory: 1_000_000_000,
             price: 1_000_000,
         }];
@@ -433,7 +426,6 @@ mod tests {
         };
 
         let amm_inventory_and_prices: Vec<AmmInventoryAndPrices> = vec![AmmInventoryAndPrices {
-            perp_market_index: 0,
             inventory: 1_000_000,
             price: 142_000_000,
         }];

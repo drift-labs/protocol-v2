@@ -101,6 +101,9 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
     let mut amm_inventories: Vec<AmmInventoryAndPrices> =
         Vec::with_capacity(amm_cache.len() as usize);
     for (idx, cache_info) in amm_cache.iter().enumerate() {
+        if cache_info.lp_status_for_perp_market == 0 {
+            continue;
+        }
         if !is_oracle_valid_for_action(
             OracleValidity::try_from(cache_info.oracle_validity)?,
             Some(DriftAction::UpdateLpConstituentTargetBase),
@@ -126,7 +129,6 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
         }
 
         amm_inventories.push(AmmInventoryAndPrices {
-            perp_market_index: idx as u16,
             inventory: cache_info.position,
             price: cache_info.oracle_price,
         });
