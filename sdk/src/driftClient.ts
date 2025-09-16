@@ -11252,14 +11252,10 @@ export class DriftClient {
 					(constituent) => constituent.pubkey
 				)
 			)
-		);		
+		);
 
 		ixs.push(
-			...(await this.getAllUpdateLpPoolAumIxs(
-				lpPool,
-				constituentMap,
-				false
-			))
+			...(await this.getAllUpdateLpPoolAumIxs(lpPool, constituentMap, false))
 		);
 
 		return ixs;

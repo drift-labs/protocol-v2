@@ -23,6 +23,7 @@ import {
 	SwapReduceOnly,
 	InitializeConstituentParams,
 	ConstituentStatus,
+	LPPoolAccount,
 } from './types';
 import { DEFAULT_MARKET_NAME, encodeName } from './userName';
 import { BN } from '@coral-xyz/anchor';
@@ -60,7 +61,9 @@ import {
 import { squareRootBN } from './math/utils';
 import {
 	createInitializeMint2Instruction,
+	createMintToInstruction,
 	createTransferCheckedInstruction,
+	getAssociatedTokenAddressSync,
 	MINT_SIZE,
 	TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
@@ -6131,5 +6134,47 @@ export class AdminClient extends DriftClient {
 				},
 			}
 		);
+	}
+
+	public async mintLpWhitelistToken(
+		lpPool: LPPoolAccount,
+		authority: PublicKey
+	): Promise<TransactionSignature> {
+		const ix = await this.getMintLpWhitelistTokenIx(lpPool, authority);
+		const tx = await this.buildTransaction(ix);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getMintLpWhitelistTokenIx(
+		lpPool: LPPoolAccount,
+		authority: PublicKey
+	): Promise<TransactionInstruction[]> {
+		const mintAmount = 1000;
+		const associatedTokenAccount = getAssociatedTokenAddressSync(
+			lpPool.whitelistMint,
+			authority,
+			false
+		);
+
+		const ixs: TransactionInstruction[] = [];
+		const createInstruction =
+			this.createAssociatedTokenAccountIdempotentInstruction(
+				associatedTokenAccount,
+				this.wallet.publicKey,
+				authority,
+				lpPool.whitelistMint
+			);
+		ixs.push(createInstruction);
+		const mintToInstruction = createMintToInstruction(
+			lpPool.whitelistMint,
+			associatedTokenAccount,
+			this.wallet.publicKey,
+			mintAmount,
+			[],
+			TOKEN_PROGRAM_ID
+		);
+		ixs.push(mintToInstruction);
+		return ixs;
 	}
 }

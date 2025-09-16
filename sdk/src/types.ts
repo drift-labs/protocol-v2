@@ -1738,19 +1738,21 @@ export type ConstituentAccount = {
 export type CacheInfo = {
 	slot: BN;
 	position: BN;
-	maxConfidenceIntervalMultiplier: BN;
 	lastOraclePriceTwap: BN;
 	oracle: PublicKey;
 	oracleSource: number;
 	oraclePrice: BN;
-	oracleDelay: BN;
-	oracleConfidence: BN;
+	oracleSlot: BN;
 	lastExchangeFees: BN;
 	lastFeePoolTokenAmount: BN;
 	lastNetPnlPoolTokenAmount: BN;
 	lastSettleAmount: BN;
 	lastSettleSlot: BN;
+	lastSettleTs: BN;
+	lastSettleAmmPnl: BN;
+	lastSettleAmmExFees: BN;
 	quoteOwedFromLpPool: BN;
+	lpStatusForPerpMarket: number;
 };
 
 export type AmmCache = {
