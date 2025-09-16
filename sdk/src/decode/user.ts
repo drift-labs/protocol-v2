@@ -338,8 +338,10 @@ export function decodeUser(buffer: Buffer): UserAccount {
 	const marginModeNum = buffer.readUInt8(offset);
 	if (marginModeNum === 0) {
 		marginMode = MarginMode.DEFAULT;
-	} else {
+	} else if (marginModeNum === 1) {
 		marginMode = MarginMode.HIGH_LEVERAGE;
+	} else {
+		marginMode = MarginMode.HIGH_LEVERAGE_MAINTENANCE;
 	}
 	offset += 1;
 
