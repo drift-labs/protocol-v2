@@ -9,12 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- program: add max margin ratio to swift message ([#1860](https://github.com/drift-labs/protocol-v2/pull/1860))
+### Fixes
+
+### Breaking
+
+## [2.137.0] - 2025-09-15
+
+### Features
+
+- program: post only respects reduce only ([#1878](https://github.com/drift-labs/protocol-v2/pull/1878))
+- program: add sequence id to exchange/mm oracle ([#1834](https://github.com/drift-labs/protocol-v2/pull/1834))
 - program: perp position max margin ratio ([#1847](https://github.com/drift-labs/protocol-v2/pull/1847))
 - program: add padding to swift messages ([#1845](https://github.com/drift-labs/protocol-v2/pull/1845))
 - program: rm lp ([#1755](https://github.com/drift-labs/protocol-v2/pull/1755))
 
 ### Fixes
+
+- program: make it easier to fill step size orders ([#1799](https://github.com/drift-labs/protocol-v2/pull/1799))
+- program: relax fee tier constraints for maker ([#1876](https://github.com/drift-labs/protocol-v2/pull/1876))
 
 ### Breaking
 

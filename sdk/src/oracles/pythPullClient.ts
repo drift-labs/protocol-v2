@@ -88,6 +88,7 @@ export class PythPullClient implements OracleClient {
 				this.multiple
 			),
 			hasSufficientNumberOfDataPoints: true,
+			sequenceId: priceData.publishTime,
 		};
 	}
 }

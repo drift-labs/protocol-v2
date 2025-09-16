@@ -2172,12 +2172,13 @@ pub fn fulfill_perp_order_with_amm(
     };
 
     // if user position is less than min order size, step size is the threshold
-    let amm_size_threshold =
-        if existing_base_asset_amount.unsigned_abs() > market.amm.min_order_size {
-            market.amm.min_order_size
-        } else {
-            market.amm.order_step_size
-        };
+    let amm_size_threshold = if !user.orders[order_index].reduce_only
+        && existing_base_asset_amount.unsigned_abs() > market.amm.min_order_size
+    {
+        market.amm.min_order_size
+    } else {
+        market.amm.order_step_size
+    };
 
     if base_asset_amount < amm_size_threshold {
         // if is an actual swap (and not amm jit order) then msg!
