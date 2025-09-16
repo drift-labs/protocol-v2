@@ -1,10 +1,13 @@
 pub mod perp_lp_pool_settlement {
+    use core::slice::Iter;
+    use std::iter::Peekable;
+
+    use crate::error::ErrorCode;
+    use crate::math::casting::Cast;
+    use crate::state::spot_market::SpotBalanceType;
     use crate::{
         math::safe_math::SafeMath,
-        state::{
-            perp_market::{CacheInfo, PerpMarket},
-            spot_market::{SpotBalance, SpotMarket},
-        },
+        state::{amm_cache::CacheInfo, perp_market::PerpMarket, spot_market::SpotMarket},
         *,
     };
     use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
@@ -30,6 +33,7 @@ pub mod perp_lp_pool_settlement {
         pub fee_pool_balance: u128,
         pub pnl_pool_balance: u128,
         pub quote_market: &'a SpotMarket,
+        pub max_settle_quote_amount: u64,
     }
 
     pub fn calculate_settlement_amount(ctx: &SettlementContext) -> Result<SettlementResult> {
@@ -47,6 +51,21 @@ pub mod perp_lp_pool_settlement {
         }
     }
 
+    pub fn validate_settlement_amount(
+        ctx: &SettlementContext,
+        result: &SettlementResult,
+    ) -> Result<()> {
+        if result.amount_transferred > ctx.max_settle_quote_amount as u64 {
+            msg!(
+                "Amount to settle exceeds maximum allowed, {} > {}",
+                result.amount_transferred,
+                ctx.max_settle_quote_amount
+            );
+            return Err(ErrorCode::LpPoolSettleInvariantBreached.into());
+        }
+        Ok(())
+    }
+
     fn calculate_lp_to_perp_settlement(ctx: &SettlementContext) -> Result<SettlementResult> {
         if ctx.quote_constituent_token_balance == 0 {
             return Ok(SettlementResult {
@@ -57,12 +76,11 @@ pub mod perp_lp_pool_settlement {
             });
         }
 
-        let amount_to_send = if ctx.quote_owed_from_lp > ctx.quote_constituent_token_balance as i64
-        {
-            ctx.quote_constituent_token_balance
-        } else {
-            ctx.quote_owed_from_lp as u64
-        };
+        let amount_to_send = ctx
+            .quote_owed_from_lp
+            .cast::<u64>()?
+            .min(ctx.quote_constituent_token_balance)
+            .min(ctx.max_settle_quote_amount);
 
         Ok(SettlementResult {
             amount_transferred: amount_to_send,
@@ -73,7 +91,7 @@ pub mod perp_lp_pool_settlement {
     }
 
     fn calculate_perp_to_lp_settlement(ctx: &SettlementContext) -> Result<SettlementResult> {
-        let amount_to_send = ctx.quote_owed_from_lp.abs() as u64;
+        let amount_to_send = (ctx.quote_owed_from_lp.abs() as u64).min(ctx.max_settle_quote_amount);
 
         if ctx.fee_pool_balance >= amount_to_send as u128 {
             // Fee pool can cover entire amount
@@ -103,44 +121,56 @@ pub mod perp_lp_pool_settlement {
         from_vault: &InterfaceAccount<'info, TokenAccount>,
         to_vault: &InterfaceAccount<'info, TokenAccount>,
         signer: &AccountInfo<'info>,
-        signer_nonce: u8,
+        signer_seed: &[&[u8]],
         amount: u64,
-        mint: &Option<InterfaceAccount<'info, Mint>>,
+        remaining_accounts: Option<&mut Peekable<Iter<'info, AccountInfo<'info>>>>,
     ) -> Result<()> {
-        controller::token::send_from_program_vault(
+        controller::token::send_from_program_vault_with_signature_seeds(
             token_program,
             from_vault,
             to_vault,
             signer,
-            signer_nonce,
+            signer_seed,
             amount,
-            mint,
+            &None,
+            remaining_accounts,
         )
     }
 
     // Market state updates
-    pub fn update_perp_market_pools(
+    pub fn update_perp_market_pools_and_quote_market_balance(
         perp_market: &mut PerpMarket,
         result: &SettlementResult,
-        precision_increase: u128,
+        quote_spot_market: &mut SpotMarket,
     ) -> Result<()> {
         match result.direction {
             SettlementDirection::FromLpPool => {
-                perp_market.amm.fee_pool.increase_balance(
-                    (result.amount_transferred as u128).safe_mul(precision_increase)?,
+                controller::spot_balance::update_spot_balances(
+                    result.amount_transferred as u128,
+                    &SpotBalanceType::Deposit,
+                    quote_spot_market,
+                    &mut perp_market.amm.fee_pool,
+                    false,
                 )?;
             }
             SettlementDirection::ToLpPool => {
                 if result.fee_pool_used > 0 {
-                    perp_market
-                        .amm
-                        .fee_pool
-                        .decrease_balance(result.fee_pool_used.safe_mul(precision_increase)?)?;
+                    controller::spot_balance::update_spot_balances(
+                        result.fee_pool_used,
+                        &SpotBalanceType::Borrow,
+                        quote_spot_market,
+                        &mut perp_market.amm.fee_pool,
+                        true,
+                    )?;
                 }
                 if result.pnl_pool_used > 0 {
-                    perp_market
-                        .pnl_pool
-                        .decrease_balance(result.pnl_pool_used.safe_mul(precision_increase)?)?;
+                    controller::spot_balance::update_spot_balances(
+                        result.pnl_pool_used,
+                        &SpotBalanceType::Borrow,
+                        quote_spot_market,
+                        &mut perp_market.pnl_pool,
+                        true,
+                    )?;
                 }
             }
             SettlementDirection::None => {}
@@ -152,11 +182,15 @@ pub mod perp_lp_pool_settlement {
         cache_info: &mut CacheInfo,
         result: &SettlementResult,
         new_quote_owed: i64,
-        timestamp: i64,
+        slot: u64,
+        now: i64,
     ) -> Result<()> {
         cache_info.quote_owed_from_lp_pool = new_quote_owed;
         cache_info.last_settle_amount = result.amount_transferred;
-        cache_info.last_settle_ts = timestamp;
+        cache_info.last_settle_slot = slot;
+        cache_info.last_settle_ts = now;
+        cache_info.last_settle_amm_ex_fees = cache_info.last_exchange_fees;
+        cache_info.last_settle_amm_pnl = cache_info.last_net_pnl_pool_token_amount;
 
         match result.direction {
             SettlementDirection::FromLpPool => {

@@ -10,10 +10,14 @@ import { ConstituentAccount } from '../types';
 import { PollingConstituentAccountSubscriber } from './pollingConstituentAccountSubscriber';
 import { WebSocketConstituentAccountSubscriber } from './webSocketConstituentAccountSubscriber';
 import { DriftClient } from '../driftClient';
-import { getConstituentFilter } from '../memcmp';
+import { getConstituentFilter, getConstituentLpPoolFilter } from '../memcmp';
 import { ZSTDDecoder } from 'zstddec';
+import { encodeName } from '../userName';
+import { getLpPoolPublicKey } from '../addresses/pda';
 
 const MAX_CONSTITUENT_SIZE_BYTES = 304; // TODO: update this when account is finalized
+
+const LP_POOL_NAME = 'test lp pool 2';
 
 export type ConstituentMapConfig = {
 	driftClient: DriftClient;
@@ -30,6 +34,7 @@ export type ConstituentMapConfig = {
 				logResubMessages?: boolean;
 				commitment?: Commitment;
 		  };
+	lpPoolName?: string;
 	// potentially use these to filter Constituent accounts
 	additionalFilters?: MemcmpFilter[];
 };
@@ -39,6 +44,13 @@ export interface ConstituentMapInterface {
 	unsubscribe(): Promise<void>;
 	has(key: string): boolean;
 	get(key: string): ConstituentAccount | undefined;
+	getFromSpotMarketIndex(
+		spotMarketIndex: number
+	): ConstituentAccount | undefined;
+	getFromConstituentIndex(
+		constituentIndex: number
+	): ConstituentAccount | undefined;
+
 	getWithSlot(key: string): DataAndSlot<ConstituentAccount> | undefined;
 	mustGet(key: string): Promise<ConstituentAccount>;
 	mustGetWithSlot(key: string): Promise<DataAndSlot<ConstituentAccount>>;
@@ -52,11 +64,17 @@ export class ConstituentMap implements ConstituentMapInterface {
 	private commitment?: Commitment;
 	private connection?: Connection;
 
+	private constituentIndexToKeyMap = new Map<number, string>();
+	private spotMarketIndexToKeyMap = new Map<number, string>();
+
+	private lpPoolName: string;
+
 	constructor(config: ConstituentMapConfig) {
 		this.driftClient = config.driftClient;
 		this.additionalFilters = config.additionalFilters;
 		this.commitment = config.subscriptionConfig.commitment;
 		this.connection = config.connection || this.driftClient.connection;
+		this.lpPoolName = config.lpPoolName ?? LP_POOL_NAME;
 
 		if (config.subscriptionConfig.type === 'polling') {
 			this.constituentAccountSubscriber =
@@ -65,7 +83,7 @@ export class ConstituentMap implements ConstituentMapInterface {
 					this.driftClient.program,
 					config.subscriptionConfig.frequency,
 					config.subscriptionConfig.commitment,
-					config.additionalFilters
+					this.getFilters()
 				);
 		} else if (config.subscriptionConfig.type === 'websocket') {
 			this.constituentAccountSubscriber =
@@ -74,7 +92,7 @@ export class ConstituentMap implements ConstituentMapInterface {
 					this.driftClient.program,
 					config.subscriptionConfig.resubTimeoutMs,
 					config.subscriptionConfig.commitment,
-					config.additionalFilters
+					this.getFilters()
 				);
 		}
 
@@ -88,7 +106,15 @@ export class ConstituentMap implements ConstituentMapInterface {
 	}
 
 	private getFilters(): MemcmpFilter[] {
-		const filters = [getConstituentFilter()];
+		const filters = [
+			getConstituentFilter(),
+			getConstituentLpPoolFilter(
+				getLpPoolPublicKey(
+					this.driftClient.program.programId,
+					encodeName(this.lpPoolName)
+				)
+			),
+		];
 		if (this.additionalFilters) {
 			filters.push(...this.additionalFilters);
 		}
@@ -172,6 +198,20 @@ export class ConstituentMap implements ConstituentMapInterface {
 		return this.constituentMap.get(key)?.data;
 	}
 
+	public getFromConstituentIndex(
+		constituentIndex: number
+	): ConstituentAccount | undefined {
+		const key = this.constituentIndexToKeyMap.get(constituentIndex);
+		return key ? this.get(key) : undefined;
+	}
+
+	public getFromSpotMarketIndex(
+		spotMarketIndex: number
+	): ConstituentAccount | undefined {
+		const key = this.spotMarketIndexToKeyMap.get(spotMarketIndex);
+		return key ? this.get(key) : undefined;
+	}
+
 	public getWithSlot(key: string): DataAndSlot<ConstituentAccount> | undefined {
 		return this.constituentMap.get(key);
 	}
@@ -245,5 +285,7 @@ export class ConstituentMap implements ConstituentMapInterface {
 				slot,
 			});
 		}
+		this.constituentIndexToKeyMap.set(constituentAccount.constituentIndex, key);
+		this.spotMarketIndexToKeyMap.set(constituentAccount.spotMarketIndex, key);
 	}
 }

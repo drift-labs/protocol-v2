@@ -9,6 +9,141 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: post only respects reduce only ([#1878](https://github.com/drift-labs/protocol-v2/pull/1878))
+- program: add sequence id to exchange/mm oracle ([#1834](https://github.com/drift-labs/protocol-v2/pull/1834))
+- program: perp position max margin ratio ([#1847](https://github.com/drift-labs/protocol-v2/pull/1847))
+- program: rm lp ([#1755](https://github.com/drift-labs/protocol-v2/pull/1755))
+
+### Fixes
+
+- program: make it easier to fill step size orders ([#1799](https://github.com/drift-labs/protocol-v2/pull/1799))
+- program: relax fee tier constraints for maker ([#1876](https://github.com/drift-labs/protocol-v2/pull/1876))
+
+### Breaking
+
+## [2.136.0] - 2025-09-03
+
+### Features
+
+- program: update referral fee validate rules ([#1843](https://github.com/drift-labs/protocol-v2/pull/1843))
+
+### Fixes
+
+### Breaking
+
+## [2.134.0] - 2025-08-13
+
+### Features
+
+- program: add new settle pnl invariants ([#1812](https://github.com/drift-labs/protocol-v2/pull/1812))
+- program: add update_perp_market_pnl_pool ([#1810](https://github.com/drift-labs/protocol-v2/pull/1810))
+- program: increase min margin ratio invariant constant ([#1802](https://github.com/drift-labs/protocol-v2/pull/1802))
+- program: update mark twap crank use 5min basis for bid/ask ([#1769](https://github.com/drift-labs/protocol-v2/pull/1769))
+
+### Fixes
+
+- program: remove burn lp shares invariant ([#1816](https://github.com/drift-labs/protocol-v2/pull/1816))
+- program: correct fee tier 5 volume requirement ([#1800](https://github.com/drift-labs/protocol-v2/pull/1800))
+- program: fix small number mark-twap-integer-bias ([#1783](https://github.com/drift-labs/protocol-v2/pull/1783))
+
+### Breaking
+
+## [2.133.0] - 2025-08-11
+
+### Features
+
+### Fixes
+
+### Breaking
+
+- program: have TRY_SETTLE pnl mode fail ([#1809](https://github.com/drift-labs/protocol-v2/pull/1809))
+
+## [2.132.0] - 2025-08-06
+
+### Features
+
+- program: update max borrow delta/utilization thresholds ([#1760](https://github.com/drift-labs/protocol-v2/pull/1801))
+
+### Fixes
+
+### Breaking
+
+## [2.131.1] - 2025-08-04
+
+### Features
+
+### Fixes
+
+- program: update-fee-tier-validates ([#1798](https://github.com/drift-labs/protocol-v2/pull/1798))
+
+### Breaking
+
+## [2.131.0] - 2025-08-04
+
+### Features
+
+- program: update stake + volume fee tier determination ([#1792](https://github.com/drift-labs/protocol-v2/pull/1792))
+
+### Fixes
+
+- program: less aggressive fill bands for spot swaps ([#1796](https://github.com/drift-labs/protocol-v2/pull/1796))
+
+### Breaking
+
+## [2.130.0] - 2025-07-29
+
+### Features
+
+- program: new median price for trigger orders ([#1716](https://github.com/drift-labs/protocol-v2/pull/1716))
+- program: mm oracle ([#1767](https://github.com/drift-labs/protocol-v2/pull/1767))
+- program: add high leverage maintenance margin mode ([#1759](https://github.com/drift-labs/protocol-v2/pull/1759))
+
+### Fixes
+
+- program: update validate fill price to work both directions ([#1772](https://github.com/drift-labs/protocol-v2/pull/1772))
+
+### Breaking
+
+## [2.129.0] - 2025-07-23
+
+### Features
+
+- program: lp reduce only ([#1749](https://github.com/drift-labs/protocol-v2/pull/1749))
+- program: new margin mode enum ([#1765](https://github.com/drift-labs/protocol-v2/pull/1765))
+
+### Fixes
+
+- program: fix reference price decay ([#1761](https://github.com/drift-labs/protocol-v2/pull/1761))
+
+### Breaking
+
+## [2.128.1] - 2025-07-21
+
+### Features
+
+### Fixes
+
+- program: reference-price-offset-override ([#1760](https://github.com/drift-labs/protocol-v2/pull/1760))
+
+### Breaking
+
+## [2.128.0] - 2025-07-20
+
+### Features
+
+- program: smooth decay for reference price offset ([#1758)](https://github.com/drift-labs/protocol-v2/pull/1758))
+
+### Fixes
+
+### Breaking
+
+## [2.127.0] - 2025-07-12
+
+### Features
+
+- program: allow hot admin to update prelaunch oracle ([#1734](https://github.com/drift-labs/protocol-v2/pull/1734))
+- program: init passing in remaining accounts for transfer hook ([#1730](https://github.com/drift-labs/protocol-v2/pull/1730))
+
 ### Fixes
 
 ### Breaking

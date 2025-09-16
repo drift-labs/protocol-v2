@@ -1,6 +1,6 @@
 [package]
 name = "drift"
-version = "2.126.0"
+version = "2.136.0"
 description = "Created with Anchor"
 edition = "2018"
 
@@ -14,7 +14,7 @@ no-entrypoint = []
 cpi = ["no-entrypoint"]
 mainnet-beta=[]
 anchor-test= []
-default=["mainnet-beta"]
+default=["mainnet-beta", "no-entrypoint"]
 drift-rs=[]
 
 [dependencies]

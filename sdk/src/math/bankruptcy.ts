@@ -1,4 +1,6 @@
-import { ZERO, hasOpenOrders, isVariant } from '..';
+import { ZERO } from '../constants/numericConstants';
+import { hasOpenOrders } from './position';
+import { isVariant } from '../types';
 import { User } from '../user';
 
 export function isUserBankrupt(user: User): boolean {
@@ -19,8 +21,7 @@ export function isUserBankrupt(user: User): boolean {
 		if (
 			!position.baseAssetAmount.eq(ZERO) ||
 			position.quoteAssetAmount.gt(ZERO) ||
-			hasOpenOrders(position) ||
-			position.lpShares.gt(ZERO)
+			hasOpenOrders(position)
 		) {
 			return false;
 		}

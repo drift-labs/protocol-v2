@@ -11,6 +11,7 @@ use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::PerpMarket;
 use crate::state::state::{OracleGuardRails, ValidityGuardRails};
 use crate::state::user::MarketType;
+use std::convert::TryFrom;
 use std::fmt;
 
 #[cfg(test)]
@@ -57,6 +58,37 @@ impl fmt::Display for OracleValidity {
     }
 }
 
+impl TryFrom<u8> for OracleValidity {
+    type Error = ErrorCode;
+
+    fn try_from(v: u8) -> DriftResult<Self> {
+        match v {
+            0 => Ok(OracleValidity::NonPositive),
+            1 => Ok(OracleValidity::TooVolatile),
+            2 => Ok(OracleValidity::TooUncertain),
+            3 => Ok(OracleValidity::StaleForMargin),
+            4 => Ok(OracleValidity::InsufficientDataPoints),
+            5 => Ok(OracleValidity::StaleForAMM),
+            6 => Ok(OracleValidity::Valid),
+            _ => panic!("Invalid OracleValidity"),
+        }
+    }
+}
+
+impl From<OracleValidity> for u8 {
+    fn from(src: OracleValidity) -> u8 {
+        match src {
+            OracleValidity::NonPositive => 0,
+            OracleValidity::TooVolatile => 1,
+            OracleValidity::TooUncertain => 2,
+            OracleValidity::StaleForMargin => 3,
+            OracleValidity::InsufficientDataPoints => 4,
+            OracleValidity::StaleForAMM => 5,
+            OracleValidity::Valid => 6,
+        }
+    }
+}
+
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum DriftAction {
     UpdateFunding,
@@ -69,6 +101,7 @@ pub enum DriftAction {
     UpdateTwap,
     UpdateAMMCurve,
     OracleOrderPrice,
+    UseMMOraclePrice,
     UpdateLpConstituentTargetBase,
     UpdateLpPoolAum,
     LpPoolSwap,
@@ -119,7 +152,10 @@ pub fn is_oracle_valid_for_action(
                     | OracleValidity::InsufficientDataPoints
                     | OracleValidity::StaleForMargin
             ),
-            DriftAction::FillOrderMatch => !matches!(
+            DriftAction::FillOrderMatch
+            | DriftAction::UpdateLpConstituentTargetBase
+            | DriftAction::UpdateLpPoolAum
+            | DriftAction::LpPoolSwap => !matches!(
                 oracle_validity,
                 OracleValidity::NonPositive
                     | OracleValidity::TooVolatile
@@ -131,12 +167,9 @@ pub fn is_oracle_valid_for_action(
             ),
             DriftAction::UpdateTwap => !matches!(oracle_validity, OracleValidity::NonPositive),
             DriftAction::UpdateAMMCurve => !matches!(oracle_validity, OracleValidity::NonPositive),
-            DriftAction::UpdateLpConstituentTargetBase | DriftAction::UpdateLpPoolAum => {
-                !matches!(oracle_validity, OracleValidity::NonPositive)
-            }
-            DriftAction::LpPoolSwap => !matches!(
+            DriftAction::UseMMOraclePrice => !matches!(
                 oracle_validity,
-                OracleValidity::NonPositive | OracleValidity::InsufficientDataPoints
+                OracleValidity::NonPositive | OracleValidity::TooVolatile,
             ),
         },
         None => {
@@ -197,7 +230,7 @@ pub fn get_oracle_status(
         &guard_rails.validity,
         market.get_max_confidence_interval_multiplier()?,
         &market.amm.oracle_source,
-        false,
+        LogMode::None,
         0,
     )?;
     let oracle_reserve_price_spread_pct =
@@ -215,6 +248,14 @@ pub fn get_oracle_status(
     })
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LogMode {
+    None,
+    ExchangeOracle,
+    MMOracle,
+    SafeMMOracle,
+}
+
 pub fn oracle_validity(
     market_type: MarketType,
     market_index: u16,
@@ -223,7 +264,7 @@ pub fn oracle_validity(
     valid_oracle_guard_rails: &ValidityGuardRails,
     max_confidence_interval_multiplier: u64,
     oracle_source: &OracleSource,
-    log_validity: bool,
+    log_mode: LogMode,
     slots_before_stale_for_amm_override: i8,
 ) -> DriftResult<OracleValidity> {
     let OraclePriceData {
@@ -234,17 +275,7 @@ pub fn oracle_validity(
         ..
     } = *oracle_price_data;
 
-    if oracle_price <= 0 {
-        // Return early so we dont panic with math errors later
-        if log_validity {
-            crate::msg!(
-                "Invalid {} {} Oracle: Non-positive (oracle_price <=0)",
-                market_type,
-                market_index
-            );
-        }
-        return Ok(OracleValidity::NonPositive);
-    }
+    let is_oracle_price_nonpositive = oracle_price <= 0;
 
     let is_oracle_price_too_volatile = (oracle_price.max(last_oracle_twap))
         .safe_div(last_oracle_twap.min(oracle_price).max(1))?
@@ -276,7 +307,9 @@ pub fn oracle_validity(
         oracle_delay.gt(&valid_oracle_guard_rails.slots_before_stale_for_margin)
     };
 
-    let oracle_validity = if is_oracle_price_too_volatile {
+    let oracle_validity = if is_oracle_price_nonpositive {
+        OracleValidity::NonPositive
+    } else if is_oracle_price_too_volatile {
         OracleValidity::TooVolatile
     } else if is_conf_too_large {
         OracleValidity::TooUncertain
@@ -290,20 +323,38 @@ pub fn oracle_validity(
         OracleValidity::Valid
     };
 
-    if log_validity {
+    if log_mode != LogMode::None {
+        let oracle_type = if log_mode == LogMode::ExchangeOracle {
+            "Exchange"
+        } else if log_mode == LogMode::SafeMMOracle {
+            "SafeMM"
+        } else {
+            "MM"
+        };
         if !has_sufficient_number_of_data_points {
             crate::msg!(
-                "Invalid {} {} Oracle: Insufficient Data Points",
+                "Invalid {} {} {} Oracle: Insufficient Data Points",
                 market_type,
-                market_index
+                market_index,
+                oracle_type
+            );
+        }
+
+        if is_oracle_price_nonpositive {
+            crate::msg!(
+                "Invalid {} {} {} Oracle: Non-positive (oracle_price <=0)",
+                market_type,
+                market_index,
+                oracle_type
             );
         }
 
         if is_oracle_price_too_volatile {
             crate::msg!(
-                "Invalid {} {} Oracle: Too Volatile (last_oracle_price_twap={:?} vs oracle_price={:?})",
+                "Invalid {} {} {} Oracle: Too Volatile (last_oracle_price_twap={:?} vs oracle_price={:?})",
                 market_type,
                 market_index,
+                oracle_type,
                 last_oracle_twap,
                 oracle_price,
             );
@@ -311,18 +362,20 @@ pub fn oracle_validity(
 
         if is_conf_too_large {
             crate::msg!(
-                "Invalid {} {} Oracle: Confidence Too Large (is_conf_too_large={:?})",
+                "Invalid {} {} {} Oracle: Confidence Too Large (is_conf_too_large={:?})",
                 market_type,
                 market_index,
+                oracle_type,
                 conf_pct_of_price
             );
         }
 
         if is_stale_for_amm || is_stale_for_margin {
             crate::msg!(
-                "Invalid {} {} Oracle: Stale (oracle_delay={:?})",
+                "Invalid {} {} {} Oracle: Stale (oracle_delay={:?})",
                 market_type,
                 market_index,
+                oracle_type,
                 oracle_delay
             );
         }

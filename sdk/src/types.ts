@@ -5,7 +5,8 @@ import {
 	TransactionVersion,
 	VersionedTransaction,
 } from '@solana/web3.js';
-import { BN, ZERO } from '.';
+import { BN } from '@coral-xyz/anchor';
+import { ZERO } from './constants/numericConstants';
 
 // Utility type which lets you denote record with values of type A mapped to a record with the same keys but values of type B
 export type MappedRecord<A extends Record<string, unknown>, B> = {
@@ -25,6 +26,11 @@ export enum ExchangeStatus {
 	SETTLE_PNL_PAUSED = 64,
 	AMM_IMMEDIATE_FILL_PAUSED = 128,
 	PAUSED = 255,
+}
+
+export enum FeatureBitFlags {
+	MM_ORACLE_UPDATE = 1,
+	MEDIAN_TRIGGER_PRICE = 2,
 }
 
 export class MarketStatus {
@@ -74,6 +80,9 @@ export enum UserStatus {
 export class MarginMode {
 	static readonly DEFAULT = { default: {} };
 	static readonly HIGH_LEVERAGE = { highLeverage: {} };
+	static readonly HIGH_LEVERAGE_MAINTENANCE = {
+		highLeverageMaintenance: {},
+	};
 }
 
 export class ContractType {
@@ -97,6 +106,11 @@ export class AssetTier {
 	static readonly CROSS = { cross: {} };
 	static readonly ISOLATED = { isolated: {} };
 	static readonly UNLISTED = { unlisted: {} };
+}
+
+export enum TokenProgramFlag {
+	Token2022 = 1,
+	TransferHook = 2,
 }
 
 export class SwapDirection {
@@ -182,6 +196,7 @@ export class OrderBitFlag {
 	static readonly SignedMessage = 1;
 	static readonly OracleTriggerMarket = 2;
 	static readonly SafeTriggerOrder = 4;
+	static readonly NewTriggerReduceOnly = 8;
 }
 
 export class OrderAction {
@@ -799,6 +814,7 @@ export type StateAccount = {
 	initialPctToLiquidate: number;
 	liquidationDuration: number;
 	maxInitializeUserFee: number;
+	featureBitFlags: number;
 };
 
 export type PerpMarketAccount = {
@@ -845,6 +861,11 @@ export type PerpMarketAccount = {
 	highLeverageMarginRatioMaintenance: number;
 	protectedMakerLimitPriceDivisor: number;
 	protectedMakerDynamicDivisor: number;
+	lastFillPrice: BN;
+
+	lpFeeTransferScalar: number;
+	lpExchangeFeeExcluscionScalar: number;
+	lpStatus: number;
 };
 
 export type HistoricalOracleData = {
@@ -950,7 +971,7 @@ export type SpotMarketAccount = {
 	fuelBoostMaker: number;
 	fuelBoostInsurance: number;
 
-	tokenProgram: number;
+	tokenProgramFlag: number;
 
 	poolId: number;
 };
@@ -991,7 +1012,7 @@ export type AMM = {
 	totalFeeMinusDistributions: BN;
 	totalFeeWithdrawn: BN;
 	totalFee: BN;
-	totalFeeEarnedPerLp: BN;
+	mmOracleSequenceId: BN;
 	userLpShares: BN;
 	baseAssetAmountWithUnsettledLp: BN;
 	orderStepSize: BN;
@@ -1036,13 +1057,12 @@ export type AMM = {
 
 	markStd: BN;
 	oracleStd: BN;
-	longIntensityCount: number;
 	longIntensityVolume: BN;
-	shortIntensityCount: number;
 	shortIntensityVolume: BN;
 	volume24H: BN;
 	minOrderSize: BN;
-	maxPositionSize: BN;
+	mmOraclePrice: BN;
+	mmOracleSlot: BN;
 
 	bidBaseAssetReserve: BN;
 	bidQuoteAssetReserve: BN;
@@ -1057,6 +1077,8 @@ export type AMM = {
 	takerSpeedBumpOverride: number;
 	ammSpreadAdjustment: number;
 	ammInventorySpreadAdjustment: number;
+
+	lastFundingOracleTwap: BN;
 };
 
 // # User Account Types
@@ -1072,7 +1094,9 @@ export type PerpPosition = {
 	openAsks: BN;
 	settledPnl: BN;
 	lpShares: BN;
+	/**	 TODO: remove this field - it doesn't exist on chain */
 	remainderBaseAssetAmount: number;
+	maxMarginRatio: number;
 	lastBaseAssetAmountPerLp: BN;
 	lastQuoteAssetAmountPerLp: BN;
 	perLpBase: number;
@@ -1638,15 +1662,16 @@ export type LPPoolAccount = {
 	lastAum: BN;
 	lastAumSlot: BN;
 	lastAumTs: BN;
+	lastHedgeTs: BN;
 	bump: number;
-	oldestOracleSlot: BN;
-	lastRevenueRebalanceTs: BN;
-	totalFeesReceived: BN;
-	totalFeesPaid: BN;
+	totalMintRedeemFeesPaid: BN;
+	cumulativeQuoteSentToPerpMarkets: BN;
+	cumulativeQuoteReceivedFromPerpMarkets: BN;
 	constituents: number;
+	whitelistMint: PublicKey;
 };
 
-export type BLPosition = {
+export type ConstituentSpotBalance = {
 	scaledBalance: BN;
 	cumulativeDeposits: BN;
 	marketIndex: number;
@@ -1672,6 +1697,17 @@ export type InitializeConstituentParams = {
 	xi?: number;
 };
 
+export enum ConstituentStatus {
+	ACTIVE = 0,
+	REDUCE_ONLY = 1,
+	DECOMMISSIONED = 2,
+}
+export enum ConstituentLpOperation {
+	Swap = 0b00000001,
+	Deposit = 0b00000010,
+	Withdraw = 0b00000100,
+}
+
 export type ConstituentAccount = {
 	pubkey: PublicKey;
 	spotMarketIndex: number;
@@ -1680,37 +1716,43 @@ export type ConstituentAccount = {
 	bump: number;
 	constituentDerivativeIndex: number;
 	maxWeightDeviation: BN;
+	maxBorrowTokenAmount: BN;
 	swapFeeMin: BN;
 	swapFeeMax: BN;
 	totalSwapFees: BN;
-	tokenBalance: BN;
-	spotBalance: BLPosition;
+	vaultTokenBalance: BN;
+	spotBalance: ConstituentSpotBalance;
 	lastOraclePrice: BN;
 	lastOracleSlot: BN;
 	mint: PublicKey;
 	oracleStalenessThreshold: BN;
 	lpPool: PublicKey;
-	tokenVault: PublicKey;
+	vault: PublicKey;
 	nextSwapId: BN;
 	derivativeWeight: BN;
 	flashLoanInitialTokenAmount: BN;
+	status: number;
+	pausedOperations: number;
 };
 
 export type CacheInfo = {
 	slot: BN;
 	position: BN;
-	maxConfidenceIntervalMultiplier: BN;
 	lastOraclePriceTwap: BN;
 	oracle: PublicKey;
 	oracleSource: number;
 	oraclePrice: BN;
-	oracleDelay: BN;
-	oracleConfidence: BN;
+	oracleSlot: BN;
+	lastExchangeFees: BN;
 	lastFeePoolTokenAmount: BN;
 	lastNetPnlPoolTokenAmount: BN;
 	lastSettleAmount: BN;
+	lastSettleSlot: BN;
 	lastSettleTs: BN;
+	lastSettleAmmPnl: BN;
+	lastSettleAmmExFees: BN;
 	quoteOwedFromLpPool: BN;
+	lpStatusForPerpMarket: number;
 };
 
 export type AmmCache = {

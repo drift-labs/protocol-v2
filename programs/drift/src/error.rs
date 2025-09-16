@@ -666,6 +666,20 @@ pub enum ErrorCode {
     LpInvariantFailed,
     #[msg("Invalid constituent derivative weights")]
     InvalidConstituentDerivativeWeights,
+    #[msg("Unauthorized dlp authority")]
+    UnauthorizedDlpAuthority,
+    #[msg("Max DLP AUM Breached")]
+    MaxDlpAumBreached,
+    #[msg("Settle Lp Pool Disabled")]
+    SettleLpPoolDisabled,
+    #[msg("Mint/Redeem Lp Pool Disabled")]
+    MintRedeemLpPoolDisabled,
+    #[msg("Settlement amount exceeded")]
+    LpPoolSettleInvariantBreached,
+    #[msg("Invalid constituent operation")]
+    InvalidConstituentOperation,
+    #[msg("Unauthorized for operation")]
+    Unauthorized,
 }
 
 #[macro_export]

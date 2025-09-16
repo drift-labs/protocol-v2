@@ -11,6 +11,7 @@ use anchor_spl::{
 use solana_program::program::invoke;
 use solana_program::system_instruction::transfer;
 
+use crate::controller::funding::settle_funding_payment;
 use crate::controller::orders::{cancel_orders, ModifyOrderId};
 use crate::controller::position::update_position_and_market;
 use crate::controller::position::PositionDirection;
@@ -637,6 +638,11 @@ pub fn handle_deposit<'c: 'info, 'info>(
         &ctx.accounts.authority,
         amount,
         &mint,
+        if spot_market.has_transfer_hook() {
+            Some(remaining_accounts_iter)
+        } else {
+            None
+        },
     )?;
     ctx.accounts.spot_market_vault.reload()?;
 
@@ -830,6 +836,11 @@ pub fn handle_withdraw<'c: 'info, 'info>(
         state.signer_nonce,
         amount,
         &mint,
+        if spot_market.has_transfer_hook() {
+            Some(remaining_accounts_iter)
+        } else {
+            None
+        },
     )?;
 
     // reload the spot market vault balance so it's up-to-date
@@ -1472,6 +1483,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             .find(|acc| acc.key() == spot_market_mint.key())
             .map(|acc| InterfaceAccount::try_from(acc).unwrap());
 
+        // TODO: support transfer hook tokens
         controller::token::send_from_program_vault(
             token_program,
             &ctx.accounts.deposit_from_spot_market_vault,
@@ -1480,6 +1492,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             state.signer_nonce,
             deposit_transfer,
             &mint_account_info,
+            None,
         )?;
     }
 
@@ -1500,6 +1513,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             .find(|acc| acc.key() == spot_market_mint.key())
             .map(|acc| InterfaceAccount::try_from(acc).unwrap());
 
+        // TODO: support transfer hook tokens
         controller::token::send_from_program_vault(
             token_program,
             &ctx.accounts.borrow_to_spot_market_vault,
@@ -1508,6 +1522,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             state.signer_nonce,
             borrow_transfer,
             &mint_account_info,
+            None,
         )?;
     }
 
@@ -1597,14 +1612,14 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         &clock,
     )?;
 
-    controller::lp::settle_funding_payment_then_lp(
+    settle_funding_payment(
         &mut from_user,
         &from_user_key,
         perp_market_map.get_ref_mut(&market_index)?.deref_mut(),
         now,
     )?;
 
-    controller::lp::settle_funding_payment_then_lp(
+    settle_funding_payment(
         &mut to_user,
         &to_user_key,
         perp_market_map.get_ref_mut(&market_index)?.deref_mut(),
@@ -1874,6 +1889,7 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         taker_existing_base_asset_amount: to_existing_base_asset_amount,
         maker_existing_quote_entry_amount: from_existing_quote_entry_amount,
         maker_existing_base_asset_amount: from_existing_base_asset_amount,
+        trigger_price: None,
     };
 
     emit_stack::<_, { OrderActionRecord::SIZE }>(fill_record)?;
@@ -2909,204 +2925,6 @@ pub fn handle_place_and_make_spot_order<'c: 'info, 'info>(
     Ok(())
 }
 
-#[access_control(
-    amm_not_paused(&ctx.accounts.state)
-)]
-pub fn handle_add_perp_lp_shares<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, AddRemoveLiquidity<'info>>,
-    n_shares: u64,
-    market_index: u16,
-) -> Result<()> {
-    let user_key = ctx.accounts.user.key();
-    let user = &mut load_mut!(ctx.accounts.user)?;
-    let state = &ctx.accounts.state;
-    let clock = Clock::get()?;
-    let now = clock.unix_timestamp;
-
-    let AccountMaps {
-        perp_market_map,
-        spot_market_map,
-        mut oracle_map,
-    } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
-        &get_writable_perp_market_set(market_index),
-        &MarketSet::new(),
-        clock.slot,
-        Some(state.oracle_guard_rails),
-    )?;
-
-    validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
-    math::liquidation::validate_user_not_being_liquidated(
-        user,
-        &perp_market_map,
-        &spot_market_map,
-        &mut oracle_map,
-        state.liquidation_margin_buffer_ratio,
-    )?;
-
-    {
-        let mut market = perp_market_map.get_ref_mut(&market_index)?;
-
-        validate!(
-            matches!(market.status, MarketStatus::Active),
-            ErrorCode::MarketStatusInvalidForNewLP,
-            "Market Status doesn't allow for new LP liquidity"
-        )?;
-
-        validate!(
-            !matches!(market.contract_type, ContractType::Prediction),
-            ErrorCode::MarketStatusInvalidForNewLP,
-            "Contract Type doesn't allow for LP liquidity"
-        )?;
-
-        validate!(
-            !market.is_operation_paused(PerpOperation::AmmFill),
-            ErrorCode::MarketStatusInvalidForNewLP,
-            "Market amm fills paused"
-        )?;
-
-        validate!(
-            n_shares >= market.amm.order_step_size,
-            ErrorCode::NewLPSizeTooSmall,
-            "minting {} shares is less than step size {}",
-            n_shares,
-            market.amm.order_step_size,
-        )?;
-
-        controller::funding::settle_funding_payment(user, &user_key, &mut market, now)?;
-
-        // standardize n shares to mint
-        let n_shares = crate::math::orders::standardize_base_asset_amount(
-            n_shares.cast()?,
-            market.amm.order_step_size,
-        )?
-        .cast::<u64>()?;
-
-        controller::lp::mint_lp_shares(
-            user.force_get_perp_position_mut(market_index)?,
-            &mut market,
-            n_shares,
-        )?;
-
-        user.last_add_perp_lp_shares_ts = now;
-    }
-
-    // check margin requirements
-    meets_place_order_margin_requirement(
-        user,
-        &perp_market_map,
-        &spot_market_map,
-        &mut oracle_map,
-        true,
-    )?;
-
-    user.update_last_active_slot(clock.slot);
-
-    emit!(LPRecord {
-        ts: now,
-        action: LPAction::AddLiquidity,
-        user: user_key,
-        n_shares,
-        market_index,
-        ..LPRecord::default()
-    });
-
-    Ok(())
-}
-
-pub fn handle_remove_perp_lp_shares_in_expiring_market<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, RemoveLiquidityInExpiredMarket<'info>>,
-    shares_to_burn: u64,
-    market_index: u16,
-) -> Result<()> {
-    let user_key = ctx.accounts.user.key();
-    let user = &mut load_mut!(ctx.accounts.user)?;
-
-    let state = &ctx.accounts.state;
-    let clock = Clock::get()?;
-    let now = clock.unix_timestamp;
-
-    let AccountMaps {
-        perp_market_map,
-        mut oracle_map,
-        ..
-    } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
-        &get_writable_perp_market_set(market_index),
-        &MarketSet::new(),
-        clock.slot,
-        Some(state.oracle_guard_rails),
-    )?;
-
-    // additional validate
-    {
-        let market = perp_market_map.get_ref(&market_index)?;
-        validate!(
-            market.is_reduce_only()?,
-            ErrorCode::PerpMarketNotInReduceOnly,
-            "Can only permissionless burn when market is in reduce only"
-        )?;
-    }
-
-    controller::lp::remove_perp_lp_shares(
-        perp_market_map,
-        &mut oracle_map,
-        state,
-        user,
-        user_key,
-        shares_to_burn,
-        market_index,
-        now,
-    )?;
-
-    user.update_last_active_slot(clock.slot);
-
-    Ok(())
-}
-
-#[access_control(
-    amm_not_paused(&ctx.accounts.state)
-)]
-pub fn handle_remove_perp_lp_shares<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, AddRemoveLiquidity<'info>>,
-    shares_to_burn: u64,
-    market_index: u16,
-) -> Result<()> {
-    let user_key = ctx.accounts.user.key();
-    let user = &mut load_mut!(ctx.accounts.user)?;
-
-    let state = &ctx.accounts.state;
-    let clock = Clock::get()?;
-    let now = clock.unix_timestamp;
-
-    let AccountMaps {
-        perp_market_map,
-        mut oracle_map,
-        ..
-    } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
-        &get_writable_perp_market_set(market_index),
-        &MarketSet::new(),
-        clock.slot,
-        Some(state.oracle_guard_rails),
-    )?;
-
-    controller::lp::remove_perp_lp_shares(
-        perp_market_map,
-        &mut oracle_map,
-        state,
-        user,
-        user_key,
-        shares_to_burn,
-        market_index,
-        now,
-    )?;
-
-    user.update_last_active_slot(clock.slot);
-
-    Ok(())
-}
-
 pub fn handle_update_user_name(
     ctx: Context<UpdateUser>,
     _sub_account_id: u16,
@@ -3124,6 +2942,19 @@ pub fn handle_update_user_custom_margin_ratio(
 ) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
     user.max_margin_ratio = margin_ratio;
+    Ok(())
+}
+
+pub fn handle_update_user_perp_position_custom_margin_ratio(
+    ctx: Context<UpdateUserPerpPositionCustomMarginRatio>,
+    _sub_account_id: u16,
+    perp_market_index: u16,
+    margin_ratio: u16,
+) -> Result<()> {
+    let mut user = load_mut!(ctx.accounts.user)?;
+
+    user.update_perp_position_max_margin_ratio(perp_market_index, margin_ratio)?;
+
     Ok(())
 }
 
@@ -3362,6 +3193,11 @@ pub fn handle_deposit_into_spot_market_revenue_pool<'c: 'info, 'info>(
         &ctx.accounts.authority,
         amount,
         &mint,
+        if spot_market.has_transfer_hook() {
+            Some(remaining_accounts_iter)
+        } else {
+            None
+        },
     )?;
 
     spot_market.validate_max_token_deposits_and_borrows(false)?;
@@ -3408,7 +3244,7 @@ pub fn handle_enable_user_high_leverage_mode<'c: 'info, 'info>(
 
     let mut config = load_mut!(ctx.accounts.high_leverage_mode_config)?;
 
-    config.update_user(&mut user)?;
+    config.enable_high_leverage(&mut user)?;
 
     Ok(())
 }
@@ -3480,6 +3316,21 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
 
     let mut out_spot_market = spot_market_map.get_ref_mut(&out_market_index)?;
 
+    let in_spot_has_transfer_hook = in_spot_market.has_transfer_hook();
+    let out_spot_has_transfer_hook = out_spot_market.has_transfer_hook();
+
+    validate!(
+        !(in_spot_has_transfer_hook && out_spot_has_transfer_hook),
+        ErrorCode::InvalidSwap,
+        "both in and out spot markets cannot both have transfer hooks"
+    )?;
+
+    let in_remaining_accounts_for_hooks = if in_spot_has_transfer_hook {
+        Some(remaining_accounts_iter)
+    } else {
+        None
+    };
+
     validate!(
         out_spot_market.fills_enabled(),
         ErrorCode::MarketFillOrderPaused,
@@ -3531,6 +3382,7 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
         state.signer_nonce,
         amount_in,
         &mint,
+        in_remaining_accounts_for_hooks,
     )?;
 
     let ixs = ctx.accounts.instructions.as_ref();
@@ -3773,6 +3625,11 @@ pub fn handle_end_swap<'c: 'info, 'info>(
             &ctx.accounts.authority,
             residual,
             &in_mint,
+            if in_spot_market.has_transfer_hook() {
+                Some(remaining_accounts)
+            } else {
+                None
+            },
         )?;
         in_token_account.reload()?;
         in_vault.reload()?;
@@ -3853,6 +3710,11 @@ pub fn handle_end_swap<'c: 'info, 'info>(
                 &ctx.accounts.authority,
                 amount_out,
                 &out_mint,
+                if out_spot_market.has_transfer_hook() {
+                    Some(remaining_accounts)
+                } else {
+                    None
+                },
             )?;
         } else {
             controller::token::receive(
@@ -3862,6 +3724,11 @@ pub fn handle_end_swap<'c: 'info, 'info>(
                 &ctx.accounts.authority,
                 amount_out,
                 &out_mint,
+                if out_spot_market.has_transfer_hook() {
+                    Some(remaining_accounts)
+                } else {
+                    None
+                },
             )?;
         }
 
@@ -4565,24 +4432,6 @@ pub struct PlaceAndMatchRFQOrders<'info> {
 }
 
 #[derive(Accounts)]
-pub struct AddRemoveLiquidity<'info> {
-    pub state: Box<Account<'info, State>>,
-    #[account(
-        mut,
-        constraint = can_sign_for_user(&user, &authority)?,
-    )]
-    pub user: AccountLoader<'info, User>,
-    pub authority: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct RemoveLiquidityInExpiredMarket<'info> {
-    pub state: Box<Account<'info, State>>,
-    #[account(mut)]
-    pub user: AccountLoader<'info, User>,
-}
-
-#[derive(Accounts)]
 #[instruction(
     sub_account_id: u16,
 )]
@@ -4591,6 +4440,21 @@ pub struct UpdateUser<'info> {
         mut,
         seeds = [b"user", authority.key.as_ref(), sub_account_id.to_le_bytes().as_ref()],
         bump,
+    )]
+    pub user: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(
+    sub_account_id: u16,
+)]
+pub struct UpdateUserPerpPositionCustomMarginRatio<'info> {
+    #[account(
+        mut,
+        seeds = [b"user", authority.key.as_ref(), sub_account_id.to_le_bytes().as_ref()],
+        bump,
+        constraint = can_sign_for_user(&user, &authority)?
     )]
     pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,

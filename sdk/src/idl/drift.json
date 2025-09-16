@@ -1,5 +1,5 @@
 {
-  "version": "2.126.0",
+  "version": "2.136.0",
   "name": "drift",
   "instructions": [
     {
@@ -1390,91 +1390,6 @@
       ]
     },
     {
-      "name": "addPerpLpShares",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        }
-      ],
-      "args": [
-        {
-          "name": "nShares",
-          "type": "u64"
-        },
-        {
-          "name": "marketIndex",
-          "type": "u16"
-        }
-      ]
-    },
-    {
-      "name": "removePerpLpShares",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        }
-      ],
-      "args": [
-        {
-          "name": "sharesToBurn",
-          "type": "u64"
-        },
-        {
-          "name": "marketIndex",
-          "type": "u16"
-        }
-      ]
-    },
-    {
-      "name": "removePerpLpSharesInExpiringMarket",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "sharesToBurn",
-          "type": "u64"
-        },
-        {
-          "name": "marketIndex",
-          "type": "u16"
-        }
-      ]
-    },
-    {
       "name": "updateUserName",
       "accounts": [
         {
@@ -1526,6 +1441,35 @@
         {
           "name": "marginRatio",
           "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "updateUserPerpPositionCustomMarginRatio",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "subAccountId",
+          "type": "u16"
+        },
+        {
+          "name": "perpMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "marginRatio",
+          "type": "u16"
         }
       ]
     },
@@ -2094,7 +2038,12 @@
           "isSigner": false
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "disableMaintenance",
+          "type": "bool"
+        }
+      ]
     },
     {
       "name": "updateUserFuelBonus",
@@ -2280,27 +2229,6 @@
         }
       ],
       "args": []
-    },
-    {
-      "name": "settleLp",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "marketIndex",
-          "type": "u16"
-        }
-      ]
     },
     {
       "name": "settleExpiredMarket",
@@ -3110,10 +3038,7 @@
         {
           "name": "marketIndexes",
           "type": {
-            "array": [
-              "u16",
-              5
-            ]
+            "vec": "u16"
           }
         }
       ]
@@ -4572,7 +4497,7 @@
       "args": []
     },
     {
-      "name": "updateInitAmmCacheInfo",
+      "name": "updateInitialAmmCacheInfo",
       "accounts": [
         {
           "name": "state",
@@ -4806,6 +4731,32 @@
       ]
     },
     {
+      "name": "updatePerpMarketLpPoolPausedOperations",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "lpPausedOperations",
+          "type": "u8"
+        }
+      ]
+    },
+    {
       "name": "updatePerpMarketLpPoolStatus",
       "accounts": [
         {
@@ -4820,6 +4771,11 @@
         },
         {
           "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "ammCache",
           "isMut": true,
           "isSigner": false
         }
@@ -4852,8 +4808,16 @@
       ],
       "args": [
         {
-          "name": "lpFeeTransferScalar",
-          "type": "u8"
+          "name": "optionalLpFeeTransferScalar",
+          "type": {
+            "option": "u8"
+          }
+        },
+        {
+          "name": "optionalLpNetPnlTransferScalar",
+          "type": {
+            "option": "u8"
+          }
         }
       ]
     },
@@ -4924,6 +4888,42 @@
         {
           "name": "tokenProgram",
           "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "updatePerpMarketPnlPool",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
           "isSigner": false
         }
       ],
@@ -6075,58 +6075,6 @@
       ]
     },
     {
-      "name": "updatePerpMarketTargetBaseAssetAmountPerLp",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "targetBaseAssetAmountPerLp",
-          "type": "i32"
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketPerLpBase",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "perLpBase",
-          "type": "i8"
-        }
-      ]
-    },
-    {
       "name": "updateLpCooldownTime",
       "accounts": [
         {
@@ -6849,6 +6797,10 @@
         {
           "name": "ammInventorySpreadAdjustment",
           "type": "i8"
+        },
+        {
+          "name": "referencePriceOffset",
+          "type": "i32"
         }
       ]
     },
@@ -7468,11 +7420,6 @@
           "isSigner": false
         },
         {
-          "name": "driftSigner",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
@@ -7503,20 +7450,42 @@
           "type": "i64"
         },
         {
-          "name": "maxMintFee",
-          "type": "i64"
-        },
-        {
-          "name": "revenueRebalancePeriod",
-          "type": "u64"
-        },
-        {
           "name": "maxAum",
           "type": "u128"
         },
         {
           "name": "maxSettleQuoteAmountPerMarket",
           "type": "u64"
+        },
+        {
+          "name": "whitelistMint",
+          "type": "publicKey"
+        }
+      ]
+    },
+    {
+      "name": "increaseLpPoolMaxAum",
+      "accounts": [
+        {
+          "name": "lpPool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "newMaxAum",
+          "type": "u128"
         }
       ]
     },
@@ -7740,6 +7709,132 @@
       ]
     },
     {
+      "name": "updateFeatureBitFlagsMmOracle",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "enable",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "zeroMmOracleFields",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "updateFeatureBitFlagsMedianTriggerPrice",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "enable",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "updateFeatureBitFlagsSettleLpPool",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "enable",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "updateFeatureBitFlagsSwapLpPool",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "enable",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "updateFeatureBitFlagsMintRedeemLpPool",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "enable",
+          "type": "bool"
+        }
+      ]
+    },
+    {
       "name": "initializeConstituent",
       "accounts": [
         {
@@ -7773,6 +7868,11 @@
           "isSigner": false
         },
         {
+          "name": "spotMarket",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "spotMarketMint",
           "isMut": false,
           "isSigner": false
@@ -7780,11 +7880,6 @@
         {
           "name": "constituentVault",
           "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "driftSigner",
-          "isMut": false,
           "isSigner": false
         },
         {
@@ -7871,6 +7966,58 @@
           "type": {
             "vec": "i64"
           }
+        }
+      ]
+    },
+    {
+      "name": "updateConstituentStatus",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "constituent",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "newStatus",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "updateConstituentPausedOperations",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "constituent",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "pausedOperations",
+          "type": "u8"
         }
       ]
     },
@@ -8180,6 +8327,11 @@
           "isSigner": true
         },
         {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
           "name": "ammCache",
           "isMut": true,
           "isSigner": false
@@ -8193,13 +8345,40 @@
       "args": []
     },
     {
-      "name": "lpPoolSwap",
+      "name": "overrideAmmCacheInfo",
       "accounts": [
         {
-          "name": "driftSigner",
-          "isMut": false,
+          "name": "state",
+          "isMut": true,
           "isSigner": false
         },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "ammCache",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "overrideParams",
+          "type": {
+            "defined": "OverrideAmmCacheParams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "lpPoolSwap",
+      "accounts": [
         {
           "name": "state",
           "isMut": false,
@@ -8291,13 +8470,90 @@
       ]
     },
     {
-      "name": "lpPoolAddLiquidity",
+      "name": "viewLpPoolSwapFees",
       "accounts": [
         {
           "name": "driftSigner",
           "isMut": false,
           "isSigner": false
         },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "lpPool",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "constituentTargetBase",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "constituentCorrelations",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "constituentInTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "constituentOutTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "inConstituent",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "outConstituent",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "inMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "outMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "inAmount",
+          "type": "u64"
+        },
+        {
+          "name": "inTargetWeight",
+          "type": "i64"
+        },
+        {
+          "name": "outTargetWeight",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "lpPoolAddLiquidity",
+      "accounts": [
         {
           "name": "state",
           "isMut": false,
@@ -8378,12 +8634,12 @@
       "name": "lpPoolRemoveLiquidity",
       "accounts": [
         {
-          "name": "driftSigner",
+          "name": "state",
           "isMut": false,
           "isSigner": false
         },
         {
-          "name": "state",
+          "name": "driftSigner",
           "isMut": false,
           "isSigner": false
         },
@@ -8423,6 +8679,11 @@
           "isSigner": false
         },
         {
+          "name": "spotMarketTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
           "name": "lpMint",
           "isMut": true,
           "isSigner": false
@@ -8441,6 +8702,11 @@
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
+        },
+        {
+          "name": "ammCache",
+          "isMut": false,
+          "isSigner": false
         }
       ],
       "args": [
@@ -8455,6 +8721,106 @@
         {
           "name": "minOutAmount",
           "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "viewLpPoolAddLiquidityFees",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "lpPool",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "inMarketMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "inConstituent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "lpMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "constituentTargetBase",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "inMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "inAmount",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "viewLpPoolRemoveLiquidityFees",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "lpPool",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "outMarketMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "outConstituent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "lpMint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "constituentTargetBase",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "inMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "inAmount",
+          "type": "u64"
         }
       ]
     },
@@ -8525,11 +8891,6 @@
         },
         {
           "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "driftSigner",
           "isMut": false,
           "isSigner": false
         }
@@ -8618,11 +8979,6 @@
           "name": "tokenProgram",
           "isMut": false,
           "isSigner": false
-        },
-        {
-          "name": "driftSigner",
-          "isMut": false,
-          "isSigner": false
         }
       ],
       "args": [
@@ -8679,11 +9035,6 @@
           "name": "admin",
           "isMut": true,
           "isSigner": true
-        },
-        {
-          "name": "driftSigner",
-          "isMut": false,
-          "isSigner": false
         },
         {
           "name": "constituent",
@@ -8838,11 +9189,6 @@
           "isSigner": false
         },
         {
-          "name": "mint",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
           "name": "driftSigner",
           "isMut": false,
           "isSigner": false
@@ -8852,6 +9198,35 @@
     }
   ],
   "accounts": [
+    {
+      "name": "AmmCache",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                3
+              ]
+            }
+          },
+          {
+            "name": "cache",
+            "type": {
+              "vec": {
+                "defined": "CacheInfo"
+              }
+            }
+          }
+        ]
+      }
+    },
     {
       "name": "OpenbookV2FulfillmentConfig",
       "type": {
@@ -9073,11 +9448,24 @@
             "type": "u8"
           },
           {
-            "name": "padding",
+            "name": "padding1",
             "type": {
               "array": [
                 "u8",
-                31
+                3
+              ]
+            }
+          },
+          {
+            "name": "currentMaintenanceUsers",
+            "type": "u32"
+          },
+          {
+            "name": "padding2",
+            "type": {
+              "array": [
+                "u8",
+                24
               ]
             }
           }
@@ -9314,6 +9702,18 @@
             "type": "publicKey"
           },
           {
+            "name": "whitelistMint",
+            "type": "publicKey"
+          },
+          {
+            "name": "constituentTargetBase",
+            "type": "publicKey"
+          },
+          {
+            "name": "constituentCorrelations",
+            "type": "publicKey"
+          },
+          {
             "name": "maxAum",
             "docs": [
               "The current number of VaultConstituents in the vault, each constituent is pda(LPPool.address, constituent_index)",
@@ -9331,6 +9731,24 @@
             "type": "u128"
           },
           {
+            "name": "cumulativeQuoteSentToPerpMarkets",
+            "docs": [
+              "QUOTE PRECISION: Cumulative quotes from settles"
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "cumulativeQuoteReceivedFromPerpMarkets",
+            "type": "u128"
+          },
+          {
+            "name": "totalMintRedeemFeesPaid",
+            "docs": [
+              "QUOTE_PRECISION: Total fees paid for minting and redeeming LP tokens"
+            ],
+            "type": "i128"
+          },
+          {
             "name": "lastAumSlot",
             "docs": [
               "timestamp of last AUM slot"
@@ -9338,82 +9756,53 @@
             "type": "u64"
           },
           {
-            "name": "lastAumTs",
-            "docs": [
-              "timestamp of last AUM update"
-            ],
-            "type": "i64"
-          },
-          {
             "name": "maxSettleQuoteAmount",
-            "docs": [
-              "Oldest slot of constituent oracles"
-            ],
             "type": "u64"
           },
           {
-            "name": "lastRevenueRebalanceTs",
+            "name": "lastHedgeTs",
             "docs": [
               "timestamp of last vAMM revenue rebalance"
             ],
             "type": "u64"
           },
           {
-            "name": "revenueRebalancePeriod",
-            "type": "u64"
-          },
-          {
-            "name": "nextMintRedeemId",
+            "name": "mintRedeemId",
             "docs": [
               "Every mint/redeem has a monotonically increasing id. This is the next id to use"
             ],
             "type": "u64"
           },
           {
-            "name": "totalFeesReceived",
-            "docs": [
-              "all revenue settles recieved"
-            ],
-            "type": "u128"
-          },
-          {
-            "name": "totalFeesPaid",
-            "docs": [
-              "all revenues paid out"
-            ],
-            "type": "u128"
-          },
-          {
-            "name": "cumulativeUsdcSentToPerpMarkets",
-            "type": "u128"
-          },
-          {
-            "name": "cumulativeUsdcReceivedFromPerpMarkets",
-            "type": "u128"
-          },
-          {
-            "name": "totalMintRedeemFeesPaid",
-            "type": "i128"
+            "name": "settleId",
+            "type": "u64"
           },
           {
             "name": "minMintFee",
+            "docs": [
+              "PERCENTAGE_PRECISION"
+            ],
             "type": "i64"
           },
           {
-            "name": "maxMintFeePremium",
-            "type": "i64"
+            "name": "tokenSupply",
+            "type": "u64"
+          },
+          {
+            "name": "volatility",
+            "type": "u64"
           },
           {
             "name": "constituents",
             "type": "u16"
           },
           {
-            "name": "bump",
-            "type": "u8"
+            "name": "quoteConsituentIndex",
+            "type": "u16"
           },
           {
-            "name": "usdcConsituentIndex",
-            "type": "u16"
+            "name": "bump",
+            "type": "u8"
           },
           {
             "name": "gammaExecution",
@@ -9424,8 +9813,8 @@
             "type": "u8"
           },
           {
-            "name": "volatility",
-            "type": "u64"
+            "name": "padding",
+            "type": "u8"
           }
         ]
       }
@@ -9451,7 +9840,7 @@
             "type": "publicKey"
           },
           {
-            "name": "tokenVault",
+            "name": "vault",
             "type": "publicKey"
           },
           {
@@ -9467,7 +9856,7 @@
               "spot borrow-lend balance for constituent"
             ],
             "type": {
-              "defined": "BLPosition"
+              "defined": "ConstituentSpotBalance"
             }
           },
           {
@@ -9503,7 +9892,7 @@
             "type": "u64"
           },
           {
-            "name": "tokenBalance",
+            "name": "vaultTokenBalance",
             "docs": [
               "ata token balance in token precision"
             ],
@@ -9574,6 +9963,10 @@
             "type": "u8"
           },
           {
+            "name": "vaultBump",
+            "type": "u8"
+          },
+          {
             "name": "gammaInventory",
             "type": "u8"
           },
@@ -9586,11 +9979,19 @@
             "type": "u8"
           },
           {
+            "name": "status",
+            "type": "u8"
+          },
+          {
+            "name": "pausedOperations",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                5
+                2
               ]
             }
           }
@@ -10020,41 +10421,24 @@
             "type": "u8"
           },
           {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u8",
-                34
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "AmmCache",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "bump",
+            "name": "lpPausedOperations",
             "type": "u8"
           },
           {
+            "name": "lpExchangeFeeExcluscionScalar",
+            "type": "u8"
+          },
+          {
+            "name": "lastFillPrice",
+            "type": "u64"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                3
+                24
               ]
-            }
-          },
-          {
-            "name": "cache",
-            "type": {
-              "vec": {
-                "defined": "CacheInfo"
-              }
             }
           }
         ]
@@ -10657,7 +11041,7 @@
             "type": "u8"
           },
           {
-            "name": "tokenProgram",
+            "name": "tokenProgramFlag",
             "type": "u8"
           },
           {
@@ -10784,11 +11168,19 @@
             "type": "u16"
           },
           {
+            "name": "featureBitFlags",
+            "type": "u8"
+          },
+          {
+            "name": "lpPoolFeatureBitFlags",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                10
+                8
               ]
             }
           }
@@ -11340,6 +11732,38 @@
   ],
   "types": [
     {
+      "name": "OverrideAmmCacheParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "quoteOwedFromLpPool",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "lastSettleSlot",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "lastFeePoolTokenAmount",
+            "type": {
+              "option": "u128"
+            }
+          },
+          {
+            "name": "lastNetPnlPoolTokenAmount",
+            "type": {
+              "option": "i128"
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "UpdatePerpMarketSummaryStatsParams",
       "type": {
         "kind": "struct",
@@ -11427,7 +11851,7 @@
           {
             "name": "volatility",
             "type": {
-              "option": "u8"
+              "option": "u64"
             }
           },
           {
@@ -11461,6 +11885,30 @@
             "type": {
               "option": "u64"
             }
+          },
+          {
+            "name": "volatility",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "gammaExecution",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "xi",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "whitelistMint",
+            "type": {
+              "option": "publicKey"
+            }
           }
         ]
       }
@@ -11481,6 +11929,119 @@
           {
             "name": "weight",
             "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CacheInfo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "oracle",
+            "type": "publicKey"
+          },
+          {
+            "name": "lastFeePoolTokenAmount",
+            "type": "u128"
+          },
+          {
+            "name": "lastNetPnlPoolTokenAmount",
+            "type": "i128"
+          },
+          {
+            "name": "lastExchangeFees",
+            "type": "u128"
+          },
+          {
+            "name": "lastSettleAmmExFees",
+            "type": "u128"
+          },
+          {
+            "name": "lastSettleAmmPnl",
+            "type": "i128"
+          },
+          {
+            "name": "position",
+            "docs": [
+              "BASE PRECISION"
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "lastSettleAmount",
+            "type": "u64"
+          },
+          {
+            "name": "lastSettleSlot",
+            "type": "u64"
+          },
+          {
+            "name": "lastSettleTs",
+            "type": "i64"
+          },
+          {
+            "name": "quoteOwedFromLpPool",
+            "type": "i64"
+          },
+          {
+            "name": "oraclePrice",
+            "type": "i64"
+          },
+          {
+            "name": "oracleSlot",
+            "type": "u64"
+          },
+          {
+            "name": "oracleSource",
+            "type": "u8"
+          },
+          {
+            "name": "oracleValidity",
+            "type": "u8"
+          },
+          {
+            "name": "lpStatusForPerpMarket",
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                13
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "AmmCacheFixed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "pad",
+            "type": {
+              "array": [
+                "u8",
+                3
+              ]
+            }
+          },
+          {
+            "name": "len",
+            "type": "u32"
           }
         ]
       }
@@ -11749,7 +12310,7 @@
       }
     },
     {
-      "name": "BLPosition",
+      "name": "ConstituentSpotBalance",
       "type": {
         "kind": "struct",
         "fields": [
@@ -12682,7 +13243,7 @@
             "name": "lastFundingRate",
             "docs": [
               "last funding rate in this perp market (unit is quote per base)",
-              "precision: QUOTE_PRECISION"
+              "precision: FUNDING_RATE_PRECISION"
             ],
             "type": "i64"
           },
@@ -12690,7 +13251,7 @@
             "name": "lastFundingRateLong",
             "docs": [
               "last funding rate for longs in this perp market (unit is quote per base)",
-              "precision: QUOTE_PRECISION"
+              "precision: FUNDING_RATE_PRECISION"
             ],
             "type": "i64"
           },
@@ -12919,7 +13480,7 @@
             "type": "u64"
           },
           {
-            "name": "maxPositionSize",
+            "name": "mmOracleSlot",
             "docs": [
               "the max base size a single user can have",
               "precision: BASE_PRECISION"
@@ -13007,18 +13568,11 @@
             "type": "u32"
           },
           {
-            "name": "longIntensityCount",
+            "name": "mmOraclePrice",
             "docs": [
-              "the count intensity of long fills against AMM"
+              "MM oracle price"
             ],
-            "type": "u32"
-          },
-          {
-            "name": "shortIntensityCount",
-            "docs": [
-              "the count intensity of short fills against AMM"
-            ],
-            "type": "u32"
+            "type": "i64"
           },
           {
             "name": "maxFillReserveFraction",
@@ -13100,7 +13654,7 @@
             "type": "i8"
           },
           {
-            "name": "totalFeeEarnedPerLp",
+            "name": "mmOracleSequenceId",
             "type": "u64"
           },
           {
@@ -13127,114 +13681,13 @@
             "type": {
               "array": [
                 "u8",
-                11
-              ]
-            }
-          }
-        ]
-      }
-    },
-    {
-      "name": "CacheInfo",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "lastFeePoolTokenAmount",
-            "type": "u128"
-          },
-          {
-            "name": "lastNetPnlPoolTokenAmount",
-            "type": "i128"
-          },
-          {
-            "name": "position",
-            "docs": [
-              "BASE PRECISION"
-            ],
-            "type": "i64"
-          },
-          {
-            "name": "slot",
-            "type": "u64"
-          },
-          {
-            "name": "maxConfidenceIntervalMultiplier",
-            "type": "u64"
-          },
-          {
-            "name": "lastOraclePriceTwap",
-            "type": "i64"
-          },
-          {
-            "name": "lastSettleAmount",
-            "type": "u64"
-          },
-          {
-            "name": "lastSettleTs",
-            "type": "i64"
-          },
-          {
-            "name": "quoteOwedFromLpPool",
-            "type": "i64"
-          },
-          {
-            "name": "oraclePrice",
-            "type": "i64"
-          },
-          {
-            "name": "oracleConfidence",
-            "type": "u64"
-          },
-          {
-            "name": "oracleDelay",
-            "type": "i64"
-          },
-          {
-            "name": "oracleSlot",
-            "type": "u64"
-          },
-          {
-            "name": "oracleSource",
-            "type": "u8"
-          },
-          {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u8",
-                7
-              ]
-            }
-          },
-          {
-            "name": "oracle",
-            "type": "publicKey"
-          }
-        ]
-      }
-    },
-    {
-      "name": "AmmCacheFixed",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "bump",
-            "type": "u8"
-          },
-          {
-            "name": "pad",
-            "type": {
-              "array": [
-                "u8",
                 3
               ]
             }
           },
           {
-            "name": "len",
-            "type": "u32"
+            "name": "lastFundingOracleTwap",
+            "type": "i64"
           }
         ]
       }
@@ -13558,7 +14011,7 @@
           {
             "name": "openBids",
             "docs": [
-              "How many spot bids the user has open",
+              "How many spot non reduce only trigger orders the user has open",
               "precision: token mint precision"
             ],
             "type": "i64"
@@ -13566,7 +14019,7 @@
           {
             "name": "openAsks",
             "docs": [
-              "How many spot asks the user has open",
+              "How many spot non reduce only trigger orders the user has open",
               "precision: token mint precision"
             ],
             "type": "i64"
@@ -13665,7 +14118,7 @@
           {
             "name": "openBids",
             "docs": [
-              "The amount of open bids the user has in this perp market",
+              "The amount of non reduce only trigger orders the user has open",
               "precision: BASE_PRECISION"
             ],
             "type": "i64"
@@ -13673,7 +14126,7 @@
           {
             "name": "openAsks",
             "docs": [
-              "The amount of open asks the user has in this perp market",
+              "The amount of non reduce only trigger orders the user has open",
               "precision: BASE_PRECISION"
             ],
             "type": "i64"
@@ -13714,13 +14167,17 @@
             "type": "i64"
           },
           {
-            "name": "remainderBaseAssetAmount",
-            "docs": [
-              "Settling LP position can lead to a small amount of base asset being left over smaller than step size",
-              "This records that remainder so it can be settled later on",
-              "precision: BASE_PRECISION"
-            ],
-            "type": "i32"
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                2
+              ]
+            }
+          },
+          {
+            "name": "maxMarginRatio",
+            "type": "u16"
           },
           {
             "name": "marketIndex",
@@ -14168,6 +14625,9 @@
             "name": "OracleOrderPrice"
           },
           {
+            "name": "UseMMOraclePrice"
+          },
+          {
             "name": "UpdateLpConstituentTargetBase"
           },
           {
@@ -14175,6 +14635,26 @@
           },
           {
             "name": "LpPoolSwap"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LogMode",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "None"
+          },
+          {
+            "name": "ExchangeOracle"
+          },
+          {
+            "name": "MMOracle"
+          },
+          {
+            "name": "SafeMMOracle"
           }
         ]
       }
@@ -14486,6 +14966,20 @@
       }
     },
     {
+      "name": "ConstituentStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "ReduceOnly"
+          },
+          {
+            "name": "Decommissioned"
+          }
+        ]
+      }
+    },
+    {
       "name": "WeightValidationFlags",
       "type": {
         "kind": "enum",
@@ -14726,6 +15220,37 @@
       }
     },
     {
+      "name": "PerpLpOperation",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "TrackAmmRevenue"
+          },
+          {
+            "name": "SettleQuoteOwed"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ConstituentLpOperation",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Swap"
+          },
+          {
+            "name": "Deposit"
+          },
+          {
+            "name": "Withdraw"
+          }
+        ]
+      }
+    },
+    {
       "name": "MarketStatus",
       "type": {
         "kind": "enum",
@@ -14756,6 +15281,23 @@
           },
           {
             "name": "Delisted"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LpStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Uncollateralized"
+          },
+          {
+            "name": "Active"
+          },
+          {
+            "name": "Decommissioning"
           }
         ]
       }
@@ -14799,23 +15341,6 @@
           },
           {
             "name": "Isolated"
-          }
-        ]
-      }
-    },
-    {
-      "name": "AMMLiquiditySplit",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "ProtocolOwned"
-          },
-          {
-            "name": "LPOwned"
-          },
-          {
-            "name": "Shared"
           }
         ]
       }
@@ -14903,6 +15428,20 @@
       }
     },
     {
+      "name": "TokenProgramFlag",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Token2022"
+          },
+          {
+            "name": "TransferHook"
+          }
+        ]
+      }
+    },
+    {
       "name": "ExchangeStatus",
       "type": {
         "kind": "enum",
@@ -14930,6 +15469,37 @@
           },
           {
             "name": "AmmImmediateFillPaused"
+          }
+        ]
+      }
+    },
+    {
+      "name": "FeatureBitFlags",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "MmOracleUpdate"
+          },
+          {
+            "name": "MedianTriggerPrice"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LpPoolFeatureBitFlags",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "SettleLpPool"
+          },
+          {
+            "name": "SwapLpPool"
+          },
+          {
+            "name": "MintRedeemLpPool"
           }
         ]
       }
@@ -15061,6 +15631,9 @@
           },
           {
             "name": "SafeTriggerOrder"
+          },
+          {
+            "name": "NewTriggerReduceOnly"
           }
         ]
       }
@@ -15089,6 +15662,9 @@
           },
           {
             "name": "HighLeverage"
+          },
+          {
+            "name": "HighLeverageMaintenance"
           }
         ]
       }
@@ -15854,6 +16430,13 @@
             "option": "u64"
           },
           "index": false
+        },
+        {
+          "name": "triggerPrice",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
         }
       ]
     },
@@ -16566,6 +17149,66 @@
         },
         {
           "name": "fuelTotal",
+          "type": "u128",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "LPSettleRecord",
+      "fields": [
+        {
+          "name": "recordId",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "lastTs",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "lastSlot",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "slot",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "perpMarketIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "settleToLpAmount",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "perpAmmPnlDelta",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "perpAmmExFeeDelta",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "lpAum",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "lpPrice",
           "type": "u128",
           "index": false
         }
@@ -18432,6 +19075,41 @@
       "code": 6330,
       "name": "InvalidConstituentDerivativeWeights",
       "msg": "Invalid constituent derivative weights"
+    },
+    {
+      "code": 6331,
+      "name": "UnauthorizedDlpAuthority",
+      "msg": "Unauthorized dlp authority"
+    },
+    {
+      "code": 6332,
+      "name": "MaxDlpAumBreached",
+      "msg": "Max DLP AUM Breached"
+    },
+    {
+      "code": 6333,
+      "name": "SettleLpPoolDisabled",
+      "msg": "Settle Lp Pool Disabled"
+    },
+    {
+      "code": 6334,
+      "name": "MintRedeemLpPoolDisabled",
+      "msg": "Mint/Redeem Lp Pool Disabled"
+    },
+    {
+      "code": 6335,
+      "name": "LpPoolSettleInvariantBreached",
+      "msg": "Settlement amount exceeded"
+    },
+    {
+      "code": 6336,
+      "name": "InvalidConstituentOperation",
+      "msg": "Invalid constituent operation"
+    },
+    {
+      "code": 6337,
+      "name": "Unauthorized",
+      "msg": "Unauthorized for operation"
     }
   ],
   "metadata": {

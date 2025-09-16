@@ -15,8 +15,8 @@ use crate::math::amm::calculate_quote_asset_amount_swapped;
 use crate::math::amm_spread::{calculate_spread_reserves, get_spread_reserves};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    CONCENTRATION_PRECISION, FEE_ADJUSTMENT_MAX, FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
-    K_BPS_UPDATE_SCALE, MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE, MAX_SQRT_K,
+    CONCENTRATION_PRECISION, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, K_BPS_UPDATE_SCALE,
+    MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE, MAX_SQRT_K,
 };
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::repeg::get_total_fee_lower_bound;
@@ -177,7 +177,11 @@ pub fn update_spread_reserves(market: &mut PerpMarket) -> DriftResult {
     Ok(())
 }
 
-pub fn update_spreads(market: &mut PerpMarket, reserve_price: u64) -> DriftResult<(u32, u32)> {
+pub fn update_spreads(
+    market: &mut PerpMarket,
+    reserve_price: u64,
+    slot: Option<u64>,
+) -> DriftResult<(u32, u32)> {
     let max_ref_offset = market.amm.get_max_reference_price_offset()?;
 
     let reference_price_offset = if max_ref_offset > 0 {
@@ -257,7 +261,64 @@ pub fn update_spreads(market: &mut PerpMarket, reserve_price: u64) -> DriftResul
 
     market.amm.long_spread = long_spread;
     market.amm.short_spread = short_spread;
-    market.amm.reference_price_offset = reference_price_offset;
+
+    let do_reference_price_smooth = {
+        let sign_changed: bool =
+            reference_price_offset.signum() != market.amm.reference_price_offset.signum();
+
+        sign_changed && market.amm.curve_update_intensity > 100
+    };
+
+    if do_reference_price_smooth {
+        let slots_passed = slot.map_or(0, |s| s.saturating_sub(market.amm.last_update_slot));
+
+        let reference_price_delta = {
+            let full_offset_delta = reference_price_offset
+                .cast::<i128>()?
+                .saturating_sub(market.amm.reference_price_offset.cast::<i128>()?);
+            let raw = full_offset_delta
+                .abs()
+                .cast::<i128>()?
+                .min(slots_passed.cast::<i128>()?.safe_mul(1000)?)
+                .cast::<i128>()?
+                .safe_div(10_i128)?
+                .cast::<i32>()?;
+
+            full_offset_delta.signum().cast::<i32>()?
+                * (raw.max(10).min(if market.amm.reference_price_offset != 0 {
+                    market.amm.reference_price_offset.abs()
+                } else {
+                    reference_price_offset.abs()
+                }))
+        };
+
+        market.amm.reference_price_offset = market
+            .amm
+            .reference_price_offset
+            .safe_add(reference_price_delta)?;
+
+        if reference_price_delta < 0 {
+            market.amm.long_spread = market
+                .amm
+                .long_spread
+                .safe_add(reference_price_delta.unsigned_abs())?;
+            market.amm.short_spread = market
+                .amm
+                .short_spread
+                .safe_add(market.amm.reference_price_offset.unsigned_abs())?;
+        } else {
+            market.amm.short_spread = market
+                .amm
+                .short_spread
+                .safe_add(reference_price_delta.unsigned_abs())?;
+            market.amm.long_spread = market
+                .amm
+                .long_spread
+                .safe_add(market.amm.reference_price_offset.unsigned_abs())?;
+        }
+    } else {
+        market.amm.reference_price_offset = reference_price_offset;
+    }
 
     update_spread_reserves(market)?;
 
@@ -302,7 +363,7 @@ pub fn update_concentration_coef(market: &mut PerpMarket, scale: u128) -> DriftR
     market.amm.min_base_asset_reserve = min_base_asset_reserve;
 
     let reserve_price_after = market.amm.reserve_price()?;
-    update_spreads(market, reserve_price_after)?;
+    update_spreads(market, reserve_price_after, None)?;
 
     let (max_bids, max_asks) = amm::calculate_market_open_bids_asks(&market.amm)?;
     validate!(
@@ -360,8 +421,7 @@ pub fn formulaic_update_k(
 
         let new_sqrt_k = bn::U192::from(market.amm.sqrt_k)
             .safe_mul(bn::U192::from(k_scale_numerator))?
-            .safe_div(bn::U192::from(k_scale_denominator))?
-            .max(bn::U192::from(market.amm.user_lp_shares.safe_add(1)?));
+            .safe_div(bn::U192::from(k_scale_denominator))?;
 
         let update_k_result = get_update_k_result(market, new_sqrt_k, true)?;
 
@@ -798,7 +858,7 @@ pub fn move_price(
     market.amm.min_base_asset_reserve = min_base_asset_reserve;
 
     let reserve_price_after = market.amm.reserve_price()?;
-    update_spreads(market, reserve_price_after)?;
+    update_spreads(market, reserve_price_after, None)?;
 
     Ok(())
 }
@@ -854,7 +914,7 @@ pub fn recenter_perp_market_amm(
     market.amm.min_base_asset_reserve = min_base_asset_reserve;
 
     let reserve_price_after = market.amm.reserve_price()?;
-    update_spreads(market, reserve_price_after)?;
+    update_spreads(market, reserve_price_after, None)?;
 
     Ok(())
 }

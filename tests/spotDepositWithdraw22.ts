@@ -352,7 +352,7 @@ describe('spot deposit and withdraw 22', () => {
 		const spotMarket = await admin.getSpotMarketAccount(marketIndex);
 		assert(spotMarket.depositBalance.eq(SPOT_MARKET_BALANCE_PRECISION));
 		console.log(spotMarket.historicalOracleData);
-		assert(spotMarket.historicalOracleData.lastOraclePriceTwapTs.gt(ZERO));
+		assert(spotMarket.historicalOracleData.lastOraclePriceTwapTs.eq(ZERO));
 		assert(
 			spotMarket.historicalOracleData.lastOraclePrice.eq(
 				new BN(30 * PRICE_PRECISION.toNumber())

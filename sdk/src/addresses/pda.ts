@@ -6,7 +6,7 @@ import {
 	TOKEN_2022_PROGRAM_ID,
 	TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
-import { SpotMarketAccount } from '..';
+import { SpotMarketAccount, TokenProgramFlag } from '../types';
 
 export async function getDriftStateAccountPublicKeyAndNonce(
 	programId: PublicKey
@@ -356,7 +356,7 @@ export function getPythLazerOraclePublicKey(
 export function getTokenProgramForSpotMarket(
 	spotMarketAccount: SpotMarketAccount
 ): PublicKey {
-	if (spotMarketAccount.tokenProgram === 1) {
+	if ((spotMarketAccount.tokenProgramFlag & TokenProgramFlag.Token2022) > 0) {
 		return TOKEN_2022_PROGRAM_ID;
 	}
 	return TOKEN_PROGRAM_ID;
@@ -482,7 +482,7 @@ export function getConstituentVaultPublicKey(
 
 export function getAmmCachePublicKey(programId: PublicKey): PublicKey {
 	return PublicKey.findProgramAddressSync(
-		[Buffer.from(anchor.utils.bytes.utf8.encode('amm_positions_cache'))],
+		[Buffer.from(anchor.utils.bytes.utf8.encode('amm_cache'))],
 		programId
 	)[0];
 }
