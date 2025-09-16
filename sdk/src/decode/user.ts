@@ -343,7 +343,10 @@ export function decodeUser(buffer: Buffer): UserAccount {
 	} else if (marginModeNum === 2) {
 		marginMode = MarginMode.HIGH_LEVERAGE_MAINTENANCE;
 	} else {
-		throw new Error(`Invalid margin mode: ${marginModeNum}`);
+		console.error(
+			`Detected unknown margin mode: ${marginModeNum}. Please update @drift-labs/sdk for latest IDL.`
+		);
+		marginMode = MarginMode.DEFAULT;
 	}
 	offset += 1;
 
