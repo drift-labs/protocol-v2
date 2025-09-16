@@ -12,10 +12,6 @@ export * from './accounts/webSocketDriftClientAccountSubscriber';
 export * from './accounts/webSocketInsuranceFundStakeAccountSubscriber';
 export * from './accounts/webSocketHighLeverageModeConfigAccountSubscriber';
 export { WebSocketAccountSubscriberV2 } from './accounts/webSocketAccountSubscriberV2';
-export { WebSocketProgramAccountSubscriber } from './accounts/webSocketProgramAccountSubscriber';
-export { WebSocketProgramUserAccountSubscriber } from './accounts/websocketProgramUserAccountSubscriber';
-export { WebSocketProgramAccountsSubscriberV2 } from './accounts/webSocketProgramAccountsSubscriberV2';
-export { WebSocketDriftClientAccountSubscriberV2 } from './accounts/webSocketDriftClientAccountSubscriberV2';
 export * from './accounts/bulkAccountLoader';
 export * from './accounts/bulkUserSubscription';
 export * from './accounts/bulkUserStatsSubscription';
@@ -136,5 +132,6 @@ export * from './clock/clockSubscriber';
 export * from './math/userStatus';
 export * from './indicative-quotes/indicativeQuotesSender';
 export * from './constants';
+export * from './constituentMap/constituentMap';
 
 export { BN, PublicKey, pyth };

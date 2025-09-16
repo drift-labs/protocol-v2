@@ -5,7 +5,7 @@ import {
 	PublicKey,
 	TransactionVersion,
 } from '@solana/web3.js';
-import { IWallet, TxParams, UserAccount } from './types';
+import { IWallet, TxParams } from './types';
 import { OracleInfo } from './oracles/types';
 import { BulkAccountLoader } from './accounts/bulkAccountLoader';
 import { DriftEnv } from './config';
@@ -19,9 +19,6 @@ import {
 import { Coder, Program } from '@coral-xyz/anchor';
 import { WebSocketAccountSubscriber } from './accounts/webSocketAccountSubscriber';
 import { WebSocketAccountSubscriberV2 } from './accounts/webSocketAccountSubscriberV2';
-import { WebSocketProgramAccountSubscriber } from './accounts/webSocketProgramAccountSubscriber';
-import { WebSocketDriftClientAccountSubscriberV2 } from './accounts/webSocketDriftClientAccountSubscriberV2';
-import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDriftClientAccountSubscriber';
 
 export type DriftClientConfig = {
 	connection: Connection;
@@ -66,7 +63,6 @@ export type DriftClientSubscriptionConfig =
 			resubTimeoutMs?: number;
 			logResubMessages?: boolean;
 			commitment?: Commitment;
-			programUserAccountSubscriber?: WebSocketProgramAccountSubscriber<UserAccount>;
 			perpMarketAccountSubscriber?: new (
 				accountName: string,
 				program: Program,
@@ -75,17 +71,14 @@ export type DriftClientSubscriptionConfig =
 				resubOpts?: ResubOpts,
 				commitment?: Commitment
 			) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>;
-			/** If you use V2 here, whatever you pass for perpMarketAccountSubscriber and oracleAccountSubscriber will be ignored and it will use v2 under the hood regardless */
-			driftClientAccountSubscriber?: new (
+			oracleAccountSubscriber?: new (
+				accountName: string,
 				program: Program,
-				perpMarketIndexes: number[],
-				spotMarketIndexes: number[],
-				oracleInfos: OracleInfo[],
-				shouldFindAllMarketsAndOracles: boolean,
-				delistedMarketSetting: DelistedMarketSetting
-			) =>
-				| WebSocketDriftClientAccountSubscriber
-				| WebSocketDriftClientAccountSubscriberV2;
+				accountPublicKey: PublicKey,
+				decodeBuffer?: (buffer: Buffer) => any,
+				resubOpts?: ResubOpts,
+				commitment?: Commitment
+			) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>;
 	  }
 	| {
 			type: 'polling';
