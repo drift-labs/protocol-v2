@@ -245,7 +245,7 @@ export function isFillableByVAMM(
 				market,
 				mmOraclePriceData,
 				slot
-			).gte(market.amm.minOrderSize)) ||
+			).gt(ZERO)) ||
 		isOrderExpired(order, ts)
 	);
 }
@@ -256,10 +256,6 @@ export function calculateBaseAssetAmountForAmmToFulfill(
 	mmOraclePriceData: MMOraclePriceData,
 	slot: number
 ): BN {
-	if (mustBeTriggered(order) && !isTriggered(order)) {
-		return ZERO;
-	}
-
 	const limitPrice = getLimitPrice(order, mmOraclePriceData, slot);
 	let baseAssetAmount;
 
