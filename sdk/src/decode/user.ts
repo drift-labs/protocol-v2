@@ -340,8 +340,10 @@ export function decodeUser(buffer: Buffer): UserAccount {
 		marginMode = MarginMode.DEFAULT;
 	} else if (marginModeNum === 1) {
 		marginMode = MarginMode.HIGH_LEVERAGE;
-	} else {
+	} else if (marginModeNum === 2) {
 		marginMode = MarginMode.HIGH_LEVERAGE_MAINTENANCE;
+	} else {
+		throw new Error(`Invalid margin mode: ${marginModeNum}`);
 	}
 	offset += 1;
 
