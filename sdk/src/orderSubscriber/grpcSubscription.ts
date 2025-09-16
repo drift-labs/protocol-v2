@@ -5,7 +5,7 @@ import { OrderSubscriber } from './OrderSubscriber';
 import { GrpcConfigs, ResubOpts } from '../accounts/types';
 import { UserAccount } from '../types';
 import { getUserFilter, getNonIdleUserFilter } from '../memcmp';
-import { LaserstreamProgramAccountSubscriber } from '../accounts/lazerProgramAccountSubscriber';
+import { LaserstreamProgramAccountSubscriber } from '../accounts/laserProgramAccountSubscriber';
 
 export class grpcSubscription {
 	private orderSubscriber: OrderSubscriber;
