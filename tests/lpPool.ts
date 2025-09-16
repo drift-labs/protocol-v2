@@ -1181,14 +1181,11 @@ describe('LP Pool', () => {
 			lpPoolKey
 		)) as LPPoolAccount;
 
-<<<<<<< HEAD
-=======
 		assert(ammCache.cache[0].quoteOwedFromLpPool.eq(owedAmount.divn(2)));
->>>>>>> bigz/init-lp-pool
 		assert(constituent.tokenBalance.eq(ZERO));
 		assert(lpPool.lastAum.eq(ZERO));
 		// assert(ammCache.cache[0].quoteOwedFromLp.eq(owedAmount.divn(2)));
-		expect(ammCache.cache[0].quoteOwedFromLp.toNumber()).to.eq(
+		expect(ammCache.cache[0].quoteOwedFromLpPool.toNumber()).to.eq(
 			owedAmount.divn(2).toNumber()
 		);
 		// Deposit here to DLP to make sure aum calc work with perp market debt
