@@ -65,8 +65,6 @@ import {
 	SignedMsgOrderParamsDelegateMessage,
 	TokenProgramFlag,
 	PostOnlyParams,
-	SignedMsgOrderParamsMessageExtended,
-	SignedMsgOrderParamsDelegateMessageExtended,
 } from './types';
 import driftIDL from './idl/drift.json';
 
@@ -6486,20 +6484,11 @@ export class DriftClient {
 	public signSignedMsgOrderParamsMessage(
 		orderParamsMessage:
 			| SignedMsgOrderParamsMessage
-			| SignedMsgOrderParamsDelegateMessage
-			| SignedMsgOrderParamsMessageExtended
-			| SignedMsgOrderParamsDelegateMessageExtended,
+			| SignedMsgOrderParamsDelegateMessage,
 		delegateSigner?: boolean
 	): SignedMsgOrderParams {
-		let orderParamsExtended:
-			| SignedMsgOrderParamsMessageExtended
-			| SignedMsgOrderParamsDelegateMessageExtended;
-		if (orderParamsMessage['maxMarginRatio'] === undefined) {
-			orderParamsExtended.maxMarginRatio = null;
-		}
-
 		const borshBuf = this.encodeSignedMsgOrderParamsMessage(
-			orderParamsExtended,
+			orderParamsMessage,
 			delegateSigner
 		);
 		const orderParams = Buffer.from(borshBuf.toString('hex'));
@@ -6548,44 +6537,66 @@ export class DriftClient {
 	 */
 	public encodeSignedMsgOrderParamsMessage(
 		orderParamsMessage:
-			| SignedMsgOrderParamsMessageExtended
-			| SignedMsgOrderParamsDelegateMessageExtended,
+			| SignedMsgOrderParamsMessage
+			| SignedMsgOrderParamsDelegateMessage,
 		delegateSigner?: boolean
 	): Buffer {
+		if (orderParamsMessage.maxMarginRatio === undefined) {
+			orderParamsMessage.maxMarginRatio = null;
+		}
+
+		// we encode to the Extended versions of the messages to avoid padding errors
 		const anchorIxName = delegateSigner
-			? 'global' + ':' + 'SignedMsgOrderParamsDelegateMessage'
-			: 'global' + ':' + 'SignedMsgOrderParamsMessage';
+			? 'global' + ':' + 'SignedMsgOrderParamsDelegateMessageExtended'
+			: 'global' + ':' + 'SignedMsgOrderParamsMessageExtended';
 		const prefix = Buffer.from(sha256(anchorIxName).slice(0, 8));
 		const buf = Buffer.concat([
 			prefix,
 			delegateSigner
 				? this.program.coder.types.encode(
-						'SignedMsgOrderParamsDelegateMessage',
-						orderParamsMessage as SignedMsgOrderParamsDelegateMessageExtended
+						'SignedMsgOrderParamsDelegateMessageExtended',
+						orderParamsMessage as SignedMsgOrderParamsDelegateMessage
 				  )
 				: this.program.coder.types.encode(
-						'SignedMsgOrderParamsMessage',
-						orderParamsMessage as SignedMsgOrderParamsMessageExtended
+						'SignedMsgOrderParamsMessageExtended',
+						orderParamsMessage as SignedMsgOrderParamsMessage
 				  ),
 		]);
 		return buf;
 	}
 
 	/*
-	 * Decode signedMsg taker order params from borsh buffer. Only includes minimal fields.
+	 * Decode signedMsg taker order params from borsh buffer. Zero padding failed deserializations until
+	 * the message is successfuly decoded, or we've hit max iterations. This is necessary if the client
+	 * is decoding a message created by another client with an outdated IDL.
 	 */
 	public decodeSignedMsgOrderParamsMessageExtended(
 		encodedMessage: Buffer,
 		delegateSigner?: boolean
-	):
-		| SignedMsgOrderParamsMessageExtended
-		| SignedMsgOrderParamsDelegateMessageExtended {
+	): SignedMsgOrderParamsMessage | SignedMsgOrderParamsDelegateMessage {
 		const decodeStr = delegateSigner
 			? 'SignedMsgOrderParamsDelegateMessageExtended'
 			: 'SignedMsgOrderParamsMessageExtended';
-		return this.program.coder.types.decode(
-			decodeStr,
-			encodedMessage.slice(8) // assumes discriminator
+		let decodeAttempts = 0;
+		do {
+			try {
+				return this.program.coder.types.decode(
+					decodeStr,
+					encodedMessage.slice(8) // assumes discriminator
+				);
+			} catch (err) {
+				if (err.message.includes('out of range')) {
+					decodeAttempts++;
+					encodedMessage = Buffer.concat([encodedMessage, Buffer.from([0])]);
+					continue;
+				} else {
+					throw err;
+				}
+			}
+		} while (decodeAttempts < 100);
+
+		throw new Error(
+			`Failed to decode SignedMsgOrderParamsMessageExtended after ${decodeAttempts} attempts`
 		);
 	}
 
