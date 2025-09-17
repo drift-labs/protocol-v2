@@ -4,7 +4,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     BASE_PRECISION_I128, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
-    PERCENTAGE_PRECISION_U64, PRICE_PRECISION, QUOTE_PRECISION_I128,
+    PERCENTAGE_PRECISION_U64, PRICE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_U64,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::safe_unwrap::SafeUnwrap;
@@ -307,11 +307,17 @@ impl LPPool {
     ) -> DriftResult<(u64, u128, i64, i128)> {
         let lp_fee_to_charge_pct = self.min_mint_fee;
         // let lp_fee_to_charge_pct = self.get_mint_redeem_fee(now, false)?;
-        let lp_fee_to_charge = lp_burn_amount
+        let mut lp_fee_to_charge = lp_burn_amount
             .cast::<i128>()?
             .safe_mul(lp_fee_to_charge_pct.cast::<i128>()?)?
             .safe_div(PERCENTAGE_PRECISION_I128)?
             .cast::<i64>()?;
+
+        if dlp_total_supply.saturating_sub(lp_burn_amount) <= QUOTE_PRECISION_U64
+            && lp_fee_to_charge <= (QUOTE_PRECISION_U64 as i64)
+        {
+            lp_fee_to_charge = (lp_burn_amount.min(QUOTE_PRECISION_U64) as i64);
+        }
 
         let lp_amount_less_fees = (lp_burn_amount as i128).safe_sub(lp_fee_to_charge as i128)?;
 

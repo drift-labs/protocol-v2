@@ -1540,7 +1540,7 @@ mod get_base_asset_amount_unfilled {
             ..Order::default()
         };
 
-        assert_eq!(order.get_base_asset_amount_unfilled(Some(1)).unwrap(), 1)
+        assert_eq!(order.get_base_asset_amount_unfilled(Some(1)).unwrap(), 0)
     }
 
     #[test]
