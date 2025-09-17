@@ -79,7 +79,10 @@ pub mod perp_lp_pool_settlement {
         let amount_to_send = ctx
             .quote_owed_from_lp
             .cast::<u64>()?
-            .min(ctx.quote_constituent_token_balance)
+            .min(
+                ctx.quote_constituent_token_balance
+                    .saturating_sub(QUOTE_PRECISION_U64),
+            )
             .min(ctx.max_settle_quote_amount);
 
         Ok(SettlementResult {

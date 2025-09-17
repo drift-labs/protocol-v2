@@ -4,7 +4,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     BASE_PRECISION_I128, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
-    PERCENTAGE_PRECISION_U64, PRICE_PRECISION, QUOTE_PRECISION_I128,
+    PERCENTAGE_PRECISION_U64, PRICE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_U64,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::safe_unwrap::SafeUnwrap;
@@ -300,13 +300,17 @@ impl LPPool {
         &self,
         out_spot_market: &SpotMarket,
         out_constituent: &Constituent,
-        lp_burn_amount: u64,
+        lp_to_burn: u64,
         out_oracle: &OraclePriceData,
         out_target_weight: i64,
         dlp_total_supply: u64,
     ) -> DriftResult<(u64, u128, i64, i128)> {
         let lp_fee_to_charge_pct = self.min_mint_fee;
-        // let lp_fee_to_charge_pct = self.get_mint_redeem_fee(now, false)?;
+        let mut lp_burn_amount = lp_to_burn;
+        if dlp_total_supply.saturating_sub(lp_burn_amount) <= QUOTE_PRECISION_U64 {
+            lp_burn_amount = dlp_total_supply.saturating_sub(QUOTE_PRECISION_U64);
+        }
+
         let lp_fee_to_charge = lp_burn_amount
             .cast::<i128>()?
             .safe_mul(lp_fee_to_charge_pct.cast::<i128>()?)?
@@ -676,16 +680,26 @@ impl LPPool {
                     .cast::<i64>()?;
                 crypto_delta = crypto_delta.safe_add(constituent_target_notional.cast()?)?;
             }
-            aum = aum.safe_add(constituent_aum)?;
+            aum = aum.saturating_add(constituent_aum);
         }
 
         msg!("Aum before quote owed from lp pool: {}", aum);
 
+        let mut total_quote_owed: i128 = 0;
         for cache_datum in amm_cache.iter() {
-            aum = aum.saturating_sub(cache_datum.quote_owed_from_lp_pool as i128);
+            total_quote_owed =
+                total_quote_owed.safe_add(cache_datum.quote_owed_from_lp_pool as i128)?;
         }
 
-        let aum_u128 = aum.max(0i128).cast::<u128>()?;
+        if total_quote_owed > 0 {
+            aum = aum
+                .saturating_sub(total_quote_owed as i128)
+                .max(QUOTE_PRECISION_I128);
+        } else if total_quote_owed < 0 {
+            aum = aum.saturating_add((-total_quote_owed) as i128);
+        }
+
+        let aum_u128 = aum.max(0).cast::<u128>()?;
         self.last_aum = aum_u128;
         self.last_aum_slot = slot;
 
