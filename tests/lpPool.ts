@@ -721,7 +721,7 @@ describe('LP Pool', () => {
 		);
 		await adminClient.updateAmmCache([0, 1, 2]);
 
-		const tx = new Transaction();
+		let tx = new Transaction();
 		tx.add(await adminClient.getUpdateAmmCacheIx([0, 1, 2]));
 		tx.add(
 			await adminClient.getUpdateLpConstituentTargetBaseIx(
@@ -738,7 +738,7 @@ describe('LP Pool', () => {
 			program.programId,
 			lpPoolKey
 		);
-		const constituentTargetBase =
+		let constituentTargetBase =
 			(await adminClient.program.account.constituentTargetBase.fetch(
 				constituentTargetBasePublicKey
 			)) as ConstituentTargetBaseAccount;
@@ -748,6 +748,36 @@ describe('LP Pool', () => {
 			constituentTargetBase.targets.filter((x) => x.targetBase.eq(ZERO))
 				.length !== constituentTargetBase.targets.length
 		);
+
+		// Make sure the target base respects the cache scalar
+		const cacheValueBefore = constituentTargetBase.targets[1].targetBase;
+		await adminClient.overrideAmmCacheInfo(1, {
+			ammPositionScalar: 50,
+		});
+		tx = new Transaction();
+		tx.add(await adminClient.getUpdateAmmCacheIx([0, 1, 2]));
+		tx.add(
+			await adminClient.getUpdateLpConstituentTargetBaseIx(
+				encodeName(lpPoolName),
+				[
+					getConstituentPublicKey(program.programId, lpPoolKey, 0),
+					getConstituentPublicKey(program.programId, lpPoolKey, 1),
+				]
+			)
+		);
+		await adminClient.sendTransaction(tx);
+		constituentTargetBase =
+			(await adminClient.program.account.constituentTargetBase.fetch(
+				constituentTargetBasePublicKey
+			)) as ConstituentTargetBaseAccount;
+		console.log(cacheValueBefore.toString());
+		expect(
+			constituentTargetBase.targets[1].targetBase.toNumber()
+		).to.approximately(cacheValueBefore.muln(50).divn(100).toNumber(), 1);
+
+		await adminClient.overrideAmmCacheInfo(1, {
+			ammPositionScalar: 100,
+		});
 	});
 
 	it('can add constituent to LP Pool thats a derivative and behave correctly', async () => {

@@ -11732,38 +11732,6 @@
   ],
   "types": [
     {
-      "name": "OverrideAmmCacheParams",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "quoteOwedFromLpPool",
-            "type": {
-              "option": "i64"
-            }
-          },
-          {
-            "name": "lastSettleSlot",
-            "type": {
-              "option": "u64"
-            }
-          },
-          {
-            "name": "lastFeePoolTokenAmount",
-            "type": {
-              "option": "u128"
-            }
-          },
-          {
-            "name": "lastNetPnlPoolTokenAmount",
-            "type": {
-              "option": "i128"
-            }
-          }
-        ]
-      }
-    },
-    {
       "name": "UpdatePerpMarketSummaryStatsParams",
       "type": {
         "kind": "struct",
@@ -11914,6 +11882,44 @@
       }
     },
     {
+      "name": "OverrideAmmCacheParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "quoteOwedFromLpPool",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "lastSettleSlot",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "lastFeePoolTokenAmount",
+            "type": {
+              "option": "u128"
+            }
+          },
+          {
+            "name": "lastNetPnlPoolTokenAmount",
+            "type": {
+              "option": "i128"
+            }
+          },
+          {
+            "name": "ammPositionScalar",
+            "type": {
+              "option": "u8"
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "AddAmmConstituentMappingDatum",
       "type": {
         "kind": "struct",
@@ -12010,11 +12016,15 @@
             "type": "u8"
           },
           {
+            "name": "ammPositionScalar",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                13
+                12
               ]
             }
           }
