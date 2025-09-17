@@ -2957,7 +2957,7 @@ fn cancel_reduce_only_trigger_orders(
             continue;
         }
 
-        if !user.orders[order_index].reduce_only {
+        if user.orders[order_index].market_type != MarketType::Perp {
             continue;
         }
 
@@ -2966,6 +2966,10 @@ fn cancel_reduce_only_trigger_orders(
         }
 
         if !user.orders[order_index].must_be_triggered() {
+            continue;
+        }
+
+        if !user.orders[order_index].reduce_only {
             continue;
         }
 
