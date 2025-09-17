@@ -50,7 +50,7 @@ export class grpcSubscription {
 			return;
 		}
 
-		if (this.grpcConfigs.client === 'lazer') {
+		if (this.grpcConfigs.client === 'laser') {
 			this.subscriber =
 				await LaserstreamProgramAccountSubscriber.create<UserAccount>(
 					this.grpcConfigs,
