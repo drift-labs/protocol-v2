@@ -712,6 +712,7 @@ export class AdminClient extends DriftClient {
 			lastSettleTs?: BN;
 			lastFeePoolTokenAmount?: BN;
 			lastNetPnlPoolTokenAmount?: BN;
+			ammPositionScalar?: number;
 		},
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
@@ -730,20 +731,22 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		params: {
 			quoteOwedFromLpPool?: BN;
-			lastSettleTs?: BN;
+			lastSettleSlot?: BN;
 			lastFeePoolTokenAmount?: BN;
 			lastNetPnlPoolTokenAmount?: BN;
+			ammPositionScalar?: number;
 		}
 	): Promise<TransactionInstruction> {
-		return await this.program.instruction.overrideAmmCacheInfo(
+		return this.program.instruction.overrideAmmCacheInfo(
 			perpMarketIndex,
 			Object.assign(
 				{},
 				{
 					quoteOwedFromLpPool: null,
-					lastSettleTs: null,
+					lastSettleSlot: null,
 					lastFeePoolTokenAmount: null,
 					lastNetPnlPoolTokenAmount: null,
+					ammPositionScalar: null,
 				},
 				params
 			),

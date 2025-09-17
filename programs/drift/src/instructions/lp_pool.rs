@@ -129,10 +129,14 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
         }
 
         amm_inventories.push(AmmInventoryAndPrices {
-            inventory: cache_info.position,
+            inventory: cache_info
+                .position
+                .safe_mul(cache_info.amm_position_scalar as i64)?
+                .safe_div(100)?,
             price: cache_info.oracle_price,
         });
     }
+    msg!("amm inventories: {:?}", amm_inventories);
 
     if amm_inventories.is_empty() {
         msg!("No valid inventories found for constituent target weights update");

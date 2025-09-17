@@ -1187,6 +1187,7 @@ pub fn calculate_target_weight(
 }
 
 /// Update target base based on amm_inventory and mapping
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AmmInventoryAndPrices {
     pub inventory: i64,
     pub price: i64,
