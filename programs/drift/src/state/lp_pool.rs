@@ -4,8 +4,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     BASE_PRECISION_I128, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
-    PERCENTAGE_PRECISION_U64, PRICE_PRECISION, QUOTE_PRECISION, QUOTE_PRECISION_I128,
-    QUOTE_PRECISION_U64,
+    PERCENTAGE_PRECISION_U64, PRICE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_U64,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::safe_unwrap::SafeUnwrap;
@@ -618,7 +617,7 @@ impl LPPool {
         constituent_target_base: &AccountZeroCopyMut<'_, TargetsDatum, ConstituentTargetBaseFixed>,
         amm_cache: &AccountZeroCopyMut<'_, CacheInfo, AmmCacheFixed>,
     ) -> DriftResult<(u128, i128, BTreeMap<u16, Vec<u16>>)> {
-        let mut aum: u128 = 0;
+        let mut aum: i128 = 0;
         let mut crypto_delta = 0_i128;
         let mut derivative_groups: BTreeMap<u16, Vec<u16>> = BTreeMap::new();
         for i in 0..self.constituents as usize {
@@ -681,11 +680,7 @@ impl LPPool {
                     .cast::<i64>()?;
                 crypto_delta = crypto_delta.safe_add(constituent_target_notional.cast()?)?;
             }
-            if constituent_aum < 0 {
-                aum = aum.saturating_sub(constituent_aum.abs().cast::<u128>()?);
-            } else {
-                aum = aum.saturating_add(constituent_aum.cast::<u128>()?);
-            };
+            aum = aum.saturating_add(constituent_aum);
         }
 
         msg!("Aum before quote owed from lp pool: {}", aum);
@@ -698,16 +693,17 @@ impl LPPool {
 
         if total_quote_owed > 0 {
             aum = aum
-                .saturating_sub(total_quote_owed as u128)
-                .max(QUOTE_PRECISION);
+                .saturating_sub(total_quote_owed as i128)
+                .max(QUOTE_PRECISION_I128);
         } else if total_quote_owed < 0 {
-            aum = aum.saturating_add((-total_quote_owed) as u128);
+            aum = aum.saturating_add((-total_quote_owed) as i128);
         }
 
-        self.last_aum = aum;
+        let aum_u128 = aum.max(0).cast::<u128>()?;
+        self.last_aum = aum_u128;
         self.last_aum_slot = slot;
 
-        Ok((aum, crypto_delta, derivative_groups))
+        Ok((aum_u128, crypto_delta, derivative_groups))
     }
 
     pub fn get_lp_pool_signer_seeds<'a>(name: &'a [u8; 32], bump: &'a u8) -> [&'a [u8]; 3] {
