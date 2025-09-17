@@ -6545,7 +6545,6 @@ export class DriftClient {
 			orderParamsMessage.maxMarginRatio = null;
 		}
 
-		// we encode to the Extended versions of the messages to avoid padding errors
 		const anchorIxName = delegateSigner
 			? 'global' + ':' + 'SignedMsgOrderParamsDelegateMessage'
 			: 'global' + ':' + 'SignedMsgOrderParamsMessage';
