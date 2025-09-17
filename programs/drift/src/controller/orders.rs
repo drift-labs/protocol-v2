@@ -1379,6 +1379,20 @@ pub fn fill_perp_order(
         )?
     }
 
+    if base_asset_amount_after == 0 && user.perp_positions[position_index].open_orders != 0 {
+        cancel_reduce_only_trigger_orders(
+            user,
+            &user_key,
+            Some(&filler_key),
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            now,
+            slot,
+            market_index,
+        )?;
+    }
+
     if base_asset_amount == 0 {
         return Ok((base_asset_amount, quote_asset_amount));
     }
@@ -2925,6 +2939,53 @@ fn get_taker_and_maker_for_order_record(
     } else {
         (Some(*user_key), Some(*user_order), None, None)
     }
+}
+
+fn cancel_reduce_only_trigger_orders(
+    user: &mut User,
+    user_key: &Pubkey,
+    filler_key: Option<&Pubkey>,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    now: i64,
+    slot: u64,
+    perp_market_index: u16,
+) -> DriftResult {
+    for order_index in 0..user.orders.len() {
+        if user.orders[order_index].status != OrderStatus::Open {
+            continue;
+        }
+
+        if !user.orders[order_index].reduce_only {
+            continue;
+        }
+
+        if user.orders[order_index].market_index != perp_market_index {
+            continue;
+        }
+
+        if !user.orders[order_index].must_be_triggered() {
+            continue;
+        }
+
+        cancel_order(
+            order_index,
+            user,
+            user_key,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            now,
+            slot,
+            OrderActionExplanation::ReduceOnlyOrderIncreasedPosition,
+            filler_key,
+            0,
+            false,
+        )?;
+    }
+
+    Ok(())
 }
 
 pub fn trigger_order(
