@@ -4764,6 +4764,7 @@ pub fn handle_admin_deposit<'c: 'info, 'info>(
         market_index,
         explanation: DepositExplanation::Reward,
         transfer_user: None,
+        signer: Some(ctx.accounts.admin.key()),
     };
     emit!(deposit_record);
 
