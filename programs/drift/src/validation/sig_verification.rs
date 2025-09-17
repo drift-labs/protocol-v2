@@ -1,7 +1,7 @@
 use crate::error::ErrorCode;
 use crate::state::order_params::{
-    OrderParams, SignedMsgOrderParamsMessage,
-    SignedMsgTriggerOrderParams, SignedMsgOrderParamsDelegateMessage,
+    OrderParams, SignedMsgOrderParamsDelegateMessage, SignedMsgOrderParamsMessage,
+    SignedMsgTriggerOrderParams,
 };
 use anchor_lang::prelude::*;
 use bytemuck::try_cast_slice;
