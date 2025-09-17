@@ -5,7 +5,6 @@ import { OrderSubscriber } from './OrderSubscriber';
 import { GrpcConfigs, ResubOpts } from '../accounts/types';
 import { UserAccount } from '../types';
 import { getUserFilter, getNonIdleUserFilter } from '../memcmp';
-import { LaserstreamProgramAccountSubscriber } from '../accounts/lazerProgramAccountSubscriber';
 
 export class grpcSubscription {
 	private orderSubscriber: OrderSubscriber;
@@ -13,9 +12,7 @@ export class grpcSubscription {
 	private resubOpts?: ResubOpts;
 	private resyncIntervalMs?: number;
 
-	private subscriber?:
-		| grpcProgramAccountSubscriber<UserAccount>
-		| LaserstreamProgramAccountSubscriber<UserAccount>;
+	private subscriber?: grpcProgramAccountSubscriber<UserAccount>;
 	private resyncTimeoutId?: ReturnType<typeof setTimeout>;
 
 	private decoded?: boolean;
@@ -50,32 +47,17 @@ export class grpcSubscription {
 			return;
 		}
 
-		if (this.grpcConfigs.client === 'lazer') {
-			this.subscriber =
-				await LaserstreamProgramAccountSubscriber.create<UserAccount>(
-					this.grpcConfigs,
-					'OrderSubscriber',
-					'User',
-					this.orderSubscriber.driftClient.program,
-					this.orderSubscriber.decodeFn,
-					{
-						filters: [getUserFilter(), getNonIdleUserFilter()],
-					},
-					this.resubOpts
-				);
-		} else {
-			this.subscriber = await grpcProgramAccountSubscriber.create<UserAccount>(
-				this.grpcConfigs,
-				'OrderSubscriber',
-				'User',
-				this.orderSubscriber.driftClient.program,
-				this.orderSubscriber.decodeFn,
-				{
-					filters: [getUserFilter(), getNonIdleUserFilter()],
-				},
-				this.resubOpts
-			);
-		}
+		this.subscriber = await grpcProgramAccountSubscriber.create<UserAccount>(
+			this.grpcConfigs,
+			'OrderSubscriber',
+			'User',
+			this.orderSubscriber.driftClient.program,
+			this.orderSubscriber.decodeFn,
+			{
+				filters: [getUserFilter(), getNonIdleUserFilter()],
+			},
+			this.resubOpts
+		);
 
 		await this.subscriber.subscribe(
 			(
