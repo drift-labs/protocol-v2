@@ -10325,9 +10325,9 @@ pub mod cancel_reduce_only_trigger_orders {
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION_I64, LAMPORTS_PER_SOL_I64,
-        PEG_PRECISION, SPOT_BALANCE_PRECISION,
-        SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION_I64, LAMPORTS_PER_SOL_I64, PEG_PRECISION,
+        SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
+        SPOT_WEIGHT_PRECISION,
     };
     use crate::state::oracle::HistoricalOracleData;
     use crate::state::oracle::OracleSource;
@@ -10534,7 +10534,6 @@ pub mod cancel_reduce_only_trigger_orders {
         assert_eq!(user.orders[2].status, OrderStatus::Canceled);
         assert_eq!(user.orders[3].status, OrderStatus::Open);
         assert_eq!(user.orders[4].status, OrderStatus::Canceled);
-
     }
 }
 
