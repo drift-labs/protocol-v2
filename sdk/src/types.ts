@@ -1247,10 +1247,28 @@ export type SignedMsgOrderParamsMessage = {
 	uuid: Uint8Array;
 	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
+};
+
+export type SignedMsgOrderParamsMessageExtended = {
+	signedMsgOrderParams: OrderParams;
+	subAccountId: number;
+	slot: BN;
+	uuid: Uint8Array;
+	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
+	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
 	maxMarginRatio?: number | null;
 };
 
 export type SignedMsgOrderParamsDelegateMessage = {
+	signedMsgOrderParams: OrderParams;
+	slot: BN;
+	uuid: Uint8Array;
+	takerPubkey: PublicKey;
+	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
+	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
+};
+
+export type SignedMsgOrderParamsDelegateMessageExtended = {
 	signedMsgOrderParams: OrderParams;
 	slot: BN;
 	uuid: Uint8Array;

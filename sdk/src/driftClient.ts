@@ -65,6 +65,8 @@ import {
 	SignedMsgOrderParamsDelegateMessage,
 	TokenProgramFlag,
 	PostOnlyParams,
+	SignedMsgOrderParamsMessageExtended,
+	SignedMsgOrderParamsDelegateMessageExtended,
 } from './types';
 import driftIDL from './idl/drift.json';
 
@@ -6484,15 +6486,20 @@ export class DriftClient {
 	public signSignedMsgOrderParamsMessage(
 		orderParamsMessage:
 			| SignedMsgOrderParamsMessage
-			| SignedMsgOrderParamsDelegateMessage,
+			| SignedMsgOrderParamsDelegateMessage
+			| SignedMsgOrderParamsMessageExtended
+			| SignedMsgOrderParamsDelegateMessageExtended,
 		delegateSigner?: boolean
 	): SignedMsgOrderParams {
-		if (orderParamsMessage.maxMarginRatio === undefined) {
-			orderParamsMessage.maxMarginRatio = null;
+		let orderParamsExtended:
+			| SignedMsgOrderParamsMessageExtended
+			| SignedMsgOrderParamsDelegateMessageExtended;
+		if (orderParamsMessage['maxMarginRatio'] === undefined) {
+			orderParamsExtended.maxMarginRatio = null;
 		}
 
 		const borshBuf = this.encodeSignedMsgOrderParamsMessage(
-			orderParamsMessage,
+			orderParamsExtended,
 			delegateSigner
 		);
 		const orderParams = Buffer.from(borshBuf.toString('hex'));
@@ -6541,8 +6548,8 @@ export class DriftClient {
 	 */
 	public encodeSignedMsgOrderParamsMessage(
 		orderParamsMessage:
-			| SignedMsgOrderParamsMessage
-			| SignedMsgOrderParamsDelegateMessage,
+			| SignedMsgOrderParamsMessageExtended
+			| SignedMsgOrderParamsDelegateMessageExtended,
 		delegateSigner?: boolean
 	): Buffer {
 		const anchorIxName = delegateSigner
@@ -6554,14 +6561,32 @@ export class DriftClient {
 			delegateSigner
 				? this.program.coder.types.encode(
 						'SignedMsgOrderParamsDelegateMessage',
-						orderParamsMessage as SignedMsgOrderParamsDelegateMessage
+						orderParamsMessage as SignedMsgOrderParamsDelegateMessageExtended
 				  )
 				: this.program.coder.types.encode(
 						'SignedMsgOrderParamsMessage',
-						orderParamsMessage as SignedMsgOrderParamsMessage
+						orderParamsMessage as SignedMsgOrderParamsMessageExtended
 				  ),
 		]);
 		return buf;
+	}
+
+	/*
+	 * Decode signedMsg taker order params from borsh buffer. Only includes minimal fields.
+	 */
+	public decodeSignedMsgOrderParamsMessageExtended(
+		encodedMessage: Buffer,
+		delegateSigner?: boolean
+	):
+		| SignedMsgOrderParamsMessageExtended
+		| SignedMsgOrderParamsDelegateMessageExtended {
+		const decodeStr = delegateSigner
+			? 'SignedMsgOrderParamsDelegateMessageExtended'
+			: 'SignedMsgOrderParamsMessageExtended';
+		return this.program.coder.types.decode(
+			decodeStr,
+			encodedMessage.slice(8) // assumes discriminator
+		);
 	}
 
 	/*

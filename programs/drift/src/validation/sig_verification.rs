@@ -1,7 +1,7 @@
 use crate::error::ErrorCode;
 use crate::state::order_params::{
-    OrderParams, SignedMsgOrderParamsDelegateMessage, SignedMsgOrderParamsMessage,
-    SignedMsgTriggerOrderParams,
+    OrderParams, SignedMsgOrderParamsMessageExtended,
+    SignedMsgTriggerOrderParams, SignedMsgOrderParamsDelegateMessageExtended,
 };
 use anchor_lang::prelude::*;
 use bytemuck::try_cast_slice;
@@ -74,12 +74,12 @@ pub fn deserialize_into_verified_message(
         if payload.len() < 8 {
             return Err(SignatureVerificationError::InvalidMessageDataSize.into());
         }
-        let min_len: usize = std::mem::size_of::<SignedMsgOrderParamsDelegateMessage>();
+        let min_len: usize = std::mem::size_of::<SignedMsgOrderParamsDelegateMessageExtended>();
         let mut owned = payload;
         if owned.len() < min_len {
             owned.resize(min_len, 0);
         }
-        let deserialized = SignedMsgOrderParamsDelegateMessage::deserialize(
+        let deserialized = SignedMsgOrderParamsDelegateMessageExtended::deserialize(
             &mut &owned[8..], // 8 byte manual discriminator
         )
         .map_err(|_| {
@@ -102,12 +102,12 @@ pub fn deserialize_into_verified_message(
         if payload.len() < 8 {
             return Err(SignatureVerificationError::InvalidMessageDataSize.into());
         }
-        let min_len: usize = std::mem::size_of::<SignedMsgOrderParamsMessage>();
+        let min_len: usize = std::mem::size_of::<SignedMsgOrderParamsMessageExtended>();
         let mut owned = payload;
         if owned.len() < min_len {
             owned.resize(min_len, 0);
         }
-        let deserialized = SignedMsgOrderParamsMessage::deserialize(
+        let deserialized = SignedMsgOrderParamsMessageExtended::deserialize(
             &mut &owned[8..], // 8 byte manual discriminator
         )
         .map_err(|_| {

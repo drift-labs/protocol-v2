@@ -856,8 +856,21 @@ impl OrderParams {
     }
 }
 
+/// Original swift message, new fields will never be added to this struct in order
+/// to maintain backwards compatibility. Additional fields will be appended to 
+/// [`SignedMsgOrderParamsMessageExtended`]
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
 pub struct SignedMsgOrderParamsMessage {
+    pub signed_msg_order_params: OrderParams,
+    pub sub_account_id: u16,
+    pub slot: u64,
+    pub uuid: [u8; 8],
+    pub take_profit_order_params: Option<SignedMsgTriggerOrderParams>,
+    pub stop_loss_order_params: Option<SignedMsgTriggerOrderParams>,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
+pub struct SignedMsgOrderParamsMessageExtended {
     pub signed_msg_order_params: OrderParams,
     pub sub_account_id: u16,
     pub slot: u64,
@@ -867,8 +880,21 @@ pub struct SignedMsgOrderParamsMessage {
     pub max_margin_ratio: Option<u16>,
 }
 
+/// Original swift message, new fields will never be added to this struct in order
+/// to maintain backwards compatibility. Additional fields will be appended to 
+/// [`SignedMsgOrderParamsDelegateMessageExtended`]
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
 pub struct SignedMsgOrderParamsDelegateMessage {
+    pub signed_msg_order_params: OrderParams,
+    pub taker_pubkey: Pubkey,
+    pub slot: u64,
+    pub uuid: [u8; 8],
+    pub take_profit_order_params: Option<SignedMsgTriggerOrderParams>,
+    pub stop_loss_order_params: Option<SignedMsgTriggerOrderParams>,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
+pub struct SignedMsgOrderParamsDelegateMessageExtended {
     pub signed_msg_order_params: OrderParams,
     pub taker_pubkey: Pubkey,
     pub slot: u64,
