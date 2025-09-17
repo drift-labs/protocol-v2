@@ -6547,18 +6547,18 @@ export class DriftClient {
 
 		// we encode to the Extended versions of the messages to avoid padding errors
 		const anchorIxName = delegateSigner
-			? 'global' + ':' + 'SignedMsgOrderParamsDelegateMessageExtended'
-			: 'global' + ':' + 'SignedMsgOrderParamsMessageExtended';
+			? 'global' + ':' + 'SignedMsgOrderParamsDelegateMessage'
+			: 'global' + ':' + 'SignedMsgOrderParamsMessage';
 		const prefix = Buffer.from(sha256(anchorIxName).slice(0, 8));
 		const buf = Buffer.concat([
 			prefix,
 			delegateSigner
 				? this.program.coder.types.encode(
-						'SignedMsgOrderParamsDelegateMessageExtended',
+						'SignedMsgOrderParamsDelegateMessage',
 						orderParamsMessage as SignedMsgOrderParamsDelegateMessage
 				  )
 				: this.program.coder.types.encode(
-						'SignedMsgOrderParamsMessageExtended',
+						'SignedMsgOrderParamsMessage',
 						orderParamsMessage as SignedMsgOrderParamsMessage
 				  ),
 		]);
@@ -6566,17 +6566,17 @@ export class DriftClient {
 	}
 
 	/*
-	 * Decode signedMsg taker order params from borsh buffer. Zero padding failed deserializations until
+	 * Decode signedMsg taker order params from borsh buffer. Zero pads the message on failed deserializations until
 	 * the message is successfuly decoded, or we've hit max iterations. This is necessary if the client
-	 * is decoding a message created by another client with an outdated IDL.
+	 * decodes a message encoded by an outdated IDL.
 	 */
-	public decodeSignedMsgOrderParamsMessageExtended(
+	public decodeSignedMsgOrderParamsMessage(
 		encodedMessage: Buffer,
 		delegateSigner?: boolean
 	): SignedMsgOrderParamsMessage | SignedMsgOrderParamsDelegateMessage {
 		const decodeStr = delegateSigner
-			? 'SignedMsgOrderParamsDelegateMessageExtended'
-			: 'SignedMsgOrderParamsMessageExtended';
+			? 'SignedMsgOrderParamsDelegateMessage'
+			: 'SignedMsgOrderParamsMessage';
 		let decodeAttempts = 0;
 		do {
 			try {
@@ -6596,23 +6596,7 @@ export class DriftClient {
 		} while (decodeAttempts < 100);
 
 		throw new Error(
-			`Failed to decode SignedMsgOrderParamsMessageExtended after ${decodeAttempts} attempts`
-		);
-	}
-
-	/*
-	 * Decode signedMsg taker order params from borsh buffer
-	 */
-	public decodeSignedMsgOrderParamsMessage(
-		encodedMessage: Buffer,
-		delegateSigner?: boolean
-	): SignedMsgOrderParamsMessage | SignedMsgOrderParamsDelegateMessage {
-		const decodeStr = delegateSigner
-			? 'SignedMsgOrderParamsDelegateMessage'
-			: 'SignedMsgOrderParamsMessage';
-		return this.program.coder.types.decode(
-			decodeStr,
-			encodedMessage.slice(8) // assumes discriminator
+			`Failed to decode SignedMsgOrderParamsMessage after ${decodeAttempts} attempts`
 		);
 	}
 

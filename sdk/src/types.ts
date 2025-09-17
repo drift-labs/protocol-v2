@@ -1240,7 +1240,6 @@ export const DefaultOrderParams: OrderParams = {
 	auctionEndPrice: null,
 };
 
-// this matches [`SignedMsgOrderParamsMessageExtended`] on the program
 export type SignedMsgOrderParamsMessage = {
 	signedMsgOrderParams: OrderParams;
 	subAccountId: number;
@@ -1248,11 +1247,9 @@ export type SignedMsgOrderParamsMessage = {
 	uuid: Uint8Array;
 	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
-	// extended fields below
 	maxMarginRatio?: number | null;
 };
 
-// this matches [`SignedMsgOrderParamsDelegateMessageExtended`] on the program
 export type SignedMsgOrderParamsDelegateMessage = {
 	signedMsgOrderParams: OrderParams;
 	slot: BN;
@@ -1260,7 +1257,6 @@ export type SignedMsgOrderParamsDelegateMessage = {
 	takerPubkey: PublicKey;
 	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
-	// extended fields below
 	maxMarginRatio?: number | null;
 };
 
