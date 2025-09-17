@@ -432,7 +432,7 @@ mod tests {
         let mut constituents_indexes_and_decimals_and_prices =
             vec![ConstituentIndexAndDecimalAndPrice {
                 constituent_index: 1,
-                decimals: 6,
+                decimals: 9,
                 price: 142_000_000,
             }];
 
@@ -459,7 +459,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(target_zc_mut.len(), 1);
-        assert_eq!(target_zc_mut.get(0).target_base, -1_000); // despite no aum, desire to reach target
+        assert_eq!(target_zc_mut.get(0).target_base, -1_000_000); // despite no aum, desire to reach target
         assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
     }
 }

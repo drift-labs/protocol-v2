@@ -685,6 +685,7 @@ describe('LP Pool', () => {
 			lpPoolKey
 		)) as LPPoolAccount;
 
+		console.log(lpPool.lastAum.toString());
 		assert(lpPool.lastAum.eq(new BN(1000).mul(QUOTE_PRECISION)));
 
 		// Should fail if we dont pass in the second constituent
@@ -1218,18 +1219,18 @@ describe('LP Pool', () => {
 			constituentVaultPublicKey
 		);
 
-		// Should have written fee pool amount owed to the amm cache and new constituent usdc balane should be 0
+		// Should have written fee pool amount owed to the amm cache and new constituent usdc balane should just be the quote precision to leave aum > 0
 		ammCache = (await adminClient.program.account.ammCache.fetch(
 			getAmmCachePublicKey(program.programId)
 		)) as AmmCache;
 		// No more usdc left in the constituent vault
-		assert(constituent.vaultTokenBalance.eq(ZERO));
-		assert(new BN(constituentVault.amount.toString()).eq(ZERO));
+		assert(constituent.vaultTokenBalance.eq(QUOTE_PRECISION));
+		assert(new BN(constituentVault.amount.toString()).eq(QUOTE_PRECISION));
 
 		// Should have recorded the amount left over to the amm cache and increased the amount in the fee pool
 		assert(
 			ammCache.cache[0].lastFeePoolTokenAmount.eq(
-				new BN(constituentUSDCBalanceBefore.toString())
+				new BN(constituentUSDCBalanceBefore.toString()).sub(QUOTE_PRECISION)
 			)
 		);
 		expect(
@@ -1237,6 +1238,7 @@ describe('LP Pool', () => {
 		).to.be.approximately(
 			expectedTransferAmount
 				.sub(new BN(constituentUSDCBalanceBefore.toString()))
+				.add(QUOTE_PRECISION)
 				.toNumber(),
 			1
 		);
@@ -1244,9 +1246,9 @@ describe('LP Pool', () => {
 			adminClient
 				.getPerpMarketAccount(0)
 				.amm.feePool.scaledBalance.eq(
-					new BN(constituentUSDCBalanceBefore.toString()).mul(
-						SPOT_MARKET_BALANCE_PRECISION.div(QUOTE_PRECISION)
-					)
+					new BN(constituentUSDCBalanceBefore.toString())
+						.sub(QUOTE_PRECISION)
+						.mul(SPOT_MARKET_BALANCE_PRECISION.div(QUOTE_PRECISION))
 				)
 		);
 
@@ -1255,7 +1257,7 @@ describe('LP Pool', () => {
 		lpPool = (await adminClient.program.account.lpPool.fetch(
 			lpPoolKey
 		)) as LPPoolAccount;
-		assert(lpPool.lastAum.eq(ZERO));
+		assert(lpPool.lastAum.eq(QUOTE_PRECISION));
 	});
 
 	it('perp market will not transfer with the constituent vault if it is owed from dlp', async () => {
@@ -1303,8 +1305,8 @@ describe('LP Pool', () => {
 		expect(
 			ammCache.cache[0].quoteOwedFromLpPool.toNumber()
 		).to.be.approximately(owedAmount.divn(2).toNumber(), 1);
-		assert(constituent.vaultTokenBalance.eq(ZERO));
-		assert(lpPool.lastAum.eq(ZERO));
+		assert(constituent.vaultTokenBalance.eq(QUOTE_PRECISION));
+		assert(lpPool.lastAum.eq(QUOTE_PRECISION));
 
 		// Deposit here to DLP to make sure aum calc work with perp market debt
 		await overWriteMintAccount(
@@ -1368,7 +1370,7 @@ describe('LP Pool', () => {
 		const balanceBefore = constituent.vaultTokenBalance;
 		const owedAmount = ammCache.cache[0].quoteOwedFromLpPool;
 
-		// Give the perp market half of its owed amount
+		// Give the perp market double of its owed amount
 		const perpMarket = adminClient.getPerpMarketAccount(0);
 		perpMarket.amm.feePool.scaledBalance =
 			perpMarket.amm.feePool.scaledBalance.add(

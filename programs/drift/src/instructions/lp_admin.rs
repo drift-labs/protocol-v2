@@ -1,5 +1,3 @@
-use crate::state::perp_market_map::MarketSet;
-use crate::{controller, load_mut};
 use crate::controller::token::{receive, send_from_program_vault_with_signature_seeds};
 use crate::error::ErrorCode;
 use crate::ids::{admin_hot_wallet, lp_pool_swap_wallet};
@@ -14,9 +12,11 @@ use crate::state::lp_pool::{
     CONSTITUENT_VAULT_PDA_SEED,
 };
 use crate::state::perp_market::PerpMarket;
+use crate::state::perp_market_map::MarketSet;
 use crate::state::spot_market::SpotMarket;
 use crate::state::state::State;
 use crate::validate;
+use crate::{controller, load_mut};
 use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
 use anchor_spl::associated_token::AssociatedToken;
@@ -893,7 +893,7 @@ pub fn handle_update_perp_market_lp_pool_status(
     msg!("perp market {}", perp_market.market_index);
     perp_market.lp_status = lp_status;
     amm_cache.update_perp_market_fields(&perp_market)?;
-    
+
     Ok(())
 }
 
@@ -979,7 +979,6 @@ pub fn handle_override_amm_cache_info<'c: 'info, 'info>(
 
     Ok(())
 }
-
 
 #[derive(Accounts)]
 #[instruction(
@@ -1136,7 +1135,7 @@ pub struct UpdateConstituentParams<'info> {
 pub struct UpdateConstituentStatus<'info> {
     #[account(
         mut,
-        constraint = admin.key() == state.admin 
+        constraint = admin.key() == state.admin
     )]
     pub admin: Signer<'info>,
     pub state: Box<Account<'info, State>>,

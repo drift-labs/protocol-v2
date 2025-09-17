@@ -220,6 +220,7 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
     )?;
 
     // Set USDC stable weight
+    msg!("aum: {}", aum);
     let total_stable_target_base = aum
         .cast::<i128>()?
         .safe_sub(crypto_delta.abs())?
@@ -808,16 +809,15 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
 
     ctx.accounts.lp_mint.reload()?;
     let lp_price_after = lp_pool.get_price(lp_pool.token_supply)?;
-    if lp_price_before != 0 {
-        let price_diff_percent = lp_price_after
-            .abs_diff(lp_price_before)
-            .safe_mul(PERCENTAGE_PRECISION)?
-            .safe_div(lp_price_before)?;
+    let price_diff = (lp_price_after.cast::<i128>()?).safe_sub(lp_price_before.cast::<i128>()?)?;
 
+    if lp_price_before > 0 && price_diff.signum() != 0 && in_fee_amount.signum() != 0 {
         validate!(
-            price_diff_percent <= PERCENTAGE_PRECISION / 5,
+            price_diff.signum() == in_fee_amount.signum() || price_diff == 0,
             ErrorCode::LpInvariantFailed,
-            "Removing liquidity resulted in DLP token difference of > 5%"
+            "Adding liquidity resulted in price direction != fee sign, price_diff: {}, in_fee_amount: {}",
+            price_diff,
+            in_fee_amount
         )?;
     }
 
@@ -1192,15 +1192,14 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
     ctx.accounts.lp_mint.reload()?;
     let lp_price_after = lp_pool.get_price(lp_pool.token_supply)?;
 
-    if lp_price_after != 0 {
-        let price_diff_percent = lp_price_after
-            .abs_diff(lp_price_before)
-            .safe_mul(PERCENTAGE_PRECISION)?
-            .safe_div(lp_price_before)?;
+    let price_diff = (lp_price_after.cast::<i128>()?).safe_sub(lp_price_before.cast::<i128>()?)?;
+    if price_diff.signum() != 0 && out_fee_amount.signum() != 0 {
         validate!(
-            price_diff_percent <= PERCENTAGE_PRECISION / 5,
+            price_diff.signum() == out_fee_amount.signum(),
             ErrorCode::LpInvariantFailed,
-            "Removing liquidity resulted in DLP token difference of > 5%"
+            "Removing liquidity resulted in price direction != fee sign, price_diff: {}, out_fee_amount: {}",
+            price_diff,
+            out_fee_amount
         )?;
     }
 
