@@ -10139,6 +10139,12 @@
                 "defined": "SignedMsgTriggerOrderParams"
               }
             }
+          },
+          {
+            "name": "maxMarginRatio",
+            "type": {
+              "option": "u16"
+            }
           }
         ]
       }
@@ -10185,6 +10191,12 @@
               "option": {
                 "defined": "SignedMsgTriggerOrderParams"
               }
+            }
+          },
+          {
+            "name": "maxMarginRatio",
+            "type": {
+              "option": "u16"
             }
           }
         ]
@@ -15962,8 +15974,5 @@
       "name": "InvalidIfRebalanceSwap",
       "msg": "Invalid If Rebalance Swap"
     }
-  ],
-  "metadata": {
-    "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
-  }
+  ]
 }

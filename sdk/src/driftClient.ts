@@ -6541,6 +6541,10 @@ export class DriftClient {
 			| SignedMsgOrderParamsDelegateMessage,
 		delegateSigner?: boolean
 	): Buffer {
+		if (orderParamsMessage.maxMarginRatio === undefined) {
+			orderParamsMessage.maxMarginRatio = null;
+		}
+
 		const anchorIxName = delegateSigner
 			? 'global' + ':' + 'SignedMsgOrderParamsDelegateMessage'
 			: 'global' + ':' + 'SignedMsgOrderParamsMessage';
@@ -6561,7 +6565,10 @@ export class DriftClient {
 	}
 
 	/*
-	 * Decode signedMsg taker order params from borsh buffer
+	 * Decode signedMsg taker order params from borsh buffer. Zero pads the message in case the
+	 * received message was encoded by an outdated IDL (size will be too small and decode will throw).
+	 * Note: the 128 will be problematic if the type we are expecting to deserializze into is 128 bytes
+	 * larger than the message we are receiving (unlikely, especially if all new fields are Options).
 	 */
 	public decodeSignedMsgOrderParamsMessage(
 		encodedMessage: Buffer,
@@ -6572,7 +6579,10 @@ export class DriftClient {
 			: 'SignedMsgOrderParamsMessage';
 		return this.program.coder.types.decode(
 			decodeStr,
-			encodedMessage.slice(8) // assumes discriminator
+			Buffer.concat([
+				encodedMessage.slice(8), // strip out discriminator
+				Buffer.alloc(128), // pad on 128 bytes, this is most efficient way to messages that are too small
+			])
 		);
 	}
 
