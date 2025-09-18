@@ -14386,6 +14386,271 @@
           "index": false
         }
       ]
+    },
+    {
+      "name": "LPSettleRecord",
+      "fields": [
+        {
+          "name": "recordId",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "lastTs",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "lastSlot",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "slot",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "perpMarketIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "settleToLpAmount",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "perpAmmPnlDelta",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "perpAmmExFeeDelta",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "lpAum",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "lpPrice",
+          "type": "u128",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "LPSwapRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "slot",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "authority",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "outAmount",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "inAmount",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "outFee",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "inFee",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "outSpotMarketIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "inSpotMarketIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "outConstituentIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "inConstituentIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "outOraclePrice",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "inOraclePrice",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "lastAum",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "lastAumSlot",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "inMarketCurrentWeight",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "outMarketCurrentWeight",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "inMarketTargetWeight",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "outMarketTargetWeight",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "inSwapId",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "outSwapId",
+          "type": "u64",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "LPMintRedeemRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "slot",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "authority",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "description",
+          "type": "u8",
+          "index": false
+        },
+        {
+          "name": "amount",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "fee",
+          "type": "i128",
+          "index": false
+        },
+        {
+          "name": "spotMarketIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "constituentIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "oraclePrice",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "mint",
+          "type": "publicKey",
+          "index": false
+        },
+        {
+          "name": "lpAmount",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "lpFee",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "lpPrice",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "mintRedeemId",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "lastAum",
+          "type": "u128",
+          "index": false
+        },
+        {
+          "name": "lastAumSlot",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "inMarketCurrentWeight",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "inMarketTargetWeight",
+          "type": "i64",
+          "index": false
+        }
+      ]
     }
   ],
   "errors": [
