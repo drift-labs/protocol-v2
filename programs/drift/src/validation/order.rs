@@ -142,7 +142,7 @@ fn validate_limit_order(
         order,
         market.amm.order_step_size,
         market.amm.min_order_size,
-        order.reduce_only,
+        order.reduce_only || order.is_jit_maker(),
     )?;
 
     if order.price == 0 && !order.has_oracle_price_offset() {
@@ -339,7 +339,7 @@ fn validate_base_asset_amount(
     order: &Order,
     step_size: u64,
     min_order_size: u64,
-    reduce_only: bool,
+    reduce_only_or_jit_maker: bool,
 ) -> DriftResult {
     if order.base_asset_amount == 0 {
         msg!("Order base_asset_amount cant be 0");
@@ -355,7 +355,7 @@ fn validate_base_asset_amount(
     )?;
 
     validate!(
-        reduce_only || order.base_asset_amount >= min_order_size,
+        reduce_only_or_jit_maker || order.base_asset_amount >= min_order_size,
         ErrorCode::InvalidOrderMinOrderSize,
         "Order base_asset_amount ({}) < min_order_size ({})",
         order.base_asset_amount,
