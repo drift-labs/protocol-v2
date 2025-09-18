@@ -741,6 +741,68 @@ export type TransferProtocolIfSharesToRevenuePoolRecord = {
 	transferAmount: BN;
 };
 
+export type LPSwapRecord = {
+	ts: BN;
+	slot: BN;
+	authority: PublicKey;
+	outAmount: BN;
+	inAmount: BN;
+	outFee: BN;
+	inFee: BN;
+	outSpotMarketIndex: number;
+	inSpotMarketIndex: number;
+	outConstituentIndex: number;
+	inConstituentIndex: number;
+	outOraclePrice: BN;
+	inOraclePrice: BN;
+	outMint: PublicKey;
+	inMint: PublicKey;
+	lastAum: BN;
+	lastAumSlot: BN;
+	inMarketCurrentWeight: BN;
+	outMarketCurrentWeight: BN;
+	inMarketTargetWeight: BN;
+	outMarketTargetWeight: BN;
+	inSwapId: BN;
+	outSwapId: BN;
+};
+
+export type LPMintRedeemRecord = {
+	ts: BN;
+	slot: BN;
+	authority: PublicKey;
+	description: number;
+	amount: BN;
+	fee: BN;
+	spotMarketIndex: number;
+	constituentIndex: number;
+	oraclePrice: BN;
+	mint: PublicKey;
+	lpMint: PublicKey;
+	lpAmount: BN;
+	lpFee: BN;
+	lpPrice: BN;
+	mintRedeemId: BN;
+	lastAum: BN;
+	lastAumSlot: BN;
+	inMarketCurrentWeight: BN;
+	inMarketTargetWeight: BN;
+};
+
+export type LPSettleRecord = {
+	recordId: BN;
+	lastTs: BN;
+	lastSlot: BN;
+	ts: BN;
+	slot: BN;
+	perpMarketIndex: number;
+	settleToLpAmount: BN;
+	perpAmmPnlDelta: BN;
+	perpAmmExFeeDelta: BN;
+	lpAum: BN;
+	lpPrice: BN;
+};
+
 export type StateAccount = {
 	admin: PublicKey;
 	exchangeStatus: number;
