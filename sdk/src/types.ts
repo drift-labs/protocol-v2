@@ -771,7 +771,7 @@ export type LPMintRedeemRecord = {
 	ts: BN;
 	slot: BN;
 	authority: PublicKey;
-	isMinting: boolean;
+	description: number;
 	amount: BN;
 	fee: BN;
 	spotMarketIndex: number;
@@ -787,6 +787,20 @@ export type LPMintRedeemRecord = {
 	lastAumSlot: BN;
 	inMarketCurrentWeight: BN;
 	inMarketTargetWeight: BN;
+};
+
+export type LPSettleRecord = {
+	recordId: BN;
+	lastTs: BN;
+	lastSlot: BN;
+	ts: BN;
+	slot: BN;
+	perpMarketIndex: number;
+	settleToLpAmount: BN;
+	perpAmmPnlDelta: BN;
+	perpAmmExFeeDelta: BN;
+	lpAum: BN;
+	lpPrice: BN;
 };
 
 export type StateAccount = {
