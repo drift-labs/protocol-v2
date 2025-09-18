@@ -6579,7 +6579,10 @@ export class DriftClient {
 			: 'SignedMsgOrderParamsMessage';
 		return this.program.coder.types.decode(
 			decodeStr,
-			Buffer.concat([encodedMessage.slice(8), Buffer.alloc(128)]) // assumes discriminator
+			Buffer.concat([
+				encodedMessage.slice(8), // strip out discriminator
+				Buffer.alloc(128), // pad on 128 bytes, this is most efficient way to messages that are too small
+			])
 		);
 	}
 
