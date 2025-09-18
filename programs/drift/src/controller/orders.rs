@@ -48,9 +48,7 @@ use crate::math::spot_balance::{get_signed_token_amount, get_token_amount};
 use crate::math::spot_swap::select_margin_type_for_swap;
 use crate::math::{amm, fees, margin::*, orders::*};
 use crate::print_error;
-use crate::state::events::{
-    emit_stack, get_order_action_record, LPAction, LPRecord, OrderActionRecord, OrderRecord,
-};
+use crate::state::events::{emit_stack, get_order_action_record, OrderActionRecord, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};

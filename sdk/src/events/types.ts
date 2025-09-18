@@ -21,6 +21,9 @@ import {
 	FuelSeasonRecord,
 	InsuranceFundSwapRecord,
 	TransferProtocolIfSharesToRevenuePoolRecord,
+	LPSettleRecord,
+	LPSwapRecord,
+	LPMintRedeemRecord,
 } from '../types';
 import { EventEmitter } from 'events';
 
@@ -61,6 +64,9 @@ export const DefaultEventSubscriptionOptions: EventSubscriptionOptions = {
 		'FuelSeasonRecord',
 		'InsuranceFundSwapRecord',
 		'TransferProtocolIfSharesToRevenuePoolRecord',
+		'LPSettleRecord',
+		'LPMintRedeemRecord',
+		'LPSwapRecord',
 	],
 	maxEventsPerType: 4096,
 	orderBy: 'blockchain',
@@ -110,6 +116,9 @@ export type EventMap = {
 	FuelSeasonRecord: Event<FuelSeasonRecord>;
 	InsuranceFundSwapRecord: Event<InsuranceFundSwapRecord>;
 	TransferProtocolIfSharesToRevenuePoolRecord: Event<TransferProtocolIfSharesToRevenuePoolRecord>;
+	LPSettleRecord: Event<LPSettleRecord>;
+	LPMintRedeemRecord: Event<LPMintRedeemRecord>;
+	LPSwapRecord: Event<LPSwapRecord>;
 };
 
 export type EventType = keyof EventMap;
@@ -135,7 +144,10 @@ export type DriftEvent =
 	| Event<FuelSweepRecord>
 	| Event<FuelSeasonRecord>
 	| Event<InsuranceFundSwapRecord>
-	| Event<TransferProtocolIfSharesToRevenuePoolRecord>;
+	| Event<TransferProtocolIfSharesToRevenuePoolRecord>
+	| Event<LPSettleRecord>
+	| Event<LPMintRedeemRecord>
+	| Event<LPSwapRecord>;
 
 export interface EventSubscriberEvents {
 	newEvent: (event: WrappedEvent<EventType>) => void;
