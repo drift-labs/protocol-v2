@@ -6565,9 +6565,10 @@ export class DriftClient {
 	}
 
 	/*
-	 * Decode signedMsg taker order params from borsh buffer. Zero pads the message on failed deserializations until
-	 * the message is successfuly decoded, or we've hit max iterations. This is necessary if the client
-	 * decodes a message encoded by an outdated IDL.
+	 * Decode signedMsg taker order params from borsh buffer. Zero pads the message in case the
+	 * received message was encoded by an outdated IDL (size will be too small and decode will throw).
+	 * Note: the 128 will be problematic if the type we are expecting to deserializze into is 128 bytes
+	 * larger than the message we are receiving (unlikely, especially if all new fields are Options).
 	 */
 	public decodeSignedMsgOrderParamsMessage(
 		encodedMessage: Buffer,
@@ -6576,26 +6577,9 @@ export class DriftClient {
 		const decodeStr = delegateSigner
 			? 'SignedMsgOrderParamsDelegateMessage'
 			: 'SignedMsgOrderParamsMessage';
-		let decodeAttempts = 0;
-		do {
-			try {
-				return this.program.coder.types.decode(
-					decodeStr,
-					encodedMessage.slice(8) // assumes discriminator
-				);
-			} catch (err) {
-				if (err.message.includes('out of range')) {
-					decodeAttempts++;
-					encodedMessage = Buffer.concat([encodedMessage, Buffer.from([0])]);
-					continue;
-				} else {
-					throw err;
-				}
-			}
-		} while (decodeAttempts < 100);
-
-		throw new Error(
-			`Failed to decode SignedMsgOrderParamsMessage after ${decodeAttempts} attempts`
+		return this.program.coder.types.decode(
+			decodeStr,
+			Buffer.concat([encodedMessage.slice(8), Buffer.alloc(128)]) // assumes discriminator
 		);
 	}
 
