@@ -1700,6 +1700,7 @@ fn check_usdc_spot_market_twap() {
         confidence: 1,
         delay: 0,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
 
     update_spot_market_twap_stats(&mut spot_market, Some(&oracle_price_data), now).unwrap();
