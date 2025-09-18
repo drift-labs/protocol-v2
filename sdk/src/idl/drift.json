@@ -12803,6 +12803,12 @@
                 "defined": "SignedMsgTriggerOrderParams"
               }
             }
+          },
+          {
+            "name": "maxMarginRatio",
+            "type": {
+              "option": "u16"
+            }
           }
         ]
       }
@@ -12849,6 +12855,12 @@
               "option": {
                 "defined": "SignedMsgTriggerOrderParams"
               }
+            }
+          },
+          {
+            "name": "maxMarginRatio",
+            "type": {
+              "option": "u16"
             }
           }
         ]
@@ -19121,8 +19133,5 @@
       "name": "Unauthorized",
       "msg": "Unauthorized for operation"
     }
-  ],
-  "metadata": {
-    "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
-  }
+  ]
 }
