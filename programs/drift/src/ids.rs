@@ -113,5 +113,5 @@ pub mod amm_spread_adjust_wallet {
 
 pub mod lp_pool_swap_wallet {
     use solana_program::declare_id;
-    declare_id!("1ucYHAGrBbi1PaecC4Ptq5ocZLWGLBmbGWysoDGNB1N");
+    declare_id!("25qbsE2oWri76c9a86ubn17NKKdo6Am4HXD2Jm8vT8K4");
 }
