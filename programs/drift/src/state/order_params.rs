@@ -722,7 +722,7 @@ impl OrderParams {
 
         let baseline_start_price_offset = if baseline_start_price_offset_slow
             .abs_diff(baseline_start_price_offset_fast)
-            < perp_market.amm.last_mark_price_twap_5min / 200
+            <= perp_market.amm.last_mark_price_twap_5min / 200
         {
             let frac_of_long_spread_in_price: i64 = perp_market
                 .amm
@@ -748,6 +748,7 @@ impl OrderParams {
             }
         } else {
             // more than 50bps different of fast/slow twap, use fast only
+            crate::dlog!("hi", baseline_start_price_offset_slow, baseline_start_price_offset_fast);
             baseline_start_price_offset_fast
         };
 
@@ -897,15 +898,15 @@ fn get_auction_duration(
 ) -> DriftResult<u8> {
     let percent_diff = price_diff.safe_mul(PERCENTAGE_PRECISION_U64)?.div(price);
 
-    let slots_per_bp = if contract_tier.is_as_safe_as_contract(&ContractTier::B) {
+    let slots_per_pct = if contract_tier.is_as_safe_as_contract(&ContractTier::B) {
         100
     } else {
         60
     };
 
     Ok(percent_diff
-        .safe_mul(slots_per_bp)?
-        .safe_div_ceil(PERCENTAGE_PRECISION_U64 / 100)? // 1% = 60 slots
+        .safe_mul(slots_per_pct)?
+        .safe_div_ceil(PERCENTAGE_PRECISION_U64 / 100)? // 1% = 40 slots
         .clamp(1, 180) as u8) // 180 slots max
 }
 
