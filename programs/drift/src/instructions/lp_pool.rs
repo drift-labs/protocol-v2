@@ -1,6 +1,7 @@
 use anchor_lang::{prelude::*, Accounts, Key, Result};
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
+use crate::ids::lp_pool_swap_wallet;
 use crate::math::constants::{PERCENTAGE_PRECISION, PRICE_PRECISION_I64};
 use crate::math::oracle::OracleValidity;
 use crate::state::paused_operations::ConstituentLpOperation;
@@ -1600,7 +1601,7 @@ pub struct DepositProgramVault<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         mut,
-        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin || admin.key() == lp_pool_swap_wallet::id()
     )]
     pub admin: Signer<'info>,
     #[account(mut)]
@@ -1636,7 +1637,7 @@ pub struct WithdrawProgramVault<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         mut,
-        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin || admin.key() == lp_pool_swap_wallet::id()
     )]
     pub admin: Signer<'info>,
     /// CHECK: program signer
