@@ -1,9 +1,9 @@
-use anchor_lang::prelude::*;
 use anchor_lang::accounts::account::Account;
 use anchor_lang::accounts::account_loader::AccountLoader;
 use anchor_lang::accounts::signer::Signer;
+use anchor_lang::prelude::*;
 use anchor_lang::prelude::{AccountInfo, Pubkey};
-use anchor_spl::token_interface::{Mint};
+use anchor_spl::token_interface::Mint;
 
 use crate::error::ErrorCode;
 use crate::msg;
@@ -151,7 +151,9 @@ pub fn exchange_not_paused(state: &Account<State>) -> anchor_lang::Result<()> {
 pub fn get_vault_len(mint: &InterfaceAccount<Mint>) -> anchor_lang::Result<usize> {
     let mint_info = mint.to_account_info();
     let len = if *mint_info.owner == ::anchor_spl::token_2022::Token2022::id() {
-        use ::anchor_spl::token_2022::spl_token_2022::extension::{BaseStateWithExtensions, ExtensionType, StateWithExtensions};
+        use ::anchor_spl::token_2022::spl_token_2022::extension::{
+            BaseStateWithExtensions, ExtensionType, StateWithExtensions,
+        };
         use ::anchor_spl::token_2022::spl_token_2022::state::{Account, Mint};
         let mint_data = mint_info.try_borrow_data()?;
         let mint_state = StateWithExtensions::<Mint>::unpack(&mint_data)?;
@@ -161,7 +163,8 @@ pub fn get_vault_len(mint: &InterfaceAccount<Mint>) -> anchor_lang::Result<usize
             // Init token will fail if this size doesnt work, so worst case init account just fails
             Err(_) => return Ok(::anchor_spl::token::TokenAccount::LEN),
         };
-        let required_extensions = ExtensionType::get_required_init_account_extensions(&mint_extensions);
+        let required_extensions =
+            ExtensionType::get_required_init_account_extensions(&mint_extensions);
         ExtensionType::try_calculate_account_len::<Account>(&required_extensions)?
     } else {
         ::anchor_spl::token::TokenAccount::LEN

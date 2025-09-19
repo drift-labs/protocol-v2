@@ -146,9 +146,19 @@ pub fn handle_initialize_spot_market(
     let state = &mut ctx.accounts.state;
     let spot_market_pubkey = ctx.accounts.spot_market.key();
 
-    initialize_token_account(&ctx.accounts.token_program, &ctx.accounts.spot_market_vault, &ctx.accounts.drift_signer, &ctx.accounts.spot_market_mint)?;
+    initialize_token_account(
+        &ctx.accounts.token_program,
+        &ctx.accounts.spot_market_vault,
+        &ctx.accounts.drift_signer,
+        &ctx.accounts.spot_market_mint,
+    )?;
 
-    initialize_token_account(&ctx.accounts.token_program, &ctx.accounts.insurance_fund_vault, &ctx.accounts.drift_signer, &ctx.accounts.spot_market_mint)?;
+    initialize_token_account(
+        &ctx.accounts.token_program,
+        &ctx.accounts.insurance_fund_vault,
+        &ctx.accounts.drift_signer,
+        &ctx.accounts.spot_market_mint,
+    )?;
 
     validate_borrow_rate(optimal_utilization, optimal_borrow_rate, max_borrow_rate, 0)?;
 
