@@ -32,6 +32,7 @@ use crate::instructions::optional_accounts::{
 };
 use crate::instructions::SpotFulfillmentType;
 use crate::math::casting::Cast;
+use crate::math::constants::GOV_SPOT_MARKET_INDEX;
 use crate::math::liquidation::is_user_being_liquidated;
 use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_liability_info;
 use crate::math::margin::meets_initial_margin_requirement;
@@ -851,6 +852,10 @@ pub fn handle_withdraw<'c: 'info, 'info>(
     )?;
 
     spot_market.validate_max_token_deposits_and_borrows(is_borrow)?;
+
+    if spot_market.market_index == GOV_SPOT_MARKET_INDEX && user_stats.gov_stake_sub_account_active()? {
+        user_stats.update_gov_stake()?;
+    }
 
     Ok(())
 }
