@@ -17,8 +17,8 @@ import {
 	addExtraAccountMetasForExecute,
 	createInitializeAccountInstruction,
 	getAccountLenForMint,
-	createUpdateTransferHookInstruction,
     createInitializeScaledUiAmountConfigInstruction,
+    TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 
 import {
@@ -43,22 +43,12 @@ import {
 	getMint,
 	TOKEN_2022_PROGRAM_ID,
 	createInitializeMintInstruction,
-	createInitializeTransferHookInstruction,
 	ExtensionType,
 	getMintLen,
-	getTransferHook,
-	getExtraAccountMetas,
-	getExtraAccountMetaAddress,
-	resolveExtraAccountMeta,
 } from '@solana/spl-token';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
-import { initializeExtraAccountMetaList } from './splTransferHookClient';
-
-const transferHookProgramId = new PublicKey(
-	'4qXcCexy21qw66VgPqZjVyL9PTHsB6CdbSCZsDTac6Qq'
-);
 
 describe('spot deposit and withdraw 22', () => {
 	const chProgram = anchor.workspace.Drift as Program;
@@ -94,9 +84,9 @@ describe('spot deposit and withdraw 22', () => {
 			'',
 			[
 				{
-					name: 'spl_transfer_hook_example',
-					programId: transferHookProgramId,
-				},
+					name: 'token_2022_test',
+					programId: TOKEN_2022_PROGRAM_ID,
+				}
 			],
 			[]
 		);
@@ -155,7 +145,7 @@ describe('spot deposit and withdraw 22', () => {
 				bulkAccountLoader
 			);
 
-		// create token with transfer hook
+		// create token with scaled ui amount config
 		mintAuthority = Keypair.generate();
 		mintKeypair = Keypair.generate();
 		mint = mintKeypair.publicKey;
@@ -183,43 +173,18 @@ describe('spot deposit and withdraw 22', () => {
                 1,
                 TOKEN_2022_PROGRAM_ID
             ),
-			// createInitializeMintInstruction(
-			// 	mint,
-			// 	decimals,
-			// 	mintAuthority.publicKey,
-			// 	null,
-			// 	TOKEN_2022_PROGRAM_ID
-			// ),
+			createInitializeMintInstruction(
+				mint,
+				decimals,
+				mintAuthority.publicKey,
+				null,
+				TOKEN_2022_PROGRAM_ID
+			),
 		);
 		await bankrunContextWrapper.sendTransaction(mintTransaction, [
 			bankrunContextWrapper.provider.wallet.payer,
 			mintKeypair,
 		]);
-
-        console.log('here2');
-
-
-        return;
-		// some random account that the token hook needs at transfer time
-		extraAccountPda = PublicKey.findProgramAddressSync(
-			[Buffer.from('custom-acc'), mint.toBuffer()],
-			transferHookProgramId
-		)[0];
-
-		await initializeExtraAccountMetaList(
-			bankrunContextWrapper.connection.toConnection(),
-			transferHookProgramId,
-			mint,
-			mintAuthority,
-			bankrunContextWrapper.provider.wallet.payer,
-			[
-				{
-					addressConfig: extraAccountPda,
-					isSigner: false,
-					isWritable: true,
-				},
-			]
-		);
 
 		await bankrunContextWrapper.moveTimeForward(100);
 	});
@@ -227,42 +192,6 @@ describe('spot deposit and withdraw 22', () => {
 	after(async () => {
 		await admin.unsubscribe();
 		await firstUserDriftClient.unsubscribe();
-	});
-
-	it('Initialize TransferHookToken', async () => {
-		const mintAcc = await getMint(
-			bankrunContextWrapper.connection.toConnection(),
-			mint,
-			'confirmed',
-			TOKEN_2022_PROGRAM_ID
-		);
-		const hookAcc = getTransferHook(mintAcc);
-		assert.isNotNull(hookAcc);
-		assert.isTrue(hookAcc!.programId.equals(transferHookProgramId));
-
-		const metasAddress = getExtraAccountMetaAddress(mint, hookAcc!.programId);
-		const metasAcc = await bankrunContextWrapper.connection.getAccountInfo(
-			metasAddress
-		);
-		assert.isNotNull(metasAcc);
-
-		const extraAccountMetas = getExtraAccountMetas(metasAcc!);
-		assert.isNotNull(extraAccountMetas);
-
-		assert.equal(extraAccountMetas.length, 1);
-		for (const meta of extraAccountMetas) {
-			const r = await resolveExtraAccountMeta(
-				bankrunContextWrapper.connection.toConnection(),
-				meta,
-				[],
-				Buffer.from([]),
-				hookAcc!.programId
-			);
-			const extraAcc = await bankrunContextWrapper.connection.getAccountInfo(
-				r.pubkey
-			);
-			assert.isNotNull(extraAcc);
-		}
 	});
 
 	it('Can mint tokens and transfer between accounts', async () => {
@@ -397,7 +326,7 @@ describe('spot deposit and withdraw 22', () => {
 			TOKEN_2022_PROGRAM_ID
 		);
 
-		// Create transfer instruction with transfer hook support
+		// Create transfer instruction
 		const transferInstruction = createTransferCheckedInstruction(
 			user1TokenAccountKeypair.publicKey,
 			mint,
@@ -407,18 +336,6 @@ describe('spot deposit and withdraw 22', () => {
 			mintInfo.decimals,
 			[],
 			TOKEN_2022_PROGRAM_ID
-		);
-
-		// Add extra account metas for the transfer hook
-		await addExtraAccountMetasForExecute(
-			bankrunContextWrapper.connection.toConnection(),
-			transferInstruction,
-			transferHookProgramId,
-			user1TokenAccountKeypair.publicKey,
-			mint,
-			user2TokenAccountKeypair.publicKey,
-			firstUserKeypair.publicKey,
-			transferAmount
 		);
 
 		const transferTransaction = new Transaction().add(transferInstruction);
@@ -473,7 +390,7 @@ describe('spot deposit and withdraw 22', () => {
 		);
 	});
 
-	it('Initialize TransferHookToken SpotMarket', async () => {
+	it('Initialize Scaled UI Amount Config SpotMarket', async () => {
 		await admin.initializeSpotMarket(
 			mint,
 			SPOT_MARKET_RATE_PRECISION.divn(2).toNumber(),
@@ -508,8 +425,8 @@ describe('spot deposit and withdraw 22', () => {
 		assert(admin.getStateAccount().numberOfSpotMarkets === 2);
 
 		assert(
-			spotMarket.tokenProgramFlag === 3,
-			'Token program flag should be 3 for token with transfer hook'
+			spotMarket.tokenProgramFlag === 1,
+			'Token program flag should be 3 for token with scaled ui amount config'
 		);
 	});
 
@@ -555,33 +472,7 @@ describe('spot deposit and withdraw 22', () => {
 		assert.equal(spotBal.toString(), '0');
 	}
 
-	it('Deposit and withdraw TransferHookToken SpotMarket', async () => {
-		await doDepositWithdrawTest();
-	});
-
-	it('Test can still deposit/withdraw undefined transfer hook program', async () => {
-		const payer = bankrunContextWrapper.provider.wallet.publicKey;
-		const updateTransferHookInstruction = new Transaction().add(
-			createUpdateTransferHookInstruction(mint, payer, PublicKey.default)
-		);
-		await bankrunContextWrapper.sendTransaction(updateTransferHookInstruction, [
-			bankrunContextWrapper.provider.wallet.payer,
-			mintKeypair,
-		]);
-
-		await bankrunContextWrapper.moveTimeForward(100);
-
-		const mintAcc = await getMint(
-			bankrunContextWrapper.connection.toConnection(),
-			mint,
-			'confirmed',
-			TOKEN_2022_PROGRAM_ID
-		);
-		const hookAcc = getTransferHook(mintAcc);
-		assert.isNotNull(hookAcc);
-		console.log('hookAcc', hookAcc);
-		assert.isTrue(hookAcc!.programId.equals(PublicKey.default));
-
+	it('Deposit and withdraw SpotMarket', async () => {
 		await doDepositWithdrawTest();
 	});
 });
