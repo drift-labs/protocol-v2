@@ -1570,14 +1570,21 @@ export class DriftClient {
 		perpMarketIndex: number,
 		marginRatio: number,
 		subAccountId = 0,
-		txParams?: TxParams
+		txParams?: TxParams,
+		enterHighLeverageMode?: boolean
 	): Promise<TransactionSignature> {
-		const ix = await this.getUpdateUserPerpPositionCustomMarginRatioIx(
+		const ixs = [];
+		if (enterHighLeverageMode) {
+			const enableIx = await this.getEnableHighLeverageModeIx(subAccountId);
+			ixs.push(enableIx);
+		}
+		const updateIx = await this.getUpdateUserPerpPositionCustomMarginRatioIx(
 			perpMarketIndex,
 			marginRatio,
 			subAccountId
 		);
-		const tx = await this.buildTransaction(ix, txParams ?? this.txParams);
+		ixs.push(updateIx);
+		const tx = await this.buildTransaction(ixs, txParams ?? this.txParams);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
 	}
@@ -4958,9 +4965,8 @@ export class DriftClient {
 		subAccountId?: number
 	): Promise<TransactionSignature> {
 		const { txSig, slot } = await this.sendTransaction(
-			(
-				await this.preparePlaceSpotOrderTx(orderParams, txParams, subAccountId)
-			).placeSpotOrderTx,
+			(await this.preparePlaceSpotOrderTx(orderParams, txParams, subAccountId))
+				.placeSpotOrderTx,
 			[],
 			this.opts,
 			false

@@ -1027,7 +1027,6 @@ export class User {
 
 		if (marketIndex === undefined || marketIndex === QUOTE_SPOT_MARKET_INDEX) {
 			if (netQuoteValue.gt(ZERO)) {
-
 				totalAssetValue = totalAssetValue.add(netQuoteValue);
 			} else {
 				totalLiabilityValue = totalLiabilityValue.add(netQuoteValue.abs());
@@ -2465,7 +2464,10 @@ export class User {
 				const marginRequirement = this.getInitialMarginRequirement(
 					enterHighLeverageMode
 				);
-				const marginRatio = Math.max(currentPosition.maxMarginRatio, this.getUserAccount().maxMarginRatio);
+				const marginRatio = Math.max(
+					currentPosition.maxMarginRatio,
+					this.getUserAccount().maxMarginRatio
+				);
 				const marginFreedByClosing = perpLiabilityValue
 					.mul(new BN(marginRatio))
 					.div(MARGIN_PRECISION);
