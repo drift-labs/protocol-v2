@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: support scaled ui extension ([#1894](https://github.com/drift-labs/protocol-v2/pull/1894))
+
 ### Fixes
 
 ### Breaking
