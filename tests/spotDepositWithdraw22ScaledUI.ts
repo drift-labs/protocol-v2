@@ -14,11 +14,9 @@ import {
 	createMintToInstruction,
 	createTransferCheckedInstruction,
 	getAccount,
-	addExtraAccountMetasForExecute,
 	createInitializeAccountInstruction,
 	getAccountLenForMint,
-    createInitializeScaledUiAmountConfigInstruction,
-    TOKEN_PROGRAM_ID,
+	createInitializeScaledUiAmountConfigInstruction,
 } from '@solana/spl-token';
 
 import {
@@ -76,7 +74,6 @@ describe('spot deposit and withdraw 22', () => {
 	let mintAuthority: Keypair;
 	let mintKeypair: Keypair;
 	let mint: PublicKey;
-	let extraAccountPda: PublicKey;
 	let mintOracle: PublicKey;
 
 	before(async () => {
@@ -86,7 +83,7 @@ describe('spot deposit and withdraw 22', () => {
 				{
 					name: 'token_2022_test',
 					programId: TOKEN_2022_PROGRAM_ID,
-				}
+				},
 			],
 			[]
 		);
@@ -156,7 +153,7 @@ describe('spot deposit and withdraw 22', () => {
 		const mintLen = getMintLen(extensions);
 		const decimals = 6;
 
-        console.log('here');
+		console.log('here');
 
 		const payer = bankrunContextWrapper.provider.wallet.publicKey;
 		const mintTransaction = new Transaction().add(
@@ -167,19 +164,19 @@ describe('spot deposit and withdraw 22', () => {
 				lamports: LAMPORTS_PER_SOL,
 				programId: TOKEN_2022_PROGRAM_ID,
 			}),
-            createInitializeScaledUiAmountConfigInstruction(
-                mint,
-                mintAuthority.publicKey,
-                1,
-                TOKEN_2022_PROGRAM_ID
-            ),
+			createInitializeScaledUiAmountConfigInstruction(
+				mint,
+				mintAuthority.publicKey,
+				1,
+				TOKEN_2022_PROGRAM_ID
+			),
 			createInitializeMintInstruction(
 				mint,
 				decimals,
 				mintAuthority.publicKey,
 				null,
 				TOKEN_2022_PROGRAM_ID
-			),
+			)
 		);
 		await bankrunContextWrapper.sendTransaction(mintTransaction, [
 			bankrunContextWrapper.provider.wallet.payer,
