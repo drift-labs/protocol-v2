@@ -1279,7 +1279,7 @@ pub struct LPTakerSwap<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         mut,
-        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == lp_pool_swap_wallet::id()
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == lp_pool_swap_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>,
     /// Signer token accounts
