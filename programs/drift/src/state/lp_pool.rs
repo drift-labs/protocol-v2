@@ -978,13 +978,12 @@ impl Constituent {
 
     pub fn get_max_transfer(&self, spot_market: &SpotMarket) -> DriftResult<u64> {
         let token_amount = self.get_full_token_amount(spot_market)?;
-
-        let max_transfer = if self.spot_balance.balance_type == SpotBalanceType::Borrow {
+        let max_transfer = if token_amount < 0 {
             self.max_borrow_token_amount
-                .saturating_sub(token_amount as u64)
+                .saturating_sub(token_amount.cast::<u64>()?)
         } else {
             self.max_borrow_token_amount
-                .saturating_add(token_amount as u64)
+                .saturating_add(token_amount.cast::<u64>()?)
         };
 
         Ok(max_transfer)
