@@ -4961,6 +4961,7 @@ pub struct InitializeSpotMarket<'info> {
         space = get_vault_len(&spot_market_mint)?,
         owner = token_program.key()
     )]
+    /// CHECK: checked in `initialize_spot_market`
     pub spot_market_vault: AccountInfo<'info>,
     #[account(
         init,
@@ -4970,6 +4971,7 @@ pub struct InitializeSpotMarket<'info> {
         space = get_vault_len(&spot_market_mint)?,
         owner = token_program.key()
     )]
+    /// CHECK: checked in `initialize_spot_market`
     pub insurance_fund_vault: AccountInfo<'info>,
     #[account(
         constraint = state.signer.eq(&drift_signer.key())
