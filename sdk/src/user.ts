@@ -334,6 +334,22 @@ export class User {
 		};
 	}
 
+	public getIsolatePerpPositionTokenAmount(perpMarketIndex: number): BN {
+		const perpPosition = this.getPerpPosition(perpMarketIndex);
+		const perpMarket = this.driftClient.getPerpMarketAccount(perpMarketIndex);
+		const spotMarket = this.driftClient.getSpotMarketAccount(
+			perpMarket.quoteSpotMarketIndex
+		);
+		if (perpPosition === undefined) {
+			return ZERO;
+		}
+		return getTokenAmount(
+			perpPosition.isolatedPositionScaledBalance,
+			spotMarket,
+			SpotBalanceType.DEPOSIT
+		);
+	}
+
 	public getClonedPosition(position: PerpPosition): PerpPosition {
 		const clonedPosition = Object.assign({}, position);
 		return clonedPosition;
@@ -570,7 +586,8 @@ export class User {
 			(pos) =>
 				!pos.baseAssetAmount.eq(ZERO) ||
 				!pos.quoteAssetAmount.eq(ZERO) ||
-				!(pos.openOrders == 0)
+				!(pos.openOrders == 0) ||
+				pos.isolatedPositionScaledBalance.gt(ZERO)
 		);
 	}
 
