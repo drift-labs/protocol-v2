@@ -1654,7 +1654,8 @@ pub struct UserStats {
     /// Second bit: 1 if user was referred, 0 otherwise
     pub referrer_status: u8,
     pub disable_update_perp_bid_ask_twap: bool,
-    pub padding1: [u8; 1],
+    // use user subaccount for if_staked_gov_token_amount value (-1 is sub_account 0)
+    pub gov_stake_sub_account: i8,
     /// whether the user has a FuelOverflow account
     pub fuel_overflow_status: u8,
     /// accumulated fuel for token amounts of insurance
