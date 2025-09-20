@@ -2204,6 +2204,15 @@ export class DriftClient {
 		return this.getTokenAmount(QUOTE_SPOT_MARKET_INDEX);
 	}
 
+	public getIsolatedPerpPositionTokenAmount(
+		perpMarketIndex: number,
+		subAccountId?: number
+	): BN {
+		return this.getUser(subAccountId).getIsolatePerpPositionTokenAmount(
+			perpMarketIndex
+		);
+	}
+
 	/**
 	 * Returns the token amount for a given market. The spot market precision is based on the token mint decimals.
 	 * Positive if it is a deposit, negative if it is a borrow.
@@ -3766,6 +3775,191 @@ export class DriftClient {
 					toUser,
 					userStats: this.getUserStatsAccountPublicKey(),
 					state: await this.getStatePublicKey(),
+				},
+				remainingAccounts,
+			}
+		);
+	}
+
+	async depositIntoIsolatedPerpPosition(
+		amount: BN,
+		perpMarketIndex: number,
+		userTokenAccount: PublicKey,
+		subAccountId?: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getDepositIntoIsolatedPerpPositionIx(
+					amount,
+					perpMarketIndex,
+					userTokenAccount,
+					subAccountId
+				),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	async getDepositIntoIsolatedPerpPositionIx(
+		amount: BN,
+		perpMarketIndex: number,
+		userTokenAccount: PublicKey,
+		subAccountId?: number
+	): Promise<TransactionInstruction> {
+		const userAccountPublicKey = await getUserAccountPublicKey(
+			this.program.programId,
+			this.authority,
+			subAccountId ?? this.activeSubAccountId
+		);
+
+		const perpMarketAccount = this.getPerpMarketAccount(perpMarketIndex);
+		const spotMarketIndex = perpMarketAccount.quoteSpotMarketIndex;
+		const spotMarketAccount = this.getSpotMarketAccount(spotMarketIndex);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [],
+			writableSpotMarketIndexes: [spotMarketIndex],
+			readablePerpMarketIndex: [perpMarketIndex],
+		});
+
+		const tokenProgram = this.getTokenProgramForSpotMarket(spotMarketAccount);
+		return await this.program.instruction.depositIntoIsolatedPerpPosition(
+			spotMarketIndex,
+			perpMarketIndex,
+			amount,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					spotMarketVault: spotMarketAccount.vault,
+					user: userAccountPublicKey,
+					userStats: this.getUserStatsAccountPublicKey(),
+					userTokenAccount: userTokenAccount,
+					authority: this.wallet.publicKey,
+					tokenProgram,
+				},
+				remainingAccounts,
+			}
+		);
+	}
+
+	public async transferIsolatedPerpPositionDeposit(
+		amount: BN,
+		perpMarketIndex: number,
+		subAccountId?: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getTransferIsolatedPerpPositionDepositIx(
+					amount,
+					perpMarketIndex,
+					subAccountId
+				),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getTransferIsolatedPerpPositionDepositIx(
+		amount: BN,
+		perpMarketIndex: number,
+		subAccountId?: number
+	): Promise<TransactionInstruction> {
+		const userAccountPublicKey = await getUserAccountPublicKey(
+			this.program.programId,
+			this.authority,
+			subAccountId ?? this.activeSubAccountId
+		);
+
+		const perpMarketAccount = this.getPerpMarketAccount(perpMarketIndex);
+		const spotMarketIndex = perpMarketAccount.quoteSpotMarketIndex;
+		const spotMarketAccount = this.getSpotMarketAccount(spotMarketIndex);
+		const user = await this.getUserAccount(subAccountId);
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [user],
+			writableSpotMarketIndexes: [spotMarketIndex],
+			readablePerpMarketIndex: [perpMarketIndex],
+		});
+
+		return await this.program.instruction.transferIsolatedPerpPositionDeposit(
+			spotMarketIndex,
+			perpMarketIndex,
+			amount,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					spotMarketVault: spotMarketAccount.vault,
+					user: userAccountPublicKey,
+					userStats: this.getUserStatsAccountPublicKey(),
+					authority: this.wallet.publicKey,
+				},
+				remainingAccounts,
+			}
+		);
+	}
+
+	public async withdrawFromIsolatedPerpPosition(
+		amount: BN,
+		perpMarketIndex: number,
+		userTokenAccount: PublicKey,
+		subAccountId?: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getWithdrawFromIsolatedPerpPositionIx(
+					amount,
+					perpMarketIndex,
+					userTokenAccount,
+					subAccountId
+				),
+				txParams
+			)
+		);
+		return txSig;
+	}
+
+	public async getWithdrawFromIsolatedPerpPositionIx(
+		amount: BN,
+		perpMarketIndex: number,
+		userTokenAccount: PublicKey,
+		subAccountId?: number
+	): Promise<TransactionInstruction> {
+		const userAccountPublicKey = await getUserAccountPublicKey(
+			this.program.programId,
+			this.authority,
+			subAccountId ?? this.activeSubAccountId
+		);
+		const perpMarketAccount = this.getPerpMarketAccount(perpMarketIndex);
+		const spotMarketIndex = perpMarketAccount.quoteSpotMarketIndex;
+		const spotMarketAccount = this.getSpotMarketAccount(spotMarketIndex);
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [this.getUserAccount(subAccountId)],
+			writableSpotMarketIndexes: [spotMarketIndex],
+			readablePerpMarketIndex: [perpMarketIndex],
+		});
+
+		return await this.program.instruction.withdrawFromIsolatedPerpPosition(
+			spotMarketIndex,
+			perpMarketIndex,
+			amount,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					spotMarketVault: spotMarketAccount.vault,
+					user: userAccountPublicKey,
+					userStats: this.getUserStatsAccountPublicKey(),
+					authority: this.wallet.publicKey,
+					userTokenAccount: userTokenAccount,
+					tokenProgram: this.getTokenProgramForSpotMarket(spotMarketAccount),
+					driftSigner: this.getSignerPublicKey(),
 				},
 				remainingAccounts,
 			}
@@ -9240,8 +9434,7 @@ export class DriftClient {
 
 	public async updateUserGovTokenInsuranceStake(
 		authority: PublicKey,
-		txParams?: TxParams,
-		env: DriftEnv = 'mainnet-beta'
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const ix = await this.getUpdateUserGovTokenInsuranceStakeIx(authority);
 		const tx = await this.buildTransaction(ix, txParams);

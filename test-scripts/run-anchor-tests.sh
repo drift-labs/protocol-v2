@@ -36,6 +36,7 @@ test_files=(
   highLeverageMode.ts
   ifRebalance.ts
   insuranceFundStake.ts
+  isolatedPositionDriftClient.ts
   liquidateBorrowForPerpPnl.ts
   liquidatePerp.ts
   liquidatePerpWithFill.ts
