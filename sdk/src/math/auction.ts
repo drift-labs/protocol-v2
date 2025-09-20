@@ -26,6 +26,10 @@ export function isFallbackAvailableLiquiditySource(
 		return true;
 	}
 
+	if ((order.bitFlags & OrderBitFlag.SafeTriggerOrder) !== 0) {
+		return true;
+	}
+
 	return new BN(slot).sub(order.slot).gt(new BN(minAuctionDuration));
 }
 
