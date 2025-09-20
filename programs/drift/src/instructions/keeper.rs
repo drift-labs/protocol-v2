@@ -1,5 +1,4 @@
 use std::cell::RefMut;
-use std::collections::BTreeMap;
 use std::convert::TryFrom;
 
 use anchor_lang::prelude::*;
@@ -69,7 +68,6 @@ use crate::validation::sig_verification::verify_and_decode_ed25519_msg;
 use crate::validation::user::{validate_user_deletion, validate_user_is_idle};
 use crate::{
     controller, load, math, print_error, safe_decrement, OracleSource, GOV_SPOT_MARKET_INDEX,
-    MARGIN_PRECISION,
 };
 use crate::{load_mut, QUOTE_PRECISION_U64};
 use crate::{math_error, ID};
