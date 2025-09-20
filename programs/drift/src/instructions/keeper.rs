@@ -2732,20 +2732,6 @@ pub fn handle_update_user_gov_token_insurance_stake(
     Ok(())
 }
 
-pub fn handle_update_user_gov_token_insurance_stake_devnet(
-    ctx: Context<UpdateUserGovTokenInsuranceStakeDevnet>,
-    gov_stake_amount: u64,
-) -> Result<()> {
-    #[cfg(all(feature = "mainnet-beta", not(feature = "anchor-test")))]
-    {
-        panic!("Devnet function is disabled on mainnet-beta");
-    }
-
-    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
-    user_stats.if_staked_gov_token_amount = gov_stake_amount;
-    Ok(())
-}
-
 pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, DisableUserHighLeverageMode<'info>>,
     disable_maintenance: bool,
@@ -3600,13 +3586,6 @@ pub struct UpdateUserGovTokenInsuranceStake<'info> {
         bump,
     )]
     pub insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
-}
-
-#[derive(Accounts)]
-pub struct UpdateUserGovTokenInsuranceStakeDevnet<'info> {
-    #[account(mut)]
-    pub user_stats: AccountLoader<'info, UserStats>,
-    pub signer: Signer<'info>,
 }
 
 #[derive(Accounts)]
