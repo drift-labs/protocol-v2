@@ -63,7 +63,7 @@ use crate::state::events::OrderActionRecord;
 use crate::state::events::OrderRecord;
 use crate::state::events::{
     DepositDirection, DepositExplanation, DepositRecord, FuelSeasonRecord, FuelSweepRecord,
-    LPAction, LPRecord, NewUserRecord, OrderActionExplanation, SwapRecord,
+    NewUserRecord, OrderActionExplanation, SwapRecord,
 };
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
@@ -78,7 +78,6 @@ use crate::state::order_params::{
     PlaceOrderOptions, PostOnlyParam,
 };
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
-use crate::state::perp_market::ContractType;
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::protected_maker_mode_config::ProtectedMakerModeConfig;

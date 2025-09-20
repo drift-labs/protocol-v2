@@ -375,9 +375,7 @@ pub fn handle_begin_insurance_fund_swap<'c: 'info, 'info>(
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
-        perp_market_map,
-        spot_market_map,
-        mut oracle_map,
+        spot_market_map, ..
     } = load_maps(
         remaining_accounts_iter,
         &MarketSet::new(),
@@ -602,14 +600,13 @@ pub fn handle_end_insurance_fund_swap<'c: 'info, 'info>(
 ) -> Result<()> {
     let state = &ctx.accounts.state;
     let clock = Clock::get()?;
-    let slot = clock.slot;
     let now = clock.unix_timestamp;
 
     let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
-        perp_market_map,
         spot_market_map,
         mut oracle_map,
+        ..
     } = load_maps(
         remaining_accounts,
         &MarketSet::new(),
