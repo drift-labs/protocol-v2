@@ -1601,7 +1601,6 @@ pub fn handle_recenter_perp_market_amm_crank(
     depth: Option<u128>,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    let spot_market = &mut load!(ctx.accounts.spot_market)?;
 
     let clock = Clock::get()?;
     let price_oracle = &ctx.accounts.oracle;
@@ -4780,9 +4779,6 @@ pub fn handle_initialize_if_rebalance_config(
     ctx: Context<InitializeIfRebalanceConfig>,
     params: IfRebalanceConfigParams,
 ) -> Result<()> {
-    let clock = Clock::get()?;
-    let now = clock.unix_timestamp;
-
     let pubkey = ctx.accounts.if_rebalance_config.to_account_info().key;
     let mut config = ctx.accounts.if_rebalance_config.load_init()?;
 
