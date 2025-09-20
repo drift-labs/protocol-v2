@@ -1570,14 +1570,21 @@ export class DriftClient {
 		perpMarketIndex: number,
 		marginRatio: number,
 		subAccountId = 0,
-		txParams?: TxParams
+		txParams?: TxParams,
+		enterHighLeverageMode?: boolean
 	): Promise<TransactionSignature> {
-		const ix = await this.getUpdateUserPerpPositionCustomMarginRatioIx(
+		const ixs = [];
+		if (enterHighLeverageMode) {
+			const enableIx = await this.getEnableHighLeverageModeIx(subAccountId);
+			ixs.push(enableIx);
+		}
+		const updateIx = await this.getUpdateUserPerpPositionCustomMarginRatioIx(
 			perpMarketIndex,
 			marginRatio,
 			subAccountId
 		);
-		const tx = await this.buildTransaction(ix, txParams ?? this.txParams);
+		ixs.push(updateIx);
+		const tx = await this.buildTransaction(ixs, txParams ?? this.txParams);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
 	}
@@ -4071,7 +4078,8 @@ export class DriftClient {
 		bracketOrdersParams = new Array<OptionalOrderParams>(),
 		referrerInfo?: ReferrerInfo,
 		cancelExistingOrders?: boolean,
-		settlePnl?: boolean
+		settlePnl?: boolean,
+		positionMaxLev?: number
 	): Promise<{
 		cancelExistingOrdersTx?: Transaction | VersionedTransaction;
 		settlePnlTx?: Transaction | VersionedTransaction;
@@ -4087,7 +4095,10 @@ export class DriftClient {
 		const marketIndex = orderParams.marketIndex;
 		const orderId = userAccount.nextOrderId;
 
-		const ixPromisesForTxs: Record<TxKeys, Promise<TransactionInstruction>> = {
+		const ixPromisesForTxs: Record<
+			TxKeys,
+			Promise<TransactionInstruction | TransactionInstruction[]>
+		> = {
 			cancelExistingOrdersTx: undefined,
 			settlePnlTx: undefined,
 			fillTx: undefined,
@@ -4096,10 +4107,18 @@ export class DriftClient {
 
 		const txKeys = Object.keys(ixPromisesForTxs);
 
-		ixPromisesForTxs.marketOrderTx = this.getPlaceOrdersIx(
-			[orderParams, ...bracketOrdersParams],
-			userAccount.subAccountId
-		);
+		const marketOrderTxIxs = positionMaxLev
+			? this.getPlaceOrdersAndSetPositionMaxLevIx(
+					[orderParams, ...bracketOrdersParams],
+					positionMaxLev,
+					userAccount.subAccountId
+			  )
+			: this.getPlaceOrdersIx(
+					[orderParams, ...bracketOrdersParams],
+					userAccount.subAccountId
+			  );
+
+		ixPromisesForTxs.marketOrderTx = marketOrderTxIxs;
 
 		/* Cancel open orders in market if requested */
 		if (cancelExistingOrders && isVariant(orderParams.marketType, 'perp')) {
@@ -4140,7 +4159,10 @@ export class DriftClient {
 		const ixsMap = ixs.reduce((acc, ix, i) => {
 			acc[txKeys[i]] = ix;
 			return acc;
-		}, {}) as MappedRecord<typeof ixPromisesForTxs, TransactionInstruction>;
+		}, {}) as MappedRecord<
+			typeof ixPromisesForTxs,
+			TransactionInstruction | TransactionInstruction[]
+		>;
 
 		const txsMap = (await this.buildTransactionsMap(
 			ixsMap,
@@ -4722,6 +4744,69 @@ export class DriftClient {
 			},
 			remainingAccounts,
 		});
+	}
+
+	public async getPlaceOrdersAndSetPositionMaxLevIx(
+		params: OptionalOrderParams[],
+		positionMaxLev: number,
+		subAccountId?: number
+	): Promise<TransactionInstruction[]> {
+		const user = await this.getUserAccountPublicKey(subAccountId);
+
+		const readablePerpMarketIndex: number[] = [];
+		const readableSpotMarketIndexes: number[] = [];
+		for (const param of params) {
+			if (!param.marketType) {
+				throw new Error('must set param.marketType');
+			}
+			if (isVariant(param.marketType, 'perp')) {
+				readablePerpMarketIndex.push(param.marketIndex);
+			} else {
+				readableSpotMarketIndexes.push(param.marketIndex);
+			}
+		}
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [this.getUserAccount(subAccountId)],
+			readablePerpMarketIndex,
+			readableSpotMarketIndexes,
+			useMarketLastSlotCache: true,
+		});
+
+		for (const param of params) {
+			if (isUpdateHighLeverageMode(param.bitFlags)) {
+				remainingAccounts.push({
+					pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
+					isWritable: true,
+					isSigner: false,
+				});
+			}
+		}
+
+		const formattedParams = params.map((item) => getOrderParams(item));
+
+		const placeOrdersIxs = await this.program.instruction.placeOrders(
+			formattedParams,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user,
+					userStats: this.getUserStatsAccountPublicKey(),
+					authority: this.wallet.publicKey,
+				},
+				remainingAccounts,
+			}
+		);
+
+		// TODO: Handle multiple markets?
+		const setPositionMaxLevIxs =
+			await this.getUpdateUserPerpPositionCustomMarginRatioIx(
+				readablePerpMarketIndex[0],
+				1 / positionMaxLev,
+				subAccountId
+			);
+
+		return [placeOrdersIxs, setPositionMaxLevIxs];
 	}
 
 	public async fillPerpOrder(
