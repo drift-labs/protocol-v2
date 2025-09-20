@@ -3753,9 +3753,11 @@ pub fn set_user_status_to_being_liquidated(
         MarginContext::liquidation(liquidation_margin_buffer_ratio),
     )?;
 
+    let mut updated_liquidation_status = false;
     if !user.is_cross_margin_being_liquidated()
         && !margin_calculation.meets_cross_margin_requirement()
     {
+        updated_liquidation_status = true;
         user.enter_cross_margin_liquidation(slot)?;
     }
 
@@ -3765,8 +3767,13 @@ pub fn set_user_status_to_being_liquidated(
         if !user.is_isolated_margin_being_liquidated(*market_index)?
             && !isolated_margin_calculation.meets_margin_requirement()
         {
+            updated_liquidation_status = true;
             user.enter_isolated_margin_liquidation(*market_index, slot)?;
         }
+    }
+
+    if !updated_liquidation_status {
+        return Err(ErrorCode::SufficientCollateral);
     }
 
     Ok(())

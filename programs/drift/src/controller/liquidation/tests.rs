@@ -10465,6 +10465,7 @@ pub mod liquidate_isolated_perp_pnl_for_deposit {
                 order_step_size: 10000000,
                 quote_asset_amount: 150 * QUOTE_PRECISION_I128,
                 base_asset_amount_with_amm: BASE_PRECISION_I128,
+                base_asset_amount_long: BASE_PRECISION_I128,
                 oracle: sol_oracle_price_key,
                 ..AMM::default()
             },
@@ -10594,6 +10595,7 @@ pub mod liquidate_isolated_perp_pnl_for_deposit {
 
         let market_after = market_map.get_ref(&0).unwrap();
         assert_eq!(market_after.amm.total_liquidation_fee, 0);
+        drop(market_after);
 
         resolve_perp_bankruptcy(
             0,
