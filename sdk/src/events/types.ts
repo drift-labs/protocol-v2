@@ -21,9 +21,9 @@ import {
 	FuelSeasonRecord,
 	InsuranceFundSwapRecord,
 	TransferProtocolIfSharesToRevenuePoolRecord,
+	LPMintRedeemRecord,
 	LPSettleRecord,
 	LPSwapRecord,
-	LPMintRedeemRecord,
 } from '../types';
 import { EventEmitter } from 'events';
 
@@ -64,8 +64,8 @@ export const DefaultEventSubscriptionOptions: EventSubscriptionOptions = {
 		'FuelSeasonRecord',
 		'InsuranceFundSwapRecord',
 		'TransferProtocolIfSharesToRevenuePoolRecord',
-		'LPSettleRecord',
 		'LPMintRedeemRecord',
+		'LPSettleRecord',
 		'LPSwapRecord',
 	],
 	maxEventsPerType: 4096,

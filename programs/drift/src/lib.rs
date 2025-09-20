@@ -737,13 +737,6 @@ pub mod drift {
         handle_update_user_gov_token_insurance_stake(ctx)
     }
 
-    pub fn update_user_gov_token_insurance_stake_devnet(
-        ctx: Context<UpdateUserGovTokenInsuranceStakeDevnet>,
-        gov_stake_amount: u64,
-    ) -> Result<()> {
-        handle_update_user_gov_token_insurance_stake_devnet(ctx, gov_stake_amount)
-    }
-
     // IF stakers
 
     pub fn initialize_insurance_fund_stake(

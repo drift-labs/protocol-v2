@@ -1,6 +1,6 @@
 {
 	"name": "@drift-labs/sdk",
-	"version": "2.138.0-beta.1",
+	"version": "2.138.0-beta.9",
 	"main": "lib/node/index.js",
 	"types": "lib/node/index.d.ts",
 	"browser": "./lib/browser/index.js",
@@ -11,7 +11,7 @@
 		"url": "git@github.com:drift-labs/protocol-v2.git"
 	},
 	"scripts": {
-		"lint": "eslint './**/*.{ts,tsx}' --quiet",
+		"lint": "eslint './**/*.{ts,tsx}' --quiet --format unix",
 		"build": "yarn clean && tsc -p tsconfig.json && tsc -p tsconfig.browser.json && node scripts/postbuild.js",
 		"build:browser": "yarn clean && tsc -p tsconfig.json && tsc -p tsconfig.browser.json && node scripts/postbuild.js --force-env browser",
 		"clean": "rm -rf lib",
@@ -97,6 +97,44 @@
 	"resolutions": {
 		"@solana/web3.js": "1.98.0",
 		"@solana/errors": "2.0.0-preview.4",
-		"@solana/codecs-data-structures": "2.0.0-preview.4"
+		"@solana/codecs-data-structures": "2.0.0-preview.4",
+		"chalk": "4.1.2",
+		"debug": "<4.4.2",
+		"ansi-styles": "4.3.0",
+		"supports-color": "7.2.0",
+		"strip-ansi": "6.0.1",
+		"ansi-regex": "5.0.1",
+		"wrap-ansi": "7.0.0",
+		"color-convert": "<3.1.1",
+		"color-name": "<2.0.1",
+		"color-string": "<2.1.1",
+		"simple-swizzle": "<0.2.3",
+		"is-arrayish": "<0.3.3",
+		"slice-ansi": "3.0.0",
+		"error-ex": "<1.3.3",
+		"backslash": "<0.2.1",
+		"chalk-template": "<0.4.0",
+		"supports-hyperlinks": "<4.1.1",
+		"has-ansi": "<6.0.1"
+	},
+	"overrides": {
+		"chalk": "4.1.2",
+		"debug": "<4.4.2",
+		"ansi-styles": "4.3.0",
+		"supports-color": "7.2.0",
+		"strip-ansi": "6.0.1",
+		"ansi-regex": "5.0.1",
+		"wrap-ansi": "7.0.0",
+		"color-convert": "<3.1.1",
+		"color-name": "<2.0.1",
+		"color-string": "<2.1.1",
+		"simple-swizzle": "<0.2.3",
+		"is-arrayish": "<0.3.3",
+		"slice-ansi": "3.0.0",
+		"error-ex": "<1.3.3",
+		"backslash": "<0.2.1",
+		"chalk-template": "<1.1.1",
+		"supports-hyperlinks": "<4.1.1",
+		"has-ansi": "<6.0.1"
 	}
 }

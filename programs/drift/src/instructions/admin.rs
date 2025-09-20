@@ -9,7 +9,7 @@ use serum_dex::state::ToAlignedBytes;
 use std::convert::{identity, TryInto};
 use std::mem::size_of;
 
-use crate::controller::token::close_vault;
+use crate::controller::token::{close_vault, initialize_token_account};
 use crate::error::ErrorCode;
 use crate::ids::{admin_hot_wallet, amm_spread_adjust_wallet, mm_oracle_crank_wallet};
 use crate::instructions::constraints::*;
@@ -150,15 +150,19 @@ pub fn handle_initialize_spot_market(
     let state = &mut ctx.accounts.state;
     let spot_market_pubkey = ctx.accounts.spot_market.key();
 
-    // protocol must be authority of collateral vault
-    if ctx.accounts.spot_market_vault.owner != state.signer {
-        return Err(ErrorCode::InvalidSpotMarketAuthority.into());
-    }
+    initialize_token_account(
+        &ctx.accounts.token_program,
+        &ctx.accounts.spot_market_vault,
+        &ctx.accounts.drift_signer,
+        &ctx.accounts.spot_market_mint,
+    )?;
 
-    // protocol must be authority of collateral vault
-    if ctx.accounts.insurance_fund_vault.owner != state.signer {
-        return Err(ErrorCode::InvalidInsuranceFundAuthority.into());
-    }
+    initialize_token_account(
+        &ctx.accounts.token_program,
+        &ctx.accounts.insurance_fund_vault,
+        &ctx.accounts.drift_signer,
+        &ctx.accounts.spot_market_mint,
+    )?;
 
     validate_borrow_rate(optimal_utilization, optimal_borrow_rate, max_borrow_rate, 0)?;
 
@@ -284,7 +288,7 @@ pub fn handle_initialize_spot_market(
         historical_oracle_data: historical_oracle_data_default,
         historical_index_data: historical_index_data_default,
         mint: ctx.accounts.spot_market_mint.key(),
-        vault: *ctx.accounts.spot_market_vault.to_account_info().key,
+        vault: ctx.accounts.spot_market_vault.key(),
         revenue_pool: PoolBalance {
             scaled_balance: 0,
             market_index: spot_market_index,
@@ -341,7 +345,7 @@ pub fn handle_initialize_spot_market(
         pool_id: 0,
         padding: [0; 40],
         insurance_fund: InsuranceFund {
-            vault: *ctx.accounts.insurance_fund_vault.to_account_info().key,
+            vault: ctx.accounts.insurance_fund_vault.key(),
             unstaking_period: THIRTEEN_DAY,
             total_factor: if_total_factor,
             user_factor: if_total_factor / 2,
@@ -1626,7 +1630,6 @@ pub fn handle_recenter_perp_market_amm_crank(
     depth: Option<u128>,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    let spot_market = &mut load!(ctx.accounts.spot_market)?;
 
     let clock = Clock::get()?;
     let price_oracle = &ctx.accounts.oracle;
@@ -4861,9 +4864,6 @@ pub fn handle_initialize_if_rebalance_config(
     ctx: Context<InitializeIfRebalanceConfig>,
     params: IfRebalanceConfigParams,
 ) -> Result<()> {
-    let clock = Clock::get()?;
-    let now = clock.unix_timestamp;
-
     let pubkey = ctx.accounts.if_rebalance_config.to_account_info().key;
     let mut config = ctx.accounts.if_rebalance_config.load_init()?;
 
@@ -5099,25 +5099,30 @@ pub struct InitializeSpotMarket<'info> {
         payer = admin
     )]
     pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        mint::token_program = token_program,
+    )]
     pub spot_market_mint: Box<InterfaceAccount<'info, Mint>>,
     #[account(
         init,
         seeds = [b"spot_market_vault".as_ref(), state.number_of_spot_markets.to_le_bytes().as_ref()],
         bump,
         payer = admin,
-        token::mint = spot_market_mint,
-        token::authority = drift_signer
+        space = get_vault_len(&spot_market_mint)?,
+        owner = token_program.key()
     )]
-    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    /// CHECK: checked in `initialize_spot_market`
+    pub spot_market_vault: AccountInfo<'info>,
     #[account(
         init,
         seeds = [b"insurance_fund_vault".as_ref(), state.number_of_spot_markets.to_le_bytes().as_ref()],
         bump,
         payer = admin,
-        token::mint = spot_market_mint,
-        token::authority = drift_signer
+        space = get_vault_len(&spot_market_mint)?,
+        owner = token_program.key()
     )]
-    pub insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    /// CHECK: checked in `initialize_spot_market`
+    pub insurance_fund_vault: AccountInfo<'info>,
     #[account(
         constraint = state.signer.eq(&drift_signer.key())
     )]
