@@ -15,8 +15,8 @@ use crate::math::amm::calculate_quote_asset_amount_swapped;
 use crate::math::amm_spread::{calculate_spread_reserves, get_spread_reserves};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    CONCENTRATION_PRECISION, FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
-    K_BPS_UPDATE_SCALE, MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE, MAX_SQRT_K,
+    CONCENTRATION_PRECISION, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, K_BPS_UPDATE_SCALE,
+    MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE, MAX_SQRT_K,
 };
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::repeg::get_total_fee_lower_bound;
@@ -726,9 +726,12 @@ pub fn update_pool_balances(
         min(user_unsettled_pnl, pnl_pool_token_amount.cast::<i128>()?)
     } else {
         // dont settle negative pnl to spot borrows when utilization is high (> 80%)
-        let max_withdraw_amount =
-            -get_max_withdraw_for_market_with_token_amount(spot_market, user_quote_token_amount, false)?
-                .cast::<i128>()?;
+        let max_withdraw_amount = -get_max_withdraw_for_market_with_token_amount(
+            spot_market,
+            user_quote_token_amount,
+            false,
+        )?
+        .cast::<i128>()?;
 
         max_withdraw_amount.max(user_unsettled_pnl)
     };

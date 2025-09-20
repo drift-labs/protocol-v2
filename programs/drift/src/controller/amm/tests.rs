@@ -387,13 +387,25 @@ fn update_pool_balances_test() {
     let spot_position = SpotPosition::default();
 
     let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    let to_settle_with_user =
-        update_pool_balances(&mut market, &mut spot_market, user_quote_token_amount, 100, now).unwrap();
+    let to_settle_with_user = update_pool_balances(
+        &mut market,
+        &mut spot_market,
+        user_quote_token_amount,
+        100,
+        now,
+    )
+    .unwrap();
     assert_eq!(to_settle_with_user, 0);
 
     let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    let to_settle_with_user =
-        update_pool_balances(&mut market, &mut spot_market, user_quote_token_amount, -100, now).unwrap();
+    let to_settle_with_user = update_pool_balances(
+        &mut market,
+        &mut spot_market,
+        user_quote_token_amount,
+        -100,
+        now,
+    )
+    .unwrap();
     assert_eq!(to_settle_with_user, -100);
     assert!(market.amm.fee_pool.balance() > 0);
 
@@ -413,8 +425,14 @@ fn update_pool_balances_test() {
     assert_eq!(amm_fee_pool_token_amount, 1);
 
     let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    let to_settle_with_user =
-        update_pool_balances(&mut market, &mut spot_market, user_quote_token_amount, 100, now).unwrap();
+    let to_settle_with_user = update_pool_balances(
+        &mut market,
+        &mut spot_market,
+        user_quote_token_amount,
+        100,
+        now,
+    )
+    .unwrap();
     assert_eq!(to_settle_with_user, 99);
     let amm_fee_pool_token_amount = get_token_amount(
         market.amm.fee_pool.balance(),
@@ -433,7 +451,14 @@ fn update_pool_balances_test() {
 
     market.amm.total_fee_minus_distributions = 0;
     let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    update_pool_balances(&mut market, &mut spot_market, user_quote_token_amount, -1, now).unwrap();
+    update_pool_balances(
+        &mut market,
+        &mut spot_market,
+        user_quote_token_amount,
+        -1,
+        now,
+    )
+    .unwrap();
     let amm_fee_pool_token_amount = get_token_amount(
         market.amm.fee_pool.balance(),
         &spot_market,
@@ -577,7 +602,14 @@ fn update_pool_balances_fee_to_revenue_test() {
 
     let spot_position = SpotPosition::default();
     let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    update_pool_balances(&mut market, &mut spot_market, user_quote_token_amount, 0, now).unwrap();
+    update_pool_balances(
+        &mut market,
+        &mut spot_market,
+        user_quote_token_amount,
+        0,
+        now,
+    )
+    .unwrap();
 
     assert_eq!(market.amm.fee_pool.scaled_balance, 50000000000000000); // under FEE_POOL_TO_REVENUE_POOL_THRESHOLD
     assert_eq!(market.pnl_pool.scaled_balance, 50000000000000000);
@@ -593,7 +625,14 @@ fn update_pool_balances_fee_to_revenue_test() {
         (FEE_POOL_TO_REVENUE_POOL_THRESHOLD + 50 * QUOTE_PRECISION) * SPOT_BALANCE_PRECISION;
     market.amm.fee_pool.scaled_balance = prev_fee_pool_2;
     let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    update_pool_balances(&mut market, &mut spot_market, user_quote_token_amount, 0, now).unwrap();
+    update_pool_balances(
+        &mut market,
+        &mut spot_market,
+        user_quote_token_amount,
+        0,
+        now,
+    )
+    .unwrap();
 
     assert_eq!(market.pnl_pool.scaled_balance, 50000000000000000);
     assert_eq!(market.amm.total_fee_withdrawn, 5000000);
@@ -606,13 +645,27 @@ fn update_pool_balances_fee_to_revenue_test() {
 
     market.insurance_claim.quote_max_insurance = 1; // add min insurance
     let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    update_pool_balances(&mut market, &mut spot_market, user_quote_token_amount, 0, now).unwrap();
+    update_pool_balances(
+        &mut market,
+        &mut spot_market,
+        user_quote_token_amount,
+        0,
+        now,
+    )
+    .unwrap();
     assert_eq!(market.amm.total_fee_withdrawn, 5000001);
     assert_eq!(spot_market.revenue_pool.scaled_balance, 5000001000000000);
 
     market.insurance_claim.quote_max_insurance = 100000000; // add lots of insurance
     let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    update_pool_balances(&mut market, &mut spot_market, user_quote_token_amount, 0, now).unwrap();
+    update_pool_balances(
+        &mut market,
+        &mut spot_market,
+        user_quote_token_amount,
+        0,
+        now,
+    )
+    .unwrap();
     assert_eq!(market.amm.total_fee_withdrawn, 6000000);
     assert_eq!(spot_market.revenue_pool.scaled_balance, 6000000000000000);
 }
@@ -692,7 +745,14 @@ fn update_pool_balances_fee_to_revenue_low_amm_revenue_test() {
 
     let spot_position = SpotPosition::default();
     let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    update_pool_balances(&mut market, &mut spot_market, user_quote_token_amount, 0, now).unwrap();
+    update_pool_balances(
+        &mut market,
+        &mut spot_market,
+        user_quote_token_amount,
+        0,
+        now,
+    )
+    .unwrap();
 
     assert_eq!(market.amm.fee_pool.scaled_balance, 50000000000000000); // under FEE_POOL_TO_REVENUE_POOL_THRESHOLD
     assert_eq!(market.pnl_pool.scaled_balance, 50000000000000000);
@@ -708,7 +768,14 @@ fn update_pool_balances_fee_to_revenue_low_amm_revenue_test() {
         (FEE_POOL_TO_REVENUE_POOL_THRESHOLD + 50 * QUOTE_PRECISION) * SPOT_BALANCE_PRECISION;
     market.amm.fee_pool.scaled_balance = prev_fee_pool_2;
     let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    update_pool_balances(&mut market, &mut spot_market, user_quote_token_amount, 0, now).unwrap();
+    update_pool_balances(
+        &mut market,
+        &mut spot_market,
+        user_quote_token_amount,
+        0,
+        now,
+    )
+    .unwrap();
 
     assert_eq!(market.pnl_pool.scaled_balance, 50000000000000000);
     assert_eq!(market.amm.total_fee_withdrawn, 1000000);
@@ -723,7 +790,14 @@ fn update_pool_balances_fee_to_revenue_low_amm_revenue_test() {
     market.amm.net_revenue_since_last_funding = 1;
 
     let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    update_pool_balances(&mut market, &mut spot_market, user_quote_token_amount, 0, now).unwrap();
+    update_pool_balances(
+        &mut market,
+        &mut spot_market,
+        user_quote_token_amount,
+        0,
+        now,
+    )
+    .unwrap();
     assert_eq!(market.amm.total_fee_withdrawn, 1000001);
     assert_eq!(spot_market.revenue_pool.scaled_balance, 1000001000000000);
 
@@ -731,7 +805,14 @@ fn update_pool_balances_fee_to_revenue_low_amm_revenue_test() {
     market.amm.net_revenue_since_last_funding = 100000000;
 
     let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    update_pool_balances(&mut market, &mut spot_market, user_quote_token_amount, 0, now).unwrap();
+    update_pool_balances(
+        &mut market,
+        &mut spot_market,
+        user_quote_token_amount,
+        0,
+        now,
+    )
+    .unwrap();
     assert_eq!(market.amm.total_fee_withdrawn, 6000000);
     assert_eq!(spot_market.revenue_pool.scaled_balance, 6000000000000000);
 }
@@ -828,7 +909,14 @@ fn update_pool_balances_revenue_to_fee_test() {
     );
 
     let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    update_pool_balances(&mut market, &mut spot_market, user_quote_token_amount, 0, now).unwrap();
+    update_pool_balances(
+        &mut market,
+        &mut spot_market,
+        user_quote_token_amount,
+        0,
+        now,
+    )
+    .unwrap();
 
     assert_eq!(
         market.amm.fee_pool.scaled_balance,
@@ -860,7 +948,14 @@ fn update_pool_balances_revenue_to_fee_test() {
     assert_eq!(market.amm.total_fee_minus_distributions, -10000000000);
 
     let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    update_pool_balances(&mut market, &mut spot_market, user_quote_token_amount, 0, now).unwrap();
+    update_pool_balances(
+        &mut market,
+        &mut spot_market,
+        user_quote_token_amount,
+        0,
+        now,
+    )
+    .unwrap();
 
     assert_eq!(
         market.amm.fee_pool.scaled_balance,
@@ -886,7 +981,14 @@ fn update_pool_balances_revenue_to_fee_test() {
 
     // calling multiple times doesnt effect other than fee pool -> pnl pool
     let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    update_pool_balances(&mut market, &mut spot_market, user_quote_token_amount, 0, now).unwrap();
+    update_pool_balances(
+        &mut market,
+        &mut spot_market,
+        user_quote_token_amount,
+        0,
+        now,
+    )
+    .unwrap();
     assert_eq!(
         market.amm.fee_pool.scaled_balance,
         5 * SPOT_BALANCE_PRECISION
@@ -897,7 +999,14 @@ fn update_pool_balances_revenue_to_fee_test() {
     assert_eq!(spot_market.revenue_pool.scaled_balance, 0);
 
     let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    update_pool_balances(&mut market, &mut spot_market, user_quote_token_amount, 0, now).unwrap();
+    update_pool_balances(
+        &mut market,
+        &mut spot_market,
+        user_quote_token_amount,
+        0,
+        now,
+    )
+    .unwrap();
     assert_eq!(
         market.amm.fee_pool.scaled_balance,
         5 * SPOT_BALANCE_PRECISION
@@ -914,7 +1023,14 @@ fn update_pool_balances_revenue_to_fee_test() {
     let spot_market_backup = spot_market;
     let market_backup = market;
     let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    assert!(update_pool_balances(&mut market, &mut spot_market, user_quote_token_amount, 0, now).is_err()); // assert is_err if any way has revenue pool above deposit balances
+    assert!(update_pool_balances(
+        &mut market,
+        &mut spot_market,
+        user_quote_token_amount,
+        0,
+        now
+    )
+    .is_err()); // assert is_err if any way has revenue pool above deposit balances
     spot_market = spot_market_backup;
     market = market_backup;
     spot_market.deposit_balance += 9900000001000;
@@ -928,7 +1044,14 @@ fn update_pool_balances_revenue_to_fee_test() {
     assert_eq!(spot_market_vault_amount, 10100000001);
 
     let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    update_pool_balances(&mut market, &mut spot_market, user_quote_token_amount, 0, now).unwrap();
+    update_pool_balances(
+        &mut market,
+        &mut spot_market,
+        user_quote_token_amount,
+        0,
+        now,
+    )
+    .unwrap();
     assert_eq!(spot_market.deposit_balance, 10100000001000);
     assert_eq!(spot_market.revenue_pool.scaled_balance, 9800000001000);
     assert_eq!(market.amm.fee_pool.scaled_balance, 105000000000);
@@ -943,7 +1066,14 @@ fn update_pool_balances_revenue_to_fee_test() {
 
     // calling again only does fee -> pnl pool
     let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    update_pool_balances(&mut market, &mut spot_market, user_quote_token_amount, 0, now).unwrap();
+    update_pool_balances(
+        &mut market,
+        &mut spot_market,
+        user_quote_token_amount,
+        0,
+        now,
+    )
+    .unwrap();
     assert_eq!(market.amm.fee_pool.scaled_balance, 5000000000);
     assert_eq!(market.pnl_pool.scaled_balance, 295000000000);
     assert_eq!(market.amm.total_fee_minus_distributions, -9800000000);
@@ -957,7 +1087,14 @@ fn update_pool_balances_revenue_to_fee_test() {
 
     // calling again does nothing
     let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    update_pool_balances(&mut market, &mut spot_market, user_quote_token_amount, 0, now).unwrap();
+    update_pool_balances(
+        &mut market,
+        &mut spot_market,
+        user_quote_token_amount,
+        0,
+        now,
+    )
+    .unwrap();
     assert_eq!(market.amm.fee_pool.scaled_balance, 5000000000);
     assert_eq!(market.pnl_pool.scaled_balance, 295000000000);
     assert_eq!(market.amm.total_fee_minus_distributions, -9800000000);
@@ -1007,9 +1144,14 @@ fn update_pool_balances_revenue_to_fee_test() {
     let market_backup = market;
     let spot_market_backup = spot_market;
     let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    assert!(
-        update_pool_balances(&mut market, &mut spot_market, user_quote_token_amount, 0, now + 3600).is_err()
-    ); // assert is_err if any way has revenue pool above deposit balances
+    assert!(update_pool_balances(
+        &mut market,
+        &mut spot_market,
+        user_quote_token_amount,
+        0,
+        now + 3600
+    )
+    .is_err()); // assert is_err if any way has revenue pool above deposit balances
     market = market_backup;
     spot_market = spot_market_backup;
     spot_market.deposit_balance += 9800000000001;
@@ -1026,8 +1168,22 @@ fn update_pool_balances_revenue_to_fee_test() {
     );
 
     let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    assert!(update_pool_balances(&mut market, &mut spot_market, user_quote_token_amount, 0, now).is_err()); // now timestamp passed is wrong
-    update_pool_balances(&mut market, &mut spot_market, user_quote_token_amount, 0, now + 3600).unwrap();
+    assert!(update_pool_balances(
+        &mut market,
+        &mut spot_market,
+        user_quote_token_amount,
+        0,
+        now
+    )
+    .is_err()); // now timestamp passed is wrong
+    update_pool_balances(
+        &mut market,
+        &mut spot_market,
+        user_quote_token_amount,
+        0,
+        now + 3600,
+    )
+    .unwrap();
 
     assert_eq!(market.insurance_claim.last_revenue_withdraw_ts, 33931660);
     assert_eq!(spot_market.insurance_fund.last_revenue_settle_ts, 33931660);
@@ -1106,7 +1262,14 @@ fn update_pool_balances_revenue_to_fee_devnet_state_test() {
     let prev_tfmd = market.amm.total_fee_minus_distributions;
 
     let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    update_pool_balances(&mut market, &mut spot_market, user_quote_token_amount, 0, now).unwrap();
+    update_pool_balances(
+        &mut market,
+        &mut spot_market,
+        user_quote_token_amount,
+        0,
+        now,
+    )
+    .unwrap();
 
     assert_eq!(market.amm.fee_pool.scaled_balance, 1821000000000);
     assert_eq!(market.pnl_pool.scaled_balance, 381047000000000);
@@ -1198,7 +1361,14 @@ fn update_pool_balances_revenue_to_fee_new_market() {
     // let prev_tfmd = market.amm.total_fee_minus_distributions;
 
     let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
-    update_pool_balances(&mut market, &mut spot_market, user_quote_token_amount, 0, now).unwrap();
+    update_pool_balances(
+        &mut market,
+        &mut spot_market,
+        user_quote_token_amount,
+        0,
+        now,
+    )
+    .unwrap();
 
     assert_eq!(market.amm.fee_pool.scaled_balance, 50000000000); // $50
 

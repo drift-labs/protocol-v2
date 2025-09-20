@@ -237,9 +237,12 @@ pub fn settle_pnl(
     let is_isolated_position = user.perp_positions[position_index].is_isolated();
 
     let user_quote_token_amount = if is_isolated_position {
-        user.perp_positions[position_index].get_isolated_token_amount(spot_market)?.cast()?
+        user.perp_positions[position_index]
+            .get_isolated_token_amount(spot_market)?
+            .cast()?
     } else {
-        user.get_quote_spot_position().get_signed_token_amount(spot_market)?
+        user.get_quote_spot_position()
+            .get_signed_token_amount(spot_market)?
     };
 
     let pnl_to_settle_with_user = update_pool_balances(

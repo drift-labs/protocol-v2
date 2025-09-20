@@ -2221,7 +2221,8 @@ pub fn isolated_perp_position_negative_pnl() {
     expected_user.perp_positions[0].quote_asset_amount = 0;
     expected_user.settled_perp_pnl = -50 * QUOTE_PRECISION_I64;
     expected_user.perp_positions[0].settled_pnl = -50 * QUOTE_PRECISION_I64;
-    expected_user.perp_positions[0].isolated_position_scaled_balance = 50 * SPOT_BALANCE_PRECISION_U64;
+    expected_user.perp_positions[0].isolated_position_scaled_balance =
+        50 * SPOT_BALANCE_PRECISION_U64;
 
     let mut expected_market = market;
     expected_market.pnl_pool.scaled_balance = 100 * SPOT_BALANCE_PRECISION;
@@ -2354,7 +2355,8 @@ pub fn isolated_perp_position_user_unsettled_positive_pnl_less_than_pool() {
     expected_user.perp_positions[0].quote_asset_amount = 0;
     expected_user.settled_perp_pnl = 25 * QUOTE_PRECISION_I64;
     expected_user.perp_positions[0].settled_pnl = 25 * QUOTE_PRECISION_I64;
-    expected_user.perp_positions[0].isolated_position_scaled_balance = 125 * SPOT_BALANCE_PRECISION_U64;
+    expected_user.perp_positions[0].isolated_position_scaled_balance =
+        125 * SPOT_BALANCE_PRECISION_U64;
 
     let mut expected_market = market;
     expected_market.pnl_pool.scaled_balance = 25 * SPOT_BALANCE_PRECISION;

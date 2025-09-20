@@ -8,11 +8,9 @@ pub mod deposit_into_isolated_perp_position {
     use solana_program::pubkey::Pubkey;
 
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION_I128,
-        LIQUIDATION_FEE_PRECISION,
-        PEG_PRECISION,
-        QUOTE_PRECISION_U64, QUOTE_PRECISION_I128,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, PEG_PRECISION,
+        QUOTE_PRECISION_I128, QUOTE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
+        SPOT_WEIGHT_PRECISION,
     };
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
@@ -20,12 +18,10 @@ pub mod deposit_into_isolated_perp_position {
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::SpotMarket;
     use crate::state::spot_market_map::SpotMarketMap;
-    use crate::state::user::{
-        PerpPosition, PositionFlag, User
-    };
-    use crate::{create_anchor_account_info, test_utils::*};
+    use crate::state::user::{PerpPosition, PositionFlag, User};
     use crate::test_utils::get_pyth_price;
     use crate::{create_account_info, PRICE_PRECISION_I64};
+    use crate::{create_anchor_account_info, test_utils::*};
 
     #[test]
     pub fn successful_deposit_into_isolated_perp_position() {
@@ -111,8 +107,14 @@ pub mod deposit_into_isolated_perp_position {
         )
         .unwrap();
 
-        assert_eq!(user.perp_positions[0].isolated_position_scaled_balance, 1000000000);
-        assert_eq!(user.perp_positions[0].position_flag, PositionFlag::IsolatedPosition as u8);
+        assert_eq!(
+            user.perp_positions[0].isolated_position_scaled_balance,
+            1000000000
+        );
+        assert_eq!(
+            user.perp_positions[0].position_flag,
+            PositionFlag::IsolatedPosition as u8
+        );
     }
 
     #[test]
@@ -205,7 +207,6 @@ pub mod deposit_into_isolated_perp_position {
 
         assert_eq!(result, Err(ErrorCode::InvalidPerpPosition));
     }
-
 }
 
 pub mod transfer_isolated_perp_position_deposit {
@@ -217,11 +218,8 @@ pub mod transfer_isolated_perp_position_deposit {
     use solana_program::pubkey::Pubkey;
 
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION_I128,
-        LIQUIDATION_FEE_PRECISION,
-        PEG_PRECISION,
-        QUOTE_PRECISION_I128,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, PEG_PRECISION,
+        QUOTE_PRECISION_I128, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
@@ -229,12 +227,13 @@ pub mod transfer_isolated_perp_position_deposit {
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::SpotMarket;
     use crate::state::spot_market_map::SpotMarketMap;
-    use crate::state::user::{
-        PerpPosition, PositionFlag, SpotPosition, User, UserStats
-    };
-    use crate::{create_anchor_account_info, test_utils::*, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64};
+    use crate::state::user::{PerpPosition, PositionFlag, SpotPosition, User, UserStats};
     use crate::test_utils::get_pyth_price;
     use crate::{create_account_info, PRICE_PRECISION_I64};
+    use crate::{
+        create_anchor_account_info, test_utils::*, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION,
+        SPOT_BALANCE_PRECISION_U64,
+    };
 
     #[test]
     pub fn successful_transfer_to_isolated_perp_position() {
@@ -324,8 +323,14 @@ pub mod transfer_isolated_perp_position_deposit {
         )
         .unwrap();
 
-        assert_eq!(user.perp_positions[0].isolated_position_scaled_balance, 1000000000);
-        assert_eq!(user.perp_positions[0].position_flag, PositionFlag::IsolatedPosition as u8);
+        assert_eq!(
+            user.perp_positions[0].isolated_position_scaled_balance,
+            1000000000
+        );
+        assert_eq!(
+            user.perp_positions[0].position_flag,
+            PositionFlag::IsolatedPosition as u8
+        );
 
         assert_eq!(user.spot_positions[0].scaled_balance, 0);
     }
@@ -480,7 +485,7 @@ pub mod transfer_isolated_perp_position_deposit {
             cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 2* SPOT_BALANCE_PRECISION,
+            deposit_balance: 2 * SPOT_BALANCE_PRECISION,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: PRICE_PRECISION_I64,
                 last_oracle_price_twap_5min: PRICE_PRECISION_I64,
@@ -510,7 +515,7 @@ pub mod transfer_isolated_perp_position_deposit {
             now,
             0,
             0,
-            2* QUOTE_PRECISION_I64,
+            2 * QUOTE_PRECISION_I64,
         );
 
         assert_eq!(result, Err(ErrorCode::InsufficientCollateral));
@@ -607,9 +612,15 @@ pub mod transfer_isolated_perp_position_deposit {
         .unwrap();
 
         assert_eq!(user.perp_positions[0].isolated_position_scaled_balance, 0);
-        assert_eq!(user.perp_positions[0].position_flag, PositionFlag::IsolatedPosition as u8);
+        assert_eq!(
+            user.perp_positions[0].position_flag,
+            PositionFlag::IsolatedPosition as u8
+        );
 
-        assert_eq!(user.spot_positions[0].scaled_balance, SPOT_BALANCE_PRECISION_U64);
+        assert_eq!(
+            user.spot_positions[0].scaled_balance,
+            SPOT_BALANCE_PRECISION_U64
+        );
     }
 
     #[test]
@@ -806,11 +817,9 @@ pub mod withdraw_from_isolated_perp_position {
     use solana_program::pubkey::Pubkey;
 
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION_I128,
-        LIQUIDATION_FEE_PRECISION,
-        PEG_PRECISION,
-        QUOTE_PRECISION_U64, QUOTE_PRECISION_I128,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, PEG_PRECISION,
+        QUOTE_PRECISION_I128, QUOTE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
+        SPOT_WEIGHT_PRECISION,
     };
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
@@ -818,12 +827,13 @@ pub mod withdraw_from_isolated_perp_position {
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::SpotMarket;
     use crate::state::spot_market_map::SpotMarketMap;
-    use crate::state::user::{
-        PerpPosition, PositionFlag, User, UserStats
-    };
-    use crate::{create_anchor_account_info, test_utils::*, SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64};
+    use crate::state::user::{PerpPosition, PositionFlag, User, UserStats};
     use crate::test_utils::get_pyth_price;
     use crate::{create_account_info, PRICE_PRECISION_I64};
+    use crate::{
+        create_anchor_account_info, test_utils::*, SPOT_BALANCE_PRECISION,
+        SPOT_BALANCE_PRECISION_U64,
+    };
 
     #[test]
     pub fn successful_withdraw_from_isolated_perp_position() {
@@ -918,7 +928,10 @@ pub mod withdraw_from_isolated_perp_position {
         .unwrap();
 
         assert_eq!(user.perp_positions[0].isolated_position_scaled_balance, 0);
-        assert_eq!(user.perp_positions[0].position_flag, PositionFlag::IsolatedPosition as u8);
+        assert_eq!(
+            user.perp_positions[0].position_flag,
+            PositionFlag::IsolatedPosition as u8
+        );
     }
 
     #[test]
@@ -1108,5 +1121,4 @@ pub mod withdraw_from_isolated_perp_position {
 
         assert_eq!(result, Err(ErrorCode::InsufficientCollateral));
     }
-
 }

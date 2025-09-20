@@ -1,27 +1,23 @@
 use std::cell::RefMut;
 
-use anchor_lang::prelude::*;
+use crate::controller;
 use crate::controller::spot_balance::update_spot_balances;
 use crate::controller::spot_position::update_spot_balances_and_cumulative_deposits;
 use crate::error::{DriftResult, ErrorCode};
+use crate::get_then_update_id;
 use crate::math::casting::Cast;
 use crate::math::liquidation::is_isolated_margin_being_liquidated;
 use crate::math::margin::{validate_spot_margin_trading, MarginRequirementType};
-use crate::state::events::{
-    DepositDirection, DepositExplanation, DepositRecord,
-};
+use crate::state::events::{DepositDirection, DepositExplanation, DepositRecord};
+use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::PerpMarketMap;
-use crate::state::oracle_map::OracleMap;
-use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::spot_market::SpotBalanceType;
+use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::State;
-use crate::state::user::{
-    User,UserStats,
-};
+use crate::state::user::{User, UserStats};
 use crate::validate;
-use crate::controller;
-use crate::get_then_update_id;
+use anchor_lang::prelude::*;
 
 #[cfg(test)]
 mod tests;

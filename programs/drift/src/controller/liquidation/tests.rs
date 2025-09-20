@@ -31,7 +31,8 @@ pub mod liquidate_perp {
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{
-        MarginMode, Order, OrderStatus, OrderType, PerpPosition, PositionFlag, SpotPosition, User, UserStats
+        MarginMode, Order, OrderStatus, OrderType, PerpPosition, PositionFlag, SpotPosition, User,
+        UserStats,
     };
     use crate::test_utils::*;
     use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
@@ -2454,7 +2455,8 @@ pub mod liquidate_perp {
 
         let market_account_infos = vec![market_account_info, market2_account_info];
         let market_set = BTreeSet::default();
-        let perp_market_map = PerpMarketMap::load(&market_set, &mut market_account_infos.iter().peekable()).unwrap();
+        let perp_market_map =
+            PerpMarketMap::load(&market_set, &mut market_account_infos.iter().peekable()).unwrap();
 
         let mut spot_market = SpotMarket {
             market_index: 0,
@@ -2565,7 +2567,6 @@ pub mod liquidate_perp {
 
         assert_eq!(isolated_position_before, isolated_position_after);
     }
-
 }
 
 pub mod liquidate_perp_with_fill {
@@ -10237,7 +10238,8 @@ pub mod liquidate_isolated_perp {
             slot,
             now,
             &state,
-        ).unwrap();
+        )
+        .unwrap();
 
         let spot_position_one_after = user.spot_positions[0].clone();
         let spot_position_two_after = user.spot_positions[1].clone();
@@ -10256,6 +10258,7 @@ pub mod liquidate_isolated_perp_pnl_for_deposit {
     use anchor_lang::Owner;
     use solana_program::pubkey::Pubkey;
 
+    use crate::controller::liquidation::resolve_perp_bankruptcy;
     use crate::controller::liquidation::{liquidate_perp_pnl_for_deposit, liquidate_spot};
     use crate::create_account_info;
     use crate::create_anchor_account_info;
@@ -10276,12 +10279,11 @@ pub mod liquidate_isolated_perp_pnl_for_deposit {
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{AssetTier, SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
-    use crate::state::user::{PositionFlag, UserStats};
     use crate::state::user::{Order, PerpPosition, SpotPosition, User, UserStatus};
+    use crate::state::user::{PositionFlag, UserStats};
     use crate::test_utils::*;
     use crate::test_utils::{get_positions, get_pyth_price, get_spot_positions};
-    use crate::controller::liquidation::resolve_perp_bankruptcy;
-    
+
     #[test]
     pub fn successful_liquidation_liquidator_max_pnl_transfer() {
         let now = 0_i64;
@@ -10422,7 +10424,10 @@ pub mod liquidate_isolated_perp_pnl_for_deposit {
         )
         .unwrap();
 
-        assert_eq!(user.perp_positions[0].isolated_position_scaled_balance, 39494950000);
+        assert_eq!(
+            user.perp_positions[0].isolated_position_scaled_balance,
+            39494950000
+        );
         assert_eq!(user.perp_positions[0].quote_asset_amount, -50000000);
 
         assert_eq!(
@@ -10577,7 +10582,10 @@ pub mod liquidate_isolated_perp_pnl_for_deposit {
 
         assert_eq!(user.perp_positions[0].isolated_position_scaled_balance, 0);
         assert_eq!(user.perp_positions[0].quote_asset_amount, -1900000);
-        assert_eq!(user.perp_positions[0].position_flag & PositionFlag::Bankrupt as u8, PositionFlag::Bankrupt as u8);
+        assert_eq!(
+            user.perp_positions[0].position_flag & PositionFlag::Bankrupt as u8,
+            PositionFlag::Bankrupt as u8
+        );
 
         assert_eq!(liquidator.spot_positions[0].scaled_balance, 190000000000);
         assert_eq!(liquidator.perp_positions[0].quote_asset_amount, -89100000);
@@ -10613,13 +10621,18 @@ pub mod liquidate_isolated_perp_pnl_for_deposit {
 
         assert_eq!(user.perp_positions[0].isolated_position_scaled_balance, 0);
         assert_eq!(user.perp_positions[0].quote_asset_amount, 0);
-        assert_eq!(user.perp_positions[0].position_flag & PositionFlag::Bankrupt as u8, 0);
+        assert_eq!(
+            user.perp_positions[0].position_flag & PositionFlag::Bankrupt as u8,
+            0
+        );
         assert_eq!(user.is_being_liquidated(), false);
     }
 }
 
 mod liquidation_mode {
-    use crate::state::liquidation_mode::{CrossMarginLiquidatePerpMode, IsolatedMarginLiquidatePerpMode, LiquidatePerpMode};
+    use crate::state::liquidation_mode::{
+        CrossMarginLiquidatePerpMode, IsolatedMarginLiquidatePerpMode, LiquidatePerpMode,
+    };
     use std::collections::BTreeSet;
     use std::str::FromStr;
 
@@ -10629,11 +10642,9 @@ mod liquidation_mode {
     use crate::create_account_info;
     use crate::create_anchor_account_info;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION,
-        MARGIN_PRECISION, PEG_PRECISION,
-        QUOTE_PRECISION_I128, QUOTE_PRECISION_I64,
-        SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
-        SPOT_WEIGHT_PRECISION,
+        AMM_RESERVE_PRECISION, BASE_PRECISION_I128, LIQUIDATION_FEE_PRECISION, MARGIN_PRECISION,
+        PEG_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION,
+        SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
     };
     use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_liability_info;
     use crate::state::margin_calculation::MarginContext;
@@ -10646,9 +10657,9 @@ mod liquidation_mode {
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::PositionFlag;
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
-    use crate::test_utils::*;
     use crate::test_utils::get_pyth_price;
-    
+    use crate::test_utils::*;
+
     #[test]
     pub fn tests_meets_margin_requirements() {
         let slot = 0_u64;
@@ -10702,7 +10713,8 @@ mod liquidation_mode {
 
         let market_account_infos = vec![market_account_info, market2_account_info];
         let market_set = BTreeSet::default();
-        let market_map = PerpMarketMap::load(&market_set, &mut market_account_infos.iter().peekable()).unwrap();
+        let market_map =
+            PerpMarketMap::load(&market_set, &mut market_account_infos.iter().peekable()).unwrap();
 
         let mut usdc_market = SpotMarket {
             market_index: 0,
@@ -10781,16 +10793,28 @@ mod liquidation_mode {
         let cross_liquidation_mode = CrossMarginLiquidatePerpMode::new(0);
 
         let liquidation_margin_buffer_ratio = MARGIN_PRECISION / 50;
-        let margin_calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
-            &user_isolated_position_being_liquidated,
-            &market_map,
-            &spot_market_map,
-            &mut oracle_map,
-            MarginContext::liquidation(liquidation_margin_buffer_ratio),
-        ).unwrap();
+        let margin_calculation =
+            calculate_margin_requirement_and_total_collateral_and_liability_info(
+                &user_isolated_position_being_liquidated,
+                &market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                MarginContext::liquidation(liquidation_margin_buffer_ratio),
+            )
+            .unwrap();
 
-        assert_eq!(cross_liquidation_mode.meets_margin_requirements(&margin_calculation).unwrap(), true);
-        assert_eq!(isolated_liquidation_mode.meets_margin_requirements(&margin_calculation).unwrap(), false);
+        assert_eq!(
+            cross_liquidation_mode
+                .meets_margin_requirements(&margin_calculation)
+                .unwrap(),
+            true
+        );
+        assert_eq!(
+            isolated_liquidation_mode
+                .meets_margin_requirements(&margin_calculation)
+                .unwrap(),
+            false
+        );
 
         let mut spot_positions = [SpotPosition::default(); 8];
         spot_positions[0] = SpotPosition {
@@ -10819,17 +10843,27 @@ mod liquidation_mode {
             ..User::default()
         };
 
-        let margin_calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
-            &user_cross_margin_being_liquidated,
-            &market_map,
-            &spot_market_map,
-            &mut oracle_map,
-            MarginContext::liquidation(liquidation_margin_buffer_ratio),
-        ).unwrap();
+        let margin_calculation =
+            calculate_margin_requirement_and_total_collateral_and_liability_info(
+                &user_cross_margin_being_liquidated,
+                &market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                MarginContext::liquidation(liquidation_margin_buffer_ratio),
+            )
+            .unwrap();
 
-        assert_eq!(cross_liquidation_mode.meets_margin_requirements(&margin_calculation).unwrap(), false);
-        assert_eq!(isolated_liquidation_mode.meets_margin_requirements(&margin_calculation).unwrap(), true);
+        assert_eq!(
+            cross_liquidation_mode
+                .meets_margin_requirements(&margin_calculation)
+                .unwrap(),
+            false
+        );
+        assert_eq!(
+            isolated_liquidation_mode
+                .meets_margin_requirements(&margin_calculation)
+                .unwrap(),
+            true
+        );
     }
-
 }
-    

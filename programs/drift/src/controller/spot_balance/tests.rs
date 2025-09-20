@@ -1997,7 +1997,12 @@ fn isolated_perp_position() {
     .unwrap();
 
     assert_eq!(perp_position.isolated_position_scaled_balance, 1000000000);
-    assert_eq!(perp_position.get_isolated_token_amount(&spot_market).unwrap(), amount);
+    assert_eq!(
+        perp_position
+            .get_isolated_token_amount(&spot_market)
+            .unwrap(),
+        amount
+    );
 
     update_spot_balances(
         amount,
@@ -2005,7 +2010,8 @@ fn isolated_perp_position() {
         &mut spot_market,
         &mut perp_position,
         false,
-    ).unwrap();
+    )
+    .unwrap();
 
     assert_eq!(perp_position.isolated_position_scaled_balance, 0);
 

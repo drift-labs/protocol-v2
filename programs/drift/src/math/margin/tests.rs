@@ -4656,7 +4656,7 @@ mod get_margin_calculation_for_disable_high_leverage_mode {
     use crate::state::user::{Order, PerpPosition, SpotPosition, User};
     use crate::test_utils::get_pyth_price;
     use crate::test_utils::*;
-    use crate::{create_account_info, MARGIN_PRECISION, create_anchor_account_info};
+    use crate::{create_account_info, create_anchor_account_info, MARGIN_PRECISION};
 
     #[test]
     pub fn check_user_not_changed() {
