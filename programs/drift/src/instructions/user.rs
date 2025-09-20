@@ -1895,6 +1895,7 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         taker_existing_base_asset_amount: to_existing_base_asset_amount,
         maker_existing_quote_entry_amount: from_existing_quote_entry_amount,
         maker_existing_base_asset_amount: from_existing_base_asset_amount,
+        trigger_price: None,
     };
 
     emit_stack::<_, { OrderActionRecord::SIZE }>(fill_record)?;
@@ -3171,11 +3172,10 @@ pub fn handle_update_user_perp_position_custom_margin_ratio(
 ) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
 
-    let perp_position = user.force_get_perp_position_mut(perp_market_index)?;
-    perp_position.max_margin_ratio = margin_ratio;
+    user.update_perp_position_max_margin_ratio(perp_market_index, margin_ratio)?;
+
     Ok(())
 }
-
 
 pub fn handle_update_user_margin_trading_enabled<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdateUser<'info>>,
@@ -3463,7 +3463,7 @@ pub fn handle_enable_user_high_leverage_mode<'c: 'info, 'info>(
 
     let mut config = load_mut!(ctx.accounts.high_leverage_mode_config)?;
 
-    config.update_user(&mut user)?;
+    config.enable_high_leverage(&mut user)?;
 
     Ok(())
 }

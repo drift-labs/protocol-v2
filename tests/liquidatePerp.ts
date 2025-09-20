@@ -61,7 +61,6 @@ describe('liquidate perp (no open orders)', () => {
 	);
 
 	const usdcAmount = new BN(10 * 10 ** 6);
-	const nLpShares = ZERO;
 
 	before(async () => {
 		const context = await startAnchor('', [], []);
@@ -205,8 +204,6 @@ describe('liquidate perp (no open orders)', () => {
 
 	it('liquidate', async () => {
 		const marketIndex = 0;
-		const lpShares = driftClient.getUserAccount().perpPositions[0].lpShares;
-		assert(lpShares.eq(nLpShares));
 
 		const driftClientUser = new User({
 			driftClient: driftClient,
@@ -349,14 +346,6 @@ describe('liquidate perp (no open orders)', () => {
 		assert(driftClient.getUserAccount().status === UserStatus.BEING_LIQUIDATED);
 		assert(driftClient.getUserAccount().nextLiquidationId === 2);
 
-		// try to add liq when being liquidated -- should fail
-		try {
-			await driftClient.addPerpLpShares(nLpShares, 0);
-			assert(false);
-		} catch (err) {
-			assert(err.message.includes('0x17e5'));
-		}
-
 		const liquidationRecord =
 			eventSubscriber.getEventsArray('LiquidationRecord')[0];
 		assert(liquidationRecord.liquidationId === 1);
@@ -375,7 +364,6 @@ describe('liquidate perp (no open orders)', () => {
 		assert(
 			liquidationRecord.liquidatePerp.quoteAssetAmount.eq(new BN(1750000))
 		);
-		assert(liquidationRecord.liquidatePerp.lpShares.eq(nLpShares));
 		assert(liquidationRecord.liquidatePerp.ifFee.eq(new BN(0)));
 		assert(liquidationRecord.liquidatePerp.liquidatorFee.eq(new BN(0)));
 
@@ -426,15 +414,6 @@ describe('liquidate perp (no open orders)', () => {
 				.getUserAccount()
 				.perpPositions[0].quoteAssetAmount.eq(new BN(-5767653))
 		);
-
-		// try to add liq when bankrupt -- should fail
-		try {
-			await driftClient.addPerpLpShares(nLpShares, 0);
-			assert(false);
-		} catch (err) {
-			// cant add when bankrupt
-			assert(err.message.includes('0x17ed'));
-		}
 
 		await driftClient.updatePerpMarketContractTier(0, ContractTier.A);
 		const tx1 = await driftClient.updatePerpMarketMaxImbalances(

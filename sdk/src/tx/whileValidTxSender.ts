@@ -258,6 +258,7 @@ export class WhileValidTxSender extends BaseTxSender {
 			throw e;
 		} finally {
 			stopWaiting();
+			this.untilValid.delete(txid);
 		}
 
 		return { txSig: txid, slot };

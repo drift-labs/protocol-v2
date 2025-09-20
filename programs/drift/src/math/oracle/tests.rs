@@ -11,6 +11,7 @@ use crate::state::state::{OracleGuardRails, PriceDivergenceGuardRails, State, Va
 fn calculate_oracle_valid() {
     let prev = 1656682258;
     let now = prev + 3600;
+    let state = State::default();
 
     let px = 32 * PRICE_PRECISION;
     let amm = AMM {
@@ -33,12 +34,16 @@ fn calculate_oracle_valid() {
         confidence: PRICE_PRECISION_U64 / 100,
         delay: 1,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     let mut market: PerpMarket = PerpMarket {
         amm,
         contract_tier: ContractTier::B,
         ..PerpMarket::default()
     };
+    let mm_oracle_price_data = market
+        .get_mm_oracle_price_data(oracle_price_data, 10000, &state.oracle_guard_rails.validity)
+        .unwrap();
 
     let state = State {
         oracle_guard_rails: OracleGuardRails {
@@ -69,7 +74,7 @@ fn calculate_oracle_valid() {
     assert!(!oracle_status.mark_too_divergent);
 
     let _new_oracle_twap =
-        update_oracle_price_twap(&mut market.amm, now, &oracle_price_data, None, None).unwrap();
+        update_oracle_price_twap(&mut market.amm, now, &mm_oracle_price_data, None, None).unwrap();
     assert_eq!(
         market.amm.historical_oracle_data.last_oracle_price_twap,
         (34 * PRICE_PRECISION - PRICE_PRECISION / 100) as i64
@@ -80,6 +85,7 @@ fn calculate_oracle_valid() {
         confidence: PRICE_PRECISION_U64 / 100,
         delay: 11,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     oracle_status = get_oracle_status(
         &market,

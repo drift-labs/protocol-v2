@@ -4,7 +4,7 @@ import {
 	SimulatedTransactionResponse,
 	VersionedTransaction,
 } from '@solana/web3.js';
-import { BaseTxParams, ProcessingTxParams } from '..';
+import { BaseTxParams, ProcessingTxParams } from '../types';
 
 const COMPUTE_UNIT_BUFFER_FACTOR = 1.2;
 const MAX_COMPUTE_UNITS = 1_400_000;

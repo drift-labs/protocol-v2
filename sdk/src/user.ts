@@ -22,14 +22,12 @@ import {
 } from './math/position';
 import {
 	AMM_RESERVE_PRECISION,
-	AMM_RESERVE_PRECISION_EXP,
 	AMM_TO_QUOTE_PRECISION_RATIO,
 	BASE_PRECISION,
 	BN_MAX,
 	DUST_POSITION_SIZE,
 	FIVE_MINUTE,
 	MARGIN_PRECISION,
-	ONE,
 	OPEN_ORDER_MARGIN_REQUIREMENT,
 	PRICE_PRECISION,
 	QUOTE_PRECISION,
@@ -46,31 +44,36 @@ import {
 	UserAccountEvents,
 	UserAccountSubscriber,
 } from './accounts/types';
+import { BigNum } from './factory/bigNum';
+import { BN } from '@coral-xyz/anchor';
+import { calculateBaseAssetValue, calculatePositionPNL } from './math/position';
 import {
-	BigNum,
-	BN,
-	calculateBaseAssetValue,
 	calculateMarketMarginRatio,
-	calculatePerpLiabilityValue,
-	calculatePositionPNL,
 	calculateReservePrice,
-	calculateSpotMarketMarginRatio,
 	calculateUnrealizedAssetWeight,
+} from './math/market';
+import {
+	calculatePerpLiabilityValue,
 	calculateWorstCasePerpLiabilityValue,
-	divCeil,
+} from './math/margin';
+import { calculateSpotMarketMarginRatio } from './math/spotMarket';
+import { divCeil, sigNum } from './math/utils';
+import {
 	getBalance,
 	getSignedTokenAmount,
 	getStrictTokenValue,
 	getTokenValue,
-	getUser30dRollingVolumeEstimate,
+} from './math/spotBalance';
+import { getUser30dRollingVolumeEstimate } from './math/trade';
+import {
 	MarketType,
 	PositionDirection,
-	sigNum,
 	SpotBalanceType,
 	SpotMarketAccount,
-	standardizeBaseAssetAmount,
-	UserStats,
-} from '.';
+} from './types';
+import { standardizeBaseAssetAmount } from './math/orders';
+import { UserStats } from './userStats';
+import { WebSocketProgramUserAccountSubscriber } from './accounts/websocketProgramUserAccountSubscriber';
 import {
 	calculateAssetWeight,
 	calculateLiabilityWeight,
@@ -79,14 +82,13 @@ import {
 	getSpotLiabilityValue,
 	getTokenAmount,
 } from './math/spotBalance';
-import { calculateMarketOpenBidAsk } from './math/amm';
 import {
 	calculateBaseAssetValueWithOracle,
 	calculateCollateralDepositRequiredForTrade,
 	calculateMarginUSDCRequiredForTrade,
 	calculateWorstCaseBaseAssetAmount,
 } from './math/margin';
-import { OraclePriceData } from './oracles/types';
+import { MMOraclePriceData, OraclePriceData } from './oracles/types';
 import { UserConfig } from './userConfig';
 import { PollingUserAccountSubscriber } from './accounts/pollingUserAccountSubscriber';
 import { WebSocketUserAccountSubscriber } from './accounts/webSocketUserAccountSubscriber';
@@ -145,15 +147,26 @@ export class User {
 				}
 			);
 		} else {
-			this.accountSubscriber = new WebSocketUserAccountSubscriber(
-				config.driftClient.program,
-				config.userAccountPublicKey,
-				{
-					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
-					logResubMessages: config.accountSubscription?.logResubMessages,
-				},
-				config.accountSubscription?.commitment
-			);
+			if (
+				config.accountSubscription?.type === 'websocket' &&
+				config.accountSubscription?.programUserAccountSubscriber
+			) {
+				this.accountSubscriber = new WebSocketProgramUserAccountSubscriber(
+					config.driftClient.program,
+					config.userAccountPublicKey,
+					config.accountSubscription.programUserAccountSubscriber
+				);
+			} else {
+				this.accountSubscriber = new WebSocketUserAccountSubscriber(
+					config.driftClient.program,
+					config.userAccountPublicKey,
+					{
+						resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
+						logResubMessages: config.accountSubscription?.logResubMessages,
+					},
+					config.accountSubscription?.commitment
+				);
+			}
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
 	}
@@ -317,6 +330,7 @@ export class User {
 			lastBaseAssetAmountPerLp: ZERO,
 			lastQuoteAssetAmountPerLp: ZERO,
 			perLpBase: 0,
+			maxMarginRatio: 0,
 		};
 	}
 
@@ -435,7 +449,7 @@ export class User {
 	public getPerpBuyingPower(
 		marketIndex: number,
 		collateralBuffer = ZERO,
-		enterHighLeverageMode = false
+		enterHighLeverageMode = undefined
 	): BN {
 		const perpPosition = this.getPerpPositionOrEmpty(marketIndex);
 
@@ -458,7 +472,8 @@ export class User {
 			marketIndex,
 			freeCollateral,
 			worstCaseBaseAssetAmount,
-			enterHighLeverageMode
+			enterHighLeverageMode,
+			perpPosition
 		);
 	}
 
@@ -466,14 +481,19 @@ export class User {
 		marketIndex: number,
 		freeCollateral: BN,
 		baseAssetAmount: BN,
-		enterHighLeverageMode = false
+		enterHighLeverageMode = undefined,
+		perpPosition?: PerpPosition
 	): BN {
+		const userCustomMargin = Math.max(
+			perpPosition?.maxMarginRatio ?? 0,
+			this.getUserAccount().maxMarginRatio
+		);
 		const marginRatio = calculateMarketMarginRatio(
 			this.driftClient.getPerpMarketAccount(marketIndex),
 			baseAssetAmount,
 			'Initial',
-			this.getUserAccount().maxMarginRatio,
-			enterHighLeverageMode || this.isHighLeverageMode()
+			userCustomMargin,
+			enterHighLeverageMode || this.isHighLeverageMode('Initial')
 		);
 
 		return freeCollateral.mul(MARGIN_PRECISION).div(new BN(marginRatio));
@@ -485,7 +505,7 @@ export class User {
 	 */
 	public getFreeCollateral(
 		marginCategory: MarginCategory = 'Initial',
-		enterHighLeverageMode = false
+		enterHighLeverageMode = undefined
 	): BN {
 		const totalCollateral = this.getTotalCollateral(marginCategory, true);
 		const marginRequirement =
@@ -504,7 +524,7 @@ export class User {
 		liquidationBuffer?: BN,
 		strict = false,
 		includeOpenOrders = true,
-		enteringHighLeverage = false
+		enteringHighLeverage = undefined
 	): BN {
 		return this.getTotalPerpPositionLiability(
 			marginCategory,
@@ -526,7 +546,7 @@ export class User {
 	/**
 	 * @returns The initial margin requirement in USDC. : QUOTE_PRECISION
 	 */
-	public getInitialMarginRequirement(enterHighLeverageMode = false): BN {
+	public getInitialMarginRequirement(enterHighLeverageMode = undefined): BN {
 		return this.getMarginRequirement(
 			'Initial',
 			undefined,
@@ -611,7 +631,7 @@ export class User {
 				const market = this.driftClient.getPerpMarketAccount(
 					perpPosition.marketIndex
 				);
-				const oraclePriceData = this.getOracleDataForPerpMarket(
+				const oraclePriceData = this.getMMOracleDataForPerpMarket(
 					market.marketIndex
 				);
 
@@ -791,7 +811,7 @@ export class User {
 				}
 
 				for (const perpPosition of this.getActivePerpPositions()) {
-					const oraclePriceData = this.getOracleDataForPerpMarket(
+					const oraclePriceData = this.getMMOracleDataForPerpMarket(
 						perpPosition.marketIndex
 					);
 
@@ -1192,7 +1212,7 @@ export class User {
 		liquidationBuffer?: BN,
 		includeOpenOrders?: boolean,
 		strict = false,
-		enteringHighLeverage = false
+		enteringHighLeverage = undefined
 	): BN {
 		const market = this.driftClient.getPerpMarketAccount(
 			perpPosition.marketIndex
@@ -1227,13 +1247,17 @@ export class User {
 		}
 
 		if (marginCategory) {
+			const userCustomMargin = this.getUserAccount().maxMarginRatio;
 			let marginRatio = new BN(
 				calculateMarketMarginRatio(
 					market,
 					baseAssetAmount.abs(),
 					marginCategory,
-					this.getUserAccount().maxMarginRatio,
-					this.isHighLeverageMode() || enteringHighLeverage
+					enteringHighLeverage === false
+						? Math.max(market.marginRatioInitial, userCustomMargin)
+						: userCustomMargin,
+					this.isHighLeverageMode(marginCategory) ||
+						enteringHighLeverage === true
 				)
 			);
 
@@ -1308,7 +1332,7 @@ export class User {
 		liquidationBuffer?: BN,
 		includeOpenOrders?: boolean,
 		strict = false,
-		enteringHighLeverage = false
+		enteringHighLeverage = undefined
 	): BN {
 		return this.getActivePerpPositions().reduce(
 			(totalPerpValue, perpPosition) => {
@@ -1332,7 +1356,7 @@ export class User {
 	 */
 	public getPerpPositionValue(
 		marketIndex: number,
-		oraclePriceData: OraclePriceData,
+		oraclePriceData: Pick<OraclePriceData, 'price'>,
 		includeOpenOrders = false
 	): BN {
 		const userPosition = this.getPerpPositionOrEmpty(marketIndex);
@@ -1401,7 +1425,7 @@ export class User {
 
 		const entryPrice = calculateEntryPrice(position);
 
-		const oraclePriceData = this.getOracleDataForPerpMarket(
+		const oraclePriceData = this.getMMOracleDataForPerpMarket(
 			position.marketIndex
 		);
 
@@ -1620,7 +1644,7 @@ export class User {
 		perpMarketIndex: number,
 		_marginCategory: MarginCategory = 'Initial',
 		isLp = false,
-		enterHighLeverageMode = false
+		enterHighLeverageMode = undefined
 	): BN {
 		const market = this.driftClient.getPerpMarketAccount(perpMarketIndex);
 		const marketPrice =
@@ -1650,13 +1674,13 @@ export class User {
 					perpMarketIndex,
 					PositionDirection.LONG,
 					false,
-					enterHighLeverageMode || this.isHighLeverageMode()
+					enterHighLeverageMode || this.isHighLeverageMode('Initial')
 				).tradeSize,
 				this.getMaxTradeSizeUSDCForPerp(
 					perpMarketIndex,
 					PositionDirection.SHORT,
 					false,
-					enterHighLeverageMode || this.isHighLeverageMode()
+					enterHighLeverageMode || this.isHighLeverageMode('Initial')
 				).tradeSize
 			).sub(lpBuffer),
 			ZERO
@@ -1821,8 +1845,12 @@ export class User {
 		return (this.getUserAccount().status & UserStatus.BANKRUPT) > 0;
 	}
 
-	public isHighLeverageMode(): boolean {
-		return isVariant(this.getUserAccount().marginMode, 'highLeverage');
+	public isHighLeverageMode(marginCategory: MarginCategory): boolean {
+		return (
+			isVariant(this.getUserAccount().marginMode, 'highLeverage') ||
+			(marginCategory === 'Maintenance' &&
+				isVariant(this.getUserAccount().marginMode, 'highLeverageMaintenance'))
+		);
 	}
 
 	/**
@@ -1965,7 +1993,7 @@ export class User {
 		marginCategory: MarginCategory = 'Maintenance',
 		includeOpenOrders = false,
 		offsetCollateral = ZERO,
-		enteringHighLeverage = false
+		enteringHighLeverage = undefined
 	): BN {
 		const totalCollateral = this.getTotalCollateral(
 			marginCategory,
@@ -2088,7 +2116,7 @@ export class User {
 		positionBaseSizeChange: BN,
 		estimatedEntryPrice: BN,
 		includeOpenOrders: boolean,
-		enteringHighLeverage = false,
+		enteringHighLeverage = undefined,
 		marginCategory: MarginCategory = 'Maintenance'
 	): BN {
 		let freeCollateralChange = ZERO;
@@ -2141,12 +2169,18 @@ export class User {
 				);
 			}
 
+			const userCustomMargin = Math.max(
+				perpPosition.maxMarginRatio,
+				this.getUserAccount().maxMarginRatio
+			);
 			const marginRatio = calculateMarketMarginRatio(
 				market,
 				baseAssetAmount.abs(),
 				marginCategory,
-				this.getUserAccount().maxMarginRatio,
-				this.isHighLeverageMode() || enteringHighLeverage
+				enteringHighLeverage === false
+					? Math.max(market.marginRatioInitial, userCustomMargin)
+					: userCustomMargin,
+				this.isHighLeverageMode(marginCategory) || enteringHighLeverage === true
 			);
 
 			return liabilityValue.mul(new BN(marginRatio)).div(MARGIN_PRECISION);
@@ -2175,7 +2209,7 @@ export class User {
 		oraclePrice: BN,
 		marginCategory: MarginCategory = 'Maintenance',
 		includeOpenOrders = false,
-		enteringHighLeverage = false
+		enteringHighLeverage = undefined
 	): BN | undefined {
 		const baseAssetAmount = includeOpenOrders
 			? calculateWorstCaseBaseAssetAmount(perpPosition, market, oraclePrice)
@@ -2188,12 +2222,19 @@ export class User {
 
 		const proposedBaseAssetAmount = baseAssetAmount.add(positionBaseSizeChange);
 
+		const userCustomMargin = Math.max(
+			perpPosition.maxMarginRatio,
+			this.getUserAccount().maxMarginRatio
+		);
+
 		const marginRatio = calculateMarketMarginRatio(
 			market,
 			proposedBaseAssetAmount.abs(),
 			marginCategory,
-			this.getUserAccount().maxMarginRatio,
-			this.isHighLeverageMode() || enteringHighLeverage
+			enteringHighLeverage === false
+				? Math.max(market.marginRatioInitial, userCustomMargin)
+				: userCustomMargin,
+			this.isHighLeverageMode(marginCategory) || enteringHighLeverage === true
 		);
 
 		const marginRatioQuotePrecision = new BN(marginRatio)
@@ -2344,7 +2385,7 @@ export class User {
 		targetMarketIndex: number,
 		tradeSide: PositionDirection,
 		isLp = false,
-		enterHighLeverageMode = false
+		enterHighLeverageMode = undefined
 	): { tradeSize: BN; oppositeSideTradeSize: BN } {
 		let tradeSize = ZERO;
 		let oppositeSideTradeSize = ZERO;
@@ -2360,7 +2401,7 @@ export class User {
 			? true
 			: targetSide === currentPositionSide;
 
-		const oracleData = this.getOracleDataForPerpMarket(targetMarketIndex);
+		const oracleData = this.getMMOracleDataForPerpMarket(targetMarketIndex);
 
 		const marketAccount =
 			this.driftClient.getPerpMarketAccount(targetMarketIndex);
@@ -3193,9 +3234,9 @@ export class User {
 	public getUserFeeTier(marketType: MarketType, now?: BN) {
 		const state = this.driftClient.getStateAccount();
 
-		let feeTierIndex = 0;
+		const feeTierIndex = 0;
 		if (isVariant(marketType, 'perp')) {
-			if (this.isHighLeverageMode()) {
+			if (this.isHighLeverageMode('Initial')) {
 				return state.perpFeeStructure.feeTiers[0];
 			}
 
@@ -3207,34 +3248,52 @@ export class User {
 				userStatsAccount,
 				now
 			);
-
 			const stakedGovAssetAmount = userStatsAccount.ifStakedGovTokenAmount;
-			const volumeTiers = [
-				new BN(100_000_000).mul(QUOTE_PRECISION),
-				new BN(50_000_000).mul(QUOTE_PRECISION),
-				new BN(10_000_000).mul(QUOTE_PRECISION),
-				new BN(5_000_000).mul(QUOTE_PRECISION),
-				new BN(1_000_000).mul(QUOTE_PRECISION),
-			];
-			const stakedTiers = [
-				new BN(120000 - 1).mul(QUOTE_PRECISION),
-				new BN(100000 - 1).mul(QUOTE_PRECISION),
-				new BN(25000 - 1).mul(QUOTE_PRECISION),
-				new BN(10000 - 1).mul(QUOTE_PRECISION),
-				new BN(1000 - 1).mul(QUOTE_PRECISION),
-			];
 
-			for (let i = 0; i < volumeTiers.length; i++) {
-				if (
-					total30dVolume.gte(volumeTiers[i]) ||
-					stakedGovAssetAmount.gte(stakedTiers[i])
-				) {
-					feeTierIndex = 5 - i;
+			const volumeThresholds = [
+				new BN(2_000_000).mul(QUOTE_PRECISION),
+				new BN(10_000_000).mul(QUOTE_PRECISION),
+				new BN(20_000_000).mul(QUOTE_PRECISION),
+				new BN(80_000_000).mul(QUOTE_PRECISION),
+				new BN(200_000_000).mul(QUOTE_PRECISION),
+			];
+			const stakeThresholds = [
+				new BN(1_000 - 1).mul(QUOTE_PRECISION),
+				new BN(10_000 - 1).mul(QUOTE_PRECISION),
+				new BN(50_000 - 1).mul(QUOTE_PRECISION),
+				new BN(100_000 - 1).mul(QUOTE_PRECISION),
+				new BN(250_000 - 5).mul(QUOTE_PRECISION),
+			];
+			const stakeBenefitFrac = [0, 5, 10, 20, 30, 40];
+
+			let feeTierIndex = 5;
+			for (let i = 0; i < volumeThresholds.length; i++) {
+				if (total30dVolume.lt(volumeThresholds[i])) {
+					feeTierIndex = i;
 					break;
 				}
 			}
 
-			return state.perpFeeStructure.feeTiers[feeTierIndex];
+			let stakeBenefitIndex = 5;
+			for (let i = 0; i < stakeThresholds.length; i++) {
+				if (stakedGovAssetAmount.lt(stakeThresholds[i])) {
+					stakeBenefitIndex = i;
+					break;
+				}
+			}
+
+			const stakeBenefit = stakeBenefitFrac[stakeBenefitIndex];
+
+			const tier = { ...state.perpFeeStructure.feeTiers[feeTierIndex] };
+
+			if (stakeBenefit > 0) {
+				tier.feeNumerator = (tier.feeNumerator * (100 - stakeBenefit)) / 100;
+
+				tier.makerRebateNumerator =
+					(tier.makerRebateNumerator * (100 + stakeBenefit)) / 100;
+			}
+
+			return tier;
 		}
 
 		return state.spotFeeStructure.feeTiers[feeTierIndex];
@@ -3532,13 +3591,17 @@ export class User {
 			oraclePrice
 		);
 
+		const userCustomMargin = Math.max(
+			perpPosition.maxMarginRatio,
+			this.getUserAccount().maxMarginRatio
+		);
 		const marginRatio = new BN(
 			calculateMarketMarginRatio(
 				perpMarket,
 				worstCaseBaseAmount.abs(),
 				marginCategory,
-				this.getUserAccount().maxMarginRatio,
-				this.isHighLeverageMode()
+				userCustomMargin,
+				this.isHighLeverageMode(marginCategory)
 			)
 		);
 
@@ -3777,11 +3840,36 @@ export class User {
 		).sub(currentPerpPositionValueUSDC);
 	}
 
+	private getMMOracleDataForPerpMarket(marketIndex: number): MMOraclePriceData {
+		return this.driftClient.getMMOracleDataForPerpMarket(marketIndex);
+	}
+
 	private getOracleDataForPerpMarket(marketIndex: number): OraclePriceData {
 		return this.driftClient.getOracleDataForPerpMarket(marketIndex);
 	}
 
 	private getOracleDataForSpotMarket(marketIndex: number): OraclePriceData {
 		return this.driftClient.getOracleDataForSpotMarket(marketIndex);
+	}
+
+	/**
+	 * Get the active perp and spot positions of the user.
+	 */
+	public getActivePositions(): {
+		activePerpPositions: number[];
+		activeSpotPositions: number[];
+	} {
+		const activePerpMarkets = this.getActivePerpPositions().map(
+			(position) => position.marketIndex
+		);
+
+		const activeSpotMarkets = this.getActiveSpotPositions().map(
+			(position) => position.marketIndex
+		);
+
+		return {
+			activePerpPositions: activePerpMarkets,
+			activeSpotPositions: activeSpotMarkets,
+		};
 	}
 }

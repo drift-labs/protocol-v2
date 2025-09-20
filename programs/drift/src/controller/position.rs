@@ -17,7 +17,7 @@ use crate::math::position::{
 use crate::math::safe_math::SafeMath;
 use crate::math_error;
 use crate::safe_increment;
-use crate::state::perp_market::{AMMLiquiditySplit, PerpMarket};
+use crate::state::perp_market::PerpMarket;
 use crate::state::user::{PerpPosition, PerpPositions, User};
 use crate::validate;
 
@@ -548,7 +548,12 @@ pub fn increase_open_bids_and_asks(
     position: &mut PerpPosition,
     direction: &PositionDirection,
     base_asset_amount_unfilled: u64,
+    update: bool,
 ) -> DriftResult {
+    if !update {
+        return Ok(());
+    }
+
     match direction {
         PositionDirection::Long => {
             position.open_bids = position
@@ -569,17 +574,24 @@ pub fn decrease_open_bids_and_asks(
     position: &mut PerpPosition,
     direction: &PositionDirection,
     base_asset_amount_unfilled: u64,
+    update: bool,
 ) -> DriftResult {
+    if !update {
+        return Ok(());
+    }
+
     match direction {
         PositionDirection::Long => {
             position.open_bids = position
                 .open_bids
-                .safe_sub(base_asset_amount_unfilled.cast()?)?;
+                .safe_sub(base_asset_amount_unfilled.cast()?)?
+                .max(0);
         }
         PositionDirection::Short => {
             position.open_asks = position
                 .open_asks
-                .safe_add(base_asset_amount_unfilled.cast()?)?;
+                .safe_add(base_asset_amount_unfilled.cast()?)?
+                .min(0);
         }
     }
 

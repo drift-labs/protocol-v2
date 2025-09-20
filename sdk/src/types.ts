@@ -5,7 +5,8 @@ import {
 	TransactionVersion,
 	VersionedTransaction,
 } from '@solana/web3.js';
-import { BN, ZERO } from '.';
+import { BN } from '@coral-xyz/anchor';
+import { ZERO } from './constants/numericConstants';
 
 // Utility type which lets you denote record with values of type A mapped to a record with the same keys but values of type B
 export type MappedRecord<A extends Record<string, unknown>, B> = {
@@ -25,6 +26,11 @@ export enum ExchangeStatus {
 	SETTLE_PNL_PAUSED = 64,
 	AMM_IMMEDIATE_FILL_PAUSED = 128,
 	PAUSED = 255,
+}
+
+export enum FeatureBitFlags {
+	MM_ORACLE_UPDATE = 1,
+	MEDIAN_TRIGGER_PRICE = 2,
 }
 
 export class MarketStatus {
@@ -74,6 +80,9 @@ export enum UserStatus {
 export class MarginMode {
 	static readonly DEFAULT = { default: {} };
 	static readonly HIGH_LEVERAGE = { highLeverage: {} };
+	static readonly HIGH_LEVERAGE_MAINTENANCE = {
+		highLeverageMaintenance: {},
+	};
 }
 
 export class ContractType {
@@ -187,6 +196,7 @@ export class OrderBitFlag {
 	static readonly SignedMessage = 1;
 	static readonly OracleTriggerMarket = 2;
 	static readonly SafeTriggerOrder = 4;
+	static readonly NewTriggerReduceOnly = 8;
 }
 
 export class OrderAction {
@@ -731,6 +741,68 @@ export type TransferProtocolIfSharesToRevenuePoolRecord = {
 	transferAmount: BN;
 };
 
+export type LPSwapRecord = {
+	ts: BN;
+	slot: BN;
+	authority: PublicKey;
+	outAmount: BN;
+	inAmount: BN;
+	outFee: BN;
+	inFee: BN;
+	outSpotMarketIndex: number;
+	inSpotMarketIndex: number;
+	outConstituentIndex: number;
+	inConstituentIndex: number;
+	outOraclePrice: BN;
+	inOraclePrice: BN;
+	outMint: PublicKey;
+	inMint: PublicKey;
+	lastAum: BN;
+	lastAumSlot: BN;
+	inMarketCurrentWeight: BN;
+	outMarketCurrentWeight: BN;
+	inMarketTargetWeight: BN;
+	outMarketTargetWeight: BN;
+	inSwapId: BN;
+	outSwapId: BN;
+};
+
+export type LPMintRedeemRecord = {
+	ts: BN;
+	slot: BN;
+	authority: PublicKey;
+	description: number;
+	amount: BN;
+	fee: BN;
+	spotMarketIndex: number;
+	constituentIndex: number;
+	oraclePrice: BN;
+	mint: PublicKey;
+	lpMint: PublicKey;
+	lpAmount: BN;
+	lpFee: BN;
+	lpPrice: BN;
+	mintRedeemId: BN;
+	lastAum: BN;
+	lastAumSlot: BN;
+	inMarketCurrentWeight: BN;
+	inMarketTargetWeight: BN;
+};
+
+export type LPSettleRecord = {
+	recordId: BN;
+	lastTs: BN;
+	lastSlot: BN;
+	ts: BN;
+	slot: BN;
+	perpMarketIndex: number;
+	settleToLpAmount: BN;
+	perpAmmPnlDelta: BN;
+	perpAmmExFeeDelta: BN;
+	lpAum: BN;
+	lpPrice: BN;
+};
+
 export type StateAccount = {
 	admin: PublicKey;
 	exchangeStatus: number;
@@ -756,6 +828,7 @@ export type StateAccount = {
 	initialPctToLiquidate: number;
 	liquidationDuration: number;
 	maxInitializeUserFee: number;
+	featureBitFlags: number;
 };
 
 export type PerpMarketAccount = {
@@ -802,6 +875,7 @@ export type PerpMarketAccount = {
 	highLeverageMarginRatioMaintenance: number;
 	protectedMakerLimitPriceDivisor: number;
 	protectedMakerDynamicDivisor: number;
+	lastFillPrice: BN;
 };
 
 export type HistoricalOracleData = {
@@ -948,7 +1022,7 @@ export type AMM = {
 	totalFeeMinusDistributions: BN;
 	totalFeeWithdrawn: BN;
 	totalFee: BN;
-	totalFeeEarnedPerLp: BN;
+	mmOracleSequenceId: BN;
 	userLpShares: BN;
 	baseAssetAmountWithUnsettledLp: BN;
 	orderStepSize: BN;
@@ -993,13 +1067,12 @@ export type AMM = {
 
 	markStd: BN;
 	oracleStd: BN;
-	longIntensityCount: number;
 	longIntensityVolume: BN;
-	shortIntensityCount: number;
 	shortIntensityVolume: BN;
 	volume24H: BN;
 	minOrderSize: BN;
-	maxPositionSize: BN;
+	mmOraclePrice: BN;
+	mmOracleSlot: BN;
 
 	bidBaseAssetReserve: BN;
 	bidQuoteAssetReserve: BN;
@@ -1014,6 +1087,8 @@ export type AMM = {
 	takerSpeedBumpOverride: number;
 	ammSpreadAdjustment: number;
 	ammInventorySpreadAdjustment: number;
+
+	lastFundingOracleTwap: BN;
 };
 
 // # User Account Types
@@ -1029,7 +1104,9 @@ export type PerpPosition = {
 	openAsks: BN;
 	settledPnl: BN;
 	lpShares: BN;
+	/**	 TODO: remove this field - it doesn't exist on chain */
 	remainderBaseAssetAmount: number;
+	maxMarginRatio: number;
 	lastBaseAssetAmountPerLp: BN;
 	lastQuoteAssetAmountPerLp: BN;
 	perLpBase: number;
@@ -1232,6 +1309,7 @@ export type SignedMsgOrderParamsMessage = {
 	uuid: Uint8Array;
 	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
+	maxMarginRatio?: number | null;
 };
 
 export type SignedMsgOrderParamsDelegateMessage = {
@@ -1241,6 +1319,7 @@ export type SignedMsgOrderParamsDelegateMessage = {
 	takerPubkey: PublicKey;
 	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
+	maxMarginRatio?: number | null;
 };
 
 export type SignedMsgTriggerOrderParams = {

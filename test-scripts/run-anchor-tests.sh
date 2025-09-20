@@ -37,9 +37,7 @@ test_files=(
   ifRebalance.ts
   insuranceFundStake.ts
   liquidateBorrowForPerpPnl.ts
-  liquidateMaxLps.ts
   liquidatePerp.ts
-  liquidatePerpAndLp.ts
   liquidatePerpWithFill.ts
   liquidatePerpPnlForDeposit.ts
   liquidateSpot.ts
@@ -71,6 +69,7 @@ test_files=(
   referrer.ts
   roundInFavorBaseAsset.ts
   serumTest.ts
+  settlePNLInvariant.ts
   spotDepositWithdraw.ts
   spotDepositWithdraw22.ts
   spotDepositWithdraw22TransferHooks.ts

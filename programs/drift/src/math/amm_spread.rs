@@ -458,24 +458,24 @@ pub fn calculate_spread(
         let adjustment: u64 = amm_inventory_spread_adjustment
             .cast::<i64>()?
             .unsigned_abs();
-        long_spread = long_vol_spread.max(
+        long_spread = max(half_base_spread_u64, long_vol_spread).max(
             long_spread
                 .saturating_sub(long_spread.saturating_mul(adjustment).safe_div(100)?)
                 .max(1),
         );
-        short_spread = short_vol_spread.max(
+        short_spread = max(half_base_spread_u64, short_vol_spread).max(
             short_spread
                 .saturating_sub(short_spread.saturating_mul(adjustment).safe_div(100)?)
                 .max(1),
         );
     } else if amm_inventory_spread_adjustment > 0 {
         let adjustment = amm_inventory_spread_adjustment.cast()?;
-        long_spread = long_vol_spread.max(
+        long_spread = max(half_base_spread_u64, long_vol_spread).max(
             long_spread
                 .saturating_add(long_spread.saturating_mul(adjustment).safe_div_ceil(100)?)
                 .max(1),
         );
-        short_spread = short_vol_spread.max(
+        short_spread = max(half_base_spread_u64, short_vol_spread).max(
             short_spread
                 .saturating_add(short_spread.saturating_mul(adjustment).safe_div_ceil(100)?)
                 .max(1),

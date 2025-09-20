@@ -136,12 +136,12 @@ pub fn validate_price_bands_for_swap(
 
     validate_fill_price_within_price_bands(
         fill_price,
-        direction,
         oracle_price,
         oracle_twap_5min,
         margin_ratio,
         oracle_twap_5min_percent_divergence,
         false,
+        Some(direction),
     )?;
 
     Ok(())

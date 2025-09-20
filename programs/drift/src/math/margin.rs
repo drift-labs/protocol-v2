@@ -238,7 +238,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
     }
 
     let user_pool_id = user.pool_id;
-    let user_high_leverage_mode = user.is_high_leverage_mode();
+    let user_high_leverage_mode = user.is_high_leverage_mode(context.margin_type);
 
     for spot_position in user.spot_positions.iter() {
         validation::position::validate_spot_position(spot_position)?;
@@ -904,7 +904,6 @@ pub fn get_margin_calculation_for_disable_high_leverage_mode(
     oracle_map: &mut OracleMap,
 ) -> DriftResult<MarginCalculation> {
     let custom_margin_ratio_before = user.max_margin_ratio;
-    
 
     let mut perp_position_max_margin_ratio_map = BTreeMap::new();
     for (index, position) in user.perp_positions.iter_mut().enumerate() {
@@ -926,8 +925,8 @@ pub fn get_margin_calculation_for_disable_high_leverage_mode(
     )?;
 
     user.max_margin_ratio = custom_margin_ratio_before;
-    for (index, position) in perp_position_max_margin_ratio_map.iter() {
-        user.perp_positions[*index].max_margin_ratio = *position;
+    for (index, perp_position_max_margin_ratio) in perp_position_max_margin_ratio_map.iter() {
+        user.perp_positions[*index].max_margin_ratio = *perp_position_max_margin_ratio;
     }
 
     Ok(margin_calc)

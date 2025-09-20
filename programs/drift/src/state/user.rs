@@ -559,8 +559,10 @@ impl User {
         false
     }
 
-    pub fn is_high_leverage_mode(&self) -> bool {
+    pub fn is_high_leverage_mode(&self, margin_type: MarginRequirementType) -> bool {
         self.margin_mode == MarginMode::HighLeverage
+            || (margin_type == MarginRequirementType::Maintenance
+                && self.margin_mode == MarginMode::HighLeverageMaintenance)
     }
 
     pub fn get_fuel_bonus_numerator(&self, now: i64) -> DriftResult<i64> {
@@ -733,6 +735,27 @@ impl User {
 
         return Ok(true);
     }
+
+    pub fn update_perp_position_max_margin_ratio(
+        &mut self,
+        market_index: u16,
+        margin_ratio: u16,
+    ) -> DriftResult<()> {
+        if self.max_margin_ratio > margin_ratio as u32 {
+            msg!("user.max_margin_ratio ({}) > margin_ratio ({}), setting user.max_margin_ratio to margin_ratio", self.max_margin_ratio, margin_ratio);
+            self.max_margin_ratio = margin_ratio as u32;
+        }
+
+        let perp_position = self.force_get_perp_position_mut(market_index)?;
+        msg!(
+            "perp_position.max_margin_ratio ({}) -> {}",
+            perp_position.max_margin_ratio,
+            margin_ratio
+        );
+        perp_position.max_margin_ratio = margin_ratio;
+
+        Ok(())
+    }
 }
 
 pub fn derive_user_account(authority: &Pubkey, sub_account_id: u16) -> Pubkey {
@@ -779,10 +802,10 @@ pub struct SpotPosition {
     /// interest of corresponding market.
     /// precision: SPOT_BALANCE_PRECISION
     pub scaled_balance: u64,
-    /// How many spot bids the user has open
+    /// How many spot non reduce only trigger orders the user has open
     /// precision: token mint precision
     pub open_bids: i64,
-    /// How many spot asks the user has open
+    /// How many spot non reduce only trigger orders the user has open
     /// precision: token mint precision
     pub open_asks: i64,
     /// The cumulative deposits/borrows a user has made into a market
@@ -1052,10 +1075,10 @@ pub struct PerpPosition {
     /// Updated when the user open/closes position. Excludes fees/funding
     /// precision: QUOTE_PRECISION
     pub quote_entry_amount: i64,
-    /// The amount of open bids the user has in this perp market
+    /// The amount of non reduce only trigger orders the user has open
     /// precision: BASE_PRECISION
     pub open_bids: i64,
-    /// The amount of open asks the user has in this perp market
+    /// The amount of non reduce only trigger orders the user has open
     /// precision: BASE_PRECISION
     pub open_asks: i64,
     /// The amount of pnl settled in this market since opening the position
@@ -1554,8 +1577,7 @@ impl Order {
             }
         };
 
-        // if order is post only, can disregard reduce only
-        if !self.reduce_only || self.post_only {
+        if !self.reduce_only {
             return Ok(base_asset_amount_unfilled);
         }
 
@@ -1661,6 +1683,12 @@ impl Order {
     pub fn is_available(&self) -> bool {
         self.status != OrderStatus::Open
     }
+
+    pub fn update_open_bids_and_asks(&self) -> bool {
+        !self.must_be_triggered()
+            || (self.triggered()
+                && !(self.reduce_only && self.is_bit_flag_set(OrderBitFlag::NewTriggerReduceOnly)))
+    }
 }
 
 impl Default for Order {
@@ -1749,6 +1777,7 @@ pub enum OrderBitFlag {
     SignedMessage = 0b00000001,
     OracleTriggerMarket = 0b00000010,
     SafeTriggerOrder = 0b00000100,
+    NewTriggerReduceOnly = 0b00001000,
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
@@ -2176,6 +2205,7 @@ pub enum MarginMode {
     #[default]
     Default,
     HighLeverage,
+    HighLeverageMaintenance,
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]

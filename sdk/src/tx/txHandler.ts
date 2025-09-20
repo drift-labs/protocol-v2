@@ -133,6 +133,10 @@ export class TxHandler {
 		this.preSignedCb = props.opts?.preSignedCb;
 	}
 
+	public getWallet() {
+		return this.wallet;
+	}
+
 	private addHashAndExpiryToLookup(
 		hashAndExpiry: BlockhashWithExpiryBlockHeight
 	) {

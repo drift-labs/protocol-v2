@@ -1,4 +1,6 @@
+import { BN } from '@coral-xyz/anchor';
 import {
+	MarginMode,
 	MarketType,
 	Order,
 	OrderStatus,
@@ -11,8 +13,7 @@ import {
 	UserAccount,
 } from '../types';
 import { PublicKey } from '@solana/web3.js';
-import { BN, MarginMode } from '../';
-import { ZERO } from '../';
+import { ZERO } from '../constants/numericConstants';
 
 function readUnsignedBigInt64LE(buffer: Buffer, offset: number): BN {
 	return new BN(buffer.subarray(offset, offset + 8), 10, 'le');
@@ -110,7 +111,7 @@ export function decodeUser(buffer: Buffer): UserAccount {
 		offset += 8;
 		const lastQuoteAssetAmountPerLp = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
-		const remainderBaseAssetAmount = buffer.readInt32LE(offset);
+		const maxMarginRatio = buffer.readUInt16LE(offset);
 		offset += 4;
 		const marketIndex = buffer.readUInt16LE(offset);
 		offset += 3;
@@ -127,12 +128,13 @@ export function decodeUser(buffer: Buffer): UserAccount {
 			openAsks,
 			settledPnl,
 			lpShares,
+			remainderBaseAssetAmount: 0,
 			lastBaseAssetAmountPerLp,
 			lastQuoteAssetAmountPerLp,
-			remainderBaseAssetAmount,
 			marketIndex,
 			openOrders,
 			perLpBase,
+			maxMarginRatio,
 		});
 	}
 
@@ -336,8 +338,15 @@ export function decodeUser(buffer: Buffer): UserAccount {
 	const marginModeNum = buffer.readUInt8(offset);
 	if (marginModeNum === 0) {
 		marginMode = MarginMode.DEFAULT;
-	} else {
+	} else if (marginModeNum === 1) {
 		marginMode = MarginMode.HIGH_LEVERAGE;
+	} else if (marginModeNum === 2) {
+		marginMode = MarginMode.HIGH_LEVERAGE_MAINTENANCE;
+	} else {
+		console.error(
+			`Detected unknown margin mode: ${marginModeNum}. Please update @drift-labs/sdk for latest IDL.`
+		);
+		marginMode = MarginMode.DEFAULT;
 	}
 	offset += 1;
 

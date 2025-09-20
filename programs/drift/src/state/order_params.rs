@@ -850,6 +850,10 @@ impl OrderParams {
     pub fn is_max_leverage_order(&self) -> bool {
         self.base_asset_amount == u64::MAX
     }
+
+    pub fn is_trigger_order(&self) -> bool {
+        self.order_type == OrderType::TriggerMarket || self.order_type == OrderType::TriggerLimit
+    }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
@@ -860,6 +864,7 @@ pub struct SignedMsgOrderParamsMessage {
     pub uuid: [u8; 8],
     pub take_profit_order_params: Option<SignedMsgTriggerOrderParams>,
     pub stop_loss_order_params: Option<SignedMsgTriggerOrderParams>,
+    pub max_margin_ratio: Option<u16>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
@@ -870,6 +875,7 @@ pub struct SignedMsgOrderParamsDelegateMessage {
     pub uuid: [u8; 8],
     pub take_profit_order_params: Option<SignedMsgTriggerOrderParams>,
     pub stop_loss_order_params: Option<SignedMsgTriggerOrderParams>,
+    pub max_margin_ratio: Option<u16>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]

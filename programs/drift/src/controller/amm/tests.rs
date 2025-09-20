@@ -133,6 +133,7 @@ fn formualic_k_tests() {
         confidence: 0,
         delay: 2,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
 
     // zero funding cost
@@ -192,6 +193,7 @@ fn iterative_bounds_formualic_k_tests() {
         confidence: 0,
         delay: 2,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
 
     // negative funding cost
@@ -236,6 +238,7 @@ fn iterative_no_bounds_formualic_k_tests() {
         confidence: 0,
         delay: 2,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
 
     // negative funding cost

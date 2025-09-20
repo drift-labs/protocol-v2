@@ -1,27 +1,30 @@
+import { BN } from '@coral-xyz/anchor';
 import {
 	BASE_PRECISION,
-	BN,
+	QUOTE_PRECISION,
+	ZERO,
+	PRICE_PRECISION,
+	AMM_TO_QUOTE_PRECISION_RATIO,
+} from '../constants/numericConstants';
+import {
 	calculateAmmReservesAfterSwap,
 	calculateMarketOpenBidAsk,
 	calculateQuoteAssetAmountSwapped,
 	calculateSpreadReserves,
 	calculateUpdatedAMM,
-	DLOBNode,
-	isOperationPaused,
+} from '../math/amm';
+import { DLOBNode } from './DLOBNode';
+import { isOperationPaused } from '../math/exchangeStatus';
+import {
 	isVariant,
-	OraclePriceData,
 	PerpMarketAccount,
 	PerpOperation,
 	PositionDirection,
-	QUOTE_PRECISION,
-	standardizePrice,
 	SwapDirection,
-	ZERO,
-	PRICE_PRECISION,
-	AMM_TO_QUOTE_PRECISION_RATIO,
-	standardizeBaseAssetAmount,
-} from '..';
+} from '../types';
+import { MMOraclePriceData, OraclePriceData } from '../oracles/types';
 import { PublicKey } from '@solana/web3.js';
+import { standardizeBaseAssetAmount, standardizePrice } from '../math/orders';
 
 type liquiditySource =
 	| 'serum'
@@ -75,22 +78,28 @@ export const MAJORS_TOP_OF_BOOK_QUOTE_AMOUNTS = [
 	new BN(50000).mul(QUOTE_PRECISION),
 ];
 
+const INDICATIVE_QUOTES_PUBKEY = 'inDNdu3ML4vG5LNExqcwuCQtLcCU8KfK5YM2qYV3JJz';
+
 /**
  * Get an {@link Generator<L2Level>} generator from a {@link Generator<DLOBNode>}
  * @param dlobNodes e.g. {@link DLOB#getRestingLimitAsks} or {@link DLOB#getRestingLimitBids}
  * @param oraclePriceData
  * @param slot
  */
-const INDICATIVE_QUOTES_PUBKEY = 'inDNdu3ML4vG5LNExqcwuCQtLcCU8KfK5YM2qYV3JJz';
 export function* getL2GeneratorFromDLOBNodes(
 	dlobNodes: Generator<DLOBNode>,
 	oraclePriceData: OraclePriceData,
 	slot: number
 ): Generator<L2Level> {
 	for (const dlobNode of dlobNodes) {
-		const size = dlobNode.order.baseAssetAmount.sub(
+		const size = dlobNode.baseAssetAmount.sub(
 			dlobNode.order.baseAssetAmountFilled
 		) as BN;
+
+		if (size.lte(ZERO)) {
+			continue;
+		}
+
 		yield {
 			size,
 			price: dlobNode.getPrice(oraclePriceData, slot),
@@ -169,18 +178,20 @@ export function createL2Levels(
 
 export function getVammL2Generator({
 	marketAccount,
-	oraclePriceData,
+	mmOraclePriceData,
 	numOrders,
 	now = new BN(Math.floor(Date.now() / 1000)),
 	topOfBookQuoteAmounts = [],
+	latestSlot,
 }: {
 	marketAccount: PerpMarketAccount;
-	oraclePriceData: OraclePriceData;
+	mmOraclePriceData: MMOraclePriceData;
 	numOrders: number;
 	now?: BN;
 	topOfBookQuoteAmounts?: BN[];
+	latestSlot?: BN;
 }): L2OrderBookGenerator {
-	const updatedAmm = calculateUpdatedAMM(marketAccount.amm, oraclePriceData);
+	const updatedAmm = calculateUpdatedAMM(marketAccount.amm, mmOraclePriceData);
 	const paused = isOperationPaused(
 		marketAccount.pausedOperations,
 		PerpOperation.AMM_FILL
@@ -200,16 +211,17 @@ export function getVammL2Generator({
 
 	const [bidReserves, askReserves] = calculateSpreadReserves(
 		updatedAmm,
-		oraclePriceData,
+		mmOraclePriceData,
 		now,
-		isVariant(marketAccount.contractType, 'prediction')
+		isVariant(marketAccount.contractType, 'prediction'),
+		latestSlot
 	);
 
 	const numBaseOrders = Math.max(1, numOrders - topOfBookQuoteAmounts.length);
 	const commonOpts = {
 		numOrders,
 		numBaseOrders,
-		oraclePriceData,
+		mmOraclePriceData,
 		orderTickSize: marketAccount.amm.orderTickSize,
 		orderStepSize: marketAccount.amm.orderStepSize,
 		pegMultiplier: updatedAmm.pegMultiplier,
@@ -244,7 +256,7 @@ export function getVammL2Generator({
 					const raw = commonOpts.topOfBookQuoteAmounts[count]
 						.mul(AMM_TO_QUOTE_PRECISION_RATIO)
 						.mul(PRICE_PRECISION)
-						.div(commonOpts.oraclePriceData.price);
+						.div(commonOpts.mmOraclePriceData.price);
 					baseSwap = standardizeBaseAssetAmount(raw, commonOpts.orderStepSize);
 					const remaining = openLiquidity.abs().sub(topSize);
 					if (remaining.lt(baseSwap)) baseSwap = remaining;

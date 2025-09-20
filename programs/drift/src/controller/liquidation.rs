@@ -214,10 +214,15 @@ pub fn liquidate_perp(
 
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = oracle_map.get_price_data(&market.oracle_id())?;
+    let mm_oracle_price_data = market.get_mm_oracle_price_data(
+        *oracle_price_data,
+        slot,
+        &state.oracle_guard_rails.validity,
+    )?;
 
     update_amm_and_check_validity(
         &mut market,
-        oracle_price_data,
+        &mm_oracle_price_data,
         state,
         now,
         slot,
@@ -329,7 +334,7 @@ pub fn liquidate_perp(
     let margin_ratio = perp_market_map.get_ref(&market_index)?.get_margin_ratio(
         user_base_asset_amount.cast()?,
         MarginRequirementType::Maintenance,
-        user.is_high_leverage_mode(),
+        user.is_high_leverage_mode(MarginRequirementType::Maintenance),
     )?;
 
     let margin_ratio_with_buffer = margin_ratio.safe_add(liquidation_margin_buffer_ratio)?;
@@ -343,7 +348,9 @@ pub fn liquidate_perp(
         .price;
 
     let liquidator_fee = get_liquidation_fee(
-        market.get_base_liquidator_fee(user.is_high_leverage_mode()),
+        market.get_base_liquidator_fee(
+            user.is_high_leverage_mode(MarginRequirementType::Maintenance),
+        ),
         market.get_max_liquidation_fee()?,
         user.last_active_slot,
         slot,
@@ -684,6 +691,7 @@ pub fn liquidate_perp(
         taker_existing_base_asset_amount: taker_existing_base_asset_amount,
         maker_existing_quote_entry_amount: maker_existing_quote_entry_amount,
         maker_existing_base_asset_amount: maker_existing_base_asset_amount,
+        trigger_price: None,
     };
     emit!(fill_record);
 
@@ -851,10 +859,15 @@ pub fn liquidate_perp_with_fill(
 
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
     let oracle_price_data = oracle_map.get_price_data(&market.oracle_id())?;
+    let mm_oracle_price_data = market.get_mm_oracle_price_data(
+        *oracle_price_data,
+        slot,
+        &state.oracle_guard_rails.validity,
+    )?;
 
     update_amm_and_check_validity(
         &mut market,
-        oracle_price_data,
+        &mm_oracle_price_data,
         state,
         now,
         slot,
@@ -950,7 +963,7 @@ pub fn liquidate_perp_with_fill(
     let margin_ratio = perp_market_map.get_ref(&market_index)?.get_margin_ratio(
         user_base_asset_amount.cast()?,
         MarginRequirementType::Maintenance,
-        user.is_high_leverage_mode(),
+        user.is_high_leverage_mode(MarginRequirementType::Maintenance),
     )?;
 
     let margin_ratio_with_buffer = margin_ratio.safe_add(liquidation_margin_buffer_ratio)?;
