@@ -618,7 +618,6 @@ mod update_perp_auction_params {
             Some(98 * PRICE_PRECISION_I64)
         );
         assert_eq!(order_params_after.auction_duration, Some(127));
-
     }
 
     #[test]
@@ -1042,7 +1041,7 @@ mod update_perp_auction_params {
         assert_ne!(order_params_before, order_params_after);
         assert_eq!(
             order_params_after.auction_start_price.unwrap(),
-            (99 * PRICE_PRECISION_I64 - oracle_price / 400  + 18698) // approx equal with some noise
+            (99 * PRICE_PRECISION_I64 - oracle_price / 400 + 18698) // approx equal with some noise
         );
 
         let order_params_before = OrderParams {
