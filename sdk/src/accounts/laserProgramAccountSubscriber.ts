@@ -5,13 +5,13 @@ import * as Buffer from 'buffer';
 import { WebSocketProgramAccountSubscriber } from './webSocketProgramAccountSubscriber';
 
 import {
-	CommitmentLevel as LaserCommitmentLevel,
-	subscribe as LaserSubscribe,
+	LaserCommitmentLevel,
+	LaserSubscribe,
 	LaserstreamConfig,
-	SubscribeRequest,
-	SubscribeUpdate,
+	LaserSubscribeRequest,
+	LaserSubscribeUpdate,
 	CompressionAlgorithms,
-} from 'helius-laserstream';
+} from '../isomorphic/grpc.node';
 import { CommitmentLevel } from '@triton-one/yellowstone-grpc';
 
 type LaserCommitment =
@@ -24,7 +24,7 @@ export class LaserstreamProgramAccountSubscriber<
 		| {
 				id: string;
 				cancel: () => void;
-				write?: (req: SubscribeRequest) => Promise<void>;
+				write?: (req: LaserSubscribeRequest) => Promise<void>;
 		  }
 		| undefined;
 
@@ -66,6 +66,8 @@ export class LaserstreamProgramAccountSubscriber<
 		},
 		resubOpts?: ResubOpts
 	): Promise<LaserstreamProgramAccountSubscriber<U>> {
+		console.log('using laser stream client');
+
 		const laserConfig: LaserstreamConfig = {
 			apiKey: grpcConfigs.token,
 			endpoint: grpcConfigs.endpoint,
@@ -112,7 +114,7 @@ export class LaserstreamProgramAccountSubscriber<
 			};
 		});
 
-		const request: SubscribeRequest = {
+		const request: LaserSubscribeRequest = {
 			slots: {},
 			accounts: {
 				drift: {
@@ -134,7 +136,7 @@ export class LaserstreamProgramAccountSubscriber<
 			const stream = await LaserSubscribe(
 				this.laserConfig,
 				request,
-				async (update: SubscribeUpdate) => {
+				async (update: LaserSubscribeUpdate) => {
 					if (update.account) {
 						const slot = Number(update.account.slot);
 						const acc = update.account.account;

@@ -2794,50 +2794,50 @@ he@^1.2.0:
   resolved "https://registry.yarnpkg.com/he/-/he-1.2.0.tgz#84ae65fa7eafb165fddb61566ae14baf05664f0f"
   integrity sha512-F/1DnUGPopORZi0ni+CvrCgHQ5FyEAHRLSApuYWMmrbSwoN2Mn/7k+Gl38gJnR7yyDZk6WLXwiGod1JOWNDKGw==
 
-helius-laserstream-darwin-arm64@0.1.7:
-  version "0.1.7"
-  resolved "https://registry.yarnpkg.com/helius-laserstream-darwin-arm64/-/helius-laserstream-darwin-arm64-0.1.7.tgz#c84df402bdb8a2159bcfc2711bf2b64fe09edd24"
-  integrity sha512-oMkt6qr7EQLfgiOCVO/9lTQLi8futBVqhUSRvsCmYcAqmaFNsvmf+/rRVq/o56+iq0PseqV6DcRF+5s88tYEIg==
+helius-laserstream-darwin-arm64@0.1.8:
+  version "0.1.8"
+  resolved "https://registry.yarnpkg.com/helius-laserstream-darwin-arm64/-/helius-laserstream-darwin-arm64-0.1.8.tgz#d78ad15e6cd16dc9379a9a365f9fcb3f958e6c01"
+  integrity sha512-p/K2Mi3wZnMxEYSLCvu858VyMvtJFonhdF8cLaMcszFv04WWdsK+hINNZpVRfakypvDfDPbMudEhL1Q9USD5+w==
 
-helius-laserstream-darwin-x64@0.1.7:
-  version "0.1.7"
-  resolved "https://registry.yarnpkg.com/helius-laserstream-darwin-x64/-/helius-laserstream-darwin-x64-0.1.7.tgz#fe15b0513a8d1f55075f27b1a5836bf73ec470ff"
-  integrity sha512-88utpg/ZMtsnF9RX268D50fl6B3kQOFS0nCzoenS1CwMvMprTqHSEDqYFgBX8O7t52gox5aw8+x3XqhHX0fIMQ==
+helius-laserstream-darwin-x64@0.1.8:
+  version "0.1.8"
+  resolved "https://registry.yarnpkg.com/helius-laserstream-darwin-x64/-/helius-laserstream-darwin-x64-0.1.8.tgz#e57bc8f03135fd3b5c01a5aebd7b87c42129da50"
+  integrity sha512-Hd5irFyfOqQZLdoj5a+OV7vML2YfySSBuKlOwtisMHkUuIXZ4NpAexslDmK7iP5VWRI+lOv9X/tA7BhxW7RGSQ==
 
-helius-laserstream-linux-arm64-gnu@0.1.7:
-  version "0.1.7"
-  resolved "https://registry.yarnpkg.com/helius-laserstream-linux-arm64-gnu/-/helius-laserstream-linux-arm64-gnu-0.1.7.tgz#cc7a636bc12961d314a4c46008d63f4fb6fe6b03"
-  integrity sha512-4YQuISaa3OWOBQCUnslT+HguuGRMO1KRQeWSjtuSHDYn7oO/KXePCtEo9vqnQx7HtQFDnS1/kuFExIa2L4Sp2w==
+helius-laserstream-linux-arm64-gnu@0.1.8:
+  version "0.1.8"
+  resolved "https://registry.yarnpkg.com/helius-laserstream-linux-arm64-gnu/-/helius-laserstream-linux-arm64-gnu-0.1.8.tgz#1b3c8440804d143f650166842620fc334f9c319b"
+  integrity sha512-PlPm1dvOvTGBL1nuzK98Xe40BJq1JWNREXlBHKDVA/B+KCGQnIMJ1s6e1MevSvFE7SOix5i1BxhYIxGioK2GMg==
 
-helius-laserstream-linux-arm64-musl@0.1.7:
-  version "0.1.7"
-  resolved "https://registry.yarnpkg.com/helius-laserstream-linux-arm64-musl/-/helius-laserstream-linux-arm64-musl-0.1.7.tgz#96dcf87b855698e9f28214d96031d0934324db45"
-  integrity sha512-VyN/5nzqUtBN88PLDIMVJmFDgImMCL1sjBWKf49ppAWKN3LVvYVYT8tGMi4nzb5vj7ObduIi1ZZ+cGWNM6H2kA==
+helius-laserstream-linux-arm64-musl@0.1.8:
+  version "0.1.8"
+  resolved "https://registry.yarnpkg.com/helius-laserstream-linux-arm64-musl/-/helius-laserstream-linux-arm64-musl-0.1.8.tgz#28e0645bebc3253d2a136cf0bd13f8cb5256f47b"
+  integrity sha512-LFadfMRuTd1zo6RZqLTgHQapo3gJYioS7wFMWFoBOFulG0BpAqHEDNobkxx0002QArw+zX29MQ/5OaOCf8kKTA==
 
-helius-laserstream-linux-x64-gnu@0.1.7:
-  version "0.1.7"
-  resolved "https://registry.yarnpkg.com/helius-laserstream-linux-x64-gnu/-/helius-laserstream-linux-x64-gnu-0.1.7.tgz#0bcaed9697b975033e86a74ab4d734ee3d4d3e1c"
-  integrity sha512-0//p5wlITWbWKBaW2CIYfS3/9fBJCvMn8fBvBKot28psIWSQ6Uc5u/IqS2ls438NvTiEvBp6pgScWoYHXKU+VQ==
+helius-laserstream-linux-x64-gnu@0.1.8:
+  version "0.1.8"
+  resolved "https://registry.yarnpkg.com/helius-laserstream-linux-x64-gnu/-/helius-laserstream-linux-x64-gnu-0.1.8.tgz#e59990ca0bcdc27e46f71a8fc2c18fddbe6f07e3"
+  integrity sha512-IZWK/OQIe0647QqfYikLb1DFK+nYtXLJiMcpj24qnNVWBOtMXmPc1hL6ebazdEiaKt7fxNd5IiM1RqeaqZAZMw==
 
-helius-laserstream-linux-x64-musl@0.1.7:
-  version "0.1.7"
-  resolved "https://registry.yarnpkg.com/helius-laserstream-linux-x64-musl/-/helius-laserstream-linux-x64-musl-0.1.7.tgz#6c38ca7f97bd1ff46947794fd907ecd8492a0249"
-  integrity sha512-4VFxsKE+X3Jj/DBrdKQCUs/6ljuYadiPrF5QBMIyaflzZka/hOOvd2bDAo8Bi9/qGGCCaJG6F3U3OFKGKSiE9w==
+helius-laserstream-linux-x64-musl@0.1.8:
+  version "0.1.8"
+  resolved "https://registry.yarnpkg.com/helius-laserstream-linux-x64-musl/-/helius-laserstream-linux-x64-musl-0.1.8.tgz#42aa0919ef266c40f50ac74d6f9d871d4e2e7c9c"
+  integrity sha512-riTS6VgxDae1fHOJ2XC/o/v1OZRbEv/3rcoa3NlAOnooDKp5HDgD0zJTcImjQHpYWwGaejx1oX/Ht53lxNoijw==
 
-helius-laserstream@^0.1.7:
-  version "0.1.7"
-  resolved "https://registry.yarnpkg.com/helius-laserstream/-/helius-laserstream-0.1.7.tgz#67f9d570f56ba9bb801d210ebff5e9cf1cc97faa"
-  integrity sha512-xsCbc8dApJpLb6OShOCeJ5/6pQMdGk6sQojEgihTNGZaGhaAzwYzJcxL5q4uszE3qG/viJO67Mi/MxArDb+QaQ==
+helius-laserstream@0.1.8:
+  version "0.1.8"
+  resolved "https://registry.yarnpkg.com/helius-laserstream/-/helius-laserstream-0.1.8.tgz#6ee5e0bc9fe2560c03a0d2c9079b9f875c3e6bb7"
+  integrity sha512-jXQkwQRWiowbVPGQrGacOkI5shKPhrEixCu93OpoMtL5fs9mnhtD7XKMPi8CX0W8gsqsJjwR4NlaR+EflyANbQ==
   dependencies:
     "@types/protobufjs" "^6.0.0"
     protobufjs "^7.5.3"
   optionalDependencies:
-    helius-laserstream-darwin-arm64 "0.1.7"
-    helius-laserstream-darwin-x64 "0.1.7"
-    helius-laserstream-linux-arm64-gnu "0.1.7"
-    helius-laserstream-linux-arm64-musl "0.1.7"
-    helius-laserstream-linux-x64-gnu "0.1.7"
-    helius-laserstream-linux-x64-musl "0.1.7"
+    helius-laserstream-darwin-arm64 "0.1.8"
+    helius-laserstream-darwin-x64 "0.1.8"
+    helius-laserstream-linux-arm64-gnu "0.1.8"
+    helius-laserstream-linux-arm64-musl "0.1.8"
+    helius-laserstream-linux-x64-gnu "0.1.8"
+    helius-laserstream-linux-x64-musl "0.1.8"
 
 humanize-ms@^1.2.1:
   version "1.2.1"
