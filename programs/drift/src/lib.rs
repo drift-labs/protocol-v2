@@ -725,6 +725,7 @@ pub mod drift {
         handle_update_spot_market_expiry(ctx, expiry_ts)
     }
 
+    // IF stakers
     pub fn update_user_quote_asset_insurance_stake(
         ctx: Context<UpdateUserQuoteAssetInsuranceStake>,
     ) -> Result<()> {
@@ -742,15 +743,6 @@ pub mod drift {
     ) -> Result<()> {
         handle_update_delegate_user_gov_token_insurance_stake(ctx)
     }
-
-    pub fn update_user_gov_token_insurance_stake_devnet(
-        ctx: Context<UpdateUserGovTokenInsuranceStakeDevnet>,
-        gov_stake_amount: u64,
-    ) -> Result<()> {
-        handle_update_user_gov_token_insurance_stake_devnet(ctx, gov_stake_amount)
-    }
-
-    // IF stakers
 
     pub fn initialize_insurance_fund_stake(
         ctx: Context<InitializeInsuranceFundStake>,

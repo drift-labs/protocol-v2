@@ -14,14 +14,11 @@ use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 
 use crate::math::casting::Cast;
 use crate::math::margin::{
-    calculate_margin_requirement_and_total_collateral_and_liability_info,
     meets_maintenance_margin_requirement, meets_settle_pnl_maintenance_margin_requirement,
-    MarginRequirementType,
 };
 use crate::math::position::calculate_base_asset_value_with_expiry_price;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
-use crate::state::margin_calculation::MarginContext;
 
 use crate::msg;
 use crate::state::events::{OrderActionExplanation, SettlePnlExplanation, SettlePnlRecord};
