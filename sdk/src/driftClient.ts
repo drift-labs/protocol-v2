@@ -9240,7 +9240,7 @@ export class DriftClient {
 
 	public async updateUserGovTokenInsuranceStake(
 		authority: PublicKey,
-		txParams?: TxParams,
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const ix = await this.getUpdateUserGovTokenInsuranceStakeIx(authority);
 		const tx = await this.buildTransaction(ix, txParams);
