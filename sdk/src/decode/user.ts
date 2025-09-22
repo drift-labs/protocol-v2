@@ -338,8 +338,15 @@ export function decodeUser(buffer: Buffer): UserAccount {
 	const marginModeNum = buffer.readUInt8(offset);
 	if (marginModeNum === 0) {
 		marginMode = MarginMode.DEFAULT;
-	} else {
+	} else if (marginModeNum === 1) {
 		marginMode = MarginMode.HIGH_LEVERAGE;
+	} else if (marginModeNum === 2) {
+		marginMode = MarginMode.HIGH_LEVERAGE_MAINTENANCE;
+	} else {
+		console.error(
+			`Detected unknown margin mode: ${marginModeNum}. Please update @drift-labs/sdk for latest IDL.`
+		);
+		marginMode = MarginMode.DEFAULT;
 	}
 	offset += 1;
 

@@ -6541,6 +6541,10 @@ export class DriftClient {
 			| SignedMsgOrderParamsDelegateMessage,
 		delegateSigner?: boolean
 	): Buffer {
+		if (orderParamsMessage.maxMarginRatio === undefined) {
+			orderParamsMessage.maxMarginRatio = null;
+		}
+
 		const anchorIxName = delegateSigner
 			? 'global' + ':' + 'SignedMsgOrderParamsDelegateMessage'
 			: 'global' + ':' + 'SignedMsgOrderParamsMessage';
@@ -6561,7 +6565,10 @@ export class DriftClient {
 	}
 
 	/*
-	 * Decode signedMsg taker order params from borsh buffer
+	 * Decode signedMsg taker order params from borsh buffer. Zero pads the message in case the
+	 * received message was encoded by an outdated IDL (size will be too small and decode will throw).
+	 * Note: the 128 will be problematic if the type we are expecting to deserializze into is 128 bytes
+	 * larger than the message we are receiving (unlikely, especially if all new fields are Options).
 	 */
 	public decodeSignedMsgOrderParamsMessage(
 		encodedMessage: Buffer,
@@ -6572,7 +6579,10 @@ export class DriftClient {
 			: 'SignedMsgOrderParamsMessage';
 		return this.program.coder.types.decode(
 			decodeStr,
-			encodedMessage.slice(8) // assumes discriminator
+			Buffer.concat([
+				encodedMessage.slice(8), // strip out discriminator
+				Buffer.alloc(128), // pad on 128 bytes, this is most efficient way to messages that are too small
+			])
 		);
 	}
 
@@ -9230,13 +9240,9 @@ export class DriftClient {
 
 	public async updateUserGovTokenInsuranceStake(
 		authority: PublicKey,
-		txParams?: TxParams,
-		env: DriftEnv = 'mainnet-beta'
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
-		const ix =
-			env == 'mainnet-beta'
-				? await this.getUpdateUserGovTokenInsuranceStakeIx(authority)
-				: await this.getUpdateUserGovTokenInsuranceStakeDevnetIx(authority);
+		const ix = await this.getUpdateUserGovTokenInsuranceStakeIx(authority);
 		const tx = await this.buildTransaction(ix, txParams);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
@@ -9267,28 +9273,6 @@ export class DriftClient {
 				insuranceFundVault: spotMarket.insuranceFund.vault,
 			},
 		});
-
-		return ix;
-	}
-
-	public async getUpdateUserGovTokenInsuranceStakeDevnetIx(
-		authority: PublicKey,
-		amount: BN = new BN(1)
-	): Promise<TransactionInstruction> {
-		const userStatsPublicKey = getUserStatsAccountPublicKey(
-			this.program.programId,
-			authority
-		);
-
-		const ix = this.program.instruction.updateUserGovTokenInsuranceStakeDevnet(
-			amount,
-			{
-				accounts: {
-					userStats: userStatsPublicKey,
-					signer: this.wallet.publicKey,
-				},
-			}
-		);
 
 		return ix;
 	}

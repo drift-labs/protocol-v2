@@ -6,7 +6,9 @@ fi
 
 export ANCHOR_WALLET=~/.config/solana/id.json
 
-test_files=(admin.ts)
+test_files=(
+  spotDepositWithdraw22ScaledUI.ts
+)
 
 for test_file in ${test_files[@]}; do
   ts-mocha -t 300000 ./tests/${test_file}

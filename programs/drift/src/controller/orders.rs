@@ -48,9 +48,7 @@ use crate::math::spot_balance::{get_signed_token_amount, get_token_amount};
 use crate::math::spot_swap::select_margin_type_for_swap;
 use crate::math::{amm, fees, margin::*, orders::*};
 use crate::print_error;
-use crate::state::events::{
-    emit_stack, get_order_action_record, LPAction, LPRecord, OrderActionRecord, OrderRecord,
-};
+use crate::state::events::{emit_stack, get_order_action_record, OrderActionRecord, OrderRecord};
 use crate::state::events::{OrderAction, OrderActionExplanation};
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
@@ -985,23 +983,12 @@ pub fn fill_perp_order(
         .position(|order| order.order_id == order_id && order.status == OrderStatus::Open)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
 
-    let (
-        order_status,
-        market_index,
-        order_market_type,
-        order_price,
-        order_oracle_price_offset,
-        order_direction,
-        order_auction_duration,
-    ) = get_struct_values!(
+    let (order_status, market_index, order_market_type, order_direction) = get_struct_values!(
         user.orders[order_index],
         status,
         market_index,
         market_type,
-        price,
-        oracle_price_offset,
-        direction,
-        auction_duration
+        direction
     );
 
     validate!(
@@ -2246,7 +2233,7 @@ pub fn fulfill_perp_order_with_amm(
         filler_reward,
         referee_discount,
         referrer_reward,
-        fee_to_market_for_lp,
+        fee_to_market_for_lp: _fee_to_market_for_lp,
         maker_rebate,
     } = fees::calculate_fee_for_fulfillment_with_amm(
         user_stats,
@@ -2262,9 +2249,6 @@ pub fn fulfill_perp_order_with_amm(
         market.fee_adjustment,
         user.is_high_leverage_mode(MarginRequirementType::Initial),
     )?;
-
-    let user_position_delta =
-        get_position_delta_for_fill(base_asset_amount, quote_asset_amount, order_direction)?;
 
     // Increment the protocol's total fee variables
     market.amm.total_fee = market.amm.total_fee.safe_add(fee_to_market.cast()?)?;
