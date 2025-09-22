@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: auction order params account for twap divergence ([#1882](https://github.com/drift-labs/protocol-v2/pull/1882))
 - program: add delegate stake if ([#1859](https://github.com/drift-labs/protocol-v2/pull/1859))
 
 ### Fixes
