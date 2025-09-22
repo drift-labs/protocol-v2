@@ -66,8 +66,6 @@ export class LaserstreamProgramAccountSubscriber<
 		},
 		resubOpts?: ResubOpts
 	): Promise<LaserstreamProgramAccountSubscriber<U>> {
-		console.log('using laser stream client');
-
 		const laserConfig: LaserstreamConfig = {
 			apiKey: grpcConfigs.token,
 			endpoint: grpcConfigs.endpoint,
