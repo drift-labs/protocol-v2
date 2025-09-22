@@ -813,6 +813,14 @@ pub mod drift {
         handle_transfer_protocol_if_shares_to_revenue_pool(ctx, market_index, amount)
     }
 
+    pub fn deposit_into_insurance_fund_stake<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, DepositIntoInsuranceFundStake<'info>>,
+        market_index: u16,
+        amount: u64,
+    ) -> Result<()> {
+        handle_deposit_into_insurance_fund_stake(ctx, market_index, amount)
+    }
+
     pub fn update_pyth_pull_oracle(
         ctx: Context<UpdatePythPullOraclePriceFeed>,
         feed_id: [u8; 32],
