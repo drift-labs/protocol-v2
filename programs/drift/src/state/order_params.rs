@@ -748,7 +748,6 @@ impl OrderParams {
             }
         } else {
             // more than 50bps different of fast/slow twap, use fast only
-            crate::dlog!("hi", baseline_start_price_offset_slow, baseline_start_price_offset_fast);
             baseline_start_price_offset_fast
         };
 
