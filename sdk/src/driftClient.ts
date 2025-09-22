@@ -9325,13 +9325,9 @@ export class DriftClient {
 
 	public async updateUserGovTokenInsuranceStake(
 		authority: PublicKey,
-		txParams?: TxParams,
-		env: DriftEnv = 'mainnet-beta'
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
-		const ix =
-			env == 'mainnet-beta'
-				? await this.getUpdateUserGovTokenInsuranceStakeIx(authority)
-				: await this.getUpdateUserGovTokenInsuranceStakeDevnetIx(authority);
+		const ix = await this.getUpdateUserGovTokenInsuranceStakeIx(authority);
 		const tx = await this.buildTransaction(ix, txParams);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
@@ -9362,28 +9358,6 @@ export class DriftClient {
 				insuranceFundVault: spotMarket.insuranceFund.vault,
 			},
 		});
-
-		return ix;
-	}
-
-	public async getUpdateUserGovTokenInsuranceStakeDevnetIx(
-		authority: PublicKey,
-		amount: BN = new BN(1)
-	): Promise<TransactionInstruction> {
-		const userStatsPublicKey = getUserStatsAccountPublicKey(
-			this.program.programId,
-			authority
-		);
-
-		const ix = this.program.instruction.updateUserGovTokenInsuranceStakeDevnet(
-			amount,
-			{
-				accounts: {
-					userStats: userStatsPublicKey,
-					signer: this.wallet.publicKey,
-				},
-			}
-		);
 
 		return ix;
 	}

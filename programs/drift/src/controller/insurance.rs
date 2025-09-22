@@ -973,7 +973,7 @@ pub fn handle_if_begin_swap(
     out_insurance_fund_vault_amount: u64,
     in_spot_market: &mut SpotMarket,
     out_spot_market: &mut SpotMarket,
-    in_amount: u64,
+    _in_amount: u64,
     now: i64,
 ) -> DriftResult<()> {
     if now
@@ -1096,6 +1096,14 @@ pub fn handle_if_end_swap(
         "epoch_in_amount={} > epoch_max_in_amount={}",
         if_rebalance_config.epoch_in_amount,
         if_rebalance_config.epoch_max_in_amount
+    )?;
+
+    validate!(
+        if_rebalance_config.current_in_amount <= if_rebalance_config.total_in_amount,
+        ErrorCode::InvalidIfRebalanceSwap,
+        "current_in_amount={} > total_in_amount={}",
+        if_rebalance_config.current_in_amount,
+        if_rebalance_config.total_in_amount
     )?;
 
     let oracle_twap = out_spot_market

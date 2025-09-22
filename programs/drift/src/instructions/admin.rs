@@ -18,11 +18,12 @@ use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO, DEFAULT_LIQUIDATION_MARGIN_BUFFER_RATIO,
-    FEE_POOL_TO_REVENUE_POOL_THRESHOLD, IF_FACTOR_PRECISION, INSURANCE_A_MAX, INSURANCE_B_MAX,
-    INSURANCE_C_MAX, INSURANCE_SPECULATIVE_MAX, LIQUIDATION_FEE_PRECISION,
-    MAX_CONCENTRATION_COEFFICIENT, MAX_SQRT_K, MAX_UPDATE_K_PRICE_CHANGE, PERCENTAGE_PRECISION,
-    PERCENTAGE_PRECISION_I64, QUOTE_SPOT_MARKET_INDEX, SPOT_CUMULATIVE_INTEREST_PRECISION,
-    SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION, THIRTEEN_DAY, TWENTY_FOUR_HOUR,
+    FEE_POOL_TO_REVENUE_POOL_THRESHOLD, GOV_SPOT_MARKET_INDEX, IF_FACTOR_PRECISION,
+    INSURANCE_A_MAX, INSURANCE_B_MAX, INSURANCE_C_MAX, INSURANCE_SPECULATIVE_MAX,
+    LIQUIDATION_FEE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, MAX_SQRT_K,
+    MAX_UPDATE_K_PRICE_CHANGE, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I64,
+    QUOTE_SPOT_MARKET_INDEX, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_IMF_PRECISION,
+    SPOT_WEIGHT_PRECISION, THIRTEEN_DAY, TWENTY_FOUR_HOUR,
 };
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::helpers::get_proportion_u128;
@@ -45,6 +46,7 @@ use crate::state::fulfillment_params::serum::SerumContext;
 use crate::state::fulfillment_params::serum::SerumV3FulfillmentConfig;
 use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use crate::state::if_rebalance_config::{IfRebalanceConfig, IfRebalanceConfigParams};
+use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::insurance_fund_stake::ProtocolIfSharesTransferConfig;
 use crate::state::oracle::get_sb_on_demand_price;
 use crate::state::oracle::{
@@ -1601,7 +1603,6 @@ pub fn handle_recenter_perp_market_amm_crank(
     depth: Option<u128>,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    let spot_market = &mut load!(ctx.accounts.spot_market)?;
 
     let clock = Clock::get()?;
     let price_oracle = &ctx.accounts.oracle;
@@ -4780,9 +4781,6 @@ pub fn handle_initialize_if_rebalance_config(
     ctx: Context<InitializeIfRebalanceConfig>,
     params: IfRebalanceConfigParams,
 ) -> Result<()> {
-    let clock = Clock::get()?;
-    let now = clock.unix_timestamp;
-
     let pubkey = ctx.accounts.if_rebalance_config.to_account_info().key;
     let mut config = ctx.accounts.if_rebalance_config.load_init()?;
 
@@ -4916,6 +4914,39 @@ pub fn handle_update_feature_bit_flags_median_trigger_price(
         state.feature_bit_flags =
             state.feature_bit_flags & !(FeatureBitFlags::MedianTriggerPrice as u8);
     }
+    Ok(())
+}
+
+pub fn handle_update_delegate_user_gov_token_insurance_stake(
+    ctx: Context<UpdateDelegateUserGovTokenInsuranceStake>,
+) -> Result<()> {
+    let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
+    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+
+    validate!(
+        insurance_fund_stake.market_index == GOV_SPOT_MARKET_INDEX,
+        ErrorCode::IncorrectSpotMarketAccountPassed,
+        "insurance_fund_stake is not for governance market index = {}",
+        GOV_SPOT_MARKET_INDEX
+    )?;
+
+    if insurance_fund_stake.market_index == GOV_SPOT_MARKET_INDEX
+        && spot_market.market_index == GOV_SPOT_MARKET_INDEX
+    {
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+
+        crate::controller::insurance::update_user_stats_if_stake_amount(
+            0,
+            ctx.accounts.insurance_fund_vault.amount,
+            insurance_fund_stake,
+            user_stats,
+            spot_market,
+            now,
+        )?;
+    }
+
     Ok(())
 }
 
@@ -5758,6 +5789,30 @@ pub struct UpdateIfRebalanceConfig<'info> {
     pub admin: Signer<'info>,
     #[account(mut)]
     pub if_rebalance_config: AccountLoader<'info, IfRebalanceConfig>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateDelegateUserGovTokenInsuranceStake<'info> {
+    #[account(
+        mut,
+        seeds = [b"spot_market", 15_u16.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    pub insurance_fund_stake: AccountLoader<'info, InsuranceFundStake>,
+    #[account(mut)]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub admin: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"insurance_fund_vault".as_ref(), 15_u16.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         has_one = admin
     )]
