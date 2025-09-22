@@ -4008,6 +4008,9 @@ pub struct ResizeSignedMsgUserOrders<'info> {
     pub signed_msg_user_orders: Box<Account<'info, SignedMsgUserOrders>>,
     /// CHECK: authority
     pub authority: AccountInfo<'info>,
+    #[account(
+        has_one = authority
+    )]
     pub user: AccountLoader<'info, User>,
     #[account(mut)]
     pub payer: Signer<'info>,
