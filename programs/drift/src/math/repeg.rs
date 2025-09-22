@@ -76,6 +76,7 @@ pub fn calculate_repeg_validity(
         confidence: oracle_conf,
         delay: _,
         has_sufficient_number_of_data_points: _,
+        sequence_id: _,
     } = *oracle_price_data;
 
     let oracle_price_u128 = oracle_price.cast::<u64>()?;

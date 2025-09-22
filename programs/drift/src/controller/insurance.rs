@@ -973,7 +973,7 @@ pub fn handle_if_begin_swap(
     out_insurance_fund_vault_amount: u64,
     in_spot_market: &mut SpotMarket,
     out_spot_market: &mut SpotMarket,
-    in_amount: u64,
+    _in_amount: u64,
     now: i64,
 ) -> DriftResult<()> {
     if now

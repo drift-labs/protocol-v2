@@ -1,5 +1,4 @@
 use std::cell::RefMut;
-use std::collections::BTreeMap;
 use std::convert::TryFrom;
 
 use anchor_lang::prelude::*;
@@ -69,7 +68,6 @@ use crate::validation::sig_verification::verify_and_decode_ed25519_msg;
 use crate::validation::user::{validate_user_deletion, validate_user_is_idle};
 use crate::{
     controller, load, math, print_error, safe_decrement, OracleSource, GOV_SPOT_MARKET_INDEX,
-    MARGIN_PRECISION,
 };
 use crate::{load_mut, QUOTE_PRECISION_U64};
 use crate::{math_error, ID};
@@ -760,6 +758,10 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
             clock.slot
         );
         return Ok(());
+    }
+
+    if let Some(max_margin_ratio) = verified_message_and_signature.max_margin_ratio {
+        taker.update_perp_position_max_margin_ratio(market_index, max_margin_ratio)?;
     }
 
     // Dont place order if signed msg order already exists
@@ -2730,20 +2732,6 @@ pub fn handle_update_user_gov_token_insurance_stake(
     Ok(())
 }
 
-pub fn handle_update_user_gov_token_insurance_stake_devnet(
-    ctx: Context<UpdateUserGovTokenInsuranceStakeDevnet>,
-    gov_stake_amount: u64,
-) -> Result<()> {
-    #[cfg(all(feature = "mainnet-beta", not(feature = "anchor-test")))]
-    {
-        panic!("Devnet function is disabled on mainnet-beta");
-    }
-
-    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
-    user_stats.if_staked_gov_token_amount = gov_stake_amount;
-    Ok(())
-}
-
 pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, DisableUserHighLeverageMode<'info>>,
     disable_maintenance: bool,
@@ -3598,13 +3586,6 @@ pub struct UpdateUserGovTokenInsuranceStake<'info> {
         bump,
     )]
     pub insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
-}
-
-#[derive(Accounts)]
-pub struct UpdateUserGovTokenInsuranceStakeDevnet<'info> {
-    #[account(mut)]
-    pub user_stats: AccountLoader<'info, UserStats>,
-    pub signer: Signer<'info>,
 }
 
 #[derive(Accounts)]

@@ -6541,6 +6541,10 @@ export class DriftClient {
 			| SignedMsgOrderParamsDelegateMessage,
 		delegateSigner?: boolean
 	): Buffer {
+		if (orderParamsMessage.maxMarginRatio === undefined) {
+			orderParamsMessage.maxMarginRatio = null;
+		}
+
 		const anchorIxName = delegateSigner
 			? 'global' + ':' + 'SignedMsgOrderParamsDelegateMessage'
 			: 'global' + ':' + 'SignedMsgOrderParamsMessage';
@@ -6561,7 +6565,10 @@ export class DriftClient {
 	}
 
 	/*
-	 * Decode signedMsg taker order params from borsh buffer
+	 * Decode signedMsg taker order params from borsh buffer. Zero pads the message in case the
+	 * received message was encoded by an outdated IDL (size will be too small and decode will throw).
+	 * Note: the 128 will be problematic if the type we are expecting to deserializze into is 128 bytes
+	 * larger than the message we are receiving (unlikely, especially if all new fields are Options).
 	 */
 	public decodeSignedMsgOrderParamsMessage(
 		encodedMessage: Buffer,
@@ -6572,7 +6579,10 @@ export class DriftClient {
 			: 'SignedMsgOrderParamsMessage';
 		return this.program.coder.types.decode(
 			decodeStr,
-			encodedMessage.slice(8) // assumes discriminator
+			Buffer.concat([
+				encodedMessage.slice(8), // strip out discriminator
+				Buffer.alloc(128), // pad on 128 bytes, this is most efficient way to messages that are too small
+			])
 		);
 	}
 
@@ -8696,6 +8706,32 @@ export class DriftClient {
 			.abs()
 			.mul(PERCENTAGE_PRECISION)
 			.div(BN.max(oracleData.price, ONE));
+
+		const mmOracleSequenceId = perpMarket.amm.mmOracleSequenceId;
+
+		// Do slot check for recency if sequence ids are zero or they're too divergent
+		const doSlotCheckForRecency =
+			oracleData.sequenceId == null ||
+			oracleData.sequenceId.eq(ZERO) ||
+			mmOracleSequenceId.eq(ZERO) ||
+			oracleData.sequenceId
+				.sub(perpMarket.amm.mmOracleSequenceId)
+				.abs()
+				.gt(oracleData.sequenceId.div(new BN(10_000)));
+
+		let isExchangeOracleMoreRecent = true;
+		if (
+			doSlotCheckForRecency &&
+			oracleData.slot <= perpMarket.amm.mmOracleSlot
+		) {
+			isExchangeOracleMoreRecent = false;
+		} else if (
+			!doSlotCheckForRecency &&
+			oracleData.sequenceId < mmOracleSequenceId
+		) {
+			isExchangeOracleMoreRecent = false;
+		}
+
 		if (
 			!isOracleValid(
 				perpMarket,
@@ -8704,7 +8740,7 @@ export class DriftClient {
 				stateAccountAndSlot.slot
 			) ||
 			perpMarket.amm.mmOraclePrice.eq(ZERO) ||
-			perpMarket.amm.mmOracleSlot < oracleData.slot ||
+			isExchangeOracleMoreRecent ||
 			pctDiff.gt(PERCENTAGE_PRECISION.divn(100)) // 1% threshold
 		) {
 			return { ...oracleData, isMMOracleActive };
@@ -9204,13 +9240,9 @@ export class DriftClient {
 
 	public async updateUserGovTokenInsuranceStake(
 		authority: PublicKey,
-		txParams?: TxParams,
-		env: DriftEnv = 'mainnet-beta'
+		txParams?: TxParams
 	): Promise<TransactionSignature> {
-		const ix =
-			env == 'mainnet-beta'
-				? await this.getUpdateUserGovTokenInsuranceStakeIx(authority)
-				: await this.getUpdateUserGovTokenInsuranceStakeDevnetIx(authority);
+		const ix = await this.getUpdateUserGovTokenInsuranceStakeIx(authority);
 		const tx = await this.buildTransaction(ix, txParams);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 		return txSig;
@@ -9241,28 +9273,6 @@ export class DriftClient {
 				insuranceFundVault: spotMarket.insuranceFund.vault,
 			},
 		});
-
-		return ix;
-	}
-
-	public async getUpdateUserGovTokenInsuranceStakeDevnetIx(
-		authority: PublicKey,
-		amount: BN = new BN(1)
-	): Promise<TransactionInstruction> {
-		const userStatsPublicKey = getUserStatsAccountPublicKey(
-			this.program.programId,
-			authority
-		);
-
-		const ix = this.program.instruction.updateUserGovTokenInsuranceStakeDevnet(
-			amount,
-			{
-				accounts: {
-					userStats: userStatsPublicKey,
-					signer: this.wallet.publicKey,
-				},
-			}
-		);
 
 		return ix;
 	}
@@ -10033,7 +10043,8 @@ export class DriftClient {
 
 	public async getDisableHighLeverageModeIx(
 		user: PublicKey,
-		userAccount?: UserAccount
+		userAccount?: UserAccount,
+		maintenance = false
 	): Promise<TransactionInstruction> {
 		const remainingAccounts = userAccount
 			? this.getRemainingAccounts({
@@ -10042,7 +10053,7 @@ export class DriftClient {
 			: undefined;
 
 		const ix = await this.program.instruction.disableUserHighLeverageMode(
-			false,
+			maintenance,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
