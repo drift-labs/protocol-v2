@@ -1312,6 +1312,18 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracleSource: OracleSource.PYTH_LAZER,
 		pythLazerId: 1578,
 	},
+	{
+		fullName: 'ASTER',
+		category: ['DEX'],
+		symbol: 'ASTER-PERP',
+		baseAssetSymbol: 'ASTER',
+		marketIndex: 76,
+		oracle: new PublicKey('T1VdaNiTLJ9gMvopnybxtbqdEAAeDQBet4JmvQ4GCP9'),
+		launchTs: 1758632629000,
+		oracleSource: OracleSource.PYTH_PULL,
+		pythFeedId:
+			'0xa903b5a82cb572397e3d47595d2889cf80513f5b4cf7a36b513ae10cc8b1e338',
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
