@@ -599,7 +599,7 @@ fn amm_ref_price_decay_tail_test() {
     perp_market.amm.curve_update_intensity = 200;
 
     let max_ref_offset = perp_market.amm.get_max_reference_price_offset().unwrap();
-    assert_eq!(max_ref_offset, 10000);
+    assert_eq!(max_ref_offset, 5000);
 
     let liquidity_ratio = crate::math::amm_spread::calculate_inventory_liquidity_ratio(
         perp_market.amm.base_asset_amount_with_amm,
@@ -814,7 +814,7 @@ fn amm_ref_price_offset_decay_logic() {
         max_ref_offset,
     )
     .unwrap();
-    assert_eq!(res, 10000);
+    assert_eq!(res, 750);
 
     let mut now = perp_market.amm.last_mark_price_twap_ts + 10;
     let mut clock_slot = 353317544 + 20; // todo
@@ -988,7 +988,7 @@ fn amm_negative_ref_price_offset_decay_logic() {
         max_ref_offset,
     )
     .unwrap();
-    assert_eq!(res, 10000);
+    assert_eq!(res, 750);
 
     let mut now = perp_market.amm.last_mark_price_twap_ts + 10;
     let mut clock_slot = 353317544 + 20; // todo
@@ -1210,7 +1210,7 @@ fn amm_perp_ref_offset() {
 
     let r = perp_market.amm.reserve_price().unwrap();
     let (b, a) = perp_market.amm.bid_ask_price(r).unwrap();
-    assert_eq!(b, 7098999);
+    assert_eq!(b, 7102635);
     assert_eq!(a, 7106129);
     assert_eq!(
         perp_market.amm.historical_oracle_data.last_oracle_price,

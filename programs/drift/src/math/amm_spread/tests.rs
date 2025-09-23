@@ -59,7 +59,7 @@ mod test {
             max_offset,
         )
         .unwrap();
-        assert_eq!(res, 158); // 237*2/3); // 1 penny divergence
+        assert_eq!(res, 182); // 237*2/3); // 1 penny divergence
         let res = calculate_reference_price_offset(
             rev_price,
             1,
@@ -393,7 +393,7 @@ mod test {
 
         market.amm.curve_update_intensity = 110;
         let max_ref_offset = market.amm.get_max_reference_price_offset().unwrap();
-        assert_eq!(max_ref_offset, 1000); // 10 bps
+        assert_eq!(max_ref_offset, 500); // 5 bps
 
         market.amm.curve_update_intensity = 200;
         let max_ref_offset = market.amm.get_max_reference_price_offset().unwrap();
