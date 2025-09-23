@@ -143,6 +143,7 @@ pub fn handle_add_insurance_fund_stake<'c: 'info, 'info>(
         user_stats,
         spot_market,
         clock.unix_timestamp,
+        false,
     )?;
 
     controller::token::receive(
@@ -909,6 +910,7 @@ pub fn handle_deposit_into_insurance_fund_stake<'c: 'info, 'info>(
         user_stats,
         spot_market,
         clock.unix_timestamp,
+        true,
     )?;
 
     controller::token::receive(

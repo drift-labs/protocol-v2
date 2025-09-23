@@ -580,6 +580,7 @@ pub enum StakeAction {
     Unstake,
     UnstakeTransfer,
     StakeTransfer,
+    AdminDeposit,
 }
 
 #[event]

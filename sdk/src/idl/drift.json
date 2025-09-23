@@ -12307,6 +12307,9 @@
           },
           {
             "name": "StakeTransfer"
+          },
+          {
+            "name": "AdminDeposit"
           }
         ]
       }
