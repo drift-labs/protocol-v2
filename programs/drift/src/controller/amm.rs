@@ -813,7 +813,8 @@ pub fn update_pnl_pool_and_user_balance(
     let is_isolated_position = user.get_perp_position(market.market_index)?.is_isolated();
     if is_isolated_position {
         let perp_position = user.force_get_isolated_perp_position_mut(market.market_index)?;
-        let perp_position_token_amount = perp_position.get_isolated_token_amount(quote_spot_market)?;
+        let perp_position_token_amount =
+            perp_position.get_isolated_token_amount(quote_spot_market)?;
 
         if pnl_to_settle_with_user < 0 {
             validate!(
