@@ -142,6 +142,7 @@ pub fn sweep_completed_revenue_share_for_market<'a>(
             {
                 Ok(auth) => auth,
                 Err(_) => {
+                    msg!("failed to get approved_builder from escrow account");
                     continue;
                 }
             };

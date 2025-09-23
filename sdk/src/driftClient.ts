@@ -200,8 +200,8 @@ import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDrift
 import { hasBuilder } from './math/orders';
 import { RevenueShareEscrowMap } from './userMap/revenueShareEscrowMap';
 import {
-	isBuilderOrderAvailable,
 	isBuilderOrderReferral,
+	isBuilderOrderCompleted,
 } from './math/builder';
 
 type RemainingAccountParams = {
@@ -7656,36 +7656,37 @@ export class DriftClient {
 		});
 
 		if (revenueShareEscrowMap) {
-			for (const order of settleeUserAccount.orders) {
-				if (hasBuilder(order)) {
-					remainingAccounts.push({
-						pubkey: getRevenueShareEscrowAccountPublicKey(
-							this.program.programId,
-							settleeUserAccount.authority
-						),
-						isSigner: false,
-						isWritable: true,
-					});
-					break;
-				}
-			}
-
-			const escrow = await revenueShareEscrowMap.mustGet(
+			const escrow = revenueShareEscrowMap.get(
 				settleeUserAccount.authority.toBase58()
 			);
 			if (escrow) {
+				const escrowPk = getRevenueShareEscrowAccountPublicKey(
+					this.program.programId,
+					settleeUserAccount.authority
+				);
+
 				const builders = new Map<number, PublicKey>();
 				for (const order of escrow.orders) {
-					if (!isBuilderOrderAvailable(order)) {
-						if (!builders.has(order.builderIdx)) {
-							builders.set(
-								order.builderIdx,
-								escrow.approvedBuilders[order.builderIdx].authority
-							);
-						}
+					const eligibleBuilder =
+						isBuilderOrderCompleted(order) &&
+						!isBuilderOrderReferral(order) &&
+						order.feesAccrued.gt(ZERO) &&
+						order.marketIndex === marketIndex;
+					if (eligibleBuilder && !builders.has(order.builderIdx)) {
+						builders.set(
+							order.builderIdx,
+							escrow.approvedBuilders[order.builderIdx].authority
+						);
 					}
 				}
 				if (builders.size > 0) {
+					if (!remainingAccounts.find((a) => a.pubkey.equals(escrowPk))) {
+						remainingAccounts.push({
+							pubkey: escrowPk,
+							isSigner: false,
+							isWritable: true,
+						});
+					}
 					this.addBuilderToRemainingAccounts(
 						Array.from(builders.values()),
 						remainingAccounts
@@ -7701,10 +7702,6 @@ export class DriftClient {
 				);
 
 				if (hasReferralForMarket) {
-					const escrowPk = getRevenueShareEscrowAccountPublicKey(
-						this.program.programId,
-						settleeUserAccount.authority
-					);
 					if (!remainingAccounts.find((a) => a.pubkey.equals(escrowPk))) {
 						remainingAccounts.push({
 							pubkey: escrowPk,
@@ -7712,33 +7709,30 @@ export class DriftClient {
 							isWritable: true,
 						});
 					}
-
 					if (!escrow.referrer.equals(PublicKey.default)) {
-						const refUser = getUserAccountPublicKeySync(
-							this.program.programId,
-							escrow.referrer,
-							0
+						this.addBuilderToRemainingAccounts(
+							[escrow.referrer],
+							remainingAccounts
 						);
-						if (!remainingAccounts.find((a) => a.pubkey.equals(refUser))) {
+					}
+				}
+			} else {
+				// Stale-cache fallback: if the user has any builder orders, include escrow PDA. This allows
+				// the program to lazily clean up any completed builder orders.
+				for (const order of settleeUserAccount.orders) {
+					if (hasBuilder(order)) {
+						const escrowPk = getRevenueShareEscrowAccountPublicKey(
+							this.program.programId,
+							settleeUserAccount.authority
+						);
+						if (!remainingAccounts.find((a) => a.pubkey.equals(escrowPk))) {
 							remainingAccounts.push({
-								pubkey: refUser,
+								pubkey: escrowPk,
 								isSigner: false,
 								isWritable: true,
 							});
 						}
-						const refRevenueShare = getRevenueShareAccountPublicKey(
-							this.program.programId,
-							escrow.referrer
-						);
-						if (
-							!remainingAccounts.find((a) => a.pubkey.equals(refRevenueShare))
-						) {
-							remainingAccounts.push({
-								pubkey: refRevenueShare,
-								isSigner: false,
-								isWritable: true,
-							});
-						}
+						break;
 					}
 				}
 			}
@@ -7859,97 +7853,89 @@ export class DriftClient {
 		});
 
 		if (revenueShareEscrowMap) {
-			for (const order of settleeUserAccount.orders) {
-				if (hasBuilder(order)) {
-					remainingAccounts.push({
-						pubkey: getRevenueShareEscrowAccountPublicKey(
-							this.program.programId,
-							settleeUserAccount.authority
-						),
-						isSigner: false,
-						isWritable: true,
-					});
-					break;
-				}
-			}
-
-			const escrow = await revenueShareEscrowMap.mustGet(
+			const escrow = revenueShareEscrowMap.get(
 				settleeUserAccount.authority.toBase58()
 			);
 			const builders = new Map<number, PublicKey>();
-			for (const order of escrow.orders) {
-				if (!isBuilderOrderAvailable(order)) {
-					if (!builders.has(order.builderIdx)) {
+			if (escrow) {
+				for (const order of escrow.orders) {
+					const eligibleBuilder =
+						isBuilderOrderCompleted(order) &&
+						!isBuilderOrderReferral(order) &&
+						order.feesAccrued.gt(ZERO) &&
+						marketIndexes.includes(order.marketIndex);
+					if (eligibleBuilder && !builders.has(order.builderIdx)) {
 						builders.set(
 							order.builderIdx,
 							escrow.approvedBuilders[order.builderIdx].authority
 						);
 					}
 				}
-			}
-			if (builders.size > 0) {
-				this.addBuilderToRemainingAccounts(
-					Array.from(builders.values()),
-					remainingAccounts
-				);
-			}
-
-			// Include escrow and referrer accounts when there are referral rewards
-			// for any of the markets we are settling, so on-chain sweep can find them.
-			const hasReferralForRequestedMarkets = escrow.orders.some(
-				(o) =>
-					isBuilderOrderReferral(o) &&
-					o.feesAccrued.gt(ZERO) &&
-					marketIndexes.includes(o.marketIndex)
-			);
-			console.log(
-				'hasReferralForRequestedMarkets',
-				hasReferralForRequestedMarkets
-			);
-
-			if (hasReferralForRequestedMarkets) {
-				// Ensure the user's RevenueShareEscrow is included if not already
-				const escrowPk = getRevenueShareEscrowAccountPublicKey(
-					this.program.programId,
-					settleeUserAccount.authority
-				);
-				if (!remainingAccounts.find((a) => a.pubkey.equals(escrowPk))) {
-					remainingAccounts.push({
-						pubkey: escrowPk,
-						isSigner: false,
-						isWritable: true,
-					});
-				}
-
-				// Add referrer's User and RevenueShare accounts
-				if (!escrow.referrer.equals(PublicKey.default)) {
-					const refUser = getUserAccountPublicKeySync(
+				if (builders.size > 0) {
+					const escrowPk = getRevenueShareEscrowAccountPublicKey(
 						this.program.programId,
-						escrow.referrer,
-						0
+						settleeUserAccount.authority
 					);
-					console.log(
-						`adding referrer user and rev share ${escrow.referrer.toBase58()} to remaining accounts`
-					);
-					if (!remainingAccounts.find((a) => a.pubkey.equals(refUser))) {
+					if (!remainingAccounts.find((a) => a.pubkey.equals(escrowPk))) {
 						remainingAccounts.push({
-							pubkey: refUser,
+							pubkey: escrowPk,
 							isSigner: false,
 							isWritable: true,
 						});
 					}
-					const refRevenueShare = getRevenueShareAccountPublicKey(
-						this.program.programId,
-						escrow.referrer
+					this.addBuilderToRemainingAccounts(
+						Array.from(builders.values()),
+						remainingAccounts
 					);
-					if (
-						!remainingAccounts.find((a) => a.pubkey.equals(refRevenueShare))
-					) {
+				}
+
+				// Include escrow and referrer accounts when there are referral rewards
+				// for any of the markets we are settling, so on-chain sweep can find them.
+				const hasReferralForRequestedMarkets = escrow.orders.some(
+					(o) =>
+						isBuilderOrderReferral(o) &&
+						o.feesAccrued.gt(ZERO) &&
+						marketIndexes.includes(o.marketIndex)
+				);
+
+				if (hasReferralForRequestedMarkets) {
+					const escrowPk = getRevenueShareEscrowAccountPublicKey(
+						this.program.programId,
+						settleeUserAccount.authority
+					);
+					if (!remainingAccounts.find((a) => a.pubkey.equals(escrowPk))) {
 						remainingAccounts.push({
-							pubkey: refRevenueShare,
+							pubkey: escrowPk,
 							isSigner: false,
 							isWritable: true,
 						});
+					}
+
+					// Add referrer's User and RevenueShare accounts
+					if (!escrow.referrer.equals(PublicKey.default)) {
+						this.addBuilderToRemainingAccounts(
+							[escrow.referrer],
+							remainingAccounts
+						);
+					}
+				}
+			} else {
+				// Stale-cache fallback: if the user has any builder orders, include escrow PDA. This allows
+				// the program to lazily clean up any completed builder orders.
+				for (const order of settleeUserAccount.orders) {
+					if (hasBuilder(order)) {
+						const escrowPk = getRevenueShareEscrowAccountPublicKey(
+							this.program.programId,
+							settleeUserAccount.authority
+						);
+						if (!remainingAccounts.find((a) => a.pubkey.equals(escrowPk))) {
+							remainingAccounts.push({
+								pubkey: escrowPk,
+								isSigner: false,
+								isWritable: true,
+							});
+						}
+						break;
 					}
 				}
 			}

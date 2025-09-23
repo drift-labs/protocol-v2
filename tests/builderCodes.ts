@@ -921,6 +921,7 @@ describe('builder codes', () => {
 			usdcPos.balanceType
 		);
 
+		await userClient.fetchAccounts();
 		const settleTx = await builderClient.settlePNL(
 			await userClient.getUserAccountPublicKey(),
 			userClient.getUserAccount(),
@@ -1195,6 +1196,7 @@ describe('builder codes', () => {
 			usdcPos.balanceType
 		);
 
+		await userClient.fetchAccounts();
 		await builderClient.settlePNL(
 			await userClient.getUserAccountPublicKey(),
 			userClient.getUserAccount(),
@@ -1355,6 +1357,7 @@ describe('builder codes', () => {
 			usdcPos.balanceType
 		);
 
+		await userClient.fetchAccounts();
 		const settleTx = await builderClient.settlePNL(
 			await userClient.getUserAccountPublicKey(),
 			userClient.getUserAccount(),
