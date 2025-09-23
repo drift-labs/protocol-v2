@@ -34,6 +34,7 @@ fn calculate_oracle_valid() {
         confidence: PRICE_PRECISION_U64 / 100,
         delay: 1,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     let mut market: PerpMarket = PerpMarket {
         amm,
@@ -84,6 +85,7 @@ fn calculate_oracle_valid() {
         confidence: PRICE_PRECISION_U64 / 100,
         delay: 11,
         has_sufficient_number_of_data_points: true,
+        sequence_id: None,
     };
     oracle_status = get_oracle_status(
         &market,

@@ -1,8 +1,6 @@
-use crate::msg;
-
 use crate::controller::amm::SwapDirection;
 use crate::controller::position::PositionDelta;
-use crate::error::{DriftResult, ErrorCode};
+use crate::error::DriftResult;
 use crate::math::amm;
 use crate::math::amm::calculate_quote_asset_amount_swapped;
 use crate::math::casting::Cast;
@@ -10,13 +8,12 @@ use crate::math::constants::{
     AMM_RESERVE_PRECISION_I128, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
     PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128,
 };
-use crate::math::helpers::get_proportion_u128;
 use crate::math::pnl::calculate_pnl;
 use crate::math::safe_math::SafeMath;
 
-use crate::state::perp_market::{ContractType, PerpMarket, AMM};
+use crate::state::perp_market::{ContractType, AMM};
 use crate::state::user::PerpPosition;
-use crate::{validate, BASE_PRECISION, MAX_PREDICTION_MARKET_PRICE_U128};
+use crate::{BASE_PRECISION, MAX_PREDICTION_MARKET_PRICE_U128};
 
 pub fn calculate_base_asset_value_and_pnl(
     base_asset_amount: i128,
@@ -195,7 +192,7 @@ pub fn get_new_position_amounts(
         .quote_asset_amount
         .safe_add(delta.quote_asset_amount)?;
 
-    let mut new_base_asset_amount = position
+    let new_base_asset_amount = position
         .base_asset_amount
         .safe_add(delta.base_asset_amount)?;
 

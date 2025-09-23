@@ -38,7 +38,7 @@ use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_l
 use crate::math::margin::meets_initial_margin_requirement;
 use crate::math::margin::{
     calculate_max_withdrawable_amount, meets_maintenance_margin_requirement,
-    meets_place_order_margin_requirement, validate_spot_margin_trading, MarginRequirementType,
+    validate_spot_margin_trading, MarginRequirementType,
 };
 use crate::math::oracle::is_oracle_valid_for_action;
 use crate::math::oracle::DriftAction;
@@ -62,7 +62,7 @@ use crate::state::events::OrderActionRecord;
 use crate::state::events::OrderRecord;
 use crate::state::events::{
     DepositDirection, DepositExplanation, DepositRecord, FuelSeasonRecord, FuelSweepRecord,
-    LPAction, LPRecord, NewUserRecord, OrderActionExplanation, SwapRecord,
+    NewUserRecord, OrderActionExplanation, SwapRecord,
 };
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
@@ -77,7 +77,6 @@ use crate::state::order_params::{
     PlaceOrderOptions, PostOnlyParam,
 };
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
-use crate::state::perp_market::ContractType;
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::protected_maker_mode_config::ProtectedMakerModeConfig;
@@ -3101,6 +3100,19 @@ pub fn handle_update_user_custom_margin_ratio(
     Ok(())
 }
 
+pub fn handle_update_user_perp_position_custom_margin_ratio(
+    ctx: Context<UpdateUserPerpPositionCustomMarginRatio>,
+    _sub_account_id: u16,
+    perp_market_index: u16,
+    margin_ratio: u16,
+) -> Result<()> {
+    let mut user = load_mut!(ctx.accounts.user)?;
+
+    user.update_perp_position_max_margin_ratio(perp_market_index, margin_ratio)?;
+
+    Ok(())
+}
+
 pub fn handle_update_user_margin_trading_enabled<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdateUser<'info>>,
     _sub_account_id: u16,
@@ -4152,6 +4164,9 @@ pub struct ResizeSignedMsgUserOrders<'info> {
     pub signed_msg_user_orders: Box<Account<'info, SignedMsgUserOrders>>,
     /// CHECK: authority
     pub authority: AccountInfo<'info>,
+    #[account(
+        has_one = authority
+    )]
     pub user: AccountLoader<'info, User>,
     #[account(mut)]
     pub payer: Signer<'info>,
@@ -4583,6 +4598,21 @@ pub struct UpdateUser<'info> {
         mut,
         seeds = [b"user", authority.key.as_ref(), sub_account_id.to_le_bytes().as_ref()],
         bump,
+    )]
+    pub user: AccountLoader<'info, User>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(
+    sub_account_id: u16,
+)]
+pub struct UpdateUserPerpPositionCustomMarginRatio<'info> {
+    #[account(
+        mut,
+        seeds = [b"user", authority.key.as_ref(), sub_account_id.to_le_bytes().as_ref()],
+        bump,
+        constraint = can_sign_for_user(&user, &authority)?
     )]
     pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,

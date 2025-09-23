@@ -27,6 +27,7 @@ use crate::instructions::optional_accounts::get_revenue_share_escrow_account;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::math::casting::Cast;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
+use crate::math::margin::get_margin_calculation_for_disable_high_leverage_mode;
 use crate::math::margin::{calculate_user_equity, meets_settle_pnl_maintenance_margin_requirement};
 use crate::math::orders::{estimate_price_from_side, find_bids_and_asks_from_users};
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
@@ -72,7 +73,6 @@ use crate::validation::sig_verification::verify_and_decode_ed25519_msg;
 use crate::validation::user::{validate_user_deletion, validate_user_is_idle};
 use crate::{
     controller, load, math, print_error, safe_decrement, OracleSource, GOV_SPOT_MARKET_INDEX,
-    MARGIN_PRECISION,
 };
 use crate::{load_mut, QUOTE_PRECISION_U64};
 use crate::{math_error, ID};
@@ -817,6 +817,10 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
             clock.slot
         );
         return Ok(());
+    }
+
+    if let Some(max_margin_ratio) = verified_message_and_signature.max_margin_ratio {
+        taker.update_perp_position_max_margin_ratio(market_index, max_margin_ratio)?;
     }
 
     // Dont place order if signed msg order already exists
@@ -2924,20 +2928,6 @@ pub fn handle_update_user_gov_token_insurance_stake(
     Ok(())
 }
 
-pub fn handle_update_user_gov_token_insurance_stake_devnet(
-    ctx: Context<UpdateUserGovTokenInsuranceStakeDevnet>,
-    gov_stake_amount: u64,
-) -> Result<()> {
-    #[cfg(all(feature = "mainnet-beta", not(feature = "anchor-test")))]
-    {
-        panic!("Devnet function is disabled on mainnet-beta");
-    }
-
-    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
-    user_stats.if_staked_gov_token_amount = gov_stake_amount;
-    Ok(())
-}
-
 pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, DisableUserHighLeverageMode<'info>>,
     disable_maintenance: bool,
@@ -2999,19 +2989,12 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
         }
     }
 
-    let custom_margin_ratio_before = user.max_margin_ratio;
-    user.max_margin_ratio = 0;
-
-    let margin_calc = calculate_margin_requirement_and_total_collateral_and_liability_info(
-        &user,
+    let margin_calc = get_margin_calculation_for_disable_high_leverage_mode(
+        &mut user,
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
-        MarginContext::standard(MarginRequirementType::Initial)
-            .margin_buffer(MARGIN_PRECISION / 100), // 1% buffer
     )?;
-
-    user.max_margin_ratio = custom_margin_ratio_before;
 
     if margin_calc.num_perp_liabilities > 0 {
         let mut requires_invariant_check = false;
@@ -3799,13 +3782,6 @@ pub struct UpdateUserGovTokenInsuranceStake<'info> {
         bump,
     )]
     pub insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
-}
-
-#[derive(Accounts)]
-pub struct UpdateUserGovTokenInsuranceStakeDevnet<'info> {
-    #[account(mut)]
-    pub user_stats: AccountLoader<'info, UserStats>,
-    pub signer: Signer<'info>,
 }
 
 #[derive(Accounts)]

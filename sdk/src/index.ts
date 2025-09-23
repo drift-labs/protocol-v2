@@ -104,6 +104,7 @@ export * from './tx/priorityFeeCalculator';
 export * from './tx/forwardOnlyTxSender';
 export * from './tx/types';
 export * from './tx/txHandler';
+export * from './tx/txParamProcessor';
 export * from './util/computeUnits';
 export * from './util/digest';
 export * from './util/tps';

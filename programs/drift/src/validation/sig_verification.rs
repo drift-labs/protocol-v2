@@ -57,6 +57,7 @@ pub struct VerifiedMessage {
     pub uuid: [u8; 8],
     pub take_profit_order_params: Option<SignedMsgTriggerOrderParams>,
     pub stop_loss_order_params: Option<SignedMsgTriggerOrderParams>,
+    pub max_margin_ratio: Option<u16>,
     pub builder_idx: Option<u8>,
     pub builder_fee_tenth_bps: Option<u16>,
     pub signature: [u8; 64],
@@ -96,9 +97,10 @@ pub fn deserialize_into_verified_message(
             uuid: deserialized.uuid,
             take_profit_order_params: deserialized.take_profit_order_params,
             stop_loss_order_params: deserialized.stop_loss_order_params,
-            signature: *signature,
+            max_margin_ratio: deserialized.max_margin_ratio,
             builder_idx: deserialized.builder_idx,
             builder_fee_tenth_bps: deserialized.builder_fee_tenth_bps,
+            signature: *signature,
         });
     } else {
         if payload.len() < 8 {
@@ -124,9 +126,10 @@ pub fn deserialize_into_verified_message(
             uuid: deserialized.uuid,
             take_profit_order_params: deserialized.take_profit_order_params,
             stop_loss_order_params: deserialized.stop_loss_order_params,
-            signature: *signature,
+            max_margin_ratio: deserialized.max_margin_ratio,
             builder_idx: deserialized.builder_idx,
             builder_fee_tenth_bps: deserialized.builder_fee_tenth_bps,
+            signature: *signature,
         });
     }
 }
