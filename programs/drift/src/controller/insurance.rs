@@ -162,7 +162,11 @@ pub fn add_insurance_fund_stake(
     emit!(InsuranceFundStakeRecord {
         ts: now,
         user_authority: user_stats.authority,
-        action: if admin_deposit { StakeAction::AdminDeposit } else { StakeAction::Stake },
+        action: if admin_deposit {
+            StakeAction::AdminDeposit
+        } else {
+            StakeAction::Stake
+        },
         amount,
         market_index: spot_market.market_index,
         insurance_vault_amount_before: insurance_vault_amount,
