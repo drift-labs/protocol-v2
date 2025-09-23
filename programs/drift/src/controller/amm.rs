@@ -771,7 +771,7 @@ pub fn update_pool_balances(
 
 pub fn update_pnl_pool_and_user_balance(
     market: &mut PerpMarket,
-    bank: &mut SpotMarket,
+    quote_spot_market: &mut SpotMarket,
     user: &mut User,
     unrealized_pnl_with_fee: i128,
 ) -> DriftResult<i128> {
@@ -779,7 +779,7 @@ pub fn update_pnl_pool_and_user_balance(
         unrealized_pnl_with_fee.min(
             get_token_amount(
                 market.pnl_pool.scaled_balance,
-                bank,
+                quote_spot_market,
                 market.pnl_pool.balance_type(),
             )?
             .cast()?,
@@ -810,14 +810,36 @@ pub fn update_pnl_pool_and_user_balance(
         return Ok(0);
     }
 
-    let user_spot_position = user.get_quote_spot_position_mut();
+    let is_isolated_position = user.get_perp_position(market.market_index)?.is_isolated();
+    if is_isolated_position {
+        let perp_position = user.force_get_isolated_perp_position_mut(market.market_index)?;
+        let perp_position_token_amount = perp_position.get_isolated_token_amount(quote_spot_market)?;
 
-    transfer_spot_balances(
-        pnl_to_settle_with_user,
-        bank,
-        &mut market.pnl_pool,
-        user_spot_position,
-    )?;
+        if pnl_to_settle_with_user < 0 {
+            validate!(
+                perp_position_token_amount >= pnl_to_settle_with_user.unsigned_abs(),
+                ErrorCode::InsufficientCollateral,
+                "user has insufficient deposit for market {}",
+                market.market_index
+            )?;
+        }
+
+        transfer_spot_balances(
+            pnl_to_settle_with_user,
+            quote_spot_market,
+            &mut market.pnl_pool,
+            perp_position,
+        )?;
+    } else {
+        let user_spot_position = user.get_quote_spot_position_mut();
+
+        transfer_spot_balances(
+            pnl_to_settle_with_user,
+            quote_spot_market,
+            &mut market.pnl_pool,
+            user_spot_position,
+        )?;
+    }
 
     Ok(pnl_to_settle_with_user)
 }
