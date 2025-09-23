@@ -846,3 +846,20 @@ pub struct LPMintRedeemRecord {
 impl Size for LPMintRedeemRecord {
     const SIZE: usize = 328;
 }
+
+#[event]
+#[derive(Default)]
+pub struct LPBorrowLendDepositRecord {
+    pub ts: i64,
+    pub slot: u64,
+    pub spot_market_index: u16,
+    pub constituent_index: u16,
+    pub direction: DepositDirection,
+    pub token_balance: i64,
+    pub last_token_balance: u64,
+    pub amount: u64,
+}
+
+impl Size for LPBorrowLendDepositRecord {
+    const SIZE: usize = 56;
+}
