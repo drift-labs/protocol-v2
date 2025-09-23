@@ -124,6 +124,7 @@ import { TxSender, TxSigAndSlot } from './tx/types';
 import {
 	BASE_PRECISION,
 	GOV_SPOT_MARKET_INDEX,
+	MARGIN_PRECISION,
 	ONE,
 	PERCENTAGE_PRECISION,
 	PRICE_PRECISION,
@@ -4798,11 +4799,15 @@ export class DriftClient {
 			}
 		);
 
+		const marginRatio = Math.floor(
+			(1 / positionMaxLev) * MARGIN_PRECISION.toNumber()
+		);
+
 		// TODO: Handle multiple markets?
 		const setPositionMaxLevIxs =
 			await this.getUpdateUserPerpPositionCustomMarginRatioIx(
 				readablePerpMarketIndex[0],
-				1 / positionMaxLev,
+				marginRatio,
 				subAccountId
 			);
 
