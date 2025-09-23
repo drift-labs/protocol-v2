@@ -1323,6 +1323,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracleSource: OracleSource.PYTH_LAZER,
 		pythFeedId:
 			'0xa903b5a82cb572397e3d47595d2889cf80513f5b4cf7a36b513ae10cc8b1e338',
+		pythLazerId: 2310,
 	},
 ];
 
