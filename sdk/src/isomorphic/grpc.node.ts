@@ -2,8 +2,8 @@ import type Client from '@triton-one/yellowstone-grpc';
 import type {
 	SubscribeRequest,
 	SubscribeUpdate,
-	CommitmentLevel,
 } from '@triton-one/yellowstone-grpc';
+import { CommitmentLevel } from '@triton-one/yellowstone-grpc';
 import { ClientDuplexStream, ChannelOptions } from '@grpc/grpc-js';
 
 import {

@@ -11,8 +11,8 @@ import {
 	LaserSubscribeRequest,
 	LaserSubscribeUpdate,
 	CompressionAlgorithms,
-} from '../isomorphic/grpc.node';
-import { CommitmentLevel } from '@triton-one/yellowstone-grpc';
+	CommitmentLevel,
+} from '../isomorphic/grpc';
 
 type LaserCommitment =
 	(typeof LaserCommitmentLevel)[keyof typeof LaserCommitmentLevel];
