@@ -821,7 +821,6 @@ pub fn handle_transfer_protocol_if_shares_to_revenue_pool<'c: 'info, 'info>(
     Ok(())
 }
 
-
 pub fn handle_deposit_into_insurance_fund_stake<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, DepositIntoInsuranceFundStake<'info>>,
     market_index: u16,
@@ -1221,6 +1220,7 @@ pub struct DepositIntoInsuranceFundStake<'info> {
     )]
     pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
+        mut,
         seeds = [b"insurance_fund_vault".as_ref(), market_index.to_le_bytes().as_ref()],
         bump,
     )]
@@ -1232,6 +1232,6 @@ pub struct DepositIntoInsuranceFundStake<'info> {
     )]
     pub user_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     pub token_program: Interface<'info, TokenInterface>,
-        /// CHECK: forced drift_signer
-        pub drift_signer: AccountInfo<'info>,
+    /// CHECK: forced drift_signer
+    pub drift_signer: AccountInfo<'info>,
 }
