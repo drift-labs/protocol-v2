@@ -6639,14 +6639,21 @@ export class DriftClient {
 			readablePerpMarketIndex: marketIndex,
 		});
 
-		const isDelegateSigner = takerInfo.signingAuthority.equals(
-			takerInfo.takerUserAccount.delegate
-		);
-
 		const borshBuf = Buffer.from(
 			signedSignedMsgOrderParams.orderParams.toString(),
 			'hex'
 		);
+
+		const isDelegateSigner = borshBuf
+			.slice(0, 8)
+			.equals(
+				Uint8Array.from(
+					Buffer.from(
+						sha256('global' + ':' + 'SignedMsgOrderParamsDelegateMessage')
+					).slice(0, 8)
+				)
+			);
+
 		try {
 			const { signedMsgOrderParams } = this.decodeSignedMsgOrderParamsMessage(
 				borshBuf,
