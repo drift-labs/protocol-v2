@@ -152,7 +152,10 @@ pub fn handle_initialize_spot_market(
     if is_token_2022 {
         initialize_immutable_owner(&ctx.accounts.token_program, &ctx.accounts.spot_market_vault)?;
 
-        initialize_immutable_owner(&ctx.accounts.token_program, &ctx.accounts.insurance_fund_vault)?;
+        initialize_immutable_owner(
+            &ctx.accounts.token_program,
+            &ctx.accounts.insurance_fund_vault,
+        )?;
     }
 
     initialize_token_account(
