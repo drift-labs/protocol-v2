@@ -3044,7 +3044,7 @@
       ]
     },
     {
-      "name": "updateSpotMarketExpiry",
+      "name": "updateSpotMarketParams",
       "accounts": [
         {
           "name": "admin",
@@ -3064,8 +3064,10 @@
       ],
       "args": [
         {
-          "name": "expiryTs",
-          "type": "i64"
+          "name": "params",
+          "type": {
+            "defined": "SpotMarketUpdateParams"
+          }
         }
       ]
     },
@@ -3136,6 +3138,42 @@
         {
           "name": "insuranceFundVault",
           "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "updateDelegateUserGovTokenInsuranceStake",
+      "accounts": [
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundStake",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
           "isSigner": false
         }
       ],
@@ -4627,7 +4665,7 @@
       ]
     },
     {
-      "name": "updatePerpMarketExpiry",
+      "name": "updatePerpMarketParams",
       "accounts": [
         {
           "name": "admin",
@@ -4647,8 +4685,10 @@
       ],
       "args": [
         {
-          "name": "expiryTs",
-          "type": "i64"
+          "name": "params",
+          "type": {
+            "defined": "PerpMarketUpdateParams"
+          }
         }
       ]
     },
@@ -4962,156 +5002,6 @@
       ]
     },
     {
-      "name": "updatePerpMarketMarginRatio",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "marginRatioInitial",
-          "type": "u32"
-        },
-        {
-          "name": "marginRatioMaintenance",
-          "type": "u32"
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketHighLeverageMarginRatio",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "marginRatioInitial",
-          "type": "u16"
-        },
-        {
-          "name": "marginRatioMaintenance",
-          "type": "u16"
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketFundingPeriod",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "fundingPeriod",
-          "type": "i64"
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketMaxImbalances",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "unrealizedMaxImbalance",
-          "type": "u64"
-        },
-        {
-          "name": "maxRevenueWithdrawPerPeriod",
-          "type": "u64"
-        },
-        {
-          "name": "quoteMaxInsurance",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketLiquidationFee",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "liquidatorFee",
-          "type": "u32"
-        },
-        {
-          "name": "ifLiquidationFee",
-          "type": "u32"
-        }
-      ]
-    },
-    {
       "name": "updateInsuranceFundUnstakingPeriod",
       "accounts": [
         {
@@ -5134,390 +5024,6 @@
         {
           "name": "insuranceFundUnstakingPeriod",
           "type": "i64"
-        }
-      ]
-    },
-    {
-      "name": "updateSpotMarketPoolId",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "poolId",
-          "type": "u8"
-        }
-      ]
-    },
-    {
-      "name": "updateSpotMarketLiquidationFee",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "liquidatorFee",
-          "type": "u32"
-        },
-        {
-          "name": "ifLiquidationFee",
-          "type": "u32"
-        }
-      ]
-    },
-    {
-      "name": "updateWithdrawGuardThreshold",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "withdrawGuardThreshold",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "updateSpotMarketIfFactor",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "spotMarketIndex",
-          "type": "u16"
-        },
-        {
-          "name": "userIfFactor",
-          "type": "u32"
-        },
-        {
-          "name": "totalIfFactor",
-          "type": "u32"
-        }
-      ]
-    },
-    {
-      "name": "updateSpotMarketRevenueSettlePeriod",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "revenueSettlePeriod",
-          "type": "i64"
-        }
-      ]
-    },
-    {
-      "name": "updateSpotMarketStatus",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "status",
-          "type": {
-            "defined": "MarketStatus"
-          }
-        }
-      ]
-    },
-    {
-      "name": "updateSpotMarketPausedOperations",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "pausedOperations",
-          "type": "u8"
-        }
-      ]
-    },
-    {
-      "name": "updateSpotMarketAssetTier",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "assetTier",
-          "type": {
-            "defined": "AssetTier"
-          }
-        }
-      ]
-    },
-    {
-      "name": "updateSpotMarketMarginWeights",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "initialAssetWeight",
-          "type": "u32"
-        },
-        {
-          "name": "maintenanceAssetWeight",
-          "type": "u32"
-        },
-        {
-          "name": "initialLiabilityWeight",
-          "type": "u32"
-        },
-        {
-          "name": "maintenanceLiabilityWeight",
-          "type": "u32"
-        },
-        {
-          "name": "imfFactor",
-          "type": "u32"
-        }
-      ]
-    },
-    {
-      "name": "updateSpotMarketBorrowRate",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "optimalUtilization",
-          "type": "u32"
-        },
-        {
-          "name": "optimalBorrowRate",
-          "type": "u32"
-        },
-        {
-          "name": "maxBorrowRate",
-          "type": "u32"
-        },
-        {
-          "name": "minBorrowRate",
-          "type": {
-            "option": "u8"
-          }
-        }
-      ]
-    },
-    {
-      "name": "updateSpotMarketMaxTokenDeposits",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "maxTokenDeposits",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "updateSpotMarketMaxTokenBorrows",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "maxTokenBorrowsFraction",
-          "type": "u16"
-        }
-      ]
-    },
-    {
-      "name": "updateSpotMarketScaleInitialAssetWeightStart",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "scaleInitialAssetWeightStart",
-          "type": "u64"
         }
       ]
     },
@@ -5564,339 +5070,6 @@
         {
           "name": "skipInvariantCheck",
           "type": "bool"
-        }
-      ]
-    },
-    {
-      "name": "updateSpotMarketStepSizeAndTickSize",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "stepSize",
-          "type": "u64"
-        },
-        {
-          "name": "tickSize",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "updateSpotMarketMinOrderSize",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "orderSize",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "updateSpotMarketOrdersEnabled",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "ordersEnabled",
-          "type": "bool"
-        }
-      ]
-    },
-    {
-      "name": "updateSpotMarketIfPausedOperations",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "pausedOperations",
-          "type": "u8"
-        }
-      ]
-    },
-    {
-      "name": "updateSpotMarketName",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "name",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketStatus",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "status",
-          "type": {
-            "defined": "MarketStatus"
-          }
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketPausedOperations",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "pausedOperations",
-          "type": "u8"
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketContractTier",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "contractTier",
-          "type": {
-            "defined": "ContractTier"
-          }
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketImfFactor",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "imfFactor",
-          "type": "u32"
-        },
-        {
-          "name": "unrealizedPnlImfFactor",
-          "type": "u32"
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketUnrealizedAssetWeight",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "unrealizedInitialAssetWeight",
-          "type": "u32"
-        },
-        {
-          "name": "unrealizedMaintenanceAssetWeight",
-          "type": "u32"
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketConcentrationCoef",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "concentrationScale",
-          "type": "u128"
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketCurveUpdateIntensity",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "curveUpdateIntensity",
-          "type": "u8"
         }
       ]
     },
@@ -6027,6 +5200,29 @@
         {
           "name": "liquidationMarginBufferRatio",
           "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "updateStateAll",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "StateUpdateParams"
+          }
         }
       ]
     },
@@ -6163,32 +5359,6 @@
       ]
     },
     {
-      "name": "updatePerpMarketBaseSpread",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "baseSpread",
-          "type": "u32"
-        }
-      ]
-    },
-    {
       "name": "updateAmmJitIntensity",
       "accounts": [
         {
@@ -6211,443 +5381,6 @@
         {
           "name": "ammJitIntensity",
           "type": "u8"
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketMaxSpread",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "maxSpread",
-          "type": "u32"
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketStepSizeAndTickSize",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "stepSize",
-          "type": "u64"
-        },
-        {
-          "name": "tickSize",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketName",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "name",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketMinOrderSize",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "orderSize",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketMaxSlippageRatio",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "maxSlippageRatio",
-          "type": "u16"
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketMaxFillReserveFraction",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "maxFillReserveFraction",
-          "type": "u16"
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketMaxOpenInterest",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "maxOpenInterest",
-          "type": "u128"
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketNumberOfUsers",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "numberOfUsers",
-          "type": {
-            "option": "u32"
-          }
-        },
-        {
-          "name": "numberOfUsersWithBase",
-          "type": {
-            "option": "u32"
-          }
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketFeeAdjustment",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "feeAdjustment",
-          "type": "i16"
-        }
-      ]
-    },
-    {
-      "name": "updateSpotMarketFeeAdjustment",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "feeAdjustment",
-          "type": "i16"
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketFuel",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "fuelBoostTaker",
-          "type": {
-            "option": "u8"
-          }
-        },
-        {
-          "name": "fuelBoostMaker",
-          "type": {
-            "option": "u8"
-          }
-        },
-        {
-          "name": "fuelBoostPosition",
-          "type": {
-            "option": "u8"
-          }
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketProtectedMakerParams",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "protectedMakerLimitPriceDivisor",
-          "type": {
-            "option": "u8"
-          }
-        },
-        {
-          "name": "protectedMakerDynamicDivisor",
-          "type": {
-            "option": "u8"
-          }
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketTakerSpeedBumpOverride",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "takerSpeedBumpOverride",
-          "type": "i8"
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketAmmSpreadAdjustment",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "ammSpreadAdjustment",
-          "type": "i8"
-        },
-        {
-          "name": "ammInventorySpreadAdjustment",
-          "type": "i8"
-        },
-        {
-          "name": "referencePriceOffset",
-          "type": "i32"
-        }
-      ]
-    },
-    {
-      "name": "updatePerpMarketOracleSlotDelayOverride",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "oracleSlotDelayOverride",
-          "type": "i8"
         }
       ]
     },
@@ -6861,27 +5594,6 @@
       "args": [
         {
           "name": "minPerpAuctionDuration",
-          "type": "u8"
-        }
-      ]
-    },
-    {
-      "name": "updateSpotAuctionDuration",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "defaultSpotAuctionDuration",
           "type": "u8"
         }
       ]
@@ -7417,7 +6129,7 @@
       ]
     },
     {
-      "name": "updateFeatureBitFlagsMmOracle",
+      "name": "updateFeatureFlags",
       "accounts": [
         {
           "name": "admin",
@@ -7432,70 +6144,15 @@
       ],
       "args": [
         {
-          "name": "enable",
-          "type": "bool"
-        }
-      ]
-    },
-    {
-      "name": "zeroMmOracleFields",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
+          "name": "setBits",
+          "type": "u8"
         },
         {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
+          "name": "clearBits",
+          "type": "u8"
         },
         {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": []
-    },
-    {
-      "name": "updateFeatureBitFlagsMedianTriggerPrice",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "enable",
-          "type": "bool"
-        }
-      ]
-    },
-    {
-      "name": "updateFeatureBitFlagsBuilderCodes",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "enable",
+          "name": "requireStateAdmin",
           "type": "bool"
         }
       ]
@@ -9842,6 +8499,564 @@
             "name": "excludeTotalLiqFee",
             "type": {
               "option": "bool"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "SpotMarketUpdateParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "name",
+            "type": {
+              "option": {
+                "array": [
+                  "u8",
+                  32
+                ]
+              }
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "option": {
+                "defined": "MarketStatus"
+              }
+            }
+          },
+          {
+            "name": "pausedOperations",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "ifPausedOperations",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "ordersEnabled",
+            "type": {
+              "option": "bool"
+            }
+          },
+          {
+            "name": "assetTier",
+            "type": {
+              "option": {
+                "defined": "AssetTier"
+              }
+            }
+          },
+          {
+            "name": "initialAssetWeight",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "maintenanceAssetWeight",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "initialLiabilityWeight",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "maintenanceLiabilityWeight",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "imfFactor",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "optimalUtilization",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "optimalBorrowRate",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "maxBorrowRate",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "minBorrowRate",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "orderStepSize",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "orderTickSize",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "minOrderSize",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "maxTokenDeposits",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "maxTokenBorrowsFraction",
+            "type": {
+              "option": "u16"
+            }
+          },
+          {
+            "name": "scaleInitialAssetWeightStart",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "feeAdjustment",
+            "type": {
+              "option": "i16"
+            }
+          },
+          {
+            "name": "revenueSettlePeriod",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "withdrawGuardThreshold",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "userIfFactor",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "totalIfFactor",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "expiryTs",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "poolId",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "liquidatorFee",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "ifLiquidationFee",
+            "type": {
+              "option": "u32"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "PerpMarketUpdateParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "name",
+            "type": {
+              "option": {
+                "array": [
+                  "u8",
+                  32
+                ]
+              }
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "option": {
+                "defined": "MarketStatus"
+              }
+            }
+          },
+          {
+            "name": "pausedOperations",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "contractTier",
+            "type": {
+              "option": {
+                "defined": "ContractTier"
+              }
+            }
+          },
+          {
+            "name": "liquidatorFee",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "ifLiquidationFee",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "marginRatioInitial",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "marginRatioMaintenance",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "unrealizedInitialAssetWeight",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "unrealizedMaintenanceAssetWeight",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "highLeverageMarginRatioInitial",
+            "type": {
+              "option": "u16"
+            }
+          },
+          {
+            "name": "highLeverageMarginRatioMaintenance",
+            "type": {
+              "option": "u16"
+            }
+          },
+          {
+            "name": "imfFactor",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "unrealizedPnlImfFactor",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "fundingPeriod",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "unrealizedMaxImbalance",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "maxRevenueWithdrawPerPeriod",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "quoteMaxInsurance",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "baseSpread",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "maxSpread",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "orderStepSize",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "orderTickSize",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "minOrderSize",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "maxSlippageRatio",
+            "type": {
+              "option": "u16"
+            }
+          },
+          {
+            "name": "maxFillReserveFraction",
+            "type": {
+              "option": "u16"
+            }
+          },
+          {
+            "name": "maxOpenInterest",
+            "type": {
+              "option": "u128"
+            }
+          },
+          {
+            "name": "feeAdjustment",
+            "type": {
+              "option": "i16"
+            }
+          },
+          {
+            "name": "numberOfUsers",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "numberOfUsersWithBase",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "protectedMakerLimitPriceDivisor",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "protectedMakerDynamicDivisor",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "fuelBoostTaker",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "fuelBoostMaker",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "fuelBoostPosition",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "takerSpeedBumpOverride",
+            "type": {
+              "option": "i8"
+            }
+          },
+          {
+            "name": "oracleSlotDelayOverride",
+            "type": {
+              "option": "i8"
+            }
+          },
+          {
+            "name": "ammSpreadAdjustment",
+            "type": {
+              "option": "i8"
+            }
+          },
+          {
+            "name": "ammInventorySpreadAdjustment",
+            "type": {
+              "option": "i8"
+            }
+          },
+          {
+            "name": "referencePriceOffset",
+            "type": {
+              "option": "i32"
+            }
+          },
+          {
+            "name": "zeroMmOracleFields",
+            "type": {
+              "option": "bool"
+            }
+          },
+          {
+            "name": "expiryTs",
+            "type": {
+              "option": "i64"
+            }
+          },
+          {
+            "name": "concentrationScale",
+            "type": {
+              "option": "u128"
+            }
+          },
+          {
+            "name": "curveUpdateIntensity",
+            "type": {
+              "option": "u8"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "StateUpdateParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lpCooldownTime",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "initialPctToLiquidate",
+            "type": {
+              "option": "u16"
+            }
+          },
+          {
+            "name": "liquidationDuration",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "liquidationMarginBufferRatio",
+            "type": {
+              "option": "u32"
+            }
+          },
+          {
+            "name": "settlementDuration",
+            "type": {
+              "option": "u16"
+            }
+          },
+          {
+            "name": "maxNumberOfSubAccounts",
+            "type": {
+              "option": "u16"
+            }
+          },
+          {
+            "name": "maxInitializeUserFee",
+            "type": {
+              "option": "u16"
+            }
+          },
+          {
+            "name": "admin",
+            "type": {
+              "option": "publicKey"
+            }
+          },
+          {
+            "name": "whitelistMint",
+            "type": {
+              "option": "publicKey"
+            }
+          },
+          {
+            "name": "discountMint",
+            "type": {
+              "option": "publicKey"
+            }
+          },
+          {
+            "name": "exchangeStatus",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "minPerpAuctionDuration",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "defaultSpotAuctionDuration",
+            "type": {
+              "option": "u8"
             }
           }
         ]
@@ -16806,8 +16021,5 @@
       "name": "RevenueShareOrderNotFound",
       "msg": "RevenueShare order not found"
     }
-  ],
-  "metadata": {
-    "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
-  }
+  ]
 }
