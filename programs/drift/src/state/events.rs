@@ -856,10 +856,11 @@ pub struct LPBorrowLendDepositRecord {
     pub constituent_index: u16,
     pub direction: DepositDirection,
     pub token_balance: i64,
-    pub last_token_balance: u64,
-    pub amount: u64,
+    pub last_token_balance: i64,
+    pub interest_accrued_token_amount: i64,
+    pub amount_deposit_withdraw: u64,
 }
 
 impl Size for LPBorrowLendDepositRecord {
-    const SIZE: usize = 56;
+    const SIZE: usize = 72;
 }

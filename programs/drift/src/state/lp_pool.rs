@@ -785,7 +785,7 @@ pub struct Constituent {
     /// spot borrow-lend balance for constituent
     pub spot_balance: ConstituentSpotBalance, // should be in constituent base asset
 
-    pub last_spot_balance_token_amount: u64, // token precision
+    pub last_spot_balance_token_amount: i64, // token precision
 
     /// max deviation from target_weight allowed for the constituent
     /// precision: PERCENTAGE_PRECISION

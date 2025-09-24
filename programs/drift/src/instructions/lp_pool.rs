@@ -4,6 +4,7 @@ use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use crate::ids::lp_pool_swap_wallet;
 use crate::math::constants::{PERCENTAGE_PRECISION, PRICE_PRECISION_I64};
 use crate::math::oracle::OracleValidity;
+use crate::state::events::{DepositDirection, LPBorrowLendDepositRecord};
 use crate::state::paused_operations::ConstituentLpOperation;
 use crate::validation::whitelist::validate_whitelist_token;
 use crate::{
@@ -1369,6 +1370,8 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
     )?;
     let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
 
+    let mut constituent = ctx.accounts.constituent.load_mut()?;
+
     if amount == 0 {
         return Err(ErrorCode::InsufficientDeposit.into());
     }
@@ -1377,13 +1380,18 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
     let oracle_data = oracle_map.get_price_data(&oracle_id)?;
     let oracle_data_slot = clock.slot - oracle_data.delay.max(0i64).cast::<u64>()?;
 
+    let bl_position_before_interest_update = constituent
+        .spot_balance
+        .get_signed_token_amount(&spot_market)?;
     controller::spot_balance::update_spot_market_cumulative_interest(
         &mut spot_market,
         Some(&oracle_data),
         clock.unix_timestamp,
     )?;
+    let bl_position_after_interest_update = constituent
+        .spot_balance
+        .get_signed_token_amount(&spot_market)?;
 
-    let mut constituent = ctx.accounts.constituent.load_mut()?;
     if constituent.last_oracle_slot < oracle_data_slot {
         constituent.last_oracle_price = oracle_data.price;
         constituent.last_oracle_slot = oracle_data_slot;
@@ -1454,6 +1462,26 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
         "Constituent balance mismatch after withdraw from program vault"
     )?;
 
+    let new_token_balance = constituent
+        .spot_balance
+        .get_signed_token_amount(&spot_market)?
+        .cast::<i64>()?;
+
+    emit!(LPBorrowLendDepositRecord {
+        ts: clock.unix_timestamp,
+        slot: clock.slot,
+        spot_market_index: spot_market.market_index,
+        constituent_index: constituent.constituent_index,
+        direction: DepositDirection::Deposit,
+        token_balance: new_token_balance,
+        last_token_balance: constituent.last_spot_balance_token_amount,
+        interest_accrued_token_amount: bl_position_after_interest_update
+            .safe_sub(bl_position_before_interest_update)?
+            .cast::<i64>()?,
+        amount_deposit_withdraw: amount,
+    });
+    constituent.last_spot_balance_token_amount = new_token_balance;
+
     Ok(())
 }
 
@@ -1474,19 +1502,27 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
     )?;
     let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
 
+    let mut constituent = ctx.accounts.constituent.load_mut()?;
+
     if amount == 0 {
         return Err(ErrorCode::InsufficientDeposit.into());
     }
 
     let oracle_data = oracle_map.get_price_data(&oracle_id)?;
     let oracle_data_slot = clock.slot - oracle_data.delay.max(0i64).cast::<u64>()?;
+
+    let bl_position_before_interest_update = constituent
+        .spot_balance
+        .get_signed_token_amount(&spot_market)?;
     controller::spot_balance::update_spot_market_cumulative_interest(
         &mut spot_market,
         Some(&oracle_data),
         clock.unix_timestamp,
     )?;
+    let bl_position_after_interest_update = constituent
+        .spot_balance
+        .get_signed_token_amount(&spot_market)?;
 
-    let mut constituent = ctx.accounts.constituent.load_mut()?;
     if constituent.last_oracle_slot < oracle_data_slot {
         constituent.last_oracle_price = oracle_data.price;
         constituent.last_oracle_slot = oracle_data_slot;
@@ -1506,6 +1542,26 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
         mint,
         Some(remaining_accounts),
     )?;
+
+    let new_token_balance = constituent
+        .spot_balance
+        .get_signed_token_amount(&spot_market)?
+        .cast::<i64>()?;
+
+    emit!(LPBorrowLendDepositRecord {
+        ts: clock.unix_timestamp,
+        slot: clock.slot,
+        spot_market_index: spot_market.market_index,
+        constituent_index: constituent.constituent_index,
+        direction: DepositDirection::Withdraw,
+        token_balance: new_token_balance,
+        last_token_balance: constituent.last_spot_balance_token_amount,
+        interest_accrued_token_amount: bl_position_after_interest_update
+            .safe_sub(bl_position_before_interest_update)?
+            .cast::<i64>()?,
+        amount_deposit_withdraw: amount,
+    });
+    constituent.last_spot_balance_token_amount = new_token_balance;
 
     Ok(())
 }
