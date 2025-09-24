@@ -843,11 +843,20 @@ pub fn resolve_perp_pnl_deficit(
         &SpotBalanceType::Deposit,
     )?;
 
+    let net_user_pnl = calculate_net_user_pnl(
+        &market.amm,
+        market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+    )?;
+
     validate!(
-        pnl_pool_token_amount == 0,
+        pnl_pool_token_amount.cast::<i128>()? < net_user_pnl,
         ErrorCode::SufficientPerpPnlPool,
-        "pnl_pool_token_amount > 0 (={})",
-        pnl_pool_token_amount
+        "pnl_pool_token_amount >= net_user_pnl ({} >= {})",
+        pnl_pool_token_amount,
+        net_user_pnl
     )?;
 
     update_spot_market_cumulative_interest(spot_market, None, now)?;

@@ -11,7 +11,7 @@ use crate::controller::spot_balance::{
 };
 use crate::error::{DriftResult, ErrorCode};
 use crate::get_then_update_id;
-use crate::math::amm::calculate_quote_asset_amount_swapped;
+use crate::math::amm::{calculate_net_user_pnl, calculate_quote_asset_amount_swapped};
 use crate::math::amm_spread::{calculate_spread_reserves, get_spread_reserves};
 use crate::math::casting::Cast;
 use crate::math::constants::{
@@ -942,7 +942,7 @@ pub fn calculate_perp_market_amm_summary_stats(
         .safe_add(fee_pool_token_amount)?
         .cast()?;
 
-    let net_user_pnl = amm::calculate_net_user_pnl(&perp_market.amm, perp_market_oracle_price)?;
+    let net_user_pnl = calculate_net_user_pnl(&perp_market.amm, perp_market_oracle_price)?;
 
     // amm's mm_fee can be incorrect with drifting integer math error
     let mut new_total_fee_minus_distributions = pnl_tokens_available.safe_sub(net_user_pnl)?;
