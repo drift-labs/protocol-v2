@@ -1121,13 +1121,6 @@ pub mod drift {
         handle_update_spot_market_oracle(ctx, oracle, oracle_source, skip_invariant_check)
     }
 
-    pub fn update_lp_cooldown_time(
-        ctx: Context<AdminUpdateState>,
-        lp_cooldown_time: u64,
-    ) -> Result<()> {
-        handle_update_lp_cooldown_time(ctx, lp_cooldown_time)
-    }
-
     pub fn update_perp_fee_structure(
         ctx: Context<AdminUpdateState>,
         fee_structure: FeeStructure,
@@ -1142,27 +1135,6 @@ pub mod drift {
         handle_update_spot_fee_structure(ctx, fee_structure)
     }
 
-    pub fn update_initial_pct_to_liquidate(
-        ctx: Context<AdminUpdateState>,
-        initial_pct_to_liquidate: u16,
-    ) -> Result<()> {
-        handle_update_initial_pct_to_liquidate(ctx, initial_pct_to_liquidate)
-    }
-
-    pub fn update_liquidation_duration(
-        ctx: Context<AdminUpdateState>,
-        liquidation_duration: u8,
-    ) -> Result<()> {
-        handle_update_liquidation_duration(ctx, liquidation_duration)
-    }
-
-    pub fn update_liquidation_margin_buffer_ratio(
-        ctx: Context<AdminUpdateState>,
-        liquidation_margin_buffer_ratio: u32,
-    ) -> Result<()> {
-        handle_update_liquidation_margin_buffer_ratio(ctx, liquidation_margin_buffer_ratio)
-    }
-
     pub fn update_state_all(
         ctx: Context<AdminUpdateState>,
         params: StateUpdateParams,
@@ -1175,27 +1147,6 @@ pub mod drift {
         oracle_guard_rails: OracleGuardRails,
     ) -> Result<()> {
         handle_update_oracle_guard_rails(ctx, oracle_guard_rails)
-    }
-
-    pub fn update_state_settlement_duration(
-        ctx: Context<AdminUpdateState>,
-        settlement_duration: u16,
-    ) -> Result<()> {
-        handle_update_state_settlement_duration(ctx, settlement_duration)
-    }
-
-    pub fn update_state_max_number_of_sub_accounts(
-        ctx: Context<AdminUpdateState>,
-        max_number_of_sub_accounts: u16,
-    ) -> Result<()> {
-        handle_update_state_max_number_of_sub_accounts(ctx, max_number_of_sub_accounts)
-    }
-
-    pub fn update_state_max_initialize_user_fee(
-        ctx: Context<AdminUpdateState>,
-        max_initialize_user_fee: u16,
-    ) -> Result<()> {
-        handle_update_state_max_initialize_user_fee(ctx, max_initialize_user_fee)
     }
 
     pub fn update_perp_market_oracle(
@@ -1248,38 +1199,6 @@ pub mod drift {
             fuel_boost_maker,
             fuel_boost_insurance,
         )
-    }
-
-    pub fn update_admin(ctx: Context<AdminUpdateState>, admin: Pubkey) -> Result<()> {
-        handle_update_admin(ctx, admin)
-    }
-
-    pub fn update_whitelist_mint(
-        ctx: Context<AdminUpdateState>,
-        whitelist_mint: Pubkey,
-    ) -> Result<()> {
-        handle_update_whitelist_mint(ctx, whitelist_mint)
-    }
-
-    pub fn update_discount_mint(
-        ctx: Context<AdminUpdateState>,
-        discount_mint: Pubkey,
-    ) -> Result<()> {
-        handle_update_discount_mint(ctx, discount_mint)
-    }
-
-    pub fn update_exchange_status(
-        ctx: Context<AdminUpdateState>,
-        exchange_status: u8,
-    ) -> Result<()> {
-        handle_update_exchange_status(ctx, exchange_status)
-    }
-
-    pub fn update_perp_auction_duration(
-        ctx: Context<AdminUpdateState>,
-        min_perp_auction_duration: u8,
-    ) -> Result<()> {
-        handle_update_perp_auction_duration(ctx, min_perp_auction_duration)
     }
 
     pub fn initialize_protocol_if_shares_transfer_config(

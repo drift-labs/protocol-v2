@@ -5074,27 +5074,6 @@
       ]
     },
     {
-      "name": "updateLpCooldownTime",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "lpCooldownTime",
-          "type": "u64"
-        }
-      ]
-    },
-    {
       "name": "updatePerpFeeStructure",
       "accounts": [
         {
@@ -5141,69 +5120,6 @@
       ]
     },
     {
-      "name": "updateInitialPctToLiquidate",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "initialPctToLiquidate",
-          "type": "u16"
-        }
-      ]
-    },
-    {
-      "name": "updateLiquidationDuration",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "liquidationDuration",
-          "type": "u8"
-        }
-      ]
-    },
-    {
-      "name": "updateLiquidationMarginBufferRatio",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "liquidationMarginBufferRatio",
-          "type": "u32"
-        }
-      ]
-    },
-    {
       "name": "updateStateAll",
       "accounts": [
         {
@@ -5246,69 +5162,6 @@
           "type": {
             "defined": "OracleGuardRails"
           }
-        }
-      ]
-    },
-    {
-      "name": "updateStateSettlementDuration",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "settlementDuration",
-          "type": "u16"
-        }
-      ]
-    },
-    {
-      "name": "updateStateMaxNumberOfSubAccounts",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "maxNumberOfSubAccounts",
-          "type": "u16"
-        }
-      ]
-    },
-    {
-      "name": "updateStateMaxInitializeUserFee",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "maxInitializeUserFee",
-          "type": "u16"
         }
       ]
     },
@@ -5490,111 +5343,6 @@
           "type": {
             "option": "u32"
           }
-        }
-      ]
-    },
-    {
-      "name": "updateAdmin",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "admin",
-          "type": "publicKey"
-        }
-      ]
-    },
-    {
-      "name": "updateWhitelistMint",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "whitelistMint",
-          "type": "publicKey"
-        }
-      ]
-    },
-    {
-      "name": "updateDiscountMint",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "discountMint",
-          "type": "publicKey"
-        }
-      ]
-    },
-    {
-      "name": "updateExchangeStatus",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "exchangeStatus",
-          "type": "u8"
-        }
-      ]
-    },
-    {
-      "name": "updatePerpAuctionDuration",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "minPerpAuctionDuration",
-          "type": "u8"
         }
       ]
     },

@@ -2474,20 +2474,6 @@ pub fn handle_update_insurance_fund_unstaking_period(
     Ok(())
 }
 
-pub fn handle_update_lp_cooldown_time(
-    ctx: Context<AdminUpdateState>,
-    lp_cooldown_time: u64,
-) -> Result<()> {
-    msg!(
-        "lp_cooldown_time: {} -> {}",
-        ctx.accounts.state.lp_cooldown_time,
-        lp_cooldown_time
-    );
-
-    ctx.accounts.state.lp_cooldown_time = lp_cooldown_time;
-    Ok(())
-}
-
 pub fn handle_update_perp_fee_structure(
     ctx: Context<AdminUpdateState>,
     fee_structure: FeeStructure,
@@ -2520,48 +2506,6 @@ pub fn handle_update_spot_fee_structure(
     Ok(())
 }
 
-pub fn handle_update_initial_pct_to_liquidate(
-    ctx: Context<AdminUpdateState>,
-    initial_pct_to_liquidate: u16,
-) -> Result<()> {
-    msg!(
-        "initial_pct_to_liquidate: {} -> {}",
-        ctx.accounts.state.initial_pct_to_liquidate,
-        initial_pct_to_liquidate
-    );
-
-    ctx.accounts.state.initial_pct_to_liquidate = initial_pct_to_liquidate;
-    Ok(())
-}
-
-pub fn handle_update_liquidation_duration(
-    ctx: Context<AdminUpdateState>,
-    liquidation_duration: u8,
-) -> Result<()> {
-    msg!(
-        "liquidation_duration: {} -> {}",
-        ctx.accounts.state.liquidation_duration,
-        liquidation_duration
-    );
-
-    ctx.accounts.state.liquidation_duration = liquidation_duration;
-    Ok(())
-}
-
-pub fn handle_update_liquidation_margin_buffer_ratio(
-    ctx: Context<AdminUpdateState>,
-    liquidation_margin_buffer_ratio: u32,
-) -> Result<()> {
-    msg!(
-        "liquidation_margin_buffer_ratio: {} -> {}",
-        ctx.accounts.state.liquidation_margin_buffer_ratio,
-        liquidation_margin_buffer_ratio
-    );
-
-    ctx.accounts.state.liquidation_margin_buffer_ratio = liquidation_margin_buffer_ratio;
-    Ok(())
-}
-
 pub fn handle_update_oracle_guard_rails(
     ctx: Context<AdminUpdateState>,
     oracle_guard_rails: OracleGuardRails,
@@ -2573,48 +2517,6 @@ pub fn handle_update_oracle_guard_rails(
     );
 
     ctx.accounts.state.oracle_guard_rails = oracle_guard_rails;
-    Ok(())
-}
-
-pub fn handle_update_state_settlement_duration(
-    ctx: Context<AdminUpdateState>,
-    settlement_duration: u16,
-) -> Result<()> {
-    msg!(
-        "settlement_duration: {} -> {}",
-        ctx.accounts.state.settlement_duration,
-        settlement_duration
-    );
-
-    ctx.accounts.state.settlement_duration = settlement_duration;
-    Ok(())
-}
-
-pub fn handle_update_state_max_number_of_sub_accounts(
-    ctx: Context<AdminUpdateState>,
-    max_number_of_sub_accounts: u16,
-) -> Result<()> {
-    msg!(
-        "max_number_of_sub_accounts: {} -> {}",
-        ctx.accounts.state.max_number_of_sub_accounts,
-        max_number_of_sub_accounts
-    );
-
-    ctx.accounts.state.max_number_of_sub_accounts = max_number_of_sub_accounts;
-    Ok(())
-}
-
-pub fn handle_update_state_max_initialize_user_fee(
-    ctx: Context<AdminUpdateState>,
-    max_initialize_user_fee: u16,
-) -> Result<()> {
-    msg!(
-        "max_initialize_user_fee: {} -> {}",
-        ctx.accounts.state.max_initialize_user_fee,
-        max_initialize_user_fee
-    );
-
-    ctx.accounts.state.max_initialize_user_fee = max_initialize_user_fee;
     Ok(())
 }
 
@@ -2802,68 +2704,6 @@ pub fn handle_update_spot_market_fuel(
         msg!("spot_market.fuel_boost_insurance: unchanged");
     }
 
-    Ok(())
-}
-
-pub fn handle_update_admin(ctx: Context<AdminUpdateState>, admin: Pubkey) -> Result<()> {
-    msg!("admin: {:?} -> {:?}", ctx.accounts.state.admin, admin);
-    ctx.accounts.state.admin = admin;
-    Ok(())
-}
-
-pub fn handle_update_whitelist_mint(
-    ctx: Context<AdminUpdateState>,
-    whitelist_mint: Pubkey,
-) -> Result<()> {
-    msg!(
-        "whitelist_mint: {:?} -> {:?}",
-        ctx.accounts.state.whitelist_mint,
-        whitelist_mint
-    );
-
-    ctx.accounts.state.whitelist_mint = whitelist_mint;
-    Ok(())
-}
-
-pub fn handle_update_discount_mint(
-    ctx: Context<AdminUpdateState>,
-    discount_mint: Pubkey,
-) -> Result<()> {
-    msg!(
-        "discount_mint: {:?} -> {:?}",
-        ctx.accounts.state.discount_mint,
-        discount_mint
-    );
-
-    ctx.accounts.state.discount_mint = discount_mint;
-    Ok(())
-}
-
-pub fn handle_update_exchange_status(
-    ctx: Context<AdminUpdateState>,
-    exchange_status: u8,
-) -> Result<()> {
-    msg!(
-        "exchange_status: {:?} -> {:?}",
-        ctx.accounts.state.exchange_status,
-        exchange_status
-    );
-
-    ctx.accounts.state.exchange_status = exchange_status;
-    Ok(())
-}
-
-pub fn handle_update_perp_auction_duration(
-    ctx: Context<AdminUpdateState>,
-    min_perp_auction_duration: u8,
-) -> Result<()> {
-    msg!(
-        "min_perp_auction_duration: {:?} -> {:?}",
-        ctx.accounts.state.min_perp_auction_duration,
-        min_perp_auction_duration
-    );
-
-    ctx.accounts.state.min_perp_auction_duration = min_perp_auction_duration;
     Ok(())
 }
 
