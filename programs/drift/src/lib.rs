@@ -718,11 +718,11 @@ pub mod drift {
         handle_update_amms(ctx, market_indexes)
     }
 
-    pub fn update_spot_market_expiry(
+    pub fn update_spot_market_params(
         ctx: Context<AdminUpdateSpotMarket>,
-        expiry_ts: i64,
+        params: SpotMarketUpdateParams,
     ) -> Result<()> {
-        handle_update_spot_market_expiry(ctx, expiry_ts)
+        handle_update_spot_market_params(ctx, params)
     }
 
     // IF stakers
@@ -1048,11 +1048,11 @@ pub mod drift {
         handle_update_perp_market_amm_summary_stats(ctx, params)
     }
 
-    pub fn update_perp_market_expiry(
+    pub fn update_perp_market_params(
         ctx: Context<AdminUpdatePerpMarket>,
-        expiry_ts: i64,
+        params: PerpMarketUpdateParams,
     ) -> Result<()> {
-        handle_update_perp_market_expiry(ctx, expiry_ts)
+        handle_update_perp_market_params(ctx, params)
     }
 
     pub fn settle_expired_market_pools_to_revenue_pool(
@@ -1105,177 +1105,11 @@ pub mod drift {
         handle_update_k(ctx, sqrt_k)
     }
 
-    pub fn update_perp_market_margin_ratio(
-        ctx: Context<AdminUpdatePerpMarket>,
-        margin_ratio_initial: u32,
-        margin_ratio_maintenance: u32,
-    ) -> Result<()> {
-        handle_update_perp_market_margin_ratio(ctx, margin_ratio_initial, margin_ratio_maintenance)
-    }
-
-    pub fn update_perp_market_high_leverage_margin_ratio(
-        ctx: Context<AdminUpdatePerpMarket>,
-        margin_ratio_initial: u16,
-        margin_ratio_maintenance: u16,
-    ) -> Result<()> {
-        handle_update_perp_market_high_leverage_margin_ratio(
-            ctx,
-            margin_ratio_initial,
-            margin_ratio_maintenance,
-        )
-    }
-
-    pub fn update_perp_market_funding_period(
-        ctx: Context<AdminUpdatePerpMarket>,
-        funding_period: i64,
-    ) -> Result<()> {
-        handle_update_perp_market_funding_period(ctx, funding_period)
-    }
-
-    pub fn update_perp_market_max_imbalances(
-        ctx: Context<AdminUpdatePerpMarket>,
-        unrealized_max_imbalance: u64,
-        max_revenue_withdraw_per_period: u64,
-        quote_max_insurance: u64,
-    ) -> Result<()> {
-        handle_update_perp_market_max_imbalances(
-            ctx,
-            unrealized_max_imbalance,
-            max_revenue_withdraw_per_period,
-            quote_max_insurance,
-        )
-    }
-
-    pub fn update_perp_market_liquidation_fee(
-        ctx: Context<AdminUpdatePerpMarket>,
-        liquidator_fee: u32,
-        if_liquidation_fee: u32,
-    ) -> Result<()> {
-        handle_update_perp_liquidation_fee(ctx, liquidator_fee, if_liquidation_fee)
-    }
-
     pub fn update_insurance_fund_unstaking_period(
         ctx: Context<AdminUpdateSpotMarket>,
         insurance_fund_unstaking_period: i64,
     ) -> Result<()> {
         handle_update_insurance_fund_unstaking_period(ctx, insurance_fund_unstaking_period)
-    }
-
-    pub fn update_spot_market_pool_id(
-        ctx: Context<AdminUpdateSpotMarket>,
-        pool_id: u8,
-    ) -> Result<()> {
-        handle_update_spot_market_pool_id(ctx, pool_id)
-    }
-
-    pub fn update_spot_market_liquidation_fee(
-        ctx: Context<AdminUpdateSpotMarket>,
-        liquidator_fee: u32,
-        if_liquidation_fee: u32,
-    ) -> Result<()> {
-        handle_update_spot_market_liquidation_fee(ctx, liquidator_fee, if_liquidation_fee)
-    }
-
-    pub fn update_withdraw_guard_threshold(
-        ctx: Context<AdminUpdateSpotMarket>,
-        withdraw_guard_threshold: u64,
-    ) -> Result<()> {
-        handle_update_withdraw_guard_threshold(ctx, withdraw_guard_threshold)
-    }
-
-    pub fn update_spot_market_if_factor(
-        ctx: Context<AdminUpdateSpotMarket>,
-        spot_market_index: u16,
-        user_if_factor: u32,
-        total_if_factor: u32,
-    ) -> Result<()> {
-        handle_update_spot_market_if_factor(ctx, spot_market_index, user_if_factor, total_if_factor)
-    }
-
-    pub fn update_spot_market_revenue_settle_period(
-        ctx: Context<AdminUpdateSpotMarket>,
-        revenue_settle_period: i64,
-    ) -> Result<()> {
-        handle_update_spot_market_revenue_settle_period(ctx, revenue_settle_period)
-    }
-
-    pub fn update_spot_market_status(
-        ctx: Context<AdminUpdateSpotMarket>,
-        status: MarketStatus,
-    ) -> Result<()> {
-        handle_update_spot_market_status(ctx, status)
-    }
-
-    pub fn update_spot_market_paused_operations(
-        ctx: Context<AdminUpdateSpotMarket>,
-        paused_operations: u8,
-    ) -> Result<()> {
-        handle_update_spot_market_paused_operations(ctx, paused_operations)
-    }
-
-    pub fn update_spot_market_asset_tier(
-        ctx: Context<AdminUpdateSpotMarket>,
-        asset_tier: AssetTier,
-    ) -> Result<()> {
-        handle_update_spot_market_asset_tier(ctx, asset_tier)
-    }
-
-    pub fn update_spot_market_margin_weights(
-        ctx: Context<AdminUpdateSpotMarket>,
-        initial_asset_weight: u32,
-        maintenance_asset_weight: u32,
-        initial_liability_weight: u32,
-        maintenance_liability_weight: u32,
-        imf_factor: u32,
-    ) -> Result<()> {
-        handle_update_spot_market_margin_weights(
-            ctx,
-            initial_asset_weight,
-            maintenance_asset_weight,
-            initial_liability_weight,
-            maintenance_liability_weight,
-            imf_factor,
-        )
-    }
-
-    pub fn update_spot_market_borrow_rate(
-        ctx: Context<AdminUpdateSpotMarket>,
-        optimal_utilization: u32,
-        optimal_borrow_rate: u32,
-        max_borrow_rate: u32,
-        min_borrow_rate: Option<u8>,
-    ) -> Result<()> {
-        handle_update_spot_market_borrow_rate(
-            ctx,
-            optimal_utilization,
-            optimal_borrow_rate,
-            max_borrow_rate,
-            min_borrow_rate,
-        )
-    }
-
-    pub fn update_spot_market_max_token_deposits(
-        ctx: Context<AdminUpdateSpotMarket>,
-        max_token_deposits: u64,
-    ) -> Result<()> {
-        handle_update_spot_market_max_token_deposits(ctx, max_token_deposits)
-    }
-
-    pub fn update_spot_market_max_token_borrows(
-        ctx: Context<AdminUpdateSpotMarket>,
-        max_token_borrows_fraction: u16,
-    ) -> Result<()> {
-        handle_update_spot_market_max_token_borrows(ctx, max_token_borrows_fraction)
-    }
-
-    pub fn update_spot_market_scale_initial_asset_weight_start(
-        ctx: Context<AdminUpdateSpotMarket>,
-        scale_initial_asset_weight_start: u64,
-    ) -> Result<()> {
-        handle_update_spot_market_scale_initial_asset_weight_start(
-            ctx,
-            scale_initial_asset_weight_start,
-        )
     }
 
     pub fn update_spot_market_oracle(
@@ -1285,104 +1119,6 @@ pub mod drift {
         skip_invariant_check: bool,
     ) -> Result<()> {
         handle_update_spot_market_oracle(ctx, oracle, oracle_source, skip_invariant_check)
-    }
-
-    pub fn update_spot_market_step_size_and_tick_size(
-        ctx: Context<AdminUpdateSpotMarket>,
-        step_size: u64,
-        tick_size: u64,
-    ) -> Result<()> {
-        handle_update_spot_market_step_size_and_tick_size(ctx, step_size, tick_size)
-    }
-
-    pub fn update_spot_market_min_order_size(
-        ctx: Context<AdminUpdateSpotMarket>,
-        order_size: u64,
-    ) -> Result<()> {
-        handle_update_spot_market_min_order_size(ctx, order_size)
-    }
-
-    pub fn update_spot_market_orders_enabled(
-        ctx: Context<AdminUpdateSpotMarket>,
-        orders_enabled: bool,
-    ) -> Result<()> {
-        handle_update_spot_market_orders_enabled(ctx, orders_enabled)
-    }
-
-    pub fn update_spot_market_if_paused_operations(
-        ctx: Context<AdminUpdateSpotMarket>,
-        paused_operations: u8,
-    ) -> Result<()> {
-        handle_update_spot_market_if_paused_operations(ctx, paused_operations)
-    }
-
-    pub fn update_spot_market_name(
-        ctx: Context<AdminUpdateSpotMarket>,
-        name: [u8; 32],
-    ) -> Result<()> {
-        handle_update_spot_market_name(ctx, name)
-    }
-
-    pub fn update_perp_market_status(
-        ctx: Context<AdminUpdatePerpMarket>,
-        status: MarketStatus,
-    ) -> Result<()> {
-        handle_update_perp_market_status(ctx, status)
-    }
-
-    pub fn update_perp_market_paused_operations(
-        ctx: Context<AdminUpdatePerpMarket>,
-        paused_operations: u8,
-    ) -> Result<()> {
-        handle_update_perp_market_paused_operations(ctx, paused_operations)
-    }
-
-    pub fn update_perp_market_contract_tier(
-        ctx: Context<AdminUpdatePerpMarket>,
-        contract_tier: ContractTier,
-    ) -> Result<()> {
-        handle_update_perp_market_contract_tier(ctx, contract_tier)
-    }
-
-    pub fn update_perp_market_imf_factor(
-        ctx: Context<AdminUpdatePerpMarket>,
-        imf_factor: u32,
-        unrealized_pnl_imf_factor: u32,
-    ) -> Result<()> {
-        handle_update_perp_market_imf_factor(ctx, imf_factor, unrealized_pnl_imf_factor)
-    }
-
-    pub fn update_perp_market_unrealized_asset_weight(
-        ctx: Context<AdminUpdatePerpMarket>,
-        unrealized_initial_asset_weight: u32,
-        unrealized_maintenance_asset_weight: u32,
-    ) -> Result<()> {
-        handle_update_perp_market_unrealized_asset_weight(
-            ctx,
-            unrealized_initial_asset_weight,
-            unrealized_maintenance_asset_weight,
-        )
-    }
-
-    pub fn update_perp_market_concentration_coef(
-        ctx: Context<AdminUpdatePerpMarket>,
-        concentration_scale: u128,
-    ) -> Result<()> {
-        handle_update_perp_market_concentration_coef(ctx, concentration_scale)
-    }
-
-    pub fn update_perp_market_curve_update_intensity(
-        ctx: Context<HotAdminUpdatePerpMarket>,
-        curve_update_intensity: u8,
-    ) -> Result<()> {
-        handle_update_perp_market_curve_update_intensity(ctx, curve_update_intensity)
-    }
-
-    pub fn update_lp_cooldown_time(
-        ctx: Context<AdminUpdateState>,
-        lp_cooldown_time: u64,
-    ) -> Result<()> {
-        handle_update_lp_cooldown_time(ctx, lp_cooldown_time)
     }
 
     pub fn update_perp_fee_structure(
@@ -1399,25 +1135,11 @@ pub mod drift {
         handle_update_spot_fee_structure(ctx, fee_structure)
     }
 
-    pub fn update_initial_pct_to_liquidate(
+    pub fn update_state_all(
         ctx: Context<AdminUpdateState>,
-        initial_pct_to_liquidate: u16,
+        params: StateUpdateParams,
     ) -> Result<()> {
-        handle_update_initial_pct_to_liquidate(ctx, initial_pct_to_liquidate)
-    }
-
-    pub fn update_liquidation_duration(
-        ctx: Context<AdminUpdateState>,
-        liquidation_duration: u8,
-    ) -> Result<()> {
-        handle_update_liquidation_duration(ctx, liquidation_duration)
-    }
-
-    pub fn update_liquidation_margin_buffer_ratio(
-        ctx: Context<AdminUpdateState>,
-        liquidation_margin_buffer_ratio: u32,
-    ) -> Result<()> {
-        handle_update_liquidation_margin_buffer_ratio(ctx, liquidation_margin_buffer_ratio)
+        handle_update_state_params(ctx, params)
     }
 
     pub fn update_oracle_guard_rails(
@@ -1425,27 +1147,6 @@ pub mod drift {
         oracle_guard_rails: OracleGuardRails,
     ) -> Result<()> {
         handle_update_oracle_guard_rails(ctx, oracle_guard_rails)
-    }
-
-    pub fn update_state_settlement_duration(
-        ctx: Context<AdminUpdateState>,
-        settlement_duration: u16,
-    ) -> Result<()> {
-        handle_update_state_settlement_duration(ctx, settlement_duration)
-    }
-
-    pub fn update_state_max_number_of_sub_accounts(
-        ctx: Context<AdminUpdateState>,
-        max_number_of_sub_accounts: u16,
-    ) -> Result<()> {
-        handle_update_state_max_number_of_sub_accounts(ctx, max_number_of_sub_accounts)
-    }
-
-    pub fn update_state_max_initialize_user_fee(
-        ctx: Context<AdminUpdateState>,
-        max_initialize_user_fee: u16,
-    ) -> Result<()> {
-        handle_update_state_max_initialize_user_fee(ctx, max_initialize_user_fee)
     }
 
     pub fn update_perp_market_oracle(
@@ -1457,139 +1158,11 @@ pub mod drift {
         handle_update_perp_market_oracle(ctx, oracle, oracle_source, skip_invariant_check)
     }
 
-    pub fn update_perp_market_base_spread(
-        ctx: Context<AdminUpdatePerpMarket>,
-        base_spread: u32,
-    ) -> Result<()> {
-        handle_update_perp_market_base_spread(ctx, base_spread)
-    }
-
     pub fn update_amm_jit_intensity(
         ctx: Context<HotAdminUpdatePerpMarket>,
         amm_jit_intensity: u8,
     ) -> Result<()> {
         handle_update_amm_jit_intensity(ctx, amm_jit_intensity)
-    }
-
-    pub fn update_perp_market_max_spread(
-        ctx: Context<AdminUpdatePerpMarket>,
-        max_spread: u32,
-    ) -> Result<()> {
-        handle_update_perp_market_max_spread(ctx, max_spread)
-    }
-
-    pub fn update_perp_market_step_size_and_tick_size(
-        ctx: Context<AdminUpdatePerpMarket>,
-        step_size: u64,
-        tick_size: u64,
-    ) -> Result<()> {
-        handle_update_perp_market_step_size_and_tick_size(ctx, step_size, tick_size)
-    }
-
-    pub fn update_perp_market_name(
-        ctx: Context<AdminUpdatePerpMarket>,
-        name: [u8; 32],
-    ) -> Result<()> {
-        handle_update_perp_market_name(ctx, name)
-    }
-
-    pub fn update_perp_market_min_order_size(
-        ctx: Context<AdminUpdatePerpMarket>,
-        order_size: u64,
-    ) -> Result<()> {
-        handle_update_perp_market_min_order_size(ctx, order_size)
-    }
-
-    pub fn update_perp_market_max_slippage_ratio(
-        ctx: Context<AdminUpdatePerpMarket>,
-        max_slippage_ratio: u16,
-    ) -> Result<()> {
-        handle_update_perp_market_max_slippage_ratio(ctx, max_slippage_ratio)
-    }
-
-    pub fn update_perp_market_max_fill_reserve_fraction(
-        ctx: Context<AdminUpdatePerpMarket>,
-        max_fill_reserve_fraction: u16,
-    ) -> Result<()> {
-        handle_update_perp_market_max_fill_reserve_fraction(ctx, max_fill_reserve_fraction)
-    }
-
-    pub fn update_perp_market_max_open_interest(
-        ctx: Context<AdminUpdatePerpMarket>,
-        max_open_interest: u128,
-    ) -> Result<()> {
-        handle_update_perp_market_max_open_interest(ctx, max_open_interest)
-    }
-
-    pub fn update_perp_market_number_of_users(
-        ctx: Context<AdminUpdatePerpMarket>,
-        number_of_users: Option<u32>,
-        number_of_users_with_base: Option<u32>,
-    ) -> Result<()> {
-        handle_update_perp_market_number_of_users(ctx, number_of_users, number_of_users_with_base)
-    }
-
-    pub fn update_perp_market_fee_adjustment(
-        ctx: Context<AdminUpdatePerpMarket>,
-        fee_adjustment: i16,
-    ) -> Result<()> {
-        handle_update_perp_market_fee_adjustment(ctx, fee_adjustment)
-    }
-
-    pub fn update_spot_market_fee_adjustment(
-        ctx: Context<AdminUpdateSpotMarket>,
-        fee_adjustment: i16,
-    ) -> Result<()> {
-        handle_update_spot_market_fee_adjustment(ctx, fee_adjustment)
-    }
-
-    pub fn update_perp_market_fuel(
-        ctx: Context<HotAdminUpdatePerpMarket>,
-        fuel_boost_taker: Option<u8>,
-        fuel_boost_maker: Option<u8>,
-        fuel_boost_position: Option<u8>,
-    ) -> Result<()> {
-        handle_update_perp_market_fuel(ctx, fuel_boost_taker, fuel_boost_maker, fuel_boost_position)
-    }
-
-    pub fn update_perp_market_protected_maker_params(
-        ctx: Context<AdminUpdatePerpMarket>,
-        protected_maker_limit_price_divisor: Option<u8>,
-        protected_maker_dynamic_divisor: Option<u8>,
-    ) -> Result<()> {
-        handle_update_perp_market_protected_maker_params(
-            ctx,
-            protected_maker_limit_price_divisor,
-            protected_maker_dynamic_divisor,
-        )
-    }
-
-    pub fn update_perp_market_taker_speed_bump_override(
-        ctx: Context<HotAdminUpdatePerpMarket>,
-        taker_speed_bump_override: i8,
-    ) -> Result<()> {
-        handle_update_perp_market_taker_speed_bump_override(ctx, taker_speed_bump_override)
-    }
-
-    pub fn update_perp_market_amm_spread_adjustment(
-        ctx: Context<HotAdminUpdatePerpMarket>,
-        amm_spread_adjustment: i8,
-        amm_inventory_spread_adjustment: i8,
-        reference_price_offset: i32,
-    ) -> Result<()> {
-        handle_update_perp_market_amm_spread_adjustment(
-            ctx,
-            amm_spread_adjustment,
-            amm_inventory_spread_adjustment,
-            reference_price_offset,
-        )
-    }
-
-    pub fn update_perp_market_oracle_slot_delay_override(
-        ctx: Context<HotAdminUpdatePerpMarket>,
-        oracle_slot_delay_override: i8,
-    ) -> Result<()> {
-        handle_update_perp_market_oracle_slot_delay_override(ctx, oracle_slot_delay_override)
     }
 
     pub fn update_spot_market_fuel(
@@ -1626,45 +1199,6 @@ pub mod drift {
             fuel_boost_maker,
             fuel_boost_insurance,
         )
-    }
-
-    pub fn update_admin(ctx: Context<AdminUpdateState>, admin: Pubkey) -> Result<()> {
-        handle_update_admin(ctx, admin)
-    }
-
-    pub fn update_whitelist_mint(
-        ctx: Context<AdminUpdateState>,
-        whitelist_mint: Pubkey,
-    ) -> Result<()> {
-        handle_update_whitelist_mint(ctx, whitelist_mint)
-    }
-
-    pub fn update_discount_mint(
-        ctx: Context<AdminUpdateState>,
-        discount_mint: Pubkey,
-    ) -> Result<()> {
-        handle_update_discount_mint(ctx, discount_mint)
-    }
-
-    pub fn update_exchange_status(
-        ctx: Context<AdminUpdateState>,
-        exchange_status: u8,
-    ) -> Result<()> {
-        handle_update_exchange_status(ctx, exchange_status)
-    }
-
-    pub fn update_perp_auction_duration(
-        ctx: Context<AdminUpdateState>,
-        min_perp_auction_duration: u8,
-    ) -> Result<()> {
-        handle_update_perp_auction_duration(ctx, min_perp_auction_duration)
-    }
-
-    pub fn update_spot_auction_duration(
-        ctx: Context<AdminUpdateState>,
-        default_spot_auction_duration: u8,
-    ) -> Result<()> {
-        handle_update_spot_auction_duration(ctx, default_spot_auction_duration)
     }
 
     pub fn initialize_protocol_if_shares_transfer_config(
@@ -1781,24 +1315,6 @@ pub mod drift {
         handle_update_if_rebalance_config(ctx, params)
     }
 
-    pub fn update_feature_bit_flags_mm_oracle(
-        ctx: Context<HotAdminUpdateState>,
-        enable: bool,
-    ) -> Result<()> {
-        handle_update_feature_bit_flags_mm_oracle(ctx, enable)
-    }
-
-    pub fn zero_mm_oracle_fields(ctx: Context<HotAdminUpdatePerpMarket>) -> Result<()> {
-        handle_zero_mm_oracle_fields(ctx)
-    }
-
-    pub fn update_feature_bit_flags_median_trigger_price(
-        ctx: Context<HotAdminUpdateState>,
-        enable: bool,
-    ) -> Result<()> {
-        handle_update_feature_bit_flags_median_trigger_price(ctx, enable)
-    }
-
     // pub fn update_feature_bit_flags_builder_referral(
     //     ctx: Context<HotAdminUpdateState>,
     //     enable: bool,
@@ -1806,11 +1322,13 @@ pub mod drift {
     //     handle_update_feature_bit_flags_builder_referral(ctx, enable)
     // }
 
-    pub fn update_feature_bit_flags_builder_codes(
+    pub fn update_feature_flags(
         ctx: Context<HotAdminUpdateState>,
-        enable: bool,
+        set_bits: u8,
+        clear_bits: u8,
+        require_state_admin: bool,
     ) -> Result<()> {
-        handle_update_feature_bit_flags_builder_codes(ctx, enable)
+        handle_update_feature_flags(ctx, set_bits, clear_bits, require_state_admin)
     }
 
     pub fn initialize_revenue_share<'c: 'info, 'info>(

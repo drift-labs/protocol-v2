@@ -355,31 +355,6 @@ pub fn handle_initialize_spot_market(
     Ok(())
 }
 
-#[access_control(
-    spot_market_valid(&ctx.accounts.spot_market)
-)]
-pub fn handle_update_spot_market_pool_id(
-    ctx: Context<AdminUpdateSpotMarket>,
-    pool_id: u8,
-) -> Result<()> {
-    let mut spot_market = load_mut!(ctx.accounts.spot_market)?;
-    msg!(
-        "updating spot market {} pool id to {}",
-        spot_market.market_index,
-        pool_id
-    );
-
-    validate!(
-        spot_market.status == MarketStatus::Initialized,
-        ErrorCode::DefaultError,
-        "Market must be just initialized to update pool"
-    )?;
-
-    spot_market.pool_id = pool_id;
-
-    Ok(())
-}
-
 pub fn handle_initialize_serum_fulfillment_config(
     ctx: Context<InitializeSerumFulfillmentConfig>,
     market_index: u16,
@@ -1436,41 +1411,6 @@ pub fn handle_init_user_fuel(
 #[access_control(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
-pub fn handle_update_perp_market_expiry(
-    ctx: Context<AdminUpdatePerpMarket>,
-    expiry_ts: i64,
-) -> Result<()> {
-    let clock: Clock = Clock::get()?;
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    msg!("updating perp market {} expiry", perp_market.market_index);
-
-    validate!(
-        clock.unix_timestamp < expiry_ts,
-        ErrorCode::DefaultError,
-        "Market expiry ts must later than current clock timestamp"
-    )?;
-
-    msg!(
-        "perp_market.status {:?} -> {:?}",
-        perp_market.status,
-        MarketStatus::ReduceOnly
-    );
-    msg!(
-        "perp_market.expiry_ts {} -> {}",
-        perp_market.expiry_ts,
-        expiry_ts
-    );
-
-    // automatically enter reduce only
-    perp_market.status = MarketStatus::ReduceOnly;
-    perp_market.expiry_ts = expiry_ts;
-
-    Ok(())
-}
-
-#[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
 pub fn handle_move_amm_price(
     ctx: Context<AdminUpdatePerpMarket>,
     base_asset_reserve: u128,
@@ -2515,264 +2455,6 @@ pub fn handle_reset_amm_oracle_twap(ctx: Context<RepegCurve>) -> Result<()> {
 }
 
 #[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
-pub fn handle_update_perp_market_margin_ratio(
-    ctx: Context<AdminUpdatePerpMarket>,
-    margin_ratio_initial: u32,
-    margin_ratio_maintenance: u32,
-) -> Result<()> {
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-
-    msg!(
-        "updating perp market {} margin ratio",
-        perp_market.market_index
-    );
-
-    validate_margin(
-        margin_ratio_initial,
-        margin_ratio_maintenance,
-        perp_market.high_leverage_margin_ratio_initial.cast()?,
-        perp_market.high_leverage_margin_ratio_maintenance.cast()?,
-        perp_market.liquidator_fee,
-        perp_market.amm.max_spread,
-    )?;
-
-    msg!(
-        "perp_market.margin_ratio_initial: {:?} -> {:?}",
-        perp_market.margin_ratio_initial,
-        margin_ratio_initial
-    );
-
-    msg!(
-        "perp_market.margin_ratio_maintenance: {:?} -> {:?}",
-        perp_market.margin_ratio_maintenance,
-        margin_ratio_maintenance
-    );
-
-    perp_market.margin_ratio_initial = margin_ratio_initial;
-    perp_market.margin_ratio_maintenance = margin_ratio_maintenance;
-    Ok(())
-}
-
-#[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
-pub fn handle_update_perp_market_high_leverage_margin_ratio(
-    ctx: Context<AdminUpdatePerpMarket>,
-    margin_ratio_initial: u16,
-    margin_ratio_maintenance: u16,
-) -> Result<()> {
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-
-    msg!(
-        "updating perp market {} margin ratio",
-        perp_market.market_index
-    );
-
-    validate_margin(
-        perp_market.margin_ratio_initial,
-        perp_market.margin_ratio_maintenance,
-        margin_ratio_initial.cast()?,
-        margin_ratio_maintenance.cast()?,
-        perp_market.liquidator_fee,
-        perp_market.amm.max_spread,
-    )?;
-
-    msg!(
-        "perp_market.high_leverage_margin_ratio_initial: {:?} -> {:?}",
-        perp_market.high_leverage_margin_ratio_initial,
-        margin_ratio_initial
-    );
-
-    msg!(
-        "perp_market.high_leverage_margin_ratio_maintenance: {:?} -> {:?}",
-        perp_market.high_leverage_margin_ratio_maintenance,
-        margin_ratio_maintenance
-    );
-
-    perp_market.high_leverage_margin_ratio_initial = margin_ratio_initial;
-    perp_market.high_leverage_margin_ratio_maintenance = margin_ratio_maintenance;
-
-    Ok(())
-}
-
-#[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
-pub fn handle_update_perp_market_funding_period(
-    ctx: Context<AdminUpdatePerpMarket>,
-    funding_period: i64,
-) -> Result<()> {
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-
-    msg!(
-        "updating funding period for perp market {}",
-        perp_market.market_index
-    );
-
-    validate!(funding_period >= 0, ErrorCode::DefaultError)?;
-
-    msg!(
-        "perp_market.amm.funding_period: {:?} -> {:?}",
-        perp_market.amm.funding_period,
-        funding_period
-    );
-
-    perp_market.amm.funding_period = funding_period;
-    Ok(())
-}
-
-#[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
-pub fn handle_update_perp_market_max_imbalances(
-    ctx: Context<AdminUpdatePerpMarket>,
-    unrealized_max_imbalance: u64,
-    max_revenue_withdraw_per_period: u64,
-    quote_max_insurance: u64,
-) -> Result<()> {
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-
-    msg!(
-        "updating perp market {} max imbalances",
-        perp_market.market_index
-    );
-
-    let max_insurance_for_tier = match perp_market.contract_tier {
-        ContractTier::A => INSURANCE_A_MAX,
-        ContractTier::B => INSURANCE_B_MAX,
-        ContractTier::C => INSURANCE_C_MAX,
-        ContractTier::Speculative => INSURANCE_SPECULATIVE_MAX,
-        ContractTier::HighlySpeculative => INSURANCE_SPECULATIVE_MAX,
-        ContractTier::Isolated => INSURANCE_SPECULATIVE_MAX,
-    };
-
-    validate!(
-        max_revenue_withdraw_per_period
-            <= max_insurance_for_tier.max(FEE_POOL_TO_REVENUE_POOL_THRESHOLD.cast()?)
-            && unrealized_max_imbalance <= max_insurance_for_tier + 1
-            && quote_max_insurance <= max_insurance_for_tier,
-        ErrorCode::DefaultError,
-        "all maxs must be less than max_insurance for ContractTier ={}",
-        max_insurance_for_tier
-    )?;
-
-    validate!(
-        perp_market.insurance_claim.quote_settled_insurance <= quote_max_insurance,
-        ErrorCode::DefaultError,
-        "quote_max_insurance must be above market.insurance_claim.quote_settled_insurance={}",
-        perp_market.insurance_claim.quote_settled_insurance
-    )?;
-
-    msg!(
-        "market.max_revenue_withdraw_per_period: {:?} -> {:?}",
-        perp_market.insurance_claim.max_revenue_withdraw_per_period,
-        max_revenue_withdraw_per_period
-    );
-
-    msg!(
-        "market.unrealized_max_imbalance: {:?} -> {:?}",
-        perp_market.unrealized_pnl_max_imbalance,
-        unrealized_max_imbalance
-    );
-
-    msg!(
-        "market.quote_max_insurance: {:?} -> {:?}",
-        perp_market.insurance_claim.quote_max_insurance,
-        quote_max_insurance
-    );
-
-    perp_market.insurance_claim.max_revenue_withdraw_per_period = max_revenue_withdraw_per_period;
-    perp_market.unrealized_pnl_max_imbalance = unrealized_max_imbalance;
-    perp_market.insurance_claim.quote_max_insurance = quote_max_insurance;
-
-    // ensure altered max_revenue_withdraw_per_period doesn't break invariant check
-    crate::validation::perp_market::validate_perp_market(perp_market)?;
-
-    Ok(())
-}
-
-#[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
-pub fn handle_update_perp_market_name(
-    ctx: Context<AdminUpdatePerpMarket>,
-    name: [u8; 32],
-) -> Result<()> {
-    let mut perp_market = load_mut!(ctx.accounts.perp_market)?;
-    msg!("perp_market.name: {:?} -> {:?}", perp_market.name, name);
-    perp_market.name = name;
-    Ok(())
-}
-
-#[access_control(
-    spot_market_valid(&ctx.accounts.spot_market)
-)]
-pub fn handle_update_spot_market_name(
-    ctx: Context<AdminUpdateSpotMarket>,
-    name: [u8; 32],
-) -> Result<()> {
-    let mut spot_market = load_mut!(ctx.accounts.spot_market)?;
-    msg!("spot_market.name: {:?} -> {:?}", spot_market.name, name);
-    spot_market.name = name;
-    Ok(())
-}
-
-#[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
-pub fn handle_update_perp_liquidation_fee(
-    ctx: Context<AdminUpdatePerpMarket>,
-    liquidator_fee: u32,
-    if_liquidation_fee: u32,
-) -> Result<()> {
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-
-    msg!(
-        "updating perp market {} liquidation fee",
-        perp_market.market_index
-    );
-
-    validate!(
-        liquidator_fee.safe_add(if_liquidation_fee)? < LIQUIDATION_FEE_PRECISION,
-        ErrorCode::DefaultError,
-        "Total liquidation fee must be less than 100%"
-    )?;
-
-    validate!(
-        if_liquidation_fee < LIQUIDATION_FEE_PRECISION,
-        ErrorCode::DefaultError,
-        "If liquidation fee must be less than 100%"
-    )?;
-
-    validate_margin(
-        perp_market.margin_ratio_initial,
-        perp_market.margin_ratio_maintenance,
-        perp_market.high_leverage_margin_ratio_initial.cast()?,
-        perp_market.high_leverage_margin_ratio_maintenance.cast()?,
-        liquidator_fee,
-        perp_market.amm.max_spread,
-    )?;
-
-    msg!(
-        "perp_market.liquidator_fee: {:?} -> {:?}",
-        perp_market.liquidator_fee,
-        liquidator_fee
-    );
-
-    msg!(
-        "perp_market.if_liquidation_fee: {:?} -> {:?}",
-        perp_market.if_liquidation_fee,
-        if_liquidation_fee
-    );
-
-    perp_market.liquidator_fee = liquidator_fee;
-    perp_market.if_liquidation_fee = if_liquidation_fee;
-    Ok(())
-}
-
-#[access_control(
     spot_market_valid(&ctx.accounts.spot_market)
 )]
 pub fn handle_update_insurance_fund_unstaking_period(
@@ -2789,657 +2471,6 @@ pub fn handle_update_insurance_fund_unstaking_period(
     );
 
     spot_market.insurance_fund.unstaking_period = insurance_fund_unstaking_period;
-    Ok(())
-}
-
-#[access_control(
-    spot_market_valid(&ctx.accounts.spot_market)
-)]
-pub fn handle_update_spot_market_liquidation_fee(
-    ctx: Context<AdminUpdateSpotMarket>,
-    liquidator_fee: u32,
-    if_liquidation_fee: u32,
-) -> Result<()> {
-    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-    msg!(
-        "updating spot market {} liquidation fee",
-        spot_market.market_index
-    );
-
-    validate!(
-        liquidator_fee.safe_add(if_liquidation_fee)? < LIQUIDATION_FEE_PRECISION,
-        ErrorCode::DefaultError,
-        "Total liquidation fee must be less than 100%"
-    )?;
-
-    validate!(
-        if_liquidation_fee <= LIQUIDATION_FEE_PRECISION / 10,
-        ErrorCode::DefaultError,
-        "if_liquidation_fee must be <= 10%"
-    )?;
-
-    msg!(
-        "spot_market.liquidator_fee: {:?} -> {:?}",
-        spot_market.liquidator_fee,
-        liquidator_fee
-    );
-
-    msg!(
-        "spot_market.if_liquidation_fee: {:?} -> {:?}",
-        spot_market.if_liquidation_fee,
-        if_liquidation_fee
-    );
-
-    spot_market.liquidator_fee = liquidator_fee;
-    spot_market.if_liquidation_fee = if_liquidation_fee;
-    Ok(())
-}
-
-#[access_control(
-    spot_market_valid(&ctx.accounts.spot_market)
-)]
-pub fn handle_update_withdraw_guard_threshold(
-    ctx: Context<AdminUpdateSpotMarket>,
-    withdraw_guard_threshold: u64,
-) -> Result<()> {
-    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-    msg!(
-        "updating spot market withdraw guard threshold {}",
-        spot_market.market_index
-    );
-
-    msg!(
-        "spot_market.withdraw_guard_threshold: {:?} -> {:?}",
-        spot_market.withdraw_guard_threshold,
-        withdraw_guard_threshold
-    );
-    spot_market.withdraw_guard_threshold = withdraw_guard_threshold;
-    Ok(())
-}
-
-#[access_control(
-    spot_market_valid(&ctx.accounts.spot_market)
-)]
-pub fn handle_update_spot_market_if_factor(
-    ctx: Context<AdminUpdateSpotMarket>,
-    spot_market_index: u16,
-    user_if_factor: u32,
-    total_if_factor: u32,
-) -> Result<()> {
-    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-
-    msg!("spot market {}", spot_market.market_index);
-
-    validate!(
-        spot_market.market_index == spot_market_index,
-        ErrorCode::DefaultError,
-        "spot_market_index dne spot_market.index"
-    )?;
-
-    validate!(
-        user_if_factor <= total_if_factor,
-        ErrorCode::DefaultError,
-        "user_if_factor must be <= total_if_factor"
-    )?;
-
-    validate!(
-        total_if_factor <= IF_FACTOR_PRECISION.cast()?,
-        ErrorCode::DefaultError,
-        "total_if_factor must be <= 100%"
-    )?;
-
-    msg!(
-        "spot_market.user_if_factor: {:?} -> {:?}",
-        spot_market.insurance_fund.user_factor,
-        user_if_factor
-    );
-    msg!(
-        "spot_market.total_if_factor: {:?} -> {:?}",
-        spot_market.insurance_fund.total_factor,
-        total_if_factor
-    );
-
-    spot_market.insurance_fund.user_factor = user_if_factor;
-    spot_market.insurance_fund.total_factor = total_if_factor;
-
-    Ok(())
-}
-
-#[access_control(
-    spot_market_valid(&ctx.accounts.spot_market)
-)]
-pub fn handle_update_spot_market_revenue_settle_period(
-    ctx: Context<AdminUpdateSpotMarket>,
-    revenue_settle_period: i64,
-) -> Result<()> {
-    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-    msg!("spot market {}", spot_market.market_index);
-
-    validate!(revenue_settle_period > 0, ErrorCode::DefaultError)?;
-    msg!(
-        "spot_market.revenue_settle_period: {:?} -> {:?}",
-        spot_market.insurance_fund.revenue_settle_period,
-        revenue_settle_period
-    );
-    spot_market.insurance_fund.revenue_settle_period = revenue_settle_period;
-    Ok(())
-}
-
-#[access_control(
-    spot_market_valid(&ctx.accounts.spot_market)
-)]
-pub fn handle_update_spot_market_status(
-    ctx: Context<AdminUpdateSpotMarket>,
-    status: MarketStatus,
-) -> Result<()> {
-    status.validate_not_deprecated()?;
-    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-    msg!("spot market {}", spot_market.market_index);
-
-    msg!(
-        "spot_market.status: {:?} -> {:?}",
-        spot_market.status,
-        status
-    );
-
-    spot_market.status = status;
-    Ok(())
-}
-
-#[access_control(
-spot_market_valid(&ctx.accounts.spot_market)
-)]
-pub fn handle_update_spot_market_paused_operations(
-    ctx: Context<AdminUpdateSpotMarket>,
-    paused_operations: u8,
-) -> Result<()> {
-    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-    msg!("spot market {}", spot_market.market_index);
-
-    spot_market.paused_operations = paused_operations;
-
-    SpotOperation::log_all_operations_paused(spot_market.paused_operations);
-
-    Ok(())
-}
-
-#[access_control(
-    spot_market_valid(&ctx.accounts.spot_market)
-)]
-pub fn handle_update_spot_market_asset_tier(
-    ctx: Context<AdminUpdateSpotMarket>,
-    asset_tier: AssetTier,
-) -> Result<()> {
-    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-    msg!("spot market {}", spot_market.market_index);
-
-    if spot_market.initial_asset_weight > 0 {
-        validate!(
-            matches!(asset_tier, AssetTier::Collateral | AssetTier::Protected),
-            ErrorCode::DefaultError,
-            "initial_asset_weight > 0 so AssetTier must be collateral or protected"
-        )?;
-    }
-
-    msg!(
-        "spot_market.asset_tier: {:?} -> {:?}",
-        spot_market.asset_tier,
-        asset_tier
-    );
-
-    spot_market.asset_tier = asset_tier;
-    Ok(())
-}
-
-#[access_control(
-    spot_market_valid(&ctx.accounts.spot_market)
-)]
-pub fn handle_update_spot_market_margin_weights(
-    ctx: Context<AdminUpdateSpotMarket>,
-    initial_asset_weight: u32,
-    maintenance_asset_weight: u32,
-    initial_liability_weight: u32,
-    maintenance_liability_weight: u32,
-    imf_factor: u32,
-) -> Result<()> {
-    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-    msg!("spot market {}", spot_market.market_index);
-
-    validate_margin_weights(
-        spot_market.market_index,
-        initial_asset_weight,
-        maintenance_asset_weight,
-        initial_liability_weight,
-        maintenance_liability_weight,
-        imf_factor,
-    )?;
-
-    msg!(
-        "spot_market.initial_asset_weight: {:?} -> {:?}",
-        spot_market.initial_asset_weight,
-        initial_asset_weight
-    );
-
-    msg!(
-        "spot_market.maintenance_asset_weight: {:?} -> {:?}",
-        spot_market.maintenance_asset_weight,
-        maintenance_asset_weight
-    );
-
-    msg!(
-        "spot_market.initial_liability_weight: {:?} -> {:?}",
-        spot_market.initial_liability_weight,
-        initial_liability_weight
-    );
-
-    msg!(
-        "spot_market.maintenance_liability_weight: {:?} -> {:?}",
-        spot_market.maintenance_liability_weight,
-        maintenance_liability_weight
-    );
-
-    msg!(
-        "spot_market.imf_factor: {:?} -> {:?}",
-        spot_market.imf_factor,
-        imf_factor
-    );
-
-    spot_market.initial_asset_weight = initial_asset_weight;
-    spot_market.maintenance_asset_weight = maintenance_asset_weight;
-    spot_market.initial_liability_weight = initial_liability_weight;
-    spot_market.maintenance_liability_weight = maintenance_liability_weight;
-    spot_market.imf_factor = imf_factor;
-
-    Ok(())
-}
-
-#[access_control(
-    spot_market_valid(&ctx.accounts.spot_market)
-)]
-pub fn handle_update_spot_market_borrow_rate(
-    ctx: Context<AdminUpdateSpotMarket>,
-    optimal_utilization: u32,
-    optimal_borrow_rate: u32,
-    max_borrow_rate: u32,
-    min_borrow_rate: Option<u8>,
-) -> Result<()> {
-    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-    msg!("spot market {}", spot_market.market_index);
-
-    validate_borrow_rate(
-        optimal_utilization,
-        optimal_borrow_rate,
-        max_borrow_rate,
-        min_borrow_rate
-            .unwrap_or(spot_market.min_borrow_rate)
-            .cast::<u32>()?
-            * ((PERCENTAGE_PRECISION / 200) as u32),
-    )?;
-
-    msg!(
-        "spot_market.optimal_utilization: {:?} -> {:?}",
-        spot_market.optimal_utilization,
-        optimal_utilization
-    );
-
-    msg!(
-        "spot_market.optimal_borrow_rate: {:?} -> {:?}",
-        spot_market.optimal_borrow_rate,
-        optimal_borrow_rate
-    );
-
-    msg!(
-        "spot_market.max_borrow_rate: {:?} -> {:?}",
-        spot_market.max_borrow_rate,
-        max_borrow_rate
-    );
-
-    spot_market.optimal_utilization = optimal_utilization;
-    spot_market.optimal_borrow_rate = optimal_borrow_rate;
-    spot_market.max_borrow_rate = max_borrow_rate;
-
-    if let Some(min_borrow_rate) = min_borrow_rate {
-        msg!(
-            "spot_market.min_borrow_rate: {:?} -> {:?}",
-            spot_market.min_borrow_rate,
-            min_borrow_rate
-        );
-        spot_market.min_borrow_rate = min_borrow_rate
-    }
-
-    Ok(())
-}
-
-#[access_control(
-    spot_market_valid(&ctx.accounts.spot_market)
-)]
-pub fn handle_update_spot_market_max_token_deposits(
-    ctx: Context<AdminUpdateSpotMarket>,
-    max_token_deposits: u64,
-) -> Result<()> {
-    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-    msg!("spot market {}", spot_market.market_index);
-
-    msg!(
-        "spot_market.max_token_deposits: {:?} -> {:?}",
-        spot_market.max_token_deposits,
-        max_token_deposits
-    );
-
-    spot_market.max_token_deposits = max_token_deposits;
-    Ok(())
-}
-
-#[access_control(
-    spot_market_valid(&ctx.accounts.spot_market)
-)]
-pub fn handle_update_spot_market_max_token_borrows(
-    ctx: Context<AdminUpdateSpotMarket>,
-    max_token_borrows_fraction: u16,
-) -> Result<()> {
-    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-    msg!("spot market {}", spot_market.market_index);
-
-    msg!(
-        "spot_market.max_token_borrows_fraction: {:?} -> {:?}",
-        spot_market.max_token_borrows_fraction,
-        max_token_borrows_fraction
-    );
-
-    let current_spot_tokens_borrows: u64 = spot_market.get_borrows()?.cast()?;
-    let new_max_token_borrows = spot_market
-        .max_token_deposits
-        .safe_mul(max_token_borrows_fraction.cast()?)?
-        .safe_div(10000)?;
-
-    validate!(
-        current_spot_tokens_borrows <= new_max_token_borrows,
-        ErrorCode::InvalidSpotMarketInitialization,
-        "spot borrows {} > max_token_borrows {}",
-        current_spot_tokens_borrows,
-        max_token_borrows_fraction
-    )?;
-
-    spot_market.max_token_borrows_fraction = max_token_borrows_fraction;
-    Ok(())
-}
-
-#[access_control(
-spot_market_valid(&ctx.accounts.spot_market)
-)]
-pub fn handle_update_spot_market_scale_initial_asset_weight_start(
-    ctx: Context<AdminUpdateSpotMarket>,
-    scale_initial_asset_weight_start: u64,
-) -> Result<()> {
-    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-    msg!("spot market {}", spot_market.market_index);
-
-    msg!(
-        "spot_market.scale_initial_asset_weight_start: {:?} -> {:?}",
-        spot_market.scale_initial_asset_weight_start,
-        scale_initial_asset_weight_start
-    );
-
-    spot_market.scale_initial_asset_weight_start = scale_initial_asset_weight_start;
-    Ok(())
-}
-
-#[access_control(
-    spot_market_valid(&ctx.accounts.spot_market)
-)]
-pub fn handle_update_spot_market_orders_enabled(
-    ctx: Context<AdminUpdateSpotMarket>,
-    orders_enabled: bool,
-) -> Result<()> {
-    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-    msg!("spot market {}", spot_market.market_index);
-
-    msg!(
-        "spot_market.orders_enabled: {:?} -> {:?}",
-        spot_market.orders_enabled,
-        orders_enabled
-    );
-
-    spot_market.orders_enabled = orders_enabled;
-    Ok(())
-}
-
-#[access_control(
-    spot_market_valid(&ctx.accounts.spot_market)
-)]
-pub fn handle_update_spot_market_if_paused_operations(
-    ctx: Context<AdminUpdateSpotMarket>,
-    paused_operations: u8,
-) -> Result<()> {
-    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-    spot_market.if_paused_operations = paused_operations;
-    msg!("spot market {}", spot_market.market_index);
-    InsuranceFundOperation::log_all_operations_paused(paused_operations);
-    Ok(())
-}
-
-#[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
-pub fn handle_update_perp_market_status(
-    ctx: Context<AdminUpdatePerpMarket>,
-    status: MarketStatus,
-) -> Result<()> {
-    validate!(
-        !matches!(status, MarketStatus::Delisted | MarketStatus::Settlement),
-        ErrorCode::DefaultError,
-        "must set settlement/delist through another instruction",
-    )?;
-
-    status.validate_not_deprecated()?;
-
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-
-    msg!("perp market {}", perp_market.market_index);
-
-    msg!(
-        "perp_market.status: {:?} -> {:?}",
-        perp_market.status,
-        status
-    );
-
-    perp_market.status = status;
-    Ok(())
-}
-
-#[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
-pub fn handle_update_perp_market_paused_operations(
-    ctx: Context<AdminUpdatePerpMarket>,
-    paused_operations: u8,
-) -> Result<()> {
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    msg!("perp market {}", perp_market.market_index);
-
-    perp_market.paused_operations = paused_operations;
-
-    if perp_market.is_prediction_market() {
-        validate!(
-            perp_market.is_operation_paused(PerpOperation::UpdateFunding),
-            ErrorCode::DefaultError,
-            "prediction market must have funding paused"
-        )?;
-    }
-
-    PerpOperation::log_all_operations_paused(perp_market.paused_operations);
-
-    Ok(())
-}
-
-#[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
-pub fn handle_update_perp_market_contract_tier(
-    ctx: Context<AdminUpdatePerpMarket>,
-    contract_tier: ContractTier,
-) -> Result<()> {
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    msg!("perp market {}", perp_market.market_index);
-
-    msg!(
-        "perp_market.contract_tier: {:?} -> {:?}",
-        perp_market.contract_tier,
-        contract_tier
-    );
-
-    perp_market.contract_tier = contract_tier;
-    Ok(())
-}
-
-#[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
-pub fn handle_update_perp_market_imf_factor(
-    ctx: Context<AdminUpdatePerpMarket>,
-    imf_factor: u32,
-    unrealized_pnl_imf_factor: u32,
-) -> Result<()> {
-    validate!(
-        imf_factor <= SPOT_IMF_PRECISION,
-        ErrorCode::DefaultError,
-        "invalid imf factor",
-    )?;
-    validate!(
-        unrealized_pnl_imf_factor <= SPOT_IMF_PRECISION,
-        ErrorCode::DefaultError,
-        "invalid unrealized pnl imf factor",
-    )?;
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    msg!("perp market {}", perp_market.market_index);
-
-    msg!(
-        "perp_market.imf_factor: {:?} -> {:?}",
-        perp_market.imf_factor,
-        imf_factor
-    );
-
-    msg!(
-        "perp_market.unrealized_pnl_imf_factor: {:?} -> {:?}",
-        perp_market.unrealized_pnl_imf_factor,
-        unrealized_pnl_imf_factor
-    );
-
-    perp_market.imf_factor = imf_factor;
-    perp_market.unrealized_pnl_imf_factor = unrealized_pnl_imf_factor;
-    Ok(())
-}
-
-#[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
-pub fn handle_update_perp_market_unrealized_asset_weight(
-    ctx: Context<AdminUpdatePerpMarket>,
-    unrealized_initial_asset_weight: u32,
-    unrealized_maintenance_asset_weight: u32,
-) -> Result<()> {
-    validate!(
-        unrealized_initial_asset_weight <= SPOT_WEIGHT_PRECISION.cast()?,
-        ErrorCode::DefaultError,
-        "invalid unrealized_initial_asset_weight",
-    )?;
-    validate!(
-        unrealized_maintenance_asset_weight <= SPOT_WEIGHT_PRECISION.cast()?,
-        ErrorCode::DefaultError,
-        "invalid unrealized_maintenance_asset_weight",
-    )?;
-    validate!(
-        unrealized_initial_asset_weight <= unrealized_maintenance_asset_weight,
-        ErrorCode::DefaultError,
-        "must enforce unrealized_initial_asset_weight <= unrealized_maintenance_asset_weight",
-    )?;
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    msg!("perp market {}", perp_market.market_index);
-
-    msg!(
-        "perp_market.unrealized_initial_asset_weight: {:?} -> {:?}",
-        perp_market.unrealized_pnl_initial_asset_weight,
-        unrealized_initial_asset_weight
-    );
-
-    msg!(
-        "perp_market.unrealized_maintenance_asset_weight: {:?} -> {:?}",
-        perp_market.unrealized_pnl_maintenance_asset_weight,
-        unrealized_maintenance_asset_weight
-    );
-
-    perp_market.unrealized_pnl_initial_asset_weight = unrealized_initial_asset_weight;
-    perp_market.unrealized_pnl_maintenance_asset_weight = unrealized_maintenance_asset_weight;
-    Ok(())
-}
-
-#[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
-pub fn handle_update_perp_market_concentration_coef(
-    ctx: Context<AdminUpdatePerpMarket>,
-    concentration_scale: u128,
-) -> Result<()> {
-    validate!(
-        concentration_scale > 0,
-        ErrorCode::DefaultError,
-        "invalid concentration_scale",
-    )?;
-
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    msg!("perp market {}", perp_market.market_index);
-
-    let prev_concentration_coef = perp_market.amm.concentration_coef;
-    controller::amm::update_concentration_coef(perp_market, concentration_scale)?;
-    let new_concentration_coef = perp_market.amm.concentration_coef;
-
-    msg!(
-        "perp_market.amm.concentration_coef: {} -> {}",
-        prev_concentration_coef,
-        new_concentration_coef
-    );
-
-    Ok(())
-}
-
-#[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
-pub fn handle_update_perp_market_curve_update_intensity(
-    ctx: Context<HotAdminUpdatePerpMarket>,
-    curve_update_intensity: u8,
-) -> Result<()> {
-    // (0, 100] is for repeg / formulaic k intensity
-    // (100, 200] is for reference price offset intensity
-    validate!(
-        curve_update_intensity <= 200,
-        ErrorCode::DefaultError,
-        "invalid curve_update_intensity",
-    )?;
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    msg!("perp market {}", perp_market.market_index);
-
-    msg!(
-        "perp_market.amm.curve_update_intensity: {} -> {}",
-        perp_market.amm.curve_update_intensity,
-        curve_update_intensity
-    );
-
-    perp_market.amm.curve_update_intensity = curve_update_intensity;
-    Ok(())
-}
-
-pub fn handle_update_lp_cooldown_time(
-    ctx: Context<AdminUpdateState>,
-    lp_cooldown_time: u64,
-) -> Result<()> {
-    msg!(
-        "lp_cooldown_time: {} -> {}",
-        ctx.accounts.state.lp_cooldown_time,
-        lp_cooldown_time
-    );
-
-    ctx.accounts.state.lp_cooldown_time = lp_cooldown_time;
     Ok(())
 }
 
@@ -3475,48 +2506,6 @@ pub fn handle_update_spot_fee_structure(
     Ok(())
 }
 
-pub fn handle_update_initial_pct_to_liquidate(
-    ctx: Context<AdminUpdateState>,
-    initial_pct_to_liquidate: u16,
-) -> Result<()> {
-    msg!(
-        "initial_pct_to_liquidate: {} -> {}",
-        ctx.accounts.state.initial_pct_to_liquidate,
-        initial_pct_to_liquidate
-    );
-
-    ctx.accounts.state.initial_pct_to_liquidate = initial_pct_to_liquidate;
-    Ok(())
-}
-
-pub fn handle_update_liquidation_duration(
-    ctx: Context<AdminUpdateState>,
-    liquidation_duration: u8,
-) -> Result<()> {
-    msg!(
-        "liquidation_duration: {} -> {}",
-        ctx.accounts.state.liquidation_duration,
-        liquidation_duration
-    );
-
-    ctx.accounts.state.liquidation_duration = liquidation_duration;
-    Ok(())
-}
-
-pub fn handle_update_liquidation_margin_buffer_ratio(
-    ctx: Context<AdminUpdateState>,
-    liquidation_margin_buffer_ratio: u32,
-) -> Result<()> {
-    msg!(
-        "liquidation_margin_buffer_ratio: {} -> {}",
-        ctx.accounts.state.liquidation_margin_buffer_ratio,
-        liquidation_margin_buffer_ratio
-    );
-
-    ctx.accounts.state.liquidation_margin_buffer_ratio = liquidation_margin_buffer_ratio;
-    Ok(())
-}
-
 pub fn handle_update_oracle_guard_rails(
     ctx: Context<AdminUpdateState>,
     oracle_guard_rails: OracleGuardRails,
@@ -3528,48 +2517,6 @@ pub fn handle_update_oracle_guard_rails(
     );
 
     ctx.accounts.state.oracle_guard_rails = oracle_guard_rails;
-    Ok(())
-}
-
-pub fn handle_update_state_settlement_duration(
-    ctx: Context<AdminUpdateState>,
-    settlement_duration: u16,
-) -> Result<()> {
-    msg!(
-        "settlement_duration: {} -> {}",
-        ctx.accounts.state.settlement_duration,
-        settlement_duration
-    );
-
-    ctx.accounts.state.settlement_duration = settlement_duration;
-    Ok(())
-}
-
-pub fn handle_update_state_max_number_of_sub_accounts(
-    ctx: Context<AdminUpdateState>,
-    max_number_of_sub_accounts: u16,
-) -> Result<()> {
-    msg!(
-        "max_number_of_sub_accounts: {} -> {}",
-        ctx.accounts.state.max_number_of_sub_accounts,
-        max_number_of_sub_accounts
-    );
-
-    ctx.accounts.state.max_number_of_sub_accounts = max_number_of_sub_accounts;
-    Ok(())
-}
-
-pub fn handle_update_state_max_initialize_user_fee(
-    ctx: Context<AdminUpdateState>,
-    max_initialize_user_fee: u16,
-) -> Result<()> {
-    msg!(
-        "max_initialize_user_fee: {} -> {}",
-        ctx.accounts.state.max_initialize_user_fee,
-        max_initialize_user_fee
-    );
-
-    ctx.accounts.state.max_initialize_user_fee = max_initialize_user_fee;
     Ok(())
 }
 
@@ -3667,40 +2614,6 @@ pub fn handle_update_perp_market_oracle(
 #[access_control(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
-pub fn handle_update_perp_market_base_spread(
-    ctx: Context<AdminUpdatePerpMarket>,
-    base_spread: u32,
-) -> Result<()> {
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    msg!("perp market {}", perp_market.market_index);
-
-    msg!(
-        "perp_market.amm.base_spread: {:?} -> {:?}",
-        perp_market.amm.base_spread,
-        base_spread
-    );
-
-    msg!(
-        "perp_market.amm.long_spread: {:?} -> {:?}",
-        perp_market.amm.long_spread,
-        base_spread / 2
-    );
-
-    msg!(
-        "perp_market.amm.short_spread: {:?} -> {:?}",
-        perp_market.amm.short_spread,
-        base_spread / 2
-    );
-
-    perp_market.amm.base_spread = base_spread;
-    perp_market.amm.long_spread = base_spread / 2;
-    perp_market.amm.short_spread = base_spread / 2;
-    Ok(())
-}
-
-#[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
 pub fn handle_update_amm_jit_intensity(
     ctx: Context<HotAdminUpdatePerpMarket>,
     amm_jit_intensity: u8,
@@ -3722,473 +2635,6 @@ pub fn handle_update_amm_jit_intensity(
 
     perp_market.amm.amm_jit_intensity = amm_jit_intensity;
 
-    Ok(())
-}
-
-#[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
-pub fn handle_update_perp_market_max_spread(
-    ctx: Context<AdminUpdatePerpMarket>,
-    max_spread: u32,
-) -> Result<()> {
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    msg!("perp market {}", perp_market.market_index);
-
-    validate!(
-        max_spread >= perp_market.amm.base_spread,
-        ErrorCode::DefaultError,
-        "invalid max_spread < base_spread",
-    )?;
-
-    validate!(
-        max_spread <= perp_market.margin_ratio_initial * 100,
-        ErrorCode::DefaultError,
-        "invalid max_spread > market.margin_ratio_initial * 100",
-    )?;
-
-    msg!(
-        "perp_market.amm.max_spread: {:?} -> {:?}",
-        perp_market.amm.max_spread,
-        max_spread
-    );
-
-    perp_market.amm.max_spread = max_spread;
-
-    Ok(())
-}
-
-#[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
-pub fn handle_update_perp_market_step_size_and_tick_size(
-    ctx: Context<AdminUpdatePerpMarket>,
-    step_size: u64,
-    tick_size: u64,
-) -> Result<()> {
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    msg!("perp market {}", perp_market.market_index);
-
-    validate!(step_size > 0 && tick_size > 0, ErrorCode::DefaultError)?;
-    validate!(step_size <= 2000000000, ErrorCode::DefaultError)?; // below i32 max for lp's remainder_base_asset
-
-    msg!(
-        "perp_market.amm.order_step_size: {:?} -> {:?}",
-        perp_market.amm.order_step_size,
-        step_size
-    );
-
-    msg!(
-        "perp_market.amm.order_tick_size: {:?} -> {:?}",
-        perp_market.amm.order_tick_size,
-        tick_size
-    );
-
-    perp_market.amm.order_step_size = step_size;
-    perp_market.amm.order_tick_size = tick_size;
-    Ok(())
-}
-
-#[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
-pub fn handle_update_perp_market_min_order_size(
-    ctx: Context<AdminUpdatePerpMarket>,
-    order_size: u64,
-) -> Result<()> {
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    msg!("perp market {}", perp_market.market_index);
-
-    validate!(order_size > 0, ErrorCode::DefaultError)?;
-
-    msg!(
-        "perp_market.amm.min_order_size: {:?} -> {:?}",
-        perp_market.amm.min_order_size,
-        order_size
-    );
-
-    perp_market.amm.min_order_size = order_size;
-    Ok(())
-}
-
-#[access_control(
-    spot_market_valid(&ctx.accounts.spot_market)
-)]
-pub fn handle_update_spot_market_step_size_and_tick_size(
-    ctx: Context<AdminUpdateSpotMarket>,
-    step_size: u64,
-    tick_size: u64,
-) -> Result<()> {
-    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-    msg!("spot market {}", spot_market.market_index);
-
-    validate!(
-        spot_market.market_index == 0 || step_size > 0 && tick_size > 0,
-        ErrorCode::DefaultError
-    )?;
-
-    msg!(
-        "spot_market.order_step_size: {:?} -> {:?}",
-        spot_market.order_step_size,
-        step_size
-    );
-
-    msg!(
-        "spot_market.order_tick_size: {:?} -> {:?}",
-        spot_market.order_tick_size,
-        tick_size
-    );
-
-    spot_market.order_step_size = step_size;
-    spot_market.order_tick_size = tick_size;
-    Ok(())
-}
-
-#[access_control(
-    spot_market_valid(&ctx.accounts.spot_market)
-)]
-pub fn handle_update_spot_market_min_order_size(
-    ctx: Context<AdminUpdateSpotMarket>,
-    order_size: u64,
-) -> Result<()> {
-    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
-    msg!("spot market {}", spot_market.market_index);
-
-    validate!(
-        spot_market.market_index == 0 || order_size > 0,
-        ErrorCode::DefaultError
-    )?;
-
-    msg!(
-        "spot_market.min_order_size: {:?} -> {:?}",
-        spot_market.min_order_size,
-        order_size
-    );
-
-    spot_market.min_order_size = order_size;
-    Ok(())
-}
-
-#[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
-pub fn handle_update_perp_market_max_slippage_ratio(
-    ctx: Context<AdminUpdatePerpMarket>,
-    max_slippage_ratio: u16,
-) -> Result<()> {
-    validate!(max_slippage_ratio > 0, ErrorCode::DefaultError)?;
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    msg!("perp market {}", perp_market.market_index);
-
-    msg!(
-        "perp_market.amm.max_slippage_ratio: {:?} -> {:?}",
-        perp_market.amm.max_slippage_ratio,
-        max_slippage_ratio
-    );
-
-    perp_market.amm.max_slippage_ratio = max_slippage_ratio;
-    Ok(())
-}
-
-#[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
-pub fn handle_update_perp_market_max_fill_reserve_fraction(
-    ctx: Context<AdminUpdatePerpMarket>,
-    max_fill_reserve_fraction: u16,
-) -> Result<()> {
-    validate!(max_fill_reserve_fraction > 0, ErrorCode::DefaultError)?;
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    msg!("perp market {}", perp_market.market_index);
-
-    msg!(
-        "perp_market.amm.max_fill_reserve_fraction: {:?} -> {:?}",
-        perp_market.amm.max_fill_reserve_fraction,
-        max_fill_reserve_fraction
-    );
-
-    perp_market.amm.max_fill_reserve_fraction = max_fill_reserve_fraction;
-    Ok(())
-}
-
-#[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
-pub fn handle_update_perp_market_max_open_interest(
-    ctx: Context<AdminUpdatePerpMarket>,
-    max_open_interest: u128,
-) -> Result<()> {
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    msg!("perp market {}", perp_market.market_index);
-
-    validate!(
-        is_multiple_of_step_size(
-            max_open_interest.cast::<u64>()?,
-            perp_market.amm.order_step_size
-        )?,
-        ErrorCode::DefaultError,
-        "max oi not a multiple of the step size"
-    )?;
-
-    msg!(
-        "perp_market.amm.max_open_interest: {:?} -> {:?}",
-        perp_market.amm.max_open_interest,
-        max_open_interest
-    );
-
-    perp_market.amm.max_open_interest = max_open_interest;
-    Ok(())
-}
-
-#[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
-pub fn handle_update_perp_market_fee_adjustment(
-    ctx: Context<AdminUpdatePerpMarket>,
-    fee_adjustment: i16,
-) -> Result<()> {
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    msg!("perp market {}", perp_market.market_index);
-
-    validate!(
-        fee_adjustment.unsigned_abs().cast::<u64>()? <= FEE_ADJUSTMENT_MAX,
-        ErrorCode::DefaultError,
-        "fee adjustment {} greater than max {}",
-        fee_adjustment,
-        FEE_ADJUSTMENT_MAX
-    )?;
-
-    msg!(
-        "perp_market.fee_adjustment: {:?} -> {:?}",
-        perp_market.fee_adjustment,
-        fee_adjustment
-    );
-
-    perp_market.fee_adjustment = fee_adjustment;
-    Ok(())
-}
-
-pub fn handle_update_perp_market_number_of_users(
-    ctx: Context<AdminUpdatePerpMarket>,
-    number_of_users: Option<u32>,
-    number_of_users_with_base: Option<u32>,
-) -> Result<()> {
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    msg!("perp market {}", perp_market.market_index);
-
-    if let Some(number_of_users) = number_of_users {
-        msg!(
-            "perp_market.number_of_users: {:?} -> {:?}",
-            perp_market.number_of_users,
-            number_of_users
-        );
-        perp_market.number_of_users = number_of_users;
-    } else {
-        msg!("perp_market.number_of_users: unchanged");
-    }
-
-    if let Some(number_of_users_with_base) = number_of_users_with_base {
-        msg!(
-            "perp_market.number_of_users_with_base: {:?} -> {:?}",
-            perp_market.number_of_users_with_base,
-            number_of_users_with_base
-        );
-        perp_market.number_of_users_with_base = number_of_users_with_base;
-    } else {
-        msg!("perp_market.number_of_users_with_base: unchanged");
-    }
-
-    validate!(
-        perp_market.number_of_users >= perp_market.number_of_users_with_base,
-        ErrorCode::DefaultError,
-        "number_of_users must be >= number_of_users_with_base "
-    )?;
-
-    Ok(())
-}
-
-pub fn handle_update_perp_market_fuel(
-    ctx: Context<HotAdminUpdatePerpMarket>,
-    fuel_boost_taker: Option<u8>,
-    fuel_boost_maker: Option<u8>,
-    fuel_boost_position: Option<u8>,
-) -> Result<()> {
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    msg!("perp market {}", perp_market.market_index);
-
-    if let Some(fuel_boost_taker) = fuel_boost_taker {
-        msg!(
-            "perp_market.fuel_boost_taker: {:?} -> {:?}",
-            perp_market.fuel_boost_taker,
-            fuel_boost_taker
-        );
-        perp_market.fuel_boost_taker = fuel_boost_taker;
-    } else {
-        msg!("perp_market.fuel_boost_taker: unchanged");
-    }
-
-    if let Some(fuel_boost_maker) = fuel_boost_maker {
-        msg!(
-            "perp_market.fuel_boost_maker: {:?} -> {:?}",
-            perp_market.fuel_boost_maker,
-            fuel_boost_maker
-        );
-        perp_market.fuel_boost_maker = fuel_boost_maker;
-    } else {
-        msg!("perp_market.fuel_boost_maker: unchanged");
-    }
-
-    if let Some(fuel_boost_position) = fuel_boost_position {
-        msg!(
-            "perp_market.fuel_boost_position: {:?} -> {:?}",
-            perp_market.fuel_boost_position,
-            fuel_boost_position
-        );
-        perp_market.fuel_boost_position = fuel_boost_position;
-    } else {
-        msg!("perp_market.fuel_boost_position: unchanged");
-    }
-
-    Ok(())
-}
-
-pub fn handle_update_perp_market_protected_maker_params(
-    ctx: Context<AdminUpdatePerpMarket>,
-    protected_maker_limit_price_divisor: Option<u8>,
-    protected_maker_dynamic_divisor: Option<u8>,
-) -> Result<()> {
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    msg!("perp market {}", perp_market.market_index);
-
-    if let Some(protected_maker_limit_price_divisor) = protected_maker_limit_price_divisor {
-        msg!(
-            "perp_market.protected_maker_limit_price_divisor: {:?} -> {:?}",
-            perp_market.protected_maker_limit_price_divisor,
-            protected_maker_limit_price_divisor
-        );
-        perp_market.protected_maker_limit_price_divisor = protected_maker_limit_price_divisor;
-    } else {
-        msg!("perp_market.protected_maker_limit_price_divisor: unchanged");
-    }
-
-    if let Some(protected_maker_dynamic_divisor) = protected_maker_dynamic_divisor {
-        msg!(
-            "perp_market.protected_maker_dynamic_divisor: {:?} -> {:?}",
-            perp_market.protected_maker_dynamic_divisor,
-            protected_maker_dynamic_divisor
-        );
-        perp_market.protected_maker_dynamic_divisor = protected_maker_dynamic_divisor;
-    } else {
-        msg!("perp_market.protected_maker_dynamic_divisor: unchanged");
-    }
-
-    Ok(())
-}
-
-#[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
-pub fn handle_update_perp_market_taker_speed_bump_override(
-    ctx: Context<HotAdminUpdatePerpMarket>,
-    taker_speed_bump_override: i8,
-) -> Result<()> {
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    msg!("perp market {}", perp_market.market_index);
-
-    msg!(
-        "perp_market.amm.taker_speed_bump_override: {:?} -> {:?}",
-        perp_market.amm.taker_speed_bump_override,
-        taker_speed_bump_override
-    );
-
-    perp_market.amm.taker_speed_bump_override = taker_speed_bump_override;
-    Ok(())
-}
-
-#[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
-pub fn handle_update_perp_market_amm_spread_adjustment(
-    ctx: Context<HotAdminUpdatePerpMarket>,
-    amm_spread_adjustment: i8,
-    amm_inventory_spread_adjustment: i8,
-    reference_price_offset: i32,
-) -> Result<()> {
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    msg!("perp market {}", perp_market.market_index);
-
-    msg!(
-        "perp_market.amm.amm_spread_adjustment: {:?} -> {:?}",
-        perp_market.amm.amm_spread_adjustment,
-        amm_spread_adjustment
-    );
-
-    perp_market.amm.amm_spread_adjustment = amm_spread_adjustment;
-
-    msg!(
-        "perp_market.amm.amm_inventory_spread_adjustment: {:?} -> {:?}",
-        perp_market.amm.amm_inventory_spread_adjustment,
-        amm_inventory_spread_adjustment
-    );
-
-    perp_market.amm.amm_inventory_spread_adjustment = amm_inventory_spread_adjustment;
-
-    msg!(
-        "perp_market.amm.reference_price_offset: {:?} -> {:?}",
-        perp_market.amm.reference_price_offset,
-        reference_price_offset
-    );
-
-    perp_market.amm.reference_price_offset = reference_price_offset;
-
-    Ok(())
-}
-
-#[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
-pub fn handle_update_perp_market_oracle_slot_delay_override(
-    ctx: Context<HotAdminUpdatePerpMarket>,
-    oracle_slot_delay_override: i8,
-) -> Result<()> {
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    msg!("perp market {}", perp_market.market_index);
-
-    msg!(
-        "perp_market.amm.oracle_slot_delay_override: {:?} -> {:?}",
-        perp_market.amm.oracle_slot_delay_override,
-        oracle_slot_delay_override
-    );
-
-    perp_market.amm.oracle_slot_delay_override = oracle_slot_delay_override;
-    Ok(())
-}
-
-#[access_control(
-    spot_market_valid(&ctx.accounts.spot_market)
-)]
-pub fn handle_update_spot_market_fee_adjustment(
-    ctx: Context<AdminUpdateSpotMarket>,
-    fee_adjustment: i16,
-) -> Result<()> {
-    let spot = &mut load_mut!(ctx.accounts.spot_market)?;
-    msg!("spot market {}", spot.market_index);
-
-    validate!(
-        fee_adjustment.unsigned_abs().cast::<u64>()? <= FEE_ADJUSTMENT_MAX,
-        ErrorCode::DefaultError,
-        "fee adjustment {} greater than max {}",
-        fee_adjustment,
-        FEE_ADJUSTMENT_MAX
-    )?;
-
-    msg!(
-        "spot_market.fee_adjustment: {:?} -> {:?}",
-        spot.fee_adjustment,
-        fee_adjustment
-    );
-
-    spot.fee_adjustment = fee_adjustment;
     Ok(())
 }
 
@@ -4258,82 +2704,6 @@ pub fn handle_update_spot_market_fuel(
         msg!("spot_market.fuel_boost_insurance: unchanged");
     }
 
-    Ok(())
-}
-
-pub fn handle_update_admin(ctx: Context<AdminUpdateState>, admin: Pubkey) -> Result<()> {
-    msg!("admin: {:?} -> {:?}", ctx.accounts.state.admin, admin);
-    ctx.accounts.state.admin = admin;
-    Ok(())
-}
-
-pub fn handle_update_whitelist_mint(
-    ctx: Context<AdminUpdateState>,
-    whitelist_mint: Pubkey,
-) -> Result<()> {
-    msg!(
-        "whitelist_mint: {:?} -> {:?}",
-        ctx.accounts.state.whitelist_mint,
-        whitelist_mint
-    );
-
-    ctx.accounts.state.whitelist_mint = whitelist_mint;
-    Ok(())
-}
-
-pub fn handle_update_discount_mint(
-    ctx: Context<AdminUpdateState>,
-    discount_mint: Pubkey,
-) -> Result<()> {
-    msg!(
-        "discount_mint: {:?} -> {:?}",
-        ctx.accounts.state.discount_mint,
-        discount_mint
-    );
-
-    ctx.accounts.state.discount_mint = discount_mint;
-    Ok(())
-}
-
-pub fn handle_update_exchange_status(
-    ctx: Context<AdminUpdateState>,
-    exchange_status: u8,
-) -> Result<()> {
-    msg!(
-        "exchange_status: {:?} -> {:?}",
-        ctx.accounts.state.exchange_status,
-        exchange_status
-    );
-
-    ctx.accounts.state.exchange_status = exchange_status;
-    Ok(())
-}
-
-pub fn handle_update_perp_auction_duration(
-    ctx: Context<AdminUpdateState>,
-    min_perp_auction_duration: u8,
-) -> Result<()> {
-    msg!(
-        "min_perp_auction_duration: {:?} -> {:?}",
-        ctx.accounts.state.min_perp_auction_duration,
-        min_perp_auction_duration
-    );
-
-    ctx.accounts.state.min_perp_auction_duration = min_perp_auction_duration;
-    Ok(())
-}
-
-pub fn handle_update_spot_auction_duration(
-    ctx: Context<AdminUpdateState>,
-    default_spot_auction_duration: u8,
-) -> Result<()> {
-    msg!(
-        "default_spot_auction_duration: {:?} -> {:?}",
-        ctx.accounts.state.default_spot_auction_duration,
-        default_spot_auction_duration
-    );
-
-    ctx.accounts.state.default_spot_auction_duration = default_spot_auction_duration;
     Ok(())
 }
 
@@ -4813,14 +3183,6 @@ pub fn handle_update_if_rebalance_config(
 
     config.validate()?;
 
-    Ok(())
-}
-
-pub fn handle_zero_mm_oracle_fields(ctx: Context<HotAdminUpdatePerpMarket>) -> Result<()> {
-    let mut perp_market = load_mut!(ctx.accounts.perp_market)?;
-    perp_market.amm.mm_oracle_price = 0;
-    perp_market.amm.mm_oracle_sequence_id = 0;
-    perp_market.amm.mm_oracle_slot = 0;
     Ok(())
 }
 
@@ -5861,4 +4223,1228 @@ pub struct UpdateDelegateUserGovTokenInsuranceStake<'info> {
         has_one = admin
     )]
     pub state: Box<Account<'info, State>>,
+}
+
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, PartialEq)]
+pub struct SpotMarketUpdateParams {
+    pub name: Option<[u8; 32]>,
+    pub status: Option<MarketStatus>,
+    pub paused_operations: Option<u8>,
+    pub if_paused_operations: Option<u8>,
+    pub orders_enabled: Option<bool>,
+    pub asset_tier: Option<AssetTier>,
+    pub initial_asset_weight: Option<u32>,
+    pub maintenance_asset_weight: Option<u32>,
+    pub initial_liability_weight: Option<u32>,
+    pub maintenance_liability_weight: Option<u32>,
+    pub imf_factor: Option<u32>,
+    pub optimal_utilization: Option<u32>,
+    pub optimal_borrow_rate: Option<u32>,
+    pub max_borrow_rate: Option<u32>,
+    pub min_borrow_rate: Option<u8>,
+    pub order_step_size: Option<u64>,
+    pub order_tick_size: Option<u64>,
+    pub min_order_size: Option<u64>,
+    pub max_token_deposits: Option<u64>,
+    pub max_token_borrows_fraction: Option<u16>,
+    pub scale_initial_asset_weight_start: Option<u64>,
+    pub fee_adjustment: Option<i16>,
+    pub revenue_settle_period: Option<i64>,
+    pub withdraw_guard_threshold: Option<u64>,
+    pub user_if_factor: Option<u32>,
+    pub total_if_factor: Option<u32>,
+    pub expiry_ts: Option<i64>,
+    pub pool_id: Option<u8>,
+    pub liquidator_fee: Option<u32>,
+    pub if_liquidation_fee: Option<u32>,
+}
+
+pub fn handle_update_spot_market_params(
+    ctx: Context<AdminUpdateSpotMarket>,
+    params: SpotMarketUpdateParams,
+) -> Result<()> {
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+    let mut spot_market = load_mut!(ctx.accounts.spot_market)?;
+
+    msg!("spot market {}", spot_market.market_index);
+
+    if let Some(name) = params.name {
+        msg!("spot_market.name: {:?} -> {:?}", spot_market.name, name);
+        spot_market.name = name;
+    }
+
+    if let Some(status) = params.status {
+        status.validate_not_deprecated()?;
+        msg!(
+            "spot_market.status: {:?} -> {:?}",
+            spot_market.status,
+            status
+        );
+        spot_market.status = status;
+    }
+
+    if let Some(po) = params.paused_operations {
+        msg!(
+            "spot_market.paused_operations: {:?} -> {:?}",
+            spot_market.paused_operations,
+            po
+        );
+        spot_market.paused_operations = po;
+        SpotOperation::log_all_operations_paused(spot_market.paused_operations);
+    }
+
+    if let Some(po) = params.if_paused_operations {
+        msg!(
+            "spot_market.if_paused_operations: {:?} -> {:?}",
+            spot_market.if_paused_operations,
+            po
+        );
+        spot_market.if_paused_operations = po;
+        InsuranceFundOperation::log_all_operations_paused(po);
+    }
+
+    if let Some(orders_enabled) = params.orders_enabled {
+        msg!(
+            "spot_market.orders_enabled: {:?} -> {:?}",
+            spot_market.orders_enabled,
+            orders_enabled
+        );
+        spot_market.orders_enabled = orders_enabled;
+    }
+
+    if let Some(asset_tier) = params.asset_tier {
+        if spot_market.initial_asset_weight > 0 {
+            validate!(
+                matches!(asset_tier, AssetTier::Collateral | AssetTier::Protected),
+                ErrorCode::DefaultError,
+                "initial_asset_weight > 0 so AssetTier must be collateral or protected"
+            )?;
+        }
+        msg!(
+            "spot_market.asset_tier: {:?} -> {:?}",
+            spot_market.asset_tier,
+            asset_tier
+        );
+        spot_market.asset_tier = asset_tier;
+    }
+
+    if params.initial_asset_weight.is_some()
+        || params.maintenance_asset_weight.is_some()
+        || params.initial_liability_weight.is_some()
+        || params.maintenance_liability_weight.is_some()
+        || params.imf_factor.is_some()
+    {
+        let initial_asset_weight = params
+            .initial_asset_weight
+            .unwrap_or(spot_market.initial_asset_weight);
+        let maintenance_asset_weight = params
+            .maintenance_asset_weight
+            .unwrap_or(spot_market.maintenance_asset_weight);
+        let initial_liability_weight = params
+            .initial_liability_weight
+            .unwrap_or(spot_market.initial_liability_weight);
+        let maintenance_liability_weight = params
+            .maintenance_liability_weight
+            .unwrap_or(spot_market.maintenance_liability_weight);
+        let imf_factor = params.imf_factor.unwrap_or(spot_market.imf_factor);
+        validate_margin_weights(
+            spot_market.market_index,
+            initial_asset_weight,
+            maintenance_asset_weight,
+            initial_liability_weight,
+            maintenance_liability_weight,
+            imf_factor,
+        )?;
+        msg!(
+            "spot_market.initial_asset_weight: {:?} -> {:?}",
+            spot_market.initial_asset_weight,
+            initial_asset_weight
+        );
+
+        msg!(
+            "spot_market.maintenance_asset_weight: {:?} -> {:?}",
+            spot_market.maintenance_asset_weight,
+            maintenance_asset_weight
+        );
+
+        msg!(
+            "spot_market.initial_liability_weight: {:?} -> {:?}",
+            spot_market.initial_liability_weight,
+            initial_liability_weight
+        );
+
+        msg!(
+            "spot_market.maintenance_liability_weight: {:?} -> {:?}",
+            spot_market.maintenance_liability_weight,
+            maintenance_liability_weight
+        );
+
+        msg!(
+            "spot_market.imf_factor: {:?} -> {:?}",
+            spot_market.imf_factor,
+            imf_factor
+        );
+        spot_market.initial_asset_weight = initial_asset_weight;
+        spot_market.maintenance_asset_weight = maintenance_asset_weight;
+        spot_market.initial_liability_weight = initial_liability_weight;
+        spot_market.maintenance_liability_weight = maintenance_liability_weight;
+        spot_market.imf_factor = imf_factor;
+    }
+
+    if params.optimal_utilization.is_some()
+        || params.optimal_borrow_rate.is_some()
+        || params.max_borrow_rate.is_some()
+        || params.min_borrow_rate.is_some()
+    {
+        let optimal_utilization = params
+            .optimal_utilization
+            .unwrap_or(spot_market.optimal_utilization);
+        let optimal_borrow_rate = params
+            .optimal_borrow_rate
+            .unwrap_or(spot_market.optimal_borrow_rate);
+        let max_borrow_rate = params
+            .max_borrow_rate
+            .unwrap_or(spot_market.max_borrow_rate);
+        let min_borrow_rate = params
+            .min_borrow_rate
+            .unwrap_or(spot_market.min_borrow_rate);
+        validate_borrow_rate(
+            optimal_utilization,
+            optimal_borrow_rate,
+            max_borrow_rate,
+            min_borrow_rate.cast::<u32>()? * ((PERCENTAGE_PRECISION / 200) as u32),
+        )?;
+        msg!(
+            "spot_market.optimal_utilization: {:?} -> {:?}",
+            spot_market.optimal_utilization,
+            optimal_utilization
+        );
+
+        msg!(
+            "spot_market.optimal_borrow_rate: {:?} -> {:?}",
+            spot_market.optimal_borrow_rate,
+            optimal_borrow_rate
+        );
+
+        msg!(
+            "spot_market.max_borrow_rate: {:?} -> {:?}",
+            spot_market.max_borrow_rate,
+            max_borrow_rate
+        );
+        msg!(
+            "spot_market.min_borrow_rate: {:?} -> {:?}",
+            spot_market.min_borrow_rate,
+            min_borrow_rate
+        );
+
+        spot_market.optimal_utilization = optimal_utilization;
+        spot_market.optimal_borrow_rate = optimal_borrow_rate;
+        spot_market.max_borrow_rate = max_borrow_rate;
+        spot_market.min_borrow_rate = min_borrow_rate;
+    }
+
+    if params.order_step_size.is_some() || params.order_tick_size.is_some() {
+        let step_size = params
+            .order_step_size
+            .unwrap_or(spot_market.order_step_size);
+        let tick_size = params
+            .order_tick_size
+            .unwrap_or(spot_market.order_tick_size);
+        validate!(
+            spot_market.market_index == 0 || step_size > 0 && tick_size > 0,
+            ErrorCode::DefaultError
+        )?;
+        msg!(
+            "spot_market.order_step_size: {:?} -> {:?}",
+            spot_market.order_step_size,
+            step_size
+        );
+
+        msg!(
+            "spot_market.order_tick_size: {:?} -> {:?}",
+            spot_market.order_tick_size,
+            tick_size
+        );
+        spot_market.order_step_size = step_size;
+        spot_market.order_tick_size = tick_size;
+    }
+
+    if let Some(min_order_size) = params.min_order_size {
+        validate!(
+            spot_market.market_index == 0 || min_order_size > 0,
+            ErrorCode::DefaultError
+        )?;
+        msg!(
+            "spot_market.min_order_size: {:?} -> {:?}",
+            spot_market.min_order_size,
+            min_order_size
+        );
+        spot_market.min_order_size = min_order_size;
+    }
+
+    if let Some(max_token_deposits) = params.max_token_deposits {
+        msg!(
+            "spot_market.max_token_deposits: {:?} -> {:?}",
+            spot_market.max_token_deposits,
+            max_token_deposits
+        );
+        spot_market.max_token_deposits = max_token_deposits;
+    }
+
+    if let Some(max_token_borrows_fraction) = params.max_token_borrows_fraction {
+        let current_spot_tokens_borrows: u64 = spot_market.get_borrows()?.cast()?;
+        let new_max_token_borrows = spot_market
+            .max_token_deposits
+            .safe_mul(max_token_borrows_fraction.cast()?)?
+            .safe_div(10000)?;
+        validate!(
+            current_spot_tokens_borrows <= new_max_token_borrows,
+            ErrorCode::InvalidSpotMarketInitialization,
+            "spot borrows {} > max_token_borrows {}",
+            current_spot_tokens_borrows,
+            max_token_borrows_fraction
+        )?;
+        msg!(
+            "spot_market.max_token_borrows_fraction: {:?} -> {:?}",
+            spot_market.max_token_borrows_fraction,
+            max_token_borrows_fraction
+        );
+        spot_market.max_token_borrows_fraction = max_token_borrows_fraction;
+    }
+
+    if let Some(scale) = params.scale_initial_asset_weight_start {
+        msg!(
+            "spot_market.scale_initial_asset_weight_start: {:?} -> {:?}",
+            spot_market.scale_initial_asset_weight_start,
+            scale
+        );
+        spot_market.scale_initial_asset_weight_start = scale;
+    }
+
+    if let Some(fee_adjustment) = params.fee_adjustment {
+        validate!(
+            fee_adjustment.unsigned_abs().cast::<u64>()? <= FEE_ADJUSTMENT_MAX,
+            ErrorCode::DefaultError,
+            "fee adjustment {} greater than max {}",
+            fee_adjustment,
+            FEE_ADJUSTMENT_MAX
+        )?;
+        msg!(
+            "spot_market.fee_adjustment: {:?} -> {:?}",
+            spot_market.fee_adjustment,
+            fee_adjustment
+        );
+        spot_market.fee_adjustment = fee_adjustment;
+    }
+
+    if let Some(period) = params.revenue_settle_period {
+        validate!(period > 0, ErrorCode::DefaultError)?;
+        msg!(
+            "spot_market.revenue_settle_period: {:?} -> {:?}",
+            spot_market.insurance_fund.revenue_settle_period,
+            period
+        );
+        spot_market.insurance_fund.revenue_settle_period = period;
+    }
+
+    if let Some(threshold) = params.withdraw_guard_threshold {
+        msg!(
+            "spot_market.withdraw_guard_threshold: {:?} -> {:?}",
+            spot_market.withdraw_guard_threshold,
+            threshold
+        );
+        spot_market.withdraw_guard_threshold = threshold;
+    }
+
+    if params.user_if_factor.is_some() || params.total_if_factor.is_some() {
+        let user_if_factor = params
+            .user_if_factor
+            .unwrap_or(spot_market.insurance_fund.user_factor);
+        let total_if_factor = params
+            .total_if_factor
+            .unwrap_or(spot_market.insurance_fund.total_factor);
+        validate!(
+            user_if_factor <= total_if_factor,
+            ErrorCode::DefaultError,
+            "user_if_factor must be <= total_if_factor"
+        )?;
+        validate!(
+            total_if_factor <= IF_FACTOR_PRECISION.cast()?,
+            ErrorCode::DefaultError,
+            "total_if_factor must be <= 100%"
+        )?;
+        msg!(
+            "spot_market.user_if_factor: {:?} -> {:?}",
+            spot_market.insurance_fund.user_factor,
+            user_if_factor
+        );
+        msg!(
+            "spot_market.total_if_factor: {:?} -> {:?}",
+            spot_market.insurance_fund.total_factor,
+            total_if_factor
+        );
+        spot_market.insurance_fund.user_factor = user_if_factor;
+        spot_market.insurance_fund.total_factor = total_if_factor;
+    }
+
+    if let Some(expiry_ts) = params.expiry_ts {
+        validate!(
+            now < expiry_ts,
+            ErrorCode::DefaultError,
+            "Market expiry ts must later than current clock timestamp"
+        )?;
+        msg!(
+            "spot_market.status {:?} -> {:?}",
+            spot_market.status,
+            MarketStatus::ReduceOnly
+        );
+        msg!(
+            "spot_market.expiry_ts {} -> {}",
+            spot_market.expiry_ts,
+            expiry_ts
+        );
+        spot_market.status = MarketStatus::ReduceOnly;
+        spot_market.expiry_ts = expiry_ts;
+    }
+
+    if let Some(pool_id) = params.pool_id {
+        validate!(
+            spot_market.status == MarketStatus::Initialized,
+            ErrorCode::DefaultError,
+            "Market must be just initialized to update pool"
+        )?;
+        msg!(
+            "updating spot market {} pool id to {}",
+            spot_market.market_index,
+            pool_id
+        );
+        spot_market.pool_id = pool_id;
+    }
+
+    if params.liquidator_fee.is_some() || params.if_liquidation_fee.is_some() {
+        let liquidator_fee = params.liquidator_fee.unwrap_or(spot_market.liquidator_fee);
+        let if_liquidation_fee = params
+            .if_liquidation_fee
+            .unwrap_or(spot_market.if_liquidation_fee);
+        validate!(
+            liquidator_fee.safe_add(if_liquidation_fee)? < LIQUIDATION_FEE_PRECISION,
+            ErrorCode::DefaultError,
+            "Total liquidation fee must be less than 100%"
+        )?;
+        validate!(
+            if_liquidation_fee <= LIQUIDATION_FEE_PRECISION / 10,
+            ErrorCode::DefaultError,
+            "if_liquidation_fee must be <= 10%"
+        )?;
+        msg!(
+            "spot_market.liquidator_fee: {:?} -> {:?}",
+            spot_market.liquidator_fee,
+            liquidator_fee
+        );
+        msg!(
+            "spot_market.if_liquidation_fee: {:?} -> {:?}",
+            spot_market.if_liquidation_fee,
+            if_liquidation_fee
+        );
+        spot_market.liquidator_fee = liquidator_fee;
+        spot_market.if_liquidation_fee = if_liquidation_fee;
+    }
+
+    Ok(())
+}
+
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, PartialEq)]
+pub struct PerpMarketUpdateParams {
+    pub name: Option<[u8; 32]>,
+    pub status: Option<MarketStatus>,
+    pub paused_operations: Option<u8>,
+    pub contract_tier: Option<ContractTier>,
+    pub liquidator_fee: Option<u32>,
+    pub if_liquidation_fee: Option<u32>,
+    pub margin_ratio_initial: Option<u32>,
+    pub margin_ratio_maintenance: Option<u32>,
+    pub unrealized_initial_asset_weight: Option<u32>,
+    pub unrealized_maintenance_asset_weight: Option<u32>,
+    pub high_leverage_margin_ratio_initial: Option<u16>,
+    pub high_leverage_margin_ratio_maintenance: Option<u16>,
+    pub imf_factor: Option<u32>,
+    pub unrealized_pnl_imf_factor: Option<u32>,
+    pub funding_period: Option<i64>,
+    pub unrealized_max_imbalance: Option<u64>,
+    pub max_revenue_withdraw_per_period: Option<u64>,
+    pub quote_max_insurance: Option<u64>,
+    pub base_spread: Option<u32>,
+    pub max_spread: Option<u32>,
+    pub order_step_size: Option<u64>,
+    pub order_tick_size: Option<u64>,
+    pub min_order_size: Option<u64>,
+    pub max_slippage_ratio: Option<u16>,
+    pub max_fill_reserve_fraction: Option<u16>,
+    pub max_open_interest: Option<u128>,
+    pub fee_adjustment: Option<i16>,
+    pub number_of_users: Option<u32>,
+    pub number_of_users_with_base: Option<u32>,
+    pub protected_maker_limit_price_divisor: Option<u8>,
+    pub protected_maker_dynamic_divisor: Option<u8>,
+    pub fuel_boost_taker: Option<u8>,
+    pub fuel_boost_maker: Option<u8>,
+    pub fuel_boost_position: Option<u8>,
+    pub taker_speed_bump_override: Option<i8>,
+    pub oracle_slot_delay_override: Option<i8>,
+    pub amm_spread_adjustment: Option<i8>,
+    pub amm_inventory_spread_adjustment: Option<i8>,
+    pub reference_price_offset: Option<i32>,
+    pub zero_mm_oracle_fields: Option<bool>,
+    pub expiry_ts: Option<i64>,
+    pub concentration_scale: Option<u128>,
+    pub curve_update_intensity: Option<u8>,
+}
+
+pub fn handle_update_perp_market_params(
+    ctx: Context<AdminUpdatePerpMarket>,
+    params: PerpMarketUpdateParams,
+) -> Result<()> {
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+    let mut perp_market = load_mut!(ctx.accounts.perp_market)?;
+
+    msg!("perp market {}", perp_market.market_index);
+
+    if let Some(name) = params.name {
+        msg!("name: {:?} -> {:?}", perp_market.name, name);
+        perp_market.name = name;
+    }
+
+    if let Some(status) = params.status {
+        msg!("status: {:?} -> {:?}", perp_market.status, status);
+        validate!(
+            !matches!(status, MarketStatus::Delisted | MarketStatus::Settlement),
+            ErrorCode::DefaultError,
+            "must set settlement/delist through another instruction",
+        )?;
+        status.validate_not_deprecated()?;
+        perp_market.status = status;
+    }
+
+    if let Some(po) = params.paused_operations {
+        msg!(
+            "paused operations: {:?} -> {:?}",
+            perp_market.paused_operations,
+            po
+        );
+        perp_market.paused_operations = po;
+        if perp_market.is_prediction_market() {
+            validate!(
+                perp_market.is_operation_paused(PerpOperation::UpdateFunding),
+                ErrorCode::DefaultError,
+                "prediction market must have funding paused"
+            )?;
+        }
+        PerpOperation::log_all_operations_paused(perp_market.paused_operations);
+    }
+
+    if let Some(ct) = params.contract_tier {
+        msg!(
+            "perp_market.contract_tier: {:?} -> {:?}",
+            perp_market.contract_tier,
+            ct
+        );
+        perp_market.contract_tier = ct;
+    }
+
+    if params.liquidator_fee.is_some() || params.if_liquidation_fee.is_some() {
+        let liquidator_fee = params.liquidator_fee.unwrap_or(perp_market.liquidator_fee);
+        let if_liquidation_fee = params
+            .if_liquidation_fee
+            .unwrap_or(perp_market.if_liquidation_fee);
+
+        validate!(
+            liquidator_fee.safe_add(if_liquidation_fee)? < LIQUIDATION_FEE_PRECISION,
+            ErrorCode::DefaultError,
+            "Total liquidation fee must be less than 100%"
+        )?;
+        validate!(
+            if_liquidation_fee < LIQUIDATION_FEE_PRECISION,
+            ErrorCode::DefaultError,
+            "If liquidation fee must be less than 100%"
+        )?;
+        validate_margin(
+            perp_market.margin_ratio_initial,
+            perp_market.margin_ratio_maintenance,
+            perp_market.high_leverage_margin_ratio_initial.cast()?,
+            perp_market.high_leverage_margin_ratio_maintenance.cast()?,
+            liquidator_fee,
+            perp_market.amm.max_spread,
+        )?;
+        msg!(
+            "perp_market.liquidator_fee: {:?} -> {:?}",
+            perp_market.liquidator_fee,
+            liquidator_fee
+        );
+        msg!(
+            "perp_market.if_liquidation_fee: {:?} -> {:?}",
+            perp_market.if_liquidation_fee,
+            if_liquidation_fee
+        );
+        perp_market.liquidator_fee = liquidator_fee;
+        perp_market.if_liquidation_fee = if_liquidation_fee;
+    }
+
+    if params.unrealized_initial_asset_weight.is_some()
+        || params.unrealized_maintenance_asset_weight.is_some()
+    {
+        let unrealized_initial_asset_weight = params
+            .unrealized_initial_asset_weight
+            .unwrap_or(perp_market.unrealized_pnl_initial_asset_weight);
+        let unrealized_maintenance_asset_weight = params
+            .unrealized_maintenance_asset_weight
+            .unwrap_or(perp_market.unrealized_pnl_maintenance_asset_weight);
+
+        validate!(
+            unrealized_initial_asset_weight <= SPOT_WEIGHT_PRECISION.cast()?,
+            ErrorCode::DefaultError,
+            "invalid unrealized_initial_asset_weight",
+        )?;
+        validate!(
+            unrealized_maintenance_asset_weight <= SPOT_WEIGHT_PRECISION.cast()?,
+            ErrorCode::DefaultError,
+            "invalid unrealized_maintenance_asset_weight",
+        )?;
+        validate!(
+            unrealized_initial_asset_weight <= unrealized_maintenance_asset_weight,
+            ErrorCode::DefaultError,
+            "must enforce unrealized_initial_asset_weight <= unrealized_maintenance_asset_weight",
+        )?;
+        msg!(
+            "perp_market.unrealized_pnl_initial_asset_weight: {:?} -> {:?}",
+            perp_market.unrealized_pnl_initial_asset_weight,
+            unrealized_initial_asset_weight
+        );
+        msg!(
+            "perp_market.unrealized_pnl_maintenance_asset_weight: {:?} -> {:?}",
+            perp_market.unrealized_pnl_maintenance_asset_weight,
+            unrealized_maintenance_asset_weight
+        );
+        perp_market.unrealized_pnl_initial_asset_weight = unrealized_initial_asset_weight;
+        perp_market.unrealized_pnl_maintenance_asset_weight = unrealized_maintenance_asset_weight;
+    }
+
+    if params.margin_ratio_initial.is_some() || params.margin_ratio_maintenance.is_some() {
+        let margin_ratio_initial = params
+            .margin_ratio_initial
+            .unwrap_or(perp_market.margin_ratio_initial);
+        let margin_ratio_maintenance = params
+            .margin_ratio_maintenance
+            .unwrap_or(perp_market.margin_ratio_maintenance);
+
+        validate_margin(
+            margin_ratio_initial,
+            margin_ratio_maintenance,
+            perp_market.high_leverage_margin_ratio_initial.cast()?,
+            perp_market.high_leverage_margin_ratio_maintenance.cast()?,
+            perp_market.liquidator_fee,
+            perp_market.amm.max_spread,
+        )?;
+        msg!(
+            "perp_market.margin_ratio_initial: {:?} -> {:?}",
+            perp_market.margin_ratio_initial,
+            margin_ratio_initial
+        );
+        msg!(
+            "perp_market.margin_ratio_maintenance: {:?} -> {:?}",
+            perp_market.margin_ratio_maintenance,
+            margin_ratio_maintenance
+        );
+        perp_market.margin_ratio_initial = margin_ratio_initial;
+        perp_market.margin_ratio_maintenance = margin_ratio_maintenance;
+    }
+
+    if params.high_leverage_margin_ratio_initial.is_some()
+        || params.high_leverage_margin_ratio_maintenance.is_some()
+    {
+        let margin_ratio_initial = params
+            .high_leverage_margin_ratio_initial
+            .unwrap_or(perp_market.high_leverage_margin_ratio_initial);
+        let margin_ratio_maintenance = params
+            .high_leverage_margin_ratio_maintenance
+            .unwrap_or(perp_market.high_leverage_margin_ratio_maintenance);
+
+        validate_margin(
+            perp_market.margin_ratio_initial,
+            perp_market.margin_ratio_maintenance,
+            margin_ratio_initial.cast()?,
+            margin_ratio_maintenance.cast()?,
+            perp_market.liquidator_fee,
+            perp_market.amm.max_spread,
+        )?;
+        msg!(
+            "perp_market.high_leverage_margin_ratio_initial: {:?} -> {:?}",
+            perp_market.high_leverage_margin_ratio_initial,
+            margin_ratio_initial
+        );
+        msg!(
+            "perp_market.high_leverage_margin_ratio_maintenance: {:?} -> {:?}",
+            perp_market.high_leverage_margin_ratio_maintenance,
+            margin_ratio_maintenance
+        );
+        perp_market.high_leverage_margin_ratio_initial = margin_ratio_initial;
+        perp_market.high_leverage_margin_ratio_maintenance = margin_ratio_maintenance;
+    }
+
+    if params.imf_factor.is_some() || params.unrealized_pnl_imf_factor.is_some() {
+        let imf_facdtor = params.imf_factor.unwrap_or(perp_market.imf_factor);
+        let unrealized_pnl_imf_factor = params
+            .unrealized_pnl_imf_factor
+            .unwrap_or(perp_market.unrealized_pnl_imf_factor);
+
+        validate!(
+            imf_facdtor <= SPOT_IMF_PRECISION,
+            ErrorCode::DefaultError,
+            "invalid imf factor"
+        )?;
+        validate!(
+            unrealized_pnl_imf_factor <= SPOT_IMF_PRECISION,
+            ErrorCode::DefaultError,
+            "invalid unrealized pnl imf factor"
+        )?;
+        msg!(
+            "perp_market.imf_factor: {:?} -> {:?}",
+            perp_market.imf_factor,
+            imf_facdtor
+        );
+        msg!(
+            "perp_market.unrealized_pnl_imf_factor: {:?} -> {:?}",
+            perp_market.unrealized_pnl_imf_factor,
+            unrealized_pnl_imf_factor
+        );
+        perp_market.imf_factor = imf_facdtor;
+        perp_market.unrealized_pnl_imf_factor = unrealized_pnl_imf_factor;
+    }
+
+    if let Some(funding_period) = params.funding_period {
+        validate!(funding_period >= 0, ErrorCode::DefaultError)?;
+        msg!(
+            "perp_market.amm.funding_period: {:?} -> {:?}",
+            perp_market.amm.funding_period,
+            funding_period
+        );
+        perp_market.amm.funding_period = funding_period;
+    }
+
+    if params.unrealized_max_imbalance.is_some()
+        || params.max_revenue_withdraw_per_period.is_some()
+        || params.quote_max_insurance.is_some()
+    {
+        let unrealized_max_imbalance = params
+            .unrealized_max_imbalance
+            .unwrap_or(perp_market.unrealized_pnl_max_imbalance);
+        let max_revenue_withdraw_per_period = params
+            .max_revenue_withdraw_per_period
+            .unwrap_or(perp_market.insurance_claim.max_revenue_withdraw_per_period);
+        let quote_max_insurance = params
+            .quote_max_insurance
+            .unwrap_or(perp_market.insurance_claim.quote_max_insurance);
+
+        let max_insurance_for_tier = match perp_market.contract_tier {
+            ContractTier::A => INSURANCE_A_MAX,
+            ContractTier::B => INSURANCE_B_MAX,
+            ContractTier::C => INSURANCE_C_MAX,
+            ContractTier::Speculative => INSURANCE_SPECULATIVE_MAX,
+            ContractTier::HighlySpeculative => INSURANCE_SPECULATIVE_MAX,
+            ContractTier::Isolated => INSURANCE_SPECULATIVE_MAX,
+        };
+
+        validate!(
+            max_revenue_withdraw_per_period
+                <= max_insurance_for_tier.max(FEE_POOL_TO_REVENUE_POOL_THRESHOLD.cast()?)
+                && unrealized_max_imbalance <= max_insurance_for_tier + 1
+                && quote_max_insurance <= max_insurance_for_tier,
+            ErrorCode::DefaultError,
+            "all maxs must be less than max_insurance for ContractTier ={}",
+            max_insurance_for_tier
+        )?;
+        validate!(
+            perp_market.insurance_claim.quote_settled_insurance <= quote_max_insurance,
+            ErrorCode::DefaultError,
+            "quote_max_insurance must be above market.insurance_claim.quote_settled_insurance={}",
+            perp_market.insurance_claim.quote_settled_insurance
+        )?;
+        msg!(
+            "market.max_revenue_withdraw_per_period: {:?} -> {:?}",
+            perp_market.insurance_claim.max_revenue_withdraw_per_period,
+            max_revenue_withdraw_per_period
+        );
+        msg!(
+            "market.unrealized_max_imbalance: {:?} -> {:?}",
+            perp_market.unrealized_pnl_max_imbalance,
+            unrealized_max_imbalance
+        );
+        msg!(
+            "market.quote_max_insurance: {:?} -> {:?}",
+            perp_market.insurance_claim.quote_max_insurance,
+            quote_max_insurance
+        );
+        perp_market.insurance_claim.max_revenue_withdraw_per_period =
+            max_revenue_withdraw_per_period;
+        perp_market.unrealized_pnl_max_imbalance = unrealized_max_imbalance;
+        perp_market.insurance_claim.quote_max_insurance = quote_max_insurance;
+
+        // ensure altered max_revenue_withdraw_per_period doesn't break invariant check
+        crate::validation::perp_market::validate_perp_market(&perp_market)?;
+    }
+
+    if let Some(base_spread) = params.base_spread {
+        msg!(
+            "perp_market.amm.base_spread: {:?} -> {:?}",
+            perp_market.amm.base_spread,
+            base_spread
+        );
+        msg!(
+            "perp_market.amm.long_spread: {:?} -> {:?}",
+            perp_market.amm.long_spread,
+            base_spread / 2
+        );
+        msg!(
+            "perp_market.amm.short_spread: {:?} -> {:?}",
+            perp_market.amm.short_spread,
+            base_spread / 2
+        );
+        perp_market.amm.base_spread = base_spread;
+        perp_market.amm.long_spread = base_spread / 2;
+        perp_market.amm.short_spread = base_spread / 2;
+    }
+
+    if let Some(max_spread) = params.max_spread {
+        validate!(
+            max_spread >= perp_market.amm.base_spread,
+            ErrorCode::DefaultError,
+            "invalid max_spread < base_spread",
+        )?;
+        validate!(
+            max_spread <= perp_market.margin_ratio_initial * 100,
+            ErrorCode::DefaultError,
+            "invalid max_spread > market.margin_ratio_initial * 100",
+        )?;
+        msg!(
+            "perp_market.amm.max_spread: {:?} -> {:?}",
+            perp_market.amm.max_spread,
+            max_spread
+        );
+        perp_market.amm.max_spread = max_spread;
+    }
+
+    if params.order_step_size.is_some() || params.order_tick_size.is_some() {
+        let step = params
+            .order_step_size
+            .unwrap_or(perp_market.amm.order_step_size);
+        let tick = params
+            .order_tick_size
+            .unwrap_or(perp_market.amm.order_tick_size);
+        validate!(step > 0 && tick > 0, ErrorCode::DefaultError)?;
+        validate!(step <= 2000000000, ErrorCode::DefaultError)?;
+        msg!(
+            "perp_market.amm.order_step_size: {:?} -> {:?}",
+            perp_market.amm.order_step_size,
+            step
+        );
+        msg!(
+            "perp_market.amm.order_tick_size: {:?} -> {:?}",
+            perp_market.amm.order_tick_size,
+            tick
+        );
+        perp_market.amm.order_step_size = step;
+        perp_market.amm.order_tick_size = tick;
+    }
+
+    if let Some(min_order_size) = params.min_order_size {
+        validate!(min_order_size > 0, ErrorCode::DefaultError)?;
+        msg!(
+            "perp_market.amm.min_order_size: {:?} -> {:?}",
+            perp_market.amm.min_order_size,
+            min_order_size
+        );
+        perp_market.amm.min_order_size = min_order_size;
+    }
+
+    if let Some(v) = params.max_slippage_ratio {
+        validate!(v > 0, ErrorCode::DefaultError)?;
+        msg!(
+            "perp_market.amm.max_slippage_ratio: {:?} -> {:?}",
+            perp_market.amm.max_slippage_ratio,
+            v
+        );
+        perp_market.amm.max_slippage_ratio = v;
+    }
+
+    if let Some(v) = params.max_fill_reserve_fraction {
+        validate!(v > 0, ErrorCode::DefaultError)?;
+        msg!(
+            "perp_market.amm.max_fill_reserve_fraction: {:?} -> {:?}",
+            perp_market.amm.max_fill_reserve_fraction,
+            v
+        );
+        perp_market.amm.max_fill_reserve_fraction = v;
+    }
+
+    if let Some(max_open_interest) = params.max_open_interest {
+        validate!(
+            is_multiple_of_step_size(
+                max_open_interest.cast::<u64>()?,
+                perp_market.amm.order_step_size
+            )?,
+            ErrorCode::DefaultError,
+            "max oi not a multiple of the step size"
+        )?;
+        msg!(
+            "perp_market.amm.max_open_interest: {:?} -> {:?}",
+            perp_market.amm.max_open_interest,
+            max_open_interest
+        );
+        perp_market.amm.max_open_interest = max_open_interest;
+    }
+
+    if let Some(fee_adjustment) = params.fee_adjustment {
+        validate!(
+            fee_adjustment.unsigned_abs().cast::<u64>()? <= FEE_ADJUSTMENT_MAX,
+            ErrorCode::DefaultError,
+            "fee adjustment {} greater than max {}",
+            fee_adjustment,
+            FEE_ADJUSTMENT_MAX
+        )?;
+        msg!(
+            "perp_market.fee_adjustment: {:?} -> {:?}",
+            perp_market.fee_adjustment,
+            fee_adjustment
+        );
+        perp_market.fee_adjustment = fee_adjustment;
+    }
+
+    if params.number_of_users.is_some() || params.number_of_users_with_base.is_some() {
+        if let Some(n) = params.number_of_users {
+            msg!(
+                "perp_market.number_of_users: {:?} -> {:?}",
+                perp_market.number_of_users,
+                n
+            );
+            perp_market.number_of_users = n;
+        }
+        if let Some(nb) = params.number_of_users_with_base {
+            msg!(
+                "perp_market.number_of_users_with_base: {:?} -> {:?}",
+                perp_market.number_of_users_with_base,
+                nb
+            );
+            perp_market.number_of_users_with_base = nb;
+        }
+        validate!(
+            perp_market.number_of_users >= perp_market.number_of_users_with_base,
+            ErrorCode::DefaultError,
+            "number_of_users must be >= number_of_users_with_base "
+        )?;
+    }
+
+    if params.protected_maker_limit_price_divisor.is_some()
+        || params.protected_maker_dynamic_divisor.is_some()
+    {
+        if let Some(v) = params.protected_maker_limit_price_divisor {
+            msg!(
+                "perp_market.protected_maker_limit_price_divisor: {:?} -> {:?}",
+                perp_market.protected_maker_limit_price_divisor,
+                v
+            );
+            perp_market.protected_maker_limit_price_divisor = v;
+        }
+        if let Some(v) = params.protected_maker_dynamic_divisor {
+            msg!(
+                "perp_market.protected_maker_dynamic_divisor: {:?} -> {:?}",
+                perp_market.protected_maker_dynamic_divisor,
+                v
+            );
+            perp_market.protected_maker_dynamic_divisor = v;
+        }
+    }
+
+    if let Some(v) = params.fuel_boost_taker {
+        msg!(
+            "perp_market.fuel_boost_taker: {:?} -> {:?}",
+            perp_market.fuel_boost_taker,
+            v
+        );
+        perp_market.fuel_boost_taker = v;
+    }
+    if let Some(v) = params.fuel_boost_maker {
+        msg!(
+            "perp_market.fuel_boost_maker: {:?} -> {:?}",
+            perp_market.fuel_boost_maker,
+            v
+        );
+        perp_market.fuel_boost_maker = v;
+    }
+    if let Some(v) = params.fuel_boost_position {
+        msg!(
+            "perp_market.fuel_boost_position: {:?} -> {:?}",
+            perp_market.fuel_boost_position,
+            v
+        );
+        perp_market.fuel_boost_position = v;
+    }
+
+    if let Some(v) = params.taker_speed_bump_override {
+        msg!(
+            "perp_market.amm.taker_speed_bump_override: {:?} -> {:?}",
+            perp_market.amm.taker_speed_bump_override,
+            v
+        );
+        perp_market.amm.taker_speed_bump_override = v;
+    }
+
+    if let Some(v) = params.oracle_slot_delay_override {
+        msg!(
+            "perp_market.amm.oracle_slot_delay_override: {:?} -> {:?}",
+            perp_market.amm.oracle_slot_delay_override,
+            v
+        );
+        perp_market.amm.oracle_slot_delay_override = v;
+    }
+
+    if params.amm_spread_adjustment.is_some()
+        || params.amm_inventory_spread_adjustment.is_some()
+        || params.reference_price_offset.is_some()
+    {
+        if let Some(v) = params.amm_spread_adjustment {
+            msg!(
+                "perp_market.amm.amm_spread_adjustment: {:?} -> {:?}",
+                perp_market.amm.amm_spread_adjustment,
+                v
+            );
+            perp_market.amm.amm_spread_adjustment = v;
+        }
+        if let Some(v) = params.amm_inventory_spread_adjustment {
+            msg!(
+                "perp_market.amm.amm_inventory_spread_adjustment: {:?} -> {:?}",
+                perp_market.amm.amm_inventory_spread_adjustment,
+                v
+            );
+            perp_market.amm.amm_inventory_spread_adjustment = v;
+        }
+        if let Some(v) = params.reference_price_offset {
+            msg!(
+                "perp_market.amm.reference_price_offset: {:?} -> {:?}",
+                perp_market.amm.reference_price_offset,
+                v
+            );
+            perp_market.amm.reference_price_offset = v;
+        }
+    }
+
+    if params.zero_mm_oracle_fields.unwrap_or(false) {
+        msg!("zeroing mm oracle fields");
+        perp_market.amm.mm_oracle_price = 0;
+        perp_market.amm.mm_oracle_sequence_id = 0;
+        perp_market.amm.mm_oracle_slot = 0;
+    }
+
+    if let Some(expiry_ts) = params.expiry_ts {
+        validate!(
+            now < expiry_ts,
+            ErrorCode::DefaultError,
+            "Market expiry ts must later than current clock timestamp"
+        )?;
+        msg!(
+            "perp_market.status {:?} -> {:?}",
+            perp_market.status,
+            MarketStatus::ReduceOnly
+        );
+        msg!(
+            "perp_market.expiry_ts {} -> {}",
+            perp_market.expiry_ts,
+            expiry_ts
+        );
+        perp_market.status = MarketStatus::ReduceOnly;
+        perp_market.expiry_ts = expiry_ts;
+    }
+
+    if let Some(concentration_scale) = params.concentration_scale {
+        validate!(
+            concentration_scale > 0,
+            ErrorCode::DefaultError,
+            "invalid concentration_scale",
+        )?;
+
+        let prev_concentration_coef = perp_market.amm.concentration_coef;
+        controller::amm::update_concentration_coef(&mut perp_market, concentration_scale)?;
+        let new_concentration_coef = perp_market.amm.concentration_coef;
+
+        msg!(
+            "perp_market.amm.concentration_coef: {} -> {}",
+            prev_concentration_coef,
+            new_concentration_coef
+        );
+    }
+
+    if let Some(curve_update_intensity) = params.curve_update_intensity {
+        // (0, 100] is for repeg / formulaic k intensity
+        // (100, 200] is for reference price offset intensity
+        validate!(
+            curve_update_intensity <= 200,
+            ErrorCode::DefaultError,
+            "invalid curve_update_intensity",
+        )?;
+        let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+        msg!(
+            "perp_market.amm.curve_update_intensity: {} -> {}",
+            perp_market.amm.curve_update_intensity,
+            curve_update_intensity
+        );
+
+        perp_market.amm.curve_update_intensity = curve_update_intensity;
+    }
+
+    Ok(())
+}
+
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, PartialEq)]
+pub struct StateUpdateParams {
+    pub lp_cooldown_time: Option<u64>,
+    pub initial_pct_to_liquidate: Option<u16>,
+    pub liquidation_duration: Option<u8>,
+    pub liquidation_margin_buffer_ratio: Option<u32>,
+    pub settlement_duration: Option<u16>,
+    pub max_number_of_sub_accounts: Option<u16>,
+    pub max_initialize_user_fee: Option<u16>,
+    pub admin: Option<Pubkey>,
+    pub whitelist_mint: Option<Pubkey>,
+    pub discount_mint: Option<Pubkey>,
+    pub exchange_status: Option<u8>,
+    pub min_perp_auction_duration: Option<u8>,
+    pub default_spot_auction_duration: Option<u8>,
+}
+
+pub fn handle_update_state_params(
+    ctx: Context<AdminUpdateState>,
+    params: StateUpdateParams,
+) -> Result<()> {
+    let state = &mut ctx.accounts.state;
+
+    if let Some(v) = params.lp_cooldown_time {
+        msg!("lp_cooldown_time: {} -> {}", state.lp_cooldown_time, v);
+        state.lp_cooldown_time = v;
+    }
+
+    if let Some(v) = params.initial_pct_to_liquidate {
+        msg!(
+            "initial_pct_to_liquidate: {} -> {}",
+            state.initial_pct_to_liquidate,
+            v
+        );
+        state.initial_pct_to_liquidate = v;
+    }
+
+    if let Some(v) = params.liquidation_duration {
+        msg!(
+            "liquidation_duration: {} -> {}",
+            state.liquidation_duration,
+            v
+        );
+        state.liquidation_duration = v;
+    }
+
+    if let Some(v) = params.liquidation_margin_buffer_ratio {
+        msg!(
+            "liquidation_margin_buffer_ratio: {} -> {}",
+            state.liquidation_margin_buffer_ratio,
+            v
+        );
+        state.liquidation_margin_buffer_ratio = v;
+    }
+
+    if let Some(v) = params.settlement_duration {
+        msg!(
+            "settlement_duration: {} -> {}",
+            state.settlement_duration,
+            v
+        );
+        state.settlement_duration = v;
+    }
+
+    if let Some(v) = params.max_number_of_sub_accounts {
+        msg!(
+            "max_number_of_sub_accounts: {} -> {}",
+            state.max_number_of_sub_accounts,
+            v
+        );
+        state.max_number_of_sub_accounts = v;
+    }
+
+    if let Some(v) = params.max_initialize_user_fee {
+        msg!(
+            "max_initialize_user_fee: {} -> {}",
+            state.max_initialize_user_fee,
+            v
+        );
+        state.max_initialize_user_fee = v;
+    }
+
+    if let Some(v) = params.admin {
+        msg!("admin: {:?} -> {:?}", state.admin, v);
+        state.admin = v;
+    }
+
+    if let Some(v) = params.whitelist_mint {
+        msg!("whitelist_mint: {:?} -> {:?}", state.whitelist_mint, v);
+        state.whitelist_mint = v;
+    }
+
+    if let Some(v) = params.discount_mint {
+        msg!("discount_mint: {:?} -> {:?}", state.discount_mint, v);
+        state.discount_mint = v;
+    }
+
+    if let Some(v) = params.exchange_status {
+        msg!("exchange_status: {:?} -> {:?}", state.exchange_status, v);
+        state.exchange_status = v;
+    }
+
+    if let Some(v) = params.min_perp_auction_duration {
+        msg!(
+            "min_perp_auction_duration: {:?} -> {:?}",
+            state.min_perp_auction_duration,
+            v
+        );
+        state.min_perp_auction_duration = v;
+    }
+
+    if let Some(v) = params.default_spot_auction_duration {
+        msg!(
+            "default_spot_auction_duration: {:?} -> {:?}",
+            state.default_spot_auction_duration,
+            v
+        );
+        state.default_spot_auction_duration = v;
+    }
+
+    Ok(())
+}
+
+pub fn handle_update_feature_flags(
+    ctx: Context<HotAdminUpdateState>,
+    set_bits: u8,
+    clear_bits: u8,
+    require_state_admin: bool,
+) -> Result<()> {
+    let state = &mut ctx.accounts.state;
+    if require_state_admin {
+        validate!(
+            ctx.accounts.admin.key().eq(&state.admin),
+            ErrorCode::DefaultError,
+            "Only state admin can update feature flags with require_state_admin=true"
+        )?;
+    }
+    let before = state.feature_bit_flags;
+    let after = (before | set_bits) & !clear_bits;
+    msg!("feature_bit_flags: {:?} -> {:?}", before, after);
+    state.feature_bit_flags = after;
+    Ok(())
 }
