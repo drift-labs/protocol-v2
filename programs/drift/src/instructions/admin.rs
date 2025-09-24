@@ -10,7 +10,7 @@ use pyth_solana_receiver_sdk::cpi::accounts::InitPriceUpdate;
 use pyth_solana_receiver_sdk::program::PythSolanaReceiver;
 use serum_dex::state::ToAlignedBytes;
 
-use crate::controller::token::{close_vault, initialize_token_account};
+use crate::controller::token::{close_vault, initialize_immutable_owner, initialize_token_account};
 use crate::error::ErrorCode;
 use crate::ids::{admin_hot_wallet, amm_spread_adjust_wallet, mm_oracle_crank_wallet};
 use crate::instructions::constraints::*;
@@ -147,6 +147,16 @@ pub fn handle_initialize_spot_market(
 ) -> Result<()> {
     let state = &mut ctx.accounts.state;
     let spot_market_pubkey = ctx.accounts.spot_market.key();
+
+    let is_token_2022 = *ctx.accounts.spot_market_mint.to_account_info().owner == Token2022::id();
+    if is_token_2022 {
+        initialize_immutable_owner(&ctx.accounts.token_program, &ctx.accounts.spot_market_vault)?;
+
+        initialize_immutable_owner(
+            &ctx.accounts.token_program,
+            &ctx.accounts.insurance_fund_vault,
+        )?;
+    }
 
     initialize_token_account(
         &ctx.accounts.token_program,
