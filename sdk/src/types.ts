@@ -1309,7 +1309,6 @@ export type SignedMsgOrderParamsMessage = {
 	uuid: Uint8Array;
 	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
-	maxMarginRatio?: number | null;
 };
 
 export type SignedMsgOrderParamsDelegateMessage = {
@@ -1319,7 +1318,6 @@ export type SignedMsgOrderParamsDelegateMessage = {
 	takerPubkey: PublicKey;
 	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
-	maxMarginRatio?: number | null;
 };
 
 export type SignedMsgTriggerOrderParams = {

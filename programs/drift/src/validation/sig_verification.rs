@@ -14,9 +14,6 @@ use solana_program::program_memory::sol_memcmp;
 use solana_program::sysvar;
 use std::convert::TryInto;
 
-#[cfg(test)]
-mod tests;
-
 const ED25519_PROGRAM_INPUT_HEADER_LEN: usize = 2;
 
 const SIGNATURE_LEN: u16 = 64;
@@ -48,7 +45,6 @@ pub struct Ed25519SignatureOffsets {
     pub message_instruction_index: u16,
 }
 
-#[derive(Debug)]
 pub struct VerifiedMessage {
     pub signed_msg_order_params: OrderParams,
     pub sub_account_id: Option<u16>,
@@ -57,75 +53,11 @@ pub struct VerifiedMessage {
     pub uuid: [u8; 8],
     pub take_profit_order_params: Option<SignedMsgTriggerOrderParams>,
     pub stop_loss_order_params: Option<SignedMsgTriggerOrderParams>,
-    pub max_margin_ratio: Option<u16>,
     pub signature: [u8; 64],
 }
 
 fn slice_eq(a: &[u8], b: &[u8]) -> bool {
     a.len() == b.len() && sol_memcmp(a, b, a.len()) == 0
-}
-
-pub fn deserialize_into_verified_message(
-    payload: Vec<u8>,
-    signature: &[u8; 64],
-    is_delegate_signer: bool,
-) -> Result<VerifiedMessage> {
-    if is_delegate_signer {
-        if payload.len() < 8 {
-            return Err(SignatureVerificationError::InvalidMessageDataSize.into());
-        }
-        let min_len: usize = std::mem::size_of::<SignedMsgOrderParamsDelegateMessage>();
-        let mut owned = payload;
-        if owned.len() < min_len {
-            owned.resize(min_len, 0);
-        }
-        let deserialized = SignedMsgOrderParamsDelegateMessage::deserialize(
-            &mut &owned[8..], // 8 byte manual discriminator
-        )
-        .map_err(|_| {
-            msg!("Invalid message encoding for is_delegate_signer = true");
-            SignatureVerificationError::InvalidMessageDataSize
-        })?;
-
-        return Ok(VerifiedMessage {
-            signed_msg_order_params: deserialized.signed_msg_order_params,
-            sub_account_id: None,
-            delegate_signed_taker_pubkey: Some(deserialized.taker_pubkey),
-            slot: deserialized.slot,
-            uuid: deserialized.uuid,
-            take_profit_order_params: deserialized.take_profit_order_params,
-            stop_loss_order_params: deserialized.stop_loss_order_params,
-            max_margin_ratio: deserialized.max_margin_ratio,
-            signature: *signature,
-        });
-    } else {
-        if payload.len() < 8 {
-            return Err(SignatureVerificationError::InvalidMessageDataSize.into());
-        }
-        let min_len: usize = std::mem::size_of::<SignedMsgOrderParamsMessage>();
-        let mut owned = payload;
-        if owned.len() < min_len {
-            owned.resize(min_len, 0);
-        }
-        let deserialized = SignedMsgOrderParamsMessage::deserialize(
-            &mut &owned[8..], // 8 byte manual discriminator
-        )
-        .map_err(|_| {
-            msg!("Invalid delegate message encoding for with is_delegate_signer = false");
-            SignatureVerificationError::InvalidMessageDataSize
-        })?;
-        return Ok(VerifiedMessage {
-            signed_msg_order_params: deserialized.signed_msg_order_params,
-            sub_account_id: Some(deserialized.sub_account_id),
-            delegate_signed_taker_pubkey: None,
-            slot: deserialized.slot,
-            uuid: deserialized.uuid,
-            take_profit_order_params: deserialized.take_profit_order_params,
-            stop_loss_order_params: deserialized.stop_loss_order_params,
-            max_margin_ratio: deserialized.max_margin_ratio,
-            signature: *signature,
-        });
-    }
 }
 
 /// Check Ed25519Program instruction data verifies the given msg
@@ -300,7 +232,45 @@ pub fn verify_and_decode_ed25519_msg(
     let payload =
         hex::decode(payload).map_err(|_| SignatureVerificationError::InvalidMessageHex)?;
 
-    deserialize_into_verified_message(payload, signature, is_delegate_signer)
+    if is_delegate_signer {
+        let deserialized = SignedMsgOrderParamsDelegateMessage::deserialize(
+            &mut &payload[8..], // 8 byte manual discriminator
+        )
+        .map_err(|_| {
+            msg!("Invalid message encoding for is_delegate_signer = true");
+            SignatureVerificationError::InvalidMessageDataSize
+        })?;
+
+        return Ok(VerifiedMessage {
+            signed_msg_order_params: deserialized.signed_msg_order_params,
+            sub_account_id: None,
+            delegate_signed_taker_pubkey: Some(deserialized.taker_pubkey),
+            slot: deserialized.slot,
+            uuid: deserialized.uuid,
+            take_profit_order_params: deserialized.take_profit_order_params,
+            stop_loss_order_params: deserialized.stop_loss_order_params,
+            signature: *signature,
+        });
+    } else {
+        let deserialized = SignedMsgOrderParamsMessage::deserialize(
+            &mut &payload[8..], // 8 byte manual discriminator
+        )
+        .map_err(|_| {
+            msg!("Invalid delegate message encoding for with is_delegate_signer = false");
+            SignatureVerificationError::InvalidMessageDataSize
+        })?;
+
+        return Ok(VerifiedMessage {
+            signed_msg_order_params: deserialized.signed_msg_order_params,
+            sub_account_id: Some(deserialized.sub_account_id),
+            delegate_signed_taker_pubkey: None,
+            slot: deserialized.slot,
+            uuid: deserialized.uuid,
+            take_profit_order_params: deserialized.take_profit_order_params,
+            stop_loss_order_params: deserialized.stop_loss_order_params,
+            signature: *signature,
+        });
+    }
 }
 
 #[error_code]
