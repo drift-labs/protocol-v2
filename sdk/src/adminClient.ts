@@ -65,6 +65,192 @@ const OPENBOOK_PROGRAM_ID = new PublicKey(
 );
 
 export class AdminClient extends DriftClient {
+	private buildSpotMarketUpdateParams(partial: any): any {
+		return {
+			name: null,
+			status: null,
+			pausedOperations: null,
+			ifPausedOperations: null,
+			ordersEnabled: null,
+			assetTier: null,
+			initialAssetWeight: null,
+			maintenanceAssetWeight: null,
+			initialLiabilityWeight: null,
+			maintenanceLiabilityWeight: null,
+			imfFactor: null,
+			optimalUtilization: null,
+			optimalBorrowRate: null,
+			maxBorrowRate: null,
+			minBorrowRate: null,
+			orderStepSize: null,
+			orderTickSize: null,
+			minOrderSize: null,
+			maxTokenDeposits: null,
+			maxTokenBorrowsFraction: null,
+			scaleInitialAssetWeightStart: null,
+			feeAdjustment: null,
+			revenueSettlePeriod: null,
+			withdrawGuardThreshold: null,
+			userIfFactor: null,
+			totalIfFactor: null,
+			expiryTs: null,
+			poolId: null,
+			liquidatorFee: null,
+			ifLiquidationFee: null,
+			...partial,
+		};
+	}
+
+	private buildPerpMarketUpdateParams(partial: any): any {
+		return {
+			name: null,
+			status: null,
+			pausedOperations: null,
+			contractTier: null,
+			liquidatorFee: null,
+			ifLiquidationFee: null,
+			marginRatioInitial: null,
+			marginRatioMaintenance: null,
+			unrealizedInitialAssetWeight: null,
+			unrealizedMaintenanceAssetWeight: null,
+			highLeverageMarginRatioInitial: null,
+			highLeverageMarginRatioMaintenance: null,
+			imfFactor: null,
+			unrealizedPnlImfFactor: null,
+			fundingPeriod: null,
+			unrealizedMaxImbalance: null,
+			maxRevenueWithdrawPerPeriod: null,
+			quoteMaxInsurance: null,
+			baseSpread: null,
+			maxSpread: null,
+			orderStepSize: null,
+			orderTickSize: null,
+			minOrderSize: null,
+			maxSlippageRatio: null,
+			maxFillReserveFraction: null,
+			maxOpenInterest: null,
+			feeAdjustment: null,
+			numberOfUsers: null,
+			numberOfUsersWithBase: null,
+			protectedMakerLimitPriceDivisor: null,
+			protectedMakerDynamicDivisor: null,
+			fuelBoostTaker: null,
+			fuelBoostMaker: null,
+			fuelBoostPosition: null,
+			takerSpeedBumpOverride: null,
+			oracleSlotDelayOverride: null,
+			ammSpreadAdjustment: null,
+			ammInventorySpreadAdjustment: null,
+			referencePriceOffset: null,
+			zeroMmOracleFields: null,
+			expiryTs: null,
+			concentrationScale: null,
+			curveUpdateIntensity: null,
+			...partial,
+		};
+	}
+
+	private buildStateUpdateParams(partial: any): any {
+		return {
+			lpCooldownTime: null,
+			initialPctToLiquidate: null,
+			liquidationDuration: null,
+			liquidationMarginBufferRatio: null,
+			settlementDuration: null,
+			maxNumberOfSubAccounts: null,
+			maxInitializeUserFee: null,
+			admin: null,
+			whitelistMint: null,
+			discountMint: null,
+			exchangeStatus: null,
+			minPerpAuctionDuration: null,
+			defaultSpotAuctionDuration: null,
+			...partial,
+		};
+	}
+
+	public async updateSpotMarketParams(
+		spotMarketIndex: number,
+		partialParams: any
+	): Promise<TransactionSignature> {
+		const ix = await this.getUpdateSpotMarketParamsIx(
+			spotMarketIndex,
+			partialParams
+		);
+		const tx = await this.buildTransaction(ix);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getUpdateSpotMarketParamsIx(
+		spotMarketIndex: number,
+		partialParams: any
+	): Promise<TransactionInstruction> {
+		const params = this.buildSpotMarketUpdateParams(partialParams);
+		return await this.program.instruction.updateSpotMarketParams(params, {
+			accounts: {
+				admin: this.isSubscribed
+					? this.getStateAccount().admin
+					: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				spotMarket: await getSpotMarketPublicKey(
+					this.program.programId,
+					spotMarketIndex
+				),
+			},
+		});
+	}
+
+	public async updatePerpMarketParams(
+		perpMarketIndex: number,
+		partialParams: any
+	): Promise<TransactionSignature> {
+		const ix = await this.getUpdatePerpMarketParamsIx(
+			perpMarketIndex,
+			partialParams
+		);
+		const tx = await this.buildTransaction(ix);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getUpdatePerpMarketParamsIx(
+		perpMarketIndex: number,
+		partialParams: any
+	): Promise<TransactionInstruction> {
+		const params = this.buildPerpMarketUpdateParams(partialParams);
+		return await this.program.instruction.updatePerpMarketParams(params, {
+			accounts: {
+				admin: this.isSubscribed
+					? this.getStateAccount().admin
+					: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				perpMarket: await getPerpMarketPublicKey(
+					this.program.programId,
+					perpMarketIndex
+				),
+			},
+		});
+	}
+
+	public async updateStateAll(partialParams: any): Promise<TransactionSignature> {
+		const ix = await this.getUpdateStateAllIx(partialParams);
+		const tx = await this.buildTransaction(ix);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getUpdateStateAllIx(partialParams: any): Promise<TransactionInstruction> {
+		const params = this.buildStateUpdateParams(partialParams);
+		return await this.program.instruction.updateStateAll(params, {
+			accounts: {
+				admin: this.isSubscribed
+					? this.getStateAccount().admin
+					: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+			},
+		});
+	}
 	public async initialize(
 		usdcMint: PublicKey,
 		_adminControlsPrices: boolean
@@ -1214,21 +1400,9 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		curveUpdateIntensity: number
 	): Promise<TransactionInstruction> {
-		return await this.program.instruction.updatePerpMarketCurveUpdateIntensity(
+		return await this.getUpdatePerpMarketParamsIx(perpMarketIndex, {
 			curveUpdateIntensity,
-			{
-				accounts: {
-					admin: this.useHotWalletAdmin
-						? this.wallet.publicKey
-						: this.getStateAccount().admin,
-					state: await this.getStatePublicKey(),
-					perpMarket: await getPerpMarketPublicKey(
-						this.program.programId,
-						perpMarketIndex
-					),
-				},
-			}
-		);
+		});
 	}
 
 	public async updatePerpMarketTargetBaseAssetAmountPerLp(
@@ -1312,21 +1486,7 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		targetBaseAssetAmountPerLP: number
 	): Promise<TransactionInstruction> {
-		return await this.program.instruction.updatePerpMarketTargetBaseAssetAmountPerLp(
-			targetBaseAssetAmountPerLP,
-			{
-				accounts: {
-					admin: this.isSubscribed
-						? this.getStateAccount().admin
-						: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					perpMarket: await getPerpMarketPublicKey(
-						this.program.programId,
-						perpMarketIndex
-					),
-				},
-			}
-		);
+		throw new Error('updatePerpMarketTargetBaseAssetAmountPerLp has been removed with no replacement');
 	}
 
 	public async updatePerpMarketMarginRatio(
@@ -1475,21 +1635,9 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		baseSpread: number
 	): Promise<TransactionInstruction> {
-		return await this.program.instruction.updatePerpMarketBaseSpread(
+		return await this.getUpdatePerpMarketParamsIx(perpMarketIndex, {
 			baseSpread,
-			{
-				accounts: {
-					admin: this.isSubscribed
-						? this.getStateAccount().admin
-						: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					perpMarket: await getPerpMarketPublicKey(
-						this.program.programId,
-						perpMarketIndex
-					),
-				},
-			}
-		);
+		});
 	}
 
 	public async updateAmmJitIntensity(
@@ -1550,17 +1698,8 @@ export class AdminClient extends DriftClient {
 		name: string
 	): Promise<TransactionInstruction> {
 		const nameBuffer = encodeName(name);
-		return await this.program.instruction.updatePerpMarketName(nameBuffer, {
-			accounts: {
-				admin: this.isSubscribed
-					? this.getStateAccount().admin
-					: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				perpMarket: await getPerpMarketPublicKey(
-					this.program.programId,
-					perpMarketIndex
-				),
-			},
+		return await this.getUpdatePerpMarketParamsIx(perpMarketIndex, {
+			name: nameBuffer,
 		});
 	}
 
@@ -1585,17 +1724,8 @@ export class AdminClient extends DriftClient {
 		name: string
 	): Promise<TransactionInstruction> {
 		const nameBuffer = encodeName(name);
-		return await this.program.instruction.updateSpotMarketName(nameBuffer, {
-			accounts: {
-				admin: this.isSubscribed
-					? this.getStateAccount().admin
-					: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				spotMarket: await getSpotMarketPublicKey(
-					this.program.programId,
-					spotMarketIndex
-				),
-			},
+		return await this.getUpdateSpotMarketParamsIx(spotMarketIndex, {
+			name: nameBuffer,
 		});
 	}
 
@@ -1619,18 +1749,7 @@ export class AdminClient extends DriftClient {
 		spotMarketIndex: number,
 		poolId: number
 	): Promise<TransactionInstruction> {
-		return await this.program.instruction.updateSpotMarketPoolId(poolId, {
-			accounts: {
-				admin: this.isSubscribed
-					? this.getStateAccount().admin
-					: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				spotMarket: await getSpotMarketPublicKey(
-					this.program.programId,
-					spotMarketIndex
-				),
-			},
-		});
+		return await this.getUpdateSpotMarketParamsIx(spotMarketIndex, { poolId });
 	}
 
 	public async updatePerpMarketPerLpBase(
@@ -1651,20 +1770,7 @@ export class AdminClient extends DriftClient {
 		perpMarketIndex: number,
 		perLpBase: number
 	): Promise<TransactionInstruction> {
-		const perpMarketPublicKey = await getPerpMarketPublicKey(
-			this.program.programId,
-			perpMarketIndex
-		);
-
-		return await this.program.instruction.updatePerpMarketPerLpBase(perLpBase, {
-			accounts: {
-				admin: this.isSubscribed
-					? this.getStateAccount().admin
-					: this.wallet.publicKey,
-				state: await this.getStatePublicKey(),
-				perpMarket: perpMarketPublicKey,
-			},
-		});
+		throw new Error('updatePerpMarketPerLpBase has been removed with no replacement');
 	}
 
 	public async updatePerpMarketMaxSpread(
@@ -2465,21 +2571,9 @@ export class AdminClient extends DriftClient {
 		spotMarketIndex: number,
 		orderSize: BN
 	): Promise<TransactionInstruction> {
-		return await this.program.instruction.updateSpotMarketMinOrderSize(
-			orderSize,
-			{
-				accounts: {
-					admin: this.isSubscribed
-						? this.getStateAccount().admin
-						: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					spotMarket: await getSpotMarketPublicKey(
-						this.program.programId,
-						spotMarketIndex
-					),
-				},
-			}
-		);
+		return await this.getUpdateSpotMarketParamsIx(spotMarketIndex, {
+			minOrderSize: orderSize,
+		});
 	}
 
 	public async updatePerpMarketExpiry(
@@ -2583,21 +2677,9 @@ export class AdminClient extends DriftClient {
 		spotMarketIndex: number,
 		ordersEnabled: boolean
 	): Promise<TransactionInstruction> {
-		return await this.program.instruction.updateSpotMarketOrdersEnabled(
+		return await this.getUpdateSpotMarketParamsIx(spotMarketIndex, {
 			ordersEnabled,
-			{
-				accounts: {
-					admin: this.isSubscribed
-						? this.getStateAccount().admin
-						: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					spotMarket: await getSpotMarketPublicKey(
-						this.program.programId,
-						spotMarketIndex
-					),
-				},
-			}
-		);
+		});
 	}
 
 	public async updateSpotMarketIfPausedOperations(
@@ -2621,21 +2703,9 @@ export class AdminClient extends DriftClient {
 		spotMarketIndex: number,
 		pausedOperations: number
 	): Promise<TransactionInstruction> {
-		return await this.program.instruction.updateSpotMarketIfPausedOperations(
-			pausedOperations,
-			{
-				accounts: {
-					admin: this.isSubscribed
-						? this.getStateAccount().admin
-						: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					spotMarket: await getSpotMarketPublicKey(
-						this.program.programId,
-						spotMarketIndex
-					),
-				},
-			}
-		);
+		return await this.getUpdateSpotMarketParamsIx(spotMarketIndex, {
+			ifPausedOperations: pausedOperations,
+		});
 	}
 
 	public async updateSerumFulfillmentConfigStatus(
