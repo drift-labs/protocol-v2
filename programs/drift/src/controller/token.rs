@@ -217,3 +217,16 @@ pub fn initialize_token_account<'info>(
 
     Ok(())
 }
+
+pub fn initialize_immutable_owner<'info>(
+    token_program: &Interface<'info, TokenInterface>,
+    account: &AccountInfo<'info>,
+) -> Result<()> {
+    let accounts = ::anchor_spl::token_interface::InitializeImmutableOwner {
+        account: account.to_account_info(),
+    };
+    let cpi_ctx = anchor_lang::context::CpiContext::new(token_program.to_account_info(), accounts);
+    ::anchor_spl::token_interface::initialize_immutable_owner(cpi_ctx)?;
+
+    Ok(())
+}

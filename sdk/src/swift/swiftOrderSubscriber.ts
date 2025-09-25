@@ -60,6 +60,10 @@ export interface SwiftOrderMessage {
 	/** Base64 string of a prerequisite deposit tx. The swift order_message should be bundled
 	 * after the deposit when present  */
 	depositTx?: string;
+	/** order market index */
+	market_index: number;
+	/** order timestamp in unix ms */
+	ts: number;
 }
 
 export class SwiftOrderSubscriber {
