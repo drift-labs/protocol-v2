@@ -2,7 +2,7 @@ use anchor_lang::{prelude::*, Accounts, Key, Result};
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 use crate::ids::lp_pool_swap_wallet;
-use crate::math::constants::{PERCENTAGE_PRECISION, PRICE_PRECISION_I64};
+use crate::math::constants::PRICE_PRECISION_I64;
 use crate::math::oracle::OracleValidity;
 use crate::state::events::{DepositDirection, LPBorrowLendDepositRecord};
 use crate::state::paused_operations::ConstituentLpOperation;
@@ -27,7 +27,7 @@ use crate::{
     state::{
         amm_cache::{AmmCacheFixed, CacheInfo, AMM_POSITIONS_CACHE},
         constituent_map::{ConstituentMap, ConstituentSet},
-        events::{emit_stack, LPMintRedeemRecord, LPSettleRecord, LPSwapRecord},
+        events::{emit_stack, LPMintRedeemRecord, LPSwapRecord},
         lp_pool::{
             update_constituent_target_base_for_derivatives, AmmConstituentDatum,
             AmmConstituentMappingFixed, Constituent, ConstituentCorrelationsFixed,
@@ -1380,17 +1380,18 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
     let oracle_data = oracle_map.get_price_data(&oracle_id)?;
     let oracle_data_slot = clock.slot - oracle_data.delay.max(0i64).cast::<u64>()?;
 
-    let bl_position_before_interest_update = constituent
-        .spot_balance
-        .get_signed_token_amount(&spot_market)?;
     controller::spot_balance::update_spot_market_cumulative_interest(
         &mut spot_market,
         Some(&oracle_data),
         clock.unix_timestamp,
     )?;
-    let bl_position_after_interest_update = constituent
+    let token_balance_after_cumulative_interest_update = constituent
         .spot_balance
         .get_signed_token_amount(&spot_market)?;
+
+    let interest_accrued_token_amount = token_balance_after_cumulative_interest_update
+        .cast::<i64>()?
+        .safe_sub(constituent.last_spot_balance_token_amount)?;
 
     if constituent.last_oracle_slot < oracle_data_slot {
         constituent.last_oracle_price = oracle_data.price;
@@ -1475,12 +1476,13 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
         direction: DepositDirection::Deposit,
         token_balance: new_token_balance,
         last_token_balance: constituent.last_spot_balance_token_amount,
-        interest_accrued_token_amount: bl_position_after_interest_update
-            .safe_sub(bl_position_before_interest_update)?
-            .cast::<i64>()?,
+        interest_accrued_token_amount,
         amount_deposit_withdraw: amount,
     });
     constituent.last_spot_balance_token_amount = new_token_balance;
+    constituent.cumulative_spot_interest_accrued_token_amount = constituent
+        .cumulative_spot_interest_accrued_token_amount
+        .safe_add(interest_accrued_token_amount)?;
 
     Ok(())
 }
@@ -1511,17 +1513,18 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
     let oracle_data = oracle_map.get_price_data(&oracle_id)?;
     let oracle_data_slot = clock.slot - oracle_data.delay.max(0i64).cast::<u64>()?;
 
-    let bl_position_before_interest_update = constituent
-        .spot_balance
-        .get_signed_token_amount(&spot_market)?;
     controller::spot_balance::update_spot_market_cumulative_interest(
         &mut spot_market,
         Some(&oracle_data),
         clock.unix_timestamp,
     )?;
-    let bl_position_after_interest_update = constituent
+    let token_balance_after_cumulative_interest_update = constituent
         .spot_balance
         .get_signed_token_amount(&spot_market)?;
+
+    let interest_accrued_token_amount = token_balance_after_cumulative_interest_update
+        .cast::<i64>()?
+        .safe_sub(constituent.last_spot_balance_token_amount)?;
 
     if constituent.last_oracle_slot < oracle_data_slot {
         constituent.last_oracle_price = oracle_data.price;
@@ -1556,12 +1559,13 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
         direction: DepositDirection::Withdraw,
         token_balance: new_token_balance,
         last_token_balance: constituent.last_spot_balance_token_amount,
-        interest_accrued_token_amount: bl_position_after_interest_update
-            .safe_sub(bl_position_before_interest_update)?
-            .cast::<i64>()?,
+        interest_accrued_token_amount,
         amount_deposit_withdraw: amount,
     });
     constituent.last_spot_balance_token_amount = new_token_balance;
+    constituent.cumulative_spot_interest_accrued_token_amount = constituent
+        .cumulative_spot_interest_accrued_token_amount
+        .safe_add(interest_accrued_token_amount)?;
 
     Ok(())
 }

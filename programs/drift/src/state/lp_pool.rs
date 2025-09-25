@@ -786,6 +786,7 @@ pub struct Constituent {
     pub spot_balance: ConstituentSpotBalance, // should be in constituent base asset
 
     pub last_spot_balance_token_amount: i64, // token precision
+    pub cumulative_spot_interest_accrued_token_amount: i64, // token precision
 
     /// max deviation from target_weight allowed for the constituent
     /// precision: PERCENTAGE_PRECISION
@@ -846,7 +847,7 @@ pub struct Constituent {
 }
 
 impl Size for Constituent {
-    const SIZE: usize = 312;
+    const SIZE: usize = 320;
 }
 
 #[derive(BitFlags, Clone, Copy, PartialEq, Debug, Eq)]
