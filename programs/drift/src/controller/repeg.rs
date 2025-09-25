@@ -3,7 +3,6 @@ use std::cmp::min;
 use crate::math::oracle::LogMode;
 use crate::msg;
 use crate::state::oracle::MMOraclePriceData;
-use crate::state::oracle::OraclePriceData;
 use anchor_lang::prelude::AccountInfo;
 use anchor_lang::prelude::*;
 

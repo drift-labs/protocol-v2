@@ -702,13 +702,6 @@ impl OrderParams {
         }
         .cast::<i64>()?;
 
-        let baseline_start_price_offset_slow = mark_twap_slow.safe_sub(
-            perp_market
-                .amm
-                .historical_oracle_data
-                .last_oracle_price_twap,
-        )?;
-
         let baseline_start_price_offset_fast = perp_market
             .amm
             .last_mark_price_twap_5min
@@ -720,27 +713,42 @@ impl OrderParams {
                     .last_oracle_price_twap_5min,
             )?;
 
-        let frac_of_long_spread_in_price: i64 = perp_market
-            .amm
-            .long_spread
-            .cast::<i64>()?
-            .safe_mul(mark_twap_slow)?
-            .safe_div(PRICE_PRECISION_I64 * 10)?;
+        let baseline_start_price_offset_slow = mark_twap_slow.safe_sub(
+            perp_market
+                .amm
+                .historical_oracle_data
+                .last_oracle_price_twap,
+        )?;
 
-        let frac_of_short_spread_in_price: i64 = perp_market
-            .amm
-            .short_spread
-            .cast::<i64>()?
-            .safe_mul(mark_twap_slow)?
-            .safe_div(PRICE_PRECISION_I64 * 10)?;
+        let baseline_start_price_offset = if baseline_start_price_offset_slow
+            .abs_diff(baseline_start_price_offset_fast)
+            <= perp_market.amm.last_mark_price_twap_5min / 200
+        {
+            let frac_of_long_spread_in_price: i64 = perp_market
+                .amm
+                .long_spread
+                .cast::<i64>()?
+                .safe_mul(mark_twap_slow)?
+                .safe_div(PRICE_PRECISION_I64 * 10)?;
 
-        let baseline_start_price_offset = match direction {
-            PositionDirection::Long => baseline_start_price_offset_slow
-                .safe_add(frac_of_long_spread_in_price)?
-                .min(baseline_start_price_offset_fast.safe_sub(frac_of_short_spread_in_price)?),
-            PositionDirection::Short => baseline_start_price_offset_slow
-                .safe_sub(frac_of_short_spread_in_price)?
-                .max(baseline_start_price_offset_fast.safe_add(frac_of_long_spread_in_price)?),
+            let frac_of_short_spread_in_price: i64 = perp_market
+                .amm
+                .short_spread
+                .cast::<i64>()?
+                .safe_mul(mark_twap_slow)?
+                .safe_div(PRICE_PRECISION_I64 * 10)?;
+
+            match direction {
+                PositionDirection::Long => baseline_start_price_offset_slow
+                    .safe_add(frac_of_long_spread_in_price)?
+                    .min(baseline_start_price_offset_fast.safe_sub(frac_of_short_spread_in_price)?),
+                PositionDirection::Short => baseline_start_price_offset_slow
+                    .safe_sub(frac_of_short_spread_in_price)?
+                    .max(baseline_start_price_offset_fast.safe_add(frac_of_long_spread_in_price)?),
+            }
+        } else {
+            // more than 50bps different of fast/slow twap, use fast only
+            baseline_start_price_offset_fast
         };
 
         Ok(baseline_start_price_offset)
@@ -891,15 +899,15 @@ fn get_auction_duration(
 ) -> DriftResult<u8> {
     let percent_diff = price_diff.safe_mul(PERCENTAGE_PRECISION_U64)?.div(price);
 
-    let slots_per_bp = if contract_tier.is_as_safe_as_contract(&ContractTier::B) {
+    let slots_per_pct = if contract_tier.is_as_safe_as_contract(&ContractTier::B) {
         100
     } else {
         60
     };
 
     Ok(percent_diff
-        .safe_mul(slots_per_bp)?
-        .safe_div_ceil(PERCENTAGE_PRECISION_U64 / 100)? // 1% = 60 slots
+        .safe_mul(slots_per_pct)?
+        .safe_div_ceil(PERCENTAGE_PRECISION_U64 / 100)? // 1% = 40 slots
         .clamp(1, 180) as u8) // 180 slots max
 }
 

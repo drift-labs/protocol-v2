@@ -1,8 +1,6 @@
 use std::cmp::min;
 use std::ops::Sub;
 
-use crate::math::constants::PERCENTAGE_PRECISION;
-use crate::math::constants::PERCENTAGE_PRECISION_I128;
 use crate::msg;
 
 use crate::controller::position::PositionDelta;
@@ -12,6 +10,7 @@ use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::casting::Cast;
 use crate::state::protected_maker_mode_config::ProtectedMakerParams;
 use crate::state::user::OrderBitFlag;
+use crate::PERCENTAGE_PRECISION_I128;
 use crate::{
     load, math, FeeTier, BASE_PRECISION_I128, FEE_ADJUSTMENT_MAX, MARGIN_PRECISION_I128,
     MAX_PREDICTION_MARKET_PRICE, MAX_PREDICTION_MARKET_PRICE_I64, OPEN_ORDER_MARGIN_REQUIREMENT,
