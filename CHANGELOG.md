@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.139.0] - 2025-09-25
+
+### Features
+
 - program: all token 22 use immutable owner ([#1904](https://github.com/drift-labs/protocol-v2/pull/1904))
 - program: allow resolve perp pnl deficit if pnl pool isnt 0 but at deficit ([#1909](https://github.com/drift-labs/protocol-v2/pull/1909))
 - program: auction order params account for twap divergence ([#1882](https://github.com/drift-labs/protocol-v2/pull/1882))
