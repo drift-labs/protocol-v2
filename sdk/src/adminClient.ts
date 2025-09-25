@@ -4652,6 +4652,35 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async updateFeatureBitFlagsMedianTriggerPrice(
+		enable: boolean
+	): Promise<TransactionSignature> {
+		const updateFeatureBitFlagsMedianTriggerPriceIx =
+			await this.getUpdateFeatureBitFlagsMedianTriggerPriceIx(enable);
+		const tx = await this.buildTransaction(
+			updateFeatureBitFlagsMedianTriggerPriceIx
+		);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateFeatureBitFlagsMedianTriggerPriceIx(
+		enable: boolean
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateFeatureBitFlagsMedianTriggerPrice(
+			enable,
+			{
+				accounts: {
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
+	}
+
 	public async updateDelegateUserGovTokenInsuranceStake(
 		authority: PublicKey,
 		delegate: PublicKey
