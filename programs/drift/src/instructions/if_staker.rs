@@ -3,7 +3,7 @@ use anchor_lang::Discriminator;
 use anchor_spl::token_interface::{TokenAccount, TokenInterface};
 
 use crate::error::ErrorCode;
-use crate::ids::if_rebalance_wallet;
+use crate::ids::{admin_hot_wallet, if_rebalance_wallet};
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
 use crate::optional_accounts::get_token_mint;
@@ -143,6 +143,7 @@ pub fn handle_add_insurance_fund_stake<'c: 'info, 'info>(
         user_stats,
         spot_market,
         clock.unix_timestamp,
+        false,
     )?;
 
     controller::token::receive(
@@ -821,6 +822,114 @@ pub fn handle_transfer_protocol_if_shares_to_revenue_pool<'c: 'info, 'info>(
     Ok(())
 }
 
+pub fn handle_deposit_into_insurance_fund_stake<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, DepositIntoInsuranceFundStake<'info>>,
+    market_index: u16,
+    amount: u64,
+) -> Result<()> {
+    if amount == 0 {
+        return Err(ErrorCode::InsufficientDeposit.into());
+    }
+
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+    let insurance_fund_stake = &mut load_mut!(ctx.accounts.insurance_fund_stake)?;
+    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+    let spot_market = &mut load_mut!(ctx.accounts.spot_market)?;
+    let state = &ctx.accounts.state;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let mint = get_token_mint(remaining_accounts_iter)?;
+
+    validate!(
+        !spot_market.is_insurance_fund_operation_paused(InsuranceFundOperation::Add),
+        ErrorCode::InsuranceFundOperationPaused,
+        "if staking add disabled",
+    )?;
+
+    validate!(
+        insurance_fund_stake.market_index == market_index,
+        ErrorCode::IncorrectSpotMarketAccountPassed,
+        "insurance_fund_stake does not match market_index"
+    )?;
+
+    validate!(
+        spot_market.status != MarketStatus::Initialized,
+        ErrorCode::InvalidSpotMarketState,
+        "spot market = {} not active for insurance_fund_stake",
+        spot_market.market_index
+    )?;
+
+    validate!(
+        insurance_fund_stake.last_withdraw_request_shares == 0
+            && insurance_fund_stake.last_withdraw_request_value == 0,
+        ErrorCode::IFWithdrawRequestInProgress,
+        "withdraw request in progress"
+    )?;
+
+    {
+        if spot_market.has_transfer_hook() {
+            controller::insurance::attempt_settle_revenue_to_insurance_fund(
+                &ctx.accounts.spot_market_vault,
+                &ctx.accounts.insurance_fund_vault,
+                spot_market,
+                now,
+                &ctx.accounts.token_program,
+                &ctx.accounts.drift_signer,
+                state,
+                &mint,
+                Some(&mut remaining_accounts_iter.clone()),
+            )?;
+        } else {
+            controller::insurance::attempt_settle_revenue_to_insurance_fund(
+                &ctx.accounts.spot_market_vault,
+                &ctx.accounts.insurance_fund_vault,
+                spot_market,
+                now,
+                &ctx.accounts.token_program,
+                &ctx.accounts.drift_signer,
+                state,
+                &mint,
+                None,
+            )?;
+        };
+
+        // reload the vault balances so they're up-to-date
+        ctx.accounts.spot_market_vault.reload()?;
+        ctx.accounts.insurance_fund_vault.reload()?;
+        math::spot_withdraw::validate_spot_market_vault_amount(
+            spot_market,
+            ctx.accounts.spot_market_vault.amount,
+        )?;
+    }
+
+    controller::insurance::add_insurance_fund_stake(
+        amount,
+        ctx.accounts.insurance_fund_vault.amount,
+        insurance_fund_stake,
+        user_stats,
+        spot_market,
+        clock.unix_timestamp,
+        true,
+    )?;
+
+    controller::token::receive(
+        &ctx.accounts.token_program,
+        &ctx.accounts.user_token_account,
+        &ctx.accounts.insurance_fund_vault,
+        &ctx.accounts.signer.to_account_info(),
+        amount,
+        &mint,
+        if spot_market.has_transfer_hook() {
+            Some(remaining_accounts_iter)
+        } else {
+            None
+        },
+    )?;
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 #[instruction(
     market_index: u16,
@@ -1079,6 +1188,52 @@ pub struct TransferProtocolIfSharesToRevenuePool<'info> {
     #[account(
         constraint = state.signer.eq(&drift_signer.key())
     )]
+    /// CHECK: forced drift_signer
+    pub drift_signer: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(market_index: u16,)]
+pub struct DepositIntoInsuranceFundStake<'info> {
+    pub signer: Signer<'info>,
+    #[account(
+        mut,
+        constraint = signer.key() == admin_hot_wallet::id() || signer.key() == state.admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        seeds = [b"spot_market", market_index.to_le_bytes().as_ref()],
+        bump
+    )]
+    pub spot_market: AccountLoader<'info, SpotMarket>,
+    #[account(
+        mut,
+        seeds = [b"insurance_fund_stake", user_stats.load()?.authority.as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub insurance_fund_stake: AccountLoader<'info, InsuranceFundStake>,
+    #[account(mut)]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        seeds = [b"insurance_fund_vault".as_ref(), market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub insurance_fund_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        token::mint = insurance_fund_vault.mint,
+        token::authority = signer
+    )]
+    pub user_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Interface<'info, TokenInterface>,
     /// CHECK: forced drift_signer
     pub drift_signer: AccountInfo<'info>,
 }
