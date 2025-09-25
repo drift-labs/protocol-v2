@@ -449,7 +449,8 @@ export class User {
 	public getPerpBuyingPower(
 		marketIndex: number,
 		collateralBuffer = ZERO,
-		enterHighLeverageMode = undefined
+		enterHighLeverageMode = undefined,
+		maxMarginRatio = undefined
 	): BN {
 		const perpPosition = this.getPerpPositionOrEmpty(marketIndex);
 
@@ -473,7 +474,7 @@ export class User {
 			freeCollateral,
 			worstCaseBaseAssetAmount,
 			enterHighLeverageMode,
-			perpPosition.maxMarginRatio
+			maxMarginRatio || perpPosition.maxMarginRatio
 		);
 	}
 
@@ -2398,7 +2399,8 @@ export class User {
 		targetMarketIndex: number,
 		tradeSide: PositionDirection,
 		isLp = false,
-		enterHighLeverageMode = undefined
+		enterHighLeverageMode = undefined,
+		maxMarginRatio = undefined
 	): { tradeSize: BN; oppositeSideTradeSize: BN } {
 		let tradeSize = ZERO;
 		let oppositeSideTradeSize = ZERO;
@@ -2437,7 +2439,8 @@ export class User {
 		const maxPositionSize = this.getPerpBuyingPower(
 			targetMarketIndex,
 			lpBuffer,
-			enterHighLeverageMode
+			enterHighLeverageMode,
+			maxMarginRatio
 		);
 
 		if (maxPositionSize.gte(ZERO)) {

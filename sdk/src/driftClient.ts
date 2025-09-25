@@ -1546,11 +1546,16 @@ export class DriftClient {
 	): Promise<TransactionInstruction> {
 		const userAccountPublicKey = getUserAccountPublicKeySync(
 			this.program.programId,
-			this.wallet.publicKey,
+			this.authority,
 			subAccountId
 		);
 
-		await this.addUser(subAccountId, this.wallet.publicKey);
+		await this.addUser(subAccountId, this.authority);
+
+		console.log('userAccountPublicKey', userAccountPublicKey.toString());
+		console.log('authority', this.authority.toString());
+		console.log('subAccountId', subAccountId);
+		console.log('wallet.publicKey', this.wallet.publicKey.toString());
 
 		const ix = this.program.instruction.updateUserPerpPositionCustomMarginRatio(
 			subAccountId,
