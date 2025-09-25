@@ -9277,56 +9277,6 @@ export class DriftClient {
 		return ix;
 	}
 
-	public async depositIntoInsuranceFundStake(
-		marketIndex: number,
-		amount: BN,
-		userStatsPublicKey: PublicKey,
-		insuranceFundStakePublicKey: PublicKey,
-		userTokenAccountPublicKey: PublicKey,
-		txParams?: TxParams
-	): Promise<TransactionSignature> {
-		const tx = await this.buildTransaction(
-			await this.getDepositIntoInsuranceFundStakeIx(
-				marketIndex,
-				amount,
-				userStatsPublicKey,
-				insuranceFundStakePublicKey,
-				userTokenAccountPublicKey
-			),
-			txParams
-		);
-		const { txSig } = await this.sendTransaction(tx, [], this.opts);
-		return txSig;
-	}
-
-	public async getDepositIntoInsuranceFundStakeIx(
-		marketIndex: number,
-		amount: BN,
-		userStatsPublicKey: PublicKey,
-		insuranceFundStakePublicKey: PublicKey,
-		userTokenAccountPublicKey: PublicKey
-	): Promise<TransactionInstruction> {
-		const spotMarket = this.getSpotMarketAccount(marketIndex);
-		return await this.program.instruction.depositIntoInsuranceFundStake(
-			marketIndex,
-			amount,
-			{
-				accounts: {
-					signer: this.wallet.publicKey,
-					state: await this.getStatePublicKey(),
-					spotMarket: spotMarket.pubkey,
-					insuranceFundStake: insuranceFundStakePublicKey,
-					userStats: userStatsPublicKey,
-					spotMarketVault: spotMarket.vault,
-					insuranceFundVault: spotMarket.insuranceFund.vault,
-					userTokenAccount: userTokenAccountPublicKey,
-					tokenProgram: this.getTokenProgramForSpotMarket(spotMarket),
-					driftSigner: this.getSignerPublicKey(),
-				},
-			}
-		);
-	}
-
 	public async settleRevenueToInsuranceFund(
 		spotMarketIndex: number,
 		txParams?: TxParams
