@@ -3671,6 +3671,71 @@
       ]
     },
     {
+      "name": "depositIntoInsuranceFundStake",
+      "accounts": [
+        {
+          "name": "signer",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundStake",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "updatePythPullOracle",
       "accounts": [
         {
@@ -12242,6 +12307,9 @@
           },
           {
             "name": "StakeTransfer"
+          },
+          {
+            "name": "AdminDeposit"
           }
         ]
       }

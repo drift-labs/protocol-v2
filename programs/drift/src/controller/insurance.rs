@@ -112,6 +112,7 @@ pub fn add_insurance_fund_stake(
     user_stats: &mut UserStats,
     spot_market: &mut SpotMarket,
     now: i64,
+    admin_deposit: bool,
 ) -> DriftResult {
     validate!(
         !(insurance_vault_amount == 0 && spot_market.insurance_fund.total_shares != 0),
@@ -161,7 +162,11 @@ pub fn add_insurance_fund_stake(
     emit!(InsuranceFundStakeRecord {
         ts: now,
         user_authority: user_stats.authority,
-        action: StakeAction::Stake,
+        action: if admin_deposit {
+            StakeAction::AdminDeposit
+        } else {
+            StakeAction::Stake
+        },
         amount,
         market_index: spot_market.market_index,
         insurance_vault_amount_before: insurance_vault_amount,
