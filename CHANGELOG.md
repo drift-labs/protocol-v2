@@ -9,7 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.139.0] - 2025-09-25
+
+### Features
+
+- program: all token 22 use immutable owner ([#1904](https://github.com/drift-labs/protocol-v2/pull/1904))
+- program: allow resolve perp pnl deficit if pnl pool isnt 0 but at deficit ([#1909](https://github.com/drift-labs/protocol-v2/pull/1909))
+- program: auction order params account for twap divergence ([#1882](https://github.com/drift-labs/protocol-v2/pull/1882))
+- program: add delegate stake if ([#1859](https://github.com/drift-labs/protocol-v2/pull/1859))
+
+### Fixes
+
+### Breaking
+
+## [2.138.0] - 2025-09-22
+
+### Features
+
 - program: support scaled ui extension ([#1894](https://github.com/drift-labs/protocol-v2/pull/1894))
+- Revert "Crispeaney/revert swift max margin ratio ([#1877](https://github.com/drift-labs/protocol-v2/pull/1877))
 
 ### Fixes
 

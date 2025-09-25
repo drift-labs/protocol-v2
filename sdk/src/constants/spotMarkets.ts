@@ -129,6 +129,18 @@ export const DevnetSpotMarkets: SpotMarketConfig[] = [
 			'0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a',
 		pythLazerId: 7,
 	},
+	{
+		symbol: 'GLXY',
+		marketIndex: 7,
+		poolId: 0,
+		oracle: new PublicKey('4wFrjUQHzRBc6qjVtMDbt28aEVgn6GaNiWR6vEff4KxR'),
+		oracleSource: OracleSource.Prelaunch,
+		mint: new PublicKey('2vVfXmcWXEaFzp7iaTVnQ4y1gR41S6tJQQMo1S5asJyC'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		pythFeedId:
+			'0x67e031d1723e5c89e4a826d80b2f3b41a91b05ef6122d523b8829a02e0f563aa',
+	},
 ];
 
 export const MainnetSpotMarkets: SpotMarketConfig[] = [
