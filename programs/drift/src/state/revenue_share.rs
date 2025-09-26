@@ -480,36 +480,6 @@ impl<'a> RevenueShareEscrowZeroCopyMut<'a> {
         Err(ErrorCode::RevenueShareEscrowOrdersAccountFull.into())
     }
 
-    pub fn find_order_mut(
-        &mut self,
-        sub_account_id: u16,
-        order_id: u32,
-    ) -> Option<&mut RevenueShareOrder> {
-        for i in 0..self.orders_len() {
-            if let Ok(existing_order) = self.get_order(i) {
-                if existing_order.order_id == order_id
-                    && existing_order.sub_account_id == sub_account_id
-                {
-                    return self.get_order_mut(i).ok();
-                }
-            }
-        }
-        None
-    }
-
-    pub fn find_order(&mut self, sub_account_id: u16, order_id: u32) -> Option<&RevenueShareOrder> {
-        for i in 0..self.orders_len() {
-            if let Ok(existing_order) = self.get_order(i) {
-                if existing_order.order_id == order_id
-                    && existing_order.sub_account_id == sub_account_id
-                {
-                    return self.get_order(i).ok();
-                }
-            }
-        }
-        None
-    }
-
     /// Marks any [`RevenueShareOrder`]s as Complete if there is no longer a corresponding
     /// open order in the user's account. This is used to lazily reconcile state when
     /// in place_order and settle_pnl instead of requiring explicit updates on cancels.

@@ -2308,7 +2308,7 @@ pub fn fulfill_perp_order_with_amm(
         filler_reward,
         referee_discount,
         referrer_reward,
-        fee_to_market_for_lp,
+        fee_to_market_for_lp: _fee_to_market_for_lp,
         maker_rebate,
         builder_fee: builder_fee_option,
     } = fees::calculate_fee_for_fulfillment_with_amm(

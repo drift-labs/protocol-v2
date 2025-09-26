@@ -865,7 +865,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
                 .iter()
                 .position(|order| order.is_available())
                 .ok_or(ErrorCode::MaxNumberOfOrders)?;
-            escrow.add_order(RevenueShareOrder::new(
+            match escrow.add_order(RevenueShareOrder::new(
                 verified_message_and_signature.builder_idx.unwrap(),
                 taker.sub_account_id,
                 new_order_id,
@@ -874,8 +874,13 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
                 market_index,
                 RevenueShareOrderBitFlag::Open as u8,
                 new_order_index as u8,
-            ))?;
-            escrow.find_order_mut(taker.sub_account_id, new_order_id)
+            )) {
+                Ok(order_idx) => escrow.get_order_mut(order_idx).ok(),
+                Err(_) => {
+                    msg!("Failed to add stop loss order, escrow is full");
+                    None
+                }
+            }
         } else {
             None
         };
@@ -925,7 +930,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
                 .iter()
                 .position(|order| order.is_available())
                 .ok_or(ErrorCode::MaxNumberOfOrders)?;
-            escrow.add_order(RevenueShareOrder::new(
+            match escrow.add_order(RevenueShareOrder::new(
                 verified_message_and_signature.builder_idx.unwrap(),
                 taker.sub_account_id,
                 new_order_id,
@@ -934,8 +939,13 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
                 market_index,
                 RevenueShareOrderBitFlag::Open as u8,
                 new_order_index as u8,
-            ))?;
-            escrow.find_order_mut(taker.sub_account_id, new_order_id)
+            )) {
+                Ok(order_idx) => escrow.get_order_mut(order_idx).ok(),
+                Err(_) => {
+                    msg!("Failed to add take profit order, escrow is full");
+                    None
+                }
+            }
         } else {
             None
         };
@@ -968,7 +978,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
             .iter()
             .position(|order| order.is_available())
             .ok_or(ErrorCode::MaxNumberOfOrders)?;
-        escrow.add_order(RevenueShareOrder::new(
+        match escrow.add_order(RevenueShareOrder::new(
             verified_message_and_signature.builder_idx.unwrap(),
             taker.sub_account_id,
             new_order_id,
@@ -977,8 +987,13 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
             market_index,
             RevenueShareOrderBitFlag::Open as u8,
             new_order_index as u8,
-        ))?;
-        escrow.find_order_mut(taker.sub_account_id, new_order_id)
+        )) {
+            Ok(order_idx) => escrow.get_order_mut(order_idx).ok(),
+            Err(_) => {
+                msg!("Failed to add order, escrow is full");
+                None
+            }
+        }
     } else {
         None
     };
