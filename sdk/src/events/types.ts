@@ -24,6 +24,7 @@ import {
 	LPMintRedeemRecord,
 	LPSettleRecord,
 	LPSwapRecord,
+	LPBorrowLendDepositRecord,
 } from '../types';
 import { EventEmitter } from 'events';
 
@@ -147,7 +148,8 @@ export type DriftEvent =
 	| Event<TransferProtocolIfSharesToRevenuePoolRecord>
 	| Event<LPSettleRecord>
 	| Event<LPMintRedeemRecord>
-	| Event<LPSwapRecord>;
+	| Event<LPSwapRecord>
+	| Event<LPBorrowLendDepositRecord>;
 
 export interface EventSubscriberEvents {
 	newEvent: (event: WrappedEvent<EventType>) => void;
