@@ -183,7 +183,7 @@ impl<'a> ConstituentMap<'a> {
         }
 
         // market index 1160 bytes from front of account
-        let constituent_index = u16::from_le_bytes(*array_ref![data, 292, 2]);
+        let constituent_index = u16::from_le_bytes(*array_ref![data, 308, 2]);
 
         let is_writable = account_info.is_writable;
         let account_loader: AccountLoader<Constituent> =
@@ -221,7 +221,7 @@ impl<'a> ConstituentMap<'a> {
                 return Err(ErrorCode::ConstituentCouldNotLoad);
             }
 
-            let constituent_index = u16::from_le_bytes(*array_ref![data, 292, 2]);
+            let constituent_index = u16::from_le_bytes(*array_ref![data, 308, 2]);
 
             if constituent_map.0.contains_key(&constituent_index) {
                 msg!(
