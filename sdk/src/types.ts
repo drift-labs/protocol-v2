@@ -1314,6 +1314,8 @@ export type SignedMsgOrderParamsMessage = {
 	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
 	maxMarginRatio?: number | null;
+	builderIdx?: number | null;
+	builderFeeTenthBps?: number | null;
 };
 
 export type SignedMsgOrderParamsDelegateMessage = {
@@ -1324,6 +1326,8 @@ export type SignedMsgOrderParamsDelegateMessage = {
 	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
 	maxMarginRatio?: number | null;
+	builderIdx?: number | null;
+	builderFeeTenthBps?: number | null;
 };
 
 export type SignedMsgTriggerOrderParams = {
@@ -1773,4 +1777,52 @@ export type CacheInfo = {
 
 export type AmmCache = {
 	cache: CacheInfo[];
+};
+
+export type RevenueShareAccount = {
+	authority: PublicKey;
+	totalReferrerRewards: BN;
+	totalBuilderRewards: BN;
+	padding: number[];
+};
+
+export type RevenueShareEscrowAccount = {
+	authority: PublicKey;
+	referrer: PublicKey;
+	referrerBoostExpireTs: number;
+	referrerRewardOffset: number;
+	refereeFeeNumeratorOffset: number;
+	referrerBoostNumerator: number;
+	reservedFixed: number[];
+	orders: RevenueShareOrder[];
+	approvedBuilders: BuilderInfo[];
+};
+
+export type RevenueShareOrder = {
+	builderIdx: number;
+	feesAccrued: BN;
+	orderId: number;
+	feeTenthBps: number;
+	marketIndex: number;
+	bitFlags: number;
+	marketType: MarketType; // 0: spot, 1: perp
+	padding: number[];
+};
+
+export type BuilderInfo = {
+	authority: PublicKey;
+	maxFeeTenthBps: number;
+	padding: number[];
+};
+
+export type RevenueShareSettleRecord = {
+	ts: number;
+	builder: PublicKey | null;
+	referrer: PublicKey | null;
+	feeSettled: BN;
+	marketIndex: number;
+	marketType: MarketType;
+	builderTotalReferrerRewards: BN;
+	builderTotalBuilderRewards: BN;
+	builderSubAccountId: number;
 };

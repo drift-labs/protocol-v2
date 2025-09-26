@@ -126,6 +126,8 @@ import {
 	getConstituentVaultPublicKey,
 	getConstituentCorrelationsPublicKey,
 	getLpPoolTokenTokenAccountPublicKey,
+	getRevenueShareAccountPublicKey,
+	getRevenueShareEscrowAccountPublicKey,
 } from './addresses/pda';
 import {
 	DataAndSlot,
@@ -208,6 +210,12 @@ import { SignedMsgOrderParams } from './types';
 import { sha256 } from '@noble/hashes/sha256';
 import { getOracleConfidenceFromMMOracleData } from './oracles/utils';
 import { ConstituentMap } from './constituentMap/constituentMap';
+import { hasBuilder } from './math/orders';
+import { RevenueShareEscrowMap } from './userMap/revenueShareEscrowMap';
+import {
+	isBuilderOrderReferral,
+	isBuilderOrderCompleted,
+} from './math/builder';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -1240,6 +1248,176 @@ export class DriftClient {
 		return ix;
 	}
 
+	public async initializeRevenueShare(
+		authority: PublicKey,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const ix = await this.getInitializeRevenueShareIx(authority);
+		const tx = await this.buildTransaction([ix], txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getInitializeRevenueShareIx(
+		authority: PublicKey
+	): Promise<TransactionInstruction> {
+		const revenueShare = getRevenueShareAccountPublicKey(
+			this.program.programId,
+			authority
+		);
+		return this.program.instruction.initializeRevenueShare({
+			accounts: {
+				revenueShare,
+				authority,
+				payer: this.wallet.publicKey,
+				rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+				systemProgram: anchor.web3.SystemProgram.programId,
+			},
+		});
+	}
+
+	public async initializeRevenueShareEscrow(
+		authority: PublicKey,
+		numOrders: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const ix = await this.getInitializeRevenueShareEscrowIx(
+			authority,
+			numOrders
+		);
+		const tx = await this.buildTransaction([ix], txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getInitializeRevenueShareEscrowIx(
+		authority: PublicKey,
+		numOrders: number
+	): Promise<TransactionInstruction> {
+		const escrow = getRevenueShareEscrowAccountPublicKey(
+			this.program.programId,
+			authority
+		);
+		return this.program.instruction.initializeRevenueShareEscrow(numOrders, {
+			accounts: {
+				escrow,
+				authority,
+				payer: this.wallet.publicKey,
+				userStats: getUserStatsAccountPublicKey(
+					this.program.programId,
+					authority
+				),
+				state: await this.getStatePublicKey(),
+				rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+				systemProgram: anchor.web3.SystemProgram.programId,
+			},
+		});
+	}
+
+	public async migrateReferrer(
+		authority: PublicKey,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const ix = await this.getMigrateReferrerIx(authority);
+		const tx = await this.buildTransaction([ix], txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getMigrateReferrerIx(
+		authority: PublicKey
+	): Promise<TransactionInstruction> {
+		const escrow = getRevenueShareEscrowAccountPublicKey(
+			this.program.programId,
+			authority
+		);
+		return this.program.instruction.migrateReferrer({
+			accounts: {
+				escrow,
+				authority,
+				userStats: getUserStatsAccountPublicKey(
+					this.program.programId,
+					authority
+				),
+				state: await this.getStatePublicKey(),
+				payer: this.wallet.publicKey,
+			},
+		});
+	}
+
+	public async resizeRevenueShareEscrowOrders(
+		authority: PublicKey,
+		numOrders: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const ix = await this.getResizeRevenueShareEscrowOrdersIx(
+			authority,
+			numOrders
+		);
+		const tx = await this.buildTransaction([ix], txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getResizeRevenueShareEscrowOrdersIx(
+		authority: PublicKey,
+		numOrders: number
+	): Promise<TransactionInstruction> {
+		const escrow = getRevenueShareEscrowAccountPublicKey(
+			this.program.programId,
+			authority
+		);
+		return this.program.instruction.resizeRevenueShareEscrowOrders(numOrders, {
+			accounts: {
+				escrow,
+				authority,
+				payer: this.wallet.publicKey,
+				systemProgram: anchor.web3.SystemProgram.programId,
+			},
+		});
+	}
+
+	public async changeApprovedBuilder(
+		builder: PublicKey,
+		maxFeeTenthBps: number,
+		add: boolean,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const ix = await this.getChangeApprovedBuilderIx(
+			builder,
+			maxFeeTenthBps,
+			add
+		);
+		const tx = await this.buildTransaction([ix], txParams);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getChangeApprovedBuilderIx(
+		builder: PublicKey,
+		maxFeeTenthBps: number,
+		add: boolean
+	): Promise<TransactionInstruction> {
+		const authority = this.wallet.publicKey;
+		const escrow = getRevenueShareEscrowAccountPublicKey(
+			this.program.programId,
+			authority
+		);
+		return this.program.instruction.changeApprovedBuilder(
+			builder,
+			maxFeeTenthBps,
+			add,
+			{
+				accounts: {
+					escrow,
+					authority,
+					payer: this.wallet.publicKey,
+					systemProgram: anchor.web3.SystemProgram.programId,
+				},
+			}
+		);
+	}
+
 	public async addSignedMsgWsDelegate(
 		authority: PublicKey,
 		delegate: PublicKey,
@@ -1967,6 +2145,20 @@ export class DriftClient {
 			writableSpotMarketIndexes,
 		});
 
+		for (const order of userAccount.orders) {
+			if (hasBuilder(order)) {
+				remainingAccounts.push({
+					pubkey: getRevenueShareEscrowAccountPublicKey(
+						this.program.programId,
+						userAccount.authority
+					),
+					isWritable: true,
+					isSigner: false,
+				});
+				break;
+			}
+		}
+
 		const tokenPrograms = new Set<string>();
 		for (const spotPosition of userAccount.spotPositions) {
 			if (isSpotPositionAvailable(spotPosition)) {
@@ -2464,6 +2656,35 @@ export class DriftClient {
 				pubkey: spotMarketAccount.oracle,
 				isSigner: false,
 				isWritable: false,
+			});
+		}
+	}
+
+	addBuilderToRemainingAccounts(
+		builders: PublicKey[],
+		remainingAccounts: AccountMeta[]
+	): void {
+		for (const builder of builders) {
+			// Add User account for the builder
+			const builderUserAccount = getUserAccountPublicKeySync(
+				this.program.programId,
+				builder,
+				0 // subAccountId 0 for builder user account
+			);
+			remainingAccounts.push({
+				pubkey: builderUserAccount,
+				isSigner: false,
+				isWritable: true,
+			});
+
+			const builderAccount = getRevenueShareAccountPublicKey(
+				this.program.programId,
+				builder
+			);
+			remainingAccounts.push({
+				pubkey: builderAccount,
+				isSigner: false,
+				isWritable: true,
 			});
 		}
 	}
@@ -4742,7 +4963,8 @@ export class DriftClient {
 		referrerInfo?: ReferrerInfo,
 		txParams?: TxParams,
 		fillerSubAccountId?: number,
-		fillerAuthority?: PublicKey
+		fillerAuthority?: PublicKey,
+		hasBuilderFee?: boolean
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
@@ -4754,7 +4976,8 @@ export class DriftClient {
 					referrerInfo,
 					fillerSubAccountId,
 					undefined,
-					fillerAuthority
+					fillerAuthority,
+					hasBuilderFee
 				),
 				txParams
 			),
@@ -4772,7 +4995,8 @@ export class DriftClient {
 		referrerInfo?: ReferrerInfo,
 		fillerSubAccountId?: number,
 		isSignedMsg?: boolean,
-		fillerAuthority?: PublicKey
+		fillerAuthority?: PublicKey,
+		hasBuilderFee?: boolean
 	): Promise<TransactionInstruction> {
 		const userStatsPublicKey = getUserStatsAccountPublicKey(
 			this.program.programId,
@@ -4852,6 +5076,36 @@ export class DriftClient {
 					isSigner: false,
 				});
 			}
+		}
+
+		let withBuilder = false;
+		if (hasBuilderFee) {
+			withBuilder = true;
+		} else {
+			// figure out if we need builder account or not
+			if (order && !isSignedMsg) {
+				const userOrder = userAccount.orders.find(
+					(o) => o.orderId === order.orderId
+				);
+				if (userOrder) {
+					withBuilder = hasBuilder(userOrder);
+				}
+			} else if (isSignedMsg) {
+				// Order hasn't been placed yet, we cant tell if it has a builder or not.
+				// Include it optimistically
+				withBuilder = true;
+			}
+		}
+
+		if (withBuilder) {
+			remainingAccounts.push({
+				pubkey: getRevenueShareEscrowAccountPublicKey(
+					this.program.programId,
+					userAccount.authority
+				),
+				isWritable: true,
+				isSigner: false,
+			});
 		}
 
 		const orderId = isSignedMsg ? null : order.orderId;
@@ -6394,6 +6648,15 @@ export class DriftClient {
 			});
 		}
 
+		remainingAccounts.push({
+			pubkey: getRevenueShareEscrowAccountPublicKey(
+				this.program.programId,
+				this.getUserAccount(subAccountId).authority
+			),
+			isWritable: true,
+			isSigner: false,
+		});
+
 		let optionalParams = null;
 		if (auctionDurationPercentage || successCondition) {
 			optionalParams =
@@ -6472,6 +6735,15 @@ export class DriftClient {
 				isSigner: false,
 			});
 		}
+
+		remainingAccounts.push({
+			pubkey: getRevenueShareEscrowAccountPublicKey(
+				this.program.programId,
+				takerInfo.takerUserAccount.authority
+			),
+			isWritable: true,
+			isSigner: false,
+		});
 
 		const takerOrderId = takerInfo.order.orderId;
 		return await this.program.instruction.placeAndMakePerpOrder(
@@ -6559,16 +6831,29 @@ export class DriftClient {
 			? 'global' + ':' + 'SignedMsgOrderParamsDelegateMessage'
 			: 'global' + ':' + 'SignedMsgOrderParamsMessage';
 		const prefix = Buffer.from(sha256(anchorIxName).slice(0, 8));
+
+		// Backwards-compat: normalize optional builder fields to null for encoding
+		const withBuilderDefaults = {
+			...orderParamsMessage,
+			builderIdx:
+				orderParamsMessage.builderIdx !== undefined
+					? orderParamsMessage.builderIdx
+					: null,
+			builderFeeTenthBps:
+				orderParamsMessage.builderFeeTenthBps !== undefined
+					? orderParamsMessage.builderFeeTenthBps
+					: null,
+		};
 		const buf = Buffer.concat([
 			prefix,
 			delegateSigner
 				? this.program.coder.types.encode(
 						'SignedMsgOrderParamsDelegateMessage',
-						orderParamsMessage as SignedMsgOrderParamsDelegateMessage
+						withBuilderDefaults as SignedMsgOrderParamsDelegateMessage
 				  )
 				: this.program.coder.types.encode(
 						'SignedMsgOrderParamsMessage',
-						orderParamsMessage as SignedMsgOrderParamsMessage
+						withBuilderDefaults as SignedMsgOrderParamsMessage
 				  ),
 		]);
 		return buf;
@@ -6657,20 +6942,30 @@ export class DriftClient {
 			signedSignedMsgOrderParams.orderParams.toString(),
 			'hex'
 		);
-		try {
-			const { signedMsgOrderParams } = this.decodeSignedMsgOrderParamsMessage(
-				borshBuf,
-				isDelegateSigner
-			);
-			if (isUpdateHighLeverageMode(signedMsgOrderParams.bitFlags)) {
-				remainingAccounts.push({
-					pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
-					isWritable: true,
-					isSigner: false,
-				});
-			}
-		} catch (err) {
-			console.error('invalid signed order encoding');
+
+		const signedMessage = this.decodeSignedMsgOrderParamsMessage(
+			borshBuf,
+			isDelegateSigner
+		);
+		if (isUpdateHighLeverageMode(signedMessage.signedMsgOrderParams.bitFlags)) {
+			remainingAccounts.push({
+				pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+		if (
+			signedMessage.builderFeeTenthBps !== null &&
+			signedMessage.builderIdx !== null
+		) {
+			remainingAccounts.push({
+				pubkey: getRevenueShareEscrowAccountPublicKey(
+					this.program.programId,
+					takerInfo.takerUserAccount.authority
+				),
+				isWritable: true,
+				isSigner: false,
+			});
 		}
 
 		const messageLengthBuffer = Buffer.alloc(2);
@@ -7457,7 +7752,8 @@ export class DriftClient {
 		settleeUserAccount: UserAccount,
 		marketIndex: number,
 		txParams?: TxParams,
-		optionalIxs?: TransactionInstruction[]
+		optionalIxs?: TransactionInstruction[],
+		escrowMap?: RevenueShareEscrowMap
 	): Promise<TransactionSignature> {
 		const lookupTableAccounts = await this.fetchAllLookupTableAccounts();
 
@@ -7466,7 +7762,8 @@ export class DriftClient {
 				await this.settlePNLIx(
 					settleeUserAccountPublicKey,
 					settleeUserAccount,
-					marketIndex
+					marketIndex,
+					escrowMap
 				),
 				txParams,
 				undefined,
@@ -7484,13 +7781,97 @@ export class DriftClient {
 	public async settlePNLIx(
 		settleeUserAccountPublicKey: PublicKey,
 		settleeUserAccount: UserAccount,
-		marketIndex: number
+		marketIndex: number,
+		revenueShareEscrowMap?: RevenueShareEscrowMap
 	): Promise<TransactionInstruction> {
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [settleeUserAccount],
 			writablePerpMarketIndexes: [marketIndex],
 			writableSpotMarketIndexes: [QUOTE_SPOT_MARKET_INDEX],
 		});
+
+		if (revenueShareEscrowMap) {
+			const escrow = revenueShareEscrowMap.get(
+				settleeUserAccount.authority.toBase58()
+			);
+			if (escrow) {
+				const escrowPk = getRevenueShareEscrowAccountPublicKey(
+					this.program.programId,
+					settleeUserAccount.authority
+				);
+
+				const builders = new Map<number, PublicKey>();
+				for (const order of escrow.orders) {
+					const eligibleBuilder =
+						isBuilderOrderCompleted(order) &&
+						!isBuilderOrderReferral(order) &&
+						order.feesAccrued.gt(ZERO) &&
+						order.marketIndex === marketIndex;
+					if (eligibleBuilder && !builders.has(order.builderIdx)) {
+						builders.set(
+							order.builderIdx,
+							escrow.approvedBuilders[order.builderIdx].authority
+						);
+					}
+				}
+				if (builders.size > 0) {
+					if (!remainingAccounts.find((a) => a.pubkey.equals(escrowPk))) {
+						remainingAccounts.push({
+							pubkey: escrowPk,
+							isSigner: false,
+							isWritable: true,
+						});
+					}
+					this.addBuilderToRemainingAccounts(
+						Array.from(builders.values()),
+						remainingAccounts
+					);
+				}
+
+				// Include escrow and referrer accounts if referral rewards exist for this market
+				const hasReferralForMarket = escrow.orders.some(
+					(o) =>
+						isBuilderOrderReferral(o) &&
+						o.feesAccrued.gt(ZERO) &&
+						o.marketIndex === marketIndex
+				);
+
+				if (hasReferralForMarket) {
+					if (!remainingAccounts.find((a) => a.pubkey.equals(escrowPk))) {
+						remainingAccounts.push({
+							pubkey: escrowPk,
+							isSigner: false,
+							isWritable: true,
+						});
+					}
+					if (!escrow.referrer.equals(PublicKey.default)) {
+						this.addBuilderToRemainingAccounts(
+							[escrow.referrer],
+							remainingAccounts
+						);
+					}
+				}
+			} else {
+				// Stale-cache fallback: if the user has any builder orders, include escrow PDA. This allows
+				// the program to lazily clean up any completed builder orders.
+				for (const order of settleeUserAccount.orders) {
+					if (hasBuilder(order)) {
+						const escrowPk = getRevenueShareEscrowAccountPublicKey(
+							this.program.programId,
+							settleeUserAccount.authority
+						);
+						if (!remainingAccounts.find((a) => a.pubkey.equals(escrowPk))) {
+							remainingAccounts.push({
+								pubkey: escrowPk,
+								isSigner: false,
+								isWritable: true,
+							});
+						}
+						break;
+					}
+				}
+			}
+		}
 
 		return await this.program.instruction.settlePnl(marketIndex, {
 			accounts: {
@@ -7508,6 +7889,7 @@ export class DriftClient {
 		settleeUserAccount: UserAccount,
 		marketIndexes: number[],
 		mode: SettlePnlMode,
+		revenueShareEscrowMap?: RevenueShareEscrowMap,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
@@ -7516,7 +7898,9 @@ export class DriftClient {
 					settleeUserAccountPublicKey,
 					settleeUserAccount,
 					marketIndexes,
-					mode
+					mode,
+					undefined,
+					revenueShareEscrowMap
 				),
 				txParams
 			),
@@ -7532,7 +7916,8 @@ export class DriftClient {
 		marketIndexes: number[],
 		mode: SettlePnlMode,
 		txParams?: TxParams,
-		optionalIxs?: TransactionInstruction[]
+		optionalIxs?: TransactionInstruction[],
+		revenueShareEscrowMap?: RevenueShareEscrowMap
 	): Promise<TransactionSignature[]> {
 		// need multiple TXs because settling more than 4 markets won't fit in a single TX
 		const txsToSign: (Transaction | VersionedTransaction)[] = [];
@@ -7546,7 +7931,9 @@ export class DriftClient {
 				settleeUserAccountPublicKey,
 				settleeUserAccount,
 				marketIndexes,
-				mode
+				mode,
+				undefined,
+				revenueShareEscrowMap
 			);
 			const computeUnits = Math.min(300_000 * marketIndexes.length, 1_400_000);
 			const tx = await this.buildTransaction(
@@ -7591,13 +7978,103 @@ export class DriftClient {
 		mode: SettlePnlMode,
 		overrides?: {
 			authority?: PublicKey;
-		}
+		},
+		revenueShareEscrowMap?: RevenueShareEscrowMap
 	): Promise<TransactionInstruction> {
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [settleeUserAccount],
 			writablePerpMarketIndexes: marketIndexes,
 			writableSpotMarketIndexes: [QUOTE_SPOT_MARKET_INDEX],
 		});
+
+		if (revenueShareEscrowMap) {
+			const escrow = revenueShareEscrowMap.get(
+				settleeUserAccount.authority.toBase58()
+			);
+			const builders = new Map<number, PublicKey>();
+			if (escrow) {
+				for (const order of escrow.orders) {
+					const eligibleBuilder =
+						isBuilderOrderCompleted(order) &&
+						!isBuilderOrderReferral(order) &&
+						order.feesAccrued.gt(ZERO) &&
+						marketIndexes.includes(order.marketIndex);
+					if (eligibleBuilder && !builders.has(order.builderIdx)) {
+						builders.set(
+							order.builderIdx,
+							escrow.approvedBuilders[order.builderIdx].authority
+						);
+					}
+				}
+				if (builders.size > 0) {
+					const escrowPk = getRevenueShareEscrowAccountPublicKey(
+						this.program.programId,
+						settleeUserAccount.authority
+					);
+					if (!remainingAccounts.find((a) => a.pubkey.equals(escrowPk))) {
+						remainingAccounts.push({
+							pubkey: escrowPk,
+							isSigner: false,
+							isWritable: true,
+						});
+					}
+					this.addBuilderToRemainingAccounts(
+						Array.from(builders.values()),
+						remainingAccounts
+					);
+				}
+
+				// Include escrow and referrer accounts when there are referral rewards
+				// for any of the markets we are settling, so on-chain sweep can find them.
+				const hasReferralForRequestedMarkets = escrow.orders.some(
+					(o) =>
+						isBuilderOrderReferral(o) &&
+						o.feesAccrued.gt(ZERO) &&
+						marketIndexes.includes(o.marketIndex)
+				);
+
+				if (hasReferralForRequestedMarkets) {
+					const escrowPk = getRevenueShareEscrowAccountPublicKey(
+						this.program.programId,
+						settleeUserAccount.authority
+					);
+					if (!remainingAccounts.find((a) => a.pubkey.equals(escrowPk))) {
+						remainingAccounts.push({
+							pubkey: escrowPk,
+							isSigner: false,
+							isWritable: true,
+						});
+					}
+
+					// Add referrer's User and RevenueShare accounts
+					if (!escrow.referrer.equals(PublicKey.default)) {
+						this.addBuilderToRemainingAccounts(
+							[escrow.referrer],
+							remainingAccounts
+						);
+					}
+				}
+			} else {
+				// Stale-cache fallback: if the user has any builder orders, include escrow PDA. This allows
+				// the program to lazily clean up any completed builder orders.
+				for (const order of settleeUserAccount.orders) {
+					if (hasBuilder(order)) {
+						const escrowPk = getRevenueShareEscrowAccountPublicKey(
+							this.program.programId,
+							settleeUserAccount.authority
+						);
+						if (!remainingAccounts.find((a) => a.pubkey.equals(escrowPk))) {
+							remainingAccounts.push({
+								pubkey: escrowPk,
+								isSigner: false,
+								isWritable: true,
+							});
+						}
+						break;
+					}
+				}
+			}
+		}
 
 		return await this.program.instruction.settleMultiplePnls(
 			marketIndexes,

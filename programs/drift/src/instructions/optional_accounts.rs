@@ -1,5 +1,8 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
+use crate::state::revenue_share::{
+    RevenueShareEscrow, RevenueShareEscrowLoader, RevenueShareEscrowZeroCopyMut,
+};
 use std::cell::RefMut;
 use std::convert::TryFrom;
 
@@ -17,7 +20,7 @@ use crate::state::traits::Size;
 use crate::state::user::{User, UserStats};
 use crate::{validate, OracleSource};
 use anchor_lang::accounts::account::Account;
-use anchor_lang::prelude::{AccountInfo, Interface};
+use anchor_lang::prelude::{AccountInfo, Interface, Pubkey};
 use anchor_lang::prelude::{AccountLoader, InterfaceAccount};
 use anchor_lang::Discriminator;
 use anchor_spl::token::TokenAccount;
@@ -272,4 +275,41 @@ pub fn get_high_leverage_mode_config<'a>(
             .or(Err(ErrorCode::CouldNotDeserializeHighLeverageModeConfig))?;
 
     Ok(Some(high_leverage_mode_config))
+}
+
+pub fn get_revenue_share_escrow_account<'a>(
+    account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'a>>>,
+    expected_authority: &Pubkey,
+) -> DriftResult<Option<RevenueShareEscrowZeroCopyMut<'a>>> {
+    let account_info = account_info_iter.peek();
+    if account_info.is_none() {
+        return Ok(None);
+    }
+
+    let account_info = account_info.safe_unwrap()?;
+
+    // Check size and discriminator without borrowing
+    if account_info.data_len() < 80 {
+        return Ok(None);
+    }
+
+    let discriminator: [u8; 8] = RevenueShareEscrow::discriminator();
+    let borrowed_data = account_info.data.borrow();
+    let account_discriminator = array_ref![&borrowed_data, 0, 8];
+    if account_discriminator != &discriminator {
+        return Ok(None);
+    }
+
+    let account_info = account_info_iter.next().safe_unwrap()?;
+
+    drop(borrowed_data);
+    let escrow: RevenueShareEscrowZeroCopyMut<'a> = account_info.load_zc_mut()?;
+
+    validate!(
+        escrow.fixed.authority == *expected_authority,
+        ErrorCode::RevenueShareEscrowAuthorityMismatch,
+        "invalid RevenueShareEscrow authority"
+    )?;
+
+    Ok(Some(escrow))
 }
