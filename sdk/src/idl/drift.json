@@ -9078,6 +9078,174 @@
         }
       ],
       "args": []
+    },
+    {
+      "name": "updateFeatureBitFlagsBuilderCodes",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "enable",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "initializeRevenueShare",
+      "accounts": [
+        {
+          "name": "revenueShare",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initializeRevenueShareEscrow",
+      "accounts": [
+        {
+          "name": "escrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "numOrders",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "resizeRevenueShareEscrowOrders",
+      "accounts": [
+        {
+          "name": "escrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "numOrders",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "changeApprovedBuilder",
+      "accounts": [
+        {
+          "name": "escrow",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "payer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "builder",
+          "type": "publicKey"
+        },
+        {
+          "name": "maxFeeBps",
+          "type": "u16"
+        },
+        {
+          "name": "add",
+          "type": "bool"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -10389,6 +10557,106 @@
           {
             "name": "conf",
             "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RevenueShare",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "docs": [
+              "the owner of this account, a builder or referrer"
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "totalReferrerRewards",
+            "type": "u64"
+          },
+          {
+            "name": "totalBuilderRewards",
+            "type": "u64"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                18
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "RevenueShareEscrow",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "docs": [
+              "the owner of this account, a user"
+            ],
+            "type": "publicKey"
+          },
+          {
+            "name": "referrer",
+            "type": "publicKey"
+          },
+          {
+            "name": "referrerBoostExpireTs",
+            "type": "u32"
+          },
+          {
+            "name": "referrerRewardOffset",
+            "type": "i8"
+          },
+          {
+            "name": "refereeFeeNumeratorOffset",
+            "type": "i8"
+          },
+          {
+            "name": "referrerBoostNumerator",
+            "type": "i8"
+          },
+          {
+            "name": "reservedFixed",
+            "type": {
+              "array": [
+                "u8",
+                17
+              ]
+            }
+          },
+          {
+            "name": "padding0",
+            "type": "u32"
+          },
+          {
+            "name": "orders",
+            "type": {
+              "vec": {
+                "defined": "RevenueShareOrder"
+              }
+            }
+          },
+          {
+            "name": "padding1",
+            "type": "u32"
+          },
+          {
+            "name": "approvedBuilders",
+            "type": {
+              "vec": {
+                "defined": "BuilderInfo"
+              }
+            }
           }
         ]
       }
@@ -12692,6 +12960,18 @@
             "type": {
               "option": "u16"
             }
+          },
+          {
+            "name": "builderIdx",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "builderFeeTenthBps",
+            "type": {
+              "option": "u16"
+            }
           }
         ]
       }
@@ -12742,6 +13022,18 @@
           },
           {
             "name": "maxMarginRatio",
+            "type": {
+              "option": "u16"
+            }
+          },
+          {
+            "name": "builderIdx",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "builderFeeTenthBps",
             "type": {
               "option": "u16"
             }
@@ -13593,6 +13885,157 @@
           {
             "name": "lastFundingOracleTwap",
             "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RevenueShareOrder",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "feesAccrued",
+            "docs": [
+              "fees accrued so far for this order slot. This is not exclusively fees from this order_id",
+              "and may include fees from other orders in the same market. This may be swept to the",
+              "builder's SpotPosition during settle_pnl."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "orderId",
+            "docs": [
+              "the order_id of the current active order in this slot. It's only relevant while bit_flag = Open"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "feeTenthBps",
+            "docs": [
+              "the builder fee on this order, in tenths of a bps, e.g. 100 = 0.01%"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "subAccountId",
+            "docs": [
+              "the subaccount_id of the user who created this order. It's only relevant while bit_flag = Open"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "builderIdx",
+            "docs": [
+              "the index of the RevenueShareEscrow.approved_builders list, that this order's fee will settle to. Ignored",
+              "if bit_flag = Referral."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "bitFlags",
+            "docs": [
+              "bitflags that describe the state of the order.",
+              "[`RevenueShareOrderBitFlag::Init`]: this order slot is available for use.",
+              "[`RevenueShareOrderBitFlag::Open`]: this order slot is occupied, `order_id` is the `sub_account_id`'s active order.",
+              "[`RevenueShareOrderBitFlag::Completed`]: this order has been filled or canceled, and is waiting to be settled into.",
+              "the builder's account order_id and sub_account_id are no longer relevant, it may be merged with other orders.",
+              "[`RevenueShareOrderBitFlag::Referral`]: this order stores referral rewards waiting to be settled for this market.",
+              "If it is set, no other bitflag should be set."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "userOrderIndex",
+            "docs": [
+              "the index into the User's orders list when this RevenueShareOrder was created, make sure to verify that order_id matches."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "marketType",
+            "type": {
+              "defined": "MarketType"
+            }
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                10
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "BuilderInfo",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "maxFeeTenthBps",
+            "type": "u16"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                6
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "RevenueShareEscrowFixed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "referrer",
+            "type": "publicKey"
+          },
+          {
+            "name": "referrerBoostExpireTs",
+            "type": "u32"
+          },
+          {
+            "name": "referrerRewardOffset",
+            "type": "i8"
+          },
+          {
+            "name": "refereeFeeNumeratorOffset",
+            "type": "i8"
+          },
+          {
+            "name": "referrerBoostNumerator",
+            "type": "i8"
+          },
+          {
+            "name": "reservedFixed",
+            "type": {
+              "array": [
+                "u8",
+                17
+              ]
+            }
           }
         ]
       }
@@ -15271,6 +15714,26 @@
       }
     },
     {
+      "name": "RevenueShareOrderBitFlag",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Init"
+          },
+          {
+            "name": "Open"
+          },
+          {
+            "name": "Completed"
+          },
+          {
+            "name": "Referral"
+          }
+        ]
+      }
+    },
+    {
       "name": "SettlePnlMode",
       "type": {
         "kind": "enum",
@@ -15391,6 +15854,12 @@
           },
           {
             "name": "MedianTriggerPrice"
+          },
+          {
+            "name": "BuilderCodes"
+          },
+          {
+            "name": "BuilderReferral"
           }
         ]
       }
@@ -15542,6 +16011,9 @@
           },
           {
             "name": "NewTriggerReduceOnly"
+          },
+          {
+            "name": "HasBuilder"
           }
         ]
       }
@@ -15556,6 +16028,9 @@
           },
           {
             "name": "IsReferred"
+          },
+          {
+            "name": "BuilderReferral"
           }
         ]
       }
@@ -16345,6 +16820,20 @@
             "option": "u64"
           },
           "index": false
+        },
+        {
+          "name": "builderIdx",
+          "type": {
+            "option": "u8"
+          },
+          "index": false
+        },
+        {
+          "name": "builderFee",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
         }
       ]
     },
@@ -17058,6 +17547,62 @@
         {
           "name": "fuelTotal",
           "type": "u128",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "RevenueShareSettleRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "builder",
+          "type": {
+            "option": "publicKey"
+          },
+          "index": false
+        },
+        {
+          "name": "referrer",
+          "type": {
+            "option": "publicKey"
+          },
+          "index": false
+        },
+        {
+          "name": "feeSettled",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "marketIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "marketType",
+          "type": {
+            "defined": "MarketType"
+          },
+          "index": false
+        },
+        {
+          "name": "builderSubAccountId",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "builderTotalReferrerRewards",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "builderTotalBuilderRewards",
+          "type": "u64",
           "index": false
         }
       ]
@@ -19018,6 +19563,46 @@
       "code": 6337,
       "name": "Unauthorized",
       "msg": "Unauthorized for operation"
+    },
+    {
+      "code": 6338,
+      "name": "InvalidRevenueShareResize",
+      "msg": "Invalid RevenueShare resize"
+    },
+    {
+      "code": 6339,
+      "name": "BuilderRevoked",
+      "msg": "Builder has been revoked"
+    },
+    {
+      "code": 6340,
+      "name": "InvalidBuilderFee",
+      "msg": "Builder fee is greater than max fee bps"
+    },
+    {
+      "code": 6341,
+      "name": "RevenueShareEscrowAuthorityMismatch",
+      "msg": "RevenueShareEscrow authority mismatch"
+    },
+    {
+      "code": 6342,
+      "name": "RevenueShareEscrowOrdersAccountFull",
+      "msg": "RevenueShareEscrow has too many active orders"
+    },
+    {
+      "code": 6343,
+      "name": "InvalidRevenueShareAccount",
+      "msg": "Invalid RevenueShareAccount"
+    },
+    {
+      "code": 6344,
+      "name": "CannotRevokeBuilderWithOpenOrders",
+      "msg": "Cannot revoke builder with open orders"
+    },
+    {
+      "code": 6345,
+      "name": "UnableToLoadRevenueShareAccount",
+      "msg": "Unable to load builder account"
     }
   ],
   "metadata": {
