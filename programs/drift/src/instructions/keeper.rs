@@ -145,7 +145,9 @@ fn fill_order<'c: 'info, 'info>(
     let (makers_and_referrer, makers_and_referrer_stats) =
         load_user_maps(remaining_accounts_iter, true)?;
 
-    let mut escrow = if state.builder_codes_enabled() {
+    let builder_codes_enabled = state.builder_codes_enabled();
+    let builder_referral_enabled = state.builder_referral_enabled();
+    let mut escrow = if builder_codes_enabled || builder_referral_enabled {
         get_revenue_share_escrow_account(&mut remaining_accounts_iter)?
     } else {
         None
@@ -175,7 +177,7 @@ fn fill_order<'c: 'info, 'info>(
         clock,
         FillMode::Fill,
         &mut escrow.as_mut(),
-        state.builder_referral_enabled(),
+        builder_referral_enabled,
     )?;
 
     Ok(())

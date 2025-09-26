@@ -58,7 +58,9 @@ pub fn sweep_completed_revenue_share_for_market<'a>(
         };
 
         if is_referral_order {
-            if fees_accrued == 0 {
+            if fees_accrued == 0
+                || !(order_market_type == MarketType::Perp && order_market_index == market_index)
+            {
                 continue;
             }
         } else if !(is_completed

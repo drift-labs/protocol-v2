@@ -2029,7 +2029,7 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         maker_existing_base_asset_amount: from_existing_base_asset_amount,
         trigger_price: None,
         builder_idx: None,
-        builder_fee: 0,
+        builder_fee: None,
     };
 
     emit_stack::<_, { OrderActionRecord::SIZE }>(fill_record)?;
@@ -2594,7 +2594,13 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
     makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
     makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
 
-    let mut escrow = get_revenue_share_escrow_account(remaining_accounts_iter)?;
+    let builder_referral_enabled = state.builder_referral_enabled();
+    let builder_codes_enabled = state.builder_codes_enabled();
+    let mut escrow = if builder_codes_enabled || builder_referral_enabled {
+        get_revenue_share_escrow_account(remaining_accounts_iter)?
+    } else {
+        None
+    };
 
     controller::orders::fill_perp_order(
         taker_order_id,
@@ -2612,7 +2618,7 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         clock,
         FillMode::PlaceAndMake,
         &mut escrow.as_mut(),
-        state.builder_referral_enabled(),
+        builder_referral_enabled,
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -2700,7 +2706,13 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
     makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
     makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
 
-    let mut escrow = get_revenue_share_escrow_account(remaining_accounts_iter)?;
+    let builder_referral_enabled = state.builder_referral_enabled();
+    let builder_codes_enabled = state.builder_codes_enabled();
+    let mut escrow = if builder_codes_enabled || builder_referral_enabled {
+        get_revenue_share_escrow_account(remaining_accounts_iter)?
+    } else {
+        None
+    };
 
     let taker_signed_msg_account = ctx.accounts.taker_signed_msg_user_orders.load()?;
     let taker_order_id = taker_signed_msg_account
@@ -2725,7 +2737,7 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
         clock,
         FillMode::PlaceAndMake,
         &mut escrow.as_mut(),
-        state.builder_referral_enabled(),
+        builder_referral_enabled,
     )?;
 
     let order_exists = load!(ctx.accounts.user)?

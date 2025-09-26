@@ -647,16 +647,12 @@ pub enum ErrorCode {
     InvalidBuilderFee,
     #[msg("RevenueShareEscrow has too many active orders")]
     RevenueShareEscrowOrdersAccountFull,
-    #[msg("RevenueShareEscrow missing")]
-    RevenueShareEscrowMissing,
     #[msg("Invalid RevenueShareAccount")]
     InvalidRevenueShareAccount,
     #[msg("Cannot revoke builder with open orders")]
     CannotRevokeBuilderWithOpenOrders,
     #[msg("Unable to load builder account")]
     UnableToLoadRevenueShareAccount,
-    #[msg("RevenueShare order not found")]
-    RevenueShareOrderNotFound,
 }
 
 #[macro_export]

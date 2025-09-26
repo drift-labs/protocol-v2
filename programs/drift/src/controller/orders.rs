@@ -448,7 +448,7 @@ pub fn place_perp_order(
         None,
         None,
         None,
-        0,
+        None,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -730,7 +730,7 @@ pub fn cancel_order(
             None,
             None,
             None,
-            0,
+            None,
         )?;
         emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
     }
@@ -2304,9 +2304,9 @@ pub fn fulfill_perp_order_with_amm(
         filler_reward,
         referee_discount,
         referrer_reward,
-        fee_to_market_for_lp: _fee_to_market_for_lp,
+        fee_to_market_for_lp,
         maker_rebate,
-        builder_fee,
+        builder_fee: builder_fee_option,
     } = fees::calculate_fee_for_fulfillment_with_amm(
         user_stats,
         quote_asset_amount,
@@ -2322,6 +2322,8 @@ pub fn fulfill_perp_order_with_amm(
         user.is_high_leverage_mode(MarginRequirementType::Initial),
         builder_order_fee_bps,
     )?;
+
+    let builder_fee = builder_fee_option.unwrap_or(0);
 
     if let (Some(idx), Some(escrow)) = (builder_order_idx, rev_share_escrow.as_mut()) {
         let mut order = escrow.get_order_mut(idx)?;
@@ -2365,7 +2367,7 @@ pub fn fulfill_perp_order_with_amm(
 
     let position_index = get_position_index(&user.perp_positions, market.market_index)?;
 
-    if user_fee != 0 {
+    if user_fee != 0 || builder_fee != 0 {
         controller::position::update_quote_asset_and_break_even_amount(
             &mut user.perp_positions[position_index],
             market,
@@ -2502,7 +2504,7 @@ pub fn fulfill_perp_order_with_amm(
         maker_existing_base_asset_amount,
         None,
         builder_idx,
-        builder_fee,
+        builder_fee_option,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -2804,7 +2806,7 @@ pub fn fulfill_perp_order_with_match(
         filler_reward,
         referrer_reward,
         referee_discount,
-        builder_fee,
+        builder_fee: builder_fee_option,
         ..
     } = fees::calculate_fee_for_fulfillment_with_match(
         taker_stats,
@@ -2821,6 +2823,7 @@ pub fn fulfill_perp_order_with_match(
         taker.is_high_leverage_mode(MarginRequirementType::Initial),
         builder_order_fee_bps,
     )?;
+    let builder_fee = builder_fee_option.unwrap_or(0);
 
     if let (Some(idx), Some(escrow)) = (builder_order_idx, builder_escrow.as_deref_mut()) {
         let mut order = escrow.get_order_mut(idx)?;
@@ -2983,7 +2986,7 @@ pub fn fulfill_perp_order_with_match(
         maker_existing_base_asset_amount,
         None,
         builder_idx,
-        builder_fee,
+        builder_fee_option,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -3221,7 +3224,7 @@ pub fn trigger_order(
         None,
         Some(trigger_price),
         None,
-        0,
+        None,
     )?;
     emit!(order_action_record);
 
@@ -3786,7 +3789,7 @@ pub fn place_spot_order(
         None,
         None,
         None,
-        0,
+        None,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -5031,7 +5034,7 @@ pub fn fulfill_spot_order_with_match(
         None,
         None,
         None,
-        0,
+        None,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -5307,7 +5310,7 @@ pub fn fulfill_spot_order_with_external_market(
         None,
         None,
         None,
-        0,
+        None,
     )?;
     emit_stack::<_, { OrderActionRecord::SIZE }>(order_action_record)?;
 
@@ -5513,7 +5516,7 @@ pub fn trigger_spot_order(
         None,
         Some(oracle_price.unsigned_abs()),
         None,
-        0,
+        None,
     )?;
 
     emit!(order_action_record);

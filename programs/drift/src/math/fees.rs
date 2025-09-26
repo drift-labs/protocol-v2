@@ -31,7 +31,7 @@ pub struct FillFees {
     pub filler_reward: u64,
     pub referrer_reward: u64,
     pub referee_discount: u64,
-    pub builder_fee: u64,
+    pub builder_fee: Option<u64>,
 }
 
 pub fn calculate_fee_for_fulfillment_with_amm(
@@ -95,7 +95,7 @@ pub fn calculate_fee_for_fulfillment_with_amm(
             filler_reward,
             referrer_reward: 0,
             referee_discount: 0,
-            builder_fee: 0,
+            builder_fee: None,
         })
     } else {
         let mut fee = calculate_taker_fee(quote_asset_amount, &fee_tier, fee_adjustment)?;
@@ -136,11 +136,13 @@ pub fn calculate_fee_for_fulfillment_with_amm(
         let fee_to_market_for_lp = fee_to_market.safe_sub(quote_asset_amount_surplus)?;
 
         let builder_fee = if let Some(builder_fee_bps) = builder_fee_bps {
-            quote_asset_amount
-                .safe_mul(builder_fee_bps.cast()?)?
-                .safe_div(100_000)?
+            Some(
+                quote_asset_amount
+                    .safe_mul(builder_fee_bps.cast()?)?
+                    .safe_div(100_000)?,
+            )
         } else {
-            0
+            None
         };
 
         // must be non-negative
@@ -352,11 +354,13 @@ pub fn calculate_fee_for_fulfillment_with_match(
         .cast::<i64>()?;
 
     let builder_fee = if let Some(builder_fee_bps) = builder_fee_bps {
-        quote_asset_amount
-            .safe_mul(builder_fee_bps.cast()?)?
-            .safe_div(100_000)?
+        Some(
+            quote_asset_amount
+                .safe_mul(builder_fee_bps.cast()?)?
+                .safe_div(100_000)?,
+        )
     } else {
-        0
+        None
     };
 
     Ok(FillFees {
