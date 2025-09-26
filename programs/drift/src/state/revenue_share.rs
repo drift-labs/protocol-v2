@@ -63,8 +63,8 @@ pub struct RevenueShareOrder {
     /// [`RevenueShareOrderBitFlag::Open`]: this order slot is occupied, `order_id` is the `sub_account_id`'s active order.
     /// [`RevenueShareOrderBitFlag::Completed`]: this order has been filled or canceled, and is waiting to be settled into.
     /// the builder's account order_id and sub_account_id are no longer relevant, it may be merged with other orders.
-    /// [`RevenueShareOrderBitFlag::Referral`]: this order stores referral rewards waiting to be settled. If it is set, no
-    /// other bitflag should be set.
+    /// [`RevenueShareOrderBitFlag::Referral`]: this order stores referral rewards waiting to be settled for this market.
+    /// If it is set, no other bitflag should be set.
     pub bit_flags: u8,
     /// the index into the User's orders list when this RevenueShareOrder was created, make sure to verify that order_id matches.
     pub user_order_index: u8,
@@ -399,7 +399,8 @@ impl<'a> RevenueShareEscrowZeroCopyMut<'a> {
         None
     }
 
-    /// Returns the index for the referral order, creating one if necessary.
+    /// Returns the index for the referral order, creating one if necessary. Returns None if a new order
+    /// cannot be created.
     pub fn find_or_create_referral_index(&mut self, market_index: u16) -> Option<u32> {
         // look for an existing referral order
         for i in 0..self.orders_len() {
@@ -417,7 +418,7 @@ impl<'a> RevenueShareEscrowZeroCopyMut<'a> {
             0,
             0,
             0,
-            MarketType::Spot,
+            MarketType::Perp,
             market_index,
             RevenueShareOrderBitFlag::Referral as u8,
             0,

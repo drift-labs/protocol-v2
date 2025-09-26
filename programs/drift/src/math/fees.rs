@@ -1,6 +1,5 @@
 use std::cmp::{max, min};
 
-use anchor_lang::prelude::Pubkey;
 use num_integer::Roots;
 
 use crate::error::DriftResult;

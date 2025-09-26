@@ -6638,6 +6638,15 @@ export class DriftClient {
 			});
 		}
 
+		remainingAccounts.push({
+			pubkey: getRevenueShareEscrowAccountPublicKey(
+				this.program.programId,
+				this.getUserAccount(subAccountId).authority
+			),
+			isWritable: true,
+			isSigner: false,
+		});
+
 		let optionalParams = null;
 		if (auctionDurationPercentage || successCondition) {
 			optionalParams =
@@ -6716,6 +6725,15 @@ export class DriftClient {
 				isSigner: false,
 			});
 		}
+
+		remainingAccounts.push({
+			pubkey: getRevenueShareEscrowAccountPublicKey(
+				this.program.programId,
+				takerInfo.takerUserAccount.authority
+			),
+			isWritable: true,
+			isSigner: false,
+		});
 
 		const takerOrderId = takerInfo.order.orderId;
 		return await this.program.instruction.placeAndMakePerpOrder(

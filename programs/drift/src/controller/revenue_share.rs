@@ -5,9 +5,7 @@ use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 use crate::state::events::{emit_stack, RevenueShareSettleRecord};
 use crate::state::perp_market_map::PerpMarketMap;
-use crate::state::revenue_share::{
-    RevenueShareEscrowZeroCopyMut, RevenueShareOrder, RevenueShareOrderBitFlag,
-};
+use crate::state::revenue_share::{RevenueShareEscrowZeroCopyMut, RevenueShareOrder};
 use crate::state::revenue_share_map::RevenueShareMap;
 use crate::state::spot_market::SpotBalance;
 use crate::state::spot_market_map::SpotMarketMap;

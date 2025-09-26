@@ -72,8 +72,7 @@ use crate::state::state::FeeStructure;
 use crate::state::state::*;
 use crate::state::traits::Size;
 use crate::state::user::{
-    AssetType, Order, OrderBitFlag, OrderStatus, OrderTriggerCondition, OrderType, ReferrerStatus,
-    UserStats,
+    AssetType, Order, OrderBitFlag, OrderStatus, OrderTriggerCondition, OrderType, UserStats,
 };
 use crate::state::user::{MarketType, User};
 use crate::state::user_map::{UserMap, UserStatsMap};
@@ -2285,7 +2284,12 @@ pub fn fulfill_perp_order_with_amm(
         )?;
     }
 
-    let reward_referrer = can_reward_user_with_perp_pnl(referrer, market.market_index);
+    let reward_referrer = can_reward_user_with_referral_reward(
+        referrer,
+        market.market_index,
+        rev_share_escrow,
+        builder_referral_feature_enabled,
+    );
     let reward_filler = can_reward_user_with_perp_pnl(filler, market.market_index)
         || can_reward_user_with_perp_pnl(maker, market.market_index);
 
@@ -2573,7 +2577,7 @@ pub fn fulfill_perp_order_with_match(
     fee_structure: &FeeStructure,
     oracle_map: &mut OracleMap,
     is_liquidation: bool,
-    builder_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
+    rev_share_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
     builder_referral_feature_enabled: bool,
 ) -> DriftResult<(u64, u64, u64)> {
     if !are_orders_same_market_but_different_sides(
@@ -2687,7 +2691,7 @@ pub fn fulfill_perp_order_with_match(
                 Some(jit_base_asset_amount),
                 Some(maker_price), // match the makers price
                 is_liquidation,
-                builder_escrow,
+                rev_share_escrow,
                 builder_referral_feature_enabled,
             )?;
 
@@ -2781,12 +2785,17 @@ pub fn fulfill_perp_order_with_match(
 
     taker_stats.update_taker_volume_30d(market.fuel_boost_taker, quote_asset_amount, now)?;
 
-    let reward_referrer = can_reward_user_with_perp_pnl(referrer, market.market_index);
+    let reward_referrer = can_reward_user_with_referral_reward(
+        referrer,
+        market.market_index,
+        rev_share_escrow,
+        builder_referral_feature_enabled,
+    );
     let reward_filler = can_reward_user_with_perp_pnl(filler, market.market_index);
 
     let (builder_order_idx, referrer_builder_order_idx, builder_order_fee_bps, builder_idx) =
         get_builder_escrow_info(
-            builder_escrow,
+            rev_share_escrow,
             taker.sub_account_id,
             taker.orders[taker_order_index].order_id,
             market.market_index,
@@ -2825,7 +2834,7 @@ pub fn fulfill_perp_order_with_match(
     )?;
     let builder_fee = builder_fee_option.unwrap_or(0);
 
-    if let (Some(idx), Some(escrow)) = (builder_order_idx, builder_escrow.as_deref_mut()) {
+    if let (Some(idx), Some(escrow)) = (builder_order_idx, rev_share_escrow.as_deref_mut()) {
         let mut order = escrow.get_order_mut(idx)?;
         order.fees_accrued = order.fees_accrued.safe_add(builder_fee)?;
     }
@@ -2887,7 +2896,8 @@ pub fn fulfill_perp_order_with_match(
         filler.update_last_active_slot(slot);
     }
 
-    if let (Some(idx), Some(escrow)) = (referrer_builder_order_idx, builder_escrow.as_deref_mut()) {
+    if let (Some(idx), Some(escrow)) = (referrer_builder_order_idx, rev_share_escrow.as_deref_mut())
+    {
         let mut order = escrow.get_order_mut(idx)?;
         order.fees_accrued = order.fees_accrued.safe_add(referrer_reward)?;
     } else if let (Some(referrer), Some(referrer_stats)) =
@@ -2908,7 +2918,7 @@ pub fn fulfill_perp_order_with_match(
     )?;
 
     if is_filled {
-        if let (Some(idx), Some(escrow)) = (builder_order_idx, builder_escrow.as_deref_mut()) {
+        if let (Some(idx), Some(escrow)) = (builder_order_idx, rev_share_escrow.as_deref_mut()) {
             escrow
                 .get_order_mut(idx)?
                 .add_bit_flag(RevenueShareOrderBitFlag::Completed);
@@ -3429,6 +3439,22 @@ pub fn can_reward_user_with_perp_pnl(user: &mut Option<&mut User>, market_index:
     match user.as_mut() {
         Some(user) => user.force_get_perp_position_mut(market_index).is_ok(),
         None => false,
+    }
+}
+
+pub fn can_reward_user_with_referral_reward(
+    user: &mut Option<&mut User>,
+    market_index: u16,
+    rev_share_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
+    builder_referral_feature_enabled: bool,
+) -> bool {
+    if builder_referral_feature_enabled {
+        if let Some(escrow) = rev_share_escrow {
+            return escrow.find_or_create_referral_index(market_index).is_some();
+        }
+        false
+    } else {
+        can_reward_user_with_perp_pnl(user, market_index)
     }
 }
 

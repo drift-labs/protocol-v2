@@ -2473,6 +2473,14 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
     let user = &mut ctx.accounts.user;
     let order_id = load!(user)?.get_last_order_id();
 
+    let builder_referral_enabled = state.builder_referral_enabled();
+    let builder_codes_enabled = state.builder_codes_enabled();
+    let mut escrow = if builder_codes_enabled || builder_referral_enabled {
+        get_revenue_share_escrow_account(remaining_accounts_iter, &load!(user)?.authority)?
+    } else {
+        None
+    };
+
     let (base_asset_amount_filled, _) = controller::orders::fill_perp_order(
         order_id,
         &ctx.accounts.state,
@@ -2491,8 +2499,8 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
             is_immediate_or_cancel || optional_params.is_some(),
             auction_duration_percentage,
         ),
-        &mut None,
-        false,
+        &mut escrow.as_mut(),
+        builder_referral_enabled,
     )?;
 
     let order_unfilled = load!(ctx.accounts.user)?
@@ -2597,7 +2605,10 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
     let builder_referral_enabled = state.builder_referral_enabled();
     let builder_codes_enabled = state.builder_codes_enabled();
     let mut escrow = if builder_codes_enabled || builder_referral_enabled {
-        get_revenue_share_escrow_account(remaining_accounts_iter, &load!(ctx.accounts.taker)?.authority)?
+        get_revenue_share_escrow_account(
+            remaining_accounts_iter,
+            &load!(ctx.accounts.taker)?.authority,
+        )?
     } else {
         None
     };
@@ -2709,7 +2720,10 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
     let builder_referral_enabled = state.builder_referral_enabled();
     let builder_codes_enabled = state.builder_codes_enabled();
     let mut escrow = if builder_codes_enabled || builder_referral_enabled {
-        get_revenue_share_escrow_account(remaining_accounts_iter, &load!(ctx.accounts.taker)?.authority)?
+        get_revenue_share_escrow_account(
+            remaining_accounts_iter,
+            &load!(ctx.accounts.taker)?.authority,
+        )?
     } else {
         None
     };

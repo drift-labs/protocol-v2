@@ -148,7 +148,10 @@ fn fill_order<'c: 'info, 'info>(
     let builder_codes_enabled = state.builder_codes_enabled();
     let builder_referral_enabled = state.builder_referral_enabled();
     let mut escrow = if builder_codes_enabled || builder_referral_enabled {
-        get_revenue_share_escrow_account(&mut remaining_accounts_iter, &load!(ctx.accounts.user)?.authority)?
+        get_revenue_share_escrow_account(
+            &mut remaining_accounts_iter,
+            &load!(ctx.accounts.user)?.authority,
+        )?
     } else {
         None
     };
