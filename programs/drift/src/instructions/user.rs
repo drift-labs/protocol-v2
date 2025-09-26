@@ -2597,7 +2597,7 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
     let builder_referral_enabled = state.builder_referral_enabled();
     let builder_codes_enabled = state.builder_codes_enabled();
     let mut escrow = if builder_codes_enabled || builder_referral_enabled {
-        get_revenue_share_escrow_account(remaining_accounts_iter)?
+        get_revenue_share_escrow_account(remaining_accounts_iter, &load!(ctx.accounts.taker)?.authority)?
     } else {
         None
     };
@@ -2709,7 +2709,7 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
     let builder_referral_enabled = state.builder_referral_enabled();
     let builder_codes_enabled = state.builder_codes_enabled();
     let mut escrow = if builder_codes_enabled || builder_referral_enabled {
-        get_revenue_share_escrow_account(remaining_accounts_iter)?
+        get_revenue_share_escrow_account(remaining_accounts_iter, &load!(ctx.accounts.taker)?.authority)?
     } else {
         None
     };

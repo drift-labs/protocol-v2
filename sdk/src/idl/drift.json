@@ -14041,7 +14041,9 @@
         },
         {
           "name": "builderFee",
-          "type": "u64",
+          "type": {
+            "option": "u64"
+          },
           "index": false
         }
       ]
@@ -16685,13 +16687,13 @@
     },
     {
       "code": 6320,
-      "name": "RevenueShareEscrowOrdersAccountFull",
-      "msg": "RevenueShareEscrow has too many active orders"
+      "name": "RevenueShareEscrowAuthorityMismatch",
+      "msg": "RevenueShareEscrow authority mismatch"
     },
     {
       "code": 6321,
-      "name": "RevenueShareEscrowMissing",
-      "msg": "RevenueShareEscrow missing"
+      "name": "RevenueShareEscrowOrdersAccountFull",
+      "msg": "RevenueShareEscrow has too many active orders"
     },
     {
       "code": 6322,
@@ -16707,11 +16709,6 @@
       "code": 6324,
       "name": "UnableToLoadRevenueShareAccount",
       "msg": "Unable to load builder account"
-    },
-    {
-      "code": 6325,
-      "name": "RevenueShareOrderNotFound",
-      "msg": "RevenueShare order not found"
     }
   ],
   "metadata": {

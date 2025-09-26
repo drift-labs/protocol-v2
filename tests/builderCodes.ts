@@ -650,11 +650,11 @@ describe('builder codes', () => {
 		const events = parseLogs(builderClient.program, logs);
 		assert(events[0].name === 'OrderActionRecord');
 		const fillQuoteAssetAmount = events[0].data['quoteAssetAmountFilled'] as BN;
-		const builderFee = events[0].data['builderFee'] as BN;
+		const builderFee = events[0].data['builderFee'] as BN | null;
 		const takerFee = events[0].data['takerFee'] as BN;
 		const totalFeePaid = takerFee;
 		const referrerReward = new BN(events[0].data['referrerReward'] as number);
-		assert(builderFee.eq(ZERO));
+		assert(builderFee === null);
 		assert(referrerReward.gt(ZERO));
 
 		await user2Client.fetchAccounts();

@@ -20,7 +20,7 @@ use crate::state::traits::Size;
 use crate::state::user::{User, UserStats};
 use crate::{validate, OracleSource};
 use anchor_lang::accounts::account::Account;
-use anchor_lang::prelude::{AccountInfo, Interface};
+use anchor_lang::prelude::{AccountInfo, Interface, Pubkey};
 use anchor_lang::prelude::{AccountLoader, InterfaceAccount};
 use anchor_lang::Discriminator;
 use anchor_spl::token::TokenAccount;
@@ -279,6 +279,7 @@ pub fn get_high_leverage_mode_config<'a>(
 
 pub fn get_revenue_share_escrow_account<'a>(
     account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'a>>>,
+    expected_authority: &Pubkey,
 ) -> DriftResult<Option<RevenueShareEscrowZeroCopyMut<'a>>> {
     let account_info = account_info_iter.peek();
     if account_info.is_none() {
@@ -303,6 +304,12 @@ pub fn get_revenue_share_escrow_account<'a>(
 
     drop(borrowed_data);
     let escrow: RevenueShareEscrowZeroCopyMut<'a> = account_info.load_zc_mut()?;
+
+    validate!(
+        escrow.fixed.authority == *expected_authority,
+        ErrorCode::RevenueShareEscrowAuthorityMismatch,
+        "invalid RevenueShareEscrow authority"
+    )?;
 
     Ok(Some(escrow))
 }

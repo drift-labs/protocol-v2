@@ -148,7 +148,7 @@ fn fill_order<'c: 'info, 'info>(
     let builder_codes_enabled = state.builder_codes_enabled();
     let builder_referral_enabled = state.builder_referral_enabled();
     let mut escrow = if builder_codes_enabled || builder_referral_enabled {
-        get_revenue_share_escrow_account(&mut remaining_accounts_iter)?
+        get_revenue_share_escrow_account(&mut remaining_accounts_iter, &load!(ctx.accounts.user)?.authority)?
     } else {
         None
     };
@@ -643,15 +643,15 @@ pub fn handle_place_signed_msg_taker_order<'c: 'info, 'info>(
 
     let high_leverage_mode_config = get_high_leverage_mode_config(&mut remaining_accounts)?;
 
-    let escrow = if state.builder_codes_enabled() {
-        get_revenue_share_escrow_account(&mut remaining_accounts)?
-    } else {
-        None
-    };
-
     let taker_key = ctx.accounts.user.key();
     let mut taker = load_mut!(ctx.accounts.user)?;
     let mut signed_msg_taker = ctx.accounts.signed_msg_user_orders.load_mut()?;
+
+    let escrow = if state.builder_codes_enabled() {
+        get_revenue_share_escrow_account(&mut remaining_accounts, &taker.authority)?
+    } else {
+        None
+    };
 
     place_signed_msg_taker_order(
         taker_key,
@@ -1054,7 +1054,7 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
     let (mut builder_escrow, maybe_rev_share_map) =
         if state.builder_codes_enabled() || state.builder_referral_enabled() {
             (
-                get_revenue_share_escrow_account(&mut remaining_accounts)?,
+                get_revenue_share_escrow_account(&mut remaining_accounts, &user.authority)?,
                 load_revenue_share_map(&mut remaining_accounts).ok(),
             )
         } else {
@@ -1162,7 +1162,7 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
     let (mut builder_escrow, maybe_rev_share_map) =
         if state.builder_codes_enabled() || state.builder_referral_enabled() {
             (
-                get_revenue_share_escrow_account(&mut remaining_accounts)?,
+                get_revenue_share_escrow_account(&mut remaining_accounts, &user.authority)?,
                 load_revenue_share_map(&mut remaining_accounts).ok(),
             )
         } else {

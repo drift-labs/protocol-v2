@@ -645,6 +645,8 @@ pub enum ErrorCode {
     BuilderRevoked,
     #[msg("Builder fee is greater than max fee bps")]
     InvalidBuilderFee,
+    #[msg("RevenueShareEscrow authority mismatch")]
+    RevenueShareEscrowAuthorityMismatch,
     #[msg("RevenueShareEscrow has too many active orders")]
     RevenueShareEscrowOrdersAccountFull,
     #[msg("Invalid RevenueShareAccount")]
