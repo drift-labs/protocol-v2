@@ -31,6 +31,8 @@ export enum ExchangeStatus {
 export enum FeatureBitFlags {
 	MM_ORACLE_UPDATE = 1,
 	MEDIAN_TRIGGER_PRICE = 2,
+	BUILDER_CODES = 4,
+	BUILDER_REFERRAL = 8,
 }
 
 export class MarketStatus {
@@ -876,6 +878,10 @@ export type PerpMarketAccount = {
 	protectedMakerLimitPriceDivisor: number;
 	protectedMakerDynamicDivisor: number;
 	lastFillPrice: BN;
+
+	lpFeeTransferScalar: number;
+	lpExchangeFeeExcluscionScalar: number;
+	lpStatus: number;
 };
 
 export type HistoricalOracleData = {
@@ -1310,6 +1316,8 @@ export type SignedMsgOrderParamsMessage = {
 	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
 	maxMarginRatio?: number | null;
+	builderIdx?: number | null;
+	builderFeeTenthBps?: number | null;
 };
 
 export type SignedMsgOrderParamsDelegateMessage = {
@@ -1320,6 +1328,8 @@ export type SignedMsgOrderParamsDelegateMessage = {
 	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
 	maxMarginRatio?: number | null;
+	builderIdx?: number | null;
+	builderFeeTenthBps?: number | null;
 };
 
 export type SignedMsgTriggerOrderParams = {
@@ -1637,4 +1647,184 @@ export type SignedMsgOrderId = {
 export type SignedMsgUserOrdersAccount = {
 	authorityPubkey: PublicKey;
 	signedMsgOrderData: SignedMsgOrderId[];
+};
+
+export type AddAmmConstituentMappingDatum = {
+	constituentIndex: number;
+	perpMarketIndex: number;
+	weight: BN;
+};
+
+export type AmmConstituentDatum = AddAmmConstituentMappingDatum & {
+	lastSlot: BN;
+};
+
+export type AmmConstituentMapping = {
+	bump: number;
+	weights: AmmConstituentDatum[];
+};
+
+export type TargetDatum = {
+	costToTradeBps: number;
+	beta: number;
+	targetBase: BN;
+	lastSlot: BN;
+};
+
+export type ConstituentTargetBaseAccount = {
+	bump: number;
+	targets: TargetDatum[];
+};
+
+export type LPPoolAccount = {
+	name: number[];
+	pubkey: PublicKey;
+	mint: PublicKey;
+	maxAum: BN;
+	lastAum: BN;
+	lastAumSlot: BN;
+	lastAumTs: BN;
+	lastHedgeTs: BN;
+	bump: number;
+	totalMintRedeemFeesPaid: BN;
+	cumulativeQuoteSentToPerpMarkets: BN;
+	cumulativeQuoteReceivedFromPerpMarkets: BN;
+	constituents: number;
+	whitelistMint: PublicKey;
+};
+
+export type ConstituentSpotBalance = {
+	scaledBalance: BN;
+	cumulativeDeposits: BN;
+	marketIndex: number;
+	balanceType: SpotBalanceType;
+};
+
+export type InitializeConstituentParams = {
+	spotMarketIndex: number;
+	decimals: number;
+	maxWeightDeviation: BN;
+	swapFeeMin: BN;
+	swapFeeMax: BN;
+	maxBorrowTokenAmount: BN;
+	oracleStalenessThreshold: BN;
+	costToTrade: number;
+	derivativeWeight: BN;
+	constituentDerivativeIndex?: number;
+	constituentDerivativeDepegThreshold?: BN;
+	constituentCorrelations: BN[];
+	volatility: BN;
+	gammaExecution?: number;
+	gammaInventory?: number;
+	xi?: number;
+};
+
+export enum ConstituentStatus {
+	ACTIVE = 0,
+	REDUCE_ONLY = 1,
+	DECOMMISSIONED = 2,
+}
+export enum ConstituentLpOperation {
+	Swap = 0b00000001,
+	Deposit = 0b00000010,
+	Withdraw = 0b00000100,
+}
+
+export type ConstituentAccount = {
+	pubkey: PublicKey;
+	spotMarketIndex: number;
+	constituentIndex: number;
+	decimals: number;
+	bump: number;
+	constituentDerivativeIndex: number;
+	maxWeightDeviation: BN;
+	maxBorrowTokenAmount: BN;
+	swapFeeMin: BN;
+	swapFeeMax: BN;
+	totalSwapFees: BN;
+	vaultTokenBalance: BN;
+	spotBalance: ConstituentSpotBalance;
+	lastOraclePrice: BN;
+	lastOracleSlot: BN;
+	mint: PublicKey;
+	oracleStalenessThreshold: BN;
+	lpPool: PublicKey;
+	vault: PublicKey;
+	nextSwapId: BN;
+	derivativeWeight: BN;
+	flashLoanInitialTokenAmount: BN;
+	status: number;
+	pausedOperations: number;
+};
+
+export type CacheInfo = {
+	slot: BN;
+	position: BN;
+	lastOraclePriceTwap: BN;
+	oracle: PublicKey;
+	oracleSource: number;
+	oraclePrice: BN;
+	oracleSlot: BN;
+	lastExchangeFees: BN;
+	lastFeePoolTokenAmount: BN;
+	lastNetPnlPoolTokenAmount: BN;
+	lastSettleAmount: BN;
+	lastSettleSlot: BN;
+	lastSettleTs: BN;
+	lastSettleAmmPnl: BN;
+	lastSettleAmmExFees: BN;
+	quoteOwedFromLpPool: BN;
+	lpStatusForPerpMarket: number;
+};
+
+export type AmmCache = {
+	cache: CacheInfo[];
+};
+
+export type RevenueShareAccount = {
+	authority: PublicKey;
+	totalReferrerRewards: BN;
+	totalBuilderRewards: BN;
+	padding: number[];
+};
+
+export type RevenueShareEscrowAccount = {
+	authority: PublicKey;
+	referrer: PublicKey;
+	referrerBoostExpireTs: number;
+	referrerRewardOffset: number;
+	refereeFeeNumeratorOffset: number;
+	referrerBoostNumerator: number;
+	reservedFixed: number[];
+	orders: RevenueShareOrder[];
+	approvedBuilders: BuilderInfo[];
+};
+
+export type RevenueShareOrder = {
+	builderIdx: number;
+	feesAccrued: BN;
+	orderId: number;
+	feeTenthBps: number;
+	marketIndex: number;
+	bitFlags: number;
+	marketType: MarketType; // 0: spot, 1: perp
+	padding: number[];
+};
+
+export type BuilderInfo = {
+	authority: PublicKey;
+	maxFeeTenthBps: number;
+	padding: number[];
+};
+
+export type RevenueShareSettleRecord = {
+	ts: number;
+	builder: PublicKey | null;
+	referrer: PublicKey | null;
+	feeSettled: BN;
+	marketIndex: number;
+	marketType: MarketType;
+	builderTotalReferrerRewards: BN;
+	builderTotalBuilderRewards: BN;
+	builderSubAccountId: number;
 };
