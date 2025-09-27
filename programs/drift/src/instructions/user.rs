@@ -652,6 +652,11 @@ pub fn handle_deposit<'c: 'info, 'info>(
     } else {
         DepositExplanation::None
     };
+    let signer = if ctx.accounts.authority.key() == user.authority {
+        Some(ctx.accounts.authority.key())
+    } else {
+        None
+    };
     let deposit_record = DepositRecord {
         ts: now,
         deposit_record_id,
@@ -669,6 +674,7 @@ pub fn handle_deposit<'c: 'info, 'info>(
         market_index,
         explanation,
         transfer_user: None,
+        signer,
     };
     emit!(deposit_record);
 
@@ -824,6 +830,7 @@ pub fn handle_withdraw<'c: 'info, 'info>(
         total_withdraws_after: user.total_withdraws,
         explanation: deposit_explanation,
         transfer_user: None,
+        signer: None,
     };
     emit!(deposit_record);
 
@@ -994,6 +1001,7 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
             total_withdraws_after: from_user.total_withdraws,
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(to_user_key),
+            signer: None,
         };
         emit!(deposit_record);
     }
@@ -1058,6 +1066,7 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
             total_withdraws_after,
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(from_user_key),
+            signer: None,
         };
         emit!(deposit_record);
     }
@@ -1270,6 +1279,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             total_withdraws_after: from_user.total_withdraws,
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(to_user_key),
+            signer: None,
         };
         emit!(deposit_record);
 
@@ -1304,6 +1314,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             total_withdraws_after: to_user.total_withdraws,
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(from_user_key),
+            signer: None,
         };
         emit!(deposit_record);
     }
@@ -1370,6 +1381,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             total_withdraws_after: from_user.total_withdraws,
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(to_user_key),
+            signer: None,
         };
         emit!(deposit_record);
 
@@ -1404,6 +1416,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             total_withdraws_after: to_user.total_withdraws,
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(from_user_key),
+            signer: None,
         };
         emit!(deposit_record);
     }
@@ -4142,8 +4155,7 @@ pub struct InitializeReferrerName<'info> {
 pub struct Deposit<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
-        mut,
-        constraint = can_sign_for_user(&user, &authority)?
+        mut
     )]
     pub user: AccountLoader<'info, User>,
     #[account(
