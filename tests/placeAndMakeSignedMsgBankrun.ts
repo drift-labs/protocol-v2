@@ -1564,7 +1564,7 @@ describe('place and make signedMsg order', () => {
 			);
 			assert.fail('should fail');
 		} catch (e) {
-			assert(e.toString().includes('0x1776'));
+			assert(e.toString().includes('Error: Invalid option'));
 			const takerOrders = takerDriftClient.getUser().getOpenOrders();
 			assert(takerOrders.length == 0);
 		}

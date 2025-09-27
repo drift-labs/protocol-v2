@@ -394,3 +394,29 @@ export function getIfRebalanceConfigPublicKey(
 		programId
 	)[0];
 }
+
+export function getRevenueShareAccountPublicKey(
+	programId: PublicKey,
+	authority: PublicKey
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('REV_SHARE')),
+			authority.toBuffer(),
+		],
+		programId
+	)[0];
+}
+
+export function getRevenueShareEscrowAccountPublicKey(
+	programId: PublicKey,
+	authority: PublicKey
+): PublicKey {
+	return PublicKey.findProgramAddressSync(
+		[
+			Buffer.from(anchor.utils.bytes.utf8.encode('REV_ESCROW')),
+			authority.toBuffer(),
+		],
+		programId
+	)[0];
+}
