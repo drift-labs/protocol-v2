@@ -31,6 +31,8 @@ export enum ExchangeStatus {
 export enum FeatureBitFlags {
 	MM_ORACLE_UPDATE = 1,
 	MEDIAN_TRIGGER_PRICE = 2,
+	BUILDER_CODES = 4,
+	BUILDER_REFERRAL = 8,
 }
 
 export class MarketStatus {
