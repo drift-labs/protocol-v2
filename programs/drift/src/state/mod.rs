@@ -5,6 +5,7 @@ pub mod fulfillment_params;
 pub mod high_leverage_mode_config;
 pub mod if_rebalance_config;
 pub mod insurance_fund_stake;
+pub mod liquidation_mode;
 pub mod load_ref;
 pub mod margin_calculation;
 pub mod oracle;
