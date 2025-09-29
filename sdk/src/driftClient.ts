@@ -6638,15 +6638,6 @@ export class DriftClient {
 			});
 		}
 
-		remainingAccounts.push({
-			pubkey: getRevenueShareEscrowAccountPublicKey(
-				this.program.programId,
-				this.getUserAccount(subAccountId).authority
-			),
-			isWritable: true,
-			isSigner: false,
-		});
-
 		let optionalParams = null;
 		if (auctionDurationPercentage || successCondition) {
 			optionalParams =
@@ -6736,6 +6727,16 @@ export class DriftClient {
 		});
 
 		const takerOrderId = takerInfo.order.orderId;
+		if (hasBuilder(takerInfo.order)) {
+			remainingAccounts.push({
+				pubkey: getRevenueShareEscrowAccountPublicKey(
+					this.program.programId,
+					takerInfo.takerUserAccount.authority
+				),
+				isWritable: true,
+				isSigner: false,
+			});
+		}
 		return await this.program.instruction.placeAndMakePerpOrder(
 			orderParams,
 			takerOrderId,
@@ -7081,6 +7082,32 @@ export class DriftClient {
 			});
 			remainingAccounts.push({
 				pubkey: referrerInfo.referrerStats,
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+
+		const isDelegateSigner = takerInfo.signingAuthority.equals(
+			takerInfo.takerUserAccount.delegate
+		);
+		const borshBuf = Buffer.from(
+			signedSignedMsgOrderParams.orderParams.toString(),
+			'hex'
+		);
+
+		const signedMessage = this.decodeSignedMsgOrderParamsMessage(
+			borshBuf,
+			isDelegateSigner
+		);
+		if (
+			signedMessage.builderFeeTenthBps !== null &&
+			signedMessage.builderIdx !== null
+		) {
+			remainingAccounts.push({
+				pubkey: getRevenueShareEscrowAccountPublicKey(
+					this.program.programId,
+					takerInfo.takerUserAccount.authority
+				),
 				isWritable: true,
 				isSigner: false,
 			});
