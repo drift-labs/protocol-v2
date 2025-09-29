@@ -2329,9 +2329,13 @@ pub fn fulfill_perp_order_with_amm(
 
     let builder_fee = builder_fee_option.unwrap_or(0);
 
-    if let (Some(idx), Some(escrow)) = (builder_order_idx, rev_share_escrow.as_mut()) {
-        let mut order = escrow.get_order_mut(idx)?;
-        order.fees_accrued = order.fees_accrued.safe_add(builder_fee)?;
+    if builder_fee != 0 {
+        if let (Some(idx), Some(escrow)) = (builder_order_idx, rev_share_escrow.as_mut()) {
+            let mut order = escrow.get_order_mut(idx)?;
+            order.fees_accrued = order.fees_accrued.safe_add(builder_fee)?;
+        } else {
+            msg!("Order has builder fee but no escrow account found, in the future this tx will fail.");
+        }
     }
 
     // Increment the protocol's total fee variables
@@ -2834,9 +2838,13 @@ pub fn fulfill_perp_order_with_match(
     )?;
     let builder_fee = builder_fee_option.unwrap_or(0);
 
-    if let (Some(idx), Some(escrow)) = (builder_order_idx, rev_share_escrow.as_deref_mut()) {
-        let mut order = escrow.get_order_mut(idx)?;
-        order.fees_accrued = order.fees_accrued.safe_add(builder_fee)?;
+    if builder_fee != 0 {
+        if let (Some(idx), Some(escrow)) = (builder_order_idx, rev_share_escrow.as_deref_mut()) {
+            let mut order = escrow.get_order_mut(idx)?;
+            order.fees_accrued = order.fees_accrued.safe_add(builder_fee)?;
+        } else {
+            msg!("Order has builder fee but no escrow account found, in the future this tx will fail.");
+        }
     }
 
     // Increment the markets house's total fee variables

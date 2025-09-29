@@ -745,8 +745,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
             builder_fee_bps = Some(builder_fee);
             escrow_zc = Some(escrow);
         } else {
-            msg!("RevenueEscrow account must be provided if builder fields are present in OrderParams");
-            return Err(ErrorCode::InvalidSignedMsgOrderParam.into());
+            msg!("Order has builder fee but no escrow account found, in the future this tx will fail.");
         }
     }
 
