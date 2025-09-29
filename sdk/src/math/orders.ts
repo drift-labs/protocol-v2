@@ -245,7 +245,7 @@ export function isFillableByVAMM(
 				market,
 				mmOraclePriceData,
 				slot
-			).gte(market.amm.minOrderSize)) ||
+			).gt(ZERO)) ||
 		isOrderExpired(order, ts)
 	);
 }

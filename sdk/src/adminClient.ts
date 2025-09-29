@@ -15,6 +15,7 @@ import {
 	AssetTier,
 	SpotFulfillmentConfigStatus,
 	IfRebalanceConfigParams,
+	TxParams,
 } from './types';
 import { DEFAULT_MARKET_NAME, encodeName } from './userName';
 import { BN } from '@coral-xyz/anchor';
@@ -4652,6 +4653,35 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async updateFeatureBitFlagsMedianTriggerPrice(
+		enable: boolean
+	): Promise<TransactionSignature> {
+		const updateFeatureBitFlagsMedianTriggerPriceIx =
+			await this.getUpdateFeatureBitFlagsMedianTriggerPriceIx(enable);
+		const tx = await this.buildTransaction(
+			updateFeatureBitFlagsMedianTriggerPriceIx
+		);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateFeatureBitFlagsMedianTriggerPriceIx(
+		enable: boolean
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateFeatureBitFlagsMedianTriggerPrice(
+			enable,
+			{
+				accounts: {
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
+	}
+
 	public async updateDelegateUserGovTokenInsuranceStake(
 		authority: PublicKey,
 		delegate: PublicKey
@@ -4699,5 +4729,55 @@ export class AdminClient extends DriftClient {
 			});
 
 		return ix;
+	}
+
+	public async depositIntoInsuranceFundStake(
+		marketIndex: number,
+		amount: BN,
+		userStatsPublicKey: PublicKey,
+		insuranceFundStakePublicKey: PublicKey,
+		userTokenAccountPublicKey: PublicKey,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const tx = await this.buildTransaction(
+			await this.getDepositIntoInsuranceFundStakeIx(
+				marketIndex,
+				amount,
+				userStatsPublicKey,
+				insuranceFundStakePublicKey,
+				userTokenAccountPublicKey
+			),
+			txParams
+		);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getDepositIntoInsuranceFundStakeIx(
+		marketIndex: number,
+		amount: BN,
+		userStatsPublicKey: PublicKey,
+		insuranceFundStakePublicKey: PublicKey,
+		userTokenAccountPublicKey: PublicKey
+	): Promise<TransactionInstruction> {
+		const spotMarket = this.getSpotMarketAccount(marketIndex);
+		return await this.program.instruction.depositIntoInsuranceFundStake(
+			marketIndex,
+			amount,
+			{
+				accounts: {
+					signer: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					spotMarket: spotMarket.pubkey,
+					insuranceFundStake: insuranceFundStakePublicKey,
+					userStats: userStatsPublicKey,
+					spotMarketVault: spotMarket.vault,
+					insuranceFundVault: spotMarket.insuranceFund.vault,
+					userTokenAccount: userTokenAccountPublicKey,
+					tokenProgram: this.getTokenProgramForSpotMarket(spotMarket),
+					driftSigner: this.getSignerPublicKey(),
+				},
+			}
+		);
 	}
 }

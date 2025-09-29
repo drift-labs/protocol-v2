@@ -1325,6 +1325,19 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 			'0xa903b5a82cb572397e3d47595d2889cf80513f5b4cf7a36b513ae10cc8b1e338',
 		pythLazerId: 2310,
 	},
+	{
+		fullName: 'PLASMA',
+		category: ['DEX'],
+		symbol: 'XPL-PERP',
+		baseAssetSymbol: 'XPL',
+		marketIndex: 77,
+		oracle: new PublicKey('6kgE1KJcxTux4tkPLE8LL8GRyW2cAsvyZsDFWqCrhHVe'),
+		launchTs: 1758898862000,
+		oracleSource: OracleSource.PYTH_LAZER,
+		pythFeedId:
+			'0x9873512f5cb33c77ad7a5af098d74812c62111166be395fd0941c8cedb9b00d4',
+		pythLazerId: 2312,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {

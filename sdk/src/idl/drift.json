@@ -1,5 +1,5 @@
 {
-  "version": "2.138.0",
+  "version": "2.139.0",
   "name": "drift",
   "instructions": [
     {
@@ -1574,31 +1574,6 @@
       ]
     },
     {
-      "name": "updateUserAdvancedLp",
-      "accounts": [
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        }
-      ],
-      "args": [
-        {
-          "name": "subAccountId",
-          "type": "u16"
-        },
-        {
-          "name": "advancedLp",
-          "type": "bool"
-        }
-      ]
-    },
-    {
       "name": "updateUserProtectedMakerOrders",
       "accounts": [
         {
@@ -2086,32 +2061,6 @@
         },
         {
           "name": "userStats",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": []
-    },
-    {
-      "name": "updateUserOpenOrdersCount",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "filler",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "user",
           "isMut": true,
           "isSigner": false
         }
@@ -3142,6 +3091,42 @@
       "args": []
     },
     {
+      "name": "updateDelegateUserGovTokenInsuranceStake",
+      "accounts": [
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundStake",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "initializeInsuranceFundStake",
       "accounts": [
         {
@@ -3390,61 +3375,6 @@
       ]
     },
     {
-      "name": "transferProtocolIfShares",
-      "accounts": [
-        {
-          "name": "signer",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "transferConfig",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarket",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "insuranceFundStake",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "userStats",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "insuranceFundVault",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "marketIndex",
-          "type": "u16"
-        },
-        {
-          "name": "shares",
-          "type": "u128"
-        }
-      ]
-    },
-    {
       "name": "beginInsuranceFundSwap",
       "accounts": [
         {
@@ -3609,6 +3539,71 @@
         },
         {
           "name": "ifRebalanceConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "marketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "depositIntoInsuranceFundStake",
+      "accounts": [
+        {
+          "name": "signer",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarket",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundStake",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "insuranceFundVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userTokenAccount",
           "isMut": true,
           "isSigner": false
         },
@@ -4271,27 +4266,6 @@
           }
         }
       ]
-    },
-    {
-      "name": "updateSerumVault",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "admin",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "srmVault",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": []
     },
     {
       "name": "initializePerpMarket",
@@ -6883,76 +6857,6 @@
         {
           "name": "defaultSpotAuctionDuration",
           "type": "u8"
-        }
-      ]
-    },
-    {
-      "name": "initializeProtocolIfSharesTransferConfig",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "protocolIfSharesTransferConfig",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": []
-    },
-    {
-      "name": "updateProtocolIfSharesTransferConfig",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "protocolIfSharesTransferConfig",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "whitelistedSigners",
-          "type": {
-            "option": {
-              "array": [
-                "publicKey",
-                4
-              ]
-            }
-          }
-        },
-        {
-          "name": "maxTransferPerEpoch",
-          "type": {
-            "option": "u128"
-          }
         }
       ]
     },
@@ -12206,6 +12110,9 @@
           },
           {
             "name": "StakeTransfer"
+          },
+          {
+            "name": "AdminDeposit"
           }
         ]
       }
@@ -16218,5 +16125,8 @@
       "name": "InvalidIfRebalanceSwap",
       "msg": "Invalid If Rebalance Swap"
     }
-  ]
+  ],
+  "metadata": {
+    "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
+  }
 }
