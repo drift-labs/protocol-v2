@@ -1047,14 +1047,14 @@ mod swap_tests {
     #[test]
     fn test_get_remove_liquidity_mint_amount_with_existing_aum_6_decimals_large_aum() {
         get_remove_liquidity_mint_amount_scenario(
-            100_000_000_000 * 1_000_000, // last_aum ($100,000,000,000)
-            0,                           // now
-            6,                           // in_decimals
-            100_000_000_000 * 1_000_000, // in_amount
-            100_000_000_000 * 1_000_000, // dlp_total_supply
-            99990000000000000,           // expected_out_amount
-            10000000000000,              // expected_lp_fee
-            349765020000000,             // expected_out_fee_amount
+            100_000_000_000 * 1_000_000,             // last_aum ($100,000,000,000)
+            0,                                       // now
+            6,                                       // in_decimals
+            100_000_000_000 * 1_000_000 - 1_000_000, // Leave in QUOTE AMOUNT
+            100_000_000_000 * 1_000_000,             // dlp_total_supply
+            99989999900000000,                       // expected_out_amount
+            9999999999900,                           // expected_lp_fee
+            349765019650200,                         // expected_out_fee_amount
             1,
             2,
             2,
@@ -1065,14 +1065,14 @@ mod swap_tests {
     #[test]
     fn test_get_remove_liquidity_mint_amount_with_existing_aum_8_decimals_large_aum() {
         get_remove_liquidity_mint_amount_scenario(
-            10_000_000_000_000_000,       // last_aum ($10,000,000,000)
-            0,                            // now
-            8,                            // in_decimals
-            10_000_000_000 * 100_000_000, // in_amount
-            10_000_000_000 * 1_000_000,   // dlp_total_supply
-            9_999_000_000_000_000_0000,   // expected_out_amount
-            100000000000000,              // expected_lp_fee
-            3764623500000000000,          // expected_out_fee_amount
+            10_000_000_000_000_000,                           // last_aum ($10,000,000,000)
+            0,                                                // now
+            8,                                                // in_decimals
+            10_000_000_000 * 1_000_000 - 1_000_000,           // in_amount
+            10_000_000_000 * 1_000_000,                       // dlp_total_supply
+            999899999000000000,                               // expected_out_amount
+            (10_000_000_000 * 1_000_000 - 1_000_000) / 10000, // expected_lp_fee
+            3497650196502000,                                 // expected_out_fee_amount
             1,
             2,
             2,
@@ -1540,6 +1540,7 @@ mod swap_fee_tests {
 
 #[cfg(test)]
 mod settle_tests {
+    use crate::math::constants::{QUOTE_PRECISION, QUOTE_PRECISION_I64, QUOTE_PRECISION_U64};
     use crate::math::lp_pool::perp_lp_pool_settlement::{
         calculate_settlement_amount, update_cache_info, SettlementContext, SettlementDirection,
         SettlementResult,
@@ -1570,17 +1571,17 @@ mod settle_tests {
     #[test]
     fn test_lp_to_perp_settlement_sufficient_balance() {
         let ctx = SettlementContext {
-            quote_owed_from_lp: 500,
-            quote_constituent_token_balance: 1000,
-            fee_pool_balance: 300,
-            pnl_pool_balance: 200,
+            quote_owed_from_lp: 500 * QUOTE_PRECISION_I64,
+            quote_constituent_token_balance: 1000 * QUOTE_PRECISION_U64,
+            fee_pool_balance: 300 * QUOTE_PRECISION,
+            pnl_pool_balance: 200 * QUOTE_PRECISION,
             quote_market: &create_mock_spot_market(),
-            max_settle_quote_amount: 10000,
+            max_settle_quote_amount: 10000 * QUOTE_PRECISION_U64,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
         assert_eq!(result.direction, SettlementDirection::FromLpPool);
-        assert_eq!(result.amount_transferred, 500);
+        assert_eq!(result.amount_transferred, 500 * QUOTE_PRECISION_U64);
         assert_eq!(result.fee_pool_used, 0);
         assert_eq!(result.pnl_pool_used, 0);
     }
@@ -1588,17 +1589,20 @@ mod settle_tests {
     #[test]
     fn test_lp_to_perp_settlement_insufficient_balance() {
         let ctx = SettlementContext {
-            quote_owed_from_lp: 1500,
-            quote_constituent_token_balance: 1000,
-            fee_pool_balance: 300,
-            pnl_pool_balance: 200,
+            quote_owed_from_lp: 1500 * QUOTE_PRECISION_I64,
+            quote_constituent_token_balance: 1000 * QUOTE_PRECISION_U64,
+            fee_pool_balance: 300 * QUOTE_PRECISION,
+            pnl_pool_balance: 200 * QUOTE_PRECISION,
             quote_market: &create_mock_spot_market(),
-            max_settle_quote_amount: 10000,
+            max_settle_quote_amount: 10000 * QUOTE_PRECISION_U64,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
         assert_eq!(result.direction, SettlementDirection::FromLpPool);
-        assert_eq!(result.amount_transferred, 1000); // Limited by LP balance
+        assert_eq!(
+            result.amount_transferred,
+            1000 * QUOTE_PRECISION_U64 - QUOTE_PRECISION_U64
+        ); // Limited by LP balance
     }
 
     #[test]
@@ -1809,17 +1813,20 @@ mod settle_tests {
     fn test_exact_boundary_settlements() {
         // Test when quote_owed exactly equals LP balance
         let ctx = SettlementContext {
-            quote_owed_from_lp: 1000,
-            quote_constituent_token_balance: 1000,
-            fee_pool_balance: 500,
-            pnl_pool_balance: 300,
+            quote_owed_from_lp: 1000 * QUOTE_PRECISION_I64,
+            quote_constituent_token_balance: 1000 * QUOTE_PRECISION_U64,
+            fee_pool_balance: 500 * QUOTE_PRECISION,
+            pnl_pool_balance: 300 * QUOTE_PRECISION,
             quote_market: &create_mock_spot_market(),
-            max_settle_quote_amount: 10000,
+            max_settle_quote_amount: 10000 * QUOTE_PRECISION_U64,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
         assert_eq!(result.direction, SettlementDirection::FromLpPool);
-        assert_eq!(result.amount_transferred, 1000);
+        assert_eq!(
+            result.amount_transferred,
+            1000 * QUOTE_PRECISION_U64 - QUOTE_PRECISION_U64
+        ); // Leave QUOTE PRECISION
 
         // Test when negative quote_owed exactly equals total pool balance
         let ctx = SettlementContext {
@@ -1852,7 +1859,7 @@ mod settle_tests {
 
         let result = calculate_settlement_amount(&ctx).unwrap();
         assert_eq!(result.direction, SettlementDirection::FromLpPool);
-        assert_eq!(result.amount_transferred, 1);
+        assert_eq!(result.amount_transferred, 0); // Cannot transfer if less than QUOTE_PRECISION
 
         // Test with minimal negative amount
         let ctx = SettlementContext {
@@ -2052,17 +2059,17 @@ mod settle_tests {
     #[test]
     fn test_lp_to_perp_capped_with_max() {
         let ctx = SettlementContext {
-            quote_owed_from_lp: 1100,
-            quote_constituent_token_balance: 2000,
+            quote_owed_from_lp: 1100 * QUOTE_PRECISION_I64,
+            quote_constituent_token_balance: 2000 * QUOTE_PRECISION_U64,
             fee_pool_balance: 0, // No fee pool
-            pnl_pool_balance: 1200,
+            pnl_pool_balance: 1200 * QUOTE_PRECISION,
             quote_market: &create_mock_spot_market(),
-            max_settle_quote_amount: 1000,
+            max_settle_quote_amount: 1000 * QUOTE_PRECISION_U64,
         };
 
         let result = calculate_settlement_amount(&ctx).unwrap();
         assert_eq!(result.direction, SettlementDirection::FromLpPool);
-        assert_eq!(result.amount_transferred, 1000);
+        assert_eq!(result.amount_transferred, 1000 * QUOTE_PRECISION_U64); // Leave QUOTE PRECISION in the balance
         assert_eq!(result.fee_pool_used, 0);
         assert_eq!(result.pnl_pool_used, 0);
     }

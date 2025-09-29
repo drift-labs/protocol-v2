@@ -805,6 +805,18 @@ export type LPSettleRecord = {
 	lpPrice: BN;
 };
 
+export type LPBorrowLendDepositRecord = {
+	ts: BN;
+	slot: BN;
+	spotMarketIndex: number;
+	constituentIndex: number;
+	direction: DepositDirection;
+	tokenBalance: BN;
+	lastTokenBalance: BN;
+	interestAccruedTokenAmount: BN;
+	amountDepositWithdraw: BN;
+};
+
 export type StateAccount = {
 	admin: PublicKey;
 	exchangeStatus: number;
