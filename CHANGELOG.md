@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.140.0] - 2025-09-29
+
+### Features
+
+- program: builder codes ([#1805](https://github.com/drift-labs/protocol-v2/pull/1805))
+
+### Fixes
+
+### Breaking
+
 ## [2.139.0] - 2025-09-25
 
 ### Features
