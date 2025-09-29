@@ -589,7 +589,7 @@ describe('LP Pool', () => {
 		try {
 			await adminClient.sendTransaction(tx);
 		} catch (e) {
-			assert(e.message.includes('0x18c0'));
+			assert(e.message.includes('0x18c8')); // InvalidConstituentOperation
 		}
 		await adminClient.updateConstituentStatus(
 			c0.pubkey,

@@ -122,6 +122,14 @@ impl State {
         (self.feature_bit_flags & (FeatureBitFlags::MedianTriggerPrice as u8)) > 0
     }
 
+    pub fn builder_codes_enabled(&self) -> bool {
+        (self.feature_bit_flags & (FeatureBitFlags::BuilderCodes as u8)) > 0
+    }
+
+    pub fn builder_referral_enabled(&self) -> bool {
+        (self.feature_bit_flags & (FeatureBitFlags::BuilderReferral as u8)) > 0
+    }
+
     pub fn allow_settle_lp_pool(&self) -> bool {
         (self.lp_pool_feature_bit_flags & (LpPoolFeatureBitFlags::SettleLpPool as u8)) > 0
     }
@@ -139,6 +147,8 @@ impl State {
 pub enum FeatureBitFlags {
     MmOracleUpdate = 0b00000001,
     MedianTriggerPrice = 0b00000010,
+    BuilderCodes = 0b00000100,
+    BuilderReferral = 0b00001000,
 }
 
 #[derive(Clone, Copy, PartialEq, Debug, Eq)]
