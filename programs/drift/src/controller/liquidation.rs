@@ -675,6 +675,8 @@ pub fn liquidate_perp(
         maker_existing_quote_entry_amount: maker_existing_quote_entry_amount,
         maker_existing_base_asset_amount: maker_existing_base_asset_amount,
         trigger_price: None,
+        builder_idx: None,
+        builder_fee: None,
     };
     emit!(fill_record);
 
@@ -1038,6 +1040,7 @@ pub fn liquidate_perp_with_fill(
         clock,
         order_params,
         PlaceOrderOptions::default().explanation(OrderActionExplanation::Liquidation),
+        &mut None,
     )?;
 
     drop(user);
@@ -1058,6 +1061,8 @@ pub fn liquidate_perp_with_fill(
         None,
         clock,
         FillMode::Liquidation,
+        &mut None,
+        false,
     )?;
 
     let mut user = load_mut!(user_loader)?;
