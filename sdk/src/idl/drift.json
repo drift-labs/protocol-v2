@@ -9915,6 +9915,10 @@
             "type": "i64"
           },
           {
+            "name": "cumulativeSpotInterestAccruedTokenAmount",
+            "type": "i64"
+          },
+          {
             "name": "maxWeightDeviation",
             "docs": [
               "max deviation from target_weight allowed for the constituent",
