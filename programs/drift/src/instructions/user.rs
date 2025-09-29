@@ -549,7 +549,9 @@ pub fn handle_migrate_referrer<'c: 'info, 'info>(
     }
 
     let escrow = &mut ctx.accounts.escrow;
-    escrow.referrer = ctx.accounts.user_stats.load()?.referrer;
+    let mut user_stats = ctx.accounts.user_stats.load_mut()?;
+    escrow.referrer = user_stats.referrer;
+    user_stats.update_builder_referral_status();
 
     escrow.validate()?;
     Ok(())
@@ -4824,6 +4826,7 @@ pub struct MigrateReferrer<'info> {
     /// CHECK: The auth owning this account, payer of builder/ref fees
     pub authority: AccountInfo<'info>,
     #[account(
+        mut,
         has_one = authority
     )]
     pub user_stats: AccountLoader<'info, UserStats>,
