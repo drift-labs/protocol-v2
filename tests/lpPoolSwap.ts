@@ -425,11 +425,6 @@ describe('LP Pool', () => {
 		expect(lpPool2.lastAum.gt(lpPool1.lastAum)).to.be.true;
 		console.log(`AUM: ${convertToNumber(lpPool2.lastAum, QUOTE_PRECISION)}`);
 
-		const constituentTargetWeightsPublicKey = getConstituentTargetBasePublicKey(
-			program.programId,
-			lpPoolKey
-		);
-
 		// swap c0 for c1
 
 		const adminAuth = adminClient.wallet.publicKey;
@@ -467,15 +462,7 @@ describe('LP Pool', () => {
 				new BN(224_300_000),
 				new BN(0),
 				lpPoolKey,
-				constituentTargetWeightsPublicKey,
-				const0TokenAccount,
-				const1TokenAccount,
-				c0UserTokenAccount,
-				c1UserTokenAccount,
-				const0Key,
-				const1Key,
-				usdcMint.publicKey,
-				spotTokenMint.publicKey
+				adminAuth
 			)
 		);
 

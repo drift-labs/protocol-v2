@@ -10478,15 +10478,7 @@ export class DriftClient {
 		inAmount: BN,
 		minOutAmount: BN,
 		lpPool: PublicKey,
-		constituentTargetBase: PublicKey,
-		constituentInTokenAccount: PublicKey,
-		constituentOutTokenAccount: PublicKey,
-		userInTokenAccount: PublicKey,
-		userOutTokenAccount: PublicKey,
-		inConstituent: PublicKey,
-		outConstituent: PublicKey,
-		inMarketMint: PublicKey,
-		outMarketMint: PublicKey,
+		userAuthority: PublicKey,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
@@ -10497,15 +10489,7 @@ export class DriftClient {
 					inAmount,
 					minOutAmount,
 					lpPool,
-					constituentTargetBase,
-					constituentInTokenAccount,
-					constituentOutTokenAccount,
-					userInTokenAccount,
-					userOutTokenAccount,
-					inConstituent,
-					outConstituent,
-					inMarketMint,
-					outMarketMint
+					userAuthority
 				),
 				txParams
 			),
@@ -10521,20 +10505,48 @@ export class DriftClient {
 		inAmount: BN,
 		minOutAmount: BN,
 		lpPool: PublicKey,
-		constituentTargetBase: PublicKey,
-		constituentInTokenAccount: PublicKey,
-		constituentOutTokenAccount: PublicKey,
-		userInTokenAccount: PublicKey,
-		userOutTokenAccount: PublicKey,
-		inConstituent: PublicKey,
-		outConstituent: PublicKey,
-		inMarketMint: PublicKey,
-		outMarketMint: PublicKey
+		userAuthority: PublicKey
 	): Promise<TransactionInstruction> {
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [],
 			readableSpotMarketIndexes: [inMarketIndex, outMarketIndex],
 		});
+
+		const constituentInTokenAccount = getConstituentVaultPublicKey(
+			this.program.programId,
+			lpPool,
+			inMarketIndex
+		);
+		const constituentOutTokenAccount = getConstituentVaultPublicKey(
+			this.program.programId,
+			lpPool,
+			outMarketIndex
+		);
+		const userInTokenAccount = await getAssociatedTokenAddress(
+			this.getSpotMarketAccount(inMarketIndex).mint,
+			userAuthority
+		);
+		const userOutTokenAccount = await getAssociatedTokenAddress(
+			this.getSpotMarketAccount(outMarketIndex).mint,
+			userAuthority
+		);
+		const inConstituent = getConstituentPublicKey(
+			this.program.programId,
+			lpPool,
+			inMarketIndex
+		);
+		const outConstituent = getConstituentPublicKey(
+			this.program.programId,
+			lpPool,
+			outMarketIndex
+		);
+		const inMarketMint = this.getSpotMarketAccount(inMarketIndex).mint;
+		const outMarketMint = this.getSpotMarketAccount(outMarketIndex).mint;
+
+		const constituentTargetBase = getConstituentTargetBasePublicKey(
+			this.program.programId,
+			lpPool
+		);
 
 		return this.program.instruction.lpPoolSwap(
 			inMarketIndex,
@@ -11242,6 +11254,30 @@ export class DriftClient {
 			...(await this.getAllUpdateLpPoolAumIxs(lpPool, constituentMap, false))
 		);
 
+		return ixs;
+	}
+
+	async getAllLpPoolSwapIxs(
+		lpPool: LPPoolAccount,
+		constituentMap: ConstituentMap,
+		inMarketIndex: number,
+		outMarketIndex: number,
+		inAmount: BN,
+		minOutAmount: BN,
+		userAuthority: PublicKey
+	): Promise<TransactionInstruction[]> {
+		const ixs: TransactionInstruction[] = [];
+		ixs.push(...(await this.getAllUpdateLpPoolAumIxs(lpPool, constituentMap)));
+		ixs.push(
+			await this.getLpPoolSwapIx(
+				inMarketIndex,
+				outMarketIndex,
+				inAmount,
+				minOutAmount,
+				lpPool.pubkey,
+				userAuthority
+			)
+		);
 		return ixs;
 	}
 
