@@ -116,8 +116,8 @@ export type EventMap = {
 	FuelSeasonRecord: Event<FuelSeasonRecord>;
 	InsuranceFundSwapRecord: Event<InsuranceFundSwapRecord>;
 	TransferProtocolIfSharesToRevenuePoolRecord: Event<TransferProtocolIfSharesToRevenuePoolRecord>;
-	LPMintRedeemRecord: Event<LPMintRedeemRecord>;
 	LPSettleRecord: Event<LPSettleRecord>;
+	LPMintRedeemRecord: Event<LPMintRedeemRecord>;
 	LPSwapRecord: Event<LPSwapRecord>;
 };
 
@@ -146,8 +146,8 @@ export type DriftEvent =
 	| Event<InsuranceFundSwapRecord>
 	| Event<TransferProtocolIfSharesToRevenuePoolRecord>
 	| Event<LPSettleRecord>
-	| Event<LPSwapRecord>
-	| Event<LPMintRedeemRecord>;
+	| Event<LPMintRedeemRecord>
+	| Event<LPSwapRecord>;
 
 export interface EventSubscriberEvents {
 	newEvent: (event: WrappedEvent<EventType>) => void;
