@@ -1590,7 +1590,8 @@ fn transfer_from_program_vault<'info>(
     validate!(
         balance_diff_notional <= PRICE_PRECISION_I64 / 100,
         ErrorCode::LpInvariantFailed,
-        "Constituent balance mismatch after withdraw from program vault"
+        "Constituent balance mismatch after withdraw from program vault, {}",
+        balance_diff_notional
     )?;
 
     Ok(())
