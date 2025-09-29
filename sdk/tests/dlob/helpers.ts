@@ -44,6 +44,7 @@ export const mockPerpPosition: PerpPosition = {
 	lastBaseAssetAmountPerLp: new BN(0),
 	lastQuoteAssetAmountPerLp: new BN(0),
 	perLpBase: 0,
+	maxMarginRatio: 1,
 };
 
 export const mockAMM: AMM = {
