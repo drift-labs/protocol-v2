@@ -1552,11 +1552,6 @@ export class DriftClient {
 
 		await this.addUser(subAccountId, this.authority);
 
-		console.log('userAccountPublicKey', userAccountPublicKey.toString());
-		console.log('authority', this.authority.toString());
-		console.log('subAccountId', subAccountId);
-		console.log('wallet.publicKey', this.wallet.publicKey.toString());
-
 		const ix = this.program.instruction.updateUserPerpPositionCustomMarginRatio(
 			subAccountId,
 			perpMarketIndex,
