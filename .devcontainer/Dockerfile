@@ -4,18 +4,29 @@
 # is released on GitHub.
 #
 
-FROM rust:1.75
+FROM --platform=linux/amd64 rust:1.70.0
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-ARG SOLANA_CLI="1.14.7"
-ARG ANCHOR_CLI="0.26.0"
-ARG NODE_VERSION="v18.16.0"
+ARG SOLANA_CLI="1.16.27"
+ARG ANCHOR_CLI="0.29.0"
+ARG NODE_VERSION="20.18.x"
 
-ENV HOME="/root"
+# Create a non-root user
+ARG USERNAME=vscode
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
+RUN groupadd --gid $USER_GID $USERNAME \
+    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
+    && apt-get update \
+    && apt-get install -y sudo \
+    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
+    && chmod 0440 /etc/sudoers.d/$USERNAME
+
+ENV HOME="/home/$USERNAME"
 ENV PATH="${HOME}/.cargo/bin:${PATH}"
 ENV PATH="${HOME}/.local/share/solana/install/active_release/bin:${PATH}"
-ENV PATH="${HOME}/.nvm/versions/node/${NODE_VERSION}/bin:${PATH}"
 
 # Install base utilities.
 RUN mkdir -p /workdir && mkdir -p /tmp && \
@@ -23,8 +34,7 @@ RUN mkdir -p /workdir && mkdir -p /tmp && \
     build-essential git curl wget jq pkg-config python3-pip \
     libssl-dev libudev-dev
 
-RUN wget http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2_amd64.deb
-RUN dpkg -i libssl1.1_1.1.1f-1ubuntu2_amd64.deb
+# libssl1.1 is not needed for newer versions
 
 # Install rust.
 RUN curl "https://sh.rustup.rs" -sfo rustup.sh && \
@@ -32,23 +42,29 @@ RUN curl "https://sh.rustup.rs" -sfo rustup.sh && \
     rustup component add rustfmt clippy
 
 # Install node / npm / yarn.
-RUN curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh | bash
-ENV NVM_DIR="${HOME}/.nvm"
-RUN . $NVM_DIR/nvm.sh && \
-    nvm install ${NODE_VERSION} && \
-    nvm use ${NODE_VERSION} && \
-    nvm alias default node && \
+RUN apt-get install -y nodejs npm && \
     npm install -g yarn && \
-    yarn add ts-mocha
+    npm install -g ts-mocha && \
+    npm install -g typescript && \
+    npm install -g mocha
 
-# Install Solana tools.
-RUN sh -c "$(curl -sSfL https://release.solana.com/v${SOLANA_CLI}/install)"
+# Install Solana tools (x86_64 version).
+RUN curl -sSfL https://github.com/solana-labs/solana/releases/download/v${SOLANA_CLI}/solana-release-x86_64-unknown-linux-gnu.tar.bz2 | tar -xjC /tmp && \
+    mv /tmp/solana-release/bin/* /usr/local/bin/ && \
+    rm -rf /tmp/solana-release
 
 # Install anchor.
-RUN cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
-RUN avm install ${ANCHOR_CLI} && avm use ${ANCHOR_CLI}
+RUN cargo install --git https://github.com/coral-xyz/anchor --tag v${ANCHOR_CLI} anchor-cli --locked
+
+# Switch to the non-root user for the remaining setup
+USER $USERNAME
 
 RUN solana-keygen new --no-bip39-passphrase
 
+# Set up Solana config for local development
+RUN solana config set --url localhost
+
+# Create necessary directories
+RUN mkdir -p $HOME/.config/solana
+
 WORKDIR /workdir
-#be sure to add `/root/.avm/bin` to your PATH to be able to run the installed binaries
