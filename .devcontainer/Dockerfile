@@ -19,7 +19,8 @@ RUN mkdir -p /workdir /tmp && \
       libssl-dev libudev-dev bash && \
     rm -rf /var/lib/apt/lists/*
 
-RUN rustup component add rustfmt clippy
+RUN rustup install 1.78.0 \
+  && rustup component add rustfmt clippy --toolchain 1.78.0
 
 RUN curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" -o /tmp/node.tar.xz \
   && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
@@ -43,6 +44,6 @@ RUN solana-keygen new --no-bip39-passphrase --force \
 
 RUN apt-get update && apt-get install -y zsh curl git \
   && sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended \
-  && chsh -s /usr/bin/zsh vscode
+  && chsh -s /usr/bin/zsh root
 
 WORKDIR /workdir
