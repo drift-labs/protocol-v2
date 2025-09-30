@@ -10,7 +10,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 ARG SOLANA_CLI="1.16.27"
 ARG ANCHOR_CLI="0.29.0"
-ARG NODE_VERSION="20.18.x"
+ARG NODE_VERSION="20.18.1"
 
 # Create a non-root user
 ARG USERNAME=vscode
@@ -31,7 +31,7 @@ ENV PATH="${HOME}/.local/share/solana/install/active_release/bin:${PATH}"
 # Install base utilities.
 RUN mkdir -p /workdir && mkdir -p /tmp && \
     apt-get update -qq && apt-get upgrade -qq && apt-get install -qq \
-    build-essential git curl wget jq pkg-config python3-pip \
+    build-essential git curl wget jq pkg-config python3-pip xz-utils \
     libssl-dev libudev-dev
 
 # libssl1.1 is not needed for newer versions
@@ -41,12 +41,14 @@ RUN curl "https://sh.rustup.rs" -sfo rustup.sh && \
     sh rustup.sh -y && \
     rustup component add rustfmt clippy
 
-# Install node / npm / yarn.
-RUN apt-get install -y nodejs npm && \
-    npm install -g yarn && \
-    npm install -g ts-mocha && \
-    npm install -g typescript && \
-    npm install -g mocha
+# Install node / npm / yarn (pinned)
+RUN curl -fsSLO https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz && \
+    tar -xJf node-v${NODE_VERSION}-linux-x64.tar.xz -C /usr/local --strip-components=1 && \
+    rm node-v${NODE_VERSION}-linux-x64.tar.xz && \
+    corepack enable && \
+    npm install -g ts-mocha typescript mocha yarn
+
+RUN node -v && npm -v
 
 # Install Solana tools (x86_64 version).
 RUN curl -sSfL https://github.com/solana-labs/solana/releases/download/v${SOLANA_CLI}/solana-release-x86_64-unknown-linux-gnu.tar.bz2 | tar -xjC /tmp && \
