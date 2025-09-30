@@ -16245,6 +16245,13 @@
             "option": "publicKey"
           },
           "index": false
+        },
+        {
+          "name": "signer",
+          "type": {
+            "option": "publicKey"
+          },
+          "index": false
         }
       ]
     },
@@ -16824,6 +16831,20 @@
         },
         {
           "name": "triggerPrice",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
+        },
+        {
+          "name": "builderIdx",
+          "type": {
+            "option": "u8"
+          },
+          "index": false
+        },
+        {
+          "name": "builderFee",
           "type": {
             "option": "u64"
           },
