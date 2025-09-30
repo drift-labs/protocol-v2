@@ -1,16 +1,16 @@
 {
-  "name": "Drift Protocol Development",
+  "name": "Drift Protocol Development (amd64, root)",
   "build": {
     "dockerfile": "Dockerfile",
     "platform": "linux/amd64"
   },
   "workspaceFolder": "/workdir",
-  "remoteUser": "vscode",
+  "remoteUser": "root",
   "mounts": [
     "source=${localWorkspaceFolder},target=/workdir,type=bind,consistency=cached",
     "source=drift-target,target=/workdir/target,type=volume,consistency=delegated"
   ],
-  "postCreateCommand": "sudo chown -R vscode:vscode /workdir/target 2>/dev/null || true && echo 'Dev container ready! You can now run: anchor build, anchor test, cargo build, etc.' && echo 'To run tests: bash test-scripts/run-anchor-tests.sh'",
+  "postCreateCommand": "echo 'Dev container ready. Run: anchor build / anchor test / cargo build'",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -27,17 +27,11 @@
   },
   "forwardPorts": [8899, 8900],
   "portsAttributes": {
-    "8899": {
-      "label": "Solana Test Validator",
-      "onAutoForward": "notify"
-    },
-    "8900": {
-      "label": "Solana Test Validator RPC",
-      "onAutoForward": "notify"
-    }
+    "8899": { "label": "Solana Test Validator", "onAutoForward": "notify" },
+    "8900": { "label": "Solana Test Validator RPC", "onAutoForward": "notify" }
   },
   "containerEnv": {
-    "ANCHOR_WALLET": "/home/vscode/.config/solana/id.json",
+    "ANCHOR_WALLET": "/root/.config/solana/id.json",
     "RUST_LOG": "solana_runtime::message_processor::stable_log=debug"
   }
 }
