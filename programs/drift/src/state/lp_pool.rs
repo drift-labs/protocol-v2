@@ -270,11 +270,11 @@ impl LPPool {
             .price
             .cast::<u128>()?
             .safe_mul(in_amount_less_fees)?;
-        let lp_amount = if self.last_aum == 0 {
+        let lp_amount = if dlp_total_supply == 0 {
             token_amount_usd.safe_div(token_precision_denominator)?
         } else {
             token_amount_usd
-                .safe_mul(dlp_total_supply.max(1) as u128)?
+                .safe_mul(dlp_total_supply as u128)?
                 .safe_div(self.last_aum)?
                 .safe_div(token_precision_denominator)?
         };
