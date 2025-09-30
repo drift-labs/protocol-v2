@@ -162,6 +162,16 @@ pub fn handle_initialize_spot_market(
         )?;
     }
 
+    let is_token_2022 = *ctx.accounts.spot_market_mint.to_account_info().owner == Token2022::id();
+    if is_token_2022 {
+        initialize_immutable_owner(&ctx.accounts.token_program, &ctx.accounts.spot_market_vault)?;
+
+        initialize_immutable_owner(
+            &ctx.accounts.token_program,
+            &ctx.accounts.insurance_fund_vault,
+        )?;
+    }
+
     initialize_token_account(
         &ctx.accounts.token_program,
         &ctx.accounts.spot_market_vault,

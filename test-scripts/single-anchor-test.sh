@@ -7,7 +7,7 @@ fi
 export ANCHOR_WALLET=~/.config/solana/id.json
 
 test_files=(
-	sdk/src/memcmp.tslpPool.ts
+	lpPool.ts
 	lpPoolSwap.ts
 )
 

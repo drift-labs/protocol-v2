@@ -15,9 +15,9 @@ import { ZSTDDecoder } from 'zstddec';
 import { encodeName } from '../userName';
 import { getLpPoolPublicKey } from '../addresses/pda';
 
-const MAX_CONSTITUENT_SIZE_BYTES = 304; // TODO: update this when account is finalized
+const MAX_CONSTITUENT_SIZE_BYTES = 320; // TODO: update this when account is finalized
 
-const LP_POOL_NAME = 'test lp pool 2';
+const LP_POOL_NAME = 'test lp pool 3';
 
 export type ConstituentMapConfig = {
 	driftClient: DriftClient;
