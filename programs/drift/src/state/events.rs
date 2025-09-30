@@ -51,6 +51,7 @@ pub struct DepositRecord {
     pub total_withdraws_after: u64,
     pub explanation: DepositExplanation,
     pub transfer_user: Option<Pubkey>,
+    pub signer: Option<Pubkey>,
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Default)]
