@@ -16245,13 +16245,6 @@
             "option": "publicKey"
           },
           "index": false
-        },
-        {
-          "name": "signer",
-          "type": {
-            "option": "publicKey"
-          },
-          "index": false
         }
       ]
     },
