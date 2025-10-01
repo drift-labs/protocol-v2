@@ -220,7 +220,7 @@ impl LPPool {
 
         let out_fee_amount = out_amount
             .cast::<i128>()?
-            .safe_mul(out_fee as i128)?
+            .safe_mul(out_fee)?
             .safe_div(PERCENTAGE_PRECISION_I128)?;
 
         Ok((in_amount, out_amount, in_fee_amount, out_fee_amount))
@@ -472,7 +472,7 @@ impl LPPool {
             let out_spot_market = out_spot_market.unwrap();
             let out_oracle_price = out_oracle_price.unwrap();
             let out_amount = notional_trade_size
-                .safe_mul(10_i128.pow(out_spot_market.decimals as u32))?
+                .safe_mul(10_i128.pow(out_spot_market.decimals))?
                 .safe_div(out_oracle_price.cast::<i128>()?)?;
             (
                 false,
@@ -693,10 +693,10 @@ impl LPPool {
 
         if total_quote_owed > 0 {
             aum = aum
-                .saturating_sub(total_quote_owed as i128)
+                .saturating_sub(total_quote_owed)
                 .max(QUOTE_PRECISION_I128);
         } else if total_quote_owed < 0 {
-            aum = aum.saturating_add((-total_quote_owed) as i128);
+            aum = aum.saturating_add(-total_quote_owed);
         }
 
         let aum_u128 = aum.max(0).cast::<u128>()?;
@@ -739,7 +739,7 @@ impl SpotBalance for ConstituentSpotBalance {
     }
 
     fn balance(&self) -> u128 {
-        self.scaled_balance as u128
+        self.scaled_balance
     }
 
     fn increase_balance(&mut self, delta: u128) -> DriftResult {
@@ -883,7 +883,7 @@ impl Constituent {
                 self.pubkey,
                 self.spot_market_index
             );
-            return Err(ErrorCode::InvalidConstituentOperation.into());
+            Err(ErrorCode::InvalidConstituentOperation)
         } else if ConstituentLpOperation::is_operation_paused(self.paused_operations, operation) {
             msg!(
                 "Constituent {:?}, spot market {}, is paused for operation {:?}",
@@ -891,7 +891,7 @@ impl Constituent {
                 self.spot_market_index,
                 operation
             );
-            return Err(ErrorCode::InvalidConstituentOperation.into());
+            Err(ErrorCode::InvalidConstituentOperation)
         } else {
             Ok(())
         }
@@ -1175,7 +1175,7 @@ impl<'a> AccountZeroCopy<'a, TargetsDatum, ConstituentTargetBaseFixed> {
 
         // TODO: validate spot market
         let datum = self.get(constituent_index as u32);
-        let target_weight = calculate_target_weight(datum.target_base, &spot_market, price, aum)?;
+        let target_weight = calculate_target_weight(datum.target_base, spot_market, price, aum)?;
         Ok(target_weight)
     }
 }
@@ -1197,7 +1197,7 @@ pub fn calculate_target_weight(
         .safe_mul(PERCENTAGE_PRECISION_I128)?
         .safe_div(lp_pool_aum.cast::<i128>()?)?
         .cast::<i64>()?
-        .clamp(-1 * PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_I64);
+        .clamp(-PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_I64);
 
     Ok(target_weight)
 }
@@ -1268,11 +1268,10 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
             mapping_index = j;
 
             let cell = self.get_mut(i as u32);
-            let target_base = target_notional
+            let target_base = -target_notional
                 .safe_div(PERCENTAGE_PRECISION_I128)?
                 .safe_mul(10_i128.pow(decimals as u32))?
-                .safe_div(price as i128)?
-                * -1; // Want to target opposite sign of total scaled notional inventory
+                .safe_div(price as i128)?; // Want to target opposite sign of total scaled notional inventory
 
             msg!(
                 "updating constituent index {} target base to {} from aggregated perp notional {}",
@@ -1295,7 +1294,7 @@ impl<'a> AccountZeroCopyMut<'a, AmmConstituentDatum, AmmConstituentMappingFixed>
 
         let mut open_slot_index: Option<u32> = None;
         for i in 0..len {
-            let cell = self.get(i as u32);
+            let cell = self.get(i);
             if cell.constituent_index == datum.constituent_index
                 && cell.perp_market_index == datum.perp_market_index
             {
@@ -1305,7 +1304,7 @@ impl<'a> AccountZeroCopyMut<'a, AmmConstituentDatum, AmmConstituentMappingFixed>
                 open_slot_index = Some(i);
             }
         }
-        let open_slot = open_slot_index.ok_or_else(|| ErrorCode::DefaultError.into())?;
+        let open_slot = open_slot_index.ok_or(ErrorCode::DefaultError)?;
 
         let cell = self.get_mut(open_slot);
         *cell = datum;
@@ -1319,11 +1318,11 @@ impl<'a> AccountZeroCopyMut<'a, AmmConstituentDatum, AmmConstituentMappingFixed>
         let len = self.len();
         let mut data: Vec<AmmConstituentDatum> = Vec::with_capacity(len as usize);
         for i in 0..len {
-            data.push(*self.get(i as u32));
+            data.push(*self.get(i));
         }
         data.sort_by_key(|datum| datum.constituent_index);
         for i in 0..len {
-            let cell = self.get_mut(i as u32);
+            let cell = self.get_mut(i);
             *cell = data[i as usize];
         }
         Ok(())
@@ -1482,8 +1481,8 @@ impl ConstituentCorrelations {
             "ConstituentCorrelation correlations must be between 0 and PERCENTAGE_PRECISION"
         )?;
 
-        self.correlations[(i as usize * num_constituents + j as usize) as usize] = corr;
-        self.correlations[(j as usize * num_constituents + i as usize) as usize] = corr;
+        self.correlations[(i as usize * num_constituents + j as usize)] = corr;
+        self.correlations[(j as usize * num_constituents + i as usize)] = corr;
 
         self.validate()?;
 
@@ -1568,7 +1567,7 @@ pub fn update_constituent_target_base_for_derivatives(
     constituent_target_base: &mut AccountZeroCopyMut<'_, TargetsDatum, ConstituentTargetBaseFixed>,
 ) -> DriftResult<()> {
     for (parent_index, constituent_indexes) in derivative_groups.iter() {
-        let parent_constituent = constituent_map.get_ref(&(parent_index))?;
+        let parent_constituent = constituent_map.get_ref(parent_index)?;
         let parent_target_base = constituent_target_base
             .get(*parent_index as u32)
             .target_base;

@@ -223,10 +223,7 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
 
     // Set USDC stable weight
     msg!("aum: {}", aum);
-    let total_stable_target_base = aum
-        .cast::<i128>()?
-        .safe_sub(crypto_delta.abs())?
-        .max(0_i128);
+    let total_stable_target_base = aum.cast::<i128>()?.safe_sub(crypto_delta)?;
     constituent_target_base
         .get_mut(lp_pool.quote_consituent_index as u32)
         .target_base = total_stable_target_base.cast::<i64>()?;
@@ -483,6 +480,7 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         out_market_target_weight: out_target_weight,
         in_swap_id,
         out_swap_id,
+        lp_pool: lp_pool_key,
     })?;
 
     receive(
@@ -848,6 +846,7 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
             lp_pool.last_aum,
         )?,
         in_market_target_weight: in_target_weight,
+        lp_pool: lp_pool_key,
     })?;
 
     Ok(())
@@ -859,7 +858,6 @@ pub fn handle_view_lp_pool_add_liquidity_fees<'c: 'info, 'info>(
     in_amount: u128,
 ) -> Result<()> {
     let slot = Clock::get()?.slot;
-    let now = Clock::get()?.unix_timestamp;
     let state = &ctx.accounts.state;
     let lp_pool = ctx.accounts.lp_pool.load()?;
 
@@ -1041,7 +1039,7 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
         out_spot_market.get_max_confidence_interval_multiplier()?,
         0,
     )?;
-    let out_oracle = out_oracle.clone();
+    let out_oracle = *out_oracle;
 
     // TODO: check self.aum validity
 
@@ -1230,6 +1228,7 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
             lp_pool.last_aum,
         )?,
         in_market_target_weight: out_target_weight,
+        lp_pool: lp_pool_key,
     })?;
 
     Ok(())
@@ -1244,7 +1243,6 @@ pub fn handle_view_lp_pool_remove_liquidity_fees<'c: 'info, 'info>(
     lp_to_burn: u64,
 ) -> Result<()> {
     let slot = Clock::get()?.slot;
-    let now = Clock::get()?.unix_timestamp;
     let state = &ctx.accounts.state;
     let lp_pool = ctx.accounts.lp_pool.load()?;
 
@@ -1371,6 +1369,7 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
     let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
 
     let mut constituent = ctx.accounts.constituent.load_mut()?;
+    let lp_pool_key = constituent.lp_pool;
 
     if amount == 0 {
         return Err(ErrorCode::InsufficientDeposit.into());
@@ -1478,6 +1477,7 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
         last_token_balance: constituent.last_spot_balance_token_amount,
         interest_accrued_token_amount,
         amount_deposit_withdraw: amount,
+        lp_pool: lp_pool_key,
     });
     constituent.last_spot_balance_token_amount = new_token_balance;
     constituent.cumulative_spot_interest_accrued_token_amount = constituent
@@ -1515,7 +1515,7 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
 
     controller::spot_balance::update_spot_market_cumulative_interest(
         &mut spot_market,
-        Some(&oracle_data),
+        Some(oracle_data),
         clock.unix_timestamp,
     )?;
     let token_balance_after_cumulative_interest_update = constituent
@@ -1561,6 +1561,7 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
         last_token_balance: constituent.last_spot_balance_token_amount,
         interest_accrued_token_amount,
         amount_deposit_withdraw: amount,
+        lp_pool: constituent.lp_pool,
     });
     constituent.last_spot_balance_token_amount = new_token_balance;
     constituent.cumulative_spot_interest_accrued_token_amount = constituent

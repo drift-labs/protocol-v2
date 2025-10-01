@@ -17679,6 +17679,11 @@
           "name": "lpPrice",
           "type": "u128",
           "index": false
+        },
+        {
+          "name": "lpPool",
+          "type": "publicKey",
+          "index": false
         }
       ]
     },
@@ -17789,6 +17794,11 @@
           "name": "outSwapId",
           "type": "u64",
           "index": false
+        },
+        {
+          "name": "lpPool",
+          "type": "publicKey",
+          "index": false
         }
       ]
     },
@@ -17884,6 +17894,11 @@
           "name": "inMarketTargetWeight",
           "type": "i64",
           "index": false
+        },
+        {
+          "name": "lpPool",
+          "type": "publicKey",
+          "index": false
         }
       ]
     },
@@ -17935,6 +17950,11 @@
         {
           "name": "amountDepositWithdraw",
           "type": "u64",
+          "index": false
+        },
+        {
+          "name": "lpPool",
+          "type": "publicKey",
           "index": false
         }
       ]

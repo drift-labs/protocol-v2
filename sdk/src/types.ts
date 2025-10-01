@@ -767,6 +767,7 @@ export type LPSwapRecord = {
 	outMarketTargetWeight: BN;
 	inSwapId: BN;
 	outSwapId: BN;
+	lpPool: PublicKey;
 };
 
 export type LPMintRedeemRecord = {
@@ -789,6 +790,7 @@ export type LPMintRedeemRecord = {
 	lastAumSlot: BN;
 	inMarketCurrentWeight: BN;
 	inMarketTargetWeight: BN;
+	lpPool: PublicKey;
 };
 
 export type LPSettleRecord = {
@@ -803,6 +805,7 @@ export type LPSettleRecord = {
 	perpAmmExFeeDelta: BN;
 	lpAum: BN;
 	lpPrice: BN;
+	lpPool: PublicKey;
 };
 
 export type LPBorrowLendDepositRecord = {
@@ -815,6 +818,7 @@ export type LPBorrowLendDepositRecord = {
 	lastTokenBalance: BN;
 	interestAccruedTokenAmount: BN;
 	amountDepositWithdraw: BN;
+	lpPool: PublicKey;
 };
 
 export type StateAccount = {
@@ -1411,9 +1415,9 @@ export interface IWallet {
 	publicKey: PublicKey;
 	payer?: Keypair;
 	supportedTransactionVersions?:
-		| ReadonlySet<TransactionVersion>
-		| null
-		| undefined;
+	| ReadonlySet<TransactionVersion>
+	| null
+	| undefined;
 }
 export interface IVersionedWallet {
 	signVersionedTransaction(

@@ -3333,6 +3333,7 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
         ctx.accounts.amm_cache.load_zc_mut()?;
     let quote_market = &mut ctx.accounts.quote_market.load_mut()?;
     let mut quote_constituent = ctx.accounts.constituent.load_mut()?;
+    let lp_pool_key = ctx.accounts.lp_pool.key();
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
@@ -3486,6 +3487,7 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
                 .cast::<i64>()?,
             lp_aum: lp_pool.last_aum,
             lp_price: lp_pool.get_price(lp_pool.token_supply)?,
+            lp_pool: lp_pool_key,
         });
 
         // Calculate new quote owed amount
