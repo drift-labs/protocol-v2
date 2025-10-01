@@ -12,7 +12,6 @@ import { grpcAccountSubscriber } from './grpcAccountSubscriber';
 import { grpcMultiAccountSubscriber } from './grpcMultiAccountSubscriber';
 import { PerpMarketAccount, SpotMarketAccount, StateAccount } from '../types';
 import { getOracleId } from '../oracles/oracleId';
-import { Client, createClient } from '../isomorphic/grpc';
 
 export class gprcDriftClientAccountSubscriber extends WebSocketDriftClientAccountSubscriber {
 	private grpcConfigs: GrpcConfigs;
@@ -177,8 +176,7 @@ export class gprcDriftClientAccountSubscriber extends WebSocketDriftClientAccoun
 	}
 
 	override async subscribeToSpotMarketAccount(
-		marketIndex: number,
-		spotMarketClient?: Client
+		marketIndex: number
 	): Promise<boolean> {
 		const marketPublicKey = await getSpotMarketPublicKey(
 			this.program.programId,
@@ -204,10 +202,7 @@ export class gprcDriftClientAccountSubscriber extends WebSocketDriftClientAccoun
 		return true;
 	}
 
-	async subscribeToPerpMarketAccount(
-		marketIndex: number,
-		perpMarketClient?: Client
-	): Promise<boolean> {
+	async subscribeToPerpMarketAccount(marketIndex: number): Promise<boolean> {
 		const perpMarketPublicKey = await getPerpMarketPublicKey(
 			this.program.programId,
 			marketIndex
