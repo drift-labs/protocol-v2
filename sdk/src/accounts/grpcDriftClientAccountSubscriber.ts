@@ -9,11 +9,15 @@ import {
 } from '../addresses/pda';
 import { DelistedMarketSetting, GrpcConfigs, ResubOpts } from './types';
 import { grpcAccountSubscriber } from './grpcAccountSubscriber';
+import { grpcMultiAccountSubscriber } from './grpcMultiAccountSubscriber';
 import { PerpMarketAccount, SpotMarketAccount, StateAccount } from '../types';
 import { getOracleId } from '../oracles/oracleId';
+import { Client, createClient } from '../isomorphic/grpc';
 
 export class gprcDriftClientAccountSubscriber extends WebSocketDriftClientAccountSubscriber {
 	private grpcConfigs: GrpcConfigs;
+	private perpMarketsSubscriber?: grpcMultiAccountSubscriber<PerpMarketAccount>;
+	private spotMarketsSubscriber?: grpcMultiAccountSubscriber<SpotMarketAccount>;
 
 	constructor(
 		grpcConfigs: GrpcConfigs,
@@ -94,12 +98,9 @@ export class gprcDriftClientAccountSubscriber extends WebSocketDriftClientAccoun
 		// set initial data to avoid spamming getAccountInfo calls in webSocketAccountSubscriber
 		await this.setInitialData();
 
+		// subscribe to perp + spot markets using two gRPC streams and subscribe to oracles
 		await Promise.all([
-			// subscribe to market accounts
-			this.subscribeToPerpMarketAccounts(),
-			// subscribe to spot market accounts
-			this.subscribeToSpotMarketAccounts(),
-			// subscribe to oracles
+			this.subscribeToPerpAndSpotMarkets(),
 			this.subscribeToOracles(),
 		]);
 
@@ -120,8 +121,64 @@ export class gprcDriftClientAccountSubscriber extends WebSocketDriftClientAccoun
 		return true;
 	}
 
+	private async subscribeToPerpAndSpotMarkets(): Promise<boolean> {
+		const [perpMarketPubkeys, spotMarketPubkeys] = await Promise.all([
+			Promise.all(
+				this.perpMarketIndexes.map((marketIndex) =>
+					getPerpMarketPublicKey(this.program.programId, marketIndex)
+				)
+			),
+			Promise.all(
+				this.spotMarketIndexes.map((marketIndex) =>
+					getSpotMarketPublicKey(this.program.programId, marketIndex)
+				)
+			),
+		]);
+
+		this.perpMarketsSubscriber =
+			await grpcMultiAccountSubscriber.create<PerpMarketAccount>(
+				this.grpcConfigs,
+				'PerpMarket',
+				this.program,
+				undefined,
+				this.resubOpts
+			);
+		await this.perpMarketsSubscriber.subscribe(
+			perpMarketPubkeys,
+			(_accountId, data) => {
+				this.eventEmitter.emit(
+					'perpMarketAccountUpdate',
+					data as PerpMarketAccount
+				);
+				this.eventEmitter.emit('update');
+			}
+		);
+
+		this.spotMarketsSubscriber =
+			await grpcMultiAccountSubscriber.create<SpotMarketAccount>(
+				this.grpcConfigs,
+				'SpotMarket',
+				this.program,
+				undefined,
+				this.resubOpts
+			);
+		await this.spotMarketsSubscriber.subscribe(
+			spotMarketPubkeys,
+			(_accountId, data) => {
+				this.eventEmitter.emit(
+					'spotMarketAccountUpdate',
+					data as SpotMarketAccount
+				);
+				this.eventEmitter.emit('update');
+			}
+		);
+
+		return true;
+	}
+
 	override async subscribeToSpotMarketAccount(
-		marketIndex: number
+		marketIndex: number,
+		spotMarketClient?: Client
 	): Promise<boolean> {
 		const marketPublicKey = await getSpotMarketPublicKey(
 			this.program.programId,
@@ -147,7 +204,10 @@ export class gprcDriftClientAccountSubscriber extends WebSocketDriftClientAccoun
 		return true;
 	}
 
-	async subscribeToPerpMarketAccount(marketIndex: number): Promise<boolean> {
+	async subscribeToPerpMarketAccount(
+		marketIndex: number,
+		perpMarketClient?: Client
+	): Promise<boolean> {
 		const perpMarketPublicKey = await getPerpMarketPublicKey(
 			this.program.programId,
 			marketIndex
