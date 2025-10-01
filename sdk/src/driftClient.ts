@@ -6807,15 +6807,6 @@ export class DriftClient {
 			});
 		}
 
-		remainingAccounts.push({
-			pubkey: getRevenueShareEscrowAccountPublicKey(
-				this.program.programId,
-				takerInfo.takerUserAccount.authority
-			),
-			isWritable: true,
-			isSigner: false,
-		});
-
 		const takerOrderId = takerInfo.order.orderId;
 		if (hasBuilder(takerInfo.order)) {
 			remainingAccounts.push({
