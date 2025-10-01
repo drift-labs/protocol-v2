@@ -4152,9 +4152,7 @@ pub struct InitializeReferrerName<'info> {
 #[instruction(market_index: u16,)]
 pub struct Deposit<'info> {
     pub state: Box<Account<'info, State>>,
-    #[account(
-        mut
-    )]
+    #[account(mut)]
     pub user: AccountLoader<'info, User>,
     #[account(
         mut,
