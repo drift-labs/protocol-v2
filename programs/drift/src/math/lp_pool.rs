@@ -10,7 +10,7 @@ pub mod perp_lp_pool_settlement {
         state::{amm_cache::CacheInfo, perp_market::PerpMarket, spot_market::SpotMarket},
         *,
     };
-    use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
+    use anchor_spl::token_interface::{TokenAccount, TokenInterface};
 
     #[derive(Debug, Clone, Copy)]
     pub struct SettlementResult {
@@ -55,7 +55,7 @@ pub mod perp_lp_pool_settlement {
         ctx: &SettlementContext,
         result: &SettlementResult,
     ) -> Result<()> {
-        if result.amount_transferred > ctx.max_settle_quote_amount as u64 {
+        if result.amount_transferred > ctx.max_settle_quote_amount {
             msg!(
                 "Amount to settle exceeds maximum allowed, {} > {}",
                 result.amount_transferred,
@@ -94,7 +94,8 @@ pub mod perp_lp_pool_settlement {
     }
 
     fn calculate_perp_to_lp_settlement(ctx: &SettlementContext) -> Result<SettlementResult> {
-        let amount_to_send = (ctx.quote_owed_from_lp.abs() as u64).min(ctx.max_settle_quote_amount);
+        let amount_to_send =
+            (ctx.quote_owed_from_lp.abs().cast::<u64>()?).min(ctx.max_settle_quote_amount);
 
         if ctx.fee_pool_balance >= amount_to_send as u128 {
             // Fee pool can cover entire amount
