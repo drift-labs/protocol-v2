@@ -483,6 +483,7 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         out_market_target_weight: out_target_weight,
         in_swap_id,
         out_swap_id,
+        lp_pool: lp_pool_key,
     })?;
 
     receive(
@@ -848,6 +849,7 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
             lp_pool.last_aum,
         )?,
         in_market_target_weight: in_target_weight,
+        lp_pool: lp_pool_key,
     })?;
 
     Ok(())
@@ -1230,6 +1232,7 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
             lp_pool.last_aum,
         )?,
         in_market_target_weight: out_target_weight,
+        lp_pool: lp_pool_key,
     })?;
 
     Ok(())
@@ -1371,6 +1374,7 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
     let remaining_accounts = &mut ctx.remaining_accounts.iter().peekable();
 
     let mut constituent = ctx.accounts.constituent.load_mut()?;
+    let lp_pool_key = constituent.lp_pool;
 
     if amount == 0 {
         return Err(ErrorCode::InsufficientDeposit.into());
@@ -1478,6 +1482,7 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
         last_token_balance: constituent.last_spot_balance_token_amount,
         interest_accrued_token_amount,
         amount_deposit_withdraw: amount,
+        lp_pool: lp_pool_key,
     });
     constituent.last_spot_balance_token_amount = new_token_balance;
     constituent.cumulative_spot_interest_accrued_token_amount = constituent
@@ -1561,6 +1566,7 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
         last_token_balance: constituent.last_spot_balance_token_amount,
         interest_accrued_token_amount,
         amount_deposit_withdraw: amount,
+        lp_pool: constituent.lp_pool,
     });
     constituent.last_spot_balance_token_amount = new_token_balance;
     constituent.cumulative_spot_interest_accrued_token_amount = constituent

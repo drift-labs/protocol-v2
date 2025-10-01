@@ -19,6 +19,12 @@ RUN mkdir -p /workdir /tmp && \
       libssl-dev libudev-dev bash && \
     rm -rf /var/lib/apt/lists/*
 
+RUN apt-get install -y software-properties-common \
+  && add-apt-repository 'deb http://deb.debian.org/debian bookworm main' \
+  && apt-get update && apt-get install -y libc6 libc6-dev
+
+RUN rustup component add rustfmt
+
 RUN rustup install 1.78.0 \
   && rustup component add rustfmt clippy --toolchain 1.78.0
 
