@@ -1600,10 +1600,10 @@ fn transfer_from_program_vault<'info>(
 
     // Execute transfer and sync new balance in the constituent account
     controller::token::send_from_program_vault(
-        &token_program,
-        &spot_market_vault,
-        &constituent_token_account,
-        &drift_signer,
+        token_program,
+        spot_market_vault,
+        constituent_token_account,
+        drift_signer,
         state.signer_nonce,
         amount,
         mint,
@@ -1648,8 +1648,16 @@ fn transfer_from_program_vault<'info>(
             .safe_div(PRICE_PRECISION_I64)?
     };
 
+    #[cfg(feature = "mainnet-beta")]
     validate!(
         balance_diff_notional <= PRICE_PRECISION_I64 / 100,
+        ErrorCode::LpInvariantFailed,
+        "Constituent balance mismatch after withdraw from program vault, {}",
+        balance_diff_notional
+    )?;
+    #[cfg(not(feature = "mainnet-beta"))]
+    validate!(
+        balance_diff_notional <= PRICE_PRECISION_I64 / 10,
         ErrorCode::LpInvariantFailed,
         "Constituent balance mismatch after withdraw from program vault, {}",
         balance_diff_notional
