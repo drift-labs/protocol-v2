@@ -793,7 +793,7 @@ pub fn handle_deposit<'c: 'info, 'info>(
     } else {
         DepositExplanation::None
     };
-    let signer = if ctx.accounts.authority.key() == user.authority {
+    let signer = if ctx.accounts.authority.key() != user.authority {
         Some(ctx.accounts.authority.key())
     } else {
         None
@@ -4338,9 +4338,7 @@ pub struct InitializeReferrerName<'info> {
 #[instruction(market_index: u16,)]
 pub struct Deposit<'info> {
     pub state: Box<Account<'info, State>>,
-    #[account(
-        mut
-    )]
+    #[account(mut)]
     pub user: AccountLoader<'info, User>,
     #[account(
         mut,
