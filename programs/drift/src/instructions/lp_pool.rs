@@ -1588,7 +1588,16 @@ fn transfer_from_program_vault<'info>(
 
     let balance_before = constituent.get_full_token_amount(&spot_market)?;
 
-    let max_transfer = constituent.get_max_transfer(&spot_market)?;
+    let max_transfer = constituent
+        .max_borrow_token_amount
+        .cast::<i128>()?
+        .safe_add(
+            constituent
+                .spot_balance
+                .get_signed_token_amount(spot_market)?,
+        )?
+        .max(0)
+        .cast::<u64>()?;
 
     validate!(
         max_transfer >= amount,

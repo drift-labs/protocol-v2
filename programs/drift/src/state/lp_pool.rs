@@ -978,19 +978,6 @@ impl Constituent {
             bytemuck::bytes_of(bump),
         ]
     }
-
-    pub fn get_max_transfer(&self, spot_market: &SpotMarket) -> DriftResult<u64> {
-        let token_amount = self.get_full_token_amount(spot_market)?;
-        let max_transfer = if token_amount < 0 {
-            self.max_borrow_token_amount
-                .saturating_sub(token_amount.abs().cast::<u64>()?)
-        } else {
-            self.max_borrow_token_amount
-                .saturating_add(token_amount.abs().cast::<u64>()?)
-        };
-
-        Ok(max_transfer)
-    }
 }
 
 #[zero_copy]

@@ -1571,7 +1571,7 @@ describe('LP Pool', () => {
 			);
 		} catch (e) {
 			console.log(e);
-			assert(e.toString().includes('0x18b9')); // invariant failed
+			assert(e.toString().includes('0x18c1')); // invariant failed
 		}
 	});
 
