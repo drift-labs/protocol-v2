@@ -22,6 +22,7 @@ use crate::controller::spot_position::{
 };
 use crate::error::ErrorCode;
 use crate::ids::admin_hot_wallet;
+use crate::ids::dflow_mainnet_aggregator_4;
 use crate::ids::{
     jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, lighthouse, marinade_mainnet,
     serum_program,
@@ -3678,6 +3679,7 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
                     jupiter_mainnet_3::ID,
                     jupiter_mainnet_4::ID,
                     jupiter_mainnet_6::ID,
+                    dflow_mainnet_aggregator_4::ID,
                 ];
                 if !delegate_is_signer {
                     whitelisted_programs.push(Token::id());
