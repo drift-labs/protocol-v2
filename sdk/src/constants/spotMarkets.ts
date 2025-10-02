@@ -958,6 +958,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		pythFeedId:
 			'0xf2b3ab1c49e35e881003c3c0482d18b181a1560b697b844c24c8f85aba1cab95',
 		pythLazerId: 2316,
+		launchTs: 1759412919000,
 	},
 ];
 
