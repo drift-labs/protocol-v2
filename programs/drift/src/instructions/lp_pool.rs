@@ -1588,9 +1588,14 @@ fn transfer_from_program_vault<'info>(
 
     let balance_before = constituent.get_full_token_amount(&spot_market)?;
 
-    // Adding some 1% flexibility to max threshold to prevent race conditions
+    // Adding some 5% flexibility to max threshold to prevent race conditions
+    let buffer = constituent
+        .max_borrow_token_amount
+        .safe_mul(5)?
+        .safe_div(100)?;
     let max_transfer = constituent
         .max_borrow_token_amount
+        .safe_add(buffer)?
         .cast::<i128>()?
         .safe_add(
             constituent
@@ -1598,14 +1603,12 @@ fn transfer_from_program_vault<'info>(
                 .get_signed_token_amount(spot_market)?,
         )?
         .max(0)
-        .safe_mul(101)?
-        .safe_div(100)?
         .cast::<u64>()?;
 
     validate!(
         max_transfer >= amount,
         ErrorCode::LpInvariantFailed,
-        "Max transfer ({} is less than amount ({})",
+        "Max transfer ({}) is less than amount ({})",
         max_transfer,
         amount
     )?;
