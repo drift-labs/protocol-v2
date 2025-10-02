@@ -1338,6 +1338,19 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 			'0x9873512f5cb33c77ad7a5af098d74812c62111166be395fd0941c8cedb9b00d4',
 		pythLazerId: 2312,
 	},
+	{
+		fullName: 'Double Zero',
+		category: ['Infra'],
+		symbol: '2Z-PERP',
+		baseAssetSymbol: '2Z',
+		marketIndex: 78,
+		oracle: new PublicKey('4HTDpcHAwBTHCJLNMwT35w4FGc4nfA4YhT1BkcZQwQ2m'),
+		launchTs: 1759412919000,
+		oracleSource: OracleSource.PYTH_LAZER,
+		pythFeedId:
+			'0xf2b3ab1c49e35e881003c3c0482d18b181a1560b697b844c24c8f85aba1cab95',
+		pythLazerId: 2316,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
