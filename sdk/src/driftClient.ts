@@ -7827,7 +7827,8 @@ export class DriftClient {
 			settleeUserAccountPublicKey: PublicKey;
 			settleeUserAccount: UserAccount;
 		}[],
-		marketIndexes: number[]
+		marketIndexes: number[],
+		revenueShareEscrowMap?: RevenueShareEscrowMap
 	): Promise<Array<TransactionInstruction>> {
 		const ixs = [];
 		for (const { settleeUserAccountPublicKey, settleeUserAccount } of users) {
@@ -7836,7 +7837,8 @@ export class DriftClient {
 					await this.settlePNLIx(
 						settleeUserAccountPublicKey,
 						settleeUserAccount,
-						marketIndex
+						marketIndex,
+						revenueShareEscrowMap
 					)
 				);
 			}
@@ -7851,7 +7853,7 @@ export class DriftClient {
 		marketIndex: number,
 		txParams?: TxParams,
 		optionalIxs?: TransactionInstruction[],
-		escrowMap?: RevenueShareEscrowMap
+		revenueShareEscrowMap?: RevenueShareEscrowMap
 	): Promise<TransactionSignature> {
 		const lookupTableAccounts = await this.fetchAllLookupTableAccounts();
 
@@ -7861,7 +7863,7 @@ export class DriftClient {
 					settleeUserAccountPublicKey,
 					settleeUserAccount,
 					marketIndex,
-					escrowMap
+					revenueShareEscrowMap
 				),
 				txParams,
 				undefined,
