@@ -2066,6 +2066,12 @@ pub mod drift {
         handle_override_amm_cache_info(ctx, market_index, override_params)
     }
 
+    pub fn reset_amm_cache<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, ResetAmmCache<'info>>,
+    ) -> Result<()> {
+        handle_reset_amm_cache(ctx)
+    }
+
     pub fn lp_pool_swap<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, LPPoolSwap<'info>>,
         in_market_index: u16,

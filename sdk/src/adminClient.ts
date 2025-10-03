@@ -715,6 +715,7 @@ export class AdminClient extends DriftClient {
 			lastFeePoolTokenAmount?: BN;
 			lastNetPnlPoolTokenAmount?: BN;
 			ammPositionScalar?: number;
+			ammInventoryLimit?: BN;
 		},
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
@@ -737,6 +738,7 @@ export class AdminClient extends DriftClient {
 			lastFeePoolTokenAmount?: BN;
 			lastNetPnlPoolTokenAmount?: BN;
 			ammPositionScalar?: number;
+			ammInventoryLimit?: BN;
 		}
 	): Promise<TransactionInstruction> {
 		return this.program.instruction.overrideAmmCacheInfo(
@@ -749,6 +751,7 @@ export class AdminClient extends DriftClient {
 					lastFeePoolTokenAmount: null,
 					lastNetPnlPoolTokenAmount: null,
 					ammPositionScalar: null,
+					ammInventoryLimit: null,
 				},
 				params
 			),

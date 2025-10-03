@@ -8428,6 +8428,32 @@
       ]
     },
     {
+      "name": "resetAmmCache",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "ammCache",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "lpPoolSwap",
       "accounts": [
         {
@@ -12074,6 +12100,12 @@
             "type": {
               "option": "u8"
             }
+          },
+          {
+            "name": "ammInventoryLimit",
+            "type": {
+              "option": "i64"
+            }
           }
         ]
       }
@@ -12155,6 +12187,10 @@
             "type": "i64"
           },
           {
+            "name": "ammInventoryLimit",
+            "type": "i64"
+          },
+          {
             "name": "oraclePrice",
             "type": "i64"
           },
@@ -12183,7 +12219,7 @@
             "type": {
               "array": [
                 "u8",
-                12
+                36
               ]
             }
           }

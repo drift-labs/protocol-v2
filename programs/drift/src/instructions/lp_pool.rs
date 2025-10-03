@@ -134,7 +134,10 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
             inventory: cache_info
                 .position
                 .safe_mul(cache_info.amm_position_scalar as i64)?
-                .safe_div(100)?,
+                .safe_div(100)?
+                .abs()
+                .min(cache_info.amm_inventory_limit)
+                .safe_mul(cache_info.position.signum())?,
             price: cache_info.oracle_price,
         });
     }
@@ -1588,9 +1591,14 @@ fn transfer_from_program_vault<'info>(
 
     let balance_before = constituent.get_full_token_amount(&spot_market)?;
 
-    // Adding some 1% flexibility to max threshold to prevent race conditions
+    // Adding some 5% flexibility to max threshold to prevent race conditions
+    let buffer = constituent
+        .max_borrow_token_amount
+        .safe_mul(5)?
+        .safe_div(100)?;
     let max_transfer = constituent
         .max_borrow_token_amount
+        .safe_add(buffer)?
         .cast::<i128>()?
         .safe_add(
             constituent
@@ -1598,14 +1606,12 @@ fn transfer_from_program_vault<'info>(
                 .get_signed_token_amount(spot_market)?,
         )?
         .max(0)
-        .safe_mul(101)?
-        .safe_div(100)?
         .cast::<u64>()?;
 
     validate!(
         max_transfer >= amount,
         ErrorCode::LpInvariantFailed,
-        "Max transfer ({} is less than amount ({})",
+        "Max transfer ({}) is less than amount ({})",
         max_transfer,
         amount
     )?;
