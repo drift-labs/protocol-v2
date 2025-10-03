@@ -84,4 +84,4 @@ async function initializeGrpcDriftClientV2() {
     console.log('Received required number of updates.');
 }
 
-initializeDriftClient().catch(console.error);
+initializeGrpcDriftClientV2().catch(console.error);
