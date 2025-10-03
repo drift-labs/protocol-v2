@@ -29,6 +29,7 @@ export * from './accounts/pollingInsuranceFundStakeAccountSubscriber';
 export * from './accounts/pollingHighLeverageModeConfigAccountSubscriber';
 export * from './accounts/basicUserAccountSubscriber';
 export * from './accounts/oneShotUserAccountSubscriber';
+export * from './accounts/oneShotUserStatsAccountSubscriber';
 export * from './accounts/types';
 export * from './addresses/pda';
 export * from './adminClient';

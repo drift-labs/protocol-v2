@@ -924,7 +924,7 @@ export class DriftClient {
 			this.userStats = new UserStats({
 				driftClient: this,
 				userStatsAccountPublicKey: this.userStatsAccountPublicKey,
-				accountSubscription: this.userAccountSubscriptionConfig,
+				accountSubscription: this.userStatsAccountSubscriptionConfig,
 			});
 
 			this.userStats.subscribe();
