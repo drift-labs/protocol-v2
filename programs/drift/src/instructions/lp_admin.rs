@@ -4,7 +4,7 @@ use crate::ids::{admin_hot_wallet, lp_pool_swap_wallet};
 use crate::instructions::optional_accounts::{get_token_mint, load_maps, AccountMaps};
 use crate::math::constants::{PRICE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX};
 use crate::math::safe_math::SafeMath;
-use crate::state::amm_cache::{AmmCache, AMM_POSITIONS_CACHE};
+use crate::state::amm_cache::{AmmCache, CacheInfo, AMM_POSITIONS_CACHE};
 use crate::state::lp_pool::{
     AmmConstituentDatum, AmmConstituentMapping, Constituent, ConstituentCorrelations,
     ConstituentTargetBase, LPPool, TargetsDatum, AMM_MAP_PDA_SEED,
@@ -937,6 +937,21 @@ pub fn handle_update_initial_amm_cache_info<'c: 'info, 'info>(
 
     Ok(())
 }
+
+pub fn handle_reset_amm_cache(ctx: Context<ResetAmmCache>) -> Result<()> {
+    let state = &ctx.accounts.state;
+    let amm_cache = &mut ctx.accounts.amm_cache;
+
+    amm_cache.cache.clear();
+    amm_cache
+        .cache
+        .resize_with(state.number_of_markets as usize, CacheInfo::default);
+    amm_cache.validate(state)?;
+
+    msg!("AMM cache reset. markets: {}", state.number_of_markets);
+    Ok(())
+}
+
 #[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq)]
 pub struct OverrideAmmCacheParams {
     pub quote_owed_from_lp_pool: Option<i64>,
@@ -1367,4 +1382,24 @@ pub struct UpdateInitialAmmCacheInfo<'info> {
         bump = amm_cache.bump,
     )]
     pub amm_cache: Box<Account<'info, AmmCache>>,
+}
+
+#[derive(Accounts)]
+pub struct ResetAmmCache<'info> {
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        seeds = [AMM_POSITIONS_CACHE.as_ref()],
+        bump = amm_cache.bump,
+        realloc = AmmCache::space(state.number_of_markets as usize),
+        realloc::payer = admin,
+        realloc::zero = false,
+    )]
+    pub amm_cache: Box<Account<'info, AmmCache>>,
+    pub system_program: Program<'info, System>,
 }

@@ -57,11 +57,11 @@ pub struct CacheInfo {
     pub oracle_validity: u8,
     pub lp_status_for_perp_market: u8,
     pub amm_position_scalar: u8,
-    _padding: [u8; 28],
+    _padding: [u8; 36],
 }
 
 impl Size for CacheInfo {
-    const SIZE: usize = 224;
+    const SIZE: usize = 230;
 }
 
 impl Default for CacheInfo {
@@ -86,7 +86,7 @@ impl Default for CacheInfo {
             quote_owed_from_lp_pool: 0i64,
             lp_status_for_perp_market: 0u8,
             amm_position_scalar: 0u8,
-            _padding: [0u8; 28],
+            _padding: [0u8; 36],
         }
     }
 }
