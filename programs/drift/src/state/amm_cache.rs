@@ -22,7 +22,7 @@ use anchor_lang::prelude::*;
 
 use super::user::MarketType;
 
-pub const AMM_POSITIONS_CACHE: &str = "amm_cache";
+pub const AMM_POSITIONS_CACHE: &str = "amm_cache_seed";
 
 #[account]
 #[derive(Debug)]
@@ -57,7 +57,7 @@ pub struct CacheInfo {
     pub oracle_validity: u8,
     pub lp_status_for_perp_market: u8,
     pub amm_position_scalar: u8,
-    _padding: [u8; 36],
+    pub _padding: [u8; 36],
 }
 
 impl Size for CacheInfo {

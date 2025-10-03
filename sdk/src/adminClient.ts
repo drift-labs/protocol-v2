@@ -767,6 +767,32 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async resetAmmCache(
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const initializeAmmCacheIx = await this.getResetAmmCacheIx();
+		const tx = await this.buildTransaction(initializeAmmCacheIx, txParams);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getResetAmmCacheIx(): Promise<TransactionInstruction> {
+		return this.program.instruction.resetAmmCache(
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					admin: this.isSubscribed
+						? this.getStateAccount().admin
+						: this.wallet.publicKey,
+					ammCache: getAmmCachePublicKey(this.program.programId),
+					systemProgram: anchor.web3.SystemProgram.programId,
+				},
+			}
+		);
+	}
+
 	public async initializePredictionMarket(
 		perpMarketIndex: number
 	): Promise<TransactionSignature> {
