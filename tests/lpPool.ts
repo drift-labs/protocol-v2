@@ -722,6 +722,19 @@ describe('LP Pool', () => {
 		);
 		await adminClient.updateAmmCache([0, 1, 2]);
 
+		await adminClient.overrideAmmCacheInfo(0, {
+			ammPositionScalar: 100,
+			ammInventoryLimit: BASE_PRECISION.muln(5000),
+		});
+		await adminClient.overrideAmmCacheInfo(1, {
+			ammPositionScalar: 100,
+			ammInventoryLimit: BASE_PRECISION.muln(5000),
+		});
+		await adminClient.overrideAmmCacheInfo(2, {
+			ammPositionScalar: 100,
+			ammInventoryLimit: BASE_PRECISION.muln(5000),
+		});
+
 		let tx = new Transaction();
 		tx.add(await adminClient.getUpdateAmmCacheIx([0, 1, 2]));
 		tx.add(

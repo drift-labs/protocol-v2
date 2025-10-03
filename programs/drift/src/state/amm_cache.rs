@@ -50,17 +50,18 @@ pub struct CacheInfo {
     pub last_settle_slot: u64,
     pub last_settle_ts: i64,
     pub quote_owed_from_lp_pool: i64,
+    pub amm_inventory_limit: i64,
     pub oracle_price: i64,
     pub oracle_slot: u64,
     pub oracle_source: u8,
     pub oracle_validity: u8,
     pub lp_status_for_perp_market: u8,
     pub amm_position_scalar: u8,
-    pub _padding: [u8; 12],
+    _padding: [u8; 28],
 }
 
 impl Size for CacheInfo {
-    const SIZE: usize = 192;
+    const SIZE: usize = 224;
 }
 
 impl Default for CacheInfo {
@@ -80,11 +81,12 @@ impl Default for CacheInfo {
             last_settle_ts: 0i64,
             last_settle_amm_pnl: 0i128,
             last_settle_amm_ex_fees: 0u128,
+            amm_inventory_limit: 0i64,
             oracle_source: 0u8,
             quote_owed_from_lp_pool: 0i64,
             lp_status_for_perp_market: 0u8,
-            amm_position_scalar: 100u8,
-            _padding: [0u8; 12],
+            amm_position_scalar: 0u8,
+            _padding: [0u8; 28],
         }
     }
 }

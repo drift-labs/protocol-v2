@@ -1415,9 +1415,9 @@ export interface IWallet {
 	publicKey: PublicKey;
 	payer?: Keypair;
 	supportedTransactionVersions?:
-	| ReadonlySet<TransactionVersion>
-	| null
-	| undefined;
+		| ReadonlySet<TransactionVersion>
+		| null
+		| undefined;
 }
 export interface IVersionedWallet {
 	signVersionedTransaction(

@@ -944,6 +944,7 @@ pub struct OverrideAmmCacheParams {
     pub last_fee_pool_token_amount: Option<u128>,
     pub last_net_pnl_pool_token_amount: Option<i128>,
     pub amm_position_scalar: Option<u8>,
+    pub amm_inventory_limit: Option<i64>,
 }
 
 pub fn handle_override_amm_cache_info<'c: 'info, 'info>(
@@ -975,6 +976,14 @@ pub fn handle_override_amm_cache_info<'c: 'info, 'info>(
 
     if let Some(amm_position_scalar) = override_params.amm_position_scalar {
         cache_entry.amm_position_scalar = amm_position_scalar;
+    }
+
+    if let Some(amm_position_scalar) = override_params.amm_position_scalar {
+        cache_entry.amm_position_scalar = amm_position_scalar;
+    }
+
+    if let Some(amm_inventory_limit) = override_params.amm_inventory_limit {
+        cache_entry.amm_inventory_limit = amm_inventory_limit;
     }
 
     Ok(())

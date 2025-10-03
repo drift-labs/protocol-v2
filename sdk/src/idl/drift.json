@@ -12074,6 +12074,12 @@
             "type": {
               "option": "u8"
             }
+          },
+          {
+            "name": "ammInventoryLimit",
+            "type": {
+              "option": "i64"
+            }
           }
         ]
       }
@@ -12155,6 +12161,10 @@
             "type": "i64"
           },
           {
+            "name": "ammInventoryLimit",
+            "type": "i64"
+          },
+          {
             "name": "oraclePrice",
             "type": "i64"
           },
@@ -12183,7 +12193,7 @@
             "type": {
               "array": [
                 "u8",
-                12
+                28
               ]
             }
           }
