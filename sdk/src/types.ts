@@ -1410,6 +1410,10 @@ export interface IVersionedWallet {
 	payer?: Keypair;
 }
 
+export interface IWalletV2 extends IWallet {
+	signMessage(message: Uint8Array): Promise<Uint8Array>;
+}
+
 export type FeeStructure = {
 	feeTiers: FeeTier[];
 	fillerRewardStructure: OrderFillerRewardStructure;
