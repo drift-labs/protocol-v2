@@ -1107,7 +1107,7 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
         )
         .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
 
-        controller::pnl::settle_pnl(
+        let res = controller::pnl::settle_pnl(
             market_index,
             user,
             ctx.accounts.authority.key,
@@ -1119,8 +1119,14 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
             state,
             None,
             SettlePnlMode::MustSettle,
-        )
-        .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
+        );
+        if let Err(e) = res {
+            if e != ErrorCode::UserHasNoPositionInMarket {
+                return Err(e.into());
+            } else {
+                msg!("User has no position in market {}", market_index);
+            }
+        }
     }
 
     if state.builder_codes_enabled() || state.builder_referral_enabled() {
@@ -1223,7 +1229,7 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
             )
             .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
 
-            controller::pnl::settle_pnl(
+            let res = controller::pnl::settle_pnl(
                 *market_index,
                 user,
                 ctx.accounts.authority.key,
@@ -1235,8 +1241,14 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
                 state,
                 Some(meets_margin_requirement),
                 mode,
-            )
-            .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
+            );
+            if let Err(e) = res {
+                if e != ErrorCode::UserHasNoPositionInMarket {
+                    return Err(e.into());
+                } else {
+                    msg!("User has no position in market {}", market_index);
+                }
+            }
         }
 
         if state.builder_codes_enabled() || state.builder_referral_enabled() {
