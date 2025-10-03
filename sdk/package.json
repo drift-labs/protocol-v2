@@ -3,7 +3,7 @@
 	"version": "2.142.0-beta.0",
 	"main": "lib/node/index.js",
 	"types": "lib/node/index.d.ts",
-	"browser": "./lib/browser/index.js",
+	"module": "./lib/browser/index.js",
 	"author": "crispheaney",
 	"homepage": "https://www.drift.trade/",
 	"repository": {
@@ -137,5 +137,11 @@
 		"chalk-template": "<1.1.1",
 		"supports-hyperlinks": "<4.1.1",
 		"has-ansi": "<6.0.1"
+	},
+	"browser": {
+		"helius-laserstream": false,
+		"@triton-one/yellowstone-grpc": false,
+		"@grpc/grpc-js": false,
+		"zstddec": false
 	}
 }
