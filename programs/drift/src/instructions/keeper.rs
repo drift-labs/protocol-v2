@@ -1104,8 +1104,7 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
             &mut oracle_map,
             state,
             &clock,
-        )
-        .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
+        )?;
 
         controller::pnl::settle_pnl(
             market_index,
@@ -1119,8 +1118,7 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
             state,
             None,
             SettlePnlMode::MustSettle,
-        )
-        .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
+        )?;
     }
 
     if state.builder_codes_enabled() || state.builder_referral_enabled() {
@@ -1220,8 +1218,7 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
                 &mut oracle_map,
                 state,
                 &clock,
-            )
-            .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
+            )?;
 
             controller::pnl::settle_pnl(
                 *market_index,
@@ -1235,8 +1232,7 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
                 state,
                 Some(meets_margin_requirement),
                 mode,
-            )
-            .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
+            )?;
         }
 
         if state.builder_codes_enabled() || state.builder_referral_enabled() {
