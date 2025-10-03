@@ -136,7 +136,19 @@ export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAcco
 				'perpMarket',
 				this.program,
 				undefined,
-				this.resubOpts
+				this.resubOpts,
+				undefined,
+				async () => {
+					try {
+						if (this.resubOpts?.logResubMessages) {
+							console.log('[grpcDriftClientAccountSubscriberV2] perp markets subscriber unsubscribed; resubscribing');
+						}
+						await this.subscribeToPerpMarketAccounts();
+					} catch (e) {
+						console.error('Perp markets resubscribe failed:', e);
+					}
+				}
+				
 			);
 		await this.perpMarketsSubscriber.subscribe(
 			perpMarketPubkeys,
@@ -165,7 +177,18 @@ export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAcco
 				'spotMarket',
 				this.program,
 				undefined,
-				this.resubOpts
+				this.resubOpts,
+				undefined,
+				async () => {
+					try {
+						if (this.resubOpts?.logResubMessages) {
+							console.log('[grpcDriftClientAccountSubscriberV2] spot markets subscriber unsubscribed; resubscribing');
+						}
+						await this.subscribeToSpotMarketAccounts();
+					} catch (e) {
+						console.error('Spot markets resubscribe failed:', e);
+					}
+				}
 			);
 		await this.spotMarketsSubscriber.subscribe(
 			spotMarketPubkeys,
@@ -221,7 +244,18 @@ export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAcco
 					);
 					return client.getOraclePriceDataFromBuffer(buffer);
 				},
-				this.resubOpts
+				this.resubOpts,
+				undefined,
+				async () => {
+					try {
+						if (this.resubOpts?.logResubMessages) {
+							console.log('[grpcDriftClientAccountSubscriberV2] oracle subscriber unsubscribed; resubscribing');
+						}
+						await this.subscribeToOracles();
+					} catch (e) {
+						console.error('Oracle resubscribe failed:', e);
+					}
+				}
 			);
 
 		await this.oracleMultiSubscriber.subscribe(
@@ -232,6 +266,7 @@ export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAcco
 				this.eventEmitter.emit('update');
 			}
 		);
+
 
 		return true;
 	}

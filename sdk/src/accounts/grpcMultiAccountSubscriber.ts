@@ -29,6 +29,7 @@ export class grpcMultiAccountSubscriber<T> {
 	private accountName: string;
 	private decodeBufferFn?: (buffer: Buffer, pubkey?: string) => T;
 	private resubOpts?: ResubOpts;
+	private onUnsubscribe?: () => Promise<void>;
 
 	public listenerId?: number;
 	public isUnsubscribing = false;
@@ -47,7 +48,8 @@ export class grpcMultiAccountSubscriber<T> {
 		accountName: string,
 		program: Program,
 		decodeBuffer?: (buffer: Buffer, pubkey?: string) => T,
-		resubOpts?: ResubOpts
+		resubOpts?: ResubOpts,
+		onUnsubscribe?: () => Promise<void>
 	) {
 		this.client = client;
 		this.commitmentLevel = commitmentLevel;
@@ -55,6 +57,7 @@ export class grpcMultiAccountSubscriber<T> {
 		this.program = program;
 		this.decodeBufferFn = decodeBuffer;
 		this.resubOpts = resubOpts;
+		this.onUnsubscribe = onUnsubscribe;
 	}
 
 	public static async create<U>(
@@ -63,7 +66,8 @@ export class grpcMultiAccountSubscriber<T> {
 		program: Program,
 		decodeBuffer?: (buffer: Buffer, pubkey?: string) => U,
 		resubOpts?: ResubOpts,
-		clientProp?: Client
+		clientProp?: Client,
+		onUnsubscribe?: () => Promise<void>
 	): Promise<grpcMultiAccountSubscriber<U>> {
 		const client = clientProp
 			? clientProp
@@ -82,7 +86,8 @@ export class grpcMultiAccountSubscriber<T> {
 			accountName,
 			program,
 			decodeBuffer,
-			resubOpts
+			resubOpts,
+			onUnsubscribe
 		);
 	}
 
@@ -291,6 +296,14 @@ export class grpcMultiAccountSubscriber<T> {
 		} else {
 			this.isUnsubscribing = false;
 		}
+
+		if(this.onUnsubscribe) {
+			try {
+				await this.onUnsubscribe();
+			} catch (e) {
+				console.error(e);
+			}
+		}
 	}
 
 	private setTimeout(): void {
@@ -302,7 +315,6 @@ export class grpcMultiAccountSubscriber<T> {
 				if (this.receivingData) {
 					await this.unsubscribe();
 					this.receivingData = false;
-					// Caller should handle resubscribe; keep minimal to avoid duplication
 				}
 			},
 			this.resubOpts?.resubTimeoutMs
