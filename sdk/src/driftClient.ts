@@ -189,7 +189,8 @@ import {
 } from './tx/utils';
 import pythSolanaReceiverIdl from './idl/pyth_solana_receiver.json';
 import { asV0Tx, PullFeed, AnchorUtils } from '@switchboard-xyz/on-demand';
-import { gprcDriftClientAccountSubscriber } from './accounts/grpcDriftClientAccountSubscriber';
+import { grpcDriftClientAccountSubscriber } from './accounts/grpcDriftClientAccountSubscriber';
+import { grpcDriftClientAccountSubscriberV2 } from './accounts/grpcDriftClientAccountSubscriberV2';
 import nacl from 'tweetnacl';
 import { Slothash } from './slot/SlothashSubscriber';
 import { getOracleId } from './oracles/oracleId';
@@ -434,7 +435,10 @@ export class DriftClient {
 				delistedMarketSetting
 			);
 		} else if (config.accountSubscription?.type === 'grpc') {
-			this.accountSubscriber = new gprcDriftClientAccountSubscriber(
+			const accountSubscriberClass =
+				config.accountSubscription?.driftClientAccountSubscriber ??
+				grpcDriftClientAccountSubscriber;
+			this.accountSubscriber = new accountSubscriberClass(
 				config.accountSubscription.grpcConfigs,
 				this.program,
 				config.perpMarketIndexes ?? [],

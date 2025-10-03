@@ -1,6 +1,7 @@
 import { WebSocketDriftClientAccountSubscriber } from './webSocketDriftClientAccountSubscriber';
 import { OracleInfo, OraclePriceData } from '../oracles/types';
 import { Program } from '@coral-xyz/anchor';
+import { PublicKey } from '@solana/web3.js';
 import { findAllMarketAndOracles } from '../config';
 import {
 	getDriftStateAccountPublicKey,
@@ -9,11 +10,15 @@ import {
 } from '../addresses/pda';
 import { DelistedMarketSetting, GrpcConfigs, ResubOpts } from './types';
 import { grpcAccountSubscriber } from './grpcAccountSubscriber';
+import { grpcMultiAccountSubscriber } from './grpcMultiAccountSubscriber';
 import { PerpMarketAccount, SpotMarketAccount, StateAccount } from '../types';
 import { getOracleId } from '../oracles/oracleId';
 
-export class grpcDriftClientAccountSubscriber extends WebSocketDriftClientAccountSubscriber {
+export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAccountSubscriber {
 	private grpcConfigs: GrpcConfigs;
+	private perpMarketsSubscriber?: grpcMultiAccountSubscriber<PerpMarketAccount>;
+	private spotMarketsSubscriber?: grpcMultiAccountSubscriber<SpotMarketAccount>;
+	private oracleMultiSubscriber?: grpcMultiAccountSubscriber<OraclePriceData>;
 
 	constructor(
 		grpcConfigs: GrpcConfigs,
@@ -94,12 +99,10 @@ export class grpcDriftClientAccountSubscriber extends WebSocketDriftClientAccoun
 		// set initial data to avoid spamming getAccountInfo calls in webSocketAccountSubscriber
 		await this.setInitialData();
 
+		// subscribe to perp + spot markets (separate) and oracles
 		await Promise.all([
-			// subscribe to market accounts
 			this.subscribeToPerpMarketAccounts(),
-			// subscribe to spot market accounts
 			this.subscribeToSpotMarketAccounts(),
-			// subscribe to oracles
 			this.subscribeToOracles(),
 		]);
 
@@ -120,88 +123,133 @@ export class grpcDriftClientAccountSubscriber extends WebSocketDriftClientAccoun
 		return true;
 	}
 
-	override async subscribeToSpotMarketAccount(
-		marketIndex: number
-	): Promise<boolean> {
-		const marketPublicKey = await getSpotMarketPublicKey(
-			this.program.programId,
-			marketIndex
+	override async subscribeToPerpMarketAccounts(): Promise<boolean> {
+		const perpMarketPubkeys = await Promise.all(
+			this.perpMarketIndexes.map((marketIndex) =>
+				getPerpMarketPublicKey(this.program.programId, marketIndex)
+			)
 		);
-		const accountSubscriber =
-			await grpcAccountSubscriber.create<SpotMarketAccount>(
-				this.grpcConfigs,
-				'spotMarket',
-				this.program,
-				marketPublicKey,
-				undefined,
-				this.resubOpts
-			);
-		accountSubscriber.setData(
-			this.initialSpotMarketAccountData.get(marketIndex)
-		);
-		await accountSubscriber.subscribe((data: SpotMarketAccount) => {
-			this.eventEmitter.emit('spotMarketAccountUpdate', data);
-			this.eventEmitter.emit('update');
-		});
-		this.spotMarketAccountSubscribers.set(marketIndex, accountSubscriber);
-		return true;
-	}
 
-	async subscribeToPerpMarketAccount(marketIndex: number): Promise<boolean> {
-		const perpMarketPublicKey = await getPerpMarketPublicKey(
-			this.program.programId,
-			marketIndex
-		);
-		const accountSubscriber =
-			await grpcAccountSubscriber.create<PerpMarketAccount>(
+		this.perpMarketsSubscriber =
+			await grpcMultiAccountSubscriber.create<PerpMarketAccount>(
 				this.grpcConfigs,
 				'perpMarket',
 				this.program,
-				perpMarketPublicKey,
 				undefined,
 				this.resubOpts
 			);
-		accountSubscriber.setData(
-			this.initialPerpMarketAccountData.get(marketIndex)
+		await this.perpMarketsSubscriber.subscribe(
+			perpMarketPubkeys,
+			(_accountId, data) => {
+				this.eventEmitter.emit(
+					'perpMarketAccountUpdate',
+					data as PerpMarketAccount
+				);
+				this.eventEmitter.emit('update');
+			}
 		);
-		await accountSubscriber.subscribe((data: PerpMarketAccount) => {
-			this.eventEmitter.emit('perpMarketAccountUpdate', data);
-			this.eventEmitter.emit('update');
-		});
-		this.perpMarketAccountSubscribers.set(marketIndex, accountSubscriber);
+
 		return true;
 	}
 
-	async subscribeToOracle(oracleInfo: OracleInfo): Promise<boolean> {
-		const oracleId = getOracleId(oracleInfo.publicKey, oracleInfo.source);
-		const client = this.oracleClientCache.get(
-			oracleInfo.source,
-			this.program.provider.connection,
-			this.program
+	override async subscribeToSpotMarketAccounts(): Promise<boolean> {
+		const spotMarketPubkeys = await Promise.all(
+			this.spotMarketIndexes.map((marketIndex) =>
+				getSpotMarketPublicKey(this.program.programId, marketIndex)
+			)
 		);
-		const accountSubscriber =
-			await grpcAccountSubscriber.create<OraclePriceData>(
+
+		this.spotMarketsSubscriber =
+			await grpcMultiAccountSubscriber.create<SpotMarketAccount>(
+				this.grpcConfigs,
+				'spotMarket',
+				this.program,
+				undefined,
+				this.resubOpts
+			);
+		await this.spotMarketsSubscriber.subscribe(
+			spotMarketPubkeys,
+			(_accountId, data) => {
+				this.eventEmitter.emit(
+					'spotMarketAccountUpdate',
+					data as SpotMarketAccount
+				);
+				this.eventEmitter.emit('update');
+			}
+		);
+
+		return true;
+	}
+
+	override async subscribeToOracles(): Promise<boolean> {
+		// Build list of unique oracle pubkeys and a lookup for sources
+		const uniqueOraclePubkeys = new Map<string, OracleInfo>();
+		for (const info of this.oracleInfos) {
+			const id = getOracleId(info.publicKey, info.source);
+			if (
+				!uniqueOraclePubkeys.has(id) &&
+				!info.publicKey.equals((PublicKey as any).default)
+			) {
+				uniqueOraclePubkeys.set(id, info);
+			}
+		}
+
+		const oraclePubkeys = Array.from(uniqueOraclePubkeys.values()).map(
+			(i) => i.publicKey
+		);
+		const pubkeyToSource = new Map<string, OracleInfo['source']>(
+			Array.from(uniqueOraclePubkeys.values()).map((i) => [
+				i.publicKey.toBase58(),
+				i.source,
+			])
+		);
+
+		this.oracleMultiSubscriber =
+			await grpcMultiAccountSubscriber.create<OraclePriceData>(
 				this.grpcConfigs,
 				'oracle',
 				this.program,
-				oracleInfo.publicKey,
-				(buffer: Buffer) => {
+				(buffer: Buffer, pubkey?: string) => {
+					if (!pubkey) {
+						throw new Error('Oracle pubkey missing in decode');
+					}
+					const source = pubkeyToSource.get(pubkey);
+					const client = this.oracleClientCache.get(
+						source,
+						this.program.provider.connection,
+						this.program
+					);
 					return client.getOraclePriceDataFromBuffer(buffer);
 				},
 				this.resubOpts
 			);
-		accountSubscriber.setData(this.initialOraclePriceData.get(oracleId));
-		await accountSubscriber.subscribe((data: OraclePriceData) => {
-			this.eventEmitter.emit(
-				'oraclePriceUpdate',
-				oracleInfo.publicKey,
-				oracleInfo.source,
-				data
-			);
-			this.eventEmitter.emit('update');
-		});
 
-		this.oracleSubscribers.set(oracleId, accountSubscriber);
+		await this.oracleMultiSubscriber.subscribe(
+			oraclePubkeys,
+			(accountId, data) => {
+				const source = pubkeyToSource.get(accountId.toBase58());
+				this.eventEmitter.emit('oraclePriceUpdate', accountId, source, data);
+				this.eventEmitter.emit('update');
+			}
+		);
+
 		return true;
+	}
+
+	async unsubscribeFromOracles(): Promise<void> {
+		if (this.oracleMultiSubscriber) {
+			await this.oracleMultiSubscriber.unsubscribe();
+			this.oracleMultiSubscriber = undefined;
+			return;
+		}
+		await super.unsubscribeFromOracles();
+	}
+
+	override async unsubscribe(): Promise<void> {	
+		if (this.isSubscribed) {
+			return;
+		}
+
+		await this.stateAccountSubscriber.unsubscribe();
 	}
 }
