@@ -54,6 +54,7 @@ export * from './events/parse';
 export * from './events/pollingLogProvider';
 export * from './jupiter/jupiterClient';
 export * from './math/auction';
+export * from './math/builder';
 export * from './math/spotMarket';
 export * from './math/conversion';
 export * from './math/exchangeStatus';
