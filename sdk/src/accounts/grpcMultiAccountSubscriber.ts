@@ -11,7 +11,7 @@ import {
 	SubscribeUpdate,
 	createClient,
 } from '../isomorphic/grpc';
-import { GrpcConfigs, ResubOpts } from './types';
+import { DataAndSlot, GrpcConfigs, ResubOpts } from './types';
 
 interface AccountInfoLike {
 	owner: PublicKey;
@@ -41,6 +41,8 @@ export class grpcMultiAccountSubscriber<T> {
 		string,
 		(data: T, context: Context, buffer: Buffer) => void
 	>();
+
+	private dataMap = new Map<string, DataAndSlot<T>>();
 
 	private constructor(
 		client: Client,
@@ -89,6 +91,14 @@ export class grpcMultiAccountSubscriber<T> {
 			resubOpts,
 			onUnsubscribe
 		);
+	}
+
+	setAccountData(accountPubkey: PublicKey, data: T, slot?: number): void {
+		this.dataMap.set(accountPubkey.toBase58(), { data, slot });
+	}
+
+	getAccountData(accountPubkey: PublicKey): DataAndSlot<T> | undefined {
+		return this.dataMap.get(accountPubkey.toBase58());
 	}
 
 	async subscribe(

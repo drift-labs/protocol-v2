@@ -8,7 +8,12 @@ import {
 	getPerpMarketPublicKey,
 	getSpotMarketPublicKey,
 } from '../addresses/pda';
-import { DelistedMarketSetting, GrpcConfigs, ResubOpts } from './types';
+import {
+	DataAndSlot,
+	DelistedMarketSetting,
+	GrpcConfigs,
+	ResubOpts,
+} from './types';
 import { grpcAccountSubscriber } from './grpcAccountSubscriber';
 import { grpcMultiAccountSubscriber } from './grpcMultiAccountSubscriber';
 import { PerpMarketAccount, SpotMarketAccount, StateAccount } from '../types';
@@ -19,6 +24,8 @@ export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAcco
 	private perpMarketsSubscriber?: grpcMultiAccountSubscriber<PerpMarketAccount>;
 	private spotMarketsSubscriber?: grpcMultiAccountSubscriber<SpotMarketAccount>;
 	private oracleMultiSubscriber?: grpcMultiAccountSubscriber<OraclePriceData>;
+	private perpMarketIndexToAccountPubkeyMap = new Map<number, PublicKey>();
+	private spotMarketIndexToAccountPubkeyMap = new Map<number, PublicKey>();
 
 	constructor(
 		grpcConfigs: GrpcConfigs,
@@ -123,11 +130,39 @@ export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAcco
 		return true;
 	}
 
+	override getMarketAccountAndSlot(
+		marketIndex: number
+	): DataAndSlot<PerpMarketAccount> | undefined {
+		return this.perpMarketsSubscriber?.getAccountData(
+			this.perpMarketIndexToAccountPubkeyMap.get(marketIndex)
+		);
+	}
+
+	override getSpotMarketAccountAndSlot(
+		marketIndex: number
+	): DataAndSlot<SpotMarketAccount> | undefined {
+		return this.spotMarketsSubscriber?.getAccountData(
+			this.spotMarketIndexToAccountPubkeyMap.get(marketIndex)
+		);
+	}
+
 	override async subscribeToPerpMarketAccounts(): Promise<boolean> {
-		const perpMarketPubkeys = await Promise.all(
-			this.perpMarketIndexes.map((marketIndex) =>
-				getPerpMarketPublicKey(this.program.programId, marketIndex)
-			)
+		const perpMarketIndexToAccountPubkeys: Array<[number, PublicKey]> =
+			await Promise.all(
+				this.perpMarketIndexes.map(async (marketIndex) => [
+					marketIndex,
+					await getPerpMarketPublicKey(this.program.programId, marketIndex),
+				])
+			);
+		for (const [
+			marketIndex,
+			accountPubkey,
+		] of perpMarketIndexToAccountPubkeys) {
+			this.perpMarketIndexToAccountPubkeyMap.set(marketIndex, accountPubkey);
+		}
+
+		const perpMarketPubkeys = perpMarketIndexToAccountPubkeys.map(
+			([_, accountPubkey]) => accountPubkey
 		);
 
 		this.perpMarketsSubscriber =
@@ -151,6 +186,11 @@ export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAcco
 					}
 				}
 			);
+
+		for (const data of this.initialPerpMarketAccountData.values()) {
+			this.perpMarketsSubscriber.setAccountData(data.pubkey, data);
+		}
+
 		await this.perpMarketsSubscriber.subscribe(
 			perpMarketPubkeys,
 			(_accountId, data) => {
@@ -166,10 +206,22 @@ export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAcco
 	}
 
 	override async subscribeToSpotMarketAccounts(): Promise<boolean> {
-		const spotMarketPubkeys = await Promise.all(
-			this.spotMarketIndexes.map((marketIndex) =>
-				getSpotMarketPublicKey(this.program.programId, marketIndex)
-			)
+		const spotMarketIndexToAccountPubkeys: Array<[number, PublicKey]> =
+			await Promise.all(
+				this.spotMarketIndexes.map(async (marketIndex) => [
+					marketIndex,
+					await getSpotMarketPublicKey(this.program.programId, marketIndex),
+				])
+			);
+		for (const [
+			marketIndex,
+			accountPubkey,
+		] of spotMarketIndexToAccountPubkeys) {
+			this.spotMarketIndexToAccountPubkeyMap.set(marketIndex, accountPubkey);
+		}
+
+		const spotMarketPubkeys = spotMarketIndexToAccountPubkeys.map(
+			([_, accountPubkey]) => accountPubkey
 		);
 
 		this.spotMarketsSubscriber =
@@ -193,6 +245,11 @@ export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAcco
 					}
 				}
 			);
+
+		for (const data of this.initialSpotMarketAccountData.values()) {
+			this.spotMarketsSubscriber.setAccountData(data.pubkey, data);
+		}
+
 		await this.spotMarketsSubscriber.subscribe(
 			spotMarketPubkeys,
 			(_accountId, data) => {
@@ -262,6 +319,13 @@ export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAcco
 					}
 				}
 			);
+
+		for (const data of this.initialOraclePriceData.entries()) {
+			this.oracleMultiSubscriber.setAccountData(
+				new PublicKey(data[0]),
+				data[1]
+			);
+		}
 
 		await this.oracleMultiSubscriber.subscribe(
 			oraclePubkeys,
