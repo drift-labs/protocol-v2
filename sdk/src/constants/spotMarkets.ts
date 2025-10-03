@@ -141,6 +141,16 @@ export const DevnetSpotMarkets: SpotMarketConfig[] = [
 		pythFeedId:
 			'0x67e031d1723e5c89e4a826d80b2f3b41a91b05ef6122d523b8829a02e0f563aa',
 	},
+	{
+		symbol: 'bSOL',
+		marketIndex: 8,
+		poolId: 2,
+		oracle: new PublicKey('4wFrjUQHzRBc6qjVtMDbt28aEVgn6GaNiWR6vEff4KxR'),
+		oracleSource: OracleSource.Prelaunch,
+		mint: new PublicKey('2vVfXmcWXEaFzp7iaTVnQ4y1gR41S6tJQQMo1S5asJyC'),
+		precision: new BN(10).pow(NINE),
+		precisionExp: NINE,
+	},
 ];
 
 export const MainnetSpotMarkets: SpotMarketConfig[] = [
