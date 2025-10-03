@@ -1669,13 +1669,15 @@ export type RevenueShareEscrowAccount = {
 };
 
 export type RevenueShareOrder = {
-	builderIdx: number;
 	feesAccrued: BN;
 	orderId: number;
 	feeTenthBps: number;
 	marketIndex: number;
+	subAccountId: number;
+	builderIdx: number;
 	bitFlags: number;
-	marketType: MarketType; // 0: spot, 1: perp
+	userOrderIndex: number;
+	marketType: MarketType;
 	padding: number[];
 };
 
