@@ -141,14 +141,15 @@ export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAcco
 				async () => {
 					try {
 						if (this.resubOpts?.logResubMessages) {
-							console.log('[grpcDriftClientAccountSubscriberV2] perp markets subscriber unsubscribed; resubscribing');
+							console.log(
+								'[grpcDriftClientAccountSubscriberV2] perp markets subscriber unsubscribed; resubscribing'
+							);
 						}
 						await this.subscribeToPerpMarketAccounts();
 					} catch (e) {
 						console.error('Perp markets resubscribe failed:', e);
 					}
 				}
-				
 			);
 		await this.perpMarketsSubscriber.subscribe(
 			perpMarketPubkeys,
@@ -182,7 +183,9 @@ export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAcco
 				async () => {
 					try {
 						if (this.resubOpts?.logResubMessages) {
-							console.log('[grpcDriftClientAccountSubscriberV2] spot markets subscriber unsubscribed; resubscribing');
+							console.log(
+								'[grpcDriftClientAccountSubscriberV2] spot markets subscriber unsubscribed; resubscribing'
+							);
 						}
 						await this.subscribeToSpotMarketAccounts();
 					} catch (e) {
@@ -249,7 +252,9 @@ export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAcco
 				async () => {
 					try {
 						if (this.resubOpts?.logResubMessages) {
-							console.log('[grpcDriftClientAccountSubscriberV2] oracle subscriber unsubscribed; resubscribing');
+							console.log(
+								'[grpcDriftClientAccountSubscriberV2] oracle subscriber unsubscribed; resubscribing'
+							);
 						}
 						await this.subscribeToOracles();
 					} catch (e) {
@@ -267,7 +272,6 @@ export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAcco
 			}
 		);
 
-
 		return true;
 	}
 
@@ -280,7 +284,7 @@ export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAcco
 		await super.unsubscribeFromOracles();
 	}
 
-	override async unsubscribe(): Promise<void> {	
+	override async unsubscribe(): Promise<void> {
 		if (this.isSubscribed) {
 			return;
 		}

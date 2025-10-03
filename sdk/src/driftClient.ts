@@ -190,7 +190,6 @@ import {
 import pythSolanaReceiverIdl from './idl/pyth_solana_receiver.json';
 import { asV0Tx, PullFeed, AnchorUtils } from '@switchboard-xyz/on-demand';
 import { grpcDriftClientAccountSubscriber } from './accounts/grpcDriftClientAccountSubscriber';
-import { grpcDriftClientAccountSubscriberV2 } from './accounts/grpcDriftClientAccountSubscriberV2';
 import nacl from 'tweetnacl';
 import { Slothash } from './slot/SlothashSubscriber';
 import { getOracleId } from './oracles/oracleId';

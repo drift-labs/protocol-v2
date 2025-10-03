@@ -297,7 +297,7 @@ export class grpcMultiAccountSubscriber<T> {
 			this.isUnsubscribing = false;
 		}
 
-		if(this.onUnsubscribe) {
+		if (this.onUnsubscribe) {
 			try {
 				await this.onUnsubscribe();
 			} catch (e) {

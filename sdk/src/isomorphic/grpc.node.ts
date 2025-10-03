@@ -6,7 +6,11 @@ import type {
 import { CommitmentLevel } from '@triton-one/yellowstone-grpc';
 import type { ClientDuplexStream, ChannelOptions } from '@grpc/grpc-js';
 
-import { CommitmentLevel as LaserCommitmentLevel, subscribe as LaserSubscribe, CompressionAlgorithms } from 'helius-laserstream';
+import {
+	CommitmentLevel as LaserCommitmentLevel,
+	subscribe as LaserSubscribe,
+	CompressionAlgorithms,
+} from 'helius-laserstream';
 import type {
 	LaserstreamConfig,
 	SubscribeRequest as LaserSubscribeRequest,
