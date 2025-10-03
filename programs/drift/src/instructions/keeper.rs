@@ -1104,8 +1104,7 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
             &mut oracle_map,
             state,
             &clock,
-        )
-        .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
+        )?;
 
         controller::pnl::settle_pnl(
             market_index,
@@ -1219,8 +1218,7 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
                 &mut oracle_map,
                 state,
                 &clock,
-            )
-            .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
+            )?;
 
             controller::pnl::settle_pnl(
                 *market_index,
