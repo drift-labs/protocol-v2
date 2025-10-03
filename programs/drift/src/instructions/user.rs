@@ -582,6 +582,12 @@ pub fn handle_change_approved_builder<'c: 'info, 'info>(
     max_fee_tenth_bps: u16,
     add: bool,
 ) -> Result<()> {
+    validate!(
+        ctx.accounts.escrow.authority != builder,
+        ErrorCode::DefaultError,
+        "Builder cannot be the same as the escrow authority"
+    )?;
+
     let existing_builder_index = ctx
         .accounts
         .escrow
