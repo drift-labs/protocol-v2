@@ -97,8 +97,8 @@ export class grpcMultiAccountSubscriber<T> {
 		this.dataMap.set(accountPubkey.toBase58(), { data, slot });
 	}
 
-	getAccountData(accountPubkey: PublicKey): DataAndSlot<T> | undefined {
-		return this.dataMap.get(accountPubkey.toBase58());
+	getAccountData(accountPubkey: string): DataAndSlot<T> | undefined {
+		return this.dataMap.get(accountPubkey);
 	}
 
 	getAccountDataMap(): Map<string, DataAndSlot<T>> {
