@@ -321,15 +321,18 @@ export class grpcMultiAccountSubscriber<T> {
 	}
 
 	private setTimeout(): void {
-		this.timeoutId = setTimeout(async () => {
-			if (this.isUnsubscribing) {
-				return;
-			}
-			if (this.receivingData) {
-				await this.unsubscribe();
-				this.receivingData = false;
-			}
-		}, this.resubOpts?.resubTimeoutMs);
+		this.timeoutId = setTimeout(
+			async () => {
+				if (this.isUnsubscribing) {
+					return;
+				}
+				if (this.receivingData) {
+					await this.unsubscribe();
+					this.receivingData = false;
+				}
+			},
+			this.resubOpts?.resubTimeoutMs
+		);
 	}
 
 	private capitalize(value: string): string {
