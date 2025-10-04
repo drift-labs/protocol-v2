@@ -101,6 +101,10 @@ export class grpcMultiAccountSubscriber<T> {
 		return this.dataMap.get(accountPubkey.toBase58());
 	}
 
+	getAccountDataMap(): Map<string, DataAndSlot<T>> {
+		return this.dataMap;
+	}
+
 	async subscribe(
 		accounts: PublicKey[],
 		onChange: (

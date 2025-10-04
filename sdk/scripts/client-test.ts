@@ -104,6 +104,12 @@ async function initializeGrpcDriftClientV2() {
 					'Perp market data market index:',
 					perpMarketData?.marketIndex
 				);
+				const oracle = driftClient.getOracleDataForPerpMarket(data.marketIndex);
+				const mmOracle = driftClient.getMMOracleDataForPerpMarket(
+					data.marketIndex
+				);
+				console.log('Perp oracle price:', oracle.price.toString());
+				console.log('Perp MM oracle price:', mmOracle.price.toString());
 				perpMarketUpdateCount++;
 				if (
 					perpMarketUpdateCount >= 10 &&
@@ -127,6 +133,8 @@ async function initializeGrpcDriftClientV2() {
 					'Spot market data market index:',
 					spotMarketData?.marketIndex
 				);
+				const oracle = driftClient.getOracleDataForSpotMarket(data.marketIndex);
+				console.log('Spot oracle price:', oracle.price.toString());
 				spotMarketUpdateCount++;
 				if (
 					perpMarketUpdateCount >= 10 &&
@@ -174,6 +182,21 @@ async function initializeGrpcDriftClientV2() {
 
 	await driftClient.subscribe();
 	console.log('DriftClient initialized and listening for updates.');
+
+	for (const marketIndex of config.perpMarketIndexes) {
+		const oracle = driftClient.getOracleDataForPerpMarket(marketIndex);
+		const mmOracle = driftClient.getMMOracleDataForPerpMarket(marketIndex);
+		console.log('Initial perp oracle price:', oracle.price.toString());
+		console.log('Initial perp MM oracle price:', mmOracle.price.toString());
+	}
+
+	for (const marketIndex of config.spotMarketIndexes) {
+		const oracle = driftClient.getOracleDataForSpotMarket(marketIndex);
+		console.log('Initial spot oracle price:', oracle.price.toString());
+	}
+
+	const stateAccount = driftClient.getStateAccount();
+	console.log('Initial state account:', stateAccount.toString());
 
 	await updatePromise;
 	console.log('Received required number of updates.');
