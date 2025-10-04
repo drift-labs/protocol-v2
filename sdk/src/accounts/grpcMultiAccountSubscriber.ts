@@ -101,6 +101,10 @@ export class grpcMultiAccountSubscriber<T> {
 		return this.dataMap.get(accountPubkey.toBase58());
 	}
 
+	getAccountDataMap(): Map<string, DataAndSlot<T>> {
+		return this.dataMap;
+	}
+
 	async subscribe(
 		accounts: PublicKey[],
 		onChange: (
@@ -317,18 +321,15 @@ export class grpcMultiAccountSubscriber<T> {
 	}
 
 	private setTimeout(): void {
-		this.timeoutId = setTimeout(
-			async () => {
-				if (this.isUnsubscribing) {
-					return;
-				}
-				if (this.receivingData) {
-					await this.unsubscribe();
-					this.receivingData = false;
-				}
-			},
-			this.resubOpts?.resubTimeoutMs
-		);
+		this.timeoutId = setTimeout(async () => {
+			if (this.isUnsubscribing) {
+				return;
+			}
+			if (this.receivingData) {
+				await this.unsubscribe();
+				this.receivingData = false;
+			}
+		}, this.resubOpts?.resubTimeoutMs);
 	}
 
 	private capitalize(value: string): string {

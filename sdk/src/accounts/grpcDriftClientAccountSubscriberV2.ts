@@ -149,6 +149,58 @@ export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAcco
 		);
 	}
 
+	override async setPerpOracleMap() {
+		const perpMarketsMap = this.perpMarketsSubscriber?.getAccountDataMap();
+		const perpMarkets = Array.from(perpMarketsMap.values());
+		const addOraclePromises = [];
+		for (const perpMarket of perpMarkets) {
+			if (!perpMarket || !perpMarket.data) {
+				continue;
+			}
+			const perpMarketAccount = perpMarket.data;
+			const perpMarketIndex = perpMarketAccount.marketIndex;
+			const oracle = perpMarketAccount.amm.oracle;
+			const oracleId = getOracleId(oracle, perpMarket.data.amm.oracleSource);
+			if (!this.oracleSubscribers.has(oracleId)) {
+				addOraclePromises.push(
+					this.addOracle({
+						publicKey: oracle,
+						source: perpMarket.data.amm.oracleSource,
+					})
+				);
+			}
+			this.perpOracleMap.set(perpMarketIndex, oracle);
+			this.perpOracleStringMap.set(perpMarketIndex, oracleId);
+		}
+		await Promise.all(addOraclePromises);
+	}
+
+	override async setSpotOracleMap() {
+		const spotMarketsMap = this.spotMarketsSubscriber?.getAccountDataMap();
+		const spotMarkets = Array.from(spotMarketsMap.values());
+		const addOraclePromises = [];
+		for (const spotMarket of spotMarkets) {
+			if (!spotMarket || !spotMarket.data) {
+				continue;
+			}
+			const spotMarketAccount = spotMarket.data;
+			const spotMarketIndex = spotMarketAccount.marketIndex;
+			const oracle = spotMarketAccount.oracle;
+			const oracleId = getOracleId(oracle, spotMarketAccount.oracleSource);
+			if (!this.oracleSubscribers.has(oracleId)) {
+				addOraclePromises.push(
+					this.addOracle({
+						publicKey: oracle,
+						source: spotMarketAccount.oracleSource,
+					})
+				);
+			}
+			this.spotOracleMap.set(spotMarketIndex, oracle);
+			this.spotOracleStringMap.set(spotMarketIndex, oracleId);
+		}
+		await Promise.all(addOraclePromises);
+	}
+
 	override async subscribeToPerpMarketAccounts(): Promise<boolean> {
 		const perpMarketIndexToAccountPubkeys: Array<[number, PublicKey]> =
 			await Promise.all(
