@@ -2,9 +2,21 @@ import { DriftClient } from '../src/driftClient';
 import { grpcDriftClientAccountSubscriberV2 } from '../src/accounts/grpcDriftClientAccountSubscriberV2';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { DriftClientConfig } from '../src/driftClientConfig';
-import { decodeName, DRIFT_PROGRAM_ID, Wallet } from '../src';
+import {
+	decodeName,
+	DRIFT_PROGRAM_ID,
+	PerpMarketAccount,
+	Wallet,
+} from '../src';
 import { CommitmentLevel } from '@triton-one/yellowstone-grpc';
 import dotenv from 'dotenv';
+import {
+	AnchorProvider,
+	Idl,
+	Program,
+	ProgramAccount,
+} from '@coral-xyz/anchor';
+import driftIDL from '../src/idl/drift.json';
 
 const GRPC_ENDPOINT = process.env.GRPC_ENDPOINT;
 const TOKEN = process.env.TOKEN;
@@ -13,6 +25,43 @@ async function initializeGrpcDriftClientV2() {
 	const connection = new Connection('https://api.mainnet-beta.solana.com');
 	const wallet = new Wallet(new Keypair());
 	dotenv.config({ path: '../' });
+
+	const programId = new PublicKey(DRIFT_PROGRAM_ID);
+	const provider = new AnchorProvider(
+		connection,
+		// @ts-ignore
+		wallet,
+		{
+			commitment: 'confirmed',
+		}
+	);
+
+	const program = new Program(driftIDL as Idl, programId, provider);
+
+	const perpMarketProgramAccounts =
+		(await program.account.perpMarket.all()) as ProgramAccount<PerpMarketAccount>[];
+	const solPerpMarket = perpMarketProgramAccounts.find(
+		(account) => account.account.marketIndex === 0
+	);
+	const solOracleInfo = {
+		publicKey: solPerpMarket.account.amm.oracle,
+		source: solPerpMarket.account.amm.oracleSource,
+	};
+	const ethPerpMarket = perpMarketProgramAccounts.find(
+		(account) => account.account.marketIndex === 2
+	);
+	const ethOracleInfo = {
+		publicKey: ethPerpMarket.account.amm.oracle,
+		source: ethPerpMarket.account.amm.oracleSource,
+	};
+	const btcPerpMarket = perpMarketProgramAccounts.find(
+		(account) => account.account.marketIndex === 1
+	);
+	const btcOracleInfo = {
+		publicKey: btcPerpMarket.account.amm.oracle,
+		source: btcPerpMarket.account.amm.oracleSource,
+	};
+
 	const config: DriftClientConfig = {
 		connection,
 		wallet,
@@ -31,9 +80,9 @@ async function initializeGrpcDriftClientV2() {
 			},
 			driftClientAccountSubscriber: grpcDriftClientAccountSubscriberV2,
 		},
-		perpMarketIndexes: [0, 1, 2], // Example market indexes
-		spotMarketIndexes: [0, 1, 2], // Example market indexes
-		oracleInfos: [], // Add oracle information if needed
+		perpMarketIndexes: [0, 1, 2],
+		spotMarketIndexes: [0, 1, 2],
+		oracleInfos: [solOracleInfo, ethOracleInfo, btcOracleInfo],
 	};
 
 	const driftClient = new DriftClient(config);

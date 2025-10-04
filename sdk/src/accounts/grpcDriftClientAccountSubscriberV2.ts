@@ -17,7 +17,10 @@ import {
 import { grpcAccountSubscriber } from './grpcAccountSubscriber';
 import { grpcMultiAccountSubscriber } from './grpcMultiAccountSubscriber';
 import { PerpMarketAccount, SpotMarketAccount, StateAccount } from '../types';
-import { getOracleId } from '../oracles/oracleId';
+import {
+	getOracleId,
+	getPublicKeyAndSourceFromOracleId,
+} from '../oracles/oracleId';
 
 export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAccountSubscriber {
 	private grpcConfigs: GrpcConfigs;
@@ -321,10 +324,8 @@ export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAcco
 			);
 
 		for (const data of this.initialOraclePriceData.entries()) {
-			this.oracleMultiSubscriber.setAccountData(
-				new PublicKey(data[0]),
-				data[1]
-			);
+			const { publicKey } = getPublicKeyAndSourceFromOracleId(data[0]);
+			this.oracleMultiSubscriber.setAccountData(publicKey, data[1]);
 		}
 
 		await this.oracleMultiSubscriber.subscribe(
