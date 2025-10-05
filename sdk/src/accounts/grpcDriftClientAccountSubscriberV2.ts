@@ -213,7 +213,10 @@ export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAcco
 			marketIndex,
 			accountPubkey,
 		] of perpMarketIndexToAccountPubkeys) {
-			this.perpMarketIndexToAccountPubkeyMap.set(marketIndex, accountPubkey.toBase58());
+			this.perpMarketIndexToAccountPubkeyMap.set(
+				marketIndex,
+				accountPubkey.toBase58()
+			);
 		}
 
 		const perpMarketPubkeys = perpMarketIndexToAccountPubkeys.map(
@@ -272,7 +275,10 @@ export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAcco
 			marketIndex,
 			accountPubkey,
 		] of spotMarketIndexToAccountPubkeys) {
-			this.spotMarketIndexToAccountPubkeyMap.set(marketIndex, accountPubkey.toBase58());
+			this.spotMarketIndexToAccountPubkeyMap.set(
+				marketIndex,
+				accountPubkey.toBase58()
+			);
 		}
 
 		const spotMarketPubkeys = spotMarketIndexToAccountPubkeys.map(
