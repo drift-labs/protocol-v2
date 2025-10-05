@@ -2061,6 +2061,12 @@ export class DriftClient {
 			(programAccount) => programAccount.account as UserStatsAccount
 		);
 	}
+	
+	public async getAllUserStatsAccounts(): Promise<ProgramAccount<UserStatsAccount>[]> {
+		const programAccounts = await this.program.account.userStats.all();
+
+		return programAccounts as ProgramAccount<UserStatsAccount>[];
+	}
 
 	public async getReferrerNameAccountsForAuthority(
 		authority: PublicKey
@@ -2078,6 +2084,12 @@ export class DriftClient {
 		return programAccounts.map(
 			(programAccount) => programAccount.account as ReferrerNameAccount
 		);
+	}
+	
+	public async getAllReferrerNameAccounts() : Promise<ProgramAccount<ReferrerNameAccount>[]> {
+		const programAccounts = await this.program.account.referrerName.all();
+
+		return programAccounts as ProgramAccount<ReferrerNameAccount>[];
 	}
 
 	public async deleteUser(
