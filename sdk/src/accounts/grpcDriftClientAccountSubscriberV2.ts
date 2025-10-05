@@ -27,8 +27,8 @@ export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAcco
 	private perpMarketsSubscriber?: grpcMultiAccountSubscriber<PerpMarketAccount>;
 	private spotMarketsSubscriber?: grpcMultiAccountSubscriber<SpotMarketAccount>;
 	private oracleMultiSubscriber?: grpcMultiAccountSubscriber<OraclePriceData>;
-	private perpMarketIndexToAccountPubkeyMap = new Map<number, PublicKey>();
-	private spotMarketIndexToAccountPubkeyMap = new Map<number, PublicKey>();
+	private perpMarketIndexToAccountPubkeyMap = new Map<number, string>();
+	private spotMarketIndexToAccountPubkeyMap = new Map<number, string>();
 
 	constructor(
 		grpcConfigs: GrpcConfigs,
@@ -213,7 +213,7 @@ export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAcco
 			marketIndex,
 			accountPubkey,
 		] of perpMarketIndexToAccountPubkeys) {
-			this.perpMarketIndexToAccountPubkeyMap.set(marketIndex, accountPubkey);
+			this.perpMarketIndexToAccountPubkeyMap.set(marketIndex, accountPubkey.toBase58());
 		}
 
 		const perpMarketPubkeys = perpMarketIndexToAccountPubkeys.map(
@@ -272,7 +272,7 @@ export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAcco
 			marketIndex,
 			accountPubkey,
 		] of spotMarketIndexToAccountPubkeys) {
-			this.spotMarketIndexToAccountPubkeyMap.set(marketIndex, accountPubkey);
+			this.spotMarketIndexToAccountPubkeyMap.set(marketIndex, accountPubkey.toBase58());
 		}
 
 		const spotMarketPubkeys = spotMarketIndexToAccountPubkeys.map(
