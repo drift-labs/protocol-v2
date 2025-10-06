@@ -79,6 +79,7 @@ use crate::math::margin::MarginRequirementType;
 use crate::state::margin_calculation::MarginContext;
 
 use super::optional_accounts::get_high_leverage_mode_config;
+use super::optional_accounts::get_settle_pnl_auto_transfer_accounts;
 use super::optional_accounts::get_token_interface;
 
 #[access_control(
@@ -903,17 +904,21 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
         "user have pool_id 0"
     )?;
 
+    let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
+        &mut remaining_accounts,
         &get_writable_perp_market_set(market_index),
         &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
+
+    let settle_pnl_auto_transfer_accounts = get_settle_pnl_auto_transfer_accounts(&mut remaining_accounts)?;
+    settle_pnl_auto_transfer_accounts.validate(&user.authority)?;
 
     let market_in_settlement =
         perp_market_map.get_ref(&market_index)?.status == MarketStatus::Settlement;
@@ -955,6 +960,7 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
             state,
             None,
             SettlePnlMode::MustSettle,
+            &settle_pnl_auto_transfer_accounts,
         )
         .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
     }
@@ -979,17 +985,21 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
     let user_key = ctx.accounts.user.key();
     let user = &mut load_mut!(ctx.accounts.user)?;
 
+    let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
+        &mut remaining_accounts,
         &get_writable_perp_market_set_from_vec(&market_indexes),
         &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
+
+    let settle_pnl_auto_transfer_accounts = get_settle_pnl_auto_transfer_accounts(&mut remaining_accounts)?;
+    settle_pnl_auto_transfer_accounts.validate(&user.authority)?;
 
     let meets_margin_requirement = meets_settle_pnl_maintenance_margin_requirement(
         user,
@@ -1039,6 +1049,7 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
                 state,
                 Some(meets_margin_requirement),
                 mode,
+                &settle_pnl_auto_transfer_accounts,
             )
             .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
         }

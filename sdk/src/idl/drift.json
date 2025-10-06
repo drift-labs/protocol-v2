@@ -13025,6 +13025,9 @@
           },
           {
             "name": "Bankrupt"
+          },
+          {
+            "name": "AutoTransferToCrossMargin"
           }
         ]
       }

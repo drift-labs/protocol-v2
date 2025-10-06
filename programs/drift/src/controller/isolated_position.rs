@@ -250,8 +250,15 @@ pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
             .force_get_isolated_perp_position_mut(perp_market_index)?
             .get_isolated_token_amount(&spot_market)?;
 
+        // i64::MIN is used to transfer the entire isolated position deposit
+        let amount = if amount == i64::MIN {
+            isolated_perp_position_token_amount
+        } else {
+            amount.unsigned_abs() as u128
+        };
+
         validate!(
-            amount.unsigned_abs() as u128 <= isolated_perp_position_token_amount,
+            amount <= isolated_perp_position_token_amount,
             ErrorCode::InsufficientCollateral,
             "user has insufficient deposit for market {}",
             spot_market_index
@@ -259,7 +266,7 @@ pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
 
         let spot_position_index = user.force_get_spot_position_index(spot_market.market_index)?;
         update_spot_balances_and_cumulative_deposits(
-            amount.abs() as u128,
+            amount,
             &SpotBalanceType::Deposit,
             &mut spot_market,
             &mut user.spot_positions[spot_position_index],
@@ -268,7 +275,7 @@ pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
         )?;
 
         update_spot_balances(
-            amount.abs() as u128,
+            amount,
             &SpotBalanceType::Borrow,
             &mut spot_market,
             user.force_get_isolated_perp_position_mut(perp_market_index)?,

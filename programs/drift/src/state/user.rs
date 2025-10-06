@@ -1281,6 +1281,16 @@ impl PerpPosition {
     pub fn is_bankrupt(&self) -> bool {
         self.position_flag & PositionFlag::Bankrupt as u8 > 0
     }
+
+    pub fn is_auto_transfer_to_cross_margin(&self) -> bool {
+        self.position_flag & PositionFlag::AutoTransferToCrossMargin as u8 > 0
+    }
+
+    pub fn can_transfer_isolated_position_deposit(&self) -> bool {
+        !self.is_open_position()
+            && !self.has_open_order()
+            && !self.has_unsettled_pnl()
+    }
 }
 
 impl SpotBalance for PerpPosition {
@@ -1789,6 +1799,7 @@ pub enum PositionFlag {
     IsolatedPosition = 0b00000001,
     BeingLiquidated = 0b00000010,
     Bankrupt = 0b00000100,
+    AutoTransferToCrossMargin = 0b00001000,
 }
 
 #[account(zero_copy(unsafe))]

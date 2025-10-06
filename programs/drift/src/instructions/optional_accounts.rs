@@ -5,7 +5,7 @@ use std::convert::TryFrom;
 
 use crate::error::ErrorCode::UnableToLoadOracle;
 use crate::math::safe_unwrap::SafeUnwrap;
-use crate::msg;
+use crate::{load, load_mut, msg};
 use crate::state::load_ref::load_ref_mut;
 use crate::state::oracle::PrelaunchOracle;
 use crate::state::oracle_map::OracleMap;
@@ -17,7 +17,7 @@ use crate::state::traits::Size;
 use crate::state::user::{User, UserStats};
 use crate::{validate, OracleSource};
 use anchor_lang::accounts::account::Account;
-use anchor_lang::prelude::{AccountInfo, Interface};
+use anchor_lang::prelude::{AccountInfo, Interface, Pubkey};
 use anchor_lang::prelude::{AccountLoader, InterfaceAccount};
 use anchor_lang::Discriminator;
 use anchor_spl::token::TokenAccount;
@@ -272,4 +272,55 @@ pub fn get_high_leverage_mode_config<'a>(
             .or(Err(ErrorCode::CouldNotDeserializeHighLeverageModeConfig))?;
 
     Ok(Some(high_leverage_mode_config))
+}
+
+pub struct SettlePnlAutoTransferAccounts<'a> {
+    pub user_stats: Option<AccountLoader<'a, UserStats>>,
+}
+
+impl<'a> SettlePnlAutoTransferAccounts<'a> {
+
+    pub fn validate(&self, authority: &Pubkey) -> DriftResult {
+        if let Some(user_stats) = &self.user_stats {
+            let user_stats = load!(user_stats)?;
+            validate!(
+                user_stats.authority.eq(authority),
+                ErrorCode::DefaultError,
+                "user stats for auto transfer wrong authority"
+            )?;
+        }
+
+        Ok(())
+    }
+
+    pub fn get_user_stats(&self) -> DriftResult<RefMut<UserStats>> {
+        if let Some(user_stats) = &self.user_stats {
+            load_mut!(user_stats)
+        } else {
+            msg!("user stats for auto transfer not found");
+            return Err(ErrorCode::DefaultError);
+        }
+    }
+}
+
+impl<'a> Default for SettlePnlAutoTransferAccounts<'a> {
+    fn default() -> Self {
+        SettlePnlAutoTransferAccounts { user_stats: None }
+    }
+}
+
+pub fn get_settle_pnl_auto_transfer_accounts<'a>(
+    account_info_iter: &mut Peekable<Iter<'a, AccountInfo<'a>>>,
+) -> DriftResult<SettlePnlAutoTransferAccounts<'a>> {
+    let user_stats_account_info = account_info_iter.peek();
+    if user_stats_account_info.is_none() {
+        return Ok(SettlePnlAutoTransferAccounts { user_stats: None });
+    }
+
+    let user_stats_account_info = user_stats_account_info.safe_unwrap()?;
+    let user_stats: AccountLoader<UserStats> =
+        AccountLoader::try_from(user_stats_account_info)
+            .or(Err(ErrorCode::CouldNotLoadUserStatsData))?;
+
+    Ok(SettlePnlAutoTransferAccounts { user_stats: Some(user_stats) })
 }
