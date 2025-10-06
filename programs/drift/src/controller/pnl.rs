@@ -79,7 +79,16 @@ pub fn settle_pnl(
 
     drop(market);
 
-    let position_index = get_position_index(&user.perp_positions, market_index)?;
+    let position_index = match get_position_index(&user.perp_positions, market_index) {
+        Ok(index) => index,
+        Err(e) => {
+            return mode.result(
+                e,
+                market_index,
+                &format!("User has no position in market {}", market_index),
+            )
+        }
+    };
     let unrealized_pnl = user.perp_positions[position_index].get_unrealized_pnl(oracle_price)?;
 
     // cannot settle negative pnl this way on a user who is in liquidation territory

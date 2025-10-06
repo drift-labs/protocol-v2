@@ -17,8 +17,8 @@ RUN mkdir -p /workdir /tmp \
   && apt-get update -qq \
   && apt-get upgrade -qq \
   && apt-get install -y --no-install-recommends \
-       build-essential git curl wget jq pkg-config python3-pip xz-utils ca-certificates \
-       libssl-dev libudev-dev bash software-properties-common \
+  build-essential git curl wget jq pkg-config python3-pip xz-utils ca-certificates \
+  libssl-dev libudev-dev bash software-properties-common \
   && add-apt-repository 'deb http://deb.debian.org/debian bookworm main' \
   && apt-get update -qq \
   && apt-get install -y libc6 libc6-dev \

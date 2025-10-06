@@ -115,3 +115,8 @@ pub mod lp_pool_swap_wallet {
     use solana_program::declare_id;
     declare_id!("25qbsE2oWri76c9a86ubn17NKKdo6Am4HXD2Jm8vT8K4");
 }
+
+pub mod dflow_mainnet_aggregator_4 {
+    use solana_program::declare_id;
+    declare_id!("DF1ow4tspfHX9JwWJsAb9epbkA8hmpSEAtxXy1V27QBH");
+}

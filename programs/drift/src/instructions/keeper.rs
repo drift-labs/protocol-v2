@@ -24,6 +24,7 @@ use crate::controller::token::{receive, send_from_program_vault};
 use crate::error::ErrorCode;
 use crate::get_then_update_id;
 use crate::ids::admin_hot_wallet;
+use crate::ids::dflow_mainnet_aggregator_4;
 use crate::ids::{jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, serum_program};
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::get_revenue_share_escrow_account;
@@ -1119,8 +1120,7 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
             &mut oracle_map,
             state,
             &clock,
-        )
-        .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
+        )?;
 
         controller::pnl::settle_pnl(
             market_index,
@@ -1134,8 +1134,7 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
             state,
             None,
             SettlePnlMode::MustSettle,
-        )
-        .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
+        )?;
     }
 
     if state.builder_codes_enabled() || state.builder_referral_enabled() {
@@ -1235,8 +1234,7 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
                 &mut oracle_map,
                 state,
                 &clock,
-            )
-            .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
+            )?;
 
             controller::pnl::settle_pnl(
                 *market_index,
@@ -1250,8 +1248,7 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
                 state,
                 Some(meets_margin_requirement),
                 mode,
-            )
-            .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
+            )?;
         }
 
         if state.builder_codes_enabled() || state.builder_referral_enabled() {
@@ -1737,6 +1734,7 @@ pub fn handle_liquidate_spot_with_swap_begin<'c: 'info, 'info>(
                     jupiter_mainnet_3::ID,
                     jupiter_mainnet_4::ID,
                     jupiter_mainnet_6::ID,
+                    dflow_mainnet_aggregator_4::ID,
                 ];
                 validate!(
                     whitelisted_programs.contains(&ix.program_id),

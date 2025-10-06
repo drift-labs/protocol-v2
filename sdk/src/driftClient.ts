@@ -203,7 +203,7 @@ import {
 } from './tx/utils';
 import pythSolanaReceiverIdl from './idl/pyth_solana_receiver.json';
 import { asV0Tx, PullFeed, AnchorUtils } from '@switchboard-xyz/on-demand';
-import { gprcDriftClientAccountSubscriber } from './accounts/grpcDriftClientAccountSubscriber';
+import { grpcDriftClientAccountSubscriber } from './accounts/grpcDriftClientAccountSubscriber';
 import nacl from 'tweetnacl';
 import { Slothash } from './slot/SlothashSubscriber';
 import { getOracleId } from './oracles/oracleId';
@@ -445,7 +445,10 @@ export class DriftClient {
 				delistedMarketSetting
 			);
 		} else if (config.accountSubscription?.type === 'grpc') {
-			this.accountSubscriber = new gprcDriftClientAccountSubscriber(
+			const accountSubscriberClass =
+				config.accountSubscription?.driftClientAccountSubscriber ??
+				grpcDriftClientAccountSubscriber;
+			this.accountSubscriber = new accountSubscriberClass(
 				config.accountSubscription.grpcConfigs,
 				this.program,
 				config.perpMarketIndexes ?? [],
@@ -941,7 +944,7 @@ export class DriftClient {
 			this.userStats = new UserStats({
 				driftClient: this,
 				userStatsAccountPublicKey: this.userStatsAccountPublicKey,
-				accountSubscription: this.userAccountSubscriptionConfig,
+				accountSubscription: this.userStatsAccountSubscriptionConfig,
 			});
 
 			this.userStats.subscribe();
@@ -6817,15 +6820,6 @@ export class DriftClient {
 			});
 		}
 
-		remainingAccounts.push({
-			pubkey: getRevenueShareEscrowAccountPublicKey(
-				this.program.programId,
-				takerInfo.takerUserAccount.authority
-			),
-			isWritable: true,
-			isSigner: false,
-		});
-
 		const takerOrderId = takerInfo.order.orderId;
 		if (hasBuilder(takerInfo.order)) {
 			remainingAccounts.push({
@@ -7846,7 +7840,8 @@ export class DriftClient {
 			settleeUserAccountPublicKey: PublicKey;
 			settleeUserAccount: UserAccount;
 		}[],
-		marketIndexes: number[]
+		marketIndexes: number[],
+		revenueShareEscrowMap?: RevenueShareEscrowMap
 	): Promise<Array<TransactionInstruction>> {
 		const ixs = [];
 		for (const { settleeUserAccountPublicKey, settleeUserAccount } of users) {
@@ -7855,7 +7850,8 @@ export class DriftClient {
 					await this.settlePNLIx(
 						settleeUserAccountPublicKey,
 						settleeUserAccount,
-						marketIndex
+						marketIndex,
+						revenueShareEscrowMap
 					)
 				);
 			}
@@ -7870,7 +7866,7 @@ export class DriftClient {
 		marketIndex: number,
 		txParams?: TxParams,
 		optionalIxs?: TransactionInstruction[],
-		escrowMap?: RevenueShareEscrowMap
+		revenueShareEscrowMap?: RevenueShareEscrowMap
 	): Promise<TransactionSignature> {
 		const lookupTableAccounts = await this.fetchAllLookupTableAccounts();
 
@@ -7880,7 +7876,7 @@ export class DriftClient {
 					settleeUserAccountPublicKey,
 					settleeUserAccount,
 					marketIndex,
-					escrowMap
+					revenueShareEscrowMap
 				),
 				txParams,
 				undefined,
