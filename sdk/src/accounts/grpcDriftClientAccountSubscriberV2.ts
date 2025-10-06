@@ -392,7 +392,12 @@ export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAcco
 				const sources = pubkeyToSources.get(accountId.toBase58());
 				if (sources) {
 					for (const source of sources.values()) {
-						this.eventEmitter.emit('oraclePriceUpdate', accountId, source, data);
+						this.eventEmitter.emit(
+							'oraclePriceUpdate',
+							accountId,
+							source,
+							data
+						);
 					}
 				}
 				this.eventEmitter.emit('update');
