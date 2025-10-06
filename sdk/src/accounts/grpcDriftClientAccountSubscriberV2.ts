@@ -246,7 +246,7 @@ export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAcco
 			);
 
 		for (const data of this.initialPerpMarketAccountData.values()) {
-			this.perpMarketsSubscriber.setAccountData(data.pubkey, data);
+			this.perpMarketsSubscriber.setAccountData(data.pubkey.toBase58(), data);
 		}
 
 		await this.perpMarketsSubscriber.subscribe(
@@ -308,7 +308,7 @@ export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAcco
 			);
 
 		for (const data of this.initialSpotMarketAccountData.values()) {
-			this.spotMarketsSubscriber.setAccountData(data.pubkey, data);
+			this.spotMarketsSubscriber.setAccountData(data.pubkey.toBase58(), data);
 		}
 
 		await this.spotMarketsSubscriber.subscribe(
@@ -383,7 +383,7 @@ export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAcco
 
 		for (const data of this.initialOraclePriceData.entries()) {
 			const { publicKey } = getPublicKeyAndSourceFromOracleId(data[0]);
-			this.oracleMultiSubscriber.setAccountData(publicKey, data[1]);
+			this.oracleMultiSubscriber.setAccountData(publicKey.toBase58(), data[1]);
 		}
 
 		await this.oracleMultiSubscriber.subscribe(

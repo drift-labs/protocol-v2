@@ -96,20 +96,29 @@ async function initializeGrpcDriftClientV2() {
 		driftClient.accountSubscriber.eventEmitter.on(
 			'perpMarketAccountUpdate',
 			(data) => {
-				console.log('Perp market account update:', decodeName(data.name));
-				const perpMarketData = driftClient.getPerpMarketAccount(
-					data.marketIndex
-				);
 				console.log(
-					'Perp market data market index:',
-					perpMarketData?.marketIndex
+					'Perp market account update:',
+					decodeName(data.name),
+					'mmOracleSequenceId:',
+					data.amm.mmOracleSequenceId.toString()
 				);
-				const oracle = driftClient.getOracleDataForPerpMarket(data.marketIndex);
-				const mmOracle = driftClient.getMMOracleDataForPerpMarket(
-					data.marketIndex
-				);
-				console.log('Perp oracle price:', oracle.price.toString());
-				console.log('Perp MM oracle price:', mmOracle.price.toString());
+				// const perpMarketData = driftClient.getPerpMarketAccount(
+				// 	data.marketIndex
+				// );
+				// console.log(
+				// 	'Perp market data market index:',
+				// 	perpMarketData?.marketIndex
+				// );
+				// const oracle = driftClient.getOracleDataForPerpMarket(data.marketIndex);
+				// const mmOracle = driftClient.getMMOracleDataForPerpMarket(
+				// 	data.marketIndex
+				// );
+				// console.log('Perp oracle price:', oracle.price.toString());
+				// console.log('Perp MM oracle price:', mmOracle.price.toString());
+				// console.log(
+				// 	'Perp MM oracle sequence id:',
+				// 	perpMarketData?.amm?.mmOracleSequenceId?.toString()
+				// );
 				perpMarketUpdateCount++;
 				if (
 					perpMarketUpdateCount >= 10 &&
