@@ -779,18 +779,16 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async getResetAmmCacheIx(): Promise<TransactionInstruction> {
-		return this.program.instruction.resetAmmCache(
-			{
-				accounts: {
-					state: await this.getStatePublicKey(),
-					admin: this.isSubscribed
-						? this.getStateAccount().admin
-						: this.wallet.publicKey,
-					ammCache: getAmmCachePublicKey(this.program.programId),
-					systemProgram: anchor.web3.SystemProgram.programId,
-				},
-			}
-		);
+		return this.program.instruction.resetAmmCache({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				admin: this.isSubscribed
+					? this.getStateAccount().admin
+					: this.wallet.publicKey,
+				ammCache: getAmmCachePublicKey(this.program.programId),
+				systemProgram: anchor.web3.SystemProgram.programId,
+			},
+		});
 	}
 
 	public async initializePredictionMarket(
