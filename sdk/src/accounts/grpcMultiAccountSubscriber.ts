@@ -93,8 +93,8 @@ export class grpcMultiAccountSubscriber<T> {
 		);
 	}
 
-	setAccountData(accountPubkey: PublicKey, data: T, slot?: number): void {
-		this.dataMap.set(accountPubkey.toBase58(), { data, slot });
+	setAccountData(accountPubkey: string, data: T, slot?: number): void {
+		this.dataMap.set(accountPubkey, { data, slot });
 	}
 
 	getAccountData(accountPubkey: string): DataAndSlot<T> | undefined {
@@ -122,9 +122,10 @@ export class grpcMultiAccountSubscriber<T> {
 		for (const pk of accounts) {
 			const key = pk.toBase58();
 			this.subscribedAccounts.add(key);
-			this.onChangeMap.set(key, (data, ctx, buffer) =>
-				onChange(new PublicKey(key), data, ctx, buffer)
-			);
+			this.onChangeMap.set(key, (data, ctx, buffer) => {
+				this.setAccountData(key, data, ctx.slot);
+				onChange(new PublicKey(key), data, ctx, buffer);
+			});
 		}
 
 		this.stream =
