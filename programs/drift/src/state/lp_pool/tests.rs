@@ -559,6 +559,8 @@ mod swap_tests {
     ) {
         let lp_pool = LPPool {
             last_aum: 1_000_000_000_000,
+            target_oracle_delay_fee_bps_per_10_slots: 2,
+            target_position_delay_fee_bps_per_10_slots: 10,
             ..LPPool::default()
         };
 
@@ -1634,6 +1636,24 @@ mod swap_fee_tests {
 
         assert_eq!(fee_in, 6 * PERCENTAGE_PRECISION_I128 / 100000); // 0.6 bps
         assert_eq!(fee_out, -6 * PERCENTAGE_PRECISION_I128 / 100000); // -0.6 bps
+    }
+
+    #[test]
+    fn test_target_delays() {
+        let lp_pool = LPPool {
+            last_aum: 10_000_000 * QUOTE_PRECISION, // $10,000,000
+            target_oracle_delay_fee_bps_per_10_slots: 2,
+            target_position_delay_fee_bps_per_10_slots: 10,
+            ..LPPool::default()
+        };
+
+        // Even a small delay in the position incurs a larger fee
+        let uncertainty_fee = lp_pool.get_target_uncertainty_fees(1, 0).unwrap();
+        assert_eq!(
+            uncertainty_fee,
+            PERCENTAGE_PRECISION_I128 / 10000i128
+                * lp_pool.target_position_delay_fee_bps_per_10_slots as i128
+        );
     }
 }
 

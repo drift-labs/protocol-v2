@@ -640,33 +640,34 @@ impl LPPool {
         target_position_slot_delay: u64,
         target_oracle_slot_delay: u64,
     ) -> DriftResult<i128> {
-        let oracle_uncertainty_fee: u128 =
-            if target_oracle_slot_delay <= MAX_ORACLE_STALENESS_FOR_TARGET_CALC {
-                0
-            } else {
-                let slots_elapsed_minus_threshold =
-                    target_oracle_slot_delay.saturating_sub(MAX_ORACLE_STALENESS_FOR_TARGET_CALC);
-                let fee_bps = (slots_elapsed_minus_threshold as u128)
-                    .safe_mul(self.target_oracle_delay_fee_bps_per_10_slots as u128)?
-                    .safe_div_ceil(10u128)?;
-                fee_bps
-                    .safe_mul(PERCENTAGE_PRECISION)?
-                    .safe_div(10_000u128)?
-            };
+        // Gives an uncertainty fee in bps if the oracle or position was stale when calcing target.
+        // Uses a step function that goes up every 10 slots beyond a threshold where we consider it okay
+        //  - delay 0 (<= threshold) = 0 bps
+        //  - delay 1..10  = 10 bps (1 block)
+        //  - delay 11..20 = 20 bps (2 blocks)
+        fn step_fee(delay: u64, threshold: u64, per_10_slot_bps: u8) -> DriftResult<u128> {
+            if delay <= threshold || per_10_slot_bps == 0 {
+                return Ok(0);
+            }
+            let elapsed = delay.saturating_sub(threshold);
+            let blocks = (elapsed + 9) / 10;
+            let fee_bps = (blocks as u128).safe_mul(per_10_slot_bps as u128)?;
+            let fee = fee_bps
+                .safe_mul(PERCENTAGE_PRECISION)?
+                .safe_div(10_000u128)?;
+            Ok(fee)
+        }
 
-        let position_uncertainty_fee: u128 =
-            if target_position_slot_delay < MAX_STALENESS_FOR_TARGET_CALC {
-                0
-            } else {
-                let slots_elapsed_minus_threshold =
-                    target_position_slot_delay.saturating_sub(MAX_STALENESS_FOR_TARGET_CALC);
-                let fee_bps = (slots_elapsed_minus_threshold as u128)
-                    .safe_mul(self.target_position_delay_fee_bps_per_10_slots as u128)?
-                    .safe_div_ceil(10u128)?;
-                fee_bps
-                    .safe_mul(PERCENTAGE_PRECISION)?
-                    .safe_div(10_000u128)?
-            };
+        let oracle_uncertainty_fee = step_fee(
+            target_oracle_slot_delay,
+            MAX_ORACLE_STALENESS_FOR_TARGET_CALC,
+            self.target_oracle_delay_fee_bps_per_10_slots,
+        )?;
+        let position_uncertainty_fee = step_fee(
+            target_position_slot_delay,
+            MAX_STALENESS_FOR_TARGET_CALC,
+            self.target_position_delay_fee_bps_per_10_slots,
+        )?;
 
         Ok(oracle_uncertainty_fee
             .safe_add(position_uncertainty_fee)?
