@@ -998,6 +998,10 @@ pub fn handle_override_amm_cache_info<'c: 'info, 'info>(
     }
 
     if let Some(amm_inventory_limit) = override_params.amm_inventory_limit {
+        if amm_inventory_limit < 0 {
+            msg!("amm_inventory_limit must be non-negative");
+            return Err(ErrorCode::DefaultError.into());
+        }
         cache_entry.amm_inventory_limit = amm_inventory_limit;
     }
 

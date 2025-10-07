@@ -131,13 +131,17 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
         }
 
         amm_inventories.push(AmmInventoryAndPrices {
-            inventory: cache_info
-                .position
-                .safe_mul(cache_info.amm_position_scalar as i64)?
-                .safe_div(100)?
-                .abs()
-                .min(cache_info.amm_inventory_limit)
-                .safe_mul(cache_info.position.signum())?,
+            inventory: {
+                let scaled_position = cache_info
+                    .position
+                    .safe_mul(cache_info.amm_position_scalar as i64)?
+                    .safe_div(100)?;
+
+                scaled_position.clamp(
+                    -cache_info.amm_inventory_limit,
+                    cache_info.amm_inventory_limit,
+                )
+            },
             price: cache_info.oracle_price,
         });
     }
