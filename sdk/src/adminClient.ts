@@ -4835,4 +4835,38 @@ export class AdminClient extends DriftClient {
 			}
 		);
 	}
+
+	public async adminDisableUpdatePerpBidAskTwap(
+		authority: PublicKey,
+		disable: boolean
+	): Promise<TransactionSignature> {
+		const disableBidAskTwapUpdateIx =
+			await this.getAdminDisableUpdatePerpBidAskTwapIx(authority, disable);
+
+		const tx = await this.buildTransaction(disableBidAskTwapUpdateIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getAdminDisableUpdatePerpBidAskTwapIx(
+		authority: PublicKey,
+		disable: boolean
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.adminDisableUpdatePerpBidAskTwap(
+			disable,
+			{
+				accounts: {
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
+					state: await this.getStatePublicKey(),
+					userStats: getUserStatsAccountPublicKey(
+						this.program.programId,
+						authority
+					),
+				},
+			}
+		);
+	}
 }
