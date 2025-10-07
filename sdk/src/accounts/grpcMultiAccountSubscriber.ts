@@ -1,4 +1,4 @@
-import { AnchorProvider, Program } from '@coral-xyz/anchor';
+import { Program } from '@coral-xyz/anchor';
 import { Commitment, Context, PublicKey } from '@solana/web3.js';
 import * as Buffer from 'buffer';
 import bs58 from 'bs58';
