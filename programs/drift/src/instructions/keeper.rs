@@ -42,7 +42,6 @@ use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::optional_accounts::{get_token_mint, update_prelaunch_oracle};
 use crate::signer::get_signer_seeds;
 use crate::state::amm_cache::CacheInfo;
-use crate::state::events::emit_stack;
 use crate::state::events::LPSettleRecord;
 use crate::state::events::{DeleteUserRecord, OrderActionExplanation, SignedMsgOrderRecord};
 use crate::state::fill_mode::FillMode;
@@ -3577,7 +3576,7 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
         )?;
 
         cached_info.update_perp_market_fields(&perp_market)?;
-        cached_info.update_oracle_info(
+        cached_info.try_update_oracle_info(
             slot,
             &mm_oracle_price_data,
             &perp_market,

@@ -57,7 +57,7 @@ use crate::controller::spot_balance::update_spot_market_cumulative_interest;
 use crate::controller::token::{receive, send_from_program_vault_with_signature_seeds};
 use crate::instructions::constraints::*;
 use crate::state::lp_pool::{
-    AmmInventoryAndPrices, ConstituentIndexAndDecimalAndPrice, CONSTITUENT_PDA_SEED,
+    AmmInventoryAndPricesAndSlots, ConstituentIndexAndDecimalAndPrice, CONSTITUENT_PDA_SEED,
     LP_POOL_TOKEN_VAULT_PDA_SEED,
 };
 
@@ -100,37 +100,14 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
     let constituent_map =
         ConstituentMap::load(&ConstituentSet::new(), &lp_pool_key, remaining_accounts)?;
 
-    let mut amm_inventories: Vec<AmmInventoryAndPrices> =
+    let mut amm_inventories: Vec<AmmInventoryAndPricesAndSlots> =
         Vec::with_capacity(amm_cache.len() as usize);
-    for (idx, cache_info) in amm_cache.iter().enumerate() {
+    for (_, cache_info) in amm_cache.iter().enumerate() {
         if cache_info.lp_status_for_perp_market == 0 {
             continue;
         }
-        if !is_oracle_valid_for_action(
-            OracleValidity::try_from(cache_info.oracle_validity)?,
-            Some(DriftAction::UpdateLpConstituentTargetBase),
-        )? {
-            msg!(
-                "Oracle data for perp market {} is invalid. Skipping update",
-                idx,
-            );
-            continue;
-        }
 
-        if slot.safe_sub(cache_info.slot)? > MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC {
-            msg!("Amm cache for perp market {}. Skipping update", idx);
-            continue;
-        }
-
-        if slot.safe_sub(cache_info.oracle_slot)? > MAX_AMM_CACHE_ORACLE_STALENESS_FOR_TARGET_CALC {
-            msg!(
-                "Amm cache oracle for perp market {} is stale. Skipping update",
-                idx
-            );
-            continue;
-        }
-
-        amm_inventories.push(AmmInventoryAndPrices {
+        amm_inventories.push(AmmInventoryAndPricesAndSlots {
             inventory: {
                 let scaled_position = cache_info
                     .position
@@ -143,6 +120,8 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
                 )
             },
             price: cache_info.oracle_price,
+            last_oracle_slot: cache_info.oracle_slot,
+            last_position_slot: cache_info.slot,
         });
     }
     msg!("amm inventories: {:?}", amm_inventories);

@@ -68,22 +68,30 @@ mod tests {
             }
         };
 
-        let amm_inventory_and_price: Vec<AmmInventoryAndPrices> = vec![
-            AmmInventoryAndPrices {
+        let amm_inventory_and_price: Vec<AmmInventoryAndPricesAndSlots> = vec![
+            AmmInventoryAndPricesAndSlots {
                 inventory: 4 * BASE_PRECISION_I64,
                 price: 100_000 * PRICE_PRECISION_I64,
+                last_oracle_slot: slot,
+                last_position_slot: slot,
             }, // $400k BTC
-            AmmInventoryAndPrices {
+            AmmInventoryAndPricesAndSlots {
                 inventory: 2000 * BASE_PRECISION_I64,
                 price: 200 * PRICE_PRECISION_I64,
+                last_oracle_slot: slot,
+                last_position_slot: slot,
             }, // $400k SOL
-            AmmInventoryAndPrices {
+            AmmInventoryAndPricesAndSlots {
                 inventory: 200 * BASE_PRECISION_I64,
                 price: 1500 * PRICE_PRECISION_I64,
+                last_oracle_slot: slot,
+                last_position_slot: slot,
             }, // $300k ETH
-            AmmInventoryAndPrices {
+            AmmInventoryAndPricesAndSlots {
                 inventory: 16500 * BASE_PRECISION_I64,
                 price: PRICE_PRECISION_I64,
+                last_oracle_slot: slot,
+                last_position_slot: slot,
             }, // $16.5k FARTCOIN
         ];
         let mut constituents_indexes_and_decimals_and_prices = vec![
@@ -127,7 +135,7 @@ mod tests {
                 &mapping_zc,
                 &amm_inventory_and_price,
                 constituents_indexes_and_decimals_and_prices.as_mut_slice(),
-                now_ts,
+                slot,
             )
             .unwrap();
 
@@ -155,6 +163,7 @@ mod tests {
 
     #[test]
     fn test_single_zero_weight() {
+        let slot = 20202020 as u64;
         let amm_datum = amm_const_datum(0, 1, 0, 0);
         let mapping_fixed = RefCell::new(AmmConstituentMappingFixed {
             len: 1,
@@ -181,17 +190,19 @@ mod tests {
             }
         };
 
-        let amm_inventory_and_prices: Vec<AmmInventoryAndPrices> = vec![AmmInventoryAndPrices {
-            inventory: 1_000_000,
-            price: 1_000_000,
-        }];
+        let amm_inventory_and_prices: Vec<AmmInventoryAndPricesAndSlots> =
+            vec![AmmInventoryAndPricesAndSlots {
+                inventory: 1_000_000,
+                price: 1_000_000,
+                last_oracle_slot: slot,
+                last_position_slot: slot,
+            }];
         let mut constituents_indexes_and_decimals_and_prices =
             vec![ConstituentIndexAndDecimalAndPrice {
                 constituent_index: 1,
                 decimals: 6,
                 price: 1_000_000,
             }];
-        let now_ts = 1000;
 
         let target_fixed = RefCell::new(ConstituentTargetBaseFixed {
             len: 1,
@@ -209,18 +220,19 @@ mod tests {
                 &mapping_zc,
                 &amm_inventory_and_prices,
                 constituents_indexes_and_decimals_and_prices.as_mut_slice(),
-                now_ts,
+                slot,
             )
             .unwrap();
 
         assert!(target_zc_mut.iter().all(|&x| x.target_base == 0));
         assert_eq!(target_zc_mut.len(), 1);
         assert_eq!(target_zc_mut.get(0).target_base, 0);
-        assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
+        assert_eq!(target_zc_mut.get(0).last_slot, slot);
     }
 
     #[test]
     fn test_single_full_weight() {
+        let slot = 20202020 as u64;
         let amm_datum = amm_const_datum(0, 1, PERCENTAGE_PRECISION_I64, 0);
         let mapping_fixed = RefCell::new(AmmConstituentMappingFixed {
             len: 1,
@@ -248,10 +260,13 @@ mod tests {
         };
 
         let price = PRICE_PRECISION_I64;
-        let amm_inventory_and_prices: Vec<AmmInventoryAndPrices> = vec![AmmInventoryAndPrices {
-            inventory: BASE_PRECISION_I64,
-            price,
-        }];
+        let amm_inventory_and_prices: Vec<AmmInventoryAndPricesAndSlots> =
+            vec![AmmInventoryAndPricesAndSlots {
+                inventory: BASE_PRECISION_I64,
+                price,
+                last_oracle_slot: slot,
+                last_position_slot: slot,
+            }];
         let mut constituents_indexes_and_decimals_and_prices =
             vec![ConstituentIndexAndDecimalAndPrice {
                 constituent_index: 1,
@@ -272,12 +287,13 @@ mod tests {
             _marker: PhantomData::<TargetsDatum>,
         };
 
+        // Should succeed but not update the target's slot if clock slot is too recent
         target_zc_mut
             .update_target_base(
                 &mapping_zc,
                 &amm_inventory_and_prices,
                 constituents_indexes_and_decimals_and_prices.as_mut_slice(),
-                now_ts,
+                4040404040440404404, // far future slot
             )
             .unwrap();
 
@@ -295,11 +311,22 @@ mod tests {
         );
         assert_eq!(weight, -1000000);
         assert_eq!(target_zc_mut.len(), 1);
-        assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
+        assert_eq!(target_zc_mut.get(0).last_slot, 0);
+
+        target_zc_mut
+            .update_target_base(
+                &mapping_zc,
+                &amm_inventory_and_prices,
+                constituents_indexes_and_decimals_and_prices.as_mut_slice(),
+                slot,
+            )
+            .unwrap();
+        assert_eq!(target_zc_mut.get(0).last_slot, slot); // still not updated
     }
 
     #[test]
     fn test_multiple_constituents_partial_weights() {
+        let slot = 20202020 as u64;
         let amm_mapping_data = vec![
             amm_const_datum(0, 1, PERCENTAGE_PRECISION_I64 / 2, 111),
             amm_const_datum(0, 2, PERCENTAGE_PRECISION_I64 / 2, 111),
@@ -337,10 +364,13 @@ mod tests {
             }
         };
 
-        let amm_inventory_and_prices: Vec<AmmInventoryAndPrices> = vec![AmmInventoryAndPrices {
-            inventory: 1_000_000_000,
-            price: 1_000_000,
-        }];
+        let amm_inventory_and_prices: Vec<AmmInventoryAndPricesAndSlots> =
+            vec![AmmInventoryAndPricesAndSlots {
+                inventory: 1_000_000_000,
+                price: 1_000_000,
+                last_oracle_slot: slot,
+                last_position_slot: slot,
+            }];
         let mut constituents_indexes_and_decimals_and_prices = vec![
             ConstituentIndexAndDecimalAndPrice {
                 constituent_index: 1,
@@ -373,7 +403,7 @@ mod tests {
                 &mapping_zc,
                 &amm_inventory_and_prices,
                 constituents_indexes_and_decimals_and_prices.as_mut_slice(),
-                now_ts,
+                slot,
             )
             .unwrap();
 
@@ -393,12 +423,13 @@ mod tests {
                 .unwrap(),
                 -1 * PERCENTAGE_PRECISION_I64 / 2
             );
-            assert_eq!(target_zc_mut.get(i).last_slot, now_ts);
+            assert_eq!(target_zc_mut.get(i).last_slot, slot);
         }
     }
 
     #[test]
     fn test_zero_aum_safe() {
+        let slot = 20202020 as u64;
         let amm_datum = amm_const_datum(0, 1, PERCENTAGE_PRECISION_I64, 0);
         let mapping_fixed = RefCell::new(AmmConstituentMappingFixed {
             len: 1,
@@ -425,10 +456,13 @@ mod tests {
             }
         };
 
-        let amm_inventory_and_prices: Vec<AmmInventoryAndPrices> = vec![AmmInventoryAndPrices {
-            inventory: 1_000_000,
-            price: 142_000_000,
-        }];
+        let amm_inventory_and_prices: Vec<AmmInventoryAndPricesAndSlots> =
+            vec![AmmInventoryAndPricesAndSlots {
+                inventory: 1_000_000,
+                price: 142_000_000,
+                last_oracle_slot: slot,
+                last_position_slot: slot,
+            }];
         let mut constituents_indexes_and_decimals_and_prices =
             vec![ConstituentIndexAndDecimalAndPrice {
                 constituent_index: 1,
@@ -454,13 +488,13 @@ mod tests {
                 &mapping_zc,
                 &amm_inventory_and_prices,
                 constituents_indexes_and_decimals_and_prices.as_mut_slice(),
-                now_ts,
+                slot,
             )
             .unwrap();
 
         assert_eq!(target_zc_mut.len(), 1);
         assert_eq!(target_zc_mut.get(0).target_base, -1_000_000); // despite no aum, desire to reach target
-        assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
+        assert_eq!(target_zc_mut.get(0).last_slot, slot);
     }
 }
 

@@ -1191,9 +1191,11 @@ pub fn calculate_target_weight(
 
 /// Update target base based on amm_inventory and mapping
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct AmmInventoryAndPrices {
+pub struct AmmInventoryAndPricesAndSlots {
     pub inventory: i64,
     pub price: i64,
+    pub last_oracle_slot: u64,
+    pub last_position_slot: u64,
 }
 
 pub struct ConstituentIndexAndDecimalAndPrice {
@@ -1206,7 +1208,7 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
     pub fn update_target_base(
         &mut self,
         mapping: &AccountZeroCopy<'a, AmmConstituentDatum, AmmConstituentMappingFixed>,
-        amm_inventory_and_prices: &[AmmInventoryAndPrices],
+        amm_inventory_and_prices: &[AmmInventoryAndPricesAndSlots],
         constituents_indexes_and_decimals_and_prices: &mut [ConstituentIndexAndDecimalAndPrice],
         slot: u64,
     ) -> DriftResult<()> {
@@ -1214,12 +1216,19 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
         constituents_indexes_and_decimals_and_prices.sort_by_key(|c| c.constituent_index);
 
         // Precompute notional by perp market index
-        let mut notionals: Vec<i128> = Vec::with_capacity(amm_inventory_and_prices.len());
-        for &AmmInventoryAndPrices { inventory, price } in amm_inventory_and_prices.iter() {
+        let mut notionals_and_slots: Vec<(i128, u64, u64)> =
+            Vec::with_capacity(amm_inventory_and_prices.len());
+        for &AmmInventoryAndPricesAndSlots {
+            inventory,
+            price,
+            last_oracle_slot,
+            last_position_slot,
+        } in amm_inventory_and_prices.iter()
+        {
             let notional = (inventory as i128)
                 .safe_mul(price as i128)?
                 .safe_div(BASE_PRECISION_I128)?;
-            notionals.push(notional);
+            notionals_and_slots.push((notional, last_oracle_slot, last_position_slot));
         }
 
         let mut mapping_index = 0;
@@ -1237,6 +1246,8 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
             let mut target_notional = 0i128;
 
             let mut j = mapping_index;
+            let mut oldest_oracle_slot = u64::MAX;
+            let mut oldest_position_slot = u64::MAX;
             while j < mapping.len() {
                 let d = mapping.get(j);
                 if d.constituent_index != constituent_index {
@@ -1246,9 +1257,14 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
                     }
                     break;
                 }
-                if let Some(perp_notional) = notionals.get(d.perp_market_index as usize) {
+                if let Some((perp_notional, perp_last_oracle_slot, perp_last_position_slot)) =
+                    notionals_and_slots.get(d.perp_market_index as usize)
+                {
                     target_notional = target_notional
                         .saturating_add(perp_notional.saturating_mul(d.weight as i128));
+
+                    oldest_oracle_slot = oldest_oracle_slot.min(*perp_last_oracle_slot);
+                    oldest_position_slot = oldest_position_slot.min(*perp_last_position_slot);
                 }
                 j += 1;
             }
@@ -1267,7 +1283,21 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
                 target_notional,
             );
             cell.target_base = target_base.cast::<i64>()?;
-            cell.last_slot = slot;
+
+            if slot.saturating_sub(oldest_position_slot) <= MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC
+                && slot.saturating_sub(oldest_oracle_slot)
+                    <= MAX_AMM_CACHE_ORACLE_STALENESS_FOR_TARGET_CALC
+            {
+                cell.last_slot = slot;
+            } else {
+                msg!(
+                    "not updating last_slot for target base constituent_index {}: oldest_position_slot {}, oldest_oracle_slot {}, current slot {}",
+                    constituent_index,
+                    oldest_position_slot,
+                    oldest_oracle_slot,
+                    slot
+                );
+            }
         }
 
         Ok(())
