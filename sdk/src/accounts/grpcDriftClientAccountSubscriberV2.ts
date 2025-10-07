@@ -326,26 +326,22 @@ export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAcco
 	}
 
 	override async subscribeToOracles(): Promise<boolean> {
-		// Build list of unique oracle pubkeys and a lookup for sources
-		const uniqueOraclePubkeys = new Map<string, OracleInfo>();
+		const pubkeyToSources = new Map<string, Set<OracleInfo['source']>>();
 		for (const info of this.oracleInfos) {
-			const id = getOracleId(info.publicKey, info.source);
-			if (
-				!uniqueOraclePubkeys.has(id) &&
-				!info.publicKey.equals((PublicKey as any).default)
-			) {
-				uniqueOraclePubkeys.set(id, info);
+			if (info.publicKey.equals((PublicKey as any).default)) {
+				continue;
 			}
+			const key = info.publicKey.toBase58();
+			let sources = pubkeyToSources.get(key);
+			if (!sources) {
+				sources = new Set<OracleInfo['source']>();
+				pubkeyToSources.set(key, sources);
+			}
+			sources.add(info.source);
 		}
 
-		const oraclePubkeys = Array.from(uniqueOraclePubkeys.values()).map(
-			(i) => i.publicKey
-		);
-		const pubkeyToSource = new Map<string, OracleInfo['source']>(
-			Array.from(uniqueOraclePubkeys.values()).map((i) => [
-				i.publicKey.toBase58(),
-				i.source,
-			])
+		const oraclePubkeys = Array.from(pubkeyToSources.keys()).map(
+			(k) => new PublicKey(k)
 		);
 
 		this.oracleMultiSubscriber =
@@ -357,9 +353,13 @@ export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAcco
 					if (!pubkey) {
 						throw new Error('Oracle pubkey missing in decode');
 					}
-					const source = pubkeyToSource.get(pubkey);
+					const sources = pubkeyToSources.get(pubkey);
+					if (!sources || sources.size === 0) {
+						throw new Error('Oracle sources missing for pubkey in decode');
+					}
+					const primarySource = sources.values().next().value;
 					const client = this.oracleClientCache.get(
-						source,
+						primarySource,
 						this.program.provider.connection,
 						this.program
 					);
@@ -389,8 +389,17 @@ export class grpcDriftClientAccountSubscriberV2 extends WebSocketDriftClientAcco
 		await this.oracleMultiSubscriber.subscribe(
 			oraclePubkeys,
 			(accountId, data) => {
-				const source = pubkeyToSource.get(accountId.toBase58());
-				this.eventEmitter.emit('oraclePriceUpdate', accountId, source, data);
+				const sources = pubkeyToSources.get(accountId.toBase58());
+				if (sources) {
+					for (const source of sources.values()) {
+						this.eventEmitter.emit(
+							'oraclePriceUpdate',
+							accountId,
+							source,
+							data
+						);
+					}
+				}
 				this.eventEmitter.emit('update');
 			}
 		);
