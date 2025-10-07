@@ -1,5 +1,5 @@
 import { Program } from '@coral-xyz/anchor';
-import { Context, PublicKey } from '@solana/web3.js';
+import { Commitment, Context, PublicKey } from '@solana/web3.js';
 import * as Buffer from 'buffer';
 import bs58 from 'bs58';
 
@@ -19,6 +19,21 @@ interface AccountInfoLike {
 	data: Buffer;
 	executable: boolean;
 	rentEpoch: number;
+}
+
+function commitmentLevelToCommitment(
+	commitmentLevel: CommitmentLevel
+): Commitment {
+	switch (commitmentLevel) {
+		case CommitmentLevel.PROCESSED:
+			return 'processed';
+		case CommitmentLevel.CONFIRMED:
+			return 'confirmed';
+		case CommitmentLevel.FINALIZED:
+			return 'finalized';
+		default:
+			return 'confirmed';
+	}
 }
 
 export class grpcMultiAccountSubscriber<T> {
@@ -103,6 +118,56 @@ export class grpcMultiAccountSubscriber<T> {
 
 	getAccountDataMap(): Map<string, DataAndSlot<T>> {
 		return this.dataMap;
+	}
+
+	async fetch(): Promise<void> {
+		try {
+			// Chunk account IDs into groups of 100 (getMultipleAccounts limit)
+			const chunkSize = 100;
+			const chunks: string[][] = [];
+			const accountIds = Array.from(this.subscribedAccounts.values());
+			for (let i = 0; i < accountIds.length; i += chunkSize) {
+				chunks.push(accountIds.slice(i, i + chunkSize));
+			}
+
+			// Process all chunks concurrently
+			await Promise.all(
+				chunks.map(async (chunk) => {
+					const accountAddresses = chunk.map(
+						(accountId) => new PublicKey(accountId)
+					);
+					const rpcResponseAndContext =
+						await this.program.provider.connection.getMultipleAccountsInfoAndContext(
+							accountAddresses,
+							{
+								commitment: commitmentLevelToCommitment(this.commitmentLevel),
+							}
+						);
+
+					const rpcResponse = rpcResponseAndContext.value;
+					const currentSlot = rpcResponseAndContext.context.slot;
+
+					for (let i = 0; i < chunk.length; i++) {
+						const accountId = chunk[i];
+						const accountInfo = rpcResponse[i];
+						if (accountInfo) {
+							const perpMarket = this.program.coder.accounts.decode(
+								'PerpMarket',
+								accountInfo.data
+							);
+							this.setAccountData(accountId, perpMarket, currentSlot);
+						}
+					}
+				})
+			);
+		} catch (error) {
+			if (this.resubOpts?.logResubMessages) {
+				console.log(
+					`[${this.accountName}] grpcMultiAccountSubscriber error fetching accounts:`,
+					error
+				);
+			}
+		}
 	}
 
 	async subscribe(
