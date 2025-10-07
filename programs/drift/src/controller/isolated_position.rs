@@ -236,13 +236,13 @@ pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
                 user_stats,
                 now,
             )?;
-    
+
             validate_spot_margin_trading(user, &perp_market_map, &spot_market_map, oracle_map)?;
-    
+
             if user.is_cross_margin_being_liquidated() {
                 user.exit_cross_margin_liquidation();
             }
-    
+
             if user.is_isolated_margin_being_liquidated(perp_market_index)? {
                 user.exit_isolated_margin_liquidation(perp_market_index)?;
             }
@@ -302,11 +302,11 @@ pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
                 user_stats,
                 now,
             )?;
-    
+
             if user.is_isolated_margin_being_liquidated(perp_market_index)? {
                 user.exit_isolated_margin_liquidation(perp_market_index)?;
             }
-    
+
             if user.is_cross_margin_being_liquidated() {
                 user.exit_cross_margin_liquidation();
             }
@@ -332,7 +332,7 @@ pub fn withdraw_from_isolated_perp_position<'c: 'info, 'info>(
     oracle_map: &mut OracleMap,
     slot: u64,
     now: i64,
-spot_market_index: u16,
+    spot_market_index: u16,
     perp_market_index: u16,
     amount: u64,
 ) -> DriftResult<()> {

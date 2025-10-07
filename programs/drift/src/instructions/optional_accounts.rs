@@ -5,7 +5,6 @@ use std::convert::TryFrom;
 
 use crate::error::ErrorCode::UnableToLoadOracle;
 use crate::math::safe_unwrap::SafeUnwrap;
-use crate::{load, load_mut, msg};
 use crate::state::load_ref::load_ref_mut;
 use crate::state::oracle::PrelaunchOracle;
 use crate::state::oracle_map::OracleMap;
@@ -15,6 +14,7 @@ use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::OracleGuardRails;
 use crate::state::traits::Size;
 use crate::state::user::{User, UserStats};
+use crate::{load, load_mut, msg};
 use crate::{validate, OracleSource};
 use anchor_lang::accounts::account::Account;
 use anchor_lang::prelude::{AccountInfo, Interface, Pubkey};
