@@ -22,7 +22,7 @@ use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 
 use crate::msg;
-use crate::optional_accounts::SettlePnlAutoTransferAccounts;
+
 use crate::state::events::{OrderActionExplanation, SettlePnlExplanation, SettlePnlRecord};
 use crate::state::oracle_map::OracleMap;
 use crate::state::paused_operations::PerpOperation;
@@ -56,7 +56,6 @@ pub fn settle_pnl(
     state: &State,
     meets_margin_requirement: Option<bool>,
     mut mode: SettlePnlMode,
-    settle_pnl_auto_transfer_accounts: &SettlePnlAutoTransferAccounts,
 ) -> DriftResult {
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
     let slot = clock.slot;
@@ -345,11 +344,10 @@ pub fn settle_pnl(
     drop(perp_market);
     drop(spot_market);
 
-    if user.perp_positions[position_index].is_auto_transfer_to_cross_margin() && user.perp_positions[position_index].can_transfer_isolated_position_deposit() {
-        let mut user_stats = settle_pnl_auto_transfer_accounts.get_user_stats()?;
+    if user.perp_positions[position_index].can_transfer_isolated_position_deposit() {
         transfer_isolated_perp_position_deposit(
             user,
-            &mut user_stats,
+            None,
             perp_market_map,
             spot_market_map,
             oracle_map,

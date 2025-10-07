@@ -26,7 +26,6 @@ use crate::state::user::{PerpPosition, PositionFlag, SpotPosition, User};
 use crate::test_utils::*;
 use crate::test_utils::{get_positions, get_pyth_price, get_spot_positions};
 use crate::{create_account_info, SettlePnlMode};
-use crate::optional_accounts::SettlePnlAutoTransferAccounts;
 use crate::{create_anchor_account_info, PRICE_PRECISION_I64};
 use anchor_lang::prelude::Clock;
 
@@ -143,7 +142,6 @@ pub fn user_no_position() {
         &state,
         None,
         SettlePnlMode::MustSettle,
-        &SettlePnlAutoTransferAccounts::default(),
     );
 
     assert_eq!(result, Err(ErrorCode::UserHasNoPositionInMarket));
@@ -269,7 +267,6 @@ pub fn user_does_not_meet_maintenance_requirement() {
         &state,
         None,
         SettlePnlMode::MustSettle,
-        &SettlePnlAutoTransferAccounts::default(),
     );
 
     assert_eq!(result, Err(ErrorCode::InsufficientCollateralForSettlingPNL))
@@ -398,7 +395,6 @@ pub fn user_does_not_meet_strict_maintenance_requirement() {
         &state,
         None,
         SettlePnlMode::MustSettle,
-        &SettlePnlAutoTransferAccounts::default(),
     );
 
     assert_eq!(result, Err(ErrorCode::InsufficientCollateralForSettlingPNL));
@@ -550,7 +546,6 @@ pub fn user_unsettled_negative_pnl() {
         &state,
         None,
         SettlePnlMode::MustSettle,
-        &SettlePnlAutoTransferAccounts::default(),
     )
     .unwrap();
 
@@ -686,7 +681,6 @@ pub fn user_unsettled_positive_pnl_more_than_pool() {
         &state,
         None,
         SettlePnlMode::MustSettle,
-        &SettlePnlAutoTransferAccounts::default(),
     )
     .unwrap();
 
@@ -824,7 +818,6 @@ pub fn user_unsettled_positive_pnl_less_than_pool() {
         &state,
         None,
         SettlePnlMode::MustSettle,
-        &SettlePnlAutoTransferAccounts::default(),
     )
     .unwrap();
 
@@ -965,7 +958,6 @@ pub fn market_fee_pool_receives_portion() {
         &state,
         None,
         SettlePnlMode::MustSettle,
-        &SettlePnlAutoTransferAccounts::default(),
     )
     .unwrap();
 
@@ -1110,7 +1102,6 @@ pub fn market_fee_pool_pays_back_to_pnl_pool() {
         &state,
         None,
         SettlePnlMode::MustSettle,
-        &SettlePnlAutoTransferAccounts::default(),
     )
     .unwrap();
 
@@ -1249,7 +1240,6 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl() {
         &state,
         None,
         SettlePnlMode::MustSettle,
-        &SettlePnlAutoTransferAccounts::default(),
     )
     .unwrap();
 
@@ -1388,7 +1378,6 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl_price_breached()
         &state,
         None,
         SettlePnlMode::MustSettle,
-        &SettlePnlAutoTransferAccounts::default(),
     )
     .is_err());
 }
@@ -1524,7 +1513,6 @@ pub fn user_long_negative_unrealized_pnl() {
         &state,
         None,
         SettlePnlMode::MustSettle,
-        &SettlePnlAutoTransferAccounts::default(),
     )
     .unwrap();
 
@@ -1663,7 +1651,6 @@ pub fn user_short_positive_unrealized_pnl_up_to_max_positive_pnl() {
         &state,
         None,
         SettlePnlMode::MustSettle,
-        &SettlePnlAutoTransferAccounts::default(),
     )
     .unwrap();
 
@@ -1802,7 +1789,6 @@ pub fn user_short_negative_unrealized_pnl() {
         &state,
         None,
         SettlePnlMode::MustSettle,
-        &SettlePnlAutoTransferAccounts::default(),
     )
     .unwrap();
 
@@ -1944,7 +1930,6 @@ pub fn user_invalid_oracle_position() {
         &state,
         None,
         SettlePnlMode::MustSettle,
-        &SettlePnlAutoTransferAccounts::default(),
     );
     assert_eq!(result, Err(ErrorCode::OracleStaleForMargin));
 
@@ -1971,7 +1956,6 @@ pub fn user_invalid_oracle_position() {
         &state,
         None,
         SettlePnlMode::MustSettle,
-        &SettlePnlAutoTransferAccounts::default(),
     );
     assert_eq!(result, Err(ErrorCode::PriceBandsBreached));
 
@@ -1998,7 +1982,6 @@ pub fn user_invalid_oracle_position() {
         &state,
         None,
         SettlePnlMode::MustSettle,
-        &SettlePnlAutoTransferAccounts::default(),
     );
     assert_eq!(result, Err(ErrorCode::PriceBandsBreached));
 
@@ -2024,7 +2007,6 @@ pub fn user_invalid_oracle_position() {
         &state,
         None,
         SettlePnlMode::MustSettle,
-        &SettlePnlAutoTransferAccounts::default(),
     );
     assert_eq!(result, Err(ErrorCode::OracleStaleForMargin));
 
@@ -2050,7 +2032,6 @@ pub fn user_invalid_oracle_position() {
         &state,
         None,
         SettlePnlMode::MustSettle,
-        &SettlePnlAutoTransferAccounts::default(),
     );
     assert_eq!(result, Ok(()));
 }
@@ -2260,7 +2241,6 @@ pub fn isolated_perp_position_negative_pnl() {
         &state,
         None,
         SettlePnlMode::MustSettle,
-        &SettlePnlAutoTransferAccounts::default(),
     )
     .unwrap();
 
@@ -2395,7 +2375,6 @@ pub fn isolated_perp_position_user_unsettled_positive_pnl_less_than_pool() {
         &state,
         None,
         SettlePnlMode::MustSettle,
-        &SettlePnlAutoTransferAccounts::default(),
     )
     .unwrap();
 

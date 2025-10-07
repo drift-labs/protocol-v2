@@ -12534,6 +12534,9 @@
           },
           {
             "name": "UpdateHighLeverageMode"
+          },
+          {
+            "name": "EnableAutoTransfer"
           }
         ]
       }
@@ -13025,9 +13028,6 @@
           },
           {
             "name": "Bankrupt"
-          },
-          {
-            "name": "AutoTransferToCrossMargin"
           }
         ]
       }

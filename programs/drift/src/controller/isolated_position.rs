@@ -19,6 +19,8 @@ use crate::state::user::{User, UserStats};
 use crate::validate;
 use anchor_lang::prelude::*;
 
+use super::position::get_position_index;
+
 #[cfg(test)]
 mod tests;
 
@@ -154,7 +156,7 @@ pub fn deposit_into_isolated_perp_position<'c: 'info, 'info>(
 
 pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
     user: &mut User,
-    user_stats: &mut UserStats,
+    user_stats: Option<&mut UserStats>,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
@@ -223,25 +225,30 @@ pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
 
         drop(spot_market);
 
-        user.meets_withdraw_margin_requirement_and_increment_fuel_bonus(
-            &perp_market_map,
-            &spot_market_map,
-            oracle_map,
-            MarginRequirementType::Initial,
-            spot_market_index,
-            amount as u128,
-            user_stats,
-            now,
-        )?;
-
-        validate_spot_margin_trading(user, &perp_market_map, &spot_market_map, oracle_map)?;
-
-        if user.is_cross_margin_being_liquidated() {
-            user.exit_cross_margin_liquidation();
-        }
-
-        if user.is_isolated_margin_being_liquidated(perp_market_index)? {
-            user.exit_isolated_margin_liquidation(perp_market_index)?;
+        if let Some(user_stats) = user_stats {
+            user.meets_withdraw_margin_requirement_and_increment_fuel_bonus(
+                &perp_market_map,
+                &spot_market_map,
+                oracle_map,
+                MarginRequirementType::Initial,
+                spot_market_index,
+                amount as u128,
+                user_stats,
+                now,
+            )?;
+    
+            validate_spot_margin_trading(user, &perp_market_map, &spot_market_map, oracle_map)?;
+    
+            if user.is_cross_margin_being_liquidated() {
+                user.exit_cross_margin_liquidation();
+            }
+    
+            if user.is_isolated_margin_being_liquidated(perp_market_index)? {
+                user.exit_isolated_margin_liquidation(perp_market_index)?;
+            }
+        } else {
+            msg!("Cant transfer isolated position deposit without user stats");
+            return Err(ErrorCode::DefaultError);
         }
     } else {
         let mut spot_market = spot_market_map.get_ref_mut(&spot_market_index)?;
@@ -284,23 +291,30 @@ pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
 
         drop(spot_market);
 
-        user.meets_withdraw_margin_requirement_and_increment_fuel_bonus(
-            &perp_market_map,
-            &spot_market_map,
-            oracle_map,
-            MarginRequirementType::Initial,
-            0,
-            0,
-            user_stats,
-            now,
-        )?;
-
-        if user.is_isolated_margin_being_liquidated(perp_market_index)? {
-            user.exit_isolated_margin_liquidation(perp_market_index)?;
-        }
-
-        if user.is_cross_margin_being_liquidated() {
-            user.exit_cross_margin_liquidation();
+        if let Some(user_stats) = user_stats {
+            user.meets_withdraw_margin_requirement_and_increment_fuel_bonus(
+                &perp_market_map,
+                &spot_market_map,
+                oracle_map,
+                MarginRequirementType::Initial,
+                0,
+                0,
+                user_stats,
+                now,
+            )?;
+    
+            if user.is_isolated_margin_being_liquidated(perp_market_index)? {
+                user.exit_isolated_margin_liquidation(perp_market_index)?;
+            }
+    
+            if user.is_cross_margin_being_liquidated() {
+                user.exit_cross_margin_liquidation();
+            }
+        } else {
+            if let Ok(_) = get_position_index(&user.perp_positions, perp_market_index) {
+                msg!("Cant transfer isolated position deposit without user stats if position is still open");
+                return Err(ErrorCode::DefaultError);
+            }
         }
     }
 
@@ -318,7 +332,7 @@ pub fn withdraw_from_isolated_perp_position<'c: 'info, 'info>(
     oracle_map: &mut OracleMap,
     slot: u64,
     now: i64,
-    spot_market_index: u16,
+spot_market_index: u16,
     perp_market_index: u16,
     amount: u64,
 ) -> DriftResult<()> {
