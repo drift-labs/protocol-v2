@@ -1281,6 +1281,13 @@ impl PerpPosition {
     pub fn is_bankrupt(&self) -> bool {
         self.position_flag & PositionFlag::Bankrupt as u8 > 0
     }
+
+    pub fn can_transfer_isolated_position_deposit(&self) -> bool {
+        self.is_isolated()
+            && !self.is_open_position()
+            && !self.has_open_order()
+            && !self.has_unsettled_pnl()
+    }
 }
 
 impl SpotBalance for PerpPosition {
