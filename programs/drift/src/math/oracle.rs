@@ -102,7 +102,7 @@ pub enum DriftAction {
     UpdateAMMCurve,
     OracleOrderPrice,
     UseMMOraclePrice,
-    UpdateLpConstituentTargetBase,
+    UpdateAmmCache,
     UpdateLpPoolAum,
     LpPoolSwap,
 }
@@ -153,7 +153,7 @@ pub fn is_oracle_valid_for_action(
                     | OracleValidity::StaleForMargin
             ),
             DriftAction::FillOrderMatch
-            | DriftAction::UpdateLpConstituentTargetBase
+            | DriftAction::UpdateAmmCache
             | DriftAction::UpdateLpPoolAum
             | DriftAction::LpPoolSwap => !matches!(
                 oracle_validity,

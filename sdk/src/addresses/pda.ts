@@ -469,7 +469,9 @@ export function getConstituentTargetBasePublicKey(
 ): PublicKey {
 	return PublicKey.findProgramAddressSync(
 		[
-			Buffer.from(anchor.utils.bytes.utf8.encode('constituent_target_base')),
+			Buffer.from(
+				anchor.utils.bytes.utf8.encode('constituent_target_base_seed')
+			),
 			lpPoolPublicKey.toBuffer(),
 		],
 		programId
@@ -508,7 +510,7 @@ export function getConstituentVaultPublicKey(
 
 export function getAmmCachePublicKey(programId: PublicKey): PublicKey {
 	return PublicKey.findProgramAddressSync(
-		[Buffer.from(anchor.utils.bytes.utf8.encode('amm_cache'))],
+		[Buffer.from(anchor.utils.bytes.utf8.encode('amm_cache_seed'))],
 		programId
 	)[0];
 }

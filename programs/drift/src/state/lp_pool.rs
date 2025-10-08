@@ -27,7 +27,7 @@ use crate::{impl_zero_copy_loader, validate};
 pub const LP_POOL_PDA_SEED: &str = "lp_pool";
 pub const AMM_MAP_PDA_SEED: &str = "AMM_MAP";
 pub const CONSTITUENT_PDA_SEED: &str = "CONSTITUENT";
-pub const CONSTITUENT_TARGET_BASE_PDA_SEED: &str = "constituent_target_base";
+pub const CONSTITUENT_TARGET_BASE_PDA_SEED: &str = "constituent_target_base_seed";
 pub const CONSTITUENT_CORRELATIONS_PDA_SEED: &str = "constituent_correlations";
 pub const CONSTITUENT_VAULT_PDA_SEED: &str = "CONSTITUENT_VAULT";
 pub const LP_POOL_TOKEN_VAULT_PDA_SEED: &str = "LP_POOL_TOKEN_VAULT";
@@ -45,14 +45,14 @@ pub const SETTLE_AMM_ORACLE_MAX_DELAY: u64 = 100;
 pub const SETTLE_AMM_ORACLE_MAX_DELAY: u64 = 10;
 pub const LP_POOL_SWAP_AUM_UPDATE_DELAY: u64 = 0;
 #[cfg(feature = "anchor-test")]
-pub const MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC: u64 = 10000u64;
+pub const MAX_STALENESS_FOR_TARGET_CALC: u64 = 10000u64;
 #[cfg(not(feature = "anchor-test"))]
-pub const MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC: u64 = 0u64;
+pub const MAX_STALENESS_FOR_TARGET_CALC: u64 = 0u64;
 
 #[cfg(feature = "anchor-test")]
-pub const MAX_AMM_CACHE_ORACLE_STALENESS_FOR_TARGET_CALC: u64 = 10000u64;
+pub const MAX_ORACLE_STALENESS_FOR_TARGET_CALC: u64 = 10000u64;
 #[cfg(not(feature = "anchor-test"))]
-pub const MAX_AMM_CACHE_ORACLE_STALENESS_FOR_TARGET_CALC: u64 = 10u64;
+pub const MAX_ORACLE_STALENESS_FOR_TARGET_CALC: u64 = 10u64;
 
 #[cfg(test)]
 mod tests;
@@ -105,6 +105,7 @@ pub struct LPPool {
 
     /// PERCENTAGE_PRECISION
     pub min_mint_fee: i64,
+
     pub token_supply: u64,
 
     // PERCENTAGE_PRECISION: percentage precision const = 100%
@@ -120,7 +121,11 @@ pub struct LPPool {
     // No precision - just constant
     pub xi: u8,
 
-    pub padding: u8,
+    // Bps of fees for target delays
+    pub target_oracle_delay_fee_bps_per_10_slots: u8,
+    pub target_position_delay_fee_bps_per_10_slots: u8,
+
+    pub padding: [u8; 15],
 }
 
 impl Size for LPPool {
@@ -176,6 +181,10 @@ impl LPPool {
     /// Returns (in_amount out_amount, in_fee, out_fee)
     pub fn get_swap_amount(
         &self,
+        in_target_position_slot_delay: u64,
+        out_target_position_slot_delay: u64,
+        in_target_oracle_slot_delay: u64,
+        out_target_oracle_slot_delay: u64,
         in_oracle: &OraclePriceData,
         out_oracle: &OraclePriceData,
         in_constituent: &Constituent,
@@ -194,7 +203,7 @@ impl LPPool {
             out_oracle,
         )?;
 
-        let (in_fee, out_fee) = self.get_swap_fees(
+        let (mut in_fee, mut out_fee) = self.get_swap_fees(
             in_spot_market,
             in_oracle.price,
             in_constituent,
@@ -206,6 +215,16 @@ impl LPPool {
             Some(out_target_weight),
             correlation,
         )?;
+
+        in_fee += self.get_target_uncertainty_fees(
+            in_target_position_slot_delay,
+            in_target_oracle_slot_delay,
+        )?;
+        out_fee += self.get_target_uncertainty_fees(
+            out_target_position_slot_delay,
+            out_target_oracle_slot_delay,
+        )?;
+
         let in_fee_amount = in_amount
             .cast::<i128>()?
             .safe_mul(in_fee)?
@@ -230,6 +249,8 @@ impl LPPool {
     /// Returns the mint_amount in lp token precision and fee to charge in constituent mint precision
     pub fn get_add_liquidity_mint_amount(
         &self,
+        in_target_position_slot_delay: u64,
+        in_target_oracle_slot_delay: u64,
         in_spot_market: &SpotMarket,
         in_constituent: &Constituent,
         in_amount: u128,
@@ -237,7 +258,7 @@ impl LPPool {
         in_target_weight: i64,
         dlp_total_supply: u64,
     ) -> DriftResult<(u64, u128, i64, i128)> {
-        let (in_fee_pct, out_fee_pct) = if self.last_aum == 0 {
+        let (mut in_fee_pct, out_fee_pct) = if self.last_aum == 0 {
             (0, 0)
         } else {
             self.get_swap_fees(
@@ -253,7 +274,12 @@ impl LPPool {
                 0,
             )?
         };
-        let in_fee_pct = in_fee_pct.safe_add(out_fee_pct)?;
+        in_fee_pct = in_fee_pct.safe_add(out_fee_pct)?;
+        in_fee_pct += self.get_target_uncertainty_fees(
+            in_target_position_slot_delay,
+            in_target_oracle_slot_delay,
+        )?;
+
         let in_fee_amount = in_amount
             .cast::<i128>()?
             .safe_mul(in_fee_pct)?
@@ -298,6 +324,8 @@ impl LPPool {
     /// Returns the mint_amount in lp token precision and fee to charge in constituent mint precision
     pub fn get_remove_liquidity_amount(
         &self,
+        out_target_position_slot_delay: u64,
+        out_target_oracle_slot_delay: u64,
         out_spot_market: &SpotMarket,
         out_constituent: &Constituent,
         lp_to_burn: u64,
@@ -337,7 +365,7 @@ impl LPPool {
             .safe_div(10u128.pow(3))?
             .safe_div(out_oracle.price.cast::<u128>()?)?;
 
-        let (in_fee_pct, out_fee_pct) = self.get_swap_fees(
+        let (in_fee_pct, mut out_fee_pct) = self.get_swap_fees(
             out_spot_market,
             out_oracle.price,
             out_constituent,
@@ -349,7 +377,12 @@ impl LPPool {
             None,
             0,
         )?;
-        let out_fee_pct = in_fee_pct.safe_add(out_fee_pct)?;
+
+        out_fee_pct += self.get_target_uncertainty_fees(
+            out_target_position_slot_delay,
+            out_target_oracle_slot_delay,
+        )?;
+        out_fee_pct = in_fee_pct.safe_add(out_fee_pct)?;
         let out_fee_amount = out_amount
             .cast::<i128>()?
             .safe_mul(out_fee_pct)?
@@ -602,6 +635,45 @@ impl LPPool {
         ))
     }
 
+    pub fn get_target_uncertainty_fees(
+        self,
+        target_position_slot_delay: u64,
+        target_oracle_slot_delay: u64,
+    ) -> DriftResult<i128> {
+        // Gives an uncertainty fee in bps if the oracle or position was stale when calcing target.
+        // Uses a step function that goes up every 10 slots beyond a threshold where we consider it okay
+        //  - delay 0 (<= threshold) = 0 bps
+        //  - delay 1..10  = 10 bps (1 block)
+        //  - delay 11..20 = 20 bps (2 blocks)
+        fn step_fee(delay: u64, threshold: u64, per_10_slot_bps: u8) -> DriftResult<u128> {
+            if delay <= threshold || per_10_slot_bps == 0 {
+                return Ok(0);
+            }
+            let elapsed = delay.saturating_sub(threshold);
+            let blocks = (elapsed + 9) / 10;
+            let fee_bps = (blocks as u128).safe_mul(per_10_slot_bps as u128)?;
+            let fee = fee_bps
+                .safe_mul(PERCENTAGE_PRECISION)?
+                .safe_div(10_000u128)?;
+            Ok(fee)
+        }
+
+        let oracle_uncertainty_fee = step_fee(
+            target_oracle_slot_delay,
+            MAX_ORACLE_STALENESS_FOR_TARGET_CALC,
+            self.target_oracle_delay_fee_bps_per_10_slots,
+        )?;
+        let position_uncertainty_fee = step_fee(
+            target_position_slot_delay,
+            MAX_STALENESS_FOR_TARGET_CALC,
+            self.target_position_delay_fee_bps_per_10_slots,
+        )?;
+
+        Ok(oracle_uncertainty_fee
+            .safe_add(position_uncertainty_fee)?
+            .cast::<i128>()?)
+    }
+
     pub fn record_mint_redeem_fees(&mut self, amount: i64) -> DriftResult {
         self.total_mint_redeem_fees_paid = self
             .total_mint_redeem_fees_paid
@@ -808,6 +880,7 @@ pub struct Constituent {
     pub last_oracle_price: i64,
     pub last_oracle_slot: u64,
 
+    /// Delay allowed for valid AUM calculation
     pub oracle_staleness_threshold: u64,
 
     pub flash_loan_initial_token_amount: u64,
@@ -1064,8 +1137,9 @@ impl_zero_copy_loader!(
 pub struct TargetsDatum {
     pub cost_to_trade_bps: i32,
     pub _padding: [u8; 4],
-    pub last_slot: u64,
     pub target_base: i64,
+    pub last_oracle_slot: u64,
+    pub last_position_slot: u64,
 }
 
 #[zero_copy]
@@ -1098,7 +1172,7 @@ pub struct ConstituentTargetBase {
 
 impl ConstituentTargetBase {
     pub fn space(num_constituents: usize) -> usize {
-        8 + 40 + num_constituents * 24
+        8 + 40 + num_constituents * 32
     }
 
     pub fn validate(&self) -> DriftResult<()> {
@@ -1191,9 +1265,11 @@ pub fn calculate_target_weight(
 
 /// Update target base based on amm_inventory and mapping
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct AmmInventoryAndPrices {
+pub struct AmmInventoryAndPricesAndSlots {
     pub inventory: i64,
     pub price: i64,
+    pub last_oracle_slot: u64,
+    pub last_position_slot: u64,
 }
 
 pub struct ConstituentIndexAndDecimalAndPrice {
@@ -1206,7 +1282,7 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
     pub fn update_target_base(
         &mut self,
         mapping: &AccountZeroCopy<'a, AmmConstituentDatum, AmmConstituentMappingFixed>,
-        amm_inventory_and_prices: &[AmmInventoryAndPrices],
+        amm_inventory_and_prices: &[AmmInventoryAndPricesAndSlots],
         constituents_indexes_and_decimals_and_prices: &mut [ConstituentIndexAndDecimalAndPrice],
         slot: u64,
     ) -> DriftResult<()> {
@@ -1214,12 +1290,19 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
         constituents_indexes_and_decimals_and_prices.sort_by_key(|c| c.constituent_index);
 
         // Precompute notional by perp market index
-        let mut notionals: Vec<i128> = Vec::with_capacity(amm_inventory_and_prices.len());
-        for &AmmInventoryAndPrices { inventory, price } in amm_inventory_and_prices.iter() {
+        let mut notionals_and_slots: Vec<(i128, u64, u64)> =
+            Vec::with_capacity(amm_inventory_and_prices.len());
+        for &AmmInventoryAndPricesAndSlots {
+            inventory,
+            price,
+            last_oracle_slot,
+            last_position_slot,
+        } in amm_inventory_and_prices.iter()
+        {
             let notional = (inventory as i128)
                 .safe_mul(price as i128)?
                 .safe_div(BASE_PRECISION_I128)?;
-            notionals.push(notional);
+            notionals_and_slots.push((notional, last_oracle_slot, last_position_slot));
         }
 
         let mut mapping_index = 0;
@@ -1237,6 +1320,8 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
             let mut target_notional = 0i128;
 
             let mut j = mapping_index;
+            let mut oldest_oracle_slot = u64::MAX;
+            let mut oldest_position_slot = u64::MAX;
             while j < mapping.len() {
                 let d = mapping.get(j);
                 if d.constituent_index != constituent_index {
@@ -1246,9 +1331,14 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
                     }
                     break;
                 }
-                if let Some(perp_notional) = notionals.get(d.perp_market_index as usize) {
+                if let Some((perp_notional, perp_last_oracle_slot, perp_last_position_slot)) =
+                    notionals_and_slots.get(d.perp_market_index as usize)
+                {
                     target_notional = target_notional
                         .saturating_add(perp_notional.saturating_mul(d.weight as i128));
+
+                    oldest_oracle_slot = oldest_oracle_slot.min(*perp_last_oracle_slot);
+                    oldest_position_slot = oldest_position_slot.min(*perp_last_position_slot);
                 }
                 j += 1;
             }
@@ -1267,7 +1357,28 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
                 target_notional,
             );
             cell.target_base = target_base.cast::<i64>()?;
-            cell.last_slot = slot;
+
+            if slot.saturating_sub(oldest_position_slot) <= MAX_STALENESS_FOR_TARGET_CALC {
+                cell.last_position_slot = slot;
+            } else {
+                msg!(
+                    "not updating last_position_slot for target base constituent_index {}: oldest_position_slot {}, current slot {}",
+                    constituent_index,
+                    oldest_position_slot,
+                    slot
+                );
+            }
+
+            if slot.saturating_sub(oldest_oracle_slot) <= MAX_ORACLE_STALENESS_FOR_TARGET_CALC {
+                cell.last_oracle_slot = slot;
+            } else {
+                msg!(
+                    "not updating last_oracle_slot for target base constituent_index {}:  oldest_oracle_slot {}, current slot {}",
+                    constituent_index,
+                    oldest_oracle_slot,
+                    slot
+                );
+            }
         }
 
         Ok(())

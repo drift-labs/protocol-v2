@@ -54,9 +54,14 @@ export class UserStats {
 				},
 				config.accountSubscription.commitment
 			);
+		} else if (config.accountSubscription?.type === 'custom') {
+			this.accountSubscriber =
+				config.accountSubscription.userStatsAccountSubscriber;
 		} else {
+			const exhaustiveCheck: never = config.accountSubscription;
+
 			throw new Error(
-				`Unknown user stats account subscription type: ${config.accountSubscription?.type}`
+				`Unknown user stats account subscription type: ${exhaustiveCheck}`
 			);
 		}
 	}

@@ -82,7 +82,9 @@ pub fn handle_initialize_lp_pool(
         gamma_execution: 2,
         volatility: 4,
         xi: 2,
-        padding: 0,
+        target_oracle_delay_fee_bps_per_10_slots: 0,
+        target_position_delay_fee_bps_per_10_slots: 0,
+        padding: [0u8; 15],
         whitelist_mint,
     };
 
@@ -998,6 +1000,10 @@ pub fn handle_override_amm_cache_info<'c: 'info, 'info>(
     }
 
     if let Some(amm_inventory_limit) = override_params.amm_inventory_limit {
+        if amm_inventory_limit < 0 {
+            msg!("amm_inventory_limit must be non-negative");
+            return Err(ErrorCode::DefaultError.into());
+        }
         cache_entry.amm_inventory_limit = amm_inventory_limit;
     }
 

@@ -68,22 +68,30 @@ mod tests {
             }
         };
 
-        let amm_inventory_and_price: Vec<AmmInventoryAndPrices> = vec![
-            AmmInventoryAndPrices {
+        let amm_inventory_and_price: Vec<AmmInventoryAndPricesAndSlots> = vec![
+            AmmInventoryAndPricesAndSlots {
                 inventory: 4 * BASE_PRECISION_I64,
                 price: 100_000 * PRICE_PRECISION_I64,
+                last_oracle_slot: slot,
+                last_position_slot: slot,
             }, // $400k BTC
-            AmmInventoryAndPrices {
+            AmmInventoryAndPricesAndSlots {
                 inventory: 2000 * BASE_PRECISION_I64,
                 price: 200 * PRICE_PRECISION_I64,
+                last_oracle_slot: slot,
+                last_position_slot: slot,
             }, // $400k SOL
-            AmmInventoryAndPrices {
+            AmmInventoryAndPricesAndSlots {
                 inventory: 200 * BASE_PRECISION_I64,
                 price: 1500 * PRICE_PRECISION_I64,
+                last_oracle_slot: slot,
+                last_position_slot: slot,
             }, // $300k ETH
-            AmmInventoryAndPrices {
+            AmmInventoryAndPricesAndSlots {
                 inventory: 16500 * BASE_PRECISION_I64,
                 price: PRICE_PRECISION_I64,
+                last_oracle_slot: slot,
+                last_position_slot: slot,
             }, // $16.5k FARTCOIN
         ];
         let mut constituents_indexes_and_decimals_and_prices = vec![
@@ -114,8 +122,7 @@ mod tests {
             len: 4,
             ..ConstituentTargetBaseFixed::default()
         });
-        let target_data = RefCell::new([0u8; 96]);
-        let now_ts = 1234567890;
+        let target_data = RefCell::new([0u8; 4 * 32]);
         let mut target_zc_mut = AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
             fixed: target_fixed.borrow_mut(),
             data: target_data.borrow_mut(),
@@ -127,7 +134,7 @@ mod tests {
                 &mapping_zc,
                 &amm_inventory_and_price,
                 constituents_indexes_and_decimals_and_prices.as_mut_slice(),
-                now_ts,
+                slot,
             )
             .unwrap();
 
@@ -155,6 +162,7 @@ mod tests {
 
     #[test]
     fn test_single_zero_weight() {
+        let slot = 20202020 as u64;
         let amm_datum = amm_const_datum(0, 1, 0, 0);
         let mapping_fixed = RefCell::new(AmmConstituentMappingFixed {
             len: 1,
@@ -181,23 +189,25 @@ mod tests {
             }
         };
 
-        let amm_inventory_and_prices: Vec<AmmInventoryAndPrices> = vec![AmmInventoryAndPrices {
-            inventory: 1_000_000,
-            price: 1_000_000,
-        }];
+        let amm_inventory_and_prices: Vec<AmmInventoryAndPricesAndSlots> =
+            vec![AmmInventoryAndPricesAndSlots {
+                inventory: 1_000_000,
+                price: 1_000_000,
+                last_oracle_slot: slot,
+                last_position_slot: slot,
+            }];
         let mut constituents_indexes_and_decimals_and_prices =
             vec![ConstituentIndexAndDecimalAndPrice {
                 constituent_index: 1,
                 decimals: 6,
                 price: 1_000_000,
             }];
-        let now_ts = 1000;
 
         let target_fixed = RefCell::new(ConstituentTargetBaseFixed {
             len: 1,
             ..ConstituentTargetBaseFixed::default()
         });
-        let target_data = RefCell::new([0u8; 24]);
+        let target_data = RefCell::new([0u8; 32]);
         let mut target_zc_mut = AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
             fixed: target_fixed.borrow_mut(),
             data: target_data.borrow_mut(),
@@ -209,18 +219,19 @@ mod tests {
                 &mapping_zc,
                 &amm_inventory_and_prices,
                 constituents_indexes_and_decimals_and_prices.as_mut_slice(),
-                now_ts,
+                slot,
             )
             .unwrap();
 
         assert!(target_zc_mut.iter().all(|&x| x.target_base == 0));
         assert_eq!(target_zc_mut.len(), 1);
         assert_eq!(target_zc_mut.get(0).target_base, 0);
-        assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
+        assert_eq!(target_zc_mut.get(0).last_oracle_slot, slot);
     }
 
     #[test]
     fn test_single_full_weight() {
+        let slot = 20202020 as u64;
         let amm_datum = amm_const_datum(0, 1, PERCENTAGE_PRECISION_I64, 0);
         let mapping_fixed = RefCell::new(AmmConstituentMappingFixed {
             len: 1,
@@ -248,10 +259,13 @@ mod tests {
         };
 
         let price = PRICE_PRECISION_I64;
-        let amm_inventory_and_prices: Vec<AmmInventoryAndPrices> = vec![AmmInventoryAndPrices {
-            inventory: BASE_PRECISION_I64,
-            price,
-        }];
+        let amm_inventory_and_prices: Vec<AmmInventoryAndPricesAndSlots> =
+            vec![AmmInventoryAndPricesAndSlots {
+                inventory: BASE_PRECISION_I64,
+                price,
+                last_oracle_slot: slot,
+                last_position_slot: slot,
+            }];
         let mut constituents_indexes_and_decimals_and_prices =
             vec![ConstituentIndexAndDecimalAndPrice {
                 constituent_index: 1,
@@ -265,19 +279,20 @@ mod tests {
             len: 1,
             ..ConstituentTargetBaseFixed::default()
         });
-        let target_data = RefCell::new([0u8; 24]);
+        let target_data = RefCell::new([0u8; 32]);
         let mut target_zc_mut = AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
             fixed: target_fixed.borrow_mut(),
             data: target_data.borrow_mut(),
             _marker: PhantomData::<TargetsDatum>,
         };
 
+        // Should succeed but not update the target's slot if clock slot is too recent
         target_zc_mut
             .update_target_base(
                 &mapping_zc,
                 &amm_inventory_and_prices,
                 constituents_indexes_and_decimals_and_prices.as_mut_slice(),
-                now_ts,
+                4040404040440404404, // far future slot
             )
             .unwrap();
 
@@ -295,11 +310,22 @@ mod tests {
         );
         assert_eq!(weight, -1000000);
         assert_eq!(target_zc_mut.len(), 1);
-        assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
+        assert_eq!(target_zc_mut.get(0).last_oracle_slot, 0);
+
+        target_zc_mut
+            .update_target_base(
+                &mapping_zc,
+                &amm_inventory_and_prices,
+                constituents_indexes_and_decimals_and_prices.as_mut_slice(),
+                slot,
+            )
+            .unwrap();
+        assert_eq!(target_zc_mut.get(0).last_oracle_slot, slot); // still not updated
     }
 
     #[test]
     fn test_multiple_constituents_partial_weights() {
+        let slot = 20202020 as u64;
         let amm_mapping_data = vec![
             amm_const_datum(0, 1, PERCENTAGE_PRECISION_I64 / 2, 111),
             amm_const_datum(0, 2, PERCENTAGE_PRECISION_I64 / 2, 111),
@@ -337,10 +363,13 @@ mod tests {
             }
         };
 
-        let amm_inventory_and_prices: Vec<AmmInventoryAndPrices> = vec![AmmInventoryAndPrices {
-            inventory: 1_000_000_000,
-            price: 1_000_000,
-        }];
+        let amm_inventory_and_prices: Vec<AmmInventoryAndPricesAndSlots> =
+            vec![AmmInventoryAndPricesAndSlots {
+                inventory: 1_000_000_000,
+                price: 1_000_000,
+                last_oracle_slot: slot,
+                last_position_slot: slot,
+            }];
         let mut constituents_indexes_and_decimals_and_prices = vec![
             ConstituentIndexAndDecimalAndPrice {
                 constituent_index: 1,
@@ -361,7 +390,7 @@ mod tests {
             len: amm_mapping_data.len() as u32,
             ..ConstituentTargetBaseFixed::default()
         });
-        let target_data = RefCell::new([0u8; 48]);
+        let target_data = RefCell::new([0u8; 2 * 32]);
         let mut target_zc_mut = AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
             fixed: target_fixed.borrow_mut(),
             data: target_data.borrow_mut(),
@@ -373,7 +402,7 @@ mod tests {
                 &mapping_zc,
                 &amm_inventory_and_prices,
                 constituents_indexes_and_decimals_and_prices.as_mut_slice(),
-                now_ts,
+                slot,
             )
             .unwrap();
 
@@ -393,12 +422,13 @@ mod tests {
                 .unwrap(),
                 -1 * PERCENTAGE_PRECISION_I64 / 2
             );
-            assert_eq!(target_zc_mut.get(i).last_slot, now_ts);
+            assert_eq!(target_zc_mut.get(i).last_oracle_slot, slot);
         }
     }
 
     #[test]
     fn test_zero_aum_safe() {
+        let slot = 20202020 as u64;
         let amm_datum = amm_const_datum(0, 1, PERCENTAGE_PRECISION_I64, 0);
         let mapping_fixed = RefCell::new(AmmConstituentMappingFixed {
             len: 1,
@@ -425,10 +455,13 @@ mod tests {
             }
         };
 
-        let amm_inventory_and_prices: Vec<AmmInventoryAndPrices> = vec![AmmInventoryAndPrices {
-            inventory: 1_000_000,
-            price: 142_000_000,
-        }];
+        let amm_inventory_and_prices: Vec<AmmInventoryAndPricesAndSlots> =
+            vec![AmmInventoryAndPricesAndSlots {
+                inventory: 1_000_000,
+                price: 142_000_000,
+                last_oracle_slot: slot,
+                last_position_slot: slot,
+            }];
         let mut constituents_indexes_and_decimals_and_prices =
             vec![ConstituentIndexAndDecimalAndPrice {
                 constituent_index: 1,
@@ -442,7 +475,7 @@ mod tests {
             len: 1,
             ..ConstituentTargetBaseFixed::default()
         });
-        let target_data = RefCell::new([0u8; 24]);
+        let target_data = RefCell::new([0u8; 32]);
         let mut target_zc_mut = AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
             fixed: target_fixed.borrow_mut(),
             data: target_data.borrow_mut(),
@@ -454,18 +487,20 @@ mod tests {
                 &mapping_zc,
                 &amm_inventory_and_prices,
                 constituents_indexes_and_decimals_and_prices.as_mut_slice(),
-                now_ts,
+                slot,
             )
             .unwrap();
 
         assert_eq!(target_zc_mut.len(), 1);
         assert_eq!(target_zc_mut.get(0).target_base, -1_000_000); // despite no aum, desire to reach target
-        assert_eq!(target_zc_mut.get(0).last_slot, now_ts);
+        assert_eq!(target_zc_mut.get(0).last_oracle_slot, slot);
     }
 }
 
 #[cfg(test)]
 mod swap_tests {
+    use core::slice;
+
     use crate::math::constants::{
         PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I128, PRICE_PRECISION_I64,
         SPOT_BALANCE_PRECISION,
@@ -500,6 +535,10 @@ mod swap_tests {
     }
 
     fn get_swap_amount_decimals_scenario(
+        in_target_position_delay: u64,
+        out_target_position_delay: u64,
+        in_target_oracle_delay: u64,
+        out_target_oracle_delay: u64,
         in_current_weight: u64,
         out_current_weight: u64,
         in_decimals: u32,
@@ -520,6 +559,8 @@ mod swap_tests {
     ) {
         let lp_pool = LPPool {
             last_aum: 1_000_000_000_000,
+            target_oracle_delay_fee_bps_per_10_slots: 2,
+            target_position_delay_fee_bps_per_10_slots: 10,
             ..LPPool::default()
         };
 
@@ -573,6 +614,10 @@ mod swap_tests {
 
         let (in_amount, out_amount, in_fee, out_fee) = lp_pool
             .get_swap_amount(
+                in_target_position_delay,
+                out_target_position_delay,
+                in_target_oracle_delay,
+                out_target_oracle_delay,
                 &oracle_0,
                 &oracle_1,
                 &constituent_0,
@@ -594,6 +639,10 @@ mod swap_tests {
     #[test]
     fn test_get_swap_amount_in_6_out_6() {
         get_swap_amount_decimals_scenario(
+            0,
+            0,
+            0,
+            0,
             500_000,
             500_000,
             6,
@@ -617,6 +666,10 @@ mod swap_tests {
     #[test]
     fn test_get_swap_amount_in_6_out_9() {
         get_swap_amount_decimals_scenario(
+            0,
+            0,
+            0,
+            0,
             500_000,
             500_000,
             6,
@@ -640,6 +693,10 @@ mod swap_tests {
     #[test]
     fn test_get_swap_amount_in_9_out_6() {
         get_swap_amount_decimals_scenario(
+            0,
+            0,
+            0,
+            0,
             500_000,
             500_000,
             9,
@@ -714,6 +771,8 @@ mod swap_tests {
     }
 
     fn get_add_liquidity_mint_amount_scenario(
+        in_target_position_delay: u64,
+        in_target_oracle_delay: u64,
         last_aum: u128,
         now: i64,
         in_decimals: u32,
@@ -773,6 +832,8 @@ mod swap_tests {
 
         let (lp_amount, in_amount_1, lp_fee, in_fee_amount) = lp_pool
             .get_add_liquidity_mint_amount(
+                in_target_position_delay,
+                in_target_oracle_delay,
                 &spot_market,
                 &constituent,
                 in_amount,
@@ -792,7 +853,7 @@ mod swap_tests {
     #[test]
     fn test_get_add_liquidity_mint_amount_zero_aum() {
         get_add_liquidity_mint_amount_scenario(
-            0,         // last_aum
+            0, 0, 0,         // last_aum
             0,         // now
             6,         // in_decimals
             1_000_000, // in_amount
@@ -807,6 +868,8 @@ mod swap_tests {
     #[test]
     fn test_get_add_liquidity_mint_amount_with_existing_aum() {
         get_add_liquidity_mint_amount_scenario(
+            0,
+            0,
             10_000_000_000, // last_aum ($10,000)
             0,              // now
             6,              // in_decimals
@@ -826,6 +889,8 @@ mod swap_tests {
     #[test]
     fn test_get_add_liquidity_mint_amount_with_zero_aum_8_decimals() {
         get_add_liquidity_mint_amount_scenario(
+            0,
+            0,
             0,           // last_aum
             0,           // now
             8,           // in_decimals
@@ -844,6 +909,8 @@ mod swap_tests {
     #[test]
     fn test_get_add_liquidity_mint_amount_with_existing_aum_8_decimals() {
         get_add_liquidity_mint_amount_scenario(
+            0,
+            0,
             10_000_000_000, // last_aum ($10,000)
             0,              // now
             8,              // in_decimals
@@ -863,7 +930,7 @@ mod swap_tests {
     #[test]
     fn test_get_add_liquidity_mint_amount_with_zero_aum_4_decimals() {
         get_add_liquidity_mint_amount_scenario(
-            0,       // last_aum
+            0, 0, 0,       // last_aum
             0,       // now
             4,       // in_decimals
             10_000,  // in_amount (1 token) = $1
@@ -878,6 +945,8 @@ mod swap_tests {
     #[test]
     fn test_get_add_liquidity_mint_amount_with_existing_aum_4_decimals() {
         get_add_liquidity_mint_amount_scenario(
+            0,
+            0,
             10_000_000_000, // last_aum ($10,000)
             0,              // now
             4,              // in_decimals
@@ -894,6 +963,8 @@ mod swap_tests {
     }
 
     fn get_remove_liquidity_mint_amount_scenario(
+        out_target_position_delay: u64,
+        out_target_oracle_delay: u64,
         last_aum: u128,
         now: i64,
         in_decimals: u32,
@@ -953,6 +1024,8 @@ mod swap_tests {
 
         let (lp_amount_1, out_amount, lp_fee, out_fee_amount) = lp_pool
             .get_remove_liquidity_amount(
+                out_target_position_delay,
+                out_target_position_delay,
                 &spot_market,
                 &constituent,
                 lp_burn_amount,
@@ -972,6 +1045,8 @@ mod swap_tests {
     #[test]
     fn test_get_remove_liquidity_mint_amount_with_existing_aum() {
         get_remove_liquidity_mint_amount_scenario(
+            0,
+            0,
             10_000_000_000, // last_aum ($10,000)
             0,              // now
             6,              // in_decimals
@@ -991,6 +1066,8 @@ mod swap_tests {
     #[test]
     fn test_get_remove_liquidity_mint_amount_with_existing_aum_8_decimals() {
         get_remove_liquidity_mint_amount_scenario(
+            0,
+            0,
             10_000_000_000, // last_aum ($10,000)
             0,              // now
             8,              // in_decimals
@@ -1011,6 +1088,8 @@ mod swap_tests {
     #[test]
     fn test_get_remove_liquidity_mint_amount_with_existing_aum_4_decimals() {
         get_remove_liquidity_mint_amount_scenario(
+            0,
+            0,
             10_000_000_000, // last_aum ($10,000)
             0,              // now
             4,              // in_decimals
@@ -1029,6 +1108,8 @@ mod swap_tests {
     #[test]
     fn test_get_remove_liquidity_mint_amount_with_existing_aum_5_decimals_large_aum() {
         get_remove_liquidity_mint_amount_scenario(
+            0,
+            0,
             100_000_000_000 * 1_000_000, // last_aum ($100,000,000,000)
             0,                           // now
             5,                           // in_decimals
@@ -1047,14 +1128,16 @@ mod swap_tests {
     #[test]
     fn test_get_remove_liquidity_mint_amount_with_existing_aum_6_decimals_large_aum() {
         get_remove_liquidity_mint_amount_scenario(
-            100_000_000_000 * 1_000_000,             // last_aum ($100,000,000,000)
-            0,                                       // now
-            6,                                       // in_decimals
+            0,
+            0,
+            100_000_000_000 * 1_000_000, // last_aum ($100,000,000,000)
+            0,                           // now
+            6,                           // in_decimals
             100_000_000_000 * 1_000_000 - 1_000_000, // Leave in QUOTE AMOUNT
-            100_000_000_000 * 1_000_000,             // dlp_total_supply
-            99989999900000000,                       // expected_out_amount
-            9999999999900,                           // expected_lp_fee
-            349765019650200,                         // expected_out_fee_amount
+            100_000_000_000 * 1_000_000, // dlp_total_supply
+            99989999900000000,           // expected_out_amount
+            9999999999900,               // expected_lp_fee
+            349765019650200,             // expected_out_fee_amount
             1,
             2,
             2,
@@ -1065,14 +1148,16 @@ mod swap_tests {
     #[test]
     fn test_get_remove_liquidity_mint_amount_with_existing_aum_8_decimals_large_aum() {
         get_remove_liquidity_mint_amount_scenario(
-            10_000_000_000_000_000,                           // last_aum ($10,000,000,000)
-            0,                                                // now
-            8,                                                // in_decimals
-            10_000_000_000 * 1_000_000 - 1_000_000,           // in_amount
-            10_000_000_000 * 1_000_000,                       // dlp_total_supply
-            999899999000000000,                               // expected_out_amount
+            0,
+            0,
+            10_000_000_000_000_000, // last_aum ($10,000,000,000)
+            0,                      // now
+            8,                      // in_decimals
+            10_000_000_000 * 1_000_000 - 1_000_000, // in_amount
+            10_000_000_000 * 1_000_000, // dlp_total_supply
+            999899999000000000,     // expected_out_amount
             (10_000_000_000 * 1_000_000 - 1_000_000) / 10000, // expected_lp_fee
-            3497650196502000,                                 // expected_out_fee_amount
+            3497650196502000,       // expected_out_fee_amount
             1,
             2,
             2,
@@ -1090,6 +1175,10 @@ mod swap_tests {
     }
 
     fn get_swap_amounts(
+        in_target_position_delay: u64,
+        out_target_position_delay: u64,
+        in_target_oracle_delay: u64,
+        out_target_oracle_delay: u64,
         in_oracle_price: i64,
         out_oracle_price: i64,
         in_current_weight: i64,
@@ -1189,6 +1278,10 @@ mod swap_tests {
 
         let (in_amount_result, out_amount, in_fee, out_fee) = lp_pool
             .get_swap_amount(
+                in_target_position_delay,
+                out_target_position_delay,
+                in_target_oracle_delay,
+                out_target_oracle_delay,
                 &oracle_0,
                 &oracle_1,
                 &constituent_0,
@@ -1245,6 +1338,10 @@ mod swap_tests {
                         in_token_amount_pre,
                         out_token_amount_pre,
                     ) = get_swap_amounts(
+                        0,
+                        0,
+                        0,
+                        0,
                         in_oracle_price,
                         out_oracle_price,
                         *in_current_weight,
@@ -1328,6 +1425,10 @@ mod swap_tests {
                         in_token_amount_pre,
                         out_token_amount_pre,
                     ) = get_swap_amounts(
+                        0,
+                        0,
+                        0,
+                        0,
                         in_oracle_price,
                         out_oracle_price,
                         *in_current_weight,
@@ -1535,6 +1636,24 @@ mod swap_fee_tests {
 
         assert_eq!(fee_in, 6 * PERCENTAGE_PRECISION_I128 / 100000); // 0.6 bps
         assert_eq!(fee_out, -6 * PERCENTAGE_PRECISION_I128 / 100000); // -0.6 bps
+    }
+
+    #[test]
+    fn test_target_delays() {
+        let lp_pool = LPPool {
+            last_aum: 10_000_000 * QUOTE_PRECISION, // $10,000,000
+            target_oracle_delay_fee_bps_per_10_slots: 2,
+            target_position_delay_fee_bps_per_10_slots: 10,
+            ..LPPool::default()
+        };
+
+        // Even a small delay in the position incurs a larger fee
+        let uncertainty_fee = lp_pool.get_target_uncertainty_fees(1, 0).unwrap();
+        assert_eq!(
+            uncertainty_fee,
+            PERCENTAGE_PRECISION_I128 / 10000i128
+                * lp_pool.target_position_delay_fee_bps_per_10_slots as i128
+        );
     }
 }
 
@@ -2398,7 +2517,7 @@ mod update_aum_tests {
             len: 4,
             ..ConstituentTargetBaseFixed::default()
         });
-        let target_data = RefCell::new([0u8; 96]); // 4 * 24 bytes per TargetsDatum
+        let target_data = RefCell::new([0u8; 128]); // 4 * 32 bytes per TargetsDatum
         let mut constituent_target_base =
             AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
                 fixed: target_fixed.borrow_mut(),
@@ -2733,7 +2852,7 @@ mod update_constituent_target_base_for_derivatives_tests {
             len: num_constituents as u32,
             ..ConstituentTargetBaseFixed::default()
         });
-        let target_data = RefCell::new([0u8; 120]); // 4+1 constituents * 24 bytes per TargetsDatum
+        let target_data = RefCell::new([0u8; 5 * 32]); // 4+1 constituents * 32 bytes per TargetsDatum
         let mut constituent_target_base =
             AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
                 fixed: target_fixed.borrow_mut(),
@@ -2749,7 +2868,7 @@ mod update_constituent_target_base_for_derivatives_tests {
             .target_base = initial_parent_target_base;
         constituent_target_base
             .get_mut(parent_index as u32)
-            .last_slot = 100;
+            .last_oracle_slot = 100;
 
         // Initialize derivative target bases to 0
         constituent_target_base
@@ -2757,19 +2876,19 @@ mod update_constituent_target_base_for_derivatives_tests {
             .target_base = 0;
         constituent_target_base
             .get_mut(derivative1_index as u32)
-            .last_slot = 100;
+            .last_oracle_slot = 100;
         constituent_target_base
             .get_mut(derivative2_index as u32)
             .target_base = 0;
         constituent_target_base
             .get_mut(derivative2_index as u32)
-            .last_slot = 100;
+            .last_oracle_slot = 100;
         constituent_target_base
             .get_mut(derivative3_index as u32)
             .target_base = 0;
         constituent_target_base
             .get_mut(derivative3_index as u32)
-            .last_slot = 100;
+            .last_oracle_slot = 100;
 
         // Create derivative groups
         let mut derivative_groups = BTreeMap::new();
@@ -2971,7 +3090,7 @@ mod update_constituent_target_base_for_derivatives_tests {
             len: 2,
             ..ConstituentTargetBaseFixed::default()
         });
-        let target_data = RefCell::new([0u8; 72]); // 2+1 constituents * 24 bytes per TargetsDatum
+        let target_data = RefCell::new([0u8; 3 * 32]); // 2+1 constituents * 24 bytes per TargetsDatum
         let mut constituent_target_base =
             AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
                 fixed: target_fixed.borrow_mut(),
@@ -3212,7 +3331,7 @@ mod update_constituent_target_base_for_derivatives_tests {
             len: 2,
             ..ConstituentTargetBaseFixed::default()
         });
-        let target_data = RefCell::new([0u8; 72]);
+        let target_data = RefCell::new([0u8; 3 * 32]);
         let mut constituent_target_base =
             AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
                 fixed: target_fixed.borrow_mut(),
@@ -3380,7 +3499,7 @@ mod update_constituent_target_base_for_derivatives_tests {
             len: 3,
             ..ConstituentTargetBaseFixed::default()
         });
-        let target_data = RefCell::new([0u8; 96]);
+        let target_data = RefCell::new([0u8; 4 * 32]);
         let mut constituent_target_base =
             AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
                 fixed: target_fixed.borrow_mut(),

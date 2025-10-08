@@ -1503,6 +1503,10 @@ impl Order {
         self.is_bit_flag_set(OrderBitFlag::SignedMessage)
     }
 
+    pub fn is_has_builder(&self) -> bool {
+        self.is_bit_flag_set(OrderBitFlag::HasBuilder)
+    }
+
     pub fn add_bit_flag(&mut self, flag: OrderBitFlag) {
         self.bit_flags |= flag as u8;
     }

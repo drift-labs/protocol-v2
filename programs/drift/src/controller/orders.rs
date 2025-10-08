@@ -2243,6 +2243,10 @@ pub fn fulfill_perp_order_with_amm(
         direction,
         order_id
     );
+    let user_order_has_builder = user.orders[order_index].is_has_builder();
+    if user_order_has_builder && rev_share_escrow.is_none() {
+        msg!("Order has builder but no escrow account included, in the future this will fail.");
+    }
 
     validation::perp_market::validate_amm_account_for_fill(&market.amm, order_direction)?;
 
@@ -2331,7 +2335,7 @@ pub fn fulfill_perp_order_with_amm(
 
     if builder_fee != 0 {
         if let (Some(idx), Some(escrow)) = (builder_order_idx, rev_share_escrow.as_mut()) {
-            let mut order = escrow.get_order_mut(idx)?;
+            let order = escrow.get_order_mut(idx)?;
             order.fees_accrued = order.fees_accrued.safe_add(builder_fee)?;
         } else {
             msg!("Order has builder fee but no escrow account found, in the future this tx will fail.");
@@ -2593,6 +2597,10 @@ pub fn fulfill_perp_order_with_match(
 
     let oracle_price = oracle_map.get_price_data(&market.oracle_id())?.price;
     let taker_direction: PositionDirection = taker.orders[taker_order_index].direction;
+    let taker_order_has_builder = taker.orders[taker_order_index].is_has_builder();
+    if taker_order_has_builder && rev_share_escrow.is_none() {
+        msg!("Order has builder but no escrow account included, in the future this will fail.");
+    }
 
     let taker_price = if let Some(taker_limit_price) = taker_limit_price {
         taker_limit_price
@@ -2840,7 +2848,7 @@ pub fn fulfill_perp_order_with_match(
 
     if builder_fee != 0 {
         if let (Some(idx), Some(escrow)) = (builder_order_idx, rev_share_escrow.as_deref_mut()) {
-            let mut order = escrow.get_order_mut(idx)?;
+            let order = escrow.get_order_mut(idx)?;
             order.fees_accrued = order.fees_accrued.safe_add(builder_fee)?;
         } else {
             msg!("Order has builder fee but no escrow account found, in the future this tx will fail.");
@@ -2906,7 +2914,7 @@ pub fn fulfill_perp_order_with_match(
 
     if let (Some(idx), Some(escrow)) = (referrer_builder_order_idx, rev_share_escrow.as_deref_mut())
     {
-        let mut order = escrow.get_order_mut(idx)?;
+        let order = escrow.get_order_mut(idx)?;
         order.fees_accrued = order.fees_accrued.safe_add(referrer_reward)?;
     } else if let (Some(referrer), Some(referrer_stats)) =
         (referrer.as_mut(), referrer_stats.as_mut())

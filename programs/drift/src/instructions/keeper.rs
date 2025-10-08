@@ -24,6 +24,7 @@ use crate::controller::token::{receive, send_from_program_vault};
 use crate::error::ErrorCode;
 use crate::get_then_update_id;
 use crate::ids::admin_hot_wallet;
+use crate::ids::dflow_mainnet_aggregator_4;
 use crate::ids::{jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, serum_program};
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::get_revenue_share_escrow_account;
@@ -41,7 +42,6 @@ use crate::math::spot_withdraw::validate_spot_market_vault_amount;
 use crate::optional_accounts::{get_token_mint, update_prelaunch_oracle};
 use crate::signer::get_signer_seeds;
 use crate::state::amm_cache::CacheInfo;
-use crate::state::events::emit_stack;
 use crate::state::events::LPSettleRecord;
 use crate::state::events::{DeleteUserRecord, OrderActionExplanation, SignedMsgOrderRecord};
 use crate::state::fill_mode::FillMode;
@@ -1119,8 +1119,7 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
             &mut oracle_map,
             state,
             &clock,
-        )
-        .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
+        )?;
 
         controller::pnl::settle_pnl(
             market_index,
@@ -1134,8 +1133,7 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
             state,
             None,
             SettlePnlMode::MustSettle,
-        )
-        .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
+        )?;
     }
 
     if state.builder_codes_enabled() || state.builder_referral_enabled() {
@@ -1235,8 +1233,7 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
                 &mut oracle_map,
                 state,
                 &clock,
-            )
-            .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
+            )?;
 
             controller::pnl::settle_pnl(
                 *market_index,
@@ -1250,8 +1247,7 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
                 state,
                 Some(meets_margin_requirement),
                 mode,
-            )
-            .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
+            )?;
         }
 
         if state.builder_codes_enabled() || state.builder_referral_enabled() {
@@ -1737,6 +1733,7 @@ pub fn handle_liquidate_spot_with_swap_begin<'c: 'info, 'info>(
                     jupiter_mainnet_3::ID,
                     jupiter_mainnet_4::ID,
                     jupiter_mainnet_6::ID,
+                    dflow_mainnet_aggregator_4::ID,
                 ];
                 validate!(
                     whitelisted_programs.contains(&ix.program_id),
@@ -3579,7 +3576,7 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
         )?;
 
         cached_info.update_perp_market_fields(&perp_market)?;
-        cached_info.update_oracle_info(
+        cached_info.try_update_oracle_info(
             slot,
             &mm_oracle_price_data,
             &perp_market,

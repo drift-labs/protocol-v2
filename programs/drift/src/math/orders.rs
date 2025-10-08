@@ -809,6 +809,7 @@ pub fn calculate_max_perp_order_size(
     )?;
 
     let user_custom_margin_ratio = user.max_margin_ratio;
+    let perp_position_margin_ratio = user.perp_positions[position_index].max_margin_ratio as u32;
     let user_high_leverage_mode = user.is_high_leverage_mode(MarginRequirementType::Initial);
 
     let free_collateral_before = total_collateral.safe_sub(margin_requirement.cast()?)?;
@@ -838,7 +839,8 @@ pub fn calculate_max_perp_order_size(
             MarginRequirementType::Initial,
             user_high_leverage_mode,
         )?
-        .max(user_custom_margin_ratio);
+        .max(user_custom_margin_ratio)
+        .max(perp_position_margin_ratio);
 
     let mut order_size_to_reduce_position = 0_u64;
     let mut free_collateral_released = 0_i128;
@@ -915,7 +917,8 @@ pub fn calculate_max_perp_order_size(
                 MarginRequirementType::Initial,
                 user_high_leverage_mode,
             )?
-            .max(user_custom_margin_ratio);
+            .max(user_custom_margin_ratio)
+            .max(perp_position_margin_ratio);
 
         Ok((new_order_size, new_margin_ratio))
     };
