@@ -1373,6 +1373,16 @@ export class DriftClient {
 		});
 	}
 
+	/**
+	 * Creates the transaction to add or update an approved builder.
+	 * This allows the builder to receive revenue share from referrals.
+	 *
+	 * @param builder - The public key of the builder to add or update.
+	 * @param maxFeeTenthBps - The maximum fee tenth bps to set for the builder.
+	 * @param add - Whether to add or update the builder. If the builder already exists, `add = true` will update the `maxFeeTenthBps`, otherwise it will add the builder. If `add = false`, the builder's `maxFeeTenthBps` will be set to 0.
+	 * @param txParams - The transaction parameters to use for the transaction.
+	 * @returns The transaction to add or update an approved builder.
+	 */
 	public async changeApprovedBuilder(
 		builder: PublicKey,
 		maxFeeTenthBps: number,
@@ -1389,6 +1399,15 @@ export class DriftClient {
 		return txSig;
 	}
 
+	/**
+	 * Creates the transaction instruction to add or update an approved builder.
+	 * This allows the builder to receive revenue share from referrals.
+	 *
+	 * @param builder - The public key of the builder to add or update.
+	 * @param maxFeeTenthBps - The maximum fee tenth bps to set for the builder.
+	 * @param add - Whether to add or update the builder. If the builder already exists, `add = true` will update the `maxFeeTenthBps`, otherwise it will add the builder. If `add = false`, the builder's `maxFeeTenthBps` will be set to 0.
+	 * @returns The transaction instruction to add or update an approved builder.
+	 */
 	public async getChangeApprovedBuilderIx(
 		builder: PublicKey,
 		maxFeeTenthBps: number,
