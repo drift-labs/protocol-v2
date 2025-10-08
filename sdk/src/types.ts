@@ -1738,7 +1738,8 @@ export type AmmConstituentMapping = {
 
 export type TargetDatum = {
 	costToTradeBps: number;
-	lastSlot: BN;
+	lastOracleSlot: BN;
+	lastPositionSlot: BN;
 	targetBase: BN;
 };
 

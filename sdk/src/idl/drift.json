@@ -9890,8 +9890,21 @@
             "type": "u8"
           },
           {
-            "name": "padding",
+            "name": "targetOracleDelayFeeBpsPer10Slots",
             "type": "u8"
+          },
+          {
+            "name": "targetPositionDelayFeeBpsPer10Slots",
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                15
+              ]
+            }
           }
         ]
       }
@@ -9993,6 +10006,9 @@
           },
           {
             "name": "oracleStalenessThreshold",
+            "docs": [
+              "Delay allowed for valid AUM calculation"
+            ],
             "type": "u64"
           },
           {
@@ -12648,12 +12664,16 @@
             }
           },
           {
-            "name": "lastSlot",
+            "name": "targetBase",
+            "type": "i64"
+          },
+          {
+            "name": "lastOracleSlot",
             "type": "u64"
           },
           {
-            "name": "targetBase",
-            "type": "i64"
+            "name": "lastPositionSlot",
+            "type": "u64"
           }
         ]
       }
@@ -15020,7 +15040,7 @@
             "name": "UseMMOraclePrice"
           },
           {
-            "name": "UpdateLpConstituentTargetBase"
+            "name": "UpdateAmmCache"
           },
           {
             "name": "UpdateLpPoolAum"
@@ -19720,8 +19740,5 @@
       "name": "Unauthorized",
       "msg": "Unauthorized for operation"
     }
-  ],
-  "metadata": {
-    "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
-  }
+  ]
 }
