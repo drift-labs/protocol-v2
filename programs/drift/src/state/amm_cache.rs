@@ -3,7 +3,7 @@ use std::convert::TryFrom;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::amm::calculate_net_user_pnl;
 use crate::math::casting::Cast;
-use crate::math::oracle::{oracle_validity, LogMode};
+use crate::math::oracle::{is_oracle_valid_for_action, oracle_validity, DriftAction, LogMode};
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 use crate::state::oracle::MMOraclePriceData;
@@ -120,7 +120,7 @@ impl CacheInfo {
         Ok(())
     }
 
-    pub fn update_oracle_info(
+    pub fn try_update_oracle_info(
         &mut self,
         clock_slot: u64,
         oracle_price_data: &MMOraclePriceData,
@@ -128,9 +128,6 @@ impl CacheInfo {
         oracle_guard_rails: &OracleGuardRails,
     ) -> DriftResult<()> {
         let safe_oracle_data = oracle_price_data.get_safe_oracle_price_data();
-        self.oracle_price = safe_oracle_data.price;
-        self.oracle_slot = clock_slot.safe_sub(safe_oracle_data.delay.max(0) as u64)?;
-        self.slot = clock_slot;
         let validity = oracle_validity(
             MarketType::Perp,
             perp_market.market_index,
@@ -145,7 +142,18 @@ impl CacheInfo {
             LogMode::SafeMMOracle,
             perp_market.amm.oracle_slot_delay_override,
         )?;
-        self.oracle_validity = u8::from(validity);
+        if is_oracle_valid_for_action(validity, Some(DriftAction::UpdateAmmCache))? {
+            self.oracle_price = safe_oracle_data.price;
+            self.oracle_slot = clock_slot.safe_sub(safe_oracle_data.delay.max(0) as u64)?;
+            self.oracle_validity = u8::from(validity);
+        } else {
+            msg!(
+                "Not updating oracle price for perp market {}. Oracle data is invalid",
+                perp_market.market_index
+            );
+        }
+        self.slot = clock_slot;
+
         Ok(())
     }
 }
@@ -204,7 +212,7 @@ impl AmmCache {
     ) -> DriftResult<()> {
         let cache_info = self.cache.get_mut(market_index as usize);
         if let Some(cache_info) = cache_info {
-            cache_info.update_oracle_info(
+            cache_info.try_update_oracle_info(
                 clock_slot,
                 oracle_price_data,
                 perp_market,

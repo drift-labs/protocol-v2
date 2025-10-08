@@ -32,8 +32,7 @@ use crate::{
             update_constituent_target_base_for_derivatives, AmmConstituentDatum,
             AmmConstituentMappingFixed, Constituent, ConstituentCorrelationsFixed,
             ConstituentTargetBaseFixed, LPPool, TargetsDatum, LP_POOL_SWAP_AUM_UPDATE_DELAY,
-            MAX_AMM_CACHE_ORACLE_STALENESS_FOR_TARGET_CALC,
-            MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC,
+            MAX_ORACLE_STALENESS_FOR_TARGET_CALC, MAX_STALENESS_FOR_TARGET_CALC,
         },
         oracle_map::OracleMap,
         perp_market_map::MarketSet,
@@ -57,7 +56,7 @@ use crate::controller::spot_balance::update_spot_market_cumulative_interest;
 use crate::controller::token::{receive, send_from_program_vault_with_signature_seeds};
 use crate::instructions::constraints::*;
 use crate::state::lp_pool::{
-    AmmInventoryAndPrices, ConstituentIndexAndDecimalAndPrice, CONSTITUENT_PDA_SEED,
+    AmmInventoryAndPricesAndSlots, ConstituentIndexAndDecimalAndPrice, CONSTITUENT_PDA_SEED,
     LP_POOL_TOKEN_VAULT_PDA_SEED,
 };
 
@@ -100,37 +99,14 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
     let constituent_map =
         ConstituentMap::load(&ConstituentSet::new(), &lp_pool_key, remaining_accounts)?;
 
-    let mut amm_inventories: Vec<AmmInventoryAndPrices> =
+    let mut amm_inventories: Vec<AmmInventoryAndPricesAndSlots> =
         Vec::with_capacity(amm_cache.len() as usize);
-    for (idx, cache_info) in amm_cache.iter().enumerate() {
+    for (_, cache_info) in amm_cache.iter().enumerate() {
         if cache_info.lp_status_for_perp_market == 0 {
             continue;
         }
-        if !is_oracle_valid_for_action(
-            OracleValidity::try_from(cache_info.oracle_validity)?,
-            Some(DriftAction::UpdateLpConstituentTargetBase),
-        )? {
-            msg!(
-                "Oracle data for perp market {} is invalid. Skipping update",
-                idx,
-            );
-            continue;
-        }
 
-        if slot.safe_sub(cache_info.slot)? > MAX_AMM_CACHE_STALENESS_FOR_TARGET_CALC {
-            msg!("Amm cache for perp market {}. Skipping update", idx);
-            continue;
-        }
-
-        if slot.safe_sub(cache_info.oracle_slot)? > MAX_AMM_CACHE_ORACLE_STALENESS_FOR_TARGET_CALC {
-            msg!(
-                "Amm cache oracle for perp market {} is stale. Skipping update",
-                idx
-            );
-            continue;
-        }
-
-        amm_inventories.push(AmmInventoryAndPrices {
+        amm_inventories.push(AmmInventoryAndPricesAndSlots {
             inventory: {
                 let scaled_position = cache_info
                     .position
@@ -143,6 +119,8 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
                 )
             },
             price: cache_info.oracle_price,
+            last_oracle_slot: cache_info.oracle_slot,
+            last_position_slot: cache_info.slot,
         });
     }
     msg!("amm inventories: {:?}", amm_inventories);
@@ -400,8 +378,18 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         out_oracle.price,
         lp_pool.last_aum,
     )?;
+    let in_target_datum = constituent_target_base.get(in_constituent.constituent_index as u32);
+    let in_target_position_slot_delay = slot.saturating_sub(in_target_datum.last_position_slot);
+    let in_target_oracle_slot_delay = slot.saturating_sub(in_target_datum.last_oracle_slot);
+    let out_target_datum = constituent_target_base.get(out_constituent.constituent_index as u32);
+    let out_target_position_slot_delay = slot.saturating_sub(out_target_datum.last_position_slot);
+    let out_target_oracle_slot_delay = slot.saturating_sub(out_target_datum.last_oracle_slot);
 
     let (in_amount, out_amount, in_fee, out_fee) = lp_pool.get_swap_amount(
+        in_target_position_slot_delay,
+        out_target_position_slot_delay,
+        in_target_oracle_slot_delay,
+        out_target_oracle_slot_delay,
         &in_oracle,
         &out_oracle,
         &in_constituent,
@@ -541,6 +529,9 @@ pub fn handle_view_lp_pool_swap_fees<'c: 'info, 'info>(
     let constituent_correlations: AccountZeroCopy<'_, i64, ConstituentCorrelationsFixed> =
         ctx.accounts.constituent_correlations.load_zc()?;
 
+    let constituent_target_base: AccountZeroCopy<'_, TargetsDatum, ConstituentTargetBaseFixed> =
+        ctx.accounts.constituent_target_base.load_zc()?;
+
     let AccountMaps {
         perp_market_map: _,
         spot_market_map,
@@ -580,7 +571,18 @@ pub fn handle_view_lp_pool_swap_fees<'c: 'info, 'info>(
         0,
     )?;
 
+    let in_target_datum = constituent_target_base.get(in_constituent.constituent_index as u32);
+    let in_target_position_slot_delay = slot.saturating_sub(in_target_datum.last_position_slot);
+    let in_target_oracle_slot_delay = slot.saturating_sub(in_target_datum.last_oracle_slot);
+    let out_target_datum = constituent_target_base.get(out_constituent.constituent_index as u32);
+    let out_target_position_slot_delay = slot.saturating_sub(out_target_datum.last_position_slot);
+    let out_target_oracle_slot_delay = slot.saturating_sub(out_target_datum.last_oracle_slot);
+
     let (in_amount, out_amount, in_fee, out_fee) = lp_pool.get_swap_amount(
+        in_target_position_slot_delay,
+        out_target_position_slot_delay,
+        in_target_oracle_slot_delay,
+        out_target_oracle_slot_delay,
         &in_oracle,
         &out_oracle,
         &in_constituent,
@@ -722,8 +724,14 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
 
     let dlp_total_supply = ctx.accounts.lp_mint.supply;
 
+    let in_target_datum = constituent_target_base.get(in_constituent.constituent_index as u32);
+    let in_target_position_slot_delay = slot.saturating_sub(in_target_datum.last_position_slot);
+    let in_target_oracle_slot_delay = slot.saturating_sub(in_target_datum.last_oracle_slot);
+
     let (lp_amount, in_amount, lp_fee_amount, in_fee_amount) = lp_pool
         .get_add_liquidity_mint_amount(
+            in_target_position_slot_delay,
+            in_target_oracle_slot_delay,
             &in_spot_market,
             &in_constituent,
             in_amount,
@@ -930,8 +938,14 @@ pub fn handle_view_lp_pool_add_liquidity_fees<'c: 'info, 'info>(
 
     let dlp_total_supply = ctx.accounts.lp_mint.supply;
 
+    let in_target_datum = constituent_target_base.get(in_constituent.constituent_index as u32);
+    let in_target_position_slot_delay = slot.saturating_sub(in_target_datum.last_position_slot);
+    let in_target_oracle_slot_delay = slot.saturating_sub(in_target_datum.last_oracle_slot);
+
     let (lp_amount, in_amount, lp_fee_amount, in_fee_amount) = lp_pool
         .get_add_liquidity_mint_amount(
+            in_target_position_slot_delay,
+            in_target_oracle_slot_delay,
             &in_spot_market,
             &in_constituent,
             in_amount,
@@ -1069,8 +1083,14 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
 
     let dlp_total_supply = ctx.accounts.lp_mint.supply;
 
+    let out_target_datum = constituent_target_base.get(out_constituent.constituent_index as u32);
+    let out_target_position_slot_delay = slot.saturating_sub(out_target_datum.last_position_slot);
+    let out_target_oracle_slot_delay = slot.saturating_sub(out_target_datum.last_oracle_slot);
+
     let (lp_burn_amount, out_amount, lp_fee_amount, out_fee_amount) = lp_pool
         .get_remove_liquidity_amount(
+            out_target_position_slot_delay,
+            out_target_oracle_slot_delay,
             &out_spot_market,
             &out_constituent,
             lp_to_burn,
@@ -1315,8 +1335,14 @@ pub fn handle_view_lp_pool_remove_liquidity_fees<'c: 'info, 'info>(
 
     let dlp_total_supply = ctx.accounts.lp_mint.supply;
 
+    let out_target_datum = constituent_target_base.get(out_constituent.constituent_index as u32);
+    let out_target_position_slot_delay = slot.saturating_sub(out_target_datum.last_position_slot);
+    let out_target_oracle_slot_delay = slot.saturating_sub(out_target_datum.last_oracle_slot);
+
     let (lp_burn_amount, out_amount, lp_fee_amount, out_fee_amount) = lp_pool
         .get_remove_liquidity_amount(
+            out_target_position_slot_delay,
+            out_target_oracle_slot_delay,
             &out_spot_market,
             &out_constituent,
             lp_to_burn,

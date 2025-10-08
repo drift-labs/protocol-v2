@@ -82,7 +82,9 @@ pub fn handle_initialize_lp_pool(
         gamma_execution: 2,
         volatility: 4,
         xi: 2,
-        padding: 0,
+        target_oracle_delay_fee_bps_per_10_slots: 0,
+        target_position_delay_fee_bps_per_10_slots: 0,
+        padding: [0u8; 15],
         whitelist_mint,
     };
 
