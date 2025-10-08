@@ -469,7 +469,7 @@ export function getConstituentTargetBasePublicKey(
 ): PublicKey {
 	return PublicKey.findProgramAddressSync(
 		[
-			Buffer.from(anchor.utils.bytes.utf8.encode('constituent_target_base')),
+			Buffer.from(anchor.utils.bytes.utf8.encode('constituent_target_base_seed')),
 			lpPoolPublicKey.toBuffer(),
 		],
 		programId

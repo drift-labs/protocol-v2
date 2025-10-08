@@ -27,7 +27,7 @@ use crate::{impl_zero_copy_loader, validate};
 pub const LP_POOL_PDA_SEED: &str = "lp_pool";
 pub const AMM_MAP_PDA_SEED: &str = "AMM_MAP";
 pub const CONSTITUENT_PDA_SEED: &str = "CONSTITUENT";
-pub const CONSTITUENT_TARGET_BASE_PDA_SEED: &str = "constituent_target_base";
+pub const CONSTITUENT_TARGET_BASE_PDA_SEED: &str = "constituent_target_base_seed";
 pub const CONSTITUENT_CORRELATIONS_PDA_SEED: &str = "constituent_correlations";
 pub const CONSTITUENT_VAULT_PDA_SEED: &str = "CONSTITUENT_VAULT";
 pub const LP_POOL_TOKEN_VAULT_PDA_SEED: &str = "LP_POOL_TOKEN_VAULT";
