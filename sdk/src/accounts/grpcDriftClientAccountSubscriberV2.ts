@@ -37,7 +37,10 @@ export class grpcDriftClientAccountSubscriberV2
 	private grpcConfigs: GrpcConfigs;
 	private perpMarketsSubscriber?: grpcMultiAccountSubscriber<PerpMarketAccount>;
 	private spotMarketsSubscriber?: grpcMultiAccountSubscriber<SpotMarketAccount>;
-	private oracleMultiSubscriber?: grpcMultiAccountSubscriber<OraclePriceData>;
+	private oracleMultiSubscriber?: grpcMultiAccountSubscriber<
+		OraclePriceData,
+		OracleInfo
+	>;
 	private perpMarketIndexToAccountPubkeyMap = new Map<number, string>();
 	private spotMarketIndexToAccountPubkeyMap = new Map<number, string>();
 	private delistedMarketSetting: DelistedMarketSetting;
@@ -60,6 +63,10 @@ export class grpcDriftClientAccountSubscriberV2
 	public perpOracleStringMap = new Map<number, string>();
 	public spotOracleMap = new Map<number, PublicKey>();
 	public spotOracleStringMap = new Map<number, string>();
+	private oracleIdToOracleDataMap = new Map<
+		string,
+		DataAndSlot<OraclePriceData>
+	>();
 	public stateAccountSubscriber?: AccountSubscriber<StateAccount>;
 	oracleClientCache = new OracleClientCache();
 	private resubOpts?: ResubOpts;
@@ -360,8 +367,9 @@ export class grpcDriftClientAccountSubscriberV2
 		oracleId: string
 	): DataAndSlot<OraclePriceData> | undefined {
 		this.assertIsSubscribed();
-		const { publicKey } = getPublicKeyAndSourceFromOracleId(oracleId);
-		return this.oracleMultiSubscriber?.getAccountData(publicKey.toBase58());
+		// we need to rely on a map we store in this class because the grpcMultiAccountSubscriber does not track a mapping or oracle ID.
+		// DO NOT call getAccountData on the oracleMultiSubscriber, it will not return the correct data in certain cases(BONK spot and perp market subscribed too at once).
+		return this.oracleIdToOracleDataMap.get(oracleId);
 	}
 
 	public getOraclePriceDataAndSlotForPerpMarket(
@@ -577,80 +585,80 @@ export class grpcDriftClientAccountSubscriberV2
 	}
 
 	async subscribeToOracles(): Promise<boolean> {
-		const pubkeyToSources = new Map<string, Set<OracleInfo['source']>>();
+		const oraclePubkeyToInfosMap = new Map<string, OracleInfo[]>();
 		for (const info of this.oracleInfos) {
-			if (info.publicKey.equals((PublicKey as any).default)) {
-				continue;
+			const pubkey = info.publicKey.toBase58();
+			if (!oraclePubkeyToInfosMap.has(pubkey)) {
+				oraclePubkeyToInfosMap.set(pubkey, []);
 			}
-			const key = info.publicKey.toBase58();
-			let sources = pubkeyToSources.get(key);
-			if (!sources) {
-				sources = new Set<OracleInfo['source']>();
-				pubkeyToSources.set(key, sources);
-			}
-			sources.add(info.source);
+			oraclePubkeyToInfosMap.get(pubkey).push(info);
 		}
 
-		const oraclePubkeys = Array.from(pubkeyToSources.keys()).map(
-			(k) => new PublicKey(k)
+		const oraclePubkeys = Array.from(
+			new Set(this.oracleInfos.map((info) => info.publicKey))
 		);
 
-		this.oracleMultiSubscriber =
-			await grpcMultiAccountSubscriber.create<OraclePriceData>(
-				this.grpcConfigs,
-				'oracle',
-				this.program,
-				(buffer: Buffer, pubkey?: string) => {
-					if (!pubkey) {
-						throw new Error('Oracle pubkey missing in decode');
-					}
-					const sources = pubkeyToSources.get(pubkey);
-					if (!sources || sources.size === 0) {
-						throw new Error('Oracle sources missing for pubkey in decode');
-					}
-					const primarySource = sources.values().next().value;
-					const client = this.oracleClientCache.get(
-						primarySource,
-						this.program.provider.connection,
-						this.program
-					);
-					return client.getOraclePriceDataFromBuffer(buffer);
-				},
-				this.resubOpts,
-				undefined,
-				async () => {
-					try {
-						if (this.resubOpts?.logResubMessages) {
-							console.log(
-								'[grpcDriftClientAccountSubscriberV2] oracle subscriber unsubscribed; resubscribing'
-							);
-						}
-						await this.subscribeToOracles();
-					} catch (e) {
-						console.error('Oracle resubscribe failed:', e);
-					}
+		this.oracleMultiSubscriber = await grpcMultiAccountSubscriber.create<
+			OraclePriceData,
+			OracleInfo
+		>(
+			this.grpcConfigs,
+			'oracle',
+			this.program,
+			(buffer: Buffer, pubkey?: string, accountProps?: OracleInfo) => {
+				if (!pubkey) {
+					throw new Error('Oracle pubkey missing in decode');
 				}
-			);
+
+				const client = this.oracleClientCache.get(
+					accountProps.source,
+					this.program.provider.connection,
+					this.program
+				);
+				const price = client.getOraclePriceDataFromBuffer(buffer);
+				return price;
+			},
+			this.resubOpts,
+			undefined,
+			async () => {
+				try {
+					if (this.resubOpts?.logResubMessages) {
+						console.log(
+							'[grpcDriftClientAccountSubscriberV2] oracle subscriber unsubscribed; resubscribing'
+						);
+					}
+					await this.subscribeToOracles();
+				} catch (e) {
+					console.error('Oracle resubscribe failed:', e);
+				}
+			},
+			oraclePubkeyToInfosMap
+		);
 
 		for (const data of this.initialOraclePriceData.entries()) {
 			const { publicKey } = getPublicKeyAndSourceFromOracleId(data[0]);
 			this.oracleMultiSubscriber.setAccountData(publicKey.toBase58(), data[1]);
+			this.oracleIdToOracleDataMap.set(data[0], {
+				data: data[1],
+				slot: 0,
+			});
 		}
 
 		await this.oracleMultiSubscriber.subscribe(
 			oraclePubkeys,
-			(accountId, data) => {
-				const sources = pubkeyToSources.get(accountId.toBase58());
-				if (sources) {
-					for (const source of sources.values()) {
-						this.eventEmitter.emit(
-							'oraclePriceUpdate',
-							accountId,
-							source,
-							data
-						);
-					}
-				}
+			(accountId, data, context, _b, accountProps) => {
+				const oracleId = getOracleId(accountId, accountProps.source);
+				this.oracleIdToOracleDataMap.set(oracleId, {
+					data,
+					slot: context.slot,
+				});
+				this.eventEmitter.emit(
+					'oraclePriceUpdate',
+					accountId,
+					accountProps.source,
+					data
+				);
+
 				this.eventEmitter.emit('update');
 			}
 		);

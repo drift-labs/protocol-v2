@@ -1,12 +1,14 @@
 import { DriftClient } from '../src/driftClient';
 import { grpcDriftClientAccountSubscriberV2 } from '../src/accounts/grpcDriftClientAccountSubscriberV2';
+import { grpcDriftClientAccountSubscriber } from '../src/accounts/grpcDriftClientAccountSubscriber';
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { DriftClientConfig } from '../src/driftClientConfig';
 import {
-	decodeName,
 	DRIFT_PROGRAM_ID,
 	PerpMarketAccount,
+	SpotMarketAccount,
 	Wallet,
+	OracleInfo,
 } from '../src';
 import { CommitmentLevel } from '@triton-one/yellowstone-grpc';
 import dotenv from 'dotenv';
@@ -21,8 +23,8 @@ import driftIDL from '../src/idl/drift.json';
 const GRPC_ENDPOINT = process.env.GRPC_ENDPOINT;
 const TOKEN = process.env.TOKEN;
 
-async function initializeGrpcDriftClientV2() {
-	const connection = new Connection('https://api.mainnet-beta.solana.com');
+async function initializeGrpcDriftClientV2VersusV1() {
+	const connection = new Connection('');
 	const wallet = new Wallet(new Keypair());
 	dotenv.config({ path: '../' });
 
@@ -38,177 +40,136 @@ async function initializeGrpcDriftClientV2() {
 
 	const program = new Program(driftIDL as Idl, programId, provider);
 
-	const perpMarketProgramAccounts =
-		(await program.account.perpMarket.all()) as ProgramAccount<PerpMarketAccount>[];
-	const solPerpMarket = perpMarketProgramAccounts.find(
-		(account) => account.account.marketIndex === 0
-	);
-	const solOracleInfo = {
-		publicKey: solPerpMarket.account.amm.oracle,
-		source: solPerpMarket.account.amm.oracleSource,
-	};
-	const ethPerpMarket = perpMarketProgramAccounts.find(
-		(account) => account.account.marketIndex === 2
-	);
-	const ethOracleInfo = {
-		publicKey: ethPerpMarket.account.amm.oracle,
-		source: ethPerpMarket.account.amm.oracleSource,
-	};
-	const btcPerpMarket = perpMarketProgramAccounts.find(
-		(account) => account.account.marketIndex === 1
-	);
-	const btcOracleInfo = {
-		publicKey: btcPerpMarket.account.amm.oracle,
-		source: btcPerpMarket.account.amm.oracleSource,
+	const perpMarketIndexes = [4];
+	const spotMarketIndexes = [32];
+
+	const perpMarketProgramAccounts = (
+		await program.account.perpMarket.all()
+	).filter((a) =>
+		perpMarketIndexes.includes(a.account.marketIndex as number)
+	) as ProgramAccount<PerpMarketAccount>[];
+	const spotMarketProgramAccounts = (
+		await program.account.spotMarket.all()
+	).filter((a) =>
+		spotMarketIndexes.includes(a.account.marketIndex as number)
+	) as ProgramAccount<SpotMarketAccount>[];
+
+	// const perpMarketIndexes = perpMarketProgramAccounts.map(
+	// 	(a) => a.account.marketIndex
+	// );
+	// const spotMarketIndexes = spotMarketProgramAccounts.map(
+	// 	(a) => a.account.marketIndex
+	// );
+	// const oracleInfos = [
+	// 	{
+	// 		publicKey: new PublicKey('BERaNi6cpEresbq6HC1EQGaB1H1UjvEo4NGnmYSSJof4'),
+	// 		source: OracleSource.PYTH_LAZER,
+	// 	},
+	// 	{
+	// 		publicKey: new PublicKey('BERaNi6cpEresbq6HC1EQGaB1H1UjvEo4NGnmYSSJof4'),
+	// 		source: OracleSource.PYTH_LAZER_1M,
+	// 	},
+	// ];
+
+	const seen = new Set<string>();
+	const oracleInfos: OracleInfo[] = [];
+	for (const acct of perpMarketProgramAccounts) {
+		const key = `${acct.account.amm.oracle.toBase58()}-${Object.keys(
+			acct.account.amm.oracleSource ?? {}
+		)?.[0]}`;
+		if (!seen.has(key)) {
+			seen.add(key);
+			oracleInfos.push({
+				publicKey: acct.account.amm.oracle,
+				source: acct.account.amm.oracleSource,
+			});
+		}
+	}
+	for (const acct of spotMarketProgramAccounts) {
+		const key = `${acct.account.oracle.toBase58()}-${Object.keys(
+			acct.account.oracleSource ?? {}
+		)?.[0]}`;
+		if (!seen.has(key)) {
+			seen.add(key);
+			oracleInfos.push({
+				publicKey: acct.account.oracle,
+				source: acct.account.oracleSource,
+			});
+		}
+	}
+
+	const baseAccountSubscription = {
+		type: 'grpc' as const,
+		grpcConfigs: {
+			endpoint: GRPC_ENDPOINT,
+			token: TOKEN,
+			commitmentLevel: 'confirmed' as unknown as CommitmentLevel,
+			channelOptions: {
+				'grpc.keepalive_time_ms': 10_000,
+				'grpc.keepalive_timeout_ms': 1_000,
+				'grpc.keepalive_permit_without_calls': 1,
+			},
+		},
 	};
 
-	const config: DriftClientConfig = {
+	const configV2: DriftClientConfig = {
 		connection,
 		wallet,
 		programID: new PublicKey(DRIFT_PROGRAM_ID),
 		accountSubscription: {
-			type: 'grpc',
-			grpcConfigs: {
-				endpoint: GRPC_ENDPOINT,
-				token: TOKEN,
-				commitmentLevel: 'confirmed' as unknown as CommitmentLevel,
-				channelOptions: {
-					'grpc.keepalive_time_ms': 10_000,
-					'grpc.keepalive_timeout_ms': 1_000,
-					'grpc.keepalive_permit_without_calls': 1,
-				},
-			},
+			...baseAccountSubscription,
 			driftClientAccountSubscriber: grpcDriftClientAccountSubscriberV2,
 		},
-		perpMarketIndexes: [0, 1, 2],
-		spotMarketIndexes: [0, 1, 2],
-		oracleInfos: [solOracleInfo, ethOracleInfo, btcOracleInfo],
+		perpMarketIndexes,
+		spotMarketIndexes,
+		oracleInfos,
 	};
 
-	const driftClient = new DriftClient(config);
+	const configV1: DriftClientConfig = {
+		connection,
+		wallet,
+		programID: new PublicKey(DRIFT_PROGRAM_ID),
+		accountSubscription: {
+			...baseAccountSubscription,
+			driftClientAccountSubscriber: grpcDriftClientAccountSubscriber,
+		},
+		perpMarketIndexes,
+		spotMarketIndexes,
+		oracleInfos,
+	};
 
-	let perpMarketUpdateCount = 0;
-	let spotMarketUpdateCount = 0;
-	let oraclePriceUpdateCount = 0;
-	let userAccountUpdateCount = 0;
+	const clientV2 = new DriftClient(configV2);
+	const clientV1 = new DriftClient(configV1);
 
-	const updatePromise = new Promise<void>((resolve) => {
-		driftClient.accountSubscriber.eventEmitter.on(
-			'perpMarketAccountUpdate',
-			(data) => {
-				console.log(
-					'Perp market account update:',
-					decodeName(data.name),
-					'mmOracleSequenceId:',
-					data.amm.mmOracleSequenceId.toString()
-				);
-				// const perpMarketData = driftClient.getPerpMarketAccount(
-				// 	data.marketIndex
-				// );
-				// console.log(
-				// 	'Perp market data market index:',
-				// 	perpMarketData?.marketIndex
-				// );
-				// const oracle = driftClient.getOracleDataForPerpMarket(data.marketIndex);
-				// const mmOracle = driftClient.getMMOracleDataForPerpMarket(
-				// 	data.marketIndex
-				// );
-				// console.log('Perp oracle price:', oracle.price.toString());
-				// console.log('Perp MM oracle price:', mmOracle.price.toString());
-				// console.log(
-				// 	'Perp MM oracle sequence id:',
-				// 	perpMarketData?.amm?.mmOracleSequenceId?.toString()
-				// );
-				perpMarketUpdateCount++;
-				if (
-					perpMarketUpdateCount >= 10 &&
-					spotMarketUpdateCount >= 10 &&
-					oraclePriceUpdateCount >= 10 &&
-					userAccountUpdateCount >= 2
-				) {
-					resolve();
-				}
-			}
-		);
+	await Promise.all([clientV1.subscribe(), clientV2.subscribe()]);
+	const compare = () => {
+		for (const idx of perpMarketIndexes) {
+			const p1 = clientV1.getOracleDataForPerpMarket(idx).price;
+			const p2 = clientV2.getOracleDataForPerpMarket(idx).price;
+			console.log(
+				`perp mkt ${idx} | v1 ${p1.toString()} | v2 ${p2.toString()}`
+			);
+		}
+		for (const idx of spotMarketIndexes) {
+			const s1 = clientV1.getOracleDataForSpotMarket(idx).price;
+			const s2 = clientV2.getOracleDataForSpotMarket(idx).price;
+			console.log(
+				`spot mkt ${idx} | v1 ${s1.toString()} | v2 ${s2.toString()}`
+			);
+		}
+	};
 
-		driftClient.accountSubscriber.eventEmitter.on(
-			'spotMarketAccountUpdate',
-			(data) => {
-				console.log('Spot market account update:', decodeName(data.name));
-				const spotMarketData = driftClient.getSpotMarketAccount(
-					data.marketIndex
-				);
-				console.log(
-					'Spot market data market index:',
-					spotMarketData?.marketIndex
-				);
-				const oracle = driftClient.getOracleDataForSpotMarket(data.marketIndex);
-				console.log('Spot oracle price:', oracle.price.toString());
-				spotMarketUpdateCount++;
-				if (
-					perpMarketUpdateCount >= 10 &&
-					spotMarketUpdateCount >= 10 &&
-					oraclePriceUpdateCount >= 10 &&
-					userAccountUpdateCount >= 2
-				) {
-					resolve();
-				}
-			}
-		);
+	compare();
+	const interval = setInterval(compare, 1000);
 
-		driftClient.accountSubscriber.eventEmitter.on(
-			'oraclePriceUpdate',
-			(data) => {
-				console.log('Oracle price update:', data.toBase58());
-				oraclePriceUpdateCount++;
-				if (
-					perpMarketUpdateCount >= 10 &&
-					spotMarketUpdateCount >= 10 &&
-					oraclePriceUpdateCount >= 10 &&
-					userAccountUpdateCount >= 2
-				) {
-					resolve();
-				}
-			}
-		);
+	const cleanup = async () => {
+		clearInterval(interval);
+		await Promise.all([clientV1.unsubscribe(), clientV2.unsubscribe()]);
+		process.exit(0);
+	};
 
-		driftClient.accountSubscriber.eventEmitter.on(
-			'userAccountUpdate',
-			(data) => {
-				console.log('User account update:', decodeName(data.name));
-				userAccountUpdateCount++;
-				if (
-					perpMarketUpdateCount >= 10 &&
-					spotMarketUpdateCount >= 10 &&
-					oraclePriceUpdateCount >= 10 &&
-					userAccountUpdateCount >= 2
-				) {
-					resolve();
-				}
-			}
-		);
-	});
-
-	await driftClient.subscribe();
-	console.log('DriftClient initialized and listening for updates.');
-
-	for (const marketIndex of config.perpMarketIndexes) {
-		const oracle = driftClient.getOracleDataForPerpMarket(marketIndex);
-		const mmOracle = driftClient.getMMOracleDataForPerpMarket(marketIndex);
-		console.log('Initial perp oracle price:', oracle.price.toString());
-		console.log('Initial perp MM oracle price:', mmOracle.price.toString());
-	}
-
-	for (const marketIndex of config.spotMarketIndexes) {
-		const oracle = driftClient.getOracleDataForSpotMarket(marketIndex);
-		console.log('Initial spot oracle price:', oracle.price.toString());
-	}
-
-	const stateAccount = driftClient.getStateAccount();
-	console.log('Initial state account:', stateAccount.toString());
-
-	await updatePromise;
-	console.log('Received required number of updates.');
+	process.on('SIGINT', cleanup);
+	process.on('SIGTERM', cleanup);
 }
 
-initializeGrpcDriftClientV2().catch(console.error);
+initializeGrpcDriftClientV2VersusV1().catch(console.error);

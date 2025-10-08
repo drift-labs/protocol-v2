@@ -36,13 +36,17 @@ function commitmentLevelToCommitment(
 	}
 }
 
-export class grpcMultiAccountSubscriber<T> {
+export class grpcMultiAccountSubscriber<T, U = undefined> {
 	private client: Client;
 	private stream: ClientDuplexStream<SubscribeRequest, SubscribeUpdate>;
 	private commitmentLevel: CommitmentLevel;
 	private program: Program;
 	private accountName: string;
-	private decodeBufferFn?: (buffer: Buffer, pubkey?: string) => T;
+	private decodeBufferFn?: (
+		buffer: Buffer,
+		pubkey?: string,
+		accountProps?: U
+	) => T;
 	private resubOpts?: ResubOpts;
 	private onUnsubscribe?: () => Promise<void>;
 
@@ -54,10 +58,11 @@ export class grpcMultiAccountSubscriber<T> {
 	private subscribedAccounts = new Set<string>();
 	private onChangeMap = new Map<
 		string,
-		(data: T, context: Context, buffer: Buffer) => void
+		(data: T, context: Context, buffer: Buffer, accountProps: U) => void
 	>();
 
 	private dataMap = new Map<string, DataAndSlot<T>>();
+	private accountPropsMap = new Map<string, U | Array<U>>();
 
 	private constructor(
 		client: Client,
@@ -66,7 +71,8 @@ export class grpcMultiAccountSubscriber<T> {
 		program: Program,
 		decodeBuffer?: (buffer: Buffer, pubkey?: string) => T,
 		resubOpts?: ResubOpts,
-		onUnsubscribe?: () => Promise<void>
+		onUnsubscribe?: () => Promise<void>,
+		accountPropsMap?: Map<string, U | Array<U>>
 	) {
 		this.client = client;
 		this.commitmentLevel = commitmentLevel;
@@ -75,17 +81,19 @@ export class grpcMultiAccountSubscriber<T> {
 		this.decodeBufferFn = decodeBuffer;
 		this.resubOpts = resubOpts;
 		this.onUnsubscribe = onUnsubscribe;
+		this.accountPropsMap = accountPropsMap;
 	}
 
-	public static async create<U>(
+	public static async create<T, U = undefined>(
 		grpcConfigs: GrpcConfigs,
 		accountName: string,
 		program: Program,
-		decodeBuffer?: (buffer: Buffer, pubkey?: string) => U,
+		decodeBuffer?: (buffer: Buffer, pubkey?: string, accountProps?: U) => T,
 		resubOpts?: ResubOpts,
 		clientProp?: Client,
-		onUnsubscribe?: () => Promise<void>
-	): Promise<grpcMultiAccountSubscriber<U>> {
+		onUnsubscribe?: () => Promise<void>,
+		accountPropsMap?: Map<string, U | Array<U>>
+	): Promise<grpcMultiAccountSubscriber<T, U>> {
 		const client = clientProp
 			? clientProp
 			: await createClient(
@@ -104,7 +112,8 @@ export class grpcMultiAccountSubscriber<T> {
 			program,
 			decodeBuffer,
 			resubOpts,
-			onUnsubscribe
+			onUnsubscribe,
+			accountPropsMap
 		);
 	}
 
@@ -176,7 +185,8 @@ export class grpcMultiAccountSubscriber<T> {
 			accountId: PublicKey,
 			data: T,
 			context: Context,
-			buffer: Buffer
+			buffer: Buffer,
+			accountProps: U
 		) => void
 	): Promise<void> {
 		if (this.listenerId != null || this.isUnsubscribing) {
@@ -187,9 +197,9 @@ export class grpcMultiAccountSubscriber<T> {
 		for (const pk of accounts) {
 			const key = pk.toBase58();
 			this.subscribedAccounts.add(key);
-			this.onChangeMap.set(key, (data, ctx, buffer) => {
+			this.onChangeMap.set(key, (data, ctx, buffer, accountProps) => {
 				this.setAccountData(key, data, ctx.slot);
-				onChange(new PublicKey(key), data, ctx, buffer);
+				onChange(new PublicKey(key), data, ctx, buffer, accountProps);
 			});
 		}
 
@@ -235,23 +245,38 @@ export class grpcMultiAccountSubscriber<T> {
 
 			const context = { slot } as Context;
 			const buffer = accountInfo.data;
-			const data = this.decodeBufferFn
-				? this.decodeBufferFn(buffer, accountPubkey)
-				: this.program.account[this.accountName].coder.accounts.decode(
-						this.capitalize(this.accountName),
-						buffer
-				  );
+			const accountProps = this.accountPropsMap?.get(accountPubkey);
 
-			const handler = this.onChangeMap.get(accountPubkey);
-			if (handler) {
-				if (this.resubOpts?.resubTimeoutMs) {
-					this.receivingData = true;
-					clearTimeout(this.timeoutId);
-					handler(data, context, buffer);
-					this.setTimeout();
-				} else {
-					handler(data, context, buffer);
+			const handleDataBuffer = (
+				context: Context,
+				buffer: Buffer,
+				accountProps: U
+			) => {
+				const data = this.decodeBufferFn
+					? this.decodeBufferFn(buffer, accountPubkey, accountProps)
+					: this.program.account[this.accountName].coder.accounts.decode(
+							this.capitalize(this.accountName),
+							buffer
+					  );
+				const handler = this.onChangeMap.get(accountPubkey);
+				if (handler) {
+					if (this.resubOpts?.resubTimeoutMs) {
+						this.receivingData = true;
+						clearTimeout(this.timeoutId);
+						handler(data, context, buffer, accountProps);
+						this.setTimeout();
+					} else {
+						handler(data, context, buffer, accountProps);
+					}
 				}
+			};
+
+			if (Array.isArray(accountProps)) {
+				for (const props of accountProps) {
+					handleDataBuffer(context, buffer, props);
+				}
+			} else {
+				handleDataBuffer(context, buffer, accountProps);
 			}
 		});
 
