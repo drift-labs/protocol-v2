@@ -215,6 +215,9 @@ export class grpcDriftClientAccountSubscriberV2
 	}
 
 	async addOracle(oracleInfo: OracleInfo): Promise<boolean> {
+		if (this.resubOpts?.logResubMessages) {
+			console.log('[grpcDriftClientAccountSubscriberV2] addOracle');
+		}
 		if (oracleInfo.publicKey.equals(PublicKey.default)) {
 			return true;
 		}
@@ -228,10 +231,7 @@ export class grpcDriftClientAccountSubscriberV2
 			this.oracleInfos = this.oracleInfos.concat(oracleInfo);
 		}
 
-		if (this.oracleMultiSubscriber) {
-			await this.unsubscribeFromOracles();
-			await this.subscribeToOracles();
-		}
+		this.oracleMultiSubscriber?.addAccounts([oracleInfo.publicKey]);
 
 		return true;
 	}
@@ -461,6 +461,11 @@ export class grpcDriftClientAccountSubscriberV2
 	}
 
 	async subscribeToPerpMarketAccounts(): Promise<boolean> {
+		if (this.resubOpts?.logResubMessages) {
+			console.log(
+				'[grpcDriftClientAccountSubscriberV2] subscribeToPerpMarketAccounts'
+			);
+		}
 		const perpMarketIndexToAccountPubkeys: Array<[number, PublicKey]> =
 			await Promise.all(
 				this.perpMarketIndexes.map(async (marketIndex) => [
@@ -523,6 +528,11 @@ export class grpcDriftClientAccountSubscriberV2
 	}
 
 	async subscribeToSpotMarketAccounts(): Promise<boolean> {
+		if (this.resubOpts?.logResubMessages) {
+			console.log(
+				'[grpcDriftClientAccountSubscriberV2] subscribeToSpotMarketAccounts'
+			);
+		}
 		const spotMarketIndexToAccountPubkeys: Array<[number, PublicKey]> =
 			await Promise.all(
 				this.spotMarketIndexes.map(async (marketIndex) => [
@@ -585,6 +595,9 @@ export class grpcDriftClientAccountSubscriberV2
 	}
 
 	async subscribeToOracles(): Promise<boolean> {
+		if (this.resubOpts?.logResubMessages) {
+			console.log('grpcDriftClientAccountSubscriberV2 subscribeToOracles');
+		}
 		const oraclePubkeyToInfosMap = new Map<string, OracleInfo[]>();
 		for (const info of this.oracleInfos) {
 			const pubkey = info.publicKey.toBase58();
