@@ -32,9 +32,8 @@ pub const CONSTITUENT_CORRELATIONS_PDA_SEED: &str = "constituent_correlations";
 pub const CONSTITUENT_VAULT_PDA_SEED: &str = "CONSTITUENT_VAULT";
 pub const LP_POOL_TOKEN_VAULT_PDA_SEED: &str = "LP_POOL_TOKEN_VAULT";
 
-pub const BASE_SWAP_FEE: i128 = 300; // 0.75% in PERCENTAGE_PRECISION
-pub const MAX_SWAP_FEE: i128 = 75_000; // 0.75% in PERCENTAGE_PRECISION
-pub const MIN_SWAP_FEE: i128 = 200; // 0.75% in PERCENTAGE_PRECISION
+pub const BASE_SWAP_FEE: i128 = 300; // 0.3% in PERCENTAGE_PRECISION
+pub const MAX_SWAP_FEE: i128 = 37_500; // 37.5% in PERCENTAGE_PRECISION
 
 pub const MIN_AUM_EXECUTION_FEE: u128 = 10_000_000_000_000;
 
@@ -225,6 +224,9 @@ impl LPPool {
             out_target_oracle_slot_delay,
         )?;
 
+        in_fee = in_fee.min(MAX_SWAP_FEE);
+        out_fee = out_fee.min(MAX_SWAP_FEE);
+
         let in_fee_amount = in_amount
             .cast::<i128>()?
             .safe_mul(in_fee)?
@@ -279,6 +281,7 @@ impl LPPool {
             in_target_position_slot_delay,
             in_target_oracle_slot_delay,
         )?;
+        in_fee_pct = in_fee_pct.min(MAX_SWAP_FEE * 2);
 
         let in_fee_amount = in_amount
             .cast::<i128>()?
@@ -383,6 +386,8 @@ impl LPPool {
             out_target_oracle_slot_delay,
         )?;
         out_fee_pct = in_fee_pct.safe_add(out_fee_pct)?;
+        out_fee_pct = out_fee_pct.min(MAX_SWAP_FEE * 2);
+
         let out_fee_amount = out_amount
             .cast::<i128>()?
             .safe_mul(out_fee_pct)?
@@ -629,10 +634,7 @@ impl LPPool {
             .safe_add(out_quadratic_inventory_fee)?
             .safe_add(BASE_SWAP_FEE.safe_div(2)?)?;
 
-        Ok((
-            total_in_fee.min(MAX_SWAP_FEE.safe_div(2)?),
-            total_out_fee.min(MAX_SWAP_FEE.safe_div(2)?),
-        ))
+        Ok((total_in_fee, total_out_fee))
     }
 
     pub fn get_target_uncertainty_fees(
@@ -1579,8 +1581,8 @@ impl ConstituentCorrelations {
             "ConstituentCorrelation correlations must be between 0 and PERCENTAGE_PRECISION"
         )?;
 
-        self.correlations[(i as usize * num_constituents + j as usize)] = corr;
-        self.correlations[(j as usize * num_constituents + i as usize)] = corr;
+        self.correlations[i as usize * num_constituents + j as usize] = corr;
+        self.correlations[j as usize * num_constituents + i as usize] = corr;
 
         self.validate()?;
 

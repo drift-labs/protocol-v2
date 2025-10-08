@@ -273,7 +273,6 @@ mod tests {
                 price,
             }];
         let aum = 1_000_000;
-        let now_ts = 1234;
 
         let target_fixed = RefCell::new(ConstituentTargetBaseFixed {
             len: 1,
@@ -384,7 +383,6 @@ mod tests {
         ];
 
         let aum = 1_000_000;
-        let now_ts = 999;
 
         let target_fixed = RefCell::new(ConstituentTargetBaseFixed {
             len: amm_mapping_data.len() as u32,
@@ -469,8 +467,6 @@ mod tests {
                 price: 142_000_000,
             }];
 
-        let now_ts = 111;
-
         let target_fixed = RefCell::new(ConstituentTargetBaseFixed {
             len: 1,
             ..ConstituentTargetBaseFixed::default()
@@ -499,8 +495,6 @@ mod tests {
 
 #[cfg(test)]
 mod swap_tests {
-    use core::slice;
-
     use crate::math::constants::{
         PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I128, PRICE_PRECISION_I64,
         SPOT_BALANCE_PRECISION,
@@ -774,7 +768,7 @@ mod swap_tests {
         in_target_position_delay: u64,
         in_target_oracle_delay: u64,
         last_aum: u128,
-        now: i64,
+        _now: i64,
         in_decimals: u32,
         in_amount: u128,
         dlp_total_supply: u64,
