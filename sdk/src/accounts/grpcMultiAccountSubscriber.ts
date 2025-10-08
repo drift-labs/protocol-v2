@@ -189,6 +189,9 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 			accountProps: U
 		) => void
 	): Promise<void> {
+		if (this.resubOpts?.logResubMessages) {
+			console.log(`[${this.accountName}] grpcMultiAccountSubscriber subscribe`);
+		}
 		if (this.listenerId != null || this.isUnsubscribing) {
 			return;
 		}

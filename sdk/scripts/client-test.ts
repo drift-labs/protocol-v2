@@ -24,7 +24,7 @@ const GRPC_ENDPOINT = process.env.GRPC_ENDPOINT;
 const TOKEN = process.env.TOKEN;
 
 async function initializeGrpcDriftClientV2VersusV1() {
-	const connection = new Connection('');
+	const connection = new Connection('https://api.mainnet-beta.solana.com');
 	const wallet = new Wallet(new Keypair());
 	dotenv.config({ path: '../' });
 
@@ -119,6 +119,7 @@ async function initializeGrpcDriftClientV2VersusV1() {
 		accountSubscription: {
 			...baseAccountSubscription,
 			driftClientAccountSubscriber: grpcDriftClientAccountSubscriberV2,
+			logResubMessages: true,
 		},
 		perpMarketIndexes,
 		spotMarketIndexes,
@@ -132,6 +133,7 @@ async function initializeGrpcDriftClientV2VersusV1() {
 		accountSubscription: {
 			...baseAccountSubscription,
 			driftClientAccountSubscriber: grpcDriftClientAccountSubscriber,
+			// logResubMessages: true,
 		},
 		perpMarketIndexes,
 		spotMarketIndexes,
@@ -142,6 +144,14 @@ async function initializeGrpcDriftClientV2VersusV1() {
 	const clientV1 = new DriftClient(configV1);
 
 	await Promise.all([clientV1.subscribe(), clientV2.subscribe()]);
+
+	clientV2.eventEmitter.on('oraclePriceUpdate', (pubkey, source, data) => {
+		const key = pubkey.toBase58();
+		const src = Object.keys(source ?? {})[0];
+		console.log(
+			`v2 oracle update ${key} (${src}) price ${data.price.toString()}`
+		);
+	});
 	const compare = () => {
 		for (const idx of perpMarketIndexes) {
 			const p1 = clientV1.getOracleDataForPerpMarket(idx).price;
