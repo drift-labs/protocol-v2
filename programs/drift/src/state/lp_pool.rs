@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::f32::consts::E;
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
@@ -1686,34 +1687,81 @@ pub fn update_constituent_target_base_for_derivatives(
     derivative_groups: &BTreeMap<u16, Vec<u16>>,
     constituent_map: &ConstituentMap,
     spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
     constituent_target_base: &mut AccountZeroCopyMut<'_, TargetsDatum, ConstituentTargetBaseFixed>,
 ) -> DriftResult<()> {
     for (parent_index, constituent_indexes) in derivative_groups.iter() {
         let parent_constituent = constituent_map.get_ref(parent_index)?;
+
+        let parent_spot_market = spot_market_map.get_ref(&parent_constituent.spot_market_index)?;
+        let parent_oracle_price_and_validity = oracle_map.get_price_data_and_validity(
+            MarketType::Spot,
+            parent_spot_market.market_index,
+            &parent_spot_market.oracle_id(),
+            parent_spot_market
+                .historical_oracle_data
+                .last_oracle_price_twap,
+            parent_spot_market.get_max_confidence_interval_multiplier()?,
+            0,
+        )?;
+        if !is_oracle_valid_for_action(
+            parent_oracle_price_and_validity.1,
+            Some(DriftAction::UpdateLpPoolAum),
+        )? {
+            msg!(
+                "Parent constituent {} oracle is invalid",
+                parent_constituent.constituent_index
+            );
+            return Err(ErrorCode::InvalidOracle);
+        }
+        let parent_constituent_price = parent_oracle_price_and_validity.0.price;
+
         let parent_target_base = constituent_target_base
             .get(*parent_index as u32)
             .target_base;
         let target_parent_weight = calculate_target_weight(
             parent_target_base,
             &*spot_market_map.get_ref(&parent_constituent.spot_market_index)?,
-            parent_constituent.last_oracle_price,
+            parent_oracle_price_and_validity.0.price,
             aum,
         )?;
         let mut derivative_weights_sum: u64 = 0;
         for constituent_index in constituent_indexes {
             let constituent = constituent_map.get_ref(constituent_index)?;
-            if constituent.last_oracle_price
-                < parent_constituent
-                    .last_oracle_price
+            let constituent_spot_market =
+                spot_market_map.get_ref(&constituent.spot_market_index)?;
+            let constituent_oracle_price_and_validity = oracle_map.get_price_data_and_validity(
+                MarketType::Spot,
+                constituent.spot_market_index,
+                &constituent_spot_market.oracle_id(),
+                constituent_spot_market
+                    .historical_oracle_data
+                    .last_oracle_price_twap,
+                constituent_spot_market.get_max_confidence_interval_multiplier()?,
+                0,
+            )?;
+            if !is_oracle_valid_for_action(
+                constituent_oracle_price_and_validity.1,
+                Some(DriftAction::UpdateLpPoolAum),
+            )? {
+                msg!(
+                    "Constituent {} oracle is invalid",
+                    constituent.constituent_index
+                );
+                return Err(ErrorCode::InvalidOracle);
+            }
+
+            if constituent_oracle_price_and_validity.0.price
+                < parent_constituent_price
                     .safe_mul(constituent.constituent_derivative_depeg_threshold as i64)?
                     .safe_div(PERCENTAGE_PRECISION_I64)?
             {
                 msg!(
                     "Constituent {} last oracle price {} is too low compared to parent constituent {} last oracle price {}. Assuming depegging and setting target base to 0.",
                     constituent.constituent_index,
-                    constituent.last_oracle_price,
+                    constituent_oracle_price_and_validity.0.price,
                     parent_constituent.constituent_index,
-                    parent_constituent.last_oracle_price
+                    parent_constituent_price
                 );
                 constituent_target_base
                     .get_mut(*constituent_index as u32)
@@ -1738,7 +1786,7 @@ pub fn update_constituent_target_base_for_derivatives(
                 .safe_mul(target_weight)?
                 .safe_div(PERCENTAGE_PRECISION_I128)?
                 .safe_mul(10_i128.pow(constituent.decimals as u32))?
-                .safe_div(constituent.last_oracle_price as i128)?;
+                .safe_div(constituent_oracle_price_and_validity.0.price as i128)?;
 
             msg!(
                 "constituent: {}, target base: {}",

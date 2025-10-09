@@ -225,6 +225,7 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
         &derivative_groups,
         &constituent_map,
         &spot_market_map,
+        &mut oracle_map,
         &mut constituent_target_base,
     )?;
 
@@ -1314,8 +1315,6 @@ pub fn handle_view_lp_pool_remove_liquidity_fees<'c: 'info, 'info>(
     )?;
     let out_oracle = out_oracle.clone();
 
-    // TODO: check self.aum validity
-
     if !is_oracle_valid_for_action(out_oracle_validity, Some(DriftAction::LpPoolSwap))? {
         msg!(
             "Out oracle data for spot market {} is invalid for lp pool swap.",
@@ -1328,7 +1327,7 @@ pub fn handle_view_lp_pool_remove_liquidity_fees<'c: 'info, 'info>(
         out_constituent.constituent_index,
         &out_spot_market,
         out_oracle.price,
-        lp_pool.last_aum, // TODO: remove out_amount * out_oracle to est post remove_liquidity aum
+        lp_pool.last_aum,
     )?;
 
     let dlp_total_supply = ctx.accounts.lp_mint.supply;

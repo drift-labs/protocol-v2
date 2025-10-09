@@ -958,9 +958,9 @@ mod swap_tests {
 
     fn get_remove_liquidity_mint_amount_scenario(
         out_target_position_delay: u64,
-        out_target_oracle_delay: u64,
+        _out_target_oracle_delay: u64,
         last_aum: u128,
-        now: i64,
+        _now: i64,
         in_decimals: u32,
         lp_burn_amount: u64,
         dlp_total_supply: u64,
@@ -2372,6 +2372,8 @@ mod update_aum_tests {
         state::lp_pool::*,
         state::oracle::HistoricalOracleData,
         state::oracle::OracleSource,
+        state::oracle_map::OracleMap,
+        state::pyth_lazer_oracle::PythLazerOracle,
         state::spot_market::SpotMarket,
         state::spot_market_map::SpotMarketMap,
         state::zero_copy::AccountZeroCopyMut,
@@ -2456,6 +2458,56 @@ mod update_aum_tests {
         )
         .unwrap();
 
+        // Create simple PythLazer oracle accounts for non-quote assets with prices matching constituents
+        // Use exponent -6 so values are already in PRICE_PRECISION units
+        let sol_oracle_pubkey = Pubkey::new_unique();
+        let mut sol_oracle = PythLazerOracle {
+            price: 200 * PRICE_PRECISION_I64,
+            publish_time: 1,
+            posted_slot: 100,
+            exponent: -6,
+            _padding: [0; 4],
+            conf: 0,
+        };
+        create_anchor_account_info!(
+            sol_oracle,
+            &sol_oracle_pubkey,
+            PythLazerOracle,
+            sol_oracle_account_info
+        );
+
+        let btc_oracle_pubkey = Pubkey::new_unique();
+        let mut btc_oracle = PythLazerOracle {
+            price: 100_000 * PRICE_PRECISION_I64,
+            publish_time: 1,
+            posted_slot: 100,
+            exponent: -6,
+            _padding: [0; 4],
+            conf: 0,
+        };
+        create_anchor_account_info!(
+            btc_oracle,
+            &btc_oracle_pubkey,
+            PythLazerOracle,
+            btc_oracle_account_info
+        );
+
+        let bonk_oracle_pubkey = Pubkey::new_unique();
+        let mut bonk_oracle = PythLazerOracle {
+            price: 22, // $0.000022 in PRICE_PRECISION
+            publish_time: 1,
+            posted_slot: 100,
+            exponent: -6,
+            _padding: [0; 4],
+            conf: 0,
+        };
+        create_anchor_account_info!(
+            bonk_oracle,
+            &bonk_oracle_pubkey,
+            PythLazerOracle,
+            bonk_oracle_account_info
+        );
+
         // Create spot markets
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
@@ -2469,30 +2521,35 @@ mod update_aum_tests {
 
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
+            oracle: sol_oracle_pubkey,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 9,
-            historical_oracle_data: HistoricalOracleData::default(),
+            historical_oracle_data: HistoricalOracleData::default_price(200 * PRICE_PRECISION_I64),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_spot_market, SpotMarket, sol_spot_market_account_info);
 
         let mut btc_spot_market = SpotMarket {
             market_index: 2,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
+            oracle: btc_oracle_pubkey,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 8,
-            historical_oracle_data: HistoricalOracleData::default(),
+            historical_oracle_data: HistoricalOracleData::default_price(
+                100_000 * PRICE_PRECISION_I64,
+            ),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(btc_spot_market, SpotMarket, btc_spot_market_account_info);
 
         let mut bonk_spot_market = SpotMarket {
             market_index: 3,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
+            oracle: bonk_oracle_pubkey,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 5,
-            historical_oracle_data: HistoricalOracleData::default(),
+            historical_oracle_data: HistoricalOracleData::default_price(22),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(bonk_spot_market, SpotMarket, bonk_spot_market_account_info);
@@ -2505,6 +2562,21 @@ mod update_aum_tests {
         ];
         let spot_market_map =
             SpotMarketMap::load_multiple(spot_market_account_infos, true).unwrap();
+        // Build an oracle map containing the three non-quote oracles
+        let oracle_accounts = vec![
+            sol_oracle_account_info.clone(),
+            btc_oracle_account_info.clone(),
+            bonk_oracle_account_info.clone(),
+        ];
+        let mut oracle_iter = oracle_accounts.iter().peekable();
+        let mut oracle_map = OracleMap::load(&mut oracle_iter, 101, None).unwrap();
+
+        msg!(
+            "oracle map entry 0 {:?}",
+            oracle_map
+                .get_price_data(&sol_spot_market.oracle_id())
+                .unwrap()
+        );
 
         // Create constituent target base
         let target_fixed = RefCell::new(ConstituentTargetBaseFixed {
@@ -2512,7 +2584,7 @@ mod update_aum_tests {
             ..ConstituentTargetBaseFixed::default()
         });
         let target_data = RefCell::new([0u8; 128]); // 4 * 32 bytes per TargetsDatum
-        let mut constituent_target_base =
+        let constituent_target_base =
             AccountZeroCopyMut::<'_, TargetsDatum, ConstituentTargetBaseFixed> {
                 fixed: target_fixed.borrow_mut(),
                 data: target_data.borrow_mut(),
@@ -2535,6 +2607,7 @@ mod update_aum_tests {
             101, // slot
             &constituent_map,
             &spot_market_map,
+            &mut oracle_map,
             &constituent_target_base,
             &amm_cache,
         );
@@ -2671,6 +2744,8 @@ mod update_constituent_target_base_for_derivatives_tests {
     use crate::state::constituent_map::ConstituentMap;
     use crate::state::lp_pool::{Constituent, ConstituentTargetBaseFixed, TargetsDatum};
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
+    use crate::state::oracle_map::OracleMap;
+    use crate::state::pyth_lazer_oracle::PythLazerOracle;
     use crate::state::spot_market::SpotMarket;
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::zero_copy::AccountZeroCopyMut;
@@ -2775,13 +2850,79 @@ mod update_constituent_target_base_for_derivatives_tests {
         ];
         let constituent_map = ConstituentMap::load_multiple(constituents_list, true).unwrap();
 
-        // Create spot markets
+        // Create oracles for parent and derivatives, with prices matching their last_oracle_price
+        let parent_oracle_pubkey = Pubkey::new_unique();
+        let mut parent_oracle = PythLazerOracle {
+            price: 200 * PRICE_PRECISION_I64,
+            publish_time: 1,
+            posted_slot: 100,
+            exponent: -6,
+            _padding: [0; 4],
+            conf: 0,
+        };
+        create_anchor_account_info!(
+            parent_oracle,
+            &parent_oracle_pubkey,
+            PythLazerOracle,
+            parent_oracle_account_info
+        );
+
+        let derivative1_oracle_pubkey = Pubkey::new_unique();
+        let mut derivative1_oracle = PythLazerOracle {
+            price: 195 * PRICE_PRECISION_I64,
+            publish_time: 1,
+            posted_slot: 100,
+            exponent: -6,
+            _padding: [0; 4],
+            conf: 0,
+        };
+        create_anchor_account_info!(
+            derivative1_oracle,
+            &derivative1_oracle_pubkey,
+            PythLazerOracle,
+            derivative1_oracle_account_info
+        );
+
+        let derivative2_oracle_pubkey = Pubkey::new_unique();
+        let mut derivative2_oracle = PythLazerOracle {
+            price: 205 * PRICE_PRECISION_I64,
+            publish_time: 1,
+            posted_slot: 100,
+            exponent: -6,
+            _padding: [0; 4],
+            conf: 0,
+        };
+        create_anchor_account_info!(
+            derivative2_oracle,
+            &derivative2_oracle_pubkey,
+            PythLazerOracle,
+            derivative2_oracle_account_info
+        );
+
+        let derivative3_oracle_pubkey = Pubkey::new_unique();
+        let mut derivative3_oracle = PythLazerOracle {
+            price: 210 * PRICE_PRECISION_I64,
+            publish_time: 1,
+            posted_slot: 100,
+            exponent: -6,
+            _padding: [0; 4],
+            conf: 0,
+        };
+        create_anchor_account_info!(
+            derivative3_oracle,
+            &derivative3_oracle_pubkey,
+            PythLazerOracle,
+            derivative3_oracle_account_info
+        );
+
+        // Create spot markets bound to the above oracles
         let mut parent_spot_market = SpotMarket {
             market_index: parent_index,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
+            oracle: parent_oracle_pubkey,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 9,
-            historical_oracle_data: HistoricalOracleData::default(),
+            historical_oracle_data: HistoricalOracleData::default_price(parent_oracle.price),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(
@@ -2792,10 +2933,11 @@ mod update_constituent_target_base_for_derivatives_tests {
 
         let mut derivative1_spot_market = SpotMarket {
             market_index: derivative1_index,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
+            oracle: derivative1_oracle_pubkey,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 9,
-            historical_oracle_data: HistoricalOracleData::default(),
+            historical_oracle_data: HistoricalOracleData::default_price(derivative1_oracle.price),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(
@@ -2806,10 +2948,11 @@ mod update_constituent_target_base_for_derivatives_tests {
 
         let mut derivative2_spot_market = SpotMarket {
             market_index: derivative2_index,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
+            oracle: derivative2_oracle_pubkey,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 9,
-            historical_oracle_data: HistoricalOracleData::default(),
+            historical_oracle_data: HistoricalOracleData::default_price(derivative2_oracle.price),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(
@@ -2820,10 +2963,11 @@ mod update_constituent_target_base_for_derivatives_tests {
 
         let mut derivative3_spot_market = SpotMarket {
             market_index: derivative3_index,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
+            oracle: derivative3_oracle_pubkey,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 9,
-            historical_oracle_data: HistoricalOracleData::default(),
+            historical_oracle_data: HistoricalOracleData::default_price(derivative3_oracle.price),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(
@@ -2839,6 +2983,16 @@ mod update_constituent_target_base_for_derivatives_tests {
             &derivative3_spot_market_account_info,
         ];
         let spot_market_map = SpotMarketMap::load_multiple(spot_market_list, true).unwrap();
+
+        // Build an oracle map for parent and derivatives
+        let oracle_accounts = vec![
+            parent_oracle_account_info.clone(),
+            derivative1_oracle_account_info.clone(),
+            derivative2_oracle_account_info.clone(),
+            derivative3_oracle_account_info.clone(),
+        ];
+        let mut oracle_iter = oracle_accounts.iter().peekable();
+        let mut oracle_map = OracleMap::load(&mut oracle_iter, 101, None).unwrap();
 
         // Create constituent target base
         let num_constituents = 4; // Fixed: parent + 3 derivatives
@@ -2907,6 +3061,7 @@ mod update_constituent_target_base_for_derivatives_tests {
             &derivative_groups,
             &constituent_map,
             &spot_market_map,
+            &mut oracle_map,
             &mut constituent_target_base,
         );
 
@@ -3043,12 +3198,47 @@ mod update_constituent_target_base_for_derivatives_tests {
         )
         .unwrap();
 
+        // Create PythLazer oracles corresponding to prices
+        let parent_oracle_pubkey = Pubkey::new_unique();
+        let mut parent_oracle = PythLazerOracle {
+            price: 200 * PRICE_PRECISION_I64,
+            publish_time: 1,
+            posted_slot: 100,
+            exponent: -6,
+            _padding: [0; 4],
+            conf: 0,
+        };
+        create_anchor_account_info!(
+            parent_oracle,
+            &parent_oracle_pubkey,
+            PythLazerOracle,
+            parent_oracle_account_info
+        );
+
+        let derivative_oracle_pubkey = Pubkey::new_unique();
+        let mut derivative_oracle = PythLazerOracle {
+            price: 180 * PRICE_PRECISION_I64,
+            publish_time: 1,
+            posted_slot: 100,
+            exponent: -6,
+            _padding: [0; 4],
+            conf: 0,
+        };
+        create_anchor_account_info!(
+            derivative_oracle,
+            &derivative_oracle_pubkey,
+            PythLazerOracle,
+            derivative_oracle_account_info
+        );
+
         // Create spot markets
         let mut parent_spot_market = SpotMarket {
             market_index: parent_index,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
+            oracle: parent_oracle_pubkey,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 9,
+            historical_oracle_data: HistoricalOracleData::default_price(parent_oracle.price),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(
@@ -3059,9 +3249,11 @@ mod update_constituent_target_base_for_derivatives_tests {
 
         let mut derivative_spot_market = SpotMarket {
             market_index: derivative_index,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
+            oracle: derivative_oracle_pubkey,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 9,
+            historical_oracle_data: HistoricalOracleData::default_price(derivative_oracle.price),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(
@@ -3078,6 +3270,14 @@ mod update_constituent_target_base_for_derivatives_tests {
             true,
         )
         .unwrap();
+
+        // Build oracle map
+        let oracle_accounts = vec![
+            parent_oracle_account_info.clone(),
+            derivative_oracle_account_info.clone(),
+        ];
+        let mut oracle_iter = oracle_accounts.iter().peekable();
+        let mut oracle_map = OracleMap::load(&mut oracle_iter, 101, None).unwrap();
 
         // Create constituent target base
         let target_fixed = RefCell::new(ConstituentTargetBaseFixed {
@@ -3110,6 +3310,7 @@ mod update_constituent_target_base_for_derivatives_tests {
             &derivative_groups,
             &constituent_map,
             &spot_market_map,
+            &mut oracle_map,
             &mut constituent_target_base,
         );
 
@@ -3286,11 +3487,47 @@ mod update_constituent_target_base_for_derivatives_tests {
         )
         .unwrap();
 
+        // Create PythLazer oracles so update_constituent_target_base_for_derivatives can fetch current prices
+        let parent_oracle_pubkey = Pubkey::new_unique();
+        let mut parent_oracle = PythLazerOracle {
+            price: 200 * PRICE_PRECISION_I64,
+            publish_time: 1,
+            posted_slot: 100,
+            exponent: -6,
+            _padding: [0; 4],
+            conf: 0,
+        };
+        create_anchor_account_info!(
+            parent_oracle,
+            &parent_oracle_pubkey,
+            PythLazerOracle,
+            parent_oracle_account_info
+        );
+
+        let derivative_oracle_pubkey = Pubkey::new_unique();
+        let mut derivative_oracle = PythLazerOracle {
+            price: 195 * PRICE_PRECISION_I64,
+            publish_time: 1,
+            posted_slot: 100,
+            exponent: -6,
+            _padding: [0; 4],
+            conf: 0,
+        };
+        create_anchor_account_info!(
+            derivative_oracle,
+            &derivative_oracle_pubkey,
+            PythLazerOracle,
+            derivative_oracle_account_info
+        );
+
+        // Spot markets bound to the test oracles
         let mut parent_spot_market = SpotMarket {
             market_index: parent_index,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
+            oracle: parent_oracle_pubkey,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 9,
+            historical_oracle_data: HistoricalOracleData::default_price(parent_oracle.price),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(
@@ -3301,9 +3538,11 @@ mod update_constituent_target_base_for_derivatives_tests {
 
         let mut derivative_spot_market = SpotMarket {
             market_index: derivative_index,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
+            oracle: derivative_oracle_pubkey,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 9,
+            historical_oracle_data: HistoricalOracleData::default_price(derivative_oracle.price),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(
@@ -3320,6 +3559,14 @@ mod update_constituent_target_base_for_derivatives_tests {
             true,
         )
         .unwrap();
+
+        // Build oracle map
+        let oracle_accounts = vec![
+            parent_oracle_account_info.clone(),
+            derivative_oracle_account_info.clone(),
+        ];
+        let mut oracle_iter = oracle_accounts.iter().peekable();
+        let mut oracle_map = OracleMap::load(&mut oracle_iter, 101, None).unwrap();
 
         let target_fixed = RefCell::new(ConstituentTargetBaseFixed {
             len: 2,
@@ -3349,6 +3596,7 @@ mod update_constituent_target_base_for_derivatives_tests {
             &derivative_groups,
             &constituent_map,
             &spot_market_map,
+            &mut oracle_map,
             &mut constituent_target_base,
         );
 
@@ -3440,11 +3688,60 @@ mod update_constituent_target_base_for_derivatives_tests {
         )
         .unwrap();
 
+        // Oracles
+        let parent_oracle_pubkey = Pubkey::new_unique();
+        let mut parent_oracle = PythLazerOracle {
+            price: 200 * PRICE_PRECISION_I64,
+            publish_time: 1,
+            posted_slot: 100,
+            exponent: -6,
+            _padding: [0; 4],
+            conf: 0,
+        };
+        create_anchor_account_info!(
+            parent_oracle,
+            &parent_oracle_pubkey,
+            PythLazerOracle,
+            parent_oracle_account_info
+        );
+        let derivative1_oracle_pubkey = Pubkey::new_unique();
+        let mut derivative1_oracle = PythLazerOracle {
+            price: 180 * PRICE_PRECISION_I64,
+            publish_time: 1,
+            posted_slot: 100,
+            exponent: -6,
+            _padding: [0; 4],
+            conf: 0,
+        };
+        create_anchor_account_info!(
+            derivative1_oracle,
+            &derivative1_oracle_pubkey,
+            PythLazerOracle,
+            derivative1_oracle_account_info
+        );
+        let derivative2_oracle_pubkey = Pubkey::new_unique();
+        let mut derivative2_oracle = PythLazerOracle {
+            price: 198 * PRICE_PRECISION_I64,
+            publish_time: 1,
+            posted_slot: 100,
+            exponent: -6,
+            _padding: [0; 4],
+            conf: 0,
+        };
+        create_anchor_account_info!(
+            derivative2_oracle,
+            &derivative2_oracle_pubkey,
+            PythLazerOracle,
+            derivative2_oracle_account_info
+        );
+
         let mut parent_spot_market = SpotMarket {
             market_index: parent_index,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
+            oracle: parent_oracle_pubkey,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 9,
+            historical_oracle_data: HistoricalOracleData::default_price(parent_oracle.price),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(
@@ -3455,9 +3752,11 @@ mod update_constituent_target_base_for_derivatives_tests {
 
         let mut derivative1_spot_market = SpotMarket {
             market_index: derivative1_index,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
+            oracle: derivative1_oracle_pubkey,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 9,
+            historical_oracle_data: HistoricalOracleData::default_price(derivative1_oracle.price),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(
@@ -3468,9 +3767,11 @@ mod update_constituent_target_base_for_derivatives_tests {
 
         let mut derivative2_spot_market = SpotMarket {
             market_index: derivative2_index,
-            oracle_source: OracleSource::Pyth,
+            oracle_source: OracleSource::PythLazer,
+            oracle: derivative2_oracle_pubkey,
             cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
             decimals: 9,
+            historical_oracle_data: HistoricalOracleData::default_price(derivative2_oracle.price),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(
@@ -3488,6 +3789,15 @@ mod update_constituent_target_base_for_derivatives_tests {
             true,
         )
         .unwrap();
+
+        // Oracle map
+        let oracle_accounts = vec![
+            parent_oracle_account_info.clone(),
+            derivative1_oracle_account_info.clone(),
+            derivative2_oracle_account_info.clone(),
+        ];
+        let mut oracle_iter = oracle_accounts.iter().peekable();
+        let mut oracle_map = OracleMap::load(&mut oracle_iter, 101, None).unwrap();
 
         let target_fixed = RefCell::new(ConstituentTargetBaseFixed {
             len: 3,
@@ -3519,6 +3829,7 @@ mod update_constituent_target_base_for_derivatives_tests {
             &derivative_groups,
             &constituent_map,
             &spot_market_map,
+            &mut oracle_map,
             &mut constituent_target_base,
         );
 
