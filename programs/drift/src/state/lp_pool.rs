@@ -6,13 +6,16 @@ use crate::math::constants::{
     BASE_PRECISION_I128, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
     PERCENTAGE_PRECISION_U64, PRICE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_U64,
 };
+use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 use crate::math::safe_math::SafeMath;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount};
 use crate::state::amm_cache::{AmmCacheFixed, CacheInfo};
 use crate::state::constituent_map::ConstituentMap;
+use crate::state::oracle_map::OracleMap;
 use crate::state::paused_operations::ConstituentLpOperation;
 use crate::state::spot_market_map::SpotMarketMap;
+use crate::state::user::MarketType;
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use enumflags2::BitFlags;
@@ -688,6 +691,7 @@ impl LPPool {
         slot: u64,
         constituent_map: &ConstituentMap,
         spot_market_map: &SpotMarketMap,
+        oracle_map: &mut OracleMap,
         constituent_target_base: &AccountZeroCopyMut<'_, TargetsDatum, ConstituentTargetBaseFixed>,
         amm_cache: &AccountZeroCopyMut<'_, CacheInfo, AmmCacheFixed>,
     ) -> DriftResult<(u128, i128, BTreeMap<u16, Vec<u16>>)> {
@@ -725,10 +729,28 @@ impl LPPool {
             }
 
             let spot_market = spot_market_map.get_ref(&constituent.spot_market_index)?;
+            let oracle_and_validity = oracle_map.get_price_data_and_validity(
+                MarketType::Spot,
+                constituent.spot_market_index,
+                &spot_market.oracle_id(),
+                spot_market.historical_oracle_data.last_oracle_price_twap,
+                spot_market.get_max_confidence_interval_multiplier()?,
+                0,
+            )?;
+            if !is_oracle_valid_for_action(
+                oracle_and_validity.1,
+                Some(DriftAction::UpdateLpPoolAum),
+            )? {
+                msg!(
+                    "Constituent {} oracle is not valid for action",
+                    constituent.constituent_index
+                );
+                return Err(ErrorCode::InvalidOracle.into());
+            }
 
             let constituent_aum = constituent
                 .get_full_token_amount(&spot_market)?
-                .safe_mul(constituent.last_oracle_price as i128)?
+                .safe_mul(oracle_and_validity.0.price as i128)?
                 .safe_div(10_i128.pow(spot_market.decimals))?;
             msg!(
                 "constituent: {}, balance: {}, aum: {}, deriv index: {}, bl token balance {}, bl balance type {}, vault balance: {}",
@@ -749,7 +771,7 @@ impl LPPool {
                     .get(constituent.constituent_index as u32)
                     .target_base
                     .cast::<i128>()?
-                    .safe_mul(constituent.last_oracle_price.cast::<i128>()?)?
+                    .safe_mul(oracle_and_validity.0.price.cast::<i128>()?)?
                     .safe_div(10_i128.pow(constituent.decimals as u32))?
                     .cast::<i64>()?;
                 crypto_delta = crypto_delta.safe_add(constituent_target_notional.cast()?)?;

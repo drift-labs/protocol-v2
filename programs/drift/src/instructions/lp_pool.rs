@@ -161,7 +161,7 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
     let AccountMaps {
         perp_market_map: _,
         spot_market_map,
-        oracle_map: _,
+        mut oracle_map,
     } = load_maps(
         remaining_accounts,
         &MarketSet::new(),
@@ -199,6 +199,7 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
         slot,
         &constituent_map,
         &spot_market_map,
+        &mut oracle_map,
         &constituent_target_base,
         &amm_cache,
     )?;
@@ -1407,7 +1408,6 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
     let deposit_plus_token_amount_before = amount.safe_add(spot_market_vault.amount)?;
 
     let oracle_data = oracle_map.get_price_data(&oracle_id)?;
-    let oracle_data_slot = clock.slot - oracle_data.delay.max(0i64).cast::<u64>()?;
 
     controller::spot_balance::update_spot_market_cumulative_interest(
         &mut spot_market,
@@ -1422,10 +1422,6 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
         .cast::<i64>()?
         .safe_sub(constituent.last_spot_balance_token_amount)?;
 
-    if constituent.last_oracle_slot < oracle_data_slot {
-        constituent.last_oracle_price = oracle_data.price;
-        constituent.last_oracle_slot = oracle_data_slot;
-    }
     constituent.sync_token_balance(ctx.accounts.constituent_token_account.amount);
     let balance_before = constituent.get_full_token_amount(&spot_market)?;
 
@@ -1555,11 +1551,6 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
     let interest_accrued_token_amount = token_balance_after_cumulative_interest_update
         .cast::<i64>()?
         .safe_sub(constituent.last_spot_balance_token_amount)?;
-
-    if constituent.last_oracle_slot < oracle_data_slot {
-        constituent.last_oracle_price = oracle_data.price;
-        constituent.last_oracle_slot = oracle_data_slot;
-    }
 
     let mint = &Some(*ctx.accounts.mint.clone());
     transfer_from_program_vault(
