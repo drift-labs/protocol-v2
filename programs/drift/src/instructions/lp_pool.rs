@@ -3,7 +3,6 @@ use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 use crate::ids::lp_pool_swap_wallet;
 use crate::math::constants::PRICE_PRECISION_I64;
-use crate::math::oracle::OracleValidity;
 use crate::state::events::{DepositDirection, LPBorrowLendDepositRecord};
 use crate::state::paused_operations::ConstituentLpOperation;
 use crate::validation::whitelist::validate_whitelist_token;
@@ -32,7 +31,6 @@ use crate::{
             update_constituent_target_base_for_derivatives, AmmConstituentDatum,
             AmmConstituentMappingFixed, Constituent, ConstituentCorrelationsFixed,
             ConstituentTargetBaseFixed, LPPool, TargetsDatum, LP_POOL_SWAP_AUM_UPDATE_DELAY,
-            MAX_ORACLE_STALENESS_FOR_TARGET_CALC, MAX_STALENESS_FOR_TARGET_CALC,
         },
         oracle_map::OracleMap,
         perp_market_map::MarketSet,
@@ -45,7 +43,6 @@ use crate::{
     },
     validate,
 };
-use std::convert::TryFrom;
 use std::iter::Peekable;
 use std::slice::Iter;
 
@@ -1865,12 +1862,12 @@ pub struct LPPoolSwap<'info> {
 
     #[account(
         mut,
-        constraint = user_in_token_account.mint.eq(&constituent_in_token_account.mint)
+        constraint = user_in_token_account.mint.eq(&constituent_in_token_account.mint) && user_in_token_account.owner == authority.key()
     )]
     pub user_in_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
-        constraint = user_out_token_account.mint.eq(&constituent_out_token_account.mint)
+        constraint = user_out_token_account.mint.eq(&constituent_out_token_account.mint) && user_out_token_account.owner == authority.key()
     )]
     pub user_out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
 
@@ -1900,7 +1897,6 @@ pub struct LPPoolSwap<'info> {
 
     pub authority: Signer<'info>,
 
-    // TODO: in/out token program
     pub token_program: Interface<'info, TokenInterface>,
 }
 
@@ -1974,7 +1970,7 @@ pub struct LPPoolAddLiquidity<'info> {
 
     #[account(
         mut,
-        constraint = user_in_token_account.mint.eq(&constituent_in_token_account.mint)
+        constraint = user_in_token_account.mint.eq(&constituent_in_token_account.mint) && user_in_token_account.owner == authority.key()
     )]
     pub user_in_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
 
@@ -2058,7 +2054,7 @@ pub struct LPPoolRemoveLiquidity<'info> {
 
     #[account(
         mut,
-        constraint = user_out_token_account.mint.eq(&constituent_out_token_account.mint)
+        constraint = user_out_token_account.mint.eq(&constituent_out_token_account.mint) && user_out_token_account.owner == authority.key()
     )]
     pub user_out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
