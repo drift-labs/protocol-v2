@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::f32::consts::E;
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
@@ -6,13 +7,16 @@ use crate::math::constants::{
     BASE_PRECISION_I128, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
     PERCENTAGE_PRECISION_U64, PRICE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_U64,
 };
+use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 use crate::math::safe_math::SafeMath;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::math::spot_balance::{get_signed_token_amount, get_token_amount};
 use crate::state::amm_cache::{AmmCacheFixed, CacheInfo};
 use crate::state::constituent_map::ConstituentMap;
+use crate::state::oracle_map::OracleMap;
 use crate::state::paused_operations::ConstituentLpOperation;
 use crate::state::spot_market_map::SpotMarketMap;
+use crate::state::user::MarketType;
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use enumflags2::BitFlags;
@@ -32,9 +36,8 @@ pub const CONSTITUENT_CORRELATIONS_PDA_SEED: &str = "constituent_correlations";
 pub const CONSTITUENT_VAULT_PDA_SEED: &str = "CONSTITUENT_VAULT";
 pub const LP_POOL_TOKEN_VAULT_PDA_SEED: &str = "LP_POOL_TOKEN_VAULT";
 
-pub const BASE_SWAP_FEE: i128 = 300; // 0.75% in PERCENTAGE_PRECISION
-pub const MAX_SWAP_FEE: i128 = 75_000; // 0.75% in PERCENTAGE_PRECISION
-pub const MIN_SWAP_FEE: i128 = 200; // 0.75% in PERCENTAGE_PRECISION
+pub const BASE_SWAP_FEE: i128 = 300; // 0.3% in PERCENTAGE_PRECISION
+pub const MAX_SWAP_FEE: i128 = 37_500; // 37.5% in PERCENTAGE_PRECISION
 
 pub const MIN_AUM_EXECUTION_FEE: u128 = 10_000_000_000_000;
 
@@ -225,6 +228,9 @@ impl LPPool {
             out_target_oracle_slot_delay,
         )?;
 
+        in_fee = in_fee.min(MAX_SWAP_FEE);
+        out_fee = out_fee.min(MAX_SWAP_FEE);
+
         let in_fee_amount = in_amount
             .cast::<i128>()?
             .safe_mul(in_fee)?
@@ -279,6 +285,7 @@ impl LPPool {
             in_target_position_slot_delay,
             in_target_oracle_slot_delay,
         )?;
+        in_fee_pct = in_fee_pct.min(MAX_SWAP_FEE * 2);
 
         let in_fee_amount = in_amount
             .cast::<i128>()?
@@ -383,6 +390,8 @@ impl LPPool {
             out_target_oracle_slot_delay,
         )?;
         out_fee_pct = in_fee_pct.safe_add(out_fee_pct)?;
+        out_fee_pct = out_fee_pct.min(MAX_SWAP_FEE * 2);
+
         let out_fee_amount = out_amount
             .cast::<i128>()?
             .safe_mul(out_fee_pct)?
@@ -629,10 +638,7 @@ impl LPPool {
             .safe_add(out_quadratic_inventory_fee)?
             .safe_add(BASE_SWAP_FEE.safe_div(2)?)?;
 
-        Ok((
-            total_in_fee.min(MAX_SWAP_FEE.safe_div(2)?),
-            total_out_fee.min(MAX_SWAP_FEE.safe_div(2)?),
-        ))
+        Ok((total_in_fee, total_out_fee))
     }
 
     pub fn get_target_uncertainty_fees(
@@ -686,6 +692,7 @@ impl LPPool {
         slot: u64,
         constituent_map: &ConstituentMap,
         spot_market_map: &SpotMarketMap,
+        oracle_map: &mut OracleMap,
         constituent_target_base: &AccountZeroCopyMut<'_, TargetsDatum, ConstituentTargetBaseFixed>,
         amm_cache: &AccountZeroCopyMut<'_, CacheInfo, AmmCacheFixed>,
     ) -> DriftResult<(u128, i128, BTreeMap<u16, Vec<u16>>)> {
@@ -723,10 +730,28 @@ impl LPPool {
             }
 
             let spot_market = spot_market_map.get_ref(&constituent.spot_market_index)?;
+            let oracle_and_validity = oracle_map.get_price_data_and_validity(
+                MarketType::Spot,
+                constituent.spot_market_index,
+                &spot_market.oracle_id(),
+                spot_market.historical_oracle_data.last_oracle_price_twap,
+                spot_market.get_max_confidence_interval_multiplier()?,
+                0,
+            )?;
+            if !is_oracle_valid_for_action(
+                oracle_and_validity.1,
+                Some(DriftAction::UpdateLpPoolAum),
+            )? {
+                msg!(
+                    "Constituent {} oracle is not valid for action",
+                    constituent.constituent_index
+                );
+                return Err(ErrorCode::InvalidOracle.into());
+            }
 
             let constituent_aum = constituent
                 .get_full_token_amount(&spot_market)?
-                .safe_mul(constituent.last_oracle_price as i128)?
+                .safe_mul(oracle_and_validity.0.price as i128)?
                 .safe_div(10_i128.pow(spot_market.decimals))?;
             msg!(
                 "constituent: {}, balance: {}, aum: {}, deriv index: {}, bl token balance {}, bl balance type {}, vault balance: {}",
@@ -747,7 +772,7 @@ impl LPPool {
                     .get(constituent.constituent_index as u32)
                     .target_base
                     .cast::<i128>()?
-                    .safe_mul(constituent.last_oracle_price.cast::<i128>()?)?
+                    .safe_mul(oracle_and_validity.0.price.cast::<i128>()?)?
                     .safe_div(10_i128.pow(constituent.decimals as u32))?
                     .cast::<i64>()?;
                 crypto_delta = crypto_delta.safe_add(constituent_target_notional.cast()?)?;
@@ -1579,8 +1604,8 @@ impl ConstituentCorrelations {
             "ConstituentCorrelation correlations must be between 0 and PERCENTAGE_PRECISION"
         )?;
 
-        self.correlations[(i as usize * num_constituents + j as usize)] = corr;
-        self.correlations[(j as usize * num_constituents + i as usize)] = corr;
+        self.correlations[i as usize * num_constituents + j as usize] = corr;
+        self.correlations[j as usize * num_constituents + i as usize] = corr;
 
         self.validate()?;
 
@@ -1662,34 +1687,81 @@ pub fn update_constituent_target_base_for_derivatives(
     derivative_groups: &BTreeMap<u16, Vec<u16>>,
     constituent_map: &ConstituentMap,
     spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
     constituent_target_base: &mut AccountZeroCopyMut<'_, TargetsDatum, ConstituentTargetBaseFixed>,
 ) -> DriftResult<()> {
     for (parent_index, constituent_indexes) in derivative_groups.iter() {
         let parent_constituent = constituent_map.get_ref(parent_index)?;
+
+        let parent_spot_market = spot_market_map.get_ref(&parent_constituent.spot_market_index)?;
+        let parent_oracle_price_and_validity = oracle_map.get_price_data_and_validity(
+            MarketType::Spot,
+            parent_spot_market.market_index,
+            &parent_spot_market.oracle_id(),
+            parent_spot_market
+                .historical_oracle_data
+                .last_oracle_price_twap,
+            parent_spot_market.get_max_confidence_interval_multiplier()?,
+            0,
+        )?;
+        if !is_oracle_valid_for_action(
+            parent_oracle_price_and_validity.1,
+            Some(DriftAction::UpdateLpPoolAum),
+        )? {
+            msg!(
+                "Parent constituent {} oracle is invalid",
+                parent_constituent.constituent_index
+            );
+            return Err(ErrorCode::InvalidOracle);
+        }
+        let parent_constituent_price = parent_oracle_price_and_validity.0.price;
+
         let parent_target_base = constituent_target_base
             .get(*parent_index as u32)
             .target_base;
         let target_parent_weight = calculate_target_weight(
             parent_target_base,
             &*spot_market_map.get_ref(&parent_constituent.spot_market_index)?,
-            parent_constituent.last_oracle_price,
+            parent_oracle_price_and_validity.0.price,
             aum,
         )?;
         let mut derivative_weights_sum: u64 = 0;
         for constituent_index in constituent_indexes {
             let constituent = constituent_map.get_ref(constituent_index)?;
-            if constituent.last_oracle_price
-                < parent_constituent
-                    .last_oracle_price
+            let constituent_spot_market =
+                spot_market_map.get_ref(&constituent.spot_market_index)?;
+            let constituent_oracle_price_and_validity = oracle_map.get_price_data_and_validity(
+                MarketType::Spot,
+                constituent.spot_market_index,
+                &constituent_spot_market.oracle_id(),
+                constituent_spot_market
+                    .historical_oracle_data
+                    .last_oracle_price_twap,
+                constituent_spot_market.get_max_confidence_interval_multiplier()?,
+                0,
+            )?;
+            if !is_oracle_valid_for_action(
+                constituent_oracle_price_and_validity.1,
+                Some(DriftAction::UpdateLpPoolAum),
+            )? {
+                msg!(
+                    "Constituent {} oracle is invalid",
+                    constituent.constituent_index
+                );
+                return Err(ErrorCode::InvalidOracle);
+            }
+
+            if constituent_oracle_price_and_validity.0.price
+                < parent_constituent_price
                     .safe_mul(constituent.constituent_derivative_depeg_threshold as i64)?
                     .safe_div(PERCENTAGE_PRECISION_I64)?
             {
                 msg!(
                     "Constituent {} last oracle price {} is too low compared to parent constituent {} last oracle price {}. Assuming depegging and setting target base to 0.",
                     constituent.constituent_index,
-                    constituent.last_oracle_price,
+                    constituent_oracle_price_and_validity.0.price,
                     parent_constituent.constituent_index,
-                    parent_constituent.last_oracle_price
+                    parent_constituent_price
                 );
                 constituent_target_base
                     .get_mut(*constituent_index as u32)
@@ -1714,7 +1786,7 @@ pub fn update_constituent_target_base_for_derivatives(
                 .safe_mul(target_weight)?
                 .safe_div(PERCENTAGE_PRECISION_I128)?
                 .safe_mul(10_i128.pow(constituent.decimals as u32))?
-                .safe_div(constituent.last_oracle_price as i128)?;
+                .safe_div(constituent_oracle_price_and_validity.0.price as i128)?;
 
             msg!(
                 "constituent: {}, target base: {}",
