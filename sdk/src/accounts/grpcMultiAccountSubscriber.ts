@@ -11,7 +11,7 @@ import {
 	SubscribeUpdate,
 	createClient,
 } from '../isomorphic/grpc';
-import { DataAndSlot, GrpcConfigs, ResubOpts } from './types';
+import { BufferAndSlot, DataAndSlot, GrpcConfigs, ResubOpts } from './types';
 
 interface AccountInfoLike {
 	owner: PublicKey;
@@ -63,6 +63,7 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 
 	private dataMap = new Map<string, DataAndSlot<T>>();
 	private accountPropsMap = new Map<string, U | Array<U>>();
+	private bufferMap = new Map<string, BufferAndSlot>();
 
 	private constructor(
 		client: Client,
@@ -160,14 +161,29 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 						const accountId = chunk[i];
 						const accountInfo = rpcResponse[i];
 						if (accountInfo) {
-							const existingData = this.getAccountData(accountId);
-							if (!existingData || currentSlot > existingData.slot) {
-								const accountDecoded = this.program.coder.accounts.decode(
-									this.capitalize(this.accountName),
-									accountInfo.data
-								);
-								this.setAccountData(accountId, accountDecoded, currentSlot);
+							const prev = this.bufferMap.get(accountId);
+							const newBuffer = accountInfo.data as Buffer;
+							if (prev && currentSlot < prev.slot) {
+								continue;
 							}
+							if (
+								prev &&
+								prev.buffer &&
+								newBuffer &&
+								newBuffer.equals(prev.buffer)
+							) {
+								continue;
+							}
+							this.bufferMap.set(accountId, {
+								buffer: newBuffer,
+								slot: currentSlot,
+							});
+
+							const accountDecoded = this.program.coder.accounts.decode(
+								this.capitalize(this.accountName),
+								newBuffer
+							);
+							this.setAccountData(accountId, accountDecoded, currentSlot);
 						}
 					}
 				})
@@ -242,9 +258,16 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 				return;
 			}
 
-			// Skip processing if we already have data for this account at an equal or newer slot
+			// Touch resub timer on any incoming account update for subscribed keys
+			if (this.resubOpts?.resubTimeoutMs) {
+				this.receivingData = true;
+				clearTimeout(this.timeoutId);
+				this.setTimeout();
+			}
+
+			// Skip processing if we already have data for this account at a newer slot
 			const existing = this.dataMap.get(accountPubkey);
-			if (existing?.slot !== undefined && existing.slot >= slot) {
+			if (existing?.slot !== undefined && existing.slot > slot) {
 				return;
 			}
 			const accountInfo: AccountInfoLike = {
@@ -257,6 +280,21 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 
 			const context = { slot } as Context;
 			const buffer = accountInfo.data;
+
+			// Check existing buffer for this account and skip if unchanged or slot regressed
+			const prevBuffer = this.bufferMap.get(accountPubkey);
+			if (prevBuffer && slot < prevBuffer.slot) {
+				return;
+			}
+			if (
+				prevBuffer &&
+				prevBuffer.buffer &&
+				buffer &&
+				buffer.equals(prevBuffer.buffer)
+			) {
+				return;
+			}
+			this.bufferMap.set(accountPubkey, { buffer, slot });
 			const accountProps = this.accountPropsMap?.get(accountPubkey);
 
 			const handleDataBuffer = (
@@ -272,14 +310,7 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 					  );
 				const handler = this.onChangeMap.get(accountPubkey);
 				if (handler) {
-					if (this.resubOpts?.resubTimeoutMs) {
-						this.receivingData = true;
-						clearTimeout(this.timeoutId);
-						handler(data, context, buffer, accountProps);
-						this.setTimeout();
-					} else {
-						handler(data, context, buffer, accountProps);
-					}
+					handler(data, context, buffer, accountProps);
 				}
 			};
 
@@ -298,7 +329,6 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 					this.listenerId = 1;
 					if (this.resubOpts?.resubTimeoutMs) {
 						this.receivingData = true;
-						this.setTimeout();
 					}
 					resolve();
 				} else {
@@ -349,6 +379,8 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 			const k = pk.toBase58();
 			this.subscribedAccounts.delete(k);
 			this.onChangeMap.delete(k);
+			this.dataMap.delete(k);
+			this.bufferMap.delete(k);
 		}
 		const request: SubscribeRequest = {
 			slots: {},
