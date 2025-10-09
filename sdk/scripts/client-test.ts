@@ -332,6 +332,23 @@ async function initializeGrpcDriftClientV2VersusV1() {
 				// );
 				// Note: slots might differ slightly due to timing
 				// assert.strictEqual(oracle1?.slot, oracle2?.slot, `Spot market ${idx} oracle slot should match`);
+				if (
+					oracle1?.slot !== undefined &&
+					oracle2?.slot !== undefined &&
+					oracle2.slot < oracle1.slot
+				) {
+					console.error(
+						`Spot market ${idx} oracle slot regression: v2 slot ${oracle2.slot} < v1 slot ${oracle1.slot}`
+					);
+				} else if (
+					oracle1?.slot !== undefined &&
+					oracle2?.slot !== undefined &&
+					oracle2.slot > oracle1.slot
+				) {
+					console.info(
+						`Spot market ${idx} oracle slot is FASTER! v2: ${oracle2.slot}, v1: ${oracle1.slot}`
+					);
+				}
 			}
 
 			console.log('✓ All comparisons passed');
