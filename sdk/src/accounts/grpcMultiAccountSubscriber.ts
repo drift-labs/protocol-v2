@@ -160,11 +160,14 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 						const accountId = chunk[i];
 						const accountInfo = rpcResponse[i];
 						if (accountInfo) {
-							const perpMarket = this.program.coder.accounts.decode(
-								'PerpMarket',
-								accountInfo.data
-							);
-							this.setAccountData(accountId, perpMarket, currentSlot);
+							const existingData = this.getAccountData(accountId);
+							if (!existingData || currentSlot > existingData.slot) {
+								const accountDecoded = this.program.coder.accounts.decode(
+									this.capitalize(this.accountName),
+									accountInfo.data
+								);
+								this.setAccountData(accountId, accountDecoded, currentSlot);
+							}
 						}
 					}
 				})
@@ -236,6 +239,12 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 				accountPubkeyBytes as unknown as Uint8Array
 			);
 			if (!accountPubkey || !this.subscribedAccounts.has(accountPubkey)) {
+				return;
+			}
+
+			// Skip processing if we already have data for this account at an equal or newer slot
+			const existing = this.dataMap.get(accountPubkey);
+			if (existing?.slot !== undefined && existing.slot >= slot) {
 				return;
 			}
 			const accountInfo: AccountInfoLike = {
