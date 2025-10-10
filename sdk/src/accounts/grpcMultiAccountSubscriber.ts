@@ -379,8 +379,6 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 			const k = pk.toBase58();
 			this.subscribedAccounts.delete(k);
 			this.onChangeMap.delete(k);
-			this.dataMap.delete(k);
-			this.bufferMap.delete(k);
 		}
 		const request: SubscribeRequest = {
 			slots: {},
