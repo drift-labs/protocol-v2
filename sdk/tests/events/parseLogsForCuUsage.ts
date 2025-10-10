@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { parseLogs, parseLogsForCuUsage } from '../../src/events/parse';
+import { parseLogsForCuUsage } from '../../src/events/parse';
 
 // if you used the '@types/mocha' method to install mocha type definitions, uncomment the following line
 // import 'mocha';
