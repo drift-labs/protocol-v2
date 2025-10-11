@@ -1,277 +1,417 @@
+use crate::sysvar::ed25519_sysvar::Ed25519SignatureOffsets;
+use crate::smallvec::{SmallVec, U8Prefix, U16Prefix};
+use crate::on_demand::oracle_quote::feed_info::{PackedFeedInfo, PackedQuoteHeader};
+use crate::Pubkey;
+
 pub const QUOTE_DISCRIMINATOR: &[u8; 8] = b"SBOracle";
 
-#[macro_export]
-macro_rules! switchboard_anchor_bindings {
-    () => {
-        pub const __QUOTE_OWNER_PIDS: &[Pubkey] = &[
-            switchboard_on_demand::QUOTE_PROGRAM_ID,
-            crate::ID,
-        ];
+/// Oracle signature data with offsets
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(C)]
+pub struct OracleSignature {
+    /// Offsets to locate signature data within instruction
+    pub offsets: Ed25519SignatureOffsets,
+    /// ED25519 public key
+    pub pubkey: Pubkey,
+    /// ED25519 signature (64 bytes)
+    pub signature: [u8; 64],
+}
 
-        /// Macro to generate Anchor bindings for Switchboard quote accounts
-        #[derive(Debug, PartialEq, Eq, Clone, Copy, AnchorDeserialize, AnchorSerialize)]
-        #[repr(C)]
-        pub struct SwitchboardQuote {
-            pub queue: [u8; 32],
-            pub data: [u8; 1024],
+impl borsh::BorshSerialize for OracleSignature {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        self.offsets.serialize(writer)?;
+        writer.write_all(self.pubkey.as_ref())?;
+        writer.write_all(&self.signature)?;
+        Ok(())
+    }
+}
+
+impl borsh::BorshDeserialize for OracleSignature {
+    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self> {
+        let offsets = Ed25519SignatureOffsets::deserialize_reader(reader)?;
+        let mut pubkey_bytes = [0u8; 32];
+        reader.read_exact(&mut pubkey_bytes)?;
+        let pubkey = Pubkey::new_from_array(pubkey_bytes);
+        let mut signature = [0u8; 64];
+        reader.read_exact(&mut signature)?;
+        Ok(Self {
+            offsets,
+            pubkey,
+            signature,
+        })
+    }
+}
+
+#[cfg(feature = "anchor")]
+impl anchor_lang::AnchorDeserialize for OracleSignature {
+    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self> {
+        <Self as borsh::BorshDeserialize>::deserialize_reader(reader)
+    }
+}
+
+#[cfg(feature = "anchor")]
+impl anchor_lang::AnchorSerialize for OracleSignature {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        <Self as borsh::BorshSerialize>::serialize(self, writer)
+    }
+}
+
+#[cfg(feature = "idl-build")]
+impl anchor_lang::IdlBuild for OracleSignature {}
+
+/// Switchboard oracle quote account structure
+///
+/// # On-chain Layout (excluding 8-byte discriminator):
+/// ```text
+/// [0..32]      queue: Queue pubkey (32 bytes)
+/// [34..]       signatures: SmallVec of OracleSignature (2-byte u16 length + 110 bytes each)
+///              - Ed25519SignatureOffsets (14 bytes)
+///              - pubkey (32 bytes)
+///              - signature (64 bytes)
+/// [..]         quote_header: PackedQuoteHeader (32 bytes)
+/// [..]         feeds: SmallVec of PackedFeedInfo (1-byte u8 length + 49 bytes each)
+/// [..]         oracle_idxs: SmallVec of oracle indices (1-byte u8 length + u8 each)
+/// [..]         slot: Slot number (u64, 8 bytes)
+/// [..]         version: Version (u8, 1 byte)
+/// [..]         tail_discriminator: "SBOD" (4 bytes)
+/// ```
+///
+/// # Length Prefix Sizes
+/// - `signatures`: 2-byte (u16) length prefix - allows up to 65535 signatures
+/// - `feeds`: 1-byte (u8) length prefix - max 255 feeds
+/// - `oracle_idxs`: 1-byte (u8) length prefix - max 255 indices
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SwitchboardQuote {
+    /// Queue pubkey that this oracle quote belongs to
+    pub queue: Pubkey,
+    /// Uses 2-byte (u16) length prefix
+    pub signatures: SmallVec<OracleSignature, U16Prefix>,
+    /// Quote header containing the signed slot hash
+    pub quote_header: PackedQuoteHeader,
+    /// Array of feed information (max 255)
+    /// Uses 1-byte (u8) length prefix
+    pub feeds: SmallVec<PackedFeedInfo, U8Prefix>,
+    /// Oracle indices that correspond to the queue's oracle array (max 255)
+    /// Uses 1-byte (u8) length prefix
+    pub oracle_idxs: SmallVec<u8, U8Prefix>,
+    /// Recent slot from the ED25519 instruction data used for freshness validation
+    pub slot: u64,
+    /// Version from the ED25519 instruction data
+    pub version: u8,
+    /// Tail discriminator "SBOD" for validation
+    pub tail_discriminator: [u8; 4],
+}
+
+impl borsh::BorshSerialize for SwitchboardQuote {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        writer.write_all(self.queue.as_ref())?;
+        self.signatures.serialize(writer)?;
+        self.quote_header.serialize(writer)?;
+        self.feeds.serialize(writer)?;
+        self.oracle_idxs.serialize(writer)?;
+        self.slot.serialize(writer)?;
+        self.version.serialize(writer)?;
+        self.tail_discriminator.serialize(writer)?;
+        Ok(())
+    }
+}
+
+impl borsh::BorshDeserialize for SwitchboardQuote {
+    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self> {
+        let mut queue_bytes = [0u8; 32];
+        reader.read_exact(&mut queue_bytes)?;
+        Ok(Self {
+            queue: Pubkey::new_from_array(queue_bytes),
+            signatures: borsh::BorshDeserialize::deserialize_reader(reader)?,
+            quote_header: borsh::BorshDeserialize::deserialize_reader(reader)?,
+            feeds: borsh::BorshDeserialize::deserialize_reader(reader)?,
+            oracle_idxs: borsh::BorshDeserialize::deserialize_reader(reader)?,
+            slot: borsh::BorshDeserialize::deserialize_reader(reader)?,
+            version: borsh::BorshDeserialize::deserialize_reader(reader)?,
+            tail_discriminator: borsh::BorshDeserialize::deserialize_reader(reader)?,
+        })
+    }
+}
+
+#[cfg(feature = "anchor")]
+impl anchor_lang::AnchorDeserialize for SwitchboardQuote {
+    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self> {
+        <Self as borsh::BorshDeserialize>::deserialize_reader(reader)
+    }
+}
+
+#[cfg(feature = "anchor")]
+impl anchor_lang::AnchorSerialize for SwitchboardQuote {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        <Self as borsh::BorshSerialize>::serialize(self, writer)
+    }
+}
+
+#[cfg(feature = "anchor")]
+impl anchor_lang::Discriminator for SwitchboardQuote {
+    const DISCRIMINATOR: &[u8] = QUOTE_DISCRIMINATOR;
+}
+
+#[cfg(feature = "anchor")]
+impl anchor_lang::AccountSerialize for SwitchboardQuote {
+    fn try_serialize<W: std::io::Write>(&self, writer: &mut W) -> anchor_lang::Result<()> {
+        use anchor_lang::Discriminator;
+
+        // Write discriminator (8 bytes)
+        writer.write_all(Self::DISCRIMINATOR)?;
+
+        // Write queue pubkey (32 bytes)
+        writer.write_all(self.queue.as_ref())?;
+
+        // Serialize the delimited data to a buffer first to get length
+        let mut delimited_buf = Vec::new();
+        borsh::BorshSerialize::serialize(&self.signatures, &mut delimited_buf)
+            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotSerialize)?;
+        borsh::BorshSerialize::serialize(&self.quote_header, &mut delimited_buf)
+            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotSerialize)?;
+        borsh::BorshSerialize::serialize(&self.feeds, &mut delimited_buf)
+            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotSerialize)?;
+        borsh::BorshSerialize::serialize(&self.oracle_idxs, &mut delimited_buf)
+            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotSerialize)?;
+        borsh::BorshSerialize::serialize(&self.slot, &mut delimited_buf)
+            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotSerialize)?;
+        borsh::BorshSerialize::serialize(&self.version, &mut delimited_buf)
+            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotSerialize)?;
+        borsh::BorshSerialize::serialize(&self.tail_discriminator, &mut delimited_buf)
+            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotSerialize)?;
+
+        // Write u16 length prefix
+        let len = delimited_buf.len() as u16;
+        writer.write_all(&len.to_le_bytes())?;
+
+        // Write delimited data
+        writer.write_all(&delimited_buf)?;
+
+        Ok(())
+    }
+}
+
+#[cfg(feature = "anchor")]
+impl anchor_lang::AccountDeserialize for SwitchboardQuote {
+    fn try_deserialize(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
+        use anchor_lang::Discriminator;
+        use crate::on_demand::oracle_quote::instruction_parser::ParsedEd25519Instruction;
+
+        // Check minimum size: discriminator (8) + queue (32) = 40 bytes minimum
+        if buf.len() < 40 {
+            return Err(anchor_lang::error::ErrorCode::AccountDiscriminatorNotFound.into());
         }
 
-        unsafe impl bytemuck::Pod for SwitchboardQuote {}
-        unsafe impl bytemuck::Zeroable for SwitchboardQuote {}
-
-        impl Discriminator for SwitchboardQuote {
-            const DISCRIMINATOR: &[u8] = switchboard_on_demand::quote_account::QUOTE_DISCRIMINATOR;
+        // Check discriminator
+        let given_disc = &buf[..Self::DISCRIMINATOR.len()];
+        if given_disc != Self::DISCRIMINATOR {
+            return Err(anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.into());
         }
 
-        impl AccountSerialize for SwitchboardQuote {
-            fn try_serialize<W: std::io::Write>(&self, writer: &mut W) -> anchor_lang::Result<()> {
-                writer.write_all(Self::DISCRIMINATOR)?;
-                writer.write_all(bytemuck::bytes_of(self))?;
-                Ok(())
-            }
+        // Extract queue pubkey (bytes 8-40)
+        let queue = Pubkey::new_from_array(buf[8..40].try_into().unwrap());
+
+        // Parse length-delimited ED25519 instruction data starting at byte 40
+        let data = &buf[40..];
+        if data.len() < 2 {
+            return Err(anchor_lang::error::ErrorCode::AccountDidNotDeserialize.into());
         }
 
-        impl AccountDeserialize for SwitchboardQuote {
-            fn try_deserialize(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
-                if buf.len() < Self::DISCRIMINATOR.len() {
-                    return Err(anchor_lang::error::ErrorCode::AccountDiscriminatorNotFound.into());
-                }
-                let given_disc = &buf[..Self::DISCRIMINATOR.len()];
-                if given_disc != Self::DISCRIMINATOR {
-                    return Err(anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.into());
-                }
-                *buf = &buf[Self::DISCRIMINATOR.len()..];
-                Self::try_deserialize_unchecked(buf)
-            }
-
-            fn try_deserialize_unchecked(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
-                if buf.len() < std::mem::size_of::<Self>() {
-                    return Err(anchor_lang::error::ErrorCode::AccountDidNotSerialize.into());
-                }
-                let data = bytemuck::try_from_bytes(&buf[..std::mem::size_of::<Self>()])
-                    .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
-                *buf = &buf[std::mem::size_of::<Self>()..];
-                Ok(*data)
-            }
+        // Read u16 length prefix
+        let len = u16::from_le_bytes([data[0], data[1]]) as usize;
+        if data.len() < len + 2 {
+            return Err(anchor_lang::error::ErrorCode::AccountDidNotDeserialize.into());
         }
 
-        impl SwitchboardQuote {
-            pub const LEN: usize = 32 + 1024 + 8;
+        // Parse the ED25519 instruction data
+        let ed25519_data = &data[2..len + 2];
+        let parsed = ParsedEd25519Instruction::parse(ed25519_data)
+            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
 
-            /// Extracts feed information from the oracle quote data
-            ///
-            /// Parses the stored oracle quote data and returns a slice of PackedFeedInfo
-            /// structures containing feed IDs, values, and minimum oracle samples.
-            ///
-            /// # Returns
-            /// A slice of PackedFeedInfo structures, or an empty slice if no valid feeds are found
-            ///
-            /// # Example
-            /// ```rust
-            /// let feeds = quote.feeds();
-            /// for feed in feeds {
-            ///     println!("Feed {}: {}", feed.hex_id(), feed.value());
-            /// }
-            /// ```
-            pub fn feeds(&self) -> &[switchboard_on_demand::on_demand::oracle_quote::feed_info::PackedFeedInfo] {
-                use core::ptr::read_unaligned;
+        // Convert Vec to SmallVec (will fail if exceeds capacity)
+        let signatures = parsed.signatures.into_iter()
+            .map(|sig| OracleSignature {
+                offsets: sig.offsets,
+                pubkey: Pubkey::new_from_array(sig.pubkey),
+                signature: sig.signature,
+            })
+            .collect::<Vec<_>>()
+            .try_into()
+            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
 
-                // Check if we have enough data for length prefix
-                if self.data.len() < 2 {
-                    return &[];
-                }
+        let feeds = parsed.feeds.into_iter()
+            .collect::<Vec<_>>()
+            .try_into()
+            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
 
-                unsafe {
-                    // Read the length prefix (first 2 bytes)
-                    let data_len = read_unaligned(self.data.as_ptr() as *const u16) as usize;
+        let oracle_idxs = parsed.oracle_idxs.into_iter()
+            .collect::<Vec<_>>()
+            .try_into()
+            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
 
-                    // Ensure we have enough data
-                    if self.data.len() < data_len + 2 || data_len < 13 {
-                        return &[];
-                    }
+        Ok(Self {
+            queue,
+            signatures,
+            quote_header: parsed.quote_header,
+            feeds,
+            oracle_idxs,
+            slot: parsed.slot,
+            version: parsed.version,
+            tail_discriminator: parsed.discriminator,
+        })
+    }
 
-                    // Skip the length prefix and parse the ED25519 instruction data
-                    let instruction_data = &self.data[2..data_len + 2];
+    fn try_deserialize_unchecked(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
+        use crate::on_demand::oracle_quote::instruction_parser::ParsedEd25519Instruction;
 
-                    // Parse the instruction to extract feed information
-                    match switchboard_on_demand::sysvar::ed25519_sysvar::Ed25519Sysvar::parse_instruction(instruction_data)
-                    {
-                        Ok((parsed_sigs, sig_count, _, _, _)) => {
-                            if sig_count > 0 {
-                                // Get feed info from the first signature
-                                parsed_sigs[0].feed_infos()
-                            } else {
-                                &[]
-                            }
-                        }
-                        Err(_) => &[],
-                    }
-                }
-            }
-
-            /// Get the canonical oracle account public key for the given feed IDs
-            ///
-            /// This method derives the canonical oracle account that the quote program
-            /// creates and manages for storing verified oracle data.
-            ///
-            /// ## Parameters
-            /// - `feed_ids`: Array of feed ID byte arrays (32 bytes each)
-            /// - `program_id`: The quote program ID to use for derivation
-            ///
-            /// ## Returns
-            /// The canonical oracle account public key
-            ///
-            /// ## Example
-            /// ```rust
-            /// let oracle_key = SwitchboardQuote::get_canonical_key(&queue_key, &[feed_id_bytes], &quote_program_id);
-            /// ```
-            pub fn get_canonical_key(queue_key: &Pubkey, feed_ids: &[&[u8; 32]], program_id: &Pubkey) -> Pubkey {
-                let mut seeds: Vec<&[u8]> = Vec::with_capacity(feed_ids.len() + 1);
-                seeds.push(queue_key.as_ref());
-                for id in feed_ids {
-                    seeds.push(id.as_slice());
-                }
-                let (oracle_account, _) = Pubkey::find_program_address(&seeds, program_id);
-                oracle_account
-            }
-
-            /// Get the canonical oracle account for this quote's feeds
-            ///
-            /// Convenience method that extracts feed IDs from the current quote
-            /// and derives the canonical oracle account using the provided owner.
-            ///
-            /// ## Parameters
-            /// - `queue_key`: The queue public key to use as the first seed
-            /// - `owner`: The program ID that owns this oracle account (usually the quote program)
-            ///
-            /// ## Returns
-            /// The canonical oracle account public key for this quote's feeds
-            ///
-            /// ## Example
-            /// ```rust
-            /// let canonical_key = quote.canonical_key(&queue_key, &oracle_account.owner);
-            /// ```
-            pub fn canonical_key(&self, queue_key: &Pubkey, owner: &Pubkey) -> Pubkey {
-                let feed_ids: Vec<&[u8; 32]> = self.feeds().iter().map(|feed| feed.feed_id()).collect();
-                Self::get_canonical_key(queue_key, &feed_ids, owner)
-            }
+        if buf.len() < 40 {
+            return Err(anchor_lang::error::ErrorCode::AccountDidNotDeserialize.into());
         }
 
-        impl anchor_lang::Owner for SwitchboardQuote {
-            fn owner() -> anchor_lang::solana_program::pubkey::Pubkey {
-                crate::ID
-            }
+        let full_buf = *buf;
+        *buf = &[]; // Consume the buffer
+
+        // Extract queue pubkey (bytes 8-40) - skip discriminator check for unchecked
+        let queue = Pubkey::new_from_array(full_buf[8..40].try_into().unwrap());
+
+        // Parse length-delimited ED25519 instruction data starting at byte 40
+        let data = &full_buf[40..];
+        if data.len() < 2 {
+            return Err(anchor_lang::error::ErrorCode::AccountDidNotDeserialize.into());
         }
 
-        impl anchor_lang::ZeroCopy for SwitchboardQuote {}
-
-        impl anchor_lang::Owners for SwitchboardQuote {
-            fn owners() -> &'static [anchor_lang::solana_program::pubkey::Pubkey] {
-                __QUOTE_OWNER_PIDS
-            }
+        // Read u16 length prefix
+        let len = u16::from_le_bytes([data[0], data[1]]) as usize;
+        if data.len() < len + 2 {
+            return Err(anchor_lang::error::ErrorCode::AccountDidNotDeserialize.into());
         }
 
-        /// Extension trait to provide convenient methods for Anchor InterfaceAccount<SwitchboardQuote>
-        pub trait SwitchboardQuoteExt<'a> {
-            /// Get the canonical oracle account key for this quote's feeds
-            fn canonical_key(&self, queue: &Pubkey) -> Pubkey;
-            //
-            // /// Get the canonical oracle account key for this quote's feeds with a specific owner
-            // fn canonical_key_with_owner(&self, owner: &Pubkey) -> Pubkey;
+        // Parse the ED25519 instruction data
+        let ed25519_data = &data[2..len + 2];
+        let parsed = ParsedEd25519Instruction::parse(ed25519_data)
+            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
 
-            /// Get the owner of the account
-            fn owner(&self) -> &Pubkey;
+        // Convert Vec to SmallVec (will fail if exceeds capacity)
+        let signatures = parsed.signatures.into_iter()
+            .map(|sig| OracleSignature {
+                offsets: sig.offsets,
+                pubkey: Pubkey::new_from_array(sig.pubkey),
+                signature: sig.signature,
+            })
+            .collect::<Vec<_>>()
+            .try_into()
+            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
 
-            /// Get feeds from the oracle quote
-            fn feeds(&self) -> &[switchboard_on_demand::on_demand::oracle_quote::feed_info::PackedFeedInfo];
+        let feeds = parsed.feeds.into_iter()
+            .collect::<Vec<_>>()
+            .try_into()
+            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
 
-            /// Write oracle quote data from an ED25519 instruction with slot validation
-            fn write_from_ix<'b, I>(&mut self, ix_sysvar: I, curr_slot: u64, instruction_index: usize)
-            where
-                I: AsRef<anchor_lang::prelude::AccountInfo<'b>>;
+        let oracle_idxs = parsed.oracle_idxs.into_iter()
+            .collect::<Vec<_>>()
+            .try_into()
+            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize)?;
 
-            /// Write oracle quote data from an ED25519 instruction without slot validation.
-            ///
-            /// # ⚠️ WARNING ⚠️
-            /// **This method bypasses critical security validations. See [`OracleQuote::write_from_ix_unchecked`] for detailed security warnings.**
-            ///
-            /// [`OracleQuote::write_from_ix_unchecked`]: crate::on_demand::oracle_quote::OracleQuote::write_from_ix_unchecked
-            fn write_from_ix_unchecked<'b, I>(&mut self, ix_sysvar: I, instruction_index: usize)
-            where
-                I: AsRef<anchor_lang::prelude::AccountInfo<'b>>;
+        Ok(Self {
+            queue,
+            signatures,
+            quote_header: parsed.quote_header,
+            feeds,
+            oracle_idxs,
+            slot: parsed.slot,
+            version: parsed.version,
+            tail_discriminator: parsed.discriminator,
+        })
+    }
+}
 
-            /// Check if the account is initialized by checking the last 4 bytes are SBOD
-            fn is_initialized(&self) -> bool;
+#[cfg(feature = "idl-build")]
+impl anchor_lang::IdlBuild for SwitchboardQuote {}
 
-            /// if !is_initialized, return if the new quotes canonical key matches the account key
-            /// else just check if the account key match the new quotes
-            fn keys_match(&self, quote: &switchboard_on_demand::on_demand::oracle_quote::OracleQuote) -> bool;
+impl SwitchboardQuote {
+    /// Maximum serialized size estimate for account initialization
+    /// This is conservative: queue(32) + max_sigs(2 + 8*110) + quote_header(32) + max_feeds(1 + 8*49) + oracle_idxs(1 + 8) + slot(8) + version(1) + tail(4)
+    pub const MAX_LEN: usize = 32 + (2 + 8 * 110) + 32 + (1 + 8 * 49) + (1 + 8) + 8 + 1 + 4;
+
+    /// Minimum size for empty quote
+    pub const MIN_LEN: usize = 32 + 2 + 32 + 1 + 1 + 8 + 1 + 4;
+
+    /// Returns a reference to the feed information array
+    ///
+    /// # Example
+    /// ```rust
+    /// let feeds = quote.feeds_slice();
+    /// for feed in feeds {
+    ///     println!("Feed {}: {}", feed.hex_id(), feed.value());
+    /// }
+    /// ```
+    pub fn feeds_slice(&self) -> &[PackedFeedInfo] {
+        self.feeds.as_slice()
+    }
+
+    /// Get the canonical oracle account public key for the given feed IDs
+    ///
+    /// This method derives the canonical oracle account that the quote program
+    /// creates and manages for storing verified oracle data.
+    ///
+    /// ## Parameters
+    /// - `queue_key`: The queue public key to use as the first seed
+    /// - `feed_ids`: Array of feed ID byte arrays (32 bytes each)
+    /// - `program_id`: The quote program ID to use for derivation
+    ///
+    /// ## Returns
+    /// The canonical oracle account public key
+    ///
+    /// ## Example
+    /// ```rust,ignore
+    /// let oracle_key = SwitchboardQuote::get_canonical_key(&queue_key, &[feed_id_bytes], &quote_program_id);
+    /// ```
+    #[cfg(feature = "anchor")]
+    pub fn get_canonical_key(
+        queue_key: &anchor_lang::solana_program::pubkey::Pubkey,
+        feed_ids: &[&[u8; 32]],
+        program_id: &anchor_lang::solana_program::pubkey::Pubkey,
+    ) -> anchor_lang::solana_program::pubkey::Pubkey {
+        let mut seeds: Vec<&[u8]> = Vec::with_capacity(feed_ids.len() + 1);
+        seeds.push(queue_key.as_ref());
+        for id in feed_ids {
+            seeds.push(id.as_slice());
         }
+        let (oracle_account, _) =
+            anchor_lang::solana_program::pubkey::Pubkey::find_program_address(&seeds, program_id);
+        oracle_account
+    }
 
-        impl<'info> SwitchboardQuoteExt<'info>
-            for anchor_lang::prelude::InterfaceAccount<'info, SwitchboardQuote>
-            {
-                fn canonical_key(&self, queue: &Pubkey) -> Pubkey {
-                    (**self).canonical_key(queue, self.to_account_info().owner)
-                }
+    /// Get the canonical oracle account for this quote's feeds
+    ///
+    /// Convenience method that extracts feed IDs from the current quote
+    /// and derives the canonical oracle account using the provided owner.
+    ///
+    /// ## Parameters
+    /// - `queue_key`: The queue public key to use as the first seed
+    /// - `owner`: The program ID that owns this oracle account (usually the quote program)
+    ///
+    /// ## Returns
+    /// The canonical oracle account public key for this quote's feeds
+    ///
+    /// ## Example
+    /// ```rust,ignore
+    /// let canonical_key = quote.canonical_key(&queue_key, &oracle_account.owner);
+    /// ```
+    #[cfg(feature = "anchor")]
+    pub fn canonical_key(
+        &self,
+        queue_key: &anchor_lang::solana_program::pubkey::Pubkey,
+        owner: &anchor_lang::solana_program::pubkey::Pubkey,
+    ) -> anchor_lang::solana_program::pubkey::Pubkey {
+        let feed_ids: Vec<&[u8; 32]> = self.feeds.iter().map(|feed| &feed.feed_id).collect();
+        Self::get_canonical_key(queue_key, &feed_ids, owner)
+    }
+}
 
-                fn owner(&self) -> &Pubkey {
-                    self.to_account_info().owner
-                }
-
-                fn feeds(&self) -> &[switchboard_on_demand::on_demand::oracle_quote::feed_info::PackedFeedInfo] {
-                    (**self).feeds()
-                }
-
-                fn write_from_ix<'b, I>(&mut self, ix_sysvar: I, curr_slot: u64, instruction_index: usize)
-                where
-                    I: AsRef<anchor_lang::prelude::AccountInfo<'b>>,
-                {
-                    let ix_sysvar = ix_sysvar.as_ref();
-                    let data = switchboard_on_demand::Instructions::extract_ix_data(ix_sysvar, instruction_index);
-                    switchboard_on_demand::on_demand::oracle_quote::OracleQuote::write(curr_slot, data, &self.queue, &self.to_account_info());
-                }
-
-                fn write_from_ix_unchecked<'b, I>(&mut self, ix_sysvar: I, instruction_index: usize)
-                where
-                    I: AsRef<anchor_lang::prelude::AccountInfo<'b>>,
-                {
-                    let ix_sysvar = ix_sysvar.as_ref();
-                    let data = switchboard_on_demand::Instructions::extract_ix_data(ix_sysvar, instruction_index);
-                    switchboard_on_demand::on_demand::oracle_quote::OracleQuote::write_unchecked(data, &self.queue, &self.to_account_info());
-                }
-
-                fn is_initialized(&self) -> bool {
-                    static tail_discriminator: u32 = u32::from_le_bytes(*b"SBOD");
-                    let account_info = self.to_account_info();
-                    let data = account_info.data.borrow();
-                    if data.len() < 4 {
-                        return false;
-                    }
-                    if let Ok(last_four) = data[data.len() - 4..].try_into() {
-                        let marker = u32::from_le_bytes(last_four);
-                        marker == tail_discriminator
-                    } else {
-                        false
-                    }
-                }
-
-                fn keys_match(&self, quote: &switchboard_on_demand::on_demand::oracle_quote::OracleQuote) -> bool {
-                    if !self.is_initialized() {
-                        return false;
-                    }
-                    let own_feeds = self.feeds();
-                    let other_feeds = quote.feeds();
-                    if own_feeds.len() != other_feeds.len() {
-                        return false;
-                    }
-                    for i in 0..own_feeds.len() {
-                        if !switchboard_on_demand::check_pubkey_eq(own_feeds[i].feed_id(), other_feeds[i].feed_id()) {
-                            return false;
-                        }
-                    }
-                    true
-                }
-            }
-    };
+#[cfg(feature = "anchor")]
+impl anchor_lang::Owner for SwitchboardQuote {
+    fn owner() -> anchor_lang::solana_program::pubkey::Pubkey {
+        crate::QUOTE_PROGRAM_ID
+    }
 }

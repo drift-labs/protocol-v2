@@ -1,10 +1,10 @@
 use core::ptr::read_unaligned;
 
-use solana_program::ed25519_program::ID as ED25519_PROGRAM_ID;
-use solana_program::sysvar::instructions::ID as INSTRUCTIONS_SYSVAR_ID;
+use crate::solana_compat::ed25519_program::ID as ED25519_PROGRAM_ID;
+use crate::solana_compat::sysvar::instructions::ID as INSTRUCTIONS_SYSVAR_ID;
 
 use crate::{
-    borrow_account_data, check_pubkey_eq, get_account_key, solana_program, AsAccountInfo, Pubkey,
+    borrow_account_data, check_pubkey_eq, get_account_key, AsAccountInfo, Pubkey,
 };
 
 /// Optimized wrapper for Solana's Instructions sysvar with fast instruction data extraction.

@@ -409,7 +409,7 @@ impl<'a> OracleQuote<'a> {
     ///
     /// Panics if the oracle account buffer is too small or slot validation fails.
     #[inline(always)]
-    pub fn write(clock_slot: u64, source: &[u8], queue: &[u8; 32], oracle_account: &AccountInfo) {
+    pub fn write(clock_slot: u64, source: &[u8], queue: impl AsRef<[u8]>, oracle_account: &AccountInfo) {
         let mut dst_ref = borrow_mut_account_data!(oracle_account);
         let dst: &mut [u8] = &mut dst_ref;
         assert!(dst.len() >= 55); // discriminator(8) + queue(32) + u16 + minimum data (13 bytes)
@@ -417,7 +417,7 @@ impl<'a> OracleQuote<'a> {
             let dst_ptr = dst.as_mut_ptr();
             *(dst_ptr as *mut u64) = QUOTE_DISCRIMINATOR_U64_LE;
             // Copy queue at offset 8 using 4 u64 writes
-            let queue_ptr = queue.as_ptr() as *const u64;
+            let queue_ptr = queue.as_ref().as_ptr() as *const u64;
             let dst_queue_ptr = dst_ptr.add(8) as *mut u64;
             *dst_queue_ptr = *queue_ptr;
             *dst_queue_ptr.add(1) = *queue_ptr.add(1);
@@ -453,7 +453,7 @@ impl<'a> OracleQuote<'a> {
     /// # Panics
     /// Panics if the oracle account buffer is too small for the data.
     #[inline(always)]
-    pub fn write_unchecked(source: &[u8], queue: &[u8; 32], oracle_account: &AccountInfo) {
+    pub fn write_unchecked(source: &[u8], queue: impl AsRef<[u8]>, oracle_account: &AccountInfo) {
         let mut dst_ref = borrow_mut_account_data!(oracle_account);
         let dst: &mut [u8] = &mut dst_ref;
         assert!(dst.len() >= 55); // discriminator(8) + queue(32) + u16 + minimum data (13 bytes)
@@ -461,7 +461,7 @@ impl<'a> OracleQuote<'a> {
             let dst_ptr = dst.as_mut_ptr();
             *(dst_ptr as *mut u64) = QUOTE_DISCRIMINATOR_U64_LE;
             // Copy queue at offset 8 using 4 u64 writes
-            let queue_ptr = queue.as_ptr() as *const u64;
+            let queue_ptr = queue.as_ref().as_ptr() as *const u64;
             let dst_queue_ptr = dst_ptr.add(8) as *mut u64;
             *dst_queue_ptr = *queue_ptr;
             *dst_queue_ptr.add(1) = *queue_ptr.add(1);
@@ -506,15 +506,16 @@ impl<'a> OracleQuote<'a> {
     /// # Panics
     /// Panics if instruction extraction fails, program ID validation fails, or slot validation fails.
     #[inline(always)]
-    pub fn write_from_ix<'b, I, O>(
+    pub fn write_from_ix<'b, I, O, Q>(
         ix_sysvar: I,
         oracle_account: O,
-        queue: &[u8; 32],
+        queue: Q,
         curr_slot: u64,
         instruction_index: usize,
     ) where
         I: AsAccountInfo<'b>,
         O: AsAccountInfo<'b>,
+        Q: AsRef<[u8]>,
     {
         let ix_sysvar = ix_sysvar.as_account_info();
         let oracle_account = oracle_account.as_account_info();
@@ -589,14 +590,15 @@ impl<'a> OracleQuote<'a> {
     /// [`write_from_ix`]: Self::write_from_ix
     #[inline(always)]
     #[allow(clippy::missing_safety_doc)] // Safety documentation is comprehensive above
-    pub fn write_from_ix_unchecked<'b, I, O>(
+    pub fn write_from_ix_unchecked<'b, I, O, Q>(
         ix_sysvar: I,
         oracle_account: O,
-        queue: &[u8; 32],
+        queue: Q,
         instruction_index: usize,
     ) where
         I: AsAccountInfo<'b>,
         O: AsAccountInfo<'b>,
+        Q: AsRef<[u8]>,
     {
         let ix_sysvar = ix_sysvar.as_account_info();
         let oracle_account = oracle_account.as_account_info();
@@ -702,7 +704,7 @@ impl<'a> OracleQuote<'a> {
         program_id: &Pubkey,
         bump: &[u8],
     ) -> Pubkey {
-        use crate::solana_program::syscalls;
+        use crate::solana_compat::syscalls;
         let mut seeds: [&[u8]; 10] = [&[]; 10];
         let mut len: usize = 0;
 

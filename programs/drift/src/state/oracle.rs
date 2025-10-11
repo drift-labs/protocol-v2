@@ -132,6 +132,7 @@ pub enum OracleSource {
     PythLazer1K,
     PythLazer1M,
     PythLazerStableCoin,
+    SwitchboardSurge,
 }
 
 impl OracleSource {
@@ -345,6 +346,7 @@ pub fn get_oracle_price(
         OracleSource::PythLazerStableCoin => {
             get_pyth_stable_coin_price(price_oracle, clock_slot, oracle_source)
         }
+        OracleSource::SwitchboardSurge => get_switchboard_surge_price(price_oracle, clock_slot),
     }
 }
 
@@ -533,6 +535,47 @@ pub fn get_sb_on_demand_price(
     let delay = clock_slot
         .cast::<i64>()?
         .safe_sub(latest_oracle_submssions[0].landed_at.cast()?)?;
+
+    let has_sufficient_number_of_data_points = true;
+
+    Ok(OraclePriceData {
+        price,
+        confidence,
+        delay,
+        has_sufficient_number_of_data_points,
+        sequence_id: None,
+    })
+}
+
+pub fn get_switchboard_surge_price(
+    price_oracle: &AccountInfo,
+    _clock_slot: u64,
+) -> DriftResult<OraclePriceData> {
+    use crate::SwitchboardQuote;
+
+    let quote_account: Ref<SwitchboardQuote> =
+        load_ref(price_oracle).or(Err(ErrorCode::UnableToLoadOracle))?;
+
+    let feeds = quote_account.feeds();
+
+    validate!(
+        !feeds.is_empty(),
+        ErrorCode::UnableToLoadOracle,
+        "No feeds found in SwitchboardQuote"
+    )?;
+
+    // Get the first feed value (i128 with precision 18)
+    let feed_value_i128 = feeds[0].feed_value();
+
+    // Convert from switchboard precision (18) to PRICE_PRECISION (6)
+    let price = convert_sb_i128(&feed_value_i128)?.cast::<i64>()?;
+
+    // For Switchboard Surge, we don't have a direct confidence value in the quote
+    // We'll use a minimal confidence based on the price
+    let confidence = price.unsigned_abs().safe_div(1000)?; // 0.1% of price as confidence
+
+    // Delay is 0 since Switchboard Surge quotes don't have slot information embedded
+    let delay = 0;
 
     let has_sufficient_number_of_data_points = true;
 

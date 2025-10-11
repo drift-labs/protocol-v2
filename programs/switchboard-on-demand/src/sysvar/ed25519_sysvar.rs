@@ -32,7 +32,7 @@ pub struct Ed25519SignatureHeader {
 
 /// ED25519 signature data offsets within instruction data
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, borsh::BorshSerialize, borsh::BorshDeserialize)]
 pub struct Ed25519SignatureOffsets {
     /// Offset to the signature data
     pub signature_offset: u16,
@@ -49,6 +49,23 @@ pub struct Ed25519SignatureOffsets {
     /// Instruction index containing the message
     pub message_instruction_index: u16,
 }
+
+#[cfg(feature = "anchor")]
+impl anchor_lang::AnchorDeserialize for Ed25519SignatureOffsets {
+    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self> {
+        <Self as borsh::BorshDeserialize>::deserialize_reader(reader)
+    }
+}
+
+#[cfg(feature = "anchor")]
+impl anchor_lang::AnchorSerialize for Ed25519SignatureOffsets {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        <Self as borsh::BorshSerialize>::serialize(self, writer)
+    }
+}
+
+#[cfg(feature = "idl-build")]
+impl anchor_lang::IdlBuild for Ed25519SignatureOffsets {}
 
 /// Parsed ED25519 signature data with lifetime-bound references
 #[derive(Debug, Copy, Clone)]

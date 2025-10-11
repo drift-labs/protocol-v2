@@ -64,12 +64,27 @@ pub use solana_client_v2 as solana_client;
 // Re-export common types for easier access
 pub use solana_program::{
     account_info::AccountInfo,
-    hash,
     instruction::{AccountMeta, Instruction},
     msg,
     pubkey::{pubkey, Pubkey},
     sysvar,
 };
+
+// When anchor is enabled, anchor_lang::solana_program doesn't re-export hash and ed25519_program
+// So we need to import them directly from solana_program_v2
+#[cfg(feature = "anchor")]
+pub use solana_program_v2::{ed25519_program, hash};
+
+// When anchor is NOT enabled, solana_program already has these modules
+#[cfg(not(feature = "anchor"))]
+pub use solana_program::{ed25519_program, hash};
+
+// Export syscalls module for on-chain use
+#[cfg(all(target_os = "solana", not(feature = "anchor")))]
+pub use solana_program::syscalls;
+
+#[cfg(all(target_os = "solana", feature = "anchor"))]
+pub use solana_program_v2::syscalls;
 
 // System program ID constant (same across all versions)
 pub const SYSTEM_PROGRAM_ID: Pubkey = pubkey!("11111111111111111111111111111111");

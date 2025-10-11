@@ -152,12 +152,10 @@ impl RandomnessCommit {
 
 #[cfg(not(feature = "pinocchio"))]
 fn ix_discriminator(name: &str) -> [u8; 8] {
+    use crate::solana_compat::hash;
     let preimage = format!("global:{}", name);
     let mut sighash = [0u8; 8];
-    #[cfg(not(feature = "anchor"))]
-    let hash_result = solana_program::hash::hash(preimage.as_bytes());
-    #[cfg(feature = "anchor")]
-    let hash_result = anchor_lang::solana_program::hash::hash(preimage.as_bytes());
+    let hash_result = hash::hash(preimage.as_bytes());
     sighash.copy_from_slice(&hash_result.to_bytes()[..8]);
     sighash
 }

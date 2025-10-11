@@ -147,9 +147,6 @@ impl anchor_lang::Owner for QueueAccountData {
 #[cfg(feature = "anchor")]
 impl anchor_lang::ZeroCopy for QueueAccountData {}
 
-#[cfg(feature = "anchor")]
-impl anchor_lang::IdlBuild for QueueAccountData {}
-
 impl QueueAccountData {
     /// Returns the total size of a queue account in bytes
     pub fn size() -> usize {

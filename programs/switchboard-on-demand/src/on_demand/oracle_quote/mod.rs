@@ -50,6 +50,13 @@ pub mod quote;
 pub use quote::*;
 pub mod quote_verifier;
 pub use quote_verifier::*;
+pub mod instruction_parser;
+pub use instruction_parser::*;
 /// Oracle quote account utilities for Anchor integration
-#[cfg(feature = "anchor")]
 pub mod quote_account;
+pub use quote_account::{OracleSignature, SwitchboardQuote};
+/// Extension trait for Anchor account wrappers
+#[cfg(feature = "anchor")]
+pub mod quote_ext;
+#[cfg(feature = "anchor")]
+pub use quote_ext::SwitchboardQuoteExt;

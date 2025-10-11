@@ -45,7 +45,7 @@ pub fn find_associated_token_address(owner: &Pubkey, mint: &Pubkey) -> Pubkey {
 pub fn get_ixn_discriminator(ixn_name: &str) -> [u8; 8] {
     let preimage = format!("global:{}", ixn_name);
     let mut sighash = [0u8; 8];
-    sighash.copy_from_slice(&solana_program::hash::hash(preimage.as_bytes()).to_bytes()[..8]);
+    sighash.copy_from_slice(&hash::hash(preimage.as_bytes()).to_bytes()[..8]);
     sighash
 }
 

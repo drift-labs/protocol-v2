@@ -15,12 +15,47 @@ use crate::prelude::*;
 /// that is used to validate the quote's freshness against the slot hash sysvar.
 ///
 /// Size: 32 bytes
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[repr(packed)]
 pub struct PackedQuoteHeader {
     /// The 32-byte slot hash that was signed by all oracles in the quote
     pub signed_slothash: [u8; 32],
 }
+
+// Custom Borsh implementation for packed struct
+impl borsh::BorshSerialize for PackedQuoteHeader {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        // Read values without taking references (safe for packed structs)
+        let slothash = self.signed_slothash;
+        writer.write_all(&slothash)?;
+        Ok(())
+    }
+}
+
+impl borsh::BorshDeserialize for PackedQuoteHeader {
+    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self> {
+        let mut signed_slothash = [0u8; 32];
+        reader.read_exact(&mut signed_slothash)?;
+        Ok(Self { signed_slothash })
+    }
+}
+
+#[cfg(feature = "anchor")]
+impl anchor_lang::AnchorDeserialize for PackedQuoteHeader {
+    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self> {
+        <Self as borsh::BorshDeserialize>::deserialize_reader(reader)
+    }
+}
+
+#[cfg(feature = "anchor")]
+impl anchor_lang::AnchorSerialize for PackedQuoteHeader {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        <Self as borsh::BorshSerialize>::serialize(self, writer)
+    }
+}
+
+#[cfg(feature = "idl-build")]
+impl anchor_lang::IdlBuild for PackedQuoteHeader {}
 
 /// Packed feed information containing ID, value, and validation requirements
 ///
@@ -29,16 +64,69 @@ pub struct PackedQuoteHeader {
 /// by the value and minimum sample requirement.
 ///
 /// Size: 49 bytes (32 + 16 + 1)
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[repr(packed)]
 pub struct PackedFeedInfo {
     /// 32-byte unique identifier for this feed
-    feed_id: [u8; 32],
+    pub feed_id: [u8; 32],
     /// Feed value as a fixed-point integer (scaled by PRECISION)
-    feed_value: i128,
+    pub feed_value: i128,
     /// Minimum number of oracle samples required for this feed to be considered valid
-    min_oracle_samples: u8,
+    pub min_oracle_samples: u8,
 }
+
+// Custom Borsh implementation for packed struct
+impl borsh::BorshSerialize for PackedFeedInfo {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        // Read values without taking references (safe for packed structs)
+        let feed_id = self.feed_id;
+        let feed_value = self.feed_value;
+        let min_oracle_samples = self.min_oracle_samples;
+
+        writer.write_all(&feed_id)?;
+        writer.write_all(&feed_value.to_le_bytes())?;
+        writer.write_all(&[min_oracle_samples])?;
+        Ok(())
+    }
+}
+
+impl borsh::BorshDeserialize for PackedFeedInfo {
+    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self> {
+        let mut feed_id = [0u8; 32];
+        reader.read_exact(&mut feed_id)?;
+
+        let mut value_bytes = [0u8; 16];
+        reader.read_exact(&mut value_bytes)?;
+        let feed_value = i128::from_le_bytes(value_bytes);
+
+        let mut min_samples = [0u8; 1];
+        reader.read_exact(&mut min_samples)?;
+        let min_oracle_samples = min_samples[0];
+
+        Ok(Self {
+            feed_id,
+            feed_value,
+            min_oracle_samples,
+        })
+    }
+}
+
+#[cfg(feature = "anchor")]
+impl anchor_lang::AnchorDeserialize for PackedFeedInfo {
+    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self> {
+        <Self as borsh::BorshDeserialize>::deserialize_reader(reader)
+    }
+}
+
+#[cfg(feature = "anchor")]
+impl anchor_lang::AnchorSerialize for PackedFeedInfo {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        <Self as borsh::BorshSerialize>::serialize(self, writer)
+    }
+}
+
+#[cfg(feature = "idl-build")]
+impl anchor_lang::IdlBuild for PackedFeedInfo {}
 
 impl PackedFeedInfo {
     /// The size in bytes of this packed structure

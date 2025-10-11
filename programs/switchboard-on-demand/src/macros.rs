@@ -152,8 +152,7 @@ macro_rules! blocking_retry {
 #[macro_export]
 macro_rules! impl_account_deserialize {
     ($struct_name:ident) => {
-        use anchor_client;
-        use anchor_lang::prelude::{Error, ErrorCode};
+        use anchor_client::anchor_lang::prelude::{Error, ErrorCode};
 
         impl anchor_client::anchor_lang::AccountDeserialize for $struct_name {
             fn try_deserialize(buf: &mut &[u8]) -> Result<Self, Error> {
@@ -165,7 +164,10 @@ macro_rules! impl_account_deserialize {
                 if $struct_name::discriminator() != given_disc {
                     return Err(ErrorCode::AccountDiscriminatorMismatch.into());
                 }
-                Self::try_deserialize_unchecked(buf)
+                if let Ok(ret) = Self::try_deserialize_unchecked(buf) {
+                    return Ok(ret);
+                }
+                Err(ErrorCode::AccountDidNotDeserialize.into())
             }
 
             fn try_deserialize_unchecked(buf: &mut &[u8]) -> Result<Self, Error> {
