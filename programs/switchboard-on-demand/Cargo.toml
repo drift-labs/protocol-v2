@@ -17,7 +17,7 @@ anchor-test = []
 anchor = []
 
 [dependencies]
-anchor-lang = "0.29.0"
+anchor-lang = "=0.29.0"
 bytemuck = { version = "1.4.0" }
 solana-program = "1.16"
 ahash = "=0.8.6"

@@ -8,7 +8,7 @@ use crate::math::constants::{
 };
 use crate::math::safe_math::SafeMath;
 use switchboard::{AggregatorAccountData, SwitchboardDecimal};
-use switchboard_on_demand::{PullFeedAccountData, SB_ON_DEMAND_PRECISION};
+use switchboard_on_demand::{PullFeedAccountData, SB_ON_DEMAND_PRECISION, SwitchboardQuote};
 
 use crate::error::ErrorCode::{InvalidOracle, UnableToLoadOracle};
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction, OracleValidity};
@@ -132,6 +132,7 @@ pub enum OracleSource {
     PythLazer1K,
     PythLazer1M,
     PythLazerStableCoin,
+    SwitchboardSurge,
 }
 
 impl OracleSource {
@@ -345,6 +346,7 @@ pub fn get_oracle_price(
         OracleSource::PythLazerStableCoin => {
             get_pyth_stable_coin_price(price_oracle, clock_slot, oracle_source)
         }
+        OracleSource::SwitchboardSurge => get_switchboard_surge_price(price_oracle, clock_slot),
     }
 }
 
@@ -534,6 +536,57 @@ pub fn get_sb_on_demand_price(
         .cast::<i64>()?
         .safe_sub(latest_oracle_submssions[0].landed_at.cast()?)?;
 
+    let has_sufficient_number_of_data_points = true;
+
+    Ok(OraclePriceData {
+        price,
+        confidence,
+        delay,
+        has_sufficient_number_of_data_points,
+        sequence_id: None,
+    })
+}
+
+pub fn get_switchboard_surge_price(
+    price_oracle: &AccountInfo,
+    clock_slot: u64,
+) -> DriftResult<OraclePriceData> {
+    let quote_data = SwitchboardQuote::try_deserialize(price_oracle.data.borrow())
+        .or(Err(ErrorCode::UnableToLoadOracle))?;
+
+    // Get feeds from the quote
+    let feeds = quote_data.feeds_slice();
+
+    validate!(
+        !feeds.is_empty(),
+        ErrorCode::InvalidOracle,
+        "SwitchboardQuote has no feeds"
+    )?;
+
+    // Calculate average price from all feeds
+    let total_price: i128 = feeds.iter().map(|feed| feed.feed_value()).sum();
+    let average_price = total_price / feeds.len() as i128;
+
+    // Convert from i128 with PRECISION=18 to PRICE_PRECISION
+    let switchboard_precision = 10_u128.pow(SB_ON_DEMAND_PRECISION);
+    let price = if switchboard_precision > PRICE_PRECISION {
+        average_price
+            .safe_div((switchboard_precision / PRICE_PRECISION) as i128)?
+            .cast::<i64>()?
+    } else {
+        average_price
+            .safe_mul((PRICE_PRECISION / switchboard_precision) as i128)?
+            .cast::<i64>()?
+    };
+
+    // Calculate confidence as a percentage of the price (e.g., 0.1% = 10 bps)
+    // This is a conservative estimate since we don't have explicit confidence data
+    let confidence = price.unsigned_abs().safe_div(1000)?; // 0.1% of price
+
+    // Calculate delay based on the slot from the quote
+    let delay = clock_slot.cast::<i64>()?.safe_sub(quote_data.slot.cast()?)?;
+
+    // Assume sufficient data points since the quote has been verified
     let has_sufficient_number_of_data_points = true;
 
     Ok(OraclePriceData {

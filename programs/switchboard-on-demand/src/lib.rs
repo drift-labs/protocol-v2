@@ -28,6 +28,7 @@ pub use program_id::*;
 
 // Re-export commonly used items
 pub use solana_compat::solana_program;
+pub use on_demand::oracle_quote::switchboard_quote::SwitchboardQuote;
 
 // Error types
 #[derive(Debug, Clone, Copy)]
