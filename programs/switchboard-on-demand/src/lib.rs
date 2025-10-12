@@ -19,6 +19,10 @@ pub mod macros;
 pub mod smallvec;
 pub mod on_demand;
 
+// Only export sysvar for client features or when needed
+#[cfg(any(feature = "client", not(target_os = "solana")))]
+pub mod sysvar;
+
 pub mod program_id;
 pub use program_id::*;
 

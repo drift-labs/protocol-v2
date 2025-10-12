@@ -46,3 +46,6 @@
 
 pub mod feed_info;
 pub use feed_info::*;
+
+pub mod switchboard_quote;
+pub use switchboard_quote::*;

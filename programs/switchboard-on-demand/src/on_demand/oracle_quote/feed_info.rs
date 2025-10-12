@@ -14,11 +14,25 @@ use crate::on_demand::PRECISION;
 /// that is used to validate the quote's freshness against the slot hash sysvar.
 ///
 /// Size: 32 bytes
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[repr(packed)]
 pub struct PackedQuoteHeader {
     /// The 32-byte slot hash that was signed by all oracles in the quote
     pub signed_slothash: [u8; 32],
+}
+
+impl anchor_lang::prelude::borsh::BorshSerialize for PackedQuoteHeader {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        writer.write_all(&self.signed_slothash)
+    }
+}
+
+impl anchor_lang::prelude::borsh::BorshDeserialize for PackedQuoteHeader {
+    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self> {
+        let mut signed_slothash = [0u8; 32];
+        reader.read_exact(&mut signed_slothash)?;
+        Ok(Self { signed_slothash })
+    }
 }
 
 /// Packed feed information containing ID, value, and validation requirements
@@ -32,11 +46,47 @@ pub struct PackedQuoteHeader {
 #[repr(packed)]
 pub struct PackedFeedInfo {
     /// 32-byte unique identifier for this feed
-    feed_id: [u8; 32],
+    pub(crate) feed_id: [u8; 32],
     /// Feed value as a fixed-point integer (scaled by PRECISION)
     feed_value: i128,
     /// Minimum number of oracle samples required for this feed to be considered valid
     min_oracle_samples: u8,
+}
+
+impl PartialEq for PackedFeedInfo {
+    fn eq(&self, other: &Self) -> bool {
+        self.feed_id == other.feed_id &&
+        self.feed_value == other.feed_value &&
+        self.min_oracle_samples == other.min_oracle_samples
+    }
+}
+
+impl Eq for PackedFeedInfo {}
+
+impl anchor_lang::prelude::borsh::BorshSerialize for PackedFeedInfo {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        writer.write_all(&self.feed_id)?;
+        writer.write_all(&self.feed_value.to_le_bytes())?;
+        writer.write_all(&[self.min_oracle_samples])?;
+        Ok(())
+    }
+}
+
+impl anchor_lang::prelude::borsh::BorshDeserialize for PackedFeedInfo {
+    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self> {
+        let mut feed_id = [0u8; 32];
+        reader.read_exact(&mut feed_id)?;
+        let mut value_bytes = [0u8; 16];
+        reader.read_exact(&mut value_bytes)?;
+        let feed_value = i128::from_le_bytes(value_bytes);
+        let mut min_samples = [0u8; 1];
+        reader.read_exact(&mut min_samples)?;
+        Ok(Self {
+            feed_id,
+            feed_value,
+            min_oracle_samples: min_samples[0],
+        })
+    }
 }
 
 impl PackedFeedInfo {

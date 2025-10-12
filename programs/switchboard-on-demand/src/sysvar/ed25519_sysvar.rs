@@ -32,7 +32,7 @@ pub struct Ed25519SignatureHeader {
 
 /// ED25519 signature data offsets within instruction data
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Ed25519SignatureOffsets {
     /// Offset to the signature data
     pub signature_offset: u16,
@@ -48,6 +48,48 @@ pub struct Ed25519SignatureOffsets {
     pub message_data_size: u16,
     /// Instruction index containing the message
     pub message_instruction_index: u16,
+}
+
+impl anchor_lang::prelude::borsh::BorshSerialize for Ed25519SignatureOffsets {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        writer.write_all(&self.signature_offset.to_le_bytes())?;
+        writer.write_all(&self.signature_instruction_index.to_le_bytes())?;
+        writer.write_all(&self.public_key_offset.to_le_bytes())?;
+        writer.write_all(&self.public_key_instruction_index.to_le_bytes())?;
+        writer.write_all(&self.message_data_offset.to_le_bytes())?;
+        writer.write_all(&self.message_data_size.to_le_bytes())?;
+        writer.write_all(&self.message_instruction_index.to_le_bytes())?;
+        Ok(())
+    }
+}
+
+impl anchor_lang::prelude::borsh::BorshDeserialize for Ed25519SignatureOffsets {
+    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self> {
+        let mut buf = [0u8; 2];
+        reader.read_exact(&mut buf)?;
+        let signature_offset = u16::from_le_bytes(buf);
+        reader.read_exact(&mut buf)?;
+        let signature_instruction_index = u16::from_le_bytes(buf);
+        reader.read_exact(&mut buf)?;
+        let public_key_offset = u16::from_le_bytes(buf);
+        reader.read_exact(&mut buf)?;
+        let public_key_instruction_index = u16::from_le_bytes(buf);
+        reader.read_exact(&mut buf)?;
+        let message_data_offset = u16::from_le_bytes(buf);
+        reader.read_exact(&mut buf)?;
+        let message_data_size = u16::from_le_bytes(buf);
+        reader.read_exact(&mut buf)?;
+        let message_instruction_index = u16::from_le_bytes(buf);
+        Ok(Self {
+            signature_offset,
+            signature_instruction_index,
+            public_key_offset,
+            public_key_instruction_index,
+            message_data_offset,
+            message_data_size,
+            message_instruction_index,
+        })
+    }
 }
 
 /// Parsed ED25519 signature data with lifetime-bound references
