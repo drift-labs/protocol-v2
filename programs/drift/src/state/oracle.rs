@@ -564,18 +564,17 @@ pub fn get_switchboard_surge_price(
         "SwitchboardQuote has no feeds"
     )?;
 
-    // Calculate average price from all feeds
-    let total_price: i128 = feeds.iter().map(|feed| feed.feed_value()).sum();
-    let average_price = total_price / feeds.len() as i128;
+    // Use the first feed's price
+    let first_feed_price = feeds[0].feed_value();
 
     // Convert from i128 with PRECISION=18 to PRICE_PRECISION
     let switchboard_precision = 10_u128.pow(SB_ON_DEMAND_PRECISION);
     let price = if switchboard_precision > PRICE_PRECISION {
-        average_price
+        first_feed_price
             .safe_div((switchboard_precision / PRICE_PRECISION) as i128)?
             .cast::<i64>()?
     } else {
-        average_price
+        first_feed_price
             .safe_mul((PRICE_PRECISION / switchboard_precision) as i128)?
             .cast::<i64>()?
     };
@@ -620,11 +619,7 @@ fn convert_switchboard_decimal(switchboard_decimal: &SwitchboardDecimal) -> Drif
 /// mantissa/digits to make sense with a new_precision.
 fn convert_sb_i128(switchboard_i128: &i128) -> DriftResult<i128> {
     let switchboard_precision = 10_u128.pow(SB_ON_DEMAND_PRECISION);
-    if switchboard_precision > PRICE_PRECISION {
-        switchboard_i128.safe_div((switchboard_precision / PRICE_PRECISION) as i128)
-    } else {
-        switchboard_i128.safe_mul((PRICE_PRECISION / switchboard_precision) as i128)
-    }
+    switchboard_i128.safe_div((switchboard_precision / PRICE_PRECISION) as i128)
 }
 
 pub fn get_prelaunch_price(price_oracle: &AccountInfo, slot: u64) -> DriftResult<OraclePriceData> {
