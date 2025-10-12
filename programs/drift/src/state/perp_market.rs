@@ -31,8 +31,8 @@ use crate::math::stats;
 use num_integer::Roots;
 
 use crate::state::oracle::{
-    get_prelaunch_price, get_sb_on_demand_price, get_switchboard_price, HistoricalOracleData,
-    MMOraclePriceData, OraclePriceData, OracleSource,
+    get_prelaunch_price, get_sb_on_demand_price, get_switchboard_price, get_switchboard_surge_price,
+    HistoricalOracleData, MMOraclePriceData, OraclePriceData, OracleSource,
 };
 use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType};
 use crate::state::traits::{MarketIndexOffset, Size};
@@ -1496,6 +1496,9 @@ impl AMM {
             OracleSource::PythLazerStableCoin => Ok(Some(
                 self.get_pyth_twap(price_oracle, &OracleSource::PythLazerStableCoin)?,
             )),
+            OracleSource::SwitchboardSurge => {
+                Ok(Some(get_switchboard_surge_price(price_oracle, slot)?.price))
+            }
         }
     }
 

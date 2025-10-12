@@ -551,7 +551,8 @@ pub fn get_switchboard_surge_price(
     price_oracle: &AccountInfo,
     clock_slot: u64,
 ) -> DriftResult<OraclePriceData> {
-    let quote_data = SwitchboardQuote::try_deserialize(price_oracle.data.borrow())
+    let data = price_oracle.try_borrow_data().or(Err(ErrorCode::UnableToLoadOracle))?;
+    let quote_data = SwitchboardQuote::try_deserialize(&mut &data[..])
         .or(Err(ErrorCode::UnableToLoadOracle))?;
 
     // Get feeds from the quote
