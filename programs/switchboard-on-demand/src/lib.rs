@@ -11,6 +11,8 @@ declare_id!("Aio4gaXjXzJNVLtzwtNVmSqGKpANtXhybbkhtAC94ji2");
 
 #[program]
 pub mod switchboard_on_demand {}
+
+pub mod smallvec;
 pub const SB_ON_DEMAND_PRECISION: u32 = 18;
 
 #[repr(C)]
