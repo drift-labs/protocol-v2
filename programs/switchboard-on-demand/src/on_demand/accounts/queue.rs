@@ -8,8 +8,12 @@ use bytemuck::{Pod, Zeroable};
 
 // Use our AccountInfo type alias that conditionally uses pinocchio or anchor/solana-program
 use crate::AccountInfo;
-use crate::{get_sb_program_id};
+use crate::{get_sb_program_id, cfg_client, OnDemandError};
 use crate::Pubkey;
+
+cfg_client! {
+    use spl_associated_token_account::solana_program::address_lookup_table_account::AddressLookupTableAccount;
+}
 
 /// Queue account data containing oracle management and configuration
 #[repr(C)]

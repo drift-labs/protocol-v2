@@ -1,8 +1,7 @@
-use solana_program::instruction::Instruction;
-
+use crate::solana_program::instruction::Instruction;
 use crate::anchor_traits::*;
 use crate::solana_compat::{hash, pubkey};
-use crate::{solana_program, Pubkey};
+use crate::Pubkey;
 
 /// Check if devnet environment is enabled via feature flag OR SB_ENV environment variable
 #[inline(always)]

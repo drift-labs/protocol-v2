@@ -1,7 +1,7 @@
 #[allow(unused_imports)]
 use std::str::FromStr;
 
-use crate::solana_compat::solana_program::pubkey::pubkey;
+use crate::solana_compat::pubkey;
 use crate::Pubkey;
 
 /// Program id for the Switchboard oracle program

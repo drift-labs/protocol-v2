@@ -14,6 +14,7 @@ use anchor_lang::{AnchorDeserialize, AnchorSerialize, Discriminator, Owner, Zero
 use bytemuck;
 use rust_decimal::Decimal;
 use sha2::{Digest, Sha256};
+use crate::{Pubkey, get_sb_program_id, OnDemandError};
 
 
 /// Default decimal precision for Switchboard oracle values
@@ -471,9 +472,8 @@ impl Owner for PullFeedAccountData {
         sb_pid().to_bytes().into()
     }
 }
-const DISCRIMINATOR: [u8; 8] = [196, 27, 108, 196, 10, 215, 219, 40];
 impl Discriminator for PullFeedAccountData {
-    const DISCRIMINATOR: &[u8] = &DISCRIMINATOR;
+    const DISCRIMINATOR: [u8; 8] = [196, 27, 108, 196, 10, 215, 219, 40];
 }
 
 /// Type alias for PullFeedAccountData for backward compatibility

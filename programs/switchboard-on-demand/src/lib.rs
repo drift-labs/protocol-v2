@@ -12,11 +12,37 @@ declare_id!("Aio4gaXjXzJNVLtzwtNVmSqGKpANtXhybbkhtAC94ji2");
 #[program]
 pub mod switchboard_on_demand {}
 
+pub mod solana_compat;
+pub mod anchor_traits;
+pub mod utils;
+pub mod macros;
 pub mod smallvec;
 pub mod on_demand;
 
 pub mod program_id;
 pub use program_id::*;
+
+// Re-export commonly used items
+pub use solana_compat::solana_program;
+
+// Error types
+#[derive(Debug, Clone, Copy)]
+pub enum OnDemandError {
+    InvalidDiscriminator,
+    InvalidData,
+    AccountBorrowError,
+    AccountDeserializeError,
+    NotEnoughSamples,
+    IllegalFeedValue,
+    StaleResult,
+    NetworkError,
+}
+
+impl From<OnDemandError> for anchor_lang::error::Error {
+    fn from(_e: OnDemandError) -> Self {
+        anchor_lang::error::Error::from(anchor_lang::error::ErrorCode::AccountDidNotDeserialize)
+    }
+}
 
 pub const SB_ON_DEMAND_PRECISION: u32 = 18;
 

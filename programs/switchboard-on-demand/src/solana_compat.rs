@@ -33,15 +33,15 @@ pub use solana_program_v3 as solana_program;
     not(feature = "solana-v3"),
     feature = "solana-v2"
 ))]
-pub use solana_program_v2 as solana_program;
+pub use solana_program as solana_program;
 
-// Default to v2 when neither anchor, v2, nor v3 is enabled
+// Default to using anchor's solana_program when no specific version is enabled
 #[cfg(all(
     not(feature = "anchor"),
     not(feature = "solana-v2"),
     not(feature = "solana-v3")
 ))]
-pub use solana_program_v2 as solana_program;
+pub use anchor_lang::solana_program;
 
 // ===== solana_sdk (only when client is enabled) =====
 // The client feature requires anchor-client, which provides solana_sdk
@@ -67,9 +67,12 @@ pub use solana_program::{
     hash,
     instruction::{AccountMeta, Instruction},
     msg,
-    pubkey::{pubkey, Pubkey},
+    pubkey::Pubkey,
     sysvar,
 };
+
+// pubkey! macro is exported at the crate root
+pub use solana_program::pubkey;
 
 // System program ID constant (same across all versions)
 pub const SYSTEM_PROGRAM_ID: Pubkey = pubkey!("11111111111111111111111111111111");

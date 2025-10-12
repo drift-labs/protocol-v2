@@ -1,7 +1,6 @@
-use borsh::BorshSerialize;
-use solana_program::instruction::AccountMeta;
-
-use crate::{solana_program, Pubkey};
+use anchor_lang::prelude::borsh::BorshSerialize;
+use crate::solana_program::instruction::AccountMeta;
+use crate::Pubkey;
 
 /// Traits pulled out of anchor-lang library to remove dependency conflicts
 /// for users.
@@ -42,7 +41,7 @@ pub trait InstructionData: Discriminator + BorshSerialize {
     /// Serializes the instruction data with discriminator prefix
     fn data(&self) -> Vec<u8> {
         let mut d = Self::DISCRIMINATOR.to_vec();
-        d.append(&mut borsh::to_vec(self).expect("Should always serialize"));
+        d.append(&mut anchor_lang::prelude::borsh::to_vec(self).expect("Should always serialize"));
         d
     }
 }

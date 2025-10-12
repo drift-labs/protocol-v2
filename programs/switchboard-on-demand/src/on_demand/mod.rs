@@ -8,6 +8,9 @@ pub use oracle_quote::*;
 use crate::solana_compat::pubkey;
 use crate::Pubkey;
 
+// Re-export PRECISION from pull_feed
+pub use accounts::PRECISION;
+
 /// Address Lookup Table program ID
 pub const ADDRESS_LOOKUP_TABLE_PROGRAM_ID: Pubkey =
     pubkey!("AddressLookupTab1e1111111111111111111111111");

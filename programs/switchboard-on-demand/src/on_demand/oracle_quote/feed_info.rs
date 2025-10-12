@@ -6,6 +6,7 @@
 
 use faster_hex::hex_string;
 use rust_decimal::prelude::*;
+use crate::on_demand::PRECISION;
 
 /// Packed quote header containing the signed slot hash
 ///
