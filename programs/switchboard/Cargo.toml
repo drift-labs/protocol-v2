@@ -17,6 +17,7 @@ anchor-test= []
 
 [dependencies]
 anchor-lang = "0.29.0"
+ahash = "=0.8.6"
 
 [dev-dependencies]
 base64 = "0.13.0"

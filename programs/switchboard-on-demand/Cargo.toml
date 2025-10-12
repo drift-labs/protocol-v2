@@ -19,6 +19,7 @@ anchor-test= []
 anchor-lang = "0.29.0"
 bytemuck = { version = "1.4.0" }
 solana-program = "1.16"
+ahash = "=0.8.6"
 
 [dev-dependencies]
 base64 = "0.13.0"
