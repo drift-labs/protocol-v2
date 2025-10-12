@@ -47,5 +47,8 @@
 pub mod feed_info;
 pub use feed_info::*;
 
+pub mod instruction_parser;
+pub use instruction_parser::*;
+
 pub mod switchboard_quote;
 pub use switchboard_quote::*;

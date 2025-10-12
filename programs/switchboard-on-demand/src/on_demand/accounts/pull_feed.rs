@@ -3,7 +3,7 @@ use std::cell::Ref;
 // Compatibility shim for anchor-lang borsh macros
 #[cfg(feature = "anchor")]
 mod borsh {
-    pub use ::borsh::*;
+    pub use anchor_lang::prelude::borsh::*;
     pub mod maybestd {
         pub mod io {
             pub use std::io::*;

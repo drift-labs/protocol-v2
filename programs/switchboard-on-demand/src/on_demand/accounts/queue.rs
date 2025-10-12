@@ -121,7 +121,7 @@ impl crate::anchor_traits::ZeroCopy for QueueAccountData {}
 // Implement anchor traits when anchor feature is enabled
 #[cfg(feature = "anchor")]
 impl anchor_lang::Discriminator for QueueAccountData {
-    const DISCRIMINATOR: &'static [u8] = &QUEUE_ACCOUNT_DISCRIMINATOR;
+    const DISCRIMINATOR: [u8; 8] = QUEUE_ACCOUNT_DISCRIMINATOR;
 }
 
 #[cfg(feature = "anchor")]
@@ -139,7 +139,7 @@ impl anchor_lang::Owner for QueueAccountData {
 #[cfg(feature = "anchor")]
 impl anchor_lang::ZeroCopy for QueueAccountData {}
 
-#[cfg(feature = "anchor")]
+#[cfg(feature = "idl-build")]
 impl anchor_lang::IdlBuild for QueueAccountData {}
 
 impl QueueAccountData {

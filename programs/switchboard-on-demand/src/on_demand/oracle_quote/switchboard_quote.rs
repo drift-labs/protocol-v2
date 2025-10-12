@@ -2,6 +2,17 @@ use crate::smallvec::{SmallVec, U8Prefix, U16Prefix};
 use crate::on_demand::oracle_quote::feed_info::{PackedFeedInfo, PackedQuoteHeader};
 use crate::Pubkey;
 
+// Compatibility shim for anchor-lang borsh macros
+#[cfg(feature = "anchor")]
+mod borsh {
+    pub use anchor_lang::prelude::borsh::*;
+    pub mod maybestd {
+        pub mod io {
+            pub use std::io::*;
+        }
+    }
+}
+
 // Import Ed25519SignatureOffsets conditionally
 #[cfg(any(feature = "client", not(target_os = "solana")))]
 use crate::sysvar::ed25519_sysvar::Ed25519SignatureOffsets;
@@ -64,9 +75,10 @@ impl anchor_lang::prelude::borsh::BorshDeserialize for Ed25519SignatureOffsets {
     }
 }
 
-pub const QUOTE_DISCRIMINATOR: &[u8; 8] = b"SBOracle";
+pub const QUOTE_DISCRIMINATOR: [u8; 8] = *b"SBOracle";
 
 /// Oracle signature data with offsets
+#[cfg_attr(feature = "anchor", derive(anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(C)]
 pub struct OracleSignature {
@@ -78,6 +90,7 @@ pub struct OracleSignature {
     pub signature: [u8; 64],
 }
 
+#[cfg(not(feature = "anchor"))]
 impl anchor_lang::prelude::borsh::BorshSerialize for OracleSignature {
     fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
         self.offsets.serialize(writer)?;
@@ -87,6 +100,7 @@ impl anchor_lang::prelude::borsh::BorshSerialize for OracleSignature {
     }
 }
 
+#[cfg(not(feature = "anchor"))]
 impl anchor_lang::prelude::borsh::BorshDeserialize for OracleSignature {
     fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self> {
         let offsets = Ed25519SignatureOffsets::deserialize_reader(reader)?;
@@ -100,20 +114,6 @@ impl anchor_lang::prelude::borsh::BorshDeserialize for OracleSignature {
             pubkey,
             signature,
         })
-    }
-}
-
-#[cfg(feature = "anchor")]
-impl anchor_lang::AnchorDeserialize for OracleSignature {
-    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self> {
-        <Self as anchor_lang::prelude::borsh::BorshDeserialize>::deserialize_reader(reader)
-    }
-}
-
-#[cfg(feature = "anchor")]
-impl anchor_lang::AnchorSerialize for OracleSignature {
-    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
-        <Self as anchor_lang::prelude::borsh::BorshSerialize>::serialize(self, writer)
     }
 }
 
@@ -195,22 +195,8 @@ impl anchor_lang::prelude::borsh::BorshDeserialize for SwitchboardQuote {
 }
 
 #[cfg(feature = "anchor")]
-impl anchor_lang::AnchorDeserialize for SwitchboardQuote {
-    fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self> {
-        <Self as anchor_lang::prelude::borsh::BorshDeserialize>::deserialize_reader(reader)
-    }
-}
-
-#[cfg(feature = "anchor")]
-impl anchor_lang::AnchorSerialize for SwitchboardQuote {
-    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
-        <Self as anchor_lang::prelude::borsh::BorshSerialize>::serialize(self, writer)
-    }
-}
-
-#[cfg(feature = "anchor")]
 impl anchor_lang::Discriminator for SwitchboardQuote {
-    const DISCRIMINATOR: &[u8] = QUOTE_DISCRIMINATOR;
+    const DISCRIMINATOR: [u8; 8] = QUOTE_DISCRIMINATOR;
 }
 
 #[cfg(feature = "anchor")]
@@ -219,7 +205,7 @@ impl anchor_lang::AccountSerialize for SwitchboardQuote {
         use anchor_lang::Discriminator;
 
         // Write discriminator (8 bytes)
-        writer.write_all(Self::DISCRIMINATOR)?;
+        writer.write_all(&Self::DISCRIMINATOR)?;
 
         // Write queue pubkey (32 bytes)
         writer.write_all(self.queue.as_ref())?;
