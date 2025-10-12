@@ -569,15 +569,9 @@ pub fn get_switchboard_surge_price(
 
     // Convert from i128 with PRECISION=18 to PRICE_PRECISION
     let switchboard_precision = 10_u128.pow(SB_ON_DEMAND_PRECISION);
-    let price = if switchboard_precision > PRICE_PRECISION {
-        first_feed_price
+    let price = first_feed_price
             .safe_div((switchboard_precision / PRICE_PRECISION) as i128)?
-            .cast::<i64>()?
-    } else {
-        first_feed_price
-            .safe_mul((PRICE_PRECISION / switchboard_precision) as i128)?
-            .cast::<i64>()?
-    };
+            .cast::<i64>()?;
 
     // Calculate confidence as a percentage of the price (e.g., 0.1% = 10 bps)
     // This is a conservative estimate since we don't have explicit confidence data
