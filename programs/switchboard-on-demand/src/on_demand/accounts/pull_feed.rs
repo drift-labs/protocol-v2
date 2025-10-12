@@ -10,15 +10,11 @@ mod borsh {
         }
     }
 }
-#[cfg(feature = "anchor")]
 use anchor_lang::{AnchorDeserialize, AnchorSerialize, Discriminator, Owner, ZeroCopy};
 use bytemuck;
 use rust_decimal::Decimal;
 use sha2::{Digest, Sha256};
 
-#[cfg(not(feature = "anchor"))]
-use crate::anchor_traits::{Discriminator, Owner, ZeroCopy};
-use crate::{Pubkey, *};
 
 /// Default decimal precision for Switchboard oracle values
 pub const PRECISION: u32 = 18;

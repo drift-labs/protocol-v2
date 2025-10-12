@@ -7,8 +7,6 @@
 use faster_hex::hex_string;
 use rust_decimal::prelude::*;
 
-use crate::prelude::*;
-
 /// Packed quote header containing the signed slot hash
 ///
 /// This header is signed by all oracles in the quote and contains the slot hash

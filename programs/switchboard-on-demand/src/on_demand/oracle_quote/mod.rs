@@ -46,10 +46,3 @@
 
 pub mod feed_info;
 pub use feed_info::*;
-pub mod quote;
-pub use quote::*;
-pub mod quote_verifier;
-pub use quote_verifier::*;
-/// Oracle quote account utilities for Anchor integration
-#[cfg(feature = "anchor")]
-pub mod quote_account;

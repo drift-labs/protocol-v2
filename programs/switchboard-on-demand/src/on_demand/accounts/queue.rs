@@ -6,17 +6,9 @@ use std::cell::Ref;
 
 use bytemuck::{Pod, Zeroable};
 
-// Always import for macros to work
-#[allow(unused_imports)]
-use crate::impl_account_deserialize;
 // Use our AccountInfo type alias that conditionally uses pinocchio or anchor/solana-program
 use crate::AccountInfo;
-#[allow(unused_imports)]
-use crate::OracleAccountData;
-use crate::{cfg_client, get_sb_program_id, OnDemandError};
-cfg_client! {
-    use spl_associated_token_account::solana_program::address_lookup_table::AddressLookupTableAccount;
-}
+use crate::{get_sb_program_id};
 use crate::Pubkey;
 
 /// Queue account data containing oracle management and configuration
@@ -100,10 +92,6 @@ pub struct VaultInfo {
 }
 unsafe impl Pod for VaultInfo {}
 unsafe impl Zeroable for VaultInfo {}
-
-cfg_client! {
-    impl_account_deserialize!(QueueAccountData);
-}
 
 /// Anchor discriminator for QueueAccountData
 pub const QUEUE_ACCOUNT_DISCRIMINATOR: [u8; 8] = [217, 194, 55, 127, 184, 83, 138, 1];
