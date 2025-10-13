@@ -179,9 +179,6 @@ pub fn calculate_inventory_liquidity_ratio(
 
     let min_side_liquidity = max_bids.min(max_asks.abs());
 
-    msg!("min_side_liquidity {}", min_side_liquidity);
-    msg!("base_asset_amount_with_amm {}", base_asset_amount_with_amm);
-
     let amm_inventory_pct = if base_asset_amount_with_amm.abs() < min_side_liquidity {
         base_asset_amount_with_amm
             .abs()
