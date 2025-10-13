@@ -1212,17 +1212,17 @@ fn amm_perp_ref_offset() {
     let r = perp_market.amm.reserve_price().unwrap();
     let (b, a) = perp_market.amm.bid_ask_price(r).unwrap();
     assert_eq!(b, 7098062);
-    assert_eq!(a, 7106129);
+    assert_eq!(a, 7105192);
     assert_eq!(
         perp_market.amm.historical_oracle_data.last_oracle_price,
         7101600
     );
-    assert_eq!(perp_market.amm.reference_price_offset, 134);
+    assert_eq!(perp_market.amm.reference_price_offset, 2);
     assert_eq!(perp_market.amm.max_spread, 90000);
 
     assert_eq!(r, 7101599);
-    assert_eq!(perp_market.amm.bid_base_asset_reserve, 4675159724262455);
-    assert_eq!(perp_market.amm.ask_base_asset_reserve, 4672813088646692);
+    assert_eq!(perp_market.amm.bid_base_asset_reserve, 4675468304972819);
+    assert_eq!(perp_market.amm.ask_base_asset_reserve, 4673121624690784);
 
     crate::validation::perp_market::validate_perp_market(&perp_market).unwrap();
 
@@ -1249,10 +1249,10 @@ fn amm_perp_ref_offset() {
         .amm
         .bid_ask_price(reserve_price_mm_offset)
         .unwrap();
-    assert_eq!(perp_market.amm.reference_price_offset, 133);
+    assert_eq!(perp_market.amm.reference_price_offset, 2);
     assert_eq!(reserve_price_mm_offset, 7137107);
-    assert_eq!(b2, 7101549);
-    assert_eq!(a2, 7174591);
+    assert_eq!(b2, 7100614);
+    assert_eq!(a2, 7173656);
 
     // Uses the original oracle if the slot is old, ignoring MM oracle
     perp_market.amm.mm_oracle_price = mm_oracle_price_data.get_price() * 995 / 1000;
@@ -1278,8 +1278,8 @@ fn amm_perp_ref_offset() {
         .bid_ask_price(reserve_price_mm_offset_3)
         .unwrap();
     assert_eq!(reserve_price_mm_offset_3, r);
-    assert_eq!(b3, 7066225);
-    assert_eq!(a3, 7138903);
+    assert_eq!(b3, 7065288);
+    assert_eq!(a3, 7137966);
 }
 
 #[test]
