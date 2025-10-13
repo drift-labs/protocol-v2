@@ -3739,7 +3739,7 @@ pub fn handle_update_amm_jit_intensity(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_max_spread(
-    ctx: Context<AdminUpdatePerpMarket>,
+    ctx: Context<HotAdminUpdatePerpMarket>,
     max_spread: u32,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
