@@ -10,10 +10,9 @@ use crate::math::casting::Cast;
 use crate::math::constants::{
     AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128, AMM_TO_QUOTE_PRECISION_RATIO_I128,
     BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, DEFAULT_LARGE_BID_ASK_FACTOR,
-    DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT, FUNDING_RATE_BUFFER,
-    MAX_BID_ASK_INVENTORY_SKEW_FACTOR, PEG_PRECISION, PERCENTAGE_PRECISION,
-    PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128,
-    PRICE_PRECISION_I64,
+    DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT, MAX_BID_ASK_INVENTORY_SKEW_FACTOR,
+    PEG_PRECISION, PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64,
+    PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128, PRICE_PRECISION_I64,
 };
 use crate::math::safe_math::SafeMath;
 use crate::state::perp_market::{ContractType, PerpMarket, AMM};
@@ -185,6 +184,37 @@ pub fn calculate_inventory_liquidity_ratio(
             .safe_mul(PERCENTAGE_PRECISION_I128)
             .unwrap_or(i128::MAX)
             .safe_div(min_side_liquidity.max(1))?
+            .min(PERCENTAGE_PRECISION_I128)
+    } else {
+        PERCENTAGE_PRECISION_I128 // 100%
+    };
+
+    Ok(amm_inventory_pct)
+}
+
+pub fn calculate_inventory_liquidity_ratio_for_reference_price_offset(
+    base_asset_amount_with_amm: i128,
+    base_asset_reserve: u128,
+    min_base_asset_reserve: u128,
+    max_base_asset_reserve: u128,
+) -> DriftResult<i128> {
+    // computes min(1, x/(1-x)) for 0 < x < 1
+
+    // inventory scale
+    let (max_bids, max_asks) = _calculate_market_open_bids_asks(
+        base_asset_reserve,
+        min_base_asset_reserve,
+        max_base_asset_reserve,
+    )?;
+
+    let avg_liquidity = (max_bids.safe_add(max_asks.abs())?).safe_div(2)?;
+
+    let amm_inventory_pct = if base_asset_amount_with_amm.abs() < avg_liquidity {
+        base_asset_amount_with_amm
+            .abs()
+            .safe_mul(PERCENTAGE_PRECISION_I128)
+            .unwrap_or(i128::MAX)
+            .safe_div(avg_liquidity.max(1))?
             .min(PERCENTAGE_PRECISION_I128)
     } else {
         PERCENTAGE_PRECISION_I128 // 100%
@@ -587,17 +617,12 @@ pub fn calculate_reference_price_offset(
         .cast::<i64>()?
         .safe_sub(oracle_twap_slow)?
         .clamp(-max_offset_in_price, max_offset_in_price);
-    // convert last_24h_avg_funding_rate to quote denominated premium
-    let mark_premium_day: i64 = last_24h_avg_funding_rate
-        .safe_div(FUNDING_RATE_BUFFER.cast()?)?
-        .safe_mul(24)?
-        .clamp(-max_offset_in_price, max_offset_in_price); // todo: look at how 24h funding is calc w.r.t. the funding_period
 
     // take average clamped premium as the price-based offset
     let mark_premium_avg = mark_premium_minute
-        .safe_add(mark_premium_hour)?
-        .safe_add(mark_premium_day)?
-        .safe_div(3_i64)?;
+        .safe_mul(75)?
+        .safe_add(mark_premium_hour.safe_mul(25)?)?
+        .safe_div(100_i64)?;
 
     let mark_premium_avg_pct: i64 = mark_premium_avg
         .safe_mul(PRICE_PRECISION_I64)?
@@ -613,7 +638,9 @@ pub fn calculate_reference_price_offset(
     let offset_pct = if (mark_premium_avg_pct >= 0 && inventory_pct >= 0)
         || (mark_premium_avg_pct <= 0 && inventory_pct <= 0)
     {
-        mark_premium_avg_pct.safe_add(inventory_pct)?
+        mark_premium_avg_pct
+            .safe_mul(inventory_pct.cast::<i64>()?)?
+            .safe_div(PERCENTAGE_PRECISION_I64)?
     } else {
         0
     };

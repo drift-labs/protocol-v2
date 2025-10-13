@@ -983,7 +983,8 @@ pub fn handle_initialize_perp_market(
         protected_maker_dynamic_divisor: 0,
         padding1: 0,
         last_fill_price: 0,
-        padding: [0; 24],
+        reference_offset_deadband_pct: 0,
+        padding: [0; 23],
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
             oracle_source,

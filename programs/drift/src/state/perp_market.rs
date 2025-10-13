@@ -236,7 +236,10 @@ pub struct PerpMarket {
     pub protected_maker_dynamic_divisor: u8,
     pub padding1: u32,
     pub last_fill_price: u64,
-    pub padding: [u8; 24],
+    /// Reference price offset deadband percentage (0-100). 0 disables deadband.
+    /// Stored in former padding to preserve zero-copy layout.
+    pub reference_offset_deadband_pct: u8,
+    pub padding: [u8; 23],
 }
 
 impl Default for PerpMarket {
@@ -280,7 +283,8 @@ impl Default for PerpMarket {
             protected_maker_dynamic_divisor: 0,
             padding1: 0,
             last_fill_price: 0,
-            padding: [0; 24],
+            reference_offset_deadband_pct: 0,
+            padding: [0; 23],
         }
     }
 }
@@ -294,6 +298,10 @@ impl MarketIndexOffset for PerpMarket {
 }
 
 impl PerpMarket {
+    pub fn get_reference_offset_deadband_pct(&self) -> DriftResult<u128> {
+        let pct = self.reference_offset_deadband_pct as u128;
+        Ok(PERCENTAGE_PRECISION.safe_mul(pct)?.safe_div(100_u128)?)
+    }
     pub fn oracle_id(&self) -> OracleIdentifier {
         (self.amm.oracle, self.amm.oracle_source)
     }
