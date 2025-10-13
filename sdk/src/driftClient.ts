@@ -4943,7 +4943,10 @@ export class DriftClient {
 
 	public async getPlaceOrdersIx(
 		params: OptionalOrderParams[],
-		subAccountId?: number
+		subAccountId?: number,
+		overrides?: {
+			authority?: PublicKey;
+		}
 	): Promise<TransactionInstruction> {
 		const user = await this.getUserAccountPublicKey(subAccountId);
 
@@ -4978,13 +4981,14 @@ export class DriftClient {
 		}
 
 		const formattedParams = params.map((item) => getOrderParams(item));
+		const authority = overrides?.authority ?? this.wallet.publicKey;
 
 		return await this.program.instruction.placeOrders(formattedParams, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				user,
 				userStats: this.getUserStatsAccountPublicKey(),
-				authority: this.wallet.publicKey,
+				authority,
 			},
 			remainingAccounts,
 		});
@@ -6688,7 +6692,10 @@ export class DriftClient {
 		referrerInfo?: ReferrerInfo,
 		successCondition?: PlaceAndTakeOrderSuccessCondition,
 		auctionDurationPercentage?: number,
-		subAccountId?: number
+		subAccountId?: number,
+		overrides?: {
+			authority?: PublicKey;
+		}
 	): Promise<TransactionInstruction> {
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
 		const userStatsPublicKey = await this.getUserStatsAccountPublicKey();
@@ -6756,6 +6763,8 @@ export class DriftClient {
 				((auctionDurationPercentage ?? 100) << 8) | (successCondition ?? 0);
 		}
 
+		const authority = overrides?.authority ?? this.wallet.publicKey;
+
 		return await this.program.instruction.placeAndTakePerpOrder(
 			orderParams,
 			optionalParams,
@@ -6764,7 +6773,7 @@ export class DriftClient {
 					state: await this.getStatePublicKey(),
 					user,
 					userStats: userStatsPublicKey,
-					authority: this.wallet.publicKey,
+					authority,
 				},
 				remainingAccounts,
 			}
