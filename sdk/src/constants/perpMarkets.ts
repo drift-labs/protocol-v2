@@ -1339,19 +1339,6 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythLazerId: 2312,
 	},
 	{
-		fullName: 'PLASMA',
-		category: ['DEX'],
-		symbol: 'XPL-PERP',
-		baseAssetSymbol: 'XPL',
-		marketIndex: 77,
-		oracle: new PublicKey('6kgE1KJcxTux4tkPLE8LL8GRyW2cAsvyZsDFWqCrhHVe'),
-		launchTs: 1758898862000,
-		oracleSource: OracleSource.PYTH_LAZER,
-		pythFeedId:
-			'0x9873512f5cb33c77ad7a5af098d74812c62111166be395fd0941c8cedb9b00d4',
-		pythLazerId: 2312,
-	},
-	{
 		fullName: 'ZCash',
 		category: ['Privacy'],
 		symbol: 'ZEC-PERP',
