@@ -13,6 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.141.0] - 2025-10-03
+
+### Features
+
+- program: disallow builder to be escrow authority ([#1930](https://github.com/drift-labs/protocol-v2/pull/1930))
+- dont panic on settle-pnl when no position ([#1928](https://github.com/drift-labs/protocol-v2/pull/1928))
+
+### Fixes
+
+### Breaking
+
 ## [2.140.0] - 2025-09-29
 
 ### Features

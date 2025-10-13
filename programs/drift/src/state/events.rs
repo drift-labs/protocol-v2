@@ -789,6 +789,8 @@ pub struct LPSettleRecord {
     pub lp_aum: u128,
     // current mint price of lp
     pub lp_price: u128,
+    // lp pool pubkey
+    pub lp_pool: Pubkey,
 }
 
 #[event]
@@ -830,10 +832,12 @@ pub struct LPSwapRecord {
     pub out_market_target_weight: i64,
     pub in_swap_id: u64,
     pub out_swap_id: u64,
+    // lp pool pubkey
+    pub lp_pool: Pubkey,
 }
 
 impl Size for LPSwapRecord {
-    const SIZE: usize = 376;
+    const SIZE: usize = 408;
 }
 
 #[event]
@@ -868,8 +872,29 @@ pub struct LPMintRedeemRecord {
     /// PERCENTAGE_PRECISION
     pub in_market_current_weight: i64,
     pub in_market_target_weight: i64,
+    // lp pool pubkey
+    pub lp_pool: Pubkey,
 }
 
 impl Size for LPMintRedeemRecord {
-    const SIZE: usize = 328;
+    const SIZE: usize = 360;
+}
+
+#[event]
+#[derive(Default)]
+pub struct LPBorrowLendDepositRecord {
+    pub ts: i64,
+    pub slot: u64,
+    pub spot_market_index: u16,
+    pub constituent_index: u16,
+    pub direction: DepositDirection,
+    pub token_balance: i64,
+    pub last_token_balance: i64,
+    pub interest_accrued_token_amount: i64,
+    pub amount_deposit_withdraw: u64,
+    pub lp_pool: Pubkey,
+}
+
+impl Size for LPBorrowLendDepositRecord {
+    const SIZE: usize = 104;
 }

@@ -1,5 +1,5 @@
 {
-  "version": "2.140.0",
+  "version": "2.141.0",
   "name": "drift",
   "instructions": [
     {
@@ -14031,6 +14031,20 @@
             "option": "u64"
           },
           "index": false
+        },
+        {
+          "name": "builderIdx",
+          "type": {
+            "option": "u8"
+          },
+          "index": false
+        },
+        {
+          "name": "builderFee",
+          "type": {
+            "option": "u64"
+          },
+          "index": false
         }
       ]
     },
@@ -14861,6 +14875,11 @@
           "name": "lpPrice",
           "type": "u128",
           "index": false
+        },
+        {
+          "name": "lpPool",
+          "type": "publicKey",
+          "index": false
         }
       ]
     },
@@ -14971,6 +14990,11 @@
           "name": "outSwapId",
           "type": "u64",
           "index": false
+        },
+        {
+          "name": "lpPool",
+          "type": "publicKey",
+          "index": false
         }
       ]
     },
@@ -15065,6 +15089,68 @@
         {
           "name": "inMarketTargetWeight",
           "type": "i64",
+          "index": false
+        },
+        {
+          "name": "lpPool",
+          "type": "publicKey",
+          "index": false
+        }
+      ]
+    },
+    {
+      "name": "LPBorrowLendDepositRecord",
+      "fields": [
+        {
+          "name": "ts",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "slot",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "spotMarketIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "constituentIndex",
+          "type": "u16",
+          "index": false
+        },
+        {
+          "name": "direction",
+          "type": {
+            "defined": "DepositDirection"
+          },
+          "index": false
+        },
+        {
+          "name": "tokenBalance",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "lastTokenBalance",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "interestAccruedTokenAmount",
+          "type": "i64",
+          "index": false
+        },
+        {
+          "name": "amountDepositWithdraw",
+          "type": "u64",
+          "index": false
+        },
+        {
+          "name": "lpPool",
+          "type": "publicKey",
           "index": false
         }
       ]

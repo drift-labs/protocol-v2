@@ -767,6 +767,7 @@ export type LPSwapRecord = {
 	outMarketTargetWeight: BN;
 	inSwapId: BN;
 	outSwapId: BN;
+	lpPool: PublicKey;
 };
 
 export type LPMintRedeemRecord = {
@@ -789,6 +790,7 @@ export type LPMintRedeemRecord = {
 	lastAumSlot: BN;
 	inMarketCurrentWeight: BN;
 	inMarketTargetWeight: BN;
+	lpPool: PublicKey;
 };
 
 export type LPSettleRecord = {
@@ -803,6 +805,20 @@ export type LPSettleRecord = {
 	perpAmmExFeeDelta: BN;
 	lpAum: BN;
 	lpPrice: BN;
+	lpPool: PublicKey;
+};
+
+export type LPBorrowLendDepositRecord = {
+	ts: BN;
+	slot: BN;
+	spotMarketIndex: number;
+	constituentIndex: number;
+	direction: DepositDirection;
+	tokenBalance: BN;
+	lastTokenBalance: BN;
+	interestAccruedTokenAmount: BN;
+	amountDepositWithdraw: BN;
+	lpPool: PublicKey;
 };
 
 export type StateAccount = {
@@ -878,6 +894,11 @@ export type PerpMarketAccount = {
 	protectedMakerLimitPriceDivisor: number;
 	protectedMakerDynamicDivisor: number;
 	lastFillPrice: BN;
+
+	lpFeeTransferScalar: number;
+	lpExchangeFeeExcluscionScalar: number;
+	lpStatus: number;
+	lpPausedOperations: number;
 };
 
 export type HistoricalOracleData = {
@@ -1410,6 +1431,10 @@ export interface IVersionedWallet {
 	payer?: Keypair;
 }
 
+export interface IWalletV2 extends IWallet {
+	signMessage(message: Uint8Array): Promise<Uint8Array>;
+}
+
 export type FeeStructure = {
 	feeTiers: FeeTier[];
 	fillerRewardStructure: OrderFillerRewardStructure;
@@ -1665,13 +1690,15 @@ export type RevenueShareEscrowAccount = {
 };
 
 export type RevenueShareOrder = {
-	builderIdx: number;
 	feesAccrued: BN;
 	orderId: number;
 	feeTenthBps: number;
 	marketIndex: number;
+	subAccountId: number;
+	builderIdx: number;
 	bitFlags: number;
-	marketType: MarketType; // 0: spot, 1: perp
+	userOrderIndex: number;
+	marketType: MarketType;
 	padding: number[];
 };
 
