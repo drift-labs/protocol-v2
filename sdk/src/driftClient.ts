@@ -4761,11 +4761,19 @@ export class DriftClient {
 		orderIds?: number[],
 		txParams?: TxParams,
 		subAccountId?: number,
-		user?: User
+		user?: User,
+		overrides?: {
+			authority?: PublicKey;
+		}
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
-				await this.getCancelOrdersByIdsIx(orderIds, subAccountId, user),
+				await this.getCancelOrdersByIdsIx(
+					orderIds,
+					subAccountId,
+					user,
+					overrides
+				),
 				txParams
 			),
 			[],
@@ -4785,7 +4793,10 @@ export class DriftClient {
 	public async getCancelOrdersByIdsIx(
 		orderIds?: number[],
 		subAccountId?: number,
-		user?: User
+		user?: User,
+		overrides?: {
+			authority?: PublicKey;
+		}
 	): Promise<TransactionInstruction> {
 		const userAccountPubKey =
 			user?.userAccountPublicKey ??
@@ -4798,11 +4809,13 @@ export class DriftClient {
 			useMarketLastSlotCache: true,
 		});
 
+		const authority = overrides?.authority ?? this.wallet.publicKey;
+
 		return await this.program.instruction.cancelOrdersByIds(orderIds, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				user: userAccountPubKey,
-				authority: this.wallet.publicKey,
+				authority,
 			},
 			remainingAccounts,
 		});
