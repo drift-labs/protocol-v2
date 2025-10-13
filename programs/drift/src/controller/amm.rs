@@ -185,12 +185,13 @@ pub fn update_spreads(
     let max_ref_offset = market.amm.get_max_reference_price_offset()?;
 
     let reference_price_offset = if max_ref_offset > 0 {
-        let liquidity_ratio = amm_spread::calculate_inventory_liquidity_ratio(
-            market.amm.base_asset_amount_with_amm,
-            market.amm.base_asset_reserve,
-            market.amm.min_base_asset_reserve,
-            market.amm.max_base_asset_reserve,
-        )?;
+        let liquidity_ratio =
+            amm_spread::calculate_inventory_liquidity_ratio_for_reference_price_offset(
+                market.amm.base_asset_amount_with_amm,
+                market.amm.base_asset_reserve,
+                market.amm.min_base_asset_reserve,
+                market.amm.max_base_asset_reserve,
+            )?;
 
         let mut signed_liquidity_ratio =
             liquidity_ratio.safe_mul(market.amm.get_protocol_owned_position()?.signum().cast()?)?;

@@ -51,7 +51,7 @@ mod test {
         let res = calculate_reference_price_offset(
             rev_price,
             1,
-            PERCENTAGE_PRECISION_I128 / 10,
+            10,
             1,
             4216 * 10000,
             4217 * 10000,
@@ -64,7 +64,7 @@ mod test {
         let res = calculate_reference_price_offset(
             rev_price,
             1,
-            10 * PERCENTAGE_PRECISION_I128,
+            10,
             1,
             4216 * 10000,
             4219 * 10000,
@@ -78,7 +78,7 @@ mod test {
         let res = calculate_reference_price_offset(
             rev_price,
             -43_000_000,
-            10 * PERCENTAGE_PRECISION_I128,
+            10,
             1,
             4216 * 10000,
             4218 * 10000,
@@ -106,7 +106,7 @@ mod test {
         let res = calculate_reference_price_offset(
             rev_price,
             -43_000_000,
-            -10 * PERCENTAGE_PRECISION_I128,
+            -10,
             1,
             4216 * 10000,
             4214 * 10000,
@@ -120,7 +120,7 @@ mod test {
         let res = calculate_reference_price_offset(
             rev_price,
             1,
-            10 * PERCENTAGE_PRECISION_I128,
+            10,
             1,
             4216 * 10000,
             4223 * 10000,
@@ -134,7 +134,7 @@ mod test {
         let res = calculate_reference_price_offset(
             rev_price,
             10_000_000,
-            10 * PERCENTAGE_PRECISION_I128,
+            10,
             1,
             4216 * 10000,
             4233 * 10000,
@@ -148,7 +148,7 @@ mod test {
         let res = calculate_reference_price_offset(
             rev_price,
             -10_000_000,
-            -10 * PERCENTAGE_PRECISION_I128,
+            -10,
             1,
             4216 * 10000,
             4123 * 10000,
@@ -163,7 +163,7 @@ mod test {
         let res = calculate_reference_price_offset(
             rev_price,
             -10_000_000,
-            -10 * PERCENTAGE_PRECISION_I128,
+            -10,
             1,
             4216 * 10000,
             4123 * 10000,
@@ -178,7 +178,7 @@ mod test {
         let res = calculate_reference_price_offset(
             rev_price,
             -1,
-            1 * PERCENTAGE_PRECISION_I128,
+            1,
             1,
             4216 * 10000,
             4123 * 10000,

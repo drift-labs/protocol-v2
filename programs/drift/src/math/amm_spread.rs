@@ -604,7 +604,7 @@ pub fn calculate_reference_price_offset(
     mark_twap_slow: u64,
     max_offset_pct: i64,
 ) -> DriftResult<i32> {
-    if last_24h_avg_funding_rate == 0 {
+    if last_24h_avg_funding_rate == 0 || liquidity_fraction == 0 {
         return Ok(0);
     }
 
@@ -644,8 +644,8 @@ pub fn calculate_reference_price_offset(
         .clamp(-max_offset_pct, max_offset_pct);
 
     // only apply when inventory is consistent with recent and 24h market premium
-    let offset_pct = if (mark_premium_avg_pct >= 0 && inventory_pct > 0)
-        || (mark_premium_avg_pct <= 0 && inventory_pct < 0)
+    let offset_pct = if (mark_premium_avg_pct >= 0 && inventory_pct >= 0)
+        || (mark_premium_avg_pct <= 0 && inventory_pct <= 0)
     {
         mark_premium_avg_pct.safe_add(inventory_pct)?
     } else {
