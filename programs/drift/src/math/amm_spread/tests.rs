@@ -4,11 +4,9 @@ mod test {
     use crate::math::amm::calculate_price;
     use crate::math::amm_spread::*;
     use crate::math::constants::{
-        AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, BASE_PRECISION_I128,
-        BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I64, PERCENTAGE_PRECISION,
-        PERCENTAGE_PRECISION_I128, QUOTE_PRECISION, QUOTE_PRECISION_I128,
+        AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BID_ASK_SPREAD_PRECISION,
+        BID_ASK_SPREAD_PRECISION_I64, QUOTE_PRECISION, QUOTE_PRECISION_I128,
     };
-    use crate::state::perp_market::{PerpMarket, AMM};
 
     #[test]
     fn max_spread_tests() {
@@ -44,133 +42,152 @@ mod test {
     #[test]
     fn calculate_reference_price_offset_tests() {
         let rev_price = 4216 * 10000;
-        let max_offset: i32 = 2500;
+        let max_offset: i64 = 2500; // 25 bps
 
-        // If last_24h_avg_funding_rate == 0, early return 0
         let res =
-            calculate_reference_price_offset(rev_price, 0, 0, 0, 0, 0, 0, 0, max_offset as i64)
-                .unwrap();
+            calculate_reference_price_offset(rev_price, 0, 0, 0, 0, 0, 0, 0, max_offset).unwrap();
         assert_eq!(res, 0);
 
-        // Positive premium, positive inventory fraction => proportional to max_offset
         let res = calculate_reference_price_offset(
             rev_price,
             1,
-            PERCENTAGE_PRECISION_I128 / 5,
+            PERCENTAGE_PRECISION_I128 / 10,
             1,
-            rev_price as i64,
-            (rev_price + 1 * 10000) as u64,
-            rev_price as i64,
-            (rev_price + 1 * 10000) as u64,
-            max_offset as i64,
+            4216 * 10000,
+            4217 * 10000,
+            4216 * 10000,
+            4217 * 10000,
+            max_offset,
         )
         .unwrap();
-        assert_eq!(res, max_offset / 5); // 20% of max_offset
+        assert_eq!(res, 158); // 237*2/3); // 1 penny divergence
+        let res = calculate_reference_price_offset(
+            rev_price,
+            1,
+            10 * PERCENTAGE_PRECISION_I128,
+            1,
+            4216 * 10000,
+            4219 * 10000,
+            4216 * 10000,
+            4219 * 10000,
+            max_offset,
+        )
+        .unwrap();
+        assert_eq!(res, 237 * 2); // 3 penny divergence
 
-        // Small integer liquidity (not scaled) => rounds to 0
         let res = calculate_reference_price_offset(
             rev_price,
+            -43_000_000,
+            10 * PERCENTAGE_PRECISION_I128,
             1,
-            10,
-            1,
-            rev_price as i64,
-            (rev_price + 3 * 10000) as u64,
-            rev_price as i64,
-            (rev_price + 3 * 10000) as u64,
-            max_offset as i64,
+            4216 * 10000,
+            4218 * 10000,
+            4216 * 10000,
+            4218 * 10000,
+            max_offset,
         )
         .unwrap();
-        assert_eq!(res, 0);
+        assert_eq!(res, -517); // counter acting 24h_avg sign
 
-        // Diff signs for premium vs inventory => 0
         let res = calculate_reference_price_offset(
             rev_price,
+            -43_000_000,
+            -10000,
             1,
-            -(PERCENTAGE_PRECISION_I128 / 4),
-            1,
-            rev_price as i64,
-            (rev_price + 2 * 10000) as u64,
-            rev_price as i64,
-            (rev_price + 2 * 10000) as u64,
-            max_offset as i64,
+            4216 * 10000,
+            4218 * 10000,
+            4216 * 10000,
+            4218 * 10000,
+            max_offset,
         )
         .unwrap();
-        assert_eq!(res, 0);
+        assert_eq!(res, -542); // counteracting 24h_avg / base inventory sign
 
-        // Negative premium, negative inventory => negative offset
         let res = calculate_reference_price_offset(
             rev_price,
+            -43_000_000,
+            -10 * PERCENTAGE_PRECISION_I128,
             1,
-            -(PERCENTAGE_PRECISION_I128 / 4),
-            1,
-            rev_price as i64,
-            (rev_price - 2 * 10000) as u64,
-            rev_price as i64,
-            (rev_price - 2 * 10000) as u64,
-            max_offset as i64,
+            4216 * 10000,
+            4214 * 10000,
+            4216 * 10000,
+            4214 * 10000,
+            max_offset,
         )
         .unwrap();
-        assert_eq!(res, -(max_offset / 4));
-
-        // Clamp to max
-        let res = calculate_reference_price_offset(
-            rev_price,
-            1,
-            PERCENTAGE_PRECISION_I128,
-            1,
-            rev_price as i64,
-            (rev_price + 17 * 10000) as u64,
-            rev_price as i64,
-            (rev_price + 17 * 10000) as u64,
-            max_offset as i64,
-        )
-        .unwrap();
-        assert_eq!(res, max_offset);
+        assert_eq!(res, -1149); // flipped
 
         let res = calculate_reference_price_offset(
             rev_price,
             1,
-            -PERCENTAGE_PRECISION_I128,
+            10 * PERCENTAGE_PRECISION_I128,
             1,
-            rev_price as i64,
-            (rev_price - 17 * 10000) as u64,
-            rev_price as i64,
-            (rev_price - 17 * 10000) as u64,
-            max_offset as i64,
+            4216 * 10000,
+            4223 * 10000,
+            4216 * 10000,
+            4223 * 10000,
+            max_offset,
         )
         .unwrap();
-        assert_eq!(res, -max_offset);
+        assert_eq!(res, 1660 * 2 / 3); // 7 penny divergence
 
-        // max_offset = 0 always returns 0
         let res = calculate_reference_price_offset(
             rev_price,
+            10_000_000,
+            10 * PERCENTAGE_PRECISION_I128,
             1,
-            PERCENTAGE_PRECISION_I128 / 2,
+            4216 * 10000,
+            4233 * 10000,
+            4216 * 10000,
+            4233 * 10000,
+            max_offset,
+        )
+        .unwrap();
+        assert_eq!(res, 2500); // upper bound
+
+        let res = calculate_reference_price_offset(
+            rev_price,
+            -10_000_000,
+            -10 * PERCENTAGE_PRECISION_I128,
             1,
-            rev_price as i64,
-            (rev_price + 3 * 10000) as u64,
-            rev_price as i64,
-            (rev_price + 3 * 10000) as u64,
+            4216 * 10000,
+            4123 * 10000,
+            4216 * 10000,
+            4123 * 10000,
+            max_offset,
+        )
+        .unwrap();
+        assert_eq!(res, -2500); // lower bound
+
+        // max offset = 0
+        let res = calculate_reference_price_offset(
+            rev_price,
+            -10_000_000,
+            -10 * PERCENTAGE_PRECISION_I128,
+            1,
+            4216 * 10000,
+            4123 * 10000,
+            6 * 10000,
+            4123 * 10000,
             0,
         )
         .unwrap();
-        assert_eq!(res, 0);
+        assert_eq!(res, 0); // zero bound
 
-        // Weighted average of funding rate skews positive
-        let x = 3 * 10000i64; // 3 pennies
+        // counteracting fast/slow twaps to 0
         let res = calculate_reference_price_offset(
             rev_price,
+            -1,
+            1 * PERCENTAGE_PRECISION_I128,
             1,
-            PERCENTAGE_PRECISION_I128 / 5,
-            1,
-            rev_price as i64,
-            (rev_price as i64 + x) as u64,
-            (rev_price as i64 + (x * -3)) as i64,
-            (rev_price as i64 - x) as u64,
-            max_offset as i64,
+            4216 * 10000,
+            4123 * 10000,
+            4123 * 10000,
+            4216 * 10000,
+            max_offset,
         )
         .unwrap();
-        assert_eq!(res, 500);
+        assert_eq!(res, 0);
     }
 
     #[test]
@@ -197,7 +214,7 @@ mod test {
                 },
                 ..AMM::default()
             },
-            reference_offset_deadband_pct: 10,
+            reference_offset_deadband_pct: 0,
             ..PerpMarket::default()
         };
 
@@ -205,7 +222,12 @@ mod test {
 
         let max_ref_offset = market.amm.get_max_reference_price_offset().unwrap();
         assert_eq!(max_ref_offset, 10000);
+        market.amm.base_asset_amount_with_amm = (AMM_RESERVE_PRECISION * 3 / 20) as i128;
+        let (_l, _s) = update_spreads(&mut market, reserve_price as u64, None).unwrap();
+        assert_eq!(market.amm.reference_price_offset, 10);
 
+        // If base asset amount with amm is small, reference price offset is 0
+        market.reference_offset_deadband_pct = 10;
         market.amm.base_asset_amount_with_amm = (AMM_RESERVE_PRECISION * 3 / 20) as i128;
         let (_l, _s) = update_spreads(&mut market, reserve_price as u64, None).unwrap();
         assert_eq!(market.amm.reference_price_offset, 0);

@@ -6,8 +6,9 @@ use crate::controller::repeg::_update_amm;
 
 use crate::math::amm::calculate_market_open_bids_asks;
 use crate::math::constants::{
-    BASE_PRECISION, BASE_PRECISION_I64, PERCENTAGE_PRECISION, PRICE_PRECISION_I64,
-    PRICE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+    AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, BASE_PRECISION, BASE_PRECISION_I64,
+    PRICE_PRECISION_I64, PRICE_PRECISION_U64, QUOTE_PRECISION_I128,
+    SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
 };
 use crate::math::oracle::OracleValidity;
 use crate::math::position::swap_direction_to_close_position;
@@ -774,7 +775,6 @@ fn amm_ref_price_offset_decay_logic() {
     assert_eq!(perp_market.amm.last_update_slot, 353317544);
 
     perp_market.amm.curve_update_intensity = 200;
-    perp_market.amm.max_spread = (PERCENTAGE_PRECISION as u32) / 100 * 2;
 
     let max_ref_offset = perp_market.amm.get_max_reference_price_offset().unwrap();
 
@@ -843,7 +843,7 @@ fn amm_ref_price_offset_decay_logic() {
     .unwrap();
     assert_eq!(perp_market.amm.last_update_slot, clock_slot);
     assert_eq!(perp_market.amm.last_oracle_valid, true);
-    assert_eq!(perp_market.amm.reference_price_offset, 7011);
+    assert_eq!(perp_market.amm.reference_price_offset, 7350);
 
     perp_market.amm.last_mark_price_twap_5min = (perp_market
         .amm
@@ -893,29 +893,28 @@ fn amm_ref_price_offset_decay_logic() {
     assert_eq!(
         offsets,
         [
-            6801, 6591, 6381, 6171, 5961, 5751, 5731, 5711, 5691, 5671, 5461, 5251, 5041, 4831,
-            4621, 4411, 4201, 3991, 3781, 3571, 3361, 3151, 2941, 2731, 2521, 2311, 2101, 1891,
-            1693, 1515, 1355, 1211, 1081, 964, 859, 765, 680, 603, 534, 472, 416, 366, 321, 280,
-            243, 210, 180, 153, 129, 108, 88, 68, 48, 28, 8, 0, 0, 0, 0, 0
+            7140, 6930, 6720, 6510, 6300, 6090, 6070, 6050, 6030, 6010, 5800, 5590, 5380, 5170,
+            4960, 4750, 4540, 4330, 4120, 3910, 3700, 3490, 3280, 3070, 2860, 2650, 2440, 2230,
+            2020, 1810, 1620, 1449, 1296, 1158, 1034, 922, 821, 730, 648, 575, 509, 450, 396, 348,
+            305, 266, 231, 199, 171, 145, 122, 101, 81, 61, 41, 21, 1, 0, 0, 0
         ]
     );
     assert_eq!(
         lspreads,
         [
-            7149, 7149, 7149, 7149, 7149, 7149, 6959, 6959, 6959, 6959, 7149, 7149, 7149, 7149,
-            7149, 7149, 7149, 7149, 7149, 7149, 7149, 7149, 7149, 7149, 7149, 7149, 7149, 7149,
-            7137, 7117, 7099, 7083, 7069, 7056, 7044, 7033, 7024, 7016, 7008, 7001, 6995, 6989,
-            6984, 6980, 6976, 6972, 6969, 6966, 6963, 6960, 6959, 6959, 6959, 6959, 6959, 6949,
-            6949, 6949, 6949, 6949
+            726, 726, 726, 726, 726, 726, 536, 536, 536, 536, 726, 726, 726, 726, 726, 726, 726,
+            726, 726, 726, 726, 726, 726, 726, 726, 726, 726, 726, 726, 726, 706, 687, 669, 654,
+            640, 628, 617, 607, 598, 589, 582, 575, 570, 564, 559, 555, 551, 548, 544, 542, 539,
+            537, 536, 536, 536, 536, 536, 526, 526, 526
         ]
     );
     assert_eq!(
         sspreads,
         [
-            6811, 6601, 6391, 6181, 5971, 5761, 5741, 5721, 5701, 5681, 5471, 5261, 5051, 4841,
-            4631, 4421, 4211, 4001, 3791, 3581, 3371, 3161, 2951, 2741, 2531, 2321, 2111, 1901,
-            1703, 1525, 1365, 1221, 1091, 974, 869, 775, 690, 613, 544, 482, 426, 376, 331, 290,
-            253, 220, 190, 163, 139, 118, 98, 78, 58, 38, 18, 10, 10, 10, 10, 10
+            7150, 6940, 6730, 6520, 6310, 6100, 6080, 6060, 6040, 6020, 5810, 5600, 5390, 5180,
+            4970, 4760, 4550, 4340, 4130, 3920, 3710, 3500, 3290, 3080, 2870, 2660, 2450, 2240,
+            2030, 1820, 1630, 1459, 1306, 1168, 1044, 932, 831, 740, 658, 585, 519, 460, 406, 358,
+            315, 276, 241, 209, 181, 155, 132, 111, 91, 71, 51, 31, 11, 10, 10, 10
         ]
     );
 }
@@ -1018,7 +1017,7 @@ fn amm_negative_ref_price_offset_decay_logic() {
     .unwrap();
     assert_eq!(perp_market.amm.last_update_slot, clock_slot);
     assert_eq!(perp_market.amm.last_oracle_valid, true);
-    assert_eq!(perp_market.amm.reference_price_offset, 7011);
+    assert_eq!(perp_market.amm.reference_price_offset, 7350);
 
     perp_market.amm.last_mark_price_twap_5min = (perp_market
         .amm
@@ -1069,13 +1068,13 @@ fn amm_negative_ref_price_offset_decay_logic() {
     assert_eq!(
         offsets,
         [
-            -6801, -6591, -6381, -6171, -5961, -5751, -5731, -5711, -5691, -5671, -5461, -5251,
-            -5041, -4831, -4621, -4411, -4201, -3991, -3781, -3571, -3361, -3151, -2941, -2731,
-            -2521, -2311, -2101, -1891, -1681, -1471, -1261, -1051, -841, -631, -421, -211, -1,
-            200, 7011, 7011, 7011, 7011, 7011, 7011, 7011, 7011, 7011, 7011, 7011, 7011, 7011,
-            7011, 7011, 7011, 7011, 7011, 7011, 7011, 7011, 7011, 7011, 7011, 7011, 7011, 7011,
-            7011, 7011, 7011, 7011, 7011, 7011, 7011, 7011, 7011, 7011, 7011, 7011, 7011, 7011,
-            7011
+            -7140, -6930, -6720, -6510, -6300, -6090, -6070, -6050, -6030, -6010, -5800, -5590,
+            -5380, -5170, -4960, -4750, -4540, -4330, -4120, -3910, -3700, -3490, -3280, -3070,
+            -2860, -2650, -2440, -2230, -2020, -1810, -1600, -1390, -1180, -970, -760, -550, -340,
+            -130, 0, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000,
+            10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000,
+            10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000, 10000,
+            10000, 10000, 10000, 10000, 10000, 10000
         ]
     );
     assert_eq!(
@@ -1083,7 +1082,7 @@ fn amm_negative_ref_price_offset_decay_logic() {
         [
             210, 210, 210, 210, 210, 210, 20, 20, 20, 20, 210, 210, 210, 210, 210, 210, 210, 210,
             210, 210, 210, 210, 210, 210, 210, 210, 210, 210, 210, 210, 210, 210, 210, 210, 210,
-            210, 210, 210, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+            210, 210, 210, 130, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
             10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
             10, 10
         ]
@@ -1091,9 +1090,9 @@ fn amm_negative_ref_price_offset_decay_logic() {
     assert_eq!(
         lspreads,
         [
-            7327, 7117, 6907, 6697, 6487, 6277, 6257, 6237, 6217, 6197, 5987, 5777, 5567, 5357,
-            5147, 4937, 4727, 4517, 4307, 4097, 3887, 3677, 3467, 3257, 3047, 2837, 2627, 2417,
-            2207, 1997, 1787, 1577, 1367, 1157, 947, 737, 527, 726, 526, 526, 526, 526, 526, 526,
+            7666, 7456, 7246, 7036, 6826, 6616, 6596, 6576, 6556, 6536, 6326, 6116, 5906, 5696,
+            5486, 5276, 5066, 4856, 4646, 4436, 4226, 4016, 3806, 3596, 3386, 3176, 2966, 2756,
+            2546, 2336, 2126, 1916, 1706, 1496, 1286, 1076, 866, 656, 526, 526, 526, 526, 526, 526,
             526, 526, 526, 526, 526, 526, 526, 526, 526, 526, 526, 526, 526, 526, 526, 526, 526,
             526, 526, 526, 526, 526, 526, 526, 526, 526, 526, 526, 526, 526, 526, 526, 526, 526,
             526, 526
@@ -1211,18 +1210,18 @@ fn amm_perp_ref_offset() {
 
     let r = perp_market.amm.reserve_price().unwrap();
     let (b, a) = perp_market.amm.bid_ask_price(r).unwrap();
-    assert_eq!(b, 7098062);
-    assert_eq!(a, 7105192);
+    assert_eq!(b, 7098999);
+    assert_eq!(a, 7106129);
     assert_eq!(
         perp_market.amm.historical_oracle_data.last_oracle_price,
         7101600
     );
-    assert_eq!(perp_market.amm.reference_price_offset, 2);
+    assert_eq!(perp_market.amm.reference_price_offset, 134);
     assert_eq!(perp_market.amm.max_spread, 90000);
 
     assert_eq!(r, 7101599);
-    assert_eq!(perp_market.amm.bid_base_asset_reserve, 4675468304972819);
-    assert_eq!(perp_market.amm.ask_base_asset_reserve, 4673121624690784);
+    assert_eq!(perp_market.amm.bid_base_asset_reserve, 4675159724262455);
+    assert_eq!(perp_market.amm.ask_base_asset_reserve, 4672813088646692);
 
     crate::validation::perp_market::validate_perp_market(&perp_market).unwrap();
 
@@ -1249,10 +1248,10 @@ fn amm_perp_ref_offset() {
         .amm
         .bid_ask_price(reserve_price_mm_offset)
         .unwrap();
-    assert_eq!(perp_market.amm.reference_price_offset, 2);
+    assert_eq!(perp_market.amm.reference_price_offset, 133);
     assert_eq!(reserve_price_mm_offset, 7137107);
-    assert_eq!(b2, 7100614);
-    assert_eq!(a2, 7173656);
+    assert_eq!(b2, 7101549);
+    assert_eq!(a2, 7174591);
 
     // Uses the original oracle if the slot is old, ignoring MM oracle
     perp_market.amm.mm_oracle_price = mm_oracle_price_data.get_price() * 995 / 1000;
@@ -1278,8 +1277,8 @@ fn amm_perp_ref_offset() {
         .bid_ask_price(reserve_price_mm_offset_3)
         .unwrap();
     assert_eq!(reserve_price_mm_offset_3, r);
-    assert_eq!(b3, 7065288);
-    assert_eq!(a3, 7137966);
+    assert_eq!(b3, 7066225);
+    assert_eq!(a3, 7138903);
 }
 
 #[test]
