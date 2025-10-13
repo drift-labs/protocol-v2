@@ -196,7 +196,7 @@ pub fn update_spreads(
         let mut signed_liquidity_ratio =
             liquidity_ratio.safe_mul(market.amm.get_protocol_owned_position()?.signum().cast()?)?;
 
-        let deadband_pct = market.get_reference_offset_deadband_pct()?;
+        let deadband_pct = market.amm.get_reference_price_offset_deadband_pct()?;
         if signed_liquidity_ratio.unsigned_abs() <= deadband_pct {
             signed_liquidity_ratio = 0;
         } else {

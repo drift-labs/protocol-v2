@@ -236,10 +236,7 @@ pub struct PerpMarket {
     pub protected_maker_dynamic_divisor: u8,
     pub padding1: u32,
     pub last_fill_price: u64,
-    /// Reference price offset deadband percentage (0-100). 0 disables deadband.
-    /// Stored in former padding to preserve zero-copy layout.
-    pub reference_offset_deadband_pct: u8,
-    pub padding: [u8; 23],
+    pub padding: [u8; 24],
 }
 
 impl Default for PerpMarket {
@@ -283,8 +280,7 @@ impl Default for PerpMarket {
             protected_maker_dynamic_divisor: 0,
             padding1: 0,
             last_fill_price: 0,
-            reference_offset_deadband_pct: 0,
-            padding: [0; 23],
+            padding: [0; 24],
         }
     }
 }
@@ -298,10 +294,6 @@ impl MarketIndexOffset for PerpMarket {
 }
 
 impl PerpMarket {
-    pub fn get_reference_offset_deadband_pct(&self) -> DriftResult<u128> {
-        let pct = self.reference_offset_deadband_pct as u128;
-        Ok(PERCENTAGE_PRECISION.safe_mul(pct)?.safe_div(100_u128)?)
-    }
     pub fn oracle_id(&self) -> OracleIdentifier {
         (self.amm.oracle, self.amm.oracle_source)
     }
@@ -1175,7 +1167,8 @@ pub struct AMM {
     pub reference_price_offset: i32,
     /// signed scale amm_spread similar to fee_adjustment logic (-100 = 0, 100 = double)
     pub amm_inventory_spread_adjustment: i8,
-    pub padding: [u8; 3],
+    pub reference_price_offset_deadband_pct: u8,
+    pub padding: [u8; 2],
     pub last_funding_oracle_twap: i64,
 }
 
@@ -1266,13 +1259,18 @@ impl Default for AMM {
             quote_asset_amount_with_unsettled_lp: 0,
             reference_price_offset: 0,
             amm_inventory_spread_adjustment: 0,
-            padding: [0; 3],
+            reference_price_offset_deadband_pct: 0,
+            padding: [0; 2],
             last_funding_oracle_twap: 0,
         }
     }
 }
 
 impl AMM {
+    pub fn get_reference_price_offset_deadband_pct(&self) -> DriftResult<u128> {
+        let pct = self.reference_price_offset_deadband_pct as u128;
+        Ok(PERCENTAGE_PRECISION.safe_mul(pct)?.safe_div(100_u128)?)
+    }
     pub fn get_fallback_price(
         self,
         direction: &PositionDirection,

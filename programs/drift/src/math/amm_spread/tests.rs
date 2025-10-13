@@ -214,7 +214,6 @@ mod test {
                 },
                 ..AMM::default()
             },
-            reference_offset_deadband_pct: 0,
             ..PerpMarket::default()
         };
 
@@ -227,7 +226,7 @@ mod test {
         assert_eq!(market.amm.reference_price_offset, 10);
 
         // If base asset amount with amm is small, reference price offset is 0
-        market.reference_offset_deadband_pct = 10;
+        market.amm.reference_price_offset_deadband_pct = 10;
         market.amm.base_asset_amount_with_amm = (AMM_RESERVE_PRECISION * 3 / 20) as i128;
         let (_l, _s) = update_spreads(&mut market, reserve_price as u64, None).unwrap();
         assert_eq!(market.amm.reference_price_offset, 0);
