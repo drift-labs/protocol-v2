@@ -145,6 +145,7 @@ pub fn deposit_into_isolated_perp_position<'c: 'info, 'info>(
         market_index: spot_market_index,
         explanation: DepositExplanation::None,
         transfer_user: None,
+        signer: None,
     };
 
     emit!(deposit_record);
@@ -409,6 +410,7 @@ pub fn withdraw_from_isolated_perp_position<'c: 'info, 'info>(
         total_withdraws_after: user.total_withdraws,
         explanation: DepositExplanation::None,
         transfer_user: None,
+        signer: None,
     };
     emit!(deposit_record);
 
