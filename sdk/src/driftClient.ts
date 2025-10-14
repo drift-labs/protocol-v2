@@ -4761,11 +4761,19 @@ export class DriftClient {
 		orderIds?: number[],
 		txParams?: TxParams,
 		subAccountId?: number,
-		user?: User
+		user?: User,
+		overrides?: {
+			authority?: PublicKey;
+		}
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
-				await this.getCancelOrdersByIdsIx(orderIds, subAccountId, user),
+				await this.getCancelOrdersByIdsIx(
+					orderIds,
+					subAccountId,
+					user,
+					overrides
+				),
 				txParams
 			),
 			[],
@@ -4785,7 +4793,10 @@ export class DriftClient {
 	public async getCancelOrdersByIdsIx(
 		orderIds?: number[],
 		subAccountId?: number,
-		user?: User
+		user?: User,
+		overrides?: {
+			authority?: PublicKey;
+		}
 	): Promise<TransactionInstruction> {
 		const userAccountPubKey =
 			user?.userAccountPublicKey ??
@@ -4798,11 +4809,13 @@ export class DriftClient {
 			useMarketLastSlotCache: true,
 		});
 
+		const authority = overrides?.authority ?? this.wallet.publicKey;
+
 		return await this.program.instruction.cancelOrdersByIds(orderIds, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				user: userAccountPubKey,
-				authority: this.wallet.publicKey,
+				authority,
 			},
 			remainingAccounts,
 		});
@@ -4943,7 +4956,10 @@ export class DriftClient {
 
 	public async getPlaceOrdersIx(
 		params: OptionalOrderParams[],
-		subAccountId?: number
+		subAccountId?: number,
+		overrides?: {
+			authority?: PublicKey;
+		}
 	): Promise<TransactionInstruction> {
 		const user = await this.getUserAccountPublicKey(subAccountId);
 
@@ -4978,13 +4994,14 @@ export class DriftClient {
 		}
 
 		const formattedParams = params.map((item) => getOrderParams(item));
+		const authority = overrides?.authority ?? this.wallet.publicKey;
 
 		return await this.program.instruction.placeOrders(formattedParams, {
 			accounts: {
 				state: await this.getStatePublicKey(),
 				user,
 				userStats: this.getUserStatsAccountPublicKey(),
-				authority: this.wallet.publicKey,
+				authority,
 			},
 			remainingAccounts,
 		});
@@ -6688,7 +6705,10 @@ export class DriftClient {
 		referrerInfo?: ReferrerInfo,
 		successCondition?: PlaceAndTakeOrderSuccessCondition,
 		auctionDurationPercentage?: number,
-		subAccountId?: number
+		subAccountId?: number,
+		overrides?: {
+			authority?: PublicKey;
+		}
 	): Promise<TransactionInstruction> {
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
 		const userStatsPublicKey = await this.getUserStatsAccountPublicKey();
@@ -6756,6 +6776,8 @@ export class DriftClient {
 				((auctionDurationPercentage ?? 100) << 8) | (successCondition ?? 0);
 		}
 
+		const authority = overrides?.authority ?? this.wallet.publicKey;
+
 		return await this.program.instruction.placeAndTakePerpOrder(
 			orderParams,
 			optionalParams,
@@ -6764,7 +6786,7 @@ export class DriftClient {
 					state: await this.getStatePublicKey(),
 					user,
 					userStats: userStatsPublicKey,
-					authority: this.wallet.publicKey,
+					authority,
 				},
 				remainingAccounts,
 			}
