@@ -3461,6 +3461,24 @@ pub fn handle_update_perp_market_reference_price_offset_deadband_pct(
         reference_price_offset_deadband_pct
     );
 
+    let liquidity_ratio =
+        crate::math::amm_spread::calculate_inventory_liquidity_ratio_for_reference_price_offset(
+            perp_market.amm.base_asset_amount_with_amm,
+            perp_market.amm.base_asset_reserve,
+            perp_market.amm.min_base_asset_reserve,
+            perp_market.amm.max_base_asset_reserve,
+        )?;
+
+    let signed_liquidity_ratio = liquidity_ratio.safe_mul(
+        perp_market
+            .amm
+            .get_protocol_owned_position()?
+            .signum()
+            .cast()?,
+    )?;
+
+    msg!("current signed liquidity ratio: {}", signed_liquidity_ratio);
+
     perp_market.amm.reference_price_offset_deadband_pct = reference_price_offset_deadband_pct;
     Ok(())
 }

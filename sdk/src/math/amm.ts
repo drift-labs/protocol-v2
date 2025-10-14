@@ -402,12 +402,12 @@ export function calculateInventoryLiquidityRatioForReferencePriceOffset(
 		maxBaseAssetReserve
 	);
 
-	const minSideLiquidity = openBids.abs().add(openAsks.abs()).div(TWO);
+	const avgSideLiquidity = openBids.abs().add(openAsks.abs()).div(TWO);
 
 	const inventoryScaleBN = BN.min(
 		baseAssetAmountWithAmm
 			.mul(PERCENTAGE_PRECISION)
-			.div(BN.max(minSideLiquidity, ONE))
+			.div(BN.max(avgSideLiquidity, ONE))
 			.abs(),
 		PERCENTAGE_PRECISION
 	);
@@ -683,13 +683,13 @@ export function calculateSpreadBN(
 		shortSpread = Math.max(
 			shortSpread,
 			lastOracleReservePriceSpreadPct.abs().toNumber() +
-				shortVolSpread.toNumber()
+			shortVolSpread.toNumber()
 		);
 	} else if (lastOracleReservePriceSpreadPct.lt(ZERO)) {
 		longSpread = Math.max(
 			longSpread,
 			lastOracleReservePriceSpreadPct.abs().toNumber() +
-				longVolSpread.toNumber()
+			longVolSpread.toNumber()
 		);
 	}
 	spreadTerms.longSpreadwPS = longSpread;
@@ -777,7 +777,7 @@ export function calculateSpreadBN(
 				maxRetreat,
 				Math.floor(
 					(baseSpread * netRevenueSinceLastFunding.abs().toNumber()) /
-						DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT.abs().toNumber()
+					DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT.abs().toNumber()
 				)
 			);
 		}
@@ -1035,7 +1035,7 @@ export function calculateSpreadReserves(
 		maxOffset = Math.max(
 			amm.maxSpread / 2,
 			(PERCENTAGE_PRECISION.toNumber() / 10000) *
-				(amm.curveUpdateIntensity - 100)
+			(amm.curveUpdateIntensity - 100)
 		);
 
 		const liquidityFraction =
@@ -1052,8 +1052,8 @@ export function calculateSpreadReserves(
 		let liquidityFractionAfterDeadband = liquidityFractionSigned;
 		const deadbandPct = amm.referencePriceOffsetDeadbandPct
 			? PERCENTAGE_PRECISION.mul(
-					new BN(amm.referencePriceOffsetDeadbandPct as number)
-			  ).divn(100)
+				new BN(amm.referencePriceOffsetDeadbandPct as number)
+			).divn(100)
 			: ZERO;
 		if (!liquidityFractionAfterDeadband.eq(ZERO) && deadbandPct.gt(ZERO)) {
 			const abs = liquidityFractionAfterDeadband.abs();

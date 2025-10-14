@@ -199,8 +199,6 @@ pub fn calculate_inventory_liquidity_ratio_for_reference_price_offset(
     min_base_asset_reserve: u128,
     max_base_asset_reserve: u128,
 ) -> DriftResult<i128> {
-    // computes min(1, x/(1-x)) for 0 < x < 1
-
     // inventory scale
     let (max_bids, max_asks) = _calculate_market_open_bids_asks(
         base_asset_reserve,

@@ -193,24 +193,25 @@ pub fn update_spreads(
                 market.amm.max_base_asset_reserve,
             )?;
 
-        let mut signed_liquidity_ratio =
+        let signed_liquidity_ratio =
             liquidity_ratio.safe_mul(market.amm.get_protocol_owned_position()?.signum().cast()?)?;
 
         let deadband_pct = market.amm.get_reference_price_offset_deadband_pct()?;
-        if signed_liquidity_ratio.unsigned_abs() <= deadband_pct {
-            signed_liquidity_ratio = 0;
-        } else {
-            signed_liquidity_ratio = signed_liquidity_ratio.safe_sub(
-                deadband_pct
-                    .cast::<i128>()?
-                    .safe_mul(signed_liquidity_ratio.signum())?,
-            )?;
-        }
+        let liquidity_fraction_after_deadband =
+            if signed_liquidity_ratio.unsigned_abs() <= deadband_pct {
+                0
+            } else {
+                signed_liquidity_ratio.safe_sub(
+                    deadband_pct
+                        .cast::<i128>()?
+                        .safe_mul(signed_liquidity_ratio.signum())?,
+                )?
+            };
 
         amm_spread::calculate_reference_price_offset(
             reserve_price,
             market.amm.last_24h_avg_funding_rate,
-            signed_liquidity_ratio,
+            liquidity_fraction_after_deadband,
             market.amm.min_order_size,
             market
                 .amm
