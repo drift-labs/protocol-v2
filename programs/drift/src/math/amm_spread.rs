@@ -12,8 +12,8 @@ use crate::math::constants::{
     BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, DEFAULT_LARGE_BID_ASK_FACTOR,
     DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT, FUNDING_RATE_BUFFER,
     MAX_BID_ASK_INVENTORY_SKEW_FACTOR, PEG_PRECISION, PERCENTAGE_PRECISION,
-    PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128,
-    PRICE_PRECISION_I64,
+    PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U64, PRICE_PRECISION,
+    PRICE_PRECISION_I128, PRICE_PRECISION_I64,
 };
 use crate::math::safe_math::SafeMath;
 use crate::state::perp_market::{ContractType, PerpMarket, AMM};
@@ -185,6 +185,35 @@ pub fn calculate_inventory_liquidity_ratio(
             .safe_mul(PERCENTAGE_PRECISION_I128)
             .unwrap_or(i128::MAX)
             .safe_div(min_side_liquidity.max(1))?
+            .min(PERCENTAGE_PRECISION_I128)
+    } else {
+        PERCENTAGE_PRECISION_I128 // 100%
+    };
+
+    Ok(amm_inventory_pct)
+}
+
+pub fn calculate_inventory_liquidity_ratio_for_reference_price_offset(
+    base_asset_amount_with_amm: i128,
+    base_asset_reserve: u128,
+    min_base_asset_reserve: u128,
+    max_base_asset_reserve: u128,
+) -> DriftResult<i128> {
+    // inventory scale
+    let (max_bids, max_asks) = _calculate_market_open_bids_asks(
+        base_asset_reserve,
+        min_base_asset_reserve,
+        max_base_asset_reserve,
+    )?;
+
+    let avg_liquidity = (max_bids.safe_add(max_asks.abs())?).safe_div(2)?;
+
+    let amm_inventory_pct = if base_asset_amount_with_amm.abs() < avg_liquidity {
+        base_asset_amount_with_amm
+            .abs()
+            .safe_mul(PERCENTAGE_PRECISION_I128)
+            .unwrap_or(i128::MAX)
+            .safe_div(avg_liquidity.max(1))?
             .min(PERCENTAGE_PRECISION_I128)
     } else {
         PERCENTAGE_PRECISION_I128 // 100%
@@ -570,7 +599,7 @@ pub fn calculate_reference_price_offset(
     mark_twap_slow: u64,
     max_offset_pct: i64,
 ) -> DriftResult<i32> {
-    if last_24h_avg_funding_rate == 0 {
+    if last_24h_avg_funding_rate == 0 || liquidity_fraction == 0 {
         return Ok(0);
     }
 
