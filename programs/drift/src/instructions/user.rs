@@ -22,10 +22,9 @@ use crate::controller::spot_position::{
 };
 use crate::error::ErrorCode;
 use crate::ids::admin_hot_wallet;
-use crate::ids::dflow_mainnet_aggregator_4;
 use crate::ids::{
-    jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, lighthouse, marinade_mainnet,
-    serum_program,
+    dflow_mainnet_aggregator_4, jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6,
+    lighthouse, marinade_mainnet, serum_program, titan_mainnet_argos_v1,
 };
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::get_revenue_share_escrow_account;
@@ -3686,6 +3685,7 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
                     jupiter_mainnet_4::ID,
                     jupiter_mainnet_6::ID,
                     dflow_mainnet_aggregator_4::ID,
+                    titan_mainnet_argos_v1::ID,
                 ];
                 if !delegate_is_signer {
                     whitelisted_programs.push(Token::id());
@@ -3695,7 +3695,7 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
                 validate!(
                     whitelisted_programs.contains(&ix.program_id),
                     ErrorCode::InvalidSwap,
-                    "only allowed to pass in ixs to token, openbook, and Jupiter v3/v4/v6 programs"
+                    "only allowed to pass in ixs to ATA, openbook, Jupiter v3/v4/v6, dflow, or titan programs"
                 )?;
 
                 for meta in ix.accounts.iter() {
