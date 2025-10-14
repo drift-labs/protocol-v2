@@ -287,14 +287,14 @@ export class User {
 				);
 
 			// margin ratio for this perp
-			const customMarginRatio = Math.max(this.getUserAccount().maxMarginRatio, marketPosition.customMarginRatio);
+			const customMarginRatio = Math.max(this.getUserAccount().maxMarginRatio, marketPosition.maxMarginRatio);
 			let marginRatio = new BN(
 				calculateMarketMarginRatio(
 					market,
 					worstCaseBaseAssetAmount.abs(),
 					marginCategory,
 					customMarginRatio,
-					this.isHighLeverageMode() || enteringHighLeverage
+					this.isHighLeverageMode(marginCategory) || enteringHighLeverage
 				)
 			);
 			if (isVariant(market.status, 'settlement')) {
@@ -616,7 +616,6 @@ export class User {
 			maxMarginRatio: 0,
 			positionFlag: 0,
 			isolatedPositionScaledBalance: ZERO,
-			customMarginRatio: 0,
 		};
 	}
 

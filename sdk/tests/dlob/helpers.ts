@@ -47,6 +47,8 @@ export const mockPerpPosition: PerpPosition = {
 	lastQuoteAssetAmountPerLp: new BN(0),
 	perLpBase: 0,
 	positionFlag: 0,
+	isolatedPositionScaledBalance: new BN(0),
+	maxMarginRatio: 0,
 };
 
 export const mockAMM: AMM = {
@@ -663,7 +665,6 @@ export class MockUserMap implements UserMapInterface {
 	private userMap = new Map<string, User>();
 	private userAccountToAuthority = new Map<string, string>();
 	private driftClient: DriftClient;
-	eventEmitter: StrictEventEmitter<EventEmitter, UserEvents>;
 
 	constructor() {
 		this.userMap = new Map();
