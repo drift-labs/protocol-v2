@@ -1340,7 +1340,7 @@ pub mod drift {
     }
 
     pub fn update_perp_market_paused_operations(
-        ctx: Context<AdminUpdatePerpMarket>,
+        ctx: Context<HotAdminUpdatePerpMarket>,
         paused_operations: u8,
     ) -> Result<()> {
         handle_update_perp_market_paused_operations(ctx, paused_operations)
@@ -1491,7 +1491,7 @@ pub mod drift {
     }
 
     pub fn update_perp_market_max_spread(
-        ctx: Context<AdminUpdatePerpMarket>,
+        ctx: Context<HotAdminUpdatePerpMarket>,
         max_spread: u32,
     ) -> Result<()> {
         handle_update_perp_market_max_spread(ctx, max_spread)

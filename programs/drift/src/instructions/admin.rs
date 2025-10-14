@@ -3262,11 +3262,19 @@ pub fn handle_update_perp_market_status(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_paused_operations(
-    ctx: Context<AdminUpdatePerpMarket>,
+    ctx: Context<HotAdminUpdatePerpMarket>,
     paused_operations: u8,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     msg!("perp market {}", perp_market.market_index);
+
+    if *ctx.accounts.admin.key != ctx.accounts.state.admin {
+        validate!(
+            paused_operations == PerpOperation::UpdateFunding as u8,
+            ErrorCode::DefaultError,
+            "signer must be admin",
+        )?;
+    }
 
     perp_market.paused_operations = paused_operations;
 
@@ -3783,7 +3791,7 @@ pub fn handle_update_amm_jit_intensity(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_max_spread(
-    ctx: Context<AdminUpdatePerpMarket>,
+    ctx: Context<HotAdminUpdatePerpMarket>,
     max_spread: u32,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
