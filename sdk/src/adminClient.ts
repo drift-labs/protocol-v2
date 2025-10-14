@@ -1466,6 +1466,46 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async updatePerpMarketReferencePriceOffsetDeadbandPct(
+		perpMarketIndex: number,
+		referencePriceOffsetDeadbandPct: number
+	): Promise<TransactionSignature> {
+		const updatePerpMarketReferencePriceOffsetDeadbandPctIx =
+			await this.getUpdatePerpMarketReferencePriceOffsetDeadbandPctIx(
+				perpMarketIndex,
+				referencePriceOffsetDeadbandPct
+			);
+
+		const tx = await this.buildTransaction(
+			updatePerpMarketReferencePriceOffsetDeadbandPctIx
+		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdatePerpMarketReferencePriceOffsetDeadbandPctIx(
+		perpMarketIndex: number,
+		referencePriceOffsetDeadbandPct: number
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updatePerpMarketReferencePriceOffsetDeadbandPct(
+			referencePriceOffsetDeadbandPct,
+			{
+				accounts: {
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
+					state: await this.getStatePublicKey(),
+					perpMarket: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
+				},
+			}
+		);
+	}
+
 	public async updatePerpMarketTargetBaseAssetAmountPerLp(
 		perpMarketIndex: number,
 		targetBaseAssetAmountPerLP: number
@@ -5151,6 +5191,40 @@ export class AdminClient extends DriftClient {
 						? this.wallet.publicKey
 						: this.getStateAccount().admin,
 					state: await this.getStatePublicKey(),
+				},
+			}
+		);
+	}
+
+	public async adminDisableUpdatePerpBidAskTwap(
+		authority: PublicKey,
+		disable: boolean
+	): Promise<TransactionSignature> {
+		const disableBidAskTwapUpdateIx =
+			await this.getAdminDisableUpdatePerpBidAskTwapIx(authority, disable);
+
+		const tx = await this.buildTransaction(disableBidAskTwapUpdateIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getAdminDisableUpdatePerpBidAskTwapIx(
+		authority: PublicKey,
+		disable: boolean
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.adminDisableUpdatePerpBidAskTwap(
+			disable,
+			{
+				accounts: {
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
+					state: await this.getStatePublicKey(),
+					userStats: getUserStatsAccountPublicKey(
+						this.program.programId,
+						authority
+					),
 				},
 			}
 		);

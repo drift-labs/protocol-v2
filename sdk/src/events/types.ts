@@ -149,7 +149,8 @@ export type DriftEvent =
 	| Event<LPSettleRecord>
 	| Event<LPMintRedeemRecord>
 	| Event<LPSwapRecord>
-	| Event<LPBorrowLendDepositRecord>;
+	| Event<LPBorrowLendDepositRecord>
+	| Event<CuUsage>;
 
 export interface EventSubscriberEvents {
 	newEvent: (event: WrappedEvent<EventType>) => void;
@@ -213,3 +214,24 @@ export type LogProviderConfig =
 	| WebSocketLogProviderConfig
 	| PollingLogProviderConfig
 	| EventsServerLogProviderConfig;
+
+export type CuUsageEvent = {
+	name: 'CuUsage';
+	fields: [
+		{
+			name: 'instruction';
+			type: 'string';
+			index: false;
+		},
+		{
+			name: 'cuUsage';
+			type: 'u32';
+			index: false;
+		},
+	];
+};
+
+export type CuUsage = {
+	instruction: string;
+	cuUsage: number;
+};

@@ -1351,6 +1351,43 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 			'0xf2b3ab1c49e35e881003c3c0482d18b181a1560b697b844c24c8f85aba1cab95',
 		pythLazerId: 2316,
 	},
+	{
+		fullName: 'ZCash',
+		category: ['Privacy'],
+		symbol: 'ZEC-PERP',
+		baseAssetSymbol: 'ZEC',
+		marketIndex: 79,
+		oracle: new PublicKey('BXunfRSyiQWJHv88qMvE42mpMpksWEC8Bf13p2msnRms'),
+		launchTs: 1760366017000,
+		oracleSource: OracleSource.PYTH_LAZER,
+		pythFeedId:
+			'0xbe9b59d178f0d6a97ab4c343bff2aa69caa1eaae3e9048a65788c529b125bb24',
+		pythLazerId: 66,
+	},
+	{
+		fullName: 'Mantle',
+		category: ['L1'],
+		symbol: 'MNT-PERP',
+		baseAssetSymbol: 'MNT',
+		marketIndex: 80,
+		oracle: new PublicKey('Gy7cJ4U1nxMA44XXC3hwqkpcxEB1mZTYiwJVkaqZfU7u'),
+		launchTs: 1760366017000,
+		oracleSource: OracleSource.PYTH_LAZER,
+		pythFeedId:
+			'0x4e3037c822d852d79af3ac80e35eb420ee3b870dca49f9344a38ef4773fb0585',
+		pythLazerId: 199,
+	},
+	{
+		fullName: '1KPUMP',
+		category: ['Launchpad'],
+		symbol: '1KPUMP-PERP',
+		baseAssetSymbol: '1KPUMP',
+		marketIndex: 81,
+		oracle: new PublicKey('5r8RWTaRiMgr9Lph3FTUE3sGb1vymhpCrm83Bovjfcps'),
+		launchTs: 1760366017000,
+		oracleSource: OracleSource.PYTH_LAZER_1K,
+		pythLazerId: 1578,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {

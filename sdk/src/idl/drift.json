@@ -5875,6 +5875,32 @@
       ]
     },
     {
+      "name": "updatePerpMarketReferencePriceOffsetDeadbandPct",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "referencePriceOffsetDeadbandPct",
+          "type": "u8"
+        }
+      ]
+    },
+    {
       "name": "updateLpCooldownTime",
       "accounts": [
         {
@@ -11210,11 +11236,15 @@
             "type": "i8"
           },
           {
+            "name": "referencePriceOffsetDeadbandPct",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                3
+                2
               ]
             }
           },
@@ -16782,8 +16812,5 @@
       "name": "UnableToLoadRevenueShareAccount",
       "msg": "Unable to load builder account"
     }
-  ],
-  "metadata": {
-    "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
-  }
+  ]
 }
