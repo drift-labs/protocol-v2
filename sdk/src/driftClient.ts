@@ -7649,13 +7649,19 @@ export class DriftClient {
 			policy?: number;
 		},
 		subAccountId?: number,
-		userPublicKey?: PublicKey
+		overrides?: {
+			user?: User;
+			authority?: PublicKey;
+		}
 	): Promise<TransactionInstruction> {
-		const user =
-			userPublicKey ?? (await this.getUserAccountPublicKey(subAccountId));
+		const userPubKey =
+			overrides?.user?.getUserAccountPublicKey() ??
+			(await this.getUserAccountPublicKey(subAccountId));
+		const userAccount =
+			overrides?.user?.getUserAccount() ?? this.getUserAccount(subAccountId);
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount(subAccountId)],
+			userAccounts: [userAccount],
 			useMarketLastSlotCache: true,
 		});
 
@@ -7676,12 +7682,16 @@ export class DriftClient {
 			maxTs: maxTs || null,
 		};
 
+		const authority =
+			overrides?.authority ??
+			overrides?.user?.getUserAccount().authority ??
+			this.wallet.publicKey;
 		return await this.program.instruction.modifyOrder(orderId, orderParams, {
 			accounts: {
 				state: await this.getStatePublicKey(),
-				user,
+				user: userPubKey,
 				userStats: this.getUserStatsAccountPublicKey(),
-				authority: this.wallet.publicKey,
+				authority,
 			},
 			remainingAccounts,
 		});
