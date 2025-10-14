@@ -1133,6 +1133,8 @@ export type PerpPosition = {
 	lastBaseAssetAmountPerLp: BN;
 	lastQuoteAssetAmountPerLp: BN;
 	perLpBase: number;
+	isolatedPositionScaledBalance: BN;
+	positionFlag: number;
 };
 
 export type UserStatsAccount = {

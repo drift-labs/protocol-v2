@@ -242,10 +242,21 @@ pub fn settle_pnl(
     let user_unsettled_pnl: i128 =
         user.perp_positions[position_index].get_claimable_pnl(oracle_price, max_pnl_pool_excess)?;
 
+    let is_isolated_position = user.perp_positions[position_index].is_isolated();
+
+    let user_quote_token_amount = if is_isolated_position {
+        user.perp_positions[position_index]
+            .get_isolated_token_amount(spot_market)?
+            .cast()?
+    } else {
+        user.get_quote_spot_position()
+            .get_signed_token_amount(spot_market)?
+    };
+
     let pnl_to_settle_with_user = update_pool_balances(
         perp_market,
         spot_market,
-        user.get_quote_spot_position(),
+        user_quote_token_amount,
         user_unsettled_pnl,
         now,
     )?;
@@ -287,17 +298,43 @@ pub fn settle_pnl(
         );
     }
 
-    update_spot_balances(
-        pnl_to_settle_with_user.unsigned_abs(),
-        if pnl_to_settle_with_user > 0 {
-            &SpotBalanceType::Deposit
-        } else {
-            &SpotBalanceType::Borrow
-        },
-        spot_market,
-        user.get_quote_spot_position_mut(),
-        false,
-    )?;
+    if is_isolated_position {
+        let perp_position = &mut user.perp_positions[position_index];
+        if pnl_to_settle_with_user < 0 {
+            let token_amount = perp_position.get_isolated_token_amount(spot_market)?;
+
+            validate!(
+                token_amount >= pnl_to_settle_with_user.unsigned_abs(),
+                ErrorCode::InsufficientCollateralForSettlingPNL,
+                "user has insufficient deposit for market {}",
+                market_index
+            )?;
+        }
+
+        update_spot_balances(
+            pnl_to_settle_with_user.unsigned_abs(),
+            if pnl_to_settle_with_user > 0 {
+                &SpotBalanceType::Deposit
+            } else {
+                &SpotBalanceType::Borrow
+            },
+            spot_market,
+            perp_position,
+            false,
+        )?;
+    } else {
+        update_spot_balances(
+            pnl_to_settle_with_user.unsigned_abs(),
+            if pnl_to_settle_with_user > 0 {
+                &SpotBalanceType::Deposit
+            } else {
+                &SpotBalanceType::Borrow
+            },
+            spot_market,
+            user.get_quote_spot_position_mut(),
+            false,
+        )?;
+    }
 
     update_quote_asset_amount(
         &mut user.perp_positions[position_index],
@@ -388,6 +425,7 @@ pub fn settle_expired_position(
         Some(MarketType::Perp),
         Some(perp_market_index),
         None,
+        true,
     )?;
 
     let position_index = match get_position_index(&user.perp_positions, perp_market_index) {
