@@ -694,7 +694,8 @@ export class grpcDriftClientAccountSubscriberV2
 		// Build array of perp market pubkeys to remove
 		const perpMarketPubkeysToRemove = perpMarketIndexes
 			.map((marketIndex) => {
-				const pubkeyString = this.perpMarketIndexToAccountPubkeyMap.get(marketIndex);
+				const pubkeyString =
+					this.perpMarketIndexToAccountPubkeyMap.get(marketIndex);
 				return pubkeyString ? new PublicKey(pubkeyString) : null;
 			})
 			.filter((pubkey) => pubkey !== null) as PublicKey[];
@@ -704,7 +705,9 @@ export class grpcDriftClientAccountSubscriberV2
 
 		// Remove accounts in batches - perp markets
 		if (perpMarketPubkeysToRemove.length > 0) {
-			await this.perpMarketsSubscriber.removeAccounts(perpMarketPubkeysToRemove);
+			await this.perpMarketsSubscriber.removeAccounts(
+				perpMarketPubkeysToRemove
+			);
 		}
 
 		// Remove accounts in batches - oracles
