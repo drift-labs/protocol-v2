@@ -691,19 +691,28 @@ export class grpcDriftClientAccountSubscriberV2
 			Array.from(this.spotMarketsSubscriber?.getAccountDataMap().values() || [])
 		);
 
-		for (const perpMarketIndex of perpMarketIndexes) {
-			await this.perpMarketsSubscriber.removeAccounts([
-				new PublicKey(
-					this.perpMarketIndexToAccountPubkeyMap.get(perpMarketIndex) || ''
-				),
-			]);
-			if (this.delistedMarketSetting === DelistedMarketSetting.Discard) {
-				this.perpMarketIndexToAccountPubkeyMap.delete(perpMarketIndex);
-			}
+		// Build array of perp market pubkeys to remove
+		const perpMarketPubkeysToRemove = perpMarketIndexes
+			.map((marketIndex) => {
+				const pubkeyString =
+					this.perpMarketIndexToAccountPubkeyMap.get(marketIndex);
+				return pubkeyString ? new PublicKey(pubkeyString) : null;
+			})
+			.filter((pubkey) => pubkey !== null) as PublicKey[];
+
+		// Build array of oracle pubkeys to remove
+		const oraclePubkeysToRemove = oracles.map((oracle) => oracle.publicKey);
+
+		// Remove accounts in batches - perp markets
+		if (perpMarketPubkeysToRemove.length > 0) {
+			await this.perpMarketsSubscriber.removeAccounts(
+				perpMarketPubkeysToRemove
+			);
 		}
 
-		for (const oracle of oracles) {
-			await this.oracleMultiSubscriber.removeAccounts([oracle.publicKey]);
+		// Remove accounts in batches - oracles
+		if (oraclePubkeysToRemove.length > 0) {
+			await this.oracleMultiSubscriber.removeAccounts(oraclePubkeysToRemove);
 		}
 	}
 
