@@ -1387,6 +1387,16 @@ pub mod drift {
         handle_update_perp_market_curve_update_intensity(ctx, curve_update_intensity)
     }
 
+    pub fn update_perp_market_reference_price_offset_deadband_pct(
+        ctx: Context<HotAdminUpdatePerpMarket>,
+        reference_price_offset_deadband_pct: u8,
+    ) -> Result<()> {
+        handle_update_perp_market_reference_price_offset_deadband_pct(
+            ctx,
+            reference_price_offset_deadband_pct,
+        )
+    }
+
     pub fn update_lp_cooldown_time(
         ctx: Context<AdminUpdateState>,
         lp_cooldown_time: u64,

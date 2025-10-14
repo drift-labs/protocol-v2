@@ -1112,6 +1112,7 @@ export type AMM = {
 	ammInventorySpreadAdjustment: number;
 
 	lastFundingOracleTwap: BN;
+	referencePriceOffsetDeadbandPct: number;
 };
 
 // # User Account Types
