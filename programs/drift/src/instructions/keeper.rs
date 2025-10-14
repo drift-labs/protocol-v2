@@ -21,8 +21,10 @@ use crate::controller::spot_balance::update_spot_balances;
 use crate::controller::token::{receive, send_from_program_vault};
 use crate::error::ErrorCode;
 use crate::ids::admin_hot_wallet;
-use crate::ids::dflow_mainnet_aggregator_4;
-use crate::ids::{jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, serum_program};
+use crate::ids::{
+    dflow_mainnet_aggregator_4, jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6,
+    serum_program, titan_mainnet_argos_v1,
+};
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::get_revenue_share_escrow_account;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
@@ -1719,11 +1721,12 @@ pub fn handle_liquidate_spot_with_swap_begin<'c: 'info, 'info>(
                     jupiter_mainnet_4::ID,
                     jupiter_mainnet_6::ID,
                     dflow_mainnet_aggregator_4::ID,
+                    titan_mainnet_argos_v1::ID,
                 ];
                 validate!(
                     whitelisted_programs.contains(&ix.program_id),
                     ErrorCode::InvalidLiquidateSpotWithSwap,
-                    "only allowed to pass in ixs to token, openbook, and Jupiter v3/v4/v6 programs"
+                    "only allowed to pass in ixs to ATA, openbook, Jupiter v3/v4/v6, dflow, or titan programs"
                 )?;
 
                 for meta in ix.accounts.iter() {
