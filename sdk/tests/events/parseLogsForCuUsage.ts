@@ -26,7 +26,7 @@ describe('parseLogsForCuUsage Tests', () => {
 				data: {
 					instruction: 'UpdateFundingRate',
 					cuUsage: 102636,
-				}
+				},
 			},
 		]);
 	});
@@ -60,14 +60,14 @@ describe('parseLogsForCuUsage Tests', () => {
 				data: {
 					instruction: 'PostPythLazerOracleUpdate',
 					cuUsage: 29242,
-				}
+				},
 			},
 			{
 				name: 'CuUsage',
 				data: {
 					instruction: 'UpdatePerpBidAskTwap',
 					cuUsage: 71006,
-				}
+				},
 			},
 		]);
 	});
@@ -125,14 +125,14 @@ describe('parseLogsForCuUsage Tests', () => {
 				data: {
 					instruction: 'BeginSwap',
 					cuUsage: 79071,
-				}
+				},
 			},
 			{
 				name: 'CuUsage',
 				data: {
 					instruction: 'EndSwap',
 					cuUsage: 156076,
-				}
+				},
 			},
 		]);
 	});
