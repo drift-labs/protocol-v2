@@ -434,47 +434,43 @@ export function maxSizeForTargetLiabilityWeightBN(
 	liabilityWeight: BN,
 	precision: BN
 ): BN | null {
-	// Impossible / unbounded cases
 	if (target.lt(liabilityWeight)) return null;
 	if (imfFactor.isZero()) return null;
 
-	// Forward always starts at base = liabilityWeight * 4/5
 	const base = liabilityWeight.muln(4).divn(5);
 
-	// denom = floor(100_000 * SPOT_MARKET_IMF_PRECISION / precision)
 	const denom = new BN(100_000).mul(SPOT_MARKET_IMF_PRECISION).div(precision);
 	if (denom.isZero())
 		throw new Error('denom=0: bad precision/spotImfPrecision');
 
-	// How much room we have to increase from base
 	const allowedInc = target.gt(base) ? target.sub(base) : ZERO;
 
-	// sizeSqrt <= floor(allowedInc * denom / imfFactor)
 	const maxSqrt = allowedInc.mul(denom).div(imfFactor);
 
-	const forward = (s: BN) =>
-		calculateSizePremiumLiabilityWeight(
-			s,
+	if (maxSqrt.lte(ZERO)) {
+		const fitsZero = calculateSizePremiumLiabilityWeight(
+			ZERO,
 			imfFactor,
 			liabilityWeight,
 			precision
-		);
-
-	// If even size=0 might fail, short-circuit
-	if (maxSqrt.lte(ZERO)) {
-		const fitsZero = forward(ZERO).lte(target);
+		).lte(target);
 		return fitsZero ? ZERO : null;
 	}
 
-	// Invert: size*10 + 1 <= maxSqrt^2  =>  size <= floor((maxSqrt^2 - 1) / 10)
 	let hi = maxSqrt.mul(maxSqrt).sub(ONE).divn(10);
 	if (hi.isNeg()) hi = ZERO;
 
-	// Binary search for max size s.t. forward(s) <= target
 	let lo = ZERO;
 	while (lo.lt(hi)) {
 		const mid = lo.add(hi).add(ONE).divn(2); // upper mid to prevent infinite loop
-		if (forward(mid).lte(target)) {
+		if (
+			calculateSizePremiumLiabilityWeight(
+				mid,
+				imfFactor,
+				liabilityWeight,
+				precision
+			).lte(target)
+		) {
 			lo = mid;
 		} else {
 			hi = mid.sub(ONE);
