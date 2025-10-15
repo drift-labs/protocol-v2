@@ -122,10 +122,11 @@ fn amm_pool_balance_liq_fees_example() {
         assert_eq!(new_total_fee_minus_distributions, 640881949608);
 
         let unsettled_pnl = -10_000_000;
+        let user_quote_token_amount = spot_position.get_signed_token_amount(&spot_market).unwrap();
         let to_settle_with_user = update_pool_balances(
             &mut perp_market,
             &mut spot_market,
-            &spot_position,
+            user_quote_token_amount,
             unsettled_pnl,
             now,
         )
@@ -1174,7 +1175,7 @@ fn amm_perp_ref_offset() {
         max_ref_offset,
     )
     .unwrap();
-    assert_eq!(res, (perp_market.amm.max_spread / 2) as i32);
+    assert_eq!(res, 45000);
     assert_eq!(perp_market.amm.reference_price_offset, 18000); // not updated vs market account
 
     let now = 1741207620 + 1;
@@ -1253,7 +1254,7 @@ fn amm_perp_ref_offset() {
     // Uses the original oracle if the slot is old, ignoring MM oracle
     perp_market.amm.mm_oracle_price = mm_oracle_price_data.get_price() * 995 / 1000;
     perp_market.amm.mm_oracle_slot = clock_slot - 100;
-    let mut mm_oracle_price = perp_market
+    let mm_oracle_price = perp_market
         .get_mm_oracle_price_data(
             oracle_price_data,
             clock_slot,
@@ -1261,13 +1262,7 @@ fn amm_perp_ref_offset() {
         )
         .unwrap();
 
-    let _ = _update_amm(
-        &mut perp_market,
-        &mut mm_oracle_price,
-        &state,
-        now,
-        clock_slot,
-    );
+    let _ = _update_amm(&mut perp_market, &mm_oracle_price, &state, now, clock_slot);
     let reserve_price_mm_offset_3 = perp_market.amm.reserve_price().unwrap();
     let (b3, a3) = perp_market
         .amm
