@@ -1569,7 +1569,8 @@ export class DriftClient {
 		perpMarketIndex: number,
 		marginRatio: number,
 		subAccountId = 0,
-		txParams?: TxParams
+		txParams?: TxParams,
+		enteringHighLeverageMode?: boolean
 	): Promise<TransactionSignature> {
 		const ix = await this.getUpdateUserPerpPositionCustomMarginRatioIx(
 			perpMarketIndex,
@@ -4262,6 +4263,7 @@ export class DriftClient {
 		referrerInfo?: ReferrerInfo,
 		cancelExistingOrders?: boolean,
 		settlePnl?: boolean,
+		positionMaxLev?: number,
 		isolatedPositionDepositAmount?: BN
 	): Promise<{
 		cancelExistingOrdersTx?: Transaction | VersionedTransaction;

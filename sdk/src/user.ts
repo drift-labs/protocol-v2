@@ -984,6 +984,7 @@ export class User {
 				const market = this.driftClient.getPerpMarketAccount(
 					perpPosition.marketIndex
 				);
+				if(!market) return unrealizedPnl;
 				const oraclePriceData = this.getMMOracleDataForPerpMarket(
 					market.marketIndex
 				);
@@ -1583,6 +1584,8 @@ export class User {
 		const market = this.driftClient.getPerpMarketAccount(
 			perpPosition.marketIndex
 		);
+
+		if(!market) return ZERO;
 
 		let valuationPrice = this.getOracleDataForPerpMarket(
 			market.marketIndex
@@ -2895,7 +2898,8 @@ export class User {
 		targetMarketIndex: number,
 		tradeSide: PositionDirection,
 		isLp = false,
-		enterHighLeverageMode = undefined
+		enterHighLeverageMode = undefined,
+		maxMarginRatio = undefined
 	): { tradeSize: BN; oppositeSideTradeSize: BN } {
 		let tradeSize = ZERO;
 		let oppositeSideTradeSize = ZERO;
