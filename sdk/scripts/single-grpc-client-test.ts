@@ -150,7 +150,7 @@ async function initializeSingleGrpcClient() {
 		console.log(`🏦 Spot Market Update #${eventCounts.spotMarketAccountUpdate} - Market ${data.marketIndex}`);
 	});
 
-	client.eventEmitter.on('oraclePriceUpdate', (publicKey, source, data) => {
+	client.eventEmitter.on('oraclePriceUpdate', (publicKey, source, _data) => {
 		eventCounts.oraclePriceUpdate++;
 		console.log(`🔮 Oracle Update #${eventCounts.oraclePriceUpdate} - ${publicKey.toBase58()} (${source})`);
 	});
