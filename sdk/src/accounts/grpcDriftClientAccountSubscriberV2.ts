@@ -227,10 +227,11 @@ export class grpcDriftClientAccountSubscriberV2
 				o.source === oracleInfo.source &&
 				o.publicKey.equals(oracleInfo.publicKey)
 		);
-		if (!exists) {
-			this.oracleInfos = this.oracleInfos.concat(oracleInfo);
+		if (exists) {
+			return true; // Already exists, don't add duplicate
 		}
 
+		this.oracleInfos = this.oracleInfos.concat(oracleInfo);
 		this.oracleMultiSubscriber?.addAccounts([oracleInfo.publicKey]);
 
 		return true;
@@ -708,11 +709,37 @@ export class grpcDriftClientAccountSubscriberV2
 			await this.perpMarketsSubscriber.removeAccounts(
 				perpMarketPubkeysToRemove
 			);
+			// Clean up the mapping for removed perp markets
+			for (const pubkey of perpMarketPubkeysToRemove) {
+				const pubkeyString = pubkey.toBase58();
+				for (const [
+					marketIndex,
+					accountPubkey,
+				] of this.perpMarketIndexToAccountPubkeyMap.entries()) {
+					if (accountPubkey === pubkeyString) {
+						this.perpMarketIndexToAccountPubkeyMap.delete(marketIndex);
+						this.perpOracleMap.delete(marketIndex);
+						this.perpOracleStringMap.delete(marketIndex);
+						break;
+					}
+				}
+			}
 		}
 
 		// Remove accounts in batches - oracles
 		if (oraclePubkeysToRemove.length > 0) {
 			await this.oracleMultiSubscriber.removeAccounts(oraclePubkeysToRemove);
+			// Clean up oracle data for removed oracles by finding their sources
+			for (const pubkey of oraclePubkeysToRemove) {
+				// Find the oracle source by checking oracleInfos
+				const oracleInfo = this.oracleInfos.find((info) =>
+					info.publicKey.equals(pubkey)
+				);
+				if (oracleInfo) {
+					const oracleId = getOracleId(pubkey, oracleInfo.source);
+					this.oracleIdToOracleDataMap.delete(oracleId);
+				}
+			}
 		}
 	}
 
@@ -731,13 +758,25 @@ export class grpcDriftClientAccountSubscriberV2
 	}
 
 	async unsubscribe(): Promise<void> {
-		if (this.isSubscribed) {
+		if (!this.isSubscribed) {
 			return;
 		}
 
-		await this.stateAccountSubscriber.unsubscribe();
+		this.isSubscribed = false;
+		this.isSubscribing = false;
+
+		await this.stateAccountSubscriber?.unsubscribe();
 		await this.unsubscribeFromOracles();
 		await this.perpMarketsSubscriber?.unsubscribe();
 		await this.spotMarketsSubscriber?.unsubscribe();
+
+		// Clean up all maps to prevent memory leaks
+		this.perpMarketIndexToAccountPubkeyMap.clear();
+		this.spotMarketIndexToAccountPubkeyMap.clear();
+		this.oracleIdToOracleDataMap.clear();
+		this.perpOracleMap.clear();
+		this.perpOracleStringMap.clear();
+		this.spotOracleMap.clear();
+		this.spotOracleStringMap.clear();
 	}
 }
