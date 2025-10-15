@@ -140,15 +140,15 @@ async function initializeSingleGrpcClient() {
 		eventCounts.stateAccountUpdate++;
 	});
 
-	client.eventEmitter.on('perpMarketAccountUpdate', (data) => {
+	client.eventEmitter.on('perpMarketAccountUpdate', (_data) => {
 		eventCounts.perpMarketAccountUpdate++;
 	});
 
-	client.eventEmitter.on('spotMarketAccountUpdate', (data) => {
+	client.eventEmitter.on('spotMarketAccountUpdate', (_data) => {
 		eventCounts.spotMarketAccountUpdate++;
 	});
 
-	client.eventEmitter.on('oraclePriceUpdate', (publicKey, source, _data) => {
+	client.eventEmitter.on('oraclePriceUpdate', (_publicKey, _source, _data) => {
 		eventCounts.oraclePriceUpdate++;
 	});
 
