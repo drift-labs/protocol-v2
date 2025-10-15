@@ -1,5 +1,5 @@
 {
-  "version": "2.141.0",
+  "version": "2.142.0",
   "name": "drift",
   "instructions": [
     {
@@ -6023,6 +6023,32 @@
       "args": [
         {
           "name": "curveUpdateIntensity",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "updatePerpMarketReferencePriceOffsetDeadbandPct",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "referencePriceOffsetDeadbandPct",
           "type": "u8"
         }
       ]
@@ -13938,11 +13964,15 @@
             "type": "i8"
           },
           {
+            "name": "referencePriceOffsetDeadbandPct",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                3
+                2
               ]
             }
           },

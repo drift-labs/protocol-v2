@@ -353,8 +353,20 @@ pub fn settle_expired_position(
 ) -> DriftResult {
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
+    let position_index = match get_position_index(&user.perp_positions, perp_market_index) {
+        Ok(index) => index,
+        Err(_) => {
+            msg!("User has no position for market {}", perp_market_index);
+            return Ok(());
+        }
+    };
+
+    let can_skip_margin_calc = user.perp_positions[position_index].base_asset_amount == 0
+        && user.perp_positions[position_index].quote_asset_amount > 0;
+
     // cannot settle pnl this way on a user who is in liquidation territory
-    if !(meets_maintenance_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?)
+    if !meets_maintenance_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?
+        && !can_skip_margin_calc
     {
         return Err(ErrorCode::InsufficientCollateralForSettlingPNL);
     }
@@ -389,14 +401,6 @@ pub fn settle_expired_position(
         Some(perp_market_index),
         None,
     )?;
-
-    let position_index = match get_position_index(&user.perp_positions, perp_market_index) {
-        Ok(index) => index,
-        Err(_) => {
-            msg!("User has no position for market {}", perp_market_index);
-            return Ok(());
-        }
-    };
 
     let quote_spot_market = &mut spot_market_map.get_quote_spot_market_mut()?;
     let perp_market = &mut perp_market_map.get_ref_mut(&perp_market_index)?;

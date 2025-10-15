@@ -1096,7 +1096,8 @@ pub fn handle_initialize_perp_market(
             quote_asset_amount_with_unsettled_lp: 0,
             reference_price_offset: 0,
             amm_inventory_spread_adjustment: 0,
-            padding: [0; 3],
+            reference_price_offset_deadband_pct: 0,
+            padding: [0; 2],
             last_funding_oracle_twap: 0,
         },
     };
@@ -3306,11 +3307,19 @@ pub fn handle_update_perp_market_status(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_paused_operations(
-    ctx: Context<AdminUpdatePerpMarket>,
+    ctx: Context<HotAdminUpdatePerpMarket>,
     paused_operations: u8,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     msg!("perp market {}", perp_market.market_index);
+
+    if *ctx.accounts.admin.key != ctx.accounts.state.admin {
+        validate!(
+            paused_operations == PerpOperation::UpdateFunding as u8,
+            ErrorCode::DefaultError,
+            "signer must be admin",
+        )?;
+    }
 
     perp_market.paused_operations = paused_operations;
 
@@ -3484,6 +3493,49 @@ pub fn handle_update_perp_market_curve_update_intensity(
     );
 
     perp_market.amm.curve_update_intensity = curve_update_intensity;
+    Ok(())
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_update_perp_market_reference_price_offset_deadband_pct(
+    ctx: Context<HotAdminUpdatePerpMarket>,
+    reference_price_offset_deadband_pct: u8,
+) -> Result<()> {
+    validate!(
+        reference_price_offset_deadband_pct <= 100,
+        ErrorCode::DefaultError,
+        "invalid reference_price_offset_deadband_pct",
+    )?;
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
+
+    msg!(
+        "perp_market.amm.reference_price_offset_deadband_pct: {} -> {}",
+        perp_market.amm.reference_price_offset_deadband_pct,
+        reference_price_offset_deadband_pct
+    );
+
+    let liquidity_ratio =
+        crate::math::amm_spread::calculate_inventory_liquidity_ratio_for_reference_price_offset(
+            perp_market.amm.base_asset_amount_with_amm,
+            perp_market.amm.base_asset_reserve,
+            perp_market.amm.min_base_asset_reserve,
+            perp_market.amm.max_base_asset_reserve,
+        )?;
+
+    let signed_liquidity_ratio = liquidity_ratio.safe_mul(
+        perp_market
+            .amm
+            .get_protocol_owned_position()?
+            .signum()
+            .cast()?,
+    )?;
+
+    msg!("current signed liquidity ratio: {}", signed_liquidity_ratio);
+
+    perp_market.amm.reference_price_offset_deadband_pct = reference_price_offset_deadband_pct;
     Ok(())
 }
 
@@ -3790,7 +3842,7 @@ pub fn handle_update_amm_jit_intensity(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_max_spread(
-    ctx: Context<AdminUpdatePerpMarket>,
+    ctx: Context<HotAdminUpdatePerpMarket>,
     max_spread: u32,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;

@@ -1378,7 +1378,7 @@ pub mod drift {
     }
 
     pub fn update_perp_market_paused_operations(
-        ctx: Context<AdminUpdatePerpMarket>,
+        ctx: Context<HotAdminUpdatePerpMarket>,
         paused_operations: u8,
     ) -> Result<()> {
         handle_update_perp_market_paused_operations(ctx, paused_operations)
@@ -1423,6 +1423,16 @@ pub mod drift {
         curve_update_intensity: u8,
     ) -> Result<()> {
         handle_update_perp_market_curve_update_intensity(ctx, curve_update_intensity)
+    }
+
+    pub fn update_perp_market_reference_price_offset_deadband_pct(
+        ctx: Context<HotAdminUpdatePerpMarket>,
+        reference_price_offset_deadband_pct: u8,
+    ) -> Result<()> {
+        handle_update_perp_market_reference_price_offset_deadband_pct(
+            ctx,
+            reference_price_offset_deadband_pct,
+        )
     }
 
     pub fn update_lp_cooldown_time(
@@ -1519,7 +1529,7 @@ pub mod drift {
     }
 
     pub fn update_perp_market_max_spread(
-        ctx: Context<AdminUpdatePerpMarket>,
+        ctx: Context<HotAdminUpdatePerpMarket>,
         max_spread: u32,
     ) -> Result<()> {
         handle_update_perp_market_max_spread(ctx, max_spread)
