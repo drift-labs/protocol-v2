@@ -504,7 +504,6 @@ export type LiquidationRecord = {
 	liquidatePerpPnlForDeposit: LiquidatePerpPnlForDepositRecord;
 	perpBankruptcy: PerpBankruptcyRecord;
 	spotBankruptcy: SpotBankruptcyRecord;
-    bitFlags: number;
 };
 
 export class LiquidationType {
