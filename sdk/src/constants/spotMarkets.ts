@@ -39,8 +39,8 @@ export const DevnetSpotMarkets: SpotMarketConfig[] = [
 		symbol: 'USDC',
 		marketIndex: 0,
 		poolId: 0,
-		oracle: new PublicKey('En8hkHLkRe9d9DraYmBTrus518BvmVH448YcvmrFM6Ce'),
-		oracleSource: OracleSource.PYTH_STABLE_COIN_PULL,
+		oracle: new PublicKey('9VCioxmni2gDLv11qufWzT3RDERhQE4iY5Gf7NTfYyAV'),
+		oracleSource: OracleSource.PYTH_LAZER_STABLE_COIN,
 		mint: new PublicKey('8zGuJQqwhZafTah7Uc7Z4tXRnguqkn5KLFAP8oV6PHe2'),
 		precision: new BN(10).pow(SIX),
 		precisionExp: SIX,
@@ -52,8 +52,8 @@ export const DevnetSpotMarkets: SpotMarketConfig[] = [
 		symbol: 'SOL',
 		marketIndex: 1,
 		poolId: 0,
-		oracle: new PublicKey('BAtFj4kQttZRVep3UZS2aZRDixkGYgWsbqTBVDbnSsPF'),
-		oracleSource: OracleSource.PYTH_PULL,
+		oracle: new PublicKey('3m6i4RFWEDw2Ft4tFHPJtYgmpPe21k56M3FHeWYrgGBz'),
+		oracleSource: OracleSource.PYTH_LAZER,
 		mint: new PublicKey(WRAPPED_SOL_MINT),
 		precision: LAMPORTS_PRECISION,
 		precisionExp: LAMPORTS_EXP,
@@ -128,6 +128,30 @@ export const DevnetSpotMarkets: SpotMarketConfig[] = [
 		pythFeedId:
 			'0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a',
 		pythLazerId: 7,
+	},
+	{
+		symbol: 'GLXY',
+		marketIndex: 7,
+		poolId: 2,
+		oracle: new PublicKey('4wFrjUQHzRBc6qjVtMDbt28aEVgn6GaNiWR6vEff4KxR'),
+		oracleSource: OracleSource.Prelaunch,
+		mint: new PublicKey('2vVfXmcWXEaFzp7iaTVnQ4y1gR41S6tJQQMo1S5asJyC'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		pythFeedId:
+			'0x67e031d1723e5c89e4a826d80b2f3b41a91b05ef6122d523b8829a02e0f563aa',
+	},
+	{
+		symbol: 'GLXY',
+		marketIndex: 8,
+		poolId: 2,
+		oracle: new PublicKey('4wFrjUQHzRBc6qjVtMDbt28aEVgn6GaNiWR6vEff4KxR'),
+		oracleSource: OracleSource.Prelaunch,
+		mint: new PublicKey('2vVfXmcWXEaFzp7iaTVnQ4y1gR41S6tJQQMo1S5asJyC'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		pythFeedId:
+			'0x67e031d1723e5c89e4a826d80b2f3b41a91b05ef6122d523b8829a02e0f563aa',
 	},
 ];
 
@@ -933,6 +957,20 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		pythFeedId:
 			'0x8f257aab6e7698bb92b15511915e593d6f8eae914452f781874754b03d0c612b',
 		launchTs: 1756392947000,
+	},
+	{
+		symbol: '2Z',
+		marketIndex: 59,
+		poolId: 0,
+		oracle: new PublicKey('4HTDpcHAwBTHCJLNMwT35w4FGc4nfA4YhT1BkcZQwQ2m'),
+		oracleSource: OracleSource.PYTH_LAZER,
+		mint: new PublicKey('J6pQQ3FAcJQeWPPGppWRb4nM8jU3wLyYbRrLh7feMfvd'),
+		precision: new BN(10).pow(EIGHT),
+		precisionExp: EIGHT,
+		pythFeedId:
+			'0xf2b3ab1c49e35e881003c3c0482d18b181a1560b697b844c24c8f85aba1cab95',
+		pythLazerId: 2316,
+		launchTs: 1759412919000,
 	},
 ];
 

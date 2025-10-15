@@ -245,7 +245,7 @@ export function isFillableByVAMM(
 				market,
 				mmOraclePriceData,
 				slot
-			).gte(market.amm.minOrderSize)) ||
+			).gt(ZERO)) ||
 		isOrderExpired(order, ts)
 	);
 }
@@ -387,6 +387,11 @@ export function isTakingOrder(order: Order, slot: number): boolean {
 const FLAG_IS_SIGNED_MSG = 0x01;
 export function isSignedMsgOrder(order: Order): boolean {
 	return (order.bitFlags & FLAG_IS_SIGNED_MSG) !== 0;
+}
+
+const FLAG_HAS_BUILDER = 0x10;
+export function hasBuilder(order: Order): boolean {
+	return (order.bitFlags & FLAG_HAS_BUILDER) !== 0;
 }
 
 export function calculateOrderBaseAssetAmount(

@@ -750,7 +750,8 @@ export class User {
 	public getPerpBuyingPower(
 		marketIndex: number,
 		collateralBuffer = ZERO,
-		enterHighLeverageMode = undefined
+		enterHighLeverageMode = undefined,
+		maxMarginRatio = undefined
 	): BN {
 		const perpPosition = this.getPerpPositionOrEmpty(marketIndex);
 
@@ -774,7 +775,7 @@ export class User {
 			freeCollateral,
 			worstCaseBaseAssetAmount,
 			enterHighLeverageMode,
-			perpPosition
+			maxMarginRatio || perpPosition.maxMarginRatio
 		);
 	}
 
@@ -783,17 +784,17 @@ export class User {
 		freeCollateral: BN,
 		baseAssetAmount: BN,
 		enterHighLeverageMode = undefined,
-		perpPosition?: PerpPosition
+		perpMarketMaxMarginRatio = undefined
 	): BN {
-		const userCustomMargin = Math.max(
-			perpPosition?.maxMarginRatio ?? 0,
+		const maxMarginRatio = Math.max(
+			perpMarketMaxMarginRatio,
 			this.getUserAccount().maxMarginRatio
 		);
 		const marginRatio = calculateMarketMarginRatio(
 			this.driftClient.getPerpMarketAccount(marketIndex),
 			baseAssetAmount,
 			'Initial',
-			userCustomMargin,
+			maxMarginRatio,
 			enterHighLeverageMode || this.isHighLeverageMode('Initial')
 		);
 
@@ -1616,7 +1617,10 @@ export class User {
 		}
 
 		if (marginCategory) {
-			const userCustomMargin = this.getUserAccount().maxMarginRatio;
+			const userCustomMargin = Math.max(
+				perpPosition.maxMarginRatio,
+				this.getUserAccount().maxMarginRatio
+			);
 			let marginRatio = new BN(
 				calculateMarketMarginRatio(
 					market,
@@ -2858,13 +2862,18 @@ export class User {
 	public getMarginUSDCRequiredForTrade(
 		targetMarketIndex: number,
 		baseSize: BN,
-		estEntryPrice?: BN
+		estEntryPrice?: BN,
+		perpMarketMaxMarginRatio?: number
 	): BN {
+		const maxMarginRatio = Math.max(
+			perpMarketMaxMarginRatio,
+			this.getUserAccount().maxMarginRatio
+		);
 		return calculateMarginUSDCRequiredForTrade(
 			this.driftClient,
 			targetMarketIndex,
 			baseSize,
-			this.getUserAccount().maxMarginRatio,
+			maxMarginRatio,
 			undefined,
 			estEntryPrice
 		);
@@ -2873,14 +2882,19 @@ export class User {
 	public getCollateralDepositRequiredForTrade(
 		targetMarketIndex: number,
 		baseSize: BN,
-		collateralIndex: number
+		collateralIndex: number,
+		perpMarketMaxMarginRatio?: number
 	): BN {
+		const maxMarginRatio = Math.max(
+			perpMarketMaxMarginRatio,
+			this.getUserAccount().maxMarginRatio
+		);
 		return calculateCollateralDepositRequiredForTrade(
 			this.driftClient,
 			targetMarketIndex,
 			baseSize,
 			collateralIndex,
-			this.getUserAccount().maxMarginRatio,
+			maxMarginRatio,
 			false // assume user cant be high leverage if they havent created user account ?
 		);
 	}
@@ -2938,7 +2952,8 @@ export class User {
 		const maxPositionSize = this.getPerpBuyingPower(
 			targetMarketIndex,
 			lpBuffer,
-			enterHighLeverageMode
+			enterHighLeverageMode,
+			maxMarginRatio
 		);
 
 		if (maxPositionSize.gte(ZERO)) {
@@ -2965,8 +2980,12 @@ export class User {
 				const marginRequirement = this.getInitialMarginRequirement(
 					enterHighLeverageMode
 				);
+				const marginRatio = Math.max(
+					currentPosition.maxMarginRatio,
+					this.getUserAccount().maxMarginRatio
+				);
 				const marginFreedByClosing = perpLiabilityValue
-					.mul(new BN(market.marginRatioInitial))
+					.mul(new BN(marginRatio))
 					.div(MARGIN_PRECISION);
 				const marginRequirementAfterClosing =
 					marginRequirement.sub(marginFreedByClosing);
@@ -2982,7 +3001,8 @@ export class User {
 						this.getPerpBuyingPowerFromFreeCollateralAndBaseAssetAmount(
 							targetMarketIndex,
 							freeCollateralAfterClose,
-							ZERO
+							ZERO,
+							currentPosition.maxMarginRatio
 						);
 					oppositeSideTradeSize = perpLiabilityValue;
 					tradeSize = buyingPowerAfterClose;

@@ -31,6 +31,8 @@ export enum ExchangeStatus {
 export enum FeatureBitFlags {
 	MM_ORACLE_UPDATE = 1,
 	MEDIAN_TRIGGER_PRICE = 2,
+	BUILDER_CODES = 4,
+	BUILDER_REFERRAL = 8,
 }
 
 export class MarketStatus {
@@ -769,6 +771,7 @@ export type LPSwapRecord = {
 	outMarketTargetWeight: BN;
 	inSwapId: BN;
 	outSwapId: BN;
+	lpPool: PublicKey;
 };
 
 export type LPMintRedeemRecord = {
@@ -791,6 +794,7 @@ export type LPMintRedeemRecord = {
 	lastAumSlot: BN;
 	inMarketCurrentWeight: BN;
 	inMarketTargetWeight: BN;
+	lpPool: PublicKey;
 };
 
 export type LPSettleRecord = {
@@ -805,6 +809,20 @@ export type LPSettleRecord = {
 	perpAmmExFeeDelta: BN;
 	lpAum: BN;
 	lpPrice: BN;
+	lpPool: PublicKey;
+};
+
+export type LPBorrowLendDepositRecord = {
+	ts: BN;
+	slot: BN;
+	spotMarketIndex: number;
+	constituentIndex: number;
+	direction: DepositDirection;
+	tokenBalance: BN;
+	lastTokenBalance: BN;
+	interestAccruedTokenAmount: BN;
+	amountDepositWithdraw: BN;
+	lpPool: PublicKey;
 };
 
 export type StateAccount = {
@@ -880,6 +898,11 @@ export type PerpMarketAccount = {
 	protectedMakerLimitPriceDivisor: number;
 	protectedMakerDynamicDivisor: number;
 	lastFillPrice: BN;
+
+	lpFeeTransferScalar: number;
+	lpExchangeFeeExcluscionScalar: number;
+	lpStatus: number;
+	lpPausedOperations: number;
 };
 
 export type HistoricalOracleData = {
@@ -1093,6 +1116,7 @@ export type AMM = {
 	ammInventorySpreadAdjustment: number;
 
 	lastFundingOracleTwap: BN;
+	referencePriceOffsetDeadbandPct: number;
 };
 
 // # User Account Types
@@ -1327,6 +1351,8 @@ export type SignedMsgOrderParamsMessage = {
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
 	maxMarginRatio?: number | null;
 	isolatedPositionDepositAmount?: BN | null;
+	builderIdx?: number | null;
+	builderFeeTenthBps?: number | null;
 };
 
 export type SignedMsgOrderParamsDelegateMessage = {
@@ -1338,6 +1364,8 @@ export type SignedMsgOrderParamsDelegateMessage = {
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
 	maxMarginRatio?: number | null;
 	isolatedPositionDepositAmount?: BN | null;
+	builderIdx?: number | null;
+	builderFeeTenthBps?: number | null;
 };
 
 export type SignedMsgTriggerOrderParams = {
@@ -1420,6 +1448,10 @@ export interface IVersionedWallet {
 	): Promise<VersionedTransaction[]>;
 	publicKey: PublicKey;
 	payer?: Keypair;
+}
+
+export interface IWalletV2 extends IWallet {
+	signMessage(message: Uint8Array): Promise<Uint8Array>;
 }
 
 export type FeeStructure = {
@@ -1655,4 +1687,54 @@ export type SignedMsgOrderId = {
 export type SignedMsgUserOrdersAccount = {
 	authorityPubkey: PublicKey;
 	signedMsgOrderData: SignedMsgOrderId[];
+};
+
+export type RevenueShareAccount = {
+	authority: PublicKey;
+	totalReferrerRewards: BN;
+	totalBuilderRewards: BN;
+	padding: number[];
+};
+
+export type RevenueShareEscrowAccount = {
+	authority: PublicKey;
+	referrer: PublicKey;
+	referrerBoostExpireTs: number;
+	referrerRewardOffset: number;
+	refereeFeeNumeratorOffset: number;
+	referrerBoostNumerator: number;
+	reservedFixed: number[];
+	orders: RevenueShareOrder[];
+	approvedBuilders: BuilderInfo[];
+};
+
+export type RevenueShareOrder = {
+	feesAccrued: BN;
+	orderId: number;
+	feeTenthBps: number;
+	marketIndex: number;
+	subAccountId: number;
+	builderIdx: number;
+	bitFlags: number;
+	userOrderIndex: number;
+	marketType: MarketType;
+	padding: number[];
+};
+
+export type BuilderInfo = {
+	authority: PublicKey;
+	maxFeeTenthBps: number;
+	padding: number[];
+};
+
+export type RevenueShareSettleRecord = {
+	ts: number;
+	builder: PublicKey | null;
+	referrer: PublicKey | null;
+	feeSettled: BN;
+	marketIndex: number;
+	marketType: MarketType;
+	builderTotalReferrerRewards: BN;
+	builderTotalBuilderRewards: BN;
+	builderSubAccountId: number;
 };

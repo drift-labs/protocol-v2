@@ -48,7 +48,7 @@ export const mockPerpPosition: PerpPosition = {
 	perLpBase: 0,
 	positionFlag: 0,
 	isolatedPositionScaledBalance: new BN(0),
-	maxMarginRatio: 0,
+	maxMarginRatio: 1,
 };
 
 export const mockAMM: AMM = {

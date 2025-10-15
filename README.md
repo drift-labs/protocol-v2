@@ -55,6 +55,48 @@ cargo test
 bash test-scripts/run-anchor-tests.sh
 ```
 
+# Development (with devcontainer)
+
+We've provided a devcontainer `Dockerfile` to help you spin up a dev environment with the correct versions of Rust, Solana, and Anchor for program development.
+
+Build the container and tag it `drift-dev`:
+```
+cd .devcontainer && docker build -t drift-dev .
+```
+
+Open a shell to the container:
+```
+# Find the container ID first
+docker ps
+
+# Then exec into it
+docker exec -it <CONTAINER_ID> /bin/bash
+```
+
+Alternatively use an extension provided by your IDE to make use of the dev container. For example on vscode/cursor:
+
+```
+1. Press Ctrl+Shift+P (or Cmd+Shift+P on Mac)
+2. Type "Dev Containers: Reopen in Container"
+3. Select it and wait for the container to build
+4. The IDE terminal should be targeting the dev container now
+```
+
+Use the dev container as you would a local build environment:
+```
+# build program
+anchor build
+
+# update idl
+anchor build -- --features anchor-test && cp target/idl/drift.json sdk/src/idl/drift.json
+
+# run cargo tests
+cargo test
+
+# run typescript tests
+bash test-scripts/run-anchor-tests.sh
+```
+
 # Bug Bounty
 
 Information about the Bug Bounty can be found [here](./bug-bounty/README.md)

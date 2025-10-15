@@ -472,6 +472,19 @@ describe('admin', () => {
 		assert(perpMarket.amm.ammSpreadAdjustment == ammSpreadAdjustment);
 	});
 
+	it('update perp market reference offset deadband pct', async () => {
+		const referenceOffsetDeadbandPct = 5;
+		await driftClient.updatePerpMarketReferencePriceOffsetDeadbandPct(
+			0,
+			referenceOffsetDeadbandPct
+		);
+		const perpMarket = driftClient.getPerpMarketAccount(0);
+		assert(
+			perpMarket.amm.referencePriceOffsetDeadbandPct ==
+				referenceOffsetDeadbandPct
+		);
+	});
+
 	it('update pnl pool', async () => {
 		const quoteVault = driftClient.getSpotMarketAccount(0).vault;
 
