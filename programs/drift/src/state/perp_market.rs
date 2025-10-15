@@ -739,9 +739,11 @@ impl PerpMarket {
         let oracle_plus_funding_basis = oracle_price.safe_add(last_funding_basis)?.cast::<u64>()?;
 
         let median_price = if last_fill_price > 0 {
-            println!(
+            msg!(
                 "last_fill_price: {} oracle_plus_funding_basis: {} oracle_plus_basis_5min: {}",
-                last_fill_price, oracle_plus_funding_basis, oracle_plus_basis_5min
+                last_fill_price,
+                oracle_plus_funding_basis,
+                oracle_plus_basis_5min
             );
             let mut prices = [
                 last_fill_price,
