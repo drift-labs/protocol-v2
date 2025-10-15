@@ -46,6 +46,7 @@ import {
 	PhoenixV1FulfillmentConfigAccount,
 	PlaceAndTakeOrderSuccessCondition,
 	PositionDirection,
+	PositionFlag,
 	ReferrerInfo,
 	ReferrerNameAccount,
 	SerumV3FulfillmentConfigAccount,
@@ -262,6 +263,51 @@ export class DriftClient {
 
 	public get isSubscribed() {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
+	}
+
+	private async getPostIxsForIsolatedWithdrawAfterMarketOrder(
+		orderParams: OptionalOrderParams,
+		userAccount: UserAccount
+	): Promise<TransactionInstruction[]> {
+		const postIxs: TransactionInstruction[] = [];
+		const perpPosition = userAccount.perpPositions.find(
+			(p) => p.marketIndex === orderParams.marketIndex
+		);
+		if (!perpPosition) return postIxs;
+
+		const isIsolated =
+			(perpPosition.positionFlag & PositionFlag.IsolatedPosition) !== 0;
+		if (!isIsolated) return postIxs;
+
+		const currentBase = perpPosition.baseAssetAmount;
+		if (currentBase.eq(ZERO)) return postIxs;
+
+		const signedOrderBase =
+			orderParams.direction === PositionDirection.LONG
+				? orderParams.baseAssetAmount
+				: (orderParams.baseAssetAmount as BN).neg();
+		const postBase = currentBase.add(signedOrderBase as BN);
+		if (!postBase.eq(ZERO)) return postIxs;
+
+		const withdrawAmount = this.getIsolatedPerpPositionTokenAmount(
+			orderParams.marketIndex,
+			userAccount.subAccountId
+		);
+		if (withdrawAmount.lte(ZERO)) return postIxs;
+
+		const userTokenAccount = await this.getAssociatedTokenAccount(
+			QUOTE_SPOT_MARKET_INDEX
+		);
+		postIxs.push(
+			await this.getWithdrawFromIsolatedPerpPositionIx(
+				withdrawAmount,
+				orderParams.marketIndex,
+				userTokenAccount,
+				userAccount.subAccountId
+			)
+		);
+
+		return postIxs;
 	}
 
 	public set isSubscribed(val: boolean) {
@@ -4303,13 +4349,18 @@ export class DriftClient {
 			);
 		}
 
+		// Build post-order instructions for perp (e.g., withdraw isolated margin on close)
+		const postIxs: TransactionInstruction[] = isVariant(orderParams.marketType, 'perp')
+			? await this.getPostIxsForIsolatedWithdrawAfterMarketOrder(orderParams, userAccount)
+			: [];
+
 		ixPromisesForTxs.marketOrderTx = (async () => {
 			const placeOrdersIx = await this.getPlaceOrdersIx(
 				[orderParams, ...bracketOrdersParams],
 				userAccount.subAccountId
 			);
-			if (preIxs.length) {
-				return [...preIxs, placeOrdersIx] as unknown as TransactionInstruction;
+			if (preIxs.length || postIxs.length) {
+				return [...preIxs, placeOrdersIx, ...postIxs] as unknown as TransactionInstruction;
 			}
 			return placeOrdersIx;
 		})();
