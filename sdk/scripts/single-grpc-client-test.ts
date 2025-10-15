@@ -135,7 +135,7 @@ async function initializeSingleGrpcClient() {
 
 	console.log('🎧 Setting up event listeners...');
 
-	client.eventEmitter.on('stateAccountUpdate', (data) => {
+	client.eventEmitter.on('stateAccountUpdate', (_data) => {
 		eventCounts.stateAccountUpdate++;
 		console.log(`📊 State Account Update #${eventCounts.stateAccountUpdate}`);
 	});
