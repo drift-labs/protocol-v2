@@ -3590,11 +3590,13 @@ export class User {
 		perpPosition,
 		oraclePriceData,
 		quoteOraclePriceData,
+		includeOpenOrders = true,
 	}: {
 		marginCategory: MarginCategory;
 		perpPosition: PerpPosition;
 		oraclePriceData?: OraclePriceData;
 		quoteOraclePriceData?: OraclePriceData;
+		includeOpenOrders?: boolean;
 	}): HealthComponent {
 		const perpMarket = this.driftClient.getPerpMarketAccount(
 			perpPosition.marketIndex
@@ -3603,14 +3605,25 @@ export class User {
 			oraclePriceData ||
 			this.driftClient.getOracleDataForPerpMarket(perpMarket.marketIndex);
 		const oraclePrice = _oraclePriceData.price;
-		const {
-			worstCaseBaseAssetAmount: worstCaseBaseAmount,
-			worstCaseLiabilityValue,
-		} = calculateWorstCasePerpLiabilityValue(
-			perpPosition,
-			perpMarket,
-			oraclePrice
-		);
+
+		let worstCaseBaseAmount;
+		let worstCaseLiabilityValue;
+		if (includeOpenOrders) {
+			const worstCaseIncludeOrders = calculateWorstCasePerpLiabilityValue(
+				perpPosition,
+				perpMarket,
+				oraclePrice
+			);
+			worstCaseBaseAmount = worstCaseIncludeOrders.worstCaseBaseAssetAmount;
+			worstCaseLiabilityValue = worstCaseIncludeOrders.worstCaseLiabilityValue;
+		} else {
+			worstCaseBaseAmount = perpPosition.baseAssetAmount;
+			worstCaseLiabilityValue = calculatePerpLiabilityValue(
+				perpPosition.baseAssetAmount,
+				oraclePrice,
+				isVariant(perpMarket.contractType, 'prediction')
+			);
+		}
 
 		const userCustomMargin = Math.max(
 			perpPosition.maxMarginRatio,
