@@ -15,6 +15,7 @@ import {
 	AssetTier,
 	SpotFulfillmentConfigStatus,
 	IfRebalanceConfigParams,
+	TxParams,
 } from './types';
 import { DEFAULT_MARKET_NAME, encodeName } from './userName';
 import { BN } from '@coral-xyz/anchor';
@@ -39,6 +40,7 @@ import {
 	getFuelOverflowAccountPublicKey,
 	getTokenProgramForSpotMarket,
 	getIfRebalanceConfigPublicKey,
+	getInsuranceFundStakeAccountPublicKey,
 } from './addresses/pda';
 import { squareRootBN } from './math/utils';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
@@ -50,6 +52,7 @@ import {
 	ONE,
 	BASE_PRECISION,
 	PRICE_PRECISION,
+	GOV_SPOT_MARKET_INDEX,
 } from './constants/numericConstants';
 import { calculateTargetPriceTrade } from './math/trade';
 import { calculateAmmReservesAfterSwap, getSwapDirection } from './math/amm';
@@ -1214,6 +1217,46 @@ export class AdminClient extends DriftClient {
 	): Promise<TransactionInstruction> {
 		return await this.program.instruction.updatePerpMarketCurveUpdateIntensity(
 			curveUpdateIntensity,
+			{
+				accounts: {
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
+					state: await this.getStatePublicKey(),
+					perpMarket: await getPerpMarketPublicKey(
+						this.program.programId,
+						perpMarketIndex
+					),
+				},
+			}
+		);
+	}
+
+	public async updatePerpMarketReferencePriceOffsetDeadbandPct(
+		perpMarketIndex: number,
+		referencePriceOffsetDeadbandPct: number
+	): Promise<TransactionSignature> {
+		const updatePerpMarketReferencePriceOffsetDeadbandPctIx =
+			await this.getUpdatePerpMarketReferencePriceOffsetDeadbandPctIx(
+				perpMarketIndex,
+				referencePriceOffsetDeadbandPct
+			);
+
+		const tx = await this.buildTransaction(
+			updatePerpMarketReferencePriceOffsetDeadbandPctIx
+		);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdatePerpMarketReferencePriceOffsetDeadbandPctIx(
+		perpMarketIndex: number,
+		referencePriceOffsetDeadbandPct: number
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updatePerpMarketReferencePriceOffsetDeadbandPct(
+			referencePriceOffsetDeadbandPct,
 			{
 				accounts: {
 					admin: this.useHotWalletAdmin
@@ -4645,6 +4688,223 @@ export class AdminClient extends DriftClient {
 						? this.wallet.publicKey
 						: this.getStateAccount().admin,
 					state: await this.getStatePublicKey(),
+				},
+			}
+		);
+	}
+
+	public async updateFeatureBitFlagsMedianTriggerPrice(
+		enable: boolean
+	): Promise<TransactionSignature> {
+		const updateFeatureBitFlagsMedianTriggerPriceIx =
+			await this.getUpdateFeatureBitFlagsMedianTriggerPriceIx(enable);
+		const tx = await this.buildTransaction(
+			updateFeatureBitFlagsMedianTriggerPriceIx
+		);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateFeatureBitFlagsMedianTriggerPriceIx(
+		enable: boolean
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.updateFeatureBitFlagsMedianTriggerPrice(
+			enable,
+			{
+				accounts: {
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
+	}
+
+	public async updateDelegateUserGovTokenInsuranceStake(
+		authority: PublicKey,
+		delegate: PublicKey
+	): Promise<TransactionSignature> {
+		const updateDelegateUserGovTokenInsuranceStakeIx =
+			await this.getUpdateDelegateUserGovTokenInsuranceStakeIx(
+				authority,
+				delegate
+			);
+
+		const tx = await this.buildTransaction(
+			updateDelegateUserGovTokenInsuranceStakeIx
+		);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateDelegateUserGovTokenInsuranceStakeIx(
+		authority: PublicKey,
+		delegate: PublicKey
+	): Promise<TransactionInstruction> {
+		const marketIndex = GOV_SPOT_MARKET_INDEX;
+		const spotMarket = this.getSpotMarketAccount(marketIndex);
+		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
+			this.program.programId,
+			delegate,
+			marketIndex
+		);
+		const userStatsPublicKey = getUserStatsAccountPublicKey(
+			this.program.programId,
+			authority
+		);
+
+		const ix =
+			this.program.instruction.getUpdateDelegateUserGovTokenInsuranceStakeIx({
+				accounts: {
+					state: await this.getStatePublicKey(),
+					spotMarket: spotMarket.pubkey,
+					insuranceFundStake: ifStakeAccountPublicKey,
+					userStats: userStatsPublicKey,
+					signer: this.wallet.publicKey,
+					insuranceFundVault: spotMarket.insuranceFund.vault,
+				},
+			});
+
+		return ix;
+	}
+
+	public async depositIntoInsuranceFundStake(
+		marketIndex: number,
+		amount: BN,
+		userStatsPublicKey: PublicKey,
+		insuranceFundStakePublicKey: PublicKey,
+		userTokenAccountPublicKey: PublicKey,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const tx = await this.buildTransaction(
+			await this.getDepositIntoInsuranceFundStakeIx(
+				marketIndex,
+				amount,
+				userStatsPublicKey,
+				insuranceFundStakePublicKey,
+				userTokenAccountPublicKey
+			),
+			txParams
+		);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getDepositIntoInsuranceFundStakeIx(
+		marketIndex: number,
+		amount: BN,
+		userStatsPublicKey: PublicKey,
+		insuranceFundStakePublicKey: PublicKey,
+		userTokenAccountPublicKey: PublicKey
+	): Promise<TransactionInstruction> {
+		const spotMarket = this.getSpotMarketAccount(marketIndex);
+		return await this.program.instruction.depositIntoInsuranceFundStake(
+			marketIndex,
+			amount,
+			{
+				accounts: {
+					signer: this.wallet.publicKey,
+					state: await this.getStatePublicKey(),
+					spotMarket: spotMarket.pubkey,
+					insuranceFundStake: insuranceFundStakePublicKey,
+					userStats: userStatsPublicKey,
+					spotMarketVault: spotMarket.vault,
+					insuranceFundVault: spotMarket.insuranceFund.vault,
+					userTokenAccount: userTokenAccountPublicKey,
+					tokenProgram: this.getTokenProgramForSpotMarket(spotMarket),
+					driftSigner: this.getSignerPublicKey(),
+				},
+			}
+		);
+	}
+
+	public async updateFeatureBitFlagsBuilderCodes(
+		enable: boolean
+	): Promise<TransactionSignature> {
+		const updateFeatureBitFlagsBuilderCodesIx =
+			await this.getUpdateFeatureBitFlagsBuilderCodesIx(enable);
+
+		const tx = await this.buildTransaction(updateFeatureBitFlagsBuilderCodesIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateFeatureBitFlagsBuilderCodesIx(
+		enable: boolean
+	): Promise<TransactionInstruction> {
+		return this.program.instruction.updateFeatureBitFlagsBuilderCodes(enable, {
+			accounts: {
+				admin: this.useHotWalletAdmin
+					? this.wallet.publicKey
+					: this.getStateAccount().admin,
+				state: await this.getStatePublicKey(),
+			},
+		});
+	}
+
+	public async updateFeatureBitFlagsBuilderReferral(
+		enable: boolean
+	): Promise<TransactionSignature> {
+		const updateFeatureBitFlagsBuilderReferralIx =
+			await this.getUpdateFeatureBitFlagsBuilderReferralIx(enable);
+
+		const tx = await this.buildTransaction(
+			updateFeatureBitFlagsBuilderReferralIx
+		);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getUpdateFeatureBitFlagsBuilderReferralIx(
+		enable: boolean
+	): Promise<TransactionInstruction> {
+		return this.program.instruction.updateFeatureBitFlagsBuilderReferral(
+			enable,
+			{
+				accounts: {
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
+					state: await this.getStatePublicKey(),
+				},
+			}
+		);
+	}
+
+	public async adminDisableUpdatePerpBidAskTwap(
+		authority: PublicKey,
+		disable: boolean
+	): Promise<TransactionSignature> {
+		const disableBidAskTwapUpdateIx =
+			await this.getAdminDisableUpdatePerpBidAskTwapIx(authority, disable);
+
+		const tx = await this.buildTransaction(disableBidAskTwapUpdateIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getAdminDisableUpdatePerpBidAskTwapIx(
+		authority: PublicKey,
+		disable: boolean
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.adminDisableUpdatePerpBidAskTwap(
+			disable,
+			{
+				accounts: {
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
+					state: await this.getStatePublicKey(),
+					userStats: getUserStatsAccountPublicKey(
+						this.program.programId,
+						authority
+					),
 				},
 			}
 		);

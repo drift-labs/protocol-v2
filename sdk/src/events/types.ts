@@ -24,6 +24,7 @@ import {
 	LPMintRedeemRecord,
 	LPSettleRecord,
 	LPSwapRecord,
+	LPBorrowLendDepositRecord,
 } from '../types';
 import { EventEmitter } from 'events';
 
@@ -116,8 +117,8 @@ export type EventMap = {
 	FuelSeasonRecord: Event<FuelSeasonRecord>;
 	InsuranceFundSwapRecord: Event<InsuranceFundSwapRecord>;
 	TransferProtocolIfSharesToRevenuePoolRecord: Event<TransferProtocolIfSharesToRevenuePoolRecord>;
-	LPMintRedeemRecord: Event<LPMintRedeemRecord>;
 	LPSettleRecord: Event<LPSettleRecord>;
+	LPMintRedeemRecord: Event<LPMintRedeemRecord>;
 	LPSwapRecord: Event<LPSwapRecord>;
 };
 
@@ -146,8 +147,10 @@ export type DriftEvent =
 	| Event<InsuranceFundSwapRecord>
 	| Event<TransferProtocolIfSharesToRevenuePoolRecord>
 	| Event<LPSettleRecord>
+	| Event<LPMintRedeemRecord>
 	| Event<LPSwapRecord>
-	| Event<LPMintRedeemRecord>;
+	| Event<LPBorrowLendDepositRecord>
+	| Event<CuUsage>;
 
 export interface EventSubscriberEvents {
 	newEvent: (event: WrappedEvent<EventType>) => void;
@@ -211,3 +214,24 @@ export type LogProviderConfig =
 	| WebSocketLogProviderConfig
 	| PollingLogProviderConfig
 	| EventsServerLogProviderConfig;
+
+export type CuUsageEvent = {
+	name: 'CuUsage';
+	fields: [
+		{
+			name: 'instruction';
+			type: 'string';
+			index: false;
+		},
+		{
+			name: 'cuUsage';
+			type: 'u32';
+			index: false;
+		},
+	];
+};
+
+export type CuUsage = {
+	instruction: string;
+	cuUsage: number;
+};

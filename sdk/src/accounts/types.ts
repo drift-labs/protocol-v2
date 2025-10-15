@@ -234,6 +234,7 @@ export type GrpcConfigs = {
 	 * Defaults to false, will throw on connection loss.
 	 */
 	enableReconnect?: boolean;
+	client?: 'yellowstone' | 'laser';
 };
 
 export interface HighLeverageModeConfigAccountSubscriber {

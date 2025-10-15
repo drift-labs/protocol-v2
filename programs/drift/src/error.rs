@@ -641,6 +641,22 @@ pub enum ErrorCode {
     InvalidIfRebalanceSwap,
     #[msg("Invalid Isolated Perp Market")]
     InvalidIsolatedPerpMarket,
+    #[msg("Invalid RevenueShare resize")]
+    InvalidRevenueShareResize,
+    #[msg("Builder has been revoked")]
+    BuilderRevoked,
+    #[msg("Builder fee is greater than max fee bps")]
+    InvalidBuilderFee,
+    #[msg("RevenueShareEscrow authority mismatch")]
+    RevenueShareEscrowAuthorityMismatch,
+    #[msg("RevenueShareEscrow has too many active orders")]
+    RevenueShareEscrowOrdersAccountFull,
+    #[msg("Invalid RevenueShareAccount")]
+    InvalidRevenueShareAccount,
+    #[msg("Cannot revoke builder with open orders")]
+    CannotRevokeBuilderWithOpenOrders,
+    #[msg("Unable to load builder account")]
+    UnableToLoadRevenueShareAccount,
 }
 
 #[macro_export]

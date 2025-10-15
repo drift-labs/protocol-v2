@@ -29,6 +29,7 @@ import {
 	unstakeSharesToAmount,
 	MarketStatus,
 	LIQUIDATION_PCT_PRECISION,
+	getUserStatsAccountPublicKey,
 } from '../sdk/src';
 
 import {
@@ -40,6 +41,7 @@ import {
 	sleep,
 	mockOracleNoProgram,
 	setFeedPriceNoProgram,
+	mintUSDCToUser,
 } from './testHelpers';
 import { ContractTier, PERCENTAGE_PRECISION, UserStatus } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
@@ -1161,6 +1163,33 @@ describe('insurance fund stake', () => {
 		// TODO: resolve any issues in liq borrow before adding asserts in test here
 
 		// assert(usdcBefore.eq(usdcAfter));
+	});
+
+	it('admin deposit into insurance fund stake', async () => {
+		await mintUSDCToUser(
+			usdcMint,
+			userUSDCAccount.publicKey,
+			usdcAmount,
+			bankrunContextWrapper
+		);
+		const marketIndex = 0;
+		const insuranceFundStakePublicKey = getInsuranceFundStakeAccountPublicKey(
+			driftClient.program.programId,
+			driftClient.wallet.publicKey,
+			marketIndex
+		);
+		const userStatsPublicKey = getUserStatsAccountPublicKey(
+			driftClient.program.programId,
+			driftClient.wallet.publicKey
+		);
+		const txSig = await driftClient.depositIntoInsuranceFundStake(
+			marketIndex,
+			usdcAmount,
+			userStatsPublicKey,
+			insuranceFundStakePublicKey,
+			userUSDCAccount.publicKey
+		);
+		bankrunContextWrapper.printTxLogs(txSig);
 	});
 
 	// it('settle spotMarket to insurance vault', async () => {

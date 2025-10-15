@@ -164,12 +164,12 @@
   resolved "https://registry.yarnpkg.com/@eslint/js/-/js-8.57.0.tgz#a5417ae8427873f1dd08b70b3574b453e67b5f7f"
   integrity sha512-Ys+3g2TaW7gADOJzPt83SJtCDhMjndcDMFVQ/Tj9iA1BfJzFKD9mAUXT3OenpuPHbI6P/myECxRJrofUsDx/5g==
 
-"@grpc/grpc-js@1.12.6":
-  version "1.12.6"
-  resolved "https://registry.yarnpkg.com/@grpc/grpc-js/-/grpc-js-1.12.6.tgz#a3586ffdfb6a1f5cd5b4866dec9074c4a1e65472"
-  integrity sha512-JXUj6PI0oqqzTGvKtzOkxtpsyPRNsrmhh41TtIz/zEB6J+AUiZZ0dxWzcMwO9Ns5rmSPuMdghlTbUuqIM48d3Q==
+"@grpc/grpc-js@1.14.0":
+  version "1.14.0"
+  resolved "https://registry.yarnpkg.com/@grpc/grpc-js/-/grpc-js-1.14.0.tgz#a3c47e7816ca2b4d5490cba9e06a3cf324e675ad"
+  integrity sha512-N8Jx6PaYzcTRNzirReJCtADVoq4z7+1KQ4E70jTg/koQiMoUSN1kbNjPOqpPbhMFhfU1/l7ixspPl8dNY+FoUg==
   dependencies:
-    "@grpc/proto-loader" "^0.7.13"
+    "@grpc/proto-loader" "^0.8.0"
     "@js-sdsl/ordered-map" "^4.4.2"
 
 "@grpc/grpc-js@^1.8.0", "@grpc/grpc-js@^1.8.13":
@@ -188,6 +188,16 @@
     lodash.camelcase "^4.3.0"
     long "^5.0.0"
     protobufjs "^7.2.5"
+    yargs "^17.7.2"
+
+"@grpc/proto-loader@^0.8.0":
+  version "0.8.0"
+  resolved "https://registry.yarnpkg.com/@grpc/proto-loader/-/proto-loader-0.8.0.tgz#b6c324dd909c458a0e4aa9bfd3d69cf78a4b9bd8"
+  integrity sha512-rc1hOQtjIWGxcxpb9aHAfLpIctjEnsDehj0DAiVfBlmT84uvR0uUtN2hEi/ecvWVjXUGf5qPF4qEgiLOx1YIMQ==
+  dependencies:
+    lodash.camelcase "^4.3.0"
+    long "^5.0.0"
+    protobufjs "^7.5.3"
     yargs "^17.7.2"
 
 "@humanwhocodes/config-array@^0.11.14":
@@ -1139,10 +1149,10 @@
     buffer "^6.0.3"
     js-yaml "^4.1.0"
 
-"@triton-one/yellowstone-grpc@1.3.0":
-  version "1.3.0"
-  resolved "https://registry.yarnpkg.com/@triton-one/yellowstone-grpc/-/yellowstone-grpc-1.3.0.tgz#7caa7006b525149b4780d1295c7d4c34bc6a6ff6"
-  integrity sha512-tuwHtoYzvqnahsMrecfNNkQceCYwgiY0qKS8RwqtaxvDEgjm0E+0bXwKz2eUD3ZFYifomJmRKDmSBx9yQzAeMQ==
+"@triton-one/yellowstone-grpc@1.4.1":
+  version "1.4.1"
+  resolved "https://registry.yarnpkg.com/@triton-one/yellowstone-grpc/-/yellowstone-grpc-1.4.1.tgz#b50434f68c3d73c6ce3e1f225656064c080f4b25"
+  integrity sha512-ZN49vooxFbOqWttll8u7AOsIVnX+srqX9ddhZ9ttE+OcehUo8c2p2suK8Gr2puab49cgsV0VGjiTn9Gua/ntIw==
   dependencies:
     "@grpc/grpc-js" "^1.8.0"
 
@@ -1280,6 +1290,13 @@
   integrity sha512-hIPK0hSrrcaoAu/gJMzN3QClXE4QdCdFvaenJ0JsjIbExP1JFFVH+RHcBt25c9n8bx5dkIfqKE+uw6BmBns7ug==
   dependencies:
     undici-types "~5.26.4"
+
+"@types/protobufjs@^6.0.0":
+  version "6.0.0"
+  resolved "https://registry.yarnpkg.com/@types/protobufjs/-/protobufjs-6.0.0.tgz#aeabb43f9507bb19c8adfb479584c151082353e4"
+  integrity sha512-A27RDExpAf3rdDjIrHKiJK6x8kqqJ4CmoChwtipfhVAn1p7+wviQFFP7dppn8FslSbHtQeVPvi8wNKkDjSYjHw==
+  dependencies:
+    protobufjs "*"
 
 "@types/semver@^7.5.0":
   version "7.7.0"
@@ -2820,6 +2837,51 @@ he@^1.2.0:
   resolved "https://registry.yarnpkg.com/he/-/he-1.2.0.tgz#84ae65fa7eafb165fddb61566ae14baf05664f0f"
   integrity sha512-F/1DnUGPopORZi0ni+CvrCgHQ5FyEAHRLSApuYWMmrbSwoN2Mn/7k+Gl38gJnR7yyDZk6WLXwiGod1JOWNDKGw==
 
+helius-laserstream-darwin-arm64@0.1.8:
+  version "0.1.8"
+  resolved "https://registry.yarnpkg.com/helius-laserstream-darwin-arm64/-/helius-laserstream-darwin-arm64-0.1.8.tgz#d78ad15e6cd16dc9379a9a365f9fcb3f958e6c01"
+  integrity sha512-p/K2Mi3wZnMxEYSLCvu858VyMvtJFonhdF8cLaMcszFv04WWdsK+hINNZpVRfakypvDfDPbMudEhL1Q9USD5+w==
+
+helius-laserstream-darwin-x64@0.1.8:
+  version "0.1.8"
+  resolved "https://registry.yarnpkg.com/helius-laserstream-darwin-x64/-/helius-laserstream-darwin-x64-0.1.8.tgz#e57bc8f03135fd3b5c01a5aebd7b87c42129da50"
+  integrity sha512-Hd5irFyfOqQZLdoj5a+OV7vML2YfySSBuKlOwtisMHkUuIXZ4NpAexslDmK7iP5VWRI+lOv9X/tA7BhxW7RGSQ==
+
+helius-laserstream-linux-arm64-gnu@0.1.8:
+  version "0.1.8"
+  resolved "https://registry.yarnpkg.com/helius-laserstream-linux-arm64-gnu/-/helius-laserstream-linux-arm64-gnu-0.1.8.tgz#1b3c8440804d143f650166842620fc334f9c319b"
+  integrity sha512-PlPm1dvOvTGBL1nuzK98Xe40BJq1JWNREXlBHKDVA/B+KCGQnIMJ1s6e1MevSvFE7SOix5i1BxhYIxGioK2GMg==
+
+helius-laserstream-linux-arm64-musl@0.1.8:
+  version "0.1.8"
+  resolved "https://registry.yarnpkg.com/helius-laserstream-linux-arm64-musl/-/helius-laserstream-linux-arm64-musl-0.1.8.tgz#28e0645bebc3253d2a136cf0bd13f8cb5256f47b"
+  integrity sha512-LFadfMRuTd1zo6RZqLTgHQapo3gJYioS7wFMWFoBOFulG0BpAqHEDNobkxx0002QArw+zX29MQ/5OaOCf8kKTA==
+
+helius-laserstream-linux-x64-gnu@0.1.8:
+  version "0.1.8"
+  resolved "https://registry.yarnpkg.com/helius-laserstream-linux-x64-gnu/-/helius-laserstream-linux-x64-gnu-0.1.8.tgz#e59990ca0bcdc27e46f71a8fc2c18fddbe6f07e3"
+  integrity sha512-IZWK/OQIe0647QqfYikLb1DFK+nYtXLJiMcpj24qnNVWBOtMXmPc1hL6ebazdEiaKt7fxNd5IiM1RqeaqZAZMw==
+
+helius-laserstream-linux-x64-musl@0.1.8:
+  version "0.1.8"
+  resolved "https://registry.yarnpkg.com/helius-laserstream-linux-x64-musl/-/helius-laserstream-linux-x64-musl-0.1.8.tgz#42aa0919ef266c40f50ac74d6f9d871d4e2e7c9c"
+  integrity sha512-riTS6VgxDae1fHOJ2XC/o/v1OZRbEv/3rcoa3NlAOnooDKp5HDgD0zJTcImjQHpYWwGaejx1oX/Ht53lxNoijw==
+
+helius-laserstream@0.1.8:
+  version "0.1.8"
+  resolved "https://registry.yarnpkg.com/helius-laserstream/-/helius-laserstream-0.1.8.tgz#6ee5e0bc9fe2560c03a0d2c9079b9f875c3e6bb7"
+  integrity sha512-jXQkwQRWiowbVPGQrGacOkI5shKPhrEixCu93OpoMtL5fs9mnhtD7XKMPi8CX0W8gsqsJjwR4NlaR+EflyANbQ==
+  dependencies:
+    "@types/protobufjs" "^6.0.0"
+    protobufjs "^7.5.3"
+  optionalDependencies:
+    helius-laserstream-darwin-arm64 "0.1.8"
+    helius-laserstream-darwin-x64 "0.1.8"
+    helius-laserstream-linux-arm64-gnu "0.1.8"
+    helius-laserstream-linux-arm64-musl "0.1.8"
+    helius-laserstream-linux-x64-gnu "0.1.8"
+    helius-laserstream-linux-x64-musl "0.1.8"
+
 humanize-ms@^1.2.1:
   version "1.2.1"
   resolved "https://registry.yarnpkg.com/humanize-ms/-/humanize-ms-1.2.1.tgz#c46e3159a293f6b896da29316d8b6fe8bb79bbed"
@@ -3672,6 +3734,24 @@ pretty-ms@^7.0.1:
   integrity sha512-973driJZvxiGOQ5ONsFhOF/DtzPMOMtgC11kCpUrPGMTgqp2q/1gwzCquocrN33is0VZ5GFHXZYMM9l6h67v2Q==
   dependencies:
     parse-ms "^2.1.0"
+
+protobufjs@*, protobufjs@^7.5.3:
+  version "7.5.4"
+  resolved "https://registry.yarnpkg.com/protobufjs/-/protobufjs-7.5.4.tgz#885d31fe9c4b37f25d1bb600da30b1c5b37d286a"
+  integrity sha512-CvexbZtbov6jW2eXAvLukXjXUW1TzFaivC46BpWc/3BpcCysb5Vffu+B3XHMm8lVEuy2Mm4XGex8hBSg1yapPg==
+  dependencies:
+    "@protobufjs/aspromise" "^1.1.2"
+    "@protobufjs/base64" "^1.1.2"
+    "@protobufjs/codegen" "^2.0.4"
+    "@protobufjs/eventemitter" "^1.1.0"
+    "@protobufjs/fetch" "^1.1.0"
+    "@protobufjs/float" "^1.0.2"
+    "@protobufjs/inquire" "^1.1.0"
+    "@protobufjs/path" "^1.1.2"
+    "@protobufjs/pool" "^1.1.0"
+    "@protobufjs/utf8" "^1.1.0"
+    "@types/node" ">=13.7.0"
+    long "^5.0.0"
 
 protobufjs@^7.2.5, protobufjs@^7.4.0:
   version "7.5.3"
