@@ -8,6 +8,7 @@ import {
 	SpotMarketAccount,
 	Wallet,
 	OracleInfo,
+	decodeName,
 } from '../src';
 import { CommitmentLevel } from '@triton-one/yellowstone-grpc';
 import dotenv from 'dotenv';
@@ -137,29 +138,22 @@ async function initializeSingleGrpcClient() {
 
 	client.eventEmitter.on('stateAccountUpdate', (_data) => {
 		eventCounts.stateAccountUpdate++;
-		console.log(`📊 State Account Update #${eventCounts.stateAccountUpdate}`);
 	});
 
 	client.eventEmitter.on('perpMarketAccountUpdate', (data) => {
 		eventCounts.perpMarketAccountUpdate++;
-		console.log(`📈 Perp Market Update #${eventCounts.perpMarketAccountUpdate} - Market ${data.marketIndex}`);
 	});
 
 	client.eventEmitter.on('spotMarketAccountUpdate', (data) => {
 		eventCounts.spotMarketAccountUpdate++;
-		console.log(`🏦 Spot Market Update #${eventCounts.spotMarketAccountUpdate} - Market ${data.marketIndex}`);
 	});
 
 	client.eventEmitter.on('oraclePriceUpdate', (publicKey, source, _data) => {
 		eventCounts.oraclePriceUpdate++;
-		console.log(`🔮 Oracle Update #${eventCounts.oraclePriceUpdate} - ${publicKey.toBase58()} (${source})`);
 	});
 
 	client.accountSubscriber.eventEmitter.on('update', () => {
 		eventCounts.update++;
-		if (eventCounts.update % 10 === 0) {
-			console.log(`🔄 General Update #${eventCounts.update}`);
-		}
 	});
 
 	// Subscribe
@@ -167,33 +161,64 @@ async function initializeSingleGrpcClient() {
 	await client.subscribe();
 
 	console.log('✅ Client subscribed successfully!');
-	console.log('📊 Starting to log updates...');
+	console.log('🚀 Starting high-load testing (50 reads/sec per perp market)...');
+
+	// High-frequency load testing - 50 reads per second per perp market
+	const loadTestInterval = setInterval(async () => {
+		try {
+			// Test getPerpMarketAccount for each perp market (50 times per second per market)
+			for (const marketIndex of perpMarketIndexes) {
+				const perpMarketAccount = client.getPerpMarketAccount(marketIndex);
+				console.log("perpMarketAccount name: ", decodeName(perpMarketAccount.name));
+				console.log("perpMarketAccount data: ", JSON.stringify({
+					marketIndex: perpMarketAccount.marketIndex,
+					name: decodeName(perpMarketAccount.name),
+					baseAssetReserve: perpMarketAccount.amm.baseAssetReserve.toString(),
+					quoteAssetReserve: perpMarketAccount.amm.quoteAssetReserve.toString()
+				}));
+			}
+
+			// Test getMMOracleDataForPerpMarket for each perp market (50 times per second per market)
+			for (const marketIndex of perpMarketIndexes) {
+				try {
+					const oracleData = client.getMMOracleDataForPerpMarket(marketIndex);
+					console.log("oracleData price: ", oracleData.price.toString());
+					console.log("oracleData: ", JSON.stringify({
+						price: oracleData.price.toString(),
+						confidence: oracleData.confidence?.toString(),
+						slot: oracleData.slot?.toString()
+					}));
+				} catch (error) {
+					// Ignore errors for load testing
+				}
+			}
+		} catch (error) {
+			console.error('Load test error:', error);
+		}
+	}, 20); // 50 times per second = 1000ms / 50 = 20ms interval
 
 	// Log periodic stats
 	const statsInterval = setInterval(() => {
 		console.log('\n📈 Event Counts:', eventCounts);
 		console.log(`⏱️  Client subscribed: ${client.isSubscribed}`);
 		console.log(`🔗 Account subscriber subscribed: ${client.accountSubscriber.isSubscribed}`);
+		console.log(`🔥 Load: ${perpMarketIndexes.length * 50 * 2} reads/sec (${perpMarketIndexes.length} markets × 50 getPerpMarketAccount + 50 getMMOracleDataForPerpMarket)`);
 	}, 5000);
 
-	// Cleanup function
-	const cleanup = async () => {
-		console.log('\n🛑 Cleaning up...');
+	// Handle shutdown signals - just exit without cleanup since they never unsubscribe
+	process.on('SIGINT', () => {
+		console.log('\n🛑 Shutting down...');
+		clearInterval(loadTestInterval);
 		clearInterval(statsInterval);
-		await client.unsubscribe();
-		console.log('✅ Cleanup complete');
 		process.exit(0);
-	};
+	});
 
-	// Handle shutdown signals
-	process.on('SIGINT', cleanup);
-	process.on('SIGTERM', cleanup);
-
-	// Auto-exit after 5 minutes for testing
-	setTimeout(async () => {
-		console.log('\n⏰ Auto-exiting after 5 minutes...');
-		await cleanup();
-	}, 5 * 60 * 1000);
+	process.on('SIGTERM', () => {
+		console.log('\n🛑 Shutting down...');
+		clearInterval(loadTestInterval);
+		clearInterval(statsInterval);
+		process.exit(0);
+	});
 
 	return client;
 }
