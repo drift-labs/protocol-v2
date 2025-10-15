@@ -12,6 +12,7 @@ use solana_program::sysvar::instructions::{
 };
 
 use crate::controller::insurance::update_user_stats_if_stake_amount;
+use crate::controller::isolated_position::transfer_isolated_perp_position_deposit;
 use crate::controller::liquidation::{
     liquidate_spot_with_swap_begin, liquidate_spot_with_swap_end,
 };
@@ -630,11 +631,13 @@ pub fn handle_place_signed_msg_taker_order<'c: 'info, 'info>(
 
     let taker_key = ctx.accounts.user.key();
     let mut taker = load_mut!(ctx.accounts.user)?;
+    let mut taker_stats = load_mut!(ctx.accounts.user_stats)?;
     let mut signed_msg_taker = ctx.accounts.signed_msg_user_orders.load_mut()?;
 
     place_signed_msg_taker_order(
         taker_key,
         &mut taker,
+        &mut taker_stats,
         &mut signed_msg_taker,
         signed_msg_order_params_message_bytes,
         &ctx.accounts.ix_sysvar.to_account_info(),
@@ -651,6 +654,7 @@ pub fn handle_place_signed_msg_taker_order<'c: 'info, 'info>(
 pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
     taker_key: Pubkey,
     taker: &mut RefMut<User>,
+    taker_stats: &mut RefMut<UserStats>,
     signed_msg_account: &mut SignedMsgUserOrdersZeroCopyMut,
     taker_order_params_message_bytes: Vec<u8>,
     ix_sysvar: &AccountInfo<'info>,
@@ -762,6 +766,21 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
 
     if let Some(max_margin_ratio) = verified_message_and_signature.max_margin_ratio {
         taker.update_perp_position_max_margin_ratio(market_index, max_margin_ratio)?;
+    }
+
+    if let Some(isolated_position_deposit) = verified_message_and_signature.isolated_position_deposit {
+        transfer_isolated_perp_position_deposit(
+            taker,
+            taker_stats,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            clock.slot,
+            clock.unix_timestamp,
+            0,
+            market_index,
+            isolated_position_deposit.cast::<i64>()?,
+        )?;
     }
 
     // Dont place order if signed msg order already exists
