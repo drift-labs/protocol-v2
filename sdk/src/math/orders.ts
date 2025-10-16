@@ -14,6 +14,7 @@ import {
 	TWO,
 	ONE,
 	SPOT_MARKET_IMF_PRECISION,
+	MARGIN_PRECISION,
 } from '../constants/numericConstants';
 import { BN } from '@coral-xyz/anchor';
 import { MMOraclePriceData, OraclePriceData } from '../oracles/types';
@@ -27,9 +28,8 @@ import {
 	calculateMaxBaseAssetAmountToTrade,
 	calculateUpdatedAMM,
 } from './amm';
-
-import { squareRootBN } from './utils';
 import { calculateSizePremiumLiabilityWeight } from './margin';
+
 export function isOrderRiskIncreasing(user: User, order: Order): boolean {
 	if (!isVariant(order.status, 'open')) {
 		return false;
@@ -431,15 +431,16 @@ export function calculateOrderBaseAssetAmount(
 export function maxSizeForTargetLiabilityWeightBN(
 	target: BN,
 	imfFactor: BN,
-	liabilityWeight: BN,
-	precision: BN
+	liabilityWeight: BN
 ): BN | null {
 	if (target.lt(liabilityWeight)) return null;
 	if (imfFactor.isZero()) return null;
 
 	const base = liabilityWeight.muln(4).divn(5);
 
-	const denom = new BN(100_000).mul(SPOT_MARKET_IMF_PRECISION).div(precision);
+	const denom = new BN(100_000)
+		.mul(SPOT_MARKET_IMF_PRECISION)
+		.div(MARGIN_PRECISION);
 	if (denom.isZero())
 		throw new Error('denom=0: bad precision/spotImfPrecision');
 
@@ -452,7 +453,7 @@ export function maxSizeForTargetLiabilityWeightBN(
 			ZERO,
 			imfFactor,
 			liabilityWeight,
-			precision
+			MARGIN_PRECISION
 		).lte(target);
 		return fitsZero ? ZERO : null;
 	}
@@ -468,7 +469,7 @@ export function maxSizeForTargetLiabilityWeightBN(
 				mid,
 				imfFactor,
 				liabilityWeight,
-				precision
+				MARGIN_PRECISION
 			).lte(target)
 		) {
 			lo = mid;
