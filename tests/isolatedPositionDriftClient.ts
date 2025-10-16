@@ -478,7 +478,10 @@ describe('drift client', () => {
 		assert.ok(user.perpPositions[0].baseAssetAmount.eq(new BN(0)));
 		console.log(driftClient.getIsolatedPerpPositionTokenAmount(0).toString());
 		assert.ok(
-			driftClient.getIsolatedPerpPositionTokenAmount(0).eq(new BN(9855998))
+			driftClient.getIsolatedPerpPositionTokenAmount(0).eq(new BN(0))
+		);
+		assert.ok(
+			driftClient.getQuoteAssetTokenAmount().eq(new BN(9855998))
 		);
 		console.log(
 			driftClient
@@ -514,6 +517,12 @@ describe('drift client', () => {
 	});
 
 	it('Open short position', async () => {
+		// Re-Deposit USDC, assuming we have 0 balance here
+		await driftClient.transferIsolatedPerpPositionDeposit(
+			new BN(9855998),
+			0
+		);
+		
 		const baseAssetAmount = new BN(48000000000);
 		await driftClient.openPosition(PositionDirection.SHORT, baseAssetAmount, 0);
 

@@ -12752,6 +12752,9 @@
           },
           {
             "name": "UpdateHighLeverageMode"
+          },
+          {
+            "name": "EnableAutoTransfer"
           }
         ]
       }

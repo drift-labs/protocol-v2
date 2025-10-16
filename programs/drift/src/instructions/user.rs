@@ -2181,7 +2181,7 @@ pub fn handle_transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
 
     controller::isolated_position::transfer_isolated_perp_position_deposit(
         user,
-        user_stats,
+        Some(user_stats),
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
