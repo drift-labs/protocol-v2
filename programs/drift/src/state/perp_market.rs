@@ -7,7 +7,7 @@ use std::cmp::max;
 
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
-use crate::math::amm;
+use crate::math::amm::{self};
 use crate::math::casting::Cast;
 #[cfg(test)]
 use crate::math::constants::{
@@ -86,6 +86,23 @@ impl MarketStatus {
         } else {
             Ok(())
         }
+    }
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
+pub enum LpStatus {
+    /// Not considered
+    #[default]
+    Uncollateralized,
+    /// all operations allowed
+    Active,
+    /// Decommissioning
+    Decommissioning,
+}
+
+impl LpStatus {
+    pub fn is_collateralized(&self) -> bool {
+        !matches!(self, LpStatus::Uncollateralized)
     }
 }
 
@@ -234,7 +251,10 @@ pub struct PerpMarket {
     pub high_leverage_margin_ratio_maintenance: u16,
     pub protected_maker_limit_price_divisor: u8,
     pub protected_maker_dynamic_divisor: u8,
-    pub padding1: u32,
+    pub lp_fee_transfer_scalar: u8,
+    pub lp_status: u8,
+    pub lp_paused_operations: u8,
+    pub lp_exchange_fee_excluscion_scalar: u8,
     pub last_fill_price: u64,
     pub padding: [u8; 24],
 }
@@ -278,7 +298,10 @@ impl Default for PerpMarket {
             high_leverage_margin_ratio_maintenance: 0,
             protected_maker_limit_price_divisor: 0,
             protected_maker_dynamic_divisor: 0,
-            padding1: 0,
+            lp_fee_transfer_scalar: 0,
+            lp_status: 0,
+            lp_exchange_fee_excluscion_scalar: 0,
+            lp_paused_operations: 0,
             last_fill_price: 0,
             padding: [0; 24],
         }
@@ -724,7 +747,7 @@ impl PerpMarket {
 
         let last_fill_price = self.last_fill_price;
 
-        let mark_price_5min_twap = self.amm.last_mark_price_twap_5min;
+        let mark_price_5min_twap = self.amm.last_mark_price_twap;
         let last_oracle_price_twap_5min =
             self.amm.historical_oracle_data.last_oracle_price_twap_5min;
 
@@ -1634,6 +1657,8 @@ impl AMM {
 #[cfg(test)]
 impl AMM {
     pub fn default_test() -> Self {
+        use crate::math::constants::PRICE_PRECISION_I64;
+
         let default_reserves = 100 * AMM_RESERVE_PRECISION;
         // make sure tests dont have the default sqrt_k = 0
         AMM {
@@ -1659,6 +1684,8 @@ impl AMM {
     }
 
     pub fn default_btc_test() -> Self {
+        use crate::math::constants::PRICE_PRECISION_I64;
+
         AMM {
             base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 63015384615,
