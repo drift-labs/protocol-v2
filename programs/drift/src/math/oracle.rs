@@ -1,4 +1,3 @@
-use anchor_spl::token_2022::spl_token_2022::solana_zk_token_sdk::encryption::elgamal;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::error::{DriftResult, ErrorCode};
