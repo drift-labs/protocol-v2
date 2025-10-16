@@ -20,6 +20,8 @@ use crate::state::user::{User, UserStats};
 use crate::validate;
 use anchor_lang::prelude::*;
 
+use super::position::get_position_index;
+
 #[cfg(test)]
 mod tests;
 
@@ -155,7 +157,7 @@ pub fn deposit_into_isolated_perp_position<'c: 'info, 'info>(
 
 pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
     user: &mut User,
-    user_stats: &mut UserStats,
+    user_stats: Option<&mut UserStats>,
     perp_market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
@@ -227,25 +229,30 @@ pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
 
         drop(spot_market);
 
-        user.meets_withdraw_margin_requirement_and_increment_fuel_bonus(
-            &perp_market_map,
-            &spot_market_map,
-            oracle_map,
-            MarginRequirementType::Initial,
-            spot_market_index,
-            amount as u128,
-            user_stats,
-            now,
-        )?;
+        if let Some(user_stats) = user_stats {
+            user.meets_withdraw_margin_requirement_and_increment_fuel_bonus(
+                &perp_market_map,
+                &spot_market_map,
+                oracle_map,
+                MarginRequirementType::Initial,
+                spot_market_index,
+                amount as u128,
+                user_stats,
+                now,
+            )?;
 
-        validate_spot_margin_trading(user, &perp_market_map, &spot_market_map, oracle_map)?;
+            validate_spot_margin_trading(user, &perp_market_map, &spot_market_map, oracle_map)?;
 
-        if user.is_cross_margin_being_liquidated() {
-            user.exit_cross_margin_liquidation();
-        }
+            if user.is_cross_margin_being_liquidated() {
+                user.exit_cross_margin_liquidation();
+            }
 
-        if user.is_isolated_margin_being_liquidated(perp_market_index)? {
-            user.exit_isolated_margin_liquidation(perp_market_index)?;
+            if user.is_isolated_margin_being_liquidated(perp_market_index)? {
+                user.exit_isolated_margin_liquidation(perp_market_index)?;
+            }
+        } else {
+            msg!("Cant transfer isolated position deposit without user stats");
+            return Err(ErrorCode::DefaultError);
         }
     } else {
         let mut spot_market = spot_market_map.get_ref_mut(&spot_market_index)?;
@@ -254,8 +261,15 @@ pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
             .force_get_isolated_perp_position_mut(perp_market_index)?
             .get_isolated_token_amount(&spot_market)?;
 
+        // i64::MIN is used to transfer the entire isolated position deposit
+        let amount = if amount == i64::MIN {
+            isolated_perp_position_token_amount
+        } else {
+            amount.unsigned_abs() as u128
+        };
+
         validate!(
-            amount.unsigned_abs() as u128 <= isolated_perp_position_token_amount,
+            amount <= isolated_perp_position_token_amount,
             ErrorCode::InsufficientCollateral,
             "user has insufficient deposit for market {}",
             spot_market_index
@@ -263,7 +277,7 @@ pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
 
         let spot_position_index = user.force_get_spot_position_index(spot_market.market_index)?;
         update_spot_balances_and_cumulative_deposits(
-            amount.abs() as u128,
+            amount,
             &SpotBalanceType::Deposit,
             &mut spot_market,
             &mut user.spot_positions[spot_position_index],
@@ -272,7 +286,7 @@ pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
         )?;
 
         update_spot_balances(
-            amount.abs() as u128,
+            amount,
             &SpotBalanceType::Borrow,
             &mut spot_market,
             user.force_get_isolated_perp_position_mut(perp_market_index)?,
@@ -281,23 +295,30 @@ pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
 
         drop(spot_market);
 
-        user.meets_withdraw_margin_requirement_and_increment_fuel_bonus(
-            &perp_market_map,
-            &spot_market_map,
-            oracle_map,
-            MarginRequirementType::Initial,
-            0,
-            0,
-            user_stats,
-            now,
-        )?;
+        if let Some(user_stats) = user_stats {
+            user.meets_withdraw_margin_requirement_and_increment_fuel_bonus(
+                &perp_market_map,
+                &spot_market_map,
+                oracle_map,
+                MarginRequirementType::Initial,
+                0,
+                0,
+                user_stats,
+                now,
+            )?;
 
-        if user.is_isolated_margin_being_liquidated(perp_market_index)? {
-            user.exit_isolated_margin_liquidation(perp_market_index)?;
-        }
+            if user.is_isolated_margin_being_liquidated(perp_market_index)? {
+                user.exit_isolated_margin_liquidation(perp_market_index)?;
+            }
 
-        if user.is_cross_margin_being_liquidated() {
-            user.exit_cross_margin_liquidation();
+            if user.is_cross_margin_being_liquidated() {
+                user.exit_cross_margin_liquidation();
+            }
+        } else {
+            if let Ok(_) = get_position_index(&user.perp_positions, perp_market_index) {
+                msg!("Cant transfer isolated position deposit without user stats if position is still open");
+                return Err(ErrorCode::DefaultError);
+            }
         }
     }
 

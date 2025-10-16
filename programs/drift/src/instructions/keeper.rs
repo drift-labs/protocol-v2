@@ -922,12 +922,13 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
         "user have pool_id 0"
     )?;
 
+    let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
+        &mut remaining_accounts,
         &get_writable_perp_market_set(market_index),
         &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
         clock.slot,
@@ -998,12 +999,13 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
     let user_key = ctx.accounts.user.key();
     let user = &mut load_mut!(ctx.accounts.user)?;
 
+    let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
         perp_market_map,
         spot_market_map,
         mut oracle_map,
     } = load_maps(
-        &mut ctx.remaining_accounts.iter().peekable(),
+        &mut remaining_accounts,
         &get_writable_perp_market_set_from_vec(&market_indexes),
         &get_writable_spot_market_set(QUOTE_SPOT_MARKET_INDEX),
         clock.slot,
