@@ -47,6 +47,7 @@ pub fn calculate_repeg_validity_from_oracle_account(
         &market.amm.oracle_source,
         oracle::LogMode::ExchangeOracle,
         0,
+        0,
     )? == OracleValidity::Valid;
 
     let (oracle_is_valid, direction_valid, profitability_valid, price_impact_valid) =

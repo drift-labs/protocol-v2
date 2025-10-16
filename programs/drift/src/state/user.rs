@@ -1524,6 +1524,27 @@ impl Order {
             || (self.triggered()
                 && !(self.reduce_only && self.is_bit_flag_set(OrderBitFlag::NewTriggerReduceOnly)))
     }
+
+    pub fn is_low_risk_for_amm(
+        &self,
+        mm_oracle_delay: i64,
+        min_auction_duration: u8,
+        clock_slot: u64,
+    ) -> DriftResult<bool> {
+        if self.market_type == MarketType::Spot {
+            return Ok(false);
+        }
+
+        let order_order_than_oracle_delay = {
+            let clock_minus_delay = clock_slot.cast::<i64>()?.safe_sub(mm_oracle_delay)?;
+            clock_minus_delay >= self.slot.cast::<i64>()?
+        };
+
+        let order_older_than_min_auction_duration =
+            clock_slot.saturating_sub(min_auction_duration as u64) >= self.slot;
+
+        Ok(order_order_than_oracle_delay || order_older_than_min_auction_duration)
+    }
 }
 
 impl Default for Order {

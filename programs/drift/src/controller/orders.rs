@@ -1104,10 +1104,27 @@ pub fn fill_perp_order(
             &market.amm.oracle_source,
             oracle::LogMode::SafeMMOracle,
             market.amm.oracle_slot_delay_override,
+            market.amm.slots_before_stale_for_amm_low_risk,
         )?;
 
-        oracle_valid_for_amm_fill =
-            is_oracle_valid_for_action(safe_oracle_validity, Some(DriftAction::FillOrderAmm))?;
+        let is_order_low_risk_for_amm = user.orders[order_index].is_low_risk_for_amm(
+            safe_oracle_price_data.delay,
+            state.min_perp_auction_duration,
+            slot,
+        )?;
+
+        let oracle_valid_for_amm_fill_immediate = is_oracle_valid_for_action(
+            safe_oracle_validity,
+            Some(DriftAction::FillOrderAmmImmediate),
+        )?;
+
+        let oracle_valid_for_amm_fill_low_risk = is_oracle_valid_for_action(
+            safe_oracle_validity,
+            Some(DriftAction::FillOrderAmmLowRisk),
+        )?;
+
+        oracle_valid_for_amm_fill = oracle_valid_for_amm_fill_immediate
+            || (is_order_low_risk_for_amm && oracle_valid_for_amm_fill_low_risk);
 
         oracle_stale_for_margin = mm_oracle_price_data.get_delay()
             > state
@@ -1134,8 +1151,11 @@ pub fn fill_perp_order(
         amm_has_low_enough_inventory = market
             .amm
             .amm_has_low_enough_inventory(amm_wants_to_jit_make)?;
-        amm_can_skip_duration =
-            market.can_skip_auction_duration(&state, amm_has_low_enough_inventory)?;
+        amm_can_skip_duration = market.can_skip_auction_duration(
+            &state,
+            amm_has_low_enough_inventory,
+            is_order_low_risk_for_amm,
+        )?;
 
         user_can_skip_duration = user.can_skip_auction_duration(user_stats)?;
 
@@ -3137,6 +3157,7 @@ pub fn trigger_order(
             .historical_oracle_data
             .last_oracle_price_twap,
         perp_market.get_max_confidence_interval_multiplier()?,
+        0,
         0,
     )?;
 
@@ -5434,6 +5455,7 @@ pub fn trigger_spot_order(
         &spot_market.oracle_id(),
         spot_market.historical_oracle_data.last_oracle_price_twap,
         spot_market.get_max_confidence_interval_multiplier()?,
+        0,
         0,
     )?;
     let strict_oracle_price = StrictOraclePrice {

@@ -1,3 +1,4 @@
+use anchor_spl::token_2022::spl_token_2022::solana_zk_token_sdk::encryption::elgamal;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::error::{DriftResult, ErrorCode};
@@ -24,7 +25,10 @@ pub enum OracleValidity {
     TooUncertain,
     StaleForMargin,
     InsufficientDataPoints,
-    StaleForAMM,
+    StaleForAMM {
+        immediate: bool,
+        low_risk: bool,
+    },
     #[default]
     Valid,
 }
@@ -37,7 +41,7 @@ impl OracleValidity {
             OracleValidity::TooUncertain => ErrorCode::OracleTooUncertain,
             OracleValidity::StaleForMargin => ErrorCode::OracleStaleForMargin,
             OracleValidity::InsufficientDataPoints => ErrorCode::OracleInsufficientDataPoints,
-            OracleValidity::StaleForAMM => ErrorCode::OracleStaleForAMM,
+            OracleValidity::StaleForAMM { .. } => ErrorCode::OracleStaleForAMM,
             OracleValidity::Valid => unreachable!(),
         }
     }
@@ -51,7 +55,18 @@ impl fmt::Display for OracleValidity {
             OracleValidity::TooUncertain => write!(f, "TooUncertain"),
             OracleValidity::StaleForMargin => write!(f, "StaleForMargin"),
             OracleValidity::InsufficientDataPoints => write!(f, "InsufficientDataPoints"),
-            OracleValidity::StaleForAMM => write!(f, "StaleForAMM"),
+            OracleValidity::StaleForAMM {
+                immediate,
+                low_risk,
+            } => {
+                if *immediate {
+                    write!(f, "StaleForAMM (immediate)")
+                } else if *low_risk {
+                    write!(f, "StaleForAMM (low risk)")
+                } else {
+                    write!(f, "StaleForAMM")
+                }
+            }
             OracleValidity::Valid => write!(f, "Valid"),
         }
     }
@@ -63,7 +78,8 @@ pub enum DriftAction {
     SettlePnl,
     TriggerOrder,
     FillOrderMatch,
-    FillOrderAmm,
+    FillOrderAmmLowRisk,
+    FillOrderAmmImmediate,
     Liquidate,
     MarginCalc,
     UpdateTwap,
@@ -78,15 +94,25 @@ pub fn is_oracle_valid_for_action(
 ) -> DriftResult<bool> {
     let is_ok = match action {
         Some(action) => match action {
-            DriftAction::FillOrderAmm => {
+            DriftAction::FillOrderAmmImmediate => {
                 matches!(oracle_validity, OracleValidity::Valid)
+            }
+            DriftAction::FillOrderAmmLowRisk => {
+                matches!(
+                    oracle_validity,
+                    OracleValidity::Valid
+                        | OracleValidity::StaleForAMM {
+                            immediate: false,
+                            low_risk: true
+                        }
+                )
             }
             // relax oracle staleness, later checks for sufficiently recent amm slot update for funding update
             DriftAction::UpdateFunding => {
                 matches!(
                     oracle_validity,
                     OracleValidity::Valid
-                        | OracleValidity::StaleForAMM
+                        | OracleValidity::StaleForAMM { .. }
                         | OracleValidity::InsufficientDataPoints
                         | OracleValidity::StaleForMargin
                 )
@@ -95,7 +121,7 @@ pub fn is_oracle_valid_for_action(
                 matches!(
                     oracle_validity,
                     OracleValidity::Valid
-                        | OracleValidity::StaleForAMM
+                        | OracleValidity::StaleForAMM { .. }
                         | OracleValidity::InsufficientDataPoints
                 )
             }
@@ -113,7 +139,7 @@ pub fn is_oracle_valid_for_action(
             DriftAction::SettlePnl => matches!(
                 oracle_validity,
                 OracleValidity::Valid
-                    | OracleValidity::StaleForAMM
+                    | OracleValidity::StaleForAMM { .. }
                     | OracleValidity::InsufficientDataPoints
                     | OracleValidity::StaleForMargin
             ),
@@ -194,6 +220,7 @@ pub fn get_oracle_status(
         &market.amm.oracle_source,
         LogMode::None,
         0,
+        0,
     )?;
     let oracle_reserve_price_spread_pct =
         amm::calculate_oracle_twap_5min_price_spread_pct(&market.amm, reserve_price)?;
@@ -227,7 +254,8 @@ pub fn oracle_validity(
     max_confidence_interval_multiplier: u64,
     oracle_source: &OracleSource,
     log_mode: LogMode,
-    slots_before_stale_for_amm_override: i8,
+    slots_before_stale_for_amm_immdiate_override: i8,
+    slots_before_stale_for_amm_low_risk: i8,
 ) -> DriftResult<OracleValidity> {
     let OraclePriceData {
         price: oracle_price,
@@ -252,10 +280,17 @@ pub fn oracle_validity(
         .confidence_interval_max_size
         .safe_mul(max_confidence_interval_multiplier)?);
 
-    let is_stale_for_amm = if slots_before_stale_for_amm_override != 0 {
-        oracle_delay.gt(&slots_before_stale_for_amm_override.max(0).cast()?)
+    let is_stale_for_amm_immediate = if slots_before_stale_for_amm_immdiate_override != 0 {
+        oracle_delay.gt(&slots_before_stale_for_amm_immdiate_override.max(0).cast()?)
     } else {
         oracle_delay.gt(&valid_oracle_guard_rails.slots_before_stale_for_amm)
+    };
+
+    let is_stale_for_amm_low_risk = if slots_before_stale_for_amm_low_risk != 0 {
+        oracle_delay.gt(&slots_before_stale_for_amm_low_risk.max(0).cast()?)
+    } else {
+        // Default to current behavior if not set on the amm
+        false
     };
 
     let is_stale_for_margin = if matches!(
@@ -279,8 +314,11 @@ pub fn oracle_validity(
         OracleValidity::StaleForMargin
     } else if !has_sufficient_number_of_data_points {
         OracleValidity::InsufficientDataPoints
-    } else if is_stale_for_amm {
-        OracleValidity::StaleForAMM
+    } else if is_stale_for_amm_immediate || is_stale_for_amm_low_risk {
+        OracleValidity::StaleForAMM {
+            immediate: is_stale_for_amm_immediate,
+            low_risk: is_stale_for_amm_low_risk,
+        }
     } else {
         OracleValidity::Valid
     };
@@ -332,13 +370,16 @@ pub fn oracle_validity(
             );
         }
 
-        if is_stale_for_amm || is_stale_for_margin {
+        if is_stale_for_amm_immediate || is_stale_for_margin || is_stale_for_amm_low_risk {
             crate::msg!(
-                "Invalid {} {} {} Oracle: Stale (oracle_delay={:?})",
+                "Invalid {} {} {} Oracle: Stale (oracle_delay={:?}), (stale_for_amm_immediate={}, stale_for_amm_low_risk={}, stale_for_margin={})",
                 market_type,
                 market_index,
                 oracle_type,
-                oracle_delay
+                oracle_delay,
+                is_stale_for_amm_immediate,
+                is_stale_for_amm_low_risk,
+                is_stale_for_margin
             );
         }
     }

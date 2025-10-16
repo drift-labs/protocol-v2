@@ -2179,6 +2179,7 @@ pub mod fulfill_order_with_maker_order {
                 market.amm.historical_oracle_data.last_oracle_price_twap,
                 market.get_max_confidence_interval_multiplier().unwrap(),
                 0,
+                0,
             )
             .unwrap();
 
@@ -3108,6 +3109,32 @@ pub mod fulfill_order {
     }
 
     #[test]
+    fn test_order_is_low_risk_for_amm() {
+        let mut order = Order {
+            market_index: 0,
+            order_type: OrderType::Market,
+            direction: PositionDirection::Long,
+            base_asset_amount: 1000,
+            ..Order::default()
+        };
+
+        // True if no oracle delay and no auction duration
+        assert!(order.is_low_risk_for_amm(0, 0, 500).unwrap());
+
+        // True if oracle delay but order older than auction duration
+        order.slot = 95;
+        assert!(order.is_low_risk_for_amm(20, 3, 100).unwrap());
+
+        // True if order is new but the order slot is older than the oracle delay
+        order.slot = 97;
+        assert!(order.is_low_risk_for_amm(2, 3, 100).unwrap());
+
+        // False if order is newer than auction duration and oracle delay
+        order.slot = 98;
+        assert!(!order.is_low_risk_for_amm(4, 3, 100).unwrap());
+    }
+
+    #[test]
     fn fulfill_with_amm_skip_auction_duration() {
         let mut oracle_price = get_pyth_price(100, 6);
         let oracle_price_key =
@@ -3159,17 +3186,25 @@ pub mod fulfill_order {
             ..State::default()
         };
 
-        assert!(!market.can_skip_auction_duration(&state, false).unwrap());
+        assert!(!market
+            .can_skip_auction_duration(&state, false, false)
+            .unwrap());
 
         market.amm.net_revenue_since_last_funding = 1;
-        assert!(!market.can_skip_auction_duration(&state, false).unwrap());
-        assert!(market.can_skip_auction_duration(&state, true).unwrap());
+        assert!(!market
+            .can_skip_auction_duration(&state, false, false)
+            .unwrap());
+        assert!(market
+            .can_skip_auction_duration(&state, true, false)
+            .unwrap());
 
         assert!(!state.amm_immediate_fill_paused().unwrap());
         state.exchange_status = 0b10000000;
         assert!(state.amm_immediate_fill_paused().unwrap());
 
-        assert!(!market.can_skip_auction_duration(&state, true).unwrap());
+        assert!(!market
+            .can_skip_auction_duration(&state, true, false)
+            .unwrap());
     }
 
     #[test]

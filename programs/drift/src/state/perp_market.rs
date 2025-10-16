@@ -319,6 +319,7 @@ impl PerpMarket {
         &self,
         state: &State,
         amm_has_low_enough_inventory: bool,
+        is_order_low_risk_for_amm: bool,
     ) -> DriftResult<bool> {
         if state.amm_immediate_fill_paused()? {
             return Ok(false);
@@ -330,7 +331,8 @@ impl PerpMarket {
         let amm_oracle_no_latency = self.amm.oracle_source == OracleSource::Prelaunch
             || (self.amm.historical_oracle_data.last_oracle_delay == 0
                 && self.amm.oracle_source == OracleSource::PythLazer);
-        let can_skip = amm_low_inventory_and_profitable || amm_oracle_no_latency;
+        let can_skip =
+            amm_low_inventory_and_profitable || amm_oracle_no_latency || is_order_low_risk_for_amm;
 
         if can_skip {
             msg!("market {} amm skipping auction duration", self.market_index);
@@ -850,6 +852,7 @@ impl PerpMarket {
                 &self.amm.oracle_source,
                 LogMode::MMOracle,
                 self.amm.oracle_slot_delay_override,
+                self.amm.slots_before_stale_for_amm_low_risk,
             )?
         };
         Ok(MMOraclePriceData::new(
@@ -1170,7 +1173,8 @@ pub struct AMM {
     /// signed scale amm_spread similar to fee_adjustment logic (-100 = 0, 100 = double)
     pub amm_inventory_spread_adjustment: i8,
     pub reference_price_offset_deadband_pct: u8,
-    pub padding: [u8; 2],
+    pub slots_before_stale_for_amm_low_risk: i8,
+    pub padding: [u8; 1],
     pub last_funding_oracle_twap: i64,
 }
 
@@ -1262,7 +1266,8 @@ impl Default for AMM {
             reference_price_offset: 0,
             amm_inventory_spread_adjustment: 0,
             reference_price_offset_deadband_pct: 0,
-            padding: [0; 2],
+            slots_before_stale_for_amm_low_risk: 0,
+            padding: [0; 1],
             last_funding_oracle_twap: 0,
         }
     }
