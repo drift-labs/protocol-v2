@@ -51,8 +51,8 @@ use crate::state::insurance_fund_stake::ProtocolIfSharesTransferConfig;
 use crate::state::oracle::get_sb_on_demand_price;
 use crate::state::oracle::{
     get_oracle_price, get_prelaunch_price, get_pyth_price, get_switchboard_price,
-    HistoricalIndexData, HistoricalOracleData, OraclePriceData, OracleSource, PrelaunchOracle,
-    PrelaunchOracleParams,
+    get_switchboard_surge_price, HistoricalIndexData, HistoricalOracleData, OraclePriceData,
+    OracleSource, PrelaunchOracle, PrelaunchOracleParams,
 };
 use crate::state::oracle_map::OracleMap;
 use crate::state::paused_operations::{InsuranceFundOperation, PerpOperation, SpotOperation};
@@ -908,6 +908,15 @@ pub fn handle_initialize_perp_market(
                 &OracleSource::PythLazerStableCoin,
             )?;
             (oracle_price, oracle_delay, QUOTE_PRECISION_I64)
+        }
+        OracleSource::SwitchboardSurge => {
+            let OraclePriceData {
+                price: oracle_price,
+                delay: oracle_delay,
+                ..
+            } = get_switchboard_surge_price(&ctx.accounts.oracle, clock_slot)?;
+
+            (oracle_price, oracle_delay, oracle_price)
         }
     };
 
