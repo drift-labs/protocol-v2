@@ -8,6 +8,7 @@ use crate::get_then_update_id;
 use crate::math::casting::Cast;
 use crate::math::liquidation::is_isolated_margin_being_liquidated;
 use crate::math::margin::{validate_spot_margin_trading, MarginRequirementType};
+use crate::math::safe_math::SafeMath;
 use crate::state::events::{DepositDirection, DepositExplanation, DepositRecord};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::MarketStatus;
@@ -174,6 +175,7 @@ pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
 
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
 
+    let tvl_before;
     {
         let perp_market = &perp_market_map.get_ref(&perp_market_index)?;
         let spot_market = &mut spot_market_map.get_ref_mut(&spot_market_index)?;
@@ -200,6 +202,8 @@ pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
             Some(oracle_price_data),
             now,
         )?;
+
+        tvl_before = spot_market.get_tvl()?;
     }
 
     if amount > 0 {
@@ -319,6 +323,18 @@ pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
     }
 
     user.update_last_active_slot(slot);
+
+    let spot_market = spot_market_map.get_ref(&spot_market_index)?;
+
+    let tvl_after = spot_market.get_tvl()?;
+
+    validate!(
+        tvl_before.safe_sub(tvl_after)? <= 10,
+        ErrorCode::DefaultError,
+        "Transfer Isolated Perp Position Deposit TVL mismatch: before={}, after={}",
+        tvl_before,
+        tvl_after
+    )?;
 
     Ok(())
 }
