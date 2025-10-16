@@ -5323,30 +5323,6 @@ export class AdminClient extends DriftClient {
 		];
 	}
 
-	public async increaseLpPoolMaxAum(
-		name: string,
-		newMaxAum: BN
-	): Promise<TransactionSignature> {
-		const ixs = await this.getIncreaseLpPoolMaxAumIx(name, newMaxAum);
-		const tx = await this.buildTransaction(ixs);
-		const { txSig } = await this.sendTransaction(tx, []);
-		return txSig;
-	}
-
-	public async getIncreaseLpPoolMaxAumIx(
-		name: string,
-		newMaxAum: BN
-	): Promise<TransactionInstruction> {
-		const lpPool = getLpPoolPublicKey(this.program.programId, encodeName(name));
-		return this.program.instruction.increaseLpPoolMaxAum(newMaxAum, {
-			accounts: {
-				admin: this.wallet.publicKey,
-				lpPool,
-				state: await this.getStatePublicKey(),
-			},
-		});
-	}
-
 	public async initializeConstituent(
 		lpPoolName: number[],
 		initializeConstituentParams: InitializeConstituentParams
@@ -5597,6 +5573,7 @@ export class AdminClient extends DriftClient {
 			gammaExecution?: number;
 			xi?: number;
 			whitelistMint?: PublicKey;
+			maxAum?: BN;
 		}
 	): Promise<TransactionSignature> {
 		const ixs = await this.getUpdateLpPoolParamsIx(
@@ -5616,6 +5593,7 @@ export class AdminClient extends DriftClient {
 			gammaExecution?: number;
 			xi?: number;
 			whitelistMint?: PublicKey;
+			maxAum?: BN;
 		}
 	): Promise<TransactionInstruction[]> {
 		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
@@ -5628,6 +5606,7 @@ export class AdminClient extends DriftClient {
 						gammaExecution: null,
 						xi: null,
 						whitelistMint: null,
+						maxAum: null,
 					},
 					updateLpPoolParams
 				),

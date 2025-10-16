@@ -1809,13 +1809,6 @@ pub mod drift {
         )
     }
 
-    pub fn increase_lp_pool_max_aum(
-        ctx: Context<UpdateLpPoolParams>,
-        new_max_aum: u128,
-    ) -> Result<()> {
-        handle_increase_lp_pool_max_aum(ctx, new_max_aum)
-    }
-
     pub fn update_high_leverage_mode_config(
         ctx: Context<UpdateHighLeverageModeConfig>,
         max_users: u32,

@@ -113,20 +113,6 @@ pub fn handle_initialize_lp_pool(
     Ok(())
 }
 
-pub fn handle_increase_lp_pool_max_aum(
-    ctx: Context<UpdateLpPoolParams>,
-    new_max_aum: u128,
-) -> Result<()> {
-    let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
-    msg!(
-        "lp pool max aum: {:?} -> {:?}",
-        lp_pool.max_aum,
-        new_max_aum
-    );
-    lp_pool.max_aum = new_max_aum;
-    Ok(())
-}
-
 pub fn handle_initialize_constituent<'info>(
     ctx: Context<'_, '_, '_, 'info, InitializeConstituent<'info>>,
     spot_market_index: u16,
@@ -399,6 +385,7 @@ pub struct LpPoolParams {
     pub volatility: Option<u64>,
     pub gamma_execution: Option<u8>,
     pub xi: Option<u8>,
+    pub max_aum: Option<u128>,
     pub whitelist_mint: Option<Pubkey>,
 }
 
@@ -443,6 +430,16 @@ pub fn handle_update_lp_pool_params<'info>(
             whitelist_mint
         );
         lp_pool.whitelist_mint = whitelist_mint;
+    }
+
+    if let Some(max_aum) = lp_pool_params.max_aum {
+        validate!(
+            max_aum >= lp_pool.max_aum,
+            ErrorCode::DefaultError,
+            "new max_aum must be greater than or equal to current max_aum"
+        )?;
+        msg!("max_aum: {:?} -> {:?}", lp_pool.max_aum, max_aum);
+        lp_pool.max_aum = max_aum;
     }
 
     Ok(())
