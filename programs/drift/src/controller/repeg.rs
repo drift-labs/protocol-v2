@@ -429,7 +429,7 @@ pub fn settle_expired_market(
     let target_expiry_price = if market.amm.oracle_source == OracleSource::Prelaunch {
         market.amm.historical_oracle_data.last_oracle_price
     } else {
-        market.amm.historical_oracle_data.last_oracle_price_twap
+        market.amm.historical_oracle_data.last_oracle_price_twap_5min
     };
 
     crate::dlog!(target_expiry_price);
