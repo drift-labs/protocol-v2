@@ -9,7 +9,13 @@ import {
 	ProtectedMakerParams,
 	MarketTypeStr,
 } from '../types';
-import { ZERO, TWO, ONE } from '../constants/numericConstants';
+import {
+	ZERO,
+	TWO,
+	ONE,
+	SPOT_MARKET_IMF_PRECISION,
+	MARGIN_PRECISION,
+} from '../constants/numericConstants';
 import { BN } from '@coral-xyz/anchor';
 import { MMOraclePriceData, OraclePriceData } from '../oracles/types';
 import {
@@ -22,6 +28,7 @@ import {
 	calculateMaxBaseAssetAmountToTrade,
 	calculateUpdatedAMM,
 } from './amm';
+import { calculateSizePremiumLiabilityWeight } from './margin';
 
 export function isOrderRiskIncreasing(user: User, order: Order): boolean {
 	if (!isVariant(order.status, 'open')) {
@@ -410,4 +417,66 @@ export function calculateOrderBaseAssetAmount(
 	} else {
 		return BN.min(BN.max(existingBaseAssetAmount, ZERO), order.baseAssetAmount);
 	}
+}
+
+// ---------- inverse ----------
+/**
+ * Invert the size-premium liability weight: given a target margin ratio (liability weight),
+ * return the max `size` (AMM_RESERVE_PRECISION units) that still yields <= target.
+ *
+ * Returns:
+ * - BN size (>=0) if bounded
+ * - null if impossible (target < liabilityWeight) OR imfFactor == 0 (unbounded)
+ */
+export function maxSizeForTargetLiabilityWeightBN(
+	target: BN,
+	imfFactor: BN,
+	liabilityWeight: BN
+): BN | null {
+	if (target.lt(liabilityWeight)) return null;
+	if (imfFactor.isZero()) return null;
+
+	const base = liabilityWeight.muln(4).divn(5);
+
+	const denom = new BN(100_000)
+		.mul(SPOT_MARKET_IMF_PRECISION)
+		.div(MARGIN_PRECISION);
+	if (denom.isZero())
+		throw new Error('denom=0: bad precision/spotImfPrecision');
+
+	const allowedInc = target.gt(base) ? target.sub(base) : ZERO;
+
+	const maxSqrt = allowedInc.mul(denom).div(imfFactor);
+
+	if (maxSqrt.lte(ZERO)) {
+		const fitsZero = calculateSizePremiumLiabilityWeight(
+			ZERO,
+			imfFactor,
+			liabilityWeight,
+			MARGIN_PRECISION
+		).lte(target);
+		return fitsZero ? ZERO : null;
+	}
+
+	let hi = maxSqrt.mul(maxSqrt).sub(ONE).divn(10);
+	if (hi.isNeg()) hi = ZERO;
+
+	let lo = ZERO;
+	while (lo.lt(hi)) {
+		const mid = lo.add(hi).add(ONE).divn(2); // upper mid to prevent infinite loop
+		if (
+			calculateSizePremiumLiabilityWeight(
+				mid,
+				imfFactor,
+				liabilityWeight,
+				MARGIN_PRECISION
+			).lte(target)
+		) {
+			lo = mid;
+		} else {
+			hi = mid.sub(ONE);
+		}
+	}
+
+	return lo;
 }
