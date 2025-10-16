@@ -1079,7 +1079,6 @@ pub struct InitializeLpPool<'info> {
     spot_market_index: u16,
 )]
 pub struct InitializeConstituent<'info> {
-    #[account()]
     pub state: Box<Account<'info, State>>,
     #[account(
         mut,

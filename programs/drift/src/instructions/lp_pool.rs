@@ -3,7 +3,6 @@ use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 use crate::ids::lp_pool_swap_wallet;
 use crate::math::constants::PRICE_PRECISION_I64;
-use crate::math::oracle::OracleValidity;
 use crate::state::events::{DepositDirection, LPBorrowLendDepositRecord};
 use crate::state::paused_operations::ConstituentLpOperation;
 use crate::validation::whitelist::validate_whitelist_token;
@@ -32,7 +31,6 @@ use crate::{
             update_constituent_target_base_for_derivatives, AmmConstituentDatum,
             AmmConstituentMappingFixed, Constituent, ConstituentCorrelationsFixed,
             ConstituentTargetBaseFixed, LPPool, TargetsDatum, LP_POOL_SWAP_AUM_UPDATE_DELAY,
-            MAX_ORACLE_STALENESS_FOR_TARGET_CALC, MAX_STALENESS_FOR_TARGET_CALC,
         },
         oracle_map::OracleMap,
         perp_market_map::MarketSet,
@@ -45,7 +43,6 @@ use crate::{
     },
     validate,
 };
-use std::convert::TryFrom;
 use std::iter::Peekable;
 use std::slice::Iter;
 
@@ -164,7 +161,7 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
     let AccountMaps {
         perp_market_map: _,
         spot_market_map,
-        oracle_map: _,
+        mut oracle_map,
     } = load_maps(
         remaining_accounts,
         &MarketSet::new(),
@@ -202,6 +199,7 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
         slot,
         &constituent_map,
         &spot_market_map,
+        &mut oracle_map,
         &constituent_target_base,
         &amm_cache,
     )?;
@@ -227,6 +225,7 @@ pub fn handle_update_lp_pool_aum<'c: 'info, 'info>(
         &derivative_groups,
         &constituent_map,
         &spot_market_map,
+        &mut oracle_map,
         &mut constituent_target_base,
     )?;
 
@@ -1316,8 +1315,6 @@ pub fn handle_view_lp_pool_remove_liquidity_fees<'c: 'info, 'info>(
     )?;
     let out_oracle = out_oracle.clone();
 
-    // TODO: check self.aum validity
-
     if !is_oracle_valid_for_action(out_oracle_validity, Some(DriftAction::LpPoolSwap))? {
         msg!(
             "Out oracle data for spot market {} is invalid for lp pool swap.",
@@ -1330,7 +1327,7 @@ pub fn handle_view_lp_pool_remove_liquidity_fees<'c: 'info, 'info>(
         out_constituent.constituent_index,
         &out_spot_market,
         out_oracle.price,
-        lp_pool.last_aum, // TODO: remove out_amount * out_oracle to est post remove_liquidity aum
+        lp_pool.last_aum,
     )?;
 
     let dlp_total_supply = ctx.accounts.lp_mint.supply;
@@ -1410,7 +1407,6 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
     let deposit_plus_token_amount_before = amount.safe_add(spot_market_vault.amount)?;
 
     let oracle_data = oracle_map.get_price_data(&oracle_id)?;
-    let oracle_data_slot = clock.slot - oracle_data.delay.max(0i64).cast::<u64>()?;
 
     controller::spot_balance::update_spot_market_cumulative_interest(
         &mut spot_market,
@@ -1425,10 +1421,6 @@ pub fn handle_deposit_to_program_vault<'c: 'info, 'info>(
         .cast::<i64>()?
         .safe_sub(constituent.last_spot_balance_token_amount)?;
 
-    if constituent.last_oracle_slot < oracle_data_slot {
-        constituent.last_oracle_price = oracle_data.price;
-        constituent.last_oracle_slot = oracle_data_slot;
-    }
     constituent.sync_token_balance(ctx.accounts.constituent_token_account.amount);
     let balance_before = constituent.get_full_token_amount(&spot_market)?;
 
@@ -1558,11 +1550,6 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
     let interest_accrued_token_amount = token_balance_after_cumulative_interest_update
         .cast::<i64>()?
         .safe_sub(constituent.last_spot_balance_token_amount)?;
-
-    if constituent.last_oracle_slot < oracle_data_slot {
-        constituent.last_oracle_price = oracle_data.price;
-        constituent.last_oracle_slot = oracle_data_slot;
-    }
 
     let mint = &Some(*ctx.accounts.mint.clone());
     transfer_from_program_vault(
@@ -1865,12 +1852,12 @@ pub struct LPPoolSwap<'info> {
 
     #[account(
         mut,
-        constraint = user_in_token_account.mint.eq(&constituent_in_token_account.mint)
+        constraint = user_in_token_account.mint.eq(&constituent_in_token_account.mint) && user_in_token_account.owner == authority.key()
     )]
     pub user_in_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
-        constraint = user_out_token_account.mint.eq(&constituent_out_token_account.mint)
+        constraint = user_out_token_account.mint.eq(&constituent_out_token_account.mint) && user_out_token_account.owner == authority.key()
     )]
     pub user_out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
 
@@ -1900,7 +1887,6 @@ pub struct LPPoolSwap<'info> {
 
     pub authority: Signer<'info>,
 
-    // TODO: in/out token program
     pub token_program: Interface<'info, TokenInterface>,
 }
 
@@ -1974,7 +1960,7 @@ pub struct LPPoolAddLiquidity<'info> {
 
     #[account(
         mut,
-        constraint = user_in_token_account.mint.eq(&constituent_in_token_account.mint)
+        constraint = user_in_token_account.mint.eq(&constituent_in_token_account.mint) && user_in_token_account.owner == authority.key()
     )]
     pub user_in_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
 
@@ -2058,7 +2044,7 @@ pub struct LPPoolRemoveLiquidity<'info> {
 
     #[account(
         mut,
-        constraint = user_out_token_account.mint.eq(&constituent_out_token_account.mint)
+        constraint = user_out_token_account.mint.eq(&constituent_out_token_account.mint) && user_out_token_account.owner == authority.key()
     )]
     pub user_out_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
