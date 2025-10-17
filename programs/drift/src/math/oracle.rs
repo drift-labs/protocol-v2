@@ -254,7 +254,7 @@ pub fn oracle_validity(
     oracle_source: &OracleSource,
     log_mode: LogMode,
     slots_before_stale_for_amm_immdiate_override: i8,
-    slots_before_stale_for_amm_low_risk: i8,
+    taker_speed_bump_override: i8,
 ) -> DriftResult<OracleValidity> {
     let OraclePriceData {
         price: oracle_price,
@@ -285,8 +285,8 @@ pub fn oracle_validity(
         oracle_delay.gt(&valid_oracle_guard_rails.slots_before_stale_for_amm)
     };
 
-    let is_stale_for_amm_low_risk = if slots_before_stale_for_amm_low_risk != 0 {
-        oracle_delay.gt(&slots_before_stale_for_amm_low_risk.max(0).cast()?)
+    let is_stale_for_amm_low_risk = if taker_speed_bump_override != 0 {
+        oracle_delay.gt(&taker_speed_bump_override.max(0).cast()?)
     } else {
         // Default to current behavior if not set on the amm
         false

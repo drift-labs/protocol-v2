@@ -62,7 +62,7 @@ pub fn get_amm_is_available(
         &market.amm.oracle_source,
         crate::math::oracle::LogMode::SafeMMOracle,
         market.amm.oracle_slot_delay_override,
-        market.amm.slots_before_stale_for_amm_low_risk,
+        market.amm.taker_speed_bump_override,
     )
     .unwrap();
     market

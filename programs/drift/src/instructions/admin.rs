@@ -1080,8 +1080,7 @@ pub fn handle_initialize_perp_market(
             reference_price_offset: 0,
             amm_inventory_spread_adjustment: 0,
             reference_price_offset_deadband_pct: 0,
-            slots_before_stale_for_amm_low_risk: 0,
-            padding: [0; 1],
+            padding: [0; 2],
             last_funding_oracle_twap: 0,
         },
     };

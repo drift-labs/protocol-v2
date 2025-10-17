@@ -846,7 +846,7 @@ impl PerpMarket {
                 &self.amm.oracle_source,
                 LogMode::MMOracle,
                 self.amm.oracle_slot_delay_override,
-                self.amm.slots_before_stale_for_amm_low_risk,
+                self.amm.taker_speed_bump_override,
             )?
         };
         Ok(MMOraclePriceData::new(
@@ -1231,8 +1231,7 @@ pub struct AMM {
     /// signed scale amm_spread similar to fee_adjustment logic (-100 = 0, 100 = double)
     pub amm_inventory_spread_adjustment: i8,
     pub reference_price_offset_deadband_pct: u8,
-    pub slots_before_stale_for_amm_low_risk: i8,
-    pub padding: [u8; 1],
+    pub padding: [u8; 2],
     pub last_funding_oracle_twap: i64,
 }
 
@@ -1324,8 +1323,7 @@ impl Default for AMM {
             reference_price_offset: 0,
             amm_inventory_spread_adjustment: 0,
             reference_price_offset_deadband_pct: 0,
-            slots_before_stale_for_amm_low_risk: 0,
-            padding: [0; 1],
+            padding: [0; 2],
             last_funding_oracle_twap: 0,
         }
     }

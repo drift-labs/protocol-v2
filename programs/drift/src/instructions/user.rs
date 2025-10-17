@@ -1789,7 +1789,7 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
                 .last_oracle_price_twap,
             perp_market.get_max_confidence_interval_multiplier()?,
             perp_market.amm.oracle_slot_delay_override,
-            perp_market.amm.slots_before_stale_for_amm_low_risk,
+            perp_market.amm.taker_speed_bump_override,
         )?;
         step_size = perp_market.amm.order_step_size;
         tick_size = perp_market.amm.order_tick_size;

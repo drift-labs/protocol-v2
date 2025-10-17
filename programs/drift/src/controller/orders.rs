@@ -1090,7 +1090,7 @@ pub fn fill_perp_order(
             &market.amm.oracle_source,
             oracle::LogMode::SafeMMOracle,
             market.amm.oracle_slot_delay_override,
-            market.amm.slots_before_stale_for_amm_low_risk,
+            market.amm.taker_speed_bump_override,
         )?;
 
         user_can_skip_duration = user.can_skip_auction_duration(user_stats)?;

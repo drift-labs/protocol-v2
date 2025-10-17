@@ -62,7 +62,7 @@ pub fn get_amm_is_available(
         &market.amm.oracle_source,
         oracle::LogMode::SafeMMOracle,
         market.amm.oracle_slot_delay_override,
-        market.amm.slots_before_stale_for_amm_low_risk,
+        market.amm.taker_speed_bump_override,
     )
     .unwrap();
     market
@@ -565,9 +565,9 @@ pub mod amm_jit {
             Some(PRICE_PRECISION_I64),
             now,
             slot,
-            is_amm_available,
-            FillMode::Fill,
             false,
+            FillMode::Fill,
+            is_amm_available,
             &mut None,
             false,
         )
@@ -581,7 +581,6 @@ pub mod amm_jit {
             -(BASE_PRECISION_I64 + BASE_PRECISION_I64 / 2)
         );
 
-        println!("amm is available: {}", is_amm_available);
         // nets to zero
         let market_after = market_map.get_ref(&0).unwrap();
         assert_eq!(market_after.amm.base_asset_amount_with_amm, 0);
