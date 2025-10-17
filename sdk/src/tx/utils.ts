@@ -6,6 +6,7 @@ import {
 } from '@solana/web3.js';
 
 export const MAX_TX_BYTE_SIZE = 1232;
+export const MAX_TX_NUM_ACCOUNTS = 128;
 export const NATIVE_INSTRUCTION_MAGIC_BYTES = [0xff, 0xff, 0xff, 0xff];
 
 export const isVersionedTransaction = (
