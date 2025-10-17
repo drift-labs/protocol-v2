@@ -115,6 +115,7 @@ pub fn update_amm_test() {
         &market.amm.oracle_source,
         LogMode::ExchangeOracle,
         0,
+        0,
     )
     .unwrap()
         == OracleValidity::Valid;
@@ -248,6 +249,7 @@ pub fn update_amm_test_bad_oracle() {
         market.get_max_confidence_interval_multiplier().unwrap(),
         &market.amm.oracle_source,
         LogMode::None,
+        0,
         0,
     )
     .unwrap()
