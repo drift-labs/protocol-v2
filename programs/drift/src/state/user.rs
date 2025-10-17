@@ -8,7 +8,8 @@ use crate::math::constants::{
 };
 use crate::math::margin::MarginRequirementType;
 use crate::math::orders::{
-    apply_protected_maker_limit_price_offset, standardize_base_asset_amount, standardize_price,
+    apply_protected_maker_limit_price_offset, get_posted_slot_from_clock_slot,
+    standardize_base_asset_amount, standardize_price,
 };
 use crate::math::position::{
     calculate_base_asset_value_and_pnl_with_oracle_price, calculate_perp_liability_value,
@@ -1530,20 +1531,28 @@ impl Order {
         mm_oracle_delay: i64,
         min_auction_duration: u8,
         clock_slot: u64,
+        is_liquidation: bool,
     ) -> DriftResult<bool> {
         if self.market_type == MarketType::Spot {
             return Ok(false);
         }
 
-        let order_order_than_oracle_delay = {
+        let order_older_than_oracle_delay = {
             let clock_minus_delay = clock_slot.cast::<i64>()?.safe_sub(mm_oracle_delay)?;
             clock_minus_delay >= self.slot.cast::<i64>()?
         };
 
-        let order_older_than_min_auction_duration =
-            clock_slot.saturating_sub(min_auction_duration as u64) >= self.slot;
+        let order_older_than_min_auction_duration = if self.is_signed_msg() {
+            let clock_slot_tail = get_posted_slot_from_clock_slot(clock_slot);
+            clock_slot_tail.wrapping_sub(self.posted_slot_tail) >= min_auction_duration
+        } else {
+            is_auction_complete(self.slot, min_auction_duration, clock_slot)?
+        };
 
-        Ok(order_order_than_oracle_delay || order_older_than_min_auction_duration)
+        Ok(order_older_than_oracle_delay
+            || order_older_than_min_auction_duration
+            || is_liquidation
+            || self.is_bit_flag_set(OrderBitFlag::SafeTriggerOrder))
     }
 }
 

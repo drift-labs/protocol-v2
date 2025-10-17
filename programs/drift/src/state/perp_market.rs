@@ -1,5 +1,6 @@
+use crate::state::fill_mode::FillMode;
 use crate::state::pyth_lazer_oracle::PythLazerOracle;
-use crate::state::user::MarketType;
+use crate::state::user::{MarketType, Order};
 use anchor_lang::prelude::*;
 
 use crate::state::state::{State, ValidityGuardRails};
@@ -44,7 +45,9 @@ use static_assertions::const_assert_eq;
 
 use super::oracle_map::OracleIdentifier;
 use super::protected_maker_mode_config::ProtectedMakerParams;
-use crate::math::oracle::{oracle_validity, LogMode, OracleValidity};
+use crate::math::oracle::{
+    is_oracle_valid_for_action, oracle_validity, DriftAction, LogMode, OracleValidity,
+};
 
 #[cfg(test)]
 mod tests;
@@ -133,13 +136,6 @@ impl ContractTier {
             other >= &AssetTier::Cross && self <= &ContractTier::C
         }
     }
-}
-
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord)]
-pub enum AMMAvailability {
-    Immediate,
-    AfterMinDuration,
-    Unavailable,
 }
 
 #[account(zero_copy(unsafe))]
@@ -319,7 +315,6 @@ impl PerpMarket {
         &self,
         state: &State,
         amm_has_low_enough_inventory: bool,
-        is_order_low_risk_for_amm: bool,
     ) -> DriftResult<bool> {
         if state.amm_immediate_fill_paused()? {
             return Ok(false);
@@ -331,8 +326,7 @@ impl PerpMarket {
         let amm_oracle_no_latency = self.amm.oracle_source == OracleSource::Prelaunch
             || (self.amm.historical_oracle_data.last_oracle_delay == 0
                 && self.amm.oracle_source == OracleSource::PythLazer);
-        let can_skip =
-            amm_low_inventory_and_profitable || amm_oracle_no_latency || is_order_low_risk_for_amm;
+        let can_skip = amm_low_inventory_and_profitable || amm_oracle_no_latency;
 
         if can_skip {
             msg!("market {} amm skipping auction duration", self.market_index);
@@ -862,6 +856,70 @@ impl PerpMarket {
             oracle_validity,
             oracle_price_data,
         )?)
+    }
+
+    pub fn amm_can_fill_order(
+        &self,
+        order: &Order,
+        clock_slot: u64,
+        fill_mode: FillMode,
+        state: &State,
+        safe_oracle_validity: OracleValidity,
+        user_can_skip_auction_duration: bool,
+        mm_oracle_price_data: &MMOraclePriceData,
+    ) -> DriftResult<bool> {
+        let not_paused = !self.is_operation_paused(PerpOperation::AmmFill);
+        let no_drawdown = !self.has_too_much_drawdown()?;
+
+        let min_auction_duration =
+            self.get_min_perp_auction_duration(state.min_perp_auction_duration);
+
+        // We are already using safe oracle data from MM oracle.
+        // But AMM isnt available if we could have used MM oracle but fell back due to price diff
+        // This is basically early volatility protection
+        let mm_oracle_not_too_volatile =
+            if mm_oracle_price_data.is_enabled() && mm_oracle_price_data.is_mm_oracle_as_recent() {
+                let amm_available = !mm_oracle_price_data.is_mm_exchange_diff_bps_high();
+                amm_available
+            } else {
+                true
+            };
+
+        // Determine if order is fillable with low risk
+        let safe_oracle_price_data = mm_oracle_price_data.get_safe_oracle_price_data();
+        let order_is_low_risk_for_amm = order.is_low_risk_for_amm(
+            safe_oracle_price_data.delay,
+            min_auction_duration,
+            clock_slot,
+            fill_mode.is_liquidation(),
+        )?;
+        let oracle_valid_for_amm_fill_low_risk = is_oracle_valid_for_action(
+            safe_oracle_validity,
+            Some(DriftAction::FillOrderAmmLowRisk),
+        )?;
+        let can_fill_low_risk = order_is_low_risk_for_amm && oracle_valid_for_amm_fill_low_risk;
+
+        // Proceed if order is low risk and we can fill it. Otherwise check if we can higher risk order immediately
+        let can_fill_order = if can_fill_low_risk {
+            true
+        } else {
+            let oracle_valid_for_can_fill_immediately = is_oracle_valid_for_action(
+                safe_oracle_validity,
+                Some(DriftAction::FillOrderAmmImmediate),
+            )?;
+            let amm_wants_to_jit_make = self.amm.amm_wants_to_jit_make(order.direction)?;
+            let amm_has_low_enough_inventory = self
+                .amm
+                .amm_has_low_enough_inventory(amm_wants_to_jit_make)?;
+            let amm_can_skip_duration =
+                self.can_skip_auction_duration(&state, amm_has_low_enough_inventory)?;
+
+            amm_can_skip_duration
+                && oracle_valid_for_can_fill_immediately
+                && user_can_skip_auction_duration
+        };
+
+        Ok(not_paused && no_drawdown && mm_oracle_not_too_volatile && can_fill_order)
     }
 }
 
