@@ -7373,32 +7373,6 @@
       ]
     },
     {
-      "name": "increaseLpPoolMaxAum",
-      "accounts": [
-        {
-          "name": "lpPool",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "admin",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "newMaxAum",
-          "type": "u128"
-        }
-      ]
-    },
-    {
       "name": "updateHighLeverageModeConfig",
       "accounts": [
         {
@@ -12097,6 +12071,12 @@
             "name": "xi",
             "type": {
               "option": "u8"
+            }
+          },
+          {
+            "name": "maxAum",
+            "type": {
+              "option": "u128"
             }
           },
           {
