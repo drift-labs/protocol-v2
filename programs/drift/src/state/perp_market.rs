@@ -868,8 +868,13 @@ impl PerpMarket {
         user_can_skip_auction_duration: bool,
         mm_oracle_price_data: &MMOraclePriceData,
     ) -> DriftResult<bool> {
-        let not_paused = !self.is_operation_paused(PerpOperation::AmmFill);
-        let no_drawdown = !self.has_too_much_drawdown()?;
+        if self.is_operation_paused(PerpOperation::AmmFill) {
+            return Ok(false);
+        }
+
+        if self.has_too_much_drawdown()? {
+            return Ok(false);
+        }
 
         let min_auction_duration =
             self.get_min_perp_auction_duration(state.min_perp_auction_duration);
@@ -884,6 +889,11 @@ impl PerpMarket {
             } else {
                 true
             };
+
+        if !mm_oracle_not_too_volatile {
+            msg!("AMM cannot fill order: MM oracle too volatile compared to exchange oracle");
+            return Ok(false);
+        }
 
         // Determine if order is fillable with low risk
         let safe_oracle_price_data = mm_oracle_price_data.get_safe_oracle_price_data();
@@ -919,7 +929,7 @@ impl PerpMarket {
                 && user_can_skip_auction_duration
         };
 
-        Ok(not_paused && no_drawdown && mm_oracle_not_too_volatile && can_fill_order)
+        Ok(can_fill_order)
     }
 }
 
