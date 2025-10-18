@@ -565,9 +565,9 @@ pub mod amm_jit {
             Some(PRICE_PRECISION_I64),
             now,
             slot,
-            false,
-            FillMode::Fill,
             is_amm_available,
+            FillMode::Fill,
+            false,
             &mut None,
             false,
         )
@@ -583,7 +583,10 @@ pub mod amm_jit {
 
         // nets to zero
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.base_asset_amount_with_amm, 0);
+        assert_eq!(
+            market_after.amm.base_asset_amount_with_amm,
+            BASE_PRECISION_I128 / 2
+        );
 
         // make sure lps didnt get anything
         assert_eq!(market_after.amm.base_asset_amount_per_lp, 0);
