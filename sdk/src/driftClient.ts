@@ -274,49 +274,44 @@ export class DriftClient {
 		return this._isSubscribed && this.accountSubscriber.isSubscribed;
 	}
 
-	private async getPostIxsForIsolatedWithdrawAfterMarketOrder(
+	private async getPrePlaceOrderIxs(
 		orderParams: OptionalOrderParams,
-		userAccount: UserAccount
+		userAccount: UserAccount,
+		options?: { positionMaxLev?: number; isolatedPositionDepositAmount?: BN }
 	): Promise<TransactionInstruction[]> {
-		const postIxs: TransactionInstruction[] = [];
-		const perpPosition = userAccount.perpPositions.find(
-			(p) => p.marketIndex === orderParams.marketIndex
-		);
-		if (!perpPosition) return postIxs;
+		const preIxs: TransactionInstruction[] = [];
 
-		const isIsolated =
-			(perpPosition.positionFlag & PositionFlag.IsolatedPosition) !== 0;
-		if (!isIsolated) return postIxs;
+		if (isVariant(orderParams.marketType, 'perp')) {
+			const { positionMaxLev, isolatedPositionDepositAmount } = options ?? {};
 
-		const currentBase = perpPosition.baseAssetAmount;
-		if (currentBase.eq(ZERO)) return postIxs;
+			if (
+				isolatedPositionDepositAmount?.gt?.(ZERO) &&
+				this.isOrderIncreasingPosition(orderParams, userAccount)
+			) {
+				preIxs.push(
+					await this.getTransferIsolatedPerpPositionDepositIx(
+						isolatedPositionDepositAmount as BN,
+						orderParams.marketIndex,
+						userAccount.subAccountId
+					)
+				);
+			}
 
-		const signedOrderBase =
-			orderParams.direction === PositionDirection.LONG
-				? orderParams.baseAssetAmount
-				: (orderParams.baseAssetAmount as BN).neg();
-		const postBase = currentBase.add(signedOrderBase as BN);
-		if (!postBase.eq(ZERO)) return postIxs;
+			if (positionMaxLev) {
+				const marginRatio = Math.floor(
+					(1 / positionMaxLev) * MARGIN_PRECISION.toNumber()
+				);
+				preIxs.push(
+					await this.getUpdateUserPerpPositionCustomMarginRatioIx(
+						orderParams.marketIndex,
+						marginRatio,
+						userAccount.subAccountId
+					)
+				);
+			}
+		}
 
-		const withdrawAmount = this.getIsolatedPerpPositionTokenAmount(
-			orderParams.marketIndex,
-			userAccount.subAccountId
-		);
-		if (withdrawAmount.lte(ZERO)) return postIxs;
-
-		const userTokenAccount = await this.getAssociatedTokenAccount(
-			QUOTE_SPOT_MARKET_INDEX
-		);
-		postIxs.push(
-			await this.getWithdrawFromIsolatedPerpPositionIx(
-				withdrawAmount,
-				orderParams.marketIndex,
-				userTokenAccount,
-				userAccount.subAccountId
-			)
-		);
-
-		return postIxs;
+		return preIxs;
 	}
 
 	public set isSubscribed(val: boolean) {
@@ -4206,16 +4201,26 @@ export class DriftClient {
 		subAccountId?: number,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
+		const userAccountPublicKey = await getUserAccountPublicKey(
+			this.program.programId,
+			this.authority,
+			subAccountId ?? this.activeSubAccountId
+		);
+		const userAccount = this.getUserAccount(subAccountId);
+		const settleIx = await this.settleMultiplePNLsIx(
+			userAccountPublicKey,
+			userAccount,
+			[perpMarketIndex],
+			SettlePnlMode.TRY_SETTLE
+		);
+		const withdrawIx = await this.getWithdrawFromIsolatedPerpPositionIx(
+			amount,
+			perpMarketIndex,
+			userTokenAccount,
+			subAccountId
+		);
 		const { txSig } = await this.sendTransaction(
-			await this.buildTransaction(
-				await this.getWithdrawFromIsolatedPerpPositionIx(
-					amount,
-					perpMarketIndex,
-					userTokenAccount,
-					subAccountId
-				),
-				txParams
-			)
+			await this.buildTransaction([settleIx, withdrawIx], txParams)
 		);
 		return txSig;
 	}
@@ -4588,47 +4593,25 @@ export class DriftClient {
 
 		const txKeys = Object.keys(ixPromisesForTxs);
 
-		const preIxs: TransactionInstruction[] = [];
-		if (
-			isVariant(orderParams.marketType, 'perp') &&
-			isolatedPositionDepositAmount?.gt?.(ZERO)
-		) {
-			preIxs.push(
-				await this.getTransferIsolatedPerpPositionDepositIx(
-					isolatedPositionDepositAmount as BN,
-					orderParams.marketIndex,
-					userAccount.subAccountId
-				)
-			);
-		}
-
-		// Build post-order instructions for perp (e.g., withdraw isolated margin on close)
-		const postIxs: TransactionInstruction[] = isVariant(orderParams.marketType, 'perp')
-			? await this.getPostIxsForIsolatedWithdrawAfterMarketOrder(orderParams, userAccount)
-			: [];
+		const preIxs: TransactionInstruction[] = await this.getPrePlaceOrderIxs(
+			orderParams,
+			userAccount,
+			{
+				positionMaxLev,
+				isolatedPositionDepositAmount,
+			}
+		);
 
 		ixPromisesForTxs.marketOrderTx = (async () => {
 			const placeOrdersIx = await this.getPlaceOrdersIx(
 				[orderParams, ...bracketOrdersParams],
 				userAccount.subAccountId
 			);
-			if (preIxs.length || postIxs.length) {
-				return [...preIxs, placeOrdersIx, ...postIxs] as unknown as TransactionInstruction;
+			if (preIxs.length) {
+				return [...preIxs, placeOrdersIx] as unknown as TransactionInstruction;
 			}
 			return placeOrdersIx;
 		})();
-		const marketOrderTxIxs = positionMaxLev
-			? this.getPlaceOrdersAndSetPositionMaxLevIx(
-					[orderParams, ...bracketOrdersParams],
-					positionMaxLev,
-					userAccount.subAccountId
-			  )
-			: this.getPlaceOrdersIx(
-					[orderParams, ...bracketOrdersParams],
-					userAccount.subAccountId
-			  );
-
-		ixPromisesForTxs.marketOrderTx = marketOrderTxIxs;
 
 		/* Cancel open orders in market if requested */
 		if (cancelExistingOrders && isVariant(orderParams.marketType, 'perp')) {
@@ -5205,7 +5188,8 @@ export class DriftClient {
 					params,
 					txParams,
 					subAccountId,
-					optionalIxs
+					optionalIxs,
+					isolatedPositionDepositAmount
 				)
 			).placeOrdersTx,
 			[],
@@ -5363,8 +5347,7 @@ export class DriftClient {
 		const marginRatio = Math.floor(
 			(1 / positionMaxLev) * MARGIN_PRECISION.toNumber()
 		);
-
-		// TODO: Handle multiple markets?
+		// Keep existing behavior but note: prefer using getPostPlaceOrderIxs path
 		const setPositionMaxLevIxs =
 			await this.getUpdateUserPerpPositionCustomMarginRatioIx(
 				readablePerpMarketIndex[0],
@@ -11359,5 +11342,23 @@ export class DriftClient {
 			lookupTables,
 			forceVersionedTransaction,
 		});
+	}
+
+	isOrderIncreasingPosition(
+		orderParams: OptionalOrderParams,
+		userAccount: UserAccount
+	): boolean {
+		const perpPosition = userAccount.perpPositions.find(
+			(p) => p.marketIndex === orderParams.marketIndex
+		);
+		if (!perpPosition) return true;
+
+		const currentBase = perpPosition.baseAssetAmount;
+		if (currentBase.eq(ZERO)) return true;
+
+		return currentBase
+			.add(orderParams.baseAssetAmount)
+			.abs()
+			.gt(currentBase.abs());
 	}
 }

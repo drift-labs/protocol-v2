@@ -585,7 +585,7 @@ export type SpotBankruptcyRecord = {
 };
 
 export class LiquidationBitFlag {
-    static readonly IsolatedPosition = 1;
+	static readonly IsolatedPosition = 1;
 }
 
 export type SettlePnlRecord = {
@@ -1310,7 +1310,7 @@ export type OptionalOrderParams = {
 } & NecessaryOrderParams;
 
 export type PerpOrderIsolatedExtras = {
-    isolatedPositionDepositAmount?: BN;
+	isolatedPositionDepositAmount?: BN;
 };
 
 export type ModifyOrderParams = {
@@ -1350,7 +1350,7 @@ export type SignedMsgOrderParamsMessage = {
 	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
 	maxMarginRatio?: number | null;
-	isolatedPositionDepositAmount?: BN | null;
+	isolatedPositionDeposit?: BN | null;
 	builderIdx?: number | null;
 	builderFeeTenthBps?: number | null;
 };
@@ -1363,7 +1363,7 @@ export type SignedMsgOrderParamsDelegateMessage = {
 	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
 	maxMarginRatio?: number | null;
-	isolatedPositionDepositAmount?: BN | null;
+	isolatedPositionDeposit?: BN | null;
 	builderIdx?: number | null;
 	builderFeeTenthBps?: number | null;
 };
