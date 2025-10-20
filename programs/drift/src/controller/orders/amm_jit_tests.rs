@@ -2521,7 +2521,7 @@ pub mod amm_jit {
                 Some(1),
                 now,
                 slot,
-                is_amm_available,
+                false,
                 FillMode::Fill,
                 false,
                 &mut None,
