@@ -1717,11 +1717,17 @@ impl AMM {
             PositionDirection::Short => get_spread_reserves(self, PositionDirection::Short)?,
         };
 
+        let (max_bids, max_asks) = amm::_calculate_market_open_bids_asks(
+            base_reserve,
+            self.min_base_asset_reserve,
+            self.max_base_asset_reserve,
+        )?;
         let open_liquidity_u128: u128 = match taker_direction {
-            PositionDirection::Long => base_reserve.safe_sub(self.min_base_asset_reserve)?,
-            PositionDirection::Short => self.max_base_asset_reserve.safe_sub(base_reserve)?,
+            PositionDirection::Long => max_bids.unsigned_abs(),
+            PositionDirection::Short => max_asks.unsigned_abs(),
         };
         let open_liquidity: u64 = open_liquidity_u128.min(u64::MAX as u128).cast()?;
+
         if open_liquidity < self.min_order_size.saturating_mul(2) {
             return Ok(Vec::new());
         }
@@ -1747,15 +1753,21 @@ impl AMM {
                 break;
             }
 
-            let mut base_swap = standardize_base_asset_amount(target, self.order_step_size)?;
+            let candidate = target.min(remaining);
+            let mut base_swap = standardize_base_asset_amount(candidate, self.order_step_size)?;
             if base_swap == 0 {
                 break;
             }
-            if base_swap > remaining {
-                base_swap = standardize_base_asset_amount(remaining, self.order_step_size)?;
-                if base_swap == 0 {
-                    break;
-                }
+
+            let allowable: u128 = match taker_direction {
+                PositionDirection::Long => base_reserve.safe_sub(self.min_base_asset_reserve)?,
+                PositionDirection::Short => self.max_base_asset_reserve.safe_sub(base_reserve)?,
+            };
+
+            let cap = allowable.min(u64::MAX as u128).cast()?;
+            base_swap = base_swap.min(cap);
+            if base_swap == 0 {
+                break;
             }
 
             // Sim swap

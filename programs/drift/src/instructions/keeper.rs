@@ -2627,11 +2627,11 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
             .cast::<u64>()?;
         let ask_terminal_price = match asks.last() {
             Some(level) => level.price,
-            None => oracle_price.saturating_mul(120).saturating_div(100),
+            None => oracle_price.saturating_mul(110).saturating_div(100),
         };
         let bid_terminal_price = match bids.last() {
             Some(level) => level.price,
-            None => oracle_price.saturating_mul(80).saturating_div(100),
+            None => oracle_price.saturating_mul(90).saturating_div(100),
         };
 
         let amm_bids =
