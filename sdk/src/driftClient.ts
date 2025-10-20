@@ -186,6 +186,7 @@ import { createMinimalEd25519VerifyIx } from './util/ed25519Utils';
 import {
 	createNativeInstructionDiscriminatorBuffer,
 	isVersionedTransaction,
+	MAX_TX_BYTE_SIZE,
 } from './tx/utils';
 import pythSolanaReceiverIdl from './idl/pyth_solana_receiver.json';
 import { asV0Tx, PullFeed, AnchorUtils } from '@switchboard-xyz/on-demand';
@@ -204,6 +205,12 @@ import {
 	isBuilderOrderReferral,
 	isBuilderOrderCompleted,
 } from './math/builder';
+import { TitanClient, SwapMode as TitanSwapMode } from './titan/titanClient';
+
+/**
+ * Union type for swap clients (Titan and Jupiter)
+ */
+export type SwapClient = TitanClient | JupiterClient;
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -5729,23 +5736,23 @@ export class DriftClient {
 	}
 
 	/**
-	 * Swap tokens in drift account using jupiter
-	 * @param jupiterClient jupiter client to find routes and jupiter instructions
+	 * Swap tokens in drift account using titan or jupiter
+	 * @param swapClient swap client to find routes and instructions (Titan or Jupiter)
 	 * @param outMarketIndex the market index of the token you're buying
 	 * @param inMarketIndex the market index of the token you're selling
-	 * @param outAssociatedTokenAccount the token account to receive the token being sold on jupiter
+	 * @param outAssociatedTokenAccount the token account to receive the token being sold on titan or jupiter
 	 * @param inAssociatedTokenAccount the token account to
 	 * @param amount the amount of TokenIn, regardless of swapMode
-	 * @param slippageBps the max slippage passed to jupiter api
-	 * @param swapMode jupiter swapMode (ExactIn or ExactOut), default is ExactIn
-	 * @param route the jupiter route to use for the swap
+	 * @param slippageBps the max slippage passed to titan or jupiter api
+	 * @param swapMode titan or jupiter swapMode (ExactIn or ExactOut), default is ExactIn
+	 * @param route the titan or jupiter route to use for the swap
 	 * @param reduceOnly specify if In or Out token on the drift account must reduceOnly, checked at end of swap
 	 * @param v6 pass in the quote response from Jupiter quote's API (deprecated, use quote instead)
 	 * @param quote pass in the quote response from Jupiter quote's API
 	 * @param txParams
 	 */
 	public async swap({
-		jupiterClient,
+		swapClient,
 		outMarketIndex,
 		inMarketIndex,
 		outAssociatedTokenAccount,
@@ -5759,7 +5766,7 @@ export class DriftClient {
 		quote,
 		onlyDirectRoutes = false,
 	}: {
-		jupiterClient: JupiterClient;
+		swapClient: SwapClient;
 		outMarketIndex: number;
 		inMarketIndex: number;
 		outAssociatedTokenAccount?: PublicKey;
@@ -5775,21 +5782,43 @@ export class DriftClient {
 		};
 		quote?: QuoteResponse;
 	}): Promise<TransactionSignature> {
-		const quoteToUse = quote ?? v6?.quote;
+		let res: {
+			ixs: TransactionInstruction[];
+			lookupTables: AddressLookupTableAccount[];
+		};
 
-		const res = await this.getJupiterSwapIxV6({
-			jupiterClient,
-			outMarketIndex,
-			inMarketIndex,
-			outAssociatedTokenAccount,
-			inAssociatedTokenAccount,
-			amount,
-			slippageBps,
-			swapMode,
-			quote: quoteToUse,
-			reduceOnly,
-			onlyDirectRoutes,
-		});
+		if (swapClient instanceof TitanClient) {
+			res = await this.getTitanSwapIx({
+				titanClient: swapClient,
+				outMarketIndex,
+				inMarketIndex,
+				outAssociatedTokenAccount,
+				inAssociatedTokenAccount,
+				amount,
+				slippageBps,
+				swapMode,
+				onlyDirectRoutes,
+				reduceOnly,
+			});
+		} else if (swapClient instanceof JupiterClient) {
+			const quoteToUse = quote ?? v6?.quote;
+			res = await this.getJupiterSwapIxV6({
+				jupiterClient: swapClient,
+				outMarketIndex,
+				inMarketIndex,
+				outAssociatedTokenAccount,
+				inAssociatedTokenAccount,
+				amount,
+				slippageBps,
+				swapMode,
+				quote: quoteToUse,
+				reduceOnly,
+				onlyDirectRoutes,
+			});
+		} else {
+			throw new Error('Invalid swap client type. Must be TitanClient or JupiterClient.');
+		}
+
 		const ixs = res.ixs;
 		const lookupTables = res.lookupTables;
 
@@ -5805,6 +5834,126 @@ export class DriftClient {
 		this.spotMarketLastSlotCache.set(inMarketIndex, slot);
 
 		return txSig;
+	}
+
+	public async getTitanSwapIx({
+		titanClient,
+		outMarketIndex,
+		inMarketIndex,
+		outAssociatedTokenAccount,
+		inAssociatedTokenAccount,
+		amount,
+		slippageBps,
+		swapMode,
+		onlyDirectRoutes,
+		reduceOnly,
+		userAccountPublicKey,
+	}: {
+		titanClient: TitanClient;
+		outMarketIndex: number;
+		inMarketIndex: number;
+		outAssociatedTokenAccount?: PublicKey;
+		inAssociatedTokenAccount?: PublicKey;
+		amount: BN;
+		slippageBps?: number;
+		swapMode?: string;
+		onlyDirectRoutes?: boolean;
+		reduceOnly?: SwapReduceOnly;
+		userAccountPublicKey?: PublicKey;
+	}): Promise<{
+		ixs: TransactionInstruction[];
+		lookupTables: AddressLookupTableAccount[];
+	}> {
+		const outMarket = this.getSpotMarketAccount(outMarketIndex);
+		const inMarket = this.getSpotMarketAccount(inMarketIndex);
+
+		const isExactOut = swapMode === 'ExactOut';
+		const exactOutBufferedAmountIn = amount.muln(1001).divn(1000); // Add 10bp buffer
+
+		const preInstructions = [];
+		if (!outAssociatedTokenAccount) {
+			const tokenProgram = this.getTokenProgramForSpotMarket(outMarket);
+			outAssociatedTokenAccount = await this.getAssociatedTokenAccount(
+				outMarket.marketIndex,
+				false,
+				tokenProgram
+			);
+
+			const accountInfo = await this.connection.getAccountInfo(
+				outAssociatedTokenAccount
+			);
+			if (!accountInfo) {
+				preInstructions.push(
+					this.createAssociatedTokenAccountIdempotentInstruction(
+						outAssociatedTokenAccount,
+						this.provider.wallet.publicKey,
+						this.provider.wallet.publicKey,
+						outMarket.mint,
+						tokenProgram
+					)
+				);
+			}
+		}
+
+		if (!inAssociatedTokenAccount) {
+			const tokenProgram = this.getTokenProgramForSpotMarket(inMarket);
+			inAssociatedTokenAccount = await this.getAssociatedTokenAccount(
+				inMarket.marketIndex,
+				false,
+				tokenProgram
+			);
+
+			const accountInfo = await this.connection.getAccountInfo(
+				inAssociatedTokenAccount
+			);
+			if (!accountInfo) {
+				preInstructions.push(
+					this.createAssociatedTokenAccountIdempotentInstruction(
+						inAssociatedTokenAccount,
+						this.provider.wallet.publicKey,
+						this.provider.wallet.publicKey,
+						inMarket.mint,
+						tokenProgram
+					)
+				);
+			}
+		}
+
+		const { beginSwapIx, endSwapIx } = await this.getSwapIx({
+			outMarketIndex,
+			inMarketIndex,
+			amountIn: isExactOut ? exactOutBufferedAmountIn : amount,
+			inTokenAccount: inAssociatedTokenAccount,
+			outTokenAccount: outAssociatedTokenAccount,
+			reduceOnly,
+			userAccountPublicKey,
+		});
+
+		const { transactionMessage, lookupTables } = await titanClient.getSwap({
+			inputMint: inMarket.mint,
+			outputMint: outMarket.mint,
+			amount,
+			userPublicKey: this.provider.wallet.publicKey,
+			slippageBps,
+			swapMode: isExactOut ? TitanSwapMode.ExactOut : TitanSwapMode.ExactIn,
+			onlyDirectRoutes,
+			sizeConstraint: MAX_TX_BYTE_SIZE - 375, // buffer for drift instructions
+		});
+
+		const titanInstructions = titanClient.getTitanInstructions({
+			transactionMessage,
+			inputMint: inMarket.mint,
+			outputMint: outMarket.mint,
+		});
+
+		const ixs = [
+			...preInstructions,
+			beginSwapIx,
+			...titanInstructions,
+			endSwapIx,
+		];
+
+		return { ixs, lookupTables };
 	}
 
 	public async getJupiterSwapIxV6({
