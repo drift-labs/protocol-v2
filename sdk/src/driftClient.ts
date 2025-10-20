@@ -368,6 +368,8 @@ export class DriftClient {
 				resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
 				logResubMessages: config.accountSubscription?.logResubMessages,
 				grpcConfigs: config.accountSubscription?.grpcConfigs,
+				grpcMultiUserAccountSubscriber:
+					config.accountSubscription?.grpcMultiUserAccountSubscriber,
 			};
 			this.userStatsAccountSubscriptionConfig = {
 				type: 'grpc',

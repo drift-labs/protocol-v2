@@ -4,6 +4,7 @@ import { BulkAccountLoader } from './accounts/bulkAccountLoader';
 import { GrpcConfigs, UserAccountSubscriber } from './accounts/types';
 import { WebSocketProgramAccountSubscriber } from './accounts/webSocketProgramAccountSubscriber';
 import { UserAccount } from './types';
+import { grpcMultiUserAccountSubscriber } from './accounts/grpcMultiUserAccountSubscriber';
 
 export type UserConfig = {
 	accountSubscription?: UserSubscriptionConfig;
@@ -17,6 +18,7 @@ export type UserSubscriptionConfig =
 			resubTimeoutMs?: number;
 			logResubMessages?: boolean;
 			grpcConfigs: GrpcConfigs;
+			grpcMultiUserAccountSubscriber?: grpcMultiUserAccountSubscriber;
 	  }
 	| {
 			type: 'websocket';

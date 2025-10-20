@@ -137,15 +137,21 @@ export class User {
 		} else if (config.accountSubscription?.type === 'custom') {
 			this.accountSubscriber = config.accountSubscription.userAccountSubscriber;
 		} else if (config.accountSubscription?.type === 'grpc') {
-			this.accountSubscriber = new grpcUserAccountSubscriber(
-				config.accountSubscription.grpcConfigs,
-				config.driftClient.program,
-				config.userAccountPublicKey,
-				{
-					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
-					logResubMessages: config.accountSubscription?.logResubMessages,
-				}
-			);
+			if (config.accountSubscription.grpcMultiUserAccountSubscriber) {
+				this.accountSubscriber = config.accountSubscription.grpcMultiUserAccountSubscriber.forUser(
+					config.userAccountPublicKey
+				);
+			} else {
+				this.accountSubscriber = new grpcUserAccountSubscriber(
+					config.accountSubscription.grpcConfigs,
+					config.driftClient.program,
+					config.userAccountPublicKey,
+					{
+						resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
+						logResubMessages: config.accountSubscription?.logResubMessages,
+					}
+				);
+			}
 		} else {
 			if (
 				config.accountSubscription?.type === 'websocket' &&
