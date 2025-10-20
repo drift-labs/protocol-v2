@@ -10,6 +10,7 @@
 		"@project-serum/common": "0.0.1-beta.3",
 		"@project-serum/serum": "0.13.65",
 		"@pythnetwork/client": "2.21.0",
+		"@pythnetwork/price-service-client": "1.9.0",
 		"@solana/spl-token": "0.4.13",
 		"@solana/web3.js": "1.73.2",
 		"@types/bn.js": "5.1.6",
@@ -24,11 +25,11 @@
 		"husky": "7.0.4",
 		"prettier": "3.0.1",
 		"typedoc": "0.23.23",
-		"typescript": "5.4.5",
-		"@pythnetwork/price-service-client": "1.9.0"
+		"typescript": "5.4.5"
 	},
 	"dependencies": {
 		"@ellipsis-labs/phoenix-sdk": "1.4.2",
+		"@msgpack/msgpack": "^3.1.2",
 		"@pythnetwork/pyth-solana-receiver": "0.8.0",
 		"@switchboard-xyz/common": "3.0.14",
 		"@switchboard-xyz/on-demand": "2.4.1",
