@@ -1,3 +1,8 @@
+use crate::controller::amm::SwapDirection;
+use crate::math::amm::{calculate_quote_asset_amount_swapped, calculate_swap_output};
+use crate::math::amm_spread::get_spread_reserves;
+use crate::math::constants::PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO;
+use crate::math::orders::{standardize_base_asset_amount, standardize_price, Level};
 use crate::state::fill_mode::FillMode;
 use crate::state::pyth_lazer_oracle::PythLazerOracle;
 use crate::state::user::{MarketType, Order};
@@ -1699,6 +1704,107 @@ impl AMM {
         self.mm_oracle_price = mm_oracle_price;
         self.mm_oracle_slot = mm_oracle_slot;
         Ok(())
+    }
+
+    pub fn get_levels(
+        &self,
+        levels: u8,
+        direction: PositionDirection,
+        terminal_price: u64,
+    ) -> DriftResult<Vec<Level>> {
+        // Determine total available liquidity on the chosen side
+        let (max_bids, max_asks) = amm::calculate_market_open_bids_asks(self)?;
+        let open_liquidity: u64 = match direction {
+            PositionDirection::Long => {
+                let v: i128 = max_bids.max(0);
+                v.min(u64::MAX as i128).cast()?
+            }
+            PositionDirection::Short => {
+                // asks side depth (stored negative)
+                let v: i128 = max_asks.unsigned_abs().cast()?;
+                v.min(u64::MAX as i128).cast()?
+            }
+        };
+
+        // If not enough liquidity, return empty
+        if open_liquidity < self.min_order_size.saturating_mul(2) {
+            return Ok(Vec::new());
+        }
+
+        let (mut base_reserve, mut quote_reserve) = match direction {
+            PositionDirection::Long => get_spread_reserves(self, PositionDirection::Short)?,
+            PositionDirection::Short => get_spread_reserves(self, PositionDirection::Long)?,
+        };
+
+        let swap_dir = match direction {
+            PositionDirection::Long => SwapDirection::Add,
+            PositionDirection::Short => SwapDirection::Remove,
+        };
+
+        let mut remaining = open_liquidity;
+        let mut out: Vec<Level> = Vec::with_capacity(levels as usize);
+        let total_levels = levels as u64;
+
+        for i in 0..total_levels {
+            if remaining < self.order_step_size {
+                break;
+            }
+
+            let remaining_levels = total_levels.saturating_sub(i);
+            let target = remaining.checked_div(remaining_levels.max(1)).unwrap_or(0);
+            if target == 0 {
+                break;
+            }
+
+            let mut base_swap = standardize_base_asset_amount(target, self.order_step_size)?;
+            if base_swap == 0 {
+                break;
+            }
+            if base_swap > remaining {
+                base_swap = standardize_base_asset_amount(remaining, self.order_step_size)?;
+                if base_swap == 0 {
+                    break;
+                }
+            }
+
+            // Sim swap
+            let (new_quote_reserve, new_base_reserve) =
+                calculate_swap_output(base_swap.cast()?, base_reserve, swap_dir, self.sqrt_k)?;
+
+            let quote_swapped = calculate_quote_asset_amount_swapped(
+                quote_reserve,
+                new_quote_reserve,
+                swap_dir,
+                self.peg_multiplier,
+            )?;
+
+            let mut price: u64 = quote_swapped
+                .safe_mul(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO)?
+                .safe_div(base_swap.cast()?)?
+                .cast()?;
+
+            price = standardize_price(price, self.order_tick_size, direction)?;
+
+            price = match direction {
+                PositionDirection::Long => price.min(terminal_price),
+                PositionDirection::Short => price.max(terminal_price),
+            };
+
+            out.push(Level {
+                price,
+                base_asset_amount: base_swap,
+            });
+
+            base_reserve = new_base_reserve;
+            quote_reserve = new_quote_reserve;
+            remaining = remaining.saturating_sub(base_swap);
+
+            if out.len() as u64 >= total_levels {
+                break;
+            }
+        }
+
+        Ok(out)
     }
 }
 

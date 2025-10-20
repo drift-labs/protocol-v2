@@ -1215,7 +1215,7 @@ fn calculate_free_collateral_delta_for_spot(
     })
 }
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub struct Level {
     pub price: u64,
     pub base_asset_amount: u64,

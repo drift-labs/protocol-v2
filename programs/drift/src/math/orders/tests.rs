@@ -1061,6 +1061,92 @@ mod find_maker_orders {
     }
 }
 
+// -----------------------------------------------------------------------------
+// AMM L2 generation and merging tests
+// -----------------------------------------------------------------------------
+pub mod amm_l2_levels_and_merge {
+    use crate::controller::position::PositionDirection;
+    use crate::math::constants::PRICE_PRECISION_U64;
+    use crate::math::orders::{estimate_price_from_side, Level};
+    use crate::state::perp_market::AMM;
+
+    fn is_monotonic(levels: &Vec<Level>, dir: PositionDirection) -> bool {
+        if levels.is_empty() {
+            return true;
+        }
+        match dir {
+            // Long taker consumes asks: prices should be non-decreasing with depth
+            PositionDirection::Long => levels.windows(2).all(|w| w[0].price <= w[1].price),
+            // Short taker consumes bids: prices should be non-increasing with depth
+            PositionDirection::Short => levels.windows(2).all(|w| w[0].price >= w[1].price),
+        }
+    }
+
+    fn merge_by_price(mut a: Vec<Level>, mut b: Vec<Level>, dir: PositionDirection) -> Vec<Level> {
+        // Combine and sort, then coalesce identical price levels
+        a.append(&mut b);
+
+        match dir {
+            PositionDirection::Long => a.sort_by_key(|l| l.price), // asks ascending
+            PositionDirection::Short => a.sort_by(|x, y| y.price.cmp(&x.price)), // bids descending
+        }
+
+        let mut merged: Vec<Level> = Vec::with_capacity(a.len());
+        for lvl in a.into_iter() {
+            if let Some(last) = merged.last_mut() {
+                if last.price == lvl.price {
+                    last.base_asset_amount =
+                        last.base_asset_amount.saturating_add(lvl.base_asset_amount);
+                    continue;
+                }
+            }
+            merged.push(lvl);
+        }
+        merged
+    }
+
+    #[test]
+    fn amm_get_levels_monotonic_and_terminal_clamp() {
+        let amm = AMM::default_test();
+
+        // Generate asks (for a long taker): expect non-decreasing prices
+        let asks = amm
+            .get_levels(10, PositionDirection::Long, PRICE_PRECISION_U64 * 120 / 100)
+            .unwrap();
+        assert!(!asks.is_empty());
+        assert!(is_monotonic(&asks, PositionDirection::Long));
+        assert!(asks.iter().all(|l| l.base_asset_amount > 0));
+
+        // Terminal clamp: push terminal below current best ask and ensure it clamps
+        let best_ask = asks[0].price;
+        let clamped_terminal = best_ask.saturating_sub(1);
+        let asks_clamped = amm
+            .get_levels(5, PositionDirection::Long, clamped_terminal)
+            .unwrap();
+        assert!(!asks_clamped.is_empty());
+        assert!(asks_clamped.iter().all(|l| l.price <= clamped_terminal));
+        assert_eq!(asks_clamped[0].price, clamped_terminal); // first level should clamp exactly
+
+        // Generate bids (for a short taker): expect non-increasing prices
+        let bids = amm
+            .get_levels(10, PositionDirection::Short, PRICE_PRECISION_U64 * 80 / 100)
+            .unwrap();
+        assert!(!bids.is_empty());
+        assert!(is_monotonic(&bids, PositionDirection::Short));
+        assert!(bids.iter().all(|l| l.base_asset_amount > 0));
+
+        // Terminal clamp: raise terminal above current best bid and ensure it clamps
+        let best_bid = bids[0].price;
+        let raised_terminal = best_bid.saturating_add(1);
+        let bids_clamped = amm
+            .get_levels(5, PositionDirection::Short, raised_terminal)
+            .unwrap();
+        assert!(!bids_clamped.is_empty());
+        assert!(bids_clamped.iter().all(|l| l.price >= raised_terminal));
+        assert_eq!(bids_clamped[0].price, raised_terminal);
+    }
+}
+
 mod calculate_max_spot_order_size {
     use std::str::FromStr;
 

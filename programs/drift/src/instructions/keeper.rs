@@ -2617,8 +2617,59 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
 
     let depth = perp_market.get_market_depth_for_funding_rate()?;
 
-    let (bids, asks) =
+    let (mut bids, mut asks) =
         find_bids_and_asks_from_users(perp_market, oracle_price_data, &makers, slot, now)?;
+
+    if !perp_market.is_operation_paused(PerpOperation::AmmFill) {
+        let oracle_price = mm_oracle_price_data
+            .get_safe_oracle_price_data()
+            .price
+            .cast::<u64>()?;
+        let ask_terminal_price = match asks.last() {
+            Some(level) => level.price,
+            None => oracle_price.saturating_mul(120).saturating_div(100),
+        };
+        let bid_terminal_price = match bids.last() {
+            Some(level) => level.price,
+            None => oracle_price.saturating_mul(80).saturating_div(100),
+        };
+
+        let amm_bids =
+            perp_market
+                .amm
+                .clone()
+                .get_levels(16, PositionDirection::Short, bid_terminal_price)?;
+        let amm_asks =
+            perp_market
+                .amm
+                .clone()
+                .get_levels(16, PositionDirection::Long, ask_terminal_price)?;
+
+        bids.extend(amm_bids);
+        asks.extend(amm_asks);
+        bids.sort_by(|a, b| b.price.cmp(&a.price));
+        asks.sort_by(|a, b| a.price.cmp(&b.price));
+        let merge_same_price = |side: &mut Vec<crate::math::orders::Level>| {
+            if side.is_empty() {
+                return;
+            }
+            let mut merged: Vec<crate::math::orders::Level> = Vec::with_capacity(side.len());
+            for lvl in side.drain(..) {
+                if let Some(last) = merged.last_mut() {
+                    if last.price == lvl.price {
+                        last.base_asset_amount =
+                            last.base_asset_amount.saturating_add(lvl.base_asset_amount);
+                        continue;
+                    }
+                }
+                merged.push(lvl);
+            }
+            *side = merged;
+        };
+        merge_same_price(&mut bids);
+        merge_same_price(&mut asks);
+    }
+
     let estimated_bid = estimate_price_from_side(&bids, depth)?;
     let estimated_ask = estimate_price_from_side(&asks, depth)?;
 
