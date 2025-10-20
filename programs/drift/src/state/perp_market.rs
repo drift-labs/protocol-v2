@@ -4,6 +4,7 @@ use anchor_lang::prelude::*;
 
 use crate::state::state::{State, ValidityGuardRails};
 use std::cmp::max;
+use std::u128;
 
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
@@ -22,6 +23,7 @@ use crate::math::constants::{
     PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128,
     SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
 };
+use crate::math::helpers::get_proportion_u128;
 use crate::math::margin::{
     calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
     MarginRequirementType,
@@ -438,18 +440,19 @@ impl PerpMarket {
         user_high_leverage_mode: bool,
     ) -> DriftResult<u32> {
         if self.status == MarketStatus::Settlement {
-            return Ok(0); // no liability weight on size
+            return Ok(0);
         }
 
-        let (margin_ratio_initial, margin_ratio_maintenance) =
-            if user_high_leverage_mode && self.is_high_leverage_mode_enabled() {
-                (
-                    self.high_leverage_margin_ratio_initial.cast::<u32>()?,
-                    self.high_leverage_margin_ratio_maintenance.cast::<u32>()?,
-                )
-            } else {
-                (self.margin_ratio_initial, self.margin_ratio_maintenance)
-            };
+        let is_high_leverage_user = user_high_leverage_mode && self.is_high_leverage_mode_enabled();
+
+        let (margin_ratio_initial, margin_ratio_maintenance) = if is_high_leverage_user {
+            (
+                self.high_leverage_margin_ratio_initial.cast::<u32>()?,
+                self.high_leverage_margin_ratio_maintenance.cast::<u32>()?,
+            )
+        } else {
+            (self.margin_ratio_initial, self.margin_ratio_maintenance)
+        };
 
         let default_margin_ratio = match margin_type {
             MarginRequirementType::Initial => margin_ratio_initial,
@@ -459,14 +462,73 @@ impl PerpMarket {
             MarginRequirementType::Maintenance => margin_ratio_maintenance,
         };
 
+        let pre_size_adj_margin_ratio = if is_high_leverage_user {
+            match margin_type {
+                MarginRequirementType::Initial => self.margin_ratio_initial,
+                MarginRequirementType::Fill => {
+                    self.margin_ratio_initial
+                        .safe_add(self.margin_ratio_maintenance)?
+                        / 2
+                }
+                MarginRequirementType::Maintenance => margin_ratio_maintenance, // use hlm maintenance to avoid changing liq prices
+            }
+        } else {
+            default_margin_ratio
+        };
+
+        let cap_size_premium =
+            !is_high_leverage_user || margin_type != MarginRequirementType::Initial;
         let size_adj_margin_ratio = calculate_size_premium_liability_weight(
             size,
             self.imf_factor,
-            default_margin_ratio,
+            pre_size_adj_margin_ratio,
             MARGIN_PRECISION_U128,
+            cap_size_premium,
         )?;
 
-        let margin_ratio = default_margin_ratio.max(size_adj_margin_ratio);
+        crate::dlog!(
+            is_high_leverage_user,
+            cap_size_premium,
+            size_adj_margin_ratio,
+            pre_size_adj_margin_ratio,
+            default_margin_ratio
+        );
+
+        let margin_ratio = if cap_size_premium {
+            if size_adj_margin_ratio >= pre_size_adj_margin_ratio {
+                default_margin_ratio.max(size_adj_margin_ratio)
+            } else {
+                default_margin_ratio
+            }
+        } else {
+            if size_adj_margin_ratio < pre_size_adj_margin_ratio {
+                let size_pct_discount_factor = PERCENTAGE_PRECISION.safe_sub(
+                    ((pre_size_adj_margin_ratio as u128)
+                        .safe_sub(size_adj_margin_ratio as u128)?
+                        .safe_mul(PERCENTAGE_PRECISION)?
+                        .safe_div((pre_size_adj_margin_ratio / 5) as u128)?),
+                )?;
+
+                let hlm_margin_delta = pre_size_adj_margin_ratio
+                    .safe_sub(default_margin_ratio)?
+                    .max(1);
+
+                let hlm_margin_delta_proportion = get_proportion_u128(
+                    hlm_margin_delta as u128,
+                    size_pct_discount_factor,
+                    PERCENTAGE_PRECISION,
+                )? as u32;
+
+                crate::dlog!(
+                    hlm_margin_delta_proportion,
+                    hlm_margin_delta,
+                    size_pct_discount_factor
+                );
+                hlm_margin_delta_proportion + default_margin_ratio
+            } else {
+                default_margin_ratio
+            }
+        };
 
         Ok(margin_ratio)
     }

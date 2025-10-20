@@ -100,6 +100,55 @@ mod get_margin_ratio {
         );
         assert_eq!(margin_ratio_maintenance, MARGIN_PRECISION / 100);
     }
+
+    #[test]
+    fn smart_hlm_size() {
+        let perp_market = PerpMarket {
+            margin_ratio_initial: MARGIN_PRECISION / 10,
+            margin_ratio_maintenance: MARGIN_PRECISION / 20,
+            high_leverage_margin_ratio_initial: (MARGIN_PRECISION / 100) as u16,
+            high_leverage_margin_ratio_maintenance: (MARGIN_PRECISION / 200) as u16,
+            imf_factor: 50,
+            ..PerpMarket::default()
+        };
+
+        let hlm_margin_ratio_initial = perp_market
+            .get_margin_ratio(BASE_PRECISION / 10, MarginRequirementType::Initial, true)
+            .unwrap();
+
+        assert_eq!(
+            hlm_margin_ratio_initial,
+            perp_market.high_leverage_margin_ratio_initial as u32
+        );
+
+        let hlm_margin_ratio_initial_sized = perp_market
+            .get_margin_ratio(BASE_PRECISION * 3000, MarginRequirementType::Initial, true)
+            .unwrap();
+        assert_eq!(hlm_margin_ratio_initial_sized, 221);
+        assert!(
+            hlm_margin_ratio_initial_sized > perp_market.high_leverage_margin_ratio_initial as u32
+        );
+
+        let hlm_margin_ratio_maint = perp_market
+            .get_margin_ratio(
+                BASE_PRECISION * 3000,
+                MarginRequirementType::Maintenance,
+                true,
+            )
+            .unwrap();
+        assert_eq!(hlm_margin_ratio_maint, 67); // hardly changed
+
+
+
+        let hlm_margin_ratio_maint = perp_market
+            .get_margin_ratio(
+                BASE_PRECISION * 300000,
+                MarginRequirementType::Maintenance,
+                true,
+            )
+            .unwrap();
+        assert_eq!(hlm_margin_ratio_maint, 313); // changed more at large size
+    }
 }
 
 mod get_min_perp_auction_duration {
