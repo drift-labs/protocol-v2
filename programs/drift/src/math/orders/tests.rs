@@ -1061,13 +1061,9 @@ mod find_maker_orders {
     }
 }
 
-// -----------------------------------------------------------------------------
-// AMM L2 generation and merging tests
-// -----------------------------------------------------------------------------
-pub mod amm_l2_levels_and_merge {
+pub mod amm_l2_levels {
     use crate::controller::position::PositionDirection;
-    use crate::math::constants::PRICE_PRECISION_U64;
-    use crate::math::orders::{estimate_price_from_side, Level};
+    use crate::math::orders::Level;
     use crate::state::perp_market::AMM;
 
     fn is_monotonic(levels: &Vec<Level>, dir: PositionDirection) -> bool {
@@ -1075,49 +1071,29 @@ pub mod amm_l2_levels_and_merge {
             return true;
         }
         match dir {
-            // Long taker consumes asks: prices should be non-decreasing with depth
             PositionDirection::Long => levels.windows(2).all(|w| w[0].price <= w[1].price),
-            // Short taker consumes bids: prices should be non-increasing with depth
             PositionDirection::Short => levels.windows(2).all(|w| w[0].price >= w[1].price),
         }
     }
 
-    fn merge_by_price(mut a: Vec<Level>, mut b: Vec<Level>, dir: PositionDirection) -> Vec<Level> {
-        // Combine and sort, then coalesce identical price levels
-        a.append(&mut b);
-
-        match dir {
-            PositionDirection::Long => a.sort_by_key(|l| l.price), // asks ascending
-            PositionDirection::Short => a.sort_by(|x, y| y.price.cmp(&x.price)), // bids descending
-        }
-
-        let mut merged: Vec<Level> = Vec::with_capacity(a.len());
-        for lvl in a.into_iter() {
-            if let Some(last) = merged.last_mut() {
-                if last.price == lvl.price {
-                    last.base_asset_amount =
-                        last.base_asset_amount.saturating_add(lvl.base_asset_amount);
-                    continue;
-                }
-            }
-            merged.push(lvl);
-        }
-        merged
-    }
-
     #[test]
     fn amm_get_levels_monotonic_and_terminal_clamp() {
-        let amm = AMM::default_test();
+        let amm = AMM::liquid_sol_test();
 
-        // Generate asks (for a long taker): expect non-decreasing prices
+        // Asks monotonically increasing and greater than oracle price
         let asks = amm
-            .get_levels(10, PositionDirection::Long, PRICE_PRECISION_U64 * 120 / 100)
+            .get_levels(
+                10,
+                PositionDirection::Long,
+                (amm.historical_oracle_data.last_oracle_price as u64) * 120 / 100,
+            )
             .unwrap();
         assert!(!asks.is_empty());
         assert!(is_monotonic(&asks, PositionDirection::Long));
-        assert!(asks.iter().all(|l| l.base_asset_amount > 0));
+        assert!(asks.iter().all(|l| l.base_asset_amount > 0
+            && l.price > amm.historical_oracle_data.last_oracle_price as u64));
 
-        // Terminal clamp: push terminal below current best ask and ensure it clamps
+        // Test clamping at terminal price on ask side
         let best_ask = asks[0].price;
         let clamped_terminal = best_ask.saturating_sub(1);
         let asks_clamped = amm
@@ -1127,15 +1103,20 @@ pub mod amm_l2_levels_and_merge {
         assert!(asks_clamped.iter().all(|l| l.price <= clamped_terminal));
         assert_eq!(asks_clamped[0].price, clamped_terminal); // first level should clamp exactly
 
-        // Generate bids (for a short taker): expect non-increasing prices
+        // Bids monotonically decreasing and less than oracle price
         let bids = amm
-            .get_levels(10, PositionDirection::Short, PRICE_PRECISION_U64 * 80 / 100)
+            .get_levels(
+                10,
+                PositionDirection::Short,
+                (amm.historical_oracle_data.last_oracle_price as u64) * 80 / 100,
+            )
             .unwrap();
         assert!(!bids.is_empty());
         assert!(is_monotonic(&bids, PositionDirection::Short));
-        assert!(bids.iter().all(|l| l.base_asset_amount > 0));
+        assert!(bids.iter().all(|l| l.base_asset_amount > 0
+            && l.price < amm.historical_oracle_data.last_oracle_price as u64));
 
-        // Terminal clamp: raise terminal above current best bid and ensure it clamps
+        // Test clamping at terminal price on bid side
         let best_bid = bids[0].price;
         let raised_terminal = best_bid.saturating_add(1);
         let bids_clamped = amm

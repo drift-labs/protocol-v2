@@ -1709,49 +1709,40 @@ impl AMM {
     pub fn get_levels(
         &self,
         levels: u8,
-        direction: PositionDirection,
+        taker_direction: PositionDirection,
         terminal_price: u64,
     ) -> DriftResult<Vec<Level>> {
-        // Determine total available liquidity on the chosen side
-        let (max_bids, max_asks) = amm::calculate_market_open_bids_asks(self)?;
-        let open_liquidity: u64 = match direction {
-            PositionDirection::Long => {
-                let v: i128 = max_bids.max(0);
-                v.min(u64::MAX as i128).cast()?
-            }
-            PositionDirection::Short => {
-                // asks side depth (stored negative)
-                let v: i128 = max_asks.unsigned_abs().cast()?;
-                v.min(u64::MAX as i128).cast()?
-            }
+        let (mut base_reserve, mut quote_reserve) = match taker_direction {
+            PositionDirection::Long => get_spread_reserves(self, PositionDirection::Long)?,
+            PositionDirection::Short => get_spread_reserves(self, PositionDirection::Short)?,
         };
 
-        // If not enough liquidity, return empty
+        let open_liquidity_u128: u128 = match taker_direction {
+            PositionDirection::Long => base_reserve.safe_sub(self.min_base_asset_reserve)?,
+            PositionDirection::Short => self.max_base_asset_reserve.safe_sub(base_reserve)?,
+        };
+        let open_liquidity: u64 = open_liquidity_u128.min(u64::MAX as u128).cast()?;
         if open_liquidity < self.min_order_size.saturating_mul(2) {
             return Ok(Vec::new());
         }
 
-        let (mut base_reserve, mut quote_reserve) = match direction {
-            PositionDirection::Long => get_spread_reserves(self, PositionDirection::Short)?,
-            PositionDirection::Short => get_spread_reserves(self, PositionDirection::Long)?,
-        };
-
-        let swap_dir = match direction {
-            PositionDirection::Long => SwapDirection::Add,
-            PositionDirection::Short => SwapDirection::Remove,
+        let swap_dir = match taker_direction {
+            PositionDirection::Long => SwapDirection::Remove,
+            PositionDirection::Short => SwapDirection::Add,
         };
 
         let mut remaining = open_liquidity;
         let mut out: Vec<Level> = Vec::with_capacity(levels as usize);
-        let total_levels = levels as u64;
 
-        for i in 0..total_levels {
+        for i in 0..levels {
             if remaining < self.order_step_size {
                 break;
             }
 
-            let remaining_levels = total_levels.saturating_sub(i);
-            let target = remaining.checked_div(remaining_levels.max(1)).unwrap_or(0);
+            let remaining_levels = levels.saturating_sub(i);
+            let target = remaining
+                .checked_div(remaining_levels.max(1) as u64)
+                .unwrap_or(0);
             if target == 0 {
                 break;
             }
@@ -1783,9 +1774,9 @@ impl AMM {
                 .safe_div(base_swap.cast()?)?
                 .cast()?;
 
-            price = standardize_price(price, self.order_tick_size, direction)?;
+            price = standardize_price(price, self.order_tick_size, taker_direction)?;
 
-            price = match direction {
+            price = match taker_direction {
                 PositionDirection::Long => price.min(terminal_price),
                 PositionDirection::Short => price.max(terminal_price),
             };
@@ -1799,7 +1790,7 @@ impl AMM {
             quote_reserve = new_quote_reserve;
             remaining = remaining.saturating_sub(base_swap);
 
-            if out.len() as u64 >= total_levels {
+            if out.len() as u8 >= levels {
                 break;
             }
         }
@@ -1867,6 +1858,107 @@ impl AMM {
             max_spread: 975,
             funding_period: 3600,
             last_oracle_valid: true,
+            ..AMM::default()
+        }
+    }
+
+    pub fn liquid_sol_test() -> Self {
+        AMM {
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: 190641285,
+                last_oracle_conf: 0,
+                last_oracle_delay: 17,
+                last_oracle_price_twap: 189914813,
+                last_oracle_price_twap_5min: 190656263,
+                last_oracle_price_twap_ts: 1761000653,
+            },
+            base_asset_amount_per_lp: -213874721369,
+            quote_asset_amount_per_lp: -58962015125,
+            fee_pool: PoolBalance {
+                scaled_balance: 8575516773308741,
+                market_index: 0,
+                padding: [0, 0, 0, 0, 0, 0],
+            },
+            base_asset_reserve: 24302266099492168,
+            quote_asset_reserve: 24291832241447530,
+            concentration_coef: 1004142,
+            min_base_asset_reserve: 24196060267862680,
+            max_base_asset_reserve: 24396915542699764,
+            sqrt_k: 24297048610394662,
+            peg_multiplier: 190724934,
+            terminal_quote_asset_reserve: 24297816895589961,
+            base_asset_amount_long: 917177880000000,
+            base_asset_amount_short: -923163630000000,
+            base_asset_amount_with_amm: -5985750000000,
+            base_asset_amount_with_unsettled_lp: 0,
+            max_open_interest: 2000000000000000,
+            quote_asset_amount: 15073495357350,
+            quote_entry_amount_long: -182456763836058,
+            quote_entry_amount_short: 182214483467437,
+            quote_break_even_amount_long: -181616323258115,
+            quote_break_even_amount_short: 180666910938502,
+            user_lp_shares: 0,
+            last_funding_rate: 142083,
+            last_funding_rate_long: 142083,
+            last_funding_rate_short: 142083,
+            last_24h_avg_funding_rate: -832430,
+            total_fee: 23504910735696,
+            total_mm_fee: 8412188362643,
+            total_exchange_fee: 15240376207986,
+            total_fee_minus_distributions: 12622783464171,
+            total_fee_withdrawn: 7622904850984,
+            total_liquidation_fee: 5153159954719,
+            cumulative_funding_rate_long: 48574028958,
+            cumulative_funding_rate_short: 48367829283,
+            total_social_loss: 4512659649,
+            ask_base_asset_reserve: 24307711375337898,
+            ask_quote_asset_reserve: 24286390522755450,
+            bid_base_asset_reserve: 24318446036975185,
+            bid_quote_asset_reserve: 24275670011080633,
+            last_oracle_normalised_price: 190641285,
+            last_oracle_reserve_price_spread_pct: 0,
+            last_bid_price_twap: 189801870,
+            last_ask_price_twap: 189877406,
+            last_mark_price_twap: 189839638,
+            last_mark_price_twap_5min: 190527180,
+            last_update_slot: 374711191,
+            last_oracle_conf_pct: 491,
+            net_revenue_since_last_funding: 9384752152,
+            last_funding_rate_ts: 1760997616,
+            funding_period: 3600,
+            order_step_size: 10000000,
+            order_tick_size: 100,
+            min_order_size: 10000000,
+            mm_oracle_slot: 374711192,
+            volume_24h: 114093279361263,
+            long_intensity_volume: 1572903262040,
+            short_intensity_volume: 3352472398103,
+            last_trade_ts: 1761000641,
+            mark_std: 623142,
+            oracle_std: 727888,
+            last_mark_price_twap_ts: 1761000646,
+            base_spread: 100,
+            max_spread: 20000,
+            long_spread: 40,
+            short_spread: 842,
+            mm_oracle_price: 190643458,
+            max_fill_reserve_fraction: 25000,
+            max_slippage_ratio: 50,
+            curve_update_intensity: 110,
+            amm_jit_intensity: 100,
+            last_oracle_valid: true,
+            target_base_asset_amount_per_lp: -565000000,
+            per_lp_base: 3,
+            taker_speed_bump_override: 5,
+            amm_spread_adjustment: -20,
+            oracle_slot_delay_override: -1,
+            mm_oracle_sequence_id: 1761000654650000,
+            net_unsettled_funding_pnl: 1042875,
+            quote_asset_amount_with_unsettled_lp: -112671203108,
+            reference_price_offset: -488,
+            amm_inventory_spread_adjustment: -20,
+            last_funding_oracle_twap: 189516656,
+            reference_price_offset_deadband_pct: 10,
             ..AMM::default()
         }
     }
