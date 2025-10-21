@@ -477,7 +477,7 @@ impl PerpMarket {
         };
 
         let cap_size_premium =
-            !is_high_leverage_user || margin_type != MarginRequirementType::Initial;
+            !is_high_leverage_user || margin_type == MarginRequirementType::Maintenance;
         let size_adj_margin_ratio = calculate_size_premium_liability_weight(
             size,
             self.imf_factor,
@@ -486,20 +486,8 @@ impl PerpMarket {
             cap_size_premium,
         )?;
 
-        crate::dlog!(
-            is_high_leverage_user,
-            cap_size_premium,
-            size_adj_margin_ratio,
-            pre_size_adj_margin_ratio,
-            default_margin_ratio
-        );
-
         let margin_ratio = if cap_size_premium {
-            if size_adj_margin_ratio >= pre_size_adj_margin_ratio {
-                default_margin_ratio.max(size_adj_margin_ratio)
-            } else {
-                default_margin_ratio
-            }
+            default_margin_ratio.max(size_adj_margin_ratio)
         } else {
             if size_adj_margin_ratio < pre_size_adj_margin_ratio {
                 let size_pct_discount_factor = PERCENTAGE_PRECISION.safe_sub(
@@ -525,8 +513,10 @@ impl PerpMarket {
                     size_pct_discount_factor
                 );
                 hlm_margin_delta_proportion + default_margin_ratio
-            } else {
+            } else if size_adj_margin_ratio == pre_size_adj_margin_ratio {
                 default_margin_ratio
+            } else {
+                size_adj_margin_ratio
             }
         };
 
