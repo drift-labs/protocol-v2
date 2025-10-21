@@ -7058,12 +7058,12 @@ export class DriftClient {
 		const isDelegateSigner = takerInfo.signingAuthority.equals(
 			takerInfo.takerUserAccount.delegate
 		);
-		
+
 		const borshBuf = Buffer.from(
 			signedSignedMsgOrderParams.orderParams.toString(),
 			'hex'
 		);
-		
+
 		const signedMessage = this.decodeSignedMsgOrderParamsMessage(
 			borshBuf,
 			isDelegateSigner
@@ -7073,7 +7073,11 @@ export class DriftClient {
 			userAccounts: [takerInfo.takerUserAccount],
 			useMarketLastSlotCache: false,
 			readablePerpMarketIndex: marketIndex,
-			writableSpotMarketIndexes: signedMessage.isolatedPositionDeposit?.gt(new BN(0)) ? [QUOTE_SPOT_MARKET_INDEX] : undefined,
+			writableSpotMarketIndexes: signedMessage.isolatedPositionDeposit?.gt(
+				new BN(0)
+			)
+				? [QUOTE_SPOT_MARKET_INDEX]
+				: undefined,
 		});
 
 		if (isUpdateHighLeverageMode(signedMessage.signedMsgOrderParams.bitFlags)) {
