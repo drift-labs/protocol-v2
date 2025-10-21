@@ -1108,6 +1108,7 @@ export type AMM = {
 	referencePriceOffset: number;
 
 	takerSpeedBumpOverride: number;
+	oracleSlotDelayOverride: number;
 	ammSpreadAdjustment: number;
 	ammInventorySpreadAdjustment: number;
 
@@ -1472,6 +1473,17 @@ export type OracleGuardRails = {
 		tooVolatileRatio: BN;
 	};
 };
+
+export enum OracleValidity {
+	NonPositive = 0,
+	TooVolatile = 1,
+	TooUncertain = 2,
+	StaleForMargin = 3,
+	InsufficientDataPoints = 4,
+	StaleForAMMLowRisk = 5,
+	isStaleForAmmImmediate = 6,
+	Valid = 7,
+}
 
 export type PrelaunchOracle = {
 	price: BN;

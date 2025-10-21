@@ -700,14 +700,6 @@ impl PerpMarket {
         }
     }
 
-    pub fn get_min_perp_auction_duration(&self, default_min_auction_duration: u8) -> u8 {
-        if self.amm.taker_speed_bump_override != 0 {
-            self.amm.taker_speed_bump_override.max(0).unsigned_abs()
-        } else {
-            default_min_auction_duration
-        }
-    }
-
     pub fn get_trigger_price(
         &self,
         oracle_price: i64,
@@ -876,9 +868,6 @@ impl PerpMarket {
             return Ok(false);
         }
 
-        let min_auction_duration =
-            self.get_min_perp_auction_duration(state.min_perp_auction_duration);
-
         // We are already using safe oracle data from MM oracle.
         // But AMM isnt available if we could have used MM oracle but fell back due to price diff
         // This is basically early volatility protection
@@ -899,7 +888,6 @@ impl PerpMarket {
         let safe_oracle_price_data = mm_oracle_price_data.get_safe_oracle_price_data();
         let order_is_low_risk_for_amm = order.is_low_risk_for_amm(
             safe_oracle_price_data.delay,
-            min_auction_duration,
             clock_slot,
             fill_mode.is_liquidation(),
         )?;
@@ -907,6 +895,10 @@ impl PerpMarket {
             safe_oracle_validity,
             Some(DriftAction::FillOrderAmmLowRisk),
         )?;
+        if !oracle_valid_for_amm_fill_low_risk {
+            msg!("AMM cannot fill order: oracle not valid for low risk fills");
+            return Ok(false);
+        }
         let can_fill_low_risk = order_is_low_risk_for_amm && oracle_valid_for_amm_fill_low_risk;
 
         // Proceed if order is low risk and we can fill it. Otherwise check if we can higher risk order immediately

@@ -101,7 +101,7 @@ pub fn is_oracle_valid_for_action(
                     oracle_validity,
                     OracleValidity::Valid
                         | OracleValidity::StaleForAMM {
-                            immediate: true,
+                            immediate: _,
                             low_risk: false
                         }
                 )

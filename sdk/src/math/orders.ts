@@ -8,6 +8,7 @@ import {
 	PositionDirection,
 	ProtectedMakerParams,
 	MarketTypeStr,
+	OrderBitFlag,
 } from '../types';
 import {
 	ZERO,
@@ -254,6 +255,25 @@ export function isFillableByVAMM(
 				slot
 			).gt(ZERO)) ||
 		isOrderExpired(order, ts)
+	);
+}
+
+export function isLowRiskForAmm(
+	order: Order,
+	mmOraclePriceData: MMOraclePriceData,
+	slot: number,
+	isLiquidation?: boolean
+): boolean {
+	if (isVariant(order.marketType, 'perp')) {
+		return false;
+	}
+
+	const orderOlderThanOracleDelay = new BN(slot).lte(mmOraclePriceData.slot);
+
+	return (
+		orderOlderThanOracleDelay ||
+		isLiquidation ||
+		(order.bitFlags & OrderBitFlag.SafeTriggerOrder) !== 0
 	);
 }
 

@@ -2489,17 +2489,6 @@ pub mod amm_jit {
             let makers_and_referrers = UserMap::load_one(&maker_account_info).unwrap();
 
             let order_index = 0;
-            let user_can_skip_auction_duration =
-                taker.can_skip_auction_duration(&taker_stats).unwrap();
-            let is_amm_available = get_amm_is_available(
-                &taker.orders[order_index],
-                auction_duration,
-                &market,
-                &mut oracle_map,
-                slot,
-                user_can_skip_auction_duration,
-            );
-
             // fulfill with match
             fulfill_perp_order(
                 &mut taker,

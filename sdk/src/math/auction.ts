@@ -1,4 +1,4 @@
-import { isOneOfVariant, isVariant, Order, PositionDirection } from '../types';
+import { AMM, isOneOfVariant, isVariant, MarketType, Order, PositionDirection } from '../types';
 import { BN } from '@coral-xyz/anchor';
 import {
 	ONE,
@@ -8,9 +8,9 @@ import {
 } from '../constants/numericConstants';
 import { getVariant, OrderBitFlag, PerpMarketAccount } from '../types';
 import { getPerpMarketTierNumber } from './tiers';
-import { MMOraclePriceData } from '../oracles/types';
+import { MMOraclePriceData, OraclePriceData } from '../oracles/types';
 import { isLowRiskForAmm } from './orders';
-import { isOracleValid } from './oracles';
+import { getOracleValidity, isOracleValid } from './oracles';
 
 export function isAuctionComplete(order: Order, slot: number): boolean {
 	if (order.auctionDuration === 0) {
@@ -20,23 +20,33 @@ export function isAuctionComplete(order: Order, slot: number): boolean {
 	return new BN(slot).sub(order.slot).gt(new BN(order.auctionDuration));
 }
 
-export function isFallbackAvailableLiquiditySource(
+export function isFallbackAvailableLiquiditySource<T extends MarketType>(
 	order: Order,
-	mmOracleData: MMOraclePriceData,
+	marketType: T,
+	oraclePriceData: T extends { spot: unknown }
+		? OraclePriceData
+		: MMOraclePriceData,
 	slot: number,
+	amm?: AMM,
 	isLiquidation?: boolean,
 ): boolean {
+	if (isVariant(marketType, 'spot')) {
+		return true;
+	}
 
 	const isOrderLowRiskForAmm = isLowRiskForAmm(
 		order,
-		mmOracleData,
+		oraclePriceData as MMOraclePriceData,
 		slot,
 		isLiquidation,
 	);
-	isOracleValid
+
+	// const oracleValidity = getOracleValidity(
+
+	// )
 
 
-	return new BN(slot).sub(order.slot).gt(new BN(minAuctionDuration));
+	return true;
 }
 
 /**
@@ -265,9 +275,15 @@ export function getTriggerAuctionStartPrice(params: {
 				offsetSlow.add(fracOfLongSpreadInPrice),
 				offsetFast.sub(fracOfShortSpreadInPrice)
 			)
+				offsetSlow.add(fracOfLongSpreadInPrice),
+			offsetFast.sub(fracOfShortSpreadInPrice)
+			)
 			: BN.max(
 				offsetSlow.sub(fracOfShortSpreadInPrice),
 				offsetFast.add(fracOfLongSpreadInPrice)
+			);
+		offsetSlow.sub(fracOfShortSpreadInPrice),
+			offsetFast.add(fracOfLongSpreadInPrice)
 			);
 	}
 

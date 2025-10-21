@@ -13056,7 +13056,6 @@ mod update_maker_fills_map {
 
 mod order_is_low_risk_for_amm {
     use super::*;
-    use crate::math::orders::get_posted_slot_from_clock_slot;
     use crate::state::user::{OrderBitFlag, OrderStatus};
 
     fn base_perp_order() -> Order {
@@ -13075,61 +13074,28 @@ mod order_is_low_risk_for_amm {
         let mm_oracle_delay = 10i64;
 
         let is_low = order
-            .is_low_risk_for_amm(mm_oracle_delay, 20, clock_slot, false)
+            .is_low_risk_for_amm(mm_oracle_delay, clock_slot, false)
             .unwrap();
         assert!(is_low);
     }
 
     #[test]
-    fn not_older_than_delay_and_auction_not_complete_returns_false() {
+    fn not_older_than_delay_returns_false() {
         let order = base_perp_order();
         let clock_slot = 110u64;
 
         let mm_oracle_delay = 11i64;
-        let min_auction_duration = 10u8;
 
         let is_low = order
-            .is_low_risk_for_amm(mm_oracle_delay, min_auction_duration, clock_slot, false)
+            .is_low_risk_for_amm(mm_oracle_delay, clock_slot, false)
             .unwrap();
         assert!(!is_low);
     }
 
     #[test]
-    fn non_signed_auction_boundary_and_past_duration() {
-        let order = base_perp_order(); // slot = 100
-
-        let is_low_at_boundary = order.is_low_risk_for_amm(1000, 10, 110, false).unwrap();
-        assert!(!is_low_at_boundary);
-        let is_low_past = order.is_low_risk_for_amm(1000, 10, 111, false).unwrap();
-        assert!(is_low_past);
-    }
-
-    #[test]
-    fn signed_message_duration_gate() {
-        let mut order = base_perp_order();
-        order.add_bit_flag(OrderBitFlag::SignedMessage);
-
-        let posted_slot = 5_000u64;
-        order.posted_slot_tail = get_posted_slot_from_clock_slot(posted_slot);
-
-        let clock_slot_9 = posted_slot + 9;
-        let min_auction_duration = 10u8;
-        let is_low_9 = order
-            .is_low_risk_for_amm(10_000, min_auction_duration, clock_slot_9, false)
-            .unwrap();
-        assert!(!is_low_9);
-
-        let clock_slot_10 = posted_slot + 10;
-        let is_low_10 = order
-            .is_low_risk_for_amm(10_000, min_auction_duration, clock_slot_10, false)
-            .unwrap();
-        assert!(is_low_10);
-    }
-
-    #[test]
     fn liquidation_always_low_risk() {
         let order = base_perp_order();
-        let is_low = order.is_low_risk_for_amm(0, 255, order.slot, true).unwrap();
+        let is_low = order.is_low_risk_for_amm(0, order.slot, true).unwrap();
         assert!(is_low);
     }
 
@@ -13138,9 +13104,7 @@ mod order_is_low_risk_for_amm {
         let mut order = base_perp_order();
         order.add_bit_flag(OrderBitFlag::SafeTriggerOrder);
 
-        let is_low = order
-            .is_low_risk_for_amm(0, 255, order.slot, false)
-            .unwrap();
+        let is_low = order.is_low_risk_for_amm(0, order.slot, false).unwrap();
         assert!(is_low);
     }
 }
