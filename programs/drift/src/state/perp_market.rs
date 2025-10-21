@@ -241,6 +241,38 @@ pub struct PerpMarket {
     pub padding: [u8; 24],
 }
 
+pub fn _get_high_leverage_mode_margin_ratio(
+    pre_size_adj_margin_ratio: u32,
+    size_adj_margin_ratio: u32,
+    default_margin_ratio: u32,
+) -> DriftResult<u32> {
+    let result = if size_adj_margin_ratio < pre_size_adj_margin_ratio {
+        let size_pct_discount_factor = PERCENTAGE_PRECISION.safe_sub(
+            ((pre_size_adj_margin_ratio as u128)
+                .safe_sub(size_adj_margin_ratio as u128)?
+                .safe_mul(PERCENTAGE_PRECISION)?
+                .safe_div((pre_size_adj_margin_ratio / 5) as u128)?),
+        )?;
+
+        let hlm_margin_delta = pre_size_adj_margin_ratio
+            .saturating_sub(default_margin_ratio)
+            .max(1);
+
+        let hlm_margin_delta_proportion = get_proportion_u128(
+            hlm_margin_delta as u128,
+            size_pct_discount_factor,
+            PERCENTAGE_PRECISION,
+        )? as u32;
+        hlm_margin_delta_proportion + default_margin_ratio
+    } else if size_adj_margin_ratio == pre_size_adj_margin_ratio {
+        default_margin_ratio
+    } else {
+        size_adj_margin_ratio
+    };
+
+    Ok(result)
+}
+
 impl Default for PerpMarket {
     fn default() -> Self {
         PerpMarket {
@@ -489,35 +521,11 @@ impl PerpMarket {
         let margin_ratio = if cap_size_premium {
             default_margin_ratio.max(size_adj_margin_ratio)
         } else {
-            if size_adj_margin_ratio < pre_size_adj_margin_ratio {
-                let size_pct_discount_factor = PERCENTAGE_PRECISION.safe_sub(
-                    ((pre_size_adj_margin_ratio as u128)
-                        .safe_sub(size_adj_margin_ratio as u128)?
-                        .safe_mul(PERCENTAGE_PRECISION)?
-                        .safe_div((pre_size_adj_margin_ratio / 5) as u128)?),
-                )?;
-
-                let hlm_margin_delta = pre_size_adj_margin_ratio
-                    .safe_sub(default_margin_ratio)?
-                    .max(1);
-
-                let hlm_margin_delta_proportion = get_proportion_u128(
-                    hlm_margin_delta as u128,
-                    size_pct_discount_factor,
-                    PERCENTAGE_PRECISION,
-                )? as u32;
-
-                crate::dlog!(
-                    hlm_margin_delta_proportion,
-                    hlm_margin_delta,
-                    size_pct_discount_factor
-                );
-                hlm_margin_delta_proportion + default_margin_ratio
-            } else if size_adj_margin_ratio == pre_size_adj_margin_ratio {
-                default_margin_ratio
-            } else {
-                size_adj_margin_ratio
-            }
+            _get_high_leverage_mode_margin_ratio(
+                pre_size_adj_margin_ratio,
+                size_adj_margin_ratio,
+                default_margin_ratio,
+            )?
         };
 
         Ok(margin_ratio)

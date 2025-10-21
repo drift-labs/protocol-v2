@@ -117,11 +117,19 @@ mod get_margin_ratio {
 
         for i in 1..1_000 {
             let hlm_margin_ratio_initial = perp_market
-                .get_margin_ratio(BASE_PRECISION * i * 1000, MarginRequirementType::Initial, true)
+                .get_margin_ratio(
+                    BASE_PRECISION * i * 1000,
+                    MarginRequirementType::Initial,
+                    true,
+                )
                 .unwrap();
 
             let margin_ratio_initial = perp_market
-                .get_margin_ratio(BASE_PRECISION * i * 1000, MarginRequirementType::Initial, false)
+                .get_margin_ratio(
+                    BASE_PRECISION * i * 1000,
+                    MarginRequirementType::Initial,
+                    false,
+                )
                 .unwrap();
 
             if margin_ratio_initial != perp_market.margin_ratio_initial {
@@ -146,7 +154,11 @@ mod get_margin_ratio {
         };
 
         let normal_margin_ratio_initial = perp_market
-            .get_margin_ratio(BASE_PRECISION * 1000000, MarginRequirementType::Initial, false)
+            .get_margin_ratio(
+                BASE_PRECISION * 1000000,
+                MarginRequirementType::Initial,
+                false,
+            )
             .unwrap();
 
         assert_eq!(normal_margin_ratio_initial, 1300);
