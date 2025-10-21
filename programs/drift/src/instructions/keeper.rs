@@ -11,7 +11,6 @@ use solana_program::sysvar::instructions::{
     self, load_current_index_checked, load_instruction_at_checked, ID as IX_ID,
 };
 
-use crate::controller::amm::SwapDirection;
 use crate::controller::insurance::update_user_stats_if_stake_amount;
 use crate::controller::liquidation::{
     liquidate_spot_with_swap_begin, liquidate_spot_with_swap_end,
@@ -29,9 +28,7 @@ use crate::ids::{
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::get_revenue_share_escrow_account;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
-use crate::math::amm_spread;
 use crate::math::casting::Cast;
-use crate::math::constants::PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::margin::get_margin_calculation_for_disable_high_leverage_mode;
 use crate::math::margin::{calculate_user_equity, meets_settle_pnl_maintenance_margin_requirement};
@@ -91,8 +88,6 @@ use crate::state::margin_calculation::MarginContext;
 
 use super::optional_accounts::get_high_leverage_mode_config;
 use super::optional_accounts::get_token_interface;
-
-use crate::math::amm;
 
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
@@ -2634,7 +2629,7 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
     bids.retain(|level| level.price >= amm_worst_price_bid);
     asks.retain(|level| level.price <= amm_worst_price_ask);
 
-    if !perp_market.is_operation_paused(PerpOperation::AmmFill) {
+    if !perp_market.is_operation_paused(PerpOperation::AmmFill) && !state.amm_paused()? {
         let base_per_level = depth.safe_div(10)?;
         let amm_bids =
             perp_market
