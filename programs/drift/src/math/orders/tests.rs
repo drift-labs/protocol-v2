@@ -1080,51 +1080,37 @@ pub mod amm_l2_levels {
     fn amm_get_levels_monotonic_and_terminal_clamp() {
         let amm = AMM::liquid_sol_test();
 
+        let (bid_price, ask_price) = amm.bid_ask_price(amm.reserve_price().unwrap()).unwrap();
+
+        let depth = (amm
+            .base_asset_amount_long
+            .abs()
+            .max(amm.base_asset_amount_short.abs())
+            .unsigned_abs()
+            / 1000) as u64;
+
         // Asks monotonically increasing and greater than oracle price
         let asks = amm
-            .get_levels(
-                10,
-                PositionDirection::Long,
-                (amm.historical_oracle_data.last_oracle_price as u64) * 120 / 100,
-            )
+            .get_levels(10, PositionDirection::Long, depth / 10)
             .unwrap();
         assert!(!asks.is_empty());
         assert!(is_monotonic(&asks, PositionDirection::Long));
-        assert!(asks.iter().all(|l| l.base_asset_amount > 0
-            && l.price > amm.historical_oracle_data.last_oracle_price as u64));
 
-        // Test clamping at terminal price on ask side
-        let best_ask = asks[0].price;
-        let clamped_terminal = best_ask.saturating_sub(1);
-        let asks_clamped = amm
-            .get_levels(5, PositionDirection::Long, clamped_terminal)
-            .unwrap();
-        assert!(!asks_clamped.is_empty());
-        assert!(asks_clamped.iter().all(|l| l.price <= clamped_terminal));
-        assert_eq!(asks_clamped[0].price, clamped_terminal); // first level should clamp exactly
+        assert!(asks
+            .iter()
+            .all(|l| l.base_asset_amount > 0 && l.price > ask_price));
 
         // Bids monotonically decreasing and less than oracle price
         let bids = amm
-            .get_levels(
-                10,
-                PositionDirection::Short,
-                (amm.historical_oracle_data.last_oracle_price as u64) * 80 / 100,
-            )
+            .get_levels(10, PositionDirection::Short, depth / 10)
             .unwrap();
         assert!(!bids.is_empty());
         assert!(is_monotonic(&bids, PositionDirection::Short));
-        assert!(bids.iter().all(|l| l.base_asset_amount > 0
-            && l.price < amm.historical_oracle_data.last_oracle_price as u64));
+        assert!(bids
+            .iter()
+            .all(|l| l.base_asset_amount > 0 && l.price < bid_price));
 
-        // Test clamping at terminal price on bid side
-        let best_bid = bids[0].price;
-        let raised_terminal = best_bid.saturating_add(1);
-        let bids_clamped = amm
-            .get_levels(5, PositionDirection::Short, raised_terminal)
-            .unwrap();
-        assert!(!bids_clamped.is_empty());
-        assert!(bids_clamped.iter().all(|l| l.price >= raised_terminal));
-        assert_eq!(bids_clamped[0].price, raised_terminal);
+        println!("Bids: {:?}", bids);
     }
 }
 

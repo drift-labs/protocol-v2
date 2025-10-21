@@ -11,6 +11,7 @@ use solana_program::sysvar::instructions::{
     self, load_current_index_checked, load_instruction_at_checked, ID as IX_ID,
 };
 
+use crate::controller::amm::SwapDirection;
 use crate::controller::insurance::update_user_stats_if_stake_amount;
 use crate::controller::liquidation::{
     liquidate_spot_with_swap_begin, liquidate_spot_with_swap_end,
@@ -28,7 +29,9 @@ use crate::ids::{
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::get_revenue_share_escrow_account;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
+use crate::math::amm_spread;
 use crate::math::casting::Cast;
+use crate::math::constants::PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO;
 use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::math::margin::get_margin_calculation_for_disable_high_leverage_mode;
 use crate::math::margin::{calculate_user_equity, meets_settle_pnl_maintenance_margin_requirement};
@@ -88,6 +91,8 @@ use crate::state::margin_calculation::MarginContext;
 
 use super::optional_accounts::get_high_leverage_mode_config;
 use super::optional_accounts::get_token_interface;
+
+use crate::math::amm;
 
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
@@ -2617,33 +2622,30 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
 
     let depth = perp_market.get_market_depth_for_funding_rate()?;
 
+    let amm_worst_price_bid = perp_market
+        .amm
+        .get_price_for_swap(depth, PositionDirection::Short)?;
+    let amm_worst_price_ask = perp_market
+        .amm
+        .get_price_for_swap(depth, PositionDirection::Long)?;
+
     let (mut bids, mut asks) =
         find_bids_and_asks_from_users(perp_market, oracle_price_data, &makers, slot, now)?;
+    bids.retain(|level| level.price >= amm_worst_price_bid);
+    asks.retain(|level| level.price <= amm_worst_price_ask);
 
     if !perp_market.is_operation_paused(PerpOperation::AmmFill) {
-        let oracle_price = mm_oracle_price_data
-            .get_safe_oracle_price_data()
-            .price
-            .cast::<u64>()?;
-        let ask_terminal_price = match asks.last() {
-            Some(level) => level.price,
-            None => oracle_price.saturating_mul(110).saturating_div(100),
-        };
-        let bid_terminal_price = match bids.last() {
-            Some(level) => level.price,
-            None => oracle_price.saturating_mul(90).saturating_div(100),
-        };
-
+        let base_per_level = depth.safe_div(10)?;
         let amm_bids =
             perp_market
                 .amm
                 .clone()
-                .get_levels(16, PositionDirection::Short, bid_terminal_price)?;
+                .get_levels(16, PositionDirection::Short, base_per_level)?;
         let amm_asks =
             perp_market
                 .amm
                 .clone()
-                .get_levels(16, PositionDirection::Long, ask_terminal_price)?;
+                .get_levels(16, PositionDirection::Long, base_per_level)?;
 
         bids.extend(amm_bids);
         asks.extend(amm_asks);

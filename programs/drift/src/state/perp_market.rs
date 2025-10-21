@@ -1,6 +1,6 @@
 use crate::controller::amm::SwapDirection;
 use crate::math::amm::{calculate_quote_asset_amount_swapped, calculate_swap_output};
-use crate::math::amm_spread::get_spread_reserves;
+use crate::math::amm_spread::{self, get_spread_reserves};
 use crate::math::constants::PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO;
 use crate::math::orders::{standardize_base_asset_amount, standardize_price, Level};
 use crate::state::fill_mode::FillMode;
@@ -1710,12 +1710,9 @@ impl AMM {
         &self,
         levels: u8,
         taker_direction: PositionDirection,
-        terminal_price: u64,
+        base_swap_amount_per_level: u64,
     ) -> DriftResult<Vec<Level>> {
-        let (mut base_reserve, mut quote_reserve) = match taker_direction {
-            PositionDirection::Long => get_spread_reserves(self, PositionDirection::Long)?,
-            PositionDirection::Short => get_spread_reserves(self, PositionDirection::Short)?,
-        };
+        let (mut base_reserve, mut quote_reserve) = get_spread_reserves(self, taker_direction)?;
 
         let (max_bids, max_asks) = amm::_calculate_market_open_bids_asks(
             base_reserve,
@@ -1738,41 +1735,26 @@ impl AMM {
         };
 
         let mut remaining = open_liquidity;
+        let standardized_base_swap =
+            standardize_base_asset_amount(base_swap_amount_per_level, self.order_step_size)?;
+        if standardized_base_swap == 0 {
+            return Ok(Vec::new());
+        }
         let mut out: Vec<Level> = Vec::with_capacity(levels as usize);
 
-        for i in 0..levels {
+        for _ in 0..levels {
             if remaining < self.order_step_size {
                 break;
             }
 
-            let remaining_levels = levels.saturating_sub(i);
-            let target = remaining
-                .checked_div(remaining_levels.max(1) as u64)
-                .unwrap_or(0);
-            if target == 0 {
-                break;
-            }
-
-            let candidate = target.min(remaining);
-            let mut base_swap = standardize_base_asset_amount(candidate, self.order_step_size)?;
-            if base_swap == 0 {
-                break;
-            }
-
-            let allowable: u128 = match taker_direction {
-                PositionDirection::Long => base_reserve.safe_sub(self.min_base_asset_reserve)?,
-                PositionDirection::Short => self.max_base_asset_reserve.safe_sub(base_reserve)?,
-            };
-
-            let cap = allowable.min(u64::MAX as u128).cast()?;
-            base_swap = base_swap.min(cap);
-            if base_swap == 0 {
-                break;
-            }
-
             // Sim swap
+            let step_swap: u64 = standardized_base_swap.min(remaining);
+            if step_swap == 0 {
+                break;
+            }
+
             let (new_quote_reserve, new_base_reserve) =
-                calculate_swap_output(base_swap.cast()?, base_reserve, swap_dir, self.sqrt_k)?;
+                calculate_swap_output(step_swap as u128, base_reserve, swap_dir, self.sqrt_k)?;
 
             let quote_swapped = calculate_quote_asset_amount_swapped(
                 quote_reserve,
@@ -1783,24 +1765,19 @@ impl AMM {
 
             let mut price: u64 = quote_swapped
                 .safe_mul(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO)?
-                .safe_div(base_swap.cast()?)?
+                .safe_div(step_swap.cast()?)?
                 .cast()?;
 
             price = standardize_price(price, self.order_tick_size, taker_direction)?;
 
-            price = match taker_direction {
-                PositionDirection::Long => price.min(terminal_price),
-                PositionDirection::Short => price.max(terminal_price),
-            };
-
             out.push(Level {
                 price,
-                base_asset_amount: base_swap,
+                base_asset_amount: step_swap,
             });
 
             base_reserve = new_base_reserve;
             quote_reserve = new_quote_reserve;
-            remaining = remaining.saturating_sub(base_swap);
+            remaining = remaining.saturating_sub(step_swap);
 
             if out.len() as u8 >= levels {
                 break;
@@ -1808,6 +1785,39 @@ impl AMM {
         }
 
         Ok(out)
+    }
+
+    pub fn get_price_for_swap(
+        &self,
+        base_asset_amount: u64,
+        taker_direction: PositionDirection,
+    ) -> DriftResult<u64> {
+        let (base_reserve, quote_reserve) = amm_spread::get_spread_reserves(self, taker_direction)?;
+        let swap_direction = match taker_direction {
+            PositionDirection::Long => SwapDirection::Remove,
+            PositionDirection::Short => SwapDirection::Add,
+        };
+
+        let (new_quote_reserve, _new_base_reserve) = calculate_swap_output(
+            base_asset_amount as u128,
+            base_reserve,
+            swap_direction,
+            self.sqrt_k,
+        )?;
+
+        let quote_swapped = calculate_quote_asset_amount_swapped(
+            quote_reserve,
+            new_quote_reserve,
+            swap_direction,
+            self.peg_multiplier,
+        )?;
+
+        let price: u64 = quote_swapped
+            .safe_mul(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO)?
+            .safe_div(base_asset_amount as u128)?
+            .cast()?;
+
+        Ok(price)
     }
 }
 
