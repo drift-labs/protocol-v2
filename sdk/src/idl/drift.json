@@ -10491,6 +10491,12 @@
             "type": {
               "option": "u16"
             }
+          },
+          {
+            "name": "isolatedPositionDeposit",
+            "type": {
+              "option": "u64"
+            }
           }
         ]
       }
@@ -10555,6 +10561,12 @@
             "name": "builderFeeTenthBps",
             "type": {
               "option": "u16"
+            }
+          },
+          {
+            "name": "isolatedPositionDeposit",
+            "type": {
+              "option": "u64"
             }
           }
         ]
@@ -16962,42 +16974,42 @@
       "msg": "Invalid Isolated Perp Market"
     },
     {
-      "code": 6317,
+      "code": 6318,
       "name": "InvalidRevenueShareResize",
       "msg": "Invalid RevenueShare resize"
     },
     {
-      "code": 6318,
+      "code": 6319,
       "name": "BuilderRevoked",
       "msg": "Builder has been revoked"
     },
     {
-      "code": 6319,
+      "code": 6320,
       "name": "InvalidBuilderFee",
       "msg": "Builder fee is greater than max fee bps"
     },
     {
-      "code": 6320,
+      "code": 6321,
       "name": "RevenueShareEscrowAuthorityMismatch",
       "msg": "RevenueShareEscrow authority mismatch"
     },
     {
-      "code": 6321,
+      "code": 6322,
       "name": "RevenueShareEscrowOrdersAccountFull",
       "msg": "RevenueShareEscrow has too many active orders"
     },
     {
-      "code": 6322,
+      "code": 6323,
       "name": "InvalidRevenueShareAccount",
       "msg": "Invalid RevenueShareAccount"
     },
     {
-      "code": 6323,
+      "code": 6324,
       "name": "CannotRevokeBuilderWithOpenOrders",
       "msg": "Cannot revoke builder with open orders"
     },
     {
-      "code": 6324,
+      "code": 6325,
       "name": "UnableToLoadRevenueShareAccount",
       "msg": "Unable to load builder account"
     }
