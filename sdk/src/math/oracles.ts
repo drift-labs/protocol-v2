@@ -107,8 +107,6 @@ export function isOracleTooDivergent(
 		oracleGuardRails.priceDivergence.markOraclePercentDivergence,
 		PERCENTAGE_PRECISION.div(new BN(10))
 	);
-	console.log(`oracle spread pct: ${oracleSpreadPct.toString()}`);
-	console.log(`max divergence: ${maxDivergence.toString()}`);
 	const tooDivergent = oracleSpreadPct.abs().gte(maxDivergence);
 
 	return tooDivergent;
