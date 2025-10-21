@@ -1336,6 +1336,7 @@ export type SignedMsgOrderParamsMessage = {
 	maxMarginRatio?: number | null;
 	builderIdx?: number | null;
 	builderFeeTenthBps?: number | null;
+	isolatedPositionDeposit?: BN | null;
 };
 
 export type SignedMsgOrderParamsDelegateMessage = {
@@ -1348,6 +1349,7 @@ export type SignedMsgOrderParamsDelegateMessage = {
 	maxMarginRatio?: number | null;
 	builderIdx?: number | null;
 	builderFeeTenthBps?: number | null;
+	isolatedPositionDeposit?: BN | null;
 };
 
 export type SignedMsgTriggerOrderParams = {
