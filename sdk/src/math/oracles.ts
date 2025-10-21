@@ -3,6 +3,7 @@ import {
 	HistoricalOracleData,
 	OracleGuardRails,
 	OracleSource,
+	OracleValidity,
 	PerpMarketAccount,
 	isVariant,
 } from '../types';
@@ -15,6 +16,7 @@ import {
 	ZERO,
 	FIVE_MINUTE,
 	PERCENTAGE_PRECISION,
+	TEN,
 } from '../constants/numericConstants';
 import { assert } from '../assert/assert';
 import { BN } from '@coral-xyz/anchor';
@@ -50,6 +52,32 @@ export function getMaxConfidenceIntervalMultiplier(
 		maxConfidenceIntervalMultiplier = new BN(50);
 	}
 	return maxConfidenceIntervalMultiplier;
+}
+
+export function getOracleValidity(
+	market: PerpMarketAccount,
+	oraclePriceData: OraclePriceData,
+	oracleGuardRails: OracleGuardRails,
+	slot: number,
+	oracleStalenessBuffer = TEN,
+): OracleValidity {
+
+	const isNonPositive = oraclePriceData.price.lte(ZERO);
+	const isTooVolatile =
+		BN.max(oraclePriceData.price, market.amm.historicalOracleData.lastOraclePriceTwap)
+			.div(BN.max(ONE, BN.min(oraclePriceData.price, market.amm.historicalOracleData.lastOraclePriceTwap)))
+			.gt(oracleGuardRails.validity.tooVolatileRatio);
+
+	const confPctOfPrice = oraclePriceData.confidence.mul(BID_ASK_SPREAD_PRECISION).div(oraclePriceData.price);
+	const isConfTooLarge = confPctOfPrice.gt(
+		oracleGuardRails.validity.confidenceIntervalMaxSize.mul(
+			getMaxConfidenceIntervalMultiplier(market)
+		)
+	);
+
+	let isStaleForAmmImmediate = false;
+	if (market.amm.)
+
 }
 
 export function isOracleValid(

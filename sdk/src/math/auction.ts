@@ -8,6 +8,9 @@ import {
 } from '../constants/numericConstants';
 import { getVariant, OrderBitFlag, PerpMarketAccount } from '../types';
 import { getPerpMarketTierNumber } from './tiers';
+import { MMOraclePriceData } from '../oracles/types';
+import { isLowRiskForAmm } from './orders';
+import { isOracleValid } from './oracles';
 
 export function isAuctionComplete(order: Order, slot: number): boolean {
 	if (order.auctionDuration === 0) {
@@ -19,16 +22,19 @@ export function isAuctionComplete(order: Order, slot: number): boolean {
 
 export function isFallbackAvailableLiquiditySource(
 	order: Order,
-	minAuctionDuration: number,
-	slot: number
+	mmOracleData: MMOraclePriceData,
+	slot: number,
+	isLiquidation?: boolean,
 ): boolean {
-	if (minAuctionDuration === 0) {
-		return true;
-	}
 
-	if ((order.bitFlags & OrderBitFlag.SafeTriggerOrder) !== 0) {
-		return true;
-	}
+	const isOrderLowRiskForAmm = isLowRiskForAmm(
+		order,
+		mmOracleData,
+		slot,
+		isLiquidation,
+	);
+	isOracleValid
+
 
 	return new BN(slot).sub(order.slot).gt(new BN(minAuctionDuration));
 }
@@ -256,13 +262,13 @@ export function getTriggerAuctionStartPrice(params: {
 
 		baselineStartOffset = isVariant(direction, 'long')
 			? BN.min(
-					offsetSlow.add(fracOfLongSpreadInPrice),
-					offsetFast.sub(fracOfShortSpreadInPrice)
-			  )
+				offsetSlow.add(fracOfLongSpreadInPrice),
+				offsetFast.sub(fracOfShortSpreadInPrice)
+			)
 			: BN.max(
-					offsetSlow.sub(fracOfShortSpreadInPrice),
-					offsetFast.add(fracOfLongSpreadInPrice)
-			  );
+				offsetSlow.sub(fracOfShortSpreadInPrice),
+				offsetFast.add(fracOfLongSpreadInPrice)
+			);
 	}
 
 	let startBuffer = -3500;
