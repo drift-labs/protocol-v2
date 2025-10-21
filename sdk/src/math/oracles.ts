@@ -10,7 +10,6 @@ import { OraclePriceData } from '../oracles/types';
 import {
 	BID_ASK_SPREAD_PRECISION,
 	MARGIN_PRECISION,
-	PRICE_PRECISION,
 	ONE,
 	ZERO,
 	FIVE_MINUTE,
@@ -97,29 +96,17 @@ export function isOracleValid(
 export function isOracleTooDivergent(
 	amm: AMM,
 	oraclePriceData: OraclePriceData,
-	oracleGuardRails: OracleGuardRails,
-	now: BN
+	oracleGuardRails: OracleGuardRails
 ): boolean {
-	const sinceLastUpdate = now.sub(
-		amm.historicalOracleData.lastOraclePriceTwapTs
-	);
-	const sinceStart = BN.max(ZERO, FIVE_MINUTE.sub(sinceLastUpdate));
-	const oracleTwap5min = amm.historicalOracleData.lastOraclePriceTwap5Min
-		.mul(sinceStart)
-		.add(oraclePriceData.price)
-		.mul(sinceLastUpdate)
-		.div(sinceStart.add(sinceLastUpdate));
-
-	const oracleSpread = oracleTwap5min.sub(oraclePriceData.price);
-	const oracleSpreadPct = oracleSpread.mul(PRICE_PRECISION).div(oracleTwap5min);
-
+	const oracleSpreadPct = oraclePriceData.price
+		.sub(amm.historicalOracleData.lastOraclePriceTwap5Min)
+		.mul(PERCENTAGE_PRECISION)
+		.div(amm.historicalOracleData.lastOraclePriceTwap5Min);
 	const maxDivergence = BN.max(
-		oracleGuardRails.priceDivergence.markOraclePercentDivergence,
-		PERCENTAGE_PRECISION.div(new BN(10))
+		oracleGuardRails.priceDivergence.oracleTwap5MinPercentDivergence,
+		PERCENTAGE_PRECISION.div(new BN(2))
 	);
-
 	const tooDivergent = oracleSpreadPct.abs().gte(maxDivergence);
-
 	return tooDivergent;
 }
 

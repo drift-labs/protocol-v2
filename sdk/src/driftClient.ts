@@ -9402,8 +9402,7 @@ export class DriftClient {
 					confidence: conf,
 					hasSufficientNumberOfDataPoints: true,
 				},
-				stateAccountAndSlot.data.oracleGuardRails,
-				perpMarket.amm.mmOracleSlot
+				stateAccountAndSlot.data.oracleGuardRails
 			) ||
 			perpMarket.amm.mmOraclePrice.eq(ZERO) ||
 			isExchangeOracleMoreRecent ||
