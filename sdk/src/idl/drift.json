@@ -653,6 +653,163 @@
       ]
     },
     {
+      "name": "depositIntoIsolatedPerpPosition",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "spotMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "perpMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "transferIsolatedPerpPositionDeposit",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "spotMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "perpMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "amount",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "withdrawFromIsolatedPerpPosition",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "userTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "spotMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "perpMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "placePerpOrder",
       "accounts": [
         {
@@ -10334,6 +10491,12 @@
             "type": {
               "option": "u16"
             }
+          },
+          {
+            "name": "isolatedPositionDeposit",
+            "type": {
+              "option": "u64"
+            }
           }
         ]
       }
@@ -10398,6 +10561,12 @@
             "name": "builderFeeTenthBps",
             "type": {
               "option": "u16"
+            }
+          },
+          {
+            "name": "isolatedPositionDeposit",
+            "type": {
+              "option": "u64"
             }
           }
         ]
@@ -11863,13 +12032,13 @@
             "type": "u64"
           },
           {
-            "name": "lastBaseAssetAmountPerLp",
+            "name": "isolatedPositionScaledBalance",
             "docs": [
               "The last base asset amount per lp the amm had",
               "Used to settle the users lp position",
-              "precision: BASE_PRECISION"
+              "precision: SPOT_BALANCE_PRECISION"
             ],
-            "type": "i64"
+            "type": "u64"
           },
           {
             "name": "lastQuoteAssetAmountPerLp",
@@ -11908,8 +12077,8 @@
             "type": "u8"
           },
           {
-            "name": "perLpBase",
-            "type": "i8"
+            "name": "positionFlag",
+            "type": "u8"
           }
         ]
       }
@@ -12561,6 +12730,17 @@
       }
     },
     {
+      "name": "LiquidationBitFlag",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "IsolatedPosition"
+          }
+        ]
+      }
+    },
+    {
       "name": "SettlePnlExplanation",
       "type": {
         "kind": "enum",
@@ -12675,13 +12855,7 @@
         "kind": "enum",
         "variants": [
           {
-            "name": "Standard",
-            "fields": [
-              {
-                "name": "trackOpenOrdersFraction",
-                "type": "bool"
-              }
-            ]
+            "name": "Standard"
           },
           {
             "name": "Liquidation",
@@ -13251,6 +13425,23 @@
           },
           {
             "name": "HasBuilder"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PositionFlag",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "IsolatedPosition"
+          },
+          {
+            "name": "BeingLiquidated"
+          },
+          {
+            "name": "Bankrupt"
           }
         ]
       }
@@ -14218,6 +14409,11 @@
           "type": {
             "defined": "SpotBankruptcyRecord"
           },
+          "index": false
+        },
+        {
+          "name": "bitFlags",
+          "type": "u8",
           "index": false
         }
       ]
@@ -15655,8 +15851,8 @@
     },
     {
       "code": 6094,
-      "name": "CantUpdatePoolBalanceType",
-      "msg": "CantUpdatePoolBalanceType"
+      "name": "CantUpdateSpotBalanceType",
+      "msg": "CantUpdateSpotBalanceType"
     },
     {
       "code": 6095,
@@ -16770,41 +16966,46 @@
     },
     {
       "code": 6317,
+      "name": "InvalidIsolatedPerpMarket",
+      "msg": "Invalid Isolated Perp Market"
+    },
+    {
+      "code": 6318,
       "name": "InvalidRevenueShareResize",
       "msg": "Invalid RevenueShare resize"
     },
     {
-      "code": 6318,
+      "code": 6319,
       "name": "BuilderRevoked",
       "msg": "Builder has been revoked"
     },
     {
-      "code": 6319,
+      "code": 6320,
       "name": "InvalidBuilderFee",
       "msg": "Builder fee is greater than max fee bps"
     },
     {
-      "code": 6320,
+      "code": 6321,
       "name": "RevenueShareEscrowAuthorityMismatch",
       "msg": "RevenueShareEscrow authority mismatch"
     },
     {
-      "code": 6321,
+      "code": 6322,
       "name": "RevenueShareEscrowOrdersAccountFull",
       "msg": "RevenueShareEscrow has too many active orders"
     },
     {
-      "code": 6322,
+      "code": 6323,
       "name": "InvalidRevenueShareAccount",
       "msg": "Invalid RevenueShareAccount"
     },
     {
-      "code": 6323,
+      "code": 6324,
       "name": "CannotRevokeBuilderWithOpenOrders",
       "msg": "Cannot revoke builder with open orders"
     },
     {
-      "code": 6324,
+      "code": 6325,
       "name": "UnableToLoadRevenueShareAccount",
       "msg": "Unable to load builder account"
     }
