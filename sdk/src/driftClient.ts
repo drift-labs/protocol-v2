@@ -168,7 +168,11 @@ import { getMarinadeDepositIx, getMarinadeFinanceProgram } from './marinade';
 import { getOrderParams, isUpdateHighLeverageMode } from './orderParams';
 import { numberToSafeBN } from './math/utils';
 import { TransactionParamProcessor } from './tx/txParamProcessor';
-import { isOracleValid, trimVaaSignatures } from './math/oracles';
+import {
+	isOracleTooDivergent,
+	isOracleValid,
+	trimVaaSignatures,
+} from './math/oracles';
 import { TxHandler } from './tx/txHandler';
 import {
 	DEFAULT_RECEIVER_PROGRAM_ID,
@@ -9384,12 +9388,22 @@ export class DriftClient {
 			isExchangeOracleMoreRecent = false;
 		}
 
+		const conf = getOracleConfidenceFromMMOracleData(
+			perpMarket.amm.mmOraclePrice,
+			oracleData
+		);
+
 		if (
-			!isOracleValid(
-				perpMarket,
-				oracleData,
+			isOracleTooDivergent(
+				perpMarket.amm,
+				{
+					price: perpMarket.amm.mmOraclePrice,
+					slot: perpMarket.amm.mmOracleSlot,
+					confidence: conf,
+					hasSufficientNumberOfDataPoints: true,
+				},
 				stateAccountAndSlot.data.oracleGuardRails,
-				stateAccountAndSlot.slot
+				perpMarket.amm.mmOracleSlot
 			) ||
 			perpMarket.amm.mmOraclePrice.eq(ZERO) ||
 			isExchangeOracleMoreRecent ||
@@ -9397,10 +9411,6 @@ export class DriftClient {
 		) {
 			return { ...oracleData, isMMOracleActive };
 		} else {
-			const conf = getOracleConfidenceFromMMOracleData(
-				perpMarket.amm.mmOraclePrice,
-				oracleData
-			);
 			return {
 				price: perpMarket.amm.mmOraclePrice,
 				slot: perpMarket.amm.mmOracleSlot,
