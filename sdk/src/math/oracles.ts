@@ -10,7 +10,6 @@ import { OraclePriceData } from '../oracles/types';
 import {
 	BID_ASK_SPREAD_PRECISION,
 	MARGIN_PRECISION,
-	PRICE_PRECISION,
 	ONE,
 	ZERO,
 	FIVE_MINUTE,
