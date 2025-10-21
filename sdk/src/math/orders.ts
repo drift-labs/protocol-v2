@@ -9,6 +9,8 @@ import {
 	ProtectedMakerParams,
 	MarketTypeStr,
 	OrderBitFlag,
+	MarketType,
+	StateAccount,
 } from '../types';
 import {
 	ZERO,
@@ -244,10 +246,16 @@ export function isFillableByVAMM(
 	mmOraclePriceData: MMOraclePriceData,
 	slot: number,
 	ts: number,
-	minAuctionDuration: number
+	state: StateAccount
 ): boolean {
 	return (
-		(isFallbackAvailableLiquiditySource(order, minAuctionDuration, slot) &&
+		(isFallbackAvailableLiquiditySource(
+			order,
+			mmOraclePriceData,
+			slot,
+			state,
+			market
+		) &&
 			calculateBaseAssetAmountForAmmToFulfill(
 				order,
 				market,

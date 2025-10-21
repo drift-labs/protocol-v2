@@ -467,10 +467,6 @@ export class DLOB {
 
 		const isAmmPaused = ammPaused(stateAccount, marketAccount);
 
-		const minAuctionDuration = isVariant(marketType, 'perp')
-			? stateAccount.minPerpAuctionDuration
-			: 0;
-
 		const { makerRebateNumerator, makerRebateDenominator } =
 			this.getMakerRebate(marketType, stateAccount, marketAccount);
 
@@ -481,7 +477,8 @@ export class DLOB {
 				marketType,
 				oraclePriceData,
 				isAmmPaused,
-				minAuctionDuration,
+				stateAccount,
+				marketAccount,
 				fallbackAsk,
 				fallbackBid
 			);
@@ -493,7 +490,8 @@ export class DLOB {
 				marketType,
 				oraclePriceData,
 				isAmmPaused,
-				minAuctionDuration,
+				stateAccount,
+				marketAccount,
 				makerRebateNumerator,
 				makerRebateDenominator,
 				fallbackAsk,
@@ -597,7 +595,10 @@ export class DLOB {
 			? OraclePriceData
 			: MMOraclePriceData,
 		isAmmPaused: boolean,
-		minAuctionDuration: number,
+		stateAccount: StateAccount,
+		marketAccount: T extends { spot: unknown }
+			? SpotMarketAccount
+			: PerpMarketAccount,
 		makerRebateNumerator: number,
 		makerRebateDenominator: number,
 		fallbackAsk: BN | undefined,
@@ -636,7 +637,8 @@ export class DLOB {
 				(askPrice) => {
 					return askPrice.lte(fallbackBidWithBuffer);
 				},
-				minAuctionDuration
+				stateAccount,
+				marketAccount
 			);
 
 			for (const askCrossingFallback of asksCrossingFallback) {
@@ -664,7 +666,8 @@ export class DLOB {
 				(bidPrice) => {
 					return bidPrice.gte(fallbackAskWithBuffer);
 				},
-				minAuctionDuration
+				stateAccount,
+				marketAccount
 			);
 
 			for (const bidCrossingFallback of bidsCrossingFallback) {
@@ -683,7 +686,10 @@ export class DLOB {
 			? OraclePriceData
 			: MMOraclePriceData,
 		isAmmPaused: boolean,
-		minAuctionDuration: number,
+		state: StateAccount,
+		marketAccount: T extends { spot: unknown }
+			? SpotMarketAccount
+			: PerpMarketAccount,
 		fallbackAsk: BN | undefined,
 		fallbackBid?: BN | undefined
 	): NodeToFill[] {
@@ -736,7 +742,8 @@ export class DLOB {
 					(takerPrice) => {
 						return takerPrice === undefined || takerPrice.lte(fallbackBid);
 					},
-					minAuctionDuration
+					state,
+					marketAccount
 				);
 
 			for (const takingAskCrossingFallback of takingAsksCrossingFallback) {
@@ -793,7 +800,8 @@ export class DLOB {
 					(takerPrice) => {
 						return takerPrice === undefined || takerPrice.gte(fallbackAsk);
 					},
-					minAuctionDuration
+					state,
+					marketAccount
 				);
 			for (const marketBidCrossingFallback of takingBidsCrossingFallback) {
 				nodesToFill.push(marketBidCrossingFallback);
@@ -911,7 +919,10 @@ export class DLOB {
 			: MMOraclePriceData,
 		nodeGenerator: Generator<DLOBNode>,
 		doesCross: (nodePrice: BN | undefined) => boolean,
-		minAuctionDuration: number
+		state: StateAccount,
+		marketAccount: T extends { spot: unknown }
+			? SpotMarketAccount
+			: PerpMarketAccount
 	): NodeToFill[] {
 		const nodesToFill = new Array<NodeToFill>();
 
@@ -934,8 +945,10 @@ export class DLOB {
 				isVariant(marketType, 'spot') ||
 				isFallbackAvailableLiquiditySource(
 					node.order,
-					minAuctionDuration,
-					slot
+					oraclePriceData as MMOraclePriceData,
+					slot,
+					state,
+					marketAccount as PerpMarketAccount
 				);
 
 			if (crosses && fallbackAvailable) {

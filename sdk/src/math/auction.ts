@@ -1,4 +1,14 @@
-import { AMM, isOneOfVariant, isVariant, MarketType, Order, PositionDirection } from '../types';
+import {
+	AMM,
+	isOneOfVariant,
+	isVariant,
+	MarketType,
+	OracleValidity,
+	Order,
+	PerpOperation,
+	PositionDirection,
+	StateAccount,
+} from '../types';
 import { BN } from '@coral-xyz/anchor';
 import {
 	ONE,
@@ -11,6 +21,7 @@ import { getPerpMarketTierNumber } from './tiers';
 import { MMOraclePriceData, OraclePriceData } from '../oracles/types';
 import { isLowRiskForAmm } from './orders';
 import { getOracleValidity, isOracleValid } from './oracles';
+import { isOperationPaused } from './exchangeStatus';
 
 export function isAuctionComplete(order: Order, slot: number): boolean {
 	if (order.auctionDuration === 0) {
@@ -20,33 +31,53 @@ export function isAuctionComplete(order: Order, slot: number): boolean {
 	return new BN(slot).sub(order.slot).gt(new BN(order.auctionDuration));
 }
 
-export function isFallbackAvailableLiquiditySource<T extends MarketType>(
+export function isFallbackAvailableLiquiditySource(
 	order: Order,
-	marketType: T,
-	oraclePriceData: T extends { spot: unknown }
-		? OraclePriceData
-		: MMOraclePriceData,
+	mmOraclePriceData: MMOraclePriceData,
 	slot: number,
-	amm?: AMM,
-	isLiquidation?: boolean,
+	state: StateAccount,
+	market: PerpMarketAccount,
+	isLiquidation?: boolean
 ): boolean {
-	if (isVariant(marketType, 'spot')) {
+	if (isOperationPaused(market.pausedOperations, PerpOperation.AMM_FILL)) {
+		return false;
+	}
+
+	// TODO: include too much drawdown check & mm oracle volatility
+
+	const oracleValidity = getOracleValidity(
+		market!,
+		{
+			price: mmOraclePriceData.price,
+			slot: mmOraclePriceData.slot,
+			confidence: mmOraclePriceData.confidence,
+			hasSufficientNumberOfDataPoints:
+				mmOraclePriceData.hasSufficientNumberOfDataPoints,
+		},
+		state.oracleGuardRails,
+		new BN(slot),
+		state.minPerpAuctionDuration
+	);
+	if (oracleValidity <= OracleValidity.StaleForAMMLowRisk) {
+		return false;
+	}
+
+	if (oracleValidity == OracleValidity.Valid) {
 		return true;
 	}
 
 	const isOrderLowRiskForAmm = isLowRiskForAmm(
 		order,
-		oraclePriceData as MMOraclePriceData,
+		mmOraclePriceData,
 		slot,
-		isLiquidation,
+		isLiquidation
 	);
 
-	// const oracleValidity = getOracleValidity(
-
-	// )
-
-
-	return true;
+	if (!isOrderLowRiskForAmm) {
+		return false;
+	} else {
+		return true;
+	}
 }
 
 /**
@@ -272,19 +303,13 @@ export function getTriggerAuctionStartPrice(params: {
 
 		baselineStartOffset = isVariant(direction, 'long')
 			? BN.min(
-				offsetSlow.add(fracOfLongSpreadInPrice),
-				offsetFast.sub(fracOfShortSpreadInPrice)
-			)
-				offsetSlow.add(fracOfLongSpreadInPrice),
-			offsetFast.sub(fracOfShortSpreadInPrice)
-			)
+					offsetSlow.add(fracOfLongSpreadInPrice),
+					offsetFast.sub(fracOfShortSpreadInPrice)
+			  )
 			: BN.max(
-				offsetSlow.sub(fracOfShortSpreadInPrice),
-				offsetFast.add(fracOfLongSpreadInPrice)
-			);
-		offsetSlow.sub(fracOfShortSpreadInPrice),
-			offsetFast.add(fracOfLongSpreadInPrice)
-			);
+					offsetSlow.sub(fracOfShortSpreadInPrice),
+					offsetFast.add(fracOfLongSpreadInPrice)
+			  );
 	}
 
 	let startBuffer = -3500;
