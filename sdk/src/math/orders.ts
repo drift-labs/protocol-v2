@@ -9,7 +9,6 @@ import {
 	ProtectedMakerParams,
 	MarketTypeStr,
 	OrderBitFlag,
-	MarketType,
 	StateAccount,
 } from '../types';
 import {

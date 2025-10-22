@@ -16,7 +16,6 @@ import {
 	ZERO,
 	FIVE_MINUTE,
 	PERCENTAGE_PRECISION,
-	TEN,
 	FIVE,
 } from '../constants/numericConstants';
 import { assert } from '../assert/assert';

@@ -1,8 +1,6 @@
 import {
-	AMM,
 	isOneOfVariant,
 	isVariant,
-	MarketType,
 	OracleValidity,
 	Order,
 	PerpOperation,
@@ -18,9 +16,9 @@ import {
 } from '../constants/numericConstants';
 import { getVariant, OrderBitFlag, PerpMarketAccount } from '../types';
 import { getPerpMarketTierNumber } from './tiers';
-import { MMOraclePriceData, OraclePriceData } from '../oracles/types';
+import { MMOraclePriceData } from '../oracles/types';
 import { isLowRiskForAmm } from './orders';
-import { getOracleValidity, isOracleValid } from './oracles';
+import { getOracleValidity } from './oracles';
 import { isOperationPaused } from './exchangeStatus';
 
 export function isAuctionComplete(order: Order, slot: number): boolean {
