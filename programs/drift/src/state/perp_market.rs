@@ -904,6 +904,10 @@ impl PerpMarket {
                 safe_oracle_validity,
                 Some(DriftAction::FillOrderAmmImmediate),
             )?;
+            if !oracle_valid_for_can_fill_immediately {
+                msg!("AMM cannot fill order: oracle not valid for immediate fills");
+                return Ok(false);
+            }
             let amm_wants_to_jit_make = self.amm.amm_wants_to_jit_make(order.direction)?;
             let amm_has_low_enough_inventory = self
                 .amm

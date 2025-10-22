@@ -68,7 +68,6 @@ export function isFallbackAvailableLiquiditySource(
 	const isOrderLowRiskForAmm = isLowRiskForAmm(
 		order,
 		mmOraclePriceData,
-		slot,
 		isLiquidation
 	);
 

@@ -269,14 +269,15 @@ export function isFillableByVAMM(
 export function isLowRiskForAmm(
 	order: Order,
 	mmOraclePriceData: MMOraclePriceData,
-	slot: number,
 	isLiquidation?: boolean
 ): boolean {
-	if (isVariant(order.marketType, 'perp')) {
+	if (isVariant(order.marketType, 'spot')) {
 		return false;
 	}
 
-	const orderOlderThanOracleDelay = new BN(slot).lte(mmOraclePriceData.slot);
+	const orderOlderThanOracleDelay = new BN(order.slot).lte(
+		mmOraclePriceData.slot
+	);
 
 	return (
 		orderOlderThanOracleDelay ||
