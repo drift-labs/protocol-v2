@@ -166,6 +166,11 @@ pub fn _update_amm(
     }
 
     let oracle_data = &mm_oracle_price_data.get_safe_oracle_price_data();
+    let slot_delay_override = state
+        .oracle_guard_rails
+        .validity
+        .slots_before_stale_for_amm
+        .cast()?;
     let oracle_validity = oracle::oracle_validity(
         MarketType::Perp,
         market.market_index,
@@ -175,8 +180,8 @@ pub fn _update_amm(
         market.get_max_confidence_interval_multiplier()?,
         &market.amm.oracle_source,
         oracle::LogMode::SafeMMOracle,
-        0,
-        0,
+        slot_delay_override,
+        slot_delay_override,
     )?;
 
     let mut amm_update_cost = 0;

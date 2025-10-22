@@ -209,6 +209,7 @@ pub fn get_oracle_status(
     guard_rails: &OracleGuardRails,
     reserve_price: u64,
 ) -> DriftResult<OracleStatus> {
+    let slot_delay_override = guard_rails.validity.slots_before_stale_for_amm.cast()?;
     let oracle_validity = oracle_validity(
         MarketType::Perp,
         market.market_index,
@@ -218,8 +219,8 @@ pub fn get_oracle_status(
         market.get_max_confidence_interval_multiplier()?,
         &market.amm.oracle_source,
         LogMode::None,
-        0,
-        0,
+        slot_delay_override,
+        slot_delay_override,
     )?;
     let oracle_reserve_price_spread_pct =
         amm::calculate_oracle_twap_5min_price_spread_pct(&market.amm, reserve_price)?;
@@ -254,7 +255,7 @@ pub fn oracle_validity(
     oracle_source: &OracleSource,
     log_mode: LogMode,
     slots_before_stale_for_amm_immdiate_override: i8,
-    taker_speed_bump_override: i8,
+    oracle_low_risk_slot_delay_override: i8,
 ) -> DriftResult<OracleValidity> {
     let OraclePriceData {
         price: oracle_price,
@@ -282,19 +283,18 @@ pub fn oracle_validity(
     let is_stale_for_amm_immediate = if slots_before_stale_for_amm_immdiate_override != 0 {
         oracle_delay.gt(&slots_before_stale_for_amm_immdiate_override.max(0).cast()?)
     } else {
-        oracle_delay.gt(&valid_oracle_guard_rails.slots_before_stale_for_amm)
+        true
     };
 
-    let is_stale_for_amm_low_risk = if taker_speed_bump_override != 0 {
-        oracle_delay.gt(&taker_speed_bump_override.max(0).cast()?)
+    let is_stale_for_amm_low_risk = if oracle_low_risk_slot_delay_override != 0 {
+        oracle_delay.gt(&oracle_low_risk_slot_delay_override.max(0).cast()?)
     } else {
-        // Default to current behavior if not set on the amm
-        false
+        oracle_delay.gt(&valid_oracle_guard_rails.slots_before_stale_for_amm)
     };
 
     let is_stale_for_margin = if matches!(
         oracle_source,
-        OracleSource::PythStableCoinPull | OracleSource::PythStableCoin
+        OracleSource::PythStableCoinPull | OracleSource::PythLazerStableCoin
     ) {
         oracle_delay.gt(&(valid_oracle_guard_rails
             .slots_before_stale_for_margin

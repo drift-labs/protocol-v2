@@ -55,8 +55,7 @@ export function isFallbackAvailableLiquiditySource(
 				mmOraclePriceData.hasSufficientNumberOfDataPoints,
 		},
 		state.oracleGuardRails,
-		new BN(slot),
-		state.minPerpAuctionDuration
+		new BN(slot)
 	);
 	if (oracleValidity <= OracleValidity.StaleForAMMLowRisk) {
 		return false;

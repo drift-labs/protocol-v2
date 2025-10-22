@@ -1107,7 +1107,7 @@ export type AMM = {
 	quoteAssetAmountWithUnsettledLp: BN;
 	referencePriceOffset: number;
 
-	takerSpeedBumpOverride: number;
+	oracleLowRiskSlotDelayOverride: number;
 	oracleSlotDelayOverride: number;
 	ammSpreadAdjustment: number;
 	ammInventorySpreadAdjustment: number;

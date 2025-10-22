@@ -323,16 +323,12 @@ impl PerpMarket {
         let amm_low_inventory_and_profitable = self.amm.net_revenue_since_last_funding
             >= DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT
             && amm_has_low_enough_inventory;
-        let amm_oracle_no_latency = self.amm.oracle_source == OracleSource::Prelaunch
-            || (self.amm.historical_oracle_data.last_oracle_delay == 0
-                && self.amm.oracle_source == OracleSource::PythLazer);
-        let can_skip = amm_low_inventory_and_profitable || amm_oracle_no_latency;
 
-        if can_skip {
+        if amm_low_inventory_and_profitable {
             msg!("market {} amm skipping auction duration", self.market_index);
         }
 
-        Ok(can_skip)
+        Ok(amm_low_inventory_and_profitable)
     }
 
     pub fn has_too_much_drawdown(&self) -> DriftResult<bool> {
@@ -838,7 +834,7 @@ impl PerpMarket {
                 &self.amm.oracle_source,
                 LogMode::MMOracle,
                 self.amm.oracle_slot_delay_override,
-                self.amm.taker_speed_bump_override,
+                self.amm.oracle_low_risk_slot_delay_override,
             )?
         };
         Ok(MMOraclePriceData::new(
@@ -885,12 +881,6 @@ impl PerpMarket {
         }
 
         // Determine if order is fillable with low risk
-        let safe_oracle_price_data = mm_oracle_price_data.get_safe_oracle_price_data();
-        let order_is_low_risk_for_amm = order.is_low_risk_for_amm(
-            safe_oracle_price_data.delay,
-            clock_slot,
-            fill_mode.is_liquidation(),
-        )?;
         let oracle_valid_for_amm_fill_low_risk = is_oracle_valid_for_action(
             safe_oracle_validity,
             Some(DriftAction::FillOrderAmmLowRisk),
@@ -899,7 +889,12 @@ impl PerpMarket {
             msg!("AMM cannot fill order: oracle not valid for low risk fills");
             return Ok(false);
         }
-        let can_fill_low_risk = order_is_low_risk_for_amm && oracle_valid_for_amm_fill_low_risk;
+        let safe_oracle_price_data = mm_oracle_price_data.get_safe_oracle_price_data();
+        let can_fill_low_risk = order.is_low_risk_for_amm(
+            safe_oracle_price_data.delay,
+            clock_slot,
+            fill_mode.is_liquidation(),
+        )?;
 
         // Proceed if order is low risk and we can fill it. Otherwise check if we can higher risk order immediately
         let can_fill_order = if can_fill_low_risk {
@@ -1222,7 +1217,7 @@ pub struct AMM {
     pub per_lp_base: i8,
     /// the override for the state.min_perp_auction_duration
     /// 0 is no override, -1 is disable speed bump, 1-100 is literal speed bump
-    pub taker_speed_bump_override: i8,
+    pub oracle_low_risk_slot_delay_override: i8,
     /// signed scale amm_spread similar to fee_adjustment logic (-100 = 0, 100 = double)
     pub amm_spread_adjustment: i8,
     pub oracle_slot_delay_override: i8,
@@ -1316,9 +1311,9 @@ impl Default for AMM {
             last_oracle_valid: false,
             target_base_asset_amount_per_lp: 0,
             per_lp_base: 0,
-            taker_speed_bump_override: 0,
+            oracle_low_risk_slot_delay_override: 0,
             amm_spread_adjustment: 0,
-            oracle_slot_delay_override: 0,
+            oracle_slot_delay_override: -1,
             mm_oracle_sequence_id: 0,
             net_unsettled_funding_pnl: 0,
             quote_asset_amount_with_unsettled_lp: 0,

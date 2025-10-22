@@ -114,8 +114,8 @@ pub fn update_amm_test() {
         market.get_max_confidence_interval_multiplier().unwrap(),
         &market.amm.oracle_source,
         LogMode::ExchangeOracle,
-        0,
-        0,
+        state.oracle_guard_rails.validity.slots_before_stale_for_amm as i8,
+        state.oracle_guard_rails.validity.slots_before_stale_for_amm as i8,
     )
     .unwrap()
         == OracleValidity::Valid;

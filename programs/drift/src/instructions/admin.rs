@@ -1071,8 +1071,8 @@ pub fn handle_initialize_perp_market(
             last_oracle_valid: false,
             target_base_asset_amount_per_lp: 0,
             per_lp_base: 0,
-            oracle_slot_delay_override: 0,
-            taker_speed_bump_override: 0,
+            oracle_slot_delay_override: -1,
+            oracle_low_risk_slot_delay_override: 0,
             amm_spread_adjustment: 0,
             mm_oracle_sequence_id: 0,
             net_unsettled_funding_pnl: 0,
@@ -4150,20 +4150,20 @@ pub fn handle_update_perp_market_protected_maker_params(
 #[access_control(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
-pub fn handle_update_perp_market_taker_speed_bump_override(
+pub fn handle_update_perp_market_oracle_low_risk_slot_delay_override(
     ctx: Context<HotAdminUpdatePerpMarket>,
-    taker_speed_bump_override: i8,
+    oracle_low_risk_slot_delay_override: i8,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     msg!("perp market {}", perp_market.market_index);
 
     msg!(
-        "perp_market.amm.taker_speed_bump_override: {:?} -> {:?}",
-        perp_market.amm.taker_speed_bump_override,
-        taker_speed_bump_override
+        "perp_market.amm.oracle_low_risk_slot_delay_override: {:?} -> {:?}",
+        perp_market.amm.oracle_low_risk_slot_delay_override,
+        oracle_low_risk_slot_delay_override
     );
 
-    perp_market.amm.taker_speed_bump_override = taker_speed_bump_override;
+    perp_market.amm.oracle_low_risk_slot_delay_override = oracle_low_risk_slot_delay_override;
     Ok(())
 }
 

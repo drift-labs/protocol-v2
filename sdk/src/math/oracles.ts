@@ -5,6 +5,7 @@ import {
 	OracleSource,
 	OracleValidity,
 	PerpMarketAccount,
+	isOneOfVariant,
 	isVariant,
 } from '../types';
 import { OraclePriceData } from '../oracles/types';
@@ -60,7 +61,6 @@ export function getOracleValidity(
 	oraclePriceData: OraclePriceData,
 	oracleGuardRails: OracleGuardRails,
 	slot: BN,
-	minAuctionDuration: number,
 	oracleStalenessBuffer = FIVE
 ): OracleValidity {
 	const isNonPositive = oraclePriceData.price.lte(ZERO);
@@ -90,27 +90,37 @@ export function getOracleValidity(
 
 	const oracleDelay = slot.sub(oraclePriceData.slot).sub(oracleStalenessBuffer);
 
-	let isStaleForAmmImmediate = false;
+	let isStaleForAmmImmediate = true;
 	if (market.amm.oracleSlotDelayOverride != 0) {
 		isStaleForAmmImmediate = oracleDelay.gt(
 			new BN(market.amm.oracleSlotDelayOverride)
 		);
-	} else {
-		isStaleForAmmImmediate = oracleDelay.gt(
-			new BN(oracleGuardRails.validity.slotsBeforeStaleForAmm)
-		);
 	}
 
 	let isStaleForAmmLowRisk = false;
-	if (market.amm.takerSpeedBumpOverride != 0) {
+	if (market.amm.oracleLowRiskSlotDelayOverride != 0) {
 		isStaleForAmmLowRisk = oracleDelay.gt(
-			new BN(market.amm.takerSpeedBumpOverride)
+			new BN(market.amm.oracleLowRiskSlotDelayOverride)
 		);
 	} else {
-		isStaleForAmmLowRisk = oracleDelay.gt(new BN(minAuctionDuration));
+		isStaleForAmmLowRisk = oracleDelay.gt(
+			oracleGuardRails.validity.slotsBeforeStaleForAmm
+		);
 	}
 
-	const isStaleForMargin = oracleDelay.gt(new BN(market.marginRatioInitial));
+	let isStaleForMargin = oracleDelay.gt(
+		new BN(oracleGuardRails.validity.slotsBeforeStaleForMargin)
+	);
+	if (
+		isOneOfVariant(market.amm.oracleSource, [
+			'pythStableCoinPull',
+			'pythLazerStableCoin',
+		])
+	) {
+		isStaleForMargin = oracleDelay.gt(
+			new BN(oracleGuardRails.validity.slotsBeforeStaleForMargin).muln(3)
+		);
+	}
 
 	if (isNonPositive) {
 		return OracleValidity.NonPositive;
