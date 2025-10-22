@@ -14,9 +14,9 @@ use crate::math::casting::Cast;
 use crate::math::funding::calculate_funding_payment;
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 
-use crate::math::spot_balance::{get_strict_token_value, get_token_value};
 use crate::math::helpers::get_proportion_u128;
 use crate::math::safe_math::SafeMath;
+use crate::math::spot_balance::{get_strict_token_value, get_token_value};
 use crate::msg;
 use crate::state::margin_calculation::{MarginCalculation, MarginContext, MarketIdentifier};
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
@@ -82,7 +82,8 @@ pub fn calc_high_leverage_mode_initial_margin_ratio_from_size(
 ) -> DriftResult<u32> {
     let result = if size_adj_margin_ratio < pre_size_adj_margin_ratio {
         let size_pct_discount_factor = PERCENTAGE_PRECISION.saturating_sub(
-            ((pre_size_adj_margin_ratio.cast::<u128>()?)
+            (pre_size_adj_margin_ratio
+                .cast::<u128>()?
                 .safe_sub(size_adj_margin_ratio.cast::<u128>()?)?
                 .safe_mul(PERCENTAGE_PRECISION)?
                 .safe_div((pre_size_adj_margin_ratio.safe_div(5)?).cast::<u128>()?)?),

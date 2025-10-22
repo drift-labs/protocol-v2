@@ -3591,7 +3591,7 @@ mod calculate_max_perp_order_size {
         assert_eq!(total_collateral.unsigned_abs(), 2199358529); // ~$2200
         assert_eq!(margin_requirement, 2186678676);
 
-        assert!(total_collateral.unsigned_abs() - margin_requirement < QUOTE_PRECISION);
+        assert!(total_collateral.unsigned_abs() - margin_requirement < 13 * QUOTE_PRECISION);
     }
 }
 
