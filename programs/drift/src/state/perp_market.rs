@@ -241,7 +241,7 @@ pub struct PerpMarket {
     pub padding: [u8; 24],
 }
 
-pub fn _get_high_leverage_mode_margin_ratio(
+pub fn _calc_high_leverage_mode_initial_margin_ratio_from_size(
     pre_size_adj_margin_ratio: u32,
     size_adj_margin_ratio: u32,
     default_margin_ratio: u32,
@@ -494,38 +494,43 @@ impl PerpMarket {
             MarginRequirementType::Maintenance => margin_ratio_maintenance,
         };
 
-        let pre_size_adj_margin_ratio = if is_high_leverage_user {
-            match margin_type {
+        let margin_ratio = if is_high_leverage_user {
+            // use HLM maintenance margin but ordinary mode initial/fill margin for size adj calculation
+            let pre_size_adj_margin_ratio = match margin_type {
                 MarginRequirementType::Initial => self.margin_ratio_initial,
                 MarginRequirementType::Fill => {
                     self.margin_ratio_initial
                         .safe_add(self.margin_ratio_maintenance)?
                         / 2
                 }
-                MarginRequirementType::Maintenance => margin_ratio_maintenance, // use hlm maintenance to avoid changing liq prices
-            }
-        } else {
-            default_margin_ratio
-        };
+                MarginRequirementType::Maintenance => margin_ratio_maintenance,
+            };
 
-        let cap_size_premium =
-            !is_high_leverage_user || margin_type == MarginRequirementType::Maintenance;
-        let size_adj_margin_ratio = calculate_size_premium_liability_weight(
-            size,
-            self.imf_factor,
-            pre_size_adj_margin_ratio,
-            MARGIN_PRECISION_U128,
-            cap_size_premium,
-        )?;
+            let cap_size_premium = margin_type == MarginRequirementType::Maintenance;
 
-        let margin_ratio = if cap_size_premium {
-            default_margin_ratio.max(size_adj_margin_ratio)
-        } else {
-            _get_high_leverage_mode_margin_ratio(
+            let size_adj_margin_ratio = calculate_size_premium_liability_weight(
+                size,
+                self.imf_factor,
+                pre_size_adj_margin_ratio,
+                MARGIN_PRECISION_U128,
+                cap_size_premium,
+            )?;
+
+            _calc_high_leverage_mode_initial_margin_ratio_from_size(
                 pre_size_adj_margin_ratio,
                 size_adj_margin_ratio,
                 default_margin_ratio,
-            )?
+            )
+        } else {
+            let size_adj_margin_ratio = calculate_size_premium_liability_weight(
+                size,
+                self.imf_factor,
+                default_margin_ratio,
+                MARGIN_PRECISION_U128,
+                true,
+            )?;
+
+            Ok(default_margin_ratio.max(size_adj_margin_ratio))
         };
 
         Ok(margin_ratio)
