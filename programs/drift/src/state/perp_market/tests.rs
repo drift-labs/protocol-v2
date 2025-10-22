@@ -172,6 +172,25 @@ mod get_margin_ratio {
             perp_market.high_leverage_margin_ratio_initial as u32
         );
 
+
+        let hlm_margin_ratio_initial = perp_market
+            .get_margin_ratio(BASE_PRECISION, MarginRequirementType::Initial, true)
+            .unwrap();
+
+        assert_eq!(
+            hlm_margin_ratio_initial,
+            perp_market.high_leverage_margin_ratio_initial as u32
+        );
+
+        let hlm_margin_ratio_initial = perp_market
+            .get_margin_ratio(BASE_PRECISION * 10, MarginRequirementType::Initial, true)
+            .unwrap();
+
+        assert_eq!(
+            hlm_margin_ratio_initial,
+            104 // slightly under 100x at 10 base
+        );
+
         let hlm_margin_ratio_initial_sized = perp_market
             .get_margin_ratio(BASE_PRECISION * 3000, MarginRequirementType::Initial, true)
             .unwrap();
