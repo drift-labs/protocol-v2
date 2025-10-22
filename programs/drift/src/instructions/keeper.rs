@@ -771,7 +771,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
     if let Some(isolated_position_deposit) = verified_message_and_signature.isolated_position_deposit {
         transfer_isolated_perp_position_deposit(
             taker,
-            taker_stats,
+            Some(taker_stats),
             perp_market_map,
             spot_market_map,
             oracle_map,
