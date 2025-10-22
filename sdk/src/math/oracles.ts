@@ -93,14 +93,14 @@ export function getOracleValidity(
 	let isStaleForAmmImmediate = true;
 	if (market.amm.oracleSlotDelayOverride != 0) {
 		isStaleForAmmImmediate = oracleDelay.gt(
-			new BN(market.amm.oracleSlotDelayOverride)
+			BN.max(new BN(market.amm.oracleSlotDelayOverride), ZERO)
 		);
 	}
 
 	let isStaleForAmmLowRisk = false;
 	if (market.amm.oracleLowRiskSlotDelayOverride != 0) {
 		isStaleForAmmLowRisk = oracleDelay.gt(
-			new BN(market.amm.oracleLowRiskSlotDelayOverride)
+			BN.max(new BN(market.amm.oracleLowRiskSlotDelayOverride), ZERO)
 		);
 	} else {
 		isStaleForAmmLowRisk = oracleDelay.gt(
