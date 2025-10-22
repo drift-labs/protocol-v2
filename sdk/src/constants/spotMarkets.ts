@@ -459,14 +459,15 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		symbol: 'JLP',
 		marketIndex: 19,
 		poolId: 0,
-		oracle: new PublicKey('5Mb11e5rt1Sp6A286B145E4TmgMzsM2UX9nCF2vas5bs'),
-		oracleSource: OracleSource.PYTH_PULL,
+		oracle: new PublicKey('4VMtKepA6iFwMTJ7bBbdcGxavNRKiDjxxRr1CaB2NnFJ'),
+		oracleSource: OracleSource.PYTH_LAZER,
 		mint: new PublicKey('27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4'),
 		precision: new BN(10).pow(SIX),
 		precisionExp: SIX,
 		launchTs: 1719415157000,
 		pythFeedId:
 			'0xc811abc82b4bad1f9bd711a2773ccaa935b03ecef974236942cec5e0eb845a3a',
+		pythLazerId: 459,
 	},
 	{
 		symbol: 'POPCAT',

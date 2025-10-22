@@ -141,6 +141,7 @@ impl CacheInfo {
             &perp_market.amm.oracle_source,
             LogMode::SafeMMOracle,
             perp_market.amm.oracle_slot_delay_override,
+            perp_market.amm.oracle_low_risk_slot_delay_override,
         )?;
         if is_oracle_valid_for_action(validity, Some(DriftAction::UpdateAmmCache))? {
             self.oracle_price = safe_oracle_data.price;

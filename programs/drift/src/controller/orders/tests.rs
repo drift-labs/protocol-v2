@@ -1,9 +1,11 @@
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::Owner;
 
+use crate::math::oracle::oracle_validity;
+use crate::state::fill_mode::FillMode;
 use crate::state::oracle_map::OracleMap;
-use crate::state::perp_market::MarketStatus;
-use crate::state::state::{FeeStructure, FeeTier};
+use crate::state::perp_market::{MarketStatus, PerpMarket};
+use crate::state::state::{FeeStructure, FeeTier, State};
 use crate::state::user::{MarketType, Order, PerpPosition};
 
 fn get_fee_structure() -> FeeStructure {
@@ -27,6 +29,53 @@ fn get_user_keys() -> (Pubkey, Pubkey, Pubkey) {
 
 fn get_oracle_map<'a>() -> OracleMap<'a> {
     OracleMap::empty()
+}
+
+fn get_state(min_auction_duration: u8) -> State {
+    State {
+        min_perp_auction_duration: min_auction_duration,
+        ..State::default()
+    }
+}
+
+pub fn get_amm_is_available(
+    order: &Order,
+    min_auction_duration: u8,
+    market: &PerpMarket,
+    oracle_map: &mut OracleMap,
+    slot: u64,
+    user_can_skip_auction_duration: bool,
+) -> bool {
+    let state = get_state(min_auction_duration);
+    let oracle_price_data = oracle_map.get_price_data(&market.oracle_id()).unwrap();
+    let mm_oracle_price_data = market
+        .get_mm_oracle_price_data(*oracle_price_data, slot, &state.oracle_guard_rails.validity)
+        .unwrap();
+    let safe_oracle_price_data = mm_oracle_price_data.get_safe_oracle_price_data();
+    let safe_oracle_validity = oracle_validity(
+        MarketType::Perp,
+        market.market_index,
+        market.amm.historical_oracle_data.last_oracle_price_twap,
+        &safe_oracle_price_data,
+        &state.oracle_guard_rails.validity,
+        market.get_max_confidence_interval_multiplier().unwrap(),
+        &market.amm.oracle_source,
+        crate::math::oracle::LogMode::SafeMMOracle,
+        market.amm.oracle_slot_delay_override,
+        market.amm.oracle_low_risk_slot_delay_override,
+    )
+    .unwrap();
+    market
+        .amm_can_fill_order(
+            order,
+            slot,
+            FillMode::Fill,
+            &state,
+            safe_oracle_validity,
+            user_can_skip_auction_duration,
+            &mm_oracle_price_data,
+        )
+        .unwrap()
 }
 
 pub mod fill_order_protected_maker {
@@ -2179,6 +2228,7 @@ pub mod fulfill_order_with_maker_order {
                 market.amm.historical_oracle_data.last_oracle_price_twap,
                 market.get_max_confidence_interval_multiplier().unwrap(),
                 0,
+                0,
             )
             .unwrap();
 
@@ -3314,9 +3364,21 @@ pub mod fulfill_order {
 
         let mut filler_stats = UserStats::default();
 
+        let order_index = 0;
+        let min_auction_duration = 0;
+        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let is_amm_available = get_amm_is_available(
+            &taker.orders[order_index],
+            min_auction_duration,
+            &market,
+            &mut oracle_map,
+            slot,
+            user_can_skip_auction_duration,
+        );
+
         let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
-            0,
+            order_index,
             &taker_key,
             &mut taker_stats,
             &makers_and_referrers,
@@ -3338,8 +3400,7 @@ pub mod fulfill_order {
             Some(market.amm.historical_oracle_data.last_oracle_price),
             now,
             slot,
-            0,
-            crate::state::perp_market::AMMAvailability::AfterMinDuration,
+            is_amm_available,
             FillMode::Fill,
             false,
             &mut None,
@@ -3561,9 +3622,21 @@ pub mod fulfill_order {
 
         let mut filler_stats = UserStats::default();
 
+        let order_index = 0;
+        let min_auction_duration = 10;
+        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let is_amm_available = get_amm_is_available(
+            &taker.orders[order_index],
+            min_auction_duration,
+            &market,
+            &mut oracle_map,
+            slot,
+            user_can_skip_auction_duration,
+        );
+
         let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
-            0,
+            order_index,
             &taker_key,
             &mut taker_stats,
             &makers_and_referrers,
@@ -3584,8 +3657,7 @@ pub mod fulfill_order {
             Some(market.amm.historical_oracle_data.last_oracle_price),
             now,
             slot,
-            10,
-            crate::state::perp_market::AMMAvailability::AfterMinDuration,
+            is_amm_available,
             FillMode::Fill,
             false,
             &mut None,
@@ -3756,9 +3828,21 @@ pub mod fulfill_order {
 
         let mut filler_stats = UserStats::default();
 
+        let order_index = 0;
+        let min_auction_duration = 0;
+        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let is_amm_available = get_amm_is_available(
+            &taker.orders[order_index],
+            min_auction_duration,
+            &market,
+            &mut oracle_map,
+            slot,
+            user_can_skip_auction_duration,
+        );
+
         let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
-            0,
+            order_index,
             &taker_key,
             &mut taker_stats,
             &makers_and_referrers,
@@ -3776,8 +3860,7 @@ pub mod fulfill_order {
             Some(market.amm.historical_oracle_data.last_oracle_price),
             now,
             slot,
-            0,
-            crate::state::perp_market::AMMAvailability::AfterMinDuration,
+            is_amm_available,
             FillMode::Fill,
             false,
             &mut None,
@@ -3964,9 +4047,21 @@ pub mod fulfill_order {
         create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
         let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
 
+        let order_index = 0;
+        let min_auction_duration = 10;
+        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let is_amm_available = get_amm_is_available(
+            &taker.orders[order_index],
+            min_auction_duration,
+            &market,
+            &mut oracle_map,
+            slot,
+            user_can_skip_auction_duration,
+        );
+
         let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
-            0,
+            order_index,
             &taker_key,
             &mut taker_stats,
             &makers_and_referrers,
@@ -3984,8 +4079,7 @@ pub mod fulfill_order {
             None,
             now,
             slot,
-            10,
-            crate::state::perp_market::AMMAvailability::AfterMinDuration,
+            is_amm_available,
             FillMode::Fill,
             false,
             &mut None,
@@ -4132,9 +4226,21 @@ pub mod fulfill_order {
 
         let mut taker_stats = UserStats::default();
 
+        let order_index = 0;
+        let min_auction_duration = 0;
+        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let is_amm_available = get_amm_is_available(
+            &taker.orders[order_index],
+            min_auction_duration,
+            &market,
+            &mut oracle_map,
+            slot,
+            user_can_skip_auction_duration,
+        );
+
         let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
-            0,
+            order_index,
             &taker_key,
             &mut taker_stats,
             &UserMap::empty(),
@@ -4152,8 +4258,7 @@ pub mod fulfill_order {
             Some(market.amm.historical_oracle_data.last_oracle_price),
             now,
             slot,
-            0,
-            crate::state::perp_market::AMMAvailability::AfterMinDuration,
+            is_amm_available,
             FillMode::Fill,
             false,
             &mut None,
@@ -4332,9 +4437,21 @@ pub mod fulfill_order {
 
         let mut filler_stats = UserStats::default();
 
+        let order_index = 0;
+        let min_auction_duration = 10;
+        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let is_amm_available = get_amm_is_available(
+            &taker.orders[order_index],
+            min_auction_duration,
+            &market,
+            &mut oracle_map,
+            slot,
+            user_can_skip_auction_duration,
+        );
+
         let result = fulfill_perp_order(
             &mut taker,
-            0,
+            order_index,
             &taker_key,
             &mut taker_stats,
             &makers_and_referrers,
@@ -4352,8 +4469,7 @@ pub mod fulfill_order {
             Some(market.amm.historical_oracle_data.last_oracle_price),
             now,
             slot,
-            10,
-            crate::state::perp_market::AMMAvailability::AfterMinDuration,
+            is_amm_available,
             FillMode::Fill,
             false,
             &mut None,
@@ -4521,9 +4637,21 @@ pub mod fulfill_order {
 
         let mut filler_stats = UserStats::default();
 
+        let order_index = 0;
+        let min_auction_duration = 0;
+        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let is_amm_available = get_amm_is_available(
+            &taker.orders[order_index],
+            min_auction_duration,
+            &market,
+            &mut oracle_map,
+            slot,
+            user_can_skip_auction_duration,
+        );
+
         let result = fulfill_perp_order(
             &mut taker,
-            0,
+            order_index,
             &taker_key,
             &mut taker_stats,
             &makers_and_referrers,
@@ -4541,8 +4669,7 @@ pub mod fulfill_order {
             Some(market.amm.historical_oracle_data.last_oracle_price),
             now,
             slot,
-            10,
-            crate::state::perp_market::AMMAvailability::AfterMinDuration,
+            is_amm_available,
             FillMode::Fill,
             false,
             &mut None,
@@ -4663,9 +4790,21 @@ pub mod fulfill_order {
 
         let mut filler_stats = UserStats::default();
 
+        let order_index = 0;
+        let min_auction_duration = 0;
+        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let is_amm_available = get_amm_is_available(
+            &taker.orders[order_index],
+            min_auction_duration,
+            &market,
+            &mut oracle_map,
+            slot,
+            user_can_skip_auction_duration,
+        );
+
         let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
-            0,
+            order_index,
             &taker_key,
             &mut taker_stats,
             &makers_and_referrers,
@@ -4683,8 +4822,7 @@ pub mod fulfill_order {
             Some(market.amm.historical_oracle_data.last_oracle_price),
             now,
             slot,
-            0,
-            crate::state::perp_market::AMMAvailability::Immediate,
+            is_amm_available,
             FillMode::Fill,
             false,
             &mut None,
@@ -4832,9 +4970,21 @@ pub mod fulfill_order {
 
         let mut filler_stats = UserStats::default();
 
+        let order_index = 0;
+        let min_auction_duration = 0;
+        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let is_amm_available = get_amm_is_available(
+            &taker.orders[order_index],
+            min_auction_duration,
+            &market,
+            &mut oracle_map,
+            slot,
+            user_can_skip_auction_duration,
+        );
+
         let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
-            0,
+            order_index,
             &taker_key,
             &mut taker_stats,
             &makers_and_referrers,
@@ -4852,8 +5002,7 @@ pub mod fulfill_order {
             Some(market.amm.historical_oracle_data.last_oracle_price),
             now,
             slot,
-            0,
-            crate::state::perp_market::AMMAvailability::AfterMinDuration,
+            is_amm_available,
             FillMode::Fill,
             false,
             &mut None,
@@ -5423,9 +5572,22 @@ pub mod fulfill_order {
 
         let taker_before = taker;
         let maker_before = maker;
+
+        let order_index = 0;
+        let min_auction_duration = 10;
+        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let is_amm_available = get_amm_is_available(
+            &taker.orders[order_index],
+            min_auction_duration,
+            &market_map.get_ref(&0).unwrap(),
+            &mut oracle_map,
+            slot,
+            user_can_skip_auction_duration,
+        );
+
         let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
-            0,
+            order_index,
             &taker_key,
             &mut taker_stats,
             &makers_and_referrers,
@@ -5443,8 +5605,7 @@ pub mod fulfill_order {
             None,
             now,
             slot,
-            10,
-            crate::state::perp_market::AMMAvailability::AfterMinDuration,
+            is_amm_available,
             FillMode::Fill,
             false,
             &mut None,
@@ -5669,9 +5830,21 @@ pub mod fulfill_order {
         create_anchor_account_info!(maker_stats, UserStats, maker_stats_account_info);
         let maker_and_referrer_stats = UserStatsMap::load_one(&maker_stats_account_info).unwrap();
 
+        let order_index = 0;
+        let min_auction_duration = 0;
+        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let is_amm_available = get_amm_is_available(
+            &taker.orders[order_index],
+            min_auction_duration,
+            &market_map.get_ref(&0).unwrap(),
+            &mut oracle_map,
+            slot,
+            user_can_skip_auction_duration,
+        );
+
         let (base_asset_amount, _) = fulfill_perp_order(
             &mut taker,
-            0,
+            order_index,
             &taker_key,
             &mut taker_stats,
             &makers_and_referrers,
@@ -5689,8 +5862,7 @@ pub mod fulfill_order {
             Some(market.amm.historical_oracle_data.last_oracle_price),
             now,
             slot,
-            0,
-            crate::state::perp_market::AMMAvailability::AfterMinDuration,
+            is_amm_available,
             FillMode::Fill,
             false,
             &mut None,
@@ -12879,5 +13051,60 @@ mod update_maker_fills_map {
         update_maker_fills_map(&mut map, &maker_key, direction, fill).unwrap();
 
         assert_eq!(*map.get(&maker_key).unwrap(), -2 * fill as i64);
+    }
+}
+
+mod order_is_low_risk_for_amm {
+    use super::*;
+    use crate::state::user::{OrderBitFlag, OrderStatus};
+
+    fn base_perp_order() -> Order {
+        Order {
+            status: OrderStatus::Open,
+            market_type: MarketType::Perp,
+            slot: 100,
+            ..Order::default()
+        }
+    }
+
+    #[test]
+    fn older_than_oracle_delay_returns_true() {
+        let order = base_perp_order();
+        let clock_slot = 110u64;
+        let mm_oracle_delay = 10i64;
+
+        let is_low = order
+            .is_low_risk_for_amm(mm_oracle_delay, clock_slot, false)
+            .unwrap();
+        assert!(is_low);
+    }
+
+    #[test]
+    fn not_older_than_delay_returns_false() {
+        let order = base_perp_order();
+        let clock_slot = 110u64;
+
+        let mm_oracle_delay = 11i64;
+
+        let is_low = order
+            .is_low_risk_for_amm(mm_oracle_delay, clock_slot, false)
+            .unwrap();
+        assert!(!is_low);
+    }
+
+    #[test]
+    fn liquidation_always_low_risk() {
+        let order = base_perp_order();
+        let is_low = order.is_low_risk_for_amm(0, order.slot, true).unwrap();
+        assert!(is_low);
+    }
+
+    #[test]
+    fn safe_trigger_order_flag_sets_low_risk() {
+        let mut order = base_perp_order();
+        order.add_bit_flag(OrderBitFlag::SafeTriggerOrder);
+
+        let is_low = order.is_low_risk_for_amm(0, order.slot, false).unwrap();
+        assert!(is_low);
     }
 }

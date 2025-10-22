@@ -736,6 +736,7 @@ impl LPPool {
                 spot_market.historical_oracle_data.last_oracle_price_twap,
                 spot_market.get_max_confidence_interval_multiplier()?,
                 0,
+                0,
             )?;
             if !is_oracle_valid_for_action(
                 oracle_and_validity.1,
@@ -1702,6 +1703,7 @@ pub fn update_constituent_target_base_for_derivatives(
                 .last_oracle_price_twap,
             parent_spot_market.get_max_confidence_interval_multiplier()?,
             0,
+            0,
         )?;
         if !is_oracle_valid_for_action(
             parent_oracle_price_and_validity.1,
@@ -1737,6 +1739,7 @@ pub fn update_constituent_target_base_for_derivatives(
                     .historical_oracle_data
                     .last_oracle_price_twap,
                 constituent_spot_market.get_max_confidence_interval_multiplier()?,
+                0,
                 0,
             )?;
             if !is_oracle_valid_for_action(

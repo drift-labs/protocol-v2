@@ -335,6 +335,7 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         in_spot_market.historical_oracle_data.last_oracle_price_twap,
         in_spot_market.get_max_confidence_interval_multiplier()?,
         0,
+        0,
     )?;
     let in_oracle = in_oracle.clone();
 
@@ -346,6 +347,7 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
             .historical_oracle_data
             .last_oracle_price_twap,
         out_spot_market.get_max_confidence_interval_multiplier()?,
+        0,
         0,
     )?;
 
@@ -556,6 +558,7 @@ pub fn handle_view_lp_pool_swap_fees<'c: 'info, 'info>(
         in_spot_market.historical_oracle_data.last_oracle_price_twap,
         in_spot_market.get_max_confidence_interval_multiplier()?,
         0,
+        0,
     )?;
     let in_oracle = in_oracle.clone();
 
@@ -567,6 +570,7 @@ pub fn handle_view_lp_pool_swap_fees<'c: 'info, 'info>(
             .historical_oracle_data
             .last_oracle_price_twap,
         out_spot_market.get_max_confidence_interval_multiplier()?,
+        0,
         0,
     )?;
 
@@ -693,6 +697,7 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
         &in_oracle_id,
         in_spot_market.historical_oracle_data.last_oracle_price_twap,
         in_spot_market.get_max_confidence_interval_multiplier()?,
+        0,
         0,
     )?;
     let in_oracle = in_oracle.clone();
@@ -912,6 +917,7 @@ pub fn handle_view_lp_pool_add_liquidity_fees<'c: 'info, 'info>(
         in_spot_market.historical_oracle_data.last_oracle_price_twap,
         in_spot_market.get_max_confidence_interval_multiplier()?,
         0,
+        0,
     )?;
     let in_oracle = in_oracle.clone();
 
@@ -1057,6 +1063,7 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
             .historical_oracle_data
             .last_oracle_price_twap,
         out_spot_market.get_max_confidence_interval_multiplier()?,
+        0,
         0,
     )?;
     let out_oracle = *out_oracle;
@@ -1311,6 +1318,7 @@ pub fn handle_view_lp_pool_remove_liquidity_fees<'c: 'info, 'info>(
             .historical_oracle_data
             .last_oracle_price_twap,
         out_spot_market.get_max_confidence_interval_multiplier()?,
+        0,
         0,
     )?;
     let out_oracle = out_oracle.clone();

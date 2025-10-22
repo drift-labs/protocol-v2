@@ -8,6 +8,8 @@ import {
 	PositionDirection,
 	ProtectedMakerParams,
 	MarketTypeStr,
+	OrderBitFlag,
+	StateAccount,
 } from '../types';
 import {
 	ZERO,
@@ -243,10 +245,16 @@ export function isFillableByVAMM(
 	mmOraclePriceData: MMOraclePriceData,
 	slot: number,
 	ts: number,
-	minAuctionDuration: number
+	state: StateAccount
 ): boolean {
 	return (
-		(isFallbackAvailableLiquiditySource(order, minAuctionDuration, slot) &&
+		(isFallbackAvailableLiquiditySource(
+			order,
+			mmOraclePriceData,
+			slot,
+			state,
+			market
+		) &&
 			calculateBaseAssetAmountForAmmToFulfill(
 				order,
 				market,
@@ -254,6 +262,26 @@ export function isFillableByVAMM(
 				slot
 			).gt(ZERO)) ||
 		isOrderExpired(order, ts)
+	);
+}
+
+export function isLowRiskForAmm(
+	order: Order,
+	mmOraclePriceData: MMOraclePriceData,
+	isLiquidation?: boolean
+): boolean {
+	if (isVariant(order.marketType, 'spot')) {
+		return false;
+	}
+
+	const orderOlderThanOracleDelay = new BN(order.slot).lte(
+		mmOraclePriceData.slot
+	);
+
+	return (
+		orderOlderThanOracleDelay ||
+		isLiquidation ||
+		(order.bitFlags & OrderBitFlag.SafeTriggerOrder) !== 0
 	);
 }
 

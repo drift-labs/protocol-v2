@@ -936,6 +936,7 @@ fn amm_negative_ref_price_offset_decay_logic() {
     assert_eq!(perp_market.amm.last_update_slot, 353317544);
 
     perp_market.amm.curve_update_intensity = 200;
+    perp_market.amm.oracle_slot_delay_override = -1;
 
     let max_ref_offset = perp_market.amm.get_max_reference_price_offset().unwrap();
 

@@ -3,7 +3,9 @@ import {
 	HistoricalOracleData,
 	OracleGuardRails,
 	OracleSource,
+	OracleValidity,
 	PerpMarketAccount,
+	isOneOfVariant,
 	isVariant,
 } from '../types';
 import { OraclePriceData } from '../oracles/types';
@@ -14,6 +16,7 @@ import {
 	ZERO,
 	FIVE_MINUTE,
 	PERCENTAGE_PRECISION,
+	FIVE,
 } from '../constants/numericConstants';
 import { assert } from '../assert/assert';
 import { BN } from '@coral-xyz/anchor';
@@ -49,6 +52,91 @@ export function getMaxConfidenceIntervalMultiplier(
 		maxConfidenceIntervalMultiplier = new BN(50);
 	}
 	return maxConfidenceIntervalMultiplier;
+}
+
+export function getOracleValidity(
+	market: PerpMarketAccount,
+	oraclePriceData: OraclePriceData,
+	oracleGuardRails: OracleGuardRails,
+	slot: BN,
+	oracleStalenessBuffer = FIVE
+): OracleValidity {
+	const isNonPositive = oraclePriceData.price.lte(ZERO);
+	const isTooVolatile = BN.max(
+		oraclePriceData.price,
+		market.amm.historicalOracleData.lastOraclePriceTwap
+	)
+		.div(
+			BN.max(
+				ONE,
+				BN.min(
+					oraclePriceData.price,
+					market.amm.historicalOracleData.lastOraclePriceTwap
+				)
+			)
+		)
+		.gt(oracleGuardRails.validity.tooVolatileRatio);
+
+	const confPctOfPrice = oraclePriceData.confidence
+		.mul(BID_ASK_SPREAD_PRECISION)
+		.div(oraclePriceData.price);
+	const isConfTooLarge = confPctOfPrice.gt(
+		oracleGuardRails.validity.confidenceIntervalMaxSize.mul(
+			getMaxConfidenceIntervalMultiplier(market)
+		)
+	);
+
+	const oracleDelay = slot.sub(oraclePriceData.slot).sub(oracleStalenessBuffer);
+
+	let isStaleForAmmImmediate = true;
+	if (market.amm.oracleSlotDelayOverride != 0) {
+		isStaleForAmmImmediate = oracleDelay.gt(
+			BN.max(new BN(market.amm.oracleSlotDelayOverride), ZERO)
+		);
+	}
+
+	let isStaleForAmmLowRisk = false;
+	if (market.amm.oracleLowRiskSlotDelayOverride != 0) {
+		isStaleForAmmLowRisk = oracleDelay.gt(
+			BN.max(new BN(market.amm.oracleLowRiskSlotDelayOverride), ZERO)
+		);
+	} else {
+		isStaleForAmmLowRisk = oracleDelay.gt(
+			oracleGuardRails.validity.slotsBeforeStaleForAmm
+		);
+	}
+
+	let isStaleForMargin = oracleDelay.gt(
+		new BN(oracleGuardRails.validity.slotsBeforeStaleForMargin)
+	);
+	if (
+		isOneOfVariant(market.amm.oracleSource, [
+			'pythStableCoinPull',
+			'pythLazerStableCoin',
+		])
+	) {
+		isStaleForMargin = oracleDelay.gt(
+			new BN(oracleGuardRails.validity.slotsBeforeStaleForMargin).muln(3)
+		);
+	}
+
+	if (isNonPositive) {
+		return OracleValidity.NonPositive;
+	} else if (isTooVolatile) {
+		return OracleValidity.TooVolatile;
+	} else if (isConfTooLarge) {
+		return OracleValidity.TooUncertain;
+	} else if (isStaleForMargin) {
+		return OracleValidity.StaleForMargin;
+	} else if (!oraclePriceData.hasSufficientNumberOfDataPoints) {
+		return OracleValidity.InsufficientDataPoints;
+	} else if (isStaleForAmmLowRisk) {
+		return OracleValidity.StaleForAMMLowRisk;
+	} else if (isStaleForAmmImmediate) {
+		return OracleValidity.isStaleForAmmImmediate;
+	} else {
+		return OracleValidity.Valid;
+	}
 }
 
 export function isOracleValid(
