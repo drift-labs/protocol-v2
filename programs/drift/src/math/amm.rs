@@ -114,12 +114,12 @@ pub fn update_mark_twap_crank(
     let (amm_bid_price, amm_ask_price) = amm.bid_ask_price(amm_reserve_price)?;
 
     let mut best_bid_price = match best_dlob_bid_price {
-        Some(best_dlob_bid_price) => best_dlob_bid_price.max(amm_bid_price),
+        Some(best_dlob_bid_price) => best_dlob_bid_price,
         None => amm_bid_price,
     };
 
     let mut best_ask_price = match best_dlob_ask_price {
-        Some(best_dlob_ask_price) => best_dlob_ask_price.min(amm_ask_price),
+        Some(best_dlob_ask_price) => best_dlob_ask_price,
         None => amm_ask_price,
     };
 

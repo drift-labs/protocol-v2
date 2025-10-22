@@ -1061,6 +1061,59 @@ mod find_maker_orders {
     }
 }
 
+pub mod amm_l2_levels {
+    use crate::controller::position::PositionDirection;
+    use crate::math::orders::Level;
+    use crate::state::perp_market::AMM;
+
+    fn is_monotonic(levels: &Vec<Level>, dir: PositionDirection) -> bool {
+        if levels.is_empty() {
+            return true;
+        }
+        match dir {
+            PositionDirection::Long => levels.windows(2).all(|w| w[0].price <= w[1].price),
+            PositionDirection::Short => levels.windows(2).all(|w| w[0].price >= w[1].price),
+        }
+    }
+
+    #[test]
+    fn amm_get_levels_monotonic_and_terminal_clamp() {
+        let amm = AMM::liquid_sol_test();
+
+        let (bid_price, ask_price) = amm.bid_ask_price(amm.reserve_price().unwrap()).unwrap();
+
+        let depth = (amm
+            .base_asset_amount_long
+            .abs()
+            .max(amm.base_asset_amount_short.abs())
+            .unsigned_abs()
+            / 1000) as u64;
+
+        // Asks monotonically increasing and greater than oracle price
+        let asks = amm
+            .get_levels(10, PositionDirection::Long, depth / 10)
+            .unwrap();
+        assert!(!asks.is_empty());
+        assert!(is_monotonic(&asks, PositionDirection::Long));
+
+        assert!(asks
+            .iter()
+            .all(|l| l.base_asset_amount > 0 && l.price > ask_price));
+
+        // Bids monotonically decreasing and less than oracle price
+        let bids = amm
+            .get_levels(10, PositionDirection::Short, depth / 10)
+            .unwrap();
+        assert!(!bids.is_empty());
+        assert!(is_monotonic(&bids, PositionDirection::Short));
+        assert!(bids
+            .iter()
+            .all(|l| l.base_asset_amount > 0 && l.price < bid_price));
+
+        println!("Bids: {:?}", bids);
+    }
+}
+
 mod calculate_max_spot_order_size {
     use std::str::FromStr;
 
