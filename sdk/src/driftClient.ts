@@ -4201,6 +4201,24 @@ export class DriftClient {
 		subAccountId?: number,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
+		const instructions = await this.getWithdrawFromIsolatedPerpPositionIxsBundle(
+			amount,
+			perpMarketIndex,
+			subAccountId,
+			userTokenAccount
+		);
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(instructions, txParams)
+		);
+		return txSig;
+	}
+
+	public async getWithdrawFromIsolatedPerpPositionIxsBundle(
+		amount: BN,
+		perpMarketIndex: number,
+		subAccountId?: number,
+		userTokenAccount?: PublicKey
+	): Promise<TransactionInstruction[]> {
 		const userAccountPublicKey = await getUserAccountPublicKey(
 			this.program.programId,
 			this.authority,
@@ -4213,16 +4231,22 @@ export class DriftClient {
 			[perpMarketIndex],
 			SettlePnlMode.TRY_SETTLE
 		);
+		let associatedTokenAccount = userTokenAccount;
+		if (!associatedTokenAccount) {
+			const perpMarketAccount = this.getPerpMarketAccount(perpMarketIndex);
+			const quoteSpotMarketIndex = perpMarketAccount.quoteSpotMarketIndex;
+			associatedTokenAccount = await this.getAssociatedTokenAccount(
+				quoteSpotMarketIndex
+			);
+		}
+
 		const withdrawIx = await this.getWithdrawFromIsolatedPerpPositionIx(
 			amount,
 			perpMarketIndex,
-			userTokenAccount,
+			associatedTokenAccount,
 			subAccountId
 		);
-		const { txSig } = await this.sendTransaction(
-			await this.buildTransaction([settleIx, withdrawIx], txParams)
-		);
-		return txSig;
+		return [settleIx, withdrawIx];
 	}
 
 	public async getWithdrawFromIsolatedPerpPositionIx(
@@ -4936,21 +4960,42 @@ export class DriftClient {
 		);
 	}
 
-	public async cancelOrder(
-		orderId?: number,
-		txParams?: TxParams,
-		subAccountId?: number
-	): Promise<TransactionSignature> {
-		const { txSig } = await this.sendTransaction(
-			await this.buildTransaction(
-				await this.getCancelOrderIx(orderId, subAccountId),
-				txParams
-			),
-			[],
-			this.opts
-		);
-		return txSig;
-	}
+    public async cancelOrder(
+        orderId?: number,
+        txParams?: TxParams,
+        subAccountId?: number,
+        overrides?: { withdrawIsolatedDepositForPerpMarket?: number }
+    ): Promise<TransactionSignature> {
+		const cancelIx = await this.getCancelOrderIx(orderId, subAccountId);
+
+		const instructions: TransactionInstruction[] = [cancelIx];
+
+        if (overrides?.withdrawIsolatedDepositForPerpMarket !== undefined) {
+            const perpMarketIndex = overrides.withdrawIsolatedDepositForPerpMarket;
+
+			const withdrawAmount = this.getIsolatedPerpPositionTokenAmount(
+				perpMarketIndex,
+				subAccountId
+			);
+
+			if (withdrawAmount.gt(ZERO)) {
+				const withdrawIxs =
+					await this.getWithdrawFromIsolatedPerpPositionIxsBundle(
+						withdrawAmount,
+						perpMarketIndex,
+						subAccountId
+					);
+				instructions.push(...withdrawIxs);
+			}
+        }
+
+        const { txSig } = await this.sendTransaction(
+            await this.buildTransaction(instructions, txParams),
+            [],
+            this.opts
+        );
+        return txSig;
+    }
 
 	public async getCancelOrderIx(
 		orderId?: number,
@@ -7345,12 +7390,6 @@ export class DriftClient {
 		precedingIxs: TransactionInstruction[] = [],
 		overrideCustomIxIndex?: number
 	): Promise<TransactionInstruction[]> {
-		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [takerInfo.takerUserAccount],
-			useMarketLastSlotCache: false,
-			readablePerpMarketIndex: marketIndex,
-		});
-
 		const isDelegateSigner = takerInfo.signingAuthority.equals(
 			takerInfo.takerUserAccount.delegate
 		);
@@ -7364,6 +7403,14 @@ export class DriftClient {
 			borshBuf,
 			isDelegateSigner
 		);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [takerInfo.takerUserAccount],
+			useMarketLastSlotCache: false,
+			readablePerpMarketIndex: marketIndex,
+			writableSpotMarketIndexes: signedMessage.isolatedPositionDeposit?.gt(new BN(0)) ? [QUOTE_SPOT_MARKET_INDEX] : undefined,
+		});
+
 		if (isUpdateHighLeverageMode(signedMessage.signedMsgOrderParams.bitFlags)) {
 			remainingAccounts.push({
 				pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
@@ -11356,8 +11403,10 @@ export class DriftClient {
 		const currentBase = perpPosition.baseAssetAmount;
 		if (currentBase.eq(ZERO)) return true;
 
+		const orderBaseAmount = isVariant(orderParams.direction, 'long') ? orderParams.baseAssetAmount : orderParams.baseAssetAmount.neg();
+
 		return currentBase
-			.add(orderParams.baseAssetAmount)
+			.add(orderBaseAmount)
 			.abs()
 			.gt(currentBase.abs());
 	}
