@@ -8,7 +8,7 @@ FROM rust:1.75
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-ARG SOLANA_CLI="1.14.7"
+ARG SOLANA_CLI="1.16.27"
 ARG ANCHOR_CLI="0.26.0"
 ARG NODE_VERSION="v18.16.0"
 
@@ -41,14 +41,14 @@ RUN . $NVM_DIR/nvm.sh && \
     npm install -g yarn && \
     yarn add ts-mocha
 
-# Install Solana tools.
-RUN sh -c "$(curl -sSfL https://release.solana.com/v${SOLANA_CLI}/install)"
+# Install Solana tools from GitHub release
+RUN mkdir -p ${HOME}/.local/share/solana/install/releases/${SOLANA_CLI} && \
+    curl -L https://github.com/solana-labs/solana/releases/download/v${SOLANA_CLI}/solana-release-x86_64-unknown-linux-gnu.tar.bz2 -o /tmp/solana.tar.bz2 && \
+    tar -xjf /tmp/solana.tar.bz2 -C ${HOME}/.local/share/solana/install/releases/${SOLANA_CLI} --strip-components=1 && \
+    rm /tmp/solana.tar.bz2 && \
+    ln -sf ${HOME}/.local/share/solana/install/releases/${SOLANA_CLI} ${HOME}/.local/share/solana/install/active_release
 
-# Install anchor.
-RUN cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
-RUN avm install ${ANCHOR_CLI} && avm use ${ANCHOR_CLI}
-
-RUN solana-keygen new --no-bip39-passphrase
+# Install anchor directly without avm (for compatibility with Rust 1.75)
+RUN cargo install --git https://github.com/coral-xyz/anchor --tag v0.29.0 anchor-cli --locked --force
 
 WORKDIR /workdir
-#be sure to add `/root/.avm/bin` to your PATH to be able to run the installed binaries
