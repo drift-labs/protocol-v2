@@ -19,9 +19,6 @@ import {
 import { Coder, Program } from '@coral-xyz/anchor';
 import { WebSocketAccountSubscriber } from './accounts/webSocketAccountSubscriber';
 import { WebSocketAccountSubscriberV2 } from './accounts/webSocketAccountSubscriberV2';
-import { WebSocketProgramAccountSubscriber } from './accounts/webSocketProgramAccountSubscriber';
-import { WebSocketDriftClientAccountSubscriberV2 } from './accounts/webSocketDriftClientAccountSubscriberV2';
-import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDriftClientAccountSubscriber';
 import { grpcDriftClientAccountSubscriberV2 } from './accounts/grpcDriftClientAccountSubscriberV2';
 import { grpcDriftClientAccountSubscriber } from './accounts/grpcDriftClientAccountSubscriber';
 
@@ -58,45 +55,45 @@ export type DriftClientConfig = {
 
 export type DriftClientSubscriptionConfig =
 	| {
-			type: 'grpc';
-			grpcConfigs: GrpcConfigs;
-			resubTimeoutMs?: number;
-			logResubMessages?: boolean;
-			driftClientAccountSubscriber?: new (
-				grpcConfigs: GrpcConfigs,
-				program: Program,
-				perpMarketIndexes: number[],
-				spotMarketIndexes: number[],
-				oracleInfos: OracleInfo[],
-				shouldFindAllMarketsAndOracles: boolean,
-				delistedMarketSetting: DelistedMarketSetting
-			) =>
-				| grpcDriftClientAccountSubscriberV2
-				| grpcDriftClientAccountSubscriber;
-	  }
+		type: 'grpc';
+		grpcConfigs: GrpcConfigs;
+		resubTimeoutMs?: number;
+		logResubMessages?: boolean;
+		driftClientAccountSubscriber?: new (
+			grpcConfigs: GrpcConfigs,
+			program: Program,
+			perpMarketIndexes: number[],
+			spotMarketIndexes: number[],
+			oracleInfos: OracleInfo[],
+			shouldFindAllMarketsAndOracles: boolean,
+			delistedMarketSetting: DelistedMarketSetting
+		) =>
+			| grpcDriftClientAccountSubscriberV2
+			| grpcDriftClientAccountSubscriber;
+	}
 	| {
-			type: 'websocket';
-			resubTimeoutMs?: number;
-			logResubMessages?: boolean;
-			commitment?: Commitment;
-			perpMarketAccountSubscriber?: new (
-				accountName: string,
-				program: Program,
-				accountPublicKey: PublicKey,
-				decodeBuffer?: (buffer: Buffer) => any,
-				resubOpts?: ResubOpts,
-				commitment?: Commitment
-			) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>;
-			oracleAccountSubscriber?: new (
-				accountName: string,
-				program: Program,
-				accountPublicKey: PublicKey,
-				decodeBuffer?: (buffer: Buffer) => any,
-				resubOpts?: ResubOpts,
-				commitment?: Commitment
-			) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>;
-	  }
+		type: 'websocket';
+		resubTimeoutMs?: number;
+		logResubMessages?: boolean;
+		commitment?: Commitment;
+		perpMarketAccountSubscriber?: new (
+			accountName: string,
+			program: Program,
+			accountPublicKey: PublicKey,
+			decodeBuffer?: (buffer: Buffer) => any,
+			resubOpts?: ResubOpts,
+			commitment?: Commitment
+		) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>;
+		oracleAccountSubscriber?: new (
+			accountName: string,
+			program: Program,
+			accountPublicKey: PublicKey,
+			decodeBuffer?: (buffer: Buffer) => any,
+			resubOpts?: ResubOpts,
+			commitment?: Commitment
+		) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>;
+	}
 	| {
-			type: 'polling';
-			accountLoader: BulkAccountLoader;
-	  };
+		type: 'polling';
+		accountLoader: BulkAccountLoader;
+	};
