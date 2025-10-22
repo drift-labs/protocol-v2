@@ -23,9 +23,10 @@ use crate::math::constants::{
     PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128,
     SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
 };
+use crate::math::helpers::get_proportion_u128;
 use crate::math::margin::{
-    calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
-    MarginRequirementType,
+    calc_high_leverage_mode_initial_margin_ratio_from_size, calculate_size_discount_asset_weight,
+    calculate_size_premium_liability_weight, MarginRequirementType,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::stats;
@@ -439,18 +440,19 @@ impl PerpMarket {
         user_high_leverage_mode: bool,
     ) -> DriftResult<u32> {
         if self.status == MarketStatus::Settlement {
-            return Ok(0); // no liability weight on size
+            return Ok(0);
         }
 
-        let (margin_ratio_initial, margin_ratio_maintenance) =
-            if user_high_leverage_mode && self.is_high_leverage_mode_enabled() {
-                (
-                    self.high_leverage_margin_ratio_initial.cast::<u32>()?,
-                    self.high_leverage_margin_ratio_maintenance.cast::<u32>()?,
-                )
-            } else {
-                (self.margin_ratio_initial, self.margin_ratio_maintenance)
-            };
+        let is_high_leverage_user = user_high_leverage_mode && self.is_high_leverage_mode_enabled();
+
+        let (margin_ratio_initial, margin_ratio_maintenance) = if is_high_leverage_user {
+            (
+                self.high_leverage_margin_ratio_initial.cast::<u32>()?,
+                self.high_leverage_margin_ratio_maintenance.cast::<u32>()?,
+            )
+        } else {
+            (self.margin_ratio_initial, self.margin_ratio_maintenance)
+        };
 
         let default_margin_ratio = match margin_type {
             MarginRequirementType::Initial => margin_ratio_initial,
@@ -460,14 +462,43 @@ impl PerpMarket {
             MarginRequirementType::Maintenance => margin_ratio_maintenance,
         };
 
-        let size_adj_margin_ratio = calculate_size_premium_liability_weight(
-            size,
-            self.imf_factor,
-            default_margin_ratio,
-            MARGIN_PRECISION_U128,
-        )?;
+        let margin_ratio =
+            if is_high_leverage_user && margin_type != MarginRequirementType::Maintenance {
+                // use HLM maintenance margin but ordinary mode initial/fill margin for size adj calculation
+                let pre_size_adj_margin_ratio = match margin_type {
+                    MarginRequirementType::Initial => self.margin_ratio_initial,
+                    MarginRequirementType::Fill => {
+                        self.margin_ratio_initial
+                            .safe_add(self.margin_ratio_maintenance)?
+                            / 2
+                    }
+                    MarginRequirementType::Maintenance => margin_ratio_maintenance,
+                };
 
-        let margin_ratio = default_margin_ratio.max(size_adj_margin_ratio);
+                let size_adj_margin_ratio = calculate_size_premium_liability_weight(
+                    size,
+                    self.imf_factor,
+                    pre_size_adj_margin_ratio,
+                    MARGIN_PRECISION_U128,
+                    false,
+                )?;
+
+                calc_high_leverage_mode_initial_margin_ratio_from_size(
+                    pre_size_adj_margin_ratio,
+                    size_adj_margin_ratio,
+                    default_margin_ratio,
+                )?
+            } else {
+                let size_adj_margin_ratio = calculate_size_premium_liability_weight(
+                    size,
+                    self.imf_factor,
+                    default_margin_ratio,
+                    MARGIN_PRECISION_U128,
+                    true,
+                )?;
+
+                default_margin_ratio.max(size_adj_margin_ratio)
+            };
 
         Ok(margin_ratio)
     }

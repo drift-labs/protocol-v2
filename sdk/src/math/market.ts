@@ -19,6 +19,7 @@ import {
 import {
 	calculateSizeDiscountAssetWeight,
 	calculateSizePremiumLiabilityWeight,
+	calcHighLeverageModeInitialMarginRatioFromSize,
 } from './margin';
 import { MMOraclePriceData, OraclePriceData } from '../oracles/types';
 import {
@@ -143,45 +144,74 @@ export function calculateMarketMarginRatio(
 	customMarginRatio = 0,
 	userHighLeverageMode = false
 ): number {
-	let marginRationInitial;
-	let marginRatioMaintenance;
+	if (market.status === 'Settlement') return 0;
 
-	if (
+	const isHighLeverageUser =
 		userHighLeverageMode &&
 		market.highLeverageMarginRatioInitial > 0 &&
-		market.highLeverageMarginRatioMaintenance
-	) {
-		marginRationInitial = market.highLeverageMarginRatioInitial;
-		marginRatioMaintenance = market.highLeverageMarginRatioMaintenance;
-	} else {
-		marginRationInitial = market.marginRatioInitial;
-		marginRatioMaintenance = market.marginRatioMaintenance;
+		market.highLeverageMarginRatioMaintenance > 0;
+
+	const marginRatioInitial = isHighLeverageUser
+		? market.highLeverageMarginRatioInitial
+		: market.marginRatioInitial;
+
+	const marginRatioMaintenance = isHighLeverageUser
+		? market.highLeverageMarginRatioMaintenance
+		: market.marginRatioMaintenance;
+
+	let defaultMarginRatio: number;
+	switch (marginCategory) {
+		case 'Initial':
+			defaultMarginRatio = marginRatioInitial;
+			break;
+		case 'Maintenance':
+			defaultMarginRatio = marginRatioMaintenance;
+			break;
+		default:
+			throw new Error('Invalid margin category');
 	}
 
-	let marginRatio;
-	switch (marginCategory) {
-		case 'Initial': {
-			// use lowest leverage between max allowed and optional user custom max
-			marginRatio = Math.max(
-				calculateSizePremiumLiabilityWeight(
-					size,
-					new BN(market.imfFactor),
-					new BN(marginRationInitial),
-					MARGIN_PRECISION
-				).toNumber(),
-				customMarginRatio
-			);
-			break;
+	let marginRatio: number;
+
+	if (isHighLeverageUser && marginCategory !== 'Maintenance') {
+		// Use ordinary-mode initial/fill ratios for size-adjusted calc
+		let preSizeAdjMarginRatio: number;
+		switch (marginCategory) {
+			case 'Initial':
+				preSizeAdjMarginRatio = market.marginRatioInitial;
+				break;
+			default:
+				preSizeAdjMarginRatio = marginRatioMaintenance;
+				break;
 		}
-		case 'Maintenance': {
-			marginRatio = calculateSizePremiumLiabilityWeight(
-				size,
-				new BN(market.imfFactor),
-				new BN(marginRatioMaintenance),
-				MARGIN_PRECISION
-			).toNumber();
-			break;
-		}
+
+		const sizeAdjMarginRatio = calculateSizePremiumLiabilityWeight(
+			size,
+			new BN(market.imfFactor),
+			new BN(preSizeAdjMarginRatio),
+			MARGIN_PRECISION,
+			false
+		).toNumber();
+
+		marginRatio = calcHighLeverageModeInitialMarginRatioFromSize(
+			new BN(preSizeAdjMarginRatio),
+			new BN(sizeAdjMarginRatio),
+			new BN(defaultMarginRatio)
+		).toNumber();
+	} else {
+		const sizeAdjMarginRatio = calculateSizePremiumLiabilityWeight(
+			size,
+			new BN(market.imfFactor),
+			new BN(defaultMarginRatio),
+			MARGIN_PRECISION,
+			true
+		).toNumber();
+
+		marginRatio = Math.max(defaultMarginRatio, sizeAdjMarginRatio);
+	}
+
+	if (marginCategory === 'Initial') {
+		marginRatio = Math.max(marginRatio, customMarginRatio);
 	}
 
 	return marginRatio;

@@ -10,6 +10,7 @@ import {
 	MARGIN_PRECISION,
 	PRICE_PRECISION,
 	QUOTE_PRECISION,
+	PERCENTAGE_PRECISION,
 } from '../constants/numericConstants';
 import { BN } from '@coral-xyz/anchor';
 import { OraclePriceData } from '../oracles/types';
@@ -32,7 +33,8 @@ export function calculateSizePremiumLiabilityWeight(
 	size: BN, // AMM_RESERVE_PRECISION
 	imfFactor: BN,
 	liabilityWeight: BN,
-	precision: BN
+	precision: BN,
+	isBounded = true
 ): BN {
 	if (imfFactor.eq(ZERO)) {
 		return liabilityWeight;
@@ -53,10 +55,13 @@ export function calculateSizePremiumLiabilityWeight(
 			.div(denom) // 1e5
 	);
 
-	const maxLiabilityWeight = BN.max(
-		liabilityWeight,
-		sizePremiumLiabilityWeight
-	);
+	let maxLiabilityWeight;
+	if (isBounded) {
+		maxLiabilityWeight = BN.max(liabilityWeight, sizePremiumLiabilityWeight);
+	} else {
+		maxLiabilityWeight = sizePremiumLiabilityWeight;
+	}
+
 	return maxLiabilityWeight;
 }
 
@@ -369,4 +374,38 @@ export function calculateUserMaxPerpOrderSize(
 	user.isSubscribed = true;
 
 	return user.getMaxTradeSizeUSDCForPerp(targetMarketIndex, tradeSide);
+}
+
+export function calcHighLeverageModeInitialMarginRatioFromSize(
+	preSizeAdjMarginRatio: BN,
+	sizeAdjMarginRatio: BN,
+	defaultMarginRatio: BN
+): BN {
+	let result: BN;
+
+	if (sizeAdjMarginRatio.lt(preSizeAdjMarginRatio)) {
+		const sizePctDiscountFactor = PERCENTAGE_PRECISION.sub(
+			preSizeAdjMarginRatio
+				.sub(sizeAdjMarginRatio)
+				.mul(PERCENTAGE_PRECISION)
+				.div(preSizeAdjMarginRatio.div(new BN(5)))
+		);
+
+		const hlmMarginDelta = BN.max(
+			preSizeAdjMarginRatio.sub(defaultMarginRatio),
+			new BN(1)
+		);
+
+		const hlmMarginDeltaProportion = hlmMarginDelta
+			.mul(sizePctDiscountFactor)
+			.div(PERCENTAGE_PRECISION);
+
+		result = hlmMarginDeltaProportion.add(defaultMarginRatio);
+	} else if (sizeAdjMarginRatio.eq(preSizeAdjMarginRatio)) {
+		result = defaultMarginRatio;
+	} else {
+		result = sizeAdjMarginRatio;
+	}
+
+	return result;
 }

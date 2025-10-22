@@ -1,8 +1,8 @@
 use crate::error::DriftResult;
 use crate::error::ErrorCode;
 use crate::math::constants::{
-    MARGIN_PRECISION_U128, MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN, PRICE_PRECISION,
-    SPOT_IMF_PRECISION_U128, SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_U128,
+    MARGIN_PRECISION_U128, MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN, PERCENTAGE_PRECISION,
+    PRICE_PRECISION, SPOT_IMF_PRECISION_U128, SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_U128,
 };
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 
@@ -14,9 +14,9 @@ use crate::math::casting::Cast;
 use crate::math::funding::calculate_funding_payment;
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction};
 
-use crate::math::spot_balance::{get_strict_token_value, get_token_value};
-
+use crate::math::helpers::get_proportion_u128;
 use crate::math::safe_math::SafeMath;
+use crate::math::spot_balance::{get_strict_token_value, get_token_value};
 use crate::msg;
 use crate::state::margin_calculation::{MarginCalculation, MarginContext, MarketIdentifier};
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
@@ -45,6 +45,7 @@ pub fn calculate_size_premium_liability_weight(
     imf_factor: u32,
     liability_weight: u32,
     precision: u128,
+    is_bounded: bool,
 ) -> DriftResult<u32> {
     if imf_factor == 0 {
         return Ok(liability_weight);
@@ -66,8 +67,46 @@ pub fn calculate_size_premium_liability_weight(
         )?
         .cast::<u32>()?;
 
-    let max_liability_weight = max(liability_weight, size_premium_liability_weight);
-    Ok(max_liability_weight)
+    if is_bounded {
+        let max_liability_weight = max(liability_weight, size_premium_liability_weight);
+        return Ok(max_liability_weight);
+    }
+
+    Ok(size_premium_liability_weight)
+}
+
+pub fn calc_high_leverage_mode_initial_margin_ratio_from_size(
+    pre_size_adj_margin_ratio: u32,
+    size_adj_margin_ratio: u32,
+    default_margin_ratio: u32,
+) -> DriftResult<u32> {
+    let result = if size_adj_margin_ratio < pre_size_adj_margin_ratio {
+        let size_pct_discount_factor = PERCENTAGE_PRECISION.saturating_sub(
+            (pre_size_adj_margin_ratio
+                .cast::<u128>()?
+                .safe_sub(size_adj_margin_ratio.cast::<u128>()?)?
+                .safe_mul(PERCENTAGE_PRECISION)?
+                .safe_div((pre_size_adj_margin_ratio.safe_div(5)?).cast::<u128>()?)?),
+        );
+
+        let hlm_margin_delta = pre_size_adj_margin_ratio
+            .saturating_sub(default_margin_ratio)
+            .max(1);
+
+        let hlm_margin_delta_proportion = get_proportion_u128(
+            hlm_margin_delta.cast()?,
+            size_pct_discount_factor,
+            PERCENTAGE_PRECISION,
+        )?
+        .cast::<u32>()?;
+        hlm_margin_delta_proportion.safe_add(default_margin_ratio)?
+    } else if size_adj_margin_ratio == pre_size_adj_margin_ratio {
+        default_margin_ratio
+    } else {
+        size_adj_margin_ratio
+    };
+
+    Ok(result)
 }
 
 pub fn calculate_size_discount_asset_weight(
