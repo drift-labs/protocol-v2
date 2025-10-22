@@ -45,7 +45,7 @@ pub fn calculate_size_premium_liability_weight(
     imf_factor: u32,
     liability_weight: u32,
     precision: u128,
-    is_capped: bool,
+    is_bounded: bool,
 ) -> DriftResult<u32> {
     if imf_factor == 0 {
         return Ok(liability_weight);
@@ -67,7 +67,7 @@ pub fn calculate_size_premium_liability_weight(
         )?
         .cast::<u32>()?;
 
-    if is_capped {
+    if is_bounded {
         let max_liability_weight = max(liability_weight, size_premium_liability_weight);
         return Ok(max_liability_weight);
     }

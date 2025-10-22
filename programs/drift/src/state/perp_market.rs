@@ -506,14 +506,14 @@ impl PerpMarket {
                 MarginRequirementType::Maintenance => margin_ratio_maintenance,
             };
 
-            let cap_size_premium = margin_type == MarginRequirementType::Maintenance;
+            let bound_liability_weight = margin_type == MarginRequirementType::Maintenance;
 
             let size_adj_margin_ratio = calculate_size_premium_liability_weight(
                 size,
                 self.imf_factor,
                 pre_size_adj_margin_ratio,
                 MARGIN_PRECISION_U128,
-                cap_size_premium,
+                bound_liability_weight,
             )?;
 
             _calc_high_leverage_mode_initial_margin_ratio_from_size(
