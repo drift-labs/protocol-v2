@@ -1324,14 +1324,7 @@ mod swap_tests {
                 let mut prev_in_fee_bps = 0_i128;
                 let mut prev_out_fee_bps = 0_i128;
                 for in_amount in in_amounts.iter() {
-                    let (
-                        in_amount_result,
-                        out_amount,
-                        in_fee,
-                        out_fee,
-                        in_token_amount_pre,
-                        out_token_amount_pre,
-                    ) = get_swap_amounts(
+                    let (in_amount_result, out_amount, in_fee, out_fee, _, _) = get_swap_amounts(
                         0,
                         0,
                         0,

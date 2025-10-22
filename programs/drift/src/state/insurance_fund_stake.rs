@@ -1,12 +1,13 @@
 use crate::error::DriftResult;
 use crate::error::ErrorCode;
+use crate::math::constants::EPOCH_DURATION;
 use crate::math::safe_math::SafeMath;
+use crate::math_error;
 use crate::safe_decrement;
 use crate::safe_increment;
 use crate::state::spot_market::SpotMarket;
 use crate::state::traits::Size;
 use crate::validate;
-use crate::{math_error, EPOCH_DURATION};
 use anchor_lang::prelude::*;
 
 #[cfg(test)]

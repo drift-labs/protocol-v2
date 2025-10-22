@@ -2649,9 +2649,7 @@ pub mod meets_withdraw_margin_requirement_and_increment_fuel_bonus {
 }
 
 mod update_open_bids_and_asks {
-    use crate::state::user::{
-        Order, OrderBitFlag, OrderTriggerCondition, OrderType, PositionDirection,
-    };
+    use crate::state::user::{Order, OrderBitFlag, OrderTriggerCondition, OrderType};
 
     #[test]
     fn test_regular_limit_order() {

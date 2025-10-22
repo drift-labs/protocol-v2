@@ -12,9 +12,7 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::amm::{self};
 use crate::math::casting::Cast;
 #[cfg(test)]
-use crate::math::constants::{
-    AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION_I64,
-};
+use crate::math::constants::{AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT};
 use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
     BID_ASK_SPREAD_PRECISION_U128, DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
@@ -24,7 +22,6 @@ use crate::math::constants::{
     PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128,
     SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
 };
-use crate::math::helpers::get_proportion_u128;
 use crate::math::margin::{
     calc_high_leverage_mode_initial_margin_ratio_from_size, calculate_size_discount_asset_weight,
     calculate_size_premium_liability_weight, MarginRequirementType,

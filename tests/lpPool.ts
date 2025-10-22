@@ -614,7 +614,8 @@ describe('LP Pool', () => {
 			});
 			expect.fail('should have failed');
 		} catch (e) {
-			assert(e.message.includes('0x18bf')); // LpPoolAumDelayed
+			console.log(e.message);
+			assert(e.message.includes('0x18bd')); // LpPoolAumDelayed
 		}
 	});
 
@@ -640,7 +641,7 @@ describe('LP Pool', () => {
 			await adminClient.sendTransaction(tx);
 		} catch (e) {
 			console.log(e.message);
-			assert(e.message.includes('0x18c8')); // InvalidConstituentOperation
+			assert(e.message.includes('0x18c5')); // InvalidConstituentOperation
 		}
 		await adminClient.updateConstituentPausedOperations(
 			getConstituentPublicKey(program.programId, lpPoolKey, 0),
@@ -699,7 +700,8 @@ describe('LP Pool', () => {
 			await adminClient.updateLpPoolAum(lpPool, [0]);
 			expect.fail('should have failed');
 		} catch (e) {
-			assert(e.message.includes('0x18bb')); // WrongNumberOfConstituents
+			console.log(e.message);
+			assert(e.message.includes('0x18ba')); // WrongNumberOfConstituents
 		}
 	});
 
@@ -1584,7 +1586,7 @@ describe('LP Pool', () => {
 			);
 		} catch (e) {
 			console.log(e);
-			assert(e.toString().includes('0x18c1')); // invariant failed
+			assert(e.toString().includes('0x18bf')); // invariant failed
 		}
 	});
 
@@ -1595,7 +1597,8 @@ describe('LP Pool', () => {
 			await adminClient.settlePerpToLpPool(encodeName(lpPoolName), [0, 1, 2]);
 			assert(false, 'Should have thrown');
 		} catch (e) {
-			assert(e.message.includes('0x18c5')); // SettleLpPoolDisabled
+			console.log(e.message);
+			assert(e.message.includes('0x18c2')); // SettleLpPoolDisabled
 		}
 
 		await adminClient.updateFeatureBitFlagsSettleLpPool(true);

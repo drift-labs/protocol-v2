@@ -1,5 +1,6 @@
 use solana_program::msg;
 
+use crate::math::constants::{LIQUIDATION_PCT_PRECISION, QUOTE_SPOT_MARKET_INDEX};
 use crate::{
     controller::{
         spot_balance::update_spot_balances,
@@ -13,7 +14,7 @@ use crate::{
         safe_unwrap::SafeUnwrap,
     },
     state::margin_calculation::MarginCalculation,
-    validate, LIQUIDATION_PCT_PRECISION, QUOTE_SPOT_MARKET_INDEX,
+    validate,
 };
 
 use super::{

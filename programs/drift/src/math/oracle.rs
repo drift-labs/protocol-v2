@@ -82,8 +82,15 @@ impl TryFrom<u8> for OracleValidity {
             2 => Ok(OracleValidity::TooUncertain),
             3 => Ok(OracleValidity::StaleForMargin),
             4 => Ok(OracleValidity::InsufficientDataPoints),
-            5 => Ok(OracleValidity::StaleForAMM),
-            6 => Ok(OracleValidity::Valid),
+            5 => Ok(OracleValidity::StaleForAMM {
+                immediate: true,
+                low_risk: true,
+            }),
+            6 => Ok(OracleValidity::StaleForAMM {
+                immediate: true,
+                low_risk: false,
+            }),
+            7 => Ok(OracleValidity::Valid),
             _ => panic!("Invalid OracleValidity"),
         }
     }
@@ -97,8 +104,23 @@ impl From<OracleValidity> for u8 {
             OracleValidity::TooUncertain => 2,
             OracleValidity::StaleForMargin => 3,
             OracleValidity::InsufficientDataPoints => 4,
-            OracleValidity::StaleForAMM => 5,
-            OracleValidity::Valid => 6,
+            OracleValidity::StaleForAMM {
+                immediate: true,
+                low_risk: true,
+            } => 5,
+            OracleValidity::StaleForAMM {
+                immediate: true,
+                low_risk: false,
+            } => 6,
+            OracleValidity::Valid
+            | OracleValidity::StaleForAMM {
+                immediate: false,
+                low_risk: false,
+            } => 7,
+            OracleValidity::StaleForAMM {
+                immediate: false,
+                low_risk: true,
+            } => unreachable!(),
         }
     }
 }

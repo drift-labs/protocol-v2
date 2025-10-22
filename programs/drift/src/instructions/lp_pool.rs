@@ -335,6 +335,7 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         in_spot_market.historical_oracle_data.last_oracle_price_twap,
         in_spot_market.get_max_confidence_interval_multiplier()?,
         0,
+        0,
     )?;
     let in_oracle = in_oracle.clone();
 
@@ -346,6 +347,7 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
             .historical_oracle_data
             .last_oracle_price_twap,
         out_spot_market.get_max_confidence_interval_multiplier()?,
+        0,
         0,
     )?;
 
@@ -556,6 +558,7 @@ pub fn handle_view_lp_pool_swap_fees<'c: 'info, 'info>(
         in_spot_market.historical_oracle_data.last_oracle_price_twap,
         in_spot_market.get_max_confidence_interval_multiplier()?,
         0,
+        0,
     )?;
     let in_oracle = in_oracle.clone();
 
@@ -567,6 +570,7 @@ pub fn handle_view_lp_pool_swap_fees<'c: 'info, 'info>(
             .historical_oracle_data
             .last_oracle_price_twap,
         out_spot_market.get_max_confidence_interval_multiplier()?,
+        0,
         0,
     )?;
 
@@ -693,6 +697,7 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
         &in_oracle_id,
         in_spot_market.historical_oracle_data.last_oracle_price_twap,
         in_spot_market.get_max_confidence_interval_multiplier()?,
+        0,
         0,
     )?;
     let in_oracle = in_oracle.clone();
@@ -912,6 +917,7 @@ pub fn handle_view_lp_pool_add_liquidity_fees<'c: 'info, 'info>(
         in_spot_market.historical_oracle_data.last_oracle_price_twap,
         in_spot_market.get_max_confidence_interval_multiplier()?,
         0,
+        0,
     )?;
     let in_oracle = in_oracle.clone();
 
@@ -1057,6 +1063,7 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
             .historical_oracle_data
             .last_oracle_price_twap,
         out_spot_market.get_max_confidence_interval_multiplier()?,
+        0,
         0,
     )?;
     let out_oracle = *out_oracle;
@@ -1312,6 +1319,7 @@ pub fn handle_view_lp_pool_remove_liquidity_fees<'c: 'info, 'info>(
             .last_oracle_price_twap,
         out_spot_market.get_max_confidence_interval_multiplier()?,
         0,
+        0,
     )?;
     let out_oracle = out_oracle.clone();
 
@@ -1536,7 +1544,6 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
     }
 
     let oracle_data = oracle_map.get_price_data(&oracle_id)?;
-    let oracle_data_slot = clock.slot - oracle_data.delay.max(0i64).cast::<u64>()?;
 
     controller::spot_balance::update_spot_market_cumulative_interest(
         &mut spot_market,

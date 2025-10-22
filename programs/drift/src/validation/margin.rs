@@ -1,10 +1,10 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::constants::{
-    LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, MAX_MARGIN_RATIO, MIN_MARGIN_RATIO,
-    SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION,
+    HIGH_LEVERAGE_MIN_MARGIN_RATIO, LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO, MAX_MARGIN_RATIO,
+    MIN_MARGIN_RATIO, SPOT_IMF_PRECISION, SPOT_WEIGHT_PRECISION,
 };
 use crate::msg;
-use crate::{validate, HIGH_LEVERAGE_MIN_MARGIN_RATIO};
+use crate::validate;
 
 pub fn validate_margin(
     margin_ratio_initial: u32,

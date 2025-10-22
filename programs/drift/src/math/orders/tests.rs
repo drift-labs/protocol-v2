@@ -1956,7 +1956,7 @@ mod calculate_max_perp_order_size {
     use crate::state::perp_market_map::PerpMarketMap;
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
-    use crate::state::user::{MarginMode, Order, PerpPosition, SpotPosition, User, UserStatus};
+    use crate::state::user::{MarginMode, Order, PerpPosition, SpotPosition, User};
     use crate::test_utils::get_pyth_price;
     use crate::test_utils::*;
     use crate::{
@@ -3243,7 +3243,7 @@ mod calculate_max_perp_order_size {
             scaled_balance: 10000 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
-        let mut user = User {
+        let user = User {
             orders: [Order::default(); 32],
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
@@ -3273,7 +3273,7 @@ mod calculate_max_perp_order_size {
             scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
             ..SpotPosition::default()
         };
-        let mut user = User {
+        let user = User {
             orders: [Order::default(); 32],
             perp_positions: get_positions(PerpPosition {
                 market_index: 0,
@@ -3533,7 +3533,7 @@ mod calculate_max_perp_order_size {
             &lazer_program,
         );
 
-        let mut account_infos = vec![
+        let account_infos = vec![
             usdc_oracle_info,
             sol_oracle_info,
             eth_oracle_info,

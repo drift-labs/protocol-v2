@@ -1,14 +1,10 @@
 use crate::controller::amm::update_spreads;
 use crate::controller::position::PositionDirection;
-use crate::math::amm::calculate_bid_ask_bounds;
-use crate::math::constants::BASE_PRECISION;
-use crate::math::constants::CONCENTRATION_PRECISION;
 use crate::math::constants::{
-    BASE_PRECISION_U64, MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE, QUOTE_PRECISION_I64,
+    MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE, QUOTE_PRECISION_I64,
 };
 use crate::math::cp_curve::*;
 use crate::state::perp_market::AMM;
-use crate::state::user::PerpPosition;
 
 #[test]
 fn k_update_results_bound_flag() {
@@ -330,10 +326,6 @@ fn amm_spread_adj_logic() {
     };
     // let (t_price, _t_qar, _t_bar) = calculate_terminal_price_and_reserves(&market.amm).unwrap();
     // market.amm.terminal_quote_asset_reserve = _t_qar;
-
-    let mut position = PerpPosition {
-        ..PerpPosition::default()
-    };
 
     // todo fix this
 

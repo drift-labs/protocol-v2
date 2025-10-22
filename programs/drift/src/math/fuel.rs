@@ -1,9 +1,9 @@
 use crate::error::DriftResult;
 use crate::math::casting::Cast;
+use crate::math::constants::{FUEL_WINDOW_U128, QUOTE_PRECISION, QUOTE_PRECISION_U64};
 use crate::math::safe_math::SafeMath;
 use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::SpotMarket;
-use crate::{FUEL_WINDOW_U128, QUOTE_PRECISION, QUOTE_PRECISION_U64};
 
 #[cfg(test)]
 mod tests;

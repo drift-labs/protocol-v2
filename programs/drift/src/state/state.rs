@@ -3,12 +3,12 @@ use enumflags2::BitFlags;
 
 use crate::error::DriftResult;
 use crate::math::constants::{
-    FEE_DENOMINATOR, FEE_PERCENTAGE_DENOMINATOR, MAX_REFERRER_REWARD_EPOCH_UPPER_BOUND,
+    FEE_DENOMINATOR, FEE_PERCENTAGE_DENOMINATOR, LAMPORTS_PER_SOL_U64,
+    MAX_REFERRER_REWARD_EPOCH_UPPER_BOUND, PERCENTAGE_PRECISION_U64,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::traits::Size;
-use crate::{LAMPORTS_PER_SOL_U64, PERCENTAGE_PRECISION_U64};
 
 #[cfg(test)]
 mod tests;

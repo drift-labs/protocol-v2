@@ -460,7 +460,7 @@ mod amm_can_fill_order_tests {
         market.paused_operations = PerpOperation::AmmFill as u8;
         let order = base_order();
         let state = base_state();
-        let (mm, guard) = mm_oracle_ok_and_as_recent();
+        let (mm, _) = mm_oracle_ok_and_as_recent();
 
         let can = market
             .amm_can_fill_order(
