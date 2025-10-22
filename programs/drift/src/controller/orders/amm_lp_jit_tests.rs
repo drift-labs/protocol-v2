@@ -33,12 +33,9 @@ pub mod amm_lp_jit {
     use crate::controller::position::PositionDirection;
     use crate::create_account_info;
     use crate::create_anchor_account_info;
-    use crate::math::constants::{
-        PERCENTAGE_PRECISION_I128, PRICE_PRECISION_I64, QUOTE_PRECISION_I64,
-    };
+    use crate::math::constants::{PRICE_PRECISION_I64, QUOTE_PRECISION_I64};
 
     use crate::math::amm_jit::calculate_amm_jit_liquidity;
-    use crate::math::amm_spread::calculate_inventory_liquidity_ratio;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64,
         PEG_PRECISION, PRICE_PRECISION, SPOT_BALANCE_PRECISION_U64,
@@ -55,7 +52,6 @@ pub mod amm_lp_jit {
     use crate::state::user_map::{UserMap, UserStatsMap};
     use crate::test_utils::*;
     use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
-    use crate::validation::perp_market::validate_perp_market;
 
     use super::*;
 

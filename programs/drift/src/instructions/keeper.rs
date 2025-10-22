@@ -4,7 +4,6 @@ use std::convert::TryFrom;
 use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
 use anchor_spl::associated_token::get_associated_token_address_with_program_id;
-use anchor_spl::token_interface::Mint;
 use anchor_spl::token_interface::{TokenAccount, TokenInterface};
 use solana_program::instruction::Instruction;
 use solana_program::pubkey;
@@ -31,8 +30,11 @@ use crate::ids::{
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::get_revenue_share_escrow_account;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
+use crate::load_mut;
 use crate::math::casting::Cast;
-use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
+use crate::math::constants::{
+    GOV_SPOT_MARKET_INDEX, QUOTE_PRECISION_I128, QUOTE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX,
+};
 use crate::math::lp_pool::perp_lp_pool_settlement;
 use crate::math::margin::get_margin_calculation_for_disable_high_leverage_mode;
 use crate::math::margin::{calculate_user_equity, meets_settle_pnl_maintenance_margin_requirement};
@@ -87,14 +89,11 @@ use crate::state::user::{
 use crate::state::user_map::{load_user_map, load_user_maps, UserMap, UserStatsMap};
 use crate::state::zero_copy::AccountZeroCopyMut;
 use crate::state::zero_copy::ZeroCopyLoader;
+use crate::validate;
 use crate::validation::sig_verification::verify_and_decode_ed25519_msg;
 use crate::validation::user::{validate_user_deletion, validate_user_is_idle};
-use crate::{
-    controller, load, math, print_error, safe_decrement, OracleSource, GOV_SPOT_MARKET_INDEX,
-};
-use crate::{load_mut, QUOTE_PRECISION_U64};
+use crate::{controller, load, math, print_error, safe_decrement, OracleSource};
 use crate::{math_error, ID};
-use crate::{validate, QUOTE_PRECISION_I128};
 use anchor_spl::associated_token::AssociatedToken;
 
 use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_liability_info;

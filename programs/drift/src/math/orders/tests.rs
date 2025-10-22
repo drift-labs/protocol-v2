@@ -3348,7 +3348,7 @@ mod calculate_max_perp_order_size {
             &lazer_program,
         );
 
-        let mut account_infos = vec![
+        let account_infos = vec![
             usdc_oracle_info,
             sol_oracle_info,
             eth_oracle_info,

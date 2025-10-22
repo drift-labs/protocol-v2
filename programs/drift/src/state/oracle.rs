@@ -1,5 +1,4 @@
 use anchor_lang::prelude::*;
-use bytemuck::{Pod, Zeroable};
 use std::cell::Ref;
 use std::convert::TryFrom;
 

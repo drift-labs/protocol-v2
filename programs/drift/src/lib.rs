@@ -6,7 +6,6 @@ use anchor_lang::prelude::*;
 
 use instructions::*;
 #[cfg(test)]
-use math::amm;
 use math::{bn, constants::*};
 use state::oracle::OracleSource;
 
@@ -2154,8 +2153,8 @@ pub mod drift {
 
     pub fn end_lp_swap<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, LPTakerSwap<'info>>,
-        in_market_index: u16,
-        out_market_index: u16,
+        _in_market_index: u16,
+        _out_market_index: u16,
     ) -> Result<()> {
         handle_end_lp_swap(ctx)
     }

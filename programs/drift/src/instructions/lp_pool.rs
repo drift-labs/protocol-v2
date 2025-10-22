@@ -1536,7 +1536,6 @@ pub fn handle_withdraw_from_program_vault<'c: 'info, 'info>(
     }
 
     let oracle_data = oracle_map.get_price_data(&oracle_id)?;
-    let oracle_data_slot = clock.slot - oracle_data.delay.max(0i64).cast::<u64>()?;
 
     controller::spot_balance::update_spot_market_cumulative_interest(
         &mut spot_market,

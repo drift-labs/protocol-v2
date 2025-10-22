@@ -6,9 +6,9 @@ use crate::math::constants::{
 };
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 
-use crate::MARGIN_PRECISION;
-use crate::{validate, PRICE_PRECISION_I128};
-use crate::{validation, PRICE_PRECISION_I64};
+use crate::math::constants::{MARGIN_PRECISION, PRICE_PRECISION_I128, PRICE_PRECISION_I64};
+use crate::validate;
+use crate::validation;
 
 use crate::math::casting::Cast;
 use crate::math::funding::calculate_funding_payment;

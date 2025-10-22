@@ -1,7 +1,7 @@
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
-use crate::math::constants::AUCTION_DERIVE_PRICE_FRACTION;
+use crate::math::constants::{AUCTION_DERIVE_PRICE_FRACTION, MAX_PREDICTION_MARKET_PRICE};
 use crate::math::orders::standardize_price;
 use crate::math::safe_math::SafeMath;
 use crate::msg;
@@ -11,7 +11,7 @@ use crate::state::user::{Order, OrderBitFlag, OrderType};
 
 use crate::state::fill_mode::FillMode;
 use crate::state::perp_market::{AMMAvailability, PerpMarket};
-use crate::{OrderParams, MAX_PREDICTION_MARKET_PRICE};
+use crate::OrderParams;
 use std::cmp::min;
 
 use super::orders::get_posted_slot_from_clock_slot;

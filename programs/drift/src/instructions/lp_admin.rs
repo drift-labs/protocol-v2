@@ -596,7 +596,6 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
     amount_in: u64,
 ) -> Result<()> {
     // Check admin
-    let state = &ctx.accounts.state;
     let admin = &ctx.accounts.admin;
     #[cfg(feature = "anchor-test")]
     validate!(
