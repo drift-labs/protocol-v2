@@ -1,12 +1,10 @@
 use crate::controller::position::PositionDirection;
 use crate::error::DriftResult;
-use crate::math::auction::can_fill_with_amm;
 use crate::math::casting::Cast;
 use crate::math::matching::do_orders_cross;
 use crate::math::safe_unwrap::SafeUnwrap;
-use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
-use crate::state::perp_market::{AMMAvailability, AMM};
+use crate::state::perp_market::AMM;
 use crate::state::user::Order;
 use solana_program::pubkey::Pubkey;
 
@@ -18,37 +16,20 @@ pub fn determine_perp_fulfillment_methods(
     maker_orders_info: &[(Pubkey, usize, u64)],
     amm: &AMM,
     amm_reserve_price: u64,
-    valid_oracle_price: Option<i64>,
     limit_price: Option<u64>,
-    amm_availability: AMMAvailability,
-    slot: u64,
-    min_auction_duration: u8,
-    fill_mode: FillMode,
+    amm_is_available: bool,
 ) -> DriftResult<Vec<PerpFulfillmentMethod>> {
     if order.post_only {
         return determine_perp_fulfillment_methods_for_maker(
             order,
             amm,
             amm_reserve_price,
-            valid_oracle_price,
             limit_price,
-            amm_availability,
-            slot,
-            min_auction_duration,
-            fill_mode,
+            amm_is_available,
         );
     }
 
     let mut fulfillment_methods = Vec::with_capacity(8);
-
-    let can_fill_with_amm = can_fill_with_amm(
-        amm_availability,
-        valid_oracle_price,
-        order,
-        min_auction_duration,
-        slot,
-        fill_mode,
-    )?;
 
     let maker_direction = order.direction.opposite();
 
@@ -67,7 +48,7 @@ pub fn determine_perp_fulfillment_methods(
             break;
         }
 
-        if can_fill_with_amm {
+        if amm_is_available {
             let maker_better_than_amm = match order.direction {
                 PositionDirection::Long => *maker_price <= amm_price,
                 PositionDirection::Short => *maker_price >= amm_price,
@@ -90,7 +71,7 @@ pub fn determine_perp_fulfillment_methods(
         }
     }
 
-    if can_fill_with_amm {
+    if amm_is_available {
         let taker_crosses_amm = match limit_price {
             Some(taker_price) => do_orders_cross(maker_direction, amm_price, taker_price),
             None => true,
@@ -108,25 +89,12 @@ fn determine_perp_fulfillment_methods_for_maker(
     order: &Order,
     amm: &AMM,
     amm_reserve_price: u64,
-    valid_oracle_price: Option<i64>,
     limit_price: Option<u64>,
-    amm_availability: AMMAvailability,
-    slot: u64,
-    min_auction_duration: u8,
-    fill_mode: FillMode,
+    amm_is_available: bool,
 ) -> DriftResult<Vec<PerpFulfillmentMethod>> {
     let maker_direction = order.direction;
 
-    let can_fill_with_amm = can_fill_with_amm(
-        amm_availability,
-        valid_oracle_price,
-        order,
-        min_auction_duration,
-        slot,
-        fill_mode,
-    )?;
-
-    if !can_fill_with_amm {
+    if !amm_is_available {
         return Ok(vec![]);
     }
 

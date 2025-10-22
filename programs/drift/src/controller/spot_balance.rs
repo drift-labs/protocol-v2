@@ -412,6 +412,7 @@ pub fn update_spot_market_and_check_validity(
         &spot_market.oracle_source,
         LogMode::ExchangeOracle,
         0,
+        0,
     )?;
 
     validate!(

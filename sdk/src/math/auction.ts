@@ -1,4 +1,12 @@
-import { isOneOfVariant, isVariant, Order, PositionDirection } from '../types';
+import {
+	isOneOfVariant,
+	isVariant,
+	OracleValidity,
+	Order,
+	PerpOperation,
+	PositionDirection,
+	StateAccount,
+} from '../types';
 import { BN } from '@coral-xyz/anchor';
 import {
 	ONE,
@@ -8,6 +16,10 @@ import {
 } from '../constants/numericConstants';
 import { getVariant, OrderBitFlag, PerpMarketAccount } from '../types';
 import { getPerpMarketTierNumber } from './tiers';
+import { MMOraclePriceData } from '../oracles/types';
+import { isLowRiskForAmm } from './orders';
+import { getOracleValidity } from './oracles';
+import { isOperationPaused } from './exchangeStatus';
 
 export function isAuctionComplete(order: Order, slot: number): boolean {
 	if (order.auctionDuration === 0) {
@@ -19,18 +31,49 @@ export function isAuctionComplete(order: Order, slot: number): boolean {
 
 export function isFallbackAvailableLiquiditySource(
 	order: Order,
-	minAuctionDuration: number,
-	slot: number
+	mmOraclePriceData: MMOraclePriceData,
+	slot: number,
+	state: StateAccount,
+	market: PerpMarketAccount,
+	isLiquidation?: boolean
 ): boolean {
-	if (minAuctionDuration === 0) {
+	if (isOperationPaused(market.pausedOperations, PerpOperation.AMM_FILL)) {
+		return false;
+	}
+
+	// TODO: include too much drawdown check & mm oracle volatility
+
+	const oracleValidity = getOracleValidity(
+		market!,
+		{
+			price: mmOraclePriceData.price,
+			slot: mmOraclePriceData.slot,
+			confidence: mmOraclePriceData.confidence,
+			hasSufficientNumberOfDataPoints:
+				mmOraclePriceData.hasSufficientNumberOfDataPoints,
+		},
+		state.oracleGuardRails,
+		new BN(slot)
+	);
+	if (oracleValidity <= OracleValidity.StaleForAMMLowRisk) {
+		return false;
+	}
+
+	if (oracleValidity == OracleValidity.Valid) {
 		return true;
 	}
 
-	if ((order.bitFlags & OrderBitFlag.SafeTriggerOrder) !== 0) {
+	const isOrderLowRiskForAmm = isLowRiskForAmm(
+		order,
+		mmOraclePriceData,
+		isLiquidation
+	);
+
+	if (!isOrderLowRiskForAmm) {
+		return false;
+	} else {
 		return true;
 	}
-
-	return new BN(slot).sub(order.slot).gt(new BN(minAuctionDuration));
 }
 
 /**

@@ -5,7 +5,7 @@ use crate::math::constants::ONE_BPS_DENOMINATOR;
 use crate::math::margin::MarginRequirementType;
 use crate::state::margin_calculation::{MarginCalculation, MarginContext};
 use crate::state::oracle_map::OracleMap;
-use crate::state::state::{FeeStructure, FeeTier};
+use crate::state::state::{FeeStructure, FeeTier, State};
 use crate::state::user::{Order, PerpPosition};
 
 fn get_fee_structure() -> FeeStructure {
@@ -25,6 +25,53 @@ fn get_fee_structure() -> FeeStructure {
 
 fn get_user_keys() -> (Pubkey, Pubkey, Pubkey) {
     (Pubkey::default(), Pubkey::default(), Pubkey::default())
+}
+
+fn get_state(min_auction_duration: u8) -> State {
+    State {
+        min_perp_auction_duration: min_auction_duration,
+        ..State::default()
+    }
+}
+
+pub fn get_amm_is_available(
+    order: &Order,
+    min_auction_duration: u8,
+    market: &crate::state::perp_market::PerpMarket,
+    oracle_map: &mut OracleMap,
+    slot: u64,
+    user_can_skip_auction_duration: bool,
+) -> bool {
+    let state = get_state(min_auction_duration);
+    let oracle_price_data = oracle_map.get_price_data(&market.oracle_id()).unwrap();
+    let mm_oracle_price_data = market
+        .get_mm_oracle_price_data(*oracle_price_data, slot, &state.oracle_guard_rails.validity)
+        .unwrap();
+    let safe_oracle_price_data = mm_oracle_price_data.get_safe_oracle_price_data();
+    let safe_oracle_validity = crate::math::oracle::oracle_validity(
+        crate::state::user::MarketType::Perp,
+        market.market_index,
+        market.amm.historical_oracle_data.last_oracle_price_twap,
+        &safe_oracle_price_data,
+        &state.oracle_guard_rails.validity,
+        market.get_max_confidence_interval_multiplier().unwrap(),
+        &market.amm.oracle_source,
+        crate::math::oracle::LogMode::SafeMMOracle,
+        market.amm.oracle_slot_delay_override,
+        market.amm.oracle_low_risk_slot_delay_override,
+    )
+    .unwrap();
+    market
+        .amm_can_fill_order(
+            order,
+            slot,
+            crate::state::fill_mode::FillMode::Fill,
+            &state,
+            safe_oracle_validity,
+            user_can_skip_auction_duration,
+            &mm_oracle_price_data,
+        )
+        .unwrap()
 }
 
 #[cfg(test)]
@@ -221,9 +268,21 @@ pub mod fuel_scoring {
         assert_eq!(maker_stats.fuel_deposits, 0);
         assert_eq!(taker_stats.fuel_deposits, 0);
 
+        let order_index = 0;
+        let min_auction_duration = 0;
+        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let is_amm_available = get_amm_is_available(
+            &taker.orders[order_index],
+            min_auction_duration,
+            &market,
+            &mut oracle_map,
+            slot,
+            user_can_skip_auction_duration,
+        );
+
         let (ba, qa) = fulfill_perp_order(
             &mut taker,
-            0,
+            order_index,
             &taker_key,
             &mut taker_stats,
             &makers_and_referrers,
@@ -241,8 +300,7 @@ pub mod fuel_scoring {
             Some(market.amm.historical_oracle_data.last_oracle_price),
             now,
             slot,
-            0,
-            crate::state::perp_market::AMMAvailability::AfterMinDuration,
+            is_amm_available,
             FillMode::Fill,
             false,
             &mut None,
