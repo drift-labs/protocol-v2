@@ -62,7 +62,7 @@ use crate::state::order_params::{
     ModifyOrderParams, OrderParams, PlaceOrderOptions, PostOnlyParam,
 };
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
-use crate::state::perp_market::{AMMAvailability, MarketStatus, PerpMarket};
+use crate::state::perp_market::{MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::protected_maker_mode_config::ProtectedMakerParams;
 use crate::state::spot_fulfillment_params::{ExternalSpotFill, SpotFulfillmentParams};
@@ -88,10 +88,6 @@ mod tests;
 
 #[cfg(test)]
 mod amm_jit_tests;
-
-#[cfg(test)]
-mod amm_lp_jit_tests;
-
 #[cfg(test)]
 mod fuel_tests;
 
@@ -998,13 +994,8 @@ pub fn fill_perp_order(
         .position(|order| order.order_id == order_id && order.status == OrderStatus::Open)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
 
-    let (order_status, market_index, order_market_type, order_direction) = get_struct_values!(
-        user.orders[order_index],
-        status,
-        market_index,
-        market_type,
-        direction
-    );
+    let (order_status, market_index, order_market_type) =
+        get_struct_values!(user.orders[order_index], status, market_index, market_type);
 
     validate!(
         order_market_type == MarketType::Perp,
@@ -1070,14 +1061,9 @@ pub fn fill_perp_order(
     let safe_oracle_validity: OracleValidity;
     let oracle_price: i64;
     let oracle_twap_5min: i64;
-    let perp_market_index: u16;
     let user_can_skip_duration: bool;
-    let amm_can_skip_duration: bool;
-    let amm_has_low_enough_inventory: bool;
-    let oracle_valid_for_amm_fill: bool;
     let oracle_stale_for_margin: bool;
-    let min_auction_duration: u8;
-    let mut amm_is_available = !state.amm_paused()?;
+    let mut amm_is_available: bool = !state.amm_paused()?;
     {
         let market = &mut perp_market_map.get_ref_mut(&market_index)?;
         validation::perp_market::validate_perp_market(market)?;
@@ -1104,10 +1090,19 @@ pub fn fill_perp_order(
             &market.amm.oracle_source,
             oracle::LogMode::SafeMMOracle,
             market.amm.oracle_slot_delay_override,
+            market.amm.oracle_low_risk_slot_delay_override,
         )?;
 
-        oracle_valid_for_amm_fill =
-            is_oracle_valid_for_action(safe_oracle_validity, Some(DriftAction::FillOrderAmm))?;
+        user_can_skip_duration = user.can_skip_auction_duration(user_stats)?;
+        amm_is_available &= market.amm_can_fill_order(
+            &user.orders[order_index],
+            slot,
+            fill_mode,
+            state,
+            safe_oracle_validity,
+            user_can_skip_duration,
+            &mm_oracle_price_data,
+        )?;
 
         oracle_stale_for_margin = mm_oracle_price_data.get_delay()
             > state
@@ -1115,40 +1110,12 @@ pub fn fill_perp_order(
                 .validity
                 .slots_before_stale_for_margin;
 
-        amm_is_available &= oracle_valid_for_amm_fill;
-        amm_is_available &= !market.is_operation_paused(PerpOperation::AmmFill);
-        amm_is_available &= !market.has_too_much_drawdown()?;
-
-        // We are already using safe oracle data from MM oracle.
-        // But AMM isnt available if we could have used MM oracle but fell back due to price diff
-        let amm_available_mm_oracle_recent_but_volatile =
-            if mm_oracle_price_data.is_enabled() && mm_oracle_price_data.is_mm_oracle_as_recent() {
-                let amm_available = !mm_oracle_price_data.is_mm_exchange_diff_bps_high();
-                amm_available
-            } else {
-                true
-            };
-        amm_is_available &= amm_available_mm_oracle_recent_but_volatile;
-
-        let amm_wants_to_jit_make = market.amm.amm_wants_to_jit_make(order_direction)?;
-        amm_has_low_enough_inventory = market
-            .amm
-            .amm_has_low_enough_inventory(amm_wants_to_jit_make)?;
-        amm_can_skip_duration =
-            market.can_skip_auction_duration(&state, amm_has_low_enough_inventory)?;
-
-        user_can_skip_duration = user.can_skip_auction_duration(user_stats)?;
-
         reserve_price_before = market.amm.reserve_price()?;
         oracle_price = mm_oracle_price_data.get_price();
         oracle_twap_5min = market
             .amm
             .historical_oracle_data
             .last_oracle_price_twap_5min;
-        perp_market_index = market.market_index;
-
-        min_auction_duration =
-            market.get_min_perp_auction_duration(state.min_perp_auction_duration);
     }
 
     // allow oracle price to be used to calculate limit price if it's valid or stale for amm
@@ -1156,7 +1123,7 @@ pub fn fill_perp_order(
         if is_oracle_valid_for_action(safe_oracle_validity, Some(DriftAction::OracleOrderPrice))? {
             Some(oracle_price)
         } else {
-            msg!("Perp market = {} oracle deemed invalid", perp_market_index);
+            msg!("Perp market = {} oracle deemed invalid", market_index);
             None
         };
 
@@ -1285,16 +1252,6 @@ pub fn fill_perp_order(
         return Ok((0, 0));
     }
 
-    let amm_availability = if amm_is_available {
-        if amm_can_skip_duration && user_can_skip_duration {
-            AMMAvailability::Immediate
-        } else {
-            AMMAvailability::AfterMinDuration
-        }
-    } else {
-        AMMAvailability::Unavailable
-    };
-
     let (base_asset_amount, quote_asset_amount) = fulfill_perp_order(
         user,
         order_index,
@@ -1315,8 +1272,7 @@ pub fn fill_perp_order(
         valid_oracle_price,
         now,
         slot,
-        min_auction_duration,
-        amm_availability,
+        amm_is_available,
         fill_mode,
         oracle_stale_for_margin,
         rev_share_escrow,
@@ -1782,8 +1738,7 @@ fn fulfill_perp_order(
     valid_oracle_price: Option<i64>,
     now: i64,
     slot: u64,
-    min_auction_duration: u8,
-    amm_availability: AMMAvailability,
+    amm_is_available: bool,
     fill_mode: FillMode,
     oracle_stale_for_margin: bool,
     rev_share_escrow: &mut Option<&mut RevenueShareEscrowZeroCopyMut>,
@@ -1807,19 +1762,13 @@ fn fulfill_perp_order(
 
     let fulfillment_methods = {
         let market = perp_market_map.get_ref(&market_index)?;
-        let oracle_price = oracle_map.get_price_data(&market.oracle_id())?.price;
-
         determine_perp_fulfillment_methods(
             &user.orders[user_order_index],
             maker_orders_info,
             &market.amm,
             reserve_price_before,
-            Some(oracle_price),
             limit_price,
-            amm_availability,
-            slot,
-            min_auction_duration,
-            fill_mode,
+            amm_is_available,
         )?
     };
 
@@ -3137,6 +3086,7 @@ pub fn trigger_order(
             .historical_oracle_data
             .last_oracle_price_twap,
         perp_market.get_max_confidence_interval_multiplier()?,
+        0,
         0,
     )?;
 
@@ -5434,6 +5384,7 @@ pub fn trigger_spot_order(
         &spot_market.oracle_id(),
         spot_market.historical_oracle_data.last_oracle_price_twap,
         spot_market.get_max_confidence_interval_multiplier()?,
+        0,
         0,
     )?;
     let strict_oracle_price = StrictOraclePrice {

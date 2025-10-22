@@ -61,12 +61,8 @@ mod determine_perp_fulfillment_methods {
             &[(Pubkey::default(), 0, 103 * PRICE_PRECISION_U64)],
             &market.amm,
             market.amm.reserve_price().unwrap(),
-            Some(oracle_price),
             taker_price,
-            crate::state::perp_market::AMMAvailability::AfterMinDuration,
-            0,
-            0,
-            FillMode::Fill,
+            true,
         )
         .unwrap();
 
@@ -122,12 +118,8 @@ mod determine_perp_fulfillment_methods {
             &[(Pubkey::default(), 0, 99 * PRICE_PRECISION_U64)],
             &market.amm,
             market.amm.reserve_price().unwrap(),
-            Some(oracle_price),
             taker_price,
-            crate::state::perp_market::AMMAvailability::AfterMinDuration,
-            0,
-            0,
-            FillMode::Fill,
+            true,
         )
         .unwrap();
 
@@ -195,12 +187,8 @@ mod determine_perp_fulfillment_methods {
             &[(Pubkey::default(), 0, 101 * PRICE_PRECISION_U64)],
             &market.amm,
             market.amm.reserve_price().unwrap(),
-            Some(oracle_price),
             taker_price,
-            crate::state::perp_market::AMMAvailability::AfterMinDuration,
-            0,
-            0,
-            FillMode::Fill,
+            true,
         )
         .unwrap();
 
@@ -266,12 +254,8 @@ mod determine_perp_fulfillment_methods {
             ],
             &market.amm,
             market.amm.reserve_price().unwrap(),
-            Some(oracle_price),
             taker_price,
-            crate::state::perp_market::AMMAvailability::AfterMinDuration,
-            0,
-            0,
-            FillMode::Fill,
+            true,
         )
         .unwrap();
 
@@ -342,12 +326,8 @@ mod determine_perp_fulfillment_methods {
             ],
             &market.amm,
             market.amm.reserve_price().unwrap(),
-            Some(oracle_price),
             taker_price,
-            crate::state::perp_market::AMMAvailability::AfterMinDuration,
-            0,
-            0,
-            FillMode::Fill,
+            true,
         )
         .unwrap();
 
@@ -417,12 +397,8 @@ mod determine_perp_fulfillment_methods {
             ],
             &market.amm,
             market.amm.reserve_price().unwrap(),
-            Some(oracle_price),
             taker_price,
-            crate::state::perp_market::AMMAvailability::AfterMinDuration,
-            0,
-            0,
-            FillMode::Fill,
+            true,
         )
         .unwrap();
 
@@ -490,12 +466,8 @@ mod determine_perp_fulfillment_methods {
             ],
             &market.amm,
             market.amm.reserve_price().unwrap(),
-            Some(oracle_price),
             taker_price,
-            crate::state::perp_market::AMMAvailability::AfterMinDuration,
-            0,
-            0,
-            FillMode::Fill,
+            true,
         )
         .unwrap();
 
@@ -562,12 +534,8 @@ mod determine_perp_fulfillment_methods {
             ],
             &market.amm,
             market.amm.reserve_price().unwrap(),
-            Some(oracle_price),
             taker_price,
-            crate::state::perp_market::AMMAvailability::AfterMinDuration,
-            0,
-            0,
-            FillMode::Fill,
+            true,
         )
         .unwrap();
 
@@ -633,12 +601,8 @@ mod determine_perp_fulfillment_methods {
             ],
             &market.amm,
             market.amm.reserve_price().unwrap(),
-            Some(oracle_price),
             taker_price,
-            crate::state::perp_market::AMMAvailability::AfterMinDuration,
-            0,
-            0,
-            FillMode::Fill,
+            true,
         )
         .unwrap();
 
@@ -706,12 +670,8 @@ mod determine_perp_fulfillment_methods {
             ],
             &market.amm,
             market.amm.reserve_price().unwrap(),
-            Some(oracle_price),
             taker_price,
-            crate::state::perp_market::AMMAvailability::AfterMinDuration,
-            0,
-            0,
-            FillMode::Fill,
+            true,
         )
         .unwrap();
 
@@ -770,12 +730,8 @@ mod determine_perp_fulfillment_methods {
             ],
             &market.amm,
             market.amm.reserve_price().unwrap(),
-            Some(oracle_price),
             taker_price,
-            crate::state::perp_market::AMMAvailability::AfterMinDuration,
-            0,
-            0,
-            FillMode::Fill,
+            true,
         )
         .unwrap();
 
@@ -832,12 +788,8 @@ mod determine_perp_fulfillment_methods {
             &[],
             &market.amm,
             market.amm.reserve_price().unwrap(),
-            Some(oracle_price),
             taker_price,
-            crate::state::perp_market::AMMAvailability::AfterMinDuration,
-            0,
-            0,
-            FillMode::Fill,
+            true,
         )
         .unwrap();
 
@@ -894,12 +846,8 @@ mod determine_perp_fulfillment_methods {
             &[],
             &market.amm,
             market.amm.reserve_price().unwrap(),
-            Some(oracle_price),
             taker_price,
-            crate::state::perp_market::AMMAvailability::AfterMinDuration,
-            0,
-            0,
-            FillMode::Fill,
+            true,
         )
         .unwrap();
 

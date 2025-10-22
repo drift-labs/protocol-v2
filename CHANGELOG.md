@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- program: relax filling conditions for low risk orders vs amm ([#1968](https://github.com/drift-labs/protocol-v2/pull/1968))
+- sdk: make oracle validity match program and propogate to dlob and math functions ([#1968](https://github.com/drift-labs/protocol-v2/pull/1968))
+
 ### Features
 
 - program: make imf smoother between hlm and non hlm users ([#1969](https://github.com/drift-labs/protocol-v2/pull/1969))

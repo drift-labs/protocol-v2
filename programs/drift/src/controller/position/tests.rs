@@ -6,8 +6,7 @@ use crate::controller::repeg::_update_amm;
 
 use crate::math::amm::calculate_market_open_bids_asks;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, AMM_RESERVE_PRECISION_I128, BASE_PRECISION, BASE_PRECISION_I64,
-    PRICE_PRECISION_I64, PRICE_PRECISION_U64, QUOTE_PRECISION_I128,
+    BASE_PRECISION, BASE_PRECISION_I64, PRICE_PRECISION_I64, PRICE_PRECISION_U64,
     SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
 };
 use crate::math::oracle::OracleValidity;
@@ -34,7 +33,6 @@ use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::SpotPosition;
 use crate::test_utils::get_anchor_account_bytes;
 use crate::test_utils::get_hardcoded_pyth_price;
-use crate::QUOTE_PRECISION_I64;
 use anchor_lang::prelude::{AccountLoader, Clock};
 use anchor_lang::Owner;
 use solana_program::pubkey::Pubkey;
@@ -949,6 +947,7 @@ fn amm_negative_ref_price_offset_decay_logic() {
     assert_eq!(perp_market.amm.last_update_slot, 353317544);
 
     perp_market.amm.curve_update_intensity = 200;
+    perp_market.amm.oracle_slot_delay_override = -1;
 
     let max_ref_offset = perp_market.amm.get_max_reference_price_offset().unwrap();
 

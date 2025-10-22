@@ -175,7 +175,8 @@ pub fn _update_amm(
         market.get_max_confidence_interval_multiplier()?,
         &market.amm.oracle_source,
         oracle::LogMode::SafeMMOracle,
-        0,
+        market.amm.oracle_slot_delay_override,
+        market.amm.oracle_low_risk_slot_delay_override,
     )?;
 
     let mut amm_update_cost = 0;
@@ -230,7 +231,7 @@ pub fn _update_amm(
 
     update_spreads(market, reserve_price_after, Some(clock_slot))?;
 
-    if is_oracle_valid_for_action(oracle_validity, Some(DriftAction::FillOrderAmm))? {
+    if is_oracle_valid_for_action(oracle_validity, Some(DriftAction::FillOrderAmmLowRisk))? {
         if !amm_not_successfully_updated {
             market.amm.last_update_slot = clock_slot;
         }
@@ -264,6 +265,7 @@ pub fn update_amm_and_check_validity(
         market.get_max_confidence_interval_multiplier()?,
         &market.amm.oracle_source,
         LogMode::SafeMMOracle,
+        0,
         0,
     )?;
 
