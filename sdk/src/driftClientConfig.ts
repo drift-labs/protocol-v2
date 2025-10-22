@@ -58,45 +58,45 @@ export type DriftClientConfig = {
 
 export type DriftClientSubscriptionConfig =
 	| {
-		type: 'grpc';
-		grpcConfigs: GrpcConfigs;
-		resubTimeoutMs?: number;
-		logResubMessages?: boolean;
-		driftClientAccountSubscriber?: new (
-			grpcConfigs: GrpcConfigs,
-			program: Program,
-			perpMarketIndexes: number[],
-			spotMarketIndexes: number[],
-			oracleInfos: OracleInfo[],
-			shouldFindAllMarketsAndOracles: boolean,
-			delistedMarketSetting: DelistedMarketSetting
-		) =>
-			| grpcDriftClientAccountSubscriberV2
-			| grpcDriftClientAccountSubscriber;
-	}
+			type: 'grpc';
+			grpcConfigs: GrpcConfigs;
+			resubTimeoutMs?: number;
+			logResubMessages?: boolean;
+			driftClientAccountSubscriber?: new (
+				grpcConfigs: GrpcConfigs,
+				program: Program,
+				perpMarketIndexes: number[],
+				spotMarketIndexes: number[],
+				oracleInfos: OracleInfo[],
+				shouldFindAllMarketsAndOracles: boolean,
+				delistedMarketSetting: DelistedMarketSetting
+			) =>
+				| grpcDriftClientAccountSubscriberV2
+				| grpcDriftClientAccountSubscriber;
+	  }
 	| {
-		type: 'websocket';
-		resubTimeoutMs?: number;
-		logResubMessages?: boolean;
-		commitment?: Commitment;
-		perpMarketAccountSubscriber?: new (
-			accountName: string,
-			program: Program,
-			accountPublicKey: PublicKey,
-			decodeBuffer?: (buffer: Buffer) => any,
-			resubOpts?: ResubOpts,
-			commitment?: Commitment
-		) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>;
-		oracleAccountSubscriber?: new (
-			accountName: string,
-			program: Program,
-			accountPublicKey: PublicKey,
-			decodeBuffer?: (buffer: Buffer) => any,
-			resubOpts?: ResubOpts,
-			commitment?: Commitment
-		) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>;
-	}
+			type: 'websocket';
+			resubTimeoutMs?: number;
+			logResubMessages?: boolean;
+			commitment?: Commitment;
+			perpMarketAccountSubscriber?: new (
+				accountName: string,
+				program: Program,
+				accountPublicKey: PublicKey,
+				decodeBuffer?: (buffer: Buffer) => any,
+				resubOpts?: ResubOpts,
+				commitment?: Commitment
+			) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>;
+			oracleAccountSubscriber?: new (
+				accountName: string,
+				program: Program,
+				accountPublicKey: PublicKey,
+				decodeBuffer?: (buffer: Buffer) => any,
+				resubOpts?: ResubOpts,
+				commitment?: Commitment
+			) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>;
+	  }
 	| {
-		type: 'polling';
-		accountLoader: BulkAccountLoader;
-	};
+			type: 'polling';
+			accountLoader: BulkAccountLoader;
+	  };

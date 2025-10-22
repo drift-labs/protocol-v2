@@ -658,8 +658,6 @@ pub enum ErrorCode {
     InvalidConstituent,
     #[msg("Invalid Amm Constituent Mapping argument")]
     InvalidAmmConstituentMappingArgument,
-    #[msg("Invalid update constituent update target weights argument")]
-    InvalidUpdateConstituentTargetBaseArgument,
     #[msg("Constituent not found")]
     ConstituentNotFound,
     #[msg("Constituent could not load")]
@@ -668,8 +666,6 @@ pub enum ErrorCode {
     ConstituentWrongMutability,
     #[msg("Wrong number of constituents passed to instruction")]
     WrongNumberOfConstituents,
-    #[msg("Oracle too stale for LP AUM update")]
-    OracleTooStaleForLPAUMUpdate,
     #[msg("Insufficient constituent token balance")]
     InsufficientConstituentTokenBalance,
     #[msg("Amm Cache data too stale")]
@@ -682,8 +678,6 @@ pub enum ErrorCode {
     LpInvariantFailed,
     #[msg("Invalid constituent derivative weights")]
     InvalidConstituentDerivativeWeights,
-    #[msg("Unauthorized dlp authority")]
-    UnauthorizedDlpAuthority,
     #[msg("Max DLP AUM Breached")]
     MaxDlpAumBreached,
     #[msg("Settle Lp Pool Disabled")]
