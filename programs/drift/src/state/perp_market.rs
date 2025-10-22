@@ -24,8 +24,8 @@ use crate::math::constants::{
 };
 use crate::math::helpers::get_proportion_u128;
 use crate::math::margin::{
-    calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
-    MarginRequirementType,
+    calc_high_leverage_mode_initial_margin_ratio_from_size, calculate_size_discount_asset_weight,
+    calculate_size_premium_liability_weight, MarginRequirementType,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::stats;
@@ -238,39 +238,6 @@ pub struct PerpMarket {
     pub padding1: u32,
     pub last_fill_price: u64,
     pub padding: [u8; 24],
-}
-
-pub fn _calc_high_leverage_mode_initial_margin_ratio_from_size(
-    pre_size_adj_margin_ratio: u32,
-    size_adj_margin_ratio: u32,
-    default_margin_ratio: u32,
-) -> DriftResult<u32> {
-    let result = if size_adj_margin_ratio < pre_size_adj_margin_ratio {
-        let size_pct_discount_factor = PERCENTAGE_PRECISION.safe_sub(
-            ((pre_size_adj_margin_ratio.cast::<u128>()?)
-                .safe_sub(size_adj_margin_ratio.cast::<u128>()?)?
-                .safe_mul(PERCENTAGE_PRECISION)?
-                .safe_div((pre_size_adj_margin_ratio.safe_div(5)?).cast::<u128>()?)?),
-        )?;
-
-        let hlm_margin_delta = pre_size_adj_margin_ratio
-            .saturating_sub(default_margin_ratio)
-            .max(1);
-
-        let hlm_margin_delta_proportion = get_proportion_u128(
-            hlm_margin_delta.cast()?,
-            size_pct_discount_factor,
-            PERCENTAGE_PRECISION,
-        )?
-        .cast::<u32>()?;
-        hlm_margin_delta_proportion + default_margin_ratio
-    } else if size_adj_margin_ratio == pre_size_adj_margin_ratio {
-        default_margin_ratio
-    } else {
-        size_adj_margin_ratio
-    };
-
-    Ok(result)
 }
 
 impl Default for PerpMarket {
@@ -494,44 +461,43 @@ impl PerpMarket {
             MarginRequirementType::Maintenance => margin_ratio_maintenance,
         };
 
-        let margin_ratio = if is_high_leverage_user {
-            // use HLM maintenance margin but ordinary mode initial/fill margin for size adj calculation
-            let pre_size_adj_margin_ratio = match margin_type {
-                MarginRequirementType::Initial => self.margin_ratio_initial,
-                MarginRequirementType::Fill => {
-                    self.margin_ratio_initial
-                        .safe_add(self.margin_ratio_maintenance)?
-                        / 2
-                }
-                MarginRequirementType::Maintenance => margin_ratio_maintenance,
+        let margin_ratio =
+            if is_high_leverage_user && margin_type != MarginRequirementType::Maintenance {
+                // use HLM maintenance margin but ordinary mode initial/fill margin for size adj calculation
+                let pre_size_adj_margin_ratio = match margin_type {
+                    MarginRequirementType::Initial => self.margin_ratio_initial,
+                    MarginRequirementType::Fill => {
+                        self.margin_ratio_initial
+                            .safe_add(self.margin_ratio_maintenance)?
+                            / 2
+                    }
+                    MarginRequirementType::Maintenance => margin_ratio_maintenance,
+                };
+
+                let size_adj_margin_ratio = calculate_size_premium_liability_weight(
+                    size,
+                    self.imf_factor,
+                    pre_size_adj_margin_ratio,
+                    MARGIN_PRECISION_U128,
+                    false,
+                )?;
+
+                calc_high_leverage_mode_initial_margin_ratio_from_size(
+                    pre_size_adj_margin_ratio,
+                    size_adj_margin_ratio,
+                    default_margin_ratio,
+                )?
+            } else {
+                let size_adj_margin_ratio = calculate_size_premium_liability_weight(
+                    size,
+                    self.imf_factor,
+                    default_margin_ratio,
+                    MARGIN_PRECISION_U128,
+                    true,
+                )?;
+
+                default_margin_ratio.max(size_adj_margin_ratio)
             };
-
-            let bound_liability_weight = margin_type == MarginRequirementType::Maintenance;
-
-            let size_adj_margin_ratio = calculate_size_premium_liability_weight(
-                size,
-                self.imf_factor,
-                pre_size_adj_margin_ratio,
-                MARGIN_PRECISION_U128,
-                bound_liability_weight,
-            )?;
-
-            _calc_high_leverage_mode_initial_margin_ratio_from_size(
-                pre_size_adj_margin_ratio,
-                size_adj_margin_ratio,
-                default_margin_ratio,
-            )?
-        } else {
-            let size_adj_margin_ratio = calculate_size_premium_liability_weight(
-                size,
-                self.imf_factor,
-                default_margin_ratio,
-                MARGIN_PRECISION_U128,
-                true,
-            )?;
-
-            default_margin_ratio.max(size_adj_margin_ratio)
-        };
 
         Ok(margin_ratio)
     }

@@ -3296,7 +3296,6 @@ mod calculate_max_perp_order_size {
         .unwrap();
         assert_eq!(max_order_size, 84737288000); // 84
 
-
         let mut spot_positions = [SpotPosition::default(); 8];
         spot_positions[0] = SpotPosition {
             market_index: 0,

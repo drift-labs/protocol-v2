@@ -103,7 +103,7 @@ mod get_margin_ratio {
     }
 
     #[test]
-    fn smart_hlm_size_loop() {
+    fn new_hlm_imf_size_loop() {
         let perp_market = PerpMarket {
             margin_ratio_initial: MARGIN_PRECISION / 20,
             margin_ratio_maintenance: MARGIN_PRECISION / 33,
@@ -143,7 +143,7 @@ mod get_margin_ratio {
     }
 
     #[test]
-    fn smart_hlm_size() {
+    fn new_hlm_imf_size() {
         let perp_market = PerpMarket {
             margin_ratio_initial: MARGIN_PRECISION / 10,
             margin_ratio_maintenance: MARGIN_PRECISION / 20,
@@ -171,7 +171,6 @@ mod get_margin_ratio {
             hlm_margin_ratio_initial,
             perp_market.high_leverage_margin_ratio_initial as u32
         );
-
 
         let hlm_margin_ratio_initial = perp_market
             .get_margin_ratio(BASE_PRECISION, MarginRequirementType::Initial, true)
