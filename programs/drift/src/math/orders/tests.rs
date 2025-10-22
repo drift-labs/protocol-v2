@@ -3385,6 +3385,8 @@ mod calculate_max_perp_order_size {
         )
         .unwrap();
 
+        assert_eq!(max_order_size, 1600000);
+
         user.perp_positions[0].open_orders += 1;
         user.perp_positions[0].open_bids += max_order_size as i64;
 
@@ -3400,6 +3402,9 @@ mod calculate_max_perp_order_size {
             MarginContext::standard(MarginRequirementType::Initial).strict(true),
         )
         .unwrap();
+
+        assert_eq!(total_collateral.unsigned_abs(), 2199358529); // ~$2200
+        assert_eq!(margin_requirement, 2186678676);
 
         assert!(total_collateral.unsigned_abs() - margin_requirement < QUOTE_PRECISION);
     }

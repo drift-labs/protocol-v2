@@ -4,7 +4,6 @@ use anchor_lang::prelude::*;
 
 use crate::state::state::{State, ValidityGuardRails};
 use std::cmp::max;
-use std::u128;
 
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
@@ -248,10 +247,10 @@ pub fn _calc_high_leverage_mode_initial_margin_ratio_from_size(
 ) -> DriftResult<u32> {
     let result = if size_adj_margin_ratio < pre_size_adj_margin_ratio {
         let size_pct_discount_factor = PERCENTAGE_PRECISION.safe_sub(
-            ((pre_size_adj_margin_ratio as u128)
-                .safe_sub(size_adj_margin_ratio as u128)?
+            ((pre_size_adj_margin_ratio.cast::<u128>()?)
+                .safe_sub(size_adj_margin_ratio.cast::<u128>()?)?
                 .safe_mul(PERCENTAGE_PRECISION)?
-                .safe_div((pre_size_adj_margin_ratio / 5) as u128)?),
+                .safe_div((pre_size_adj_margin_ratio.safe_div(5)?).cast::<u128>()?)?),
         )?;
 
         let hlm_margin_delta = pre_size_adj_margin_ratio
@@ -259,10 +258,11 @@ pub fn _calc_high_leverage_mode_initial_margin_ratio_from_size(
             .max(1);
 
         let hlm_margin_delta_proportion = get_proportion_u128(
-            hlm_margin_delta as u128,
+            hlm_margin_delta.cast()?,
             size_pct_discount_factor,
             PERCENTAGE_PRECISION,
-        )? as u32;
+        )?
+        .cast::<u32>()?;
         hlm_margin_delta_proportion + default_margin_ratio
     } else if size_adj_margin_ratio == pre_size_adj_margin_ratio {
         default_margin_ratio
@@ -520,7 +520,7 @@ impl PerpMarket {
                 pre_size_adj_margin_ratio,
                 size_adj_margin_ratio,
                 default_margin_ratio,
-            )
+            )?
         } else {
             let size_adj_margin_ratio = calculate_size_premium_liability_weight(
                 size,
@@ -530,7 +530,7 @@ impl PerpMarket {
                 true,
             )?;
 
-            Ok(default_margin_ratio.max(size_adj_margin_ratio))
+            default_margin_ratio.max(size_adj_margin_ratio)
         };
 
         Ok(margin_ratio)
