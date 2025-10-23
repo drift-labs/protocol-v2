@@ -1312,6 +1312,7 @@ export type SignedMsgOrderParamsMessage = {
 	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
 	maxMarginRatio?: number | null;
+	isolatedPositionDeposit?: BN | null;
 };
 
 export type SignedMsgOrderParamsDelegateMessage = {
@@ -1322,6 +1323,7 @@ export type SignedMsgOrderParamsDelegateMessage = {
 	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
 	maxMarginRatio?: number | null;
+	isolatedPositionDeposit?: BN | null;
 };
 
 export type SignedMsgTriggerOrderParams = {

@@ -6827,12 +6827,6 @@ export class DriftClient {
 		precedingIxs: TransactionInstruction[] = [],
 		overrideCustomIxIndex?: number
 	): Promise<TransactionInstruction[]> {
-		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [takerInfo.takerUserAccount],
-			useMarketLastSlotCache: false,
-			readablePerpMarketIndex: marketIndex,
-		});
-
 		const isDelegateSigner = takerInfo.signingAuthority.equals(
 			takerInfo.takerUserAccount.delegate
 		);
@@ -6841,20 +6835,37 @@ export class DriftClient {
 			signedSignedMsgOrderParams.orderParams.toString(),
 			'hex'
 		);
+
+		let isIsolatedPositionDeposit = false;
+		let isHLMode = false;
 		try {
-			const { signedMsgOrderParams } = this.decodeSignedMsgOrderParamsMessage(
+			const message = this.decodeSignedMsgOrderParamsMessage(
 				borshBuf,
 				isDelegateSigner
 			);
-			if (isUpdateHighLeverageMode(signedMsgOrderParams.bitFlags)) {
-				remainingAccounts.push({
-					pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
-					isWritable: true,
-					isSigner: false,
-				});
-			}
+			isIsolatedPositionDeposit = message.isolatedPositionDeposit?.gt(
+				new BN(0)
+			);
+			isHLMode = isUpdateHighLeverageMode(message.signedMsgOrderParams.bitFlags);
 		} catch (err) {
 			console.error('invalid signed order encoding');
+		}
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [takerInfo.takerUserAccount],
+			useMarketLastSlotCache: false,
+			readablePerpMarketIndex: marketIndex,
+			writableSpotMarketIndexes: isIsolatedPositionDeposit
+				? [QUOTE_SPOT_MARKET_INDEX]
+				: undefined,
+		});
+
+		if (isHLMode) {
+			remainingAccounts.push({
+				pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
+				isWritable: true,
+				isSigner: false,
+			});
 		}
 
 		const messageLengthBuffer = Buffer.alloc(2);
