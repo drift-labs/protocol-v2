@@ -1388,6 +1388,17 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracleSource: OracleSource.PYTH_LAZER_1K,
 		pythLazerId: 1578,
 	},
+	{
+		fullName: 'Meteroa',
+		category: ['Solana', 'DEX'],
+		symbol: 'MET-PERP',
+		baseAssetSymbol: 'MET',
+		marketIndex: 82,
+		oracle: new PublicKey('HN7qfUNM5Q7gQTwyEucmYdCF4CjwUrspj3DbNQ4V8P52'),
+		launchTs: 1761225524000,
+		oracleSource: OracleSource.PYTH_LAZER,
+		pythLazerId: 2382,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {

@@ -599,7 +599,7 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
     let admin = &ctx.accounts.admin;
     #[cfg(feature = "anchor-test")]
     validate!(
-        admin.key() == admin_hot_wallet::id() || admin.key() == state.admin,
+        admin.key() == admin_hot_wallet::id() || admin.key() == ctx.accounts.state.key(),
         ErrorCode::Unauthorized,
         "Wrong signer for lp taker swap"
     )?;

@@ -973,6 +973,20 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		pythLazerId: 2316,
 		launchTs: 1759412919000,
 	},
+	{
+		symbol: 'MET',
+		marketIndex: 60,
+		poolId: 0,
+		oracle: new PublicKey('HN7qfUNM5Q7gQTwyEucmYdCF4CjwUrspj3DbNQ4V8P52'),
+		oracleSource: OracleSource.PYTH_LAZER,
+		mint: new PublicKey('METvsvVRapdj9cFLzq4Tr43xK4tAjQfwX76z3n6mWQL'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		pythFeedId:
+			'0x0292e0f405bcd4a496d34e48307f6787349ad2bcd8505c3d3a9f77d81a67a682',
+		pythLazerId: 2382,
+		launchTs: 1761225524000,
+	},
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {
