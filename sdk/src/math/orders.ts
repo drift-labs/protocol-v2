@@ -459,7 +459,8 @@ export function calculateOrderBaseAssetAmount(
 export function maxSizeForTargetLiabilityWeightBN(
 	target: BN,
 	imfFactor: BN,
-	liabilityWeight: BN
+	liabilityWeight: BN,
+	market: PerpMarketAccount
 ): BN | null {
 	if (target.lt(liabilityWeight)) return null;
 	if (imfFactor.isZero()) return null;
@@ -504,6 +505,12 @@ export function maxSizeForTargetLiabilityWeightBN(
 		} else {
 			hi = mid.sub(ONE);
 		}
+	}
+
+	// cap at max OI
+	const maxOpenInterest = market.amm.maxOpenInterest;
+	if (lo.gt(maxOpenInterest)) {
+		return maxOpenInterest;
 	}
 
 	return lo;
