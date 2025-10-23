@@ -10281,6 +10281,12 @@
             "type": {
               "option": "u16"
             }
+          },
+          {
+            "name": "isolatedPositionDeposit",
+            "type": {
+              "option": "u64"
+            }
           }
         ]
       }
@@ -10333,6 +10339,12 @@
             "name": "maxMarginRatio",
             "type": {
               "option": "u16"
+            }
+          },
+          {
+            "name": "isolatedPositionDeposit",
+            "type": {
+              "option": "u64"
             }
           }
         ]
@@ -12534,9 +12546,6 @@
           },
           {
             "name": "UpdateHighLeverageMode"
-          },
-          {
-            "name": "EnableAutoTransfer"
           }
         ]
       }

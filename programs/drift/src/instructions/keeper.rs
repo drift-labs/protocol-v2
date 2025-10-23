@@ -617,7 +617,7 @@ pub fn handle_place_signed_msg_taker_order<'c: 'info, 'info>(
     // TODO: generalize to support multiple market types
     let AccountMaps {
         perp_market_map,
-        spot_market_map,
+        mut spot_market_map,
         mut oracle_map,
     } = load_maps(
         &mut remaining_accounts,
@@ -642,7 +642,7 @@ pub fn handle_place_signed_msg_taker_order<'c: 'info, 'info>(
         signed_msg_order_params_message_bytes,
         &ctx.accounts.ix_sysvar.to_account_info(),
         &perp_market_map,
-        &spot_market_map,
+        &mut spot_market_map,
         &mut oracle_map,
         high_leverage_mode_config,
         state,
@@ -659,7 +659,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
     taker_order_params_message_bytes: Vec<u8>,
     ix_sysvar: &AccountInfo<'info>,
     perp_market_map: &PerpMarketMap,
-    spot_market_map: &SpotMarketMap,
+    spot_market_map: &mut SpotMarketMap,
     oracle_map: &mut OracleMap,
     high_leverage_mode_config: Option<AccountLoader<HighLeverageModeConfig>>,
     state: &State,
@@ -769,6 +769,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
     }
 
     if let Some(isolated_position_deposit) = verified_message_and_signature.isolated_position_deposit {
+        spot_market_map.update_writable_spot_market(0)?;
         transfer_isolated_perp_position_deposit(
             taker,
             Some(taker_stats),
