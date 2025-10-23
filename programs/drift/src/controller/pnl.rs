@@ -135,6 +135,7 @@ pub fn settle_pnl(
                     .last_oracle_price_twap,
                 perp_market.get_max_confidence_interval_multiplier()?,
                 0,
+                0,
             )?;
 
             if !is_oracle_valid_for_action(oracle_validity, Some(DriftAction::SettlePnl))?

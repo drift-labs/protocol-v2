@@ -4048,34 +4048,34 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
-	public async updatePerpMarketTakerSpeedBumpOverride(
+	public async updatePerpMarketOracleLowRiskSlotDelayOverride(
 		perpMarketIndex: number,
-		takerSpeedBumpOverride: number
+		oracleLowRiskSlotDelayOverride: number
 	): Promise<TransactionSignature> {
-		const updatePerpMarketTakerSpeedBumpOverrideIx =
-			await this.getUpdatePerpMarketTakerSpeedBumpOverrideIx(
+		const updatePerpMarketOracleLowRiskSlotDelayOverrideIx =
+			await this.getUpdatePerpMarketOracleLowRiskSlotDelayOverrideIx(
 				perpMarketIndex,
-				takerSpeedBumpOverride
+				oracleLowRiskSlotDelayOverride
 			);
 		const tx = await this.buildTransaction(
-			updatePerpMarketTakerSpeedBumpOverrideIx
+			updatePerpMarketOracleLowRiskSlotDelayOverrideIx
 		);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
 		return txSig;
 	}
 
-	public async getUpdatePerpMarketTakerSpeedBumpOverrideIx(
+	public async getUpdatePerpMarketOracleLowRiskSlotDelayOverrideIx(
 		perpMarketIndex: number,
-		takerSpeedBumpOverride: number
+		oracleLowRiskSlotDelayOverride: number
 	): Promise<TransactionInstruction> {
 		const perpMarketPublicKey = await getPerpMarketPublicKey(
 			this.program.programId,
 			perpMarketIndex
 		);
 
-		return await this.program.instruction.updatePerpMarketTakerSpeedBumpOverride(
-			takerSpeedBumpOverride,
+		return await this.program.instruction.updatePerpMarketOracleLowRiskSlotDelayOverride(
+			oracleLowRiskSlotDelayOverride,
 			{
 				accounts: {
 					admin: this.useHotWalletAdmin

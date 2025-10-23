@@ -46,7 +46,8 @@ pub fn calculate_repeg_validity_from_oracle_account(
         market.get_max_confidence_interval_multiplier()?,
         &market.amm.oracle_source,
         oracle::LogMode::ExchangeOracle,
-        0,
+        market.amm.oracle_slot_delay_override,
+        market.amm.oracle_low_risk_slot_delay_override,
     )? == OracleValidity::Valid;
 
     let (oracle_is_valid, direction_valid, profitability_valid, price_impact_valid) =

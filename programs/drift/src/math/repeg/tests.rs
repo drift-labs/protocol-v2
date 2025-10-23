@@ -256,7 +256,7 @@ fn calculate_optimal_peg_and_budget_2_test() {
     let oracle_price_data = OraclePriceData {
         price: (17_800 * PRICE_PRECISION) as i64,
         confidence: 10233,
-        delay: 2,
+        delay: 0,
         has_sufficient_number_of_data_points: true,
         sequence_id: None,
     };

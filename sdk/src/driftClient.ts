@@ -168,7 +168,11 @@ import { getMarinadeDepositIx, getMarinadeFinanceProgram } from './marinade';
 import { getOrderParams, isUpdateHighLeverageMode } from './orderParams';
 import { numberToSafeBN } from './math/utils';
 import { TransactionParamProcessor } from './tx/txParamProcessor';
-import { isOracleValid, trimVaaSignatures } from './math/oracles';
+import {
+	isOracleTooDivergent,
+	isOracleValid,
+	trimVaaSignatures,
+} from './math/oracles';
 import { TxHandler } from './tx/txHandler';
 import {
 	DEFAULT_RECEIVER_PROGRAM_ID,
@@ -1296,7 +1300,10 @@ export class DriftClient {
 	}
 
 	public async getInitializeRevenueShareIx(
-		authority: PublicKey
+		authority: PublicKey,
+		overrides?: {
+			payer?: PublicKey;
+		}
 	): Promise<TransactionInstruction> {
 		const revenueShare = getRevenueShareAccountPublicKey(
 			this.program.programId,
@@ -1306,7 +1313,7 @@ export class DriftClient {
 			accounts: {
 				revenueShare,
 				authority,
-				payer: this.wallet.publicKey,
+				payer: overrides?.payer ?? this.wallet.publicKey,
 				rent: anchor.web3.SYSVAR_RENT_PUBKEY,
 				systemProgram: anchor.web3.SystemProgram.programId,
 			},
@@ -1329,7 +1336,10 @@ export class DriftClient {
 
 	public async getInitializeRevenueShareEscrowIx(
 		authority: PublicKey,
-		numOrders: number
+		numOrders: number,
+		overrides?: {
+			payer?: PublicKey;
+		}
 	): Promise<TransactionInstruction> {
 		const escrow = getRevenueShareEscrowAccountPublicKey(
 			this.program.programId,
@@ -1339,7 +1349,7 @@ export class DriftClient {
 			accounts: {
 				escrow,
 				authority,
-				payer: this.wallet.publicKey,
+				payer: overrides?.payer ?? this.wallet.publicKey,
 				userStats: getUserStatsAccountPublicKey(
 					this.program.programId,
 					authority
@@ -1452,9 +1462,14 @@ export class DriftClient {
 	public async getChangeApprovedBuilderIx(
 		builder: PublicKey,
 		maxFeeTenthBps: number,
-		add: boolean
+		add: boolean,
+		overrides?: {
+			authority?: PublicKey;
+			payer?: PublicKey;
+		}
 	): Promise<TransactionInstruction> {
-		const authority = this.wallet.publicKey;
+		const authority = overrides?.authority ?? this.wallet.publicKey;
+		const payer = overrides?.payer ?? this.wallet.publicKey;
 		const escrow = getRevenueShareEscrowAccountPublicKey(
 			this.program.programId,
 			authority
@@ -1467,7 +1482,7 @@ export class DriftClient {
 				accounts: {
 					escrow,
 					authority,
-					payer: this.wallet.publicKey,
+					payer,
 					systemProgram: anchor.web3.SystemProgram.programId,
 				},
 			}
@@ -9717,12 +9732,21 @@ export class DriftClient {
 			isExchangeOracleMoreRecent = false;
 		}
 
+		const conf = getOracleConfidenceFromMMOracleData(
+			perpMarket.amm.mmOraclePrice,
+			oracleData
+		);
+
 		if (
-			!isOracleValid(
-				perpMarket,
-				oracleData,
-				stateAccountAndSlot.data.oracleGuardRails,
-				stateAccountAndSlot.slot
+			isOracleTooDivergent(
+				perpMarket.amm,
+				{
+					price: perpMarket.amm.mmOraclePrice,
+					slot: perpMarket.amm.mmOracleSlot,
+					confidence: conf,
+					hasSufficientNumberOfDataPoints: true,
+				},
+				stateAccountAndSlot.data.oracleGuardRails
 			) ||
 			perpMarket.amm.mmOraclePrice.eq(ZERO) ||
 			isExchangeOracleMoreRecent ||
@@ -9730,10 +9754,6 @@ export class DriftClient {
 		) {
 			return { ...oracleData, isMMOracleActive };
 		} else {
-			const conf = getOracleConfidenceFromMMOracleData(
-				perpMarket.amm.mmOraclePrice,
-				oracleData
-			);
 			return {
 				price: perpMarket.amm.mmOraclePrice,
 				slot: perpMarket.amm.mmOracleSlot,

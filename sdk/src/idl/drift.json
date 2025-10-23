@@ -6723,7 +6723,7 @@
       ]
     },
     {
-      "name": "updatePerpMarketTakerSpeedBumpOverride",
+      "name": "updatePerpMarketOracleLowRiskSlotDelayOverride",
       "accounts": [
         {
           "name": "admin",
@@ -6743,7 +6743,7 @@
       ],
       "args": [
         {
-          "name": "takerSpeedBumpOverride",
+          "name": "oracleLowRiskSlotDelayOverride",
           "type": "i8"
         }
       ]
@@ -11363,7 +11363,7 @@
             "type": "i8"
           },
           {
-            "name": "takerSpeedBumpOverride",
+            "name": "oracleLowRiskSlotDelayOverride",
             "docs": [
               "the override for the state.min_perp_auction_duration",
               "0 is no override, -1 is disable speed bump, 1-100 is literal speed bump"
@@ -12447,7 +12447,17 @@
             "name": "InsufficientDataPoints"
           },
           {
-            "name": "StaleForAMM"
+            "name": "StaleForAMM",
+            "fields": [
+              {
+                "name": "immediate",
+                "type": "bool"
+              },
+              {
+                "name": "lowRisk",
+                "type": "bool"
+              }
+            ]
           },
           {
             "name": "Valid"
@@ -12473,7 +12483,10 @@
             "name": "FillOrderMatch"
           },
           {
-            "name": "FillOrderAmm"
+            "name": "FillOrderAmmLowRisk"
+          },
+          {
+            "name": "FillOrderAmmImmediate"
           },
           {
             "name": "Liquidate"
@@ -13124,23 +13137,6 @@
           },
           {
             "name": "Isolated"
-          }
-        ]
-      }
-    },
-    {
-      "name": "AMMAvailability",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "Immediate"
-          },
-          {
-            "name": "AfterMinDuration"
-          },
-          {
-            "name": "Unavailable"
           }
         ]
       }
