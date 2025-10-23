@@ -25,6 +25,8 @@ export class grpcMultiUserAccountSubscriber {
 	private debounceMs = 20;
 	private isMultiSubscribed = false;
 	private userAccountSubscribers = new Map<string, UserAccountSubscriber>();
+	private grpcConfigs: GrpcConfigs;
+	resubOpts?: ResubOpts;
 
 	private handleAccountChange = (
 		accountId: PublicKey,
@@ -47,21 +49,26 @@ export class grpcMultiUserAccountSubscriber {
 	public constructor(
 		program: Program,
 		grpcConfigs: GrpcConfigs,
-		resubOpts?: ResubOpts
+		resubOpts?: ResubOpts,
+		multiSubscriber?: grpcMultiAccountSubscriber<UserAccount>
 	) {
 		this.program = program;
-		grpcMultiAccountSubscriber.create<UserAccount>(
-			grpcConfigs,
-			'user',
-			program,
-			undefined,
-			resubOpts,
-		).then((multiSubscriber) => {
-			this.multiSubscriber = multiSubscriber;
-		});
+		this.multiSubscriber = multiSubscriber;
+		this.grpcConfigs = grpcConfigs;
+		this.resubOpts = resubOpts;
 	}
 
 	public async subscribe(): Promise<void> {
+		if (!this.multiSubscriber) {
+			this.multiSubscriber = await grpcMultiAccountSubscriber.create<UserAccount>(
+				this.grpcConfigs,
+				'user',
+				this.program,
+				undefined,
+				this.resubOpts
+			);
+		}
+
 		// Subscribe all per-user subscribers first
 		await Promise.all(
 			Array.from(this.userAccountSubscribers.values()).map((subscriber) =>
