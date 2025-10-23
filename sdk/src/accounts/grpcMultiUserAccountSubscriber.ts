@@ -22,9 +22,9 @@ export class grpcMultiUserAccountSubscriber {
 	private keyToPk = new Map<string, PublicKey>();
 	private pendingAddKeys = new Set<string>();
 	private debounceTimer?: ReturnType<typeof setTimeout>;
-	private debounceMs = 50;
+	private debounceMs = 20;
 	private isMultiSubscribed = false;
-	private resubOpts?: ResubOpts;
+	private userAccountSubscribers = new Map<string, UserAccountSubscriber>();
 
 	private handleAccountChange = (
 		accountId: PublicKey,
@@ -61,7 +61,41 @@ export class grpcMultiUserAccountSubscriber {
 		});
 	}
 
+	public async subscribe(): Promise<void> {
+		// Subscribe all per-user subscribers first
+		await Promise.all(
+			Array.from(this.userAccountSubscribers.values()).map((subscriber) =>
+				subscriber.subscribe()
+			)
+		);
+		// Ensure we immediately register any pending keys and kick off underlying subscription/fetch
+		await this.flushPending();
+		// Proactively fetch once to populate data for all subscribed accounts
+		await this.multiSubscriber.fetch();
+		// Wait until the underlying multi-subscriber has data for every registered user key
+		const targetKeys = Array.from(this.listeners.keys());
+		if (targetKeys.length === 0) return;
+		// Poll until all keys are present in dataMap
+		// Use debounceMs as the polling cadence to avoid introducing new magic numbers
+		// eslint-disable-next-line no-constant-condition
+		while (true) {
+			const map = this.multiSubscriber.getAccountDataMap();
+			let allPresent = true;
+			for (const k of targetKeys) {
+				if (!map.has(k)) {
+					allPresent = false;
+					break;
+				}
+			}
+			if (allPresent) break;
+			await new Promise((resolve) => setTimeout(resolve, this.debounceMs));
+		}
+	}
+
 	public forUser(userAccountPublicKey: PublicKey): UserAccountSubscriber {
+		if (this.userAccountSubscribers.has(userAccountPublicKey.toBase58())) {
+			return this.userAccountSubscribers.get(userAccountPublicKey.toBase58())!;
+		}
 		const key = userAccountPublicKey.toBase58();
 		const perUserEmitter: StrictEventEmitter<EventEmitter, UserAccountEvents> =
 			new EventEmitter();
@@ -147,6 +181,7 @@ export class grpcMultiUserAccountSubscriber {
 			},
 		};
 
+		this.userAccountSubscribers.set(userAccountPublicKey.toBase58(), perUser);
 		return perUser;
 	}
 
@@ -178,6 +213,16 @@ export class grpcMultiUserAccountSubscriber {
 		if (!this.isMultiSubscribed) {
 			await this.multiSubscriber.subscribe(allPks, this.handleAccountChange);
 			this.isMultiSubscribed = true;
+			await this.multiSubscriber.fetch();
+			for(const k of this.pendingAddKeys) {
+				const pk = this.keyToPk.get(k);
+				if (pk) {
+					const data = this.multiSubscriber.getAccountData(k);
+					if (data) {
+						this.handleAccountChange(pk, data.data, { slot: data.slot }, undefined, undefined);
+					}
+				}
+			}
 		} else {
 			const ms = this.multiSubscriber as unknown as {
 				onChangeMap: Map<
