@@ -58,7 +58,6 @@ pub fn settle_pnl(
     mut mode: SettlePnlMode,
 ) -> DriftResult {
     validate!(!user.is_bankrupt(), ErrorCode::UserBankrupt)?;
-    let slot = clock.slot;
     let now = clock.unix_timestamp;
     let tvl_before;
     let deposits_balance_before;
@@ -343,21 +342,6 @@ pub fn settle_pnl(
 
     drop(perp_market);
     drop(spot_market);
-
-    if user.perp_positions[position_index].can_transfer_isolated_position_deposit() {
-        transfer_isolated_perp_position_deposit(
-            user,
-            None,
-            perp_market_map,
-            spot_market_map,
-            oracle_map,
-            slot,
-            now,
-            0,
-            market_index,
-            i64::MIN,
-        )?;
-    }
 
     let perp_market = perp_market_map.get_ref(&market_index)?;
     let spot_market = spot_market_map.get_quote_spot_market()?;

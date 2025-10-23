@@ -17,6 +17,7 @@ use crate::controller::liquidation::{
     liquidate_spot_with_swap_begin, liquidate_spot_with_swap_end,
 };
 use crate::controller::orders::cancel_orders;
+use crate::controller::position::get_position_index;
 use crate::controller::position::PositionDirection;
 use crate::controller::spot_balance::update_spot_balances;
 use crate::controller::token::{receive, send_from_program_vault};
@@ -980,6 +981,23 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
         .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
     }
 
+    if let Ok(position_index) = get_position_index(&user.perp_positions, market_index) {
+        if user.perp_positions[position_index].can_transfer_isolated_position_deposit() {
+            transfer_isolated_perp_position_deposit(
+                user,
+                None,
+                &perp_market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                clock.slot,
+                clock.unix_timestamp,
+                QUOTE_SPOT_MARKET_INDEX,
+                market_index,
+                i64::MIN,
+            )?;
+        }
+    }
+
     let spot_market = spot_market_map.get_quote_spot_market()?;
     validate_spot_market_vault_amount(&spot_market, ctx.accounts.spot_market_vault.amount)?;
 
@@ -1063,6 +1081,23 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
                 mode,
             )
             .map(|_| ErrorCode::InvalidOracleForSettlePnl)?;
+        }
+
+        if let Ok(position_index) = get_position_index(&user.perp_positions, *market_index) {
+            if user.perp_positions[position_index].can_transfer_isolated_position_deposit() {
+                transfer_isolated_perp_position_deposit(
+                    user,
+                    None,
+                    &perp_market_map,
+                    &spot_market_map,
+                    &mut oracle_map,
+                    clock.slot,
+                    clock.unix_timestamp,
+                    QUOTE_SPOT_MARKET_INDEX,
+                    *market_index,
+                    i64::MIN,
+                )?;
+            }
         }
     }
 

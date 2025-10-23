@@ -1284,6 +1284,7 @@ impl PerpPosition {
 
     pub fn can_transfer_isolated_position_deposit(&self) -> bool {
         self.is_isolated()
+            && self.isolated_position_scaled_balance > 0
             && !self.is_open_position()
             && !self.has_open_order()
             && !self.has_unsettled_pnl()
