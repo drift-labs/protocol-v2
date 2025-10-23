@@ -1,6 +1,13 @@
 import { Connection, PublicKey } from '@solana/web3.js';
-import { UserAccount, UserStatsAccount } from '../types';
 import {
+	RevenueShareAccount,
+	RevenueShareEscrowAccount,
+	UserAccount,
+	UserStatsAccount,
+} from '../types';
+import {
+	getRevenueShareAccountPublicKey,
+	getRevenueShareEscrowAccountPublicKey,
 	getUserAccountPublicKey,
 	getUserStatsAccountPublicKey,
 } from '../addresses/pda';
@@ -63,4 +70,46 @@ export async function fetchUserStatsAccount(
 				accountInfo.data
 		  ) as UserStatsAccount)
 		: undefined;
+}
+
+export async function fetchRevenueShareAccount(
+	connection: Connection,
+	program: Program,
+	authority: PublicKey
+): Promise<RevenueShareAccount | null> {
+	const revenueShareAccountPublicKey = getRevenueShareAccountPublicKey(
+		program.programId,
+		authority
+	);
+	const accountInfo = await connection.getAccountInfo(
+		revenueShareAccountPublicKey
+	);
+	if (!accountInfo) return null;
+	return program.account.revenueShare.coder.accounts.decode(
+		'RevenueShare',
+		accountInfo.data
+	) as RevenueShareAccount;
+}
+
+export async function fetchRevenueShareEscrowAccount(
+	connection: Connection,
+	program: Program,
+	authority: PublicKey
+): Promise<RevenueShareEscrowAccount | null> {
+	const revenueShareEscrowPubKey = getRevenueShareEscrowAccountPublicKey(
+		program.programId,
+		authority
+	);
+
+	const escrow = await connection.getAccountInfo(revenueShareEscrowPubKey);
+
+	if (!escrow) return null;
+
+	const escrowAccount =
+		program.account.revenueShareEscrow.coder.accounts.decode(
+			'RevenueShareEscrow',
+			escrow.data
+		) as RevenueShareEscrowAccount;
+
+	return escrowAccount;
 }

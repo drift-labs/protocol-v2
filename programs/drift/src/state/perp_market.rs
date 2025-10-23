@@ -1,5 +1,7 @@
+use crate::msg;
+use crate::state::fill_mode::FillMode;
 use crate::state::pyth_lazer_oracle::PythLazerOracle;
-use crate::state::user::MarketType;
+use crate::state::user::{MarketType, Order};
 use anchor_lang::prelude::*;
 
 use crate::state::state::{State, ValidityGuardRails};
@@ -22,9 +24,10 @@ use crate::math::constants::{
     PERCENTAGE_PRECISION_I64, PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128,
     SPOT_WEIGHT_PRECISION, TWENTY_FOUR_HOUR,
 };
+use crate::math::helpers::get_proportion_u128;
 use crate::math::margin::{
-    calculate_size_discount_asset_weight, calculate_size_premium_liability_weight,
-    MarginRequirementType,
+    calc_high_leverage_mode_initial_margin_ratio_from_size, calculate_size_discount_asset_weight,
+    calculate_size_premium_liability_weight, MarginRequirementType,
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::stats;
@@ -44,7 +47,9 @@ use static_assertions::const_assert_eq;
 
 use super::oracle_map::OracleIdentifier;
 use super::protected_maker_mode_config::ProtectedMakerParams;
-use crate::math::oracle::{oracle_validity, LogMode, OracleValidity};
+use crate::math::oracle::{
+    is_oracle_valid_for_action, oracle_validity, DriftAction, LogMode, OracleValidity,
+};
 
 #[cfg(test)]
 mod tests;
@@ -133,13 +138,6 @@ impl ContractTier {
             other >= &AssetTier::Cross && self <= &ContractTier::C
         }
     }
-}
-
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord)]
-pub enum AMMAvailability {
-    Immediate,
-    AfterMinDuration,
-    Unavailable,
 }
 
 #[account(zero_copy(unsafe))]
@@ -327,16 +325,12 @@ impl PerpMarket {
         let amm_low_inventory_and_profitable = self.amm.net_revenue_since_last_funding
             >= DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT
             && amm_has_low_enough_inventory;
-        let amm_oracle_no_latency = self.amm.oracle_source == OracleSource::Prelaunch
-            || (self.amm.historical_oracle_data.last_oracle_delay == 0
-                && self.amm.oracle_source == OracleSource::PythLazer);
-        let can_skip = amm_low_inventory_and_profitable || amm_oracle_no_latency;
 
-        if can_skip {
+        if amm_low_inventory_and_profitable {
             msg!("market {} amm skipping auction duration", self.market_index);
         }
 
-        Ok(can_skip)
+        Ok(amm_low_inventory_and_profitable)
     }
 
     pub fn has_too_much_drawdown(&self) -> DriftResult<bool> {
@@ -438,18 +432,19 @@ impl PerpMarket {
         user_high_leverage_mode: bool,
     ) -> DriftResult<u32> {
         if self.status == MarketStatus::Settlement {
-            return Ok(0); // no liability weight on size
+            return Ok(0);
         }
 
-        let (margin_ratio_initial, margin_ratio_maintenance) =
-            if user_high_leverage_mode && self.is_high_leverage_mode_enabled() {
-                (
-                    self.high_leverage_margin_ratio_initial.cast::<u32>()?,
-                    self.high_leverage_margin_ratio_maintenance.cast::<u32>()?,
-                )
-            } else {
-                (self.margin_ratio_initial, self.margin_ratio_maintenance)
-            };
+        let is_high_leverage_user = user_high_leverage_mode && self.is_high_leverage_mode_enabled();
+
+        let (margin_ratio_initial, margin_ratio_maintenance) = if is_high_leverage_user {
+            (
+                self.high_leverage_margin_ratio_initial.cast::<u32>()?,
+                self.high_leverage_margin_ratio_maintenance.cast::<u32>()?,
+            )
+        } else {
+            (self.margin_ratio_initial, self.margin_ratio_maintenance)
+        };
 
         let default_margin_ratio = match margin_type {
             MarginRequirementType::Initial => margin_ratio_initial,
@@ -459,14 +454,43 @@ impl PerpMarket {
             MarginRequirementType::Maintenance => margin_ratio_maintenance,
         };
 
-        let size_adj_margin_ratio = calculate_size_premium_liability_weight(
-            size,
-            self.imf_factor,
-            default_margin_ratio,
-            MARGIN_PRECISION_U128,
-        )?;
+        let margin_ratio =
+            if is_high_leverage_user && margin_type != MarginRequirementType::Maintenance {
+                // use HLM maintenance margin but ordinary mode initial/fill margin for size adj calculation
+                let pre_size_adj_margin_ratio = match margin_type {
+                    MarginRequirementType::Initial => self.margin_ratio_initial,
+                    MarginRequirementType::Fill => {
+                        self.margin_ratio_initial
+                            .safe_add(self.margin_ratio_maintenance)?
+                            / 2
+                    }
+                    MarginRequirementType::Maintenance => margin_ratio_maintenance,
+                };
 
-        let margin_ratio = default_margin_ratio.max(size_adj_margin_ratio);
+                let size_adj_margin_ratio = calculate_size_premium_liability_weight(
+                    size,
+                    self.imf_factor,
+                    pre_size_adj_margin_ratio,
+                    MARGIN_PRECISION_U128,
+                    false,
+                )?;
+
+                calc_high_leverage_mode_initial_margin_ratio_from_size(
+                    pre_size_adj_margin_ratio,
+                    size_adj_margin_ratio,
+                    default_margin_ratio,
+                )?
+            } else {
+                let size_adj_margin_ratio = calculate_size_premium_liability_weight(
+                    size,
+                    self.imf_factor,
+                    default_margin_ratio,
+                    MARGIN_PRECISION_U128,
+                    true,
+                )?;
+
+                default_margin_ratio.max(size_adj_margin_ratio)
+            };
 
         Ok(margin_ratio)
     }
@@ -704,14 +728,6 @@ impl PerpMarket {
         }
     }
 
-    pub fn get_min_perp_auction_duration(&self, default_min_auction_duration: u8) -> u8 {
-        if self.amm.taker_speed_bump_override != 0 {
-            self.amm.taker_speed_bump_override.max(0).unsigned_abs()
-        } else {
-            default_min_auction_duration
-        }
-    }
-
     pub fn get_trigger_price(
         &self,
         oracle_price: i64,
@@ -739,9 +755,11 @@ impl PerpMarket {
         let oracle_plus_funding_basis = oracle_price.safe_add(last_funding_basis)?.cast::<u64>()?;
 
         let median_price = if last_fill_price > 0 {
-            println!(
+            msg!(
                 "last_fill_price: {} oracle_plus_funding_basis: {} oracle_plus_basis_5min: {}",
-                last_fill_price, oracle_plus_funding_basis, oracle_plus_basis_5min
+                last_fill_price,
+                oracle_plus_funding_basis,
+                oracle_plus_basis_5min
             );
             let mut prices = [
                 last_fill_price,
@@ -848,6 +866,7 @@ impl PerpMarket {
                 &self.amm.oracle_source,
                 LogMode::MMOracle,
                 self.amm.oracle_slot_delay_override,
+                self.amm.oracle_low_risk_slot_delay_override,
             )?
         };
         Ok(MMOraclePriceData::new(
@@ -857,6 +876,83 @@ impl PerpMarket {
             oracle_validity,
             oracle_price_data,
         )?)
+    }
+
+    pub fn amm_can_fill_order(
+        &self,
+        order: &Order,
+        clock_slot: u64,
+        fill_mode: FillMode,
+        state: &State,
+        safe_oracle_validity: OracleValidity,
+        user_can_skip_auction_duration: bool,
+        mm_oracle_price_data: &MMOraclePriceData,
+    ) -> DriftResult<bool> {
+        if self.is_operation_paused(PerpOperation::AmmFill) {
+            return Ok(false);
+        }
+
+        if self.has_too_much_drawdown()? {
+            return Ok(false);
+        }
+
+        // We are already using safe oracle data from MM oracle.
+        // But AMM isnt available if we could have used MM oracle but fell back due to price diff
+        // This is basically early volatility protection
+        let mm_oracle_not_too_volatile =
+            if mm_oracle_price_data.is_enabled() && mm_oracle_price_data.is_mm_oracle_as_recent() {
+                let amm_available = !mm_oracle_price_data.is_mm_exchange_diff_bps_high();
+                amm_available
+            } else {
+                true
+            };
+
+        if !mm_oracle_not_too_volatile {
+            msg!("AMM cannot fill order: MM oracle too volatile compared to exchange oracle");
+            return Ok(false);
+        }
+
+        // Determine if order is fillable with low risk
+        let oracle_valid_for_amm_fill_low_risk = is_oracle_valid_for_action(
+            safe_oracle_validity,
+            Some(DriftAction::FillOrderAmmLowRisk),
+        )?;
+        if !oracle_valid_for_amm_fill_low_risk {
+            msg!("AMM cannot fill order: oracle not valid for low risk fills");
+            return Ok(false);
+        }
+        let safe_oracle_price_data = mm_oracle_price_data.get_safe_oracle_price_data();
+        let can_fill_low_risk = order.is_low_risk_for_amm(
+            safe_oracle_price_data.delay,
+            clock_slot,
+            fill_mode.is_liquidation(),
+        )?;
+
+        // Proceed if order is low risk and we can fill it. Otherwise check if we can higher risk order immediately
+        let can_fill_order = if can_fill_low_risk {
+            true
+        } else {
+            let oracle_valid_for_can_fill_immediately = is_oracle_valid_for_action(
+                safe_oracle_validity,
+                Some(DriftAction::FillOrderAmmImmediate),
+            )?;
+            if !oracle_valid_for_can_fill_immediately {
+                msg!("AMM cannot fill order: oracle not valid for immediate fills");
+                return Ok(false);
+            }
+            let amm_wants_to_jit_make = self.amm.amm_wants_to_jit_make(order.direction)?;
+            let amm_has_low_enough_inventory = self
+                .amm
+                .amm_has_low_enough_inventory(amm_wants_to_jit_make)?;
+            let amm_can_skip_duration =
+                self.can_skip_auction_duration(&state, amm_has_low_enough_inventory)?;
+
+            amm_can_skip_duration
+                && oracle_valid_for_can_fill_immediately
+                && user_can_skip_auction_duration
+        };
+
+        Ok(can_fill_order)
     }
 }
 
@@ -1157,7 +1253,7 @@ pub struct AMM {
     pub per_lp_base: i8,
     /// the override for the state.min_perp_auction_duration
     /// 0 is no override, -1 is disable speed bump, 1-100 is literal speed bump
-    pub taker_speed_bump_override: i8,
+    pub oracle_low_risk_slot_delay_override: i8,
     /// signed scale amm_spread similar to fee_adjustment logic (-100 = 0, 100 = double)
     pub amm_spread_adjustment: i8,
     pub oracle_slot_delay_override: i8,
@@ -1167,7 +1263,8 @@ pub struct AMM {
     pub reference_price_offset: i32,
     /// signed scale amm_spread similar to fee_adjustment logic (-100 = 0, 100 = double)
     pub amm_inventory_spread_adjustment: i8,
-    pub padding: [u8; 3],
+    pub reference_price_offset_deadband_pct: u8,
+    pub padding: [u8; 2],
     pub last_funding_oracle_twap: i64,
 }
 
@@ -1250,21 +1347,26 @@ impl Default for AMM {
             last_oracle_valid: false,
             target_base_asset_amount_per_lp: 0,
             per_lp_base: 0,
-            taker_speed_bump_override: 0,
+            oracle_low_risk_slot_delay_override: 0,
             amm_spread_adjustment: 0,
-            oracle_slot_delay_override: 0,
+            oracle_slot_delay_override: -1,
             mm_oracle_sequence_id: 0,
             net_unsettled_funding_pnl: 0,
             quote_asset_amount_with_unsettled_lp: 0,
             reference_price_offset: 0,
             amm_inventory_spread_adjustment: 0,
-            padding: [0; 3],
+            reference_price_offset_deadband_pct: 0,
+            padding: [0; 2],
             last_funding_oracle_twap: 0,
         }
     }
 }
 
 impl AMM {
+    pub fn get_reference_price_offset_deadband_pct(&self) -> DriftResult<u128> {
+        let pct = self.reference_price_offset_deadband_pct as u128;
+        Ok(PERCENTAGE_PRECISION.safe_mul(pct)?.safe_div(100_u128)?)
+    }
     pub fn get_fallback_price(
         self,
         direction: &PositionDirection,

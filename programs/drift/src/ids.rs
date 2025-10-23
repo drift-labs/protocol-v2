@@ -107,3 +107,13 @@ pub mod amm_spread_adjust_wallet {
     #[cfg(feature = "anchor-test")]
     declare_id!("1ucYHAGrBbi1PaecC4Ptq5ocZLWGLBmbGWysoDGNB1N");
 }
+
+pub mod dflow_mainnet_aggregator_4 {
+    use solana_program::declare_id;
+    declare_id!("DF1ow4tspfHX9JwWJsAb9epbkA8hmpSEAtxXy1V27QBH");
+}
+
+pub mod titan_mainnet_argos_v1 {
+    use solana_program::declare_id;
+    declare_id!("T1TANpTeScyeqVzzgNViGDNrkQ6qHz9KrSBS4aNXvGT");
+}

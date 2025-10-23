@@ -22,6 +22,7 @@ test_files=(
   # updateK.ts
   # postOnlyAmmFulfillment.ts
   # TODO BROKEN ^^
+	builderCodes.ts
   decodeUser.ts
   fuel.ts
   fuelSweep.ts

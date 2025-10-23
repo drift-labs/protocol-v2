@@ -426,6 +426,7 @@ impl SpotMarket {
             self.imf_factor,
             default_liability_weight,
             SPOT_WEIGHT_PRECISION_U128,
+            true,
         )?;
 
         let liability_weight = size_based_liability_weight.max(default_liability_weight);

@@ -22,6 +22,8 @@ import { WebSocketAccountSubscriberV2 } from './accounts/webSocketAccountSubscri
 import { WebSocketProgramAccountSubscriber } from './accounts/webSocketProgramAccountSubscriber';
 import { WebSocketDriftClientAccountSubscriberV2 } from './accounts/webSocketDriftClientAccountSubscriberV2';
 import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDriftClientAccountSubscriber';
+import { grpcDriftClientAccountSubscriberV2 } from './accounts/grpcDriftClientAccountSubscriberV2';
+import { grpcDriftClientAccountSubscriber } from './accounts/grpcDriftClientAccountSubscriber';
 
 export type DriftClientConfig = {
 	connection: Connection;
@@ -60,6 +62,17 @@ export type DriftClientSubscriptionConfig =
 			grpcConfigs: GrpcConfigs;
 			resubTimeoutMs?: number;
 			logResubMessages?: boolean;
+			driftClientAccountSubscriber?: new (
+				grpcConfigs: GrpcConfigs,
+				program: Program,
+				perpMarketIndexes: number[],
+				spotMarketIndexes: number[],
+				oracleInfos: OracleInfo[],
+				shouldFindAllMarketsAndOracles: boolean,
+				delistedMarketSetting: DelistedMarketSetting
+			) =>
+				| grpcDriftClientAccountSubscriberV2
+				| grpcDriftClientAccountSubscriber;
 	  }
 	| {
 			type: 'websocket';

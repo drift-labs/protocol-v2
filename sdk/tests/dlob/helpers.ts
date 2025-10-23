@@ -44,6 +44,7 @@ export const mockPerpPosition: PerpPosition = {
 	lastBaseAssetAmountPerLp: new BN(0),
 	lastQuoteAssetAmountPerLp: new BN(0),
 	perLpBase: 0,
+	maxMarginRatio: 1,
 };
 
 export const mockAMM: AMM = {
@@ -144,7 +145,7 @@ export const mockAMM: AMM = {
 	quoteAssetAmountWithUnsettledLp: new BN(0),
 	referencePriceOffset: 0,
 
-	takerSpeedBumpOverride: 0,
+	oracleLowRiskSlotDelayOverride: 0,
 	ammSpreadAdjustment: 0,
 	ammInventorySpreadAdjustment: 0,
 	mmOracleSequenceId: new BN(0),
@@ -671,9 +672,9 @@ export class MockUserMap implements UserMapInterface {
 		});
 	}
 
-	public async subscribe(): Promise<void> {}
+	public async subscribe(): Promise<void> { }
 
-	public async unsubscribe(): Promise<void> {}
+	public async unsubscribe(): Promise<void> { }
 
 	public async addPubkey(userAccountPublicKey: PublicKey): Promise<void> {
 		const user = new User({
@@ -732,7 +733,7 @@ export class MockUserMap implements UserMapInterface {
 		);
 	}
 
-	public async updateWithOrderRecord(_record: OrderRecord): Promise<void> {}
+	public async updateWithOrderRecord(_record: OrderRecord): Promise<void> { }
 
 	public values(): IterableIterator<User> {
 		return this.userMap.values();

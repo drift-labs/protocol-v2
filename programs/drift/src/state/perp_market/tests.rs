@@ -84,76 +84,137 @@ mod get_margin_ratio {
         let margin_ratio_initial = perp_market
             .get_margin_ratio(BASE_PRECISION, MarginRequirementType::Initial, true)
             .unwrap();
+        assert_eq!(margin_ratio_initial, MARGIN_PRECISION / 50);
 
         let margin_ratio_maintenance = perp_market
             .get_margin_ratio(BASE_PRECISION, MarginRequirementType::Maintenance, true)
             .unwrap();
 
+        assert_eq!(margin_ratio_maintenance, MARGIN_PRECISION / 100);
+
         let margin_ratio_fill = perp_market
             .get_margin_ratio(BASE_PRECISION, MarginRequirementType::Fill, true)
             .unwrap();
 
-        assert_eq!(margin_ratio_initial, MARGIN_PRECISION / 50);
         assert_eq!(
             margin_ratio_fill,
             (MARGIN_PRECISION / 50 + MARGIN_PRECISION / 100) / 2
         );
-        assert_eq!(margin_ratio_maintenance, MARGIN_PRECISION / 100);
     }
-}
-
-mod get_min_perp_auction_duration {
-    use crate::state::perp_market::{PerpMarket, AMM};
-    use crate::State;
 
     #[test]
-    fn test_get_speed_bump() {
+    fn new_hlm_imf_size_loop() {
         let perp_market = PerpMarket {
-            amm: AMM {
-                taker_speed_bump_override: 0,
-                ..AMM::default()
-            },
+            margin_ratio_initial: MARGIN_PRECISION / 20,
+            margin_ratio_maintenance: MARGIN_PRECISION / 33,
+            high_leverage_margin_ratio_initial: (MARGIN_PRECISION / 100) as u16,
+            high_leverage_margin_ratio_maintenance: (MARGIN_PRECISION / 151) as u16,
+            imf_factor: 50,
             ..PerpMarket::default()
         };
 
-        let state = State {
-            min_perp_auction_duration: 10,
-            ..State::default()
-        };
+        let mut cnt = 0;
 
-        // no override uses state value
-        assert_eq!(
-            perp_market.get_min_perp_auction_duration(state.min_perp_auction_duration),
-            10
-        );
+        for i in 1..1_000 {
+            let hlm_margin_ratio_initial = perp_market
+                .get_margin_ratio(
+                    BASE_PRECISION * i * 1000,
+                    MarginRequirementType::Initial,
+                    true,
+                )
+                .unwrap();
 
+            let margin_ratio_initial = perp_market
+                .get_margin_ratio(
+                    BASE_PRECISION * i * 1000,
+                    MarginRequirementType::Initial,
+                    false,
+                )
+                .unwrap();
+
+            if margin_ratio_initial != perp_market.margin_ratio_initial {
+                // crate::msg!("{}", BASE_PRECISION * i);
+                assert_eq!(hlm_margin_ratio_initial, margin_ratio_initial);
+                cnt += 1;
+            }
+        }
+
+        assert_eq!(cnt, 959_196 / 1_000);
+    }
+
+    #[test]
+    fn new_hlm_imf_size() {
         let perp_market = PerpMarket {
-            amm: AMM {
-                taker_speed_bump_override: -1,
-                ..AMM::default()
-            },
+            margin_ratio_initial: MARGIN_PRECISION / 10,
+            margin_ratio_maintenance: MARGIN_PRECISION / 20,
+            high_leverage_margin_ratio_initial: (MARGIN_PRECISION / 100) as u16,
+            high_leverage_margin_ratio_maintenance: (MARGIN_PRECISION / 200) as u16,
+            imf_factor: 50,
             ..PerpMarket::default()
         };
 
-        // -1 override disables speed bump
+        let normal_margin_ratio_initial = perp_market
+            .get_margin_ratio(
+                BASE_PRECISION * 1000000,
+                MarginRequirementType::Initial,
+                false,
+            )
+            .unwrap();
+
+        assert_eq!(normal_margin_ratio_initial, 1300);
+
+        let hlm_margin_ratio_initial = perp_market
+            .get_margin_ratio(BASE_PRECISION / 10, MarginRequirementType::Initial, true)
+            .unwrap();
+
         assert_eq!(
-            perp_market.get_min_perp_auction_duration(state.min_perp_auction_duration),
-            0
+            hlm_margin_ratio_initial,
+            perp_market.high_leverage_margin_ratio_initial as u32
         );
 
-        let perp_market = PerpMarket {
-            amm: AMM {
-                taker_speed_bump_override: 20,
-                ..AMM::default()
-            },
-            ..PerpMarket::default()
-        };
+        let hlm_margin_ratio_initial = perp_market
+            .get_margin_ratio(BASE_PRECISION, MarginRequirementType::Initial, true)
+            .unwrap();
 
-        // positive override uses override value
         assert_eq!(
-            perp_market.get_min_perp_auction_duration(state.min_perp_auction_duration),
-            20
+            hlm_margin_ratio_initial,
+            perp_market.high_leverage_margin_ratio_initial as u32
         );
+
+        let hlm_margin_ratio_initial = perp_market
+            .get_margin_ratio(BASE_PRECISION * 10, MarginRequirementType::Initial, true)
+            .unwrap();
+
+        assert_eq!(
+            hlm_margin_ratio_initial,
+            104 // slightly under 100x at 10 base
+        );
+
+        let hlm_margin_ratio_initial_sized = perp_market
+            .get_margin_ratio(BASE_PRECISION * 3000, MarginRequirementType::Initial, true)
+            .unwrap();
+        assert_eq!(hlm_margin_ratio_initial_sized, 221);
+        assert!(
+            hlm_margin_ratio_initial_sized > perp_market.high_leverage_margin_ratio_initial as u32
+        );
+
+        let hlm_margin_ratio_maint = perp_market
+            .get_margin_ratio(
+                BASE_PRECISION * 3000,
+                MarginRequirementType::Maintenance,
+                true,
+            )
+            .unwrap();
+        assert_eq!(hlm_margin_ratio_maint, 67); // hardly changed
+
+        let hlm_margin_ratio_maint = perp_market
+            .get_margin_ratio(
+                BASE_PRECISION * 300000,
+                MarginRequirementType::Maintenance,
+                true,
+            )
+            .unwrap();
+        assert_eq!(hlm_margin_ratio_maint, 313); // changed more at large size
     }
 }
 
@@ -334,5 +395,245 @@ mod get_trigger_price {
             .clamp_trigger_price(large_oracle_price, median_price_large)
             .unwrap();
         assert_eq!(clamped_price, large_oracle_price + max_oracle_diff_large);
+    }
+}
+
+mod amm_can_fill_order_tests {
+    use crate::controller::position::PositionDirection;
+    use crate::math::oracle::OracleValidity;
+    use crate::state::fill_mode::FillMode;
+    use crate::state::oracle::{MMOraclePriceData, OraclePriceData};
+    use crate::state::paused_operations::PerpOperation;
+    use crate::state::perp_market::{PerpMarket, AMM};
+    use crate::state::state::{State, ValidityGuardRails};
+    use crate::state::user::{Order, OrderStatus};
+    use crate::PRICE_PRECISION_I64;
+
+    fn base_state() -> State {
+        State {
+            min_perp_auction_duration: 10,
+            ..State::default()
+        }
+    }
+
+    fn base_market() -> PerpMarket {
+        PerpMarket {
+            amm: AMM {
+                mm_oracle_price: PRICE_PRECISION_I64,
+                mm_oracle_slot: 0,
+                order_step_size: 1,
+                amm_jit_intensity: 100,
+                ..AMM::default()
+            },
+            ..PerpMarket::default()
+        }
+    }
+
+    fn base_order() -> Order {
+        Order {
+            status: OrderStatus::Open,
+            slot: 0,
+            base_asset_amount: 1,
+            direction: PositionDirection::Long,
+            ..Order::default()
+        }
+    }
+
+    fn mm_oracle_ok_and_as_recent() -> (MMOraclePriceData, ValidityGuardRails) {
+        let exchange = OraclePriceData {
+            price: PRICE_PRECISION_I64,
+            confidence: 1,
+            delay: 5,
+            has_sufficient_number_of_data_points: true,
+            sequence_id: Some(100),
+        };
+        let mm =
+            MMOraclePriceData::new(PRICE_PRECISION_I64, 5, 100, OracleValidity::Valid, exchange)
+                .unwrap();
+        (mm, ValidityGuardRails::default())
+    }
+
+    #[test]
+    fn paused_operation_returns_false() {
+        let mut market = base_market();
+        // Pause AMM fill
+        market.paused_operations = PerpOperation::AmmFill as u8;
+        let order = base_order();
+        let state = base_state();
+        let (mm, guard) = mm_oracle_ok_and_as_recent();
+
+        let can = market
+            .amm_can_fill_order(
+                &order,
+                10,
+                FillMode::Fill,
+                &state,
+                OracleValidity::Valid,
+                true,
+                &mm,
+            )
+            .unwrap();
+        assert!(!can);
+    }
+
+    #[test]
+    fn mm_oracle_too_volatile_blocks() {
+        let market = base_market();
+        let order = base_order();
+        let state = base_state();
+
+        // Create MM oracle data with >1% diff vs exchange to force fallback and block
+        let exchange = OraclePriceData {
+            price: PRICE_PRECISION_I64, // 1.0
+            confidence: 1,
+            delay: 1,
+            has_sufficient_number_of_data_points: true,
+            sequence_id: Some(100),
+        };
+        // 3% higher than exchange
+        let mm = MMOraclePriceData::new(
+            PRICE_PRECISION_I64 + (PRICE_PRECISION_I64 / 33),
+            1,
+            99,
+            OracleValidity::Valid,
+            exchange,
+        )
+        .unwrap();
+
+        let can = market
+            .amm_can_fill_order(
+                &order,
+                10,
+                FillMode::Fill,
+                &state,
+                OracleValidity::Valid,
+                true,
+                &mm,
+            )
+            .unwrap();
+        assert!(!can);
+    }
+
+    #[test]
+    fn low_risk_path_succeeds_when_auction_elapsed() {
+        let market = base_market();
+        let mut order = base_order();
+        order.slot = 0;
+
+        let state = base_state();
+        let (mm, _) = mm_oracle_ok_and_as_recent();
+
+        // clock_slot sufficiently beyond min_auction_duration
+        let can = market
+            .amm_can_fill_order(
+                &order,
+                15,
+                FillMode::Fill,
+                &state,
+                OracleValidity::Valid,
+                true,
+                &mm,
+            )
+            .unwrap();
+        assert!(can);
+    }
+
+    #[test]
+    fn low_risk_path_succeeds_when_auction_elapsed_with_stale_for_immediate() {
+        let market = base_market();
+        let mut order = base_order();
+        order.slot = 0; // order placed at slot 0
+
+        let state = base_state();
+        let (mm, _) = mm_oracle_ok_and_as_recent();
+
+        // clock_slot sufficiently beyond min_auction_duration
+        let can = market
+            .amm_can_fill_order(
+                &order,
+                15,
+                FillMode::Fill,
+                &state,
+                OracleValidity::StaleForAMM {
+                    immediate: true,
+                    low_risk: false,
+                },
+                true,
+                &mm,
+            )
+            .unwrap();
+        assert!(can);
+    }
+
+    #[test]
+    fn high_risk_immediate_requires_user_and_market_skip() {
+        let mut market = base_market();
+        let mut order = base_order();
+        order.slot = 20;
+        market.amm.amm_jit_intensity = 100;
+
+        let state = base_state();
+        let (mm, _) = mm_oracle_ok_and_as_recent();
+
+        // cnat fill if user cant skip auction duration
+        let can1 = market
+            .amm_can_fill_order(
+                &order,
+                21,
+                FillMode::Fill,
+                &state,
+                OracleValidity::Valid,
+                false,
+                &mm,
+            )
+            .unwrap();
+        assert!(!can1);
+
+        // valid oracle for immediate and user can skip, market can skip due to low inventory => can fill
+        market.amm.base_asset_amount_with_amm = -2; // taker long improves balance
+        market.amm.order_step_size = 1;
+        market.amm.base_asset_reserve = 1_000_000;
+        market.amm.quote_asset_reserve = 1_000_000;
+        market.amm.sqrt_k = 1_000_000;
+        market.amm.max_base_asset_reserve = 2_000_000;
+        market.amm.min_base_asset_reserve = 0;
+
+        let can2 = market
+            .amm_can_fill_order(
+                &order,
+                21,
+                FillMode::Fill,
+                &state,
+                OracleValidity::Valid,
+                true,
+                &mm,
+            )
+            .unwrap();
+        assert!(can2);
+    }
+
+    #[test]
+    fn invalid_safe_oracle_validity_blocks_low_risk() {
+        let market = base_market();
+        let order = base_order();
+        let state = base_state();
+        let (mm, _) = mm_oracle_ok_and_as_recent();
+
+        // Order is old but invalid oracle validity
+        let can = market
+            .amm_can_fill_order(
+                &order,
+                20,
+                FillMode::Fill,
+                &state,
+                OracleValidity::StaleForAMM {
+                    immediate: true,
+                    low_risk: true,
+                },
+                true,
+                &mm,
+            )
+            .unwrap();
+        assert!(!can);
     }
 }

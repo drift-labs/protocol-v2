@@ -158,6 +158,7 @@ describe('subaccounts', () => {
 			undefined,
 			donationAmount
 		);
+		await driftClient.fetchAccounts();
 		await driftClient.addUser(1);
 		await driftClient.switchActiveUser(1);
 
