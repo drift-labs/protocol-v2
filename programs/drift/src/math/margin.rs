@@ -4,6 +4,7 @@ use crate::math::constants::{
     MARGIN_PRECISION_U128, MAX_POSITIVE_UPNL_FOR_INITIAL_MARGIN, PERCENTAGE_PRECISION,
     PRICE_PRECISION, SPOT_IMF_PRECISION_U128, SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_U128,
 };
+use crate::math::oracle::LogMode;
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 
 use crate::MARGIN_PRECISION;
@@ -305,6 +306,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             spot_market.get_max_confidence_interval_multiplier()?,
             0,
             0,
+            Some(LogMode::Margin),
         )?;
 
         let mut skip_token_value = false;
@@ -558,6 +560,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 quote_spot_market.get_max_confidence_interval_multiplier()?,
                 0,
                 0,
+                Some(LogMode::Margin),
             )?;
 
         let strict_quote_price = StrictOraclePrice::new(
@@ -575,8 +578,9 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             &market.oracle_id(),
             market.amm.historical_oracle_data.last_oracle_price_twap,
             market.get_max_confidence_interval_multiplier()?,
-            0,
-            0,
+            market.amm.oracle_slot_delay_override,
+            market.amm.oracle_low_risk_slot_delay_override,
+            Some(LogMode::Margin),
         )?;
 
         let perp_position_custom_margin_ratio =
@@ -993,6 +997,7 @@ pub fn calculate_user_equity(
             spot_market.get_max_confidence_interval_multiplier()?,
             0,
             0,
+            Some(LogMode::Margin),
         )?;
         all_oracles_valid &=
             is_oracle_valid_for_action(oracle_validity, Some(DriftAction::MarginCalc))?;
@@ -1024,6 +1029,7 @@ pub fn calculate_user_equity(
                     quote_spot_market.get_max_confidence_interval_multiplier()?,
                     0,
                     0,
+                    Some(LogMode::Margin),
                 )?;
 
             all_oracles_valid &=
@@ -1038,8 +1044,9 @@ pub fn calculate_user_equity(
             &market.oracle_id(),
             market.amm.historical_oracle_data.last_oracle_price_twap,
             market.get_max_confidence_interval_multiplier()?,
-            0,
-            0,
+            market.amm.oracle_slot_delay_override,
+            market.amm.oracle_low_risk_slot_delay_override,
+            Some(LogMode::Margin),
         )?;
 
         all_oracles_valid &=

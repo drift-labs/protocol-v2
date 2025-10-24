@@ -265,8 +265,8 @@ pub fn update_amm_and_check_validity(
         market.get_max_confidence_interval_multiplier()?,
         &market.amm.oracle_source,
         LogMode::SafeMMOracle,
-        0,
-        0,
+        market.amm.oracle_slot_delay_override,
+        market.amm.oracle_low_risk_slot_delay_override,
     )?;
 
     validate!(

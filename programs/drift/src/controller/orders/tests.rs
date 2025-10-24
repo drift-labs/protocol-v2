@@ -2229,6 +2229,7 @@ pub mod fulfill_order_with_maker_order {
                 market.get_max_confidence_interval_multiplier().unwrap(),
                 0,
                 0,
+                None,
             )
             .unwrap();
 
