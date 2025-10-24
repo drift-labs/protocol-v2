@@ -709,21 +709,6 @@ export class grpcDriftClientAccountSubscriberV2
 			await this.perpMarketsSubscriber.removeAccounts(
 				perpMarketPubkeysToRemove
 			);
-			// Clean up the mapping for removed perp markets
-			for (const pubkey of perpMarketPubkeysToRemove) {
-				const pubkeyString = pubkey.toBase58();
-				for (const [
-					marketIndex,
-					accountPubkey,
-				] of this.perpMarketIndexToAccountPubkeyMap.entries()) {
-					if (accountPubkey === pubkeyString) {
-						this.perpMarketIndexToAccountPubkeyMap.delete(marketIndex);
-						this.perpOracleMap.delete(marketIndex);
-						this.perpOracleStringMap.delete(marketIndex);
-						break;
-					}
-				}
-			}
 		}
 
 		// Remove accounts in batches - oracles
