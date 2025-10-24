@@ -295,7 +295,7 @@ mod get_trigger_price {
             .get_trigger_price(oracle_price, now, true)
             .unwrap();
 
-        assert_eq!(trigger_price, 109144736794);
+        assert_eq!(trigger_price, 109147085925);
     }
 
     #[test]
@@ -460,7 +460,7 @@ mod amm_can_fill_order_tests {
         market.paused_operations = PerpOperation::AmmFill as u8;
         let order = base_order();
         let state = base_state();
-        let (mm, guard) = mm_oracle_ok_and_as_recent();
+        let (mm, _) = mm_oracle_ok_and_as_recent();
 
         let can = market
             .amm_can_fill_order(

@@ -6,6 +6,8 @@ use crate::error::ErrorCode;
 use crate::ids::{admin_hot_wallet, if_rebalance_wallet};
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::{load_maps, AccountMaps};
+use crate::load_mut;
+use crate::math::constants::QUOTE_SPOT_MARKET_INDEX;
 use crate::optional_accounts::get_token_mint;
 use crate::state::insurance_fund_stake::{InsuranceFundStake, ProtocolIfSharesTransferConfig};
 use crate::state::paused_operations::InsuranceFundOperation;
@@ -23,7 +25,6 @@ use crate::{
         spot_market_map::get_writable_spot_market_set_from_many,
     },
 };
-use crate::{load_mut, QUOTE_SPOT_MARKET_INDEX};
 use anchor_lang::solana_program::sysvar::instructions;
 
 use super::optional_accounts::get_token_interface;

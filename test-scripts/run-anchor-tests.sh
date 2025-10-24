@@ -37,12 +37,15 @@ test_files=(
   highLeverageMode.ts
   ifRebalance.ts
   insuranceFundStake.ts
+  isolatedPositionDriftClient.ts
   liquidateBorrowForPerpPnl.ts
   liquidatePerp.ts
   liquidatePerpWithFill.ts
   liquidatePerpPnlForDeposit.ts
   liquidateSpot.ts
   liquidateSpotSocialLoss.ts
+  lpPool.ts
+  lpPoolSwap.ts
   marketOrder.ts
   marketOrderBaseAssetAmount.ts
   maxDeposit.ts
