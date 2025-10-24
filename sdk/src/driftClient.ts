@@ -134,7 +134,11 @@ import {
 	QUOTE_SPOT_MARKET_INDEX,
 	ZERO,
 } from './constants/numericConstants';
-import { findDirectionToClose, positionIsAvailable } from './math/position';
+import {
+	calculateClaimablePnl,
+	findDirectionToClose,
+	positionIsAvailable,
+} from './math/position';
 import { getSignedTokenAmount, getTokenAmount } from './math/spotBalance';
 import { decodeName, DEFAULT_USER_NAME, encodeName } from './userName';
 import { MMOraclePriceData, OraclePriceData } from './oracles/types';
@@ -210,6 +214,7 @@ import {
 	isBuilderOrderReferral,
 	isBuilderOrderCompleted,
 } from './math/builder';
+import { BigNum } from './factory/bigNum';
 
 type RemainingAccountParams = {
 	userAccounts: UserAccount[];
@@ -4216,12 +4221,13 @@ export class DriftClient {
 		subAccountId?: number,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
-		const instructions = await this.getWithdrawFromIsolatedPerpPositionIxsBundle(
-			amount,
-			perpMarketIndex,
-			subAccountId,
-			userTokenAccount
-		);
+		const instructions =
+			await this.getWithdrawFromIsolatedPerpPositionIxsBundle(
+				amount,
+				perpMarketIndex,
+				subAccountId,
+				userTokenAccount
+			);
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(instructions, txParams)
 		);
@@ -4240,12 +4246,28 @@ export class DriftClient {
 			subAccountId ?? this.activeSubAccountId
 		);
 		const userAccount = this.getUserAccount(subAccountId);
-		const settleIx = await this.settleMultiplePNLsIx(
-			userAccountPublicKey,
-			userAccount,
-			[perpMarketIndex],
-			SettlePnlMode.TRY_SETTLE
+
+		const tokenAmountDeposited =
+			this.getIsolatedPerpPositionTokenAmount(perpMarketIndex);
+		const isolatedPositionUnrealizedPnl = calculateClaimablePnl(
+			this.getPerpMarketAccount(perpMarketIndex),
+			this.getSpotMarketAccount(
+				this.getPerpMarketAccount(perpMarketIndex).quoteSpotMarketIndex
+			),
+			userAccount.perpPositions.find((p) => p.marketIndex === perpMarketIndex),
+			this.getOracleDataForSpotMarket(
+				this.getPerpMarketAccount(perpMarketIndex).quoteSpotMarketIndex
+			)
 		);
+
+		const depositAmountPlusUnrealizedPnl = tokenAmountDeposited.add(
+			isolatedPositionUnrealizedPnl
+		);
+
+		const amountToWithdraw = amount.gt(depositAmountPlusUnrealizedPnl)
+			? BigNum.fromPrint('-9223372036854775808').val // min i64
+			: amount;
+
 		let associatedTokenAccount = userTokenAccount;
 		if (!associatedTokenAccount) {
 			const perpMarketAccount = this.getPerpMarketAccount(perpMarketIndex);
@@ -4256,12 +4278,25 @@ export class DriftClient {
 		}
 
 		const withdrawIx = await this.getWithdrawFromIsolatedPerpPositionIx(
-			amount,
+			amountToWithdraw,
 			perpMarketIndex,
 			associatedTokenAccount,
 			subAccountId
 		);
-		return [settleIx, withdrawIx];
+		const ixs = [withdrawIx];
+
+		const needsToSettle =
+			amount.gt(tokenAmountDeposited) && isolatedPositionUnrealizedPnl.gt(ZERO);
+		if (needsToSettle) {
+			const settleIx = await this.settleMultiplePNLsIx(
+				userAccountPublicKey,
+				userAccount,
+				[perpMarketIndex],
+				SettlePnlMode.TRY_SETTLE
+			);
+			ixs.push(settleIx);
+		}
+		return ixs;
 	}
 
 	public async getWithdrawFromIsolatedPerpPositionIx(
@@ -4975,23 +5010,20 @@ export class DriftClient {
 		);
 	}
 
-    public async cancelOrder(
-        orderId?: number,
-        txParams?: TxParams,
-        subAccountId?: number,
-        overrides?: { withdrawIsolatedDepositForPerpMarket?: number }
-    ): Promise<TransactionSignature> {
+	public async cancelOrder(
+		orderId?: number,
+		txParams?: TxParams,
+		subAccountId?: number,
+		overrides?: { withdrawIsolatedDepositAmount?: BN }
+	): Promise<TransactionSignature> {
 		const cancelIx = await this.getCancelOrderIx(orderId, subAccountId);
 
 		const instructions: TransactionInstruction[] = [cancelIx];
 
-        if (overrides?.withdrawIsolatedDepositForPerpMarket !== undefined) {
-            const perpMarketIndex = overrides.withdrawIsolatedDepositForPerpMarket;
-
-			const withdrawAmount = this.getIsolatedPerpPositionTokenAmount(
-				perpMarketIndex,
-				subAccountId
-			);
+		if (overrides?.withdrawIsolatedDepositAmount !== undefined) {
+			const order = this.getOrder(orderId, subAccountId);
+			const perpMarketIndex = order?.marketIndex;
+			const withdrawAmount = overrides.withdrawIsolatedDepositAmount;
 
 			if (withdrawAmount.gt(ZERO)) {
 				const withdrawIxs =
@@ -5002,15 +5034,15 @@ export class DriftClient {
 					);
 				instructions.push(...withdrawIxs);
 			}
-        }
+		}
 
-        const { txSig } = await this.sendTransaction(
-            await this.buildTransaction(instructions, txParams),
-            [],
-            this.opts
-        );
-        return txSig;
-    }
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(instructions, txParams),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
 
 	public async getCancelOrderIx(
 		orderId?: number,
@@ -7423,7 +7455,11 @@ export class DriftClient {
 			userAccounts: [takerInfo.takerUserAccount],
 			useMarketLastSlotCache: false,
 			readablePerpMarketIndex: marketIndex,
-			writableSpotMarketIndexes: signedMessage.isolatedPositionDeposit?.gt(new BN(0)) ? [QUOTE_SPOT_MARKET_INDEX] : undefined,
+			writableSpotMarketIndexes: signedMessage.isolatedPositionDeposit?.gt(
+				new BN(0)
+			)
+				? [QUOTE_SPOT_MARKET_INDEX]
+				: undefined,
 		});
 
 		if (isUpdateHighLeverageMode(signedMessage.signedMsgOrderParams.bitFlags)) {
@@ -11423,11 +11459,10 @@ export class DriftClient {
 		const currentBase = perpPosition.baseAssetAmount;
 		if (currentBase.eq(ZERO)) return true;
 
-		const orderBaseAmount = isVariant(orderParams.direction, 'long') ? orderParams.baseAssetAmount : orderParams.baseAssetAmount.neg();
+		const orderBaseAmount = isVariant(orderParams.direction, 'long')
+			? orderParams.baseAssetAmount
+			: orderParams.baseAssetAmount.neg();
 
-		return currentBase
-			.add(orderBaseAmount)
-			.abs()
-			.gt(currentBase.abs());
+		return currentBase.add(orderBaseAmount).abs().gt(currentBase.abs());
 	}
 }
