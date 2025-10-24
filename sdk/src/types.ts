@@ -1135,6 +1135,8 @@ export type PerpPosition = {
 	lastBaseAssetAmountPerLp: BN;
 	lastQuoteAssetAmountPerLp: BN;
 	perLpBase: number;
+	isolatedPositionScaledBalance: BN;
+	positionFlag: number;
 };
 
 export type UserStatsAccount = {
@@ -1337,6 +1339,7 @@ export type SignedMsgOrderParamsMessage = {
 	maxMarginRatio?: number | null;
 	builderIdx?: number | null;
 	builderFeeTenthBps?: number | null;
+	isolatedPositionDeposit?: BN | null;
 };
 
 export type SignedMsgOrderParamsDelegateMessage = {
@@ -1349,6 +1352,7 @@ export type SignedMsgOrderParamsDelegateMessage = {
 	maxMarginRatio?: number | null;
 	builderIdx?: number | null;
 	builderFeeTenthBps?: number | null;
+	isolatedPositionDeposit?: BN | null;
 };
 
 export type SignedMsgTriggerOrderParams = {

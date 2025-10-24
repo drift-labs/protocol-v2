@@ -537,8 +537,15 @@ pub fn cancel_orders(
     market_type: Option<MarketType>,
     market_index: Option<u16>,
     direction: Option<PositionDirection>,
+    skip_isolated_positions: bool,
 ) -> DriftResult<Vec<u32>> {
     let mut canceled_order_ids: Vec<u32> = vec![];
+    let isolated_position_market_indexes = user
+        .perp_positions
+        .iter()
+        .filter(|position| position.is_isolated())
+        .map(|position| position.market_index)
+        .collect::<Vec<u16>>();
     for order_index in 0..user.orders.len() {
         if user.orders[order_index].status != OrderStatus::Open {
             continue;
@@ -552,6 +559,10 @@ pub fn cancel_orders(
             if user.orders[order_index].market_index != market_index {
                 continue;
             }
+        } else if skip_isolated_positions
+            && isolated_position_market_indexes.contains(&user.orders[order_index].market_index)
+        {
+            continue;
         }
 
         if let Some(direction) = direction {
@@ -1466,7 +1477,7 @@ fn get_maker_orders_info(
 
         let mut maker = load_mut!(user_account_loader)?;
 
-        if maker.is_being_liquidated() || maker.is_bankrupt() {
+        if maker.is_being_liquidated() {
             continue;
         }
 
@@ -1961,16 +1972,31 @@ fn fulfill_perp_order(
         )?;
 
         if !taker_margin_calculation.meets_margin_requirement() {
+            let (margin_requirement, total_collateral) =
+                if taker_margin_calculation.has_isolated_margin_calculation(market_index) {
+                    let isolated_margin_calculation =
+                        taker_margin_calculation.get_isolated_margin_calculation(market_index)?;
+                    (
+                        isolated_margin_calculation.margin_requirement,
+                        isolated_margin_calculation.total_collateral,
+                    )
+                } else {
+                    (
+                        taker_margin_calculation.margin_requirement,
+                        taker_margin_calculation.total_collateral,
+                    )
+                };
+
             msg!(
                 "taker breached fill requirements (margin requirement {}) (total_collateral {})",
-                taker_margin_calculation.margin_requirement,
-                taker_margin_calculation.total_collateral
+                margin_requirement,
+                total_collateral
             );
             return Err(ErrorCode::InsufficientCollateral);
         }
     }
 
-    for (maker_key, maker_base_asset_amount_filled) in maker_fills {
+    for (maker_key, (maker_base_asset_amount_filled)) in maker_fills {
         let mut maker = makers_and_referrer.get_ref_mut(&maker_key)?;
 
         let maker_stats = if maker.authority == user.authority {
@@ -2021,11 +2047,26 @@ fn fulfill_perp_order(
         }
 
         if !maker_margin_calculation.meets_margin_requirement() {
+            let (margin_requirement, total_collateral) =
+                if maker_margin_calculation.has_isolated_margin_calculation(market_index) {
+                    let isolated_margin_calculation =
+                        maker_margin_calculation.get_isolated_margin_calculation(market_index)?;
+                    (
+                        isolated_margin_calculation.margin_requirement,
+                        isolated_margin_calculation.total_collateral,
+                    )
+                } else {
+                    (
+                        maker_margin_calculation.margin_requirement,
+                        maker_margin_calculation.total_collateral,
+                    )
+                };
+
             msg!(
                 "maker ({}) breached fill requirements (margin requirement {}) (total_collateral {})",
                 maker_key,
-                maker_margin_calculation.margin_requirement,
-                maker_margin_calculation.total_collateral
+                margin_requirement,
+                total_collateral
             );
             return Err(ErrorCode::InsufficientCollateral);
         }
@@ -3326,6 +3367,9 @@ pub fn force_cancel_orders(
         ErrorCode::SufficientCollateral
     )?;
 
+    let cross_margin_meets_initial_margin_requirement =
+        margin_calc.meets_cross_margin_requirement();
+
     let mut total_fee = 0_u64;
 
     for order_index in 0..user.orders.len() {
@@ -3352,6 +3396,10 @@ pub fn force_cancel_orders(
                     continue;
                 }
 
+                if cross_margin_meets_initial_margin_requirement {
+                    continue;
+                }
+
                 state.spot_fee_structure.flat_filler_fee
             }
             MarketType::Perp => {
@@ -3364,6 +3412,18 @@ pub fn force_cancel_orders(
                 )?;
                 if is_position_reducing {
                     continue;
+                }
+
+                if !user.get_perp_position(market_index)?.is_isolated() {
+                    if cross_margin_meets_initial_margin_requirement {
+                        continue;
+                    }
+                } else {
+                    let meets_isolated_margin_requirement =
+                        margin_calc.meets_isolated_margin_requirement(market_index)?;
+                    if meets_isolated_margin_requirement {
+                        continue;
+                    }
                 }
 
                 state.perp_fee_structure.flat_filler_fee
@@ -4174,7 +4234,7 @@ fn get_spot_maker_orders_info(
 
         let mut maker = load_mut!(user_account_loader)?;
 
-        if maker.is_being_liquidated() || maker.is_bankrupt() {
+        if maker.is_being_liquidated() {
             continue;
         }
 
