@@ -21,8 +21,9 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::bankruptcy::is_user_bankrupt;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    LIQUIDATION_FEE_PRECISION_U128, LIQUIDATION_PCT_PRECISION, QUOTE_PRECISION,
-    QUOTE_PRECISION_I128, QUOTE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX, SPOT_WEIGHT_PRECISION,
+    LIQUIDATION_FEE_PRECISION, LIQUIDATION_FEE_PRECISION_U128, LIQUIDATION_PCT_PRECISION,
+    QUOTE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX,
+    SPOT_WEIGHT_PRECISION,
 };
 use crate::math::liquidation::{
     calculate_asset_transfer_for_liability_transfer,
@@ -48,6 +49,7 @@ use crate::math::orders::{
 use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::math::safe_math::SafeMath;
 
+use crate::math::constants::LST_POOL_ID;
 use crate::math::spot_balance::get_token_value;
 use crate::state::events::{
     LiquidateBorrowForPerpPnlRecord, LiquidatePerpPnlForDepositRecord, LiquidatePerpRecord,
@@ -66,8 +68,8 @@ use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::State;
 use crate::state::user::{MarketType, Order, OrderStatus, OrderType, User, UserStats};
 use crate::state::user_map::{UserMap, UserStatsMap};
-use crate::{get_then_update_id, load_mut, LST_POOL_ID};
-use crate::{validate, LIQUIDATION_FEE_PRECISION};
+use crate::validate;
+use crate::{get_then_update_id, load_mut};
 
 #[cfg(test)]
 mod tests;

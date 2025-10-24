@@ -12,6 +12,7 @@ use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_l
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 
+use crate::math::constants::{BASE_PRECISION, LIQUIDATION_FEE_INCREASE_PER_SLOT};
 use crate::math::spot_swap::calculate_swap_price;
 use crate::msg;
 use crate::state::margin_calculation::MarginContext;
@@ -21,10 +22,7 @@ use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::{OrderType, User};
-use crate::{
-    validate, MarketType, OrderParams, PositionDirection, BASE_PRECISION,
-    LIQUIDATION_FEE_INCREASE_PER_SLOT,
-};
+use crate::{validate, MarketType, OrderParams, PositionDirection};
 
 pub const LIQUIDATION_FEE_ADJUST_GRACE_PERIOD_SLOTS: u64 = 1_500; // ~10 minutes
 

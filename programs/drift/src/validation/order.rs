@@ -4,13 +4,14 @@ use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
 
 use crate::math::casting::Cast;
+use crate::math::constants::MAX_PREDICTION_MARKET_PRICE;
 use crate::math::orders::{
     calculate_base_asset_amount_to_fill_up_to_limit_price, is_multiple_of_step_size,
 };
 use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::PerpMarket;
 use crate::state::user::{Order, OrderTriggerCondition, OrderType};
-use crate::{validate, MAX_PREDICTION_MARKET_PRICE};
+use crate::validate;
 
 #[cfg(test)]
 mod test;

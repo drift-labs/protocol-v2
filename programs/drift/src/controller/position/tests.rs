@@ -53,17 +53,7 @@ fn amm_pool_balance_liq_fees_example() {
     let perp_market_loader: AccountLoader<PerpMarket> =
         AccountLoader::try_from(&perp_market_account_info).unwrap();
 
-    let perp_market_map = PerpMarketMap::load_one(&perp_market_account_info, true).unwrap();
-
     let now = 1725948560;
-    let clock_slot = 326319440;
-    let clock = Clock {
-        unix_timestamp: now,
-        slot: clock_slot,
-        ..Clock::default()
-    };
-
-    let mut state = State::default();
 
     let mut prelaunch_oracle_price = PrelaunchOracle {
         price: PRICE_PRECISION_I64,
@@ -77,9 +67,8 @@ fn amm_pool_balance_liq_fees_example() {
         prelaunch_oracle_price,
         &prelaunch_oracle_price_key,
         PrelaunchOracle,
-        oracle_account_info
+        _oracle_account_info
     );
-    let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock_slot, None).unwrap();
 
     let mut spot_market = SpotMarket {
         cumulative_deposit_interest: 11425141382,
@@ -609,11 +598,11 @@ fn amm_ref_price_decay_tail_test() {
 
     let signed_liquidity_ratio = liquidity_ratio
         .checked_mul(
-            (perp_market
+            perp_market
                 .amm
                 .get_protocol_owned_position()
                 .unwrap()
-                .signum() as i128),
+                .signum() as i128,
         )
         .unwrap();
 
@@ -654,7 +643,7 @@ fn amm_ref_price_decay_tail_test() {
             &state.oracle_guard_rails.validity,
         )
         .unwrap();
-    let cost = _update_amm(
+    _update_amm(
         &mut perp_market,
         &mm_oracle_price_data,
         &state,
@@ -687,7 +676,7 @@ fn amm_ref_price_decay_tail_test() {
             )
             .unwrap();
 
-        let cost = _update_amm(
+        _update_amm(
             &mut perp_market,
             &mm_oracle_price_data,
             &state,
@@ -786,11 +775,11 @@ fn amm_ref_price_offset_decay_logic() {
 
     let signed_liquidity_ratio = liquidity_ratio
         .checked_mul(
-            (perp_market
+            perp_market
                 .amm
                 .get_protocol_owned_position()
                 .unwrap()
-                .signum() as i128),
+                .signum() as i128,
         )
         .unwrap();
 
@@ -831,7 +820,7 @@ fn amm_ref_price_offset_decay_logic() {
             &state.oracle_guard_rails.validity,
         )
         .unwrap();
-    let cost = _update_amm(
+    _update_amm(
         &mut perp_market,
         &mm_oracle_price_data,
         &state,
@@ -871,7 +860,7 @@ fn amm_ref_price_offset_decay_logic() {
             )
             .unwrap();
 
-        let cost = _update_amm(
+        _update_amm(
             &mut perp_market,
             &mm_oracle_price_data,
             &state,
@@ -961,11 +950,11 @@ fn amm_negative_ref_price_offset_decay_logic() {
 
     let signed_liquidity_ratio = liquidity_ratio
         .checked_mul(
-            (perp_market
+            perp_market
                 .amm
                 .get_protocol_owned_position()
                 .unwrap()
-                .signum() as i128),
+                .signum() as i128,
         )
         .unwrap();
 
@@ -1006,7 +995,7 @@ fn amm_negative_ref_price_offset_decay_logic() {
             &state.oracle_guard_rails.validity,
         )
         .unwrap();
-    let cost = _update_amm(
+    _update_amm(
         &mut perp_market,
         &mm_oracle_price_data,
         &state,
@@ -1047,7 +1036,7 @@ fn amm_negative_ref_price_offset_decay_logic() {
             )
             .unwrap();
 
-        let cost = _update_amm(
+        _update_amm(
             &mut perp_market,
             &mm_oracle_price_data,
             &state,
@@ -1147,11 +1136,11 @@ fn amm_perp_ref_offset() {
 
     let signed_liquidity_ratio = liquidity_ratio
         .checked_mul(
-            (perp_market
+            perp_market
                 .amm
                 .get_protocol_owned_position()
                 .unwrap()
-                .signum() as i128),
+                .signum() as i128,
         )
         .unwrap();
 
@@ -1173,7 +1162,7 @@ fn amm_perp_ref_offset() {
         max_ref_offset,
     )
     .unwrap();
-    assert_eq!(res, (perp_market.amm.max_spread / 2) as i32);
+    assert_eq!(res, 45000);
     assert_eq!(perp_market.amm.reference_price_offset, 18000); // not updated vs market account
 
     let now = 1741207620 + 1;
@@ -1193,7 +1182,7 @@ fn amm_perp_ref_offset() {
             &state.oracle_guard_rails.validity,
         )
         .unwrap();
-    let cost = _update_amm(
+    _update_amm(
         &mut perp_market,
         &mm_oracle_price_data,
         &state,
@@ -1252,7 +1241,7 @@ fn amm_perp_ref_offset() {
     // Uses the original oracle if the slot is old, ignoring MM oracle
     perp_market.amm.mm_oracle_price = mm_oracle_price_data.get_price() * 995 / 1000;
     perp_market.amm.mm_oracle_slot = clock_slot - 100;
-    let mut mm_oracle_price = perp_market
+    let mm_oracle_price = perp_market
         .get_mm_oracle_price_data(
             oracle_price_data,
             clock_slot,
@@ -1260,13 +1249,7 @@ fn amm_perp_ref_offset() {
         )
         .unwrap();
 
-    let _ = _update_amm(
-        &mut perp_market,
-        &mut mm_oracle_price,
-        &state,
-        now,
-        clock_slot,
-    );
+    let _ = _update_amm(&mut perp_market, &mm_oracle_price, &state, now, clock_slot);
     let reserve_price_mm_offset_3 = perp_market.amm.reserve_price().unwrap();
     let (b3, a3) = perp_market
         .amm
