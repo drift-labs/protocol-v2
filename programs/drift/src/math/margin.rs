@@ -575,8 +575,8 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             &market.oracle_id(),
             market.amm.historical_oracle_data.last_oracle_price_twap,
             market.get_max_confidence_interval_multiplier()?,
-            0,
-            0,
+            market.amm.oracle_slot_delay_override,
+            market.amm.oracle_low_risk_slot_delay_override,
         )?;
 
         let perp_position_custom_margin_ratio =
@@ -1038,8 +1038,8 @@ pub fn calculate_user_equity(
             &market.oracle_id(),
             market.amm.historical_oracle_data.last_oracle_price_twap,
             market.get_max_confidence_interval_multiplier()?,
-            0,
-            0,
+            market.amm.oracle_slot_delay_override,
+            market.amm.oracle_low_risk_slot_delay_override,
         )?;
 
         all_oracles_valid &=
