@@ -8,7 +8,7 @@ use crate::math::constants::{
 };
 use crate::math::safe_math::SafeMath;
 use switchboard::{AggregatorAccountData, SwitchboardDecimal};
-use switchboard_on_demand::{PullFeedAccountData, SB_ON_DEMAND_PRECISION};
+use switchboard_on_demand::{PullFeedAccountData, SB_ON_DEMAND_PRECISION, SwitchboardQuote};
 
 use crate::error::ErrorCode::{InvalidOracle, UnableToLoadOracle};
 use crate::math::oracle::{is_oracle_valid_for_action, DriftAction, OracleValidity};
@@ -132,6 +132,7 @@ pub enum OracleSource {
     PythLazer1K,
     PythLazer1M,
     PythLazerStableCoin,
+    SwitchboardSurge,
 }
 
 impl OracleSource {
@@ -345,6 +346,7 @@ pub fn get_oracle_price(
         OracleSource::PythLazerStableCoin => {
             get_pyth_stable_coin_price(price_oracle, clock_slot, oracle_source)
         }
+        OracleSource::SwitchboardSurge => get_switchboard_surge_price(price_oracle, clock_slot),
     }
 }
 
@@ -545,6 +547,51 @@ pub fn get_sb_on_demand_price(
     })
 }
 
+pub fn get_switchboard_surge_price(
+    price_oracle: &AccountInfo,
+    clock_slot: u64,
+) -> DriftResult<OraclePriceData> {
+    let data = price_oracle.try_borrow_data().or(Err(ErrorCode::UnableToLoadOracle))?;
+    let quote_data = SwitchboardQuote::try_deserialize(&mut &data[..])
+        .or(Err(ErrorCode::UnableToLoadOracle))?;
+
+    // Get feeds from the quote
+    let feeds = quote_data.feeds_slice();
+
+    validate!(
+        !feeds.is_empty(),
+        ErrorCode::InvalidOracle,
+        "SwitchboardQuote has no feeds"
+    )?;
+
+    // Use the first feed's price
+    let first_feed_price = feeds[0].feed_value();
+
+    // Convert from i128 with PRECISION=18 to PRICE_PRECISION
+    let switchboard_precision = 10_u128.pow(SB_ON_DEMAND_PRECISION);
+    let price = first_feed_price
+            .safe_div((switchboard_precision / PRICE_PRECISION) as i128)?
+            .cast::<i64>()?;
+
+    // Calculate confidence as a percentage of the price (e.g., 0.1% = 10 bps)
+    // This is a conservative estimate since we don't have explicit confidence data
+    let confidence = price.unsigned_abs().safe_div(1000)?; // 0.1% of price
+
+    // Calculate delay based on the slot from the quote
+    let delay = clock_slot.cast::<i64>()?.safe_sub(quote_data.slot.cast()?)?;
+
+    // Assume sufficient data points since the quote has been verified
+    let has_sufficient_number_of_data_points = true;
+
+    Ok(OraclePriceData {
+        price,
+        confidence,
+        delay,
+        has_sufficient_number_of_data_points,
+        sequence_id: None,
+    })
+}
+
 /// Given a decimal number represented as a mantissa (the digits) plus an
 /// original_precision (10.pow(some number of decimals)), scale the
 /// mantissa/digits to make sense with a new_precision.
@@ -566,11 +613,7 @@ fn convert_switchboard_decimal(switchboard_decimal: &SwitchboardDecimal) -> Drif
 /// mantissa/digits to make sense with a new_precision.
 fn convert_sb_i128(switchboard_i128: &i128) -> DriftResult<i128> {
     let switchboard_precision = 10_u128.pow(SB_ON_DEMAND_PRECISION);
-    if switchboard_precision > PRICE_PRECISION {
-        switchboard_i128.safe_div((switchboard_precision / PRICE_PRECISION) as i128)
-    } else {
-        switchboard_i128.safe_mul((PRICE_PRECISION / switchboard_precision) as i128)
-    }
+    switchboard_i128.safe_div((switchboard_precision / PRICE_PRECISION) as i128)
 }
 
 pub fn get_prelaunch_price(price_oracle: &AccountInfo, slot: u64) -> DriftResult<OraclePriceData> {
