@@ -42,6 +42,7 @@ use crate::math::margin::{
 };
 use crate::math::oracle::is_oracle_valid_for_action;
 use crate::math::oracle::DriftAction;
+use crate::math::oracle::LogMode;
 use crate::math::orders::calculate_existing_position_fields_for_order_action;
 use crate::math::orders::get_position_delta_for_fill;
 use crate::math::orders::is_multiple_of_step_size;
@@ -1790,6 +1791,7 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
             perp_market.get_max_confidence_interval_multiplier()?,
             perp_market.amm.oracle_slot_delay_override,
             perp_market.amm.oracle_low_risk_slot_delay_override,
+            Some(LogMode::Margin),
         )?;
         step_size = perp_market.amm.order_step_size;
         tick_size = perp_market.amm.order_tick_size;
