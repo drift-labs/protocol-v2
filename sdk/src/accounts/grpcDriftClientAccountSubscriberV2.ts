@@ -714,17 +714,6 @@ export class grpcDriftClientAccountSubscriberV2
 		// Remove accounts in batches - oracles
 		if (oraclePubkeysToRemove.length > 0) {
 			await this.oracleMultiSubscriber.removeAccounts(oraclePubkeysToRemove);
-			// Clean up oracle data for removed oracles by finding their sources
-			for (const pubkey of oraclePubkeysToRemove) {
-				// Find the oracle source by checking oracleInfos
-				const oracleInfo = this.oracleInfos.find((info) =>
-					info.publicKey.equals(pubkey)
-				);
-				if (oracleInfo) {
-					const oracleId = getOracleId(pubkey, oracleInfo.source);
-					this.oracleIdToOracleDataMap.delete(oracleId);
-				}
-			}
 		}
 	}
 
