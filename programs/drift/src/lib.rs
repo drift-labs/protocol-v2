@@ -981,6 +981,7 @@ pub mod drift {
         curve_update_intensity: u8,
         amm_jit_intensity: u8,
         name: [u8; 32],
+        lp_pool_id: u8,
     ) -> Result<()> {
         handle_initialize_perp_market(
             ctx,
@@ -1009,6 +1010,7 @@ pub mod drift {
             curve_update_intensity,
             amm_jit_intensity,
             name,
+            lp_pool_id,
         )
     }
 
@@ -1198,6 +1200,13 @@ pub mod drift {
         if_liquidation_fee: u32,
     ) -> Result<()> {
         handle_update_perp_liquidation_fee(ctx, liquidator_fee, if_liquidation_fee)
+    }
+
+    pub fn update_perp_market_lp_pool_id(
+        ctx: Context<AdminUpdatePerpMarket>,
+        lp_pool_id: u8,
+    ) -> Result<()> {
+        handle_update_perp_lp_pool_id(ctx, lp_pool_id)
     }
 
     pub fn update_insurance_fund_unstaking_period(
@@ -1795,7 +1804,7 @@ pub mod drift {
 
     pub fn initialize_lp_pool(
         ctx: Context<InitializeLpPool>,
-        name: [u8; 32],
+        lp_pool_id: u8,
         min_mint_fee: i64,
         max_aum: u128,
         max_settle_quote_amount_per_market: u64,
@@ -1803,7 +1812,7 @@ pub mod drift {
     ) -> Result<()> {
         handle_initialize_lp_pool(
             ctx,
-            name,
+            lp_pool_id,
             min_mint_fee,
             max_aum,
             max_settle_quote_amount_per_market,

@@ -770,10 +770,10 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
     in_constituent.record_swap_fees(in_fee_amount)?;
     lp_pool.record_mint_redeem_fees(lp_fee_amount)?;
 
-    let lp_name = lp_pool.name;
+    let lp_pool_id = lp_pool.lp_pool_id;
     let lp_bump = lp_pool.bump;
 
-    let lp_vault_signer_seeds = LPPool::get_lp_pool_signer_seeds(&lp_name, &lp_bump);
+    let lp_vault_signer_seeds = LPPool::get_lp_pool_signer_seeds(&lp_pool_id, &lp_bump);
 
     drop(lp_pool);
 
@@ -1166,10 +1166,10 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
     out_constituent.record_swap_fees(out_fee_amount)?;
     lp_pool.record_mint_redeem_fees(lp_fee_amount)?;
 
-    let lp_name = lp_pool.name;
+    let lp_pool_id = lp_pool.lp_pool_id;
     let lp_bump = lp_pool.bump;
 
-    let lp_vault_signer_seeds = LPPool::get_lp_pool_signer_seeds(&lp_name, &lp_bump);
+    let lp_vault_signer_seeds = LPPool::get_lp_pool_signer_seeds(&lp_pool_id, &lp_bump);
 
     drop(lp_pool);
 

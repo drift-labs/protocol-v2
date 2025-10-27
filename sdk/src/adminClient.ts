@@ -505,7 +505,8 @@ export class AdminClient extends DriftClient {
 		concentrationCoefScale = ONE,
 		curveUpdateIntensity = 0,
 		ammJitIntensity = 0,
-		name = DEFAULT_MARKET_NAME
+		name = DEFAULT_MARKET_NAME,
+		lpPoolId: number = 0
 	): Promise<TransactionSignature> {
 		const currentPerpMarketIndex = this.getStateAccount().numberOfMarkets;
 
@@ -542,7 +543,8 @@ export class AdminClient extends DriftClient {
 			curveUpdateIntensity,
 			ammJitIntensity,
 			name,
-			mustInitializeAmmCache
+			mustInitializeAmmCache,
+			lpPoolId
 		);
 		const tx = await this.buildTransaction(initializeMarketIxs);
 
@@ -589,7 +591,8 @@ export class AdminClient extends DriftClient {
 		curveUpdateIntensity = 0,
 		ammJitIntensity = 0,
 		name = DEFAULT_MARKET_NAME,
-		includeInitAmmCacheIx = false
+		includeInitAmmCacheIx = false,
+		lpPoolId: number = 0
 	): Promise<TransactionInstruction[]> {
 		const perpMarketPublicKey = await getPerpMarketPublicKey(
 			this.program.programId,
@@ -628,6 +631,7 @@ export class AdminClient extends DriftClient {
 			curveUpdateIntensity,
 			ammJitIntensity,
 			nameBuffer,
+			lpPoolId,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
@@ -5231,7 +5235,7 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async initializeLpPool(
-		name: string,
+		lpPoolId: number,
 		minMintFee: BN,
 		maxAum: BN,
 		maxSettleQuoteAmountPerMarket: BN,
@@ -5239,7 +5243,7 @@ export class AdminClient extends DriftClient {
 		whitelistMint?: PublicKey
 	): Promise<TransactionSignature> {
 		const ixs = await this.getInitializeLpPoolIx(
-			name,
+			lpPoolId,
 			minMintFee,
 			maxAum,
 			maxSettleQuoteAmountPerMarket,
@@ -5252,14 +5256,14 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async getInitializeLpPoolIx(
-		name: string,
+		lpPoolId: number,
 		minMintFee: BN,
 		maxAum: BN,
 		maxSettleQuoteAmountPerMarket: BN,
 		mint: Keypair,
 		whitelistMint?: PublicKey
 	): Promise<TransactionInstruction[]> {
-		const lpPool = getLpPoolPublicKey(this.program.programId, encodeName(name));
+		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolId);
 		const ammConstituentMapping = getAmmConstituentMappingPublicKey(
 			this.program.programId,
 			lpPool
@@ -5292,7 +5296,7 @@ export class AdminClient extends DriftClient {
 			createMintAccountIx,
 			createMintIx,
 			this.program.instruction.initializeLpPool(
-				encodeName(name),
+				lpPoolId,
 				minMintFee,
 				maxAum,
 				maxSettleQuoteAmountPerMarket,
@@ -5324,11 +5328,11 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async initializeConstituent(
-		lpPoolName: number[],
+		lpPoolId: number,
 		initializeConstituentParams: InitializeConstituentParams
 	): Promise<TransactionSignature> {
 		const ixs = await this.getInitializeConstituentIx(
-			lpPoolName,
+			lpPoolId,
 			initializeConstituentParams
 		);
 		const tx = await this.buildTransaction(ixs);
@@ -5337,10 +5341,10 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async getInitializeConstituentIx(
-		lpPoolName: number[],
+		lpPoolId: number,
 		initializeConstituentParams: InitializeConstituentParams
 	): Promise<TransactionInstruction[]> {
-		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
+		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolId);
 		const spotMarketIndex = initializeConstituentParams.spotMarketIndex;
 		const constituentTargetBase = getConstituentTargetBasePublicKey(
 			this.program.programId,
@@ -5483,7 +5487,7 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async updateConstituentParams(
-		lpPoolName: number[],
+		lpPoolId: number,
 		constituentPublicKey: PublicKey,
 		updateConstituentParams: {
 			maxWeightDeviation?: BN;
@@ -5501,7 +5505,7 @@ export class AdminClient extends DriftClient {
 		}
 	): Promise<TransactionSignature> {
 		const ixs = await this.getUpdateConstituentParamsIx(
-			lpPoolName,
+			lpPoolId,
 			constituentPublicKey,
 			updateConstituentParams
 		);
@@ -5511,7 +5515,7 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async getUpdateConstituentParamsIx(
-		lpPoolName: number[],
+		lpPoolId: number,
 		constituentPublicKey: PublicKey,
 		updateConstituentParams: {
 			maxWeightDeviation?: BN;
@@ -5527,7 +5531,7 @@ export class AdminClient extends DriftClient {
 			xi?: number;
 		}
 	): Promise<TransactionInstruction[]> {
-		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
+		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolId);
 		return [
 			this.program.instruction.updateConstituentParams(
 				Object.assign(
@@ -5566,7 +5570,7 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async updateLpPoolParams(
-		lpPoolName: number[],
+		lpPoolId: number,
 		updateLpPoolParams: {
 			maxSettleQuoteAmount?: BN;
 			volatility?: BN;
@@ -5577,7 +5581,7 @@ export class AdminClient extends DriftClient {
 		}
 	): Promise<TransactionSignature> {
 		const ixs = await this.getUpdateLpPoolParamsIx(
-			lpPoolName,
+			lpPoolId,
 			updateLpPoolParams
 		);
 		const tx = await this.buildTransaction(ixs);
@@ -5586,7 +5590,7 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async getUpdateLpPoolParamsIx(
-		lpPoolName: number[],
+		lpPoolId: number,
 		updateLpPoolParams: {
 			maxSettleQuoteAmount?: BN;
 			volatility?: BN;
@@ -5596,7 +5600,7 @@ export class AdminClient extends DriftClient {
 			maxAum?: BN;
 		}
 	): Promise<TransactionInstruction[]> {
-		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
+		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolId);
 		return [
 			this.program.instruction.updateLpPoolParams(
 				Object.assign(
@@ -5623,11 +5627,11 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async addAmmConstituentMappingData(
-		lpPoolName: number[],
+		lpPoolId: number,
 		addAmmConstituentMappingData: AddAmmConstituentMappingDatum[]
 	): Promise<TransactionSignature> {
 		const ixs = await this.getAddAmmConstituentMappingDataIx(
-			lpPoolName,
+			lpPoolId,
 			addAmmConstituentMappingData
 		);
 		const tx = await this.buildTransaction(ixs);
@@ -5636,10 +5640,10 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async getAddAmmConstituentMappingDataIx(
-		lpPoolName: number[],
+		lpPoolId: number,
 		addAmmConstituentMappingData: AddAmmConstituentMappingDatum[]
 	): Promise<TransactionInstruction[]> {
-		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
+		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolId);
 		const ammConstituentMapping = getAmmConstituentMappingPublicKey(
 			this.program.programId,
 			lpPool
@@ -5667,11 +5671,11 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async updateAmmConstituentMappingData(
-		lpPoolName: number[],
+		lpPoolId: number,
 		addAmmConstituentMappingData: AddAmmConstituentMappingDatum[]
 	): Promise<TransactionSignature> {
 		const ixs = await this.getUpdateAmmConstituentMappingDataIx(
-			lpPoolName,
+			lpPoolId,
 			addAmmConstituentMappingData
 		);
 		const tx = await this.buildTransaction(ixs);
@@ -5680,10 +5684,10 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async getUpdateAmmConstituentMappingDataIx(
-		lpPoolName: number[],
+		lpPoolId: number,
 		addAmmConstituentMappingData: AddAmmConstituentMappingDatum[]
 	): Promise<TransactionInstruction[]> {
-		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
+		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolId);
 		const ammConstituentMapping = getAmmConstituentMappingPublicKey(
 			this.program.programId,
 			lpPool
@@ -5705,12 +5709,12 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async removeAmmConstituentMappingData(
-		lpPoolName: number[],
+		lpPoolId: number,
 		perpMarketIndex: number,
 		constituentIndex: number
 	): Promise<TransactionSignature> {
 		const ixs = await this.getRemoveAmmConstituentMappingDataIx(
-			lpPoolName,
+			lpPoolId,
 			perpMarketIndex,
 			constituentIndex
 		);
@@ -5720,11 +5724,11 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async getRemoveAmmConstituentMappingDataIx(
-		lpPoolName: number[],
+		lpPoolId: number,
 		perpMarketIndex: number,
 		constituentIndex: number
 	): Promise<TransactionInstruction[]> {
-		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
+		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolId);
 		const ammConstituentMapping = getAmmConstituentMappingPublicKey(
 			this.program.programId,
 			lpPool
@@ -5748,13 +5752,13 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async updateConstituentCorrelationData(
-		lpPoolName: number[],
+		lpPoolId: number,
 		index1: number,
 		index2: number,
 		correlation: BN
 	): Promise<TransactionSignature> {
 		const ixs = await this.getUpdateConstituentCorrelationDataIx(
-			lpPoolName,
+			lpPoolId,
 			index1,
 			index2,
 			correlation
@@ -5765,12 +5769,12 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async getUpdateConstituentCorrelationDataIx(
-		lpPoolName: number[],
+		lpPoolId: number,
 		index1: number,
 		index2: number,
 		correlation: BN
 	): Promise<TransactionInstruction[]> {
-		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
+		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolId);
 		return [
 			this.program.instruction.updateConstituentCorrelationData(
 				index1,
@@ -5805,7 +5809,7 @@ export class AdminClient extends DriftClient {
 	 */
 	public async getSwapIx(
 		{
-			lpPoolName,
+			lpPoolId,
 			outMarketIndex,
 			inMarketIndex,
 			amountIn,
@@ -5815,7 +5819,7 @@ export class AdminClient extends DriftClient {
 			reduceOnly,
 			userAccountPublicKey,
 		}: {
-			lpPoolName: number[];
+			lpPoolId: number;
 			outMarketIndex: number;
 			inMarketIndex: number;
 			amountIn: BN;
@@ -5848,7 +5852,7 @@ export class AdminClient extends DriftClient {
 		const outTokenProgram = this.getTokenProgramForSpotMarket(outSpotMarket);
 		const inTokenProgram = this.getTokenProgramForSpotMarket(inSpotMarket);
 
-		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
+		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolId);
 		const outConstituent = getConstituentPublicKey(
 			this.program.programId,
 			lpPool,
@@ -5932,7 +5936,7 @@ export class AdminClient extends DriftClient {
 		swapMode,
 		onlyDirectRoutes,
 		quote,
-		lpPoolName,
+		lpPoolId,
 	}: {
 		jupiterClient: JupiterClient;
 		outMarketIndex: number;
@@ -5944,7 +5948,7 @@ export class AdminClient extends DriftClient {
 		swapMode?: SwapMode;
 		onlyDirectRoutes?: boolean;
 		quote?: QuoteResponse;
-		lpPoolName: number[];
+		lpPoolId: number;
 	}): Promise<{
 		ixs: TransactionInstruction[];
 		lookupTables: AddressLookupTableAccount[];
@@ -6036,7 +6040,7 @@ export class AdminClient extends DriftClient {
 		}
 
 		const { beginSwapIx, endSwapIx } = await this.getSwapIx({
-			lpPoolName,
+			lpPoolId,
 			outMarketIndex,
 			inMarketIndex,
 			amountIn: isExactOut ? exactOutBufferedAmountIn : amountIn,
@@ -6125,7 +6129,7 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async getAllDevnetLpSwapIxs(
-		lpPoolName: number[],
+		lpPoolId: number,
 		inMarketIndex: number,
 		outMarketIndex: number,
 		inAmount: BN,
@@ -6134,7 +6138,7 @@ export class AdminClient extends DriftClient {
 	) {
 		const { beginSwapIx, endSwapIx } = await this.getSwapIx(
 			{
-				lpPoolName,
+				lpPoolId,
 				inMarketIndex,
 				outMarketIndex,
 				amountIn: inAmount,
@@ -6178,7 +6182,7 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async depositWithdrawToProgramVault(
-		lpPoolName: number[],
+		lpPoolId: number,
 		depositMarketIndex: number,
 		borrowMarketIndex: number,
 		amountToDeposit: BN,
@@ -6186,7 +6190,7 @@ export class AdminClient extends DriftClient {
 	): Promise<TransactionSignature> {
 		const { depositIx, withdrawIx } =
 			await this.getDepositWithdrawToProgramVaultIxs(
-				lpPoolName,
+				lpPoolId,
 				depositMarketIndex,
 				borrowMarketIndex,
 				amountToDeposit,
@@ -6199,7 +6203,7 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async getDepositWithdrawToProgramVaultIxs(
-		lpPoolName: number[],
+		lpPoolId: number,
 		depositMarketIndex: number,
 		borrowMarketIndex: number,
 		amountToDeposit: BN,
@@ -6208,7 +6212,7 @@ export class AdminClient extends DriftClient {
 		depositIx: TransactionInstruction;
 		withdrawIx: TransactionInstruction;
 	}> {
-		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
+		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolId);
 		const depositSpotMarket = this.getSpotMarketAccount(depositMarketIndex);
 		const withdrawSpotMarket = this.getSpotMarketAccount(borrowMarketIndex);
 
@@ -6278,12 +6282,12 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async depositToProgramVault(
-		lpPoolName: number[],
+		lpPoolId: number,
 		depositMarketIndex: number,
 		amountToDeposit: BN
 	): Promise<TransactionSignature> {
 		const depositIx = await this.getDepositToProgramVaultIx(
-			lpPoolName,
+			lpPoolId,
 			depositMarketIndex,
 			amountToDeposit
 		);
@@ -6294,12 +6298,12 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async withdrawFromProgramVault(
-		lpPoolName: number[],
+		lpPoolId: number,
 		borrowMarketIndex: number,
 		amountToWithdraw: BN
 	): Promise<TransactionSignature> {
 		const withdrawIx = await this.getWithdrawFromProgramVaultIx(
-			lpPoolName,
+			lpPoolId,
 			borrowMarketIndex,
 			amountToWithdraw
 		);
@@ -6309,12 +6313,12 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async getDepositToProgramVaultIx(
-		lpPoolName: number[],
+		lpPoolId: number,
 		depositMarketIndex: number,
 		amountToDeposit: BN
 	): Promise<TransactionInstruction> {
 		const { depositIx } = await this.getDepositWithdrawToProgramVaultIxs(
-			lpPoolName,
+			lpPoolId,
 			depositMarketIndex,
 			depositMarketIndex,
 			amountToDeposit,
@@ -6324,12 +6328,12 @@ export class AdminClient extends DriftClient {
 	}
 
 	public async getWithdrawFromProgramVaultIx(
-		lpPoolName: number[],
+		lpPoolId: number,
 		borrowMarketIndex: number,
 		amountToWithdraw: BN
 	): Promise<TransactionInstruction> {
 		const { withdrawIx } = await this.getDepositWithdrawToProgramVaultIxs(
-			lpPoolName,
+			lpPoolId,
 			borrowMarketIndex,
 			borrowMarketIndex,
 			new BN(0),

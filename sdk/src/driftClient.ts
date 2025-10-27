@@ -10938,19 +10938,19 @@ export class DriftClient {
 		});
 	}
 
-	public async getLpPoolAccount(lpPoolName: number[]): Promise<LPPoolAccount> {
+	public async getLpPoolAccount(lpPoolId: number): Promise<LPPoolAccount> {
 		return (await this.program.account.lpPool.fetch(
-			getLpPoolPublicKey(this.program.programId, lpPoolName)
+			getLpPoolPublicKey(this.program.programId, lpPoolId)
 		)) as LPPoolAccount;
 	}
 
 	public async getConstituentTargetBaseAccount(
-		lpPoolName: number[]
+		lpPoolId: number
 	): Promise<ConstituentTargetBaseAccount> {
 		return (await this.program.account.constituentTargetBase.fetch(
 			getConstituentTargetBasePublicKey(
 				this.program.programId,
-				getLpPoolPublicKey(this.program.programId, lpPoolName)
+				getLpPoolPublicKey(this.program.programId, lpPoolId)
 			)
 		)) as ConstituentTargetBaseAccount;
 	}
@@ -10962,13 +10962,13 @@ export class DriftClient {
 	}
 
 	public async updateLpConstituentTargetBase(
-		lpPoolName: number[],
+		lpPoolId: number,
 		constituents: PublicKey[],
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
-				await this.getUpdateLpConstituentTargetBaseIx(lpPoolName, constituents),
+				await this.getUpdateLpConstituentTargetBaseIx(lpPoolId, constituents),
 				txParams
 			),
 			[],
@@ -10978,10 +10978,10 @@ export class DriftClient {
 	}
 
 	public async getUpdateLpConstituentTargetBaseIx(
-		lpPoolName: number[],
+		lpPoolId: number,
 		constituents: PublicKey[]
 	): Promise<TransactionInstruction> {
-		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
+		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolId);
 		const ammConstituentMappingPublicKey = getAmmConstituentMappingPublicKey(
 			this.program.programId,
 			lpPool
@@ -11824,7 +11824,7 @@ export class DriftClient {
 		const ixs: TransactionInstruction[] = [];
 		ixs.push(
 			...(await this.getAllSettlePerpToLpPoolIxs(
-				lpPool.name,
+				lpPool.lpPoolId,
 				this.getPerpMarketAccounts()
 					.filter((marketAccount) => marketAccount.lpStatus > 0)
 					.map((marketAccount) => marketAccount.marketIndex)
@@ -11904,7 +11904,7 @@ export class DriftClient {
 
 		ixs.push(
 			await this.getUpdateLpConstituentTargetBaseIx(
-				lpPool.name,
+				lpPool.lpPoolId,
 				Array.from(constituentMap.values()).map(
 					(constituent) => constituent.pubkey
 				)
@@ -11943,12 +11943,12 @@ export class DriftClient {
 	}
 
 	async settlePerpToLpPool(
-		lpPoolName: number[],
+		lpPoolId: number,
 		perpMarketIndexes: number[]
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
-				await this.getSettlePerpToLpPoolIx(lpPoolName, perpMarketIndexes),
+				await this.getSettlePerpToLpPoolIx(lpPoolId, perpMarketIndexes),
 				undefined
 			),
 			[],
@@ -11958,7 +11958,7 @@ export class DriftClient {
 	}
 
 	public async getSettlePerpToLpPoolIx(
-		lpPoolName: number[],
+		lpPoolId: number,
 		perpMarketIndexes: number[]
 	): Promise<TransactionInstruction> {
 		const remainingAccounts = [];
@@ -11972,7 +11972,7 @@ export class DriftClient {
 			})
 		);
 		const quoteSpotMarketAccount = this.getQuoteSpotMarketAccount();
-		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolName);
+		const lpPool = getLpPoolPublicKey(this.program.programId, lpPoolId);
 		return this.program.instruction.settlePerpToLpPool({
 			accounts: {
 				driftSigner: this.getSignerPublicKey(),
@@ -11995,12 +11995,12 @@ export class DriftClient {
 	}
 
 	public async getAllSettlePerpToLpPoolIxs(
-		lpPoolName: number[],
+		lpPoolId: number,
 		marketIndexes: number[]
 	): Promise<TransactionInstruction[]> {
 		const ixs: TransactionInstruction[] = [];
 		ixs.push(await this.getUpdateAmmCacheIx(marketIndexes));
-		ixs.push(await this.getSettlePerpToLpPoolIx(lpPoolName, marketIndexes));
+		ixs.push(await this.getSettlePerpToLpPoolIx(lpPoolId, marketIndexes));
 		return ixs;
 	}
 

@@ -714,6 +714,7 @@ pub fn handle_initialize_perp_market(
     curve_update_intensity: u8,
     amm_jit_intensity: u8,
     name: [u8; 32],
+    lp_pool_id: u8,
 ) -> Result<()> {
     msg!("perp market {}", market_index);
     let perp_market_pubkey = ctx.accounts.perp_market.to_account_info().key;
@@ -1001,7 +1002,8 @@ pub fn handle_initialize_perp_market(
         lp_exchange_fee_excluscion_scalar: 0,
         lp_paused_operations: 0,
         last_fill_price: 0,
-        padding: [0; 24],
+        lp_pool_id,
+        padding: [0; 23],
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
             oracle_source,
@@ -2826,6 +2828,25 @@ pub fn handle_update_perp_liquidation_fee(
 
     perp_market.liquidator_fee = liquidator_fee;
     perp_market.if_liquidation_fee = if_liquidation_fee;
+    Ok(())
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_update_perp_lp_pool_id(
+    ctx: Context<AdminUpdatePerpMarket>,
+    lp_pool_id: u8,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+
+    msg!(
+        "updating perp market {} lp pool id: {} -> {}",
+        perp_market.market_index,
+        perp_market.lp_pool_id,
+        lp_pool_id
+    );
+    perp_market.lp_pool_id = lp_pool_id;
     Ok(())
 }
 

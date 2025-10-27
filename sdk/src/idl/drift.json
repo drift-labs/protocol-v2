@@ -4415,6 +4415,10 @@
               32
             ]
           }
+        },
+        {
+          "name": "lpPoolId",
+          "type": "u8"
         }
       ]
     },
@@ -5230,6 +5234,32 @@
         {
           "name": "ifLiquidationFee",
           "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "updatePerpMarketLpPoolId",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "lpPoolId",
+          "type": "u8"
         }
       ]
     },
@@ -7346,13 +7376,8 @@
       ],
       "args": [
         {
-          "name": "name",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
+          "name": "lpPoolId",
+          "type": "u8"
         },
         {
           "name": "minMintFee",
@@ -9756,18 +9781,6 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "name",
-            "docs": [
-              "name of vault, TODO: check type + size"
-            ],
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
             "name": "pubkey",
             "docs": [
               "address of the vault."
@@ -9898,11 +9911,15 @@
             "type": "u8"
           },
           {
+            "name": "lpPoolId",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                15
+                14
               ]
             }
           }
@@ -10534,11 +10551,15 @@
             "type": "u64"
           },
           {
+            "name": "lpPoolId",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                24
+                23
               ]
             }
           }
@@ -19653,96 +19674,81 @@
     },
     {
       "code": 6327,
-      "name": "InvalidUpdateConstituentTargetBaseArgument",
-      "msg": "Invalid update constituent update target weights argument"
-    },
-    {
-      "code": 6328,
       "name": "ConstituentNotFound",
       "msg": "Constituent not found"
     },
     {
-      "code": 6329,
+      "code": 6328,
       "name": "ConstituentCouldNotLoad",
       "msg": "Constituent could not load"
     },
     {
-      "code": 6330,
+      "code": 6329,
       "name": "ConstituentWrongMutability",
       "msg": "Constituent wrong mutability"
     },
     {
-      "code": 6331,
+      "code": 6330,
       "name": "WrongNumberOfConstituents",
       "msg": "Wrong number of constituents passed to instruction"
     },
     {
-      "code": 6332,
-      "name": "OracleTooStaleForLPAUMUpdate",
-      "msg": "Oracle too stale for LP AUM update"
-    },
-    {
-      "code": 6333,
+      "code": 6331,
       "name": "InsufficientConstituentTokenBalance",
       "msg": "Insufficient constituent token balance"
     },
     {
-      "code": 6334,
+      "code": 6332,
       "name": "AMMCacheStale",
       "msg": "Amm Cache data too stale"
     },
     {
-      "code": 6335,
+      "code": 6333,
       "name": "LpPoolAumDelayed",
       "msg": "LP Pool AUM not updated recently"
     },
     {
-      "code": 6336,
+      "code": 6334,
       "name": "ConstituentOracleStale",
       "msg": "Constituent oracle is stale"
     },
     {
-      "code": 6337,
+      "code": 6335,
       "name": "LpInvariantFailed",
       "msg": "LP Invariant failed"
     },
     {
-      "code": 6338,
+      "code": 6336,
       "name": "InvalidConstituentDerivativeWeights",
       "msg": "Invalid constituent derivative weights"
     },
     {
-      "code": 6339,
-      "name": "UnauthorizedDlpAuthority",
-      "msg": "Unauthorized dlp authority"
-    },
-    {
-      "code": 6340,
+      "code": 6337,
       "name": "MaxDlpAumBreached",
       "msg": "Max DLP AUM Breached"
     },
     {
-      "code": 6341,
+      "code": 6338,
       "name": "SettleLpPoolDisabled",
       "msg": "Settle Lp Pool Disabled"
     },
     {
-      "code": 6342,
+      "code": 6339,
       "name": "MintRedeemLpPoolDisabled",
       "msg": "Mint/Redeem Lp Pool Disabled"
     },
     {
-      "code": 6343,
+      "code": 6340,
       "name": "LpPoolSettleInvariantBreached",
       "msg": "Settlement amount exceeded"
     },
     {
-      "code": 6344,
+      "code": 6341,
       "name": "InvalidConstituentOperation",
       "msg": "Invalid constituent operation"
     },
     {
-      "code": 6345,
+      "code": 6342,
       "name": "Unauthorized",
       "msg": "Unauthorized for operation"
     }

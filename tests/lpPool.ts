@@ -114,12 +114,9 @@ describe('LP Pool', () => {
 	let solUsd: PublicKey;
 	let solUsdLazer: PublicKey;
 
-	const lpPoolName = 'test pool 1';
+	const lpPoolId = 0;
 	const tokenDecimals = 6;
-	const lpPoolKey = getLpPoolPublicKey(
-		program.programId,
-		encodeName(lpPoolName)
-	);
+	const lpPoolKey = getLpPoolPublicKey(program.programId, lpPoolId);
 
 	let whitelistMint: PublicKey;
 
@@ -268,7 +265,7 @@ describe('LP Pool', () => {
 		);
 
 		await adminClient.initializeLpPool(
-			lpPoolName,
+			lpPoolId,
 			ZERO,
 			new BN(1_000_000_000_000).mul(QUOTE_PRECISION),
 			new BN(1_000_000).mul(QUOTE_PRECISION),
@@ -371,7 +368,7 @@ describe('LP Pool', () => {
 	});
 
 	it('can add constituents to LP Pool', async () => {
-		await adminClient.initializeConstituent(encodeName(lpPoolName), {
+		await adminClient.initializeConstituent(lpPoolId, {
 			spotMarketIndex: 0,
 			decimals: 6,
 			maxWeightDeviation: new BN(10).mul(PERCENTAGE_PRECISION),
@@ -421,7 +418,7 @@ describe('LP Pool', () => {
 		expect(constituentTokenVault).to.not.be.null;
 
 		// Add second constituent representing SOL
-		await adminClient.initializeConstituent(lpPool.name, {
+		await adminClient.initializeConstituent(lpPool.lpPoolId, {
 			spotMarketIndex: 1,
 			decimals: 6,
 			maxWeightDeviation: new BN(10).mul(PERCENTAGE_PRECISION),
@@ -441,7 +438,7 @@ describe('LP Pool', () => {
 	it('can add amm mapping datum', async () => {
 		// Firt constituent is USDC, so add no mapping. We will add a second mapping though
 		// for the second constituent which is SOL
-		await adminClient.addAmmConstituentMappingData(encodeName(lpPoolName), [
+		await adminClient.addAmmConstituentMappingData(lpPoolId, [
 			{
 				perpMarketIndex: 1,
 				constituentIndex: 1,
@@ -461,7 +458,7 @@ describe('LP Pool', () => {
 	});
 
 	it('can update and remove amm constituent mapping entries', async () => {
-		await adminClient.addAmmConstituentMappingData(encodeName(lpPoolName), [
+		await adminClient.addAmmConstituentMappingData(lpPoolId, [
 			{
 				perpMarketIndex: 2,
 				constituentIndex: 0,
@@ -480,7 +477,7 @@ describe('LP Pool', () => {
 		assert(ammMapping.weights.length == 2);
 
 		// Update
-		await adminClient.updateAmmConstituentMappingData(encodeName(lpPoolName), [
+		await adminClient.updateAmmConstituentMappingData(lpPoolId, [
 			{
 				perpMarketIndex: 2,
 				constituentIndex: 0,
@@ -498,11 +495,7 @@ describe('LP Pool', () => {
 		);
 
 		// Remove
-		await adminClient.removeAmmConstituentMappingData(
-			encodeName(lpPoolName),
-			2,
-			0
-		);
+		await adminClient.removeAmmConstituentMappingData(lpPoolId, 2, 0);
 		ammMapping = (await adminClient.program.account.ammConstituentMapping.fetch(
 			ammConstituentMapping
 		)) as AmmConstituentMapping;
@@ -537,13 +530,9 @@ describe('LP Pool', () => {
 			constituentPublicKey
 		)) as ConstituentAccount;
 
-		await adminClient.updateConstituentParams(
-			encodeName(lpPoolName),
-			constituentPublicKey,
-			{
-				costToTradeBps: 10,
-			}
-		);
+		await adminClient.updateConstituentParams(lpPoolId, constituentPublicKey, {
+			costToTradeBps: 10,
+		});
 		const constituentTargetBase = getConstituentTargetBasePublicKey(
 			program.programId,
 			lpPoolKey
@@ -556,14 +545,14 @@ describe('LP Pool', () => {
 		assert(targets.targets[constituent.constituentIndex].costToTradeBps == 10);
 
 		await adminClient.updateConstituentCorrelationData(
-			encodeName(lpPoolName),
+			lpPoolId,
 			0,
 			1,
 			PERCENTAGE_PRECISION.muln(87).divn(100)
 		);
 
 		await adminClient.updateConstituentCorrelationData(
-			encodeName(lpPoolName),
+			lpPoolId,
 			0,
 			1,
 			PERCENTAGE_PRECISION
@@ -573,7 +562,7 @@ describe('LP Pool', () => {
 	it('fails adding datum with bad params', async () => {
 		// Bad perp market index
 		try {
-			await adminClient.addAmmConstituentMappingData(encodeName(lpPoolName), [
+			await adminClient.addAmmConstituentMappingData(lpPoolId, [
 				{
 					perpMarketIndex: 3,
 					constituentIndex: 0,
@@ -588,7 +577,7 @@ describe('LP Pool', () => {
 
 		// Bad constituent index
 		try {
-			await adminClient.addAmmConstituentMappingData(encodeName(lpPoolName), [
+			await adminClient.addAmmConstituentMappingData(lpPoolId, [
 				{
 					perpMarketIndex: 0,
 					constituentIndex: 5,
@@ -740,13 +729,10 @@ describe('LP Pool', () => {
 		let tx = new Transaction();
 		tx.add(await adminClient.getUpdateAmmCacheIx([0, 1, 2]));
 		tx.add(
-			await adminClient.getUpdateLpConstituentTargetBaseIx(
-				encodeName(lpPoolName),
-				[
-					getConstituentPublicKey(program.programId, lpPoolKey, 0),
-					getConstituentPublicKey(program.programId, lpPoolKey, 1),
-				]
-			)
+			await adminClient.getUpdateLpConstituentTargetBaseIx(lpPoolId, [
+				getConstituentPublicKey(program.programId, lpPoolKey, 0),
+				getConstituentPublicKey(program.programId, lpPoolKey, 1),
+			])
 		);
 		await adminClient.sendTransaction(tx);
 
@@ -773,13 +759,10 @@ describe('LP Pool', () => {
 		tx = new Transaction();
 		tx.add(await adminClient.getUpdateAmmCacheIx([0, 1, 2]));
 		tx.add(
-			await adminClient.getUpdateLpConstituentTargetBaseIx(
-				encodeName(lpPoolName),
-				[
-					getConstituentPublicKey(program.programId, lpPoolKey, 0),
-					getConstituentPublicKey(program.programId, lpPoolKey, 1),
-				]
-			)
+			await adminClient.getUpdateLpConstituentTargetBaseIx(lpPoolId, [
+				getConstituentPublicKey(program.programId, lpPoolKey, 0),
+				getConstituentPublicKey(program.programId, lpPoolKey, 1),
+			])
 		);
 		await adminClient.sendTransaction(tx);
 		constituentTargetBase =
@@ -801,7 +784,7 @@ describe('LP Pool', () => {
 			lpPoolKey
 		)) as LPPoolAccount;
 
-		await adminClient.initializeConstituent(lpPool.name, {
+		await adminClient.initializeConstituent(lpPool.lpPoolId, {
 			spotMarketIndex: 2,
 			decimals: 6,
 			maxWeightDeviation: new BN(10).mul(PERCENTAGE_PRECISION),
@@ -834,14 +817,11 @@ describe('LP Pool', () => {
 
 		const tx = new Transaction();
 		tx.add(await adminClient.getUpdateAmmCacheIx([0, 1, 2])).add(
-			await adminClient.getUpdateLpConstituentTargetBaseIx(
-				encodeName(lpPoolName),
-				[
-					getConstituentPublicKey(program.programId, lpPoolKey, 0),
-					getConstituentPublicKey(program.programId, lpPoolKey, 1),
-					getConstituentPublicKey(program.programId, lpPoolKey, 2),
-				]
-			)
+			await adminClient.getUpdateLpConstituentTargetBaseIx(lpPoolId, [
+				getConstituentPublicKey(program.programId, lpPoolKey, 0),
+				getConstituentPublicKey(program.programId, lpPoolKey, 1),
+				getConstituentPublicKey(program.programId, lpPoolKey, 2),
+			])
 		);
 		await adminClient.sendTransaction(tx);
 
@@ -879,14 +859,11 @@ describe('LP Pool', () => {
 		tx2
 			.add(await adminClient.getUpdateAmmCacheIx([0, 1, 2]))
 			.add(
-				await adminClient.getUpdateLpConstituentTargetBaseIx(
-					encodeName(lpPoolName),
-					[
-						getConstituentPublicKey(program.programId, lpPoolKey, 0),
-						getConstituentPublicKey(program.programId, lpPoolKey, 1),
-						getConstituentPublicKey(program.programId, lpPoolKey, 2),
-					]
-				)
+				await adminClient.getUpdateLpConstituentTargetBaseIx(lpPoolId, [
+					getConstituentPublicKey(program.programId, lpPoolKey, 0),
+					getConstituentPublicKey(program.programId, lpPoolKey, 1),
+					getConstituentPublicKey(program.programId, lpPoolKey, 2),
+				])
 			);
 		await adminClient.sendTransaction(tx2);
 		await adminClient.updateLpPoolAum(lpPool, [0, 1, 2]);
@@ -915,14 +892,11 @@ describe('LP Pool', () => {
 		tx3
 			.add(await adminClient.getUpdateAmmCacheIx([0, 1, 2]))
 			.add(
-				await adminClient.getUpdateLpConstituentTargetBaseIx(
-					encodeName(lpPoolName),
-					[
-						getConstituentPublicKey(program.programId, lpPoolKey, 0),
-						getConstituentPublicKey(program.programId, lpPoolKey, 1),
-						getConstituentPublicKey(program.programId, lpPoolKey, 2),
-					]
-				)
+				await adminClient.getUpdateLpConstituentTargetBaseIx(lpPoolId, [
+					getConstituentPublicKey(program.programId, lpPoolKey, 0),
+					getConstituentPublicKey(program.programId, lpPoolKey, 1),
+					getConstituentPublicKey(program.programId, lpPoolKey, 2),
+				])
 			);
 		await adminClient.sendTransaction(tx3);
 		await adminClient.updateLpPoolAum(lpPool, [0, 1, 2]);
@@ -1083,10 +1057,7 @@ describe('LP Pool', () => {
 		const settleTx = new Transaction();
 		settleTx.add(await adminClient.getUpdateAmmCacheIx([0, 1, 2]));
 		settleTx.add(
-			await adminClient.getSettlePerpToLpPoolIx(
-				encodeName(lpPoolName),
-				[0, 1, 2]
-			)
+			await adminClient.getSettlePerpToLpPoolIx(lpPoolId, [0, 1, 2])
 		);
 		settleTx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1, 2]));
 		await adminClient.sendTransaction(settleTx);
@@ -1164,7 +1135,10 @@ describe('LP Pool', () => {
 
 		const tx = new Transaction();
 		tx.add(
-			...(await adminClient.getAllSettlePerpToLpPoolIxs(lpPool.name, [0, 1, 2]))
+			...(await adminClient.getAllSettlePerpToLpPoolIxs(
+				lpPool.lpPoolId,
+				[0, 1, 2]
+			))
 		);
 		tx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1, 2]));
 		tx.add(
@@ -1220,10 +1194,7 @@ describe('LP Pool', () => {
 		settleTx.add(await adminClient.getUpdateAmmCacheIx([0, 1, 2]));
 		settleTx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1, 2]));
 		settleTx.add(
-			await adminClient.getSettlePerpToLpPoolIx(
-				encodeName(lpPoolName),
-				[0, 1, 2]
-			)
+			await adminClient.getSettlePerpToLpPoolIx(lpPoolId, [0, 1, 2])
 		);
 		await adminClient.sendTransaction(settleTx);
 
@@ -1299,10 +1270,7 @@ describe('LP Pool', () => {
 		const settleTx = new Transaction();
 		settleTx.add(await adminClient.getUpdateAmmCacheIx([0, 1, 2]));
 		settleTx.add(
-			await adminClient.getSettlePerpToLpPoolIx(
-				encodeName(lpPoolName),
-				[0, 1, 2]
-			)
+			await adminClient.getSettlePerpToLpPoolIx(lpPoolId, [0, 1, 2])
 		);
 		await adminClient.sendTransaction(settleTx);
 
@@ -1403,10 +1371,7 @@ describe('LP Pool', () => {
 		const settleTx = new Transaction();
 		settleTx.add(await adminClient.getUpdateAmmCacheIx([0, 1, 2]));
 		settleTx.add(
-			await adminClient.getSettlePerpToLpPoolIx(
-				encodeName(lpPoolName),
-				[0, 1, 2]
-			)
+			await adminClient.getSettlePerpToLpPoolIx(lpPoolId, [0, 1, 2])
 		);
 		settleTx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1, 2]));
 		await adminClient.sendTransaction(settleTx);
@@ -1432,7 +1397,7 @@ describe('LP Pool', () => {
 			lpPoolKey
 		)) as LPPoolAccount;
 
-		await adminClient.initializeConstituent(lpPool.name, {
+		await adminClient.initializeConstituent(lpPool.lpPoolId, {
 			spotMarketIndex: 3,
 			decimals: 6,
 			maxWeightDeviation: new BN(10).mul(PERCENTAGE_PRECISION),
@@ -1454,7 +1419,7 @@ describe('LP Pool', () => {
 		});
 
 		await adminClient.updateConstituentParams(
-			lpPool.name,
+			lpPool.lpPoolId,
 			getConstituentPublicKey(program.programId, lpPoolKey, 2),
 			{
 				derivativeWeight: PERCENTAGE_PRECISION.divn(4),
@@ -1477,15 +1442,12 @@ describe('LP Pool', () => {
 
 		const tx = new Transaction();
 		tx.add(await adminClient.getUpdateAmmCacheIx([0, 1, 2])).add(
-			await adminClient.getUpdateLpConstituentTargetBaseIx(
-				encodeName(lpPoolName),
-				[
-					getConstituentPublicKey(program.programId, lpPoolKey, 0),
-					getConstituentPublicKey(program.programId, lpPoolKey, 1),
-					getConstituentPublicKey(program.programId, lpPoolKey, 2),
-					getConstituentPublicKey(program.programId, lpPoolKey, 3),
-				]
-			)
+			await adminClient.getUpdateLpConstituentTargetBaseIx(lpPoolId, [
+				getConstituentPublicKey(program.programId, lpPoolKey, 0),
+				getConstituentPublicKey(program.programId, lpPoolKey, 1),
+				getConstituentPublicKey(program.programId, lpPoolKey, 2),
+				getConstituentPublicKey(program.programId, lpPoolKey, 3),
+			])
 		);
 		await adminClient.sendTransaction(tx);
 		await adminClient.updateLpPoolAum(lpPool, [0, 1, 2, 3]);
@@ -1519,7 +1481,7 @@ describe('LP Pool', () => {
 
 		// Set the derivative weights to 0
 		await adminClient.updateConstituentParams(
-			lpPool.name,
+			lpPool.lpPoolId,
 			getConstituentPublicKey(program.programId, lpPoolKey, 2),
 			{
 				derivativeWeight: ZERO,
@@ -1527,7 +1489,7 @@ describe('LP Pool', () => {
 		);
 
 		await adminClient.updateConstituentParams(
-			lpPool.name,
+			lpPool.lpPoolId,
 			getConstituentPublicKey(program.programId, lpPoolKey, 3),
 			{
 				derivativeWeight: ZERO,
@@ -1539,15 +1501,12 @@ describe('LP Pool', () => {
 		tx2
 			.add(await adminClient.getUpdateAmmCacheIx([0, 1, 2]))
 			.add(
-				await adminClient.getUpdateLpConstituentTargetBaseIx(
-					encodeName(lpPoolName),
-					[
-						getConstituentPublicKey(program.programId, lpPoolKey, 0),
-						getConstituentPublicKey(program.programId, lpPoolKey, 1),
-						getConstituentPublicKey(program.programId, lpPoolKey, 2),
-						getConstituentPublicKey(program.programId, lpPoolKey, 3),
-					]
-				)
+				await adminClient.getUpdateLpConstituentTargetBaseIx(lpPoolId, [
+					getConstituentPublicKey(program.programId, lpPoolKey, 0),
+					getConstituentPublicKey(program.programId, lpPoolKey, 1),
+					getConstituentPublicKey(program.programId, lpPoolKey, 2),
+					getConstituentPublicKey(program.programId, lpPoolKey, 3),
+				])
 			);
 		await adminClient.sendTransaction(tx2);
 		await adminClient.updateLpPoolAum(lpPool, [0, 1, 2, 3]);
@@ -1571,7 +1530,7 @@ describe('LP Pool', () => {
 
 	it('cant withdraw more than constituent limit', async () => {
 		await adminClient.updateConstituentParams(
-			encodeName(lpPoolName),
+			lpPoolId,
 			getConstituentPublicKey(program.programId, lpPoolKey, 0),
 			{
 				maxBorrowTokenAmount: new BN(10).muln(10 ** 6),
@@ -1580,7 +1539,7 @@ describe('LP Pool', () => {
 
 		try {
 			await adminClient.withdrawFromProgramVault(
-				encodeName(lpPoolName),
+				lpPoolId,
 				0,
 				new BN(100).mul(QUOTE_PRECISION)
 			);
@@ -1594,7 +1553,7 @@ describe('LP Pool', () => {
 		await adminClient.updateFeatureBitFlagsSettleLpPool(false);
 
 		try {
-			await adminClient.settlePerpToLpPool(encodeName(lpPoolName), [0, 1, 2]);
+			await adminClient.settlePerpToLpPool(lpPoolId, [0, 1, 2]);
 			assert(false, 'Should have thrown');
 		} catch (e) {
 			console.log(e.message);
@@ -1613,7 +1572,7 @@ describe('LP Pool', () => {
 			new BN(7_000).mul(new BN(10 ** 9))
 		);
 		await adminClient.deposit(new BN(1000).mul(new BN(10 ** 9)), 2, pubkey, 1);
-		const lpPool = await adminClient.getLpPoolAccount(encodeName(lpPoolName));
+		const lpPool = await adminClient.getLpPoolAccount(lpPoolId);
 
 		// Deposit into LP pool some balance
 		const ixs = [];
@@ -1628,7 +1587,7 @@ describe('LP Pool', () => {
 		);
 		await adminClient.sendTransaction(new Transaction().add(...ixs));
 		await adminClient.depositToProgramVault(
-			lpPool.name,
+			lpPool.lpPoolId,
 			2,
 			new BN(100).mul(new BN(10 ** 9))
 		);
@@ -1658,18 +1617,18 @@ describe('LP Pool', () => {
 		// );
 
 		await adminClient.withdrawFromProgramVault(
-			encodeName(lpPoolName),
+			lpPoolId,
 			2,
 			new BN(500).mul(new BN(10 ** 9))
 		);
 	});
 
 	it('whitelist mint', async () => {
-		await adminClient.updateLpPoolParams(encodeName(lpPoolName), {
+		await adminClient.updateLpPoolParams(lpPoolId, {
 			whitelistMint: whitelistMint,
 		});
 
-		const lpPool = await adminClient.getLpPoolAccount(encodeName(lpPoolName));
+		const lpPool = await adminClient.getLpPoolAccount(lpPoolId);
 		assert(lpPool.whitelistMint.equals(whitelistMint));
 
 		console.log('lpPool.whitelistMint', lpPool.whitelistMint.toString());

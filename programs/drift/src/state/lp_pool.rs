@@ -63,8 +63,6 @@ mod tests;
 #[derive(Default, Debug)]
 #[repr(C)]
 pub struct LPPool {
-    /// name of vault, TODO: check type + size
-    pub name: [u8; 32],
     /// address of the vault.
     pub pubkey: Pubkey,
     // vault token mint
@@ -127,11 +125,13 @@ pub struct LPPool {
     pub target_oracle_delay_fee_bps_per_10_slots: u8,
     pub target_position_delay_fee_bps_per_10_slots: u8,
 
-    pub padding: [u8; 15],
+    pub lp_pool_id: u8,
+
+    pub padding: [u8; 14],
 }
 
 impl Size for LPPool {
-    const SIZE: usize = 376;
+    const SIZE: usize = 344;
 }
 
 impl LPPool {
@@ -803,8 +803,12 @@ impl LPPool {
         Ok((aum_u128, crypto_delta, derivative_groups))
     }
 
-    pub fn get_lp_pool_signer_seeds<'a>(name: &'a [u8; 32], bump: &'a u8) -> [&'a [u8]; 3] {
-        [LP_POOL_PDA_SEED.as_ref(), name, bytemuck::bytes_of(bump)]
+    pub fn get_lp_pool_signer_seeds<'a>(lp_pool_id: &'a u8, bump: &'a u8) -> [&'a [u8]; 3] {
+        [
+            LP_POOL_PDA_SEED.as_ref(),
+            bytemuck::bytes_of(lp_pool_id),
+            bytemuck::bytes_of(bump),
+        ]
     }
 }
 
