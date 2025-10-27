@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.144.0] - 2025-10-27
+
+### Features
+
+- program: use-5min-for-target-expiry-price  ([#1967](https://github.com/drift-labs/protocol-v2/pull/1967))
+
+### Fixes
+
+### Breaking
+
 ## [2.143.0] - 2025-10-22
 
 - program: relax filling conditions for low risk orders vs amm ([#1968](https://github.com/drift-labs/protocol-v2/pull/1968))
@@ -32,7 +42,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - program: add titan to whitelisted swap programs ([#1952](https://github.com/drift-labs/protocol-v2/pull/1952))
 - program: allow hot wallet to increase max spread and pause funding ([#1957](https://github.com/drift-labs/protocol-v2/pull/1957))
-- program: use-5min-for-target-expiry-price  ([#1967](https://github.com/drift-labs/protocol-v2/pull/1967))
 
 ### Fixes
 
