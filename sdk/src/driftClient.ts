@@ -160,8 +160,8 @@ import { castNumberToSpotPrecision } from './math/spotMarket';
 import {
 	JupiterClient,
 	QuoteResponse,
-	SwapMode,
 } from './jupiter/jupiterClient';
+import { SwapMode } from './swap/UnifiedSwapClient';
 import { getNonIdleUserFilter } from './memcmp';
 import { UserStatsSubscriptionConfig } from './userStatsConfig';
 import { getMarinadeDepositIx, getMarinadeFinanceProgram } from './marinade';
@@ -210,9 +210,11 @@ import {
 	isBuilderOrderCompleted,
 } from './math/builder';
 import { TitanClient, SwapMode as TitanSwapMode } from './titan/titanClient';
+import { UnifiedSwapClient } from './swap/UnifiedSwapClient';
 
 /**
- * Union type for swap clients (Titan and Jupiter)
+ * Union type for swap clients (Titan and Jupiter) - Legacy type
+ * @deprecated Use UnifiedSwapClient class instead
  */
 export type SwapClient = TitanClient | JupiterClient;
 
@@ -5772,7 +5774,7 @@ export class DriftClient {
 		quote,
 		onlyDirectRoutes = false,
 	}: {
-		swapClient: SwapClient;
+		swapClient: UnifiedSwapClient | SwapClient;
 		outMarketIndex: number;
 		inMarketIndex: number;
 		outAssociatedTokenAccount?: PublicKey;
@@ -5793,7 +5795,23 @@ export class DriftClient {
 			lookupTables: AddressLookupTableAccount[];
 		};
 
-		if (swapClient instanceof TitanClient) {
+		// Use unified SwapClient if available
+		if (swapClient instanceof UnifiedSwapClient) {
+			res = await this.getSwapIxV2({
+				swapClient,
+				outMarketIndex,
+				inMarketIndex,
+				outAssociatedTokenAccount,
+				inAssociatedTokenAccount,
+				amount,
+				slippageBps,
+				swapMode,
+				onlyDirectRoutes,
+				reduceOnly,
+				quote,
+				v6,
+			});
+		} else if (swapClient instanceof TitanClient) {
 			res = await this.getTitanSwapIx({
 				titanClient: swapClient,
 				outMarketIndex,
@@ -5823,7 +5841,7 @@ export class DriftClient {
 			});
 		} else {
 			throw new Error(
-				'Invalid swap client type. Must be TitanClient or JupiterClient.'
+				'Invalid swap client type. Must be SwapClient, TitanClient, or JupiterClient.'
 			);
 		}
 
@@ -6241,6 +6259,134 @@ export class DriftClient {
 		);
 
 		return { beginSwapIx, endSwapIx };
+	}
+
+	public async getSwapIxV2({
+		swapClient,
+		outMarketIndex,
+		inMarketIndex,
+		outAssociatedTokenAccount,
+		inAssociatedTokenAccount,
+		amount,
+		slippageBps,
+		swapMode,
+		onlyDirectRoutes,
+		reduceOnly,
+		quote,
+		v6,
+	}: {
+		swapClient: UnifiedSwapClient;
+		outMarketIndex: number;
+		inMarketIndex: number;
+		outAssociatedTokenAccount?: PublicKey;
+		inAssociatedTokenAccount?: PublicKey;
+		amount: BN;
+		slippageBps?: number;
+		swapMode?: SwapMode;
+		onlyDirectRoutes?: boolean;
+		reduceOnly?: SwapReduceOnly;
+		quote?: QuoteResponse;
+		v6?: {
+			quote?: QuoteResponse;
+		};
+	}): Promise<{
+		ixs: TransactionInstruction[];
+		lookupTables: AddressLookupTableAccount[];
+	}> {
+		// Get market accounts to determine mints
+		const outMarket = this.getSpotMarketAccount(outMarketIndex);
+		const inMarket = this.getSpotMarketAccount(inMarketIndex);
+
+		const isExactOut = swapMode === 'ExactOut';
+		const exactOutBufferedAmountIn = amount.muln(1001).divn(1000); // Add 10bp buffer
+
+		const preInstructions: TransactionInstruction[] = [];
+		
+		// Handle token accounts if not provided
+		let finalOutAssociatedTokenAccount = outAssociatedTokenAccount;
+		let finalInAssociatedTokenAccount = inAssociatedTokenAccount;
+
+		if (!finalOutAssociatedTokenAccount) {
+			const tokenProgram = this.getTokenProgramForSpotMarket(outMarket);
+			finalOutAssociatedTokenAccount = await this.getAssociatedTokenAccount(
+				outMarket.marketIndex,
+				false,
+				tokenProgram
+			);
+
+			const accountInfo = await this.connection.getAccountInfo(
+				finalOutAssociatedTokenAccount
+			);
+			if (!accountInfo) {
+				preInstructions.push(
+					this.createAssociatedTokenAccountIdempotentInstruction(
+						finalOutAssociatedTokenAccount,
+						this.provider.wallet.publicKey,
+						this.provider.wallet.publicKey,
+						outMarket.mint,
+						tokenProgram
+					)
+				);
+			}
+		}
+
+		if (!finalInAssociatedTokenAccount) {
+			const tokenProgram = this.getTokenProgramForSpotMarket(inMarket);
+			finalInAssociatedTokenAccount = await this.getAssociatedTokenAccount(
+				inMarket.marketIndex,
+				false,
+				tokenProgram
+			);
+
+			const accountInfo = await this.connection.getAccountInfo(
+				finalInAssociatedTokenAccount
+			);
+			if (!accountInfo) {
+				preInstructions.push(
+					this.createAssociatedTokenAccountIdempotentInstruction(
+						finalInAssociatedTokenAccount,
+						this.provider.wallet.publicKey,
+						this.provider.wallet.publicKey,
+						inMarket.mint,
+						tokenProgram
+					)
+				);
+			}
+		}
+
+		// Get drift swap instructions for begin and end
+		const { beginSwapIx, endSwapIx } = await this.getSwapIx({
+			outMarketIndex,
+			inMarketIndex,
+			amountIn: isExactOut ? exactOutBufferedAmountIn : amount,
+			inTokenAccount: finalInAssociatedTokenAccount,
+			outTokenAccount: finalOutAssociatedTokenAccount,
+			reduceOnly,
+		});
+
+		// Get core swap instructions from SwapClient
+		const swapResult = await swapClient.getSwapInstructions({
+			inputMint: inMarket.mint,
+			outputMint: outMarket.mint,
+			amount,
+			userPublicKey: this.provider.wallet.publicKey,
+			slippageBps,
+			swapMode,
+			onlyDirectRoutes,
+			quote: quote ?? v6?.quote,
+		});
+
+		const allInstructions = [
+			...preInstructions,
+			beginSwapIx,
+			...swapResult.instructions,
+			endSwapIx,
+		];
+
+		return {
+			ixs: allInstructions,
+			lookupTables: swapResult.lookupTables,
+		};
 	}
 
 	public async stakeForMSOL({ amount }: { amount: BN }): Promise<TxSigAndSlot> {
