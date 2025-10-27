@@ -251,7 +251,8 @@ pub struct PerpMarket {
     pub lp_paused_operations: u8,
     pub lp_exchange_fee_excluscion_scalar: u8,
     pub last_fill_price: u64,
-    pub padding: [u8; 24],
+    pub lp_pool_id: u8,
+    pub padding: [u8; 23],
 }
 
 impl Default for PerpMarket {
@@ -298,7 +299,8 @@ impl Default for PerpMarket {
             lp_exchange_fee_excluscion_scalar: 0,
             lp_paused_operations: 0,
             last_fill_price: 0,
-            padding: [0; 24],
+            lp_pool_id: 0,
+            padding: [0; 23],
         }
     }
 }

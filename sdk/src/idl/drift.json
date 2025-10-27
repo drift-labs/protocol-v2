@@ -4572,6 +4572,10 @@
               32
             ]
           }
+        },
+        {
+          "name": "lpPoolId",
+          "type": "u8"
         }
       ]
     },
@@ -5387,6 +5391,32 @@
         {
           "name": "ifLiquidationFee",
           "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "updatePerpMarketLpPoolId",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "lpPoolId",
+          "type": "u8"
         }
       ]
     },
@@ -7503,13 +7533,8 @@
       ],
       "args": [
         {
-          "name": "name",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
+          "name": "lpPoolId",
+          "type": "u8"
         },
         {
           "name": "minMintFee",
@@ -9913,18 +9938,6 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "name",
-            "docs": [
-              "name of vault, TODO: check type + size"
-            ],
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
             "name": "pubkey",
             "docs": [
               "address of the vault."
@@ -10055,11 +10068,15 @@
             "type": "u8"
           },
           {
+            "name": "lpPoolId",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                15
+                14
               ]
             }
           }
@@ -10691,11 +10708,15 @@
             "type": "u64"
           },
           {
+            "name": "lpPoolId",
+            "type": "u8"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                24
+                23
               ]
             }
           }

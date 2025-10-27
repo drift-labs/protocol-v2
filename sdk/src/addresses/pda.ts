@@ -427,12 +427,12 @@ export function getRevenueShareEscrowAccountPublicKey(
 
 export function getLpPoolPublicKey(
 	programId: PublicKey,
-	nameBuffer: number[]
+	lpPoolId: number
 ): PublicKey {
 	return PublicKey.findProgramAddressSync(
 		[
 			Buffer.from(anchor.utils.bytes.utf8.encode('lp_pool')),
-			Buffer.from(nameBuffer),
+			new anchor.BN(lpPoolId).toArrayLike(Buffer, 'le', 1),
 		],
 		programId
 	)[0];

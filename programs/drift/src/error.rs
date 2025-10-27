@@ -692,6 +692,8 @@ pub enum ErrorCode {
     Unauthorized,
     #[msg("Invalid Isolated Perp Market")]
     InvalidIsolatedPerpMarket,
+    #[msg("Invalid Lp Pool Id for Operation")]
+    InvalidLpPoolId,
 }
 
 #[macro_export]

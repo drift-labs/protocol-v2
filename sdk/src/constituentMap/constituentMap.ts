@@ -17,8 +17,6 @@ import { getLpPoolPublicKey } from '../addresses/pda';
 
 const MAX_CONSTITUENT_SIZE_BYTES = 320; // TODO: update this when account is finalized
 
-const LP_POOL_NAME = 'test lp pool 3';
-
 export type ConstituentMapConfig = {
 	driftClient: DriftClient;
 	connection?: Connection;
@@ -34,7 +32,7 @@ export type ConstituentMapConfig = {
 				logResubMessages?: boolean;
 				commitment?: Commitment;
 		  };
-	lpPoolName?: string;
+	lpPoolId?: number;
 	// potentially use these to filter Constituent accounts
 	additionalFilters?: MemcmpFilter[];
 };
@@ -67,14 +65,14 @@ export class ConstituentMap implements ConstituentMapInterface {
 	private constituentIndexToKeyMap = new Map<number, string>();
 	private spotMarketIndexToKeyMap = new Map<number, string>();
 
-	private lpPoolName: string;
+	private lpPoolId: number;
 
 	constructor(config: ConstituentMapConfig) {
 		this.driftClient = config.driftClient;
 		this.additionalFilters = config.additionalFilters;
 		this.commitment = config.subscriptionConfig.commitment;
 		this.connection = config.connection || this.driftClient.connection;
-		this.lpPoolName = config.lpPoolName ?? LP_POOL_NAME;
+		this.lpPoolId = config.lpPoolId ?? 0;
 
 		if (config.subscriptionConfig.type === 'polling') {
 			this.constituentAccountSubscriber =
@@ -109,10 +107,7 @@ export class ConstituentMap implements ConstituentMapInterface {
 		const filters = [
 			getConstituentFilter(),
 			getConstituentLpPoolFilter(
-				getLpPoolPublicKey(
-					this.driftClient.program.programId,
-					encodeName(this.lpPoolName)
-				)
+				getLpPoolPublicKey(this.driftClient.program.programId, this.lpPoolId)
 			),
 		];
 		if (this.additionalFilters) {

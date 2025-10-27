@@ -91,12 +91,9 @@ describe('LP Pool', () => {
 		mantissaSqrtScale
 	);
 
-	const lpPoolName = 'test pool 1';
+	const lpPoolId = 0;
 	const tokenDecimals = 6;
-	const lpPoolKey = getLpPoolPublicKey(
-		program.programId,
-		encodeName(lpPoolName)
-	);
+	const lpPoolKey = getLpPoolPublicKey(program.programId, lpPoolId);
 
 	let userUSDCAccount: Keypair;
 	let serumMarket: Market;
@@ -223,13 +220,13 @@ describe('LP Pool', () => {
 		);
 
 		await adminClient.initializeLpPool(
-			lpPoolName,
+			lpPoolId,
 			new BN(100), // 1 bps
 			new BN(100_000_000).mul(QUOTE_PRECISION),
 			new BN(1_000_000).mul(QUOTE_PRECISION),
 			Keypair.generate() // dlp mint
 		);
-		await adminClient.initializeConstituent(encodeName(lpPoolName), {
+		await adminClient.initializeConstituent(lpPoolId, {
 			spotMarketIndex: 0,
 			decimals: 6,
 			maxWeightDeviation: PERCENTAGE_PRECISION.divn(10), // 10% max dev,
@@ -244,7 +241,7 @@ describe('LP Pool', () => {
 		});
 		await adminClient.updateFeatureBitFlagsMintRedeemLpPool(true);
 
-		await adminClient.initializeConstituent(encodeName(lpPoolName), {
+		await adminClient.initializeConstituent(lpPoolId, {
 			spotMarketIndex: 1,
 			decimals: 6,
 			maxWeightDeviation: PERCENTAGE_PRECISION.divn(10), // 10% max dev,
@@ -641,7 +638,7 @@ describe('LP Pool', () => {
 		removeTx.add(await adminClient.getUpdateLpPoolAumIxs(lpPool, [0, 1]));
 		removeTx.add(
 			await adminClient.getDepositToProgramVaultIx(
-				encodeName(lpPoolName),
+				lpPoolId,
 				0,
 				new BN(constituentBalanceBefore)
 			)
@@ -673,7 +670,7 @@ describe('LP Pool', () => {
 		const withdrawFromProgramVaultTx = new Transaction();
 		withdrawFromProgramVaultTx.add(
 			await adminClient.getWithdrawFromProgramVaultIx(
-				encodeName(lpPoolName),
+				lpPoolId,
 				0,
 				blTokenAmountAfterRemoveLiquidity.abs()
 			)
@@ -768,7 +765,7 @@ describe('LP Pool', () => {
 
 	it('swap sol for usdc', async () => {
 		// Initialize new constituent for market 2
-		await adminClient.initializeConstituent(encodeName(lpPoolName), {
+		await adminClient.initializeConstituent(lpPoolId, {
 			spotMarketIndex: 2,
 			decimals: 6,
 			maxWeightDeviation: PERCENTAGE_PRECISION.divn(10), // 10% max dev,
@@ -840,7 +837,7 @@ describe('LP Pool', () => {
 
 		const { beginSwapIx, endSwapIx } = await adminClient.getSwapIx(
 			{
-				lpPoolName: encodeName(lpPoolName),
+				lpPoolId: lpPoolId,
 				amountIn: amountIn,
 				inMarketIndex: 0,
 				outMarketIndex: 2,
@@ -952,7 +949,7 @@ describe('LP Pool', () => {
 		).amount.toString();
 
 		await adminClient.depositWithdrawToProgramVault(
-			encodeName(lpPoolName),
+			lpPoolId,
 			0,
 			2,
 			new BN(400).mul(QUOTE_PRECISION), // 100 USDC

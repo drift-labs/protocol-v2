@@ -895,6 +895,7 @@ export type PerpMarketAccount = {
 	protectedMakerDynamicDivisor: number;
 	lastFillPrice: BN;
 
+	lpPoolId: number;
 	lpFeeTransferScalar: number;
 	lpExchangeFeeExcluscionScalar: number;
 	lpStatus: number;
@@ -1773,7 +1774,7 @@ export type ConstituentCorrelations = {
 };
 
 export type LPPoolAccount = {
-	name: number[];
+	lpPoolId: number;
 	pubkey: PublicKey;
 	mint: PublicKey;
 	whitelistMint: PublicKey;
