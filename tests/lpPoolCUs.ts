@@ -124,12 +124,9 @@ describe('LP Pool', () => {
 	);
 	let solUsd: PublicKey;
 
-	const lpPoolName = 'test pool 1';
+	const lpPoolId = 0;
 	const tokenDecimals = 6;
-	const lpPoolKey = getLpPoolPublicKey(
-		program.programId,
-		encodeName(lpPoolName)
-	);
+	const lpPoolKey = getLpPoolPublicKey(program.programId, lpPoolId);
 
 	const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(
 		new BN(2)
@@ -252,7 +249,7 @@ describe('LP Pool', () => {
 
 	it('can create a new LP Pool', async () => {
 		await adminClient.initializeLpPool(
-			lpPoolName,
+			lpPoolId,
 			ZERO,
 			new BN(1_000_000_000_000).mul(QUOTE_PRECISION),
 			new BN(1_000_000).mul(QUOTE_PRECISION),
@@ -308,7 +305,7 @@ describe('LP Pool', () => {
 
 	it('can add constituents to LP Pool', async () => {
 		// USDC Constituent
-		await adminClient.initializeConstituent(encodeName(lpPoolName), {
+		await adminClient.initializeConstituent(lpPoolId, {
 			spotMarketIndex: 0,
 			decimals: 6,
 			maxWeightDeviation: new BN(10).mul(PERCENTAGE_PRECISION),
@@ -362,7 +359,7 @@ describe('LP Pool', () => {
 
 		const correlations = [ZERO];
 		for (let i = 1; i < NUMBER_OF_CONSTITUENTS; i++) {
-			await adminClient.initializeConstituent(encodeName(lpPoolName), {
+			await adminClient.initializeConstituent(lpPoolId, {
 				spotMarketIndex: i,
 				decimals: 6,
 				maxWeightDeviation: new BN(10).mul(PERCENTAGE_PRECISION),
@@ -507,7 +504,7 @@ describe('LP Pool', () => {
 		// Assume that constituent 0 is USDC
 		for (let i = 0; i < NUMBER_OF_PERP_MARKETS; i++) {
 			for (let j = 1; j <= 3; j++) {
-				await adminClient.addAmmConstituentMappingData(encodeName(lpPoolName), [
+				await adminClient.addAmmConstituentMappingData(lpPoolId, [
 					{
 						perpMarketIndex: i,
 						constituentIndex: j,
@@ -599,7 +596,7 @@ describe('LP Pool', () => {
 			)
 		);
 		const updateBaseIx = await adminClient.getUpdateLpConstituentTargetBaseIx(
-			encodeName(lpPoolName),
+			lpPoolId,
 			[getConstituentPublicKey(program.programId, lpPoolKey, 1)]
 		);
 

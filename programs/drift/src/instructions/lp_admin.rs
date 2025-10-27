@@ -36,7 +36,7 @@ use super::optional_accounts::get_token_interface;
 
 pub fn handle_initialize_lp_pool(
     ctx: Context<InitializeLpPool>,
-    name: [u8; 32],
+    lp_pool_id: u8,
     min_mint_fee: i64,
     max_aum: u128,
     max_settle_quote_amount_per_market: u64,
@@ -59,7 +59,6 @@ pub fn handle_initialize_lp_pool(
     )?;
 
     *lp_pool = LPPool {
-        name,
         pubkey: ctx.accounts.lp_pool.key(),
         mint: mint.key(),
         constituent_target_base: ctx.accounts.constituent_target_base.key(),
@@ -84,7 +83,8 @@ pub fn handle_initialize_lp_pool(
         xi: 2,
         target_oracle_delay_fee_bps_per_10_slots: 0,
         target_position_delay_fee_bps_per_10_slots: 0,
-        padding: [0u8; 15],
+        lp_pool_id,
+        padding: [0u8; 14],
         whitelist_mint,
     };
 
@@ -598,11 +598,14 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
     // Check admin
     let admin = &ctx.accounts.admin;
     #[cfg(feature = "anchor-test")]
-    validate!(
-        admin.key() == admin_hot_wallet::id() || admin.key() == state.admin,
-        ErrorCode::Unauthorized,
-        "Wrong signer for lp taker swap"
-    )?;
+    {
+        let state = &ctx.accounts.state;
+        validate!(
+            admin.key() == admin_hot_wallet::id() || admin.key() == state.admin,
+            ErrorCode::Unauthorized,
+            "Wrong signer for lp taker swap"
+        )?;
+    }
     #[cfg(not(feature = "anchor-test"))]
     validate!(
         admin.key() == lp_pool_swap_wallet::id(),
@@ -1008,14 +1011,14 @@ pub fn handle_override_amm_cache_info<'c: 'info, 'info>(
 
 #[derive(Accounts)]
 #[instruction(
-    name: [u8; 32],
+    id: u8,
 )]
 pub struct InitializeLpPool<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
     #[account(
         init,
-        seeds = [b"lp_pool", name.as_ref()],
+        seeds = [b"lp_pool", id.to_le_bytes().as_ref()],
         space = LPPool::SIZE,
         bump,
         payer = admin
