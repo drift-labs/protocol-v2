@@ -53,6 +53,7 @@ export * from './events/webSocketLogProvider';
 export * from './events/parse';
 export * from './events/pollingLogProvider';
 export * from './jupiter/jupiterClient';
+export { TitanClient } from './titan/titanClient';
 export * from './math/auction';
 export * from './math/builder';
 export * from './math/spotMarket';
