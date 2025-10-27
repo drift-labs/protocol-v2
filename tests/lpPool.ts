@@ -1684,4 +1684,51 @@ describe('LP Pool', () => {
 		// successfully call add liquidity
 		await adminClient.sendTransaction(txAfter);
 	});
+
+	it('can initialize multiple lp pools', async () => {
+		const newLpPoolId = 1;
+		const newLpPoolKey = getLpPoolPublicKey(program.programId, newLpPoolId);
+
+		await adminClient.initializeLpPool(
+			newLpPoolId,
+			ZERO,
+			new BN(1_000_000_000_000).mul(QUOTE_PRECISION),
+			new BN(1_000_000).mul(QUOTE_PRECISION),
+			Keypair.generate()
+		);
+		await adminClient.initializeConstituent(newLpPoolId, {
+			spotMarketIndex: 0,
+			decimals: 6,
+			maxWeightDeviation: new BN(10).mul(PERCENTAGE_PRECISION),
+			swapFeeMin: new BN(1).mul(PERCENTAGE_PRECISION),
+			swapFeeMax: new BN(2).mul(PERCENTAGE_PRECISION),
+			maxBorrowTokenAmount: new BN(1_000_000).muln(10 ** 6),
+			oracleStalenessThreshold: new BN(400),
+			costToTrade: 1,
+			derivativeWeight: PERCENTAGE_PRECISION.divn(2),
+			constituentDerivativeDepegThreshold:
+				PERCENTAGE_PRECISION.divn(10).muln(9),
+			volatility: new BN(10).mul(PERCENTAGE_PRECISION),
+			constituentCorrelations: [],
+			constituentDerivativeIndex: -1,
+		});
+
+		const oldLpPool = await adminClient.getLpPoolAccount(lpPoolId);
+		// cant settle a perp market to the new lp pool with a different id
+
+		try {
+			const settleTx = new Transaction();
+			settleTx.add(await adminClient.getUpdateAmmCacheIx([0, 1, 2]));
+			settleTx.add(
+				await adminClient.getSettlePerpToLpPoolIx(newLpPoolId, [0, 1, 2])
+			);
+			settleTx.add(
+				await adminClient.getUpdateLpPoolAumIxs(oldLpPool, [0, 1, 2])
+			);
+			await adminClient.sendTransaction(settleTx);
+		} catch (e) {
+			console.log(e.message);
+			assert(e.message.includes('0x18c7'));
+		}
+	});
 });

@@ -690,6 +690,8 @@ pub enum ErrorCode {
     InvalidConstituentOperation,
     #[msg("Unauthorized for operation")]
     Unauthorized,
+    #[msg("Invalid Lp Pool Id for Operation")]
+    InvalidLpPoolId,
 }
 
 #[macro_export]

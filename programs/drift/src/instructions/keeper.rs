@@ -3356,6 +3356,16 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
 
     for (_, perp_market_loader) in perp_market_map.0.iter() {
         let mut perp_market = perp_market_loader.load_mut()?;
+        if lp_pool.lp_pool_id != perp_market.lp_pool_id {
+            msg!(
+                "Perp market {} does not have the same lp pool id as the lp pool being settled to: {} != {}",
+                perp_market.market_index,
+                perp_market.lp_pool_id,
+                lp_pool.lp_pool_id
+            );
+            return Err(ErrorCode::InvalidLpPoolId.into());
+        }
+
         if perp_market.lp_status == 0
             || PerpLpOperation::is_operation_paused(
                 perp_market.lp_paused_operations,
