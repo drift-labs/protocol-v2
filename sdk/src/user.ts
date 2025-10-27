@@ -138,9 +138,10 @@ export class User {
 			this.accountSubscriber = config.accountSubscription.userAccountSubscriber;
 		} else if (config.accountSubscription?.type === 'grpc') {
 			if (config.accountSubscription.grpcMultiUserAccountSubscriber) {
-				this.accountSubscriber = config.accountSubscription.grpcMultiUserAccountSubscriber.forUser(
-					config.userAccountPublicKey
-				);
+				this.accountSubscriber =
+					config.accountSubscription.grpcMultiUserAccountSubscriber.forUser(
+						config.userAccountPublicKey
+					);
 			} else {
 				this.accountSubscriber = new grpcUserAccountSubscriber(
 					config.accountSubscription.grpcConfigs,

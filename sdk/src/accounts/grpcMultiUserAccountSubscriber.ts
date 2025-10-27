@@ -18,7 +18,10 @@ export class grpcMultiUserAccountSubscriber {
 	private multiSubscriber: grpcMultiAccountSubscriber<UserAccount>;
 
 	private userData = new Map<string, DataAndSlot<UserAccount>>();
-	private listeners = new Map<string, Set<StrictEventEmitter<EventEmitter, UserAccountEvents>>>();
+	private listeners = new Map<
+		string,
+		Set<StrictEventEmitter<EventEmitter, UserAccountEvents>>
+	>();
 	private keyToPk = new Map<string, PublicKey>();
 	private pendingAddKeys = new Set<string>();
 	private debounceTimer?: ReturnType<typeof setTimeout>;
@@ -60,13 +63,14 @@ export class grpcMultiUserAccountSubscriber {
 
 	public async subscribe(): Promise<void> {
 		if (!this.multiSubscriber) {
-			this.multiSubscriber = await grpcMultiAccountSubscriber.create<UserAccount>(
-				this.grpcConfigs,
-				'user',
-				this.program,
-				undefined,
-				this.resubOpts
-			);
+			this.multiSubscriber =
+				await grpcMultiAccountSubscriber.create<UserAccount>(
+					this.grpcConfigs,
+					'user',
+					this.program,
+					undefined,
+					this.resubOpts
+				);
 		}
 
 		// Subscribe all per-user subscribers first
@@ -106,6 +110,7 @@ export class grpcMultiUserAccountSubscriber {
 		const key = userAccountPublicKey.toBase58();
 		const perUserEmitter: StrictEventEmitter<EventEmitter, UserAccountEvents> =
 			new EventEmitter();
+		// eslint-disable-next-line @typescript-eslint/no-this-alias
 		const parent = this;
 		let isSubscribed = false;
 
@@ -221,12 +226,18 @@ export class grpcMultiUserAccountSubscriber {
 			await this.multiSubscriber.subscribe(allPks, this.handleAccountChange);
 			this.isMultiSubscribed = true;
 			await this.multiSubscriber.fetch();
-			for(const k of this.pendingAddKeys) {
+			for (const k of this.pendingAddKeys) {
 				const pk = this.keyToPk.get(k);
 				if (pk) {
 					const data = this.multiSubscriber.getAccountData(k);
 					if (data) {
-						this.handleAccountChange(pk, data.data, { slot: data.slot }, undefined, undefined);
+						this.handleAccountChange(
+							pk,
+							data.data,
+							{ slot: data.slot },
+							undefined,
+							undefined
+						);
 					}
 				}
 			}
@@ -245,7 +256,13 @@ export class grpcMultiUserAccountSubscriber {
 			for (const k of this.pendingAddKeys) {
 				ms.onChangeMap.set(k, (data, ctx, buffer, accountProps) => {
 					this.multiSubscriber.setAccountData(k, data, ctx.slot);
-					this.handleAccountChange(new PublicKey(k), data, ctx, buffer, accountProps);
+					this.handleAccountChange(
+						new PublicKey(k),
+						data,
+						ctx,
+						buffer,
+						accountProps
+					);
 				});
 			}
 			await this.multiSubscriber.addAccounts(allPks);
@@ -255,5 +272,3 @@ export class grpcMultiUserAccountSubscriber {
 		this.debounceTimer = undefined;
 	}
 }
-
-
