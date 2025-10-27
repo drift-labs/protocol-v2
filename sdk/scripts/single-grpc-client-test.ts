@@ -47,9 +47,7 @@ async function initializeSingleGrpcClient() {
 	const allPerpMarketProgramAccounts =
 		(await program.account.perpMarket.all()) as ProgramAccount<PerpMarketAccount>[];
 	const perpMarketProgramAccounts = allPerpMarketProgramAccounts.filter((val) =>
-		[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].includes(
-			val.account.marketIndex
-		)
+		[46].includes(val.account.marketIndex)
 	);
 	const perpMarketIndexes = perpMarketProgramAccounts.map(
 		(val) => val.account.marketIndex
@@ -59,7 +57,7 @@ async function initializeSingleGrpcClient() {
 	const allSpotMarketProgramAccounts =
 		(await program.account.spotMarket.all()) as ProgramAccount<SpotMarketAccount>[];
 	const spotMarketProgramAccounts = allSpotMarketProgramAccounts.filter((val) =>
-		[0, 1, 2, 3, 4, 5].includes(val.account.marketIndex)
+		[0].includes(val.account.marketIndex)
 	);
 	const spotMarketIndexes = spotMarketProgramAccounts.map(
 		(val) => val.account.marketIndex
@@ -93,7 +91,9 @@ async function initializeSingleGrpcClient() {
 		}
 	}
 
-	console.log(`📊 Markets: ${perpMarketIndexes.length} perp, ${spotMarketIndexes.length} spot`);
+	console.log(
+		`📊 Markets: ${perpMarketIndexes.length} perp, ${spotMarketIndexes.length} spot`
+	);
 	console.log(`🔮 Oracles: ${oracleInfos.length}`);
 
 	const baseAccountSubscription = {
@@ -161,7 +161,9 @@ async function initializeSingleGrpcClient() {
 	await client.subscribe();
 
 	console.log('✅ Client subscribed successfully!');
-	console.log('🚀 Starting high-load testing (50 reads/sec per perp market)...');
+	console.log(
+		'🚀 Starting high-load testing (50 reads/sec per perp market)...'
+	);
 
 	// High-frequency load testing - 50 reads per second per perp market
 	const loadTestInterval = setInterval(async () => {
@@ -169,27 +171,69 @@ async function initializeSingleGrpcClient() {
 			// Test getPerpMarketAccount for each perp market (50 times per second per market)
 			for (const marketIndex of perpMarketIndexes) {
 				const perpMarketAccount = client.getPerpMarketAccount(marketIndex);
-				console.log("perpMarketAccount name: ", decodeName(perpMarketAccount.name));
-				console.log("perpMarketAccount data: ", JSON.stringify({
-					marketIndex: perpMarketAccount.marketIndex,
-					name: decodeName(perpMarketAccount.name),
-					baseAssetReserve: perpMarketAccount.amm.baseAssetReserve.toString(),
-					quoteAssetReserve: perpMarketAccount.amm.quoteAssetReserve.toString()
-				}));
+				if (!perpMarketAccount) {
+					console.log(`Perp market ${marketIndex} not found`);
+					continue;
+				}
+				console.log(
+					'perpMarketAccount name: ',
+					decodeName(perpMarketAccount.name)
+				);
+				console.log(
+					'perpMarketAccount data: ',
+					JSON.stringify({
+						marketIndex: perpMarketAccount.marketIndex,
+						name: decodeName(perpMarketAccount.name),
+						baseAssetReserve: perpMarketAccount.amm.baseAssetReserve.toString(),
+						quoteAssetReserve:
+							perpMarketAccount.amm.quoteAssetReserve.toString(),
+					})
+				);
 			}
 
 			// Test getMMOracleDataForPerpMarket for each perp market (50 times per second per market)
 			for (const marketIndex of perpMarketIndexes) {
 				try {
 					const oracleData = client.getMMOracleDataForPerpMarket(marketIndex);
-					console.log("oracleData price: ", oracleData.price.toString());
-					console.log("oracleData: ", JSON.stringify({
-						price: oracleData.price.toString(),
-						confidence: oracleData.confidence?.toString(),
-						slot: oracleData.slot?.toString()
-					}));
+					console.log('oracleData price: ', oracleData.price.toString());
+					console.log(
+						'oracleData: ',
+						JSON.stringify({
+							price: oracleData.price.toString(),
+							confidence: oracleData.confidence?.toString(),
+							slot: oracleData.slot?.toString(),
+						})
+					);
 				} catch (error) {
 					// Ignore errors for load testing
+				}
+			}
+
+			for (const marketIndex of perpMarketIndexes) {
+				try {
+					const { data, slot } =
+						client.accountSubscriber.getMarketAccountAndSlot(marketIndex);
+					if (!data) {
+						console.log(
+							`Perp market getMarketAccountAndSlot ${marketIndex} not found`
+						);
+						continue;
+					}
+					console.log(
+						'marketAccountAndSlot: ',
+						JSON.stringify({
+							marketIndex: data.marketIndex,
+							name: decodeName(data.name),
+							slot: slot?.toString(),
+							baseAssetReserve: data.amm.baseAssetReserve.toString(),
+							quoteAssetReserve: data.amm.quoteAssetReserve.toString(),
+						})
+					);
+				} catch (error) {
+					console.error(
+						`Error getting market account and slot for market ${marketIndex}:`,
+						error
+					);
 				}
 			}
 		} catch (error) {
@@ -201,8 +245,14 @@ async function initializeSingleGrpcClient() {
 	const statsInterval = setInterval(() => {
 		console.log('\n📈 Event Counts:', eventCounts);
 		console.log(`⏱️  Client subscribed: ${client.isSubscribed}`);
-		console.log(`🔗 Account subscriber subscribed: ${client.accountSubscriber.isSubscribed}`);
-		console.log(`🔥 Load: ${perpMarketIndexes.length * 50 * 2} reads/sec (${perpMarketIndexes.length} markets × 50 getPerpMarketAccount + 50 getMMOracleDataForPerpMarket)`);
+		console.log(
+			`🔗 Account subscriber subscribed: ${client.accountSubscriber.isSubscribed}`
+		);
+		console.log(
+			`🔥 Load: ${perpMarketIndexes.length * 50 * 2} reads/sec (${
+				perpMarketIndexes.length
+			} markets × 50 getPerpMarketAccount + 50 getMMOracleDataForPerpMarket)`
+		);
 	}, 5000);
 
 	// Handle shutdown signals - just exit without cleanup since they never unsubscribe
