@@ -3127,8 +3127,9 @@ pub fn trigger_order(
             .historical_oracle_data
             .last_oracle_price_twap,
         perp_market.get_max_confidence_interval_multiplier()?,
-        0,
-        0,
+        perp_market.amm.oracle_slot_delay_override,
+        perp_market.amm.oracle_low_risk_slot_delay_override,
+        None,
     )?;
 
     let is_oracle_valid =
@@ -5446,6 +5447,7 @@ pub fn trigger_spot_order(
         spot_market.get_max_confidence_interval_multiplier()?,
         0,
         0,
+        None,
     )?;
     let strict_oracle_price = StrictOraclePrice {
         current: oracle_price_data.price,

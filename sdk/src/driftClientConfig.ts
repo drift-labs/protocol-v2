@@ -24,6 +24,7 @@ import { WebSocketDriftClientAccountSubscriberV2 } from './accounts/webSocketDri
 import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDriftClientAccountSubscriber';
 import { grpcDriftClientAccountSubscriberV2 } from './accounts/grpcDriftClientAccountSubscriberV2';
 import { grpcDriftClientAccountSubscriber } from './accounts/grpcDriftClientAccountSubscriber';
+import { grpcMultiUserAccountSubscriber } from './accounts/grpcMultiUserAccountSubscriber';
 
 export type DriftClientConfig = {
 	connection: Connection;
@@ -73,6 +74,7 @@ export type DriftClientSubscriptionConfig =
 			) =>
 				| grpcDriftClientAccountSubscriberV2
 				| grpcDriftClientAccountSubscriber;
+			grpcMultiUserAccountSubscriber?: grpcMultiUserAccountSubscriber;
 	  }
 	| {
 			type: 'websocket';
