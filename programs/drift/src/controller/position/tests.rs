@@ -1016,7 +1016,7 @@ fn amm_negative_ref_price_offset_decay_logic() {
     .unwrap();
     assert_eq!(perp_market.amm.last_update_slot, clock_slot);
     assert_eq!(perp_market.amm.last_oracle_valid, true);
-    assert_eq!(perp_market.amm.reference_price_offset, 4458);
+    assert_eq!(perp_market.amm.reference_price_offset, 4463);
 
     perp_market.amm.last_mark_price_twap_5min = (perp_market
         .amm

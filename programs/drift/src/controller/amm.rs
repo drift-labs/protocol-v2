@@ -275,34 +275,29 @@ pub fn update_spreads(
     market.amm.long_spread = long_spread;
     market.amm.short_spread = short_spread;
 
-    let do_reference_price_smooth = {
-        let sign_changed: bool =
-            reference_price_offset.signum() != market.amm.reference_price_offset.signum();
-
-        sign_changed && market.amm.curve_update_intensity > 100
-    };
+    let slots_passed = slot.map_or(0, |s| s.saturating_sub(market.amm.last_update_slot));
+    let do_reference_price_smooth = slots_passed > 0 && market.amm.curve_update_intensity > 100;
 
     if do_reference_price_smooth {
-        let slots_passed = slot.map_or(0, |s| s.saturating_sub(market.amm.last_update_slot));
-
         let reference_price_delta = {
             let full_offset_delta = reference_price_offset
                 .cast::<i128>()?
                 .saturating_sub(market.amm.reference_price_offset.cast::<i128>()?);
-            let raw = full_offset_delta
+
+            let max_change = slots_passed.cast::<i128>()?.safe_mul(1000)?;
+
+            let scaled = full_offset_delta
                 .abs()
-                .cast::<i128>()?
-                .min(slots_passed.cast::<i128>()?.safe_mul(1000)?)
-                .cast::<i128>()?
+                .min(max_change)
                 .safe_div(10_i128)?
                 .cast::<i32>()?;
 
-            full_offset_delta.signum().cast::<i32>()?
-                * (raw.max(10).min(if market.amm.reference_price_offset != 0 {
-                    market.amm.reference_price_offset.abs()
-                } else {
-                    reference_price_offset.abs()
-                }))
+            let max_allowed = if market.amm.reference_price_offset != 0 {
+                market.amm.reference_price_offset.abs()
+            } else {
+                reference_price_offset.abs()
+            };
+            full_offset_delta.signum().cast::<i32>()? * scaled.clamp(10, max_allowed)
         };
 
         market.amm.reference_price_offset = market
@@ -319,7 +314,7 @@ pub fn update_spreads(
                 .amm
                 .short_spread
                 .safe_add(market.amm.reference_price_offset.unsigned_abs())?;
-        } else {
+        } else if reference_price_delta > 0 {
             market.amm.short_spread = market
                 .amm
                 .short_spread
