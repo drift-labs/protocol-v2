@@ -443,6 +443,9 @@ pub fn settle_expired_position(
     let base_asset_amount = user.perp_positions[position_index].base_asset_amount;
     let quote_entry_amount = user.perp_positions[position_index].quote_entry_amount;
 
+    let user_position_direction_to_close = user.perp_positions[position_index].get_direction_to_close();
+    let user_existing_position_params_for_order_action = user.perp_positions[position_index].get_existing_position_params_for_order_action(user_position_direction_to_close);
+
     let position_delta = PositionDelta {
         quote_asset_amount: base_asset_value,
         base_asset_amount: -user.perp_positions[position_index].base_asset_amount,
@@ -458,6 +461,23 @@ pub fn settle_expired_position(
         .safe_mul(fee_structure.fee_tiers[0].fee_numerator as i64)?
         .safe_div(fee_structure.fee_tiers[0].fee_denominator as i64)?;
 
+    update_quote_asset_and_break_even_amount(
+        &mut user.perp_positions[position_index],
+        perp_market,
+        -fee.abs(),
+    )?;
+
+    let pnl = user.perp_positions[position_index].quote_asset_amount;
+
+    let pnl_to_settle_with_user =
+        update_pnl_pool_and_user_balance(perp_market, quote_spot_market, user, pnl.cast()?)?;
+
+    update_quote_asset_amount(
+        &mut user.perp_positions[position_index],
+        perp_market,
+        -pnl_to_settle_with_user.cast()?,
+    )?;
+
     if position_delta.base_asset_amount != 0 {
         // get ids for order fills
         let user_order_id = get_then_update_id!(user, next_order_id);
@@ -465,8 +485,6 @@ pub fn settle_expired_position(
 
         let base_asset_amount = position_delta.base_asset_amount;
         let user_existing_position_direction = user.perp_positions[position_index].get_direction();
-        let user_position_direction_to_close =
-            user.perp_positions[position_index].get_direction_to_close();
 
         let user_order = Order {
             slot,
@@ -487,21 +505,10 @@ pub fn settle_expired_position(
             order: user_order
         });
 
-        let (taker_existing_position, taker_existing_position_params_for_order_action) = {
-            let taker_position = user.perp_positions[position_index];
-
-            (
-                taker_position.base_asset_amount,
-                taker_position.get_existing_position_params_for_order_action(
-                    user_existing_position_direction,
-                ),
-            )
-        };
-
         let (taker_existing_quote_entry_amount, taker_existing_base_asset_amount) =
             calculate_existing_position_fields_for_order_action(
                 base_asset_amount.unsigned_abs(),
-                taker_existing_position_params_for_order_action,
+                user_existing_position_params_for_order_action,
             )?;
 
         let fill_record = OrderActionRecord {
@@ -534,8 +541,8 @@ pub fn settle_expired_position(
             maker_order_cumulative_quote_asset_amount_filled: None,
             oracle_price: perp_market.expiry_price,
             bit_flags: 0,
-            taker_existing_quote_entry_amount: Some(taker_existing_quote_entry_amount.unsigned_abs()),
-            taker_existing_base_asset_amount: Some(taker_existing_base_asset_amount.unsigned_abs()),
+            taker_existing_quote_entry_amount,
+            taker_existing_base_asset_amount,
             maker_existing_quote_entry_amount: None,
             maker_existing_base_asset_amount: None,
             trigger_price: None,
@@ -544,23 +551,6 @@ pub fn settle_expired_position(
         };
         emit!(fill_record);
     }
-
-    update_quote_asset_and_break_even_amount(
-        &mut user.perp_positions[position_index],
-        perp_market,
-        -fee.abs(),
-    )?;
-
-    let pnl = user.perp_positions[position_index].quote_asset_amount;
-
-    let pnl_to_settle_with_user =
-        update_pnl_pool_and_user_balance(perp_market, quote_spot_market, user, pnl.cast()?)?;
-
-    update_quote_asset_amount(
-        &mut user.perp_positions[position_index],
-        perp_market,
-        -pnl_to_settle_with_user.cast()?,
-    )?;
 
     update_settled_pnl(user, position_index, pnl_to_settle_with_user.cast()?)?;
 
