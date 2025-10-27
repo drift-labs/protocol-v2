@@ -4179,7 +4179,8 @@ export class DriftClient {
 	public async getTransferIsolatedPerpPositionDepositIx(
 		amount: BN,
 		perpMarketIndex: number,
-		subAccountId?: number
+		subAccountId?: number,
+		noAmountBuffer?: boolean
 	): Promise<TransactionInstruction> {
 		const userAccountPublicKey = await getUserAccountPublicKey(
 			this.program.programId,
@@ -4197,10 +4198,14 @@ export class DriftClient {
 			readablePerpMarketIndex: [perpMarketIndex],
 		});
 
+		const amountWithBuffer = noAmountBuffer
+			? amount
+			: amount.add(amount.div(new BN(1000))); // .1% buffer
+
 		return await this.program.instruction.transferIsolatedPerpPositionDeposit(
 			spotMarketIndex,
 			perpMarketIndex,
-			amount,
+			amountWithBuffer,
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
@@ -4238,7 +4243,8 @@ export class DriftClient {
 		amount: BN,
 		perpMarketIndex: number,
 		subAccountId?: number,
-		userTokenAccount?: PublicKey
+		userTokenAccount?: PublicKey,
+		dontSettle?: boolean
 	): Promise<TransactionInstruction[]> {
 		const userAccountPublicKey = await getUserAccountPublicKey(
 			this.program.programId,
