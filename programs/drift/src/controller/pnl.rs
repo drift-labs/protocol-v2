@@ -23,11 +23,7 @@ use crate::math::spot_balance::get_token_amount;
 use crate::get_then_update_id;
 use crate::math::orders::calculate_existing_position_fields_for_order_action;
 use crate::msg;
-use crate::state::events::{
-    LiquidateBorrowForPerpPnlRecord, LiquidatePerpPnlForDepositRecord, LiquidatePerpRecord,
-    LiquidateSpotRecord, LiquidationRecord, LiquidationType, OrderAction, OrderActionRecord,
-    OrderRecord, PerpBankruptcyRecord, SpotBankruptcyRecord,
-};
+use crate::state::events::{OrderAction, OrderActionRecord, OrderRecord};
 use crate::state::events::{OrderActionExplanation, SettlePnlExplanation, SettlePnlRecord};
 use crate::state::oracle_map::OracleMap;
 use crate::state::paused_operations::PerpOperation;
@@ -443,8 +439,10 @@ pub fn settle_expired_position(
     let base_asset_amount = user.perp_positions[position_index].base_asset_amount;
     let quote_entry_amount = user.perp_positions[position_index].quote_entry_amount;
 
-    let user_position_direction_to_close = user.perp_positions[position_index].get_direction_to_close();
-    let user_existing_position_params_for_order_action = user.perp_positions[position_index].get_existing_position_params_for_order_action(user_position_direction_to_close);
+    let user_position_direction_to_close =
+        user.perp_positions[position_index].get_direction_to_close();
+    let user_existing_position_params_for_order_action = user.perp_positions[position_index]
+        .get_existing_position_params_for_order_action(user_position_direction_to_close);
 
     let position_delta = PositionDelta {
         quote_asset_amount: base_asset_value,
@@ -481,7 +479,7 @@ pub fn settle_expired_position(
     if position_delta.base_asset_amount != 0 {
         // get ids for order fills
         let user_order_id = get_then_update_id!(user, next_order_id);
-        let fill_record_id = { get_then_update_id!(perp_market, next_fill_record_id) };
+        let fill_record_id = get_then_update_id!(perp_market, next_fill_record_id);
 
         let base_asset_amount = position_delta.base_asset_amount;
         let user_existing_position_direction = user.perp_positions[position_index].get_direction();
