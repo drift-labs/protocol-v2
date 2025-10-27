@@ -36,7 +36,7 @@ use crate::state::settle_pnl_mode::SettlePnlMode;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::State;
-use crate::state::user::{MarketType, User};
+use crate::state::user::{MarketType, Order, OrderStatus, OrderType, User};
 use crate::validate;
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::prelude::*;
@@ -480,8 +480,28 @@ pub fn settle_expired_position(
         let fill_record_id = { get_then_update_id!(perp_market, next_fill_record_id) };
 
         let base_asset_amount = position_delta.base_asset_amount;
+        let user_existing_position_direction = user.perp_positions[position_index].get_direction();
         let user_position_direction_to_close =
             user.perp_positions[position_index].get_direction_to_close();
+
+        let user_order = Order {
+            slot,
+            base_asset_amount: base_asset_amount.unsigned_abs(),
+            order_id: user_order_id,
+            market_index: perp_market.market_index,
+            status: OrderStatus::Open,
+            order_type: OrderType::Market,
+            market_type: MarketType::Perp,
+            direction: user_position_direction_to_close,
+            existing_position_direction: user_existing_position_direction,
+            ..Order::default()
+        };
+
+        emit!(OrderRecord {
+            ts: now,
+            user: *user_key,
+            order: user_order
+        });
 
         let fill_record = OrderActionRecord {
             ts: now,
