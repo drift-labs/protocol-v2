@@ -20,7 +20,13 @@ use crate::math::position::calculate_base_asset_value_with_expiry_price;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 
+use crate::get_then_update_id;
 use crate::msg;
+use crate::state::events::{
+    LiquidateBorrowForPerpPnlRecord, LiquidatePerpPnlForDepositRecord, LiquidatePerpRecord,
+    LiquidateSpotRecord, LiquidationRecord, LiquidationType, OrderAction, OrderActionRecord,
+    OrderRecord, PerpBankruptcyRecord, SpotBankruptcyRecord,
+};
 use crate::state::events::{OrderActionExplanation, SettlePnlExplanation, SettlePnlRecord};
 use crate::state::oracle_map::OracleMap;
 use crate::state::paused_operations::PerpOperation;
@@ -467,6 +473,56 @@ pub fn settle_expired_position(
         perp_market,
         -pnl_to_settle_with_user.cast()?,
     )?;
+
+    if position_delta.base_asset_amount != 0 {
+        // get ids for order fills
+        let user_order_id = get_then_update_id!(user, next_order_id);
+        let fill_record_id = { get_then_update_id!(perp_market, next_fill_record_id) };
+
+        let base_asset_amount = position_delta.base_asset_amount;
+        let user_position_direction_to_close =
+            user.perp_positions[position_index].get_direction_to_close();
+
+        let fill_record = OrderActionRecord {
+            ts: now,
+            action: OrderAction::Fill,
+            action_explanation: OrderActionExplanation::MarketExpired,
+            market_index: perp_market.market_index,
+            market_type: MarketType::Perp,
+            filler: None,
+            filler_reward: None,
+            fill_record_id: Some(fill_record_id),
+            base_asset_amount_filled: Some(base_asset_amount.unsigned_abs()),
+            quote_asset_amount_filled: Some(pnl.unsigned_abs()),
+            taker_fee: Some(fee.unsigned_abs()),
+            maker_fee: None,
+            referrer_reward: None,
+            quote_asset_amount_surplus: None,
+            spot_fulfillment_method_fee: None,
+            taker: Some(*user_key),
+            taker_order_id: Some(user_order_id),
+            taker_order_direction: Some(user_position_direction_to_close),
+            taker_order_base_asset_amount: Some(base_asset_amount.unsigned_abs()),
+            taker_order_cumulative_base_asset_amount_filled: Some(base_asset_amount.unsigned_abs()),
+            taker_order_cumulative_quote_asset_amount_filled: Some(base_asset_value.unsigned_abs()),
+            maker: None,
+            maker_order_id: None,
+            maker_order_direction: None,
+            maker_order_base_asset_amount: None,
+            maker_order_cumulative_base_asset_amount_filled: None,
+            maker_order_cumulative_quote_asset_amount_filled: None,
+            oracle_price: perp_market.expiry_price,
+            bit_flags: 0,
+            taker_existing_quote_entry_amount: Some(quote_entry_amount.unsigned_abs()),
+            taker_existing_base_asset_amount: Some(base_asset_amount.unsigned_abs()),
+            maker_existing_quote_entry_amount: None,
+            maker_existing_base_asset_amount: None,
+            trigger_price: None,
+            builder_idx: None,
+            builder_fee: None,
+        };
+        emit!(fill_record);
+    }
 
     update_settled_pnl(user, position_index, pnl_to_settle_with_user.cast()?)?;
 
