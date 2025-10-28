@@ -1,5 +1,6 @@
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
+import { BigNum } from '../factory/bigNum';
 
 export const ZERO = new BN(0);
 export const ONE = new BN(1);
@@ -116,3 +117,7 @@ export const FUEL_START_TS = new BN(1723147200); // unix timestamp
 export const MAX_PREDICTION_PRICE = PRICE_PRECISION;
 
 export const GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE = 99;
+
+// integer constants
+export const MAX_I64 = BigNum.fromPrint('9223372036854775807').val;
+export const MIN_I64 = BigNum.fromPrint('-9223372036854775808').val;
