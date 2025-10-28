@@ -3334,6 +3334,10 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
     let lp_pool_key = ctx.accounts.lp_pool.key();
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
 
+    let tvl_before = quote_market
+        .get_tvl()?
+        .safe_add(quote_constituent.vault_token_balance as u128)?;
+
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
     let AccountMaps {
         perp_market_map,
@@ -3545,6 +3549,18 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
     math::spot_withdraw::validate_spot_market_vault_amount(
         quote_market,
         ctx.accounts.quote_token_vault.amount,
+    )?;
+
+    let tvl_after = quote_market
+        .get_tvl()?
+        .safe_add(quote_constituent.vault_token_balance as u128)?;
+
+    validate!(
+        tvl_before.safe_sub(tvl_after)? <= 10,
+        ErrorCode::LpPoolSettleInvariantBreached,
+        "LP pool settlement would decrease TVL: {} -> {}",
+        tvl_before,
+        tvl_after
     )?;
 
     Ok(())
