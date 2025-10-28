@@ -7371,9 +7371,9 @@ export class DriftClient {
 			borshBuf,
 			isDelegateSigner
 		);
-		
+
 		const writableSpotMarketIndexes = signedMessage.isolatedPositionDeposit?.gt(
-			new BN(0)
+			ZERO
 		)
 			? [QUOTE_SPOT_MARKET_INDEX]
 			: undefined;
