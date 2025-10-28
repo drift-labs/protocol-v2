@@ -7253,6 +7253,9 @@ export class DriftClient {
 		if (orderParamsMessage.maxMarginRatio === undefined) {
 			orderParamsMessage.maxMarginRatio = null;
 		}
+		if (orderParamsMessage.isolatedPositionDeposit === undefined) {
+			orderParamsMessage.isolatedPositionDeposit = null;
+		}
 
 		const anchorIxName = delegateSigner
 			? 'global' + ':' + 'SignedMsgOrderParamsDelegateMessage'
@@ -7368,16 +7371,18 @@ export class DriftClient {
 			borshBuf,
 			isDelegateSigner
 		);
+		
+		const writableSpotMarketIndexes = signedMessage.isolatedPositionDeposit?.gt(
+			new BN(0)
+		)
+			? [QUOTE_SPOT_MARKET_INDEX]
+			: undefined;
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [takerInfo.takerUserAccount],
 			useMarketLastSlotCache: false,
 			readablePerpMarketIndex: marketIndex,
-			writableSpotMarketIndexes: signedMessage.isolatedPositionDeposit?.gt(
-				new BN(0)
-			)
-				? [QUOTE_SPOT_MARKET_INDEX]
-				: undefined,
+			writableSpotMarketIndexes,
 		});
 
 		if (isUpdateHighLeverageMode(signedMessage.signedMsgOrderParams.bitFlags)) {
