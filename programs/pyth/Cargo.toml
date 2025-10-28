@@ -20,3 +20,4 @@ anchor-test= []
 anchor-lang = "0.29.0"
 arrayref = "0.3.6"
 bytemuck = { version = "1.4.0" }
+ahash = "=0.8.6"
