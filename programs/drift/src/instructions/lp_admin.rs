@@ -64,7 +64,7 @@ pub fn handle_initialize_lp_pool(
         last_aum: 0,
         last_aum_slot: 0,
         max_settle_quote_amount: max_settle_quote_amount_per_market,
-        last_hedge_ts: 0,
+        _padding: 0,
         total_mint_redeem_fees_paid: 0,
         bump: ctx.bumps.lp_pool,
         min_mint_fee,

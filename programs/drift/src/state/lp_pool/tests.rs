@@ -782,7 +782,7 @@ mod swap_tests {
     ) {
         let lp_pool = LPPool {
             last_aum,
-            last_hedge_ts: 0,
+            _padding: 0,
             min_mint_fee: 0,
             ..LPPool::default()
         };
@@ -974,7 +974,7 @@ mod swap_tests {
     ) {
         let lp_pool = LPPool {
             last_aum,
-            last_hedge_ts: 0,
+            _padding: 0,
             min_mint_fee: 100, // 1 bps
             ..LPPool::default()
         };

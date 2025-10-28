@@ -9845,7 +9845,7 @@
             "type": "u64"
           },
           {
-            "name": "lastHedgeTs",
+            "name": "padding",
             "docs": [
               "timestamp of last vAMM revenue rebalance"
             ],
@@ -15441,26 +15441,6 @@
           },
           {
             "name": "Decommissioned"
-          }
-        ]
-      }
-    },
-    {
-      "name": "WeightValidationFlags",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "NONE"
-          },
-          {
-            "name": "EnforceTotalWeight100"
-          },
-          {
-            "name": "NoNegativeWeights"
-          },
-          {
-            "name": "NoOverweight"
           }
         ]
       }

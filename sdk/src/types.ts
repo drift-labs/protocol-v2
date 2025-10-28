@@ -1785,7 +1785,6 @@ export type LPPoolAccount = {
 	totalMintRedeemFeesPaid: BN;
 	lastAumSlot: BN;
 	maxSettleQuoteAmount: BN;
-	lastHedgeTs: BN;
 	mintRedeemId: BN;
 	settleId: BN;
 	minMintFee: BN;

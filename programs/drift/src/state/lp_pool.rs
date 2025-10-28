@@ -97,7 +97,7 @@ pub struct LPPool {
     pub max_settle_quote_amount: u64,
 
     /// timestamp of last vAMM revenue rebalance
-    pub last_hedge_ts: u64,
+    pub _padding: u64,
 
     /// Every mint/redeem has a monotonically increasing id. This is the next id to use
     pub mint_redeem_id: u64,
@@ -145,7 +145,7 @@ impl Default for LPPool {
             total_mint_redeem_fees_paid: 0,
             last_aum_slot: 0,
             max_settle_quote_amount: 0,
-            last_hedge_ts: 0,
+            _padding: 0,
             mint_redeem_id: 0,
             settle_id: 0,
             min_mint_fee: 0,
@@ -1311,14 +1311,6 @@ impl Default for ConstituentTargetBase {
             targets: Vec::with_capacity(0),
         }
     }
-}
-
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
-pub enum WeightValidationFlags {
-    NONE = 0b0000_0000,
-    EnforceTotalWeight100 = 0b0000_0001,
-    NoNegativeWeights = 0b0000_0010,
-    NoOverweight = 0b0000_0100,
 }
 
 impl<'a> AccountZeroCopy<'a, TargetsDatum, ConstituentTargetBaseFixed> {
