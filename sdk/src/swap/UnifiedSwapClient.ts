@@ -7,8 +7,15 @@ import {
 	TransactionInstruction,
 } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
-import { JupiterClient, QuoteResponse as JupiterQuoteResponse } from '../jupiter/jupiterClient';
-import { TitanClient, QuoteResponse as TitanQuoteResponse, SwapMode as TitanSwapMode } from '../titan/titanClient';
+import {
+	JupiterClient,
+	QuoteResponse as JupiterQuoteResponse,
+} from '../jupiter/jupiterClient';
+import {
+	TitanClient,
+	QuoteResponse as TitanQuoteResponse,
+	SwapMode as TitanSwapMode,
+} from '../titan/titanClient';
 
 export type SwapMode = 'ExactIn' | 'ExactOut';
 export type SwapClientType = 'jupiter' | 'titan';
@@ -83,7 +90,9 @@ export class UnifiedSwapClient {
 	/**
 	 * Get a swap quote from the underlying client
 	 */
-	public async getQuote(params: SwapQuoteParams): Promise<UnifiedQuoteResponse> {
+	public async getQuote(
+		params: SwapQuoteParams
+	): Promise<UnifiedQuoteResponse> {
 		if (this.clientType === 'jupiter') {
 			const jupiterClient = this.client as JupiterClient;
 			const {
@@ -121,7 +130,9 @@ export class UnifiedSwapClient {
 	/**
 	 * Get a swap transaction from the underlying client
 	 */
-	public async getSwap(params: SwapTransactionParams): Promise<SwapTransactionResult> {
+	public async getSwap(
+		params: SwapTransactionParams
+	): Promise<SwapTransactionResult> {
 		if (this.clientType === 'jupiter') {
 			const jupiterClient = this.client as JupiterClient;
 			// Cast the quote to Jupiter's QuoteResponse type
@@ -134,7 +145,7 @@ export class UnifiedSwapClient {
 		} else {
 			const titanClient = this.client as TitanClient;
 			const { quote, userPublicKey, slippageBps } = params;
-			
+
 			// For Titan, we need to reconstruct the parameters from the quote
 			const titanQuote = quote as TitanQuoteResponse;
 			const result = await titanClient.getSwap({
@@ -187,7 +198,7 @@ export class UnifiedSwapClient {
 
 		if (this.clientType === 'jupiter') {
 			const jupiterClient = this.client as JupiterClient;
-			
+
 			// Get quote if not provided
 			let finalQuote = quote as JupiterQuoteResponse;
 			if (!finalQuote) {
@@ -226,18 +237,19 @@ export class UnifiedSwapClient {
 			lookupTables = jupiterLookupTables;
 		} else {
 			const titanClient = this.client as TitanClient;
-			
+
 			// For Titan, get swap directly (it handles quote internally)
-			const { transactionMessage, lookupTables: titanLookupTables } = await titanClient.getSwap({
-				inputMint,
-				outputMint,
-				amount,
-				userPublicKey,
-				slippageBps,
-				swapMode: isExactOut ? TitanSwapMode.ExactOut : TitanSwapMode.ExactIn,
-				onlyDirectRoutes,
-				sizeConstraint: sizeConstraint || (1280 - 375), // MAX_TX_BYTE_SIZE - buffer for drift instructions
-			});
+			const { transactionMessage, lookupTables: titanLookupTables } =
+				await titanClient.getSwap({
+					inputMint,
+					outputMint,
+					amount,
+					userPublicKey,
+					slippageBps,
+					swapMode: isExactOut ? TitanSwapMode.ExactOut : TitanSwapMode.ExactIn,
+					onlyDirectRoutes,
+					sizeConstraint: sizeConstraint || 1280 - 375, // MAX_TX_BYTE_SIZE - buffer for drift instructions
+				});
 
 			swapInstructions = titanClient.getTitanInstructions({
 				transactionMessage,

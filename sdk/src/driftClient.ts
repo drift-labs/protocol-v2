@@ -157,10 +157,7 @@ import { isSpotPositionAvailable } from './math/spotPosition';
 import { calculateMarketMaxAvailableInsurance } from './math/market';
 import { fetchUserStatsAccount } from './accounts/fetch';
 import { castNumberToSpotPrecision } from './math/spotMarket';
-import {
-	JupiterClient,
-	QuoteResponse,
-} from './jupiter/jupiterClient';
+import { JupiterClient, QuoteResponse } from './jupiter/jupiterClient';
 import { SwapMode } from './swap/UnifiedSwapClient';
 import { getNonIdleUserFilter } from './memcmp';
 import { UserStatsSubscriptionConfig } from './userStatsConfig';
@@ -6301,7 +6298,7 @@ export class DriftClient {
 		const exactOutBufferedAmountIn = amount.muln(1001).divn(1000); // Add 10bp buffer
 
 		const preInstructions: TransactionInstruction[] = [];
-		
+
 		// Handle token accounts if not provided
 		let finalOutAssociatedTokenAccount = outAssociatedTokenAccount;
 		let finalInAssociatedTokenAccount = inAssociatedTokenAccount;
