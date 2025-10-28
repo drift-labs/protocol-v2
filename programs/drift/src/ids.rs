@@ -123,6 +123,11 @@ pub mod titan_mainnet_argos_v1 {
     declare_id!("T1TANpTeScyeqVzzgNViGDNrkQ6qHz9KrSBS4aNXvGT");
 }
 
+pub mod lp_pool_hot_wallet {
+    use solana_program::declare_id;
+    declare_id!("GP9qHLX8rx4BgRULGPV1poWQPdGuzbxGbvTB12DfmwFk");
+}
+
 pub const WHITELISTED_SWAP_PROGRAMS: &[solana_program::pubkey::Pubkey] = &[
     serum_program::id(),
     jupiter_mainnet_3::id(),

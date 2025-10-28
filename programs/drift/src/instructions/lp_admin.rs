@@ -1,6 +1,6 @@
 use crate::controller::token::{receive, send_from_program_vault_with_signature_seeds};
 use crate::error::ErrorCode;
-use crate::ids::{admin_hot_wallet, lp_pool_swap_wallet, WHITELISTED_SWAP_PROGRAMS};
+use crate::ids::{lp_pool_hot_wallet, lp_pool_swap_wallet, WHITELISTED_SWAP_PROGRAMS};
 use crate::instructions::optional_accounts::{get_token_mint, load_maps, AccountMaps};
 use crate::math::constants::{PRICE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX};
 use crate::math::safe_math::SafeMath;
@@ -597,7 +597,7 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
     {
         let state = &ctx.accounts.state;
         validate!(
-            admin.key() == admin_hot_wallet::id() || admin.key() == state.admin,
+            admin.key() == lp_pool_hot_wallet::id() || admin.key() == state.admin,
             ErrorCode::Unauthorized,
             "Wrong signer for lp taker swap"
         )?;
@@ -1001,7 +1001,10 @@ pub fn handle_override_amm_cache_info<'c: 'info, 'info>(
     id: u8,
 )]
 pub struct InitializeLpPool<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = admin.key() == lp_pool_hot_wallet::id() || admin.key() == state.admin
+    )]
     pub admin: Signer<'info>,
     #[account(
         init,
@@ -1050,9 +1053,6 @@ pub struct InitializeLpPool<'info> {
     )]
     pub constituent_correlations: Box<Account<'info, ConstituentCorrelations>>,
 
-    #[account(
-        has_one = admin
-    )]
     pub state: Box<Account<'info, State>>,
     pub token_program: Program<'info, Token>,
 
@@ -1068,7 +1068,7 @@ pub struct InitializeConstituent<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         mut,
-        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+        constraint = admin.key() == lp_pool_hot_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>,
 
@@ -1138,7 +1138,7 @@ pub struct UpdateConstituentParams<'info> {
     pub constituent_target_base: Box<Account<'info, ConstituentTargetBase>>,
     #[account(
         mut,
-        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+        constraint = admin.key() == lp_pool_hot_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>,
     pub state: Box<Account<'info, State>>,
@@ -1162,7 +1162,7 @@ pub struct UpdateConstituentStatus<'info> {
 pub struct UpdateConstituentPausedOperations<'info> {
     #[account(
         mut,
-        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+        constraint = admin.key() == lp_pool_hot_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>,
     pub state: Box<Account<'info, State>>,
@@ -1176,7 +1176,7 @@ pub struct UpdateLpPoolParams<'info> {
     pub lp_pool: AccountLoader<'info, LPPool>,
     #[account(
         mut,
-        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+        constraint = admin.key() == lp_pool_hot_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>,
     pub state: Box<Account<'info, State>>,
@@ -1196,7 +1196,7 @@ pub struct AddAmmConstituentMappingDatum {
 pub struct AddAmmConstituentMappingData<'info> {
     #[account(
         mut,
-        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+        constraint = admin.key() == lp_pool_hot_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>,
     pub lp_pool: AccountLoader<'info, LPPool>,
@@ -1230,7 +1230,7 @@ pub struct AddAmmConstituentMappingData<'info> {
 pub struct UpdateAmmConstituentMappingData<'info> {
     #[account(
         mut,
-        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+        constraint = admin.key() == lp_pool_hot_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>,
     pub lp_pool: AccountLoader<'info, LPPool>,
@@ -1249,7 +1249,7 @@ pub struct UpdateAmmConstituentMappingData<'info> {
 pub struct RemoveAmmConstituentMappingData<'info> {
     #[account(
         mut,
-        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+        constraint = admin.key() == lp_pool_hot_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>,
     pub lp_pool: AccountLoader<'info, LPPool>,
@@ -1271,7 +1271,7 @@ pub struct RemoveAmmConstituentMappingData<'info> {
 pub struct UpdateConstituentCorrelation<'info> {
     #[account(
         mut,
-        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+        constraint = admin.key() == lp_pool_hot_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>,
     pub lp_pool: AccountLoader<'info, LPPool>,
@@ -1294,7 +1294,7 @@ pub struct LPTakerSwap<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         mut,
-        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == lp_pool_swap_wallet::id() || admin.key() == state.admin
+        constraint = admin.key() == lp_pool_hot_wallet::id() || admin.key() == lp_pool_swap_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>,
     /// Signer token accounts
@@ -1363,7 +1363,7 @@ pub struct UpdatePerpMarketLpPoolStatus<'info> {
 pub struct UpdateInitialAmmCacheInfo<'info> {
     #[account(
         mut,
-        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+        constraint = admin.key() == lp_pool_hot_wallet::id() || admin.key() == state.admin
     )]
     pub state: Box<Account<'info, State>>,
     pub admin: Signer<'info>,
@@ -1379,7 +1379,7 @@ pub struct UpdateInitialAmmCacheInfo<'info> {
 pub struct ResetAmmCache<'info> {
     #[account(
         mut,
-        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+        constraint = admin.key() == lp_pool_hot_wallet::id() || admin.key() == state.admin
     )]
     pub admin: Signer<'info>,
     pub state: Box<Account<'info, State>>,
