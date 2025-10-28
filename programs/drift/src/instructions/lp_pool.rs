@@ -336,6 +336,7 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         in_spot_market.get_max_confidence_interval_multiplier()?,
         0,
         0,
+        None,
     )?;
     let in_oracle = in_oracle.clone();
 
@@ -349,6 +350,7 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         out_spot_market.get_max_confidence_interval_multiplier()?,
         0,
         0,
+        None,
     )?;
 
     if !is_oracle_valid_for_action(in_oracle_validity, Some(DriftAction::LpPoolSwap))? {
@@ -559,6 +561,7 @@ pub fn handle_view_lp_pool_swap_fees<'c: 'info, 'info>(
         in_spot_market.get_max_confidence_interval_multiplier()?,
         0,
         0,
+        None,
     )?;
     let in_oracle = in_oracle.clone();
 
@@ -572,6 +575,7 @@ pub fn handle_view_lp_pool_swap_fees<'c: 'info, 'info>(
         out_spot_market.get_max_confidence_interval_multiplier()?,
         0,
         0,
+        None,
     )?;
 
     let in_target_datum = constituent_target_base.get(in_constituent.constituent_index as u32);
@@ -699,6 +703,7 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
         in_spot_market.get_max_confidence_interval_multiplier()?,
         0,
         0,
+        None,
     )?;
     let in_oracle = in_oracle.clone();
 
@@ -918,6 +923,7 @@ pub fn handle_view_lp_pool_add_liquidity_fees<'c: 'info, 'info>(
         in_spot_market.get_max_confidence_interval_multiplier()?,
         0,
         0,
+        None,
     )?;
     let in_oracle = in_oracle.clone();
 
@@ -1065,6 +1071,7 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
         out_spot_market.get_max_confidence_interval_multiplier()?,
         0,
         0,
+        None,
     )?;
     let out_oracle = *out_oracle;
 
@@ -1320,6 +1327,7 @@ pub fn handle_view_lp_pool_remove_liquidity_fees<'c: 'info, 'info>(
         out_spot_market.get_max_confidence_interval_multiplier()?,
         0,
         0,
+        None,
     )?;
     let out_oracle = out_oracle.clone();
 
