@@ -7253,6 +7253,9 @@ export class DriftClient {
 		if (orderParamsMessage.maxMarginRatio === undefined) {
 			orderParamsMessage.maxMarginRatio = null;
 		}
+		if (orderParamsMessage.isolatedPositionDeposit === undefined) {
+			orderParamsMessage.isolatedPositionDeposit = null;
+		}
 
 		const anchorIxName = delegateSigner
 			? 'global' + ':' + 'SignedMsgOrderParamsDelegateMessage'
@@ -7355,12 +7358,6 @@ export class DriftClient {
 		precedingIxs: TransactionInstruction[] = [],
 		overrideCustomIxIndex?: number
 	): Promise<TransactionInstruction[]> {
-		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [takerInfo.takerUserAccount],
-			useMarketLastSlotCache: false,
-			readablePerpMarketIndex: marketIndex,
-		});
-
 		const isDelegateSigner = takerInfo.signingAuthority.equals(
 			takerInfo.takerUserAccount.delegate
 		);
@@ -7374,6 +7371,20 @@ export class DriftClient {
 			borshBuf,
 			isDelegateSigner
 		);
+
+		const writableSpotMarketIndexes = signedMessage.isolatedPositionDeposit?.gt(
+			ZERO
+		)
+			? [QUOTE_SPOT_MARKET_INDEX]
+			: undefined;
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [takerInfo.takerUserAccount],
+			useMarketLastSlotCache: false,
+			readablePerpMarketIndex: marketIndex,
+			writableSpotMarketIndexes,
+		});
+
 		if (isUpdateHighLeverageMode(signedMessage.signedMsgOrderParams.bitFlags)) {
 			remainingAccounts.push({
 				pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
