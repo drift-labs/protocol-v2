@@ -4170,17 +4170,18 @@ export class DriftClient {
 		subAccountId?: number,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
-		const { txSig } = await this.sendTransaction(
-			await this.buildTransaction(
-				await this.getTransferIsolatedPerpPositionDepositIx(
-					amount,
-					perpMarketIndex,
-					subAccountId
-				),
-				txParams
+		const tx =await this.buildTransaction(
+			await this.getTransferIsolatedPerpPositionDepositIx(
+				amount,
+				perpMarketIndex,
+				subAccountId
 			),
+			txParams
+		)
+		const { txSig } = await this.sendTransaction(
+			tx,
 			[],
-			this.opts
+			{...this.opts, skipPreflight: true}
 		);
 		return txSig;
 	}
@@ -4207,9 +4208,9 @@ export class DriftClient {
 			readablePerpMarketIndex: [perpMarketIndex],
 		});
 
-		const amountWithBuffer = noAmountBuffer
+		const amountWithBuffer = noAmountBuffer || amount.eq(BigNum.fromPrint('-9223372036854775808').val)
 			? amount
-			: amount.add(amount.div(new BN(1000))); // .1% buffer
+			: amount.add(amount.mul(new BN(1000))); // .1% buffer
 
 		return await this.program.instruction.transferIsolatedPerpPositionDeposit(
 			spotMarketIndex,
@@ -4282,6 +4283,8 @@ export class DriftClient {
 		const amountToWithdraw = amount.gt(depositAmountPlusUnrealizedPnl)
 			? BigNum.fromPrint('-9223372036854775808').val // min i64
 			: amount;
+			console.log("amountToWithdraw", amountToWithdraw.toString());
+			console.log("amount", amount.toString());
 
 		let associatedTokenAccount = userTokenAccount;
 		if (!associatedTokenAccount) {
