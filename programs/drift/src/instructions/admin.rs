@@ -5488,7 +5488,7 @@ pub struct InitializePerpMarket<'info> {
         mut,
         seeds = [AMM_POSITIONS_CACHE.as_ref()],
         bump = amm_cache.bump,
-        realloc = AmmCache::space(amm_cache.cache.len() + 1 as usize),
+        realloc = AmmCache::space(amm_cache.cache.len() + 1_usize),
         realloc::payer = admin,
         realloc::zero = false,
     )]

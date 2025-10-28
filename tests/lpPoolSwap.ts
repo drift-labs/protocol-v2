@@ -13,7 +13,6 @@ import {
 	TestClient,
 	QUOTE_PRECISION,
 	getLpPoolPublicKey,
-	encodeName,
 	getConstituentTargetBasePublicKey,
 	PERCENTAGE_PRECISION,
 	PRICE_PRECISION,
@@ -503,13 +502,11 @@ describe('LP Pool', () => {
 		expect(Number(diffOutToken)).to.be.approximately(1001298, 1);
 
 		console.log(
-			`in Token:  ${inTokenBalanceBefore.amount} -> ${
-				inTokenBalanceAfter.amount
+			`in Token:  ${inTokenBalanceBefore.amount} -> ${inTokenBalanceAfter.amount
 			} (${Number(diffInToken) / 1e6})`
 		);
 		console.log(
-			`out Token: ${outTokenBalanceBefore.amount} -> ${
-				outTokenBalanceAfter.amount
+			`out Token: ${outTokenBalanceBefore.amount} -> ${outTokenBalanceAfter.amount
 			} (${Number(diffOutToken) / 1e6})`
 		);
 	});

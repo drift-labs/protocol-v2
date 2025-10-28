@@ -28,7 +28,6 @@ import {
 	QUOTE_PRECISION,
 	getLpPoolPublicKey,
 	getAmmConstituentMappingPublicKey,
-	encodeName,
 	getConstituentTargetBasePublicKey,
 	PERCENTAGE_PRECISION,
 	PRICE_PRECISION,

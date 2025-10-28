@@ -19,6 +19,7 @@ use crate::validate;
 use crate::{controller, load_mut};
 use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
+use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::Token;
 use anchor_spl::token_2022::Token2022;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
@@ -639,12 +640,6 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
 
     // Make sure we have enough balance to do the swap
     let constituent_in_token_account = &ctx.accounts.constituent_in_token_account;
-
-    msg!("amount_in: {}", amount_in);
-    msg!(
-        "constituent_in_token_account.amount: {}",
-        constituent_in_token_account.amount
-    );
     validate!(
         amount_in <= constituent_in_token_account.amount,
         ErrorCode::InvalidSwap,
@@ -761,6 +756,7 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
                 }
             } else {
                 let mut whitelisted_programs = WHITELISTED_SWAP_PROGRAMS.to_vec();
+                whitelisted_programs.push(AssociatedToken::id());
                 whitelisted_programs.push(Token::id());
                 whitelisted_programs.push(Token2022::id());
                 whitelisted_programs.push(marinade_mainnet::ID);
@@ -1079,7 +1075,7 @@ pub struct InitializeConstituent<'info> {
         mut,
         seeds = [CONSTITUENT_TARGET_BASE_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
         bump = constituent_target_base.bump,
-        realloc = ConstituentTargetBase::space(constituent_target_base.targets.len() + 1 as usize),
+        realloc = ConstituentTargetBase::space(constituent_target_base.targets.len() + 1_usize),
         realloc::payer = admin,
         realloc::zero = false,
     )]
@@ -1089,7 +1085,7 @@ pub struct InitializeConstituent<'info> {
         mut,
         seeds = [CONSTITUENT_CORRELATIONS_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
         bump = constituent_correlations.bump,
-        realloc = ConstituentCorrelations::space(constituent_target_base.targets.len() + 1 as usize),
+        realloc = ConstituentCorrelations::space(constituent_target_base.targets.len() + 1_usize),
         realloc::payer = admin,
         realloc::zero = false,
     )]
@@ -1214,7 +1210,7 @@ pub struct AddAmmConstituentMappingData<'info> {
         mut,
         seeds = [CONSTITUENT_TARGET_BASE_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
         bump,
-        realloc = ConstituentTargetBase::space(constituent_target_base.targets.len() + 1 as usize),
+        realloc = ConstituentTargetBase::space(constituent_target_base.targets.len() + 1_usize),
         realloc::payer = admin,
         realloc::zero = false,
     )]

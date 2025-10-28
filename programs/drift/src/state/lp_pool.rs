@@ -1454,7 +1454,7 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
             );
             cell.target_base = target_base.cast::<i64>()?;
 
-            if slot.saturating_sub(oldest_position_slot) <= MAX_STALENESS_FOR_TARGET_CALC {
+            if slot.saturating_sub(oldest_position_slot) == MAX_STALENESS_FOR_TARGET_CALC {
                 cell.last_position_slot = slot;
             } else {
                 msg!(

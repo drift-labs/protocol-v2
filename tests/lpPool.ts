@@ -28,7 +28,6 @@ import {
 	QUOTE_PRECISION,
 	getLpPoolPublicKey,
 	getAmmConstituentMappingPublicKey,
-	encodeName,
 	getConstituentTargetBasePublicKey,
 	PERCENTAGE_PRECISION,
 	PRICE_PRECISION,
@@ -1688,7 +1687,6 @@ describe('LP Pool', () => {
 
 	it('can initialize multiple lp pools', async () => {
 		const newLpPoolId = 1;
-		const newLpPoolKey = getLpPoolPublicKey(program.programId, newLpPoolId);
 
 		await adminClient.initializeLpPool(
 			newLpPoolId,
