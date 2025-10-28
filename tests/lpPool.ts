@@ -1210,6 +1210,7 @@ describe('LP Pool', () => {
 			getAmmCachePublicKey(program.programId)
 		)) as AmmCache;
 		// No more usdc left in the constituent vault
+		console.log('constituentVault.amount', constituentVault.amount.toString());
 		assert(constituent.vaultTokenBalance.eq(QUOTE_PRECISION));
 		assert(new BN(constituentVault.amount.toString()).eq(QUOTE_PRECISION));
 

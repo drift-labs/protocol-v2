@@ -122,3 +122,12 @@ pub mod titan_mainnet_argos_v1 {
     use solana_program::declare_id;
     declare_id!("T1TANpTeScyeqVzzgNViGDNrkQ6qHz9KrSBS4aNXvGT");
 }
+
+pub const WHITELISTED_SWAP_PROGRAMS: &[solana_program::pubkey::Pubkey] = &[
+    serum_program::id(),
+    jupiter_mainnet_3::id(),
+    jupiter_mainnet_4::id(),
+    jupiter_mainnet_6::id(),
+    dflow_mainnet_aggregator_4::id(),
+    titan_mainnet_argos_v1::id(),
+];

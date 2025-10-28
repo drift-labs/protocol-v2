@@ -3313,7 +3313,6 @@ pub fn handle_pause_spot_market_deposit_withdraw(
     Ok(())
 }
 
-// Refactored main function
 pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, SettleAmmPnlToLp<'info>>,
 ) -> Result<()> {
@@ -3402,6 +3401,8 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
             return Err(ErrorCode::AMMCacheStale.into());
         }
 
+        quote_constituent.sync_token_balance(ctx.accounts.constituent_quote_token_account.amount);
+
         // Create settlement context
         let settlement_ctx = SettlementContext {
             quote_owed_from_lp: cached_info.quote_owed_from_lp_pool,
@@ -3422,7 +3423,12 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
 
         // Calculate settlement
         let settlement_result = calculate_settlement_amount(&settlement_ctx)?;
-        validate_settlement_amount(&settlement_ctx, &settlement_result)?;
+        validate_settlement_amount(
+            &settlement_ctx,
+            &settlement_result,
+            &perp_market,
+            quote_market,
+        )?;
 
         if settlement_result.direction == SettlementDirection::None {
             continue;
@@ -3613,7 +3619,10 @@ pub struct SettleAmmPnlToLp<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub lp_pool: AccountLoader<'info, LPPool>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = keeper.key() == crate::ids::lp_pool_swap_wallet::id() || keeper.key() == admin_hot_wallet::id() || keeper.key() == state.admin.key(),
+    )]
     pub keeper: Signer<'info>,
     /// CHECK: checked in AmmCacheZeroCopy checks
     #[account(mut)]

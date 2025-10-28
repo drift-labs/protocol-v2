@@ -5929,11 +5929,6 @@
           "name": "perpMarket",
           "isMut": true,
           "isSigner": false
-        },
-        {
-          "name": "ammCache",
-          "isMut": true,
-          "isSigner": false
         }
       ],
       "args": [
@@ -7316,88 +7311,6 @@
       ]
     },
     {
-      "name": "initializeLpPool",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "lpPool",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "mint",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "lpPoolTokenVault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "ammConstituentMapping",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "constituentTargetBase",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "constituentCorrelations",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "lpPoolId",
-          "type": "u8"
-        },
-        {
-          "name": "minMintFee",
-          "type": "i64"
-        },
-        {
-          "name": "maxAum",
-          "type": "u128"
-        },
-        {
-          "name": "maxSettleQuoteAmountPerMarket",
-          "type": "u64"
-        },
-        {
-          "name": "whitelistMint",
-          "type": "publicKey"
-        }
-      ]
-    },
-    {
       "name": "updateHighLeverageModeConfig",
       "accounts": [
         {
@@ -7844,6 +7757,88 @@
         {
           "name": "add",
           "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "initializeLpPool",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "lpPool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "lpPoolTokenVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "ammConstituentMapping",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "constituentTargetBase",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "constituentCorrelations",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "lpPoolId",
+          "type": "u8"
+        },
+        {
+          "name": "minMintFee",
+          "type": "i64"
+        },
+        {
+          "name": "maxAum",
+          "type": "u128"
+        },
+        {
+          "name": "maxSettleQuoteAmountPerMarket",
+          "type": "u64"
+        },
+        {
+          "name": "whitelistMint",
+          "type": "publicKey"
         }
       ]
     },
@@ -9919,7 +9914,7 @@
             "type": {
               "array": [
                 "u8",
-                14
+                174
               ]
             }
           }
@@ -10109,7 +10104,7 @@
             "type": {
               "array": [
                 "u8",
-                2
+                162
               ]
             }
           }
@@ -19751,6 +19746,11 @@
       "code": 6342,
       "name": "Unauthorized",
       "msg": "Unauthorized for operation"
+    },
+    {
+      "code": 6343,
+      "name": "InvalidLpPoolId",
+      "msg": "Invalid Lp Pool Id for Operation"
     }
   ]
 }

@@ -1,6 +1,6 @@
 use crate::controller::token::{receive, send_from_program_vault_with_signature_seeds};
 use crate::error::ErrorCode;
-use crate::ids::{admin_hot_wallet, lp_pool_swap_wallet};
+use crate::ids::{admin_hot_wallet, lp_pool_swap_wallet, WHITELISTED_SWAP_PROGRAMS};
 use crate::instructions::optional_accounts::{get_token_mint, load_maps, AccountMaps};
 use crate::math::constants::{PRICE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX};
 use crate::math::safe_math::SafeMath;
@@ -19,15 +19,11 @@ use crate::validate;
 use crate::{controller, load_mut};
 use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
-use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::Token;
 use anchor_spl::token_2022::Token2022;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
-use crate::ids::{
-    jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, lighthouse, marinade_mainnet,
-    serum_program,
-};
+use crate::ids::{lighthouse, marinade_mainnet};
 
 use crate::state::traits::Size;
 use solana_program::sysvar::instructions;
@@ -84,7 +80,7 @@ pub fn handle_initialize_lp_pool(
         target_oracle_delay_fee_bps_per_10_slots: 0,
         target_position_delay_fee_bps_per_10_slots: 0,
         lp_pool_id,
-        padding: [0u8; 14],
+        padding: [0u8; 174],
         whitelist_mint,
     };
 
@@ -664,9 +660,6 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
     in_constituent.flash_loan_initial_token_amount = ctx.accounts.signer_in_token_account.amount;
     out_constituent.flash_loan_initial_token_amount = ctx.accounts.signer_out_token_account.amount;
 
-    // drop(in_constituent);
-    // drop(out_constituent);
-
     send_from_program_vault_with_signature_seeds(
         &ctx.accounts.token_program,
         constituent_in_token_account,
@@ -767,13 +760,7 @@ pub fn handle_begin_lp_swap<'c: 'info, 'info>(
                     )?;
                 }
             } else {
-                let mut whitelisted_programs = vec![
-                    serum_program::id(),
-                    AssociatedToken::id(),
-                    jupiter_mainnet_3::ID,
-                    jupiter_mainnet_4::ID,
-                    jupiter_mainnet_6::ID,
-                ];
+                let mut whitelisted_programs = WHITELISTED_SWAP_PROGRAMS.to_vec();
                 whitelisted_programs.push(Token::id());
                 whitelisted_programs.push(Token2022::id());
                 whitelisted_programs.push(marinade_mainnet::ID);

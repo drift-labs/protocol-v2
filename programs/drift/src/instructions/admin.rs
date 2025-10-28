@@ -3362,11 +3362,10 @@ pub fn handle_update_perp_market_paused_operations(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
 pub fn handle_update_perp_market_contract_tier(
-    ctx: Context<AdminUpdatePerpMarketContractTier>,
+    ctx: Context<AdminUpdatePerpMarket>,
     contract_tier: ContractTier,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    let amm_cache = &mut ctx.accounts.amm_cache;
     msg!("perp market {}", perp_market.market_index);
 
     msg!(
@@ -3376,7 +3375,6 @@ pub fn handle_update_perp_market_contract_tier(
     );
 
     perp_market.contract_tier = contract_tier;
-    amm_cache.update_perp_market_fields(perp_market)?;
 
     Ok(())
 }
@@ -5554,23 +5552,6 @@ pub struct HotAdminUpdatePerpMarket<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub perp_market: AccountLoader<'info, PerpMarket>,
-}
-
-#[derive(Accounts)]
-pub struct AdminUpdatePerpMarketContractTier<'info> {
-    pub admin: Signer<'info>,
-    #[account(
-        has_one = admin
-    )]
-    pub state: Box<Account<'info, State>>,
-    #[account(mut)]
-    pub perp_market: AccountLoader<'info, PerpMarket>,
-    #[account(
-        mut,
-        seeds = [AMM_POSITIONS_CACHE.as_ref()],
-        bump = amm_cache.bump,
-    )]
-    pub amm_cache: Box<Account<'info, AmmCache>>,
 }
 
 #[derive(Accounts)]

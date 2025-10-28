@@ -416,6 +416,7 @@ describe('LP Pool', () => {
 				new BN(200 * PEG_PRECISION.toNumber())
 			);
 			await adminClient.updatePerpMarketLpPoolStatus(i, 1);
+			await adminClient.updatePerpMarketLpPoolFeeTransferScalar(i, 100);
 			await sleep(50);
 		}
 
