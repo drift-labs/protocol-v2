@@ -12,7 +12,6 @@ import { WebSocketConstituentAccountSubscriber } from './webSocketConstituentAcc
 import { DriftClient } from '../driftClient';
 import { getConstituentFilter, getConstituentLpPoolFilter } from '../memcmp';
 import { ZSTDDecoder } from 'zstddec';
-import { encodeName } from '../userName';
 import { getLpPoolPublicKey } from '../addresses/pda';
 
 const MAX_CONSTITUENT_SIZE_BYTES = 480; // TODO: update this when account is finalized
