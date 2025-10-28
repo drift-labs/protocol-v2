@@ -84,11 +84,8 @@ import { PROGRAM_ID as PHOENIX_PROGRAM_ID } from '@ellipsis-labs/phoenix-sdk';
 import { DRIFT_ORACLE_RECEIVER_ID } from './config';
 import { getFeedIdUint8Array } from './util/pythOracleUtils';
 import { FUEL_RESET_LOG_ACCOUNT } from './constants/txConstants';
-import {
-	JupiterClient,
-	QuoteResponse,
-	SwapMode,
-} from './jupiter/jupiterClient';
+import { JupiterClient, QuoteResponse } from './jupiter/jupiterClient';
+import { SwapMode } from './swap/UnifiedSwapClient';
 
 const OPENBOOK_PROGRAM_ID = new PublicKey(
 	'opnb2LAfJYbRMAHHvqjCwQxanZn7ReEHp1k81EohpZb'
