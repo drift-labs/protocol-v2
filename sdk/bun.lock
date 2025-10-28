@@ -8,6 +8,7 @@
         "@coral-xyz/anchor-30": "npm:@coral-xyz/anchor@0.30.1",
         "@ellipsis-labs/phoenix-sdk": "1.4.5",
         "@grpc/grpc-js": "1.14.0",
+        "@msgpack/msgpack": "^3.1.2",
         "@openbook-dex/openbook-v2": "0.2.10",
         "@project-serum/serum": "0.13.65",
         "@pythnetwork/client": "2.5.3",
@@ -146,6 +147,8 @@
     "@metaplex-foundation/rustbin": ["@metaplex-foundation/rustbin@0.3.5", "", { "dependencies": { "debug": "^4.3.3", "semver": "^7.3.7", "text-table": "^0.2.0", "toml": "^3.0.0" } }, "sha512-m0wkRBEQB/8krwMwKBvFugufZtYwMXiGHud2cTDAv+aGXK4M90y0Hx67/wpu+AqqoQfdV8VM9YezUOHKD+Z5kA=="],
 
     "@metaplex-foundation/solita": ["@metaplex-foundation/solita@0.12.2", "", { "dependencies": { "@metaplex-foundation/beet": "^0.4.0", "@metaplex-foundation/beet-solana": "^0.3.0", "@metaplex-foundation/rustbin": "^0.3.0", "@solana/web3.js": "^1.36.0", "camelcase": "^6.2.1", "debug": "^4.3.3", "js-sha256": "^0.9.0", "prettier": "^2.5.1", "snake-case": "^3.0.4", "spok": "^1.4.3" }, "bin": { "solita": "dist/src/cli/solita.js" } }, "sha512-oczMfE43NNHWweSqhXPTkQBUbap/aAiwjDQw8zLKNnd/J8sXr/0+rKcN5yJIEgcHeKRkp90eTqkmt2WepQc8yw=="],
+
+    "@msgpack/msgpack": ["@msgpack/msgpack@3.1.2", "", {}, "sha512-JEW4DEtBzfe8HvUYecLU9e6+XJnKDlUAIve8FvPzF3Kzs6Xo/KuZkZJsDH0wJXl/qEZbeeE7edxDNY3kMs39hQ=="],
 
     "@noble/curves": ["@noble/curves@1.8.1", "", { "dependencies": { "@noble/hashes": "1.7.1" } }, "sha512-warwspo+UYUPep0Q+vtdVB4Ugn8GGQj8iyB3gnRWsztmUHTI3S1nhdiWNsPUGL0vud7JlRRk1XEu7Lq1KGTnMQ=="],
 

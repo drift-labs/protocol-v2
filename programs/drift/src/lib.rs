@@ -1435,7 +1435,7 @@ pub mod drift {
     }
 
     pub fn update_perp_market_contract_tier(
-        ctx: Context<AdminUpdatePerpMarketContractTier>,
+        ctx: Context<AdminUpdatePerpMarket>,
         contract_tier: ContractTier,
     ) -> Result<()> {
         handle_update_perp_market_contract_tier(ctx, contract_tier)
@@ -1844,24 +1844,6 @@ pub mod drift {
         handle_initialize_high_leverage_mode_config(ctx, max_users)
     }
 
-    pub fn initialize_lp_pool(
-        ctx: Context<InitializeLpPool>,
-        lp_pool_id: u8,
-        min_mint_fee: i64,
-        max_aum: u128,
-        max_settle_quote_amount_per_market: u64,
-        whitelist_mint: Pubkey,
-    ) -> Result<()> {
-        handle_initialize_lp_pool(
-            ctx,
-            lp_pool_id,
-            min_mint_fee,
-            max_aum,
-            max_settle_quote_amount_per_market,
-            whitelist_mint,
-        )
-    }
-
     pub fn update_high_leverage_mode_config(
         ctx: Context<UpdateHighLeverageModeConfig>,
         max_users: u32,
@@ -1974,6 +1956,24 @@ pub mod drift {
         add: bool,
     ) -> Result<()> {
         handle_change_approved_builder(ctx, builder, max_fee_bps, add)
+    }
+
+    pub fn initialize_lp_pool(
+        ctx: Context<InitializeLpPool>,
+        lp_pool_id: u8,
+        min_mint_fee: i64,
+        max_aum: u128,
+        max_settle_quote_amount_per_market: u64,
+        whitelist_mint: Pubkey,
+    ) -> Result<()> {
+        handle_initialize_lp_pool(
+            ctx,
+            lp_pool_id,
+            min_mint_fee,
+            max_aum,
+            max_settle_quote_amount_per_market,
+            whitelist_mint,
+        )
     }
 
     pub fn update_feature_bit_flags_settle_lp_pool(

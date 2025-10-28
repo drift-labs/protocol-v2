@@ -285,16 +285,6 @@ impl<'a> AccountZeroCopyMut<'a, CacheInfo, AmmCacheFixed> {
         perp_market: &PerpMarket,
         quote_market: &SpotMarket,
     ) -> DriftResult<()> {
-        if perp_market.lp_fee_transfer_scalar == 0
-            && perp_market.lp_exchange_fee_excluscion_scalar == 0
-        {
-            msg!(
-                "lp_fee_transfer_scalar and lp_net_pnl_transfer_scalar are 0 for perp market {}. not updating quote amount owed in cache",
-                perp_market.market_index
-            );
-            return Ok(());
-        }
-
         let cached_info = self.get_mut(perp_market.market_index as u32);
 
         let fee_pool_token_amount = get_token_amount(

@@ -61,7 +61,7 @@ pub const MAX_ORACLE_STALENESS_FOR_TARGET_CALC: u64 = 10u64;
 mod tests;
 
 #[account(zero_copy(unsafe))]
-#[derive(Default, Debug)]
+#[derive(Debug)]
 #[repr(C)]
 pub struct LPPool {
     /// address of the vault.
@@ -98,7 +98,7 @@ pub struct LPPool {
     pub max_settle_quote_amount: u64,
 
     /// timestamp of last vAMM revenue rebalance
-    pub last_hedge_ts: u64,
+    pub _padding: u64,
 
     /// Every mint/redeem has a monotonically increasing id. This is the next id to use
     pub mint_redeem_id: u64,
@@ -128,11 +128,45 @@ pub struct LPPool {
 
     pub lp_pool_id: u8,
 
-    pub padding: [u8; 14],
+    pub padding: [u8; 174],
+}
+
+impl Default for LPPool {
+    fn default() -> Self {
+        Self {
+            pubkey: Pubkey::default(),
+            mint: Pubkey::default(),
+            whitelist_mint: Pubkey::default(),
+            constituent_target_base: Pubkey::default(),
+            constituent_correlations: Pubkey::default(),
+            max_aum: 0,
+            last_aum: 0,
+            cumulative_quote_sent_to_perp_markets: 0,
+            cumulative_quote_received_from_perp_markets: 0,
+            total_mint_redeem_fees_paid: 0,
+            last_aum_slot: 0,
+            max_settle_quote_amount: 0,
+            _padding: 0,
+            mint_redeem_id: 0,
+            settle_id: 0,
+            min_mint_fee: 0,
+            token_supply: 0,
+            volatility: 0,
+            constituents: 0,
+            quote_consituent_index: 0,
+            bump: 0,
+            gamma_execution: 0,
+            xi: 0,
+            target_oracle_delay_fee_bps_per_10_slots: 0,
+            target_position_delay_fee_bps_per_10_slots: 0,
+            lp_pool_id: 0,
+            padding: [0u8; 174],
+        }
+    }
 }
 
 impl Size for LPPool {
-    const SIZE: usize = 344;
+    const SIZE: usize = 504;
 }
 
 impl LPPool {
@@ -219,14 +253,14 @@ impl LPPool {
             correlation,
         )?;
 
-        in_fee += self.get_target_uncertainty_fees(
+        in_fee = in_fee.safe_add(self.get_target_uncertainty_fees(
             in_target_position_slot_delay,
             in_target_oracle_slot_delay,
-        )?;
-        out_fee += self.get_target_uncertainty_fees(
+        )?)?;
+        out_fee = out_fee.safe_add(self.get_target_uncertainty_fees(
             out_target_position_slot_delay,
             out_target_oracle_slot_delay,
-        )?;
+        )?)?;
 
         in_fee = in_fee.min(MAX_SWAP_FEE);
         out_fee = out_fee.min(MAX_SWAP_FEE);
@@ -656,7 +690,7 @@ impl LPPool {
                 return Ok(0);
             }
             let elapsed = delay.saturating_sub(threshold);
-            let blocks = (elapsed + 9) / 10;
+            let blocks = elapsed.safe_add(9)?.safe_div(10)?;
             let fee_bps = (blocks as u128).safe_mul(per_10_slot_bps as u128)?;
             let fee = fee_bps
                 .safe_mul(PERCENTAGE_PRECISION)?
@@ -873,7 +907,7 @@ impl ConstituentSpotBalance {
 }
 
 #[account(zero_copy(unsafe))]
-#[derive(Default, Debug, BorshDeserialize, BorshSerialize)]
+#[derive(Debug)]
 #[repr(C)]
 pub struct Constituent {
     /// address of the constituent
@@ -947,11 +981,51 @@ pub struct Constituent {
     // Status
     pub status: u8,
     pub paused_operations: u8,
-    pub _padding: [u8; 2],
+    pub _padding: [u8; 162],
+}
+
+impl Default for Constituent {
+    fn default() -> Self {
+        Self {
+            pubkey: Pubkey::default(),
+            mint: Pubkey::default(),
+            lp_pool: Pubkey::default(),
+            vault: Pubkey::default(),
+            total_swap_fees: 0,
+            spot_balance: ConstituentSpotBalance::default(),
+            last_spot_balance_token_amount: 0,
+            cumulative_spot_interest_accrued_token_amount: 0,
+            max_weight_deviation: 0,
+            swap_fee_min: 0,
+            swap_fee_max: 0,
+            max_borrow_token_amount: 0,
+            vault_token_balance: 0,
+            last_oracle_price: 0,
+            last_oracle_slot: 0,
+            oracle_staleness_threshold: 0,
+            flash_loan_initial_token_amount: 0,
+            next_swap_id: 0,
+            derivative_weight: 0,
+            volatility: 0,
+            constituent_derivative_depeg_threshold: 0,
+            constituent_derivative_index: -1,
+            spot_market_index: 0,
+            constituent_index: 0,
+            decimals: 0,
+            bump: 0,
+            vault_bump: 0,
+            gamma_inventory: 0,
+            gamma_execution: 0,
+            xi: 0,
+            status: 0,
+            paused_operations: 0,
+            _padding: [0; 162],
+        }
+    }
 }
 
 impl Size for Constituent {
-    const SIZE: usize = 320;
+    const SIZE: usize = 480;
 }
 
 #[derive(BitFlags, Clone, Copy, PartialEq, Debug, Eq)]
@@ -1239,14 +1313,6 @@ impl Default for ConstituentTargetBase {
             targets: Vec::with_capacity(0),
         }
     }
-}
-
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
-pub enum WeightValidationFlags {
-    NONE = 0b0000_0000,
-    EnforceTotalWeight100 = 0b0000_0001,
-    NoNegativeWeights = 0b0000_0010,
-    NoOverweight = 0b0000_0100,
 }
 
 impl<'a> AccountZeroCopy<'a, TargetsDatum, ConstituentTargetBaseFixed> {

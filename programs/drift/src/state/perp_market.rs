@@ -762,7 +762,7 @@ impl PerpMarket {
 
         let last_fill_price = self.last_fill_price;
 
-        let mark_price_5min_twap = self.amm.last_mark_price_twap;
+        let mark_price_5min_twap = self.amm.last_mark_price_twap_5min;
         let last_oracle_price_twap_5min =
             self.amm.historical_oracle_data.last_oracle_price_twap_5min;
 

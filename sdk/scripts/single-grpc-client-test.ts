@@ -19,6 +19,7 @@ import {
 	ProgramAccount,
 } from '@coral-xyz/anchor';
 import driftIDL from '../src/idl/drift.json';
+import { grpcMultiUserAccountSubscriber } from '../src/accounts/grpcMultiUserAccountSubscriber';
 
 const GRPC_ENDPOINT = process.env.GRPC_ENDPOINT;
 const TOKEN = process.env.TOKEN;
@@ -96,18 +97,27 @@ async function initializeSingleGrpcClient() {
 	console.log(`📊 Markets: ${perpMarketIndexes.length} perp, ${spotMarketIndexes.length} spot`);
 	console.log(`🔮 Oracles: ${oracleInfos.length}`);
 
+
+	const grpcConfigs = {
+		endpoint: GRPC_ENDPOINT,
+		token: TOKEN,
+		commitmentLevel: CommitmentLevel.PROCESSED,
+		channelOptions: {
+			'grpc.keepalive_time_ms': 10_000,
+			'grpc.keepalive_timeout_ms': 1_000,
+			'grpc.keepalive_permit_without_calls': 1,
+		},
+	};
+
+	const multiUserSubsciber = new grpcMultiUserAccountSubscriber(
+		program,
+		grpcConfigs
+	);
+
 	const baseAccountSubscription = {
 		type: 'grpc' as const,
-		grpcConfigs: {
-			endpoint: GRPC_ENDPOINT,
-			token: TOKEN,
-			commitmentLevel: CommitmentLevel.PROCESSED,
-			channelOptions: {
-				'grpc.keepalive_time_ms': 10_000,
-				'grpc.keepalive_timeout_ms': 1_000,
-				'grpc.keepalive_permit_without_calls': 1,
-			},
-		},
+		grpcConfigs,
+		grpcMultiUserAccountSubscriber: multiUserSubsciber,
 	};
 
 	const config: DriftClientConfig = {

@@ -1,5 +1,5 @@
 {
-  "version": "2.143.0",
+  "version": "2.144.0",
   "name": "drift",
   "instructions": [
     {
@@ -6086,11 +6086,6 @@
           "name": "perpMarket",
           "isMut": true,
           "isSigner": false
-        },
-        {
-          "name": "ammCache",
-          "isMut": true,
-          "isSigner": false
         }
       ],
       "args": [
@@ -7473,88 +7468,6 @@
       ]
     },
     {
-      "name": "initializeLpPool",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "lpPool",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "mint",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "lpPoolTokenVault",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "ammConstituentMapping",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "constituentTargetBase",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "constituentCorrelations",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "rent",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "lpPoolId",
-          "type": "u8"
-        },
-        {
-          "name": "minMintFee",
-          "type": "i64"
-        },
-        {
-          "name": "maxAum",
-          "type": "u128"
-        },
-        {
-          "name": "maxSettleQuoteAmountPerMarket",
-          "type": "u64"
-        },
-        {
-          "name": "whitelistMint",
-          "type": "publicKey"
-        }
-      ]
-    },
-    {
       "name": "updateHighLeverageModeConfig",
       "accounts": [
         {
@@ -8001,6 +7914,88 @@
         {
           "name": "add",
           "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "initializeLpPool",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "lpPool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "mint",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "lpPoolTokenVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "ammConstituentMapping",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "constituentTargetBase",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "constituentCorrelations",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "lpPoolId",
+          "type": "u8"
+        },
+        {
+          "name": "minMintFee",
+          "type": "i64"
+        },
+        {
+          "name": "maxAum",
+          "type": "u128"
+        },
+        {
+          "name": "maxSettleQuoteAmountPerMarket",
+          "type": "u64"
+        },
+        {
+          "name": "whitelistMint",
+          "type": "publicKey"
         }
       ]
     },
@@ -10007,7 +10002,7 @@
             "type": "u64"
           },
           {
-            "name": "lastHedgeTs",
+            "name": "padding",
             "docs": [
               "timestamp of last vAMM revenue rebalance"
             ],
@@ -10076,7 +10071,7 @@
             "type": {
               "array": [
                 "u8",
-                14
+                174
               ]
             }
           }
@@ -10266,7 +10261,7 @@
             "type": {
               "array": [
                 "u8",
-                2
+                162
               ]
             }
           }
@@ -15280,6 +15275,9 @@
           },
           {
             "name": "SafeMMOracle"
+          },
+          {
+            "name": "Margin"
           }
         ]
       }
@@ -15614,26 +15612,6 @@
           },
           {
             "name": "Decommissioned"
-          }
-        ]
-      }
-    },
-    {
-      "name": "WeightValidationFlags",
-      "type": {
-        "kind": "enum",
-        "variants": [
-          {
-            "name": "NONE"
-          },
-          {
-            "name": "EnforceTotalWeight100"
-          },
-          {
-            "name": "NoNegativeWeights"
-          },
-          {
-            "name": "NoOverweight"
           }
         ]
       }
@@ -19959,9 +19937,11 @@
       "code": 6343,
       "name": "InvalidIsolatedPerpMarket",
       "msg": "Invalid Isolated Perp Market"
+    },
+    {
+      "code": 6344,
+      "name": "InvalidLpPoolId",
+      "msg": "Invalid Lp Pool Id for Operation"
     }
-  ],
-  "metadata": {
-    "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
-  }
+  ]
 }

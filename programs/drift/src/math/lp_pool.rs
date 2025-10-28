@@ -5,7 +5,8 @@ pub mod perp_lp_pool_settlement {
     use crate::error::ErrorCode;
     use crate::math::casting::Cast;
     use crate::math::constants::QUOTE_PRECISION_U64;
-    use crate::state::spot_market::SpotBalanceType;
+    use crate::math::spot_balance::get_token_amount;
+    use crate::state::spot_market::{SpotBalance, SpotBalanceType};
     use crate::{
         math::safe_math::SafeMath,
         state::{amm_cache::CacheInfo, perp_market::PerpMarket, spot_market::SpotMarket},
@@ -55,6 +56,8 @@ pub mod perp_lp_pool_settlement {
     pub fn validate_settlement_amount(
         ctx: &SettlementContext,
         result: &SettlementResult,
+        perp_market: &PerpMarket,
+        quote_spot_market: &SpotMarket,
     ) -> Result<()> {
         if result.amount_transferred > ctx.max_settle_quote_amount {
             msg!(
@@ -63,6 +66,49 @@ pub mod perp_lp_pool_settlement {
                 ctx.max_settle_quote_amount
             );
             return Err(ErrorCode::LpPoolSettleInvariantBreached.into());
+        }
+
+        if result.direction == SettlementDirection::ToLpPool {
+            if result.fee_pool_used > 0 {
+                let fee_pool_token_amount = get_token_amount(
+                    perp_market.amm.fee_pool.balance(),
+                    quote_spot_market,
+                    &SpotBalanceType::Deposit,
+                )?;
+                validate!(
+                    fee_pool_token_amount >= result.fee_pool_used,
+                    ErrorCode::LpPoolSettleInvariantBreached.into(),
+                    "Fee pool balance insufficient for settlement: {} < {}",
+                    fee_pool_token_amount,
+                    result.fee_pool_used
+                )?;
+            }
+
+            if result.pnl_pool_used > 0 {
+                let pnl_pool_token_amount = get_token_amount(
+                    perp_market.pnl_pool.balance(),
+                    quote_spot_market,
+                    &SpotBalanceType::Deposit,
+                )?;
+                validate!(
+                    pnl_pool_token_amount >= result.pnl_pool_used,
+                    ErrorCode::LpPoolSettleInvariantBreached.into(),
+                    "Pnl pool balance insufficient for settlement: {} < {}",
+                    pnl_pool_token_amount,
+                    result.pnl_pool_used
+                )?;
+            }
+        }
+        if result.direction == SettlementDirection::FromLpPool {
+            validate!(
+                ctx.quote_constituent_token_balance
+                    .saturating_sub(result.amount_transferred)
+                    >= QUOTE_PRECISION_U64,
+                ErrorCode::LpPoolSettleInvariantBreached.into(),
+                "Quote constituent token balance insufficient for settlement: {} < {}",
+                ctx.quote_constituent_token_balance,
+                result.amount_transferred
+            )?;
         }
         Ok(())
     }

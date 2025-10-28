@@ -29,7 +29,6 @@
 	},
 	"dependencies": {
 		"@ellipsis-labs/phoenix-sdk": "1.4.2",
-		"@msgpack/msgpack": "^3.1.2",
 		"@pythnetwork/pyth-solana-receiver": "0.8.0",
 		"@switchboard-xyz/common": "3.0.14",
 		"@switchboard-xyz/on-demand": "2.4.1",
@@ -95,6 +94,5 @@
 		"chalk-template": "<1.1.1",
 		"supports-hyperlinks": "<4.1.1",
 		"has-ansi": "<6.0.1"
-	},
-	"packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+	}
 }

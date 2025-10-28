@@ -8,8 +8,7 @@ import {
 } from '@solana/web3.js';
 import fetch from 'node-fetch';
 import { BN } from '@coral-xyz/anchor';
-
-export type SwapMode = 'ExactIn' | 'ExactOut';
+import { SwapMode } from '../swap/UnifiedSwapClient';
 
 export interface MarketInfo {
 	id: string;

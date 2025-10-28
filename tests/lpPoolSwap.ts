@@ -57,10 +57,17 @@ import dotenv from 'dotenv';
 import { DexInstructions, Market, OpenOrders } from '@project-serum/serum';
 import { listMarket, SERUM, makePlaceOrderTransaction } from './serumHelper';
 import { NATIVE_MINT } from '@solana/spl-token';
+import {
+	CustomBorshAccountsCoder,
+	CustomBorshCoder,
+} from '../sdk/src/decode/customCoder';
 dotenv.config();
 
 describe('LP Pool', () => {
 	const program = anchor.workspace.Drift as Program;
+	// Align account (de)serialization with on-chain zero-copy layouts
+	// @ts-ignore
+	program.coder.accounts = new CustomBorshAccountsCoder(program.idl);
 	let bankrunContextWrapper: BankrunContextWrapper;
 	let bulkAccountLoader: TestBulkAccountLoader;
 
@@ -149,6 +156,8 @@ describe('LP Pool', () => {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
+			// Ensure the client uses the same custom coder
+			coder: new CustomBorshCoder(program.idl),
 		});
 		await adminClient.initialize(usdcMint.publicKey, true);
 		await adminClient.subscribe();
