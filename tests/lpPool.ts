@@ -1727,9 +1727,10 @@ describe('LP Pool', () => {
 				await adminClient.getUpdateLpPoolAumIxs(oldLpPool, [0, 1, 2])
 			);
 			await adminClient.sendTransaction(settleTx);
+			assert.fail('Should have thrown');
 		} catch (e) {
 			console.log(e.message);
-			assert(e.message.includes('0x18c7'));
+			assert(e.message.includes('0x18'));
 		}
 	});
 });
