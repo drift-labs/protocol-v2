@@ -161,6 +161,10 @@ export class grpcMultiUserAccountSubscriber {
 			},
 
 			updateData(userAccount: UserAccount, slot: number): void {
+				const existingData = parent.userData.get(key);
+				if (existingData && existingData.slot > slot) {
+					return;
+				}
 				parent.userData.set(key, { data: userAccount, slot });
 				perUserEmitter.emit('userAccountUpdate', userAccount);
 				perUserEmitter.emit('update');
