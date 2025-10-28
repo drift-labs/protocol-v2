@@ -467,7 +467,8 @@ export class User {
 			? calculateWorstCaseBaseAssetAmount(
 					perpPosition,
 					perpMarket,
-					oraclePriceData.price
+					oraclePriceData.price,
+					this.getUserAccount()?.orders ?? []
 			  )
 			: ZERO;
 
@@ -1241,7 +1242,8 @@ export class User {
 				calculateWorstCasePerpLiabilityValue(
 					perpPosition,
 					market,
-					valuationPrice
+					valuationPrice,
+					this.getUserAccount()?.orders ?? []
 				);
 			baseAssetAmount = worstCaseBaseAssetAmount;
 			liabilityValue = worstCaseLiabilityValue;
@@ -1378,7 +1380,8 @@ export class User {
 			market,
 			userPosition,
 			oraclePriceData,
-			includeOpenOrders
+			includeOpenOrders,
+			this.getUserAccount()?.orders ?? []
 		);
 	}
 
@@ -1400,7 +1403,8 @@ export class User {
 			return calculateWorstCasePerpLiabilityValue(
 				userPosition,
 				market,
-				oraclePriceData.price
+				oraclePriceData.price,
+				this.getUserAccount()?.orders ?? []
 			).worstCaseLiabilityValue;
 		} else {
 			return calculatePerpLiabilityValue(
@@ -1464,7 +1468,9 @@ export class User {
 			baseAssetValue = calculateBaseAssetValueWithOracle(
 				market,
 				position,
-				oraclePriceData
+				oraclePriceData,
+				undefined,
+				this.getUserAccount()?.orders ?? []
 			);
 		}
 		if (position.baseAssetAmount.eq(ZERO)) {
@@ -2167,7 +2173,8 @@ export class User {
 					calculateWorstCasePerpLiabilityValue(
 						perpPosition,
 						market,
-						oraclePrice
+						oraclePrice,
+						this.getUserAccount()?.orders ?? []
 					);
 				baseAssetAmount = worstCaseBaseAssetAmount;
 				liabilityValue = worstCaseLiabilityValue;
@@ -2223,7 +2230,12 @@ export class User {
 		enteringHighLeverage = undefined
 	): BN | undefined {
 		const baseAssetAmount = includeOpenOrders
-			? calculateWorstCaseBaseAssetAmount(perpPosition, market, oraclePrice)
+			? calculateWorstCaseBaseAssetAmount(
+					perpPosition,
+					market,
+					oraclePrice,
+					this.getUserAccount()?.orders ?? []
+			  )
 			: perpPosition.baseAssetAmount;
 
 		// zero if include orders == false
@@ -3202,7 +3214,8 @@ export class User {
 		} = calculateWorstCasePerpLiabilityValue(
 			currentPosition,
 			perpMarket,
-			oracleData.price
+			oracleData.price,
+			this.getUserAccount()?.orders ?? []
 		);
 
 		// current side is short if position base asset amount is negative OR there is no position open but open orders are short
@@ -3619,7 +3632,8 @@ export class User {
 			const worstCaseIncludeOrders = calculateWorstCasePerpLiabilityValue(
 				perpPosition,
 				perpMarket,
-				oraclePrice
+				oraclePrice,
+				this.getUserAccount()?.orders ?? []
 			);
 			worstCaseBaseAmount = worstCaseIncludeOrders.worstCaseBaseAssetAmount;
 			worstCaseLiabilityValue = worstCaseIncludeOrders.worstCaseLiabilityValue;

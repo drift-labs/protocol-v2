@@ -19,6 +19,7 @@ import { calculateScaledInitialAssetWeight } from './spotBalance';
 import { DriftClient } from '../driftClient';
 import { OneShotUserAccountSubscriber } from '../accounts/oneShotUserAccountSubscriber';
 import {
+	Order,
 	PerpMarketAccount,
 	PerpPosition,
 	PositionDirection,
@@ -132,7 +133,8 @@ export function calculateBaseAssetValueWithOracle(
 	market: PerpMarketAccount,
 	perpPosition: PerpPosition,
 	oraclePriceData: Pick<OraclePriceData, 'price'>,
-	includeOpenOrders = false
+	includeOpenOrders = false,
+	openOrders?: Order[]
 ): BN {
 	let price = oraclePriceData.price;
 	if (isVariant(market.status, 'settlement')) {
@@ -143,7 +145,8 @@ export function calculateBaseAssetValueWithOracle(
 		? calculateWorstCaseBaseAssetAmount(
 				perpPosition,
 				market,
-				oraclePriceData.price
+				oraclePriceData.price,
+				openOrders
 		  )
 		: perpPosition.baseAssetAmount;
 
@@ -153,22 +156,48 @@ export function calculateBaseAssetValueWithOracle(
 export function calculateWorstCaseBaseAssetAmount(
 	perpPosition: PerpPosition,
 	perpMarket: PerpMarketAccount,
-	oraclePrice: BN
+	oraclePrice: BN,
+	openOrders?: Order[]
 ): BN {
 	return calculateWorstCasePerpLiabilityValue(
 		perpPosition,
 		perpMarket,
-		oraclePrice
+		oraclePrice,
+		openOrders
 	).worstCaseBaseAssetAmount;
 }
 
 export function calculateWorstCasePerpLiabilityValue(
 	perpPosition: PerpPosition,
 	perpMarket: PerpMarketAccount,
-	oraclePrice: BN
+	oraclePrice: BN,
+	openOrders?: Order[]
 ): { worstCaseBaseAssetAmount: BN; worstCaseLiabilityValue: BN } {
-	const allBids = perpPosition.baseAssetAmount.add(perpPosition.openBids);
-	const allAsks = perpPosition.baseAssetAmount.add(perpPosition.openAsks);
+	let allBids = perpPosition.baseAssetAmount.add(perpPosition.openBids);
+	let allAsks = perpPosition.baseAssetAmount.add(perpPosition.openAsks);
+
+	if (openOrders) {
+		const triggerOrderBids = openOrders
+			.filter(
+				(order) =>
+					isVariant(order.direction, 'long') &&
+					(isVariant(order.orderType, 'triggerMarket') ||
+						isVariant(order.orderType, 'triggerLimit')) &&
+					!order.reduceOnly
+			)
+			.reduce((acc, order) => acc.add(order.baseAssetAmount), ZERO);
+		const triggerOrderAsks = openOrders
+			.filter(
+				(order) =>
+					isVariant(order.direction, 'short') &&
+					(isVariant(order.orderType, 'triggerMarket') ||
+						isVariant(order.orderType, 'triggerLimit')) &&
+					!order.reduceOnly
+			)
+			.reduce((acc, order) => acc.add(order.baseAssetAmount), ZERO);
+		allBids = allBids.add(triggerOrderBids);
+		allAsks = allAsks.add(triggerOrderAsks);
+	}
 
 	const isPredictionMarket = isVariant(perpMarket.contractType, 'prediction');
 	const allBidsLiabilityValue = calculatePerpLiabilityValue(
