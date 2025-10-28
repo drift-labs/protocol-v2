@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Features
+
+### Fixes
+
+### Breaking
+
+## [2.144.0] - 2025-10-27
+
+### Features
+
+- program: use-5min-for-target-expiry-price  ([#1967](https://github.com/drift-labs/protocol-v2/pull/1967))
+
+### Fixes
+
+### Breaking
+
+## [2.143.0] - 2025-10-22
+
 - program: relax filling conditions for low risk orders vs amm ([#1968](https://github.com/drift-labs/protocol-v2/pull/1968))
 - sdk: make oracle validity match program and propogate to dlob and math functions ([#1968](https://github.com/drift-labs/protocol-v2/pull/1968))
 

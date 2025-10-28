@@ -265,8 +265,8 @@ pub fn update_amm_and_check_validity(
         market.get_max_confidence_interval_multiplier()?,
         &market.amm.oracle_source,
         LogMode::SafeMMOracle,
-        0,
-        0,
+        market.amm.oracle_slot_delay_override,
+        market.amm.oracle_low_risk_slot_delay_override,
     )?;
 
     validate!(
@@ -431,7 +431,10 @@ pub fn settle_expired_market(
     let target_expiry_price = if market.amm.oracle_source == OracleSource::Prelaunch {
         market.amm.historical_oracle_data.last_oracle_price
     } else {
-        market.amm.historical_oracle_data.last_oracle_price_twap
+        market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap_5min
     };
 
     crate::dlog!(target_expiry_price);

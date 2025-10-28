@@ -372,6 +372,7 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 				}
 			});
 		});
+		await this.fetch();
 	}
 
 	async removeAccounts(accounts: PublicKey[]): Promise<void> {

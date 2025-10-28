@@ -303,6 +303,7 @@ pub enum LogMode {
     ExchangeOracle,
     MMOracle,
     SafeMMOracle,
+    Margin,
 }
 
 pub fn oracle_validity(
@@ -383,7 +384,7 @@ pub fn oracle_validity(
     };
 
     if log_mode != LogMode::None {
-        let oracle_type = if log_mode == LogMode::ExchangeOracle {
+        let oracle_type = if log_mode == LogMode::ExchangeOracle || log_mode == LogMode::Margin {
             "Exchange"
         } else if log_mode == LogMode::SafeMMOracle {
             "SafeMM"
@@ -429,7 +430,18 @@ pub fn oracle_validity(
             );
         }
 
-        if is_stale_for_amm_immediate || is_stale_for_margin || is_stale_for_amm_low_risk {
+        if is_stale_for_margin {
+            crate::msg!(
+                "Invalid {} {} {} Oracle: Stale for Margin (oracle_delay={:?})",
+                market_type,
+                market_index,
+                oracle_type,
+                oracle_delay
+            );
+        }
+
+        if (is_stale_for_amm_immediate || is_stale_for_amm_low_risk) && log_mode != LogMode::Margin
+        {
             crate::msg!(
                 "Invalid {} {} {} Oracle: Stale (oracle_delay={:?}), (stale_for_amm_immediate={}, stale_for_amm_low_risk={}, stale_for_margin={})",
                 market_type,

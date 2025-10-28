@@ -1,5 +1,5 @@
 {
-  "version": "2.142.0",
+  "version": "2.144.0",
   "name": "drift",
   "instructions": [
     {
@@ -13058,6 +13058,12 @@
             "type": {
               "option": "u16"
             }
+          },
+          {
+            "name": "isolatedPositionDeposit",
+            "type": {
+              "option": "u64"
+            }
           }
         ]
       }
@@ -13122,6 +13128,12 @@
             "name": "builderFeeTenthBps",
             "type": {
               "option": "u16"
+            }
+          },
+          {
+            "name": "isolatedPositionDeposit",
+            "type": {
+              "option": "u64"
             }
           }
         ]

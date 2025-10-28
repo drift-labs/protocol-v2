@@ -49,6 +49,8 @@ export * from './events/webSocketLogProvider';
 export * from './events/parse';
 export * from './events/pollingLogProvider';
 export * from './jupiter/jupiterClient';
+// Primary swap client interface - use this for all swap operations
+export * from './swap/UnifiedSwapClient';
 export * from './math/auction';
 export * from './math/builder';
 export * from './math/spotMarket';
