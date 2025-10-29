@@ -665,7 +665,7 @@ export class AdminClient extends DriftClient {
 	public async resizeAmmCache(
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
-		const initializeAmmCacheIx = await this.getInitializeAmmCacheIx();
+		const initializeAmmCacheIx = await this.getResizeAmmCacheIx();
 
 		const tx = await this.buildTransaction(initializeAmmCacheIx, txParams);
 
@@ -684,6 +684,28 @@ export class AdminClient extends DriftClient {
 				ammCache: getAmmCachePublicKey(this.program.programId),
 				rent: SYSVAR_RENT_PUBKEY,
 				systemProgram: anchor.web3.SystemProgram.programId,
+			},
+		});
+	}
+
+	public async deleteAmmCache(
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const deleteAmmCacheIx = await this.getDeleteAmmCacheIx();
+
+		const tx = await this.buildTransaction(deleteAmmCacheIx, txParams);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getDeleteAmmCacheIx(): Promise<TransactionInstruction> {
+		return await this.program.instruction.deleteAmmCache({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				admin: this.getStateAccount().admin,
+				ammCache: getAmmCachePublicKey(this.program.programId),
 			},
 		});
 	}
