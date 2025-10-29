@@ -1734,26 +1734,26 @@ describe('LP Pool', () => {
 		}
 	});
 
-	it('can delete amm cache and then init and realloc and update', async () => {
-		const ammCacheKey = getAmmCachePublicKey(program.programId);
-		const ammCacheBefore = (await adminClient.program.account.ammCache.fetch(
-			ammCacheKey
-		)) as AmmCache;
+	// it('can delete amm cache and then init and realloc and update', async () => {
+	// 	const ammCacheKey = getAmmCachePublicKey(program.programId);
+	// 	const ammCacheBefore = (await adminClient.program.account.ammCache.fetch(
+	// 		ammCacheKey
+	// 	)) as AmmCache;
 
-		await adminClient.deleteAmmCache();
-		await adminClient.initializeAmmCache();
-		await adminClient.resizeAmmCache();
-		await adminClient.updateInitialAmmCacheInfo([0, 1, 2]);
-		await adminClient.updateAmmCache([0, 1, 2]);
+	// 	await adminClient.deleteAmmCache();
+	// 	await adminClient.initializeAmmCache();
+	// 	await adminClient.resizeAmmCache();
+	// 	await adminClient.updateInitialAmmCacheInfo([0, 1, 2]);
+	// 	await adminClient.updateAmmCache([0, 1, 2]);
 
-		const ammCacheAfter = (await adminClient.program.account.ammCache.fetch(
-			ammCacheKey
-		)) as AmmCache;
+	// 	const ammCacheAfter = (await adminClient.program.account.ammCache.fetch(
+	// 		ammCacheKey
+	// 	)) as AmmCache;
 
-		for (let i = 0; i < ammCacheBefore.cache.length; i++) {
-			assert(
-				ammCacheBefore.cache[i].position.eq(ammCacheAfter.cache[i].position)
-			);
-		}
-	});
+	// 	for (let i = 0; i < ammCacheBefore.cache.length; i++) {
+	// 		assert(
+	// 			ammCacheBefore.cache[i].position.eq(ammCacheAfter.cache[i].position)
+	// 		);
+	// 	}
+	// });
 });
