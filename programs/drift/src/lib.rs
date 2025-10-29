@@ -1020,6 +1020,18 @@ pub mod drift {
         handle_initialize_amm_cache(ctx)
     }
 
+    pub fn resize_amm_cache<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, ResizeAmmCache<'info>>,
+    ) -> Result<()> {
+        handle_resize_amm_cache(ctx)
+    }
+
+    pub fn delete_amm_cache<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, DeleteAmmCache<'info>>,
+    ) -> Result<()> {
+        handle_delete_amm_cache(ctx)
+    }
+
     pub fn update_initial_amm_cache_info<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, UpdateInitialAmmCacheInfo<'info>>,
     ) -> Result<()> {
