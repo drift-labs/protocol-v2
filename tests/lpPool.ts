@@ -191,8 +191,6 @@ describe('LP Pool', () => {
 		solUsdLazer = getPythLazerOraclePublicKey(program.programId, 6);
 		await adminClient.initializePythLazerOracle(6);
 
-		await adminClient.initializeAmmCache();
-
 		await adminClient.initializePerpMarket(
 			0,
 			solUsd,
@@ -1741,7 +1739,6 @@ describe('LP Pool', () => {
 	// 	)) as AmmCache;
 
 	// 	await adminClient.deleteAmmCache();
-	// 	await adminClient.initializeAmmCache();
 	// 	await adminClient.resizeAmmCache();
 	// 	await adminClient.updateInitialAmmCacheInfo([0, 1, 2]);
 	// 	await adminClient.updateAmmCache([0, 1, 2]);

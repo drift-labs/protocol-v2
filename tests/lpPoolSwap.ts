@@ -176,8 +176,6 @@ describe('LP Pool', () => {
 
 		const periodicity = new BN(0);
 
-		await adminClient.initializeAmmCache();
-
 		await adminClient.initializePerpMarket(
 			0,
 			spotMarketOracle,
