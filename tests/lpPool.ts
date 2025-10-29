@@ -191,6 +191,8 @@ describe('LP Pool', () => {
 		solUsdLazer = getPythLazerOraclePublicKey(program.programId, 6);
 		await adminClient.initializePythLazerOracle(6);
 
+		await adminClient.initializeAmmCache();
+
 		await adminClient.initializePerpMarket(
 			0,
 			solUsd,
