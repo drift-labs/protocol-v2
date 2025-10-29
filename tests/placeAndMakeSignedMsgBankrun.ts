@@ -1605,7 +1605,7 @@ describe('place and make signedMsg order', () => {
 		await takerDriftClient.unsubscribe();
 	});
 
-	it('fills signedMsg with max margin ratio ', async () => {
+	it('fills signedMsg with max margin ratio and isolated position deposit', async () => {
 		slot = new BN(
 			await bankrunContextWrapper.connection.toConnection().getSlot()
 		);
@@ -1657,6 +1657,7 @@ describe('place and make signedMsg order', () => {
 			stopLossOrderParams: null,
 			takeProfitOrderParams: null,
 			maxMarginRatio: 100,
+			isolatedPositionDeposit: usdcAmount,
 		};
 
 		const signedOrderParams = takerDriftClient.signSignedMsgOrderParamsMessage(
@@ -1699,6 +1700,7 @@ describe('place and make signedMsg order', () => {
 		// All orders are placed and one is
 		// @ts-ignore
 		assert(takerPosition.maxMarginRatio === 100);
+		assert(takerPosition.isolatedPositionScaledBalance.gt(new BN(0)));
 
 		await takerDriftClientUser.unsubscribe();
 		await takerDriftClient.unsubscribe();

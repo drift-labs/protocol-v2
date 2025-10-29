@@ -192,8 +192,8 @@ pub enum ErrorCode {
     SpotMarketInsufficientDeposits,
     #[msg("UserMustSettleTheirOwnPositiveUnsettledPNL")]
     UserMustSettleTheirOwnPositiveUnsettledPNL,
-    #[msg("CantUpdatePoolBalanceType")]
-    CantUpdatePoolBalanceType,
+    #[msg("CantUpdateSpotBalanceType")]
+    CantUpdateSpotBalanceType,
     #[msg("InsufficientCollateralForSettlingPNL")]
     InsufficientCollateralForSettlingPNL,
     #[msg("AMMNotUpdatedInSameSlot")]
@@ -690,6 +690,8 @@ pub enum ErrorCode {
     InvalidConstituentOperation,
     #[msg("Unauthorized for operation")]
     Unauthorized,
+    #[msg("Invalid Isolated Perp Market")]
+    InvalidIsolatedPerpMarket,
     #[msg("Invalid Lp Pool Id for Operation")]
     InvalidLpPoolId,
 }

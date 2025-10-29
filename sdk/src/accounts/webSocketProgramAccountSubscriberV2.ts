@@ -27,7 +27,7 @@ type ProgramAccountSubscriptionAsyncIterable = AsyncIterable<
 				rentEpoch: bigint;
 				space: bigint;
 			}> &
-				Readonly<any>;
+			Readonly<any>;
 			pubkey: Address;
 		}>;
 	}>
@@ -93,8 +93,7 @@ type ProgramAccountSubscriptionAsyncIterable = AsyncIterable<
  */
 
 export class WebSocketProgramAccountsSubscriberV2<T>
-	implements ProgramAccountSubscriber<T>
-{
+	implements ProgramAccountSubscriber<T> {
 	subscriptionName: string;
 	accountDiscriminator: string;
 	bufferAndSlotMap: Map<string, BufferAndSlot> = new Map();
@@ -311,8 +310,7 @@ export class WebSocketProgramAccountsSubscriberV2<T>
 		}
 		const endTime = performance.now();
 		console.log(
-			`[PROFILING] ${this.subscriptionName}.subscribe() completed in ${
-				endTime - startTime
+			`[PROFILING] ${this.subscriptionName}.subscribe() completed in ${endTime - startTime
 			}ms`
 		);
 	}
@@ -867,8 +865,7 @@ export class WebSocketProgramAccountsSubscriberV2<T>
 		if (this.missedChangeDetected) {
 			if (this.resubOpts?.logResubMessages) {
 				console.log(
-					`[${this.subscriptionName}] Missed change detected for ${
-						this.accountsWithMissedUpdates.size
+					`[${this.subscriptionName}] Missed change detected for ${this.accountsWithMissedUpdates.size
 					} accounts: ${Array.from(this.accountsWithMissedUpdates).join(
 						', '
 					)}, resubscribing`

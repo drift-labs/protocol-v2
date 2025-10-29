@@ -20,17 +20,17 @@ export type ConstituentMapConfig = {
 	driftClient: DriftClient;
 	connection?: Connection;
 	subscriptionConfig:
-		| {
-				type: 'polling';
-				frequency: number;
-				commitment?: Commitment;
-		  }
-		| {
-				type: 'websocket';
-				resubTimeoutMs?: number;
-				logResubMessages?: boolean;
-				commitment?: Commitment;
-		  };
+	| {
+		type: 'polling';
+		frequency: number;
+		commitment?: Commitment;
+	}
+	| {
+		type: 'websocket';
+		resubTimeoutMs?: number;
+		logResubMessages?: boolean;
+		commitment?: Commitment;
+	};
 	lpPoolId?: number;
 	// potentially use these to filter Constituent accounts
 	additionalFilters?: MemcmpFilter[];

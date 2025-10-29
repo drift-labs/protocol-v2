@@ -372,8 +372,8 @@ export class DriftClient {
 		this.authoritySubAccountMap = config.authoritySubAccountMap
 			? config.authoritySubAccountMap
 			: config.subAccountIds
-			? new Map([[this.authority.toString(), config.subAccountIds]])
-			: new Map<string, number[]>();
+				? new Map([[this.authority.toString(), config.subAccountIds]])
+				: new Map<string, number[]>();
 
 		this.includeDelegates = config.includeDelegates ?? false;
 		if (config.accountSubscription?.type === 'polling') {
@@ -406,8 +406,6 @@ export class DriftClient {
 				resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
 				logResubMessages: config.accountSubscription?.logResubMessages,
 				commitment: config.accountSubscription?.commitment,
-				programUserAccountSubscriber:
-					config.accountSubscription?.programUserAccountSubscriber,
 			};
 			this.userStatsAccountSubscriptionConfig = {
 				type: 'websocket',
@@ -476,10 +474,7 @@ export class DriftClient {
 				}
 			);
 		} else {
-			const accountSubscriberClass =
-				config.accountSubscription?.driftClientAccountSubscriber ??
-				WebSocketDriftClientAccountSubscriber;
-			this.accountSubscriber = new accountSubscriberClass(
+			this.accountSubscriber = new WebSocketDriftClientAccountSubscriber(
 				this.program,
 				config.perpMarketIndexes ?? [],
 				config.spotMarketIndexes ?? [],
@@ -863,8 +858,8 @@ export class DriftClient {
 		this.authoritySubAccountMap = authoritySubaccountMap
 			? authoritySubaccountMap
 			: subAccountIds
-			? new Map([[this.authority.toString(), subAccountIds]])
-			: new Map<string, number[]>();
+				? new Map([[this.authority.toString(), subAccountIds]])
+				: new Map<string, number[]>();
 
 		/* Reset user stats account */
 		if (this.userStats?.isSubscribed) {
@@ -1016,7 +1011,7 @@ export class DriftClient {
 					[...this.authoritySubAccountMap.values()][0][0] ?? 0,
 					new PublicKey(
 						[...this.authoritySubAccountMap.keys()][0] ??
-							this.authority.toString()
+						this.authority.toString()
 					)
 				);
 			}
@@ -2460,6 +2455,15 @@ export class DriftClient {
 		return this.getTokenAmount(QUOTE_SPOT_MARKET_INDEX);
 	}
 
+	public getIsolatedPerpPositionTokenAmount(
+		perpMarketIndex: number,
+		subAccountId?: number
+	): BN {
+		return this.getUser(subAccountId).getIsolatePerpPositionTokenAmount(
+			perpMarketIndex
+		);
+	}
+
 	/**
 	 * Returns the token amount for a given market. The spot market precision is based on the token mint decimals.
 	 * Positive if it is a deposit, negative if it is a borrow.
@@ -3337,19 +3341,19 @@ export class DriftClient {
 
 		const depositCollateralIx = isFromSubaccount
 			? await this.getTransferDepositIx(
-					amount,
-					marketIndex,
-					fromSubAccountId,
-					subAccountId
-			  )
+				amount,
+				marketIndex,
+				fromSubAccountId,
+				subAccountId
+			)
 			: await this.getDepositInstruction(
-					amount,
-					marketIndex,
-					userTokenAccount,
-					subAccountId,
-					false,
-					false
-			  );
+				amount,
+				marketIndex,
+				userTokenAccount,
+				subAccountId,
+				false,
+				false
+			);
 
 		if (subAccountId === 0) {
 			if (
@@ -4059,6 +4063,191 @@ export class DriftClient {
 		);
 	}
 
+	async depositIntoIsolatedPerpPosition(
+		amount: BN,
+		perpMarketIndex: number,
+		userTokenAccount: PublicKey,
+		subAccountId?: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getDepositIntoIsolatedPerpPositionIx(
+					amount,
+					perpMarketIndex,
+					userTokenAccount,
+					subAccountId
+				),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	async getDepositIntoIsolatedPerpPositionIx(
+		amount: BN,
+		perpMarketIndex: number,
+		userTokenAccount: PublicKey,
+		subAccountId?: number
+	): Promise<TransactionInstruction> {
+		const userAccountPublicKey = await getUserAccountPublicKey(
+			this.program.programId,
+			this.authority,
+			subAccountId ?? this.activeSubAccountId
+		);
+
+		const perpMarketAccount = this.getPerpMarketAccount(perpMarketIndex);
+		const spotMarketIndex = perpMarketAccount.quoteSpotMarketIndex;
+		const spotMarketAccount = this.getSpotMarketAccount(spotMarketIndex);
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [],
+			writableSpotMarketIndexes: [spotMarketIndex],
+			readablePerpMarketIndex: [perpMarketIndex],
+		});
+
+		const tokenProgram = this.getTokenProgramForSpotMarket(spotMarketAccount);
+		return await this.program.instruction.depositIntoIsolatedPerpPosition(
+			spotMarketIndex,
+			perpMarketIndex,
+			amount,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					spotMarketVault: spotMarketAccount.vault,
+					user: userAccountPublicKey,
+					userStats: this.getUserStatsAccountPublicKey(),
+					userTokenAccount: userTokenAccount,
+					authority: this.wallet.publicKey,
+					tokenProgram,
+				},
+				remainingAccounts,
+			}
+		);
+	}
+
+	public async transferIsolatedPerpPositionDeposit(
+		amount: BN,
+		perpMarketIndex: number,
+		subAccountId?: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getTransferIsolatedPerpPositionDepositIx(
+					amount,
+					perpMarketIndex,
+					subAccountId
+				),
+				txParams
+			),
+			[],
+			this.opts
+		);
+		return txSig;
+	}
+
+	public async getTransferIsolatedPerpPositionDepositIx(
+		amount: BN,
+		perpMarketIndex: number,
+		subAccountId?: number
+	): Promise<TransactionInstruction> {
+		const userAccountPublicKey = await getUserAccountPublicKey(
+			this.program.programId,
+			this.authority,
+			subAccountId ?? this.activeSubAccountId
+		);
+
+		const perpMarketAccount = this.getPerpMarketAccount(perpMarketIndex);
+		const spotMarketIndex = perpMarketAccount.quoteSpotMarketIndex;
+		const spotMarketAccount = this.getSpotMarketAccount(spotMarketIndex);
+		const user = await this.getUserAccount(subAccountId);
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [user],
+			writableSpotMarketIndexes: [spotMarketIndex],
+			readablePerpMarketIndex: [perpMarketIndex],
+		});
+
+		return await this.program.instruction.transferIsolatedPerpPositionDeposit(
+			spotMarketIndex,
+			perpMarketIndex,
+			amount,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					spotMarketVault: spotMarketAccount.vault,
+					user: userAccountPublicKey,
+					userStats: this.getUserStatsAccountPublicKey(),
+					authority: this.wallet.publicKey,
+				},
+				remainingAccounts,
+			}
+		);
+	}
+
+	public async withdrawFromIsolatedPerpPosition(
+		amount: BN,
+		perpMarketIndex: number,
+		userTokenAccount: PublicKey,
+		subAccountId?: number,
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			await this.buildTransaction(
+				await this.getWithdrawFromIsolatedPerpPositionIx(
+					amount,
+					perpMarketIndex,
+					userTokenAccount,
+					subAccountId
+				),
+				txParams
+			)
+		);
+		return txSig;
+	}
+
+	public async getWithdrawFromIsolatedPerpPositionIx(
+		amount: BN,
+		perpMarketIndex: number,
+		userTokenAccount: PublicKey,
+		subAccountId?: number
+	): Promise<TransactionInstruction> {
+		const userAccountPublicKey = await getUserAccountPublicKey(
+			this.program.programId,
+			this.authority,
+			subAccountId ?? this.activeSubAccountId
+		);
+		const perpMarketAccount = this.getPerpMarketAccount(perpMarketIndex);
+		const spotMarketIndex = perpMarketAccount.quoteSpotMarketIndex;
+		const spotMarketAccount = this.getSpotMarketAccount(spotMarketIndex);
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [this.getUserAccount(subAccountId)],
+			writableSpotMarketIndexes: [spotMarketIndex],
+			readablePerpMarketIndex: [perpMarketIndex],
+		});
+
+		return await this.program.instruction.withdrawFromIsolatedPerpPosition(
+			spotMarketIndex,
+			perpMarketIndex,
+			amount,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					spotMarketVault: spotMarketAccount.vault,
+					user: userAccountPublicKey,
+					userStats: this.getUserStatsAccountPublicKey(),
+					authority: this.wallet.publicKey,
+					userTokenAccount: userTokenAccount,
+					tokenProgram: this.getTokenProgramForSpotMarket(spotMarketAccount),
+					driftSigner: this.getSignerPublicKey(),
+				},
+				remainingAccounts,
+			}
+		);
+	}
+
 	public async updateSpotMarketCumulativeInterest(
 		marketIndex: number,
 		txParams?: TxParams
@@ -4389,14 +4578,14 @@ export class DriftClient {
 
 		const marketOrderTxIxs = positionMaxLev
 			? this.getPlaceOrdersAndSetPositionMaxLevIx(
-					[orderParams, ...bracketOrdersParams],
-					positionMaxLev,
-					userAccount.subAccountId
-			  )
+				[orderParams, ...bracketOrdersParams],
+				positionMaxLev,
+				userAccount.subAccountId
+			)
 			: this.getPlaceOrdersIx(
-					[orderParams, ...bracketOrdersParams],
-					userAccount.subAccountId
-			  );
+				[orderParams, ...bracketOrdersParams],
+				userAccount.subAccountId
+			);
 
 		ixPromisesForTxs.marketOrderTx = marketOrderTxIxs;
 
@@ -4544,10 +4733,10 @@ export class DriftClient {
 
 		const user = isDepositToTradeTx
 			? getUserAccountPublicKeySync(
-					this.program.programId,
-					this.authority,
-					subAccountId
-			  )
+				this.program.programId,
+				this.authority,
+				subAccountId
+			)
 			: await this.getUserAccountPublicKey(subAccountId);
 
 		const remainingAccounts = this.getRemainingAccounts({
@@ -5184,14 +5373,14 @@ export class DriftClient {
 		const marketIndex = order
 			? order.marketIndex
 			: userAccount.orders.find(
-					(order) => order.orderId === userAccount.nextOrderId - 1
-			  ).marketIndex;
+				(order) => order.orderId === userAccount.nextOrderId - 1
+			).marketIndex;
 
 		makerInfo = Array.isArray(makerInfo)
 			? makerInfo
 			: makerInfo
-			? [makerInfo]
-			: [];
+				? [makerInfo]
+				: [];
 
 		const userAccounts = [userAccount];
 		for (const maker of makerInfo) {
@@ -5407,14 +5596,14 @@ export class DriftClient {
 		const marketIndex = order
 			? order.marketIndex
 			: userAccount.orders.find(
-					(order) => order.orderId === userAccount.nextOrderId - 1
-			  ).marketIndex;
+				(order) => order.orderId === userAccount.nextOrderId - 1
+			).marketIndex;
 
 		makerInfo = Array.isArray(makerInfo)
 			? makerInfo
 			: makerInfo
-			? [makerInfo]
-			: [];
+				? [makerInfo]
+				: [];
 
 		const userAccounts = [userAccount];
 		for (const maker of makerInfo) {
@@ -7041,8 +7230,8 @@ export class DriftClient {
 		makerInfo = Array.isArray(makerInfo)
 			? makerInfo
 			: makerInfo
-			? [makerInfo]
-			: [];
+				? [makerInfo]
+				: [];
 
 		const userAccounts = [this.getUserAccount(subAccountId)];
 		for (const maker of makerInfo) {
@@ -7291,13 +7480,13 @@ export class DriftClient {
 			prefix,
 			delegateSigner
 				? this.program.coder.types.encode(
-						'SignedMsgOrderParamsDelegateMessage',
-						withBuilderDefaults as SignedMsgOrderParamsDelegateMessage
-				  )
+					'SignedMsgOrderParamsDelegateMessage',
+					withBuilderDefaults as SignedMsgOrderParamsDelegateMessage
+				)
 				: this.program.coder.types.encode(
-						'SignedMsgOrderParamsMessage',
-						withBuilderDefaults as SignedMsgOrderParamsMessage
-				  ),
+					'SignedMsgOrderParamsMessage',
+					withBuilderDefaults as SignedMsgOrderParamsMessage
+				),
 		]);
 		return buf;
 	}
@@ -7385,17 +7574,13 @@ export class DriftClient {
 			isDelegateSigner
 		);
 
-		const writableSpotMarketIndexes = signedMessage.isolatedPositionDeposit?.gt(
-			ZERO
-		)
-			? [QUOTE_SPOT_MARKET_INDEX]
-			: undefined;
-
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [takerInfo.takerUserAccount],
 			useMarketLastSlotCache: false,
 			readablePerpMarketIndex: marketIndex,
-			writableSpotMarketIndexes,
+			writableSpotMarketIndexes: signedMessage.isolatedPositionDeposit?.gt(new BN(0))
+				? [QUOTE_SPOT_MARKET_INDEX]
+				: undefined,
 		});
 
 		if (isUpdateHighLeverageMode(signedMessage.signedMsgOrderParams.bitFlags)) {
@@ -11029,8 +11214,8 @@ export class DriftClient {
 	): Promise<TransactionInstruction> {
 		const remainingAccounts = userAccount
 			? this.getRemainingAccounts({
-					userAccounts: [userAccount],
-			  })
+				userAccounts: [userAccount],
+			})
 			: undefined;
 
 		const ix = await this.program.instruction.disableUserHighLeverageMode(
