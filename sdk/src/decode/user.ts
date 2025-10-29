@@ -85,7 +85,10 @@ export function decodeUser(buffer: Buffer): UserAccount {
 		const lpShares = readUnsignedBigInt64LE(buffer, offset + 64);
 		const openOrders = buffer.readUInt8(offset + 94);
 		const positionFlag = buffer.readUInt8(offset + 95);
-		const isolatedPositionScaledBalance = readUnsignedBigInt64LE(buffer, offset + 96);
+		const isolatedPositionScaledBalance = readUnsignedBigInt64LE(
+			buffer,
+			offset + 96
+		);
 
 		if (
 			baseAssetAmount.eq(ZERO) &&
