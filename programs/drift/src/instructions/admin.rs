@@ -1166,6 +1166,11 @@ pub fn handle_resize_amm_cache(ctx: Context<ResizeAmmCache>) -> Result<()> {
     Ok(())
 }
 
+pub fn handle_delete_amm_cache(_ctx: Context<DeleteAmmCache>) -> Result<()> {
+    msg!("deleted amm cache");
+    Ok(())
+}
+
 #[access_control(
     perp_market_valid(&ctx.accounts.perp_market)
 )]
@@ -5560,6 +5565,23 @@ pub struct ResizeAmmCache<'info> {
     pub amm_cache: Box<Account<'info, AmmCache>>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct DeleteAmmCache<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        seeds = [AMM_POSITIONS_CACHE.as_ref()],
+        bump,
+        close = admin,
+    )]
+    pub amm_cache: Box<Account<'info, AmmCache>>,
 }
 
 #[derive(Accounts)]
