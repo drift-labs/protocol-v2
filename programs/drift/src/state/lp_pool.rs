@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::f32::consts::E;
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;

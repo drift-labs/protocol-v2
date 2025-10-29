@@ -171,6 +171,8 @@ describe('LP Pool', () => {
 
 		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 200);
 
+		await adminClient.initializeAmmCache();
+
 		adminClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
 			wallet: new anchor.Wallet(keypair),

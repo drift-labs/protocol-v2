@@ -22,6 +22,9 @@ import { WebSocketAccountSubscriberV2 } from './accounts/webSocketAccountSubscri
 import { grpcDriftClientAccountSubscriberV2 } from './accounts/grpcDriftClientAccountSubscriberV2';
 import { grpcDriftClientAccountSubscriber } from './accounts/grpcDriftClientAccountSubscriber';
 import { grpcMultiUserAccountSubscriber } from './accounts/grpcMultiUserAccountSubscriber';
+import { WebSocketProgramAccountSubscriber } from './accounts/webSocketProgramAccountSubscriber';
+import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDriftClientAccountSubscriber';
+import { WebSocketDriftClientAccountSubscriberV2 } from './accounts/webSocketDriftClientAccountSubscriberV2';
 
 export type DriftClientConfig = {
 	connection: Connection;
@@ -56,46 +59,46 @@ export type DriftClientConfig = {
 
 export type DriftClientSubscriptionConfig =
 	| {
-			type: 'grpc';
-			grpcConfigs: GrpcConfigs;
-			resubTimeoutMs?: number;
-			logResubMessages?: boolean;
-			driftClientAccountSubscriber?: new (
-				grpcConfigs: GrpcConfigs,
-				program: Program,
-				perpMarketIndexes: number[],
-				spotMarketIndexes: number[],
-				oracleInfos: OracleInfo[],
-				shouldFindAllMarketsAndOracles: boolean,
-				delistedMarketSetting: DelistedMarketSetting
-			) =>
-				| grpcDriftClientAccountSubscriberV2
-				| grpcDriftClientAccountSubscriber;
-			grpcMultiUserAccountSubscriber?: grpcMultiUserAccountSubscriber;
-	  }
+		type: 'grpc';
+		grpcConfigs: GrpcConfigs;
+		resubTimeoutMs?: number;
+		logResubMessages?: boolean;
+		driftClientAccountSubscriber?: new (
+			grpcConfigs: GrpcConfigs,
+			program: Program,
+			perpMarketIndexes: number[],
+			spotMarketIndexes: number[],
+			oracleInfos: OracleInfo[],
+			shouldFindAllMarketsAndOracles: boolean,
+			delistedMarketSetting: DelistedMarketSetting
+		) =>
+			| grpcDriftClientAccountSubscriberV2
+			| grpcDriftClientAccountSubscriber;
+		grpcMultiUserAccountSubscriber?: grpcMultiUserAccountSubscriber;
+	}
 	| {
-			type: 'websocket';
-			resubTimeoutMs?: number;
-			logResubMessages?: boolean;
-			commitment?: Commitment;
-			perpMarketAccountSubscriber?: new (
-				accountName: string,
-				program: Program,
-				accountPublicKey: PublicKey,
-				decodeBuffer?: (buffer: Buffer) => any,
-				resubOpts?: ResubOpts,
-				commitment?: Commitment
-			) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>;
-			oracleAccountSubscriber?: new (
-				accountName: string,
-				program: Program,
-				accountPublicKey: PublicKey,
-				decodeBuffer?: (buffer: Buffer) => any,
-				resubOpts?: ResubOpts,
-				commitment?: Commitment
-			) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>;
-	  }
+		type: 'websocket';
+		resubTimeoutMs?: number;
+		logResubMessages?: boolean;
+		commitment?: Commitment;
+		perpMarketAccountSubscriber?: new (
+			accountName: string,
+			program: Program,
+			accountPublicKey: PublicKey,
+			decodeBuffer?: (buffer: Buffer) => any,
+			resubOpts?: ResubOpts,
+			commitment?: Commitment
+		) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>;
+		/** If you use V2 here, whatever you pass for perpMarketAccountSubscriber will be ignored and it will use v2 under the hood regardless */
+		driftClientAccountSubscriber?: new (
+			program: Program,
+			accountPublicKey: PublicKey,
+			decodeBuffer?: (buffer: Buffer) => any,
+			resubOpts?: ResubOpts,
+			commitment?: Commitment
+		) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>;
+	}
 	| {
-			type: 'polling';
-			accountLoader: BulkAccountLoader;
-	  };
+		type: 'polling';
+		accountLoader: BulkAccountLoader;
+	};

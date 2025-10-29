@@ -175,15 +175,19 @@ impl HasLen for AmmCacheFixed {
 }
 
 impl AmmCache {
+    pub fn init_space() -> usize {
+        8 + 8 + 4
+    }
+
     pub fn space(num_markets: usize) -> usize {
         8 + 8 + 4 + num_markets * CacheInfo::SIZE
     }
 
     pub fn validate(&self, state: &State) -> DriftResult<()> {
         validate!(
-            self.cache.len() == state.number_of_markets as usize,
+            self.cache.len() <= state.number_of_markets as usize,
             ErrorCode::DefaultError,
-            "Number of amm positions is different than number of markets"
+            "Number of amm positions is no larger than number of markets"
         )?;
         Ok(())
     }

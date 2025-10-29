@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.145.0] - 2025-10-28
+
+### Features
+
+- dlp ([#1885](https://github.com/drift-labs/protocol-v2/pull/1885))
+
+### Fixes
+
+### Breaking
+
 ## [2.144.0] - 2025-10-27
 
 ### Features
