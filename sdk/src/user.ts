@@ -338,6 +338,8 @@ export class User {
 			lastQuoteAssetAmountPerLp: ZERO,
 			perLpBase: 0,
 			maxMarginRatio: 0,
+			isolatedPositionScaledBalance: ZERO,
+			positionFlag: 0,
 		};
 	}
 
