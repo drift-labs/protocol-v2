@@ -1385,7 +1385,7 @@ fn check_fee_collection_larger_nums() {
 
 #[test]
 fn test_multi_stage_borrow_rate_curve() {
-    let mut spot_market = SpotMarket {
+    let spot_market = SpotMarket {
         market_index: 0,
         oracle_source: OracleSource::QuoteAsset,
         cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
@@ -1455,7 +1455,7 @@ fn test_multi_stage_borrow_rate_curve_sol() {
 
     let spot_market_loader: AccountLoader<SpotMarket> =
         AccountLoader::try_from(&sol_market_account_info).unwrap();
-    let mut spot_market = spot_market_loader.load_mut().unwrap();
+    let spot_market = spot_market_loader.load_mut().unwrap();
 
     // Store all rates to verify monotonicity and smoothness later
     let mut last_rate = 0_u128;

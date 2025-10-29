@@ -1,4 +1,4 @@
-import { MemcmpFilter } from '@solana/web3.js';
+import { MemcmpFilter, PublicKey } from '@solana/web3.js';
 import bs58 from 'bs58';
 import { BorshAccountsCoder } from '@coral-xyz/anchor';
 import { encodeName } from './userName';
@@ -137,6 +137,28 @@ export function getRevenueShareEscrowFilter(): MemcmpFilter {
 			bytes: bs58.encode(
 				BorshAccountsCoder.accountDiscriminator('RevenueShareEscrow')
 			),
+		},
+	};
+}
+
+export function getConstituentFilter(): MemcmpFilter {
+	return {
+		memcmp: {
+			offset: 0,
+			bytes: bs58.encode(
+				BorshAccountsCoder.accountDiscriminator('Constituent')
+			),
+		},
+	};
+}
+
+export function getConstituentLpPoolFilter(
+	lpPoolPublicKey: PublicKey
+): MemcmpFilter {
+	return {
+		memcmp: {
+			offset: 72,
+			bytes: lpPoolPublicKey.toBase58(),
 		},
 	};
 }

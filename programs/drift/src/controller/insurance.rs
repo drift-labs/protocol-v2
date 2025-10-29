@@ -14,9 +14,9 @@ use crate::error::ErrorCode;
 use crate::math::amm::calculate_net_user_pnl;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT,
+    FUEL_START_TS, GOV_SPOT_MARKET_INDEX, MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT,
     MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT_GOV, ONE_YEAR, PERCENTAGE_PRECISION,
-    SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_DENOMINATOR,
+    QUOTE_SPOT_MARKET_INDEX, SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_DENOMINATOR,
     SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_NUMERATOR,
 };
 use crate::math::fuel::calculate_insurance_fuel_bonus;
@@ -40,7 +40,7 @@ use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::state::State;
 use crate::state::user::UserStats;
-use crate::{emit, validate, FUEL_START_TS, GOV_SPOT_MARKET_INDEX, QUOTE_SPOT_MARKET_INDEX};
+use crate::{emit, validate};
 
 #[cfg(test)]
 mod tests;

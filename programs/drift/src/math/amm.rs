@@ -10,8 +10,8 @@ use crate::math::casting::Cast;
 use crate::math::constants::{
     BID_ASK_SPREAD_PRECISION_I128, CONCENTRATION_PRECISION,
     DEFAULT_MAX_TWAP_UPDATE_PRICE_BAND_DENOMINATOR, FIVE_MINUTE, ONE_HOUR, ONE_MINUTE,
-    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128,
-    PRICE_TO_PEG_PRECISION_RATIO,
+    PERCENTAGE_PRECISION_U64, PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO,
+    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128, PRICE_TO_PEG_PRECISION_RATIO,
 };
 use crate::math::orders::standardize_base_asset_amount;
 use crate::math::quote_asset::reserve_to_asset_amount;
@@ -19,7 +19,7 @@ use crate::math::stats::{calculate_new_twap, calculate_rolling_sum, calculate_we
 use crate::state::oracle::{MMOraclePriceData, OraclePriceData};
 use crate::state::perp_market::AMM;
 use crate::state::state::PriceDivergenceGuardRails;
-use crate::{validate, PERCENTAGE_PRECISION_U64};
+use crate::validate;
 
 use super::helpers::get_proportion_u128;
 use crate::math::safe_math::SafeMath;
