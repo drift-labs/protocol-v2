@@ -360,7 +360,7 @@ export class User {
 			return ZERO;
 		}
 		return getTokenAmount(
-			perpPosition.isolatedPositionScaledBalance,
+			perpPosition.isolatedPositionScaledBalance ?? ZERO, //TODO remove ? later
 			spotMarket,
 			SpotBalanceType.DEPOSIT
 		);
@@ -655,7 +655,7 @@ export class User {
 				!pos.baseAssetAmount.eq(ZERO) ||
 				!pos.quoteAssetAmount.eq(ZERO) ||
 				!(pos.openOrders == 0) ||
-				pos.isolatedPositionScaledBalance.gt(ZERO)
+				pos.isolatedPositionScaledBalance?.gt(ZERO)
 		);
 	}
 
@@ -1654,7 +1654,7 @@ export class User {
 			);
 
 			const spotAssetValue = getStrictTokenValue(
-				perpPosition.isolatedPositionScaledBalance,
+				perpPosition.isolatedPositionScaledBalance ?? ZERO, //TODO remove ? later
 				quoteSpotMarket.decimals,
 				strictOracle
 			);
@@ -4372,7 +4372,8 @@ export class User {
 			if (isIsolated) {
 				// derive isolated quote deposit value, mirroring on-chain logic
 				let depositValue = ZERO;
-				if (marketPosition.isolatedPositionScaledBalance.gt(ZERO)) {
+				// TODO this field(isolatedPositionScaledBalance) should not be undefined in the future, remove ? later
+				if (marketPosition.isolatedPositionScaledBalance?.gt(ZERO)) {
 					const quoteSpotMarket = this.driftClient.getSpotMarketAccount(
 						market.quoteSpotMarketIndex
 					);
@@ -4386,7 +4387,7 @@ export class User {
 							: undefined
 					);
 					const quoteTokenAmount = getTokenAmount(
-						marketPosition.isolatedPositionScaledBalance,
+						marketPosition.isolatedPositionScaledBalance ?? ZERO, //TODO remove ? later
 						quoteSpotMarket,
 						SpotBalanceType.DEPOSIT
 					);
