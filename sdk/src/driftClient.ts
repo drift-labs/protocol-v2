@@ -406,6 +406,8 @@ export class DriftClient {
 				resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
 				logResubMessages: config.accountSubscription?.logResubMessages,
 				commitment: config.accountSubscription?.commitment,
+				programUserAccountSubscriber:
+					config.accountSubscription?.programUserAccountSubscriber,
 			};
 			this.userStatsAccountSubscriptionConfig = {
 				type: 'websocket',
@@ -474,7 +476,10 @@ export class DriftClient {
 				}
 			);
 		} else {
-			this.accountSubscriber = new WebSocketDriftClientAccountSubscriber(
+			const accountSubscriberClass =
+				config.accountSubscription?.driftClientAccountSubscriber ??
+				WebSocketDriftClientAccountSubscriber;
+			this.accountSubscriber = new accountSubscriberClass(
 				this.program,
 				config.perpMarketIndexes ?? [],
 				config.spotMarketIndexes ?? [],
@@ -485,9 +490,7 @@ export class DriftClient {
 					resubTimeoutMs: config.accountSubscription?.resubTimeoutMs,
 					logResubMessages: config.accountSubscription?.logResubMessages,
 				},
-				config.accountSubscription?.commitment,
-				config.accountSubscription?.perpMarketAccountSubscriber,
-				config.accountSubscription?.oracleAccountSubscriber
+				config.accountSubscription?.commitment
 			);
 		}
 		this.eventEmitter = this.accountSubscriber.eventEmitter;
