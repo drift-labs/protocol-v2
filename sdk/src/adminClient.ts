@@ -507,6 +507,12 @@ export class AdminClient extends DriftClient {
 	): Promise<TransactionSignature> {
 		const currentPerpMarketIndex = this.getStateAccount().numberOfMarkets;
 
+		const ammCachePublicKey = getAmmCachePublicKey(this.program.programId);
+		const ammCacheAccount = await this.connection.getAccountInfo(
+			ammCachePublicKey
+		);
+		const mustInitializeAmmCache = ammCacheAccount?.data == null;
+
 		const initializeMarketIxs = await this.getInitializePerpMarketIx(
 			marketIndex,
 			priceOracle,
@@ -534,7 +540,8 @@ export class AdminClient extends DriftClient {
 			curveUpdateIntensity,
 			ammJitIntensity,
 			name,
-			lpPoolId
+			lpPoolId,
+			mustInitializeAmmCache
 		);
 		const tx = await this.buildTransaction(initializeMarketIxs);
 
@@ -581,7 +588,8 @@ export class AdminClient extends DriftClient {
 		curveUpdateIntensity = 0,
 		ammJitIntensity = 0,
 		name = DEFAULT_MARKET_NAME,
-		lpPoolId: number = 0
+		lpPoolId: number = 0,
+		includeInitAmmCacheIx = false
 	): Promise<TransactionInstruction[]> {
 		const perpMarketPublicKey = await getPerpMarketPublicKey(
 			this.program.programId,
@@ -589,6 +597,10 @@ export class AdminClient extends DriftClient {
 		);
 
 		const ixs: TransactionInstruction[] = [];
+
+		if (includeInitAmmCacheIx) {
+			ixs.push(await this.getInitializeAmmCacheIx());
+		}
 
 		const nameBuffer = encodeName(name);
 		const initPerpIx = await this.program.instruction.initializePerpMarket(
