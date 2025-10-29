@@ -9,7 +9,7 @@ use anchor_spl::token_2022::spl_token_2022::extension::{
 };
 use anchor_spl::token_2022::spl_token_2022::state::Mint as MintInner;
 use anchor_spl::token_interface::{
-    self, CloseAccount, Mint, TokenAccount, TokenInterface, Transfer, TransferChecked,
+    self, Burn, CloseAccount, Mint, MintTo, TokenAccount, TokenInterface, Transfer, TransferChecked,
 };
 use std::iter::Peekable;
 use std::slice::Iter;
@@ -25,7 +25,31 @@ pub fn send_from_program_vault<'info>(
     remaining_accounts: Option<&mut Peekable<Iter<'info, AccountInfo<'info>>>>,
 ) -> Result<()> {
     let signature_seeds = get_signer_seeds(&nonce);
-    let signers = &[&signature_seeds[..]];
+
+    send_from_program_vault_with_signature_seeds(
+        token_program,
+        from,
+        to,
+        authority,
+        &signature_seeds,
+        amount,
+        mint,
+        remaining_accounts,
+    )
+}
+
+#[inline]
+pub fn send_from_program_vault_with_signature_seeds<'info>(
+    token_program: &Interface<'info, TokenInterface>,
+    from: &InterfaceAccount<'info, TokenAccount>,
+    to: &InterfaceAccount<'info, TokenAccount>,
+    authority: &AccountInfo<'info>,
+    signature_seeds: &[&[u8]],
+    amount: u64,
+    mint: &Option<InterfaceAccount<'info, Mint>>,
+    remaining_accounts: Option<&mut Peekable<Iter<'info, AccountInfo<'info>>>>,
+) -> Result<()> {
+    let signers = &[signature_seeds];
 
     if let Some(mint) = mint {
         if let Some(remaining_accounts) = remaining_accounts {
@@ -135,6 +159,56 @@ pub fn close_vault<'info>(
     let cpi_program = token_program.to_account_info();
     let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signers);
     token_interface::close_account(cpi_context)
+}
+
+pub fn mint_tokens<'info>(
+    token_program: &Interface<'info, TokenInterface>,
+    destination: &InterfaceAccount<'info, TokenAccount>,
+    authority: &AccountInfo<'info>,
+    signature_seeds: &[&[u8]],
+    amount: u64,
+    mint: &InterfaceAccount<'info, Mint>,
+) -> Result<()> {
+    let signers = &[signature_seeds];
+
+    let mint_account_info = mint.to_account_info();
+
+    validate_mint_fee(&mint_account_info)?;
+
+    let cpi_accounts = MintTo {
+        mint: mint_account_info,
+        to: destination.to_account_info(),
+        authority: authority.to_account_info(),
+    };
+
+    let cpi_program = token_program.to_account_info();
+    let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signers);
+    token_interface::mint_to(cpi_context, amount)
+}
+
+pub fn burn_tokens<'info>(
+    token_program: &Interface<'info, TokenInterface>,
+    destination: &InterfaceAccount<'info, TokenAccount>,
+    authority: &AccountInfo<'info>,
+    signature_seeds: &[&[u8]],
+    amount: u64,
+    mint: &InterfaceAccount<'info, Mint>,
+) -> Result<()> {
+    let signers = &[signature_seeds];
+
+    let mint_account_info = mint.to_account_info();
+
+    validate_mint_fee(&mint_account_info)?;
+
+    let cpi_accounts = Burn {
+        mint: mint_account_info,
+        from: destination.to_account_info(),
+        authority: authority.to_account_info(),
+    };
+
+    let cpi_program = token_program.to_account_info();
+    let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signers);
+    token_interface::burn(cpi_context, amount)
 }
 
 pub fn validate_mint_fee(account_info: &AccountInfo) -> Result<()> {

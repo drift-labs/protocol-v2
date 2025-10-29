@@ -11,6 +11,7 @@ use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::PerpMarket;
 use crate::state::state::{OracleGuardRails, ValidityGuardRails};
 use crate::state::user::MarketType;
+use std::convert::TryFrom;
 use std::fmt;
 
 #[cfg(test)]
@@ -71,6 +72,59 @@ impl fmt::Display for OracleValidity {
     }
 }
 
+impl TryFrom<u8> for OracleValidity {
+    type Error = ErrorCode;
+
+    fn try_from(v: u8) -> DriftResult<Self> {
+        match v {
+            0 => Ok(OracleValidity::NonPositive),
+            1 => Ok(OracleValidity::TooVolatile),
+            2 => Ok(OracleValidity::TooUncertain),
+            3 => Ok(OracleValidity::StaleForMargin),
+            4 => Ok(OracleValidity::InsufficientDataPoints),
+            5 => Ok(OracleValidity::StaleForAMM {
+                immediate: true,
+                low_risk: true,
+            }),
+            6 => Ok(OracleValidity::StaleForAMM {
+                immediate: true,
+                low_risk: false,
+            }),
+            7 => Ok(OracleValidity::Valid),
+            _ => panic!("Invalid OracleValidity"),
+        }
+    }
+}
+
+impl From<OracleValidity> for u8 {
+    fn from(src: OracleValidity) -> u8 {
+        match src {
+            OracleValidity::NonPositive => 0,
+            OracleValidity::TooVolatile => 1,
+            OracleValidity::TooUncertain => 2,
+            OracleValidity::StaleForMargin => 3,
+            OracleValidity::InsufficientDataPoints => 4,
+            OracleValidity::StaleForAMM {
+                immediate: true,
+                low_risk: true,
+            } => 5,
+            OracleValidity::StaleForAMM {
+                immediate: true,
+                low_risk: false,
+            } => 6,
+            OracleValidity::Valid
+            | OracleValidity::StaleForAMM {
+                immediate: false,
+                low_risk: false,
+            } => 7,
+            OracleValidity::StaleForAMM {
+                immediate: false,
+                low_risk: true,
+            } => unreachable!(),
+        }
+    }
+}
+
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum DriftAction {
     UpdateFunding,
@@ -85,6 +139,9 @@ pub enum DriftAction {
     UpdateAMMCurve,
     OracleOrderPrice,
     UseMMOraclePrice,
+    UpdateAmmCache,
+    UpdateLpPoolAum,
+    LpPoolSwap,
 }
 
 pub fn is_oracle_valid_for_action(
@@ -142,7 +199,10 @@ pub fn is_oracle_valid_for_action(
                     | OracleValidity::InsufficientDataPoints
                     | OracleValidity::StaleForMargin
             ),
-            DriftAction::FillOrderMatch => !matches!(
+            DriftAction::FillOrderMatch
+            | DriftAction::UpdateAmmCache
+            | DriftAction::UpdateLpPoolAum
+            | DriftAction::LpPoolSwap => !matches!(
                 oracle_validity,
                 OracleValidity::NonPositive
                     | OracleValidity::TooVolatile

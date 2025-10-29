@@ -7,8 +7,8 @@ fi
 export ANCHOR_WALLET=~/.config/solana/id.json
 
 test_files=(
-	builderCodes.ts
-	# placeAndMakeSignedMsgBankrun.ts
+	lpPool.ts
+	lpPoolSwap.ts
 )
 
 for test_file in ${test_files[@]}; do

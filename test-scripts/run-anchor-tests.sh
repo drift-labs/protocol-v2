@@ -44,6 +44,8 @@ test_files=(
   liquidatePerpPnlForDeposit.ts
   liquidateSpot.ts
   liquidateSpotSocialLoss.ts
+  lpPool.ts
+  lpPoolSwap.ts
   marketOrder.ts
   marketOrderBaseAssetAmount.ts
   maxDeposit.ts

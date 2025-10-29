@@ -7,9 +7,9 @@ use crate::math::constants::{
 use crate::math::oracle::LogMode;
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 
-use crate::MARGIN_PRECISION;
-use crate::{validate, PRICE_PRECISION_I128};
-use crate::{validation, PRICE_PRECISION_I64};
+use crate::math::constants::{MARGIN_PRECISION, PRICE_PRECISION_I128, PRICE_PRECISION_I64};
+use crate::validate;
+use crate::validation;
 
 use crate::math::casting::Cast;
 use crate::math::funding::calculate_funding_payment;
@@ -85,11 +85,11 @@ pub fn calc_high_leverage_mode_initial_margin_ratio_from_size(
 ) -> DriftResult<u32> {
     let result = if size_adj_margin_ratio < pre_size_adj_margin_ratio {
         let size_pct_discount_factor = PERCENTAGE_PRECISION.saturating_sub(
-            (pre_size_adj_margin_ratio
+            pre_size_adj_margin_ratio
                 .cast::<u128>()?
                 .safe_sub(size_adj_margin_ratio.cast::<u128>()?)?
                 .safe_mul(PERCENTAGE_PRECISION)?
-                .safe_div((pre_size_adj_margin_ratio.safe_div(5)?).cast::<u128>()?)?),
+                .safe_div((pre_size_adj_margin_ratio.safe_div(5)?).cast::<u128>()?)?,
         );
 
         let hlm_margin_delta = pre_size_adj_margin_ratio
