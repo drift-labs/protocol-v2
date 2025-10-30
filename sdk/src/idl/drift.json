@@ -13089,6 +13089,12 @@
             "type": {
               "option": "u16"
             }
+          },
+          {
+            "name": "isolatedPositionDeposit",
+            "type": {
+              "option": "u64"
+            }
           }
         ]
       }
@@ -13153,6 +13159,12 @@
             "name": "builderFeeTenthBps",
             "type": {
               "option": "u16"
+            }
+          },
+          {
+            "name": "isolatedPositionDeposit",
+            "type": {
+              "option": "u64"
             }
           }
         ]
