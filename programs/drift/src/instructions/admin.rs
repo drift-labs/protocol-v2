@@ -1135,12 +1135,39 @@ pub fn handle_initialize_perp_market(
 
 pub fn handle_initialize_amm_cache(ctx: Context<InitializeAmmCache>) -> Result<()> {
     let amm_cache = &mut ctx.accounts.amm_cache;
-    let state = &ctx.accounts.state;
-    amm_cache
-        .cache
-        .resize_with(state.number_of_markets as usize, CacheInfo::default);
     amm_cache.bump = ctx.bumps.amm_cache;
 
+    Ok(())
+}
+
+pub fn handle_resize_amm_cache(ctx: Context<ResizeAmmCache>) -> Result<()> {
+    let amm_cache = &mut ctx.accounts.amm_cache;
+    let state = &ctx.accounts.state;
+    let current_size = amm_cache.cache.len();
+    let new_size = (state.number_of_markets as usize).min(current_size + 20_usize);
+
+    msg!(
+        "resizing amm cache from {} entries to {}",
+        current_size,
+        new_size
+    );
+
+    let growth = new_size.saturating_sub(current_size);
+    validate!(
+        growth <= 20,
+        ErrorCode::DefaultError,
+        "cannot grow amm_cache by more than 20 entries in a single resize (requested +{})",
+        growth
+    )?;
+
+    amm_cache.cache.resize_with(new_size, CacheInfo::default);
+    amm_cache.validate(state)?;
+
+    Ok(())
+}
+
+pub fn handle_delete_amm_cache(_ctx: Context<DeleteAmmCache>) -> Result<()> {
+    msg!("deleted amm cache");
     Ok(())
 }
 
@@ -5510,13 +5537,51 @@ pub struct InitializeAmmCache<'info> {
     #[account(
         init,
         seeds = [AMM_POSITIONS_CACHE.as_ref()],
-        space = AmmCache::space(state.number_of_markets as usize),
+        space = AmmCache::init_space(),
         bump,
         payer = admin
     )]
     pub amm_cache: Box<Account<'info, AmmCache>>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct ResizeAmmCache<'info> {
+    #[account(
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        seeds = [AMM_POSITIONS_CACHE.as_ref()],
+        bump,
+        realloc = AmmCache::space(amm_cache.cache.len() + (state.number_of_markets as usize - amm_cache.cache.len()).min(20_usize)),
+        realloc::payer = admin,
+        realloc::zero = false,
+    )]
+    pub amm_cache: Box<Account<'info, AmmCache>>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct DeleteAmmCache<'info> {
+    #[account(mut)]
+    pub admin: Signer<'info>,
+    #[account(
+        has_one = admin
+    )]
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        seeds = [AMM_POSITIONS_CACHE.as_ref()],
+        bump,
+        close = admin,
+    )]
+    pub amm_cache: Box<Account<'info, AmmCache>>,
 }
 
 #[derive(Accounts)]

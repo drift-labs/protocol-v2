@@ -4611,6 +4611,37 @@
       "args": []
     },
     {
+      "name": "resizeAmmCache",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "ammCache",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "rent",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "updateInitialAmmCacheInfo",
       "accounts": [
         {
@@ -13215,12 +13246,6 @@
             "type": {
               "option": "u16"
             }
-          },
-          {
-            "name": "isolatedPositionDeposit",
-            "type": {
-              "option": "u64"
-            }
           }
         ]
       }
@@ -13285,12 +13310,6 @@
             "name": "builderFeeTenthBps",
             "type": {
               "option": "u16"
-            }
-          },
-          {
-            "name": "isolatedPositionDeposit",
-            "type": {
-              "option": "u64"
             }
           }
         ]
@@ -15275,6 +15294,9 @@
           },
           {
             "name": "SafeMMOracle"
+          },
+          {
+            "name": "Margin"
           }
         ]
       }

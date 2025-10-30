@@ -5,7 +5,7 @@ import {
 	PublicKey,
 	TransactionVersion,
 } from '@solana/web3.js';
-import { IWallet, TxParams } from './types';
+import { IWallet, TxParams, UserAccount } from './types';
 import { OracleInfo } from './oracles/types';
 import { BulkAccountLoader } from './accounts/bulkAccountLoader';
 import { DriftEnv } from './config';
@@ -22,6 +22,9 @@ import { WebSocketAccountSubscriberV2 } from './accounts/webSocketAccountSubscri
 import { grpcDriftClientAccountSubscriberV2 } from './accounts/grpcDriftClientAccountSubscriberV2';
 import { grpcDriftClientAccountSubscriber } from './accounts/grpcDriftClientAccountSubscriber';
 import { grpcMultiUserAccountSubscriber } from './accounts/grpcMultiUserAccountSubscriber';
+import { WebSocketProgramAccountSubscriber } from './accounts/webSocketProgramAccountSubscriber';
+import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDriftClientAccountSubscriber';
+import { WebSocketDriftClientAccountSubscriberV2 } from './accounts/webSocketDriftClientAccountSubscriberV2';
 
 export type DriftClientConfig = {
 	connection: Connection;
@@ -78,6 +81,7 @@ export type DriftClientSubscriptionConfig =
 			resubTimeoutMs?: number;
 			logResubMessages?: boolean;
 			commitment?: Commitment;
+			programUserAccountSubscriber?: WebSocketProgramAccountSubscriber<UserAccount>;
 			perpMarketAccountSubscriber?: new (
 				accountName: string,
 				program: Program,
@@ -86,14 +90,17 @@ export type DriftClientSubscriptionConfig =
 				resubOpts?: ResubOpts,
 				commitment?: Commitment
 			) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>;
-			oracleAccountSubscriber?: new (
-				accountName: string,
+			/** If you use V2 here, whatever you pass for perpMarketAccountSubscriber will be ignored and it will use v2 under the hood regardless */
+			driftClientAccountSubscriber?: new (
 				program: Program,
-				accountPublicKey: PublicKey,
-				decodeBuffer?: (buffer: Buffer) => any,
-				resubOpts?: ResubOpts,
-				commitment?: Commitment
-			) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>;
+				perpMarketIndexes: number[],
+				spotMarketIndexes: number[],
+				oracleInfos: OracleInfo[],
+				shouldFindAllMarketsAndOracles: boolean,
+				delistedMarketSetting: DelistedMarketSetting
+			) =>
+				| WebSocketDriftClientAccountSubscriber
+				| WebSocketDriftClientAccountSubscriberV2;
 	  }
 	| {
 			type: 'polling';

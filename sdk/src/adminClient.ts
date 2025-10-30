@@ -507,12 +507,6 @@ export class AdminClient extends DriftClient {
 	): Promise<TransactionSignature> {
 		const currentPerpMarketIndex = this.getStateAccount().numberOfMarkets;
 
-		const ammCachePublicKey = getAmmCachePublicKey(this.program.programId);
-		const ammCacheAccount = await this.connection.getAccountInfo(
-			ammCachePublicKey
-		);
-		const mustInitializeAmmCache = ammCacheAccount?.data == null;
-
 		const initializeMarketIxs = await this.getInitializePerpMarketIx(
 			marketIndex,
 			priceOracle,
@@ -540,7 +534,6 @@ export class AdminClient extends DriftClient {
 			curveUpdateIntensity,
 			ammJitIntensity,
 			name,
-			mustInitializeAmmCache,
 			lpPoolId
 		);
 		const tx = await this.buildTransaction(initializeMarketIxs);
@@ -588,7 +581,6 @@ export class AdminClient extends DriftClient {
 		curveUpdateIntensity = 0,
 		ammJitIntensity = 0,
 		name = DEFAULT_MARKET_NAME,
-		includeInitAmmCacheIx = false,
 		lpPoolId: number = 0
 	): Promise<TransactionInstruction[]> {
 		const perpMarketPublicKey = await getPerpMarketPublicKey(
@@ -597,9 +589,6 @@ export class AdminClient extends DriftClient {
 		);
 
 		const ixs: TransactionInstruction[] = [];
-		if (includeInitAmmCacheIx) {
-			ixs.push(await this.getInitializeAmmCacheIx());
-		}
 
 		const nameBuffer = encodeName(name);
 		const initPerpIx = await this.program.instruction.initializePerpMarket(
@@ -663,12 +652,60 @@ export class AdminClient extends DriftClient {
 		return await this.program.instruction.initializeAmmCache({
 			accounts: {
 				state: await this.getStatePublicKey(),
-				admin: this.isSubscribed
-					? this.getStateAccount().admin
-					: this.wallet.publicKey,
+				admin: this.useHotWalletAdmin
+					? this.wallet.publicKey
+					: this.getStateAccount().admin,
 				ammCache: getAmmCachePublicKey(this.program.programId),
 				rent: SYSVAR_RENT_PUBKEY,
 				systemProgram: anchor.web3.SystemProgram.programId,
+			},
+		});
+	}
+
+	public async resizeAmmCache(
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const initializeAmmCacheIx = await this.getResizeAmmCacheIx();
+
+		const tx = await this.buildTransaction(initializeAmmCacheIx, txParams);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getResizeAmmCacheIx(): Promise<TransactionInstruction> {
+		return await this.program.instruction.resizeAmmCache({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				admin: this.useHotWalletAdmin
+					? this.wallet.publicKey
+					: this.getStateAccount().admin,
+				ammCache: getAmmCachePublicKey(this.program.programId),
+				rent: SYSVAR_RENT_PUBKEY,
+				systemProgram: anchor.web3.SystemProgram.programId,
+			},
+		});
+	}
+
+	public async deleteAmmCache(
+		txParams?: TxParams
+	): Promise<TransactionSignature> {
+		const deleteAmmCacheIx = await this.getDeleteAmmCacheIx();
+
+		const tx = await this.buildTransaction(deleteAmmCacheIx, txParams);
+
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+
+		return txSig;
+	}
+
+	public async getDeleteAmmCacheIx(): Promise<TransactionInstruction> {
+		return await this.program.instruction.deleteAmmCache({
+			accounts: {
+				state: await this.getStatePublicKey(),
+				admin: this.getStateAccount().admin,
+				ammCache: getAmmCachePublicKey(this.program.programId),
 			},
 		});
 	}
@@ -699,9 +736,9 @@ export class AdminClient extends DriftClient {
 		return await this.program.instruction.updateInitialAmmCacheInfo({
 			accounts: {
 				state: await this.getStatePublicKey(),
-				admin: this.isSubscribed
-					? this.getStateAccount().admin
-					: this.wallet.publicKey,
+				admin: this.useHotWalletAdmin
+					? this.wallet.publicKey
+					: this.getStateAccount().admin,
 				ammCache: getAmmCachePublicKey(this.program.programId),
 			},
 			remainingAccounts,
@@ -759,9 +796,9 @@ export class AdminClient extends DriftClient {
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
-					admin: this.isSubscribed
-						? this.getStateAccount().admin
-						: this.wallet.publicKey,
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
 					ammCache: getAmmCachePublicKey(this.program.programId),
 				},
 			}
@@ -783,9 +820,9 @@ export class AdminClient extends DriftClient {
 		return this.program.instruction.resetAmmCache({
 			accounts: {
 				state: await this.getStatePublicKey(),
-				admin: this.isSubscribed
-					? this.getStateAccount().admin
-					: this.wallet.publicKey,
+				admin: this.useHotWalletAdmin
+					? this.wallet.publicKey
+					: this.getStateAccount().admin,
 				ammCache: getAmmCachePublicKey(this.program.programId),
 				systemProgram: anchor.web3.SystemProgram.programId,
 			},
@@ -5508,9 +5545,9 @@ export class AdminClient extends DriftClient {
 			{
 				accounts: {
 					constituent,
-					admin: this.isSubscribed
-						? this.getStateAccount().admin
-						: this.wallet.publicKey,
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
 					state: await this.getStatePublicKey(),
 				},
 			}
@@ -6398,9 +6435,9 @@ export class AdminClient extends DriftClient {
 			lpExchangeFeeExcluscionScalar ?? null,
 			{
 				accounts: {
-					admin: this.isSubscribed
-						? this.getStateAccount().admin
-						: this.wallet.publicKey,
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
 					state: await this.getStatePublicKey(),
 					perpMarket: this.getPerpMarketAccount(marketIndex).pubkey,
 				},
@@ -6429,9 +6466,9 @@ export class AdminClient extends DriftClient {
 			pausedOperations,
 			{
 				accounts: {
-					admin: this.isSubscribed
-						? this.getStateAccount().admin
-						: this.wallet.publicKey,
+					admin: this.useHotWalletAdmin
+						? this.wallet.publicKey
+						: this.getStateAccount().admin,
 					state: await this.getStatePublicKey(),
 					perpMarket: this.getPerpMarketAccount(marketIndex).pubkey,
 				},
