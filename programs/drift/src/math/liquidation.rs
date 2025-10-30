@@ -38,6 +38,7 @@ pub fn calculate_base_asset_amount_to_cover_margin_shortage(
     if_liquidation_fee: u32,
     oracle_price: i64,
     quote_oracle_price: i64,
+    transfer_price_fee: u32,
 ) -> DriftResult<u64> {
     let margin_ratio = margin_ratio.safe_mul(LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO)?;
 
@@ -52,7 +53,12 @@ pub fn calculate_base_asset_amount_to_cover_margin_shortage(
                 .cast::<u128>()?
                 .safe_mul(quote_oracle_price.cast()?)?
                 .safe_div(PRICE_PRECISION)?
-                .safe_mul(margin_ratio.safe_sub(liquidation_fee)?.cast()?)?
+                .safe_mul(
+                    margin_ratio
+                        .safe_sub(liquidation_fee)?
+                        .safe_sub(transfer_price_fee.cast()?)?
+                        .cast()?,
+                )?
                 .safe_div(LIQUIDATION_FEE_PRECISION_U128)?
                 .safe_sub(
                     oracle_price
@@ -369,6 +375,7 @@ pub fn calculate_perp_if_fee(
     oracle_price: i64,
     quote_oracle_price: i64,
     max_if_liquidation_fee: u32,
+    transfer_price_fee: u32,
 ) -> DriftResult<u32> {
     let margin_ratio = margin_ratio.safe_mul(LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO)?;
 
@@ -385,9 +392,10 @@ pub fn calculate_perp_if_fee(
         .safe_mul(quote_oracle_price.cast()?)?
         .safe_div(PRICE_PRECISION)?;
 
-    // margin ratio - liquidator fee - (margin shortage / (user base asset amount * price))
+    // margin ratio - liquidator fee - transfer price fee - (margin shortage / (user base asset amount * price))
     let implied_if_fee = margin_ratio
         .saturating_sub(liquidator_fee)
+        .saturating_sub(transfer_price_fee)
         .saturating_sub(
             margin_shortage
                 .safe_mul(BASE_PRECISION)?
@@ -458,23 +466,23 @@ pub fn get_liquidation_order_params(
     market_index: u16,
     existing_direction: PositionDirection,
     base_asset_amount: u64,
-    oracle_price: i64,
+    transfer_price: u64,
     liquidation_fee: u32,
 ) -> DriftResult<OrderParams> {
     let direction = existing_direction.opposite();
 
-    let oracle_price_u128 = oracle_price.abs().cast::<u128>()?;
+    let transfer_price_u128 = transfer_price.cast::<u128>()?;
     let limit_price = match direction {
-        PositionDirection::Long => oracle_price_u128
+        PositionDirection::Long => transfer_price_u128
             .safe_add(
-                oracle_price_u128
+                transfer_price_u128
                     .safe_mul(liquidation_fee.cast()?)?
                     .safe_div(LIQUIDATION_FEE_PRECISION_U128)?,
             )?
             .cast::<u64>()?,
-        PositionDirection::Short => oracle_price_u128
+        PositionDirection::Short => transfer_price_u128
             .safe_sub(
-                oracle_price_u128
+                transfer_price_u128
                     .safe_mul(liquidation_fee.cast()?)?
                     .safe_div(LIQUIDATION_FEE_PRECISION_U128)?,
             )?
@@ -550,4 +558,15 @@ pub fn validate_swap_within_liquidation_boundaries(
     )?;
 
     Ok(())
+}
+
+pub fn calculate_transfer_price_as_fee(transfer_price: u64, oracle_price: i64) -> DriftResult<u32> {
+    let delta = oracle_price.safe_sub(transfer_price.cast()?)?.abs();
+    let fee = delta
+        .cast::<u128>()?
+        .safe_mul(LIQUIDATION_FEE_PRECISION_U128)?
+        .safe_div(oracle_price.cast::<u128>()?)?
+        .cast::<u32>()
+        .unwrap_or(u32::MAX);
+    Ok(fee)
 }

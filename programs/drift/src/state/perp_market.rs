@@ -780,14 +780,15 @@ impl PerpMarket {
         let last_oracle_price_twap_5min =
             self.amm.historical_oracle_data.last_oracle_price_twap_5min;
 
-        if mark_price_5min_twap > 0 && last_oracle_price_twap_5min > 0 {
-            let basis_5min = mark_price_5min_twap
-                .cast::<i64>()?
-                .safe_sub(last_oracle_price_twap_5min)?;
-            oracle_price.safe_add(basis_5min)?.cast::<u64>()
-        } else {
-            oracle_price.cast::<u64>()
+        if mark_price_5min_twap == 0 || last_oracle_price_twap_5min == 0 {
+            return Ok(oracle_price.cast::<u64>()?);
         }
+
+        let basis_5min = mark_price_5min_twap
+            .cast::<i64>()?
+            .safe_sub(last_oracle_price_twap_5min)?;
+
+        oracle_price.safe_add(basis_5min)?.cast::<u64>()
     }
 
     #[inline(always)]
