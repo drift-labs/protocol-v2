@@ -119,7 +119,10 @@ export class grpcMultiUserAccountSubscriber {
 				this.listeners.set(key, new Set());
 				this.keyToPk.set(key, userAccountPublicKey);
 				this.pendingAddKeys.add(key);
-				this.scheduleFlush();
+				if(this.isMultiSubscribed) {
+					// only schedule flush if already subscribed to the multi-subscriber
+					this.scheduleFlush();
+				};
 			}
 		};
 
