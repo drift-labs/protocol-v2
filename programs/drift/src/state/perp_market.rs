@@ -852,8 +852,13 @@ impl PerpMarket {
         let oracle_plus_basis_5min = self.get_oracle_plus_basis_5min(oracle_price)?;
 
         let oracle_price_abs = oracle_price.unsigned_abs();
+        let take_over_price = if direction == PositionDirection::Long {
+            oracle_plus_basis_5min.min(oracle_price_abs)
+        } else {
+            oracle_plus_basis_5min.max(oracle_price_abs)
+        };
 
-        self.clamp_trigger_price(oracle_price_abs, oracle_plus_basis_5min)
+        self.clamp_trigger_price(oracle_price_abs, take_over_price)
     }
 
     #[inline(always)]
