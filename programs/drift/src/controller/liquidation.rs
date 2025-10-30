@@ -341,7 +341,10 @@ pub fn liquidate_perp(
         slot,
     )?;
 
-    let transfer_price = market.get_liquidation_transfer_price(oracle_price)?;
+    let transfer_price = market.get_liquidation_transfer_price(
+        oracle_price,
+        user.perp_positions[position_index].get_direction(),
+    )?;
     let transfer_price_fee = calculate_transfer_price_as_fee(transfer_price, oracle_price)?;
 
     let if_liquidation_fee = calculate_perp_if_fee(
@@ -956,7 +959,10 @@ pub fn liquidate_perp_with_fill(
         .price;
     let liquidator_fee = market.liquidator_fee;
 
-    let transfer_price = market.get_liquidation_transfer_price(oracle_price)?;
+    let transfer_price = market.get_liquidation_transfer_price(
+        oracle_price,
+        user.perp_positions[position_index].get_direction(),
+    )?;
     let transfer_price_fee = calculate_transfer_price_as_fee(transfer_price, oracle_price)?;
 
     let if_liquidation_fee = calculate_perp_if_fee(
