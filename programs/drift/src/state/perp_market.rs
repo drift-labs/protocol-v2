@@ -847,7 +847,6 @@ impl PerpMarket {
     pub fn get_liquidation_transfer_price(
         &self,
         oracle_price: i64,
-        direction: PositionDirection,
     ) -> DriftResult<u64> {
         let oracle_plus_basis_5min = self.get_oracle_plus_basis_5min(oracle_price)?;
 
