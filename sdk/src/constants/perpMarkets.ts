@@ -1297,8 +1297,6 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracle: new PublicKey('GAzR3C5cn7gGVvuqJB57wSYTPWP3n2Lw4mRJRxvTvqYy'),
 		launchTs: 1747318237000,
 		oracleSource: OracleSource.PYTH_LAZER,
-		pythFeedId:
-			'0x6d74813ee17291d5be18a355fe4d43fd300d625caea6554d49f740e7d112141e',
 	},
 	{
 		fullName: 'PUMP',
