@@ -80,15 +80,6 @@ export class MarginContext {
 		this.marginRatioOverride = ratio;
 		return this;
 	}
-
-	trackMarketMarginRequirement(marketIdentifier: MarketIdentifier): this {
-		if (this.mode.type !== 'Liquidation') {
-			throw new Error(
-				'InvalidMarginCalculation: Cant track market outside of liquidation mode'
-			);
-		}
-		return this;
-	}
 }
 
 export class IsolatedMarginCalculation {

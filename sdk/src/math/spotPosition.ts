@@ -33,7 +33,7 @@ export function getWorstCaseTokenAmounts(
 	spotMarketAccount: SpotMarketAccount,
 	strictOraclePrice: StrictOraclePrice,
 	marginCategory: MarginCategory,
-	customMarginRatio?: number, 
+	customMarginRatio?: number,
 	includeOpenOrders?: boolean
 ): OrderFillSimulation {
 	const tokenAmount = getSignedTokenAmount(
@@ -51,7 +51,10 @@ export function getWorstCaseTokenAmounts(
 		strictOraclePrice
 	);
 
-	if (spotPosition.openBids.eq(ZERO) && spotPosition.openAsks.eq(ZERO) || !includeOpenOrders) {
+	if (
+		(spotPosition.openBids.eq(ZERO) && spotPosition.openAsks.eq(ZERO)) ||
+		!includeOpenOrders
+	) {
 		const { weight, weightedTokenValue } = calculateWeightedTokenValue(
 			tokenAmount,
 			tokenValue,

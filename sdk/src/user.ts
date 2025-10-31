@@ -107,10 +107,7 @@ import { StrictOraclePrice } from './oracles/strictOraclePrice';
 
 import { calculateSpotFuelBonus, calculatePerpFuelBonus } from './math/fuel';
 import { grpcUserAccountSubscriber } from './accounts/grpcUserAccountSubscriber';
-import {
-	MarginCalculation,
-	MarginContext,
-} from './marginCalculation';
+import { MarginCalculation, MarginContext } from './marginCalculation';
 
 export type MarginType = 'Cross' | 'Isolated';
 
@@ -716,7 +713,7 @@ export class User {
 				const market = this.driftClient.getPerpMarketAccount(
 					perpPosition.marketIndex
 				);
-				if(!market) return unrealizedPnl;
+				if (!market) return unrealizedPnl;
 				const oraclePriceData = this.getMMOracleDataForPerpMarket(
 					market.marketIndex
 				);
@@ -1267,7 +1264,6 @@ export class User {
 			return 0;
 		}
 
-
 		let totalCollateral: BN;
 		let maintenanceMarginReq: BN;
 
@@ -1317,7 +1313,7 @@ export class User {
 			perpPosition.marketIndex
 		);
 
-		if(!market) return ZERO;
+		if (!market) return ZERO;
 
 		let valuationPrice = this.getOracleDataForPerpMarket(
 			market.marketIndex
@@ -1960,13 +1956,23 @@ export class User {
 		canBeLiquidated: boolean;
 		marginRequirement: BN;
 		totalCollateral: BN;
-		liquidationStatuses: Map<'cross' | number, { canBeLiquidated: boolean; marginRequirement: BN; totalCollateral: BN }>;
+		liquidationStatuses: Map<
+			'cross' | number,
+			{ canBeLiquidated: boolean; marginRequirement: BN; totalCollateral: BN }
+		>;
 	} {
 		// Deprecated signature retained for backward compatibility in type only
 		// but implementation now delegates to the new Map-based API and returns cross margin status.
 		const map = this.getLiquidationStatuses();
 		const cross = map.get('cross');
-		return cross ? { ...cross, liquidationStatuses: map } : { canBeLiquidated: false, marginRequirement: ZERO, totalCollateral: ZERO, liquidationStatuses: map };
+		return cross
+			? { ...cross, liquidationStatuses: map }
+			: {
+					canBeLiquidated: false,
+					marginRequirement: ZERO,
+					totalCollateral: ZERO,
+					liquidationStatuses: map,
+			  };
 	}
 
 	/**
@@ -1975,18 +1981,28 @@ export class User {
 	 *  - 'cross' for cross margin
 	 *  - marketIndex (number) for each isolated perp position
 	 */
-	public getLiquidationStatuses(marginCalc?: MarginCalculation): Map<'cross' | number, { canBeLiquidated: boolean; marginRequirement: BN; totalCollateral: BN }> {
+	public getLiquidationStatuses(
+		marginCalc?: MarginCalculation
+	): Map<
+		'cross' | number,
+		{ canBeLiquidated: boolean; marginRequirement: BN; totalCollateral: BN }
+	> {
 		// If not provided, use buffer-aware calc for canBeLiquidated checks
 		if (!marginCalc) {
 			const liquidationBuffer = this.getLiquidationBuffer();
-			marginCalc = this.getMarginCalculation('Maintenance', { liquidationBuffer });
+			marginCalc = this.getMarginCalculation('Maintenance', {
+				liquidationBuffer,
+			});
 		}
 
-		const result = new Map<'cross' | number, {
-			canBeLiquidated: boolean;
-			marginRequirement: BN;
-			totalCollateral: BN;
-		}>();
+		const result = new Map<
+			'cross' | number,
+			{
+				canBeLiquidated: boolean;
+				marginRequirement: BN;
+				totalCollateral: BN;
+			}
+		>();
 
 		// Cross margin status
 		const crossTotalCollateral = marginCalc.totalCollateral;
@@ -1998,7 +2014,10 @@ export class User {
 		});
 
 		// Isolated positions status
-		for (const [marketIndex, isoCalc] of marginCalc.isolatedMarginCalculations) {
+		for (const [
+			marketIndex,
+			isoCalc,
+		] of marginCalc.isolatedMarginCalculations) {
 			const isoTotalCollateral = isoCalc.totalCollateral;
 			const isoMarginRequirement = isoCalc.marginRequirement;
 			result.set(marketIndex, {
@@ -2015,7 +2034,8 @@ export class User {
 		// Consider on-chain flags OR computed margin status (cross or any isolated)
 		const hasOnChainFlag =
 			(this.getUserAccount().status &
-				(UserStatus.BEING_LIQUIDATED | UserStatus.BANKRUPT)) > 0;
+				(UserStatus.BEING_LIQUIDATED | UserStatus.BANKRUPT)) >
+			0;
 		const calc = marginCalc ?? this.getMarginCalculation('Maintenance');
 		return (
 			hasOnChainFlag ||
@@ -2031,7 +2051,9 @@ export class User {
 	}
 
 	/** Returns true if any isolated perp position is currently below its maintenance requirement (no buffer). */
-	public isIsolatedMarginBeingLiquidated(marginCalc?: MarginCalculation): boolean {
+	public isIsolatedMarginBeingLiquidated(
+		marginCalc?: MarginCalculation
+	): boolean {
 		const calc = marginCalc ?? this.getMarginCalculation('Maintenance');
 		for (const [, isoCalc] of calc.isolatedMarginCalculations) {
 			if (isoCalc.totalCollateral.lt(isoCalc.marginRequirement)) {
@@ -4307,11 +4329,14 @@ export class User {
 				calculateWorstCasePerpLiabilityValue(
 					marketPosition,
 					market,
-					oraclePriceData.price,
+					oraclePriceData.price
 				);
 
 			// margin ratio for this perp
-			const customMarginRatio = Math.max(this.getUserAccount().maxMarginRatio, marketPosition.maxMarginRatio);
+			const customMarginRatio = Math.max(
+				this.getUserAccount().maxMarginRatio,
+				marketPosition.maxMarginRatio
+			);
 			let marginRatio = new BN(
 				calculateMarketMarginRatio(
 					market,
