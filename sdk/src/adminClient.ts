@@ -674,10 +674,13 @@ export class AdminClient extends DriftClient {
 		});
 	}
 
-	public async resizeAmmCache(
+	public async addMarketToAmmCache(
+		perpMarketIndex: number,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
-		const initializeAmmCacheIx = await this.getResizeAmmCacheIx();
+		const initializeAmmCacheIx = await this.getAddMarketToAmmCacheIx(
+			perpMarketIndex
+		);
 
 		const tx = await this.buildTransaction(initializeAmmCacheIx, txParams);
 
@@ -686,13 +689,16 @@ export class AdminClient extends DriftClient {
 		return txSig;
 	}
 
-	public async getResizeAmmCacheIx(): Promise<TransactionInstruction> {
-		return await this.program.instruction.resizeAmmCache({
+	public async getAddMarketToAmmCacheIx(
+		perpMarketIndex: number
+	): Promise<TransactionInstruction> {
+		return await this.program.instruction.addMarketToAmmCache({
 			accounts: {
 				state: await this.getStatePublicKey(),
 				admin: this.useHotWalletAdmin
 					? this.wallet.publicKey
 					: this.getStateAccount().admin,
+				perpMarket: this.getPerpMarketAccount(perpMarketIndex).pubkey,
 				ammCache: getAmmCachePublicKey(this.program.programId),
 				rent: SYSVAR_RENT_PUBKEY,
 				systemProgram: anchor.web3.SystemProgram.programId,

@@ -1107,17 +1107,6 @@ pub fn handle_initialize_perp_market(
 
     safe_increment!(state.number_of_markets, 1);
 
-    let amm_cache = &mut ctx.accounts.amm_cache;
-    let current_len = amm_cache.cache.len();
-    amm_cache
-        .cache
-        .resize_with(current_len + 1, CacheInfo::default);
-    let current_market_info = amm_cache.cache.get_mut(current_len).unwrap();
-    current_market_info.slot = clock_slot;
-    current_market_info.oracle = perp_market.amm.oracle;
-    current_market_info.oracle_source = u8::from(perp_market.amm.oracle_source);
-    amm_cache.validate(state)?;
-
     controller::amm::update_concentration_coef(perp_market, concentration_coef_scale)?;
     crate::dlog!(oracle_price);
 
@@ -1140,11 +1129,11 @@ pub fn handle_initialize_amm_cache(ctx: Context<InitializeAmmCache>) -> Result<(
     Ok(())
 }
 
-pub fn handle_resize_amm_cache(ctx: Context<ResizeAmmCache>) -> Result<()> {
+pub fn handle_add_market_to_amm_cache(ctx: Context<AddMarketToAmmCache>) -> Result<()> {
     let amm_cache = &mut ctx.accounts.amm_cache;
-    let state = &ctx.accounts.state;
+    let perp_market = ctx.accounts.perp_market.load()?;
     let current_size = amm_cache.cache.len();
-    let new_size = (state.number_of_markets as usize).min(current_size + 20_usize);
+    let new_size = current_size.saturating_add(1);
 
     msg!(
         "resizing amm cache from {} entries to {}",
@@ -1152,16 +1141,10 @@ pub fn handle_resize_amm_cache(ctx: Context<ResizeAmmCache>) -> Result<()> {
         new_size
     );
 
-    let growth = new_size.saturating_sub(current_size);
-    validate!(
-        growth <= 20,
-        ErrorCode::DefaultError,
-        "cannot grow amm_cache by more than 20 entries in a single resize (requested +{})",
-        growth
-    )?;
-
-    amm_cache.cache.resize_with(new_size, CacheInfo::default);
-    amm_cache.validate(state)?;
+    amm_cache.cache.resize_with(new_size, || CacheInfo {
+        market_index: perp_market.market_index,
+        ..CacheInfo::default()
+    });
 
     Ok(())
 }
@@ -5547,7 +5530,7 @@ pub struct InitializeAmmCache<'info> {
 }
 
 #[derive(Accounts)]
-pub struct ResizeAmmCache<'info> {
+pub struct AddMarketToAmmCache<'info> {
     #[account(
         mut,
         constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
@@ -5558,11 +5541,12 @@ pub struct ResizeAmmCache<'info> {
         mut,
         seeds = [AMM_POSITIONS_CACHE.as_ref()],
         bump,
-        realloc = AmmCache::space(amm_cache.cache.len() + (state.number_of_markets as usize - amm_cache.cache.len()).min(20_usize)),
+        realloc = AmmCache::space(amm_cache.cache.len() + 1),
         realloc::payer = admin,
         realloc::zero = false,
     )]
     pub amm_cache: Box<Account<'info, AmmCache>>,
+    pub perp_market: AccountLoader<'info, PerpMarket>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
 }

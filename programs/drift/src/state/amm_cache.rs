@@ -53,11 +53,12 @@ pub struct CacheInfo {
     pub amm_inventory_limit: i64,
     pub oracle_price: i64,
     pub oracle_slot: u64,
+    pub market_index: u16,
     pub oracle_source: u8,
     pub oracle_validity: u8,
     pub lp_status_for_perp_market: u8,
     pub amm_position_scalar: u8,
-    pub _padding: [u8; 36],
+    pub _padding: [u8; 34],
 }
 
 impl Size for CacheInfo {
@@ -86,7 +87,8 @@ impl Default for CacheInfo {
             quote_owed_from_lp_pool: 0i64,
             lp_status_for_perp_market: 0u8,
             amm_position_scalar: 0u8,
-            _padding: [0u8; 36],
+            market_index: 0u16,
+            _padding: [0u8; 34],
         }
     }
 }
@@ -183,15 +185,6 @@ impl AmmCache {
         8 + 8 + 4 + num_markets * CacheInfo::SIZE
     }
 
-    pub fn validate(&self, state: &State) -> DriftResult<()> {
-        validate!(
-            self.cache.len() <= state.number_of_markets as usize,
-            ErrorCode::DefaultError,
-            "Number of amm positions is no larger than number of markets"
-        )?;
-        Ok(())
-    }
-
     pub fn update_perp_market_fields(&mut self, perp_market: &PerpMarket) -> DriftResult<()> {
         let cache_info = self.cache.get_mut(perp_market.market_index as usize);
         if let Some(cache_info) = cache_info {
@@ -238,6 +231,15 @@ impl AmmCache {
 impl_zero_copy_loader!(AmmCache, crate::id, AmmCacheFixed, CacheInfo);
 
 impl<'a> AccountZeroCopy<'a, CacheInfo, AmmCacheFixed> {
+    pub fn get_for_market_index(&self, market_index: u16) -> DriftResult<&CacheInfo> {
+        for cache_info in self.iter() {
+            if cache_info.market_index == market_index {
+                return Ok(cache_info);
+            }
+        }
+        Err(ErrorCode::MarketIndexNotFoundAmmCache.into())
+    }
+
     pub fn check_settle_staleness(&self, slot: u64, threshold_slot_diff: u64) -> DriftResult<()> {
         for (i, cache_info) in self.iter().enumerate() {
             if cache_info.slot == 0 {
@@ -284,6 +286,27 @@ impl<'a> AccountZeroCopy<'a, CacheInfo, AmmCacheFixed> {
 }
 
 impl<'a> AccountZeroCopyMut<'a, CacheInfo, AmmCacheFixed> {
+    pub fn get_for_market_index_mut(&mut self, market_index: u16) -> DriftResult<&mut CacheInfo> {
+        let pos = {
+            let mut found: Option<u32> = None;
+            for i in 0..self.len() {
+                let cache_info = self.get(i);
+                if cache_info.market_index == market_index {
+                    found = Some(i);
+                    break;
+                }
+            }
+            found
+        };
+
+        if let Some(i) = pos {
+            Ok(self.get_mut(i))
+        } else {
+            msg!("Market index not found in amm cache: {}", market_index);
+            Err(ErrorCode::MarketIndexNotFoundAmmCache.into())
+        }
+    }
+
     pub fn update_amount_owed_from_lp_pool(
         &mut self,
         perp_market: &PerpMarket,
