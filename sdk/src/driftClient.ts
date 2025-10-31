@@ -5759,15 +5759,15 @@ export class DriftClient {
 	 * @param jupiterClient @deprecated Use swapClient instead. Legacy parameter for backward compatibility
 	 * @param outMarketIndex the market index of the token you're buying
 	 * @param inMarketIndex the market index of the token you're selling
-	 * @param outAssociatedTokenAccount the token account to receive the token being sold on titan or jupiter
+	 * @param outAssociatedTokenAccount the token account to receive the token being sold on the swap provider
 	 * @param inAssociatedTokenAccount the token account to
 	 * @param amount the amount of TokenIn, regardless of swapMode
-	 * @param slippageBps the max slippage passed to titan or jupiter api
-	 * @param swapMode titan or jupiter swapMode (ExactIn or ExactOut), default is ExactIn
-	 * @param route the titan or jupiter route to use for the swap
+	 * @param slippageBps the max slippage passed to the swap provider api
+	 * @param swapMode swap provider swapMode (ExactIn or ExactOut), default is ExactIn
+	 * @param route the swap provider route to use for the swap
 	 * @param reduceOnly specify if In or Out token on the drift account must reduceOnly, checked at end of swap
-	 * @param v6 pass in the quote response from Jupiter quote's API (deprecated, use quote instead)
-	 * @param quote pass in the quote response from Jupiter quote's API
+	 * @param v6 pass in the quote response from swap provider quote's API (deprecated, use quote instead)
+	 * @param quote pass in the quote response from swap provider quote's API
 	 * @param txParams
 	 */
 	public async swap({
@@ -6050,7 +6050,7 @@ export class DriftClient {
 		}
 
 		if (!quote) {
-			throw new Error("Could not fetch Jupiter's quote. Please try again.");
+			throw new Error("Could not fetch swap quote. Please try again.");
 		}
 
 		const isExactOut = swapMode === 'ExactOut' || quote.swapMode === 'ExactOut';
@@ -8901,7 +8901,7 @@ export class DriftClient {
 		}
 
 		if (!quote) {
-			throw new Error("Could not fetch Jupiter's quote. Please try again.");
+			throw new Error("Could not fetch swap quote. Please try again.");
 		}
 
 		const amountIn = new BN(quote.inAmount);

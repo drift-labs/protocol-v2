@@ -6050,7 +6050,7 @@ export class AdminClient extends DriftClient {
 		}
 
 		if (!quote) {
-			throw new Error("Could not fetch Jupiter's quote. Please try again.");
+			throw new Error("Could not fetch swap quote. Please try again.");
 		}
 
 		const isExactOut = swapMode === 'ExactOut' || quote.swapMode === 'ExactOut';
