@@ -1891,6 +1891,7 @@ export type CacheInfo = {
 	oracleValidity: number;
 	lpStatusForPerpMarket: number;
 	ammPositionScalar: number;
+	marketIndex: number;
 };
 
 export type AmmCache = {

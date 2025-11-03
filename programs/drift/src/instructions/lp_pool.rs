@@ -43,6 +43,7 @@ use crate::{
     },
     validate,
 };
+use std::collections::BTreeMap;
 use std::iter::Peekable;
 use std::slice::Iter;
 
@@ -96,31 +97,33 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
     let constituent_map =
         ConstituentMap::load(&ConstituentSet::new(), &lp_pool_key, remaining_accounts)?;
 
-    let mut amm_inventories: Vec<AmmInventoryAndPricesAndSlots> =
-        Vec::with_capacity(amm_cache.len() as usize);
+    let mut amm_inventories: BTreeMap<u16, AmmInventoryAndPricesAndSlots> = BTreeMap::new();
     for (_, cache_info) in amm_cache.iter().enumerate() {
         if cache_info.lp_status_for_perp_market == 0 {
             continue;
         }
 
-        amm_inventories.push(AmmInventoryAndPricesAndSlots {
-            inventory: {
-                let scaled_position = cache_info
-                    .position
-                    .safe_mul(cache_info.amm_position_scalar as i64)?
-                    .safe_div(100)?;
+        amm_inventories.insert(
+            cache_info.market_index,
+            AmmInventoryAndPricesAndSlots {
+                inventory: {
+                    let scaled_position = cache_info
+                        .position
+                        .safe_mul(cache_info.amm_position_scalar as i64)?
+                        .safe_div(100)?;
 
-                scaled_position.clamp(
-                    -cache_info.amm_inventory_limit,
-                    cache_info.amm_inventory_limit,
-                )
+                    scaled_position.clamp(
+                        -cache_info.amm_inventory_limit,
+                        cache_info.amm_inventory_limit,
+                    )
+                },
+                price: cache_info.oracle_price,
+                last_oracle_slot: cache_info.oracle_slot,
+                last_position_slot: cache_info.slot,
             },
-            price: cache_info.oracle_price,
-            last_oracle_slot: cache_info.oracle_slot,
-            last_position_slot: cache_info.slot,
-        });
+        );
     }
-    msg!("amm inventories: {:?}", amm_inventories);
+    msg!("amm inventories:{:?}", amm_inventories);
 
     if amm_inventories.is_empty() {
         msg!("No valid inventories found for constituent target weights update");
@@ -140,7 +143,7 @@ pub fn handle_update_constituent_target_base<'c: 'info, 'info>(
 
     constituent_target_base.update_target_base(
         &amm_constituent_mapping,
-        amm_inventories.as_slice(),
+        &amm_inventories,
         constituent_indexes_and_decimals_and_prices.as_mut_slice(),
         slot,
     )?;
@@ -1010,7 +1013,7 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
         if cache_info.last_fee_pool_token_amount != 0 && cache_info.last_settle_slot != slot {
             msg!(
                 "Market {} has not been settled in current slot. Last slot: {}",
-                i,
+                cache_info.market_index,
                 cache_info.last_settle_slot
             );
             return Err(ErrorCode::AMMCacheStale.into());

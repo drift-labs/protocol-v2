@@ -4,7 +4,7 @@ mod tests {
         BASE_PRECISION_I64, PERCENTAGE_PRECISION_I64, PRICE_PRECISION_I64, QUOTE_PRECISION,
     };
     use crate::state::lp_pool::*;
-    use std::{cell::RefCell, marker::PhantomData, vec};
+    use std::{cell::RefCell, collections::BTreeMap, marker::PhantomData, vec};
 
     fn amm_const_datum(
         perp_market_index: u16,
@@ -68,32 +68,45 @@ mod tests {
             }
         };
 
-        let amm_inventory_and_price: Vec<AmmInventoryAndPricesAndSlots> = vec![
+        let mut amm_inventory_and_price: BTreeMap<u16, AmmInventoryAndPricesAndSlots> =
+            BTreeMap::new();
+        // key: perp market index
+        amm_inventory_and_price.insert(
+            0,
             AmmInventoryAndPricesAndSlots {
                 inventory: 4 * BASE_PRECISION_I64,
                 price: 100_000 * PRICE_PRECISION_I64,
                 last_oracle_slot: slot,
                 last_position_slot: slot,
-            }, // $400k BTC
+            },
+        ); // $400k BTC
+        amm_inventory_and_price.insert(
+            1,
             AmmInventoryAndPricesAndSlots {
                 inventory: 2000 * BASE_PRECISION_I64,
                 price: 200 * PRICE_PRECISION_I64,
                 last_oracle_slot: slot,
                 last_position_slot: slot,
-            }, // $400k SOL
+            },
+        ); // $400k SOL
+        amm_inventory_and_price.insert(
+            2,
             AmmInventoryAndPricesAndSlots {
                 inventory: 200 * BASE_PRECISION_I64,
                 price: 1500 * PRICE_PRECISION_I64,
                 last_oracle_slot: slot,
                 last_position_slot: slot,
-            }, // $300k ETH
+            },
+        ); // $300k ETH
+        amm_inventory_and_price.insert(
+            3,
             AmmInventoryAndPricesAndSlots {
                 inventory: 16500 * BASE_PRECISION_I64,
                 price: PRICE_PRECISION_I64,
                 last_oracle_slot: slot,
                 last_position_slot: slot,
-            }, // $16.5k FARTCOIN
-        ];
+            },
+        ); // $16.5k FARTCOIN
         let mut constituents_indexes_and_decimals_and_prices = vec![
             ConstituentIndexAndDecimalAndPrice {
                 constituent_index: 0,
@@ -145,7 +158,7 @@ mod tests {
                 calculate_target_weight(
                     datum.target_base.cast::<i64>().unwrap(),
                     &SpotMarket::default_quote_market(),
-                    amm_inventory_and_price.get(index).unwrap().price,
+                    amm_inventory_and_price.get(&(index as u16)).unwrap().price,
                     aum,
                 )
                 .unwrap()
@@ -189,13 +202,17 @@ mod tests {
             }
         };
 
-        let amm_inventory_and_prices: Vec<AmmInventoryAndPricesAndSlots> =
-            vec![AmmInventoryAndPricesAndSlots {
+        let mut amm_inventory_and_prices: BTreeMap<u16, AmmInventoryAndPricesAndSlots> =
+            BTreeMap::new();
+        amm_inventory_and_prices.insert(
+            0,
+            AmmInventoryAndPricesAndSlots {
                 inventory: 1_000_000,
                 price: 1_000_000,
                 last_oracle_slot: slot,
                 last_position_slot: slot,
-            }];
+            },
+        );
         let mut constituents_indexes_and_decimals_and_prices =
             vec![ConstituentIndexAndDecimalAndPrice {
                 constituent_index: 1,
@@ -259,13 +276,17 @@ mod tests {
         };
 
         let price = PRICE_PRECISION_I64;
-        let amm_inventory_and_prices: Vec<AmmInventoryAndPricesAndSlots> =
-            vec![AmmInventoryAndPricesAndSlots {
+        let mut amm_inventory_and_prices: BTreeMap<u16, AmmInventoryAndPricesAndSlots> =
+            BTreeMap::new();
+        amm_inventory_and_prices.insert(
+            0,
+            AmmInventoryAndPricesAndSlots {
                 inventory: BASE_PRECISION_I64,
                 price,
                 last_oracle_slot: slot,
                 last_position_slot: slot,
-            }];
+            },
+        );
         let mut constituents_indexes_and_decimals_and_prices =
             vec![ConstituentIndexAndDecimalAndPrice {
                 constituent_index: 1,
@@ -362,13 +383,17 @@ mod tests {
             }
         };
 
-        let amm_inventory_and_prices: Vec<AmmInventoryAndPricesAndSlots> =
-            vec![AmmInventoryAndPricesAndSlots {
+        let mut amm_inventory_and_prices: BTreeMap<u16, AmmInventoryAndPricesAndSlots> =
+            BTreeMap::new();
+        amm_inventory_and_prices.insert(
+            0,
+            AmmInventoryAndPricesAndSlots {
                 inventory: 1_000_000_000,
                 price: 1_000_000,
                 last_oracle_slot: slot,
                 last_position_slot: slot,
-            }];
+            },
+        );
         let mut constituents_indexes_and_decimals_and_prices = vec![
             ConstituentIndexAndDecimalAndPrice {
                 constituent_index: 1,
@@ -453,13 +478,17 @@ mod tests {
             }
         };
 
-        let amm_inventory_and_prices: Vec<AmmInventoryAndPricesAndSlots> =
-            vec![AmmInventoryAndPricesAndSlots {
+        let mut amm_inventory_and_prices: BTreeMap<u16, AmmInventoryAndPricesAndSlots> =
+            BTreeMap::new();
+        amm_inventory_and_prices.insert(
+            0,
+            AmmInventoryAndPricesAndSlots {
                 inventory: 1_000_000,
                 price: 142_000_000,
                 last_oracle_slot: slot,
                 last_position_slot: slot,
-            }];
+            },
+        );
         let mut constituents_indexes_and_decimals_and_prices =
             vec![ConstituentIndexAndDecimalAndPrice {
                 constituent_index: 1,

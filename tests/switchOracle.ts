@@ -117,6 +117,7 @@ describe('switch oracles', () => {
 			periodicity,
 			new BN(30 * PEG_PRECISION.toNumber())
 		);
+		await admin.initializeAmmCache();
 	});
 
 	beforeEach(async () => {

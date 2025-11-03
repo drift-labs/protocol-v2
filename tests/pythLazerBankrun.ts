@@ -115,6 +115,7 @@ describe('pyth pull oracles', () => {
 			periodicity,
 			new BN(224 * PEG_PRECISION.toNumber())
 		);
+		await driftClient.initializeAmmCache();
 
 		await initializeQuoteSpotMarket(driftClient, usdcMint.publicKey);
 	});

@@ -1,5 +1,5 @@
 {
-  "version": "2.145.0",
+  "version": "2.145.1",
   "name": "drift",
   "instructions": [
     {
@@ -4443,11 +4443,6 @@
           "isSigner": false
         },
         {
-          "name": "ammCache",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "oracle",
           "isMut": false,
           "isSigner": false
@@ -4611,7 +4606,7 @@
       "args": []
     },
     {
-      "name": "resizeAmmCache",
+      "name": "addMarketToAmmCache",
       "accounts": [
         {
           "name": "admin",
@@ -4626,6 +4621,11 @@
         {
           "name": "ammCache",
           "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "perpMarket",
+          "isMut": false,
           "isSigner": false
         },
         {
@@ -8657,32 +8657,6 @@
       ]
     },
     {
-      "name": "resetAmmCache",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": true,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "ammCache",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
-        }
-      ],
-      "args": []
-    },
-    {
       "name": "lpPoolSwap",
       "accounts": [
         {
@@ -12446,6 +12420,10 @@
             "type": "u64"
           },
           {
+            "name": "marketIndex",
+            "type": "u16"
+          },
+          {
             "name": "oracleSource",
             "type": "u8"
           },
@@ -12466,7 +12444,7 @@
             "type": {
               "array": [
                 "u8",
-                36
+                34
               ]
             }
           }
@@ -13267,6 +13245,12 @@
             "type": {
               "option": "u16"
             }
+          },
+          {
+            "name": "isolatedPositionDeposit",
+            "type": {
+              "option": "u64"
+            }
           }
         ]
       }
@@ -13331,6 +13315,12 @@
             "name": "builderFeeTenthBps",
             "type": {
               "option": "u16"
+            }
+          },
+          {
+            "name": "isolatedPositionDeposit",
+            "type": {
+              "option": "u64"
             }
           }
         ]
@@ -19982,6 +19972,11 @@
       "code": 6344,
       "name": "InvalidLpPoolId",
       "msg": "Invalid Lp Pool Id for Operation"
+    },
+    {
+      "code": 6344,
+      "name": "MarketIndexNotFoundAmmCache",
+      "msg": "MarketIndexNotFoundAmmCache"
     }
   ]
 }

@@ -1378,27 +1378,33 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
     pub fn update_target_base(
         &mut self,
         mapping: &AccountZeroCopy<'a, AmmConstituentDatum, AmmConstituentMappingFixed>,
-        amm_inventory_and_prices: &[AmmInventoryAndPricesAndSlots],
+        amm_inventory_and_prices: &std::collections::BTreeMap<u16, AmmInventoryAndPricesAndSlots>,
         constituents_indexes_and_decimals_and_prices: &mut [ConstituentIndexAndDecimalAndPrice],
         slot: u64,
     ) -> DriftResult<()> {
         // Sorts by constituent index
         constituents_indexes_and_decimals_and_prices.sort_by_key(|c| c.constituent_index);
 
-        // Precompute notional by perp market index
-        let mut notionals_and_slots: Vec<(i128, u64, u64)> =
-            Vec::with_capacity(amm_inventory_and_prices.len());
-        for &AmmInventoryAndPricesAndSlots {
-            inventory,
-            price,
-            last_oracle_slot,
-            last_position_slot,
-        } in amm_inventory_and_prices.iter()
+        let mut notionals_and_slots: std::collections::BTreeMap<u16, (i128, u64, u64)> =
+            std::collections::BTreeMap::new();
+        for (
+            &market_index,
+            &AmmInventoryAndPricesAndSlots {
+                inventory,
+                price,
+                last_oracle_slot,
+                last_position_slot,
+                ..
+            },
+        ) in amm_inventory_and_prices.iter()
         {
             let notional = (inventory as i128)
                 .safe_mul(price as i128)?
                 .safe_div(BASE_PRECISION_I128)?;
-            notionals_and_slots.push((notional, last_oracle_slot, last_position_slot));
+            notionals_and_slots.insert(
+                market_index,
+                (notional, last_oracle_slot, last_position_slot),
+            );
         }
 
         let mut mapping_index = 0;
@@ -1428,7 +1434,7 @@ impl<'a> AccountZeroCopyMut<'a, TargetsDatum, ConstituentTargetBaseFixed> {
                     break;
                 }
                 if let Some((perp_notional, perp_last_oracle_slot, perp_last_position_slot)) =
-                    notionals_and_slots.get(d.perp_market_index as usize)
+                    notionals_and_slots.get(&d.perp_market_index)
                 {
                     target_notional = target_notional
                         .saturating_add(perp_notional.saturating_mul(d.weight as i128));

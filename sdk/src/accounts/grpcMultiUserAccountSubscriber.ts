@@ -119,7 +119,10 @@ export class grpcMultiUserAccountSubscriber {
 				this.listeners.set(key, new Set());
 				this.keyToPk.set(key, userAccountPublicKey);
 				this.pendingAddKeys.add(key);
-				this.scheduleFlush();
+				if (this.isMultiSubscribed) {
+					// only schedule flush if already subscribed to the multi-subscriber
+					this.scheduleFlush();
+				}
 			}
 		};
 
@@ -161,6 +164,10 @@ export class grpcMultiUserAccountSubscriber {
 			},
 
 			updateData(userAccount: UserAccount, slot: number): void {
+				const existingData = parent.userData.get(key);
+				if (existingData && existingData.slot > slot) {
+					return;
+				}
 				parent.userData.set(key, { data: userAccount, slot });
 				perUserEmitter.emit('userAccountUpdate', userAccount);
 				perUserEmitter.emit('update');
