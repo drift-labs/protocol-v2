@@ -6126,6 +6126,7 @@ export class DriftClient {
 	/**
 	 * Swap tokens in drift account using titan or jupiter
 	 * @param swapClient swap client to find routes and instructions (Titan or Jupiter)
+	 * @param jupiterClient @deprecated Use swapClient instead. Legacy parameter for backward compatibility
 	 * @param outMarketIndex the market index of the token you're buying
 	 * @param inMarketIndex the market index of the token you're selling
 	 * @param outAssociatedTokenAccount the token account to receive the token being sold on titan or jupiter
@@ -6141,6 +6142,7 @@ export class DriftClient {
 	 */
 	public async swap({
 		swapClient,
+		jupiterClient,
 		outMarketIndex,
 		inMarketIndex,
 		outAssociatedTokenAccount,
@@ -6154,7 +6156,9 @@ export class DriftClient {
 		quote,
 		onlyDirectRoutes = false,
 	}: {
-		swapClient: UnifiedSwapClient | SwapClient;
+		swapClient?: UnifiedSwapClient | SwapClient;
+		/** @deprecated Use swapClient instead. Legacy parameter for backward compatibility */
+		jupiterClient?: JupiterClient;
 		outMarketIndex: number;
 		inMarketIndex: number;
 		outAssociatedTokenAccount?: PublicKey;
@@ -6170,15 +6174,22 @@ export class DriftClient {
 		};
 		quote?: QuoteResponse;
 	}): Promise<TransactionSignature> {
+		// Handle backward compatibility: use jupiterClient if swapClient is not provided
+		const clientToUse = swapClient || jupiterClient;
+
+		if (!clientToUse) {
+			throw new Error('Either swapClient or jupiterClient must be provided');
+		}
+
 		let res: {
 			ixs: TransactionInstruction[];
 			lookupTables: AddressLookupTableAccount[];
 		};
 
 		// Use unified SwapClient if available
-		if (swapClient instanceof UnifiedSwapClient) {
+		if (clientToUse instanceof UnifiedSwapClient) {
 			res = await this.getSwapIxV2({
-				swapClient,
+				swapClient: clientToUse,
 				outMarketIndex,
 				inMarketIndex,
 				outAssociatedTokenAccount,
@@ -6191,9 +6202,9 @@ export class DriftClient {
 				quote,
 				v6,
 			});
-		} else if (swapClient instanceof TitanClient) {
+		} else if (clientToUse instanceof TitanClient) {
 			res = await this.getTitanSwapIx({
-				titanClient: swapClient,
+				titanClient: clientToUse,
 				outMarketIndex,
 				inMarketIndex,
 				outAssociatedTokenAccount,
@@ -6204,10 +6215,10 @@ export class DriftClient {
 				onlyDirectRoutes,
 				reduceOnly,
 			});
-		} else if (swapClient instanceof JupiterClient) {
+		} else if (clientToUse instanceof JupiterClient) {
 			const quoteToUse = quote ?? v6?.quote;
 			res = await this.getJupiterSwapIxV6({
-				jupiterClient: swapClient,
+				jupiterClient: clientToUse,
 				outMarketIndex,
 				inMarketIndex,
 				outAssociatedTokenAccount,

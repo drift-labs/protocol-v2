@@ -1,5 +1,5 @@
 {
-  "version": "2.145.0",
+  "version": "2.145.1",
   "name": "drift",
   "instructions": [
     {
@@ -13250,7 +13250,7 @@
           {
             "name": "isolatedPositionDeposit",
             "type": {
-                "option": "u64"
+              "option": "u64"
             }
           }
         ]
@@ -13321,7 +13321,7 @@
           {
             "name": "isolatedPositionDeposit",
             "type": {
-                "option": "u64"
+              "option": "u64"
             }
           }
         ]

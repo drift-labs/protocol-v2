@@ -118,5 +118,6 @@ export const MAX_PREDICTION_PRICE = PRICE_PRECISION;
 
 export const GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE = 99;
 
-export const MIN_I64 = BigNum.fromPrint('-9223372036854775808').val;
+// integer constants
 export const MAX_I64 = BigNum.fromPrint('9223372036854775807').val;
+export const MIN_I64 = BigNum.fromPrint('-9223372036854775808').val;
