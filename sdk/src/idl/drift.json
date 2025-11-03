@@ -4485,6 +4485,27 @@
       "args": []
     },
     {
+      "name": "deleteAmmCache",
+      "accounts": [
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "ammCache",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "updateInitialAmmCacheInfo",
       "accounts": [
         {
