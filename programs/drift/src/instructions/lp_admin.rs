@@ -922,20 +922,6 @@ pub fn handle_update_initial_amm_cache_info<'c: 'info, 'info>(
     Ok(())
 }
 
-pub fn handle_reset_amm_cache(ctx: Context<ResetAmmCache>) -> Result<()> {
-    let state = &ctx.accounts.state;
-    let amm_cache = &mut ctx.accounts.amm_cache;
-
-    amm_cache.cache.clear();
-    amm_cache
-        .cache
-        .resize_with(state.number_of_markets as usize, CacheInfo::default);
-    amm_cache.validate(state)?;
-
-    msg!("AMM cache reset. markets: {}", state.number_of_markets);
-    Ok(())
-}
-
 #[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq)]
 pub struct OverrideAmmCacheParams {
     pub quote_owed_from_lp_pool: Option<i64>,

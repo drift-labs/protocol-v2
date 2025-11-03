@@ -1020,10 +1020,16 @@ pub mod drift {
         handle_initialize_amm_cache(ctx)
     }
 
-    pub fn resize_amm_cache<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, ResizeAmmCache<'info>>,
+    pub fn add_market_to_amm_cache<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, AddMarketToAmmCache<'info>>,
     ) -> Result<()> {
-        handle_resize_amm_cache(ctx)
+        handle_add_market_to_amm_cache(ctx)
+    }
+
+    pub fn delete_amm_cache<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, DeleteAmmCache<'info>>,
+    ) -> Result<()> {
+        handle_delete_amm_cache(ctx)
     }
 
     pub fn update_initial_amm_cache_info<'c: 'info, 'info>(
@@ -2084,12 +2090,6 @@ pub mod drift {
         override_params: OverrideAmmCacheParams,
     ) -> Result<()> {
         handle_override_amm_cache_info(ctx, market_index, override_params)
-    }
-
-    pub fn reset_amm_cache<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, ResetAmmCache<'info>>,
-    ) -> Result<()> {
-        handle_reset_amm_cache(ctx)
     }
 
     pub fn lp_pool_swap<'c: 'info, 'info>(

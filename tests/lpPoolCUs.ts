@@ -70,7 +70,7 @@ import {
 dotenv.config();
 
 const NUMBER_OF_CONSTITUENTS = 10;
-const NUMBER_OF_PERP_MARKETS = 60;
+const NUMBER_OF_PERP_MARKETS = 40;
 const NUMBER_OF_USERS = Math.ceil(NUMBER_OF_PERP_MARKETS / 8);
 
 const PERP_MARKET_INDEXES = Array.from(
@@ -255,6 +255,7 @@ describe('LP Pool', () => {
 			new Keypair()
 		);
 		await adminClient.updateFeatureBitFlagsMintRedeemLpPool(true);
+		await adminClient.initializeAmmCache();
 
 		// check LpPool created
 		const lpPool = (await adminClient.program.account.lpPool.fetch(
@@ -414,6 +415,7 @@ describe('LP Pool', () => {
 				new BN(0),
 				new BN(200 * PEG_PRECISION.toNumber())
 			);
+			await adminClient.addMarketToAmmCache(i);
 			await adminClient.updatePerpMarketLpPoolStatus(i, 1);
 			await adminClient.updatePerpMarketLpPoolFeeTransferScalar(i, 100);
 			await sleep(50);

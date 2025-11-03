@@ -196,6 +196,7 @@ describe('place and make signedMsg order', () => {
 			periodicity,
 			new BN(224 * PEG_PRECISION.toNumber())
 		);
+		await makerDriftClient.initializeAmmCache();
 
 		await makerDriftClient.initializeUserAccountAndDepositCollateral(
 			usdcAmount,

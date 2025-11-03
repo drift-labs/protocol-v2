@@ -176,6 +176,8 @@ describe('LP Pool', () => {
 
 		const periodicity = new BN(0);
 
+		await adminClient.initializeAmmCache();
+
 		await adminClient.initializePerpMarket(
 			0,
 			spotMarketOracle,
@@ -184,6 +186,7 @@ describe('LP Pool', () => {
 			periodicity,
 			new BN(224 * PEG_PRECISION.toNumber())
 		);
+		await adminClient.addMarketToAmmCache(0);
 		await adminClient.updatePerpMarketLpPoolStatus(0, 1);
 
 		await adminClient.initializePerpMarket(
@@ -194,6 +197,7 @@ describe('LP Pool', () => {
 			periodicity,
 			new BN(224 * PEG_PRECISION.toNumber())
 		);
+		await adminClient.addMarketToAmmCache(1);
 		await adminClient.updatePerpMarketLpPoolStatus(1, 1);
 
 		const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(

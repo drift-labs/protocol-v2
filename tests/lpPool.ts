@@ -191,6 +191,8 @@ describe('LP Pool', () => {
 		solUsdLazer = getPythLazerOraclePublicKey(program.programId, 6);
 		await adminClient.initializePythLazerOracle(6);
 
+		await adminClient.initializeAmmCache();
+
 		await adminClient.initializePerpMarket(
 			0,
 			solUsd,
@@ -199,6 +201,7 @@ describe('LP Pool', () => {
 			periodicity,
 			new BN(200 * PEG_PRECISION.toNumber())
 		);
+		await adminClient.addMarketToAmmCache(0);
 		await adminClient.updatePerpMarketLpPoolStatus(0, 1);
 
 		await adminClient.initializePerpMarket(
@@ -209,6 +212,7 @@ describe('LP Pool', () => {
 			periodicity,
 			new BN(200 * PEG_PRECISION.toNumber())
 		);
+		await adminClient.addMarketToAmmCache(1);
 		await adminClient.updatePerpMarketLpPoolStatus(1, 1);
 
 		await adminClient.initializePerpMarket(
@@ -219,6 +223,7 @@ describe('LP Pool', () => {
 			periodicity,
 			new BN(200 * PEG_PRECISION.toNumber())
 		);
+		await adminClient.addMarketToAmmCache(2);
 		await adminClient.updatePerpMarketLpPoolStatus(2, 1);
 
 		await adminClient.updatePerpAuctionDuration(new BN(0));
@@ -270,7 +275,6 @@ describe('LP Pool', () => {
 			new BN(1_000_000).mul(QUOTE_PRECISION),
 			Keypair.generate()
 		);
-
 		await adminClient.updateFeatureBitFlagsMintRedeemLpPool(true);
 
 		// Give the vamm some inventory
@@ -1732,25 +1736,28 @@ describe('LP Pool', () => {
 		}
 	});
 
-	// it('can delete amm cache and then init and realloc and update', async () => {
-	// 	const ammCacheKey = getAmmCachePublicKey(program.programId);
-	// 	const ammCacheBefore = (await adminClient.program.account.ammCache.fetch(
-	// 		ammCacheKey
-	// 	)) as AmmCache;
+	it('can delete amm cache and then init and realloc and update', async () => {
+		const ammCacheKey = getAmmCachePublicKey(program.programId);
+		const ammCacheBefore = (await adminClient.program.account.ammCache.fetch(
+			ammCacheKey
+		)) as AmmCache;
 
-	// 	await adminClient.deleteAmmCache();
-	// 	await adminClient.resizeAmmCache();
-	// 	await adminClient.updateInitialAmmCacheInfo([0, 1, 2]);
-	// 	await adminClient.updateAmmCache([0, 1, 2]);
+		await adminClient.deleteAmmCache();
+		await adminClient.initializeAmmCache();
+		await adminClient.addMarketToAmmCache(0);
+		await adminClient.addMarketToAmmCache(1);
+		await adminClient.addMarketToAmmCache(2);
+		await adminClient.updateInitialAmmCacheInfo([0, 1, 2]);
+		await adminClient.updateAmmCache([0, 1, 2]);
 
-	// 	const ammCacheAfter = (await adminClient.program.account.ammCache.fetch(
-	// 		ammCacheKey
-	// 	)) as AmmCache;
+		const ammCacheAfter = (await adminClient.program.account.ammCache.fetch(
+			ammCacheKey
+		)) as AmmCache;
 
-	// 	for (let i = 0; i < ammCacheBefore.cache.length; i++) {
-	// 		assert(
-	// 			ammCacheBefore.cache[i].position.eq(ammCacheAfter.cache[i].position)
-	// 		);
-	// 	}
-	// });
+		for (let i = 0; i < ammCacheBefore.cache.length; i++) {
+			assert(
+				ammCacheBefore.cache[i].position.eq(ammCacheAfter.cache[i].position)
+			);
+		}
+	});
 });
