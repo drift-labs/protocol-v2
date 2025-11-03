@@ -1111,7 +1111,6 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0x91568baa8beb53db23eb3fb7f22c6e8bd303d103919e19733f2bb642d3e7987a',
 		pythLazerId: 54,
-		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'SUPERBOWL-LIX-LIONS',
@@ -1289,7 +1288,6 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0xb620ba83044577029da7e4ded7a2abccf8e6afc2a0d4d26d89ccdd39ec109025',
 		pythLazerId: 309,
-		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'Fart Coin',
