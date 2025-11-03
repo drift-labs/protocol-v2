@@ -31,6 +31,8 @@ export enum ExchangeStatus {
 export enum FeatureBitFlags {
 	MM_ORACLE_UPDATE = 1,
 	MEDIAN_TRIGGER_PRICE = 2,
+	BUILDER_CODES = 4,
+	BUILDER_REFERRAL = 8,
 }
 
 export class MarketStatus {
@@ -765,6 +767,7 @@ export type LPSwapRecord = {
 	outMarketTargetWeight: BN;
 	inSwapId: BN;
 	outSwapId: BN;
+	lpPool: PublicKey;
 };
 
 export type LPMintRedeemRecord = {
@@ -787,6 +790,7 @@ export type LPMintRedeemRecord = {
 	lastAumSlot: BN;
 	inMarketCurrentWeight: BN;
 	inMarketTargetWeight: BN;
+	lpPool: PublicKey;
 };
 
 export type LPSettleRecord = {
@@ -801,6 +805,20 @@ export type LPSettleRecord = {
 	perpAmmExFeeDelta: BN;
 	lpAum: BN;
 	lpPrice: BN;
+	lpPool: PublicKey;
+};
+
+export type LPBorrowLendDepositRecord = {
+	ts: BN;
+	slot: BN;
+	spotMarketIndex: number;
+	constituentIndex: number;
+	direction: DepositDirection;
+	tokenBalance: BN;
+	lastTokenBalance: BN;
+	interestAccruedTokenAmount: BN;
+	amountDepositWithdraw: BN;
+	lpPool: PublicKey;
 };
 
 export type StateAccount = {
@@ -876,6 +894,12 @@ export type PerpMarketAccount = {
 	protectedMakerLimitPriceDivisor: number;
 	protectedMakerDynamicDivisor: number;
 	lastFillPrice: BN;
+
+	lpPoolId: number;
+	lpFeeTransferScalar: number;
+	lpExchangeFeeExcluscionScalar: number;
+	lpStatus: number;
+	lpPausedOperations: number;
 };
 
 export type HistoricalOracleData = {
@@ -1084,11 +1108,13 @@ export type AMM = {
 	quoteAssetAmountWithUnsettledLp: BN;
 	referencePriceOffset: number;
 
-	takerSpeedBumpOverride: number;
+	oracleLowRiskSlotDelayOverride: number;
+	oracleSlotDelayOverride: number;
 	ammSpreadAdjustment: number;
 	ammInventorySpreadAdjustment: number;
 
 	lastFundingOracleTwap: BN;
+	referencePriceOffsetDeadbandPct: number;
 };
 
 // # User Account Types
@@ -1110,6 +1136,8 @@ export type PerpPosition = {
 	lastBaseAssetAmountPerLp: BN;
 	lastQuoteAssetAmountPerLp: BN;
 	perLpBase: number;
+	isolatedPositionScaledBalance: BN;
+	positionFlag: number;
 };
 
 export type UserStatsAccount = {
@@ -1310,6 +1338,9 @@ export type SignedMsgOrderParamsMessage = {
 	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
 	maxMarginRatio?: number | null;
+	builderIdx?: number | null;
+	builderFeeTenthBps?: number | null;
+	isolatedPositionDeposit?: BN | null;
 };
 
 export type SignedMsgOrderParamsDelegateMessage = {
@@ -1320,6 +1351,9 @@ export type SignedMsgOrderParamsDelegateMessage = {
 	takeProfitOrderParams: SignedMsgTriggerOrderParams | null;
 	stopLossOrderParams: SignedMsgTriggerOrderParams | null;
 	maxMarginRatio?: number | null;
+	builderIdx?: number | null;
+	builderFeeTenthBps?: number | null;
+	isolatedPositionDeposit?: BN | null;
 };
 
 export type SignedMsgTriggerOrderParams = {
@@ -1404,6 +1438,10 @@ export interface IVersionedWallet {
 	payer?: Keypair;
 }
 
+export interface IWalletV2 extends IWallet {
+	signMessage(message: Uint8Array): Promise<Uint8Array>;
+}
+
 export type FeeStructure = {
 	feeTiers: FeeTier[];
 	fillerRewardStructure: OrderFillerRewardStructure;
@@ -1440,6 +1478,17 @@ export type OracleGuardRails = {
 		tooVolatileRatio: BN;
 	};
 };
+
+export enum OracleValidity {
+	NonPositive = 0,
+	TooVolatile = 1,
+	TooUncertain = 2,
+	StaleForMargin = 3,
+	InsufficientDataPoints = 4,
+	StaleForAMMLowRisk = 5,
+	isStaleForAmmImmediate = 6,
+	Valid = 7,
+}
 
 export type PrelaunchOracle = {
 	price: BN;
@@ -1637,4 +1686,213 @@ export type SignedMsgOrderId = {
 export type SignedMsgUserOrdersAccount = {
 	authorityPubkey: PublicKey;
 	signedMsgOrderData: SignedMsgOrderId[];
+};
+
+export type RevenueShareAccount = {
+	authority: PublicKey;
+	totalReferrerRewards: BN;
+	totalBuilderRewards: BN;
+	padding: number[];
+};
+
+export type RevenueShareEscrowAccount = {
+	authority: PublicKey;
+	referrer: PublicKey;
+	referrerBoostExpireTs: number;
+	referrerRewardOffset: number;
+	refereeFeeNumeratorOffset: number;
+	referrerBoostNumerator: number;
+	reservedFixed: number[];
+	orders: RevenueShareOrder[];
+	approvedBuilders: BuilderInfo[];
+};
+
+export type RevenueShareOrder = {
+	feesAccrued: BN;
+	orderId: number;
+	feeTenthBps: number;
+	marketIndex: number;
+	subAccountId: number;
+	builderIdx: number;
+	bitFlags: number;
+	userOrderIndex: number;
+	marketType: MarketType;
+	padding: number[];
+};
+
+export type BuilderInfo = {
+	authority: PublicKey;
+	maxFeeTenthBps: number;
+	padding: number[];
+};
+
+export type RevenueShareSettleRecord = {
+	ts: number;
+	builder: PublicKey | null;
+	referrer: PublicKey | null;
+	feeSettled: BN;
+	marketIndex: number;
+	marketType: MarketType;
+	builderTotalReferrerRewards: BN;
+	builderTotalBuilderRewards: BN;
+	builderSubAccountId: number;
+};
+
+export type AddAmmConstituentMappingDatum = {
+	constituentIndex: number;
+	perpMarketIndex: number;
+	weight: BN;
+};
+
+export type AmmConstituentDatum = AddAmmConstituentMappingDatum & {
+	lastSlot: BN;
+};
+
+export type AmmConstituentMapping = {
+	lpPool: PublicKey;
+	bump: number;
+	weights: AmmConstituentDatum[];
+};
+
+export type TargetDatum = {
+	costToTradeBps: number;
+	lastOracleSlot: BN;
+	lastPositionSlot: BN;
+	targetBase: BN;
+};
+
+export type ConstituentTargetBaseAccount = {
+	lpPool: PublicKey;
+	bump: number;
+	targets: TargetDatum[];
+};
+
+export type ConstituentCorrelations = {
+	lpPool: PublicKey;
+	bump: number;
+	correlations: BN[];
+};
+
+export type LPPoolAccount = {
+	lpPoolId: number;
+	pubkey: PublicKey;
+	mint: PublicKey;
+	whitelistMint: PublicKey;
+	constituentTargetBase: PublicKey;
+	constituentCorrelations: PublicKey;
+	maxAum: BN;
+	lastAum: BN;
+	cumulativeQuoteSentToPerpMarkets: BN;
+	cumulativeQuoteReceivedFromPerpMarkets: BN;
+	totalMintRedeemFeesPaid: BN;
+	lastAumSlot: BN;
+	maxSettleQuoteAmount: BN;
+	mintRedeemId: BN;
+	settleId: BN;
+	minMintFee: BN;
+	tokenSupply: BN;
+	volatility: BN;
+	constituents: number;
+	quoteConstituentIndex: number;
+	bump: number;
+	gammaExecution: number;
+	xi: number;
+};
+
+export type ConstituentSpotBalance = {
+	scaledBalance: BN;
+	cumulativeDeposits: BN;
+	marketIndex: number;
+	balanceType: SpotBalanceType;
+};
+
+export type InitializeConstituentParams = {
+	spotMarketIndex: number;
+	decimals: number;
+	maxWeightDeviation: BN;
+	swapFeeMin: BN;
+	swapFeeMax: BN;
+	maxBorrowTokenAmount: BN;
+	oracleStalenessThreshold: BN;
+	costToTrade: number;
+	derivativeWeight: BN;
+	constituentDerivativeIndex?: number;
+	constituentDerivativeDepegThreshold?: BN;
+	constituentCorrelations: BN[];
+	volatility: BN;
+	gammaExecution?: number;
+	gammaInventory?: number;
+	xi?: number;
+};
+
+export enum ConstituentStatus {
+	ACTIVE = 0,
+	REDUCE_ONLY = 1,
+	DECOMMISSIONED = 2,
+}
+export enum ConstituentLpOperation {
+	Swap = 0b00000001,
+	Deposit = 0b00000010,
+	Withdraw = 0b00000100,
+}
+
+export type ConstituentAccount = {
+	pubkey: PublicKey;
+	mint: PublicKey;
+	lpPool: PublicKey;
+	vault: PublicKey;
+	totalSwapFees: BN;
+	spotBalance: ConstituentSpotBalance;
+	lastSpotBalanceTokenAmount: BN;
+	cumulativeSpotInterestAccruedTokenAmount: BN;
+	maxWeightDeviation: BN;
+	swapFeeMin: BN;
+	swapFeeMax: BN;
+	maxBorrowTokenAmount: BN;
+	vaultTokenBalance: BN;
+	lastOraclePrice: BN;
+	lastOracleSlot: BN;
+	oracleStalenessThreshold: BN;
+	flashLoanInitialTokenAmount: BN;
+	nextSwapId: BN;
+	derivativeWeight: BN;
+	volatility: BN;
+	constituentDerivativeDepegThreshold: BN;
+	constituentDerivativeIndex: number;
+	spotMarketIndex: number;
+	constituentIndex: number;
+	decimals: number;
+	bump: number;
+	vaultBump: number;
+	gammaInventory: number;
+	gammaExecution: number;
+	xi: number;
+	status: number;
+	pausedOperations: number;
+};
+
+export type CacheInfo = {
+	oracle: PublicKey;
+	lastFeePoolTokenAmount: BN;
+	lastNetPnlPoolTokenAmount: BN;
+	lastExchangeFees: BN;
+	lastSettleAmmExFees: BN;
+	lastSettleAmmPnl: BN;
+	position: BN;
+	slot: BN;
+	lastSettleAmount: BN;
+	lastSettleSlot: BN;
+	lastSettleTs: BN;
+	quoteOwedFromLpPool: BN;
+	ammInventoryLimit: BN;
+	oraclePrice: BN;
+	oracleSlot: BN;
+	oracleSource: number;
+	oracleValidity: number;
+	lpStatusForPerpMarket: number;
+	ammPositionScalar: number;
+};
+
+export type AmmCache = {
+	cache: CacheInfo[];
 };

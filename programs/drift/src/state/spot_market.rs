@@ -9,7 +9,8 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    AMM_RESERVE_PRECISION, FIVE_MINUTE, MARGIN_PRECISION, ONE_HOUR, SPOT_WEIGHT_PRECISION_U128,
+    AMM_RESERVE_PRECISION, FIVE_MINUTE, MARGIN_PRECISION, ONE_HOUR, PERCENTAGE_PRECISION,
+    SPOT_WEIGHT_PRECISION_U128,
 };
 #[cfg(test)]
 use crate::math::constants::{PRICE_PRECISION_I64, SPOT_CUMULATIVE_INTEREST_PRECISION};
@@ -25,7 +26,7 @@ use crate::state::oracle::{HistoricalIndexData, HistoricalOracleData, OracleSour
 use crate::state::paused_operations::{InsuranceFundOperation, SpotOperation};
 use crate::state::perp_market::{MarketStatus, PoolBalance};
 use crate::state::traits::{MarketIndexOffset, Size};
-use crate::{validate, PERCENTAGE_PRECISION};
+use crate::validate;
 
 use super::oracle_map::OracleIdentifier;
 
@@ -426,6 +427,7 @@ impl SpotMarket {
             self.imf_factor,
             default_liability_weight,
             SPOT_WEIGHT_PRECISION_U128,
+            true,
         )?;
 
         let liability_weight = size_based_liability_weight.max(default_liability_weight);

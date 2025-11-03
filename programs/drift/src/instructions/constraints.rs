@@ -159,15 +159,13 @@ pub fn get_vault_len(mint: &InterfaceAccount<Mint>) -> anchor_lang::Result<usize
         let mint_state = StateWithExtensions::<Mint>::unpack(&mint_data)?;
         let mint_extensions = match mint_state.get_extension_types() {
             Ok(extensions) => extensions,
-            // If we cant deserialize the mint, we use the default token account length
+            // If we cant deserialize the mint, try assuming no extensions
             // Init token will fail if this size doesnt work, so worst case init account just fails
-            Err(_) => {
-                msg!("Failed to deserialize mint. Falling back to default token account length");
-                return Ok(::anchor_spl::token::TokenAccount::LEN);
-            }
+            Err(_) => vec![],
         };
-        let required_extensions =
+        let mut required_extensions =
             ExtensionType::get_required_init_account_extensions(&mint_extensions);
+        required_extensions.push(ExtensionType::ImmutableOwner);
         ExtensionType::try_calculate_account_len::<Account>(&required_extensions)?
     } else {
         ::anchor_spl::token::TokenAccount::LEN

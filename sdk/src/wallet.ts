@@ -5,6 +5,7 @@ import {
 	VersionedTransaction,
 } from '@solana/web3.js';
 import { IWallet, IVersionedWallet } from './types';
+import nacl from 'tweetnacl';
 
 export class Wallet implements IWallet, IVersionedWallet {
 	constructor(readonly payer: Keypair) {}
@@ -39,5 +40,15 @@ export class Wallet implements IWallet, IVersionedWallet {
 
 	get publicKey(): PublicKey {
 		return this.payer.publicKey;
+	}
+}
+
+export class WalletV2 extends Wallet {
+	constructor(readonly payer: Keypair) {
+		super(payer);
+	}
+
+	async signMessage(message: Uint8Array): Promise<Uint8Array> {
+		return Buffer.from(nacl.sign.detached(message, this.payer.secretKey));
 	}
 }

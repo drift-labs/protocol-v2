@@ -89,10 +89,18 @@ impl<'a> OracleMap<'a> {
         last_oracle_price_twap: i64,
         max_confidence_interval_multiplier: u64,
         slots_before_stale_for_amm_override: i8,
+        oracle_low_risk_slot_delay_override_override: i8,
+        log_mode: Option<LogMode>,
     ) -> DriftResult<(&OraclePriceData, OracleValidity)> {
         if self.should_get_quote_asset_price_data(&oracle_id.0) {
             return Ok((&self.quote_asset_price_data, OracleValidity::Valid));
         }
+
+        let log_mode = if let Some(lm) = log_mode {
+            lm
+        } else {
+            LogMode::ExchangeOracle
+        };
 
         if self.price_data.contains_key(oracle_id) {
             let oracle_price_data = self.price_data.get(oracle_id).safe_unwrap()?;
@@ -108,8 +116,9 @@ impl<'a> OracleMap<'a> {
                     &self.oracle_guard_rails.validity,
                     max_confidence_interval_multiplier,
                     &oracle_id.1,
-                    LogMode::ExchangeOracle,
+                    log_mode,
                     slots_before_stale_for_amm_override,
+                    oracle_low_risk_slot_delay_override_override,
                 )?;
                 self.validity.insert(*oracle_id, oracle_validity);
                 oracle_validity
@@ -138,8 +147,9 @@ impl<'a> OracleMap<'a> {
             &self.oracle_guard_rails.validity,
             max_confidence_interval_multiplier,
             &oracle_id.1,
-            LogMode::ExchangeOracle,
+            log_mode,
             slots_before_stale_for_amm_override,
+            oracle_low_risk_slot_delay_override_override,
         )?;
         self.validity.insert(*oracle_id, oracle_validity);
 

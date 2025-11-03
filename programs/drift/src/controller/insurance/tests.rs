@@ -41,6 +41,7 @@ pub fn basic_stake_if_test() {
         &mut user_stats,
         &mut spot_market,
         0,
+        false,
     )
     .unwrap();
     assert_eq!(if_stake.unchecked_if_shares(), amount as u128);
@@ -104,6 +105,7 @@ pub fn basic_stake_if_test() {
         &mut user_stats,
         &mut spot_market,
         0,
+        false,
     )
     .unwrap();
     assert_eq!(if_stake.cost_basis, 1234);
@@ -141,6 +143,7 @@ pub fn basic_seeded_stake_if_test() {
         &mut user_stats,
         &mut spot_market,
         0,
+        false,
     )
     .unwrap();
 
@@ -202,6 +205,7 @@ pub fn basic_seeded_stake_if_test() {
         &mut user_stats,
         &mut spot_market,
         0,
+        false,
     )
     .unwrap();
     assert_eq!(if_stake.cost_basis, 1234);
@@ -245,6 +249,7 @@ pub fn large_num_seeded_stake_if_test() {
         &mut user_stats,
         &mut spot_market,
         0,
+        false,
     )
     .unwrap();
 
@@ -334,6 +339,7 @@ pub fn large_num_seeded_stake_if_test() {
         &mut user_stats,
         &mut spot_market,
         20,
+        false,
     )
     .unwrap();
     assert_eq!(if_stake.cost_basis, 199033744205760);
@@ -346,6 +352,7 @@ pub fn large_num_seeded_stake_if_test() {
         &mut user_stats,
         &mut spot_market,
         30,
+        false,
     )
     .unwrap();
     assert_eq!(if_stake.cost_basis, 398067488411520);
@@ -378,6 +385,7 @@ pub fn gains_stake_if_test() {
         &mut user_stats,
         &mut spot_market,
         0,
+        false,
     )
     .unwrap();
     assert_eq!(if_stake.unchecked_if_shares(), amount as u128);
@@ -502,6 +510,7 @@ pub fn losses_stake_if_test() {
         &mut user_stats,
         &mut spot_market,
         0,
+        false,
     )
     .unwrap();
     assert_eq!(if_stake.unchecked_if_shares(), amount as u128);
@@ -631,6 +640,7 @@ pub fn escrow_losses_stake_if_test() {
         &mut user_stats,
         &mut spot_market,
         0,
+        false,
     )
     .unwrap();
     assert_eq!(if_stake.unchecked_if_shares(), amount as u128);
@@ -729,7 +739,8 @@ pub fn escrow_gains_stake_if_test() {
         &mut if_stake,
         &mut user_stats,
         &mut spot_market,
-        0
+        0,
+        false,
     )
     .is_err());
 
@@ -741,6 +752,7 @@ pub fn escrow_gains_stake_if_test() {
         &mut user_stats,
         &mut spot_market,
         0,
+        false,
     )
     .unwrap();
 
@@ -858,6 +870,7 @@ pub fn drained_stake_if_test_rebase_on_new_add() {
         &mut user_stats,
         &mut spot_market,
         0,
+        false,
     )
     .is_err());
 
@@ -877,6 +890,7 @@ pub fn drained_stake_if_test_rebase_on_new_add() {
         &mut user_stats,
         &mut spot_market,
         0,
+        false,
     )
     .unwrap();
     if_balance += amount;
@@ -912,6 +926,7 @@ pub fn drained_stake_if_test_rebase_on_new_add() {
         &mut orig_user_stats,
         &mut spot_market,
         0,
+        false,
     )
     .unwrap();
 
@@ -1010,6 +1025,7 @@ pub fn drained_stake_if_test_rebase_on_old_remove_all() {
         &mut user_stats,
         &mut spot_market,
         0,
+        false,
     )
     .unwrap();
 
@@ -1210,6 +1226,7 @@ pub fn drained_stake_if_test_rebase_on_old_remove_all_2() {
         &mut user_stats,
         &mut spot_market,
         0,
+        false,
     )
     .unwrap();
     if_balance += 10_000_000_000_000;
@@ -1254,6 +1271,7 @@ pub fn multiple_if_stakes_and_rebase() {
         &mut user_stats_1,
         &mut spot_market,
         0,
+        false,
     )
     .unwrap();
 
@@ -1266,6 +1284,7 @@ pub fn multiple_if_stakes_and_rebase() {
         &mut user_stats_2,
         &mut spot_market,
         0,
+        false,
     )
     .unwrap();
 
@@ -1392,6 +1411,7 @@ pub fn multiple_if_stakes_and_rebase_and_admin_remove() {
         &mut user_stats_1,
         &mut spot_market,
         0,
+        false,
     )
     .unwrap();
 
@@ -1404,6 +1424,7 @@ pub fn multiple_if_stakes_and_rebase_and_admin_remove() {
         &mut user_stats_2,
         &mut spot_market,
         0,
+        false,
     )
     .unwrap();
 

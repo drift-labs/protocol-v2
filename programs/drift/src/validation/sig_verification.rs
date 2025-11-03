@@ -58,6 +58,9 @@ pub struct VerifiedMessage {
     pub take_profit_order_params: Option<SignedMsgTriggerOrderParams>,
     pub stop_loss_order_params: Option<SignedMsgTriggerOrderParams>,
     pub max_margin_ratio: Option<u16>,
+    pub builder_idx: Option<u8>,
+    pub builder_fee_tenth_bps: Option<u16>,
+    pub isolated_position_deposit: Option<u64>,
     pub signature: [u8; 64],
 }
 
@@ -96,6 +99,9 @@ pub fn deserialize_into_verified_message(
             take_profit_order_params: deserialized.take_profit_order_params,
             stop_loss_order_params: deserialized.stop_loss_order_params,
             max_margin_ratio: deserialized.max_margin_ratio,
+            builder_idx: deserialized.builder_idx,
+            builder_fee_tenth_bps: deserialized.builder_fee_tenth_bps,
+            isolated_position_deposit: deserialized.isolated_position_deposit,
             signature: *signature,
         });
     } else {
@@ -123,6 +129,9 @@ pub fn deserialize_into_verified_message(
             take_profit_order_params: deserialized.take_profit_order_params,
             stop_loss_order_params: deserialized.stop_loss_order_params,
             max_margin_ratio: deserialized.max_margin_ratio,
+            builder_idx: deserialized.builder_idx,
+            builder_fee_tenth_bps: deserialized.builder_fee_tenth_bps,
+            isolated_position_deposit: deserialized.isolated_position_deposit,
             signature: *signature,
         });
     }

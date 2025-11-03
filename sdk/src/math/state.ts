@@ -38,3 +38,11 @@ export function useMedianTriggerPrice(stateAccount: StateAccount): boolean {
 		(stateAccount.featureBitFlags & FeatureBitFlags.MEDIAN_TRIGGER_PRICE) > 0
 	);
 }
+
+export function builderCodesEnabled(stateAccount: StateAccount): boolean {
+	return (stateAccount.featureBitFlags & FeatureBitFlags.BUILDER_CODES) > 0;
+}
+
+export function builderReferralEnabled(stateAccount: StateAccount): boolean {
+	return (stateAccount.featureBitFlags & FeatureBitFlags.BUILDER_REFERRAL) > 0;
+}
