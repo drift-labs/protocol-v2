@@ -5561,11 +5561,11 @@ pub struct AddMarketToAmmCache<'info> {
 
 #[derive(Accounts)]
 pub struct DeleteAmmCache<'info> {
-    #[account(mut)]
-    pub admin: Signer<'info>,
     #[account(
-        has_one = admin
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
     )]
+    pub admin: Signer<'info>,
     pub state: Box<Account<'info, State>>,
     #[account(
         mut,
