@@ -958,7 +958,6 @@ dependencies = [
 name = "drift"
 version = "2.145.1"
 dependencies = [
- "ahash 0.8.6",
  "anchor-lang",
  "anchor-spl",
  "arrayref",
@@ -970,7 +969,6 @@ dependencies = [
  "drift-macros",
  "enumflags2",
  "hex",
- "num-derive 0.3.3",
  "num-integer",
  "num-traits",
  "openbook-v2-light",
@@ -986,7 +984,6 @@ dependencies = [
  "static_assertions",
  "switchboard",
  "switchboard-on-demand",
- "thiserror",
  "uint",
 ]
 
@@ -1840,7 +1837,6 @@ name = "pyth"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
- "arrayref",
  "bytemuck",
 ]
 
@@ -1879,7 +1875,7 @@ dependencies = [
 [[package]]
 name = "pyth-solana-receiver-sdk"
 version = "0.3.0"
-source = "git+https://github.com/drift-labs/pyth-crosschain?rev=3e8a24ecd0bcf22b787313e2020f4186bb22c729#3e8a24ecd0bcf22b787313e2020f4186bb22c729"
+source = "git+https://github.com/drift-labs/pyth-crosschain?rev=d790d1cb4da873a949cf33ff70349b7614b232eb#d790d1cb4da873a949cf33ff70349b7614b232eb"
 dependencies = [
  "anchor-lang",
  "hex",
@@ -1890,7 +1886,7 @@ dependencies = [
 [[package]]
 name = "pythnet-sdk"
 version = "2.1.0"
-source = "git+https://github.com/drift-labs/pyth-crosschain?rev=3e8a24ecd0bcf22b787313e2020f4186bb22c729#3e8a24ecd0bcf22b787313e2020f4186bb22c729"
+source = "git+https://github.com/drift-labs/pyth-crosschain?rev=d790d1cb4da873a949cf33ff70349b7614b232eb#d790d1cb4da873a949cf33ff70349b7614b232eb"
 dependencies = [
  "anchor-lang",
  "bincode",
@@ -2972,7 +2968,6 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "bytemuck",
- "solana-program",
 ]
 
 [[package]]
