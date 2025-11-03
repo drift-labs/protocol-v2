@@ -15,7 +15,7 @@ pub enum PerpOperation {
     SettleRevPool = 0b10000000,
 }
 
-const ALL_PERP_OPERATIONS: [PerpOperation; 7] = [
+const ALL_PERP_OPERATIONS: [PerpOperation; 8] = [
     PerpOperation::UpdateFunding,
     PerpOperation::AmmFill,
     PerpOperation::Fill,
@@ -23,6 +23,7 @@ const ALL_PERP_OPERATIONS: [PerpOperation; 7] = [
     PerpOperation::SettlePnlWithPosition,
     PerpOperation::Liquidation,
     PerpOperation::AmmImmediateFill,
+    PerpOperation::SettleRevPool,
 ];
 
 impl PerpOperation {
