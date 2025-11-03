@@ -106,6 +106,7 @@ describe('admin', () => {
 			new BN(1000),
 			periodicity
 		);
+		await driftClient.initializeAmmCache();
 	});
 
 	it('checks market name', async () => {
