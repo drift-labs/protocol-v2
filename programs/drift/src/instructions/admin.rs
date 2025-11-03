@@ -3812,7 +3812,14 @@ pub fn handle_update_perp_market_oracle(
     perp_market.amm.oracle = oracle;
     perp_market.amm.oracle_source = oracle_source;
 
-    amm_cache.update_perp_market_fields(perp_market)?;
+    if amm_cache
+        .cache
+        .iter()
+        .find(|cache_info| cache_info.market_index == perp_market.market_index)
+        .is_some()
+    {
+        amm_cache.update_perp_market_fields(perp_market)?;
+    }
 
     Ok(())
 }

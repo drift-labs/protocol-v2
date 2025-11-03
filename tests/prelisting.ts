@@ -130,6 +130,7 @@ describe('prelisting', () => {
 			new BN(32 * PEG_PRECISION.toNumber()),
 			OracleSource.Prelaunch
 		);
+		await adminDriftClient.initializeAmmCache();
 
 		await adminDriftClient.updatePerpMarketBaseSpread(
 			0,
