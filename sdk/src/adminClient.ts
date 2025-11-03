@@ -507,12 +507,6 @@ export class AdminClient extends DriftClient {
 	): Promise<TransactionSignature> {
 		const currentPerpMarketIndex = this.getStateAccount().numberOfMarkets;
 
-		const ammCachePublicKey = getAmmCachePublicKey(this.program.programId);
-		const ammCacheAccount = await this.connection.getAccountInfo(
-			ammCachePublicKey
-		);
-		const mustInitializeAmmCache = ammCacheAccount?.data == null;
-
 		const initializeMarketIxs = await this.getInitializePerpMarketIx(
 			marketIndex,
 			priceOracle,
@@ -540,8 +534,7 @@ export class AdminClient extends DriftClient {
 			curveUpdateIntensity,
 			ammJitIntensity,
 			name,
-			lpPoolId,
-			mustInitializeAmmCache
+			lpPoolId
 		);
 		const tx = await this.buildTransaction(initializeMarketIxs);
 
@@ -588,8 +581,7 @@ export class AdminClient extends DriftClient {
 		curveUpdateIntensity = 0,
 		ammJitIntensity = 0,
 		name = DEFAULT_MARKET_NAME,
-		lpPoolId: number = 0,
-		includeInitAmmCacheIx = false
+		lpPoolId: number = 0
 	): Promise<TransactionInstruction[]> {
 		const perpMarketPublicKey = await getPerpMarketPublicKey(
 			this.program.programId,
@@ -597,10 +589,6 @@ export class AdminClient extends DriftClient {
 		);
 
 		const ixs: TransactionInstruction[] = [];
-
-		if (includeInitAmmCacheIx) {
-			ixs.push(await this.getInitializeAmmCacheIx());
-		}
 
 		const nameBuffer = encodeName(name);
 		const initPerpIx = await this.program.instruction.initializePerpMarket(
@@ -638,7 +626,6 @@ export class AdminClient extends DriftClient {
 						: this.wallet.publicKey,
 					oracle: priceOracle,
 					perpMarket: perpMarketPublicKey,
-					ammCache: getAmmCachePublicKey(this.program.programId),
 					rent: SYSVAR_RENT_PUBKEY,
 					systemProgram: anchor.web3.SystemProgram.programId,
 				},
@@ -667,8 +654,8 @@ export class AdminClient extends DriftClient {
 				admin: this.useHotWalletAdmin
 					? this.wallet.publicKey
 					: this.getStateAccount().admin,
-				ammCache: getAmmCachePublicKey(this.program.programId),
 				rent: SYSVAR_RENT_PUBKEY,
+				ammCache: getAmmCachePublicKey(this.program.programId),
 				systemProgram: anchor.web3.SystemProgram.programId,
 			},
 		});

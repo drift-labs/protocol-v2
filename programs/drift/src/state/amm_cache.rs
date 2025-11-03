@@ -10,11 +10,9 @@ use crate::state::oracle::MMOraclePriceData;
 use crate::state::oracle_map::OracleIdentifier;
 use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::{SpotBalance, SpotMarket};
-use crate::state::state::State;
 use crate::state::traits::Size;
 use crate::state::zero_copy::HasLen;
 use crate::state::zero_copy::{AccountZeroCopy, AccountZeroCopyMut};
-use crate::validate;
 use crate::OracleSource;
 use crate::{impl_zero_copy_loader, OracleGuardRails};
 

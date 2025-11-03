@@ -1132,6 +1132,16 @@ pub fn handle_initialize_amm_cache(ctx: Context<InitializeAmmCache>) -> Result<(
 pub fn handle_add_market_to_amm_cache(ctx: Context<AddMarketToAmmCache>) -> Result<()> {
     let amm_cache = &mut ctx.accounts.amm_cache;
     let perp_market = ctx.accounts.perp_market.load()?;
+
+    for cache_info in amm_cache.cache.iter() {
+        validate!(
+            cache_info.market_index != perp_market.market_index,
+            ErrorCode::DefaultError,
+            "Market index {} already in amm cache",
+            perp_market.market_index
+        )?;
+    }
+
     let current_size = amm_cache.cache.len();
     let new_size = current_size.saturating_add(1);
 
@@ -5494,15 +5504,6 @@ pub struct InitializePerpMarket<'info> {
         payer = admin
     )]
     pub perp_market: AccountLoader<'info, PerpMarket>,
-    #[account(
-        mut,
-        seeds = [AMM_POSITIONS_CACHE.as_ref()],
-        bump = amm_cache.bump,
-        realloc = AmmCache::space(amm_cache.cache.len() + 1_usize),
-        realloc::payer = admin,
-        realloc::zero = false,
-    )]
-    pub amm_cache: Box<Account<'info, AmmCache>>,
     /// CHECK: checked in `initialize_perp_market`
     pub oracle: AccountInfo<'info>,
     pub rent: Sysvar<'info, Rent>,
