@@ -1,5 +1,5 @@
 import { PublicKey } from '@solana/web3.js';
-import { OracleSource } from '../types';
+import { MarketStatus, OracleSource } from '../types';
 import { DriftEnv } from '../config';
 
 export type PerpMarketConfig = {
@@ -13,6 +13,7 @@ export type PerpMarketConfig = {
 	oracleSource: OracleSource;
 	pythFeedId?: string;
 	pythLazerId?: number;
+	marketStatus?: MarketStatus;
 };
 
 export const DevnetPerpMarkets: PerpMarketConfig[] = [
@@ -615,6 +616,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracleSource: OracleSource.PYTH_PULL,
 		pythFeedId:
 			'0x2f2d17abbc1e781bd87b4a5d52c8b2856886f5c482fa3593cebf6795040ab0b6',
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'Pyth',
@@ -719,6 +721,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0xa9f3b2a89c6f85a6c20a9518abde39b944e839ca49a0c92307c65974d3f14a57',
 		pythLazerId: 83,
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'BITTENSOR',
@@ -758,6 +761,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0xb17e5bc5de742a8a378b54c9c75442b7d51e30ada63f28d9bd28d3c0e26511a0',
 		pythLazerId: 464,
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'Tensor',
@@ -797,6 +801,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0x7358313661dcd4f842a1423aa4f7a05f009001c9113201c719621d3f1aa80a73',
 		pythLazerId: 404,
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'IO',
@@ -810,6 +815,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0x82595d1509b770fa52681e260af4dda9752b87316d7c048535d8ead3fa856eb1',
 		pythLazerId: 90,
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'ZEX',
@@ -822,6 +828,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracleSource: OracleSource.PYTH_PULL,
 		pythFeedId:
 			'0x3d63be09d1b88f6dffe6585d0170670592124fd9fa4e0fe8a09ff18464f05e3a',
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'POPCAT',
@@ -847,6 +854,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracleSource: OracleSource.PYTH_1K_PULL,
 		pythFeedId:
 			'0x5169491cd7e2a44c98353b779d5eb612e4ac32e073f5cc534303d86307c2f1bc',
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'TRUMP-WIN-2024-BET',
@@ -857,6 +865,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracle: new PublicKey('7YrQUxmxGdbk8pvns9KcL5ojbZSL2eHj62hxRqggtEUR'),
 		launchTs: 1723996800000,
 		oracleSource: OracleSource.Prelaunch,
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'KAMALA-POPULAR-VOTE-2024-BET',
@@ -867,6 +876,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracle: new PublicKey('AowFw1dCVjS8kngvTCoT3oshiUyL69k7P1uxqXwteWH4'),
 		launchTs: 1723996800000,
 		oracleSource: OracleSource.Prelaunch,
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'FED-CUT-50-SEPT-2024-BET',
@@ -877,6 +887,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracle: new PublicKey('5QzgqAbEhJ1cPnLX4tSZEXezmW7sz7PPVVg2VanGi8QQ'),
 		launchTs: 1724250126000,
 		oracleSource: OracleSource.Prelaunch,
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'REPUBLICAN-POPULAR-AND-WIN-BET',
@@ -887,6 +898,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracle: new PublicKey('BtUUSUc9rZSzBmmKhQq4no65zHQTzMFeVYss7xcMRD53'),
 		launchTs: 1724250126000,
 		oracleSource: OracleSource.Prelaunch,
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'BREAKPOINT-IGGYERIC-BET',
@@ -897,6 +909,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracle: new PublicKey('2ftYxoSupperd4ULxy9xyS2Az38wfAe7Lm8FCAPwjjVV'),
 		launchTs: 1724250126000,
 		oracleSource: OracleSource.Prelaunch,
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'DEMOCRATS-WIN-MICHIGAN-BET',
@@ -907,6 +920,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracle: new PublicKey('8HTDLjhb2esGU5mu11v3pq3eWeFqmvKPkQNCnTTwKAyB'),
 		launchTs: 1725551484000,
 		oracleSource: OracleSource.Prelaunch,
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'TON',
@@ -930,6 +944,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracle: new PublicKey('DpJz7rjTJLxxnuqrqZTUjMWtnaMFAEfZUv5ATdb9HTh1'),
 		launchTs: 1726646453000,
 		oracleSource: OracleSource.Prelaunch,
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'MOTHER',
@@ -943,6 +958,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0x62742a997d01f7524f791fdb2dd43aaf0e567d765ebf8fd0406a994239e874d4',
 		pythLazerId: 501,
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'MOODENG',
@@ -956,6 +972,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0xffff73128917a90950cd0473fd2551d7cd274fd5a6cc45641881bbcc6ee73417',
 		pythLazerId: 500,
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'WARWICK-FIGHT-WIN-BET',
@@ -966,6 +983,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracle: new PublicKey('Dz5Nvxo1hv7Zfyu11hy8e97twLMRKk6heTWCDGXytj7N'),
 		launchTs: 1727965864000,
 		oracleSource: OracleSource.Prelaunch,
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'DeBridge',
@@ -978,6 +996,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracleSource: OracleSource.PYTH_PULL,
 		pythFeedId:
 			'0xf788488fe2df341b10a498e0a789f03209c0938d9ed04bc521f8224748d6d236',
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'WLF-5B-1W',
@@ -988,6 +1007,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracle: new PublicKey('7LpRfPaWR7cQqN7CMkCmZjEQpWyqso5LGuKCvDXH5ZAr'),
 		launchTs: 1728574493000,
 		oracleSource: OracleSource.Prelaunch,
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'VRSTPN-WIN-F1-24-DRVRS-CHMP',
@@ -998,6 +1018,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracle: new PublicKey('E36rvXEwysWeiToXCpWfHVADd8bzzyR4w83ZSSwxAxqG'),
 		launchTs: 1729209600000,
 		oracleSource: OracleSource.Prelaunch,
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'LNDO-WIN-F1-24-US-GP',
@@ -1008,6 +1029,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracle: new PublicKey('6AVy1y9SnJECnosQaiK2uY1kcT4ZEBf1F4DMvhxgvhUo'),
 		launchTs: 1729209600000,
 		oracleSource: OracleSource.Prelaunch,
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: '1KMEW',
@@ -1021,6 +1043,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0x514aed52ca5294177f20187ae883cec4a018619772ddce41efcc36a6448f5d5d',
 		pythLazerId: 137,
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'MICHI',
@@ -1033,6 +1056,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracleSource: OracleSource.PYTH_PULL,
 		pythFeedId:
 			'0x63a45218d6b13ffd28ca04748615511bf70eff80a3411c97d96b8ed74a6decab',
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'GOAT',
@@ -1046,6 +1070,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0xf7731dc812590214d3eb4343bfb13d1b4cfa9b1d4e020644b5d5d8e07d60c66c',
 		pythLazerId: 437,
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'FWOG',
@@ -1058,6 +1083,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracleSource: OracleSource.PYTH_PULL,
 		pythFeedId:
 			'0x656cc2a39dd795bdecb59de810d4f4d1e74c25fe4c42d0bf1c65a38d74df48e9',
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'PNUT',
@@ -1071,6 +1097,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0x116da895807f81f6b5c5f01b109376e7f6834dc8b51365ab7cdfa66634340e54',
 		pythLazerId: 77,
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'RAY',
@@ -1084,6 +1111,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0x91568baa8beb53db23eb3fb7f22c6e8bd303d103919e19733f2bb642d3e7987a',
 		pythLazerId: 54,
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'SUPERBOWL-LIX-LIONS',
@@ -1094,6 +1122,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracle: new PublicKey('GfTeKKnBxeLSB1Hm24ArjduQM4yqaAgoGgiC99gq5E2P'),
 		launchTs: 1732721897000,
 		oracleSource: OracleSource.Prelaunch,
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'SUPERBOWL-LIX-CHIEFS',
@@ -1104,6 +1133,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracle: new PublicKey('EdB17Nyu4bnEBiSEfFrwvp4VCUvtq9eDJHc6Ujys3Jwd'),
 		launchTs: 1732721897000,
 		oracleSource: OracleSource.Prelaunch,
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'Hyperliquid',
@@ -1143,6 +1173,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0x91519e3e48571e1232a85a938e714da19fe5ce05107f3eebb8a870b2e8020169',
 		pythLazerId: 93,
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'PENGU',
@@ -1169,6 +1200,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0x2551eca7784671173def2c41e6f3e51e11cd87494863f1d208fdd8c64a1f85ae',
 		pythLazerId: 171,
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'TRUMP',
@@ -1195,6 +1227,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0x8fef7d52c7f4e3a6258d663f9d27e64a1b6fd95ab5f7d545dbf9a515353d0064',
 		pythLazerId: 145,
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'BERA',
@@ -1218,6 +1251,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracle: new PublicKey('HieNNSAy9tjtU2mLEcGtgCMViCeZ1881fX7tfezL7wdV'),
 		launchTs: 1739463226000,
 		oracleSource: OracleSource.Prelaunch,
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'NBAFINALS25-BOS',
@@ -1228,6 +1262,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracle: new PublicKey('HorrnsG8RBMv7dhzbgPX4wqcWbUTV5NwV8r59UwTu4CJ'),
 		launchTs: 1739463226000,
 		oracleSource: OracleSource.Prelaunch,
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'KAITO',
@@ -1254,6 +1289,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0xb620ba83044577029da7e4ded7a2abccf8e6afc2a0d4d26d89ccdd39ec109025',
 		pythLazerId: 309,
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'Fart Coin',
@@ -1297,6 +1333,7 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracle: new PublicKey('GAzR3C5cn7gGVvuqJB57wSYTPWP3n2Lw4mRJRxvTvqYy'),
 		launchTs: 1747318237000,
 		oracleSource: OracleSource.PYTH_LAZER,
+		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'PUMP',
