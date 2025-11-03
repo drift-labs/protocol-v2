@@ -641,7 +641,7 @@ pub fn calculate_reference_price_offset(
         || (mark_premium_avg_pct <= 0 && liquidity_fraction <= 0)
     {
         mark_premium_avg_pct
-            .safe_mul(liquidity_fraction.cast::<i64>()?)?
+            .safe_mul(liquidity_fraction.unsigned_abs().cast::<i64>()?)?
             .safe_div(5)?
     } else {
         0
