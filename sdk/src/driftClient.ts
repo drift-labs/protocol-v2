@@ -313,7 +313,7 @@ export class DriftClient {
 
 			if (
 				isolatedPositionDepositAmount?.gt?.(ZERO) &&
-				this.isOrderIncreasingPosition(orderParams, userAccount)
+				this.isOrderIncreasingPosition(orderParams, userAccount.subAccountId)
 			) {
 				preIxs.push(
 					await this.getTransferIsolatedPerpPositionDepositIx(
@@ -4835,7 +4835,10 @@ export class DriftClient {
 		isolatedPositionDepositAmount?: BN
 	): Promise<TransactionSignature> {
 		const preIxs: TransactionInstruction[] = [];
-		if (isolatedPositionDepositAmount?.gt?.(ZERO)) {
+		if (
+			isolatedPositionDepositAmount?.gt?.(ZERO) &&
+			this.isOrderIncreasingPosition(orderParams, subAccountId)
+		) {
 			preIxs.push(
 				await this.getTransferIsolatedPerpPositionDepositIx(
 					isolatedPositionDepositAmount as BN,
@@ -5333,7 +5336,8 @@ export class DriftClient {
 			const p = params[0];
 			if (
 				isVariant(p.marketType, 'perp') &&
-				isolatedPositionDepositAmount?.gt?.(ZERO)
+				isolatedPositionDepositAmount?.gt?.(ZERO) &&
+				this.isOrderIncreasingPosition(p, subAccountId)
 			) {
 				preIxs.push(
 					await this.getTransferIsolatedPerpPositionDepositIx(
@@ -7216,7 +7220,8 @@ export class DriftClient {
 
 			if (
 				isVariant(orderParams.marketType, 'perp') &&
-				isolatedPositionDepositAmount?.gt?.(ZERO)
+				isolatedPositionDepositAmount?.gt?.(ZERO) &&
+				this.isOrderIncreasingPosition(orderParams, subAccountId)
 			) {
 				placeAndTakeIxs.push(
 					await this.getTransferIsolatedPerpPositionDepositIx(
@@ -12852,8 +12857,9 @@ export class DriftClient {
 
 	isOrderIncreasingPosition(
 		orderParams: OptionalOrderParams,
-		userAccount: UserAccount
+		subAccountId: number
 	): boolean {
+		const userAccount = this.getUserAccount(subAccountId);
 		const perpPosition = userAccount.perpPositions.find(
 			(p) => p.marketIndex === orderParams.marketIndex
 		);
