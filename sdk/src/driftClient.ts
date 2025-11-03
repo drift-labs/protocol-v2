@@ -1776,15 +1776,24 @@ export class DriftClient {
 	public async getUpdateUserPerpPositionCustomMarginRatioIx(
 		perpMarketIndex: number,
 		marginRatio: number,
-		subAccountId = 0
+		subAccountId = 0,
+		overrides?: {
+			userAccountPublicKey?: PublicKey;
+			authority?: PublicKey;
+			signingAuthority?: PublicKey;
+		}
 	): Promise<TransactionInstruction> {
-		const userAccountPublicKey = getUserAccountPublicKeySync(
-			this.program.programId,
-			this.authority,
-			subAccountId
-		);
+		let userAccountPublicKey = overrides?.userAccountPublicKey;
+		if (!userAccountPublicKey) {
+			userAccountPublicKey = getUserAccountPublicKeySync(
+				this.program.programId,
+				overrides?.authority ?? this.authority,
+				subAccountId
+			);
+		}
 
-		await this.addUser(subAccountId, this.authority);
+		const signingAuthority =
+			overrides?.signingAuthority ?? this.wallet.publicKey;
 
 		const ix = this.program.instruction.updateUserPerpPositionCustomMarginRatio(
 			subAccountId,
@@ -1793,7 +1802,7 @@ export class DriftClient {
 			{
 				accounts: {
 					user: userAccountPublicKey,
-					authority: this.wallet.publicKey,
+					authority: signingAuthority,
 				},
 			}
 		);
