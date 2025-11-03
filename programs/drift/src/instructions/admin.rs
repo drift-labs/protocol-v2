@@ -5154,6 +5154,13 @@ pub fn handle_update_delegate_user_gov_token_insurance_stake(
     Ok(())
 }
 
+pub fn handle_update_amm_fee_revenue_pool_withdraw(
+    ctx: Context<HotAdminUpdatePerpMarket>,
+    enable: bool,
+) -> Result<()> {
+    Ok(())
+}
+
 pub fn handle_update_feature_bit_flags_builder_codes(
     ctx: Context<HotAdminUpdateState>,
     enable: bool,
