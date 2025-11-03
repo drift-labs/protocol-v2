@@ -141,7 +141,7 @@ export function decodeUser(buffer: Buffer): UserAccount {
 			maxMarginRatio,
 			positionFlag,
 			isolatedPositionScaledBalance,
-		});	
+		});
 	}
 
 	const orders: Order[] = [];

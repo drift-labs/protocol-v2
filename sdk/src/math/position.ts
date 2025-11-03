@@ -245,13 +245,17 @@ export function positionIsAvailable(position: PerpPosition): boolean {
 		position.openOrders === 0 &&
 		position.quoteAssetAmount.eq(ZERO) &&
 		position.lpShares.eq(ZERO) &&
-		position.isolatedPositionScaledBalance.eq(ZERO)
-		&& !positionIsBeingLiquidated(position)
+		position.isolatedPositionScaledBalance.eq(ZERO) &&
+		!positionIsBeingLiquidated(position)
 	);
 }
 
 export function positionIsBeingLiquidated(position: PerpPosition): boolean {
-	return (position.positionFlag & (PositionFlag.BeingLiquidated | PositionFlag.Bankruptcy)) > 0;
+	return (
+		(position.positionFlag &
+			(PositionFlag.BeingLiquidated | PositionFlag.Bankruptcy)) >
+		0
+	);
 }
 
 /**

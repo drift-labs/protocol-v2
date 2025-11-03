@@ -27,8 +27,6 @@ import {
 	DataAndSlot,
 } from '../../src';
 import { EventEmitter } from 'events';
-import StrictEventEmitter from 'strict-event-emitter-types';
-import { UserEvents } from '../../src/accounts/types';
 
 export const mockPerpPosition: PerpPosition = {
 	baseAssetAmount: new BN(0),
@@ -677,9 +675,9 @@ export class MockUserMap implements UserMapInterface {
 		this.eventEmitter = new EventEmitter();
 	}
 
-	public async subscribe(): Promise<void> { }
+	public async subscribe(): Promise<void> {}
 
-	public async unsubscribe(): Promise<void> { }
+	public async unsubscribe(): Promise<void> {}
 
 	public async addPubkey(userAccountPublicKey: PublicKey): Promise<void> {
 		const user = new User({
@@ -738,7 +736,7 @@ export class MockUserMap implements UserMapInterface {
 		);
 	}
 
-	public async updateWithOrderRecord(_record: OrderRecord): Promise<void> { }
+	public async updateWithOrderRecord(_record: OrderRecord): Promise<void> {}
 
 	public values(): IterableIterator<User> {
 		return this.userMap.values();

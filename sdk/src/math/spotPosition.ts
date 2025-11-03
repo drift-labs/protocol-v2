@@ -51,7 +51,10 @@ export function getWorstCaseTokenAmounts(
 		strictOraclePrice
 	);
 
-	if (spotPosition.openBids.eq(ZERO) && spotPosition.openAsks.eq(ZERO) || !includeOpenOrders) {
+	if (
+		(spotPosition.openBids.eq(ZERO) && spotPosition.openAsks.eq(ZERO)) ||
+		!includeOpenOrders
+	) {
 		const { weight, weightedTokenValue } = calculateWeightedTokenValue(
 			tokenAmount,
 			tokenValue,

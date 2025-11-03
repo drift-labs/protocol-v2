@@ -12,7 +12,6 @@ import {
 	QUOTE_PRECISION,
 	SPOT_MARKET_BALANCE_PRECISION,
 	SpotBalanceType,
-	MARGIN_PRECISION,
 	OPEN_ORDER_MARGIN_REQUIREMENT,
 	SPOT_MARKET_WEIGHT_PRECISION,
 	PositionFlag,
@@ -57,8 +56,7 @@ async function makeMockUser(
 	function getMockOracle(oracleKey: PublicKey) {
 		const data: OraclePriceData = {
 			price: new BN(
-				(oraclePriceMap[oracleKey.toString()] ?? 1) *
-					PRICE_PRECISION.toNumber()
+				(oraclePriceMap[oracleKey.toString()] ?? 1) * PRICE_PRECISION.toNumber()
 			),
 			slot: new BN(0),
 			confidence: new BN(1),
@@ -79,8 +77,10 @@ async function makeMockUser(
 	mockUser.driftClient.getPerpMarketAccount = getMockPerpMarket as any;
 	mockUser.driftClient.getSpotMarketAccount = getMockSpotMarket as any;
 	mockUser.driftClient.getOraclePriceDataAndSlot = getMockOracle as any;
-	mockUser.driftClient.getOracleDataForPerpMarket = getOracleDataForPerpMarket as any;
-	mockUser.driftClient.getOracleDataForSpotMarket = getOracleDataForSpotMarket as any;
+	mockUser.driftClient.getOracleDataForPerpMarket =
+		getOracleDataForPerpMarket as any;
+	mockUser.driftClient.getOracleDataForSpotMarket =
+		getOracleDataForSpotMarket as any;
 	return mockUser;
 }
 
@@ -219,9 +219,9 @@ describe('getMarginCalculation snapshot', () => {
 		myMockUserAccount.perpPositions[0].baseAssetAmount = new BN(200000000).mul(
 			BASE_PRECISION
 		);
-		myMockUserAccount.perpPositions[0].quoteAssetAmount = new BN(-180000000).mul(
-			QUOTE_PRECISION
-		);
+		myMockUserAccount.perpPositions[0].quoteAssetAmount = new BN(
+			-180000000
+		).mul(QUOTE_PRECISION);
 
 		const user: User = await makeMockUser(
 			myMockPerpMarkets,
@@ -250,9 +250,15 @@ describe('getMarginCalculation snapshot', () => {
 		const spotOracles = [1, 1, 1, 1, 1, 1, 1, 1];
 
 		// Pre-fill: maker has 21 base long at entry 1 ($21 notional), taker flat
-		makerAccount.perpPositions[0].baseAssetAmount = new BN(21).mul(BASE_PRECISION);
-		makerAccount.perpPositions[0].quoteEntryAmount = new BN(-21).mul(QUOTE_PRECISION);
-		makerAccount.perpPositions[0].quoteBreakEvenAmount = new BN(-21).mul(QUOTE_PRECISION);
+		makerAccount.perpPositions[0].baseAssetAmount = new BN(21).mul(
+			BASE_PRECISION
+		);
+		makerAccount.perpPositions[0].quoteEntryAmount = new BN(-21).mul(
+			QUOTE_PRECISION
+		);
+		makerAccount.perpPositions[0].quoteBreakEvenAmount = new BN(-21).mul(
+			QUOTE_PRECISION
+		);
 		// Provide exactly $2 in quote collateral to equal 10% maintenance of 20 notional post-fill
 		makerAccount.spotPositions[0].balanceType = SpotBalanceType.DEPOSIT;
 		makerAccount.spotPositions[0].scaledBalance = new BN(2).mul(
@@ -284,9 +290,9 @@ describe('getMarginCalculation snapshot', () => {
 		maker.getUserAccount().perpPositions[0].quoteEntryAmount = new BN(-20).mul(
 			QUOTE_PRECISION
 		);
-		maker.getUserAccount().perpPositions[0].quoteBreakEvenAmount = new BN(-20).mul(
-			QUOTE_PRECISION
-		);
+		maker.getUserAccount().perpPositions[0].quoteBreakEvenAmount = new BN(
+			-20
+		).mul(QUOTE_PRECISION);
 		// Align quoteAssetAmount with base value so unrealized PnL = 0 at price 1
 		maker.getUserAccount().perpPositions[0].quoteAssetAmount = new BN(-20).mul(
 			QUOTE_PRECISION
@@ -298,9 +304,9 @@ describe('getMarginCalculation snapshot', () => {
 		taker.getUserAccount().perpPositions[0].quoteEntryAmount = new BN(-1).mul(
 			QUOTE_PRECISION
 		);
-		taker.getUserAccount().perpPositions[0].quoteBreakEvenAmount = new BN(-1).mul(
-			QUOTE_PRECISION
-		);
+		taker.getUserAccount().perpPositions[0].quoteBreakEvenAmount = new BN(
+			-1
+		).mul(QUOTE_PRECISION);
 		// Also set taker's quoteAssetAmount consistently
 		taker.getUserAccount().perpPositions[0].quoteAssetAmount = new BN(-1).mul(
 			QUOTE_PRECISION
@@ -347,12 +353,16 @@ describe('getMarginCalculation snapshot', () => {
 			SPOT_MARKET_BALANCE_PRECISION
 		);
 		// No perp exposure in cross calc
-		crossAccount.perpPositions[0].baseAssetAmount = new BN(100 * BASE_PRECISION.toNumber());
-		crossAccount.perpPositions[0].quoteAssetAmount = new BN(-11000 * QUOTE_PRECISION.toNumber());
-		crossAccount.perpPositions[0].positionFlag = PositionFlag.IsolatedPosition;
-		crossAccount.perpPositions[0].isolatedPositionScaledBalance = new BN(100).mul(
-			SPOT_MARKET_BALANCE_PRECISION
+		crossAccount.perpPositions[0].baseAssetAmount = new BN(
+			100 * BASE_PRECISION.toNumber()
 		);
+		crossAccount.perpPositions[0].quoteAssetAmount = new BN(
+			-11000 * QUOTE_PRECISION.toNumber()
+		);
+		crossAccount.perpPositions[0].positionFlag = PositionFlag.IsolatedPosition;
+		crossAccount.perpPositions[0].isolatedPositionScaledBalance = new BN(
+			100
+		).mul(SPOT_MARKET_BALANCE_PRECISION);
 
 		const userCross: User = await makeMockUser(
 			myMockPerpMarkets,
@@ -386,8 +396,10 @@ describe('getMarginCalculation snapshot', () => {
 
 		const isoPosition = crossCalcBuf.isolatedMarginCalculations.get(0);
 		assert(isoPosition?.marginRequirementPlusBuffer.eq(new BN('2000000000')));
-		assert(isoPosition?.totalCollateralBuffer.add(isoPosition?.totalCollateral).eq(new BN('-1000000000')));
+		assert(
+			isoPosition?.totalCollateralBuffer
+				.add(isoPosition?.totalCollateral)
+				.eq(new BN('-1000000000'))
+		);
 	});
 });
-
-
