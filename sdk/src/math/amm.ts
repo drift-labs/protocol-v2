@@ -1086,7 +1086,7 @@ export function calculateSpreadReserves(
 	);
 
 	const doReferencePricOffsetSmooth =
-		Math.sign(referencePriceOffset) !== Math.sign(amm.referencePriceOffset) &&
+		referencePriceOffset !== amm.referencePriceOffset &&
 		amm.curveUpdateIntensity > 100;
 
 	if (doReferencePricOffsetSmooth) {

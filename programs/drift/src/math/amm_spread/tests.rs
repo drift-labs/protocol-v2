@@ -73,7 +73,7 @@ mod test {
             max_offset,
         )
         .unwrap();
-        assert_eq!(res, 237 * 2); // 3 penny divergence
+        assert_eq!(res, 814);
 
         let res = calculate_reference_price_offset(
             rev_price,
@@ -87,7 +87,7 @@ mod test {
             max_offset,
         )
         .unwrap();
-        assert_eq!(res, -517); // counter acting 24h_avg sign
+        assert_eq!(res, 0); // disregard 24h_avg sign
 
         let res = calculate_reference_price_offset(
             rev_price,
@@ -248,8 +248,11 @@ mod test {
         market.amm.last_mark_price_twap = 4216 * 10000 - 2 * 10000;
         market.amm.base_asset_amount_with_amm = (AMM_RESERVE_PRECISION * 8 / 20) as i128 * -1;
         let (_l, _s) = update_spreads(&mut market, reserve_price as u64, None).unwrap();
-        println!("ref offset: {}", market.amm.reference_price_offset);
-        assert!(market.amm.reference_price_offset < 0);
+        println!(
+            "ref offset: {}, {}, {}",
+            market.amm.reference_price_offset, _l, _s
+        );
+        assert!(market.amm.reference_price_offset - (_s as i32) < 0);
 
         // Same for short pos
         market.amm.base_asset_amount_with_amm = (AMM_RESERVE_PRECISION * 6 / 20) as i128 * -1;

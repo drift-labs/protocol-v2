@@ -586,7 +586,7 @@ fn amm_ref_price_decay_tail_test() {
     perp_market.amm.curve_update_intensity = 200;
 
     let max_ref_offset = perp_market.amm.get_max_reference_price_offset().unwrap();
-    assert_eq!(max_ref_offset, 5000);
+    assert_eq!(max_ref_offset, 10000);
 
     let liquidity_ratio = crate::math::amm_spread::calculate_inventory_liquidity_ratio(
         perp_market.amm.base_asset_amount_with_amm,
@@ -627,7 +627,7 @@ fn amm_ref_price_decay_tail_test() {
     assert_eq!(res, 0);
 
     let mut now = perp_market.amm.last_mark_price_twap_ts + 1;
-    let mut clock_slot = 354806508 + 1; // todo
+    let mut clock_slot = perp_market.amm.last_update_slot;
     let state = State::default();
     let oracle_price_data = OraclePriceData {
         price: 3610241,
@@ -653,7 +653,7 @@ fn amm_ref_price_decay_tail_test() {
     .unwrap();
     assert_eq!(perp_market.amm.last_update_slot, clock_slot);
     assert_eq!(perp_market.amm.last_oracle_valid, true);
-    assert_eq!(perp_market.amm.reference_price_offset, -236093);
+    assert_eq!(perp_market.amm.reference_price_offset, -236183);
 
     // Run  decay steps
     let mut offsets = Vec::new();
@@ -696,10 +696,10 @@ fn amm_ref_price_decay_tail_test() {
     assert_eq!(
         offsets,
         [
-            -212475, -191219, -172089, -154872, -139376, -125430, -125410, -125390, -125370,
-            -125350, -112806, -101517, -91357, -82213, -73983, -66576, -59910, -53910, -48510,
-            -43650, -39276, -35340, -31797, -28609, -25740, -23157, -20833, -18741, -16858, -15164,
-            -13639, -12267, -11032, -9920, -8919, -8019, -7209, -6480, -5823, -5232, -4700, -4221,
+            -212556, -191292, -172154, -154930, -139428, -125477, -125457, -125437, -125417,
+            -125397, -112849, -101556, -91392, -82244, -74011, -66601, -59932, -53930, -48528,
+            -43667, -39292, -35354, -31810, -28620, -25749, -23166, -20841, -18748, -16865, -15170,
+            -13644, -12271, -11035, -9923, -8922, -8021, -7210, -6480, -5823, -5232, -4700, -4221,
             -3790, -3402, -3053, -2739, -2457, -2203, -1974, -1768, -1583, -1416, -1266, -1131,
             -1009, -900, -801, -712, -632, -560
         ]
@@ -707,19 +707,19 @@ fn amm_ref_price_decay_tail_test() {
     assert_eq!(
         lspreads,
         [
-            212587, 191331, 172201, 154984, 139488, 125542, 125522, 125502, 125482, 125462, 112918,
-            101629, 91469, 82325, 74095, 66688, 60022, 54022, 48622, 43762, 39388, 35452, 31909,
-            28721, 25852, 23269, 20945, 18853, 16970, 15276, 13751, 12379, 11144, 10032, 9031,
-            8131, 7321, 6592, 5935, 5344, 4812, 4333, 3902, 3514, 3165, 2851, 2569, 2315, 2086,
+            212668, 191404, 172266, 155042, 139540, 125589, 125569, 125549, 125529, 125509, 112961,
+            101668, 91504, 82356, 74123, 66713, 60044, 54042, 48640, 43779, 39404, 35466, 31922,
+            28732, 25861, 23278, 20953, 18860, 16977, 15282, 13756, 12383, 11147, 10035, 9034,
+            8133, 7322, 6592, 5935, 5344, 4812, 4333, 3902, 3514, 3165, 2851, 2569, 2315, 2086,
             1880, 1695, 1528, 1378, 1243, 1121, 1012, 913, 824, 744, 672
         ]
     );
     assert_eq!(
         sspreads,
         [
-            23633, 21271, 19145, 17232, 15511, 13961, 35, 35, 35, 35, 12559, 11304, 10175, 9159,
-            8245, 7422, 6681, 6015, 5415, 4875, 4389, 3951, 3558, 3203, 2884, 2598, 2339, 2107,
-            1898, 1709, 1540, 1387, 1250, 1127, 1016, 915, 825, 744, 672, 606, 547, 494, 446, 403,
+            23642, 21279, 19153, 17239, 15517, 13966, 35, 35, 35, 35, 12563, 11308, 10179, 9163,
+            8248, 7425, 6684, 6017, 5417, 4876, 4390, 3953, 3559, 3205, 2886, 2598, 2340, 2108,
+            1898, 1710, 1541, 1388, 1251, 1127, 1016, 916, 826, 745, 672, 606, 547, 494, 446, 403,
             364, 329, 297, 269, 244, 221, 200, 182, 165, 150, 137, 124, 114, 104, 95, 87
         ]
     );
@@ -801,10 +801,10 @@ fn amm_ref_price_offset_decay_logic() {
         max_ref_offset,
     )
     .unwrap();
-    assert_eq!(res, 750);
+    assert_eq!(res, 10000);
 
     let mut now = perp_market.amm.last_mark_price_twap_ts + 10;
-    let mut clock_slot = 353317544 + 20; // todo
+    let mut clock_slot = perp_market.amm.last_update_slot;
     let state = State::default();
     let oracle_price_data = OraclePriceData {
         price: 120003893646,
@@ -830,7 +830,7 @@ fn amm_ref_price_offset_decay_logic() {
     .unwrap();
     assert_eq!(perp_market.amm.last_update_slot, clock_slot);
     assert_eq!(perp_market.amm.last_oracle_valid, true);
-    assert_eq!(perp_market.amm.reference_price_offset, 4458);
+    assert_eq!(perp_market.amm.reference_price_offset, 20);
 
     perp_market.amm.last_mark_price_twap_5min = (perp_market
         .amm
@@ -976,10 +976,10 @@ fn amm_negative_ref_price_offset_decay_logic() {
         max_ref_offset,
     )
     .unwrap();
-    assert_eq!(res, 750);
+    assert_eq!(res, 10000);
 
     let mut now = perp_market.amm.last_mark_price_twap_ts + 10;
-    let mut clock_slot = 353317544 + 20; // todo
+    let mut clock_slot = perp_market.amm.last_update_slot;
     let state = State::default();
     let oracle_price_data = OraclePriceData {
         price: 120003893646,
@@ -1005,7 +1005,7 @@ fn amm_negative_ref_price_offset_decay_logic() {
     .unwrap();
     assert_eq!(perp_market.amm.last_update_slot, clock_slot);
     assert_eq!(perp_market.amm.last_oracle_valid, true);
-    assert_eq!(perp_market.amm.reference_price_offset, 4458);
+    assert_eq!(perp_market.amm.reference_price_offset, 20);
 
     perp_market.amm.last_mark_price_twap_5min = (perp_market
         .amm
@@ -1195,13 +1195,13 @@ fn amm_perp_ref_offset() {
 
     let r = perp_market.amm.reserve_price().unwrap();
     let (b, a) = perp_market.amm.bid_ask_price(r).unwrap();
-    assert_eq!(b, 7102635);
-    assert_eq!(a, 7106129);
+    assert_eq!(b, 7098048);
+    assert_eq!(a, 7232935);
     assert_eq!(
         perp_market.amm.historical_oracle_data.last_oracle_price,
         7101600
     );
-    assert_eq!(perp_market.amm.reference_price_offset, 134);
+    assert_eq!(perp_market.amm.reference_price_offset, 17890);
     assert_eq!(perp_market.amm.max_spread, 90000);
 
     assert_eq!(r, 7101599);

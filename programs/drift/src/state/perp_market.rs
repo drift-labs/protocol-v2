@@ -1456,7 +1456,8 @@ impl AMM {
         if self.curve_update_intensity <= 100 {
             return Ok(0);
         } else if self.curve_update_intensity >= 200 {
-            return Ok(self.max_spread.cast::<i64>()? / 2);
+            // mimic old max behavior with 100 bps
+            return Ok((self.max_spread.cast::<i64>()? / 2).max(10_000));
         }
 
         let lower_bound_multiplier: i64 =

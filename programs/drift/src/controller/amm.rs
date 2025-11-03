@@ -276,10 +276,9 @@ pub fn update_spreads(
     market.amm.short_spread = short_spread;
 
     let do_reference_price_smooth = {
-        let sign_changed: bool =
-            reference_price_offset.signum() != market.amm.reference_price_offset.signum();
+        let val_changed: bool = reference_price_offset != market.amm.reference_price_offset;
 
-        sign_changed && market.amm.curve_update_intensity > 100
+        val_changed && market.amm.curve_update_intensity > 100
     };
 
     if do_reference_price_smooth {
