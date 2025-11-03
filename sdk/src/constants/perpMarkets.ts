@@ -761,7 +761,6 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0xb17e5bc5de742a8a378b54c9c75442b7d51e30ada63f28d9bd28d3c0e26511a0',
 		pythLazerId: 464,
-		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'Tensor',
@@ -801,7 +800,6 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0x7358313661dcd4f842a1423aa4f7a05f009001c9113201c719621d3f1aa80a73',
 		pythLazerId: 404,
-		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'IO',
@@ -1172,7 +1170,6 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		pythFeedId:
 			'0x91519e3e48571e1232a85a938e714da19fe5ce05107f3eebb8a870b2e8020169',
 		pythLazerId: 93,
-		marketStatus: MarketStatus.DELISTED,
 	},
 	{
 		fullName: 'PENGU',
