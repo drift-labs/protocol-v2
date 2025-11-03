@@ -4221,7 +4221,7 @@ export class DriftClient {
 		const amountWithBuffer =
 			noAmountBuffer || amount.eq(BigNum.fromPrint('-9223372036854775808').val)
 				? amount
-				: amount.add(amount.div(new BN(1000))); // .1% buffer
+				: amount.add(amount.div(new BN(250))); // .4% buffer
 
 		return await this.program.instruction.transferIsolatedPerpPositionDeposit(
 			spotMarketIndex,
