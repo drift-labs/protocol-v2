@@ -970,6 +970,7 @@ dependencies = [
  "drift-macros",
  "enumflags2",
  "hex",
+ "hypertree",
  "num-derive 0.3.3",
  "num-integer",
  "num-traits",
@@ -1250,6 +1251,16 @@ name = "humantime"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
+
+[[package]]
+name = "hypertree"
+version = "1.1.0"
+source = "git+https://github.com/drift-labs/hypertree?rev=846b88#846b884dc0d718cefb5579222319f0a40805efec"
+dependencies = [
+ "bytemuck",
+ "solana-program",
+ "static_assertions",
+]
 
 [[package]]
 name = "ident_case"

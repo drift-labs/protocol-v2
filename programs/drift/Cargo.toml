@@ -41,6 +41,7 @@ phoenix-v1 = { git = "https://github.com/drift-labs/phoenix-v1", rev = "7703c5",
 solana-security-txt = "1.1.0"
 static_assertions = "1.1.0"
 drift-macros = { git = "https://github.com/drift-labs/drift-macros.git", rev = "c57d87" }
+hypertree = { git = "https://github.com/drift-labs/hypertree", rev = "846b88" }
 switchboard = { path = "../switchboard", features = ["no-entrypoint"] }
 openbook-v2-light = { path = "../openbook_v2", features = ["no-entrypoint"] }
 ahash = "=0.8.6"
