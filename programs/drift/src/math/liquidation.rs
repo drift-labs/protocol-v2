@@ -566,7 +566,7 @@ pub fn calculate_transfer_price_as_fee(transfer_price: u64, oracle_price: i64) -
         .cast::<u128>()?
         .safe_mul(LIQUIDATION_FEE_PRECISION_U128)?
         .safe_div(oracle_price.cast::<u128>()?)?
-        .cast::<u32>()
-        .unwrap_or(u32::MAX);
+        .cast::<u32>()?;
+
     Ok(fee)
 }
