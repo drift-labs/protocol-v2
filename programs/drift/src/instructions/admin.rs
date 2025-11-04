@@ -3357,7 +3357,8 @@ pub fn handle_update_perp_market_paused_operations(
 
     if *ctx.accounts.admin.key != ctx.accounts.state.admin {
         validate!(
-            paused_operations == PerpOperation::UpdateFunding as u8,
+            paused_operations == PerpOperation::UpdateFunding as u8
+                || paused_operations == PerpOperation::SettleRevPool as u8,
             ErrorCode::DefaultError,
             "signer must be admin",
         )?;
