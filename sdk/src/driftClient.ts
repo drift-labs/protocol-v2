@@ -10989,14 +10989,27 @@ export class DriftClient {
 			isMakingNewAccount: boolean;
 			depositMarketIndex: number;
 			orderMarketIndex: number;
+		},
+		overrides?: {
+			user?: User;
+			signingAuthority?: PublicKey;
 		}
 	): Promise<TransactionInstruction> {
 		const isDepositToTradeTx = depositToTradeArgs !== undefined;
+		const userAccountPublicKey =
+			overrides?.user?.getUserAccountPublicKey() ??
+			getUserAccountPublicKeySync(
+				this.program.programId,
+				this.wallet.publicKey,
+				subAccountId
+			);
+		const signingAuthority =
+			overrides?.signingAuthority ?? this.wallet.publicKey;
+		const userAccount =
+			overrides?.user.getUserAccount() ?? this.getUserAccount(subAccountId);
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: depositToTradeArgs?.isMakingNewAccount
-				? []
-				: [this.getUserAccount(subAccountId)],
+			userAccounts: depositToTradeArgs?.isMakingNewAccount ? [] : [userAccount],
 			useMarketLastSlotCache: false,
 			readablePerpMarketIndex: depositToTradeArgs?.orderMarketIndex,
 			readableSpotMarketIndexes: isDepositToTradeTx
@@ -11009,12 +11022,8 @@ export class DriftClient {
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
-					user: getUserAccountPublicKeySync(
-						this.program.programId,
-						this.wallet.publicKey,
-						subAccountId
-					),
-					authority: this.wallet.publicKey,
+					user: userAccountPublicKey,
+					authority: signingAuthority,
 					highLeverageModeConfig: getHighLeverageModeConfigPublicKey(
 						this.program.programId
 					),
