@@ -172,7 +172,7 @@ import { calculateMarketMaxAvailableInsurance } from './math/market';
 import { fetchUserStatsAccount } from './accounts/fetch';
 import { castNumberToSpotPrecision } from './math/spotMarket';
 import { JupiterClient, QuoteResponse } from './jupiter/jupiterClient';
-import { SwapMode } from './swap/UnifiedSwapClient';
+import { SwapMode, UnifiedQuoteResponse } from './swap/UnifiedSwapClient';
 import { getNonIdleUserFilter } from './memcmp';
 import { UserStatsSubscriptionConfig } from './userStatsConfig';
 import { getMarinadeDepositIx, getMarinadeFinanceProgram } from './marinade';
@@ -5811,7 +5811,7 @@ export class DriftClient {
 		v6?: {
 			quote?: QuoteResponse;
 		};
-		quote?: QuoteResponse;
+		quote?: UnifiedQuoteResponse;
 	}): Promise<TransactionSignature> {
 		// Handle backward compatibility: use jupiterClient if swapClient is not provided
 		const clientToUse = swapClient || jupiterClient;
@@ -5865,7 +5865,7 @@ export class DriftClient {
 				amount,
 				slippageBps,
 				swapMode,
-				quote: quoteToUse,
+				quote: quoteToUse as QuoteResponse,
 				reduceOnly,
 				onlyDirectRoutes,
 			});
@@ -6315,7 +6315,7 @@ export class DriftClient {
 		swapMode?: SwapMode;
 		onlyDirectRoutes?: boolean;
 		reduceOnly?: SwapReduceOnly;
-		quote?: QuoteResponse;
+		quote?: UnifiedQuoteResponse;
 		v6?: {
 			quote?: QuoteResponse;
 		};
