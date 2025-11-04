@@ -14,6 +14,7 @@ import {
 	UserAccount,
 	UserStatus,
 	UserStatsAccount,
+	AccountLiquidatableStatus,
 } from './types';
 import {
 	calculateEntryPrice,
@@ -600,16 +601,17 @@ export class User {
 		if (perpMarketIndex !== undefined) {
 			const isolatedMarginCalculation =
 				marginCalc.isolatedMarginCalculations.get(perpMarketIndex);
-			const { marginRequirement, marginRequirementPlusBuffer } = isolatedMarginCalculation;
+			const { marginRequirement, marginRequirementPlusBuffer } =
+				isolatedMarginCalculation;
 
-			if(liquidationBuffer?.gt(ZERO)){
+			if (liquidationBuffer?.gt(ZERO)) {
 				return marginRequirementPlusBuffer;
 			}
 			return marginRequirement;
 		}
 
 		// Default: Cross margin requirement
-		if(liquidationBuffer?.gt(ZERO)){
+		if (liquidationBuffer?.gt(ZERO)) {
 			return marginCalc.marginRequirementPlusBuffer;
 		}
 		return marginCalc.marginRequirement;
@@ -1241,14 +1243,15 @@ export class User {
 		});
 
 		if (perpMarketIndex !== undefined) {
-			const { totalCollateral, totalCollateralBuffer } = marginCalc.isolatedMarginCalculations.get(perpMarketIndex)
-			if(liquidationBuffer?.gt(ZERO)){
+			const { totalCollateral, totalCollateralBuffer } =
+				marginCalc.isolatedMarginCalculations.get(perpMarketIndex);
+			if (liquidationBuffer?.gt(ZERO)) {
 				return totalCollateralBuffer;
 			}
 			return totalCollateral;
 		}
 
-		if(liquidationBuffer?.gt(ZERO)){
+		if (liquidationBuffer?.gt(ZERO)) {
 			return marginCalc.totalCollateralBuffer;
 		}
 		return marginCalc.totalCollateral;
@@ -1963,26 +1966,27 @@ export class User {
 		return netAssetValue.mul(TEN_THOUSAND).div(totalLiabilityValue);
 	}
 
-	public canBeLiquidated(): {
-		canBeLiquidated: boolean;
-		marginRequirement: BN;
-		totalCollateral: BN;
-		liquidationStatuses: Map<
-			'cross' | number,
-			{ canBeLiquidated: boolean; marginRequirement: BN; totalCollateral: BN }
-		>;
+	public canBeLiquidated(): AccountLiquidatableStatus & {
+		isolatedPositions: Map<number, AccountLiquidatableStatus>;
 	} {
 		// Deprecated signature retained for backward compatibility in type only
 		// but implementation now delegates to the new Map-based API and returns cross margin status.
 		const map = this.getLiquidationStatuses();
 		const cross = map.get('cross');
+		const isolatedPositions: Map<number, AccountLiquidatableStatus> = new Map(
+			Array.from(map.entries())
+				.filter(
+					(e): e is [number, AccountLiquidatableStatus] => e[0] !== 'cross'
+				)
+				.map(([key, value]) => [key, value])
+		);
 		return cross
-			? { ...cross, liquidationStatuses: map }
+			? { ...cross, isolatedPositions }
 			: {
 					canBeLiquidated: false,
 					marginRequirement: ZERO,
 					totalCollateral: ZERO,
-					liquidationStatuses: map,
+					isolatedPositions,
 			  };
 	}
 
@@ -1994,10 +1998,7 @@ export class User {
 	 */
 	public getLiquidationStatuses(
 		marginCalc?: MarginCalculation
-	): Map<
-		'cross' | number,
-		{ canBeLiquidated: boolean; marginRequirement: BN; totalCollateral: BN }
-	> {
+	): Map<'cross' | number, AccountLiquidatableStatus> {
 		// If not provided, use buffer-aware calc for canBeLiquidated checks
 		if (!marginCalc) {
 			const liquidationBuffer = this.getLiquidationBuffer();
@@ -2006,14 +2007,7 @@ export class User {
 			});
 		}
 
-		const result = new Map<
-			'cross' | number,
-			{
-				canBeLiquidated: boolean;
-				marginRequirement: BN;
-				totalCollateral: BN;
-			}
-		>();
+		const result = new Map<'cross' | number, AccountLiquidatableStatus>();
 
 		// Cross margin status
 		const crossTotalCollateral = marginCalc.totalCollateral;
