@@ -600,13 +600,18 @@ export class User {
 		if (perpMarketIndex !== undefined) {
 			const isolatedMarginCalculation =
 				marginCalc.isolatedMarginCalculations.get(perpMarketIndex);
-			const { marginRequirement } = isolatedMarginCalculation;
+			const { marginRequirement, marginRequirementPlusBuffer } = isolatedMarginCalculation;
 
+			if(liquidationBuffer?.gt(ZERO)){
+				return marginRequirementPlusBuffer;
+			}
 			return marginRequirement;
 		}
 
 		// Default: Cross margin requirement
-		// TODO: should we be using plus buffer sometimes?
+		if(liquidationBuffer?.gt(ZERO)){
+			return marginCalc.marginRequirementPlusBuffer;
+		}
 		return marginCalc.marginRequirement;
 	}
 
@@ -620,7 +625,7 @@ export class User {
 		return this.getMarginRequirement(
 			'Initial',
 			undefined,
-			false,
+			true,
 			undefined,
 			enterHighLeverageMode,
 			perpMarketIndex
@@ -637,7 +642,7 @@ export class User {
 		return this.getMarginRequirement(
 			'Maintenance',
 			liquidationBuffer,
-			true, // strict default
+			false, // strict default
 			true, // includeOpenOrders default
 			false, // enteringHighLeverage default
 			perpMarketIndex
@@ -1236,10 +1241,16 @@ export class User {
 		});
 
 		if (perpMarketIndex !== undefined) {
-			return marginCalc.isolatedMarginCalculations.get(perpMarketIndex)
-				.totalCollateral;
+			const { totalCollateral, totalCollateralBuffer } = marginCalc.isolatedMarginCalculations.get(perpMarketIndex)
+			if(liquidationBuffer?.gt(ZERO)){
+				return totalCollateralBuffer;
+			}
+			return totalCollateral;
 		}
 
+		if(liquidationBuffer?.gt(ZERO)){
+			return marginCalc.totalCollateralBuffer;
+		}
 		return marginCalc.totalCollateral;
 	}
 
