@@ -33,7 +33,7 @@ export interface UnifiedQuoteResponse {
 	swapMode: SwapMode;
 	slippageBps: number;
 	routePlan: Array<{ swapInfo: any; percent: number }>;
-	
+
 	// Optional properties that may not be available in all providers
 	otherAmountThreshold?: string; // Jupiter has this, Titan doesn't
 	priceImpactPct?: string; // Jupiter provides this, Titan doesn't (we calculate it)
@@ -235,7 +235,7 @@ export class UnifiedSwapClient {
 			}
 
 			if (!finalQuote) {
-				throw new Error("Could not fetch swap quote. Please try again.");
+				throw new Error('Could not fetch swap quote. Please try again.');
 			}
 
 			// Get swap transaction and extract instructions
