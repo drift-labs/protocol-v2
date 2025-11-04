@@ -6059,7 +6059,7 @@ export class DriftClient {
 		}
 
 		if (!quote) {
-			throw new Error("Could not fetch swap quote. Please try again.");
+			throw new Error('Could not fetch swap quote. Please try again.');
 		}
 
 		const isExactOut = swapMode === 'ExactOut' || quote.swapMode === 'ExactOut';
@@ -8910,7 +8910,7 @@ export class DriftClient {
 		}
 
 		if (!quote) {
-			throw new Error("Could not fetch swap quote. Please try again.");
+			throw new Error('Could not fetch swap quote. Please try again.');
 		}
 
 		const amountIn = new BN(quote.inAmount);
