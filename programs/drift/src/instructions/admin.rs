@@ -3579,20 +3579,6 @@ pub fn handle_update_perp_market_reference_price_offset_deadband_pct(
     Ok(())
 }
 
-pub fn handle_update_lp_cooldown_time(
-    ctx: Context<AdminUpdateState>,
-    lp_cooldown_time: u64,
-) -> Result<()> {
-    msg!(
-        "lp_cooldown_time: {} -> {}",
-        ctx.accounts.state.lp_cooldown_time,
-        lp_cooldown_time
-    );
-
-    ctx.accounts.state.lp_cooldown_time = lp_cooldown_time;
-    Ok(())
-}
-
 pub fn handle_update_perp_fee_structure(
     ctx: Context<AdminUpdateState>,
     fee_structure: FeeStructure,
