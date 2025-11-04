@@ -692,6 +692,8 @@ pub enum ErrorCode {
     Unauthorized,
     #[msg("Invalid Lp Pool Id for Operation")]
     InvalidLpPoolId,
+    #[msg("MarketIndexNotFoundAmmCache")]
+    MarketIndexNotFoundAmmCache,
 }
 
 #[macro_export]

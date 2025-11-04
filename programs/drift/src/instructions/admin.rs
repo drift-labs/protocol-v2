@@ -1107,17 +1107,6 @@ pub fn handle_initialize_perp_market(
 
     safe_increment!(state.number_of_markets, 1);
 
-    let amm_cache = &mut ctx.accounts.amm_cache;
-    let current_len = amm_cache.cache.len();
-    amm_cache
-        .cache
-        .resize_with(current_len + 1, CacheInfo::default);
-    let current_market_info = amm_cache.cache.get_mut(current_len).unwrap();
-    current_market_info.slot = clock_slot;
-    current_market_info.oracle = perp_market.amm.oracle;
-    current_market_info.oracle_source = u8::from(perp_market.amm.oracle_source);
-    amm_cache.validate(state)?;
-
     controller::amm::update_concentration_coef(perp_market, concentration_coef_scale)?;
     crate::dlog!(oracle_price);
 
@@ -1140,11 +1129,21 @@ pub fn handle_initialize_amm_cache(ctx: Context<InitializeAmmCache>) -> Result<(
     Ok(())
 }
 
-pub fn handle_resize_amm_cache(ctx: Context<ResizeAmmCache>) -> Result<()> {
+pub fn handle_add_market_to_amm_cache(ctx: Context<AddMarketToAmmCache>) -> Result<()> {
     let amm_cache = &mut ctx.accounts.amm_cache;
-    let state = &ctx.accounts.state;
+    let perp_market = ctx.accounts.perp_market.load()?;
+
+    for cache_info in amm_cache.cache.iter() {
+        validate!(
+            cache_info.market_index != perp_market.market_index,
+            ErrorCode::DefaultError,
+            "Market index {} already in amm cache",
+            perp_market.market_index
+        )?;
+    }
+
     let current_size = amm_cache.cache.len();
-    let new_size = (state.number_of_markets as usize).min(current_size + 20_usize);
+    let new_size = current_size.saturating_add(1);
 
     msg!(
         "resizing amm cache from {} entries to {}",
@@ -1152,16 +1151,10 @@ pub fn handle_resize_amm_cache(ctx: Context<ResizeAmmCache>) -> Result<()> {
         new_size
     );
 
-    let growth = new_size.saturating_sub(current_size);
-    validate!(
-        growth <= 20,
-        ErrorCode::DefaultError,
-        "cannot grow amm_cache by more than 20 entries in a single resize (requested +{})",
-        growth
-    )?;
-
-    amm_cache.cache.resize_with(new_size, CacheInfo::default);
-    amm_cache.validate(state)?;
+    amm_cache.cache.resize_with(new_size, || CacheInfo {
+        market_index: perp_market.market_index,
+        ..CacheInfo::default()
+    });
 
     Ok(())
 }
@@ -3364,7 +3357,8 @@ pub fn handle_update_perp_market_paused_operations(
 
     if *ctx.accounts.admin.key != ctx.accounts.state.admin {
         validate!(
-            paused_operations == PerpOperation::UpdateFunding as u8,
+            paused_operations == PerpOperation::UpdateFunding as u8
+                || paused_operations == PerpOperation::SettleRevPool as u8,
             ErrorCode::DefaultError,
             "signer must be admin",
         )?;
@@ -3583,20 +3577,6 @@ pub fn handle_update_perp_market_reference_price_offset_deadband_pct(
     msg!("current signed liquidity ratio: {}", signed_liquidity_ratio);
 
     perp_market.amm.reference_price_offset_deadband_pct = reference_price_offset_deadband_pct;
-    Ok(())
-}
-
-pub fn handle_update_lp_cooldown_time(
-    ctx: Context<AdminUpdateState>,
-    lp_cooldown_time: u64,
-) -> Result<()> {
-    msg!(
-        "lp_cooldown_time: {} -> {}",
-        ctx.accounts.state.lp_cooldown_time,
-        lp_cooldown_time
-    );
-
-    ctx.accounts.state.lp_cooldown_time = lp_cooldown_time;
     Ok(())
 }
 
@@ -3819,7 +3799,14 @@ pub fn handle_update_perp_market_oracle(
     perp_market.amm.oracle = oracle;
     perp_market.amm.oracle_source = oracle_source;
 
-    amm_cache.update_perp_market_fields(perp_market)?;
+    if amm_cache
+        .cache
+        .iter()
+        .find(|cache_info| cache_info.market_index == perp_market.market_index)
+        .is_some()
+    {
+        amm_cache.update_perp_market_fields(perp_market)?;
+    }
 
     Ok(())
 }
@@ -5511,15 +5498,6 @@ pub struct InitializePerpMarket<'info> {
         payer = admin
     )]
     pub perp_market: AccountLoader<'info, PerpMarket>,
-    #[account(
-        mut,
-        seeds = [AMM_POSITIONS_CACHE.as_ref()],
-        bump = amm_cache.bump,
-        realloc = AmmCache::space(amm_cache.cache.len() + 1_usize),
-        realloc::payer = admin,
-        realloc::zero = false,
-    )]
-    pub amm_cache: Box<Account<'info, AmmCache>>,
     /// CHECK: checked in `initialize_perp_market`
     pub oracle: AccountInfo<'info>,
     pub rent: Sysvar<'info, Rent>,
@@ -5547,7 +5525,7 @@ pub struct InitializeAmmCache<'info> {
 }
 
 #[derive(Accounts)]
-pub struct ResizeAmmCache<'info> {
+pub struct AddMarketToAmmCache<'info> {
     #[account(
         mut,
         constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
@@ -5558,22 +5536,23 @@ pub struct ResizeAmmCache<'info> {
         mut,
         seeds = [AMM_POSITIONS_CACHE.as_ref()],
         bump,
-        realloc = AmmCache::space(amm_cache.cache.len() + (state.number_of_markets as usize - amm_cache.cache.len()).min(20_usize)),
+        realloc = AmmCache::space(amm_cache.cache.len() + 1),
         realloc::payer = admin,
         realloc::zero = false,
     )]
     pub amm_cache: Box<Account<'info, AmmCache>>,
+    pub perp_market: AccountLoader<'info, PerpMarket>,
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
 pub struct DeleteAmmCache<'info> {
-    #[account(mut)]
-    pub admin: Signer<'info>,
     #[account(
-        has_one = admin
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
     )]
+    pub admin: Signer<'info>,
     pub state: Box<Account<'info, State>>,
     #[account(
         mut,

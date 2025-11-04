@@ -1776,15 +1776,24 @@ export class DriftClient {
 	public async getUpdateUserPerpPositionCustomMarginRatioIx(
 		perpMarketIndex: number,
 		marginRatio: number,
-		subAccountId = 0
+		subAccountId = 0,
+		overrides?: {
+			userAccountPublicKey?: PublicKey;
+			authority?: PublicKey;
+			signingAuthority?: PublicKey;
+		}
 	): Promise<TransactionInstruction> {
-		const userAccountPublicKey = getUserAccountPublicKeySync(
-			this.program.programId,
-			this.authority,
-			subAccountId
-		);
+		let userAccountPublicKey = overrides?.userAccountPublicKey;
+		if (!userAccountPublicKey) {
+			userAccountPublicKey = getUserAccountPublicKeySync(
+				this.program.programId,
+				overrides?.authority ?? this.authority,
+				subAccountId
+			);
+		}
 
-		await this.addUser(subAccountId, this.authority);
+		const signingAuthority =
+			overrides?.signingAuthority ?? this.wallet.publicKey;
 
 		const ix = this.program.instruction.updateUserPerpPositionCustomMarginRatio(
 			subAccountId,
@@ -1793,7 +1802,7 @@ export class DriftClient {
 			{
 				accounts: {
 					user: userAccountPublicKey,
-					authority: this.wallet.publicKey,
+					authority: signingAuthority,
 				},
 			}
 		);
@@ -10980,14 +10989,27 @@ export class DriftClient {
 			isMakingNewAccount: boolean;
 			depositMarketIndex: number;
 			orderMarketIndex: number;
+		},
+		overrides?: {
+			user?: User;
+			signingAuthority?: PublicKey;
 		}
 	): Promise<TransactionInstruction> {
 		const isDepositToTradeTx = depositToTradeArgs !== undefined;
+		const userAccountPublicKey =
+			overrides?.user?.getUserAccountPublicKey() ??
+			getUserAccountPublicKeySync(
+				this.program.programId,
+				this.wallet.publicKey,
+				subAccountId
+			);
+		const signingAuthority =
+			overrides?.signingAuthority ?? this.wallet.publicKey;
+		const userAccount =
+			overrides?.user.getUserAccount() ?? this.getUserAccount(subAccountId);
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: depositToTradeArgs?.isMakingNewAccount
-				? []
-				: [this.getUserAccount(subAccountId)],
+			userAccounts: depositToTradeArgs?.isMakingNewAccount ? [] : [userAccount],
 			useMarketLastSlotCache: false,
 			readablePerpMarketIndex: depositToTradeArgs?.orderMarketIndex,
 			readableSpotMarketIndexes: isDepositToTradeTx
@@ -11000,12 +11022,8 @@ export class DriftClient {
 			{
 				accounts: {
 					state: await this.getStatePublicKey(),
-					user: getUserAccountPublicKeySync(
-						this.program.programId,
-						this.wallet.publicKey,
-						subAccountId
-					),
-					authority: this.wallet.publicKey,
+					user: userAccountPublicKey,
+					authority: signingAuthority,
 					highLeverageModeConfig: getHighLeverageModeConfigPublicKey(
 						this.program.programId
 					),

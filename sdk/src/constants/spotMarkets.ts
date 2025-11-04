@@ -12,6 +12,7 @@ import {
 import { OracleSource } from '../types';
 import { BN } from '@coral-xyz/anchor';
 import { DriftEnv } from '../config';
+import { MarketStatus } from '@ellipsis-labs/phoenix-sdk';
 
 export type SpotMarketConfig = {
 	symbol: string;
@@ -28,6 +29,7 @@ export type SpotMarketConfig = {
 	launchTs?: number;
 	pythFeedId?: string;
 	pythLazerId?: number;
+	marketStatus?: MarketStatus;
 };
 
 export const WRAPPED_SOL_MINT = new PublicKey(

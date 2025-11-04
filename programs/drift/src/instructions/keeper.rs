@@ -3378,7 +3378,7 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
             continue;
         }
 
-        let cached_info = amm_cache.get_mut(perp_market.market_index as u32);
+        let cached_info = amm_cache.get_for_market_index_mut(perp_market.market_index)?;
 
         // Early validation checks
         if slot.saturating_sub(cached_info.oracle_slot) > SETTLE_AMM_ORACLE_MAX_DELAY {
@@ -3594,7 +3594,7 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
         if perp_market.lp_status == 0 {
             continue;
         }
-        let cached_info = amm_cache.get_mut(perp_market.market_index as u32);
+        let cached_info = amm_cache.get_for_market_index_mut(perp_market.market_index)?;
 
         validate!(
             perp_market.oracle_id() == cached_info.oracle_id()?,
