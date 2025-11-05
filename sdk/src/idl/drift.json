@@ -2042,6 +2042,32 @@
       "args": []
     },
     {
+      "name": "updateUpdateUserLpFields",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "filler",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "adminDisableUpdatePerpBidAskTwap",
       "accounts": [
         {
@@ -15434,6 +15460,9 @@
           },
           {
             "name": "AmmImmediateFill"
+          },
+          {
+            "name": "SettleRevPool"
           }
         ]
       }
@@ -19565,5 +19594,8 @@
       "name": "MarketIndexNotFoundAmmCache",
       "msg": "MarketIndexNotFoundAmmCache"
     }
-  ]
+  ],
+  "metadata": {
+    "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
+  }
 }

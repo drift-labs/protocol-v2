@@ -84,7 +84,7 @@ use crate::state::spot_market_map::{
 };
 use crate::state::state::State;
 use crate::state::user::{
-    MarginMode, MarketType, OrderStatus, OrderTriggerCondition, OrderType, User, UserStats,
+    MarginMode, MarketType, OrderTriggerCondition, OrderType, User, UserStats,
 };
 use crate::state::user_map::{load_user_map, load_user_maps, UserMap, UserStatsMap};
 use crate::state::zero_copy::AccountZeroCopyMut;
@@ -616,26 +616,15 @@ pub fn handle_update_user_stats_referrer_info<'c: 'info, 'info>(
 #[access_control(
     exchange_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_update_user_open_orders_count<'info>(ctx: Context<UpdateUserIdle>) -> Result<()> {
+pub fn handle_update_user_lp_fields<'info>(ctx: Context<UpdateUserIdle>) -> Result<()> {
     let mut user = load_mut!(ctx.accounts.user)?;
 
-    let mut open_orders = 0_u8;
-    let mut open_auctions = 0_u8;
-
-    for order in user.orders.iter() {
-        if order.status == OrderStatus::Open {
-            open_orders += 1;
-        }
-
-        if order.has_auction() {
-            open_auctions += 1;
-        }
+    for perp_position in user.perp_positions.iter_mut() {
+        perp_position.lp_shares = 0;
+        perp_position.last_base_asset_amount_per_lp = 0;
+        perp_position.last_quote_asset_amount_per_lp = 0;
+        perp_position.per_lp_base = 0;
     }
-
-    user.open_orders = open_orders;
-    user.has_open_order = open_orders > 0;
-    user.open_auctions = open_auctions;
-    user.has_open_auction = open_auctions > 0;
 
     Ok(())
 }
