@@ -421,7 +421,7 @@ describe('spot swap', () => {
 		const accountInfo2 = await bankrunContextWrapper.connection.getAccountInfo(
 			userStatsPublicKey
 		);
-		const userStatsAccount2 = accountInfo2
+		const _userStatsAccount2 = accountInfo2
 			? (takerDriftClient.program.account.user.coder.accounts.decodeUnchecked(
 					'UserStats',
 					accountInfo2.data
@@ -441,7 +441,7 @@ describe('spot swap', () => {
 		const accountInfo3 = await bankrunContextWrapper.connection.getAccountInfo(
 			userStatsPublicKey
 		);
-		const userStatsAccount3 = accountInfo3
+		const _userStatsAccount3 = accountInfo3
 			? (takerDriftClient.program.account.user.coder.accounts.decodeUnchecked(
 					'UserStats',
 					accountInfo3.data
