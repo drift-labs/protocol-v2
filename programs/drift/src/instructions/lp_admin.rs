@@ -4,7 +4,7 @@ use crate::ids::{lp_pool_hot_wallet, lp_pool_swap_wallet, WHITELISTED_SWAP_PROGR
 use crate::instructions::optional_accounts::{get_token_mint, load_maps, AccountMaps};
 use crate::math::constants::{PRICE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX};
 use crate::math::safe_math::SafeMath;
-use crate::state::amm_cache::{AmmCache, CacheInfo, AMM_POSITIONS_CACHE};
+use crate::state::amm_cache::{AmmCache, AMM_POSITIONS_CACHE};
 use crate::state::lp_pool::{
     AmmConstituentDatum, AmmConstituentMapping, Constituent, ConstituentCorrelations,
     ConstituentTargetBase, LPPool, TargetsDatum, AMM_MAP_PDA_SEED,
