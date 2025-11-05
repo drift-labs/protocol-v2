@@ -203,6 +203,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		serumMarket: new PublicKey('9Lyhks5bQQxb9EyyX55NtgKQzpM4WK7JCmeaWuQ5MoXD'),
 		pythFeedId:
 			'0xc2289a6a43d2ce91c6f55caec370f4acc38a2ed477f58813334c6d03749ff2a4',
+		pythLazerId: 503,
 	},
 	{
 		symbol: 'wBTC',
@@ -266,6 +267,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		),
 		pythFeedId:
 			'0x67be9f519b95cf24338801051f9a808eff0a578ccb388db73b7f6fe1de019ffb',
+		pythLazerId: 458,
 	},
 	{
 		symbol: 'PYTH',
@@ -539,6 +541,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precisionExp: NINE,
 		pythFeedId:
 			'0xca3ba9a619a4b3755c10ac7d5e760275aa95e9823d38a84fedd416856cdba37c',
+		pythLazerId: 582,
 	},
 	{
 		symbol: 'BNSOL',
@@ -551,6 +554,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precisionExp: LAMPORTS_EXP,
 		pythFeedId:
 			'0x55f8289be7450f1ae564dd9798e49e7d797d89adbc54fe4f8c906b1fcb94b0c3',
+		pythLazerId: 384,
 	},
 	{
 		symbol: 'MOTHER',
@@ -591,6 +595,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		precisionExp: SIX,
 		pythFeedId:
 			'0x77f0971af11cc8bac224917275c1bf55f2319ed5c654a1ca955c82fa2d297ea1',
+		pythLazerId: 611,
 	},
 	{
 		symbol: 'META',
@@ -726,6 +731,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		pythFeedId:
 			'0xd9912df360b5b7f21a122f15bdd5e27f62ce5e72bd316c291f7c86620e07fb2a',
 		launchTs: 1738255943000,
+		pythLazerId: 367,
 	},
 	{
 		symbol: 'FARTCOIN',
@@ -807,6 +813,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		pythFeedId:
 			'0x3d824c7f7c26ed1c85421ecec8c754e6b52d66a4e45de20a9c9ea91de8b396f9',
 		launchTs: 1747155600000,
+		pythLazerId: 640,
 	},
 	{
 		symbol: 'ZEUS',
