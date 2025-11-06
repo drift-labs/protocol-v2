@@ -18,7 +18,7 @@ anchor-test= []
 [dependencies]
 anchor-lang = "0.32.1"
 bytemuck = { version = "1.4.0" }
-solana-program = "2"
+solana-program = "=2.2.1"
 
 [dev-dependencies]
 base64 = "0.13.0"
