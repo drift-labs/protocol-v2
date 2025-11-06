@@ -610,7 +610,7 @@ mod validate_transfer_satisfies_limit_price {
         let limit_price = PRICE_PRECISION_U64 * 100; // $100 / 1 SOL
         let asset = 100 * QUOTE_PRECISION;
         let asset_decimals = 6_u32;
-        let liability = LAMPORTS_PER_SOL as u128;
+        let liability = LAMPORTS_PER_SOL_U64 as u128;
         let liability_decimals = 9_u32;
 
         assert!(validate_transfer_satisfies_limit_price(

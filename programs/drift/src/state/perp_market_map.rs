@@ -154,7 +154,7 @@ impl<'a> PerpMarketMap<'a> {
         }
 
         let account_discriminator = &data[..8];
-        if account_discriminator != &PerpMarket::DISCRIMINATOR {
+        if account_discriminator != PerpMarket::DISCRIMINATOR {
             return Err(ErrorCode::CouldNotLoadMarketData);
         }
 
