@@ -34,7 +34,7 @@ export function getWorstCaseTokenAmounts(
 	strictOraclePrice: StrictOraclePrice,
 	marginCategory: MarginCategory,
 	customMarginRatio?: number,
-	includeOpenOrders?: boolean
+	includeOpenOrders: boolean = true
 ): OrderFillSimulation {
 	const tokenAmount = getSignedTokenAmount(
 		getTokenAmount(
