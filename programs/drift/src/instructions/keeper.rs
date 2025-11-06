@@ -3334,6 +3334,12 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
     let lp_pool_key = ctx.accounts.lp_pool.key();
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
 
+    controller::spot_balance::update_spot_market_cumulative_interest(
+        &mut *quote_market,
+        None,
+        now,
+    )?;
+
     let tvl_before = quote_market
         .get_tvl()?
         .safe_add(quote_constituent.vault_token_balance as u128)?;
@@ -3349,12 +3355,6 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
         &MarketSet::new(),
         slot,
         None,
-    )?;
-
-    controller::spot_balance::update_spot_market_cumulative_interest(
-        &mut *quote_market,
-        None,
-        now,
     )?;
 
     for (_, perp_market_loader) in perp_market_map.0.iter() {
