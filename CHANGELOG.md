@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.146.0] - 2025-11-03
+
+### Features
+
 - program: add isolated_position_deposit to signed msg params
 
 ### Fixes
