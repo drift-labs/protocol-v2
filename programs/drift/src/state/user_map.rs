@@ -108,8 +108,6 @@ impl<'a> UserMap<'a> {
     pub fn load_one<'b: 'a>(account_info: &'b AccountInfo<'a>) -> DriftResult<UserMap<'a>> {
         let mut user_map = UserMap(BTreeMap::new());
 
-        let user_discriminator: [u8; 8] = User::discriminator();
-
         let user_key = account_info.key;
 
         let data = account_info
@@ -121,8 +119,8 @@ impl<'a> UserMap<'a> {
             return Err(ErrorCode::CouldNotLoadUserData);
         }
 
-        let account_discriminator = array_ref![data, 0, 8];
-        if account_discriminator != &user_discriminator {
+        let account_discriminator = &data[..8];
+        if account_discriminator != User::DISCRIMINATOR {
             return Err(ErrorCode::CouldNotLoadUserData);
         }
 
@@ -236,8 +234,6 @@ impl<'a> UserStatsMap<'a> {
     pub fn load_one<'b: 'a>(account_info: &'b AccountInfo<'a>) -> DriftResult<UserStatsMap<'a>> {
         let mut user_stats_map = UserStatsMap(BTreeMap::new());
 
-        let user_stats_discriminator: [u8; 8] = UserStats::discriminator();
-
         let _user_stats_key = account_info.key;
 
         let data = account_info
@@ -249,8 +245,8 @@ impl<'a> UserStatsMap<'a> {
             return Err(ErrorCode::DefaultError);
         }
 
-        let account_discriminator = array_ref![data, 0, 8];
-        if account_discriminator != &user_stats_discriminator {
+        let account_discriminator = &data[..8];
+        if account_discriminator != UserStats::DISCRIMINATOR {
             return Err(ErrorCode::DefaultError);
         }
 
@@ -280,8 +276,6 @@ pub fn load_user_maps<'a: 'b, 'b>(
     let mut user_map = UserMap::empty();
     let mut user_stats_map = UserStatsMap::empty();
 
-    let user_discriminator: [u8; 8] = User::discriminator();
-    let user_stats_discriminator: [u8; 8] = UserStats::discriminator();
     while let Some(user_account_info) = account_info_iter.peek() {
         let user_key = user_account_info.key;
 
@@ -294,8 +288,8 @@ pub fn load_user_maps<'a: 'b, 'b>(
             break;
         }
 
-        let account_discriminator = array_ref![data, 0, 8];
-        if account_discriminator != &user_discriminator {
+        let account_discriminator = &data[..8];
+        if account_discriminator != User::DISCRIMINATOR {
             break;
         }
 
@@ -327,8 +321,8 @@ pub fn load_user_maps<'a: 'b, 'b>(
             return Err(ErrorCode::InvalidUserStatsAccount);
         }
 
-        let account_discriminator = array_ref![data, 0, 8];
-        if account_discriminator != &user_stats_discriminator {
+        let account_discriminator = &data[..8];
+        if account_discriminator != UserStats::DISCRIMINATOR {
             return Err(ErrorCode::InvalidUserStatsAccount);
         }
 
@@ -362,8 +356,6 @@ pub fn load_user_map<'a: 'b, 'b>(
 ) -> DriftResult<UserMap<'b>> {
     let mut user_map = UserMap::empty();
 
-    let user_discriminator: [u8; 8] = User::discriminator();
-    let user_stats_discriminator: [u8; 8] = UserStats::discriminator();
     while let Some(user_account_info) = account_info_iter.peek() {
         let user_key = user_account_info.key;
 
@@ -377,15 +369,15 @@ pub fn load_user_map<'a: 'b, 'b>(
             break;
         }
 
-        let account_discriminator = array_ref![data, 0, 8];
+        let account_discriminator = &data[..8];
 
-        // if it is user stats, for backwards compatability, just move iter forward
-        if account_discriminator == &user_stats_discriminator {
+        // if it is user stats, for backwards compatibility, just move iter forward
+        if account_discriminator == UserStats::DISCRIMINATOR {
             account_info_iter.next().safe_unwrap()?;
             continue;
         }
 
-        if account_discriminator != &user_discriminator {
+        if account_discriminator != User::DISCRIMINATOR {
             break;
         }
 

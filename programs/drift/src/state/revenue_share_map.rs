@@ -144,9 +144,6 @@ pub fn load_revenue_share_map<'a: 'b, 'b>(
 ) -> DriftResult<RevenueShareMap<'b>> {
     let mut revenue_share_map = RevenueShareMap::empty();
 
-    let user_discriminator: [u8; 8] = User::discriminator();
-    let rev_share_discriminator: [u8; 8] = RevenueShare::discriminator();
-
     while let Some(account_info) = account_info_iter.peek() {
         let data = account_info
             .try_borrow_data()
@@ -156,9 +153,9 @@ pub fn load_revenue_share_map<'a: 'b, 'b>(
             break;
         }
 
-        let account_discriminator = array_ref![data, 0, 8];
+        let account_discriminator = &data[..8];
 
-        if account_discriminator == &user_discriminator {
+        if account_discriminator == User::DISCRIMINATOR {
             let user_account_info = account_info_iter.next().safe_unwrap()?;
             let is_writable = user_account_info.is_writable;
             if !is_writable {
@@ -184,7 +181,7 @@ pub fn load_revenue_share_map<'a: 'b, 'b>(
             continue;
         }
 
-        if account_discriminator == &rev_share_discriminator {
+        if account_discriminator == RevenueShare::DISCRIMINATOR {
             let revenue_share_account_info = account_info_iter.next().safe_unwrap()?;
             let is_writable = revenue_share_account_info.is_writable;
             if !is_writable {

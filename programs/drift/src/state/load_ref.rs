@@ -6,12 +6,12 @@ use std::mem;
 
 pub fn load_ref<'a, T: ZeroCopy + Owner>(account_info: &'a AccountInfo) -> Result<Ref<'a, T>> {
     let data = account_info.try_borrow_data()?;
-    if data.len() < T::discriminator().len() {
+    if data.len() < T::DISCRIMINATOR.len() {
         return Err(ErrorCode::AccountDiscriminatorNotFound.into());
     }
 
-    let disc_bytes = array_ref![data, 0, 8];
-    if disc_bytes != &T::discriminator() {
+    let disc_bytes = &data[..8];
+    if disc_bytes != T::DISCRIMINATOR {
         return Err(ErrorCode::AccountDiscriminatorMismatch.into());
     }
 
@@ -24,12 +24,12 @@ pub fn load_ref_mut<'a, T: ZeroCopy + Owner>(
     account_info: &'a AccountInfo,
 ) -> Result<RefMut<'a, T>> {
     let data = account_info.try_borrow_mut_data()?;
-    if data.len() < T::discriminator().len() {
+    if data.len() < T::DISCRIMINATOR.len() {
         return Err(ErrorCode::AccountDiscriminatorNotFound.into());
     }
 
-    let disc_bytes = array_ref![data, 0, 8];
-    if disc_bytes != &T::discriminator() {
+    let disc_bytes = &data[..8];
+    if disc_bytes != T::DISCRIMINATOR {
         return Err(ErrorCode::AccountDiscriminatorMismatch.into());
     }
 

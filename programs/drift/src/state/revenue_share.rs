@@ -1,10 +1,9 @@
 use std::cell::{Ref, RefMut};
 
-use anchor_lang::prelude::Pubkey;
-use anchor_lang::*;
-use anchor_lang::{account, zero_copy};
+use anchor_lang::prelude::{
+    account, zero_copy, AccountInfo, AnchorDeserialize, AnchorSerialize, Discriminator, Pubkey,
+};
 use borsh::{BorshDeserialize, BorshSerialize};
-use prelude::AccountInfo;
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
@@ -531,7 +530,7 @@ impl<'a> RevenueShareEscrowLoader<'a> for AccountInfo<'a> {
 
         let (discriminator, data) = Ref::map_split(data, |d| d.split_at(8));
         validate!(
-            *discriminator == RevenueShareEscrow::discriminator(),
+            discriminator.as_ref() == RevenueShareEscrow::DISCRIMINATOR,
             ErrorCode::DefaultError,
             "invalid signed_msg user orders discriminator",
         )?;
@@ -557,7 +556,7 @@ impl<'a> RevenueShareEscrowLoader<'a> for AccountInfo<'a> {
 
         let (discriminator, data) = RefMut::map_split(data, |d| d.split_at_mut(8));
         validate!(
-            *discriminator == RevenueShareEscrow::discriminator(),
+            discriminator.as_ref() == RevenueShareEscrow::DISCRIMINATOR,
             ErrorCode::DefaultError,
             "invalid signed_msg user orders discriminator",
         )?;

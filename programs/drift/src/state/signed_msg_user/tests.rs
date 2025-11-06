@@ -170,7 +170,7 @@ mod zero_copy {
         }
 
         let mut bytes = Vec::with_capacity(8 + orders.try_to_vec().unwrap().len());
-        bytes.extend_from_slice(&SignedMsgUserOrders::discriminator());
+        bytes.extend_from_slice(&SignedMsgUserOrders::DISCRIMINATOR);
         bytes.extend_from_slice(&orders.try_to_vec().unwrap());
 
         let pubkey = Pubkey::default();
@@ -211,7 +211,7 @@ mod zero_copy {
         // invalid discriminator
         let mut bytes = Vec::with_capacity(8 + orders.try_to_vec().unwrap().len());
         bytes.extend_from_slice(&orders.try_to_vec().unwrap());
-        bytes.extend_from_slice(&SignedMsgUserOrders::discriminator());
+        bytes.extend_from_slice(&SignedMsgUserOrders::DISCRIMINATOR);
         let orders_account_info =
             create_account_info(&random_pubkey, false, &mut lamports, &mut bytes, &ID);
         let result = orders_account_info.load();
@@ -237,7 +237,7 @@ mod zero_copy {
         }
 
         let mut bytes = Vec::with_capacity(8 + orders.try_to_vec().unwrap().len());
-        bytes.extend_from_slice(&SignedMsgUserOrders::discriminator());
+        bytes.extend_from_slice(&SignedMsgUserOrders::DISCRIMINATOR);
         bytes.extend_from_slice(&orders.try_to_vec().unwrap());
 
         let pubkey = Pubkey::default();
@@ -279,7 +279,7 @@ mod zero_copy {
         // invalid discriminator
         let mut bytes = Vec::with_capacity(8 + orders.try_to_vec().unwrap().len());
         bytes.extend_from_slice(&orders.try_to_vec().unwrap());
-        bytes.extend_from_slice(&SignedMsgUserOrders::discriminator());
+        bytes.extend_from_slice(&SignedMsgUserOrders::DISCRIMINATOR);
         let orders_account_info =
             create_account_info(&random_pubkey, true, &mut lamports, &mut bytes, &ID);
         let result = orders_account_info.load_mut();
