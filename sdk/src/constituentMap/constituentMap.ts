@@ -124,12 +124,17 @@ export class ConstituentMap implements ConstituentMapInterface {
 
 	public async sync(): Promise<void> {
 		try {
+			// Check if zstddec is available (it's disabled in browser environments)
+			const canUseZstd =
+				typeof ZSTDDecoder !== 'undefined' && (ZSTDDecoder as any) !== false;
+			const encoding = canUseZstd ? 'base64+zstd' : 'base64';
+
 			const rpcRequestArgs = [
 				this.driftClient.program.programId.toBase58(),
 				{
 					commitment: this.commitment,
 					filters: this.getFilters(),
-					encoding: 'base64+zstd',
+					encoding,
 					withContext: true,
 				},
 			];
@@ -146,15 +151,32 @@ export class ConstituentMap implements ConstituentMapInterface {
 
 			const promises = rpcResponseAndContext.value.map(
 				async (programAccount) => {
-					const compressedUserData = Buffer.from(
-						programAccount.account.data[0],
-						'base64'
-					);
-					const decoder = new ZSTDDecoder();
-					await decoder.init();
-					const buffer = Buffer.from(
-						decoder.decode(compressedUserData, MAX_CONSTITUENT_SIZE_BYTES)
-					);
+					let buffer: Buffer;
+
+					if (canUseZstd) {
+						// Decompress zstd data
+						const compressedData = Buffer.from(
+							programAccount.account.data[0],
+							'base64'
+						);
+						// Handle both default and named exports for browser/webpack compatibility
+						let DecoderClass = ZSTDDecoder;
+						if (
+							typeof ZSTDDecoder === 'object' &&
+							(ZSTDDecoder as any).default
+						) {
+							DecoderClass = (ZSTDDecoder as any).default;
+						}
+						const decoder = new (DecoderClass as any)();
+						await decoder.init();
+						buffer = Buffer.from(
+							decoder.decode(compressedData, MAX_CONSTITUENT_SIZE_BYTES)
+						);
+					} else {
+						// Use regular base64 data (not compressed)
+						buffer = Buffer.from(programAccount.account.data[0], 'base64');
+					}
+
 					const key = programAccount.pubkey.toString();
 					const currAccountWithSlot = this.getWithSlot(key);
 

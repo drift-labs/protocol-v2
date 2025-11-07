@@ -434,12 +434,17 @@ export class UserMap implements UserMapInterface {
 		});
 
 		try {
+			// Check if zstddec is available (it's disabled in browser environments)
+			const canUseZstd =
+				typeof ZSTDDecoder !== 'undefined' && (ZSTDDecoder as any) !== false;
+			const encoding = canUseZstd ? 'base64+zstd' : 'base64';
+
 			const rpcRequestArgs = [
 				this.driftClient.program.programId.toBase58(),
 				{
 					commitment: this.commitment,
 					filters: this.getFilters(),
-					encoding: 'base64+zstd',
+					encoding,
 					withContext: true,
 				},
 			];
@@ -459,19 +464,35 @@ export class UserMap implements UserMapInterface {
 			const programAccountBufferMap = new Map<string, Buffer>();
 			const decodingPromises = rpcResponseAndContext.value.map(
 				async (programAccount) => {
-					const compressedUserData = Buffer.from(
-						programAccount.account.data[0],
-						'base64'
-					);
-					const decoder = new ZSTDDecoder();
-					await decoder.init();
-					const userBuffer = decoder.decode(
-						compressedUserData,
-						MAX_USER_ACCOUNT_SIZE_BYTES
-					);
+					let userBuffer: Buffer;
+
+					if (canUseZstd) {
+						// Decompress zstd data
+						const compressedUserData = Buffer.from(
+							programAccount.account.data[0],
+							'base64'
+						);
+						// Handle both default and named exports for browser/webpack compatibility
+						let DecoderClass = ZSTDDecoder;
+						if (
+							typeof ZSTDDecoder === 'object' &&
+							(ZSTDDecoder as any).default
+						) {
+							DecoderClass = (ZSTDDecoder as any).default;
+						}
+						const decoder = new (DecoderClass as any)();
+						await decoder.init();
+						userBuffer = Buffer.from(
+							decoder.decode(compressedUserData, MAX_USER_ACCOUNT_SIZE_BYTES)
+						);
+					} else {
+						// Use regular base64 data (not compressed)
+						userBuffer = Buffer.from(programAccount.account.data[0], 'base64');
+					}
+
 					programAccountBufferMap.set(
 						programAccount.pubkey.toString(),
-						Buffer.from(userBuffer)
+						userBuffer
 					);
 				}
 			);
