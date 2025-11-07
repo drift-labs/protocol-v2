@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.147.0] - 2025-11-06
+
+### Features
+
+- whitelist ATA program in begin_swap ix [#2021](https://github.com/drift-labs/protocol-v2/pull/2021)
+
+### Fixes
+
+### Breaking
+
 ## [2.146.0] - 2025-11-03
 
 ### Features
