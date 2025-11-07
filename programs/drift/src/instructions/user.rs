@@ -3,6 +3,7 @@ use std::ops::DerefMut;
 
 use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
+use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::{
     token::Token,
     token_2022::Token2022,
@@ -3681,6 +3682,7 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
             } else {
                 let mut whitelisted_programs = WHITELISTED_SWAP_PROGRAMS.to_vec();
                 if !delegate_is_signer {
+                    whitelisted_programs.push(AssociatedToken::id());
                     whitelisted_programs.push(Token::id());
                     whitelisted_programs.push(Token2022::id());
                     whitelisted_programs.push(marinade_mainnet::ID);

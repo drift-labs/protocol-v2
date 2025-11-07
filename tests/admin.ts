@@ -127,17 +127,6 @@ describe('admin', () => {
 		);
 	});
 
-	it('Update lp cooldown time', async () => {
-		await driftClient.updateLpCooldownTime(new BN(420));
-		await driftClient.fetchAccounts();
-		assert(
-			driftClient.getStateAccount().lpCooldownTime.eq(new BN(420)),
-			`lp cooldown time does not match \n actual: ${
-				driftClient.getStateAccount().lpCooldownTime
-			} \n expected: ${new BN(420)}`
-		);
-	});
-
 	it('Update Amm Jit', async () => {
 		await driftClient.fetchAccounts();
 		assert(

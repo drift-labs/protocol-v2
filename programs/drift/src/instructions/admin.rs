@@ -3357,7 +3357,8 @@ pub fn handle_update_perp_market_paused_operations(
 
     if *ctx.accounts.admin.key != ctx.accounts.state.admin {
         validate!(
-            paused_operations == PerpOperation::UpdateFunding as u8,
+            paused_operations == PerpOperation::UpdateFunding as u8
+                || paused_operations == PerpOperation::SettleRevPool as u8,
             ErrorCode::DefaultError,
             "signer must be admin",
         )?;
@@ -3576,20 +3577,6 @@ pub fn handle_update_perp_market_reference_price_offset_deadband_pct(
     msg!("current signed liquidity ratio: {}", signed_liquidity_ratio);
 
     perp_market.amm.reference_price_offset_deadband_pct = reference_price_offset_deadband_pct;
-    Ok(())
-}
-
-pub fn handle_update_lp_cooldown_time(
-    ctx: Context<AdminUpdateState>,
-    lp_cooldown_time: u64,
-) -> Result<()> {
-    msg!(
-        "lp_cooldown_time: {} -> {}",
-        ctx.accounts.state.lp_cooldown_time,
-        lp_cooldown_time
-    );
-
-    ctx.accounts.state.lp_cooldown_time = lp_cooldown_time;
     Ok(())
 }
 

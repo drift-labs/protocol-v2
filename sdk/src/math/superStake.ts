@@ -223,7 +223,7 @@ export async function findBestJitoSolSuperStakeIxs({
 }
 
 /**
- * Finds best Jupiter Swap instructions for a generic lstMint
+ * Finds best swap instructions for a generic lstMint
  *
  * Without doing any extra steps like checking if you can get a better rate by staking directly with that LST platform
  */
