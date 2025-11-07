@@ -3915,4 +3915,20 @@ export class User {
 			activeSpotPositions: activeSpotMarkets,
 		};
 	}
+
+	public getIsolatePerpPositionTokenAmount(perpMarketIndex: number): BN {
+		const perpPosition = this.getPerpPosition(perpMarketIndex);
+		const perpMarket = this.driftClient.getPerpMarketAccount(perpMarketIndex);
+		const spotMarket = this.driftClient.getSpotMarketAccount(
+			perpMarket.quoteSpotMarketIndex
+		);
+		if (perpPosition === undefined) {
+			return ZERO;
+		}
+		return getTokenAmount(
+			perpPosition.isolatedPositionScaledBalance ?? ZERO, //TODO remove ? later
+			spotMarket,
+			SpotBalanceType.DEPOSIT
+		);
+	}
 }
