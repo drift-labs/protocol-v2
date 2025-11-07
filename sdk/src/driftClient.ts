@@ -139,6 +139,7 @@ import {
 	BASE_PRECISION,
 	GOV_SPOT_MARKET_INDEX,
 	MARGIN_PRECISION,
+	MIN_I64,
 	ONE,
 	PERCENTAGE_PRECISION,
 	PRICE_PRECISION,
@@ -4190,12 +4191,30 @@ export class DriftClient {
 		subAccountId?: number,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
+		const ixs =  [];
+		const tokenAmountDeposited = this.getIsolatedPerpPositionTokenAmount(perpMarketIndex);
+		const transferIx = await this.getTransferIsolatedPerpPositionDepositIx(
+			amount,
+			perpMarketIndex,
+			subAccountId
+		);
+
+		const needsToSettle =
+		amount.gt(tokenAmountDeposited) || amount.eq(MIN_I64);
+		if (needsToSettle) {
+			const settleIx = await this.settleMultiplePNLsIx(
+				await getUserAccountPublicKey(this.program.programId, this.authority, subAccountId ?? this.activeSubAccountId),
+				this.getUserAccount(subAccountId),
+				[perpMarketIndex],
+				SettlePnlMode.TRY_SETTLE
+			);
+			ixs.push(settleIx);
+		}
+
+		ixs.push(transferIx);
+
 		const tx = await this.buildTransaction(
-			await this.getTransferIsolatedPerpPositionDepositIx(
-				amount,
-				perpMarketIndex,
-				subAccountId
-			),
+			ixs,
 			txParams
 		);
 		const { txSig } = await this.sendTransaction(tx, [], {
@@ -4228,7 +4247,7 @@ export class DriftClient {
 		});
 
 		const amountWithBuffer =
-			noAmountBuffer || amount.eq(BigNum.fromPrint('-9223372036854775808').val)
+			noAmountBuffer || amount.eq(MIN_I64)
 				? amount
 				: amount.add(amount.div(new BN(250))); // .4% buffer
 
@@ -4300,11 +4319,8 @@ export class DriftClient {
 		);
 
 		const amountToWithdraw = amount.gt(depositAmountPlusUnrealizedPnl)
-			? BigNum.fromPrint('-9223372036854775808').val // min i64
+			? MIN_I64 // min i64
 			: amount;
-		console.log('amountToWithdraw', amountToWithdraw.toString());
-		console.log('amount', amount.toString());
-
 		let associatedTokenAccount = userTokenAccount;
 		if (!associatedTokenAccount) {
 			const perpMarketAccount = this.getPerpMarketAccount(perpMarketIndex);
