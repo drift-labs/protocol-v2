@@ -554,11 +554,11 @@ pub mod drift {
         handle_disable_user_high_leverage_mode(ctx, disable_maintenance)
     }
 
-    pub fn update_user_fuel_bonus<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, UpdateUserFuelBonus<'info>>,
-    ) -> Result<()> {
-        handle_update_user_fuel_bonus(ctx)
-    }
+    // pub fn update_user_fuel_bonus<'c: 'info, 'info>(
+    //     ctx: Context<'_, '_, 'c, 'info, UpdateUserFuelBonus<'info>>,
+    // ) -> Result<()> {
+    //     handle_update_user_fuel_bonus(ctx)
+    // }
 
     pub fn update_user_stats_referrer_status<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, UpdateUserStatsReferrerInfo<'info>>,
@@ -1062,10 +1062,16 @@ pub mod drift {
         handle_initialize_amm_cache(ctx)
     }
 
-    pub fn resize_amm_cache<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, ResizeAmmCache<'info>>,
+    pub fn add_market_to_amm_cache<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, AddMarketToAmmCache<'info>>,
     ) -> Result<()> {
-        handle_resize_amm_cache(ctx)
+        handle_add_market_to_amm_cache(ctx)
+    }
+
+    pub fn delete_amm_cache<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, DeleteAmmCache<'info>>,
+    ) -> Result<()> {
+        handle_delete_amm_cache(ctx)
     }
 
     pub fn update_initial_amm_cache_info<'c: 'info, 'info>(
@@ -1491,13 +1497,6 @@ pub mod drift {
         )
     }
 
-    pub fn update_lp_cooldown_time(
-        ctx: Context<AdminUpdateState>,
-        lp_cooldown_time: u64,
-    ) -> Result<()> {
-        handle_update_lp_cooldown_time(ctx, lp_cooldown_time)
-    }
-
     pub fn update_perp_fee_structure(
         ctx: Context<AdminUpdateState>,
         fee_structure: FeeStructure,
@@ -1656,14 +1655,14 @@ pub mod drift {
         handle_update_spot_market_fee_adjustment(ctx, fee_adjustment)
     }
 
-    pub fn update_perp_market_fuel(
-        ctx: Context<HotAdminUpdatePerpMarket>,
-        fuel_boost_taker: Option<u8>,
-        fuel_boost_maker: Option<u8>,
-        fuel_boost_position: Option<u8>,
-    ) -> Result<()> {
-        handle_update_perp_market_fuel(ctx, fuel_boost_taker, fuel_boost_maker, fuel_boost_position)
-    }
+    // pub fn update_perp_market_fuel(
+    //     ctx: Context<HotAdminUpdatePerpMarket>,
+    //     fuel_boost_taker: Option<u8>,
+    //     fuel_boost_maker: Option<u8>,
+    //     fuel_boost_position: Option<u8>,
+    // ) -> Result<()> {
+    //     handle_update_perp_market_fuel(ctx, fuel_boost_taker, fuel_boost_maker, fuel_boost_position)
+    // }
 
     pub fn update_perp_market_protected_maker_params(
         ctx: Context<AdminUpdatePerpMarket>,
@@ -1708,52 +1707,52 @@ pub mod drift {
         handle_update_perp_market_oracle_slot_delay_override(ctx, oracle_slot_delay_override)
     }
 
-    pub fn update_spot_market_fuel(
-        ctx: Context<AdminUpdateSpotMarketFuel>,
-        fuel_boost_deposits: Option<u8>,
-        fuel_boost_borrows: Option<u8>,
-        fuel_boost_taker: Option<u8>,
-        fuel_boost_maker: Option<u8>,
-        fuel_boost_insurance: Option<u8>,
-    ) -> Result<()> {
-        handle_update_spot_market_fuel(
-            ctx,
-            fuel_boost_deposits,
-            fuel_boost_borrows,
-            fuel_boost_taker,
-            fuel_boost_maker,
-            fuel_boost_insurance,
-        )
-    }
+    // pub fn update_spot_market_fuel(
+    //     ctx: Context<AdminUpdateSpotMarketFuel>,
+    //     fuel_boost_deposits: Option<u8>,
+    //     fuel_boost_borrows: Option<u8>,
+    //     fuel_boost_taker: Option<u8>,
+    //     fuel_boost_maker: Option<u8>,
+    //     fuel_boost_insurance: Option<u8>,
+    // ) -> Result<()> {
+    //     handle_update_spot_market_fuel(
+    //         ctx,
+    //         fuel_boost_deposits,
+    //         fuel_boost_borrows,
+    //         fuel_boost_taker,
+    //         fuel_boost_maker,
+    //         fuel_boost_insurance,
+    //     )
+    // }
 
-    pub fn init_user_fuel(
-        ctx: Context<InitUserFuel>,
-        fuel_boost_deposits: Option<i32>,
-        fuel_boost_borrows: Option<u32>,
-        fuel_boost_taker: Option<u32>,
-        fuel_boost_maker: Option<u32>,
-        fuel_boost_insurance: Option<u32>,
-    ) -> Result<()> {
-        handle_init_user_fuel(
-            ctx,
-            fuel_boost_deposits,
-            fuel_boost_borrows,
-            fuel_boost_taker,
-            fuel_boost_maker,
-            fuel_boost_insurance,
-        )
-    }
+    // pub fn init_user_fuel(
+    //     ctx: Context<InitUserFuel>,
+    //     fuel_boost_deposits: Option<i32>,
+    //     fuel_boost_borrows: Option<u32>,
+    //     fuel_boost_taker: Option<u32>,
+    //     fuel_boost_maker: Option<u32>,
+    //     fuel_boost_insurance: Option<u32>,
+    // ) -> Result<()> {
+    //     handle_init_user_fuel(
+    //         ctx,
+    //         fuel_boost_deposits,
+    //         fuel_boost_borrows,
+    //         fuel_boost_taker,
+    //         fuel_boost_maker,
+    //         fuel_boost_insurance,
+    //     )
+    // }
 
     pub fn update_admin(ctx: Context<AdminUpdateState>, admin: Pubkey) -> Result<()> {
         handle_update_admin(ctx, admin)
     }
 
-    pub fn update_whitelist_mint(
-        ctx: Context<AdminUpdateState>,
-        whitelist_mint: Pubkey,
-    ) -> Result<()> {
-        handle_update_whitelist_mint(ctx, whitelist_mint)
-    }
+    // pub fn update_whitelist_mint(
+    //     ctx: Context<AdminUpdateState>,
+    //     whitelist_mint: Pubkey,
+    // ) -> Result<()> {
+    //     handle_update_whitelist_mint(ctx, whitelist_mint)
+    // }
 
     pub fn update_discount_mint(
         ctx: Context<AdminUpdateState>,
@@ -2126,12 +2125,6 @@ pub mod drift {
         override_params: OverrideAmmCacheParams,
     ) -> Result<()> {
         handle_override_amm_cache_info(ctx, market_index, override_params)
-    }
-
-    pub fn reset_amm_cache<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, ResetAmmCache<'info>>,
-    ) -> Result<()> {
-        handle_reset_amm_cache(ctx)
     }
 
     pub fn lp_pool_swap<'c: 'info, 'info>(

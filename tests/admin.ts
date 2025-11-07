@@ -106,6 +106,7 @@ describe('admin', () => {
 			new BN(1000),
 			periodicity
 		);
+		await driftClient.initializeAmmCache();
 	});
 
 	it('checks market name', async () => {
@@ -123,17 +124,6 @@ describe('admin', () => {
 			`market name does not match \n actual: ${decodeName(
 				newMarket.name
 			)} \n expected: ${newName}`
-		);
-	});
-
-	it('Update lp cooldown time', async () => {
-		await driftClient.updateLpCooldownTime(new BN(420));
-		await driftClient.fetchAccounts();
-		assert(
-			driftClient.getStateAccount().lpCooldownTime.eq(new BN(420)),
-			`lp cooldown time does not match \n actual: ${
-				driftClient.getStateAccount().lpCooldownTime
-			} \n expected: ${new BN(420)}`
 		);
 	});
 

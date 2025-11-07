@@ -3334,6 +3334,12 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
     let lp_pool_key = ctx.accounts.lp_pool.key();
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
 
+    controller::spot_balance::update_spot_market_cumulative_interest(
+        &mut *quote_market,
+        None,
+        now,
+    )?;
+
     let tvl_before = quote_market
         .get_tvl()?
         .safe_add(quote_constituent.vault_token_balance as u128)?;
@@ -3349,12 +3355,6 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
         &MarketSet::new(),
         slot,
         None,
-    )?;
-
-    controller::spot_balance::update_spot_market_cumulative_interest(
-        &mut *quote_market,
-        None,
-        now,
     )?;
 
     for (_, perp_market_loader) in perp_market_map.0.iter() {
@@ -3378,7 +3378,7 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
             continue;
         }
 
-        let cached_info = amm_cache.get_mut(perp_market.market_index as u32);
+        let cached_info = amm_cache.get_for_market_index_mut(perp_market.market_index)?;
 
         // Early validation checks
         if slot.saturating_sub(cached_info.oracle_slot) > SETTLE_AMM_ORACLE_MAX_DELAY {
@@ -3594,7 +3594,7 @@ pub fn handle_update_amm_cache<'c: 'info, 'info>(
         if perp_market.lp_status == 0 {
             continue;
         }
-        let cached_info = amm_cache.get_mut(perp_market.market_index as u32);
+        let cached_info = amm_cache.get_for_market_index_mut(perp_market.market_index)?;
 
         validate!(
             perp_market.oracle_id() == cached_info.oracle_id()?,

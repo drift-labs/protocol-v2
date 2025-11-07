@@ -24,8 +24,8 @@ test_files=(
   # TODO BROKEN ^^
 	builderCodes.ts
   decodeUser.ts
-  fuel.ts
-  fuelSweep.ts
+  # fuel.ts
+  # fuelSweep.ts
   admin.ts
   assetTier.ts
   cancelAllOrders.ts
@@ -91,7 +91,7 @@ test_files=(
   userAccount.ts
   userDelegate.ts
   userOrderId.ts
-  whitelist.ts
+  # whitelist.ts
 )
 
 

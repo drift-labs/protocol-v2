@@ -29,6 +29,7 @@ use crate::math::{amm, amm_spread, bn, cp_curve, quote_asset::*};
 
 use crate::state::events::CurveRecord;
 use crate::state::oracle::OraclePriceData;
+use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::user::{SpotPosition, User};
@@ -498,6 +499,10 @@ fn calculate_revenue_pool_transfer(
     // Calculates the revenue pool transfer amount for a given market state (positive = send to revenue pool, negative = pull from revenue pool)
     // If the AMM budget is above `FEE_POOL_TO_REVENUE_POOL_THRESHOLD` (in surplus), settle fees collected to the revenue pool depending on the health of the AMM state
     // Otherwise, spull from the revenue pool (up to a constraint amount)
+
+    if market.is_operation_paused(PerpOperation::SettleRevPool) {
+        return Ok(0);
+    }
 
     let amm_budget_surplus =
         terminal_state_surplus.saturating_sub(FEE_POOL_TO_REVENUE_POOL_THRESHOLD.cast()?);
