@@ -108,7 +108,11 @@ import { StrictOraclePrice } from './oracles/strictOraclePrice';
 
 import { calculateSpotFuelBonus, calculatePerpFuelBonus } from './math/fuel';
 import { grpcUserAccountSubscriber } from './accounts/grpcUserAccountSubscriber';
-import { MarginCalculation, MarginContext } from './marginCalculation';
+import {
+	IsolatedMarginCalculation,
+	MarginCalculation,
+	MarginContext,
+} from './marginCalculation';
 
 export type MarginType = 'Cross' | 'Isolated';
 
@@ -350,6 +354,7 @@ export class User {
 
 	public getIsolatePerpPositionTokenAmount(perpMarketIndex: number): BN {
 		const perpPosition = this.getPerpPosition(perpMarketIndex);
+		if (!perpPosition) return ZERO;
 		const perpMarket = this.driftClient.getPerpMarketAccount(perpMarketIndex);
 		const spotMarket = this.driftClient.getSpotMarketAccount(
 			perpMarket.quoteSpotMarketIndex
@@ -609,6 +614,7 @@ export class User {
 		if (perpMarketIndex !== undefined) {
 			const isolatedMarginCalculation =
 				marginCalc.isolatedMarginCalculations.get(perpMarketIndex);
+			if (!isolatedMarginCalculation) return ZERO;
 			const { marginRequirement, marginRequirementPlusBuffer } =
 				isolatedMarginCalculation;
 
@@ -1281,10 +1287,14 @@ export class User {
 	 * @returns : number (value from [0, 100])
 	 */
 	public getHealth(perpMarketIndex?: number): number {
-		const marginCalc = this.getMarginCalculation('Maintenance');
-		if (this.isCrossMarginBeingLiquidated(marginCalc) && !perpMarketIndex) {
+		if (this.isCrossMarginBeingLiquidated() && !perpMarketIndex) {
 			return 0;
 		}
+		if (this.hasIsolatedPositionBeingLiquidated() && perpMarketIndex) {
+			return 0;
+		}
+
+		const marginCalc = this.getMarginCalculation('Maintenance');
 
 		let totalCollateral: BN;
 		let maintenanceMarginReq: BN;
@@ -1671,8 +1681,14 @@ export class User {
 				oraclePriceData
 			);
 
+			const tokenAmount = getTokenAmount(
+				perpPosition.isolatedPositionScaledBalance ?? ZERO,
+				quoteSpotMarket,
+				SpotBalanceType.DEPOSIT
+			);
+
 			const spotAssetValue = getStrictTokenValue(
-				perpPosition.isolatedPositionScaledBalance ?? ZERO, //TODO remove ? later
+				tokenAmount,
 				quoteSpotMarket.decimals,
 				strictOracle
 			);
@@ -2051,23 +2067,49 @@ export class User {
 		);
 	}
 
+	public isCrossMarginBeingLiquidated(): boolean {
+		return (
+			(this.getUserAccount().status &
+				(UserStatus.BEING_LIQUIDATED | UserStatus.BANKRUPT)) >
+			0
+		);
+	}
+
 	/** Returns true if cross margin is currently below maintenance requirement (no buffer). */
-	public isCrossMarginBeingLiquidated(marginCalc?: MarginCalculation): boolean {
+	public canCrossMarginBeLiquidated(marginCalc?: MarginCalculation): boolean {
 		const calc = marginCalc ?? this.getMarginCalculation('Maintenance');
 		return calc.totalCollateral.lt(calc.marginRequirement);
 	}
 
+	public hasIsolatedPositionBeingLiquidated(): boolean {
+		return this.getActivePerpPositions().some(
+			(position) =>
+				(position.positionFlag &
+					(PositionFlag.BeingLiquidated | PositionFlag.Bankruptcy)) >
+				0
+		);
+	}
+
 	/** Returns true if any isolated perp position is currently below its maintenance requirement (no buffer). */
-	public isIsolatedMarginBeingLiquidated(
+	public getLiquidatableIsolatedPositions(
 		marginCalc?: MarginCalculation
-	): boolean {
+	): number[] {
+		const liquidatableIsolatedPositions = [];
 		const calc = marginCalc ?? this.getMarginCalculation('Maintenance');
-		for (const [, isoCalc] of calc.isolatedMarginCalculations) {
-			if (isoCalc.totalCollateral.lt(isoCalc.marginRequirement)) {
-				return true;
+		for (const [marketIndex, isoCalc] of calc.isolatedMarginCalculations) {
+			if (this.canIsolatedPositionMarginBeLiquidated(isoCalc)) {
+				liquidatableIsolatedPositions.push(marketIndex);
 			}
 		}
-		return false;
+		return liquidatableIsolatedPositions;
+	}
+
+	public canIsolatedPositionMarginBeLiquidated(
+		isolatedMarginCalculation: IsolatedMarginCalculation
+	): boolean {
+		return isolatedMarginCalculation.totalCollateral.lt(
+			isolatedMarginCalculation.marginRequirement
+		);
 	}
 
 	public hasStatus(status: UserStatus): boolean {
@@ -2247,6 +2289,7 @@ export class User {
 			});
 			const isolatedMarginCalculation =
 				marginCalculation.isolatedMarginCalculations.get(marketIndex);
+			if (!isolatedMarginCalculation) return ZERO;
 			const { totalCollateral, marginRequirement } = isolatedMarginCalculation;
 
 			const freeCollateral = BN.max(
@@ -2287,10 +2330,6 @@ export class User {
 			includeOpenOrders
 		);
 
-		// console.log(
-		// 	'new user liq price totalCollateral',
-		// 	totalCollateral.toString()
-		// );
 		const marginRequirement = this.getMarginRequirement(
 			marginCategory,
 			undefined,
@@ -2299,10 +2338,6 @@ export class User {
 			enteringHighLeverage
 		);
 
-		// console.log(
-		// 	'new user liq price marginRequirement',
-		// 	marginRequirement.toString()
-		// );
 		let freeCollateral = BN.max(
 			ZERO,
 			totalCollateral.sub(marginRequirement)
@@ -2514,7 +2549,6 @@ export class User {
 			this.getUserAccount().maxMarginRatio
 		);
 
-		// TODO: does this work in an isolated position context, cc perp
 		const marginRatio = calculateMarketMarginRatio(
 			market,
 			proposedBaseAssetAmount.abs(),
@@ -4467,6 +4501,15 @@ export class User {
 				}
 			}
 
+			// perp position liability
+			const hasPerpLiability =
+				!marketPosition.baseAssetAmount.eq(ZERO) ||
+				marketPosition.quoteAssetAmount.lt(ZERO) ||
+				marketPosition.openOrders !== 0;
+			if (hasPerpLiability) {
+				calc.addPerpLiability();
+			}
+
 			// Add perp contribution: isolated vs cross
 			const isIsolated = this.isPerpPositionIsolated(marketPosition);
 			if (isIsolated) {
@@ -4513,13 +4556,6 @@ export class User {
 					worstCaseLiabilityValue
 				);
 				calc.addCrossMarginTotalCollateral(positionUnrealizedPnl);
-				const hasPerpLiability =
-					!marketPosition.baseAssetAmount.eq(ZERO) ||
-					marketPosition.quoteAssetAmount.lt(ZERO) ||
-					marketPosition.openOrders !== 0;
-				if (hasPerpLiability) {
-					calc.addPerpLiability();
-				}
 			}
 		}
 		return calc;
