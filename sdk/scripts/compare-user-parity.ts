@@ -164,24 +164,23 @@ async function main(): Promise<void> {
 			  )
 			: Array.from(userMap.entries());
 
+	function noteMismatch(functionName: string, userPubkey): void {
+		mismatchesByFunction[functionName] =
+			(mismatchesByFunction[functionName] ?? 0) + 1;
+		usersWithDiscrepancies.add(userPubkey.toBase58());
+		mismatches += 1;
+	}
+
 	for (const [userKey, currUser] of usersFilterd) {
 		usersChecked += 1;
 		const userPubkey = new PublicKey(userKey);
-
-		function noteMismatch(functionName: string): void {
-			mismatchesByFunction[functionName] =
-				(mismatchesByFunction[functionName] ?? 0) + 1;
-			usersWithDiscrepancies.add(userPubkey.toBase58());
-			mismatches += 1;
-		}
-
 		// clean curr User position flags to be all 0
 
 		currUser.getActivePerpPositions().forEach((position) => {
 			position.positionFlag = 0;
 		});
 
-		const oldUser = buildOldUserFromSnapshot(driftClient, currUser, COMMITMENT);
+		const oldUser = buildOldUserFromSnapshot(driftClient, currUser);
 
 		try {
 			// Cross-account level comparisons
@@ -202,7 +201,7 @@ async function main(): Promise<void> {
 						vNew_fc,
 						vOld_fc
 					);
-					noteMismatch('getFreeCollateral');
+					noteMismatch('getFreeCollateral', userPubkey);
 				}
 
 				// only do free collateral for now
@@ -219,7 +218,7 @@ async function main(): Promise<void> {
 						vNew_tc,
 						vOld_tc
 					);
-					noteMismatch('getTotalCollateral');
+					noteMismatch('getTotalCollateral', userPubkey);
 				}
 
 				// getMarginRequirement (strict=true, includeOpenOrders=true)
@@ -243,7 +242,7 @@ async function main(): Promise<void> {
 						vNew_mr,
 						vOld_mr
 					);
-					noteMismatch('getMarginRequirement');
+					noteMismatch('getMarginRequirement', userPubkey);
 				}
 			}
 			// continue;
@@ -264,7 +263,7 @@ async function main(): Promise<void> {
 						vNew_pbp,
 						vOld_pbp
 					);
-					noteMismatch('getPerpBuyingPower');
+					noteMismatch('getPerpBuyingPower', userPubkey);
 				}
 
 				// liquidationPrice (defaults)
@@ -278,7 +277,7 @@ async function main(): Promise<void> {
 						vNew_lp,
 						vOld_lp
 					);
-					noteMismatch('liquidationPrice');
+					noteMismatch('liquidationPrice', userPubkey);
 				}
 
 				// liquidationPriceAfterClose with 10% of current quote as close amount (skip if zero/absent)
@@ -303,7 +302,7 @@ async function main(): Promise<void> {
 							vNew_lpac,
 							vOld_lpac
 						);
-						noteMismatch('liquidationPriceAfterClose');
+						noteMismatch('liquidationPriceAfterClose', userPubkey);
 					}
 				}
 			}

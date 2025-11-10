@@ -4212,8 +4212,6 @@ export class User {
 		const marginBuffer = opts?.liquidationBuffer; // treat as MARGIN_BUFFER ratio if provided
 		const marginRatioOverride = opts?.marginRatioOverride;
 
-		let totalUnrealizedPnl = ZERO;
-
 		// Equivalent to on-chain user_custom_margin_ratio
 		let userCustomMarginRatio =
 			marginCategory === 'Initial' ? this.getUserAccount().maxMarginRatio : 0;
@@ -4293,7 +4291,6 @@ export class User {
 				tokenAmount: worstCaseTokenAmount,
 				ordersValue: worstCaseOrdersValue,
 				tokenValue: worstCaseTokenValue,
-				weightedTokenValue: worstCaseWeightedTokenValue,
 			} = getWorstCaseTokenAmounts(
 				spotPosition,
 				spotMarket,
