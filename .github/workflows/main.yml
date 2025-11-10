@@ -124,7 +124,7 @@ jobs:
       - name: Install Anchor CLI
         if: steps.cache-anchor.outputs.cache-hit != 'true'
         run: |
-          apt install libudev-dev
+          sudo apt install libudev-dev
           cargo install --git https://github.com/coral-xyz/anchor --tag v0.32.1 anchor-cli --locked
 
       - name: Setup node
