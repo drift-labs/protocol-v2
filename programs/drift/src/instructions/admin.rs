@@ -5023,6 +5023,11 @@ pub fn handle_update_mm_oracle_native(accounts: &[AccountInfo], data: &[u8]) -> 
     let perp_market_sequence_id = u64::from_le_bytes(perp_market[936..944].try_into().unwrap());
     let incoming_sequence_id = u64::from_le_bytes(data[8..16].try_into().unwrap());
 
+    if &data[0..8] == &[0u8; 8] {
+        msg!("MM oracle price is zero, not updating");
+        return Err(ErrorCode::DefaultError.into());
+    }
+
     if incoming_sequence_id > perp_market_sequence_id {
         let clock_account = &accounts[2];
         let clock_data = clock_account.data.borrow();
