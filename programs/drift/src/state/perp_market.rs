@@ -1448,6 +1448,7 @@ impl AMM {
         ))
     }
 
+    // this is where
     pub fn get_protocol_owned_position(self) -> DriftResult<i64> {
         self.base_asset_amount_with_amm.cast::<i64>()
     }
