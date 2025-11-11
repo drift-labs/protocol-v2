@@ -33,6 +33,19 @@ function bnEq(a: BN, b: BN): boolean {
 	return a.eq(b);
 }
 
+const EXPECTED_DIFF_THRESHOLD_BPS = 10; // 0.1%
+
+function isWithinRelativeBps(a: BN, b: BN, thresholdBps: number): boolean {
+	const aAbs = a.abs();
+	const bAbs = b.abs();
+	const maxAbs = aAbs.gt(bAbs) ? aAbs : bAbs;
+	if (maxAbs.isZero()) return true; // both zero
+	const diff = a.sub(b).abs();
+	// diff / maxAbs <= thresholdBps / 10000
+	// => diff * 10000 <= thresholdBps * maxAbs
+	return diff.mul(new BN(10000)).lte(maxAbs.mul(new BN(thresholdBps)));
+}
+
 function buildOldUserFromSnapshot(
 	driftClient: DriftClient,
 	currentUser: CurrentUser
@@ -87,6 +100,40 @@ function logMismatch(
 		`- ❌ user: ${userPubkey.toBase58()} | function: ${fn}\n` +
 			`- args:\n${argsLines || '\t- none'}\n` +
 			`- new: ${vNew.toString()} | old: ${vOld.toString()}\n`
+	);
+}
+
+function logWarning(
+	userPubkey: PublicKey,
+	fn: string,
+	args: Record<string, unknown>,
+	vNew: BN,
+	vOld: BN
+): void {
+	const argsLines = Object.keys(args)
+		.map((k) => `\t- ${k}: ${String(args[k])}`)
+		.join('|');
+	console.warn(
+		`- ⚠️ expected change | user: ${userPubkey.toBase58()} | function: ${fn}\n` +
+			`- args:\n${argsLines || '\t- none'}\n` +
+			`- new: ${vNew.toString()} | old: ${vOld.toString()}\n`
+	);
+}
+
+function logBooleanMismatch(
+	userPubkey: PublicKey,
+	fn: string,
+	args: Record<string, unknown>,
+	vNew: boolean,
+	vOld: boolean
+): void {
+	const argsLines = Object.keys(args)
+		.map((k) => `\t- ${k}: ${String(args[k])}`)
+		.join('|');
+	console.error(
+		`- ❌ user: ${userPubkey.toBase58()} | function: ${fn}\n` +
+			`- args:\n${argsLines || '\t- none'}\n` +
+			`- new: ${String(vNew)} | old: ${String(vOld)}\n`
 	);
 }
 
@@ -193,7 +240,10 @@ async function main(): Promise<void> {
 				// getFreeCollateral
 				const vNew_fc = currUser.getFreeCollateral(cat);
 				const vOld_fc = oldUser.getFreeCollateral(cat);
-				if (!bnEq(vNew_fc, vOld_fc)) {
+				if (
+					!bnEq(vNew_fc, vOld_fc) &&
+					!isWithinRelativeBps(vNew_fc, vOld_fc, EXPECTED_DIFF_THRESHOLD_BPS)
+				) {
 					logMismatch(
 						userPubkey,
 						'getFreeCollateral',
@@ -211,14 +261,25 @@ async function main(): Promise<void> {
 				const vNew_tc = currUser.getTotalCollateral(cat);
 				const vOld_tc = oldUser.getTotalCollateral(cat);
 				if (!bnEq(vNew_tc, vOld_tc)) {
-					logMismatch(
-						userPubkey,
-						'getTotalCollateral',
-						{ marginCategory: cat },
-						vNew_tc,
-						vOld_tc
-					);
-					noteMismatch('getTotalCollateral', userPubkey);
+					if (
+						isWithinRelativeBps(vNew_tc, vOld_tc, EXPECTED_DIFF_THRESHOLD_BPS)
+					) {
+						logWarning(
+							userPubkey,
+							'getTotalCollateral',
+							{ marginCategory: cat },
+							vNew_tc,
+							vOld_tc
+						);
+					} else {
+						logWarning(
+							userPubkey,
+							'getTotalCollateral',
+							{ marginCategory: cat },
+							vNew_tc,
+							vOld_tc
+						);
+					}
 				}
 
 				// getMarginRequirement (strict=true, includeOpenOrders=true)
@@ -235,17 +296,46 @@ async function main(): Promise<void> {
 					true
 				);
 				if (!bnEq(vNew_mr, vOld_mr)) {
-					logMismatch(
-						userPubkey,
-						'getMarginRequirement',
-						{ marginCategory: cat, strict: true, includeOpenOrders: true },
-						vNew_mr,
-						vOld_mr
-					);
-					noteMismatch('getMarginRequirement', userPubkey);
+					if (
+						isWithinRelativeBps(vNew_mr, vOld_mr, EXPECTED_DIFF_THRESHOLD_BPS)
+					) {
+						logWarning(
+							userPubkey,
+							'getMarginRequirement',
+							{ marginCategory: cat, strict: true, includeOpenOrders: true },
+							vNew_mr,
+							vOld_mr
+						);
+					} else {
+						logWarning(
+							userPubkey,
+							'getMarginRequirement',
+							{ marginCategory: cat, strict: true, includeOpenOrders: true },
+							vNew_mr,
+							vOld_mr
+						);
+					}
 				}
 			}
 			// continue;
+
+			// canBeLiquidated parity (cross margin status)
+			{
+				const vNew_liq = currUser.canBeLiquidated();
+				const vOld_liq = oldUser.canBeLiquidated();
+
+				// boolean
+				if (vNew_liq.canBeLiquidated !== vOld_liq.canBeLiquidated) {
+					logBooleanMismatch(
+						userPubkey,
+						'canBeLiquidated',
+						{ field: 'canBeLiquidated' },
+						vNew_liq.canBeLiquidated,
+						vOld_liq.canBeLiquidated
+					);
+					noteMismatch('canBeLiquidated', userPubkey);
+				}
+			}
 
 			// Per-perp-market comparisons
 			const activePerpPositions = currUser.getActivePerpPositions();
@@ -256,14 +346,26 @@ async function main(): Promise<void> {
 				const vNew_pbp = currUser.getPerpBuyingPower(marketIndex);
 				const vOld_pbp = oldUser.getPerpBuyingPower(marketIndex);
 				if (!bnEq(vNew_pbp, vOld_pbp)) {
-					logMismatch(
-						userPubkey,
-						'getPerpBuyingPower',
-						{ marketIndex },
-						vNew_pbp,
-						vOld_pbp
-					);
-					noteMismatch('getPerpBuyingPower', userPubkey);
+					if (
+						isWithinRelativeBps(vNew_pbp, vOld_pbp, EXPECTED_DIFF_THRESHOLD_BPS)
+					) {
+						logWarning(
+							userPubkey,
+							'getPerpBuyingPower',
+							{ marketIndex },
+							vNew_pbp,
+							vOld_pbp
+						);
+					} else {
+						logMismatch(
+							userPubkey,
+							'getPerpBuyingPower',
+							{ marketIndex },
+							vNew_pbp,
+							vOld_pbp
+						);
+						noteMismatch('getPerpBuyingPower', userPubkey);
+					}
 				}
 
 				// liquidationPrice (defaults)

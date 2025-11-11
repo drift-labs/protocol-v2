@@ -603,11 +603,19 @@ export class User {
 		enteringHighLeverage?: boolean,
 		perpMarketIndex?: number
 	): BN {
+		const liquidationBufferMap = (() => {
+			if (liquidationBuffer && perpMarketIndex !== undefined) {
+				return new Map([[perpMarketIndex, liquidationBuffer]]);
+			} else if (liquidationBuffer) {
+				return new Map([['cross', liquidationBuffer]]);
+			}
+			return new Map();
+		})();
 		const marginCalc = this.getMarginCalculation(marginCategory, {
 			strict,
 			includeOpenOrders,
 			enteringHighLeverage,
-			liquidationBuffer,
+			liquidationBufferMap,
 		});
 
 		// If perpMarketIndex is provided, compute only for that market index
@@ -1250,10 +1258,18 @@ export class User {
 		liquidationBuffer?: BN,
 		perpMarketIndex?: number
 	): BN {
+		const liquidationBufferMap = (() => {
+			if (liquidationBuffer && perpMarketIndex !== undefined) {
+				return new Map([[perpMarketIndex, liquidationBuffer]]);
+			} else if (liquidationBuffer) {
+				return new Map([['cross', liquidationBuffer]]);
+			}
+			return new Map();
+		})();
 		const marginCalc = this.getMarginCalculation(marginCategory, {
 			strict,
 			includeOpenOrders,
-			liquidationBuffer,
+			liquidationBufferMap,
 		});
 
 		if (perpMarketIndex !== undefined) {
@@ -1271,15 +1287,28 @@ export class User {
 		return marginCalc.totalCollateral;
 	}
 
-	public getLiquidationBuffer(): BN | undefined {
-		// if user being liq'd, can continue to be liq'd until total collateral above the margin requirement plus buffer
-		let liquidationBuffer = undefined;
+	public getLiquidationBuffer(): Map<number | 'cross', BN> {
+		const liquidationBufferMap = new Map<number | 'cross', BN>();
 		if (this.isBeingLiquidated()) {
-			liquidationBuffer = new BN(
-				this.driftClient.getStateAccount().liquidationMarginBufferRatio
+			liquidationBufferMap.set(
+				'cross',
+				new BN(this.driftClient.getStateAccount().liquidationMarginBufferRatio)
 			);
 		}
-		return liquidationBuffer;
+		for (const position of this.getActivePerpPositions()) {
+			if (
+				position.positionFlag &
+				(PositionFlag.BeingLiquidated | PositionFlag.Bankruptcy)
+			) {
+				liquidationBufferMap.set(
+					position.marketIndex,
+					new BN(
+						this.driftClient.getStateAccount().liquidationMarginBufferRatio
+					)
+				);
+			}
+		}
+		return liquidationBufferMap;
 	}
 
 	/**
@@ -1290,7 +1319,10 @@ export class User {
 		if (this.isCrossMarginBeingLiquidated() && !perpMarketIndex) {
 			return 0;
 		}
-		if (this.hasIsolatedPositionBeingLiquidated() && perpMarketIndex) {
+		if (
+			perpMarketIndex &&
+			this.isIsolatedPositionBeingLiquidated(perpMarketIndex)
+		) {
 			return 0;
 		}
 
@@ -2025,9 +2057,9 @@ export class User {
 	): Map<'cross' | number, AccountLiquidatableStatus> {
 		// If not provided, use buffer-aware calc for canBeLiquidated checks
 		if (!marginCalc) {
-			const liquidationBuffer = this.getLiquidationBuffer();
+			const liquidationBufferMap = this.getLiquidationBuffer();
 			marginCalc = this.getMarginCalculation('Maintenance', {
-				liquidationBuffer,
+				liquidationBufferMap,
 			});
 		}
 
@@ -2061,9 +2093,8 @@ export class User {
 
 	public isBeingLiquidated(): boolean {
 		return (
-			(this.getUserAccount().status &
-				(UserStatus.BEING_LIQUIDATED | UserStatus.BANKRUPT)) >
-			0
+			this.isCrossMarginBeingLiquidated() ||
+			this.hasIsolatedPositionBeingLiquidated()
 		);
 	}
 
@@ -2087,6 +2118,18 @@ export class User {
 				(position.positionFlag &
 					(PositionFlag.BeingLiquidated | PositionFlag.Bankruptcy)) >
 				0
+		);
+	}
+
+	public isIsolatedPositionBeingLiquidated(perpMarketIndex: number): boolean {
+		const position = this.getActivePerpPositions().find(
+			(position) => position.marketIndex === perpMarketIndex
+		);
+
+		return (
+			(position?.positionFlag &
+				(PositionFlag.BeingLiquidated | PositionFlag.Bankruptcy)) >
+			0
 		);
 	}
 
@@ -4229,44 +4272,31 @@ export class User {
 	 * Compute a consolidated margin snapshot once, without caching.
 	 * Consumers can use this to avoid duplicating work across separate calls.
 	 */
-
 	public getMarginCalculation(
 		marginCategory: MarginCategory = 'Initial',
 		opts?: {
 			strict?: boolean; // mirror StrictOraclePrice application
 			includeOpenOrders?: boolean;
 			enteringHighLeverage?: boolean;
-			liquidationBuffer?: BN; // margin_buffer analog for buffer mode
-			marginRatioOverride?: number; // mirrors context.margin_ratio_override
+			liquidationBufferMap?: Map<number | 'cross', BN>; // margin_buffer analog for buffer mode
 		}
 	): MarginCalculation {
 		const strict = opts?.strict ?? false;
 		const enteringHighLeverage = opts?.enteringHighLeverage ?? false;
-		const includeOpenOrders = opts?.includeOpenOrders ?? true; // TODO: remove this ??
-		const marginBuffer = opts?.liquidationBuffer; // treat as MARGIN_BUFFER ratio if provided
-		const marginRatioOverride = opts?.marginRatioOverride;
+		const liquidationBufferMap = opts?.liquidationBufferMap ?? new Map();
+		const includeOpenOrders = opts?.includeOpenOrders ?? true;
 
 		// Equivalent to on-chain user_custom_margin_ratio
-		let userCustomMarginRatio =
+		const userCustomMarginRatio =
 			marginCategory === 'Initial' ? this.getUserAccount().maxMarginRatio : 0;
-		if (marginRatioOverride !== undefined) {
-			userCustomMarginRatio = Math.max(
-				userCustomMarginRatio,
-				marginRatioOverride
-			);
-		}
 
 		// Initialize calc via JS mirror of Rust MarginCalculation
 		const ctx = MarginContext.standard(marginCategory)
 			.strictMode(strict)
-			.setMarginBuffer(marginBuffer)
-			.setMarginRatioOverride(userCustomMarginRatio);
+			.setMarginBuffer(opts?.liquidationBufferMap ?? new Map());
 		const calc = new MarginCalculation(ctx);
 
 		// SPOT POSITIONS
-		// TODO: include open orders in the worst-case simulation in the same way on both spot and perp positions
-
-		let netQuoteValue = ZERO;
 		for (const spotPosition of this.getUserAccount().spotPositions) {
 			if (isSpotPositionAvailable(spotPosition)) continue;
 
@@ -4305,7 +4335,7 @@ export class User {
 						spotMarket,
 						marginCategory
 					);
-					netQuoteValue = netQuoteValue.add(weightedTokenValue);
+					calc.addCrossMarginTotalCollateral(weightedTokenValue);
 				} else {
 					// borrow on quote contributes to margin requirement
 					const tokenValueAbs = this.getSpotLiabilityValue(
@@ -4313,11 +4343,11 @@ export class User {
 						strictOracle,
 						spotMarket,
 						marginCategory,
-						marginBuffer
+						liquidationBufferMap.get('cross') ?? new BN(0)
 					).abs();
-					calc.addSpotLiability();
-					netQuoteValue = netQuoteValue.sub(tokenValueAbs);
+					calc.addCrossMarginRequirement(tokenValueAbs, tokenValueAbs);
 				}
+				continue;
 			}
 
 			// Non-quote spot: worst-case simulation
@@ -4354,41 +4384,32 @@ export class User {
 				calc.addCrossMarginTotalCollateral(baseAssetValue);
 			} else if (worstCaseTokenAmount.lt(ZERO) && !isQuote) {
 				// liability side increases margin requirement (weighted >= abs(token_value))
-				// const liabilityWeighted = worstCaseWeightedTokenValue.abs();
 				const getSpotLiabilityValue = this.getSpotLiabilityValue(
 					worstCaseTokenAmount,
 					strictOracle,
 					spotMarket,
 					marginCategory,
-					marginBuffer
+					liquidationBufferMap.get('cross')
 				);
 
-				// TODO need to sync with perp on passing liability weighted or getSpotLiabilityValue.abs() for each param here
 				calc.addCrossMarginRequirement(
 					getSpotLiabilityValue.abs(),
 					getSpotLiabilityValue.abs()
 				);
-				calc.addSpotLiability();
 				calc.addSpotLiabilityValue(worstCaseTokenValue.abs());
 			} else if (spotPosition.openOrders !== 0 && !isQuote) {
-				calc.addSpotLiability();
 				calc.addSpotLiabilityValue(worstCaseTokenValue.abs());
 			}
 
 			// orders value contributes to collateral or requirement
 			if (worstCaseOrdersValue.gt(ZERO)) {
-				netQuoteValue = netQuoteValue.add(worstCaseOrdersValue);
+				calc.addCrossMarginTotalCollateral(worstCaseOrdersValue);
 			} else if (worstCaseOrdersValue.lt(ZERO)) {
 				const absVal = worstCaseOrdersValue.abs();
-				netQuoteValue = netQuoteValue.sub(absVal);
+				calc.addCrossMarginRequirement(absVal, absVal);
 			}
 		}
 
-		if (netQuoteValue.gt(ZERO)) {
-			calc.addCrossMarginTotalCollateral(netQuoteValue);
-		} else if (netQuoteValue.lt(ZERO)) {
-			calc.addCrossMarginRequirement(netQuoteValue.abs(), netQuoteValue.abs());
-		}
 		// PERP POSITIONS
 		for (const marketPosition of this.getActivePerpPositions()) {
 			const market = this.driftClient.getPerpMarketAccount(
@@ -4419,7 +4440,7 @@ export class User {
 
 			// margin ratio for this perp
 			const customMarginRatio = Math.max(
-				this.getUserAccount().maxMarginRatio,
+				userCustomMarginRatio,
 				marketPosition.maxMarginRatio
 			);
 			let marginRatio = new BN(
@@ -4493,21 +4514,6 @@ export class User {
 						)
 						.div(new BN(SPOT_MARKET_WEIGHT_PRECISION));
 				}
-
-				if (marginBuffer && positionUnrealizedPnl.lt(ZERO)) {
-					positionUnrealizedPnl = positionUnrealizedPnl.add(
-						positionUnrealizedPnl.mul(marginBuffer).div(MARGIN_PRECISION)
-					);
-				}
-			}
-
-			// perp position liability
-			const hasPerpLiability =
-				!marketPosition.baseAssetAmount.eq(ZERO) ||
-				marketPosition.quoteAssetAmount.lt(ZERO) ||
-				marketPosition.openOrders !== 0;
-			if (hasPerpLiability) {
-				calc.addPerpLiability();
 			}
 
 			// Add perp contribution: isolated vs cross
@@ -4515,7 +4521,6 @@ export class User {
 			if (isIsolated) {
 				// derive isolated quote deposit value, mirroring on-chain logic
 				let depositValue = ZERO;
-				// TODO this field(isolatedPositionScaledBalance) should not be undefined in the future, remove ? later
 				if (marketPosition.isolatedPositionScaledBalance?.gt(ZERO)) {
 					const quoteSpotMarket = this.driftClient.getSpotMarketAccount(
 						market.quoteSpotMarketIndex
@@ -4530,7 +4535,7 @@ export class User {
 							: undefined
 					);
 					const quoteTokenAmount = getTokenAmount(
-						marketPosition.isolatedPositionScaledBalance ?? ZERO, //TODO remove ? later
+						marketPosition.isolatedPositionScaledBalance ?? ZERO,
 						quoteSpotMarket,
 						SpotBalanceType.DEPOSIT
 					);
@@ -4547,7 +4552,6 @@ export class User {
 					worstCaseLiabilityValue,
 					perpMarginRequirement
 				);
-				calc.addPerpLiability();
 				calc.addPerpLiabilityValue(worstCaseLiabilityValue);
 			} else {
 				// cross: add to global requirement and collateral
