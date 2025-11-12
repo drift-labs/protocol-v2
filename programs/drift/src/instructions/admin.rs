@@ -3949,40 +3949,6 @@ pub fn handle_update_perp_market_min_order_size(
 }
 
 #[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
-pub fn handle_update_perp_market_lp_pool_fee_transfer_scalar(
-    ctx: Context<AdminUpdatePerpMarket>,
-    optional_lp_fee_transfer_scalar: Option<u8>,
-    optional_lp_net_pnl_transfer_scalar: Option<u8>,
-) -> Result<()> {
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    msg!("perp market {}", perp_market.market_index);
-
-    if let Some(lp_fee_transfer_scalar) = optional_lp_fee_transfer_scalar {
-        msg!(
-            "perp_market.: {:?} -> {:?}",
-            perp_market.lp_fee_transfer_scalar,
-            lp_fee_transfer_scalar
-        );
-
-        perp_market.lp_fee_transfer_scalar = lp_fee_transfer_scalar;
-    }
-
-    if let Some(lp_net_pnl_transfer_scalar) = optional_lp_net_pnl_transfer_scalar {
-        msg!(
-            "perp_market.: {:?} -> {:?}",
-            perp_market.lp_exchange_fee_excluscion_scalar,
-            lp_net_pnl_transfer_scalar
-        );
-
-        perp_market.lp_exchange_fee_excluscion_scalar = lp_net_pnl_transfer_scalar;
-    }
-
-    Ok(())
-}
-
-#[access_control(
     spot_market_valid(&ctx.accounts.spot_market)
 )]
 pub fn handle_update_spot_market_step_size_and_tick_size(

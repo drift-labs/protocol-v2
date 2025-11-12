@@ -4,6 +4,7 @@ use crate::ids::{lp_pool_hot_wallet, lp_pool_swap_wallet, WHITELISTED_SWAP_PROGR
 use crate::instructions::optional_accounts::{get_token_mint, load_maps, AccountMaps};
 use crate::math::constants::{PRICE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX};
 use crate::math::safe_math::SafeMath;
+use crate::perp_market_valid;
 use crate::state::amm_cache::{AmmCache, AMM_POSITIONS_CACHE};
 use crate::state::lp_pool::{
     AmmConstituentDatum, AmmConstituentMapping, Constituent, ConstituentCorrelations,
@@ -234,6 +235,40 @@ pub fn handle_update_constituent_paused_operations<'info>(
         paused_operations
     );
     constituent.paused_operations = paused_operations;
+    Ok(())
+}
+
+#[access_control(
+    perp_market_valid(&ctx.accounts.perp_market)
+)]
+pub fn handle_update_perp_market_lp_pool_fee_transfer_scalar(
+    ctx: Context<HotAdminUpdatePerpMarketDlp>,
+    optional_lp_fee_transfer_scalar: Option<u8>,
+    optional_lp_net_pnl_transfer_scalar: Option<u8>,
+) -> Result<()> {
+    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    msg!("perp market {}", perp_market.market_index);
+
+    if let Some(lp_fee_transfer_scalar) = optional_lp_fee_transfer_scalar {
+        msg!(
+            "perp_market.: {:?} -> {:?}",
+            perp_market.lp_fee_transfer_scalar,
+            lp_fee_transfer_scalar
+        );
+
+        perp_market.lp_fee_transfer_scalar = lp_fee_transfer_scalar;
+    }
+
+    if let Some(lp_net_pnl_transfer_scalar) = optional_lp_net_pnl_transfer_scalar {
+        msg!(
+            "perp_market.: {:?} -> {:?}",
+            perp_market.lp_exchange_fee_excluscion_scalar,
+            lp_net_pnl_transfer_scalar
+        );
+
+        perp_market.lp_exchange_fee_excluscion_scalar = lp_net_pnl_transfer_scalar;
+    }
+
     Ok(())
 }
 
@@ -1265,6 +1300,17 @@ pub struct UpdateConstituentCorrelation<'info> {
     )]
     pub constituent_correlations: Box<Account<'info, ConstituentCorrelations>>,
     pub state: Box<Account<'info, State>>,
+}
+
+#[derive(Accounts)]
+pub struct HotAdminUpdatePerpMarketDlp<'info> {
+    #[account(
+        constraint = admin.key() == lp_pool_hot_wallet::id() || admin.key() == state.admin
+    )]
+    pub admin: Signer<'info>,
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub perp_market: AccountLoader<'info, PerpMarket>,
 }
 
 #[derive(Accounts)]
