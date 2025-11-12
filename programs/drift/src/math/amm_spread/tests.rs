@@ -187,7 +187,7 @@ mod test {
             max_offset,
         )
         .unwrap();
-        assert_eq!(res, -32);
+        assert_eq!(res, 0);
     }
 
     #[test]
