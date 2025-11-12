@@ -35,7 +35,7 @@ use crate::instructions::SpotFulfillmentType;
 use crate::load;
 use crate::math::casting::Cast;
 use crate::math::constants::{QUOTE_SPOT_MARKET_INDEX, THIRTEEN_DAY};
-use crate::math::liquidation::is_user_being_liquidated;
+use crate::math::liquidation::is_cross_margin_being_liquidated;
 use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_liability_info;
 use crate::math::margin::meets_initial_margin_requirement;
 use crate::math::margin::{
@@ -758,9 +758,9 @@ pub fn handle_deposit<'c: 'info, 'info>(
     }
 
     drop(spot_market);
-    if user.is_being_liquidated() {
+    if user.is_cross_margin_being_liquidated() {
         // try to update liquidation status if user is was already being liq'd
-        let is_being_liquidated = is_user_being_liquidated(
+        let is_being_liquidated = is_cross_margin_being_liquidated(
             user,
             &perp_market_map,
             &spot_market_map,
@@ -769,7 +769,7 @@ pub fn handle_deposit<'c: 'info, 'info>(
         )?;
 
         if !is_being_liquidated {
-            user.exit_liquidation();
+            user.exit_cross_margin_liquidation();
         }
     }
 
@@ -799,6 +799,11 @@ pub fn handle_deposit<'c: 'info, 'info>(
     } else {
         DepositExplanation::None
     };
+    let signer = if ctx.accounts.authority.key() != user.authority {
+        Some(ctx.accounts.authority.key())
+    } else {
+        None
+    };
     let deposit_record = DepositRecord {
         ts: now,
         deposit_record_id,
@@ -816,6 +821,7 @@ pub fn handle_deposit<'c: 'info, 'info>(
         market_index,
         explanation,
         transfer_user: None,
+        signer,
     };
     emit!(deposit_record);
 
@@ -935,8 +941,8 @@ pub fn handle_withdraw<'c: 'info, 'info>(
 
     validate_spot_margin_trading(user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
 
-    if user.is_being_liquidated() {
-        user.exit_liquidation();
+    if user.is_cross_margin_being_liquidated() {
+        user.exit_cross_margin_liquidation();
     }
 
     user.update_last_active_slot(slot);
@@ -971,6 +977,7 @@ pub fn handle_withdraw<'c: 'info, 'info>(
         total_withdraws_after: user.total_withdraws,
         explanation: deposit_explanation,
         transfer_user: None,
+        signer: None,
     };
     emit!(deposit_record);
 
@@ -1114,8 +1121,8 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
         &mut oracle_map,
     )?;
 
-    if from_user.is_being_liquidated() {
-        from_user.exit_liquidation();
+    if from_user.is_cross_margin_being_liquidated() {
+        from_user.exit_cross_margin_liquidation();
     }
 
     from_user.update_last_active_slot(slot);
@@ -1141,6 +1148,7 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
             total_withdraws_after: from_user.total_withdraws,
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(to_user_key),
+            signer: None,
         };
         emit!(deposit_record);
     }
@@ -1205,6 +1213,7 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
             total_withdraws_after,
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(from_user_key),
+            signer: None,
         };
         emit!(deposit_record);
     }
@@ -1417,6 +1426,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             total_withdraws_after: from_user.total_withdraws,
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(to_user_key),
+            signer: None,
         };
         emit!(deposit_record);
 
@@ -1451,6 +1461,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             total_withdraws_after: to_user.total_withdraws,
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(from_user_key),
+            signer: None,
         };
         emit!(deposit_record);
     }
@@ -1517,6 +1528,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             total_withdraws_after: from_user.total_withdraws,
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(to_user_key),
+            signer: None,
         };
         emit!(deposit_record);
 
@@ -1551,6 +1563,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             total_withdraws_after: to_user.total_withdraws,
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(from_user_key),
+            signer: None,
         };
         emit!(deposit_record);
     }
@@ -1599,12 +1612,12 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
 
     to_user.update_last_active_slot(slot);
 
-    if from_user.is_being_liquidated() {
-        from_user.exit_liquidation();
+    if from_user.is_cross_margin_being_liquidated() {
+        from_user.exit_cross_margin_liquidation();
     }
 
-    if to_user.is_being_liquidated() {
-        to_user.exit_liquidation();
+    if to_user.is_cross_margin_being_liquidated() {
+        to_user.exit_cross_margin_liquidation();
     }
 
     let deposit_from_spot_market = spot_market_map.get_ref(&deposit_from_market_index)?;
@@ -1913,14 +1926,16 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         )
     };
 
+    let mut from_user_margin_context = MarginContext::standard(MarginRequirementType::Maintenance)
+        .fuel_perp_delta(market_index, transfer_amount);
+
     let from_user_margin_calculation =
         calculate_margin_requirement_and_total_collateral_and_liability_info(
             &from_user,
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Maintenance)
-                .fuel_perp_delta(market_index, transfer_amount),
+            from_user_margin_context,
         )?;
 
     validate!(
@@ -1929,14 +1944,16 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         "from user margin requirement is greater than total collateral"
     )?;
 
+    let mut to_user_margin_context = MarginContext::standard(MarginRequirementType::Initial)
+        .fuel_perp_delta(market_index, -transfer_amount);
+
     let to_user_margin_requirement =
         calculate_margin_requirement_and_total_collateral_and_liability_info(
             &to_user,
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
-            MarginContext::standard(MarginRequirementType::Initial)
-                .fuel_perp_delta(market_index, -transfer_amount),
+            to_user_margin_context,
         )?;
 
     validate!(
@@ -2043,6 +2060,218 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
     };
 
     emit_stack::<_, { OrderActionRecord::SIZE }>(fill_record)?;
+
+    Ok(())
+}
+
+#[access_control(
+    deposit_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_deposit_into_isolated_perp_position<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, DepositIsolatedPerpPosition<'info>>,
+    spot_market_index: u16,
+    perp_market_index: u16,
+    amount: u64,
+) -> Result<()> {
+    let user_key = ctx.accounts.user.key();
+    let mut user = load_mut!(ctx.accounts.user)?;
+
+    let state = &ctx.accounts.state;
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+    let slot = clock.slot;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        remaining_accounts_iter,
+        &MarketSet::new(),
+        &get_writable_spot_market_set(spot_market_index),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let mint = get_token_mint(remaining_accounts_iter)?;
+
+    controller::isolated_position::deposit_into_isolated_perp_position(
+        user_key,
+        &mut user,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        slot,
+        now,
+        state,
+        spot_market_index,
+        perp_market_index,
+        amount,
+    )?;
+
+    let spot_market = spot_market_map.get_ref(&spot_market_index)?;
+
+    controller::token::receive(
+        &ctx.accounts.token_program,
+        &ctx.accounts.user_token_account,
+        &ctx.accounts.spot_market_vault,
+        &ctx.accounts.authority,
+        amount,
+        &mint,
+        if spot_market.has_transfer_hook() {
+            Some(remaining_accounts_iter)
+        } else {
+            None
+        },
+    )?;
+
+    ctx.accounts.spot_market_vault.reload()?;
+
+    math::spot_withdraw::validate_spot_market_vault_amount(
+        &spot_market,
+        ctx.accounts.spot_market_vault.amount,
+    )?;
+
+    spot_market.validate_max_token_deposits_and_borrows(false)?;
+
+    Ok(())
+}
+
+#[access_control(
+    deposit_not_paused(&ctx.accounts.state)
+    withdraw_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, TransferIsolatedPerpPositionDeposit<'info>>,
+    spot_market_index: u16,
+    perp_market_index: u16,
+    amount: i64,
+) -> anchor_lang::Result<()> {
+    let authority_key = ctx.accounts.authority.key;
+    let user_key = ctx.accounts.user.key();
+
+    let state = &ctx.accounts.state;
+    let clock = Clock::get()?;
+    let slot = clock.slot;
+
+    let user = &mut load_mut!(ctx.accounts.user)?;
+    let user_stats = &mut load_mut!(ctx.accounts.user_stats)?;
+
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+
+    validate!(
+        !user.is_bankrupt(),
+        ErrorCode::UserBankrupt,
+        "user bankrupt"
+    )?;
+
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        &mut ctx.remaining_accounts.iter().peekable(),
+        &MarketSet::new(),
+        &get_writable_spot_market_set(spot_market_index),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    controller::isolated_position::transfer_isolated_perp_position_deposit(
+        user,
+        Some(user_stats),
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        slot,
+        now,
+        spot_market_index,
+        perp_market_index,
+        amount,
+    )?;
+
+    let spot_market = spot_market_map.get_ref(&spot_market_index)?;
+    math::spot_withdraw::validate_spot_market_vault_amount(
+        &spot_market,
+        ctx.accounts.spot_market_vault.amount,
+    )?;
+
+    Ok(())
+}
+
+#[access_control(
+    withdraw_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_withdraw_from_isolated_perp_position<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, WithdrawIsolatedPerpPosition<'info>>,
+    spot_market_index: u16,
+    perp_market_index: u16,
+    amount: u64,
+) -> anchor_lang::Result<()> {
+    let user_key = ctx.accounts.user.key();
+    let user = &mut load_mut!(ctx.accounts.user)?;
+    let mut user_stats = load_mut!(ctx.accounts.user_stats)?;
+    let clock = Clock::get()?;
+    let now = clock.unix_timestamp;
+    let slot = clock.slot;
+    let state = &ctx.accounts.state;
+
+    let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
+    let AccountMaps {
+        perp_market_map,
+        spot_market_map,
+        mut oracle_map,
+    } = load_maps(
+        remaining_accounts_iter,
+        &MarketSet::new(),
+        &get_writable_spot_market_set(spot_market_index),
+        clock.slot,
+        Some(state.oracle_guard_rails),
+    )?;
+
+    let mint = get_token_mint(remaining_accounts_iter)?;
+
+    controller::isolated_position::withdraw_from_isolated_perp_position(
+        user_key,
+        user,
+        &mut user_stats,
+        &perp_market_map,
+        &spot_market_map,
+        &mut oracle_map,
+        slot,
+        now,
+        spot_market_index,
+        perp_market_index,
+        amount,
+    )?;
+
+    let spot_market = spot_market_map.get_ref(&spot_market_index)?;
+
+    controller::token::send_from_program_vault(
+        &ctx.accounts.token_program,
+        &ctx.accounts.spot_market_vault,
+        &ctx.accounts.user_token_account,
+        &ctx.accounts.drift_signer,
+        state.signer_nonce,
+        amount,
+        &mint,
+        if spot_market.has_transfer_hook() {
+            Some(remaining_accounts_iter)
+        } else {
+            None
+        },
+    )?;
+
+    // reload the spot market vault balance so it's up-to-date
+    ctx.accounts.spot_market_vault.reload()?;
+    math::spot_withdraw::validate_spot_market_vault_amount(
+        &spot_market,
+        ctx.accounts.spot_market_vault.amount,
+    )?;
+
+    spot_market.validate_max_token_deposits_and_borrows(false)?;
 
     Ok(())
 }
@@ -2246,6 +2475,7 @@ pub fn handle_cancel_orders<'c: 'info, 'info>(
         market_type,
         market_index,
         direction,
+        false,
     )?;
 
     Ok(())
@@ -3681,6 +3911,7 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
                 }
             } else {
                 let mut whitelisted_programs = WHITELISTED_SWAP_PROGRAMS.to_vec();
+                let mut whitelisted_programs = WHITELISTED_SWAP_PROGRAMS.to_vec();
                 if !delegate_is_signer {
                     whitelisted_programs.push(AssociatedToken::id());
                     whitelisted_programs.push(Token::id());
@@ -4328,10 +4559,7 @@ pub struct InitializeReferrerName<'info> {
 #[instruction(market_index: u16,)]
 pub struct Deposit<'info> {
     pub state: Box<Account<'info, State>>,
-    #[account(
-        mut,
-        constraint = can_sign_for_user(&user, &authority)?
-    )]
+    #[account(mut)]
     pub user: AccountLoader<'info, User>,
     #[account(
         mut,
@@ -4531,6 +4759,92 @@ pub struct CancelOrder<'info> {
     )]
     pub user: AccountLoader<'info, User>,
     pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(spot_market_index: u16,)]
+pub struct DepositIsolatedPerpPosition<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&user, &authority)?
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        constraint = is_stats_for_user(&user, &user_stats)?
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), spot_market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        constraint = &spot_market_vault.mint.eq(&user_token_account.mint),
+        token::authority = authority
+    )]
+    pub user_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Interface<'info, TokenInterface>,
+}
+
+#[derive(Accounts)]
+#[instruction(spot_market_index: u16,)]
+pub struct TransferIsolatedPerpPositionDeposit<'info> {
+    #[account(
+        mut,
+        constraint = can_sign_for_user(&user, &authority)?
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub authority: Signer<'info>,
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        seeds = [b"spot_market_vault".as_ref(), spot_market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+}
+
+#[derive(Accounts)]
+#[instruction(spot_market_index: u16)]
+pub struct WithdrawIsolatedPerpPosition<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(
+        mut,
+        has_one = authority,
+    )]
+    pub user: AccountLoader<'info, User>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"spot_market_vault".as_ref(), spot_market_index.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub spot_market_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        constraint = state.signer.eq(&drift_signer.key())
+    )]
+    /// CHECK: forced drift_signer
+    pub drift_signer: AccountInfo<'info>,
+    #[account(
+        mut,
+        constraint = &spot_market_vault.mint.eq(&user_token_account.mint)
+    )]
+    pub user_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub token_program: Interface<'info, TokenInterface>,
 }
 
 #[derive(Accounts)]

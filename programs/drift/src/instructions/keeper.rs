@@ -12,11 +12,13 @@ use solana_program::sysvar::instructions::{
 };
 
 use crate::controller::insurance::update_user_stats_if_stake_amount;
+use crate::controller::isolated_position::transfer_isolated_perp_position_deposit;
 use crate::controller::liquidation::{
     liquidate_spot_with_swap_begin, liquidate_spot_with_swap_end,
 };
 use crate::controller::orders::cancel_orders;
 use crate::controller::orders::validate_market_within_price_band;
+use crate::controller::position::get_position_index;
 use crate::controller::position::PositionDirection;
 use crate::controller::spot_balance::update_spot_balances;
 use crate::controller::token::{receive, send_from_program_vault};
@@ -651,7 +653,7 @@ pub fn handle_place_signed_msg_taker_order<'c: 'info, 'info>(
     // TODO: generalize to support multiple market types
     let AccountMaps {
         perp_market_map,
-        spot_market_map,
+        mut spot_market_map,
         mut oracle_map,
     } = load_maps(
         &mut remaining_accounts,
@@ -665,6 +667,7 @@ pub fn handle_place_signed_msg_taker_order<'c: 'info, 'info>(
 
     let taker_key = ctx.accounts.user.key();
     let mut taker = load_mut!(ctx.accounts.user)?;
+    let mut taker_stats = load_mut!(ctx.accounts.user_stats)?;
     let mut signed_msg_taker = ctx.accounts.signed_msg_user_orders.load_mut()?;
 
     let escrow = if state.builder_codes_enabled() {
@@ -676,11 +679,12 @@ pub fn handle_place_signed_msg_taker_order<'c: 'info, 'info>(
     place_signed_msg_taker_order(
         taker_key,
         &mut taker,
+        &mut taker_stats,
         &mut signed_msg_taker,
         signed_msg_order_params_message_bytes,
         &ctx.accounts.ix_sysvar.to_account_info(),
         &perp_market_map,
-        &spot_market_map,
+        &mut spot_market_map,
         &mut oracle_map,
         high_leverage_mode_config,
         escrow,
@@ -693,11 +697,12 @@ pub fn handle_place_signed_msg_taker_order<'c: 'info, 'info>(
 pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
     taker_key: Pubkey,
     taker: &mut RefMut<User>,
+    taker_stats: &mut RefMut<UserStats>,
     signed_msg_account: &mut SignedMsgUserOrdersZeroCopyMut,
     taker_order_params_message_bytes: Vec<u8>,
     ix_sysvar: &AccountInfo<'info>,
     perp_market_map: &PerpMarketMap,
-    spot_market_map: &SpotMarketMap,
+    spot_market_map: &mut SpotMarketMap,
     oracle_map: &mut OracleMap,
     high_leverage_mode_config: Option<AccountLoader<HighLeverageModeConfig>>,
     escrow: Option<RevenueShareEscrowZeroCopyMut<'info>>,
@@ -842,6 +847,24 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
 
     if let Some(max_margin_ratio) = verified_message_and_signature.max_margin_ratio {
         taker.update_perp_position_max_margin_ratio(market_index, max_margin_ratio)?;
+    }
+
+    if let Some(isolated_position_deposit) =
+        verified_message_and_signature.isolated_position_deposit
+    {
+        spot_market_map.update_writable_spot_market(0)?;
+        transfer_isolated_perp_position_deposit(
+            taker,
+            Some(taker_stats),
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            clock.slot,
+            clock.unix_timestamp,
+            0,
+            market_index,
+            isolated_position_deposit.cast::<i64>()?,
+        )?;
     }
 
     // Dont place order if signed msg order already exists
@@ -1072,7 +1095,6 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
     )?;
 
     let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
-
     let AccountMaps {
         perp_market_map,
         spot_market_map,
@@ -1157,6 +1179,23 @@ pub fn handle_settle_pnl<'c: 'info, 'info>(
         }
     }
 
+    if let Ok(position_index) = get_position_index(&user.perp_positions, market_index) {
+        if user.perp_positions[position_index].can_transfer_isolated_position_deposit() {
+            transfer_isolated_perp_position_deposit(
+                user,
+                None,
+                &perp_market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                clock.slot,
+                clock.unix_timestamp,
+                QUOTE_SPOT_MARKET_INDEX,
+                market_index,
+                i64::MIN,
+            )?;
+        }
+    }
+
     let spot_market = spot_market_map.get_quote_spot_market()?;
     validate_spot_market_vault_amount(&spot_market, ctx.accounts.spot_market_vault.amount)?;
 
@@ -1178,7 +1217,6 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
     let user = &mut load_mut!(ctx.accounts.user)?;
 
     let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
-
     let AccountMaps {
         perp_market_map,
         spot_market_map,
@@ -1268,6 +1306,23 @@ pub fn handle_settle_multiple_pnls<'c: 'info, 'info>(
                 } else {
                     msg!("Builder Users not provided, but RevenueEscrow was provided");
                 }
+            }
+        }
+
+        if let Ok(position_index) = get_position_index(&user.perp_positions, *market_index) {
+            if user.perp_positions[position_index].can_transfer_isolated_position_deposit() {
+                transfer_isolated_perp_position_deposit(
+                    user,
+                    None,
+                    &perp_market_map,
+                    &spot_market_map,
+                    &mut oracle_map,
+                    clock.slot,
+                    clock.unix_timestamp,
+                    QUOTE_SPOT_MARKET_INDEX,
+                    *market_index,
+                    i64::MIN,
+                )?;
             }
         }
     }
@@ -3031,22 +3086,15 @@ pub fn handle_disable_user_high_leverage_mode<'c: 'info, 'info>(
     )?;
 
     if margin_calc.num_perp_liabilities > 0 {
-        let mut requires_invariant_check = false;
-
         for position in user.perp_positions.iter().filter(|p| !p.is_available()) {
             let perp_market = perp_market_map.get_ref(&position.market_index)?;
             if perp_market.is_high_leverage_mode_enabled() {
-                requires_invariant_check = true;
-                break; // Exit early if invariant check is required
+                validate!(
+                    margin_calc.meets_margin_requirement_with_buffer(),
+                    ErrorCode::DefaultError,
+                    "User does not meet margin requirement with buffer"
+                )?;
             }
-        }
-
-        if requires_invariant_check {
-            validate!(
-                margin_calc.meets_margin_requirement_with_buffer(),
-                ErrorCode::DefaultError,
-                "User does not meet margin requirement with buffer"
-            )?;
         }
     }
 
@@ -3164,6 +3212,13 @@ pub fn handle_force_delete_user<'c: 'info, 'info>(
         None,
         None,
         None,
+        false,
+    )?;
+
+    validate!(
+        !user.perp_positions.iter().any(|p| !p.is_available()),
+        ErrorCode::DefaultError,
+        "user must have no perp positions"
     )?;
 
     for spot_position in user.spot_positions.iter_mut() {
