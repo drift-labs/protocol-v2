@@ -152,23 +152,14 @@ export class ConstituentMap implements ConstituentMapInterface {
 					let buffer: Buffer;
 
 					if (this.decoder === 'base64+zstd') {
-						// Decompress zstd data
-						const compressedData = Buffer.from(
+						const compressedUserData = Buffer.from(
 							programAccount.account.data[0],
 							'base64'
 						);
-						// Handle both default and named exports for browser/webpack compatibility
-						let DecoderClass = ZSTDDecoder;
-						if (
-							typeof ZSTDDecoder === 'object' &&
-							(ZSTDDecoder as any).default
-						) {
-							DecoderClass = (ZSTDDecoder as any).default;
-						}
-						const decoder = new (DecoderClass as any)();
+						const decoder = new ZSTDDecoder();
 						await decoder.init();
 						buffer = Buffer.from(
-							decoder.decode(compressedData, MAX_CONSTITUENT_SIZE_BYTES)
+							decoder.decode(compressedUserData, MAX_CONSTITUENT_SIZE_BYTES)
 						);
 					} else {
 						buffer = Buffer.from(programAccount.account.data[0], 'base64');
