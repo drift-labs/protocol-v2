@@ -34,6 +34,7 @@ export type ConstituentMapConfig = {
 	lpPoolId?: number;
 	// potentially use these to filter Constituent accounts
 	additionalFilters?: MemcmpFilter[];
+	decoder?: 'base64' | 'base64+zstd';
 };
 
 export interface ConstituentMapInterface {
@@ -65,6 +66,7 @@ export class ConstituentMap implements ConstituentMapInterface {
 	private spotMarketIndexToKeyMap = new Map<number, string>();
 
 	private lpPoolId: number;
+	private decoder: 'base64' | 'base64+zstd';
 
 	constructor(config: ConstituentMapConfig) {
 		this.driftClient = config.driftClient;
@@ -72,6 +74,7 @@ export class ConstituentMap implements ConstituentMapInterface {
 		this.commitment = config.subscriptionConfig.commitment;
 		this.connection = config.connection || this.driftClient.connection;
 		this.lpPoolId = config.lpPoolId ?? 0;
+		this.decoder = config.decoder ?? 'base64+zstd';
 
 		if (config.subscriptionConfig.type === 'polling') {
 			this.constituentAccountSubscriber =
@@ -124,17 +127,12 @@ export class ConstituentMap implements ConstituentMapInterface {
 
 	public async sync(): Promise<void> {
 		try {
-			// Check if zstddec is available (it's disabled in browser environments)
-			const canUseZstd =
-				typeof ZSTDDecoder !== 'undefined' && (ZSTDDecoder as any) !== false;
-			const encoding = canUseZstd ? 'base64+zstd' : 'base64';
-
 			const rpcRequestArgs = [
 				this.driftClient.program.programId.toBase58(),
 				{
 					commitment: this.commitment,
 					filters: this.getFilters(),
-					encoding,
+					encoding: this.decoder,
 					withContext: true,
 				},
 			];
@@ -153,7 +151,7 @@ export class ConstituentMap implements ConstituentMapInterface {
 				async (programAccount) => {
 					let buffer: Buffer;
 
-					if (canUseZstd) {
+					if (this.decoder === 'base64+zstd') {
 						// Decompress zstd data
 						const compressedData = Buffer.from(
 							programAccount.account.data[0],
@@ -173,7 +171,6 @@ export class ConstituentMap implements ConstituentMapInterface {
 							decoder.decode(compressedData, MAX_CONSTITUENT_SIZE_BYTES)
 						);
 					} else {
-						// Use regular base64 data (not compressed)
 						buffer = Buffer.from(programAccount.account.data[0], 'base64');
 					}
 
