@@ -547,7 +547,7 @@ export class User {
 	): BN {
 		const { totalCollateral } = this.getMarginCalculation(marginCategory, {
 			enteringHighLeverage: enterHighLeverageMode,
-			strict: true,
+			strict: marginCategory === 'Initial',
 		});
 
 		const marginCalc = this.getMarginCalculation(marginCategory, {
@@ -603,14 +603,13 @@ export class User {
 		enteringHighLeverage?: boolean,
 		perpMarketIndex?: number
 	): BN {
-		const liquidationBufferMap = (() => {
-			if (liquidationBuffer && perpMarketIndex !== undefined) {
-				return new Map([[perpMarketIndex, liquidationBuffer]]);
-			} else if (liquidationBuffer) {
-				return new Map([['cross', liquidationBuffer]]);
-			}
-			return new Map();
-		})();
+		const liquidationBufferMap = new Map();
+		if (liquidationBuffer && perpMarketIndex !== undefined) {
+			liquidationBufferMap.set(perpMarketIndex, liquidationBuffer);
+		} else if (liquidationBuffer) {
+			liquidationBufferMap.set('cross', liquidationBuffer);
+		}
+
 		const marginCalc = this.getMarginCalculation(marginCategory, {
 			strict,
 			includeOpenOrders,
@@ -742,7 +741,6 @@ export class User {
 				const market = this.driftClient.getPerpMarketAccount(
 					perpPosition.marketIndex
 				);
-				if (!market) return unrealizedPnl;
 				const oraclePriceData = this.getMMOracleDataForPerpMarket(
 					market.marketIndex
 				);
@@ -1376,8 +1374,6 @@ export class User {
 		const market = this.driftClient.getPerpMarketAccount(
 			perpPosition.marketIndex
 		);
-
-		if (!market) return ZERO;
 
 		let valuationPrice = this.getOracleDataForPerpMarket(
 			market.marketIndex
@@ -2332,7 +2328,7 @@ export class User {
 			});
 			const isolatedMarginCalculation =
 				marginCalculation.isolatedMarginCalculations.get(marketIndex);
-			if (!isolatedMarginCalculation) return ZERO;
+			if (!isolatedMarginCalculation) return new BN(-1);
 			const { totalCollateral, marginRequirement } = isolatedMarginCalculation;
 
 			const freeCollateral = BN.max(
@@ -4290,10 +4286,20 @@ export class User {
 		const userCustomMarginRatio =
 			marginCategory === 'Initial' ? this.getUserAccount().maxMarginRatio : 0;
 
-		// Initialize calc via JS mirror of Rust MarginCalculation
+		// Initialize calc via JS mirror of Rust/on-chain MarginCalculation
+		const isolatedMarginBuffers = new Map<number, BN>();
+		for (const [
+			marketIndex,
+			isolatedMarginBuffer,
+		] of opts?.liquidationBufferMap ?? new Map()) {
+			if (marketIndex !== 'cross') {
+				isolatedMarginBuffers.set(marketIndex, isolatedMarginBuffer);
+			}
+		}
 		const ctx = MarginContext.standard(marginCategory)
 			.strictMode(strict)
-			.setMarginBuffer(opts?.liquidationBufferMap ?? new Map());
+			.setCrossMarginBuffer(opts?.liquidationBufferMap?.get('cross') ?? ZERO)
+			.setIsolatedMarginBuffers(isolatedMarginBuffers);
 		const calc = new MarginCalculation(ctx);
 
 		// SPOT POSITIONS
@@ -4354,7 +4360,6 @@ export class User {
 			const {
 				tokenAmount: worstCaseTokenAmount,
 				ordersValue: worstCaseOrdersValue,
-				tokenValue: worstCaseTokenValue,
 			} = getWorstCaseTokenAmounts(
 				spotPosition,
 				spotMarket,
@@ -4373,7 +4378,7 @@ export class User {
 				);
 			}
 
-			if (worstCaseTokenAmount.gt(ZERO) && !isQuote) {
+			if (worstCaseTokenAmount.gt(ZERO)) {
 				const baseAssetValue = this.getSpotAssetValue(
 					worstCaseTokenAmount,
 					strictOracle,
@@ -4382,7 +4387,7 @@ export class User {
 				);
 				// asset side increases total collateral (weighted)
 				calc.addCrossMarginTotalCollateral(baseAssetValue);
-			} else if (worstCaseTokenAmount.lt(ZERO) && !isQuote) {
+			} else if (worstCaseTokenAmount.lt(ZERO)) {
 				// liability side increases margin requirement (weighted >= abs(token_value))
 				const getSpotLiabilityValue = this.getSpotLiabilityValue(
 					worstCaseTokenAmount,
@@ -4396,9 +4401,6 @@ export class User {
 					getSpotLiabilityValue.abs(),
 					getSpotLiabilityValue.abs()
 				);
-				calc.addSpotLiabilityValue(worstCaseTokenValue.abs());
-			} else if (spotPosition.openOrders !== 0 && !isQuote) {
-				calc.addSpotLiabilityValue(worstCaseTokenValue.abs());
 			}
 
 			// orders value contributes to collateral or requirement
