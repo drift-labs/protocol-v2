@@ -20,7 +20,29 @@ import {
 export type SwapMode = 'ExactIn' | 'ExactOut';
 export type SwapClientType = 'jupiter' | 'titan';
 
-export type UnifiedQuoteResponse = JupiterQuoteResponse | TitanQuoteResponse;
+/**
+ * Unified quote response interface that combines properties from both Jupiter and Titan
+ * This provides a consistent interface while allowing for provider-specific fields
+ */
+export interface UnifiedQuoteResponse {
+	// Core properties available in both providers
+	inputMint: string;
+	inAmount: string;
+	outputMint: string;
+	outAmount: string;
+	swapMode: SwapMode;
+	slippageBps: number;
+	routePlan: Array<{ swapInfo: any; percent: number }>;
+
+	// Optional properties that may not be available in all providers
+	otherAmountThreshold?: string; // Jupiter has this, Titan doesn't
+	priceImpactPct?: string; // Jupiter provides this, Titan doesn't (we calculate it)
+	platformFee?: { amount?: string; feeBps?: number }; // Format varies between providers
+	contextSlot?: number;
+	timeTaken?: number;
+	error?: string;
+	errorCode?: string;
+}
 
 export interface SwapQuoteParams {
 	inputMint: PublicKey;
@@ -135,7 +157,7 @@ export class UnifiedSwapClient {
 	): Promise<SwapTransactionResult> {
 		if (this.clientType === 'jupiter') {
 			const jupiterClient = this.client as JupiterClient;
-			// Cast the quote to Jupiter's QuoteResponse type
+			// Cast the quote to Jupiter's specific QuoteResponse type
 			const jupiterParams = {
 				...params,
 				quote: params.quote as JupiterQuoteResponse,
@@ -213,7 +235,7 @@ export class UnifiedSwapClient {
 			}
 
 			if (!finalQuote) {
-				throw new Error("Could not fetch Jupiter's quote. Please try again.");
+				throw new Error('Could not fetch swap quote. Please try again.');
 			}
 
 			// Get swap transaction and extract instructions

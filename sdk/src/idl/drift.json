@@ -1,5 +1,5 @@
 {
-  "version": "2.145.1",
+  "version": "2.147.0",
   "name": "drift",
   "instructions": [
     {
@@ -2176,32 +2176,6 @@
           "type": "bool"
         }
       ]
-    },
-    {
-      "name": "updateUserFuelBonus",
-      "accounts": [
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "authority",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "userStats",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": []
     },
     {
       "name": "updateUserStatsReferrerStatus",
@@ -6288,27 +6262,6 @@
       ]
     },
     {
-      "name": "updateLpCooldownTime",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "lpCooldownTime",
-          "type": "u64"
-        }
-      ]
-    },
-    {
       "name": "updatePerpFeeStructure",
       "accounts": [
         {
@@ -6884,46 +6837,6 @@
       ]
     },
     {
-      "name": "updatePerpMarketFuel",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "perpMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "fuelBoostTaker",
-          "type": {
-            "option": "u8"
-          }
-        },
-        {
-          "name": "fuelBoostMaker",
-          "type": {
-            "option": "u8"
-          }
-        },
-        {
-          "name": "fuelBoostPosition",
-          "type": {
-            "option": "u8"
-          }
-        }
-      ]
-    },
-    {
       "name": "updatePerpMarketProtectedMakerParams",
       "accounts": [
         {
@@ -7044,115 +6957,6 @@
       ]
     },
     {
-      "name": "updateSpotMarketFuel",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "spotMarket",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "fuelBoostDeposits",
-          "type": {
-            "option": "u8"
-          }
-        },
-        {
-          "name": "fuelBoostBorrows",
-          "type": {
-            "option": "u8"
-          }
-        },
-        {
-          "name": "fuelBoostTaker",
-          "type": {
-            "option": "u8"
-          }
-        },
-        {
-          "name": "fuelBoostMaker",
-          "type": {
-            "option": "u8"
-          }
-        },
-        {
-          "name": "fuelBoostInsurance",
-          "type": {
-            "option": "u8"
-          }
-        }
-      ]
-    },
-    {
-      "name": "initUserFuel",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "user",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "userStats",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "fuelBoostDeposits",
-          "type": {
-            "option": "i32"
-          }
-        },
-        {
-          "name": "fuelBoostBorrows",
-          "type": {
-            "option": "u32"
-          }
-        },
-        {
-          "name": "fuelBoostTaker",
-          "type": {
-            "option": "u32"
-          }
-        },
-        {
-          "name": "fuelBoostMaker",
-          "type": {
-            "option": "u32"
-          }
-        },
-        {
-          "name": "fuelBoostInsurance",
-          "type": {
-            "option": "u32"
-          }
-        }
-      ]
-    },
-    {
       "name": "updateAdmin",
       "accounts": [
         {
@@ -7169,27 +6973,6 @@
       "args": [
         {
           "name": "admin",
-          "type": "publicKey"
-        }
-      ]
-    },
-    {
-      "name": "updateWhitelistMint",
-      "accounts": [
-        {
-          "name": "admin",
-          "isMut": false,
-          "isSigner": true
-        },
-        {
-          "name": "state",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
-        {
-          "name": "whitelistMint",
           "type": "publicKey"
         }
       ]

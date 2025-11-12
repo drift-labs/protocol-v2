@@ -34,6 +34,7 @@ export type ConstituentMapConfig = {
 	lpPoolId?: number;
 	// potentially use these to filter Constituent accounts
 	additionalFilters?: MemcmpFilter[];
+	decoder?: 'base64' | 'base64+zstd';
 };
 
 export interface ConstituentMapInterface {
@@ -65,6 +66,7 @@ export class ConstituentMap implements ConstituentMapInterface {
 	private spotMarketIndexToKeyMap = new Map<number, string>();
 
 	private lpPoolId: number;
+	private decoder: 'base64' | 'base64+zstd';
 
 	constructor(config: ConstituentMapConfig) {
 		this.driftClient = config.driftClient;
@@ -72,6 +74,7 @@ export class ConstituentMap implements ConstituentMapInterface {
 		this.commitment = config.subscriptionConfig.commitment;
 		this.connection = config.connection || this.driftClient.connection;
 		this.lpPoolId = config.lpPoolId ?? 0;
+		this.decoder = config.decoder ?? 'base64+zstd';
 
 		if (config.subscriptionConfig.type === 'polling') {
 			this.constituentAccountSubscriber =
@@ -129,7 +132,7 @@ export class ConstituentMap implements ConstituentMapInterface {
 				{
 					commitment: this.commitment,
 					filters: this.getFilters(),
-					encoding: 'base64+zstd',
+					encoding: this.decoder,
 					withContext: true,
 				},
 			];
@@ -146,15 +149,22 @@ export class ConstituentMap implements ConstituentMapInterface {
 
 			const promises = rpcResponseAndContext.value.map(
 				async (programAccount) => {
-					const compressedUserData = Buffer.from(
-						programAccount.account.data[0],
-						'base64'
-					);
-					const decoder = new ZSTDDecoder();
-					await decoder.init();
-					const buffer = Buffer.from(
-						decoder.decode(compressedUserData, MAX_CONSTITUENT_SIZE_BYTES)
-					);
+					let buffer: Buffer;
+
+					if (this.decoder === 'base64+zstd') {
+						const compressedUserData = Buffer.from(
+							programAccount.account.data[0],
+							'base64'
+						);
+						const decoder = new ZSTDDecoder();
+						await decoder.init();
+						buffer = Buffer.from(
+							decoder.decode(compressedUserData, MAX_CONSTITUENT_SIZE_BYTES)
+						);
+					} else {
+						buffer = Buffer.from(programAccount.account.data[0], 'base64');
+					}
+
 					const key = programAccount.pubkey.toString();
 					const currAccountWithSlot = this.getWithSlot(key);
 

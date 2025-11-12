@@ -163,16 +163,6 @@ pub fn handle_initialize_spot_market(
         )?;
     }
 
-    let is_token_2022 = *ctx.accounts.spot_market_mint.to_account_info().owner == Token2022::id();
-    if is_token_2022 {
-        initialize_immutable_owner(&ctx.accounts.token_program, &ctx.accounts.spot_market_vault)?;
-
-        initialize_immutable_owner(
-            &ctx.accounts.token_program,
-            &ctx.accounts.insurance_fund_vault,
-        )?;
-    }
-
     initialize_token_account(
         &ctx.accounts.token_program,
         &ctx.accounts.spot_market_vault,
@@ -3357,7 +3347,8 @@ pub fn handle_update_perp_market_paused_operations(
 
     if *ctx.accounts.admin.key != ctx.accounts.state.admin {
         validate!(
-            paused_operations == PerpOperation::UpdateFunding as u8,
+            paused_operations == PerpOperation::UpdateFunding as u8
+                || paused_operations == PerpOperation::SettleRevPool as u8,
             ErrorCode::DefaultError,
             "signer must be admin",
         )?;
@@ -3576,20 +3567,6 @@ pub fn handle_update_perp_market_reference_price_offset_deadband_pct(
     msg!("current signed liquidity ratio: {}", signed_liquidity_ratio);
 
     perp_market.amm.reference_price_offset_deadband_pct = reference_price_offset_deadband_pct;
-    Ok(())
-}
-
-pub fn handle_update_lp_cooldown_time(
-    ctx: Context<AdminUpdateState>,
-    lp_cooldown_time: u64,
-) -> Result<()> {
-    msg!(
-        "lp_cooldown_time: {} -> {}",
-        ctx.accounts.state.lp_cooldown_time,
-        lp_cooldown_time
-    );
-
-    ctx.accounts.state.lp_cooldown_time = lp_cooldown_time;
     Ok(())
 }
 
@@ -3968,40 +3945,6 @@ pub fn handle_update_perp_market_min_order_size(
     );
 
     perp_market.amm.min_order_size = order_size;
-    Ok(())
-}
-
-#[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
-pub fn handle_update_perp_market_lp_pool_fee_transfer_scalar(
-    ctx: Context<AdminUpdatePerpMarket>,
-    optional_lp_fee_transfer_scalar: Option<u8>,
-    optional_lp_net_pnl_transfer_scalar: Option<u8>,
-) -> Result<()> {
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    msg!("perp market {}", perp_market.market_index);
-
-    if let Some(lp_fee_transfer_scalar) = optional_lp_fee_transfer_scalar {
-        msg!(
-            "perp_market.: {:?} -> {:?}",
-            perp_market.lp_fee_transfer_scalar,
-            lp_fee_transfer_scalar
-        );
-
-        perp_market.lp_fee_transfer_scalar = lp_fee_transfer_scalar;
-    }
-
-    if let Some(lp_net_pnl_transfer_scalar) = optional_lp_net_pnl_transfer_scalar {
-        msg!(
-            "perp_market.: {:?} -> {:?}",
-            perp_market.lp_exchange_fee_excluscion_scalar,
-            lp_net_pnl_transfer_scalar
-        );
-
-        perp_market.lp_exchange_fee_excluscion_scalar = lp_net_pnl_transfer_scalar;
-    }
-
     Ok(())
 }
 
@@ -5047,6 +4990,11 @@ pub fn handle_update_mm_oracle_native(accounts: &[AccountInfo], data: &[u8]) -> 
     let perp_market_sequence_id = u64::from_le_bytes(perp_market[936..944].try_into().unwrap());
     let incoming_sequence_id = u64::from_le_bytes(data[8..16].try_into().unwrap());
 
+    if &data[0..8] == &[0u8; 8] {
+        msg!("MM oracle price is zero, not updating");
+        return Err(ErrorCode::DefaultError.into());
+    }
+
     if incoming_sequence_id > perp_market_sequence_id {
         let clock_account = &accounts[2];
         let clock_data = clock_account.data.borrow();
@@ -5562,11 +5510,11 @@ pub struct AddMarketToAmmCache<'info> {
 
 #[derive(Accounts)]
 pub struct DeleteAmmCache<'info> {
-    #[account(mut)]
-    pub admin: Signer<'info>,
     #[account(
-        has_one = admin
+        mut,
+        constraint = admin.key() == admin_hot_wallet::id() || admin.key() == state.admin
     )]
+    pub admin: Signer<'info>,
     pub state: Box<Account<'info, State>>,
     #[account(
         mut,

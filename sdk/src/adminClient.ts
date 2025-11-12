@@ -709,7 +709,9 @@ export class AdminClient extends DriftClient {
 		return await this.program.instruction.deleteAmmCache({
 			accounts: {
 				state: await this.getStatePublicKey(),
-				admin: this.getStateAccount().admin,
+				admin: this.useHotWalletAdmin
+					? this.wallet.publicKey
+					: this.getStateAccount().admin,
 				ammCache: getAmmCachePublicKey(this.program.programId),
 			},
 		});
@@ -6043,7 +6045,7 @@ export class AdminClient extends DriftClient {
 		}
 
 		if (!quote) {
-			throw new Error("Could not fetch Jupiter's quote. Please try again.");
+			throw new Error('Could not fetch swap quote. Please try again.');
 		}
 
 		const isExactOut = swapMode === 'ExactOut' || quote.swapMode === 'ExactOut';
@@ -6112,14 +6114,17 @@ export class AdminClient extends DriftClient {
 			);
 		}
 
-		const { beginSwapIx, endSwapIx } = await this.getSwapIx({
-			lpPoolId,
-			outMarketIndex,
-			inMarketIndex,
-			amountIn: isExactOut ? exactOutBufferedAmountIn : amountIn,
-			inTokenAccount: inAssociatedTokenAccount,
-			outTokenAccount: outAssociatedTokenAccount,
-		});
+		const { beginSwapIx, endSwapIx } = await this.getSwapIx(
+			{
+				lpPoolId,
+				outMarketIndex,
+				inMarketIndex,
+				amountIn: isExactOut ? exactOutBufferedAmountIn : amountIn,
+				inTokenAccount: inAssociatedTokenAccount,
+				outTokenAccount: outAssociatedTokenAccount,
+			},
+			true
+		);
 
 		const ixs = [
 			...preInstructions,
