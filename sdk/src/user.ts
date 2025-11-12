@@ -537,7 +537,6 @@ export class User {
 
 	/**
 	 * calculates Free Collateral = Total collateral - margin requirement
-	 * TODO: can we not call getMarginCalculation twice? seems annoying...
 	 * @returns : Precision QUOTE_PRECISION
 	 */
 	public getFreeCollateral(
@@ -545,20 +544,16 @@ export class User {
 		enterHighLeverageMode = false,
 		perpMarketIndex?: number
 	): BN {
-		const { totalCollateral } = this.getMarginCalculation(marginCategory, {
-			enteringHighLeverage: enterHighLeverageMode,
-			strict: marginCategory === 'Initial',
-		});
-
-		const marginCalc = this.getMarginCalculation(marginCategory, {
-			enteringHighLeverage: enterHighLeverageMode,
-			strict: marginCategory === 'Initial',
-		});
+		const { totalCollateral, marginRequirement, getIsolatedFreeCollateral } =
+			this.getMarginCalculation(marginCategory, {
+				enteringHighLeverage: enterHighLeverageMode,
+				strict: marginCategory === 'Initial',
+			});
 
 		if (perpMarketIndex !== undefined) {
-			return marginCalc.getIsolatedFreeCollateral(perpMarketIndex);
+			return getIsolatedFreeCollateral(perpMarketIndex);
 		} else {
-			const freeCollateral = totalCollateral.sub(marginCalc.marginRequirement);
+			const freeCollateral = totalCollateral.sub(marginRequirement);
 			return freeCollateral.gte(ZERO) ? freeCollateral : ZERO;
 		}
 	}
