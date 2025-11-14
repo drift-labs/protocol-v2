@@ -12,7 +12,6 @@ use crate::state::user::MarketType;
 use anchor_lang::prelude::{AccountInfo, Pubkey};
 use anchor_lang::Discriminator;
 use anchor_lang::Key;
-use arrayref::array_ref;
 use std::collections::BTreeMap;
 use std::iter::Peekable;
 use std::slice::Iter;

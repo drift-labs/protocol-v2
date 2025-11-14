@@ -3,6 +3,7 @@ use crate::state::fill_mode::FillMode;
 use crate::state::pyth_lazer_oracle::PythLazerOracle;
 use crate::state::user::{MarketType, Order};
 use anchor_lang::prelude::*;
+use num_traits::Zero;
 
 use crate::state::state::{State, ValidityGuardRails};
 use std::cmp::max;
@@ -39,7 +40,7 @@ use crate::state::traits::{MarketIndexOffset, Size};
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::state::paused_operations::PerpOperation;
-use drift_macros::assert_no_slop;
+use drift_macros::{assert_no_slop, legacy_layout};
 use static_assertions::const_assert_eq;
 
 use super::oracle_map::OracleIdentifier;
@@ -154,6 +155,7 @@ impl ContractTier {
     }
 }
 
+#[legacy_layout]
 #[account(zero_copy(unsafe))]
 #[derive(Eq, PartialEq, Debug)]
 #[repr(C)]
@@ -1002,6 +1004,7 @@ impl PerpMarket {
     }
 }
 
+#[legacy_layout]
 #[zero_copy(unsafe)]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
@@ -1024,6 +1027,7 @@ pub struct InsuranceClaim {
     pub last_revenue_withdraw_ts: i64,
 }
 
+#[legacy_layout]
 #[zero_copy(unsafe)]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
@@ -1066,7 +1070,8 @@ impl SpotBalance for PoolBalance {
 }
 
 #[assert_no_slop]
-#[zero_copy(unsafe)]
+#[legacy_layout]
+#[account(zero_copy(unsafe))]
 #[derive(Debug, PartialEq, Eq)]
 #[repr(C)]
 pub struct AMM {
@@ -1214,7 +1219,7 @@ pub struct AMM {
     pub net_revenue_since_last_funding: i64,
     /// the last funding rate update unix_timestamp
     pub last_funding_rate_ts: i64,
-    /// the peridocity of the funding rate updates
+    /// the periodicity of the funding rate updates
     pub funding_period: i64,
     /// the base step size (increment) of orders
     /// precision: BASE_PRECISION
@@ -1295,45 +1300,45 @@ impl Default for AMM {
         AMM {
             oracle: Pubkey::default(),
             historical_oracle_data: HistoricalOracleData::default(),
-            base_asset_amount_per_lp: 0,
-            quote_asset_amount_per_lp: 0,
+            base_asset_amount_per_lp: Zero::zero(),
+            quote_asset_amount_per_lp: Zero::zero(),
             fee_pool: PoolBalance::default(),
-            base_asset_reserve: 0,
-            quote_asset_reserve: 0,
-            concentration_coef: 0,
-            min_base_asset_reserve: 0,
-            max_base_asset_reserve: 0,
-            sqrt_k: 0,
-            peg_multiplier: 0,
-            terminal_quote_asset_reserve: 0,
-            base_asset_amount_long: 0,
-            base_asset_amount_short: 0,
-            base_asset_amount_with_amm: 0,
-            base_asset_amount_with_unsettled_lp: 0,
-            max_open_interest: 0,
-            quote_asset_amount: 0,
-            quote_entry_amount_long: 0,
-            quote_entry_amount_short: 0,
-            quote_break_even_amount_long: 0,
-            quote_break_even_amount_short: 0,
-            user_lp_shares: 0,
-            last_funding_rate: 0,
-            last_funding_rate_long: 0,
-            last_funding_rate_short: 0,
-            last_24h_avg_funding_rate: 0,
-            total_fee: 0,
-            total_mm_fee: 0,
-            total_exchange_fee: 0,
-            total_fee_minus_distributions: 0,
-            total_fee_withdrawn: 0,
-            total_liquidation_fee: 0,
-            cumulative_funding_rate_long: 0,
-            cumulative_funding_rate_short: 0,
-            total_social_loss: 0,
-            ask_base_asset_reserve: 0,
-            ask_quote_asset_reserve: 0,
-            bid_base_asset_reserve: 0,
-            bid_quote_asset_reserve: 0,
+            base_asset_reserve: Zero::zero(),
+            quote_asset_reserve: Zero::zero(),
+            concentration_coef: Zero::zero(),
+            min_base_asset_reserve: Zero::zero(),
+            max_base_asset_reserve: Zero::zero(),
+            sqrt_k: Zero::zero(),
+            peg_multiplier: Zero::zero(),
+            terminal_quote_asset_reserve: Zero::zero(),
+            base_asset_amount_long: Zero::zero(),
+            base_asset_amount_short: Zero::zero(),
+            base_asset_amount_with_amm: Zero::zero(),
+            base_asset_amount_with_unsettled_lp: Zero::zero(),
+            max_open_interest: Zero::zero(),
+            quote_asset_amount: Zero::zero(),
+            quote_entry_amount_long: Zero::zero(),
+            quote_entry_amount_short: Zero::zero(),
+            quote_break_even_amount_long: Zero::zero(),
+            quote_break_even_amount_short: Zero::zero(),
+            user_lp_shares: Zero::zero(),
+            last_funding_rate: Zero::zero(),
+            last_funding_rate_long: Zero::zero(),
+            last_funding_rate_short: Zero::zero(),
+            last_24h_avg_funding_rate: Zero::zero(),
+            total_fee: Zero::zero(),
+            total_mm_fee: Zero::zero(),
+            total_exchange_fee: Zero::zero(),
+            total_fee_minus_distributions: Zero::zero(),
+            total_fee_withdrawn: Zero::zero(),
+            total_liquidation_fee: Zero::zero(),
+            cumulative_funding_rate_long: Zero::zero(),
+            cumulative_funding_rate_short: Zero::zero(),
+            total_social_loss: Zero::zero(),
+            ask_base_asset_reserve: Zero::zero(),
+            ask_quote_asset_reserve: Zero::zero(),
+            bid_base_asset_reserve: Zero::zero(),
+            bid_quote_asset_reserve: Zero::zero(),
             last_oracle_normalised_price: 0,
             last_oracle_reserve_price_spread_pct: 0,
             last_bid_price_twap: 0,

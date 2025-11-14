@@ -906,7 +906,7 @@ pub fn calculate_expiry_price(
     // net_user_unrealized_pnl positive = expiry price needs to differ from oracle
     let best_expiry_price = -(amm
         .quote_asset_amount
-        .safe_sub(total_excess_balance.cast::<i128>()?)?
+        .safe_sub(total_excess_balance)?
         .safe_mul(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128)?
         .safe_div(amm.base_asset_amount_with_amm)?)
     .cast::<i64>()?;

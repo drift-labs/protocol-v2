@@ -1,11 +1,6 @@
 use std::fmt;
 use std::fmt::{Display, Formatter};
 
-use anchor_lang::prelude::*;
-use anchor_spl::token::spl_token;
-use anchor_spl::token_2022::spl_token_2022;
-use borsh::{BorshDeserialize, BorshSerialize};
-
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{
@@ -20,6 +15,11 @@ use crate::math::margin::{
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{calculate_utilization, get_token_amount, get_token_value};
+use anchor_lang::prelude::*;
+use anchor_spl::token::spl_token;
+use anchor_spl::token_2022::spl_token_2022;
+use borsh::{BorshDeserialize, BorshSerialize};
+use drift_macros::legacy_layout;
 
 use crate::math::stats::calculate_new_twap;
 use crate::state::oracle::{HistoricalIndexData, HistoricalOracleData, OracleSource};
@@ -30,6 +30,7 @@ use crate::validate;
 
 use super::oracle_map::OracleIdentifier;
 
+#[legacy_layout]
 #[account(zero_copy(unsafe))]
 #[derive(PartialEq, Eq, Debug)]
 #[repr(C)]
@@ -686,6 +687,7 @@ pub enum AssetTier {
     Unlisted,
 }
 
+#[legacy_layout]
 #[zero_copy(unsafe)]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]

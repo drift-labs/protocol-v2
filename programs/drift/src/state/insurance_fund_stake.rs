@@ -13,6 +13,7 @@ use anchor_lang::prelude::*;
 #[cfg(test)]
 mod tests;
 
+#[drift_macros::legacy_layout]
 #[account(zero_copy(unsafe))]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
@@ -91,6 +92,7 @@ impl InsuranceFundStake {
     }
 }
 
+#[drift_macros::legacy_layout]
 #[account(zero_copy(unsafe))]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]

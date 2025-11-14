@@ -39,7 +39,7 @@ enumflags2 = "0.6.4"
 phoenix-v1 = { git = "https://github.com/jordy25519/phoenix-v1", branch = "master", features = ["no-entrypoint"] }
 solana-security-txt = "1.1.0"
 static_assertions = "1.1.0"
-drift-macros = { git = "https://github.com/drift-labs/drift-macros.git", rev = "c57d87" }
+drift-macros = { path = "../../../drift-macros" }
 switchboard = { path = "../switchboard", features = ["no-entrypoint"] }
 openbook-v2-light = { path = "../openbook_v2", features = ["no-entrypoint"] }
 switchboard-on-demand = { path = "../switchboard-on-demand", features = ["no-entrypoint"] }

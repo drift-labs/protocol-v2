@@ -1,3 +1,4 @@
+#![allow(unexpected_cfgs)]
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::bool_assert_comparison)]
 #![allow(clippy::comparison_chain)]

@@ -12,6 +12,235 @@ use uint::construct_uint;
 
 use crate::error::DriftResult;
 
+pub mod compat {
+    #![allow(non_camel_case_types)]
+    use bytemuck::{Pod, Zeroable};
+    use std::{
+        cmp::Ordering,
+        ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign},
+    };
+
+    /// `u128` with legacy bit layout
+    #[derive(Copy, Clone, PartialEq, Eq, Debug, Default)]
+    #[repr(transparent)]
+    pub struct u128([u8; 16]);
+
+    impl PartialOrd for self::u128 {
+        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+            self.as_u128().partial_cmp(&other.as_u128())
+        }
+    }
+
+    impl PartialOrd for self::i128 {
+        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+            self.as_i128().partial_cmp(&other.as_i128())
+        }
+    }
+
+    // Safety: u128 is a transparent wrapper around [u8; 16], which is Pod + Zeroable
+    unsafe impl Pod for self::u128 {}
+    unsafe impl Zeroable for self::u128 {}
+    impl u128 {
+        pub const ONE: Self = u128(1_u128.to_le_bytes());
+        pub const ZERO: Self = u128(0_u128.to_le_bytes());
+        /// convert to std u128
+        #[inline]
+        pub fn as_u128(self) -> std::primitive::u128 {
+            std::primitive::u128::from_le_bytes(self.0)
+        }
+        pub const fn one() -> Self {
+            Self::ONE
+        }
+        pub const fn zero() -> Self {
+            Self::ZERO
+        }
+    }
+    impl From<std::primitive::u128> for u128 {
+        fn from(value: std::primitive::u128) -> Self {
+            u128(value.to_le_bytes())
+        }
+    }
+    impl From<u128> for std::primitive::u128 {
+        fn from(value: u128) -> Self {
+            value.as_u128()
+        }
+    }
+
+    // Arithmetic operations for u128 - using From/Into conversions
+    impl Add for u128 {
+        type Output = Self;
+        #[inline(always)]
+        fn add(self, other: Self) -> Self {
+            let a: std::primitive::u128 = self.into();
+            let b: std::primitive::u128 = other.into();
+            Self::from(a + b)
+        }
+    }
+    impl AddAssign for u128 {
+        #[inline(always)]
+        fn add_assign(&mut self, other: Self) {
+            *self = *self + other;
+        }
+    }
+    impl Sub for u128 {
+        type Output = Self;
+        #[inline(always)]
+        fn sub(self, other: Self) -> Self {
+            let a: std::primitive::u128 = self.into();
+            let b: std::primitive::u128 = other.into();
+            Self::from(a - b)
+        }
+    }
+    impl SubAssign for u128 {
+        #[inline(always)]
+        fn sub_assign(&mut self, other: Self) {
+            *self = *self - other;
+        }
+    }
+    impl Mul for u128 {
+        type Output = Self;
+        #[inline(always)]
+        fn mul(self, other: Self) -> Self {
+            let a: std::primitive::u128 = self.into();
+
+            let b: std::primitive::u128 = other.into();
+            Self::from(a * b)
+        }
+    }
+    impl MulAssign for u128 {
+        #[inline(always)]
+        fn mul_assign(&mut self, other: Self) {
+            *self = *self * other;
+        }
+    }
+    impl Div for u128 {
+        type Output = Self;
+        #[inline(always)]
+        fn div(self, other: Self) -> Self {
+            let a: std::primitive::u128 = self.into();
+
+            let b: std::primitive::u128 = other.into();
+            Self::from(a / b)
+        }
+    }
+    impl DivAssign for u128 {
+        #[inline(always)]
+        fn div_assign(&mut self, other: Self) {
+            *self = *self / other;
+        }
+    }
+
+    /// `i128` with legacy bit layout
+    #[derive(Copy, Clone, PartialEq, Eq, Debug, Default)]
+    #[repr(transparent)]
+    pub struct i128([u8; 16]);
+
+    // Safety: i128 is a transparent wrapper around [u8; 16], which is Pod + Zeroable
+    unsafe impl Pod for self::i128 {}
+    unsafe impl Zeroable for self::i128 {}
+    impl i128 {
+        pub const ONE: Self = i128(1_i128.to_le_bytes());
+        pub const ZERO: Self = i128(0_i128.to_le_bytes());
+
+        pub const fn one() -> Self {
+            Self::ONE
+        }
+        pub const fn zero() -> Self {
+            Self::ZERO
+        }
+
+        pub fn abs(&self) -> std::primitive::i128 {
+            self.as_i128().abs()
+        }
+
+        pub fn unsigned_abs(&self) -> std::primitive::u128 {
+            self.as_i128().unsigned_abs()
+        }
+
+        /// convert to std i128
+        #[inline]
+        pub fn as_i128(self) -> std::primitive::i128 {
+            std::primitive::i128::from_le_bytes(self.0)
+        }
+    }
+    impl From<std::primitive::i128> for i128 {
+        fn from(value: std::primitive::i128) -> Self {
+            i128(value.to_le_bytes())
+        }
+    }
+    impl From<i128> for std::primitive::i128 {
+        fn from(value: i128) -> Self {
+            value.as_i128()
+        }
+    }
+
+    // Arithmetic operations for i128 - using From/Into conversions
+    impl Add for i128 {
+        type Output = Self;
+        #[inline(always)]
+        fn add(self, other: Self) -> Self {
+            let a: std::primitive::i128 = self.into();
+
+            let b: std::primitive::i128 = other.into();
+            Self::from(a + b)
+        }
+    }
+    impl AddAssign for i128 {
+        #[inline(always)]
+        fn add_assign(&mut self, other: Self) {
+            *self = *self + other;
+        }
+    }
+    impl Sub for i128 {
+        type Output = Self;
+        #[inline(always)]
+        fn sub(self, other: Self) -> Self {
+            let a: std::primitive::i128 = self.into();
+
+            let b: std::primitive::i128 = other.into();
+            Self::from(a - b)
+        }
+    }
+    impl SubAssign for i128 {
+        #[inline(always)]
+        fn sub_assign(&mut self, other: Self) {
+            *self = *self - other;
+        }
+    }
+    impl Mul for i128 {
+        type Output = Self;
+        #[inline(always)]
+        fn mul(self, other: Self) -> Self {
+            let a: std::primitive::i128 = self.into();
+
+            let b: std::primitive::i128 = other.into();
+            Self::from(a * b)
+        }
+    }
+    impl MulAssign for i128 {
+        #[inline(always)]
+        fn mul_assign(&mut self, other: Self) {
+            *self = *self * other;
+        }
+    }
+    impl Div for i128 {
+        type Output = Self;
+        #[inline(always)]
+        fn div(self, other: Self) -> Self {
+            let a: std::primitive::i128 = self.into();
+
+            let b: std::primitive::i128 = other.into();
+            Self::from(a / b)
+        }
+    }
+    impl DivAssign for i128 {
+        #[inline(always)]
+        fn div_assign(&mut self, other: Self) {
+            *self = *self / other;
+        }
+    }
+}
+
 construct_uint! {
     /// 256-bit unsigned integer.
     pub struct U256(4);

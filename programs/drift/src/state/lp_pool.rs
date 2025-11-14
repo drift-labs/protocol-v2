@@ -59,6 +59,7 @@ pub const MAX_ORACLE_STALENESS_FOR_TARGET_CALC: u64 = 10u64;
 #[cfg(test)]
 mod tests;
 
+#[drift_macros::legacy_layout]
 #[account(zero_copy(unsafe))]
 #[derive(Debug)]
 #[repr(C)]
@@ -905,6 +906,7 @@ impl ConstituentSpotBalance {
     }
 }
 
+#[drift_macros::legacy_layout]
 #[account(zero_copy(unsafe))]
 #[derive(Debug)]
 #[repr(C)]

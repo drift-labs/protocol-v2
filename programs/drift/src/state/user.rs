@@ -2085,6 +2085,8 @@ impl FuelOverflowStatus {
         status & FuelOverflowStatus::Exists as u8 != 0
     }
 }
+
+#[drift_macros::legacy_layout]
 #[account(zero_copy(unsafe))]
 #[derive(Default, Debug)]
 #[repr(C)]

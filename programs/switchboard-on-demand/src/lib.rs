@@ -1,3 +1,5 @@
+#![allow(unexpected_cfgs)]
+
 use anchor_lang::declare_id;
 use anchor_lang::prelude::*;
 use anchor_lang::program;

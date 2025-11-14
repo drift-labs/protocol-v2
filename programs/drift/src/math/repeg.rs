@@ -187,7 +187,7 @@ pub fn adjust_peg_cost(
             &market_clone.amm,
         )?;
 
-        market_clone.amm.peg_multiplier = new_peg_candidate;
+        market_clone.amm.peg_multiplier = new_peg_candidate.into();
 
         let (_new_net_market_value, cost) = calculate_base_asset_value_and_pnl(
             market_clone.amm.base_asset_amount_with_amm,
