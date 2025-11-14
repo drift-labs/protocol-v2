@@ -48,10 +48,14 @@ pub fn update_amm_test() {
     // market.amm.terminal_quote_asset_reserve = new_terminal_quote_reserve;
     assert_eq!(new_terminal_quote_reserve, 64000000000);
     let (min_base_asset_reserve, max_base_asset_reserve) =
-        amm::calculate_bid_ask_bounds(market.amm.concentration_coef, new_terminal_base_reserve)
+        amm::calculate_bid_ask_bounds(market.amm.concentration_coef(), new_terminal_base_reserve)
             .unwrap();
-    market.amm.min_base_asset_reserve = min_base_asset_reserve;
-    market.amm.max_base_asset_reserve = max_base_asset_reserve;
+    market
+        .amm
+        .set_min_base_asset_reserve(min_base_asset_reserve);
+    market
+        .amm
+        .set_max_base_asset_reserve(max_base_asset_reserve);
 
     let state = State {
         oracle_guard_rails: OracleGuardRails {
@@ -104,7 +108,7 @@ pub fn update_amm_test() {
     let cost_of_update =
         _update_amm(&mut market, &mm_oracle_price_data, &state, now, slot).unwrap();
 
-    assert_eq!(market.amm.sqrt_k, 63936000000);
+    assert_eq!(market.amm.sqrt_k(), 63936000000);
     let is_oracle_valid = oracle::oracle_validity(
         MarketType::Perp,
         market.market_index,
@@ -150,8 +154,8 @@ pub fn update_amm_test() {
     .unwrap();
     assert!(too_diverge);
 
-    let profit = market.amm.total_fee_minus_distributions;
-    let peg = market.amm.peg_multiplier;
+    let profit = market.amm.total_fee_minus_distributions();
+    let peg = market.amm.peg_multiplier();
     assert_eq!(-cost_of_update, profit);
     assert!(is_oracle_valid);
     assert!(profit < 0);
@@ -263,7 +267,7 @@ pub fn update_amm_larg_conf_test() {
     let slot = 81680085;
 
     let mut market = PerpMarket::default_btc_test();
-    assert_eq!(market.amm.base_asset_amount_with_amm, -1000000000);
+    assert_eq!(market.amm.base_asset_amount_with_amm(), -1000000000);
 
     let state = State {
         oracle_guard_rails: OracleGuardRails {
@@ -332,7 +336,7 @@ pub fn update_amm_larg_conf_test() {
     assert_eq!(mrk, 18849999999);
 
     assert_eq!(market.amm.long_spread, 2237);
-    assert_eq!(market.amm.peg_multiplier, 19443664550);
+    assert_eq!(market.amm.peg_multiplier(), 19443664550);
     assert_eq!(market.amm.short_spread, 26454);
 
     // add move lower
@@ -345,16 +349,16 @@ pub fn update_amm_larg_conf_test() {
     };
 
     let fee_budget = calculate_fee_pool(&market).unwrap();
-    assert_eq!(market.amm.total_fee_minus_distributions, 42992787);
+    assert_eq!(market.amm.total_fee_minus_distributions(), 42992787);
     assert_eq!(fee_budget, 42992787);
 
     let optimal_peg = calculate_peg_from_target_price(
-        market.amm.quote_asset_reserve,
-        market.amm.base_asset_reserve,
+        market.amm.quote_asset_reserve(),
+        market.amm.base_asset_reserve(),
         oracle_price_data.price as u64,
     )
     .unwrap();
-    assert_eq!(market.amm.peg_multiplier, 19443664550);
+    assert_eq!(market.amm.peg_multiplier(), 19443664550);
     assert_eq!(optimal_peg, 19412719726);
 
     let optimal_peg_cost = calculate_repeg_cost(&market.amm, optimal_peg).unwrap();
@@ -412,9 +416,11 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
     let slot = 81680085;
 
     let mut market = PerpMarket::default_btc_test();
-    market.amm.concentration_coef = 1414213;
-    market.amm.total_fee_minus_distributions = -(10000 * QUOTE_PRECISION as i128);
-    assert_eq!(market.amm.base_asset_amount_with_amm, -1000000000);
+    market.amm.set_concentration_coef(1414213);
+    market
+        .amm
+        .set_total_fee_minus_distributions(-(10000 * QUOTE_PRECISION as i128));
+    assert_eq!(market.amm.base_asset_amount_with_amm(), -1000000000);
 
     let state = State {
         oracle_guard_rails: OracleGuardRails {
@@ -448,25 +454,25 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
     assert_eq!(market.amm.long_spread, 0);
     assert_eq!(market.amm.short_spread, 0);
     assert_eq!(market.amm.last_update_slot, 0);
-    assert_eq!(market.amm.sqrt_k, 64000000000);
-    let prev_peg_multiplier = market.amm.peg_multiplier;
-    let prev_total_fee_minus_distributions = market.amm.total_fee_minus_distributions;
+    assert_eq!(market.amm.sqrt_k(), 64000000000);
+    let prev_peg_multiplier = market.amm.peg_multiplier();
+    let prev_total_fee_minus_distributions = market.amm.total_fee_minus_distributions();
 
     let cost_of_update =
         _update_amm(&mut market, &mm_oracle_price_data, &state, now, slot).unwrap();
     assert!(market.amm.is_recent_oracle_valid(slot).unwrap());
     assert_eq!(cost_of_update, -42992787); // amm wins when price increases
-    assert_eq!(market.amm.sqrt_k, 64000000000);
-    assert_eq!(market.amm.base_asset_reserve, 65000000000);
-    assert_eq!(market.amm.quote_asset_reserve, 63015384615);
-    assert_eq!(market.amm.terminal_quote_asset_reserve, 64000000000);
-    assert_eq!(market.amm.min_base_asset_reserve, 45254851991);
-    assert_eq!(market.amm.max_base_asset_reserve, 90509632000);
-    assert_eq!(market.amm.peg_multiplier, 19443664550);
-    assert_eq!(market.amm.peg_multiplier > prev_peg_multiplier, true);
-    assert_eq!(market.amm.total_fee_minus_distributions, -9957007213);
+    assert_eq!(market.amm.sqrt_k(), 64000000000);
+    assert_eq!(market.amm.base_asset_reserve(), 65000000000);
+    assert_eq!(market.amm.quote_asset_reserve(), 63015384615);
+    assert_eq!(market.amm.terminal_quote_asset_reserve(), 64000000000);
+    assert_eq!(market.amm.min_base_asset_reserve(), 45254851991);
+    assert_eq!(market.amm.max_base_asset_reserve(), 90509632000);
+    assert_eq!(market.amm.peg_multiplier(), 19443664550);
+    assert_eq!(market.amm.peg_multiplier() > prev_peg_multiplier, true);
+    assert_eq!(market.amm.total_fee_minus_distributions(), -9957007213);
     assert_eq!(
-        market.amm.total_fee_minus_distributions > prev_total_fee_minus_distributions,
+        market.amm.total_fee_minus_distributions() > prev_total_fee_minus_distributions,
         true
     );
 
@@ -529,37 +535,37 @@ pub fn update_amm_larg_conf_w_neg_tfmd_test() {
         .unwrap();
 
     let fee_budget = calculate_fee_pool(&market).unwrap();
-    assert_eq!(market.amm.total_fee_minus_distributions, -9957007213);
+    assert_eq!(market.amm.total_fee_minus_distributions(), -9957007213);
     assert_eq!(fee_budget, 0);
 
     let optimal_peg = calculate_peg_from_target_price(
-        market.amm.quote_asset_reserve,
-        market.amm.base_asset_reserve,
+        market.amm.quote_asset_reserve(),
+        market.amm.base_asset_reserve(),
         oracle_price_data.price as u64,
     )
     .unwrap();
-    assert_eq!(market.amm.peg_multiplier, 19443664550);
+    assert_eq!(market.amm.peg_multiplier(), 19443664550);
     assert_eq!(optimal_peg, 19412719726);
 
     let optimal_peg_cost = calculate_repeg_cost(&market.amm, optimal_peg).unwrap();
     assert_eq!(optimal_peg_cost, 30468749);
 
-    let prev_peg_multiplier = market.amm.peg_multiplier;
-    let prev_total_fee_minus_distributions = market.amm.total_fee_minus_distributions;
+    let prev_peg_multiplier = market.amm.peg_multiplier();
+    let prev_total_fee_minus_distributions = market.amm.total_fee_minus_distributions();
     let cost_of_update =
         _update_amm(&mut market, &mm_oracle_price_data, &state, now, slot).unwrap();
     assert_eq!(cost_of_update, 21459587); // amm loses when price decreases (given users are net short)
-    assert_eq!(market.amm.sqrt_k, 63936000000); // k lowered since cost_of_update is positive and total_fee_minus_distributions negative
-    assert_eq!(market.amm.base_asset_reserve, 64935000065);
-    assert_eq!(market.amm.quote_asset_reserve, 62952369167);
-    assert_eq!(market.amm.terminal_quote_asset_reserve, 63936999950);
-    assert_eq!(market.amm.min_base_asset_reserve, 45208890078);
-    assert_eq!(market.amm.max_base_asset_reserve, 90417708246);
-    assert_eq!(market.amm.peg_multiplier, 19421869997);
-    assert_eq!(market.amm.peg_multiplier < prev_peg_multiplier, true);
+    assert_eq!(market.amm.sqrt_k(), 63936000000); // k lowered since cost_of_update is positive and total_fee_minus_distributions negative
+    assert_eq!(market.amm.base_asset_reserve(), 64935000065);
+    assert_eq!(market.amm.quote_asset_reserve(), 62952369167);
+    assert_eq!(market.amm.terminal_quote_asset_reserve(), 63936999950);
+    assert_eq!(market.amm.min_base_asset_reserve(), 45208890078);
+    assert_eq!(market.amm.max_base_asset_reserve(), 90417708246);
+    assert_eq!(market.amm.peg_multiplier(), 19421869997);
+    assert_eq!(market.amm.peg_multiplier() < prev_peg_multiplier, true);
     // assert_eq!(market.amm.total_fee_minus_distributions, -9978167413);
     assert_eq!(
-        market.amm.total_fee_minus_distributions < prev_total_fee_minus_distributions,
+        market.amm.total_fee_minus_distributions() < prev_total_fee_minus_distributions,
         true
     );
 

@@ -26,47 +26,55 @@ fn calculate_amm_available_guards() {
     };
 
     assert_eq!(market.amm.net_revenue_since_last_funding, 0);
-    assert_eq!(market.amm.total_fee_minus_distributions, 0);
+    assert_eq!(market.amm.total_fee_minus_distributions(), 0);
 
     assert_eq!(!market.has_too_much_drawdown().unwrap(), true);
 
     market.amm.net_revenue_since_last_funding = -100_000_000_000;
-    market.amm.total_fee_minus_distributions = 100_000_000_000;
+    market
+        .amm
+        .set_total_fee_minus_distributions(100_000_000_000);
 
     assert_eq!(!market.has_too_much_drawdown().unwrap(), false);
 
     market.amm.net_revenue_since_last_funding = -10_000_000_000;
-    market.amm.total_fee_minus_distributions = 100_000_000_000;
+    market
+        .amm
+        .set_total_fee_minus_distributions(100_000_000_000);
 
     assert_eq!(!market.has_too_much_drawdown().unwrap(), false);
 
     market.amm.net_revenue_since_last_funding = -5_000_000_000;
-    market.amm.total_fee_minus_distributions = 100_000_000_000;
+    market
+        .amm
+        .set_total_fee_minus_distributions(100_000_000_000);
 
     assert_eq!(!market.has_too_much_drawdown().unwrap(), false);
 
     market.amm.net_revenue_since_last_funding = -1_000_000_000;
-    market.amm.total_fee_minus_distributions = 100_000_000_000;
+    market
+        .amm
+        .set_total_fee_minus_distributions(100_000_000_000);
 
     assert_eq!(!market.has_too_much_drawdown().unwrap(), true);
 
     market.amm.net_revenue_since_last_funding = -1_000_000_000;
-    market.amm.total_fee_minus_distributions = 1_000_000;
+    market.amm.set_total_fee_minus_distributions(1_000_000);
 
     assert_eq!(!market.has_too_much_drawdown().unwrap(), true);
 
     market.amm.net_revenue_since_last_funding = -6_000_000_000;
-    market.amm.total_fee_minus_distributions = 1_000_000;
+    market.amm.set_total_fee_minus_distributions(1_000_000);
 
     assert_eq!(!market.has_too_much_drawdown().unwrap(), false);
 
     market.amm.net_revenue_since_last_funding = -5_000;
-    market.amm.total_fee_minus_distributions = -9279797219;
+    market.amm.set_total_fee_minus_distributions(-9279797219);
 
     assert_eq!(!market.has_too_much_drawdown().unwrap(), true); // too small net_revenue_since_last_funding drawdown
 
     market.amm.net_revenue_since_last_funding = -88_000_000_000;
-    market.amm.total_fee_minus_distributions = -9279797219;
+    market.amm.set_total_fee_minus_distributions(-9279797219);
 
     assert_eq!(!market.has_too_much_drawdown().unwrap(), false); // too small net_revenue_since_last_funding drawdown
 }
@@ -428,7 +436,7 @@ fn calc_delayed_mark_twap_tests() {
         ..AMM::default()
     };
     let px = 22850 * PRICE_PRECISION as i64;
-    amm.peg_multiplier = px as u128;
+    amm.set_peg_multiplier(px as u128);
     let trade_direction = PositionDirection::Long;
     update_mark_twap_from_estimates(&mut amm, now, Some(px as u64), Some(trade_direction), None)
         .unwrap();
@@ -502,7 +510,7 @@ fn calc_mark_std_tests() {
 
         update_oracle_price_twap(&mut amm, now, &mm_oracle_price_data, None, None).unwrap();
 
-        amm.peg_multiplier = px as u128;
+        amm.set_peg_multiplier(px as u128);
         let trade_direction = PositionDirection::Long;
         update_mark_twap_from_estimates(&mut amm, now, Some(px), Some(trade_direction), None)
             .unwrap();
@@ -527,7 +535,7 @@ fn calc_mark_std_tests() {
     let mut px: u64 = 31_936_658;
     let stop_time = now + 3600 * 2;
     assert_eq!(amm.reserve_price().unwrap(), 39397);
-    amm.peg_multiplier = 31_986_658;
+    amm.set_peg_multiplier(31_986_658);
     assert_eq!(amm.reserve_price().unwrap(), 31986658);
     amm.historical_oracle_data.last_oracle_price = 31986658;
 
@@ -536,7 +544,7 @@ fn calc_mark_std_tests() {
         if now % 15 == 0 {
             px = 31_986_658; //31.98
             amm.historical_oracle_data.last_oracle_price = (px - 1000000) as i64;
-            amm.peg_multiplier = px as u128;
+            amm.set_peg_multiplier(px as u128);
             let amm_reserve_price = amm.reserve_price().unwrap();
             let (amm_bid_price, amm_ask_price) = amm.bid_ask_price(amm_reserve_price).unwrap();
             msg!("bid={:?} ask={:?}", amm_bid_price, amm_ask_price);
@@ -550,7 +558,7 @@ fn calc_mark_std_tests() {
         }
         if now % 189 == 0 {
             px = 31_883_651; //31.88
-            amm.peg_multiplier = px as u128;
+            amm.set_peg_multiplier(px as u128);
             amm.historical_oracle_data.last_oracle_price = (px + 1000000) as i64;
 
             let amm_reserve_price = amm.reserve_price().unwrap();
@@ -575,7 +583,7 @@ fn calc_mark_std_tests() {
         now += 1;
         if now % 2 == 1 {
             px = 31_986_658; //31.98
-            amm.peg_multiplier = px as u128;
+            amm.set_peg_multiplier(px as u128);
 
             amm.historical_oracle_data.last_oracle_price = (px - 1000000) as i64;
             let trade_direction = PositionDirection::Long;
@@ -584,7 +592,7 @@ fn calc_mark_std_tests() {
         }
         if now % 2 == 0 {
             px = 31_883_651; //31.88
-            amm.peg_multiplier = px as u128;
+            amm.set_peg_multiplier(px as u128);
 
             amm.historical_oracle_data.last_oracle_price = (px + 1000000) as i64;
             let trade_direction = PositionDirection::Short;

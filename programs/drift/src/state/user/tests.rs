@@ -280,7 +280,7 @@ mod get_claimable_pnl {
         let oracle_price = 150 * PRICE_PRECISION_I64;
 
         let pnl_pool_token_amount = get_token_amount(
-            perp_market.pnl_pool.scaled_balance,
+            perp_market.pnl_pool.scaled_balance(),
             &usdc_market,
             perp_market.pnl_pool.balance_type(),
         )
@@ -386,7 +386,7 @@ mod get_claimable_pnl {
         let oracle_price = 150 * PRICE_PRECISION_I64;
 
         let pnl_pool_token_amount = get_token_amount(
-            perp_market.pnl_pool.scaled_balance,
+            perp_market.pnl_pool.scaled_balance(),
             &usdc_market,
             perp_market.pnl_pool.balance_type(),
         )
@@ -440,7 +440,9 @@ mod get_claimable_pnl {
         );
         assert_eq!(unsettled_pnl3, 9_000_000);
 
-        perp_market.amm.quote_asset_amount = -100 * QUOTE_PRECISION_I128;
+        perp_market
+            .amm
+            .set_quote_asset_amount(-100 * QUOTE_PRECISION_I128);
         let net_user_pnl = calculate_net_user_pnl(&perp_market.amm, oracle_price).unwrap();
         assert_eq!(net_user_pnl, 50000000);
         let max_pnl_pool_excess = if net_user_pnl < pnl_pool_token_amount {
@@ -537,7 +539,7 @@ mod get_claimable_pnl {
         let oracle_price = 160 * PRICE_PRECISION_I64;
 
         let pnl_pool_token_amount = get_token_amount(
-            perp_market.pnl_pool.scaled_balance,
+            perp_market.pnl_pool.scaled_balance(),
             &usdc_market,
             perp_market.pnl_pool.balance_type(),
         )

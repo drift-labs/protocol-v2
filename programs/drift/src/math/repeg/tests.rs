@@ -173,22 +173,26 @@ fn calculate_optimal_peg_and_budget_test() {
     assert_eq!(budget, 39500000);
     assert!(check_lb);
 
-    market.amm.base_asset_amount_with_amm = AMM_RESERVE_PRECISION as i128;
+    market
+        .amm
+        .set_base_asset_amount_with_amm(AMM_RESERVE_PRECISION as i128);
 
-    let swap_direction = if market.amm.base_asset_amount_with_amm > 0 {
+    let swap_direction = if market.amm.base_asset_amount_with_amm() > 0 {
         SwapDirection::Add
     } else {
         SwapDirection::Remove
     };
     let (new_terminal_quote_reserve, _new_terminal_base_reserve) = amm::calculate_swap_output(
-        market.amm.base_asset_amount_with_amm.unsigned_abs(),
-        market.amm.base_asset_reserve,
+        market.amm.base_asset_amount_with_amm().unsigned_abs(),
+        market.amm.base_asset_reserve(),
         swap_direction,
-        market.amm.sqrt_k,
+        market.amm.sqrt_k(),
     )
     .unwrap();
 
-    market.amm.terminal_quote_asset_reserve = new_terminal_quote_reserve;
+    market
+        .amm
+        .set_terminal_quote_asset_reserve(new_terminal_quote_reserve);
 
     // negative target_price_gap exceeding max_spread (not in favor of vAMM)
     let oracle_price_data = OraclePriceData {
@@ -246,12 +250,18 @@ fn calculate_optimal_peg_and_budget_2_test() {
     };
     let (new_terminal_quote_reserve, new_terminal_base_reserve) =
         amm::calculate_terminal_reserves(&market.amm).unwrap();
-    market.amm.terminal_quote_asset_reserve = new_terminal_quote_reserve;
+    market
+        .amm
+        .set_terminal_quote_asset_reserve(new_terminal_quote_reserve);
     let (min_base_asset_reserve, max_base_asset_reserve) =
-        amm::calculate_bid_ask_bounds(market.amm.concentration_coef, new_terminal_base_reserve)
+        amm::calculate_bid_ask_bounds(market.amm.concentration_coef(), new_terminal_base_reserve)
             .unwrap();
-    market.amm.min_base_asset_reserve = min_base_asset_reserve;
-    market.amm.max_base_asset_reserve = max_base_asset_reserve;
+    market
+        .amm
+        .set_min_base_asset_reserve(min_base_asset_reserve);
+    market
+        .amm
+        .set_max_base_asset_reserve(max_base_asset_reserve);
 
     let oracle_price_data = OraclePriceData {
         price: (17_800 * PRICE_PRECISION) as i64,
@@ -328,16 +338,16 @@ fn calc_adjust_amm_tests_repeg_in_favour() {
 
     let px = 20_401_125_456;
     let optimal_peg = calculate_peg_from_target_price(
-        market.amm.quote_asset_reserve,
-        market.amm.base_asset_reserve,
+        market.amm.quote_asset_reserve(),
+        market.amm.base_asset_reserve(),
         px,
     )
     .unwrap();
-    assert!(optimal_peg > market.amm.peg_multiplier);
+    assert!(optimal_peg > market.amm.peg_multiplier());
 
     let (repegged_market, _amm_update_cost) = adjust_amm(&market, optimal_peg, 0, true).unwrap();
     assert_eq!(_amm_update_cost, -1618354580);
-    assert_eq!(repegged_market.amm.peg_multiplier, optimal_peg);
+    assert_eq!(repegged_market.amm.peg_multiplier(), optimal_peg);
 
     let post_price = repegged_market.amm.reserve_price().unwrap();
     assert_eq!(post_price - prev_price, 1593456817); // todo: (15934564582252/1e4 - 1615699103 is the slippage cost?)
@@ -376,29 +386,35 @@ fn calc_adjust_amm_tests_sufficent_fee_for_repeg() {
     };
     let (new_terminal_quote_reserve, new_terminal_base_reserve) =
         amm::calculate_terminal_reserves(&market.amm).unwrap();
-    market.amm.terminal_quote_asset_reserve = new_terminal_quote_reserve;
+    market
+        .amm
+        .set_terminal_quote_asset_reserve(new_terminal_quote_reserve);
     let (min_base_asset_reserve, max_base_asset_reserve) =
-        amm::calculate_bid_ask_bounds(market.amm.concentration_coef, new_terminal_base_reserve)
+        amm::calculate_bid_ask_bounds(market.amm.concentration_coef(), new_terminal_base_reserve)
             .unwrap();
-    market.amm.min_base_asset_reserve = min_base_asset_reserve;
-    market.amm.max_base_asset_reserve = max_base_asset_reserve;
+    market
+        .amm
+        .set_min_base_asset_reserve(min_base_asset_reserve);
+    market
+        .amm
+        .set_max_base_asset_reserve(max_base_asset_reserve);
 
     let px = 35768 * PRICE_PRECISION_U64 / 1000;
     let optimal_peg = calculate_peg_from_target_price(
-        market.amm.quote_asset_reserve,
-        market.amm.base_asset_reserve,
+        market.amm.quote_asset_reserve(),
+        market.amm.base_asset_reserve(),
         px,
     )
     .unwrap();
-    assert!(optimal_peg > market.amm.peg_multiplier);
+    assert!(optimal_peg > market.amm.peg_multiplier());
     let fee_budget = calculate_fee_pool(&market).unwrap();
     assert!(fee_budget > 0);
     let (repegged_market, _amm_update_cost) =
         adjust_amm(&market, optimal_peg, fee_budget, true).unwrap();
 
     // insufficient fee to repeg
-    let new_peg = repegged_market.amm.peg_multiplier;
-    let old_peg = market.amm.peg_multiplier;
+    let new_peg = repegged_market.amm.peg_multiplier();
+    let old_peg = market.amm.peg_multiplier();
     assert!(new_peg > old_peg);
     assert_eq!(new_peg, 34657283);
     assert_eq!(_amm_update_cost, 304289);

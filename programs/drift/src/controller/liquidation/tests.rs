@@ -182,7 +182,7 @@ pub mod liquidate_perp {
         );
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.total_liquidation_fee, 0);
+        assert_eq!(market_after.amm.total_liquidation_fee(), 0);
     }
 
     #[test]
@@ -332,7 +332,7 @@ pub mod liquidate_perp {
         );
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.total_liquidation_fee, 0);
+        assert_eq!(market_after.amm.total_liquidation_fee(), 0);
     }
 
     #[test]
@@ -615,7 +615,7 @@ pub mod liquidate_perp {
         assert_eq!(liquidator.perp_positions[0].quote_asset_amount, -49500000);
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.total_liquidation_fee, 0)
+        assert_eq!(market_after.amm.total_liquidation_fee(), 0)
     }
 
     #[test]
@@ -794,7 +794,7 @@ pub mod liquidate_perp {
         assert_eq!(liquidator.perp_positions[0].quote_asset_amount, -178200000);
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.total_liquidation_fee, 1800000)
+        assert_eq!(market_after.amm.total_liquidation_fee(), 1800000)
     }
 
     #[test]
@@ -994,7 +994,7 @@ pub mod liquidate_perp {
         );
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.total_liquidation_fee, QUOTE_PRECISION);
+        assert_eq!(market_after.amm.total_liquidation_fee(), QUOTE_PRECISION);
     }
 
     #[test]
@@ -1402,7 +1402,7 @@ pub mod liquidate_perp {
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
         assert_eq!(
-            market_after.amm.total_liquidation_fee,
+            market_after.amm.total_liquidation_fee(),
             QUOTE_PRECISION / 100
         );
     }
@@ -2070,7 +2070,7 @@ pub mod liquidate_perp {
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
         // .5% * 100 * .95 =$0.475
-        assert_eq!(market_after.amm.total_liquidation_fee, 475000);
+        assert_eq!(market_after.amm.total_liquidation_fee(), 475000);
     }
 
     #[test]
@@ -2198,7 +2198,7 @@ pub mod liquidate_perp {
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
         assert!(!user.is_being_liquidated());
-        assert_eq!(market_after.amm.total_liquidation_fee, 41787043);
+        assert_eq!(market_after.amm.total_liquidation_fee(), 41787043);
     }
 
     #[test]
@@ -2373,7 +2373,7 @@ pub mod liquidate_perp {
         assert_eq!(liquidator.perp_positions[0].quote_asset_amount, -149250000);
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.total_liquidation_fee, 750000)
+        assert_eq!(market_after.amm.total_liquidation_fee(), 750000)
     }
 }
 
@@ -2618,7 +2618,7 @@ pub mod liquidate_perp_with_fill {
         assert_eq!(liquidator.perp_positions[0].quote_asset_amount, 3600);
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.total_liquidation_fee, 360000);
+        assert_eq!(market_after.amm.total_liquidation_fee(), 360000);
     }
 
     #[test]
@@ -2827,7 +2827,7 @@ pub mod liquidate_perp_with_fill {
         assert_eq!(liquidator.perp_positions[0].quote_asset_amount, 3600);
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.total_liquidation_fee, 360000);
+        assert_eq!(market_after.amm.total_liquidation_fee(), 360000);
     }
 
     #[test]
@@ -2879,8 +2879,8 @@ pub mod liquidate_perp_with_fill {
             ..PerpMarket::default()
         };
         market.amm.max_fill_reserve_fraction = 1;
-        market.amm.max_base_asset_reserve = u64::MAX as u128;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u64::MAX as u128);
+        market.amm.set_min_base_asset_reserve(0);
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let perp_market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
@@ -2998,7 +2998,7 @@ pub mod liquidate_perp_with_fill {
         assert_eq!(liquidator.perp_positions[0].quote_asset_amount, 3587);
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.total_liquidation_fee, 358708);
+        assert_eq!(market_after.amm.total_liquidation_fee(), 358708);
     }
 
     #[test]
@@ -3050,8 +3050,8 @@ pub mod liquidate_perp_with_fill {
             ..PerpMarket::default()
         };
         market.amm.max_fill_reserve_fraction = 1;
-        market.amm.max_base_asset_reserve = u64::MAX as u128;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u64::MAX as u128);
+        market.amm.set_min_base_asset_reserve(0);
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let perp_market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
@@ -3169,7 +3169,7 @@ pub mod liquidate_perp_with_fill {
         assert_eq!(liquidator.perp_positions[0].quote_asset_amount, 3613);
 
         let market_after = perp_market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.total_liquidation_fee, 361300);
+        assert_eq!(market_after.amm.total_liquidation_fee(), 361300);
     }
 }
 
@@ -3725,7 +3725,7 @@ pub mod liquidate_spot {
 
         let market_after = spot_market_map.get_ref(&1).unwrap();
         let market_revenue = get_token_amount(
-            market_after.revenue_pool.scaled_balance,
+            market_after.revenue_pool.scaled_balance(),
             &market_after,
             &SpotBalanceType::Deposit,
         )
@@ -3734,7 +3734,7 @@ pub mod liquidate_spot {
         assert_eq!(market_revenue, 593);
         assert_eq!(
             liquidator.spot_positions[1].scaled_balance + user.spot_positions[1].scaled_balance
-                - market_after.revenue_pool.scaled_balance as u64,
+                - market_after.revenue_pool.scaled_balance() as u64,
             SPOT_BALANCE_PRECISION_U64
         );
     }
@@ -4506,7 +4506,7 @@ pub mod liquidate_spot {
 
         let liability_market = spot_market_map.get_ref(&1).unwrap();
         let revenue_pool_token_amount = get_token_amount(
-            liability_market.revenue_pool.scaled_balance,
+            liability_market.revenue_pool.scaled_balance(),
             &liability_market,
             &SpotBalanceType::Deposit,
         )
@@ -4906,7 +4906,7 @@ pub mod liquidate_borrow_for_perp_pnl {
 
         let market_after = spot_market_map.get_ref(&1).unwrap();
         let market_revenue = get_token_amount(
-            market_after.revenue_pool.scaled_balance,
+            market_after.revenue_pool.scaled_balance(),
             &market_after,
             &SpotBalanceType::Deposit,
         )
@@ -6105,7 +6105,7 @@ pub mod liquidate_perp_pnl_for_deposit {
         assert_eq!(liquidator.perp_positions[0].quote_asset_amount, -25636363);
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.total_liquidation_fee, 0);
+        assert_eq!(market_after.amm.total_liquidation_fee(), 0);
     }
 
     #[test]
@@ -7564,13 +7564,19 @@ pub mod resolve_perp_bankruptcy {
         let mut expected_user = user;
         expected_user.status = 0;
         expected_user.perp_positions[0].quote_asset_amount = 0;
-        expected_user.total_social_loss = 100000000;
+        expected_user.set_total_social_loss(100000000);
 
         let mut expected_market = market;
-        expected_market.amm.cumulative_funding_rate_long = 1010 * FUNDING_RATE_PRECISION_I128;
-        expected_market.amm.cumulative_funding_rate_short = -1010 * FUNDING_RATE_PRECISION_I128;
-        expected_market.amm.total_social_loss = 100000000;
-        expected_market.amm.quote_asset_amount = -50 * QUOTE_PRECISION_I128;
+        expected_market
+            .amm
+            .set_cumulative_funding_rate_long(1010 * FUNDING_RATE_PRECISION_I128);
+        expected_market
+            .amm
+            .set_cumulative_funding_rate_short(-1010 * FUNDING_RATE_PRECISION_I128);
+        expected_market.amm.set_total_social_loss(100000000);
+        expected_market
+            .amm
+            .set_quote_asset_amount(-50 * QUOTE_PRECISION_I128);
         expected_market.number_of_users = 0;
 
         resolve_perp_bankruptcy(
@@ -7775,15 +7781,21 @@ pub mod resolve_perp_bankruptcy {
         let mut expected_user = user;
         expected_user.status = 0;
         expected_user.perp_positions[0].quote_asset_amount = 0;
-        expected_user.total_social_loss = 100000000;
+        expected_user.set_total_social_loss(100000000);
 
         let mut expected_market = market;
-        expected_market.amm.cumulative_funding_rate_long = 1005 * FUNDING_RATE_PRECISION_I128;
-        expected_market.amm.cumulative_funding_rate_short = -1005 * FUNDING_RATE_PRECISION_I128;
-        expected_market.amm.total_social_loss = 50000000;
-        expected_market.amm.quote_asset_amount = -50 * QUOTE_PRECISION_I128;
+        expected_market
+            .amm
+            .set_cumulative_funding_rate_long(1005 * FUNDING_RATE_PRECISION_I128);
+        expected_market
+            .amm
+            .set_cumulative_funding_rate_short(-1005 * FUNDING_RATE_PRECISION_I128);
+        expected_market.amm.set_total_social_loss(50000000);
+        expected_market
+            .amm
+            .set_quote_asset_amount(-50 * QUOTE_PRECISION_I128);
         expected_market.number_of_users = 0;
-        expected_market.amm.fee_pool.scaled_balance = 0;
+        expected_market.amm.fee_pool.set_scaled_balance(0);
 
         resolve_perp_bankruptcy(
             0,
@@ -8010,16 +8022,16 @@ pub mod resolve_spot_bankruptcy {
 
         let mut expected_user = user;
         expected_user.status = 0;
-        expected_user.spot_positions[0].scaled_balance = 0;
+        expected_user.spot_positions[0].set_scaled_balance(0);
         expected_user.spot_positions[0].cumulative_deposits = 100 * QUOTE_PRECISION_I64;
-        expected_user.total_social_loss = 100000000;
+        expected_user.set_total_social_loss(100000000);
 
         let mut expected_spot_market = spot_market;
-        expected_spot_market.borrow_balance = 0;
-        expected_spot_market.cumulative_deposit_interest =
-            9 * SPOT_CUMULATIVE_INTEREST_PRECISION / 10;
-        expected_spot_market.total_social_loss = 100 * QUOTE_PRECISION;
-        expected_spot_market.total_quote_social_loss = 100 * QUOTE_PRECISION;
+        expected_spot_market.set_borrow_balance(0);
+        expected_spot_market
+            .set_cumulative_deposit_interest(9 * SPOT_CUMULATIVE_INTEREST_PRECISION / 10);
+        expected_spot_market.set_total_social_loss(100 * QUOTE_PRECISION);
+        expected_spot_market.set_total_quote_social_loss(100 * QUOTE_PRECISION);
 
         resolve_spot_bankruptcy(
             0,
@@ -8039,7 +8051,7 @@ pub mod resolve_spot_bankruptcy {
         assert_eq!(expected_spot_market, *spot_market_map.get_ref(&0).unwrap());
 
         let spot_market = spot_market_map.get_ref_mut(&0).unwrap();
-        let deposit_balance = spot_market.deposit_balance;
+        let deposit_balance = spot_market.deposit_balance();
         let deposit_token_amount =
             get_token_amount(deposit_balance, &spot_market, &SpotBalanceType::Deposit).unwrap();
 
@@ -8579,7 +8591,7 @@ pub mod liquidate_spot_with_swap {
         );
 
         let market_revenue = get_token_amount(
-            sol_spot_market.revenue_pool.scaled_balance,
+            sol_spot_market.revenue_pool.scaled_balance(),
             &sol_spot_market,
             &SpotBalanceType::Deposit,
         )

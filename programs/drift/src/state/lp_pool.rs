@@ -833,7 +833,7 @@ impl LPPool {
         }
 
         let aum_u128 = aum.max(0).cast::<u128>()?;
-        self.last_aum = aum_u128;
+        self.set_last_aum(aum_u128);
         self.last_aum_slot = slot;
 
         Ok((aum_u128, crypto_delta, derivative_groups))
@@ -848,6 +848,7 @@ impl LPPool {
     }
 }
 
+#[drift_macros::legacy_layout]
 #[zero_copy(unsafe)]
 #[derive(Default, Eq, PartialEq, Debug, BorshDeserialize, BorshSerialize)]
 #[repr(C)]
@@ -880,12 +881,12 @@ impl SpotBalance for ConstituentSpotBalance {
     }
 
     fn increase_balance(&mut self, delta: u128) -> DriftResult {
-        self.scaled_balance = self.scaled_balance.safe_add(delta)?;
+        self.set_scaled_balance(self.scaled_balance().safe_add(delta)?);
         Ok(())
     }
 
     fn decrease_balance(&mut self, delta: u128) -> DriftResult {
-        self.scaled_balance = self.scaled_balance.safe_sub(delta)?;
+        self.set_scaled_balance(self.scaled_balance().safe_sub(delta)?);
         Ok(())
     }
 

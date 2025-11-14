@@ -53,11 +53,11 @@ impl InsuranceFundStake {
 
     fn validate_base(&self, spot_market: &SpotMarket) -> DriftResult {
         validate!(
-            self.if_base == spot_market.insurance_fund.shares_base,
+            self.if_base == spot_market.insurance_fund.shares_base(),
             ErrorCode::InvalidIFRebase,
             "if stake bases mismatch. user base: {} market base {}",
             self.if_base,
-            spot_market.insurance_fund.shares_base
+            spot_market.insurance_fund.shares_base()
         )?;
 
         Ok(())
@@ -132,7 +132,7 @@ impl ProtocolIfSharesTransferConfig {
                 .next_epoch_ts
                 .safe_add(EPOCH_DURATION.safe_mul(n_epoch_durations)?)?;
 
-            self.current_epoch_transfer = 0;
+            self.set_current_epoch_transfer(0);
         }
 
         Ok(())

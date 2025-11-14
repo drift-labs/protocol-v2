@@ -157,8 +157,8 @@ pub mod fuel_scoring {
             fuel_boost_taker: 50,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u64::MAX as u128;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u64::MAX as u128);
+        market.amm.set_min_base_asset_reserve(0);
 
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
@@ -166,10 +166,18 @@ pub mod fuel_scoring {
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
-        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
-        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
-        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
-        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+        market
+            .amm
+            .set_ask_base_asset_reserve(new_ask_base_asset_reserve);
+        market
+            .amm
+            .set_bid_base_asset_reserve(new_bid_base_asset_reserve);
+        market
+            .amm
+            .set_ask_quote_asset_reserve(new_ask_quote_asset_reserve);
+        market
+            .amm
+            .set_bid_quote_asset_reserve(new_bid_quote_asset_reserve);
 
         assert_eq!(new_bid_quote_asset_reserve, 99000000000);
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -313,8 +321,8 @@ pub mod fuel_scoring {
 
         let market_after = market_map.get_ref(&0).unwrap();
         assert_eq!(
-            market_after.amm.base_asset_amount_with_amm,
-            market.amm.base_asset_amount_with_amm
+            market_after.amm.base_asset_amount_with_amm(),
+            market.amm.base_asset_amount_with_amm()
         );
         assert_ne!(taker.get_perp_position(0).unwrap().base_asset_amount, 0);
         let maker_after: std::cell::RefMut<User> =
@@ -433,8 +441,8 @@ pub mod fuel_scoring {
             fuel_boost_taker: 50,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u64::MAX as u128;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u64::MAX as u128);
+        market.amm.set_min_base_asset_reserve(0);
 
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
@@ -442,10 +450,18 @@ pub mod fuel_scoring {
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
-        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
-        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
-        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
-        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+        market
+            .amm
+            .set_ask_base_asset_reserve(new_ask_base_asset_reserve);
+        market
+            .amm
+            .set_bid_base_asset_reserve(new_bid_base_asset_reserve);
+        market
+            .amm
+            .set_ask_quote_asset_reserve(new_ask_quote_asset_reserve);
+        market
+            .amm
+            .set_bid_quote_asset_reserve(new_bid_quote_asset_reserve);
 
         assert_eq!(new_bid_quote_asset_reserve, 99000000000);
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -586,8 +602,8 @@ pub mod fuel_scoring {
 
         let market_after = market_map.get_ref(&0).unwrap();
         assert_eq!(
-            market_after.amm.base_asset_amount_with_amm,
-            market.amm.base_asset_amount_with_amm
+            market_after.amm.base_asset_amount_with_amm(),
+            market.amm.base_asset_amount_with_amm()
         );
         assert_eq!(taker.get_perp_position(0).unwrap().base_asset_amount, 0);
         now += 86400; // one day
@@ -703,8 +719,8 @@ pub mod fuel_scoring {
             fuel_boost_taker: 50,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u64::MAX as u128;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u64::MAX as u128);
+        market.amm.set_min_base_asset_reserve(0);
 
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
@@ -712,10 +728,18 @@ pub mod fuel_scoring {
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
-        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
-        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
-        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
-        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+        market
+            .amm
+            .set_ask_base_asset_reserve(new_ask_base_asset_reserve);
+        market
+            .amm
+            .set_bid_base_asset_reserve(new_bid_base_asset_reserve);
+        market
+            .amm
+            .set_ask_quote_asset_reserve(new_ask_quote_asset_reserve);
+        market
+            .amm
+            .set_bid_quote_asset_reserve(new_bid_quote_asset_reserve);
 
         assert_eq!(new_bid_quote_asset_reserve, 99000000000);
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -817,8 +841,8 @@ pub mod fuel_scoring {
 
         let market_after = market_map.get_ref(&0).unwrap();
         assert_eq!(
-            market_after.amm.base_asset_amount_with_amm,
-            market.amm.base_asset_amount_with_amm
+            market_after.amm.base_asset_amount_with_amm(),
+            market.amm.base_asset_amount_with_amm()
         );
         assert_eq!(taker.get_perp_position(0).unwrap().base_asset_amount, 0);
         now += 86400; // one day

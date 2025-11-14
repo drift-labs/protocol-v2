@@ -431,12 +431,12 @@ pub fn handle_update_lp_pool_params<'info>(
 
     if let Some(max_aum) = lp_pool_params.max_aum {
         validate!(
-            max_aum >= lp_pool.max_aum,
+            max_aum >= lp_pool.max_aum(),
             ErrorCode::DefaultError,
             "new max_aum must be greater than or equal to current max_aum"
         )?;
-        msg!("max_aum: {:?} -> {:?}", lp_pool.max_aum, max_aum);
-        lp_pool.max_aum = max_aum;
+        msg!("max_aum: {:?} -> {:?}", lp_pool.max_aum(), max_aum);
+        lp_pool.set_max_aum(max_aum);
     }
 
     Ok(())

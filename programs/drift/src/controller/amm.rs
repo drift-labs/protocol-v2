@@ -87,8 +87,8 @@ pub fn swap_base_asset(
         quote_asset_amount_surplus,
     ) = calculate_base_swap_output_with_spread(&market.amm, base_asset_swap_amount, direction)?;
 
-    market.amm.base_asset_reserve = new_base_asset_reserve;
-    market.amm.quote_asset_reserve = new_quote_asset_reserve;
+    market.amm.set_base_asset_reserve(new_base_asset_reserve);
+    market.amm.set_quote_asset_reserve(new_quote_asset_reserve);
 
     Ok((
         quote_asset_amount,
@@ -114,33 +114,33 @@ pub fn calculate_base_swap_output_with_spread(
         base_asset_swap_amount.cast()?,
         base_asset_reserve_with_spread,
         direction,
-        amm.sqrt_k,
+        amm.sqrt_k(),
     )?;
 
     let quote_asset_amount = calculate_quote_asset_amount_swapped(
         quote_asset_reserve_with_spread,
         new_quote_asset_reserve_with_spread,
         direction,
-        amm.peg_multiplier,
+        amm.peg_multiplier(),
     )?;
 
     let (new_quote_asset_reserve, new_base_asset_reserve) = amm::calculate_swap_output(
         base_asset_swap_amount.cast()?,
-        amm.base_asset_reserve,
+        amm.base_asset_reserve(),
         direction,
-        amm.sqrt_k,
+        amm.sqrt_k(),
     )?;
 
     // calculate the quote asset surplus by taking the difference between what quote_asset_amount is
     // with and without spread
     let quote_asset_amount_surplus = calculate_quote_asset_amount_surplus(
         new_quote_asset_reserve,
-        amm.quote_asset_reserve,
+        amm.quote_asset_reserve(),
         match direction {
             SwapDirection::Remove => SwapDirection::Add,
             SwapDirection::Add => SwapDirection::Remove,
         },
-        amm.peg_multiplier,
+        amm.peg_multiplier(),
         quote_asset_amount,
         direction == SwapDirection::Remove,
     )?;
@@ -160,19 +160,31 @@ pub fn update_spread_reserves(market: &mut PerpMarket) -> DriftResult {
         calculate_spread_reserves(market, PositionDirection::Short)?;
 
     if market.amm.reference_price_offset == 0 {
-        market.amm.ask_base_asset_reserve =
-            new_ask_base_asset_reserve.min(market.amm.base_asset_reserve);
-        market.amm.bid_base_asset_reserve =
-            new_bid_base_asset_reserve.max(market.amm.base_asset_reserve);
-        market.amm.ask_quote_asset_reserve =
-            new_ask_quote_asset_reserve.max(market.amm.quote_asset_reserve);
-        market.amm.bid_quote_asset_reserve =
-            new_bid_quote_asset_reserve.min(market.amm.quote_asset_reserve);
+        market.amm.set_ask_base_asset_reserve(
+            new_ask_base_asset_reserve.min(market.amm.base_asset_reserve()),
+        );
+        market.amm.set_bid_base_asset_reserve(
+            new_bid_base_asset_reserve.max(market.amm.base_asset_reserve()),
+        );
+        market.amm.set_ask_quote_asset_reserve(
+            new_ask_quote_asset_reserve.max(market.amm.quote_asset_reserve()),
+        );
+        market.amm.set_bid_quote_asset_reserve(
+            new_bid_quote_asset_reserve.min(market.amm.quote_asset_reserve()),
+        );
     } else {
-        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
-        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
-        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
-        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+        market
+            .amm
+            .set_ask_base_asset_reserve(new_ask_base_asset_reserve);
+        market
+            .amm
+            .set_bid_base_asset_reserve(new_bid_base_asset_reserve);
+        market
+            .amm
+            .set_ask_quote_asset_reserve(new_ask_quote_asset_reserve);
+        market
+            .amm
+            .set_bid_quote_asset_reserve(new_bid_quote_asset_reserve);
     }
 
     Ok(())
@@ -188,10 +200,10 @@ pub fn update_spreads(
     let reference_price_offset = if max_ref_offset > 0 {
         let liquidity_ratio =
             amm_spread::calculate_inventory_liquidity_ratio_for_reference_price_offset(
-                market.amm.base_asset_amount_with_amm,
-                market.amm.base_asset_reserve,
-                market.amm.min_base_asset_reserve,
-                market.amm.max_base_asset_reserve,
+                market.amm.base_asset_amount_with_amm(),
+                market.amm.base_asset_reserve(),
+                market.amm.min_base_asset_reserve(),
+                market.amm.max_base_asset_reserve(),
             )?;
 
         let signed_liquidity_ratio =
@@ -233,16 +245,16 @@ pub fn update_spreads(
             market.amm.last_oracle_reserve_price_spread_pct,
             market.amm.last_oracle_conf_pct,
             market.amm.max_spread,
-            market.amm.quote_asset_reserve,
-            market.amm.terminal_quote_asset_reserve,
-            market.amm.peg_multiplier,
-            market.amm.base_asset_amount_with_amm,
+            market.amm.quote_asset_reserve(),
+            market.amm.terminal_quote_asset_reserve(),
+            market.amm.peg_multiplier(),
+            market.amm.base_asset_amount_with_amm(),
             reserve_price,
-            market.amm.total_fee_minus_distributions,
+            market.amm.total_fee_minus_distributions(),
             market.amm.net_revenue_since_last_funding,
-            market.amm.base_asset_reserve,
-            market.amm.min_base_asset_reserve,
-            market.amm.max_base_asset_reserve,
+            market.amm.base_asset_reserve(),
+            market.amm.min_base_asset_reserve(),
+            market.amm.max_base_asset_reserve(),
             market.amm.mark_std,
             market.amm.oracle_std,
             market.amm.long_intensity_volume,
@@ -356,13 +368,13 @@ pub fn update_concentration_coef(market: &mut PerpMarket, scale: u128) -> DriftR
         "invalid new_concentration_coef",
     )?;
 
-    market.amm.concentration_coef = new_concentration_coef;
+    market.amm.set_concentration_coef(new_concentration_coef);
 
     let (_, terminal_quote_reserves, terminal_base_reserves) =
         amm::calculate_terminal_price_and_reserves(&market.amm)?;
 
     validate!(
-        terminal_quote_reserves == market.amm.terminal_quote_asset_reserve,
+        terminal_quote_reserves == market.amm.terminal_quote_asset_reserve(),
         ErrorCode::InvalidAmmDetected,
         "invalid terminal_quote_reserves",
     )?;
@@ -371,17 +383,21 @@ pub fn update_concentration_coef(market: &mut PerpMarket, scale: u128) -> DriftR
     // doing so adds ability to improve amm constant product curve's slippage
     // by increasing k as same factor as scale w/o increasing imbalance risk
     let (min_base_asset_reserve, max_base_asset_reserve) =
-        amm::calculate_bid_ask_bounds(market.amm.concentration_coef, terminal_base_reserves)?;
+        amm::calculate_bid_ask_bounds(market.amm.concentration_coef(), terminal_base_reserves)?;
 
-    market.amm.max_base_asset_reserve = max_base_asset_reserve;
-    market.amm.min_base_asset_reserve = min_base_asset_reserve;
+    market
+        .amm
+        .set_max_base_asset_reserve(max_base_asset_reserve);
+    market
+        .amm
+        .set_min_base_asset_reserve(min_base_asset_reserve);
 
     let reserve_price_after = market.amm.reserve_price()?;
     update_spreads(market, reserve_price_after, None)?;
 
     let (max_bids, max_asks) = amm::calculate_market_open_bids_asks(&market.amm)?;
     validate!(
-        max_bids > market.amm.base_asset_amount_with_amm && max_asks < market.amm.base_asset_amount_with_amm,
+        max_bids > market.amm.base_asset_amount_with_amm() && max_asks < market.amm.base_asset_amount_with_amm(),
         ErrorCode::InvalidConcentrationCoef,
         "amm.base_asset_amount_with_amm exceeds the unload liquidity available after concentration adjustment"
     )?;
@@ -395,10 +411,10 @@ pub fn formulaic_update_k(
     funding_imbalance_cost: i128,
     now: i64,
 ) -> DriftResult {
-    let peg_multiplier_before = market.amm.peg_multiplier;
-    let base_asset_reserve_before = market.amm.base_asset_reserve;
-    let quote_asset_reserve_before = market.amm.quote_asset_reserve;
-    let sqrt_k_before = market.amm.sqrt_k;
+    let peg_multiplier_before = market.amm.peg_multiplier();
+    let base_asset_reserve_before = market.amm.base_asset_reserve();
+    let quote_asset_reserve_before = market.amm.quote_asset_reserve();
+    let sqrt_k_before = market.amm.sqrt_k();
 
     let funding_imbalance_cost_i64 = funding_imbalance_cost.cast::<i64>()?;
 
@@ -419,7 +435,9 @@ pub fn formulaic_update_k(
         0
     };
 
-    if (budget > 0 && market.amm.sqrt_k < MAX_SQRT_K) || (budget < 0 && market.amm.can_lower_k()?) {
+    if (budget > 0 && market.amm.sqrt_k() < MAX_SQRT_K)
+        || (budget < 0 && market.amm.can_lower_k()?)
+    {
         // single k scale is capped by .1% increase and .1% decrease (regardless of budget)
         let k_pct_upper_bound = K_BPS_UPDATE_SCALE
             + MAX_K_BPS_INCREASE * (market.amm.curve_update_intensity as i128) / 100;
@@ -433,7 +451,7 @@ pub fn formulaic_update_k(
             k_pct_lower_bound,
         )?;
 
-        let new_sqrt_k = bn::U192::from(market.amm.sqrt_k)
+        let new_sqrt_k = bn::U192::from(market.amm.sqrt_k())
             .safe_mul(bn::U192::from(k_scale_numerator))?
             .safe_div(bn::U192::from(k_scale_denominator))?;
 
@@ -446,10 +464,10 @@ pub fn formulaic_update_k(
         if cost_applied {
             cp_curve::update_k(market, &update_k_result)?;
 
-            let peg_multiplier_after = market.amm.peg_multiplier;
-            let base_asset_reserve_after = market.amm.base_asset_reserve;
-            let quote_asset_reserve_after = market.amm.quote_asset_reserve;
-            let sqrt_k_after = market.amm.sqrt_k;
+            let peg_multiplier_after = market.amm.peg_multiplier();
+            let base_asset_reserve_after = market.amm.base_asset_reserve();
+            let quote_asset_reserve_after = market.amm.quote_asset_reserve();
+            let sqrt_k_after = market.amm.sqrt_k();
 
             emit!(CurveRecord {
                 ts: now,
@@ -463,13 +481,13 @@ pub fn formulaic_update_k(
                 base_asset_reserve_after,
                 quote_asset_reserve_after,
                 sqrt_k_after,
-                base_asset_amount_long: market.amm.base_asset_amount_long.unsigned_abs(),
-                base_asset_amount_short: market.amm.base_asset_amount_short.unsigned_abs(),
-                base_asset_amount_with_amm: market.amm.base_asset_amount_with_amm,
+                base_asset_amount_long: market.amm.base_asset_amount_long().unsigned_abs(),
+                base_asset_amount_short: market.amm.base_asset_amount_short().unsigned_abs(),
+                base_asset_amount_with_amm: market.amm.base_asset_amount_with_amm(),
                 number_of_users: market.number_of_users,
                 adjustment_cost,
-                total_fee: market.amm.total_fee,
-                total_fee_minus_distributions: market.amm.total_fee_minus_distributions,
+                total_fee: market.amm.total_fee(),
+                total_fee_minus_distributions: market.amm.total_fee_minus_distributions(),
                 oracle_price: market.amm.historical_oracle_data.last_oracle_price,
                 fill_record: market.next_fill_record_id as u128,
             });
@@ -511,14 +529,14 @@ fn calculate_revenue_pool_transfer(
         let fee_pool_threshold = amm_fee_pool_token_amount_after
             .saturating_sub(
                 FEE_POOL_TO_REVENUE_POOL_THRESHOLD
-                    .safe_add(market.amm.total_social_loss)?
+                    .safe_add(market.amm.total_social_loss())?
                     .cast()?,
             )
             .cast()?;
 
         let total_liq_fees_for_revenue_pool = market
             .amm
-            .total_liquidation_fee
+            .total_liquidation_fee()
             .min(
                 market
                     .insurance_claim
@@ -544,7 +562,7 @@ fn calculate_revenue_pool_transfer(
 
         let revenue_pool_transfer = total_fee_for_if
             .safe_add(total_liq_fees_for_revenue_pool)?
-            .saturating_sub(market.amm.total_fee_withdrawn.cast()?)
+            .saturating_sub(market.amm.total_fee_withdrawn().cast()?)
             .max(0)
             .min(fee_pool_threshold)
             .min(max_revenue_to_settle.cast()?);
@@ -566,7 +584,7 @@ fn calculate_revenue_pool_transfer(
             .cast::<u128>()?
             .min(
                 get_token_amount(
-                    spot_market.revenue_pool.scaled_balance,
+                    spot_market.revenue_pool.scaled_balance(),
                     spot_market,
                     &SpotBalanceType::Deposit,
                 )?
@@ -611,9 +629,9 @@ pub fn update_pool_balances(
 
     let amm_target_max_fee_pool_token_amount = market
         .amm
-        .total_fee_minus_distributions
-        .safe_add(market.amm.total_liquidation_fee.cast()?)?
-        .safe_sub(market.amm.total_fee_withdrawn.cast()?)?;
+        .total_fee_minus_distributions()
+        .safe_add(market.amm.total_liquidation_fee().cast()?)?
+        .safe_sub(market.amm.total_fee_withdrawn().cast()?)?;
 
     if amm_target_max_fee_pool_token_amount <= amm_fee_pool_token_amount {
         // owe the market pnl pool before settling user
@@ -634,8 +652,8 @@ pub fn update_pool_balances(
 
     {
         let amm_target_min_fee_pool_token_amount = get_total_fee_lower_bound(market)?
-            .safe_add(market.amm.total_liquidation_fee)?
-            .safe_sub(market.amm.total_fee_withdrawn)?;
+            .safe_add(market.amm.total_liquidation_fee())?
+            .safe_sub(market.amm.total_fee_withdrawn())?;
 
         let amm_fee_pool_token_amount = get_token_amount(
             market.amm.fee_pool.balance(),
@@ -672,8 +690,8 @@ pub fn update_pool_balances(
 
         let terminal_state_surplus = market
             .amm
-            .total_fee_minus_distributions
-            .safe_sub(market.amm.total_fee_withdrawn.cast()?)?;
+            .total_fee_minus_distributions()
+            .safe_sub(market.amm.total_fee_withdrawn().cast()?)?;
 
         // market can perform withdraw from revenue pool
         if spot_market.insurance_fund.last_revenue_settle_ts
@@ -704,10 +722,12 @@ pub fn update_pool_balances(
                     &mut market.amm.fee_pool,
                 )?;
 
-                market.amm.total_fee_withdrawn = market
-                    .amm
-                    .total_fee_withdrawn
-                    .safe_add(revenue_pool_transfer.unsigned_abs())?;
+                market.amm.set_total_fee_withdrawn(
+                    market
+                        .amm
+                        .total_fee_withdrawn()
+                        .safe_add(revenue_pool_transfer.unsigned_abs())?,
+                );
             }
             Ordering::Less => {
                 transfer_revenue_pool_to_spot_balance(
@@ -720,10 +740,12 @@ pub fn update_pool_balances(
         }
 
         if revenue_pool_transfer != 0 {
-            market.amm.total_fee_minus_distributions = market
-                .amm
-                .total_fee_minus_distributions
-                .safe_sub(revenue_pool_transfer)?;
+            market.amm.set_total_fee_minus_distributions(
+                market
+                    .amm
+                    .total_fee_minus_distributions()
+                    .safe_sub(revenue_pool_transfer)?,
+            );
 
             market.insurance_claim.revenue_withdraw_since_last_settle = market
                 .insurance_claim
@@ -795,7 +817,7 @@ pub fn update_pnl_pool_and_user_balance(
     let pnl_to_settle_with_user = if unrealized_pnl_with_fee > 0 {
         unrealized_pnl_with_fee.min(
             get_token_amount(
-                market.pnl_pool.scaled_balance,
+                market.pnl_pool.scaled_balance(),
                 bank,
                 market.pnl_pool.balance_type(),
             )?
@@ -845,35 +867,42 @@ pub fn move_price(
     quote_asset_reserve: u128,
     sqrt_k: u128,
 ) -> DriftResult {
-    market.amm.base_asset_reserve = base_asset_reserve;
+    market.amm.set_base_asset_reserve(base_asset_reserve);
 
     let k = bn::U256::from(sqrt_k).safe_mul(bn::U256::from(sqrt_k))?;
 
-    market.amm.quote_asset_reserve = k
-        .safe_div(bn::U256::from(base_asset_reserve))?
-        .try_to_u128()?;
+    market.amm.set_quote_asset_reserve(
+        k.safe_div(bn::U256::from(base_asset_reserve))?
+            .try_to_u128()?,
+    );
 
     validate!(
-        (quote_asset_reserve.cast::<i128>()? - market.amm.quote_asset_reserve.cast::<i128>()?)
+        (quote_asset_reserve.cast::<i128>()? - market.amm.quote_asset_reserve().cast::<i128>()?)
             .abs()
             < 100,
         ErrorCode::InvalidAmmDetected,
         "quote_asset_reserve passed doesnt reconcile enough {} vs {}",
         quote_asset_reserve.cast::<i128>()?,
-        market.amm.quote_asset_reserve.cast::<i128>()?
+        market.amm.quote_asset_reserve().cast::<i128>()?
     )?;
 
-    market.amm.sqrt_k = sqrt_k;
+    market.amm.set_sqrt_k(sqrt_k);
 
     let (_, terminal_quote_reserves, terminal_base_reserves) =
         amm::calculate_terminal_price_and_reserves(&market.amm)?;
-    market.amm.terminal_quote_asset_reserve = terminal_quote_reserves;
+    market
+        .amm
+        .set_terminal_quote_asset_reserve(terminal_quote_reserves);
 
     let (min_base_asset_reserve, max_base_asset_reserve) =
-        amm::calculate_bid_ask_bounds(market.amm.concentration_coef, terminal_base_reserves)?;
+        amm::calculate_bid_ask_bounds(market.amm.concentration_coef(), terminal_base_reserves)?;
 
-    market.amm.max_base_asset_reserve = max_base_asset_reserve;
-    market.amm.min_base_asset_reserve = min_base_asset_reserve;
+    market
+        .amm
+        .set_max_base_asset_reserve(max_base_asset_reserve);
+    market
+        .amm
+        .set_min_base_asset_reserve(min_base_asset_reserve);
 
     let reserve_price_after = market.amm.reserve_price()?;
     update_spreads(market, reserve_price_after, None)?;
@@ -888,48 +917,56 @@ pub fn recenter_perp_market_amm(
     sqrt_k: u128,
 ) -> DriftResult {
     // calculate base/quote reserves for balanced terminal reserves
-    let swap_direction = if market.amm.base_asset_amount_with_amm > 0 {
+    let swap_direction = if market.amm.base_asset_amount_with_amm() > 0 {
         SwapDirection::Remove
     } else {
         SwapDirection::Add
     };
     let (new_quote_asset_amount, new_base_asset_amount) = amm::calculate_swap_output(
-        market.amm.base_asset_amount_with_amm.unsigned_abs(),
+        market.amm.base_asset_amount_with_amm().unsigned_abs(),
         sqrt_k,
         swap_direction,
         sqrt_k,
     )?;
 
-    market.amm.base_asset_reserve = new_base_asset_amount;
+    market.amm.set_base_asset_reserve(new_base_asset_amount);
 
     let k = bn::U256::from(sqrt_k).safe_mul(bn::U256::from(sqrt_k))?;
 
-    market.amm.quote_asset_reserve = k
-        .safe_div(bn::U256::from(new_base_asset_amount))?
-        .try_to_u128()?;
+    market.amm.set_quote_asset_reserve(
+        k.safe_div(bn::U256::from(new_base_asset_amount))?
+            .try_to_u128()?,
+    );
 
     validate!(
-        (new_quote_asset_amount.cast::<i128>()? - market.amm.quote_asset_reserve.cast::<i128>()?)
-            .abs()
+        (new_quote_asset_amount.cast::<i128>()?
+            - market.amm.quote_asset_reserve().cast::<i128>()?)
+        .abs()
             < 100,
         ErrorCode::InvalidAmmDetected,
         "quote_asset_reserve passed doesnt reconcile enough"
     )?;
 
-    market.amm.sqrt_k = sqrt_k;
+    market.amm.set_sqrt_k(sqrt_k);
     // todo: ensure correct terminal state cost for altering sqrt_k
 
-    market.amm.peg_multiplier = peg_multiplier;
+    market.amm.set_peg_multiplier(peg_multiplier);
 
     let (_, terminal_quote_reserves, terminal_base_reserves) =
         amm::calculate_terminal_price_and_reserves(&market.amm)?;
-    market.amm.terminal_quote_asset_reserve = terminal_quote_reserves;
+    market
+        .amm
+        .set_terminal_quote_asset_reserve(terminal_quote_reserves);
 
     let (min_base_asset_reserve, max_base_asset_reserve) =
-        amm::calculate_bid_ask_bounds(market.amm.concentration_coef, terminal_base_reserves)?;
+        amm::calculate_bid_ask_bounds(market.amm.concentration_coef(), terminal_base_reserves)?;
 
-    market.amm.max_base_asset_reserve = max_base_asset_reserve;
-    market.amm.min_base_asset_reserve = min_base_asset_reserve;
+    market
+        .amm
+        .set_max_base_asset_reserve(max_base_asset_reserve);
+    market
+        .amm
+        .set_min_base_asset_reserve(min_base_asset_reserve);
 
     let reserve_price_after = market.amm.reserve_price()?;
     update_spreads(market, reserve_price_after, None)?;
@@ -945,13 +982,13 @@ pub fn calculate_perp_market_amm_summary_stats(
     exclude_liquidation_fee: bool,
 ) -> DriftResult<i128> {
     let pnl_pool_token_amount = get_token_amount(
-        perp_market.pnl_pool.scaled_balance,
+        perp_market.pnl_pool.scaled_balance(),
         spot_market,
         perp_market.pnl_pool.balance_type(),
     )?;
 
     let fee_pool_token_amount = get_token_amount(
-        perp_market.amm.fee_pool.scaled_balance,
+        perp_market.amm.fee_pool.scaled_balance(),
         spot_market,
         perp_market.amm.fee_pool.balance_type(),
     )?;
@@ -967,7 +1004,7 @@ pub fn calculate_perp_market_amm_summary_stats(
 
     if exclude_liquidation_fee {
         new_total_fee_minus_distributions = new_total_fee_minus_distributions
-            .safe_sub(perp_market.amm.total_liquidation_fee.cast()?)?;
+            .safe_sub(perp_market.amm.total_liquidation_fee().cast()?)?;
     }
 
     Ok(new_total_fee_minus_distributions)

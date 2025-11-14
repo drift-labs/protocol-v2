@@ -70,7 +70,7 @@ pub fn sweep_completed_revenue_share_for_market<'a>(
         }
 
         let pnl_pool_token_amount = get_token_amount(
-            perp_market.pnl_pool.scaled_balance,
+            perp_market.pnl_pool.scaled_balance(),
             quote_spot_market,
             perp_market.pnl_pool.balance_type(),
         )?;

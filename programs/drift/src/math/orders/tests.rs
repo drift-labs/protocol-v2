@@ -2013,8 +2013,8 @@ mod calculate_max_perp_order_size {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -2135,8 +2135,8 @@ mod calculate_max_perp_order_size {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -2240,8 +2240,8 @@ mod calculate_max_perp_order_size {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -2362,8 +2362,8 @@ mod calculate_max_perp_order_size {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -2467,8 +2467,8 @@ mod calculate_max_perp_order_size {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -2590,8 +2590,8 @@ mod calculate_max_perp_order_size {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -2714,8 +2714,8 @@ mod calculate_max_perp_order_size {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -2836,8 +2836,8 @@ mod calculate_max_perp_order_size {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -2959,8 +2959,8 @@ mod calculate_max_perp_order_size {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -3083,8 +3083,8 @@ mod calculate_max_perp_order_size {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -3208,8 +3208,8 @@ mod calculate_max_perp_order_size {
             status: MarketStatus::Active,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -4527,8 +4527,8 @@ mod fallback_price_logic {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         // fallback are wide from oracle cause twaps arent set on amm
         let result = market

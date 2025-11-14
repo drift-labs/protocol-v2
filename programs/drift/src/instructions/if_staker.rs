@@ -95,7 +95,7 @@ pub fn handle_add_insurance_fund_stake<'c: 'info, 'info>(
     )?;
 
     validate!(
-        insurance_fund_stake.last_withdraw_request_shares == 0
+        insurance_fund_stake.last_withdraw_request_shares() == 0
             && insurance_fund_stake.last_withdraw_request_value == 0,
         ErrorCode::IFWithdrawRequestInProgress,
         "withdraw request in progress"
@@ -187,14 +187,14 @@ pub fn handle_request_remove_insurance_fund_stake(
     )?;
 
     validate!(
-        insurance_fund_stake.last_withdraw_request_shares == 0,
+        insurance_fund_stake.last_withdraw_request_shares() == 0,
         ErrorCode::IFWithdrawRequestInProgress,
         "Withdraw request is already in progress"
     )?;
 
     let n_shares = math::insurance::vault_amount_to_if_shares(
         amount,
-        spot_market.insurance_fund.total_shares,
+        spot_market.insurance_fund.total_shares(),
         ctx.accounts.insurance_fund_vault.amount,
     )?;
 
@@ -236,7 +236,7 @@ pub fn handle_cancel_request_remove_insurance_fund_stake(
     )?;
 
     validate!(
-        insurance_fund_stake.last_withdraw_request_shares != 0,
+        insurance_fund_stake.last_withdraw_request_shares() != 0,
         ErrorCode::NoIFWithdrawRequestInProgress,
         "No withdraw request in progress"
     )?;
@@ -343,7 +343,8 @@ pub fn handle_transfer_protocol_if_shares(
 
     transfer_config.update_epoch(now)?;
     transfer_config.validate_transfer(shares)?;
-    transfer_config.current_epoch_transfer += shares;
+    let current_epoch_transfer = transfer_config.current_epoch_transfer();
+    transfer_config.set_current_epoch_transfer(current_epoch_transfer.safe_add(shares)?);
 
     let mut if_stake = ctx.accounts.insurance_fund_stake.load_mut()?;
     let mut user_stats = ctx.accounts.user_stats.load_mut()?;
@@ -862,7 +863,7 @@ pub fn handle_deposit_into_insurance_fund_stake<'c: 'info, 'info>(
     )?;
 
     validate!(
-        insurance_fund_stake.last_withdraw_request_shares == 0
+        insurance_fund_stake.last_withdraw_request_shares() == 0
             && insurance_fund_stake.last_withdraw_request_value == 0,
         ErrorCode::IFWithdrawRequestInProgress,
         "withdraw request in progress"

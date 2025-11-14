@@ -165,18 +165,26 @@ pub mod fill_order_protected_maker {
             ..PerpMarket::default()
         };
         market.status = MarketStatus::Active;
-        market.amm.max_base_asset_reserve = i128::MAX as u128;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(i128::MAX as u128);
+        market.amm.set_min_base_asset_reserve(0);
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
-        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
-        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
-        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
-        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+        market
+            .amm
+            .set_ask_base_asset_reserve(new_ask_base_asset_reserve);
+        market
+            .amm
+            .set_bid_base_asset_reserve(new_bid_base_asset_reserve);
+        market
+            .amm
+            .set_ask_quote_asset_reserve(new_ask_quote_asset_reserve);
+        market
+            .amm
+            .set_bid_quote_asset_reserve(new_bid_quote_asset_reserve);
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
@@ -571,12 +579,12 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_stats.maker_volume_30d, 100 * QUOTE_PRECISION_U64);
         assert!(maker.orders[0].is_available());
 
-        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
-        assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
-        assert_eq!(market.amm.quote_asset_amount, -20000);
-        assert_eq!(market.amm.total_fee, 20000);
-        assert_eq!(market.amm.total_fee_minus_distributions, 20000);
+        assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market.amm.base_asset_amount_long(), BASE_PRECISION_I128);
+        assert_eq!(market.amm.base_asset_amount_short(), -BASE_PRECISION_I128);
+        assert_eq!(market.amm.quote_asset_amount(), -20000);
+        assert_eq!(market.amm.total_fee(), 20000);
+        assert_eq!(market.amm.total_fee_minus_distributions(), 20000);
         assert_eq!(market.amm.net_revenue_since_last_funding, 20000);
     }
 
@@ -696,12 +704,12 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_stats.maker_volume_30d, 160 * QUOTE_PRECISION_U64);
         assert!(maker.orders[0].is_available());
 
-        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
-        assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
-        assert_eq!(market.amm.quote_asset_amount, -32000);
-        assert_eq!(market.amm.total_fee, 32000);
-        assert_eq!(market.amm.total_fee_minus_distributions, 32000);
+        assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market.amm.base_asset_amount_long(), BASE_PRECISION_I128);
+        assert_eq!(market.amm.base_asset_amount_short(), -BASE_PRECISION_I128);
+        assert_eq!(market.amm.quote_asset_amount(), -32000);
+        assert_eq!(market.amm.total_fee(), 32000);
+        assert_eq!(market.amm.total_fee_minus_distributions(), 32000);
         assert_eq!(market.amm.net_revenue_since_last_funding, 32000);
     }
 
@@ -821,12 +829,12 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_stats.maker_volume_30d, 180 * QUOTE_PRECISION_U64);
         assert!(maker.orders[0].is_available());
 
-        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
-        assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
-        assert_eq!(market.amm.quote_asset_amount, -36000);
-        assert_eq!(market.amm.total_fee, 36000);
-        assert_eq!(market.amm.total_fee_minus_distributions, 36000);
+        assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market.amm.base_asset_amount_long(), BASE_PRECISION_I128);
+        assert_eq!(market.amm.base_asset_amount_short(), -BASE_PRECISION_I128);
+        assert_eq!(market.amm.quote_asset_amount(), -36000);
+        assert_eq!(market.amm.total_fee(), 36000);
+        assert_eq!(market.amm.total_fee_minus_distributions(), 36000);
         assert_eq!(market.amm.net_revenue_since_last_funding, 36000);
     }
 
@@ -946,12 +954,12 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_stats.maker_volume_30d, 140 * QUOTE_PRECISION_U64);
         assert!(maker.orders[0].is_available());
 
-        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
-        assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
-        assert_eq!(market.amm.quote_asset_amount, -28000);
-        assert_eq!(market.amm.total_fee, 28000);
-        assert_eq!(market.amm.total_fee_minus_distributions, 28000);
+        assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market.amm.base_asset_amount_long(), BASE_PRECISION_I128);
+        assert_eq!(market.amm.base_asset_amount_short(), -BASE_PRECISION_I128);
+        assert_eq!(market.amm.quote_asset_amount(), -28000);
+        assert_eq!(market.amm.total_fee(), 28000);
+        assert_eq!(market.amm.total_fee_minus_distributions(), 28000);
         assert_eq!(market.amm.net_revenue_since_last_funding, 28000);
     }
 
@@ -1427,10 +1435,10 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_position.quote_break_even_amount, 120072000);
         assert_eq!(maker_stats.maker_volume_30d, 120 * QUOTE_PRECISION_U64);
 
-        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
-        assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
-        assert_eq!(market.amm.quote_asset_amount, -48000);
+        assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market.amm.base_asset_amount_long(), BASE_PRECISION_I128);
+        assert_eq!(market.amm.base_asset_amount_short(), -BASE_PRECISION_I128);
+        assert_eq!(market.amm.quote_asset_amount(), -48000);
     }
 
     #[test]
@@ -1539,10 +1547,10 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_position.quote_break_even_amount, 120072000);
         assert_eq!(maker_stats.maker_volume_30d, 120 * QUOTE_PRECISION_U64);
 
-        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
-        assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
-        assert_eq!(market.amm.quote_asset_amount, -48000);
+        assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market.amm.base_asset_amount_long(), BASE_PRECISION_I128);
+        assert_eq!(market.amm.base_asset_amount_short(), -BASE_PRECISION_I128);
+        assert_eq!(market.amm.quote_asset_amount(), -48000);
     }
 
     #[test]
@@ -1666,12 +1674,12 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_stats.maker_volume_30d, 150 * QUOTE_PRECISION_U64);
         assert!(maker.orders[0].is_available());
 
-        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
-        assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
-        assert_eq!(market.amm.quote_asset_amount, -30000);
-        assert_eq!(market.amm.total_fee, 30000);
-        assert_eq!(market.amm.total_fee_minus_distributions, 30000);
+        assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market.amm.base_asset_amount_long(), BASE_PRECISION_I128);
+        assert_eq!(market.amm.base_asset_amount_short(), -BASE_PRECISION_I128);
+        assert_eq!(market.amm.quote_asset_amount(), -30000);
+        assert_eq!(market.amm.total_fee(), 30000);
+        assert_eq!(market.amm.total_fee_minus_distributions(), 30000);
         assert_eq!(market.amm.net_revenue_since_last_funding, 30000);
     }
 
@@ -1788,12 +1796,12 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_stats.taker_volume_30d, 100 * QUOTE_PRECISION_U64);
         assert!(taker.orders[0].is_available());
 
-        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
-        assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
-        assert_eq!(market.amm.quote_asset_amount, -20000);
-        assert_eq!(market.amm.total_fee, 20000);
-        assert_eq!(market.amm.total_fee_minus_distributions, 20000);
+        assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market.amm.base_asset_amount_long(), BASE_PRECISION_I128);
+        assert_eq!(market.amm.base_asset_amount_short(), -BASE_PRECISION_I128);
+        assert_eq!(market.amm.quote_asset_amount(), -20000);
+        assert_eq!(market.amm.total_fee(), 20000);
+        assert_eq!(market.amm.total_fee_minus_distributions(), 20000);
         assert_eq!(market.amm.net_revenue_since_last_funding, 20000);
     }
 
@@ -1911,12 +1919,12 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_stats.taker_volume_30d, 100 * QUOTE_PRECISION_U64);
         assert!(taker.orders[0].is_available());
 
-        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
-        assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
-        assert_eq!(market.amm.quote_asset_amount, -20000);
-        assert_eq!(market.amm.total_fee, 20000);
-        assert_eq!(market.amm.total_fee_minus_distributions, 20000);
+        assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market.amm.base_asset_amount_long(), BASE_PRECISION_I128);
+        assert_eq!(market.amm.base_asset_amount_short(), -BASE_PRECISION_I128);
+        assert_eq!(market.amm.quote_asset_amount(), -20000);
+        assert_eq!(market.amm.total_fee(), 20000);
+        assert_eq!(market.amm.total_fee_minus_distributions(), 20000);
         assert_eq!(market.amm.net_revenue_since_last_funding, 20000);
     }
 
@@ -2314,12 +2322,12 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_stats.taker_volume_30d, 100 * QUOTE_PRECISION_U64);
         assert!(taker.orders[0].is_available());
 
-        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
-        assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
-        assert_eq!(market.amm.quote_asset_amount, -20000);
-        assert_eq!(market.amm.total_fee, 20000);
-        assert_eq!(market.amm.total_fee_minus_distributions, 20000);
+        assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market.amm.base_asset_amount_long(), BASE_PRECISION_I128);
+        assert_eq!(market.amm.base_asset_amount_short(), -BASE_PRECISION_I128);
+        assert_eq!(market.amm.quote_asset_amount(), -20000);
+        assert_eq!(market.amm.total_fee(), 20000);
+        assert_eq!(market.amm.total_fee_minus_distributions(), 20000);
         assert_eq!(market.amm.net_revenue_since_last_funding, 20000);
     }
 
@@ -2467,12 +2475,12 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_stats.taker_volume_30d, 100 * QUOTE_PRECISION_U64);
         assert!(taker.orders[0].is_available());
 
-        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
-        assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
-        assert_eq!(market.amm.quote_asset_amount, -20000);
-        assert_eq!(market.amm.total_fee, 20000);
-        assert_eq!(market.amm.total_fee_minus_distributions, 20000);
+        assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market.amm.base_asset_amount_long(), BASE_PRECISION_I128);
+        assert_eq!(market.amm.base_asset_amount_short(), -BASE_PRECISION_I128);
+        assert_eq!(market.amm.quote_asset_amount(), -20000);
+        assert_eq!(market.amm.total_fee(), 20000);
+        assert_eq!(market.amm.total_fee_minus_distributions(), 20000);
         assert_eq!(market.amm.net_revenue_since_last_funding, 20000);
     }
 
@@ -2618,12 +2626,12 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_stats.taker_volume_30d, 100 * QUOTE_PRECISION_U64);
         assert!(taker.orders[0].is_available());
 
-        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
-        assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
-        assert_eq!(market.amm.quote_asset_amount, -20000);
-        assert_eq!(market.amm.total_fee, 20000);
-        assert_eq!(market.amm.total_fee_minus_distributions, 20000);
+        assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market.amm.base_asset_amount_long(), BASE_PRECISION_I128);
+        assert_eq!(market.amm.base_asset_amount_short(), -BASE_PRECISION_I128);
+        assert_eq!(market.amm.quote_asset_amount(), -20000);
+        assert_eq!(market.amm.total_fee(), 20000);
+        assert_eq!(market.amm.total_fee_minus_distributions(), 20000);
         assert_eq!(market.amm.net_revenue_since_last_funding, 20000);
     }
 
@@ -2770,12 +2778,12 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_stats.taker_volume_30d, 100 * QUOTE_PRECISION_U64);
         assert!(taker.orders[0].is_available());
 
-        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
-        assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
-        assert_eq!(market.amm.quote_asset_amount, -20000);
-        assert_eq!(market.amm.total_fee, 20000);
-        assert_eq!(market.amm.total_fee_minus_distributions, 20000);
+        assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market.amm.base_asset_amount_long(), BASE_PRECISION_I128);
+        assert_eq!(market.amm.base_asset_amount_short(), -BASE_PRECISION_I128);
+        assert_eq!(market.amm.quote_asset_amount(), -20000);
+        assert_eq!(market.amm.total_fee(), 20000);
+        assert_eq!(market.amm.total_fee_minus_distributions(), 20000);
         assert_eq!(market.amm.net_revenue_since_last_funding, 20000);
     }
 
@@ -2903,12 +2911,12 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_stats.taker_volume_30d, 100 * QUOTE_PRECISION_U64);
         assert!(taker.orders[0].is_available());
 
-        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
-        assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
-        assert_eq!(market.amm.quote_asset_amount, -20000);
-        assert_eq!(market.amm.total_fee, 20000);
-        assert_eq!(market.amm.total_fee_minus_distributions, 20000);
+        assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market.amm.base_asset_amount_long(), BASE_PRECISION_I128);
+        assert_eq!(market.amm.base_asset_amount_short(), -BASE_PRECISION_I128);
+        assert_eq!(market.amm.quote_asset_amount(), -20000);
+        assert_eq!(market.amm.total_fee(), 20000);
+        assert_eq!(market.amm.total_fee_minus_distributions(), 20000);
         assert_eq!(market.amm.net_revenue_since_last_funding, 20000);
     }
 
@@ -3035,12 +3043,12 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_stats.taker_volume_30d, 100 * QUOTE_PRECISION_U64);
         assert!(taker.orders[0].is_available());
 
-        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
-        assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
-        assert_eq!(market.amm.quote_asset_amount, -20000);
-        assert_eq!(market.amm.total_fee, 20000);
-        assert_eq!(market.amm.total_fee_minus_distributions, 20000);
+        assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market.amm.base_asset_amount_long(), BASE_PRECISION_I128);
+        assert_eq!(market.amm.base_asset_amount_short(), -BASE_PRECISION_I128);
+        assert_eq!(market.amm.quote_asset_amount(), -20000);
+        assert_eq!(market.amm.total_fee(), 20000);
+        assert_eq!(market.amm.total_fee_minus_distributions(), 20000);
         assert_eq!(market.amm.net_revenue_since_last_funding, 20000);
     }
 }
@@ -3115,8 +3123,8 @@ pub mod fulfill_order {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         let mut state = State {
             oracle_guard_rails: OracleGuardRails {
@@ -3201,8 +3209,8 @@ pub mod fulfill_order {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = i128::MAX as u128;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(i128::MAX as u128);
+        market.amm.set_min_base_asset_reserve(0);
 
         let mut state = State {
             min_perp_auction_duration: 1,
@@ -3270,8 +3278,8 @@ pub mod fulfill_order {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -3443,10 +3451,10 @@ pub mod fulfill_order {
         assert_eq!(filler.perp_positions[0].quote_asset_amount, 5012);
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.base_asset_amount_with_amm, 500000000);
-        assert_eq!(market_after.amm.base_asset_amount_long, 1000000000);
-        assert_eq!(market_after.amm.base_asset_amount_short, -500000000);
-        assert_eq!(market_after.amm.quote_asset_amount, -50281374);
+        assert_eq!(market_after.amm.base_asset_amount_with_amm(), 500000000);
+        assert_eq!(market_after.amm.base_asset_amount_long(), 1000000000);
+        assert_eq!(market_after.amm.base_asset_amount_short(), -500000000);
+        assert_eq!(market_after.amm.quote_asset_amount(), -50281374);
 
         let expected_market_fee = ((taker_stats.fees.total_fee_paid
             - (maker_stats.fees.total_fee_rebate
@@ -3455,9 +3463,9 @@ pub mod fulfill_order {
             + 1; //todo
 
         // assert_eq!(expected_market_fee, 35100);
-        assert_eq!(market_after.amm.total_fee, expected_market_fee);
+        assert_eq!(market_after.amm.total_fee(), expected_market_fee);
         assert_eq!(
-            market_after.amm.total_fee_minus_distributions,
+            market_after.amm.total_fee_minus_distributions(),
             expected_market_fee
         );
         assert_eq!(
@@ -3516,8 +3524,8 @@ pub mod fulfill_order {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -3733,8 +3741,8 @@ pub mod fulfill_order {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -3903,19 +3911,19 @@ pub mod fulfill_order {
         assert_eq!(filler.perp_positions[0].quote_asset_amount, 5013);
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.base_asset_amount_with_amm, 500000000);
-        assert_eq!(market_after.amm.base_asset_amount_long, 1000000000);
-        assert_eq!(market_after.amm.base_asset_amount_short, -500000000);
-        assert_eq!(market_after.amm.quote_asset_amount, -50306510);
+        assert_eq!(market_after.amm.base_asset_amount_with_amm(), 500000000);
+        assert_eq!(market_after.amm.base_asset_amount_long(), 1000000000);
+        assert_eq!(market_after.amm.base_asset_amount_short(), -500000000);
+        assert_eq!(market_after.amm.quote_asset_amount(), -50306510);
 
         let expected_market_fee = (taker_stats.fees.total_fee_paid
             - (maker_stats.fees.total_fee_rebate
                 + filler.perp_positions[0].quote_asset_amount as u64))
             as i128;
         assert_eq!(expected_market_fee, 30128);
-        assert_eq!(market_after.amm.total_fee, expected_market_fee);
+        assert_eq!(market_after.amm.total_fee(), expected_market_fee);
         assert_eq!(
-            market_after.amm.total_fee_minus_distributions,
+            market_after.amm.total_fee_minus_distributions(),
             expected_market_fee
         );
         assert_eq!(
@@ -4117,12 +4125,12 @@ pub mod fulfill_order {
         assert_eq!(maker_stats.maker_volume_30d, 50 * QUOTE_PRECISION_U64);
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market_after.amm.base_asset_amount_long, 500000000);
-        assert_eq!(market_after.amm.base_asset_amount_short, -500000000);
-        assert_eq!(market_after.amm.quote_asset_amount, -10000);
-        assert_eq!(market_after.amm.total_fee, 10000);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, 10000);
+        assert_eq!(market_after.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market_after.amm.base_asset_amount_long(), 500000000);
+        assert_eq!(market_after.amm.base_asset_amount_short(), -500000000);
+        assert_eq!(market_after.amm.quote_asset_amount(), -10000);
+        assert_eq!(market_after.amm.total_fee(), 10000);
+        assert_eq!(market_after.amm.total_fee_minus_distributions(), 10000);
         assert_eq!(market_after.amm.net_revenue_since_last_funding, 10000);
     }
 
@@ -4173,8 +4181,8 @@ pub mod fulfill_order {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -4283,12 +4291,12 @@ pub mod fulfill_order {
         assert!(taker.orders[0].is_available());
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.base_asset_amount_with_amm, 1000000000);
-        assert_eq!(market_after.amm.base_asset_amount_long, 1000000000);
-        assert_eq!(market_after.amm.base_asset_amount_short, 0);
-        assert_eq!(market_after.amm.quote_asset_amount, -104133674);
-        assert_eq!(market_after.amm.total_fee, 3123572);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, 3123572);
+        assert_eq!(market_after.amm.base_asset_amount_with_amm(), 1000000000);
+        assert_eq!(market_after.amm.base_asset_amount_long(), 1000000000);
+        assert_eq!(market_after.amm.base_asset_amount_short(), 0);
+        assert_eq!(market_after.amm.quote_asset_amount(), -104133674);
+        assert_eq!(market_after.amm.total_fee(), 3123572);
+        assert_eq!(market_after.amm.total_fee_minus_distributions(), 3123572);
         assert_eq!(market_after.amm.net_revenue_since_last_funding, 3123572);
     }
 
@@ -4341,8 +4349,8 @@ pub mod fulfill_order {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -4542,8 +4550,8 @@ pub mod fulfill_order {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -4727,8 +4735,8 @@ pub mod fulfill_order {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u64::MAX as u128;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u64::MAX as u128);
+        market.amm.set_min_base_asset_reserve(0);
 
         let reserve_price_before = market.amm.reserve_price().unwrap();
         let bid_price = market.amm.bid_price(reserve_price_before).unwrap();
@@ -4846,12 +4854,12 @@ pub mod fulfill_order {
         assert_eq!(taker_stats.maker_volume_30d, 3499697);
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.base_asset_amount_with_amm, -35032000);
-        assert_eq!(market_after.amm.base_asset_amount_long, 0);
-        assert_eq!(market_after.amm.base_asset_amount_short, -35032000);
-        assert_eq!(market_after.amm.quote_asset_amount, 3500868);
-        assert_eq!(market_after.amm.total_fee, 1105);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, 1105);
+        assert_eq!(market_after.amm.base_asset_amount_with_amm(), -35032000);
+        assert_eq!(market_after.amm.base_asset_amount_long(), 0);
+        assert_eq!(market_after.amm.base_asset_amount_short(), -35032000);
+        assert_eq!(market_after.amm.quote_asset_amount(), 3500868);
+        assert_eq!(market_after.amm.total_fee(), 1105);
+        assert_eq!(market_after.amm.total_fee_minus_distributions(), 1105);
         assert_eq!(market_after.amm.net_revenue_since_last_funding, 1105);
 
         let market_after = market_map.get_ref(&0).unwrap();
@@ -4907,8 +4915,8 @@ pub mod fulfill_order {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u64::MAX as u128;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u64::MAX as u128);
+        market.amm.set_min_base_asset_reserve(0);
 
         let reserve_price_before = market.amm.reserve_price().unwrap();
         let bid_price = market.amm.bid_price(reserve_price_before).unwrap();
@@ -5026,12 +5034,12 @@ pub mod fulfill_order {
         assert_eq!(taker_stats.maker_volume_30d, 3500096);
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.base_asset_amount_with_amm, 34966000);
-        assert_eq!(market_after.amm.base_asset_amount_long, 34966000);
-        assert_eq!(market_after.amm.base_asset_amount_short, 0);
-        assert_eq!(market_after.amm.quote_asset_amount, -3498924);
-        assert_eq!(market_after.amm.total_fee, 1100);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, 1100);
+        assert_eq!(market_after.amm.base_asset_amount_with_amm(), 34966000);
+        assert_eq!(market_after.amm.base_asset_amount_long(), 34966000);
+        assert_eq!(market_after.amm.base_asset_amount_short(), 0);
+        assert_eq!(market_after.amm.quote_asset_amount(), -3498924);
+        assert_eq!(market_after.amm.total_fee(), 1100);
+        assert_eq!(market_after.amm.total_fee_minus_distributions(), 1100);
         assert_eq!(market_after.amm.net_revenue_since_last_funding, 1100);
 
         let market_after = market_map.get_ref(&0).unwrap();
@@ -5098,8 +5106,8 @@ pub mod fulfill_order {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
         market.status = MarketStatus::Active;
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -5657,12 +5665,12 @@ pub mod fulfill_order {
         assert_eq!(maker.orders[0], maker_before.orders[0]);
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market_after.amm.base_asset_amount_long, 500000000);
-        assert_eq!(market_after.amm.base_asset_amount_short, -500000000);
-        assert_eq!(market_after.amm.quote_asset_amount, -10000);
-        assert_eq!(market_after.amm.total_fee, 10000);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, 10000);
+        assert_eq!(market_after.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market_after.amm.base_asset_amount_long(), 500000000);
+        assert_eq!(market_after.amm.base_asset_amount_short(), -500000000);
+        assert_eq!(market_after.amm.quote_asset_amount(), -10000);
+        assert_eq!(market_after.amm.total_fee(), 10000);
+        assert_eq!(market_after.amm.total_fee_minus_distributions(), 10000);
         assert_eq!(market_after.amm.net_revenue_since_last_funding, 10000);
 
         assert_eq!(market_after.amm.last_mark_price_twap_ts, 1);
@@ -5740,8 +5748,8 @@ pub mod fulfill_order {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -5988,18 +5996,26 @@ pub mod fill_order {
             ..PerpMarket::default()
         };
         market.status = MarketStatus::Active;
-        market.amm.max_base_asset_reserve = i128::MAX as u128;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(i128::MAX as u128);
+        market.amm.set_min_base_asset_reserve(0);
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
-        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
-        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
-        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
-        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+        market
+            .amm
+            .set_ask_base_asset_reserve(new_ask_base_asset_reserve);
+        market
+            .amm
+            .set_bid_base_asset_reserve(new_bid_base_asset_reserve);
+        market
+            .amm
+            .set_ask_quote_asset_reserve(new_ask_quote_asset_reserve);
+        market
+            .amm
+            .set_bid_quote_asset_reserve(new_bid_quote_asset_reserve);
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
@@ -6189,18 +6205,26 @@ pub mod fill_order {
             ..PerpMarket::default()
         };
         market.status = MarketStatus::Active;
-        market.amm.max_base_asset_reserve = i128::MAX as u128;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(i128::MAX as u128);
+        market.amm.set_min_base_asset_reserve(0);
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
-        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
-        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
-        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
-        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+        market
+            .amm
+            .set_ask_base_asset_reserve(new_ask_base_asset_reserve);
+        market
+            .amm
+            .set_bid_base_asset_reserve(new_bid_base_asset_reserve);
+        market
+            .amm
+            .set_ask_quote_asset_reserve(new_ask_quote_asset_reserve);
+        market
+            .amm
+            .set_bid_quote_asset_reserve(new_bid_quote_asset_reserve);
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
@@ -6529,18 +6553,26 @@ pub mod fill_order {
             ..PerpMarket::default()
         };
         market.status = MarketStatus::Active;
-        market.amm.max_base_asset_reserve = i128::MAX as u128;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(i128::MAX as u128);
+        market.amm.set_min_base_asset_reserve(0);
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
-        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
-        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
-        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
-        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+        market
+            .amm
+            .set_ask_base_asset_reserve(new_ask_base_asset_reserve);
+        market
+            .amm
+            .set_bid_base_asset_reserve(new_bid_base_asset_reserve);
+        market
+            .amm
+            .set_ask_quote_asset_reserve(new_ask_quote_asset_reserve);
+        market
+            .amm
+            .set_bid_quote_asset_reserve(new_bid_quote_asset_reserve);
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
@@ -6769,8 +6801,8 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.maker_volume_30d, 100000000);
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
 
-        assert_eq!(base_market.total_spot_fee, 20000);
-        assert_eq!(base_market.spot_fee_pool.scaled_balance, 20000000);
+        assert_eq!(base_market.total_spot_fee(), 20000);
+        assert_eq!(base_market.spot_fee_pool.scaled_balance(), 20000000);
     }
 
     #[test]
@@ -6894,8 +6926,8 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.maker_volume_30d, 160000000);
         assert_eq!(maker_stats.fees.total_fee_rebate, 48000);
 
-        assert_eq!(base_market.total_spot_fee, 32000);
-        assert_eq!(base_market.spot_fee_pool.scaled_balance, 32000000);
+        assert_eq!(base_market.total_spot_fee(), 32000);
+        assert_eq!(base_market.spot_fee_pool.scaled_balance(), 32000000);
     }
 
     #[test]
@@ -7019,8 +7051,8 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.maker_volume_30d, 100000000);
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
 
-        assert_eq!(base_market.total_spot_fee, 20000);
-        assert_eq!(base_market.spot_fee_pool.scaled_balance, 20000000);
+        assert_eq!(base_market.total_spot_fee(), 20000);
+        assert_eq!(base_market.spot_fee_pool.scaled_balance(), 20000000);
     }
 
     #[test]
@@ -7144,8 +7176,8 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.maker_volume_30d, 70000000);
         assert_eq!(maker_stats.fees.total_fee_rebate, 21000);
 
-        assert_eq!(base_market.total_spot_fee, 14000);
-        assert_eq!(base_market.spot_fee_pool.scaled_balance, 14000000);
+        assert_eq!(base_market.total_spot_fee(), 14000);
+        assert_eq!(base_market.spot_fee_pool.scaled_balance(), 14000000);
     }
 
     #[test]
@@ -7677,8 +7709,8 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.maker_volume_30d, 100000000);
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
 
-        assert_eq!(base_market.total_spot_fee, 20000);
-        assert_eq!(base_market.spot_fee_pool.scaled_balance, 20000000);
+        assert_eq!(base_market.total_spot_fee(), 20000);
+        assert_eq!(base_market.spot_fee_pool.scaled_balance(), 20000000);
     }
 
     #[test]
@@ -7814,8 +7846,8 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.maker_volume_30d, 100000000);
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
 
-        assert_eq!(base_market.total_spot_fee, 20000);
-        assert_eq!(base_market.spot_fee_pool.scaled_balance, 20000000);
+        assert_eq!(base_market.total_spot_fee(), 20000);
+        assert_eq!(base_market.spot_fee_pool.scaled_balance(), 20000000);
     }
 
     #[test]
@@ -7941,8 +7973,8 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.maker_volume_30d, 100000000);
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
 
-        assert_eq!(base_market.total_spot_fee, 20000);
-        assert_eq!(base_market.spot_fee_pool.scaled_balance, 20000000);
+        assert_eq!(base_market.total_spot_fee(), 20000);
+        assert_eq!(base_market.spot_fee_pool.scaled_balance(), 20000000);
     }
 
     #[test]
@@ -8064,8 +8096,8 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.maker_volume_30d, 100000000);
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
 
-        assert_eq!(base_market.total_spot_fee, 20000);
-        assert_eq!(base_market.spot_fee_pool.scaled_balance, 20000000);
+        assert_eq!(base_market.total_spot_fee(), 20000);
+        assert_eq!(base_market.spot_fee_pool.scaled_balance(), 20000000);
     }
 
     #[test]
@@ -8187,8 +8219,8 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.maker_volume_30d, 100000000);
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
 
-        assert_eq!(base_market.total_spot_fee, 20000);
-        assert_eq!(base_market.spot_fee_pool.scaled_balance, 20000000);
+        assert_eq!(base_market.total_spot_fee(), 20000);
+        assert_eq!(base_market.spot_fee_pool.scaled_balance(), 20000000);
     }
 
     #[test]
@@ -10406,18 +10438,26 @@ pub mod force_cancel_orders {
             ..PerpMarket::default()
         };
         market.status = MarketStatus::Active;
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
-        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
-        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
-        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
-        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+        market
+            .amm
+            .set_ask_base_asset_reserve(new_ask_base_asset_reserve);
+        market
+            .amm
+            .set_bid_base_asset_reserve(new_bid_base_asset_reserve);
+        market
+            .amm
+            .set_ask_quote_asset_reserve(new_ask_quote_asset_reserve);
+        market
+            .amm
+            .set_bid_quote_asset_reserve(new_bid_quote_asset_reserve);
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
@@ -10696,18 +10736,26 @@ pub mod get_maker_orders_info {
             ..PerpMarket::default()
         };
         market.status = MarketStatus::Active;
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
-        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
-        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
-        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
-        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+        market
+            .amm
+            .set_ask_base_asset_reserve(new_ask_base_asset_reserve);
+        market
+            .amm
+            .set_bid_base_asset_reserve(new_bid_base_asset_reserve);
+        market
+            .amm
+            .set_ask_quote_asset_reserve(new_ask_quote_asset_reserve);
+        market
+            .amm
+            .set_bid_quote_asset_reserve(new_bid_quote_asset_reserve);
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
@@ -10886,18 +10934,26 @@ pub mod get_maker_orders_info {
             ..PerpMarket::default()
         };
         market.status = MarketStatus::Active;
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
-        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
-        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
-        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
-        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+        market
+            .amm
+            .set_ask_base_asset_reserve(new_ask_base_asset_reserve);
+        market
+            .amm
+            .set_bid_base_asset_reserve(new_bid_base_asset_reserve);
+        market
+            .amm
+            .set_ask_quote_asset_reserve(new_ask_quote_asset_reserve);
+        market
+            .amm
+            .set_bid_quote_asset_reserve(new_bid_quote_asset_reserve);
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
@@ -11077,18 +11133,26 @@ pub mod get_maker_orders_info {
             ..PerpMarket::default()
         };
         market.status = MarketStatus::Active;
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
-        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
-        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
-        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
-        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+        market
+            .amm
+            .set_ask_base_asset_reserve(new_ask_base_asset_reserve);
+        market
+            .amm
+            .set_bid_base_asset_reserve(new_bid_base_asset_reserve);
+        market
+            .amm
+            .set_ask_quote_asset_reserve(new_ask_quote_asset_reserve);
+        market
+            .amm
+            .set_bid_quote_asset_reserve(new_bid_quote_asset_reserve);
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
@@ -11254,18 +11318,26 @@ pub mod get_maker_orders_info {
             ..PerpMarket::default()
         };
         market.status = MarketStatus::Active;
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
-        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
-        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
-        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
-        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+        market
+            .amm
+            .set_ask_base_asset_reserve(new_ask_base_asset_reserve);
+        market
+            .amm
+            .set_bid_base_asset_reserve(new_bid_base_asset_reserve);
+        market
+            .amm
+            .set_ask_quote_asset_reserve(new_ask_quote_asset_reserve);
+        market
+            .amm
+            .set_bid_quote_asset_reserve(new_bid_quote_asset_reserve);
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
@@ -11505,18 +11577,26 @@ pub mod get_maker_orders_info {
             ..PerpMarket::default()
         };
         market.status = MarketStatus::Active;
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
-        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
-        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
-        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
-        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+        market
+            .amm
+            .set_ask_base_asset_reserve(new_ask_base_asset_reserve);
+        market
+            .amm
+            .set_bid_base_asset_reserve(new_bid_base_asset_reserve);
+        market
+            .amm
+            .set_ask_quote_asset_reserve(new_ask_quote_asset_reserve);
+        market
+            .amm
+            .set_bid_quote_asset_reserve(new_bid_quote_asset_reserve);
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
@@ -11698,18 +11778,26 @@ pub mod get_maker_orders_info {
             ..PerpMarket::default()
         };
         market.status = MarketStatus::Active;
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
-        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
-        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
-        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
-        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+        market
+            .amm
+            .set_ask_base_asset_reserve(new_ask_base_asset_reserve);
+        market
+            .amm
+            .set_bid_base_asset_reserve(new_bid_base_asset_reserve);
+        market
+            .amm
+            .set_ask_quote_asset_reserve(new_ask_quote_asset_reserve);
+        market
+            .amm
+            .set_bid_quote_asset_reserve(new_bid_quote_asset_reserve);
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 

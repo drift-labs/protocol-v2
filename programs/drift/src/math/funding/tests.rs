@@ -212,7 +212,7 @@ fn capped_sym_funding_test() {
     assert_eq!(short_funding, 24222164);
 
     // only spend 1/3 of fee pool, ((.5-.416667)) * 3 < .25
-    assert_eq!(market.amm.total_fee_minus_distributions, 416667);
+    assert_eq!(market.amm.total_fee_minus_distributions(), 416667);
 
     // more longs than shorts, positive funding, amm earns funding
     market = PerpMarket {
@@ -246,7 +246,7 @@ fn capped_sym_funding_test() {
 
     assert_eq!(long_funding, balanced_funding);
     assert_eq!(long_funding, short_funding);
-    let new_fees = market.amm.total_fee_minus_distributions;
+    let new_fees = market.amm.total_fee_minus_distributions();
     assert!(new_fees > QUOTE_PRECISION as i128 / 2);
     assert_eq!(new_fees, 1012295); // made over $.50
 }
@@ -455,7 +455,7 @@ fn unsettled_funding_pnl() {
     )
     .unwrap();
     assert_eq!(block_funding_rate_update, false);
-    assert_eq!(market.amm.total_fee_minus_distributions, 99999000000);
+    assert_eq!(market.amm.total_fee_minus_distributions(), 99999000000);
 
     let did_succeed = update_funding_rate(
         0,
@@ -477,14 +477,14 @@ fn unsettled_funding_pnl() {
         51000000
     );
 
-    assert_eq!(market.amm.cumulative_funding_rate_long, -140002666); // negative funding
-    assert_eq!(market.amm.cumulative_funding_rate_short, -140002666);
+    assert_eq!(market.amm.cumulative_funding_rate_long(), -140002666); // negative funding
+    assert_eq!(market.amm.cumulative_funding_rate_short(), -140002666);
     assert_eq!(market.amm.last_funding_rate, -140002666);
     assert_eq!(market.amm.last_24h_avg_funding_rate, -140002666 / 24 + 1);
     assert_eq!(market.amm.last_funding_rate_ts, now);
     assert_eq!(market.amm.net_revenue_since_last_funding, 0); // back to 0
-    assert_eq!(market.amm.total_fee_minus_distributions, 100070722677); //71.722677 gain
-    assert_eq!(market.amm.total_fee, 0);
+    assert_eq!(market.amm.total_fee_minus_distributions(), 100070722677); //71.722677 gain
+    assert_eq!(market.amm.total_fee(), 0);
 
     assert_ne!(market.amm.net_unsettled_funding_pnl, 0); // important: imbalanced market adds funding rev
     assert_eq!(market.amm.net_unsettled_funding_pnl, -71722677); // users up

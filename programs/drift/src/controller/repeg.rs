@@ -49,7 +49,7 @@ pub fn repeg(
 ) -> DriftResult<i128> {
     // for adhoc admin only repeg
 
-    if new_peg_candidate == market.amm.peg_multiplier {
+    if new_peg_candidate == market.amm.peg_multiplier() {
         return Err(ErrorCode::InvalidRepegRedundant);
     }
     let (terminal_price_before, _terminal_quote_reserves, _terminal_base_reserves) =
@@ -91,7 +91,7 @@ pub fn repeg(
     // modify market's total fee change and peg change
     let cost_applied = apply_cost_to_market(market, adjustment_cost, true)?;
     if cost_applied {
-        market.amm.peg_multiplier = new_peg_candidate;
+        market.amm.set_peg_multiplier(new_peg_candidate);
     } else {
         return Err(ErrorCode::InvalidRepegProfitability);
     }
@@ -201,12 +201,14 @@ pub fn _update_amm(
                 cp_curve::update_k(
                     market,
                     &UpdateKResult {
-                        sqrt_k: repegged_market.amm.sqrt_k,
-                        base_asset_reserve: repegged_market.amm.base_asset_reserve,
-                        quote_asset_reserve: repegged_market.amm.quote_asset_reserve,
+                        sqrt_k: repegged_market.amm.sqrt_k(),
+                        base_asset_reserve: repegged_market.amm.base_asset_reserve(),
+                        quote_asset_reserve: repegged_market.amm.quote_asset_reserve(),
                     },
                 )?;
-                market.amm.peg_multiplier = repegged_market.amm.peg_multiplier;
+                market
+                    .amm
+                    .set_peg_multiplier(repegged_market.amm.peg_multiplier());
                 amm_update_cost = repegged_cost;
             } else {
                 msg!("amm_not_successfully_updated = true (repeg cost not applied for check_lower_bound={})", check_lower_bound);
@@ -291,28 +293,34 @@ pub fn apply_cost_to_market(
     // Reduce pnl to quote asset precision and take the absolute value
     if cost > 0 {
         let new_total_fee_minus_distributions =
-            market.amm.total_fee_minus_distributions.safe_sub(cost)?;
+            market.amm.total_fee_minus_distributions().safe_sub(cost)?;
 
         let fee_reserved_for_protocol = repeg::get_total_fee_lower_bound(market)?
-            .safe_add(market.amm.total_liquidation_fee)?
-            .safe_sub(market.amm.total_fee_withdrawn)?
+            .safe_add(market.amm.total_liquidation_fee())?
+            .safe_sub(market.amm.total_fee_withdrawn())?
             .cast::<i128>()?;
         // Only a portion of the protocol fees are allocated to repegging
         // This checks that the total_fee_minus_distributions does not decrease too much after repeg
         if check_lower_bound {
             if new_total_fee_minus_distributions >= fee_reserved_for_protocol {
-                market.amm.total_fee_minus_distributions = new_total_fee_minus_distributions;
+                market
+                    .amm
+                    .set_total_fee_minus_distributions(new_total_fee_minus_distributions);
             } else {
                 return Ok(false);
             }
         } else {
-            market.amm.total_fee_minus_distributions = new_total_fee_minus_distributions;
+            market
+                .amm
+                .set_total_fee_minus_distributions(new_total_fee_minus_distributions);
         }
     } else {
-        market.amm.total_fee_minus_distributions = market
-            .amm
-            .total_fee_minus_distributions
-            .safe_add(cost.abs())?;
+        market.amm.set_total_fee_minus_distributions(
+            market
+                .amm
+                .total_fee_minus_distributions()
+                .safe_add(cost.abs())?,
+        );
     }
 
     market.amm.net_revenue_since_last_funding = market
@@ -349,24 +357,24 @@ pub fn settle_expired_market(
     )?;
 
     validate!(
-        market.amm.base_asset_amount_with_unsettled_lp == 0,
+        market.amm.base_asset_amount_with_unsettled_lp() == 0,
         ErrorCode::MarketSettlementRequiresSettledLP,
         "Outstanding LP in market"
     )?;
 
     let spot_market = &mut spot_market_map.get_ref_mut(&QUOTE_SPOT_MARKET_INDEX)?;
     let fee_reserved_for_protocol = repeg::get_total_fee_lower_bound(market)?
-        .safe_add(market.amm.total_liquidation_fee)?
-        .safe_sub(market.amm.total_fee_withdrawn)?
+        .safe_add(market.amm.total_liquidation_fee())?
+        .safe_sub(market.amm.total_fee_withdrawn())?
         .cast::<i128>()?;
     let budget = market
         .amm
-        .total_fee_minus_distributions
+        .total_fee_minus_distributions()
         .safe_sub(fee_reserved_for_protocol)?
         .max(0);
 
     let available_fee_pool = get_token_amount(
-        market.amm.fee_pool.scaled_balance,
+        market.amm.fee_pool.scaled_balance(),
         spot_market,
         &SpotBalanceType::Deposit,
     )?
@@ -400,7 +408,7 @@ pub fn settle_expired_market(
             K_BPS_UPDATE_SCALE,
         )?;
 
-        let new_sqrt_k = bn::U192::from(market.amm.sqrt_k)
+        let new_sqrt_k = bn::U192::from(market.amm.sqrt_k())
             .safe_mul(bn::U192::from(k_scale_numerator))?
             .safe_div(bn::U192::from(k_scale_denominator))?
             .min(bn::U192::from(MAX_SQRT_K));
@@ -447,13 +455,13 @@ pub fn settle_expired_market(
     )?;
 
     let pnl_pool_token_amount = get_token_amount(
-        market.pnl_pool.scaled_balance,
+        market.pnl_pool.scaled_balance(),
         spot_market,
         market.pnl_pool.balance_type(),
     )?;
 
     let fee_pool_token_amount = get_token_amount(
-        market.amm.fee_pool.scaled_balance,
+        market.amm.fee_pool.scaled_balance(),
         spot_market,
         market.amm.fee_pool.balance_type(),
     )?;

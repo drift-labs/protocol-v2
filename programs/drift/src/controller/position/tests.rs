@@ -76,7 +76,7 @@ fn amm_pool_balance_liq_fees_example() {
         decimals: 6,
         ..SpotMarket::default()
     };
-    spot_market.deposit_balance = 10_u128.pow(19_u32);
+    spot_market.set_deposit_balance(10_u128.pow(19_u32));
     spot_market.deposit_token_twap = 10_u64.pow(16_u32);
 
     let spot_position = SpotPosition::default();
@@ -85,11 +85,14 @@ fn amm_pool_balance_liq_fees_example() {
         let mut perp_market = perp_market_loader.load_mut().unwrap();
         // assert_eq!(perp_market.amm.oracle, Pubkey::default());
 
-        assert_eq!(perp_market.pnl_pool.scaled_balance, 0);
-        assert_eq!(perp_market.amm.fee_pool.scaled_balance, 1349764971875250);
-        let fee_before = perp_market.amm.fee_pool.scaled_balance;
+        assert_eq!(perp_market.pnl_pool.scaled_balance(), 0);
+        assert_eq!(perp_market.amm.fee_pool.scaled_balance(), 1349764971875250);
+        let fee_before = perp_market.amm.fee_pool.scaled_balance();
 
-        assert_eq!(perp_market.amm.total_fee_minus_distributions, 1276488252050);
+        assert_eq!(
+            perp_market.amm.total_fee_minus_distributions(),
+            1276488252050
+        );
 
         let new_total_fee_minus_distributions =
             crate::controller::amm::calculate_perp_market_amm_summary_stats(
@@ -100,11 +103,20 @@ fn amm_pool_balance_liq_fees_example() {
             )
             .unwrap();
         let fee_difference = new_total_fee_minus_distributions
-            .safe_sub(perp_market.amm.total_fee_minus_distributions)
+            .safe_sub(perp_market.amm.total_fee_minus_distributions())
             .unwrap();
-        perp_market.amm.total_fee = perp_market.amm.total_fee.saturating_add(fee_difference);
-        perp_market.amm.total_mm_fee = perp_market.amm.total_mm_fee.saturating_add(fee_difference);
-        perp_market.amm.total_fee_minus_distributions = new_total_fee_minus_distributions;
+        perp_market
+            .amm
+            .set_total_fee(perp_market.amm.total_fee().saturating_add(fee_difference));
+        perp_market.amm.set_total_mm_fee(
+            perp_market
+                .amm
+                .total_mm_fee()
+                .saturating_add(fee_difference),
+        );
+        perp_market
+            .amm
+            .set_total_fee_minus_distributions(new_total_fee_minus_distributions);
 
         assert_eq!(new_total_fee_minus_distributions, 640881949608);
 
@@ -138,7 +150,7 @@ fn amm_pool_balance_liq_fees_example() {
         assert_eq!(fee_pool_token_amount, 1276764026200); // 1.27M
 
         // assert_eq!(perp_market.amm.fee_pool.scaled_balance, fee_before + 1000000000); // pre change
-        assert!(perp_market.amm.fee_pool.scaled_balance < fee_before); // post change
+        assert!(perp_market.amm.fee_pool.scaled_balance() < fee_before); // post change
     }
 }
 
@@ -223,7 +235,7 @@ fn amm_pred_expiry_price_yes_market_example() {
     {
         let mut perp_market = perp_market_loader.load_mut().unwrap();
         perp_market.amm.historical_oracle_data.last_oracle_price = 1_000_000;
-        perp_market.amm.base_asset_amount_with_amm = 0;
+        perp_market.amm.set_base_asset_amount_with_amm(0);
 
         market_index = perp_market.market_index;
         assert_eq!(perp_market.expiry_ts, 1725559200);
@@ -336,7 +348,7 @@ fn amm_pred_expiry_price_market_example() {
     {
         let mut perp_market = perp_market_loader.load_mut().unwrap();
         market_index = perp_market.market_index;
-        perp_market.amm.base_asset_amount_with_amm = 0;
+        perp_market.amm.set_base_asset_amount_with_amm(0);
         perp_market.amm.historical_oracle_data.last_oracle_price = 1;
 
         assert_eq!(perp_market.expiry_ts, 1725559200);
@@ -511,15 +523,18 @@ fn amm_pred_market_example() {
     assert_eq!(max_bids, 3_824_624_394_874); // 3824 shares
     assert_eq!(max_asks, -5_241_195_799_744); // -5000 shares
 
-    assert_eq!(perp_market.amm.sqrt_k, 56_649_660_613_272);
+    assert_eq!(perp_market.amm.sqrt_k(), 56_649_660_613_272);
 
     let (optimal_peg, fee_budget, _check_lower_bound) =
         repeg::calculate_optimal_peg_and_budget(&perp_market, &mm_oracle_price_data).unwrap();
 
-    assert_eq!(perp_market.amm.terminal_quote_asset_reserve, 56405211622548);
-    assert_eq!(perp_market.amm.quote_asset_reserve, 56933567973708);
     assert_eq!(
-        perp_market.amm.quote_asset_reserve - perp_market.amm.terminal_quote_asset_reserve,
+        perp_market.amm.terminal_quote_asset_reserve(),
+        56405211622548
+    );
+    assert_eq!(perp_market.amm.quote_asset_reserve(), 56933567973708);
+    assert_eq!(
+        perp_market.amm.quote_asset_reserve() - perp_market.amm.terminal_quote_asset_reserve(),
         528356351160
     );
 
@@ -589,10 +604,10 @@ fn amm_ref_price_decay_tail_test() {
     assert_eq!(max_ref_offset, 10000);
 
     let liquidity_ratio = crate::math::amm_spread::calculate_inventory_liquidity_ratio(
-        perp_market.amm.base_asset_amount_with_amm,
-        perp_market.amm.base_asset_reserve,
-        perp_market.amm.max_base_asset_reserve,
-        perp_market.amm.min_base_asset_reserve,
+        perp_market.amm.base_asset_amount_with_amm(),
+        perp_market.amm.base_asset_reserve(),
+        perp_market.amm.max_base_asset_reserve(),
+        perp_market.amm.min_base_asset_reserve(),
     )
     .unwrap();
 
@@ -766,10 +781,10 @@ fn amm_ref_price_offset_decay_logic() {
     let max_ref_offset = perp_market.amm.get_max_reference_price_offset().unwrap();
 
     let liquidity_ratio = crate::math::amm_spread::calculate_inventory_liquidity_ratio(
-        perp_market.amm.base_asset_amount_with_amm,
-        perp_market.amm.base_asset_reserve,
-        perp_market.amm.max_base_asset_reserve,
-        perp_market.amm.min_base_asset_reserve,
+        perp_market.amm.base_asset_amount_with_amm(),
+        perp_market.amm.base_asset_reserve(),
+        perp_market.amm.max_base_asset_reserve(),
+        perp_market.amm.min_base_asset_reserve(),
     )
     .unwrap();
 
@@ -941,10 +956,10 @@ fn amm_negative_ref_price_offset_decay_logic() {
     let max_ref_offset = perp_market.amm.get_max_reference_price_offset().unwrap();
 
     let liquidity_ratio = crate::math::amm_spread::calculate_inventory_liquidity_ratio(
-        perp_market.amm.base_asset_amount_with_amm,
-        perp_market.amm.base_asset_reserve,
-        perp_market.amm.max_base_asset_reserve,
-        perp_market.amm.min_base_asset_reserve,
+        perp_market.amm.base_asset_amount_with_amm(),
+        perp_market.amm.base_asset_reserve(),
+        perp_market.amm.max_base_asset_reserve(),
+        perp_market.amm.min_base_asset_reserve(),
     )
     .unwrap();
 
@@ -1101,7 +1116,7 @@ fn amm_perp_ref_offset() {
         AccountLoader::try_from(&perp_market_account_info).unwrap();
     let mut perp_market = perp_market_loader.load_mut().unwrap();
 
-    perp_market.amm.base_asset_amount_with_amm = 40000000000; // override old LP related fields
+    perp_market.amm.set_base_asset_amount_with_amm(40000000000); // override old LP related fields
 
     let reserve_price = perp_market.amm.reserve_price().unwrap();
     let (b1, a1) = perp_market.amm.bid_ask_price(reserve_price).unwrap();
@@ -1121,16 +1136,16 @@ fn amm_perp_ref_offset() {
             .last_oracle_price_twap_ts,
         1741207620
     );
-    assert_eq!(perp_market.amm.bid_base_asset_reserve, 4674304094737516);
-    assert_eq!(perp_market.amm.ask_base_asset_reserve, 4631420570932586);
+    assert_eq!(perp_market.amm.bid_base_asset_reserve(), 4674304094737516);
+    assert_eq!(perp_market.amm.ask_base_asset_reserve(), 4631420570932586);
 
     let max_ref_offset = perp_market.amm.get_max_reference_price_offset().unwrap();
 
     let liquidity_ratio = crate::math::amm_spread::calculate_inventory_liquidity_ratio(
-        perp_market.amm.base_asset_amount_with_amm,
-        perp_market.amm.base_asset_reserve,
-        perp_market.amm.max_base_asset_reserve,
-        perp_market.amm.min_base_asset_reserve,
+        perp_market.amm.base_asset_amount_with_amm(),
+        perp_market.amm.base_asset_reserve(),
+        perp_market.amm.max_base_asset_reserve(),
+        perp_market.amm.min_base_asset_reserve(),
     )
     .unwrap();
 
@@ -1205,8 +1220,8 @@ fn amm_perp_ref_offset() {
     assert_eq!(perp_market.amm.max_spread, 90000);
 
     assert_eq!(r, 7101599);
-    assert_eq!(perp_market.amm.bid_base_asset_reserve, 4675159724262455);
-    assert_eq!(perp_market.amm.ask_base_asset_reserve, 4672813088646692);
+    assert_eq!(perp_market.amm.bid_base_asset_reserve(), 4675159724262455);
+    assert_eq!(perp_market.amm.ask_base_asset_reserve(), 4672813088646692);
 
     crate::validation::perp_market::validate_perp_market(&perp_market).unwrap();
 
@@ -1345,14 +1360,14 @@ fn increase_long_from_no_position() {
     assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
     assert_eq!(market.number_of_users_with_base, 1);
-    assert_eq!(market.amm.base_asset_amount_long, 1);
-    assert_eq!(market.amm.base_asset_amount_short, 0);
-    assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-    assert_eq!(market.amm.quote_asset_amount, -1);
-    assert_eq!(market.amm.quote_entry_amount_long, -1);
-    assert_eq!(market.amm.quote_entry_amount_short, 0);
-    assert_eq!(market.amm.quote_break_even_amount_long, -1);
-    assert_eq!(market.amm.quote_break_even_amount_short, 0);
+    assert_eq!(market.amm.base_asset_amount_long(), 1);
+    assert_eq!(market.amm.base_asset_amount_short(), 0);
+    assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+    assert_eq!(market.amm.quote_asset_amount(), -1);
+    assert_eq!(market.amm.quote_entry_amount_long(), -1);
+    assert_eq!(market.amm.quote_entry_amount_short(), 0);
+    assert_eq!(market.amm.quote_break_even_amount_long(), -1);
+    assert_eq!(market.amm.quote_break_even_amount_short(), 0);
 }
 
 #[test]
@@ -1382,13 +1397,13 @@ fn increase_short_from_no_position() {
     assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
     assert_eq!(market.number_of_users_with_base, 1);
-    assert_eq!(market.amm.base_asset_amount_long, 0);
-    assert_eq!(market.amm.base_asset_amount_short, -1);
-    assert_eq!(market.amm.quote_asset_amount, 1);
-    assert_eq!(market.amm.quote_entry_amount_long, 0);
-    assert_eq!(market.amm.quote_entry_amount_short, 1);
-    assert_eq!(market.amm.quote_break_even_amount_long, 0);
-    assert_eq!(market.amm.quote_break_even_amount_short, 1);
+    assert_eq!(market.amm.base_asset_amount_long(), 0);
+    assert_eq!(market.amm.base_asset_amount_short(), -1);
+    assert_eq!(market.amm.quote_asset_amount(), 1);
+    assert_eq!(market.amm.quote_entry_amount_long(), 0);
+    assert_eq!(market.amm.quote_entry_amount_short(), 1);
+    assert_eq!(market.amm.quote_break_even_amount_long(), 0);
+    assert_eq!(market.amm.quote_break_even_amount_short(), 1);
 }
 
 #[test]
@@ -1431,15 +1446,15 @@ fn increase_long() {
     assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
     assert_eq!(market.number_of_users_with_base, 1);
-    assert_eq!(market.amm.base_asset_amount_long, 2);
-    assert_eq!(market.amm.base_asset_amount_short, 0);
-    assert_eq!(market.amm.quote_asset_amount, -2);
-    assert_eq!(market.amm.quote_entry_amount_long, -2);
-    assert_eq!(market.amm.quote_entry_amount_short, 0);
-    assert_eq!(market.amm.quote_break_even_amount_long, -3);
-    assert_eq!(market.amm.quote_break_even_amount_short, 0);
+    assert_eq!(market.amm.base_asset_amount_long(), 2);
+    assert_eq!(market.amm.base_asset_amount_short(), 0);
+    assert_eq!(market.amm.quote_asset_amount(), -2);
+    assert_eq!(market.amm.quote_entry_amount_long(), -2);
+    assert_eq!(market.amm.quote_entry_amount_short(), 0);
+    assert_eq!(market.amm.quote_break_even_amount_long(), -3);
+    assert_eq!(market.amm.quote_break_even_amount_short(), 0);
 
-    assert_eq!(market.amm.base_asset_amount_with_amm, 1); // todo: update_position_and_market doesnt modify this properly?
+    assert_eq!(market.amm.base_asset_amount_with_amm(), 1); // todo: update_position_and_market doesnt modify this properly?
 }
 
 #[test]
@@ -1481,13 +1496,13 @@ fn increase_short() {
     assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
     assert_eq!(market.number_of_users_with_base, 1);
-    assert_eq!(market.amm.base_asset_amount_long, 0);
-    assert_eq!(market.amm.base_asset_amount_short, -2);
-    assert_eq!(market.amm.quote_asset_amount, 2);
-    assert_eq!(market.amm.quote_entry_amount_long, 0);
-    assert_eq!(market.amm.quote_entry_amount_short, 2);
-    assert_eq!(market.amm.quote_break_even_amount_long, 0);
-    assert_eq!(market.amm.quote_break_even_amount_short, 3);
+    assert_eq!(market.amm.base_asset_amount_long(), 0);
+    assert_eq!(market.amm.base_asset_amount_short(), -2);
+    assert_eq!(market.amm.quote_asset_amount(), 2);
+    assert_eq!(market.amm.quote_entry_amount_long(), 0);
+    assert_eq!(market.amm.quote_entry_amount_short(), 2);
+    assert_eq!(market.amm.quote_break_even_amount_long(), 0);
+    assert_eq!(market.amm.quote_break_even_amount_short(), 3);
 }
 
 #[test]
@@ -1530,14 +1545,14 @@ fn reduce_long_profitable() {
     assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
     assert_eq!(market.number_of_users_with_base, 1);
-    assert_eq!(market.amm.base_asset_amount_long, 9);
-    assert_eq!(market.amm.base_asset_amount_short, 0);
+    assert_eq!(market.amm.base_asset_amount_long(), 9);
+    assert_eq!(market.amm.base_asset_amount_short(), 0);
     // assert_eq!(market.amm.base_asset_amount_with_amm, 9);
-    assert_eq!(market.amm.quote_asset_amount, -5);
-    assert_eq!(market.amm.quote_entry_amount_long, -9);
-    assert_eq!(market.amm.quote_entry_amount_short, 0);
-    assert_eq!(market.amm.quote_break_even_amount_long, -11);
-    assert_eq!(market.amm.quote_break_even_amount_short, 0);
+    assert_eq!(market.amm.quote_asset_amount(), -5);
+    assert_eq!(market.amm.quote_entry_amount_long(), -9);
+    assert_eq!(market.amm.quote_entry_amount_short(), 0);
+    assert_eq!(market.amm.quote_break_even_amount_long(), -11);
+    assert_eq!(market.amm.quote_break_even_amount_short(), 0);
 }
 
 #[test]
@@ -1580,14 +1595,14 @@ fn reduce_long_unprofitable() {
     assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
     assert_eq!(market.number_of_users_with_base, 1);
-    assert_eq!(market.amm.base_asset_amount_long, 9);
-    assert_eq!(market.amm.base_asset_amount_short, 0);
+    assert_eq!(market.amm.base_asset_amount_long(), 9);
+    assert_eq!(market.amm.base_asset_amount_short(), 0);
     // assert_eq!(market.amm.base_asset_amount_with_amm, 9);
-    assert_eq!(market.amm.quote_asset_amount, -95);
-    assert_eq!(market.amm.quote_entry_amount_long, -90);
-    assert_eq!(market.amm.quote_entry_amount_short, 0);
-    assert_eq!(market.amm.quote_break_even_amount_long, -180);
-    assert_eq!(market.amm.quote_break_even_amount_short, 0);
+    assert_eq!(market.amm.quote_asset_amount(), -95);
+    assert_eq!(market.amm.quote_entry_amount_long(), -90);
+    assert_eq!(market.amm.quote_entry_amount_short(), 0);
+    assert_eq!(market.amm.quote_break_even_amount_long(), -180);
+    assert_eq!(market.amm.quote_break_even_amount_short(), 0);
 }
 
 #[test]
@@ -1631,14 +1646,14 @@ fn flip_long_to_short_profitable() {
     assert_eq!(existing_position.last_cumulative_funding_rate, 2);
 
     assert_eq!(market.number_of_users_with_base, 1);
-    assert_eq!(market.amm.base_asset_amount_long, 0);
-    assert_eq!(market.amm.base_asset_amount_short, -1);
+    assert_eq!(market.amm.base_asset_amount_long(), 0);
+    assert_eq!(market.amm.base_asset_amount_short(), -1);
     // assert_eq!(market.amm.base_asset_amount_with_amm, -1);
-    assert_eq!(market.amm.quote_asset_amount, 12);
-    assert_eq!(market.amm.quote_break_even_amount_long, 0);
-    assert_eq!(market.amm.quote_break_even_amount_short, 2);
-    assert_eq!(market.amm.quote_entry_amount_long, 0);
-    assert_eq!(market.amm.quote_entry_amount_short, 2);
+    assert_eq!(market.amm.quote_asset_amount(), 12);
+    assert_eq!(market.amm.quote_break_even_amount_long(), 0);
+    assert_eq!(market.amm.quote_break_even_amount_short(), 2);
+    assert_eq!(market.amm.quote_entry_amount_long(), 0);
+    assert_eq!(market.amm.quote_entry_amount_short(), 2);
 }
 
 #[test]
@@ -1683,14 +1698,14 @@ fn flip_long_to_short_unprofitable() {
     assert_eq!(existing_position.last_cumulative_funding_rate, 2);
 
     assert_eq!(market.number_of_users_with_base, 1);
-    assert_eq!(market.amm.base_asset_amount_long, 0);
-    assert_eq!(market.amm.base_asset_amount_short, -1);
+    assert_eq!(market.amm.base_asset_amount_long(), 0);
+    assert_eq!(market.amm.base_asset_amount_short(), -1);
     // assert_eq!(market.amm.base_asset_amount_with_amm, -1);
-    assert_eq!(market.amm.quote_asset_amount, 0);
-    assert_eq!(market.amm.quote_break_even_amount_long, 0);
-    assert_eq!(market.amm.quote_break_even_amount_short, 1);
-    assert_eq!(market.amm.quote_entry_amount_long, 0);
-    assert_eq!(market.amm.quote_entry_amount_short, 1);
+    assert_eq!(market.amm.quote_asset_amount(), 0);
+    assert_eq!(market.amm.quote_break_even_amount_long(), 0);
+    assert_eq!(market.amm.quote_break_even_amount_short(), 1);
+    assert_eq!(market.amm.quote_entry_amount_long(), 0);
+    assert_eq!(market.amm.quote_entry_amount_short(), 1);
 }
 
 #[test]
@@ -1732,13 +1747,13 @@ fn reduce_short_profitable() {
     assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
     assert_eq!(market.number_of_users_with_base, 1);
-    assert_eq!(market.amm.base_asset_amount_long, 0);
-    assert_eq!(market.amm.base_asset_amount_short, -9);
-    assert_eq!(market.amm.quote_asset_amount, 95);
-    assert_eq!(market.amm.quote_entry_amount_long, 0);
-    assert_eq!(market.amm.quote_entry_amount_short, 90);
-    assert_eq!(market.amm.quote_break_even_amount_long, 0);
-    assert_eq!(market.amm.quote_break_even_amount_short, 180);
+    assert_eq!(market.amm.base_asset_amount_long(), 0);
+    assert_eq!(market.amm.base_asset_amount_short(), -9);
+    assert_eq!(market.amm.quote_asset_amount(), 95);
+    assert_eq!(market.amm.quote_entry_amount_long(), 0);
+    assert_eq!(market.amm.quote_entry_amount_short(), 90);
+    assert_eq!(market.amm.quote_break_even_amount_long(), 0);
+    assert_eq!(market.amm.quote_break_even_amount_short(), 180);
 }
 
 #[test]
@@ -1780,13 +1795,13 @@ fn decrease_short_unprofitable() {
     assert_eq!(existing_position.last_cumulative_funding_rate, 1);
 
     assert_eq!(market.number_of_users_with_base, 1);
-    assert_eq!(market.amm.base_asset_amount_long, 0);
-    assert_eq!(market.amm.base_asset_amount_short, -9);
-    assert_eq!(market.amm.quote_asset_amount, 85);
-    assert_eq!(market.amm.quote_entry_amount_long, 0);
-    assert_eq!(market.amm.quote_entry_amount_short, 90);
-    assert_eq!(market.amm.quote_break_even_amount_long, 0);
-    assert_eq!(market.amm.quote_break_even_amount_short, 180);
+    assert_eq!(market.amm.base_asset_amount_long(), 0);
+    assert_eq!(market.amm.base_asset_amount_short(), -9);
+    assert_eq!(market.amm.quote_asset_amount(), 85);
+    assert_eq!(market.amm.quote_entry_amount_long(), 0);
+    assert_eq!(market.amm.quote_entry_amount_short(), 90);
+    assert_eq!(market.amm.quote_break_even_amount_long(), 0);
+    assert_eq!(market.amm.quote_break_even_amount_short(), 180);
 }
 
 #[test]
@@ -1830,14 +1845,14 @@ fn flip_short_to_long_profitable() {
     assert_eq!(existing_position.last_cumulative_funding_rate, 2);
 
     assert_eq!(market.number_of_users_with_base, 1);
-    assert_eq!(market.amm.base_asset_amount_long, 1);
-    assert_eq!(market.amm.base_asset_amount_short, 0);
+    assert_eq!(market.amm.base_asset_amount_long(), 1);
+    assert_eq!(market.amm.base_asset_amount_short(), 0);
     // assert_eq!(market.amm.base_asset_amount_with_amm, 1);
-    assert_eq!(market.amm.quote_asset_amount, 40);
-    assert_eq!(market.amm.quote_entry_amount_long, -6);
-    assert_eq!(market.amm.quote_entry_amount_short, 0);
-    assert_eq!(market.amm.quote_break_even_amount_long, -6);
-    assert_eq!(market.amm.quote_break_even_amount_short, 0);
+    assert_eq!(market.amm.quote_asset_amount(), 40);
+    assert_eq!(market.amm.quote_entry_amount_long(), -6);
+    assert_eq!(market.amm.quote_entry_amount_short(), 0);
+    assert_eq!(market.amm.quote_break_even_amount_long(), -6);
+    assert_eq!(market.amm.quote_break_even_amount_short(), 0);
 }
 
 #[test]
@@ -1881,14 +1896,14 @@ fn flip_short_to_long_unprofitable() {
     assert_eq!(existing_position.last_cumulative_funding_rate, 2);
 
     assert_eq!(market.number_of_users_with_base, 1);
-    assert_eq!(market.amm.base_asset_amount_long, 1);
-    assert_eq!(market.amm.base_asset_amount_short, 0);
+    assert_eq!(market.amm.base_asset_amount_long(), 1);
+    assert_eq!(market.amm.base_asset_amount_short(), 0);
     // assert_eq!(market.amm.base_asset_amount_with_amm, 1);
-    assert_eq!(market.amm.quote_asset_amount, -20);
-    assert_eq!(market.amm.quote_entry_amount_long, -11);
-    assert_eq!(market.amm.quote_entry_amount_short, 0);
-    assert_eq!(market.amm.quote_break_even_amount_long, -11);
-    assert_eq!(market.amm.quote_break_even_amount_short, 0);
+    assert_eq!(market.amm.quote_asset_amount(), -20);
+    assert_eq!(market.amm.quote_entry_amount_long(), -11);
+    assert_eq!(market.amm.quote_entry_amount_short(), 0);
+    assert_eq!(market.amm.quote_break_even_amount_long(), -11);
+    assert_eq!(market.amm.quote_break_even_amount_short(), 0);
 }
 
 #[test]
@@ -1930,15 +1945,15 @@ fn close_long_profitable() {
     assert_eq!(existing_position.last_cumulative_funding_rate, 0);
 
     assert_eq!(market.number_of_users_with_base, 1);
-    assert_eq!(market.amm.base_asset_amount_long, 1);
-    assert_eq!(market.amm.base_asset_amount_short, 0);
+    assert_eq!(market.amm.base_asset_amount_long(), 1);
+    assert_eq!(market.amm.base_asset_amount_short(), 0);
     // assert_eq!(market.amm.base_asset_amount_with_amm, 1);
     // not 5 because quote asset amount long was -11 not -10 before
-    assert_eq!(market.amm.quote_asset_amount, 4);
-    assert_eq!(market.amm.quote_entry_amount_long, -1);
-    assert_eq!(market.amm.quote_entry_amount_short, 0);
-    assert_eq!(market.amm.quote_break_even_amount_long, -1);
-    assert_eq!(market.amm.quote_break_even_amount_short, 0);
+    assert_eq!(market.amm.quote_asset_amount(), 4);
+    assert_eq!(market.amm.quote_entry_amount_long(), -1);
+    assert_eq!(market.amm.quote_entry_amount_short(), 0);
+    assert_eq!(market.amm.quote_break_even_amount_long(), -1);
+    assert_eq!(market.amm.quote_break_even_amount_short(), 0);
 }
 
 #[test]
@@ -1980,14 +1995,14 @@ fn close_long_unprofitable() {
     assert_eq!(existing_position.last_cumulative_funding_rate, 0);
 
     assert_eq!(market.number_of_users_with_base, 1);
-    assert_eq!(market.amm.base_asset_amount_long, 1);
-    assert_eq!(market.amm.base_asset_amount_short, 0);
+    assert_eq!(market.amm.base_asset_amount_long(), 1);
+    assert_eq!(market.amm.base_asset_amount_short(), 0);
     // assert_eq!(market.amm.base_asset_amount_with_amm, 1);
-    assert_eq!(market.amm.quote_asset_amount, -6);
-    assert_eq!(market.amm.quote_entry_amount_long, -1);
-    assert_eq!(market.amm.quote_entry_amount_short, 0);
-    assert_eq!(market.amm.quote_break_even_amount_long, -1);
-    assert_eq!(market.amm.quote_break_even_amount_short, 0);
+    assert_eq!(market.amm.quote_asset_amount(), -6);
+    assert_eq!(market.amm.quote_entry_amount_long(), -1);
+    assert_eq!(market.amm.quote_entry_amount_short(), 0);
+    assert_eq!(market.amm.quote_break_even_amount_long(), -1);
+    assert_eq!(market.amm.quote_break_even_amount_short(), 0);
 }
 
 #[test]
@@ -2028,13 +2043,13 @@ fn close_short_profitable() {
     assert_eq!(existing_position.last_cumulative_funding_rate, 0);
 
     assert_eq!(market.number_of_users_with_base, 1);
-    assert_eq!(market.amm.base_asset_amount_long, 0);
-    assert_eq!(market.amm.base_asset_amount_short, -1);
-    assert_eq!(market.amm.quote_asset_amount, 6);
-    assert_eq!(market.amm.quote_entry_amount_long, 0);
-    assert_eq!(market.amm.quote_entry_amount_short, 1);
-    assert_eq!(market.amm.quote_break_even_amount_long, 0);
-    assert_eq!(market.amm.quote_break_even_amount_short, 1);
+    assert_eq!(market.amm.base_asset_amount_long(), 0);
+    assert_eq!(market.amm.base_asset_amount_short(), -1);
+    assert_eq!(market.amm.quote_asset_amount(), 6);
+    assert_eq!(market.amm.quote_entry_amount_long(), 0);
+    assert_eq!(market.amm.quote_entry_amount_short(), 1);
+    assert_eq!(market.amm.quote_break_even_amount_long(), 0);
+    assert_eq!(market.amm.quote_break_even_amount_short(), 1);
 }
 
 #[test]
@@ -2075,13 +2090,13 @@ fn close_short_unprofitable() {
     assert_eq!(existing_position.last_cumulative_funding_rate, 0);
 
     assert_eq!(market.number_of_users_with_base, 1);
-    assert_eq!(market.amm.base_asset_amount_long, 0);
-    assert_eq!(market.amm.base_asset_amount_short, -1);
-    assert_eq!(market.amm.quote_asset_amount, -4);
-    assert_eq!(market.amm.quote_entry_amount_long, 0);
-    assert_eq!(market.amm.quote_entry_amount_short, 1);
-    assert_eq!(market.amm.quote_break_even_amount_long, 0);
-    assert_eq!(market.amm.quote_break_even_amount_short, 1);
+    assert_eq!(market.amm.base_asset_amount_long(), 0);
+    assert_eq!(market.amm.base_asset_amount_short(), -1);
+    assert_eq!(market.amm.quote_asset_amount(), -4);
+    assert_eq!(market.amm.quote_entry_amount_long(), 0);
+    assert_eq!(market.amm.quote_entry_amount_short(), 1);
+    assert_eq!(market.amm.quote_break_even_amount_long(), 0);
+    assert_eq!(market.amm.quote_break_even_amount_short(), 1);
 }
 
 #[test]
@@ -2124,14 +2139,14 @@ fn close_long_with_quote_break_even_amount_less_than_quote_asset_amount() {
     assert_eq!(existing_position.last_cumulative_funding_rate, 0);
 
     assert_eq!(market.number_of_users_with_base, 1);
-    assert_eq!(market.amm.base_asset_amount_long, 1);
-    assert_eq!(market.amm.base_asset_amount_short, 0);
+    assert_eq!(market.amm.base_asset_amount_long(), 1);
+    assert_eq!(market.amm.base_asset_amount_short(), 0);
     // assert_eq!(market.amm.base_asset_amount_with_amm, 1);
-    assert_eq!(market.amm.quote_asset_amount, -6);
-    assert_eq!(market.amm.quote_entry_amount_long, 0);
-    assert_eq!(market.amm.quote_entry_amount_short, 0);
-    assert_eq!(market.amm.quote_break_even_amount_long, 0);
-    assert_eq!(market.amm.quote_break_even_amount_short, 0);
+    assert_eq!(market.amm.quote_asset_amount(), -6);
+    assert_eq!(market.amm.quote_entry_amount_long(), 0);
+    assert_eq!(market.amm.quote_entry_amount_short(), 0);
+    assert_eq!(market.amm.quote_break_even_amount_long(), 0);
+    assert_eq!(market.amm.quote_break_even_amount_short(), 0);
 }
 
 #[test]
@@ -2173,13 +2188,13 @@ fn close_short_with_quote_break_even_amount_more_than_quote_asset_amount() {
     assert_eq!(existing_position.last_cumulative_funding_rate, 0);
 
     assert_eq!(market.number_of_users_with_base, 1);
-    assert_eq!(market.amm.base_asset_amount_long, 0);
-    assert_eq!(market.amm.base_asset_amount_short, -1);
-    assert_eq!(market.amm.quote_asset_amount, -4);
-    assert_eq!(market.amm.quote_entry_amount_long, 0);
-    assert_eq!(market.amm.quote_entry_amount_short, 0);
-    assert_eq!(market.amm.quote_break_even_amount_long, 0);
-    assert_eq!(market.amm.quote_break_even_amount_short, 0);
+    assert_eq!(market.amm.base_asset_amount_long(), 0);
+    assert_eq!(market.amm.base_asset_amount_short(), -1);
+    assert_eq!(market.amm.quote_asset_amount(), -4);
+    assert_eq!(market.amm.quote_entry_amount_long(), 0);
+    assert_eq!(market.amm.quote_entry_amount_short(), 0);
+    assert_eq!(market.amm.quote_break_even_amount_long(), 0);
+    assert_eq!(market.amm.quote_break_even_amount_short(), 0);
 }
 
 #[test]
@@ -2215,15 +2230,19 @@ fn update_amm_near_boundary() {
         OracleMap::load_one(&jto_market_account_info, slot, None).unwrap();
 
     let mut perp_market = perp_market_loader.load_mut().unwrap();
-    assert_eq!(perp_market.amm.base_asset_amount_with_amm, 23831444927173);
+    assert_eq!(perp_market.amm.base_asset_amount_with_amm(), 23831444927173);
     assert_eq!(
-        perp_market.amm.base_asset_amount_with_unsettled_lp,
+        perp_market.amm.base_asset_amount_with_unsettled_lp(),
         562555072827
     );
 
-    perp_market.amm.base_asset_amount_with_amm +=
-        perp_market.amm.base_asset_amount_with_unsettled_lp;
-    perp_market.amm.base_asset_amount_with_unsettled_lp = 0;
+    perp_market.amm.set_base_asset_amount_with_amm(
+        perp_market
+            .amm
+            .base_asset_amount_with_amm()
+            .safe_add(perp_market.amm.base_asset_amount_with_unsettled_lp())?,
+    );
+    perp_market.amm.set_base_asset_amount_with_unsettled_lp(0);
     println!("perp_market: {:?}", perp_market.amm.last_update_slot);
 
     let oracle_price_data = oracle_map.get_price_data(&perp_market.oracle_id()).unwrap();
@@ -2334,7 +2353,7 @@ fn recenter_amm_1() {
 
     assert_eq!(cost, 2538958);
 
-    let inv = perp_market.amm.base_asset_amount_with_amm;
+    let inv = perp_market.amm.base_asset_amount_with_amm();
     assert_eq!(inv, 24521505718700);
 
     let (_, _, r1_orig, r2_orig) = calculate_base_swap_output_with_spread(
@@ -2347,15 +2366,15 @@ fn recenter_amm_1() {
     assert_eq!(r1_orig, 334835274409);
     assert_eq!(r2_orig, 704841208);
 
-    let current_k = perp_market.amm.sqrt_k;
-    let _current_peg = perp_market.amm.peg_multiplier;
+    let current_k = perp_market.amm.sqrt_k();
+    let _current_peg = perp_market.amm.peg_multiplier();
 
     let new_k = (current_k * 900000) / 100;
     recenter_perp_market_amm(&mut perp_market, oracle_price_data.price as u128, new_k).unwrap();
 
-    assert_eq!(perp_market.amm.sqrt_k, new_k);
+    assert_eq!(perp_market.amm.sqrt_k(), new_k);
     assert_eq!(
-        perp_market.amm.peg_multiplier,
+        perp_market.amm.peg_multiplier(),
         oracle_price_data.price as u128
     );
 
@@ -2420,9 +2439,9 @@ fn recenter_amm_2() {
     );
 
     // previous values
-    assert_eq!(perp_market.amm.peg_multiplier, 5);
-    assert_eq!(perp_market.amm.quote_asset_reserve, 64381518181749930705);
-    assert_eq!(perp_market.amm.base_asset_reserve, 307161425106214);
+    assert_eq!(perp_market.amm.peg_multiplier(), 5);
+    assert_eq!(perp_market.amm.quote_asset_reserve(), 64381518181749930705);
+    assert_eq!(perp_market.amm.base_asset_reserve(), 307161425106214);
 
     let oracle_price_data = oracle_map
         .get_price_data(&(oracle_price_key, OracleSource::Pyth))
@@ -2442,7 +2461,7 @@ fn recenter_amm_2() {
 
     assert_eq!(cost, 0);
 
-    let inv = perp_market.amm.base_asset_amount_with_amm;
+    let inv = perp_market.amm.base_asset_amount_with_amm();
     assert_eq!(inv, -291516212);
 
     let (_, _, r1_orig, r2_orig) = calculate_base_swap_output_with_spread(
@@ -2455,34 +2474,38 @@ fn recenter_amm_2() {
     assert_eq!(r1_orig, 326219);
     assert_eq!(r2_orig, 20707);
 
-    let current_k = perp_market.amm.sqrt_k;
-    let _current_peg = perp_market.amm.peg_multiplier;
+    let current_k = perp_market.amm.sqrt_k();
+    let _current_peg = perp_market.amm.peg_multiplier();
     let new_k = current_k * 2;
 
     // refusal to decrease further
     assert_eq!(current_k, current_k);
-    assert_eq!(perp_market.amm.user_lp_shares, current_k - 1);
+    assert_eq!(perp_market.amm.user_lp_shares(), current_k - 1);
     assert_eq!(
         perp_market.amm.get_lower_bound_sqrt_k().unwrap(),
         perp_market.amm.min_order_size as u128
     );
 
-    perp_market.amm.base_asset_amount_with_amm +=
-        perp_market.amm.base_asset_amount_with_unsettled_lp;
-    perp_market.amm.base_asset_amount_with_unsettled_lp = 0;
+    perp_market.amm.set_base_asset_amount_with_amm(
+        perp_market
+            .amm
+            .base_asset_amount_with_amm()
+            .safe_add(perp_market.amm.base_asset_amount_with_unsettled_lp())?,
+    );
+    perp_market.amm.set_base_asset_amount_with_unsettled_lp(0);
 
     recenter_perp_market_amm(&mut perp_market, oracle_price_data.price as u128, new_k).unwrap();
 
-    assert_eq!(perp_market.amm.sqrt_k, new_k);
+    assert_eq!(perp_market.amm.sqrt_k(), new_k);
     assert_eq!(
-        perp_market.amm.peg_multiplier,
+        perp_market.amm.peg_multiplier(),
         oracle_price_data.price as u128
     );
-    assert_eq!(perp_market.amm.peg_multiplier, 1_120_000);
+    assert_eq!(perp_market.amm.peg_multiplier(), 1_120_000);
     // assert_eq!(perp_market.amm.quote_asset_reserve, 140625455708483789 * 2);
     // assert_eq!(perp_market.amm.base_asset_reserve, 140625456291516213 * 2);
-    assert_eq!(perp_market.amm.base_asset_reserve, 281254004000000002);
-    assert_eq!(perp_market.amm.quote_asset_reserve, 281247820033992278);
+    assert_eq!(perp_market.amm.base_asset_reserve(), 281254004000000002);
+    assert_eq!(perp_market.amm.quote_asset_reserve(), 281247820033992278);
 
     crate::validation::perp_market::validate_perp_market(&perp_market).unwrap();
 
@@ -2498,15 +2521,15 @@ fn recenter_amm_2() {
     assert_eq!(r2, 22129);
 
     let new_scale = 2;
-    let new_sqrt_k = perp_market.amm.sqrt_k * new_scale;
+    let new_sqrt_k = perp_market.amm.sqrt_k() * new_scale;
     let update_k_result = get_update_k_result(&perp_market, U192::from(new_sqrt_k), false).unwrap();
     let adjustment_cost = adjust_k_cost(&mut perp_market, &update_k_result).unwrap();
     assert_eq!(adjustment_cost, 19035);
 
     update_k(&mut perp_market, &update_k_result).unwrap();
 
-    assert_eq!(perp_market.amm.sqrt_k, new_sqrt_k);
-    assert_eq!(perp_market.amm.user_lp_shares, current_k - 1);
+    assert_eq!(perp_market.amm.sqrt_k(), new_sqrt_k);
+    assert_eq!(perp_market.amm.user_lp_shares(), current_k - 1);
     assert_eq!(
         perp_market.amm.get_lower_bound_sqrt_k().unwrap(),
         3092000000000
@@ -2555,16 +2578,18 @@ fn test_move_amm() {
     // let perp_market_old = market_map.get_ref(&4).unwrap();
 
     let mut perp_market = market_map.get_ref_mut(&9).unwrap();
-    perp_market.amm.base_asset_amount_with_amm = -3092 * BASE_PRECISION as i128;
+    perp_market
+        .amm
+        .set_base_asset_amount_with_amm(-3092 * BASE_PRECISION as i128);
     println!(
         "perp_market latest slot: {:?}",
         perp_market.amm.last_update_slot
     );
 
     // previous values
-    assert_eq!(perp_market.amm.peg_multiplier, 5);
-    assert_eq!(perp_market.amm.quote_asset_reserve, 64381518181749930705);
-    assert_eq!(perp_market.amm.base_asset_reserve, 307161425106214);
+    assert_eq!(perp_market.amm.peg_multiplier(), 5);
+    assert_eq!(perp_market.amm.quote_asset_reserve(), 64381518181749930705);
+    assert_eq!(perp_market.amm.base_asset_reserve(), 307161425106214);
 
     let oracle_price_data = oracle_map
         .get_price_data(&(oracle_price_key, OracleSource::Pyth))
@@ -2584,7 +2609,7 @@ fn test_move_amm() {
 
     assert_eq!(cost, 0);
 
-    let inv = perp_market.amm.base_asset_amount_with_amm;
+    let inv = perp_market.amm.base_asset_amount_with_amm();
     assert_eq!(inv, -3092000000000);
 
     let (_, _, r1_orig, r2_orig) = calculate_base_swap_output_with_spread(
@@ -2596,9 +2621,9 @@ fn test_move_amm() {
 
     assert_eq!(r1_orig, 3489128798);
     assert_eq!(r2_orig, 215737299);
-    let current_bar = perp_market.amm.base_asset_reserve;
-    let _current_qar = perp_market.amm.quote_asset_reserve;
-    let current_k = perp_market.amm.sqrt_k;
+    let current_bar = perp_market.amm.base_asset_reserve();
+    let _current_qar = perp_market.amm.quote_asset_reserve();
+    let current_k = perp_market.amm.sqrt_k();
     let inc_numerator = BASE_PRECISION + BASE_PRECISION / 100;
     let new_k = current_k * inc_numerator / BASE_PRECISION;
 
@@ -2612,6 +2637,6 @@ fn test_move_amm() {
     )
     .unwrap();
     crate::validation::perp_market::validate_perp_market(&perp_market).unwrap();
-    assert_eq!(perp_market.amm.sqrt_k, new_k);
-    assert_eq!(perp_market.amm.peg_multiplier, 5); // still same
+    assert_eq!(perp_market.amm.sqrt_k(), new_k);
+    assert_eq!(perp_market.amm.peg_multiplier(), 5); // still same
 }

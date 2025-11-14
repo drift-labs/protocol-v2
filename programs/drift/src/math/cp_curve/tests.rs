@@ -42,8 +42,8 @@ fn calculate_k_tests_with_spread() {
         },
         ..PerpMarket::default()
     };
-    market.amm.max_base_asset_reserve = u128::MAX;
-    market.amm.min_base_asset_reserve = 0;
+    market.amm.set_max_base_asset_reserve(u128::MAX);
+    market.amm.set_min_base_asset_reserve(0);
     market.amm.base_spread = 10;
     market.amm.long_spread = 5;
     market.amm.short_spread = 5;
@@ -55,21 +55,29 @@ fn calculate_k_tests_with_spread() {
         crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
             .unwrap();
 
-    market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
-    market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
-    market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
-    market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+    market
+        .amm
+        .set_ask_base_asset_reserve(new_ask_base_asset_reserve);
+    market
+        .amm
+        .set_bid_base_asset_reserve(new_bid_base_asset_reserve);
+    market
+        .amm
+        .set_ask_quote_asset_reserve(new_ask_quote_asset_reserve);
+    market
+        .amm
+        .set_bid_quote_asset_reserve(new_bid_quote_asset_reserve);
 
     validate!(
-        market.amm.bid_base_asset_reserve >= market.amm.base_asset_reserve
-            && market.amm.bid_quote_asset_reserve <= market.amm.quote_asset_reserve,
+        market.amm.bid_base_asset_reserve() >= market.amm.base_asset_reserve()
+            && market.amm.bid_quote_asset_reserve() <= market.amm.quote_asset_reserve(),
         ErrorCode::InvalidAmmDetected,
         "market index {} amm bid reserves invalid: {} -> {}, quote: {} -> {}",
         market.market_index,
-        market.amm.bid_base_asset_reserve,
-        market.amm.base_asset_reserve,
-        market.amm.bid_quote_asset_reserve,
-        market.amm.quote_asset_reserve
+        market.amm.bid_base_asset_reserve(),
+        market.amm.base_asset_reserve(),
+        market.amm.bid_quote_asset_reserve(),
+        market.amm.quote_asset_reserve()
     )
     .unwrap();
 
@@ -79,14 +87,14 @@ fn calculate_k_tests_with_spread() {
     update_k(&mut market, &update_k_result).unwrap();
 
     validate!(
-        market.amm.bid_base_asset_reserve >= market.amm.base_asset_reserve
-            && market.amm.bid_quote_asset_reserve <= market.amm.quote_asset_reserve,
+        market.amm.bid_base_asset_reserve() >= market.amm.base_asset_reserve()
+            && market.amm.bid_quote_asset_reserve() <= market.amm.quote_asset_reserve(),
         ErrorCode::InvalidAmmDetected,
         "bid reserves out of wack: {} -> {}, quote: {} -> {}",
-        market.amm.bid_base_asset_reserve,
-        market.amm.base_asset_reserve,
-        market.amm.bid_quote_asset_reserve,
-        market.amm.quote_asset_reserve
+        market.amm.bid_base_asset_reserve(),
+        market.amm.base_asset_reserve(),
+        market.amm.bid_quote_asset_reserve(),
+        market.amm.quote_asset_reserve()
     )
     .unwrap();
 }
@@ -132,7 +140,7 @@ fn calculate_k_with_rounding() {
     let k_scale_numerator: u128 = 373175;
     let k_scale_denominator: u128 = 340980;
 
-    let new_sqrt_k = bn::U192::from(market.amm.sqrt_k)
+    let new_sqrt_k = bn::U192::from(market.amm.sqrt_k())
         .safe_mul(bn::U192::from(k_scale_numerator))
         .unwrap()
         .safe_div(bn::U192::from(k_scale_denominator))
@@ -167,7 +175,7 @@ fn calculate_k_tests() {
     // new terminal reserves are balanced, terminal price = peg)
     assert_eq!(t_qar, 500 * AMM_RESERVE_PRECISION);
     assert_eq!(t_bar, 500 * AMM_RESERVE_PRECISION);
-    assert_eq!(t_price as u128, market.amm.peg_multiplier);
+    assert_eq!(t_price as u128, market.amm.peg_multiplier());
 
     assert_eq!(update_k_up.sqrt_k, 501 * AMM_RESERVE_PRECISION);
     assert_eq!(update_k_up.base_asset_reserve, 513319672130);
@@ -175,7 +183,7 @@ fn calculate_k_tests() {
 
     // cost to increase k is always positive when imbalanced
     let cost = adjust_k_cost_and_update(&mut market, &update_k_up).unwrap();
-    assert_eq!(market.amm.terminal_quote_asset_reserve, 500975411043);
+    assert_eq!(market.amm.terminal_quote_asset_reserve(), 500975411043);
     assert!(cost > 0);
     assert_eq!(cost, 29448);
 
@@ -329,8 +337,10 @@ fn amm_spread_adj_logic() {
 
     // todo fix this
 
-    market.amm.base_asset_amount_per_lp = 1;
-    market.amm.quote_asset_amount_per_lp = -QUOTE_PRECISION_I64 as i128;
+    market.amm.set_base_asset_amount_per_lp(1);
+    market
+        .amm
+        .set_quote_asset_amount_per_lp(-QUOTE_PRECISION_I64 as i128);
 
     let reserve_price = market.amm.reserve_price().unwrap();
     update_spreads(&mut market, reserve_price, None).unwrap();

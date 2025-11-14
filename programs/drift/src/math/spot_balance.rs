@@ -22,8 +22,8 @@ pub fn get_spot_balance(
     let precision_increase = 10_u128.pow(19_u32.safe_sub(spot_market.decimals)?);
 
     let cumulative_interest = match balance_type {
-        SpotBalanceType::Deposit => spot_market.cumulative_deposit_interest,
-        SpotBalanceType::Borrow => spot_market.cumulative_borrow_interest,
+        SpotBalanceType::Deposit => spot_market.cumulative_deposit_interest(),
+        SpotBalanceType::Borrow => spot_market.cumulative_borrow_interest(),
     };
 
     let mut balance = token_amount
@@ -45,8 +45,8 @@ pub fn get_token_amount(
     let precision_decrease = 10_u128.pow(19_u32.safe_sub(spot_market.decimals)?);
 
     let cumulative_interest = match balance_type {
-        SpotBalanceType::Deposit => spot_market.cumulative_deposit_interest,
-        SpotBalanceType::Borrow => spot_market.cumulative_borrow_interest,
+        SpotBalanceType::Deposit => spot_market.cumulative_deposit_interest(),
+        SpotBalanceType::Borrow => spot_market.cumulative_borrow_interest(),
     };
 
     let token_amount = match balance_type {
@@ -111,12 +111,12 @@ pub fn calculate_utilization(
 
 pub fn calculate_spot_market_utilization(spot_market: &SpotMarket) -> DriftResult<u128> {
     let deposit_token_amount = get_token_amount(
-        spot_market.deposit_balance,
+        spot_market.deposit_balance(),
         spot_market,
         &SpotBalanceType::Deposit,
     )?;
     let borrow_token_amount = get_token_amount(
-        spot_market.borrow_balance,
+        spot_market.borrow_balance(),
         spot_market,
         &SpotBalanceType::Borrow,
     )?;
@@ -161,14 +161,14 @@ pub fn calculate_accumulated_interest(
         .safe_div(SPOT_UTILIZATION_PRECISION)?;
 
     let borrow_interest = spot_market
-        .cumulative_borrow_interest
+        .cumulative_borrow_interest()
         .safe_mul(modified_borrow_rate)?
         .safe_div(ONE_YEAR)?
         .safe_div(SPOT_RATE_PRECISION)?
         .safe_add(1)?;
 
     let deposit_interest = spot_market
-        .cumulative_deposit_interest
+        .cumulative_deposit_interest()
         .safe_mul(modified_deposit_rate)?
         .safe_div(ONE_YEAR)?
         .safe_div(SPOT_RATE_PRECISION)?;

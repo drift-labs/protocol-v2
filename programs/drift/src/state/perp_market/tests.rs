@@ -590,13 +590,13 @@ mod amm_can_fill_order_tests {
         assert!(!can1);
 
         // valid oracle for immediate and user can skip, market can skip due to low inventory => can fill
-        market.amm.base_asset_amount_with_amm = -2; // taker long improves balance
+        market.amm.set_base_asset_amount_with_amm(-2); // taker long improves balance
         market.amm.order_step_size = 1;
-        market.amm.base_asset_reserve = 1_000_000;
-        market.amm.quote_asset_reserve = 1_000_000;
-        market.amm.sqrt_k = 1_000_000;
-        market.amm.max_base_asset_reserve = 2_000_000;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_base_asset_reserve(1_000_000);
+        market.amm.set_quote_asset_reserve(1_000_000);
+        market.amm.set_sqrt_k(1_000_000);
+        market.amm.set_max_base_asset_reserve(2_000_000);
+        market.amm.set_min_base_asset_reserve(0);
 
         let can2 = market
             .amm_can_fill_order(

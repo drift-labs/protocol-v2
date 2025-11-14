@@ -201,28 +201,28 @@ mod test {
 
         let oracle_price = 25 * PRICE_PRECISION_I64;
 
-        sol_spot_market.deposit_balance = SPOT_BALANCE_PRECISION;
+        sol_spot_market.set_deposit_balance(SPOT_BALANCE_PRECISION);
         let asset_weight = sol_spot_market
             .get_scaled_initial_asset_weight(oracle_price)
             .unwrap();
 
         assert_eq!(asset_weight, 9000);
 
-        sol_spot_market.deposit_balance = 20000 * SPOT_BALANCE_PRECISION;
+        sol_spot_market.set_deposit_balance(20000 * SPOT_BALANCE_PRECISION);
         let asset_weight = sol_spot_market
             .get_scaled_initial_asset_weight(oracle_price)
             .unwrap();
 
         assert_eq!(asset_weight, 9000);
 
-        sol_spot_market.deposit_balance = 40000 * SPOT_BALANCE_PRECISION;
+        sol_spot_market.set_deposit_balance(40000 * SPOT_BALANCE_PRECISION);
         let asset_weight = sol_spot_market
             .get_scaled_initial_asset_weight(oracle_price)
             .unwrap();
 
         assert_eq!(asset_weight, 4500);
 
-        sol_spot_market.deposit_balance = 60000 * SPOT_BALANCE_PRECISION;
+        sol_spot_market.set_deposit_balance(60000 * SPOT_BALANCE_PRECISION);
         let asset_weight = sol_spot_market
             .get_scaled_initial_asset_weight(oracle_price)
             .unwrap();
@@ -3930,8 +3930,8 @@ mod calculate_user_equity {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -4028,8 +4028,8 @@ mod calculate_user_equity {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();

@@ -41,8 +41,8 @@ mod determine_perp_fulfillment_methods {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         let taker_order = Order {
             direction: PositionDirection::Long,
@@ -96,8 +96,8 @@ mod determine_perp_fulfillment_methods {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         let taker_order = Order {
             direction: PositionDirection::Long,
@@ -157,8 +157,8 @@ mod determine_perp_fulfillment_methods {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         let taker_order = Order {
             direction: PositionDirection::Long,
@@ -225,8 +225,8 @@ mod determine_perp_fulfillment_methods {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         let taker_order = Order {
             direction: PositionDirection::Long,
@@ -291,8 +291,8 @@ mod determine_perp_fulfillment_methods {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         let taker_order = Order {
             direction: PositionDirection::Long,
@@ -364,8 +364,8 @@ mod determine_perp_fulfillment_methods {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         let taker_order = Order {
             direction: PositionDirection::Long,
@@ -431,8 +431,8 @@ mod determine_perp_fulfillment_methods {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         let taker_order = Order {
             direction: PositionDirection::Short,
@@ -497,8 +497,8 @@ mod determine_perp_fulfillment_methods {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         let taker_order = Order {
             direction: PositionDirection::Short,
@@ -562,8 +562,8 @@ mod determine_perp_fulfillment_methods {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         let taker_order = Order {
             direction: PositionDirection::Short,
@@ -629,8 +629,8 @@ mod determine_perp_fulfillment_methods {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         let taker_order = Order {
             direction: PositionDirection::Long,
@@ -687,8 +687,8 @@ mod determine_perp_fulfillment_methods {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         let taker_order = Order {
             direction: PositionDirection::Short,
@@ -745,8 +745,8 @@ mod determine_perp_fulfillment_methods {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         let taker_order = Order {
             post_only: true,
@@ -801,8 +801,8 @@ mod determine_perp_fulfillment_methods {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         let taker_order = Order {
             post_only: true,

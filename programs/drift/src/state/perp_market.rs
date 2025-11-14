@@ -1055,12 +1055,12 @@ impl SpotBalance for PoolBalance {
     }
 
     fn increase_balance(&mut self, delta: u128) -> DriftResult {
-        self.scaled_balance = self.scaled_balance.safe_add(delta)?;
+        self.set_scaled_balance(self.scaled_balance().safe_add(delta)?);
         Ok(())
     }
 
     fn decrease_balance(&mut self, delta: u128) -> DriftResult {
-        self.scaled_balance = self.scaled_balance.safe_sub(delta)?;
+        self.set_scaled_balance(self.scaled_balance().safe_sub(delta)?);
         Ok(())
     }
 
