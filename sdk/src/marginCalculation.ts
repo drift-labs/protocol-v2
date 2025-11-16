@@ -1,6 +1,6 @@
 import { BN } from '@coral-xyz/anchor';
 import { MARGIN_PRECISION, ZERO } from './constants/numericConstants';
-import { MarketType } from './types';
+import { getVariant, isVariant, MarketType } from './types';
 
 export type MarginCategory = 'Initial' | 'Maintenance' | 'Fill';
 
@@ -28,7 +28,7 @@ export class MarketIdentifier {
 	equals(other: MarketIdentifier | undefined): boolean {
 		return (
 			!!other &&
-			this.marketType === other.marketType &&
+			isVariant(this.marketType, getVariant(other.marketType)) &&
 			this.marketIndex === other.marketIndex
 		);
 	}
