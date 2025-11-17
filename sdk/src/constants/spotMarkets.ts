@@ -679,10 +679,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		mint: new PublicKey('HeLp6NuQkmYB4pYWo2zYs22mESHXPQYzXbB8n4V98jwC'),
 		precision: new BN(10).pow(NINE),
 		precisionExp: NINE,
-		pythFeedId:
-			'0x2551eca7784671173def2c41e6f3e51e11cd87494863f1d208fdd8c64a1f85ae',
 		launchTs: 1736384970000,
-		pythLazerId: 171,
 	},
 	{
 		symbol: 'TRUMP',
