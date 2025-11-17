@@ -3557,7 +3557,7 @@ export class DriftClient {
 		associatedTokenAddress: PublicKey,
 		reduceOnly = false,
 		subAccountId?: number,
-		updateFuel = false
+		_updateFuel = false
 	): Promise<TransactionInstruction[]> {
 		const withdrawIxs: anchor.web3.TransactionInstruction[] = [];
 
@@ -3566,15 +3566,6 @@ export class DriftClient {
 		const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
 
 		const authority = this.wallet.publicKey;
-
-		if (updateFuel) {
-			const updateFuelIx = await this.getUpdateUserFuelBonusIx(
-				await this.getUserAccountPublicKey(subAccountId),
-				this.getUserAccount(subAccountId),
-				this.authority
-			);
-			withdrawIxs.push(updateFuelIx);
-		}
 
 		const createWSOLTokenAccount =
 			isSolMarket && associatedTokenAddress.equals(authority);
@@ -6661,6 +6652,7 @@ export class DriftClient {
 		});
 	}
 
+	/* Deprecated */
 	public async updateUserFuelBonus(
 		userAccountPublicKey: PublicKey,
 		user: UserAccount,
@@ -6682,6 +6674,7 @@ export class DriftClient {
 		return txSig;
 	}
 
+	/* Deprecated */
 	public async getUpdateUserFuelBonusIx(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,
