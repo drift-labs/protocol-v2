@@ -1448,7 +1448,7 @@ impl AMM {
         ))
     }
 
-    // this is where
+    // direction with_amm is the net user direction
     pub fn get_protocol_owned_position(self) -> DriftResult<i64> {
         self.base_asset_amount_with_amm.cast::<i64>()
     }

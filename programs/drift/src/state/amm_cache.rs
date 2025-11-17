@@ -112,7 +112,7 @@ impl CacheInfo {
     pub fn update_perp_market_fields(&mut self, perp_market: &PerpMarket) -> DriftResult<()> {
         self.oracle = perp_market.amm.oracle;
         self.oracle_source = u8::from(perp_market.amm.oracle_source);
-        self.position = perp_market.amm.get_protocol_owned_position()?;
+        self.position = perp_market.amm.get_protocol_owned_position()?.mul(-1)?;
         self.lp_status_for_perp_market = perp_market.lp_status;
         Ok(())
     }
