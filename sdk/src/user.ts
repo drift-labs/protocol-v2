@@ -4260,7 +4260,7 @@ export class User {
 	}
 
 	/**
-	 * Compute the full margin calculation for the user's account. 
+	 * Compute the full margin calculation for the user's account.
 	 * Prioritize using this function instead of calling getMarginRequirement or getTotalCollateral multiple times.
 	 * Consumers can use this to avoid duplicating work across separate calls.
 	 */
