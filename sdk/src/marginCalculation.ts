@@ -1,6 +1,6 @@
 import { BN } from '@coral-xyz/anchor';
-import { MARGIN_PRECISION } from './constants/numericConstants';
-import { MarketType } from './types';
+import { MARGIN_PRECISION, ZERO } from './constants/numericConstants';
+import { getVariant, isVariant, MarketType } from './types';
 
 export type MarginCategory = 'Initial' | 'Maintenance' | 'Fill';
 
@@ -28,7 +28,7 @@ export class MarketIdentifier {
 	equals(other: MarketIdentifier | undefined): boolean {
 		return (
 			!!other &&
-			this.marketType === other.marketType &&
+			isVariant(this.marketType, getVariant(other.marketType)) &&
 			this.marketIndex === other.marketIndex
 		);
 	}
@@ -39,25 +39,29 @@ export class MarginContext {
 	mode: MarginCalculationMode;
 	strict: boolean;
 	ignoreInvalidDepositOracles: boolean;
-	marginBuffer: BN; // scaled by MARGIN_PRECISION
-	marginRatioOverride?: number;
+	isolatedMarginBuffers: Map<number, BN>;
+	crossMarginBuffer: BN;
 
 	private constructor(marginType: MarginCategory) {
 		this.marginType = marginType;
 		this.mode = { type: 'Standard' };
 		this.strict = false;
 		this.ignoreInvalidDepositOracles = false;
-		this.marginBuffer = new BN(0);
+		this.isolatedMarginBuffers = new Map();
 	}
 
 	static standard(marginType: MarginCategory): MarginContext {
 		return new MarginContext(marginType);
 	}
 
-	static liquidation(marginBuffer: BN): MarginContext {
+	static liquidation(
+		crossMarginBuffer: BN,
+		isolatedMarginBuffers: Map<number, BN>
+	): MarginContext {
 		const ctx = new MarginContext('Maintenance');
 		ctx.mode = { type: 'Liquidation' };
-		ctx.marginBuffer = marginBuffer ?? new BN(0);
+		ctx.crossMarginBuffer = crossMarginBuffer;
+		ctx.isolatedMarginBuffers = isolatedMarginBuffers;
 		return ctx;
 	}
 
@@ -71,13 +75,16 @@ export class MarginContext {
 		return this;
 	}
 
-	setMarginBuffer(buffer?: BN): this {
-		this.marginBuffer = buffer ?? new BN(0);
+	setCrossMarginBuffer(crossMarginBuffer: BN): this {
+		this.crossMarginBuffer = crossMarginBuffer;
 		return this;
 	}
-
-	setMarginRatioOverride(ratio: number): this {
-		this.marginRatioOverride = ratio;
+	setIsolatedMarginBuffers(isolatedMarginBuffers: Map<number, BN>): this {
+		this.isolatedMarginBuffers = isolatedMarginBuffers;
+		return this;
+	}
+	setIsolatedMarginBuffer(marketIndex: number, isolatedMarginBuffer: BN): this {
+		this.isolatedMarginBuffers.set(marketIndex, isolatedMarginBuffer);
 		return this;
 	}
 }
@@ -89,10 +96,10 @@ export class IsolatedMarginCalculation {
 	marginRequirementPlusBuffer: BN;
 
 	constructor() {
-		this.marginRequirement = new BN(0);
-		this.totalCollateral = new BN(0);
-		this.totalCollateralBuffer = new BN(0);
-		this.marginRequirementPlusBuffer = new BN(0);
+		this.marginRequirement = ZERO;
+		this.totalCollateral = ZERO;
+		this.totalCollateralBuffer = ZERO;
+		this.marginRequirementPlusBuffer = ZERO;
 	}
 
 	getTotalCollateralPlusBuffer(): BN {
@@ -113,7 +120,7 @@ export class IsolatedMarginCalculation {
 		const shortage = this.marginRequirementPlusBuffer.sub(
 			this.getTotalCollateralPlusBuffer()
 		);
-		return shortage.isNeg() ? new BN(0) : shortage;
+		return shortage.isNeg() ? ZERO : shortage;
 	}
 }
 
@@ -124,13 +131,10 @@ export class MarginCalculation {
 	marginRequirement: BN;
 	marginRequirementPlusBuffer: BN;
 	isolatedMarginCalculations: Map<number, IsolatedMarginCalculation>;
-	numSpotLiabilities: number;
-	numPerpLiabilities: number;
 	allDepositOraclesValid: boolean;
 	allLiabilityOraclesValid: boolean;
 	withPerpIsolatedLiability: boolean;
 	withSpotIsolatedLiability: boolean;
-	totalSpotLiabilityValue: BN;
 	totalPerpLiabilityValue: BN;
 	trackedMarketMarginRequirement: BN;
 	fuelDeposits: number;
@@ -139,40 +143,39 @@ export class MarginCalculation {
 
 	constructor(context: MarginContext) {
 		this.context = context;
-		this.totalCollateral = new BN(0);
-		this.totalCollateralBuffer = new BN(0);
-		this.marginRequirement = new BN(0);
-		this.marginRequirementPlusBuffer = new BN(0);
+		this.totalCollateral = ZERO;
+		this.totalCollateralBuffer = ZERO;
+		this.marginRequirement = ZERO;
+		this.marginRequirementPlusBuffer = ZERO;
 		this.isolatedMarginCalculations = new Map();
-		this.numSpotLiabilities = 0;
-		this.numPerpLiabilities = 0;
 		this.allDepositOraclesValid = true;
 		this.allLiabilityOraclesValid = true;
 		this.withPerpIsolatedLiability = false;
 		this.withSpotIsolatedLiability = false;
-		this.totalSpotLiabilityValue = new BN(0);
-		this.totalPerpLiabilityValue = new BN(0);
-		this.trackedMarketMarginRequirement = new BN(0);
+		this.totalPerpLiabilityValue = ZERO;
+		this.trackedMarketMarginRequirement = ZERO;
 		this.fuelDeposits = 0;
 		this.fuelBorrows = 0;
 		this.fuelPositions = 0;
 	}
 
 	addCrossMarginTotalCollateral(delta: BN): void {
+		const crossMarginBuffer = this.context.crossMarginBuffer;
 		this.totalCollateral = this.totalCollateral.add(delta);
-		if (this.context.marginBuffer.gt(new BN(0)) && delta.isNeg()) {
+		if (crossMarginBuffer.gt(ZERO) && delta.isNeg()) {
 			this.totalCollateralBuffer = this.totalCollateralBuffer.add(
-				delta.mul(this.context.marginBuffer).div(MARGIN_PRECISION)
+				delta.mul(crossMarginBuffer).div(MARGIN_PRECISION)
 			);
 		}
 	}
 
 	addCrossMarginRequirement(marginRequirement: BN, liabilityValue: BN): void {
+		const crossMarginBuffer = this.context.crossMarginBuffer;
 		this.marginRequirement = this.marginRequirement.add(marginRequirement);
-		if (this.context.marginBuffer.gt(new BN(0))) {
+		if (crossMarginBuffer.gt(ZERO)) {
 			this.marginRequirementPlusBuffer = this.marginRequirementPlusBuffer.add(
 				marginRequirement.add(
-					liabilityValue.mul(this.context.marginBuffer).div(MARGIN_PRECISION)
+					liabilityValue.mul(crossMarginBuffer).div(MARGIN_PRECISION)
 				)
 			);
 		}
@@ -186,16 +189,19 @@ export class MarginCalculation {
 		marginRequirement: BN
 	): void {
 		const totalCollateral = depositValue.add(pnl);
-		const totalCollateralBuffer =
-			this.context.marginBuffer.gt(new BN(0)) && pnl.isNeg()
-				? pnl.mul(this.context.marginBuffer).div(MARGIN_PRECISION)
-				: new BN(0);
+		const isolatedMarginBuffer =
+			this.context.isolatedMarginBuffers.get(marketIndex) ?? ZERO;
 
-		const marginRequirementPlusBuffer = this.context.marginBuffer.gt(new BN(0))
+		const totalCollateralBuffer =
+			isolatedMarginBuffer.gt(ZERO) && pnl.isNeg()
+				? pnl.mul(isolatedMarginBuffer).div(MARGIN_PRECISION)
+				: ZERO;
+
+		const marginRequirementPlusBuffer = isolatedMarginBuffer.gt(ZERO)
 			? marginRequirement.add(
-					liabilityValue.mul(this.context.marginBuffer).div(MARGIN_PRECISION)
+					liabilityValue.mul(isolatedMarginBuffer).div(MARGIN_PRECISION)
 			  )
-			: new BN(0);
+			: marginRequirement;
 
 		const iso = new IsolatedMarginCalculation();
 		iso.marginRequirement = marginRequirement;
@@ -203,19 +209,6 @@ export class MarginCalculation {
 		iso.totalCollateralBuffer = totalCollateralBuffer;
 		iso.marginRequirementPlusBuffer = marginRequirementPlusBuffer;
 		this.isolatedMarginCalculations.set(marketIndex, iso);
-	}
-
-	addSpotLiability(): void {
-		this.numSpotLiabilities += 1;
-	}
-
-	addPerpLiability(): void {
-		this.numPerpLiabilities += 1;
-	}
-
-	addSpotLiabilityValue(spotLiabilityValue: BN): void {
-		this.totalSpotLiabilityValue =
-			this.totalSpotLiabilityValue.add(spotLiabilityValue);
 	}
 
 	addPerpLiabilityValue(perpLiabilityValue: BN): void {
@@ -237,18 +230,6 @@ export class MarginCalculation {
 
 	updateWithPerpIsolatedLiability(isolated: boolean): void {
 		this.withPerpIsolatedLiability = this.withPerpIsolatedLiability || isolated;
-	}
-
-	validateNumSpotLiabilities(): void {
-		if (this.numSpotLiabilities > 0 && this.marginRequirement.eq(new BN(0))) {
-			throw new Error(
-				'InvalidMarginRatio: num_spot_liabilities>0 but margin_requirement=0'
-			);
-		}
-	}
-
-	getNumOfLiabilities(): number {
-		return this.numSpotLiabilities + this.numPerpLiabilities;
 	}
 
 	getCrossTotalCollateralPlusBuffer(): BN {
@@ -283,7 +264,7 @@ export class MarginCalculation {
 
 	getCrossFreeCollateral(): BN {
 		const free = this.totalCollateral.sub(this.marginRequirement);
-		return free.isNeg() ? new BN(0) : free;
+		return free.isNeg() ? ZERO : free;
 	}
 
 	getIsolatedFreeCollateral(marketIndex: number): BN {
@@ -291,7 +272,7 @@ export class MarginCalculation {
 		if (!iso)
 			throw new Error('InvalidMarginCalculation: missing isolated calc');
 		const free = iso.totalCollateral.sub(iso.marginRequirement);
-		return free.isNeg() ? new BN(0) : free;
+		return free.isNeg() ? ZERO : free;
 	}
 
 	getIsolatedMarginCalculation(

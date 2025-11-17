@@ -1912,3 +1912,9 @@ export type CacheInfo = {
 export type AmmCache = {
 	cache: CacheInfo[];
 };
+
+export type AccountLiquidatableStatus = {
+	canBeLiquidated: boolean;
+	marginRequirement: BN;
+	totalCollateral: BN;
+};

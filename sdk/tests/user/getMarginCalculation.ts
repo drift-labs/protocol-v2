@@ -2,12 +2,7 @@ import {
 	BN,
 	ZERO,
 	User,
-	UserAccount,
 	PublicKey,
-	PerpMarketAccount,
-	SpotMarketAccount,
-	PRICE_PRECISION,
-	OraclePriceData,
 	BASE_PRECISION,
 	QUOTE_PRECISION,
 	SPOT_MARKET_BALANCE_PRECISION,
@@ -16,73 +11,13 @@ import {
 	SPOT_MARKET_WEIGHT_PRECISION,
 	PositionFlag,
 } from '../../src';
-import { MockUserMap, mockPerpMarkets, mockSpotMarkets } from '../dlob/helpers';
+import { mockPerpMarkets, mockSpotMarkets } from '../dlob/helpers';
 import { assert } from '../../src/assert/assert';
-import { mockUserAccount as baseMockUserAccount } from './helpers';
+import {
+	mockUserAccount as baseMockUserAccount,
+	makeMockUser,
+} from './helpers';
 import * as _ from 'lodash';
-
-async function makeMockUser(
-	myMockPerpMarkets: Array<PerpMarketAccount>,
-	myMockSpotMarkets: Array<SpotMarketAccount>,
-	myMockUserAccount: UserAccount,
-	perpOraclePriceList: number[],
-	spotOraclePriceList: number[]
-): Promise<User> {
-	const umap = new MockUserMap();
-	const mockUser: User = await umap.mustGet('1');
-	mockUser._isSubscribed = true;
-	mockUser.driftClient._isSubscribed = true;
-	mockUser.driftClient.accountSubscriber.isSubscribed = true;
-
-	const oraclePriceMap: Record<string, number> = {};
-	for (let i = 0; i < myMockPerpMarkets.length; i++) {
-		oraclePriceMap[myMockPerpMarkets[i].amm.oracle.toString()] =
-			perpOraclePriceList[i] ?? 1;
-	}
-	for (let i = 0; i < myMockSpotMarkets.length; i++) {
-		oraclePriceMap[myMockSpotMarkets[i].oracle.toString()] =
-			spotOraclePriceList[i] ?? 1;
-	}
-
-	function getMockUserAccount(): UserAccount {
-		return myMockUserAccount;
-	}
-	function getMockPerpMarket(marketIndex: number): PerpMarketAccount {
-		return myMockPerpMarkets[marketIndex];
-	}
-	function getMockSpotMarket(marketIndex: number): SpotMarketAccount {
-		return myMockSpotMarkets[marketIndex];
-	}
-	function getMockOracle(oracleKey: PublicKey) {
-		const data: OraclePriceData = {
-			price: new BN(
-				(oraclePriceMap[oracleKey.toString()] ?? 1) * PRICE_PRECISION.toNumber()
-			),
-			slot: new BN(0),
-			confidence: new BN(1),
-			hasSufficientNumberOfDataPoints: true,
-		};
-		return { data, slot: 0 };
-	}
-	function getOracleDataForPerpMarket(marketIndex: number) {
-		const oracle = getMockPerpMarket(marketIndex).amm.oracle;
-		return getMockOracle(oracle).data;
-	}
-	function getOracleDataForSpotMarket(marketIndex: number) {
-		const oracle = getMockSpotMarket(marketIndex).oracle;
-		return getMockOracle(oracle).data;
-	}
-
-	mockUser.getUserAccount = getMockUserAccount;
-	mockUser.driftClient.getPerpMarketAccount = getMockPerpMarket as any;
-	mockUser.driftClient.getSpotMarketAccount = getMockSpotMarket as any;
-	mockUser.driftClient.getOraclePriceDataAndSlot = getMockOracle as any;
-	mockUser.driftClient.getOracleDataForPerpMarket =
-		getOracleDataForPerpMarket as any;
-	mockUser.driftClient.getOracleDataForSpotMarket =
-		getOracleDataForSpotMarket as any;
-	return mockUser;
-}
 
 describe('getMarginCalculation snapshot', () => {
 	it('empty account returns zeroed snapshot', async () => {
@@ -101,8 +36,6 @@ describe('getMarginCalculation snapshot', () => {
 		const calc = user.getMarginCalculation('Initial');
 		assert(calc.totalCollateral.eq(ZERO));
 		assert(calc.marginRequirement.eq(ZERO));
-		assert(calc.numSpotLiabilities === 0);
-		assert(calc.numPerpLiabilities === 0);
 	});
 
 	it('quote deposit increases totalCollateral, no requirement', async () => {
@@ -150,17 +83,23 @@ describe('getMarginCalculation snapshot', () => {
 
 		const tenPercent = new BN(1000);
 		const calc = user.getMarginCalculation('Initial', {
-			liquidationBuffer: tenPercent,
+			liquidationBufferMap: new Map([['cross', tenPercent]]),
 		});
-		const liability = new BN(100).mul(QUOTE_PRECISION); // $100
+		const liability = new BN(110).mul(QUOTE_PRECISION); // $110
 		assert(calc.totalCollateral.eq(ZERO));
-		assert(calc.marginRequirement.eq(liability));
+		assert(
+			calc.marginRequirement.eq(liability),
+			`margin requirement does not equal liability: ${calc.marginRequirement.toString()} != ${liability.toString()}`
+		);
 		assert(
 			calc.marginRequirementPlusBuffer.eq(
 				liability.div(new BN(10)).add(calc.marginRequirement) // 10% of liability + margin requirement
-			)
+			),
+			`margin requirement plus buffer does not equal 10% of liability + margin requirement: ${calc.marginRequirementPlusBuffer.toString()} != ${liability
+				.div(new BN(10))
+				.add(calc.marginRequirement)
+				.toString()}`
 		);
-		assert(calc.numSpotLiabilities === 1);
 	});
 
 	it('non-quote spot open orders add IM', async () => {
@@ -194,9 +133,6 @@ describe('getMarginCalculation snapshot', () => {
 		myMockUserAccount.perpPositions[0].baseAssetAmount = new BN(20).mul(
 			BASE_PRECISION
 		);
-		myMockUserAccount.perpPositions[0].quoteAssetAmount = new BN(-10).mul(
-			QUOTE_PRECISION
-		);
 
 		const user: User = await makeMockUser(
 			myMockPerpMarkets,
@@ -211,7 +147,7 @@ describe('getMarginCalculation snapshot', () => {
 		assert(calc.marginRequirement.eq(new BN('2000000')));
 	});
 
-	it.only('maker position reducing: collateral equals maintenance requirement', async () => {
+	it('collateral equals maintenance requirement', async () => {
 		const myMockPerpMarkets = _.cloneDeep(mockPerpMarkets);
 		const myMockSpotMarkets = _.cloneDeep(mockSpotMarkets);
 		const myMockUserAccount = _.cloneDeep(baseMockUserAccount);
@@ -219,9 +155,11 @@ describe('getMarginCalculation snapshot', () => {
 		myMockUserAccount.perpPositions[0].baseAssetAmount = new BN(200000000).mul(
 			BASE_PRECISION
 		);
-		myMockUserAccount.perpPositions[0].quoteAssetAmount = new BN(
-			-180000000
-		).mul(QUOTE_PRECISION);
+
+		myMockUserAccount.spotPositions[0].balanceType = SpotBalanceType.DEPOSIT;
+		myMockUserAccount.spotPositions[0].scaledBalance = new BN(20000000).mul(
+			SPOT_MARKET_BALANCE_PRECISION
+		);
 
 		const user: User = await makeMockUser(
 			myMockPerpMarkets,
@@ -232,9 +170,10 @@ describe('getMarginCalculation snapshot', () => {
 		);
 
 		const calc = user.getMarginCalculation('Maintenance');
-		console.log('calc.marginRequirement', calc.marginRequirement.toString());
-		console.log('calc.totalCollateral', calc.totalCollateral.toString());
-		assert(calc.marginRequirement.eq(calc.totalCollateral));
+		assert(
+			calc.marginRequirement.eq(calc.totalCollateral),
+			`margin requirement does not equal total collateral: ${calc.marginRequirement.toString()} != ${calc.totalCollateral.toString()}`
+		);
 	});
 
 	it('maker reducing after simulated fill: collateral equals maintenance requirement', async () => {
@@ -386,20 +325,37 @@ describe('getMarginCalculation snapshot', () => {
 		// With 10% buffer
 		const tenPct = new BN(1000);
 		const crossCalcBuf = userCross.getMarginCalculation('Initial', {
-			liquidationBuffer: tenPct,
+			liquidationBufferMap: new Map<number | 'cross', BN>([
+				['cross', tenPct],
+				[0, new BN(100)],
+			]),
 		});
-		assert(crossCalcBuf.marginRequirementPlusBuffer.eq(new BN('13000000000'))); // replicate 10% buffer
+		assert(
+			crossCalcBuf.marginRequirementPlusBuffer.eq(new BN('14300000000')),
+			`margin requirement plus buffer does not equal 110% of liability + margin requirement: ${crossCalcBuf.marginRequirementPlusBuffer.toString()} != ${new BN(
+				'14300000000'
+			).toString()}`
+		); // replicate 10% buffer
 		const crossTotalPlusBuffer = crossCalcBuf.totalCollateral.add(
 			crossCalcBuf.totalCollateralBuffer
 		);
 		assert(crossTotalPlusBuffer.eq(new BN('20000000000')));
 
-		const isoPosition = crossCalcBuf.isolatedMarginCalculations.get(0);
-		assert(isoPosition?.marginRequirementPlusBuffer.eq(new BN('2000000000')));
+		const isoPositionBuf = crossCalcBuf.isolatedMarginCalculations.get(0);
 		assert(
-			isoPosition?.totalCollateralBuffer
-				.add(isoPosition?.totalCollateral)
-				.eq(new BN('-1000000000'))
+			isoPositionBuf?.marginRequirementPlusBuffer.eq(new BN('1100000000')),
+			`margin requirement plus buffer does not equal 10% of liability + margin requirement: ${isoPositionBuf?.marginRequirementPlusBuffer.toString()} != ${new BN(
+				'1100000000'
+			).toString()}`
+		);
+		assert(isoPositionBuf?.marginRequirement.eq(new BN('1000000000')));
+		assert(
+			isoPositionBuf?.totalCollateralBuffer
+				.add(isoPositionBuf?.totalCollateral)
+				.eq(new BN('-910000000')),
+			`total collateral buffer plus total collateral does not equal -$9100: ${isoPositionBuf?.totalCollateralBuffer
+				.add(isoPositionBuf?.totalCollateral)
+				.toString()} != ${new BN('-900000000').toString()}`
 		);
 	});
 });
