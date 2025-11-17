@@ -25,8 +25,8 @@ pub fn basic_stake_if_test() {
     };
     let amount = QUOTE_PRECISION as u64; // $1
     let mut spot_market = SpotMarket {
-        deposit_balance: 0,
-        cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        deposit_balance: 0.into(),
+        cumulative_deposit_interest: (1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000).into(),
         insurance_fund: InsuranceFund {
             unstaking_period: 0,
             ..InsuranceFund::default()
@@ -124,8 +124,8 @@ pub fn basic_seeded_stake_if_test() {
     };
     let amount = QUOTE_PRECISION as u64; // $1
     let mut spot_market = SpotMarket {
-        deposit_balance: 0,
-        cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        deposit_balance: 0.into(),
+        cumulative_deposit_interest: (1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000).into(),
         insurance_fund: InsuranceFund {
             unstaking_period: 0,
             ..InsuranceFund::default()
@@ -224,8 +224,8 @@ pub fn large_num_seeded_stake_if_test() {
 
     // all funds in revenue pool
     let mut spot_market = SpotMarket {
-        deposit_balance: 100 * SPOT_BALANCE_PRECISION,
-        cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        deposit_balance: (100 * SPOT_BALANCE_PRECISION).into(),
+        cumulative_deposit_interest: (1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000).into(),
         insurance_fund: InsuranceFund {
             unstaking_period: 0,
             revenue_settle_period: 1,
@@ -233,7 +233,7 @@ pub fn large_num_seeded_stake_if_test() {
         },
         revenue_pool: PoolBalance {
             market_index: 0,
-            scaled_balance: 100 * SPOT_BALANCE_PRECISION,
+            scaled_balance: (100 * SPOT_BALANCE_PRECISION).into(),
             ..PoolBalance::default()
         },
         ..SpotMarket::default()
@@ -371,8 +371,8 @@ pub fn gains_stake_if_test() {
     };
     let amount = QUOTE_PRECISION as u64; // $1
     let mut spot_market = SpotMarket {
-        deposit_balance: 0,
-        cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        deposit_balance: 0.into(),
+        cumulative_deposit_interest: (1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000).into(),
         insurance_fund: InsuranceFund {
             unstaking_period: 0,
             ..InsuranceFund::default()
@@ -496,8 +496,8 @@ pub fn losses_stake_if_test() {
     };
     let amount = QUOTE_PRECISION as u64; // $1
     let mut spot_market = SpotMarket {
-        deposit_balance: 0,
-        cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        deposit_balance: 0.into(),
+        cumulative_deposit_interest: (1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000).into(),
         insurance_fund: InsuranceFund {
             unstaking_period: 0,
             ..InsuranceFund::default()
@@ -624,8 +624,8 @@ pub fn escrow_losses_stake_if_test() {
     };
     let amount = (QUOTE_PRECISION * 100_000) as u64; // $100k
     let mut spot_market = SpotMarket {
-        deposit_balance: 0,
-        cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        deposit_balance: 0.into(),
+        cumulative_deposit_interest: (1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000).into(),
         insurance_fund: InsuranceFund {
             unstaking_period: 60 * 60 * 24 * 7, // 7 weeks
             ..InsuranceFund::default()
@@ -721,12 +721,12 @@ pub fn escrow_gains_stake_if_test() {
     };
     let amount = 100_000_384_939_u64; // $100k + change
     let mut spot_market = SpotMarket {
-        deposit_balance: 0,
-        cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        deposit_balance: 0.into(),
+        cumulative_deposit_interest: (1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000).into(),
         insurance_fund: InsuranceFund {
             unstaking_period: 60 * 60 * 24 * 7, // 7 weeks
-            total_shares: 1,
-            user_shares: 0,
+            total_shares: 1.into(),
+            user_shares: 0.into(),
             ..InsuranceFund::default()
         },
         ..SpotMarket::default()
@@ -841,12 +841,12 @@ pub fn drained_stake_if_test_rebase_on_new_add() {
     let amount = 100_000_384_939_u64; // $100k + change
 
     let mut spot_market = SpotMarket {
-        deposit_balance: 0,
-        cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        deposit_balance: 0.into(),
+        cumulative_deposit_interest: (1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000).into(),
         insurance_fund: InsuranceFund {
             unstaking_period: 60 * 60 * 24 * 7, // 7 weeks
-            total_shares: 100_000 * QUOTE_PRECISION,
-            user_shares: 80_000 * QUOTE_PRECISION,
+            total_shares: (100_000 * QUOTE_PRECISION).into(),
+            user_shares: (80_000 * QUOTE_PRECISION).into(),
             ..InsuranceFund::default()
         },
         ..SpotMarket::default()
@@ -950,12 +950,12 @@ pub fn drained_stake_if_test_rebase_on_old_remove_all() {
     let mut if_balance = 0;
 
     let mut spot_market = SpotMarket {
-        deposit_balance: 0,
-        cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        deposit_balance: 0.into(),
+        cumulative_deposit_interest: (1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000).into(),
         insurance_fund: InsuranceFund {
             unstaking_period: 0,
-            total_shares: 100_000 * QUOTE_PRECISION,
-            user_shares: 80_000 * QUOTE_PRECISION,
+            total_shares: (100_000 * QUOTE_PRECISION).into(),
+            user_shares: (80_000 * QUOTE_PRECISION).into(),
             ..InsuranceFund::default()
         },
         ..SpotMarket::default()
@@ -1044,12 +1044,12 @@ pub fn drained_stake_if_test_rebase_on_old_remove_all_2() {
     let mut if_balance = 0;
 
     let mut spot_market = SpotMarket {
-        deposit_balance: 0,
-        cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        deposit_balance: 0.into(),
+        cumulative_deposit_interest: (1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000).into(),
         insurance_fund: InsuranceFund {
             unstaking_period: 0,
-            total_shares: 100_930_021_053,
-            user_shares: 83_021 * QUOTE_PRECISION + 135723,
+            total_shares: 100_930_021_053.into(),
+            user_shares: (83_021 * QUOTE_PRECISION + 135723).into(),
             ..InsuranceFund::default()
         },
         ..SpotMarket::default()
@@ -1258,8 +1258,8 @@ pub fn multiple_if_stakes_and_rebase() {
 
     let amount = (QUOTE_PRECISION * 100_000) as u64; // $100k
     let mut spot_market = SpotMarket {
-        deposit_balance: 0,
-        cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        deposit_balance: 0.into(),
+        cumulative_deposit_interest: (1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000).into(),
         insurance_fund: InsuranceFund {
             unstaking_period: 0,
             ..InsuranceFund::default()
@@ -1377,8 +1377,8 @@ pub fn multiple_if_stakes_and_rebase_and_admin_remove() {
 
     let amount = (QUOTE_PRECISION * 100_000) as u64; // $100k
     let mut spot_market = SpotMarket {
-        deposit_balance: 0,
-        cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        deposit_balance: 0.into(),
+        cumulative_deposit_interest: (1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000).into(),
         insurance_fund: InsuranceFund {
             unstaking_period: 0,
             ..InsuranceFund::default()
@@ -1539,8 +1539,8 @@ fn test_transfer_protocol_owned_stake() {
     };
 
     let mut spot_market = SpotMarket {
-        deposit_balance: 0,
-        cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        deposit_balance: 0.into(),
+        cumulative_deposit_interest: (1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000).into(),
         insurance_fund: InsuranceFund {
             unstaking_period: 0,
             ..InsuranceFund::default()

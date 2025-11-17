@@ -33,6 +33,7 @@ use anchor_lang::prelude::{
     *,
 };
 use bytemuck::{Pod, Zeroable};
+use drift_macros::legacy_layout;
 use num_traits::Zero;
 use std::cmp::max;
 use std::fmt;
@@ -2089,7 +2090,7 @@ impl FuelOverflowStatus {
     }
 }
 
-#[drift_macros::legacy_layout]
+#[legacy_layout]
 #[account(zero_copy(unsafe))]
 #[derive(Default, Debug)]
 #[repr(C)]

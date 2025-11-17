@@ -124,12 +124,12 @@ pub mod fuel_scoring {
         // net users are short
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                base_asset_amount_with_amm: (AMM_RESERVE_PRECISION / 2) as i128,
-                base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                base_asset_amount_with_amm: ((AMM_RESERVE_PRECISION / 2) as i128).into(),
+                base_asset_amount_long: ((AMM_RESERVE_PRECISION / 2) as i128).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -186,7 +186,7 @@ pub mod fuel_scoring {
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -408,12 +408,12 @@ pub mod fuel_scoring {
         // net users are short
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                base_asset_amount_with_amm: (AMM_RESERVE_PRECISION / 2) as i128,
-                base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                base_asset_amount_with_amm: ((AMM_RESERVE_PRECISION / 2) as i128).into(),
+                base_asset_amount_long: ((AMM_RESERVE_PRECISION / 2) as i128).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -470,7 +470,7 @@ pub mod fuel_scoring {
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -487,8 +487,8 @@ pub mod fuel_scoring {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION * 2,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION * 4,
+            cumulative_deposit_interest: (SPOT_CUMULATIVE_INTEREST_PRECISION * 2).into(),
+            cumulative_borrow_interest: (SPOT_CUMULATIVE_INTEREST_PRECISION * 4).into(),
             decimals: 9,
             initial_asset_weight: SPOT_WEIGHT_PRECISION * 8 / 10,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION * 9 / 10,
@@ -686,12 +686,12 @@ pub mod fuel_scoring {
         // net users are short
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                base_asset_amount_with_amm: (AMM_RESERVE_PRECISION / 2) as i128,
-                base_asset_amount_long: (AMM_RESERVE_PRECISION / 2) as i128,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                base_asset_amount_with_amm: ((AMM_RESERVE_PRECISION / 2) as i128).into(),
+                base_asset_amount_long: ((AMM_RESERVE_PRECISION / 2) as i128).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -748,7 +748,7 @@ pub mod fuel_scoring {
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,

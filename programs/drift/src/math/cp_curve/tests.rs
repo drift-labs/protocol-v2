@@ -10,9 +10,9 @@ use crate::state::perp_market::AMM;
 fn k_update_results_bound_flag() {
     let init_reserves = 100 * AMM_RESERVE_PRECISION;
     let amm = AMM {
-        sqrt_k: init_reserves,
-        base_asset_reserve: init_reserves,
-        quote_asset_reserve: init_reserves,
+        sqrt_k: init_reserves.into(),
+        base_asset_reserve: init_reserves.into(),
+        quote_asset_reserve: init_reserves.into(),
         ..AMM::default()
     };
     let market = PerpMarket {
@@ -32,12 +32,12 @@ fn k_update_results_bound_flag() {
 fn calculate_k_tests_with_spread() {
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_reserve: 512295081967,
-            quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
-            concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
-            sqrt_k: 500 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 50000000,
-            base_asset_amount_with_amm: -12295081967,
+            base_asset_reserve: 512295081967.into(),
+            quote_asset_reserve: (488 * AMM_RESERVE_PRECISION).into(),
+            concentration_coef: MAX_CONCENTRATION_COEFFICIENT.into(),
+            sqrt_k: (500 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: 50000000.into(),
+            base_asset_amount_with_amm: (-12295081967).into(),
             ..AMM::default()
         },
         ..PerpMarket::default()
@@ -111,12 +111,12 @@ fn calculate_k_with_rounding() {
 
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_reserve,
-            quote_asset_reserve,
-            concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
-            sqrt_k: 10000000000000000000,
-            peg_multiplier,
-            base_asset_amount_with_amm,
+            base_asset_reserve: base_asset_reserve.into(),
+            quote_asset_reserve: quote_asset_reserve.into(),
+            concentration_coef: MAX_CONCENTRATION_COEFFICIENT.into(),
+            sqrt_k: 10000000000000000000.into(),
+            peg_multiplier: peg_multiplier.into(),
+            base_asset_amount_with_amm: base_asset_amount_with_amm.into(),
             ..AMM::default()
         },
         ..PerpMarket::default()
@@ -157,12 +157,12 @@ fn calculate_k_with_rounding() {
 fn calculate_k_tests() {
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_reserve: 512295081967,
-            quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
-            concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
-            sqrt_k: 500 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 50000000,
-            base_asset_amount_with_amm: -12295081967,
+            base_asset_reserve: 512295081967.into(),
+            quote_asset_reserve: (488 * AMM_RESERVE_PRECISION).into(),
+            concentration_coef: MAX_CONCENTRATION_COEFFICIENT.into(),
+            sqrt_k: (500 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: 50000000.into(),
+            base_asset_amount_with_amm: (-12295081967).into(),
             ..AMM::default()
         },
         ..PerpMarket::default()
@@ -287,11 +287,11 @@ fn calculate_k_tests() {
 fn calculate_k_tests_wrapper_fcn() {
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_reserve: AMM_RESERVE_PRECISION * 55414,
-            quote_asset_reserve: AMM_RESERVE_PRECISION * 55530,
-            sqrt_k: 500 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 36365000,
-            base_asset_amount_with_amm: (AMM_RESERVE_PRECISION * 66) as i128,
+            base_asset_reserve: (AMM_RESERVE_PRECISION * 55414).into(),
+            quote_asset_reserve: (AMM_RESERVE_PRECISION * 55530).into(),
+            sqrt_k: (500 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: 36365000.into(),
+            base_asset_amount_with_amm: ((AMM_RESERVE_PRECISION * 66) as i128).into(),
             ..AMM::default()
         },
         ..PerpMarket::default()
@@ -317,13 +317,13 @@ fn calculate_k_tests_wrapper_fcn() {
 fn amm_spread_adj_logic() {
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            terminal_quote_asset_reserve: 999900009999000 * AMM_RESERVE_PRECISION,
-            sqrt_k: 100 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 50_000_000_000,
-            base_asset_amount_with_amm: (AMM_RESERVE_PRECISION / 10) as i128,
-            base_asset_amount_long: (AMM_RESERVE_PRECISION / 10) as i128,
+            base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+            quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+            terminal_quote_asset_reserve: (999900009999000 * AMM_RESERVE_PRECISION).into(),
+            sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: 50_000_000_000.into(),
+            base_asset_amount_with_amm: ((AMM_RESERVE_PRECISION / 10) as i128).into(),
+            base_asset_amount_long: ((AMM_RESERVE_PRECISION / 10) as i128).into(),
             order_step_size: 5,
             base_spread: 100,
             max_spread: 10000,

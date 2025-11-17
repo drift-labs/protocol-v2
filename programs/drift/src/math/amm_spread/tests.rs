@@ -194,12 +194,12 @@ mod test {
     fn calculate_reference_price_offset_deadband_tests() {
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: AMM_RESERVE_PRECISION * 11,
-                quote_asset_reserve: AMM_RESERVE_PRECISION * 10,
-                sqrt_k: AMM_RESERVE_PRECISION * 10,
-                peg_multiplier: 34_000_000,
-                min_base_asset_reserve: AMM_RESERVE_PRECISION * 7,
-                max_base_asset_reserve: AMM_RESERVE_PRECISION * 14,
+                base_asset_reserve: (AMM_RESERVE_PRECISION * 11).into(),
+                quote_asset_reserve: (AMM_RESERVE_PRECISION * 10).into(),
+                sqrt_k: (AMM_RESERVE_PRECISION * 10).into(),
+                peg_multiplier: 34_000_000.into(),
+                min_base_asset_reserve: (AMM_RESERVE_PRECISION * 7).into(),
+                max_base_asset_reserve: (AMM_RESERVE_PRECISION * 14).into(),
                 base_spread: 1000,
                 max_spread: 20_000,
                 curve_update_intensity: 110,
@@ -450,10 +450,10 @@ mod test {
         assert_eq!(short_spread5, 500);
 
         let amm = AMM {
-            base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 2 * AMM_RESERVE_PRECISION,
-            sqrt_k: 2 * AMM_RESERVE_PRECISION,
-            peg_multiplier: PEG_PRECISION,
+            base_asset_reserve: (2 * AMM_RESERVE_PRECISION).into(),
+            quote_asset_reserve: (2 * AMM_RESERVE_PRECISION).into(),
+            sqrt_k: (2 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: PEG_PRECISION.into(),
             long_spread: long_spread5,
             short_spread: short_spread5,
             max_spread: 1000,
@@ -1678,10 +1678,10 @@ mod test {
     #[test]
     fn calculate_prediction_market_spread_tests_low_price() {
         let amm = AMM {
-            base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 2 * AMM_RESERVE_PRECISION,
-            sqrt_k: 2 * AMM_RESERVE_PRECISION,
-            peg_multiplier: PEG_PRECISION / 30, // .02
+            base_asset_reserve: (2 * AMM_RESERVE_PRECISION).into(),
+            quote_asset_reserve: (2 * AMM_RESERVE_PRECISION).into(),
+            sqrt_k: (2 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: (PEG_PRECISION / 30).into(), // .02
             long_spread: 10000,
             short_spread: 10000,
             base_spread: 10000,
@@ -1727,10 +1727,10 @@ mod test {
     #[test]
     fn calculate_prediction_market_spread_tests_high_price() {
         let amm = AMM {
-            base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 2 * AMM_RESERVE_PRECISION,
-            sqrt_k: 2 * AMM_RESERVE_PRECISION,
-            peg_multiplier: PEG_PRECISION - PEG_PRECISION / 1000, // .999
+            base_asset_reserve: (2 * AMM_RESERVE_PRECISION).into(),
+            quote_asset_reserve: (2 * AMM_RESERVE_PRECISION).into(),
+            sqrt_k: (2 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: (PEG_PRECISION - PEG_PRECISION / 1000).into(), // .999
             long_spread: 10000,
             short_spread: 10000,
             base_spread: 10000,

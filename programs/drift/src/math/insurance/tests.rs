@@ -101,12 +101,12 @@ pub fn basic_stake_if_test() {
 pub fn if_shares_lost_test() {
     let _amount = QUOTE_PRECISION as u64; // $1
     let mut spot_market = SpotMarket {
-        deposit_balance: 0,
-        cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        deposit_balance: 0.into(),
+        cumulative_deposit_interest: (1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000).into(),
         insurance_fund: InsuranceFund {
             unstaking_period: 0,
-            total_shares: 1000 * QUOTE_PRECISION,
-            user_shares: 1000 * QUOTE_PRECISION,
+            total_shares: (1000 * QUOTE_PRECISION).into(),
+            user_shares: (1000 * QUOTE_PRECISION).into(),
             ..InsuranceFund::default()
         },
         ..SpotMarket::default()

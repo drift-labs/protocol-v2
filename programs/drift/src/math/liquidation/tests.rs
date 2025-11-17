@@ -503,8 +503,8 @@ mod calculate_funding_rate_deltas_to_resolve_bankruptcy {
         let loss = -QUOTE_PRECISION_I128;
         let market = PerpMarket {
             amm: AMM {
-                base_asset_amount_long: 0,
-                base_asset_amount_short: 0,
+                base_asset_amount_long: 0.into(),
+                base_asset_amount_short: 0.into(),
                 ..AMM::default()
             },
             ..PerpMarket::default()
@@ -518,8 +518,8 @@ mod calculate_funding_rate_deltas_to_resolve_bankruptcy {
         let loss = -100 * QUOTE_PRECISION_I128;
         let market = PerpMarket {
             amm: AMM {
-                base_asset_amount_long: 7 * BASE_PRECISION_I128,
-                base_asset_amount_short: -4 * BASE_PRECISION_I128,
+                base_asset_amount_long: (7 * BASE_PRECISION_I128).into(),
+                base_asset_amount_short: (-4 * BASE_PRECISION_I128).into(),
                 ..AMM::default()
             },
             ..PerpMarket::default()
@@ -543,8 +543,8 @@ mod calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy {
     fn zero_total_deposits() {
         let loss = 100 * QUOTE_PRECISION;
         let spot_market = SpotMarket {
-            deposit_balance: 0,
-            cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+            deposit_balance: 0.into(),
+            cumulative_deposit_interest: (1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000).into(),
             ..SpotMarket::default()
         };
 
@@ -559,8 +559,8 @@ mod calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy {
     fn non_zero_total_deposits() {
         let loss = 11 * QUOTE_PRECISION;
         let spot_market = SpotMarket {
-            deposit_balance: 120 * SPOT_BALANCE_PRECISION,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            deposit_balance: (120 * SPOT_BALANCE_PRECISION).into(),
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             ..SpotMarket::default()
         };

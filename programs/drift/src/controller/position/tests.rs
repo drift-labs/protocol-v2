@@ -71,8 +71,8 @@ fn amm_pool_balance_liq_fees_example() {
     );
 
     let mut spot_market = SpotMarket {
-        cumulative_deposit_interest: 11425141382,
-        cumulative_borrow_interest: 12908327537,
+        cumulative_deposit_interest: 11425141382.into(),
+        cumulative_borrow_interest: 12908327537.into(),
         decimals: 6,
         ..SpotMarket::default()
     };
@@ -215,7 +215,7 @@ fn amm_pred_expiry_price_yes_market_example() {
     let mut spot_market = SpotMarket {
         market_index: 0,
         oracle_source: OracleSource::QuoteAsset,
-        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
         decimals: 6,
         initial_asset_weight: SPOT_WEIGHT_PRECISION,
         maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -328,7 +328,7 @@ fn amm_pred_expiry_price_market_example() {
     let mut spot_market = SpotMarket {
         market_index: 0,
         oracle_source: OracleSource::QuoteAsset,
-        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
         decimals: 6,
         initial_asset_weight: SPOT_WEIGHT_PRECISION,
         maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -440,7 +440,7 @@ fn amm_pred_settle_market_example() {
     let mut spot_market = SpotMarket {
         market_index: 0,
         oracle_source: OracleSource::QuoteAsset,
-        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
         decimals: 6,
         initial_asset_weight: SPOT_WEIGHT_PRECISION,
         maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -1283,8 +1283,8 @@ fn test_position_entry_sim() {
     };
     let mut market = PerpMarket {
         amm: AMM {
-            cumulative_funding_rate_long: 1,
-            sqrt_k: 1,
+            cumulative_funding_rate_long: 1.into(),
+            sqrt_k: 1.into(),
             order_step_size: (BASE_PRECISION_I64 / 10) as u64,
             ..AMM::default()
         },
@@ -1339,8 +1339,8 @@ fn increase_long_from_no_position() {
     };
     let mut market = PerpMarket {
         amm: AMM {
-            cumulative_funding_rate_long: 1,
-            sqrt_k: 1,
+            cumulative_funding_rate_long: 1.into(),
+            sqrt_k: 1.into(),
             order_step_size: 1,
             ..AMM::default()
         },
@@ -1378,7 +1378,7 @@ fn increase_short_from_no_position() {
     };
     let mut market = PerpMarket {
         amm: AMM {
-            cumulative_funding_rate_short: 1,
+            cumulative_funding_rate_short: 1.into(),
             ..AMM::default_test()
         },
         number_of_users_with_base: 0,
@@ -1421,13 +1421,13 @@ fn increase_long() {
     };
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_amount_with_amm: 1,
-            base_asset_amount_long: 1,
-            base_asset_amount_short: 0,
-            quote_asset_amount: -1,
-            quote_break_even_amount_long: -2,
-            quote_entry_amount_long: -1,
-            cumulative_funding_rate_long: 1,
+            base_asset_amount_with_amm: 1.into(),
+            base_asset_amount_long: 1.into(),
+            base_asset_amount_short: 0.into(),
+            quote_asset_amount: (-1).into(),
+            quote_break_even_amount_long: (-2).into(),
+            quote_entry_amount_long: (-1).into(),
+            cumulative_funding_rate_long: 1.into(),
             ..AMM::default_test()
         },
         number_of_users_with_base: 1,
@@ -1472,12 +1472,12 @@ fn increase_short() {
     };
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_amount_short: -1,
-            base_asset_amount_long: 0,
-            quote_asset_amount: 1,
-            quote_entry_amount_short: 1,
-            quote_break_even_amount_short: 2,
-            cumulative_funding_rate_short: 1,
+            base_asset_amount_short: (-1).into(),
+            base_asset_amount_long: 0.into(),
+            quote_asset_amount: 1.into(),
+            quote_entry_amount_short: 1.into(),
+            quote_break_even_amount_short: 2.into(),
+            cumulative_funding_rate_short: 1.into(),
             ..AMM::default_test()
         },
         number_of_users_with_base: 1,
@@ -1520,13 +1520,13 @@ fn reduce_long_profitable() {
     };
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_amount_with_amm: 10,
-            base_asset_amount_long: 10,
-            base_asset_amount_short: 0,
-            quote_asset_amount: -10,
-            quote_entry_amount_long: -10,
-            quote_break_even_amount_long: -12,
-            cumulative_funding_rate_long: 1,
+            base_asset_amount_with_amm: 10.into(),
+            base_asset_amount_long: 10.into(),
+            base_asset_amount_short: 0.into(),
+            quote_asset_amount: (-10).into(),
+            quote_entry_amount_long: (-10).into(),
+            quote_break_even_amount_long: (-12).into(),
+            cumulative_funding_rate_long: 1.into(),
             ..AMM::default_test()
         },
         number_of_users_with_base: 1,
@@ -1570,13 +1570,13 @@ fn reduce_long_unprofitable() {
     };
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_amount_with_amm: 10,
-            base_asset_amount_long: 10,
-            base_asset_amount_short: 0,
-            quote_asset_amount: -100,
-            quote_entry_amount_long: -100,
-            quote_break_even_amount_long: -200,
-            cumulative_funding_rate_long: 1,
+            base_asset_amount_with_amm: 10.into(),
+            base_asset_amount_long: 10.into(),
+            base_asset_amount_short: 0.into(),
+            quote_asset_amount: (-100).into(),
+            quote_entry_amount_long: (-100).into(),
+            quote_break_even_amount_long: (-200).into(),
+            cumulative_funding_rate_long: 1.into(),
             ..AMM::default_test()
         },
         number_of_users_with_base: 1,
@@ -1620,14 +1620,14 @@ fn flip_long_to_short_profitable() {
     };
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_amount_with_amm: 10,
-            base_asset_amount_long: 10,
-            base_asset_amount_short: 0,
-            quote_asset_amount: -10,
-            quote_break_even_amount_long: -12,
-            quote_entry_amount_long: -10,
-            cumulative_funding_rate_short: 2,
-            cumulative_funding_rate_long: 1,
+            base_asset_amount_with_amm: 10.into(),
+            base_asset_amount_long: 10.into(),
+            base_asset_amount_short: 0.into(),
+            quote_asset_amount: (-10).into(),
+            quote_break_even_amount_long: (-12).into(),
+            quote_entry_amount_long: (-10).into(),
+            cumulative_funding_rate_short: 2.into(),
+            cumulative_funding_rate_long: 1.into(),
             ..AMM::default_test()
         },
         number_of_users_with_base: 1,
@@ -1671,14 +1671,14 @@ fn flip_long_to_short_unprofitable() {
     };
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_amount_with_amm: 10,
-            base_asset_amount_long: 10,
-            base_asset_amount_short: 0,
-            quote_asset_amount: -10,
-            quote_break_even_amount_long: -12,
-            quote_entry_amount_long: -10,
-            cumulative_funding_rate_short: 2,
-            cumulative_funding_rate_long: 1,
+            base_asset_amount_with_amm: 10.into(),
+            base_asset_amount_long: 10.into(),
+            base_asset_amount_short: 0.into(),
+            quote_asset_amount: (-10).into(),
+            quote_break_even_amount_long: (-12).into(),
+            quote_entry_amount_long: (-10).into(),
+            cumulative_funding_rate_short: 2.into(),
+            cumulative_funding_rate_long: 1.into(),
             order_step_size: 1,
             ..AMM::default()
         },
@@ -1723,12 +1723,12 @@ fn reduce_short_profitable() {
     };
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_amount_long: 0,
-            base_asset_amount_short: -10,
-            quote_asset_amount: 100,
-            quote_entry_amount_short: 100,
-            quote_break_even_amount_short: 200,
-            cumulative_funding_rate_short: 1,
+            base_asset_amount_long: 0.into(),
+            base_asset_amount_short: (-10).into(),
+            quote_asset_amount: 100.into(),
+            quote_entry_amount_short: 100.into(),
+            quote_break_even_amount_short: 200.into(),
+            cumulative_funding_rate_short: 1.into(),
             ..AMM::default_test()
         },
         number_of_users_with_base: 1,
@@ -1771,12 +1771,12 @@ fn decrease_short_unprofitable() {
     };
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_amount_long: 0,
-            base_asset_amount_short: -10,
-            quote_asset_amount: 100,
-            quote_entry_amount_short: 100,
-            quote_break_even_amount_short: 200,
-            cumulative_funding_rate_short: 1,
+            base_asset_amount_long: 0.into(),
+            base_asset_amount_short: (-10).into(),
+            quote_asset_amount: 100.into(),
+            quote_entry_amount_short: 100.into(),
+            quote_break_even_amount_short: 200.into(),
+            cumulative_funding_rate_short: 1.into(),
             ..AMM::default_test()
         },
         number_of_users_with_base: 1,
@@ -1819,14 +1819,14 @@ fn flip_short_to_long_profitable() {
     };
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_amount_with_amm: -10,
-            base_asset_amount_long: 0,
-            base_asset_amount_short: -10,
-            quote_asset_amount: 100,
-            quote_entry_amount_short: 100,
-            quote_break_even_amount_short: 200,
-            cumulative_funding_rate_long: 2,
-            cumulative_funding_rate_short: 1,
+            base_asset_amount_with_amm: (-10).into(),
+            base_asset_amount_long: 0.into(),
+            base_asset_amount_short: (-10).into(),
+            quote_asset_amount: 100.into(),
+            quote_entry_amount_short: 100.into(),
+            quote_break_even_amount_short: 200.into(),
+            cumulative_funding_rate_long: 2.into(),
+            cumulative_funding_rate_short: 1.into(),
             ..AMM::default_test()
         },
         number_of_users_with_base: 1,
@@ -1870,14 +1870,14 @@ fn flip_short_to_long_unprofitable() {
     };
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_amount_with_amm: -10,
-            base_asset_amount_long: 0,
-            base_asset_amount_short: -10,
-            quote_asset_amount: 100,
-            quote_entry_amount_short: 100,
-            quote_break_even_amount_short: 200,
-            cumulative_funding_rate_long: 2,
-            cumulative_funding_rate_short: 1,
+            base_asset_amount_with_amm: (-10).into(),
+            base_asset_amount_long: 0.into(),
+            base_asset_amount_short: (-10).into(),
+            quote_asset_amount: 100.into(),
+            quote_entry_amount_short: 100.into(),
+            quote_break_even_amount_short: 200.into(),
+            cumulative_funding_rate_long: 2.into(),
+            cumulative_funding_rate_short: 1.into(),
             ..AMM::default_test()
         },
         number_of_users_with_base: 1,
@@ -1921,12 +1921,12 @@ fn close_long_profitable() {
     };
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_amount_with_amm: 11,
-            base_asset_amount_long: 11,
-            quote_asset_amount: -11,
-            quote_entry_amount_long: -11,
-            quote_break_even_amount_long: -13,
-            cumulative_funding_rate_long: 1,
+            base_asset_amount_with_amm: 11.into(),
+            base_asset_amount_long: 11.into(),
+            quote_asset_amount: (-11).into(),
+            quote_entry_amount_long: (-11).into(),
+            quote_break_even_amount_long: (-13).into(),
+            cumulative_funding_rate_long: 1.into(),
             ..AMM::default_test()
         },
         number_of_users_with_base: 2,
@@ -1971,12 +1971,12 @@ fn close_long_unprofitable() {
     };
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_amount_with_amm: 11,
-            base_asset_amount_long: 11,
-            quote_asset_amount: -11,
-            quote_entry_amount_long: -11,
-            quote_break_even_amount_long: -13,
-            cumulative_funding_rate_long: 1,
+            base_asset_amount_with_amm: 11.into(),
+            base_asset_amount_long: 11.into(),
+            quote_asset_amount: (-11).into(),
+            quote_entry_amount_long: (-11).into(),
+            quote_break_even_amount_long: (-13).into(),
+            cumulative_funding_rate_long: 1.into(),
             ..AMM::default_test()
         },
         number_of_users_with_base: 2,
@@ -2020,11 +2020,11 @@ fn close_short_profitable() {
     };
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_amount_short: -11,
-            quote_asset_amount: 11,
-            quote_entry_amount_short: 11,
-            quote_break_even_amount_short: 13,
-            cumulative_funding_rate_short: 1,
+            base_asset_amount_short: (-11).into(),
+            quote_asset_amount: 11.into(),
+            quote_entry_amount_short: 11.into(),
+            quote_break_even_amount_short: 13.into(),
+            cumulative_funding_rate_short: 1.into(),
             ..AMM::default_test()
         },
         number_of_users_with_base: 2,
@@ -2067,11 +2067,11 @@ fn close_short_unprofitable() {
     };
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_amount_short: -11,
-            quote_asset_amount: 11,
-            quote_entry_amount_short: 11,
-            quote_break_even_amount_short: 13,
-            cumulative_funding_rate_short: 1,
+            base_asset_amount_short: (-11).into(),
+            quote_asset_amount: 11.into(),
+            quote_entry_amount_short: 11.into(),
+            quote_break_even_amount_short: 13.into(),
+            cumulative_funding_rate_short: 1.into(),
             ..AMM::default_test()
         },
         number_of_users_with_base: 2,
@@ -2114,12 +2114,12 @@ fn close_long_with_quote_break_even_amount_less_than_quote_asset_amount() {
     };
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_amount_with_amm: 11,
-            base_asset_amount_long: 11,
-            quote_asset_amount: -11,
-            quote_entry_amount_long: -8,
-            quote_break_even_amount_long: -9,
-            cumulative_funding_rate_long: 1,
+            base_asset_amount_with_amm: 11.into(),
+            base_asset_amount_long: 11.into(),
+            quote_asset_amount: (-11).into(),
+            quote_entry_amount_long: (-8).into(),
+            quote_break_even_amount_long: (-9).into(),
+            cumulative_funding_rate_long: 1.into(),
             order_step_size: 1,
             ..AMM::default()
         },
@@ -2164,11 +2164,11 @@ fn close_short_with_quote_break_even_amount_more_than_quote_asset_amount() {
     };
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_amount_short: -11,
-            quote_asset_amount: 11,
-            quote_entry_amount_short: 15,
-            quote_break_even_amount_short: 17,
-            cumulative_funding_rate_short: 1,
+            base_asset_amount_short: (-11).into(),
+            quote_asset_amount: 11.into(),
+            quote_entry_amount_short: 15.into(),
+            quote_break_even_amount_short: 17.into(),
+            cumulative_funding_rate_short: 1.into(),
             order_step_size: 1,
             ..AMM::default()
         },
@@ -2239,6 +2239,7 @@ fn update_amm_near_boundary() {
     let base_asset_amount_with_unsettled_lp = perp_market.amm.base_asset_amount_with_unsettled_lp();
     perp_market.amm.set_base_asset_amount_with_amm(
         base_asset_amount_with_amm
+            .as_i128()
             .safe_add(base_asset_amount_with_unsettled_lp)
             .unwrap(),
     );
@@ -2486,11 +2487,14 @@ fn recenter_amm_2() {
         perp_market.amm.min_order_size as u128
     );
 
-    perp_market.amm.base_asset_amount_with_amm = perp_market
-        .amm
-        .base_asset_amount_with_amm
-        .safe_add(perp_market.amm.base_asset_amount_with_unsettled_lp)
-        .unwrap();
+    let base_asset_amount_with_amm = perp_market.amm.base_asset_amount_with_amm;
+    let base_asset_amount_with_unsettled_lp = perp_market.amm.base_asset_amount_with_unsettled_lp;
+    perp_market.amm.set_base_asset_amount_with_amm(
+        base_asset_amount_with_amm
+            .as_i128()
+            .safe_add(base_asset_amount_with_unsettled_lp.as_i128())
+            .unwrap(),
+    );
     perp_market.amm.set_base_asset_amount_with_unsettled_lp(0);
 
     recenter_perp_market_amm(&mut perp_market, oracle_price_data.price as u128, new_k).unwrap();

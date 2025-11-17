@@ -1454,8 +1454,7 @@ impl AMM {
         Ok(self
             .sqrt_k
             .as_u128()
-            .min((self.min_order_size as u128).max(self.base_asset_amount_with_amm.unsigned_abs()))
-            .into())
+            .min((self.min_order_size as u128).max(self.base_asset_amount_with_amm.unsigned_abs())))
     }
 
     pub fn get_protocol_owned_position(self) -> DriftResult<i64> {
@@ -1790,18 +1789,18 @@ impl AMM {
         use crate::math::constants::PRICE_PRECISION_I64;
 
         AMM {
-            base_asset_reserve: 65 * AMM_RESERVE_PRECISION.into(),
+            base_asset_reserve: (65 * AMM_RESERVE_PRECISION).into(),
             quote_asset_reserve: 63015384615.into(),
-            terminal_quote_asset_reserve: 64 * AMM_RESERVE_PRECISION.into(),
-            sqrt_k: 64 * AMM_RESERVE_PRECISION.into(),
+            terminal_quote_asset_reserve: (64 * AMM_RESERVE_PRECISION).into(),
+            sqrt_k: (64 * AMM_RESERVE_PRECISION).into(),
 
             peg_multiplier: 19_400_000_000.into(),
 
             concentration_coef: MAX_CONCENTRATION_COEFFICIENT.into(),
-            max_base_asset_reserve: 90 * AMM_RESERVE_PRECISION.into(),
-            min_base_asset_reserve: 45 * AMM_RESERVE_PRECISION.into(),
+            max_base_asset_reserve: (90 * AMM_RESERVE_PRECISION).into(),
+            min_base_asset_reserve: (45 * AMM_RESERVE_PRECISION).into(),
 
-            base_asset_amount_with_amm: (-AMM_RESERVE_PRECISION as i128).into(),
+            base_asset_amount_with_amm: (AMM_RESERVE_PRECISION as i128 * -1).into(),
             mark_std: PRICE_PRECISION as u64,
 
             quote_asset_amount: 19_000_000_000.into(), // short 1 BTC @ $19000

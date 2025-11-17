@@ -20,6 +20,7 @@ use anchor_lang::prelude::{
     borsh::{BorshDeserialize, BorshSerialize},
     *,
 };
+use drift_macros::legacy_layout;
 use enumflags2::BitFlags;
 
 use super::oracle::OraclePriceData;
@@ -61,7 +62,7 @@ pub const MAX_ORACLE_STALENESS_FOR_TARGET_CALC: u64 = 10u64;
 #[cfg(test)]
 mod tests;
 
-#[drift_macros::legacy_layout]
+#[legacy_layout]
 #[account(zero_copy(unsafe))]
 #[derive(Debug)]
 #[repr(C)]
@@ -718,9 +719,9 @@ impl LPPool {
             self.target_position_delay_fee_bps_per_10_slots,
         )?;
 
-        Ok(oracle_uncertainty_fee
+        oracle_uncertainty_fee
             .safe_add(position_uncertainty_fee)?
-            .cast::<i128>()?)
+            .cast::<i128>()
     }
 
     pub fn record_mint_redeem_fees(&mut self, amount: i64) -> DriftResult {
@@ -859,7 +860,7 @@ impl LPPool {
     }
 }
 
-#[drift_macros::legacy_layout]
+#[legacy_layout]
 #[zero_copy(unsafe)]
 #[derive(Default, Eq, PartialEq, Debug, BorshDeserialize, BorshSerialize)]
 #[repr(C)]
@@ -918,7 +919,7 @@ impl ConstituentSpotBalance {
     }
 }
 
-#[drift_macros::legacy_layout]
+#[legacy_layout]
 #[account(zero_copy(unsafe))]
 #[derive(Debug)]
 #[repr(C)]

@@ -18,12 +18,12 @@ use crate::state::user::MarketType;
 pub fn update_amm_test() {
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 63015384615,
-            terminal_quote_asset_reserve: 64 * AMM_RESERVE_PRECISION,
-            sqrt_k: 64 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 19_400 * PEG_PRECISION,
-            base_asset_amount_with_amm: -(AMM_RESERVE_PRECISION as i128),
+            base_asset_reserve: (65 * AMM_RESERVE_PRECISION).into(),
+            quote_asset_reserve: 63015384615.into(),
+            terminal_quote_asset_reserve: (64 * AMM_RESERVE_PRECISION).into(),
+            sqrt_k: (64 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: (19_400 * PEG_PRECISION).into(),
+            base_asset_amount_with_amm: (-(AMM_RESERVE_PRECISION as i128)).into(),
             mark_std: PRICE_PRECISION as u64,
             last_mark_price_twap_ts: 0,
             historical_oracle_data: HistoricalOracleData {
@@ -35,7 +35,7 @@ pub fn update_amm_test() {
             base_spread: 250,
             curve_update_intensity: 100,
             max_spread: 55500,
-            concentration_coef: 31020710, //unrealistic but for poc
+            concentration_coef: 31020710.into(), //unrealistic but for poc
             ..AMM::default()
         },
         status: MarketStatus::Initialized,
@@ -188,15 +188,15 @@ pub fn update_amm_test() {
 pub fn update_amm_test_bad_oracle() {
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 630153846154000,
-            terminal_quote_asset_reserve: 64 * AMM_RESERVE_PRECISION,
-            sqrt_k: 64 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 19_400_000,
-            base_asset_amount_with_amm: -(AMM_RESERVE_PRECISION as i128),
+            base_asset_reserve: (65 * AMM_RESERVE_PRECISION).into(),
+            quote_asset_reserve: 630153846154000.into(),
+            terminal_quote_asset_reserve: (64 * AMM_RESERVE_PRECISION).into(),
+            sqrt_k: (64 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: 19_400_000.into(),
+            base_asset_amount_with_amm: (-(AMM_RESERVE_PRECISION as i128)).into(),
             mark_std: PRICE_PRECISION as u64,
             last_mark_price_twap_ts: 0,
-            concentration_coef: 1020710,
+            concentration_coef: 1020710.into(),
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: 19_400 * PRICE_PRECISION_I64,
                 ..HistoricalOracleData::default()

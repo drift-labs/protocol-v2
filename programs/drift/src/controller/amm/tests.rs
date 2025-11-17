@@ -10,14 +10,14 @@ use crate::state::perp_market::{InsuranceClaim, PoolBalance};
 fn concentration_coef_tests() {
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_reserve: 512295081967,
-            quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
-            terminal_quote_asset_reserve: 500 * AMM_RESERVE_PRECISION,
-            sqrt_k: 500 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 50000000,
-            concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
-            base_asset_amount_with_amm: -12295081967,
-            total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
+            base_asset_reserve: 512295081967.into(),
+            quote_asset_reserve: (488 * AMM_RESERVE_PRECISION).into(),
+            terminal_quote_asset_reserve: (500 * AMM_RESERVE_PRECISION).into(),
+            sqrt_k: (500 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: 50000000.into(),
+            concentration_coef: MAX_CONCENTRATION_COEFFICIENT.into(),
+            base_asset_amount_with_amm: (-12295081967).into(),
+            total_fee_minus_distributions: (1000 * QUOTE_PRECISION as i128).into(),
             curve_update_intensity: 100,
             ..AMM::default()
         },
@@ -103,13 +103,13 @@ fn concentration_coef_tests() {
 fn formualic_k_tests() {
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_reserve: 512295081967,
-            quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
-            sqrt_k: 500 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 50000000,
-            concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
-            base_asset_amount_with_amm: -12295081967,
-            total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
+            base_asset_reserve: 512295081967.into(),
+            quote_asset_reserve: (488 * AMM_RESERVE_PRECISION).into(),
+            sqrt_k: (500 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: 50000000.into(),
+            concentration_coef: MAX_CONCENTRATION_COEFFICIENT.into(),
+            base_asset_amount_with_amm: (-12295081967).into(),
+            total_fee_minus_distributions: (1000 * QUOTE_PRECISION as i128).into(),
             curve_update_intensity: 100,
             ..AMM::default()
         },
@@ -181,13 +181,13 @@ fn formualic_k_tests() {
 fn iterative_bounds_formualic_k_tests() {
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_reserve: 512295081967,
-            quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
-            sqrt_k: 500 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 50000000,
-            concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
-            base_asset_amount_with_amm: -12295081967,
-            total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
+            base_asset_reserve: 512295081967.into(),
+            quote_asset_reserve: (488 * AMM_RESERVE_PRECISION).into(),
+            sqrt_k: (500 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: 50000000.into(),
+            concentration_coef: MAX_CONCENTRATION_COEFFICIENT.into(),
+            base_asset_amount_with_amm: (-12295081967).into(),
+            total_fee_minus_distributions: (1000 * QUOTE_PRECISION as i128).into(),
             curve_update_intensity: 100,
             ..AMM::default()
         },
@@ -226,13 +226,13 @@ fn iterative_bounds_formualic_k_tests() {
 fn iterative_no_bounds_formualic_k_tests() {
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_reserve: 512295081967,
-            quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
-            sqrt_k: 500 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 50000000,
-            concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
-            base_asset_amount_with_amm: -12295081967,
-            total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
+            base_asset_reserve: 512295081967.into(),
+            quote_asset_reserve: (488 * AMM_RESERVE_PRECISION).into(),
+            sqrt_k: (500 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: 50000000.into(),
+            concentration_coef: MAX_CONCENTRATION_COEFFICIENT.into(),
+            base_asset_amount_with_amm: (-12295081967).into(),
+            total_fee_minus_distributions: (1000 * QUOTE_PRECISION as i128).into(),
             curve_update_intensity: 100,
             ..AMM::default()
         },
@@ -271,12 +271,12 @@ fn iterative_no_bounds_formualic_k_tests() {
 fn update_pool_balances_test_high_util_borrow() {
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_reserve: 5122950819670000,
-            quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
-            sqrt_k: 500 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 50000,
-            base_asset_amount_with_amm: -122950819670000,
-            total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
+            base_asset_reserve: 5122950819670000.into(),
+            quote_asset_reserve: (488 * AMM_RESERVE_PRECISION).into(),
+            sqrt_k: (500 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: 50000.into(),
+            base_asset_amount_with_amm: (-122950819670000).into(),
+            total_fee_minus_distributions: (1000 * QUOTE_PRECISION as i128).into(),
             curve_update_intensity: 100,
             ..AMM::default()
         },
@@ -285,8 +285,8 @@ fn update_pool_balances_test_high_util_borrow() {
     let now = 33928058;
 
     let mut spot_market = SpotMarket {
-        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-        cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+        cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
         ..SpotMarket::default()
     };
     // 100% util
@@ -366,12 +366,12 @@ fn update_pool_balances_test_high_util_borrow() {
 fn update_pool_balances_test() {
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_reserve: 5122950819670000,
-            quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
-            sqrt_k: 500 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 50000,
-            base_asset_amount_with_amm: -122950819670000,
-            total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
+            base_asset_reserve: 5122950819670000.into(),
+            quote_asset_reserve: (488 * AMM_RESERVE_PRECISION).into(),
+            sqrt_k: (500 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: 50000.into(),
+            base_asset_amount_with_amm: (-122950819670000).into(),
+            total_fee_minus_distributions: (1000 * QUOTE_PRECISION as i128).into(),
             curve_update_intensity: 100,
             ..AMM::default()
         },
@@ -380,8 +380,8 @@ fn update_pool_balances_test() {
     let now = 33928058;
 
     let mut spot_market = SpotMarket {
-        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-        cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+        cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
         ..SpotMarket::default()
     };
     spot_market.set_deposit_balance(10_u128.pow(19_u32));
@@ -505,29 +505,29 @@ fn update_pool_balances_test() {
 fn update_pool_balances_fee_to_revenue_test() {
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_reserve: 5122950819670000,
-            quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
-            sqrt_k: 500 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 50000,
-            base_asset_amount_with_amm: -122950819670000,
+            base_asset_reserve: 5122950819670000.into(),
+            quote_asset_reserve: (488 * AMM_RESERVE_PRECISION).into(),
+            sqrt_k: (500 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: 50000.into(),
+            base_asset_amount_with_amm: (-122950819670000).into(),
 
-            total_exchange_fee: 10 * QUOTE_PRECISION,
-            total_fee: 10 * QUOTE_PRECISION as i128,
-            total_mm_fee: 990 * QUOTE_PRECISION as i128,
-            total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
-            total_liquidation_fee: QUOTE_PRECISION,
+            total_exchange_fee: (10 * QUOTE_PRECISION).into(),
+            total_fee: (10 * QUOTE_PRECISION as i128).into(),
+            total_mm_fee: (990 * QUOTE_PRECISION as i128).into(),
+            total_fee_minus_distributions: (1000 * QUOTE_PRECISION as i128).into(),
+            total_liquidation_fee: QUOTE_PRECISION.into(),
             net_revenue_since_last_funding: 10000 * QUOTE_PRECISION as i64,
             curve_update_intensity: 100,
 
             fee_pool: PoolBalance {
-                scaled_balance: 50 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION,
+                scaled_balance: (50 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION).into(),
                 market_index: QUOTE_SPOT_MARKET_INDEX,
                 ..PoolBalance::default()
             },
             ..AMM::default()
         },
         pnl_pool: PoolBalance {
-            scaled_balance: 50 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION,
+            scaled_balance: (50 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION).into(),
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
@@ -541,9 +541,9 @@ fn update_pool_balances_fee_to_revenue_test() {
     let now = 33928058;
 
     let mut spot_market = SpotMarket {
-        deposit_balance: 100 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION,
-        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-        cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        deposit_balance: (100 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION).into(),
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+        cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
         revenue_pool: PoolBalance::default(),
         ..SpotMarket::default()
     };
@@ -616,29 +616,29 @@ fn update_pool_balances_fee_to_revenue_test() {
 fn update_pool_balances_fee_to_revenue_low_amm_revenue_test() {
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_reserve: 5122950819670000,
-            quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
-            sqrt_k: 500 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 50000,
-            base_asset_amount_with_amm: -122950819670000,
+            base_asset_reserve: 5122950819670000.into(),
+            quote_asset_reserve: (488 * AMM_RESERVE_PRECISION).into(),
+            sqrt_k: (500 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: 50000.into(),
+            base_asset_amount_with_amm: (-122950819670000).into(),
 
-            total_exchange_fee: 10 * QUOTE_PRECISION,
-            total_fee: 10 * QUOTE_PRECISION as i128,
-            total_mm_fee: 990 * QUOTE_PRECISION as i128,
-            total_fee_minus_distributions: 1000 * QUOTE_PRECISION as i128,
-            total_liquidation_fee: QUOTE_PRECISION,
+            total_exchange_fee: (10 * QUOTE_PRECISION).into(),
+            total_fee: (10 * QUOTE_PRECISION as i128).into(),
+            total_mm_fee: (990 * QUOTE_PRECISION as i128).into(),
+            total_fee_minus_distributions: (1000 * QUOTE_PRECISION as i128).into(),
+            total_liquidation_fee: QUOTE_PRECISION.into(),
             net_revenue_since_last_funding: QUOTE_PRECISION as i64,
             curve_update_intensity: 100,
 
             fee_pool: PoolBalance {
-                scaled_balance: 50 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION,
+                scaled_balance: (50 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION).into(),
                 market_index: QUOTE_SPOT_MARKET_INDEX,
                 ..PoolBalance::default()
             },
             ..AMM::default()
         },
         pnl_pool: PoolBalance {
-            scaled_balance: 50 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION,
+            scaled_balance: (50 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION).into(),
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
@@ -652,9 +652,9 @@ fn update_pool_balances_fee_to_revenue_low_amm_revenue_test() {
     let now = 33928058;
 
     let mut spot_market = SpotMarket {
-        deposit_balance: 100 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION,
-        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-        cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        deposit_balance: (100 * QUOTE_PRECISION * SPOT_BALANCE_PRECISION).into(),
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+        cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
         revenue_pool: PoolBalance::default(),
         ..SpotMarket::default()
     };
@@ -731,28 +731,28 @@ fn update_pool_balances_fee_to_revenue_low_amm_revenue_test() {
 fn update_pool_balances_revenue_to_fee_test() {
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_reserve: 5122950819670000,
-            quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
-            sqrt_k: 500 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 50000,
-            base_asset_amount_with_amm: -122950819670000,
+            base_asset_reserve: 5122950819670000.into(),
+            quote_asset_reserve: (488 * AMM_RESERVE_PRECISION).into(),
+            sqrt_k: (500 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: 50000.into(),
+            base_asset_amount_with_amm: (-122950819670000).into(),
 
-            total_exchange_fee: 10 * QUOTE_PRECISION,
-            total_fee: 10 * QUOTE_PRECISION as i128,
-            total_mm_fee: 990 * QUOTE_PRECISION as i128,
-            total_fee_minus_distributions: -(10000 * QUOTE_PRECISION as i128),
+            total_exchange_fee: (10 * QUOTE_PRECISION).into(),
+            total_fee: (10 * QUOTE_PRECISION as i128).into(),
+            total_mm_fee: (990 * QUOTE_PRECISION as i128).into(),
+            total_fee_minus_distributions: (-(10000 * QUOTE_PRECISION as i128)).into(),
 
             curve_update_intensity: 100,
 
             fee_pool: PoolBalance {
-                scaled_balance: 50 * SPOT_BALANCE_PRECISION,
+                scaled_balance: (50 * SPOT_BALANCE_PRECISION).into(),
                 market_index: QUOTE_SPOT_MARKET_INDEX,
                 ..PoolBalance::default()
             },
             ..AMM::default()
         },
         pnl_pool: PoolBalance {
-            scaled_balance: 50 * SPOT_BALANCE_PRECISION,
+            scaled_balance: (50 * SPOT_BALANCE_PRECISION).into(),
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
@@ -761,12 +761,12 @@ fn update_pool_balances_revenue_to_fee_test() {
     let mut now = 33928058;
 
     let mut spot_market = SpotMarket {
-        deposit_balance: 200 * SPOT_BALANCE_PRECISION,
-        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-        cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        deposit_balance: (200 * SPOT_BALANCE_PRECISION).into(),
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+        cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
         revenue_pool: PoolBalance {
             market_index: 0,
-            scaled_balance: 100 * SPOT_BALANCE_PRECISION,
+            scaled_balance: (100 * SPOT_BALANCE_PRECISION).into(),
             ..PoolBalance::default()
         },
         decimals: 6,
@@ -1051,26 +1051,26 @@ fn update_pool_balances_revenue_to_fee_test() {
 fn update_pool_balances_revenue_to_fee_devnet_state_test() {
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_reserve: 916769960813655,
-            quote_asset_reserve: 932609131198775,
-            sqrt_k: 924655631391254,
-            peg_multiplier: 20242531,
-            base_asset_amount_with_amm: 7563264495267,
+            base_asset_reserve: 916769960813655.into(),
+            quote_asset_reserve: 932609131198775.into(),
+            sqrt_k: 924655631391254.into(),
+            peg_multiplier: 20242531.into(),
+            base_asset_amount_with_amm: 7563264495267.into(),
 
-            quote_asset_amount: -90559143969,
+            quote_asset_amount: (-90559143969).into(),
 
-            total_exchange_fee: 18223810834,
-            total_fee: 130757047337,
-            total_mm_fee: 112696236155,
-            total_fee_minus_distributions: 338762376993,
-            total_fee_withdrawn: 161959731500,
-            total_liquidation_fee: 152847899222,
-            total_social_loss: 74768391959,
+            total_exchange_fee: 18223810834.into(),
+            total_fee: 130757047337.into(),
+            total_mm_fee: 112696236155.into(),
+            total_fee_minus_distributions: 338762376993.into(),
+            total_fee_withdrawn: 161959731500.into(),
+            total_liquidation_fee: 152847899222.into(),
+            total_social_loss: 74768391959.into(),
             curve_update_intensity: 100,
 
             net_revenue_since_last_funding: 229827181,
             fee_pool: PoolBalance {
-                scaled_balance: 1821 * SPOT_BALANCE_PRECISION,
+                scaled_balance: (1821 * SPOT_BALANCE_PRECISION).into(),
                 market_index: QUOTE_SPOT_MARKET_INDEX,
                 ..PoolBalance::default()
             },
@@ -1078,7 +1078,7 @@ fn update_pool_balances_revenue_to_fee_devnet_state_test() {
             ..AMM::default()
         },
         pnl_pool: PoolBalance {
-            scaled_balance: 381047 * SPOT_BALANCE_PRECISION,
+            scaled_balance: (381047 * SPOT_BALANCE_PRECISION).into(),
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
@@ -1092,12 +1092,12 @@ fn update_pool_balances_revenue_to_fee_devnet_state_test() {
     let now = 33928058;
 
     let mut spot_market = SpotMarket {
-        deposit_balance: 200 * SPOT_BALANCE_PRECISION,
-        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-        cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        deposit_balance: (200 * SPOT_BALANCE_PRECISION).into(),
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+        cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
         revenue_pool: PoolBalance {
             market_index: 0,
-            scaled_balance: 100 * SPOT_BALANCE_PRECISION,
+            scaled_balance: (100 * SPOT_BALANCE_PRECISION).into(),
             ..PoolBalance::default()
         },
         decimals: 6,
@@ -1142,26 +1142,26 @@ fn update_pool_balances_revenue_to_fee_devnet_state_test() {
 fn update_pool_balances_revenue_to_fee_new_market() {
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_reserve: 6165301473685,
-            quote_asset_reserve: 6165301473685,
-            sqrt_k: 6165301473685,
-            peg_multiplier: 324000000,
-            base_asset_amount_with_amm: 0,
+            base_asset_reserve: 6165301473685.into(),
+            quote_asset_reserve: 6165301473685.into(),
+            sqrt_k: 6165301473685.into(),
+            peg_multiplier: 324000000.into(),
+            base_asset_amount_with_amm: 0.into(),
 
-            quote_asset_amount: 0,
+            quote_asset_amount: 0.into(),
 
-            total_exchange_fee: 26000,
-            total_fee: 26000,
-            total_mm_fee: 0,
-            total_fee_minus_distributions: 26000,
-            total_fee_withdrawn: 0,
-            total_liquidation_fee: 0,
-            total_social_loss: 0,
+            total_exchange_fee: 26000.into(),
+            total_fee: 26000.into(),
+            total_mm_fee: 0.into(),
+            total_fee_minus_distributions: 26000.into(),
+            total_fee_withdrawn: 0.into(),
+            total_liquidation_fee: 0.into(),
+            total_social_loss: 0.into(),
             curve_update_intensity: 100,
 
             net_revenue_since_last_funding: 0,
             fee_pool: PoolBalance {
-                scaled_balance: 0,
+                scaled_balance: 0.into(),
                 market_index: QUOTE_SPOT_MARKET_INDEX,
                 ..PoolBalance::default()
             },
@@ -1169,7 +1169,7 @@ fn update_pool_balances_revenue_to_fee_new_market() {
             ..AMM::default()
         },
         pnl_pool: PoolBalance {
-            scaled_balance: 0,
+            scaled_balance: 0.into(),
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
@@ -1183,12 +1183,12 @@ fn update_pool_balances_revenue_to_fee_new_market() {
     let now = 33928058;
 
     let mut spot_market = SpotMarket {
-        deposit_balance: 200 * SPOT_BALANCE_PRECISION,
-        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-        cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        deposit_balance: (200 * SPOT_BALANCE_PRECISION).into(),
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+        cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
         revenue_pool: PoolBalance {
             market_index: 0,
-            scaled_balance: 100 * SPOT_BALANCE_PRECISION,
+            scaled_balance: (100 * SPOT_BALANCE_PRECISION).into(),
             ..PoolBalance::default()
         },
         decimals: 6,
@@ -1239,10 +1239,10 @@ mod revenue_pool_transfer_tests {
         // Set up input parameters
         let mut market = PerpMarket {
             amm: AMM {
-                total_social_loss: 0,
-                total_liquidation_fee: 0,
+                total_social_loss: 0.into(),
+                total_liquidation_fee: 0.into(),
                 net_revenue_since_last_funding: 0,
-                total_fee_withdrawn: 0,
+                total_fee_withdrawn: 0.into(),
                 ..AMM::default()
             },
             insurance_claim: InsuranceClaim {
@@ -1255,12 +1255,12 @@ mod revenue_pool_transfer_tests {
             ..PerpMarket::default()
         };
         let mut spot_market = SpotMarket {
-            deposit_balance: 20020 * SPOT_BALANCE_PRECISION,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            deposit_balance: (20020 * SPOT_BALANCE_PRECISION).into(),
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             revenue_pool: PoolBalance {
                 market_index: 0,
-                scaled_balance: 100 * SPOT_BALANCE_PRECISION,
+                scaled_balance: (100 * SPOT_BALANCE_PRECISION).into(),
                 ..PoolBalance::default()
             },
             decimals: 6,
@@ -1502,20 +1502,20 @@ mod revenue_pool_transfer_tests {
         // Set up input parameters
         let mut market = PerpMarket {
             amm: AMM {
-                total_social_loss: 0,
-                total_liquidation_fee: 0,
-                total_fee_withdrawn: 0,
+                total_social_loss: 0.into(),
+                total_liquidation_fee: 0.into(),
+                total_fee_withdrawn: 0.into(),
                 net_revenue_since_last_funding: 169 * QUOTE_PRECISION_I64,
-                total_fee_minus_distributions: 1420420420420,
-                total_exchange_fee: 420420420420,
+                total_fee_minus_distributions: 1420420420420.into(),
+                total_exchange_fee: 420420420420.into(),
                 fee_pool: PoolBalance {
-                    scaled_balance: 81000 * SPOT_BALANCE_PRECISION,
+                    scaled_balance: (81000 * SPOT_BALANCE_PRECISION).into(),
                     ..PoolBalance::default()
                 },
                 ..AMM::default()
             },
             pnl_pool: PoolBalance {
-                scaled_balance: 10000 * SPOT_BALANCE_PRECISION,
+                scaled_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
                 ..PoolBalance::default()
             },
             insurance_claim: InsuranceClaim {
@@ -1528,13 +1528,13 @@ mod revenue_pool_transfer_tests {
             ..PerpMarket::default()
         };
         let mut spot_market = SpotMarket {
-            deposit_balance: 20020 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (20020 * SPOT_BALANCE_PRECISION).into(),
             deposit_token_twap: 20020 * QUOTE_PRECISION_U64,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             revenue_pool: PoolBalance {
                 market_index: 0,
-                scaled_balance: 10000 * SPOT_BALANCE_PRECISION,
+                scaled_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
                 ..PoolBalance::default()
             },
             insurance_fund: InsuranceFund {
@@ -1619,20 +1619,20 @@ mod revenue_pool_transfer_tests {
         // Set up input parameters
         let mut market = PerpMarket {
             amm: AMM {
-                total_social_loss: 0,
-                total_liquidation_fee: 0,
-                total_fee_withdrawn: 0,
+                total_social_loss: 0.into(),
+                total_liquidation_fee: 0.into(),
+                total_fee_withdrawn: 0.into(),
                 net_revenue_since_last_funding: 169 * QUOTE_PRECISION_I64,
-                total_fee_minus_distributions: -6969696969,
-                total_exchange_fee: 420420420420,
+                total_fee_minus_distributions: (-6969696969).into(),
+                total_exchange_fee: 420420420420.into(),
                 fee_pool: PoolBalance {
-                    scaled_balance: 81000 * SPOT_BALANCE_PRECISION,
+                    scaled_balance: (81000 * SPOT_BALANCE_PRECISION).into(),
                     ..PoolBalance::default()
                 },
                 ..AMM::default()
             },
             pnl_pool: PoolBalance {
-                scaled_balance: 10000 * SPOT_BALANCE_PRECISION,
+                scaled_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
                 ..PoolBalance::default()
             },
             insurance_claim: InsuranceClaim {
@@ -1645,13 +1645,13 @@ mod revenue_pool_transfer_tests {
             ..PerpMarket::default()
         };
         let mut spot_market = SpotMarket {
-            deposit_balance: 20020000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (20020000 * SPOT_BALANCE_PRECISION).into(),
             deposit_token_twap: 20020000 * QUOTE_PRECISION_U64,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             revenue_pool: PoolBalance {
                 market_index: 0,
-                scaled_balance: 10000 * SPOT_BALANCE_PRECISION,
+                scaled_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
                 ..PoolBalance::default()
             },
             insurance_fund: InsuranceFund {

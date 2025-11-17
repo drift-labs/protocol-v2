@@ -7,11 +7,12 @@ use crate::state::spot_market::SpotMarket;
 use crate::state::traits::Size;
 use crate::validate;
 use anchor_lang::prelude::*;
+use drift_macros::legacy_layout;
 
 #[cfg(test)]
 mod tests;
 
-#[drift_macros::legacy_layout]
+#[legacy_layout]
 #[account(zero_copy(unsafe))]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
@@ -91,7 +92,7 @@ impl InsuranceFundStake {
     }
 }
 
-#[drift_macros::legacy_layout]
+#[legacy_layout]
 #[account(zero_copy(unsafe))]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]

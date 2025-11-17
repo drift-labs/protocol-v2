@@ -7,12 +7,12 @@ mod amm {
     #[test]
     fn last_ask_premium() {
         let mut amm = AMM {
-            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+            quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
             short_spread: (BID_ASK_SPREAD_PRECISION / 10) as u32,
             long_spread: (BID_ASK_SPREAD_PRECISION / 10) as u32,
-            sqrt_k: 100 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 100 * PEG_PRECISION,
+            sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: (100 * PEG_PRECISION).into(),
             ..AMM::default()
         };
         amm.historical_oracle_data.last_oracle_price = 100 * PRICE_PRECISION_I64;
@@ -25,12 +25,12 @@ mod amm {
     #[test]
     fn last_bid_discount() {
         let mut amm = AMM {
-            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+            quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
             short_spread: (BID_ASK_SPREAD_PRECISION / 10) as u32,
             long_spread: (BID_ASK_SPREAD_PRECISION / 10) as u32,
-            sqrt_k: 100 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 100 * PEG_PRECISION,
+            sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: (100 * PEG_PRECISION).into(),
             ..AMM::default()
         };
         amm.historical_oracle_data.last_oracle_price = 100 * PRICE_PRECISION_I64;

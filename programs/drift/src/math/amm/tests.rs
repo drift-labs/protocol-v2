@@ -87,9 +87,9 @@ fn calculate_net_user_pnl_test() {
     let px = 32 * PRICE_PRECISION;
 
     let amm = AMM {
-        base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
-        quote_asset_reserve: 2 * AMM_RESERVE_PRECISION,
-        peg_multiplier: PEG_PRECISION,
+        base_asset_reserve: (2 * AMM_RESERVE_PRECISION).into(),
+        quote_asset_reserve: (2 * AMM_RESERVE_PRECISION).into(),
+        peg_multiplier: PEG_PRECISION.into(),
         historical_oracle_data: HistoricalOracleData {
             last_oracle_price_twap: px as i64,
             last_oracle_price_twap_ts: prev,
@@ -150,13 +150,13 @@ fn calculate_expiry_price_long_imbalance_with_loss_test() {
     let market = PerpMarket {
         market_index: 0,
         amm: AMM {
-            base_asset_reserve: 512295081967,
-            quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
-            sqrt_k: 500 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 22_100_000_000,
-            base_asset_amount_with_amm: (12295081967_i128),
+            base_asset_reserve: 512295081967.into(),
+            quote_asset_reserve: (488 * AMM_RESERVE_PRECISION).into(),
+            sqrt_k: (500 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: 22_100_000_000.into(),
+            base_asset_amount_with_amm: (12295081967_i128).into(),
             max_spread: 1000,
-            quote_asset_amount: market_position.quote_asset_amount as i128 * 2,
+            quote_asset_amount: (market_position.quote_asset_amount as i128 * 2).into(),
             // assume someone else has other half same entry,
             ..AMM::default()
         },
@@ -233,13 +233,13 @@ fn calculate_expiry_price_long_imbalance_test() {
     let market = PerpMarket {
         market_index: 0,
         amm: AMM {
-            base_asset_reserve: 512295081967,
-            quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
-            sqrt_k: 500 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 22_100_000_000,
-            base_asset_amount_with_amm: (12295081967_i128),
+            base_asset_reserve: 512295081967.into(),
+            quote_asset_reserve: (488 * AMM_RESERVE_PRECISION).into(),
+            sqrt_k: (500 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: 22_100_000_000.into(),
+            base_asset_amount_with_amm: (12295081967_i128).into(),
             max_spread: 1000,
-            quote_asset_amount: market_position.quote_asset_amount as i128 * 2,
+            quote_asset_amount: (market_position.quote_asset_amount as i128 * 2).into(),
             // assume someone else has other half same entry,
             ..AMM::default()
         },
@@ -299,9 +299,9 @@ fn calculate_expiry_price_test() {
     let px = 32 * PRICE_PRECISION;
 
     let amm = AMM {
-        base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
-        quote_asset_reserve: 2 * AMM_RESERVE_PRECISION,
-        peg_multiplier: PEG_PRECISION,
+        base_asset_reserve: (2 * AMM_RESERVE_PRECISION).into(),
+        quote_asset_reserve: (2 * AMM_RESERVE_PRECISION).into(),
+        peg_multiplier: PEG_PRECISION.into(),
         historical_oracle_data: HistoricalOracleData {
             last_oracle_price_twap: px as i64,
             last_oracle_price_twap_ts: prev,
@@ -350,13 +350,13 @@ fn calculate_expiry_price_test() {
     let market = PerpMarket {
         market_index: 0,
         amm: AMM {
-            base_asset_reserve: 512295081967,
-            quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
-            sqrt_k: 500 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 22_100_000_000,
-            base_asset_amount_with_amm: -(12295081967_i128),
+            base_asset_reserve: 512295081967.into(),
+            quote_asset_reserve: (488 * AMM_RESERVE_PRECISION).into(),
+            sqrt_k: (500 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: 22_100_000_000.into(),
+            base_asset_amount_with_amm: (-(12295081967_i128)).into(),
             max_spread: 1000,
-            quote_asset_amount: market_position.quote_asset_amount as i128 * 2,
+            quote_asset_amount: (market_position.quote_asset_amount as i128 * 2).into(),
             // assume someone else has other half same entry,
             ..AMM::default()
         },
@@ -416,9 +416,9 @@ fn calc_delayed_mark_twap_tests() {
     let prev = 1656682258;
     let now = prev + 60;
     let mut amm = AMM {
-        base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
-        quote_asset_reserve: 2 * AMM_RESERVE_PRECISION,
-        peg_multiplier: PRICE_PRECISION,
+        base_asset_reserve: (2 * AMM_RESERVE_PRECISION).into(),
+        quote_asset_reserve: (2 * AMM_RESERVE_PRECISION).into(),
+        peg_multiplier: PRICE_PRECISION.into(),
         base_spread: 655,  //base spread is .065%,
         max_spread: 65535, //base spread is 6.5%
         mark_std: PRICE_PRECISION as u64,
@@ -456,9 +456,9 @@ fn calc_mark_std_tests() {
     let prev = 1656682258;
     let mut now = prev + 60;
     let mut amm = AMM {
-        base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
-        quote_asset_reserve: 2 * AMM_RESERVE_PRECISION,
-        peg_multiplier: PRICE_PRECISION,
+        base_asset_reserve: (2 * AMM_RESERVE_PRECISION).into(),
+        quote_asset_reserve: (2 * AMM_RESERVE_PRECISION).into(),
+        peg_multiplier: PRICE_PRECISION.into(),
         base_spread: 65535, //max base spread is 6.5%
         mark_std: PRICE_PRECISION as u64,
         historical_oracle_data: HistoricalOracleData {
@@ -634,9 +634,9 @@ fn update_mark_twap_tests() {
 
     // $40 everything init
     let mut amm = AMM {
-        quote_asset_reserve: 2 * AMM_RESERVE_PRECISION,
-        base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
-        peg_multiplier: 40 * PEG_PRECISION,
+        quote_asset_reserve: (2 * AMM_RESERVE_PRECISION).into(),
+        base_asset_reserve: (2 * AMM_RESERVE_PRECISION).into(),
+        peg_multiplier: (40 * PEG_PRECISION).into(),
         base_spread: 800,
         max_spread: 10000,
         long_spread: 0,
@@ -775,9 +775,9 @@ fn calc_oracle_twap_tests() {
     let px = 32 * PRICE_PRECISION;
 
     let mut amm = AMM {
-        base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
-        quote_asset_reserve: 2 * AMM_RESERVE_PRECISION,
-        peg_multiplier: PEG_PRECISION,
+        base_asset_reserve: (2 * AMM_RESERVE_PRECISION).into(),
+        quote_asset_reserve: (2 * AMM_RESERVE_PRECISION).into(),
+        peg_multiplier: PEG_PRECISION.into(),
         historical_oracle_data: HistoricalOracleData {
             last_oracle_price_twap: px as i64,
             last_oracle_price_twap_ts: prev,
@@ -897,9 +897,9 @@ fn calc_oracle_twap_clamp_update_tests() {
 
     // $13 everything init
     let mut amm = AMM {
-        quote_asset_reserve: 200 * AMM_RESERVE_PRECISION,
-        base_asset_reserve: 200 * AMM_RESERVE_PRECISION,
-        peg_multiplier: 13 * PEG_PRECISION,
+        quote_asset_reserve: (200 * AMM_RESERVE_PRECISION).into(),
+        base_asset_reserve: (200 * AMM_RESERVE_PRECISION).into(),
+        peg_multiplier: (13 * PEG_PRECISION).into(),
         base_spread: 0,
         long_spread: 0,
         short_spread: 0,
@@ -986,9 +986,9 @@ fn test_last_oracle_conf_update() {
     let now = prev + 1;
 
     let mut amm = AMM {
-        quote_asset_reserve: 200 * AMM_RESERVE_PRECISION,
-        base_asset_reserve: 200 * AMM_RESERVE_PRECISION,
-        peg_multiplier: 13 * PEG_PRECISION,
+        quote_asset_reserve: (200 * AMM_RESERVE_PRECISION).into(),
+        base_asset_reserve: (200 * AMM_RESERVE_PRECISION).into(),
+        peg_multiplier: (13 * PEG_PRECISION).into(),
         base_spread: 0,
         long_spread: 0,
         short_spread: 0,
