@@ -265,6 +265,7 @@ fn calculate_filler_reward(
 
     let min_time_filler_reward = filler_reward_structure
         .time_based_reward_lower_bound
+        .as_u128()
         .safe_mul(
             multiplier
                 .cast::<u128>()?

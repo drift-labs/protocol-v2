@@ -26,7 +26,6 @@ pub mod compat {
 
     /// `u128` with legacy bit layout
     #[derive(Copy, Clone, PartialEq, Eq, Debug, Default, BorshSerialize, BorshDeserialize)]
-    #[repr(transparent)]
     pub struct u128([u8; 16]);
 
     impl std::fmt::Display for self::u128 {
@@ -76,6 +75,15 @@ pub mod compat {
     impl From<u128> for std::primitive::u128 {
         fn from(value: u128) -> Self {
             value.as_u128()
+        }
+    }
+
+    impl num_traits::Zero for self::u128 {
+        fn zero() -> Self {
+            Self::ZERO
+        }
+        fn is_zero(&self) -> bool {
+            self.0 == Self::ZERO.0
         }
     }
 
@@ -145,7 +153,6 @@ pub mod compat {
 
     /// `i128` with legacy bit layout
     #[derive(Copy, Clone, PartialEq, Eq, Debug, Default, BorshSerialize, BorshDeserialize)]
-    #[repr(transparent)]
     pub struct i128([u8; 16]);
 
     impl std::fmt::Display for self::i128 {
@@ -184,6 +191,15 @@ pub mod compat {
 
         pub fn cast<T: TryFrom<std::primitive::i128>>(&self) -> DriftResult<T> {
             self.as_i128().cast()
+        }
+    }
+
+    impl num_traits::Zero for self::i128 {
+        fn zero() -> Self {
+            Self::ZERO
+        }
+        fn is_zero(&self) -> bool {
+            self.0 == Self::ZERO.0
         }
     }
 

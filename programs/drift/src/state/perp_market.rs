@@ -6,7 +6,6 @@ use anchor_lang::prelude::{
     borsh::{BorshDeserialize, BorshSerialize},
     *,
 };
-use num_traits::Zero;
 
 use crate::state::state::{State, ValidityGuardRails};
 use std::cmp::max;
@@ -377,7 +376,7 @@ impl PerpMarket {
                 .net_revenue_since_last_funding
                 .cast::<i128>()?
                 .safe_mul(PERCENTAGE_PRECISION_I128)?
-                .safe_div(self.amm.total_fee_minus_distributions.max(1))?;
+                .safe_div(self.amm.total_fee_minus_distributions.as_i128().max(1))?;
 
             let percent_drawdown_limit_breached = match self.contract_tier {
                 ContractTier::A => percent_drawdown <= -PERCENTAGE_PRECISION_I128 / 50,
@@ -701,6 +700,7 @@ impl PerpMarket {
         let peg_sqrt = (self
             .amm
             .peg_multiplier
+            .as_u128()
             .safe_mul(PEG_PRECISION)?
             .saturating_add(1))
         .nth_root(2)
@@ -710,8 +710,9 @@ impl PerpMarket {
         let mut quote_asset_reserve_upper_bound = self
             .amm
             .sqrt_k
+            .as_u128()
             .safe_mul(peg_sqrt)?
-            .safe_div(self.amm.peg_multiplier)?;
+            .safe_div(self.amm.peg_multiplier.into())?;
 
         // for price [0,1] maintain following invariants:
         if direction == PositionDirection::Long {
@@ -719,19 +720,21 @@ impl PerpMarket {
             quote_asset_reserve_lower_bound = self
                 .amm
                 .sqrt_k
+                .as_u128()
                 .safe_mul(22361)?
                 .safe_mul(peg_sqrt)?
                 .safe_div(100000)?
-                .safe_div(self.amm.peg_multiplier)?
+                .safe_div(self.amm.peg_multiplier.into())?
         } else {
             // highest bid price is $0.95
             quote_asset_reserve_upper_bound = self
                 .amm
                 .sqrt_k
+                .as_u128()
                 .safe_mul(97467)?
                 .safe_mul(peg_sqrt)?
                 .safe_div(100000)?
-                .safe_div(self.amm.peg_multiplier)?
+                .safe_div(self.amm.peg_multiplier.into())?
         }
 
         Ok((
@@ -1056,12 +1059,12 @@ impl SpotBalance for PoolBalance {
     }
 
     fn increase_balance(&mut self, delta: u128) -> DriftResult {
-        self.scaled_balance = self.scaled_balance().safe_add(delta)?;
+        self.scaled_balance = self.scaled_balance().safe_add(delta)?.into();
         Ok(())
     }
 
     fn decrease_balance(&mut self, delta: u128) -> DriftResult {
-        self.scaled_balance = self.scaled_balance().safe_sub(delta)?;
+        self.scaled_balance = self.scaled_balance().safe_sub(delta)?.into();
         Ok(())
     }
 
@@ -1448,10 +1451,11 @@ impl AMM {
     }
 
     pub fn get_lower_bound_sqrt_k(self) -> DriftResult<u128> {
-        Ok(self.sqrt_k.min(
-            (self.min_order_size.cast::<u128>()?)
-                .max(self.base_asset_amount_with_amm.unsigned_abs()),
-        ))
+        Ok(self
+            .sqrt_k
+            .as_u128()
+            .min((self.min_order_size as u128).max(self.base_asset_amount_with_amm.unsigned_abs()))
+            .into())
     }
 
     pub fn get_protocol_owned_position(self) -> DriftResult<i64> {
@@ -1477,10 +1481,10 @@ impl AMM {
     pub fn amm_wants_to_jit_make(&self, taker_direction: PositionDirection) -> DriftResult<bool> {
         let amm_wants_to_jit_make = match taker_direction {
             PositionDirection::Long => {
-                self.base_asset_amount_with_amm < -(self.order_step_size.cast()?)
+                self.base_asset_amount_with_amm.as_i128() < -(self.order_step_size as i128)
             }
             PositionDirection::Short => {
-                self.base_asset_amount_with_amm > (self.order_step_size.cast()?)
+                self.base_asset_amount_with_amm.as_i128() > self.order_step_size as i128
             }
         };
         Ok(amm_wants_to_jit_make && self.amm_jit_is_active())
@@ -1492,9 +1496,9 @@ impl AMM {
         if amm_wants_to_jit_make {
             // inventory scale
             let (max_bids, max_asks) = amm::_calculate_market_open_bids_asks(
-                self.base_asset_reserve,
-                self.min_base_asset_reserve,
-                self.max_base_asset_reserve,
+                self.base_asset_reserve.into(),
+                self.min_base_asset_reserve.into(),
+                self.max_base_asset_reserve.into(),
             )?;
 
             let protocol_owned_min_side_liquidity = max_bids.min(max_asks.abs());
@@ -1512,9 +1516,9 @@ impl AMM {
 
     pub fn reserve_price(&self) -> DriftResult<u64> {
         amm::calculate_price(
-            self.quote_asset_reserve,
-            self.base_asset_reserve,
-            self.peg_multiplier,
+            self.quote_asset_reserve.into(),
+            self.base_asset_reserve.into(),
+            self.peg_multiplier.into(),
         )
     }
 
@@ -1575,7 +1579,7 @@ impl AMM {
                 .base_asset_amount_with_amm
                 .unsigned_abs()
                 .max(min_order_size_u128)
-                < self.sqrt_k)
+                < self.sqrt_k.into())
             && (min_order_size_u128 < max_bids.unsigned_abs().max(max_asks.unsigned_abs()));
 
         Ok(can_lower)
@@ -1761,16 +1765,16 @@ impl AMM {
         let default_reserves = 100 * AMM_RESERVE_PRECISION;
         // make sure tests dont have the default sqrt_k = 0
         AMM {
-            base_asset_reserve: default_reserves,
-            quote_asset_reserve: default_reserves,
-            sqrt_k: default_reserves,
-            concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
+            base_asset_reserve: default_reserves.into(),
+            quote_asset_reserve: default_reserves.into(),
+            sqrt_k: default_reserves.into(),
+            concentration_coef: MAX_CONCENTRATION_COEFFICIENT.into(),
             order_step_size: 1,
             order_tick_size: 1,
-            max_base_asset_reserve: u64::MAX as u128,
-            min_base_asset_reserve: 0,
-            terminal_quote_asset_reserve: default_reserves,
-            peg_multiplier: crate::math::constants::PEG_PRECISION,
+            max_base_asset_reserve: (u64::MAX as u128).into(),
+            min_base_asset_reserve: 0.into(),
+            terminal_quote_asset_reserve: default_reserves.into(),
+            peg_multiplier: crate::math::constants::PEG_PRECISION.into(),
             max_fill_reserve_fraction: 1,
             max_spread: 1000,
             historical_oracle_data: HistoricalOracleData {
@@ -1786,21 +1790,21 @@ impl AMM {
         use crate::math::constants::PRICE_PRECISION_I64;
 
         AMM {
-            base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 63015384615,
-            terminal_quote_asset_reserve: 64 * AMM_RESERVE_PRECISION,
-            sqrt_k: 64 * AMM_RESERVE_PRECISION,
+            base_asset_reserve: 65 * AMM_RESERVE_PRECISION.into(),
+            quote_asset_reserve: 63015384615.into(),
+            terminal_quote_asset_reserve: 64 * AMM_RESERVE_PRECISION.into(),
+            sqrt_k: 64 * AMM_RESERVE_PRECISION.into(),
 
-            peg_multiplier: 19_400_000_000,
+            peg_multiplier: 19_400_000_000.into(),
 
-            concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
-            max_base_asset_reserve: 90 * AMM_RESERVE_PRECISION,
-            min_base_asset_reserve: 45 * AMM_RESERVE_PRECISION,
+            concentration_coef: MAX_CONCENTRATION_COEFFICIENT.into(),
+            max_base_asset_reserve: 90 * AMM_RESERVE_PRECISION.into(),
+            min_base_asset_reserve: 45 * AMM_RESERVE_PRECISION.into(),
 
-            base_asset_amount_with_amm: -(AMM_RESERVE_PRECISION as i128),
+            base_asset_amount_with_amm: (-AMM_RESERVE_PRECISION as i128).into(),
             mark_std: PRICE_PRECISION as u64,
 
-            quote_asset_amount: 19_000_000_000, // short 1 BTC @ $19000
+            quote_asset_amount: 19_000_000_000.into(), // short 1 BTC @ $19000
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: 19_400 * PRICE_PRECISION_I64,
                 last_oracle_price_twap: 19_400 * PRICE_PRECISION_I64,
