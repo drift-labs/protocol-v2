@@ -14,6 +14,7 @@ import {
 	UserAccount,
 	UserStatus,
 	UserStatsAccount,
+	AccountLiquidatableStatus,
 } from './types';
 import {
 	calculateEntryPrice,
@@ -68,6 +69,7 @@ import { getUser30dRollingVolumeEstimate } from './math/trade';
 import {
 	MarketType,
 	PositionDirection,
+	PositionFlag,
 	SpotBalanceType,
 	SpotMarketAccount,
 } from './types';
@@ -106,6 +108,13 @@ import { StrictOraclePrice } from './oracles/strictOraclePrice';
 
 import { calculateSpotFuelBonus, calculatePerpFuelBonus } from './math/fuel';
 import { grpcUserAccountSubscriber } from './accounts/grpcUserAccountSubscriber';
+import {
+	IsolatedMarginCalculation,
+	MarginCalculation,
+	MarginContext,
+} from './marginCalculation';
+
+export type MarginType = 'Cross' | 'Isolated';
 
 export class User {
 	driftClient: DriftClient;
@@ -343,6 +352,23 @@ export class User {
 		};
 	}
 
+	public getIsolatePerpPositionTokenAmount(perpMarketIndex: number): BN {
+		const perpPosition = this.getPerpPosition(perpMarketIndex);
+		if (!perpPosition) return ZERO;
+		const perpMarket = this.driftClient.getPerpMarketAccount(perpMarketIndex);
+		const spotMarket = this.driftClient.getSpotMarketAccount(
+			perpMarket.quoteSpotMarketIndex
+		);
+		if (perpPosition === undefined) {
+			return ZERO;
+		}
+		return getTokenAmount(
+			perpPosition.isolatedPositionScaledBalance ?? ZERO, //TODO remove ? later
+			spotMarket,
+			SpotBalanceType.DEPOSIT
+		);
+	}
+
 	public getClonedPosition(position: PerpPosition): PerpPosition {
 		const clonedPosition = Object.assign({}, position);
 		return clonedPosition;
@@ -515,62 +541,130 @@ export class User {
 	 */
 	public getFreeCollateral(
 		marginCategory: MarginCategory = 'Initial',
-		enterHighLeverageMode = undefined
+		enterHighLeverageMode = false,
+		perpMarketIndex?: number
 	): BN {
-		const totalCollateral = this.getTotalCollateral(marginCategory, true);
-		const marginRequirement =
-			marginCategory === 'Initial'
-				? this.getInitialMarginRequirement(enterHighLeverageMode)
-				: this.getMaintenanceMarginRequirement();
-		const freeCollateral = totalCollateral.sub(marginRequirement);
-		return freeCollateral.gte(ZERO) ? freeCollateral : ZERO;
+		const { totalCollateral, marginRequirement, getIsolatedFreeCollateral } =
+			this.getMarginCalculation(marginCategory, {
+				enteringHighLeverage: enterHighLeverageMode,
+				strict: marginCategory === 'Initial',
+			});
+
+		if (perpMarketIndex !== undefined) {
+			return getIsolatedFreeCollateral(perpMarketIndex);
+		} else {
+			const freeCollateral = totalCollateral.sub(marginRequirement);
+			return freeCollateral.gte(ZERO) ? freeCollateral : ZERO;
+		}
 	}
 
 	/**
-	 * @returns The margin requirement of a certain type (Initial or Maintenance) in USDC. : QUOTE_PRECISION
+	 * @deprecated Use the overload that includes { marginType, perpMarketIndex }
 	 */
 	public getMarginRequirement(
 		marginCategory: MarginCategory,
 		liquidationBuffer?: BN,
-		strict = false,
-		includeOpenOrders = true,
-		enteringHighLeverage = undefined
+		strict?: boolean,
+		includeOpenOrders?: boolean,
+		enteringHighLeverage?: boolean
+	): BN;
+
+	/**
+	 * Calculates the margin requirement based on the specified parameters.
+	 *
+	 * @param marginCategory - The category of margin to calculate ('Initial' or 'Maintenance').
+	 * @param liquidationBuffer - Optional buffer amount to consider during liquidation scenarios.
+	 * @param strict - Optional flag to enforce strict margin calculations.
+	 * @param includeOpenOrders - Optional flag to include open orders in the margin calculation.
+	 * @param enteringHighLeverage - Optional flag indicating if the user is entering high leverage mode.
+	 * @param perpMarketIndex - Optional index of the perpetual market. Required if marginType is 'Isolated'.
+	 *
+	 * @returns The calculated margin requirement as a BN (BigNumber).
+	 */
+	public getMarginRequirement(
+		marginCategory: MarginCategory,
+		liquidationBuffer?: BN,
+		strict?: boolean,
+		includeOpenOrders?: boolean,
+		enteringHighLeverage?: boolean,
+		perpMarketIndex?: number
+	): BN;
+
+	public getMarginRequirement(
+		marginCategory: MarginCategory,
+		liquidationBuffer?: BN,
+		strict?: boolean,
+		includeOpenOrders?: boolean,
+		enteringHighLeverage?: boolean,
+		perpMarketIndex?: number
 	): BN {
-		return this.getTotalPerpPositionLiability(
-			marginCategory,
-			liquidationBuffer,
-			includeOpenOrders,
+		const liquidationBufferMap = new Map();
+		if (liquidationBuffer && perpMarketIndex !== undefined) {
+			liquidationBufferMap.set(perpMarketIndex, liquidationBuffer);
+		} else if (liquidationBuffer) {
+			liquidationBufferMap.set('cross', liquidationBuffer);
+		}
+
+		const marginCalc = this.getMarginCalculation(marginCategory, {
 			strict,
-			enteringHighLeverage
-		).add(
-			this.getSpotMarketLiabilityValue(
-				undefined,
-				marginCategory,
-				liquidationBuffer,
-				includeOpenOrders,
-				strict
-			)
-		);
+			includeOpenOrders,
+			enteringHighLeverage,
+			liquidationBufferMap,
+		});
+
+		// If perpMarketIndex is provided, compute only for that market index
+		if (perpMarketIndex !== undefined) {
+			const isolatedMarginCalculation =
+				marginCalc.isolatedMarginCalculations.get(perpMarketIndex);
+			if (!isolatedMarginCalculation) return ZERO;
+			const { marginRequirement, marginRequirementPlusBuffer } =
+				isolatedMarginCalculation;
+
+			if (liquidationBuffer?.gt(ZERO)) {
+				return marginRequirementPlusBuffer;
+			}
+			return marginRequirement;
+		}
+
+		// Default: Cross margin requirement
+		if (liquidationBuffer?.gt(ZERO)) {
+			return marginCalc.marginRequirementPlusBuffer;
+		}
+		return marginCalc.marginRequirement;
 	}
 
 	/**
 	 * @returns The initial margin requirement in USDC. : QUOTE_PRECISION
 	 */
-	public getInitialMarginRequirement(enterHighLeverageMode = undefined): BN {
+	public getInitialMarginRequirement(
+		enterHighLeverageMode = false,
+		perpMarketIndex?: number
+	): BN {
 		return this.getMarginRequirement(
 			'Initial',
 			undefined,
 			true,
 			undefined,
-			enterHighLeverageMode
+			enterHighLeverageMode,
+			perpMarketIndex
 		);
 	}
 
 	/**
 	 * @returns The maintenance margin requirement in USDC. : QUOTE_PRECISION
 	 */
-	public getMaintenanceMarginRequirement(liquidationBuffer?: BN): BN {
-		return this.getMarginRequirement('Maintenance', liquidationBuffer);
+	public getMaintenanceMarginRequirement(
+		liquidationBuffer?: BN,
+		perpMarketIndex?: number
+	): BN {
+		return this.getMarginRequirement(
+			'Maintenance',
+			liquidationBuffer,
+			false, // strict default
+			true, // includeOpenOrders default
+			false, // enteringHighLeverage default
+			perpMarketIndex
+		);
 	}
 
 	public getActivePerpPositionsForUserAccount(
@@ -580,7 +674,8 @@ export class User {
 			(pos) =>
 				!pos.baseAssetAmount.eq(ZERO) ||
 				!pos.quoteAssetAmount.eq(ZERO) ||
-				!(pos.openOrders == 0)
+				!(pos.openOrders == 0) ||
+				pos.isolatedPositionScaledBalance?.gt(ZERO)
 		);
 	}
 
@@ -1153,46 +1248,93 @@ export class User {
 		marginCategory: MarginCategory = 'Initial',
 		strict = false,
 		includeOpenOrders = true,
-		liquidationBuffer?: BN
+		liquidationBuffer?: BN,
+		perpMarketIndex?: number
 	): BN {
-		return this.getSpotMarketAssetValue(
-			undefined,
-			marginCategory,
+		const liquidationBufferMap = (() => {
+			if (liquidationBuffer && perpMarketIndex !== undefined) {
+				return new Map([[perpMarketIndex, liquidationBuffer]]);
+			} else if (liquidationBuffer) {
+				return new Map([['cross', liquidationBuffer]]);
+			}
+			return new Map();
+		})();
+		const marginCalc = this.getMarginCalculation(marginCategory, {
+			strict,
 			includeOpenOrders,
-			strict
-		).add(
-			this.getUnrealizedPNL(
-				true,
-				undefined,
-				marginCategory,
-				strict,
-				liquidationBuffer
-			)
-		);
+			liquidationBufferMap,
+		});
+
+		if (perpMarketIndex !== undefined) {
+			const { totalCollateral, totalCollateralBuffer } =
+				marginCalc.isolatedMarginCalculations.get(perpMarketIndex);
+			if (liquidationBuffer?.gt(ZERO)) {
+				return totalCollateralBuffer;
+			}
+			return totalCollateral;
+		}
+
+		if (liquidationBuffer?.gt(ZERO)) {
+			return marginCalc.totalCollateralBuffer;
+		}
+		return marginCalc.totalCollateral;
 	}
 
-	public getLiquidationBuffer(): BN | undefined {
-		// if user being liq'd, can continue to be liq'd until total collateral above the margin requirement plus buffer
-		let liquidationBuffer = undefined;
+	public getLiquidationBuffer(): Map<number | 'cross', BN> {
+		const liquidationBufferMap = new Map<number | 'cross', BN>();
 		if (this.isBeingLiquidated()) {
-			liquidationBuffer = new BN(
-				this.driftClient.getStateAccount().liquidationMarginBufferRatio
+			liquidationBufferMap.set(
+				'cross',
+				new BN(this.driftClient.getStateAccount().liquidationMarginBufferRatio)
 			);
 		}
-		return liquidationBuffer;
+		for (const position of this.getActivePerpPositions()) {
+			if (
+				position.positionFlag &
+				(PositionFlag.BeingLiquidated | PositionFlag.Bankruptcy)
+			) {
+				liquidationBufferMap.set(
+					position.marketIndex,
+					new BN(
+						this.driftClient.getStateAccount().liquidationMarginBufferRatio
+					)
+				);
+			}
+		}
+		return liquidationBufferMap;
 	}
 
 	/**
 	 * calculates User Health by comparing total collateral and maint. margin requirement
 	 * @returns : number (value from [0, 100])
 	 */
-	public getHealth(): number {
-		if (this.isBeingLiquidated()) {
+	public getHealth(perpMarketIndex?: number): number {
+		if (this.isCrossMarginBeingLiquidated() && !perpMarketIndex) {
+			return 0;
+		}
+		if (
+			perpMarketIndex &&
+			this.isIsolatedPositionBeingLiquidated(perpMarketIndex)
+		) {
 			return 0;
 		}
 
-		const totalCollateral = this.getTotalCollateral('Maintenance');
-		const maintenanceMarginReq = this.getMaintenanceMarginRequirement();
+		const marginCalc = this.getMarginCalculation('Maintenance');
+
+		let totalCollateral: BN;
+		let maintenanceMarginReq: BN;
+
+		if (perpMarketIndex) {
+			const isolatedMarginCalc =
+				marginCalc.isolatedMarginCalculations.get(perpMarketIndex);
+			if (isolatedMarginCalc) {
+				totalCollateral = isolatedMarginCalc.totalCollateral;
+				maintenanceMarginReq = isolatedMarginCalc.marginRequirement;
+			}
+		} else {
+			totalCollateral = marginCalc.totalCollateral;
+			maintenanceMarginReq = marginCalc.marginRequirement;
+		}
 
 		let health: number;
 
@@ -1491,9 +1633,9 @@ export class User {
 	 * calculates current user leverage which is (total liability size) / (net asset value)
 	 * @returns : Precision TEN_THOUSAND
 	 */
-	public getLeverage(includeOpenOrders = true): BN {
+	public getLeverage(includeOpenOrders = true, perpMarketIndex?: number): BN {
 		return this.calculateLeverageFromComponents(
-			this.getLeverageComponents(includeOpenOrders)
+			this.getLeverageComponents(includeOpenOrders, undefined, perpMarketIndex)
 		);
 	}
 
@@ -1521,13 +1663,67 @@ export class User {
 
 	getLeverageComponents(
 		includeOpenOrders = true,
-		marginCategory: MarginCategory = undefined
+		marginCategory: MarginCategory = undefined,
+		perpMarketIndex?: number
 	): {
 		perpLiabilityValue: BN;
 		perpPnl: BN;
 		spotAssetValue: BN;
 		spotLiabilityValue: BN;
 	} {
+		if (perpMarketIndex) {
+			const perpPosition = this.getPerpPositionOrEmpty(perpMarketIndex);
+			const perpLiability = this.calculateWeightedPerpPositionLiability(
+				perpPosition,
+				marginCategory,
+				undefined,
+				includeOpenOrders
+			);
+			const perpMarket = this.driftClient.getPerpMarketAccount(
+				perpPosition.marketIndex
+			);
+
+			const oraclePriceData = this.getOracleDataForPerpMarket(
+				perpPosition.marketIndex
+			);
+			const quoteSpotMarket = this.driftClient.getSpotMarketAccount(
+				perpMarket.quoteSpotMarketIndex
+			);
+			const quoteOraclePriceData = this.getOracleDataForSpotMarket(
+				perpMarket.quoteSpotMarketIndex
+			);
+			const strictOracle = new StrictOraclePrice(
+				quoteOraclePriceData.price,
+				quoteOraclePriceData.twap
+			);
+
+			const positionUnrealizedPnl = calculatePositionPNL(
+				perpMarket,
+				perpPosition,
+				true,
+				oraclePriceData
+			);
+
+			const tokenAmount = getTokenAmount(
+				perpPosition.isolatedPositionScaledBalance ?? ZERO,
+				quoteSpotMarket,
+				SpotBalanceType.DEPOSIT
+			);
+
+			const spotAssetValue = getStrictTokenValue(
+				tokenAmount,
+				quoteSpotMarket.decimals,
+				strictOracle
+			);
+
+			return {
+				perpLiabilityValue: perpLiability,
+				perpPnl: positionUnrealizedPnl,
+				spotAssetValue,
+				spotLiabilityValue: ZERO,
+			};
+		}
+
 		const perpLiability = this.getTotalPerpPositionLiability(
 			marginCategory,
 			undefined,
@@ -1817,36 +2013,136 @@ export class User {
 		return netAssetValue.mul(TEN_THOUSAND).div(totalLiabilityValue);
 	}
 
-	public canBeLiquidated(): {
-		canBeLiquidated: boolean;
-		marginRequirement: BN;
-		totalCollateral: BN;
+	public canBeLiquidated(): AccountLiquidatableStatus & {
+		isolatedPositions: Map<number, AccountLiquidatableStatus>;
 	} {
-		const liquidationBuffer = this.getLiquidationBuffer();
-
-		const totalCollateral = this.getTotalCollateral(
-			'Maintenance',
-			undefined,
-			undefined,
-			liquidationBuffer
+		// Deprecated signature retained for backward compatibility in type only
+		// but implementation now delegates to the new Map-based API and returns cross margin status.
+		const map = this.getLiquidationStatuses();
+		const cross = map.get('cross');
+		const isolatedPositions: Map<number, AccountLiquidatableStatus> = new Map(
+			Array.from(map.entries())
+				.filter(
+					(e): e is [number, AccountLiquidatableStatus] => e[0] !== 'cross'
+				)
+				.map(([key, value]) => [key, value])
 		);
+		return cross
+			? { ...cross, isolatedPositions }
+			: {
+					canBeLiquidated: false,
+					marginRequirement: ZERO,
+					totalCollateral: ZERO,
+					isolatedPositions,
+			  };
+	}
 
-		const marginRequirement =
-			this.getMaintenanceMarginRequirement(liquidationBuffer);
-		const canBeLiquidated = totalCollateral.lt(marginRequirement);
+	/**
+	 * New API: Returns liquidation status for cross and each isolated perp position.
+	 * Map keys:
+	 *  - 'cross' for cross margin
+	 *  - marketIndex (number) for each isolated perp position
+	 */
+	public getLiquidationStatuses(
+		marginCalc?: MarginCalculation
+	): Map<'cross' | number, AccountLiquidatableStatus> {
+		// If not provided, use buffer-aware calc for canBeLiquidated checks
+		if (!marginCalc) {
+			const liquidationBufferMap = this.getLiquidationBuffer();
+			marginCalc = this.getMarginCalculation('Maintenance', {
+				liquidationBufferMap,
+			});
+		}
 
-		return {
-			canBeLiquidated,
-			marginRequirement,
-			totalCollateral,
-		};
+		const result = new Map<'cross' | number, AccountLiquidatableStatus>();
+
+		// Cross margin status
+		const crossTotalCollateral = marginCalc.totalCollateral;
+		const crossMarginRequirement = marginCalc.marginRequirement;
+		result.set('cross', {
+			canBeLiquidated: crossTotalCollateral.lt(crossMarginRequirement),
+			marginRequirement: crossMarginRequirement,
+			totalCollateral: crossTotalCollateral,
+		});
+
+		// Isolated positions status
+		for (const [
+			marketIndex,
+			isoCalc,
+		] of marginCalc.isolatedMarginCalculations) {
+			const isoTotalCollateral = isoCalc.totalCollateral;
+			const isoMarginRequirement = isoCalc.marginRequirement;
+			result.set(marketIndex, {
+				canBeLiquidated: isoTotalCollateral.lt(isoMarginRequirement),
+				marginRequirement: isoMarginRequirement,
+				totalCollateral: isoTotalCollateral,
+			});
+		}
+
+		return result;
 	}
 
 	public isBeingLiquidated(): boolean {
 		return (
+			this.isCrossMarginBeingLiquidated() ||
+			this.hasIsolatedPositionBeingLiquidated()
+		);
+	}
+
+	public isCrossMarginBeingLiquidated(): boolean {
+		return (
 			(this.getUserAccount().status &
 				(UserStatus.BEING_LIQUIDATED | UserStatus.BANKRUPT)) >
 			0
+		);
+	}
+
+	/** Returns true if cross margin is currently below maintenance requirement (no buffer). */
+	public canCrossMarginBeLiquidated(marginCalc?: MarginCalculation): boolean {
+		const calc = marginCalc ?? this.getMarginCalculation('Maintenance');
+		return calc.totalCollateral.lt(calc.marginRequirement);
+	}
+
+	public hasIsolatedPositionBeingLiquidated(): boolean {
+		return this.getActivePerpPositions().some(
+			(position) =>
+				(position.positionFlag &
+					(PositionFlag.BeingLiquidated | PositionFlag.Bankruptcy)) >
+				0
+		);
+	}
+
+	public isIsolatedPositionBeingLiquidated(perpMarketIndex: number): boolean {
+		const position = this.getActivePerpPositions().find(
+			(position) => position.marketIndex === perpMarketIndex
+		);
+
+		return (
+			(position?.positionFlag &
+				(PositionFlag.BeingLiquidated | PositionFlag.Bankruptcy)) >
+			0
+		);
+	}
+
+	/** Returns true if any isolated perp position is currently below its maintenance requirement (no buffer). */
+	public getLiquidatableIsolatedPositions(
+		marginCalc?: MarginCalculation
+	): number[] {
+		const liquidatableIsolatedPositions = [];
+		const calc = marginCalc ?? this.getMarginCalculation('Maintenance');
+		for (const [marketIndex, isoCalc] of calc.isolatedMarginCalculations) {
+			if (this.canIsolatedPositionMarginBeLiquidated(isoCalc)) {
+				liquidatableIsolatedPositions.push(marketIndex);
+			}
+		}
+		return liquidatableIsolatedPositions;
+	}
+
+	public canIsolatedPositionMarginBeLiquidated(
+		isolatedMarginCalculation: IsolatedMarginCalculation
+	): boolean {
+		return isolatedMarginCalculation.totalCollateral.lt(
+			isolatedMarginCalculation.marginRequirement
 		);
 	}
 
@@ -2006,24 +2302,10 @@ export class User {
 		marginCategory: MarginCategory = 'Maintenance',
 		includeOpenOrders = false,
 		offsetCollateral = ZERO,
-		enteringHighLeverage = undefined
+		enteringHighLeverage = false,
+		marginType?: MarginType
 	): BN {
-		const totalCollateral = this.getTotalCollateral(
-			marginCategory,
-			false,
-			includeOpenOrders
-		);
-		const marginRequirement = this.getMarginRequirement(
-			marginCategory,
-			undefined,
-			false,
-			includeOpenOrders,
-			enteringHighLeverage
-		);
-		let freeCollateral = BN.max(
-			ZERO,
-			totalCollateral.sub(marginRequirement)
-		).add(offsetCollateral);
+		const market = this.driftClient.getPerpMarketAccount(marketIndex);
 
 		const oracle =
 			this.driftClient.getPerpMarketAccount(marketIndex).amm.oracle;
@@ -2031,8 +2313,69 @@ export class User {
 		const oraclePrice =
 			this.driftClient.getOracleDataForPerpMarket(marketIndex).price;
 
-		const market = this.driftClient.getPerpMarketAccount(marketIndex);
 		const currentPerpPosition = this.getPerpPositionOrEmpty(marketIndex);
+
+		if (marginType === 'Isolated') {
+			const marginCalculation = this.getMarginCalculation(marginCategory, {
+				strict: false,
+				includeOpenOrders,
+				enteringHighLeverage,
+			});
+			const isolatedMarginCalculation =
+				marginCalculation.isolatedMarginCalculations.get(marketIndex);
+			if (!isolatedMarginCalculation) return new BN(-1);
+			const { totalCollateral, marginRequirement } = isolatedMarginCalculation;
+
+			const freeCollateral = BN.max(
+				ZERO,
+				totalCollateral.sub(marginRequirement)
+			).add(offsetCollateral);
+
+			const freeCollateralDelta = this.calculateFreeCollateralDeltaForPerp(
+				market,
+				currentPerpPosition,
+				positionBaseSizeChange,
+				oraclePrice,
+				marginCategory,
+				includeOpenOrders,
+				enteringHighLeverage
+			);
+
+			if (freeCollateralDelta.eq(ZERO)) {
+				return new BN(-1);
+			}
+
+			const liqPriceDelta = freeCollateral
+				.mul(QUOTE_PRECISION)
+				.div(freeCollateralDelta);
+
+			const liqPrice = oraclePrice.sub(liqPriceDelta);
+
+			if (liqPrice.lt(ZERO)) {
+				return new BN(-1);
+			}
+
+			return liqPrice;
+		}
+
+		const totalCollateral = this.getTotalCollateral(
+			marginCategory,
+			false,
+			includeOpenOrders
+		);
+
+		const marginRequirement = this.getMarginRequirement(
+			marginCategory,
+			undefined,
+			false,
+			includeOpenOrders,
+			enteringHighLeverage
+		);
+
+		let freeCollateral = BN.max(
+			ZERO,
+			totalCollateral.sub(marginRequirement)
+		).add(offsetCollateral);
 
 		positionBaseSizeChange = standardizeBaseAssetAmount(
 			positionBaseSizeChange,
@@ -3914,5 +4257,312 @@ export class User {
 			activePerpPositions: activePerpMarkets,
 			activeSpotPositions: activeSpotMarkets,
 		};
+	}
+
+	/**
+	 * Compute a consolidated margin snapshot once, without caching.
+	 * Consumers can use this to avoid duplicating work across separate calls.
+	 */
+	public getMarginCalculation(
+		marginCategory: MarginCategory = 'Initial',
+		opts?: {
+			strict?: boolean; // mirror StrictOraclePrice application
+			includeOpenOrders?: boolean;
+			enteringHighLeverage?: boolean;
+			liquidationBufferMap?: Map<number | 'cross', BN>; // margin_buffer analog for buffer mode
+		}
+	): MarginCalculation {
+		const strict = opts?.strict ?? false;
+		const enteringHighLeverage = opts?.enteringHighLeverage ?? false;
+		const liquidationBufferMap = opts?.liquidationBufferMap ?? new Map();
+		const includeOpenOrders = opts?.includeOpenOrders ?? true;
+
+		// Equivalent to on-chain user_custom_margin_ratio
+		const userCustomMarginRatio =
+			marginCategory === 'Initial' ? this.getUserAccount().maxMarginRatio : 0;
+
+		// Initialize calc via JS mirror of Rust/on-chain MarginCalculation
+		const isolatedMarginBuffers = new Map<number, BN>();
+		for (const [
+			marketIndex,
+			isolatedMarginBuffer,
+		] of opts?.liquidationBufferMap ?? new Map()) {
+			if (marketIndex !== 'cross') {
+				isolatedMarginBuffers.set(marketIndex, isolatedMarginBuffer);
+			}
+		}
+		const ctx = MarginContext.standard(marginCategory)
+			.strictMode(strict)
+			.setCrossMarginBuffer(opts?.liquidationBufferMap?.get('cross') ?? ZERO)
+			.setIsolatedMarginBuffers(isolatedMarginBuffers);
+		const calc = new MarginCalculation(ctx);
+
+		// SPOT POSITIONS
+		for (const spotPosition of this.getUserAccount().spotPositions) {
+			if (isSpotPositionAvailable(spotPosition)) continue;
+
+			const isQuote = spotPosition.marketIndex === QUOTE_SPOT_MARKET_INDEX;
+
+			const spotMarket = this.driftClient.getSpotMarketAccount(
+				spotPosition.marketIndex
+			);
+			const oraclePriceData = this.getOracleDataForSpotMarket(
+				spotPosition.marketIndex
+			);
+			const twap5 = strict
+				? calculateLiveOracleTwap(
+						spotMarket.historicalOracleData,
+						oraclePriceData,
+						new BN(Math.floor(Date.now() / 1000)),
+						FIVE_MINUTE
+				  )
+				: undefined;
+			const strictOracle = new StrictOraclePrice(oraclePriceData.price, twap5);
+
+			if (isQuote) {
+				const tokenAmount = getSignedTokenAmount(
+					getTokenAmount(
+						spotPosition.scaledBalance,
+						spotMarket,
+						spotPosition.balanceType
+					),
+					spotPosition.balanceType
+				);
+				if (isVariant(spotPosition.balanceType, 'deposit')) {
+					// add deposit value to total collateral
+					const weightedTokenValue = this.getSpotAssetValue(
+						tokenAmount,
+						strictOracle,
+						spotMarket,
+						marginCategory
+					);
+					calc.addCrossMarginTotalCollateral(weightedTokenValue);
+				} else {
+					// borrow on quote contributes to margin requirement
+					const tokenValueAbs = this.getSpotLiabilityValue(
+						tokenAmount,
+						strictOracle,
+						spotMarket,
+						marginCategory,
+						liquidationBufferMap.get('cross') ?? new BN(0)
+					).abs();
+					calc.addCrossMarginRequirement(tokenValueAbs, tokenValueAbs);
+				}
+				continue;
+			}
+
+			// Non-quote spot: worst-case simulation
+			const {
+				tokenAmount: worstCaseTokenAmount,
+				ordersValue: worstCaseOrdersValue,
+			} = getWorstCaseTokenAmounts(
+				spotPosition,
+				spotMarket,
+				strictOracle,
+				marginCategory,
+				userCustomMarginRatio,
+				includeOpenOrders
+				// false
+			);
+
+			if (includeOpenOrders) {
+				// open order IM
+				calc.addCrossMarginRequirement(
+					new BN(spotPosition.openOrders).mul(OPEN_ORDER_MARGIN_REQUIREMENT),
+					ZERO
+				);
+			}
+
+			if (worstCaseTokenAmount.gt(ZERO)) {
+				const baseAssetValue = this.getSpotAssetValue(
+					worstCaseTokenAmount,
+					strictOracle,
+					spotMarket,
+					marginCategory
+				);
+				// asset side increases total collateral (weighted)
+				calc.addCrossMarginTotalCollateral(baseAssetValue);
+			} else if (worstCaseTokenAmount.lt(ZERO)) {
+				// liability side increases margin requirement (weighted >= abs(token_value))
+				const getSpotLiabilityValue = this.getSpotLiabilityValue(
+					worstCaseTokenAmount,
+					strictOracle,
+					spotMarket,
+					marginCategory,
+					liquidationBufferMap.get('cross')
+				);
+
+				calc.addCrossMarginRequirement(
+					getSpotLiabilityValue.abs(),
+					getSpotLiabilityValue.abs()
+				);
+			}
+
+			// orders value contributes to collateral or requirement
+			if (worstCaseOrdersValue.gt(ZERO)) {
+				calc.addCrossMarginTotalCollateral(worstCaseOrdersValue);
+			} else if (worstCaseOrdersValue.lt(ZERO)) {
+				const absVal = worstCaseOrdersValue.abs();
+				calc.addCrossMarginRequirement(absVal, absVal);
+			}
+		}
+
+		// PERP POSITIONS
+		for (const marketPosition of this.getActivePerpPositions()) {
+			const market = this.driftClient.getPerpMarketAccount(
+				marketPosition.marketIndex
+			);
+			const quoteSpotMarket = this.driftClient.getSpotMarketAccount(
+				market.quoteSpotMarketIndex
+			);
+			const quoteOraclePriceData = this.getOracleDataForSpotMarket(
+				market.quoteSpotMarketIndex
+			);
+			const oraclePriceData = this.getMMOracleDataForPerpMarket(
+				market.marketIndex
+			);
+
+			const nonMmmOraclePriceData = this.getOracleDataForPerpMarket(
+				market.marketIndex
+			);
+
+			// Worst-case perp liability and weighted pnl
+			const { worstCaseBaseAssetAmount, worstCaseLiabilityValue } =
+				calculateWorstCasePerpLiabilityValue(
+					marketPosition,
+					market,
+					nonMmmOraclePriceData.price,
+					includeOpenOrders
+				);
+
+			// margin ratio for this perp
+			const customMarginRatio = Math.max(
+				userCustomMarginRatio,
+				marketPosition.maxMarginRatio
+			);
+			let marginRatio = new BN(
+				calculateMarketMarginRatio(
+					market,
+					worstCaseBaseAssetAmount.abs(),
+					marginCategory,
+					customMarginRatio,
+					this.isHighLeverageMode(marginCategory) || enteringHighLeverage
+				)
+			);
+			if (isVariant(market.status, 'settlement')) {
+				marginRatio = ZERO;
+			}
+
+			// convert liability to quote value and apply margin ratio
+			const quotePrice = strict
+				? BN.max(
+						quoteOraclePriceData.price,
+						quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5Min
+				  )
+				: quoteOraclePriceData.price;
+			let perpMarginRequirement = worstCaseLiabilityValue
+				.mul(quotePrice)
+				.div(PRICE_PRECISION)
+				.mul(marginRatio)
+				.div(MARGIN_PRECISION);
+			// add open orders IM
+			if (includeOpenOrders) {
+				perpMarginRequirement = perpMarginRequirement.add(
+					new BN(marketPosition.openOrders).mul(OPEN_ORDER_MARGIN_REQUIREMENT)
+				);
+			}
+
+			// weighted unrealized pnl
+			let positionUnrealizedPnl = calculatePositionPNL(
+				market,
+				marketPosition,
+				true,
+				oraclePriceData
+			);
+			let pnlQuotePrice: BN;
+			if (strict && positionUnrealizedPnl.gt(ZERO)) {
+				pnlQuotePrice = BN.min(
+					quoteOraclePriceData.price,
+					quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5Min
+				);
+			} else if (strict && positionUnrealizedPnl.lt(ZERO)) {
+				pnlQuotePrice = BN.max(
+					quoteOraclePriceData.price,
+					quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5Min
+				);
+			} else {
+				pnlQuotePrice = quoteOraclePriceData.price;
+			}
+			positionUnrealizedPnl = positionUnrealizedPnl
+				.mul(pnlQuotePrice)
+				.div(PRICE_PRECISION);
+
+			if (marginCategory !== undefined) {
+				if (positionUnrealizedPnl.gt(ZERO)) {
+					positionUnrealizedPnl = positionUnrealizedPnl
+						.mul(
+							calculateUnrealizedAssetWeight(
+								market,
+								quoteSpotMarket,
+								positionUnrealizedPnl,
+								marginCategory,
+								oraclePriceData
+							)
+						)
+						.div(new BN(SPOT_MARKET_WEIGHT_PRECISION));
+				}
+			}
+
+			// Add perp contribution: isolated vs cross
+			const isIsolated = this.isPerpPositionIsolated(marketPosition);
+			if (isIsolated) {
+				// derive isolated quote deposit value, mirroring on-chain logic
+				let depositValue = ZERO;
+				if (marketPosition.isolatedPositionScaledBalance?.gt(ZERO)) {
+					const quoteSpotMarket = this.driftClient.getSpotMarketAccount(
+						market.quoteSpotMarketIndex
+					);
+					const quoteOraclePriceData = this.getOracleDataForSpotMarket(
+						market.quoteSpotMarketIndex
+					);
+					const strictQuote = new StrictOraclePrice(
+						quoteOraclePriceData.price,
+						strict
+							? quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5Min
+							: undefined
+					);
+					const quoteTokenAmount = getTokenAmount(
+						marketPosition.isolatedPositionScaledBalance ?? ZERO,
+						quoteSpotMarket,
+						SpotBalanceType.DEPOSIT
+					);
+					depositValue = getStrictTokenValue(
+						quoteTokenAmount,
+						quoteSpotMarket.decimals,
+						strictQuote
+					);
+				}
+				calc.addIsolatedMarginCalculation(
+					market.marketIndex,
+					depositValue,
+					positionUnrealizedPnl,
+					worstCaseLiabilityValue,
+					perpMarginRequirement
+				);
+				calc.addPerpLiabilityValue(worstCaseLiabilityValue);
+			} else {
+				// cross: add to global requirement and collateral
+				calc.addCrossMarginRequirement(
+					perpMarginRequirement,
+					worstCaseLiabilityValue
+				);
+				calc.addCrossMarginTotalCollateral(positionUnrealizedPnl);
+			}
+		}
+		return calc;
+	}
+
+	private isPerpPositionIsolated(perpPosition: PerpPosition): boolean {
+		return (perpPosition.positionFlag & PositionFlag.IsolatedPosition) !== 0;
 	}
 }
