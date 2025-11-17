@@ -4260,7 +4260,8 @@ export class User {
 	}
 
 	/**
-	 * Compute a consolidated margin snapshot once, without caching.
+	 * Compute the full margin calculation for the user's account. 
+	 * Prioritize using this function instead of calling getMarginRequirement or getTotalCollateral multiple times.
 	 * Consumers can use this to avoid duplicating work across separate calls.
 	 */
 	public getMarginCalculation(
