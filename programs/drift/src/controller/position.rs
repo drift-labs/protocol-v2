@@ -1,6 +1,8 @@
 use crate::msg;
-use anchor_lang::prelude::*;
-use borsh::{BorshDeserialize, BorshSerialize};
+use anchor_lang::prelude::{
+    borsh::{BorshDeserialize, BorshSerialize},
+    *,
+};
 
 use crate::controller;
 use crate::controller::amm::SwapDirection;

@@ -105,15 +105,14 @@ fn amm_pool_balance_liq_fees_example() {
         let fee_difference = new_total_fee_minus_distributions
             .safe_sub(perp_market.amm.total_fee_minus_distributions())
             .unwrap();
+        let total_fee = perp_market.amm.total_fee();
         perp_market
             .amm
-            .set_total_fee(perp_market.amm.total_fee().saturating_add(fee_difference));
-        perp_market.amm.set_total_mm_fee(
-            perp_market
-                .amm
-                .total_mm_fee()
-                .saturating_add(fee_difference),
-        );
+            .set_total_fee(total_fee.saturating_add(fee_difference));
+        let total_mm_fee = perp_market.amm.total_mm_fee();
+        perp_market
+            .amm
+            .set_total_mm_fee(total_mm_fee.saturating_add(fee_difference));
         perp_market
             .amm
             .set_total_fee_minus_distributions(new_total_fee_minus_distributions);
@@ -2236,11 +2235,12 @@ fn update_amm_near_boundary() {
         562555072827
     );
 
+    let base_asset_amount_with_amm = perp_market.amm.base_asset_amount_with_amm;
+    let base_asset_amount_with_unsettled_lp = perp_market.amm.base_asset_amount_with_unsettled_lp();
     perp_market.amm.set_base_asset_amount_with_amm(
-        perp_market
-            .amm
-            .base_asset_amount_with_amm()
-            .safe_add(perp_market.amm.base_asset_amount_with_unsettled_lp())?,
+        base_asset_amount_with_amm
+            .safe_add(base_asset_amount_with_unsettled_lp)
+            .unwrap(),
     );
     perp_market.amm.set_base_asset_amount_with_unsettled_lp(0);
     println!("perp_market: {:?}", perp_market.amm.last_update_slot);
@@ -2486,12 +2486,11 @@ fn recenter_amm_2() {
         perp_market.amm.min_order_size as u128
     );
 
-    perp_market.amm.set_base_asset_amount_with_amm(
-        perp_market
-            .amm
-            .base_asset_amount_with_amm()
-            .safe_add(perp_market.amm.base_asset_amount_with_unsettled_lp())?,
-    );
+    perp_market.amm.base_asset_amount_with_amm = perp_market
+        .amm
+        .base_asset_amount_with_amm
+        .safe_add(perp_market.amm.base_asset_amount_with_unsettled_lp)
+        .unwrap();
     perp_market.amm.set_base_asset_amount_with_unsettled_lp(0);
 
     recenter_perp_market_amm(&mut perp_market, oracle_price_data.price as u128, new_k).unwrap();

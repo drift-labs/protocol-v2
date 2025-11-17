@@ -917,7 +917,12 @@ fn update_pool_balances_revenue_to_fee_test() {
     assert!(update_pool_balances(&mut market, &mut spot_market, &spot_position, 0, now).is_err()); // assert is_err if any way has revenue pool above deposit balances
     spot_market = spot_market_backup;
     market = market_backup;
-    spot_market.set_deposit_balance(spot_market.deposit_balance().safe_add(9900000001000)?);
+    spot_market.set_deposit_balance(
+        spot_market
+            .deposit_balance()
+            .safe_add(9900000001000)
+            .unwrap(),
+    );
     let spot_market_vault_amount = get_token_amount(
         spot_market.deposit_balance(),
         &spot_market,
@@ -1008,7 +1013,12 @@ fn update_pool_balances_revenue_to_fee_test() {
     ); // assert is_err if any way has revenue pool above deposit balances
     market = market_backup;
     spot_market = spot_market_backup;
-    spot_market.set_deposit_balance(spot_market.deposit_balance().safe_add(9800000000001)?);
+    spot_market.set_deposit_balance(
+        spot_market
+            .deposit_balance()
+            .safe_add(9800000000001)
+            .unwrap(),
+    );
 
     assert_eq!(market.amm.fee_pool.scaled_balance(), 5000000000);
     assert_eq!(market.pnl_pool.scaled_balance(), 295000000000);

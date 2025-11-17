@@ -1,5 +1,5 @@
 use crate::{msg, FeatureBitFlags};
-use anchor_lang::prelude::*;
+use anchor_lang::prelude::{borsh::BorshDeserialize, *};
 use anchor_spl::token_2022::Token2022;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use phoenix::quantities::WrapperU64;

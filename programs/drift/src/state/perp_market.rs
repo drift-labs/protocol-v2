@@ -2,7 +2,10 @@ use crate::msg;
 use crate::state::fill_mode::FillMode;
 use crate::state::pyth_lazer_oracle::PythLazerOracle;
 use crate::state::user::{MarketType, Order};
-use anchor_lang::prelude::*;
+use anchor_lang::prelude::{
+    borsh::{BorshDeserialize, BorshSerialize},
+    *,
+};
 use num_traits::Zero;
 
 use crate::state::state::{State, ValidityGuardRails};
@@ -37,7 +40,6 @@ use crate::state::oracle::{
 };
 use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType};
 use crate::state::traits::{MarketIndexOffset, Size};
-use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::state::paused_operations::PerpOperation;
 use drift_macros::{assert_no_slop, legacy_layout};
@@ -1004,7 +1006,6 @@ impl PerpMarket {
     }
 }
 
-#[legacy_layout]
 #[zero_copy(unsafe)]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
@@ -1051,16 +1052,16 @@ impl SpotBalance for PoolBalance {
     }
 
     fn balance(&self) -> u128 {
-        self.scaled_balance
+        self.scaled_balance.as_u128()
     }
 
     fn increase_balance(&mut self, delta: u128) -> DriftResult {
-        self.set_scaled_balance(self.scaled_balance().safe_add(delta)?);
+        self.scaled_balance = self.scaled_balance().safe_add(delta)?;
         Ok(())
     }
 
     fn decrease_balance(&mut self, delta: u128) -> DriftResult {
-        self.set_scaled_balance(self.scaled_balance().safe_sub(delta)?);
+        self.scaled_balance = self.scaled_balance().safe_sub(delta)?;
         Ok(())
     }
 
@@ -1300,45 +1301,45 @@ impl Default for AMM {
         AMM {
             oracle: Pubkey::default(),
             historical_oracle_data: HistoricalOracleData::default(),
-            base_asset_amount_per_lp: Zero::zero(),
-            quote_asset_amount_per_lp: Zero::zero(),
+            base_asset_amount_per_lp: 0.into(),
+            quote_asset_amount_per_lp: 0.into(),
             fee_pool: PoolBalance::default(),
-            base_asset_reserve: Zero::zero(),
-            quote_asset_reserve: Zero::zero(),
-            concentration_coef: Zero::zero(),
-            min_base_asset_reserve: Zero::zero(),
-            max_base_asset_reserve: Zero::zero(),
-            sqrt_k: Zero::zero(),
-            peg_multiplier: Zero::zero(),
-            terminal_quote_asset_reserve: Zero::zero(),
-            base_asset_amount_long: Zero::zero(),
-            base_asset_amount_short: Zero::zero(),
-            base_asset_amount_with_amm: Zero::zero(),
-            base_asset_amount_with_unsettled_lp: Zero::zero(),
-            max_open_interest: Zero::zero(),
-            quote_asset_amount: Zero::zero(),
-            quote_entry_amount_long: Zero::zero(),
-            quote_entry_amount_short: Zero::zero(),
-            quote_break_even_amount_long: Zero::zero(),
-            quote_break_even_amount_short: Zero::zero(),
-            user_lp_shares: Zero::zero(),
-            last_funding_rate: Zero::zero(),
-            last_funding_rate_long: Zero::zero(),
-            last_funding_rate_short: Zero::zero(),
-            last_24h_avg_funding_rate: Zero::zero(),
-            total_fee: Zero::zero(),
-            total_mm_fee: Zero::zero(),
-            total_exchange_fee: Zero::zero(),
-            total_fee_minus_distributions: Zero::zero(),
-            total_fee_withdrawn: Zero::zero(),
-            total_liquidation_fee: Zero::zero(),
-            cumulative_funding_rate_long: Zero::zero(),
-            cumulative_funding_rate_short: Zero::zero(),
-            total_social_loss: Zero::zero(),
-            ask_base_asset_reserve: Zero::zero(),
-            ask_quote_asset_reserve: Zero::zero(),
-            bid_base_asset_reserve: Zero::zero(),
-            bid_quote_asset_reserve: Zero::zero(),
+            base_asset_reserve: 0.into(),
+            quote_asset_reserve: 0.into(),
+            concentration_coef: 0.into(),
+            min_base_asset_reserve: 0.into(),
+            max_base_asset_reserve: 0.into(),
+            sqrt_k: 0.into(),
+            peg_multiplier: 0.into(),
+            terminal_quote_asset_reserve: 0.into(),
+            base_asset_amount_long: 0.into(),
+            base_asset_amount_short: 0.into(),
+            base_asset_amount_with_amm: 0.into(),
+            base_asset_amount_with_unsettled_lp: 0.into(),
+            max_open_interest: 0.into(),
+            quote_asset_amount: 0.into(),
+            quote_entry_amount_long: 0.into(),
+            quote_entry_amount_short: 0.into(),
+            quote_break_even_amount_long: 0.into(),
+            quote_break_even_amount_short: 0.into(),
+            user_lp_shares: 0.into(),
+            last_funding_rate: 0.into(),
+            last_funding_rate_long: 0.into(),
+            last_funding_rate_short: 0.into(),
+            last_24h_avg_funding_rate: 0.into(),
+            total_fee: 0.into(),
+            total_mm_fee: 0.into(),
+            total_exchange_fee: 0.into(),
+            total_fee_minus_distributions: 0.into(),
+            total_fee_withdrawn: 0.into(),
+            total_liquidation_fee: 0.into(),
+            cumulative_funding_rate_long: 0.into(),
+            cumulative_funding_rate_short: 0.into(),
+            total_social_loss: 0.into(),
+            ask_base_asset_reserve: 0.into(),
+            ask_quote_asset_reserve: 0.into(),
+            bid_base_asset_reserve: 0.into(),
+            bid_quote_asset_reserve: 0.into(),
             last_oracle_normalised_price: 0,
             last_oracle_reserve_price_spread_pct: 0,
             last_bid_price_twap: 0,

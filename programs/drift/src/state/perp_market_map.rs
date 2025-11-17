@@ -25,7 +25,7 @@ pub struct PerpMarketMap<'a>(pub BTreeMap<u16, AccountLoader<'a, PerpMarket>>);
 impl<'a> PerpMarketMap<'a> {
     #[track_caller]
     #[inline(always)]
-    pub fn get_ref(&self, market_index: &u16) -> DriftResult<Ref<PerpMarket>> {
+    pub fn get_ref(&self, market_index: &u16) -> DriftResult<Ref<'_, PerpMarket>> {
         let loader = match self.0.get(market_index) {
             Some(loader) => loader,
             None => {
@@ -58,7 +58,7 @@ impl<'a> PerpMarketMap<'a> {
 
     #[track_caller]
     #[inline(always)]
-    pub fn get_ref_mut(&self, market_index: &u16) -> DriftResult<RefMut<PerpMarket>> {
+    pub fn get_ref_mut(&self, market_index: &u16) -> DriftResult<RefMut<'_, PerpMarket>> {
         let loader = match self.0.get(market_index) {
             Some(loader) => loader,
             None => {

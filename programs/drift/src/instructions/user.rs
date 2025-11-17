@@ -1,8 +1,14 @@
 use std::convert::TryFrom;
 use std::ops::DerefMut;
 
-use anchor_lang::prelude::*;
-use anchor_lang::Discriminator;
+use anchor_lang::{
+    prelude::{
+        borsh::{BorshDeserialize, BorshSerialize},
+        *,
+    },
+    solana_program::sysvar::instructions,
+    Discriminator,
+};
 use anchor_spl::{
     token::Token,
     token_2022::Token2022,
@@ -115,8 +121,6 @@ use crate::validation::user::validate_user_deletion;
 use crate::validation::whitelist::validate_whitelist_token;
 use crate::{controller, math};
 use crate::{load_mut, ExchangeStatus};
-use anchor_lang::solana_program::sysvar::instructions;
-use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::sysvar::instructions::ID as IX_ID;
 
 use super::optional_accounts::get_high_leverage_mode_config;
@@ -393,10 +397,8 @@ pub fn handle_initialize_fuel_overflow<'c: 'info, 'info>(
         .load_init()
         .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
 
-    *fuel_overflow = FuelOverflow {
-        authority: ctx.accounts.authority.key(),
-        ..FuelOverflow::default()
-    };
+    *fuel_overflow = FuelOverflow::default();
+    fuel_overflow.authority = ctx.accounts.authority.key();
     user_stats.update_fuel_overflow_status(true);
 
     Ok(())

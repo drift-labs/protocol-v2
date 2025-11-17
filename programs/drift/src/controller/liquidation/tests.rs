@@ -7564,7 +7564,7 @@ pub mod resolve_perp_bankruptcy {
         let mut expected_user = user;
         expected_user.status = 0;
         expected_user.perp_positions[0].quote_asset_amount = 0;
-        expected_user.set_total_social_loss(100000000);
+        expected_user.total_social_loss = 100000000;
 
         let mut expected_market = market;
         expected_market
@@ -7781,7 +7781,7 @@ pub mod resolve_perp_bankruptcy {
         let mut expected_user = user;
         expected_user.status = 0;
         expected_user.perp_positions[0].quote_asset_amount = 0;
-        expected_user.set_total_social_loss(100000000);
+        expected_user.total_social_loss = 100000000;
 
         let mut expected_market = market;
         expected_market
@@ -8022,9 +8022,9 @@ pub mod resolve_spot_bankruptcy {
 
         let mut expected_user = user;
         expected_user.status = 0;
-        expected_user.spot_positions[0].set_scaled_balance(0);
+        expected_user.spot_positions[0].scaled_balance = 0;
         expected_user.spot_positions[0].cumulative_deposits = 100 * QUOTE_PRECISION_I64;
-        expected_user.set_total_social_loss(100000000);
+        expected_user.total_social_loss = 100000000;
 
         let mut expected_spot_market = spot_market;
         expected_spot_market.set_borrow_balance(0);

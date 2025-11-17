@@ -21,7 +21,7 @@ pub struct UserMap<'a>(pub BTreeMap<Pubkey, AccountLoader<'a, User>>);
 impl<'a> UserMap<'a> {
     #[track_caller]
     #[inline(always)]
-    pub fn get_ref(&self, user: &Pubkey) -> DriftResult<Ref<User>> {
+    pub fn get_ref(&self, user: &Pubkey) -> DriftResult<Ref<'_, User>> {
         let loader = match self.0.get(user) {
             Some(loader) => loader,
             None => {
@@ -54,7 +54,7 @@ impl<'a> UserMap<'a> {
 
     #[track_caller]
     #[inline(always)]
-    pub fn get_ref_mut(&self, user: &Pubkey) -> DriftResult<RefMut<User>> {
+    pub fn get_ref_mut(&self, user: &Pubkey) -> DriftResult<RefMut<'_, User>> {
         let loader = match self.0.get(user) {
             Some(loader) => loader,
             None => {
@@ -143,7 +143,7 @@ pub struct UserStatsMap<'a>(pub BTreeMap<Pubkey, AccountLoader<'a, UserStats>>);
 impl<'a> UserStatsMap<'a> {
     #[track_caller]
     #[inline(always)]
-    pub fn get_ref(&self, authority: &Pubkey) -> DriftResult<Ref<UserStats>> {
+    pub fn get_ref(&self, authority: &Pubkey) -> DriftResult<Ref<'_, UserStats>> {
         let loader = match self.0.get(authority) {
             Some(loader) => loader,
             None => {
@@ -176,7 +176,7 @@ impl<'a> UserStatsMap<'a> {
 
     #[track_caller]
     #[inline(always)]
-    pub fn get_ref_mut(&self, authority: &Pubkey) -> DriftResult<RefMut<UserStats>> {
+    pub fn get_ref_mut(&self, authority: &Pubkey) -> DriftResult<RefMut<'_, UserStats>> {
         let loader = match self.0.get(authority) {
             Some(loader) => loader,
             None => {

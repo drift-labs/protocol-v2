@@ -169,12 +169,12 @@ impl<'a> SignedMsgUserOrdersZeroCopyMut<'a> {
 }
 
 pub trait SignedMsgUserOrdersLoader<'a> {
-    fn load(&self) -> DriftResult<SignedMsgUserOrdersZeroCopy>;
-    fn load_mut(&self) -> DriftResult<SignedMsgUserOrdersZeroCopyMut>;
+    fn load(&self) -> DriftResult<SignedMsgUserOrdersZeroCopy<'_>>;
+    fn load_mut(&self) -> DriftResult<SignedMsgUserOrdersZeroCopyMut<'_>>;
 }
 
 impl<'a> SignedMsgUserOrdersLoader<'a> for AccountInfo<'a> {
-    fn load(&self) -> DriftResult<SignedMsgUserOrdersZeroCopy> {
+    fn load(&self) -> DriftResult<SignedMsgUserOrdersZeroCopy<'_>> {
         let owner = self.owner;
 
         validate!(
@@ -199,7 +199,7 @@ impl<'a> SignedMsgUserOrdersLoader<'a> for AccountInfo<'a> {
         })
     }
 
-    fn load_mut(&self) -> DriftResult<SignedMsgUserOrdersZeroCopyMut> {
+    fn load_mut(&self) -> DriftResult<SignedMsgUserOrdersZeroCopyMut<'_>> {
         let owner = self.owner;
 
         validate!(

@@ -14,16 +14,26 @@ use crate::error::DriftResult;
 
 pub mod compat {
     #![allow(non_camel_case_types)]
+    use anchor_lang::prelude::borsh::{BorshDeserialize, BorshSerialize};
     use bytemuck::{Pod, Zeroable};
     use std::{
         cmp::Ordering,
+        convert::TryFrom,
         ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign},
     };
 
+    use crate::{error::DriftResult, math::casting::Cast};
+
     /// `u128` with legacy bit layout
-    #[derive(Copy, Clone, PartialEq, Eq, Debug, Default)]
+    #[derive(Copy, Clone, PartialEq, Eq, Debug, Default, BorshSerialize, BorshDeserialize)]
     #[repr(transparent)]
     pub struct u128([u8; 16]);
+
+    impl std::fmt::Display for self::u128 {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            std::fmt::Display::fmt(&self.as_u128(), f)
+        }
+    }
 
     impl PartialOrd for self::u128 {
         fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -53,6 +63,9 @@ pub mod compat {
         }
         pub const fn zero() -> Self {
             Self::ZERO
+        }
+        pub fn cast<T: TryFrom<std::primitive::u128>>(&self) -> DriftResult<T> {
+            self.as_u128().cast()
         }
     }
     impl From<std::primitive::u128> for u128 {
@@ -131,9 +144,15 @@ pub mod compat {
     }
 
     /// `i128` with legacy bit layout
-    #[derive(Copy, Clone, PartialEq, Eq, Debug, Default)]
+    #[derive(Copy, Clone, PartialEq, Eq, Debug, Default, BorshSerialize, BorshDeserialize)]
     #[repr(transparent)]
     pub struct i128([u8; 16]);
+
+    impl std::fmt::Display for self::i128 {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            std::fmt::Display::fmt(&self.as_i128(), f)
+        }
+    }
 
     // Safety: i128 is a transparent wrapper around [u8; 16], which is Pod + Zeroable
     unsafe impl Pod for self::i128 {}
@@ -162,7 +181,19 @@ pub mod compat {
         pub fn as_i128(self) -> std::primitive::i128 {
             std::primitive::i128::from_le_bytes(self.0)
         }
+
+        pub fn cast<T: TryFrom<std::primitive::i128>>(&self) -> DriftResult<T> {
+            self.as_i128().cast()
+        }
     }
+
+    impl std::ops::Neg for self::i128 {
+        type Output = std::primitive::i128;
+        fn neg(self) -> Self::Output {
+            self.as_i128().neg()
+        }
+    }
+
     impl From<std::primitive::i128> for i128 {
         fn from(value: std::primitive::i128) -> Self {
             i128(value.to_le_bytes())

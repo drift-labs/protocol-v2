@@ -27,7 +27,7 @@ pyth-lazer-solana-contract = { git = "https://github.com/jordy25519/pyth-crossch
 pythnet-sdk = { git = "https://github.com/jordy25519/pyth-crosschain", branch = "master"}
 pyth-solana-receiver-sdk = { git = "https://github.com/jordy25519/pyth-crosschain", branch = "master"}
 bytemuck = { version = "1.4.0" }
-borsh = "0.10.3"
+borsh = "0.10.4"
 hex = "0.4.3"
 uint = { version = "0.9.1", default-features = false }
 num-integer = "0.1.44"

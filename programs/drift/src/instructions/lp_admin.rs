@@ -17,7 +17,7 @@ use crate::state::spot_market::SpotMarket;
 use crate::state::state::State;
 use crate::validate;
 use crate::{controller, load_mut};
-use anchor_lang::prelude::*;
+use anchor_lang::prelude::{borsh::BorshDeserialize, *};
 use anchor_lang::Discriminator;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::Token;

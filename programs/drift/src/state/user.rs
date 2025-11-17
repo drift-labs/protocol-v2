@@ -28,8 +28,10 @@ use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::traits::Size;
 use crate::validate;
 use crate::{get_then_update_id, ID};
-use anchor_lang::prelude::*;
-use borsh::{BorshDeserialize, BorshSerialize};
+use anchor_lang::prelude::{
+    borsh::{BorshDeserialize, BorshSerialize},
+    *,
+};
 use bytemuck::{Pod, Zeroable};
 use std::cmp::max;
 use std::fmt;

@@ -13,6 +13,7 @@ use crate::state::traits::Size;
 #[cfg(test)]
 mod tests;
 
+#[drift_macros::legacy_layout]
 #[account]
 #[derive(Default)]
 #[repr(C)]
@@ -254,6 +255,7 @@ impl Default for FeeTier {
     }
 }
 
+#[drift_macros::legacy_layout]
 #[derive(AnchorSerialize, AnchorDeserialize, Default, Clone, Debug)]
 pub struct OrderFillerRewardStructure {
     pub reward_numerator: u32,

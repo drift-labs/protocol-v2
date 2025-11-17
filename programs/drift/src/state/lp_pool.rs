@@ -16,8 +16,10 @@ use crate::state::oracle_map::OracleMap;
 use crate::state::paused_operations::ConstituentLpOperation;
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::MarketType;
-use anchor_lang::prelude::*;
-use borsh::{BorshDeserialize, BorshSerialize};
+use anchor_lang::prelude::{
+    borsh::{BorshDeserialize, BorshSerialize},
+    *,
+};
 use enumflags2::BitFlags;
 
 use super::oracle::OraclePriceData;
