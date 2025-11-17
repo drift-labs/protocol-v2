@@ -3,6 +3,7 @@ use std::ops::DerefMut;
 
 use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
+use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::{
     token::Token,
     token_2022::Token2022,
@@ -21,18 +22,19 @@ use crate::controller::spot_position::{
     update_spot_balances_and_cumulative_deposits_with_limits,
 };
 use crate::error::ErrorCode;
+use crate::get_then_update_id;
 use crate::ids::admin_hot_wallet;
-use crate::ids::{
-    dflow_mainnet_aggregator_4, jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6,
-    lighthouse, marinade_mainnet, serum_program, titan_mainnet_argos_v1,
-};
+use crate::ids::WHITELISTED_SWAP_PROGRAMS;
+use crate::ids::{lighthouse, marinade_mainnet};
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::get_revenue_share_escrow_account;
 use crate::instructions::optional_accounts::{
     get_referrer_and_referrer_stats, get_whitelist_token, load_maps, AccountMaps,
 };
 use crate::instructions::SpotFulfillmentType;
+use crate::load;
 use crate::math::casting::Cast;
+use crate::math::constants::{QUOTE_SPOT_MARKET_INDEX, THIRTEEN_DAY};
 use crate::math::liquidation::is_user_being_liquidated;
 use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_liability_info;
 use crate::math::margin::meets_initial_margin_requirement;
@@ -42,6 +44,7 @@ use crate::math::margin::{
 };
 use crate::math::oracle::is_oracle_valid_for_action;
 use crate::math::oracle::DriftAction;
+use crate::math::oracle::LogMode;
 use crate::math::orders::calculate_existing_position_fields_for_order_action;
 use crate::math::orders::get_position_delta_for_fill;
 use crate::math::orders::is_multiple_of_step_size;
@@ -112,11 +115,8 @@ use crate::validation::position::validate_perp_position_with_perp_market;
 use crate::validation::user::validate_user_deletion;
 use crate::validation::whitelist::validate_whitelist_token;
 use crate::{controller, math};
-use crate::{get_then_update_id, QUOTE_SPOT_MARKET_INDEX};
-use crate::{load, THIRTEEN_DAY};
 use crate::{load_mut, ExchangeStatus};
 use anchor_lang::solana_program::sysvar::instructions;
-use anchor_spl::associated_token::AssociatedToken;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::sysvar::instructions::ID as IX_ID;
 
@@ -1789,6 +1789,8 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
                 .last_oracle_price_twap,
             perp_market.get_max_confidence_interval_multiplier()?,
             perp_market.amm.oracle_slot_delay_override,
+            perp_market.amm.oracle_low_risk_slot_delay_override,
+            Some(LogMode::Margin),
         )?;
         step_size = perp_market.amm.order_step_size;
         tick_size = perp_market.amm.order_tick_size;
@@ -3678,16 +3680,9 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
                     )?;
                 }
             } else {
-                let mut whitelisted_programs = vec![
-                    serum_program::id(),
-                    AssociatedToken::id(),
-                    jupiter_mainnet_3::ID,
-                    jupiter_mainnet_4::ID,
-                    jupiter_mainnet_6::ID,
-                    dflow_mainnet_aggregator_4::ID,
-                    titan_mainnet_argos_v1::ID,
-                ];
+                let mut whitelisted_programs = WHITELISTED_SWAP_PROGRAMS.to_vec();
                 if !delegate_is_signer {
+                    whitelisted_programs.push(AssociatedToken::id());
                     whitelisted_programs.push(Token::id());
                     whitelisted_programs.push(Token2022::id());
                     whitelisted_programs.push(marinade_mainnet::ID);

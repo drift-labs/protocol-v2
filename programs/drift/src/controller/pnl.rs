@@ -20,7 +20,10 @@ use crate::math::position::calculate_base_asset_value_with_expiry_price;
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 
+use crate::get_then_update_id;
+use crate::math::orders::calculate_existing_position_fields_for_order_action;
 use crate::msg;
+use crate::state::events::{OrderAction, OrderActionRecord, OrderRecord};
 use crate::state::events::{OrderActionExplanation, SettlePnlExplanation, SettlePnlRecord};
 use crate::state::oracle_map::OracleMap;
 use crate::state::paused_operations::PerpOperation;
@@ -30,7 +33,7 @@ use crate::state::settle_pnl_mode::SettlePnlMode;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::State;
-use crate::state::user::{MarketType, User};
+use crate::state::user::{MarketType, Order, OrderStatus, OrderType, User};
 use crate::validate;
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::prelude::*;
@@ -135,6 +138,8 @@ pub fn settle_pnl(
                     .last_oracle_price_twap,
                 perp_market.get_max_confidence_interval_multiplier()?,
                 0,
+                0,
+                None,
             )?;
 
             if !is_oracle_valid_for_action(oracle_validity, Some(DriftAction::SettlePnl))?
@@ -436,6 +441,11 @@ pub fn settle_expired_position(
     let base_asset_amount = user.perp_positions[position_index].base_asset_amount;
     let quote_entry_amount = user.perp_positions[position_index].quote_entry_amount;
 
+    let user_position_direction_to_close =
+        user.perp_positions[position_index].get_direction_to_close();
+    let user_existing_position_params_for_order_action = user.perp_positions[position_index]
+        .get_existing_position_params_for_order_action(user_position_direction_to_close);
+
     let position_delta = PositionDelta {
         quote_asset_amount: base_asset_value,
         base_asset_amount: -user.perp_positions[position_index].base_asset_amount,
@@ -467,6 +477,80 @@ pub fn settle_expired_position(
         perp_market,
         -pnl_to_settle_with_user.cast()?,
     )?;
+
+    if position_delta.base_asset_amount != 0 {
+        // get ids for order fills
+        let user_order_id = get_then_update_id!(user, next_order_id);
+        let fill_record_id = get_then_update_id!(perp_market, next_fill_record_id);
+
+        let base_asset_amount = position_delta.base_asset_amount;
+        let user_existing_position_direction = user.perp_positions[position_index].get_direction();
+
+        let user_order = Order {
+            slot,
+            base_asset_amount: base_asset_amount.unsigned_abs(),
+            order_id: user_order_id,
+            market_index: perp_market.market_index,
+            status: OrderStatus::Open,
+            order_type: OrderType::Market,
+            market_type: MarketType::Perp,
+            direction: user_position_direction_to_close,
+            existing_position_direction: user_existing_position_direction,
+            ..Order::default()
+        };
+
+        emit!(OrderRecord {
+            ts: now,
+            user: *user_key,
+            order: user_order
+        });
+
+        let (taker_existing_quote_entry_amount, taker_existing_base_asset_amount) =
+            calculate_existing_position_fields_for_order_action(
+                base_asset_amount.unsigned_abs(),
+                user_existing_position_params_for_order_action,
+            )?;
+
+        let fill_record = OrderActionRecord {
+            ts: now,
+            action: OrderAction::Fill,
+            action_explanation: OrderActionExplanation::MarketExpired,
+            market_index: perp_market.market_index,
+            market_type: MarketType::Perp,
+            filler: None,
+            filler_reward: None,
+            fill_record_id: Some(fill_record_id),
+            base_asset_amount_filled: Some(base_asset_amount.unsigned_abs()),
+            quote_asset_amount_filled: Some(base_asset_value.unsigned_abs()),
+            taker_fee: Some(fee.unsigned_abs()),
+            maker_fee: None,
+            referrer_reward: None,
+            quote_asset_amount_surplus: None,
+            spot_fulfillment_method_fee: None,
+            taker: Some(*user_key),
+            taker_order_id: Some(user_order_id),
+            taker_order_direction: Some(user_position_direction_to_close),
+            taker_order_base_asset_amount: Some(base_asset_amount.unsigned_abs()),
+            taker_order_cumulative_base_asset_amount_filled: Some(base_asset_amount.unsigned_abs()),
+            taker_order_cumulative_quote_asset_amount_filled: Some(base_asset_value.unsigned_abs()),
+            maker: None,
+            maker_order_id: None,
+            maker_order_direction: None,
+            maker_order_base_asset_amount: None,
+            maker_order_cumulative_base_asset_amount_filled: None,
+            maker_order_cumulative_quote_asset_amount_filled: None,
+            oracle_price: perp_market.expiry_price,
+            bit_flags: 0,
+            taker_existing_quote_entry_amount,
+            taker_existing_base_asset_amount,
+            maker_existing_quote_entry_amount: None,
+            maker_existing_base_asset_amount: None,
+            trigger_price: None,
+            builder_idx: None,
+            builder_fee: None,
+        };
+        emit!(fill_record);
+    }
 
     update_settled_pnl(user, position_index, pnl_to_settle_with_user.cast()?)?;
 
