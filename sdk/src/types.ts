@@ -1298,7 +1298,7 @@ export class OrderParamsBitFlag {
 export class PositionFlag {
 	static readonly IsolatedPosition = 1;
 	static readonly BeingLiquidated = 2;
-	static readonly Bankruptcy = 3;
+	static readonly Bankruptcy = 4;
 }
 
 export type NecessaryOrderParams = {
