@@ -1,0 +1,26 @@
+# Exclude parent directory LICENSE to prevent symlink loop in Bun 1.3.2
+../LICENSE
+LICENSE
+
+# Development files
+*.md
+!README.md
+tests/
+.github/
+.vscode/
+*.test.ts
+*.spec.ts
+
+# Build artifacts
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# Source files (only ship compiled lib/)
+src/
+
+# Config files
+tsconfig.json
+tsconfig.browser.json
+.eslintrc*
+.prettierrc*
+
