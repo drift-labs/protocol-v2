@@ -681,15 +681,12 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		symbol: 'AI16Z',
 		marketIndex: 35,
 		poolId: 0,
-		oracle: new PublicKey('3BGheQVvYtBNpBKSUXSTjpyKQc3dh8iiwT91Aiq7KYCU'),
-		oracleSource: OracleSource.PYTH_LAZER,
+		oracle: new PublicKey('BHqLyA9ov1VPNzt8eb5bt75X2Vk1EVKw1d9Qa78Gk5tR'),
+		oracleSource: OracleSource.SWITCHBOARD_ON_DEMAND,
 		mint: new PublicKey('HeLp6NuQkmYB4pYWo2zYs22mESHXPQYzXbB8n4V98jwC'),
 		precision: new BN(10).pow(NINE),
 		precisionExp: NINE,
-		pythFeedId:
-			'0x2551eca7784671173def2c41e6f3e51e11cd87494863f1d208fdd8c64a1f85ae',
 		launchTs: 1736384970000,
-		pythLazerId: 171,
 	},
 	{
 		symbol: 'TRUMP',
