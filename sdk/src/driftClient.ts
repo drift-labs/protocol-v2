@@ -6321,7 +6321,6 @@ export class DriftClient {
 		const inMarket = this.getSpotMarketAccount(inMarketIndex);
 
 		const isExactOut = swapMode === 'ExactOut';
-		const exactOutBufferedAmountIn = amount.muln(1001).divn(1000); // Add 10bp buffer
 
 		const preInstructions: TransactionInstruction[] = [];
 
@@ -6377,11 +6376,24 @@ export class DriftClient {
 			}
 		}
 
+		let amountInForBeginSwap: BN;
+		if (isExactOut) {
+			if (quote || v6?.quote) {
+				amountInForBeginSwap = v6?.quote
+					? new BN(v6.quote.inAmount)
+					: new BN(quote!.inAmount);
+			} else {
+				amountInForBeginSwap = amount.muln(1001).divn(1000);
+			}
+		} else {
+			amountInForBeginSwap = amount;
+		}
+
 		// Get drift swap instructions for begin and end
 		const { beginSwapIx, endSwapIx } = await this.getSwapIx({
 			outMarketIndex,
 			inMarketIndex,
-			amountIn: isExactOut ? exactOutBufferedAmountIn : amount,
+			amountIn: amountInForBeginSwap,
 			inTokenAccount: finalInAssociatedTokenAccount,
 			outTokenAccount: finalOutAssociatedTokenAccount,
 			reduceOnly,
