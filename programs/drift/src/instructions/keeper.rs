@@ -852,6 +852,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
     if let Some(isolated_position_deposit) =
         verified_message_and_signature.isolated_position_deposit
     {
+        msg!("Isolated position deposit: {:?}", isolated_position_deposit);
         spot_market_map.update_writable_spot_market(0)?;
         transfer_isolated_perp_position_deposit(
             taker,
