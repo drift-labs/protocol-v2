@@ -16,8 +16,11 @@ use crate::state::oracle_map::OracleMap;
 use crate::state::paused_operations::ConstituentLpOperation;
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::MarketType;
-use anchor_lang::prelude::*;
-use borsh::{BorshDeserialize, BorshSerialize};
+use anchor_lang::prelude::{
+    borsh::{BorshDeserialize, BorshSerialize},
+    *,
+};
+use drift_macros::legacy_layout;
 use enumflags2::BitFlags;
 
 use super::oracle::OraclePriceData;
@@ -59,6 +62,7 @@ pub const MAX_ORACLE_STALENESS_FOR_TARGET_CALC: u64 = 10u64;
 #[cfg(test)]
 mod tests;
 
+#[legacy_layout]
 #[account(zero_copy(unsafe))]
 #[derive(Debug)]
 #[repr(C)]
@@ -138,11 +142,11 @@ impl Default for LPPool {
             whitelist_mint: Pubkey::default(),
             constituent_target_base: Pubkey::default(),
             constituent_correlations: Pubkey::default(),
-            max_aum: 0,
-            last_aum: 0,
-            cumulative_quote_sent_to_perp_markets: 0,
-            cumulative_quote_received_from_perp_markets: 0,
-            total_mint_redeem_fees_paid: 0,
+            max_aum: 0.into(),
+            last_aum: 0.into(),
+            cumulative_quote_sent_to_perp_markets: 0.into(),
+            cumulative_quote_received_from_perp_markets: 0.into(),
+            total_mint_redeem_fees_paid: 0.into(),
             last_aum_slot: 0,
             max_settle_quote_amount: 0,
             _padding: 0,
@@ -180,6 +184,7 @@ impl LPPool {
                 // TODO: assuming mint decimals = quote decimals = 6
                 Ok(self
                     .last_aum
+                    .as_u128()
                     .safe_mul(PRICE_PRECISION)?
                     .safe_div(supply as u128)?)
             }
@@ -297,7 +302,7 @@ impl LPPool {
         in_target_weight: i64,
         dlp_total_supply: u64,
     ) -> DriftResult<(u64, u128, i64, i128)> {
-        let (mut in_fee_pct, out_fee_pct) = if self.last_aum == 0 {
+        let (mut in_fee_pct, out_fee_pct) = if self.last_aum == 0.into() {
             (0, 0)
         } else {
             self.get_swap_fees(
@@ -341,7 +346,7 @@ impl LPPool {
         } else {
             token_amount_usd
                 .safe_mul(dlp_total_supply as u128)?
-                .safe_div(self.last_aum)?
+                .safe_div(self.last_aum.into())?
                 .safe_div(token_precision_denominator)?
         };
 
@@ -399,6 +404,7 @@ impl LPPool {
         // Apply proportion to AUM and convert to token amount
         let out_amount = self
             .last_aum
+            .as_u128()
             .safe_mul(proportion)?
             .safe_mul(token_precision_denominator)?
             .safe_div(PERCENTAGE_PRECISION)?
@@ -625,7 +631,12 @@ impl LPPool {
         let trade_ratio: i128 = notional_trade_size
             .abs()
             .safe_mul(PERCENTAGE_PRECISION_I128)?
-            .safe_div(self.last_aum.max(MIN_AUM_EXECUTION_FEE).cast::<i128>()?)?;
+            .safe_div(
+                self.last_aum
+                    .as_u128()
+                    .max(MIN_AUM_EXECUTION_FEE)
+                    .cast::<i128>()?,
+            )?;
 
         // Linear fee computation amount
         let in_fee_execution_linear =
@@ -708,15 +719,17 @@ impl LPPool {
             self.target_position_delay_fee_bps_per_10_slots,
         )?;
 
-        Ok(oracle_uncertainty_fee
+        oracle_uncertainty_fee
             .safe_add(position_uncertainty_fee)?
-            .cast::<i128>()?)
+            .cast::<i128>()
     }
 
     pub fn record_mint_redeem_fees(&mut self, amount: i64) -> DriftResult {
         self.total_mint_redeem_fees_paid = self
             .total_mint_redeem_fees_paid
-            .safe_add(amount.cast::<i128>()?)?;
+            .as_i128()
+            .safe_add(amount as i128)?
+            .into();
         Ok(())
     }
 
@@ -832,7 +845,7 @@ impl LPPool {
         }
 
         let aum_u128 = aum.max(0).cast::<u128>()?;
-        self.last_aum = aum_u128;
+        self.set_last_aum(aum_u128);
         self.last_aum_slot = slot;
 
         Ok((aum_u128, crypto_delta, derivative_groups))
@@ -847,6 +860,7 @@ impl LPPool {
     }
 }
 
+#[legacy_layout]
 #[zero_copy(unsafe)]
 #[derive(Default, Eq, PartialEq, Debug, BorshDeserialize, BorshSerialize)]
 #[repr(C)]
@@ -875,16 +889,16 @@ impl SpotBalance for ConstituentSpotBalance {
     }
 
     fn balance(&self) -> u128 {
-        self.scaled_balance
+        self.scaled_balance.into()
     }
 
     fn increase_balance(&mut self, delta: u128) -> DriftResult {
-        self.scaled_balance = self.scaled_balance.safe_add(delta)?;
+        self.set_scaled_balance(self.scaled_balance().safe_add(delta)?);
         Ok(())
     }
 
     fn decrease_balance(&mut self, delta: u128) -> DriftResult {
-        self.scaled_balance = self.scaled_balance.safe_sub(delta)?;
+        self.set_scaled_balance(self.scaled_balance().safe_sub(delta)?);
         Ok(())
     }
 
@@ -896,7 +910,7 @@ impl SpotBalance for ConstituentSpotBalance {
 
 impl ConstituentSpotBalance {
     pub fn get_token_amount(&self, spot_market: &SpotMarket) -> DriftResult<u128> {
-        get_token_amount(self.scaled_balance, spot_market, &self.balance_type)
+        get_token_amount(self.scaled_balance.into(), spot_market, &self.balance_type)
     }
 
     pub fn get_signed_token_amount(&self, spot_market: &SpotMarket) -> DriftResult<i128> {
@@ -905,6 +919,7 @@ impl ConstituentSpotBalance {
     }
 }
 
+#[legacy_layout]
 #[account(zero_copy(unsafe))]
 #[derive(Debug)]
 #[repr(C)]
@@ -990,7 +1005,7 @@ impl Default for Constituent {
             mint: Pubkey::default(),
             lp_pool: Pubkey::default(),
             vault: Pubkey::default(),
-            total_swap_fees: 0,
+            total_swap_fees: 0.into(),
             spot_balance: ConstituentSpotBalance::default(),
             last_spot_balance_token_amount: 0,
             cumulative_spot_interest_accrued_token_amount: 0,
@@ -1096,7 +1111,7 @@ impl Constituent {
     }
 
     pub fn record_swap_fees(&mut self, amount: i128) -> DriftResult {
-        self.total_swap_fees = self.total_swap_fees.safe_add(amount)?;
+        self.total_swap_fees = self.total_swap_fees.as_i128().safe_add(amount)?.into();
         Ok(())
     }
 

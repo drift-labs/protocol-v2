@@ -153,12 +153,12 @@ pub fn check_withdraw_limits(
     // calculates min/max deposit/borrow amounts permitted for immediate withdraw
     // takes the stricter of absolute caps on level changes and utilization changes vs 24hr moving averrages
     let deposit_token_amount = get_token_amount(
-        spot_market.deposit_balance,
+        spot_market.deposit_balance(),
         spot_market,
         &SpotBalanceType::Deposit,
     )?;
     let borrow_token_amount = get_token_amount(
-        spot_market.borrow_balance,
+        spot_market.borrow_balance(),
         spot_market,
         &SpotBalanceType::Borrow,
     )?;
@@ -231,13 +231,13 @@ pub fn get_max_withdraw_for_market_with_token_amount(
     is_leaving_drift: bool,
 ) -> DriftResult<u128> {
     let deposit_token_amount = get_token_amount(
-        spot_market.deposit_balance,
+        spot_market.deposit_balance(),
         spot_market,
         &SpotBalanceType::Deposit,
     )?;
 
     let borrow_token_amount = get_token_amount(
-        spot_market.borrow_balance,
+        spot_market.borrow_balance(),
         spot_market,
         &SpotBalanceType::Borrow,
     )?;
@@ -308,20 +308,20 @@ pub fn get_max_withdraw_for_market_with_token_amount(
 
 pub fn validate_spot_balances(spot_market: &SpotMarket) -> DriftResult<i64> {
     let depositors_amount: u64 = get_token_amount(
-        spot_market.deposit_balance,
+        spot_market.deposit_balance(),
         spot_market,
         &SpotBalanceType::Deposit,
     )?
     .cast()?;
     let borrowers_amount: u64 = get_token_amount(
-        spot_market.borrow_balance,
+        spot_market.borrow_balance(),
         spot_market,
         &SpotBalanceType::Borrow,
     )?
     .cast()?;
 
     let revenue_amount: u64 = get_token_amount(
-        spot_market.revenue_pool.scaled_balance,
+        spot_market.revenue_pool.scaled_balance(),
         spot_market,
         &SpotBalanceType::Deposit,
     )?
@@ -338,7 +338,7 @@ pub fn validate_spot_balances(spot_market: &SpotMarket) -> DriftResult<i64> {
         revenue_amount,
         depositors_amount,
         depositors_claim,
-        spot_market.deposit_balance
+        spot_market.deposit_balance()
     )?;
 
     Ok(depositors_claim)

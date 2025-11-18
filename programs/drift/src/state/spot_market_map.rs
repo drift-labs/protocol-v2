@@ -24,7 +24,7 @@ pub struct SpotMarketMap<'a>(
 impl<'a> SpotMarketMap<'a> {
     #[track_caller]
     #[inline(always)]
-    pub fn get_ref(&self, market_index: &u16) -> DriftResult<Ref<SpotMarket>> {
+    pub fn get_ref(&self, market_index: &u16) -> DriftResult<Ref<'_, SpotMarket>> {
         let loader = match self.0.get(market_index) {
             Some(loader) => loader,
             None => {
@@ -57,7 +57,7 @@ impl<'a> SpotMarketMap<'a> {
 
     #[track_caller]
     #[inline(always)]
-    pub fn get_ref_mut(&self, market_index: &u16) -> DriftResult<RefMut<SpotMarket>> {
+    pub fn get_ref_mut(&self, market_index: &u16) -> DriftResult<RefMut<'_, SpotMarket>> {
         if !self.1.contains(market_index) {
             let caller = Location::caller();
             msg!(
@@ -101,7 +101,7 @@ impl<'a> SpotMarketMap<'a> {
 
     #[track_caller]
     #[inline(always)]
-    pub fn get_quote_spot_market(&self) -> DriftResult<Ref<SpotMarket>> {
+    pub fn get_quote_spot_market(&self) -> DriftResult<Ref<'_, SpotMarket>> {
         let loader = match self.0.get(&QUOTE_SPOT_MARKET_INDEX) {
             Some(loader) => loader,
             None => {
@@ -134,7 +134,7 @@ impl<'a> SpotMarketMap<'a> {
 
     #[track_caller]
     #[inline(always)]
-    pub fn get_quote_spot_market_mut(&self) -> DriftResult<RefMut<SpotMarket>> {
+    pub fn get_quote_spot_market_mut(&self) -> DriftResult<RefMut<'_, SpotMarket>> {
         if !self.1.contains(&QUOTE_SPOT_MARKET_INDEX) {
             let caller = Location::caller();
             msg!(

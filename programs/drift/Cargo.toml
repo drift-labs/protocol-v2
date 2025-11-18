@@ -27,19 +27,19 @@ pyth-lazer-solana-contract = { git = "https://github.com/jordy25519/pyth-crossch
 pythnet-sdk = { git = "https://github.com/jordy25519/pyth-crosschain", branch = "master"}
 pyth-solana-receiver-sdk = { git = "https://github.com/jordy25519/pyth-crosschain", branch = "master"}
 bytemuck = { version = "1.4.0" }
-borsh = "0.10.3"
+borsh = "0.10.4"
 hex = "0.4.3"
 uint = { version = "0.9.1", default-features = false }
 num-integer = "0.1.44"
 num-traits = "0.2"
 arrayref = "0.3.6"
 base64 = "0.13.0"
-serum_dex = { git = "https://github.com/jordy25519/serum-dex", branch = "master", features = ["no-entrypoint"] }
+serum_dex = { git = "https://github.com/drift-labs/serum-dex", branch = "master", features = ["no-entrypoint"] }
 enumflags2 = "0.6.4"
 phoenix-v1 = { git = "https://github.com/jordy25519/phoenix-v1", branch = "master", features = ["no-entrypoint"] }
 solana-security-txt = "1.1.0"
 static_assertions = "1.1.0"
-drift-macros = { git = "https://github.com/drift-labs/drift-macros.git", rev = "c57d87" }
+drift-macros = { git = "https://github.com/drift-labs/drift-macros", rev = "92192a1" }
 switchboard = { path = "../switchboard", features = ["no-entrypoint"] }
 openbook-v2-light = { path = "../openbook_v2", features = ["no-entrypoint"] }
 switchboard-on-demand = { path = "../switchboard-on-demand", features = ["no-entrypoint"] }

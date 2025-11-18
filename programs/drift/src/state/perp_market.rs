@@ -2,7 +2,10 @@ use crate::msg;
 use crate::state::fill_mode::FillMode;
 use crate::state::pyth_lazer_oracle::PythLazerOracle;
 use crate::state::user::{MarketType, Order};
-use anchor_lang::prelude::*;
+use anchor_lang::prelude::{
+    borsh::{BorshDeserialize, BorshSerialize},
+    *,
+};
 
 use crate::state::state::{State, ValidityGuardRails};
 use std::cmp::max;
@@ -36,10 +39,9 @@ use crate::state::oracle::{
 };
 use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType};
 use crate::state::traits::{MarketIndexOffset, Size};
-use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::state::paused_operations::PerpOperation;
-use drift_macros::assert_no_slop;
+use drift_macros::{assert_no_slop, legacy_layout};
 use static_assertions::const_assert_eq;
 
 use super::oracle_map::OracleIdentifier;
@@ -154,6 +156,7 @@ impl ContractTier {
     }
 }
 
+#[legacy_layout]
 #[account(zero_copy(unsafe))]
 #[derive(Eq, PartialEq, Debug)]
 #[repr(C)]
@@ -373,7 +376,7 @@ impl PerpMarket {
                 .net_revenue_since_last_funding
                 .cast::<i128>()?
                 .safe_mul(PERCENTAGE_PRECISION_I128)?
-                .safe_div(self.amm.total_fee_minus_distributions.max(1))?;
+                .safe_div(self.amm.total_fee_minus_distributions.as_i128().max(1))?;
 
             let percent_drawdown_limit_breached = match self.contract_tier {
                 ContractTier::A => percent_drawdown <= -PERCENTAGE_PRECISION_I128 / 50,
@@ -697,6 +700,7 @@ impl PerpMarket {
         let peg_sqrt = (self
             .amm
             .peg_multiplier
+            .as_u128()
             .safe_mul(PEG_PRECISION)?
             .saturating_add(1))
         .nth_root(2)
@@ -706,8 +710,9 @@ impl PerpMarket {
         let mut quote_asset_reserve_upper_bound = self
             .amm
             .sqrt_k
+            .as_u128()
             .safe_mul(peg_sqrt)?
-            .safe_div(self.amm.peg_multiplier)?;
+            .safe_div(self.amm.peg_multiplier.into())?;
 
         // for price [0,1] maintain following invariants:
         if direction == PositionDirection::Long {
@@ -715,19 +720,21 @@ impl PerpMarket {
             quote_asset_reserve_lower_bound = self
                 .amm
                 .sqrt_k
+                .as_u128()
                 .safe_mul(22361)?
                 .safe_mul(peg_sqrt)?
                 .safe_div(100000)?
-                .safe_div(self.amm.peg_multiplier)?
+                .safe_div(self.amm.peg_multiplier.into())?
         } else {
             // highest bid price is $0.95
             quote_asset_reserve_upper_bound = self
                 .amm
                 .sqrt_k
+                .as_u128()
                 .safe_mul(97467)?
                 .safe_mul(peg_sqrt)?
                 .safe_div(100000)?
-                .safe_div(self.amm.peg_multiplier)?
+                .safe_div(self.amm.peg_multiplier.into())?
         }
 
         Ok((
@@ -1024,6 +1031,7 @@ pub struct InsuranceClaim {
     pub last_revenue_withdraw_ts: i64,
 }
 
+#[legacy_layout]
 #[zero_copy(unsafe)]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
@@ -1047,16 +1055,16 @@ impl SpotBalance for PoolBalance {
     }
 
     fn balance(&self) -> u128 {
-        self.scaled_balance
+        self.scaled_balance.as_u128()
     }
 
     fn increase_balance(&mut self, delta: u128) -> DriftResult {
-        self.scaled_balance = self.scaled_balance.safe_add(delta)?;
+        self.scaled_balance = self.scaled_balance().safe_add(delta)?.into();
         Ok(())
     }
 
     fn decrease_balance(&mut self, delta: u128) -> DriftResult {
-        self.scaled_balance = self.scaled_balance.safe_sub(delta)?;
+        self.scaled_balance = self.scaled_balance().safe_sub(delta)?.into();
         Ok(())
     }
 
@@ -1066,7 +1074,8 @@ impl SpotBalance for PoolBalance {
 }
 
 #[assert_no_slop]
-#[zero_copy(unsafe)]
+#[legacy_layout]
+#[account(zero_copy(unsafe))]
 #[derive(Debug, PartialEq, Eq)]
 #[repr(C)]
 pub struct AMM {
@@ -1214,7 +1223,7 @@ pub struct AMM {
     pub net_revenue_since_last_funding: i64,
     /// the last funding rate update unix_timestamp
     pub last_funding_rate_ts: i64,
-    /// the peridocity of the funding rate updates
+    /// the periodicity of the funding rate updates
     pub funding_period: i64,
     /// the base step size (increment) of orders
     /// precision: BASE_PRECISION
@@ -1295,45 +1304,45 @@ impl Default for AMM {
         AMM {
             oracle: Pubkey::default(),
             historical_oracle_data: HistoricalOracleData::default(),
-            base_asset_amount_per_lp: 0,
-            quote_asset_amount_per_lp: 0,
+            base_asset_amount_per_lp: 0.into(),
+            quote_asset_amount_per_lp: 0.into(),
             fee_pool: PoolBalance::default(),
-            base_asset_reserve: 0,
-            quote_asset_reserve: 0,
-            concentration_coef: 0,
-            min_base_asset_reserve: 0,
-            max_base_asset_reserve: 0,
-            sqrt_k: 0,
-            peg_multiplier: 0,
-            terminal_quote_asset_reserve: 0,
-            base_asset_amount_long: 0,
-            base_asset_amount_short: 0,
-            base_asset_amount_with_amm: 0,
-            base_asset_amount_with_unsettled_lp: 0,
-            max_open_interest: 0,
-            quote_asset_amount: 0,
-            quote_entry_amount_long: 0,
-            quote_entry_amount_short: 0,
-            quote_break_even_amount_long: 0,
-            quote_break_even_amount_short: 0,
-            user_lp_shares: 0,
-            last_funding_rate: 0,
-            last_funding_rate_long: 0,
-            last_funding_rate_short: 0,
-            last_24h_avg_funding_rate: 0,
-            total_fee: 0,
-            total_mm_fee: 0,
-            total_exchange_fee: 0,
-            total_fee_minus_distributions: 0,
-            total_fee_withdrawn: 0,
-            total_liquidation_fee: 0,
-            cumulative_funding_rate_long: 0,
-            cumulative_funding_rate_short: 0,
-            total_social_loss: 0,
-            ask_base_asset_reserve: 0,
-            ask_quote_asset_reserve: 0,
-            bid_base_asset_reserve: 0,
-            bid_quote_asset_reserve: 0,
+            base_asset_reserve: 0.into(),
+            quote_asset_reserve: 0.into(),
+            concentration_coef: 0.into(),
+            min_base_asset_reserve: 0.into(),
+            max_base_asset_reserve: 0.into(),
+            sqrt_k: 0.into(),
+            peg_multiplier: 0.into(),
+            terminal_quote_asset_reserve: 0.into(),
+            base_asset_amount_long: 0.into(),
+            base_asset_amount_short: 0.into(),
+            base_asset_amount_with_amm: 0.into(),
+            base_asset_amount_with_unsettled_lp: 0.into(),
+            max_open_interest: 0.into(),
+            quote_asset_amount: 0.into(),
+            quote_entry_amount_long: 0.into(),
+            quote_entry_amount_short: 0.into(),
+            quote_break_even_amount_long: 0.into(),
+            quote_break_even_amount_short: 0.into(),
+            user_lp_shares: 0.into(),
+            last_funding_rate: 0.into(),
+            last_funding_rate_long: 0.into(),
+            last_funding_rate_short: 0.into(),
+            last_24h_avg_funding_rate: 0.into(),
+            total_fee: 0.into(),
+            total_mm_fee: 0.into(),
+            total_exchange_fee: 0.into(),
+            total_fee_minus_distributions: 0.into(),
+            total_fee_withdrawn: 0.into(),
+            total_liquidation_fee: 0.into(),
+            cumulative_funding_rate_long: 0.into(),
+            cumulative_funding_rate_short: 0.into(),
+            total_social_loss: 0.into(),
+            ask_base_asset_reserve: 0.into(),
+            ask_quote_asset_reserve: 0.into(),
+            bid_base_asset_reserve: 0.into(),
+            bid_quote_asset_reserve: 0.into(),
             last_oracle_normalised_price: 0,
             last_oracle_reserve_price_spread_pct: 0,
             last_bid_price_twap: 0,
@@ -1442,10 +1451,10 @@ impl AMM {
     }
 
     pub fn get_lower_bound_sqrt_k(self) -> DriftResult<u128> {
-        Ok(self.sqrt_k.min(
-            (self.min_order_size.cast::<u128>()?)
-                .max(self.base_asset_amount_with_amm.unsigned_abs()),
-        ))
+        Ok(self
+            .sqrt_k
+            .as_u128()
+            .min((self.min_order_size as u128).max(self.base_asset_amount_with_amm.unsigned_abs())))
     }
 
     pub fn get_protocol_owned_position(self) -> DriftResult<i64> {
@@ -1471,10 +1480,10 @@ impl AMM {
     pub fn amm_wants_to_jit_make(&self, taker_direction: PositionDirection) -> DriftResult<bool> {
         let amm_wants_to_jit_make = match taker_direction {
             PositionDirection::Long => {
-                self.base_asset_amount_with_amm < -(self.order_step_size.cast()?)
+                self.base_asset_amount_with_amm.as_i128() < -(self.order_step_size as i128)
             }
             PositionDirection::Short => {
-                self.base_asset_amount_with_amm > (self.order_step_size.cast()?)
+                self.base_asset_amount_with_amm.as_i128() > self.order_step_size as i128
             }
         };
         Ok(amm_wants_to_jit_make && self.amm_jit_is_active())
@@ -1486,9 +1495,9 @@ impl AMM {
         if amm_wants_to_jit_make {
             // inventory scale
             let (max_bids, max_asks) = amm::_calculate_market_open_bids_asks(
-                self.base_asset_reserve,
-                self.min_base_asset_reserve,
-                self.max_base_asset_reserve,
+                self.base_asset_reserve.into(),
+                self.min_base_asset_reserve.into(),
+                self.max_base_asset_reserve.into(),
             )?;
 
             let protocol_owned_min_side_liquidity = max_bids.min(max_asks.abs());
@@ -1506,9 +1515,9 @@ impl AMM {
 
     pub fn reserve_price(&self) -> DriftResult<u64> {
         amm::calculate_price(
-            self.quote_asset_reserve,
-            self.base_asset_reserve,
-            self.peg_multiplier,
+            self.quote_asset_reserve.into(),
+            self.base_asset_reserve.into(),
+            self.peg_multiplier.into(),
         )
     }
 
@@ -1569,7 +1578,7 @@ impl AMM {
                 .base_asset_amount_with_amm
                 .unsigned_abs()
                 .max(min_order_size_u128)
-                < self.sqrt_k)
+                < self.sqrt_k.into())
             && (min_order_size_u128 < max_bids.unsigned_abs().max(max_asks.unsigned_abs()));
 
         Ok(can_lower)
@@ -1755,16 +1764,16 @@ impl AMM {
         let default_reserves = 100 * AMM_RESERVE_PRECISION;
         // make sure tests dont have the default sqrt_k = 0
         AMM {
-            base_asset_reserve: default_reserves,
-            quote_asset_reserve: default_reserves,
-            sqrt_k: default_reserves,
-            concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
+            base_asset_reserve: default_reserves.into(),
+            quote_asset_reserve: default_reserves.into(),
+            sqrt_k: default_reserves.into(),
+            concentration_coef: MAX_CONCENTRATION_COEFFICIENT.into(),
             order_step_size: 1,
             order_tick_size: 1,
-            max_base_asset_reserve: u64::MAX as u128,
-            min_base_asset_reserve: 0,
-            terminal_quote_asset_reserve: default_reserves,
-            peg_multiplier: crate::math::constants::PEG_PRECISION,
+            max_base_asset_reserve: (u64::MAX as u128).into(),
+            min_base_asset_reserve: 0.into(),
+            terminal_quote_asset_reserve: default_reserves.into(),
+            peg_multiplier: crate::math::constants::PEG_PRECISION.into(),
             max_fill_reserve_fraction: 1,
             max_spread: 1000,
             historical_oracle_data: HistoricalOracleData {
@@ -1780,21 +1789,21 @@ impl AMM {
         use crate::math::constants::PRICE_PRECISION_I64;
 
         AMM {
-            base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 63015384615,
-            terminal_quote_asset_reserve: 64 * AMM_RESERVE_PRECISION,
-            sqrt_k: 64 * AMM_RESERVE_PRECISION,
+            base_asset_reserve: (65 * AMM_RESERVE_PRECISION).into(),
+            quote_asset_reserve: 63015384615.into(),
+            terminal_quote_asset_reserve: (64 * AMM_RESERVE_PRECISION).into(),
+            sqrt_k: (64 * AMM_RESERVE_PRECISION).into(),
 
-            peg_multiplier: 19_400_000_000,
+            peg_multiplier: 19_400_000_000.into(),
 
-            concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
-            max_base_asset_reserve: 90 * AMM_RESERVE_PRECISION,
-            min_base_asset_reserve: 45 * AMM_RESERVE_PRECISION,
+            concentration_coef: MAX_CONCENTRATION_COEFFICIENT.into(),
+            max_base_asset_reserve: (90 * AMM_RESERVE_PRECISION).into(),
+            min_base_asset_reserve: (45 * AMM_RESERVE_PRECISION).into(),
 
-            base_asset_amount_with_amm: -(AMM_RESERVE_PRECISION as i128),
+            base_asset_amount_with_amm: (AMM_RESERVE_PRECISION as i128 * -1).into(),
             mark_std: PRICE_PRECISION as u64,
 
-            quote_asset_amount: 19_000_000_000, // short 1 BTC @ $19000
+            quote_asset_amount: 19_000_000_000.into(), // short 1 BTC @ $19000
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: 19_400 * PRICE_PRECISION_I64,
                 last_oracle_price_twap: 19_400 * PRICE_PRECISION_I64,

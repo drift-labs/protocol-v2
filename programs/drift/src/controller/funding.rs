@@ -46,9 +46,9 @@ pub fn settle_funding_payment(
     let amm: &AMM = &market.amm;
 
     let amm_cumulative_funding_rate = if user.perp_positions[position_index].base_asset_amount > 0 {
-        amm.cumulative_funding_rate_long
+        amm.cumulative_funding_rate_long()
     } else {
-        amm.cumulative_funding_rate_short
+        amm.cumulative_funding_rate_short()
     };
 
     if amm_cumulative_funding_rate
@@ -72,8 +72,8 @@ pub fn settle_funding_payment(
             market_index: market_position.market_index,
             funding_payment: market_funding_payment, //10e13
             user_last_cumulative_funding: market_position.last_cumulative_funding_rate, //10e14
-            amm_cumulative_funding_long: amm.cumulative_funding_rate_long, //10e14
-            amm_cumulative_funding_short: amm.cumulative_funding_rate_short, //10e14
+            amm_cumulative_funding_long: amm.cumulative_funding_rate_long(), //10e14
+            amm_cumulative_funding_short: amm.cumulative_funding_rate_short(), //10e14
             base_asset_amount: market_position.base_asset_amount, //10e13
         });
 
@@ -105,9 +105,9 @@ pub fn settle_funding_payments(
 
         let amm_cumulative_funding_rate =
             if user.perp_positions[position_index].base_asset_amount > 0 {
-                amm.cumulative_funding_rate_long
+                amm.cumulative_funding_rate_long()
             } else {
-                amm.cumulative_funding_rate_short
+                amm.cumulative_funding_rate_short()
             };
 
         if amm_cumulative_funding_rate
@@ -131,8 +131,8 @@ pub fn settle_funding_payments(
                 market_index: market_position.market_index,
                 funding_payment: market_funding_payment, //1e6
                 user_last_cumulative_funding: market_position.last_cumulative_funding_rate, //1e9
-                amm_cumulative_funding_long: amm.cumulative_funding_rate_long, //1e9
-                amm_cumulative_funding_short: amm.cumulative_funding_rate_short, //1e9
+                amm_cumulative_funding_long: amm.cumulative_funding_rate_long(), //1e9
+                amm_cumulative_funding_short: amm.cumulative_funding_rate_short(), //1e9
                 base_asset_amount: market_position.base_asset_amount, //1e9
             });
 
@@ -260,15 +260,19 @@ pub fn update_funding_rate(
             formulaic_update_k(market, oracle_price_data, funding_imbalance_cost, now)?;
         }
 
-        market.amm.cumulative_funding_rate_long = market
-            .amm
-            .cumulative_funding_rate_long
-            .safe_add(funding_rate_long)?;
+        market.amm.set_cumulative_funding_rate_long(
+            market
+                .amm
+                .cumulative_funding_rate_long()
+                .safe_add(funding_rate_long)?,
+        );
 
-        market.amm.cumulative_funding_rate_short = market
-            .amm
-            .cumulative_funding_rate_short
-            .safe_add(funding_rate_short)?;
+        market.amm.set_cumulative_funding_rate_short(
+            market
+                .amm
+                .cumulative_funding_rate_short()
+                .safe_add(funding_rate_short)?,
+        );
 
         market.amm.last_funding_rate = funding_rate;
         market.amm.last_funding_oracle_twap = oracle_price_twap;
@@ -296,13 +300,13 @@ pub fn update_funding_rate(
             funding_rate,
             funding_rate_long,
             funding_rate_short,
-            cumulative_funding_rate_long: market.amm.cumulative_funding_rate_long,
-            cumulative_funding_rate_short: market.amm.cumulative_funding_rate_short,
+            cumulative_funding_rate_long: market.amm.cumulative_funding_rate_long(),
+            cumulative_funding_rate_short: market.amm.cumulative_funding_rate_short(),
             mark_price_twap: mid_price_twap,
             oracle_price_twap,
             period_revenue: market.amm.net_revenue_since_last_funding,
-            base_asset_amount_with_amm: market.amm.base_asset_amount_with_amm,
-            base_asset_amount_with_unsettled_lp: market.amm.base_asset_amount_with_unsettled_lp,
+            base_asset_amount_with_amm: market.amm.base_asset_amount_with_amm(),
+            base_asset_amount_with_unsettled_lp: market.amm.base_asset_amount_with_unsettled_lp(),
         });
 
         market.amm.net_revenue_since_last_funding = 0;

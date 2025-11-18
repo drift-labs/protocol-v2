@@ -17,7 +17,7 @@ use crate::state::spot_market::SpotMarket;
 use crate::state::state::State;
 use crate::validate;
 use crate::{controller, load_mut};
-use anchor_lang::prelude::*;
+use anchor_lang::prelude::{borsh::BorshDeserialize, *};
 use anchor_lang::Discriminator;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::Token;
@@ -61,20 +61,20 @@ pub fn handle_initialize_lp_pool(
         constituent_target_base: ctx.accounts.constituent_target_base.key(),
         constituent_correlations: ctx.accounts.constituent_correlations.key(),
         constituents: 0,
-        max_aum,
-        last_aum: 0,
+        max_aum: max_aum.into(),
+        last_aum: 0.into(),
         last_aum_slot: 0,
         max_settle_quote_amount: max_settle_quote_amount_per_market,
         _padding: 0,
-        total_mint_redeem_fees_paid: 0,
+        total_mint_redeem_fees_paid: 0.into(),
         bump: ctx.bumps.lp_pool,
         min_mint_fee,
         token_supply: 0,
         mint_redeem_id: 1,
         settle_id: 1,
         quote_consituent_index: 0,
-        cumulative_quote_sent_to_perp_markets: 0,
-        cumulative_quote_received_from_perp_markets: 0,
+        cumulative_quote_sent_to_perp_markets: 0.into(),
+        cumulative_quote_received_from_perp_markets: 0.into(),
         gamma_execution: 2,
         volatility: 4,
         xi: 2,
@@ -431,12 +431,12 @@ pub fn handle_update_lp_pool_params<'info>(
 
     if let Some(max_aum) = lp_pool_params.max_aum {
         validate!(
-            max_aum >= lp_pool.max_aum,
+            max_aum >= lp_pool.max_aum(),
             ErrorCode::DefaultError,
             "new max_aum must be greater than or equal to current max_aum"
         )?;
-        msg!("max_aum: {:?} -> {:?}", lp_pool.max_aum, max_aum);
-        lp_pool.max_aum = max_aum;
+        msg!("max_aum: {:?} -> {:?}", lp_pool.max_aum(), max_aum);
+        lp_pool.set_max_aum(max_aum);
     }
 
     Ok(())

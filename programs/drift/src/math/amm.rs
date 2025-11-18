@@ -63,9 +63,9 @@ pub fn calculate_bid_ask_bounds(
 }
 
 pub fn calculate_market_open_bids_asks(amm: &AMM) -> DriftResult<(i128, i128)> {
-    let base_asset_reserve = amm.base_asset_reserve;
-    let min_base_asset_reserve = amm.min_base_asset_reserve;
-    let max_base_asset_reserve = amm.max_base_asset_reserve;
+    let base_asset_reserve = amm.base_asset_reserve();
+    let min_base_asset_reserve = amm.min_base_asset_reserve();
+    let max_base_asset_reserve = amm.max_base_asset_reserve();
 
     let (max_bids, max_asks) = _calculate_market_open_bids_asks(
         base_asset_reserve,
@@ -712,16 +712,16 @@ pub fn calculate_quote_asset_amount_swapped(
 }
 
 pub fn calculate_terminal_reserves(amm: &AMM) -> DriftResult<(u128, u128)> {
-    let swap_direction = if amm.base_asset_amount_with_amm > 0 {
+    let swap_direction = if amm.base_asset_amount_with_amm() > 0 {
         SwapDirection::Add
     } else {
         SwapDirection::Remove
     };
     let (new_quote_asset_amount, new_base_asset_amount) = calculate_swap_output(
-        amm.base_asset_amount_with_amm.unsigned_abs(),
-        amm.base_asset_reserve,
+        amm.base_asset_amount_with_amm().unsigned_abs(),
+        amm.base_asset_reserve(),
         swap_direction,
-        amm.sqrt_k,
+        amm.sqrt_k(),
     )?;
 
     Ok((new_quote_asset_amount, new_base_asset_amount))
@@ -733,7 +733,7 @@ pub fn calculate_terminal_price_and_reserves(amm: &AMM) -> DriftResult<(u64, u12
     let terminal_price = calculate_price(
         new_quote_asset_amount,
         new_base_asset_amount,
-        amm.peg_multiplier,
+        amm.peg_multiplier(),
     )?;
 
     Ok((
@@ -844,20 +844,20 @@ pub fn calculate_amm_available_liquidity(
     amm: &AMM,
     order_direction: &PositionDirection,
 ) -> DriftResult<u64> {
-    let max_fill_size: u64 = (amm.base_asset_reserve / amm.max_fill_reserve_fraction as u128)
+    let max_fill_size: u64 = (amm.base_asset_reserve() / amm.max_fill_reserve_fraction as u128)
         .min(u64::MAX as u128)
         .cast()?;
 
     // one fill can only take up to half of side's liquidity
     let max_base_asset_amount_on_side = match order_direction {
         PositionDirection::Long => {
-            amm.base_asset_reserve
-                .saturating_sub(amm.min_base_asset_reserve)
+            amm.base_asset_reserve()
+                .saturating_sub(amm.min_base_asset_reserve())
                 / 2
         }
         PositionDirection::Short => {
-            amm.max_base_asset_reserve
-                .saturating_sub(amm.base_asset_reserve)
+            amm.max_base_asset_reserve()
+                .saturating_sub(amm.base_asset_reserve())
                 / 2
         }
     }
@@ -870,7 +870,7 @@ pub fn calculate_amm_available_liquidity(
 }
 
 pub fn calculate_net_user_cost_basis(amm: &AMM) -> DriftResult<i128> {
-    amm.quote_asset_amount
+    amm.quote_asset_amount()
         .safe_add(amm.quote_asset_amount_with_unsettled_lp.cast()?)?
         .safe_add(amm.net_unsettled_funding_pnl.cast()?)
 }
@@ -883,8 +883,8 @@ pub fn calculate_net_user_pnl(amm: &AMM, oracle_price: i64) -> DriftResult<i128>
     )?;
 
     let net_user_base_asset_value = amm
-        .base_asset_amount_with_amm
-        .safe_add(amm.base_asset_amount_with_unsettled_lp)?
+        .base_asset_amount_with_amm()
+        .safe_add(amm.base_asset_amount_with_unsettled_lp())?
         .safe_mul(oracle_price.cast()?)?
         .safe_div(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO.cast()?)?;
 
@@ -896,7 +896,7 @@ pub fn calculate_expiry_price(
     target_price: i64,
     total_excess_balance: i128,
 ) -> DriftResult<i64> {
-    if amm.base_asset_amount_with_amm.abs() < amm.order_step_size.cast::<i128>()? {
+    if amm.base_asset_amount_with_amm().abs() < amm.order_step_size.cast::<i128>()? {
         return Ok(target_price);
     }
     // net_baa * price + net_quote <= 0
@@ -905,13 +905,13 @@ pub fn calculate_expiry_price(
     // net_user_unrealized_pnl negative = surplus in market
     // net_user_unrealized_pnl positive = expiry price needs to differ from oracle
     let best_expiry_price = -(amm
-        .quote_asset_amount
-        .safe_sub(total_excess_balance.cast::<i128>()?)?
+        .quote_asset_amount()
+        .safe_sub(total_excess_balance)?
         .safe_mul(PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO_I128)?
-        .safe_div(amm.base_asset_amount_with_amm)?)
+        .safe_div(amm.base_asset_amount_with_amm())?)
     .cast::<i64>()?;
 
-    let expiry_price = if amm.base_asset_amount_with_amm >= 0 {
+    let expiry_price = if amm.base_asset_amount_with_amm() >= 0 {
         // net longs only get as high as oracle_price
         best_expiry_price.min(target_price).saturating_sub(1)
     } else {

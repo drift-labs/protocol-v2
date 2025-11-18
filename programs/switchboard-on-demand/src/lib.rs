@@ -1,3 +1,5 @@
+#![allow(unexpected_cfgs)]
+
 use anchor_lang::declare_id;
 use anchor_lang::prelude::*;
 use anchor_lang::program;
@@ -25,28 +27,28 @@ pub struct CompactResult {
 #[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct CurrentResult {
     /// The median value of the submissions needed for quorum size
-    pub value: i128,
+    value: [u8; 16],
     /// The standard deviation of the submissions needed for quorum size
-    pub std_dev: i128,
+    std_dev: [u8; 16],
     /// The mean of the submissions needed for quorum size
-    pub mean: i128,
+    mean: [u8; 16],
     /// The range of the submissions needed for quorum size
-    pub range: i128,
+    range: [u8; 16],
     /// The minimum value of the submissions needed for quorum size
-    pub min_value: i128,
+    min_value: [u8; 16],
     /// The maximum value of the submissions needed for quorum size
-    pub max_value: i128,
+    max_value: [u8; 16],
     /// The number of samples used to calculate this result
-    pub num_samples: u8,
+    num_samples: u8,
     /// The index of the submission that was used to calculate this result
-    pub submission_idx: u8,
-    pub padding1: [u8; 6],
+    submission_idx: u8,
+    padding1: [u8; 6],
     /// The slot at which this value was signed.
-    pub slot: u64,
+    slot: u64,
     /// The slot at which the first considered submission was made
-    pub min_slot: u64,
+    min_slot: u64,
     /// The slot at which the last considered submission was made
-    pub max_slot: u64,
+    max_slot: u64,
 }
 impl CurrentResult {
     /// The median value of the submissions needed for quorum size
@@ -54,7 +56,7 @@ impl CurrentResult {
         if self.slot == 0 {
             return None;
         }
-        Some(self.value)
+        Some(i128::from_le_bytes(self.value))
     }
 
     /// The standard deviation of the submissions needed for quorum size
@@ -62,7 +64,7 @@ impl CurrentResult {
         if self.slot == 0 {
             return None;
         }
-        Some(self.std_dev)
+        Some(i128::from_le_bytes(self.std_dev))
     }
 
     /// The mean of the submissions needed for quorum size
@@ -70,7 +72,7 @@ impl CurrentResult {
         if self.slot == 0 {
             return None;
         }
-        Some(self.mean)
+        Some(i128::from_le_bytes(self.mean))
     }
 
     /// The range of the submissions needed for quorum size
@@ -78,7 +80,7 @@ impl CurrentResult {
         if self.slot == 0 {
             return None;
         }
-        Some(self.range)
+        Some(i128::from_le_bytes(self.range))
     }
 
     /// The minimum value of the submissions needed for quorum size
@@ -86,7 +88,7 @@ impl CurrentResult {
         if self.slot == 0 {
             return None;
         }
-        Some(self.min_value)
+        Some(i128::from_le_bytes(self.min_value))
     }
 
     /// The maximum value of the submissions needed for quorum size
@@ -94,7 +96,7 @@ impl CurrentResult {
         if self.slot == 0 {
             return None;
         }
-        Some(self.max_value)
+        Some(i128::from_le_bytes(self.max_value))
     }
 
     pub fn result_slot(&self) -> Option<u64> {
@@ -129,7 +131,7 @@ pub struct OracleSubmission {
     /// The slot at which this value was landed on chain.
     pub landed_at: u64,
     /// The value that was submitted.
-    pub value: i128,
+    value: [u8; 16],
 }
 
 impl OracleSubmission {
@@ -138,7 +140,7 @@ impl OracleSubmission {
     }
 
     pub fn value(&self) -> i128 {
-        self.value
+        i128::from_le_bytes(self.value)
     }
 }
 

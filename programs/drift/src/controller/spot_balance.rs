@@ -39,13 +39,13 @@ pub fn update_spot_market_twap_stats(
     let from_start = max(1_i64, SPOT_MARKET_TOKEN_TWAP_WINDOW.safe_sub(since_last)?);
 
     let deposit_token_amount = get_token_amount(
-        spot_market.deposit_balance,
+        spot_market.deposit_balance(),
         spot_market,
         &SpotBalanceType::Deposit,
     )?;
 
     let borrow_token_amount = get_token_amount(
-        spot_market.borrow_balance,
+        spot_market.borrow_balance(),
         spot_market,
         &SpotBalanceType::Borrow,
     )?;
@@ -151,18 +151,22 @@ pub fn update_spot_market_cumulative_interest(
             deposit_interest.safe_sub(deposit_interest_for_stakers)?;
 
         if deposit_interest_for_lenders > 0 {
-            spot_market.cumulative_deposit_interest = spot_market
-                .cumulative_deposit_interest
-                .safe_add(deposit_interest_for_lenders)?;
+            spot_market.set_cumulative_deposit_interest(
+                spot_market
+                    .cumulative_deposit_interest()
+                    .safe_add(deposit_interest_for_lenders)?,
+            );
 
-            spot_market.cumulative_borrow_interest = spot_market
-                .cumulative_borrow_interest
-                .safe_add(borrow_interest)?;
+            spot_market.set_cumulative_borrow_interest(
+                spot_market
+                    .cumulative_borrow_interest()
+                    .safe_add(borrow_interest)?,
+            );
             spot_market.last_interest_ts = now.cast()?;
 
             // add deposit_interest_for_stakers as balance for revenue_pool
             let token_amount = get_interest_token_amount(
-                spot_market.deposit_balance,
+                spot_market.deposit_balance(),
                 spot_market,
                 deposit_interest_for_stakers,
             )?;
@@ -172,10 +176,10 @@ pub fn update_spot_market_cumulative_interest(
             emit!(SpotInterestRecord {
                 ts: now,
                 market_index: spot_market.market_index,
-                deposit_balance: spot_market.deposit_balance,
-                cumulative_deposit_interest: spot_market.cumulative_deposit_interest,
-                borrow_balance: spot_market.borrow_balance,
-                cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
+                deposit_balance: spot_market.deposit_balance(),
+                cumulative_deposit_interest: spot_market.cumulative_deposit_interest(),
+                borrow_balance: spot_market.borrow_balance(),
+                cumulative_borrow_interest: spot_market.cumulative_borrow_interest(),
                 optimal_utilization: spot_market.optimal_utilization,
                 optimal_borrow_rate: spot_market.optimal_borrow_rate,
                 max_borrow_rate: spot_market.max_borrow_rate,
@@ -261,13 +265,13 @@ pub fn update_spot_balances(
 
     if is_leaving_drift && update_direction == &SpotBalanceType::Borrow {
         let deposit_token_amount = get_token_amount(
-            spot_market.deposit_balance,
+            spot_market.deposit_balance(),
             spot_market,
             &SpotBalanceType::Deposit,
         )?;
 
         let borrow_token_amount = get_token_amount(
-            spot_market.borrow_balance,
+            spot_market.borrow_balance(),
             spot_market,
             &SpotBalanceType::Borrow,
         )?;
@@ -302,10 +306,10 @@ pub fn transfer_spot_balances(
 
     if from_spot_balance.balance_type() == &SpotBalanceType::Deposit {
         validate!(
-            spot_market.deposit_balance >= from_spot_balance.balance(),
+            spot_market.deposit_balance() >= from_spot_balance.balance(),
             ErrorCode::InvalidSpotMarketState,
             "spot_market.deposit_balance={} lower than individual spot balance={}",
-            spot_market.deposit_balance,
+            spot_market.deposit_balance(),
             from_spot_balance.balance()
         )?;
     }
@@ -435,10 +439,10 @@ fn increase_spot_balance(
 ) -> DriftResult {
     match balance_type {
         SpotBalanceType::Deposit => {
-            spot_market.deposit_balance = spot_market.deposit_balance.safe_add(delta)?
+            spot_market.set_deposit_balance(spot_market.deposit_balance().safe_add(delta)?)
         }
         SpotBalanceType::Borrow => {
-            spot_market.borrow_balance = spot_market.borrow_balance.safe_add(delta)?
+            spot_market.set_borrow_balance(spot_market.borrow_balance().safe_add(delta)?)
         }
     }
 
@@ -452,10 +456,10 @@ fn decrease_spot_balance(
 ) -> DriftResult {
     match balance_type {
         SpotBalanceType::Deposit => {
-            spot_market.deposit_balance = spot_market.deposit_balance.safe_sub(delta)?
+            spot_market.set_deposit_balance(spot_market.deposit_balance().safe_sub(delta)?)
         }
         SpotBalanceType::Borrow => {
-            spot_market.borrow_balance = spot_market.borrow_balance.safe_sub(delta)?
+            spot_market.set_borrow_balance(spot_market.borrow_balance().safe_sub(delta)?)
         }
     }
 

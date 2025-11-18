@@ -728,9 +728,10 @@ dependencies = [
 [[package]]
 name = "drift-macros"
 version = "0.1.0"
-source = "git+https://github.com/drift-labs/drift-macros.git?rev=c57d87#c57d87e073d13d43f4d1fb09fe6822915a4ccc11"
+source = "git+https://github.com/drift-labs/drift-macros?rev=92192a1#92192a1efdfa0ddef3ae06e20e24462ea3bbdc0f"
 dependencies = [
  "quote",
+ "static_assertions",
  "syn 1.0.109",
 ]
 
@@ -1713,7 +1714,7 @@ dependencies = [
 [[package]]
 name = "serum_dex"
 version = "0.5.6"
-source = "git+https://github.com/jordy25519/serum-dex?branch=master#2347e4810ace967ab186202e22b6188b9cab03ba"
+source = "git+https://github.com/drift-labs/serum-dex?branch=master#2347e4810ace967ab186202e22b6188b9cab03ba"
 dependencies = [
  "arrayref",
  "bincode",

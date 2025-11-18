@@ -7,12 +7,12 @@ mod amm {
     #[test]
     fn last_ask_premium() {
         let mut amm = AMM {
-            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+            quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
             short_spread: (BID_ASK_SPREAD_PRECISION / 10) as u32,
             long_spread: (BID_ASK_SPREAD_PRECISION / 10) as u32,
-            sqrt_k: 100 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 100 * PEG_PRECISION,
+            sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: (100 * PEG_PRECISION).into(),
             ..AMM::default()
         };
         amm.historical_oracle_data.last_oracle_price = 100 * PRICE_PRECISION_I64;
@@ -25,12 +25,12 @@ mod amm {
     #[test]
     fn last_bid_discount() {
         let mut amm = AMM {
-            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+            quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
             short_spread: (BID_ASK_SPREAD_PRECISION / 10) as u32,
             long_spread: (BID_ASK_SPREAD_PRECISION / 10) as u32,
-            sqrt_k: 100 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 100 * PEG_PRECISION,
+            sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: (100 * PEG_PRECISION).into(),
             ..AMM::default()
         };
         amm.historical_oracle_data.last_oracle_price = 100 * PRICE_PRECISION_I64;
@@ -590,13 +590,13 @@ mod amm_can_fill_order_tests {
         assert!(!can1);
 
         // valid oracle for immediate and user can skip, market can skip due to low inventory => can fill
-        market.amm.base_asset_amount_with_amm = -2; // taker long improves balance
+        market.amm.set_base_asset_amount_with_amm(-2); // taker long improves balance
         market.amm.order_step_size = 1;
-        market.amm.base_asset_reserve = 1_000_000;
-        market.amm.quote_asset_reserve = 1_000_000;
-        market.amm.sqrt_k = 1_000_000;
-        market.amm.max_base_asset_reserve = 2_000_000;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_base_asset_reserve(1_000_000);
+        market.amm.set_quote_asset_reserve(1_000_000);
+        market.amm.set_sqrt_k(1_000_000);
+        market.amm.set_max_base_asset_reserve(2_000_000);
+        market.amm.set_min_base_asset_reserve(0);
 
         let can2 = market
             .amm_can_fill_order(

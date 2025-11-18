@@ -1,6 +1,5 @@
 use anchor_lang::prelude::*;
 use anchor_lang::ZeroCopy;
-use arrayref::array_ref;
 use std::cell::{Ref, RefMut};
 use std::mem;
 

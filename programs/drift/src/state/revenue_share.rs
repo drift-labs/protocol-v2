@@ -1,9 +1,10 @@
 use std::cell::{Ref, RefMut};
 
 use anchor_lang::prelude::{
-    account, zero_copy, AccountInfo, AnchorDeserialize, AnchorSerialize, Discriminator, Pubkey,
+    account,
+    borsh::{BorshDeserialize, BorshSerialize},
+    zero_copy, AccountInfo, AnchorDeserialize, AnchorSerialize, Discriminator, Pubkey,
 };
-use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
@@ -512,12 +513,12 @@ impl<'a> RevenueShareEscrowZeroCopyMut<'a> {
 }
 
 pub trait RevenueShareEscrowLoader<'a> {
-    fn load_zc(&self) -> DriftResult<RevenueShareEscrowZeroCopy>;
-    fn load_zc_mut(&self) -> DriftResult<RevenueShareEscrowZeroCopyMut>;
+    fn load_zc(&self) -> DriftResult<RevenueShareEscrowZeroCopy<'_>>;
+    fn load_zc_mut(&self) -> DriftResult<RevenueShareEscrowZeroCopyMut<'_>>;
 }
 
 impl<'a> RevenueShareEscrowLoader<'a> for AccountInfo<'a> {
-    fn load_zc(&self) -> DriftResult<RevenueShareEscrowZeroCopy> {
+    fn load_zc(&self) -> DriftResult<RevenueShareEscrowZeroCopy<'_>> {
         let owner = self.owner;
 
         validate!(
@@ -543,7 +544,7 @@ impl<'a> RevenueShareEscrowLoader<'a> for AccountInfo<'a> {
         })
     }
 
-    fn load_zc_mut(&self) -> DriftResult<RevenueShareEscrowZeroCopyMut> {
+    fn load_zc_mut(&self) -> DriftResult<RevenueShareEscrowZeroCopyMut<'_>> {
         let owner = self.owner;
 
         validate!(

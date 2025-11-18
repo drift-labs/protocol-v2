@@ -10,8 +10,10 @@ use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::events::OrderActionExplanation;
 use crate::state::perp_market::{ContractTier, PerpMarket};
 use crate::state::user::{MarketType, OrderTriggerCondition, OrderType};
-use anchor_lang::prelude::*;
-use borsh::{BorshDeserialize, BorshSerialize};
+use anchor_lang::prelude::{
+    borsh::{BorshDeserialize, BorshSerialize},
+    *,
+};
 use std::ops::Div;
 
 #[cfg(test)]

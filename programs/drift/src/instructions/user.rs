@@ -1,8 +1,14 @@
 use std::convert::TryFrom;
 use std::ops::DerefMut;
 
-use anchor_lang::prelude::*;
-use anchor_lang::Discriminator;
+use anchor_lang::{
+    prelude::{
+        borsh::{BorshDeserialize, BorshSerialize},
+        *,
+    },
+    solana_program::sysvar::instructions,
+    Discriminator,
+};
 use anchor_spl::{
     token::Token,
     token_2022::Token2022,
@@ -115,8 +121,6 @@ use crate::validation::user::validate_user_deletion;
 use crate::validation::whitelist::validate_whitelist_token;
 use crate::{controller, math};
 use crate::{load_mut, ExchangeStatus};
-use anchor_lang::solana_program::sysvar::instructions;
-use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::sysvar::instructions::ID as IX_ID;
 
 use super::optional_accounts::get_high_leverage_mode_config;
@@ -393,10 +397,8 @@ pub fn handle_initialize_fuel_overflow<'c: 'info, 'info>(
         .load_init()
         .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
 
-    *fuel_overflow = FuelOverflow {
-        authority: ctx.accounts.authority.key(),
-        ..FuelOverflow::default()
-    };
+    *fuel_overflow = FuelOverflow::default();
+    fuel_overflow.authority = ctx.accounts.authority.key();
     user_stats.update_fuel_overflow_status(true);
 
     Ok(())
@@ -424,12 +426,12 @@ pub fn handle_sweep_fuel<'c: 'info, 'info>(
         user_stats_fuel_positions: user_stats.fuel_positions,
         user_stats_fuel_taker: user_stats.fuel_taker,
         user_stats_fuel_maker: user_stats.fuel_maker,
-        fuel_overflow_fuel_insurance: fuel_overflow.fuel_insurance,
-        fuel_overflow_fuel_deposits: fuel_overflow.fuel_deposits,
-        fuel_overflow_fuel_borrows: fuel_overflow.fuel_borrows,
-        fuel_overflow_fuel_positions: fuel_overflow.fuel_positions,
-        fuel_overflow_fuel_taker: fuel_overflow.fuel_taker,
-        fuel_overflow_fuel_maker: fuel_overflow.fuel_maker,
+        fuel_overflow_fuel_insurance: fuel_overflow.fuel_insurance(),
+        fuel_overflow_fuel_deposits: fuel_overflow.fuel_deposits(),
+        fuel_overflow_fuel_borrows: fuel_overflow.fuel_borrows(),
+        fuel_overflow_fuel_positions: fuel_overflow.fuel_positions(),
+        fuel_overflow_fuel_taker: fuel_overflow.fuel_taker(),
+        fuel_overflow_fuel_maker: fuel_overflow.fuel_maker(),
     });
 
     fuel_overflow.update_from_user_stats(&user_stats, clock.unix_timestamp.cast()?)?;
@@ -459,24 +461,24 @@ pub fn handle_reset_fuel_season<'c: 'info, 'info>(
             user_stats_fuel_positions: user_stats.fuel_positions,
             user_stats_fuel_taker: user_stats.fuel_taker,
             user_stats_fuel_maker: user_stats.fuel_maker,
-            fuel_overflow_fuel_insurance: fuel_overflow.fuel_insurance,
-            fuel_overflow_fuel_deposits: fuel_overflow.fuel_deposits,
-            fuel_overflow_fuel_borrows: fuel_overflow.fuel_borrows,
-            fuel_overflow_fuel_positions: fuel_overflow.fuel_positions,
-            fuel_overflow_fuel_taker: fuel_overflow.fuel_taker,
-            fuel_overflow_fuel_maker: fuel_overflow.fuel_maker,
+            fuel_overflow_fuel_insurance: fuel_overflow.fuel_insurance(),
+            fuel_overflow_fuel_deposits: fuel_overflow.fuel_deposits(),
+            fuel_overflow_fuel_borrows: fuel_overflow.fuel_borrows(),
+            fuel_overflow_fuel_positions: fuel_overflow.fuel_positions(),
+            fuel_overflow_fuel_taker: fuel_overflow.fuel_taker(),
+            fuel_overflow_fuel_maker: fuel_overflow.fuel_maker(),
         });
         fuel_overflow.update_from_user_stats(&user_stats, clock.unix_timestamp.cast()?)?;
 
         emit!(FuelSeasonRecord {
             ts: clock.unix_timestamp.cast()?,
             authority: ctx.accounts.authority.key(),
-            fuel_insurance: fuel_overflow.fuel_insurance,
-            fuel_deposits: fuel_overflow.fuel_deposits,
-            fuel_borrows: fuel_overflow.fuel_borrows,
-            fuel_positions: fuel_overflow.fuel_positions,
-            fuel_taker: fuel_overflow.fuel_taker,
-            fuel_maker: fuel_overflow.fuel_maker,
+            fuel_insurance: fuel_overflow.fuel_insurance(),
+            fuel_deposits: fuel_overflow.fuel_deposits(),
+            fuel_borrows: fuel_overflow.fuel_borrows(),
+            fuel_positions: fuel_overflow.fuel_positions(),
+            fuel_taker: fuel_overflow.fuel_taker(),
+            fuel_maker: fuel_overflow.fuel_maker(),
             fuel_total: fuel_overflow.total_fuel()?,
         });
         fuel_overflow.reset_fuel(clock.unix_timestamp.cast()?);
@@ -806,10 +808,10 @@ pub fn handle_deposit<'c: 'info, 'info>(
         direction: DepositDirection::Deposit,
         amount,
         oracle_price,
-        market_deposit_balance: spot_market.deposit_balance,
-        market_withdraw_balance: spot_market.borrow_balance,
-        market_cumulative_deposit_interest: spot_market.cumulative_deposit_interest,
-        market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
+        market_deposit_balance: spot_market.deposit_balance(),
+        market_withdraw_balance: spot_market.borrow_balance(),
+        market_cumulative_deposit_interest: spot_market.cumulative_deposit_interest(),
+        market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest(),
         total_deposits_after,
         total_withdraws_after,
         market_index,
@@ -962,10 +964,10 @@ pub fn handle_withdraw<'c: 'info, 'info>(
         oracle_price,
         amount,
         market_index,
-        market_deposit_balance: spot_market.deposit_balance,
-        market_withdraw_balance: spot_market.borrow_balance,
-        market_cumulative_deposit_interest: spot_market.cumulative_deposit_interest,
-        market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
+        market_deposit_balance: spot_market.deposit_balance(),
+        market_withdraw_balance: spot_market.borrow_balance(),
+        market_cumulative_deposit_interest: spot_market.cumulative_deposit_interest(),
+        market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest(),
         total_deposits_after: user.total_deposits,
         total_withdraws_after: user.total_withdraws,
         explanation: deposit_explanation,
@@ -1132,10 +1134,10 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
             amount,
             oracle_price,
             market_index,
-            market_deposit_balance: spot_market.deposit_balance,
-            market_withdraw_balance: spot_market.borrow_balance,
-            market_cumulative_deposit_interest: spot_market.cumulative_deposit_interest,
-            market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
+            market_deposit_balance: spot_market.deposit_balance(),
+            market_withdraw_balance: spot_market.borrow_balance(),
+            market_cumulative_deposit_interest: spot_market.cumulative_deposit_interest(),
+            market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest(),
             total_deposits_after: from_user.total_deposits,
             total_withdraws_after: from_user.total_withdraws,
             explanation: DepositExplanation::Transfer,
@@ -1196,10 +1198,10 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
             amount,
             oracle_price,
             market_index,
-            market_deposit_balance: spot_market.deposit_balance,
-            market_withdraw_balance: spot_market.borrow_balance,
-            market_cumulative_deposit_interest: spot_market.cumulative_deposit_interest,
-            market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
+            market_deposit_balance: spot_market.deposit_balance(),
+            market_withdraw_balance: spot_market.borrow_balance(),
+            market_cumulative_deposit_interest: spot_market.cumulative_deposit_interest(),
+            market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest(),
             total_deposits_after,
             total_withdraws_after,
             explanation: DepositExplanation::Transfer,
@@ -1407,11 +1409,12 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             amount: deposit_transfer,
             oracle_price: deposit_from_oracle_price_data.price,
             market_index: deposit_from_market_index,
-            market_deposit_balance: deposit_from_spot_market.deposit_balance,
-            market_withdraw_balance: deposit_from_spot_market.borrow_balance,
+            market_deposit_balance: deposit_from_spot_market.deposit_balance(),
+            market_withdraw_balance: deposit_from_spot_market.borrow_balance(),
             market_cumulative_deposit_interest: deposit_from_spot_market
-                .cumulative_deposit_interest,
-            market_cumulative_borrow_interest: deposit_from_spot_market.cumulative_borrow_interest,
+                .cumulative_deposit_interest(),
+            market_cumulative_borrow_interest: deposit_from_spot_market
+                .cumulative_borrow_interest(),
             total_deposits_after: from_user.total_deposits,
             total_withdraws_after: from_user.total_withdraws,
             explanation: DepositExplanation::Transfer,
@@ -1442,10 +1445,11 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             amount: deposit_transfer,
             oracle_price: deposit_to_oracle_price_data.price,
             market_index: deposit_to_market_index,
-            market_deposit_balance: deposit_to_spot_market.deposit_balance,
-            market_withdraw_balance: deposit_to_spot_market.borrow_balance,
-            market_cumulative_deposit_interest: deposit_to_spot_market.cumulative_deposit_interest,
-            market_cumulative_borrow_interest: deposit_to_spot_market.cumulative_borrow_interest,
+            market_deposit_balance: deposit_to_spot_market.deposit_balance(),
+            market_withdraw_balance: deposit_to_spot_market.borrow_balance(),
+            market_cumulative_deposit_interest: deposit_to_spot_market
+                .cumulative_deposit_interest(),
+            market_cumulative_borrow_interest: deposit_to_spot_market.cumulative_borrow_interest(),
             total_deposits_after: to_user.total_deposits,
             total_withdraws_after: to_user.total_withdraws,
             explanation: DepositExplanation::Transfer,
@@ -1508,10 +1512,11 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             amount: borrow_transfer,
             oracle_price: borrow_from_oracle_price_data.price,
             market_index: borrow_from_market_index,
-            market_deposit_balance: borrow_from_spot_market.deposit_balance,
-            market_withdraw_balance: borrow_from_spot_market.borrow_balance,
-            market_cumulative_deposit_interest: borrow_from_spot_market.cumulative_deposit_interest,
-            market_cumulative_borrow_interest: borrow_from_spot_market.cumulative_borrow_interest,
+            market_deposit_balance: borrow_from_spot_market.deposit_balance(),
+            market_withdraw_balance: borrow_from_spot_market.borrow_balance(),
+            market_cumulative_deposit_interest: borrow_from_spot_market
+                .cumulative_deposit_interest(),
+            market_cumulative_borrow_interest: borrow_from_spot_market.cumulative_borrow_interest(),
             total_deposits_after: from_user.total_deposits,
             total_withdraws_after: from_user.total_withdraws,
             explanation: DepositExplanation::Transfer,
@@ -1542,10 +1547,10 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             amount: borrow_transfer,
             oracle_price: borrow_to_oracle_price_data.price,
             market_index: borrow_to_market_index,
-            market_deposit_balance: borrow_to_spot_market.deposit_balance,
-            market_withdraw_balance: borrow_to_spot_market.borrow_balance,
-            market_cumulative_deposit_interest: borrow_to_spot_market.cumulative_deposit_interest,
-            market_cumulative_borrow_interest: borrow_to_spot_market.cumulative_borrow_interest,
+            market_deposit_balance: borrow_to_spot_market.deposit_balance(),
+            market_withdraw_balance: borrow_to_spot_market.borrow_balance(),
+            market_cumulative_deposit_interest: borrow_to_spot_market.cumulative_deposit_interest(),
+            market_cumulative_borrow_interest: borrow_to_spot_market.cumulative_borrow_interest(),
             total_deposits_after: to_user.total_deposits,
             total_withdraws_after: to_user.total_withdraws,
             explanation: DepositExplanation::Transfer,

@@ -65,7 +65,7 @@ pub struct SerumContext<'a, 'b> {
 }
 
 impl<'a, 'b> SerumContext<'a, 'b> {
-    pub fn load_serum_market(&self) -> DriftResult<Market> {
+    pub fn load_serum_market(&self) -> DriftResult<Market<'_>> {
         Market::load(self.serum_market, self.serum_program.key, false).map_err(|e| {
             msg!("{:?}", e);
             ErrorCode::InvalidSerumMarket

@@ -1,8 +1,9 @@
+#![allow(unexpected_cfgs)]
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::bool_assert_comparison)]
 #![allow(clippy::comparison_chain)]
 
-use anchor_lang::prelude::*;
+use anchor_lang::prelude::{borsh::BorshDeserialize, *};
 
 use instructions::*;
 #[cfg(test)]
