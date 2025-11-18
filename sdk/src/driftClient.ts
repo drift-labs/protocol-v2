@@ -6295,6 +6295,7 @@ export class DriftClient {
 		reduceOnly,
 		quote,
 		v6,
+		userAccountPublicKey,
 	}: {
 		swapClient: UnifiedSwapClient;
 		outMarketIndex: number;
@@ -6310,6 +6311,7 @@ export class DriftClient {
 		v6?: {
 			quote?: QuoteResponse;
 		};
+		userAccountPublicKey?: PublicKey;
 	}): Promise<{
 		ixs: TransactionInstruction[];
 		lookupTables: AddressLookupTableAccount[];
@@ -6383,6 +6385,7 @@ export class DriftClient {
 			inTokenAccount: finalInAssociatedTokenAccount,
 			outTokenAccount: finalOutAssociatedTokenAccount,
 			reduceOnly,
+			userAccountPublicKey,
 		});
 
 		// Get core swap instructions from SwapClient
