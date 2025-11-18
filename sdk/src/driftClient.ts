@@ -6383,7 +6383,6 @@ export class DriftClient {
 					? new BN(v6.quote.inAmount)
 					: new BN(quote!.inAmount);
 			} else {
-				// Fallback to old behavior if no quote available
 				amountInForBeginSwap = amount.muln(1001).divn(1000);
 			}
 		} else {
