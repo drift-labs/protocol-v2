@@ -831,6 +831,17 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
         return Ok(());
     }
 
+    // Dont place order if signed msg order already exists
+    let mut taker_order_id_to_use = taker.next_order_id;
+    let mut signed_msg_order_id =
+        SignedMsgOrderId::new(verified_message_and_signature.uuid, max_slot, 0);
+    if signed_msg_account
+        .check_exists_and_prune_stale_signed_msg_order_ids(signed_msg_order_id, clock.slot)
+    {
+        msg!("SignedMsg order already exists for taker {:?}", taker_key);
+        return Ok(());
+    }
+
     if let Some(max_margin_ratio) = verified_message_and_signature.max_margin_ratio {
         taker.update_perp_position_max_margin_ratio(market_index, max_margin_ratio)?;
     }
@@ -849,17 +860,6 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
             market_index,
             isolated_position_deposit.cast::<i64>()?,
         )?;
-    }
-
-    // Dont place order if signed msg order already exists
-    let mut taker_order_id_to_use = taker.next_order_id;
-    let mut signed_msg_order_id =
-        SignedMsgOrderId::new(verified_message_and_signature.uuid, max_slot, 0);
-    if signed_msg_account
-        .check_exists_and_prune_stale_signed_msg_order_ids(signed_msg_order_id, clock.slot)
-    {
-        msg!("SignedMsg order already exists for taker {:?}", taker_key);
-        return Ok(());
     }
 
     // Good to place orders, do stop loss and take profit orders first
