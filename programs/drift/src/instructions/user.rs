@@ -22,6 +22,7 @@ use crate::controller::spot_position::{
 };
 use crate::error::ErrorCode;
 use crate::ids::admin_hot_wallet;
+use crate::ids::WHITELISTED_EXTERNAL_DEPOSITORS;
 use crate::ids::{
     jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, lighthouse, marinade_mainnet,
     serum_program,
@@ -654,6 +655,12 @@ pub fn handle_deposit<'c: 'info, 'info>(
         DepositExplanation::None
     };
     let signer = if ctx.accounts.authority.key() != user.authority {
+        validate!(
+            WHITELISTED_EXTERNAL_DEPOSITORS.contains(&ctx.accounts.authority.key()),
+            ErrorCode::DefaultError,
+            "Not whitelisted external depositor"
+        )?;
+
         Some(ctx.accounts.authority.key())
     } else {
         None

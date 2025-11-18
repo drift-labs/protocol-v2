@@ -1,3 +1,6 @@
+use anchor_lang::prelude::Pubkey;
+use solana_program::pubkey;
+
 pub mod pyth_program {
     use solana_program::declare_id;
     #[cfg(feature = "mainnet-beta")]
@@ -107,3 +110,7 @@ pub mod amm_spread_adjust_wallet {
     #[cfg(feature = "anchor-test")]
     declare_id!("1ucYHAGrBbi1PaecC4Ptq5ocZLWGLBmbGWysoDGNB1N");
 }
+
+pub const WHITELISTED_EXTERNAL_DEPOSITORS: [Pubkey; 1] = [
+    pubkey!("zApVWDs3nSychNnUXSS2czhY78Ycopa15zELrK2gAdM"),
+];
