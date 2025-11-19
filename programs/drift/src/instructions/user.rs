@@ -800,7 +800,9 @@ pub fn handle_deposit<'c: 'info, 'info>(
     } else {
         DepositExplanation::None
     };
-    let signer = if ctx.accounts.authority.key() != user.authority {
+    let signer = if ctx.accounts.authority.key() != user.authority
+        && ctx.accounts.authority.key() != user.delegate
+    {
         validate!(
             WHITELISTED_EXTERNAL_DEPOSITORS.contains(&ctx.accounts.authority.key()),
             ErrorCode::DefaultError,
