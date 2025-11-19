@@ -13,6 +13,137 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.148.0] - 2025-11-14
+
+### Features
+
+- pyth lazer zero guard [#2023](https://github.com/drift-labs/protocol-v2/pull/2023)
+
+### Fixes
+
+### Breaking
+
+## [2.147.0] - 2025-11-06
+
+### Features
+
+- whitelist ATA program in begin_swap ix [#2021](https://github.com/drift-labs/protocol-v2/pull/2021)
+
+### Fixes
+
+### Breaking
+
+## [2.146.0] - 2025-11-03
+
+### Features
+
+- program: add isolated_position_deposit to signed msg params
+
+### Fixes
+
+### Breaking
+
+## [2.145.1] - 2025-10-20
+
+### Features
+
+### Fixes
+
+- dlp ([#1998](https://github.com/drift-labs/protocol-v2/pull/1998))
+- dlp ([#1999](https://github.com/drift-labs/protocol-v2/pull/1999))
+- dlp ([#2000](https://github.com/drift-labs/protocol-v2/pull/2000))
+
+### Breaking
+
+## [2.145.0] - 2025-10-28
+
+### Features
+
+- dlp ([#1885](https://github.com/drift-labs/protocol-v2/pull/1885))
+
+### Fixes
+
+### Breaking
+
+## [2.144.0] - 2025-10-27
+
+### Features
+
+- program: use-5min-for-target-expiry-price  ([#1967](https://github.com/drift-labs/protocol-v2/pull/1967))
+
+### Fixes
+
+### Breaking
+
+## [2.143.0] - 2025-10-22
+
+- program: relax filling conditions for low risk orders vs amm ([#1968](https://github.com/drift-labs/protocol-v2/pull/1968))
+- sdk: make oracle validity match program and propogate to dlob and math functions ([#1968](https://github.com/drift-labs/protocol-v2/pull/1968))
+
+### Features
+
+- program: make imf smoother between hlm and non hlm users ([#1969](https://github.com/drift-labs/protocol-v2/pull/1969))
+
+### Fixes
+
+### Breaking
+
+## [2.142.0] - 2025-10-14
+
+### Features
+
+- program: add titan to whitelisted swap programs ([#1952](https://github.com/drift-labs/protocol-v2/pull/1952))
+- program: allow hot wallet to increase max spread and pause funding ([#1957](https://github.com/drift-labs/protocol-v2/pull/1957))
+
+### Fixes
+
+### Breaking
+
+## [2.141.0] - 2025-10-03
+
+### Features
+
+- program: disallow builder to be escrow authority ([#1930](https://github.com/drift-labs/protocol-v2/pull/1930))
+- dont panic on settle-pnl when no position ([#1928](https://github.com/drift-labs/protocol-v2/pull/1928))
+
+### Fixes
+
+### Breaking
+
+## [2.140.0] - 2025-09-29
+
+### Features
+
+- program: builder codes ([#1805](https://github.com/drift-labs/protocol-v2/pull/1805))
+
+### Fixes
+
+### Breaking
+
+## [2.139.0] - 2025-09-25
+
+### Features
+
+- program: all token 22 use immutable owner ([#1904](https://github.com/drift-labs/protocol-v2/pull/1904))
+- program: allow resolve perp pnl deficit if pnl pool isnt 0 but at deficit ([#1909](https://github.com/drift-labs/protocol-v2/pull/1909))
+- program: auction order params account for twap divergence ([#1882](https://github.com/drift-labs/protocol-v2/pull/1882))
+- program: add delegate stake if ([#1859](https://github.com/drift-labs/protocol-v2/pull/1859))
+
+### Fixes
+
+### Breaking
+
+## [2.138.0] - 2025-09-22
+
+### Features
+
+- program: support scaled ui extension ([#1894](https://github.com/drift-labs/protocol-v2/pull/1894))
+- Revert "Crispeaney/revert swift max margin ratio ([#1877](https://github.com/drift-labs/protocol-v2/pull/1877))
+
+### Fixes
+
+### Breaking
+
 ## [2.137.0] - 2025-09-15
 
 ### Features
@@ -20,6 +151,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - program: post only respects reduce only ([#1878](https://github.com/drift-labs/protocol-v2/pull/1878))
 - program: add sequence id to exchange/mm oracle ([#1834](https://github.com/drift-labs/protocol-v2/pull/1834))
 - program: perp position max margin ratio ([#1847](https://github.com/drift-labs/protocol-v2/pull/1847))
+- program: add padding to swift messages ([#1845](https://github.com/drift-labs/protocol-v2/pull/1845))
 - program: rm lp ([#1755](https://github.com/drift-labs/protocol-v2/pull/1755))
 
 ### Fixes
@@ -36,16 +168,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - program: update referral fee validate rules ([#1843](https://github.com/drift-labs/protocol-v2/pull/1843))
 
 ### Fixes
-
-### Breaking
-
-## [2.135.0] - 2025-08-22
-
-### Features
-
-### Fixes
-
-- program: trigger price use 5min mark price ([#1830](https://github.com/drift-labs/protocol-v2/pull/1830))
 
 ### Breaking
 

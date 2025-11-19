@@ -1,9 +1,5 @@
 #[cfg(test)]
 mod test {
-    use num_integer::Roots;
-
-    use crate::amm::calculate_swap_output;
-    use crate::controller::amm::SwapDirection;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, PRICE_PRECISION, PRICE_PRECISION_U64, QUOTE_PRECISION,
         QUOTE_PRECISION_I64, SPOT_IMF_PRECISION,
@@ -18,6 +14,7 @@ mod test {
         PRICE_PRECISION_I64, QUOTE_PRECISION_U64, SPOT_BALANCE_PRECISION,
         SPOT_CUMULATIVE_INTEREST_PRECISION,
     };
+    use num_integer::Roots;
 
     #[test]
     fn asset_tier_checks() {

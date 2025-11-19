@@ -44,6 +44,9 @@ export const mockPerpPosition: PerpPosition = {
 	lastBaseAssetAmountPerLp: new BN(0),
 	lastQuoteAssetAmountPerLp: new BN(0),
 	perLpBase: 0,
+	maxMarginRatio: 1,
+	isolatedPositionScaledBalance: new BN(0),
+	positionFlag: 0,
 };
 
 export const mockAMM: AMM = {
@@ -144,13 +147,15 @@ export const mockAMM: AMM = {
 	quoteAssetAmountWithUnsettledLp: new BN(0),
 	referencePriceOffset: 0,
 
-	takerSpeedBumpOverride: 0,
+	oracleLowRiskSlotDelayOverride: 0,
 	ammSpreadAdjustment: 0,
 	ammInventorySpreadAdjustment: 0,
 	mmOracleSequenceId: new BN(0),
 	mmOraclePrice: new BN(0),
 	mmOracleSlot: new BN(0),
 	lastFundingOracleTwap: new BN(0),
+	oracleSlotDelayOverride: 0,
+	referencePriceOffsetDeadbandPct: 0,
 };
 
 export const mockPerpMarkets: Array<PerpMarketAccount> = [
@@ -200,6 +205,11 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		fuelBoostTaker: 0,
 		protectedMakerLimitPriceDivisor: 0,
 		protectedMakerDynamicDivisor: 0,
+		lpPoolId: 0,
+		lpFeeTransferScalar: 0,
+		lpExchangeFeeExcluscionScalar: 0,
+		lpStatus: 0,
+		lpPausedOperations: 0,
 	},
 	{
 		status: MarketStatus.INITIALIZED,
@@ -247,6 +257,11 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		fuelBoostTaker: 0,
 		protectedMakerLimitPriceDivisor: 0,
 		protectedMakerDynamicDivisor: 0,
+		lpPoolId: 0,
+		lpFeeTransferScalar: 0,
+		lpExchangeFeeExcluscionScalar: 0,
+		lpStatus: 0,
+		lpPausedOperations: 0,
 	},
 	{
 		status: MarketStatus.INITIALIZED,
@@ -294,6 +309,11 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		fuelBoostTaker: 0,
 		protectedMakerLimitPriceDivisor: 0,
 		protectedMakerDynamicDivisor: 0,
+		lpPoolId: 0,
+		lpFeeTransferScalar: 0,
+		lpExchangeFeeExcluscionScalar: 0,
+		lpStatus: 0,
+		lpPausedOperations: 0,
 	},
 ];
 

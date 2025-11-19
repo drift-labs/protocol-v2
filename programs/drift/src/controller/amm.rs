@@ -11,12 +11,12 @@ use crate::controller::spot_balance::{
 };
 use crate::error::{DriftResult, ErrorCode};
 use crate::get_then_update_id;
-use crate::math::amm::calculate_quote_asset_amount_swapped;
+use crate::math::amm::{calculate_net_user_pnl, calculate_quote_asset_amount_swapped};
 use crate::math::amm_spread::{calculate_spread_reserves, get_spread_reserves};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    CONCENTRATION_PRECISION, FEE_ADJUSTMENT_MAX, FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
-    K_BPS_UPDATE_SCALE, MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE, MAX_SQRT_K,
+    CONCENTRATION_PRECISION, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, K_BPS_UPDATE_SCALE,
+    MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE, MAX_SQRT_K,
 };
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::repeg::get_total_fee_lower_bound;
@@ -29,6 +29,7 @@ use crate::math::{amm, amm_spread, bn, cp_curve, quote_asset::*};
 
 use crate::state::events::CurveRecord;
 use crate::state::oracle::OraclePriceData;
+use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::user::{SpotPosition, User};
@@ -185,20 +186,33 @@ pub fn update_spreads(
     let max_ref_offset = market.amm.get_max_reference_price_offset()?;
 
     let reference_price_offset = if max_ref_offset > 0 {
-        let liquidity_ratio = amm_spread::calculate_inventory_liquidity_ratio(
-            market.amm.base_asset_amount_with_amm,
-            market.amm.base_asset_reserve,
-            market.amm.min_base_asset_reserve,
-            market.amm.max_base_asset_reserve,
-        )?;
+        let liquidity_ratio =
+            amm_spread::calculate_inventory_liquidity_ratio_for_reference_price_offset(
+                market.amm.base_asset_amount_with_amm,
+                market.amm.base_asset_reserve,
+                market.amm.min_base_asset_reserve,
+                market.amm.max_base_asset_reserve,
+            )?;
 
         let signed_liquidity_ratio =
             liquidity_ratio.safe_mul(market.amm.get_protocol_owned_position()?.signum().cast()?)?;
 
+        let deadband_pct = market.amm.get_reference_price_offset_deadband_pct()?;
+        let liquidity_fraction_after_deadband =
+            if signed_liquidity_ratio.unsigned_abs() <= deadband_pct {
+                0
+            } else {
+                signed_liquidity_ratio.safe_sub(
+                    deadband_pct
+                        .cast::<i128>()?
+                        .safe_mul(signed_liquidity_ratio.signum())?,
+                )?
+            };
+
         amm_spread::calculate_reference_price_offset(
             reserve_price,
             market.amm.last_24h_avg_funding_rate,
-            signed_liquidity_ratio,
+            liquidity_fraction_after_deadband,
             market.amm.min_order_size,
             market
                 .amm
@@ -485,6 +499,10 @@ fn calculate_revenue_pool_transfer(
     // Calculates the revenue pool transfer amount for a given market state (positive = send to revenue pool, negative = pull from revenue pool)
     // If the AMM budget is above `FEE_POOL_TO_REVENUE_POOL_THRESHOLD` (in surplus), settle fees collected to the revenue pool depending on the health of the AMM state
     // Otherwise, spull from the revenue pool (up to a constraint amount)
+
+    if market.is_operation_paused(PerpOperation::SettleRevPool) {
+        return Ok(0);
+    }
 
     let amm_budget_surplus =
         terminal_state_surplus.saturating_sub(FEE_POOL_TO_REVENUE_POOL_THRESHOLD.cast()?);
@@ -942,7 +960,7 @@ pub fn calculate_perp_market_amm_summary_stats(
         .safe_add(fee_pool_token_amount)?
         .cast()?;
 
-    let net_user_pnl = amm::calculate_net_user_pnl(&perp_market.amm, perp_market_oracle_price)?;
+    let net_user_pnl = calculate_net_user_pnl(&perp_market.amm, perp_market_oracle_price)?;
 
     // amm's mm_fee can be incorrect with drifting integer math error
     let mut new_total_fee_minus_distributions = pnl_tokens_available.safe_sub(net_user_pnl)?;

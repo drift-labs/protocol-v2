@@ -3,8 +3,9 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    EPOCH_DURATION, FUEL_OVERFLOW_THRESHOLD_U32, FUEL_START_TS, OPEN_ORDER_MARGIN_REQUIREMENT,
-    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY,
+    EPOCH_DURATION, FUEL_OVERFLOW_THRESHOLD_U32, FUEL_START_TS, MAX_PREDICTION_MARKET_PRICE,
+    OPEN_ORDER_MARGIN_REQUIREMENT, QUOTE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX,
+    SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_I128, THIRTY_DAY,
 };
 use crate::math::margin::MarginRequirementType;
 use crate::math::orders::{
@@ -18,17 +19,18 @@ use crate::math::spot_balance::{
     get_signed_token_amount, get_strict_token_value, get_token_amount, get_token_value,
 };
 use crate::math::stats::calculate_rolling_sum;
+use crate::math_error;
 use crate::msg;
+use crate::safe_increment;
 use crate::state::oracle::StrictOraclePrice;
 use crate::state::perp_market::ContractType;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::traits::Size;
-use crate::{get_then_update_id, ID, QUOTE_PRECISION_U64};
-use crate::{math_error, SPOT_WEIGHT_PRECISION_I128};
-use crate::{safe_increment, SPOT_WEIGHT_PRECISION};
-use crate::{validate, MAX_PREDICTION_MARKET_PRICE};
+use crate::validate;
+use crate::{get_then_update_id, ID};
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
+use bytemuck::{Pod, Zeroable};
 use std::cmp::max;
 use std::fmt;
 use std::ops::Neg;
@@ -1502,6 +1504,10 @@ impl Order {
         self.is_bit_flag_set(OrderBitFlag::SignedMessage)
     }
 
+    pub fn is_has_builder(&self) -> bool {
+        self.is_bit_flag_set(OrderBitFlag::HasBuilder)
+    }
+
     pub fn add_bit_flag(&mut self, flag: OrderBitFlag) {
         self.bit_flags |= flag as u8;
     }
@@ -1518,6 +1524,26 @@ impl Order {
         !self.must_be_triggered()
             || (self.triggered()
                 && !(self.reduce_only && self.is_bit_flag_set(OrderBitFlag::NewTriggerReduceOnly)))
+    }
+
+    pub fn is_low_risk_for_amm(
+        &self,
+        mm_oracle_delay: i64,
+        clock_slot: u64,
+        is_liquidation: bool,
+    ) -> DriftResult<bool> {
+        if self.market_type == MarketType::Spot {
+            return Ok(false);
+        }
+
+        let order_older_than_oracle_delay = {
+            let clock_minus_delay = clock_slot.cast::<i64>()?.safe_sub(mm_oracle_delay)?;
+            clock_minus_delay >= self.slot.cast::<i64>()?
+        };
+
+        Ok(order_older_than_oracle_delay
+            || is_liquidation
+            || self.is_bit_flag_set(OrderBitFlag::SafeTriggerOrder))
     }
 }
 
@@ -1602,12 +1628,16 @@ impl fmt::Display for MarketType {
     }
 }
 
+unsafe impl Zeroable for MarketType {}
+unsafe impl Pod for MarketType {}
+
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum OrderBitFlag {
     SignedMessage = 0b00000001,
     OracleTriggerMarket = 0b00000010,
     SafeTriggerOrder = 0b00000100,
     NewTriggerReduceOnly = 0b00001000,
+    HasBuilder = 0b00010000,
 }
 
 #[account(zero_copy(unsafe))]
@@ -1684,6 +1714,7 @@ pub struct UserStats {
 pub enum ReferrerStatus {
     IsReferrer = 0b00000001,
     IsReferred = 0b00000010,
+    BuilderReferral = 0b00000100,
 }
 
 impl ReferrerStatus {
@@ -1693,6 +1724,10 @@ impl ReferrerStatus {
 
     pub fn is_referred(status: u8) -> bool {
         status & ReferrerStatus::IsReferred as u8 != 0
+    }
+
+    pub fn has_builder_referral(status: u8) -> bool {
+        status & ReferrerStatus::BuilderReferral as u8 != 0
     }
 }
 
@@ -1897,6 +1932,14 @@ impl UserStats {
             self.referrer_status |= ReferrerStatus::IsReferred as u8;
         } else {
             self.referrer_status &= !(ReferrerStatus::IsReferred as u8);
+        }
+    }
+
+    pub fn update_builder_referral_status(&mut self) {
+        if !self.referrer.eq(&Pubkey::default()) {
+            self.referrer_status |= ReferrerStatus::BuilderReferral as u8;
+        } else {
+            self.referrer_status &= !(ReferrerStatus::BuilderReferral as u8);
         }
     }
 

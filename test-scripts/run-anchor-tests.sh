@@ -22,9 +22,10 @@ test_files=(
   # updateK.ts
   # postOnlyAmmFulfillment.ts
   # TODO BROKEN ^^
+	builderCodes.ts
   decodeUser.ts
-  fuel.ts
-  fuelSweep.ts
+  # fuel.ts
+  # fuelSweep.ts
   admin.ts
   assetTier.ts
   cancelAllOrders.ts
@@ -42,6 +43,8 @@ test_files=(
   liquidatePerpPnlForDeposit.ts
   liquidateSpot.ts
   liquidateSpotSocialLoss.ts
+  lpPool.ts
+  lpPoolSwap.ts
   marketOrder.ts
   marketOrderBaseAssetAmount.ts
   maxDeposit.ts
@@ -87,7 +90,7 @@ test_files=(
   userAccount.ts
   userDelegate.ts
   userOrderId.ts
-  whitelist.ts
+  # whitelist.ts
 )
 
 

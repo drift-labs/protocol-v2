@@ -1,3 +1,54 @@
 {
-    "build": { "dockerfile": "Dockerfile" },
+  "name": "Drift Protocol Development",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "platform": "linux/amd64"
+  },
+  "workspaceFolder": "/workdir",
+  "remoteUser": "root",
+  "mounts": [
+    "source=${localWorkspaceFolder},target=/workdir,type=bind,consistency=cached",
+    "source=drift-target,target=/workdir/target,type=volume,consistency=delegated"
+  ],
+  "postCreateCommand": "yarn config set ignore-package-manager true && echo 'Dev container ready! You can now run: anchor build, anchor test, cargo build, etc.'",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "ms-vscode.vscode-json",
+        "tamasfe.even-better-toml"
+      ],
+      "settings": {
+        "rust-analyzer.cachePriming.numThreads": 1,
+        "rust-analyzer.cargo.buildScripts.enable": true,
+        "rust-analyzer.procMacro.enable": true,
+        "rust-analyzer.checkOnSave": true,
+        "rust-analyzer.check.command": "clippy",
+        "rust-analyzer.server.extraEnv": {
+          "NODE_OPTIONS": "--max-old-space-size=4096",
+          "RUSTUP_TOOLCHAIN": "1.78.0-x86_64-unknown-linux-gnu"
+        },
+        "editor.formatOnSave": true,
+        "git.ignoreLimitWarning": true
+      }
+    }
+  },
+  "forwardPorts": [
+    8899,
+    8900
+  ],
+  "portsAttributes": {
+    "8899": {
+      "label": "Solana Test Validator",
+      "onAutoForward": "notify"
+    },
+    "8900": {
+      "label": "Solana Test Validator RPC",
+      "onAutoForward": "notify"
+    }
+  },
+  "containerEnv": {
+    "ANCHOR_WALLET": "/root/.config/solana/id.json",
+    "RUST_LOG": "solana_runtime::message_processor::stable_log=debug"
   }
+}

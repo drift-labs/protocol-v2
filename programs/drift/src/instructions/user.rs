@@ -3,6 +3,7 @@ use std::ops::DerefMut;
 
 use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
+use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::{
     token::Token,
     token_2022::Token2022,
@@ -21,27 +22,28 @@ use crate::controller::spot_position::{
     update_spot_balances_and_cumulative_deposits_with_limits,
 };
 use crate::error::ErrorCode;
+use crate::get_then_update_id;
 use crate::ids::admin_hot_wallet;
-use crate::ids::WHITELISTED_EXTERNAL_DEPOSITORS;
-use crate::ids::{
-    jupiter_mainnet_3, jupiter_mainnet_4, jupiter_mainnet_6, lighthouse, marinade_mainnet,
-    serum_program,
-};
+use crate::ids::{lighthouse, marinade_mainnet, WHITELISTED_SWAP_PROGRAMS, WHITELISTED_EXTERNAL_DEPOSITORS};
 use crate::instructions::constraints::*;
+use crate::instructions::optional_accounts::get_revenue_share_escrow_account;
 use crate::instructions::optional_accounts::{
     get_referrer_and_referrer_stats, get_whitelist_token, load_maps, AccountMaps,
 };
 use crate::instructions::SpotFulfillmentType;
+use crate::load;
 use crate::math::casting::Cast;
+use crate::math::constants::{QUOTE_SPOT_MARKET_INDEX, THIRTEEN_DAY};
 use crate::math::liquidation::is_user_being_liquidated;
 use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_liability_info;
 use crate::math::margin::meets_initial_margin_requirement;
 use crate::math::margin::{
     calculate_max_withdrawable_amount, meets_maintenance_margin_requirement,
-    meets_place_order_margin_requirement, validate_spot_margin_trading, MarginRequirementType,
+    validate_spot_margin_trading, MarginRequirementType,
 };
 use crate::math::oracle::is_oracle_valid_for_action;
 use crate::math::oracle::DriftAction;
+use crate::math::oracle::LogMode;
 use crate::math::orders::calculate_existing_position_fields_for_order_action;
 use crate::math::orders::get_position_delta_for_fill;
 use crate::math::orders::is_multiple_of_step_size;
@@ -62,7 +64,7 @@ use crate::state::events::OrderActionRecord;
 use crate::state::events::OrderRecord;
 use crate::state::events::{
     DepositDirection, DepositExplanation, DepositRecord, FuelSeasonRecord, FuelSweepRecord,
-    LPAction, LPRecord, NewUserRecord, OrderActionExplanation, SwapRecord,
+    NewUserRecord, OrderActionExplanation, SwapRecord,
 };
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
@@ -77,10 +79,15 @@ use crate::state::order_params::{
     PlaceOrderOptions, PostOnlyParam,
 };
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
-use crate::state::perp_market::ContractType;
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::protected_maker_mode_config::ProtectedMakerModeConfig;
+use crate::state::revenue_share::BuilderInfo;
+use crate::state::revenue_share::RevenueShare;
+use crate::state::revenue_share::RevenueShareEscrow;
+use crate::state::revenue_share::RevenueShareOrder;
+use crate::state::revenue_share::REVENUE_SHARE_ESCROW_PDA_SEED;
+use crate::state::revenue_share::REVENUE_SHARE_PDA_SEED;
 use crate::state::signed_msg_user::SignedMsgOrderId;
 use crate::state::signed_msg_user::SignedMsgUserOrdersLoader;
 use crate::state::signed_msg_user::SignedMsgWsDelegates;
@@ -107,11 +114,8 @@ use crate::validation::position::validate_perp_position_with_perp_market;
 use crate::validation::user::validate_user_deletion;
 use crate::validation::whitelist::validate_whitelist_token;
 use crate::{controller, math};
-use crate::{get_then_update_id, QUOTE_SPOT_MARKET_INDEX};
-use crate::{load, THIRTEEN_DAY};
 use crate::{load_mut, ExchangeStatus};
 use anchor_lang::solana_program::sysvar::instructions;
-use anchor_spl::associated_token::AssociatedToken;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::sysvar::instructions::ID as IX_ID;
 
@@ -491,6 +495,146 @@ pub fn handle_reset_fuel_season<'c: 'info, 'info>(
     };
 
     user_stats.reset_fuel();
+
+    Ok(())
+}
+
+pub fn handle_initialize_revenue_share<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, InitializeRevenueShare<'info>>,
+) -> Result<()> {
+    let mut revenue_share = ctx
+        .accounts
+        .revenue_share
+        .load_init()
+        .or(Err(ErrorCode::UnableToLoadAccountLoader))?;
+    revenue_share.authority = ctx.accounts.authority.key();
+    revenue_share.total_referrer_rewards = 0;
+    revenue_share.total_builder_rewards = 0;
+    Ok(())
+}
+
+pub fn handle_initialize_revenue_share_escrow<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, InitializeRevenueShareEscrow<'info>>,
+    num_orders: u16,
+) -> Result<()> {
+    let escrow = &mut ctx.accounts.escrow;
+    escrow.authority = ctx.accounts.authority.key();
+    escrow
+        .orders
+        .resize_with(num_orders as usize, RevenueShareOrder::default);
+
+    let state = &mut ctx.accounts.state;
+    if state.builder_referral_enabled() {
+        let mut user_stats = ctx.accounts.user_stats.load_mut()?;
+        escrow.referrer = user_stats.referrer;
+        user_stats.update_builder_referral_status();
+    }
+
+    escrow.validate()?;
+    Ok(())
+}
+
+pub fn handle_migrate_referrer<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, MigrateReferrer<'info>>,
+) -> Result<()> {
+    let state = &mut ctx.accounts.state;
+    if !state.builder_referral_enabled() {
+        if state.admin != ctx.accounts.payer.key()
+            || ctx.accounts.payer.key() == admin_hot_wallet::id()
+        {
+            msg!("Only admin can migrate referrer until builder referral feature is enabled");
+            return Err(anchor_lang::error::ErrorCode::ConstraintSigner.into());
+        }
+    }
+
+    let escrow = &mut ctx.accounts.escrow;
+    let mut user_stats = ctx.accounts.user_stats.load_mut()?;
+    escrow.referrer = user_stats.referrer;
+    user_stats.update_builder_referral_status();
+
+    escrow.validate()?;
+    Ok(())
+}
+
+pub fn handle_resize_revenue_share_escrow_orders<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, ResizeRevenueShareEscrowOrders<'info>>,
+    num_orders: u16,
+) -> Result<()> {
+    let escrow = &mut ctx.accounts.escrow;
+    validate!(
+        num_orders as usize >= escrow.orders.len(),
+        ErrorCode::InvalidRevenueShareResize,
+        "Invalid shrinking resize for revenue share escrow"
+    )?;
+
+    escrow
+        .orders
+        .resize_with(num_orders as usize, RevenueShareOrder::default);
+    escrow.validate()?;
+    Ok(())
+}
+
+pub fn handle_change_approved_builder<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, ChangeApprovedBuilder<'info>>,
+    builder: Pubkey,
+    max_fee_tenth_bps: u16,
+    add: bool,
+) -> Result<()> {
+    validate!(
+        ctx.accounts.escrow.authority != builder,
+        ErrorCode::DefaultError,
+        "Builder cannot be the same as the escrow authority"
+    )?;
+
+    let existing_builder_index = ctx
+        .accounts
+        .escrow
+        .approved_builders
+        .iter()
+        .position(|b| b.authority == builder);
+    if let Some(index) = existing_builder_index {
+        if add {
+            msg!(
+                "Updated builder: {} with max fee tenth bps: {} -> {}",
+                builder,
+                ctx.accounts.escrow.approved_builders[index].max_fee_tenth_bps,
+                max_fee_tenth_bps
+            );
+            ctx.accounts.escrow.approved_builders[index].max_fee_tenth_bps = max_fee_tenth_bps;
+        } else {
+            if ctx
+                .accounts
+                .escrow
+                .orders
+                .iter()
+                .any(|o| (o.builder_idx == index as u8) && (!o.is_available()))
+            {
+                msg!("Builder has open orders, must cancel orders and settle_pnl before revoking");
+                return Err(ErrorCode::CannotRevokeBuilderWithOpenOrders.into());
+            }
+            msg!(
+                "Revoking builder: {}, max fee tenth bps: {} -> 0",
+                builder,
+                ctx.accounts.escrow.approved_builders[index].max_fee_tenth_bps,
+            );
+            ctx.accounts.escrow.approved_builders[index].max_fee_tenth_bps = 0;
+        }
+    } else {
+        if add {
+            ctx.accounts.escrow.approved_builders.push(BuilderInfo {
+                authority: builder,
+                max_fee_tenth_bps,
+                ..BuilderInfo::default()
+            });
+            msg!(
+                "Added builder: {} with max fee tenth bps: {}",
+                builder,
+                max_fee_tenth_bps
+            );
+        } else {
+            msg!("Tried to revoke builder: {}, but it was not found", builder);
+        }
+    }
 
     Ok(())
 }
@@ -1663,6 +1807,8 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
                 .last_oracle_price_twap,
             perp_market.get_max_confidence_interval_multiplier()?,
             perp_market.amm.oracle_slot_delay_override,
+            perp_market.amm.oracle_low_risk_slot_delay_override,
+            Some(LogMode::Margin),
         )?;
         step_size = perp_market.amm.order_step_size;
         tick_size = perp_market.amm.order_tick_size;
@@ -1910,6 +2056,8 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         maker_existing_quote_entry_amount: from_existing_quote_entry_amount,
         maker_existing_base_asset_amount: from_existing_base_asset_amount,
         trigger_price: None,
+        builder_idx: None,
+        builder_fee: None,
     };
 
     emit_stack::<_, { OrderActionRecord::SIZE }>(fill_record)?;
@@ -1961,6 +2109,7 @@ pub fn handle_place_perp_order<'c: 'info, 'info>(
         clock,
         params,
         PlaceOrderOptions::default(),
+        &mut None,
     )?;
 
     Ok(())
@@ -2263,6 +2412,7 @@ pub fn handle_place_orders<'c: 'info, 'info>(
                 clock,
                 *params,
                 options,
+                &mut None,
             )?;
         } else {
             controller::orders::place_spot_order(
@@ -2343,12 +2493,21 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
         &clock,
         params,
         PlaceOrderOptions::default(),
+        &mut None,
     )?;
 
     drop(user);
 
     let user = &mut ctx.accounts.user;
     let order_id = load!(user)?.get_last_order_id();
+
+    let builder_referral_enabled = state.builder_referral_enabled();
+    let builder_codes_enabled = state.builder_codes_enabled();
+    let mut escrow = if builder_codes_enabled || builder_referral_enabled {
+        get_revenue_share_escrow_account(remaining_accounts_iter, &load!(user)?.authority)?
+    } else {
+        None
+    };
 
     let (base_asset_amount_filled, _) = controller::orders::fill_perp_order(
         order_id,
@@ -2368,6 +2527,8 @@ pub fn handle_place_and_take_perp_order<'c: 'info, 'info>(
             is_immediate_or_cancel || optional_params.is_some(),
             auction_duration_percentage,
         ),
+        &mut escrow.as_mut(),
+        builder_referral_enabled,
     )?;
 
     let order_unfilled = load!(ctx.accounts.user)?
@@ -2457,6 +2618,7 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         clock,
         params,
         PlaceOrderOptions::default(),
+        &mut None,
     )?;
 
     let (order_id, authority) = (user.get_last_order_id(), user.authority);
@@ -2467,6 +2629,17 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         load_user_maps(remaining_accounts_iter, true)?;
     makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
     makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
+
+    let builder_referral_enabled = state.builder_referral_enabled();
+    let builder_codes_enabled = state.builder_codes_enabled();
+    let mut escrow = if builder_codes_enabled || builder_referral_enabled {
+        get_revenue_share_escrow_account(
+            remaining_accounts_iter,
+            &load!(ctx.accounts.taker)?.authority,
+        )?
+    } else {
+        None
+    };
 
     controller::orders::fill_perp_order(
         taker_order_id,
@@ -2483,6 +2656,8 @@ pub fn handle_place_and_make_perp_order<'c: 'info, 'info>(
         Some(order_id),
         clock,
         FillMode::PlaceAndMake,
+        &mut escrow.as_mut(),
+        builder_referral_enabled,
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -2558,6 +2733,7 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
         clock,
         params,
         PlaceOrderOptions::default(),
+        &mut None,
     )?;
 
     let (order_id, authority) = (user.get_last_order_id(), user.authority);
@@ -2568,6 +2744,17 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
         load_user_maps(remaining_accounts_iter, true)?;
     makers_and_referrer.insert(ctx.accounts.user.key(), ctx.accounts.user.clone())?;
     makers_and_referrer_stats.insert(authority, ctx.accounts.user_stats.clone())?;
+
+    let builder_referral_enabled = state.builder_referral_enabled();
+    let builder_codes_enabled = state.builder_codes_enabled();
+    let mut escrow = if builder_codes_enabled || builder_referral_enabled {
+        get_revenue_share_escrow_account(
+            remaining_accounts_iter,
+            &load!(ctx.accounts.taker)?.authority,
+        )?
+    } else {
+        None
+    };
 
     let taker_signed_msg_account = ctx.accounts.taker_signed_msg_user_orders.load()?;
     let taker_order_id = taker_signed_msg_account
@@ -2591,6 +2778,8 @@ pub fn handle_place_and_make_signed_msg_perp_order<'c: 'info, 'info>(
         Some(order_id),
         clock,
         FillMode::PlaceAndMake,
+        &mut escrow.as_mut(),
+        builder_referral_enabled,
     )?;
 
     let order_exists = load!(ctx.accounts.user)?
@@ -3509,14 +3698,9 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
                     )?;
                 }
             } else {
-                let mut whitelisted_programs = vec![
-                    serum_program::id(),
-                    AssociatedToken::id(),
-                    jupiter_mainnet_3::ID,
-                    jupiter_mainnet_4::ID,
-                    jupiter_mainnet_6::ID,
-                ];
+                let mut whitelisted_programs = WHITELISTED_SWAP_PROGRAMS.to_vec();
                 if !delegate_is_signer {
+                    whitelisted_programs.push(AssociatedToken::id());
                     whitelisted_programs.push(Token::id());
                     whitelisted_programs.push(Token2022::id());
                     whitelisted_programs.push(marinade_mainnet::ID);
@@ -3524,7 +3708,7 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
                 validate!(
                     whitelisted_programs.contains(&ix.program_id),
                     ErrorCode::InvalidSwap,
-                    "only allowed to pass in ixs to token, openbook, and Jupiter v3/v4/v6 programs"
+                    "only allowed to pass in ixs to ATA, openbook, Jupiter v3/v4/v6, dflow, or titan programs"
                 )?;
 
                 for meta in ix.accounts.iter() {
@@ -4029,6 +4213,9 @@ pub struct ResizeSignedMsgUserOrders<'info> {
     pub signed_msg_user_orders: Box<Account<'info, SignedMsgUserOrders>>,
     /// CHECK: authority
     pub authority: AccountInfo<'info>,
+    #[account(
+        has_one = authority
+    )]
     pub user: AccountLoader<'info, User>,
     #[account(mut)]
     pub payer: Signer<'info>,
@@ -4463,14 +4650,9 @@ pub struct UpdateUser<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(
-    sub_account_id: u16,
-)]
 pub struct UpdateUserPerpPositionCustomMarginRatio<'info> {
     #[account(
         mut,
-        seeds = [b"user", authority.key.as_ref(), sub_account_id.to_le_bytes().as_ref()],
-        bump,
         constraint = can_sign_for_user(&user, &authority)?
     )]
     pub user: AccountLoader<'info, User>,
@@ -4605,4 +4787,107 @@ pub struct UpdateUserProtectedMakerMode<'info> {
     pub authority: Signer<'info>,
     #[account(mut)]
     pub protected_maker_mode_config: AccountLoader<'info, ProtectedMakerModeConfig>,
+}
+
+#[derive(Accounts)]
+#[instruction()]
+pub struct InitializeRevenueShare<'info> {
+    #[account(
+        init,
+        seeds = [REVENUE_SHARE_PDA_SEED.as_ref(), authority.key().as_ref()],
+        space = RevenueShare::space(),
+        bump,
+        payer = payer
+    )]
+    pub revenue_share: AccountLoader<'info, RevenueShare>,
+    /// CHECK: The builder and/or referrer authority, beneficiary of builder/ref fees
+    pub authority: AccountInfo<'info>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(num_orders: u16)]
+pub struct InitializeRevenueShareEscrow<'info> {
+    #[account(
+        init,
+        seeds = [REVENUE_SHARE_ESCROW_PDA_SEED.as_ref(), authority.key().as_ref()],
+        space = RevenueShareEscrow::space(num_orders as usize, 1),
+        bump,
+        payer = payer
+    )]
+    pub escrow: Box<Account<'info, RevenueShareEscrow>>,
+    /// CHECK: The auth owning this account, payer of builder/ref fees
+    pub authority: AccountInfo<'info>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub state: Box<Account<'info, State>>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct MigrateReferrer<'info> {
+    #[account(
+        mut,
+        seeds = [REVENUE_SHARE_ESCROW_PDA_SEED.as_ref(), authority.key().as_ref()],
+        bump,
+    )]
+    pub escrow: Box<Account<'info, RevenueShareEscrow>>,
+    /// CHECK: The auth owning this account, payer of builder/ref fees
+    pub authority: AccountInfo<'info>,
+    #[account(
+        mut,
+        has_one = authority
+    )]
+    pub user_stats: AccountLoader<'info, UserStats>,
+    pub state: Box<Account<'info, State>>,
+    pub payer: Signer<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(num_orders: u16)]
+pub struct ResizeRevenueShareEscrowOrders<'info> {
+    #[account(
+        mut,
+        seeds = [REVENUE_SHARE_ESCROW_PDA_SEED.as_ref(), authority.key().as_ref()],
+        bump,
+        realloc = RevenueShareEscrow::space(num_orders as usize, escrow.approved_builders.len()),
+        realloc::payer = payer,
+        realloc::zero = false,
+        has_one = authority
+    )]
+    pub escrow: Box<Account<'info, RevenueShareEscrow>>,
+    /// CHECK: The owner of RevenueShareEscrow
+    pub authority: AccountInfo<'info>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(builder: Pubkey, max_fee_tenth_bps: u16, add: bool)]
+pub struct ChangeApprovedBuilder<'info> {
+    #[account(
+        mut,
+        seeds = [REVENUE_SHARE_ESCROW_PDA_SEED.as_ref(), authority.key().as_ref()],
+        bump,
+        // revoking a builder does not remove the slot to avoid unintended reuse
+        realloc = RevenueShareEscrow::space(escrow.orders.len(), if add { escrow.approved_builders.len() + 1 } else { escrow.approved_builders.len() }),
+        realloc::payer = payer,
+        realloc::zero = false,
+        has_one = authority
+    )]
+    pub escrow: Box<Account<'info, RevenueShareEscrow>>,
+    pub authority: Signer<'info>,
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    pub system_program: Program<'info, System>,
 }

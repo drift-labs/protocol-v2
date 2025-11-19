@@ -1,7 +1,7 @@
 import { DriftClient } from './driftClient';
 import { Commitment, PublicKey } from '@solana/web3.js';
 import { BulkAccountLoader } from './accounts/bulkAccountLoader';
-import { GrpcConfigs } from './accounts/types';
+import { GrpcConfigs, UserStatsAccountSubscriber } from './accounts/types';
 
 export type UserStatsConfig = {
 	accountSubscription?: UserStatsSubscriptionConfig;
@@ -22,6 +22,7 @@ export type UserStatsSubscriptionConfig =
 	  }
 	| {
 			type: 'custom';
+			userStatsAccountSubscriber: UserStatsAccountSubscriber;
 	  }
 	| {
 			type: 'grpc';

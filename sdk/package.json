@@ -1,9 +1,9 @@
 {
 	"name": "@drift-labs/sdk",
-	"version": "2.138.0-beta.6",
+	"version": "2.149.0-beta.6",
 	"main": "lib/node/index.js",
 	"types": "lib/node/index.d.ts",
-	"browser": "./lib/browser/index.js",
+	"module": "./lib/browser/index.js",
 	"author": "crispheaney",
 	"homepage": "https://www.drift.trade/",
 	"repository": {
@@ -16,10 +16,12 @@
 		"build:browser": "yarn clean && tsc -p tsconfig.json && tsc -p tsconfig.browser.json && node scripts/postbuild.js --force-env browser",
 		"clean": "rm -rf lib",
 		"test": "mocha -r ts-node/register tests/**/*.ts --ignore 'tests/dlob/**/*.ts'",
+		"test:match": "mocha -r ts-node/register --ignore 'tests/dlob/**/*.ts'",
 		"test:inspect": "mocha --inspect-brk -r ts-node/register tests/**/*.ts",
 		"test:bignum": "mocha -r ts-node/register tests/bn/**/*.ts",
 		"test:ci": "mocha -r ts-node/register tests/ci/**/*.ts",
 		"test:dlob": "mocha -r ts-node/register tests/dlob/**/*.ts",
+		"test:events": "mocha -r ts-node/register tests/events/**/*.ts",
 		"patch-and-pub": "npm version patch --force && npm publish",
 		"prettify": "prettier --check './src/***/*.ts'",
 		"prettify:fix": "prettier --write './{src,tests}/***/*.ts'",
@@ -42,7 +44,8 @@
 		"@coral-xyz/anchor": "0.29.0",
 		"@coral-xyz/anchor-30": "npm:@coral-xyz/anchor@0.30.1",
 		"@ellipsis-labs/phoenix-sdk": "1.4.5",
-		"@grpc/grpc-js": "1.12.6",
+		"@grpc/grpc-js": "1.14.0",
+		"@msgpack/msgpack": "^3.1.2",
 		"@openbook-dex/openbook-v2": "0.2.10",
 		"@project-serum/serum": "0.13.65",
 		"@pythnetwork/client": "2.5.3",
@@ -52,9 +55,10 @@
 		"@solana/web3.js": "1.98.0",
 		"@switchboard-xyz/common": "3.0.14",
 		"@switchboard-xyz/on-demand": "2.4.1",
-		"@triton-one/yellowstone-grpc": "1.3.0",
+		"@triton-one/yellowstone-grpc": "1.4.1",
 		"anchor-bankrun": "0.3.0",
 		"gill": "^0.10.2",
+		"helius-laserstream": "0.1.8",
 		"nanoid": "3.3.4",
 		"node-cache": "5.1.2",
 		"rpc-websockets": "7.5.1",
@@ -92,7 +96,7 @@
 	},
 	"description": "SDK for Drift Protocol",
 	"engines": {
-		"node": ">=20.18.0"
+		"node": ">=22.14.0"
 	},
 	"resolutions": {
 		"@solana/web3.js": "1.98.0",
@@ -136,5 +140,11 @@
 		"chalk-template": "<1.1.1",
 		"supports-hyperlinks": "<4.1.1",
 		"has-ansi": "<6.0.1"
+	},
+	"browser": {
+		"helius-laserstream": false,
+		"@triton-one/yellowstone-grpc": false,
+		"@grpc/grpc-js": false,
+		"zstddec": false
 	}
 }

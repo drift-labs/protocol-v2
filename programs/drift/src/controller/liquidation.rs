@@ -21,8 +21,9 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::bankruptcy::is_user_bankrupt;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    LIQUIDATION_FEE_PRECISION_U128, LIQUIDATION_PCT_PRECISION, QUOTE_PRECISION,
-    QUOTE_PRECISION_I128, QUOTE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX, SPOT_WEIGHT_PRECISION,
+    LIQUIDATION_FEE_PRECISION, LIQUIDATION_FEE_PRECISION_U128, LIQUIDATION_PCT_PRECISION,
+    QUOTE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX,
+    SPOT_WEIGHT_PRECISION,
 };
 use crate::math::liquidation::{
     calculate_asset_transfer_for_liability_transfer,
@@ -48,12 +49,12 @@ use crate::math::orders::{
 use crate::math::position::calculate_base_asset_value_with_oracle_price;
 use crate::math::safe_math::SafeMath;
 
+use crate::math::constants::LST_POOL_ID;
 use crate::math::spot_balance::get_token_value;
 use crate::state::events::{
-    emit_stack, LPAction, LPRecord, LiquidateBorrowForPerpPnlRecord,
-    LiquidatePerpPnlForDepositRecord, LiquidatePerpRecord, LiquidateSpotRecord, LiquidationRecord,
-    LiquidationType, OrderAction, OrderActionExplanation, OrderActionRecord, OrderRecord,
-    PerpBankruptcyRecord, SpotBankruptcyRecord,
+    LiquidateBorrowForPerpPnlRecord, LiquidatePerpPnlForDepositRecord, LiquidatePerpRecord,
+    LiquidateSpotRecord, LiquidationRecord, LiquidationType, OrderAction, OrderActionExplanation,
+    OrderActionRecord, OrderRecord, PerpBankruptcyRecord, SpotBankruptcyRecord,
 };
 use crate::state::fill_mode::FillMode;
 use crate::state::margin_calculation::{MarginCalculation, MarginContext, MarketIdentifier};
@@ -65,11 +66,10 @@ use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::State;
-use crate::state::traits::Size;
 use crate::state::user::{MarketType, Order, OrderStatus, OrderType, User, UserStats};
 use crate::state::user_map::{UserMap, UserStatsMap};
-use crate::{get_then_update_id, load_mut, LST_POOL_ID};
-use crate::{validate, LIQUIDATION_FEE_PRECISION};
+use crate::validate;
+use crate::{get_then_update_id, load_mut};
 
 #[cfg(test)]
 mod tests;
@@ -677,6 +677,8 @@ pub fn liquidate_perp(
         maker_existing_quote_entry_amount: maker_existing_quote_entry_amount,
         maker_existing_base_asset_amount: maker_existing_base_asset_amount,
         trigger_price: None,
+        builder_idx: None,
+        builder_fee: None,
     };
     emit!(fill_record);
 
@@ -1040,6 +1042,7 @@ pub fn liquidate_perp_with_fill(
         clock,
         order_params,
         PlaceOrderOptions::default().explanation(OrderActionExplanation::Liquidation),
+        &mut None,
     )?;
 
     drop(user);
@@ -1060,6 +1063,8 @@ pub fn liquidate_perp_with_fill(
         None,
         clock,
         FillMode::Liquidation,
+        &mut None,
+        false,
     )?;
 
     let mut user = load_mut!(user_loader)?;
