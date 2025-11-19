@@ -4249,7 +4249,7 @@ export class DriftClient {
 		const amountWithBuffer =
 			noAmountBuffer || amount.eq(MIN_I64)
 				? amount
-				: amount.add(amount.div(new BN(250))); // .4% buffer
+				: amount.add(amount.div(new BN(200))); // .5% buffer
 
 		return await this.program.instruction.transferIsolatedPerpPositionDeposit(
 			spotMarketIndex,
