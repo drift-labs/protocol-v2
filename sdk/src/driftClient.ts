@@ -2877,23 +2877,27 @@ export class DriftClient {
 		marketIndex: number,
 		associatedTokenAccount: PublicKey,
 		subAccountId?: number,
-		reduceOnly = false
+		reduceOnly = false,
+		overrides?: {
+			authority?: PublicKey;
+		}
 	): Promise<TransactionInstruction[]> {
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
 
 		const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
 
-		const signerAuthority = this.wallet.publicKey;
+		const signer = overrides?.authority ?? this.wallet.publicKey;
 
 		const createWSOLTokenAccount =
-			isSolMarket && associatedTokenAccount.equals(signerAuthority);
+			isSolMarket && associatedTokenAccount.equals(signer);
 
 		const instructions = [];
 
 		if (createWSOLTokenAccount) {
 			const { ixs, pubkey } = await this.getWrappedSolAccountCreationIxs(
 				amount,
-				true
+				true,
+				overrides
 			);
 
 			associatedTokenAccount = pubkey;
@@ -2907,7 +2911,8 @@ export class DriftClient {
 			associatedTokenAccount,
 			subAccountId,
 			reduceOnly,
-			true
+			true,
+			overrides
 		);
 
 		instructions.push(depositCollateralIx);
@@ -2917,8 +2922,8 @@ export class DriftClient {
 			instructions.push(
 				createCloseAccountInstruction(
 					associatedTokenAccount,
-					signerAuthority,
-					signerAuthority,
+					signer,
+					signer,
 					[]
 				)
 			);
@@ -2987,14 +2992,18 @@ export class DriftClient {
 		subAccountId?: number,
 		reduceOnly = false,
 		txParams?: TxParams,
-		initSwiftAccount = false
+		initSwiftAccount = false,
+		overrides?: {
+			authority?: PublicKey;
+		}
 	): Promise<VersionedTransaction | Transaction> {
 		const instructions = await this.getDepositTxnIx(
 			amount,
 			marketIndex,
 			associatedTokenAccount,
 			subAccountId,
-			reduceOnly
+			reduceOnly,
+			overrides
 		);
 
 		if (initSwiftAccount) {
@@ -3029,6 +3038,9 @@ export class DriftClient {
 	 * @param associatedTokenAccount can be the wallet public key if using native sol
 	 * @param subAccountId subaccountId to deposit
 	 * @param reduceOnly if true, deposit must not increase account risk
+	 * @param txParams transaction parameters
+	 * @param initSwiftAccount if true, initialize a swift account for the user
+	 * @param overrides allows overriding authority for the deposit transaction
 	 */
 	public async deposit(
 		amount: BN,
@@ -3037,7 +3049,10 @@ export class DriftClient {
 		subAccountId?: number,
 		reduceOnly = false,
 		txParams?: TxParams,
-		initSwiftAccount = false
+		initSwiftAccount = false,
+		overrides?: {
+			authority?: PublicKey;
+		}
 	): Promise<TransactionSignature> {
 		const tx = await this.createDepositTxn(
 			amount,
@@ -3046,7 +3061,8 @@ export class DriftClient {
 			subAccountId,
 			reduceOnly,
 			txParams,
-			initSwiftAccount
+			initSwiftAccount,
+			overrides
 		);
 
 		const { txSig, slot } = await this.sendTransaction(tx, [], this.opts);
@@ -3060,7 +3076,10 @@ export class DriftClient {
 		userTokenAccount: PublicKey,
 		subAccountId?: number,
 		reduceOnly = false,
-		userInitialized = true
+		userInitialized = true,
+		overrides?: {
+			authority?: PublicKey;
+		}
 	): Promise<TransactionInstruction> {
 		const userAccountPublicKey = await getUserAccountPublicKey(
 			this.program.programId,
@@ -3092,6 +3111,7 @@ export class DriftClient {
 			);
 		}
 
+		const authority = overrides?.authority ?? this.wallet.publicKey;
 		const tokenProgram = this.getTokenProgramForSpotMarket(spotMarketAccount);
 		return await this.program.instruction.deposit(
 			marketIndex,
@@ -3105,7 +3125,7 @@ export class DriftClient {
 					user: userAccountPublicKey,
 					userStats: this.getUserStatsAccountPublicKey(),
 					userTokenAccount: userTokenAccount,
-					authority: this.wallet.publicKey,
+					authority,
 					tokenProgram,
 				},
 				remainingAccounts,
@@ -3125,14 +3145,17 @@ export class DriftClient {
 
 	public async getWrappedSolAccountCreationIxs(
 		amount: BN,
-		includeRent?: boolean
+		includeRent?: boolean,
+		overrides?: {
+			authority?: PublicKey;
+		}
 	): Promise<{
 		ixs: anchor.web3.TransactionInstruction[];
 		/** @deprecated - this array is always going to be empty, in the current implementation */
 		signers: Signer[];
 		pubkey: PublicKey;
 	}> {
-		const authority = this.wallet.publicKey;
+		const authority = overrides?.authority ?? this.wallet.publicKey;
 
 		// Generate a random seed for wrappedSolAccount.
 		const seed = Keypair.generate().publicKey.toBase58().slice(0, 32);
