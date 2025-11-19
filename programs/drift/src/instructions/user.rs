@@ -24,7 +24,9 @@ use crate::controller::spot_position::{
 use crate::error::ErrorCode;
 use crate::get_then_update_id;
 use crate::ids::admin_hot_wallet;
-use crate::ids::{lighthouse, marinade_mainnet, WHITELISTED_SWAP_PROGRAMS, WHITELISTED_EXTERNAL_DEPOSITORS};
+use crate::ids::{
+    lighthouse, marinade_mainnet, WHITELISTED_EXTERNAL_DEPOSITORS, WHITELISTED_SWAP_PROGRAMS,
+};
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::get_revenue_share_escrow_account;
 use crate::instructions::optional_accounts::{

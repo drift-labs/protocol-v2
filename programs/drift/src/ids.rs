@@ -140,35 +140,5 @@ pub const WHITELISTED_SWAP_PROGRAMS: &[solana_program::pubkey::Pubkey] = &[
     titan_mainnet_argos_v1::id(),
 ];
 
-pub mod lp_pool_swap_wallet {
-    use solana_program::declare_id;
-    declare_id!("25qbsE2oWri76c9a86ubn17NKKdo6Am4HXD2Jm8vT8K4");
-}
-
-pub mod dflow_mainnet_aggregator_4 {
-    use solana_program::declare_id;
-    declare_id!("DF1ow4tspfHX9JwWJsAb9epbkA8hmpSEAtxXy1V27QBH");
-}
-
-pub mod titan_mainnet_argos_v1 {
-    use solana_program::declare_id;
-    declare_id!("T1TANpTeScyeqVzzgNViGDNrkQ6qHz9KrSBS4aNXvGT");
-}
-
-pub mod lp_pool_hot_wallet {
-    use solana_program::declare_id;
-    declare_id!("GP9qHLX8rx4BgRULGPV1poWQPdGuzbxGbvTB12DfmwFk");
-}
-
-pub const WHITELISTED_SWAP_PROGRAMS: &[solana_program::pubkey::Pubkey] = &[
-    serum_program::id(),
-    jupiter_mainnet_3::id(),
-    jupiter_mainnet_4::id(),
-    jupiter_mainnet_6::id(),
-    dflow_mainnet_aggregator_4::id(),
-    titan_mainnet_argos_v1::id(),
-];
-
-pub const WHITELISTED_EXTERNAL_DEPOSITORS: [Pubkey; 1] = [
-    pubkey!("zApVWDs3nSychNnUXSS2czhY78Ycopa15zELrK2gAdM"),
-];
+pub const WHITELISTED_EXTERNAL_DEPOSITORS: [Pubkey; 1] =
+    [pubkey!("zApVWDs3nSychNnUXSS2czhY78Ycopa15zELrK2gAdM")];
