@@ -3,7 +3,7 @@ use crate::state::order_params::{
     OrderParams, SignedMsgOrderParamsDelegateMessage, SignedMsgOrderParamsMessage,
     SignedMsgTriggerOrderParams,
 };
-use anchor_lang::prelude::*;
+use anchor_lang::prelude::{borsh::BorshDeserialize, *};
 use bytemuck::try_cast_slice;
 use bytemuck::{Pod, Zeroable};
 use byteorder::ByteOrder;

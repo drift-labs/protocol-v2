@@ -12,7 +12,6 @@ macro_rules! checked_impl {
             #[inline]
             fn checked_floor_div(&self, rhs: $t) -> Option<$t> {
                 let quotient = self.checked_div(rhs)?;
-
                 let remainder = self.checked_rem(rhs)?;
 
                 if remainder != <$t>::zero() {

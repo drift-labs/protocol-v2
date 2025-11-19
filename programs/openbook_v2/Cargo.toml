@@ -18,6 +18,6 @@ cpi = ["no-entrypoint"]
 
 
 [dependencies]
-anchor-lang = {  version = "0.29.0", features = ["derive"] }
+anchor-lang = {  version = "0.32.1", features = ["derive"] }
 borsh = {version = "0.10.3", features = ["const-generics", "default"]}
 bytemuck = {  version = "1.4.0" , features = ["derive",  "min_const_generics"]}

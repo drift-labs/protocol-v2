@@ -1,6 +1,6 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::msg;
-use borsh::{BorshDeserialize, BorshSerialize};
+use anchor_lang::prelude::{borsh::BorshDeserialize, borsh::BorshSerialize};
 use std::panic::Location;
 
 #[cfg(test)]

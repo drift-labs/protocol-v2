@@ -17,5 +17,5 @@ mainnet-beta=[]
 anchor-test= []
 
 [dependencies]
-anchor-lang = "0.29.0"
+anchor-lang = "0.32.1"
 bytemuck = { version = "1.4.0" }

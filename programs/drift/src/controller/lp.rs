@@ -40,25 +40,25 @@ pub fn apply_lp_rebase_to_perp_market(
     let rebase_divisor: i128 = 10_i128.pow(expo_diff.abs().cast()?);
 
     if expo_diff > 0 {
-        perp_market.amm.base_asset_amount_per_lp = perp_market
+        perp_market.amm.set_base_asset_amount_per_lp(perp_market
             .amm
-            .base_asset_amount_per_lp
-            .safe_mul(rebase_divisor)?;
+            .base_asset_amount_per_lp()
+            .safe_mul(rebase_divisor)?);
 
-        perp_market.amm.quote_asset_amount_per_lp = perp_market
+        perp_market.amm.set_quote_asset_amount_per_lp(perp_market
             .amm
-            .quote_asset_amount_per_lp
-            .safe_mul(rebase_divisor)?;
+            .quote_asset_amount_per_lp()
+            .safe_mul(rebase_divisor)?);
     } else {
-        perp_market.amm.base_asset_amount_per_lp = perp_market
+        perp_market.amm.set_base_asset_amount_per_lp(perp_market
             .amm
-            .base_asset_amount_per_lp
-            .safe_div(rebase_divisor)?;
+            .base_asset_amount_per_lp()
+            .safe_div(rebase_divisor)?);
 
-        perp_market.amm.quote_asset_amount_per_lp = perp_market
+        perp_market.amm.set_quote_asset_amount_per_lp(perp_market
             .amm
-            .quote_asset_amount_per_lp
-            .safe_div(rebase_divisor)?;
+            .quote_asset_amount_per_lp()
+            .safe_div(rebase_divisor)?);
     }
 
     msg!(
@@ -260,10 +260,10 @@ pub fn burn_lp_shares(
         let base_asset_amount = position.remainder_base_asset_amount as i128;
 
         // user closes the dust
-        market.amm.base_asset_amount_with_amm = market
+        market.amm.set_base_asset_amount_with_amm(market
             .amm
-            .base_asset_amount_with_amm
-            .safe_sub(base_asset_amount)?;
+            .base_asset_amount_with_amm()
+            .safe_sub(base_asset_amount)?);
 
         market.amm.base_asset_amount_with_unsettled_lp = market
             .amm

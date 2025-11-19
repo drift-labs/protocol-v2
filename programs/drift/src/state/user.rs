@@ -28,9 +28,13 @@ use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::traits::Size;
 use crate::validate;
 use crate::{get_then_update_id, ID};
-use anchor_lang::prelude::*;
-use borsh::{BorshDeserialize, BorshSerialize};
+use anchor_lang::prelude::{
+    borsh::{BorshDeserialize, BorshSerialize},
+    *,
+};
 use bytemuck::{Pod, Zeroable};
+use drift_macros::legacy_layout;
+use num_traits::Zero;
 use std::cmp::max;
 use std::fmt;
 use std::ops::Neg;
@@ -2085,6 +2089,8 @@ impl FuelOverflowStatus {
         status & FuelOverflowStatus::Exists as u8 != 0
     }
 }
+
+#[legacy_layout]
 #[account(zero_copy(unsafe))]
 #[derive(Default, Debug)]
 #[repr(C)]
@@ -2111,39 +2117,56 @@ impl FuelOverflow {
     pub fn update_from_user_stats(&mut self, user_stats: &UserStats, now: u32) -> DriftResult<()> {
         self.fuel_insurance = self
             .fuel_insurance
-            .safe_add(user_stats.fuel_insurance.cast()?)?;
+            .as_u128()
+            .safe_add(user_stats.fuel_insurance as u128)?
+            .into();
         self.fuel_deposits = self
             .fuel_deposits
-            .safe_add(user_stats.fuel_deposits.cast()?)?;
+            .as_u128()
+            .safe_add(user_stats.fuel_deposits as u128)?
+            .into();
         self.fuel_borrows = self
             .fuel_borrows
-            .safe_add(user_stats.fuel_borrows.cast()?)?;
+            .as_u128()
+            .safe_add(user_stats.fuel_borrows as u128)?
+            .into();
         self.fuel_positions = self
             .fuel_positions
-            .safe_add(user_stats.fuel_positions.cast()?)?;
-        self.fuel_taker = self.fuel_taker.safe_add(user_stats.fuel_taker.cast()?)?;
-        self.fuel_maker = self.fuel_maker.safe_add(user_stats.fuel_maker.cast()?)?;
+            .as_u128()
+            .safe_add(user_stats.fuel_positions as u128)?
+            .into();
+        self.fuel_taker = self
+            .fuel_taker
+            .as_u128()
+            .safe_add(user_stats.fuel_taker as u128)?
+            .into();
+        self.fuel_maker = self
+            .fuel_maker
+            .as_u128()
+            .safe_add(user_stats.fuel_maker as u128)?
+            .into();
         self.last_fuel_sweep_ts = now;
 
         Ok(())
     }
 
     pub fn reset_fuel(&mut self, now: u32) {
-        self.fuel_insurance = 0;
-        self.fuel_deposits = 0;
-        self.fuel_borrows = 0;
-        self.fuel_positions = 0;
-        self.fuel_taker = 0;
-        self.fuel_maker = 0;
+        self.fuel_insurance = Zero::zero();
+        self.fuel_deposits = Zero::zero();
+        self.fuel_borrows = Zero::zero();
+        self.fuel_positions = Zero::zero();
+        self.fuel_taker = Zero::zero();
+        self.fuel_maker = Zero::zero();
         self.last_reset_ts = now;
     }
 
     pub fn total_fuel(&self) -> DriftResult<u128> {
         self.fuel_insurance
-            .safe_add(self.fuel_deposits)?
-            .safe_add(self.fuel_borrows)?
-            .safe_add(self.fuel_positions)?
-            .safe_add(self.fuel_taker)?
-            .safe_add(self.fuel_maker)
+            .as_u128()
+            .safe_add(self.fuel_deposits.as_u128())?
+            .safe_add(self.fuel_borrows.as_u128())?
+            .safe_add(self.fuel_positions.as_u128())?
+            .safe_add(self.fuel_taker.as_u128())?
+            .safe_add(self.fuel_maker.as_u128())
     }
 }

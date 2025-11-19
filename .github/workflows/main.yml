@@ -13,7 +13,7 @@ defaults:
 
 env:
   CARGO_TERM_COLOR: always
-  RUST_TOOLCHAIN: 1.70.0
+  RUST_TOOLCHAIN: 1.87.0
   SOLANA_VERSION: "1.16.27"
 
 jobs:
@@ -119,11 +119,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cargo/bin/anchor
-          key: ${{ runner.os }}-anchor-cli-0.29.0
+          key: ${{ runner.os }}-anchor-cli-0.32.1
 
       - name: Install Anchor CLI
         if: steps.cache-anchor.outputs.cache-hit != 'true'
-        run: cargo install --git https://github.com/coral-xyz/anchor --tag v0.29.0 anchor-cli --locked
+        run: |
+          sudo apt install libudev-dev
+          cargo install --git https://github.com/coral-xyz/anchor --tag v0.32.1 anchor-cli --locked
 
       - name: Setup node
         uses: actions/setup-node@v2
