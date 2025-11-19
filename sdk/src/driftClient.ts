@@ -225,7 +225,6 @@ import {
 	isBuilderOrderReferral,
 	isBuilderOrderCompleted,
 } from './math/builder';
-import { BigNum } from './factory/bigNum';
 import { TitanClient, SwapMode as TitanSwapMode } from './titan/titanClient';
 import { UnifiedSwapClient } from './swap/UnifiedSwapClient';
 
@@ -4191,19 +4190,23 @@ export class DriftClient {
 		subAccountId?: number,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
-		const ixs =  [];
-		const tokenAmountDeposited = this.getIsolatedPerpPositionTokenAmount(perpMarketIndex);
+		const ixs = [];
+		const tokenAmountDeposited =
+			this.getIsolatedPerpPositionTokenAmount(perpMarketIndex);
 		const transferIx = await this.getTransferIsolatedPerpPositionDepositIx(
 			amount,
 			perpMarketIndex,
 			subAccountId
 		);
 
-		const needsToSettle =
-		amount.gt(tokenAmountDeposited) || amount.eq(MIN_I64);
+		const needsToSettle = amount.gt(tokenAmountDeposited) || amount.eq(MIN_I64);
 		if (needsToSettle) {
 			const settleIx = await this.settleMultiplePNLsIx(
-				await getUserAccountPublicKey(this.program.programId, this.authority, subAccountId ?? this.activeSubAccountId),
+				await getUserAccountPublicKey(
+					this.program.programId,
+					this.authority,
+					subAccountId ?? this.activeSubAccountId
+				),
 				this.getUserAccount(subAccountId),
 				[perpMarketIndex],
 				SettlePnlMode.TRY_SETTLE
@@ -4213,10 +4216,7 @@ export class DriftClient {
 
 		ixs.push(transferIx);
 
-		const tx = await this.buildTransaction(
-			ixs,
-			txParams
-		);
+		const tx = await this.buildTransaction(ixs, txParams);
 		const { txSig } = await this.sendTransaction(tx, [], {
 			...this.opts,
 			skipPreflight: true,

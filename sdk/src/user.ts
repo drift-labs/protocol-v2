@@ -354,7 +354,6 @@ export class User {
 
 	public getIsolatePerpPositionTokenAmount(perpMarketIndex: number): BN {
 		const perpPosition = this.getPerpPosition(perpMarketIndex);
-
 		if (!perpPosition) return ZERO;
 		const perpMarket = this.driftClient.getPerpMarketAccount(perpMarketIndex);
 		const spotMarket = this.driftClient.getSpotMarketAccount(

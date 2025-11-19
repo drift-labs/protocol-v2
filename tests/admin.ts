@@ -433,6 +433,15 @@ describe('admin', () => {
 		await driftClient.updateMmOracleNative(0, oraclePrice.addn(1), oracleTS);
 		assert(perpMarket.amm.mmOraclePrice.eq(oraclePrice));
 
+		// Errors if we try and update it with price of zero
+		try {
+			await driftClient.updateMmOracleNative(0, new BN(0), oracleTS);
+			assert.fail('Should have thrown');
+		} catch (e) {
+			console.log(e.message);
+			assert(e.message.includes('custom program error'));
+		}
+
 		// Doesnt update if we flip the admin switch
 		await driftClient.updateFeatureBitFlagsMMOracle(false);
 		try {

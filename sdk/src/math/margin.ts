@@ -168,6 +168,7 @@ export function calculateWorstCasePerpLiabilityValue(
 	oraclePrice: BN,
 	includeOpenOrders: boolean = true
 ): { worstCaseBaseAssetAmount: BN; worstCaseLiabilityValue: BN } {
+	const isPredictionMarket = isVariant(perpMarket.contractType, 'prediction');
 	// return early if no open orders required
 	if (!includeOpenOrders) {
 		return {
@@ -182,7 +183,6 @@ export function calculateWorstCasePerpLiabilityValue(
 	const allBids = perpPosition.baseAssetAmount.add(perpPosition.openBids);
 	const allAsks = perpPosition.baseAssetAmount.add(perpPosition.openAsks);
 
-	const isPredictionMarket = isVariant(perpMarket.contractType, 'prediction');
 	const allBidsLiabilityValue = calculatePerpLiabilityValue(
 		allBids,
 		oraclePrice,
