@@ -1,6 +1,6 @@
 {
 	"name": "@drift-labs/sdk",
-	"version": "2.148.0-beta.0",
+	"version": "2.149.0-beta.6",
 	"main": "lib/node/index.js",
 	"types": "lib/node/index.d.ts",
 	"module": "./lib/browser/index.js",
@@ -16,6 +16,7 @@
 		"build:browser": "yarn clean && tsc -p tsconfig.json && tsc -p tsconfig.browser.json && node scripts/postbuild.js --force-env browser",
 		"clean": "rm -rf lib",
 		"test": "mocha -r ts-node/register tests/**/*.ts --ignore 'tests/dlob/**/*.ts'",
+		"test:match": "mocha -r ts-node/register --ignore 'tests/dlob/**/*.ts'",
 		"test:inspect": "mocha --inspect-brk -r ts-node/register tests/**/*.ts",
 		"test:bignum": "mocha -r ts-node/register tests/bn/**/*.ts",
 		"test:ci": "mocha -r ts-node/register tests/ci/**/*.ts",
@@ -95,7 +96,7 @@
 	},
 	"description": "SDK for Drift Protocol",
 	"engines": {
-		"node": ">=20.18.0"
+		"node": ">=22.14.0"
 	},
 	"resolutions": {
 		"@solana/web3.js": "1.98.0",

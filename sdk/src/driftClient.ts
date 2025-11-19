@@ -3557,7 +3557,7 @@ export class DriftClient {
 		associatedTokenAddress: PublicKey,
 		reduceOnly = false,
 		subAccountId?: number,
-		updateFuel = false
+		_updateFuel = false
 	): Promise<TransactionInstruction[]> {
 		const withdrawIxs: anchor.web3.TransactionInstruction[] = [];
 
@@ -3566,15 +3566,6 @@ export class DriftClient {
 		const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
 
 		const authority = this.wallet.publicKey;
-
-		if (updateFuel) {
-			const updateFuelIx = await this.getUpdateUserFuelBonusIx(
-				await this.getUserAccountPublicKey(subAccountId),
-				this.getUserAccount(subAccountId),
-				this.authority
-			);
-			withdrawIxs.push(updateFuelIx);
-		}
 
 		const createWSOLTokenAccount =
 			isSolMarket && associatedTokenAddress.equals(authority);
@@ -6304,6 +6295,7 @@ export class DriftClient {
 		reduceOnly,
 		quote,
 		v6,
+		userAccountPublicKey,
 	}: {
 		swapClient: UnifiedSwapClient;
 		outMarketIndex: number;
@@ -6319,6 +6311,7 @@ export class DriftClient {
 		v6?: {
 			quote?: QuoteResponse;
 		};
+		userAccountPublicKey?: PublicKey;
 	}): Promise<{
 		ixs: TransactionInstruction[];
 		lookupTables: AddressLookupTableAccount[];
@@ -6328,7 +6321,6 @@ export class DriftClient {
 		const inMarket = this.getSpotMarketAccount(inMarketIndex);
 
 		const isExactOut = swapMode === 'ExactOut';
-		const exactOutBufferedAmountIn = amount.muln(1001).divn(1000); // Add 10bp buffer
 
 		const preInstructions: TransactionInstruction[] = [];
 
@@ -6384,14 +6376,28 @@ export class DriftClient {
 			}
 		}
 
+		let amountInForBeginSwap: BN;
+		if (isExactOut) {
+			if (quote || v6?.quote) {
+				amountInForBeginSwap = v6?.quote
+					? new BN(v6.quote.inAmount)
+					: new BN(quote!.inAmount);
+			} else {
+				amountInForBeginSwap = amount.muln(1001).divn(1000);
+			}
+		} else {
+			amountInForBeginSwap = amount;
+		}
+
 		// Get drift swap instructions for begin and end
 		const { beginSwapIx, endSwapIx } = await this.getSwapIx({
 			outMarketIndex,
 			inMarketIndex,
-			amountIn: isExactOut ? exactOutBufferedAmountIn : amount,
+			amountIn: amountInForBeginSwap,
 			inTokenAccount: finalInAssociatedTokenAccount,
 			outTokenAccount: finalOutAssociatedTokenAccount,
 			reduceOnly,
+			userAccountPublicKey,
 		});
 
 		// Get core swap instructions from SwapClient
@@ -6661,6 +6667,7 @@ export class DriftClient {
 		});
 	}
 
+	/* Deprecated */
 	public async updateUserFuelBonus(
 		userAccountPublicKey: PublicKey,
 		user: UserAccount,
@@ -6682,6 +6689,7 @@ export class DriftClient {
 		return txSig;
 	}
 
+	/* Deprecated */
 	public async getUpdateUserFuelBonusIx(
 		userAccountPublicKey: PublicKey,
 		userAccount: UserAccount,

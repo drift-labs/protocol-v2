@@ -163,16 +163,6 @@ pub fn handle_initialize_spot_market(
         )?;
     }
 
-    let is_token_2022 = *ctx.accounts.spot_market_mint.to_account_info().owner == Token2022::id();
-    if is_token_2022 {
-        initialize_immutable_owner(&ctx.accounts.token_program, &ctx.accounts.spot_market_vault)?;
-
-        initialize_immutable_owner(
-            &ctx.accounts.token_program,
-            &ctx.accounts.insurance_fund_vault,
-        )?;
-    }
-
     initialize_token_account(
         &ctx.accounts.token_program,
         &ctx.accounts.spot_market_vault,
@@ -3959,40 +3949,6 @@ pub fn handle_update_perp_market_min_order_size(
 }
 
 #[access_control(
-    perp_market_valid(&ctx.accounts.perp_market)
-)]
-pub fn handle_update_perp_market_lp_pool_fee_transfer_scalar(
-    ctx: Context<AdminUpdatePerpMarket>,
-    optional_lp_fee_transfer_scalar: Option<u8>,
-    optional_lp_net_pnl_transfer_scalar: Option<u8>,
-) -> Result<()> {
-    let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
-    msg!("perp market {}", perp_market.market_index);
-
-    if let Some(lp_fee_transfer_scalar) = optional_lp_fee_transfer_scalar {
-        msg!(
-            "perp_market.: {:?} -> {:?}",
-            perp_market.lp_fee_transfer_scalar,
-            lp_fee_transfer_scalar
-        );
-
-        perp_market.lp_fee_transfer_scalar = lp_fee_transfer_scalar;
-    }
-
-    if let Some(lp_net_pnl_transfer_scalar) = optional_lp_net_pnl_transfer_scalar {
-        msg!(
-            "perp_market.: {:?} -> {:?}",
-            perp_market.lp_exchange_fee_excluscion_scalar,
-            lp_net_pnl_transfer_scalar
-        );
-
-        perp_market.lp_exchange_fee_excluscion_scalar = lp_net_pnl_transfer_scalar;
-    }
-
-    Ok(())
-}
-
-#[access_control(
     spot_market_valid(&ctx.accounts.spot_market)
 )]
 pub fn handle_update_spot_market_step_size_and_tick_size(
@@ -5032,6 +4988,11 @@ pub fn handle_update_mm_oracle_native(accounts: &[AccountInfo], data: &[u8]) -> 
     let mut perp_market = accounts[0].data.borrow_mut();
     let perp_market_sequence_id = u64::from_le_bytes(perp_market[936..944].try_into().unwrap());
     let incoming_sequence_id = u64::from_le_bytes(data[8..16].try_into().unwrap());
+
+    if &data[0..8] == &[0u8; 8] {
+        msg!("MM oracle price is zero, not updating");
+        return Err(ErrorCode::DefaultError.into());
+    }
 
     if incoming_sequence_id > perp_market_sequence_id {
         let clock_account = &accounts[2];
