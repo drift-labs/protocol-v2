@@ -16141,6 +16141,11 @@
             "option": "publicKey"
           },
           "index": false
+        },
+        {
+          "name": "userTokenAmountAfter",
+          "type": "i128",
+          "index": false
         }
       ]
     },
