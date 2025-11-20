@@ -739,6 +739,7 @@ pub fn handle_deposit<'c: 'info, 'info>(
         None,
     )?;
 
+    let user_token_amount_after = spot_position.get_signed_token_amount(&spot_market)?;
     let token_amount = spot_position.get_token_amount(&spot_market)?;
     if token_amount == 0 {
         validate!(
@@ -831,6 +832,7 @@ pub fn handle_deposit<'c: 'info, 'info>(
         explanation,
         transfer_user: None,
         signer,
+        user_token_amount_after,
     };
     emit!(deposit_record);
 
@@ -987,6 +989,9 @@ pub fn handle_withdraw<'c: 'info, 'info>(
         explanation: deposit_explanation,
         transfer_user: None,
         signer: None,
+        user_token_amount_after: user
+            .force_get_spot_position_mut(market_index)?
+            .get_signed_token_amount(&spot_market)?,
     };
     emit!(deposit_record);
 
@@ -1158,6 +1163,9 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(to_user_key),
             signer: None,
+            user_token_amount_after: from_user
+                .force_get_spot_position_mut(market_index)?
+                .get_signed_token_amount(spot_market)?,
         };
         emit!(deposit_record);
     }
@@ -1223,6 +1231,7 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(from_user_key),
             signer: None,
+            user_token_amount_after: to_spot_position.get_signed_token_amount(spot_market)?,
         };
         emit!(deposit_record);
     }
@@ -1436,6 +1445,9 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(to_user_key),
             signer: None,
+            user_token_amount_after: from_user
+                .force_get_spot_position_mut(deposit_from_market_index)?
+                .get_signed_token_amount(&deposit_from_spot_market)?,
         };
         emit!(deposit_record);
 
@@ -1471,6 +1483,9 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(from_user_key),
             signer: None,
+            user_token_amount_after: to_user
+                .force_get_spot_position_mut(deposit_to_market_index)?
+                .get_signed_token_amount(&deposit_to_spot_market)?,
         };
         emit!(deposit_record);
     }
@@ -1538,6 +1553,9 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(to_user_key),
             signer: None,
+            user_token_amount_after: from_user
+                .force_get_spot_position_mut(borrow_from_market_index)?
+                .get_signed_token_amount(&borrow_from_spot_market)?,
         };
         emit!(deposit_record);
 
@@ -1573,6 +1591,9 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(from_user_key),
             signer: None,
+            user_token_amount_after: to_user
+                .force_get_spot_position_mut(borrow_to_market_index)?
+                .get_signed_token_amount(&borrow_to_spot_market)?,
         };
         emit!(deposit_record);
     }
