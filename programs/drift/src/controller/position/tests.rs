@@ -801,7 +801,7 @@ fn amm_ref_price_offset_decay_logic() {
         max_ref_offset,
     )
     .unwrap();
-    assert_eq!(res, 10000);
+    assert_eq!(res, 576);
 
     let mut now = perp_market.amm.last_mark_price_twap_ts + 10;
     let mut clock_slot = perp_market.amm.last_update_slot;
@@ -830,7 +830,7 @@ fn amm_ref_price_offset_decay_logic() {
     .unwrap();
     assert_eq!(perp_market.amm.last_update_slot, clock_slot);
     assert_eq!(perp_market.amm.last_oracle_valid, true);
-    assert_eq!(perp_market.amm.reference_price_offset, 10000);
+    assert_eq!(perp_market.amm.reference_price_offset, 384);
 
     perp_market.amm.last_mark_price_twap_5min = (perp_market
         .amm
@@ -978,7 +978,7 @@ fn amm_negative_ref_price_offset_decay_logic() {
         max_ref_offset,
     )
     .unwrap();
-    assert_eq!(res, 10000);
+    assert_eq!(res, 576);
 
     let mut now = perp_market.amm.last_mark_price_twap_ts + 10;
     let mut clock_slot = perp_market.amm.last_update_slot;
@@ -1007,7 +1007,7 @@ fn amm_negative_ref_price_offset_decay_logic() {
     .unwrap();
     assert_eq!(perp_market.amm.last_update_slot, clock_slot);
     assert_eq!(perp_market.amm.last_oracle_valid, true);
-    assert_eq!(perp_market.amm.reference_price_offset, 10000);
+    assert_eq!(perp_market.amm.reference_price_offset, 384);
 
     perp_market.amm.last_mark_price_twap_5min = (perp_market
         .amm
@@ -1174,7 +1174,7 @@ fn amm_perp_ref_offset() {
         max_ref_offset,
     )
     .unwrap();
-    assert_eq!(res, 45000);
+    assert_eq!(res, 132);
     assert_eq!(perp_market.amm.reference_price_offset, 18000); // not updated vs market account
 
     let now = 1741207620 + 1;
@@ -1207,8 +1207,8 @@ fn amm_perp_ref_offset() {
 
     let r = perp_market.amm.reserve_price().unwrap();
     let (b, a) = perp_market.amm.bid_ask_price(r).unwrap();
-    assert_eq!(b, 7108594);
-    assert_eq!(a, 7115724);
+    assert_eq!(b, 7098516);
+    assert_eq!(a, 7105646);
     assert_eq!(
         perp_market.amm.historical_oracle_data.last_oracle_price,
         7101600
