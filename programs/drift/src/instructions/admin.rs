@@ -4917,6 +4917,7 @@ pub fn handle_admin_deposit<'c: 'info, 'info>(
         explanation: DepositExplanation::Reward,
         transfer_user: None,
         signer: Some(ctx.accounts.admin.key()),
+        spot_balance_after: token_amount,
     };
     emit!(deposit_record);
 
