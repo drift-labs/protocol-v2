@@ -270,7 +270,9 @@ pub mod fuel_scoring {
 
         let order_index = 0;
         let min_auction_duration = 0;
-        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let user_can_skip_auction_duration = taker
+            .can_skip_auction_duration(&taker_stats, false)
+            .unwrap();
         let is_amm_available = get_amm_is_available(
             &taker.orders[order_index],
             min_auction_duration,
