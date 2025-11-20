@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 
 ### Features
+
+### Fixes
+
+### Breaking
+
+## [2.149.0] - 2025-11-19
+
+### Features
 - sdk: allow deposit from external authority directly to drift account
 
 ### Fixes

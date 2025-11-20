@@ -52,6 +52,8 @@ pub struct DepositRecord {
     pub explanation: DepositExplanation,
     pub transfer_user: Option<Pubkey>,
     pub signer: Option<Pubkey>,
+    /// precision: token mint precision
+    pub user_token_amount_after: i128,
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Default)]
