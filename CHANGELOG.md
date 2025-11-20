@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.149.1] - 2025-11-19
+
+### Features
+
+### Fixes
+
+### Breaking
+- program: add DepositRecord::spot_balance_after [#2034](https://github.com/drift-labs/protocol-v2/pull/2034)
+
 ## [2.149.0] - 2025-11-19
 
 ### Features
