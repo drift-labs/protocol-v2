@@ -485,7 +485,8 @@ export class User {
 		marketIndex: number,
 		collateralBuffer = ZERO,
 		enterHighLeverageMode = undefined,
-		maxMarginRatio = undefined
+		maxMarginRatio = undefined,
+		positionType: 'isolated' | 'cross' = 'cross'
 	): BN {
 		const perpPosition = this.getPerpPositionOrEmpty(marketIndex);
 
@@ -501,7 +502,8 @@ export class User {
 
 		const freeCollateral = this.getFreeCollateral(
 			'Initial',
-			enterHighLeverageMode
+			enterHighLeverageMode,
+			positionType === 'isolated' ? marketIndex : undefined
 		).sub(collateralBuffer);
 
 		return this.getPerpBuyingPowerFromFreeCollateralAndBaseAssetAmount(
@@ -544,17 +546,16 @@ export class User {
 		enterHighLeverageMode = false,
 		perpMarketIndex?: number
 	): BN {
-		const { totalCollateral, marginRequirement, getIsolatedFreeCollateral } =
+		const calc =
 			this.getMarginCalculation(marginCategory, {
 				enteringHighLeverage: enterHighLeverageMode,
 				strict: marginCategory === 'Initial',
 			});
 
 		if (perpMarketIndex !== undefined) {
-			return getIsolatedFreeCollateral(perpMarketIndex);
+			return calc.getIsolatedFreeCollateral(perpMarketIndex);
 		} else {
-			const freeCollateral = totalCollateral.sub(marginRequirement);
-			return freeCollateral.gte(ZERO) ? freeCollateral : ZERO;
+			return calc.getCrossFreeCollateral();
 		}
 	}
 
@@ -2752,7 +2753,8 @@ export class User {
 		tradeSide: PositionDirection,
 		isLp = false,
 		enterHighLeverageMode = undefined,
-		maxMarginRatio = undefined
+		maxMarginRatio = undefined,
+		positionType: 'isolated' | 'cross' = 'cross'
 	): { tradeSize: BN; oppositeSideTradeSize: BN } {
 		let tradeSize = ZERO;
 		let oppositeSideTradeSize = ZERO;
@@ -2792,7 +2794,8 @@ export class User {
 			targetMarketIndex,
 			lpBuffer,
 			enterHighLeverageMode,
-			maxMarginRatio
+			maxMarginRatio,
+			positionType
 		);
 
 		if (maxPositionSize.gte(ZERO)) {
