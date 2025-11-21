@@ -574,7 +574,16 @@ export class User {
 		});
 
 		if (perpMarketIndex !== undefined) {
-			return calc.getIsolatedFreeCollateral(perpMarketIndex);
+			// getIsolatedFreeCollateral can throw so we wrap in a try/catch
+			try {
+				return calc.getIsolatedFreeCollateral(perpMarketIndex);
+			} catch (error) {
+				console.error(
+					'attempted to get isolated free collateral but failed',
+					error
+				);
+				return ZERO;
+			}
 		} else {
 			return calc.getCrossFreeCollateral();
 		}
