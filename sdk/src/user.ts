@@ -352,6 +352,10 @@ export class User {
 		};
 	}
 
+	public isPositionEmpty(position: PerpPosition): boolean {
+		return position.baseAssetAmount.eq(ZERO) && position.openOrders === 0;
+	}
+
 	public getIsolatePerpPositionTokenAmount(perpMarketIndex: number): BN {
 		const perpPosition = this.getPerpPosition(perpMarketIndex);
 		if (!perpPosition) return ZERO;
@@ -500,11 +504,29 @@ export class User {
 			  )
 			: ZERO;
 
-		const freeCollateral = this.getFreeCollateral(
-			'Initial',
-			enterHighLeverageMode,
-			positionType === 'isolated' ? marketIndex : undefined
-		).sub(collateralBuffer);
+		let freeCollateral: BN;
+		if (positionType === 'isolated' && this.isPositionEmpty(perpPosition)) {
+			const {
+				totalAssetValue: quoteSpotMarketAssetValue,
+				totalLiabilityValue: quoteSpotMarketLiabilityValue,
+			} = this.getSpotMarketAssetAndLiabilityValue(
+				perpMarket.quoteSpotMarketIndex,
+				'Initial',
+				undefined,
+				undefined,
+				true
+			);
+
+			freeCollateral = quoteSpotMarketAssetValue.sub(
+				quoteSpotMarketLiabilityValue
+			);
+		} else {
+			freeCollateral = this.getFreeCollateral(
+				'Initial',
+				enterHighLeverageMode,
+				positionType === 'isolated' ? marketIndex : undefined
+			).sub(collateralBuffer);
+		}
 
 		return this.getPerpBuyingPowerFromFreeCollateralAndBaseAssetAmount(
 			marketIndex,
