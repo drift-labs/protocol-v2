@@ -546,11 +546,10 @@ export class User {
 		enterHighLeverageMode = false,
 		perpMarketIndex?: number
 	): BN {
-		const calc =
-			this.getMarginCalculation(marginCategory, {
-				enteringHighLeverage: enterHighLeverageMode,
-				strict: marginCategory === 'Initial',
-			});
+		const calc = this.getMarginCalculation(marginCategory, {
+			enteringHighLeverage: enterHighLeverageMode,
+			strict: marginCategory === 'Initial',
+		});
 
 		if (perpMarketIndex !== undefined) {
 			return calc.getIsolatedFreeCollateral(perpMarketIndex);
