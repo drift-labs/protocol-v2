@@ -1431,8 +1431,8 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 	{
 		fullName: 'Monad',
 		category: ['L1'],
-		symbol: 'MON-PERP',
-		baseAssetSymbol: 'MON',
+		symbol: '1KMON-PERP',
+		baseAssetSymbol: '1KMON',
 		marketIndex: 83,
 		oracle: new PublicKey('585jsthKg9BeTfnFGAxgfNie9krGGyPbd5feMpWneHf7'),
 		launchTs: 1763996757000,
