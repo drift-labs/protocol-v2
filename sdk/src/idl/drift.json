@@ -1,5 +1,5 @@
 {
-  "version": "2.148.0",
+  "version": "2.149.1",
   "name": "drift",
   "instructions": [
     {
@@ -15596,6 +15596,9 @@
           },
           {
             "name": "AmmImmediateFill"
+          },
+          {
+            "name": "SettleRevPool"
           }
         ]
       }
@@ -16309,6 +16312,18 @@
           "type": {
             "option": "publicKey"
           },
+          "index": false
+        },
+        {
+          "name": "signer",
+          "type": {
+            "option": "publicKey"
+          },
+          "index": false
+        },
+        {
+          "name": "userTokenAmountAfter",
+          "type": "i128",
           "index": false
         }
       ]
