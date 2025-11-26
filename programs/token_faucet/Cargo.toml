@@ -2,7 +2,7 @@
 name = "token-faucet"
 version = "0.1.0"
 description = "Created with Anchor"
-edition = "2018"
+edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
@@ -13,8 +13,8 @@ no-entrypoint = []
 cpi = ["no-entrypoint"]
 mainnet-beta=[]
 anchor-test= []
-
 [dependencies]
-anchor-lang = "0.32.1"
-anchor-spl = "0.32.1"
+
+anchor-lang = { version = "0.32.1", features = ["idl-build"] }
+anchor-spl = { version = "0.32.1", features = [] }
 bytemuck = { version = "1.4.0" }
