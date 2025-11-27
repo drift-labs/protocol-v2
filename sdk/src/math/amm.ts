@@ -503,16 +503,10 @@ export function calculateReferencePriceOffset(
 		.mul(PRICE_PRECISION)
 		.div(reservePrice);
 
-	const inventoryPct = clampBN(
-		liquidityFraction.mul(new BN(maxOffsetPct)).div(PERCENTAGE_PRECISION),
-		new BN(maxOffsetPct).mul(new BN(-1)),
-		new BN(maxOffsetPct)
-	);
-
 	// Only apply when inventory is consistent with recent and 24h market premium
-	let offsetPct = markPremiumAvgPct.add(inventoryPct);
+	let offsetPct = markPremiumAvgPct.mul(liquidityFraction.abs()).divn(2);
 
-	if (!sigNum(inventoryPct).eq(sigNum(markPremiumAvgPct))) {
+	if (!sigNum(liquidityFraction).eq(sigNum(markPremiumAvgPct))) {
 		offsetPct = ZERO;
 	}
 
