@@ -1538,7 +1538,7 @@ impl Order {
 
         let order_older_than_oracle_delay = {
             let clock_minus_delay = clock_slot.cast::<i64>()?.safe_sub(mm_oracle_delay)?;
-            clock_minus_delay >= self.slot.cast::<i64>()?
+            clock_minus_delay > self.slot.cast::<i64>()?
         };
 
         Ok(order_older_than_oracle_delay

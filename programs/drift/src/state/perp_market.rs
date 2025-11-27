@@ -951,7 +951,7 @@ impl PerpMarket {
         )?;
 
         // Proceed if order is low risk and we can fill it. Otherwise check if we can higher risk order immediately
-        let can_fill_order = if can_fill_low_risk {
+        let can_fill_order = if can_fill_low_risk && user_can_skip_auction_duration{
             true
         } else {
             let oracle_valid_for_can_fill_immediately = is_oracle_valid_for_action(
