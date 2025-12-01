@@ -480,6 +480,7 @@ pub fn handle_update_user_idle<'c: 'info, 'info>(
             || perp_position.last_quote_asset_amount_per_lp != 0
             || perp_position.per_lp_base != 0
         {
+            msg!("Resetting lp fields for perp position {} with lp shares {}, last base asset amount per lp {}, last quote asset amount per lp {}, per lp base {}", perp_position.market_index, perp_position.lp_shares, perp_position.last_base_asset_amount_per_lp, perp_position.last_quote_asset_amount_per_lp, perp_position.per_lp_base);
             perp_position.lp_shares = 0;
             perp_position.last_base_asset_amount_per_lp = 0;
             perp_position.last_quote_asset_amount_per_lp = 0;
