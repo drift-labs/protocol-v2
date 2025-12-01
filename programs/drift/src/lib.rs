@@ -524,9 +524,9 @@ pub mod drift {
         handle_update_user_stats_referrer_info(ctx)
     }
 
-    pub fn update_update_user_lp_fields(ctx: Context<UpdateUserIdle>) -> Result<()> {
-        handle_update_user_lp_fields(ctx)
-    }
+    // pub fn update_user_open_orders_count(ctx: Context<UpdateUserIdle>) -> Result<()> {
+    //     handle_update_user_open_orders_count(ctx)
+    // }
 
     pub fn admin_disable_update_perp_bid_ask_twap(
         ctx: Context<AdminDisableBidAskTwapUpdate>,
