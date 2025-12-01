@@ -1531,6 +1531,7 @@ impl Order {
         mm_oracle_delay: i64,
         clock_slot: u64,
         is_liquidation: bool,
+        user_can_skip_auction_duration: bool,
     ) -> DriftResult<bool> {
         if self.market_type == MarketType::Spot {
             return Ok(false);
@@ -1538,7 +1539,11 @@ impl Order {
 
         let order_older_than_oracle_delay = {
             let clock_minus_delay = clock_slot.cast::<i64>()?.safe_sub(mm_oracle_delay)?;
-            clock_minus_delay > self.slot.cast::<i64>()?
+            if user_can_skip_auction_duration {
+                clock_minus_delay >= self.slot.cast::<i64>()?
+            } else {
+                clock_minus_delay > self.slot.cast::<i64>()?
+            }
         };
 
         Ok(order_older_than_oracle_delay
