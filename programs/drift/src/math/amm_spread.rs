@@ -640,9 +640,11 @@ pub fn calculate_reference_price_offset(
     let offset_pct = if (mark_premium_avg_pct >= 0 && liquidity_fraction >= 0)
         || (mark_premium_avg_pct <= 0 && liquidity_fraction <= 0)
     {
-        mark_premium_avg_pct
-            .safe_mul(liquidity_fraction.unsigned_abs().cast::<i64>()?)?
-            .safe_div(2)?
+        mark_premium_avg_pct.safe_add(
+            mark_premium_avg_pct
+                .safe_mul(liquidity_fraction.unsigned_abs().cast::<i64>()?)?
+                .safe_div(PRICE_PRECISION_I64)?,
+        )?
     } else {
         0
     };
