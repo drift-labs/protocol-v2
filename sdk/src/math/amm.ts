@@ -1026,11 +1026,15 @@ export function calculateSpreadReserves(
 	let maxOffset = 0;
 	let referencePriceOffset = 0;
 	if (amm.curveUpdateIntensity > 100) {
-		maxOffset = Math.max(
-			amm.maxSpread / 2,
-			(PERCENTAGE_PRECISION.toNumber() / 10000) *
-				(amm.curveUpdateIntensity - 100)
-		);
+		if (amm.curveUpdateIntensity == 200) {
+			maxOffset = Math.max(amm.maxSpread / 2, 10_000);
+		} else {
+			maxOffset = Math.min(
+				amm.maxSpread / 2,
+				(PERCENTAGE_PRECISION.toNumber() / 10000) *
+					(amm.curveUpdateIntensity - 100)
+			);
+		}
 
 		const liquidityFraction =
 			calculateInventoryLiquidityRatioForReferencePriceOffset(
