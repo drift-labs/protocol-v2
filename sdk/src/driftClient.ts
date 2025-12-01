@@ -4203,7 +4203,7 @@ export class DriftClient {
 		perpMarketIndex: number,
 		subAccountId?: number,
 		txParams?: TxParams,
-		trySettle?: boolean,
+		trySettle?: boolean
 	): Promise<TransactionSignature> {
 		const ixs = [];
 		const tokenAmountDeposited =
@@ -4214,7 +4214,8 @@ export class DriftClient {
 			subAccountId
 		);
 
-		const needsToSettle = amount.gt(tokenAmountDeposited) || amount.eq(MIN_I64) || trySettle;
+		const needsToSettle =
+			amount.gt(tokenAmountDeposited) || amount.eq(MIN_I64) || trySettle;
 		if (needsToSettle) {
 			const settleIx = await this.settleMultiplePNLsIx(
 				await getUserAccountPublicKey(
