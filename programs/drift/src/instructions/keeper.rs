@@ -475,7 +475,11 @@ pub fn handle_update_user_idle<'c: 'info, 'info>(
 
     let mut updated_lp_fields = false;
     for perp_position in user.perp_positions.iter_mut() {
-        if perp_position.lp_shares != 0 || perp_position.last_base_asset_amount_per_lp != 0 || perp_position.last_quote_asset_amount_per_lp != 0 || perp_position.per_lp_base != 0 {
+        if perp_position.lp_shares != 0
+            || perp_position.last_base_asset_amount_per_lp != 0
+            || perp_position.last_quote_asset_amount_per_lp != 0
+            || perp_position.per_lp_base != 0
+        {
             perp_position.lp_shares = 0;
             perp_position.last_base_asset_amount_per_lp = 0;
             perp_position.last_quote_asset_amount_per_lp = 0;
