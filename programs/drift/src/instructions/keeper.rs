@@ -473,6 +473,21 @@ pub fn handle_update_user_idle<'c: 'info, 'info>(
         None,
     )?;
 
+    let mut updated_lp_fields = false;
+    for perp_position in user.perp_positions.iter_mut() {
+        if perp_position.lp_shares != 0 || perp_position.last_base_asset_amount_per_lp != 0 || perp_position.last_quote_asset_amount_per_lp != 0 || perp_position.per_lp_base != 0 {
+            perp_position.lp_shares = 0;
+            perp_position.last_base_asset_amount_per_lp = 0;
+            perp_position.last_quote_asset_amount_per_lp = 0;
+            perp_position.per_lp_base = 0;
+            updated_lp_fields = true;
+        }
+    }
+
+    if updated_lp_fields {
+        return Ok(());
+    }
+
     let (equity, _) =
         calculate_user_equity(&user, &perp_market_map, &spot_market_map, &mut oracle_map)?;
 

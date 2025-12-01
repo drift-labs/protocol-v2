@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - program: stricter logic for atomic fills [#2042](https://github.com/drift-labs/protocol-v2/pull/2042)
+- program: reset lp fields in update_user_idle [#2018](https://github.com/drift-labs/protocol-v2/pull/2018)
 
 ### Fixes
 
