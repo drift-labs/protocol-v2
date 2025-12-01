@@ -204,6 +204,7 @@ export class User {
 	}
 
 	public async unsubscribe(): Promise<void> {
+		this.eventEmitter.removeAllListeners();
 		await this.accountSubscriber.unsubscribe();
 		this.isSubscribed = false;
 	}
