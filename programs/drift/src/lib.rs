@@ -1104,7 +1104,7 @@ pub mod drift {
     }
 
     pub fn update_perp_market_lp_pool_fee_transfer_scalar(
-        ctx: Context<AdminUpdatePerpMarket>,
+        ctx: Context<HotAdminUpdatePerpMarketDlp>,
         optional_lp_fee_transfer_scalar: Option<u8>,
         optional_lp_net_pnl_transfer_scalar: Option<u8>,
     ) -> Result<()> {

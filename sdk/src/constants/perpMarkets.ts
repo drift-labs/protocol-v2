@@ -1428,6 +1428,17 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracleSource: OracleSource.PYTH_LAZER,
 		pythLazerId: 2382,
 	},
+	{
+		fullName: 'Monad',
+		category: ['L1'],
+		symbol: '1KMON-PERP',
+		baseAssetSymbol: '1KMON',
+		marketIndex: 83,
+		oracle: new PublicKey('585jsthKg9BeTfnFGAxgfNie9krGGyPbd5feMpWneHf7'),
+		launchTs: 1763996757000,
+		oracleSource: OracleSource.PYTH_LAZER_1K,
+		pythLazerId: 2396,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {

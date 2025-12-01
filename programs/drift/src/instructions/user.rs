@@ -3,6 +3,7 @@ use std::ops::DerefMut;
 
 use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
+use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::{
     token::Token,
     token_2022::Token2022,
@@ -23,8 +24,9 @@ use crate::controller::spot_position::{
 use crate::error::ErrorCode;
 use crate::get_then_update_id;
 use crate::ids::admin_hot_wallet;
-use crate::ids::WHITELISTED_SWAP_PROGRAMS;
-use crate::ids::{lighthouse, marinade_mainnet};
+use crate::ids::{
+    lighthouse, marinade_mainnet, WHITELISTED_EXTERNAL_DEPOSITORS, WHITELISTED_SWAP_PROGRAMS,
+};
 use crate::instructions::constraints::*;
 use crate::instructions::optional_accounts::get_revenue_share_escrow_account;
 use crate::instructions::optional_accounts::{
@@ -737,6 +739,7 @@ pub fn handle_deposit<'c: 'info, 'info>(
         None,
     )?;
 
+    let user_token_amount_after = spot_position.get_signed_token_amount(&spot_market)?;
     let token_amount = spot_position.get_token_amount(&spot_market)?;
     if token_amount == 0 {
         validate!(
@@ -798,6 +801,19 @@ pub fn handle_deposit<'c: 'info, 'info>(
     } else {
         DepositExplanation::None
     };
+    let signer = if ctx.accounts.authority.key() != user.authority
+        && ctx.accounts.authority.key() != user.delegate
+    {
+        validate!(
+            WHITELISTED_EXTERNAL_DEPOSITORS.contains(&ctx.accounts.authority.key()),
+            ErrorCode::DefaultError,
+            "Not whitelisted external depositor"
+        )?;
+
+        Some(ctx.accounts.authority.key())
+    } else {
+        None
+    };
     let deposit_record = DepositRecord {
         ts: now,
         deposit_record_id,
@@ -815,6 +831,8 @@ pub fn handle_deposit<'c: 'info, 'info>(
         market_index,
         explanation,
         transfer_user: None,
+        signer,
+        user_token_amount_after,
     };
     emit!(deposit_record);
 
@@ -970,6 +988,10 @@ pub fn handle_withdraw<'c: 'info, 'info>(
         total_withdraws_after: user.total_withdraws,
         explanation: deposit_explanation,
         transfer_user: None,
+        signer: None,
+        user_token_amount_after: user
+            .force_get_spot_position_mut(market_index)?
+            .get_signed_token_amount(&spot_market)?,
     };
     emit!(deposit_record);
 
@@ -1140,6 +1162,10 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
             total_withdraws_after: from_user.total_withdraws,
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(to_user_key),
+            signer: None,
+            user_token_amount_after: from_user
+                .force_get_spot_position_mut(market_index)?
+                .get_signed_token_amount(spot_market)?,
         };
         emit!(deposit_record);
     }
@@ -1204,6 +1230,8 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
             total_withdraws_after,
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(from_user_key),
+            signer: None,
+            user_token_amount_after: to_spot_position.get_signed_token_amount(spot_market)?,
         };
         emit!(deposit_record);
     }
@@ -1416,6 +1444,10 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             total_withdraws_after: from_user.total_withdraws,
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(to_user_key),
+            signer: None,
+            user_token_amount_after: from_user
+                .force_get_spot_position_mut(deposit_from_market_index)?
+                .get_signed_token_amount(&deposit_from_spot_market)?,
         };
         emit!(deposit_record);
 
@@ -1450,6 +1482,10 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             total_withdraws_after: to_user.total_withdraws,
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(from_user_key),
+            signer: None,
+            user_token_amount_after: to_user
+                .force_get_spot_position_mut(deposit_to_market_index)?
+                .get_signed_token_amount(&deposit_to_spot_market)?,
         };
         emit!(deposit_record);
     }
@@ -1516,6 +1552,10 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             total_withdraws_after: from_user.total_withdraws,
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(to_user_key),
+            signer: None,
+            user_token_amount_after: from_user
+                .force_get_spot_position_mut(borrow_from_market_index)?
+                .get_signed_token_amount(&borrow_from_spot_market)?,
         };
         emit!(deposit_record);
 
@@ -1550,6 +1590,10 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             total_withdraws_after: to_user.total_withdraws,
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(from_user_key),
+            signer: None,
+            user_token_amount_after: to_user
+                .force_get_spot_position_mut(borrow_to_market_index)?
+                .get_signed_token_amount(&borrow_to_spot_market)?,
         };
         emit!(deposit_record);
     }
@@ -3681,6 +3725,7 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
             } else {
                 let mut whitelisted_programs = WHITELISTED_SWAP_PROGRAMS.to_vec();
                 if !delegate_is_signer {
+                    whitelisted_programs.push(AssociatedToken::id());
                     whitelisted_programs.push(Token::id());
                     whitelisted_programs.push(Token2022::id());
                     whitelisted_programs.push(marinade_mainnet::ID);
@@ -4326,10 +4371,7 @@ pub struct InitializeReferrerName<'info> {
 #[instruction(market_index: u16,)]
 pub struct Deposit<'info> {
     pub state: Box<Account<'info, State>>,
-    #[account(
-        mut,
-        constraint = can_sign_for_user(&user, &authority)?
-    )]
+    #[account(mut)]
     pub user: AccountLoader<'info, User>,
     #[account(
         mut,

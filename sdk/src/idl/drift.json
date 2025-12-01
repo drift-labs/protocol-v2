@@ -1,5 +1,5 @@
 {
-  "version": "2.146.0",
+  "version": "2.149.1",
   "name": "drift",
   "instructions": [
     {
@@ -16160,6 +16160,18 @@
             "option": "publicKey"
           },
           "index": false
+        },
+        {
+          "name": "signer",
+          "type": {
+            "option": "publicKey"
+          },
+          "index": false
+        },
+        {
+          "name": "userTokenAmountAfter",
+          "type": "i128",
+          "index": false
         }
       ]
     },
@@ -19594,8 +19606,5 @@
       "name": "MarketIndexNotFoundAmmCache",
       "msg": "MarketIndexNotFoundAmmCache"
     }
-  ],
-  "metadata": {
-    "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
-  }
+  ]
 }

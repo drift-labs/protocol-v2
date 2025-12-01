@@ -1141,6 +1141,12 @@ export type PerpPosition = {
 	positionFlag: number;
 };
 
+export class PositionFlag {
+	static readonly IsolatedPosition = 1;
+	static readonly BeingLiquidated = 2;
+	static readonly Bankruptcy = 4;
+}
+
 export type UserStatsAccount = {
 	numberOfSubAccounts: number;
 	numberOfSubAccountsCreated: number;
@@ -1897,4 +1903,10 @@ export type CacheInfo = {
 
 export type AmmCache = {
 	cache: CacheInfo[];
+};
+
+export type AccountLiquidatableStatus = {
+	canBeLiquidated: boolean;
+	marginRequirement: BN;
+	totalCollateral: BN;
 };
