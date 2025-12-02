@@ -12,9 +12,10 @@ pub enum PerpOperation {
     SettlePnlWithPosition = 0b00010000,
     Liquidation = 0b00100000,
     AmmImmediateFill = 0b01000000,
+    SettleRevPool = 0b10000000,
 }
 
-const ALL_PERP_OPERATIONS: [PerpOperation; 7] = [
+const ALL_PERP_OPERATIONS: [PerpOperation; 8] = [
     PerpOperation::UpdateFunding,
     PerpOperation::AmmFill,
     PerpOperation::Fill,
@@ -22,6 +23,7 @@ const ALL_PERP_OPERATIONS: [PerpOperation; 7] = [
     PerpOperation::SettlePnlWithPosition,
     PerpOperation::Liquidation,
     PerpOperation::AmmImmediateFill,
+    PerpOperation::SettleRevPool,
 ];
 
 impl PerpOperation {
@@ -91,6 +93,58 @@ impl InsuranceFundOperation {
 
     pub fn log_all_operations_paused(current: u8) {
         for operation in ALL_IF_OPERATIONS.iter() {
+            if Self::is_operation_paused(current, *operation) {
+                msg!("{:?} is paused", operation);
+            }
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Debug, Eq)]
+pub enum PerpLpOperation {
+    TrackAmmRevenue = 0b00000001,
+    SettleQuoteOwed = 0b00000010,
+}
+
+const ALL_PERP_LP_OPERATIONS: [PerpLpOperation; 2] = [
+    PerpLpOperation::TrackAmmRevenue,
+    PerpLpOperation::SettleQuoteOwed,
+];
+
+impl PerpLpOperation {
+    pub fn is_operation_paused(current: u8, operation: PerpLpOperation) -> bool {
+        current & operation as u8 != 0
+    }
+
+    pub fn log_all_operations_paused(current: u8) {
+        for operation in ALL_PERP_LP_OPERATIONS.iter() {
+            if Self::is_operation_paused(current, *operation) {
+                msg!("{:?} is paused", operation);
+            }
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Debug, Eq)]
+pub enum ConstituentLpOperation {
+    Swap = 0b00000001,
+    Deposit = 0b00000010,
+    Withdraw = 0b00000100,
+}
+
+const ALL_CONSTITUENT_LP_OPERATIONS: [ConstituentLpOperation; 3] = [
+    ConstituentLpOperation::Swap,
+    ConstituentLpOperation::Deposit,
+    ConstituentLpOperation::Withdraw,
+];
+
+impl ConstituentLpOperation {
+    pub fn is_operation_paused(current: u8, operation: ConstituentLpOperation) -> bool {
+        current & operation as u8 != 0
+    }
+
+    pub fn log_all_operations_paused(current: u8) {
+        for operation in ALL_CONSTITUENT_LP_OPERATIONS.iter() {
             if Self::is_operation_paused(current, *operation) {
                 msg!("{:?} is paused", operation);
             }

@@ -9,12 +9,10 @@ use std::cmp::max;
 
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
-use crate::math::amm;
+use crate::math::amm::{self};
 use crate::math::casting::Cast;
 #[cfg(test)]
-use crate::math::constants::{
-    AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT, PRICE_PRECISION_I64,
-};
+use crate::math::constants::{AMM_RESERVE_PRECISION, MAX_CONCENTRATION_COEFFICIENT};
 use crate::math::constants::{
     AMM_TO_QUOTE_PRECISION_RATIO, BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128,
     BID_ASK_SPREAD_PRECISION_U128, DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT,
@@ -90,6 +88,23 @@ impl MarketStatus {
         } else {
             Ok(())
         }
+    }
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
+pub enum LpStatus {
+    /// Not considered
+    #[default]
+    Uncollateralized,
+    /// all operations allowed
+    Active,
+    /// Decommissioning
+    Decommissioning,
+}
+
+impl LpStatus {
+    pub fn is_collateralized(&self) -> bool {
+        !matches!(self, LpStatus::Uncollateralized)
     }
 }
 
@@ -231,9 +246,13 @@ pub struct PerpMarket {
     pub high_leverage_margin_ratio_maintenance: u16,
     pub protected_maker_limit_price_divisor: u8,
     pub protected_maker_dynamic_divisor: u8,
-    pub padding1: u32,
+    pub lp_fee_transfer_scalar: u8,
+    pub lp_status: u8,
+    pub lp_paused_operations: u8,
+    pub lp_exchange_fee_excluscion_scalar: u8,
     pub last_fill_price: u64,
-    pub padding: [u8; 24],
+    pub lp_pool_id: u8,
+    pub padding: [u8; 23],
 }
 
 impl Default for PerpMarket {
@@ -275,9 +294,13 @@ impl Default for PerpMarket {
             high_leverage_margin_ratio_maintenance: 0,
             protected_maker_limit_price_divisor: 0,
             protected_maker_dynamic_divisor: 0,
-            padding1: 0,
+            lp_fee_transfer_scalar: 0,
+            lp_status: 0,
+            lp_exchange_fee_excluscion_scalar: 0,
+            lp_paused_operations: 0,
             last_fill_price: 0,
-            padding: [0; 24],
+            lp_pool_id: 0,
+            padding: [0; 23],
         }
     }
 }
@@ -925,6 +948,7 @@ impl PerpMarket {
             safe_oracle_price_data.delay,
             clock_slot,
             fill_mode.is_liquidation(),
+            user_can_skip_auction_duration,
         )?;
 
         // Proceed if order is low risk and we can fill it. Otherwise check if we can higher risk order immediately
@@ -1425,6 +1449,7 @@ impl AMM {
         ))
     }
 
+    // direction with_amm is the net user direction
     pub fn get_protocol_owned_position(self) -> DriftResult<i64> {
         self.base_asset_amount_with_amm.cast::<i64>()
     }
@@ -1432,15 +1457,18 @@ impl AMM {
     pub fn get_max_reference_price_offset(self) -> DriftResult<i64> {
         if self.curve_update_intensity <= 100 {
             return Ok(0);
+        } else if self.curve_update_intensity >= 200 {
+            // mimic old max behavior with 100 bps
+            return Ok((self.max_spread.cast::<i64>()? / 2).max(10_000));
         }
 
         let lower_bound_multiplier: i64 =
             self.curve_update_intensity.safe_sub(100)?.cast::<i64>()?;
 
-        // always higher of 1-100 bps of price offset and half of the market's max_spread
+        // always the lesser of 1-100 bps of price offset and half of the market's max_spread
         let lb_bps =
             (PERCENTAGE_PRECISION.cast::<i64>()? / 10000).safe_mul(lower_bound_multiplier)?;
-        let max_offset = (self.max_spread.cast::<i64>()? / 2).max(lb_bps);
+        let max_offset = (self.max_spread.cast::<i64>()? / 2).min(lb_bps);
 
         Ok(max_offset)
     }
@@ -1727,6 +1755,8 @@ impl AMM {
 #[cfg(test)]
 impl AMM {
     pub fn default_test() -> Self {
+        use crate::math::constants::PRICE_PRECISION_I64;
+
         let default_reserves = 100 * AMM_RESERVE_PRECISION;
         // make sure tests dont have the default sqrt_k = 0
         AMM {
@@ -1752,6 +1782,8 @@ impl AMM {
     }
 
     pub fn default_btc_test() -> Self {
+        use crate::math::constants::PRICE_PRECISION_I64;
+
         AMM {
             base_asset_reserve: 65 * AMM_RESERVE_PRECISION,
             quote_asset_reserve: 63015384615,

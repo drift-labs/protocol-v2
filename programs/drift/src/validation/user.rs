@@ -1,8 +1,9 @@
 use crate::error::{DriftResult, ErrorCode};
+use crate::math::constants::THIRTEEN_DAY;
 use crate::msg;
 use crate::state::spot_market::SpotBalanceType;
 use crate::state::user::{User, UserStats};
-use crate::{validate, State, THIRTEEN_DAY};
+use crate::{validate, State};
 
 pub fn validate_user_deletion(
     user: &User,

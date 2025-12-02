@@ -45,6 +45,8 @@ export const mockPerpPosition: PerpPosition = {
 	lastQuoteAssetAmountPerLp: new BN(0),
 	perLpBase: 0,
 	maxMarginRatio: 1,
+	isolatedPositionScaledBalance: new BN(0),
+	positionFlag: 0,
 };
 
 export const mockAMM: AMM = {
@@ -152,6 +154,8 @@ export const mockAMM: AMM = {
 	mmOraclePrice: new BN(0),
 	mmOracleSlot: new BN(0),
 	lastFundingOracleTwap: new BN(0),
+	oracleSlotDelayOverride: 0,
+	referencePriceOffsetDeadbandPct: 0,
 };
 
 export const mockPerpMarkets: Array<PerpMarketAccount> = [
@@ -201,6 +205,11 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		fuelBoostTaker: 0,
 		protectedMakerLimitPriceDivisor: 0,
 		protectedMakerDynamicDivisor: 0,
+		lpPoolId: 0,
+		lpFeeTransferScalar: 0,
+		lpExchangeFeeExcluscionScalar: 0,
+		lpStatus: 0,
+		lpPausedOperations: 0,
 	},
 	{
 		status: MarketStatus.INITIALIZED,
@@ -248,6 +257,11 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		fuelBoostTaker: 0,
 		protectedMakerLimitPriceDivisor: 0,
 		protectedMakerDynamicDivisor: 0,
+		lpPoolId: 0,
+		lpFeeTransferScalar: 0,
+		lpExchangeFeeExcluscionScalar: 0,
+		lpStatus: 0,
+		lpPausedOperations: 0,
 	},
 	{
 		status: MarketStatus.INITIALIZED,
@@ -295,6 +309,11 @@ export const mockPerpMarkets: Array<PerpMarketAccount> = [
 		fuelBoostTaker: 0,
 		protectedMakerLimitPriceDivisor: 0,
 		protectedMakerDynamicDivisor: 0,
+		lpPoolId: 0,
+		lpFeeTransferScalar: 0,
+		lpExchangeFeeExcluscionScalar: 0,
+		lpStatus: 0,
+		lpPausedOperations: 0,
 	},
 ];
 
@@ -672,9 +691,9 @@ export class MockUserMap implements UserMapInterface {
 		});
 	}
 
-	public async subscribe(): Promise<void> { }
+	public async subscribe(): Promise<void> {}
 
-	public async unsubscribe(): Promise<void> { }
+	public async unsubscribe(): Promise<void> {}
 
 	public async addPubkey(userAccountPublicKey: PublicKey): Promise<void> {
 		const user = new User({
@@ -733,7 +752,7 @@ export class MockUserMap implements UserMapInterface {
 		);
 	}
 
-	public async updateWithOrderRecord(_record: OrderRecord): Promise<void> { }
+	public async updateWithOrderRecord(_record: OrderRecord): Promise<void> {}
 
 	public values(): IterableIterator<User> {
 		return this.userMap.values();

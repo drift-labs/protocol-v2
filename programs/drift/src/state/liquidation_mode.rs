@@ -13,7 +13,8 @@ use crate::{
         safe_unwrap::SafeUnwrap,
     },
     state::margin_calculation::MarginCalculation,
-    validate, LIQUIDATION_PCT_PRECISION, QUOTE_SPOT_MARKET_INDEX,
+    math::constants::{LIQUIDATION_PCT_PRECISION, QUOTE_SPOT_MARKET_INDEX},
+    validate,
 };
 
 use super::{

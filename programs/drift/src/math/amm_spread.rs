@@ -11,9 +11,9 @@ use crate::math::constants::{
     AMM_TIMES_PEG_TO_QUOTE_PRECISION_RATIO_I128, AMM_TO_QUOTE_PRECISION_RATIO_I128,
     BID_ASK_SPREAD_PRECISION, BID_ASK_SPREAD_PRECISION_I128, DEFAULT_LARGE_BID_ASK_FACTOR,
     DEFAULT_REVENUE_SINCE_LAST_FUNDING_SPREAD_RETREAT, FUNDING_RATE_BUFFER,
-    MAX_BID_ASK_INVENTORY_SKEW_FACTOR, PEG_PRECISION, PERCENTAGE_PRECISION,
-    PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_U64, PRICE_PRECISION, PRICE_PRECISION_I128,
-    PRICE_PRECISION_I64,
+    FUNDING_RATE_OFFSET_DENOMINATOR, MAX_BID_ASK_INVENTORY_SKEW_FACTOR, PEG_PRECISION,
+    PERCENTAGE_PRECISION, PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_U64, PRICE_PRECISION,
+    PRICE_PRECISION_I128, PRICE_PRECISION_I64,
 };
 use crate::math::safe_math::SafeMath;
 use crate::state::perp_market::{ContractType, PerpMarket, AMM};
@@ -620,9 +620,13 @@ pub fn calculate_reference_price_offset(
     let mark_premium_day: i64 = last_24h_avg_funding_rate
         .safe_div(FUNDING_RATE_BUFFER.cast()?)?
         .safe_mul(24)?
+        .safe_sub(
+            oracle_twap_slow
+                .abs()
+                .safe_div(FUNDING_RATE_OFFSET_DENOMINATOR)?,
+        )?
         .clamp(-max_offset_in_price, max_offset_in_price); // todo: look at how 24h funding is calc w.r.t. the funding_period
-
-    // take average clamped premium as the price-based offset
+                                                           // take average clamped premium as the price-based offset
     let mark_premium_avg = mark_premium_minute
         .safe_add(mark_premium_hour)?
         .safe_add(mark_premium_day)?
@@ -632,17 +636,13 @@ pub fn calculate_reference_price_offset(
         .safe_mul(PRICE_PRECISION_I64)?
         .safe_div(reserve_price.cast()?)?;
 
-    let inventory_pct = liquidity_fraction
-        .cast::<i64>()?
-        .safe_mul(max_offset_pct)?
-        .safe_div(PERCENTAGE_PRECISION.cast::<i64>()?)?
-        .clamp(-max_offset_pct, max_offset_pct);
-
     // only apply when inventory is consistent with recent and 24h market premium
-    let offset_pct = if (mark_premium_avg_pct >= 0 && inventory_pct >= 0)
-        || (mark_premium_avg_pct <= 0 && inventory_pct <= 0)
+    let offset_pct = if (mark_premium_avg_pct >= 0 && liquidity_fraction >= 0)
+        || (mark_premium_avg_pct <= 0 && liquidity_fraction <= 0)
     {
-        mark_premium_avg_pct.safe_add(inventory_pct)?
+        mark_premium_avg_pct
+            .safe_mul(liquidity_fraction.unsigned_abs().cast::<i64>()?)?
+            .safe_div(2)?
     } else {
         0
     };

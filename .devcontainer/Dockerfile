@@ -13,11 +13,18 @@ ENV HOME="/root"
 ENV PATH="/usr/local/cargo/bin:${PATH}"
 ENV PATH="/root/.local/share/solana/install/active_release/bin:${PATH}"
 
-RUN mkdir -p /workdir /tmp && \
-    apt-get update -qq && apt-get upgrade -qq && apt-get install -y --no-install-recommends \
-      build-essential git curl wget jq pkg-config python3-pip xz-utils ca-certificates \
-      libssl-dev libudev-dev bash && \
-    rm -rf /var/lib/apt/lists/*
+RUN mkdir -p /workdir /tmp \
+  && apt-get update -qq \
+  && apt-get upgrade -qq \
+  && apt-get install -y --no-install-recommends \
+  build-essential git curl wget jq pkg-config python3-pip xz-utils ca-certificates \
+  libssl-dev libudev-dev bash software-properties-common \
+  && add-apt-repository 'deb http://deb.debian.org/debian bookworm main' \
+  && apt-get update -qq \
+  && apt-get install -y libc6 libc6-dev \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN rustup component add rustfmt
 
 RUN rustup install 1.78.0 \
   && rustup component add rustfmt clippy --toolchain 1.78.0

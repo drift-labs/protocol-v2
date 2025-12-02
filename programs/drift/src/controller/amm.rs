@@ -29,6 +29,7 @@ use crate::math::{amm, amm_spread, bn, cp_curve, quote_asset::*};
 
 use crate::state::events::CurveRecord;
 use crate::state::oracle::OraclePriceData;
+use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::user::User;
@@ -276,6 +277,7 @@ pub fn update_spreads(
     market.amm.short_spread = short_spread;
 
     let do_reference_price_smooth = {
+        // let val_changed: bool = reference_price_offset != market.amm.reference_price_offset;
         let sign_changed: bool =
             reference_price_offset.signum() != market.amm.reference_price_offset.signum();
 
@@ -291,18 +293,18 @@ pub fn update_spreads(
                 .saturating_sub(market.amm.reference_price_offset.cast::<i128>()?);
             let raw = full_offset_delta
                 .abs()
-                .cast::<i128>()?
-                .min(slots_passed.cast::<i128>()?.safe_mul(1000)?)
-                .cast::<i128>()?
+                .min(slots_passed.cast::<i128>()?.safe_mul(1000_i128)?)
                 .safe_div(10_i128)?
                 .cast::<i32>()?;
 
             full_offset_delta.signum().cast::<i32>()?
-                * (raw.max(10).min(if market.amm.reference_price_offset != 0 {
-                    market.amm.reference_price_offset.abs()
-                } else {
-                    reference_price_offset.abs()
-                }))
+                * (raw
+                    .max(10_i32)
+                    .min(if market.amm.reference_price_offset != 0 {
+                        market.amm.reference_price_offset.abs()
+                    } else {
+                        reference_price_offset.abs()
+                    }))
         };
 
         market.amm.reference_price_offset = market
@@ -498,6 +500,10 @@ fn calculate_revenue_pool_transfer(
     // Calculates the revenue pool transfer amount for a given market state (positive = send to revenue pool, negative = pull from revenue pool)
     // If the AMM budget is above `FEE_POOL_TO_REVENUE_POOL_THRESHOLD` (in surplus), settle fees collected to the revenue pool depending on the health of the AMM state
     // Otherwise, spull from the revenue pool (up to a constraint amount)
+
+    if market.is_operation_paused(PerpOperation::SettleRevPool) {
+        return Ok(0);
+    }
 
     let amm_budget_surplus =
         terminal_state_surplus.saturating_sub(FEE_POOL_TO_REVENUE_POOL_THRESHOLD.cast()?);

@@ -1,7 +1,8 @@
-use crate::{msg, PRICE_PRECISION};
+use crate::msg;
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
+use crate::math::constants::PRICE_PRECISION;
 use crate::math::helpers::{get_proportion_u128, log10_iter};
 use crate::math::safe_math::SafeMath;
 

@@ -13,6 +13,97 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.150.0] - 2025-12-01
+
+### Features
+
+- program: stricter logic for atomic fills [#2042](https://github.com/drift-labs/protocol-v2/pull/2042)
+- program: reset lp fields in update_user_idle [#2018](https://github.com/drift-labs/protocol-v2/pull/2018)
+
+### Fixes
+
+### Breaking
+
+## [2.149.1] - 2025-11-19
+
+### Features
+
+### Fixes
+
+### Breaking
+- program: add DepositRecord::spot_balance_after [#2034](https://github.com/drift-labs/protocol-v2/pull/2034)
+
+## [2.149.0] - 2025-11-19
+
+### Features
+- sdk: allow deposit from external authority directly to drift account
+
+### Fixes
+
+### Breaking
+
+## [2.148.0] - 2025-11-14
+
+### Features
+
+- pyth lazer zero guard [#2023](https://github.com/drift-labs/protocol-v2/pull/2023)
+
+### Fixes
+
+### Breaking
+
+## [2.147.0] - 2025-11-06
+
+### Features
+
+- whitelist ATA program in begin_swap ix [#2021](https://github.com/drift-labs/protocol-v2/pull/2021)
+
+### Fixes
+
+### Breaking
+
+## [2.146.0] - 2025-11-03
+
+### Features
+
+- program: add isolated_position_deposit to signed msg params
+
+### Fixes
+
+### Breaking
+
+## [2.145.1] - 2025-10-20
+
+### Features
+
+### Fixes
+
+- dlp ([#1998](https://github.com/drift-labs/protocol-v2/pull/1998))
+- dlp ([#1999](https://github.com/drift-labs/protocol-v2/pull/1999))
+- dlp ([#2000](https://github.com/drift-labs/protocol-v2/pull/2000))
+
+### Breaking
+
+## [2.145.0] - 2025-10-28
+
+### Features
+
+- dlp ([#1885](https://github.com/drift-labs/protocol-v2/pull/1885))
+
+### Fixes
+
+### Breaking
+
+## [2.144.0] - 2025-10-27
+
+### Features
+
+- program: use-5min-for-target-expiry-price  ([#1967](https://github.com/drift-labs/protocol-v2/pull/1967))
+
+### Fixes
+
+### Breaking
+
 ## [2.143.0] - 2025-10-22
 
 - program: relax filling conditions for low risk orders vs amm ([#1968](https://github.com/drift-labs/protocol-v2/pull/1968))
@@ -106,16 +197,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - program: update referral fee validate rules ([#1843](https://github.com/drift-labs/protocol-v2/pull/1843))
 
 ### Fixes
-
-### Breaking
-
-## [2.135.0] - 2025-08-22
-
-### Features
-
-### Fixes
-
-- program: trigger price use 5min mark price ([#1830](https://github.com/drift-labs/protocol-v2/pull/1830))
 
 ### Breaking
 

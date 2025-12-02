@@ -1,5 +1,4 @@
 use anchor_lang::prelude::*;
-
 pub type DriftResult<T = ()> = std::result::Result<T, ErrorCode>;
 
 #[error_code]
@@ -655,6 +654,46 @@ pub enum ErrorCode {
     CannotRevokeBuilderWithOpenOrders,
     #[msg("Unable to load builder account")]
     UnableToLoadRevenueShareAccount,
+    #[msg("Invalid Constituent")]
+    InvalidConstituent,
+    #[msg("Invalid Amm Constituent Mapping argument")]
+    InvalidAmmConstituentMappingArgument,
+    #[msg("Constituent not found")]
+    ConstituentNotFound,
+    #[msg("Constituent could not load")]
+    ConstituentCouldNotLoad,
+    #[msg("Constituent wrong mutability")]
+    ConstituentWrongMutability,
+    #[msg("Wrong number of constituents passed to instruction")]
+    WrongNumberOfConstituents,
+    #[msg("Insufficient constituent token balance")]
+    InsufficientConstituentTokenBalance,
+    #[msg("Amm Cache data too stale")]
+    AMMCacheStale,
+    #[msg("LP Pool AUM not updated recently")]
+    LpPoolAumDelayed,
+    #[msg("Constituent oracle is stale")]
+    ConstituentOracleStale,
+    #[msg("LP Invariant failed")]
+    LpInvariantFailed,
+    #[msg("Invalid constituent derivative weights")]
+    InvalidConstituentDerivativeWeights,
+    #[msg("Max DLP AUM Breached")]
+    MaxDlpAumBreached,
+    #[msg("Settle Lp Pool Disabled")]
+    SettleLpPoolDisabled,
+    #[msg("Mint/Redeem Lp Pool Disabled")]
+    MintRedeemLpPoolDisabled,
+    #[msg("Settlement amount exceeded")]
+    LpPoolSettleInvariantBreached,
+    #[msg("Invalid constituent operation")]
+    InvalidConstituentOperation,
+    #[msg("Unauthorized for operation")]
+    Unauthorized,
+    #[msg("Invalid Lp Pool Id for Operation")]
+    InvalidLpPoolId,
+    #[msg("MarketIndexNotFoundAmmCache")]
+    MarketIndexNotFoundAmmCache,
     #[msg("Invalid Isolated Perp Market")]
     InvalidIsolatedPerpMarket,
 }

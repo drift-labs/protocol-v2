@@ -10,6 +10,7 @@ use crate::state::revenue_share::{
 };
 use anchor_lang::prelude::*;
 
+use crate::controller;
 use crate::controller::funding::settle_funding_payment;
 use crate::controller::position;
 use crate::controller::position::{
@@ -32,7 +33,9 @@ use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::amm_jit::calculate_amm_jit_liquidity;
 use crate::math::auction::{calculate_auction_params_for_trigger_order, calculate_auction_prices};
 use crate::math::casting::Cast;
-use crate::math::constants::{BASE_PRECISION_U64, PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX};
+use crate::math::constants::{
+    BASE_PRECISION_U64, MARGIN_PRECISION, PERP_DECIMALS, QUOTE_SPOT_MARKET_INDEX,
+};
 use crate::math::fees::{determine_user_fee_tier, ExternalFillFees, FillFees};
 use crate::math::fulfillment::{
     determine_perp_fulfillment_methods, determine_spot_fulfillment_methods,
@@ -81,7 +84,6 @@ use crate::validation;
 use crate::validation::order::{
     validate_order, validate_order_for_force_reduce_only, validate_spot_order,
 };
-use crate::{controller, MARGIN_PRECISION};
 
 #[cfg(test)]
 mod tests;
@@ -3127,8 +3129,9 @@ pub fn trigger_order(
             .historical_oracle_data
             .last_oracle_price_twap,
         perp_market.get_max_confidence_interval_multiplier()?,
-        0,
-        0,
+        perp_market.amm.oracle_slot_delay_override,
+        perp_market.amm.oracle_low_risk_slot_delay_override,
+        None,
     )?;
 
     let is_oracle_valid =
@@ -5446,6 +5449,7 @@ pub fn trigger_spot_order(
         spot_market.get_max_confidence_interval_multiplier()?,
         0,
         0,
+        None,
     )?;
     let strict_oracle_price = StrictOraclePrice {
         current: oracle_price_data.price,

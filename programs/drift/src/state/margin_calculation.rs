@@ -2,6 +2,9 @@ use std::collections::BTreeMap;
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
+use crate::math::constants::{
+    AMM_RESERVE_PRECISION_I128, MARGIN_PRECISION_I128, MARGIN_PRECISION_U128,
+};
 use crate::math::fuel::{calculate_perp_fuel_bonus, calculate_spot_fuel_bonus};
 use crate::math::margin::MarginRequirementType;
 use crate::math::safe_math::SafeMath;
@@ -11,9 +14,7 @@ use crate::state::oracle::StrictOraclePrice;
 use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::SpotMarket;
 use crate::state::user::{PerpPosition, User};
-use crate::{
-    validate, MarketType, AMM_RESERVE_PRECISION_I128, MARGIN_PRECISION_I128, MARGIN_PRECISION_U128,
-};
+use crate::{validate, MarketType};
 use anchor_lang::{prelude::*, solana_program::msg};
 
 #[derive(Clone, Copy, Debug)]

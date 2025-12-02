@@ -54,6 +54,7 @@ export enum PerpOperation {
 	SETTLE_PNL = 8,
 	SETTLE_PNL_WITH_POSITION = 16,
 	LIQUIDATION = 32,
+	SETTLE_REV_POOL = 64,
 }
 
 export enum SpotOperation {
@@ -895,6 +896,7 @@ export type PerpMarketAccount = {
 	protectedMakerDynamicDivisor: number;
 	lastFillPrice: BN;
 
+	lpPoolId: number;
 	lpFeeTransferScalar: number;
 	lpExchangeFeeExcluscionScalar: number;
 	lpStatus: number;
@@ -1138,6 +1140,12 @@ export type PerpPosition = {
 	isolatedPositionScaledBalance: BN;
 	positionFlag: number;
 };
+
+export class PositionFlag {
+	static readonly IsolatedPosition = 1;
+	static readonly BeingLiquidated = 2;
+	static readonly Bankruptcy = 4;
+}
 
 export type UserStatsAccount = {
 	numberOfSubAccounts: number;
@@ -1735,4 +1743,170 @@ export type RevenueShareSettleRecord = {
 	builderTotalReferrerRewards: BN;
 	builderTotalBuilderRewards: BN;
 	builderSubAccountId: number;
+};
+
+export type AddAmmConstituentMappingDatum = {
+	constituentIndex: number;
+	perpMarketIndex: number;
+	weight: BN;
+};
+
+export type AmmConstituentDatum = AddAmmConstituentMappingDatum & {
+	lastSlot: BN;
+};
+
+export type AmmConstituentMapping = {
+	lpPool: PublicKey;
+	bump: number;
+	weights: AmmConstituentDatum[];
+};
+
+export type TargetDatum = {
+	costToTradeBps: number;
+	lastOracleSlot: BN;
+	lastPositionSlot: BN;
+	targetBase: BN;
+};
+
+export type ConstituentTargetBaseAccount = {
+	lpPool: PublicKey;
+	bump: number;
+	targets: TargetDatum[];
+};
+
+export type ConstituentCorrelations = {
+	lpPool: PublicKey;
+	bump: number;
+	correlations: BN[];
+};
+
+export type LPPoolAccount = {
+	lpPoolId: number;
+	pubkey: PublicKey;
+	mint: PublicKey;
+	whitelistMint: PublicKey;
+	constituentTargetBase: PublicKey;
+	constituentCorrelations: PublicKey;
+	maxAum: BN;
+	lastAum: BN;
+	cumulativeQuoteSentToPerpMarkets: BN;
+	cumulativeQuoteReceivedFromPerpMarkets: BN;
+	totalMintRedeemFeesPaid: BN;
+	lastAumSlot: BN;
+	maxSettleQuoteAmount: BN;
+	mintRedeemId: BN;
+	settleId: BN;
+	minMintFee: BN;
+	tokenSupply: BN;
+	volatility: BN;
+	constituents: number;
+	quoteConstituentIndex: number;
+	bump: number;
+	gammaExecution: number;
+	xi: number;
+};
+
+export type ConstituentSpotBalance = {
+	scaledBalance: BN;
+	cumulativeDeposits: BN;
+	marketIndex: number;
+	balanceType: SpotBalanceType;
+};
+
+export type InitializeConstituentParams = {
+	spotMarketIndex: number;
+	decimals: number;
+	maxWeightDeviation: BN;
+	swapFeeMin: BN;
+	swapFeeMax: BN;
+	maxBorrowTokenAmount: BN;
+	oracleStalenessThreshold: BN;
+	costToTrade: number;
+	derivativeWeight: BN;
+	constituentDerivativeIndex?: number;
+	constituentDerivativeDepegThreshold?: BN;
+	constituentCorrelations: BN[];
+	volatility: BN;
+	gammaExecution?: number;
+	gammaInventory?: number;
+	xi?: number;
+};
+
+export enum ConstituentStatus {
+	ACTIVE = 0,
+	REDUCE_ONLY = 1,
+	DECOMMISSIONED = 2,
+}
+export enum ConstituentLpOperation {
+	Swap = 0b00000001,
+	Deposit = 0b00000010,
+	Withdraw = 0b00000100,
+}
+
+export type ConstituentAccount = {
+	pubkey: PublicKey;
+	mint: PublicKey;
+	lpPool: PublicKey;
+	vault: PublicKey;
+	totalSwapFees: BN;
+	spotBalance: ConstituentSpotBalance;
+	lastSpotBalanceTokenAmount: BN;
+	cumulativeSpotInterestAccruedTokenAmount: BN;
+	maxWeightDeviation: BN;
+	swapFeeMin: BN;
+	swapFeeMax: BN;
+	maxBorrowTokenAmount: BN;
+	vaultTokenBalance: BN;
+	lastOraclePrice: BN;
+	lastOracleSlot: BN;
+	oracleStalenessThreshold: BN;
+	flashLoanInitialTokenAmount: BN;
+	nextSwapId: BN;
+	derivativeWeight: BN;
+	volatility: BN;
+	constituentDerivativeDepegThreshold: BN;
+	constituentDerivativeIndex: number;
+	spotMarketIndex: number;
+	constituentIndex: number;
+	decimals: number;
+	bump: number;
+	vaultBump: number;
+	gammaInventory: number;
+	gammaExecution: number;
+	xi: number;
+	status: number;
+	pausedOperations: number;
+};
+
+export type CacheInfo = {
+	oracle: PublicKey;
+	lastFeePoolTokenAmount: BN;
+	lastNetPnlPoolTokenAmount: BN;
+	lastExchangeFees: BN;
+	lastSettleAmmExFees: BN;
+	lastSettleAmmPnl: BN;
+	position: BN;
+	slot: BN;
+	lastSettleAmount: BN;
+	lastSettleSlot: BN;
+	lastSettleTs: BN;
+	quoteOwedFromLpPool: BN;
+	ammInventoryLimit: BN;
+	oraclePrice: BN;
+	oracleSlot: BN;
+	oracleSource: number;
+	oracleValidity: number;
+	lpStatusForPerpMarket: number;
+	ammPositionScalar: number;
+	marketIndex: number;
+};
+
+export type AmmCache = {
+	cache: CacheInfo[];
+};
+
+export type AccountLiquidatableStatus = {
+	canBeLiquidated: boolean;
+	marginRequirement: BN;
+	totalCollateral: BN;
 };
