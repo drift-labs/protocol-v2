@@ -1007,6 +1007,20 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		pythLazerId: 2323,
 		launchTs: 1763677264000,
 	},
+	{
+		symbol: 'USD1',
+		marketIndex: 62,
+		poolId: 0,
+		oracle: new PublicKey('Hk34ANkHfu4LHJhACMNCPNgGbi5ixpom2e3T7oh7EPDG'),
+		oracleSource: OracleSource.PYTH_LAZER_STABLE_COIN,
+		mint: new PublicKey('USD1ttGY1N17NEEHLmELoaybftRBUSErhqYiQzvEmuB'),
+		precision: new BN(10).pow(SIX),
+		precisionExp: SIX,
+		pythFeedId:
+			'0x0a2425d43486780990d8b63543029e20556be51fd756cca584212f4d539611d4',
+		pythLazerId: 604,
+		launchTs: 1764693189000,
+	},
 ];
 
 export const SpotMarkets: { [key in DriftEnv]: SpotMarketConfig[] } = {
