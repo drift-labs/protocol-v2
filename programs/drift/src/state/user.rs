@@ -783,13 +783,6 @@ impl User {
             )?;
         }
 
-        validate!(
-            calculation.meets_margin_requirement(),
-            ErrorCode::InsufficientCollateral,
-            "margin calculation: {:?}",
-            calculation
-        )?;
-
         user_stats.update_fuel_bonus(
             self,
             calculation.fuel_deposits,
