@@ -656,7 +656,7 @@ pub enum ErrorCode {
     #[msg("Unable to load builder account")]
     UnableToLoadRevenueShareAccount,
     #[msg("Invalid Isolated Perp Market")]
-    InvalidIsolatedPerpMarket
+    InvalidIsolatedPerpMarket,
 }
 
 #[macro_export]

@@ -1,9 +1,7 @@
 use std::ops::{Deref, DerefMut};
 
 use crate::msg;
-use crate::state::liquidation_mode::{
-    get_perp_liquidation_mode, LiquidatePerpMode,
-};
+use crate::state::liquidation_mode::{get_perp_liquidation_mode, LiquidatePerpMode};
 use anchor_lang::prelude::*;
 
 use crate::controller::amm::get_fee_pool_tokens;

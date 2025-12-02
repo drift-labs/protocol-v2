@@ -846,7 +846,9 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
         taker.update_perp_position_max_margin_ratio(market_index, max_margin_ratio)?;
     }
 
-    if let Some(isolated_position_deposit) = verified_message_and_signature.isolated_position_deposit {
+    if let Some(isolated_position_deposit) =
+        verified_message_and_signature.isolated_position_deposit
+    {
         spot_market_map.update_writable_spot_market(0)?;
         transfer_isolated_perp_position_deposit(
             taker,
