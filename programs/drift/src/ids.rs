@@ -1,3 +1,6 @@
+use anchor_lang::prelude::Pubkey;
+use solana_program::pubkey;
+
 pub mod pyth_program {
     use solana_program::declare_id;
     #[cfg(feature = "mainnet-beta")]
@@ -136,3 +139,6 @@ pub const WHITELISTED_SWAP_PROGRAMS: &[solana_program::pubkey::Pubkey] = &[
     dflow_mainnet_aggregator_4::id(),
     titan_mainnet_argos_v1::id(),
 ];
+
+pub const WHITELISTED_EXTERNAL_DEPOSITORS: [Pubkey; 1] =
+    [pubkey!("zApVWDs3nSychNnUXSS2czhY78Ycopa15zELrK2gAdM")];

@@ -74,7 +74,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v2
         with:
-          node-version: "20.18.x"
+          node-version: "22.14.x"
           registry-url: "https://registry.npmjs.org"
       - name: Install yarn
         run: yarn
@@ -89,7 +89,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v2
         with:
-          node-version: "20.18.x"
+          node-version: "22.14.x"
           registry-url: "https://registry.npmjs.org"
       - name: Install yarn
         run: yarn
@@ -130,7 +130,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v2
         with:
-          node-version: "20.18.x"
+          node-version: "22.14.x"
           registry-url: "https://registry.npmjs.org"
 
       - name: Setup yarn
@@ -163,7 +163,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v2
         with:
-          node-version: "20.18.x"
+          node-version: "22.14.x"
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
@@ -226,7 +226,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v2
         with:
-          node-version: "20.18.x"
+          node-version: "22.14.x"
           registry-url: "https://registry.npmjs.org"
       - name: Build sdk
         run: yarn
