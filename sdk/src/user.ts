@@ -204,6 +204,7 @@ export class User {
 	}
 
 	public async unsubscribe(): Promise<void> {
+		this.eventEmitter.removeAllListeners();
 		await this.accountSubscriber.unsubscribe();
 		this.isSubscribed = false;
 	}
@@ -352,6 +353,10 @@ export class User {
 		};
 	}
 
+	public isPositionEmpty(position: PerpPosition): boolean {
+		return position.baseAssetAmount.eq(ZERO) && position.openOrders === 0;
+	}
+
 	public getIsolatePerpPositionTokenAmount(perpMarketIndex: number): BN {
 		const perpPosition = this.getPerpPosition(perpMarketIndex);
 		if (!perpPosition) return ZERO;
@@ -485,7 +490,8 @@ export class User {
 		marketIndex: number,
 		collateralBuffer = ZERO,
 		enterHighLeverageMode = undefined,
-		maxMarginRatio = undefined
+		maxMarginRatio = undefined,
+		positionType: 'isolated' | 'cross' = 'cross'
 	): BN {
 		const perpPosition = this.getPerpPositionOrEmpty(marketIndex);
 
@@ -499,10 +505,29 @@ export class User {
 			  )
 			: ZERO;
 
-		const freeCollateral = this.getFreeCollateral(
-			'Initial',
-			enterHighLeverageMode
-		).sub(collateralBuffer);
+		let freeCollateral: BN;
+		if (positionType === 'isolated' && this.isPositionEmpty(perpPosition)) {
+			const {
+				totalAssetValue: quoteSpotMarketAssetValue,
+				totalLiabilityValue: quoteSpotMarketLiabilityValue,
+			} = this.getSpotMarketAssetAndLiabilityValue(
+				perpMarket.quoteSpotMarketIndex,
+				'Initial',
+				undefined,
+				undefined,
+				true
+			);
+
+			freeCollateral = quoteSpotMarketAssetValue.sub(
+				quoteSpotMarketLiabilityValue
+			);
+		} else {
+			freeCollateral = this.getFreeCollateral(
+				'Initial',
+				enterHighLeverageMode,
+				positionType === 'isolated' ? marketIndex : undefined
+			).sub(collateralBuffer);
+		}
 
 		return this.getPerpBuyingPowerFromFreeCollateralAndBaseAssetAmount(
 			marketIndex,
@@ -544,17 +569,15 @@ export class User {
 		enterHighLeverageMode = false,
 		perpMarketIndex?: number
 	): BN {
-		const { totalCollateral, marginRequirement, getIsolatedFreeCollateral } =
-			this.getMarginCalculation(marginCategory, {
-				enteringHighLeverage: enterHighLeverageMode,
-				strict: marginCategory === 'Initial',
-			});
+		const calc = this.getMarginCalculation(marginCategory, {
+			enteringHighLeverage: enterHighLeverageMode,
+			strict: marginCategory === 'Initial',
+		});
 
 		if (perpMarketIndex !== undefined) {
-			return getIsolatedFreeCollateral(perpMarketIndex);
+			return calc.getIsolatedFreeCollateral(perpMarketIndex);
 		} else {
-			const freeCollateral = totalCollateral.sub(marginRequirement);
-			return freeCollateral.gte(ZERO) ? freeCollateral : ZERO;
+			return calc.getCrossFreeCollateral();
 		}
 	}
 
@@ -2752,7 +2775,8 @@ export class User {
 		tradeSide: PositionDirection,
 		isLp = false,
 		enterHighLeverageMode = undefined,
-		maxMarginRatio = undefined
+		maxMarginRatio = undefined,
+		positionType: 'isolated' | 'cross' = 'cross'
 	): { tradeSize: BN; oppositeSideTradeSize: BN } {
 		let tradeSize = ZERO;
 		let oppositeSideTradeSize = ZERO;
@@ -2792,7 +2816,8 @@ export class User {
 			targetMarketIndex,
 			lpBuffer,
 			enterHighLeverageMode,
-			maxMarginRatio
+			maxMarginRatio,
+			positionType
 		);
 
 		if (maxPositionSize.gte(ZERO)) {

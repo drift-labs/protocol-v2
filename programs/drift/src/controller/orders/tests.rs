@@ -13098,7 +13098,7 @@ mod order_is_low_risk_for_amm {
         let mm_oracle_delay = 10i64;
 
         let is_low = order
-            .is_low_risk_for_amm(mm_oracle_delay, clock_slot, false)
+            .is_low_risk_for_amm(mm_oracle_delay, clock_slot, false, true)
             .unwrap();
         assert!(is_low);
     }
@@ -13111,7 +13111,7 @@ mod order_is_low_risk_for_amm {
         let mm_oracle_delay = 11i64;
 
         let is_low = order
-            .is_low_risk_for_amm(mm_oracle_delay, clock_slot, false)
+            .is_low_risk_for_amm(mm_oracle_delay, clock_slot, false, true)
             .unwrap();
         assert!(!is_low);
     }
@@ -13119,7 +13119,9 @@ mod order_is_low_risk_for_amm {
     #[test]
     fn liquidation_always_low_risk() {
         let order = base_perp_order();
-        let is_low = order.is_low_risk_for_amm(0, order.slot, true).unwrap();
+        let is_low = order
+            .is_low_risk_for_amm(0, order.slot, true, true)
+            .unwrap();
         assert!(is_low);
     }
 
@@ -13128,7 +13130,26 @@ mod order_is_low_risk_for_amm {
         let mut order = base_perp_order();
         order.add_bit_flag(OrderBitFlag::SafeTriggerOrder);
 
-        let is_low = order.is_low_risk_for_amm(0, order.slot, false).unwrap();
+        let is_low = order
+            .is_low_risk_for_amm(0, order.slot, false, true)
+            .unwrap();
         assert!(is_low);
+    }
+
+    #[test]
+    fn user_can_skip_auction_duration() {
+        let order = base_perp_order();
+        let clock_slot = 110u64;
+        let mm_oracle_delay = 10i64;
+
+        let is_low = order
+            .is_low_risk_for_amm(mm_oracle_delay, clock_slot, false, true)
+            .unwrap();
+        assert!(is_low);
+
+        let is_low = order
+            .is_low_risk_for_amm(mm_oracle_delay, clock_slot, false, false)
+            .unwrap();
+        assert!(!is_low);
     }
 }
