@@ -146,7 +146,7 @@ pub fn deposit_into_isolated_perp_position<'c: 'info, 'info>(
         market_index: spot_market_index,
         explanation: DepositExplanation::None,
         transfer_user: None,
-        user_token_amount_after: 0,
+        user_token_amount_after: user.get_total_token_amount(&spot_market)?,
         signer: None,
     };
 
@@ -442,7 +442,7 @@ pub fn withdraw_from_isolated_perp_position<'c: 'info, 'info>(
         total_withdraws_after: user.total_withdraws,
         explanation: DepositExplanation::None,
         transfer_user: None,
-        user_token_amount_after: 0,
+        user_token_amount_after: user.get_total_token_amount(&spot_market)?,
         signer: None,
     };
     emit!(deposit_record);

@@ -331,6 +331,26 @@ impl User {
         }
     }
 
+    pub fn get_total_token_amount(&self, spot_market: &SpotMarket) -> DriftResult<i128> {
+        let spot_token_amount = {
+            let spot_position = self.get_spot_position(spot_market.market_index)?;
+            spot_position.get_signed_token_amount(spot_market)?
+        };
+
+        if spot_market.market_index != QUOTE_SPOT_MARKET_INDEX {
+            return Ok(spot_token_amount);
+        }
+
+        let mut perp_token_amount = 0;
+        for perp_position in self.perp_positions.iter() {
+            if perp_position.is_isolated() {
+                perp_token_amount = perp_token_amount.safe_add(perp_position.get_isolated_token_amount(&spot_market)?)?;
+            }
+        }
+
+        spot_token_amount.safe_add(perp_token_amount.cast::<i128>()?)
+    }
+
     pub fn increment_total_deposits(
         &mut self,
         amount: u64,

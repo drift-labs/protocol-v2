@@ -739,7 +739,6 @@ pub fn handle_deposit<'c: 'info, 'info>(
         None,
     )?;
 
-    let user_token_amount_after = spot_position.get_signed_token_amount(&spot_market)?;
     let token_amount = spot_position.get_token_amount(&spot_market)?;
     if token_amount == 0 {
         validate!(
@@ -814,6 +813,7 @@ pub fn handle_deposit<'c: 'info, 'info>(
     } else {
         None
     };
+    let user_token_amount_after = user.get_total_token_amount(&spot_market)?;
     let deposit_record = DepositRecord {
         ts: now,
         deposit_record_id,
@@ -989,9 +989,7 @@ pub fn handle_withdraw<'c: 'info, 'info>(
         explanation: deposit_explanation,
         transfer_user: None,
         signer: None,
-        user_token_amount_after: user
-            .force_get_spot_position_mut(market_index)?
-            .get_signed_token_amount(&spot_market)?,
+        user_token_amount_after: user.get_total_token_amount(&spot_market)?,
     };
     emit!(deposit_record);
 
@@ -1163,9 +1161,7 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(to_user_key),
             signer: None,
-            user_token_amount_after: from_user
-                .force_get_spot_position_mut(market_index)?
-                .get_signed_token_amount(spot_market)?,
+            user_token_amount_after: from_user.get_total_token_amount(&spot_market)?,
         };
         emit!(deposit_record);
     }
@@ -1190,27 +1186,31 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
         let total_deposits_after = to_user.total_deposits;
         let total_withdraws_after = to_user.total_withdraws;
 
-        let to_spot_position = to_user.force_get_spot_position_mut(spot_market.market_index)?;
+        {
+            let to_spot_position = to_user.force_get_spot_position_mut(spot_market.market_index)?;
 
-        controller::spot_position::update_spot_balances_and_cumulative_deposits(
-            amount as u128,
-            &SpotBalanceType::Deposit,
-            spot_market,
-            to_spot_position,
-            false,
-            None,
-        )?;
-
-        let token_amount = to_spot_position.get_token_amount(spot_market)?;
-        if token_amount == 0 {
-            validate!(
-                to_spot_position.scaled_balance == 0,
-                ErrorCode::InvalidSpotPosition,
-                "deposit left to_user with invalid position. scaled balance = {} token amount = {}",
-                to_spot_position.scaled_balance,
-                token_amount
+            controller::spot_position::update_spot_balances_and_cumulative_deposits(
+                amount as u128,
+                &SpotBalanceType::Deposit,
+                spot_market,
+                to_spot_position,
+                false,
+                None,
             )?;
+    
+            let token_amount = to_spot_position.get_token_amount(spot_market)?;
+            if token_amount == 0 {
+                validate!(
+                    to_spot_position.scaled_balance == 0,
+                    ErrorCode::InvalidSpotPosition,
+                    "deposit left to_user with invalid position. scaled balance = {} token amount = {}",
+                    to_spot_position.scaled_balance,
+                    token_amount
+                )?;
+            }
         }
+
+        let user_token_amount_after = to_user.get_total_token_amount(&spot_market)?;
 
         let deposit_record_id = get_then_update_id!(spot_market, next_deposit_record_id);
         let deposit_record = DepositRecord {
@@ -1231,7 +1231,7 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(from_user_key),
             signer: None,
-            user_token_amount_after: to_spot_position.get_signed_token_amount(spot_market)?,
+            user_token_amount_after,
         };
         emit!(deposit_record);
     }
@@ -1445,9 +1445,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(to_user_key),
             signer: None,
-            user_token_amount_after: from_user
-                .force_get_spot_position_mut(deposit_from_market_index)?
-                .get_signed_token_amount(&deposit_from_spot_market)?,
+            user_token_amount_after: from_user.get_total_token_amount(&deposit_from_spot_market)?,
         };
         emit!(deposit_record);
 
@@ -1483,9 +1481,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(from_user_key),
             signer: None,
-            user_token_amount_after: to_user
-                .force_get_spot_position_mut(deposit_to_market_index)?
-                .get_signed_token_amount(&deposit_to_spot_market)?,
+            user_token_amount_after: to_user.get_total_token_amount(&deposit_to_spot_market)?,
         };
         emit!(deposit_record);
     }
@@ -1553,9 +1549,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(to_user_key),
             signer: None,
-            user_token_amount_after: from_user
-                .force_get_spot_position_mut(borrow_from_market_index)?
-                .get_signed_token_amount(&borrow_from_spot_market)?,
+            user_token_amount_after: from_user.get_total_token_amount(&borrow_from_spot_market)?,
         };
         emit!(deposit_record);
 
@@ -1591,9 +1585,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(from_user_key),
             signer: None,
-            user_token_amount_after: to_user
-                .force_get_spot_position_mut(borrow_to_market_index)?
-                .get_signed_token_amount(&borrow_to_spot_market)?,
+            user_token_amount_after: to_user.get_total_token_amount(&borrow_to_spot_market)?,
         };
         emit!(deposit_record);
     }
