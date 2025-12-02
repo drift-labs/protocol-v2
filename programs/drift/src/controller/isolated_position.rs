@@ -230,7 +230,7 @@ pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
         drop(spot_market);
 
         if let Some(user_stats) = user_stats {
-            user.meets_withdraw_margin_requirement_and_increment_fuel_bonus(
+            user.meets_transfer_isolated_position_deposit_margin_requirement(
                 &perp_market_map,
                 &spot_market_map,
                 oracle_map,
@@ -239,16 +239,14 @@ pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
                 amount as u128,
                 user_stats,
                 now,
+                true,
+                perp_market_index,
             )?;
 
             validate_spot_margin_trading(user, &perp_market_map, &spot_market_map, oracle_map)?;
 
             if user.is_cross_margin_being_liquidated() {
                 user.exit_cross_margin_liquidation();
-            }
-
-            if user.is_isolated_margin_being_liquidated(perp_market_index)? {
-                user.exit_isolated_margin_liquidation(perp_market_index)?;
             }
         } else {
             msg!("Cant transfer isolated position deposit without user stats");
@@ -296,7 +294,7 @@ pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
         drop(spot_market);
 
         if let Some(user_stats) = user_stats {
-            user.meets_withdraw_margin_requirement_and_increment_fuel_bonus(
+            user.meets_transfer_isolated_position_deposit_margin_requirement(
                 &perp_market_map,
                 &spot_market_map,
                 oracle_map,
@@ -305,14 +303,12 @@ pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
                 0,
                 user_stats,
                 now,
+                false,
+                perp_market_index,
             )?;
 
             if user.is_isolated_margin_being_liquidated(perp_market_index)? {
                 user.exit_isolated_margin_liquidation(perp_market_index)?;
-            }
-
-            if user.is_cross_margin_being_liquidated() {
-                user.exit_cross_margin_liquidation();
             }
         } else {
             if let Ok(_) = get_position_index(&user.perp_positions, perp_market_index) {

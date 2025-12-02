@@ -729,6 +729,78 @@ impl User {
         Ok(true)
     }
 
+    pub fn meets_transfer_isolated_position_deposit_margin_requirement(
+        &mut self,
+        perp_market_map: &PerpMarketMap,
+        spot_market_map: &SpotMarketMap,
+        oracle_map: &mut OracleMap,
+        margin_requirement_type: MarginRequirementType,
+        withdraw_market_index: u16,
+        withdraw_amount: u128,
+        user_stats: &mut UserStats,
+        now: i64,
+        to_isolated_position: bool,
+        isolated_market_index: u16,
+    ) -> DriftResult<bool> {
+        let strict = margin_requirement_type == MarginRequirementType::Initial;
+        let context = MarginContext::standard(margin_requirement_type)
+            .strict(strict)
+            .ignore_invalid_deposit_oracles(true)
+            .fuel_spot_delta(withdraw_market_index, withdraw_amount.cast::<i128>()?)
+            .fuel_numerator(self, now);
+
+        let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            self,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            context,
+        )?;
+
+        if calculation.margin_requirement > 0 || calculation.get_num_of_liabilities()? > 0 {
+            validate!(
+                calculation.all_liability_oracles_valid,
+                ErrorCode::InvalidOracle,
+                "User attempting to withdraw with outstanding liabilities when an oracle is invalid"
+            )?;
+        }
+
+        validate_any_isolated_tier_requirements(self, &calculation)?;
+
+        if to_isolated_position {
+            validate!(
+                calculation.meets_cross_margin_requirement(),
+                ErrorCode::InsufficientCollateral,
+                "margin calculation: {:?}",
+                calculation
+            )?;
+        } else {
+            validate!(
+                calculation.meets_isolated_margin_requirement(isolated_market_index)?,
+                ErrorCode::InsufficientCollateral,
+                "margin calculation: {:?}",
+                calculation
+            )?;
+        }
+
+        validate!(
+            calculation.meets_margin_requirement(),
+            ErrorCode::InsufficientCollateral,
+            "margin calculation: {:?}",
+            calculation
+        )?;
+
+        user_stats.update_fuel_bonus(
+            self,
+            calculation.fuel_deposits,
+            calculation.fuel_borrows,
+            calculation.fuel_positions,
+            now,
+        )?;
+
+        Ok(true)
+    }
+
     pub fn can_skip_auction_duration(&self, user_stats: &UserStats) -> DriftResult<bool> {
         if user_stats.disable_update_perp_bid_ask_twap {
             return Ok(false);
