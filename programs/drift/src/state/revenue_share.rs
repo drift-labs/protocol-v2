@@ -2,7 +2,7 @@ use std::cell::{Ref, RefMut};
 
 use anchor_lang::prelude::{
     account,
-    borsh::{BorshDeserialize, BorshSerialize},
+    borsh::{self, BorshDeserialize, BorshSerialize},
     zero_copy, AccountInfo, AnchorDeserialize, AnchorSerialize, Discriminator, Pubkey,
 };
 
@@ -16,7 +16,7 @@ use crate::{msg, ID};
 pub const REVENUE_SHARE_PDA_SEED: &str = "REV_SHARE";
 pub const REVENUE_SHARE_ESCROW_PDA_SEED: &str = "REV_ESCROW";
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum RevenueShareOrderBitFlag {
     #[default]
     Init = 0b00000000,

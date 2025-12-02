@@ -3,7 +3,7 @@
 #![allow(clippy::bool_assert_comparison)]
 #![allow(clippy::comparison_chain)]
 
-use anchor_lang::prelude::{borsh::BorshDeserialize, *};
+use anchor_lang::prelude::*;
 
 use instructions::*;
 #[cfg(test)]

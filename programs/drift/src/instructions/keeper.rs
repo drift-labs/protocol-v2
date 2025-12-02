@@ -3657,7 +3657,7 @@ pub struct SettleAmmPnlToLp<'info> {
     #[account(
         mut,
         owner = crate::ID,
-        seeds = [CONSTITUENT_PDA_SEED.as_ref(), lp_pool.key().as_ref(), QUOTE_SPOT_MARKET_INDEX.to_le_bytes().as_ref()],
+        seeds = [CONSTITUENT_PDA_SEED.as_bytes(), lp_pool.key().as_ref(), QUOTE_SPOT_MARKET_INDEX.to_le_bytes().as_ref()],
         bump = constituent.load()?.bump,
         constraint = constituent.load()?.mint.eq(&quote_market.load()?.mint)
     )]
@@ -3826,7 +3826,7 @@ pub struct PlaceSignedMsgTakerOrder<'info> {
     pub user_stats: AccountLoader<'info, UserStats>,
     #[account(
         mut,
-        seeds = [SIGNED_MSG_PDA_SEED.as_ref(), user.load()?.authority.as_ref()],
+        seeds = [SIGNED_MSG_PDA_SEED.as_bytes(), user.load()?.authority.as_ref()],
         bump,
     )]
     /// CHECK: checked in SignedMsgUserOrdersZeroCopy checks

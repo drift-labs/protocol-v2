@@ -2,8 +2,7 @@
 mod signed_msg_order_id_eviction {
     use std::cell::RefCell;
 
-    use anchor_lang::prelude::Pubkey;
-    use borsh::BorshSerialize;
+    use anchor_lang::prelude::{AnchorSerialize, Pubkey};
 
     use crate::{
         error::ErrorCode,
@@ -142,8 +141,10 @@ mod zero_copy {
     use crate::test_utils::create_account_info;
     use crate::ID;
 
-    use anchor_lang::{prelude::Pubkey, Discriminator};
-    use borsh::BorshSerialize;
+    use anchor_lang::{
+        prelude::{AnchorSerialize, Pubkey},
+        Discriminator,
+    };
 
     use crate::{
         error::ErrorCode,

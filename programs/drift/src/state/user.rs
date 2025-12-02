@@ -29,7 +29,7 @@ use crate::state::traits::Size;
 use crate::validate;
 use crate::{get_then_update_id, ID};
 use anchor_lang::prelude::{
-    borsh::{BorshDeserialize, BorshSerialize},
+    borsh::{self, BorshDeserialize, BorshSerialize},
     *,
 };
 use bytemuck::{Pod, Zeroable};
@@ -52,7 +52,7 @@ use crate::state::spot_market_map::SpotMarketMap;
 #[cfg(test)]
 mod tests;
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]
 pub enum UserStatus {
     // Active = 0
     BeingLiquidated = 0b00000001,
@@ -1193,7 +1193,7 @@ impl PerpPosition {
 
 #[zero_copy(unsafe)]
 #[repr(C)]
-#[derive(AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub struct Order {
     /// The slot the order was placed
     pub slot: u64,
@@ -1260,7 +1260,7 @@ pub struct Order {
     pub padding: [u8; 1],
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Debug)]
 pub enum AssetType {
     Base,
     Quote,
@@ -1584,7 +1584,7 @@ impl Default for Order {
     }
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Debug)]
 pub enum OrderStatus {
     /// The order is not in use
     Init,
@@ -1596,7 +1596,7 @@ pub enum OrderStatus {
     Canceled,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum OrderType {
     Market,
     #[default]
@@ -1607,7 +1607,7 @@ pub enum OrderType {
     Oracle,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum OrderTriggerCondition {
     #[default]
     Above,
@@ -1616,7 +1616,7 @@ pub enum OrderTriggerCondition {
     TriggeredBelow, // below condition has been triggered
 }
 
-#[derive(Default, Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Default, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]
 pub enum MarketType {
     #[default]
     Spot,
@@ -1635,7 +1635,7 @@ impl fmt::Display for MarketType {
 unsafe impl Zeroable for MarketType {}
 unsafe impl Pod for MarketType {}
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]
 pub enum OrderBitFlag {
     SignedMessage = 0b00000001,
     OracleTriggerMarket = 0b00000010,
@@ -1713,7 +1713,7 @@ pub struct UserStats {
     pub padding: [u8; 12],
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]
 #[repr(u8)]
 pub enum ReferrerStatus {
     IsReferrer = 0b00000001,
@@ -2070,7 +2070,7 @@ impl Size for ReferrerName {
     const SIZE: usize = 136;
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum MarginMode {
     #[default]
     Default,
@@ -2078,7 +2078,7 @@ pub enum MarginMode {
     HighLeverageMaintenance,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]
 #[repr(u8)]
 pub enum FuelOverflowStatus {
     Exists = 0b00000001,

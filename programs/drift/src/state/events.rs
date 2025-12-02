@@ -1,7 +1,4 @@
-use anchor_lang::prelude::{
-    borsh::{BorshDeserialize, BorshSerialize},
-    *,
-};
+use anchor_lang::prelude::*;
 
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode::InvalidOrder};
@@ -55,7 +52,7 @@ pub struct DepositRecord {
     pub transfer_user: Option<Pubkey>,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Default)]
 pub enum DepositExplanation {
     #[default]
     None,
@@ -85,7 +82,7 @@ pub struct SpotInterestRecord {
     pub max_borrow_rate: u32,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Default)]
 pub enum DepositDirection {
     #[default]
     Deposit,
@@ -355,7 +352,7 @@ pub fn get_order_action_record(
     })
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Default)]
 pub enum OrderAction {
     #[default]
     Place,
@@ -365,7 +362,7 @@ pub enum OrderAction {
     Expire,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq)]
 pub enum OrderActionExplanation {
     None,
     InsufficientFreeCollateral,
@@ -408,7 +405,7 @@ pub struct LPRecord {
     pub pnl: i64,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Default)]
 pub enum LPAction {
     #[default]
     AddLiquidity,
@@ -442,7 +439,7 @@ pub struct LiquidationRecord {
     pub spot_bankruptcy: SpotBankruptcyRecord,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Default)]
 pub enum LiquidationType {
     #[default]
     LiquidatePerp,
@@ -535,7 +532,7 @@ pub struct SettlePnlRecord {
     pub explanation: SettlePnlExplanation,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Default)]
 pub enum SettlePnlExplanation {
     #[default]
     None,
@@ -582,7 +579,7 @@ pub struct InsuranceFundStakeRecord {
     pub total_if_shares_after: u128,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Default)]
 pub enum StakeAction {
     #[default]
     Stake,

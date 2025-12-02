@@ -1,5 +1,10 @@
 use crate::{msg, FeatureBitFlags};
-use anchor_lang::prelude::{borsh::BorshDeserialize, *};
+use anchor_lang::prelude::*;
+use anchor_spl::token_2022::spl_token_2022::extension::transfer_hook::TransferHook;
+use anchor_spl::token_2022::spl_token_2022::extension::{
+    BaseStateWithExtensions, StateWithExtensions,
+};
+use anchor_spl::token_2022::spl_token_2022::state::Mint as MintInner;
 use anchor_spl::token_2022::Token2022;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use phoenix::quantities::WrapperU64;
@@ -84,12 +89,6 @@ use crate::validation::perp_market::validate_perp_market;
 use crate::validation::spot_market::validate_borrow_rate;
 use crate::{load_mut, PTYH_PRICE_FEED_SEED_PREFIX};
 use crate::{math, safe_decrement, safe_increment};
-
-use anchor_spl::token_2022::spl_token_2022::extension::transfer_hook::TransferHook;
-use anchor_spl::token_2022::spl_token_2022::extension::{
-    BaseStateWithExtensions, StateWithExtensions,
-};
-use anchor_spl::token_2022::spl_token_2022::state::Mint as MintInner;
 
 pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
     let (drift_signer, drift_signer_nonce) =
@@ -5491,7 +5490,7 @@ pub struct InitializeAmmCache<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         init,
-        seeds = [AMM_POSITIONS_CACHE.as_ref()],
+        seeds = [AMM_POSITIONS_CACHE.as_bytes()],
         space = AmmCache::init_space(),
         bump,
         payer = admin
@@ -5511,7 +5510,7 @@ pub struct AddMarketToAmmCache<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         mut,
-        seeds = [AMM_POSITIONS_CACHE.as_ref()],
+        seeds = [AMM_POSITIONS_CACHE.as_bytes()],
         bump,
         realloc = AmmCache::space(amm_cache.cache.len() + 1),
         realloc::payer = admin,
@@ -5533,7 +5532,7 @@ pub struct DeleteAmmCache<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         mut,
-        seeds = [AMM_POSITIONS_CACHE.as_ref()],
+        seeds = [AMM_POSITIONS_CACHE.as_bytes()],
         bump,
         close = admin,
     )]
@@ -5788,7 +5787,7 @@ pub struct AdminUpdatePerpMarketOracle<'info> {
     pub old_oracle: AccountInfo<'info>,
     #[account(
         mut,
-        seeds = [AMM_POSITIONS_CACHE.as_ref()],
+        seeds = [AMM_POSITIONS_CACHE.as_bytes()],
         bump = amm_cache.bump,
     )]
     pub amm_cache: Box<Account<'info, AmmCache>>,

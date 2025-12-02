@@ -1,12 +1,15 @@
 use crate::error::{DriftResult, ErrorCode};
 use crate::msg;
-use anchor_lang::prelude::{borsh::BorshDeserialize, borsh::BorshSerialize};
+use anchor_lang::prelude::{
+    borsh::{self},
+    AnchorDeserialize, AnchorSerialize,
+};
 use std::panic::Location;
 
 #[cfg(test)]
 mod tests;
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]
 pub enum SettlePnlMode {
     MustSettle,
     TrySettle,

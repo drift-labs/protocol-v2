@@ -16,7 +16,10 @@ use crate::state::zero_copy::{AccountZeroCopy, AccountZeroCopyMut};
 use crate::OracleSource;
 use crate::{impl_zero_copy_loader, OracleGuardRails};
 
-use anchor_lang::prelude::*;
+use anchor_lang::prelude::{
+    borsh::{self, BorshDeserialize, BorshSerialize},
+    *,
+};
 
 use super::user::MarketType;
 
@@ -32,7 +35,7 @@ pub struct AmmCache {
 }
 
 #[zero_copy]
-#[derive(AnchorSerialize, AnchorDeserialize, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Debug)]
 #[repr(C)]
 pub struct CacheInfo {
     pub oracle: Pubkey,

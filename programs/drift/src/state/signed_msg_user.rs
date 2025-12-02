@@ -4,11 +4,14 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::msg;
 use crate::{validate, ID};
-use anchor_lang::prelude::Pubkey;
-use anchor_lang::*;
-use anchor_lang::{account, zero_copy};
-use borsh::{BorshDeserialize, BorshSerialize};
-use prelude::AccountInfo;
+use anchor_lang::{
+    account,
+    prelude::{
+        borsh::{self, BorshDeserialize, BorshSerialize},
+        AccountInfo, AnchorDeserialize, AnchorSerialize, Discriminator, Pubkey,
+    },
+    zero_copy,
+};
 
 use crate::state::traits::Size;
 

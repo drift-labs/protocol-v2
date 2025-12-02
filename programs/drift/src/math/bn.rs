@@ -14,7 +14,10 @@ use crate::error::DriftResult;
 
 pub mod compat {
     #![allow(non_camel_case_types)]
-    use anchor_lang::prelude::borsh::{BorshDeserialize, BorshSerialize};
+    use anchor_lang::prelude::{
+        borsh::{self},
+        AnchorDeserialize, AnchorSerialize,
+    };
     use bytemuck::{Pod, Zeroable};
     use std::{
         cmp::Ordering,
@@ -25,7 +28,7 @@ pub mod compat {
     use crate::{error::DriftResult, math::casting::Cast};
 
     /// `u128` with legacy bit layout
-    #[derive(Copy, Clone, PartialEq, Eq, Debug, Default, BorshSerialize, BorshDeserialize)]
+    #[derive(Copy, Clone, PartialEq, Eq, Debug, Default, AnchorSerialize, AnchorDeserialize)]
     pub struct u128([u8; 16]);
 
     impl std::fmt::Display for self::u128 {
@@ -152,7 +155,7 @@ pub mod compat {
     }
 
     /// `i128` with legacy bit layout
-    #[derive(Copy, Clone, PartialEq, Eq, Debug, Default, BorshSerialize, BorshDeserialize)]
+    #[derive(Copy, Clone, PartialEq, Eq, Debug, Default, AnchorSerialize, AnchorDeserialize)]
     pub struct i128([u8; 16]);
 
     impl std::fmt::Display for self::i128 {

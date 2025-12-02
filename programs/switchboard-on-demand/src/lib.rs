@@ -16,7 +16,7 @@ pub mod switchboard_on_demand {}
 pub const SB_ON_DEMAND_PRECISION: u32 = 18;
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable, AnchorSerialize)]
 pub struct CompactResult {
     pub std_dev: f32,
     pub mean: f32,
@@ -24,7 +24,7 @@ pub struct CompactResult {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable, AnchorSerialize)]
 pub struct CurrentResult {
     /// The median value of the submissions needed for quorum size
     value: [u8; 16],
@@ -122,7 +122,7 @@ impl CurrentResult {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable, AnchorSerialize)]
 pub struct OracleSubmission {
     /// The public key of the oracle that submitted this value.
     pub oracle: Pubkey,
