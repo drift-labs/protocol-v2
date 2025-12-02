@@ -17,7 +17,7 @@ use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::OracleGuardRails;
 use crate::state::traits::Size;
 use crate::state::user::{User, UserStats};
-use crate::{load, load_mut, msg};
+use crate::msg;
 use crate::{validate, OracleSource};
 use anchor_lang::accounts::account::Account;
 use anchor_lang::prelude::{AccountInfo, Interface, Pubkey};

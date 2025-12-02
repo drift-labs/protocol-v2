@@ -84,11 +84,11 @@ pub fn calc_high_leverage_mode_initial_margin_ratio_from_size(
 ) -> DriftResult<u32> {
     let result = if size_adj_margin_ratio < pre_size_adj_margin_ratio {
         let size_pct_discount_factor = PERCENTAGE_PRECISION.saturating_sub(
-            (pre_size_adj_margin_ratio
+            pre_size_adj_margin_ratio
                 .cast::<u128>()?
                 .safe_sub(size_adj_margin_ratio.cast::<u128>()?)?
                 .safe_mul(PERCENTAGE_PRECISION)?
-                .safe_div((pre_size_adj_margin_ratio.safe_div(5)?).cast::<u128>()?)?),
+                .safe_div((pre_size_adj_margin_ratio.safe_div(5)?).cast::<u128>()?)?,
         );
 
         let hlm_margin_delta = pre_size_adj_margin_ratio

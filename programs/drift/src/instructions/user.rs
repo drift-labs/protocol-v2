@@ -16,7 +16,6 @@ use crate::controller::orders::{cancel_orders, ModifyOrderId};
 use crate::controller::position::update_position_and_market;
 use crate::controller::position::PositionDirection;
 use crate::controller::spot_balance::update_revenue_pool_balances;
-use crate::controller::spot_balance::update_spot_balances;
 use crate::controller::spot_position::{
     update_spot_balances_and_cumulative_deposits,
     update_spot_balances_and_cumulative_deposits_with_limits,
@@ -35,7 +34,6 @@ use crate::instructions::optional_accounts::{
 use crate::instructions::SpotFulfillmentType;
 use crate::math::casting::Cast;
 use crate::math::liquidation::is_cross_margin_being_liquidated;
-use crate::math::liquidation::is_isolated_margin_being_liquidated;
 use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_liability_info;
 use crate::math::margin::meets_initial_margin_requirement;
 use crate::math::margin::{
@@ -1914,7 +1912,7 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         )
     };
 
-    let mut from_user_margin_context = MarginContext::standard(MarginRequirementType::Maintenance)
+    let from_user_margin_context = MarginContext::standard(MarginRequirementType::Maintenance)
         .fuel_perp_delta(market_index, transfer_amount);
 
     let from_user_margin_calculation =
@@ -1932,7 +1930,7 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         "from user margin requirement is greater than total collateral"
     )?;
 
-    let mut to_user_margin_context = MarginContext::standard(MarginRequirementType::Initial)
+    let to_user_margin_context = MarginContext::standard(MarginRequirementType::Initial)
         .fuel_perp_delta(market_index, -transfer_amount);
 
     let to_user_margin_requirement =
@@ -2136,9 +2134,6 @@ pub fn handle_transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
     perp_market_index: u16,
     amount: i64,
 ) -> anchor_lang::Result<()> {
-    let authority_key = ctx.accounts.authority.key;
-    let user_key = ctx.accounts.user.key();
-
     let state = &ctx.accounts.state;
     let clock = Clock::get()?;
     let slot = clock.slot;

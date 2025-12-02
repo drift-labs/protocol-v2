@@ -2,7 +2,7 @@ use std::ops::{Deref, DerefMut};
 
 use crate::msg;
 use crate::state::liquidation_mode::{
-    get_perp_liquidation_mode, CrossMarginLiquidatePerpMode, LiquidatePerpMode,
+    get_perp_liquidation_mode, LiquidatePerpMode,
 };
 use anchor_lang::prelude::*;
 
@@ -40,7 +40,7 @@ use crate::math::liquidation::{
 };
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral_and_liability_info,
-    calculate_user_safest_position_tiers, meets_initial_margin_requirement, MarginRequirementType,
+    meets_initial_margin_requirement, MarginRequirementType,
 };
 use crate::math::oracle::DriftAction;
 use crate::math::orders::{

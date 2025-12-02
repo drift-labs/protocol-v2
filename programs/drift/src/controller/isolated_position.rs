@@ -1,5 +1,3 @@
-use std::cell::RefMut;
-
 use crate::controller;
 use crate::controller::spot_balance::update_spot_balances;
 use crate::controller::spot_position::update_spot_balances_and_cumulative_deposits;

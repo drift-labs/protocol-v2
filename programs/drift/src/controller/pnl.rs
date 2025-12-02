@@ -1,6 +1,5 @@
 use crate::controller::amm::{update_pnl_pool_and_user_balance, update_pool_balances};
 use crate::controller::funding::settle_funding_payment;
-use crate::controller::isolated_position::transfer_isolated_perp_position_deposit;
 use crate::controller::orders::{cancel_orders, validate_market_within_price_band};
 use crate::controller::position::{
     get_position_index, update_position_and_market, update_quote_asset_amount,
@@ -32,7 +31,7 @@ use crate::state::settle_pnl_mode::SettlePnlMode;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::state::State;
-use crate::state::user::{MarketType, User, UserStats};
+use crate::state::user::{MarketType, User};
 use crate::validate;
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::prelude::*;

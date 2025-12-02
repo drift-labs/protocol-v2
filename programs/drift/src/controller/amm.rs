@@ -31,7 +31,7 @@ use crate::state::events::CurveRecord;
 use crate::state::oracle::OraclePriceData;
 use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
-use crate::state::user::{SpotPosition, User};
+use crate::state::user::User;
 use crate::validate;
 
 #[cfg(test)]

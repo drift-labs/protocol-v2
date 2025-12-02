@@ -305,7 +305,7 @@ impl LiquidatePerpMode for IsolatedMarginLiquidatePerpMode {
         Ok(LIQUIDATION_PCT_PRECISION)
     }
 
-    fn increment_free_margin(&self, user: &mut User, amount: u64) -> DriftResult<()> {
+    fn increment_free_margin(&self, _user: &mut User, _amount: u64) -> DriftResult<()> {
         Ok(())
     }
 
