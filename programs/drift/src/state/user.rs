@@ -627,7 +627,7 @@ impl User {
             UserStatsPausedOperations::AmmAtomicRiskIncreasingFill,
         );
 
-        if atomic_fill_paused || (atomic_risk_increasing_fill_paused && reduce_only_order) {
+        if atomic_fill_paused || (atomic_risk_increasing_fill_paused && !reduce_only_order) {
             return Ok(false);
         }
 
