@@ -20,8 +20,8 @@ idl-build = [
   "anchor-lang/idl-build",
   "anchor-spl/idl-build",
   "openbook-v2-light/idl-build",
-  "switchboard-on-demand/idl-build",
-  "pythnet-sdk/idl-build"
+  "pythnet-sdk/idl-build",
+  "switchboard-on-demand/idl-build"
 ]
 
 [dependencies]
