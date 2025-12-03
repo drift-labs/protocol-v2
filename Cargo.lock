@@ -1422,6 +1422,7 @@ checksum = "44de48029c54ec1ca570786b5baeb906b0fc2409c8e0145585e287ee7a526c72"
 [[package]]
 name = "pyth-lazer-protocol"
 version = "0.1.2"
+source = "git+https://github.com/jordy25519/pyth-crosschain#e43b2765edf680a52f1649ae57024d63ef645443"
 dependencies = [
  "anyhow",
  "byteorder",
@@ -1434,6 +1435,7 @@ dependencies = [
 [[package]]
 name = "pyth-lazer-solana-contract"
 version = "0.2.0"
+source = "git+https://github.com/jordy25519/pyth-crosschain#e43b2765edf680a52f1649ae57024d63ef645443"
 dependencies = [
  "anchor-lang",
  "bytemuck",
@@ -1446,6 +1448,7 @@ dependencies = [
 [[package]]
 name = "pyth-solana-receiver-sdk"
 version = "0.3.0"
+source = "git+https://github.com/jordy25519/pyth-crosschain#e43b2765edf680a52f1649ae57024d63ef645443"
 dependencies = [
  "anchor-lang",
  "hex",
@@ -1456,6 +1459,7 @@ dependencies = [
 [[package]]
 name = "pythnet-sdk"
 version = "2.1.0"
+source = "git+https://github.com/jordy25519/pyth-crosschain#e43b2765edf680a52f1649ae57024d63ef645443"
 dependencies = [
  "anchor-lang",
  "bincode",

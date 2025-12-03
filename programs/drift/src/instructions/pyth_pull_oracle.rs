@@ -209,7 +209,9 @@ pub fn get_timestamp_from_price_feed_account(price_feed_account: &AccountInfo) -
     }
 }
 
-pub fn get_timestamp_from_price_update_message(update_message: &PrefixedVec<u8>) -> Result<i64> {
+pub fn get_timestamp_from_price_update_message(
+    update_message: &PrefixedVec<u16, u8>,
+) -> Result<i64> {
     let message = from_slice::<byteorder::BE, Message>(update_message.as_ref())
         .map_err(|_| ErrorCode::OracleDeserializeMessageFailed)?;
     let next_timestamp = match message {

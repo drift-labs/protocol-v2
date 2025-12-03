@@ -19,11 +19,9 @@ drift-rs = []
 idl-build = [
   "anchor-lang/idl-build",
   "anchor-spl/idl-build",
-  "pyth-lazer-solana-contract/idl-build",
-  "pythnet-sdk/idl-build",
-  "pythnet-sdk/idl-build",
+  "openbook-v2-light/idl-build",
   "switchboard-on-demand/idl-build",
-  "openbook-v2-light/idl-build"
+  "pythnet-sdk/idl-build"
 ]
 
 [dependencies]
@@ -31,9 +29,9 @@ anchor-lang = "0.32.1"
 anchor-spl = { version = "0.32.1", features = ["idl-build"] }
 solana-program = "=2.2.1"
 pyth-client = "0.2.2"
-pyth-lazer-solana-contract = { path = "../../../pyth-crosschain/lazer/contracts/solana/programs/pyth-lazer-solana-contract", features = ["no-entrypoint"]}
-pyth-solana-receiver-sdk = { path = "../../../pyth-crosschain/target_chains/solana/pyth_solana_receiver_sdk" }
-pythnet-sdk = { path = "../../../pyth-crosschain/pythnet/pythnet_sdk" }
+pyth-lazer-solana-contract = { git = "https://github.com/jordy25519/pyth-crosschain", features = ["no-entrypoint"]}
+pyth-solana-receiver-sdk = { git = "https://github.com/jordy25519/pyth-crosschain" }
+pythnet-sdk = { git = "https://github.com/jordy25519/pyth-crosschain" }
 bytemuck = "1.4.0"
 hex = "0.4.3"
 uint = { version = "0.9.1", default-features = false }
