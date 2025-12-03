@@ -1134,7 +1134,6 @@ export type PerpPosition = {
 	/**	 TODO: remove this field - it doesn't exist on chain */
 	remainderBaseAssetAmount: number;
 	maxMarginRatio: number;
-	lastBaseAssetAmountPerLp: BN;
 	lastQuoteAssetAmountPerLp: BN;
 	perLpBase: number;
 	isolatedPositionScaledBalance: BN;
