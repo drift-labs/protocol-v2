@@ -996,8 +996,13 @@ pub fn fill_perp_order(
         .position(|order| order.order_id == order_id && order.status == OrderStatus::Open)
         .ok_or_else(print_error!(ErrorCode::OrderDoesNotExist))?;
 
-    let (order_status, market_index, order_market_type) =
-        get_struct_values!(user.orders[order_index], status, market_index, market_type);
+    let (order_status, market_index, order_market_type, order_reduce_only) = get_struct_values!(
+        user.orders[order_index],
+        status,
+        market_index,
+        market_type,
+        reduce_only
+    );
 
     validate!(
         order_market_type == MarketType::Perp,
@@ -1095,7 +1100,7 @@ pub fn fill_perp_order(
             market.amm.oracle_low_risk_slot_delay_override,
         )?;
 
-        user_can_skip_duration = user.can_skip_auction_duration(user_stats)?;
+        user_can_skip_duration = user.can_skip_auction_duration(user_stats, order_reduce_only)?;
         amm_is_available &= market.amm_can_fill_order(
             &user.orders[order_index],
             slot,

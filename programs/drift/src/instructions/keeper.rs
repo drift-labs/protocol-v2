@@ -2624,9 +2624,9 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
 
     let keeper_stats = load!(ctx.accounts.keeper_stats)?;
     validate!(
-        !keeper_stats.disable_update_perp_bid_ask_twap,
+        keeper_stats.can_update_bid_ask_twap(),
         ErrorCode::CantUpdatePerpBidAskTwap,
-        "Keeper stats disable_update_perp_bid_ask_twap is true"
+        "Keeper stats can_update_bid_ask_twap is false"
     )?;
 
     let min_if_stake = 1000 * QUOTE_PRECISION_U64;
