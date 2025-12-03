@@ -639,11 +639,6 @@ impl User {
         market_index: u16,
         margin_ratio: u16,
     ) -> DriftResult<()> {
-        if self.max_margin_ratio > margin_ratio as u32 {
-            msg!("user.max_margin_ratio ({}) > margin_ratio ({}), setting user.max_margin_ratio to margin_ratio", self.max_margin_ratio, margin_ratio);
-            self.max_margin_ratio = margin_ratio as u32;
-        }
-
         let perp_position = self.force_get_perp_position_mut(market_index)?;
         msg!(
             "perp_position.max_margin_ratio ({}) -> {}",
