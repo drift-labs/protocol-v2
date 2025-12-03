@@ -31,7 +31,7 @@ solana-program = "=2.2.1"
 pyth-client = "0.2.2"
 pyth-lazer-solana-contract = { git = "https://github.com/jordy25519/pyth-crosschain", features = ["no-entrypoint"]}
 pyth-solana-receiver-sdk = { git = "https://github.com/jordy25519/pyth-crosschain" }
-pythnet-sdk = { git = "https://github.com/jordy25519/pyth-crosschain" }
+pythnet-sdk = { git = "https://github.com/jordy25519/pyth-crosschain", features = ["idl-build"] }
 bytemuck = "1.4.0"
 hex = "0.4.3"
 uint = { version = "0.9.1", default-features = false }
