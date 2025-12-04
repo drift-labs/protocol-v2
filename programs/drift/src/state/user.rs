@@ -799,7 +799,10 @@ impl User {
             )?;
         } else {
             // may not exist if user withdrew their remaining deposit
-            if let Some(isolated_margin_calculation) = calculation.isolated_margin_calculations.get(&isolated_market_index) {       
+            if let Some(isolated_margin_calculation) = calculation
+                .isolated_margin_calculations
+                .get(&isolated_market_index)
+            {
                 validate!(
                     isolated_margin_calculation.meets_margin_requirement(),
                     ErrorCode::InsufficientCollateral,
