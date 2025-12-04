@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.151.0] - 2025-12-03
+
+### Features
+
+- program: add reduce only atomic taking against amm option [#2037](https://github.com/drift-labs/protocol-v2/pull/2037)
+
+### Fixes
+
+### Breaking
+
 ## [2.150.0] - 2025-12-01
 
 ### Features

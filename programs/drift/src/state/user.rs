@@ -816,8 +816,21 @@ impl User {
         Ok(true)
     }
 
-    pub fn can_skip_auction_duration(&self, user_stats: &UserStats) -> DriftResult<bool> {
-        if user_stats.disable_update_perp_bid_ask_twap {
+    pub fn can_skip_auction_duration(
+        &self,
+        user_stats: &UserStats,
+        reduce_only_order: bool,
+    ) -> DriftResult<bool> {
+        let atomic_fill_paused = UserStatsPausedOperations::is_operation_paused(
+            user_stats.paused_operations,
+            UserStatsPausedOperations::AmmAtomicFill,
+        );
+        let atomic_risk_increasing_fill_paused = UserStatsPausedOperations::is_operation_paused(
+            user_stats.paused_operations,
+            UserStatsPausedOperations::AmmAtomicRiskIncreasingFill,
+        );
+
+        if atomic_fill_paused || (atomic_risk_increasing_fill_paused && !reduce_only_order) {
             return Ok(false);
         }
 
@@ -829,11 +842,6 @@ impl User {
         market_index: u16,
         margin_ratio: u16,
     ) -> DriftResult<()> {
-        if self.max_margin_ratio > margin_ratio as u32 {
-            msg!("user.max_margin_ratio ({}) > margin_ratio ({}), setting user.max_margin_ratio to margin_ratio", self.max_margin_ratio, margin_ratio);
-            self.max_margin_ratio = margin_ratio as u32;
-        }
-
         let perp_position = self.force_get_perp_position_mut(market_index)?;
         msg!(
             "perp_position.max_margin_ratio ({}) -> {}",
@@ -1962,8 +1970,8 @@ pub struct UserStats {
     /// First bit (LSB): 1 if user is a referrer, 0 otherwise
     /// Second bit: 1 if user was referred, 0 otherwise
     pub referrer_status: u8,
-    pub disable_update_perp_bid_ask_twap: bool,
-    pub padding1: [u8; 1],
+    pub disable_update_perp_bid_ask_twap: u8,
+    pub paused_operations: u8,
     /// whether the user has a FuelOverflow account
     pub fuel_overflow_status: u8,
     /// accumulated fuel for token amounts of insurance
@@ -2313,6 +2321,14 @@ impl UserStats {
             }
         }
     }
+
+    pub fn can_update_bid_ask_twap(&self) -> bool {
+        let update_mark_twap_paused = UserStatsPausedOperations::is_operation_paused(
+            self.paused_operations,
+            UserStatsPausedOperations::UpdateBidAskTwap,
+        );
+        !update_mark_twap_paused
+    }
 }
 
 pub trait FuelOverflowProvider<'a> {
@@ -2424,5 +2440,19 @@ impl FuelOverflow {
             .safe_add(self.fuel_positions)?
             .safe_add(self.fuel_taker)?
             .safe_add(self.fuel_maker)
+    }
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[repr(u8)]
+pub enum UserStatsPausedOperations {
+    UpdateBidAskTwap = 0b00000001,
+    AmmAtomicFill = 0b00000010,
+    AmmAtomicRiskIncreasingFill = 0b00000100,
+}
+
+impl UserStatsPausedOperations {
+    pub fn is_operation_paused(current: u8, operation: UserStatsPausedOperations) -> bool {
+        current & operation as u8 != 0
     }
 }
