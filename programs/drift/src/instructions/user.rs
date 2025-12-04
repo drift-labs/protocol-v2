@@ -35,8 +35,8 @@ use crate::instructions::optional_accounts::{
 use crate::instructions::SpotFulfillmentType;
 use crate::load;
 use crate::math::casting::Cast;
-use crate::math::liquidation::is_cross_margin_being_liquidated;
 use crate::math::constants::{QUOTE_SPOT_MARKET_INDEX, THIRTEEN_DAY};
+use crate::math::liquidation::is_cross_margin_being_liquidated;
 use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_liability_info;
 use crate::math::margin::meets_initial_margin_requirement;
 use crate::math::margin::{
@@ -1197,7 +1197,7 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
                 false,
                 None,
             )?;
-    
+
             let token_amount = to_spot_position.get_token_amount(spot_market)?;
             if token_amount == 0 {
                 validate!(

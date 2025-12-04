@@ -6,6 +6,7 @@ use crate::{
         spot_position::update_spot_balances_and_cumulative_deposits,
     },
     error::{DriftResult, ErrorCode},
+    math::constants::{LIQUIDATION_PCT_PRECISION, QUOTE_SPOT_MARKET_INDEX},
     math::{
         bankruptcy::{is_cross_margin_bankrupt, is_isolated_margin_bankrupt},
         liquidation::calculate_max_pct_to_liquidate,
@@ -13,7 +14,6 @@ use crate::{
         safe_unwrap::SafeUnwrap,
     },
     state::margin_calculation::MarginCalculation,
-    math::constants::{LIQUIDATION_PCT_PRECISION, QUOTE_SPOT_MARKET_INDEX},
     validate,
 };
 
