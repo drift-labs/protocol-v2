@@ -333,8 +333,11 @@ impl User {
 
     pub fn get_total_token_amount(&self, spot_market: &SpotMarket) -> DriftResult<i128> {
         let spot_token_amount = {
-            let spot_position = self.get_spot_position(spot_market.market_index)?;
-            spot_position.get_signed_token_amount(spot_market)?
+            if let Ok(spot_position) = self.get_spot_position(spot_market.market_index) {
+                spot_position.get_signed_token_amount(spot_market)?
+            } else {
+                0_i128
+            }
         };
 
         if spot_market.market_index != QUOTE_SPOT_MARKET_INDEX {
