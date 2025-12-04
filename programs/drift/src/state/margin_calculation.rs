@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{
@@ -6,6 +8,7 @@ use crate::math::constants::{
 use crate::math::fuel::{calculate_perp_fuel_bonus, calculate_spot_fuel_bonus};
 use crate::math::margin::MarginRequirementType;
 use crate::math::safe_math::SafeMath;
+use crate::math::safe_unwrap::SafeUnwrap;
 use crate::math::spot_balance::get_strict_token_value;
 use crate::state::oracle::StrictOraclePrice;
 use crate::state::perp_market::PerpMarket;
@@ -16,9 +19,7 @@ use anchor_lang::{prelude::*, solana_program::msg};
 
 #[derive(Clone, Copy, Debug)]
 pub enum MarginCalculationMode {
-    Standard {
-        track_open_orders_fraction: bool,
-    },
+    Standard,
     Liquidation {
         market_to_track_margin_requirement: Option<MarketIdentifier>,
     },
@@ -64,9 +65,7 @@ impl MarginContext {
     pub fn standard(margin_type: MarginRequirementType) -> Self {
         Self {
             margin_type,
-            mode: MarginCalculationMode::Standard {
-                track_open_orders_fraction: false,
-            },
+            mode: MarginCalculationMode::Standard,
             strict: false,
             ignore_invalid_deposit_oracles: false,
             margin_buffer: 0,
@@ -115,21 +114,6 @@ impl MarginContext {
         self
     }
 
-    pub fn track_open_orders_fraction(mut self) -> DriftResult<Self> {
-        match self.mode {
-            MarginCalculationMode::Standard {
-                track_open_orders_fraction: ref mut track,
-            } => {
-                *track = true;
-            }
-            _ => {
-                msg!("Cant track open orders fraction outside of standard mode");
-                return Err(ErrorCode::InvalidMarginCalculation);
-            }
-        }
-        Ok(self)
-    }
-
     pub fn margin_ratio_override(mut self, margin_ratio_override: u32) -> Self {
         msg!(
             "Applying max margin ratio override: {} due to stale oracle",
@@ -176,7 +160,7 @@ impl MarginContext {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct MarginCalculation {
     pub context: MarginContext,
     pub total_collateral: i128,
@@ -189,6 +173,7 @@ pub struct MarginCalculation {
     margin_requirement_plus_buffer: u128,
     #[cfg(test)]
     pub margin_requirement_plus_buffer: u128,
+    pub isolated_margin_calculations: BTreeMap<u16, IsolatedMarginCalculation>,
     pub num_spot_liabilities: u8,
     pub num_perp_liabilities: u8,
     pub all_deposit_oracles_valid: bool,
@@ -199,11 +184,42 @@ pub struct MarginCalculation {
     pub total_spot_liability_value: u128,
     pub total_perp_liability_value: u128,
     pub total_perp_pnl: i128,
-    pub open_orders_margin_requirement: u128,
     tracked_market_margin_requirement: u128,
     pub fuel_deposits: u32,
     pub fuel_borrows: u32,
     pub fuel_positions: u32,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct IsolatedMarginCalculation {
+    pub margin_requirement: u128,
+    pub total_collateral: i128,
+    pub total_collateral_buffer: i128,
+    pub margin_requirement_plus_buffer: u128,
+}
+
+impl IsolatedMarginCalculation {
+    pub fn get_total_collateral_plus_buffer(&self) -> i128 {
+        self.total_collateral
+            .saturating_add(self.total_collateral_buffer)
+    }
+
+    pub fn meets_margin_requirement(&self) -> bool {
+        self.total_collateral >= self.margin_requirement as i128
+    }
+
+    pub fn meets_margin_requirement_with_buffer(&self) -> bool {
+        self.get_total_collateral_plus_buffer() >= self.margin_requirement_plus_buffer as i128
+    }
+
+    pub fn margin_shortage(&self) -> DriftResult<u128> {
+        Ok(self
+            .margin_requirement_plus_buffer
+            .cast::<i128>()?
+            .safe_sub(self.get_total_collateral_plus_buffer())?
+            .max(0)
+            .unsigned_abs())
+    }
 }
 
 impl MarginCalculation {
@@ -214,6 +230,7 @@ impl MarginCalculation {
             total_collateral_buffer: 0,
             margin_requirement: 0,
             margin_requirement_plus_buffer: 0,
+            isolated_margin_calculations: BTreeMap::new(),
             num_spot_liabilities: 0,
             num_perp_liabilities: 0,
             all_deposit_oracles_valid: true,
@@ -224,7 +241,6 @@ impl MarginCalculation {
             total_spot_liability_value: 0,
             total_perp_liability_value: 0,
             total_perp_pnl: 0,
-            open_orders_margin_requirement: 0,
             tracked_market_margin_requirement: 0,
             fuel_deposits: 0,
             fuel_borrows: 0,
@@ -232,7 +248,7 @@ impl MarginCalculation {
         }
     }
 
-    pub fn add_total_collateral(&mut self, total_collateral: i128) -> DriftResult {
+    pub fn add_cross_margin_total_collateral(&mut self, total_collateral: i128) -> DriftResult {
         self.total_collateral = self.total_collateral.safe_add(total_collateral)?;
 
         if self.context.margin_buffer > 0 && total_collateral < 0 {
@@ -245,7 +261,7 @@ impl MarginCalculation {
         Ok(())
     }
 
-    pub fn add_margin_requirement(
+    pub fn add_cross_margin_margin_requirement(
         &mut self,
         margin_requirement: u128,
         liability_value: u128,
@@ -273,10 +289,48 @@ impl MarginCalculation {
         Ok(())
     }
 
-    pub fn add_open_orders_margin_requirement(&mut self, margin_requirement: u128) -> DriftResult {
-        self.open_orders_margin_requirement = self
-            .open_orders_margin_requirement
-            .safe_add(margin_requirement)?;
+    pub fn add_isolated_margin_calculation(
+        &mut self,
+        market_index: u16,
+        deposit_value: i128,
+        pnl: i128,
+        liability_value: u128,
+        margin_requirement: u128,
+    ) -> DriftResult {
+        let total_collateral = deposit_value.safe_add(pnl)?;
+
+        let total_collateral_buffer = if self.context.margin_buffer > 0 && pnl < 0 {
+            pnl.safe_mul(self.context.margin_buffer.cast::<i128>()?)? / MARGIN_PRECISION_I128
+        } else {
+            0
+        };
+
+        let margin_requirement_plus_buffer = if self.context.margin_buffer > 0 {
+            margin_requirement.safe_add(
+                liability_value.safe_mul(self.context.margin_buffer)? / MARGIN_PRECISION_U128,
+            )?
+        } else {
+            0
+        };
+
+        let isolated_margin_calculation = IsolatedMarginCalculation {
+            margin_requirement,
+            total_collateral,
+            total_collateral_buffer,
+            margin_requirement_plus_buffer,
+        };
+
+        self.isolated_margin_calculations
+            .insert(market_index, isolated_margin_calculation);
+
+        if let Some(market_to_track) = self.market_to_track_margin_requirement() {
+            if market_to_track == MarketIdentifier::perp(market_index) {
+                self.tracked_market_margin_requirement = self
+                    .tracked_market_margin_requirement
+                    .safe_add(margin_requirement)?;
+            }
+        }
+
         Ok(())
     }
 
@@ -352,37 +406,98 @@ impl MarginCalculation {
     }
 
     #[inline(always)]
-    pub fn get_total_collateral_plus_buffer(&self) -> i128 {
+    pub fn get_cross_total_collateral_plus_buffer(&self) -> i128 {
         self.total_collateral
             .saturating_add(self.total_collateral_buffer)
     }
 
     pub fn meets_margin_requirement(&self) -> bool {
-        self.total_collateral >= self.margin_requirement as i128
+        let cross_margin_meets_margin_requirement = self.meets_cross_margin_requirement();
+
+        if !cross_margin_meets_margin_requirement {
+            return false;
+        }
+
+        for (_, isolated_margin_calculation) in &self.isolated_margin_calculations {
+            if !isolated_margin_calculation.meets_margin_requirement() {
+                return false;
+            }
+        }
+
+        true
     }
 
     pub fn meets_margin_requirement_with_buffer(&self) -> bool {
-        self.get_total_collateral_plus_buffer() >= self.margin_requirement_plus_buffer as i128
+        let cross_margin_meets_margin_requirement =
+            self.meets_cross_margin_requirement_with_buffer();
+
+        if !cross_margin_meets_margin_requirement {
+            return false;
+        }
+
+        for (_, isolated_margin_calculation) in &self.isolated_margin_calculations {
+            if !isolated_margin_calculation.meets_margin_requirement_with_buffer() {
+                return false;
+            }
+        }
+
+        true
     }
 
-    pub fn positions_meets_margin_requirement(&self) -> DriftResult<bool> {
-        Ok(self.total_collateral
-            >= self
-                .margin_requirement
-                .safe_sub(self.open_orders_margin_requirement)?
-                .cast::<i128>()?)
+    #[inline(always)]
+    pub fn meets_cross_margin_requirement(&self) -> bool {
+        self.total_collateral >= self.margin_requirement as i128
     }
 
-    pub fn can_exit_liquidation(&self) -> DriftResult<bool> {
+    #[inline(always)]
+    pub fn meets_cross_margin_requirement_with_buffer(&self) -> bool {
+        self.get_cross_total_collateral_plus_buffer() >= self.margin_requirement_plus_buffer as i128
+    }
+
+    #[inline(always)]
+    pub fn meets_isolated_margin_requirement(&self, market_index: u16) -> DriftResult<bool> {
+        Ok(self
+            .isolated_margin_calculations
+            .get(&market_index)
+            .safe_unwrap()?
+            .meets_margin_requirement())
+    }
+
+    #[inline(always)]
+    pub fn meets_isolated_margin_requirement_with_buffer(
+        &self,
+        market_index: u16,
+    ) -> DriftResult<bool> {
+        Ok(self
+            .isolated_margin_calculations
+            .get(&market_index)
+            .safe_unwrap()?
+            .meets_margin_requirement_with_buffer())
+    }
+
+    pub fn can_exit_cross_margin_liquidation(&self) -> DriftResult<bool> {
         if !self.is_liquidation_mode() {
             msg!("liquidation mode not enabled");
             return Err(ErrorCode::InvalidMarginCalculation);
         }
 
-        Ok(self.get_total_collateral_plus_buffer() >= self.margin_requirement_plus_buffer as i128)
+        Ok(self.meets_cross_margin_requirement_with_buffer())
     }
 
-    pub fn margin_shortage(&self) -> DriftResult<u128> {
+    pub fn can_exit_isolated_margin_liquidation(&self, market_index: u16) -> DriftResult<bool> {
+        if !self.is_liquidation_mode() {
+            msg!("liquidation mode not enabled");
+            return Err(ErrorCode::InvalidMarginCalculation);
+        }
+
+        Ok(self
+            .isolated_margin_calculations
+            .get(&market_index)
+            .safe_unwrap()?
+            .meets_margin_requirement_with_buffer())
+    }
+
+    pub fn cross_margin_margin_shortage(&self) -> DriftResult<u128> {
         if self.context.margin_buffer == 0 {
             msg!("margin buffer mode not enabled");
             return Err(ErrorCode::InvalidMarginCalculation);
@@ -391,28 +506,72 @@ impl MarginCalculation {
         Ok(self
             .margin_requirement_plus_buffer
             .cast::<i128>()?
-            .safe_sub(self.get_total_collateral_plus_buffer())?
+            .safe_sub(self.get_cross_total_collateral_plus_buffer())?
+            .max(0)
             .unsigned_abs())
     }
 
-    pub fn tracked_market_margin_shortage(&self, margin_shortage: u128) -> DriftResult<u128> {
-        if self.market_to_track_margin_requirement().is_none() {
-            msg!("cant call tracked_market_margin_shortage");
+    pub fn isolated_margin_shortage(&self, market_index: u16) -> DriftResult<u128> {
+        if self.context.margin_buffer == 0 {
+            msg!("margin buffer mode not enabled");
             return Err(ErrorCode::InvalidMarginCalculation);
         }
 
-        if self.margin_requirement == 0 {
+        self.isolated_margin_calculations
+            .get(&market_index)
+            .safe_unwrap()?
+            .margin_shortage()
+    }
+
+    pub fn tracked_market_margin_shortage(&self, margin_shortage: u128) -> DriftResult<u128> {
+        let MarketIdentifier {
+            market_type,
+            market_index,
+        } = match self.market_to_track_margin_requirement() {
+            Some(market_to_track) => market_to_track,
+            None => {
+                msg!("no market to track margin requirement");
+                return Err(ErrorCode::InvalidMarginCalculation);
+            }
+        };
+
+        let margin_requirement = if market_type == MarketType::Perp {
+            match self.isolated_margin_calculations.get(&market_index) {
+                Some(isolated_margin_calculation) => isolated_margin_calculation.margin_requirement,
+                None => self.margin_requirement,
+            }
+        } else {
+            self.margin_requirement
+        };
+
+        if margin_requirement == 0 {
             return Ok(0);
         }
 
         margin_shortage
             .safe_mul(self.tracked_market_margin_requirement)?
-            .safe_div(self.margin_requirement)
+            .safe_div(margin_requirement)
     }
 
-    pub fn get_free_collateral(&self) -> DriftResult<u128> {
+    pub fn get_cross_free_collateral(&self) -> DriftResult<u128> {
         self.total_collateral
             .safe_sub(self.margin_requirement.cast::<i128>()?)?
+            .max(0)
+            .cast()
+    }
+
+    pub fn get_isolated_free_collateral(&self, market_index: u16) -> DriftResult<u128> {
+        let isolated_margin_calculation = self
+            .isolated_margin_calculations
+            .get(&market_index)
+            .safe_unwrap()?;
+        isolated_margin_calculation
+            .total_collateral
+            .safe_sub(
+                isolated_margin_calculation
+                    .margin_requirement
+                    .cast::<i128>()?,
+            )?
             .max(0)
             .cast()
     }
@@ -431,15 +590,6 @@ impl MarginCalculation {
 
     fn is_liquidation_mode(&self) -> bool {
         matches!(self.context.mode, MarginCalculationMode::Liquidation { .. })
-    }
-
-    pub fn track_open_orders_fraction(&self) -> bool {
-        matches!(
-            self.context.mode,
-            MarginCalculationMode::Standard {
-                track_open_orders_fraction: true
-            }
-        )
     }
 
     pub fn update_fuel_perp_bonus(
@@ -527,5 +677,23 @@ impl MarginCalculation {
         }
 
         Ok(())
+    }
+
+    pub fn get_isolated_margin_calculation(
+        &self,
+        market_index: u16,
+    ) -> DriftResult<&IsolatedMarginCalculation> {
+        if let Some(isolated_margin_calculation) =
+            self.isolated_margin_calculations.get(&market_index)
+        {
+            Ok(isolated_margin_calculation)
+        } else {
+            Err(ErrorCode::InvalidMarginCalculation)
+        }
+    }
+
+    pub fn has_isolated_margin_calculation(&self, market_index: u16) -> bool {
+        self.isolated_margin_calculations
+            .contains_key(&market_index)
     }
 }
