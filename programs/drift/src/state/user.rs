@@ -495,6 +495,7 @@ impl User {
 
     pub fn exit_isolated_margin_bankruptcy(&mut self, perp_market_index: u16) -> DriftResult {
         let perp_position = self.force_get_isolated_perp_position_mut(perp_market_index)?;
+        perp_position.position_flag &= !(PositionFlag::BeingLiquidated as u8);
         perp_position.position_flag &= !(PositionFlag::Bankrupt as u8);
         Ok(())
     }
@@ -1175,8 +1176,7 @@ pub struct PerpPosition {
     /// LP shares allow users to provide liquidity via the AMM
     /// precision: BASE_PRECISION
     pub lp_shares: u64,
-    /// The last base asset amount per lp the amm had
-    /// Used to settle the users lp position
+    /// The scaled balance of the isolated position
     /// precision: SPOT_BALANCE_PRECISION
     pub isolated_position_scaled_balance: u64,
     /// The last quote asset amount per lp the amm had
