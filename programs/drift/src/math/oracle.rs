@@ -1,4 +1,7 @@
-use borsh::{BorshDeserialize, BorshSerialize};
+use anchor_lang::prelude::{
+    borsh::{self},
+    AnchorDeserialize, AnchorSerialize,
+};
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::amm;
@@ -18,7 +21,7 @@ use std::fmt;
 mod tests;
 
 // ordered by "severity"
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum OracleValidity {
     NonPositive,
     TooVolatile,
@@ -125,7 +128,7 @@ impl From<OracleValidity> for u8 {
     }
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]
 pub enum DriftAction {
     UpdateFunding,
     SettlePnl,

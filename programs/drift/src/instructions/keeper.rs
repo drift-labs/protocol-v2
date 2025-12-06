@@ -1052,8 +1052,7 @@ pub fn place_signed_msg_taker_order<'c: 'info, 'info>(
         &mut builder_order,
     )?;
 
-    let order_params_hash =
-        base64::encode(solana_program::hash::hash(&signature.try_to_vec().unwrap()).as_ref());
+    let order_params_hash = base64::encode(solana_program::hash::hash(signature.as_ref()).as_ref());
 
     emit!(SignedMsgOrderRecord {
         user: taker_key,
@@ -1673,9 +1672,9 @@ pub fn handle_liquidate_spot_with_swap_begin<'c: 'info, 'info>(
             found_end = true;
 
             // must be the SwapEnd instruction
-            let discriminator = crate::instruction::LiquidateSpotWithSwapEnd::discriminator();
+            let discriminator = crate::instruction::LiquidateSpotWithSwapEnd::DISCRIMINATOR;
             validate!(
-                ix.data[0..8] == discriminator,
+                &ix.data[0..8] == discriminator,
                 ErrorCode::InvalidLiquidateSpotWithSwap,
                 "last drift ix must be end of swap"
             )?;
@@ -3432,12 +3431,12 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
             quote_owed_from_lp: cached_info.quote_owed_from_lp_pool,
             quote_constituent_token_balance: quote_constituent.vault_token_balance,
             fee_pool_balance: get_token_amount(
-                perp_market.amm.fee_pool.scaled_balance,
+                perp_market.amm.fee_pool.scaled_balance(),
                 quote_market,
                 &SpotBalanceType::Deposit,
             )?,
             pnl_pool_balance: get_token_amount(
-                perp_market.pnl_pool.scaled_balance,
+                perp_market.pnl_pool.scaled_balance(),
                 quote_market,
                 &SpotBalanceType::Deposit,
             )?,
@@ -3524,7 +3523,7 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
                 .last_exchange_fees
                 .safe_sub(cached_info.last_settle_amm_ex_fees)?
                 .cast::<i64>()?,
-            lp_aum: lp_pool.last_aum,
+            lp_aum: lp_pool.last_aum(),
             lp_price: lp_pool.get_price(lp_pool.token_supply)?,
             lp_pool: lp_pool_key,
         });
@@ -3546,14 +3545,19 @@ pub fn handle_settle_perp_to_lp_pool<'c: 'info, 'info>(
         // Update LP pool stats
         match settlement_result.direction {
             SettlementDirection::FromLpPool => {
-                lp_pool.cumulative_quote_sent_to_perp_markets = lp_pool
-                    .cumulative_quote_sent_to_perp_markets
-                    .saturating_add(settlement_result.amount_transferred as u128);
+                let cumulative_quote_sent = lp_pool.cumulative_quote_sent_to_perp_markets();
+                lp_pool.set_cumulative_quote_sent_to_perp_markets(
+                    cumulative_quote_sent
+                        .saturating_add(settlement_result.amount_transferred as u128),
+                );
             }
             SettlementDirection::ToLpPool => {
-                lp_pool.cumulative_quote_received_from_perp_markets = lp_pool
-                    .cumulative_quote_received_from_perp_markets
-                    .saturating_add(settlement_result.amount_transferred as u128);
+                let cumulative_quote_received =
+                    lp_pool.cumulative_quote_received_from_perp_markets();
+                lp_pool.set_cumulative_quote_received_from_perp_markets(
+                    cumulative_quote_received
+                        .saturating_add(settlement_result.amount_transferred as u128),
+                );
             }
             SettlementDirection::None => {}
         }
@@ -3673,7 +3677,7 @@ pub struct SettleAmmPnlToLp<'info> {
     #[account(
         mut,
         owner = crate::ID,
-        seeds = [CONSTITUENT_PDA_SEED.as_ref(), lp_pool.key().as_ref(), QUOTE_SPOT_MARKET_INDEX.to_le_bytes().as_ref()],
+        seeds = [CONSTITUENT_PDA_SEED.as_bytes(), lp_pool.key().as_ref(), QUOTE_SPOT_MARKET_INDEX.to_le_bytes().as_ref()],
         bump = constituent.load()?.bump,
         constraint = constituent.load()?.mint.eq(&quote_market.load()?.mint)
     )]
@@ -3842,7 +3846,7 @@ pub struct PlaceSignedMsgTakerOrder<'info> {
     pub user_stats: AccountLoader<'info, UserStats>,
     #[account(
         mut,
-        seeds = [SIGNED_MSG_PDA_SEED.as_ref(), user.load()?.authority.as_ref()],
+        seeds = [SIGNED_MSG_PDA_SEED.as_bytes(), user.load()?.authority.as_ref()],
         bump,
     )]
     /// CHECK: checked in SignedMsgUserOrdersZeroCopy checks

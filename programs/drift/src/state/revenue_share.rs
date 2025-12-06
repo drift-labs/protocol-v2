@@ -1,10 +1,10 @@
 use std::cell::{Ref, RefMut};
 
-use anchor_lang::prelude::Pubkey;
-use anchor_lang::*;
-use anchor_lang::{account, zero_copy};
-use borsh::{BorshDeserialize, BorshSerialize};
-use prelude::AccountInfo;
+use anchor_lang::prelude::{
+    account,
+    borsh::{self, BorshDeserialize, BorshSerialize},
+    zero_copy, AccountInfo, AnchorDeserialize, AnchorSerialize, Discriminator, Pubkey,
+};
 
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
@@ -16,7 +16,7 @@ use crate::{msg, ID};
 pub const REVENUE_SHARE_PDA_SEED: &str = "REV_SHARE";
 pub const REVENUE_SHARE_ESCROW_PDA_SEED: &str = "REV_ESCROW";
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum RevenueShareOrderBitFlag {
     #[default]
     Init = 0b00000000,
@@ -513,12 +513,12 @@ impl<'a> RevenueShareEscrowZeroCopyMut<'a> {
 }
 
 pub trait RevenueShareEscrowLoader<'a> {
-    fn load_zc(&self) -> DriftResult<RevenueShareEscrowZeroCopy>;
-    fn load_zc_mut(&self) -> DriftResult<RevenueShareEscrowZeroCopyMut>;
+    fn load_zc(&self) -> DriftResult<RevenueShareEscrowZeroCopy<'_>>;
+    fn load_zc_mut(&self) -> DriftResult<RevenueShareEscrowZeroCopyMut<'_>>;
 }
 
 impl<'a> RevenueShareEscrowLoader<'a> for AccountInfo<'a> {
-    fn load_zc(&self) -> DriftResult<RevenueShareEscrowZeroCopy> {
+    fn load_zc(&self) -> DriftResult<RevenueShareEscrowZeroCopy<'_>> {
         let owner = self.owner;
 
         validate!(
@@ -531,7 +531,7 @@ impl<'a> RevenueShareEscrowLoader<'a> for AccountInfo<'a> {
 
         let (discriminator, data) = Ref::map_split(data, |d| d.split_at(8));
         validate!(
-            *discriminator == RevenueShareEscrow::discriminator(),
+            discriminator.as_ref() == RevenueShareEscrow::DISCRIMINATOR,
             ErrorCode::DefaultError,
             "invalid signed_msg user orders discriminator",
         )?;
@@ -544,7 +544,7 @@ impl<'a> RevenueShareEscrowLoader<'a> for AccountInfo<'a> {
         })
     }
 
-    fn load_zc_mut(&self) -> DriftResult<RevenueShareEscrowZeroCopyMut> {
+    fn load_zc_mut(&self) -> DriftResult<RevenueShareEscrowZeroCopyMut<'_>> {
         let owner = self.owner;
 
         validate!(
@@ -557,7 +557,7 @@ impl<'a> RevenueShareEscrowLoader<'a> for AccountInfo<'a> {
 
         let (discriminator, data) = RefMut::map_split(data, |d| d.split_at_mut(8));
         validate!(
-            *discriminator == RevenueShareEscrow::discriminator(),
+            discriminator.as_ref() == RevenueShareEscrow::DISCRIMINATOR,
             ErrorCode::DefaultError,
             "invalid signed_msg user orders discriminator",
         )?;

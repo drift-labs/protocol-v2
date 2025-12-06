@@ -14,14 +14,14 @@ mod determine_perp_fulfillment_methods {
     fn amm_available_and_taker_doesnt_cross_maker() {
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
@@ -41,8 +41,8 @@ mod determine_perp_fulfillment_methods {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         let taker_order = Order {
             direction: PositionDirection::Long,
@@ -69,14 +69,14 @@ mod determine_perp_fulfillment_methods {
     fn amm_available_and_maker_better_than_amm() {
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
@@ -96,8 +96,8 @@ mod determine_perp_fulfillment_methods {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         let taker_order = Order {
             direction: PositionDirection::Long,
@@ -130,14 +130,14 @@ mod determine_perp_fulfillment_methods {
     fn amm_available_and_amm_better_than_maker() {
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
@@ -157,8 +157,8 @@ mod determine_perp_fulfillment_methods {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         let taker_order = Order {
             direction: PositionDirection::Long,
@@ -198,14 +198,14 @@ mod determine_perp_fulfillment_methods {
     fn maker_amm_maker_amm_maker_ask() {
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
@@ -225,8 +225,8 @@ mod determine_perp_fulfillment_methods {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         let taker_order = Order {
             direction: PositionDirection::Long,
@@ -264,14 +264,14 @@ mod determine_perp_fulfillment_methods {
     fn maker_maker_amm_ask() {
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
@@ -291,8 +291,8 @@ mod determine_perp_fulfillment_methods {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         let taker_order = Order {
             direction: PositionDirection::Long,
@@ -337,14 +337,14 @@ mod determine_perp_fulfillment_methods {
     fn amm_maker_amm_maker_amm_ask() {
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
@@ -364,8 +364,8 @@ mod determine_perp_fulfillment_methods {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         let taker_order = Order {
             direction: PositionDirection::Long,
@@ -404,14 +404,14 @@ mod determine_perp_fulfillment_methods {
     fn maker_amm_maker_amm_maker_bid() {
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
@@ -431,8 +431,8 @@ mod determine_perp_fulfillment_methods {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         let taker_order = Order {
             direction: PositionDirection::Short,
@@ -470,14 +470,14 @@ mod determine_perp_fulfillment_methods {
     fn maker_maker_amm_bid() {
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
@@ -497,8 +497,8 @@ mod determine_perp_fulfillment_methods {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         let taker_order = Order {
             direction: PositionDirection::Short,
@@ -535,14 +535,14 @@ mod determine_perp_fulfillment_methods {
     fn amm_maker_amm_maker_amm_bid() {
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
@@ -562,8 +562,8 @@ mod determine_perp_fulfillment_methods {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         let taker_order = Order {
             direction: PositionDirection::Short,
@@ -602,14 +602,14 @@ mod determine_perp_fulfillment_methods {
     fn no_asks() {
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
@@ -629,8 +629,8 @@ mod determine_perp_fulfillment_methods {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         let taker_order = Order {
             direction: PositionDirection::Long,
@@ -660,14 +660,14 @@ mod determine_perp_fulfillment_methods {
     fn no_bids() {
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
@@ -687,8 +687,8 @@ mod determine_perp_fulfillment_methods {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         let taker_order = Order {
             direction: PositionDirection::Short,
@@ -718,14 +718,14 @@ mod determine_perp_fulfillment_methods {
     fn amm_available_and_maker_crosses() {
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
@@ -745,8 +745,8 @@ mod determine_perp_fulfillment_methods {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         let taker_order = Order {
             post_only: true,
@@ -774,14 +774,14 @@ mod determine_perp_fulfillment_methods {
     fn amm_available_and_maker_doesnt_cross() {
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
@@ -801,8 +801,8 @@ mod determine_perp_fulfillment_methods {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         let taker_order = Order {
             post_only: true,
