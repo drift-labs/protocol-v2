@@ -50,7 +50,7 @@
 		"prettify:fix": "prettier --write './sdk/src/**/*.ts' './tests/**.ts' './cli/**.ts'",
 		"lint": "eslint . --ext ts --quiet --format unix",
 		"lint:fix": "eslint . --ext ts --fix",
-		"update-idl": "anchor build -- --features anchor-test && cp target/idl/drift.json sdk/src/idl/drift.json"
+		"update-idl": "anchor build -- --features anchor-test && cp target/idl/drift.json sdk/src/idl/drift.json && cp target/types/drift.ts sdk/src/idl/drift.ts"
 	},
 	"engines": {
 		"node": ">=12"
