@@ -750,7 +750,7 @@ dependencies = [
 [[package]]
 name = "drift-macros"
 version = "0.1.0"
-source = "git+https://github.com/drift-labs/drift-macros?rev=f48c4c77#f48c4c77c8bc60d204458a414d3f1e9478444c39"
+source = "git+https://github.com/drift-labs/drift-macros?rev=6e246ba#6e246bacf5fc3bb11d04710753a2f2f5ef0fb06d"
 dependencies = [
  "quote",
  "static_assertions",
