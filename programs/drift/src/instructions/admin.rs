@@ -4499,19 +4499,19 @@ pub fn handle_update_spot_auction_duration(
     Ok(())
 }
 
-pub fn handle_admin_disable_update_perp_bid_ask_twap(
+pub fn handle_admin_update_user_stats_paused_operations(
     ctx: Context<AdminDisableBidAskTwapUpdate>,
-    disable: bool,
+    paused_operations: u8,
 ) -> Result<()> {
     let mut user_stats = load_mut!(ctx.accounts.user_stats)?;
 
     msg!(
-        "disable_update_perp_bid_ask_twap: {:?} -> {:?}",
-        user_stats.disable_update_perp_bid_ask_twap,
-        disable
+        "user_stats.paused_operations: {:?} -> {:?}",
+        user_stats.paused_operations,
+        paused_operations
     );
 
-    user_stats.disable_update_perp_bid_ask_twap = disable;
+    user_stats.paused_operations = paused_operations;
     Ok(())
 }
 

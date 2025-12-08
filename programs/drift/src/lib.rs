@@ -529,11 +529,11 @@ pub mod drift {
     //     handle_update_user_open_orders_count(ctx)
     // }
 
-    pub fn admin_disable_update_perp_bid_ask_twap(
+    pub fn admin_update_user_stats_paused_operations(
         ctx: Context<AdminDisableBidAskTwapUpdate>,
-        disable: bool,
+        paused_operations: u8,
     ) -> Result<()> {
-        handle_admin_disable_update_perp_bid_ask_twap(ctx, disable)
+        handle_admin_update_user_stats_paused_operations(ctx, paused_operations)
     }
 
     pub fn settle_pnl<'c: 'info, 'info>(

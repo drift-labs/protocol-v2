@@ -343,7 +343,6 @@ export class User {
 			openAsks: ZERO,
 			settledPnl: ZERO,
 			lpShares: ZERO,
-			lastBaseAssetAmountPerLp: ZERO,
 			lastQuoteAssetAmountPerLp: ZERO,
 			perLpBase: 0,
 			maxMarginRatio: 0,

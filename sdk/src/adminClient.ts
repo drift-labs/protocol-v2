@@ -4750,25 +4750,28 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
-	public async adminDisableUpdatePerpBidAskTwap(
+	public async adminUpdateUserStatsPausedOperations(
 		authority: PublicKey,
-		disable: boolean
+		pausedOperations: number
 	): Promise<TransactionSignature> {
-		const disableBidAskTwapUpdateIx =
-			await this.getAdminDisableUpdatePerpBidAskTwapIx(authority, disable);
+		const updateUserStatsPausedOperationsIx =
+			await this.getAdminUpdateUserStatsPausedOperationsIx(
+				authority,
+				pausedOperations
+			);
 
-		const tx = await this.buildTransaction(disableBidAskTwapUpdateIx);
+		const tx = await this.buildTransaction(updateUserStatsPausedOperationsIx);
 		const { txSig } = await this.sendTransaction(tx, [], this.opts);
 
 		return txSig;
 	}
 
-	public async getAdminDisableUpdatePerpBidAskTwapIx(
+	public async getAdminUpdateUserStatsPausedOperationsIx(
 		authority: PublicKey,
-		disable: boolean
+		pausedOperations: number
 	): Promise<TransactionInstruction> {
-		return await this.program.instruction.adminDisableUpdatePerpBidAskTwap(
-			disable,
+		return await this.program.instruction.adminUpdateUserStatsPausedOperations(
+			pausedOperations,
 			{
 				accounts: {
 					admin: this.useHotWalletAdmin

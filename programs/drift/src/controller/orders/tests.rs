@@ -100,7 +100,8 @@ pub mod fill_order_protected_maker {
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::state::State;
     use crate::state::user::{
-        MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats, UserStatus,
+        MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats,
+        UserStatsPausedOperations, UserStatus,
     };
     use crate::test_utils::*;
     use crate::test_utils::{
@@ -239,7 +240,7 @@ pub mod fill_order_protected_maker {
             AccountLoader::try_from(&user_account_info).unwrap();
 
         let mut taker_stats = UserStats {
-            disable_update_perp_bid_ask_twap: true,
+            paused_operations: UserStatsPausedOperations::AmmAtomicFill as u8,
             ..UserStats::default()
         };
 
@@ -331,7 +332,7 @@ pub mod fill_order_protected_maker {
 
         // user exempt, no 10 bps applied for pmm
         let mut taker_stats = UserStats {
-            disable_update_perp_bid_ask_twap: false,
+            paused_operations: 0,
             ..UserStats::default()
         };
 
@@ -3375,7 +3376,9 @@ pub mod fulfill_order {
 
         let order_index = 0;
         let min_auction_duration = 0;
-        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let user_can_skip_auction_duration = taker
+            .can_skip_auction_duration(&taker_stats, false)
+            .unwrap();
         let is_amm_available = get_amm_is_available(
             &taker.orders[order_index],
             min_auction_duration,
@@ -3633,7 +3636,9 @@ pub mod fulfill_order {
 
         let order_index = 0;
         let min_auction_duration = 10;
-        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let user_can_skip_auction_duration = taker
+            .can_skip_auction_duration(&taker_stats, false)
+            .unwrap();
         let is_amm_available = get_amm_is_available(
             &taker.orders[order_index],
             min_auction_duration,
@@ -3839,7 +3844,9 @@ pub mod fulfill_order {
 
         let order_index = 0;
         let min_auction_duration = 0;
-        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let user_can_skip_auction_duration = taker
+            .can_skip_auction_duration(&taker_stats, false)
+            .unwrap();
         let is_amm_available = get_amm_is_available(
             &taker.orders[order_index],
             min_auction_duration,
@@ -4058,7 +4065,9 @@ pub mod fulfill_order {
 
         let order_index = 0;
         let min_auction_duration = 10;
-        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let user_can_skip_auction_duration = taker
+            .can_skip_auction_duration(&taker_stats, false)
+            .unwrap();
         let is_amm_available = get_amm_is_available(
             &taker.orders[order_index],
             min_auction_duration,
@@ -4237,7 +4246,9 @@ pub mod fulfill_order {
 
         let order_index = 0;
         let min_auction_duration = 0;
-        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let user_can_skip_auction_duration = taker
+            .can_skip_auction_duration(&taker_stats, false)
+            .unwrap();
         let is_amm_available = get_amm_is_available(
             &taker.orders[order_index],
             min_auction_duration,
@@ -4448,7 +4459,9 @@ pub mod fulfill_order {
 
         let order_index = 0;
         let min_auction_duration = 10;
-        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let user_can_skip_auction_duration = taker
+            .can_skip_auction_duration(&taker_stats, false)
+            .unwrap();
         let is_amm_available = get_amm_is_available(
             &taker.orders[order_index],
             min_auction_duration,
@@ -4648,7 +4661,9 @@ pub mod fulfill_order {
 
         let order_index = 0;
         let min_auction_duration = 0;
-        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let user_can_skip_auction_duration = taker
+            .can_skip_auction_duration(&taker_stats, false)
+            .unwrap();
         let is_amm_available = get_amm_is_available(
             &taker.orders[order_index],
             min_auction_duration,
@@ -4801,7 +4816,9 @@ pub mod fulfill_order {
 
         let order_index = 0;
         let min_auction_duration = 0;
-        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let user_can_skip_auction_duration = taker
+            .can_skip_auction_duration(&taker_stats, false)
+            .unwrap();
         let is_amm_available = get_amm_is_available(
             &taker.orders[order_index],
             min_auction_duration,
@@ -4981,7 +4998,9 @@ pub mod fulfill_order {
 
         let order_index = 0;
         let min_auction_duration = 0;
-        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let user_can_skip_auction_duration = taker
+            .can_skip_auction_duration(&taker_stats, false)
+            .unwrap();
         let is_amm_available = get_amm_is_available(
             &taker.orders[order_index],
             min_auction_duration,
@@ -5584,7 +5603,9 @@ pub mod fulfill_order {
 
         let order_index = 0;
         let min_auction_duration = 10;
-        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let user_can_skip_auction_duration = taker
+            .can_skip_auction_duration(&taker_stats, false)
+            .unwrap();
         let is_amm_available = get_amm_is_available(
             &taker.orders[order_index],
             min_auction_duration,
@@ -5841,7 +5862,9 @@ pub mod fulfill_order {
 
         let order_index = 0;
         let min_auction_duration = 0;
-        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let user_can_skip_auction_duration = taker
+            .can_skip_auction_duration(&taker_stats, false)
+            .unwrap();
         let is_amm_available = get_amm_is_available(
             &taker.orders[order_index],
             min_auction_duration,

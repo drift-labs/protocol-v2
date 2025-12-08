@@ -93,19 +93,23 @@ export class TitanClient {
 	authToken: string;
 	url: string;
 	connection: Connection;
+	proxyUrl?: string;
 
 	constructor({
 		connection,
 		authToken,
 		url,
+		proxyUrl,
 	}: {
 		connection: Connection;
 		authToken: string;
 		url?: string;
+		proxyUrl?: string;
 	}) {
 		this.connection = connection;
 		this.authToken = authToken;
 		this.url = url ?? TITAN_API_URL;
+		this.proxyUrl = proxyUrl;
 	}
 
 	/**
@@ -157,16 +161,30 @@ export class TitanClient {
 			}),
 		});
 
-		const response = await fetch(
-			`${this.url}/api/v1/quote/swap?${params.toString()}`,
-			{
+		let response: Response;
+
+		if (this.proxyUrl) {
+			// Use proxy route - send parameters in request body
+			response = await fetch(this.proxyUrl, {
+				method: 'POST',
 				headers: {
-					Accept: 'application/vnd.msgpack',
-					'Accept-Encoding': 'gzip, deflate, br',
-					Authorization: `Bearer ${this.authToken}`,
+					'Content-Type': 'application/json',
 				},
-			}
-		);
+				body: JSON.stringify(Object.fromEntries(params.entries())),
+			});
+		} else {
+			// Direct request to Titan API
+			response = await fetch(
+				`${this.url}/api/v1/quote/swap?${params.toString()}`,
+				{
+					headers: {
+						Accept: 'application/vnd.msgpack',
+						'Accept-Encoding': 'gzip, deflate, br',
+						Authorization: `Bearer ${this.authToken}`,
+					},
+				}
+			);
+		}
 
 		if (!response.ok) {
 			throw new Error(
@@ -268,16 +286,30 @@ export class TitanClient {
 			}),
 		});
 
-		const response = await fetch(
-			`${this.url}/api/v1/quote/swap?${params.toString()}`,
-			{
+		let response: Response;
+
+		if (this.proxyUrl) {
+			// Use proxy route - send parameters in request body
+			response = await fetch(this.proxyUrl, {
+				method: 'POST',
 				headers: {
-					Accept: 'application/vnd.msgpack',
-					'Accept-Encoding': 'gzip, deflate, br',
-					Authorization: `Bearer ${this.authToken}`,
+					'Content-Type': 'application/json',
 				},
-			}
-		);
+				body: JSON.stringify(Object.fromEntries(params.entries())),
+			});
+		} else {
+			// Direct request to Titan API
+			response = await fetch(
+				`${this.url}/api/v1/quote/swap?${params.toString()}`,
+				{
+					headers: {
+						Accept: 'application/vnd.msgpack',
+						'Accept-Encoding': 'gzip, deflate, br',
+						Authorization: `Bearer ${this.authToken}`,
+					},
+				}
+			);
+		}
 
 		if (!response.ok) {
 			if (response.status === 404) {
