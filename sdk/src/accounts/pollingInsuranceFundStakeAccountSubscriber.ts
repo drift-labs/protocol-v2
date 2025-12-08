@@ -10,12 +10,13 @@ import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
 import { BulkAccountLoader } from './bulkAccountLoader';
 import { InsuranceFundStake } from '../types';
+import { Drift } from '../idl/drift';
 
 export class PollingInsuranceFundStakeAccountSubscriber
 	implements InsuranceFundStakeAccountSubscriber
 {
 	isSubscribed: boolean;
-	program: Program;
+	program: Program<Drift>;
 	eventEmitter: StrictEventEmitter<
 		EventEmitter,
 		InsuranceFundStakeAccountEvents
@@ -29,7 +30,7 @@ export class PollingInsuranceFundStakeAccountSubscriber
 	insuranceFundStakeAccountAndSlot?: DataAndSlot<InsuranceFundStake>;
 
 	public constructor(
-		program: Program,
+		program: Program<Drift>,
 		publicKey: PublicKey,
 		accountLoader: BulkAccountLoader
 	) {

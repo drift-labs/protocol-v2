@@ -12,6 +12,7 @@ import {
 	SubscribeRequest,
 	SubscribeUpdate,
 } from '../isomorphic/grpc';
+import { Drift } from '../idl/drift';
 
 export class grpcProgramAccountSubscriber<
 	T,
@@ -26,7 +27,7 @@ export class grpcProgramAccountSubscriber<
 		commitmentLevel: CommitmentLevel,
 		subscriptionName: string,
 		accountDiscriminator: string,
-		program: Program,
+		program: Program<Drift>,
 		decodeBufferFn: (accountName: string, ix: Buffer) => T,
 		options: { filters: MemcmpFilter[] } = {
 			filters: [],
@@ -49,7 +50,7 @@ export class grpcProgramAccountSubscriber<
 		grpcConfigs: GrpcConfigs,
 		subscriptionName: string,
 		accountDiscriminator: string,
-		program: Program,
+		program: Program<Drift>,
 		decodeBufferFn: (accountName: string, ix: Buffer) => U,
 		options: { filters: MemcmpFilter[] } = {
 			filters: [],

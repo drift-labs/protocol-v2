@@ -8,14 +8,15 @@ import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
-import { UserStatsAccount } from '../types';
+import { parseUserStatsAccount, UserStatsAccount } from '../types';
 import { BulkAccountLoader } from './bulkAccountLoader';
+import { Drift } from '../idl/drift';
 
 export class PollingUserStatsAccountSubscriber
 	implements UserStatsAccountSubscriber
 {
 	isSubscribed: boolean;
-	program: Program;
+	program: Program<Drift>;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserStatsAccountEvents>;
 	userStatsAccountPublicKey: PublicKey;
 
@@ -26,7 +27,7 @@ export class PollingUserStatsAccountSubscriber
 	userStats?: DataAndSlot<UserStatsAccount>;
 
 	public constructor(
-		program: Program,
+		program: Program<Drift>,
 		userStatsAccountPublicKey: PublicKey,
 		accountLoader: BulkAccountLoader
 	) {
@@ -105,7 +106,7 @@ export class PollingUserStatsAccountSubscriber
 				);
 			if (dataAndContext.context.slot > (this.userStats?.slot ?? 0)) {
 				this.userStats = {
-					data: dataAndContext.data as UserStatsAccount,
+					data: parseUserStatsAccount(dataAndContext.data),
 					slot: dataAndContext.context.slot,
 				};
 			}

@@ -1,4 +1,4 @@
-import { Program, Event } from '@coral-xyz/anchor';
+import { Program, Event } from '@coral-xyz/anchor-29';
 import { CuUsageEvent } from './types';
 
 const driftProgramId = 'dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH';

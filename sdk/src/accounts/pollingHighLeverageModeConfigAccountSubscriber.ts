@@ -10,12 +10,13 @@ import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
 import { BulkAccountLoader } from './bulkAccountLoader';
 import { HighLeverageModeConfig } from '../types';
+import { Drift } from '../idl/drift';
 
 export class PollingHighLeverageModeConfigAccountSubscriber
 	implements HighLeverageModeConfigAccountSubscriber
 {
 	isSubscribed: boolean;
-	program: Program;
+	program: Program<Drift>;
 	eventEmitter: StrictEventEmitter<
 		EventEmitter,
 		HighLeverageModeConfigAccountEvents
@@ -29,7 +30,7 @@ export class PollingHighLeverageModeConfigAccountSubscriber
 	highLeverageModeConfigAccountAndSlot?: DataAndSlot<HighLeverageModeConfig>;
 
 	public constructor(
-		program: Program,
+		program: Program<Drift>,
 		publicKey: PublicKey,
 		accountLoader: BulkAccountLoader
 	) {
@@ -118,7 +119,11 @@ export class PollingHighLeverageModeConfigAccountSubscriber
 				(this.highLeverageModeConfigAccountAndSlot?.slot ?? 0)
 			) {
 				this.highLeverageModeConfigAccountAndSlot = {
-					data: dataAndContext.data as HighLeverageModeConfig,
+					data: {
+						maxUsers: dataAndContext.data.maxUsers,
+						currentUsers: dataAndContext.data.currentUsers,
+						reduceOnly: dataAndContext.data.reduceOnly > 0,
+					},
 					slot: dataAndContext.context.slot,
 				};
 			}

@@ -444,9 +444,6 @@ describe('delist market', () => {
 				.getUserAccount()
 				.perpPositions[0].baseAssetAmount.eq(ZERO)
 		);
-		// assert(
-		// 	liquidatorDriftClient.getUserAccount().perpPositions[0].remainderBaseAssetAmount != 0
-		// );
 		console.log(
 			'liquidatorDriftClient perps:',
 			liquidatorDriftClient.getUserAccount().perpPositions[0]
@@ -477,10 +474,6 @@ describe('delist market', () => {
 			liquidatorDriftClient
 				.getUserAccount()
 				.perpPositions[0].baseAssetAmount.eq(ZERO)
-		);
-		assert(
-			liquidatorDriftClient.getUserAccount().perpPositions[0]
-				.remainderBaseAssetAmount == 0
 		);
 		assert(market001.numberOfUsersWithBase == 2);
 		assert(market001.numberOfUsers == 3);

@@ -11,6 +11,7 @@ import { ConstituentAccount } from '../types';
 import { WebSocketProgramAccountSubscriber } from '../accounts/webSocketProgramAccountSubscriber';
 import { getConstituentFilter } from '../memcmp';
 import { ConstituentMap } from './constituentMap';
+import { Drift } from '../idl/drift';
 
 export class WebSocketConstituentAccountSubscriber
 	implements ConstituentAccountSubscriber
@@ -18,7 +19,7 @@ export class WebSocketConstituentAccountSubscriber
 	isSubscribed: boolean;
 	resubTimeoutMs?: number;
 	commitment?: Commitment;
-	program: Program;
+	program: Program<Drift>;
 	eventEmitter: StrictEventEmitter<EventEmitter, ConstituentAccountEvents>;
 
 	constituentDataAccountSubscriber: WebSocketProgramAccountSubscriber<ConstituentAccount>;
@@ -27,7 +28,7 @@ export class WebSocketConstituentAccountSubscriber
 
 	public constructor(
 		constituentMap: ConstituentMap,
-		program: Program,
+		program: Program<Drift>,
 		resubTimeoutMs?: number,
 		commitment?: Commitment,
 		additionalFilters?: MemcmpFilter[]

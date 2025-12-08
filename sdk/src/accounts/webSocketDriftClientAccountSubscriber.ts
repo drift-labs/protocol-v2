@@ -29,6 +29,7 @@ import { findDelistedPerpMarketsAndOracles } from './utils';
 import { getOracleId } from '../oracles/oracleId';
 import { OracleSource } from '../types';
 import { WebSocketAccountSubscriberV2 } from './webSocketAccountSubscriberV2';
+import { Drift } from '../idl/drift';
 
 const ORACLE_DEFAULT_ID = getOracleId(
 	PublicKey.default,
@@ -39,7 +40,7 @@ export class WebSocketDriftClientAccountSubscriber
 	implements DriftClientAccountSubscriber
 {
 	isSubscribed: boolean;
-	program: Program;
+	program: Program<Drift>;
 	commitment?: Commitment;
 	perpMarketIndexes: number[];
 	spotMarketIndexes: number[];
@@ -71,7 +72,7 @@ export class WebSocketDriftClientAccountSubscriber
 	initialOraclePriceData: Map<string, OraclePriceData>;
 	customPerpMarketAccountSubscriber?: new (
 		accountName: string,
-		program: Program,
+		program: Program<Drift>,
 		accountPublicKey: PublicKey,
 		decodeBuffer?: (buffer: Buffer) => any,
 		resubOpts?: ResubOpts,
@@ -79,7 +80,7 @@ export class WebSocketDriftClientAccountSubscriber
 	) => AccountSubscriber<any>;
 	customOracleAccountSubscriber?: new (
 		accountName: string,
-		program: Program,
+		program: Program<Drift>,
 		accountPublicKey: PublicKey,
 		decodeBuffer?: (buffer: Buffer) => any,
 		resubOpts?: ResubOpts,
@@ -91,7 +92,7 @@ export class WebSocketDriftClientAccountSubscriber
 	protected subscriptionPromiseResolver: (val: boolean) => void;
 
 	public constructor(
-		program: Program,
+		program: Program<Drift>,
 		perpMarketIndexes: number[],
 		spotMarketIndexes: number[],
 		oracleInfos: OracleInfo[],
@@ -101,7 +102,7 @@ export class WebSocketDriftClientAccountSubscriber
 		commitment?: Commitment,
 		customPerpMarketAccountSubscriber?: new (
 			accountName: string,
-			program: Program,
+			program: Program<Drift>,
 			accountPublicKey: PublicKey,
 			decodeBuffer?: (buffer: Buffer) => any,
 			resubOpts?: ResubOpts,
@@ -109,7 +110,7 @@ export class WebSocketDriftClientAccountSubscriber
 		) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>,
 		customOracleAccountSubscriber?: new (
 			accountName: string,
-			program: Program,
+			program: Program<Drift>,
 			accountPublicKey: PublicKey,
 			decodeBuffer?: (buffer: Buffer) => any,
 			resubOpts?: ResubOpts,

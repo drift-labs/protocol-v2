@@ -12,6 +12,7 @@ import { EventEmitter } from 'events';
 import { Commitment, PublicKey } from '@solana/web3.js';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
 import { UserStatsAccount } from '../types';
+import { Drift } from '../idl/drift';
 
 export class WebSocketUserStatsAccountSubscriber
 	implements UserStatsAccountSubscriber
@@ -19,14 +20,14 @@ export class WebSocketUserStatsAccountSubscriber
 	isSubscribed: boolean;
 	resubOpts?: ResubOpts;
 	commitment?: Commitment;
-	program: Program;
+	program: Program<Drift>;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserStatsAccountEvents>;
 	userStatsAccountPublicKey: PublicKey;
 
 	userStatsAccountSubscriber: AccountSubscriber<UserStatsAccount>;
 
 	public constructor(
-		program: Program,
+		program: Program<Drift>,
 		userStatsAccountPublicKey: PublicKey,
 		resubOpts?: ResubOpts,
 		commitment?: Commitment

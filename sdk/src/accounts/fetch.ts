@@ -12,10 +12,11 @@ import {
 	getUserStatsAccountPublicKey,
 } from '../addresses/pda';
 import { Program } from '@coral-xyz/anchor';
+import { Drift } from '../idl/drift';
 
 export async function fetchUserAccounts(
 	connection: Connection,
-	program: Program,
+	program: Program<Drift>,
 	authority: PublicKey,
 	limit = 8
 ): Promise<(UserAccount | undefined)[]> {
@@ -31,7 +32,7 @@ export async function fetchUserAccounts(
 
 export async function fetchUserAccountsUsingKeys(
 	connection: Connection,
-	program: Program,
+	program: Program<Drift>,
 	userAccountPublicKeys: PublicKey[]
 ): Promise<(UserAccount | undefined)[]> {
 	const accountInfos = await connection.getMultipleAccountsInfo(
@@ -52,7 +53,7 @@ export async function fetchUserAccountsUsingKeys(
 
 export async function fetchUserStatsAccount(
 	connection: Connection,
-	program: Program,
+	program: Program<Drift>,
 	authority: PublicKey
 ): Promise<UserStatsAccount | undefined> {
 	const userStatsPublicKey = getUserStatsAccountPublicKey(
@@ -74,7 +75,7 @@ export async function fetchUserStatsAccount(
 
 export async function fetchRevenueShareAccount(
 	connection: Connection,
-	program: Program,
+	program: Program<Drift>,
 	authority: PublicKey
 ): Promise<RevenueShareAccount | null> {
 	const revenueShareAccountPublicKey = getRevenueShareAccountPublicKey(
@@ -93,7 +94,7 @@ export async function fetchRevenueShareAccount(
 
 export async function fetchRevenueShareEscrowAccount(
 	connection: Connection,
-	program: Program,
+	program: Program<Drift>,
 	authority: PublicKey
 ): Promise<RevenueShareEscrowAccount | null> {
 	const revenueShareEscrowPubKey = getRevenueShareEscrowAccountPublicKey(

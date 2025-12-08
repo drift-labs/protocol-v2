@@ -1,5 +1,10 @@
 import { ConfirmOptions, PublicKey } from '@solana/web3.js';
-import { PerpMarketAccount, SpotMarketAccount } from './types';
+import {
+	PerpMarketAccount,
+	SpotMarketAccount,
+	parsePerpMarketAccount,
+	parseSpotMarketAccount,
+} from './types';
 import {
 	DevnetPerpMarkets,
 	MainnetPerpMarkets,
@@ -19,6 +24,7 @@ import {
 	ON_DEMAND_MAINNET_PID,
 } from '@switchboard-xyz/on-demand';
 import { getOracleId } from './oracles/oracleId';
+import { Drift } from './idl/drift';
 
 type DriftConfig = {
 	ENV: DriftEnv;
@@ -167,7 +173,9 @@ export function getMarketsAndOraclesForSubscription(
 	};
 }
 
-export async function findAllMarketAndOracles(program: Program): Promise<{
+export async function findAllMarketAndOracles(
+	program: Program<Drift>
+): Promise<{
 	perpMarketIndexes: number[];
 	perpMarketAccounts: PerpMarketAccount[];
 	spotMarketIndexes: number[];
@@ -178,13 +186,24 @@ export async function findAllMarketAndOracles(program: Program): Promise<{
 	const spotMarketIndexes = [];
 	const oracleInfos = new Map<string, OracleInfo>();
 
-	const perpMarketProgramAccounts =
-		(await program.account.perpMarket.all()) as ProgramAccount<PerpMarketAccount>[];
-	const spotMarketProgramAccounts =
-		(await program.account.spotMarket.all()) as ProgramAccount<SpotMarketAccount>[];
+	//@ts-ignore TS2589
+	const perpMarketProgramAccountsRaw = await program.account.perpMarket.all();
+	//@ts-ignore TS2589
+	const spotMarketProgramAccountsRaw = await program.account.spotMarket.all();
+
+	const perpMarketProgramAccounts: ProgramAccount<PerpMarketAccount>[] =
+		perpMarketProgramAccountsRaw.map((account) => ({
+			...account,
+			account: parsePerpMarketAccount(account.account),
+		}));
+	const spotMarketProgramAccounts: ProgramAccount<SpotMarketAccount>[] =
+		spotMarketProgramAccountsRaw.map((account) => ({
+			...account,
+			account: parseSpotMarketAccount(account.account),
+		}));
 
 	for (const perpMarketProgramAccount of perpMarketProgramAccounts) {
-		const perpMarket = perpMarketProgramAccount.account as PerpMarketAccount;
+		const perpMarket = perpMarketProgramAccount.account;
 		perpMarketIndexes.push(perpMarket.marketIndex);
 		oracleInfos.set(
 			getOracleId(perpMarket.amm.oracle, perpMarket.amm.oracleSource),
@@ -196,7 +215,7 @@ export async function findAllMarketAndOracles(program: Program): Promise<{
 	}
 
 	for (const spotMarketProgramAccount of spotMarketProgramAccounts) {
-		const spotMarket = spotMarketProgramAccount.account as SpotMarketAccount;
+		const spotMarket = spotMarketProgramAccount.account;
 		spotMarketIndexes.push(spotMarket.marketIndex);
 		oracleInfos.set(getOracleId(spotMarket.oracle, spotMarket.oracleSource), {
 			publicKey: spotMarket.oracle,

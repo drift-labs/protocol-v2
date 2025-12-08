@@ -40,7 +40,6 @@ export const mockPerpPosition: PerpPosition = {
 	openAsks: new BN(0),
 	settledPnl: new BN(0),
 	lpShares: new BN(0),
-	remainderBaseAssetAmount: 0,
 	lastBaseAssetAmountPerLp: new BN(0),
 	lastQuoteAssetAmountPerLp: new BN(0),
 	perLpBase: 0,

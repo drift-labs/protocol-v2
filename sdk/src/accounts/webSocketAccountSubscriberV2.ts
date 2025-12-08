@@ -20,6 +20,7 @@ import {
 } from 'gill';
 import { PublicKey } from '@solana/web3.js';
 import bs58 from 'bs58';
+import { Drift } from '../idl/drift';
 
 /**
  * WebSocketAccountSubscriberV2
@@ -74,7 +75,7 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 	bufferAndSlot?: BufferAndSlot;
 	accountName: string;
 	logAccountName: string;
-	program: Program;
+	program: Program<Drift>;
 	accountPublicKey: PublicKey;
 	decodeBufferFn: (buffer: Buffer) => T;
 	onChange: (data: T) => void;
@@ -112,7 +113,7 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 	 */
 	public constructor(
 		accountName: string,
-		program: Program,
+		program: Program<Drift>,
 		accountPublicKey: PublicKey,
 		decodeBuffer?: (buffer: Buffer) => T,
 		resubOpts?: ResubOpts,

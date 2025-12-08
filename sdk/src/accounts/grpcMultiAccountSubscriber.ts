@@ -12,6 +12,7 @@ import {
 	createClient,
 } from '../isomorphic/grpc';
 import { BufferAndSlot, DataAndSlot, GrpcConfigs, ResubOpts } from './types';
+import { Drift } from '../idl/drift';
 
 interface AccountInfoLike {
 	owner: PublicKey;
@@ -40,7 +41,7 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 	private client: Client;
 	private stream: ClientDuplexStream<SubscribeRequest, SubscribeUpdate>;
 	private commitmentLevel: CommitmentLevel;
-	private program: Program;
+	private program: Program<Drift>;
 	private accountName: string;
 	private decodeBufferFn?: (
 		buffer: Buffer,
@@ -69,7 +70,7 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 		client: Client,
 		commitmentLevel: CommitmentLevel,
 		accountName: string,
-		program: Program,
+		program: Program<Drift>,
 		decodeBuffer?: (buffer: Buffer, pubkey?: string) => T,
 		resubOpts?: ResubOpts,
 		onUnsubscribe?: () => Promise<void>,
@@ -88,7 +89,7 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 	public static async create<T, U = undefined>(
 		grpcConfigs: GrpcConfigs,
 		accountName: string,
-		program: Program,
+		program: Program<Drift>,
 		decodeBuffer?: (buffer: Buffer, pubkey?: string, accountProps?: U) => T,
 		resubOpts?: ResubOpts,
 		clientProp?: Client,

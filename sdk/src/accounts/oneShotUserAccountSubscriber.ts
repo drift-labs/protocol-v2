@@ -3,6 +3,7 @@ import { UserAccount } from '../types';
 import { BasicUserAccountSubscriber } from './basicUserAccountSubscriber';
 import { Program } from '@coral-xyz/anchor';
 import { UserAccountSubscriber } from './types';
+import { Drift } from '../idl/drift';
 
 /**
  * Simple implementation of UserAccountSubscriber. It will fetch the UserAccount
@@ -13,11 +14,11 @@ export class OneShotUserAccountSubscriber
 	extends BasicUserAccountSubscriber
 	implements UserAccountSubscriber
 {
-	program: Program;
+	program: Program<Drift>;
 	commitment: Commitment;
 
 	public constructor(
-		program: Program,
+		program: Program<Drift>,
 		userAccountPublicKey: PublicKey,
 		data?: UserAccount,
 		slot?: number,

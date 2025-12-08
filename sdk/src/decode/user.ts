@@ -133,7 +133,6 @@ export function decodeUser(buffer: Buffer): UserAccount {
 			openAsks,
 			settledPnl,
 			lpShares,
-			remainderBaseAssetAmount: 0,
 			lastBaseAssetAmountPerLp,
 			lastQuoteAssetAmountPerLp,
 			marketIndex,

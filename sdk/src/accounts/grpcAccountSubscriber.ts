@@ -12,6 +12,7 @@ import {
 	SubscribeRequest,
 	SubscribeUpdate,
 } from '../isomorphic/grpc';
+import { Drift } from '../idl/drift';
 
 export class grpcAccountSubscriber<T> extends WebSocketAccountSubscriber<T> {
 	private client: Client;
@@ -23,7 +24,7 @@ export class grpcAccountSubscriber<T> extends WebSocketAccountSubscriber<T> {
 		client: Client,
 		commitmentLevel: CommitmentLevel,
 		accountName: string,
-		program: Program,
+		program: Program<Drift>,
 		accountPublicKey: PublicKey,
 		decodeBuffer?: (buffer: Buffer) => T,
 		resubOpts?: ResubOpts
@@ -36,7 +37,7 @@ export class grpcAccountSubscriber<T> extends WebSocketAccountSubscriber<T> {
 	public static async create<U>(
 		grpcConfigs: GrpcConfigs,
 		accountName: string,
-		program: Program,
+		program: Program<Drift>,
 		accountPublicKey: PublicKey,
 		decodeBuffer?: (buffer: Buffer) => U,
 		resubOpts?: ResubOpts,

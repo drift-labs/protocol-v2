@@ -7,15 +7,15 @@ import {
 	QUOTE_PRECISION,
 	TEN,
 } from '../constants/numericConstants';
-import { DRIFT_PROGRAM_ID } from '../config';
 import { Wallet } from '../wallet';
 import driftIDL from '../idl/drift.json';
+import { Drift } from '../idl/drift';
 
 export class PythLazerClient implements OracleClient {
 	private connection: Connection;
 	private multiple: BN;
 	private stableCoin: boolean;
-	private program: Program;
+	private program: Program<Drift>;
 	readonly decodeFunc: (name: string, data: Buffer) => any;
 
 	public constructor(
@@ -34,11 +34,7 @@ export class PythLazerClient implements OracleClient {
 				commitment: connection.commitment,
 			}
 		);
-		this.program = new Program(
-			driftIDL as Idl,
-			new PublicKey(DRIFT_PROGRAM_ID),
-			provider
-		);
+		this.program = new Program(driftIDL as Idl, provider);
 		this.decodeFunc =
 			this.program.account.pythLazerOracle.coder.accounts.decodeUnchecked.bind(
 				this.program.account.pythLazerOracle.coder.accounts

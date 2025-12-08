@@ -1131,14 +1131,12 @@ export type PerpPosition = {
 	openAsks: BN;
 	settledPnl: BN;
 	lpShares: BN;
-	/**	 TODO: remove this field - it doesn't exist on chain */
-	remainderBaseAssetAmount: number;
+	positionFlag: number;
 	maxMarginRatio: number;
 	lastBaseAssetAmountPerLp: BN;
 	lastQuoteAssetAmountPerLp: BN;
 	perLpBase: number;
 	isolatedPositionScaledBalance: BN;
-	positionFlag: number;
 };
 
 export class PositionFlag {
@@ -1162,7 +1160,7 @@ export type UserStatsAccount = {
 		totalTokenDiscount: BN;
 		totalRefereeDiscount: BN;
 		totalReferrerReward: BN;
-		current_epoch_referrer_reward: BN;
+		currentEpochReferrerReward: BN;
 	};
 	referrer: PublicKey;
 	referrerStatus: number;
@@ -1180,6 +1178,77 @@ export type UserStatsAccount = {
 
 	ifStakedGovTokenAmount: BN;
 };
+
+export function parseUserStatsAccount(account: {
+	makerVolume30d: BN;
+	takerVolume30d: BN;
+	fillerVolume30d: BN;
+	lastMakerVolume30dTs: BN;
+	lastTakerVolume30dTs: BN;
+	lastFillerVolume30dTs: BN;
+	[key: string]: any;
+}): UserStatsAccount {
+	return {
+		...account,
+		makerVolume30D: account.makerVolume30d,
+		takerVolume30D: account.takerVolume30d,
+		fillerVolume30D: account.fillerVolume30d,
+		lastMakerVolume30DTs: account.lastMakerVolume30dTs,
+		lastTakerVolume30DTs: account.lastTakerVolume30dTs,
+		lastFillerVolume30DTs: account.lastFillerVolume30dTs,
+	} as unknown as UserStatsAccount;
+}
+
+/**
+ * Parses an Anchor-generated AMM account to the SDK's AMM type.
+ * Handles field name mappings and provides defaults for missing fields.
+ */
+export function parseAMM(amm: {
+	last24hAvgFundingRate?: BN;
+	lastMarkPriceTwap5min?: BN;
+	volume24h?: BN;
+	cumulativeFundingRate?: BN;
+	cumulativeFundingRateLong?: BN;
+	cumulativeFundingRateShort?: BN;
+	[key: string]: any;
+}): AMM {
+	return {
+		...amm,
+		last24HAvgFundingRate:
+			amm.last24HAvgFundingRate ?? amm.last24hAvgFundingRate ?? ZERO,
+		lastMarkPriceTwap5Min:
+			amm.lastMarkPriceTwap5Min ?? amm.lastMarkPriceTwap5min ?? ZERO,
+		volume24H: amm.volume24H ?? amm.volume24h ?? ZERO,
+		// TODO: map to long/short
+		cumulativeFundingRate: ZERO,
+	} as unknown as AMM;
+}
+
+/**
+ * Parses an Anchor-generated PerpMarket account to the SDK's PerpMarketAccount type.
+ * Handles field name mappings and provides defaults for missing fields.
+ */
+export function parsePerpMarketAccount(account: {
+	amm?: any;
+	[key: string]: any;
+}): PerpMarketAccount {
+	return {
+		...account,
+		amm: account.amm ? parseAMM(account.amm) : account.amm,
+	} as unknown as PerpMarketAccount;
+}
+
+/**
+ * Parses an Anchor-generated SpotMarket account to the SDK's SpotMarketAccount type.
+ * Handles field name mappings and provides defaults for missing fields.
+ */
+export function parseSpotMarketAccount(account: {
+	[key: string]: any;
+}): SpotMarketAccount {
+	return {
+		...account,
+	} as unknown as SpotMarketAccount;
+}
 
 export type FuelOverflowAccount = {
 	authority: PublicKey;
@@ -1800,7 +1869,6 @@ export type LPPoolAccount = {
 	tokenSupply: BN;
 	volatility: BN;
 	constituents: number;
-	quoteConstituentIndex: number;
 	bump: number;
 	gammaExecution: number;
 	xi: number;

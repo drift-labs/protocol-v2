@@ -4,13 +4,14 @@ import { PublicKey } from '@solana/web3.js';
 import { UserAccount } from '../types';
 import { WebSocketUserAccountSubscriber } from './webSocketUserAccountSubscriber';
 import { grpcAccountSubscriber } from './grpcAccountSubscriber';
+import { Drift } from '../idl/drift';
 
 export class grpcUserAccountSubscriber extends WebSocketUserAccountSubscriber {
 	private grpcConfigs: GrpcConfigs;
 
 	public constructor(
 		grpcConfigs: GrpcConfigs,
-		program: Program,
+		program: Program<Drift>,
 		userAccountPublicKey: PublicKey,
 		resubOpts?: ResubOpts
 	) {

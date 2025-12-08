@@ -10,11 +10,12 @@ import { SwitchboardClient } from '../oracles/switchboardClient';
 import { PythPullClient } from '../oracles/pythPullClient';
 import { SwitchboardOnDemandClient } from '../oracles/switchboardOnDemandClient';
 import { PythLazerClient } from '../oracles/pythLazerClient';
+import { Drift } from '../idl/drift';
 
 export function getOracleClient(
 	oracleSource: OracleSource,
 	connection: Connection,
-	program: Program
+	program: Program<Drift>
 ): OracleClient {
 	if (isVariant(oracleSource, 'pyth')) {
 		return new PythClient(connection);
