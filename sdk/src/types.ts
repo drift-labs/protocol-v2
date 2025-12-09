@@ -80,6 +80,12 @@ export enum UserStatus {
 	PROTECTED_MAKER = 16,
 }
 
+export enum UserStatsPausedOperation {
+	UPDATE_BID_ASK_TWAP = 1,
+	AMM_ATOMIC_FILL = 2,
+	AMM_ATOMIC_RISK_INCREASING_FILL = 4,
+}
+
 export class MarginMode {
 	static readonly DEFAULT = { default: {} };
 	static readonly HIGH_LEVERAGE = { highLeverage: {} };

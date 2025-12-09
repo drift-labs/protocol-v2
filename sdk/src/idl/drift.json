@@ -1,5 +1,5 @@
 {
-  "version": "2.149.1",
+  "version": "2.150.0",
   "name": "drift",
   "instructions": [
     {
@@ -2199,7 +2199,7 @@
       "args": []
     },
     {
-      "name": "adminDisableUpdatePerpBidAskTwap",
+      "name": "adminUpdateUserStatsPausedOperations",
       "accounts": [
         {
           "name": "admin",
@@ -2219,8 +2219,8 @@
       ],
       "args": [
         {
-          "name": "disable",
-          "type": "bool"
+          "name": "pausedOperations",
+          "type": "u8"
         }
       ]
     },
@@ -11744,13 +11744,8 @@
             "type": "bool"
           },
           {
-            "name": "padding1",
-            "type": {
-              "array": [
-                "u8",
-                1
-              ]
-            }
+            "name": "pausedOperations",
+            "type": "u8"
           },
           {
             "name": "fuelOverflowStatus",
@@ -16140,6 +16135,23 @@
       }
     },
     {
+      "name": "UserStatsPausedOperations",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "UpdateBidAskTwap"
+          },
+          {
+            "name": "AmmAtomicFill"
+          },
+          {
+            "name": "AmmAtomicRiskIncreasingFill"
+          }
+        ]
+      }
+    },
+    {
       "name": "SignatureVerificationError",
       "type": {
         "kind": "enum",
@@ -19769,5 +19781,8 @@
       "name": "MarketIndexNotFoundAmmCache",
       "msg": "MarketIndexNotFoundAmmCache"
     }
-  ]
+  ],
+  "metadata": {
+    "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
+  }
 }

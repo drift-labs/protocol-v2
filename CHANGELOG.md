@@ -13,6 +13,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.151.0] - 2025-12-03
+
+### Features
+
+- program: add reduce only atomic taking against amm option [#2037](https://github.com/drift-labs/protocol-v2/pull/2037)
+
+### Fixes
+
+### Breaking
+
+## [2.150.0] - 2025-12-01
+
+### Features
+
+- program: stricter logic for atomic fills [#2042](https://github.com/drift-labs/protocol-v2/pull/2042)
+- program: reset lp fields in update_user_idle [#2018](https://github.com/drift-labs/protocol-v2/pull/2018)
+
+### Fixes
+
+### Breaking
+
 ## [2.149.1] - 2025-11-19
 
 ### Features

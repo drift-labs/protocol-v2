@@ -948,6 +948,7 @@ impl PerpMarket {
             safe_oracle_price_data.delay,
             clock_slot,
             fill_mode.is_liquidation(),
+            user_can_skip_auction_duration,
         )?;
 
         // Proceed if order is low risk and we can fill it. Otherwise check if we can higher risk order immediately

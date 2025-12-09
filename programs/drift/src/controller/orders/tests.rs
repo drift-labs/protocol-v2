@@ -100,7 +100,8 @@ pub mod fill_order_protected_maker {
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::state::State;
     use crate::state::user::{
-        MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats, UserStatus,
+        MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats,
+        UserStatsPausedOperations, UserStatus,
     };
     use crate::test_utils::*;
     use crate::test_utils::{
@@ -231,7 +232,7 @@ pub mod fill_order_protected_maker {
             AccountLoader::try_from(&user_account_info).unwrap();
 
         let mut taker_stats = UserStats {
-            disable_update_perp_bid_ask_twap: true,
+            paused_operations: UserStatsPausedOperations::AmmAtomicFill as u8,
             ..UserStats::default()
         };
 
@@ -323,7 +324,7 @@ pub mod fill_order_protected_maker {
 
         // user exempt, no 10 bps applied for pmm
         let mut taker_stats = UserStats {
-            disable_update_perp_bid_ask_twap: false,
+            paused_operations: 0,
             ..UserStats::default()
         };
 
@@ -3367,7 +3368,9 @@ pub mod fulfill_order {
 
         let order_index = 0;
         let min_auction_duration = 0;
-        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let user_can_skip_auction_duration = taker
+            .can_skip_auction_duration(&taker_stats, false)
+            .unwrap();
         let is_amm_available = get_amm_is_available(
             &taker.orders[order_index],
             min_auction_duration,
@@ -3625,7 +3628,9 @@ pub mod fulfill_order {
 
         let order_index = 0;
         let min_auction_duration = 10;
-        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let user_can_skip_auction_duration = taker
+            .can_skip_auction_duration(&taker_stats, false)
+            .unwrap();
         let is_amm_available = get_amm_is_available(
             &taker.orders[order_index],
             min_auction_duration,
@@ -3831,7 +3836,9 @@ pub mod fulfill_order {
 
         let order_index = 0;
         let min_auction_duration = 0;
-        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let user_can_skip_auction_duration = taker
+            .can_skip_auction_duration(&taker_stats, false)
+            .unwrap();
         let is_amm_available = get_amm_is_available(
             &taker.orders[order_index],
             min_auction_duration,
@@ -4050,7 +4057,9 @@ pub mod fulfill_order {
 
         let order_index = 0;
         let min_auction_duration = 10;
-        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let user_can_skip_auction_duration = taker
+            .can_skip_auction_duration(&taker_stats, false)
+            .unwrap();
         let is_amm_available = get_amm_is_available(
             &taker.orders[order_index],
             min_auction_duration,
@@ -4229,7 +4238,9 @@ pub mod fulfill_order {
 
         let order_index = 0;
         let min_auction_duration = 0;
-        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let user_can_skip_auction_duration = taker
+            .can_skip_auction_duration(&taker_stats, false)
+            .unwrap();
         let is_amm_available = get_amm_is_available(
             &taker.orders[order_index],
             min_auction_duration,
@@ -4440,7 +4451,9 @@ pub mod fulfill_order {
 
         let order_index = 0;
         let min_auction_duration = 10;
-        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let user_can_skip_auction_duration = taker
+            .can_skip_auction_duration(&taker_stats, false)
+            .unwrap();
         let is_amm_available = get_amm_is_available(
             &taker.orders[order_index],
             min_auction_duration,
@@ -4640,7 +4653,9 @@ pub mod fulfill_order {
 
         let order_index = 0;
         let min_auction_duration = 0;
-        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let user_can_skip_auction_duration = taker
+            .can_skip_auction_duration(&taker_stats, false)
+            .unwrap();
         let is_amm_available = get_amm_is_available(
             &taker.orders[order_index],
             min_auction_duration,
@@ -4793,7 +4808,9 @@ pub mod fulfill_order {
 
         let order_index = 0;
         let min_auction_duration = 0;
-        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let user_can_skip_auction_duration = taker
+            .can_skip_auction_duration(&taker_stats, false)
+            .unwrap();
         let is_amm_available = get_amm_is_available(
             &taker.orders[order_index],
             min_auction_duration,
@@ -4973,7 +4990,9 @@ pub mod fulfill_order {
 
         let order_index = 0;
         let min_auction_duration = 0;
-        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let user_can_skip_auction_duration = taker
+            .can_skip_auction_duration(&taker_stats, false)
+            .unwrap();
         let is_amm_available = get_amm_is_available(
             &taker.orders[order_index],
             min_auction_duration,
@@ -5576,7 +5595,9 @@ pub mod fulfill_order {
 
         let order_index = 0;
         let min_auction_duration = 10;
-        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let user_can_skip_auction_duration = taker
+            .can_skip_auction_duration(&taker_stats, false)
+            .unwrap();
         let is_amm_available = get_amm_is_available(
             &taker.orders[order_index],
             min_auction_duration,
@@ -5833,7 +5854,9 @@ pub mod fulfill_order {
 
         let order_index = 0;
         let min_auction_duration = 0;
-        let user_can_skip_auction_duration = taker.can_skip_auction_duration(&taker_stats).unwrap();
+        let user_can_skip_auction_duration = taker
+            .can_skip_auction_duration(&taker_stats, false)
+            .unwrap();
         let is_amm_available = get_amm_is_available(
             &taker.orders[order_index],
             min_auction_duration,
@@ -13075,7 +13098,7 @@ mod order_is_low_risk_for_amm {
         let mm_oracle_delay = 10i64;
 
         let is_low = order
-            .is_low_risk_for_amm(mm_oracle_delay, clock_slot, false)
+            .is_low_risk_for_amm(mm_oracle_delay, clock_slot, false, true)
             .unwrap();
         assert!(is_low);
     }
@@ -13088,7 +13111,7 @@ mod order_is_low_risk_for_amm {
         let mm_oracle_delay = 11i64;
 
         let is_low = order
-            .is_low_risk_for_amm(mm_oracle_delay, clock_slot, false)
+            .is_low_risk_for_amm(mm_oracle_delay, clock_slot, false, true)
             .unwrap();
         assert!(!is_low);
     }
@@ -13096,7 +13119,9 @@ mod order_is_low_risk_for_amm {
     #[test]
     fn liquidation_always_low_risk() {
         let order = base_perp_order();
-        let is_low = order.is_low_risk_for_amm(0, order.slot, true).unwrap();
+        let is_low = order
+            .is_low_risk_for_amm(0, order.slot, true, true)
+            .unwrap();
         assert!(is_low);
     }
 
@@ -13105,7 +13130,26 @@ mod order_is_low_risk_for_amm {
         let mut order = base_perp_order();
         order.add_bit_flag(OrderBitFlag::SafeTriggerOrder);
 
-        let is_low = order.is_low_risk_for_amm(0, order.slot, false).unwrap();
+        let is_low = order
+            .is_low_risk_for_amm(0, order.slot, false, true)
+            .unwrap();
         assert!(is_low);
+    }
+
+    #[test]
+    fn user_can_skip_auction_duration() {
+        let order = base_perp_order();
+        let clock_slot = 110u64;
+        let mm_oracle_delay = 10i64;
+
+        let is_low = order
+            .is_low_risk_for_amm(mm_oracle_delay, clock_slot, false, true)
+            .unwrap();
+        assert!(is_low);
+
+        let is_low = order
+            .is_low_risk_for_amm(mm_oracle_delay, clock_slot, false, false)
+            .unwrap();
+        assert!(!is_low);
     }
 }
