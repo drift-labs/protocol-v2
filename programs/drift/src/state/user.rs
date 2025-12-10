@@ -1928,6 +1928,7 @@ pub enum OrderBitFlag {
     SafeTriggerOrder = 0b00000100,
     NewTriggerReduceOnly = 0b00001000,
     HasBuilder = 0b00010000,
+    IsIsolatedPosition = 0b00100000,
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
