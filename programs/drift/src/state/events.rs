@@ -242,8 +242,7 @@ pub struct OrderActionRecord {
     /// precision: PRICE_PRECISION
     pub oracle_price: i64,
 
-    /// Bit flags:
-    /// 0: is_signed_message
+    /// Order bit flags, defined in [`crate::state::user::OrderBitFlag`]
     pub bit_flags: u8,
     /// precision: QUOTE_PRECISION
     /// Only Some if the taker reduced position

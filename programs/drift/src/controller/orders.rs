@@ -304,6 +304,10 @@ pub fn place_perp_order(
         bit_flags = set_order_bit_flag(bit_flags, true, OrderBitFlag::HasBuilder);
     }
 
+    if user.perp_positions[position_index].is_isolated() {
+        bit_flags = set_order_bit_flag(bit_flags, true, OrderBitFlag::IsIsolatedPosition);
+    }
+
     let new_order = Order {
         status: OrderStatus::Open,
         order_type: params.order_type,
@@ -711,6 +715,14 @@ pub fn cancel_order(
         let (taker, taker_order, maker, maker_order) =
             get_taker_and_maker_for_order_record(user_key, &user.orders[order_index]);
 
+        let mut bit_flags = 0;
+        if is_perp_order {
+            let position_index = get_position_index(&user.perp_positions, order_market_index)?;
+            if user.perp_positions[position_index].is_isolated() {
+                bit_flags = set_order_bit_flag(bit_flags, true, OrderBitFlag::IsIsolatedPosition);
+            }
+        }
+
         let order_action_record = get_order_action_record(
             now,
             OrderAction::Cancel,
@@ -731,7 +743,7 @@ pub fn cancel_order(
             maker,
             maker_order,
             oracle_map.get_price_data(&oracle_id)?.price,
-            0,
+            bit_flags,
             None,
             None,
             None,
@@ -2455,6 +2467,15 @@ pub fn fulfill_perp_order_with_amm(
         user.orders[order_index].is_signed_msg(),
         OrderBitFlag::SignedMessage,
     );
+
+    if user.perp_positions[position_index].is_isolated() {
+        order_action_bit_flags = set_order_bit_flag(
+            order_action_bit_flags,
+            true,
+            OrderBitFlag::IsIsolatedPosition,
+        );
+    }
+
     let (
         taker_existing_quote_entry_amount,
         taker_existing_base_asset_amount,
@@ -2972,6 +2993,17 @@ pub fn fulfill_perp_order_with_match(
         taker.orders[taker_order_index].is_signed_msg(),
         OrderBitFlag::SignedMessage,
     );
+
+    if taker.perp_positions[taker_position_index].is_isolated()
+        || maker.perp_positions[maker_position_index].is_isolated()
+    {
+        order_action_bit_flags = set_order_bit_flag(
+            order_action_bit_flags,
+            true,
+            OrderBitFlag::IsIsolatedPosition,
+        );
+    }
+
     let (taker_existing_quote_entry_amount, taker_existing_base_asset_amount) =
         calculate_existing_position_fields_for_order_action(
             base_asset_amount_fulfilled_by_maker,
@@ -3181,6 +3213,7 @@ pub fn trigger_order(
         .get_perp_position(market_index)?
         .worst_case_liability_value(oracle_price, perp_market.contract_type)?;
 
+    let mut bit_flags = 0;
     {
         update_trigger_order_params(
             &mut user.orders[order_index],
@@ -3205,6 +3238,9 @@ pub fn trigger_order(
             base_asset_amount,
             update_open_bids_and_asks,
         )?;
+        if user_position.is_isolated() {
+            bit_flags = set_order_bit_flag(bit_flags, true, OrderBitFlag::IsIsolatedPosition);
+        }
     }
 
     let is_filler_taker = user_key == filler_key;
@@ -3242,7 +3278,7 @@ pub fn trigger_order(
         None,
         None,
         oracle_price,
-        0,
+        bit_flags,
         None,
         None,
         None,
