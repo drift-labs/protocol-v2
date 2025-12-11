@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- sdk: fix for initializing a new user account with a token2022 deposit
+
 ### Breaking
 
 ## [2.151.0] - 2025-12-03
