@@ -3367,6 +3367,20 @@ export class DriftClient {
 			ixs.push(...startIxs);
 		}
 
+		// For Token2022 tokens, check if the user's token account exists and create it if it doesn't
+		if (!isSolMarket && !isFromSubaccount) {
+			const accountExists = await this.checkIfAccountExists(userTokenAccount);
+			const tokenProgram = this.getTokenProgramForSpotMarket(spotMarket);
+			if (!accountExists && !tokenProgram.equals(TOKEN_PROGRAM_ID)) {
+				const createAtaIx = this.getAssociatedTokenAccountCreationIx(
+					spotMarket.mint,
+					userTokenAccount,
+					tokenProgram
+				);
+				ixs.push(createAtaIx);
+			}
+		}
+
 		const depositCollateralIx = isFromSubaccount
 			? await this.getTransferDepositIx(
 					amount,
