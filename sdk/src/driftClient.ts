@@ -3368,10 +3368,15 @@ export class DriftClient {
 		}
 
 		// For Token2022 tokens, check if the user's token account exists and create it if it doesn't
-		if (!isSolMarket && !isFromSubaccount) {
+		const tokenProgram = this.getTokenProgramForSpotMarket(spotMarket);
+		if (
+			!isSolMarket &&
+			!isFromSubaccount &&
+			!tokenProgram.equals(TOKEN_PROGRAM_ID)
+		) {
 			const accountExists = await this.checkIfAccountExists(userTokenAccount);
-			const tokenProgram = this.getTokenProgramForSpotMarket(spotMarket);
-			if (!accountExists && !tokenProgram.equals(TOKEN_PROGRAM_ID)) {
+
+			if (!accountExists) {
 				const createAtaIx = this.getAssociatedTokenAccountCreationIx(
 					spotMarket.mint,
 					userTokenAccount,
