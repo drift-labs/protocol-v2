@@ -17082,11 +17082,6 @@
             "defined": "SpotBankruptcyRecord"
           },
           "index": false
-        },
-        {
-          "name": "bitFlags",
-          "type": "u8",
-          "index": false
         }
       ]
     },
