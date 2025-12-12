@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: fix base spread validate for perp market [#2052](https://github.com/drift-labs/protocol-v2/pull/2052)
 - sdk: fix for initializing a new user account with a token2022 deposit
 
 ### Breaking
