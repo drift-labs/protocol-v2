@@ -1,5 +1,5 @@
 {
-  "version": "2.150.0",
+  "version": "2.152.0",
   "name": "drift",
   "instructions": [
     {
@@ -23,7 +23,7 @@
         {
           "name": "authority",
           "isMut": false,
-          "isSigner": true
+          "isSigner": false
         },
         {
           "name": "payer",
@@ -73,7 +73,7 @@
         {
           "name": "authority",
           "isMut": false,
-          "isSigner": true
+          "isSigner": false
         },
         {
           "name": "payer",
@@ -11584,7 +11584,7 @@
           },
           {
             "name": "disableUpdatePerpBidAskTwap",
-            "type": "bool"
+            "type": "u8"
           },
           {
             "name": "pausedOperations",
@@ -16902,6 +16902,11 @@
           "type": {
             "defined": "SpotBankruptcyRecord"
           },
+          "index": false
+        },
+        {
+          "name": "bitFlags",
+          "type": "u8",
           "index": false
         }
       ]
