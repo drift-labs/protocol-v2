@@ -143,6 +143,7 @@ export class UnifiedSwapClient {
 				...titanParams,
 				userPublicKey: titanParams.userPublicKey,
 				swapMode: titanParams.swapMode as string, // Titan expects string
+				sizeConstraint: titanParams.sizeConstraint || 1280 - 375, // Use same default as getSwapInstructions
 			};
 
 			return await titanClient.getQuote(titanParamsWithUser);
