@@ -9,7 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: add bit_flags to liquidation record [#2053](https://github.com/drift-labs/protocol-v2/pull/2053)
+
 ### Fixes
+
+- sdk: fix for initializing a new user account with a token2022 deposit
 
 ### Breaking
 

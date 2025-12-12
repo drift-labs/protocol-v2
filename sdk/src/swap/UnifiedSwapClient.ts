@@ -82,11 +82,13 @@ export class UnifiedSwapClient {
 		connection,
 		authToken,
 		url,
+		proxyUrl,
 	}: {
 		clientType: SwapClientType;
 		connection: Connection;
-		authToken?: string; // Required for Titan, optional for Jupiter
+		authToken?: string; // Required for Titan when not using proxy, optional for Jupiter
 		url?: string; // Optional custom URL
+		proxyUrl?: string; // Optional proxy URL for Titan
 	}) {
 		this.clientType = clientType;
 
@@ -96,13 +98,11 @@ export class UnifiedSwapClient {
 				url,
 			});
 		} else if (clientType === 'titan') {
-			if (!authToken) {
-				throw new Error('authToken is required for Titan client');
-			}
 			this.client = new TitanClient({
 				connection,
-				authToken,
+				authToken: authToken || '', // Not needed when using proxy
 				url,
+				proxyUrl,
 			});
 		} else {
 			throw new Error(`Unsupported client type: ${clientType}`);
