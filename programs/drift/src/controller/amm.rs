@@ -495,18 +495,18 @@ fn calculate_revenue_pool_transfer(
     market: &PerpMarket,
     spot_market: &SpotMarket,
     amm_fee_pool_token_amount_after: u128,
-    terminal_state_surplus: i128,
+    market_surplus: i128,
 ) -> DriftResult<i128> {
     // Calculates the revenue pool transfer amount for a given market state (positive = send to revenue pool, negative = pull from revenue pool)
     // If the AMM budget is above `FEE_POOL_TO_REVENUE_POOL_THRESHOLD` (in surplus), settle fees collected to the revenue pool depending on the health of the AMM state
-    // Otherwise, spull from the revenue pool (up to a constraint amount)
+    // Otherwise, pull from the revenue pool (up to a constraint amount)
 
     if market.is_operation_paused(PerpOperation::SettleRevPool) {
         return Ok(0);
     }
 
     let amm_budget_surplus =
-        terminal_state_surplus.saturating_sub(FEE_POOL_TO_REVENUE_POOL_THRESHOLD.cast()?);
+        market_surplus.saturating_sub(FEE_POOL_TO_REVENUE_POOL_THRESHOLD.cast()?);
 
     if amm_budget_surplus > 0 {
         let fee_pool_threshold = amm_fee_pool_token_amount_after
@@ -559,20 +559,22 @@ fn calculate_revenue_pool_transfer(
 
         Ok(revenue_pool_transfer)
     } else if amm_budget_surplus < 0 {
+        // auto withdraw only from pool only when revenue pool has some buffer
+
+        let revenue_pool_balance: u128 = get_token_amount(
+            spot_market.revenue_pool.scaled_balance,
+            spot_market,
+            &SpotBalanceType::Deposit,
+        )?
+        .cast()?;
+
         let max_revenue_withdraw_allowed = market
             .insurance_claim
             .max_revenue_withdraw_per_period
             .cast::<i64>()?
             .saturating_sub(market.insurance_claim.revenue_withdraw_since_last_settle)
             .cast::<u128>()?
-            .min(
-                get_token_amount(
-                    spot_market.revenue_pool.scaled_balance,
-                    spot_market,
-                    &SpotBalanceType::Deposit,
-                )?
-                .cast()?,
-            )
+            .min(revenue_pool_balance.saturating_sub(FEE_POOL_TO_REVENUE_POOL_THRESHOLD))
             .min(
                 market
                     .insurance_claim
@@ -671,10 +673,7 @@ pub fn update_pool_balances(
             market.amm.fee_pool.balance_type(),
         )?;
 
-        let terminal_state_surplus = market
-            .amm
-            .total_fee_minus_distributions
-            .safe_sub(market.amm.total_fee_withdrawn.cast()?)?;
+        let market_surplus = market.amm.total_fee_minus_distributions;
 
         // market can perform withdraw from revenue pool
         if spot_market.insurance_fund.last_revenue_settle_ts
@@ -694,7 +693,7 @@ pub fn update_pool_balances(
             market,
             spot_market,
             amm_fee_pool_token_amount_after,
-            terminal_state_surplus,
+            market_surplus,
         )?;
 
         match revenue_pool_transfer.cmp(&0) {
@@ -716,6 +715,10 @@ pub fn update_pool_balances(
                     spot_market,
                     &mut market.amm.fee_pool,
                 )?;
+                market.amm.total_fee_withdrawn = market
+                    .amm
+                    .total_fee_withdrawn
+                    .saturating_sub(revenue_pool_transfer.unsigned_abs());
             }
             Ordering::Equal => (),
         }
