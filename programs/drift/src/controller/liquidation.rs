@@ -33,8 +33,9 @@ use crate::math::liquidation::{
     calculate_liability_transfer_implied_by_asset_amount,
     calculate_liability_transfer_to_cover_margin_shortage, calculate_liquidation_multiplier,
     calculate_max_pct_to_liquidate, calculate_perp_if_fee, calculate_spot_if_fee,
-    get_liquidation_fee, get_liquidation_order_params, validate_swap_within_liquidation_boundaries,
-    validate_transfer_satisfies_limit_price, LiquidationMultiplierType,
+    calculate_transfer_price_as_fee, get_liquidation_fee, get_liquidation_order_params,
+    validate_swap_within_liquidation_boundaries, validate_transfer_satisfies_limit_price,
+    LiquidationMultiplierType,
 };
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral_and_liability_info,
@@ -342,6 +343,12 @@ pub fn liquidate_perp(
         slot,
     )?;
 
+    let transfer_price = market.get_liquidation_transfer_price(
+        oracle_price,
+        user.perp_positions[position_index].get_direction(),
+    )?;
+    let transfer_price_fee = calculate_transfer_price_as_fee(transfer_price, oracle_price)?;
+
     let if_liquidation_fee = calculate_perp_if_fee(
         intermediate_margin_calculation.tracked_market_margin_shortage(margin_shortage)?,
         user_base_asset_amount,
@@ -350,6 +357,7 @@ pub fn liquidate_perp(
         oracle_price,
         quote_oracle_price,
         market.if_liquidation_fee,
+        transfer_price_fee,
     )?;
 
     let mut base_asset_amount_to_cover_margin_shortage =
@@ -360,6 +368,7 @@ pub fn liquidate_perp(
             if_liquidation_fee,
             oracle_price,
             quote_oracle_price,
+            transfer_price_fee,
         )?;
 
     if base_asset_amount_to_cover_margin_shortage != u64::MAX {
@@ -413,13 +422,13 @@ pub fn liquidate_perp(
     // Make sure liquidator enters at better than limit price
     if let Some(limit_price) = limit_price {
         // calculate fee in price terms
-        let oracle_price_u128 = oracle_price.cast::<u128>()?;
-        let fee = oracle_price_u128
+        let transfer_price_u128 = transfer_price.cast::<u128>()?;
+        let fee = transfer_price_u128
             .safe_mul(liquidator_fee.cast()?)?
             .safe_div(LIQUIDATION_FEE_PRECISION_U128)?;
         match user.perp_positions[position_index].get_direction() {
             PositionDirection::Long => {
-                let transfer_price = oracle_price_u128.safe_sub(fee)?;
+                let transfer_price = transfer_price_u128.safe_sub(fee)?;
                 validate!(
                     transfer_price <= limit_price.cast()?,
                     ErrorCode::LiquidationDoesntSatisfyLimitPrice,
@@ -429,7 +438,7 @@ pub fn liquidate_perp(
                 )?
             }
             PositionDirection::Short => {
-                let transfer_price = oracle_price_u128.safe_add(fee)?;
+                let transfer_price = transfer_price_u128.safe_add(fee)?;
                 validate!(
                     transfer_price >= limit_price.cast()?,
                     ErrorCode::LiquidationDoesntSatisfyLimitPrice,
@@ -441,9 +450,11 @@ pub fn liquidate_perp(
         }
     }
 
-    let base_asset_value =
-        calculate_base_asset_value_with_oracle_price(base_asset_amount.cast()?, oracle_price)?
-            .cast::<u64>()?;
+    let base_asset_value = calculate_base_asset_value_with_oracle_price(
+        base_asset_amount.cast()?,
+        transfer_price.cast()?,
+    )?
+    .cast::<u64>()?;
 
     let liquidator_fee = -base_asset_value
         .cast::<u128>()?
@@ -949,6 +960,13 @@ pub fn liquidate_perp_with_fill(
         .get_price_data(&quote_spot_market.oracle_id())?
         .price;
     let liquidator_fee = market.liquidator_fee;
+
+    let transfer_price = market.get_liquidation_transfer_price(
+        oracle_price,
+        user.perp_positions[position_index].get_direction(),
+    )?;
+    let transfer_price_fee = calculate_transfer_price_as_fee(transfer_price, oracle_price)?;
+
     let if_liquidation_fee = calculate_perp_if_fee(
         intermediate_margin_calculation.tracked_market_margin_shortage(margin_shortage)?,
         user_base_asset_amount,
@@ -957,6 +975,7 @@ pub fn liquidate_perp_with_fill(
         oracle_price,
         quote_oracle_price,
         market.if_liquidation_fee,
+        transfer_price_fee,
     )?;
     let base_asset_amount_to_cover_margin_shortage = standardize_base_asset_amount_ceil(
         calculate_base_asset_amount_to_cover_margin_shortage(
@@ -966,6 +985,7 @@ pub fn liquidate_perp_with_fill(
             if_liquidation_fee,
             oracle_price,
             quote_oracle_price,
+            transfer_price_fee,
         )?,
         market.amm.order_step_size,
     )?;
@@ -1025,7 +1045,7 @@ pub fn liquidate_perp_with_fill(
         market_index,
         existing_direction,
         base_asset_amount,
-        oracle_price,
+        transfer_price,
         liquidator_fee_adjusted,
     )?;
 

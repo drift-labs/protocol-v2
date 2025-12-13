@@ -19,6 +19,7 @@ mod calculate_base_asset_amount_to_cover_margin_shortage {
             0,
             oracle_price,
             PRICE_PRECISION_I64,
+            0,
         )
         .unwrap();
 
@@ -39,6 +40,7 @@ mod calculate_base_asset_amount_to_cover_margin_shortage {
             0,
             oracle_price,
             quote_oracle_price,
+            0,
         )
         .unwrap();
 
@@ -52,6 +54,7 @@ mod calculate_base_asset_amount_to_cover_margin_shortage {
             0,
             oracle_price,
             quote_oracle_price,
+            0,
         )
         .unwrap();
 
@@ -71,6 +74,7 @@ mod calculate_base_asset_amount_to_cover_margin_shortage {
             0,
             oracle_price,
             PRICE_PRECISION_I64,
+            0,
         )
         .unwrap();
 
@@ -92,6 +96,41 @@ mod calculate_base_asset_amount_to_cover_margin_shortage {
     }
 
     #[test]
+    pub fn one_percent_liquidation_fee_and_one_percent_transfer_fee() {
+        let margin_shortage = 10 * QUOTE_PRECISION; // $10 shortage
+        let margin_ratio = MARGIN_PRECISION / 10; // 10x leverage
+        let liquidation_fee = LIQUIDATION_FEE_PRECISION / 100; // 1 percent
+        let transfer_fee = LIQUIDATION_FEE_PRECISION / 100; // 1 percent
+        let oracle_price = 100 * PRICE_PRECISION_I64; // $100 / base
+        let base_asset_amount = calculate_base_asset_amount_to_cover_margin_shortage(
+            margin_shortage,
+            margin_ratio,
+            liquidation_fee,
+            0,
+            oracle_price,
+            PRICE_PRECISION_I64,
+            transfer_fee,
+        )
+        .unwrap();
+
+        let freed_collateral = (base_asset_amount as u128) * (oracle_price as u128)
+            / PRICE_PRECISION
+            / AMM_TO_QUOTE_PRECISION_RATIO
+            * margin_ratio as u128
+            / MARGIN_PRECISION_U128;
+
+        let negative_pnl = (base_asset_amount as u128) * (oracle_price as u128)
+            / PRICE_PRECISION
+            / AMM_TO_QUOTE_PRECISION_RATIO
+            * (liquidation_fee as u128 + transfer_fee as u128)
+            / LIQUIDATION_FEE_PRECISION_U128;
+
+        assert_eq!(freed_collateral - negative_pnl, 10000000); // ~$10
+
+        assert_eq!(base_asset_amount, BASE_PRECISION_U64 * 125 / 100); // must lose 125/100 base
+    }
+
+    #[test]
     pub fn one_percent_liquidation_fee_and_one_percent_if_liquidation_fee() {
         let margin_shortage = 10 * QUOTE_PRECISION; // $10 shortage
         let margin_ratio = MARGIN_PRECISION / 10; // 10x leverage
@@ -105,6 +144,7 @@ mod calculate_base_asset_amount_to_cover_margin_shortage {
             if_liquidation_fee,
             oracle_price,
             PRICE_PRECISION_I64,
+            0,
         )
         .unwrap();
 
@@ -660,10 +700,26 @@ mod calculate_perp_if_fee {
             oracle_price,
             quote_price,
             max_if_fee,
+            0,
         )
         .unwrap();
 
         assert_eq!(fee, 19000); // 2% * .95
+
+        let transfer_fee = LIQUIDATION_FEE_PRECISION / 100; // 1%
+        let fee = calculate_perp_if_fee(
+            margin_shortage,
+            base_asset_amount,
+            margin_ratio,
+            liquidator_fee,
+            oracle_price,
+            quote_price,
+            max_if_fee,
+            transfer_fee,
+        )
+        .unwrap();
+
+        assert_eq!(fee, 9500); // 1% * .95
 
         let tiny_margin_shortage = QUOTE_PRECISION;
         let fee = calculate_perp_if_fee(
@@ -674,6 +730,7 @@ mod calculate_perp_if_fee {
             oracle_price,
             quote_price,
             max_if_fee,
+            0,
         )
         .unwrap();
 
@@ -688,6 +745,7 @@ mod calculate_perp_if_fee {
             oracle_price,
             quote_price,
             max_if_fee,
+            0,
         )
         .unwrap();
 
@@ -702,6 +760,7 @@ mod calculate_perp_if_fee {
             oracle_price,
             quote_price,
             max_if_fee,
+            0,
         )
         .unwrap();
 
@@ -716,6 +775,7 @@ mod calculate_perp_if_fee {
             zero_oracle_price,
             quote_price,
             max_if_fee,
+            0,
         )
         .unwrap();
 
@@ -730,6 +790,7 @@ mod calculate_perp_if_fee {
             oracle_price,
             zero_quote_price,
             max_if_fee,
+            0,
         )
         .unwrap();
 
@@ -744,6 +805,7 @@ mod calculate_perp_if_fee {
             oracle_price,
             quote_price,
             max_if_fee,
+            0,
         )
         .unwrap();
 
