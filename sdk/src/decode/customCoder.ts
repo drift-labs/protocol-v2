@@ -1,15 +1,15 @@
 import { Buffer } from 'buffer';
 import camelcase from 'camelcase';
-import { Idl, IdlTypeDef } from '@coral-xyz/anchor/dist/cjs/idl';
+import { Idl, IdlTypeDef } from '@coral-xyz/anchor-29/dist/cjs/idl';
 import {
 	AccountsCoder,
 	BorshAccountsCoder,
 	BorshEventCoder,
 	BorshInstructionCoder,
 	Coder,
-} from '@coral-xyz/anchor/dist/cjs/coder';
-import { BorshTypesCoder } from '@coral-xyz/anchor/dist/cjs/coder/borsh/types';
-import { discriminator } from '@coral-xyz/anchor/dist/cjs/coder/borsh/discriminator';
+} from '@coral-xyz/anchor-29/dist/cjs/coder';
+import { BorshTypesCoder } from '@coral-xyz/anchor-29/dist/cjs/coder/borsh/types';
+import { discriminator } from '@coral-xyz/anchor-29/dist/cjs/coder/borsh/discriminator';
 
 export class CustomBorshCoder<
 	A extends string = string,

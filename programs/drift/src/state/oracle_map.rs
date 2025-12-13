@@ -12,7 +12,6 @@ use crate::state::user::MarketType;
 use anchor_lang::prelude::{AccountInfo, Pubkey};
 use anchor_lang::Discriminator;
 use anchor_lang::Key;
-use arrayref::array_ref;
 use std::collections::BTreeMap;
 use std::iter::Peekable;
 use std::slice::Iter;
@@ -211,14 +210,14 @@ impl<'a> OracleMap<'a> {
                     UnableToLoadOracle
                 })?;
 
-                let account_discriminator = array_ref![data, 0, 8];
+                let account_discriminator = &data[..8];
 
-                if account_discriminator == &PrelaunchOracle::discriminator() {
+                if account_discriminator == PrelaunchOracle::DISCRIMINATOR {
                     let expected_data_len = PrelaunchOracle::SIZE;
                     if data.len() < expected_data_len {
                         break;
                     }
-                } else if account_discriminator == &PythLazerOracle::discriminator() {
+                } else if account_discriminator == PythLazerOracle::DISCRIMINATOR {
                     let expected_data_len = PythLazerOracle::SIZE;
                     if data.len() < expected_data_len {
                         break;
@@ -277,15 +276,15 @@ impl<'a> OracleMap<'a> {
                 UnableToLoadOracle
             })?;
 
-            let account_discriminator = array_ref![data, 0, 8];
+            let account_discriminator = &data[..8];
 
-            if account_discriminator == &PrelaunchOracle::discriminator() {
+            if account_discriminator == PrelaunchOracle::DISCRIMINATOR {
                 let expected_data_len = PrelaunchOracle::SIZE;
                 if data.len() < expected_data_len {
                     msg!("Unexpected account data len loading oracle");
                     return Err(UnableToLoadOracle);
                 }
-            } else if account_discriminator == &PythLazerOracle::discriminator() {
+            } else if account_discriminator == PythLazerOracle::DISCRIMINATOR {
                 let expected_data_len = PythLazerOracle::SIZE;
                 if data.len() < expected_data_len {
                     msg!("Unexpected account data len loading oracle");

@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use drift_macros::legacy_layout;
 use enumflags2::BitFlags;
 
 use crate::error::DriftResult;
@@ -13,6 +14,7 @@ use crate::state::traits::Size;
 #[cfg(test)]
 mod tests;
 
+#[legacy_layout]
 #[account]
 #[derive(Default)]
 #[repr(C)]
@@ -254,6 +256,7 @@ impl Default for FeeTier {
     }
 }
 
+#[legacy_layout]
 #[derive(AnchorSerialize, AnchorDeserialize, Default, Clone, Debug)]
 pub struct OrderFillerRewardStructure {
     pub reward_numerator: u32,
@@ -329,7 +332,7 @@ impl FeeStructure {
             filler_reward_structure: OrderFillerRewardStructure {
                 reward_numerator: 10,
                 reward_denominator: FEE_PERCENTAGE_DENOMINATOR,
-                time_based_reward_lower_bound: 10_000, // 1 cent
+                time_based_reward_lower_bound: 10_000.into(), // 1 cent
             },
             flat_filler_fee: 10_000,
             referrer_reward_epoch_upper_bound: MAX_REFERRER_REWARD_EPOCH_UPPER_BOUND,
@@ -353,7 +356,7 @@ impl FeeStructure {
             filler_reward_structure: OrderFillerRewardStructure {
                 reward_numerator: 10,
                 reward_denominator: FEE_PERCENTAGE_DENOMINATOR,
-                time_based_reward_lower_bound: 10_000, // 1 cent
+                time_based_reward_lower_bound: 10_000.into(), // 1 cent
             },
             flat_filler_fee: 10_000,
             referrer_reward_epoch_upper_bound: MAX_REFERRER_REWARD_EPOCH_UPPER_BOUND,
@@ -380,7 +383,7 @@ impl FeeStructure {
             filler_reward_structure: OrderFillerRewardStructure {
                 reward_numerator: 10,
                 reward_denominator: FEE_PERCENTAGE_DENOMINATOR,
-                time_based_reward_lower_bound: 10_000, // 1 cent
+                time_based_reward_lower_bound: 10_000.into(), // 1 cent
             },
             ..FeeStructure::perps_default()
         }

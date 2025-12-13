@@ -30,6 +30,7 @@ import { OracleClientCache } from '../oracles/oracleClientCache';
 import { QUOTE_ORACLE_PRICE_DATA } from '../oracles/quoteAssetOracleClient';
 import { findAllMarketAndOracles } from '../config';
 import { getOracleId } from '../oracles/oracleId';
+import { Drift } from '../idl/drift';
 
 const ORACLE_DEFAULT_ID = getOracleId(
 	PublicKey.default,
@@ -40,7 +41,7 @@ export class PollingDriftClientAccountSubscriber
 	implements DriftClientAccountSubscriber
 {
 	isSubscribed: boolean;
-	program: Program;
+	program: Program<Drift>;
 	perpMarketIndexes: number[];
 	spotMarketIndexes: number[];
 	oracleInfos: OracleInfo[];
@@ -71,7 +72,7 @@ export class PollingDriftClientAccountSubscriber
 	private subscriptionPromiseResolver: (val: boolean) => void;
 
 	public constructor(
-		program: Program,
+		program: Program<Drift>,
 		accountLoader: BulkAccountLoader,
 		perpMarketIndexes: number[],
 		spotMarketIndexes: number[],

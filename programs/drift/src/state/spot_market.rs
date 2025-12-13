@@ -1,11 +1,6 @@
 use std::fmt;
 use std::fmt::{Display, Formatter};
 
-use anchor_lang::prelude::*;
-use anchor_spl::token::spl_token;
-use anchor_spl::token_2022::spl_token_2022;
-use borsh::{BorshDeserialize, BorshSerialize};
-
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::casting::Cast;
 use crate::math::constants::{
@@ -20,6 +15,10 @@ use crate::math::margin::{
 };
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::{calculate_utilization, get_token_amount, get_token_value};
+use anchor_lang::prelude::*;
+use anchor_spl::token::spl_token;
+use anchor_spl::token_2022::spl_token_2022;
+use drift_macros::legacy_layout;
 
 use crate::math::stats::calculate_new_twap;
 use crate::state::oracle::{HistoricalIndexData, HistoricalOracleData, OracleSource};
@@ -30,6 +29,7 @@ use crate::validate;
 
 use super::oracle_map::OracleIdentifier;
 
+#[legacy_layout]
 #[account(zero_copy(unsafe))]
 #[derive(PartialEq, Eq, Debug)]
 #[repr(C)]
@@ -223,13 +223,13 @@ impl Default for SpotMarket {
             revenue_pool: PoolBalance::default(),
             spot_fee_pool: PoolBalance::default(),
             insurance_fund: InsuranceFund::default(),
-            total_spot_fee: 0,
-            deposit_balance: 0,
-            borrow_balance: 0,
-            cumulative_deposit_interest: 0,
-            cumulative_borrow_interest: 0,
-            total_social_loss: 0,
-            total_quote_social_loss: 0,
+            total_spot_fee: 0.into(),
+            deposit_balance: 0.into(),
+            borrow_balance: 0.into(),
+            cumulative_deposit_interest: 0.into(),
+            cumulative_borrow_interest: 0.into(),
+            total_social_loss: 0.into(),
+            total_quote_social_loss: 0.into(),
             withdraw_guard_threshold: 0,
             max_token_deposits: 0,
             deposit_token_twap: 0,
@@ -449,11 +449,11 @@ impl SpotMarket {
     }
 
     pub fn get_deposits(&self) -> DriftResult<u128> {
-        get_token_amount(self.deposit_balance, self, &SpotBalanceType::Deposit)
+        get_token_amount(self.deposit_balance.into(), self, &SpotBalanceType::Deposit)
     }
 
     pub fn get_borrows(&self) -> DriftResult<u128> {
-        get_token_amount(self.borrow_balance, self, &SpotBalanceType::Borrow)
+        get_token_amount(self.borrow_balance.into(), self, &SpotBalanceType::Borrow)
     }
 
     pub fn get_tvl(&self) -> DriftResult<u128> {
@@ -500,10 +500,10 @@ impl SpotMarket {
 
     pub fn get_available_deposits(&self) -> DriftResult<u128> {
         let deposit_token_amount =
-            get_token_amount(self.deposit_balance, self, &SpotBalanceType::Deposit)?;
+            get_token_amount(self.deposit_balance.into(), self, &SpotBalanceType::Deposit)?;
 
         let borrow_token_amount =
-            get_token_amount(self.borrow_balance, self, &SpotBalanceType::Borrow)?;
+            get_token_amount(self.borrow_balance.into(), self, &SpotBalanceType::Borrow)?;
 
         deposit_token_amount.safe_sub(borrow_token_amount)
     }
@@ -513,11 +513,14 @@ impl SpotMarket {
     }
 
     pub fn get_utilization(self) -> DriftResult<u128> {
-        let deposit_token_amount =
-            get_token_amount(self.deposit_balance, &self, &SpotBalanceType::Deposit)?;
+        let deposit_token_amount = get_token_amount(
+            self.deposit_balance.into(),
+            &self,
+            &SpotBalanceType::Deposit,
+        )?;
 
         let borrow_token_amount =
-            get_token_amount(self.borrow_balance, &self, &SpotBalanceType::Borrow)?;
+            get_token_amount(self.borrow_balance.into(), &self, &SpotBalanceType::Borrow)?;
         calculate_utilization(deposit_token_amount, borrow_token_amount)
     }
 
@@ -597,8 +600,8 @@ impl SpotMarket {
     pub fn default_base_market() -> Self {
         SpotMarket {
             market_index: 1,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             initial_liability_weight: 12000,
             maintenance_liability_weight: 11000,
             initial_asset_weight: 8000,
@@ -613,8 +616,8 @@ impl SpotMarket {
 
     pub fn default_quote_market() -> Self {
         SpotMarket {
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_liability_weight: 10000,
             maintenance_liability_weight: 10000,
@@ -632,7 +635,7 @@ impl SpotMarket {
     }
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug, Default)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Debug, Default)]
 pub enum SpotBalanceType {
     #[default]
     Deposit,
@@ -662,7 +665,7 @@ pub trait SpotBalance {
     fn update_balance_type(&mut self, balance_type: SpotBalanceType) -> DriftResult;
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum SpotFulfillmentConfigStatus {
     #[default]
     Enabled,
@@ -670,7 +673,7 @@ pub enum SpotFulfillmentConfigStatus {
 }
 
 #[derive(
-    Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord, Default,
+    Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq, PartialOrd, Ord, Default,
 )]
 pub enum AssetTier {
     /// full priviledge
@@ -686,6 +689,7 @@ pub enum AssetTier {
     Unlisted,
 }
 
+#[legacy_layout]
 #[zero_copy(unsafe)]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
@@ -703,11 +707,13 @@ pub struct InsuranceFund {
 
 impl InsuranceFund {
     pub fn get_protocol_shares(&self) -> DriftResult<u128> {
-        self.total_shares.safe_sub(self.user_shares)
+        self.total_shares
+            .as_u128()
+            .safe_sub(self.user_shares.as_u128())
     }
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]
 pub enum TokenProgramFlag {
     Token2022 = 0b00000001,
     TransferHook = 0b00000010,

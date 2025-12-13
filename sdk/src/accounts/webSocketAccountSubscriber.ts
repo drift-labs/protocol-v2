@@ -8,13 +8,14 @@ import { AnchorProvider, Program } from '@coral-xyz/anchor';
 import { AccountInfo, Commitment, Context, PublicKey } from '@solana/web3.js';
 import { capitalize } from './utils';
 import * as Buffer from 'buffer';
+import { Drift } from '../idl/drift';
 
 export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 	dataAndSlot?: DataAndSlot<T>;
 	bufferAndSlot?: BufferAndSlot;
 	accountName: string;
 	logAccountName: string;
-	program: Program;
+	program: Program<Drift>;
 	accountPublicKey: PublicKey;
 	decodeBufferFn: (buffer: Buffer) => T;
 	onChange: (data: T) => void;
@@ -31,7 +32,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 
 	public constructor(
 		accountName: string,
-		program: Program,
+		program: Program<Drift>,
 		accountPublicKey: PublicKey,
 		decodeBuffer?: (buffer: Buffer) => T,
 		resubOpts?: ResubOpts,

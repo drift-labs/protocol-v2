@@ -214,30 +214,30 @@ mod get_claimable_pnl {
         let usdc_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 1000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (1000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             ..SpotMarket::default()
         };
 
         let perp_market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 150_000,
-                concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
-                total_fee_minus_distributions: 1000 * QUOTE_PRECISION_I128,
+                base_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: 150_000.into(),
+                concentration_coef: MAX_CONCENTRATION_COEFFICIENT.into(),
+                total_fee_minus_distributions: (1000 * QUOTE_PRECISION_I128).into(),
                 curve_update_intensity: 100,
-                base_asset_amount_with_amm: AMM_RESERVE_PRECISION as i128,
-                quote_asset_amount: -100 * QUOTE_PRECISION_I128,
+                base_asset_amount_with_amm: (AMM_RESERVE_PRECISION as i128).into(),
+                quote_asset_amount: (-100 * QUOTE_PRECISION_I128).into(),
                 ..AMM::default()
             },
             pnl_pool: PoolBalance {
-                scaled_balance: (10 * SPOT_BALANCE_PRECISION),
+                scaled_balance: (10 * SPOT_BALANCE_PRECISION).into(),
                 market_index: QUOTE_SPOT_MARKET_INDEX,
                 ..PoolBalance::default()
             },
@@ -280,7 +280,7 @@ mod get_claimable_pnl {
         let oracle_price = 150 * PRICE_PRECISION_I64;
 
         let pnl_pool_token_amount = get_token_amount(
-            perp_market.pnl_pool.scaled_balance,
+            perp_market.pnl_pool.scaled_balance(),
             &usdc_market,
             perp_market.pnl_pool.balance_type(),
         )
@@ -320,30 +320,30 @@ mod get_claimable_pnl {
         let usdc_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 1000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (1000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             ..SpotMarket::default()
         };
 
         let mut perp_market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 150_000,
-                concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
-                total_fee_minus_distributions: 1000 * QUOTE_PRECISION_I128,
+                base_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: 150_000.into(),
+                concentration_coef: MAX_CONCENTRATION_COEFFICIENT.into(),
+                total_fee_minus_distributions: (1000 * QUOTE_PRECISION_I128).into(),
                 curve_update_intensity: 100,
-                base_asset_amount_with_amm: AMM_RESERVE_PRECISION as i128,
-                quote_asset_amount: -99 * QUOTE_PRECISION_I128,
+                base_asset_amount_with_amm: (AMM_RESERVE_PRECISION as i128).into(),
+                quote_asset_amount: (-99 * QUOTE_PRECISION_I128).into(),
                 ..AMM::default()
             },
             pnl_pool: PoolBalance {
-                scaled_balance: (60 * SPOT_BALANCE_PRECISION),
+                scaled_balance: (60 * SPOT_BALANCE_PRECISION).into(),
                 market_index: QUOTE_SPOT_MARKET_INDEX,
                 ..PoolBalance::default()
             },
@@ -386,7 +386,7 @@ mod get_claimable_pnl {
         let oracle_price = 150 * PRICE_PRECISION_I64;
 
         let pnl_pool_token_amount = get_token_amount(
-            perp_market.pnl_pool.scaled_balance,
+            perp_market.pnl_pool.scaled_balance(),
             &usdc_market,
             perp_market.pnl_pool.balance_type(),
         )
@@ -440,7 +440,9 @@ mod get_claimable_pnl {
         );
         assert_eq!(unsettled_pnl3, 9_000_000);
 
-        perp_market.amm.quote_asset_amount = -100 * QUOTE_PRECISION_I128;
+        perp_market
+            .amm
+            .set_quote_asset_amount(-100 * QUOTE_PRECISION_I128);
         let net_user_pnl = calculate_net_user_pnl(&perp_market.amm, oracle_price).unwrap();
         assert_eq!(net_user_pnl, 50000000);
         let max_pnl_pool_excess = if net_user_pnl < pnl_pool_token_amount {
@@ -471,30 +473,30 @@ mod get_claimable_pnl {
         let usdc_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 1000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (1000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             ..SpotMarket::default()
         };
 
         let perp_market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 150_000,
-                concentration_coef: MAX_CONCENTRATION_COEFFICIENT,
-                total_fee_minus_distributions: 1000 * QUOTE_PRECISION_I128,
+                base_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: 150_000.into(),
+                concentration_coef: MAX_CONCENTRATION_COEFFICIENT.into(),
+                total_fee_minus_distributions: (1000 * QUOTE_PRECISION_I128).into(),
                 curve_update_intensity: 100,
-                base_asset_amount_with_amm: AMM_RESERVE_PRECISION as i128,
-                quote_asset_amount: -100 * QUOTE_PRECISION_I128,
+                base_asset_amount_with_amm: (AMM_RESERVE_PRECISION as i128).into(),
+                quote_asset_amount: (-100 * QUOTE_PRECISION_I128).into(),
                 ..AMM::default()
             },
             pnl_pool: PoolBalance {
-                scaled_balance: (1000 * SPOT_BALANCE_PRECISION),
+                scaled_balance: (1000 * SPOT_BALANCE_PRECISION).into(),
                 market_index: 0,
                 ..PoolBalance::default()
             },
@@ -537,7 +539,7 @@ mod get_claimable_pnl {
         let oracle_price = 160 * PRICE_PRECISION_I64;
 
         let pnl_pool_token_amount = get_token_amount(
-            perp_market.pnl_pool.scaled_balance,
+            perp_market.pnl_pool.scaled_balance(),
             &usdc_market,
             perp_market.pnl_pool.balance_type(),
         )

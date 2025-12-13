@@ -45,6 +45,7 @@ import {
 } from '../memcmp';
 import { WebSocketProgramAccountsSubscriberV2 } from './webSocketProgramAccountsSubscriberV2';
 import { WebSocketAccountSubscriberV2 } from './webSocketAccountSubscriberV2';
+import { Drift } from '../idl/drift';
 const ORACLE_DEFAULT_ID = getOracleId(
 	PublicKey.default,
 	OracleSource.QUOTE_ASSET
@@ -54,7 +55,7 @@ export class WebSocketDriftClientAccountSubscriberV2
 	implements DriftClientAccountSubscriber
 {
 	isSubscribed: boolean;
-	program: Program;
+	program: Program<Drift>;
 	commitment?: Commitment;
 	perpMarketIndexes: number[];
 	spotMarketIndexes: number[];
@@ -97,7 +98,7 @@ export class WebSocketDriftClientAccountSubscriberV2
 		string;
 
 	public constructor(
-		program: Program,
+		program: Program<Drift>,
 		perpMarketIndexes: number[],
 		spotMarketIndexes: number[],
 		oracleInfos: OracleInfo[],

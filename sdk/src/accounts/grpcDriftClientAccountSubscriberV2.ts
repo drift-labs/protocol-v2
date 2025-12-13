@@ -30,6 +30,7 @@ import {
 } from '../oracles/oracleId';
 import { OracleClientCache } from '../oracles/oracleClientCache';
 import { findDelistedPerpMarketsAndOracles } from './utils';
+import { Drift } from '../idl/drift';
 
 export class grpcDriftClientAccountSubscriberV2
 	implements DriftClientAccountSubscriber
@@ -51,7 +52,7 @@ export class grpcDriftClientAccountSubscriberV2
 	>;
 	public isSubscribed: boolean;
 	public isSubscribing: boolean;
-	public program: Program;
+	public program: Program<Drift>;
 	public perpMarketIndexes: number[];
 	public spotMarketIndexes: number[];
 	public shouldFindAllMarketsAndOracles: boolean;
@@ -76,7 +77,7 @@ export class grpcDriftClientAccountSubscriberV2
 
 	constructor(
 		grpcConfigs: GrpcConfigs,
-		program: Program,
+		program: Program<Drift>,
 		perpMarketIndexes: number[],
 		spotMarketIndexes: number[],
 		oracleInfos: OracleInfo[],

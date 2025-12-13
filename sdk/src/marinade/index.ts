@@ -1,4 +1,4 @@
-import { AnchorProvider, BN, Program } from '@coral-xyz/anchor';
+import { AnchorProvider, BN, Program } from '@coral-xyz/anchor-29';
 import { MarinadeFinance, IDL } from './types';
 import {
 	PublicKey,

@@ -13,6 +13,7 @@ import {
 	CompressionAlgorithms,
 	CommitmentLevel,
 } from '../isomorphic/grpc';
+import { Drift } from '../idl/drift';
 
 type LaserCommitment =
 	(typeof LaserCommitmentLevel)[keyof typeof LaserCommitmentLevel];
@@ -38,7 +39,7 @@ export class LaserstreamProgramAccountSubscriber<
 		commitmentLevel: CommitmentLevel,
 		subscriptionName: string,
 		accountDiscriminator: string,
-		program: Program,
+		program: Program<Drift>,
 		decodeBufferFn: (accountName: string, ix: Buffer) => T,
 		options: { filters: MemcmpFilter[] } = { filters: [] },
 		resubOpts?: ResubOpts
@@ -59,7 +60,7 @@ export class LaserstreamProgramAccountSubscriber<
 		grpcConfigs: GrpcConfigs,
 		subscriptionName: string,
 		accountDiscriminator: string,
-		program: Program,
+		program: Program<Drift>,
 		decodeBufferFn: (accountName: string, ix: Buffer) => U,
 		options: { filters: MemcmpFilter[] } = {
 			filters: [],

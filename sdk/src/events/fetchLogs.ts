@@ -1,4 +1,4 @@
-import { Program } from '@coral-xyz/anchor';
+import { Program } from '@coral-xyz/anchor-29';
 import {
 	Connection,
 	Finality,

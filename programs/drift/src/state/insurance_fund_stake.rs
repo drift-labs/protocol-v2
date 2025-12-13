@@ -3,16 +3,16 @@ use crate::error::ErrorCode;
 use crate::math::constants::EPOCH_DURATION;
 use crate::math::safe_math::SafeMath;
 use crate::math_error;
-use crate::safe_decrement;
-use crate::safe_increment;
 use crate::state::spot_market::SpotMarket;
 use crate::state::traits::Size;
 use crate::validate;
 use anchor_lang::prelude::*;
+use drift_macros::legacy_layout;
 
 #[cfg(test)]
 mod tests;
 
+#[legacy_layout]
 #[account(zero_copy(unsafe))]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
@@ -39,24 +39,24 @@ impl InsuranceFundStake {
         InsuranceFundStake {
             authority,
             market_index,
-            last_withdraw_request_shares: 0,
+            last_withdraw_request_shares: 0.into(),
             last_withdraw_request_value: 0,
             last_withdraw_request_ts: 0,
             cost_basis: 0,
-            if_base: 0,
+            if_base: 0.into(),
             last_valid_ts: now,
-            if_shares: 0,
+            if_shares: 0.into(),
             padding: [0; 14],
         }
     }
 
     fn validate_base(&self, spot_market: &SpotMarket) -> DriftResult {
         validate!(
-            self.if_base == spot_market.insurance_fund.shares_base,
+            self.if_base == spot_market.insurance_fund.shares_base().into(),
             ErrorCode::InvalidIFRebase,
             "if stake bases mismatch. user base: {} market base {}",
             self.if_base,
-            spot_market.insurance_fund.shares_base
+            spot_market.insurance_fund.shares_base()
         )?;
 
         Ok(())
@@ -64,33 +64,35 @@ impl InsuranceFundStake {
 
     pub fn checked_if_shares(&self, spot_market: &SpotMarket) -> DriftResult<u128> {
         self.validate_base(spot_market)?;
-        Ok(self.if_shares)
+        Ok(self.if_shares())
     }
 
     pub fn unchecked_if_shares(&self) -> u128 {
-        self.if_shares
+        self.if_shares()
     }
 
     pub fn increase_if_shares(&mut self, delta: u128, spot_market: &SpotMarket) -> DriftResult {
         self.validate_base(spot_market)?;
-        safe_increment!(self.if_shares, delta);
+        let if_shares = self.if_shares.as_u128();
+        self.set_if_shares(if_shares.checked_add(delta).ok_or_else(math_error!())?);
         Ok(())
     }
 
     pub fn decrease_if_shares(&mut self, delta: u128, spot_market: &SpotMarket) -> DriftResult {
         self.validate_base(spot_market)?;
-        safe_decrement!(self.if_shares, delta);
+        let if_shares = self.if_shares.as_u128();
+        self.set_if_shares(if_shares.checked_sub(delta).ok_or_else(math_error!())?);
         Ok(())
     }
 
     pub fn update_if_shares(&mut self, new_shares: u128, spot_market: &SpotMarket) -> DriftResult {
         self.validate_base(spot_market)?;
-        self.if_shares = new_shares;
-
+        self.set_if_shares(new_shares);
         Ok(())
     }
 }
 
+#[legacy_layout]
 #[account(zero_copy(unsafe))]
 #[derive(Default, Eq, PartialEq, Debug)]
 #[repr(C)]
@@ -130,7 +132,7 @@ impl ProtocolIfSharesTransferConfig {
                 .next_epoch_ts
                 .safe_add(EPOCH_DURATION.safe_mul(n_epoch_durations)?)?;
 
-            self.current_epoch_transfer = 0;
+            self.set_current_epoch_transfer(0);
         }
 
         Ok(())
@@ -139,7 +141,8 @@ impl ProtocolIfSharesTransferConfig {
     pub fn validate_transfer(&self, requested_transfer: u128) -> DriftResult {
         let max_transfer = self
             .max_transfer_per_epoch
-            .saturating_sub(self.current_epoch_transfer);
+            .as_u128()
+            .saturating_sub(self.current_epoch_transfer.as_u128());
 
         validate!(
             requested_transfer < max_transfer,

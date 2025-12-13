@@ -53,12 +53,12 @@ mod update_perp_auction_params {
     fn test_extreme_sanitize_oracle_order() {
         let oracle_price = 145 * PRICE_PRECISION_I64;
         let mut amm = AMM {
-            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+            quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
             short_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
             long_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
-            sqrt_k: 100 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 100 * PEG_PRECISION,
+            sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: (100 * PEG_PRECISION).into(),
             volume_24h: 1_000_000 * QUOTE_PRECISION_U64,
 
             ..AMM::default()
@@ -149,12 +149,12 @@ mod update_perp_auction_params {
     fn test_signed_msg_orders_oracle() {
         let oracle_price = 100 * PRICE_PRECISION_I64;
         let mut amm = AMM {
-            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+            quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
             short_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
             long_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
-            sqrt_k: 100 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 100 * PEG_PRECISION,
+            sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: (100 * PEG_PRECISION).into(),
             volume_24h: 1_000_000 * QUOTE_PRECISION_U64,
 
             ..AMM::default()
@@ -272,12 +272,12 @@ mod update_perp_auction_params {
     fn test_signed_msg_orders_limit() {
         let oracle_price = 100 * PRICE_PRECISION_I64;
         let mut amm = AMM {
-            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+            quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
             short_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
             long_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
-            sqrt_k: 100 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 100 * PEG_PRECISION,
+            sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: (100 * PEG_PRECISION).into(),
             volume_24h: 1_000_000 * QUOTE_PRECISION_U64,
 
             ..AMM::default()
@@ -398,12 +398,12 @@ mod update_perp_auction_params {
     fn test_extreme_sanitize_oracle_order_huge_market_prem() {
         let oracle_price = 145 * PRICE_PRECISION_I64;
         let mut amm = AMM {
-            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+            quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
             short_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
             long_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
-            sqrt_k: 100 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 100 * PEG_PRECISION,
+            sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: (100 * PEG_PRECISION).into(),
             volume_24h: 1_000_000 * QUOTE_PRECISION_U64,
 
             ..AMM::default()
@@ -446,12 +446,12 @@ mod update_perp_auction_params {
     fn test_sanitize_limit() {
         let oracle_price = 100 * PRICE_PRECISION_I64;
         let mut amm = AMM {
-            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+            quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
             short_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
             long_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
-            sqrt_k: 100 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 100 * PEG_PRECISION,
+            sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: (100 * PEG_PRECISION).into(),
             volume_24h: 1_000_000 * QUOTE_PRECISION_U64,
 
             ..AMM::default()
@@ -624,12 +624,12 @@ mod update_perp_auction_params {
     fn test_sanitize_oracle_limit() {
         let oracle_price = 100 * PRICE_PRECISION_I64;
         let mut amm = AMM {
-            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+            quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
             short_spread: (BID_ASK_SPREAD_PRECISION / 1000) as u32,
             long_spread: (BID_ASK_SPREAD_PRECISION / 1000) as u32,
-            sqrt_k: 100 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 100 * PEG_PRECISION,
+            sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: (100 * PEG_PRECISION).into(),
             volume_24h: 1_000_000 * QUOTE_PRECISION_U64,
 
             ..AMM::default()
@@ -779,12 +779,12 @@ mod update_perp_auction_params {
     fn test_market_sanitize() {
         let oracle_price = 99 * PRICE_PRECISION_I64;
         let mut amm = AMM {
-            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+            quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
             short_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
             long_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
-            sqrt_k: 100 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 99 * PEG_PRECISION,
+            sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: (99 * PEG_PRECISION).into(),
             volume_24h: 1_000_000 * QUOTE_PRECISION_U64,
 
             ..AMM::default()
@@ -889,12 +889,12 @@ mod update_perp_auction_params {
     fn test_oracle_market_sanitize() {
         let oracle_price = 99 * PRICE_PRECISION_I64;
         let mut amm = AMM {
-            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+            quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
             short_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
             long_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
-            sqrt_k: 100 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 100 * PEG_PRECISION,
+            sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: (100 * PEG_PRECISION).into(),
             volume_24h: 1_000_000 * QUOTE_PRECISION_U64,
 
             ..AMM::default()
@@ -982,12 +982,12 @@ mod update_perp_auction_params {
     fn test_market_sanatize_no_auction_params() {
         let oracle_price = 99 * PRICE_PRECISION_I64;
         let mut amm = AMM {
-            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+            quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
             short_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
             long_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
-            sqrt_k: 100 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 100 * PEG_PRECISION,
+            sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: (100 * PEG_PRECISION).into(),
             volume_24h: 1_000_000 * QUOTE_PRECISION_U64,
 
             ..AMM::default()
@@ -1132,12 +1132,12 @@ mod update_perp_auction_params {
     fn test_oracle_market_sanitize_no_auction_params() {
         let oracle_price = 99 * PRICE_PRECISION_I64;
         let mut amm = AMM {
-            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+            quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
             short_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
             long_spread: (BID_ASK_SPREAD_PRECISION / 100) as u32,
-            sqrt_k: 100 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 100 * PEG_PRECISION,
+            sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: (100 * PEG_PRECISION).into(),
             volume_24h: 1_000_000 * QUOTE_PRECISION_U64,
             ..AMM::default()
         };

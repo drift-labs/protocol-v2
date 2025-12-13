@@ -3,6 +3,7 @@ import { OracleSource } from '../types';
 import { getOracleClient } from '../factory/oracleClient';
 import { Connection } from '@solana/web3.js';
 import { Program } from '@coral-xyz/anchor';
+import { Drift } from '../idl/drift';
 
 export class OracleClientCache {
 	cache = new Map<string, OracleClient>();
@@ -11,7 +12,7 @@ export class OracleClientCache {
 	public get(
 		oracleSource: OracleSource,
 		connection: Connection,
-		program: Program
+		program: Program<Drift>
 	) {
 		const key = Object.keys(oracleSource)[0];
 		if (this.cache.has(key)) {
