@@ -150,7 +150,7 @@ export class TitanClient {
 			amount: amount.toString(),
 			userPublicKey: userPublicKey.toString(),
 			...(slippageBps && { slippageBps: slippageBps.toString() }),
-			...(swapMode && { swapMode: normalizedSwapMode }),
+			...(swapMode && { swapMode: normalizedSwapMode.toString() }),
 			...(maxAccounts && { accountsLimitTotal: maxAccounts.toString() }),
 			...(excludeDexes && { excludeDexes: excludeDexes.join(',') }),
 			...(onlyDirectRoutes && {
