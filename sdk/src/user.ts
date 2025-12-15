@@ -4596,7 +4596,7 @@ export class User {
 		return calc;
 	}
 
-	private isPerpPositionIsolated(perpPosition: PerpPosition): boolean {
+	public isPerpPositionIsolated(perpPosition: PerpPosition): boolean {
 		return (perpPosition.positionFlag & PositionFlag.IsolatedPosition) !== 0;
 	}
 }
