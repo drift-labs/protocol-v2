@@ -178,6 +178,7 @@ export class UnifiedSwapClient {
 				userPublicKey,
 				slippageBps: slippageBps || titanQuote.slippageBps,
 				swapMode: titanQuote.swapMode,
+				sizeConstraint: 1280 - 375, // MAX_TX_BYTE_SIZE - buffer for drift instructions
 			});
 
 			return {
