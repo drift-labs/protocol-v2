@@ -135,7 +135,8 @@ export class UserMap implements UserMapInterface {
 		} else {
 			decodeFn =
 				this.driftClient.program.account.user.coder.accounts.decodeUnchecked.bind(
-					this.driftClient.program.account.user.coder.accounts
+					'user',
+					this.driftClient.program.account.user.coder
 				);
 		}
 		this.decode = decodeFn;

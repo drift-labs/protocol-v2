@@ -23,7 +23,12 @@ import {
 } from './types';
 import { grpcAccountSubscriber } from './grpcAccountSubscriber';
 import { grpcMultiAccountSubscriber } from './grpcMultiAccountSubscriber';
-import { PerpMarketAccount, SpotMarketAccount, StateAccount } from '../types';
+import {
+	PerpMarketAccount,
+	SpotMarketAccount,
+	StateAccount,
+	parseSpotMarketAccount,
+} from '../types';
 import {
 	getOracleId,
 	getPublicKeyAndSourceFromOracleId,
@@ -135,7 +140,7 @@ export class grpcDriftClientAccountSubscriberV2
 					.filter((accountInfo) => !!accountInfo)
 					.map((accountInfo) => {
 						const perpMarket = this.program.coder.accounts.decode(
-							'PerpMarket',
+							'perpMarket',
 							accountInfo.data
 						);
 						return [perpMarket.marketIndex, perpMarket];
@@ -162,10 +167,11 @@ export class grpcDriftClientAccountSubscriberV2
 				spotMarketAccountInfos
 					.filter((accountInfo) => !!accountInfo)
 					.map((accountInfo) => {
-						const spotMarket = this.program.coder.accounts.decode(
-							'SpotMarket',
+						const decoded = this.program.coder.accounts.decode(
+							'spotMarket',
 							accountInfo.data
 						);
+						const spotMarket = parseSpotMarketAccount(decoded);
 						return [spotMarket.marketIndex, spotMarket];
 					})
 			);

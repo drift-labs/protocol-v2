@@ -12,6 +12,8 @@ import {
 	PerpMarketAccount,
 	SpotMarketAccount,
 	StateAccount,
+	parseSpotMarketAccount,
+	parsePerpMarketAccount,
 } from '../types';
 import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
@@ -206,9 +208,14 @@ export class WebSocketDriftClientAccountSubscriberV2
 					'PerpMarketAccountsSubscriber',
 					'PerpMarket',
 					this.program,
-					this.program.account.perpMarket.coder.accounts.decodeUnchecked.bind(
-						this.program.account.perpMarket.coder.accounts
-					),
+					(_accountName: string, buffer: Buffer) => {
+						const decoded =
+							this.program.account.perpMarket.coder.accounts.decodeUnchecked(
+								'perpMarket',
+								buffer
+							);
+						return parsePerpMarketAccount(decoded);
+					},
 					{
 						filters: [getPerpMarketAccountsFilter()],
 						commitment: this.commitment,
@@ -222,9 +229,14 @@ export class WebSocketDriftClientAccountSubscriberV2
 					'SpotMarketAccountsSubscriber',
 					'SpotMarket',
 					this.program,
-					this.program.account.spotMarket.coder.accounts.decodeUnchecked.bind(
-						this.program.account.spotMarket.coder.accounts
-					),
+					(_accountName: string, buffer: Buffer) => {
+						const decoded =
+							this.program.account.spotMarket.coder.accounts.decodeUnchecked(
+								'spotMarket',
+								buffer
+							);
+						return parseSpotMarketAccount(decoded);
+					},
 					{
 						filters: [getSpotMarketAccountsFilter()],
 						commitment: this.commitment,

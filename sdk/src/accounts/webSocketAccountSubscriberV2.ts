@@ -5,7 +5,6 @@ import {
 	BufferAndSlot,
 } from './types';
 import { AnchorProvider, Program } from '@coral-xyz/anchor';
-import { capitalize } from './utils';
 import {
 	AccountInfoBase,
 	AccountInfoWithBase64EncodedData,
@@ -481,7 +480,7 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 			return this.decodeBufferFn(buffer);
 		} else {
 			return this.program.account[this.accountName].coder.accounts.decode(
-				capitalize(this.accountName),
+				this.accountName,
 				buffer
 			);
 		}

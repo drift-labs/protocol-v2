@@ -6,8 +6,6 @@ import {
 } from './types';
 import { AnchorProvider, Program } from '@coral-xyz/anchor';
 import { AccountInfo, Commitment, Context, PublicKey } from '@solana/web3.js';
-import { capitalize } from './utils';
-import * as Buffer from 'buffer';
 import { Drift } from '../idl/drift';
 
 export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
@@ -200,7 +198,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 			return this.decodeBufferFn(buffer);
 		} else {
 			return this.program.account[this.accountName].coder.accounts.decode(
-				capitalize(this.accountName),
+				this.accountName,
 				buffer
 			);
 		}

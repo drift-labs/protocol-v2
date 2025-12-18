@@ -46,7 +46,7 @@ import {
 	UserAccountSubscriber,
 } from './accounts/types';
 import { BigNum } from './factory/bigNum';
-import { BN } from '@coral-xyz/anchor';
+import { BN, BorshAccountsCoder } from '@coral-xyz/anchor';
 import { calculateBaseAssetValue, calculatePositionPNL } from './math/position';
 import {
 	calculateMarketMarginRatio,
@@ -140,7 +140,8 @@ export class User {
 				config.userAccountPublicKey,
 				config.accountSubscription.accountLoader,
 				this.driftClient.program.account.user.coder.accounts.decodeUnchecked.bind(
-					this.driftClient.program.account.user.coder.accounts
+					this.driftClient.program.account.user.coder
+						.accounts as BorshAccountsCoder
 				)
 			);
 		} else if (config.accountSubscription?.type === 'custom') {

@@ -1,5 +1,6 @@
-import * as anchor from '@coral-xyz/anchor';
-import { AnchorProvider, Program, Provider } from '@coral-xyz/anchor';
+import * as anchor from '@coral-xyz/anchor-29';
+import { AnchorProvider, Program, Provider } from '@coral-xyz/anchor-29';
+import { Program as Program30 } from '@coral-xyz/anchor';
 import {
 	AccountLayout,
 	MintLayout,
@@ -62,6 +63,7 @@ import {
 } from '../sdk/src/bankrun/bankrunConnection';
 import pythIDL from '../sdk/src/idl/pyth.json';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { Drift } from '../sdk/src/idl/drift';
 
 export async function mockOracle(
 	price: number = 50 * 10e7,
@@ -99,19 +101,13 @@ export async function mockOracleNoProgram(
 	expo = -7,
 	confidence?: number
 ): Promise<PublicKey> {
-	const provider = new AnchorProvider(
-		context.connection.toConnection(),
-		context.provider.wallet,
-		{
-			commitment: 'processed',
-		}
-	);
+	// Use the existing provider from context instead of creating a new one
+	const provider = context.provider;
 
-	const program = new Program(
-		pythIDL as anchor.Idl,
-		new PublicKey('FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH'),
-		provider
+	const programId = new PublicKey(
+		'FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH'
 	);
+	const program = new Program(pythIDL as anchor.Idl, programId, provider);
 
 	const priceFeedAddress = await createPriceFeedBankrun({
 		oracleProgram: program,
@@ -399,7 +395,7 @@ export async function createUSDCAccountForUser(
 
 export async function initializeAndSubscribeDriftClient(
 	connection: Connection,
-	program: Program,
+	program: Program30<Drift>,
 	userKeyPair: Keypair,
 	marketIndexes: number[],
 	bankIndexes: number[],
@@ -437,7 +433,7 @@ export async function initializeAndSubscribeDriftClient(
 export async function createUserWithUSDCAccount(
 	context: BankrunContextWrapper,
 	usdcMint: Keypair,
-	chProgram: Program,
+	chProgram: Program30<Drift>,
 	usdcAmount: BN,
 	marketIndexes: number[],
 	bankIndexes: number[],
@@ -522,7 +518,7 @@ export async function fundWsolTokenAccountForUser(
 export async function createUserWithUSDCAndWSOLAccount(
 	context: BankrunContextWrapper,
 	usdcMint: Keypair,
-	chProgram: Program,
+	chProgram: Program30<Drift>,
 	solAmount: BN,
 	usdcAmount: BN,
 	marketIndexes: number[],
@@ -1384,7 +1380,7 @@ export async function placeAndFillVammTrade({
 
 export async function overwriteConstituentAccount(
 	bankrunContextWrapper: BankrunContextWrapper,
-	program: Program,
+	program: Program30<Drift>,
 	constituentPublicKey: PublicKey,
 	overwriteFields: Array<[key: keyof ConstituentAccount, value: any]>
 ) {

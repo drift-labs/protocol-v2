@@ -15750,6 +15750,19 @@
         164,
         151
       ]
+    },
+    {
+      "name": "_SignedMsgOrderParamsExport",
+      "discriminator": [
+        141,
+        81,
+        104,
+        63,
+        186,
+        109,
+        87,
+        251
+      ]
     }
   ],
   "errors": [
@@ -23920,6 +23933,160 @@
       }
     },
     {
+      "name": "SignedMsgOrderParamsDelegateMessage",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "signed_msg_order_params",
+            "type": {
+              "defined": {
+                "name": "OrderParams"
+              }
+            }
+          },
+          {
+            "name": "taker_pubkey",
+            "type": "pubkey"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "uuid",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "take_profit_order_params",
+            "type": {
+              "option": {
+                "defined": {
+                  "name": "SignedMsgTriggerOrderParams"
+                }
+              }
+            }
+          },
+          {
+            "name": "stop_loss_order_params",
+            "type": {
+              "option": {
+                "defined": {
+                  "name": "SignedMsgTriggerOrderParams"
+                }
+              }
+            }
+          },
+          {
+            "name": "max_margin_ratio",
+            "type": {
+              "option": "u16"
+            }
+          },
+          {
+            "name": "builder_idx",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "builder_fee_tenth_bps",
+            "type": {
+              "option": "u16"
+            }
+          },
+          {
+            "name": "isolated_position_deposit",
+            "type": {
+              "option": "u64"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "SignedMsgOrderParamsMessage",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "signed_msg_order_params",
+            "type": {
+              "defined": {
+                "name": "OrderParams"
+              }
+            }
+          },
+          {
+            "name": "sub_account_id",
+            "type": "u16"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "uuid",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "take_profit_order_params",
+            "type": {
+              "option": {
+                "defined": {
+                  "name": "SignedMsgTriggerOrderParams"
+                }
+              }
+            }
+          },
+          {
+            "name": "stop_loss_order_params",
+            "type": {
+              "option": {
+                "defined": {
+                  "name": "SignedMsgTriggerOrderParams"
+                }
+              }
+            }
+          },
+          {
+            "name": "max_margin_ratio",
+            "type": {
+              "option": "u16"
+            }
+          },
+          {
+            "name": "builder_idx",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "builder_fee_tenth_bps",
+            "type": {
+              "option": "u16"
+            }
+          },
+          {
+            "name": "isolated_position_deposit",
+            "type": {
+              "option": "u64"
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "SignedMsgOrderRecord",
       "type": {
         "kind": "struct",
@@ -23960,6 +24127,22 @@
           {
             "name": "ts",
             "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SignedMsgTriggerOrderParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "trigger_price",
+            "type": "u64"
+          },
+          {
+            "name": "base_asset_amount",
+            "type": "u64"
           }
         ]
       }
@@ -25718,6 +25901,33 @@
           {
             "name": "too_volatile_ratio",
             "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "_SignedMsgOrderParamsExport",
+      "docs": [
+        "unusued placeholder event to force include signed msg types into drift IDL"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "_a",
+            "type": {
+              "defined": {
+                "name": "SignedMsgOrderParamsMessage"
+              }
+            }
+          },
+          {
+            "name": "_b",
+            "type": {
+              "defined": {
+                "name": "SignedMsgOrderParamsDelegateMessage"
+              }
+            }
           }
         ]
       }

@@ -1235,12 +1235,91 @@ export function parseAMM(amm: {
  */
 export function parsePerpMarketAccount(account: {
 	amm?: any;
+	pnlPool?: any;
 	[key: string]: any;
 }): PerpMarketAccount {
 	return {
 		...account,
 		amm: account.amm ? parseAMM(account.amm) : account.amm,
-	} as unknown as PerpMarketAccount;
+		pnlPool: convertPoolBalance(account.pnlPool),
+	} as PerpMarketAccount;
+}
+
+/**
+ * Converts an Anchor BN representation to an actual BN instance.
+ * Handles both BN instances and serialized BN objects like { 0: number[] }.
+ */
+function convertToBN(value: any): BN {
+	if (BN.isBN(value)) {
+		return value;
+	}
+	if (
+		value &&
+		typeof value === 'object' &&
+		'0' in value &&
+		Array.isArray(value[0])
+	) {
+		// Anchor serializes BN as { 0: number[] } - convert from little-endian bytes
+		return new BN(value[0], 'le');
+	}
+	if (value != null) {
+		return new BN(value);
+	}
+	return ZERO;
+}
+
+/**
+ * Converts a PoolBalance object's BN fields.
+ */
+function convertPoolBalance(poolBalance: any): PoolBalance | undefined {
+	if (!poolBalance) return poolBalance;
+	return {
+		...poolBalance,
+		scaledBalance: convertToBN(poolBalance.scaledBalance),
+	};
+}
+
+/**
+ * Converts HistoricalOracleData object's BN fields and handles field name mappings.
+ */
+function convertHistoricalOracleData(
+	historicalOracleData: any
+): HistoricalOracleData | undefined {
+	if (!historicalOracleData) return historicalOracleData;
+	return {
+		...historicalOracleData,
+		lastOraclePrice: convertToBN(historicalOracleData.lastOraclePrice),
+		lastOracleDelay: convertToBN(historicalOracleData.lastOracleDelay),
+		lastOracleConf: convertToBN(historicalOracleData.lastOracleConf),
+		lastOraclePriceTwap: convertToBN(historicalOracleData.lastOraclePriceTwap),
+		lastOraclePriceTwap5Min: convertToBN(
+			historicalOracleData.lastOraclePriceTwap5Min ??
+				historicalOracleData.lastOraclePriceTwap5min
+		),
+		lastOraclePriceTwapTs: convertToBN(
+			historicalOracleData.lastOraclePriceTwapTs
+		),
+	};
+}
+
+/**
+ * Converts HistoricalIndexData object's BN fields and handles field name mappings.
+ */
+function convertHistoricalIndexData(
+	historicalIndexData: any
+): HistoricalIndexData | undefined {
+	if (!historicalIndexData) return historicalIndexData;
+	return {
+		...historicalIndexData,
+		lastIndexBidPrice: convertToBN(historicalIndexData.lastIndexBidPrice),
+		lastIndexAskPrice: convertToBN(historicalIndexData.lastIndexAskPrice),
+		lastIndexPriceTwap: convertToBN(historicalIndexData.lastIndexPriceTwap),
+		lastIndexPriceTwap5Min: convertToBN(
+			historicalIndexData.lastIndexPriceTwap5Min ??
+				historicalIndexData.lastIndexPriceTwap5min
+		),
+		lastIndexPriceTwapTs: convertToBN(historicalIndexData.lastIndexPriceTwapTs),
+	};
 }
 
 /**
@@ -1248,11 +1327,87 @@ export function parsePerpMarketAccount(account: {
  * Handles field name mappings and provides defaults for missing fields.
  */
 export function parseSpotMarketAccount(account: {
+	insuranceFund?: any;
+	revenuePool?: any;
+	spotFeePool?: any;
+	historicalOracleData?: any;
+	historicalIndexData?: any;
 	[key: string]: any;
 }): SpotMarketAccount {
+	const insuranceFund = account.insuranceFund
+		? {
+				...account.insuranceFund,
+				totalShares: convertToBN(account.insuranceFund.totalShares),
+				userShares: convertToBN(account.insuranceFund.userShares),
+				sharesBase: convertToBN(account.insuranceFund.sharesBase),
+				unstakingPeriod: convertToBN(account.insuranceFund.unstakingPeriod),
+				lastRevenueSettleTs: convertToBN(
+					account.insuranceFund.lastRevenueSettleTs
+				),
+				revenueSettlePeriod: convertToBN(
+					account.insuranceFund.revenueSettlePeriod
+				),
+		  }
+		: account.insuranceFund;
+
 	return {
 		...account,
-	} as unknown as SpotMarketAccount;
+		insuranceFund,
+		revenuePool: convertPoolBalance(account.revenuePool),
+		spotFeePool: convertPoolBalance(account.spotFeePool),
+		historicalOracleData: convertHistoricalOracleData(
+			account.historicalOracleData
+		),
+		historicalIndexData: convertHistoricalIndexData(
+			account.historicalIndexData
+		),
+		cumulativeDepositInterest: convertToBN(account.cumulativeDepositInterest),
+		cumulativeBorrowInterest: convertToBN(account.cumulativeBorrowInterest),
+		totalSocialLoss: convertToBN(account.totalSocialLoss),
+		totalQuoteSocialLoss: convertToBN(account.totalQuoteSocialLoss),
+		depositBalance: convertToBN(account.depositBalance),
+		borrowBalance: convertToBN(account.borrowBalance),
+		maxTokenDeposits: convertToBN(account.maxTokenDeposits),
+		lastInterestTs: convertToBN(account.lastInterestTs),
+		lastTwapTs: convertToBN(account.lastTwapTs),
+		scaleInitialAssetWeightStart: convertToBN(
+			account.scaleInitialAssetWeightStart
+		),
+		withdrawGuardThreshold: convertToBN(account.withdrawGuardThreshold),
+		depositTokenTwap: convertToBN(account.depositTokenTwap),
+		borrowTokenTwap: convertToBN(account.borrowTokenTwap),
+		utilizationTwap: convertToBN(account.utilizationTwap),
+		nextDepositRecordId: convertToBN(account.nextDepositRecordId),
+		orderStepSize: convertToBN(account.orderStepSize),
+		orderTickSize: convertToBN(account.orderTickSize),
+		minOrderSize: convertToBN(account.minOrderSize),
+		maxPositionSize: convertToBN(account.maxPositionSize),
+		nextFillRecordId: convertToBN(account.nextFillRecordId),
+		totalSpotFee: convertToBN(account.totalSpotFee),
+		totalSwapFee: convertToBN(account.totalSwapFee),
+		flashLoanAmount: convertToBN(account.flashLoanAmount),
+		flashLoanInitialTokenAmount: convertToBN(
+			account.flashLoanInitialTokenAmount
+		),
+	} as SpotMarketAccount;
+}
+
+/**
+ * Map of account names to their parser functions.
+ * Parsers convert Anchor's serialized BN format to proper BN instances.
+ */
+export const ACCOUNT_PARSERS: Record<string, (account: any) => any> = {
+	spotMarket: parseSpotMarketAccount,
+	perpMarket: parsePerpMarketAccount,
+};
+
+/**
+ * Applies the appropriate parser to an account based on its name.
+ * Returns the account unchanged if no parser is registered for the name.
+ */
+export function parseAccount<T>(accountName: string, account: any): T {
+	const parser = ACCOUNT_PARSERS[accountName];
+	return (parser ? parser(account) : account) as T;
 }
 
 export type FuelOverflowAccount = {

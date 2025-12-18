@@ -75,7 +75,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 					return;
 				}
 
-				const account = this.decode('User', buffer);
+				const account = this.decode('user', buffer);
 				this.user = { data: account, slot };
 				this.eventEmitter.emit('userAccountUpdate', account);
 				this.eventEmitter.emit('update');
@@ -101,7 +101,7 @@ export class PollingUserAccountSubscriber implements UserAccountSubscriber {
 			);
 			if (dataAndContext.context.slot > (this.user?.slot ?? 0)) {
 				this.user = {
-					data: this.decode('User', dataAndContext.value.data),
+					data: this.decode('user', dataAndContext.value.data),
 					slot: dataAndContext.context.slot,
 				};
 			}

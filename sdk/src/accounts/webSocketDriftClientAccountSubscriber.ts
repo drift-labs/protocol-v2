@@ -7,7 +7,12 @@ import {
 	NotSubscribedError,
 	ResubOpts,
 } from './types';
-import { PerpMarketAccount, SpotMarketAccount, StateAccount } from '../types';
+import {
+	PerpMarketAccount,
+	SpotMarketAccount,
+	StateAccount,
+	parseSpotMarketAccount,
+} from '../types';
 import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
@@ -22,7 +27,6 @@ import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
 import { Commitment, PublicKey } from '@solana/web3.js';
 import { OracleInfo, OraclePriceData } from '../oracles/types';
 import { OracleClientCache } from '../oracles/oracleClientCache';
-import * as Buffer from 'buffer';
 import { QUOTE_ORACLE_PRICE_DATA } from '../oracles/quoteAssetOracleClient';
 import { findAllMarketAndOracles } from '../config';
 import { findDelistedPerpMarketsAndOracles } from './utils';
@@ -239,7 +243,7 @@ export class WebSocketDriftClientAccountSubscriber
 					.filter((accountInfo) => !!accountInfo)
 					.map((accountInfo) => {
 						const perpMarket = this.program.coder.accounts.decode(
-							'PerpMarket',
+							'perpMarket',
 							accountInfo.data
 						);
 						return [perpMarket.marketIndex, perpMarket];
@@ -263,10 +267,11 @@ export class WebSocketDriftClientAccountSubscriber
 				spotMarketAccountInfos
 					.filter((accountInfo) => !!accountInfo)
 					.map((accountInfo) => {
-						const spotMarket = this.program.coder.accounts.decode(
-							'SpotMarket',
+						const decoded = this.program.coder.accounts.decode(
+							'spotMarket',
 							accountInfo.data
 						);
+						const spotMarket = parseSpotMarketAccount(decoded);
 						return [spotMarket.marketIndex, spotMarket];
 					})
 			);

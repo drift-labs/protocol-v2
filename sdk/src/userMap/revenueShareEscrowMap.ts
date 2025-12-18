@@ -78,7 +78,7 @@ export class RevenueShareEscrowMap {
 			if (accountInfo && accountInfo.data) {
 				const escrow =
 					this.driftClient.program.account.revenueShareEscrow.coder.accounts.decode(
-						'RevenueShareEscrow',
+						'revenueShareEscrow',
 						accountInfo.data
 					) as RevenueShareEscrowAccount;
 
@@ -131,7 +131,7 @@ export class RevenueShareEscrowMap {
 			);
 			const escrowNew =
 				this.driftClient.program.account.revenueShareEscrow.coder.accounts.decode(
-					'RevenueShareEscrow',
+					'revenueShareEscrow',
 					accountInfo.data
 				) as RevenueShareEscrowAccount;
 			this.authorityEscrowMap.set(authority, escrowNew);
@@ -181,7 +181,7 @@ export class RevenueShareEscrowMap {
 
 							const escrow =
 								this.driftClient.program.account.revenueShareEscrow.coder.accounts.decode(
-									'RevenueShareEscrow',
+									'revenueShareEscrow',
 									buffer
 								) as RevenueShareEscrowAccount;
 
@@ -207,7 +207,7 @@ export class RevenueShareEscrowMap {
 
 						const escrow =
 							this.driftClient.program.account.revenueShareEscrow.coder.accounts.decode(
-								'RevenueShareEscrow',
+								'revenueShareEscrow',
 								buffer
 							) as RevenueShareEscrowAccount;
 

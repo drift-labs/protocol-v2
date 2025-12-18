@@ -77,7 +77,7 @@ export class PollingUserStatsAccountSubscriber
 
 				const account =
 					this.program.account.userStats.coder.accounts.decodeUnchecked(
-						'UserStats',
+						'userStats',
 						buffer
 					);
 				this.userStats = { data: account, slot };

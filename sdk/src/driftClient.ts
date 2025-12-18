@@ -6972,11 +6972,11 @@ export class DriftClient {
 			prefix,
 			delegateSigner
 				? this.program.coder.types.encode(
-						'SignedMsgOrderParamsDelegateMessage',
+						'signedMsgOrderParamsDelegateMessage',
 						withBuilderDefaults as SignedMsgOrderParamsDelegateMessage
 				  )
 				: this.program.coder.types.encode(
-						'SignedMsgOrderParamsMessage',
+						'signedMsgOrderParamsMessage',
 						withBuilderDefaults as SignedMsgOrderParamsMessage
 				  ),
 		]);
@@ -6994,8 +6994,8 @@ export class DriftClient {
 		delegateSigner?: boolean
 	): SignedMsgOrderParamsMessage | SignedMsgOrderParamsDelegateMessage {
 		const decodeStr = delegateSigner
-			? 'SignedMsgOrderParamsDelegateMessage'
-			: 'SignedMsgOrderParamsMessage';
+			? 'signedMsgOrderParamsDelegateMessage'
+			: 'signedMsgOrderParamsMessage';
 		return this.program.coder.types.decode(
 			decodeStr,
 			Buffer.concat([
@@ -10259,7 +10259,7 @@ export class DriftClient {
 		const postIxs: TransactionInstruction[] = [];
 		if (accumulatorUpdateData.updates.length > 1) {
 			const encodedParams = this.getReceiverProgram().coder.types.encode(
-				'PostMultiUpdatesAtomicParams',
+				'postMultiUpdatesAtomicParams',
 				{
 					vaa: trimmedVaa,
 					merklePriceUpdates: accumulatorUpdateData.updates,
@@ -10326,7 +10326,7 @@ export class DriftClient {
 		const receiverProgram = this.getReceiverProgram();
 
 		const encodedParams = receiverProgram.coder.types.encode(
-			'PostUpdateAtomicParams',
+			'postUpdateAtomicParams',
 			params
 		);
 
@@ -10402,7 +10402,7 @@ export class DriftClient {
 		const receiverProgram = this.getReceiverProgram();
 
 		const encodedParams = receiverProgram.coder.types.encode(
-			'PostUpdateParams',
+			'postUpdateParams',
 			params
 		);
 

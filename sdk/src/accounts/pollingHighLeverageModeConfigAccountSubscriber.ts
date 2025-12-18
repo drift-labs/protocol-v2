@@ -87,7 +87,7 @@ export class PollingHighLeverageModeConfigAccountSubscriber
 				}
 
 				const account = this.program.account.user.coder.accounts.decode(
-					'HighLeverageModeConfig',
+					'highLeverageModeConfig',
 					buffer
 				);
 				this.highLeverageModeConfigAccountAndSlot = { data: account, slot };

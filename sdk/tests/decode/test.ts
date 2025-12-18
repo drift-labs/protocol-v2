@@ -4,7 +4,6 @@ import { Connection, Keypair } from '@solana/web3.js';
 import {
 	decodeUser,
 	Wallet,
-	DRIFT_PROGRAM_ID,
 	isSpotPositionAvailable,
 	isVariant,
 	Order,
@@ -22,7 +21,7 @@ describe('Custom user decode', () => {
 		const wallet = new Wallet(new Keypair());
 		// @ts-ignore
 		const provider = new AnchorProvider(connection, wallet);
-		const program = new Program(driftIDL as Idl, DRIFT_PROGRAM_ID, provider);
+		const program = new Program(driftIDL as Idl, provider);
 
 		let totalAnchorSize = 0;
 		let totalCustomSize = 0;
@@ -139,7 +138,7 @@ function testUserAccountDecode(program: Program, buffer: Buffer, i: number) {
 	assert(anchorUserAccount.maxMarginRatio === customUserAccount.maxMarginRatio);
 	assert(
 		anchorUserAccount.isMarginTradingEnabled ===
-			customUserAccount.isMarginTradingEnabled
+		customUserAccount.isMarginTradingEnabled
 	);
 	assert(anchorUserAccount.idle === customUserAccount.idle);
 	assert(anchorUserAccount.openOrders === customUserAccount.openOrders);
@@ -187,7 +186,6 @@ function testPerpPosition(anchor: PerpPosition, custom: PerpPosition) {
 	assert(anchor.openAsks.eq(custom.openAsks));
 	assert(anchor.settledPnl.eq(custom.settledPnl));
 	assert(anchor.lpShares.eq(custom.lpShares));
-	assert(anchor.lastBaseAssetAmountPerLp.eq(custom.lastBaseAssetAmountPerLp));
 	assert(anchor.lastQuoteAssetAmountPerLp.eq(custom.lastQuoteAssetAmountPerLp));
 	assert(anchor.openOrders === custom.openOrders);
 	assert(anchor.perLpBase === custom.perLpBase);

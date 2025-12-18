@@ -16,6 +16,7 @@ import {
 	StateAccount,
 	UserAccount,
 	OracleSource,
+	parseAccount,
 } from '../types';
 import {
 	getDriftStateAccountPublicKey,
@@ -23,7 +24,7 @@ import {
 	getSpotMarketPublicKey,
 } from '../addresses/pda';
 import { BulkAccountLoader } from './bulkAccountLoader';
-import { capitalize, findDelistedPerpMarketsAndOracles } from './utils';
+import { findDelistedPerpMarketsAndOracles } from './utils';
 import { PublicKey } from '@solana/web3.js';
 import { OracleInfo, OraclePriceData } from '../oracles/types';
 import { OracleClientCache } from '../oracles/oracleClientCache';
@@ -257,9 +258,11 @@ export class PollingDriftClientAccountSubscriber
 			(buffer: Buffer, slot: number) => {
 				if (!buffer) return;
 
-				const account = this.program.account[
-					accountToPoll.key
-				].coder.accounts.decodeUnchecked(capitalize(accountToPoll.key), buffer);
+				const decoded = this.program.coder.accounts.decodeUnchecked(
+					accountToPoll.key,
+					buffer
+				);
+				const account = parseAccount(accountToPoll.key, decoded);
 				const dataAndSlot = {
 					data: account,
 					slot,
@@ -329,9 +332,12 @@ export class PollingDriftClientAccountSubscriber
 			const { buffer, slot } = bufferAndSlot;
 
 			if (buffer) {
-				const account = this.program.account[
-					accountToPoll.key
-				].coder.accounts.decodeUnchecked(capitalize(accountToPoll.key), buffer);
+				const decoded = this.program.coder.accounts.decodeUnchecked(
+					accountToPoll.key,
+					buffer
+				);
+				const account = parseAccount(accountToPoll.key, decoded);
+
 				if (accountToPoll.mapKey != undefined) {
 					this[accountToPoll.key].set(accountToPoll.mapKey, {
 						data: account,

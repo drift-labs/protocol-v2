@@ -40,7 +40,6 @@ export const mockPerpPosition: PerpPosition = {
 	openAsks: new BN(0),
 	settledPnl: new BN(0),
 	lpShares: new BN(0),
-	lastBaseAssetAmountPerLp: new BN(0),
 	lastQuoteAssetAmountPerLp: new BN(0),
 	perLpBase: 0,
 	maxMarginRatio: 1,
@@ -690,9 +689,9 @@ export class MockUserMap implements UserMapInterface {
 		});
 	}
 
-	public async subscribe(): Promise<void> {}
+	public async subscribe(): Promise<void> { }
 
-	public async unsubscribe(): Promise<void> {}
+	public async unsubscribe(): Promise<void> { }
 
 	public async addPubkey(userAccountPublicKey: PublicKey): Promise<void> {
 		const user = new User({
@@ -751,7 +750,7 @@ export class MockUserMap implements UserMapInterface {
 		);
 	}
 
-	public async updateWithOrderRecord(_record: OrderRecord): Promise<void> {}
+	public async updateWithOrderRecord(_record: OrderRecord): Promise<void> { }
 
 	public values(): IterableIterator<User> {
 		return this.userMap.values();

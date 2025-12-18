@@ -13,6 +13,7 @@ import {
 } from '../isomorphic/grpc';
 import { BufferAndSlot, DataAndSlot, GrpcConfigs, ResubOpts } from './types';
 import { Drift } from '../idl/drift';
+import { parseAccount } from '../types';
 
 interface AccountInfoLike {
 	owner: PublicKey;
@@ -180,10 +181,12 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 								slot: currentSlot,
 							});
 
-							const accountDecoded = this.program.coder.accounts.decode(
-								this.capitalize(this.accountName),
+							const decoded = this.program.coder.accounts.decode(
+								this.accountName,
 								newBuffer
 							);
+							const accountDecoded = parseAccount<T>(this.accountName, decoded);
+
 							this.setAccountData(accountId, accountDecoded, currentSlot);
 						}
 					}
@@ -303,12 +306,14 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 				buffer: Buffer,
 				accountProps: U
 			) => {
-				const data = this.decodeBufferFn
+				const decoded = this.decodeBufferFn
 					? this.decodeBufferFn(buffer, accountPubkey, accountProps)
 					: this.program.account[this.accountName].coder.accounts.decode(
-							this.capitalize(this.accountName),
+							this.accountName,
 							buffer
 					  );
+				const data = parseAccount<T>(this.accountName, decoded);
+
 				const handler = this.onChangeMap.get(accountPubkey);
 				if (handler) {
 					handler(data, context, buffer, accountProps);

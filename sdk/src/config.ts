@@ -186,10 +186,13 @@ export async function findAllMarketAndOracles(
 	const spotMarketIndexes = [];
 	const oracleInfos = new Map<string, OracleInfo>();
 
-	//@ts-ignore TS2589
-	const perpMarketProgramAccountsRaw = await program.account.perpMarket.all();
-	//@ts-ignore TS2589
-	const spotMarketProgramAccountsRaw = await program.account.spotMarket.all();
+	const [perpMarketProgramAccountsRaw, spotMarketProgramAccountsRaw] =
+		await Promise.all([
+			// @ts-ignore TS2589
+			program.account.perpMarket.all(),
+			// @ts-ignore TS2589
+			program.account.spotMarket.all(),
+		]);
 
 	const perpMarketProgramAccounts: ProgramAccount<PerpMarketAccount>[] =
 		perpMarketProgramAccountsRaw.map((account) => ({

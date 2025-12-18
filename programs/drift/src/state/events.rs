@@ -4,7 +4,9 @@ use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode::InvalidOrder};
 use crate::math::casting::Cast;
 use crate::math::safe_unwrap::SafeUnwrap;
-use crate::state::order_params::OrderParams;
+use crate::state::order_params::{
+    OrderParams, SignedMsgOrderParamsDelegateMessage, SignedMsgOrderParamsMessage,
+};
 use crate::state::traits::Size;
 use crate::state::user::{MarketType, Order};
 use anchor_lang::Discriminator;
@@ -899,4 +901,16 @@ pub struct LPBorrowLendDepositRecord {
 
 impl Size for LPBorrowLendDepositRecord {
     const SIZE: usize = 104;
+}
+
+/// unusued placeholder event to force include signed msg types into drift IDL
+#[event]
+#[derive(Default)]
+struct _SignedMsgOrderParamsExport {
+    _a: SignedMsgOrderParamsMessage,
+    _b: SignedMsgOrderParamsDelegateMessage,
+}
+
+impl Size for _SignedMsgOrderParamsExport {
+    const SIZE: usize = 0;
 }

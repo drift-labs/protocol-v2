@@ -1,5 +1,4 @@
 import * as anchor from '@coral-xyz/anchor';
-
 import { Program } from '@coral-xyz/anchor';
 
 import {
@@ -60,6 +59,7 @@ import {
 	isBuilderOrderReferral,
 } from '../sdk/src/math/builder';
 import { createTransferInstruction } from '@solana/spl-token';
+import { Drift } from '../sdk/src/idl/drift';
 
 dotenv.config();
 
@@ -103,7 +103,7 @@ function buildMsg(
 }
 
 describe('builder codes', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 
 	let usdcMint: Keypair;
 
@@ -143,7 +143,6 @@ describe('builder codes', () => {
 			]
 		);
 
-		// @ts-ignore
 		bankrunContextWrapper = new BankrunContextWrapper(context);
 
 		bulkAccountLoader = new TestBulkAccountLoader(
@@ -178,7 +177,6 @@ describe('builder codes', () => {
 		});
 		await builderClient.initialize(usdcMint.publicKey, true);
 		await builderClient.subscribe();
-
 		await builderClient.updateFeatureBitFlagsBuilderCodes(true);
 		// await builderClient.updateFeatureBitFlagsBuilderReferral(true);
 
@@ -343,7 +341,7 @@ describe('builder codes', () => {
 
 		const builderAcc: RevenueShareAccount =
 			builderClient.program.account.revenueShare.coder.accounts.decodeUnchecked(
-				'RevenueShare',
+				'revenueShare',
 				builderAccountInfo.data
 			);
 		assert(
@@ -386,7 +384,7 @@ describe('builder codes', () => {
 
 		const revShareEscrow: RevenueShareEscrowAccount =
 			builderClient.program.coder.accounts.decodeUnchecked(
-				'RevenueShareEscrow',
+				'revenueShareEscrow',
 				accountInfo.data
 			);
 		assert(
@@ -436,7 +434,7 @@ describe('builder codes', () => {
 
 		const revShareEscrow: RevenueShareEscrowAccount =
 			builderClient.program.coder.accounts.decodeUnchecked(
-				'RevenueShareEscrow',
+				'revenueShareEscrow',
 				accountInfo.data
 			);
 		assert(
@@ -471,7 +469,7 @@ describe('builder codes', () => {
 
 		let revShareEscrow: RevenueShareEscrowAccount =
 			userClient.program.coder.accounts.decodeUnchecked(
-				'RevenueShareEscrow',
+				'revenueShareEscrow',
 				accountInfo.data
 			);
 		const addedBuilder = revShareEscrow.approvedBuilders.find(
@@ -506,7 +504,7 @@ describe('builder codes', () => {
 		);
 
 		revShareEscrow = userClient.program.coder.accounts.decodeUnchecked(
-			'RevenueShareEscrow',
+			'revenueShareEscrow',
 			accountInfo.data
 		);
 		const updatedBuilder = revShareEscrow.approvedBuilders.find(
@@ -537,7 +535,7 @@ describe('builder codes', () => {
 		);
 
 		revShareEscrow = userClient.program.coder.accounts.decodeUnchecked(
-			'RevenueShareEscrow',
+			'revenueShareEscrow',
 			accountInfo.data
 		);
 		const removedBuilder = revShareEscrow.approvedBuilders.find(
@@ -648,7 +646,8 @@ describe('builder codes', () => {
 			fillTx
 		);
 		const events = parseLogs(builderClient.program, logs);
-		assert(events[0].name === 'OrderActionRecord');
+		console.log(events.toString());
+		assert(events[0].name === 'orderActionRecord');
 		const fillQuoteAssetAmount = events[0].data['quoteAssetAmountFilled'] as BN;
 		const builderFee = events[0].data['builderFee'] as BN | null;
 		const takerFee = events[0].data['takerFee'] as BN;
@@ -843,7 +842,7 @@ describe('builder codes', () => {
 			fillTx
 		);
 		const events = parseLogs(builderClient.program, logs);
-		assert(events[0].name === 'OrderActionRecord');
+		assert(events[0].name === 'orderActionRecord');
 		const fillQuoteAssetAmount = events[0].data['quoteAssetAmountFilled'] as BN;
 		const builderFee = events[0].data['builderFee'] as BN;
 		const takerFee = events[0].data['takerFee'] as BN;
@@ -937,7 +936,7 @@ describe('builder codes', () => {
 		);
 		const settleEvents = parseLogs(builderClient.program, settleLogs);
 		const builderSettleEvents = settleEvents
-			.filter((e) => e.name === 'RevenueShareSettleRecord')
+			.filter((e) => e.name === 'revenueShareSettleRecord')
 			.map((e) => e.data) as RevenueShareSettleRecord[];
 
 		assert(builderSettleEvents.length === 1);
@@ -1140,7 +1139,8 @@ describe('builder codes', () => {
 			fillTxA
 		);
 		const eventsA = parseLogs(builderClient.program, logsA);
-		const fillEventA = eventsA.find((e) => e.name === 'OrderActionRecord');
+		console.log(eventsA.toString());
+		const fillEventA = eventsA.find((e) => e.name === 'orderActionRecord');
 		assert(fillEventA !== undefined);
 		const builderFeeA = fillEventA.data['builderFee'] as BN;
 		// const referrerRewardA = new BN(fillEventA.data['referrerReward'] as number);
@@ -1164,7 +1164,8 @@ describe('builder codes', () => {
 			fillTxB
 		);
 		const eventsB = parseLogs(builderClient.program, logsB);
-		const fillEventB = eventsB.find((e) => e.name === 'OrderActionRecord');
+		console.log(eventsB.toString());
+		const fillEventB = eventsB.find((e) => e.name === 'orderActionRecord');
 		assert(fillEventB !== undefined);
 		const builderFeeB = fillEventB.data['builderFee'] as BN;
 		// const referrerRewardB = new BN(fillEventB.data['referrerReward'] as number);
@@ -1242,7 +1243,7 @@ describe('builder codes', () => {
 			);
 		const builderAccBefore: RevenueShareAccount =
 			builderClient.program.account.revenueShare.coder.accounts.decodeUnchecked(
-				'RevenueShare',
+				'revenueShare',
 				builderAccountInfoBefore.data
 			);
 
@@ -1323,7 +1324,7 @@ describe('builder codes', () => {
 			fillTxA
 		);
 		const eventsA = parseLogs(builderClient.program, logsA);
-		const fillEventA = eventsA.filter((e) => e.name === 'OrderActionRecord');
+		const fillEventA = eventsA.filter((e) => e.name === 'orderActionRecord');
 		assert(fillEventA !== undefined);
 		const builderFeeA = fillEventA.reduce(
 			(sum, e) => sum.add(e.data['builderFee'] as BN),
@@ -1401,7 +1402,7 @@ describe('builder codes', () => {
 			);
 		const builderAccAfter: RevenueShareAccount =
 			builderClient.program.account.revenueShare.coder.accounts.decodeUnchecked(
-				'RevenueShare',
+				'revenueShare',
 				builderAccountInfoAfter.data
 			);
 		assert(
@@ -1433,7 +1434,7 @@ describe('builder codes', () => {
 	// 		);
 	// 	const builderAccBefore: RevenueShareAccount =
 	// 		builderClient.program.account.revenueShare.coder.accounts.decodeUnchecked(
-	// 			'RevenueShare',
+	// 			'revenueShare',
 	// 			builderAccountInfoBefore.data
 	// 		);
 	// 	// await escrowMap.slowSync();
@@ -1599,7 +1600,7 @@ describe('builder codes', () => {
 	// 		);
 	// 	const builderAccAfter: RevenueShareAccount =
 	// 		builderClient.program.account.revenueShare.coder.accounts.decodeUnchecked(
-	// 			'RevenueShare',
+	// 			'revenueShare',
 	// 			builderAccountInfoAfter.data
 	// 		);
 	// 	const referrerRewards = builderAccAfter.totalReferrerRewards.sub(
