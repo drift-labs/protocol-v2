@@ -143,6 +143,7 @@ export class UnifiedSwapClient {
 				...titanParams,
 				userPublicKey: titanParams.userPublicKey,
 				swapMode: titanParams.swapMode as string, // Titan expects string
+				sizeConstraint: titanParams.sizeConstraint || 1280 - 375, // Use same default as getSwapInstructions
 			};
 
 			return await titanClient.getQuote(titanParamsWithUser);
@@ -177,6 +178,7 @@ export class UnifiedSwapClient {
 				userPublicKey,
 				slippageBps: slippageBps || titanQuote.slippageBps,
 				swapMode: titanQuote.swapMode,
+				sizeConstraint: 1280 - 375, // MAX_TX_BYTE_SIZE - buffer for drift instructions
 			});
 
 			return {

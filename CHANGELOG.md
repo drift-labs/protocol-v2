@@ -13,6 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+## [2.152.0] - 2025-12-12
+
+### Features
+
+- program: add bit_flags to liquidation record [#2053](https://github.com/drift-labs/protocol-v2/pull/2053)
+
+### Fixes
+
+- program: fix base spread validate for perp market [#2052](https://github.com/drift-labs/protocol-v2/pull/2052)
+- sdk: fix for initializing a new user account with a token2022 deposit
+
+### Breaking
+
 ## [2.151.0] - 2025-12-03
 
 ### Features

@@ -94,6 +94,8 @@ export class TitanClient {
 	url: string;
 	connection: Connection;
 	proxyUrl?: string;
+	private lastQuoteData?: SwapQuotes;
+	private lastQuoteParams?: string;
 
 	constructor({
 		connection,
@@ -110,6 +112,55 @@ export class TitanClient {
 		this.authToken = authToken;
 		this.url = url ?? TITAN_API_URL;
 		this.proxyUrl = proxyUrl;
+	}
+
+	private buildParams({
+		inputMint,
+		outputMint,
+		amount,
+		userPublicKey,
+		maxAccounts,
+		slippageBps,
+		swapMode,
+		onlyDirectRoutes,
+		excludeDexes,
+		sizeConstraint,
+		accountsLimitWritable,
+	}: {
+		inputMint: PublicKey;
+		outputMint: PublicKey;
+		amount: BN;
+		userPublicKey: PublicKey;
+		maxAccounts?: number;
+		slippageBps?: number;
+		swapMode?: string | SwapMode;
+		onlyDirectRoutes?: boolean;
+		excludeDexes?: string[];
+		sizeConstraint?: number;
+		accountsLimitWritable?: number;
+	}): URLSearchParams {
+		// Normalize swapMode to enum value
+		const normalizedSwapMode = swapMode === 'ExactOut' || swapMode === SwapMode.ExactOut 
+			? SwapMode.ExactOut 
+			: SwapMode.ExactIn;
+
+		return new URLSearchParams({
+			inputMint: inputMint.toString(),
+			outputMint: outputMint.toString(),
+			amount: amount.toString(),
+			userPublicKey: userPublicKey.toString(),
+			...(slippageBps && { slippageBps: slippageBps.toString() }),
+			...(swapMode && { swapMode: normalizedSwapMode.toString() }),
+			...(maxAccounts && { accountsLimitTotal: maxAccounts.toString() }),
+			...(excludeDexes && { excludeDexes: excludeDexes.join(',') }),
+			...(onlyDirectRoutes && {
+				onlyDirectRoutes: onlyDirectRoutes.toString(),
+			}),
+			...(sizeConstraint && { sizeConstraint: sizeConstraint.toString() }),
+			...(accountsLimitWritable && {
+				accountsLimitWritable: accountsLimitWritable.toString(),
+			}),
+		});
 	}
 
 	/**
@@ -140,25 +191,18 @@ export class TitanClient {
 		sizeConstraint?: number;
 		accountsLimitWritable?: number;
 	}): Promise<QuoteResponse> {
-		const params = new URLSearchParams({
-			inputMint: inputMint.toString(),
-			outputMint: outputMint.toString(),
-			amount: amount.toString(),
-			userPublicKey: userPublicKey.toString(),
-			...(slippageBps && { slippageBps: slippageBps.toString() }),
-			...(swapMode && {
-				swapMode:
-					swapMode === 'ExactOut' ? SwapMode.ExactOut : SwapMode.ExactIn,
-			}),
-			...(onlyDirectRoutes && {
-				onlyDirectRoutes: onlyDirectRoutes.toString(),
-			}),
-			...(maxAccounts && { accountsLimitTotal: maxAccounts.toString() }),
-			...(excludeDexes && { excludeDexes: excludeDexes.join(',') }),
-			...(sizeConstraint && { sizeConstraint: sizeConstraint.toString() }),
-			...(accountsLimitWritable && {
-				accountsLimitWritable: accountsLimitWritable.toString(),
-			}),
+		const params = this.buildParams({
+			inputMint,
+			outputMint,
+			amount,
+			userPublicKey,
+			maxAccounts,
+			slippageBps,
+			swapMode,
+			onlyDirectRoutes,
+			excludeDexes,
+			sizeConstraint,
+			accountsLimitWritable,
 		});
 
 		let response: Response;
@@ -194,6 +238,10 @@ export class TitanClient {
 
 		const buffer = await response.arrayBuffer();
 		const data = decode(buffer) as SwapQuotes;
+
+		// Cache the quote data and parameters for later use in getSwap
+		this.lastQuoteData = data;
+		this.lastQuoteParams = params.toString();
 
 		const route =
 			data.quotes[
@@ -268,61 +316,28 @@ export class TitanClient {
 		transactionMessage: TransactionMessage;
 		lookupTables: AddressLookupTableAccount[];
 	}> {
-		const params = new URLSearchParams({
-			inputMint: inputMint.toString(),
-			outputMint: outputMint.toString(),
-			amount: amount.toString(),
-			userPublicKey: userPublicKey.toString(),
-			...(slippageBps && { slippageBps: slippageBps.toString() }),
-			...(swapMode && { swapMode: swapMode }),
-			...(maxAccounts && { accountsLimitTotal: maxAccounts.toString() }),
-			...(excludeDexes && { excludeDexes: excludeDexes.join(',') }),
-			...(onlyDirectRoutes && {
-				onlyDirectRoutes: onlyDirectRoutes.toString(),
-			}),
-			...(sizeConstraint && { sizeConstraint: sizeConstraint.toString() }),
-			...(accountsLimitWritable && {
-				accountsLimitWritable: accountsLimitWritable.toString(),
-			}),
+		const params = this.buildParams({
+			inputMint,
+			outputMint,
+			amount,
+			userPublicKey,
+			maxAccounts,
+			slippageBps,
+			swapMode,
+			onlyDirectRoutes,
+			excludeDexes,
+			sizeConstraint,
+			accountsLimitWritable,
 		});
 
-		let response: Response;
-
-		if (this.proxyUrl) {
-			// Use proxy route - send parameters in request body
-			response = await fetch(this.proxyUrl, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify(Object.fromEntries(params.entries())),
-			});
-		} else {
-			// Direct request to Titan API
-			response = await fetch(
-				`${this.url}/api/v1/quote/swap?${params.toString()}`,
-				{
-					headers: {
-						Accept: 'application/vnd.msgpack',
-						'Accept-Encoding': 'gzip, deflate, br',
-						Authorization: `Bearer ${this.authToken}`,
-					},
-				}
-			);
+		// Check if we have cached quote data that matches the current parameters
+		if (!this.lastQuoteData || this.lastQuoteParams !== params.toString()) {
+			throw new Error('No matching quote data found. Please get a fresh quote before attempting to swap.');
 		}
 
-		if (!response.ok) {
-			if (response.status === 404) {
-				throw new Error('No routes available');
-			}
-			throw new Error(
-				`Titan API error: ${response.status} ${response.statusText}`
-			);
-		}
-
-		const buffer = await response.arrayBuffer();
-		const data = decode(buffer) as SwapQuotes;
-
+		// Reuse the cached quote data
+		const data = this.lastQuoteData;
+		
 		const route =
 			data.quotes[
 				Object.keys(data.quotes).find((key) => key.toLowerCase() === 'titan') ||
@@ -332,7 +347,7 @@ export class TitanClient {
 		if (!route) {
 			throw new Error('No routes available');
 		}
-
+		
 		if (route.instructions && route.instructions.length > 0) {
 			try {
 				const { transactionMessage, lookupTables } =
@@ -342,6 +357,10 @@ export class TitanClient {
 				throw new Error(
 					'Something went wrong with creating the Titan swap transaction. Please try again.'
 				);
+			} finally {
+				// Clear cached quote data after use
+				this.lastQuoteData = undefined;
+				this.lastQuoteParams = undefined;
 			}
 		}
 		throw new Error('No instructions provided in the route');
