@@ -140,9 +140,10 @@ export class TitanClient {
 		accountsLimitWritable?: number;
 	}): URLSearchParams {
 		// Normalize swapMode to enum value
-		const normalizedSwapMode = swapMode === 'ExactOut' || swapMode === SwapMode.ExactOut 
-			? SwapMode.ExactOut 
-			: SwapMode.ExactIn;
+		const normalizedSwapMode =
+			swapMode === 'ExactOut' || swapMode === SwapMode.ExactOut
+				? SwapMode.ExactOut
+				: SwapMode.ExactIn;
 
 		return new URLSearchParams({
 			inputMint: inputMint.toString(),
@@ -332,12 +333,14 @@ export class TitanClient {
 
 		// Check if we have cached quote data that matches the current parameters
 		if (!this.lastQuoteData || this.lastQuoteParams !== params.toString()) {
-			throw new Error('No matching quote data found. Please get a fresh quote before attempting to swap.');
+			throw new Error(
+				'No matching quote data found. Please get a fresh quote before attempting to swap.'
+			);
 		}
 
 		// Reuse the cached quote data
 		const data = this.lastQuoteData;
-		
+
 		const route =
 			data.quotes[
 				Object.keys(data.quotes).find((key) => key.toLowerCase() === 'titan') ||
@@ -347,7 +350,7 @@ export class TitanClient {
 		if (!route) {
 			throw new Error('No routes available');
 		}
-		
+
 		if (route.instructions && route.instructions.length > 0) {
 			try {
 				const { transactionMessage, lookupTables } =
