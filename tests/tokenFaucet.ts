@@ -22,7 +22,7 @@ describe('token faucet', () => {
 
 	let usdcMint: Keypair;
 
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 	let driftClient: TestClient;
 
 	let bulkAccountLoader: TestBulkAccountLoader;

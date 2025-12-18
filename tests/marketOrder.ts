@@ -37,9 +37,10 @@ import {
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { Drift } from '../sdk/src/idl/drift';
 
 describe('market order', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 
 	let driftClient: TestClient;
 	let driftClientUser: User;
@@ -276,7 +277,7 @@ describe('market order', () => {
 		assert(firstPosition.quoteBreakEvenAmount.eq(new BN(-1001002)));
 
 		const orderActionRecord =
-			eventSubscriber.getEventsArray('OrderActionRecord')[0];
+			eventSubscriber.getEventsArray('orderActionRecord')[0];
 
 		assert.ok(orderActionRecord.baseAssetAmountFilled.eq(baseAssetAmount));
 		assert.ok(
@@ -320,7 +321,7 @@ describe('market order', () => {
 		assert(firstPosition.quoteBreakEvenAmount.eq(ZERO));
 
 		const orderActionRecord =
-			eventSubscriber.getEventsArray('OrderActionRecord')[0];
+			eventSubscriber.getEventsArray('orderActionRecord')[0];
 
 		assert.ok(orderActionRecord.baseAssetAmountFilled.eq(baseAssetAmount));
 		const expectedQuoteAssetAmount = new BN(1000000);

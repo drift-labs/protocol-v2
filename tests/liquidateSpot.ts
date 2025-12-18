@@ -36,9 +36,10 @@ import { PERCENTAGE_PRECISION } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { Drift } from '../sdk/src/idl/drift';
 
 describe('liquidate spot', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 
 	let driftClient: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -300,7 +301,7 @@ describe('liquidate spot', () => {
 		);
 
 		const liquidationRecord =
-			eventSubscriber.getEventsArray('LiquidationRecord')[0];
+			eventSubscriber.getEventsArray('liquidationRecord')[0];
 		assert(liquidationRecord.liquidationId === 1);
 		assert(isVariant(liquidationRecord.liquidationType, 'liquidateSpot'));
 		assert(liquidationRecord.liquidateSpot.assetPrice.eq(PRICE_PRECISION));

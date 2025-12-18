@@ -166,7 +166,7 @@ describe('AMM Curve', () => {
 	// 	return kSqrtI;
 	// }
 
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 
 	let driftClient: TestClient;
 

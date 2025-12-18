@@ -1,7 +1,8 @@
 import { assert } from 'chai';
-import * as anchor from '@coral-xyz/anchor';
+import * as anchor from '@coral-xyz/anchor-29';
 
-import { Program, Idl, BN } from '@coral-xyz/anchor';
+import { Program, BN } from '@coral-xyz/anchor';
+import { Program as Program29, Idl as Idl29 } from '@coral-xyz/anchor-29';
 
 import {
 	OracleSource,
@@ -36,10 +37,11 @@ import { Keypair } from '@solana/web3.js';
 import { LAMPORTS_PRECISION, PRICE_PRECISION } from '../sdk/src';
 import { WRAPPED_SOL_MINT } from '../sdk/src';
 import { ZERO } from '../sdk';
+import { Drift } from '../sdk/src/idl/drift';
 
 describe('openbook v2', () => {
-	const chProgram = anchor.workspace.Drift as Program;
-	const openbookProgram = new Program(openbookIDL as Idl, OPENBOOK);
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const openbookProgram = new Program29(openbookIDL as Idl29, OPENBOOK);
 
 	let driftClient: TestClient;
 

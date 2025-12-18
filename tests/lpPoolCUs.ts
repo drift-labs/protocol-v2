@@ -67,6 +67,7 @@ import {
 	CustomBorshAccountsCoder,
 	CustomBorshCoder,
 } from '../sdk/src/decode/customCoder';
+import { Drift } from '../sdk/src/idl/drift';
 dotenv.config();
 
 const NUMBER_OF_CONSTITUENTS = 10;
@@ -95,9 +96,7 @@ const PYTH_STORAGE_ACCOUNT_INFO: AccountInfo<Buffer> = {
 };
 
 describe('LP Pool', () => {
-	const program = anchor.workspace.Drift as Program;
-	// @ts-ignore
-	program.coder.accounts = new CustomBorshAccountsCoder(program.idl);
+	const program = anchor.workspace.Drift as Program<Drift>;
 
 	let bankrunContextWrapper: BankrunContextWrapper;
 	let bulkAccountLoader: TestBulkAccountLoader;
@@ -187,7 +186,6 @@ describe('LP Pool', () => {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
-			coder: new CustomBorshCoder(program.idl),
 		});
 		await adminClient.initialize(usdcMint.publicKey, true);
 		await adminClient.subscribe();
@@ -352,7 +350,6 @@ describe('LP Pool', () => {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
-			coder: new CustomBorshCoder(program.idl),
 		});
 		await adminClient.subscribe();
 		await sleep(50);
@@ -438,7 +435,6 @@ describe('LP Pool', () => {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
-			coder: new CustomBorshCoder(program.idl),
 		});
 		await adminClient.subscribe();
 	});
@@ -464,7 +460,6 @@ describe('LP Pool', () => {
 					type: 'polling',
 					accountLoader: bulkAccountLoader,
 				},
-				coder: new CustomBorshCoder(program.idl),
 			});
 			await userClient.subscribe();
 			await sleep(100);

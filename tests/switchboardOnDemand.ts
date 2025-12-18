@@ -56,7 +56,7 @@ const getOracleAccountInfo = (accountData: string): AccountInfo<Buffer> => {
 };
 
 describe('switchboard on demand', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 
 	let driftClient: TestClient;
 

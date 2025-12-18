@@ -136,7 +136,7 @@ describe('repeg and spread amm', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 
 	let driftClient: TestClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram, {
@@ -286,7 +286,7 @@ describe('repeg and spread amm', () => {
 
 		assert(
 			JSON.stringify(oracleGuardRails) ===
-				JSON.stringify(state.oracleGuardRails)
+			JSON.stringify(state.oracleGuardRails)
 		);
 
 		const marketIndex = 0;
@@ -342,7 +342,7 @@ describe('repeg and spread amm', () => {
 		console.log(
 			'market0.amm.totalFeeMinusDistributions:',
 			market0.amm.totalFeeMinusDistributions.toNumber() /
-				QUOTE_PRECISION.toNumber()
+			QUOTE_PRECISION.toNumber()
 		);
 		console.log(
 			'market0.amm.pegMultiplier:',
@@ -1010,9 +1010,9 @@ describe('repeg and spread amm', () => {
 
 		const moneyMissing = Math.abs(
 			allUserCollateral +
-				pnlPoolBalance +
-				feePoolBalance -
-				(usdcDepositBalance - usdcBorrowBalance)
+			pnlPoolBalance +
+			feePoolBalance -
+			(usdcDepositBalance - usdcBorrowBalance)
 		);
 		console.log('moneyMissing:', moneyMissing);
 
@@ -1030,8 +1030,8 @@ describe('repeg and spread amm', () => {
 		// must be less
 		assert(
 			allUserUnsettledPnl +
-				(sinceStartTFMD - (pnlPoolBalance + feePoolBalance)) <
-				0
+			(sinceStartTFMD - (pnlPoolBalance + feePoolBalance)) <
+			0
 		);
 	});
 });

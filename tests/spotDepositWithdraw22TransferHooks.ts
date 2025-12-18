@@ -60,7 +60,7 @@ const transferHookProgramId = new PublicKey(
 );
 
 describe('spot deposit and withdraw 22', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 
 	let firstUserKeypair: Keypair;
 	let firstUserDriftClient: TestClient;

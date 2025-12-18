@@ -35,7 +35,7 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('liquidate perp (no open orders)', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 
 	let driftClient: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -367,7 +367,7 @@ describe('liquidate perp (no open orders)', () => {
 		assert(liquidationRecord.liquidatePerp.ifFee.eq(new BN(0)));
 		assert(liquidationRecord.liquidatePerp.liquidatorFee.eq(new BN(0)));
 
-		const fillRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		const fillRecord = eventSubscriber.getEventsArray('orderActionRecord')[0];
 		assert(isVariant(fillRecord.action, 'fill'));
 		assert(fillRecord.marketIndex === 0);
 		assert(isVariant(fillRecord.marketType, 'perp'));
@@ -471,7 +471,7 @@ describe('liquidate perp (no open orders)', () => {
 		assert(
 			(driftClient.getUserAccount().status &
 				(UserStatus.BANKRUPT | UserStatus.BEING_LIQUIDATED)) ===
-				0
+			0
 		);
 
 		console.log(driftClient.getUserAccount());

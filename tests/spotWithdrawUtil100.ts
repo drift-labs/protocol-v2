@@ -50,7 +50,7 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('test function when spot market at >= 100% util', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 
 	let admin: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -501,9 +501,9 @@ describe('test function when spot market at >= 100% util', () => {
 			newSpotMarketAccount.cumulativeBorrowInterest
 				.sub(ONE)
 				.eq(expectedCumulativeBorrowInterest) ||
-				newSpotMarketAccount.cumulativeBorrowInterest.eq(
-					expectedCumulativeBorrowInterest
-				)
+			newSpotMarketAccount.cumulativeBorrowInterest.eq(
+				expectedCumulativeBorrowInterest
+			)
 		);
 	});
 
@@ -551,9 +551,9 @@ describe('test function when spot market at >= 100% util', () => {
 			newSpotMarketAccount.cumulativeBorrowInterest
 				.sub(ONE)
 				.eq(expectedCumulativeBorrowInterest) ||
-				newSpotMarketAccount.cumulativeBorrowInterest.eq(
-					expectedCumulativeBorrowInterest
-				)
+			newSpotMarketAccount.cumulativeBorrowInterest.eq(
+				expectedCumulativeBorrowInterest
+			)
 		);
 	});
 

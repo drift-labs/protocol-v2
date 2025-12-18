@@ -76,10 +76,10 @@ async function updateFundingRateHelper(
 			frontEndFundingCalc0,
 			'markTwap0:',
 			ammAccountState0.lastMarkPriceTwap.toNumber() /
-				PRICE_PRECISION.toNumber(),
+			PRICE_PRECISION.toNumber(),
 			'oracleTwap0:',
 			ammAccountState0.historicalOracleData.lastOraclePriceTwap.toNumber() /
-				PRICE_PRECISION.toNumber(),
+			PRICE_PRECISION.toNumber(),
 			'markTwap0:',
 			ammAccountState0.lastMarkPriceTwap.toNumber(),
 			'oracleTwapPyth:',
@@ -137,10 +137,10 @@ async function updateFundingRateHelper(
 		assert(ammAccountState.lastFundingRate.abs().gte(lastFundingLong.abs()));
 		console.log(
 			convertToNumber(ammAccountState.lastFundingRate.abs()) /
-				FUNDING_RATE_BUFFER_PRECISION.toNumber(),
+			FUNDING_RATE_BUFFER_PRECISION.toNumber(),
 			'>=',
 			convertToNumber(lastFundingShort.abs()) /
-				FUNDING_RATE_BUFFER_PRECISION.toNumber()
+			FUNDING_RATE_BUFFER_PRECISION.toNumber()
 		);
 		assert(ammAccountState.lastFundingRate.abs().gte(lastFundingShort.abs()));
 
@@ -153,9 +153,9 @@ async function updateFundingRateHelper(
 
 		const priceSpread =
 			ammAccountState.lastMarkPriceTwap.toNumber() /
-				PRICE_PRECISION.toNumber() -
+			PRICE_PRECISION.toNumber() -
 			ammAccountState.historicalOracleData.lastOraclePriceTwap.toNumber() /
-				PRICE_PRECISION.toNumber();
+			PRICE_PRECISION.toNumber();
 		const frontEndFundingCalc =
 			priceSpread / ((24 * 3600) / Math.max(1, peroidicity.toNumber()));
 
@@ -166,7 +166,7 @@ async function updateFundingRateHelper(
 			ammAccountState.lastMarkPriceTwap.toNumber() / PRICE_PRECISION.toNumber(),
 			'oracleTwap:',
 			ammAccountState.historicalOracleData.lastOraclePriceTwap.toNumber() /
-				PRICE_PRECISION.toNumber(),
+			PRICE_PRECISION.toNumber(),
 			'markTwap:',
 			ammAccountState.lastMarkPriceTwap.toNumber(),
 			'oracleTwapPyth:',
@@ -449,7 +449,7 @@ async function cappedSymFundingScenario(
 }
 
 describe('capped funding', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 
@@ -829,15 +829,15 @@ describe('capped funding', () => {
 		console.log(
 			'clamped funding:',
 			convertToNumber(clampedFundingRate) /
-				FUNDING_RATE_BUFFER_PRECISION.toNumber(),
+			FUNDING_RATE_BUFFER_PRECISION.toNumber(),
 			'hourly pct:',
 			convertToNumber(clampedFundingRatePct) /
-				FUNDING_RATE_BUFFER_PRECISION.toNumber()
+			FUNDING_RATE_BUFFER_PRECISION.toNumber()
 		);
 		console.log(
 			'short funding:',
 			convertToNumber(fundingRateShort) /
-				FUNDING_RATE_BUFFER_PRECISION.toNumber()
+			FUNDING_RATE_BUFFER_PRECISION.toNumber()
 		);
 
 		assert(fundingRateShort.abs().eq(fundingRateLong.abs()));
@@ -924,15 +924,15 @@ describe('capped funding', () => {
 		console.log(
 			'clamped funding:',
 			convertToNumber(clampedFundingRate) /
-				FUNDING_RATE_BUFFER_PRECISION.toNumber(),
+			FUNDING_RATE_BUFFER_PRECISION.toNumber(),
 			'hourly pct:',
 			convertToNumber(clampedFundingRatePct) /
-				FUNDING_RATE_BUFFER_PRECISION.toNumber()
+			FUNDING_RATE_BUFFER_PRECISION.toNumber()
 		);
 		console.log(
 			'short funding:',
 			convertToNumber(fundingRateShort) /
-				FUNDING_RATE_BUFFER_PRECISION.toNumber()
+			FUNDING_RATE_BUFFER_PRECISION.toNumber()
 		);
 
 		assert(fundingRateShort.abs().gt(fundingRateLong.abs()));
@@ -981,7 +981,7 @@ describe('capped funding', () => {
 		);
 		assert(
 			feeAlloced + Math.abs(fundingPnLForShortsNum) >=
-				fundingPnLForLongsNum + 1e-6
+			fundingPnLForLongsNum + 1e-6
 		);
 	});
 	it('capped sym funding: ($2000 long, $1000 short, oracle > mark)', async () => {

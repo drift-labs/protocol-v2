@@ -41,7 +41,7 @@ import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import { DRIFT_PROGRAM_ID } from '../sdk/src';
 
 describe('spot swap 22', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 
 	let makerDriftClient: TestClient;
 	let makerWSOL: PublicKey;
@@ -236,9 +236,9 @@ describe('spot swap 22', () => {
 
 		const userStatsAccount = accountInfo
 			? (takerDriftClient.program.account.user.coder.accounts.decodeUnchecked(
-					'UserStats',
-					accountInfo.data
-			  ) as UserStatsAccount)
+				'UserStats',
+				accountInfo.data
+			) as UserStatsAccount)
 			: undefined;
 
 		assert(userStatsAccount.takerVolume30D.eq(new BN(0)));

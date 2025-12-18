@@ -72,6 +72,7 @@ import {
 	PYTH_LAZER_HEX_STRING_SOL_LATER,
 	PYTH_STORAGE_DATA,
 } from './pythLazerData';
+import { Drift } from '../sdk/lib/browser/idl/drift';
 
 dotenv.config();
 
@@ -84,7 +85,7 @@ const PYTH_STORAGE_ACCOUNT_INFO: AccountInfo<Buffer> = {
 };
 
 describe('place and make signedMsg order', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 
 	let slot: BN;
 
@@ -301,7 +302,7 @@ describe('place and make signedMsg order', () => {
 		// Make sure that the event is in the logs
 		const events = eventSubscriber.getEventsByTx(txSig);
 		const event = events.find(
-			(event) => event.eventType == 'SignedMsgOrderRecord'
+			(event) => event.eventType == 'signedMsgOrderRecord'
 		);
 		assert(event !== undefined);
 		assert(
@@ -411,7 +412,7 @@ describe('place and make signedMsg order', () => {
 		// Make sure that the event is in the logs
 		const events = eventSubscriber.getEventsByTx(txSig);
 		const event = events.find(
-			(event) => event.eventType == 'SignedMsgOrderRecord'
+			(event) => event.eventType == 'signedMsgOrderRecord'
 		);
 		assert(event !== undefined);
 		assert(
@@ -682,7 +683,7 @@ describe('place and make signedMsg order', () => {
 		);
 		const userStats: UserStatsAccount =
 			chProgram.account.userStats.coder.accounts.decodeUnchecked(
-				'UserStats',
+				'userStats',
 				userStatsData.data
 			);
 
@@ -1708,7 +1709,7 @@ describe('place and make signedMsg order', () => {
 
 async function initializeNewTakerClientAndUser(
 	bankrunContextWrapper: BankrunContextWrapper,
-	chProgram: Program,
+	chProgram: Program<Drift>,
 	usdcMint: Keypair,
 	usdcAmount: BN,
 	marketIndexes: number[],

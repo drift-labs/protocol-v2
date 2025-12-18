@@ -19,7 +19,7 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('market orders', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 
 	let driftClient: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -187,7 +187,7 @@ describe('market orders', () => {
 		assert.ok(market.amm.totalFee.eq(new BN(48001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(48001)));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('orderActionRecord')[0];
 		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
 		assert.ok(orderRecord.fillRecordId.eq(new BN(1)));
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(new BN(48000000000)));
@@ -254,7 +254,7 @@ describe('market orders', () => {
 		assert.ok(market.amm.totalFee.eq(new BN(72001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(72001)));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('orderActionRecord')[0];
 
 		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
 		assert.ok(orderRecord.fillRecordId.eq(new BN(2)));
@@ -320,7 +320,7 @@ describe('market orders', () => {
 		assert.ok(market.amm.totalFee.eq(new BN(120001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(120001)));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('orderActionRecord')[0];
 
 		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
 		assert.ok(orderRecord.fillRecordId.eq(new BN(3)));
@@ -377,7 +377,7 @@ describe('market orders', () => {
 		assert.ok(market.amm.totalFee.eq(new BN(144001)));
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(144001)));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('orderActionRecord')[0];
 
 		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
 		assert.ok(orderRecord.fillRecordId.eq(new BN(4)));

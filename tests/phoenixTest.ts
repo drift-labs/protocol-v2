@@ -553,7 +553,7 @@ describe('phoenix spot market', () => {
 		assert(!isVariant(takerOrder.status, 'open'));
 
 		const orderActionRecord =
-			eventSubscriber.getEventsArray('OrderActionRecord')[0];
+			eventSubscriber.getEventsArray('orderActionRecord')[0];
 		assert(isVariant(orderActionRecord.action, 'fill'));
 		assert(orderActionRecord.baseAssetAmountFilled.eq(new BN(1000000000)));
 		assert(orderActionRecord.quoteAssetAmountFilled.eq(new BN(100000000)));
@@ -599,7 +599,7 @@ describe('phoenix spot market', () => {
 		assert(
 			phoenixClient.quoteLotsToQuoteAtoms(
 				phoenixMarketEnd.unclaimedQuoteLotFees -
-					phoenixMarketStart.unclaimedQuoteLotFees,
+				phoenixMarketStart.unclaimedQuoteLotFees,
 				solMarketAddress.toBase58()
 			) === orderActionRecord.spotFulfillmentMethodFee.toNumber()
 		);
@@ -717,7 +717,7 @@ describe('phoenix spot market', () => {
 		assert(!isVariant(takerOrder.status, 'open'));
 
 		const orderActionRecord =
-			eventSubscriber.getEventsArray('OrderActionRecord')[0];
+			eventSubscriber.getEventsArray('orderActionRecord')[0];
 		assert(isVariant(orderActionRecord.action, 'fill'));
 		assert(orderActionRecord.baseAssetAmountFilled.eq(new BN(1000000000)));
 		assert(orderActionRecord.quoteAssetAmountFilled.eq(new BN(100000000)));
@@ -768,7 +768,7 @@ describe('phoenix spot market', () => {
 		assert(
 			phoenixClient.quoteLotsToQuoteAtoms(
 				phoenixMarketEnd.unclaimedQuoteLotFees -
-					phoenixMarketStart.unclaimedQuoteLotFees,
+				phoenixMarketStart.unclaimedQuoteLotFees,
 				solMarketAddress.toBase58()
 			) === orderActionRecord.spotFulfillmentMethodFee.toNumber()
 		);

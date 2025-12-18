@@ -37,7 +37,7 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('post only maker order w/ amm fulfillments', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 
 	let fillerDriftClient: TestClient;
 	let fillerDriftClientUser: User;
@@ -314,7 +314,7 @@ describe('post only maker order w/ amm fulfillments', () => {
 		assert(driftClientUserStats.fees.totalFeeRebate.eq(ZERO));
 
 		await fillerDriftClient.fetchAccounts();
-		const orderRecords = eventSubscriber.getEventsArray('OrderActionRecord');
+		const orderRecords = eventSubscriber.getEventsArray('orderActionRecord');
 
 		console.log(orderRecords.length, 'orderRecords found.');
 		assert(orderRecords.length == 4);

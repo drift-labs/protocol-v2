@@ -66,7 +66,7 @@ async function updateFundingRateHelper(
 			frontEndFundingCalc0,
 			'markTwap0:',
 			ammAccountState0.lastMarkPriceTwap.toNumber() /
-				PRICE_PRECISION.toNumber(),
+			PRICE_PRECISION.toNumber(),
 			'markTwap0:',
 			ammAccountState0.lastMarkPriceTwap.toNumber(),
 			'oracleTwap0(vamm):',
@@ -160,7 +160,7 @@ async function updateFundingRateHelper(
 }
 
 describe('pyth-oracle', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 
 	let driftClient: TestClient;
 	let driftClient2: TestClient;

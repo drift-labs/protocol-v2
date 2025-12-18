@@ -38,7 +38,7 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('amm spread: market order', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 
 	let driftClient: TestClient;
 	let driftClientUser: User;
@@ -241,7 +241,7 @@ describe('amm spread: market order', () => {
 		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
 		assert(firstPosition.quoteBreakEvenAmount.eq(new BN(-1001252)));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('orderActionRecord')[0];
 
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
 		assert.ok(
@@ -330,7 +330,7 @@ describe('amm spread: market order', () => {
 		const unrealizedPnl = driftClientUser.getUnrealizedPNL();
 		console.log('unrealized pnl', unrealizedPnl.toString());
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('orderActionRecord')[0];
 
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
 		assert.ok(orderRecord.quoteAssetAmountFilled.eq(expectedQuoteAssetAmount));
@@ -732,7 +732,7 @@ describe('amm spread: market order', () => {
 		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
 		assert(firstPosition.quoteBreakEvenAmount.eq(new BN(-4005043))); //todo
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('orderActionRecord')[0];
 
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
 		assert.ok(

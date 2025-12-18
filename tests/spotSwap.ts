@@ -43,9 +43,10 @@ import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import { DRIFT_PROGRAM_ID } from '../sdk/src';
+import { Drift } from '../sdk/src/idl/drift';
 
 describe('spot swap', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 
 	let makerDriftClient: TestClient;
 	let makerWSOL: PublicKey;
@@ -405,9 +406,9 @@ describe('spot swap', () => {
 
 		const userStatsAccount = accountInfo
 			? (takerDriftClient.program.account.user.coder.accounts.decodeUnchecked(
-					'UserStats',
-					accountInfo.data
-			  ) as UserStatsAccount)
+				'UserStats',
+				accountInfo.data
+			) as UserStatsAccount)
 			: undefined;
 
 		// assert(userStatsAccount.fuelDeposits === 2000);
@@ -423,9 +424,9 @@ describe('spot swap', () => {
 		);
 		const _userStatsAccount2 = accountInfo2
 			? (takerDriftClient.program.account.user.coder.accounts.decodeUnchecked(
-					'UserStats',
-					accountInfo2.data
-			  ) as UserStatsAccount)
+				'UserStats',
+				accountInfo2.data
+			) as UserStatsAccount)
 			: undefined;
 
 		// console.log(userStatsAccount2.fuelDeposits.toString());
@@ -443,9 +444,9 @@ describe('spot swap', () => {
 		);
 		const _userStatsAccount3 = accountInfo3
 			? (takerDriftClient.program.account.user.coder.accounts.decodeUnchecked(
-					'UserStats',
-					accountInfo3.data
-			  ) as UserStatsAccount)
+				'UserStats',
+				accountInfo3.data
+			) as UserStatsAccount)
 			: undefined;
 		// console.log(userStatsAccount3.fuelDeposits.toString());
 
@@ -454,7 +455,7 @@ describe('spot swap', () => {
 		// assert(userStatsAccount.fees.totalFeePaid.eq(new BN(50000)));
 		assert(userStatsAccount.takerVolume30D.eq(new BN(0)));
 
-		const swapRecord = eventSubscriber.getEventsArray('SwapRecord')[0];
+		const swapRecord = eventSubscriber.getEventsArray('swapRecord')[0];
 		assert(swapRecord.amountOut.eq(new BN(1000000000)));
 		assert(swapRecord.outMarketIndex === 1);
 		assert(swapRecord.amountIn.eq(new BN(100040000)));
@@ -589,7 +590,7 @@ describe('spot swap', () => {
 		// );
 		// assert(userStatsAccount.fees.totalFeePaid.eq(new BN(99980)));
 
-		const swapRecord = eventSubscriber.getEventsArray('SwapRecord')[0];
+		const swapRecord = eventSubscriber.getEventsArray('swapRecord')[0];
 		assert(swapRecord.amountOut.eq(new BN(99960000)));
 		assert(swapRecord.outMarketIndex === 0);
 		assert(swapRecord.amountIn.eq(new BN(1000000000)));

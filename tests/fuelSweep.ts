@@ -27,7 +27,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 describe('fuel sweep', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 	let bankrunContextWrapper: BankrunContextWrapper;
 	let bulkAccountLoader: TestBulkAccountLoader;
 
@@ -104,7 +104,7 @@ describe('fuel sweep', () => {
 		);
 		assert.isFalse(
 			(userStatsBefore.data.fuelOverflowStatus & FuelOverflowStatus.Exists) ===
-				FuelOverflowStatus.Exists,
+			FuelOverflowStatus.Exists,
 			'FuelOverflow account should not exist'
 		);
 		userStatsBefore.data.fuelTaker = 1_000_000_000;
@@ -229,7 +229,7 @@ describe('fuel sweep', () => {
 		);
 		assert.isTrue(
 			(userStatsBefore.data.fuelOverflowStatus & FuelOverflowStatus.Exists) ===
-				FuelOverflowStatus.Exists,
+			FuelOverflowStatus.Exists,
 			'FuelSweep account should exist'
 		);
 

@@ -49,7 +49,7 @@ export class PythLazerClient implements OracleClient {
 	}
 
 	public getOraclePriceDataFromBuffer(buffer: Buffer): OraclePriceData {
-		const priceData = this.decodeFunc('PythLazerOracle', buffer);
+		const priceData = this.decodeFunc('pythLazerOracle', buffer);
 		const confidence = convertPythPrice(
 			priceData.conf,
 			priceData.exponent,

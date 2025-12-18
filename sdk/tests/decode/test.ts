@@ -138,7 +138,7 @@ function testUserAccountDecode(program: Program, buffer: Buffer, i: number) {
 	assert(anchorUserAccount.maxMarginRatio === customUserAccount.maxMarginRatio);
 	assert(
 		anchorUserAccount.isMarginTradingEnabled ===
-		customUserAccount.isMarginTradingEnabled
+			customUserAccount.isMarginTradingEnabled
 	);
 	assert(anchorUserAccount.idle === customUserAccount.idle);
 	assert(anchorUserAccount.openOrders === customUserAccount.openOrders);

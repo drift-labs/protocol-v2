@@ -25,7 +25,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 describe('admin deposit', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 	let bankrunContextWrapper: BankrunContextWrapper;
 	let bulkAccountLoader: TestBulkAccountLoader;
 

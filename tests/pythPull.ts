@@ -27,7 +27,7 @@ const GUARDIAN_SET_KEY = new PublicKey(
 );
 
 describe('pyth pull oracles', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 
 	let driftClient: TestClient;
 

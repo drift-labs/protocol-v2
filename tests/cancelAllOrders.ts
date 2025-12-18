@@ -24,7 +24,7 @@ import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import { isVariant } from '../sdk';
 
 describe('cancel all orders', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 
 	let driftClient: TestClient;
 

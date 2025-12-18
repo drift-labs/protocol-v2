@@ -31,7 +31,7 @@ import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import { NATIVE_MINT } from '@solana/spl-token';
 
 describe('spot deposit and withdraw', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 
 	let admin: TestClient;
 	let eventSubscriber: EventSubscriber;

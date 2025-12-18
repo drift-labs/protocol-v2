@@ -60,13 +60,11 @@ import {
 	CustomBorshAccountsCoder,
 	CustomBorshCoder,
 } from '../sdk/src/decode/customCoder';
+import { Drift } from '../sdk/src/idl/drift';
 dotenv.config();
 
 describe('LP Pool', () => {
-	const program = anchor.workspace.Drift as Program;
-	// Align account (de)serialization with on-chain zero-copy layouts
-	// @ts-ignore
-	program.coder.accounts = new CustomBorshAccountsCoder(program.idl);
+	const program = anchor.workspace.Drift as Program<Drift>;
 	let bankrunContextWrapper: BankrunContextWrapper;
 	let bulkAccountLoader: TestBulkAccountLoader;
 
@@ -155,8 +153,6 @@ describe('LP Pool', () => {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
-			// Ensure the client uses the same custom coder
-			coder: new CustomBorshCoder(program.idl),
 		});
 		await adminClient.initialize(usdcMint.publicKey, true);
 		await adminClient.subscribe();
@@ -506,13 +502,11 @@ describe('LP Pool', () => {
 		expect(Number(diffOutToken)).to.be.approximately(1001298, 1);
 
 		console.log(
-			`in Token:  ${inTokenBalanceBefore.amount} -> ${
-				inTokenBalanceAfter.amount
+			`in Token:  ${inTokenBalanceBefore.amount} -> ${inTokenBalanceAfter.amount
 			} (${Number(diffInToken) / 1e6})`
 		);
 		console.log(
-			`out Token: ${outTokenBalanceBefore.amount} -> ${
-				outTokenBalanceAfter.amount
+			`out Token: ${outTokenBalanceBefore.amount} -> ${outTokenBalanceAfter.amount
 			} (${Number(diffOutToken) / 1e6})`
 		);
 	});

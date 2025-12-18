@@ -37,7 +37,7 @@ export class SwitchboardClient implements OracleClient {
 
 	public getOraclePriceDataFromBuffer(buffer: Buffer): OraclePriceData {
 		const aggregatorAccountData = this.coder.decodeUnchecked(
-			'AggregatorAccountData',
+			'aggregatorAccountData',
 			buffer
 		) as AggregatorAccountData;
 

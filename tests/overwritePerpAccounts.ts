@@ -98,7 +98,6 @@ describe('Bankrun Overwrite Accounts', () => {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
-			coder: new CustomBorshCoder(program.idl),
 		});
 		await adminClient.initialize(usdcMint.publicKey, true);
 		await adminClient.subscribe();

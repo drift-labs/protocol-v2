@@ -24,7 +24,7 @@ import {
 dotenv.config();
 
 describe('gov stake increase on devnet', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 	let makerDriftClient: TestClient;
 	let makerDriftClientUser: User;
 	let eventSubscriber: EventSubscriber;

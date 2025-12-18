@@ -37,7 +37,7 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('post only', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 
 	let fillerDriftClient: TestClient;
 	let fillerDriftClientUser: User;
@@ -247,7 +247,7 @@ describe('post only', () => {
 		assert(driftClient.getUserStats().getAccount().fees.totalFeePaid.eq(ZERO));
 
 		await fillerDriftClient.fetchAccounts();
-		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('orderActionRecord')[0];
 
 		assert(isVariant(orderRecord.action, 'fill'));
 		assert(orderRecord.takerFee.eq(ZERO));
@@ -348,7 +348,7 @@ describe('post only', () => {
 		);
 
 		await fillerDriftClient.fetchAccounts();
-		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('orderActionRecord')[0];
 
 		assert(isVariant(orderRecord.action, 'fill'));
 		assert(orderRecord.takerFee.eq(new BN(0)));

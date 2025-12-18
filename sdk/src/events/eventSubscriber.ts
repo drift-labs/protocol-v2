@@ -24,6 +24,7 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import { getSortFn } from './sort';
 import { parseLogs } from './parse';
 import { EventsServerLogProvider } from './eventsServerLogProvider';
+import { Drift } from '../idl/drift';
 
 export class EventSubscriber {
 	private address: PublicKey;
@@ -40,7 +41,7 @@ export class EventSubscriber {
 
 	public constructor(
 		private connection: Connection,
-		private program: Program,
+		private program: Program<Drift>,
 		private options: EventSubscriptionOptions = DefaultEventSubscriptionOptions
 	) {
 		this.options = Object.assign({}, DefaultEventSubscriptionOptions, options);

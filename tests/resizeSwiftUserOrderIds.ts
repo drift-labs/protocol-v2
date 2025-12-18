@@ -31,7 +31,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 describe('place and make signedMsg order', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 
 	let makerDriftClient: TestClient;
 	let makerDriftClientUser: User;

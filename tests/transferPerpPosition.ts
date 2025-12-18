@@ -33,7 +33,7 @@ function getOpenInterest(driftClient: TestClient, marketIndex: number) {
 }
 
 describe('trigger orders', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 

@@ -86,7 +86,7 @@ function examineSpread(
 		'$',
 		convertToNumber(spread),
 		spread.mul(BID_ASK_SPREAD_PRECISION).div(oraclePriceData.price).toNumber() /
-			BID_ASK_SPREAD_PRECISION.toNumber(),
+		BID_ASK_SPREAD_PRECISION.toNumber(),
 		'%',
 		'and max (',
 		'$',
@@ -100,7 +100,7 @@ function examineSpread(
 
 		' margin max=',
 		(market.marginRatioInitial - market.marginRatioMaintenance) /
-			BID_ASK_SPREAD_PRECISION.toNumber(),
+		BID_ASK_SPREAD_PRECISION.toNumber(),
 		')'
 	);
 
@@ -119,7 +119,7 @@ function examineSpread(
 }
 
 describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 
 	let driftClient: TestClient;
 	let eventSubscriber: EventSubscriber;

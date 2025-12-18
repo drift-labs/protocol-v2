@@ -37,7 +37,7 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('stop limit', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 
 	let driftClient: TestClient;
 	let driftClientUser: User;
@@ -314,7 +314,7 @@ describe('stop limit', () => {
 		const expectedQuoteAssetAmount = new BN(0);
 		assert(firstPosition.quoteBreakEvenAmount.eq(expectedQuoteAssetAmount));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('orderActionRecord')[0];
 
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
 		const expectedTradeQuoteAssetAmount = new BN(1010000);
@@ -401,7 +401,7 @@ describe('stop limit', () => {
 		assert(firstPosition.quoteBreakEvenAmount.eq(expectedQuoteAssetAmount));
 
 		const expectedTradeQuoteAssetAmount = new BN(990001);
-		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('orderActionRecord')[0];
 
 		const expectedOrderId = 4;
 		const expectedFillRecord = new BN(4);

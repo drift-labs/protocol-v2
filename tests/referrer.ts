@@ -35,7 +35,7 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('referrer', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 
 	let referrerDriftClient: TestClient;
 
@@ -253,7 +253,7 @@ describe('referrer', () => {
 
 		await eventSubscriber.awaitTx(txSig);
 
-		const eventRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		const eventRecord = eventSubscriber.getEventsArray('orderActionRecord')[0];
 		assert(eventRecord.takerFee.eq(new BN(95001)));
 		assert(eventRecord.referrerReward === 15000);
 

@@ -23,7 +23,7 @@ export class PrelaunchOracleClient implements OracleClient {
 	public getOraclePriceDataFromBuffer(buffer: Buffer): OraclePriceData {
 		const prelaunchOracle =
 			this.program.account.prelaunchOracle.coder.accounts.decodeUnchecked(
-				'PrelaunchOracle',
+				'prelaunchOracle',
 				buffer
 			) as PrelaunchOracle;
 

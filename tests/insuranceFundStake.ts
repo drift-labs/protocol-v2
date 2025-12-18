@@ -52,7 +52,7 @@ import {
 } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('insurance fund stake', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as Program<Drift>;
 
 	let driftClient: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -1054,7 +1054,7 @@ describe('insurance fund stake', () => {
 
 		assert(
 			secondUserDriftClient.getUserAccount().status ===
-				UserStatus.BEING_LIQUIDATED
+			UserStatus.BEING_LIQUIDATED
 		);
 
 		assert(
