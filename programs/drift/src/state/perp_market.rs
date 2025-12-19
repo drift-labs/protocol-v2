@@ -762,15 +762,7 @@ impl PerpMarket {
 
         let last_fill_price = self.last_fill_price;
 
-        let mark_price_5min_twap = self.amm.last_mark_price_twap_5min;
-        let last_oracle_price_twap_5min =
-            self.amm.historical_oracle_data.last_oracle_price_twap_5min;
-
-        let basis_5min = mark_price_5min_twap
-            .cast::<i64>()?
-            .safe_sub(last_oracle_price_twap_5min)?;
-
-        let oracle_plus_basis_5min = oracle_price.safe_add(basis_5min)?.cast::<u64>()?;
+        let oracle_plus_basis_5min = self.get_oracle_plus_basis_5min(oracle_price)?;
 
         let last_funding_basis = self.get_last_funding_basis(oracle_price, now)?;
 
@@ -803,6 +795,22 @@ impl PerpMarket {
         };
 
         self.clamp_trigger_price(oracle_price.unsigned_abs(), median_price)
+    }
+
+    fn get_oracle_plus_basis_5min(&self, oracle_price: i64) -> DriftResult<u64> {
+        let mark_price_5min_twap = self.amm.last_mark_price_twap_5min;
+        let last_oracle_price_twap_5min =
+            self.amm.historical_oracle_data.last_oracle_price_twap_5min;
+
+        if mark_price_5min_twap == 0 || last_oracle_price_twap_5min == 0 {
+            return Ok(oracle_price.cast::<u64>()?);
+        }
+
+        let basis_5min = mark_price_5min_twap
+            .cast::<i64>()?
+            .safe_sub(last_oracle_price_twap_5min)?;
+
+        oracle_price.safe_add(basis_5min)?.cast::<u64>()
     }
 
     #[inline(always)]
@@ -856,6 +864,23 @@ impl PerpMarket {
             oracle_price.safe_sub(max_oracle_diff)?,
             oracle_price.safe_add(max_oracle_diff)?,
         ))
+    }
+
+    pub fn get_liquidation_transfer_price(
+        &self,
+        oracle_price: i64,
+        direction: PositionDirection,
+    ) -> DriftResult<u64> {
+        let oracle_plus_basis_5min = self.get_oracle_plus_basis_5min(oracle_price)?;
+
+        let oracle_price_abs = oracle_price.unsigned_abs();
+        let take_over_price = if direction == PositionDirection::Long {
+            oracle_plus_basis_5min.min(oracle_price_abs)
+        } else {
+            oracle_plus_basis_5min.max(oracle_price_abs)
+        };
+
+        self.clamp_trigger_price(oracle_price_abs, take_over_price)
     }
 
     #[inline(always)]
