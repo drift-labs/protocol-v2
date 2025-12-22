@@ -15,9 +15,9 @@ fn calculate_oracle_valid() {
 
     let px = 32 * PRICE_PRECISION;
     let amm = AMM {
-        base_asset_reserve: 2 * AMM_RESERVE_PRECISION,
-        quote_asset_reserve: 2 * AMM_RESERVE_PRECISION,
-        peg_multiplier: 33 * PEG_PRECISION,
+        base_asset_reserve: (2 * AMM_RESERVE_PRECISION).into(),
+        quote_asset_reserve: (2 * AMM_RESERVE_PRECISION).into(),
+        peg_multiplier: (33 * PEG_PRECISION).into(),
         historical_oracle_data: HistoricalOracleData {
             last_oracle_price_twap_5min: px as i64,
             last_oracle_price_twap: (px as i64) - 1000,

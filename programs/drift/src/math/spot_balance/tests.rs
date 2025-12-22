@@ -7,7 +7,7 @@ mod test {
     #[test]
     fn bonk() {
         let spot_market = SpotMarket {
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 5,
             ..SpotMarket::default_quote_market()
         };

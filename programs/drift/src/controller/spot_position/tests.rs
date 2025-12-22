@@ -31,7 +31,7 @@ mod update_spot_position_balance {
     fn borrow() {
         let mut user = User::default();
         let mut spot_market = SpotMarket {
-            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (101 * SPOT_BALANCE_PRECISION).into(),
             ..SpotMarket::default_quote_market()
         };
 
@@ -55,7 +55,7 @@ mod update_spot_position_balance {
         let mut user2 = User::default();
 
         let mut spot_market = SpotMarket {
-            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (101 * SPOT_BALANCE_PRECISION).into(),
             ..SpotMarket::default_quote_market()
         };
 
@@ -111,12 +111,12 @@ mod update_spot_position_balance {
         };
 
         let mut spot_market = SpotMarket {
-            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (101 * SPOT_BALANCE_PRECISION).into(),
             ..SpotMarket::default_quote_market()
         };
 
         let mut sol_market = SpotMarket {
-            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (101 * SPOT_BALANCE_PRECISION).into(),
             ..SpotMarket::default_base_market()
         };
 

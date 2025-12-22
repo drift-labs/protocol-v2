@@ -6,31 +6,31 @@ import {
 	BN,
 	BulkAccountLoader,
 	calculateTradeSlippage,
-} from '../sdk';
-
-import { Keypair } from '@solana/web3.js';
-import { Program } from '@coral-xyz/anchor';
-import {
-	TestClient,
-	PRICE_PRECISION,
-	calculateReservePrice,
-	User,
-	PEG_PRECISION,
-	PositionDirection,
-	convertToNumber,
-	squareRootBN,
-	calculateBudgetedKBN,
-	QUOTE_SPOT_MARKET_INDEX,
-	MarketStatus,
 } from '../sdk/src';
 
+import { Keypair } from '@solana/web3.js';
+import {
+	calculateBudgetedKBN,
+	calculateReservePrice,
+	convertToNumber,
+	MarketStatus,
+	PEG_PRECISION,
+	PositionDirection,
+	PRICE_PRECISION,
+	QUOTE_SPOT_MARKET_INDEX,
+	squareRootBN,
+	TestClient,
+	User,
+} from '../sdk/src';
+
+import { QUOTE_PRECISION } from '../sdk/src';
+import { DriftProgram } from '../sdk/src/config';
 import {
 	createPriceFeed,
+	initializeQuoteSpotMarket,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	initializeQuoteSpotMarket,
 } from './testHelpers';
-import { QUOTE_PRECISION } from '../sdk/src';
 
 const ZERO = new BN(0);
 
@@ -42,7 +42,7 @@ describe('update k', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 

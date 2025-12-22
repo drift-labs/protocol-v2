@@ -1,38 +1,39 @@
 import * as anchor from '@coral-xyz/anchor';
-import { Program } from '@coral-xyz/anchor';
+
 import { Keypair } from '@solana/web3.js';
 import {
-	TestClient,
-	PRICE_PRECISION,
-	PEG_PRECISION,
-	QUOTE_PRECISION,
 	BASE_PRECISION,
 	BN,
+	calculateBudgetedPeg,
 	calculateReservePrice,
 	calculateTargetPriceTrade,
-	User,
-	PositionDirection,
 	convertToNumber,
-	calculateBudgetedPeg,
+	PEG_PRECISION,
+	PositionDirection,
+	PRICE_PRECISION,
+	QUOTE_PRECISION,
 	QUOTE_SPOT_MARKET_INDEX,
+	TestClient,
+	User,
 } from '../sdk/src';
 
 import { liquidityBook } from './liquidityBook';
 
+import { startAnchor } from 'solana-bankrun';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { assert } from '../sdk/src/assert/assert';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
-	mockOracleNoProgram,
 	initializeQuoteSpotMarket,
+	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	setFeedPriceNoProgram,
 } from './testHelpers';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('AMM Curve', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 
@@ -388,7 +389,9 @@ describe('AMM Curve', () => {
 		// unbalanced but no net position
 		console.log('netBaseAssetAmount:', amm.baseAssetAmountWithAmm.toString());
 		assert(!amm.baseAssetReserve.eq(amm.quoteAssetReserve));
-		console.log(amm.baseAssetAmountWithAmm);
+		console.log(`************`);
+		console.log(amm.baseAssetAmountWithAmm.toString());
+		console.log(`************`);
 		assert(amm.baseAssetAmountWithAmm.eq(new BN(0)));
 
 		// check if balanced

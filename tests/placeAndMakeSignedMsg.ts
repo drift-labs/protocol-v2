@@ -1,8 +1,6 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import {
 	ComputeBudgetProgram,
 	Keypair,
@@ -12,23 +10,27 @@ import {
 } from '@solana/web3.js';
 
 import {
+	BASE_PRECISION,
 	BN,
-	PRICE_PRECISION,
-	TestClient,
+	BulkAccountLoader,
+	EventSubscriber,
+	getLimitOrderParams,
+	getMarketOrderParams,
+	loadKeypair,
+	MarketType,
+	OracleSource,
 	PositionDirection,
+	PRICE_PRECISION,
+	SignedMsgOrderParamsMessage,
+	TestClient,
 	User,
 	Wallet,
-	EventSubscriber,
-	BASE_PRECISION,
-	getLimitOrderParams,
-	OracleSource,
-	BulkAccountLoader,
-	SignedMsgOrderParamsMessage,
-	loadKeypair,
-	getMarketOrderParams,
-	MarketType,
 } from '../sdk/src';
 
+import dotenv from 'dotenv';
+import { nanoid } from 'nanoid';
+import { PEG_PRECISION, PostOnlyParams } from '../sdk/src';
+import { DriftProgram } from '../sdk/src/config';
 import {
 	initializeQuoteSpotMarket,
 	mockOracle,
@@ -36,9 +38,6 @@ import {
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpersLocalValidator';
-import { PEG_PRECISION, PostOnlyParams } from '../sdk/src';
-import dotenv from 'dotenv';
-import { nanoid } from 'nanoid';
 dotenv.config();
 
 describe('place and make signedMsg order', () => {
@@ -52,7 +51,7 @@ describe('place and make signedMsg order', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let makerDriftClient: TestClient;
 	let makerDriftClientUser: User;

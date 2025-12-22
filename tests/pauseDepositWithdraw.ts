@@ -1,23 +1,35 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import { PublicKey } from '@solana/web3.js';
 
 import {
-	TestClient,
 	BN,
 	EventSubscriber,
-	SPOT_MARKET_RATE_PRECISION,
-	SpotBalanceType,
 	isVariant,
-	OracleSource,
-	SPOT_MARKET_WEIGHT_PRECISION,
-	SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
 	OracleInfo,
+	OracleSource,
+	SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
+	SPOT_MARKET_RATE_PRECISION,
+	SPOT_MARKET_WEIGHT_PRECISION,
+	SpotBalanceType,
+	TestClient,
 } from '../sdk/src';
 
+import {
+	createBurnInstruction,
+	TOKEN_2022_PROGRAM_ID,
+} from '@solana/spl-token';
+import { startAnchor } from 'solana-bankrun';
+import {
+	QUOTE_PRECISION,
+	SPOT_MARKET_BALANCE_PRECISION,
+	SpotOperation,
+} from '../sdk/src';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
+import { getBalance } from '../sdk/src/math/spotBalance';
 import {
 	createUserWithUSDCAccount,
 	mockOracleNoProgram,
@@ -25,22 +37,9 @@ import {
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpers';
-import { getBalance } from '../sdk/src/math/spotBalance';
-import {
-	createBurnInstruction,
-	TOKEN_2022_PROGRAM_ID,
-} from '@solana/spl-token';
-import {
-	QUOTE_PRECISION,
-	SPOT_MARKET_BALANCE_PRECISION,
-	SpotOperation,
-} from '../sdk';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('spot deposit and withdraw 22', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let admin: TestClient;
 	let eventSubscriber: EventSubscriber;

@@ -3,17 +3,17 @@ import {
 	ConstituentAccountEvents,
 	ConstituentAccountSubscriber,
 } from '../accounts/types';
-import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { Commitment, MemcmpFilter } from '@solana/web3.js';
 import { ConstituentMap } from './constituentMap';
+import { DriftProgram } from '../config';
 
 export class PollingConstituentAccountSubscriber
 	implements ConstituentAccountSubscriber
 {
 	isSubscribed: boolean;
-	program: Program;
+	program: DriftProgram;
 	frequency: number;
 	commitment?: Commitment;
 	additionalFilters?: MemcmpFilter[];
@@ -24,7 +24,7 @@ export class PollingConstituentAccountSubscriber
 
 	public constructor(
 		constituentMap: ConstituentMap,
-		program: Program,
+		program: DriftProgram,
 		frequency: number,
 		commitment?: Commitment,
 		additionalFilters?: MemcmpFilter[]

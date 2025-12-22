@@ -462,12 +462,11 @@ mod get_max_fill_amounts {
     use crate::state::user::{Order, SpotPosition, User};
     use crate::test_utils::get_orders;
     use crate::LAMPORTS_PER_SOL_U64;
-    use anchor_spl::token::spl_token::solana_program::native_token::LAMPORTS_PER_SOL;
 
     #[test]
     fn fully_collateralized_selling_base() {
         let base_market = SpotMarket {
-            deposit_balance: 4 * 100 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (4 * 100 * SPOT_BALANCE_PRECISION).into(),
             deposit_token_twap: 4 * 100 * LAMPORTS_PER_SOL_U64,
             ..SpotMarket::default_base_market()
         };
@@ -493,7 +492,7 @@ mod get_max_fill_amounts {
             spot_positions,
             orders: get_orders(Order {
                 direction: PositionDirection::Short,
-                base_asset_amount: 100 * LAMPORTS_PER_SOL,
+                base_asset_amount: 100 * LAMPORTS_PER_SOL_U64,
                 ..Order::default()
             }),
             ..User::default()
@@ -502,7 +501,7 @@ mod get_max_fill_amounts {
         let (max_base, max_quote) =
             get_max_fill_amounts(&user, 0, &base_market, &quote_market, true).unwrap();
 
-        assert_eq!(max_base, Some(100 * LAMPORTS_PER_SOL));
+        assert_eq!(max_base, Some(100 * LAMPORTS_PER_SOL_U64));
         assert_eq!(max_quote, None);
     }
 
@@ -531,7 +530,7 @@ mod get_max_fill_amounts {
             spot_positions,
             orders: get_orders(Order {
                 direction: PositionDirection::Short,
-                base_asset_amount: 100 * LAMPORTS_PER_SOL,
+                base_asset_amount: 100 * LAMPORTS_PER_SOL_U64,
                 ..Order::default()
             }),
             ..User::default()
@@ -547,7 +546,7 @@ mod get_max_fill_amounts {
     #[test]
     fn selling_base_with_borrow_liquidity_greater_than_order() {
         let base_market = SpotMarket {
-            deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (100 * SPOT_BALANCE_PRECISION).into(),
             deposit_token_twap: 100 * SPOT_BALANCE_PRECISION as u64,
             ..SpotMarket::default_base_market()
         };
@@ -572,7 +571,7 @@ mod get_max_fill_amounts {
             spot_positions,
             orders: get_orders(Order {
                 direction: PositionDirection::Short,
-                base_asset_amount: 100 * LAMPORTS_PER_SOL,
+                base_asset_amount: 100 * LAMPORTS_PER_SOL_U64,
                 ..Order::default()
             }),
             ..User::default()
@@ -589,7 +588,7 @@ mod get_max_fill_amounts {
     fn fully_collateralized_selling_quote() {
         let base_market = SpotMarket::default_base_market();
         let quote_market = SpotMarket {
-            deposit_balance: 4 * 100 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (4 * 100 * SPOT_BALANCE_PRECISION).into(),
             deposit_token_twap: 4 * 100 * QUOTE_PRECISION_U64,
             ..SpotMarket::default_quote_market()
         };
@@ -614,7 +613,7 @@ mod get_max_fill_amounts {
             spot_positions,
             orders: get_orders(Order {
                 direction: PositionDirection::Long,
-                base_asset_amount: 100 * LAMPORTS_PER_SOL,
+                base_asset_amount: 100 * LAMPORTS_PER_SOL_U64,
                 ..Order::default()
             }),
             ..User::default()
@@ -652,7 +651,7 @@ mod get_max_fill_amounts {
             spot_positions,
             orders: get_orders(Order {
                 direction: PositionDirection::Long,
-                base_asset_amount: 100 * LAMPORTS_PER_SOL,
+                base_asset_amount: 100 * LAMPORTS_PER_SOL_U64,
                 ..Order::default()
             }),
             ..User::default()
@@ -669,7 +668,7 @@ mod get_max_fill_amounts {
     fn selling_quote_with_borrow_liquidity_greater_than_order() {
         let base_market = SpotMarket::default_base_market();
         let quote_market = SpotMarket {
-            deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (100 * SPOT_BALANCE_PRECISION).into(),
             deposit_token_twap: 100 * QUOTE_PRECISION_U64,
 
             ..SpotMarket::default_quote_market()
@@ -694,7 +693,7 @@ mod get_max_fill_amounts {
             spot_positions,
             orders: get_orders(Order {
                 direction: PositionDirection::Long,
-                base_asset_amount: 100 * LAMPORTS_PER_SOL,
+                base_asset_amount: 100 * LAMPORTS_PER_SOL_U64,
                 ..Order::default()
             }),
             ..User::default()
@@ -1109,11 +1108,11 @@ mod calculate_max_spot_order_size {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
@@ -1123,8 +1122,8 @@ mod calculate_max_spot_order_size {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -1216,11 +1215,11 @@ mod calculate_max_spot_order_size {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
@@ -1230,8 +1229,8 @@ mod calculate_max_spot_order_size {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -1324,11 +1323,11 @@ mod calculate_max_spot_order_size {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
@@ -1338,8 +1337,8 @@ mod calculate_max_spot_order_size {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -1431,11 +1430,11 @@ mod calculate_max_spot_order_size {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
@@ -1445,8 +1444,8 @@ mod calculate_max_spot_order_size {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -1521,11 +1520,11 @@ mod calculate_max_spot_order_size {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
@@ -1535,8 +1534,8 @@ mod calculate_max_spot_order_size {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -1629,11 +1628,11 @@ mod calculate_max_spot_order_size {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
@@ -1643,8 +1642,8 @@ mod calculate_max_spot_order_size {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -1737,11 +1736,11 @@ mod calculate_max_spot_order_size {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
@@ -1751,8 +1750,8 @@ mod calculate_max_spot_order_size {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -1845,11 +1844,11 @@ mod calculate_max_spot_order_size {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
@@ -1859,8 +1858,8 @@ mod calculate_max_spot_order_size {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -1986,14 +1985,14 @@ mod calculate_max_perp_order_size {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -2014,8 +2013,8 @@ mod calculate_max_perp_order_size {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -2023,11 +2022,11 @@ mod calculate_max_perp_order_size {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: PRICE_PRECISION_I64,
@@ -2108,14 +2107,14 @@ mod calculate_max_perp_order_size {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -2136,8 +2135,8 @@ mod calculate_max_perp_order_size {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -2145,11 +2144,11 @@ mod calculate_max_perp_order_size {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: PRICE_PRECISION_I64,
@@ -2213,14 +2212,14 @@ mod calculate_max_perp_order_size {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -2241,8 +2240,8 @@ mod calculate_max_perp_order_size {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -2250,11 +2249,11 @@ mod calculate_max_perp_order_size {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: PRICE_PRECISION_I64,
@@ -2335,14 +2334,14 @@ mod calculate_max_perp_order_size {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -2363,8 +2362,8 @@ mod calculate_max_perp_order_size {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -2372,11 +2371,11 @@ mod calculate_max_perp_order_size {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: PRICE_PRECISION_I64,
@@ -2440,14 +2439,14 @@ mod calculate_max_perp_order_size {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -2468,8 +2467,8 @@ mod calculate_max_perp_order_size {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -2477,11 +2476,11 @@ mod calculate_max_perp_order_size {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: PRICE_PRECISION_I64,
@@ -2563,14 +2562,14 @@ mod calculate_max_perp_order_size {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -2591,8 +2590,8 @@ mod calculate_max_perp_order_size {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -2600,11 +2599,11 @@ mod calculate_max_perp_order_size {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: PRICE_PRECISION_I64,
@@ -2686,14 +2685,14 @@ mod calculate_max_perp_order_size {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -2715,8 +2714,8 @@ mod calculate_max_perp_order_size {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -2724,11 +2723,11 @@ mod calculate_max_perp_order_size {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: PRICE_PRECISION_I64,
@@ -2809,14 +2808,14 @@ mod calculate_max_perp_order_size {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -2837,8 +2836,8 @@ mod calculate_max_perp_order_size {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -2846,11 +2845,11 @@ mod calculate_max_perp_order_size {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: PRICE_PRECISION_I64,
@@ -2932,14 +2931,14 @@ mod calculate_max_perp_order_size {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -2960,8 +2959,8 @@ mod calculate_max_perp_order_size {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -2969,11 +2968,11 @@ mod calculate_max_perp_order_size {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: PRICE_PRECISION_I64,
@@ -3055,14 +3054,14 @@ mod calculate_max_perp_order_size {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -3084,8 +3083,8 @@ mod calculate_max_perp_order_size {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -3093,11 +3092,11 @@ mod calculate_max_perp_order_size {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: PRICE_PRECISION_I64,
@@ -3178,14 +3177,14 @@ mod calculate_max_perp_order_size {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -3209,8 +3208,8 @@ mod calculate_max_perp_order_size {
             status: MarketStatus::Active,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -3218,11 +3217,11 @@ mod calculate_max_perp_order_size {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: PRICE_PRECISION_I64,
@@ -3975,9 +3974,9 @@ pub mod get_price_for_perp_order {
     #[test]
     fn bid_crosses_vamm_ask() {
         let amm = AMM {
-            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 100 * PEG_PRECISION,
+            base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+            quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: (100 * PEG_PRECISION).into(),
             order_tick_size: 100000,
             short_spread: BID_ASK_SPREAD_PRECISION_U128 as u32 / 100,
             ..AMM::default()
@@ -4006,9 +4005,9 @@ pub mod get_price_for_perp_order {
     #[test]
     fn bid_doesnt_cross_vamm_ask() {
         let amm = AMM {
-            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 100 * PEG_PRECISION,
+            base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+            quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: (100 * PEG_PRECISION).into(),
             order_tick_size: 100000,
             short_spread: BID_ASK_SPREAD_PRECISION_U128 as u32 / 100,
             ..AMM::default()
@@ -4031,9 +4030,9 @@ pub mod get_price_for_perp_order {
     #[test]
     fn ask_crosses_vamm_ask() {
         let amm = AMM {
-            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 100 * PEG_PRECISION,
+            base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+            quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: (100 * PEG_PRECISION).into(),
             order_tick_size: 100000,
             long_spread: BID_ASK_SPREAD_PRECISION_U128 as u32 / 100,
             ..AMM::default()
@@ -4062,9 +4061,9 @@ pub mod get_price_for_perp_order {
     #[test]
     fn ask_doesnt_cross_vamm_ask() {
         let amm = AMM {
-            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 100 * PEG_PRECISION,
+            base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+            quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: (100 * PEG_PRECISION).into(),
             order_tick_size: 100000,
             long_spread: BID_ASK_SPREAD_PRECISION_U128 as u32 / 100,
             ..AMM::default()
@@ -4499,14 +4498,14 @@ mod fallback_price_logic {
     fn test() {
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -4528,8 +4527,8 @@ mod fallback_price_logic {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         // fallback are wide from oracle cause twaps arent set on amm
         let result = market

@@ -1,5 +1,5 @@
 import * as anchor from '@coral-xyz/anchor';
-import { AnchorProvider, Idl, Program } from '@coral-xyz/anchor';
+import { AnchorProvider, Idl, Program } from '@coral-xyz/anchor-29';
 import {
 	TOKEN_PROGRAM_ID,
 	Account,

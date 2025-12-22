@@ -1,12 +1,12 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { OracleClient, OraclePriceData } from './types';
-import { BN } from '@coral-xyz/anchor';
 import switchboardOnDemandIdl from '../idl/switchboard_on_demand_30.json';
 import { PRICE_PRECISION_EXP } from '../constants/numericConstants';
 import {
+	BN,
 	BorshAccountsCoder as BorshAccountsCoder30,
 	Idl as Idl30,
-} from '@coral-xyz/anchor-30';
+} from '@coral-xyz/anchor';
 
 const SB_PRECISION_EXP = new BN(18);
 const SB_PRECISION = new BN(10).pow(SB_PRECISION_EXP.sub(PRICE_PRECISION_EXP));

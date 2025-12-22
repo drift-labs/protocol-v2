@@ -11,7 +11,7 @@ import { SpotMarketAccount, TokenProgramFlag } from '../types';
 export async function getDriftStateAccountPublicKeyAndNonce(
 	programId: PublicKey
 ): Promise<[PublicKey, number]> {
-	return PublicKey.findProgramAddress(
+	return PublicKey.findProgramAddressSync(
 		[Buffer.from(anchor.utils.bytes.utf8.encode('drift_state'))],
 		programId
 	);

@@ -46,7 +46,7 @@ import {
 	UserAccountSubscriber,
 } from './accounts/types';
 import { BigNum } from './factory/bigNum';
-import { BN } from '@coral-xyz/anchor';
+import { BN, BorshAccountsCoder } from '@coral-xyz/anchor';
 import { calculateBaseAssetValue, calculatePositionPNL } from './math/position';
 import {
 	calculateMarketMarginRatio,
@@ -140,7 +140,8 @@ export class User {
 				config.userAccountPublicKey,
 				config.accountSubscription.accountLoader,
 				this.driftClient.program.account.user.coder.accounts.decodeUnchecked.bind(
-					this.driftClient.program.account.user.coder.accounts
+					this.driftClient.program.account.user.coder
+						.accounts as BorshAccountsCoder
 				)
 			);
 		} else if (config.accountSubscription?.type === 'custom') {
@@ -333,7 +334,6 @@ export class User {
 	public getEmptyPosition(marketIndex: number): PerpPosition {
 		return {
 			baseAssetAmount: ZERO,
-			remainderBaseAssetAmount: 0,
 			lastCumulativeFundingRate: ZERO,
 			marketIndex,
 			quoteAssetAmount: ZERO,
@@ -780,12 +780,12 @@ export class User {
 				if (strict && positionUnrealizedPnl.gt(ZERO)) {
 					quotePrice = BN.min(
 						quoteOraclePriceData.price,
-						quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5Min
+						quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5min
 					);
 				} else if (strict && positionUnrealizedPnl.lt(ZERO)) {
 					quotePrice = BN.max(
 						quoteOraclePriceData.price,
-						quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5Min
+						quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5min
 					);
 				} else {
 					quotePrice = quoteOraclePriceData.price;
@@ -1457,7 +1457,7 @@ export class User {
 			if (strict) {
 				quotePrice = BN.max(
 					quoteOraclePriceData.price,
-					quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5Min
+					quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5min
 				);
 			} else {
 				quotePrice = quoteOraclePriceData.price;
@@ -4482,7 +4482,7 @@ export class User {
 			const quotePrice = strict
 				? BN.max(
 						quoteOraclePriceData.price,
-						quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5Min
+						quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5min
 				  )
 				: quoteOraclePriceData.price;
 			let perpMarginRequirement = worstCaseLiabilityValue
@@ -4508,12 +4508,12 @@ export class User {
 			if (strict && positionUnrealizedPnl.gt(ZERO)) {
 				pnlQuotePrice = BN.min(
 					quoteOraclePriceData.price,
-					quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5Min
+					quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5min
 				);
 			} else if (strict && positionUnrealizedPnl.lt(ZERO)) {
 				pnlQuotePrice = BN.max(
 					quoteOraclePriceData.price,
-					quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5Min
+					quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5min
 				);
 			} else {
 				pnlQuotePrice = quoteOraclePriceData.price;
@@ -4553,7 +4553,7 @@ export class User {
 					const strictQuote = new StrictOraclePrice(
 						quoteOraclePriceData.price,
 						strict
-							? quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5Min
+							? quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5min
 							: undefined
 					);
 					const quoteTokenAmount = getTokenAmount(

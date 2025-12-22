@@ -25,8 +25,8 @@ pub fn basic_stake_if_test() {
     };
     let amount = QUOTE_PRECISION as u64; // $1
     let mut spot_market = SpotMarket {
-        deposit_balance: 0,
-        cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        deposit_balance: 0.into(),
+        cumulative_deposit_interest: (1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000).into(),
         insurance_fund: InsuranceFund {
             unstaking_period: 0,
             ..InsuranceFund::default()
@@ -58,8 +58,8 @@ pub fn basic_stake_if_test() {
     .is_err());
 
     assert_eq!(if_stake.unchecked_if_shares(), amount as u128);
-    assert_eq!(spot_market.insurance_fund.total_shares, amount as u128);
-    assert_eq!(spot_market.insurance_fund.shares_base, 0);
+    assert_eq!(spot_market.insurance_fund.total_shares(), amount as u128);
+    assert_eq!(spot_market.insurance_fund.shares_base(), 0);
 
     request_remove_insurance_fund_stake(
         if_stake.unchecked_if_shares(),
@@ -71,13 +71,13 @@ pub fn basic_stake_if_test() {
     )
     .unwrap();
     assert_eq!(
-        if_stake.last_withdraw_request_shares,
+        if_stake.last_withdraw_request_shares(),
         if_stake.unchecked_if_shares()
     );
     assert_eq!(if_stake.last_withdraw_request_value, if_balance - 1); //rounding in favor
     assert_eq!(if_stake.unchecked_if_shares(), amount as u128);
-    assert_eq!(spot_market.insurance_fund.total_shares, amount as u128);
-    assert_eq!(spot_market.insurance_fund.shares_base, 0);
+    assert_eq!(spot_market.insurance_fund.total_shares(), amount as u128);
+    assert_eq!(spot_market.insurance_fund.shares_base(), 0);
 
     let amount_returned = (remove_insurance_fund_stake(
         if_balance,
@@ -92,10 +92,10 @@ pub fn basic_stake_if_test() {
 
     assert_eq!(if_stake.unchecked_if_shares(), 0);
     assert_eq!(if_stake.cost_basis, 1);
-    assert_eq!(if_stake.last_withdraw_request_shares, 0);
+    assert_eq!(if_stake.last_withdraw_request_shares(), 0);
     assert_eq!(if_stake.last_withdraw_request_value, 0);
-    assert_eq!(spot_market.insurance_fund.total_shares, 0);
-    assert_eq!(spot_market.insurance_fund.shares_base, 0);
+    assert_eq!(spot_market.insurance_fund.total_shares(), 0);
+    assert_eq!(spot_market.insurance_fund.shares_base(), 0);
     assert_eq!(if_balance, 1);
 
     add_insurance_fund_stake(
@@ -109,9 +109,9 @@ pub fn basic_stake_if_test() {
     )
     .unwrap();
     assert_eq!(if_stake.cost_basis, 1234);
-    assert_eq!(spot_market.insurance_fund.user_shares, 1234);
-    assert_eq!(spot_market.insurance_fund.total_shares, 1235); // protocol claims the 1 balance
-    assert_eq!(spot_market.insurance_fund.shares_base, 0);
+    assert_eq!(spot_market.insurance_fund.user_shares(), 1234);
+    assert_eq!(spot_market.insurance_fund.total_shares(), 1235); // protocol claims the 1 balance
+    assert_eq!(spot_market.insurance_fund.shares_base(), 0);
 }
 
 #[test]
@@ -124,8 +124,8 @@ pub fn basic_seeded_stake_if_test() {
     };
     let amount = QUOTE_PRECISION as u64; // $1
     let mut spot_market = SpotMarket {
-        deposit_balance: 0,
-        cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        deposit_balance: 0.into(),
+        cumulative_deposit_interest: (1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000).into(),
         insurance_fund: InsuranceFund {
             unstaking_period: 0,
             ..InsuranceFund::default()
@@ -133,8 +133,8 @@ pub fn basic_seeded_stake_if_test() {
         ..SpotMarket::default()
     };
 
-    assert_eq!(spot_market.insurance_fund.total_shares, 0);
-    assert_eq!(spot_market.insurance_fund.user_shares, 0);
+    assert_eq!(spot_market.insurance_fund.total_shares(), 0);
+    assert_eq!(spot_market.insurance_fund.user_shares(), 0);
 
     add_insurance_fund_stake(
         amount,
@@ -148,10 +148,10 @@ pub fn basic_seeded_stake_if_test() {
     .unwrap();
 
     assert_eq!(
-        spot_market.insurance_fund.total_shares,
+        spot_market.insurance_fund.total_shares(),
         (1001 * QUOTE_PRECISION)
     ); // seeded works
-    assert_eq!(spot_market.insurance_fund.user_shares, QUOTE_PRECISION);
+    assert_eq!(spot_market.insurance_fund.user_shares(), QUOTE_PRECISION);
     assert_eq!(if_stake.unchecked_if_shares(), amount as u128);
     if_balance += amount;
 
@@ -176,7 +176,7 @@ pub fn basic_seeded_stake_if_test() {
     )
     .unwrap();
     assert_eq!(
-        if_stake.last_withdraw_request_shares,
+        if_stake.last_withdraw_request_shares(),
         if_stake.unchecked_if_shares()
     );
     assert_eq!(if_stake.last_withdraw_request_value, 1000000);
@@ -194,7 +194,7 @@ pub fn basic_seeded_stake_if_test() {
 
     assert_eq!(if_stake.unchecked_if_shares(), 0);
     assert_eq!(if_stake.cost_basis, 0);
-    assert_eq!(if_stake.last_withdraw_request_shares, 0);
+    assert_eq!(if_stake.last_withdraw_request_shares(), 0);
     assert_eq!(if_stake.last_withdraw_request_value, 0);
     assert_eq!(if_balance, 1000000000);
 
@@ -224,8 +224,8 @@ pub fn large_num_seeded_stake_if_test() {
 
     // all funds in revenue pool
     let mut spot_market = SpotMarket {
-        deposit_balance: 100 * SPOT_BALANCE_PRECISION,
-        cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        deposit_balance: (100 * SPOT_BALANCE_PRECISION).into(),
+        cumulative_deposit_interest: (1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000).into(),
         insurance_fund: InsuranceFund {
             unstaking_period: 0,
             revenue_settle_period: 1,
@@ -233,14 +233,14 @@ pub fn large_num_seeded_stake_if_test() {
         },
         revenue_pool: PoolBalance {
             market_index: 0,
-            scaled_balance: 100 * SPOT_BALANCE_PRECISION,
+            scaled_balance: (100 * SPOT_BALANCE_PRECISION).into(),
             ..PoolBalance::default()
         },
         ..SpotMarket::default()
     };
 
-    assert_eq!(spot_market.insurance_fund.total_shares, 0);
-    assert_eq!(spot_market.insurance_fund.user_shares, 0);
+    assert_eq!(spot_market.insurance_fund.total_shares(), 0);
+    assert_eq!(spot_market.insurance_fund.user_shares(), 0);
 
     add_insurance_fund_stake(
         amount,
@@ -253,8 +253,8 @@ pub fn large_num_seeded_stake_if_test() {
     )
     .unwrap();
 
-    assert_eq!(spot_market.insurance_fund.total_shares, 199000199000001); // seeded works
-    assert_eq!(spot_market.insurance_fund.user_shares, 199000001);
+    assert_eq!(spot_market.insurance_fund.total_shares(), 199000199000001); // seeded works
+    assert_eq!(spot_market.insurance_fund.user_shares(), 199000001);
     assert_eq!(if_stake.unchecked_if_shares(), amount as u128);
     if_balance += amount;
 
@@ -269,7 +269,7 @@ pub fn large_num_seeded_stake_if_test() {
     .is_err());
     assert_eq!(if_stake.unchecked_if_shares(), amount as u128);
     let spot_market_vault_amount = get_token_amount(
-        spot_market.deposit_balance,
+        spot_market.deposit_balance(),
         &spot_market,
         &SpotBalanceType::Deposit,
     )
@@ -285,9 +285,9 @@ pub fn large_num_seeded_stake_if_test() {
     )
     .unwrap();
     assert_eq!(flow, 11);
-    assert_eq!(spot_market.revenue_pool.scaled_balance, 90099009901);
+    assert_eq!(spot_market.revenue_pool.scaled_balance(), 90099009901);
     let spot_market_vault_amount = get_token_amount(
-        spot_market.deposit_balance,
+        spot_market.deposit_balance(),
         &spot_market,
         &SpotBalanceType::Deposit,
     )
@@ -306,7 +306,7 @@ pub fn large_num_seeded_stake_if_test() {
     )
     .unwrap();
     assert_eq!(
-        if_stake.last_withdraw_request_shares,
+        if_stake.last_withdraw_request_shares(),
         if_stake.unchecked_if_shares()
     );
     assert_eq!(if_stake.last_withdraw_request_value, 199000001);
@@ -324,13 +324,15 @@ pub fn large_num_seeded_stake_if_test() {
 
     assert_eq!(if_stake.unchecked_if_shares(), 0);
     assert_eq!(if_stake.cost_basis, 0);
-    assert_eq!(if_stake.last_withdraw_request_shares, 0);
+    assert_eq!(if_stake.last_withdraw_request_shares(), 0);
     assert_eq!(if_stake.last_withdraw_request_value, 0);
     assert_eq!(if_balance, 199000000000011);
-    assert_eq!(spot_market.insurance_fund.user_shares, 0);
-    assert_eq!(spot_market.insurance_fund.total_shares, 199000000000000);
+    assert_eq!(spot_market.insurance_fund.user_shares(), 0);
+    assert_eq!(spot_market.insurance_fund.total_shares(), 199000000000000);
 
-    spot_market.revenue_pool.scaled_balance = 100 * SPOT_BALANCE_PRECISION;
+    spot_market
+        .revenue_pool
+        .set_scaled_balance(100 * SPOT_BALANCE_PRECISION);
 
     add_insurance_fund_stake(
         199033744205760,
@@ -343,7 +345,7 @@ pub fn large_num_seeded_stake_if_test() {
     )
     .unwrap();
     assert_eq!(if_stake.cost_basis, 199033744205760);
-    assert_eq!(spot_market.insurance_fund.user_shares, 199033744205748);
+    assert_eq!(spot_market.insurance_fund.user_shares(), 199033744205748);
 
     add_insurance_fund_stake(
         199033744205760,
@@ -356,7 +358,7 @@ pub fn large_num_seeded_stake_if_test() {
     )
     .unwrap();
     assert_eq!(if_stake.cost_basis, 398067488411520);
-    assert_eq!(spot_market.insurance_fund.user_shares, 597134982544960);
+    assert_eq!(spot_market.insurance_fund.user_shares(), 597134982544960);
 }
 
 #[test]
@@ -369,8 +371,8 @@ pub fn gains_stake_if_test() {
     };
     let amount = QUOTE_PRECISION as u64; // $1
     let mut spot_market = SpotMarket {
-        deposit_balance: 0,
-        cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        deposit_balance: 0.into(),
+        cumulative_deposit_interest: (1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000).into(),
         insurance_fund: InsuranceFund {
             unstaking_period: 0,
             ..InsuranceFund::default()
@@ -494,8 +496,8 @@ pub fn losses_stake_if_test() {
     };
     let amount = QUOTE_PRECISION as u64; // $1
     let mut spot_market = SpotMarket {
-        deposit_balance: 0,
-        cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        deposit_balance: 0.into(),
+        cumulative_deposit_interest: (1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000).into(),
         insurance_fund: InsuranceFund {
             unstaking_period: 0,
             ..InsuranceFund::default()
@@ -622,8 +624,8 @@ pub fn escrow_losses_stake_if_test() {
     };
     let amount = (QUOTE_PRECISION * 100_000) as u64; // $100k
     let mut spot_market = SpotMarket {
-        deposit_balance: 0,
-        cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        deposit_balance: 0.into(),
+        cumulative_deposit_interest: (1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000).into(),
         insurance_fund: InsuranceFund {
             unstaking_period: 60 * 60 * 24 * 7, // 7 weeks
             ..InsuranceFund::default()
@@ -654,11 +656,11 @@ pub fn escrow_losses_stake_if_test() {
 
     let o = if_shares_to_vault_amount(
         n_shares / 3,
-        spot_market.insurance_fund.total_shares,
+        spot_market.insurance_fund.total_shares(),
         if_balance,
     )
     .unwrap();
-    assert_eq!(if_stake.last_withdraw_request_shares, 0);
+    assert_eq!(if_stake.last_withdraw_request_shares(), 0);
 
     request_remove_insurance_fund_stake(
         n_shares / 3,
@@ -669,7 +671,7 @@ pub fn escrow_losses_stake_if_test() {
         now,
     )
     .unwrap();
-    assert_eq!(if_stake.last_withdraw_request_shares, 33333333333);
+    assert_eq!(if_stake.last_withdraw_request_shares(), 33333333333);
     assert_eq!(
         if_stake.last_withdraw_request_value,
         expected_amount_returned
@@ -719,12 +721,12 @@ pub fn escrow_gains_stake_if_test() {
     };
     let amount = 100_000_384_939_u64; // $100k + change
     let mut spot_market = SpotMarket {
-        deposit_balance: 0,
-        cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        deposit_balance: 0.into(),
+        cumulative_deposit_interest: (1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000).into(),
         insurance_fund: InsuranceFund {
             unstaking_period: 60 * 60 * 24 * 7, // 7 weeks
-            total_shares: 1,
-            user_shares: 0,
+            total_shares: 1.into(),
+            user_shares: 0.into(),
             ..InsuranceFund::default()
         },
         ..SpotMarket::default()
@@ -767,11 +769,11 @@ pub fn escrow_gains_stake_if_test() {
 
     let n_shares = if_stake.unchecked_if_shares();
     let expected_amount_returned =
-        (if_balance as u128 * n_shares / spot_market.insurance_fund.total_shares) as u64;
+        (if_balance as u128 * n_shares / spot_market.insurance_fund.total_shares()) as u64;
 
     let o = if_shares_to_vault_amount(
         n_shares,
-        spot_market.insurance_fund.total_shares,
+        spot_market.insurance_fund.total_shares(),
         if_balance,
     )
     .unwrap();
@@ -802,7 +804,7 @@ pub fn escrow_gains_stake_if_test() {
     if_balance = if_balance + if_balance / 412;
 
     let ideal_amount_returned =
-        (if_balance as u128 * n_shares / spot_market.insurance_fund.total_shares) as u64;
+        (if_balance as u128 * n_shares / spot_market.insurance_fund.total_shares()) as u64;
 
     // appropriate time for withdraw
     let amount_returned = (remove_insurance_fund_stake(
@@ -813,7 +815,7 @@ pub fn escrow_gains_stake_if_test() {
         now + 60 * 60 * 24 * 7 + 3254,
     ))
     .unwrap();
-    assert_eq!(if_stake.last_withdraw_request_shares, 0);
+    assert_eq!(if_stake.last_withdraw_request_shares(), 0);
     assert_eq!(if_stake.last_withdraw_request_value, 0);
 
     if_balance -= amount_returned;
@@ -839,12 +841,12 @@ pub fn drained_stake_if_test_rebase_on_new_add() {
     let amount = 100_000_384_939_u64; // $100k + change
 
     let mut spot_market = SpotMarket {
-        deposit_balance: 0,
-        cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        deposit_balance: 0.into(),
+        cumulative_deposit_interest: (1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000).into(),
         insurance_fund: InsuranceFund {
             unstaking_period: 60 * 60 * 24 * 7, // 7 weeks
-            total_shares: 100_000 * QUOTE_PRECISION,
-            user_shares: 80_000 * QUOTE_PRECISION,
+            total_shares: (100_000 * QUOTE_PRECISION).into(),
+            user_shares: (80_000 * QUOTE_PRECISION).into(),
             ..InsuranceFund::default()
         },
         ..SpotMarket::default()
@@ -875,9 +877,9 @@ pub fn drained_stake_if_test_rebase_on_new_add() {
     .is_err());
 
     assert_eq!(if_stake.unchecked_if_shares(), 0);
-    assert_eq!(spot_market.insurance_fund.total_shares, 100_000_000_000);
+    assert_eq!(spot_market.insurance_fund.total_shares(), 100_000_000_000);
     assert_eq!(
-        spot_market.insurance_fund.user_shares,
+        spot_market.insurance_fund.user_shares(),
         80_000 * QUOTE_PRECISION
     );
 
@@ -896,27 +898,28 @@ pub fn drained_stake_if_test_rebase_on_new_add() {
     if_balance += amount;
 
     // check rebase math
-    assert_eq!(spot_market.insurance_fund.total_shares, 1000003849400);
-    assert_eq!(spot_market.insurance_fund.user_shares, 1000003849398);
+    assert_eq!(spot_market.insurance_fund.total_shares(), 1000003849400);
+    assert_eq!(spot_market.insurance_fund.user_shares(), 1000003849398);
     assert_eq!(if_stake.unchecked_if_shares(), 1000003849390);
     assert_eq!(
-        if_stake.unchecked_if_shares() < spot_market.insurance_fund.user_shares,
+        if_stake.unchecked_if_shares() < spot_market.insurance_fund.user_shares(),
         true
     );
     assert_eq!(
-        spot_market.insurance_fund.user_shares - if_stake.unchecked_if_shares(),
+        spot_market.insurance_fund.user_shares() - if_stake.unchecked_if_shares(),
         8
     );
 
-    assert_eq!(spot_market.insurance_fund.shares_base, 10);
-    assert_eq!(if_stake.if_base, 10);
+    assert_eq!(spot_market.insurance_fund.shares_base(), 10);
+    assert_eq!(if_stake.if_base(), 10);
 
     // check orig if stake is good (on add)
-    assert_eq!(orig_if_stake.if_base, 0);
+    assert_eq!(orig_if_stake.if_base(), 0);
     assert_eq!(orig_if_stake.unchecked_if_shares(), 80000000000);
 
     let expected_shares_for_amount =
-        vault_amount_to_if_shares(1, spot_market.insurance_fund.total_shares, if_balance).unwrap();
+        vault_amount_to_if_shares(1, spot_market.insurance_fund.total_shares(), if_balance)
+            .unwrap();
     assert_eq!(expected_shares_for_amount, 10);
 
     add_insurance_fund_stake(
@@ -930,8 +933,8 @@ pub fn drained_stake_if_test_rebase_on_new_add() {
     )
     .unwrap();
 
-    assert_eq!(spot_market.insurance_fund.shares_base, 10);
-    assert_eq!(orig_if_stake.if_base, 10);
+    assert_eq!(spot_market.insurance_fund.shares_base(), 10);
+    assert_eq!(orig_if_stake.if_base(), 10);
     assert_eq!(
         orig_if_stake.unchecked_if_shares(),
         80000000000 / 10000000000 + expected_shares_for_amount
@@ -947,12 +950,12 @@ pub fn drained_stake_if_test_rebase_on_old_remove_all() {
     let mut if_balance = 0;
 
     let mut spot_market = SpotMarket {
-        deposit_balance: 0,
-        cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        deposit_balance: 0.into(),
+        cumulative_deposit_interest: (1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000).into(),
         insurance_fund: InsuranceFund {
             unstaking_period: 0,
-            total_shares: 100_000 * QUOTE_PRECISION,
-            user_shares: 80_000 * QUOTE_PRECISION,
+            total_shares: (100_000 * QUOTE_PRECISION).into(),
+            user_shares: (80_000 * QUOTE_PRECISION).into(),
             ..InsuranceFund::default()
         },
         ..SpotMarket::default()
@@ -971,9 +974,9 @@ pub fn drained_stake_if_test_rebase_on_old_remove_all() {
     assert_eq!(if_balance, 0);
 
     // right now other users have claim on a zero balance IF... should not give them your money here
-    assert_eq!(spot_market.insurance_fund.total_shares, 100_000_000_000);
+    assert_eq!(spot_market.insurance_fund.total_shares(), 100_000_000_000);
     assert_eq!(
-        spot_market.insurance_fund.user_shares,
+        spot_market.insurance_fund.user_shares(),
         80_000 * QUOTE_PRECISION
     );
 
@@ -998,8 +1001,8 @@ pub fn drained_stake_if_test_rebase_on_old_remove_all() {
 
     // check rebase math
     assert_eq!(amount_returned, 0);
-    assert_eq!(spot_market.insurance_fund.total_shares, 20000000000);
-    assert_eq!(spot_market.insurance_fund.user_shares, 0);
+    assert_eq!(spot_market.insurance_fund.total_shares(), 20000000000);
+    assert_eq!(spot_market.insurance_fund.user_shares(), 0);
 
     // make non-zero
     if_balance = 1;
@@ -1029,9 +1032,9 @@ pub fn drained_stake_if_test_rebase_on_old_remove_all() {
     )
     .unwrap();
 
-    assert_eq!(spot_market.insurance_fund.shares_base, 9);
-    assert_eq!(spot_market.insurance_fund.total_shares, 200000000000020);
-    assert_eq!(spot_market.insurance_fund.user_shares, 200000000000000);
+    assert_eq!(spot_market.insurance_fund.shares_base(), 9);
+    assert_eq!(spot_market.insurance_fund.total_shares(), 200000000000020);
+    assert_eq!(spot_market.insurance_fund.user_shares(), 200000000000000);
     if_balance += 10_000_000_000_000;
     assert_eq!(if_balance, 10000000000001);
 }
@@ -1041,12 +1044,12 @@ pub fn drained_stake_if_test_rebase_on_old_remove_all_2() {
     let mut if_balance = 0;
 
     let mut spot_market = SpotMarket {
-        deposit_balance: 0,
-        cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        deposit_balance: 0.into(),
+        cumulative_deposit_interest: (1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000).into(),
         insurance_fund: InsuranceFund {
             unstaking_period: 0,
-            total_shares: 100_930_021_053,
-            user_shares: 83_021 * QUOTE_PRECISION + 135723,
+            total_shares: 100_930_021_053.into(),
+            user_shares: (83_021 * QUOTE_PRECISION + 135723).into(),
             ..InsuranceFund::default()
         },
         ..SpotMarket::default()
@@ -1085,15 +1088,15 @@ pub fn drained_stake_if_test_rebase_on_old_remove_all_2() {
 
     // check rebase math
     assert_eq!(amount_returned, 0);
-    assert_eq!(spot_market.insurance_fund.total_shares, 60930021053);
-    assert_eq!(spot_market.insurance_fund.user_shares, 43021135723);
-    assert_eq!(spot_market.insurance_fund.shares_base, 0);
+    assert_eq!(spot_market.insurance_fund.total_shares(), 60930021053);
+    assert_eq!(spot_market.insurance_fund.user_shares(), 43021135723);
+    assert_eq!(spot_market.insurance_fund.shares_base(), 0);
 
     if_balance = QUOTE_PRECISION as u64;
 
     let unstake_amt = if_stake.unchecked_if_shares() / 2;
     assert_eq!(unstake_amt, 20000000000);
-    assert_eq!(if_stake.last_withdraw_request_shares, 0);
+    assert_eq!(if_stake.last_withdraw_request_shares(), 0);
     assert_eq!(if_stake.last_withdraw_request_value, 0);
     assert_eq!(if_stake.last_withdraw_request_ts, 0);
 
@@ -1108,20 +1111,20 @@ pub fn drained_stake_if_test_rebase_on_old_remove_all_2() {
     .unwrap();
 
     // rebase occurs in request
-    assert_eq!(if_stake.last_withdraw_request_shares, unstake_amt / 1000);
+    assert_eq!(if_stake.last_withdraw_request_shares(), unstake_amt / 1000);
     // (that rebase occurs when you pass in shares you wanna unstake) :/
     assert_eq!(if_stake.unchecked_if_shares(), 40000000);
     assert_eq!(if_stake.last_withdraw_request_value, 328245);
     assert_eq!(if_stake.last_withdraw_request_ts, 10);
 
-    assert_eq!(spot_market.insurance_fund.total_shares, 60930021);
-    assert_eq!(spot_market.insurance_fund.user_shares, 43021135);
+    assert_eq!(spot_market.insurance_fund.total_shares(), 60930021);
+    assert_eq!(spot_market.insurance_fund.user_shares(), 43021135);
 
-    assert_eq!(spot_market.insurance_fund.shares_base, 3);
+    assert_eq!(spot_market.insurance_fund.shares_base(), 3);
 
     let expected_amount_for_shares = if_shares_to_vault_amount(
         if_stake.unchecked_if_shares() / 2,
-        spot_market.insurance_fund.total_shares,
+        spot_market.insurance_fund.total_shares(),
         if_balance,
     )
     .unwrap();
@@ -1131,15 +1134,15 @@ pub fn drained_stake_if_test_rebase_on_old_remove_all_2() {
     );
 
     let user_expected_amount_for_shares_before_double = if_shares_to_vault_amount(
-        spot_market.insurance_fund.user_shares,
-        spot_market.insurance_fund.total_shares,
+        spot_market.insurance_fund.user_shares(),
+        spot_market.insurance_fund.total_shares(),
         if_balance,
     )
     .unwrap();
 
     let protocol_expected_amount_for_shares_before_double = if_shares_to_vault_amount(
-        spot_market.insurance_fund.total_shares - spot_market.insurance_fund.user_shares,
-        spot_market.insurance_fund.total_shares,
+        spot_market.insurance_fund.total_shares() - spot_market.insurance_fund.user_shares(),
+        spot_market.insurance_fund.total_shares(),
         if_balance,
     )
     .unwrap();
@@ -1155,15 +1158,15 @@ pub fn drained_stake_if_test_rebase_on_old_remove_all_2() {
     if_balance *= 2; // double the IF vault before withdraw
 
     let protocol_expected_amount_for_shares_after_double = if_shares_to_vault_amount(
-        spot_market.insurance_fund.total_shares - spot_market.insurance_fund.user_shares,
-        spot_market.insurance_fund.total_shares,
+        spot_market.insurance_fund.total_shares() - spot_market.insurance_fund.user_shares(),
+        spot_market.insurance_fund.total_shares(),
         if_balance,
     )
     .unwrap();
 
     let user_expected_amount_for_shares_after_double = if_shares_to_vault_amount(
-        spot_market.insurance_fund.user_shares,
-        spot_market.insurance_fund.total_shares,
+        spot_market.insurance_fund.user_shares(),
+        spot_market.insurance_fund.total_shares(),
         if_balance,
     )
     .unwrap();
@@ -1178,22 +1181,22 @@ pub fn drained_stake_if_test_rebase_on_old_remove_all_2() {
     .unwrap();
 
     let protocol_expected_amount_for_shares_after_user_withdraw = if_shares_to_vault_amount(
-        spot_market.insurance_fund.total_shares - spot_market.insurance_fund.user_shares,
-        spot_market.insurance_fund.total_shares,
+        spot_market.insurance_fund.total_shares() - spot_market.insurance_fund.user_shares(),
+        spot_market.insurance_fund.total_shares(),
         if_balance,
     )
     .unwrap();
 
     // check rebase math
     assert_eq!(if_stake.unchecked_if_shares(), 20000000);
-    assert_eq!(if_stake.if_base, spot_market.insurance_fund.shares_base);
-    assert_eq!(if_stake.last_withdraw_request_shares, 0);
+    assert_eq!(if_stake.if_base(), spot_market.insurance_fund.shares_base());
+    assert_eq!(if_stake.last_withdraw_request_shares(), 0);
     assert_eq!(if_stake.last_withdraw_request_value, 0);
 
     assert_eq!(amount_returned, 328245);
-    assert_eq!(spot_market.insurance_fund.total_shares, 40930021);
-    assert_eq!(spot_market.insurance_fund.user_shares, 23021135);
-    assert_eq!(spot_market.insurance_fund.shares_base, 3);
+    assert_eq!(spot_market.insurance_fund.total_shares(), 40930021);
+    assert_eq!(spot_market.insurance_fund.user_shares(), 23021135);
+    assert_eq!(spot_market.insurance_fund.shares_base(), 3);
 
     assert_eq!(
         protocol_expected_amount_for_shares_after_double,
@@ -1231,9 +1234,9 @@ pub fn drained_stake_if_test_rebase_on_old_remove_all_2() {
     .unwrap();
     if_balance += 10_000_000_000_000;
 
-    assert_eq!(spot_market.insurance_fund.total_shares, 204650145930021);
-    assert_eq!(spot_market.insurance_fund.user_shares, 204650128021135);
-    assert_eq!(spot_market.insurance_fund.shares_base, 3);
+    assert_eq!(spot_market.insurance_fund.total_shares(), 204650145930021);
+    assert_eq!(spot_market.insurance_fund.user_shares(), 204650128021135);
+    assert_eq!(spot_market.insurance_fund.shares_base(), 3);
     assert_eq!(if_balance, 10000002000000);
 }
 
@@ -1255,8 +1258,8 @@ pub fn multiple_if_stakes_and_rebase() {
 
     let amount = (QUOTE_PRECISION * 100_000) as u64; // $100k
     let mut spot_market = SpotMarket {
-        deposit_balance: 0,
-        cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        deposit_balance: 0.into(),
+        cumulative_deposit_interest: (1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000).into(),
         insurance_fund: InsuranceFund {
             unstaking_period: 0,
             ..InsuranceFund::default()
@@ -1290,8 +1293,8 @@ pub fn multiple_if_stakes_and_rebase() {
 
     // if gets drained
     if_balance = QUOTE_PRECISION as u64;
-    assert_eq!(if_stake_1.if_base, 0);
-    assert_eq!(spot_market.insurance_fund.shares_base, 0);
+    assert_eq!(if_stake_1.if_base(), 0);
+    assert_eq!(spot_market.insurance_fund.shares_base(), 0);
 
     request_remove_insurance_fund_stake(
         if_stake_1.unchecked_if_shares(),
@@ -1302,8 +1305,8 @@ pub fn multiple_if_stakes_and_rebase() {
         0,
     )
     .unwrap();
-    assert_eq!(if_stake_1.if_base, 4);
-    assert_eq!(spot_market.insurance_fund.shares_base, 4);
+    assert_eq!(if_stake_1.if_base(), 4);
+    assert_eq!(spot_market.insurance_fund.shares_base(), 4);
 
     let amount_returned = (remove_insurance_fund_stake(
         if_balance,
@@ -1316,8 +1319,8 @@ pub fn multiple_if_stakes_and_rebase() {
     assert_eq!(amount_returned, 500000);
     if_balance -= amount_returned;
 
-    assert_eq!(if_stake_2.if_base, 0);
-    assert_eq!(spot_market.insurance_fund.shares_base, 4);
+    assert_eq!(if_stake_2.if_base(), 0);
+    assert_eq!(spot_market.insurance_fund.shares_base(), 4);
     request_remove_insurance_fund_stake(
         if_stake_2.unchecked_if_shares(),
         if_balance,
@@ -1327,15 +1330,15 @@ pub fn multiple_if_stakes_and_rebase() {
         0,
     )
     .unwrap();
-    assert_eq!(if_stake_2.if_base, 4);
-    assert_eq!(spot_market.insurance_fund.shares_base, 4);
+    assert_eq!(if_stake_2.if_base(), 4);
+    assert_eq!(spot_market.insurance_fund.shares_base(), 4);
     assert_eq!(
-        if_stake_2.if_base < spot_market.insurance_fund.total_shares,
+        if_stake_2.if_base() < spot_market.insurance_fund.total_shares(),
         true
     );
     assert_eq!(
         if_stake_2.unchecked_if_shares(),
-        spot_market.insurance_fund.user_shares
+        spot_market.insurance_fund.user_shares()
     );
     assert_eq!(if_balance, 500000);
 
@@ -1352,8 +1355,8 @@ pub fn multiple_if_stakes_and_rebase() {
     if_balance -= amount_returned;
 
     assert_eq!(if_balance, 1);
-    assert_eq!(spot_market.insurance_fund.user_shares, 0);
-    assert_eq!(spot_market.insurance_fund.total_shares, 0);
+    assert_eq!(spot_market.insurance_fund.user_shares(), 0);
+    assert_eq!(spot_market.insurance_fund.total_shares(), 0);
 }
 
 #[test]
@@ -1374,8 +1377,8 @@ pub fn multiple_if_stakes_and_rebase_and_admin_remove() {
 
     let amount = (QUOTE_PRECISION * 100_000) as u64; // $100k
     let mut spot_market = SpotMarket {
-        deposit_balance: 0,
-        cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        deposit_balance: 0.into(),
+        cumulative_deposit_interest: (1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000).into(),
         insurance_fund: InsuranceFund {
             unstaking_period: 0,
             ..InsuranceFund::default()
@@ -1395,9 +1398,9 @@ pub fn multiple_if_stakes_and_rebase_and_admin_remove() {
     if_balance -= amount_returned;
 
     assert_eq!(amount_returned, (50 * QUOTE_PRECISION) as u64);
-    assert_eq!(spot_market.insurance_fund.user_shares, 0);
+    assert_eq!(spot_market.insurance_fund.user_shares(), 0);
     assert_eq!(
-        spot_market.insurance_fund.total_shares,
+        spot_market.insurance_fund.total_shares(),
         50 * QUOTE_PRECISION
     );
 
@@ -1430,8 +1433,8 @@ pub fn multiple_if_stakes_and_rebase_and_admin_remove() {
 
     // if gets drained
     if_balance = QUOTE_PRECISION as u64;
-    assert_eq!(if_stake_1.if_base, 0);
-    assert_eq!(spot_market.insurance_fund.shares_base, 0);
+    assert_eq!(if_stake_1.if_base(), 0);
+    assert_eq!(spot_market.insurance_fund.shares_base(), 0);
 
     request_remove_insurance_fund_stake(
         if_stake_1.unchecked_if_shares(),
@@ -1442,8 +1445,8 @@ pub fn multiple_if_stakes_and_rebase_and_admin_remove() {
         0,
     )
     .unwrap();
-    assert_eq!(if_stake_1.if_base, 4);
-    assert_eq!(spot_market.insurance_fund.shares_base, 4);
+    assert_eq!(if_stake_1.if_base(), 4);
+    assert_eq!(spot_market.insurance_fund.shares_base(), 4);
 
     let amount_returned = (remove_insurance_fund_stake(
         if_balance,
@@ -1456,8 +1459,8 @@ pub fn multiple_if_stakes_and_rebase_and_admin_remove() {
     assert_eq!(amount_returned, 499750);
     if_balance -= amount_returned;
 
-    assert_eq!(if_stake_2.if_base, 0);
-    assert_eq!(spot_market.insurance_fund.shares_base, 4);
+    assert_eq!(if_stake_2.if_base(), 0);
+    assert_eq!(spot_market.insurance_fund.shares_base(), 4);
     request_remove_insurance_fund_stake(
         if_stake_2.unchecked_if_shares(),
         if_balance,
@@ -1467,22 +1470,22 @@ pub fn multiple_if_stakes_and_rebase_and_admin_remove() {
         0,
     )
     .unwrap();
-    assert_eq!(if_stake_2.if_base, 4);
-    assert_eq!(spot_market.insurance_fund.shares_base, 4);
+    assert_eq!(if_stake_2.if_base(), 4);
+    assert_eq!(spot_market.insurance_fund.shares_base(), 4);
     assert_eq!(
-        if_stake_2.if_base < spot_market.insurance_fund.total_shares,
+        if_stake_2.if_base() < spot_market.insurance_fund.total_shares(),
         true
     );
     assert_eq!(
         if_stake_2.unchecked_if_shares(),
-        spot_market.insurance_fund.user_shares
+        spot_market.insurance_fund.user_shares()
     );
     assert_eq!(if_balance, 500250);
 
     // withdraw all
     let amount_returned = admin_remove_insurance_fund_stake(
         if_balance,
-        spot_market.insurance_fund.total_shares - spot_market.insurance_fund.user_shares,
+        spot_market.insurance_fund.total_shares() - spot_market.insurance_fund.user_shares(),
         &mut spot_market,
         1,
         Pubkey::default(),
@@ -1492,8 +1495,8 @@ pub fn multiple_if_stakes_and_rebase_and_admin_remove() {
 
     assert_eq!(amount_returned, 499);
     assert_eq!(
-        spot_market.insurance_fund.user_shares,
-        spot_market.insurance_fund.total_shares
+        spot_market.insurance_fund.user_shares(),
+        spot_market.insurance_fund.total_shares()
     );
 
     // half of it back
@@ -1512,8 +1515,8 @@ pub fn multiple_if_stakes_and_rebase_and_admin_remove() {
     if_balance -= amount_returned;
 
     assert_eq!(if_balance, 250);
-    assert_eq!(spot_market.insurance_fund.user_shares, 0);
-    assert_eq!(spot_market.insurance_fund.total_shares, 0);
+    assert_eq!(spot_market.insurance_fund.user_shares(), 0);
+    assert_eq!(spot_market.insurance_fund.total_shares(), 0);
 
     let amount_returned =
         admin_remove_insurance_fund_stake(if_balance, 250, &mut spot_market, 1, Pubkey::default())
@@ -1521,8 +1524,8 @@ pub fn multiple_if_stakes_and_rebase_and_admin_remove() {
     // if_balance -= amount_returned;
 
     assert_eq!(amount_returned, 250);
-    assert_eq!(spot_market.insurance_fund.user_shares, 0);
-    assert_eq!(spot_market.insurance_fund.total_shares, 0);
+    assert_eq!(spot_market.insurance_fund.user_shares(), 0);
+    assert_eq!(spot_market.insurance_fund.total_shares(), 0);
 }
 
 #[test]
@@ -1536,23 +1539,23 @@ fn test_transfer_protocol_owned_stake() {
     };
 
     let mut spot_market = SpotMarket {
-        deposit_balance: 0,
-        cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        deposit_balance: 0.into(),
+        cumulative_deposit_interest: (1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000).into(),
         insurance_fund: InsuranceFund {
             unstaking_period: 0,
             ..InsuranceFund::default()
         },
         ..SpotMarket::default()
     };
-    assert_eq!(spot_market.insurance_fund.user_shares, 0);
-    assert_eq!(spot_market.insurance_fund.total_shares, 0);
+    assert_eq!(spot_market.insurance_fund.user_shares(), 0);
+    assert_eq!(spot_market.insurance_fund.total_shares(), 0);
 
-    spot_market.insurance_fund.total_shares = 42210407198; // make price != 1
+    spot_market.insurance_fund.set_total_shares(42210407198); // make price != 1
 
     // withdraw half
     let amount_returned = admin_remove_insurance_fund_stake(
         if_balance,
-        spot_market.insurance_fund.total_shares / 2,
+        spot_market.insurance_fund.total_shares() / 2,
         &mut spot_market,
         1,
         Pubkey::default(),
@@ -1561,8 +1564,8 @@ fn test_transfer_protocol_owned_stake() {
     if_balance -= amount_returned;
 
     assert_eq!(amount_returned, 99500000000_u64);
-    assert_eq!(spot_market.insurance_fund.user_shares, 0);
-    assert_eq!(spot_market.insurance_fund.total_shares, 21105203599);
+    assert_eq!(spot_market.insurance_fund.user_shares(), 0);
+    assert_eq!(spot_market.insurance_fund.total_shares(), 21105203599);
 
     let now = 6969696969;
 
@@ -1576,7 +1579,7 @@ fn test_transfer_protocol_owned_stake() {
         Pubkey::default(),
     )
     .unwrap();
-    assert_eq!(0, spot_market.insurance_fund.user_shares);
+    assert_eq!(0, spot_market.insurance_fund.user_shares());
     assert_eq!(transfer_num_0, 0);
 
     let transfer_num_1 = transfer_protocol_insurance_fund_stake(
@@ -1589,13 +1592,13 @@ fn test_transfer_protocol_owned_stake() {
         Pubkey::default(),
     )
     .unwrap();
-    assert_eq!(1, spot_market.insurance_fund.user_shares);
-    assert_eq!(21105203599, spot_market.insurance_fund.total_shares);
+    assert_eq!(1, spot_market.insurance_fund.user_shares());
+    assert_eq!(21105203599, spot_market.insurance_fund.total_shares());
     assert_eq!(transfer_num_1, 4);
 
     assert!(transfer_protocol_insurance_fund_stake(
         if_balance,
-        spot_market.insurance_fund.total_shares,
+        spot_market.insurance_fund.total_shares(),
         &mut if_stake_2,
         &mut user_stats_2,
         &mut spot_market,
@@ -1606,7 +1609,7 @@ fn test_transfer_protocol_owned_stake() {
 
     let transfer_num_2 = transfer_protocol_insurance_fund_stake(
         if_balance,
-        spot_market.insurance_fund.total_shares - spot_market.insurance_fund.user_shares,
+        spot_market.insurance_fund.total_shares() - spot_market.insurance_fund.user_shares(),
         &mut if_stake_2,
         &mut user_stats_2,
         &mut spot_market,
@@ -1616,8 +1619,8 @@ fn test_transfer_protocol_owned_stake() {
     .unwrap();
 
     assert_eq!(
-        spot_market.insurance_fund.total_shares,
-        spot_market.insurance_fund.user_shares
+        spot_market.insurance_fund.total_shares(),
+        spot_market.insurance_fund.user_shares()
     );
     assert_eq!(transfer_num_2, 99499999995);
 
@@ -1631,7 +1634,7 @@ fn test_transfer_protocol_owned_stake() {
 
     assert!(transfer_protocol_insurance_fund_stake(
         if_balance,
-        spot_market.insurance_fund.total_shares,
+        spot_market.insurance_fund.total_shares(),
         &mut if_stake_2,
         &mut user_stats_2,
         &mut spot_market,

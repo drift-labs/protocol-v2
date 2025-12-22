@@ -16,7 +16,10 @@ use crate::state::zero_copy::{AccountZeroCopy, AccountZeroCopyMut};
 use crate::OracleSource;
 use crate::{impl_zero_copy_loader, OracleGuardRails};
 
-use anchor_lang::prelude::*;
+use anchor_lang::prelude::{
+    borsh::{self, BorshDeserialize, BorshSerialize},
+    *,
+};
 
 use super::user::MarketType;
 
@@ -32,7 +35,7 @@ pub struct AmmCache {
 }
 
 #[zero_copy]
-#[derive(AnchorSerialize, AnchorDeserialize, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Debug)]
 #[repr(C)]
 pub struct CacheInfo {
     pub oracle: Pubkey,
@@ -313,13 +316,13 @@ impl<'a> AccountZeroCopyMut<'a, CacheInfo, AmmCacheFixed> {
         let cached_info = self.get_mut(perp_market.market_index as u32);
 
         let fee_pool_token_amount = get_token_amount(
-            perp_market.amm.fee_pool.scaled_balance,
+            perp_market.amm.fee_pool.scaled_balance(),
             &quote_market,
             perp_market.amm.fee_pool.balance_type(),
         )?;
 
         let net_pnl_pool_token_amount = get_token_amount(
-            perp_market.pnl_pool.scaled_balance,
+            perp_market.pnl_pool.scaled_balance(),
             &quote_market,
             perp_market.pnl_pool.balance_type(),
         )?
@@ -338,15 +341,15 @@ impl<'a> AccountZeroCopyMut<'a, CacheInfo, AmmCacheFixed> {
         {
             cached_info.last_fee_pool_token_amount = fee_pool_token_amount;
             cached_info.last_net_pnl_pool_token_amount = net_pnl_pool_token_amount;
-            cached_info.last_exchange_fees = perp_market.amm.total_exchange_fee;
-            cached_info.last_settle_amm_ex_fees = perp_market.amm.total_exchange_fee;
+            cached_info.last_exchange_fees = perp_market.amm.total_exchange_fee();
+            cached_info.last_settle_amm_ex_fees = perp_market.amm.total_exchange_fee();
             cached_info.last_settle_amm_pnl = net_pnl_pool_token_amount;
             return Ok(());
         }
 
         let exchange_fee_delta = perp_market
             .amm
-            .total_exchange_fee
+            .total_exchange_fee()
             .saturating_sub(cached_info.last_exchange_fees);
 
         let amount_to_send_to_lp_pool = amm_amount_available
@@ -366,7 +369,7 @@ impl<'a> AccountZeroCopyMut<'a, CacheInfo, AmmCacheFixed> {
 
         cached_info.last_fee_pool_token_amount = fee_pool_token_amount;
         cached_info.last_net_pnl_pool_token_amount = net_pnl_pool_token_amount;
-        cached_info.last_exchange_fees = perp_market.amm.total_exchange_fee;
+        cached_info.last_exchange_fees = perp_market.amm.total_exchange_fee();
 
         Ok(())
     }

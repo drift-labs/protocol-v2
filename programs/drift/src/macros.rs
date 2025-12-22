@@ -89,32 +89,16 @@ macro_rules! safe_decrement {
     }};
 }
 
-/// Calculate the sha256 digest of anchor encoded `struct`
-#[macro_export]
-macro_rules! digest_struct {
-    ($struct:expr) => {
-        solana_program::hash::hash(&$struct.try_to_vec().unwrap()).to_bytes()
-    };
-}
-
-/// Calculate the hexified sha256 digest of anchor encoded `struct`
-#[macro_export]
-macro_rules! digest_struct_hex {
-    ($struct:expr) => {{
-        hex::encode(digest_struct!($struct)).into_bytes()
-    }};
-}
-
 /// same as `solana_program::msg!` but it can compile away for off-chain use
 #[macro_export]
 macro_rules! msg {
     ($msg:expr) => {
         #[cfg(not(feature = "drift-rs"))]
-        solana_program::msg!($msg)
+        ::solana_program::msg!($msg)
     };
     ($($arg:tt)*) => {
         #[cfg(not(feature = "drift-rs"))]
-        (solana_program::msg!(&format!($($arg)*)));
+        (::solana_program::msg!(&format!($($arg)*)));
     }
 }
 

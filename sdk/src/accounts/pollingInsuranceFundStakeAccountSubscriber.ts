@@ -4,18 +4,19 @@ import {
 	InsuranceFundStakeAccountEvents,
 	InsuranceFundStakeAccountSubscriber,
 } from './types';
-import { Program } from '@coral-xyz/anchor';
+import { BN } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
 import { BulkAccountLoader } from './bulkAccountLoader';
 import { InsuranceFundStake } from '../types';
+import { DriftProgram } from '../config';
 
 export class PollingInsuranceFundStakeAccountSubscriber
 	implements InsuranceFundStakeAccountSubscriber
 {
 	isSubscribed: boolean;
-	program: Program;
+	program: DriftProgram;
 	eventEmitter: StrictEventEmitter<
 		EventEmitter,
 		InsuranceFundStakeAccountEvents
@@ -29,7 +30,7 @@ export class PollingInsuranceFundStakeAccountSubscriber
 	insuranceFundStakeAccountAndSlot?: DataAndSlot<InsuranceFundStake>;
 
 	public constructor(
-		program: Program,
+		program: DriftProgram,
 		publicKey: PublicKey,
 		accountLoader: BulkAccountLoader
 	) {
@@ -82,7 +83,7 @@ export class PollingInsuranceFundStakeAccountSubscriber
 				}
 
 				const account = this.program.account.user.coder.accounts.decode(
-					'InsuranceFundStake',
+					'insuranceFundStake',
 					buffer
 				);
 				this.insuranceFundStakeAccountAndSlot = { data: account, slot };
@@ -114,7 +115,19 @@ export class PollingInsuranceFundStakeAccountSubscriber
 				(this.insuranceFundStakeAccountAndSlot?.slot ?? 0)
 			) {
 				this.insuranceFundStakeAccountAndSlot = {
-					data: dataAndContext.data as InsuranceFundStake,
+					data: {
+						costBasis: dataAndContext.data.costBasis,
+						marketIndex: dataAndContext.data.marketIndex,
+						authority: dataAndContext.data.authority,
+						ifShares: new BN(dataAndContext.data.ifShares[0]),
+						ifBase: new BN(dataAndContext.data.ifBase[0]),
+						lastWithdrawRequestShares: new BN(
+							dataAndContext.data.lastWithdrawRequestShares[0]
+						),
+						lastWithdrawRequestValue:
+							dataAndContext.data.lastWithdrawRequestValue,
+						lastWithdrawRequestTs: dataAndContext.data.lastWithdrawRequestTs,
+					} as InsuranceFundStake,
 					slot: dataAndContext.context.slot,
 				};
 			}

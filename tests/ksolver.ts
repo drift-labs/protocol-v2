@@ -1,31 +1,33 @@
 import * as anchor from '@coral-xyz/anchor';
-import { Program } from '@coral-xyz/anchor';
+
 import { Keypair } from '@solana/web3.js';
-import { BN, OracleSource } from '../sdk';
 import {
-	TestClient,
-	PRICE_PRECISION,
+	BN,
 	calculateReservePrice,
-	calculateTradeSlippage,
 	calculateTargetPriceTrade,
-	PositionDirection,
-	PEG_PRECISION,
-	MAX_LEVERAGE,
-	QUOTE_PRECISION,
+	calculateTradeSlippage,
 	convertToNumber,
+	MAX_LEVERAGE,
+	OracleSource,
+	PEG_PRECISION,
+	PositionDirection,
+	PRICE_PRECISION,
+	QUOTE_PRECISION,
+	TestClient,
 	User,
 } from '../sdk/src';
 
 import { liquidityBook } from './liquidityBook';
 
+import { startAnchor } from 'solana-bankrun';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
 	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('AMM Curve', () => {
 	// K SOLVER: find opitimal k given exchange details
@@ -166,7 +168,7 @@ describe('AMM Curve', () => {
 	// 	return kSqrtI;
 	// }
 
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 
