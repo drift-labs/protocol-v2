@@ -1,33 +1,30 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import {
-	TestClient,
 	BN,
+	getInsuranceFundVaultPublicKey,
+	getSpotMarketPublicKey,
+	getSpotMarketVaultPublicKey,
 	OracleSource,
 	SPOT_MARKET_RATE_PRECISION,
 	SPOT_MARKET_WEIGHT_PRECISION,
+	TestClient,
 } from '../sdk/src';
 
+import { PublicKey } from '@solana/web3.js';
+import { startAnchor } from 'solana-bankrun';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
 	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import {
-	getInsuranceFundVaultPublicKey,
-	getSpotMarketPublicKey,
-	getSpotMarketVaultPublicKey,
-} from '../sdk';
-import { PublicKey } from '@solana/web3.js';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('max deposit', () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 

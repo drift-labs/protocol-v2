@@ -8,7 +8,7 @@ export type Drift = {
 	address: 'dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH';
 	metadata: {
 		name: 'drift';
-		version: '2.151.0';
+		version: '2.152.0';
 		spec: '0.1.0';
 		description: 'Created with Anchor';
 	};
@@ -12028,1732 +12028,71 @@ export type Drift = {
 			name: 'transferProtocolIfSharesToRevenuePoolRecord';
 			discriminator: [209, 118, 142, 167, 130, 46, 164, 151];
 		},
+		{
+			name: 'signedMsgOrderParamsExport';
+			discriminator: [141, 81, 104, 63, 186, 109, 87, 251];
+		},
 	];
 	errors: [
 		{
 			code: 6000;
-			name: 'invalidSpotMarketAuthority';
-			msg: 'Invalid Spot Market Authority';
+			name: 'invalidEd25519InstructionProgramId';
+			msg: 'invalid ed25519 instruction program';
 		},
 		{
 			code: 6001;
-			name: 'invalidInsuranceFundAuthority';
-			msg: 'Clearing house not insurance fund authority';
+			name: 'invalidEd25519InstructionDataLength';
+			msg: 'invalid ed25519 instruction data length';
 		},
 		{
 			code: 6002;
-			name: 'insufficientDeposit';
-			msg: 'Insufficient deposit';
+			name: 'invalidSignatureIndex';
+			msg: 'invalid signature index';
 		},
 		{
 			code: 6003;
-			name: 'insufficientCollateral';
-			msg: 'Insufficient collateral';
+			name: 'invalidSignatureOffset';
+			msg: 'invalid signature offset';
 		},
 		{
 			code: 6004;
-			name: 'sufficientCollateral';
-			msg: 'Sufficient collateral';
+			name: 'invalidPublicKeyOffset';
+			msg: 'invalid public key offset';
 		},
 		{
 			code: 6005;
-			name: 'maxNumberOfPositions';
-			msg: 'Max number of positions taken';
+			name: 'invalidMessageOffset';
+			msg: 'invalid message offset';
 		},
 		{
 			code: 6006;
-			name: 'adminControlsPricesDisabled';
-			msg: 'Admin Controls Prices Disabled';
+			name: 'invalidMessageDataSize';
+			msg: 'invalid message data size';
 		},
 		{
 			code: 6007;
-			name: 'marketDelisted';
-			msg: 'Market Delisted';
+			name: 'invalidInstructionIndex';
+			msg: 'invalid instruction index';
 		},
 		{
 			code: 6008;
-			name: 'marketIndexAlreadyInitialized';
-			msg: 'Market Index Already Initialized';
+			name: 'messageOffsetOverflow';
+			msg: 'message offset overflow';
 		},
 		{
 			code: 6009;
-			name: 'userAccountAndUserPositionsAccountMismatch';
-			msg: 'User Account And User Positions Account Mismatch';
+			name: 'invalidMessageHex';
+			msg: 'invalid message hex';
 		},
 		{
 			code: 6010;
-			name: 'userHasNoPositionInMarket';
-			msg: 'User Has No Position In Market';
+			name: 'invalidMessageData';
+			msg: 'invalid message data';
 		},
 		{
 			code: 6011;
-			name: 'invalidInitialPeg';
-			msg: 'Invalid Initial Peg';
-		},
-		{
-			code: 6012;
-			name: 'invalidRepegRedundant';
-			msg: 'AMM repeg already configured with amt given';
-		},
-		{
-			code: 6013;
-			name: 'invalidRepegDirection';
-			msg: 'AMM repeg incorrect repeg direction';
-		},
-		{
-			code: 6014;
-			name: 'invalidRepegProfitability';
-			msg: 'AMM repeg out of bounds pnl';
-		},
-		{
-			code: 6015;
-			name: 'slippageOutsideLimit';
-			msg: 'Slippage Outside Limit Price';
-		},
-		{
-			code: 6016;
-			name: 'orderSizeTooSmall';
-			msg: 'Order Size Too Small';
-		},
-		{
-			code: 6017;
-			name: 'invalidUpdateK';
-			msg: 'Price change too large when updating K';
-		},
-		{
-			code: 6018;
-			name: 'adminWithdrawTooLarge';
-			msg: 'Admin tried to withdraw amount larger than fees collected';
-		},
-		{
-			code: 6019;
-			name: 'mathError';
-			msg: 'Math Error';
-		},
-		{
-			code: 6020;
-			name: 'bnConversionError';
-			msg: 'Conversion to u128/u64 failed with an overflow or underflow';
-		},
-		{
-			code: 6021;
-			name: 'clockUnavailable';
-			msg: 'Clock unavailable';
-		},
-		{
-			code: 6022;
-			name: 'unableToLoadOracle';
-			msg: 'Unable To Load Oracles';
-		},
-		{
-			code: 6023;
-			name: 'priceBandsBreached';
-			msg: 'Price Bands Breached';
-		},
-		{
-			code: 6024;
-			name: 'exchangePaused';
-			msg: 'Exchange is paused';
-		},
-		{
-			code: 6025;
-			name: 'invalidWhitelistToken';
-			msg: 'Invalid whitelist token';
-		},
-		{
-			code: 6026;
-			name: 'whitelistTokenNotFound';
-			msg: 'Whitelist token not found';
-		},
-		{
-			code: 6027;
-			name: 'invalidDiscountToken';
-			msg: 'Invalid discount token';
-		},
-		{
-			code: 6028;
-			name: 'discountTokenNotFound';
-			msg: 'Discount token not found';
-		},
-		{
-			code: 6029;
-			name: 'referrerNotFound';
-			msg: 'Referrer not found';
-		},
-		{
-			code: 6030;
-			name: 'referrerStatsNotFound';
-			msg: 'referrerNotFound';
-		},
-		{
-			code: 6031;
-			name: 'referrerMustBeWritable';
-			msg: 'referrerMustBeWritable';
-		},
-		{
-			code: 6032;
-			name: 'referrerStatsMustBeWritable';
-			msg: 'referrerMustBeWritable';
-		},
-		{
-			code: 6033;
-			name: 'referrerAndReferrerStatsAuthorityUnequal';
-			msg: 'referrerAndReferrerStatsAuthorityUnequal';
-		},
-		{
-			code: 6034;
-			name: 'invalidReferrer';
-			msg: 'invalidReferrer';
-		},
-		{
-			code: 6035;
-			name: 'invalidOracle';
-			msg: 'invalidOracle';
-		},
-		{
-			code: 6036;
-			name: 'oracleNotFound';
-			msg: 'oracleNotFound';
-		},
-		{
-			code: 6037;
-			name: 'liquidationsBlockedByOracle';
-			msg: 'Liquidations Blocked By Oracle';
-		},
-		{
-			code: 6038;
-			name: 'maxDeposit';
-			msg: 'Can not deposit more than max deposit';
-		},
-		{
-			code: 6039;
-			name: 'cantDeleteUserWithCollateral';
-			msg: 'Can not delete user that still has collateral';
-		},
-		{
-			code: 6040;
-			name: 'invalidFundingProfitability';
-			msg: 'AMM funding out of bounds pnl';
-		},
-		{
-			code: 6041;
-			name: 'castingFailure';
-			msg: 'Casting Failure';
-		},
-		{
-			code: 6042;
-			name: 'invalidOrder';
-			msg: 'invalidOrder';
-		},
-		{
-			code: 6043;
-			name: 'invalidOrderMaxTs';
-			msg: 'invalidOrderMaxTs';
-		},
-		{
-			code: 6044;
-			name: 'invalidOrderMarketType';
-			msg: 'invalidOrderMarketType';
-		},
-		{
-			code: 6045;
-			name: 'invalidOrderForInitialMarginReq';
-			msg: 'invalidOrderForInitialMarginReq';
-		},
-		{
-			code: 6046;
-			name: 'invalidOrderNotRiskReducing';
-			msg: 'invalidOrderNotRiskReducing';
-		},
-		{
-			code: 6047;
-			name: 'invalidOrderSizeTooSmall';
-			msg: 'invalidOrderSizeTooSmall';
-		},
-		{
-			code: 6048;
-			name: 'invalidOrderNotStepSizeMultiple';
-			msg: 'invalidOrderNotStepSizeMultiple';
-		},
-		{
-			code: 6049;
-			name: 'invalidOrderBaseQuoteAsset';
-			msg: 'invalidOrderBaseQuoteAsset';
-		},
-		{
-			code: 6050;
-			name: 'invalidOrderIoc';
-			msg: 'invalidOrderIoc';
-		},
-		{
-			code: 6051;
-			name: 'invalidOrderPostOnly';
-			msg: 'invalidOrderPostOnly';
-		},
-		{
-			code: 6052;
-			name: 'invalidOrderIocPostOnly';
-			msg: 'invalidOrderIocPostOnly';
-		},
-		{
-			code: 6053;
-			name: 'invalidOrderTrigger';
-			msg: 'invalidOrderTrigger';
-		},
-		{
-			code: 6054;
-			name: 'invalidOrderAuction';
-			msg: 'invalidOrderAuction';
-		},
-		{
-			code: 6055;
-			name: 'invalidOrderOracleOffset';
-			msg: 'invalidOrderOracleOffset';
-		},
-		{
-			code: 6056;
-			name: 'invalidOrderMinOrderSize';
-			msg: 'invalidOrderMinOrderSize';
-		},
-		{
-			code: 6057;
-			name: 'placePostOnlyLimitFailure';
-			msg: 'Failed to Place Post-Only Limit Order';
-		},
-		{
-			code: 6058;
-			name: 'userHasNoOrder';
-			msg: 'User has no order';
-		},
-		{
-			code: 6059;
-			name: 'orderAmountTooSmall';
-			msg: 'Order Amount Too Small';
-		},
-		{
-			code: 6060;
-			name: 'maxNumberOfOrders';
-			msg: 'Max number of orders taken';
-		},
-		{
-			code: 6061;
-			name: 'orderDoesNotExist';
-			msg: 'Order does not exist';
-		},
-		{
-			code: 6062;
-			name: 'orderNotOpen';
-			msg: 'Order not open';
-		},
-		{
-			code: 6063;
-			name: 'fillOrderDidNotUpdateState';
-			msg: 'fillOrderDidNotUpdateState';
-		},
-		{
-			code: 6064;
-			name: 'reduceOnlyOrderIncreasedRisk';
-			msg: 'Reduce only order increased risk';
-		},
-		{
-			code: 6065;
-			name: 'unableToLoadAccountLoader';
-			msg: 'Unable to load AccountLoader';
-		},
-		{
-			code: 6066;
-			name: 'tradeSizeTooLarge';
-			msg: 'Trade Size Too Large';
-		},
-		{
-			code: 6067;
-			name: 'userCantReferThemselves';
-			msg: 'User cant refer themselves';
-		},
-		{
-			code: 6068;
-			name: 'didNotReceiveExpectedReferrer';
-			msg: 'Did not receive expected referrer';
-		},
-		{
-			code: 6069;
-			name: 'couldNotDeserializeReferrer';
-			msg: 'Could not deserialize referrer';
-		},
-		{
-			code: 6070;
-			name: 'couldNotDeserializeReferrerStats';
-			msg: 'Could not deserialize referrer stats';
-		},
-		{
-			code: 6071;
-			name: 'userOrderIdAlreadyInUse';
-			msg: 'User Order Id Already In Use';
-		},
-		{
-			code: 6072;
-			name: 'noPositionsLiquidatable';
-			msg: 'No positions liquidatable';
-		},
-		{
-			code: 6073;
-			name: 'invalidMarginRatio';
-			msg: 'Invalid Margin Ratio';
-		},
-		{
-			code: 6074;
-			name: 'cantCancelPostOnlyOrder';
-			msg: 'Cant Cancel Post Only Order';
-		},
-		{
-			code: 6075;
-			name: 'invalidOracleOffset';
-			msg: 'invalidOracleOffset';
-		},
-		{
-			code: 6076;
-			name: 'cantExpireOrders';
-			msg: 'cantExpireOrders';
-		},
-		{
-			code: 6077;
-			name: 'couldNotLoadMarketData';
-			msg: 'couldNotLoadMarketData';
-		},
-		{
-			code: 6078;
-			name: 'perpMarketNotFound';
-			msg: 'perpMarketNotFound';
-		},
-		{
-			code: 6079;
-			name: 'invalidMarketAccount';
-			msg: 'invalidMarketAccount';
-		},
-		{
-			code: 6080;
-			name: 'unableToLoadPerpMarketAccount';
-			msg: 'unableToLoadMarketAccount';
-		},
-		{
-			code: 6081;
-			name: 'marketWrongMutability';
-			msg: 'marketWrongMutability';
-		},
-		{
-			code: 6082;
-			name: 'unableToCastUnixTime';
-			msg: 'unableToCastUnixTime';
-		},
-		{
-			code: 6083;
-			name: 'couldNotFindSpotPosition';
-			msg: 'couldNotFindSpotPosition';
-		},
-		{
-			code: 6084;
-			name: 'noSpotPositionAvailable';
-			msg: 'noSpotPositionAvailable';
-		},
-		{
-			code: 6085;
-			name: 'invalidSpotMarketInitialization';
-			msg: 'invalidSpotMarketInitialization';
-		},
-		{
-			code: 6086;
-			name: 'couldNotLoadSpotMarketData';
-			msg: 'couldNotLoadSpotMarketData';
-		},
-		{
-			code: 6087;
-			name: 'spotMarketNotFound';
-			msg: 'spotMarketNotFound';
-		},
-		{
-			code: 6088;
-			name: 'invalidSpotMarketAccount';
-			msg: 'invalidSpotMarketAccount';
-		},
-		{
-			code: 6089;
-			name: 'unableToLoadSpotMarketAccount';
-			msg: 'unableToLoadSpotMarketAccount';
-		},
-		{
-			code: 6090;
-			name: 'spotMarketWrongMutability';
-			msg: 'spotMarketWrongMutability';
-		},
-		{
-			code: 6091;
-			name: 'spotMarketInterestNotUpToDate';
-			msg: 'spotInterestNotUpToDate';
-		},
-		{
-			code: 6092;
-			name: 'spotMarketInsufficientDeposits';
-			msg: 'spotMarketInsufficientDeposits';
-		},
-		{
-			code: 6093;
-			name: 'userMustSettleTheirOwnPositiveUnsettledPnl';
-			msg: 'userMustSettleTheirOwnPositiveUnsettledPnl';
-		},
-		{
-			code: 6094;
-			name: 'cantUpdatePoolBalanceType';
-			msg: 'cantUpdatePoolBalanceType';
-		},
-		{
-			code: 6095;
-			name: 'insufficientCollateralForSettlingPnl';
-			msg: 'insufficientCollateralForSettlingPnl';
-		},
-		{
-			code: 6096;
-			name: 'ammNotUpdatedInSameSlot';
-			msg: 'ammNotUpdatedInSameSlot';
-		},
-		{
-			code: 6097;
-			name: 'auctionNotComplete';
-			msg: 'auctionNotComplete';
-		},
-		{
-			code: 6098;
-			name: 'makerNotFound';
-			msg: 'makerNotFound';
-		},
-		{
-			code: 6099;
-			name: 'makerStatsNotFound';
-			msg: 'makerNotFound';
-		},
-		{
-			code: 6100;
-			name: 'makerMustBeWritable';
-			msg: 'makerMustBeWritable';
-		},
-		{
-			code: 6101;
-			name: 'makerStatsMustBeWritable';
-			msg: 'makerMustBeWritable';
-		},
-		{
-			code: 6102;
-			name: 'makerOrderNotFound';
-			msg: 'makerOrderNotFound';
-		},
-		{
-			code: 6103;
-			name: 'couldNotDeserializeMaker';
-			msg: 'couldNotDeserializeMaker';
-		},
-		{
-			code: 6104;
-			name: 'couldNotDeserializeMakerStats';
-			msg: 'couldNotDeserializeMaker';
-		},
-		{
-			code: 6105;
-			name: 'auctionPriceDoesNotSatisfyMaker';
-			msg: 'auctionPriceDoesNotSatisfyMaker';
-		},
-		{
-			code: 6106;
-			name: 'makerCantFulfillOwnOrder';
-			msg: 'makerCantFulfillOwnOrder';
-		},
-		{
-			code: 6107;
-			name: 'makerOrderMustBePostOnly';
-			msg: 'makerOrderMustBePostOnly';
-		},
-		{
-			code: 6108;
-			name: 'cantMatchTwoPostOnlys';
-			msg: 'cantMatchTwoPostOnlys';
-		},
-		{
-			code: 6109;
-			name: 'orderBreachesOraclePriceLimits';
-			msg: 'orderBreachesOraclePriceLimits';
-		},
-		{
-			code: 6110;
-			name: 'orderMustBeTriggeredFirst';
-			msg: 'orderMustBeTriggeredFirst';
-		},
-		{
-			code: 6111;
-			name: 'orderNotTriggerable';
-			msg: 'orderNotTriggerable';
-		},
-		{
-			code: 6112;
-			name: 'orderDidNotSatisfyTriggerCondition';
-			msg: 'orderDidNotSatisfyTriggerCondition';
-		},
-		{
-			code: 6113;
-			name: 'positionAlreadyBeingLiquidated';
-			msg: 'positionAlreadyBeingLiquidated';
-		},
-		{
-			code: 6114;
-			name: 'positionDoesntHaveOpenPositionOrOrders';
-			msg: 'positionDoesntHaveOpenPositionOrOrders';
-		},
-		{
-			code: 6115;
-			name: 'allOrdersAreAlreadyLiquidations';
-			msg: 'allOrdersAreAlreadyLiquidations';
-		},
-		{
-			code: 6116;
-			name: 'cantCancelLiquidationOrder';
-			msg: 'cantCancelLiquidationOrder';
-		},
-		{
-			code: 6117;
-			name: 'userIsBeingLiquidated';
-			msg: 'userIsBeingLiquidated';
-		},
-		{
-			code: 6118;
-			name: 'liquidationsOngoing';
-			msg: 'liquidationsOngoing';
-		},
-		{
-			code: 6119;
-			name: 'wrongSpotBalanceType';
-			msg: 'wrongSpotBalanceType';
-		},
-		{
-			code: 6120;
-			name: 'userCantLiquidateThemself';
-			msg: 'userCantLiquidateThemself';
-		},
-		{
-			code: 6121;
-			name: 'invalidPerpPositionToLiquidate';
-			msg: 'invalidPerpPositionToLiquidate';
-		},
-		{
-			code: 6122;
-			name: 'invalidBaseAssetAmountForLiquidatePerp';
-			msg: 'invalidBaseAssetAmountForLiquidatePerp';
-		},
-		{
-			code: 6123;
-			name: 'invalidPositionLastFundingRate';
-			msg: 'invalidPositionLastFundingRate';
-		},
-		{
-			code: 6124;
-			name: 'invalidPositionDelta';
-			msg: 'invalidPositionDelta';
-		},
-		{
-			code: 6125;
-			name: 'userBankrupt';
-			msg: 'userBankrupt';
-		},
-		{
-			code: 6126;
-			name: 'userNotBankrupt';
-			msg: 'userNotBankrupt';
-		},
-		{
-			code: 6127;
-			name: 'userHasInvalidBorrow';
-			msg: 'userHasInvalidBorrow';
-		},
-		{
-			code: 6128;
-			name: 'dailyWithdrawLimit';
-			msg: 'dailyWithdrawLimit';
-		},
-		{
-			code: 6129;
-			name: 'defaultError';
-			msg: 'defaultError';
-		},
-		{
-			code: 6130;
-			name: 'insufficientLpTokens';
-			msg: 'Insufficient LP tokens';
-		},
-		{
-			code: 6131;
-			name: 'cantLpWithPerpPosition';
-			msg: 'Cant LP with a market position';
-		},
-		{
-			code: 6132;
-			name: 'unableToBurnLpTokens';
-			msg: 'Unable to burn LP tokens';
-		},
-		{
-			code: 6133;
-			name: 'tryingToRemoveLiquidityTooFast';
-			msg: 'Trying to remove liqudity too fast after adding it';
-		},
-		{
-			code: 6134;
-			name: 'invalidSpotMarketVault';
-			msg: 'Invalid Spot Market Vault';
-		},
-		{
-			code: 6135;
-			name: 'invalidSpotMarketState';
-			msg: 'Invalid Spot Market State';
-		},
-		{
-			code: 6136;
-			name: 'invalidSerumProgram';
-			msg: 'invalidSerumProgram';
-		},
-		{
-			code: 6137;
-			name: 'invalidSerumMarket';
-			msg: 'invalidSerumMarket';
-		},
-		{
-			code: 6138;
-			name: 'invalidSerumBids';
-			msg: 'invalidSerumBids';
-		},
-		{
-			code: 6139;
-			name: 'invalidSerumAsks';
-			msg: 'invalidSerumAsks';
-		},
-		{
-			code: 6140;
-			name: 'invalidSerumOpenOrders';
-			msg: 'invalidSerumOpenOrders';
-		},
-		{
-			code: 6141;
-			name: 'failedSerumCpi';
-			msg: 'failedSerumCpi';
-		},
-		{
-			code: 6142;
-			name: 'failedToFillOnExternalMarket';
-			msg: 'failedToFillOnExternalMarket';
-		},
-		{
-			code: 6143;
-			name: 'invalidFulfillmentConfig';
-			msg: 'invalidFulfillmentConfig';
-		},
-		{
-			code: 6144;
-			name: 'invalidFeeStructure';
-			msg: 'invalidFeeStructure';
-		},
-		{
-			code: 6145;
-			name: 'insufficientIfShares';
-			msg: 'Insufficient IF shares';
-		},
-		{
-			code: 6146;
-			name: 'marketActionPaused';
-			msg: 'the Market has paused this action';
-		},
-		{
-			code: 6147;
-			name: 'marketPlaceOrderPaused';
-			msg: 'the Market status doesnt allow placing orders';
-		},
-		{
-			code: 6148;
-			name: 'marketFillOrderPaused';
-			msg: 'the Market status doesnt allow filling orders';
-		},
-		{
-			code: 6149;
-			name: 'marketWithdrawPaused';
-			msg: 'the Market status doesnt allow withdraws';
-		},
-		{
-			code: 6150;
-			name: 'protectedAssetTierViolation';
-			msg: 'Action violates the Protected Asset Tier rules';
-		},
-		{
-			code: 6151;
-			name: 'isolatedAssetTierViolation';
-			msg: 'Action violates the Isolated Asset Tier rules';
-		},
-		{
-			code: 6152;
-			name: 'userCantBeDeleted';
-			msg: 'User Cant Be Deleted';
-		},
-		{
-			code: 6153;
-			name: 'reduceOnlyWithdrawIncreasedRisk';
-			msg: 'Reduce Only Withdraw Increased Risk';
-		},
-		{
-			code: 6154;
-			name: 'maxOpenInterest';
-			msg: 'Max Open Interest';
-		},
-		{
-			code: 6155;
-			name: 'cantResolvePerpBankruptcy';
-			msg: 'Cant Resolve Perp Bankruptcy';
-		},
-		{
-			code: 6156;
-			name: 'liquidationDoesntSatisfyLimitPrice';
-			msg: 'Liquidation Doesnt Satisfy Limit Price';
-		},
-		{
-			code: 6157;
-			name: 'marginTradingDisabled';
-			msg: 'Margin Trading Disabled';
-		},
-		{
-			code: 6158;
-			name: 'invalidMarketStatusToSettlePnl';
-			msg: 'Invalid Market Status to Settle Perp Pnl';
-		},
-		{
-			code: 6159;
-			name: 'perpMarketNotInSettlement';
-			msg: 'perpMarketNotInSettlement';
-		},
-		{
-			code: 6160;
-			name: 'perpMarketNotInReduceOnly';
-			msg: 'perpMarketNotInReduceOnly';
-		},
-		{
-			code: 6161;
-			name: 'perpMarketSettlementBufferNotReached';
-			msg: 'perpMarketSettlementBufferNotReached';
-		},
-		{
-			code: 6162;
-			name: 'perpMarketSettlementUserHasOpenOrders';
-			msg: 'perpMarketSettlementUserHasOpenOrders';
-		},
-		{
-			code: 6163;
-			name: 'perpMarketSettlementUserHasActiveLp';
-			msg: 'perpMarketSettlementUserHasActiveLp';
-		},
-		{
-			code: 6164;
-			name: 'unableToSettleExpiredUserPosition';
-			msg: 'unableToSettleExpiredUserPosition';
-		},
-		{
-			code: 6165;
-			name: 'unequalMarketIndexForSpotTransfer';
-			msg: 'unequalMarketIndexForSpotTransfer';
-		},
-		{
-			code: 6166;
-			name: 'invalidPerpPositionDetected';
-			msg: 'invalidPerpPositionDetected';
-		},
-		{
-			code: 6167;
-			name: 'invalidSpotPositionDetected';
-			msg: 'invalidSpotPositionDetected';
-		},
-		{
-			code: 6168;
-			name: 'invalidAmmDetected';
-			msg: 'invalidAmmDetected';
-		},
-		{
-			code: 6169;
-			name: 'invalidAmmForFillDetected';
-			msg: 'invalidAmmForFillDetected';
-		},
-		{
-			code: 6170;
-			name: 'invalidAmmLimitPriceOverride';
-			msg: 'invalidAmmLimitPriceOverride';
-		},
-		{
-			code: 6171;
-			name: 'invalidOrderFillPrice';
-			msg: 'invalidOrderFillPrice';
-		},
-		{
-			code: 6172;
-			name: 'spotMarketBalanceInvariantViolated';
-			msg: 'spotMarketBalanceInvariantViolated';
-		},
-		{
-			code: 6173;
-			name: 'spotMarketVaultInvariantViolated';
-			msg: 'spotMarketVaultInvariantViolated';
-		},
-		{
-			code: 6174;
-			name: 'invalidPda';
-			msg: 'invalidPda';
-		},
-		{
-			code: 6175;
-			name: 'invalidPdaSigner';
-			msg: 'invalidPdaSigner';
-		},
-		{
-			code: 6176;
-			name: 'revenueSettingsCannotSettleToIf';
-			msg: 'revenueSettingsCannotSettleToIf';
-		},
-		{
-			code: 6177;
-			name: 'noRevenueToSettleToIf';
-			msg: 'noRevenueToSettleToIf';
-		},
-		{
-			code: 6178;
-			name: 'noAmmPerpPnlDeficit';
-			msg: 'noAmmPerpPnlDeficit';
-		},
-		{
-			code: 6179;
-			name: 'sufficientPerpPnlPool';
-			msg: 'sufficientPerpPnlPool';
-		},
-		{
-			code: 6180;
-			name: 'insufficientPerpPnlPool';
-			msg: 'insufficientPerpPnlPool';
-		},
-		{
-			code: 6181;
-			name: 'perpPnlDeficitBelowThreshold';
-			msg: 'perpPnlDeficitBelowThreshold';
-		},
-		{
-			code: 6182;
-			name: 'maxRevenueWithdrawPerPeriodReached';
-			msg: 'maxRevenueWithdrawPerPeriodReached';
-		},
-		{
-			code: 6183;
-			name: 'maxIfWithdrawReached';
-			msg: 'invalidSpotPositionDetected';
-		},
-		{
-			code: 6184;
-			name: 'noIfWithdrawAvailable';
-			msg: 'noIfWithdrawAvailable';
-		},
-		{
-			code: 6185;
-			name: 'invalidIfUnstake';
-			msg: 'invalidIfUnstake';
-		},
-		{
-			code: 6186;
-			name: 'invalidIfUnstakeSize';
-			msg: 'invalidIfUnstakeSize';
-		},
-		{
-			code: 6187;
-			name: 'invalidIfUnstakeCancel';
-			msg: 'invalidIfUnstakeCancel';
-		},
-		{
-			code: 6188;
-			name: 'invalidIfForNewStakes';
-			msg: 'invalidIfForNewStakes';
-		},
-		{
-			code: 6189;
-			name: 'invalidIfRebase';
-			msg: 'invalidIfRebase';
-		},
-		{
-			code: 6190;
-			name: 'invalidInsuranceUnstakeSize';
-			msg: 'invalidInsuranceUnstakeSize';
-		},
-		{
-			code: 6191;
-			name: 'invalidOrderLimitPrice';
-			msg: 'invalidOrderLimitPrice';
-		},
-		{
-			code: 6192;
-			name: 'invalidIfDetected';
-			msg: 'invalidIfDetected';
-		},
-		{
-			code: 6193;
-			name: 'invalidAmmMaxSpreadDetected';
-			msg: 'invalidAmmMaxSpreadDetected';
-		},
-		{
-			code: 6194;
-			name: 'invalidConcentrationCoef';
-			msg: 'invalidConcentrationCoef';
-		},
-		{
-			code: 6195;
-			name: 'invalidSrmVault';
-			msg: 'invalidSrmVault';
-		},
-		{
-			code: 6196;
-			name: 'invalidVaultOwner';
-			msg: 'invalidVaultOwner';
-		},
-		{
-			code: 6197;
-			name: 'invalidMarketStatusForFills';
-			msg: 'invalidMarketStatusForFills';
-		},
-		{
-			code: 6198;
-			name: 'ifWithdrawRequestInProgress';
-			msg: 'ifWithdrawRequestInProgress';
-		},
-		{
-			code: 6199;
-			name: 'noIfWithdrawRequestInProgress';
-			msg: 'noIfWithdrawRequestInProgress';
-		},
-		{
-			code: 6200;
-			name: 'ifWithdrawRequestTooSmall';
-			msg: 'ifWithdrawRequestTooSmall';
-		},
-		{
-			code: 6201;
-			name: 'incorrectSpotMarketAccountPassed';
-			msg: 'incorrectSpotMarketAccountPassed';
-		},
-		{
-			code: 6202;
-			name: 'blockchainClockInconsistency';
-			msg: 'blockchainClockInconsistency';
-		},
-		{
-			code: 6203;
-			name: 'invalidIfSharesDetected';
-			msg: 'invalidIfSharesDetected';
-		},
-		{
-			code: 6204;
-			name: 'newLpSizeTooSmall';
-			msg: 'newLpSizeTooSmall';
-		},
-		{
-			code: 6205;
-			name: 'marketStatusInvalidForNewLp';
-			msg: 'marketStatusInvalidForNewLp';
-		},
-		{
-			code: 6206;
-			name: 'invalidMarkTwapUpdateDetected';
-			msg: 'invalidMarkTwapUpdateDetected';
-		},
-		{
-			code: 6207;
-			name: 'marketSettlementAttemptOnActiveMarket';
-			msg: 'marketSettlementAttemptOnActiveMarket';
-		},
-		{
-			code: 6208;
-			name: 'marketSettlementRequiresSettledLp';
-			msg: 'marketSettlementRequiresSettledLp';
-		},
-		{
-			code: 6209;
-			name: 'marketSettlementAttemptTooEarly';
-			msg: 'marketSettlementAttemptTooEarly';
-		},
-		{
-			code: 6210;
-			name: 'marketSettlementTargetPriceInvalid';
-			msg: 'marketSettlementTargetPriceInvalid';
-		},
-		{
-			code: 6211;
-			name: 'unsupportedSpotMarket';
-			msg: 'unsupportedSpotMarket';
-		},
-		{
-			code: 6212;
-			name: 'spotOrdersDisabled';
-			msg: 'spotOrdersDisabled';
-		},
-		{
-			code: 6213;
-			name: 'marketBeingInitialized';
-			msg: 'Market Being Initialized';
-		},
-		{
-			code: 6214;
-			name: 'invalidUserSubAccountId';
-			msg: 'Invalid Sub Account Id';
-		},
-		{
-			code: 6215;
-			name: 'invalidTriggerOrderCondition';
-			msg: 'Invalid Trigger Order Condition';
-		},
-		{
-			code: 6216;
-			name: 'invalidSpotPosition';
-			msg: 'Invalid Spot Position';
-		},
-		{
-			code: 6217;
-			name: 'cantTransferBetweenSameUserAccount';
-			msg: 'Cant transfer between same user account';
-		},
-		{
-			code: 6218;
-			name: 'invalidPerpPosition';
-			msg: 'Invalid Perp Position';
-		},
-		{
-			code: 6219;
-			name: 'unableToGetLimitPrice';
-			msg: 'Unable To Get Limit Price';
-		},
-		{
-			code: 6220;
-			name: 'invalidLiquidation';
-			msg: 'Invalid Liquidation';
-		},
-		{
-			code: 6221;
-			name: 'spotFulfillmentConfigDisabled';
-			msg: 'Spot Fulfillment Config Disabled';
-		},
-		{
-			code: 6222;
-			name: 'invalidMaker';
-			msg: 'Invalid Maker';
-		},
-		{
-			code: 6223;
-			name: 'failedUnwrap';
-			msg: 'Failed Unwrap';
-		},
-		{
-			code: 6224;
-			name: 'maxNumberOfUsers';
-			msg: 'Max Number Of Users';
-		},
-		{
-			code: 6225;
-			name: 'invalidOracleForSettlePnl';
-			msg: 'invalidOracleForSettlePnl';
-		},
-		{
-			code: 6226;
-			name: 'marginOrdersOpen';
-			msg: 'marginOrdersOpen';
-		},
-		{
-			code: 6227;
-			name: 'tierViolationLiquidatingPerpPnl';
-			msg: 'tierViolationLiquidatingPerpPnl';
-		},
-		{
-			code: 6228;
-			name: 'couldNotLoadUserData';
-			msg: 'couldNotLoadUserData';
-		},
-		{
-			code: 6229;
-			name: 'userWrongMutability';
-			msg: 'userWrongMutability';
-		},
-		{
-			code: 6230;
-			name: 'invalidUserAccount';
-			msg: 'invalidUserAccount';
-		},
-		{
-			code: 6231;
-			name: 'couldNotLoadUserStatsData';
-			msg: 'couldNotLoadUserData';
-		},
-		{
-			code: 6232;
-			name: 'userStatsWrongMutability';
-			msg: 'userWrongMutability';
-		},
-		{
-			code: 6233;
-			name: 'invalidUserStatsAccount';
-			msg: 'invalidUserAccount';
-		},
-		{
-			code: 6234;
-			name: 'userNotFound';
-			msg: 'userNotFound';
-		},
-		{
-			code: 6235;
-			name: 'unableToLoadUserAccount';
-			msg: 'unableToLoadUserAccount';
-		},
-		{
-			code: 6236;
-			name: 'userStatsNotFound';
-			msg: 'userStatsNotFound';
-		},
-		{
-			code: 6237;
-			name: 'unableToLoadUserStatsAccount';
-			msg: 'unableToLoadUserStatsAccount';
-		},
-		{
-			code: 6238;
-			name: 'userNotInactive';
-			msg: 'User Not Inactive';
-		},
-		{
-			code: 6239;
-			name: 'revertFill';
-			msg: 'revertFill';
-		},
-		{
-			code: 6240;
-			name: 'invalidMarketAccountforDeletion';
-			msg: 'Invalid MarketAccount for Deletion';
-		},
-		{
-			code: 6241;
-			name: 'invalidSpotFulfillmentParams';
-			msg: 'Invalid Spot Fulfillment Params';
-		},
-		{
-			code: 6242;
-			name: 'failedToGetMint';
-			msg: 'Failed to Get Mint';
-		},
-		{
-			code: 6243;
-			name: 'failedPhoenixCpi';
-			msg: 'failedPhoenixCpi';
-		},
-		{
-			code: 6244;
-			name: 'failedToDeserializePhoenixMarket';
-			msg: 'failedToDeserializePhoenixMarket';
-		},
-		{
-			code: 6245;
-			name: 'invalidPricePrecision';
-			msg: 'invalidPricePrecision';
-		},
-		{
-			code: 6246;
-			name: 'invalidPhoenixProgram';
-			msg: 'invalidPhoenixProgram';
-		},
-		{
-			code: 6247;
-			name: 'invalidPhoenixMarket';
-			msg: 'invalidPhoenixMarket';
-		},
-		{
-			code: 6248;
-			name: 'invalidSwap';
-			msg: 'invalidSwap';
-		},
-		{
-			code: 6249;
-			name: 'swapLimitPriceBreached';
-			msg: 'swapLimitPriceBreached';
-		},
-		{
-			code: 6250;
-			name: 'spotMarketReduceOnly';
-			msg: 'spotMarketReduceOnly';
-		},
-		{
-			code: 6251;
-			name: 'fundingWasNotUpdated';
-			msg: 'fundingWasNotUpdated';
-		},
-		{
-			code: 6252;
-			name: 'impossibleFill';
-			msg: 'impossibleFill';
-		},
-		{
-			code: 6253;
-			name: 'cantUpdatePerpBidAskTwap';
-			msg: 'cantUpdatePerpBidAskTwap';
-		},
-		{
-			code: 6254;
-			name: 'userReduceOnly';
-			msg: 'userReduceOnly';
-		},
-		{
-			code: 6255;
-			name: 'invalidMarginCalculation';
-			msg: 'invalidMarginCalculation';
-		},
-		{
-			code: 6256;
-			name: 'cantPayUserInitFee';
-			msg: 'cantPayUserInitFee';
-		},
-		{
-			code: 6257;
-			name: 'cantReclaimRent';
-			msg: 'cantReclaimRent';
-		},
-		{
-			code: 6258;
-			name: 'insuranceFundOperationPaused';
-			msg: 'insuranceFundOperationPaused';
-		},
-		{
-			code: 6259;
-			name: 'noUnsettledPnl';
-			msg: 'noUnsettledPnl';
-		},
-		{
-			code: 6260;
-			name: 'pnlPoolCantSettleUser';
-			msg: 'pnlPoolCantSettleUser';
-		},
-		{
-			code: 6261;
-			name: 'oracleNonPositive';
-			msg: 'oracleInvalid';
-		},
-		{
-			code: 6262;
-			name: 'oracleTooVolatile';
-			msg: 'oracleTooVolatile';
-		},
-		{
-			code: 6263;
-			name: 'oracleTooUncertain';
-			msg: 'oracleTooUncertain';
-		},
-		{
-			code: 6264;
-			name: 'oracleStaleForMargin';
-			msg: 'oracleStaleForMargin';
-		},
-		{
-			code: 6265;
-			name: 'oracleInsufficientDataPoints';
-			msg: 'oracleInsufficientDataPoints';
-		},
-		{
-			code: 6266;
-			name: 'oracleStaleForAmm';
-			msg: 'oracleStaleForAmm';
-		},
-		{
-			code: 6267;
-			name: 'unableToParsePullOracleMessage';
-			msg: 'Unable to parse pull oracle message';
-		},
-		{
-			code: 6268;
-			name: 'maxBorrows';
-			msg: 'Can not borow more than max borrows';
-		},
-		{
-			code: 6269;
-			name: 'oracleUpdatesNotMonotonic';
-			msg: 'Updates must be monotonically increasing';
-		},
-		{
-			code: 6270;
-			name: 'oraclePriceFeedMessageMismatch';
-			msg: 'Trying to update price feed with the wrong feed id';
-		},
-		{
-			code: 6271;
-			name: 'oracleUnsupportedMessageType';
-			msg: 'The message in the update must be a PriceFeedMessage';
-		},
-		{
-			code: 6272;
-			name: 'oracleDeserializeMessageFailed';
-			msg: 'Could not deserialize the message in the update';
-		},
-		{
-			code: 6273;
-			name: 'oracleWrongGuardianSetOwner';
-			msg: 'Wrong guardian set owner in update price atomic';
-		},
-		{
-			code: 6274;
-			name: 'oracleWrongWriteAuthority';
-			msg: 'Oracle post update atomic price feed account must be drift program';
-		},
-		{
-			code: 6275;
-			name: 'oracleWrongVaaOwner';
-			msg: 'Oracle vaa owner must be wormhole program';
-		},
-		{
-			code: 6276;
-			name: 'oracleTooManyPriceAccountUpdates';
-			msg: 'Multi updates must have 2 or fewer accounts passed in remaining accounts';
-		},
-		{
-			code: 6277;
-			name: 'oracleMismatchedVaaAndPriceUpdates';
-			msg: "Don't have the same remaining accounts number and pyth updates left";
-		},
-		{
-			code: 6278;
-			name: 'oracleBadRemainingAccountPublicKey';
-			msg: 'Remaining account passed does not match oracle update derived pda';
-		},
-		{
-			code: 6279;
-			name: 'failedOpenbookV2cpi';
-			msg: 'failedOpenbookV2cpi';
-		},
-		{
-			code: 6280;
-			name: 'invalidOpenbookV2Program';
-			msg: 'invalidOpenbookV2Program';
-		},
-		{
-			code: 6281;
-			name: 'invalidOpenbookV2Market';
-			msg: 'invalidOpenbookV2Market';
-		},
-		{
-			code: 6282;
-			name: 'nonZeroTransferFee';
-			msg: 'Non zero transfer fee';
-		},
-		{
-			code: 6283;
-			name: 'liquidationOrderFailedToFill';
-			msg: 'Liquidation order failed to fill';
-		},
-		{
-			code: 6284;
-			name: 'invalidPredictionMarketOrder';
-			msg: 'Invalid prediction market order';
-		},
-		{
-			code: 6285;
-			name: 'invalidVerificationIxIndex';
-			msg: 'Ed25519 Ix must be before place and make SignedMsg order ix';
-		},
-		{
-			code: 6286;
-			name: 'sigVerificationFailed';
-			msg: 'SignedMsg message verificaiton failed';
-		},
-		{
-			code: 6287;
-			name: 'mismatchedSignedMsgOrderParamsMarketIndex';
-			msg: 'Market index mismatched b/w taker and maker SignedMsg order params';
-		},
-		{
-			code: 6288;
-			name: 'invalidSignedMsgOrderParam';
-			msg: 'Invalid SignedMsg order param';
-		},
-		{
-			code: 6289;
-			name: 'placeAndTakeOrderSuccessConditionFailed';
-			msg: 'Place and take order success condition failed';
-		},
-		{
-			code: 6290;
-			name: 'invalidHighLeverageModeConfig';
-			msg: 'Invalid High Leverage Mode Config';
-		},
-		{
-			code: 6291;
-			name: 'invalidRfqUserAccount';
-			msg: 'Invalid RFQ User Account';
-		},
-		{
-			code: 6292;
-			name: 'rfqUserAccountWrongMutability';
-			msg: 'RFQUserAccount should be mutable';
-		},
-		{
-			code: 6293;
-			name: 'rfqUserAccountFull';
-			msg: 'RFQUserAccount has too many active RFQs';
-		},
-		{
-			code: 6294;
-			name: 'rfqOrderNotFilled';
-			msg: 'RFQ order not filled as expected';
-		},
-		{
-			code: 6295;
-			name: 'invalidRfqOrder';
-			msg: 'RFQ orders must be jit makers';
-		},
-		{
-			code: 6296;
-			name: 'invalidRfqMatch';
-			msg: 'RFQ matches must be valid';
-		},
-		{
-			code: 6297;
-			name: 'invalidSignedMsgUserAccount';
-			msg: 'Invalid SignedMsg user account';
-		},
-		{
-			code: 6298;
-			name: 'signedMsgUserAccountWrongMutability';
-			msg: 'SignedMsg account wrong mutability';
-		},
-		{
-			code: 6299;
-			name: 'signedMsgUserOrdersAccountFull';
-			msg: 'SignedMsgUserAccount has too many active orders';
-		},
-		{
-			code: 6300;
-			name: 'signedMsgOrderDoesNotExist';
-			msg: 'Order with SignedMsg uuid does not exist';
-		},
-		{
-			code: 6301;
-			name: 'invalidSignedMsgOrderId';
-			msg: 'SignedMsg order id cannot be 0s';
-		},
-		{
-			code: 6302;
-			name: 'invalidPoolId';
-			msg: 'Invalid pool id';
-		},
-		{
-			code: 6303;
-			name: 'invalidProtectedMakerModeConfig';
-			msg: 'Invalid Protected Maker Mode Config';
-		},
-		{
-			code: 6304;
-			name: 'invalidPythLazerStorageOwner';
-			msg: 'Invalid pyth lazer storage owner';
-		},
-		{
-			code: 6305;
-			name: 'unverifiedPythLazerMessage';
-			msg: 'Verification of pyth lazer message failed';
-		},
-		{
-			code: 6306;
-			name: 'invalidPythLazerMessage';
-			msg: 'Invalid pyth lazer message';
-		},
-		{
-			code: 6307;
-			name: 'pythLazerMessagePriceFeedMismatch';
-			msg: 'Pyth lazer message does not correspond to correct fed id';
-		},
-		{
-			code: 6308;
-			name: 'invalidLiquidateSpotWithSwap';
-			msg: 'invalidLiquidateSpotWithSwap';
-		},
-		{
-			code: 6309;
-			name: 'signedMsgUserContextUserMismatch';
-			msg: 'User in SignedMsg message does not match user in ix context';
-		},
-		{
-			code: 6310;
-			name: 'userFuelOverflowThresholdNotMet';
-			msg: 'User fuel overflow threshold not met';
-		},
-		{
-			code: 6311;
-			name: 'fuelOverflowAccountNotFound';
-			msg: 'FuelOverflow account not found';
-		},
-		{
-			code: 6312;
-			name: 'invalidTransferPerpPosition';
-			msg: 'Invalid Transfer Perp Position';
-		},
-		{
-			code: 6313;
-			name: 'invalidSignedMsgUserOrdersResize';
-			msg: 'Invalid SignedMsgUserOrders resize';
-		},
-		{
-			code: 6314;
-			name: 'couldNotDeserializeHighLeverageModeConfig';
-			msg: 'Could not deserialize high leverage mode config';
-		},
-		{
-			code: 6315;
-			name: 'invalidIfRebalanceConfig';
-			msg: 'Invalid If Rebalance Config';
-		},
-		{
-			code: 6316;
-			name: 'invalidIfRebalanceSwap';
-			msg: 'Invalid If Rebalance Swap';
-		},
-		{
-			code: 6317;
-			name: 'invalidRevenueShareResize';
-			msg: 'Invalid RevenueShare resize';
-		},
-		{
-			code: 6318;
-			name: 'builderRevoked';
-			msg: 'Builder has been revoked';
-		},
-		{
-			code: 6319;
-			name: 'invalidBuilderFee';
-			msg: 'Builder fee is greater than max fee bps';
-		},
-		{
-			code: 6320;
-			name: 'revenueShareEscrowAuthorityMismatch';
-			msg: 'RevenueShareEscrow authority mismatch';
-		},
-		{
-			code: 6321;
-			name: 'revenueShareEscrowOrdersAccountFull';
-			msg: 'RevenueShareEscrow has too many active orders';
-		},
-		{
-			code: 6322;
-			name: 'invalidRevenueShareAccount';
-			msg: 'Invalid RevenueShareAccount';
-		},
-		{
-			code: 6323;
-			name: 'cannotRevokeBuilderWithOpenOrders';
-			msg: 'Cannot revoke builder with open orders';
-		},
-		{
-			code: 6324;
-			name: 'unableToLoadRevenueShareAccount';
-			msg: 'Unable to load builder account';
-		},
-		{
-			code: 6325;
-			name: 'invalidConstituent';
-			msg: 'Invalid Constituent';
-		},
-		{
-			code: 6326;
-			name: 'invalidAmmConstituentMappingArgument';
-			msg: 'Invalid Amm Constituent Mapping argument';
-		},
-		{
-			code: 6327;
-			name: 'constituentNotFound';
-			msg: 'Constituent not found';
-		},
-		{
-			code: 6328;
-			name: 'constituentCouldNotLoad';
-			msg: 'Constituent could not load';
-		},
-		{
-			code: 6329;
-			name: 'constituentWrongMutability';
-			msg: 'Constituent wrong mutability';
-		},
-		{
-			code: 6330;
-			name: 'wrongNumberOfConstituents';
-			msg: 'Wrong number of constituents passed to instruction';
-		},
-		{
-			code: 6331;
-			name: 'insufficientConstituentTokenBalance';
-			msg: 'Insufficient constituent token balance';
-		},
-		{
-			code: 6332;
-			name: 'ammCacheStale';
-			msg: 'Amm Cache data too stale';
-		},
-		{
-			code: 6333;
-			name: 'lpPoolAumDelayed';
-			msg: 'LP Pool AUM not updated recently';
-		},
-		{
-			code: 6334;
-			name: 'constituentOracleStale';
-			msg: 'Constituent oracle is stale';
-		},
-		{
-			code: 6335;
-			name: 'lpInvariantFailed';
-			msg: 'LP Invariant failed';
-		},
-		{
-			code: 6336;
-			name: 'invalidConstituentDerivativeWeights';
-			msg: 'Invalid constituent derivative weights';
-		},
-		{
-			code: 6337;
-			name: 'maxDlpAumBreached';
-			msg: 'Max DLP AUM Breached';
-		},
-		{
-			code: 6338;
-			name: 'settleLpPoolDisabled';
-			msg: 'Settle Lp Pool Disabled';
-		},
-		{
-			code: 6339;
-			name: 'mintRedeemLpPoolDisabled';
-			msg: 'Mint/Redeem Lp Pool Disabled';
-		},
-		{
-			code: 6340;
-			name: 'lpPoolSettleInvariantBreached';
-			msg: 'Settlement amount exceeded';
-		},
-		{
-			code: 6341;
-			name: 'invalidConstituentOperation';
-			msg: 'Invalid constituent operation';
-		},
-		{
-			code: 6342;
-			name: 'unauthorized';
-			msg: 'Unauthorized for operation';
-		},
-		{
-			code: 6343;
-			name: 'invalidLpPoolId';
-			msg: 'Invalid Lp Pool Id for Operation';
-		},
-		{
-			code: 6344;
-			name: 'marketIndexNotFoundAmmCache';
-			msg: 'marketIndexNotFoundAmmCache';
+			name: 'loadInstructionAtFailed';
+			msg: 'loading custom ix at index failed';
 		},
 	];
 	types: [
@@ -17287,6 +15626,10 @@ export type Drift = {
 							};
 						};
 					},
+					{
+						name: 'bitFlags';
+						type: 'u8';
+					},
 				];
 			};
 		},
@@ -19760,6 +18103,154 @@ export type Drift = {
 			};
 		},
 		{
+			name: 'signedMsgOrderParamsDelegateMessage';
+			type: {
+				kind: 'struct';
+				fields: [
+					{
+						name: 'signedMsgOrderParams';
+						type: {
+							defined: {
+								name: 'orderParams';
+							};
+						};
+					},
+					{
+						name: 'takerPubkey';
+						type: 'pubkey';
+					},
+					{
+						name: 'slot';
+						type: 'u64';
+					},
+					{
+						name: 'uuid';
+						type: {
+							array: ['u8', 8];
+						};
+					},
+					{
+						name: 'takeProfitOrderParams';
+						type: {
+							option: {
+								defined: {
+									name: 'signedMsgTriggerOrderParams';
+								};
+							};
+						};
+					},
+					{
+						name: 'stopLossOrderParams';
+						type: {
+							option: {
+								defined: {
+									name: 'signedMsgTriggerOrderParams';
+								};
+							};
+						};
+					},
+					{
+						name: 'maxMarginRatio';
+						type: {
+							option: 'u16';
+						};
+					},
+					{
+						name: 'builderIdx';
+						type: {
+							option: 'u8';
+						};
+					},
+					{
+						name: 'builderFeeTenthBps';
+						type: {
+							option: 'u16';
+						};
+					},
+					{
+						name: 'isolatedPositionDeposit';
+						type: {
+							option: 'u64';
+						};
+					},
+				];
+			};
+		},
+		{
+			name: 'signedMsgOrderParamsMessage';
+			type: {
+				kind: 'struct';
+				fields: [
+					{
+						name: 'signedMsgOrderParams';
+						type: {
+							defined: {
+								name: 'orderParams';
+							};
+						};
+					},
+					{
+						name: 'subAccountId';
+						type: 'u16';
+					},
+					{
+						name: 'slot';
+						type: 'u64';
+					},
+					{
+						name: 'uuid';
+						type: {
+							array: ['u8', 8];
+						};
+					},
+					{
+						name: 'takeProfitOrderParams';
+						type: {
+							option: {
+								defined: {
+									name: 'signedMsgTriggerOrderParams';
+								};
+							};
+						};
+					},
+					{
+						name: 'stopLossOrderParams';
+						type: {
+							option: {
+								defined: {
+									name: 'signedMsgTriggerOrderParams';
+								};
+							};
+						};
+					},
+					{
+						name: 'maxMarginRatio';
+						type: {
+							option: 'u16';
+						};
+					},
+					{
+						name: 'builderIdx';
+						type: {
+							option: 'u8';
+						};
+					},
+					{
+						name: 'builderFeeTenthBps';
+						type: {
+							option: 'u16';
+						};
+					},
+					{
+						name: 'isolatedPositionDeposit';
+						type: {
+							option: 'u64';
+						};
+					},
+				];
+			};
+		},
+		{
 			name: 'signedMsgOrderRecord';
 			type: {
 				kind: 'struct';
@@ -19797,6 +18288,22 @@ export type Drift = {
 					{
 						name: 'ts';
 						type: 'i64';
+					},
+				];
+			};
+		},
+		{
+			name: 'signedMsgTriggerOrderParams';
+			type: {
+				kind: 'struct';
+				fields: [
+					{
+						name: 'triggerPrice';
+						type: 'u64';
+					},
+					{
+						name: 'baseAssetAmount';
+						type: 'u64';
 					},
 				];
 			};
@@ -21404,27 +19911,52 @@ export type Drift = {
 			};
 		},
 		{
-			name: 'i128';
-			docs: ['`i128` with legacy bit layout'];
+			name: 'signedMsgOrderParamsExport';
+			docs: [
+				'unusued placeholder event to force include signed msg types into drift IDL',
+			];
 			type: {
 				kind: 'struct';
 				fields: [
 					{
-						array: ['u8', 16];
+						name: 'a';
+						type: {
+							defined: {
+								name: 'signedMsgOrderParamsMessage';
+							};
+						};
+					},
+					{
+						name: 'b';
+						type: {
+							defined: {
+								name: 'signedMsgOrderParamsDelegateMessage';
+							};
+						};
 					},
 				];
 			};
 		},
 		{
-			name: 'u128';
-			docs: ['`u128` with legacy bit layout'];
+			name: 'i128';
+			docs: ['compatibility i128'];
+			repr: {
+				kind: 'transparent';
+			};
 			type: {
-				kind: 'struct';
-				fields: [
-					{
-						array: ['u8', 16];
-					},
-				];
+				kind: 'type';
+				alias: 'i128';
+			};
+		},
+		{
+			name: 'u128';
+			docs: ['compatibility u128'];
+			repr: {
+				kind: 'transparent';
+			};
+			type: {
+				kind: 'type';
+				alias: 'u128';
 			};
 		},
 	];

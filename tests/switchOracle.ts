@@ -1,18 +1,24 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import { PublicKey } from '@solana/web3.js';
 
 import {
-	TestClient,
 	BN,
+	DriftClient,
 	EventSubscriber,
-	OracleSource,
 	OracleInfo,
+	OracleSource,
+	PEG_PRECISION,
+	PRICE_PRECISION,
+	TestClient,
+	Wallet,
 } from '../sdk/src';
 
+import { startAnchor } from 'solana-bankrun';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
 	createFundedKeyPair,
 	createUserWithUSDCAccount,
@@ -23,13 +29,9 @@ import {
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpers';
-import { PRICE_PRECISION, PEG_PRECISION, Wallet, DriftClient } from '../sdk';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('switch oracles', () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let admin: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -207,6 +209,7 @@ describe('switch oracles', () => {
 				type: 'websocket',
 			},
 		});
+
 		await driftClient.subscribe();
 
 		const newSolOracle = await mockOracleNoProgram(bankrunContextWrapper, 100);

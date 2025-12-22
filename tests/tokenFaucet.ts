@@ -1,19 +1,20 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
-import { Program } from '@coral-xyz/anchor';
-import { TestClient, TokenFaucet } from '../sdk/src';
-import { BN } from '../sdk';
-import { Keypair, PublicKey } from '@solana/web3.js';
-import { initializeQuoteSpotMarket, mockUSDCMint } from './testHelpers';
+
+import { Program } from '@coral-xyz/anchor-29';
 import {
 	createAssociatedTokenAccountIdempotentInstruction,
 	getAssociatedTokenAddressSync,
 	unpackAccount,
 	unpackMint,
 } from '@solana/spl-token';
+import { Keypair, PublicKey } from '@solana/web3.js';
 import { startAnchor } from 'solana-bankrun';
+import { BN, TestClient, TokenFaucet } from '../sdk/src';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
+import { initializeQuoteSpotMarket, mockUSDCMint } from './testHelpers';
 
 describe('token faucet', () => {
 	const program = anchor.workspace.TokenFaucet as Program;
@@ -22,7 +23,7 @@ describe('token faucet', () => {
 
 	let usdcMint: Keypair;
 
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 	let driftClient: TestClient;
 
 	let bulkAccountLoader: TestBulkAccountLoader;

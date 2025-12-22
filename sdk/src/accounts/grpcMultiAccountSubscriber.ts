@@ -1,8 +1,8 @@
-import { Program } from '@coral-xyz/anchor';
 import { Commitment, Context, PublicKey } from '@solana/web3.js';
-import * as Buffer from 'buffer';
 import bs58 from 'bs58';
+import * as Buffer from 'buffer';
 
+import { DriftProgram } from '../config';
 import {
 	Client,
 	ClientDuplexStream,
@@ -12,8 +12,6 @@ import {
 	createClient,
 } from '../isomorphic/grpc';
 import { BufferAndSlot, DataAndSlot, GrpcConfigs, ResubOpts } from './types';
-import { Drift } from '../idl/drift';
-import { parseAccount } from '../types';
 
 interface AccountInfoLike {
 	owner: PublicKey;
@@ -42,7 +40,7 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 	private client: Client;
 	private stream: ClientDuplexStream<SubscribeRequest, SubscribeUpdate>;
 	private commitmentLevel: CommitmentLevel;
-	private program: Program<Drift>;
+	private program: DriftProgram;
 	private accountName: string;
 	private decodeBufferFn?: (
 		buffer: Buffer,
@@ -71,7 +69,7 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 		client: Client,
 		commitmentLevel: CommitmentLevel,
 		accountName: string,
-		program: Program<Drift>,
+		program: DriftProgram,
 		decodeBuffer?: (buffer: Buffer, pubkey?: string) => T,
 		resubOpts?: ResubOpts,
 		onUnsubscribe?: () => Promise<void>,
@@ -90,7 +88,7 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 	public static async create<T, U = undefined>(
 		grpcConfigs: GrpcConfigs,
 		accountName: string,
-		program: Program<Drift>,
+		program: DriftProgram,
 		decodeBuffer?: (buffer: Buffer, pubkey?: string, accountProps?: U) => T,
 		resubOpts?: ResubOpts,
 		clientProp?: Client,
@@ -185,9 +183,7 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 								this.accountName,
 								newBuffer
 							);
-							const accountDecoded = parseAccount<T>(this.accountName, decoded);
-
-							this.setAccountData(accountId, accountDecoded, currentSlot);
+							this.setAccountData(accountId, decoded, currentSlot);
 						}
 					}
 				})
@@ -312,11 +308,9 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 							this.accountName,
 							buffer
 					  );
-				const data = parseAccount<T>(this.accountName, decoded);
-
 				const handler = this.onChangeMap.get(accountPubkey);
 				if (handler) {
-					handler(data, context, buffer, accountProps);
+					handler(decoded, context, buffer, accountProps);
 				}
 			};
 
@@ -473,10 +467,5 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 			},
 			this.resubOpts?.resubTimeoutMs
 		);
-	}
-
-	private capitalize(value: string): string {
-		if (!value) return value;
-		return value.charAt(0).toUpperCase() + value.slice(1);
 	}
 }

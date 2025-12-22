@@ -1,48 +1,45 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
-import { PublicKey, Keypair } from '@solana/web3.js';
+import { Keypair, PublicKey } from '@solana/web3.js';
 
 import {
-	TestClient,
-	BN,
-	ZERO,
-	// SPOT_MARKET_RATE_PRECISION,
-	// SpotBalanceType,
-	isVariant,
-	OracleSource,
 	// SPOT_MARKET_WEIGHT_PRECISION,
 	// SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
 	// OracleInfo,
 	AMM_RESERVE_PRECISION,
-	PEG_PRECISION,
-	QUOTE_SPOT_MARKET_INDEX,
 	AssetTier,
-	SPOT_MARKET_WEIGHT_PRECISION,
+	BN,
+	ContractTier,
+	// SPOT_MARKET_RATE_PRECISION,
+	// SpotBalanceType,
+	isVariant,
+	OracleSource,
+	PEG_PRECISION,
 	QUOTE_PRECISION,
+	QUOTE_SPOT_MARKET_INDEX,
+	SPOT_MARKET_WEIGHT_PRECISION,
+	TestClient,
+	ZERO,
 } from '../sdk/src';
 
-import {
-	mockOracleNoProgram,
-	mockUSDCMint,
-	mockUserUSDCAccount,
-	// setFeedPrice,
-	initializeQuoteSpotMarket,
-	createUserWithUSDCAndWSOLAccount,
-	initializeSolSpotMarket,
-	createUSDCAccountForUser,
-	// getFeedData,
-	// sleep,
-} from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
-import { ContractTier } from '../sdk';
+import { DriftProgram } from '../sdk/src/config';
+import {
+	createUSDCAccountForUser,
+	createUserWithUSDCAndWSOLAccount,
+	// setFeedPrice,
+	initializeQuoteSpotMarket,
+	initializeSolSpotMarket,
+	mockOracleNoProgram,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+} from './testHelpers';
 
 describe('asset tiers', () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 

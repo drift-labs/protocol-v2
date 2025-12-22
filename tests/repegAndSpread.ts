@@ -1,55 +1,55 @@
 import * as anchor from '@coral-xyz/anchor';
+import { Keypair } from '@solana/web3.js';
 import { assert } from 'chai';
 import {
-	BN,
-	calculatePrice,
-	getMarketOrderParams,
-	OracleSource,
-	BID_ASK_SPREAD_PRECISION,
-	PEG_PRECISION,
-	QUOTE_SPOT_MARKET_INDEX,
-	getTokenAmount,
-	SpotBalanceType,
-	ZERO,
-	getLimitOrderParams,
-	TestClient,
-	OraclePriceData,
-	OracleGuardRails,
 	BASE_PRECISION,
+	BID_ASK_SPREAD_PRECISION,
+	BN,
 	BulkAccountLoader,
-	PERCENTAGE_PRECISION,
+	calculatePrice,
 	ContractTier,
-} from '../sdk';
-import { Keypair } from '@solana/web3.js';
-import { Program } from '@coral-xyz/anchor';
-
-import {
-	User,
-	// PRICE_PRECISION,
-	AMM_RESERVE_PRECISION,
-	QUOTE_PRECISION,
-	// calculateReservePrice,
-	PositionDirection,
-	EventSubscriber,
-	convertToNumber,
-	calculateBidAskPrice,
-	calculateUpdatedAMM,
-	calculateSpread,
-	calculateSpreadBN,
-	calculateInventoryScale,
-	calculateEffectiveLeverage,
-	calculateLiveOracleStd,
+	getLimitOrderParams,
+	getMarketOrderParams,
+	getTokenAmount,
+	OracleGuardRails,
+	OraclePriceData,
+	OracleSource,
+	PEG_PRECISION,
+	PERCENTAGE_PRECISION,
+	QUOTE_SPOT_MARKET_INDEX,
+	SpotBalanceType,
+	TestClient,
+	ZERO,
 } from '../sdk/src';
 
 import {
+	// PRICE_PRECISION,
+	AMM_RESERVE_PRECISION,
+	calculateBidAskPrice,
+	calculateEffectiveLeverage,
+	calculateInventoryScale,
+	calculateLiveOracleStd,
+	calculateSpread,
+	calculateSpreadBN,
+	calculateUpdatedAMM,
+	convertToNumber,
+	EventSubscriber,
+	// calculateReservePrice,
+	PositionDirection,
+	QUOTE_PRECISION,
+	User,
+} from '../sdk/src';
+
+import { DriftProgram } from '../sdk/src/config';
+import {
 	getFeedData,
-	initUserAccounts,
-	mockOracle,
-	mockUserUSDCAccount,
-	mockUSDCMint,
-	setFeedPrice,
 	getOraclePriceData,
 	initializeQuoteSpotMarket,
+	initUserAccounts,
+	mockOracle,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+	setFeedPrice,
 } from './testHelpers';
 
 async function depositToFeePoolFromIF(
@@ -136,7 +136,7 @@ describe('repeg and spread amm', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram, {
@@ -269,7 +269,7 @@ describe('repeg and spread amm', () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
 				markOraclePercentDivergence: PERCENTAGE_PRECISION,
-				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION,
+				oracleTwap5minPercentDivergence: PERCENTAGE_PRECISION,
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),
@@ -286,7 +286,7 @@ describe('repeg and spread amm', () => {
 
 		assert(
 			JSON.stringify(oracleGuardRails) ===
-			JSON.stringify(state.oracleGuardRails)
+				JSON.stringify(state.oracleGuardRails)
 		);
 
 		const marketIndex = 0;
@@ -342,7 +342,7 @@ describe('repeg and spread amm', () => {
 		console.log(
 			'market0.amm.totalFeeMinusDistributions:',
 			market0.amm.totalFeeMinusDistributions.toNumber() /
-			QUOTE_PRECISION.toNumber()
+				QUOTE_PRECISION.toNumber()
 		);
 		console.log(
 			'market0.amm.pegMultiplier:',
@@ -455,7 +455,7 @@ describe('repeg and spread amm', () => {
 			liveOracleStd,
 			prepegAMM.longIntensityVolume,
 			prepegAMM.shortIntensityVolume,
-			prepegAMM.volume24H
+			prepegAMM.volume24h
 		);
 		console.log('spreads:', ls1, ss1);
 		const maxSpread = market0.amm.maxSpread;
@@ -1010,9 +1010,9 @@ describe('repeg and spread amm', () => {
 
 		const moneyMissing = Math.abs(
 			allUserCollateral +
-			pnlPoolBalance +
-			feePoolBalance -
-			(usdcDepositBalance - usdcBorrowBalance)
+				pnlPoolBalance +
+				feePoolBalance -
+				(usdcDepositBalance - usdcBorrowBalance)
 		);
 		console.log('moneyMissing:', moneyMissing);
 
@@ -1030,8 +1030,8 @@ describe('repeg and spread amm', () => {
 		// must be less
 		assert(
 			allUserUnsettledPnl +
-			(sinceStartTFMD - (pnlPoolBalance + feePoolBalance)) <
-			0
+				(sinceStartTFMD - (pnlPoolBalance + feePoolBalance)) <
+				0
 		);
 	});
 });

@@ -1,54 +1,55 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
-import { Program } from '@coral-xyz/anchor';
-import { PublicKey, Keypair } from '@solana/web3.js';
+
+import { Keypair, PublicKey } from '@solana/web3.js';
 import {
-	Wallet,
-	getInsuranceFundStakeAccountPublicKey,
-	InsuranceFundStake,
-	BASE_PRECISION,
-	BN,
-	OracleSource,
-	ZERO,
-	TestClient,
-	convertToNumber,
-	PRICE_PRECISION,
-	PositionDirection,
-	EventSubscriber,
-	QUOTE_PRECISION,
-	User,
-	calculateNetUserPnlImbalance,
-	getMarketOrderParams,
-	calculateUpdatedAMM,
-	oraclePriceBands,
-	InsuranceFundRecord,
-	OracleGuardRails,
 	AMM_RESERVE_PRECISION,
+	BASE_PRECISION,
 	BID_ASK_SPREAD_PRECISION,
+	BN,
 	calculateBidAskPrice,
+	calculateNetUserPnlImbalance,
+	calculateUpdatedAMM,
 	ContractTier,
+	convertToNumber,
+	EventSubscriber,
+	getInsuranceFundStakeAccountPublicKey,
+	getMarketOrderParams,
+	InsuranceFundRecord,
+	InsuranceFundStake,
 	isVariant,
 	MARGIN_PRECISION,
-	PerpMarketAccount,
+	OracleGuardRails,
+	oraclePriceBands,
 	OraclePriceData,
-	SPOT_MARKET_BALANCE_PRECISION,
+	OracleSource,
+	PerpMarketAccount,
+	PositionDirection,
+	PRICE_PRECISION,
+	QUOTE_PRECISION,
 	QUOTE_SPOT_MARKET_INDEX,
+	SPOT_MARKET_BALANCE_PRECISION,
+	TestClient,
+	User,
+	Wallet,
+	ZERO,
 } from '../sdk/src';
 
+import { startAnchor } from 'solana-bankrun';
+import { PERCENTAGE_PRECISION } from '../sdk/src';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
+	createUserWithUSDCAndWSOLAccount,
+	initializeQuoteSpotMarket,
+	initializeSolSpotMarket,
 	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	setFeedPriceNoProgram,
-	initializeQuoteSpotMarket,
-	createUserWithUSDCAndWSOLAccount,
-	initializeSolSpotMarket,
 	sleep,
 } from './testHelpers';
-import { PERCENTAGE_PRECISION } from '../sdk';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 async function depositToFeePoolFromIF(
 	amount: number,
@@ -86,7 +87,7 @@ function examineSpread(
 		'$',
 		convertToNumber(spread),
 		spread.mul(BID_ASK_SPREAD_PRECISION).div(oraclePriceData.price).toNumber() /
-		BID_ASK_SPREAD_PRECISION.toNumber(),
+			BID_ASK_SPREAD_PRECISION.toNumber(),
 		'%',
 		'and max (',
 		'$',
@@ -100,7 +101,7 @@ function examineSpread(
 
 		' margin max=',
 		(market.marginRatioInitial - market.marginRatioMaintenance) /
-		BID_ASK_SPREAD_PRECISION.toNumber(),
+			BID_ASK_SPREAD_PRECISION.toNumber(),
 		')'
 	);
 
@@ -119,7 +120,7 @@ function examineSpread(
 }
 
 describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -216,7 +217,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		await driftClient.subscribe();
 
 		const oracleGuardrails = driftClient.getStateAccount().oracleGuardRails;
-		oracleGuardrails.priceDivergence.oracleTwap5MinPercentDivergence = new BN(
+		oracleGuardrails.priceDivergence.oracleTwap5minPercentDivergence = new BN(
 			12
 		).mul(PERCENTAGE_PRECISION);
 		await driftClient.updateOracleGuardRails(oracleGuardrails);
@@ -864,7 +865,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
 				markOraclePercentDivergence: new BN(12).mul(PERCENTAGE_PRECISION),
-				oracleTwap5MinPercentDivergence: new BN(100).mul(PERCENTAGE_PRECISION),
+				oracleTwap5minPercentDivergence: new BN(100).mul(PERCENTAGE_PRECISION),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),
@@ -882,7 +883,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		bankrunContextWrapper.connection.printTxLogs(txSig2);
 
 		const ifRecord: InsuranceFundRecord = eventSubscriber.getEventsArray(
-			'InsuranceFundRecord'
+			'insuranceFundRecord'
 		)[0];
 		console.log(ifRecord);
 		assert(ifRecord.vaultAmountBefore.eq(new BN('13000000000')));
@@ -1033,7 +1034,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 	// 		console.log('Cannot settle pnl under current market status');
 	// 	}
 
-	// 	// const settleRecord = eventSubscriber.getEventsArray('SettlePnlRecord')[0];
+	// 	// const settleRecord = eventSubscriber.getEventsArray('settlePnlRecord')[0];
 	// 	// console.log(settleRecord);
 
 	// 	await driftClientLoser.fetchAccounts();

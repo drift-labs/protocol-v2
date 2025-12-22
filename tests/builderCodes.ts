@@ -1,5 +1,4 @@
 import * as anchor from '@coral-xyz/anchor';
-import { Program } from '@coral-xyz/anchor';
 
 import {
 	AccountInfo,
@@ -10,36 +9,48 @@ import {
 } from '@solana/web3.js';
 
 import {
-	TestClient,
-	OracleSource,
-	PYTH_LAZER_STORAGE_ACCOUNT_KEY,
-	PTYH_LAZER_PROGRAM_ID,
 	assert,
-	getRevenueShareAccountPublicKey,
-	getRevenueShareEscrowAccountPublicKey,
-	RevenueShareAccount,
-	RevenueShareEscrowAccount,
 	BASE_PRECISION,
 	BN,
-	PRICE_PRECISION,
+	getLimitOrderParams,
 	getMarketOrderParams,
+	getRevenueShareAccountPublicKey,
+	getRevenueShareEscrowAccountPublicKey,
+	getTokenAmount,
+	hasBuilder,
+	isVariant,
+	MarketType,
+	OracleSource,
+	OrderParams,
+	parseLogs,
+	PEG_PRECISION,
 	PositionDirection,
 	PostOnlyParams,
-	MarketType,
-	OrderParams,
-	PEG_PRECISION,
-	ZERO,
-	isVariant,
-	hasBuilder,
-	parseLogs,
-	RevenueShareEscrowMap,
-	getTokenAmount,
-	RevenueShareSettleRecord,
-	getLimitOrderParams,
-	SignedMsgOrderParamsMessage,
+	PRICE_PRECISION,
+	PTYH_LAZER_PROGRAM_ID,
+	PYTH_LAZER_STORAGE_ACCOUNT_KEY,
 	QUOTE_PRECISION,
+	RevenueShareAccount,
+	RevenueShareEscrowAccount,
+	RevenueShareEscrowMap,
+	RevenueShareSettleRecord,
+	SignedMsgOrderParamsMessage,
+	TestClient,
+	ZERO,
 } from '../sdk/src';
 
+import { createTransferInstruction } from '@solana/spl-token';
+import dotenv from 'dotenv';
+import { nanoid } from 'nanoid';
+import { startAnchor } from 'solana-bankrun';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
+import {
+	isBuilderOrderCompleted,
+	isBuilderOrderReferral,
+} from '../sdk/src/math/builder';
+import { PYTH_STORAGE_DATA } from './pythLazerData';
 import {
 	createUserWithUSDCAccount,
 	initializeQuoteSpotMarket,
@@ -48,18 +59,6 @@ import {
 	mockUserUSDCAccount,
 	printTxLogs,
 } from './testHelpers';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
-import dotenv from 'dotenv';
-import { PYTH_STORAGE_DATA } from './pythLazerData';
-import { nanoid } from 'nanoid';
-import {
-	isBuilderOrderCompleted,
-	isBuilderOrderReferral,
-} from '../sdk/src/math/builder';
-import { createTransferInstruction } from '@solana/spl-token';
-import { Drift } from '../sdk/src/idl/drift';
 
 dotenv.config();
 
@@ -103,7 +102,7 @@ function buildMsg(
 }
 
 describe('builder codes', () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let usdcMint: Keypair;
 
@@ -1509,7 +1508,7 @@ describe('builder codes', () => {
 	// 		fillTxA
 	// 	);
 	// 	const eventsA = parseLogs(builderClient.program, logsA);
-	// 	const fillsA = eventsA.filter((e) => e.name === 'OrderActionRecord');
+	// 	const fillsA = eventsA.filter((e) => e.name === 'orderActionRecord');
 	// 	const fillAReferrerReward = fillsA[0]['data']['referrerReward'] as number;
 	// 	assert(fillsA.length > 0);
 	// 	// debug: fillsA[0]['data']
@@ -1538,7 +1537,7 @@ describe('builder codes', () => {
 	// 		fillTxB
 	// 	);
 	// 	const eventsB = parseLogs(builderClient.program, logsB);
-	// 	const fillsB = eventsB.filter((e) => e.name === 'OrderActionRecord');
+	// 	const fillsB = eventsB.filter((e) => e.name === 'orderActionRecord');
 	// 	assert(fillsB.length > 0);
 	// 	const fillBReferrerReward = fillsB[0]['data']['referrerReward'] as number;
 	// 	// debug: fillsB[0]['data']

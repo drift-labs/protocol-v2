@@ -1,25 +1,24 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
-import { BN, getMarketOrderParams, OracleSource, ZERO } from '../sdk';
-
-import { Program } from '@coral-xyz/anchor';
+import { BN, getMarketOrderParams, OracleSource, ZERO } from '../sdk/src';
 
 import { PublicKey } from '@solana/web3.js';
 
-import { TestClient, PositionDirection, EventSubscriber } from '../sdk/src';
+import { EventSubscriber, PositionDirection, TestClient } from '../sdk/src';
 
-import {
-	mockUSDCMint,
-	mockUserUSDCAccount,
-	initializeQuoteSpotMarket,
-	mockOracleNoProgram,
-} from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
+import {
+	initializeQuoteSpotMarket,
+	mockOracleNoProgram,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+} from './testHelpers';
 
 describe('market orders', () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 	let eventSubscriber: EventSubscriber;

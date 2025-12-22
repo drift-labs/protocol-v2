@@ -27,6 +27,7 @@ import {
 	LPBorrowLendDepositRecord,
 } from '../types';
 import { EventEmitter } from 'events';
+import { IdlDiscriminator } from '@coral-xyz/anchor/dist/cjs/idl';
 
 export type EventSubscriptionOptions = {
 	address?: PublicKey;
@@ -216,6 +217,7 @@ export type LogProviderConfig =
 	| EventsServerLogProviderConfig;
 
 export type CuUsageEvent = {
+	discriminator: IdlDiscriminator;
 	name: 'CuUsage';
 	fields: [
 		{

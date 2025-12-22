@@ -1,26 +1,36 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import { Keypair, LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 import {
-	TestClient,
-	BN,
-	PRICE_PRECISION,
-	PositionDirection,
-	User,
-	Wallet,
 	BASE_PRECISION,
-	UserStatsAccount,
-	getLimitOrderParams,
-	OracleSource,
-	ONE,
+	BN,
 	ContractTier,
 	FUEL_START_TS,
+	ONE,
+	OracleSource,
+	PRICE_PRECISION,
+	PositionDirection,
+	TestClient,
+	User,
+	UserStatsAccount,
+	Wallet,
+	getLimitOrderParams,
 } from '../sdk/src';
 
+import { startAnchor } from 'solana-bankrun';
+import {
+	MARGIN_PRECISION,
+	PostOnlyParams,
+	QUOTE_PRECISION,
+	ReferrerInfo,
+	ZERO,
+	calculatePerpFuelBonus,
+} from '../sdk/src';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
 	initializeQuoteSpotMarket,
 	initializeSolSpotMarket,
@@ -29,14 +39,9 @@ import {
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpers';
-import { QUOTE_PRECISION, calculatePerpFuelBonus } from '../sdk/src';
-import { MARGIN_PRECISION, PostOnlyParams, ReferrerInfo, ZERO } from '../sdk';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe("fuelin'", () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let fillerDriftClient: TestClient;
 	let fillerDriftClientUser: User;
@@ -291,7 +296,7 @@ describe("fuelin'", () => {
 		assert(
 			Math.abs(
 				fuelDictInit['insuranceFuel'].toNumber() -
-				fuelDictInit2['insuranceFuel'].toNumber()
+					fuelDictInit2['insuranceFuel'].toNumber()
 			) <= 1
 		);
 
@@ -462,7 +467,7 @@ describe("fuelin'", () => {
 		const perp0 = fillerDriftClient.getPerpMarketAccount(0);
 
 		// console.log(
-		// 	perp0.amm.historicalOracleData.lastOraclePriceTwap5Min.toString()
+		// 	perp0.amm.historicalOracleData.lastOraclePriceTwap5min.toString()
 		// );
 
 		const fuelPosition = calculatePerpFuelBonus(

@@ -1,5 +1,6 @@
 import * as anchor from '@coral-xyz/anchor';
-import { Program } from '@coral-xyz/anchor';
+
+import { assert } from 'chai';
 import {
 	BASE_PRECISION,
 	BN,
@@ -14,10 +15,14 @@ import {
 	TestClient,
 	Wallet,
 } from '../sdk/src';
-import { assert } from 'chai';
 
 import { Keypair, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
 
+import { startAnchor } from 'solana-bankrun';
+import { OrderType, PERCENTAGE_PRECISION, PerpOperation } from '../sdk/src';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
 	createUserWithUSDCAccount,
 	initializeQuoteSpotMarket,
@@ -26,13 +31,9 @@ import {
 	mockUserUSDCAccount,
 	setFeedPriceNoProgram,
 } from './testHelpers';
-import { OrderType, PERCENTAGE_PRECISION, PerpOperation } from '../sdk';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('liquidate perp (no open orders)', () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -128,7 +129,7 @@ describe('liquidate perp (no open orders)', () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
 				markOraclePercentDivergence: PERCENTAGE_PRECISION.muln(100),
-				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION.muln(100),
+				oracleTwap5minPercentDivergence: PERCENTAGE_PRECISION.muln(100),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),

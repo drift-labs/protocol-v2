@@ -4,39 +4,38 @@ import {
 	BASE_PRECISION,
 	BN,
 	isVariant,
-	PerpMarketAccount,
 	OracleSource,
+	PerpMarketAccount,
 	ZERO,
-} from '../sdk';
-
-import { Program } from '@coral-xyz/anchor';
+} from '../sdk/src';
 
 import { PublicKey, TransactionSignature } from '@solana/web3.js';
 
 import {
-	TestClient,
 	calculateTradeSlippage,
-	PositionDirection,
-	getPerpMarketPublicKey,
 	EventSubscriber,
+	getPerpMarketPublicKey,
+	PositionDirection,
 	QUOTE_SPOT_MARKET_INDEX,
+	TestClient,
 } from '../sdk/src';
 
-import {
-	mockUSDCMint,
-	mockUserUSDCAccount,
-	mockOracleNoProgram,
-	setFeedPriceNoProgram,
-	initializeQuoteSpotMarket,
-	mintUSDCToUser,
-	sleep,
-} from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
+import {
+	initializeQuoteSpotMarket,
+	mintUSDCToUser,
+	mockOracleNoProgram,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+	setFeedPriceNoProgram,
+	sleep,
+} from './testHelpers';
 
 describe('drift client', () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -215,7 +214,7 @@ describe('drift client', () => {
 		assert.ok(user.perpPositions[0].lastCumulativeFundingRate.toNumber() === 0);
 
 		await eventSubscriber.awaitTx(txSig);
-		const depositRecord = eventSubscriber.getEventsArray('DepositRecord')[0];
+		const depositRecord = eventSubscriber.getEventsArray('depositRecord')[0];
 
 		assert.ok(
 			depositRecord.userAuthority.equals(
@@ -226,7 +225,7 @@ describe('drift client', () => {
 
 		assert.ok(
 			JSON.stringify(depositRecord.direction) ===
-			JSON.stringify({ deposit: {} })
+				JSON.stringify({ deposit: {} })
 		);
 		assert.ok(depositRecord.amount.eq(new BN(10000000)));
 	});
@@ -256,7 +255,7 @@ describe('drift client', () => {
 			);
 		assert.ok(new BN(Number(userUSDCtoken.amount)).eq(usdcAmount));
 
-		const depositRecord = eventSubscriber.getEventsArray('DepositRecord')[0];
+		const depositRecord = eventSubscriber.getEventsArray('depositRecord')[0];
 
 		assert.ok(
 			depositRecord.userAuthority.equals(
@@ -267,7 +266,7 @@ describe('drift client', () => {
 
 		assert.ok(
 			JSON.stringify(depositRecord.direction) ===
-			JSON.stringify({ withdraw: {} })
+				JSON.stringify({ withdraw: {} })
 		);
 		assert.ok(depositRecord.amount.eq(new BN(10000000)));
 	});

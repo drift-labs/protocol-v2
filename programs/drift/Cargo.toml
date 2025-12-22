@@ -26,6 +26,7 @@ idl-build = [
 
 [dependencies]
 anchor-lang = "0.32.1"
+anchor-lang-idl-spec = "0.1.0"
 anchor-spl = { version = "0.32.1", features = ["idl-build"] }
 solana-program = "=2.2.1"
 pyth-client = "0.2.2"

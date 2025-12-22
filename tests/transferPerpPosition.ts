@@ -1,28 +1,27 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import {
-	TestClient,
 	BN,
+	OracleGuardRails,
 	PRICE_PRECISION,
 	PositionDirection,
+	TestClient,
 	getMarketOrderParams,
-	OracleGuardRails,
 } from '../sdk/src';
 
+import { startAnchor } from 'solana-bankrun';
+import { BASE_PRECISION, OracleSource, PERCENTAGE_PRECISION } from '../sdk/src';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
+	initializeQuoteSpotMarket,
 	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	setFeedPriceNoProgram,
-	initializeQuoteSpotMarket,
 } from './testHelpers';
-import { BASE_PRECISION, OracleSource, PERCENTAGE_PRECISION } from '../sdk';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 function getOpenInterest(driftClient: TestClient, marketIndex: number) {
 	const perpMarket = driftClient.getPerpMarketAccount(marketIndex);
@@ -33,7 +32,7 @@ function getOpenInterest(driftClient: TestClient, marketIndex: number) {
 }
 
 describe('trigger orders', () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 
@@ -114,7 +113,7 @@ describe('trigger orders', () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
 				markOraclePercentDivergence: PERCENTAGE_PRECISION.mul(new BN(10)),
-				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION.mul(new BN(10)),
+				oracleTwap5minPercentDivergence: PERCENTAGE_PRECISION.mul(new BN(10)),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),

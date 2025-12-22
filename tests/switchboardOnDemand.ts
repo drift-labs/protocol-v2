@@ -1,11 +1,11 @@
 import * as anchor from '@coral-xyz/anchor';
-import { Program } from '@coral-xyz/anchor';
+
 import { AccountInfo, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
+import { startAnchor } from 'solana-bankrun';
+import { OracleSource, TestClient } from '../sdk/src';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
-import { initializeQuoteSpotMarket, mockUSDCMint } from './testHelpers';
-import { OracleSource, TestClient } from '../sdk/src';
-import { startAnchor } from 'solana-bankrun';
+import { DriftProgram } from '../sdk/src/config';
 import {
 	ORACLE_ADDRESS_1,
 	ORACLE_ADDRESS_1_DATA,
@@ -26,6 +26,7 @@ import {
 	QUEUE_ACCOUNT_DATA,
 	QUEUE_ADDRESS,
 } from './switchboardOnDemandData';
+import { initializeQuoteSpotMarket, mockUSDCMint } from './testHelpers';
 
 const SB_ON_DEMAND_PID = 'SBondMDrcV3K4kxZR1HNVT7osZxAHVHgYXL5Ze1oMUv';
 
@@ -56,7 +57,7 @@ const getOracleAccountInfo = (accountData: string): AccountInfo<Buffer> => {
 };
 
 describe('switchboard on demand', () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 

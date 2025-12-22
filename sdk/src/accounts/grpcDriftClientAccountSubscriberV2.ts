@@ -1,9 +1,8 @@
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { OracleInfo, OraclePriceData } from '../oracles/types';
-import { Program } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
-import { findAllMarketAndOracles } from '../config';
+import { findAllMarketAndOracles, DriftProgram } from '../config';
 import {
 	getDriftStateAccountPublicKey,
 	getPerpMarketPublicKey,
@@ -23,19 +22,13 @@ import {
 } from './types';
 import { grpcAccountSubscriber } from './grpcAccountSubscriber';
 import { grpcMultiAccountSubscriber } from './grpcMultiAccountSubscriber';
-import {
-	PerpMarketAccount,
-	SpotMarketAccount,
-	StateAccount,
-	parseSpotMarketAccount,
-} from '../types';
+import { PerpMarketAccount, SpotMarketAccount, StateAccount } from '../types';
 import {
 	getOracleId,
 	getPublicKeyAndSourceFromOracleId,
 } from '../oracles/oracleId';
 import { OracleClientCache } from '../oracles/oracleClientCache';
 import { findDelistedPerpMarketsAndOracles } from './utils';
-import { Drift } from '../idl/drift';
 
 export class grpcDriftClientAccountSubscriberV2
 	implements DriftClientAccountSubscriber
@@ -57,7 +50,7 @@ export class grpcDriftClientAccountSubscriberV2
 	>;
 	public isSubscribed: boolean;
 	public isSubscribing: boolean;
-	public program: Program<Drift>;
+	public program: DriftProgram;
 	public perpMarketIndexes: number[];
 	public spotMarketIndexes: number[];
 	public shouldFindAllMarketsAndOracles: boolean;
@@ -82,7 +75,7 @@ export class grpcDriftClientAccountSubscriberV2
 
 	constructor(
 		grpcConfigs: GrpcConfigs,
-		program: Program<Drift>,
+		program: DriftProgram,
 		perpMarketIndexes: number[],
 		spotMarketIndexes: number[],
 		oracleInfos: OracleInfo[],
@@ -142,7 +135,7 @@ export class grpcDriftClientAccountSubscriberV2
 						const perpMarket = this.program.coder.accounts.decode(
 							'perpMarket',
 							accountInfo.data
-						);
+						) as PerpMarketAccount;
 						return [perpMarket.marketIndex, perpMarket];
 					})
 			);
@@ -167,11 +160,10 @@ export class grpcDriftClientAccountSubscriberV2
 				spotMarketAccountInfos
 					.filter((accountInfo) => !!accountInfo)
 					.map((accountInfo) => {
-						const decoded = this.program.coder.accounts.decode(
+						const spotMarket = this.program.coder.accounts.decode(
 							'spotMarket',
 							accountInfo.data
-						);
-						const spotMarket = parseSpotMarketAccount(decoded);
+						) as SpotMarketAccount;
 						return [spotMarket.marketIndex, spotMarket];
 					})
 			);

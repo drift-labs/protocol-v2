@@ -898,7 +898,7 @@ export function calculateSpread(
 		liveOracleStd,
 		amm.longIntensityVolume,
 		amm.shortIntensityVolume,
-		amm.volume24H,
+		amm.volume24h,
 		amm.ammInventorySpreadAdjustment
 	);
 	let longSpread = spreads[0];
@@ -1008,7 +1008,6 @@ export function calculateSpreadReserves(
 			);
 			quoteAssetReserve = clampBN(quoteAssetReserve, qarLower, qarUpper);
 		}
-
 		const baseAssetReserve = amm.sqrtK.mul(amm.sqrtK).div(quoteAssetReserve);
 		return {
 			baseAssetReserve,
@@ -1066,10 +1065,10 @@ export function calculateSpreadReserves(
 
 		referencePriceOffset = calculateReferencePriceOffset(
 			reservePrice,
-			amm.last24HAvgFundingRate,
+			amm.last24hAvgFundingRate,
 			liquidityFractionAfterDeadband,
-			amm.historicalOracleData.lastOraclePriceTwap5Min,
-			amm.lastMarkPriceTwap5Min,
+			amm.historicalOracleData.lastOraclePriceTwap5min,
+			amm.lastMarkPriceTwap5min,
 			amm.historicalOracleData.lastOraclePriceTwap,
 			amm.lastMarkPriceTwap,
 			maxOffset

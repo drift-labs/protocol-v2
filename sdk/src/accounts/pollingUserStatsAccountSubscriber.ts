@@ -4,19 +4,19 @@ import {
 	UserStatsAccountSubscriber,
 	UserStatsAccountEvents,
 } from './types';
-import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
-import { PublicKey } from '@solana/web3.js';
-import { parseUserStatsAccount, UserStatsAccount } from '../types';
+import { Context, PublicKey } from '@solana/web3.js';
+import { UserStatsAccount } from '../types';
 import { BulkAccountLoader } from './bulkAccountLoader';
-import { Drift } from '../idl/drift';
+import { DriftProgram } from '../config';
+import { Address } from '@coral-xyz/anchor';
 
 export class PollingUserStatsAccountSubscriber
 	implements UserStatsAccountSubscriber
 {
 	isSubscribed: boolean;
-	program: Program<Drift>;
+	program: DriftProgram;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserStatsAccountEvents>;
 	userStatsAccountPublicKey: PublicKey;
 
@@ -27,7 +27,7 @@ export class PollingUserStatsAccountSubscriber
 	userStats?: DataAndSlot<UserStatsAccount>;
 
 	public constructor(
-		program: Program<Drift>,
+		program: DriftProgram,
 		userStatsAccountPublicKey: PublicKey,
 		accountLoader: BulkAccountLoader
 	) {
@@ -98,22 +98,32 @@ export class PollingUserStatsAccountSubscriber
 	}
 
 	async fetch(): Promise<void> {
+		let dataAndContext: {
+			data: UserStatsAccount | null;
+			context: {
+				slot: number;
+			};
+		};
 		try {
-			const dataAndContext =
-				await this.program.account.userStats.fetchAndContext(
-					this.userStatsAccountPublicKey,
-					this.accountLoader.commitment
-				);
-			if (dataAndContext.context.slot > (this.userStats?.slot ?? 0)) {
-				this.userStats = {
-					data: parseUserStatsAccount(dataAndContext.data),
-					slot: dataAndContext.context.slot,
+			dataAndContext = (await this.program.account.userStats.fetchAndContext(
+				this.userStatsAccountPublicKey,
+				this.accountLoader.commitment
+			)) as {
+				data: UserStatsAccount | null;
+				context: {
+					slot: number;
 				};
-			}
+			};
 		} catch (e) {
 			console.log(
 				`PollingUserStatsAccountSubscriber.fetch() UserStatsAccount does not exist: ${e.message}`
 			);
+		}
+		if (dataAndContext.context.slot > (this.userStats?.slot ?? 0)) {
+			this.userStats = {
+				data: dataAndContext.data,
+				slot: dataAndContext.context.slot,
+			};
 		}
 	}
 

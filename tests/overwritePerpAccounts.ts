@@ -1,36 +1,31 @@
 import * as anchor from '@coral-xyz/anchor';
 import { expect } from 'chai';
-import { Program } from '@coral-xyz/anchor';
+
 import { Keypair, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
+import dotenv from 'dotenv';
+import { startAnchor } from 'solana-bankrun';
 import {
 	BN,
-	TestClient,
-	QUOTE_PRECISION,
-	PRICE_PRECISION,
-	PEG_PRECISION,
+	DriftProgram,
 	OracleSource,
+	PEG_PRECISION,
+	PRICE_PRECISION,
+	QUOTE_PRECISION,
+	TestClient,
 } from '../sdk/src';
-import {
-	initializeQuoteSpotMarket,
-	mockUSDCMint,
-	mockUserUSDCAccount,
-	mockOracleNoProgram,
-	overWritePerpMarket,
-} from './testHelpers';
-import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
-import dotenv from 'dotenv';
 import {
-	CustomBorshAccountsCoder,
-	CustomBorshCoder,
-} from '../sdk/src/decode/customCoder';
+	initializeQuoteSpotMarket,
+	mockOracleNoProgram,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+	overWritePerpMarket,
+} from './testHelpers';
 dotenv.config();
 
 describe('Bankrun Overwrite Accounts', () => {
-	const program = anchor.workspace.Drift as Program;
-	// @ts-ignore
-	program.coder.accounts = new CustomBorshAccountsCoder(program.idl);
+	const program = anchor.workspace.Drift as DriftProgram;
 	let bankrunContextWrapper: BankrunContextWrapper;
 	let bulkAccountLoader: TestBulkAccountLoader;
 

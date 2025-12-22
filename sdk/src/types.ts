@@ -914,7 +914,7 @@ export type HistoricalOracleData = {
 	lastOracleDelay: BN;
 	lastOracleConf: BN;
 	lastOraclePriceTwap: BN;
-	lastOraclePriceTwap5Min: BN;
+	lastOraclePriceTwap5min: BN;
 	lastOraclePriceTwapTs: BN;
 };
 
@@ -922,7 +922,7 @@ export type HistoricalIndexData = {
 	lastIndexBidPrice: BN;
 	lastIndexAskPrice: BN;
 	lastIndexPriceTwap: BN;
-	lastIndexPriceTwap5Min: BN;
+	lastIndexPriceTwap5min: BN;
 	lastIndexPriceTwapTs: BN;
 };
 
@@ -1025,11 +1025,10 @@ export type PoolBalance = {
 export type AMM = {
 	baseAssetReserve: BN;
 	sqrtK: BN;
-	cumulativeFundingRate: BN;
 	lastFundingRate: BN;
 	lastFundingRateTs: BN;
 	lastMarkPriceTwap: BN;
-	lastMarkPriceTwap5Min: BN;
+	lastMarkPriceTwap5min: BN;
 	lastMarkPriceTwapTs: BN;
 	lastTradeTs: BN;
 
@@ -1045,7 +1044,7 @@ export type AMM = {
 	pegMultiplier: BN;
 	cumulativeFundingRateLong: BN;
 	cumulativeFundingRateShort: BN;
-	last24HAvgFundingRate: BN;
+	last24hAvgFundingRate: BN;
 	lastFundingRateShort: BN;
 	lastFundingRateLong: BN;
 
@@ -1100,7 +1099,7 @@ export type AMM = {
 	oracleStd: BN;
 	longIntensityVolume: BN;
 	shortIntensityVolume: BN;
-	volume24H: BN;
+	volume24h: BN;
 	minOrderSize: BN;
 	mmOraclePrice: BN;
 	mmOracleSlot: BN;
@@ -1153,12 +1152,12 @@ export class PositionFlag {
 export type UserStatsAccount = {
 	numberOfSubAccounts: number;
 	numberOfSubAccountsCreated: number;
-	makerVolume30D: BN;
-	takerVolume30D: BN;
-	fillerVolume30D: BN;
-	lastMakerVolume30DTs: BN;
-	lastTakerVolume30DTs: BN;
-	lastFillerVolume30DTs: BN;
+	makerVolume30d: BN;
+	takerVolume30d: BN;
+	fillerVolume30d: BN;
+	lastMakerVolume30dTs: BN;
+	lastTakerVolume30dTs: BN;
+	lastFillerVolume30dTs: BN;
 	fees: {
 		totalFeePaid: BN;
 		totalFeeRebate: BN;
@@ -1183,232 +1182,6 @@ export type UserStatsAccount = {
 
 	ifStakedGovTokenAmount: BN;
 };
-
-export function parseUserStatsAccount(account: {
-	makerVolume30d: BN;
-	takerVolume30d: BN;
-	fillerVolume30d: BN;
-	lastMakerVolume30dTs: BN;
-	lastTakerVolume30dTs: BN;
-	lastFillerVolume30dTs: BN;
-	[key: string]: any;
-}): UserStatsAccount {
-	return {
-		...account,
-		makerVolume30D: account.makerVolume30d,
-		takerVolume30D: account.takerVolume30d,
-		fillerVolume30D: account.fillerVolume30d,
-		lastMakerVolume30DTs: account.lastMakerVolume30dTs,
-		lastTakerVolume30DTs: account.lastTakerVolume30dTs,
-		lastFillerVolume30DTs: account.lastFillerVolume30dTs,
-	} as unknown as UserStatsAccount;
-}
-
-/**
- * Parses an Anchor-generated AMM account to the SDK's AMM type.
- * Handles field name mappings and provides defaults for missing fields.
- */
-export function parseAMM(amm: {
-	last24hAvgFundingRate?: BN;
-	lastMarkPriceTwap5min?: BN;
-	volume24h?: BN;
-	cumulativeFundingRate?: BN;
-	cumulativeFundingRateLong?: BN;
-	cumulativeFundingRateShort?: BN;
-	[key: string]: any;
-}): AMM {
-	return {
-		...amm,
-		last24HAvgFundingRate:
-			amm.last24HAvgFundingRate ?? amm.last24hAvgFundingRate ?? ZERO,
-		lastMarkPriceTwap5Min:
-			amm.lastMarkPriceTwap5Min ?? amm.lastMarkPriceTwap5min ?? ZERO,
-		volume24H: amm.volume24H ?? amm.volume24h ?? ZERO,
-		// TODO: map to long/short
-		cumulativeFundingRate: ZERO,
-	} as unknown as AMM;
-}
-
-/**
- * Parses an Anchor-generated PerpMarket account to the SDK's PerpMarketAccount type.
- * Handles field name mappings and provides defaults for missing fields.
- */
-export function parsePerpMarketAccount(account: {
-	amm?: any;
-	pnlPool?: any;
-	[key: string]: any;
-}): PerpMarketAccount {
-	return {
-		...account,
-		amm: account.amm ? parseAMM(account.amm) : account.amm,
-		pnlPool: convertPoolBalance(account.pnlPool),
-	} as PerpMarketAccount;
-}
-
-/**
- * Converts an Anchor BN representation to an actual BN instance.
- * Handles both BN instances and serialized BN objects like { 0: number[] }.
- */
-function convertToBN(value: any): BN {
-	if (BN.isBN(value)) {
-		return value;
-	}
-	if (
-		value &&
-		typeof value === 'object' &&
-		'0' in value &&
-		Array.isArray(value[0])
-	) {
-		// Anchor serializes BN as { 0: number[] } - convert from little-endian bytes
-		return new BN(value[0], 'le');
-	}
-	if (value != null) {
-		return new BN(value);
-	}
-	return ZERO;
-}
-
-/**
- * Converts a PoolBalance object's BN fields.
- */
-function convertPoolBalance(poolBalance: any): PoolBalance | undefined {
-	if (!poolBalance) return poolBalance;
-	return {
-		...poolBalance,
-		scaledBalance: convertToBN(poolBalance.scaledBalance),
-	};
-}
-
-/**
- * Converts HistoricalOracleData object's BN fields and handles field name mappings.
- */
-function convertHistoricalOracleData(
-	historicalOracleData: any
-): HistoricalOracleData | undefined {
-	if (!historicalOracleData) return historicalOracleData;
-	return {
-		...historicalOracleData,
-		lastOraclePrice: convertToBN(historicalOracleData.lastOraclePrice),
-		lastOracleDelay: convertToBN(historicalOracleData.lastOracleDelay),
-		lastOracleConf: convertToBN(historicalOracleData.lastOracleConf),
-		lastOraclePriceTwap: convertToBN(historicalOracleData.lastOraclePriceTwap),
-		lastOraclePriceTwap5Min: convertToBN(
-			historicalOracleData.lastOraclePriceTwap5Min ??
-				historicalOracleData.lastOraclePriceTwap5min
-		),
-		lastOraclePriceTwapTs: convertToBN(
-			historicalOracleData.lastOraclePriceTwapTs
-		),
-	};
-}
-
-/**
- * Converts HistoricalIndexData object's BN fields and handles field name mappings.
- */
-function convertHistoricalIndexData(
-	historicalIndexData: any
-): HistoricalIndexData | undefined {
-	if (!historicalIndexData) return historicalIndexData;
-	return {
-		...historicalIndexData,
-		lastIndexBidPrice: convertToBN(historicalIndexData.lastIndexBidPrice),
-		lastIndexAskPrice: convertToBN(historicalIndexData.lastIndexAskPrice),
-		lastIndexPriceTwap: convertToBN(historicalIndexData.lastIndexPriceTwap),
-		lastIndexPriceTwap5Min: convertToBN(
-			historicalIndexData.lastIndexPriceTwap5Min ??
-				historicalIndexData.lastIndexPriceTwap5min
-		),
-		lastIndexPriceTwapTs: convertToBN(historicalIndexData.lastIndexPriceTwapTs),
-	};
-}
-
-/**
- * Parses an Anchor-generated SpotMarket account to the SDK's SpotMarketAccount type.
- * Handles field name mappings and provides defaults for missing fields.
- */
-export function parseSpotMarketAccount(account: {
-	insuranceFund?: any;
-	revenuePool?: any;
-	spotFeePool?: any;
-	historicalOracleData?: any;
-	historicalIndexData?: any;
-	[key: string]: any;
-}): SpotMarketAccount {
-	const insuranceFund = account.insuranceFund
-		? {
-				...account.insuranceFund,
-				totalShares: convertToBN(account.insuranceFund.totalShares),
-				userShares: convertToBN(account.insuranceFund.userShares),
-				sharesBase: convertToBN(account.insuranceFund.sharesBase),
-				unstakingPeriod: convertToBN(account.insuranceFund.unstakingPeriod),
-				lastRevenueSettleTs: convertToBN(
-					account.insuranceFund.lastRevenueSettleTs
-				),
-				revenueSettlePeriod: convertToBN(
-					account.insuranceFund.revenueSettlePeriod
-				),
-		  }
-		: account.insuranceFund;
-
-	return {
-		...account,
-		insuranceFund,
-		revenuePool: convertPoolBalance(account.revenuePool),
-		spotFeePool: convertPoolBalance(account.spotFeePool),
-		historicalOracleData: convertHistoricalOracleData(
-			account.historicalOracleData
-		),
-		historicalIndexData: convertHistoricalIndexData(
-			account.historicalIndexData
-		),
-		cumulativeDepositInterest: convertToBN(account.cumulativeDepositInterest),
-		cumulativeBorrowInterest: convertToBN(account.cumulativeBorrowInterest),
-		totalSocialLoss: convertToBN(account.totalSocialLoss),
-		totalQuoteSocialLoss: convertToBN(account.totalQuoteSocialLoss),
-		depositBalance: convertToBN(account.depositBalance),
-		borrowBalance: convertToBN(account.borrowBalance),
-		maxTokenDeposits: convertToBN(account.maxTokenDeposits),
-		lastInterestTs: convertToBN(account.lastInterestTs),
-		lastTwapTs: convertToBN(account.lastTwapTs),
-		scaleInitialAssetWeightStart: convertToBN(
-			account.scaleInitialAssetWeightStart
-		),
-		withdrawGuardThreshold: convertToBN(account.withdrawGuardThreshold),
-		depositTokenTwap: convertToBN(account.depositTokenTwap),
-		borrowTokenTwap: convertToBN(account.borrowTokenTwap),
-		utilizationTwap: convertToBN(account.utilizationTwap),
-		nextDepositRecordId: convertToBN(account.nextDepositRecordId),
-		orderStepSize: convertToBN(account.orderStepSize),
-		orderTickSize: convertToBN(account.orderTickSize),
-		minOrderSize: convertToBN(account.minOrderSize),
-		maxPositionSize: convertToBN(account.maxPositionSize),
-		nextFillRecordId: convertToBN(account.nextFillRecordId),
-		totalSpotFee: convertToBN(account.totalSpotFee),
-		totalSwapFee: convertToBN(account.totalSwapFee),
-		flashLoanAmount: convertToBN(account.flashLoanAmount),
-		flashLoanInitialTokenAmount: convertToBN(
-			account.flashLoanInitialTokenAmount
-		),
-	} as SpotMarketAccount;
-}
-
-/**
- * Map of account names to their parser functions.
- * Parsers convert Anchor's serialized BN format to proper BN instances.
- */
-export const ACCOUNT_PARSERS: Record<string, (account: any) => any> = {
-	spotMarket: parseSpotMarketAccount,
-	perpMarket: parsePerpMarketAccount,
-};
-
-/**
- * Applies the appropriate parser to an account based on its name.
- * Returns the account unchanged if no parser is registered for the name.
- */
-export function parseAccount<T>(accountName: string, account: any): T {
-	const parser = ACCOUNT_PARSERS[accountName];
-	return (parser ? parser(account) : account) as T;
-}
 
 export type FuelOverflowAccount = {
 	authority: PublicKey;
@@ -1705,7 +1478,7 @@ export type OrderFillerRewardStructure = {
 export type OracleGuardRails = {
 	priceDivergence: {
 		markOraclePercentDivergence: BN;
-		oracleTwap5MinPercentDivergence: BN;
+		oracleTwap5minPercentDivergence: BN;
 	};
 	validity: {
 		slotsBeforeStaleForAmm: BN;

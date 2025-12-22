@@ -6198,8 +6198,8 @@ describe('Uncross L2', () => {
 		];
 
 		const oraclePrice = new BN(100).mul(QUOTE_PRECISION);
-		const oraclePrice5Min = new BN(100).mul(QUOTE_PRECISION);
-		const markPrice5Min = new BN(100).mul(QUOTE_PRECISION);
+		const oraclePrice5min = new BN(100).mul(QUOTE_PRECISION);
+		const markPrice5min = new BN(100).mul(QUOTE_PRECISION);
 
 		const groupingSize = QUOTE_PRECISION.divn(10);
 
@@ -6207,8 +6207,8 @@ describe('Uncross L2', () => {
 			bids,
 			asks,
 			oraclePrice,
-			oraclePrice5Min,
-			markPrice5Min,
+			oraclePrice5min,
+			markPrice5min,
 			groupingSize,
 			new Set<string>(),
 			new Set<string>()
@@ -6296,8 +6296,8 @@ describe('Uncross L2', () => {
 		];
 
 		const oraclePrice = new BN(100).mul(QUOTE_PRECISION);
-		const oraclePrice5Min = new BN(100).mul(QUOTE_PRECISION);
-		const markPrice5Min = new BN(100).mul(QUOTE_PRECISION);
+		const oraclePrice5min = new BN(100).mul(QUOTE_PRECISION);
+		const markPrice5min = new BN(100).mul(QUOTE_PRECISION);
 
 		const groupingSize = QUOTE_PRECISION.divn(10);
 
@@ -6305,8 +6305,8 @@ describe('Uncross L2', () => {
 			bids,
 			asks,
 			oraclePrice,
-			oraclePrice5Min,
-			markPrice5Min,
+			oraclePrice5min,
+			markPrice5min,
 			groupingSize,
 			new Set<string>(),
 			new Set<string>()
@@ -6389,8 +6389,8 @@ describe('Uncross L2', () => {
 		];
 
 		const oraclePrice = new BN(100).mul(QUOTE_PRECISION);
-		const oraclePrice5Min = new BN(100).mul(QUOTE_PRECISION);
-		const markPrice5Min = new BN(100).mul(QUOTE_PRECISION);
+		const oraclePrice5min = new BN(100).mul(QUOTE_PRECISION);
+		const markPrice5min = new BN(100).mul(QUOTE_PRECISION);
 
 		const groupingSize = QUOTE_PRECISION.divn(10);
 
@@ -6398,8 +6398,8 @@ describe('Uncross L2', () => {
 			bids,
 			asks,
 			oraclePrice,
-			oraclePrice5Min,
-			markPrice5Min,
+			oraclePrice5min,
+			markPrice5min,
 			groupingSize,
 			new Set<string>(),
 			new Set<string>()
@@ -6474,8 +6474,8 @@ describe('Uncross L2', () => {
 		];
 
 		const oraclePrice = new BN('29250100');
-		const oraclePrice5Min = new BN('29696597');
-		const markPrice5Min = new BN('31747865');
+		const oraclePrice5min = new BN('29696597');
+		const markPrice5min = new BN('31747865');
 
 		const groupingSize = QUOTE_PRECISION.divn(10);
 
@@ -6483,14 +6483,14 @@ describe('Uncross L2', () => {
 			bids,
 			asks,
 			oraclePrice,
-			oraclePrice5Min,
-			markPrice5Min,
+			oraclePrice5min,
+			markPrice5min,
 			groupingSize,
 			new Set<string>(),
 			new Set<string>()
 		);
 
-		const referencePrice = oraclePrice.add(markPrice5Min.sub(oraclePrice5Min));
+		const referencePrice = oraclePrice.add(markPrice5min.sub(oraclePrice5min));
 
 		expect(newBids[0].price.toString()).to.equal(
 			referencePrice.sub(groupingSize).toString()
@@ -6551,8 +6551,8 @@ describe('Uncross L2', () => {
 		];
 
 		const oraclePrice = new BN(100).mul(QUOTE_PRECISION);
-		const oraclePrice5Min = new BN(100).mul(QUOTE_PRECISION);
-		const markPrice5Min = new BN(100).mul(QUOTE_PRECISION);
+		const oraclePrice5min = new BN(100).mul(QUOTE_PRECISION);
+		const markPrice5min = new BN(100).mul(QUOTE_PRECISION);
 
 		const groupingSize = QUOTE_PRECISION.divn(10);
 
@@ -6563,8 +6563,8 @@ describe('Uncross L2', () => {
 			bids,
 			asks,
 			oraclePrice,
-			oraclePrice5Min,
-			markPrice5Min,
+			oraclePrice5min,
+			markPrice5min,
 			groupingSize,
 			userBids,
 			new Set<string>()
@@ -6662,8 +6662,8 @@ describe('Uncross L2', () => {
 		];
 
 		const oraclePrice = new BN(100).mul(QUOTE_PRECISION);
-		const oraclePrice5Min = new BN(100).mul(QUOTE_PRECISION);
-		const markPrice5Min = new BN(100).mul(QUOTE_PRECISION);
+		const oraclePrice5min = new BN(100).mul(QUOTE_PRECISION);
+		const markPrice5min = new BN(100).mul(QUOTE_PRECISION);
 
 		const groupingSize = QUOTE_PRECISION.divn(10);
 
@@ -6674,8 +6674,8 @@ describe('Uncross L2', () => {
 			bids,
 			asks,
 			oraclePrice,
-			oraclePrice5Min,
-			markPrice5Min,
+			oraclePrice5min,
+			markPrice5min,
 			groupingSize,
 			new Set<string>(),
 			userAsks
@@ -6831,8 +6831,8 @@ describe('Uncross L2', () => {
 		expect(bidsAreSortedDesc(bids), 'Input bids are descending').to.be.true;
 
 		const oraclePrice = new BN('103649895');
-		const oraclePrice5Min = new BN('103285000');
-		const markPrice5Min = new BN('103371000');
+		const oraclePrice5min = new BN('103285000');
+		const markPrice5min = new BN('103371000');
 
 		const groupingSize = new BN('100');
 
@@ -6842,8 +6842,8 @@ describe('Uncross L2', () => {
 			bids,
 			asks,
 			oraclePrice,
-			oraclePrice5Min,
-			markPrice5Min,
+			oraclePrice5min,
+			markPrice5min,
 			groupingSize,
 			new Set<string>(),
 			userAsks
@@ -6894,8 +6894,8 @@ describe('Uncross L2', () => {
 		expect(bidsAreSortedDesc(bids), 'Input bids are descending').to.be.true;
 
 		const oraclePrice = new BN('101711384');
-		const oraclePrice5Min = new BN('101805000');
-		const markPrice5Min = new BN('101867000');
+		const oraclePrice5min = new BN('101805000');
+		const markPrice5min = new BN('101867000');
 
 		const groupingSize = new BN('100');
 
@@ -6905,8 +6905,8 @@ describe('Uncross L2', () => {
 			bids,
 			asks,
 			oraclePrice,
-			oraclePrice5Min,
-			markPrice5Min,
+			oraclePrice5min,
+			markPrice5min,
 			groupingSize,
 			new Set<string>(),
 			userAsks

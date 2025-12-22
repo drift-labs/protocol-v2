@@ -1,58 +1,57 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
-import { PublicKey, Keypair } from '@solana/web3.js';
+import { Keypair, PublicKey } from '@solana/web3.js';
 
 import {
-	OracleGuardRails,
-	TestClient,
-	User,
-	BN,
-	OracleSource,
-	EventSubscriber,
-	getInsuranceFundStakeAccountPublicKey,
-	InsuranceFundStake,
-	ZERO,
-	QUOTE_SPOT_MARKET_INDEX,
-	QUOTE_PRECISION,
-	ONE,
-	getTokenAmount,
-	SpotBalanceType,
-	getBalance,
-	isVariant,
-	PEG_PRECISION,
-	SPOT_MARKET_RATE_PRECISION,
-	convertToNumber,
 	AMM_RESERVE_PRECISION,
-	unstakeSharesToAmount,
-	MarketStatus,
-	LIQUIDATION_PCT_PRECISION,
+	BN,
+	convertToNumber,
+	EventSubscriber,
+	getBalance,
+	getInsuranceFundStakeAccountPublicKey,
+	getTokenAmount,
 	getUserStatsAccountPublicKey,
+	InsuranceFundStake,
+	isVariant,
+	LIQUIDATION_PCT_PRECISION,
+	MarketStatus,
+	ONE,
+	OracleGuardRails,
+	OracleSource,
+	PEG_PRECISION,
+	QUOTE_PRECISION,
+	QUOTE_SPOT_MARKET_INDEX,
+	SPOT_MARKET_RATE_PRECISION,
+	SpotBalanceType,
+	TestClient,
+	unstakeSharesToAmount,
+	User,
+	ZERO,
 } from '../sdk/src';
 
-import {
-	mockUSDCMint,
-	mockUserUSDCAccount,
-	initializeQuoteSpotMarket,
-	initializeSolSpotMarket,
-	createUserWithUSDCAndWSOLAccount,
-	sleep,
-	mockOracleNoProgram,
-	setFeedPriceNoProgram,
-	mintUSDCToUser,
-} from './testHelpers';
-import { ContractTier, PERCENTAGE_PRECISION, UserStatus } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
+import { ContractTier, PERCENTAGE_PRECISION, UserStatus } from '../sdk/src';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import {
-	BankrunContextWrapper,
 	asBN,
+	BankrunContextWrapper,
 } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
+import {
+	createUserWithUSDCAndWSOLAccount,
+	initializeQuoteSpotMarket,
+	initializeSolSpotMarket,
+	mintUSDCToUser,
+	mockOracleNoProgram,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+	setFeedPriceNoProgram,
+	sleep,
+} from './testHelpers';
 
 describe('insurance fund stake', () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -854,7 +853,7 @@ describe('insurance fund stake', () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
 				markOraclePercentDivergence: PERCENTAGE_PRECISION,
-				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION,
+				oracleTwap5minPercentDivergence: PERCENTAGE_PRECISION,
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),
@@ -1054,7 +1053,7 @@ describe('insurance fund stake', () => {
 
 		assert(
 			secondUserDriftClient.getUserAccount().status ===
-			UserStatus.BEING_LIQUIDATED
+				UserStatus.BEING_LIQUIDATED
 		);
 
 		assert(
@@ -1062,7 +1061,7 @@ describe('insurance fund stake', () => {
 		);
 
 		const liquidationRecord =
-			eventSubscriber.getEventsArray('LiquidationRecord')[0];
+			eventSubscriber.getEventsArray('liquidationRecord')[0];
 		assert(liquidationRecord.liquidationId === 1);
 		assert(isVariant(liquidationRecord.liquidationType, 'liquidateSpot'));
 		assert(liquidationRecord.liquidateSpot.liabilityMarketIndex === 0);

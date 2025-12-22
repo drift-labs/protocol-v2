@@ -1,22 +1,30 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import { Keypair, LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 import {
-	TestClient,
-	BN,
-	PRICE_PRECISION,
-	PositionDirection,
-	User,
-	Wallet,
 	BASE_PRECISION,
+	BN,
 	getLimitOrderParams,
 	OracleSource,
+	PositionDirection,
+	PRICE_PRECISION,
+	TestClient,
+	User,
+	Wallet,
 } from '../sdk/src';
 
+import { startAnchor } from 'solana-bankrun';
+import {
+	MARGIN_PRECISION,
+	PostOnlyParams,
+	ReferrerInfo,
+	ZERO,
+} from '../sdk/src';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
 	initializeQuoteSpotMarket,
 	initializeSolSpotMarket,
@@ -25,13 +33,9 @@ import {
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpers';
-import { MARGIN_PRECISION, PostOnlyParams, ReferrerInfo, ZERO } from '../sdk';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('place and fill spot order', () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let fillerDriftClient: TestClient;
 	let fillerDriftClientUser: User;

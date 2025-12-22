@@ -1,12 +1,5 @@
 import * as anchor from '@coral-xyz/anchor';
-import { Program } from '@coral-xyz/anchor';
-import {
-	BulkAccountLoader,
-	OracleSource,
-	TestClient,
-	assert,
-	getPythLazerOraclePublicKey,
-} from '../sdk/src';
+
 import {
 	PublicKey,
 	Transaction,
@@ -14,15 +7,25 @@ import {
 	VersionedTransaction,
 } from '@solana/web3.js';
 import {
-	initializeQuoteSpotMarket,
-	mockUSDCMint,
-} from './testHelpersLocalValidator';
-import { Wallet, loadKeypair, EventSubscriber } from '../sdk/src';
+	BulkAccountLoader,
+	EventSubscriber,
+	OracleSource,
+	TestClient,
+	Wallet,
+	assert,
+	getPythLazerOraclePublicKey,
+	loadKeypair,
+} from '../sdk/src';
+import { DriftProgram } from '../sdk/src/config';
 import {
 	PYTH_LAZER_HEX_STRING_BTC,
 	PYTH_LAZER_HEX_STRING_MULTI,
 	PYTH_LAZER_HEX_STRING_SOL,
 } from './pythLazerData';
+import {
+	initializeQuoteSpotMarket,
+	mockUSDCMint,
+} from './testHelpersLocalValidator';
 
 describe('pyth lazer oracles', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -31,7 +34,7 @@ describe('pyth lazer oracles', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 

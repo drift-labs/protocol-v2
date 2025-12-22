@@ -1,50 +1,48 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 import {
+	BASE_PRECISION,
 	BN,
+	BulkAccountLoader,
 	calculateEffectiveLeverage,
+	calculatePrice,
+	ContractTier,
 	getMarketOrderParams,
 	OracleSource,
-	ZERO,
-	calculatePrice,
 	PEG_PRECISION,
-	BASE_PRECISION,
-	BulkAccountLoader,
-	ContractTier,
-} from '../sdk';
-
-import { Program } from '@coral-xyz/anchor';
+	ZERO,
+} from '../sdk/src';
 
 import { PublicKey } from '@solana/web3.js';
 import {
-	TestClient,
-	PRICE_PRECISION,
-	calculateReservePrice,
-	calculateTradeSlippage,
-	PositionDirection,
-	EventSubscriber,
-	convertToNumber,
-	findComputeUnitConsumption,
-	calculateBidAskPrice,
-	calculateUpdatedAMM,
 	AMM_TO_QUOTE_PRECISION_RATIO,
-	calculateTradeAcquiredAmounts,
-	calculateSpread,
+	calculateBidAskPrice,
 	calculateInventoryScale,
+	calculateReservePrice,
+	calculateSpread,
+	calculateTradeAcquiredAmounts,
+	calculateTradeSlippage,
+	calculateUpdatedAMM,
+	convertToNumber,
+	EventSubscriber,
+	findComputeUnitConsumption,
+	PositionDirection,
+	PRICE_PRECISION,
 	QUOTE_PRECISION,
+	TestClient,
 } from '../sdk/src';
 
+import { DriftProgram } from '../sdk/src/config';
+import { getOraclePriceFromMMOracleData } from '../sdk/src/oracles/utils';
 import {
 	getFeedData,
-	mockOracle,
-	mockUserUSDCAccount,
-	mockUSDCMint,
-	setFeedPrice,
 	initializeQuoteSpotMarket,
+	mockOracle,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+	setFeedPrice,
 	sleep,
 } from './testHelpers';
-import { getOraclePriceFromMMOracleData } from '../sdk/src/oracles/utils';
-import { Drift } from '../sdk/src/idl/drift';
 
 describe('prepeg', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -54,7 +52,7 @@ describe('prepeg', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram, {

@@ -1,9 +1,8 @@
 import { Commitment, PublicKey } from '@solana/web3.js';
-import { parseUserStatsAccount, UserStatsAccount } from '../types';
+import { UserStatsAccount } from '../types';
 import { BasicUserStatsAccountSubscriber } from './basicUserStatsAccountSubscriber';
-import { Program } from '@coral-xyz/anchor';
 import { UserStatsAccountSubscriber } from './types';
-import { Drift } from '../idl/drift';
+import { DriftProgram } from '../config';
 
 /**
  * Simple implementation of UserStatsAccountSubscriber. It will fetch the UserStatsAccount
@@ -14,11 +13,11 @@ export class OneShotUserStatsAccountSubscriber
 	extends BasicUserStatsAccountSubscriber
 	implements UserStatsAccountSubscriber
 {
-	program: Program<Drift>;
+	program: DriftProgram;
 	commitment: Commitment;
 
 	public constructor(
-		program: Program<Drift>,
+		program: DriftProgram,
 		userStatsAccountPublicKey: PublicKey,
 		data?: UserStatsAccount,
 		slot?: number,
@@ -57,7 +56,7 @@ export class OneShotUserStatsAccountSubscriber
 				);
 			if (dataAndContext.context.slot > (this.userStats?.slot ?? 0)) {
 				this.userStats = {
-					data: parseUserStatsAccount(dataAndContext.data),
+					data: dataAndContext.data as UserStatsAccount,
 					slot: dataAndContext.context.slot,
 				};
 			}

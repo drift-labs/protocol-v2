@@ -3,7 +3,6 @@ import {
 	ConstituentAccountEvents,
 	ConstituentAccountSubscriber,
 } from '../accounts/types';
-import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { Commitment, Context, MemcmpFilter, PublicKey } from '@solana/web3.js';
@@ -11,7 +10,7 @@ import { ConstituentAccount } from '../types';
 import { WebSocketProgramAccountSubscriber } from '../accounts/webSocketProgramAccountSubscriber';
 import { getConstituentFilter } from '../memcmp';
 import { ConstituentMap } from './constituentMap';
-import { Drift } from '../idl/drift';
+import { DriftProgram } from '../config';
 
 export class WebSocketConstituentAccountSubscriber
 	implements ConstituentAccountSubscriber
@@ -19,7 +18,7 @@ export class WebSocketConstituentAccountSubscriber
 	isSubscribed: boolean;
 	resubTimeoutMs?: number;
 	commitment?: Commitment;
-	program: Program<Drift>;
+	program: DriftProgram;
 	eventEmitter: StrictEventEmitter<EventEmitter, ConstituentAccountEvents>;
 
 	constituentDataAccountSubscriber: WebSocketProgramAccountSubscriber<ConstituentAccount>;
@@ -28,7 +27,7 @@ export class WebSocketConstituentAccountSubscriber
 
 	public constructor(
 		constituentMap: ConstituentMap,
-		program: Program<Drift>,
+		program: DriftProgram,
 		resubTimeoutMs?: number,
 		commitment?: Commitment,
 		additionalFilters?: MemcmpFilter[]

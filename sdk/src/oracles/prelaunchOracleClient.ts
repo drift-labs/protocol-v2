@@ -1,14 +1,13 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { OracleClient, OraclePriceData } from './types';
-import { Program } from '@coral-xyz/anchor';
 import { PrelaunchOracle } from '../types';
-import { Drift } from '../idl/drift';
+import { DriftProgram } from '../config';
 
 export class PrelaunchOracleClient implements OracleClient {
 	private connection: Connection;
-	private program: Program<Drift>;
+	private program: DriftProgram;
 
-	public constructor(connection: Connection, program: Program<Drift>) {
+	public constructor(connection: Connection, program: DriftProgram) {
 		this.connection = connection;
 		this.program = program;
 	}

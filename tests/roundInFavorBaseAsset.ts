@@ -4,29 +4,28 @@ import {
 	BASE_PRECISION,
 	BN,
 	getMarketOrderParams,
-	OracleSource,
-	Wallet,
 	MarketStatus,
-	TestClient,
+	OracleSource,
 	PositionDirection,
+	TestClient,
+	Wallet,
 } from '../sdk/src';
-
-import { Program } from '@coral-xyz/anchor';
 
 import { Keypair } from '@solana/web3.js';
 
+import { startAnchor } from 'solana-bankrun';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
 	initializeQuoteSpotMarket,
 	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('round in favor', () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 

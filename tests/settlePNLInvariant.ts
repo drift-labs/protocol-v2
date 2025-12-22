@@ -1,23 +1,36 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import { PublicKey } from '@solana/web3.js';
 
 import {
-	TestClient,
 	BN,
 	EventSubscriber,
-	SPOT_MARKET_RATE_PRECISION,
-	SpotBalanceType,
-	isVariant,
-	OracleSource,
-	SPOT_MARKET_WEIGHT_PRECISION,
-	SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
 	OracleInfo,
+	OracleSource,
+	SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
+	SPOT_MARKET_RATE_PRECISION,
+	SPOT_MARKET_WEIGHT_PRECISION,
+	SpotBalanceType,
+	TestClient,
+	isVariant,
 } from '../sdk/src';
 
+import { NATIVE_MINT } from '@solana/spl-token';
+import { startAnchor } from 'solana-bankrun';
+import {
+	BASE_PRECISION,
+	PEG_PRECISION,
+	PRICE_PRECISION,
+	PositionDirection,
+	QUOTE_PRECISION,
+	SPOT_MARKET_BALANCE_PRECISION,
+	ZERO,
+} from '../sdk/src';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
+import { getBalance } from '../sdk/src/math/spotBalance';
 import {
 	createUserWithUSDCAccount,
 	createUserWithUSDCAndWSOLAccount,
@@ -26,23 +39,9 @@ import {
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpers';
-import { getBalance } from '../sdk/src/math/spotBalance';
-import { NATIVE_MINT } from '@solana/spl-token';
-import {
-	QUOTE_PRECISION,
-	ZERO,
-	SPOT_MARKET_BALANCE_PRECISION,
-	PRICE_PRECISION,
-	PositionDirection,
-	BASE_PRECISION,
-	PEG_PRECISION,
-} from '../sdk';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('spot deposit and withdraw', () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let admin: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -251,7 +250,7 @@ describe('spot deposit and withdraw', () => {
 			)
 		);
 		assert(
-			spotMarket.historicalOracleData.lastOraclePriceTwap5Min.eq(
+			spotMarket.historicalOracleData.lastOraclePriceTwap5min.eq(
 				new BN(30 * PRICE_PRECISION.toNumber())
 			)
 		);
@@ -345,7 +344,7 @@ describe('spot deposit and withdraw', () => {
 			)
 		);
 		assert(
-			spotMarket.historicalOracleData.lastOraclePriceTwap5Min.eq(
+			spotMarket.historicalOracleData.lastOraclePriceTwap5min.eq(
 				new BN(30 * PRICE_PRECISION.toNumber())
 			)
 		);
@@ -416,7 +415,7 @@ describe('spot deposit and withdraw', () => {
 
 		assert(quoteTokenAmount.eq(new BN(-30003)));
 
-		const settlePnlRecord = eventSubscriber.getEventsArray('SettlePnlRecord');
+		const settlePnlRecord = eventSubscriber.getEventsArray('settlePnlRecord');
 		assert(settlePnlRecord.length === 1);
 		assert(settlePnlRecord[0].pnl.eq(new BN(-30002)));
 	});

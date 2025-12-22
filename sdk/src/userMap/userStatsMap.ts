@@ -119,13 +119,13 @@ export class UserStatsMap {
 		record: WrappedEvent<any>,
 		userMap?: UserMap
 	) {
-		if (record.eventType === 'DepositRecord') {
+		if (record.eventType === 'depositRecord') {
 			const depositRecord = record as DepositRecord;
 			await this.mustGet(depositRecord.userAuthority.toString());
-		} else if (record.eventType === 'FundingPaymentRecord') {
+		} else if (record.eventType === 'fundingPaymentRecord') {
 			const fundingPaymentRecord = record as FundingPaymentRecord;
 			await this.mustGet(fundingPaymentRecord.userAuthority.toString());
-		} else if (record.eventType === 'LiquidationRecord') {
+		} else if (record.eventType === 'liquidationRecord') {
 			if (!userMap) {
 				return;
 			}
@@ -139,13 +139,13 @@ export class UserStatsMap {
 				liqRecord.liquidator.toString()
 			);
 			await this.mustGet(liquidatorUser.getUserAccount().authority.toString());
-		} else if (record.eventType === 'OrderRecord') {
+		} else if (record.eventType === 'orderRecord') {
 			if (!userMap) {
 				return;
 			}
 			const orderRecord = record as OrderRecord;
 			await userMap.updateWithOrderRecord(orderRecord);
-		} else if (record.eventType === 'OrderActionRecord') {
+		} else if (record.eventType === 'orderActionRecord') {
 			if (!userMap) {
 				return;
 			}
@@ -159,14 +159,14 @@ export class UserStatsMap {
 				const maker = await userMap.mustGet(actionRecord.maker.toString());
 				await this.mustGet(maker.getUserAccount().authority.toString());
 			}
-		} else if (record.eventType === 'SettlePnlRecord') {
+		} else if (record.eventType === 'settlePnlRecord') {
 			if (!userMap) {
 				return;
 			}
 			const settlePnlRecord = record as SettlePnlRecord;
 			const user = await userMap.mustGet(settlePnlRecord.user.toString());
 			await this.mustGet(user.getUserAccount().authority.toString());
-		} else if (record.eventType === 'NewUserRecord') {
+		} else if (record.eventType === 'newUserRecord') {
 			const newUserRecord = record as NewUserRecord;
 			await this.mustGet(newUserRecord.userAuthority.toString());
 		} else if (record.eventType === 'LPRecord') {
@@ -176,7 +176,7 @@ export class UserStatsMap {
 			const lpRecord = record as LPRecord;
 			const user = await userMap.mustGet(lpRecord.user.toString());
 			await this.mustGet(user.getUserAccount().authority.toString());
-		} else if (record.eventType === 'InsuranceFundStakeRecord') {
+		} else if (record.eventType === 'insuranceFundStakeRecord') {
 			const ifStakeRecord = record as InsuranceFundStakeRecord;
 			await this.mustGet(ifStakeRecord.userAuthority.toString());
 		}
@@ -317,7 +317,7 @@ export class UserStatsMap {
 						if (!this.has(publicKeyString)) {
 							const buffer = Buffer.from(accountInfo.data);
 							const decodedUserStats = this.decode(
-								'UserStats',
+								'userStats',
 								buffer
 							) as UserStatsAccount;
 							programAccountBufferMap.add(

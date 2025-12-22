@@ -23,10 +23,12 @@ test_files=(
   # updateK.ts
   # postOnlyAmmFulfillment.ts
   # TODO BROKEN ^^
-	builderCodes.ts
-  decodeUser.ts
   # fuel.ts
   # fuelSweep.ts
+  # whitelist.ts
+  # TODO: ignored ^^
+	builderCodes.ts
+  decodeUser.ts
   admin.ts
   assetTier.ts
   cancelAllOrders.ts
@@ -91,7 +93,6 @@ test_files=(
   userAccount.ts
   userDelegate.ts
   userOrderId.ts
-  # whitelist.ts
 )
 
 

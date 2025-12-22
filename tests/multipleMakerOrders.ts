@@ -1,21 +1,24 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import {
-	TestClient,
-	BN,
-	PRICE_PRECISION,
-	PositionDirection,
-	EventSubscriber,
-	MarketStatus,
 	BASE_PRECISION,
+	BN,
+	EventSubscriber,
 	isVariant,
+	MarketStatus,
 	OracleSource,
 	PEG_PRECISION,
+	PositionDirection,
+	PRICE_PRECISION,
+	TestClient,
 } from '../sdk/src';
 
+import { startAnchor } from 'solana-bankrun';
+import { ContractTier, MARGIN_PRECISION, OrderType } from '../sdk/src';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
 	createUserWithUSDCAccount,
 	initializeQuoteSpotMarket,
@@ -24,13 +27,9 @@ import {
 	mockUserUSDCAccount,
 	setFeedPriceNoProgram,
 } from './testHelpers';
-import { ContractTier, MARGIN_PRECISION, OrderType } from '../sdk';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('multiple maker orders', () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let fillerDriftClient: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -273,7 +272,7 @@ describe('multiple maker orders', () => {
 		bankrunContextWrapper.printTxLogs(txSig);
 
 		const orderActionRecords = eventSubscriber
-			.getEventsArray('OrderActionRecord')
+			.getEventsArray('orderActionRecord')
 			.filter((record) => isVariant(record.action, 'fill'));
 		assert(orderActionRecords.length === 6);
 
@@ -477,7 +476,7 @@ describe('multiple maker orders', () => {
 		bankrunContextWrapper.printTxLogs(txSig);
 
 		const orderActionRecords = eventSubscriber
-			.getEventsArray('OrderActionRecord')
+			.getEventsArray('orderActionRecord')
 			.filter((record) => isVariant(record.action, 'fill'));
 		console.log('orderActionRecords.length=', orderActionRecords.length);
 		assert(orderActionRecords.length === 20);

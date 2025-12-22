@@ -1,7 +1,7 @@
 import * as anchor from '@coral-xyz/anchor';
 import { expect } from 'chai';
 
-import { Program, Wallet } from '@coral-xyz/anchor';
+import { Wallet } from '@coral-xyz/anchor';
 
 import { Keypair } from '@solana/web3.js';
 
@@ -22,10 +22,11 @@ import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import dotenv from 'dotenv';
+import { DriftProgram } from '../sdk/src/config';
 dotenv.config();
 
 describe('admin deposit', () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 	let bankrunContextWrapper: BankrunContextWrapper;
 	let bulkAccountLoader: TestBulkAccountLoader;
 

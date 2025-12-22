@@ -7,13 +7,7 @@ import {
 	NotSubscribedError,
 	ResubOpts,
 } from './types';
-import {
-	PerpMarketAccount,
-	SpotMarketAccount,
-	StateAccount,
-	parseSpotMarketAccount,
-} from '../types';
-import { Program } from '@coral-xyz/anchor';
+import { PerpMarketAccount, SpotMarketAccount, StateAccount } from '../types';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import {
@@ -28,12 +22,11 @@ import { Commitment, PublicKey } from '@solana/web3.js';
 import { OracleInfo, OraclePriceData } from '../oracles/types';
 import { OracleClientCache } from '../oracles/oracleClientCache';
 import { QUOTE_ORACLE_PRICE_DATA } from '../oracles/quoteAssetOracleClient';
-import { findAllMarketAndOracles } from '../config';
+import { findAllMarketAndOracles, DriftProgram } from '../config';
 import { findDelistedPerpMarketsAndOracles } from './utils';
 import { getOracleId } from '../oracles/oracleId';
 import { OracleSource } from '../types';
 import { WebSocketAccountSubscriberV2 } from './webSocketAccountSubscriberV2';
-import { Drift } from '../idl/drift';
 
 const ORACLE_DEFAULT_ID = getOracleId(
 	PublicKey.default,
@@ -44,7 +37,7 @@ export class WebSocketDriftClientAccountSubscriber
 	implements DriftClientAccountSubscriber
 {
 	isSubscribed: boolean;
-	program: Program<Drift>;
+	program: DriftProgram;
 	commitment?: Commitment;
 	perpMarketIndexes: number[];
 	spotMarketIndexes: number[];
@@ -76,7 +69,7 @@ export class WebSocketDriftClientAccountSubscriber
 	initialOraclePriceData: Map<string, OraclePriceData>;
 	customPerpMarketAccountSubscriber?: new (
 		accountName: string,
-		program: Program<Drift>,
+		program: DriftProgram,
 		accountPublicKey: PublicKey,
 		decodeBuffer?: (buffer: Buffer) => any,
 		resubOpts?: ResubOpts,
@@ -84,7 +77,7 @@ export class WebSocketDriftClientAccountSubscriber
 	) => AccountSubscriber<any>;
 	customOracleAccountSubscriber?: new (
 		accountName: string,
-		program: Program<Drift>,
+		program: DriftProgram,
 		accountPublicKey: PublicKey,
 		decodeBuffer?: (buffer: Buffer) => any,
 		resubOpts?: ResubOpts,
@@ -96,7 +89,7 @@ export class WebSocketDriftClientAccountSubscriber
 	protected subscriptionPromiseResolver: (val: boolean) => void;
 
 	public constructor(
-		program: Program<Drift>,
+		program: DriftProgram,
 		perpMarketIndexes: number[],
 		spotMarketIndexes: number[],
 		oracleInfos: OracleInfo[],
@@ -106,7 +99,7 @@ export class WebSocketDriftClientAccountSubscriber
 		commitment?: Commitment,
 		customPerpMarketAccountSubscriber?: new (
 			accountName: string,
-			program: Program<Drift>,
+			program: DriftProgram,
 			accountPublicKey: PublicKey,
 			decodeBuffer?: (buffer: Buffer) => any,
 			resubOpts?: ResubOpts,
@@ -114,7 +107,7 @@ export class WebSocketDriftClientAccountSubscriber
 		) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>,
 		customOracleAccountSubscriber?: new (
 			accountName: string,
-			program: Program<Drift>,
+			program: DriftProgram,
 			accountPublicKey: PublicKey,
 			decodeBuffer?: (buffer: Buffer) => any,
 			resubOpts?: ResubOpts,
@@ -174,9 +167,10 @@ export class WebSocketDriftClientAccountSubscriber
 			this.program.programId
 		);
 
+		console.info('start state account sub');
 		// create and activate main state account subscription
 		this.stateAccountSubscriber = new WebSocketAccountSubscriber(
-			'state',
+			'State',
 			this.program,
 			statePublicKey,
 			undefined,
@@ -187,6 +181,7 @@ export class WebSocketDriftClientAccountSubscriber
 			this.eventEmitter.emit('stateAccountUpdate', data);
 			this.eventEmitter.emit('update');
 		});
+		console.info('end state account sub');
 
 		// set initial data to avoid spamming getAccountInfo calls in webSocketAccountSubscriber
 		await this.setInitialData();
@@ -245,7 +240,7 @@ export class WebSocketDriftClientAccountSubscriber
 						const perpMarket = this.program.coder.accounts.decode(
 							'perpMarket',
 							accountInfo.data
-						);
+						) as PerpMarketAccount;
 						return [perpMarket.marketIndex, perpMarket];
 					})
 			);
@@ -267,11 +262,10 @@ export class WebSocketDriftClientAccountSubscriber
 				spotMarketAccountInfos
 					.filter((accountInfo) => !!accountInfo)
 					.map((accountInfo) => {
-						const decoded = this.program.coder.accounts.decode(
+						const spotMarket = this.program.coder.accounts.decode(
 							'spotMarket',
 							accountInfo.data
-						);
-						const spotMarket = parseSpotMarketAccount(decoded);
+						) as SpotMarketAccount;
 						return [spotMarket.marketIndex, spotMarket];
 					})
 			);

@@ -780,12 +780,12 @@ export class User {
 				if (strict && positionUnrealizedPnl.gt(ZERO)) {
 					quotePrice = BN.min(
 						quoteOraclePriceData.price,
-						quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5Min
+						quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5min
 					);
 				} else if (strict && positionUnrealizedPnl.lt(ZERO)) {
 					quotePrice = BN.max(
 						quoteOraclePriceData.price,
-						quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5Min
+						quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5min
 					);
 				} else {
 					quotePrice = quoteOraclePriceData.price;
@@ -1457,7 +1457,7 @@ export class User {
 			if (strict) {
 				quotePrice = BN.max(
 					quoteOraclePriceData.price,
-					quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5Min
+					quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5min
 				);
 			} else {
 				quotePrice = quoteOraclePriceData.price;
@@ -4482,7 +4482,7 @@ export class User {
 			const quotePrice = strict
 				? BN.max(
 						quoteOraclePriceData.price,
-						quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5Min
+						quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5min
 				  )
 				: quoteOraclePriceData.price;
 			let perpMarginRequirement = worstCaseLiabilityValue
@@ -4508,12 +4508,12 @@ export class User {
 			if (strict && positionUnrealizedPnl.gt(ZERO)) {
 				pnlQuotePrice = BN.min(
 					quoteOraclePriceData.price,
-					quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5Min
+					quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5min
 				);
 			} else if (strict && positionUnrealizedPnl.lt(ZERO)) {
 				pnlQuotePrice = BN.max(
 					quoteOraclePriceData.price,
-					quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5Min
+					quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5min
 				);
 			} else {
 				pnlQuotePrice = quoteOraclePriceData.price;
@@ -4553,7 +4553,7 @@ export class User {
 					const strictQuote = new StrictOraclePrice(
 						quoteOraclePriceData.price,
 						strict
-							? quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5Min
+							? quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5min
 							: undefined
 					);
 					const quoteTokenAmount = getTokenAmount(

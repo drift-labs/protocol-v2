@@ -1,8 +1,6 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import {
 	Account,
 	Keypair,
@@ -14,19 +12,25 @@ import { listMarket, makePlaceOrderTransaction, SERUM } from './serumHelper';
 
 import {
 	BN,
-	TestClient,
 	EventSubscriber,
-	OracleSource,
-	OracleInfo,
-	getSerumSignerPublicKey,
-	QUOTE_PRECISION,
-	unstakeSharesToAmount,
 	getIfRebalanceConfigPublicKey,
-	IfRebalanceConfigAccount,
+	getSerumSignerPublicKey,
 	getTokenAmount,
+	IfRebalanceConfigAccount,
+	OracleInfo,
+	OracleSource,
+	QUOTE_PRECISION,
 	SpotBalanceType,
+	TestClient,
+	unstakeSharesToAmount,
 } from '../sdk/src';
 
+import { DexInstructions, Market, OpenOrders } from '@project-serum/serum';
+import { NATIVE_MINT } from '@solana/spl-token';
+import { startAnchor } from 'solana-bankrun';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
 	createUserWithUSDCAndWSOLAccount,
 	createWSolTokenAccountForUser,
@@ -36,14 +40,9 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { NATIVE_MINT } from '@solana/spl-token';
-import { DexInstructions, Market, OpenOrders } from '@project-serum/serum';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('spot swap', () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let makerDriftClient: TestClient;
 	let makerWSOL: PublicKey;
@@ -427,7 +426,7 @@ describe('spot swap', () => {
 		assert(rebalanceConfig.epochInAmount.eq(new BN(100040000)));
 
 		const swapRecord = eventSubscriber.getEventsArray(
-			'InsuranceFundSwapRecord'
+			'insuranceFundSwapRecord'
 		)[0];
 
 		assert(swapRecord.inIfTotalSharesBefore.eq(new BN(200000000)));
@@ -456,7 +455,7 @@ describe('spot swap', () => {
 		);
 
 		const transferRecord = eventSubscriber.getEventsArray(
-			'TransferProtocolIfSharesToRevenuePoolRecord'
+			'transferProtocolIfSharesToRevenuePoolRecord'
 		)[0];
 
 		assert(transferRecord.amount.eq(new BN(1000000000)));

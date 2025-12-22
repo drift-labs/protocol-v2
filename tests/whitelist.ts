@@ -1,15 +1,7 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
-import { BASE_PRECISION, BN, OracleSource } from '../sdk';
+import { BASE_PRECISION, BN, OracleSource } from '../sdk/src';
 
-import { Program } from '@coral-xyz/anchor';
-
-import {
-	Keypair,
-	PublicKey,
-	SystemProgram,
-	Transaction,
-} from '@solana/web3.js';
 import {
 	MINT_SIZE,
 	TOKEN_PROGRAM_ID,
@@ -18,21 +10,28 @@ import {
 	createMintToInstruction,
 	getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
+import {
+	Keypair,
+	PublicKey,
+	SystemProgram,
+	Transaction,
+} from '@solana/web3.js';
 
-import { TestClient, PRICE_PRECISION } from '../sdk/src';
+import { PRICE_PRECISION, TestClient } from '../sdk/src';
 
+import { startAnchor } from 'solana-bankrun';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
 	initializeQuoteSpotMarket,
 	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('whitelist', () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 

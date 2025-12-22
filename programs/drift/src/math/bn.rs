@@ -14,22 +14,44 @@ use crate::error::DriftResult;
 
 pub mod compat {
     #![allow(non_camel_case_types)]
-    use anchor_lang::prelude::{
-        borsh::{self},
-        AnchorDeserialize, AnchorSerialize,
-    };
+    use anchor_lang::prelude::borsh::{self};
+    use anchor_lang_idl_spec::{IdlRepr, IdlType, IdlTypeDef};
     use bytemuck::{Pod, Zeroable};
     use std::{
         cmp::Ordering,
+        collections::BTreeMap,
         convert::TryFrom,
         ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign},
     };
 
     use crate::{error::DriftResult, math::casting::Cast};
 
-    /// `u128` with legacy bit layout
-    #[derive(Copy, Clone, PartialEq, Eq, Debug, Default, AnchorSerialize, AnchorDeserialize)]
+    /// `u128` with legacy alignment
+    #[repr(transparent)]
+    #[derive(
+        Copy, Clone, PartialEq, Eq, Debug, Default, borsh::BorshSerialize, borsh::BorshDeserialize,
+    )]
     pub struct u128([u8; 16]);
+
+    impl anchor_lang::IdlBuild for self::u128 {
+        // tell anchor IDL to treat it as std::primitive::u128
+        fn create_type() -> Option<IdlTypeDef> {
+            Some(IdlTypeDef {
+                name: Self::get_full_path(),
+                docs: vec!["compatibility u128".into()],
+                serialization: Default::default(),
+                repr: Some(IdlRepr::Transparent),
+                generics: Default::default(),
+                ty: anchor_lang_idl_spec::IdlTypeDefTy::Type {
+                    alias: IdlType::U128,
+                },
+            })
+        }
+        fn insert_types(_types: &mut BTreeMap<String, IdlTypeDef>) {}
+        fn get_full_path() -> String {
+            "u128".into()
+        }
+    }
 
     impl std::fmt::Display for self::u128 {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -154,9 +176,31 @@ pub mod compat {
         }
     }
 
-    /// `i128` with legacy bit layout
-    #[derive(Copy, Clone, PartialEq, Eq, Debug, Default, AnchorSerialize, AnchorDeserialize)]
+    /// `i128` with legacy alignment
+    #[repr(transparent)]
+    #[derive(
+        Copy, Clone, PartialEq, Eq, Debug, Default, borsh::BorshSerialize, borsh::BorshDeserialize,
+    )]
     pub struct i128([u8; 16]);
+
+    impl anchor_lang::IdlBuild for self::i128 {
+        // tell anchor IDL to treat it as std::primitive::i128
+        fn create_type() -> Option<IdlTypeDef> {
+            Some(IdlTypeDef {
+                name: Self::get_full_path(),
+                docs: vec!["compatibility i128".into()],
+                serialization: Default::default(),
+                repr: Some(IdlRepr::Transparent),
+                generics: Default::default(),
+                ty: anchor_lang_idl_spec::IdlTypeDefTy::Type {
+                    alias: IdlType::I128,
+                },
+            })
+        }
+        fn get_full_path() -> String {
+            "i128".into()
+        }
+    }
 
     impl std::fmt::Display for self::i128 {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

@@ -1,17 +1,16 @@
 import { ResubOpts, GrpcConfigs } from './types';
-import { Program } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
 import { UserAccount } from '../types';
 import { WebSocketUserAccountSubscriber } from './webSocketUserAccountSubscriber';
 import { grpcAccountSubscriber } from './grpcAccountSubscriber';
-import { Drift } from '../idl/drift';
+import { DriftProgram } from '../config';
 
 export class grpcUserAccountSubscriber extends WebSocketUserAccountSubscriber {
 	private grpcConfigs: GrpcConfigs;
 
 	public constructor(
 		grpcConfigs: GrpcConfigs,
-		program: Program<Drift>,
+		program: DriftProgram,
 		userAccountPublicKey: PublicKey,
 		resubOpts?: ResubOpts
 	) {

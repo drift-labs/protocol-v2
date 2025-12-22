@@ -413,9 +413,9 @@ export function getTriggerPrice(
 	const lastFillPrice = market.lastFillPrice;
 
 	// Calculate 5-minute basis
-	const markPrice5minTwap = market.amm.lastMarkPriceTwap5Min;
+	const markPrice5minTwap = market.amm.lastMarkPriceTwap5min;
 	const lastOraclePriceTwap5min =
-		market.amm.historicalOracleData.lastOraclePriceTwap5Min;
+		market.amm.historicalOracleData.lastOraclePriceTwap5min;
 	const basis5min = markPrice5minTwap.sub(lastOraclePriceTwap5min);
 
 	const oraclePlusBasis5min = oraclePrice.add(basis5min);

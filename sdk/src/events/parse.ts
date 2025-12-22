@@ -1,6 +1,6 @@
-import { Program, Event } from '@coral-xyz/anchor';
+import { Event } from '@coral-xyz/anchor';
 import { CuUsageEvent } from './types';
-import { Drift } from '../idl/drift';
+import { DriftProgram } from '../config';
 
 const driftProgramId = 'dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH';
 const PROGRAM_LOG = 'Program log: ';
@@ -11,7 +11,7 @@ const PROGRAM_DATA_START_INDEX = PROGRAM_DATA.length;
 const PROGRAM_INSTRUCTION_START_INDEX = PROGRAM_INSTRUCTION.length;
 
 export function parseLogs(
-	program: Program<Drift>,
+	program: DriftProgram,
 	logs: string[],
 	programId = driftProgramId
 ): Event[] {
@@ -20,7 +20,7 @@ export function parseLogs(
 }
 
 export function parseLogsWithRaw(
-	program: Program<Drift>,
+	program: DriftProgram,
 	logs: string[],
 	programId = driftProgramId
 ): { events: Event[]; rawLogs: string[] } {
@@ -55,7 +55,7 @@ export function parseLogsWithRaw(
 function handleLog(
 	execution: ExecutionContext,
 	log: string,
-	program: Program<Drift>,
+	program: DriftProgram,
 	programId = driftProgramId
 ): [Event | null, string | null, boolean] {
 	// Executing program is drift program.
@@ -71,7 +71,7 @@ function handleLog(
 // Handles logs from *drift* program.
 function handleProgramLog(
 	log: string,
-	program: Program<Drift>,
+	program: DriftProgram,
 	programId = driftProgramId
 ): [Event | null, string | null, boolean] {
 	// This is a `msg!` log or a `sol_log_data` log.

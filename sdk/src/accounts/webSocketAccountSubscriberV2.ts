@@ -4,7 +4,7 @@ import {
 	ResubOpts,
 	BufferAndSlot,
 } from './types';
-import { AnchorProvider, Program } from '@coral-xyz/anchor';
+import { AnchorProvider } from '@coral-xyz/anchor';
 import {
 	AccountInfoBase,
 	AccountInfoWithBase64EncodedData,
@@ -19,7 +19,7 @@ import {
 } from 'gill';
 import { PublicKey } from '@solana/web3.js';
 import bs58 from 'bs58';
-import { Drift } from '../idl/drift';
+import { DriftProgram } from '../config';
 
 /**
  * WebSocketAccountSubscriberV2
@@ -74,7 +74,7 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 	bufferAndSlot?: BufferAndSlot;
 	accountName: string;
 	logAccountName: string;
-	program: Program<Drift>;
+	program: DriftProgram;
 	accountPublicKey: PublicKey;
 	decodeBufferFn: (buffer: Buffer) => T;
 	onChange: (data: T) => void;
@@ -112,7 +112,7 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 	 */
 	public constructor(
 		accountName: string,
-		program: Program<Drift>,
+		program: DriftProgram,
 		accountPublicKey: PublicKey,
 		decodeBuffer?: (buffer: Buffer) => T,
 		resubOpts?: ResubOpts,
@@ -211,6 +211,10 @@ export class WebSocketAccountSubscriberV2<T> implements AccountSubscriber<T> {
 		 *   - if `usePollingInsteadOfResub` is true, start polling loop;
 		 *   - otherwise, resubscribe to WS immediately.
 		 */
+		console.info('ws subscribe*****');
+		console.info('ws subscribe*****');
+		console.info('ws subscribe*****');
+
 		if (this.listenerId != null || this.isUnsubscribing) {
 			if (this.resubOpts.logResubMessages) {
 				console.log(

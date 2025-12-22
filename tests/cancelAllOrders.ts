@@ -1,30 +1,29 @@
 import * as anchor from '@coral-xyz/anchor';
+import { assert } from 'chai';
 import {
 	BASE_PRECISION,
 	BN,
-	getLimitOrderParams,
 	OracleSource,
-	TestClient,
 	PRICE_PRECISION,
 	PositionDirection,
+	TestClient,
+	getLimitOrderParams,
+	isVariant,
 } from '../sdk/src';
-import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
-import {
-	mockUSDCMint,
-	mockUserUSDCAccount,
-	initializeQuoteSpotMarket,
-	mockOracleNoProgram,
-} from './testHelpers';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
-import { isVariant } from '../sdk';
+import { DriftProgram } from '../sdk/src/config';
+import {
+	initializeQuoteSpotMarket,
+	mockOracleNoProgram,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+} from './testHelpers';
 
 describe('cancel all orders', () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 

@@ -8,35 +8,34 @@ import {
 	getMarketOrderParams,
 	OracleSource,
 	PEG_PRECISION,
-} from '../sdk';
-
-import { Program } from '@coral-xyz/anchor';
-
-import {
-	TestClient,
-	PRICE_PRECISION,
-	AMM_RESERVE_PRECISION,
-	QUOTE_PRECISION,
-	calculateReservePrice,
-	OracleGuardRails,
-	calculateTradeSlippage,
-	PositionDirection,
-	EventSubscriber,
-	convertToNumber,
-	findComputeUnitConsumption,
-	calculateBidAskPrice,
-	calculateUpdatedAMM,
 } from '../sdk/src';
 
 import {
+	AMM_RESERVE_PRECISION,
+	calculateBidAskPrice,
+	calculateReservePrice,
+	calculateTradeSlippage,
+	calculateUpdatedAMM,
+	convertToNumber,
+	EventSubscriber,
+	findComputeUnitConsumption,
+	OracleGuardRails,
+	PositionDirection,
+	PRICE_PRECISION,
+	QUOTE_PRECISION,
+	TestClient,
+} from '../sdk/src';
+
+import { DriftProgram } from '../sdk/src/config';
+import {
 	getFeedData,
-	// initUserAccounts,
-	mockOracle,
-	mockUserUSDCAccount,
-	mockUSDCMint,
-	setFeedPrice,
 	getOraclePriceData,
 	initializeQuoteSpotMarket,
+	// initUserAccounts,
+	mockOracle,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+	setFeedPrice,
 } from './testHelpers';
 
 async function feePoolInjection(fees, marketIndex, driftClient) {
@@ -96,7 +95,7 @@ describe('update amm', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram, {
@@ -518,7 +517,7 @@ describe('update amm', () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
 				markOraclePercentDivergence: new BN(1000000),
-				oracleTwap5MinPercentDivergence: new BN(1000000),
+				oracleTwap5minPercentDivergence: new BN(1000000),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),

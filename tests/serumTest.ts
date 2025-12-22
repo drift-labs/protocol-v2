@@ -1,25 +1,30 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import { Keypair, PublicKey, Transaction } from '@solana/web3.js';
-import { listMarket, makePlaceOrderTransaction, SERUM } from './serumHelper';
 import {
 	BN,
-	TestClient,
-	EventSubscriber,
-	OracleSource,
-	OracleInfo,
-	PositionDirection,
 	castNumberToSpotPrecision,
+	EventSubscriber,
 	getLimitOrderParams,
 	getTokenAmount,
 	isVariant,
+	OracleInfo,
+	OracleSource,
+	PositionDirection,
 	PRICE_PRECISION,
 	SpotBalanceType,
+	TestClient,
 } from '../sdk/src';
+import { listMarket, makePlaceOrderTransaction, SERUM } from './serumHelper';
 
+import { Market } from '@project-serum/serum';
+import { NATIVE_MINT } from '@solana/spl-token';
+import { startAnchor } from 'solana-bankrun';
+import { getMarketOrderParams, ZERO } from '../sdk/src';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
 	createUserWithUSDCAndWSOLAccount,
 	createWSolTokenAccountForUser,
@@ -29,15 +34,9 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { NATIVE_MINT } from '@solana/spl-token';
-import { Market } from '@project-serum/serum';
-import { getMarketOrderParams, ZERO } from '../sdk';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('serum spot market', () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let makerDriftClient: TestClient;
 	let makerWSOL: PublicKey;

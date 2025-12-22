@@ -1,10 +1,9 @@
+import { Program, ProgramAccount } from '@coral-xyz/anchor';
 import { ConfirmOptions, PublicKey } from '@solana/web3.js';
 import {
-	PerpMarketAccount,
-	SpotMarketAccount,
-	parsePerpMarketAccount,
-	parseSpotMarketAccount,
-} from './types';
+	ON_DEMAND_DEVNET_PID,
+	ON_DEMAND_MAINNET_PID,
+} from '@switchboard-xyz/on-demand';
 import {
 	DevnetPerpMarkets,
 	MainnetPerpMarkets,
@@ -12,19 +11,17 @@ import {
 	PerpMarkets,
 } from './constants/perpMarkets';
 import {
-	SpotMarketConfig,
-	SpotMarkets,
 	DevnetSpotMarkets,
 	MainnetSpotMarkets,
+	SpotMarketConfig,
+	SpotMarkets,
 } from './constants/spotMarkets';
-import { OracleInfo } from './oracles/types';
-import { Program, ProgramAccount } from '@coral-xyz/anchor';
-import {
-	ON_DEMAND_DEVNET_PID,
-	ON_DEMAND_MAINNET_PID,
-} from '@switchboard-xyz/on-demand';
-import { getOracleId } from './oracles/oracleId';
 import { Drift } from './idl/drift';
+import { getOracleId } from './oracles/oracleId';
+import { OracleInfo } from './oracles/types';
+import { PerpMarketAccount, SpotMarketAccount } from './types';
+
+export type DriftProgram = Program<Drift>;
 
 type DriftConfig = {
 	ENV: DriftEnv;
@@ -173,9 +170,7 @@ export function getMarketsAndOraclesForSubscription(
 	};
 }
 
-export async function findAllMarketAndOracles(
-	program: Program<Drift>
-): Promise<{
+export async function findAllMarketAndOracles(program: DriftProgram): Promise<{
 	perpMarketIndexes: number[];
 	perpMarketAccounts: PerpMarketAccount[];
 	spotMarketIndexes: number[];
@@ -196,13 +191,13 @@ export async function findAllMarketAndOracles(
 
 	const perpMarketProgramAccounts: ProgramAccount<PerpMarketAccount>[] =
 		perpMarketProgramAccountsRaw.map((account) => ({
-			...account,
-			account: parsePerpMarketAccount(account.account),
+			publicKey: account.publicKey,
+			account: account.account as PerpMarketAccount,
 		}));
 	const spotMarketProgramAccounts: ProgramAccount<SpotMarketAccount>[] =
 		spotMarketProgramAccountsRaw.map((account) => ({
-			...account,
-			account: parseSpotMarketAccount(account.account),
+			publicKey: account.publicKey,
+			account: account.account as SpotMarketAccount,
 		}));
 
 	for (const perpMarketProgramAccount of perpMarketProgramAccounts) {

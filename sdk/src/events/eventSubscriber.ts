@@ -1,5 +1,4 @@
 import { Connection, PublicKey, TransactionSignature } from '@solana/web3.js';
-import { Program } from '@coral-xyz/anchor';
 import {
 	DefaultEventSubscriptionOptions,
 	EventSubscriptionOptions,
@@ -24,7 +23,7 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import { getSortFn } from './sort';
 import { parseLogs } from './parse';
 import { EventsServerLogProvider } from './eventsServerLogProvider';
-import { Drift } from '../idl/drift';
+import { DriftProgram } from '../config';
 
 export class EventSubscriber {
 	private address: PublicKey;
@@ -41,7 +40,7 @@ export class EventSubscriber {
 
 	public constructor(
 		private connection: Connection,
-		private program: Program<Drift>,
+		private program: DriftProgram,
 		private options: EventSubscriptionOptions = DefaultEventSubscriptionOptions
 	) {
 		this.options = Object.assign({}, DefaultEventSubscriptionOptions, options);

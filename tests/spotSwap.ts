@@ -1,8 +1,6 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import {
 	Account,
 	Keypair,
@@ -14,20 +12,27 @@ import { listMarket, makePlaceOrderTransaction, SERUM } from './serumHelper';
 
 import {
 	BN,
-	TestClient,
 	EventSubscriber,
-	OracleSource,
-	OracleInfo,
-	getTokenAmount,
-	SpotBalanceType,
-	ZERO,
-	getSerumSignerPublicKey,
-	QUOTE_PRECISION,
-	UserStatsAccount,
-	getUserStatsAccountPublicKey,
 	FUEL_WINDOW,
+	getSerumSignerPublicKey,
+	getTokenAmount,
+	getUserStatsAccountPublicKey,
+	OracleInfo,
+	OracleSource,
+	QUOTE_PRECISION,
+	SpotBalanceType,
+	TestClient,
+	UserStatsAccount,
+	ZERO,
 } from '../sdk/src';
 
+import { DexInstructions, Market, OpenOrders } from '@project-serum/serum';
+import { NATIVE_MINT } from '@solana/spl-token';
+import { startAnchor } from 'solana-bankrun';
+import { DRIFT_PROGRAM_ID } from '../sdk/src';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
 	createUserWithUSDCAndWSOLAccount,
 	createWSolTokenAccountForUser,
@@ -37,16 +42,9 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { NATIVE_MINT } from '@solana/spl-token';
-import { DexInstructions, Market, OpenOrders } from '@project-serum/serum';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
-import { DRIFT_PROGRAM_ID } from '../sdk/src';
-import { Drift } from '../sdk/src/idl/drift';
 
 describe('spot swap', () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let makerDriftClient: TestClient;
 	let makerWSOL: PublicKey;
@@ -406,9 +404,9 @@ describe('spot swap', () => {
 
 		const userStatsAccount = accountInfo
 			? (takerDriftClient.program.account.user.coder.accounts.decodeUnchecked(
-				'UserStats',
-				accountInfo.data
-			) as UserStatsAccount)
+					'userStats',
+					accountInfo.data
+			  ) as UserStatsAccount)
 			: undefined;
 
 		// assert(userStatsAccount.fuelDeposits === 2000);
@@ -424,9 +422,9 @@ describe('spot swap', () => {
 		);
 		const _userStatsAccount2 = accountInfo2
 			? (takerDriftClient.program.account.user.coder.accounts.decodeUnchecked(
-				'UserStats',
-				accountInfo2.data
-			) as UserStatsAccount)
+					'userStats',
+					accountInfo2.data
+			  ) as UserStatsAccount)
 			: undefined;
 
 		// console.log(userStatsAccount2.fuelDeposits.toString());
@@ -444,9 +442,9 @@ describe('spot swap', () => {
 		);
 		const _userStatsAccount3 = accountInfo3
 			? (takerDriftClient.program.account.user.coder.accounts.decodeUnchecked(
-				'UserStats',
-				accountInfo3.data
-			) as UserStatsAccount)
+					'userStats',
+					accountInfo3.data
+			  ) as UserStatsAccount)
 			: undefined;
 		// console.log(userStatsAccount3.fuelDeposits.toString());
 

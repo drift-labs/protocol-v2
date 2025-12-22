@@ -51,7 +51,7 @@ function testUserAccountDecode(program: Program, buffer: Buffer, i: number) {
 	console.log(`Testing user account decode ${i}`);
 
 	const anchorStartTimestamp = Date.now();
-	const anchorUserAccount = program.coder.accounts.decode('User', buffer);
+	const anchorUserAccount = program.coder.accounts.decode('user', buffer);
 	const anchorEndTimestamp = Date.now();
 	const anchorTime = anchorEndTimestamp - anchorStartTimestamp;
 

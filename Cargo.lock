@@ -719,6 +719,7 @@ name = "drift"
 version = "2.152.0"
 dependencies = [
  "anchor-lang",
+ "anchor-lang-idl-spec",
  "anchor-spl",
  "arrayref",
  "base64 0.13.1",

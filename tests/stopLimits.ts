@@ -1,24 +1,37 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import { Keypair, PublicKey, Transaction } from '@solana/web3.js';
 
 import {
-	TestClient,
 	BN,
+	EventSubscriber,
+	MarketStatus,
+	OrderTriggerCondition,
 	PRICE_PRECISION,
 	PositionDirection,
+	TestClient,
 	User,
 	Wallet,
 	getMarketOrderParams,
-	OrderTriggerCondition,
 	getTriggerLimitOrderParams,
-	EventSubscriber,
-	MarketStatus,
 } from '../sdk/src';
 
+import {
+	createAssociatedTokenAccountIdempotentInstruction,
+	createMintToInstruction,
+	getAssociatedTokenAddressSync,
+} from '@solana/spl-token';
+import { startAnchor } from 'solana-bankrun';
+import {
+	AMM_RESERVE_PRECISION,
+	OracleSource,
+	ZERO,
+	isVariant,
+} from '../sdk/src';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
 	initializeQuoteSpotMarket,
 	mockOracleNoProgram,
@@ -26,18 +39,9 @@ import {
 	mockUserUSDCAccount,
 	setFeedPriceNoProgram,
 } from './testHelpers';
-import { AMM_RESERVE_PRECISION, OracleSource, ZERO, isVariant } from '../sdk';
-import {
-	createAssociatedTokenAccountIdempotentInstruction,
-	createMintToInstruction,
-	getAssociatedTokenAddressSync,
-} from '@solana/spl-token';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('stop limit', () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 	let driftClientUser: User;

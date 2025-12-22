@@ -12,10 +12,8 @@ import {
 	PerpMarketAccount,
 	SpotMarketAccount,
 	StateAccount,
-	parseSpotMarketAccount,
-	parsePerpMarketAccount,
 } from '../types';
-import { Program } from '@coral-xyz/anchor';
+
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import {
@@ -47,7 +45,7 @@ import {
 } from '../memcmp';
 import { WebSocketProgramAccountsSubscriberV2 } from './webSocketProgramAccountsSubscriberV2';
 import { WebSocketAccountSubscriberV2 } from './webSocketAccountSubscriberV2';
-import { Drift } from '../idl/drift';
+import { DriftProgram } from '../config';
 const ORACLE_DEFAULT_ID = getOracleId(
 	PublicKey.default,
 	OracleSource.QUOTE_ASSET
@@ -57,7 +55,7 @@ export class WebSocketDriftClientAccountSubscriberV2
 	implements DriftClientAccountSubscriber
 {
 	isSubscribed: boolean;
-	program: Program<Drift>;
+	program: DriftProgram;
 	commitment?: Commitment;
 	perpMarketIndexes: number[];
 	spotMarketIndexes: number[];
@@ -100,7 +98,7 @@ export class WebSocketDriftClientAccountSubscriberV2
 		string;
 
 	public constructor(
-		program: Program<Drift>,
+		program: DriftProgram,
 		perpMarketIndexes: number[],
 		spotMarketIndexes: number[],
 		oracleInfos: OracleInfo[],
@@ -206,7 +204,7 @@ export class WebSocketDriftClientAccountSubscriberV2
 			this.perpMarketAllAccountsSubscriber =
 				new WebSocketProgramAccountsSubscriberV2<PerpMarketAccount>(
 					'PerpMarketAccountsSubscriber',
-					'PerpMarket',
+					'perpMarket',
 					this.program,
 					(_accountName: string, buffer: Buffer) => {
 						const decoded =
@@ -214,7 +212,7 @@ export class WebSocketDriftClientAccountSubscriberV2
 								'perpMarket',
 								buffer
 							);
-						return parsePerpMarketAccount(decoded);
+						return decoded as PerpMarketAccount;
 					},
 					{
 						filters: [getPerpMarketAccountsFilter()],
@@ -227,7 +225,7 @@ export class WebSocketDriftClientAccountSubscriberV2
 			this.spotMarketAllAccountsSubscriber =
 				new WebSocketProgramAccountsSubscriberV2<SpotMarketAccount>(
 					'SpotMarketAccountsSubscriber',
-					'SpotMarket',
+					'spotMarket',
 					this.program,
 					(_accountName: string, buffer: Buffer) => {
 						const decoded =
@@ -235,7 +233,7 @@ export class WebSocketDriftClientAccountSubscriberV2
 								'spotMarket',
 								buffer
 							);
-						return parseSpotMarketAccount(decoded);
+						return decoded as SpotMarketAccount;
 					},
 					{
 						filters: [getSpotMarketAccountsFilter()],

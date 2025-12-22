@@ -1,7 +1,5 @@
 import * as anchor from '@coral-xyz/anchor';
 
-import { Program } from '@coral-xyz/anchor';
-
 import {
 	AccountInfo,
 	Keypair,
@@ -10,20 +8,21 @@ import {
 } from '@solana/web3.js';
 
 import {
-	TestClient,
 	OracleSource,
-	PYTH_LAZER_STORAGE_ACCOUNT_KEY,
 	PTYH_LAZER_PROGRAM_ID,
-	getSignedMsgWsDelegatesAccountPublicKey,
+	PYTH_LAZER_STORAGE_ACCOUNT_KEY,
+	TestClient,
 	assert,
+	getSignedMsgWsDelegatesAccountPublicKey,
 } from '../sdk/src';
 
-import { mockOracleNoProgram } from './testHelpers';
+import dotenv from 'dotenv';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
-import dotenv from 'dotenv';
+import { DriftProgram } from '../sdk/src/config';
 import { PYTH_STORAGE_DATA } from './pythLazerData';
+import { mockOracleNoProgram } from './testHelpers';
 
 dotenv.config();
 
@@ -36,7 +35,7 @@ const PYTH_STORAGE_ACCOUNT_INFO: AccountInfo<Buffer> = {
 };
 
 describe('place and make signedMsg order', () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let makerDriftClient: TestClient;
 

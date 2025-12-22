@@ -61,7 +61,6 @@ import {
 	TxParams,
 	UserAccount,
 	UserStatsAccount,
-	parseUserStatsAccount,
 	ProtectedMakerModeConfig,
 	SignedMsgOrderParamsDelegateMessage,
 	TokenProgramFlag,
@@ -222,6 +221,7 @@ import {
 import { TitanClient, SwapMode as TitanSwapMode } from './titan/titanClient';
 import { UnifiedSwapClient } from './swap/UnifiedSwapClient';
 import { Drift } from './idl/drift';
+import { DriftProgram } from './config';
 
 /**
  * Union type for swap clients (Titan and Jupiter) - Legacy type
@@ -245,7 +245,7 @@ type RemainingAccountParams = {
 export class DriftClient {
 	connection: Connection;
 	wallet: IWallet;
-	public program: Program<Drift>;
+	public program: DriftProgram;
 	provider: AnchorProvider;
 	env: DriftEnv;
 	opts?: ConfirmOptions;
@@ -690,6 +690,7 @@ export class DriftClient {
 			this.program.programId,
 			serumMarket
 		);
+		// @ts-ignore
 		return (await this.program.account.serumV3FulfillmentConfig.fetch(
 			address
 		)) as SerumV3FulfillmentConfigAccount;
@@ -2043,8 +2044,8 @@ export class DriftClient {
 			},
 		]);
 
-		return programAccounts.map((programAccount) =>
-			parseUserStatsAccount(programAccount.account)
+		return programAccounts.map(
+			(programAccount) => programAccount.account as UserStatsAccount
 		);
 	}
 
@@ -10278,7 +10279,7 @@ export class DriftClient {
 		const postIxs: TransactionInstruction[] = [];
 		if (accumulatorUpdateData.updates.length > 1) {
 			const encodedParams = this.getReceiverProgram().coder.types.encode(
-				'postMultiUpdatesAtomicParams',
+				'PostMultiUpdatesAtomicParams',
 				{
 					vaa: trimmedVaa,
 					merklePriceUpdates: accumulatorUpdateData.updates,
@@ -10345,7 +10346,7 @@ export class DriftClient {
 		const receiverProgram = this.getReceiverProgram();
 
 		const encodedParams = receiverProgram.coder.types.encode(
-			'postUpdateAtomicParams',
+			'PostUpdateAtomicParams',
 			params
 		);
 
@@ -11090,15 +11091,15 @@ export class DriftClient {
 			readablePerpMarketIndex: perpMarketIndexes,
 		});
 
-		return this.program.instruction.updateAmmCache({
-			accounts: {
+		return this.program.methods
+			.updateAmmCache()
+			.accounts({
 				state: await this.getStatePublicKey(),
 				keeper: this.wallet.publicKey,
 				ammCache: getAmmCachePublicKey(this.program.programId),
-				quoteMarket: this.getSpotMarketAccount(0).pubkey,
-			},
-			remainingAccounts,
-		});
+			})
+			.remainingAccounts(remainingAccounts)
+			.instruction();
 	}
 
 	public async updateConstituentOracleInfo(

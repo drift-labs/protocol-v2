@@ -1,41 +1,40 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import { PublicKey } from '@solana/web3.js';
 
 import {
 	BASE_PRECISION,
 	BN,
-	OracleSource,
-	ZERO,
-	TestClient,
-	PRICE_PRECISION,
-	PositionDirection,
 	EventSubscriber,
-	OracleGuardRails,
-	MarketStatus,
 	LIQUIDATION_PCT_PRECISION,
+	MarketStatus,
+	OracleGuardRails,
+	OracleSource,
+	PositionDirection,
+	PRICE_PRECISION,
+	TestClient,
+	ZERO,
 } from '../sdk/src';
 
-import {
-	mockUSDCMint,
-	mockUserUSDCAccount,
-	initializeQuoteSpotMarket,
-	createUserWithUSDCAndWSOLAccount,
-	createWSolTokenAccountForUser,
-	initializeSolSpotMarket,
-	mockOracleNoProgram,
-	setFeedPriceNoProgram,
-} from './testHelpers';
-import { isVariant, UserStatus } from '../sdk';
 import { startAnchor } from 'solana-bankrun';
+import { isVariant, UserStatus } from '../sdk/src';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
+import {
+	createUserWithUSDCAndWSOLAccount,
+	createWSolTokenAccountForUser,
+	initializeQuoteSpotMarket,
+	initializeSolSpotMarket,
+	mockOracleNoProgram,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+	setFeedPriceNoProgram,
+} from './testHelpers';
 
 describe('liquidate borrow for perp pnl', () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 
@@ -153,7 +152,7 @@ describe('liquidate borrow for perp pnl', () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
 				markOraclePercentDivergence: new BN(1000000),
-				oracleTwap5MinPercentDivergence: new BN(1000000),
+				oracleTwap5minPercentDivergence: new BN(1000000),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),
@@ -247,7 +246,7 @@ describe('liquidate borrow for perp pnl', () => {
 		);
 
 		const liquidationRecord =
-			eventSubscriber.getEventsArray('LiquidationRecord')[0];
+			eventSubscriber.getEventsArray('liquidationRecord')[0];
 
 		assert(liquidationRecord.liquidationId === 1);
 		assert(

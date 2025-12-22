@@ -1,5 +1,8 @@
 import * as anchor from '@coral-xyz/anchor';
-import { Program } from '@coral-xyz/anchor';
+
+import { DEFAULT_WORMHOLE_PROGRAM_ID } from '@pythnetwork/pyth-solana-receiver';
+import { AccountInfo, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
+import { startAnchor } from 'solana-bankrun';
 import {
 	OracleSource,
 	TestClient,
@@ -7,9 +10,7 @@ import {
 } from '../sdk/src';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
-import { startAnchor } from 'solana-bankrun';
-import { AccountInfo, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
-import { DEFAULT_WORMHOLE_PROGRAM_ID } from '@pythnetwork/pyth-solana-receiver';
+import { DriftProgram } from '../sdk/src/config';
 import { WORMHOLE_DATA } from './pythPullOracleData';
 import { initializeQuoteSpotMarket, mockUSDCMint } from './testHelpers';
 
@@ -27,7 +28,7 @@ const GUARDIAN_SET_KEY = new PublicKey(
 );
 
 describe('pyth pull oracles', () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 

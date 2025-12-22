@@ -1,39 +1,38 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import { PublicKey } from '@solana/web3.js';
 
 import {
-	TestClient,
 	BN,
-	OracleSource,
-	ZERO,
 	EventSubscriber,
-	PRICE_PRECISION,
 	getTokenAmount,
-	SpotBalanceType,
 	LIQUIDATION_PCT_PRECISION,
+	OracleSource,
+	PRICE_PRECISION,
+	SpotBalanceType,
+	TestClient,
+	ZERO,
 } from '../sdk/src';
 
+import { startAnchor } from 'solana-bankrun';
+import { isVariant, PERCENTAGE_PRECISION, UserStatus } from '../sdk/src';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
+	createUserWithUSDCAndWSOLAccount,
+	createWSolTokenAccountForUser,
+	initializeQuoteSpotMarket,
+	initializeSolSpotMarket,
 	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	setFeedPriceNoProgram,
-	initializeQuoteSpotMarket,
-	createUserWithUSDCAndWSOLAccount,
-	createWSolTokenAccountForUser,
-	initializeSolSpotMarket,
 } from './testHelpers';
-import { isVariant, UserStatus, PERCENTAGE_PRECISION } from '../sdk';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('liquidate spot w/ social loss', () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -121,7 +120,7 @@ describe('liquidate spot w/ social loss', () => {
 
 		const oracleGuardrails = await driftClient.getStateAccount()
 			.oracleGuardRails;
-		oracleGuardrails.priceDivergence.oracleTwap5MinPercentDivergence = new BN(
+		oracleGuardrails.priceDivergence.oracleTwap5minPercentDivergence = new BN(
 			100
 		).mul(PERCENTAGE_PRECISION);
 		await driftClient.updateOracleGuardRails(oracleGuardrails);
@@ -195,7 +194,7 @@ describe('liquidate spot w/ social loss', () => {
 		// );
 
 		const liquidationRecord =
-			eventSubscriber.getEventsArray('LiquidationRecord')[0];
+			eventSubscriber.getEventsArray('liquidationRecord')[0];
 		assert(liquidationRecord.liquidationId === 1);
 		assert(isVariant(liquidationRecord.liquidationType, 'liquidateSpot'));
 		assert(liquidationRecord.liquidateSpot.assetPrice.eq(PRICE_PRECISION));
@@ -353,7 +352,7 @@ describe('liquidate spot w/ social loss', () => {
 		// );
 
 		const bankruptcyRecord =
-			eventSubscriber.getEventsArray('LiquidationRecord')[0];
+			eventSubscriber.getEventsArray('liquidationRecord')[0];
 		assert(isVariant(bankruptcyRecord.liquidationType, 'spotBankruptcy'));
 		console.log(bankruptcyRecord.spotBankruptcy);
 		assert(bankruptcyRecord.spotBankruptcy.marketIndex === 1);

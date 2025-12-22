@@ -1,27 +1,31 @@
 import * as anchor from '@coral-xyz/anchor';
 import { expect } from 'chai';
-import { Program } from '@coral-xyz/anchor';
+
 import { Keypair, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
+import dotenv from 'dotenv';
+import { startAnchor } from 'solana-bankrun';
 import {
-	BN,
-	TestClient,
-	QUOTE_PRECISION,
-	OracleSource,
-	calculateBidAskPrice,
-	convertToNumber,
 	BASE_PRECISION,
+	BN,
 	DriftClient,
-	calculateReferencePriceOffset,
+	EventSubscriber,
+	OracleSource,
+	PEG_PRECISION,
 	PERCENTAGE_PRECISION,
-	calculateInventoryLiquidityRatio,
-	sigNum,
-	calculatePrice,
 	PRICE_PRECISION,
 	PositionDirection,
+	QUOTE_PRECISION,
+	TestClient,
+	calculateBidAskPrice,
+	calculateInventoryLiquidityRatio,
+	calculatePrice,
+	calculateReferencePriceOffset,
+	convertToNumber,
 	isVariant,
-	PEG_PRECISION,
-	EventSubscriber,
+	sigNum,
 } from '../sdk/src';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import {
 	initializeQuoteSpotMarket,
 	mockUSDCMint,
@@ -29,14 +33,6 @@ import {
 	overWritePerpMarket,
 	placeAndFillVammTrade,
 } from './testHelpers';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
-import dotenv from 'dotenv';
-import {
-	CustomBorshAccountsCoder,
-	CustomBorshCoder,
-} from '../sdk/src/decode/customCoder';
 dotenv.config();
 
 // 1MPEPE-PERP
@@ -57,8 +53,6 @@ const usdcMintAmount = new BN(100_000_000).mul(QUOTE_PRECISION);
 
 describe('Reference Price Offset E2E', () => {
 	const program = anchor.workspace.Drift as Program;
-	// @ts-ignore
-	program.coder.accounts = new CustomBorshAccountsCoder(program.idl);
 	let bankrunContextWrapper: BankrunContextWrapper;
 	let bulkAccountLoader: TestBulkAccountLoader;
 
@@ -159,7 +153,6 @@ describe('Reference Price Offset E2E', () => {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
-			coder: new CustomBorshCoder(program.idl),
 		});
 
 		await adminClient.initialize(usdcMint.publicKey, true);
@@ -303,10 +296,10 @@ describe('Reference Price Offset E2E', () => {
 
 		const sdkReferencePriceOffset = calculateReferencePriceOffset(
 			reservePrice,
-			perpMarket2.amm.last24HAvgFundingRate,
+			perpMarket2.amm.last24hAvgFundingRate,
 			liquidityFractionSigned,
-			perpMarket2.amm.historicalOracleData.lastOraclePriceTwap5Min,
-			perpMarket2.amm.lastMarkPriceTwap5Min,
+			perpMarket2.amm.historicalOracleData.lastOraclePriceTwap5min,
+			perpMarket2.amm.lastMarkPriceTwap5min,
 			perpMarket2.amm.historicalOracleData.lastOraclePriceTwap,
 			perpMarket2.amm.lastMarkPriceTwap,
 			maxOffset
@@ -358,10 +351,10 @@ describe('Reference Price Offset E2E', () => {
 		// flip reference price more
 		perpMarket2.amm.lastMarkPriceTwap =
 			perpMarket2.amm.lastMarkPriceTwap.add(PRICE_PRECISION);
-		perpMarket2.amm.lastMarkPriceTwap5Min =
-			perpMarket2.amm.lastMarkPriceTwap5Min.add(PRICE_PRECISION);
-		perpMarket2.amm.last24HAvgFundingRate =
-			perpMarket2.amm.last24HAvgFundingRate.addn(100000);
+		perpMarket2.amm.lastMarkPriceTwap5min =
+			perpMarket2.amm.lastMarkPriceTwap5min.add(PRICE_PRECISION);
+		perpMarket2.amm.last24hAvgFundingRate =
+			perpMarket2.amm.last24hAvgFundingRate.addn(100000);
 
 		await overWritePerpMarket(
 			adminClient,
@@ -619,7 +612,7 @@ describe('Reference Price Offset E2E', () => {
 		});
 
 		const events = eventSubscriber.getEventsByTx(txSig);
-		const fillEvent = events.find((e) => e.eventType == 'OrderActionRecord');
+		const fillEvent = events.find((e) => e.eventType == 'orderActionRecord');
 		const fillPrice = fillEvent['takerOrderCumulativeQuoteAssetAmountFilled']
 			.mul(PRICE_PRECISION)
 			.mul(BASE_PRECISION.div(QUOTE_PRECISION))

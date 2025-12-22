@@ -4,7 +4,7 @@ import {
 	OracleEvents,
 	OracleAccountSubscriber,
 } from './types';
-import { Program } from '@coral-xyz/anchor';
+
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
@@ -13,7 +13,6 @@ import { OracleClient, OraclePriceData } from '../oracles/types';
 
 export class PollingOracleAccountSubscriber implements OracleAccountSubscriber {
 	isSubscribed: boolean;
-	program: Program;
 	eventEmitter: StrictEventEmitter<EventEmitter, OracleEvents>;
 	publicKey: PublicKey;
 

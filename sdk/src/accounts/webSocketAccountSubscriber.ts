@@ -4,16 +4,16 @@ import {
 	AccountSubscriber,
 	ResubOpts,
 } from './types';
-import { AnchorProvider, Program } from '@coral-xyz/anchor';
+import { AnchorProvider } from '@coral-xyz/anchor';
 import { AccountInfo, Commitment, Context, PublicKey } from '@solana/web3.js';
-import { Drift } from '../idl/drift';
+import { DriftProgram } from '../config';
 
 export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 	dataAndSlot?: DataAndSlot<T>;
 	bufferAndSlot?: BufferAndSlot;
 	accountName: string;
 	logAccountName: string;
-	program: Program<Drift>;
+	program: DriftProgram;
 	accountPublicKey: PublicKey;
 	decodeBufferFn: (buffer: Buffer) => T;
 	onChange: (data: T) => void;
@@ -30,7 +30,7 @@ export class WebSocketAccountSubscriber<T> implements AccountSubscriber<T> {
 
 	public constructor(
 		accountName: string,
-		program: Program<Drift>,
+		program: DriftProgram,
 		accountPublicKey: PublicKey,
 		decodeBuffer?: (buffer: Buffer) => T,
 		resubOpts?: ResubOpts,

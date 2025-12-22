@@ -1,40 +1,31 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import { Keypair, PublicKey } from '@solana/web3.js';
 
 import {
-	TestClient,
 	BN,
-	PRICE_PRECISION,
-	PositionDirection,
-	User,
-	OrderStatus,
-	OrderAction,
-	OrderTriggerCondition,
+	calculateBaseAssetAmountForAmmToFulfill,
 	calculateTargetPriceTrade,
-	convertToNumber,
-	QUOTE_PRECISION,
-	Wallet,
 	calculateTradeSlippage,
+	convertToNumber,
+	EventSubscriber,
 	getLimitOrderParams,
 	getTriggerMarketOrderParams,
-	EventSubscriber,
-	standardizeBaseAssetAmount,
-	calculateBaseAssetAmountForAmmToFulfill,
 	OracleGuardRails,
+	OrderAction,
+	OrderStatus,
+	OrderTriggerCondition,
+	PositionDirection,
+	PRICE_PRECISION,
+	QUOTE_PRECISION,
+	standardizeBaseAssetAmount,
+	TestClient,
+	User,
+	Wallet,
 } from '../sdk/src';
 
-import {
-	mockOracleNoProgram,
-	mockUserUSDCAccount,
-	mockUSDCMint,
-	setFeedPriceNoProgram,
-	initializeQuoteSpotMarket,
-	sleep,
-} from './testHelpers';
+import { startAnchor } from 'solana-bankrun';
 import {
 	AMM_RESERVE_PRECISION,
 	calculateReservePrice,
@@ -45,10 +36,18 @@ import {
 	TEN_THOUSAND,
 	TWO,
 	ZERO,
-} from '../sdk';
-import { startAnchor } from 'solana-bankrun';
+} from '../sdk/src';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
+import {
+	initializeQuoteSpotMarket,
+	mockOracleNoProgram,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+	setFeedPriceNoProgram,
+	sleep,
+} from './testHelpers';
 
 const enumsAreEqual = (
 	actual: Record<string, unknown>,
@@ -58,7 +57,7 @@ const enumsAreEqual = (
 };
 
 describe('orders', () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 	let driftClientUser: User;
@@ -1397,7 +1396,7 @@ describe('orders', () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
 				markOraclePercentDivergence: new BN(1000000),
-				oracleTwap5MinPercentDivergence: new BN(1000000),
+				oracleTwap5minPercentDivergence: new BN(1000000),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),

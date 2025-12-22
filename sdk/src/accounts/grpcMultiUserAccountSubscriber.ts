@@ -9,13 +9,12 @@ import {
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { Context, PublicKey } from '@solana/web3.js';
-import { Program } from '@coral-xyz/anchor';
 import { UserAccount } from '../types';
 import { grpcMultiAccountSubscriber } from './grpcMultiAccountSubscriber';
-import { Drift } from '../idl/drift';
+import { DriftProgram } from '../config';
 
 export class grpcMultiUserAccountSubscriber {
-	private program: Program<Drift>;
+	private program: DriftProgram;
 	private multiSubscriber: grpcMultiAccountSubscriber<UserAccount>;
 
 	private userData = new Map<string, DataAndSlot<UserAccount>>();
@@ -51,7 +50,7 @@ export class grpcMultiUserAccountSubscriber {
 	};
 
 	public constructor(
-		program: Program<Drift>,
+		program: DriftProgram,
 		grpcConfigs: GrpcConfigs,
 		resubOpts?: ResubOpts,
 		multiSubscriber?: grpcMultiAccountSubscriber<UserAccount>

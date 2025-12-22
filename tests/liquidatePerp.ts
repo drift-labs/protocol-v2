@@ -1,5 +1,6 @@
 import * as anchor from '@coral-xyz/anchor';
-import { Program } from '@coral-xyz/anchor';
+
+import { assert } from 'chai';
 import {
 	BASE_PRECISION,
 	BN,
@@ -17,10 +18,14 @@ import {
 	Wallet,
 	ZERO,
 } from '../sdk/src';
-import { assert } from 'chai';
 
 import { Keypair, LAMPORTS_PER_SOL } from '@solana/web3.js';
 
+import { startAnchor } from 'solana-bankrun';
+import { PERCENTAGE_PRECISION, UserStatus } from '../sdk/src';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
 	initializeQuoteSpotMarket,
 	mockOracleNoProgram,
@@ -29,13 +34,9 @@ import {
 	setFeedPriceNoProgram,
 	sleep,
 } from './testHelpers';
-import { PERCENTAGE_PRECISION, UserStatus } from '../sdk';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('liquidate perp (no open orders)', () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -124,7 +125,7 @@ describe('liquidate perp (no open orders)', () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
 				markOraclePercentDivergence: PERCENTAGE_PRECISION,
-				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION.muln(100),
+				oracleTwap5minPercentDivergence: PERCENTAGE_PRECISION.muln(100),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),
@@ -347,7 +348,7 @@ describe('liquidate perp (no open orders)', () => {
 		assert(driftClient.getUserAccount().nextLiquidationId === 2);
 
 		const liquidationRecord =
-			eventSubscriber.getEventsArray('LiquidationRecord')[0];
+			eventSubscriber.getEventsArray('liquidationRecord')[0];
 		assert(liquidationRecord.liquidationId === 1);
 		assert(isVariant(liquidationRecord.liquidationType, 'liquidatePerp'));
 		assert(liquidationRecord.liquidatePerp.marketIndex === 0);
@@ -471,7 +472,7 @@ describe('liquidate perp (no open orders)', () => {
 		assert(
 			(driftClient.getUserAccount().status &
 				(UserStatus.BANKRUPT | UserStatus.BEING_LIQUIDATED)) ===
-			0
+				0
 		);
 
 		console.log(driftClient.getUserAccount());
@@ -481,7 +482,7 @@ describe('liquidate perp (no open orders)', () => {
 		// assert(driftClient.getUserAccount().perpPositions[0].lpShares.eq(ZERO));
 
 		const perpBankruptcyRecord =
-			eventSubscriber.getEventsArray('LiquidationRecord')[0];
+			eventSubscriber.getEventsArray('liquidationRecord')[0];
 
 		assert(isVariant(perpBankruptcyRecord.liquidationType, 'perpBankruptcy'));
 		assert(perpBankruptcyRecord.perpBankruptcy.marketIndex === 0);

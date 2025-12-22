@@ -4,19 +4,19 @@ import {
 	InsuranceFundStakeAccountEvents,
 	InsuranceFundStakeAccountSubscriber,
 } from './types';
-import { BN, Program } from '@coral-xyz/anchor';
+import { BN } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
 import { BulkAccountLoader } from './bulkAccountLoader';
 import { InsuranceFundStake } from '../types';
-import { Drift } from '../idl/drift';
+import { DriftProgram } from '../config';
 
 export class PollingInsuranceFundStakeAccountSubscriber
 	implements InsuranceFundStakeAccountSubscriber
 {
 	isSubscribed: boolean;
-	program: Program<Drift>;
+	program: DriftProgram;
 	eventEmitter: StrictEventEmitter<
 		EventEmitter,
 		InsuranceFundStakeAccountEvents
@@ -30,7 +30,7 @@ export class PollingInsuranceFundStakeAccountSubscriber
 	insuranceFundStakeAccountAndSlot?: DataAndSlot<InsuranceFundStake>;
 
 	public constructor(
-		program: Program<Drift>,
+		program: DriftProgram,
 		publicKey: PublicKey,
 		accountLoader: BulkAccountLoader
 	) {

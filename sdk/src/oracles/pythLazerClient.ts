@@ -9,13 +9,13 @@ import {
 } from '../constants/numericConstants';
 import { Wallet } from '../wallet';
 import driftIDL from '../idl/drift.json';
-import { Drift } from '../idl/drift';
+import { DriftProgram } from '../config';
 
 export class PythLazerClient implements OracleClient {
 	private connection: Connection;
 	private multiple: BN;
 	private stableCoin: boolean;
-	private program: Program<Drift>;
+	private program: DriftProgram;
 	readonly decodeFunc: (name: string, data: Buffer) => any;
 
 	public constructor(

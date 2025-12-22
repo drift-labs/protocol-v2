@@ -171,9 +171,9 @@ export class UserStats {
 
 	public static getOldestActionTs(account: UserStatsAccount): number {
 		return Math.min(
-			account.lastFillerVolume30DTs.toNumber(),
-			account.lastMakerVolume30DTs.toNumber(),
-			account.lastTakerVolume30DTs.toNumber()
+			account.lastFillerVolume30dTs.toNumber(),
+			account.lastMakerVolume30dTs.toNumber(),
+			account.lastTakerVolume30dTs.toNumber()
 		);
 	}
 }

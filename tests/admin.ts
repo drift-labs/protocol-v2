@@ -1,5 +1,4 @@
 import * as anchor from '@coral-xyz/anchor';
-import { Program } from '@coral-xyz/anchor';
 import { assert, expect } from 'chai';
 import { startAnchor } from 'solana-bankrun';
 import {
@@ -30,9 +29,10 @@ import {
 } from '../sdk/src/bankrun/bankrunConnection';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { createTransferCheckedInstruction } from '@solana/spl-token';
+import { DriftProgram } from '../sdk/src/config';
 
 describe('admin', () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 
@@ -131,7 +131,8 @@ describe('admin', () => {
 		await driftClient.fetchAccounts();
 		assert(
 			driftClient.getPerpMarketAccount(0).amm.ammJitIntensity == 0,
-			`amm jit intensity does not match \n actual: ${driftClient.getPerpMarketAccount(0).amm.ammJitIntensity
+			`amm jit intensity does not match \n actual: ${
+				driftClient.getPerpMarketAccount(0).amm.ammJitIntensity
 			} \n expected: 0`
 		);
 
@@ -139,7 +140,8 @@ describe('admin', () => {
 		await driftClient.fetchAccounts();
 		assert(
 			driftClient.getPerpMarketAccount(0).amm.ammJitIntensity == 100,
-			`amm jit intensity does not match \n actual: ${driftClient.getPerpMarketAccount(0).amm.ammJitIntensity
+			`amm jit intensity does not match \n actual: ${
+				driftClient.getPerpMarketAccount(0).amm.ammJitIntensity
 			} \n expected: 100`
 		);
 
@@ -147,7 +149,8 @@ describe('admin', () => {
 		await driftClient.fetchAccounts();
 		assert(
 			driftClient.getPerpMarketAccount(0).amm.ammJitIntensity == 50,
-			`amm jit intensity does not match \n actual: ${driftClient.getPerpMarketAccount(0).amm.ammJitIntensity
+			`amm jit intensity does not match \n actual: ${
+				driftClient.getPerpMarketAccount(0).amm.ammJitIntensity
 			} \n expected: 50`
 		);
 	});
@@ -186,7 +189,7 @@ describe('admin', () => {
 
 		assert(
 			JSON.stringify(newFeeStructure) ===
-			JSON.stringify(state.perpFeeStructure),
+				JSON.stringify(state.perpFeeStructure),
 			`fee structure does not match \n actual: ${JSON.stringify(
 				state.perpFeeStructure
 			)} \n expected: ${JSON.stringify(newFeeStructure)}`
@@ -204,7 +207,7 @@ describe('admin', () => {
 
 		assert(
 			JSON.stringify(newFeeStructure) ===
-			JSON.stringify(state.spotFeeStructure),
+				JSON.stringify(state.spotFeeStructure),
 			`fee structure does not match \n actual: ${JSON.stringify(
 				state.spotFeeStructure
 			)} \n expected: ${JSON.stringify(newFeeStructure)}`
@@ -215,7 +218,7 @@ describe('admin', () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
 				markOraclePercentDivergence: new BN(1000000),
-				oracleTwap5MinPercentDivergence: new BN(1000000),
+				oracleTwap5minPercentDivergence: new BN(1000000),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(1),
@@ -232,7 +235,7 @@ describe('admin', () => {
 
 		assert(
 			JSON.stringify(oracleGuardRails) ===
-			JSON.stringify(state.oracleGuardRails),
+				JSON.stringify(state.oracleGuardRails),
 			`oracle guard rails does not match \n actual: ${JSON.stringify(
 				state.oracleGuardRails
 			)} \n expected: ${JSON.stringify(oracleGuardRails)}`
@@ -278,7 +281,7 @@ describe('admin', () => {
 		);
 		assert(
 			JSON.stringify(market.amm.oracleSource) ===
-			JSON.stringify(newOracleSource),
+				JSON.stringify(newOracleSource),
 			`oracle source does not match \n actual: ${JSON.stringify(
 				market.amm.oracleSource
 			)} \n expected: ${JSON.stringify(newOracleSource)}`
@@ -378,9 +381,11 @@ describe('admin', () => {
 		const state = driftClient.getStateAccount();
 		assert(
 			state.exchangeStatus ===
-			(ExchangeStatus.DEPOSIT_PAUSED | ExchangeStatus.WITHDRAW_PAUSED),
-			`exchange status does not match \n actual: ${state.exchangeStatus
-			} \n expected: ${ExchangeStatus.DEPOSIT_PAUSED | ExchangeStatus.WITHDRAW_PAUSED
+				(ExchangeStatus.DEPOSIT_PAUSED | ExchangeStatus.WITHDRAW_PAUSED),
+			`exchange status does not match \n actual: ${
+				state.exchangeStatus
+			} \n expected: ${
+				ExchangeStatus.DEPOSIT_PAUSED | ExchangeStatus.WITHDRAW_PAUSED
 			}`
 		);
 
@@ -475,7 +480,7 @@ describe('admin', () => {
 		const perpMarket = driftClient.getPerpMarketAccount(0);
 		assert(
 			perpMarket.amm.referencePriceOffsetDeadbandPct ==
-			referenceOffsetDeadbandPct
+				referenceOffsetDeadbandPct
 		);
 	});
 

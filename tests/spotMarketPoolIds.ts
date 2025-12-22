@@ -1,21 +1,24 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import { PublicKey } from '@solana/web3.js';
 
 import {
-	TestClient,
 	BN,
 	EventSubscriber,
-	SPOT_MARKET_RATE_PRECISION,
-	OracleSource,
-	SPOT_MARKET_WEIGHT_PRECISION,
-	OracleInfo,
 	MarketStatus,
+	OracleInfo,
+	OracleSource,
+	SPOT_MARKET_RATE_PRECISION,
+	SPOT_MARKET_WEIGHT_PRECISION,
+	TestClient,
 } from '../sdk/src';
 
+import { startAnchor } from 'solana-bankrun';
+import { QUOTE_PRECISION } from '../sdk/src';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
 	createUserWithUSDCAccount,
 	mockOracleNoProgram,
@@ -23,13 +26,9 @@ import {
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpers';
-import { QUOTE_PRECISION } from '../sdk';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('spot deposit and withdraw', () => {
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let admin: TestClient;
 	let eventSubscriber: EventSubscriber;

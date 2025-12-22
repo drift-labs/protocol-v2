@@ -466,7 +466,7 @@ describe('AMM Tests', () => {
 				lastFundingRate: '-16416',
 				lastFundingRateTs: '1705845755',
 				lastMarkPriceTwap: '1105972',
-				lastMarkPriceTwap5Min: '1101202',
+				lastMarkPriceTwap5min: '1101202',
 				lastMarkPriceTwapTs: '1705846920',
 				lastTradeTs: '1705846920',
 				oracle: '3Qub3HaAJaa2xNY7SUqPKd3vVwTqDfDDkEUMPjXD2c1q',
@@ -476,7 +476,7 @@ describe('AMM Tests', () => {
 					lastOracleDelay: '2',
 					lastOracleConf: '0',
 					lastOraclePriceTwap: '1106680',
-					lastOraclePriceTwap5Min: '1102634',
+					lastOraclePriceTwap5min: '1102634',
 					lastOraclePriceTwapTs: '1705846920',
 				},
 				lastOracleReservePriceSpreadPct: '-262785',
@@ -486,7 +486,7 @@ describe('AMM Tests', () => {
 				pegMultiplier: '4',
 				cumulativeFundingRateLong: '186069301',
 				cumulativeFundingRateShort: '186007157',
-				last24HAvgFundingRate: '35147',
+				last24hAvgFundingRate: '35147',
 				lastFundingRateShort: '-16416',
 				lastFundingRateLong: '-16416',
 				totalLiquidationFee: '4889264000',
@@ -538,7 +538,7 @@ describe('AMM Tests', () => {
 				longIntensityVolume: '162204',
 				shortIntensityCount: '995',
 				shortIntensityVolume: '2797331131',
-				volume24H: '91370028405',
+				volume24h: '91370028405',
 				minOrderSize: '1000000000',
 				maxPositionSize: '0',
 				bidBaseAssetReserve: '234770820775670',
@@ -613,7 +613,7 @@ describe('AMM Tests', () => {
 			new BN(suiExample.amm.oracleStd),
 			new BN(suiExample.amm.longIntensityVolume),
 			new BN(suiExample.amm.shortIntensityVolume),
-			new BN(suiExample.amm.volume24H),
+			new BN(suiExample.amm.volume24h),
 			0,
 			true
 		);
@@ -654,7 +654,7 @@ describe('AMM Tests', () => {
 			new BN(suiExample.amm.oracleStd),
 			new BN(suiExample.amm.longIntensityVolume),
 			new BN(suiExample.amm.shortIntensityVolume),
-			new BN(suiExample.amm.volume24H),
+			new BN(suiExample.amm.volume24h),
 			0,
 			true
 		);
@@ -683,7 +683,7 @@ describe('AMM Tests', () => {
 			new BN(suiExample.amm.oracleStd),
 			new BN(suiExample.amm.longIntensityVolume),
 			new BN(suiExample.amm.shortIntensityVolume),
-			new BN(suiExample.amm.volume24H),
+			new BN(suiExample.amm.volume24h),
 			0,
 			true
 		);
@@ -742,7 +742,7 @@ describe('AMM Tests', () => {
 		mockAmm.baseSpread = 2500;
 		mockAmm.maxSpread = 25000;
 
-		mockAmm.last24HAvgFundingRate = new BN(7590328523);
+		mockAmm.last24hAvgFundingRate = new BN(7590328523);
 
 		mockAmm.lastMarkPriceTwap = new BN(
 			(oraclePriceData.price.toNumber() / 1e6 - 0.01) * 1e6
@@ -751,10 +751,10 @@ describe('AMM Tests', () => {
 			(oraclePriceData.price.toNumber() / 1e6 + 0.015) * 1e6
 		);
 
-		mockAmm.historicalOracleData.lastOraclePriceTwap5Min = new BN(
+		mockAmm.historicalOracleData.lastOraclePriceTwap5min = new BN(
 			(oraclePriceData.price.toNumber() / 1e6 + 0.005) * 1e6
 		);
-		mockAmm.lastMarkPriceTwap5Min = new BN(
+		mockAmm.lastMarkPriceTwap5min = new BN(
 			(oraclePriceData.price.toNumber() / 1e6 - 0.005) * 1e6
 		);
 
@@ -831,10 +831,10 @@ describe('AMM Tests', () => {
 		);
 		const referencePriceOffset = calculateReferencePriceOffset(
 			reservePrice,
-			mockAmm.last24HAvgFundingRate,
+			mockAmm.last24hAvgFundingRate,
 			liquidityFractionSigned,
-			mockAmm.historicalOracleData.lastOraclePriceTwap5Min,
-			mockAmm.lastMarkPriceTwap5Min,
+			mockAmm.historicalOracleData.lastOraclePriceTwap5min,
+			mockAmm.lastMarkPriceTwap5min,
 			mockAmm.historicalOracleData.lastOraclePriceTwap,
 			mockAmm.lastMarkPriceTwap,
 			maxOffset
@@ -954,7 +954,7 @@ describe('AMM Tests', () => {
 		mockAmm.baseSpread = 2500;
 		mockAmm.maxSpread = 25000;
 
-		mockAmm.last24HAvgFundingRate = new BN(-7590328523);
+		mockAmm.last24hAvgFundingRate = new BN(-7590328523);
 
 		mockAmm.lastMarkPriceTwap = new BN(
 			(oraclePriceData.price.toNumber() / 1e6 + 0.01) * 1e6
@@ -963,10 +963,10 @@ describe('AMM Tests', () => {
 			(oraclePriceData.price.toNumber() / 1e6 - 0.015) * 1e6
 		);
 
-		mockAmm.historicalOracleData.lastOraclePriceTwap5Min = new BN(
+		mockAmm.historicalOracleData.lastOraclePriceTwap5min = new BN(
 			(oraclePriceData.price.toNumber() / 1e6 + 0.005) * 1e6
 		);
-		mockAmm.lastMarkPriceTwap5Min = new BN(
+		mockAmm.lastMarkPriceTwap5min = new BN(
 			(oraclePriceData.price.toNumber() / 1e6 - 0.005) * 1e6
 		);
 
@@ -1044,10 +1044,10 @@ describe('AMM Tests', () => {
 		);
 		const referencePriceOffset = calculateReferencePriceOffset(
 			reservePrice,
-			mockAmm.last24HAvgFundingRate,
+			mockAmm.last24hAvgFundingRate,
 			liquidityFractionSigned,
-			mockAmm.historicalOracleData.lastOraclePriceTwap5Min,
-			mockAmm.lastMarkPriceTwap5Min,
+			mockAmm.historicalOracleData.lastOraclePriceTwap5min,
+			mockAmm.lastMarkPriceTwap5min,
 			mockAmm.historicalOracleData.lastOraclePriceTwap,
 			mockAmm.lastMarkPriceTwap,
 			maxOffset
@@ -1194,7 +1194,7 @@ describe('AMM Tests', () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
 				markOraclePercentDivergence: PERCENTAGE_PRECISION.divn(10),
-				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION.divn(10),
+				oracleTwap5minPercentDivergence: PERCENTAGE_PRECISION.divn(10),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(10),

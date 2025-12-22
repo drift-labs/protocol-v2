@@ -1,49 +1,48 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import { PublicKey } from '@solana/web3.js';
 
 import {
-	Wallet,
+	AMM_RESERVE_PRECISION,
 	BASE_PRECISION,
 	BN,
-	OracleSource,
-	ZERO,
-	TestClient,
 	convertToNumber,
-	PRICE_PRECISION,
-	PositionDirection,
 	EventSubscriber,
-	QUOTE_PRECISION,
-	User,
-	AMM_RESERVE_PRECISION,
 	isVariant,
-	MARGIN_PRECISION,
-	SPOT_MARKET_BALANCE_PRECISION,
 	LIQUIDATION_PCT_PRECISION,
+	MARGIN_PRECISION,
+	OracleSource,
+	PositionDirection,
+	PRICE_PRECISION,
+	QUOTE_PRECISION,
+	SPOT_MARKET_BALANCE_PRECISION,
+	TestClient,
+	User,
+	Wallet,
+	ZERO,
 } from '../sdk/src';
 
-import {
-	mockOracle,
-	mockUSDCMint,
-	mockUserUSDCAccount,
-	setFeedPrice,
-	initializeQuoteSpotMarket,
-	createUserWithUSDCAndWSOLAccount,
-	initializeSolSpotMarket,
-	printTxLogs,
-	getFeedData,
-	sleep,
-} from './testHelpers';
 import { Keypair } from '@solana/web3.js';
 import {
 	BulkAccountLoader,
 	calculateReservePrice,
 	ContractTier,
 	UserStatus,
-} from '../sdk';
+} from '../sdk/src';
+import { DriftProgram } from '../sdk/src/config';
+import {
+	createUserWithUSDCAndWSOLAccount,
+	getFeedData,
+	initializeQuoteSpotMarket,
+	initializeSolSpotMarket,
+	mockOracle,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+	printTxLogs,
+	setFeedPrice,
+	sleep,
+} from './testHelpers';
 
 async function depositToFeePoolFromIF(
 	amount: number,
@@ -68,7 +67,7 @@ describe('delist market, liquidation of expired position', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram, {
@@ -601,7 +600,7 @@ describe('delist market, liquidation of expired position', () => {
 		// await printTxLogs(connection, txSigLiq);
 
 		// const liquidationRecord =
-		// 	eventSubscriber.getEventsArray('LiquidationRecord')[0];
+		// 	eventSubscriber.getEventsArray('liquidationRecord')[0];
 		// console.log(liquidationRecord);
 		// assert(liquidationRecord.liquidationId === 1);
 		// assert(isVariant(liquidationRecord.liquidationType, 'liquidatePerp'));
@@ -743,7 +742,7 @@ describe('delist market, liquidation of expired position', () => {
 			console.log('Cannot settle pnl under current market status');
 		}
 
-		// const settleRecord = eventSubscriber.getEventsArray('SettlePnlRecord')[0];
+		// const settleRecord = eventSubscriber.getEventsArray('settlePnlRecord')[0];
 		// console.log(settleRecord);
 
 		await driftClientLoser.fetchAccounts();

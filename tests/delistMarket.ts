@@ -1,41 +1,42 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import { PublicKey } from '@solana/web3.js';
 
 import {
-	Wallet,
 	BASE_PRECISION,
 	BN,
-	OracleSource,
-	ZERO,
-	TestClient,
-	convertToNumber,
-	PRICE_PRECISION,
-	PositionDirection,
-	EventSubscriber,
-	QUOTE_PRECISION,
+	BulkAccountLoader,
 	calculateBaseAssetValueWithOracle,
+	convertToNumber,
+	EventSubscriber,
+	isVariant,
 	OracleGuardRails,
+	OracleSource,
+	PERCENTAGE_PRECISION,
+	PositionDirection,
+	PRICE_PRECISION,
+	QUOTE_PRECISION,
+	TestClient,
+	Wallet,
+	ZERO,
 } from '../sdk/src';
 
+import { Keypair } from '@solana/web3.js';
+import { DriftProgram } from '../sdk/src/config';
 import {
+	createUserWithUSDCAndWSOLAccount,
+	getFeedData,
+	getOraclePriceData,
+	initializeQuoteSpotMarket,
+	initializeSolSpotMarket,
 	mockOracle,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	setFeedPrice,
-	initializeQuoteSpotMarket,
-	createUserWithUSDCAndWSOLAccount,
-	initializeSolSpotMarket,
 	printTxLogs,
-	getFeedData,
-	getOraclePriceData,
+	setFeedPrice,
 	sleep,
 } from './testHelpers';
-import { BulkAccountLoader, isVariant, PERCENTAGE_PRECISION } from '../sdk';
-import { Keypair } from '@solana/web3.js';
 
 async function depositToFeePoolFromIF(
 	amount: number,
@@ -83,7 +84,7 @@ describe('delist market', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.Drift as Program<Drift>;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram, {
@@ -328,7 +329,7 @@ describe('delist market', () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
 				markOraclePercentDivergence: new BN(10).mul(PERCENTAGE_PRECISION),
-				oracleTwap5MinPercentDivergence: new BN(10).mul(PERCENTAGE_PRECISION),
+				oracleTwap5minPercentDivergence: new BN(10).mul(PERCENTAGE_PRECISION),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),
@@ -698,7 +699,7 @@ describe('delist market', () => {
 		);
 		await printTxLogs(connection, txSig);
 
-		// const settleRecord = eventSubscriber.getEventsArray('SettlePnlRecord')[0];
+		// const settleRecord = eventSubscriber.getEventsArray('settlePnlRecord')[0];
 		// console.log(settleRecord);
 
 		await driftClientLoser.fetchAccounts();
