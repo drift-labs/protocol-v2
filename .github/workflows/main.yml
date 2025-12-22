@@ -15,7 +15,7 @@ env:
   CARGO_TERM_COLOR: always
   RUST_TOOLCHAIN: 1.91.1
   SOLANA_VERSION: 2.3.0
-  ANCHOR_VERSION: 0.32.1
+  ANCHOR_VERSION: 0.31.1
   NODE_VERSION: "22.14.x"
 
 jobs:
@@ -126,7 +126,7 @@ jobs:
       - name: Install Anchor CLI
         if: steps.cache-anchor.outputs.cache-hit != 'true'
         run: |
-          sudo apt install libudev-dev
+          sudo apt update -y && sudo apt install libudev-dev
           cargo install --git https://github.com/coral-xyz/anchor --tag v${{ env.ANCHOR_VERSION }} anchor-cli --locked
 
       - name: Setup node
@@ -332,6 +332,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install Anchor CLI
+        run: |
+          cargo install --git https://github.com/coral-xyz/anchor --tag v${{ env.ANCHOR_VERSION }} anchor-cli --locked
 
       - name: Verifiable Build
         run: |
