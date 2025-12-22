@@ -6,11 +6,10 @@ import {
 } from './types';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
-import { Context, PublicKey } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 import { UserStatsAccount } from '../types';
 import { BulkAccountLoader } from './bulkAccountLoader';
 import { DriftProgram } from '../config';
-import { Address } from '@coral-xyz/anchor';
 
 export class PollingUserStatsAccountSubscriber
 	implements UserStatsAccountSubscriber
