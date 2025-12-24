@@ -244,11 +244,8 @@ export class TitanClient {
 		this.lastQuoteData = data;
 		this.lastQuoteParams = params.toString();
 
-		const route =
-			data.quotes[
-				Object.keys(data.quotes).find((key) => key.toLowerCase() === 'titan') ||
-					''
-			];
+		// We are only querying for the best avaiable route so use that
+		const route = data.quotes[Object.keys(data.quotes)[0]];
 
 		if (!route) {
 			throw new Error('No routes available');
@@ -340,12 +337,9 @@ export class TitanClient {
 
 		// Reuse the cached quote data
 		const data = this.lastQuoteData;
-
-		const route =
-			data.quotes[
-				Object.keys(data.quotes).find((key) => key.toLowerCase() === 'titan') ||
-					''
-			];
+		
+		// We are only querying for the best avaiable route so use that
+		const route = data.quotes[Object.keys(data.quotes)[0]];
 
 		if (!route) {
 			throw new Error('No routes available');
