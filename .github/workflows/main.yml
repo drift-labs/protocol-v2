@@ -339,7 +339,7 @@ jobs:
 
       - name: Verifiable Build
         run: |
-          anchor build --verifiable -s ${{ env.SOLANA_VERSION }} -d solanafoundation/anchor:v${{ env.ANCHOR_VERSION }}
+          anchor build --verifiable -p drift -s ${{ env.SOLANA_VERSION }} -d solanafoundation/anchor:v${{ env.ANCHOR_VERSION }} --no-idl
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4

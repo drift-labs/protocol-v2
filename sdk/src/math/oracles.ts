@@ -186,7 +186,6 @@ export function isOracleTooDivergent(
 	oraclePriceData: OraclePriceData,
 	oracleGuardRails: OracleGuardRails
 ): boolean {
-	console.log(amm.historicalOracleData.lastOraclePriceTwap5min);
 	const oracleSpreadPct = oraclePriceData.price
 		.sub(amm.historicalOracleData.lastOraclePriceTwap5min)
 		.mul(PERCENTAGE_PRECISION)
