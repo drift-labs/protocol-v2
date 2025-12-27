@@ -337,7 +337,7 @@ export class TitanClient {
 
 		// Reuse the cached quote data
 		const data = this.lastQuoteData;
-		
+
 		// We are only querying for the best avaiable route so use that
 		const route = data.quotes[Object.keys(data.quotes)[0]];
 
