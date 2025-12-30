@@ -309,18 +309,13 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             Some(LogMode::Margin),
         )?;
 
-        let mut skip_token_value = false;
-        if !(user_pool_id == 1 && spot_market.market_index == 0 && !spot_position.is_borrow()) {
-            validate!(
-                user_pool_id == spot_market.pool_id,
-                ErrorCode::InvalidPoolId,
-                "user pool id ({}) == spot market pool id ({})",
-                user_pool_id,
-                spot_market.pool_id,
-            )?;
-        } else {
-            skip_token_value = true;
-        }
+        validate!(
+            user_pool_id == spot_market.pool_id,
+            ErrorCode::InvalidPoolId,
+            "user pool id ({}) == spot market pool id ({})",
+            user_pool_id,
+            spot_market.pool_id,
+        )?;
 
         let oracle_valid =
             is_oracle_valid_for_action(oracle_validity, Some(DriftAction::MarginCalc))?;
@@ -358,10 +353,6 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                             "token_value set to 0 for market_index={}",
                             spot_market.market_index
                         );
-                        token_value = 0;
-                    }
-
-                    if skip_token_value {
                         token_value = 0;
                     }
 
