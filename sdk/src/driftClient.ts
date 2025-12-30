@@ -775,7 +775,7 @@ export class DriftClient {
 
 		if (!this.marketLookupTables) {
 			console.log('Market lookup table address not set');
-			return;
+			return [];
 		}
 
 		const lookupTableAccountResults = await Promise.all(
@@ -784,9 +784,12 @@ export class DriftClient {
 			)
 		);
 
-		const lookupTableAccounts = lookupTableAccountResults.map(
-			(result) => result.value
-		);
+		// Filter out null values - lookup tables may not exist on-chain
+		const lookupTableAccounts = lookupTableAccountResults
+			.map((result) => result.value)
+			.filter(
+				(account): account is AddressLookupTableAccount => account !== null
+			);
 		this.lookupTableAccounts = lookupTableAccounts;
 
 		return lookupTableAccounts;
@@ -1128,15 +1131,23 @@ export class DriftClient {
 		return [txSig, userAccountPublicKey];
 	}
 
-	async getInitializeUserStatsIx(): Promise<TransactionInstruction> {
+	async getInitializeUserStatsIx(overrides?: {
+		/**
+		 * Optional external wallet to use as payer. If provided, this wallet will pay
+		 * for the account creation instead of the default wallet.
+		 */
+		externalWallet?: PublicKey;
+	}): Promise<TransactionInstruction> {
+		const payer = overrides?.externalWallet ?? this.wallet.publicKey;
+		const authority = this.authority;
 		return await this.program.instruction.initializeUserStats({
 			accounts: {
 				userStats: getUserStatsAccountPublicKey(
 					this.program.programId,
-					this.wallet.publicKey // only allow payer to initialize own user stats account
+					authority
 				),
-				authority: this.wallet.publicKey,
-				payer: this.wallet.publicKey,
+				authority,
+				payer,
 				rent: anchor.web3.SYSVAR_RENT_PUBKEY,
 				systemProgram: anchor.web3.SystemProgram.programId,
 				state: await this.getStatePublicKey(),
@@ -1165,8 +1176,16 @@ export class DriftClient {
 
 	async getInitializeSignedMsgUserOrdersAccountIx(
 		authority: PublicKey,
-		numOrders: number
+		numOrders: number,
+		overrides?: {
+			/**
+			 * Optional external wallet to use as payer. If provided, this wallet will pay
+			 * for the account creation instead of the default wallet.
+			 */
+			externalWallet?: PublicKey;
+		}
 	): Promise<[PublicKey, TransactionInstruction]> {
+		const payer = overrides?.externalWallet ?? this.wallet.publicKey;
 		const signedMsgUserAccountPublicKey = getSignedMsgUserAccountPublicKey(
 			this.program.programId,
 			authority
@@ -1176,7 +1195,7 @@ export class DriftClient {
 				accounts: {
 					signedMsgUserOrders: signedMsgUserAccountPublicKey,
 					authority,
-					payer: this.wallet.publicKey,
+					payer,
 					rent: anchor.web3.SYSVAR_RENT_PUBKEY,
 					systemProgram: anchor.web3.SystemProgram.programId,
 				},
@@ -1591,11 +1610,19 @@ export class DriftClient {
 	private async getInitializeUserInstructions(
 		subAccountId = 0,
 		name?: string,
-		referrerInfo?: ReferrerInfo
+		referrerInfo?: ReferrerInfo,
+		overrides?: {
+			externalWallet?: PublicKey;
+		}
 	): Promise<[PublicKey, TransactionInstruction]> {
+		// Use external wallet as payer if provided, otherwise use the wallet
+		const payer = overrides?.externalWallet ?? this.wallet.publicKey;
+		// The authority is the account owner (this.authority), not the payer
+		const accountAuthority = this.authority;
+
 		const userAccountPublicKey = await getUserAccountPublicKey(
 			this.program.programId,
-			this.wallet.publicKey,
+			accountAuthority,
 			subAccountId
 		);
 
@@ -1617,7 +1644,7 @@ export class DriftClient {
 		if (!state.whitelistMint.equals(PublicKey.default)) {
 			const associatedTokenPublicKey = await getAssociatedTokenAddress(
 				state.whitelistMint,
-				this.wallet.publicKey
+				payer
 			);
 			remainingAccounts.push({
 				pubkey: associatedTokenPublicKey,
@@ -1640,8 +1667,8 @@ export class DriftClient {
 				accounts: {
 					user: userAccountPublicKey,
 					userStats: this.getUserStatsAccountPublicKey(),
-					authority: this.wallet.publicKey,
-					payer: this.wallet.publicKey,
+					authority: accountAuthority,
+					payer: payer,
 					rent: anchor.web3.SYSVAR_RENT_PUBKEY,
 					systemProgram: anchor.web3.SystemProgram.programId,
 					state: await this.getStatePublicKey(),
@@ -3305,7 +3332,14 @@ export class DriftClient {
 		referrerInfo?: ReferrerInfo,
 		donateAmount?: BN,
 		customMaxMarginRatio?: number,
-		poolId?: number
+		poolId?: number,
+		overrides?: {
+			/**
+			 * Optional external wallet to deposit from. If provided, the deposit will be made
+			 * from this wallet instead of the user's authority wallet.
+			 */
+			externalWallet?: PublicKey;
+		}
 	): Promise<{
 		ixs: TransactionInstruction[];
 		userAccountPublicKey: PublicKey;
@@ -3316,17 +3350,20 @@ export class DriftClient {
 			await this.getInitializeUserInstructions(
 				subAccountId,
 				name,
-				referrerInfo
+				referrerInfo,
+				overrides
 			);
 
+		// Check signed message orders account for the actual authority (account owner)
 		const isSignedMsgUserOrdersAccountInitialized =
-			await this.isSignedMsgUserOrdersAccountInitialized(this.wallet.publicKey);
+			await this.isSignedMsgUserOrdersAccountInitialized(this.authority);
 
 		if (!isSignedMsgUserOrdersAccountInitialized) {
 			const [, initializeSignedMsgUserOrdersAccountIx] =
 				await this.getInitializeSignedMsgUserOrdersAccountIx(
-					this.wallet.publicKey,
-					8
+					this.authority,
+					8,
+					overrides
 				);
 			ixs.push(initializeSignedMsgUserOrdersAccountIx);
 		}
@@ -3335,7 +3372,8 @@ export class DriftClient {
 
 		const isSolMarket = spotMarket.mint.equals(WRAPPED_SOL_MINT);
 
-		const authority = this.wallet.publicKey;
+		// Use external wallet for deposit source if provided, otherwise use the wallet
+		const depositSource = overrides?.externalWallet ?? this.wallet.publicKey;
 
 		const isFromSubaccount =
 			fromSubAccountId !== null &&
@@ -3346,7 +3384,7 @@ export class DriftClient {
 
 		const createWSOLTokenAccount =
 			(isSolMarket &&
-				userTokenAccount.equals(authority) &&
+				userTokenAccount.equals(depositSource) &&
 				!isFromSubaccount) ||
 			!donateAmount.eq(ZERO);
 
@@ -3355,7 +3393,13 @@ export class DriftClient {
 		let wsolTokenAccount: PublicKey;
 		if (createWSOLTokenAccount) {
 			const { ixs: startIxs, pubkey } =
-				await this.getWrappedSolAccountCreationIxs(wSolAmount, true);
+				await this.getWrappedSolAccountCreationIxs(
+					wSolAmount,
+					true,
+					overrides?.externalWallet
+						? { authority: overrides.externalWallet }
+						: undefined
+				);
 
 			wsolTokenAccount = pubkey;
 
@@ -3398,14 +3442,17 @@ export class DriftClient {
 					userTokenAccount,
 					subAccountId,
 					false,
-					false
+					false,
+					overrides?.externalWallet
+						? { authority: overrides.externalWallet }
+						: undefined
 			  );
 
 		if (subAccountId === 0) {
 			if (
 				!(await this.checkIfAccountExists(this.getUserStatsAccountPublicKey()))
 			) {
-				ixs.push(await this.getInitializeUserStatsIx());
+				ixs.push(await this.getInitializeUserStatsIx(overrides));
 			}
 		}
 		ixs.push(initializeUserAccountIx);
@@ -3436,12 +3483,13 @@ export class DriftClient {
 		}
 
 		// Close the wrapped sol account at the end of the transaction
+		// Return funds to the deposit source (external wallet if provided)
 		if (createWSOLTokenAccount) {
 			ixs.push(
 				createCloseAccountInstruction(
 					wsolTokenAccount,
-					authority,
-					authority,
+					depositSource,
+					depositSource,
 					[]
 				)
 			);
@@ -3464,7 +3512,10 @@ export class DriftClient {
 		donateAmount?: BN,
 		txParams?: TxParams,
 		customMaxMarginRatio?: number,
-		poolId?: number
+		poolId?: number,
+		overrides?: {
+			externalWallet?: PublicKey;
+		}
 	): Promise<[Transaction | VersionedTransaction, PublicKey]> {
 		const { ixs, userAccountPublicKey } =
 			await this.createInitializeUserAccountAndDepositCollateralIxs(
@@ -3477,7 +3528,8 @@ export class DriftClient {
 				referrerInfo,
 				donateAmount,
 				customMaxMarginRatio,
-				poolId
+				poolId,
+				overrides
 			);
 
 		const tx = await this.buildTransaction(ixs, txParams);
@@ -3496,6 +3548,9 @@ export class DriftClient {
 	 * @param referrerInfo
 	 * @param donateAmount
 	 * @param txParams
+	 * @param customMaxMarginRatio
+	 * @param poolId
+	 * @param overrides - Optional overrides including externalWallet for depositing from a different wallet
 	 * @returns
 	 */
 	public async initializeUserAccountAndDepositCollateral(
@@ -3509,7 +3564,10 @@ export class DriftClient {
 		donateAmount?: BN,
 		txParams?: TxParams,
 		customMaxMarginRatio?: number,
-		poolId?: number
+		poolId?: number,
+		overrides?: {
+			externalWallet?: PublicKey;
+		}
 	): Promise<[TransactionSignature, PublicKey]> {
 		const [tx, userAccountPublicKey] =
 			await this.createInitializeUserAccountAndDepositCollateral(
@@ -3523,7 +3581,8 @@ export class DriftClient {
 				donateAmount,
 				txParams,
 				customMaxMarginRatio,
-				poolId
+				poolId,
+				overrides
 			);
 		const additionalSigners: Array<Signer> = [];
 
