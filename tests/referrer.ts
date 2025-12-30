@@ -1,41 +1,40 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import { Keypair, PublicKey } from '@solana/web3.js';
 
 import {
-	TestClient,
 	BN,
-	OracleSource,
 	EventSubscriber,
-	Wallet,
+	OracleSource,
 	PRICE_PRECISION,
 	ReferrerStatus,
+	TestClient,
+	Wallet,
 } from '../sdk/src';
 
-import {
-	mockOracleNoProgram,
-	mockUSDCMint,
-	mockUserUSDCAccount,
-	initializeQuoteSpotMarket,
-	createFundedKeyPair,
-	createUserWithUSDCAccount,
-} from './testHelpers';
+import { startAnchor } from 'solana-bankrun';
 import {
 	BASE_PRECISION,
 	getMarketOrderParams,
 	PEG_PRECISION,
 	PositionDirection,
 } from '../sdk/src';
-import { decodeName } from '../sdk/src/userName';
-import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
+import { decodeName } from '../sdk/src/userName';
+import {
+	createFundedKeyPair,
+	createUserWithUSDCAccount,
+	initializeQuoteSpotMarket,
+	mockOracleNoProgram,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+} from './testHelpers';
 
 describe('referrer', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let referrerDriftClient: TestClient;
 
@@ -220,7 +219,7 @@ describe('referrer', () => {
 
 		await eventSubscriber.awaitTx(txSig);
 
-		const newUserRecord = eventSubscriber.getEventsArray('NewUserRecord')[0];
+		const newUserRecord = eventSubscriber.getEventsArray('newUserRecord')[0];
 		assert(
 			newUserRecord.referrer.equals(
 				bankrunContextWrapper.provider.wallet.publicKey
@@ -253,7 +252,7 @@ describe('referrer', () => {
 
 		await eventSubscriber.awaitTx(txSig);
 
-		const eventRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		const eventRecord = eventSubscriber.getEventsArray('orderActionRecord')[0];
 		assert(eventRecord.takerFee.eq(new BN(95001)));
 		assert(eventRecord.referrerReward === 15000);
 

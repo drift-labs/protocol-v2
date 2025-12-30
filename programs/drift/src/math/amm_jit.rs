@@ -132,7 +132,7 @@ pub fn calculate_clamped_jit_base_asset_amount(
     // bound it; dont flip the net_baa
     let max_amm_base_asset_amount = market
         .amm
-        .base_asset_amount_with_amm
+        .base_asset_amount_with_amm()
         .unsigned_abs()
         .cast::<u64>()?;
 

@@ -1,16 +1,16 @@
 import { GrpcConfigs } from './types';
-import { Program } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
 import { InsuranceFundStake } from '../types';
 import { WebSocketInsuranceFundStakeAccountSubscriber } from './webSocketInsuranceFundStakeAccountSubscriber';
 import { grpcAccountSubscriber } from './grpcAccountSubscriber';
+import { DriftProgram } from '../config';
 
 export class grpcInsuranceFundStakeAccountSubscriber extends WebSocketInsuranceFundStakeAccountSubscriber {
 	private grpcConfigs: GrpcConfigs;
 
 	public constructor(
 		grpcConfigs: GrpcConfigs,
-		program: Program,
+		program: DriftProgram,
 		insuranceFundStakeAccountPublicKey: PublicKey,
 		resubTimeoutMs?: number
 	) {

@@ -14,11 +14,14 @@ cpi = ["no-entrypoint"]
 default = ["mainnet-beta"]
 mainnet-beta=[]
 anchor-test= []
+idl-build = [
+  "anchor-lang/idl-build"
+]
 
 [dependencies]
-anchor-lang = "0.29.0"
+anchor-lang = "0.32.1"
 bytemuck = { version = "1.4.0" }
-solana-program = "1.16"
+solana-program = "=2.2.1"
 
 [dev-dependencies]
 base64 = "0.13.0"

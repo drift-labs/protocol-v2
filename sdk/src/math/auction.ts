@@ -265,7 +265,7 @@ export function getTriggerAuctionStartPrice(params: {
 			.sub(perpMarket.amm.lastMarkPriceTwapTs)
 			.abs()
 			.gte(new BN(60)) ||
-		perpMarket.amm.volume24H.lte(new BN(100_000).mul(QUOTE_PRECISION));
+		perpMarket.amm.volume24h.lte(new BN(100_000).mul(QUOTE_PRECISION));
 
 	let baselineStartOffset: BN;
 
@@ -280,11 +280,11 @@ export function getTriggerAuctionStartPrice(params: {
 			? perpMarket.amm.lastBidPriceTwap
 			: perpMarket.amm.lastAskPriceTwap;
 
-		const markTwapFast = perpMarket.amm.lastMarkPriceTwap5Min;
+		const markTwapFast = perpMarket.amm.lastMarkPriceTwap5min;
 		const oracleTwapSlow =
 			perpMarket.amm.historicalOracleData.lastOraclePriceTwap;
 		const oracleTwapFast =
-			perpMarket.amm.historicalOracleData.lastOraclePriceTwap5Min;
+			perpMarket.amm.historicalOracleData.lastOraclePriceTwap5min;
 
 		const offsetSlow = markTwapSlow.sub(oracleTwapSlow);
 		const offsetFast = markTwapFast.sub(oracleTwapFast);

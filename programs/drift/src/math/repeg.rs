@@ -92,9 +92,9 @@ pub fn calculate_repeg_validity(
     // if oracle is valid: check on size/direction of repeg
     if oracle_is_valid {
         let reserve_price_after = amm::calculate_price(
-            market.amm.quote_asset_reserve,
-            market.amm.base_asset_reserve,
-            market.amm.peg_multiplier,
+            market.amm.quote_asset_reserve(),
+            market.amm.base_asset_reserve(),
+            market.amm.peg_multiplier(),
         )?;
 
         let oracle_conf_band_top = oracle_price_u128.safe_add(oracle_conf)?;
@@ -179,18 +179,18 @@ pub fn adjust_peg_cost(
 ) -> DriftResult<(PerpMarket, i128)> {
     let mut market_clone = *market;
 
-    let cost = if new_peg_candidate != market_clone.amm.peg_multiplier {
+    let cost = if new_peg_candidate != market_clone.amm.peg_multiplier() {
         // Find the net market value before adjusting peg
         let (current_net_market_value, _) = calculate_base_asset_value_and_pnl(
-            market_clone.amm.base_asset_amount_with_amm,
+            market_clone.amm.base_asset_amount_with_amm(),
             0,
             &market_clone.amm,
         )?;
 
-        market_clone.amm.peg_multiplier = new_peg_candidate;
+        market_clone.amm.set_peg_multiplier(new_peg_candidate);
 
         let (_new_net_market_value, cost) = calculate_base_asset_value_and_pnl(
-            market_clone.amm.base_asset_amount_with_amm,
+            market_clone.amm.base_asset_amount_with_amm(),
             current_net_market_value,
             &market_clone.amm,
         )?;
@@ -203,13 +203,13 @@ pub fn adjust_peg_cost(
 }
 
 pub fn calculate_repeg_cost(amm: &AMM, new_peg: u128) -> DriftResult<i128> {
-    amm.quote_asset_reserve
+    amm.quote_asset_reserve()
         .cast::<i128>()?
-        .safe_sub(amm.terminal_quote_asset_reserve.cast()?)?
+        .safe_sub(amm.terminal_quote_asset_reserve().cast()?)?
         .safe_mul(
             new_peg
                 .cast::<i128>()?
-                .safe_sub(amm.peg_multiplier.cast()?)?,
+                .safe_sub(amm.peg_multiplier().cast()?)?,
         )?
         .safe_div(AMM_RESERVE_PRECISION_I128)
 }
@@ -249,17 +249,17 @@ pub fn adjust_amm(
     let curve_update_intensity = min(market.amm.curve_update_intensity, 100_u8).cast::<i128>()?;
 
     // return early
-    if optimal_peg == market.amm.peg_multiplier || curve_update_intensity == 0 {
+    if optimal_peg == market.amm.peg_multiplier() || curve_update_intensity == 0 {
         return Ok((Box::new(*market), 0));
     }
 
     let delta_peg = optimal_peg
         .cast::<i128>()?
-        .safe_sub(market.amm.peg_multiplier.cast()?)?; // PEG_PRECISION
+        .safe_sub(market.amm.peg_multiplier().cast()?)?; // PEG_PRECISION
 
     let mut per_peg_cost = calculate_per_peg_cost(
-        market.amm.quote_asset_reserve,
-        market.amm.terminal_quote_asset_reserve,
+        market.amm.quote_asset_reserve(),
+        market.amm.terminal_quote_asset_reserve(),
     )?; // PEG_PRECISION
 
     let budget_i128 = budget.cast::<i128>()?;
@@ -299,8 +299,8 @@ pub fn adjust_amm(
 
             let new_sqrt_k = market
                 .amm
-                .sqrt_k
-                .safe_sub(market.amm.sqrt_k.safe_div(1000)?)?
+                .sqrt_k()
+                .safe_sub(market.amm.sqrt_k().safe_div(1000)?)?
                 .max(new_sqrt_k_lower_bound);
 
             let update_k_result =
@@ -309,8 +309,8 @@ pub fn adjust_amm(
             let adjustment_cost =
                 cp_curve::adjust_k_cost_and_update(&mut market_clone, &update_k_result)?;
             per_peg_cost = calculate_per_peg_cost(
-                market_clone.amm.quote_asset_reserve,
-                market_clone.amm.terminal_quote_asset_reserve,
+                market_clone.amm.quote_asset_reserve(),
+                market_clone.amm.terminal_quote_asset_reserve(),
             )?;
 
             adjustment_cost
@@ -327,13 +327,13 @@ pub fn adjust_amm(
         new_peg = if budget_delta_peg > 0 {
             market
                 .amm
-                .peg_multiplier
+                .peg_multiplier()
                 .safe_add(budget_delta_peg_magnitude)
                 .unwrap_or(u128::MAX)
-        } else if market.amm.peg_multiplier > budget_delta_peg_magnitude {
+        } else if market.amm.peg_multiplier() > budget_delta_peg_magnitude {
             market
                 .amm
-                .peg_multiplier
+                .peg_multiplier()
                 .safe_sub(budget_delta_peg_magnitude)?
         } else {
             1
@@ -341,7 +341,7 @@ pub fn adjust_amm(
 
         cost = calculate_repeg_cost(&market_clone.amm, new_peg)?;
     }
-    market_clone.amm.peg_multiplier = new_peg;
+    market_clone.amm.set_peg_multiplier(new_peg);
 
     Ok((market_clone, cost))
 }
@@ -357,8 +357,8 @@ pub fn calculate_optimal_peg_and_budget(
     let target_price_i64 = mm_oracle_price_data.get_price();
     let target_price = target_price_i64.cast()?;
     let mut optimal_peg = calculate_peg_from_target_price(
-        market.amm.quote_asset_reserve,
-        market.amm.base_asset_reserve,
+        market.amm.quote_asset_reserve(),
+        market.amm.base_asset_reserve(),
         target_price,
     )?;
 
@@ -389,8 +389,8 @@ pub fn calculate_optimal_peg_and_budget(
                 reserve_price_before.safe_sub(mark_adj)?
             };
             optimal_peg = calculate_peg_from_target_price(
-                market.amm.quote_asset_reserve,
-                market.amm.base_asset_reserve,
+                market.amm.quote_asset_reserve(),
+                market.amm.base_asset_reserve(),
                 target_price.cast()?,
             )?;
 
@@ -407,16 +407,16 @@ pub fn calculate_optimal_peg_and_budget(
 
 pub fn calculate_fee_pool(market: &PerpMarket) -> DriftResult<u128> {
     let total_fee_minus_distributions_lower_bound = get_total_fee_lower_bound(market)?
-        .safe_add(market.amm.total_liquidation_fee)?
-        .safe_sub(market.amm.total_fee_withdrawn)?
+        .safe_add(market.amm.total_liquidation_fee())?
+        .safe_sub(market.amm.total_fee_withdrawn())?
         .cast::<i128>()
         .unwrap_or(0);
 
     let fee_pool =
-        if market.amm.total_fee_minus_distributions > total_fee_minus_distributions_lower_bound {
+        if market.amm.total_fee_minus_distributions() > total_fee_minus_distributions_lower_bound {
             market
                 .amm
-                .total_fee_minus_distributions
+                .total_fee_minus_distributions()
                 .safe_sub(total_fee_minus_distributions_lower_bound)?
                 .cast()?
         } else {
@@ -430,7 +430,7 @@ pub fn get_total_fee_lower_bound(market: &PerpMarket) -> DriftResult<u128> {
     // market to retain half of exchange fees
     let total_fee_lower_bound = market
         .amm
-        .total_exchange_fee
+        .total_exchange_fee()
         .safe_mul(SHARE_OF_FEES_ALLOCATED_TO_DRIFT_NUMERATOR)?
         .safe_div(SHARE_OF_FEES_ALLOCATED_TO_DRIFT_DENOMINATOR)?;
 

@@ -1,21 +1,25 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import { Keypair, PublicKey } from '@solana/web3.js';
 
 import {
 	BN,
+	EventSubscriber,
+	OracleSource,
 	PRICE_PRECISION,
 	TestClient,
 	User,
 	Wallet,
-	EventSubscriber,
-	OracleSource,
 	getSignedMsgUserAccountPublicKey,
 } from '../sdk/src';
 
+import dotenv from 'dotenv';
+import { startAnchor } from 'solana-bankrun';
+import { PEG_PRECISION } from '../sdk/src';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
 	initializeQuoteSpotMarket,
 	mockOracleNoProgram,
@@ -23,15 +27,10 @@ import {
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpers';
-import { PEG_PRECISION } from '../sdk/src';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
-import dotenv from 'dotenv';
 dotenv.config();
 
 describe('place and make signedMsg order', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let makerDriftClient: TestClient;
 	let makerDriftClientUser: User;

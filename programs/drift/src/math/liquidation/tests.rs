@@ -503,8 +503,8 @@ mod calculate_funding_rate_deltas_to_resolve_bankruptcy {
         let loss = -QUOTE_PRECISION_I128;
         let market = PerpMarket {
             amm: AMM {
-                base_asset_amount_long: 0,
-                base_asset_amount_short: 0,
+                base_asset_amount_long: 0.into(),
+                base_asset_amount_short: 0.into(),
                 ..AMM::default()
             },
             ..PerpMarket::default()
@@ -518,8 +518,8 @@ mod calculate_funding_rate_deltas_to_resolve_bankruptcy {
         let loss = -100 * QUOTE_PRECISION_I128;
         let market = PerpMarket {
             amm: AMM {
-                base_asset_amount_long: 7 * BASE_PRECISION_I128,
-                base_asset_amount_short: -4 * BASE_PRECISION_I128,
+                base_asset_amount_long: (7 * BASE_PRECISION_I128).into(),
+                base_asset_amount_short: (-4 * BASE_PRECISION_I128).into(),
                 ..AMM::default()
             },
             ..PerpMarket::default()
@@ -543,8 +543,8 @@ mod calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy {
     fn zero_total_deposits() {
         let loss = 100 * QUOTE_PRECISION;
         let spot_market = SpotMarket {
-            deposit_balance: 0,
-            cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+            deposit_balance: 0.into(),
+            cumulative_deposit_interest: (1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000).into(),
             ..SpotMarket::default()
         };
 
@@ -559,8 +559,8 @@ mod calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy {
     fn non_zero_total_deposits() {
         let loss = 11 * QUOTE_PRECISION;
         let spot_market = SpotMarket {
-            deposit_balance: 120 * SPOT_BALANCE_PRECISION,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            deposit_balance: (120 * SPOT_BALANCE_PRECISION).into(),
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             ..SpotMarket::default()
         };
@@ -574,14 +574,13 @@ mod calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy {
 }
 
 mod validate_transfer_satisfies_limit_price {
-    use crate::math::constants::{PRICE_PRECISION_U64, QUOTE_PRECISION};
+    use crate::math::constants::{LAMPORTS_PER_SOL_U64, PRICE_PRECISION_U64, QUOTE_PRECISION};
     use crate::math::liquidation::validate_transfer_satisfies_limit_price;
-    use anchor_lang::solana_program::native_token::LAMPORTS_PER_SOL;
 
     #[test]
     fn sol_asset_usdc_liability() {
         let limit_price = PRICE_PRECISION_U64 / 100; // 1 SOL / $100 USD
-        let asset = LAMPORTS_PER_SOL as u128;
+        let asset = LAMPORTS_PER_SOL_U64 as u128;
         let asset_decimals = 9_u32;
         let liability = 100 * QUOTE_PRECISION;
         let liability_decimals = 6_u32;
@@ -611,7 +610,7 @@ mod validate_transfer_satisfies_limit_price {
         let limit_price = PRICE_PRECISION_U64 * 100; // $100 / 1 SOL
         let asset = 100 * QUOTE_PRECISION;
         let asset_decimals = 6_u32;
-        let liability = LAMPORTS_PER_SOL as u128;
+        let liability = LAMPORTS_PER_SOL_U64 as u128;
         let liability_decimals = 9_u32;
 
         assert!(validate_transfer_satisfies_limit_price(

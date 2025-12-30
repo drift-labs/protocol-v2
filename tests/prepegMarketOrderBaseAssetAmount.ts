@@ -1,50 +1,48 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 import {
+	BASE_PRECISION,
 	BN,
+	BulkAccountLoader,
 	calculateEffectiveLeverage,
+	calculatePrice,
+	ContractTier,
 	getMarketOrderParams,
 	OracleSource,
-	ZERO,
-	calculatePrice,
 	PEG_PRECISION,
-	BASE_PRECISION,
-	BulkAccountLoader,
-	ContractTier,
-} from '../sdk';
-
-import { Program } from '@coral-xyz/anchor';
+	ZERO,
+} from '../sdk/src';
 
 import { PublicKey } from '@solana/web3.js';
 import {
-	TestClient,
-	PRICE_PRECISION,
-	calculateReservePrice,
-	calculateTradeSlippage,
-	PositionDirection,
-	EventSubscriber,
-	convertToNumber,
-	findComputeUnitConsumption,
-	calculateBidAskPrice,
-	calculateUpdatedAMM,
 	AMM_TO_QUOTE_PRECISION_RATIO,
-	calculateTradeAcquiredAmounts,
-	calculateSpread,
+	calculateBidAskPrice,
 	calculateInventoryScale,
+	calculateReservePrice,
+	calculateSpread,
+	calculateTradeAcquiredAmounts,
+	calculateTradeSlippage,
+	calculateUpdatedAMM,
+	convertToNumber,
+	EventSubscriber,
+	findComputeUnitConsumption,
+	PositionDirection,
+	PRICE_PRECISION,
 	QUOTE_PRECISION,
+	TestClient,
 } from '../sdk/src';
 
+import { DriftProgram } from '../sdk/src/config';
+import { getOraclePriceFromMMOracleData } from '../sdk/src/oracles/utils';
 import {
 	getFeedData,
-	// initUserAccounts,
-	mockOracle,
-	mockUserUSDCAccount,
-	mockUSDCMint,
-	setFeedPrice,
 	initializeQuoteSpotMarket,
+	mockOracle,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+	setFeedPrice,
 	sleep,
 } from './testHelpers';
-import { getOraclePriceFromMMOracleData } from '../sdk/src/oracles/utils';
 
 describe('prepeg', () => {
 	const provider = anchor.AnchorProvider.local(undefined, {
@@ -54,7 +52,7 @@ describe('prepeg', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram, {
@@ -318,7 +316,7 @@ describe('prepeg', () => {
 		assert.ok(market.amm.totalFeeMinusDistributions.gt(new BN(49750)));
 		assert.ok(market.amm.totalExchangeFee.eq(new BN(49875)));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('orderActionRecord')[0];
 		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(new BN(49745050000)));
 		assert.ok(orderRecord.quoteAssetAmountFilled.gt(new BN(49750001)));
@@ -523,7 +521,7 @@ describe('prepeg', () => {
 		assert(market.amm.shortSpread === 2490);
 
 		const orderActionRecord =
-			eventSubscriber.getEventsArray('OrderActionRecord')[0];
+			eventSubscriber.getEventsArray('orderActionRecord')[0];
 		assert.ok(orderActionRecord.taker.equals(userAccountPublicKey));
 		// console.log(orderRecord);
 
@@ -563,7 +561,7 @@ describe('prepeg', () => {
 			convertToNumber(recordEntryPrice)
 		);
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('orderRecord')[0];
 		console.log(
 			'record Auction:',
 			convertToNumber(orderRecord.order.auctionStartPrice),
@@ -670,7 +668,7 @@ describe('prepeg', () => {
 
 		console.log(market.amm.baseAssetAmountWithAmm.toString());
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('orderActionRecord')[0];
 
 		assert.ok(orderRecord.taker.equals(userAccountPublicKey));
 		console.log(orderRecord.baseAssetAmountFilled.toNumber());

@@ -914,7 +914,7 @@ export type HistoricalOracleData = {
 	lastOracleDelay: BN;
 	lastOracleConf: BN;
 	lastOraclePriceTwap: BN;
-	lastOraclePriceTwap5Min: BN;
+	lastOraclePriceTwap5min: BN;
 	lastOraclePriceTwapTs: BN;
 };
 
@@ -922,7 +922,7 @@ export type HistoricalIndexData = {
 	lastIndexBidPrice: BN;
 	lastIndexAskPrice: BN;
 	lastIndexPriceTwap: BN;
-	lastIndexPriceTwap5Min: BN;
+	lastIndexPriceTwap5min: BN;
 	lastIndexPriceTwapTs: BN;
 };
 
@@ -1025,11 +1025,10 @@ export type PoolBalance = {
 export type AMM = {
 	baseAssetReserve: BN;
 	sqrtK: BN;
-	cumulativeFundingRate: BN;
 	lastFundingRate: BN;
 	lastFundingRateTs: BN;
 	lastMarkPriceTwap: BN;
-	lastMarkPriceTwap5Min: BN;
+	lastMarkPriceTwap5min: BN;
 	lastMarkPriceTwapTs: BN;
 	lastTradeTs: BN;
 
@@ -1045,7 +1044,7 @@ export type AMM = {
 	pegMultiplier: BN;
 	cumulativeFundingRateLong: BN;
 	cumulativeFundingRateShort: BN;
-	last24HAvgFundingRate: BN;
+	last24hAvgFundingRate: BN;
 	lastFundingRateShort: BN;
 	lastFundingRateLong: BN;
 
@@ -1100,7 +1099,7 @@ export type AMM = {
 	oracleStd: BN;
 	longIntensityVolume: BN;
 	shortIntensityVolume: BN;
-	volume24H: BN;
+	volume24h: BN;
 	minOrderSize: BN;
 	mmOraclePrice: BN;
 	mmOracleSlot: BN;
@@ -1137,13 +1136,11 @@ export type PerpPosition = {
 	openAsks: BN;
 	settledPnl: BN;
 	lpShares: BN;
-	/**	 TODO: remove this field - it doesn't exist on chain */
-	remainderBaseAssetAmount: number;
+	positionFlag: number;
 	maxMarginRatio: number;
 	lastQuoteAssetAmountPerLp: BN;
 	perLpBase: number;
 	isolatedPositionScaledBalance: BN;
-	positionFlag: number;
 };
 
 export class PositionFlag {
@@ -1155,19 +1152,19 @@ export class PositionFlag {
 export type UserStatsAccount = {
 	numberOfSubAccounts: number;
 	numberOfSubAccountsCreated: number;
-	makerVolume30D: BN;
-	takerVolume30D: BN;
-	fillerVolume30D: BN;
-	lastMakerVolume30DTs: BN;
-	lastTakerVolume30DTs: BN;
-	lastFillerVolume30DTs: BN;
+	makerVolume30d: BN;
+	takerVolume30d: BN;
+	fillerVolume30d: BN;
+	lastMakerVolume30dTs: BN;
+	lastTakerVolume30dTs: BN;
+	lastFillerVolume30dTs: BN;
 	fees: {
 		totalFeePaid: BN;
 		totalFeeRebate: BN;
 		totalTokenDiscount: BN;
 		totalRefereeDiscount: BN;
 		totalReferrerReward: BN;
-		current_epoch_referrer_reward: BN;
+		currentEpochReferrerReward: BN;
 	};
 	referrer: PublicKey;
 	referrerStatus: number;
@@ -1481,7 +1478,7 @@ export type OrderFillerRewardStructure = {
 export type OracleGuardRails = {
 	priceDivergence: {
 		markOraclePercentDivergence: BN;
-		oracleTwap5MinPercentDivergence: BN;
+		oracleTwap5minPercentDivergence: BN;
 	};
 	validity: {
 		slotsBeforeStaleForAmm: BN;
@@ -1805,7 +1802,6 @@ export type LPPoolAccount = {
 	tokenSupply: BN;
 	volatility: BN;
 	constituents: number;
-	quoteConstituentIndex: number;
 	bump: number;
 	gammaExecution: number;
 	xi: number;

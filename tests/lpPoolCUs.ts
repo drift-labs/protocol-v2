@@ -1,8 +1,12 @@
 import * as anchor from '@coral-xyz/anchor';
-import { expect, assert } from 'chai';
+import { assert, expect } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
+import {
+	createInitializeMint2Instruction,
+	getMint,
+	MINT_SIZE,
+	TOKEN_PROGRAM_ID,
+} from '@solana/spl-token';
 import {
 	AccountInfo,
 	AddressLookupTableProgram,
@@ -15,40 +19,41 @@ import {
 	TransactionMessage,
 	VersionedTransaction,
 } from '@solana/web3.js';
-import {
-	createInitializeMint2Instruction,
-	getMint,
-	MINT_SIZE,
-	TOKEN_PROGRAM_ID,
-} from '@solana/spl-token';
 
 import {
-	BN,
-	TestClient,
-	QUOTE_PRECISION,
-	getLpPoolPublicKey,
-	getAmmConstituentMappingPublicKey,
-	getConstituentTargetBasePublicKey,
-	PERCENTAGE_PRECISION,
-	PRICE_PRECISION,
-	PEG_PRECISION,
-	ConstituentTargetBaseAccount,
+	AmmCache,
 	AmmConstituentMapping,
+	BASE_PRECISION,
+	BN,
+	ConstituentAccount,
+	ConstituentTargetBaseAccount,
+	CustomBorshCoder,
+	getAmmCachePublicKey,
+	getAmmConstituentMappingPublicKey,
+	getConstituentPublicKey,
+	getConstituentTargetBasePublicKey,
+	getLpPoolPublicKey,
 	LPPoolAccount,
 	OracleSource,
-	SPOT_MARKET_WEIGHT_PRECISION,
-	SPOT_MARKET_RATE_PRECISION,
-	getAmmCachePublicKey,
-	AmmCache,
-	ZERO,
-	getConstituentPublicKey,
-	ConstituentAccount,
+	PEG_PRECISION,
+	PERCENTAGE_PRECISION,
 	PositionDirection,
-	PYTH_LAZER_STORAGE_ACCOUNT_KEY,
+	PRICE_PRECISION,
 	PTYH_LAZER_PROGRAM_ID,
-	BASE_PRECISION,
+	PYTH_LAZER_STORAGE_ACCOUNT_KEY,
+	QUOTE_PRECISION,
+	SPOT_MARKET_RATE_PRECISION,
+	SPOT_MARKET_WEIGHT_PRECISION,
+	TestClient,
+	ZERO,
 } from '../sdk/src';
 
+import dotenv from 'dotenv';
+import { startAnchor } from 'solana-bankrun';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
+import { PYTH_STORAGE_DATA } from './pythLazerData';
 import {
 	initializeQuoteSpotMarket,
 	mockAtaTokenAccountForMint,
@@ -58,15 +63,6 @@ import {
 	overwriteConstituentAccount,
 	sleep,
 } from './testHelpers';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
-import dotenv from 'dotenv';
-import { PYTH_STORAGE_DATA } from './pythLazerData';
-import {
-	CustomBorshAccountsCoder,
-	CustomBorshCoder,
-} from '../sdk/src/decode/customCoder';
 dotenv.config();
 
 const NUMBER_OF_CONSTITUENTS = 10;
@@ -95,9 +91,7 @@ const PYTH_STORAGE_ACCOUNT_INFO: AccountInfo<Buffer> = {
 };
 
 describe('LP Pool', () => {
-	const program = anchor.workspace.Drift as Program;
-	// @ts-ignore
-	program.coder.accounts = new CustomBorshAccountsCoder(program.idl);
+	const program = anchor.workspace.Drift as DriftProgram;
 
 	let bankrunContextWrapper: BankrunContextWrapper;
 	let bulkAccountLoader: TestBulkAccountLoader;
@@ -352,7 +346,6 @@ describe('LP Pool', () => {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
-			coder: new CustomBorshCoder(program.idl),
 		});
 		await adminClient.subscribe();
 		await sleep(50);
@@ -438,7 +431,6 @@ describe('LP Pool', () => {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
-			coder: new CustomBorshCoder(program.idl),
 		});
 		await adminClient.subscribe();
 	});
@@ -464,7 +456,6 @@ describe('LP Pool', () => {
 					type: 'polling',
 					accountLoader: bulkAccountLoader,
 				},
-				coder: new CustomBorshCoder(program.idl),
 			});
 			await userClient.subscribe();
 			await sleep(100);

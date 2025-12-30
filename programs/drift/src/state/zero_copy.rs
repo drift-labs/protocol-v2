@@ -79,7 +79,7 @@ pub trait ZeroCopyLoader<'a, T, F> {
 
 pub fn load_generic<'a, 'info, F, T>(
     acct: &'a AccountInfo<'info>,
-    expected_disc: [u8; 8],
+    expected_disc: &[u8],
     program_id: Pubkey,
 ) -> DriftResult<AccountZeroCopy<'a, T, F>>
 where
@@ -98,7 +98,7 @@ where
     let (disc, rest) = Ref::map_split(data, |d| d.split_at(8));
 
     validate!(
-        *disc == expected_disc,
+        disc.as_ref() == expected_disc,
         ErrorCode::DefaultError,
         "invalid discriminator",
     )?;
@@ -115,7 +115,7 @@ where
 
 pub fn load_generic_mut<'a, 'info, F, T>(
     acct: &'a AccountInfo<'info>,
-    expected_disc: [u8; 8],
+    expected_disc: &[u8],
     program_id: Pubkey,
 ) -> DriftResult<AccountZeroCopyMut<'a, T, F>>
 where
@@ -132,7 +132,7 @@ where
     let (disc, rest) = RefMut::map_split(data, |d| d.split_at_mut(8));
 
     validate!(
-        *disc == expected_disc,
+        disc.as_ref() == expected_disc,
         ErrorCode::DefaultError,
         "invalid discriminator",
     )?;
@@ -160,7 +160,7 @@ macro_rules! impl_zero_copy_loader {
             > {
                 crate::state::zero_copy::load_generic::<$Fixed, $Elem>(
                     self,
-                    <$Acc as anchor_lang::Discriminator>::discriminator(),
+                    <$Acc as anchor_lang::Discriminator>::DISCRIMINATOR,
                     $ID(),
                 )
             }
@@ -172,7 +172,7 @@ macro_rules! impl_zero_copy_loader {
             > {
                 crate::state::zero_copy::load_generic_mut::<$Fixed, $Elem>(
                     self,
-                    <$Acc as anchor_lang::Discriminator>::discriminator(),
+                    <$Acc as anchor_lang::Discriminator>::DISCRIMINATOR,
                     $ID(),
                 )
             }

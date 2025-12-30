@@ -11,11 +11,11 @@ import {
 	getUserAccountPublicKey,
 	getUserStatsAccountPublicKey,
 } from '../addresses/pda';
-import { Program } from '@coral-xyz/anchor';
+import { DriftProgram } from '../config';
 
 export async function fetchUserAccounts(
 	connection: Connection,
-	program: Program,
+	program: DriftProgram,
 	authority: PublicKey,
 	limit = 8
 ): Promise<(UserAccount | undefined)[]> {
@@ -31,7 +31,7 @@ export async function fetchUserAccounts(
 
 export async function fetchUserAccountsUsingKeys(
 	connection: Connection,
-	program: Program,
+	program: DriftProgram,
 	userAccountPublicKeys: PublicKey[]
 ): Promise<(UserAccount | undefined)[]> {
 	const accountInfos = await connection.getMultipleAccountsInfo(
@@ -44,7 +44,7 @@ export async function fetchUserAccountsUsingKeys(
 			return undefined;
 		}
 		return program.account.user.coder.accounts.decodeUnchecked(
-			'User',
+			'user',
 			accountInfo.data
 		) as UserAccount;
 	});
@@ -52,7 +52,7 @@ export async function fetchUserAccountsUsingKeys(
 
 export async function fetchUserStatsAccount(
 	connection: Connection,
-	program: Program,
+	program: DriftProgram,
 	authority: PublicKey
 ): Promise<UserStatsAccount | undefined> {
 	const userStatsPublicKey = getUserStatsAccountPublicKey(
@@ -66,7 +66,7 @@ export async function fetchUserStatsAccount(
 
 	return accountInfo
 		? (program.account.user.coder.accounts.decodeUnchecked(
-				'UserStats',
+				'userStats',
 				accountInfo.data
 		  ) as UserStatsAccount)
 		: undefined;
@@ -74,7 +74,7 @@ export async function fetchUserStatsAccount(
 
 export async function fetchRevenueShareAccount(
 	connection: Connection,
-	program: Program,
+	program: DriftProgram,
 	authority: PublicKey
 ): Promise<RevenueShareAccount | null> {
 	const revenueShareAccountPublicKey = getRevenueShareAccountPublicKey(
@@ -86,14 +86,14 @@ export async function fetchRevenueShareAccount(
 	);
 	if (!accountInfo) return null;
 	return program.account.revenueShare.coder.accounts.decode(
-		'RevenueShare',
+		'revenueShare',
 		accountInfo.data
 	) as RevenueShareAccount;
 }
 
 export async function fetchRevenueShareEscrowAccount(
 	connection: Connection,
-	program: Program,
+	program: DriftProgram,
 	authority: PublicKey
 ): Promise<RevenueShareEscrowAccount | null> {
 	const revenueShareEscrowPubKey = getRevenueShareEscrowAccountPublicKey(
@@ -107,7 +107,7 @@ export async function fetchRevenueShareEscrowAccount(
 
 	const escrowAccount =
 		program.account.revenueShareEscrow.coder.accounts.decode(
-			'RevenueShareEscrow',
+			'revenueShareEscrow',
 			escrow.data
 		) as RevenueShareEscrowAccount;
 

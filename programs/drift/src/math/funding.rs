@@ -27,7 +27,7 @@ pub fn calculate_funding_rate_long_short(
 ) -> DriftResult<(i128, i128, i128)> {
     // Calculate the funding payment owed by the net_market_position if funding is not capped
     // If the net market position owes funding payment, the protocol receives payment
-    let settled_net_market_position = market.amm.base_asset_amount_with_amm;
+    let settled_net_market_position = market.amm.base_asset_amount_with_amm();
 
     let net_market_position_funding_payment =
         calculate_funding_payment_in_quote_precision(funding_rate, settled_net_market_position)?;
@@ -35,10 +35,12 @@ pub fn calculate_funding_rate_long_short(
 
     // If the uncapped_funding_pnl is positive, the protocol receives money.
     if uncapped_funding_pnl >= 0 {
-        market.amm.total_fee_minus_distributions = market
-            .amm
-            .total_fee_minus_distributions
-            .safe_add(uncapped_funding_pnl)?;
+        market.amm.set_total_fee_minus_distributions(
+            market
+                .amm
+                .total_fee_minus_distributions()
+                .safe_add(uncapped_funding_pnl)?,
+        );
 
         market.amm.net_revenue_since_last_funding = market
             .amm
@@ -53,7 +55,7 @@ pub fn calculate_funding_rate_long_short(
 
     let new_total_fee_minus_distributions = market
         .amm
-        .total_fee_minus_distributions
+        .total_fee_minus_distributions()
         .safe_add(capped_funding_pnl)?;
 
     // protocol is paying part of funding imbalance
@@ -67,7 +69,9 @@ pub fn calculate_funding_rate_long_short(
             return Err(ErrorCode::InvalidFundingProfitability);
         }
     }
-    market.amm.total_fee_minus_distributions = new_total_fee_minus_distributions;
+    market
+        .amm
+        .set_total_fee_minus_distributions(new_total_fee_minus_distributions);
     market.amm.net_revenue_since_last_funding = market
         .amm
         .net_revenue_since_last_funding
@@ -107,9 +111,9 @@ fn calculate_capped_funding_rate(
         let funding_payment_from_users = calculate_funding_payment_in_quote_precision(
             funding_rate,
             if funding_rate > 0 {
-                market.amm.base_asset_amount_long
+                market.amm.base_asset_amount_long()
             } else {
-                market.amm.base_asset_amount_short
+                market.amm.base_asset_amount_short()
             },
         )?;
 
@@ -122,13 +126,13 @@ fn calculate_capped_funding_rate(
             // longs receive
             calculate_funding_rate_from_pnl_limit(
                 funding_rate_pnl_limit,
-                market.amm.base_asset_amount_long,
+                market.amm.base_asset_amount_long(),
             )?
         } else {
             // shorts receive
             calculate_funding_rate_from_pnl_limit(
                 funding_rate_pnl_limit,
-                market.amm.base_asset_amount_short,
+                market.amm.base_asset_amount_short(),
             )?
         }
     } else {
