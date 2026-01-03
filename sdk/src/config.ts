@@ -136,15 +136,15 @@ export function getMarketsAndOraclesForSubscription(
 	oracleInfos: OracleInfo[];
 } {
 	const perpMarketsToUse =
-		perpMarkets?.length > 0 ? perpMarkets : PerpMarkets[env];
+		(perpMarkets?.length ?? 0) > 0 ? perpMarkets : PerpMarkets[env];
 	const spotMarketsToUse =
-		spotMarkets?.length > 0 ? spotMarkets : SpotMarkets[env];
+		(spotMarkets?.length ?? 0) > 0 ? spotMarkets : SpotMarkets[env];
 
 	const perpMarketIndexes = [];
 	const spotMarketIndexes = [];
 	const oracleInfos = new Map<string, OracleInfo>();
 
-	for (const market of perpMarketsToUse) {
+	for (const market of perpMarketsToUse ?? []) {
 		perpMarketIndexes.push(market.marketIndex);
 		oracleInfos.set(getOracleId(market.oracle, market.oracleSource), {
 			publicKey: market.oracle,
@@ -152,7 +152,7 @@ export function getMarketsAndOraclesForSubscription(
 		});
 	}
 
-	for (const spotMarket of spotMarketsToUse) {
+	for (const spotMarket of spotMarketsToUse ?? []) {
 		spotMarketIndexes.push(spotMarket.marketIndex);
 		oracleInfos.set(getOracleId(spotMarket.oracle, spotMarket.oracleSource), {
 			publicKey: spotMarket.oracle,
