@@ -4789,7 +4789,15 @@ export class DriftClient {
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: depositToTradeArgs?.isMakingNewAccount
 				? []
-				: [this.getUserAccount(subAccountId)],
+				: (() => {
+						const userAccount = this.getUserAccount(subAccountId);
+						if (!userAccount) {
+							throw new Error(
+								`User account not found for subaccount id ${subAccountId}`
+							);
+						}
+						return [userAccount];
+				  })(),
 			useMarketLastSlotCache: false,
 			readablePerpMarketIndex: orderParams.marketIndex,
 			readableSpotMarketIndexes: isDepositToTradeTx
@@ -4797,7 +4805,7 @@ export class DriftClient {
 				: undefined,
 		});
 
-		if (isUpdateHighLeverageMode(orderParams.bitFlags)) {
+		if (isUpdateHighLeverageMode(orderParams.bitFlags ?? 0)) {
 			remainingAccounts.push({
 				pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
 				isWritable: true,
@@ -4838,6 +4846,9 @@ export class DriftClient {
 		const oracleAccountInfos = [];
 		for (const marketIndex of marketIndexes) {
 			const market = this.getPerpMarketAccount(marketIndex);
+			if (!market) {
+				continue;
+			}
 			marketAccountInfos.push({
 				pubkey: market.pubkey,
 				isWritable: true,
@@ -4963,9 +4974,14 @@ export class DriftClient {
 		subAccountId?: number
 	): Promise<TransactionInstruction> {
 		const user = await this.getUserAccountPublicKey(subAccountId);
-
+		const userAccount = this.getUserAccount(subAccountId);
+		if (!userAccount) {
+			throw new Error(
+				`User account not found for subaccount id ${subAccountId}`
+			);
+		}
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount(subAccountId)],
+			userAccounts: [userAccount],
 			useMarketLastSlotCache: true,
 		});
 
@@ -5002,10 +5018,22 @@ export class DriftClient {
 		const user = await this.getUserAccountPublicKey(subAccountId);
 
 		const order = this.getOrderByUserId(userOrderId);
-		const oracle = this.getPerpMarketAccount(order.marketIndex).amm.oracle;
+		const oracle = this.getPerpMarketAccount(order?.marketIndex ?? 0)?.amm
+			.oracle;
+		if (!oracle) {
+			throw new Error(
+				`Oracle not found for market index ${order?.marketIndex ?? 0}`
+			);
+		}
+		const userAccount = this.getUserAccount(subAccountId);
+		if (!userAccount) {
+			throw new Error(
+				`User account not found for subaccount id ${subAccountId}`
+			);
+		}
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount(subAccountId)],
+			userAccounts: [userAccount],
 			useMarketLastSlotCache: true,
 		});
 
@@ -5075,6 +5103,11 @@ export class DriftClient {
 			(await this.getUserAccountPublicKey(subAccountId));
 		const userAccount =
 			user?.getUserAccount() ?? this.getUserAccount(subAccountId);
+		if (!userAccount) {
+			throw new Error(
+				`User account not found for subaccount id ${subAccountId}`
+			);
+		}
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [userAccount],
@@ -5103,9 +5136,9 @@ export class DriftClient {
 		const { txSig } = await this.sendTransaction(
 			await this.buildTransaction(
 				await this.getCancelOrdersIx(
-					marketType,
-					marketIndex,
-					direction,
+					marketType ?? null,
+					marketIndex ?? null,
+					direction ?? null,
 					subAccountId
 				),
 				txParams
@@ -5135,8 +5168,15 @@ export class DriftClient {
 			}
 		}
 
+		const userAccount = this.getUserAccount(subAccountId);
+		if (!userAccount) {
+			throw new Error(
+				`User account not found for subaccount id ${subAccountId}`
+			);
+		}
+
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount(subAccountId)],
+			userAccounts: [userAccount],
 			readablePerpMarketIndex,
 			readableSpotMarketIndexes,
 			useMarketLastSlotCache: true,
@@ -5169,9 +5209,9 @@ export class DriftClient {
 	): Promise<TransactionSignature> {
 		const ixs = [
 			await this.getCancelOrdersIx(
-				cancelOrderParams.marketType,
-				cancelOrderParams.marketIndex,
-				cancelOrderParams.direction,
+				cancelOrderParams.marketType ?? null,
+				cancelOrderParams.marketIndex ?? null,
+				cancelOrderParams.direction ?? null,
 				subAccountId
 			),
 			await this.getPlaceOrdersIx(placeOrderParams, subAccountId),
@@ -5248,15 +5288,22 @@ export class DriftClient {
 			}
 		}
 
+		const userAccount = this.getUserAccount(subAccountId);
+		if (!userAccount) {
+			throw new Error(
+				`User account not found for subaccount id ${subAccountId}`
+			);
+		}
+
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount(subAccountId)],
+			userAccounts: [userAccount],
 			readablePerpMarketIndex,
 			readableSpotMarketIndexes,
 			useMarketLastSlotCache: true,
 		});
 
 		for (const param of params) {
-			if (isUpdateHighLeverageMode(param.bitFlags)) {
+			if (isUpdateHighLeverageMode(param.bitFlags ?? 0)) {
 				remainingAccounts.push({
 					pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
 					isWritable: true,
@@ -5298,16 +5345,22 @@ export class DriftClient {
 				readableSpotMarketIndexes.push(param.marketIndex);
 			}
 		}
+		const userAccount = this.getUserAccount(subAccountId);
+		if (!userAccount) {
+			throw new Error(
+				`User account not found for subaccount id ${subAccountId}`
+			);
+		}
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount(subAccountId)],
+			userAccounts: [userAccount],
 			readablePerpMarketIndex,
 			readableSpotMarketIndexes,
 			useMarketLastSlotCache: true,
 		});
 
 		for (const param of params) {
-			if (isUpdateHighLeverageMode(param.bitFlags)) {
+			if (isUpdateHighLeverageMode(param.bitFlags ?? 0)) {
 				remainingAccounts.push({
 					pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
 					isWritable: true,
@@ -5362,7 +5415,7 @@ export class DriftClient {
 				await this.getFillPerpOrderIx(
 					userAccountPublicKey,
 					user,
-					order,
+					order as Pick<Order, 'marketIndex' | 'orderId'>,
 					makerInfo,
 					referrerInfo,
 					fillerSubAccountId,
@@ -5421,7 +5474,10 @@ export class DriftClient {
 			? order.marketIndex
 			: userAccount.orders.find(
 					(order) => order.orderId === userAccount.nextOrderId - 1
-			  ).marketIndex;
+			  )?.marketIndex;
+		if (!marketIndex) {
+			throw new Error(`Market index not found`);
+		}
 
 		makerInfo = Array.isArray(makerInfo)
 			? makerInfo
@@ -5569,9 +5625,15 @@ export class DriftClient {
 		const userAccountPublicKey = await this.getUserAccountPublicKey(
 			subAccountId
 		);
+		const userAccount = this.getUserAccount(subAccountId);
+		if (!userAccount) {
+			throw new Error(
+				`User account not found for subaccount id ${subAccountId}`
+			);
+		}
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount(subAccountId)],
+			userAccounts: [userAccount],
 			useMarketLastSlotCache: true,
 			readableSpotMarketIndexes: [
 				orderParams.marketIndex,
@@ -5643,8 +5705,11 @@ export class DriftClient {
 		const marketIndex = order
 			? order.marketIndex
 			: userAccount.orders.find(
-					(order) => order.orderId === userAccount.nextOrderId - 1
-			  ).marketIndex;
+					(o) => o.orderId === userAccount.nextOrderId - 1
+			  )?.marketIndex;
+		if (!marketIndex) {
+			throw new Error(`Market index not found`);
+		}
 
 		makerInfo = Array.isArray(makerInfo)
 			? makerInfo
@@ -5674,7 +5739,7 @@ export class DriftClient {
 			});
 		}
 
-		const orderId = order.orderId;
+		const orderId = order?.orderId;
 
 		this.addSpotFulfillmentAccounts(
 			marketIndex,
@@ -5708,6 +5773,10 @@ export class DriftClient {
 			| PhoenixV1FulfillmentConfigAccount
 			| OpenbookV2FulfillmentConfigAccount
 	): void {
+		const market = this.getSpotMarketAccount(marketIndex);
+		if (!market) {
+			throw new Error(`Market not found`);
+		}
 		if (fulfillmentConfig) {
 			if ('serumProgramId' in fulfillmentConfig) {
 				this.addSerumRemainingAccounts(
@@ -5732,7 +5801,7 @@ export class DriftClient {
 			}
 		} else {
 			remainingAccounts.push({
-				pubkey: this.getSpotMarketAccount(marketIndex).vault,
+				pubkey: market.vault,
 				isWritable: false,
 				isSigner: false,
 			});
@@ -5749,6 +5818,10 @@ export class DriftClient {
 		remainingAccounts: AccountMeta[],
 		fulfillmentConfig: SerumV3FulfillmentConfigAccount
 	): void {
+		const market = this.getSpotMarketAccount(marketIndex);
+		if (!market) {
+			throw new Error(`Market not found`);
+		}
 		remainingAccounts.push({
 			pubkey: fulfillmentConfig.pubkey,
 			isWritable: false,
@@ -5819,7 +5892,7 @@ export class DriftClient {
 			isSigner: false,
 		});
 		remainingAccounts.push({
-			pubkey: this.getSpotMarketAccount(marketIndex).vault,
+			pubkey: market.vault,
 			isWritable: true,
 			isSigner: false,
 		});
@@ -5840,6 +5913,10 @@ export class DriftClient {
 		remainingAccounts: AccountMeta[],
 		fulfillmentConfig: PhoenixV1FulfillmentConfigAccount
 	): void {
+		const market = this.getSpotMarketAccount(marketIndex);
+		if (!market) {
+			throw new Error(`Market not found`);
+		}
 		remainingAccounts.push({
 			pubkey: fulfillmentConfig.pubkey,
 			isWritable: false,
@@ -5876,7 +5953,7 @@ export class DriftClient {
 			isSigner: false,
 		});
 		remainingAccounts.push({
-			pubkey: this.getSpotMarketAccount(marketIndex).vault,
+			pubkey: market.vault,
 			isWritable: true,
 			isSigner: false,
 		});
@@ -5897,6 +5974,10 @@ export class DriftClient {
 		remainingAccounts: AccountMeta[],
 		fulfillmentConfig: OpenbookV2FulfillmentConfigAccount
 	): void {
+		const market = this.getSpotMarketAccount(marketIndex);
+		if (!market) {
+			throw new Error(`Market not found`);
+		}
 		remainingAccounts.push({
 			pubkey: fulfillmentConfig.pubkey,
 			isWritable: false,
@@ -5948,7 +6029,7 @@ export class DriftClient {
 			isSigner: false,
 		});
 		remainingAccounts.push({
-			pubkey: this.getSpotMarketAccount(marketIndex).vault,
+			pubkey: market.vault,
 			isWritable: true,
 			isSigner: false,
 		});
@@ -5968,7 +6049,7 @@ export class DriftClient {
 			isSigner: false,
 		});
 		remainingAccounts.push({
-			pubkey: this.getSpotMarketAccount(marketIndex).pubkey,
+			pubkey: market.pubkey,
 			isWritable: true,
 			isSigner: false,
 		});
@@ -6149,6 +6230,9 @@ export class DriftClient {
 	}> {
 		const outMarket = this.getSpotMarketAccount(outMarketIndex);
 		const inMarket = this.getSpotMarketAccount(inMarketIndex);
+		if (!outMarket || !inMarket) {
+			throw new Error(`Out or in market not found`);
+		}
 
 		const isExactOut = swapMode === 'ExactOut';
 		const exactOutBufferedAmountIn = amount.muln(1001).divn(1000); // Add 10bp buffer
@@ -6271,6 +6355,9 @@ export class DriftClient {
 	}> {
 		const outMarket = this.getSpotMarketAccount(outMarketIndex);
 		const inMarket = this.getSpotMarketAccount(inMarketIndex);
+		if (!outMarket || !inMarket) {
+			throw new Error(`Out or in market not found`);
+		}
 
 		if (!quote) {
 			const fetchedQuote = await jupiterClient.getQuote({
@@ -6433,6 +6520,9 @@ export class DriftClient {
 
 		const outSpotMarket = this.getSpotMarketAccount(outMarketIndex);
 		const inSpotMarket = this.getSpotMarketAccount(inMarketIndex);
+		if (!outSpotMarket || !inSpotMarket) {
+			throw new Error(`Out or in spot market not found`);
+		}
 
 		const outTokenProgram = this.getTokenProgramForSpotMarket(outSpotMarket);
 		const inTokenProgram = this.getTokenProgramForSpotMarket(inSpotMarket);
@@ -6555,6 +6645,9 @@ export class DriftClient {
 		// Get market accounts to determine mints
 		const outMarket = this.getSpotMarketAccount(outMarketIndex);
 		const inMarket = this.getSpotMarketAccount(inMarketIndex);
+		if (!outMarket || !inMarket) {
+			throw new Error(`Out or in market not found`);
+		}
 
 		const isExactOut = swapMode === 'ExactOut';
 
@@ -6674,7 +6767,10 @@ export class DriftClient {
 		amount: BN;
 		userAccountPublicKey?: PublicKey;
 	}): Promise<TransactionInstruction[]> {
-		const wSOLMint = this.getSpotMarketAccount(1).mint;
+		const wSOLMint = this.getSpotMarketAccount(1)?.mint;
+		if (!wSOLMint) {
+			throw new Error(`W SOL mint not found`);
+		}
 		const mSOLAccount = await this.getAssociatedTokenAccount(2);
 		const wSOLAccount = await this.getAssociatedTokenAccount(1, false);
 
@@ -7070,12 +7166,15 @@ export class DriftClient {
 		placeAndTakeTx: Transaction | VersionedTransaction;
 		cancelExistingOrdersTx: Transaction | VersionedTransaction;
 		settlePnlTx: Transaction | VersionedTransaction;
-	}> {
+	} | null> {
 		const placeAndTakeIxs: TransactionInstruction[] = [];
 
 		type TxKeys = 'placeAndTakeTx' | 'cancelExistingOrdersTx' | 'settlePnlTx';
 
-		const txsToSign: Record<TxKeys, Transaction | VersionedTransaction> = {
+		const txsToSign: Record<
+			TxKeys,
+			Transaction | VersionedTransaction | undefined
+		> = {
 			placeAndTakeTx: undefined,
 			cancelExistingOrdersTx: undefined,
 			settlePnlTx: undefined,
@@ -7133,8 +7232,8 @@ export class DriftClient {
 					await TransactionParamProcessor.getTxSimComputeUnits(
 						placeAndTakeTxToSim,
 						this.connection,
-						txParams.computeUnitsBufferMultiplier ?? 1.2,
-						txParams.lowerBoundCu
+						txParams?.computeUnitsBufferMultiplier ?? 1.2,
+						txParams?.lowerBoundCu
 					);
 
 				if (shouldExitIfSimulationFails && !simulationResult.success) {
@@ -7170,7 +7269,11 @@ export class DriftClient {
 		};
 
 		const prepCancelOrderTx = async () => {
-			if (cancelExistingOrders && isVariant(orderParams.marketType, 'perp')) {
+			if (
+				cancelExistingOrders &&
+				orderParams.marketType &&
+				isVariant(orderParams.marketType, 'perp')
+			) {
 				const cancelOrdersIx = await this.getCancelOrdersIx(
 					orderParams.marketType,
 					orderParams.marketIndex,
@@ -7198,9 +7301,16 @@ export class DriftClient {
 					subAccountId
 				);
 
+				const userAccount = this.getUserAccount(subAccountId);
+				if (!userAccount) {
+					throw new Error(
+						`User account not found for subaccount id ${subAccountId}`
+					);
+				}
+
 				const settlePnlIx = await this.settlePNLIx(
 					userAccountPublicKey,
-					this.getUserAccount(subAccountId),
+					userAccount,
 					orderParams.marketIndex
 				);
 
@@ -7227,7 +7337,11 @@ export class DriftClient {
 			return null;
 		}
 
-		return txsToSign;
+		return txsToSign as {
+			placeAndTakeTx: Transaction | VersionedTransaction;
+			cancelExistingOrdersTx: Transaction | VersionedTransaction;
+			settlePnlTx: Transaction | VersionedTransaction;
+		};
 	}
 
 	public async placeAndTakePerpWithAdditionalOrders(
@@ -7244,7 +7358,7 @@ export class DriftClient {
 		txSig: TransactionSignature;
 		signedCancelExistingOrdersTx?: Transaction;
 		signedSettlePnlTx?: Transaction;
-	}> {
+	} | null> {
 		const txsToSign =
 			await this.preparePlaceAndTakePerpOrderWithAdditionalOrders(
 				orderParams,
@@ -7308,7 +7422,13 @@ export class DriftClient {
 			? [makerInfo]
 			: [];
 
-		const userAccounts = [this.getUserAccount(subAccountId)];
+		const userAccount = this.getUserAccount(subAccountId);
+		if (!userAccount) {
+			throw new Error(
+				`User account not found for subaccount id ${subAccountId}`
+			);
+		}
+		const userAccounts = [userAccount];
 		for (const maker of makerInfo) {
 			userAccounts.push(maker.makerUserAccount);
 		}
@@ -7350,7 +7470,7 @@ export class DriftClient {
 			}
 		}
 
-		if (isUpdateHighLeverageMode(orderParams.bitFlags)) {
+		if (isUpdateHighLeverageMode(orderParams.bitFlags ?? 0)) {
 			remainingAccounts.push({
 				pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
 				isWritable: true,
@@ -7416,12 +7536,15 @@ export class DriftClient {
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
 		const userStatsPublicKey = this.getUserStatsAccountPublicKey();
 		const user = await this.getUserAccountPublicKey(subAccountId);
+		const userAccount = this.getUserAccount(subAccountId);
+		if (!userAccount) {
+			throw new Error(
+				`User account not found for subaccount id ${subAccountId}`
+			);
+		}
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [
-				this.getUserAccount(subAccountId),
-				takerInfo.takerUserAccount,
-			],
+			userAccounts: [userAccount, takerInfo.takerUserAccount],
 			useMarketLastSlotCache: true,
 			writablePerpMarketIndexes: [orderParams.marketIndex],
 		});
@@ -7590,8 +7713,11 @@ export class DriftClient {
 
 	public signMessage(
 		message: Uint8Array,
-		keypair: Keypair = this.wallet.payer
+		keypair: Keypair | undefined = this.wallet.payer
 	): Buffer {
+		if (!keypair) {
+			throw new Error(`Keypair not found for signMessage`);
+		}
 		return Buffer.from(nacl.sign.detached(message, keypair.secretKey));
 	}
 
@@ -7788,12 +7914,15 @@ export class DriftClient {
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.PERP });
 		const userStatsPublicKey = this.getUserStatsAccountPublicKey();
 		const user = await this.getUserAccountPublicKey(subAccountId);
+		const userAccount = this.getUserAccount(subAccountId);
+		if (!userAccount) {
+			throw new Error(
+				`User account not found for subaccount id ${subAccountId}`
+			);
+		}
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [
-				this.getUserAccount(subAccountId),
-				takerInfo.takerUserAccount,
-			],
+			userAccounts: [userAccount, takerInfo.takerUserAccount],
 			useMarketLastSlotCache: false,
 			writablePerpMarketIndexes: [orderParams.marketIndex],
 		});
@@ -7927,8 +8056,14 @@ export class DriftClient {
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.SPOT });
 		const userStatsPublicKey = this.getUserStatsAccountPublicKey();
 		const user = await this.getUserAccountPublicKey(subAccountId);
+		const userAccount = this.getUserAccount(subAccountId);
+		if (!userAccount) {
+			throw new Error(
+				`User account not found for subaccount id ${subAccountId}`
+			);
+		}
 
-		const userAccounts = [this.getUserAccount(subAccountId)];
+		const userAccounts = [userAccount];
 		if (makerInfo !== undefined) {
 			userAccounts.push(makerInfo.makerUserAccount);
 		}
@@ -7942,7 +8077,7 @@ export class DriftClient {
 		});
 
 		let makerOrderId = null;
-		if (makerInfo) {
+		if (makerInfo && makerInfo.order) {
 			makerOrderId = makerInfo.order.orderId;
 			remainingAccounts.push({
 				pubkey: makerInfo.maker,
@@ -8028,12 +8163,14 @@ export class DriftClient {
 		orderParams = getOrderParams(orderParams, { marketType: MarketType.SPOT });
 		const userStatsPublicKey = this.getUserStatsAccountPublicKey();
 		const user = await this.getUserAccountPublicKey(subAccountId);
-
+		const userAccount = this.getUserAccount(subAccountId);
+		if (!userAccount) {
+			throw new Error(
+				`User account not found for subaccount id ${subAccountId}`
+			);
+		}
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [
-				this.getUserAccount(subAccountId),
-				takerInfo.takerUserAccount,
-			],
+			userAccounts: [userAccount, takerInfo.takerUserAccount],
 			useMarketLastSlotCache: true,
 			writableSpotMarketIndexes: [
 				orderParams.marketIndex,
@@ -8258,6 +8395,9 @@ export class DriftClient {
 			(await this.getUserAccountPublicKey(subAccountId));
 		const userAccount =
 			overrides?.user?.getUserAccount() ?? this.getUserAccount(subAccountId);
+		if (!userAccount) {
+			throw new Error(`User account not found`);
+		}
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [userAccount],
@@ -8277,7 +8417,7 @@ export class DriftClient {
 			reduceOnly: reduceOnly != undefined ? reduceOnly : null,
 			postOnly: postOnly != undefined ? postOnly : null,
 			bitFlags: bitFlags != undefined ? bitFlags : null,
-			policy: policy || null,
+			policy: policy || undefined,
 			maxTs: maxTs || null,
 		};
 
@@ -8384,9 +8524,15 @@ export class DriftClient {
 		subAccountId?: number
 	): Promise<TransactionInstruction> {
 		const user = await this.getUserAccountPublicKey(subAccountId);
+		const userAccount = this.getUserAccount(subAccountId);
+		if (!userAccount) {
+			throw new Error(
+				`User account not found for subaccount id ${subAccountId}`
+			);
+		}
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount(subAccountId)],
+			userAccounts: [userAccount],
 			useMarketLastSlotCache: true,
 		});
 
@@ -8403,7 +8549,7 @@ export class DriftClient {
 			reduceOnly: reduceOnly || false,
 			postOnly: postOnly || null,
 			bitFlags: bitFlags || null,
-			policy: policy || null,
+			policy: policy || undefined,
 			maxTs: maxTs || null,
 		};
 
@@ -8443,7 +8589,13 @@ export class DriftClient {
 		if (filterInvalidMarkets) {
 			for (const marketIndex of marketIndexes) {
 				const perpMarketAccount = this.getPerpMarketAccount(marketIndex);
+				if (!perpMarketAccount) {
+					continue;
+				}
 				const oraclePriceData = this.getOracleDataForPerpMarket(marketIndex);
+				if (!oraclePriceData) {
+					continue;
+				}
 				const stateAccountAndSlot =
 					this.accountSubscriber.getStateAccountAndSlot();
 				const oracleGuardRails = stateAccountAndSlot.data.oracleGuardRails;
@@ -8923,9 +9075,15 @@ export class DriftClient {
 			liquidatorSubAccountId
 		);
 		const liquidatorStatsPublicKey = this.getUserStatsAccountPublicKey();
+		const liquidatorUser = this.getUserAccount(liquidatorSubAccountId);
+		if (!liquidatorUser) {
+			throw new Error(
+				`Liquidator user account not found for subaccount id ${liquidatorSubAccountId}`
+			);
+		}
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [this.getUserAccount(liquidatorSubAccountId), userAccount],
+			userAccounts: [liquidatorUser, userAccount],
 			useMarketLastSlotCache: true,
 			writablePerpMarketIndexes: [marketIndex],
 		});
@@ -10068,7 +10226,7 @@ export class DriftClient {
 			marketIndex
 		);
 
-		const remainingAccounts = [];
+		const remainingAccounts: AccountMeta[] = [];
 		this.addTokenMintToRemainingAccounts(spotMarket, remainingAccounts);
 		if (this.isTransferHook(spotMarket)) {
 			await this.addExtraAccountMetasToRemainingAccounts(
@@ -10389,7 +10547,7 @@ export class DriftClient {
 			}
 		}
 
-		const remainingAccounts = [];
+		const remainingAccounts: AccountMeta[] = [];
 		this.addTokenMintToRemainingAccounts(spotMarketAccount, remainingAccounts);
 		if (this.isTransferHook(spotMarketAccount)) {
 			await this.addExtraAccountMetasToRemainingAccounts(
@@ -10540,7 +10698,7 @@ export class DriftClient {
 		const spotMarketAccount = this.getSpotMarketAccount(spotMarketIndex);
 		const tokenProgramId = this.getTokenProgramForSpotMarket(spotMarketAccount);
 
-		const remainingAccounts = [];
+		const remainingAccounts: AccountMeta[] = [];
 		this.addTokenMintToRemainingAccounts(spotMarketAccount, remainingAccounts);
 		if (this.isTransferHook(spotMarketAccount)) {
 			await this.addExtraAccountMetasToRemainingAccounts(
@@ -10619,7 +10777,7 @@ export class DriftClient {
 	): Promise<TransactionInstruction> {
 		const spotMarket = await this.getSpotMarketAccount(marketIndex);
 
-		const remainingAccounts = [];
+		const remainingAccounts: AccountMeta[] = [];
 		this.addTokenMintToRemainingAccounts(spotMarket, remainingAccounts);
 		if (this.isTransferHook(spotMarket)) {
 			await this.addExtraAccountMetasToRemainingAccounts(
