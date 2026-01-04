@@ -1439,6 +1439,19 @@ export const MainnetPerpMarkets: PerpMarketConfig[] = [
 		oracleSource: OracleSource.PYTH_LAZER_1K,
 		pythLazerId: 2396,
 	},
+	{
+		fullName: 'Lighter',
+		category: ['DEX'],
+		symbol: 'LIT-PERP',
+		baseAssetSymbol: 'LIT',
+		marketIndex: 84,
+		oracle: new PublicKey('HsfwxaJdpY5Dvd3ttrrY7YL635T7D9W443XdTwE2Dvbh'),
+		launchTs: 1767621600000,
+		oracleSource: OracleSource.PYTH_LAZER,
+		pythFeedId:
+			'0xc0c83f00c39165892d55dcd17ade2191e289697e2ac132d9ab721e20834e2a9e',
+		pythLazerId: 2921,
+	},
 ];
 
 export const PerpMarkets: { [key in DriftEnv]: PerpMarketConfig[] } = {
