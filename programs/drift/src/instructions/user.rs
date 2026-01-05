@@ -239,6 +239,7 @@ pub fn handle_initialize_user<'c: 'info, 'info>(
         )?;
     }
 
+    #[cfg(feature = "mainnet-beta")]
     if ctx.accounts.authority.key() != ctx.accounts.payer.key() {
         validate!(
             WHITELISTED_EXTERNAL_DEPOSITORS.contains(&ctx.accounts.payer.key()),
@@ -282,6 +283,7 @@ pub fn handle_initialize_user_stats<'c: 'info, 'info>(
         ErrorCode::MaxNumberOfUsers
     )?;
 
+    #[cfg(feature = "mainnet-beta")]
     if ctx.accounts.authority.key() != ctx.accounts.payer.key() {
         validate!(
             WHITELISTED_EXTERNAL_DEPOSITORS.contains(&ctx.accounts.payer.key()),
@@ -820,6 +822,7 @@ pub fn handle_deposit<'c: 'info, 'info>(
     let signer = if ctx.accounts.authority.key() != user.authority
         && ctx.accounts.authority.key() != user.delegate
     {
+        #[cfg(feature = "mainnet-beta")]
         validate!(
             WHITELISTED_EXTERNAL_DEPOSITORS.contains(&ctx.accounts.authority.key()),
             ErrorCode::DefaultError,
