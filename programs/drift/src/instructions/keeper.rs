@@ -50,9 +50,7 @@ use crate::state::events::LPSettleRecord;
 use crate::state::events::{DeleteUserRecord, OrderActionExplanation, SignedMsgOrderRecord};
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment_params::drift::MatchFulfillmentParams;
-use crate::state::fulfillment_params::openbook_v2::OpenbookV2FulfillmentParams;
 use crate::state::fulfillment_params::phoenix::PhoenixFulfillmentParams;
-use crate::state::fulfillment_params::serum::SerumFulfillmentParams;
 use crate::state::high_leverage_mode_config::HighLeverageModeConfig;
 use crate::state::insurance_fund_stake::InsuranceFundStake;
 use crate::state::lp_pool::Constituent;
@@ -224,10 +222,8 @@ pub fn handle_revert_fill<'info>(ctx: Context<RevertFill>) -> Result<()> {
 #[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum SpotFulfillmentType {
     #[default]
-    SerumV3,
     Match,
     PhoenixV1,
-    OpenbookV2,
 }
 
 #[access_control(
@@ -293,17 +289,6 @@ fn fill_spot_order<'c: 'info, 'info>(
     };
 
     let mut fulfillment_params: Box<dyn SpotFulfillmentParams> = match fulfillment_type {
-        SpotFulfillmentType::SerumV3 => {
-            let base_market = spot_market_map.get_ref(&market_index)?;
-            let quote_market = spot_market_map.get_quote_spot_market()?;
-            Box::new(SerumFulfillmentParams::new(
-                remaining_accounts_iter,
-                &ctx.accounts.state,
-                &base_market,
-                &quote_market,
-                clock.unix_timestamp,
-            )?)
-        }
         SpotFulfillmentType::PhoenixV1 => {
             let base_market = spot_market_map.get_ref(&market_index)?;
             let quote_market = spot_market_map.get_quote_spot_market()?;
@@ -312,17 +297,6 @@ fn fill_spot_order<'c: 'info, 'info>(
                 &ctx.accounts.state,
                 &base_market,
                 &quote_market,
-            )?)
-        }
-        SpotFulfillmentType::OpenbookV2 => {
-            let base_market = spot_market_map.get_ref(&market_index)?;
-            let quote_market = spot_market_map.get_quote_spot_market()?;
-            Box::new(OpenbookV2FulfillmentParams::new(
-                remaining_accounts_iter,
-                &ctx.accounts.state,
-                &base_market,
-                &quote_market,
-                clock.unix_timestamp,
             )?)
         }
         SpotFulfillmentType::Match => {

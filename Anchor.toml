@@ -2,9 +2,6 @@
 cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
-[workspace]
-exclude = ["programs/openbook_v2"]
-
 [scripts]
 # to run local validator tests, use "./test-scripts/run-ts-mocha" in "test"
 test = "echo" # need to call anchor test to update metadata field in idl before running tests, so just do a noop
