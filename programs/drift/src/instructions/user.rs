@@ -239,6 +239,14 @@ pub fn handle_initialize_user<'c: 'info, 'info>(
         )?;
     }
 
+    if ctx.accounts.authority.key() != ctx.accounts.payer.key() {
+        validate!(
+            WHITELISTED_EXTERNAL_DEPOSITORS.contains(&ctx.accounts.payer.key()),
+            ErrorCode::DefaultError,
+            "Authority is not the payer"
+        )?;
+    }
+
     Ok(())
 }
 
@@ -273,6 +281,14 @@ pub fn handle_initialize_user_stats<'c: 'info, 'info>(
             || state.number_of_authorities <= max_number_of_sub_accounts,
         ErrorCode::MaxNumberOfUsers
     )?;
+
+    if ctx.accounts.authority.key() != ctx.accounts.payer.key() {
+        validate!(
+            WHITELISTED_EXTERNAL_DEPOSITORS.contains(&ctx.accounts.payer.key()),
+            ErrorCode::DefaultError,
+            "Authority is not the payer"
+        )?;
+    }
 
     Ok(())
 }
@@ -4179,7 +4195,8 @@ pub struct InitializeUser<'info> {
     pub user_stats: AccountLoader<'info, UserStats>,
     #[account(mut)]
     pub state: Box<Account<'info, State>>,
-    pub authority: Signer<'info>,
+    /// CHECK: Just a normal authority account
+    pub authority: AccountInfo<'info>,
     #[account(mut)]
     pub payer: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
@@ -4198,7 +4215,8 @@ pub struct InitializeUserStats<'info> {
     pub user_stats: AccountLoader<'info, UserStats>,
     #[account(mut)]
     pub state: Box<Account<'info, State>>,
-    pub authority: Signer<'info>,
+    /// CHECK: Just a normal authority account
+    pub authority: AccountInfo<'info>,
     #[account(mut)]
     pub payer: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
