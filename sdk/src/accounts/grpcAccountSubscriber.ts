@@ -6,7 +6,6 @@ import * as Buffer from 'buffer';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
 import {
 	Client,
-	ClientDuplexStream,
 	CommitmentLevel,
 	createClient,
 	SubscribeRequest,
@@ -15,7 +14,7 @@ import {
 
 export class grpcAccountSubscriber<T> extends WebSocketAccountSubscriber<T> {
 	private client: Client;
-	private stream: ClientDuplexStream<SubscribeRequest, SubscribeUpdate>;
+	private stream;
 	private commitmentLevel: CommitmentLevel;
 	public listenerId?: number;
 

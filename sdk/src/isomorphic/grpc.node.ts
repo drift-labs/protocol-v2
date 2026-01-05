@@ -4,8 +4,6 @@ import type {
 	SubscribeUpdate,
 } from '@triton-one/yellowstone-grpc';
 import { CommitmentLevel } from '@triton-one/yellowstone-grpc';
-import type { ClientDuplexStream, ChannelOptions } from '@grpc/grpc-js';
-
 import {
 	CommitmentLevel as LaserCommitmentLevel,
 	subscribe as LaserSubscribe,
@@ -25,8 +23,6 @@ export {
 	CompressionAlgorithms,
 };
 export type {
-	ClientDuplexStream,
-	ChannelOptions,
 	SubscribeRequest,
 	SubscribeUpdate,
 	LaserstreamConfig,
