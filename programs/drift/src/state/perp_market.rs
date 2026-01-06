@@ -1067,7 +1067,7 @@ impl SpotBalance for PoolBalance {
     }
 
     fn update_balance_type(&mut self, _balance_type: SpotBalanceType) -> DriftResult {
-        Err(ErrorCode::CantUpdatePoolBalanceType)
+        Err(ErrorCode::CantUpdateSpotBalanceType)
     }
 }
 
