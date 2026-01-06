@@ -221,7 +221,6 @@ import {
 } from './math/builder';
 import { TitanClient, SwapMode as TitanSwapMode } from './titan/titanClient';
 import { UnifiedSwapClient } from './swap/UnifiedSwapClient';
-import { DEFAULT_COMMITMENT_LEVEL } from './constants';
 
 /**
  * Union type for swap clients (Titan and Jupiter) - Legacy type
@@ -429,17 +428,19 @@ export class DriftClient {
 			});
 		}
 
-		this.marketLookupTable = config.marketLookupTable
-			? config.marketLookupTable
-			: (this.marketLookupTable = new PublicKey(
-					configs[this.env].MARKET_LOOKUP_TABLE
-			  ));
+		this.marketLookupTable = config.marketLookupTable;
+		if (!this.marketLookupTable) {
+			this.marketLookupTable = new PublicKey(
+				configs[this.env].MARKET_LOOKUP_TABLE
+			);
+		}
 
-		this.marketLookupTables = config.marketLookupTables
-			? config.marketLookupTables
-			: configs[this.env].MARKET_LOOKUP_TABLES.map(
-					(tableAddr) => new PublicKey(tableAddr)
-			  );
+		this.marketLookupTables = config.marketLookupTables;
+		if (!this.marketLookupTables) {
+			this.marketLookupTables = configs[this.env].MARKET_LOOKUP_TABLES.map(
+				(tableAddr) => new PublicKey(tableAddr)
+			);
+		}
 
 		const delistedMarketSetting =
 			config.delistedMarketSetting || DelistedMarketSetting.Unsubscribe;
@@ -9074,14 +9075,8 @@ export class DriftClient {
 		);
 		const liquidatorStatsPublicKey = this.getUserStatsAccountPublicKey();
 
-		const liquidatorUser = this.getUserAccount(liquidatorSubAccountId);
-		if (!liquidatorUser) {
-			throw new Error(
-				`Liquidator user account not found for subaccount id ${liquidatorSubAccountId}`
-			);
-		}
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [liquidatorUser, userAccount],
+			userAccounts: [this.getUserAccount(liquidatorSubAccountId), userAccount],
 			useMarketLastSlotCache: true,
 			writableSpotMarketIndexes: [liabilityMarketIndex, assetMarketIndex],
 		});
@@ -9142,17 +9137,7 @@ export class DriftClient {
 		lookupTables: AddressLookupTableAccount[];
 	}> {
 		const liabilityMarket = this.getSpotMarketAccount(liabilityMarketIndex);
-		if (!liabilityMarket) {
-			throw new Error(
-				`Liability spot market account not found for index ${liabilityMarketIndex}`
-			);
-		}
 		const assetMarket = this.getSpotMarketAccount(assetMarketIndex);
-		if (!assetMarket) {
-			throw new Error(
-				`Asset spot market account not found for index ${assetMarketIndex}`
-			);
-		}
 
 		if (!quote) {
 			const fetchedQuote = await jupiterClient.getQuote({
@@ -9191,7 +9176,7 @@ export class DriftClient {
 			outputMint: liabilityMarket.mint,
 		});
 
-		const preInstructions: TransactionInstruction[] = [];
+		const preInstructions = [];
 		if (!liabilityTokenAccount) {
 			const tokenProgram = this.getTokenProgramForSpotMarket(liabilityMarket);
 			liabilityTokenAccount = await this.getAssociatedTokenAccount(
@@ -9301,17 +9286,7 @@ export class DriftClient {
 		});
 
 		const liabilitySpotMarket = this.getSpotMarketAccount(liabilityMarketIndex);
-		if (!liabilitySpotMarket) {
-			throw new Error(
-				`Liability spot market account not found for index ${liabilityMarketIndex}`
-			);
-		}
 		const assetSpotMarket = this.getSpotMarketAccount(assetMarketIndex);
-		if (!assetSpotMarket) {
-			throw new Error(
-				`Asset spot market account not found for index ${assetMarketIndex}`
-			);
-		}
 
 		const liabilityTokenProgram =
 			this.getTokenProgramForSpotMarket(liabilitySpotMarket);
@@ -9427,17 +9402,7 @@ export class DriftClient {
 		});
 
 		const inSpotMarket = this.getSpotMarketAccount(inMarketIndex);
-		if (!inSpotMarket) {
-			throw new Error(
-				`In spot market account not found for index ${inMarketIndex}`
-			);
-		}
 		const outSpotMarket = this.getSpotMarketAccount(outMarketIndex);
-		if (!outSpotMarket) {
-			throw new Error(
-				`Out spot market account not found for index ${outMarketIndex}`
-			);
-		}
 
 		if (this.isToken2022(inSpotMarket) || this.isToken2022(outSpotMarket)) {
 			remainingAccounts.push({
@@ -9563,15 +9528,9 @@ export class DriftClient {
 			liquidatorSubAccountId
 		);
 		const liquidatorStatsPublicKey = this.getUserStatsAccountPublicKey();
-		const liquidatorUser = this.getUserAccount(liquidatorSubAccountId);
-		if (!liquidatorUser) {
-			throw new Error(
-				`Liquidator user account not found for subaccount id ${liquidatorSubAccountId}`
-			);
-		}
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [liquidatorUser, userAccount],
+			userAccounts: [this.getUserAccount(liquidatorSubAccountId), userAccount],
 			writablePerpMarketIndexes: [perpMarketIndex],
 			writableSpotMarketIndexes: [liabilityMarketIndex],
 		});
@@ -9644,15 +9603,9 @@ export class DriftClient {
 			liquidatorSubAccountId
 		);
 		const liquidatorStatsPublicKey = this.getUserStatsAccountPublicKey();
-		const liquidatorUser = this.getUserAccount(liquidatorSubAccountId);
-		if (!liquidatorUser) {
-			throw new Error(
-				`Liquidator user account not found for subaccount id ${liquidatorSubAccountId}`
-			);
-		}
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [liquidatorUser, userAccount],
+			userAccounts: [this.getUserAccount(liquidatorSubAccountId), userAccount],
 			writablePerpMarketIndexes: [perpMarketIndex],
 			writableSpotMarketIndexes: [assetMarketIndex],
 		});
@@ -9714,15 +9667,9 @@ export class DriftClient {
 			liquidatorSubAccountId
 		);
 		const liquidatorStatsPublicKey = this.getUserStatsAccountPublicKey();
-		const liquidatorUser = this.getUserAccount(liquidatorSubAccountId);
-		if (!liquidatorUser) {
-			throw new Error(
-				`Liquidator user account not found for subaccount id ${liquidatorSubAccountId}`
-			);
-		}
 
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [liquidatorUser, userAccount],
+			userAccounts: [this.getUserAccount(liquidatorSubAccountId), userAccount],
 			writablePerpMarketIndexes: [marketIndex],
 			writableSpotMarketIndexes: [QUOTE_SPOT_MARKET_INDEX],
 		});
@@ -9789,22 +9736,12 @@ export class DriftClient {
 		);
 		const liquidatorStatsPublicKey = this.getUserStatsAccountPublicKey();
 
-		const liquidatorUser = this.getUserAccount(liquidatorSubAccountId);
-		if (!liquidatorUser) {
-			throw new Error(
-				`Liquidator user account not found for subaccount id ${liquidatorSubAccountId}`
-			);
-		}
-
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [liquidatorUser, userAccount],
+			userAccounts: [this.getUserAccount(liquidatorSubAccountId), userAccount],
 			writableSpotMarketIndexes: [marketIndex],
 		});
 
 		const spotMarket = this.getSpotMarketAccount(marketIndex);
-		if (!spotMarket) {
-			throw new Error(`Spot market account not found for index ${marketIndex}`);
-		}
 		const tokenProgramId = this.getTokenProgramForSpotMarket(spotMarket);
 
 		this.addTokenMintToRemainingAccounts(spotMarket, remainingAccounts);
@@ -9884,11 +9821,6 @@ export class DriftClient {
 		perpMarketIndex: number
 	): Promise<TransactionInstruction> {
 		const perpMarket = this.getPerpMarketAccount(perpMarketIndex);
-		if (!perpMarket) {
-			throw new Error(
-				`Perp market account not found for index ${perpMarketIndex}`
-			);
-		}
 
 		if (!isVariant(perpMarket.amm.oracleSource, 'prelaunch')) {
 			throw new Error(`Wrong oracle source ${perpMarket.amm.oracleSource}`);
@@ -9924,13 +9856,8 @@ export class DriftClient {
 		makers: [PublicKey, PublicKey][]
 	): Promise<TransactionInstruction> {
 		const perpMarket = this.getPerpMarketAccount(perpMarketIndex);
-		if (!perpMarket) {
-			throw new Error(
-				`Perp market account not found for index ${perpMarketIndex}`
-			);
-		}
 
-		const remainingAccounts: AccountMeta[] = [];
+		const remainingAccounts = [];
 		for (const [maker, makerStats] of makers) {
 			remainingAccounts.push({
 				pubkey: maker,
@@ -9978,7 +9905,7 @@ export class DriftClient {
 			userAccountPublicKey
 		)) as UserAccount;
 
-		const writablePerpMarketIndexes: number[] = [];
+		const writablePerpMarketIndexes = [];
 		for (const position of userAccount.perpPositions) {
 			if (!positionIsAvailable(position)) {
 				writablePerpMarketIndexes.push(position.marketIndex);
@@ -10003,25 +9930,15 @@ export class DriftClient {
 		this.eventEmitter.emit(eventName, data);
 	}
 
-	public getOracleDataForPerpMarket(
-		marketIndex: number
-	): OraclePriceData | undefined {
+	public getOracleDataForPerpMarket(marketIndex: number): OraclePriceData {
 		return this.accountSubscriber.getOraclePriceDataAndSlotForPerpMarket(
 			marketIndex
-		)?.data;
+		).data;
 	}
 
-	public getMMOracleDataForPerpMarket(
-		marketIndex: number
-	): MMOraclePriceData | undefined {
+	public getMMOracleDataForPerpMarket(marketIndex: number): MMOraclePriceData {
 		const perpMarket = this.getPerpMarketAccount(marketIndex);
-		if (!perpMarket) {
-			throw new Error(`Perp market account not found for index ${marketIndex}`);
-		}
 		const oracleData = this.getOracleDataForPerpMarket(marketIndex);
-		if (!oracleData) {
-			return undefined;
-		}
 		const stateAccountAndSlot = this.accountSubscriber.getStateAccountAndSlot();
 		const isMMOracleActive = !perpMarket.amm.mmOracleSlot.eq(ZERO);
 		const pctDiff = perpMarket.amm.mmOraclePrice
@@ -10050,7 +9967,7 @@ export class DriftClient {
 			isExchangeOracleMoreRecent = false;
 		} else if (
 			!doSlotCheckForRecency &&
-			(oracleData.sequenceId ?? ZERO) < mmOracleSequenceId
+			oracleData.sequenceId < mmOracleSequenceId
 		) {
 			isExchangeOracleMoreRecent = false;
 		}
@@ -10087,12 +10004,10 @@ export class DriftClient {
 		}
 	}
 
-	public getOracleDataForSpotMarket(
-		marketIndex: number
-	): OraclePriceData | undefined {
+	public getOracleDataForSpotMarket(marketIndex: number): OraclePriceData {
 		return this.accountSubscriber.getOraclePriceDataAndSlotForSpotMarket(
 			marketIndex
-		)?.data;
+		).data;
 	}
 
 	public async initializeInsuranceFundStake(
@@ -10119,14 +10034,9 @@ export class DriftClient {
 			marketIndex
 		);
 
-		const spotMarket = this.getSpotMarketAccount(marketIndex);
-		if (!spotMarket) {
-			throw new Error(`Spot market account not found for index ${marketIndex}`);
-		}
-
 		const accounts = {
 			insuranceFundStake: ifStakeAccountPublicKey,
-			spotMarket: spotMarket.pubkey,
+			spotMarket: this.getSpotMarketAccount(marketIndex).pubkey,
 			userStats: getUserStatsAccountPublicKey(
 				this.program.programId,
 				this.wallet.publicKey // only allow payer to initialize own insurance fund stake account
@@ -10152,9 +10062,6 @@ export class DriftClient {
 		collateralAccountPublicKey: PublicKey
 	): Promise<TransactionInstruction> {
 		const spotMarket = this.getSpotMarketAccount(marketIndex);
-		if (!spotMarket) {
-			throw new Error(`Spot market account not found for index ${marketIndex}`);
-		}
 		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
 			this.program.programId,
 			this.wallet.publicKey,
@@ -10275,12 +10182,9 @@ export class DriftClient {
 		 */
 		fromSubaccount?: boolean;
 	}): Promise<TransactionInstruction[]> {
-		const addIfStakeIxs: TransactionInstruction[] = [];
+		const addIfStakeIxs = [];
 
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
-		if (!spotMarketAccount) {
-			throw new Error(`Spot market account not found for index ${marketIndex}`);
-		}
 		const isSolMarket = spotMarketAccount.mint.equals(WRAPPED_SOL_MINT);
 		const createWSOLTokenAccount =
 			isSolMarket && collateralAccountPublicKey.equals(this.wallet.publicKey);
@@ -10374,9 +10278,6 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
-		if (!spotMarketAccount) {
-			throw new Error(`Spot market account not found for index ${marketIndex}`);
-		}
 		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
 			this.program.programId,
 			this.wallet.publicKey,
@@ -10412,9 +10313,6 @@ export class DriftClient {
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
-		if (!spotMarketAccount) {
-			throw new Error(`Spot market account not found for index ${marketIndex}`);
-		}
 		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
 			this.program.programId,
 			this.wallet.publicKey,
@@ -10450,11 +10348,8 @@ export class DriftClient {
 		collateralAccountPublicKey: PublicKey,
 		txParams?: TxParams
 	): Promise<TransactionSignature> {
-		const removeIfStakeIxs: TransactionInstruction[] = [];
+		const removeIfStakeIxs = [];
 		const spotMarketAccount = this.getSpotMarketAccount(marketIndex);
-		if (!spotMarketAccount) {
-			throw new Error(`Spot market account not found for index ${marketIndex}`);
-		}
 		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
 			this.program.programId,
 			this.wallet.publicKey,
@@ -10564,9 +10459,6 @@ export class DriftClient {
 	): Promise<TransactionInstruction> {
 		const marketIndex = QUOTE_SPOT_MARKET_INDEX;
 		const spotMarket = this.getSpotMarketAccount(marketIndex);
-		if (!spotMarket) {
-			throw new Error(`Spot market account not found for index ${marketIndex}`);
-		}
 		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
 			this.program.programId,
 			authority,
@@ -10606,9 +10498,6 @@ export class DriftClient {
 	): Promise<TransactionInstruction> {
 		const marketIndex = GOV_SPOT_MARKET_INDEX;
 		const spotMarket = this.getSpotMarketAccount(marketIndex);
-		if (!spotMarket) {
-			throw new Error(`Spot market account not found for index ${marketIndex}`);
-		}
 		const ifStakeAccountPublicKey = getInsuranceFundStakeAccountPublicKey(
 			this.program.programId,
 			authority,
@@ -10649,11 +10538,6 @@ export class DriftClient {
 		spotMarketIndex: number
 	): Promise<TransactionInstruction> {
 		const spotMarketAccount = this.getSpotMarketAccount(spotMarketIndex);
-		if (!spotMarketAccount) {
-			throw new Error(
-				`Spot market account not found for index ${spotMarketIndex}`
-			);
-		}
 		const tokenProgramId = this.getTokenProgramForSpotMarket(spotMarketAccount);
 
 		const remainingAccounts = [];
@@ -10702,24 +10586,13 @@ export class DriftClient {
 		spotMarketIndex: number,
 		perpMarketIndex: number
 	): Promise<TransactionInstruction> {
-		const userAccount = this.getUserAccount();
-		if (!userAccount) {
-			throw new Error(
-				`User account not found. Something is wrong with driftClient config`
-			);
-		}
 		const remainingAccounts = this.getRemainingAccounts({
-			userAccounts: [userAccount],
+			userAccounts: [this.getUserAccount()],
 			writablePerpMarketIndexes: [perpMarketIndex],
 			writableSpotMarketIndexes: [spotMarketIndex],
 		});
 
 		const spotMarket = this.getSpotMarketAccount(spotMarketIndex);
-		if (!spotMarket) {
-			throw new Error(
-				`Spot market account not found for index ${spotMarketIndex}`
-			);
-		}
 		const tokenProgramId = this.getTokenProgramForSpotMarket(spotMarket);
 
 		return await this.program.instruction.resolvePerpPnlDeficit(
@@ -10745,9 +10618,6 @@ export class DriftClient {
 		userTokenAccountPublicKey: PublicKey
 	): Promise<TransactionInstruction> {
 		const spotMarket = await this.getSpotMarketAccount(marketIndex);
-		if (!spotMarket) {
-			throw new Error(`Spot market account not found for index ${marketIndex}`);
-		}
 
 		const remainingAccounts = [];
 		this.addTokenMintToRemainingAccounts(spotMarket, remainingAccounts);
@@ -10801,17 +10671,9 @@ export class DriftClient {
 
 	public getPerpMarketExtendedInfo(
 		marketIndex: number
-	): PerpMarketExtendedInfo | undefined {
+	): PerpMarketExtendedInfo {
 		const marketAccount = this.getPerpMarketAccount(marketIndex);
-		if (!marketAccount) {
-			return undefined;
-		}
 		const quoteAccount = this.getSpotMarketAccount(QUOTE_SPOT_MARKET_INDEX);
-		if (!quoteAccount) {
-			throw new Error(
-				`Quote spot market account not found. Something is wrong with driftClient config`
-			);
-		}
 
 		const extendedInfo: PerpMarketExtendedInfo = {
 			marketIndex,
@@ -10862,23 +10724,18 @@ export class DriftClient {
 			feeTier.makerRebateNumerator / feeTier.makerRebateDenominator;
 
 		if (marketIndex !== undefined) {
-			let marketAccount:
-				| null
-				| undefined
-				| PerpMarketAccount
-				| SpotMarketAccount = null;
-			let feeAdjustment = 1;
+			let marketAccount = null;
 			if (isVariant(marketType, 'perp')) {
 				marketAccount = this.getPerpMarketAccount(marketIndex);
-				feeAdjustment = marketAccount?.feeAdjustment ?? 0;
 			} else {
 				marketAccount = this.getSpotMarketAccount(marketIndex);
 			}
-			takerFee += (takerFee * feeAdjustment) / 100;
+
+			takerFee += (takerFee * marketAccount.feeAdjustment) / 100;
 			if (userHLM) {
 				takerFee *= 2;
 			}
-			makerFee += (makerFee * feeAdjustment) / 100;
+			makerFee += (makerFee * marketAccount.feeAdjustment) / 100;
 		}
 
 		return {
@@ -10929,9 +10786,7 @@ export class DriftClient {
 		return this.receiverProgram;
 	}
 
-	public async getSwitchboardOnDemandProgram(): Promise<
-		Program30<Idl30> | undefined
-	> {
+	public async getSwitchboardOnDemandProgram(): Promise<Program30<Idl30>> {
 		if (this.sbOnDemandProgram === undefined) {
 			this.sbOnDemandProgram = await AnchorUtils.loadProgramFromConnection(
 				this.connection
@@ -11234,9 +11089,6 @@ export class DriftClient {
 		numSignatures = 3
 	): Promise<TransactionInstruction | undefined> {
 		const program = await this.getSwitchboardOnDemandProgram();
-		if (!program) {
-			return undefined;
-		}
 		const feedAccount = new PullFeed(program, feed);
 		if (!this.sbProgramFeedConfigs) {
 			this.sbProgramFeedConfigs = new Map();
@@ -11265,7 +11117,7 @@ export class DriftClient {
 		feed: PublicKey,
 		recentSlothash?: Slothash,
 		numSignatures = 3
-	): Promise<TransactionSignature | undefined> {
+	): Promise<TransactionSignature> {
 		const pullIx = await this.getPostSwitchboardOnDemandUpdateAtomicIx(
 			feed,
 			recentSlothash,
@@ -11398,12 +11250,7 @@ export class DriftClient {
 		const signingAuthority =
 			overrides?.signingAuthority ?? this.wallet.publicKey;
 		const userAccount =
-			overrides?.user?.getUserAccount() ?? this.getUserAccount(subAccountId);
-		if (!userAccount) {
-			throw new Error(
-				`User account not found for subAccountId ${subAccountId}`
-			);
-		}
+			overrides?.user.getUserAccount() ?? this.getUserAccount(subAccountId);
 
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: depositToTradeArgs?.isMakingNewAccount ? [] : [userAccount],
@@ -11543,11 +11390,6 @@ export class DriftClient {
 		spotMarketIndex: number
 	): Promise<TransactionInstruction> {
 		const spotMarket = await this.getSpotMarketAccount(spotMarketIndex);
-		if (!spotMarket) {
-			throw new Error(
-				`Spot market account not found for index ${spotMarketIndex}`
-			);
-		}
 		return this.program.instruction.pauseSpotMarketDepositWithdraw({
 			accounts: {
 				state: await this.getStatePublicKey(),
@@ -11604,17 +11446,12 @@ export class DriftClient {
 		data.set(oraclePrice.toArrayLike(Buffer, 'le', 8), 5); // next 8 bytes
 		data.set(oracleSequenceId.toArrayLike(Buffer, 'le', 8), 13); // next 8 bytes
 
-		const perpMarket = this.getPerpMarketAccount(marketIndex);
-		if (!perpMarket) {
-			throw new Error(`Perp market account not found for index ${marketIndex}`);
-		}
-
 		// Build the instruction manually
 		return new TransactionInstruction({
 			programId: this.program.programId,
 			keys: [
 				{
-					pubkey: perpMarket.pubkey,
+					pubkey: this.getPerpMarketAccount(marketIndex).pubkey,
 					isWritable: true,
 					isSigner: false,
 				},
@@ -11665,16 +11502,12 @@ export class DriftClient {
 		data.set(discriminatorBuffer, 0);
 		data.writeInt8(ammSpreadAdjustment, 5); // next byte
 
-		const perpMarket = this.getPerpMarketAccount(marketIndex);
-		if (!perpMarket) {
-			throw new Error(`Perp market account not found for index ${marketIndex}`);
-		}
 		// Build the instruction manually
 		return new TransactionInstruction({
 			programId: this.program.programId,
 			keys: [
 				{
-					pubkey: perpMarket.pubkey,
+					pubkey: this.getPerpMarketAccount(marketIndex).pubkey,
 					isWritable: true,
 					isSigner: false,
 				},
@@ -11843,17 +11676,12 @@ export class DriftClient {
 			readablePerpMarketIndex: perpMarketIndexes,
 		});
 
-		const quoteMarket = this.getSpotMarketAccount(0);
-		if (!quoteMarket) {
-			throw new Error(`Quote spot market account not found for index 0`);
-		}
-
 		return this.program.instruction.updateAmmCache({
 			accounts: {
 				state: await this.getStatePublicKey(),
 				keeper: this.wallet.publicKey,
 				ammCache: getAmmCachePublicKey(this.program.programId),
-				quoteMarket: quoteMarket.pubkey,
+				quoteMarket: this.getSpotMarketAccount(0).pubkey,
 			},
 			remainingAccounts,
 		});
@@ -11877,11 +11705,6 @@ export class DriftClient {
 		constituent: ConstituentAccount
 	): Promise<TransactionInstruction> {
 		const spotMarket = this.getSpotMarketAccount(constituent.spotMarketIndex);
-		if (!spotMarket) {
-			throw new Error(
-				`Spot market account not found for index ${constituent.spotMarketIndex}`
-			);
-		}
 		return this.program.instruction.updateConstituentOracleInfo({
 			accounts: {
 				keeper: this.wallet.publicKey,
@@ -11943,26 +11766,12 @@ export class DriftClient {
 			lpPool,
 			outMarketIndex
 		);
-
-		const inSpotMarket = this.getSpotMarketAccount(inMarketIndex);
-		if (!inSpotMarket) {
-			throw new Error(
-				`Spot market account not found for index ${inMarketIndex}`
-			);
-		}
-		const outSpotMarket = this.getSpotMarketAccount(outMarketIndex);
-		if (!outSpotMarket) {
-			throw new Error(
-				`Spot market account not found for index ${outMarketIndex}`
-			);
-		}
-
 		const userInTokenAccount = await getAssociatedTokenAddress(
-			inSpotMarket.mint,
+			this.getSpotMarketAccount(inMarketIndex).mint,
 			userAuthority
 		);
 		const userOutTokenAccount = await getAssociatedTokenAddress(
-			outSpotMarket.mint,
+			this.getSpotMarketAccount(outMarketIndex).mint,
 			userAuthority
 		);
 		const inConstituent = getConstituentPublicKey(
@@ -11975,8 +11784,8 @@ export class DriftClient {
 			lpPool,
 			outMarketIndex
 		);
-		const inMarketMint = inSpotMarket.mint;
-		const outMarketMint = outSpotMarket.mint;
+		const inMarketMint = this.getSpotMarketAccount(inMarketIndex).mint;
+		const outMarketMint = this.getSpotMarketAccount(outMarketIndex).mint;
 
 		const constituentTargetBase = getConstituentTargetBasePublicKey(
 			this.program.programId,
@@ -12175,11 +11984,6 @@ export class DriftClient {
 		});
 
 		const spotMarket = this.getSpotMarketAccount(inMarketIndex);
-		if (!spotMarket) {
-			throw new Error(
-				`Spot market account not found for index ${inMarketIndex}`
-			);
-		}
 		const inMarketMint = spotMarket.mint;
 		const isSolMarket = inMarketMint.equals(WRAPPED_SOL_MINT);
 
@@ -12395,11 +12199,6 @@ export class DriftClient {
 		});
 
 		const spotMarket = this.getSpotMarketAccount(outMarketIndex);
-		if (!spotMarket) {
-			throw new Error(
-				`Spot market account not found for index ${outMarketIndex}`
-			);
-		}
 		const outMarketMint = spotMarket.mint;
 		const outConstituent = getConstituentPublicKey(
 			this.program.programId,
@@ -12511,11 +12310,6 @@ export class DriftClient {
 		});
 
 		const spotMarket = this.getSpotMarketAccount(outMarketIndex);
-		if (!spotMarket) {
-			throw new Error(
-				`Spot market account not found for index ${outMarketIndex}`
-			);
-		}
 		const outMarketMint = spotMarket.mint;
 		const outConstituent = getConstituentPublicKey(
 			this.program.programId,
@@ -12750,11 +12544,11 @@ export class DriftClient {
 		lpPoolId: number,
 		perpMarketIndexes: number[]
 	): Promise<TransactionInstruction> {
-		const remainingAccounts: AccountMeta[] = [];
+		const remainingAccounts = [];
 		remainingAccounts.push(
 			...perpMarketIndexes.map((index) => {
 				return {
-					pubkey: this.getPerpMarketAccount(index)?.pubkey ?? PublicKey.default,
+					pubkey: this.getPerpMarketAccount(index).pubkey,
 					isSigner: false,
 					isWritable: true,
 				};
@@ -12862,8 +12656,7 @@ export class DriftClient {
 			txVersion: txVersion ?? this.txVersion,
 			txParams: txParams ?? this.txParams,
 			connection: this.connection,
-			preFlightCommitment:
-				this.opts?.preflightCommitment ?? DEFAULT_COMMITMENT_LEVEL,
+			preFlightCommitment: this.opts.preflightCommitment,
 			fetchAllMarketLookupTableAccounts:
 				this.fetchAllLookupTableAccounts.bind(this),
 			lookupTables,
@@ -12880,20 +12673,17 @@ export class DriftClient {
 		lookupTables?: AddressLookupTableAccount[],
 		forceVersionedTransaction?: boolean
 	): Promise<(Transaction | VersionedTransaction)[]> {
-		const txns = await this.txHandler.buildBulkTransactions({
+		return this.txHandler.buildBulkTransactions({
 			instructions,
 			txVersion: txVersion ?? this.txVersion,
 			txParams: txParams ?? this.txParams,
 			connection: this.connection,
-			preFlightCommitment:
-				this.opts?.preflightCommitment ?? DEFAULT_COMMITMENT_LEVEL,
+			preFlightCommitment: this.opts.preflightCommitment,
 			fetchAllMarketLookupTableAccounts:
 				this.fetchAllLookupTableAccounts.bind(this),
 			lookupTables,
 			forceVersionedTransaction,
 		});
-
-		return txns.filter(Boolean) as (Transaction | VersionedTransaction)[];
 	}
 
 	async buildTransactionsMap(
@@ -12911,8 +12701,7 @@ export class DriftClient {
 			txVersion: txVersion ?? this.txVersion,
 			txParams: txParams ?? this.txParams,
 			connection: this.connection,
-			preFlightCommitment:
-				this.opts?.preflightCommitment ?? DEFAULT_COMMITMENT_LEVEL,
+			preFlightCommitment: this.opts.preflightCommitment,
 			fetchAllMarketLookupTableAccounts:
 				this.fetchAllLookupTableAccounts.bind(this),
 			lookupTables,
@@ -12935,8 +12724,7 @@ export class DriftClient {
 			txVersion: txVersion ?? this.txVersion,
 			txParams: txParams ?? this.txParams,
 			connection: this.connection,
-			preFlightCommitment:
-				this.opts?.preflightCommitment ?? DEFAULT_COMMITMENT_LEVEL,
+			preFlightCommitment: this.opts.preflightCommitment,
 			fetchAllMarketLookupTableAccounts:
 				this.fetchAllLookupTableAccounts.bind(this),
 			lookupTables,
