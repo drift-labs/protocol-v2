@@ -36,10 +36,10 @@ use crate::instructions::optional_accounts::{
 use crate::instructions::SpotFulfillmentType;
 use crate::load;
 use crate::math::casting::Cast;
+use crate::math::constants::{QUOTE_SPOT_MARKET_INDEX, THIRTEEN_DAY};
+use crate::math::liquidation::is_cross_margin_being_liquidated;
 use crate::math::liquidation::is_cross_margin_being_liquidated;
 use crate::math::liquidation::is_isolated_margin_being_liquidated;
-use crate::math::constants::{QUOTE_SPOT_MARKET_INDEX, THIRTEEN_DAY};
-use crate::math::liquidation::is_user_being_liquidated;
 use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_liability_info;
 use crate::math::margin::meets_initial_margin_requirement;
 use crate::math::margin::{
@@ -242,6 +242,15 @@ pub fn handle_initialize_user<'c: 'info, 'info>(
         )?;
     }
 
+    #[cfg(feature = "mainnet-beta")]
+    if ctx.accounts.authority.key() != ctx.accounts.payer.key() {
+        validate!(
+            WHITELISTED_EXTERNAL_DEPOSITORS.contains(&ctx.accounts.payer.key()),
+            ErrorCode::DefaultError,
+            "Authority is not the payer"
+        )?;
+    }
+
     Ok(())
 }
 
@@ -276,6 +285,15 @@ pub fn handle_initialize_user_stats<'c: 'info, 'info>(
             || state.number_of_authorities <= max_number_of_sub_accounts,
         ErrorCode::MaxNumberOfUsers
     )?;
+
+    #[cfg(feature = "mainnet-beta")]
+    if ctx.accounts.authority.key() != ctx.accounts.payer.key() {
+        validate!(
+            WHITELISTED_EXTERNAL_DEPOSITORS.contains(&ctx.accounts.payer.key()),
+            ErrorCode::DefaultError,
+            "Authority is not the payer"
+        )?;
+    }
 
     Ok(())
 }
@@ -742,7 +760,6 @@ pub fn handle_deposit<'c: 'info, 'info>(
         None,
     )?;
 
-    let user_token_amount_after = spot_position.get_signed_token_amount(&spot_market)?;
     let token_amount = spot_position.get_token_amount(&spot_market)?;
     if token_amount == 0 {
         validate!(
@@ -807,6 +824,7 @@ pub fn handle_deposit<'c: 'info, 'info>(
     let signer = if ctx.accounts.authority.key() != user.authority
         && ctx.accounts.authority.key() != user.delegate
     {
+        #[cfg(feature = "mainnet-beta")]
         validate!(
             WHITELISTED_EXTERNAL_DEPOSITORS.contains(&ctx.accounts.authority.key()),
             ErrorCode::DefaultError,
@@ -817,6 +835,7 @@ pub fn handle_deposit<'c: 'info, 'info>(
     } else {
         None
     };
+    let user_token_amount_after = user.get_total_token_amount(&spot_market)?;
     let deposit_record = DepositRecord {
         ts: now,
         deposit_record_id,
@@ -992,9 +1011,7 @@ pub fn handle_withdraw<'c: 'info, 'info>(
         explanation: deposit_explanation,
         transfer_user: None,
         signer: None,
-        user_token_amount_after: user
-            .force_get_spot_position_mut(market_index)?
-            .get_signed_token_amount(&spot_market)?,
+        user_token_amount_after: user.get_total_token_amount(&spot_market)?,
     };
     emit!(deposit_record);
 
@@ -1166,9 +1183,7 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(to_user_key),
             signer: None,
-            user_token_amount_after: from_user
-                .force_get_spot_position_mut(market_index)?
-                .get_signed_token_amount(spot_market)?,
+            user_token_amount_after: from_user.get_total_token_amount(&spot_market)?,
         };
         emit!(deposit_record);
     }
@@ -1193,27 +1208,31 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
         let total_deposits_after = to_user.total_deposits;
         let total_withdraws_after = to_user.total_withdraws;
 
-        let to_spot_position = to_user.force_get_spot_position_mut(spot_market.market_index)?;
+        {
+            let to_spot_position = to_user.force_get_spot_position_mut(spot_market.market_index)?;
 
-        controller::spot_position::update_spot_balances_and_cumulative_deposits(
-            amount as u128,
-            &SpotBalanceType::Deposit,
-            spot_market,
-            to_spot_position,
-            false,
-            None,
-        )?;
-
-        let token_amount = to_spot_position.get_token_amount(spot_market)?;
-        if token_amount == 0 {
-            validate!(
-                to_spot_position.scaled_balance == 0,
-                ErrorCode::InvalidSpotPosition,
-                "deposit left to_user with invalid position. scaled balance = {} token amount = {}",
-                to_spot_position.scaled_balance,
-                token_amount
+            controller::spot_position::update_spot_balances_and_cumulative_deposits(
+                amount as u128,
+                &SpotBalanceType::Deposit,
+                spot_market,
+                to_spot_position,
+                false,
+                None,
             )?;
+
+            let token_amount = to_spot_position.get_token_amount(spot_market)?;
+            if token_amount == 0 {
+                validate!(
+                    to_spot_position.scaled_balance == 0,
+                    ErrorCode::InvalidSpotPosition,
+                    "deposit left to_user with invalid position. scaled balance = {} token amount = {}",
+                    to_spot_position.scaled_balance,
+                    token_amount
+                )?;
+            }
         }
+
+        let user_token_amount_after = to_user.get_total_token_amount(&spot_market)?;
 
         let deposit_record_id = get_then_update_id!(spot_market, next_deposit_record_id);
         let deposit_record = DepositRecord {
@@ -1234,7 +1253,7 @@ pub fn handle_transfer_deposit<'c: 'info, 'info>(
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(from_user_key),
             signer: None,
-            user_token_amount_after: to_spot_position.get_signed_token_amount(spot_market)?,
+            user_token_amount_after,
         };
         emit!(deposit_record);
     }
@@ -1448,9 +1467,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(to_user_key),
             signer: None,
-            user_token_amount_after: from_user
-                .force_get_spot_position_mut(deposit_from_market_index)?
-                .get_signed_token_amount(&deposit_from_spot_market)?,
+            user_token_amount_after: from_user.get_total_token_amount(&deposit_from_spot_market)?,
         };
         emit!(deposit_record);
 
@@ -1486,9 +1503,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(from_user_key),
             signer: None,
-            user_token_amount_after: to_user
-                .force_get_spot_position_mut(deposit_to_market_index)?
-                .get_signed_token_amount(&deposit_to_spot_market)?,
+            user_token_amount_after: to_user.get_total_token_amount(&deposit_to_spot_market)?,
         };
         emit!(deposit_record);
     }
@@ -1556,9 +1571,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(to_user_key),
             signer: None,
-            user_token_amount_after: from_user
-                .force_get_spot_position_mut(borrow_from_market_index)?
-                .get_signed_token_amount(&borrow_from_spot_market)?,
+            user_token_amount_after: from_user.get_total_token_amount(&borrow_from_spot_market)?,
         };
         emit!(deposit_record);
 
@@ -1594,9 +1607,7 @@ pub fn handle_transfer_pools<'c: 'info, 'info>(
             explanation: DepositExplanation::Transfer,
             transfer_user: Some(from_user_key),
             signer: None,
-            user_token_amount_after: to_user
-                .force_get_spot_position_mut(borrow_to_market_index)?
-                .get_signed_token_amount(&borrow_to_spot_market)?,
+            user_token_amount_after: to_user.get_total_token_amount(&borrow_to_spot_market)?,
         };
         emit!(deposit_record);
     }
@@ -1959,7 +1970,7 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         )
     };
 
-    let mut from_user_margin_context = MarginContext::standard(MarginRequirementType::Maintenance)
+    let from_user_margin_context = MarginContext::standard(MarginRequirementType::Maintenance)
         .fuel_perp_delta(market_index, transfer_amount);
 
     let from_user_margin_calculation =
@@ -1977,7 +1988,7 @@ pub fn handle_transfer_perp_position<'c: 'info, 'info>(
         "from user margin requirement is greater than total collateral"
     )?;
 
-    let mut to_user_margin_context = MarginContext::standard(MarginRequirementType::Initial)
+    let to_user_margin_context = MarginContext::standard(MarginRequirementType::Initial)
         .fuel_perp_delta(market_index, -transfer_amount);
 
     let to_user_margin_requirement =
@@ -2181,9 +2192,6 @@ pub fn handle_transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
     perp_market_index: u16,
     amount: i64,
 ) -> anchor_lang::Result<()> {
-    let authority_key = ctx.accounts.authority.key;
-    let user_key = ctx.accounts.user.key();
-
     let state = &ctx.accounts.state;
     let clock = Clock::get()?;
     let slot = clock.slot;
@@ -2214,7 +2222,7 @@ pub fn handle_transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
 
     controller::isolated_position::transfer_isolated_perp_position_deposit(
         user,
-        user_stats,
+        Some(user_stats),
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
@@ -4399,7 +4407,8 @@ pub struct InitializeUser<'info> {
     pub user_stats: AccountLoader<'info, UserStats>,
     #[account(mut)]
     pub state: Box<Account<'info, State>>,
-    pub authority: Signer<'info>,
+    /// CHECK: Just a normal authority account
+    pub authority: AccountInfo<'info>,
     #[account(mut)]
     pub payer: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
@@ -4418,7 +4427,8 @@ pub struct InitializeUserStats<'info> {
     pub user_stats: AccountLoader<'info, UserStats>,
     #[account(mut)]
     pub state: Box<Account<'info, State>>,
-    pub authority: Signer<'info>,
+    /// CHECK: Just a normal authority account
+    pub authority: AccountInfo<'info>,
     #[account(mut)]
     pub payer: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,

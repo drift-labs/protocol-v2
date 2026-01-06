@@ -1,5 +1,5 @@
 {
-  "version": "2.150.0",
+  "version": "2.152.0",
   "name": "drift",
   "instructions": [
     {
@@ -23,7 +23,7 @@
         {
           "name": "authority",
           "isMut": false,
-          "isSigner": true
+          "isSigner": false
         },
         {
           "name": "payer",
@@ -73,7 +73,7 @@
         {
           "name": "authority",
           "isMut": false,
-          "isSigner": true
+          "isSigner": false
         },
         {
           "name": "payer",
@@ -11741,7 +11741,7 @@
           },
           {
             "name": "disableUpdatePerpBidAskTwap",
-            "type": "bool"
+            "type": "u8"
           },
           {
             "name": "pausedOperations",
@@ -19780,6 +19780,11 @@
       "code": 6344,
       "name": "MarketIndexNotFoundAmmCache",
       "msg": "MarketIndexNotFoundAmmCache"
+    },
+    {
+      "code": 6345,
+      "name": "InvalidIsolatedPerpMarket",
+      "msg": "Invalid Isolated Perp Market"
     }
   ],
   "metadata": {

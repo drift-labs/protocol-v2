@@ -5,6 +5,7 @@ use crate::math::constants::{
     QUOTE_SPOT_MARKET_INDEX, SPOT_BALANCE_PRECISION, SPOT_CUMULATIVE_INTEREST_PRECISION,
 };
 use crate::state::perp_market::{InsuranceClaim, PoolBalance};
+use crate::state::user::SpotPosition;
 
 #[test]
 fn concentration_coef_tests() {
@@ -1393,6 +1394,7 @@ fn update_pool_balances_revenue_to_fee_new_market() {
     assert_eq!(spot_market.revenue_pool.scaled_balance, 50000000000);
 }
 
+#[cfg(test)]
 mod revenue_pool_transfer_tests {
     use crate::controller::amm::*;
     use crate::math::constants::{
@@ -1401,6 +1403,8 @@ mod revenue_pool_transfer_tests {
     };
     use crate::state::perp_market::{InsuranceClaim, PoolBalance};
     use crate::state::spot_market::InsuranceFund;
+    use crate::state::user::SpotPosition;
+
     #[test]
     fn test_calculate_revenue_pool_transfer() {
         // Set up input parameters

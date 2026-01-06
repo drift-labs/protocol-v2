@@ -6,6 +6,7 @@ use crate::{
         spot_position::update_spot_balances_and_cumulative_deposits,
     },
     error::{DriftResult, ErrorCode},
+    math::constants::{LIQUIDATION_PCT_PRECISION, QUOTE_SPOT_MARKET_INDEX},
     math::{
         bankruptcy::{is_cross_margin_bankrupt, is_isolated_margin_bankrupt},
         liquidation::calculate_max_pct_to_liquidate,
@@ -13,7 +14,7 @@ use crate::{
         safe_unwrap::SafeUnwrap,
     },
     state::margin_calculation::MarginCalculation,
-    validate, LIQUIDATION_PCT_PRECISION, QUOTE_SPOT_MARKET_INDEX,
+    validate,
 };
 
 use super::{
@@ -305,7 +306,7 @@ impl LiquidatePerpMode for IsolatedMarginLiquidatePerpMode {
         Ok(LIQUIDATION_PCT_PRECISION)
     }
 
-    fn increment_free_margin(&self, user: &mut User, amount: u64) -> DriftResult<()> {
+    fn increment_free_margin(&self, _user: &mut User, _amount: u64) -> DriftResult<()> {
         Ok(())
     }
 

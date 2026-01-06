@@ -696,6 +696,8 @@ pub enum ErrorCode {
     InvalidLpPoolId,
     #[msg("MarketIndexNotFoundAmmCache")]
     MarketIndexNotFoundAmmCache,
+    #[msg("Invalid Isolated Perp Market")]
+    InvalidIsolatedPerpMarket,
 }
 
 #[macro_export]

@@ -4856,7 +4856,6 @@ pub fn handle_admin_deposit<'c: 'info, 'info>(
         None,
     )?;
 
-    let user_token_amount_after = spot_position.get_signed_token_amount(&spot_market)?;
     let token_amount = spot_position.get_token_amount(&spot_market)?;
     if token_amount == 0 {
         validate!(
@@ -4881,6 +4880,7 @@ pub fn handle_admin_deposit<'c: 'info, 'info>(
     user.update_last_active_slot(slot);
 
     let spot_market = &mut spot_market_map.get_ref_mut(&market_index)?;
+    let user_token_amount_after = user.get_total_token_amount(spot_market)?;
 
     controller::token::receive(
         &ctx.accounts.token_program,

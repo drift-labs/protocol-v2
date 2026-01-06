@@ -311,7 +311,7 @@ pub mod transfer_isolated_perp_position_deposit {
 
         transfer_isolated_perp_position_deposit(
             &mut user,
-            &mut user_stats,
+            Some(&mut user_stats),
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -416,7 +416,7 @@ pub mod transfer_isolated_perp_position_deposit {
 
         let result = transfer_isolated_perp_position_deposit(
             &mut user,
-            &mut user_stats,
+            Some(&mut user_stats),
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -507,7 +507,7 @@ pub mod transfer_isolated_perp_position_deposit {
 
         let result = transfer_isolated_perp_position_deposit(
             &mut user,
-            &mut user_stats,
+            Some(&mut user_stats),
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -599,7 +599,7 @@ pub mod transfer_isolated_perp_position_deposit {
 
         transfer_isolated_perp_position_deposit(
             &mut user,
-            &mut user_stats,
+            Some(&mut user_stats),
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -700,7 +700,7 @@ pub mod transfer_isolated_perp_position_deposit {
 
         let result = transfer_isolated_perp_position_deposit(
             &mut user,
-            &mut user_stats,
+            Some(&mut user_stats),
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,
@@ -793,7 +793,7 @@ pub mod transfer_isolated_perp_position_deposit {
 
         let result = transfer_isolated_perp_position_deposit(
             &mut user,
-            &mut user_stats,
+            Some(&mut user_stats),
             &perp_market_map,
             &spot_market_map,
             &mut oracle_map,

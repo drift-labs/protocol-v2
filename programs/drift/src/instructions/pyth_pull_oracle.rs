@@ -183,7 +183,8 @@ pub fn handle_post_multi_pyth_pull_oracle_updates_atomic<'c: 'info, 'info>(
             )?;
 
             let price_feed_account_data = account.try_borrow_data()?;
-            let price_feed_account = PriceUpdateV2::try_deserialize(&mut &price_feed_account_data[..])?;
+            let price_feed_account =
+                PriceUpdateV2::try_deserialize(&mut &price_feed_account_data[..])?;
             validate!(
                 price_feed_account.price_message.feed_id == feed_id,
                 ErrorCode::OraclePriceFeedMessageMismatch

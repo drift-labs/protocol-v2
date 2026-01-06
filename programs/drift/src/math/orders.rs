@@ -794,7 +794,7 @@ pub fn calculate_max_perp_order_size(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
 ) -> DriftResult<u64> {
-    let mut margin_context = MarginContext::standard(MarginRequirementType::Initial).strict(true);
+    let margin_context = MarginContext::standard(MarginRequirementType::Initial).strict(true);
     // calculate initial margin requirement
     let margin_calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
         user,

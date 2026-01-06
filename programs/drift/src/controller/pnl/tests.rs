@@ -1377,7 +1377,7 @@ pub fn user_long_positive_unrealized_pnl_up_to_max_positive_pnl_price_breached()
         &clock,
         &state,
         None,
-        SettlePnlMode::MustSettle
+        SettlePnlMode::MustSettle,
     )
     .is_err());
 }

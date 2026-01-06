@@ -331,6 +331,30 @@ impl User {
         }
     }
 
+    pub fn get_total_token_amount(&self, spot_market: &SpotMarket) -> DriftResult<i128> {
+        let spot_token_amount = {
+            if let Ok(spot_position) = self.get_spot_position(spot_market.market_index) {
+                spot_position.get_signed_token_amount(spot_market)?
+            } else {
+                0_i128
+            }
+        };
+
+        if spot_market.market_index != QUOTE_SPOT_MARKET_INDEX {
+            return Ok(spot_token_amount);
+        }
+
+        let mut perp_token_amount = 0;
+        for perp_position in self.perp_positions.iter() {
+            if perp_position.is_isolated() {
+                perp_token_amount = perp_token_amount
+                    .safe_add(perp_position.get_isolated_token_amount(&spot_market)?)?;
+            }
+        }
+
+        spot_token_amount.safe_add(perp_token_amount.cast::<i128>()?)
+    }
+
     pub fn increment_total_deposits(
         &mut self,
         amount: u64,
@@ -475,6 +499,7 @@ impl User {
 
     pub fn exit_isolated_margin_bankruptcy(&mut self, perp_market_index: u16) -> DriftResult {
         let perp_position = self.force_get_isolated_perp_position_mut(perp_market_index)?;
+        perp_position.position_flag &= !(PositionFlag::BeingLiquidated as u8);
         perp_position.position_flag &= !(PositionFlag::Bankrupt as u8);
         Ok(())
     }
@@ -718,6 +743,77 @@ impl User {
             "margin calculation: {:?}",
             calculation
         )?;
+
+        user_stats.update_fuel_bonus(
+            self,
+            calculation.fuel_deposits,
+            calculation.fuel_borrows,
+            calculation.fuel_positions,
+            now,
+        )?;
+
+        Ok(true)
+    }
+
+    pub fn meets_transfer_isolated_position_deposit_margin_requirement(
+        &mut self,
+        perp_market_map: &PerpMarketMap,
+        spot_market_map: &SpotMarketMap,
+        oracle_map: &mut OracleMap,
+        margin_requirement_type: MarginRequirementType,
+        withdraw_market_index: u16,
+        withdraw_amount: u128,
+        user_stats: &mut UserStats,
+        now: i64,
+        to_isolated_position: bool,
+        isolated_market_index: u16,
+    ) -> DriftResult<bool> {
+        let strict = margin_requirement_type == MarginRequirementType::Initial;
+        let context = MarginContext::standard(margin_requirement_type)
+            .strict(strict)
+            .ignore_invalid_deposit_oracles(true)
+            .fuel_spot_delta(withdraw_market_index, withdraw_amount.cast::<i128>()?)
+            .fuel_numerator(self, now);
+
+        let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            self,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            context,
+        )?;
+
+        if calculation.margin_requirement > 0 || calculation.get_num_of_liabilities()? > 0 {
+            validate!(
+                calculation.all_liability_oracles_valid,
+                ErrorCode::InvalidOracle,
+                "User attempting to withdraw with outstanding liabilities when an oracle is invalid"
+            )?;
+        }
+
+        validate_any_isolated_tier_requirements(self, &calculation)?;
+
+        if to_isolated_position {
+            validate!(
+                calculation.meets_cross_margin_requirement(),
+                ErrorCode::InsufficientCollateral,
+                "margin calculation: {:?}",
+                calculation
+            )?;
+        } else {
+            // may not exist if user withdrew their remaining deposit
+            if let Some(isolated_margin_calculation) = calculation
+                .isolated_margin_calculations
+                .get(&isolated_market_index)
+            {
+                validate!(
+                    isolated_margin_calculation.meets_margin_requirement(),
+                    ErrorCode::InsufficientCollateral,
+                    "margin calculation: {:?}",
+                    calculation
+                )?;
+            }
+        }
 
         user_stats.update_fuel_bonus(
             self,
@@ -1098,8 +1194,7 @@ pub struct PerpPosition {
     /// LP shares allow users to provide liquidity via the AMM
     /// precision: BASE_PRECISION
     pub lp_shares: u64,
-    /// The last base asset amount per lp the amm had
-    /// Used to settle the users lp position
+    /// The scaled balance of the isolated position
     /// precision: SPOT_BALANCE_PRECISION
     pub isolated_position_scaled_balance: u64,
     /// The last quote asset amount per lp the amm had
@@ -1290,6 +1385,14 @@ impl PerpPosition {
 
     pub fn is_bankrupt(&self) -> bool {
         self.position_flag & PositionFlag::Bankrupt as u8 > 0
+    }
+
+    pub fn can_transfer_isolated_position_deposit(&self) -> bool {
+        self.is_isolated()
+            && self.isolated_position_scaled_balance > 0
+            && !self.is_open_position()
+            && !self.has_open_order()
+            && !self.has_unsettled_pnl()
     }
 }
 
@@ -1825,6 +1928,14 @@ pub enum OrderBitFlag {
     SafeTriggerOrder = 0b00000100,
     NewTriggerReduceOnly = 0b00001000,
     HasBuilder = 0b00010000,
+    IsIsolatedPosition = 0b00100000,
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum PositionFlag {
+    IsolatedPosition = 0b00000001,
+    BeingLiquidated = 0b00000010,
+    Bankrupt = 0b00000100,
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
