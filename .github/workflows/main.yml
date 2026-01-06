@@ -127,7 +127,8 @@ jobs:
         if: steps.cache-anchor.outputs.cache-hit != 'true'
         run: |
           sudo apt update -y && sudo apt install libudev-dev
-          cargo install --git https://github.com/coral-xyz/anchor --tag v${{ env.ANCHOR_VERSION }} anchor-cli --locked
+          cargo install --git https://github.com/coral-xyz/anchor avm --force
+          avm install ${{ env.ANCHOR_VERSION }}
 
       - name: Setup node
         uses: actions/setup-node@v2
@@ -155,7 +156,9 @@ jobs:
       - name: run anchor tests
         env:
           RUST_LOG: solana_runtime::message_processor::stable_log=info
-        run: bash test-scripts/run-anchor-tests.sh
+        run: |
+          avm use ${{ env.ANCHOR_VERSION }}
+          bash test-scripts/run-anchor-tests.sh
   verify-sdk-configs:
     name: Verify SDK Configs
     runs-on: ubicloud
@@ -335,7 +338,8 @@ jobs:
 
       - name: Install Anchor CLI
         run: |
-          cargo install --git https://github.com/coral-xyz/anchor --tag v${{ env.ANCHOR_VERSION }} anchor-cli --locked
+          cargo install --git https://github.com/coral-xyz/anchor avm --force
+          avm install ${{ env.ANCHOR_VERSION }}
 
       - name: Verifiable Build
         run: |
