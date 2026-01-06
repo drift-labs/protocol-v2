@@ -242,8 +242,6 @@ describe('spot swap', () => {
 
 		console.log('\n\n\n\n\n here \n\n\n\n\n');
 
-		console.log('\n\n\n\n\n here \n\n\n\n\n');
-
 		const market = await Market.load(
 			bankrunContextWrapper.connection.toConnection(),
 			serumMarketPublicKey,

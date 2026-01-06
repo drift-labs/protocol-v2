@@ -1527,23 +1527,6 @@ export type InsuranceFundStake = {
 	lastWithdrawRequestTs: BN;
 };
 
-export type SerumV3FulfillmentConfigAccount = {
-	fulfillmentType: SpotFulfillmentType;
-	status: SpotFulfillmentStatus;
-	pubkey: PublicKey;
-	marketIndex: number;
-	serumProgramId: PublicKey;
-	serumMarket: PublicKey;
-	serumRequestQueue: PublicKey;
-	serumEventQueue: PublicKey;
-	serumBids: PublicKey;
-	serumAsks: PublicKey;
-	serumBaseVault: PublicKey;
-	serumQuoteVault: PublicKey;
-	serumOpenOrders: PublicKey;
-	serumSignerNonce: BN;
-};
-
 export type PhoenixV1FulfillmentConfigAccount = {
 	pubkey: PublicKey;
 	phoenixProgramId: PublicKey;
@@ -1554,23 +1537,6 @@ export type PhoenixV1FulfillmentConfigAccount = {
 	marketIndex: number;
 	fulfillmentType: SpotFulfillmentType;
 	status: SpotFulfillmentStatus;
-};
-
-export type OpenbookV2FulfillmentConfigAccount = {
-	pubkey: PublicKey;
-	openbookV2ProgramId: PublicKey;
-	openbookV2Market: PublicKey;
-	openbookV2MarketAuthority: PublicKey;
-	openbookV2EventHeap: PublicKey;
-	openbookV2Bids: PublicKey;
-	openbookV2Asks: PublicKey;
-	openbookV2BaseVault: PublicKey;
-	openbookV2QuoteVault: PublicKey;
-	marketIndex: number;
-	fulfillmentType: SpotFulfillmentType;
-	status: SpotFulfillmentStatus;
-	// not actually on the account, just used to pass around remaining accounts in ts
-	remainingAccounts?: PublicKey[];
 };
 
 export type ReferrerNameAccount = {

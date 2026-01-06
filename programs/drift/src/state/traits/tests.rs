@@ -1,6 +1,5 @@
 mod size {
     use crate::state::events::OrderActionRecord;
-    use crate::state::fulfillment_params::serum::SerumV3FulfillmentConfig;
     use crate::state::insurance_fund_stake::InsuranceFundStake;
     use crate::state::perp_market::PerpMarket;
     use crate::state::spot_market::SpotMarket;
@@ -26,13 +25,6 @@ mod size {
     fn spot_market() {
         let expected_size = std::mem::size_of::<SpotMarket>() + 8;
         let actual_size = SpotMarket::SIZE;
-        assert_eq!(actual_size, expected_size);
-    }
-
-    #[test]
-    fn serum_config() {
-        let expected_size = std::mem::size_of::<SerumV3FulfillmentConfig>() + 8;
-        let actual_size = SerumV3FulfillmentConfig::SIZE;
         assert_eq!(actual_size, expected_size);
     }
 

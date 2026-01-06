@@ -47,8 +47,6 @@
 		"@ellipsis-labs/phoenix-sdk": "1.4.5",
 		"@grpc/grpc-js": "1.14.0",
 		"@msgpack/msgpack": "^3.1.2",
-		"@openbook-dex/openbook-v2": "0.2.10",
-		"@project-serum/serum": "0.13.65",
 		"@pythnetwork/client": "2.5.3",
 		"@pythnetwork/price-service-sdk": "1.7.1",
 		"@pythnetwork/pyth-solana-receiver": "0.7.0",

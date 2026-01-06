@@ -951,33 +951,6 @@ pub mod drift {
         handle_delete_initialized_spot_market(ctx, market_index)
     }
 
-    pub fn initialize_serum_fulfillment_config(
-        ctx: Context<InitializeSerumFulfillmentConfig>,
-        market_index: u16,
-    ) -> Result<()> {
-        handle_initialize_serum_fulfillment_config(ctx, market_index)
-    }
-
-    pub fn update_serum_fulfillment_config_status(
-        ctx: Context<UpdateSerumFulfillmentConfig>,
-        status: SpotFulfillmentConfigStatus,
-    ) -> Result<()> {
-        handle_update_serum_fulfillment_config_status(ctx, status)
-    }
-
-    pub fn initialize_openbook_v2_fulfillment_config(
-        ctx: Context<InitializeOpenbookV2FulfillmentConfig>,
-        market_index: u16,
-    ) -> Result<()> {
-        handle_initialize_openbook_v2_fulfillment_config(ctx, market_index)
-    }
-
-    pub fn openbook_v2_fulfillment_config_status(
-        ctx: Context<UpdateOpenbookV2FulfillmentConfig>,
-        status: SpotFulfillmentConfigStatus,
-    ) -> Result<()> {
-        handle_update_openbook_v2_fulfillment_config_status(ctx, status)
-    }
     pub fn initialize_phoenix_fulfillment_config(
         ctx: Context<InitializePhoenixFulfillmentConfig>,
         market_index: u16,

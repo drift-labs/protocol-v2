@@ -732,12 +732,6 @@ describe('LP Pool', () => {
 			SERUM
 		);
 
-		await adminClient.initializeSerumFulfillmentConfig(
-			2,
-			serumMarketPublicKey,
-			SERUM
-		);
-
 		serumMarket = await Market.load(
 			bankrunContextWrapper.connection.toConnection(),
 			serumMarketPublicKey,
@@ -875,24 +869,23 @@ describe('LP Pool', () => {
 			}
 		);
 
-		const serumConfig = await adminClient.getSerumV3FulfillmentConfig(
-			serumMarket.publicKey
-		);
 		const settleFundsIx = DexInstructions.settleFunds({
 			market: serumMarket.publicKey,
 			openOrders: openOrdersAccount,
 			owner: adminClient.wallet.publicKey,
 			// @ts-ignore
-			baseVault: serumConfig.serumBaseVault,
+			baseVault: serumMarket._decoded.baseVault,
 			// @ts-ignore
-			quoteVault: serumConfig.serumQuoteVault,
+			quoteVault: serumMarket._decoded.quoteVault,
 			baseWallet: adminSolAccount,
 			quoteWallet: userUSDCAccount.publicKey,
 			vaultSigner: getSerumSignerPublicKey(
 				serumMarket.programId,
 				serumMarket.publicKey,
-				serumConfig.serumSignerNonce
+				// @ts-ignore
+				serumMarket._decoded.vaultSignerNonce
 			),
+			// @ts-ignore
 			programId: serumMarket.programId,
 		});
 

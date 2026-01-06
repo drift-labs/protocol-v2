@@ -55,7 +55,6 @@ test_files=(
   modifyOrder.ts
   multipleMakerOrders.ts
   multipleSpotMakerOrders.ts
-  openbookTest.ts
   oracleDiffSources.ts
   oracleFillPriceGuardrails.ts
   oracleOffsetOrders.ts
@@ -74,7 +73,6 @@ test_files=(
   pythLazerBankrun.ts
   referrer.ts
   roundInFavorBaseAsset.ts
-  serumTest.ts
   settlePNLInvariant.ts
   spotDepositWithdraw.ts
   spotDepositWithdraw22.ts
