@@ -221,6 +221,21 @@ impl<'a> SpotMarketMap<'a> {
 
         Ok(spot_market_map)
     }
+
+    pub fn update_writable_spot_market(&mut self, market_index: u16) -> DriftResult {
+        if !self.0.contains_key(&market_index) {
+            return Err(ErrorCode::InvalidSpotMarketAccount);
+        }
+
+        let account_loader = self.0.get(&market_index).safe_unwrap()?;
+        if !account_loader.as_ref().is_writable {
+            return Err(ErrorCode::SpotMarketWrongMutability);
+        }
+
+        self.1.insert(market_index);
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]

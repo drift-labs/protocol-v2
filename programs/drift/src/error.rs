@@ -192,8 +192,8 @@ pub enum ErrorCode {
     SpotMarketInsufficientDeposits,
     #[msg("UserMustSettleTheirOwnPositiveUnsettledPNL")]
     UserMustSettleTheirOwnPositiveUnsettledPNL,
-    #[msg("CantUpdatePoolBalanceType")]
-    CantUpdatePoolBalanceType,
+    #[msg("CantUpdateSpotBalanceType")]
+    CantUpdateSpotBalanceType,
     #[msg("InsufficientCollateralForSettlingPNL")]
     InsufficientCollateralForSettlingPNL,
     #[msg("AMMNotUpdatedInSameSlot")]
@@ -694,6 +694,8 @@ pub enum ErrorCode {
     InvalidLpPoolId,
     #[msg("MarketIndexNotFoundAmmCache")]
     MarketIndexNotFoundAmmCache,
+    #[msg("Invalid Isolated Perp Market")]
+    InvalidIsolatedPerpMarket,
 }
 
 #[macro_export]

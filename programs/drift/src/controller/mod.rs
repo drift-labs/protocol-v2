@@ -1,6 +1,7 @@
 pub mod amm;
 pub mod funding;
 pub mod insurance;
+pub mod isolated_position;
 pub mod liquidation;
 pub mod orders;
 pub mod pda;

@@ -304,6 +304,10 @@ pub fn place_perp_order(
         bit_flags = set_order_bit_flag(bit_flags, true, OrderBitFlag::HasBuilder);
     }
 
+    if user.perp_positions[position_index].is_isolated() {
+        bit_flags = set_order_bit_flag(bit_flags, true, OrderBitFlag::IsIsolatedPosition);
+    }
+
     let new_order = Order {
         status: OrderStatus::Open,
         order_type: params.order_type,
@@ -539,8 +543,15 @@ pub fn cancel_orders(
     market_type: Option<MarketType>,
     market_index: Option<u16>,
     direction: Option<PositionDirection>,
+    skip_isolated_positions: bool,
 ) -> DriftResult<Vec<u32>> {
     let mut canceled_order_ids: Vec<u32> = vec![];
+    let isolated_position_market_indexes = user
+        .perp_positions
+        .iter()
+        .filter(|position| position.is_isolated())
+        .map(|position| position.market_index)
+        .collect::<Vec<u16>>();
     for order_index in 0..user.orders.len() {
         if user.orders[order_index].status != OrderStatus::Open {
             continue;
@@ -554,6 +565,10 @@ pub fn cancel_orders(
             if user.orders[order_index].market_index != market_index {
                 continue;
             }
+        } else if skip_isolated_positions
+            && isolated_position_market_indexes.contains(&user.orders[order_index].market_index)
+        {
+            continue;
         }
 
         if let Some(direction) = direction {
@@ -700,6 +715,14 @@ pub fn cancel_order(
         let (taker, taker_order, maker, maker_order) =
             get_taker_and_maker_for_order_record(user_key, &user.orders[order_index]);
 
+        let mut bit_flags = 0;
+        if is_perp_order {
+            let position_index = get_position_index(&user.perp_positions, order_market_index)?;
+            if user.perp_positions[position_index].is_isolated() {
+                bit_flags = set_order_bit_flag(bit_flags, true, OrderBitFlag::IsIsolatedPosition);
+            }
+        }
+
         let order_action_record = get_order_action_record(
             now,
             OrderAction::Cancel,
@@ -720,7 +743,7 @@ pub fn cancel_order(
             maker,
             maker_order,
             oracle_map.get_price_data(&oracle_id)?.price,
-            0,
+            bit_flags,
             None,
             None,
             None,
@@ -1473,7 +1496,7 @@ fn get_maker_orders_info(
 
         let mut maker = load_mut!(user_account_loader)?;
 
-        if maker.is_being_liquidated() || maker.is_bankrupt() {
+        if maker.is_being_liquidated() {
             continue;
         }
 
@@ -1968,10 +1991,25 @@ fn fulfill_perp_order(
         )?;
 
         if !taker_margin_calculation.meets_margin_requirement() {
+            let (margin_requirement, total_collateral) =
+                if taker_margin_calculation.has_isolated_margin_calculation(market_index) {
+                    let isolated_margin_calculation =
+                        taker_margin_calculation.get_isolated_margin_calculation(market_index)?;
+                    (
+                        isolated_margin_calculation.margin_requirement,
+                        isolated_margin_calculation.total_collateral,
+                    )
+                } else {
+                    (
+                        taker_margin_calculation.margin_requirement,
+                        taker_margin_calculation.total_collateral,
+                    )
+                };
+
             msg!(
                 "taker breached fill requirements (margin requirement {}) (total_collateral {})",
-                taker_margin_calculation.margin_requirement,
-                taker_margin_calculation.total_collateral
+                margin_requirement,
+                total_collateral
             );
             return Err(ErrorCode::InsufficientCollateral);
         }
@@ -2028,11 +2066,26 @@ fn fulfill_perp_order(
         }
 
         if !maker_margin_calculation.meets_margin_requirement() {
+            let (margin_requirement, total_collateral) =
+                if maker_margin_calculation.has_isolated_margin_calculation(market_index) {
+                    let isolated_margin_calculation =
+                        maker_margin_calculation.get_isolated_margin_calculation(market_index)?;
+                    (
+                        isolated_margin_calculation.margin_requirement,
+                        isolated_margin_calculation.total_collateral,
+                    )
+                } else {
+                    (
+                        maker_margin_calculation.margin_requirement,
+                        maker_margin_calculation.total_collateral,
+                    )
+                };
+
             msg!(
                 "maker ({}) breached fill requirements (margin requirement {}) (total_collateral {})",
                 maker_key,
-                maker_margin_calculation.margin_requirement,
-                maker_margin_calculation.total_collateral
+                margin_requirement,
+                total_collateral
             );
             return Err(ErrorCode::InsufficientCollateral);
         }
@@ -2414,6 +2467,15 @@ pub fn fulfill_perp_order_with_amm(
         user.orders[order_index].is_signed_msg(),
         OrderBitFlag::SignedMessage,
     );
+
+    if user.perp_positions[position_index].is_isolated() {
+        order_action_bit_flags = set_order_bit_flag(
+            order_action_bit_flags,
+            true,
+            OrderBitFlag::IsIsolatedPosition,
+        );
+    }
+
     let (
         taker_existing_quote_entry_amount,
         taker_existing_base_asset_amount,
@@ -2931,6 +2993,17 @@ pub fn fulfill_perp_order_with_match(
         taker.orders[taker_order_index].is_signed_msg(),
         OrderBitFlag::SignedMessage,
     );
+
+    if taker.perp_positions[taker_position_index].is_isolated()
+        || maker.perp_positions[maker_position_index].is_isolated()
+    {
+        order_action_bit_flags = set_order_bit_flag(
+            order_action_bit_flags,
+            true,
+            OrderBitFlag::IsIsolatedPosition,
+        );
+    }
+
     let (taker_existing_quote_entry_amount, taker_existing_base_asset_amount) =
         calculate_existing_position_fields_for_order_action(
             base_asset_amount_fulfilled_by_maker,
@@ -3140,6 +3213,7 @@ pub fn trigger_order(
         .get_perp_position(market_index)?
         .worst_case_liability_value(oracle_price, perp_market.contract_type)?;
 
+    let mut bit_flags = 0;
     {
         update_trigger_order_params(
             &mut user.orders[order_index],
@@ -3164,6 +3238,9 @@ pub fn trigger_order(
             base_asset_amount,
             update_open_bids_and_asks,
         )?;
+        if user_position.is_isolated() {
+            bit_flags = set_order_bit_flag(bit_flags, true, OrderBitFlag::IsIsolatedPosition);
+        }
     }
 
     let is_filler_taker = user_key == filler_key;
@@ -3201,7 +3278,7 @@ pub fn trigger_order(
         None,
         None,
         oracle_price,
-        0,
+        bit_flags,
         None,
         None,
         None,
@@ -3334,6 +3411,9 @@ pub fn force_cancel_orders(
         ErrorCode::SufficientCollateral
     )?;
 
+    let cross_margin_meets_initial_margin_requirement =
+        margin_calc.meets_cross_margin_requirement();
+
     let mut total_fee = 0_u64;
 
     for order_index in 0..user.orders.len() {
@@ -3360,6 +3440,10 @@ pub fn force_cancel_orders(
                     continue;
                 }
 
+                if cross_margin_meets_initial_margin_requirement {
+                    continue;
+                }
+
                 state.spot_fee_structure.flat_filler_fee
             }
             MarketType::Perp => {
@@ -3372,6 +3456,18 @@ pub fn force_cancel_orders(
                 )?;
                 if is_position_reducing {
                     continue;
+                }
+
+                if !user.get_perp_position(market_index)?.is_isolated() {
+                    if cross_margin_meets_initial_margin_requirement {
+                        continue;
+                    }
+                } else {
+                    let meets_isolated_margin_requirement =
+                        margin_calc.meets_isolated_margin_requirement(market_index)?;
+                    if meets_isolated_margin_requirement {
+                        continue;
+                    }
                 }
 
                 state.perp_fee_structure.flat_filler_fee
@@ -4182,7 +4278,7 @@ fn get_spot_maker_orders_info(
 
         let mut maker = load_mut!(user_account_loader)?;
 
-        if maker.is_being_liquidated() || maker.is_bankrupt() {
+        if maker.is_being_liquidated() {
             continue;
         }
 
