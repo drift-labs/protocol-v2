@@ -239,8 +239,9 @@ pub fn handle_initialize_user<'c: 'info, 'info>(
         )?;
     }
 
+    let authority_is_signer = ctx.accounts.authority.is_signer;
     #[cfg(feature = "mainnet-beta")]
-    if ctx.accounts.authority.key() != ctx.accounts.payer.key() {
+    if !authority_is_signer && ctx.accounts.authority.key() != ctx.accounts.payer.key() {
         validate!(
             WHITELISTED_EXTERNAL_DEPOSITORS.contains(&ctx.accounts.payer.key()),
             ErrorCode::DefaultError,
@@ -283,8 +284,9 @@ pub fn handle_initialize_user_stats<'c: 'info, 'info>(
         ErrorCode::MaxNumberOfUsers
     )?;
 
+    let authority_is_signer = ctx.accounts.authority.is_signer;
     #[cfg(feature = "mainnet-beta")]
-    if ctx.accounts.authority.key() != ctx.accounts.payer.key() {
+    if !authority_is_signer && ctx.accounts.authority.key() != ctx.accounts.payer.key() {
         validate!(
             WHITELISTED_EXTERNAL_DEPOSITORS.contains(&ctx.accounts.payer.key()),
             ErrorCode::DefaultError,
