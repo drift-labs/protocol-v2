@@ -2423,7 +2423,7 @@ mod force_get_isolated_perp_position_mut {
 }
 
 pub mod meets_withdraw_margin_requirement_and_increment_fuel_bonus {
-    use crate::math::constants::ONE_HOUR;
+
     use crate::state::state::State;
     use std::collections::BTreeSet;
     use std::str::FromStr;
@@ -2431,23 +2431,18 @@ pub mod meets_withdraw_margin_requirement_and_increment_fuel_bonus {
     use anchor_lang::Owner;
     use solana_program::pubkey::Pubkey;
 
-    use crate::controller::liquidation::{liquidate_perp, liquidate_spot};
     use crate::controller::position::PositionDirection;
     use crate::create_anchor_account_info;
     use crate::error::ErrorCode;
     use crate::math::constants::{
         AMM_RESERVE_PRECISION, BASE_PRECISION_I128, BASE_PRECISION_I64, BASE_PRECISION_U64,
-        LIQUIDATION_FEE_PRECISION, LIQUIDATION_PCT_PRECISION, MARGIN_PRECISION,
-        MARGIN_PRECISION_U128, PEG_PRECISION, PRICE_PRECISION, PRICE_PRECISION_U64,
-        QUOTE_PRECISION, QUOTE_PRECISION_I128, QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION_U64,
-        SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+        LIQUIDATION_FEE_PRECISION, LIQUIDATION_PCT_PRECISION, PEG_PRECISION, QUOTE_PRECISION_I128,
+        QUOTE_PRECISION_I64, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
+        SPOT_WEIGHT_PRECISION,
     };
-    use crate::math::liquidation::is_cross_margin_being_liquidated;
-    use crate::math::margin::{
-        calculate_margin_requirement_and_total_collateral_and_liability_info, MarginRequirementType,
-    };
-    use crate::math::position::calculate_base_asset_value_with_oracle_price;
-    use crate::state::margin_calculation::{MarginCalculation, MarginContext};
+
+    use crate::math::margin::MarginRequirementType;
+
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
@@ -2455,8 +2450,7 @@ pub mod meets_withdraw_margin_requirement_and_increment_fuel_bonus {
     use crate::state::spot_market::{SpotBalanceType, SpotMarket};
     use crate::state::spot_market_map::SpotMarketMap;
     use crate::state::user::{
-        MarginMode, Order, OrderStatus, OrderType, PerpPosition, PositionFlag, SpotPosition, User,
-        UserStats,
+        Order, OrderStatus, OrderType, PerpPosition, PositionFlag, SpotPosition, User, UserStats,
     };
     use crate::test_utils::*;
     use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
@@ -2481,19 +2475,19 @@ pub mod meets_withdraw_margin_requirement_and_increment_fuel_bonus {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
-                quote_asset_amount: -150 * QUOTE_PRECISION_I128,
-                base_asset_amount_with_amm: BASE_PRECISION_I128,
+                quote_asset_amount: (-150 * QUOTE_PRECISION_I128).into(),
+                base_asset_amount_with_amm: BASE_PRECISION_I128.into(),
                 oracle: oracle_price_key,
                 historical_oracle_data: HistoricalOracleData::default_price(oracle_price.agg.price),
                 ..AMM::default()
@@ -2520,8 +2514,8 @@ pub mod meets_withdraw_margin_requirement_and_increment_fuel_bonus {
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,

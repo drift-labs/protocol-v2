@@ -1966,13 +1966,13 @@ fn isolated_perp_position() {
     let mut spot_market = SpotMarket {
         market_index: 0,
         oracle_source: OracleSource::QuoteAsset,
-        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-        cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+        cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
         decimals: 6,
         initial_asset_weight: SPOT_WEIGHT_PRECISION,
         maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-        deposit_balance: 100_000_000 * SPOT_BALANCE_PRECISION, //$100M usdc
-        borrow_balance: 0,
+        deposit_balance: (100_000_000 * SPOT_BALANCE_PRECISION).into(), //$100M usdc
+        borrow_balance: 0.into(),
         deposit_token_twap: QUOTE_PRECISION_U64 / 2,
         historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
         status: MarketStatus::Active,

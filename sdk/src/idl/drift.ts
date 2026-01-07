@@ -1540,6 +1540,82 @@ export type Drift = {
 			];
 		},
 		{
+			name: 'depositIntoIsolatedPerpPosition';
+			discriminator: [101, 48, 255, 153, 127, 121, 170, 26];
+			accounts: [
+				{
+					name: 'state';
+				},
+				{
+					name: 'user';
+					writable: true;
+				},
+				{
+					name: 'userStats';
+					writable: true;
+				},
+				{
+					name: 'authority';
+					signer: true;
+				},
+				{
+					name: 'spotMarketVault';
+					writable: true;
+					pda: {
+						seeds: [
+							{
+								kind: 'const';
+								value: [
+									115,
+									112,
+									111,
+									116,
+									95,
+									109,
+									97,
+									114,
+									107,
+									101,
+									116,
+									95,
+									118,
+									97,
+									117,
+									108,
+									116,
+								];
+							},
+							{
+								kind: 'arg';
+								path: 'spotMarketIndex';
+							},
+						];
+					};
+				},
+				{
+					name: 'userTokenAccount';
+					writable: true;
+				},
+				{
+					name: 'tokenProgram';
+				},
+			];
+			args: [
+				{
+					name: 'spotMarketIndex';
+					type: 'u16';
+				},
+				{
+					name: 'perpMarketIndex';
+					type: 'u16';
+				},
+				{
+					name: 'amount';
+					type: 'u64';
+				},
+			];
+		},
+		{
 			name: 'depositIntoPerpMarketFeePool';
 			discriminator: [34, 58, 57, 68, 97, 80, 244, 6];
 			accounts: [
@@ -4438,7 +4514,6 @@ export type Drift = {
 				},
 				{
 					name: 'authority';
-					signer: true;
 					relations: ['userStats'];
 				},
 				{
@@ -4494,7 +4569,6 @@ export type Drift = {
 				},
 				{
 					name: 'authority';
-					signer: true;
 				},
 				{
 					name: 'payer';
@@ -7514,6 +7588,75 @@ export type Drift = {
 				{
 					name: 'amount';
 					type: 'u64';
+				},
+			];
+		},
+		{
+			name: 'transferIsolatedPerpPositionDeposit';
+			discriminator: [201, 131, 242, 228, 85, 226, 70, 237];
+			accounts: [
+				{
+					name: 'user';
+					writable: true;
+				},
+				{
+					name: 'userStats';
+					writable: true;
+				},
+				{
+					name: 'authority';
+					signer: true;
+					relations: ['userStats'];
+				},
+				{
+					name: 'state';
+				},
+				{
+					name: 'spotMarketVault';
+					pda: {
+						seeds: [
+							{
+								kind: 'const';
+								value: [
+									115,
+									112,
+									111,
+									116,
+									95,
+									109,
+									97,
+									114,
+									107,
+									101,
+									116,
+									95,
+									118,
+									97,
+									117,
+									108,
+									116,
+								];
+							},
+							{
+								kind: 'arg';
+								path: 'spotMarketIndex';
+							},
+						];
+					};
+				},
+			];
+			args: [
+				{
+					name: 'spotMarketIndex';
+					type: 'u16';
+				},
+				{
+					name: 'perpMarketIndex';
+					type: 'u16';
+				},
+				{
+					name: 'amount';
+					type: 'i64';
 				},
 			];
 		},
@@ -11751,6 +11894,86 @@ export type Drift = {
 			];
 		},
 		{
+			name: 'withdrawFromIsolatedPerpPosition';
+			discriminator: [37, 92, 178, 149, 140, 76, 159, 135];
+			accounts: [
+				{
+					name: 'state';
+				},
+				{
+					name: 'user';
+					writable: true;
+				},
+				{
+					name: 'userStats';
+					writable: true;
+				},
+				{
+					name: 'authority';
+					signer: true;
+					relations: ['user', 'userStats'];
+				},
+				{
+					name: 'spotMarketVault';
+					writable: true;
+					pda: {
+						seeds: [
+							{
+								kind: 'const';
+								value: [
+									115,
+									112,
+									111,
+									116,
+									95,
+									109,
+									97,
+									114,
+									107,
+									101,
+									116,
+									95,
+									118,
+									97,
+									117,
+									108,
+									116,
+								];
+							},
+							{
+								kind: 'arg';
+								path: 'spotMarketIndex';
+							},
+						];
+					};
+				},
+				{
+					name: 'driftSigner';
+				},
+				{
+					name: 'userTokenAccount';
+					writable: true;
+				},
+				{
+					name: 'tokenProgram';
+				},
+			];
+			args: [
+				{
+					name: 'spotMarketIndex';
+					type: 'u16';
+				},
+				{
+					name: 'perpMarketIndex';
+					type: 'u16';
+				},
+				{
+					name: 'amount';
+					type: 'u64';
+				},
+			];
+		},
+		{
 			name: 'withdrawFromProgramVault';
 			discriminator: [120, 40, 183, 149, 232, 18, 224, 151];
 			accounts: [
@@ -12506,8 +12729,8 @@ export type Drift = {
 		},
 		{
 			code: 6094;
-			name: 'cantUpdatePoolBalanceType';
-			msg: 'cantUpdatePoolBalanceType';
+			name: 'cantUpdateSpotBalanceType';
+			msg: 'cantUpdateSpotBalanceType';
 		},
 		{
 			code: 6095;
@@ -13758,6 +13981,11 @@ export type Drift = {
 			code: 6344;
 			name: 'marketIndexNotFoundAmmCache';
 			msg: 'marketIndexNotFoundAmmCache';
+		},
+		{
+			code: 6345;
+			name: 'invalidIsolatedPerpMarket';
+			msg: 'Invalid Isolated Perp Market';
 		},
 	];
 	types: [
@@ -18228,7 +18456,9 @@ export type Drift = {
 					},
 					{
 						name: 'bitFlags';
-						docs: ['Bit flags:', '0: is_signed_message'];
+						docs: [
+							'Order bit flags, defined in [`crate::state::user::OrderBitFlag`]',
+						];
 						type: 'u8';
 					},
 					{
@@ -18981,13 +19211,12 @@ export type Drift = {
 						type: 'u64';
 					},
 					{
-						name: 'lastBaseAssetAmountPerLp';
+						name: 'isolatedPositionScaledBalance';
 						docs: [
-							'The last base asset amount per lp the amm had',
-							'Used to settle the users lp position',
-							'precision: BASE_PRECISION',
+							'The scaled balance of the isolated position',
+							'precision: SPOT_BALANCE_PRECISION',
 						];
-						type: 'i64';
+						type: 'u64';
 					},
 					{
 						name: 'lastQuoteAssetAmountPerLp';
@@ -19019,8 +19248,8 @@ export type Drift = {
 						type: 'u8';
 					},
 					{
-						name: 'perLpBase';
-						type: 'i8';
+						name: 'positionFlag';
+						type: 'u8';
 					},
 				];
 			};

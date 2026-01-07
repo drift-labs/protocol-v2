@@ -1478,7 +1478,7 @@ export type OrderFillerRewardStructure = {
 export type OracleGuardRails = {
 	priceDivergence: {
 		markOraclePercentDivergence: BN;
-		oracleTwap5minPercentDivergence: BN;
+		oracleTwap5MinPercentDivergence: BN;
 	};
 	validity: {
 		slotsBeforeStaleForAmm: BN;

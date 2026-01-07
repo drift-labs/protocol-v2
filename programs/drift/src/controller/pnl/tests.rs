@@ -2187,20 +2187,20 @@ pub fn isolated_perp_position_negative_pnl() {
 
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-            bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-            sqrt_k: 100 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 100 * PEG_PRECISION,
+            base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+            quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+            bid_base_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+            bid_quote_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+            ask_base_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+            ask_quote_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+            sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: (100 * PEG_PRECISION).into(),
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
-            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
-            base_asset_amount_with_amm: BASE_PRECISION_I128,
-            base_asset_amount_long: BASE_PRECISION_I128,
+            quote_asset_amount: (-150 * QUOTE_PRECISION_I128).into(),
+            base_asset_amount_with_amm: BASE_PRECISION_I128.into(),
+            base_asset_amount_long: BASE_PRECISION_I128.into(),
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: oracle_price.agg.price,
@@ -2217,7 +2217,7 @@ pub fn isolated_perp_position_negative_pnl() {
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            scaled_balance: (50 * SPOT_BALANCE_PRECISION),
+            scaled_balance: (50 * SPOT_BALANCE_PRECISION).into(),
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
@@ -2230,11 +2230,11 @@ pub fn isolated_perp_position_negative_pnl() {
     let mut spot_market = SpotMarket {
         market_index: 0,
         oracle_source: OracleSource::QuoteAsset,
-        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
         decimals: 6,
         initial_asset_weight: SPOT_WEIGHT_PRECISION,
         maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-        deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+        deposit_balance: (100 * SPOT_BALANCE_PRECISION).into(),
         historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
         ..SpotMarket::default()
     };
@@ -2263,8 +2263,8 @@ pub fn isolated_perp_position_negative_pnl() {
         50 * SPOT_BALANCE_PRECISION_U64;
 
     let mut expected_market = market;
-    expected_market.pnl_pool.scaled_balance = 100 * SPOT_BALANCE_PRECISION;
-    expected_market.amm.quote_asset_amount = -100 * QUOTE_PRECISION_I128;
+    expected_market.pnl_pool.scaled_balance = (100 * SPOT_BALANCE_PRECISION).into();
+    expected_market.amm.quote_asset_amount = (-100 * QUOTE_PRECISION_I128).into();
     expected_market.number_of_users = 0;
 
     settle_pnl(
@@ -2321,20 +2321,20 @@ pub fn isolated_perp_position_user_unsettled_positive_pnl_less_than_pool() {
 
     let mut market = PerpMarket {
         amm: AMM {
-            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-            bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-            bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-            ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-            sqrt_k: 100 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 100 * PEG_PRECISION,
+            base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+            quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+            bid_base_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+            bid_quote_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+            ask_base_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+            ask_quote_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+            sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: (100 * PEG_PRECISION).into(),
             max_slippage_ratio: 50,
             max_fill_reserve_fraction: 100,
             order_step_size: 10000000,
-            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
-            base_asset_amount_with_amm: BASE_PRECISION_I128,
-            base_asset_amount_long: BASE_PRECISION_I128,
+            quote_asset_amount: (-150 * QUOTE_PRECISION_I128).into(),
+            base_asset_amount_with_amm: BASE_PRECISION_I128.into(),
+            base_asset_amount_long: BASE_PRECISION_I128.into(),
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: oracle_price.agg.price,
@@ -2351,7 +2351,7 @@ pub fn isolated_perp_position_user_unsettled_positive_pnl_less_than_pool() {
         status: MarketStatus::Active,
         liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
         pnl_pool: PoolBalance {
-            scaled_balance: (50 * SPOT_BALANCE_PRECISION),
+            scaled_balance: (50 * SPOT_BALANCE_PRECISION).into(),
             market_index: QUOTE_SPOT_MARKET_INDEX,
             ..PoolBalance::default()
         },
@@ -2364,11 +2364,11 @@ pub fn isolated_perp_position_user_unsettled_positive_pnl_less_than_pool() {
     let mut spot_market = SpotMarket {
         market_index: 0,
         oracle_source: OracleSource::QuoteAsset,
-        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
         decimals: 6,
         initial_asset_weight: SPOT_WEIGHT_PRECISION,
         maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-        deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+        deposit_balance: (100 * SPOT_BALANCE_PRECISION).into(),
         historical_oracle_data: HistoricalOracleData::default_price(QUOTE_PRECISION_I64),
         ..SpotMarket::default()
     };
@@ -2397,8 +2397,8 @@ pub fn isolated_perp_position_user_unsettled_positive_pnl_less_than_pool() {
         125 * SPOT_BALANCE_PRECISION_U64;
 
     let mut expected_market = market;
-    expected_market.pnl_pool.scaled_balance = 25 * SPOT_BALANCE_PRECISION;
-    expected_market.amm.quote_asset_amount = -175 * QUOTE_PRECISION_I128;
+    expected_market.pnl_pool.scaled_balance = (25 * SPOT_BALANCE_PRECISION).into();
+    expected_market.amm.quote_asset_amount = (-175 * QUOTE_PRECISION_I128).into();
     expected_market.number_of_users = 0;
 
     settle_pnl(
