@@ -17,7 +17,6 @@ use crate::controller::orders::{cancel_orders, ModifyOrderId};
 use crate::controller::position::update_position_and_market;
 use crate::controller::position::PositionDirection;
 use crate::controller::spot_balance::update_revenue_pool_balances;
-use crate::controller::spot_balance::update_spot_balances;
 use crate::controller::spot_position::{
     update_spot_balances_and_cumulative_deposits,
     update_spot_balances_and_cumulative_deposits_with_limits,
@@ -38,8 +37,6 @@ use crate::load;
 use crate::math::casting::Cast;
 use crate::math::constants::{QUOTE_SPOT_MARKET_INDEX, THIRTEEN_DAY};
 use crate::math::liquidation::is_cross_margin_being_liquidated;
-use crate::math::liquidation::is_cross_margin_being_liquidated;
-use crate::math::liquidation::is_isolated_margin_being_liquidated;
 use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_liability_info;
 use crate::math::margin::meets_initial_margin_requirement;
 use crate::math::margin::{
