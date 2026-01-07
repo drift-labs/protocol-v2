@@ -4516,7 +4516,10 @@ export class DriftClient {
 
 	public getQuoteValuePerLpShare(marketIndex: number): BN {
 		const perpMarketAccount = this.getPerpMarketAccount(marketIndex);
-
+		if(!perpMarketAccount) {
+			throw new Error(`Perp market account not found for market index ${marketIndex}`);
+		}
+		
 		const openBids = BN.max(
 			perpMarketAccount.amm.baseAssetReserve.sub(
 				perpMarketAccount.amm.minBaseAssetReserve
@@ -10160,18 +10163,23 @@ export class DriftClient {
 	public triggerEvent(eventName: keyof DriftClientAccountEvents, data?: any) {
 		this.eventEmitter.emit(eventName, data);
 	}
-
+ 
+	/**
+	 * This function can potentially throw an error when the driftClient is still initializing, even if you have awaited subscription, handle accordingly.
+	 * @param marketIndex 
+	 * @returns 
+	 */
 	public getOracleDataForPerpMarket(
 		marketIndex: number
 	): OraclePriceData {
-		try {
-
-			return this.accountSubscriber.getOraclePriceDataAndSlotForPerpMarket(
-				marketIndex
-			).data;
-		} catch (error) {
-			throw new Error(`Failed to get oracle data for perp market ${marketIndex}: ${error}`);
+		const oracleDataAndSlot = this.accountSubscriber.getOraclePriceDataAndSlotForPerpMarket(
+			marketIndex
+		)
+		if(!oracleDataAndSlot) {
+			throw new Error(`DriftClient.getOracleDataForPerpMarket: Oracle data not found for perp market ${marketIndex}. 
+				You may not have configured the driftClient to subscribe to this market, or may be calling this function before the data is ready.`);
 		}
+		return oracleDataAndSlot.data;
 	}
 
 	public getMMOracleDataForPerpMarket(
@@ -10182,9 +10190,7 @@ export class DriftClient {
 			throw new Error(`Perp market account not found for index ${marketIndex}`);
 		}
 		const oracleData = this.getOracleDataForPerpMarket(marketIndex);
-		if (!oracleData) {
-			throw new Error(`Oracle data not found for perp market ${marketIndex}`);
-		}
+
 		const stateAccountAndSlot = this.accountSubscriber.getStateAccountAndSlot();
 		const isMMOracleActive = !perpMarket.amm.mmOracleSlot.eq(ZERO);
 		const pctDiff = perpMarket.amm.mmOraclePrice
