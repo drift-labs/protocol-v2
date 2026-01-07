@@ -5,6 +5,7 @@ import bs58 from 'bs58';
 
 import {
 	Client,
+	ClientDuplexStream,
 	CommitmentLevel,
 	SubscribeRequest,
 	SubscribeUpdate,
@@ -37,7 +38,7 @@ function commitmentLevelToCommitment(
 
 export class grpcMultiAccountSubscriber<T, U = undefined> {
 	private client: Client;
-	private stream;
+	private stream: ClientDuplexStream<SubscribeRequest, SubscribeUpdate>;
 	private commitmentLevel: CommitmentLevel;
 	private program: Program;
 	private accountName: string;
@@ -224,7 +225,8 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 			});
 		}
 
-		this.stream = await this.client.subscribe();
+		this.stream =
+			(await this.client.subscribe()) as unknown as typeof this.stream;
 		const request: SubscribeRequest = {
 			slots: {},
 			accounts: {
