@@ -984,6 +984,13 @@ pub mod drift {
     ) -> Result<()> {
         handle_update_openbook_v2_fulfillment_config_status(ctx, status)
     }
+
+    pub fn delete_openbook_v2_fulfillment_config(
+        ctx: Context<DeleteOpenbookV2FulfillmentConfig>,
+    ) -> Result<()> {
+        handle_delete_openbook_v2_fulfillment_config(ctx)
+    }
+
     pub fn initialize_phoenix_fulfillment_config(
         ctx: Context<InitializePhoenixFulfillmentConfig>,
         market_index: u16,

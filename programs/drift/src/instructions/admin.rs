@@ -617,6 +617,13 @@ pub fn handle_update_openbook_v2_fulfillment_config_status(
     Ok(())
 }
 
+pub fn handle_delete_openbook_v2_fulfillment_config(
+    _ctx: Context<DeleteOpenbookV2FulfillmentConfig>,
+) -> Result<()> {
+    msg!("deleted openbook v2 fulfillment config");
+    Ok(())
+}
+
 pub fn handle_initialize_phoenix_fulfillment_config(
     ctx: Context<InitializePhoenixFulfillmentConfig>,
     market_index: u16,
@@ -5970,6 +5977,18 @@ pub struct InitializeOpenbookV2FulfillmentConfig<'info> {
 pub struct UpdateOpenbookV2FulfillmentConfig<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
+    pub openbook_v2_fulfillment_config: AccountLoader<'info, OpenbookV2FulfillmentConfig>,
+    #[account(
+        mut,
+        constraint = admin.key() == state.admin || admin.key() == admin_hot_wallet::id()
+    )]
+    pub admin: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct DeleteOpenbookV2FulfillmentConfig<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(mut, close = admin)]
     pub openbook_v2_fulfillment_config: AccountLoader<'info, OpenbookV2FulfillmentConfig>,
     #[account(
         mut,
