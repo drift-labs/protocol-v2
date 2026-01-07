@@ -4221,6 +4221,27 @@
       ]
     },
     {
+      "name": "deleteSerumFulfillmentConfig",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "serumFulfillmentConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "initializeOpenbookV2FulfillmentConfig",
       "accounts": [
         {
@@ -4308,6 +4329,27 @@
           }
         }
       ]
+    },
+    {
+      "name": "deleteOpenbookV2FulfillmentConfig",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "openbookV2FulfillmentConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        }
+      ],
+      "args": []
     },
     {
       "name": "initializePhoenixFulfillmentConfig",

@@ -704,4 +704,8 @@ describe('serum spot market', () => {
 
 		await crankMarkets();
 	});
+
+	it('Delete Serum Fulfillment Config', async () => {
+		await makerDriftClient.deleteSerumFulfillmentConfig(serumMarketPublicKey);
+	});
 });
