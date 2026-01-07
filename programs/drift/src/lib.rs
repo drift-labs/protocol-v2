@@ -194,6 +194,48 @@ pub mod drift {
         handle_transfer_perp_position(ctx, market_index, amount)
     }
 
+    pub fn deposit_into_isolated_perp_position<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, DepositIsolatedPerpPosition<'info>>,
+        spot_market_index: u16,
+        perp_market_index: u16,
+        amount: u64,
+    ) -> Result<()> {
+        handle_deposit_into_isolated_perp_position(
+            ctx,
+            spot_market_index,
+            perp_market_index,
+            amount,
+        )
+    }
+
+    pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, TransferIsolatedPerpPositionDeposit<'info>>,
+        spot_market_index: u16,
+        perp_market_index: u16,
+        amount: i64,
+    ) -> Result<()> {
+        handle_transfer_isolated_perp_position_deposit(
+            ctx,
+            spot_market_index,
+            perp_market_index,
+            amount,
+        )
+    }
+
+    pub fn withdraw_from_isolated_perp_position<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, WithdrawIsolatedPerpPosition<'info>>,
+        spot_market_index: u16,
+        perp_market_index: u16,
+        amount: u64,
+    ) -> Result<()> {
+        handle_withdraw_from_isolated_perp_position(
+            ctx,
+            spot_market_index,
+            perp_market_index,
+            amount,
+        )
+    }
+
     pub fn place_perp_order<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, PlaceOrder>,
         params: OrderParams,
@@ -923,6 +965,12 @@ pub mod drift {
         handle_update_serum_fulfillment_config_status(ctx, status)
     }
 
+    pub fn delete_serum_fulfillment_config(
+        ctx: Context<DeleteSerumFulfillmentConfig>,
+    ) -> Result<()> {
+        handle_delete_serum_fulfillment_config(ctx)
+    }
+
     pub fn initialize_openbook_v2_fulfillment_config(
         ctx: Context<InitializeOpenbookV2FulfillmentConfig>,
         market_index: u16,
@@ -936,6 +984,13 @@ pub mod drift {
     ) -> Result<()> {
         handle_update_openbook_v2_fulfillment_config_status(ctx, status)
     }
+
+    pub fn delete_openbook_v2_fulfillment_config(
+        ctx: Context<DeleteOpenbookV2FulfillmentConfig>,
+    ) -> Result<()> {
+        handle_delete_openbook_v2_fulfillment_config(ctx)
+    }
+
     pub fn initialize_phoenix_fulfillment_config(
         ctx: Context<InitializePhoenixFulfillmentConfig>,
         market_index: u16,

@@ -1,5 +1,5 @@
 {
-  "version": "2.150.0",
+  "version": "2.152.0",
   "name": "drift",
   "instructions": [
     {
@@ -23,7 +23,7 @@
         {
           "name": "authority",
           "isMut": false,
-          "isSigner": true
+          "isSigner": false
         },
         {
           "name": "payer",
@@ -73,7 +73,7 @@
         {
           "name": "authority",
           "isMut": false,
-          "isSigner": true
+          "isSigner": false
         },
         {
           "name": "payer",
@@ -649,6 +649,163 @@
           "type": {
             "option": "i64"
           }
+        }
+      ]
+    },
+    {
+      "name": "depositIntoIsolatedPerpPosition",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "spotMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "perpMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "transferIsolatedPerpPositionDeposit",
+      "accounts": [
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "spotMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "perpMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "amount",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "withdrawFromIsolatedPerpPosition",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "userStats",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        },
+        {
+          "name": "spotMarketVault",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "driftSigner",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "userTokenAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "spotMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "perpMarketIndex",
+          "type": "u16"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
         }
       ]
     },
@@ -4064,6 +4221,27 @@
       ]
     },
     {
+      "name": "deleteSerumFulfillmentConfig",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "serumFulfillmentConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "initializeOpenbookV2FulfillmentConfig",
       "accounts": [
         {
@@ -4151,6 +4329,27 @@
           }
         }
       ]
+    },
+    {
+      "name": "deleteOpenbookV2FulfillmentConfig",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "openbookV2FulfillmentConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        }
+      ],
+      "args": []
     },
     {
       "name": "initializePhoenixFulfillmentConfig",
@@ -11584,7 +11783,7 @@
           },
           {
             "name": "disableUpdatePerpBidAskTwap",
-            "type": "bool"
+            "type": "u8"
           },
           {
             "name": "pausedOperations",
@@ -14407,13 +14606,12 @@
             "type": "u64"
           },
           {
-            "name": "lastBaseAssetAmountPerLp",
+            "name": "isolatedPositionScaledBalance",
             "docs": [
-              "The last base asset amount per lp the amm had",
-              "Used to settle the users lp position",
-              "precision: BASE_PRECISION"
+              "The scaled balance of the isolated position",
+              "precision: SPOT_BALANCE_PRECISION"
             ],
-            "type": "i64"
+            "type": "u64"
           },
           {
             "name": "lastQuoteAssetAmountPerLp",
@@ -14452,8 +14650,8 @@
             "type": "u8"
           },
           {
-            "name": "perLpBase",
-            "type": "i8"
+            "name": "positionFlag",
+            "type": "u8"
           }
         ]
       }
@@ -15134,6 +15332,17 @@
       }
     },
     {
+      "name": "LiquidationBitFlag",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "IsolatedPosition"
+          }
+        ]
+      }
+    },
+    {
       "name": "SettlePnlExplanation",
       "type": {
         "kind": "enum",
@@ -15262,13 +15471,7 @@
         "kind": "enum",
         "variants": [
           {
-            "name": "Standard",
-            "fields": [
-              {
-                "name": "trackOpenOrdersFraction",
-                "type": "bool"
-              }
-            ]
+            "name": "Standard"
           },
           {
             "name": "Liquidation",
@@ -15906,6 +16109,26 @@
           },
           {
             "name": "HasBuilder"
+          },
+          {
+            "name": "IsIsolatedPosition"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PositionFlag",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "IsolatedPosition"
+          },
+          {
+            "name": "BeingLiquidated"
+          },
+          {
+            "name": "Bankrupt"
           }
         ]
       }
@@ -16902,6 +17125,11 @@
           "type": {
             "defined": "SpotBankruptcyRecord"
           },
+          "index": false
+        },
+        {
+          "name": "bitFlags",
+          "type": "u8",
           "index": false
         }
       ]
@@ -18339,8 +18567,8 @@
     },
     {
       "code": 6094,
-      "name": "CantUpdatePoolBalanceType",
-      "msg": "CantUpdatePoolBalanceType"
+      "name": "CantUpdateSpotBalanceType",
+      "msg": "CantUpdateSpotBalanceType"
     },
     {
       "code": 6095,
@@ -19591,6 +19819,11 @@
       "code": 6344,
       "name": "MarketIndexNotFoundAmmCache",
       "msg": "MarketIndexNotFoundAmmCache"
+    },
+    {
+      "code": 6345,
+      "name": "InvalidIsolatedPerpMarket",
+      "msg": "Invalid Isolated Perp Market"
     }
   ],
   "metadata": {

@@ -384,6 +384,33 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async deleteSerumFulfillmentConfig(
+		serumMarket: PublicKey
+	): Promise<TransactionSignature> {
+		const deleteIx = await this.getDeleteSerumFulfillmentConfigIx(serumMarket);
+		const tx = await this.buildTransaction(deleteIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getDeleteSerumFulfillmentConfigIx(
+		serumMarket: PublicKey
+	): Promise<TransactionInstruction> {
+		const serumFulfillmentConfig = getSerumFulfillmentConfigPublicKey(
+			this.program.programId,
+			serumMarket
+		);
+		return await this.program.instruction.deleteSerumFulfillmentConfig({
+			accounts: {
+				admin: this.isSubscribed
+					? this.getStateAccount().admin
+					: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				serumFulfillmentConfig,
+			},
+		});
+	}
+
 	public async initializePhoenixFulfillmentConfig(
 		marketIndex: number,
 		phoenixMarket: PublicKey
@@ -474,6 +501,35 @@ export class AdminClient extends DriftClient {
 				},
 			}
 		);
+	}
+
+	public async deleteOpenbookV2FulfillmentConfig(
+		openbookMarket: PublicKey
+	): Promise<TransactionSignature> {
+		const deleteIx = await this.getDeleteOpenbookV2FulfillmentConfigIx(
+			openbookMarket
+		);
+		const tx = await this.buildTransaction(deleteIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getDeleteOpenbookV2FulfillmentConfigIx(
+		openbookMarket: PublicKey
+	): Promise<TransactionInstruction> {
+		const openbookV2FulfillmentConfig = getOpenbookV2FulfillmentConfigPublicKey(
+			this.program.programId,
+			openbookMarket
+		);
+		return await this.program.instruction.deleteOpenbookV2FulfillmentConfig({
+			accounts: {
+				admin: this.isSubscribed
+					? this.getStateAccount().admin
+					: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				openbookV2FulfillmentConfig,
+			},
+		});
 	}
 
 	public async initializePerpMarket(
