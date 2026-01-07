@@ -384,6 +384,33 @@ export class AdminClient extends DriftClient {
 		);
 	}
 
+	public async deleteSerumFulfillmentConfig(
+		serumMarket: PublicKey,
+	): Promise<TransactionSignature> {
+		const deleteIx = await this.getDeleteSerumFulfillmentConfigIx(serumMarket);
+		const tx = await this.buildTransaction(deleteIx);
+		const { txSig } = await this.sendTransaction(tx, [], this.opts);
+		return txSig;
+	}
+
+	public async getDeleteSerumFulfillmentConfigIx(
+		serumMarket: PublicKey,
+	): Promise<TransactionInstruction> {
+		const serumFulfillmentConfig = getSerumFulfillmentConfigPublicKey(
+			this.program.programId,
+			serumMarket
+		);
+		return await this.program.instruction.deleteSerumFulfillmentConfig({
+			accounts: {
+				admin: this.isSubscribed
+					? this.getStateAccount().admin
+					: this.wallet.publicKey,
+				state: await this.getStatePublicKey(),
+				serumFulfillmentConfig,
+			},
+		});
+	}
+
 	public async initializePhoenixFulfillmentConfig(
 		marketIndex: number,
 		phoenixMarket: PublicKey

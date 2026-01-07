@@ -512,6 +512,13 @@ pub fn handle_update_serum_fulfillment_config_status(
     Ok(())
 }
 
+pub fn handle_delete_serum_fulfillment_config(
+    _ctx: Context<DeleteSerumFulfillmentConfig>,
+) -> Result<()> {
+    msg!("deleted serum fulfillment config");
+    Ok(())
+}
+
 pub fn handle_update_serum_vault(ctx: Context<UpdateSerumVault>) -> Result<()> {
     let vault = &ctx.accounts.srm_vault;
     validate!(
@@ -5372,6 +5379,18 @@ pub struct InitializeSerumFulfillmentConfig<'info> {
 pub struct UpdateSerumFulfillmentConfig<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
+    pub serum_fulfillment_config: AccountLoader<'info, SerumV3FulfillmentConfig>,
+    #[account(
+        mut,
+        constraint = admin.key() == state.admin || admin.key() == admin_hot_wallet::id()
+    )]
+    pub admin: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct DeleteSerumFulfillmentConfig<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(mut, close = admin)]
     pub serum_fulfillment_config: AccountLoader<'info, SerumV3FulfillmentConfig>,
     #[account(
         mut,
