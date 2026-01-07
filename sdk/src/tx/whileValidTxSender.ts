@@ -60,6 +60,7 @@ export class WhileValidTxSender extends BaseTxSender {
 		connection,
 		wallet,
 		opts = { ...DEFAULT_CONFIRMATION_OPTS, maxRetries: 0 },
+		timeout,
 		retrySleep = DEFAULT_RETRY,
 		additionalConnections = new Array<Connection>(),
 		confirmationStrategy = ConfirmationStrategy.Combo,
@@ -74,6 +75,7 @@ export class WhileValidTxSender extends BaseTxSender {
 		connection: Connection;
 		wallet: IWallet;
 		opts?: ConfirmOptions;
+		timeout?: number;
 		retrySleep?: number;
 		additionalConnections?;
 		additionalTxSenderCallbacks?: ((base58EncodedTx: string) => void)[];
@@ -89,6 +91,7 @@ export class WhileValidTxSender extends BaseTxSender {
 			connection,
 			wallet,
 			opts,
+			timeout,
 			additionalConnections,
 			additionalTxSenderCallbacks,
 			txHandler,
@@ -99,7 +102,12 @@ export class WhileValidTxSender extends BaseTxSender {
 			throwOnTimeoutError,
 			throwOnTransactionError,
 		});
+		this.connection = connection;
+		this.wallet = wallet;
+		this.opts = opts;
+		this.timeout = timeout;
 		this.retrySleep = retrySleep;
+		this.additionalConnections = additionalConnections;
 
 		this.checkAndSetUseBlockHeightOffset();
 	}
@@ -168,20 +176,8 @@ export class WhileValidTxSender extends BaseTxSender {
 				// @ts-ignore
 				latestBlockhash = tx.SIGNATURE_BLOCK_AND_EXPIRY;
 			}
-
-			// @ts-ignore
-		} else if (this.wallet.payer) {
-			tx.message.recentBlockhash = latestBlockhash.blockhash;
-			// @ts-ignore
-			tx.sign((additionalSigners ?? []).concat(this.wallet.payer));
-			signedTx = tx;
 		} else {
 			tx.message.recentBlockhash = latestBlockhash.blockhash;
-			additionalSigners
-				?.filter((s): s is Signer => s !== undefined)
-				.forEach((kp) => {
-					tx.sign([kp]);
-				});
 			signedTx = await this.txHandler.signVersionedTx(
 				tx,
 				additionalSigners,
