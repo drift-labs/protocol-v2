@@ -68,7 +68,6 @@ export function getTokenAmount(
 	balanceType: SpotBalanceType
 ): BN {
 	const precisionDecrease = TEN.pow(new BN(19 - spotMarket.decimals));
-
 	if (isVariant(balanceType, 'deposit')) {
 		return balanceAmount
 			.mul(spotMarket.cumulativeDepositInterest)

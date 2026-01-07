@@ -591,6 +591,10 @@ export type SpotBankruptcyRecord = {
 	ifPayment: BN;
 };
 
+export class LiquidationBitFlag {
+	static readonly IsolatedPosition = 1;
+}
+
 export type SettlePnlRecord = {
 	ts: BN;
 	user: PublicKey;
@@ -1142,15 +1146,9 @@ export type PerpPosition = {
 	maxMarginRatio: number;
 	lastQuoteAssetAmountPerLp: BN;
 	perLpBase: number;
-	isolatedPositionScaledBalance: BN;
 	positionFlag: number;
+	isolatedPositionScaledBalance: BN;
 };
-
-export class PositionFlag {
-	static readonly IsolatedPosition = 1;
-	static readonly BeingLiquidated = 2;
-	static readonly Bankruptcy = 4;
-}
 
 export type UserStatsAccount = {
 	numberOfSubAccounts: number;
@@ -1302,6 +1300,12 @@ export class OrderParamsBitFlag {
 	static readonly UpdateHighLeverageMode = 2;
 }
 
+export class PositionFlag {
+	static readonly IsolatedPosition = 1;
+	static readonly BeingLiquidated = 2;
+	static readonly Bankruptcy = 4;
+}
+
 export type NecessaryOrderParams = {
 	orderType: OrderType;
 	marketIndex: number;
@@ -1312,6 +1316,10 @@ export type NecessaryOrderParams = {
 export type OptionalOrderParams = {
 	[Property in keyof OrderParams]?: OrderParams[Property];
 } & NecessaryOrderParams;
+
+export type PerpOrderIsolatedExtras = {
+	isolatedPositionDepositAmount?: BN;
+};
 
 export type ModifyOrderParams = {
 	[Property in keyof OrderParams]?: OrderParams[Property] | null;

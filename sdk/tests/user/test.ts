@@ -49,7 +49,7 @@ async function makeMockUser(
 		oraclePriceMap[myMockSpotMarkets[i].oracle.toString()] =
 			spotOraclePriceList[i];
 	}
-	// console.log(oraclePriceMap);
+	// console.log('oraclePriceMap:', oraclePriceMap);
 
 	function getMockUserAccount(): UserAccount {
 		return myMockUserAccount;
