@@ -638,8 +638,6 @@ pub enum ErrorCode {
     InvalidIfRebalanceConfig,
     #[msg("Invalid If Rebalance Swap")]
     InvalidIfRebalanceSwap,
-    #[msg("Invalid Isolated Perp Market")]
-    InvalidIsolatedPerpMarket,
     #[msg("Invalid RevenueShare resize")]
     InvalidRevenueShareResize,
     #[msg("Builder has been revoked")]

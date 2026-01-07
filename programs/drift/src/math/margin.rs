@@ -257,7 +257,6 @@ pub fn calculate_user_safest_position_tiers(
     Ok((safest_tier_spot_liablity, safest_tier_perp_liablity))
 }
 
-// todo make sure everything using this sets isolated_position_market_index correctly
 pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
     user: &User,
     perp_market_map: &PerpMarketMap,

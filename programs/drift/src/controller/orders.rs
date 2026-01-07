@@ -2015,7 +2015,7 @@ fn fulfill_perp_order(
         }
     }
 
-    for (maker_key, (maker_base_asset_amount_filled)) in maker_fills {
+    for (maker_key, maker_base_asset_amount_filled) in maker_fills {
         let mut maker = makers_and_referrer.get_ref_mut(&maker_key)?;
 
         let maker_stats = if maker.authority == user.authority {

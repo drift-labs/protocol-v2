@@ -1938,13 +1938,6 @@ pub enum PositionFlag {
     Bankrupt = 0b00000100,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
-pub enum PositionFlag {
-    IsolatedPosition = 0b00000001,
-    BeingLiquidated = 0b00000010,
-    Bankrupt = 0b00000100,
-}
-
 #[account(zero_copy(unsafe))]
 #[derive(Eq, PartialEq, Debug)]
 #[repr(C)]
