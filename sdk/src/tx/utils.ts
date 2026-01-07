@@ -58,8 +58,12 @@ export const getSizeOfTransaction = (
 		.reduce((a, b) => a + b, 0);
 
 	let numberOfAddressLookups = 0;
-	if (addressLookupTables.length > 0) {
-		const lookupTableAddresses = addressLookupTables
+	// Filter out null/undefined lookup tables before accessing .state
+	const validLookupTables = addressLookupTables.filter(
+		(table): table is AddressLookupTableAccount => table !== null && table !== undefined
+	);
+	if (validLookupTables.length > 0) {
+		const lookupTableAddresses = validLookupTables
 			.map((addressLookupTable) =>
 				addressLookupTable.state.addresses.map((address) => address.toBase58())
 			)
