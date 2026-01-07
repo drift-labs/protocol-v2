@@ -60,7 +60,8 @@ export const getSizeOfTransaction = (
 	let numberOfAddressLookups = 0;
 	// Filter out null/undefined lookup tables before accessing .state
 	const validLookupTables = addressLookupTables.filter(
-		(table): table is AddressLookupTableAccount => table !== null && table !== undefined
+		(table): table is AddressLookupTableAccount =>
+			table !== null && table !== undefined
 	);
 	if (validLookupTables.length > 0) {
 		const lookupTableAddresses = validLookupTables
