@@ -495,9 +495,14 @@ export class TxHandler {
 
 		const marketLookupTables = await fetchAllMarketLookupTableAccounts();
 
-		lookupTables = lookupTables
+		// Combine and filter out any null/undefined lookup tables
+		const combinedLookupTables = lookupTables
 			? [...lookupTables, ...marketLookupTables]
 			: marketLookupTables;
+		lookupTables = combinedLookupTables.filter(
+			(table): table is AddressLookupTableAccount =>
+				table !== null && table !== undefined
+		);
 
 		// # Collect and process Tx Params
 		let baseTxParams: BaseTxParams = {
