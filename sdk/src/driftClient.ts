@@ -8416,7 +8416,7 @@ export class DriftClient {
 			reduceOnly: reduceOnly != undefined ? reduceOnly : null,
 			postOnly: postOnly != undefined ? postOnly : null,
 			bitFlags: bitFlags != undefined ? bitFlags : null,
-			policy: policy || undefined,
+			policy: policy || null,
 			maxTs: maxTs || null,
 		};
 
@@ -8548,7 +8548,7 @@ export class DriftClient {
 			reduceOnly: reduceOnly || false,
 			postOnly: postOnly || null,
 			bitFlags: bitFlags || null,
-			policy: policy || undefined,
+			policy: policy || null,
 			maxTs: maxTs || null,
 		};
 
@@ -10163,22 +10163,27 @@ export class DriftClient {
 
 	public getOracleDataForPerpMarket(
 		marketIndex: number
-	): OraclePriceData | undefined {
-		return this.accountSubscriber.getOraclePriceDataAndSlotForPerpMarket(
-			marketIndex
-		)?.data;
+	): OraclePriceData {
+		try {
+
+			return this.accountSubscriber.getOraclePriceDataAndSlotForPerpMarket(
+				marketIndex
+			).data;
+		} catch (error) {
+			throw new Error(`Failed to get oracle data for perp market ${marketIndex}: ${error}`);
+		}
 	}
 
 	public getMMOracleDataForPerpMarket(
 		marketIndex: number
-	): MMOraclePriceData | undefined {
+	): MMOraclePriceData {
 		const perpMarket = this.getPerpMarketAccount(marketIndex);
 		if (!perpMarket) {
 			throw new Error(`Perp market account not found for index ${marketIndex}`);
 		}
 		const oracleData = this.getOracleDataForPerpMarket(marketIndex);
 		if (!oracleData) {
-			return undefined;
+			throw new Error(`Oracle data not found for perp market ${marketIndex}`);
 		}
 		const stateAccountAndSlot = this.accountSubscriber.getStateAccountAndSlot();
 		const isMMOracleActive = !perpMarket.amm.mmOracleSlot.eq(ZERO);
@@ -10247,10 +10252,14 @@ export class DriftClient {
 
 	public getOracleDataForSpotMarket(
 		marketIndex: number
-	): OraclePriceData | undefined {
-		return this.accountSubscriber.getOraclePriceDataAndSlotForSpotMarket(
-			marketIndex
-		)?.data;
+	): OraclePriceData {
+		try {
+			return this.accountSubscriber.getOraclePriceDataAndSlotForSpotMarket(
+				marketIndex
+			).data;
+		} catch (error) {
+			throw new Error(`Failed to get oracle data for spot market ${marketIndex}: ${error}`);
+		}
 	}
 
 	public async initializeInsuranceFundStake(
