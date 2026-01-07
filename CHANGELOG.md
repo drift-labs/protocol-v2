@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - program: isolated positions [#1757](https://github.com/drift-labs/protocol-v2/pull/1757)
+- program: delete serum/openbook configs [#2066](https://github.com/drift-labs/protocol-v2/pull/2066)
 
 ### Fixes
 

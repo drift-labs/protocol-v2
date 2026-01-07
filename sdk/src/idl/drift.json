@@ -4221,6 +4221,27 @@
       ]
     },
     {
+      "name": "deleteSerumFulfillmentConfig",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "serumFulfillmentConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "initializeOpenbookV2FulfillmentConfig",
       "accounts": [
         {
@@ -4308,6 +4329,27 @@
           }
         }
       ]
+    },
+    {
+      "name": "deleteOpenbookV2FulfillmentConfig",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "openbookV2FulfillmentConfig",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "admin",
+          "isMut": true,
+          "isSigner": true
+        }
+      ],
+      "args": []
     },
     {
       "name": "initializePhoenixFulfillmentConfig",
@@ -14566,8 +14608,7 @@
           {
             "name": "isolatedPositionScaledBalance",
             "docs": [
-              "The last base asset amount per lp the amm had",
-              "Used to settle the users lp position",
+              "The scaled balance of the isolated position",
               "precision: SPOT_BALANCE_PRECISION"
             ],
             "type": "u64"
@@ -16068,6 +16109,9 @@
           },
           {
             "name": "HasBuilder"
+          },
+          {
+            "name": "IsIsolatedPosition"
           }
         ]
       }
