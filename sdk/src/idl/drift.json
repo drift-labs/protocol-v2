@@ -14566,8 +14566,7 @@
           {
             "name": "isolatedPositionScaledBalance",
             "docs": [
-              "The last base asset amount per lp the amm had",
-              "Used to settle the users lp position",
+              "The scaled balance of the isolated position",
               "precision: SPOT_BALANCE_PRECISION"
             ],
             "type": "u64"
@@ -16068,6 +16067,9 @@
           },
           {
             "name": "HasBuilder"
+          },
+          {
+            "name": "IsIsolatedPosition"
           }
         ]
       }
@@ -19638,46 +19640,41 @@
     },
     {
       "code": 6317,
-      "name": "InvalidIsolatedPerpMarket",
-      "msg": "Invalid Isolated Perp Market"
-    },
-    {
-      "code": 6318,
       "name": "InvalidRevenueShareResize",
       "msg": "Invalid RevenueShare resize"
     },
     {
-      "code": 6319,
+      "code": 6318,
       "name": "BuilderRevoked",
       "msg": "Builder has been revoked"
     },
     {
-      "code": 6320,
+      "code": 6319,
       "name": "InvalidBuilderFee",
       "msg": "Builder fee is greater than max fee bps"
     },
     {
-      "code": 6321,
+      "code": 6320,
       "name": "RevenueShareEscrowAuthorityMismatch",
       "msg": "RevenueShareEscrow authority mismatch"
     },
     {
-      "code": 6322,
+      "code": 6321,
       "name": "RevenueShareEscrowOrdersAccountFull",
       "msg": "RevenueShareEscrow has too many active orders"
     },
     {
-      "code": 6323,
+      "code": 6322,
       "name": "InvalidRevenueShareAccount",
       "msg": "Invalid RevenueShareAccount"
     },
     {
-      "code": 6324,
+      "code": 6323,
       "name": "CannotRevokeBuilderWithOpenOrders",
       "msg": "Cannot revoke builder with open orders"
     },
     {
-      "code": 6325,
+      "code": 6324,
       "name": "UnableToLoadRevenueShareAccount",
       "msg": "Unable to load builder account"
     },
