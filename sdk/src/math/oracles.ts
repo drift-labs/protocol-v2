@@ -191,7 +191,7 @@ export function isOracleTooDivergent(
 		.mul(PERCENTAGE_PRECISION)
 		.div(amm.historicalOracleData.lastOraclePriceTwap5min);
 	const maxDivergence = BN.max(
-		oracleGuardRails.priceDivergence.oracleTwap5minPercentDivergence,
+		oracleGuardRails.priceDivergence.oracleTwap5MinPercentDivergence,
 		PERCENTAGE_PRECISION.div(new BN(2))
 	);
 	const tooDivergent = oracleSpreadPct.abs().gte(maxDivergence);

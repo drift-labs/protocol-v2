@@ -1139,7 +1139,6 @@ export type PerpPosition = {
 	positionFlag: number;
 	maxMarginRatio: number;
 	lastQuoteAssetAmountPerLp: BN;
-	perLpBase: number;
 	isolatedPositionScaledBalance: BN;
 };
 
@@ -1432,9 +1431,9 @@ export interface IWallet {
 	publicKey: PublicKey;
 	payer?: Keypair;
 	supportedTransactionVersions?:
-		| ReadonlySet<TransactionVersion>
-		| null
-		| undefined;
+	| ReadonlySet<TransactionVersion>
+	| null
+	| undefined;
 }
 export interface IVersionedWallet {
 	signVersionedTransaction(
