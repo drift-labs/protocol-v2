@@ -5370,13 +5370,13 @@ pub struct InitializeSerumFulfillmentConfig<'info> {
 
 #[derive(Accounts)]
 pub struct UpdateSerumFulfillmentConfig<'info> {
-    #[account(
-        has_one = admin
-    )]
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub serum_fulfillment_config: AccountLoader<'info, SerumV3FulfillmentConfig>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = admin.key() == state.admin || admin.key() == admin_hot_wallet::id()
+    )]
     pub admin: Signer<'info>,
 }
 
@@ -5949,13 +5949,13 @@ pub struct InitializeOpenbookV2FulfillmentConfig<'info> {
 
 #[derive(Accounts)]
 pub struct UpdateOpenbookV2FulfillmentConfig<'info> {
-    #[account(
-        has_one = admin
-    )]
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub openbook_v2_fulfillment_config: AccountLoader<'info, OpenbookV2FulfillmentConfig>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = admin.key() == state.admin || admin.key() == admin_hot_wallet::id()
+    )]
     pub admin: Signer<'info>,
 }
 
