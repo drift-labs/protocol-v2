@@ -131,15 +131,7 @@ export class MarginCalculation {
 	marginRequirement: BN;
 	marginRequirementPlusBuffer: BN;
 	isolatedMarginCalculations: Map<number, IsolatedMarginCalculation>;
-	allDepositOraclesValid: boolean;
-	allLiabilityOraclesValid: boolean;
-	withPerpIsolatedLiability: boolean;
-	withSpotIsolatedLiability: boolean;
 	totalPerpLiabilityValue: BN;
-	trackedMarketMarginRequirement: BN;
-	fuelDeposits: number;
-	fuelBorrows: number;
-	fuelPositions: number;
 
 	constructor(context: MarginContext) {
 		this.context = context;
@@ -148,15 +140,7 @@ export class MarginCalculation {
 		this.marginRequirement = ZERO;
 		this.marginRequirementPlusBuffer = ZERO;
 		this.isolatedMarginCalculations = new Map();
-		this.allDepositOraclesValid = true;
-		this.allLiabilityOraclesValid = true;
-		this.withPerpIsolatedLiability = false;
-		this.withSpotIsolatedLiability = false;
 		this.totalPerpLiabilityValue = ZERO;
-		this.trackedMarketMarginRequirement = ZERO;
-		this.fuelDeposits = 0;
-		this.fuelBorrows = 0;
-		this.fuelPositions = 0;
 	}
 
 	addCrossMarginTotalCollateral(delta: BN): void {
@@ -214,22 +198,6 @@ export class MarginCalculation {
 	addPerpLiabilityValue(perpLiabilityValue: BN): void {
 		this.totalPerpLiabilityValue =
 			this.totalPerpLiabilityValue.add(perpLiabilityValue);
-	}
-
-	updateAllDepositOraclesValid(valid: boolean): void {
-		this.allDepositOraclesValid = this.allDepositOraclesValid && valid;
-	}
-
-	updateAllLiabilityOraclesValid(valid: boolean): void {
-		this.allLiabilityOraclesValid = this.allLiabilityOraclesValid && valid;
-	}
-
-	updateWithSpotIsolatedLiability(isolated: boolean): void {
-		this.withSpotIsolatedLiability = this.withSpotIsolatedLiability || isolated;
-	}
-
-	updateWithPerpIsolatedLiability(isolated: boolean): void {
-		this.withPerpIsolatedLiability = this.withPerpIsolatedLiability || isolated;
 	}
 
 	getCrossTotalCollateralPlusBuffer(): BN {

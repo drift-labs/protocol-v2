@@ -74,16 +74,7 @@ export class MarginCalculation {
 
   isolatedMarginCalculations: Map<number, IsolatedMarginCalculation>;
 
-  allDepositOraclesValid: boolean;
-  allLiabilityOraclesValid: boolean;
-  withPerpIsolatedLiability: boolean;
-  withSpotIsolatedLiability: boolean;
-
   totalPerpLiabilityValue: BN;       // u128
-  trackedMarketMarginRequirement: BN; // u128
-  fuelDeposits: number;              // u32
-  fuelBorrows: number;               // u32
-  fuelPositions: number;             // u32
 
   // Cross margin helpers
   getCrossTotalCollateralPlusBuffer(): BN;
