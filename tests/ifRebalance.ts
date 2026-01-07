@@ -72,8 +72,6 @@ describe('spot swap', () => {
 	let spotMarketIndexes: number[];
 	let oracleInfos: OracleInfo[];
 
-	const solSpotMarketIndex = 1;
-
 	let takerKeypair: Keypair;
 
 	before(async () => {
@@ -372,7 +370,7 @@ describe('spot swap', () => {
 				market.programId,
 				market.publicKey,
 				// @ts-ignore
-				market._decoded.vaultSignerNonce,
+				market._decoded.vaultSignerNonce
 			),
 			programId: market.programId,
 		});
