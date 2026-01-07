@@ -222,7 +222,6 @@ import { TitanClient, SwapMode as TitanSwapMode } from './titan/titanClient';
 import { UnifiedSwapClient } from './swap/UnifiedSwapClient';
 import { Drift } from './idl/drift';
 import { DriftProgram } from './config';
-import { DEFAULT_COMMITMENT_LEVEL } from './constants';
 
 /**
  * Union type for swap clients (Titan and Jupiter) - Legacy type
