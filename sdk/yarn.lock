@@ -1303,40 +1303,40 @@
     buffer "^6.0.3"
     js-yaml "^4.1.0"
 
-"@triton-one/yellowstone-grpc-napi-darwin-arm64@0.0.4":
-  version "0.0.4"
-  resolved "https://registry.yarnpkg.com/@triton-one/yellowstone-grpc-napi-darwin-arm64/-/yellowstone-grpc-napi-darwin-arm64-0.0.4.tgz#f69117e2d475cb80beef531339aac4c63acf3d2e"
-  integrity sha512-7Wfjj3Tg49IqfgAvN8hi95LAbU3Lf1BPCWQRhj40cTPxkM8Df4u4YlfqRT1BVl4j04gTN8YmkpIMY00T9pNNDg==
+"@triton-one/yellowstone-grpc-napi-darwin-arm64@0.0.5":
+  version "0.0.5"
+  resolved "https://registry.yarnpkg.com/@triton-one/yellowstone-grpc-napi-darwin-arm64/-/yellowstone-grpc-napi-darwin-arm64-0.0.5.tgz#405ff2f3d2910ba254fab918471c4e563b3a5c14"
+  integrity sha512-UyxNkkBvLMOiR77s96q8OIi51mPE0YwSQT5wxPhOTvptFcfX8qbZbsqAWOnphUBtW8CoTQsAHrMz51PdCOqgEw==
 
-"@triton-one/yellowstone-grpc-napi-darwin-x64@0.0.4":
-  version "0.0.4"
-  resolved "https://registry.yarnpkg.com/@triton-one/yellowstone-grpc-napi-darwin-x64/-/yellowstone-grpc-napi-darwin-x64-0.0.4.tgz#d79237368ca1672ad461edca35a2bc3f7975017c"
-  integrity sha512-e1SZYsXu80vENgdN5nglRPFRgZzmoIdkCIoouqvkfYdoBYZNDMPZxF1jHxXWaxjvGh2DfzmbeAVOx4ZYCPlIJA==
+"@triton-one/yellowstone-grpc-napi-darwin-x64@0.0.5":
+  version "0.0.5"
+  resolved "https://registry.yarnpkg.com/@triton-one/yellowstone-grpc-napi-darwin-x64/-/yellowstone-grpc-napi-darwin-x64-0.0.5.tgz#00b046de7c6935015713005868eedbdcc08363a5"
+  integrity sha512-Lj5rR0T9wB3xeq76VtaJUHyaNstu0Mc2kwieAtHOigGfaCUvGwc5XgpbYcx5aVrUq4R8gGF9kM/9+n+GcqXxig==
 
-"@triton-one/yellowstone-grpc-napi-linux-x64-gnu@0.0.4":
-  version "0.0.4"
-  resolved "https://registry.yarnpkg.com/@triton-one/yellowstone-grpc-napi-linux-x64-gnu/-/yellowstone-grpc-napi-linux-x64-gnu-0.0.4.tgz#3d3a1bd3b545f0c392b0862a0cbc53f1d9e45223"
-  integrity sha512-9MOznQrLK0IbdEdnEhKD7dhE95uyOFUu5qUi6DhFZM7XHVyxpStSxCUdd5sVsX620X4iALF7+309xabjZr4uhA==
+"@triton-one/yellowstone-grpc-napi-linux-x64-gnu@0.0.5":
+  version "0.0.5"
+  resolved "https://registry.yarnpkg.com/@triton-one/yellowstone-grpc-napi-linux-x64-gnu/-/yellowstone-grpc-napi-linux-x64-gnu-0.0.5.tgz#2b997f15d63904b9239734bd2b2d2df50ab8278a"
+  integrity sha512-Cx6ifzYSyaGn5uF0wN5dwwWS/wj6sDWIqZa8YRTuF6pP5pkjM78neoHNMr9taOrH5LRtwC1JSaSYyQw+inGq4g==
 
-"@triton-one/yellowstone-grpc-napi-linux-x64-musl@0.0.4":
-  version "0.0.4"
-  resolved "https://registry.yarnpkg.com/@triton-one/yellowstone-grpc-napi-linux-x64-musl/-/yellowstone-grpc-napi-linux-x64-musl-0.0.4.tgz#cfc1af9eb8dc30f38bd23d052a73fc85b13d3465"
-  integrity sha512-5xnQ1nSmInbwIhv+sdazz8s1VqlBr06OmbE63y95k1Um/Fpi70X5su1NmTJucP2GbqonBKqycaIp+kMX05bpoA==
+"@triton-one/yellowstone-grpc-napi-linux-x64-musl@0.0.5":
+  version "0.0.5"
+  resolved "https://registry.yarnpkg.com/@triton-one/yellowstone-grpc-napi-linux-x64-musl/-/yellowstone-grpc-napi-linux-x64-musl-0.0.5.tgz#dc7bd421716157f8ca339b4075e881b6f5a9627b"
+  integrity sha512-lLb5sBVAoELgjrX57qcxe0FtJTtDaBxo4KOCQfuqqYgeEd1ooOhGeuYx2KO+zMbBXa8+8OD4mt4ZHcW5b/n9tg==
 
-"@triton-one/yellowstone-grpc@5.0.1-beta-12":
-  version "5.0.1-beta-12"
-  resolved "https://registry.yarnpkg.com/@triton-one/yellowstone-grpc/-/yellowstone-grpc-5.0.1-beta-12.tgz#03015393313a9d380e62f201d029c3d55789e2bd"
-  integrity sha512-FHI4BQeh1o6py9Q0D5uNHpyGjm/jYqiLtC82Gz1AHaLAgUZKMdfRenH1yuaI2pVih2wbQHz4Gf2ON/vbmEE9gA==
+"@triton-one/yellowstone-grpc@5.0.1":
+  version "5.0.1"
+  resolved "https://registry.yarnpkg.com/@triton-one/yellowstone-grpc/-/yellowstone-grpc-5.0.1.tgz#c68a024c18d4e40817ff42504a996777d4ee4e34"
+  integrity sha512-8HADdlWlHPlNday+Ii54CmHjyUxX6DN6LvYUf9zOQv2EqomQPaiqkEQ9hW9MCMqGO0ZoEtt/59Ef6mBXptag1A==
   dependencies:
     "@bufbuild/protobuf" "=2.10.2"
     "@solana/addresses" "=5.1.0"
     "@solana/rpc-api" "=5.1.0"
     "@solana/rpc-types" "=5.1.0"
   optionalDependencies:
-    "@triton-one/yellowstone-grpc-napi-darwin-arm64" "0.0.4"
-    "@triton-one/yellowstone-grpc-napi-darwin-x64" "0.0.4"
-    "@triton-one/yellowstone-grpc-napi-linux-x64-gnu" "0.0.4"
-    "@triton-one/yellowstone-grpc-napi-linux-x64-musl" "0.0.4"
+    "@triton-one/yellowstone-grpc-napi-darwin-arm64" "0.0.5"
+    "@triton-one/yellowstone-grpc-napi-darwin-x64" "0.0.5"
+    "@triton-one/yellowstone-grpc-napi-linux-x64-gnu" "0.0.5"
+    "@triton-one/yellowstone-grpc-napi-linux-x64-musl" "0.0.5"
 
 "@ts-graphviz/adapter@^2.0.6":
   version "2.0.6"
