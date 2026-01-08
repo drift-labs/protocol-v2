@@ -2372,7 +2372,7 @@ export class User {
 				enteringHighLeverage
 			);
 
-			if (freeCollateralDelta.eq(ZERO)) {
+			if (!freeCollateralDelta || freeCollateralDelta.eq(ZERO)) {
 				return new BN(-1);
 			}
 
