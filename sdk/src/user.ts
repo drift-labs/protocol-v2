@@ -497,10 +497,10 @@ export class User {
 		const oraclePriceData = this.getOracleDataForPerpMarket(marketIndex);
 		const worstCaseBaseAssetAmount = perpPosition
 			? calculateWorstCaseBaseAssetAmount(
-				perpPosition,
-				perpMarket,
-				oraclePriceData.price
-			)
+					perpPosition,
+					perpMarket,
+					oraclePriceData.price
+			  )
 			: ZERO;
 
 		let freeCollateral: BN;
@@ -1370,7 +1370,7 @@ export class User {
 					Math.max(
 						0,
 						(1 - maintenanceMarginReq.toNumber() / totalCollateral.toNumber()) *
-						100
+							100
 					)
 				)
 			);
@@ -1433,7 +1433,7 @@ export class User {
 						? Math.max(market.marginRatioInitial, userCustomMargin)
 						: userCustomMargin,
 					this.isHighLeverageMode(marginCategory) ||
-					enteringHighLeverage === true
+						enteringHighLeverage === true
 				)
 			);
 
@@ -2051,11 +2051,11 @@ export class User {
 		return cross
 			? { ...cross, isolatedPositions }
 			: {
-				canBeLiquidated: false,
-				marginRequirement: ZERO,
-				totalCollateral: ZERO,
-				isolatedPositions,
-			};
+					canBeLiquidated: false,
+					marginRequirement: ZERO,
+					totalCollateral: ZERO,
+					isolatedPositions,
+			  };
 	}
 
 	/**
@@ -2797,18 +2797,18 @@ export class User {
 
 		const lpBuffer = isLp
 			? oracleData.price
-				.mul(marketAccount.amm.orderStepSize)
-				.div(AMM_RESERVE_PRECISION)
+					.mul(marketAccount.amm.orderStepSize)
+					.div(AMM_RESERVE_PRECISION)
 			: ZERO;
 
 		// add any position we have on the opposite side of the current trade, because we can "flip" the size of this position without taking any extra leverage.
 		const oppositeSizeLiabilityValue = targetingSameSide
 			? ZERO
 			: calculatePerpLiabilityValue(
-				currentPosition.baseAssetAmount,
-				oracleData.price,
-				isVariant(marketAccount.contractType, 'prediction')
-			);
+					currentPosition.baseAssetAmount,
+					oracleData.price,
+					isVariant(marketAccount.contractType, 'prediction')
+			  );
 
 		const maxPositionSize = this.getPerpBuyingPower(
 			targetMarketIndex,
@@ -3576,7 +3576,7 @@ export class User {
 		// current side is short if position base asset amount is negative OR there is no position open but open orders are short
 		const currentSide =
 			currentPosition.baseAssetAmount.isNeg() ||
-				(currentPosition.baseAssetAmount.eq(ZERO) && worstCaseBase.isNeg())
+			(currentPosition.baseAssetAmount.eq(ZERO) && worstCaseBase.isNeg())
 				? PositionDirection.SHORT
 				: PositionDirection.LONG;
 
@@ -3746,13 +3746,13 @@ export class User {
 		const { numeratorScale, denominatorScale } =
 			spotMarket.decimals > 6
 				? {
-					numeratorScale: new BN(10).pow(new BN(spotMarket.decimals - 6)),
-					denominatorScale: new BN(1),
-				}
+						numeratorScale: new BN(10).pow(new BN(spotMarket.decimals - 6)),
+						denominatorScale: new BN(1),
+				  }
 				: {
-					numeratorScale: new BN(1),
-					denominatorScale: new BN(10).pow(new BN(6 - spotMarket.decimals)),
-				};
+						numeratorScale: new BN(1),
+						denominatorScale: new BN(10).pow(new BN(6 - spotMarket.decimals)),
+				  };
 
 		const { canBypass, depositAmount: userDepositAmount } =
 			this.canBypassWithdrawLimits(marketIndex);
@@ -4335,11 +4335,11 @@ export class User {
 			);
 			const twap5 = strict
 				? calculateLiveOracleTwap(
-					spotMarket.historicalOracleData,
-					oraclePriceData,
-					new BN(Math.floor(Date.now() / 1000)),
-					FIVE_MINUTE
-				)
+						spotMarket.historicalOracleData,
+						oraclePriceData,
+						new BN(Math.floor(Date.now() / 1000)),
+						FIVE_MINUTE
+				  )
 				: undefined;
 			const strictOracle = new StrictOraclePrice(oraclePriceData.price, twap5);
 
@@ -4480,9 +4480,9 @@ export class User {
 			// convert liability to quote value and apply margin ratio
 			const quotePrice = strict
 				? BN.max(
-					quoteOraclePriceData.price,
-					quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5min
-				)
+						quoteOraclePriceData.price,
+						quoteSpotMarket.historicalOracleData.lastOraclePriceTwap5min
+				  )
 				: quoteOraclePriceData.price;
 			let perpMarginRequirement = worstCaseLiabilityValue
 				.mul(quotePrice)

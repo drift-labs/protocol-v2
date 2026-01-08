@@ -1136,10 +1136,13 @@ export type PerpPosition = {
 	openAsks: BN;
 	settledPnl: BN;
 	lpShares: BN;
-	positionFlag: number;
+	/**	 TODO: remove this field - it doesn't exist on chain */
+	remainderBaseAssetAmount: number;
 	maxMarginRatio: number;
 	lastQuoteAssetAmountPerLp: BN;
+	perLpBase: number;
 	isolatedPositionScaledBalance: BN;
+	positionFlag: number;
 };
 
 export class PositionFlag {
@@ -1431,9 +1434,9 @@ export interface IWallet {
 	publicKey: PublicKey;
 	payer?: Keypair;
 	supportedTransactionVersions?:
-	| ReadonlySet<TransactionVersion>
-	| null
-	| undefined;
+		| ReadonlySet<TransactionVersion>
+		| null
+		| undefined;
 }
 export interface IVersionedWallet {
 	signVersionedTransaction(
