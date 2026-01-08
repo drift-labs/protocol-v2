@@ -3213,7 +3213,7 @@ export const WORMHOLE_CORE_BRIDGE_SOLANA_IDL: WormholeCoreBridgeSolana = {
 };
 
 export type PythSolanaReceiver = {
-	version: '0.2.1';
+	version: '0.1.0';
 	name: 'pyth_solana_receiver';
 	instructions: [
 		{
@@ -3264,22 +3264,6 @@ export type PythSolanaReceiver = {
 					type: 'publicKey';
 				},
 			];
-		},
-		{
-			name: 'cancelGovernanceAuthorityTransfer';
-			accounts: [
-				{
-					name: 'payer';
-					isMut: false;
-					isSigner: true;
-				},
-				{
-					name: 'config';
-					isMut: true;
-					isSigner: false;
-				},
-			];
-			args: [];
 		},
 		{
 			name: 'acceptGovernanceAuthorityTransfer';
@@ -3390,14 +3374,8 @@ export type PythSolanaReceiver = {
 			docs: [
 				'Post a price update using a VAA and a MerklePriceUpdate.',
 				'This function allows you to post a price update in a single transaction.',
-				"Compared to `post_update`, it only checks whatever signatures are present in the provided VAA and doesn't fail if the number of signatures is lower than the Wormhole quorum of two thirds of the guardians.",
-				'The number of signatures that were in the VAA is stored in the `VerificationLevel` of the `PriceUpdateV2` account.',
-				'',
-				'We recommend using `post_update_atomic` with 5 signatures. This is close to the maximum signatures you can verify in one transaction without exceeding the transaction size limit.',
-				'',
-				'# Warning',
-				'',
-				'Using partially verified price updates is dangerous, as it lowers the threshold of guardians that need to collude to produce a malicious price update.',
+				"Compared to post_update, it is less secure since you won't be able to verify all guardian signatures if you use this function because of transaction size limitations.",
+				'Typically, you can fit 5 guardian signatures in a transaction that uses this.',
 			];
 			accounts: [
 				{
@@ -3428,7 +3406,7 @@ export type PythSolanaReceiver = {
 					isMut: true;
 					isSigner: true;
 					docs: [
-						'The constraint is such that either the price_update_account is uninitialized or the write_authority is the write_authority.',
+						'The contraint is such that either the price_update_account is uninitialized or the payer is the write_authority.',
 						"Pubkey::default() is the SystemProgram on Solana and it can't sign so it's impossible that price_update_account.write_authority == Pubkey::default() once the account is initialized",
 					];
 				},
@@ -3485,7 +3463,7 @@ export type PythSolanaReceiver = {
 					isMut: true;
 					isSigner: true;
 					docs: [
-						'The constraint is such that either the price_update_account is uninitialized or the write_authority is the write_authority.',
+						'The contraint is such that either the price_update_account is uninitialized or the payer is the write_authority.',
 						"Pubkey::default() is the SystemProgram on Solana and it can't sign so it's impossible that price_update_account.write_authority == Pubkey::default() once the account is initialized",
 					];
 				},
@@ -3510,68 +3488,6 @@ export type PythSolanaReceiver = {
 			];
 		},
 		{
-			name: 'postTwapUpdate';
-			docs: [
-				'Post a TWAP (time weighted average price) update for a given time window.',
-				'This should be called after the client has already verified the VAAs via the Wormhole contract.',
-				'Check out target_chains/solana/cli/src/main.rs for an example of how to do this.',
-			];
-			accounts: [
-				{
-					name: 'payer';
-					isMut: true;
-					isSigner: true;
-				},
-				{
-					name: 'startEncodedVaa';
-					isMut: false;
-					isSigner: false;
-				},
-				{
-					name: 'endEncodedVaa';
-					isMut: false;
-					isSigner: false;
-				},
-				{
-					name: 'config';
-					isMut: false;
-					isSigner: false;
-				},
-				{
-					name: 'treasury';
-					isMut: true;
-					isSigner: false;
-				},
-				{
-					name: 'twapUpdateAccount';
-					isMut: true;
-					isSigner: true;
-					docs: [
-						'The constraint is such that either the price_update_account is uninitialized or the write_authority is the write_authority.',
-						"Pubkey::default() is the SystemProgram on Solana and it can't sign so it's impossible that price_update_account.write_authority == Pubkey::default() once the account is initialized",
-					];
-				},
-				{
-					name: 'systemProgram';
-					isMut: false;
-					isSigner: false;
-				},
-				{
-					name: 'writeAuthority';
-					isMut: false;
-					isSigner: true;
-				},
-			];
-			args: [
-				{
-					name: 'params';
-					type: {
-						defined: 'PostTwapUpdateParams';
-					};
-				},
-			];
-		},
-		{
 			name: 'reclaimRent';
 			accounts: [
 				{
@@ -3581,22 +3497,6 @@ export type PythSolanaReceiver = {
 				},
 				{
 					name: 'priceUpdateAccount';
-					isMut: true;
-					isSigner: false;
-				},
-			];
-			args: [];
-		},
-		{
-			name: 'reclaimTwapRent';
-			accounts: [
-				{
-					name: 'payer';
-					isMut: true;
-					isSigner: true;
-				},
-				{
-					name: 'twapUpdateAccount';
 					isMut: true;
 					isSigner: false;
 				},
@@ -3671,24 +3571,6 @@ export type PythSolanaReceiver = {
 				];
 			};
 		},
-		{
-			name: 'twapUpdate';
-			type: {
-				kind: 'struct';
-				fields: [
-					{
-						name: 'writeAuthority';
-						type: 'publicKey';
-					},
-					{
-						name: 'twap';
-						type: {
-							defined: 'TwapPrice';
-						};
-					},
-				];
-			};
-		},
 	];
 	types: [
 		{
@@ -3729,52 +3611,6 @@ export type PythSolanaReceiver = {
 					{
 						name: 'emaConf';
 						type: 'u64';
-					},
-				];
-			};
-		},
-		{
-			name: 'TwapPrice';
-			docs: [
-				'The time weighted average price & conf for a feed over the window [start_time, end_time].',
-				'This type is used to persist the calculated TWAP in TwapUpdate accounts on Solana.',
-			];
-			type: {
-				kind: 'struct';
-				fields: [
-					{
-						name: 'feedId';
-						type: {
-							array: ['u8', 32];
-						};
-					},
-					{
-						name: 'startTime';
-						type: 'i64';
-					},
-					{
-						name: 'endTime';
-						type: 'i64';
-					},
-					{
-						name: 'price';
-						type: 'i64';
-					},
-					{
-						name: 'conf';
-						type: 'u64';
-					},
-					{
-						name: 'exponent';
-						type: 'i32';
-					},
-					{
-						name: 'downSlotsRatio';
-						docs: [
-							'Ratio out of 1_000_000, where a value of 1_000_000 represents',
-							'all slots were missed and 0 represents no slots were missed.',
-						];
-						type: 'u32';
 					},
 				];
 			};
@@ -3856,30 +3692,6 @@ export type PythSolanaReceiver = {
 			};
 		},
 		{
-			name: 'PostTwapUpdateParams';
-			type: {
-				kind: 'struct';
-				fields: [
-					{
-						name: 'startMerklePriceUpdate';
-						type: {
-							defined: 'MerklePriceUpdate';
-						};
-					},
-					{
-						name: 'endMerklePriceUpdate';
-						type: {
-							defined: 'MerklePriceUpdate';
-						};
-					},
-					{
-						name: 'treasuryId';
-						type: 'u8';
-					},
-				];
-			};
-		},
-		{
 			name: 'VerificationLevel';
 			docs: [
 				'* This enum represents how many guardian signatures were checked for a Pythnet price update\n * If full, guardian quorum has been attained\n * If partial, at least config.minimum signatures have been verified, but in the case config.minimum_signatures changes in the future we also include the number of signatures that were checked',
@@ -3936,124 +3748,89 @@ export type PythSolanaReceiver = {
 		},
 		{
 			code: 6006;
-			name: 'FeedIdMismatch';
-			msg: 'Cannot calculate TWAP, end slot must be greater than start slot';
-		},
-		{
-			code: 6007;
-			name: 'ExponentMismatch';
-			msg: 'The start and end messages must have the same feed ID';
-		},
-		{
-			code: 6008;
-			name: 'InvalidTwapSlots';
-			msg: 'The start and end messages must have the same exponent';
-		},
-		{
-			code: 6009;
-			name: 'InvalidTwapStartMessage';
-			msg: 'Start message is not the first update for its timestamp';
-		},
-		{
-			code: 6010;
-			name: 'InvalidTwapEndMessage';
-			msg: 'End message is not the first update for its timestamp';
-		},
-		{
-			code: 6011;
-			name: 'TwapCalculationOverflow';
-			msg: 'Overflow in TWAP calculation';
-		},
-		{
-			code: 6012;
 			name: 'WrongWriteAuthority';
 			msg: "This signer can't write to price update account";
 		},
 		{
-			code: 6013;
+			code: 6007;
 			name: 'WrongVaaOwner';
 			msg: 'The posted VAA account has the wrong owner.';
 		},
 		{
-			code: 6014;
+			code: 6008;
 			name: 'DeserializeVaaFailed';
 			msg: 'An error occurred when deserializing the VAA.';
 		},
 		{
-			code: 6015;
+			code: 6009;
 			name: 'InsufficientGuardianSignatures';
 			msg: 'The number of guardian signatures is below the minimum';
 		},
 		{
-			code: 6016;
+			code: 6010;
 			name: 'InvalidVaaVersion';
 			msg: 'Invalid VAA version';
 		},
 		{
-			code: 6017;
+			code: 6011;
 			name: 'GuardianSetMismatch';
 			msg: "Guardian set version in the VAA doesn't match the guardian set passed";
 		},
 		{
-			code: 6018;
+			code: 6012;
 			name: 'InvalidGuardianOrder';
 			msg: 'Guardian signature indices must be increasing';
 		},
 		{
-			code: 6019;
+			code: 6013;
 			name: 'InvalidGuardianIndex';
 			msg: 'Guardian index exceeds the number of guardians in the set';
 		},
 		{
-			code: 6020;
+			code: 6014;
 			name: 'InvalidSignature';
 			msg: 'A VAA signature is invalid';
 		},
 		{
-			code: 6021;
+			code: 6015;
 			name: 'InvalidGuardianKeyRecovery';
 			msg: "The recovered guardian public key doesn't match the guardian set";
 		},
 		{
-			code: 6022;
+			code: 6016;
 			name: 'WrongGuardianSetOwner';
 			msg: 'The guardian set account is owned by the wrong program';
 		},
 		{
-			code: 6023;
+			code: 6017;
 			name: 'InvalidGuardianSetPda';
 			msg: "The Guardian Set account doesn't match the PDA derivation";
 		},
 		{
-			code: 6024;
+			code: 6018;
 			name: 'GuardianSetExpired';
 			msg: 'The Guardian Set is expired';
 		},
 		{
-			code: 6025;
+			code: 6019;
 			name: 'GovernanceAuthorityMismatch';
 			msg: 'The signer is not authorized to perform this governance action';
 		},
 		{
-			code: 6026;
+			code: 6020;
 			name: 'TargetGovernanceAuthorityMismatch';
 			msg: 'The signer is not authorized to accept the governance authority';
 		},
 		{
-			code: 6027;
+			code: 6021;
 			name: 'NonexistentGovernanceAuthorityTransferRequest';
 			msg: 'The governance authority needs to request a transfer first';
-		},
-		{
-			code: 6028;
-			name: 'ZeroMinimumSignatures';
-			msg: 'The minimum number of signatures should be at least 1';
 		},
 	];
 };
 
 export const IDL: PythSolanaReceiver = {
-	version: '0.2.1',
+	version: '0.1.0',
 	name: 'pyth_solana_receiver',
 	instructions: [
 		{
@@ -4104,22 +3881,6 @@ export const IDL: PythSolanaReceiver = {
 					type: 'publicKey',
 				},
 			],
-		},
-		{
-			name: 'cancelGovernanceAuthorityTransfer',
-			accounts: [
-				{
-					name: 'payer',
-					isMut: false,
-					isSigner: true,
-				},
-				{
-					name: 'config',
-					isMut: true,
-					isSigner: false,
-				},
-			],
-			args: [],
 		},
 		{
 			name: 'acceptGovernanceAuthorityTransfer',
@@ -4230,14 +3991,8 @@ export const IDL: PythSolanaReceiver = {
 			docs: [
 				'Post a price update using a VAA and a MerklePriceUpdate.',
 				'This function allows you to post a price update in a single transaction.',
-				"Compared to `post_update`, it only checks whatever signatures are present in the provided VAA and doesn't fail if the number of signatures is lower than the Wormhole quorum of two thirds of the guardians.",
-				'The number of signatures that were in the VAA is stored in the `VerificationLevel` of the `PriceUpdateV2` account.',
-				'',
-				'We recommend using `post_update_atomic` with 5 signatures. This is close to the maximum signatures you can verify in one transaction without exceeding the transaction size limit.',
-				'',
-				'# Warning',
-				'',
-				'Using partially verified price updates is dangerous, as it lowers the threshold of guardians that need to collude to produce a malicious price update.',
+				"Compared to post_update, it is less secure since you won't be able to verify all guardian signatures if you use this function because of transaction size limitations.",
+				'Typically, you can fit 5 guardian signatures in a transaction that uses this.',
 			],
 			accounts: [
 				{
@@ -4268,7 +4023,7 @@ export const IDL: PythSolanaReceiver = {
 					isMut: true,
 					isSigner: true,
 					docs: [
-						'The constraint is such that either the price_update_account is uninitialized or the write_authority is the write_authority.',
+						'The contraint is such that either the price_update_account is uninitialized or the payer is the write_authority.',
 						"Pubkey::default() is the SystemProgram on Solana and it can't sign so it's impossible that price_update_account.write_authority == Pubkey::default() once the account is initialized",
 					],
 				},
@@ -4325,7 +4080,7 @@ export const IDL: PythSolanaReceiver = {
 					isMut: true,
 					isSigner: true,
 					docs: [
-						'The constraint is such that either the price_update_account is uninitialized or the write_authority is the write_authority.',
+						'The contraint is such that either the price_update_account is uninitialized or the payer is the write_authority.',
 						"Pubkey::default() is the SystemProgram on Solana and it can't sign so it's impossible that price_update_account.write_authority == Pubkey::default() once the account is initialized",
 					],
 				},
@@ -4350,68 +4105,6 @@ export const IDL: PythSolanaReceiver = {
 			],
 		},
 		{
-			name: 'postTwapUpdate',
-			docs: [
-				'Post a TWAP (time weighted average price) update for a given time window.',
-				'This should be called after the client has already verified the VAAs via the Wormhole contract.',
-				'Check out target_chains/solana/cli/src/main.rs for an example of how to do this.',
-			],
-			accounts: [
-				{
-					name: 'payer',
-					isMut: true,
-					isSigner: true,
-				},
-				{
-					name: 'startEncodedVaa',
-					isMut: false,
-					isSigner: false,
-				},
-				{
-					name: 'endEncodedVaa',
-					isMut: false,
-					isSigner: false,
-				},
-				{
-					name: 'config',
-					isMut: false,
-					isSigner: false,
-				},
-				{
-					name: 'treasury',
-					isMut: true,
-					isSigner: false,
-				},
-				{
-					name: 'twapUpdateAccount',
-					isMut: true,
-					isSigner: true,
-					docs: [
-						'The constraint is such that either the price_update_account is uninitialized or the write_authority is the write_authority.',
-						"Pubkey::default() is the SystemProgram on Solana and it can't sign so it's impossible that price_update_account.write_authority == Pubkey::default() once the account is initialized",
-					],
-				},
-				{
-					name: 'systemProgram',
-					isMut: false,
-					isSigner: false,
-				},
-				{
-					name: 'writeAuthority',
-					isMut: false,
-					isSigner: true,
-				},
-			],
-			args: [
-				{
-					name: 'params',
-					type: {
-						defined: 'PostTwapUpdateParams',
-					},
-				},
-			],
-		},
-		{
 			name: 'reclaimRent',
 			accounts: [
 				{
@@ -4421,22 +4114,6 @@ export const IDL: PythSolanaReceiver = {
 				},
 				{
 					name: 'priceUpdateAccount',
-					isMut: true,
-					isSigner: false,
-				},
-			],
-			args: [],
-		},
-		{
-			name: 'reclaimTwapRent',
-			accounts: [
-				{
-					name: 'payer',
-					isMut: true,
-					isSigner: true,
-				},
-				{
-					name: 'twapUpdateAccount',
 					isMut: true,
 					isSigner: false,
 				},
@@ -4511,24 +4188,6 @@ export const IDL: PythSolanaReceiver = {
 				],
 			},
 		},
-		{
-			name: 'twapUpdate',
-			type: {
-				kind: 'struct',
-				fields: [
-					{
-						name: 'writeAuthority',
-						type: 'publicKey',
-					},
-					{
-						name: 'twap',
-						type: {
-							defined: 'TwapPrice',
-						},
-					},
-				],
-			},
-		},
 	],
 	types: [
 		{
@@ -4569,52 +4228,6 @@ export const IDL: PythSolanaReceiver = {
 					{
 						name: 'emaConf',
 						type: 'u64',
-					},
-				],
-			},
-		},
-		{
-			name: 'TwapPrice',
-			docs: [
-				'The time weighted average price & conf for a feed over the window [start_time, end_time].',
-				'This type is used to persist the calculated TWAP in TwapUpdate accounts on Solana.',
-			],
-			type: {
-				kind: 'struct',
-				fields: [
-					{
-						name: 'feedId',
-						type: {
-							array: ['u8', 32],
-						},
-					},
-					{
-						name: 'startTime',
-						type: 'i64',
-					},
-					{
-						name: 'endTime',
-						type: 'i64',
-					},
-					{
-						name: 'price',
-						type: 'i64',
-					},
-					{
-						name: 'conf',
-						type: 'u64',
-					},
-					{
-						name: 'exponent',
-						type: 'i32',
-					},
-					{
-						name: 'downSlotsRatio',
-						docs: [
-							'Ratio out of 1_000_000, where a value of 1_000_000 represents',
-							'all slots were missed and 0 represents no slots were missed.',
-						],
-						type: 'u32',
 					},
 				],
 			},
@@ -4696,30 +4309,6 @@ export const IDL: PythSolanaReceiver = {
 			},
 		},
 		{
-			name: 'PostTwapUpdateParams',
-			type: {
-				kind: 'struct',
-				fields: [
-					{
-						name: 'startMerklePriceUpdate',
-						type: {
-							defined: 'MerklePriceUpdate',
-						},
-					},
-					{
-						name: 'endMerklePriceUpdate',
-						type: {
-							defined: 'MerklePriceUpdate',
-						},
-					},
-					{
-						name: 'treasuryId',
-						type: 'u8',
-					},
-				],
-			},
-		},
-		{
 			name: 'VerificationLevel',
 			docs: [
 				'* This enum represents how many guardian signatures were checked for a Pythnet price update\n * If full, guardian quorum has been attained\n * If partial, at least config.minimum signatures have been verified, but in the case config.minimum_signatures changes in the future we also include the number of signatures that were checked',
@@ -4776,118 +4365,83 @@ export const IDL: PythSolanaReceiver = {
 		},
 		{
 			code: 6006,
-			name: 'FeedIdMismatch',
-			msg: 'Cannot calculate TWAP, end slot must be greater than start slot',
-		},
-		{
-			code: 6007,
-			name: 'ExponentMismatch',
-			msg: 'The start and end messages must have the same feed ID',
-		},
-		{
-			code: 6008,
-			name: 'InvalidTwapSlots',
-			msg: 'The start and end messages must have the same exponent',
-		},
-		{
-			code: 6009,
-			name: 'InvalidTwapStartMessage',
-			msg: 'Start message is not the first update for its timestamp',
-		},
-		{
-			code: 6010,
-			name: 'InvalidTwapEndMessage',
-			msg: 'End message is not the first update for its timestamp',
-		},
-		{
-			code: 6011,
-			name: 'TwapCalculationOverflow',
-			msg: 'Overflow in TWAP calculation',
-		},
-		{
-			code: 6012,
 			name: 'WrongWriteAuthority',
 			msg: "This signer can't write to price update account",
 		},
 		{
-			code: 6013,
+			code: 6007,
 			name: 'WrongVaaOwner',
 			msg: 'The posted VAA account has the wrong owner.',
 		},
 		{
-			code: 6014,
+			code: 6008,
 			name: 'DeserializeVaaFailed',
 			msg: 'An error occurred when deserializing the VAA.',
 		},
 		{
-			code: 6015,
+			code: 6009,
 			name: 'InsufficientGuardianSignatures',
 			msg: 'The number of guardian signatures is below the minimum',
 		},
 		{
-			code: 6016,
+			code: 6010,
 			name: 'InvalidVaaVersion',
 			msg: 'Invalid VAA version',
 		},
 		{
-			code: 6017,
+			code: 6011,
 			name: 'GuardianSetMismatch',
 			msg: "Guardian set version in the VAA doesn't match the guardian set passed",
 		},
 		{
-			code: 6018,
+			code: 6012,
 			name: 'InvalidGuardianOrder',
 			msg: 'Guardian signature indices must be increasing',
 		},
 		{
-			code: 6019,
+			code: 6013,
 			name: 'InvalidGuardianIndex',
 			msg: 'Guardian index exceeds the number of guardians in the set',
 		},
 		{
-			code: 6020,
+			code: 6014,
 			name: 'InvalidSignature',
 			msg: 'A VAA signature is invalid',
 		},
 		{
-			code: 6021,
+			code: 6015,
 			name: 'InvalidGuardianKeyRecovery',
 			msg: "The recovered guardian public key doesn't match the guardian set",
 		},
 		{
-			code: 6022,
+			code: 6016,
 			name: 'WrongGuardianSetOwner',
 			msg: 'The guardian set account is owned by the wrong program',
 		},
 		{
-			code: 6023,
+			code: 6017,
 			name: 'InvalidGuardianSetPda',
 			msg: "The Guardian Set account doesn't match the PDA derivation",
 		},
 		{
-			code: 6024,
+			code: 6018,
 			name: 'GuardianSetExpired',
 			msg: 'The Guardian Set is expired',
 		},
 		{
-			code: 6025,
+			code: 6019,
 			name: 'GovernanceAuthorityMismatch',
 			msg: 'The signer is not authorized to perform this governance action',
 		},
 		{
-			code: 6026,
+			code: 6020,
 			name: 'TargetGovernanceAuthorityMismatch',
 			msg: 'The signer is not authorized to accept the governance authority',
 		},
 		{
-			code: 6027,
+			code: 6021,
 			name: 'NonexistentGovernanceAuthorityTransferRequest',
 			msg: 'The governance authority needs to request a transfer first',
-		},
-		{
-			code: 6028,
-			name: 'ZeroMinimumSignatures',
-			msg: 'The minimum number of signatures should be at least 1',
 		},
 	],
 };
