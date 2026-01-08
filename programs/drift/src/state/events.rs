@@ -242,8 +242,7 @@ pub struct OrderActionRecord {
     /// precision: PRICE_PRECISION
     pub oracle_price: i64,
 
-    /// Bit flags:
-    /// 0: is_signed_message
+    /// Order bit flags, defined in [`crate::state::user::OrderBitFlag`]
     pub bit_flags: u8,
     /// precision: QUOTE_PRECISION
     /// Only Some if the taker reduced position
@@ -441,6 +440,7 @@ pub struct LiquidationRecord {
     pub liquidate_perp_pnl_for_deposit: LiquidatePerpPnlForDepositRecord,
     pub perp_bankruptcy: PerpBankruptcyRecord,
     pub spot_bankruptcy: SpotBankruptcyRecord,
+    pub bit_flags: u8,
 }
 
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Default)]
@@ -520,6 +520,11 @@ pub struct SpotBankruptcyRecord {
     pub borrow_amount: u128,
     pub if_payment: u128,
     pub cumulative_deposit_interest_delta: u128,
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum LiquidationBitFlag {
+    IsolatedPosition = 0b00000001,
 }
 
 #[event]

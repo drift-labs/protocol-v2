@@ -204,6 +204,7 @@ export class User {
 	}
 
 	public async unsubscribe(): Promise<void> {
+		this.eventEmitter.removeAllListeners();
 		await this.accountSubscriber.unsubscribe();
 		this.isSubscribed = false;
 	}
@@ -343,7 +344,6 @@ export class User {
 			openAsks: ZERO,
 			settledPnl: ZERO,
 			lpShares: ZERO,
-			lastBaseAssetAmountPerLp: ZERO,
 			lastQuoteAssetAmountPerLp: ZERO,
 			perLpBase: 0,
 			maxMarginRatio: 0,
@@ -4587,7 +4587,7 @@ export class User {
 		return calc;
 	}
 
-	private isPerpPositionIsolated(perpPosition: PerpPosition): boolean {
+	public isPerpPositionIsolated(perpPosition: PerpPosition): boolean {
 		return (perpPosition.positionFlag & PositionFlag.IsolatedPosition) !== 0;
 	}
 }

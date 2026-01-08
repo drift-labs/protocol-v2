@@ -948,6 +948,7 @@ impl PerpMarket {
             safe_oracle_price_data.delay,
             clock_slot,
             fill_mode.is_liquidation(),
+            user_can_skip_auction_duration,
         )?;
 
         // Proceed if order is low risk and we can fill it. Otherwise check if we can higher risk order immediately
@@ -1061,7 +1062,7 @@ impl SpotBalance for PoolBalance {
     }
 
     fn update_balance_type(&mut self, _balance_type: SpotBalanceType) -> DriftResult {
-        Err(ErrorCode::CantUpdatePoolBalanceType)
+        Err(ErrorCode::CantUpdateSpotBalanceType)
     }
 }
 

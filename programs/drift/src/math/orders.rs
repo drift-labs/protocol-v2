@@ -794,24 +794,30 @@ pub fn calculate_max_perp_order_size(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
 ) -> DriftResult<u64> {
+    let margin_context = MarginContext::standard(MarginRequirementType::Initial).strict(true);
     // calculate initial margin requirement
-    let MarginCalculation {
-        margin_requirement,
-        total_collateral,
-        ..
-    } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+    let margin_calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
         user,
         perp_market_map,
         spot_market_map,
         oracle_map,
-        MarginContext::standard(MarginRequirementType::Initial).strict(true),
+        margin_context,
     )?;
 
     let user_custom_margin_ratio = user.max_margin_ratio;
     let perp_position_margin_ratio = user.perp_positions[position_index].max_margin_ratio as u32;
     let user_high_leverage_mode = user.is_high_leverage_mode(MarginRequirementType::Initial);
 
-    let free_collateral_before = total_collateral.safe_sub(margin_requirement.cast()?)?;
+    let is_isolated_position = user.perp_positions[position_index].is_isolated();
+    let free_collateral_before = if is_isolated_position {
+        margin_calculation
+            .get_isolated_free_collateral(market_index)?
+            .cast::<i128>()?
+    } else {
+        margin_calculation
+            .get_cross_free_collateral()?
+            .cast::<i128>()?
+    };
 
     let perp_market = perp_market_map.get_ref(&market_index)?;
 
