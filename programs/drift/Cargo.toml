@@ -50,7 +50,7 @@ switchboard = { path = "../switchboard", features = ["no-entrypoint"] }
 openbook-v2-light = { path = "../openbook_v2", features = ["no-entrypoint"] }
 switchboard-on-demand = { path = "../switchboard-on-demand", features = ["no-entrypoint"] }
 byteorder = "1.4.3"
-proc-macro2 = { version = "1.0.103", features = ["span-locations"] }
+proc-macro2 = { version = "1.0.105", features = ["span-locations"] }
 
 [dev-dependencies]
 bytes = "1.2.0"

@@ -132,7 +132,6 @@ export function decodeUser(buffer: Buffer): UserAccount {
 			lastQuoteAssetAmountPerLp,
 			marketIndex,
 			openOrders,
-			perLpBase,
 			maxMarginRatio,
 			isolatedPositionScaledBalance,
 			positionFlag,

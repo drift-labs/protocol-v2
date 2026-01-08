@@ -511,6 +511,13 @@ pub fn handle_update_serum_fulfillment_config_status(
     Ok(())
 }
 
+pub fn handle_delete_serum_fulfillment_config(
+    _ctx: Context<DeleteSerumFulfillmentConfig>,
+) -> Result<()> {
+    msg!("deleted serum fulfillment config");
+    Ok(())
+}
+
 pub fn handle_update_serum_vault(ctx: Context<UpdateSerumVault>) -> Result<()> {
     let vault = &ctx.accounts.srm_vault;
     validate!(
@@ -606,6 +613,13 @@ pub fn handle_update_openbook_v2_fulfillment_config_status(
     let mut config = load_mut!(ctx.accounts.openbook_v2_fulfillment_config)?;
     msg!("config.status {:?} -> {:?}", config.status, status);
     config.status = status;
+    Ok(())
+}
+
+pub fn handle_delete_openbook_v2_fulfillment_config(
+    _ctx: Context<DeleteOpenbookV2FulfillmentConfig>,
+) -> Result<()> {
+    msg!("deleted openbook v2 fulfillment config");
     Ok(())
 }
 
@@ -5385,13 +5399,25 @@ pub struct InitializeSerumFulfillmentConfig<'info> {
 
 #[derive(Accounts)]
 pub struct UpdateSerumFulfillmentConfig<'info> {
-    #[account(
-        has_one = admin
-    )]
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub serum_fulfillment_config: AccountLoader<'info, SerumV3FulfillmentConfig>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = admin.key() == state.admin || admin.key() == admin_hot_wallet::id()
+    )]
+    pub admin: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct DeleteSerumFulfillmentConfig<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(mut, close = admin)]
+    pub serum_fulfillment_config: AccountLoader<'info, SerumV3FulfillmentConfig>,
+    #[account(
+        mut,
+        constraint = admin.key() == state.admin || admin.key() == admin_hot_wallet::id()
+    )]
     pub admin: Signer<'info>,
 }
 
@@ -5964,13 +5990,25 @@ pub struct InitializeOpenbookV2FulfillmentConfig<'info> {
 
 #[derive(Accounts)]
 pub struct UpdateOpenbookV2FulfillmentConfig<'info> {
-    #[account(
-        has_one = admin
-    )]
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub openbook_v2_fulfillment_config: AccountLoader<'info, OpenbookV2FulfillmentConfig>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = admin.key() == state.admin || admin.key() == admin_hot_wallet::id()
+    )]
+    pub admin: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct DeleteOpenbookV2FulfillmentConfig<'info> {
+    pub state: Box<Account<'info, State>>,
+    #[account(mut, close = admin)]
+    pub openbook_v2_fulfillment_config: AccountLoader<'info, OpenbookV2FulfillmentConfig>,
+    #[account(
+        mut,
+        constraint = admin.key() == state.admin || admin.key() == admin_hot_wallet::id()
+    )]
     pub admin: Signer<'info>,
 }
 

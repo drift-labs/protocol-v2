@@ -486,4 +486,8 @@ describe('openbook v2', () => {
 			);
 		assert(openOrdersAccountParsedData.position.baseFreeNative.eq(new BN(1e9)));
 	});
+
+	it('delete openbook v2 fulfillment config', async () => {
+		await driftClient.deleteOpenbookV2FulfillmentConfig(market.publicKey);
+	});
 });

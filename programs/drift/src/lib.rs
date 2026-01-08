@@ -966,6 +966,12 @@ pub mod drift {
         handle_update_serum_fulfillment_config_status(ctx, status)
     }
 
+    pub fn delete_serum_fulfillment_config(
+        ctx: Context<DeleteSerumFulfillmentConfig>,
+    ) -> Result<()> {
+        handle_delete_serum_fulfillment_config(ctx)
+    }
+
     pub fn initialize_openbook_v2_fulfillment_config(
         ctx: Context<InitializeOpenbookV2FulfillmentConfig>,
         market_index: u16,
@@ -979,6 +985,13 @@ pub mod drift {
     ) -> Result<()> {
         handle_update_openbook_v2_fulfillment_config_status(ctx, status)
     }
+
+    pub fn delete_openbook_v2_fulfillment_config(
+        ctx: Context<DeleteOpenbookV2FulfillmentConfig>,
+    ) -> Result<()> {
+        handle_delete_openbook_v2_fulfillment_config(ctx)
+    }
+
     pub fn initialize_phoenix_fulfillment_config(
         ctx: Context<InitializePhoenixFulfillmentConfig>,
         market_index: u16,
