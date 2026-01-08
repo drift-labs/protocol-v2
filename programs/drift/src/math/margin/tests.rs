@@ -195,34 +195,34 @@ mod test {
             decimals: 9,
             imf_factor: 0,
             scale_initial_asset_weight_start: 500_000 * QUOTE_PRECISION_U64,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             ..SpotMarket::default()
         };
 
         let oracle_price = 25 * PRICE_PRECISION_I64;
 
-        sol_spot_market.deposit_balance = SPOT_BALANCE_PRECISION;
+        sol_spot_market.set_deposit_balance(SPOT_BALANCE_PRECISION);
         let asset_weight = sol_spot_market
             .get_scaled_initial_asset_weight(oracle_price)
             .unwrap();
 
         assert_eq!(asset_weight, 9000);
 
-        sol_spot_market.deposit_balance = 20000 * SPOT_BALANCE_PRECISION;
+        sol_spot_market.set_deposit_balance(20000 * SPOT_BALANCE_PRECISION);
         let asset_weight = sol_spot_market
             .get_scaled_initial_asset_weight(oracle_price)
             .unwrap();
 
         assert_eq!(asset_weight, 9000);
 
-        sol_spot_market.deposit_balance = 40000 * SPOT_BALANCE_PRECISION;
+        sol_spot_market.set_deposit_balance(40000 * SPOT_BALANCE_PRECISION);
         let asset_weight = sol_spot_market
             .get_scaled_initial_asset_weight(oracle_price)
             .unwrap();
 
         assert_eq!(asset_weight, 4500);
 
-        sol_spot_market.deposit_balance = 60000 * SPOT_BALANCE_PRECISION;
+        sol_spot_market.set_deposit_balance(60000 * SPOT_BALANCE_PRECISION);
         let asset_weight = sol_spot_market
             .get_scaled_initial_asset_weight(oracle_price)
             .unwrap();
@@ -235,11 +235,11 @@ mod test {
         let mut market = PerpMarket {
             market_index: 0,
             amm: AMM {
-                base_asset_reserve: 512295081967,
-                quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
-                sqrt_k: 500 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 22_100_000_000,
-                base_asset_amount_with_amm: -(12295081967_i128),
+                base_asset_reserve: 512295081967.into(),
+                quote_asset_reserve: (488 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (500 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: 22_100_000_000.into(),
+                base_asset_amount_with_amm: (-(12295081967_i128)).into(),
                 max_spread: 1000,
                 ..AMM::default()
             },
@@ -441,11 +441,11 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
@@ -455,8 +455,8 @@ mod calculate_margin_requirement_and_total_collateral {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -532,11 +532,11 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
@@ -546,8 +546,8 @@ mod calculate_margin_requirement_and_total_collateral {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -623,13 +623,13 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
             initial_liability_weight: SPOT_WEIGHT_PRECISION,
             maintenance_liability_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
@@ -639,15 +639,15 @@ mod calculate_margin_requirement_and_total_collateral {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
             initial_liability_weight: 12 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
             liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             ..SpotMarket::default()
         };
         create_anchor_account_info!(sol_spot_market, SpotMarket, sol_spot_market_account_info);
@@ -714,14 +714,14 @@ mod calculate_margin_requirement_and_total_collateral {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
                 ..AMM::default()
@@ -737,11 +737,11 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
@@ -751,8 +751,8 @@ mod calculate_margin_requirement_and_total_collateral {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -911,14 +911,14 @@ mod calculate_margin_requirement_and_total_collateral {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
                 ..AMM::default()
@@ -934,11 +934,11 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
@@ -948,8 +948,8 @@ mod calculate_margin_requirement_and_total_collateral {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -1096,14 +1096,14 @@ mod calculate_margin_requirement_and_total_collateral {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
                 ..AMM::default()
@@ -1119,11 +1119,11 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
@@ -1133,8 +1133,8 @@ mod calculate_margin_requirement_and_total_collateral {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -1222,14 +1222,14 @@ mod calculate_margin_requirement_and_total_collateral {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
                 ..AMM::default()
@@ -1245,11 +1245,11 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
@@ -1259,8 +1259,8 @@ mod calculate_margin_requirement_and_total_collateral {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION / 99, // big loss
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: (SPOT_CUMULATIVE_INTEREST_PRECISION / 99).into(), // big loss
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -1345,14 +1345,14 @@ mod calculate_margin_requirement_and_total_collateral {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
                 ..AMM::default()
@@ -1368,11 +1368,11 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
@@ -1382,8 +1382,8 @@ mod calculate_margin_requirement_and_total_collateral {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -1518,11 +1518,11 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap_5min: PRICE_PRECISION_I64 * 9 / 10,
@@ -1535,8 +1535,8 @@ mod calculate_margin_requirement_and_total_collateral {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -1612,14 +1612,14 @@ mod calculate_margin_requirement_and_total_collateral {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
                 ..AMM::default()
@@ -1635,12 +1635,12 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
@@ -1650,8 +1650,8 @@ mod calculate_margin_requirement_and_total_collateral {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -1729,14 +1729,14 @@ mod calculate_margin_requirement_and_total_collateral {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
                 ..AMM::default()
@@ -1752,12 +1752,12 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
@@ -1767,8 +1767,8 @@ mod calculate_margin_requirement_and_total_collateral {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -1841,14 +1841,14 @@ mod calculate_margin_requirement_and_total_collateral {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
                 ..AMM::default()
@@ -1864,12 +1864,12 @@ mod calculate_margin_requirement_and_total_collateral {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
@@ -1879,8 +1879,8 @@ mod calculate_margin_requirement_and_total_collateral {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -1983,14 +1983,14 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
                 ..AMM::default()
@@ -2006,11 +2006,11 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
@@ -2020,8 +2020,8 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -2094,14 +2094,14 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
                 ..AMM::default()
@@ -2118,11 +2118,11 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
@@ -2132,8 +2132,8 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -2251,14 +2251,14 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
                 ..AMM::default()
@@ -2274,11 +2274,11 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
@@ -2288,8 +2288,8 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -2377,11 +2377,11 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::PythStableCoin,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             oracle: usdc_oracle_price_key,
@@ -2392,8 +2392,8 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: usdc_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -2528,13 +2528,13 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::PythStableCoin,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
-            borrow_balance: 1000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
+            borrow_balance: (1000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             oracle: usdc_oracle_price_key,
@@ -2545,8 +2545,8 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: usdc_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -2674,11 +2674,11 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::PythStableCoin,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_price(usdc_price),
             oracle: usdc_oracle_price_key,
@@ -2689,8 +2689,8 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: usdc_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -2709,14 +2709,14 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
                 ..AMM::default()
@@ -2828,14 +2828,14 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
                 ..AMM::default()
@@ -2851,11 +2851,11 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
@@ -2865,8 +2865,8 @@ mod calculate_margin_requirement_and_total_collateral_and_liability_info {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -2968,11 +2968,11 @@ mod calculate_max_withdrawable_amount {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
@@ -2982,8 +2982,8 @@ mod calculate_max_withdrawable_amount {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -3054,12 +3054,12 @@ mod calculate_max_withdrawable_amount {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             initial_liability_weight: SPOT_WEIGHT_PRECISION,
             maintenance_liability_weight: SPOT_WEIGHT_PRECISION,
             liquidator_fee: 0,
@@ -3071,8 +3071,8 @@ mod calculate_max_withdrawable_amount {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -3142,12 +3142,12 @@ mod calculate_max_withdrawable_amount {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             initial_liability_weight: SPOT_WEIGHT_PRECISION,
             maintenance_liability_weight: SPOT_WEIGHT_PRECISION,
             liquidator_fee: 0,
@@ -3159,8 +3159,8 @@ mod calculate_max_withdrawable_amount {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -3258,11 +3258,11 @@ mod validate_spot_margin_trading {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             ..SpotMarket::default()
         };
@@ -3271,8 +3271,8 @@ mod validate_spot_margin_trading {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -3341,11 +3341,11 @@ mod validate_spot_margin_trading {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             ..SpotMarket::default()
         };
@@ -3354,8 +3354,8 @@ mod validate_spot_margin_trading {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -3424,11 +3424,11 @@ mod validate_spot_margin_trading {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             ..SpotMarket::default()
         };
@@ -3437,8 +3437,8 @@ mod validate_spot_margin_trading {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -3507,11 +3507,11 @@ mod validate_spot_margin_trading {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             ..SpotMarket::default()
         };
@@ -3520,8 +3520,8 @@ mod validate_spot_margin_trading {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -3590,11 +3590,11 @@ mod validate_spot_margin_trading {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             ..SpotMarket::default()
         };
@@ -3603,8 +3603,8 @@ mod validate_spot_margin_trading {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -3673,11 +3673,11 @@ mod validate_spot_margin_trading {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             ..SpotMarket::default()
         };
@@ -3686,8 +3686,8 @@ mod validate_spot_margin_trading {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -3753,14 +3753,14 @@ mod validate_spot_margin_trading {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
                 ..AMM::default()
@@ -3778,11 +3778,11 @@ mod validate_spot_margin_trading {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             ..SpotMarket::default()
         };
@@ -3791,8 +3791,8 @@ mod validate_spot_margin_trading {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -3900,14 +3900,14 @@ mod calculate_user_equity {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -3928,8 +3928,8 @@ mod calculate_user_equity {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -3937,11 +3937,11 @@ mod calculate_user_equity {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: PRICE_PRECISION_I64,
@@ -3998,14 +3998,14 @@ mod calculate_user_equity {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -4026,8 +4026,8 @@ mod calculate_user_equity {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -4035,11 +4035,11 @@ mod calculate_user_equity {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price_twap: PRICE_PRECISION_I64,
@@ -4099,11 +4099,11 @@ mod calculate_user_equity {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
@@ -4113,8 +4113,8 @@ mod calculate_user_equity {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -4348,11 +4348,11 @@ mod pools {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             pool_id: 1,
@@ -4455,7 +4455,7 @@ mod isolated_position {
     use crate::math::margin::{
         calculate_margin_requirement_and_total_collateral_and_liability_info, MarginRequirementType,
     };
-    use crate::state::margin_calculation::{MarginCalculation, MarginContext};
+    use crate::state::margin_calculation::MarginContext;
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
     use crate::state::oracle_map::OracleMap;
     use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
@@ -4485,14 +4485,14 @@ mod isolated_position {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
                 ..AMM::default()
@@ -4508,11 +4508,11 @@ mod isolated_position {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
@@ -4522,8 +4522,8 @@ mod isolated_position {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
@@ -4673,14 +4673,14 @@ mod get_margin_calculation_for_disable_high_leverage_mode {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 order_step_size: 10000000,
                 oracle: sol_oracle_price_key,
                 ..AMM::default()
@@ -4696,11 +4696,11 @@ mod get_margin_calculation_for_disable_high_leverage_mode {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
-            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10000 * SPOT_BALANCE_PRECISION).into(),
             liquidator_fee: 0,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
@@ -4710,8 +4710,8 @@ mod get_margin_calculation_for_disable_high_leverage_mode {
             market_index: 1,
             oracle_source: OracleSource::Pyth,
             oracle: sol_oracle_price_key,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
             maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,

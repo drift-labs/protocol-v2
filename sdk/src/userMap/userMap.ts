@@ -135,7 +135,8 @@ export class UserMap implements UserMapInterface {
 		} else {
 			decodeFn =
 				this.driftClient.program.account.user.coder.accounts.decodeUnchecked.bind(
-					this.driftClient.program.account.user.coder.accounts
+					'user',
+					this.driftClient.program.account.user.coder
 				);
 		}
 		this.decode = decodeFn;
@@ -315,21 +316,21 @@ export class UserMap implements UserMapInterface {
 	}
 
 	public async updateWithEventRecord(record: WrappedEvent<any>) {
-		if (record.eventType === 'DepositRecord') {
+		if (record.eventType === 'depositRecord') {
 			const depositRecord = record as DepositRecord;
 			await this.mustGet(depositRecord.user.toString());
-		} else if (record.eventType === 'FundingPaymentRecord') {
+		} else if (record.eventType === 'fundingPaymentRecord') {
 			const fundingPaymentRecord = record as FundingPaymentRecord;
 			await this.mustGet(fundingPaymentRecord.user.toString());
-		} else if (record.eventType === 'LiquidationRecord') {
+		} else if (record.eventType === 'liquidationRecord') {
 			const liqRecord = record as LiquidationRecord;
 
 			await this.mustGet(liqRecord.user.toString());
 			await this.mustGet(liqRecord.liquidator.toString());
-		} else if (record.eventType === 'OrderRecord') {
+		} else if (record.eventType === 'orderRecord') {
 			const orderRecord = record as OrderRecord;
 			await this.updateWithOrderRecord(orderRecord);
-		} else if (record.eventType === 'OrderActionRecord') {
+		} else if (record.eventType === 'orderActionRecord') {
 			const actionRecord = record as OrderActionRecord;
 
 			if (actionRecord.taker) {
@@ -338,10 +339,10 @@ export class UserMap implements UserMapInterface {
 			if (actionRecord.maker) {
 				await this.mustGet(actionRecord.maker.toString());
 			}
-		} else if (record.eventType === 'SettlePnlRecord') {
+		} else if (record.eventType === 'settlePnlRecord') {
 			const settlePnlRecord = record as SettlePnlRecord;
 			await this.mustGet(settlePnlRecord.user.toString());
-		} else if (record.eventType === 'NewUserRecord') {
+		} else if (record.eventType === 'newUserRecord') {
 			const newUserRecord = record as NewUserRecord;
 			await this.mustGet(newUserRecord.user.toString());
 		} else if (record.eventType === 'LPRecord') {

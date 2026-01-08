@@ -1,7 +1,7 @@
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { BulkAccountLoader } from '../accounts/bulkAccountLoader';
 import { PRICE_PRECISION } from '../constants/numericConstants';
-import { AnchorProvider, BN, Idl, Program, Wallet } from '@coral-xyz/anchor';
+import { AnchorProvider, BN, Idl, Program, Wallet } from '@coral-xyz/anchor-29';
 import { L2Level, L2OrderBookGenerator } from '../dlob/orderBookLevels';
 import { Market, OpenBookV2Client } from '@openbook-dex/openbook-v2';
 import openbookV2Idl from '../idl/openbook.json';

@@ -187,9 +187,9 @@ export function isOracleTooDivergent(
 	oracleGuardRails: OracleGuardRails
 ): boolean {
 	const oracleSpreadPct = oraclePriceData.price
-		.sub(amm.historicalOracleData.lastOraclePriceTwap5Min)
+		.sub(amm.historicalOracleData.lastOraclePriceTwap5min)
 		.mul(PERCENTAGE_PRECISION)
-		.div(amm.historicalOracleData.lastOraclePriceTwap5Min);
+		.div(amm.historicalOracleData.lastOraclePriceTwap5min);
 	const maxDivergence = BN.max(
 		oracleGuardRails.priceDivergence.oracleTwap5MinPercentDivergence,
 		PERCENTAGE_PRECISION.div(new BN(2))
@@ -206,7 +206,7 @@ export function calculateLiveOracleTwap(
 ): BN {
 	let oracleTwap = undefined;
 	if (period.eq(FIVE_MINUTE)) {
-		oracleTwap = histOracleData.lastOraclePriceTwap5Min;
+		oracleTwap = histOracleData.lastOraclePriceTwap5min;
 	} else {
 		//todo: assumes its fundingPeriod (1hr)
 		// period = amm.fundingPeriod;

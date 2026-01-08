@@ -30,7 +30,6 @@ async function initializeGrpcDriftClientV2VersusV1() {
 	const wallet = new Wallet(new Keypair());
 	dotenv.config({ path: '../' });
 
-	const programId = new PublicKey(DRIFT_PROGRAM_ID);
 	const provider = new AnchorProvider(
 		connection,
 		// @ts-ignore
@@ -40,7 +39,7 @@ async function initializeGrpcDriftClientV2VersusV1() {
 		}
 	);
 
-	const program = new Program(driftIDL as Idl, programId, provider);
+	const program = new Program(driftIDL as Idl, provider);
 
 	const allPerpMarketProgramAccounts =
 		(await program.account.perpMarket.all()) as ProgramAccount<PerpMarketAccount>[];
@@ -65,9 +64,8 @@ async function initializeGrpcDriftClientV2VersusV1() {
 	const seen = new Set<string>();
 	const oracleInfos: OracleInfo[] = [];
 	for (const acct of perpMarketProgramAccounts) {
-		const key = `${acct.account.amm.oracle.toBase58()}-${
-			Object.keys(acct.account.amm.oracleSource)[0]
-		}`;
+		const key = `${acct.account.amm.oracle.toBase58()}-${Object.keys(acct.account.amm.oracleSource)[0]
+			}`;
 		if (!seen.has(key)) {
 			seen.add(key);
 			oracleInfos.push({
@@ -77,9 +75,8 @@ async function initializeGrpcDriftClientV2VersusV1() {
 		}
 	}
 	for (const acct of spotMarketProgramAccounts) {
-		const key = `${acct.account.oracle.toBase58()}-${
-			Object.keys(acct.account.oracleSource)[0]
-		}`;
+		const key = `${acct.account.oracle.toBase58()}-${Object.keys(acct.account.oracleSource)[0]
+			}`;
 		if (!seen.has(key)) {
 			seen.add(key);
 			oracleInfos.push({

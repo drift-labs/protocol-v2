@@ -4,11 +4,14 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::msg;
 use crate::{validate, ID};
-use anchor_lang::prelude::Pubkey;
-use anchor_lang::*;
-use anchor_lang::{account, zero_copy};
-use borsh::{BorshDeserialize, BorshSerialize};
-use prelude::AccountInfo;
+use anchor_lang::{
+    account,
+    prelude::{
+        borsh::{self, BorshDeserialize, BorshSerialize},
+        AccountInfo, AnchorDeserialize, AnchorSerialize, Discriminator, Pubkey,
+    },
+    zero_copy,
+};
 
 use crate::state::traits::Size;
 
@@ -169,12 +172,12 @@ impl<'a> SignedMsgUserOrdersZeroCopyMut<'a> {
 }
 
 pub trait SignedMsgUserOrdersLoader<'a> {
-    fn load(&self) -> DriftResult<SignedMsgUserOrdersZeroCopy>;
-    fn load_mut(&self) -> DriftResult<SignedMsgUserOrdersZeroCopyMut>;
+    fn load(&self) -> DriftResult<SignedMsgUserOrdersZeroCopy<'_>>;
+    fn load_mut(&self) -> DriftResult<SignedMsgUserOrdersZeroCopyMut<'_>>;
 }
 
 impl<'a> SignedMsgUserOrdersLoader<'a> for AccountInfo<'a> {
-    fn load(&self) -> DriftResult<SignedMsgUserOrdersZeroCopy> {
+    fn load(&self) -> DriftResult<SignedMsgUserOrdersZeroCopy<'_>> {
         let owner = self.owner;
 
         validate!(
@@ -187,7 +190,7 @@ impl<'a> SignedMsgUserOrdersLoader<'a> for AccountInfo<'a> {
 
         let (discriminator, data) = Ref::map_split(data, |d| d.split_at(8));
         validate!(
-            *discriminator == SignedMsgUserOrders::discriminator(),
+            discriminator.as_ref() == SignedMsgUserOrders::DISCRIMINATOR,
             ErrorCode::DefaultError,
             "invalid signed_msg user orders discriminator",
         )?;
@@ -199,7 +202,7 @@ impl<'a> SignedMsgUserOrdersLoader<'a> for AccountInfo<'a> {
         })
     }
 
-    fn load_mut(&self) -> DriftResult<SignedMsgUserOrdersZeroCopyMut> {
+    fn load_mut(&self) -> DriftResult<SignedMsgUserOrdersZeroCopyMut<'_>> {
         let owner = self.owner;
 
         validate!(
@@ -212,7 +215,7 @@ impl<'a> SignedMsgUserOrdersLoader<'a> for AccountInfo<'a> {
 
         let (discriminator, data) = RefMut::map_split(data, |d| d.split_at_mut(8));
         validate!(
-            *discriminator == SignedMsgUserOrders::discriminator(),
+            discriminator.as_ref() == SignedMsgUserOrders::DISCRIMINATOR,
             ErrorCode::DefaultError,
             "invalid signed_msg user orders discriminator",
         )?;

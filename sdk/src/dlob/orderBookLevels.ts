@@ -416,8 +416,8 @@ const mergeByPrice = (bidsOrAsks: L2Level[]) => {
  * @param bids
  * @param asks
  * @param oraclePrice
- * @param oracleTwap5Min
- * @param markTwap5Min
+ * @param oracleTwap5min
+ * @param markTwap5min
  * @param grouping
  * @param userBids
  * @param userAsks
@@ -426,8 +426,8 @@ export function uncrossL2(
 	bids: L2Level[],
 	asks: L2Level[],
 	oraclePrice: BN,
-	oracleTwap5Min: BN,
-	markTwap5Min: BN,
+	oracleTwap5min: BN,
+	markTwap5min: BN,
 	grouping: BN,
 	userBids: Set<string>,
 	userAsks: Set<string>
@@ -470,7 +470,7 @@ export function uncrossL2(
 	};
 
 	// This is the best estimate of the premium in the market vs oracle to filter crossing around
-	const referencePrice = oraclePrice.add(markTwap5Min.sub(oracleTwap5Min));
+	const referencePrice = oraclePrice.add(markTwap5min.sub(oracleTwap5min));
 
 	let bidIndex = 0;
 	let askIndex = 0;

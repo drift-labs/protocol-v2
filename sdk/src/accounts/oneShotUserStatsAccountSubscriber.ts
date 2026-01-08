@@ -1,8 +1,8 @@
 import { Commitment, PublicKey } from '@solana/web3.js';
 import { UserStatsAccount } from '../types';
 import { BasicUserStatsAccountSubscriber } from './basicUserStatsAccountSubscriber';
-import { Program } from '@coral-xyz/anchor';
 import { UserStatsAccountSubscriber } from './types';
+import { DriftProgram } from '../config';
 
 /**
  * Simple implementation of UserStatsAccountSubscriber. It will fetch the UserStatsAccount
@@ -13,11 +13,11 @@ export class OneShotUserStatsAccountSubscriber
 	extends BasicUserStatsAccountSubscriber
 	implements UserStatsAccountSubscriber
 {
-	program: Program;
+	program: DriftProgram;
 	commitment: Commitment;
 
 	public constructor(
-		program: Program,
+		program: DriftProgram,
 		userStatsAccountPublicKey: PublicKey,
 		data?: UserStatsAccount,
 		slot?: number,

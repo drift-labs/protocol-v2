@@ -1,14 +1,13 @@
 import * as anchor from '@coral-xyz/anchor';
-import { Program } from '@coral-xyz/anchor';
 
 import {
+	AccountInfo,
+	Connection,
 	Keypair,
-	Transaction,
 	PublicKey,
 	SystemProgram,
+	Transaction,
 	TransactionInstruction,
-	Connection,
-	AccountInfo,
 } from '@solana/web3.js';
 
 import {
@@ -20,17 +19,18 @@ import {
 
 import {
 	BN,
-	TestClient,
+	DriftProgram,
 	EventSubscriber,
-	OracleSource,
 	OracleInfo,
+	OracleSource,
+	TestClient,
 } from '../sdk/src';
 
-import {
-	initializeQuoteSpotMarket,
-	initializeSolSpotMarket,
-	mockOracleNoProgram,
-} from './testHelpers';
+import * as Phoenix from '@ellipsis-labs/phoenix-sdk';
+import { deserializeMarketData, TokenConfig } from '@ellipsis-labs/phoenix-sdk';
+import { BankrunProvider } from 'anchor-bankrun';
+import { assert } from 'chai';
+import { startAnchor } from 'solana-bankrun';
 import {
 	castNumberToSpotPrecision,
 	getLimitOrderParams,
@@ -40,20 +40,20 @@ import {
 	PRICE_PRECISION,
 	SpotBalanceType,
 	Wallet,
-} from '../sdk';
-import { deserializeMarketData, TokenConfig } from '@ellipsis-labs/phoenix-sdk';
-import * as Phoenix from '@ellipsis-labs/phoenix-sdk';
-import { assert } from 'chai';
-import { startAnchor } from 'solana-bankrun';
+} from '../sdk/src';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
-import { BankrunProvider } from 'anchor-bankrun';
 import {
-	seatAccountData,
-	marketAccountData,
 	baseVaultAccountData,
+	marketAccountData,
 	quoteVaultAccountData,
+	seatAccountData,
 } from './phoenixTestAccountData';
+import {
+	initializeQuoteSpotMarket,
+	initializeSolSpotMarket,
+	mockOracleNoProgram,
+} from './testHelpers';
 
 const PHOENIX_MARKET: AccountInfo<Buffer> = {
 	executable: false,
@@ -227,7 +227,7 @@ const createTokenAccountAndMintTokens = async (
 };
 
 describe('phoenix spot market', () => {
-	const driftProgram = anchor.workspace.Drift as Program;
+	const driftProgram = anchor.workspace.Drift as DriftProgram;
 
 	let phoenixClient: Phoenix.Client;
 
@@ -553,7 +553,7 @@ describe('phoenix spot market', () => {
 		assert(!isVariant(takerOrder.status, 'open'));
 
 		const orderActionRecord =
-			eventSubscriber.getEventsArray('OrderActionRecord')[0];
+			eventSubscriber.getEventsArray('orderActionRecord')[0];
 		assert(isVariant(orderActionRecord.action, 'fill'));
 		assert(orderActionRecord.baseAssetAmountFilled.eq(new BN(1000000000)));
 		assert(orderActionRecord.quoteAssetAmountFilled.eq(new BN(100000000)));
@@ -717,7 +717,7 @@ describe('phoenix spot market', () => {
 		assert(!isVariant(takerOrder.status, 'open'));
 
 		const orderActionRecord =
-			eventSubscriber.getEventsArray('OrderActionRecord')[0];
+			eventSubscriber.getEventsArray('orderActionRecord')[0];
 		assert(isVariant(orderActionRecord.action, 'fill'));
 		assert(orderActionRecord.baseAssetAmountFilled.eq(new BN(1000000000)));
 		assert(orderActionRecord.quoteAssetAmountFilled.eq(new BN(100000000)));

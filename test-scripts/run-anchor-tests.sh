@@ -5,7 +5,7 @@ trap 'echo -e "\nStopped by signal $? (SIGINT)"; exit 0' INT
 
 if [ "$1" != "--skip-build" ]; then
   anchor build -- --features anchor-test && anchor test --skip-build &&
-    cp target/idl/drift.json sdk/src/idl/
+    cp target/idl/drift.json sdk/src/idl/ && cp target/types/drift.ts sdk/src/idl/
 fi
 
 export ANCHOR_WALLET=~/.config/solana/id.json
@@ -22,10 +22,12 @@ test_files=(
   # updateK.ts
   # postOnlyAmmFulfillment.ts
   # TODO BROKEN ^^
-	builderCodes.ts
-  decodeUser.ts
   # fuel.ts
   # fuelSweep.ts
+  # whitelist.ts
+  # TODO: ignored ^^
+	builderCodes.ts
+  decodeUser.ts
   admin.ts
   assetTier.ts
   cancelAllOrders.ts
@@ -93,7 +95,6 @@ test_files=(
   userAccount.ts
   userDelegate.ts
   userOrderId.ts
-  # whitelist.ts
 )
 
 

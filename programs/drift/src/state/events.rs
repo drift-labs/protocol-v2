@@ -1,11 +1,13 @@
+use anchor_lang::prelude::borsh::{BorshDeserialize, BorshSerialize};
 use anchor_lang::prelude::*;
-use borsh::{BorshDeserialize, BorshSerialize};
 
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode::InvalidOrder};
 use crate::math::casting::Cast;
 use crate::math::safe_unwrap::SafeUnwrap;
-use crate::state::order_params::OrderParams;
+use crate::state::order_params::{
+    OrderParams, SignedMsgOrderParamsDelegateMessage, SignedMsgOrderParamsMessage,
+};
 use crate::state::traits::Size;
 use crate::state::user::{MarketType, Order};
 use anchor_lang::Discriminator;
@@ -56,7 +58,7 @@ pub struct DepositRecord {
     pub user_token_amount_after: i128,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Default)]
 pub enum DepositExplanation {
     #[default]
     None,
@@ -86,7 +88,7 @@ pub struct SpotInterestRecord {
     pub max_borrow_rate: u32,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Default)]
 pub enum DepositDirection {
     #[default]
     Deposit,
@@ -355,7 +357,7 @@ pub fn get_order_action_record(
     })
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Default)]
 pub enum OrderAction {
     #[default]
     Place,
@@ -365,7 +367,7 @@ pub enum OrderAction {
     Expire,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq)]
 pub enum OrderActionExplanation {
     None,
     InsufficientFreeCollateral,
@@ -408,7 +410,7 @@ pub struct LPRecord {
     pub pnl: i64,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Default)]
 pub enum LPAction {
     #[default]
     AddLiquidity,
@@ -443,7 +445,7 @@ pub struct LiquidationRecord {
     pub bit_flags: u8,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Default)]
 pub enum LiquidationType {
     #[default]
     LiquidatePerp,
@@ -541,7 +543,7 @@ pub struct SettlePnlRecord {
     pub explanation: SettlePnlExplanation,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Default)]
 pub enum SettlePnlExplanation {
     #[default]
     None,
@@ -588,7 +590,7 @@ pub struct InsuranceFundStakeRecord {
     pub total_if_shares_after: u128,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Default)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Default)]
 pub enum StakeAction {
     #[default]
     Stake,
@@ -754,7 +756,7 @@ pub fn emit_buffers<T: AnchorSerialize + Discriminator>(
 ) -> DriftResult {
     let mut data_writer = std::io::Cursor::new(data_buf);
     data_writer
-        .write_all(&<T as Discriminator>::discriminator())
+        .write_all(&<T as Discriminator>::DISCRIMINATOR)
         .safe_unwrap()?;
     borsh::to_writer(&mut data_writer, &event).safe_unwrap()?;
     let data_len = data_writer.position() as usize;
@@ -905,4 +907,16 @@ pub struct LPBorrowLendDepositRecord {
 
 impl Size for LPBorrowLendDepositRecord {
     const SIZE: usize = 104;
+}
+
+/// unusued placeholder event to force include signed msg types into drift IDL
+#[event]
+#[derive(Default)]
+struct _SignedMsgOrderParamsExport {
+    _a: SignedMsgOrderParamsMessage,
+    _b: SignedMsgOrderParamsDelegateMessage,
+}
+
+impl Size for _SignedMsgOrderParamsExport {
+    const SIZE: usize = 0;
 }

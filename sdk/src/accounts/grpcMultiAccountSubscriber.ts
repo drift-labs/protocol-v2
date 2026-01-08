@@ -1,8 +1,8 @@
-import { Program } from '@coral-xyz/anchor';
 import { Commitment, Context, PublicKey } from '@solana/web3.js';
-import * as Buffer from 'buffer';
 import bs58 from 'bs58';
+import * as Buffer from 'buffer';
 
+import { DriftProgram } from '../config';
 import {
 	Client,
 	ClientDuplexStream,
@@ -40,7 +40,7 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 	private client: Client;
 	private stream: ClientDuplexStream<SubscribeRequest, SubscribeUpdate>;
 	private commitmentLevel: CommitmentLevel;
-	private program: Program;
+	private program: DriftProgram;
 	private accountName: string;
 	private decodeBufferFn?: (
 		buffer: Buffer,
@@ -69,7 +69,7 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 		client: Client,
 		commitmentLevel: CommitmentLevel,
 		accountName: string,
-		program: Program,
+		program: DriftProgram,
 		decodeBuffer?: (buffer: Buffer, pubkey?: string) => T,
 		resubOpts?: ResubOpts,
 		onUnsubscribe?: () => Promise<void>,
@@ -88,7 +88,7 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 	public static async create<T, U = undefined>(
 		grpcConfigs: GrpcConfigs,
 		accountName: string,
-		program: Program,
+		program: DriftProgram,
 		decodeBuffer?: (buffer: Buffer, pubkey?: string, accountProps?: U) => T,
 		resubOpts?: ResubOpts,
 		clientProp?: Client,
@@ -179,11 +179,11 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 								slot: currentSlot,
 							});
 
-							const accountDecoded = this.program.coder.accounts.decode(
-								this.capitalize(this.accountName),
+							const decoded = this.program.coder.accounts.decode(
+								this.accountName,
 								newBuffer
 							);
-							this.setAccountData(accountId, accountDecoded, currentSlot);
+							this.setAccountData(accountId, decoded, currentSlot);
 						}
 					}
 				})
@@ -302,15 +302,15 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 				buffer: Buffer,
 				accountProps: U
 			) => {
-				const data = this.decodeBufferFn
+				const decoded = this.decodeBufferFn
 					? this.decodeBufferFn(buffer, accountPubkey, accountProps)
 					: this.program.account[this.accountName].coder.accounts.decode(
-							this.capitalize(this.accountName),
+							this.accountName,
 							buffer
 					  );
 				const handler = this.onChangeMap.get(accountPubkey);
 				if (handler) {
-					handler(data, context, buffer, accountProps);
+					handler(decoded, context, buffer, accountProps);
 				}
 			};
 
@@ -467,10 +467,5 @@ export class grpcMultiAccountSubscriber<T, U = undefined> {
 			},
 			this.resubOpts?.resubTimeoutMs
 		);
-	}
-
-	private capitalize(value: string): string {
-		if (!value) return value;
-		return value.charAt(0).toUpperCase() + value.slice(1);
 	}
 }

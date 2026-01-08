@@ -1,5 +1,10 @@
 use crate::{msg, FeatureBitFlags};
 use anchor_lang::prelude::*;
+use anchor_spl::token_2022::spl_token_2022::extension::transfer_hook::TransferHook;
+use anchor_spl::token_2022::spl_token_2022::extension::{
+    BaseStateWithExtensions, StateWithExtensions,
+};
+use anchor_spl::token_2022::spl_token_2022::state::Mint as MintInner;
 use anchor_spl::token_2022::Token2022;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use phoenix::quantities::WrapperU64;
@@ -84,12 +89,6 @@ use crate::validation::perp_market::validate_perp_market;
 use crate::validation::spot_market::validate_borrow_rate;
 use crate::{load_mut, PTYH_PRICE_FEED_SEED_PREFIX};
 use crate::{math, safe_decrement, safe_increment};
-
-use anchor_spl::token_2022::spl_token_2022::extension::transfer_hook::TransferHook;
-use anchor_spl::token_2022::spl_token_2022::extension::{
-    BaseStateWithExtensions, StateWithExtensions,
-};
-use anchor_spl::token_2022::spl_token_2022::state::Mint as MintInner;
 
 pub fn handle_initialize(ctx: Context<Initialize>) -> Result<()> {
     let (drift_signer, drift_signer_nonce) =
@@ -303,7 +302,7 @@ pub fn handle_initialize_spot_market(
         mint: ctx.accounts.spot_market_mint.key(),
         vault: ctx.accounts.spot_market_vault.key(),
         revenue_pool: PoolBalance {
-            scaled_balance: 0,
+            scaled_balance: 0.into(),
             market_index: spot_market_index,
             ..PoolBalance::default()
         }, // in base asset
@@ -311,16 +310,16 @@ pub fn handle_initialize_spot_market(
         optimal_utilization,
         optimal_borrow_rate,
         max_borrow_rate,
-        deposit_balance: 0,
-        borrow_balance: 0,
+        deposit_balance: 0.into(),
+        borrow_balance: 0.into(),
         max_token_deposits: 0,
         deposit_token_twap: 0,
         borrow_token_twap: 0,
         utilization_twap: 0,
-        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-        cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-        total_social_loss: 0,
-        total_quote_social_loss: 0,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+        cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+        total_social_loss: 0.into(),
+        total_quote_social_loss: 0.into(),
         last_interest_ts: now,
         last_twap_ts: now,
         initial_asset_weight,
@@ -338,7 +337,7 @@ pub fn handle_initialize_spot_market(
         next_fill_record_id: 1,
         next_deposit_record_id: 1,
         spot_fee_pool: PoolBalance::default(), // in quote asset
-        total_spot_fee: 0,
+        total_spot_fee: 0.into(),
         orders_enabled: spot_market_index != 0,
         paused_operations: 0,
         if_paused_operations: 0,
@@ -1011,16 +1010,16 @@ pub fn handle_initialize_perp_market(
         amm: AMM {
             oracle: *ctx.accounts.oracle.key,
             oracle_source,
-            base_asset_reserve: amm_base_asset_reserve,
-            quote_asset_reserve: amm_quote_asset_reserve,
-            terminal_quote_asset_reserve: amm_quote_asset_reserve,
-            ask_base_asset_reserve: amm_base_asset_reserve,
-            ask_quote_asset_reserve: amm_quote_asset_reserve,
-            bid_base_asset_reserve: amm_base_asset_reserve,
-            bid_quote_asset_reserve: amm_quote_asset_reserve,
-            cumulative_funding_rate_long: 0,
-            cumulative_funding_rate_short: 0,
-            total_social_loss: 0,
+            base_asset_reserve: amm_base_asset_reserve.into(),
+            quote_asset_reserve: amm_quote_asset_reserve.into(),
+            terminal_quote_asset_reserve: amm_quote_asset_reserve.into(),
+            ask_base_asset_reserve: amm_base_asset_reserve.into(),
+            ask_quote_asset_reserve: amm_quote_asset_reserve.into(),
+            bid_base_asset_reserve: amm_base_asset_reserve.into(),
+            bid_quote_asset_reserve: amm_quote_asset_reserve.into(),
+            cumulative_funding_rate_long: 0.into(),
+            cumulative_funding_rate_short: 0.into(),
+            total_social_loss: 0.into(),
             last_funding_rate: 0,
             last_funding_rate_long: 0,
             last_funding_rate_short: 0,
@@ -1030,17 +1029,17 @@ pub fn handle_initialize_perp_market(
             last_mark_price_twap: init_reserve_price,
             last_mark_price_twap_5min: init_reserve_price,
             last_mark_price_twap_ts: now,
-            sqrt_k: amm_base_asset_reserve,
-            concentration_coef,
-            min_base_asset_reserve,
-            max_base_asset_reserve,
-            peg_multiplier: amm_peg_multiplier,
-            total_fee: 0,
-            total_fee_withdrawn: 0,
-            total_fee_minus_distributions: 0,
-            total_mm_fee: 0,
-            total_exchange_fee: 0,
-            total_liquidation_fee: 0,
+            sqrt_k: amm_base_asset_reserve.into(),
+            concentration_coef: concentration_coef.into(),
+            min_base_asset_reserve: min_base_asset_reserve.into(),
+            max_base_asset_reserve: max_base_asset_reserve.into(),
+            peg_multiplier: amm_peg_multiplier.into(),
+            total_fee: 0.into(),
+            total_fee_withdrawn: 0.into(),
+            total_fee_minus_distributions: 0.into(),
+            total_mm_fee: 0.into(),
+            total_exchange_fee: 0.into(),
+            total_liquidation_fee: 0.into(),
             net_revenue_since_last_funding: 0,
             historical_oracle_data: HistoricalOracleData {
                 last_oracle_price: oracle_price,
@@ -1065,15 +1064,15 @@ pub fn handle_initialize_perp_market(
             max_spread,
             last_bid_price_twap: init_reserve_price,
             last_ask_price_twap: init_reserve_price,
-            base_asset_amount_with_amm: 0,
-            base_asset_amount_long: 0,
-            base_asset_amount_short: 0,
-            quote_asset_amount: 0,
-            quote_entry_amount_long: 0,
-            quote_entry_amount_short: 0,
-            quote_break_even_amount_long: 0,
-            quote_break_even_amount_short: 0,
-            max_open_interest,
+            base_asset_amount_with_amm: 0.into(),
+            base_asset_amount_long: 0.into(),
+            base_asset_amount_short: 0.into(),
+            quote_asset_amount: 0.into(),
+            quote_entry_amount_long: 0.into(),
+            quote_entry_amount_short: 0.into(),
+            quote_break_even_amount_long: 0.into(),
+            quote_break_even_amount_short: 0.into(),
+            max_open_interest: max_open_interest.into(),
             mark_std: 0,
             oracle_std: 0,
             volume_24h: 0,
@@ -1083,13 +1082,13 @@ pub fn handle_initialize_perp_market(
             last_trade_ts: now,
             curve_update_intensity,
             fee_pool: PoolBalance::default(),
-            base_asset_amount_per_lp: 0,
-            quote_asset_amount_per_lp: 0,
+            base_asset_amount_per_lp: 0.into(),
+            quote_asset_amount_per_lp: 0.into(),
             last_update_slot: clock_slot,
 
             // lp stuff
-            base_asset_amount_with_unsettled_lp: 0,
-            user_lp_shares: 0,
+            base_asset_amount_with_unsettled_lp: 0.into(),
+            user_lp_shares: 0.into(),
             amm_jit_intensity,
 
             last_oracle_valid: false,
@@ -1254,16 +1253,16 @@ pub fn handle_delete_initialized_spot_market(
         "spot_market.status != Initialized",
     )?;
     validate!(
-        spot_market.deposit_balance == 0,
+        spot_market.deposit_balance() == 0,
         ErrorCode::InvalidMarketAccountforDeletion,
         "spot_market.number_of_users={} != 0",
-        spot_market.deposit_balance,
+        spot_market.deposit_balance(),
     )?;
     validate!(
-        spot_market.borrow_balance == 0,
+        spot_market.borrow_balance() == 0,
         ErrorCode::InvalidMarketAccountforDeletion,
         "spot_market.borrow_balance={} != 0",
-        spot_market.borrow_balance,
+        spot_market.borrow_balance(),
     )?;
     validate!(
         spot_market.market_index == market_index,
@@ -1561,20 +1560,20 @@ pub fn handle_move_amm_price(
         perp_market.market_index
     );
 
-    let base_asset_reserve_before = perp_market.amm.base_asset_reserve;
-    let quote_asset_reserve_before = perp_market.amm.quote_asset_reserve;
-    let sqrt_k_before = perp_market.amm.sqrt_k;
-    let max_base_asset_reserve_before = perp_market.amm.max_base_asset_reserve;
-    let min_base_asset_reserve_before = perp_market.amm.min_base_asset_reserve;
+    let base_asset_reserve_before = perp_market.amm.base_asset_reserve();
+    let quote_asset_reserve_before = perp_market.amm.quote_asset_reserve();
+    let sqrt_k_before = perp_market.amm.sqrt_k();
+    let max_base_asset_reserve_before = perp_market.amm.max_base_asset_reserve();
+    let min_base_asset_reserve_before = perp_market.amm.min_base_asset_reserve();
 
     controller::amm::move_price(perp_market, base_asset_reserve, quote_asset_reserve, sqrt_k)?;
     validate_perp_market(perp_market)?;
 
-    let base_asset_reserve_after = perp_market.amm.base_asset_reserve;
-    let quote_asset_reserve_after = perp_market.amm.quote_asset_reserve;
-    let sqrt_k_after = perp_market.amm.sqrt_k;
-    let max_base_asset_reserve_after = perp_market.amm.max_base_asset_reserve;
-    let min_base_asset_reserve_after = perp_market.amm.min_base_asset_reserve;
+    let base_asset_reserve_after = perp_market.amm.base_asset_reserve();
+    let quote_asset_reserve_after = perp_market.amm.quote_asset_reserve();
+    let sqrt_k_after = perp_market.amm.sqrt_k();
+    let max_base_asset_reserve_after = perp_market.amm.max_base_asset_reserve();
+    let min_base_asset_reserve_after = perp_market.amm.min_base_asset_reserve();
 
     msg!(
         "base_asset_reserve {} -> {}",
@@ -1620,22 +1619,22 @@ pub fn handle_recenter_perp_market_amm(
         perp_market.market_index
     );
 
-    let base_asset_reserve_before = perp_market.amm.base_asset_reserve;
-    let quote_asset_reserve_before = perp_market.amm.quote_asset_reserve;
-    let sqrt_k_before = perp_market.amm.sqrt_k;
-    let peg_multiplier_before = perp_market.amm.peg_multiplier;
-    let max_base_asset_reserve_before = perp_market.amm.max_base_asset_reserve;
-    let min_base_asset_reserve_before = perp_market.amm.min_base_asset_reserve;
+    let base_asset_reserve_before = perp_market.amm.base_asset_reserve();
+    let quote_asset_reserve_before = perp_market.amm.quote_asset_reserve();
+    let sqrt_k_before = perp_market.amm.sqrt_k();
+    let peg_multiplier_before = perp_market.amm.peg_multiplier();
+    let max_base_asset_reserve_before = perp_market.amm.max_base_asset_reserve();
+    let min_base_asset_reserve_before = perp_market.amm.min_base_asset_reserve();
 
     controller::amm::recenter_perp_market_amm(perp_market, peg_multiplier, sqrt_k)?;
     validate_perp_market(perp_market)?;
 
-    let base_asset_reserve_after = perp_market.amm.base_asset_reserve;
-    let quote_asset_reserve_after = perp_market.amm.quote_asset_reserve;
-    let sqrt_k_after = perp_market.amm.sqrt_k;
-    let peg_multiplier_after = perp_market.amm.peg_multiplier;
-    let max_base_asset_reserve_after = perp_market.amm.max_base_asset_reserve;
-    let min_base_asset_reserve_after = perp_market.amm.min_base_asset_reserve;
+    let base_asset_reserve_after = perp_market.amm.base_asset_reserve();
+    let quote_asset_reserve_after = perp_market.amm.quote_asset_reserve();
+    let sqrt_k_after = perp_market.amm.sqrt_k();
+    let peg_multiplier_after = perp_market.amm.peg_multiplier();
+    let max_base_asset_reserve_after = perp_market.amm.max_base_asset_reserve();
+    let min_base_asset_reserve_after = perp_market.amm.min_base_asset_reserve();
 
     msg!(
         "base_asset_reserve {} -> {}",
@@ -1694,12 +1693,12 @@ pub fn handle_recenter_perp_market_amm_crank(
         perp_market.market_index
     );
 
-    let base_asset_reserve_before = perp_market.amm.base_asset_reserve;
-    let quote_asset_reserve_before = perp_market.amm.quote_asset_reserve;
-    let sqrt_k_before = perp_market.amm.sqrt_k;
-    let peg_multiplier_before = perp_market.amm.peg_multiplier;
-    let max_base_asset_reserve_before = perp_market.amm.max_base_asset_reserve;
-    let min_base_asset_reserve_before = perp_market.amm.min_base_asset_reserve;
+    let base_asset_reserve_before = perp_market.amm.base_asset_reserve();
+    let quote_asset_reserve_before = perp_market.amm.quote_asset_reserve();
+    let sqrt_k_before = perp_market.amm.sqrt_k();
+    let peg_multiplier_before = perp_market.amm.peg_multiplier();
+    let max_base_asset_reserve_before = perp_market.amm.max_base_asset_reserve();
+    let min_base_asset_reserve_before = perp_market.amm.min_base_asset_reserve();
 
     let mut sqrt_k = sqrt_k_before;
     let peg_multiplier: u128 = oracle_price.cast()?;
@@ -1720,12 +1719,12 @@ pub fn handle_recenter_perp_market_amm_crank(
     controller::amm::recenter_perp_market_amm(perp_market, peg_multiplier, sqrt_k)?;
     validate_perp_market(perp_market)?;
 
-    let base_asset_reserve_after = perp_market.amm.base_asset_reserve;
-    let quote_asset_reserve_after = perp_market.amm.quote_asset_reserve;
-    let sqrt_k_after = perp_market.amm.sqrt_k;
-    let peg_multiplier_after = perp_market.amm.peg_multiplier;
-    let max_base_asset_reserve_after = perp_market.amm.max_base_asset_reserve;
-    let min_base_asset_reserve_after = perp_market.amm.min_base_asset_reserve;
+    let base_asset_reserve_after = perp_market.amm.base_asset_reserve();
+    let quote_asset_reserve_after = perp_market.amm.quote_asset_reserve();
+    let sqrt_k_after = perp_market.amm.sqrt_k();
+    let peg_multiplier_after = perp_market.amm.peg_multiplier();
+    let max_base_asset_reserve_after = perp_market.amm.max_base_asset_reserve();
+    let min_base_asset_reserve_after = perp_market.amm.min_base_asset_reserve();
 
     msg!(
         "base_asset_reserve {} -> {}",
@@ -1840,28 +1839,39 @@ pub fn handle_update_perp_market_amm_summary_stats(
 
         msg!(
             "total_fee_minus_distributions: {:?} -> {:?}",
-            perp_market.amm.total_fee_minus_distributions,
+            perp_market.amm.total_fee_minus_distributions(),
             new_total_fee_minus_distributions,
         );
 
         let fee_difference = new_total_fee_minus_distributions
-            .safe_sub(perp_market.amm.total_fee_minus_distributions)?;
+            .safe_sub(perp_market.amm.total_fee_minus_distributions())?;
 
         msg!(
             "perp_market.amm.total_fee: {} -> {}",
-            perp_market.amm.total_fee,
-            perp_market.amm.total_fee.saturating_add(fee_difference)
+            perp_market.amm.total_fee(),
+            perp_market.amm.total_fee().saturating_add(fee_difference)
         );
 
         msg!(
             "perp_market.amm.total_mm_fee: {} -> {}",
-            perp_market.amm.total_mm_fee,
-            perp_market.amm.total_mm_fee.saturating_add(fee_difference)
+            perp_market.amm.total_mm_fee(),
+            perp_market
+                .amm
+                .total_mm_fee()
+                .saturating_add(fee_difference)
         );
 
-        perp_market.amm.total_fee = perp_market.amm.total_fee.saturating_add(fee_difference);
-        perp_market.amm.total_mm_fee = perp_market.amm.total_mm_fee.saturating_add(fee_difference);
-        perp_market.amm.total_fee_minus_distributions = new_total_fee_minus_distributions;
+        let total_fee = perp_market.amm.total_fee();
+        perp_market
+            .amm
+            .set_total_fee(total_fee.saturating_add(fee_difference));
+        let total_mm_fee = perp_market.amm.total_mm_fee();
+        perp_market
+            .amm
+            .set_total_mm_fee(total_mm_fee.saturating_add(fee_difference));
+        perp_market
+            .amm
+            .set_total_fee_minus_distributions(new_total_fee_minus_distributions);
     }
     validate_perp_market(perp_market)?;
 
@@ -1907,13 +1917,13 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
     )?;
 
     validate!(
-        perp_market.amm.base_asset_amount_long == 0
-            && perp_market.amm.base_asset_amount_short == 0
+        perp_market.amm.base_asset_amount_long() == 0
+            && perp_market.amm.base_asset_amount_short() == 0
             && perp_market.number_of_users_with_base == 0,
         ErrorCode::DefaultError,
         "outstanding base_asset_amounts must be balanced {} {} {}",
-        perp_market.amm.base_asset_amount_long,
-        perp_market.amm.base_asset_amount_short,
+        perp_market.amm.base_asset_amount_long(),
+        perp_market.amm.base_asset_amount_short(),
         perp_market.number_of_users_with_base
     )?;
 
@@ -1950,12 +1960,12 @@ pub fn handle_settle_expired_market_pools_to_revenue_pool(
     )?;
 
     let fee_pool_token_amount = get_token_amount(
-        perp_market.amm.fee_pool.scaled_balance,
+        perp_market.amm.fee_pool.scaled_balance(),
         spot_market,
         &SpotBalanceType::Deposit,
     )?;
     let pnl_pool_token_amount = get_token_amount(
-        perp_market.pnl_pool.scaled_balance,
+        perp_market.pnl_pool.scaled_balance(),
         spot_market,
         &SpotBalanceType::Deposit,
     )?;
@@ -2010,17 +2020,17 @@ pub fn handle_deposit_into_perp_market_fee_pool<'c: 'info, 'info>(
 
     msg!(
         "perp_market.amm.total_fee_minus_distributions: {:?} -> {:?}",
-        perp_market.amm.total_fee_minus_distributions,
+        perp_market.amm.total_fee_minus_distributions(),
         perp_market
             .amm
-            .total_fee_minus_distributions
+            .total_fee_minus_distributions()
             .safe_add(amount.cast()?)?,
     );
 
-    perp_market.amm.total_fee_minus_distributions = perp_market
+    let total_fee_minus_distributions = perp_market.amm.total_fee_minus_distributions();
+    perp_market
         .amm
-        .total_fee_minus_distributions
-        .safe_add(amount.cast()?)?;
+        .set_total_fee_minus_distributions(total_fee_minus_distributions.safe_add(amount.cast()?)?);
 
     let quote_spot_market = &mut load_mut!(ctx.accounts.quote_spot_market)?;
 
@@ -2125,11 +2135,11 @@ pub fn handle_deposit_into_spot_market_vault<'c: 'info, 'info>(
 
     let token_precision = spot_market.get_precision();
 
-    let cumulative_deposit_interest_before = spot_market.cumulative_deposit_interest;
+    let cumulative_deposit_interest_before = spot_market.cumulative_deposit_interest();
 
     let cumulative_deposit_interest_after = deposit_token_amount_after
         .safe_mul(SPOT_CUMULATIVE_INTEREST_PRECISION)?
-        .safe_div(spot_market.deposit_balance)?
+        .safe_div(spot_market.deposit_balance())?
         .safe_mul(SPOT_BALANCE_PRECISION)?
         .safe_div(token_precision.cast()?)?;
 
@@ -2141,7 +2151,7 @@ pub fn handle_deposit_into_spot_market_vault<'c: 'info, 'info>(
         cumulative_deposit_interest_before
     )?;
 
-    spot_market.cumulative_deposit_interest = cumulative_deposit_interest_after;
+    spot_market.set_cumulative_deposit_interest(cumulative_deposit_interest_after);
 
     controller::token::receive(
         &ctx.accounts.token_program,
@@ -2165,7 +2175,7 @@ pub fn handle_deposit_into_spot_market_vault<'c: 'info, 'info>(
     emit!(SpotMarketVaultDepositRecord {
         ts: Clock::get()?.unix_timestamp,
         market_index: spot_market.market_index,
-        deposit_balance: spot_market.deposit_balance,
+        deposit_balance: spot_market.deposit_balance(),
         cumulative_deposit_interest_before,
         cumulative_deposit_interest_after,
         deposit_token_amount_before: deposit_token_amount_before.cast()?,
@@ -2196,10 +2206,10 @@ pub fn handle_repeg_amm_curve(ctx: Context<RepegCurve>, new_peg_candidate: u128)
         ..
     } = get_oracle_price(&perp_market.amm.oracle_source, price_oracle, clock.slot)?;
 
-    let peg_multiplier_before = perp_market.amm.peg_multiplier;
-    let base_asset_reserve_before = perp_market.amm.base_asset_reserve;
-    let quote_asset_reserve_before = perp_market.amm.quote_asset_reserve;
-    let sqrt_k_before = perp_market.amm.sqrt_k;
+    let peg_multiplier_before = perp_market.amm.peg_multiplier();
+    let base_asset_reserve_before = perp_market.amm.base_asset_reserve();
+    let quote_asset_reserve_before = perp_market.amm.quote_asset_reserve();
+    let sqrt_k_before = perp_market.amm.sqrt_k();
 
     let oracle_validity_rails = &ctx.accounts.state.oracle_guard_rails;
 
@@ -2211,10 +2221,10 @@ pub fn handle_repeg_amm_curve(ctx: Context<RepegCurve>, new_peg_candidate: u128)
         oracle_validity_rails,
     )?;
 
-    let peg_multiplier_after = perp_market.amm.peg_multiplier;
-    let base_asset_reserve_after = perp_market.amm.base_asset_reserve;
-    let quote_asset_reserve_after = perp_market.amm.quote_asset_reserve;
-    let sqrt_k_after = perp_market.amm.sqrt_k;
+    let peg_multiplier_after = perp_market.amm.peg_multiplier();
+    let base_asset_reserve_after = perp_market.amm.base_asset_reserve();
+    let quote_asset_reserve_after = perp_market.amm.quote_asset_reserve();
+    let sqrt_k_after = perp_market.amm.sqrt_k();
 
     msg!(
         "perp_market.amm.peg_multiplier {} -> {}",
@@ -2252,12 +2262,12 @@ pub fn handle_repeg_amm_curve(ctx: Context<RepegCurve>, new_peg_candidate: u128)
         base_asset_reserve_after,
         quote_asset_reserve_after,
         sqrt_k_after,
-        base_asset_amount_long: perp_market.amm.base_asset_amount_long.unsigned_abs(),
-        base_asset_amount_short: perp_market.amm.base_asset_amount_short.unsigned_abs(),
-        base_asset_amount_with_amm: perp_market.amm.base_asset_amount_with_amm,
+        base_asset_amount_long: perp_market.amm.base_asset_amount_long().unsigned_abs(),
+        base_asset_amount_short: perp_market.amm.base_asset_amount_short().unsigned_abs(),
+        base_asset_amount_with_amm: perp_market.amm.base_asset_amount_with_amm(),
         number_of_users: perp_market.number_of_users,
-        total_fee: perp_market.amm.total_fee,
-        total_fee_minus_distributions: perp_market.amm.total_fee_minus_distributions,
+        total_fee: perp_market.amm.total_fee(),
+        total_fee_minus_distributions: perp_market.amm.total_fee_minus_distributions(),
         adjustment_cost,
         oracle_price,
         fill_record: 0,
@@ -2376,23 +2386,23 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
 
     msg!("updating k for perp market {}", perp_market.market_index);
-    let base_asset_amount_long = perp_market.amm.base_asset_amount_long.unsigned_abs();
-    let base_asset_amount_short = perp_market.amm.base_asset_amount_short.unsigned_abs();
-    let base_asset_amount_with_amm = perp_market.amm.base_asset_amount_with_amm;
+    let base_asset_amount_long = perp_market.amm.base_asset_amount_long().unsigned_abs();
+    let base_asset_amount_short = perp_market.amm.base_asset_amount_short().unsigned_abs();
+    let base_asset_amount_with_amm = perp_market.amm.base_asset_amount_with_amm();
     let number_of_users = perp_market.number_of_users_with_base;
 
     let price_before = math::amm::calculate_price(
-        perp_market.amm.quote_asset_reserve,
-        perp_market.amm.base_asset_reserve,
-        perp_market.amm.peg_multiplier,
+        perp_market.amm.quote_asset_reserve(),
+        perp_market.amm.base_asset_reserve(),
+        perp_market.amm.peg_multiplier(),
     )?;
 
-    let peg_multiplier_before = perp_market.amm.peg_multiplier;
-    let base_asset_reserve_before = perp_market.amm.base_asset_reserve;
-    let quote_asset_reserve_before = perp_market.amm.quote_asset_reserve;
-    let sqrt_k_before = perp_market.amm.sqrt_k;
+    let peg_multiplier_before = perp_market.amm.peg_multiplier();
+    let base_asset_reserve_before = perp_market.amm.base_asset_reserve();
+    let quote_asset_reserve_before = perp_market.amm.quote_asset_reserve();
+    let sqrt_k_before = perp_market.amm.sqrt_k();
 
-    let k_increasing = sqrt_k > perp_market.amm.sqrt_k;
+    let k_increasing = sqrt_k > perp_market.amm.sqrt_k();
 
     let new_sqrt_k_u192 = bn::U192::from(sqrt_k);
 
@@ -2419,9 +2429,9 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
     if adjustment_cost > 0 {
         let max_cost = perp_market
             .amm
-            .total_fee_minus_distributions
+            .total_fee_minus_distributions()
             .safe_sub(get_total_fee_lower_bound(perp_market)?.cast()?)?
-            .safe_sub(perp_market.amm.total_fee_withdrawn.cast()?)?;
+            .safe_sub(perp_market.amm.total_fee_withdrawn().cast()?)?;
 
         validate!(
             adjustment_cost <= max_cost,
@@ -2433,16 +2443,16 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
     }
 
     validate!(
-        !k_increasing || perp_market.amm.sqrt_k < MAX_SQRT_K,
+        !k_increasing || perp_market.amm.sqrt_k() < MAX_SQRT_K,
         ErrorCode::InvalidUpdateK,
         "cannot increase sqrt_k={} past MAX_SQRT_K",
-        perp_market.amm.sqrt_k
+        perp_market.amm.sqrt_k()
     )?;
 
-    perp_market.amm.total_fee_minus_distributions = perp_market
-        .amm
-        .total_fee_minus_distributions
-        .safe_sub(adjustment_cost)?;
+    let total_fee_minus_distributions = perp_market.amm.total_fee_minus_distributions();
+    perp_market.amm.set_total_fee_minus_distributions(
+        total_fee_minus_distributions.safe_sub(adjustment_cost)?,
+    );
 
     perp_market.amm.net_revenue_since_last_funding = perp_market
         .amm
@@ -2452,9 +2462,9 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
     let amm = &perp_market.amm;
 
     let price_after = math::amm::calculate_price(
-        amm.quote_asset_reserve,
-        amm.base_asset_reserve,
-        amm.peg_multiplier,
+        amm.quote_asset_reserve(),
+        amm.base_asset_reserve(),
+        amm.peg_multiplier(),
     )?;
 
     let price_change_too_large = price_before
@@ -2473,24 +2483,29 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
         return Err(ErrorCode::InvalidUpdateK.into());
     }
 
-    let k_sqrt_check = bn::U192::from(amm.base_asset_reserve)
-        .safe_mul(bn::U192::from(amm.quote_asset_reserve))?
+    let k_sqrt_check = bn::U192::from(amm.base_asset_reserve())
+        .safe_mul(bn::U192::from(amm.quote_asset_reserve()))?
         .integer_sqrt()
         .try_to_u128()?;
 
     let k_err = k_sqrt_check
         .cast::<i128>()?
-        .safe_sub(amm.sqrt_k.cast::<i128>()?)?;
+        .safe_sub(amm.sqrt_k().cast::<i128>()?)?;
 
     if k_err.unsigned_abs() > 100 {
-        msg!("k_err={:?}, {:?} != {:?}", k_err, k_sqrt_check, amm.sqrt_k);
+        msg!(
+            "k_err={:?}, {:?} != {:?}",
+            k_err,
+            k_sqrt_check,
+            amm.sqrt_k()
+        );
         return Err(ErrorCode::InvalidUpdateK.into());
     }
 
-    let peg_multiplier_after = amm.peg_multiplier;
-    let base_asset_reserve_after = amm.base_asset_reserve;
-    let quote_asset_reserve_after = amm.quote_asset_reserve;
-    let sqrt_k_after = amm.sqrt_k;
+    let peg_multiplier_after = amm.peg_multiplier();
+    let base_asset_reserve_after = amm.base_asset_reserve();
+    let quote_asset_reserve_after = amm.quote_asset_reserve();
+    let sqrt_k_after = amm.sqrt_k();
 
     msg!(
         "perp_market.amm.peg_multiplier {} -> {}",
@@ -2516,8 +2531,8 @@ pub fn handle_update_k(ctx: Context<AdminUpdateK>, sqrt_k: u128) -> Result<()> {
         sqrt_k_after
     );
 
-    let total_fee = amm.total_fee;
-    let total_fee_minus_distributions = amm.total_fee_minus_distributions;
+    let total_fee = amm.total_fee();
+    let total_fee_minus_distributions = amm.total_fee_minus_distributions();
 
     let OraclePriceData {
         price: oracle_price,
@@ -3501,9 +3516,9 @@ pub fn handle_update_perp_market_concentration_coef(
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
     msg!("perp market {}", perp_market.market_index);
 
-    let prev_concentration_coef = perp_market.amm.concentration_coef;
+    let prev_concentration_coef = perp_market.amm.concentration_coef();
     controller::amm::update_concentration_coef(perp_market, concentration_scale)?;
-    let new_concentration_coef = perp_market.amm.concentration_coef;
+    let new_concentration_coef = perp_market.amm.concentration_coef();
 
     msg!(
         "perp_market.amm.concentration_coef: {} -> {}",
@@ -3564,10 +3579,10 @@ pub fn handle_update_perp_market_reference_price_offset_deadband_pct(
 
     let liquidity_ratio =
         crate::math::amm_spread::calculate_inventory_liquidity_ratio_for_reference_price_offset(
-            perp_market.amm.base_asset_amount_with_amm,
-            perp_market.amm.base_asset_reserve,
-            perp_market.amm.min_base_asset_reserve,
-            perp_market.amm.max_base_asset_reserve,
+            perp_market.amm.base_asset_amount_with_amm(),
+            perp_market.amm.base_asset_reserve(),
+            perp_market.amm.min_base_asset_reserve(),
+            perp_market.amm.max_base_asset_reserve(),
         )?;
 
     let signed_liquidity_ratio = liquidity_ratio.safe_mul(
@@ -4083,11 +4098,11 @@ pub fn handle_update_perp_market_max_open_interest(
 
     msg!(
         "perp_market.amm.max_open_interest: {:?} -> {:?}",
-        perp_market.amm.max_open_interest,
+        perp_market.amm.max_open_interest(),
         max_open_interest
     );
 
-    perp_market.amm.max_open_interest = max_open_interest;
+    perp_market.amm.set_max_open_interest(max_open_interest);
     Ok(())
 }
 
@@ -4554,10 +4569,10 @@ pub fn handle_update_protocol_if_shares_transfer_config(
     if let Some(max_transfer_per_epoch) = max_transfer_per_epoch {
         msg!(
             "max_transfer_per_epoch: {:?} -> {:?}",
-            config.max_transfer_per_epoch,
+            config.max_transfer_per_epoch(),
             max_transfer_per_epoch
         );
-        config.max_transfer_per_epoch = max_transfer_per_epoch;
+        config.set_max_transfer_per_epoch(max_transfer_per_epoch);
     } else {
         msg!("max_transfer_per_epoch: unchanged");
     }
@@ -4922,10 +4937,10 @@ pub fn handle_admin_deposit<'c: 'info, 'info>(
         direction: DepositDirection::Deposit,
         amount,
         oracle_price,
-        market_deposit_balance: spot_market.deposit_balance,
-        market_withdraw_balance: spot_market.borrow_balance,
-        market_cumulative_deposit_interest: spot_market.cumulative_deposit_interest,
-        market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest,
+        market_deposit_balance: spot_market.deposit_balance(),
+        market_withdraw_balance: spot_market.borrow_balance(),
+        market_cumulative_deposit_interest: spot_market.cumulative_deposit_interest(),
+        market_cumulative_borrow_interest: spot_market.cumulative_borrow_interest(),
         total_deposits_after,
         total_withdraws_after,
         market_index,
@@ -5504,7 +5519,7 @@ pub struct InitializeAmmCache<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         init,
-        seeds = [AMM_POSITIONS_CACHE.as_ref()],
+        seeds = [AMM_POSITIONS_CACHE.as_bytes()],
         space = AmmCache::init_space(),
         bump,
         payer = admin
@@ -5524,7 +5539,7 @@ pub struct AddMarketToAmmCache<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         mut,
-        seeds = [AMM_POSITIONS_CACHE.as_ref()],
+        seeds = [AMM_POSITIONS_CACHE.as_bytes()],
         bump,
         realloc = AmmCache::space(amm_cache.cache.len() + 1),
         realloc::payer = admin,
@@ -5546,7 +5561,7 @@ pub struct DeleteAmmCache<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(
         mut,
-        seeds = [AMM_POSITIONS_CACHE.as_ref()],
+        seeds = [AMM_POSITIONS_CACHE.as_bytes()],
         bump,
         close = admin,
     )]
@@ -5801,7 +5816,7 @@ pub struct AdminUpdatePerpMarketOracle<'info> {
     pub old_oracle: AccountInfo<'info>,
     #[account(
         mut,
-        seeds = [AMM_POSITIONS_CACHE.as_ref()],
+        seeds = [AMM_POSITIONS_CACHE.as_bytes()],
         bump = amm_cache.bump,
     )]
     pub amm_cache: Box<Account<'info, AmmCache>>,

@@ -1,25 +1,31 @@
 import * as anchor from '@coral-xyz/anchor';
-import { AnchorProvider, Program, Provider } from '@coral-xyz/anchor';
 import {
+	AnchorProvider,
+	Program as Program30,
+	Provider,
+} from '@coral-xyz/anchor';
+import { Idl as Idl29, Program as Program29 } from '@coral-xyz/anchor-29';
+
+import {
+	ACCOUNT_SIZE,
 	AccountLayout,
+	AccountState,
+	createAssociatedTokenAccountIdempotentInstruction,
+	createInitializeAccountInstruction,
+	createInitializeMintInstruction,
+	createInitializePermanentDelegateInstruction,
+	createMintToInstruction,
+	createSyncNativeInstruction,
+	ExtensionType,
+	getAssociatedTokenAddressSync,
+	getMintLen,
 	MintLayout,
 	NATIVE_MINT,
-	TOKEN_PROGRAM_ID,
-	createInitializeMintInstruction,
-	createInitializeAccountInstruction,
-	createMintToInstruction,
-	getAssociatedTokenAddressSync,
-	createAssociatedTokenAccountIdempotentInstruction,
-	ACCOUNT_SIZE,
-	createSyncNativeInstruction,
-	createInitializePermanentDelegateInstruction,
-	getMintLen,
-	ExtensionType,
-	unpackAccount,
 	RawAccount,
-	AccountState,
-	unpackMint,
 	RawMint,
+	TOKEN_PROGRAM_ID,
+	unpackAccount,
+	unpackMint,
 } from '@solana/spl-token';
 import {
 	AccountInfo,
@@ -32,36 +38,36 @@ import {
 	Transaction,
 	TransactionSignature,
 } from '@solana/web3.js';
-import { assert } from 'chai';
 import buffer from 'buffer';
+import { assert } from 'chai';
 import {
 	BN,
-	Wallet,
-	OraclePriceData,
+	ConstituentAccount,
+	DriftClient,
+	DriftProgram,
 	OracleInfo,
+	OraclePriceData,
+	OracleSource,
+	OrderType,
 	PerpMarketAccount,
 	PositionDirection,
-	DriftClient,
-	OrderType,
-	ReferrerInfo,
-	ConstituentAccount,
-	SpotMarketAccount,
-} from '../sdk/src';
-import {
-	TestClient,
-	SPOT_MARKET_RATE_PRECISION,
-	SPOT_MARKET_WEIGHT_PRECISION,
 	PRICE_PRECISION,
 	QUOTE_PRECISION,
+	ReferrerInfo,
+	SPOT_MARKET_RATE_PRECISION,
+	SPOT_MARKET_WEIGHT_PRECISION,
+	SpotMarketAccount,
+	TestClient,
 	User,
-	OracleSource,
+	Wallet,
 } from '../sdk/src';
-import {
-	BankrunContextWrapper,
-	BankrunConnection,
-} from '../sdk/src/bankrun/bankrunConnection';
-import pythIDL from '../sdk/src/idl/pyth.json';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import {
+	BankrunConnection,
+	BankrunContextWrapper,
+} from '../sdk/src/bankrun/bankrunConnection';
+import { Drift } from '../sdk/src/idl/drift';
+import pythIDL from '../sdk/src/idl/pyth.json';
 
 export async function mockOracle(
 	price: number = 50 * 10e7,
@@ -99,19 +105,13 @@ export async function mockOracleNoProgram(
 	expo = -7,
 	confidence?: number
 ): Promise<PublicKey> {
-	const provider = new AnchorProvider(
-		context.connection.toConnection(),
-		context.provider.wallet,
-		{
-			commitment: 'processed',
-		}
-	);
+	// Use the existing provider from context instead of creating a new one
+	const provider = context.provider;
 
-	const program = new Program(
-		pythIDL as anchor.Idl,
-		new PublicKey('FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH'),
-		provider
+	const programId = new PublicKey(
+		'FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH'
 	);
+	const program = new Program29(pythIDL as Idl29, programId, provider);
 
 	const priceFeedAddress = await createPriceFeedBankrun({
 		oracleProgram: program,
@@ -399,7 +399,7 @@ export async function createUSDCAccountForUser(
 
 export async function initializeAndSubscribeDriftClient(
 	connection: Connection,
-	program: Program,
+	program: Program30<Drift>,
 	userKeyPair: Keypair,
 	marketIndexes: number[],
 	bankIndexes: number[],
@@ -437,7 +437,7 @@ export async function initializeAndSubscribeDriftClient(
 export async function createUserWithUSDCAccount(
 	context: BankrunContextWrapper,
 	usdcMint: Keypair,
-	chProgram: Program,
+	chProgram: Program30<Drift>,
 	usdcAmount: BN,
 	marketIndexes: number[],
 	bankIndexes: number[],
@@ -522,7 +522,7 @@ export async function fundWsolTokenAccountForUser(
 export async function createUserWithUSDCAndWSOLAccount(
 	context: BankrunContextWrapper,
 	usdcMint: Keypair,
-	chProgram: Program,
+	chProgram: Program30<Drift>,
 	solAmount: BN,
 	usdcAmount: BN,
 	marketIndexes: number[],
@@ -627,7 +627,7 @@ export async function initUserAccounts(
 			ownerWallet.publicKey
 		);
 
-		const chProgram = anchor.workspace.Drift as anchor.Program; // this.program-ify
+		const chProgram = anchor.workspace.Drift as DriftProgram;
 
 		const driftClient1 = new TestClient({
 			connection: context.connection.toConnection(),
@@ -697,7 +697,7 @@ export const createPriceFeed = async ({
 	confidence = undefined,
 	expo = -4,
 }: {
-	oracleProgram: Program;
+	oracleProgram: Program29;
 	initPrice: number;
 	confidence?: number;
 	expo?: number;
@@ -737,7 +737,7 @@ export const createPriceFeedBankrun = async ({
 	confidence = undefined,
 	expo = -4,
 }: {
-	oracleProgram: Program;
+	oracleProgram: Program29;
 	context: BankrunContextWrapper;
 	initPrice: number;
 	confidence?: number;
@@ -768,7 +768,7 @@ export const createPriceFeedBankrun = async ({
 	return collateralTokenFeed.publicKey;
 };
 export const setFeedPrice = async (
-	oracleProgram: Program,
+	oracleProgram: Program29,
 	newPrice: number,
 	priceFeed: PublicKey
 ) => {
@@ -797,8 +797,8 @@ export const setFeedPriceNoProgram = async (
 		}
 	);
 
-	const program = new Program(
-		pythIDL as anchor.Idl,
+	const program = new Program29(
+		pythIDL as Idl29,
 		new PublicKey('FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH'),
 		provider
 	);
@@ -818,7 +818,7 @@ export const setFeedPriceNoProgram = async (
 };
 
 export const setFeedTwap = async (
-	oracleProgram: Program,
+	oracleProgram: Program29,
 	newTwap: number,
 	priceFeed: PublicKey
 ) => {
@@ -831,7 +831,7 @@ export const setFeedTwap = async (
 	});
 };
 export const getFeedData = async (
-	oracleProgram: Program,
+	oracleProgram: Program29,
 	priceFeed: PublicKey
 ) => {
 	const info = await oracleProgram.provider.connection.getAccountInfo(
@@ -850,7 +850,7 @@ export const getFeedDataNoProgram = async (
 };
 
 export const getOraclePriceData = async (
-	oracleProgram: Program,
+	oracleProgram: Program29,
 	priceFeed: PublicKey
 ): Promise<OraclePriceData> => {
 	const info = await oracleProgram.provider.connection.getAccountInfo(
@@ -1203,8 +1203,8 @@ export async function overWritePerpMarket(
 		executable: false,
 		owner: driftClient.program.programId,
 		lamports: LAMPORTS_PER_SOL,
-		data: await driftClient.program.account.perpMarket.coder.accounts.encode(
-			'PerpMarket',
+		data: await driftClient.program.coder.accounts.encode(
+			'perpMarket',
 			perpMarket
 		),
 	});
@@ -1221,7 +1221,7 @@ export async function overWriteSpotMarket(
 		owner: driftClient.program.programId,
 		lamports: LAMPORTS_PER_SOL,
 		data: await driftClient.program.account.spotMarket.coder.accounts.encode(
-			'SpotMarket',
+			'spotMarket',
 			spotMarket
 		),
 	});
@@ -1236,7 +1236,7 @@ export async function getPerpMarketDecoded(
 		perpMarketPublicKey
 	);
 	const perpMarketAccount: PerpMarketAccount =
-		driftClient.program.coder.accounts.decode('PerpMarket', accountInfo!.data);
+		driftClient.program.coder.accounts.decode('perpMarket', accountInfo!.data);
 	return perpMarketAccount;
 }
 
@@ -1384,7 +1384,7 @@ export async function placeAndFillVammTrade({
 
 export async function overwriteConstituentAccount(
 	bankrunContextWrapper: BankrunContextWrapper,
-	program: Program,
+	program: Program30<Drift>,
 	constituentPublicKey: PublicKey,
 	overwriteFields: Array<[key: keyof ConstituentAccount, value: any]>
 ) {
@@ -1402,7 +1402,7 @@ export async function overwriteConstituentAccount(
 		owner: program.programId,
 		lamports: LAMPORTS_PER_SOL,
 		data: await program.account.constituent.coder.accounts.encode(
-			'Constituent',
+			'constituent',
 			acc
 		),
 	});

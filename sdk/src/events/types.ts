@@ -27,6 +27,7 @@ import {
 	LPBorrowLendDepositRecord,
 } from '../types';
 import { EventEmitter } from 'events';
+import { IdlDiscriminator } from '@coral-xyz/anchor/dist/cjs/idl';
 
 export type EventSubscriptionOptions = {
 	address?: PublicKey;
@@ -44,27 +45,27 @@ export type EventSubscriptionOptions = {
 
 export const DefaultEventSubscriptionOptions: EventSubscriptionOptions = {
 	eventTypes: [
-		'DepositRecord',
-		'FundingPaymentRecord',
-		'LiquidationRecord',
-		'OrderRecord',
-		'OrderActionRecord',
-		'FundingRateRecord',
-		'NewUserRecord',
-		'SettlePnlRecord',
+		'depositRecord',
+		'fundingPaymentRecord',
+		'liquidationRecord',
+		'orderRecord',
+		'orderActionRecord',
+		'fundingRateRecord',
+		'newUserRecord',
+		'settlePnlRecord',
 		'LPRecord',
-		'InsuranceFundRecord',
-		'SpotInterestRecord',
-		'InsuranceFundStakeRecord',
-		'CurveRecord',
-		'SwapRecord',
-		'SpotMarketVaultDepositRecord',
-		'SignedMsgOrderRecord',
-		'DeleteUserRecord',
-		'FuelSweepRecord',
-		'FuelSeasonRecord',
-		'InsuranceFundSwapRecord',
-		'TransferProtocolIfSharesToRevenuePoolRecord',
+		'insuranceFundRecord',
+		'spotInterestRecord',
+		'insuranceFundStakeRecord',
+		'curveRecord',
+		'swapRecord',
+		'spotMarketVaultDepositRecord',
+		'signedMsgOrderRecord',
+		'deleteUserRecord',
+		'fuelSweepRecord',
+		'fuelSeasonRecord',
+		'insuranceFundSwapRecord',
+		'transferProtocolIfSharesToRevenuePoolRecord',
 		'LPMintRedeemRecord',
 		'LPSettleRecord',
 		'LPSwapRecord',
@@ -96,27 +97,27 @@ export type WrappedEvent<Type extends EventType> = EventMap[Type] & {
 export type WrappedEvents = WrappedEvent<EventType>[];
 
 export type EventMap = {
-	DepositRecord: Event<DepositRecord>;
-	FundingPaymentRecord: Event<FundingPaymentRecord>;
-	LiquidationRecord: Event<LiquidationRecord>;
-	FundingRateRecord: Event<FundingRateRecord>;
-	OrderRecord: Event<OrderRecord>;
-	OrderActionRecord: Event<OrderActionRecord>;
-	SettlePnlRecord: Event<SettlePnlRecord>;
-	NewUserRecord: Event<NewUserRecord>;
+	depositRecord: Event<DepositRecord>;
+	fundingPaymentRecord: Event<FundingPaymentRecord>;
+	liquidationRecord: Event<LiquidationRecord>;
+	fundingRateRecord: Event<FundingRateRecord>;
+	orderRecord: Event<OrderRecord>;
+	orderActionRecord: Event<OrderActionRecord>;
+	settlePnlRecord: Event<SettlePnlRecord>;
+	newUserRecord: Event<NewUserRecord>;
 	LPRecord: Event<LPRecord>;
-	InsuranceFundRecord: Event<InsuranceFundRecord>;
-	SpotInterestRecord: Event<SpotInterestRecord>;
-	InsuranceFundStakeRecord: Event<InsuranceFundStakeRecord>;
-	CurveRecord: Event<CurveRecord>;
-	SwapRecord: Event<SwapRecord>;
-	SpotMarketVaultDepositRecord: Event<SpotMarketVaultDepositRecord>;
-	SignedMsgOrderRecord: Event<SignedMsgOrderRecord>;
-	DeleteUserRecord: Event<DeleteUserRecord>;
-	FuelSweepRecord: Event<FuelSweepRecord>;
-	FuelSeasonRecord: Event<FuelSeasonRecord>;
-	InsuranceFundSwapRecord: Event<InsuranceFundSwapRecord>;
-	TransferProtocolIfSharesToRevenuePoolRecord: Event<TransferProtocolIfSharesToRevenuePoolRecord>;
+	insuranceFundRecord: Event<InsuranceFundRecord>;
+	spotInterestRecord: Event<SpotInterestRecord>;
+	insuranceFundStakeRecord: Event<InsuranceFundStakeRecord>;
+	curveRecord: Event<CurveRecord>;
+	swapRecord: Event<SwapRecord>;
+	spotMarketVaultDepositRecord: Event<SpotMarketVaultDepositRecord>;
+	signedMsgOrderRecord: Event<SignedMsgOrderRecord>;
+	deleteUserRecord: Event<DeleteUserRecord>;
+	fuelSweepRecord: Event<FuelSweepRecord>;
+	fuelSeasonRecord: Event<FuelSeasonRecord>;
+	insuranceFundSwapRecord: Event<InsuranceFundSwapRecord>;
+	transferProtocolIfSharesToRevenuePoolRecord: Event<TransferProtocolIfSharesToRevenuePoolRecord>;
 	LPSettleRecord: Event<LPSettleRecord>;
 	LPMintRedeemRecord: Event<LPMintRedeemRecord>;
 	LPSwapRecord: Event<LPSwapRecord>;
@@ -216,6 +217,7 @@ export type LogProviderConfig =
 	| EventsServerLogProviderConfig;
 
 export type CuUsageEvent = {
+	discriminator: IdlDiscriminator;
 	name: 'CuUsage';
 	fields: [
 		{

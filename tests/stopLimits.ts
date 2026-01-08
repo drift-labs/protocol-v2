@@ -1,24 +1,37 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import { Keypair, PublicKey, Transaction } from '@solana/web3.js';
 
 import {
-	TestClient,
 	BN,
+	EventSubscriber,
+	MarketStatus,
+	OrderTriggerCondition,
 	PRICE_PRECISION,
 	PositionDirection,
+	TestClient,
 	User,
 	Wallet,
 	getMarketOrderParams,
-	OrderTriggerCondition,
 	getTriggerLimitOrderParams,
-	EventSubscriber,
-	MarketStatus,
 } from '../sdk/src';
 
+import {
+	createAssociatedTokenAccountIdempotentInstruction,
+	createMintToInstruction,
+	getAssociatedTokenAddressSync,
+} from '@solana/spl-token';
+import { startAnchor } from 'solana-bankrun';
+import {
+	AMM_RESERVE_PRECISION,
+	OracleSource,
+	ZERO,
+	isVariant,
+} from '../sdk/src';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
 	initializeQuoteSpotMarket,
 	mockOracleNoProgram,
@@ -26,18 +39,9 @@ import {
 	mockUserUSDCAccount,
 	setFeedPriceNoProgram,
 } from './testHelpers';
-import { AMM_RESERVE_PRECISION, OracleSource, ZERO, isVariant } from '../sdk';
-import {
-	createAssociatedTokenAccountIdempotentInstruction,
-	createMintToInstruction,
-	getAssociatedTokenAddressSync,
-} from '@solana/spl-token';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('stop limit', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 	let driftClientUser: User;
@@ -314,7 +318,7 @@ describe('stop limit', () => {
 		const expectedQuoteAssetAmount = new BN(0);
 		assert(firstPosition.quoteBreakEvenAmount.eq(expectedQuoteAssetAmount));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('orderActionRecord')[0];
 
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
 		const expectedTradeQuoteAssetAmount = new BN(1010000);
@@ -401,7 +405,7 @@ describe('stop limit', () => {
 		assert(firstPosition.quoteBreakEvenAmount.eq(expectedQuoteAssetAmount));
 
 		const expectedTradeQuoteAssetAmount = new BN(990001);
-		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('orderActionRecord')[0];
 
 		const expectedOrderId = 4;
 		const expectedFillRecord = new BN(4);

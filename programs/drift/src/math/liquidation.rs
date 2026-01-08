@@ -304,9 +304,9 @@ pub fn calculate_funding_rate_deltas_to_resolve_bankruptcy(
 ) -> DriftResult<i128> {
     let total_base_asset_amount = market
         .amm
-        .base_asset_amount_long
+        .base_asset_amount_long()
         .abs()
-        .safe_add(market.amm.base_asset_amount_short.abs())?;
+        .safe_add(market.amm.base_asset_amount_short().abs())?;
 
     validate!(
         total_base_asset_amount != 0,
@@ -325,13 +325,13 @@ pub fn calculate_cumulative_deposit_interest_delta_to_resolve_bankruptcy(
     spot_market: &SpotMarket,
 ) -> DriftResult<u128> {
     let total_deposits = get_token_amount(
-        spot_market.deposit_balance,
+        spot_market.deposit_balance(),
         spot_market,
         &SpotBalanceType::Deposit,
     )?;
 
     spot_market
-        .cumulative_deposit_interest
+        .cumulative_deposit_interest()
         .safe_mul(borrow)?
         .safe_div_ceil(total_deposits)
         .or(Ok(0))

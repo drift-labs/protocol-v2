@@ -75,7 +75,7 @@ export class OrderSubscriber {
 		} else {
 			this.decodeFn =
 				this.driftClient.program.account.user.coder.accounts.decodeUnchecked.bind(
-					this.driftClient.program.account.user.coder.accounts
+					this.driftClient.program.account.user.coder
 				);
 		}
 		this.eventEmitter = new EventEmitter();

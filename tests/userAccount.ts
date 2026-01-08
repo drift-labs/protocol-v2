@@ -1,40 +1,41 @@
 import * as anchor from '@coral-xyz/anchor';
-import { Program } from '@coral-xyz/anchor';
-import {
-	mockOracleNoProgram,
-	setFeedPriceNoProgram,
-	mockUSDCMint,
-	mockUserUSDCAccount,
-	initializeQuoteSpotMarket,
-	getFeedDataNoProgram,
-	sleep,
-} from './testHelpers';
+
 import { Keypair } from '@solana/web3.js';
 import { assert } from 'chai';
+import { startAnchor } from 'solana-bankrun';
 import {
-	TestClient,
-	User,
-	PEG_PRECISION,
-	MAX_LEVERAGE,
-	PositionDirection,
-	QUOTE_SPOT_MARKET_INDEX,
-	MarketStatus,
+	AMM_RESERVE_PRECISION,
 	BASE_PRECISION,
 	BN,
+	MAX_LEVERAGE,
+	MarketStatus,
 	OracleSource,
-	calculateWorstCaseBaseAssetAmount,
+	PEG_PRECISION,
+	PositionDirection,
+	QUOTE_SPOT_MARKET_INDEX,
+	TestClient,
+	User,
 	calculateMarketMarginRatio,
-	calculateReservePrice,
-	convertToNumber,
 	calculatePrice,
-	AMM_RESERVE_PRECISION,
+	calculateReservePrice,
+	calculateWorstCaseBaseAssetAmount,
+	convertToNumber,
 } from '../sdk/src';
-import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
+import {
+	getFeedDataNoProgram,
+	initializeQuoteSpotMarket,
+	mockOracleNoProgram,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+	setFeedPriceNoProgram,
+	sleep,
+} from './testHelpers';
 
 describe('User Account', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient;
 

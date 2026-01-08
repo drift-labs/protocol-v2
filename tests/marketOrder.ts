@@ -1,45 +1,44 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import { Keypair, PublicKey, Transaction } from '@solana/web3.js';
 
 import {
 	BN,
+	EventSubscriber,
+	getMarketOrderParams,
+	PositionDirection,
 	PRICE_PRECISION,
 	TestClient,
-	PositionDirection,
 	User,
 	Wallet,
-	getMarketOrderParams,
-	EventSubscriber,
 } from '../sdk/src';
 
-import {
-	initializeQuoteSpotMarket,
-	mockOracleNoProgram,
-	mockUSDCMint,
-	mockUserUSDCAccount,
-} from './testHelpers';
-import {
-	AMM_RESERVE_PRECISION,
-	isVariant,
-	OracleSource,
-	PEG_PRECISION,
-	ZERO,
-} from '../sdk';
 import {
 	createAssociatedTokenAccountIdempotentInstruction,
 	createMintToInstruction,
 	getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
 import { startAnchor } from 'solana-bankrun';
+import {
+	AMM_RESERVE_PRECISION,
+	isVariant,
+	OracleSource,
+	PEG_PRECISION,
+	ZERO,
+} from '../sdk/src';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
+import {
+	initializeQuoteSpotMarket,
+	mockOracleNoProgram,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+} from './testHelpers';
 
 describe('market order', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 	let driftClientUser: User;
@@ -276,7 +275,7 @@ describe('market order', () => {
 		assert(firstPosition.quoteBreakEvenAmount.eq(new BN(-1001002)));
 
 		const orderActionRecord =
-			eventSubscriber.getEventsArray('OrderActionRecord')[0];
+			eventSubscriber.getEventsArray('orderActionRecord')[0];
 
 		assert.ok(orderActionRecord.baseAssetAmountFilled.eq(baseAssetAmount));
 		assert.ok(
@@ -320,7 +319,7 @@ describe('market order', () => {
 		assert(firstPosition.quoteBreakEvenAmount.eq(ZERO));
 
 		const orderActionRecord =
-			eventSubscriber.getEventsArray('OrderActionRecord')[0];
+			eventSubscriber.getEventsArray('orderActionRecord')[0];
 
 		assert.ok(orderActionRecord.baseAssetAmountFilled.eq(baseAssetAmount));
 		const expectedQuoteAssetAmount = new BN(1000000);

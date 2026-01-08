@@ -1,6 +1,5 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
-import { Program } from '@coral-xyz/anchor';
 
 import {
 	Keypair,
@@ -11,45 +10,46 @@ import {
 } from '@solana/web3.js';
 
 import {
+	createInitializeAccountInstruction,
+	createInitializeScaledUiAmountConfigInstruction,
 	createMintToInstruction,
 	createTransferCheckedInstruction,
 	getAccount,
-	createInitializeAccountInstruction,
 	getAccountLenForMint,
-	createInitializeScaledUiAmountConfigInstruction,
 } from '@solana/spl-token';
 
 import {
-	TestClient,
 	BN,
-	OracleSource,
+	getTokenAmount,
 	OracleInfo,
+	OracleSource,
+	QUOTE_PRECISION,
 	SPOT_MARKET_RATE_PRECISION,
 	SPOT_MARKET_WEIGHT_PRECISION,
-	QUOTE_PRECISION,
-	getTokenAmount,
+	TestClient,
 } from '../sdk/src';
 
 import {
-	mockOracleNoProgram,
-	mockUSDCMint,
-	mockUserUSDCAccount,
-	createUserWithUSDCAccount,
-	initializeQuoteSpotMarket,
-} from './testHelpers';
-import {
-	getMint,
-	TOKEN_2022_PROGRAM_ID,
 	createInitializeMintInstruction,
 	ExtensionType,
+	getMint,
 	getMintLen,
+	TOKEN_2022_PROGRAM_ID,
 } from '@solana/spl-token';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
+import {
+	createUserWithUSDCAccount,
+	initializeQuoteSpotMarket,
+	mockOracleNoProgram,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+} from './testHelpers';
 
 describe('spot deposit and withdraw 22', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let firstUserKeypair: Keypair;
 	let firstUserDriftClient: TestClient;
