@@ -7124,7 +7124,8 @@ export class DriftClient {
 		settlePnl?: boolean,
 		exitEarlyIfSimFails?: boolean,
 		auctionDurationPercentage?: number,
-		optionalIxs?: TransactionInstruction[]
+		optionalIxs?: TransactionInstruction[],
+		exitHighLeverageMode?: boolean
 	): Promise<{
 		placeAndTakeTx: Transaction | VersionedTransaction;
 		cancelExistingOrdersTx: Transaction | VersionedTransaction;
@@ -7257,14 +7258,30 @@ export class DriftClient {
 					subAccountId
 				);
 
+				const userAccount = this.getUserAccount(subAccountId);
+
+				const ixs = [];
+
 				const settlePnlIx = await this.settlePNLIx(
 					userAccountPublicKey,
-					this.getUserAccount(subAccountId),
+					userAccount,
 					orderParams.marketIndex
 				);
 
+				ixs.push(settlePnlIx);
+
+				if (exitHighLeverageMode) {
+					const disableHighLeverageModeIx =
+						await this.getDisableHighLeverageModeIx(
+							userAccountPublicKey,
+							userAccount
+						);
+
+					ixs.push(disableHighLeverageModeIx);
+				}
+
 				txsToSign.settlePnlTx = await this.buildTransaction(
-					[settlePnlIx],
+					ixs,
 					txParams,
 					this.txVersion,
 					lookupTableAccounts,
