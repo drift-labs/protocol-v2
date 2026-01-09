@@ -1315,7 +1315,7 @@ export type OptionalOrderParams = {
 
 export type ModifyOrderParams = {
 	[Property in keyof OrderParams]?: OrderParams[Property] | null;
-} & { policy?: ModifyOrderPolicy };
+} & { policy?: ModifyOrderPolicy | null };
 
 export enum ModifyOrderPolicy {
 	MustModify = 1,
