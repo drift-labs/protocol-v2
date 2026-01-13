@@ -1,11 +1,6 @@
 {
-  "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH",
-  "metadata": {
-    "name": "drift",
-    "version": "2.152.0",
-    "spec": "0.1.0",
-    "description": "Created with Anchor"
-  },
+  "version": "2.154.0",
+  "name": "drift",
   "instructions": [
     {
       "name": "add_amm_constituent_mapping_data",
