@@ -1,4 +1,4 @@
-import { LaserGrpcConfigs, ResubOpts } from './types';
+import { GrpcConfigs, ResubOpts } from './types';
 import { Program } from '@coral-xyz/anchor';
 import { Context, MemcmpFilter, PublicKey } from '@solana/web3.js';
 import * as Buffer from 'buffer';
@@ -56,7 +56,7 @@ export class LaserstreamProgramAccountSubscriber<
 	}
 
 	public static async create<U>(
-		grpcConfigs: LaserGrpcConfigs,
+		grpcConfigs: GrpcConfigs,
 		subscriptionName: string,
 		accountDiscriminator: string,
 		program: Program,
@@ -66,17 +66,14 @@ export class LaserstreamProgramAccountSubscriber<
 		},
 		resubOpts?: ResubOpts
 	): Promise<LaserstreamProgramAccountSubscriber<U>> {
-		const channelOptions = {
-			'grpc.default_compression_algorithm': CompressionAlgorithms.zstd,
-			'grpc.max_receive_message_length': 1_000_000_000,
-			...(grpcConfigs.channelOptions ?? {}),
-		};
-
 		const laserConfig: LaserstreamConfig = {
 			apiKey: grpcConfigs.token,
 			endpoint: grpcConfigs.endpoint,
 			maxReconnectAttempts: grpcConfigs.enableReconnect ? 10 : 0,
-			channelOptions,
+			channelOptions: {
+				'grpc.default_compression_algorithm': CompressionAlgorithms.zstd,
+				'grpc.max_receive_message_length': 1_000_000_000,
+			},
 		};
 
 		const commitmentLevel =
