@@ -23,7 +23,7 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import { getSortFn } from './sort';
 import { parseLogs } from './parse';
 import { EventsServerLogProvider } from './eventsServerLogProvider';
-import { DriftProgram } from '../config';
+import { DriftProgram } from '../../src';
 
 export class EventSubscriber {
 	private address: PublicKey;

@@ -23,7 +23,11 @@ import { OracleInfo, OraclePriceData } from '../oracles/types';
 import { OracleClientCache } from '../oracles/oracleClientCache';
 import { QUOTE_ORACLE_PRICE_DATA } from '../oracles/quoteAssetOracleClient';
 import { findAllMarketAndOracles, DriftProgram } from '../config';
-import { findDelistedPerpMarketsAndOracles } from './utils';
+import {
+	findDelistedPerpMarketsAndOracles,
+	normalizePerpMarketAccount,
+	normalizeSpotMarketAccount,
+} from './utils';
 import { getOracleId } from '../oracles/oracleId';
 import { OracleSource } from '../types';
 import { WebSocketAccountSubscriberV2 } from './webSocketAccountSubscriberV2';
@@ -237,10 +241,12 @@ export class WebSocketDriftClientAccountSubscriber
 				perpMarketAccountInfos
 					.filter((accountInfo) => !!accountInfo)
 					.map((accountInfo) => {
-						const perpMarket = this.program.coder.accounts.decode(
-							'perpMarket',
-							accountInfo.data
-						) as PerpMarketAccount;
+						const perpMarket = normalizePerpMarketAccount(
+							this.program.coder.accounts.decode(
+								'perpMarket',
+								accountInfo.data
+							)
+						);
 						return [perpMarket.marketIndex, perpMarket];
 					})
 			);
@@ -262,10 +268,12 @@ export class WebSocketDriftClientAccountSubscriber
 				spotMarketAccountInfos
 					.filter((accountInfo) => !!accountInfo)
 					.map((accountInfo) => {
-						const spotMarket = this.program.coder.accounts.decode(
-							'spotMarket',
-							accountInfo.data
-						) as SpotMarketAccount;
+						const spotMarket = normalizeSpotMarketAccount(
+							this.program.coder.accounts.decode(
+								'spotMarket',
+								accountInfo.data
+							)
+						);
 						return [spotMarket.marketIndex, spotMarket];
 					})
 			);

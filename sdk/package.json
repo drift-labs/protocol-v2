@@ -42,7 +42,7 @@
 		"access": "public"
 	},
 	"dependencies": {
-		"@coral-xyz/anchor": "npm:@coral-xyz/anchor@0.31.1",
+		"@coral-xyz/anchor": "npm:@coral-xyz/anchor@0.32.1",
 		"@coral-xyz/anchor-29": "npm:@coral-xyz/anchor@0.29.0",
 		"@ellipsis-labs/phoenix-sdk": "1.4.5",
 		"@grpc/grpc-js": "1.14.0",

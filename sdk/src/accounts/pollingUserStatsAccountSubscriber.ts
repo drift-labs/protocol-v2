@@ -12,8 +12,7 @@ import { BulkAccountLoader } from './bulkAccountLoader';
 import { DriftProgram } from '../config';
 
 export class PollingUserStatsAccountSubscriber
-	implements UserStatsAccountSubscriber
-{
+	implements UserStatsAccountSubscriber {
 	isSubscribed: boolean;
 	program: DriftProgram;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserStatsAccountEvents>;
@@ -118,7 +117,7 @@ export class PollingUserStatsAccountSubscriber
 				`PollingUserStatsAccountSubscriber.fetch() UserStatsAccount does not exist: ${e.message}`
 			);
 		}
-		if (dataAndContext.context.slot > (this.userStats?.slot ?? 0)) {
+		if (dataAndContext?.context.slot > (this.userStats?.slot ?? 0)) {
 			this.userStats = {
 				data: dataAndContext.data,
 				slot: dataAndContext.context.slot,

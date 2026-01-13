@@ -1,8 +1,6 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
-import { BN, OracleSource, ZERO } from '../sdk';
-
-import { Program } from '@coral-xyz/anchor';
+import { BN, DriftProgram, OracleSource, ZERO } from '../sdk';
 
 import { PublicKey } from '@solana/web3.js';
 
@@ -20,7 +18,7 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('drift client', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -147,7 +145,7 @@ describe('drift client', () => {
 		assert.ok(new BN(Number(quoteSpotVault.amount)).eq(usdcAmount));
 
 		await eventSubscriber.awaitTx(txSig);
-		const depositRecord = eventSubscriber.getEventsArray('DepositRecord')[0];
+		const depositRecord = eventSubscriber.getEventsArray('depositRecord')[0];
 
 		assert.ok(
 			depositRecord.userAuthority.equals(
@@ -158,7 +156,7 @@ describe('drift client', () => {
 
 		assert.ok(
 			JSON.stringify(depositRecord.direction) ===
-				JSON.stringify({ deposit: {} })
+			JSON.stringify({ deposit: {} })
 		);
 		assert.ok(depositRecord.amount.eq(new BN(10000000)));
 	});
@@ -207,7 +205,7 @@ describe('drift client', () => {
 			);
 		assert.ok(new BN(Number(userUSDCtoken.amount)).eq(usdcAmount));
 
-		const depositRecord = eventSubscriber.getEventsArray('DepositRecord')[0];
+		const depositRecord = eventSubscriber.getEventsArray('depositRecord')[0];
 
 		assert.ok(
 			depositRecord.userAuthority.equals(
@@ -218,7 +216,7 @@ describe('drift client', () => {
 
 		assert.ok(
 			JSON.stringify(depositRecord.direction) ===
-				JSON.stringify({ withdraw: {} })
+			JSON.stringify({ withdraw: {} })
 		);
 		assert.ok(depositRecord.amount.eq(new BN(10000000)));
 	});
@@ -247,7 +245,7 @@ describe('drift client', () => {
 			marketData.amm.oracle
 		);
 
-		const orderR = eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		const orderR = eventSubscriber.getEventsArray('orderActionRecord')[0];
 		console.log(orderR.takerFee.toString());
 		console.log(orderR.baseAssetAmountFilled.toString());
 
@@ -284,7 +282,7 @@ describe('drift client', () => {
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(48001)));
 
 		const orderActionRecord =
-			eventSubscriber.getEventsArray('OrderActionRecord')[0];
+			eventSubscriber.getEventsArray('orderActionRecord')[0];
 
 		assert.ok(orderActionRecord.taker.equals(userAccountPublicKey));
 		assert.ok(orderActionRecord.fillRecordId.eq(new BN(1)));
@@ -373,7 +371,7 @@ describe('drift client', () => {
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(72001)));
 
 		const orderActionRecord =
-			eventSubscriber.getEventsArray('OrderActionRecord')[0];
+			eventSubscriber.getEventsArray('orderActionRecord')[0];
 		assert.ok(orderActionRecord.taker.equals(userAccountPublicKey));
 		assert.ok(orderActionRecord.fillRecordId.eq(new BN(2)));
 		assert.ok(orderActionRecord.baseAssetAmountFilled.eq(new BN(24000000000)));
@@ -444,7 +442,7 @@ describe('drift client', () => {
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(120001)));
 
 		const orderActionRecord =
-			eventSubscriber.getEventsArray('OrderActionRecord')[0];
+			eventSubscriber.getEventsArray('orderActionRecord')[0];
 		assert.ok(orderActionRecord.taker.equals(userAccountPublicKey));
 		assert.ok(orderActionRecord.fillRecordId.eq(new BN(3)));
 		console.log(orderActionRecord.baseAssetAmountFilled.toNumber());
@@ -498,7 +496,7 @@ describe('drift client', () => {
 		assert.ok(market.amm.totalFeeMinusDistributions.eq(new BN(144001)));
 
 		const orderActionRecord =
-			eventSubscriber.getEventsArray('OrderActionRecord')[0];
+			eventSubscriber.getEventsArray('orderActionRecord')[0];
 
 		assert.ok(orderActionRecord.taker.equals(userAccountPublicKey));
 		assert.ok(orderActionRecord.fillRecordId.eq(new BN(4)));
@@ -538,7 +536,7 @@ describe('drift client', () => {
 		assert.ok(market.amm.baseAssetAmountWithAmm.eq(new BN(-48000000000)));
 
 		const orderActionRecord =
-			eventSubscriber.getEventsArray('OrderActionRecord')[0];
+			eventSubscriber.getEventsArray('orderActionRecord')[0];
 
 		assert.ok(orderActionRecord.taker.equals(userAccountPublicKey));
 		assert.ok(orderActionRecord.fillRecordId.eq(new BN(5)));

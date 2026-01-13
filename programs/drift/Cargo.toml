@@ -21,18 +21,19 @@ idl-build = [
   "anchor-spl/idl-build",
   "openbook-v2-light/idl-build",
   "pythnet-sdk/idl-build",
-  "switchboard-on-demand/idl-build"
+  "switchboard-on-demand/idl-build",
+  "proc-macro2/span-locations"
 ]
 
 [dependencies]
 anchor-lang = "0.32.1"
 anchor-lang-idl-spec = "0.1.0"
-anchor-spl = { version = "0.32.1", features = ["idl-build"] }
+anchor-spl = "0.32.1"
 solana-program = "=2.2.1"
 pyth-client = "0.2.2"
 pyth-lazer-solana-contract = { git = "https://github.com/jordy25519/pyth-crosschain", features = ["no-entrypoint"]}
 pyth-solana-receiver-sdk = { git = "https://github.com/jordy25519/pyth-crosschain" }
-pythnet-sdk = { git = "https://github.com/jordy25519/pyth-crosschain", features = ["idl-build"] }
+pythnet-sdk = { git = "https://github.com/jordy25519/pyth-crosschain" }
 bytemuck = "1.4.0"
 hex = "0.4.3"
 uint = { version = "0.9.1", default-features = false }
@@ -50,7 +51,7 @@ switchboard = { path = "../switchboard", features = ["no-entrypoint"] }
 openbook-v2-light = { path = "../openbook_v2", features = ["no-entrypoint"] }
 switchboard-on-demand = { path = "../switchboard-on-demand", features = ["no-entrypoint"] }
 byteorder = "1.4.3"
-proc-macro2 = { version = "1.0.105", features = ["span-locations"] }
+proc-macro2 = { version = "=1.0.105", features = ["span-locations"] }
 
 [dev-dependencies]
 bytes = "1.2.0"

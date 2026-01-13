@@ -1434,9 +1434,9 @@ export interface IWallet {
 	publicKey: PublicKey;
 	payer?: Keypair;
 	supportedTransactionVersions?:
-		| ReadonlySet<TransactionVersion>
-		| null
-		| undefined;
+	| ReadonlySet<TransactionVersion>
+	| null
+	| undefined;
 }
 export interface IVersionedWallet {
 	signVersionedTransaction(
@@ -1480,7 +1480,7 @@ export type OrderFillerRewardStructure = {
 export type OracleGuardRails = {
 	priceDivergence: {
 		markOraclePercentDivergence: BN;
-		oracleTwap5MinPercentDivergence: BN;
+		oracleTwap5minPercentDivergence: BN;
 	};
 	validity: {
 		slotsBeforeStaleForAmm: BN;

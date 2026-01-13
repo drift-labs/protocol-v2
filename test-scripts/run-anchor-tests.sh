@@ -39,6 +39,7 @@ test_files=(
   highLeverageMode.ts
   ifRebalance.ts
   insuranceFundStake.ts
+  # TODO: 0x1787 errors
   isolatedPositionDriftClient.ts
   isolatedPositionLiquidatePerp.ts
   isolatedPositionLiquidatePerpwithFill.ts

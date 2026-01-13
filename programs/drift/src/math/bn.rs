@@ -15,11 +15,13 @@ use crate::error::DriftResult;
 pub mod compat {
     #![allow(non_camel_case_types)]
     use anchor_lang::prelude::borsh::{self};
+    #[cfg(feature = "idl-build")]
     use anchor_lang_idl_spec::{IdlRepr, IdlType, IdlTypeDef};
     use bytemuck::{Pod, Zeroable};
+    #[cfg(feature = "idl-build")]
+    use std::collections::BTreeMap;
     use std::{
         cmp::Ordering,
-        collections::BTreeMap,
         convert::TryFrom,
         ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign},
     };
@@ -33,6 +35,7 @@ pub mod compat {
     )]
     pub struct u128([u8; 16]);
 
+    #[cfg(feature = "idl-build")]
     impl anchor_lang::IdlBuild for self::u128 {
         // tell anchor IDL to treat it as std::primitive::u128
         fn create_type() -> Option<IdlTypeDef> {
@@ -183,6 +186,7 @@ pub mod compat {
     )]
     pub struct i128([u8; 16]);
 
+    #[cfg(feature = "idl-build")]
     impl anchor_lang::IdlBuild for self::i128 {
         // tell anchor IDL to treat it as std::primitive::i128
         fn create_type() -> Option<IdlTypeDef> {
