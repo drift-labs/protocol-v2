@@ -15,7 +15,7 @@ import { Context, PublicKey } from '@solana/web3.js';
 import { Account } from '@solana/spl-token';
 import { OracleInfo, OraclePriceData } from '../oracles/types';
 import { User } from '../user';
-import { Client, CommitmentLevel, LaserstreamConfig } from '../isomorphic/grpc';
+import { ChannelOptions, CommitmentLevel } from '../isomorphic/grpc';
 
 export interface AccountSubscriber<T> {
 	dataAndSlot?: DataAndSlot<T>;
@@ -225,28 +225,18 @@ export interface UserStatsAccountSubscriber {
 	getUserStatsAccountAndSlot(): DataAndSlot<UserStatsAccount>;
 }
 
-type BaseGrpcConfigs = {
+export type GrpcConfigs = {
 	endpoint: string;
 	token: string;
 	commitmentLevel?: CommitmentLevel;
+	channelOptions?: ChannelOptions;
 	/**
 	 * Whether to enable automatic reconnection on connection loss .
 	 * Defaults to false, will throw on connection loss.
 	 */
 	enableReconnect?: boolean;
+	client?: 'yellowstone' | 'laser';
 };
-
-export type YellowstoneGrpcConfigs = BaseGrpcConfigs & {
-	client?: 'yellowstone';
-	channelOptions?: ConstructorParameters<typeof Client>[2];
-};
-
-export type LaserGrpcConfigs = BaseGrpcConfigs & {
-	client: 'laser';
-	channelOptions?: LaserstreamConfig['channelOptions'];
-};
-
-export type GrpcConfigs = YellowstoneGrpcConfigs | LaserGrpcConfigs;
 
 export interface HighLeverageModeConfigAccountSubscriber {
 	eventEmitter: StrictEventEmitter<
