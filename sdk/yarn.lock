@@ -1292,12 +1292,40 @@
     buffer "^6.0.3"
     js-yaml "^4.1.0"
 
-"@triton-one/yellowstone-grpc@1.4.1":
-  version "1.4.1"
-  resolved "https://registry.yarnpkg.com/@triton-one/yellowstone-grpc/-/yellowstone-grpc-1.4.1.tgz#b50434f68c3d73c6ce3e1f225656064c080f4b25"
-  integrity sha512-ZN49vooxFbOqWttll8u7AOsIVnX+srqX9ddhZ9ttE+OcehUo8c2p2suK8Gr2puab49cgsV0VGjiTn9Gua/ntIw==
+"@triton-one/yellowstone-grpc-napi-darwin-arm64@0.0.5":
+  version "0.0.5"
+  resolved "https://registry.yarnpkg.com/@triton-one/yellowstone-grpc-napi-darwin-arm64/-/yellowstone-grpc-napi-darwin-arm64-0.0.5.tgz#405ff2f3d2910ba254fab918471c4e563b3a5c14"
+  integrity sha512-UyxNkkBvLMOiR77s96q8OIi51mPE0YwSQT5wxPhOTvptFcfX8qbZbsqAWOnphUBtW8CoTQsAHrMz51PdCOqgEw==
+
+"@triton-one/yellowstone-grpc-napi-darwin-x64@0.0.5":
+  version "0.0.5"
+  resolved "https://registry.yarnpkg.com/@triton-one/yellowstone-grpc-napi-darwin-x64/-/yellowstone-grpc-napi-darwin-x64-0.0.5.tgz#00b046de7c6935015713005868eedbdcc08363a5"
+  integrity sha512-Lj5rR0T9wB3xeq76VtaJUHyaNstu0Mc2kwieAtHOigGfaCUvGwc5XgpbYcx5aVrUq4R8gGF9kM/9+n+GcqXxig==
+
+"@triton-one/yellowstone-grpc-napi-linux-x64-gnu@0.0.5":
+  version "0.0.5"
+  resolved "https://registry.yarnpkg.com/@triton-one/yellowstone-grpc-napi-linux-x64-gnu/-/yellowstone-grpc-napi-linux-x64-gnu-0.0.5.tgz#2b997f15d63904b9239734bd2b2d2df50ab8278a"
+  integrity sha512-Cx6ifzYSyaGn5uF0wN5dwwWS/wj6sDWIqZa8YRTuF6pP5pkjM78neoHNMr9taOrH5LRtwC1JSaSYyQw+inGq4g==
+
+"@triton-one/yellowstone-grpc-napi-linux-x64-musl@0.0.5":
+  version "0.0.5"
+  resolved "https://registry.yarnpkg.com/@triton-one/yellowstone-grpc-napi-linux-x64-musl/-/yellowstone-grpc-napi-linux-x64-musl-0.0.5.tgz#dc7bd421716157f8ca339b4075e881b6f5a9627b"
+  integrity sha512-lLb5sBVAoELgjrX57qcxe0FtJTtDaBxo4KOCQfuqqYgeEd1ooOhGeuYx2KO+zMbBXa8+8OD4mt4ZHcW5b/n9tg==
+
+"@triton-one/yellowstone-grpc@5.0.1":
+  version "5.0.1"
+  resolved "https://registry.yarnpkg.com/@triton-one/yellowstone-grpc/-/yellowstone-grpc-5.0.1.tgz#c68a024c18d4e40817ff42504a996777d4ee4e34"
+  integrity sha512-8HADdlWlHPlNday+Ii54CmHjyUxX6DN6LvYUf9zOQv2EqomQPaiqkEQ9hW9MCMqGO0ZoEtt/59Ef6mBXptag1A==
   dependencies:
-    "@grpc/grpc-js" "^1.8.0"
+    "@bufbuild/protobuf" "=2.10.2"
+    "@solana/addresses" "=5.1.0"
+    "@solana/rpc-api" "=5.1.0"
+    "@solana/rpc-types" "=5.1.0"
+  optionalDependencies:
+    "@triton-one/yellowstone-grpc-napi-darwin-arm64" "0.0.5"
+    "@triton-one/yellowstone-grpc-napi-darwin-x64" "0.0.5"
+    "@triton-one/yellowstone-grpc-napi-linux-x64-gnu" "0.0.5"
+    "@triton-one/yellowstone-grpc-napi-linux-x64-musl" "0.0.5"
 
 "@ts-graphviz/adapter@^2.0.6":
   version "2.0.6"
