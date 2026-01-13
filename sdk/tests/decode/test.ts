@@ -187,10 +187,11 @@ function testPerpPosition(anchor: PerpPosition, custom: PerpPosition) {
 	assert(anchor.openAsks.eq(custom.openAsks));
 	assert(anchor.settledPnl.eq(custom.settledPnl));
 	assert(anchor.lpShares.eq(custom.lpShares));
-	assert(anchor.lastBaseAssetAmountPerLp.eq(custom.lastBaseAssetAmountPerLp));
 	assert(anchor.lastQuoteAssetAmountPerLp.eq(custom.lastQuoteAssetAmountPerLp));
 	assert(anchor.openOrders === custom.openOrders);
 	assert(anchor.perLpBase === custom.perLpBase);
+	assert(anchor.isolatedPositionScaledBalance.eq(custom.isolatedPositionScaledBalance));
+	assert(anchor.positionFlag === custom.positionFlag);
 }
 
 function* getOrders(orders: Order[]) {
