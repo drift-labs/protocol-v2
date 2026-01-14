@@ -9,9 +9,9 @@ import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 import { startAnchor } from 'solana-bankrun';
 import { AccountInfo, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
-import { DEFAULT_WORMHOLE_PROGRAM_ID } from '@pythnetwork/pyth-solana-receiver';
 import { WORMHOLE_DATA } from './pythPullOracleData';
 import { initializeQuoteSpotMarket, mockUSDCMint } from './testHelpers';
+import { DEFAULT_WORMHOLE_PROGRAM_ID } from '../sdk/src/pyth';
 
 // set up account infos to load into banks client
 const GUARDIAN_SET_ACCOUNT_INFO: AccountInfo<Buffer> = {
