@@ -289,9 +289,9 @@ export class TitanClient {
 	public async getSwap({
 		userPublicKey,
 	}: {
-		inputMint: PublicKey;
-		outputMint: PublicKey;
-		amount: BN;
+		inputMint?: PublicKey;
+		outputMint?: PublicKey;
+		amount?: BN;
 		userPublicKey: PublicKey;
 		maxAccounts?: number;
 		slippageBps?: number;
