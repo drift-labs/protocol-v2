@@ -517,7 +517,7 @@ describe('update amm', () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
 				markOraclePercentDivergence: new BN(1000000),
-				oracleTwap5minPercentDivergence: new BN(1000000),
+				oracleTwap5MinPercentDivergence: new BN(1000000),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),

@@ -329,7 +329,7 @@ describe('delist market', () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
 				markOraclePercentDivergence: new BN(10).mul(PERCENTAGE_PRECISION),
-				oracleTwap5minPercentDivergence: new BN(10).mul(PERCENTAGE_PRECISION),
+				oracleTwap5MinPercentDivergence: new BN(10).mul(PERCENTAGE_PRECISION),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),

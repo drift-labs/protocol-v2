@@ -812,7 +812,7 @@ describe('AMM Tests', () => {
 		const maxOffset = Math.max(
 			mockAmm.maxSpread / 5,
 			(PERCENTAGE_PRECISION.toNumber() / 10000) *
-				(mockAmm.curveUpdateIntensity - 100)
+			(mockAmm.curveUpdateIntensity - 100)
 		);
 		const liquidityFraction = calculateInventoryLiquidityRatio(
 			mockAmm.baseAssetAmountWithAmm,
@@ -1025,7 +1025,7 @@ describe('AMM Tests', () => {
 		const maxOffset = Math.max(
 			mockAmm.maxSpread / 5,
 			(PERCENTAGE_PRECISION.toNumber() / 10000) *
-				(mockAmm.curveUpdateIntensity - 100)
+			(mockAmm.curveUpdateIntensity - 100)
 		);
 		const liquidityFraction = calculateInventoryLiquidityRatio(
 			mockAmm.baseAssetAmountWithAmm,
@@ -1194,7 +1194,7 @@ describe('AMM Tests', () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
 				markOraclePercentDivergence: PERCENTAGE_PRECISION.divn(10),
-				oracleTwap5minPercentDivergence: PERCENTAGE_PRECISION.divn(10),
+				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION.divn(10),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(10),

@@ -28,11 +28,7 @@ import {
 	getPublicKeyAndSourceFromOracleId,
 } from '../oracles/oracleId';
 import { OracleClientCache } from '../oracles/oracleClientCache';
-import {
-	findDelistedPerpMarketsAndOracles,
-	normalizePerpMarketAccount,
-	normalizeSpotMarketAccount,
-} from './utils';
+import { findDelistedPerpMarketsAndOracles } from './utils';
 
 export class grpcDriftClientAccountSubscriberV2
 	implements DriftClientAccountSubscriber
@@ -136,12 +132,11 @@ export class grpcDriftClientAccountSubscriberV2
 				perpMarketAccountInfos
 					.filter((accountInfo) => !!accountInfo)
 					.map((accountInfo) => {
-						const perpMarket = normalizePerpMarketAccount(
+						const perpMarket: PerpMarketAccount =
 							this.program.coder.accounts.decode(
 								'perpMarket',
 								accountInfo.data
-							)
-						);
+							);
 						return [perpMarket.marketIndex, perpMarket];
 					})
 			);
@@ -166,12 +161,11 @@ export class grpcDriftClientAccountSubscriberV2
 				spotMarketAccountInfos
 					.filter((accountInfo) => !!accountInfo)
 					.map((accountInfo) => {
-						const spotMarket = normalizeSpotMarketAccount(
+						const spotMarket: SpotMarketAccount =
 							this.program.coder.accounts.decode(
 								'spotMarket',
 								accountInfo.data
-							)
-						);
+							);
 						return [spotMarket.marketIndex, spotMarket];
 					})
 			);

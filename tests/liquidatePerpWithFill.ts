@@ -129,7 +129,7 @@ describe('liquidate perp (no open orders)', () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
 				markOraclePercentDivergence: PERCENTAGE_PRECISION.muln(100),
-				oracleTwap5minPercentDivergence: PERCENTAGE_PRECISION.muln(100),
+				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION.muln(100),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),

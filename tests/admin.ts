@@ -218,6 +218,7 @@ describe('admin', () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
 				markOraclePercentDivergence: new BN(1000000),
+				// @ts-ignore
 				oracleTwap5MinPercentDivergence: new BN(1000000),
 			},
 			validity: {
@@ -232,9 +233,6 @@ describe('admin', () => {
 
 		await driftClient.fetchAccounts();
 		const state = driftClient.getStateAccount();
-		console.log(
-			state.oracleGuardRails.priceDivergence.oracleTwap5MinPercentDivergence
-		);
 
 		assert(
 			JSON.stringify(oracleGuardRails) ===

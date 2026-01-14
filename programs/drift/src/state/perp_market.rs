@@ -603,10 +603,9 @@ impl PerpMarket {
 
     pub fn get_open_interest(&self) -> u128 {
         self.amm
-            .base_asset_amount_long
-            .abs()
-            .max(self.amm.base_asset_amount_short.abs())
+            .base_asset_amount_long()
             .unsigned_abs()
+            .max(self.amm.base_asset_amount_short().unsigned_abs())
     }
 
     pub fn get_market_depth_for_funding_rate(&self) -> DriftResult<u64> {

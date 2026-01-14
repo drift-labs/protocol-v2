@@ -42,7 +42,7 @@
 		"access": "public"
 	},
 	"dependencies": {
-		"@coral-xyz/anchor": "npm:@coral-xyz/anchor@0.32.1",
+		"@coral-xyz/anchor": "npm:@coral-xyz/anchor@0.31.1",
 		"@coral-xyz/anchor-29": "npm:@coral-xyz/anchor@0.29.0",
 		"@ellipsis-labs/phoenix-sdk": "1.4.5",
 		"@grpc/grpc-js": "1.14.0",
@@ -54,8 +54,8 @@
 		"@pythnetwork/pyth-solana-receiver": "0.7.0",
 		"@solana/spl-token": "0.4.13",
 		"@solana/web3.js": "1.98.0",
-		"@switchboard-xyz/common": "5.5.0",
-		"@switchboard-xyz/on-demand": "3.7.3",
+		"@switchboard-xyz/common": "5.6.1",
+		"@switchboard-xyz/on-demand": "3.8.2",
 		"@triton-one/yellowstone-grpc": "1.4.1",
 		"anchor-bankrun": "0.5.0",
 		"gill": "^0.10.3",

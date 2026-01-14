@@ -12,7 +12,8 @@ import { BulkAccountLoader } from './bulkAccountLoader';
 import { DriftProgram } from '../config';
 
 export class PollingUserStatsAccountSubscriber
-	implements UserStatsAccountSubscriber {
+	implements UserStatsAccountSubscriber
+{
 	isSubscribed: boolean;
 	program: DriftProgram;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserStatsAccountEvents>;

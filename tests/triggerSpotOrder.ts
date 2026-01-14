@@ -118,7 +118,7 @@ describe('trigger orders', () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
 				markOraclePercentDivergence: PERCENTAGE_PRECISION.mul(new BN(10)),
-				oracleTwap5minPercentDivergence: PERCENTAGE_PRECISION.mul(new BN(10)),
+				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION.mul(new BN(10)),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),

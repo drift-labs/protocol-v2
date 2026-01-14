@@ -8,8 +8,9 @@ fi
 export ANCHOR_WALLET=~/.config/solana/id.json
 
 test_files=(
-	lpPool.ts
-	lpPoolSwap.ts
+	#lpPool.ts
+	#lpPoolSwap.ts
+  oracleDiffSources.ts
 )
 
 for test_file in ${test_files[@]}; do

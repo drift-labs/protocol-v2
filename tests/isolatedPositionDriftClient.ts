@@ -156,7 +156,7 @@ describe('drift client', () => {
 
 		assert.ok(
 			JSON.stringify(depositRecord.direction) ===
-			JSON.stringify({ deposit: {} })
+				JSON.stringify({ deposit: {} })
 		);
 		assert.ok(depositRecord.amount.eq(new BN(10000000)));
 	});
@@ -216,7 +216,7 @@ describe('drift client', () => {
 
 		assert.ok(
 			JSON.stringify(depositRecord.direction) ===
-			JSON.stringify({ withdraw: {} })
+				JSON.stringify({ withdraw: {} })
 		);
 		assert.ok(depositRecord.amount.eq(new BN(10000000)));
 	});

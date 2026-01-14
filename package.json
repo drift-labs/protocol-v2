@@ -5,7 +5,7 @@
 	"author": "",
 	"license": "ISC",
 	"devDependencies": {
-		"@coral-xyz/anchor": "npm:@coral-xyz/anchor@0.32.1",
+		"@coral-xyz/anchor": "npm:@coral-xyz/anchor@0.31.1",
 		"@coral-xyz/anchor-29": "npm:@coral-xyz/anchor@0.29.0",
 		"@project-serum/common": "0.0.1-beta.3",
 		"@project-serum/serum": "0.13.65",
@@ -30,8 +30,8 @@
 	"dependencies": {
 		"@ellipsis-labs/phoenix-sdk": "1.4.2",
 		"@pythnetwork/pyth-solana-receiver": "0.8.0",
-		"@switchboard-xyz/common": "5.5.0",
-		"@switchboard-xyz/on-demand": "3.7.3",
+		"@switchboard-xyz/common": "5.6.1",
+		"@switchboard-xyz/on-demand": "3.8.2",
 		"@types/bs58": "^5.0.0",
 		"anchor-bankrun": "0.5.0",
 		"chai-bn": "0.2.2",

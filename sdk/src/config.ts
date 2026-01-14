@@ -20,10 +20,6 @@ import { Drift } from './idl/drift';
 import { getOracleId } from './oracles/oracleId';
 import { OracleInfo } from './oracles/types';
 import { PerpMarketAccount, SpotMarketAccount } from './types';
-import {
-	normalizePerpMarketAccount,
-	normalizeSpotMarketAccount,
-} from './accounts/utils';
 
 export type DriftProgram = Program<Drift>;
 
@@ -196,16 +192,12 @@ export async function findAllMarketAndOracles(program: DriftProgram): Promise<{
 	const perpMarketProgramAccounts: ProgramAccount<PerpMarketAccount>[] =
 		perpMarketProgramAccountsRaw.map((account) => ({
 			publicKey: account.publicKey,
-			account: normalizePerpMarketAccount(
-				account.account
-			) as PerpMarketAccount,
+			account: account.account as PerpMarketAccount,
 		}));
 	const spotMarketProgramAccounts: ProgramAccount<SpotMarketAccount>[] =
 		spotMarketProgramAccountsRaw.map((account) => ({
 			publicKey: account.publicKey,
-			account: normalizeSpotMarketAccount(
-				account.account
-			) as SpotMarketAccount,
+			account: account.account as SpotMarketAccount,
 		}));
 
 	for (const perpMarketProgramAccount of perpMarketProgramAccounts) {

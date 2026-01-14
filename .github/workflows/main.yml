@@ -14,8 +14,8 @@ defaults:
 env:
   CARGO_TERM_COLOR: always
   RUST_TOOLCHAIN: 1.91.1
-  SOLANA_VERSION: 2.3.0
-  ANCHOR_VERSION: 0.31.1
+  SOLANA_VERSION: 2.3.11
+  ANCHOR_VERSION: 0.32.1
   NODE_VERSION: "22.14.x"
 
 jobs:
@@ -344,7 +344,7 @@ jobs:
       - name: Verifiable Build
         run: |
           docker -v
-          anchor build --verifiable -p drift -s ${{ env.SOLANA_VERSION }} -d solanafoundation/anchor:v${{ env.ANCHOR_VERSION }} --no-idl
+          anchor build --verifiable  --skip-lint --no-idl -p drift -d solanafoundation/anchor:${{ env.ANCHOR_VERSION }} -s v${{ env.SOLANA_VERSION }}
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4

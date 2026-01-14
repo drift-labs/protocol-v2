@@ -148,7 +148,7 @@ describe('spot swap', () => {
 		const oracleGuardrails = await makerDriftClient.getStateAccount()
 			.oracleGuardRails;
 		oracleGuardrails.validity.tooVolatileRatio = new BN(10000);
-		oracleGuardrails.priceDivergence.oracleTwap5minPercentDivergence = new BN(
+		oracleGuardrails.priceDivergence.oracleTwap5MinPercentDivergence = new BN(
 			100
 		).mul(PERCENTAGE_PRECISION);
 

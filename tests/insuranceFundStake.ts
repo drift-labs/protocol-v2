@@ -853,7 +853,7 @@ describe('insurance fund stake', () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
 				markOraclePercentDivergence: PERCENTAGE_PRECISION,
-				oracleTwap5minPercentDivergence: PERCENTAGE_PRECISION,
+				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION,
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),

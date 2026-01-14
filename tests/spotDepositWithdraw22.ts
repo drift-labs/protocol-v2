@@ -266,7 +266,7 @@ describe('spot deposit and withdraw 22', () => {
 			)
 		);
 		assert(
-			spotMarket.historicalOracleData.lastOraclePriceTwap5min.eq(
+			spotMarket.historicalOracleData.lastOraclePriceTwap5Min.eq(
 				new BN(30 * PRICE_PRECISION.toNumber())
 			)
 		);
@@ -363,7 +363,7 @@ describe('spot deposit and withdraw 22', () => {
 			)
 		);
 		assert(
-			spotMarket.historicalOracleData.lastOraclePriceTwap5min.eq(
+			spotMarket.historicalOracleData.lastOraclePriceTwap5Min.eq(
 				new BN(30 * PRICE_PRECISION.toNumber())
 			)
 		);

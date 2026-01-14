@@ -13,10 +13,6 @@ import {
 	SpotMarketAccount,
 	StateAccount,
 } from '../types';
-import {
-	normalizePerpMarketAccount,
-	normalizeSpotMarketAccount,
-} from './utils';
 
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
@@ -211,12 +207,12 @@ export class WebSocketDriftClientAccountSubscriberV2
 					'perpMarket',
 					this.program,
 					(_accountName: string, buffer: Buffer) => {
-						const decoded =
+						const decoded: PerpMarketAccount =
 							this.program.account.perpMarket.coder.accounts.decodeUnchecked(
 								'perpMarket',
 								buffer
 							);
-						return normalizePerpMarketAccount(decoded);
+						return decoded;
 					},
 					{
 						filters: [getPerpMarketAccountsFilter()],
@@ -232,12 +228,12 @@ export class WebSocketDriftClientAccountSubscriberV2
 					'spotMarket',
 					this.program,
 					(_accountName: string, buffer: Buffer) => {
-						const decoded =
+						const decoded: SpotMarketAccount =
 							this.program.account.spotMarket.coder.accounts.decodeUnchecked(
 								'spotMarket',
 								buffer
 							);
-						return normalizeSpotMarketAccount(decoded);
+						return decoded;
 					},
 					{
 						filters: [getSpotMarketAccountsFilter()],

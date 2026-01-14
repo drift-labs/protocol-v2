@@ -914,7 +914,7 @@ export type HistoricalOracleData = {
 	lastOracleDelay: BN;
 	lastOracleConf: BN;
 	lastOraclePriceTwap: BN;
-	lastOraclePriceTwap5min: BN;
+	lastOraclePriceTwap5Min: BN;
 	lastOraclePriceTwapTs: BN;
 };
 
@@ -1434,9 +1434,9 @@ export interface IWallet {
 	publicKey: PublicKey;
 	payer?: Keypair;
 	supportedTransactionVersions?:
-	| ReadonlySet<TransactionVersion>
-	| null
-	| undefined;
+		| ReadonlySet<TransactionVersion>
+		| null
+		| undefined;
 }
 export interface IVersionedWallet {
 	signVersionedTransaction(
@@ -1480,7 +1480,7 @@ export type OrderFillerRewardStructure = {
 export type OracleGuardRails = {
 	priceDivergence: {
 		markOraclePercentDivergence: BN;
-		oracleTwap5minPercentDivergence: BN;
+		oracleTwap5MinPercentDivergence: BN;
 	};
 	validity: {
 		slotsBeforeStaleForAmm: BN;

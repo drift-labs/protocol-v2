@@ -1,9 +1,5 @@
 import * as anchor from '@coral-xyz/anchor';
-import {
-	AnchorProvider,
-	Program as Program30,
-	Provider,
-} from '@coral-xyz/anchor';
+import { AnchorProvider, Provider } from '@coral-xyz/anchor';
 import { Idl as Idl29, Program as Program29 } from '@coral-xyz/anchor-29';
 
 import {
@@ -66,7 +62,6 @@ import {
 	BankrunConnection,
 	BankrunContextWrapper,
 } from '../sdk/src/bankrun/bankrunConnection';
-import { Drift } from '../sdk/src/idl/drift';
 import pythIDL from '../sdk/src/idl/pyth.json';
 
 export async function mockOracle(
@@ -399,7 +394,7 @@ export async function createUSDCAccountForUser(
 
 export async function initializeAndSubscribeDriftClient(
 	connection: Connection,
-	program: Program30<Drift>,
+	program: DriftProgram,
 	userKeyPair: Keypair,
 	marketIndexes: number[],
 	bankIndexes: number[],
@@ -437,7 +432,7 @@ export async function initializeAndSubscribeDriftClient(
 export async function createUserWithUSDCAccount(
 	context: BankrunContextWrapper,
 	usdcMint: Keypair,
-	chProgram: Program30<Drift>,
+	chProgram: DriftProgram,
 	usdcAmount: BN,
 	marketIndexes: number[],
 	bankIndexes: number[],
@@ -522,7 +517,7 @@ export async function fundWsolTokenAccountForUser(
 export async function createUserWithUSDCAndWSOLAccount(
 	context: BankrunContextWrapper,
 	usdcMint: Keypair,
-	chProgram: Program30<Drift>,
+	chProgram: DriftProgram,
 	solAmount: BN,
 	usdcAmount: BN,
 	marketIndexes: number[],
@@ -1384,7 +1379,7 @@ export async function placeAndFillVammTrade({
 
 export async function overwriteConstituentAccount(
 	bankrunContextWrapper: BankrunContextWrapper,
-	program: Program30<Drift>,
+	program: DriftProgram,
 	constituentPublicKey: PublicKey,
 	overwriteFields: Array<[key: keyof ConstituentAccount, value: any]>
 ) {

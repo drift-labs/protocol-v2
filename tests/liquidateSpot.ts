@@ -126,7 +126,7 @@ describe('liquidate spot', () => {
 
 		const oracleGuardrails = await driftClient.getStateAccount()
 			.oracleGuardRails;
-		oracleGuardrails.priceDivergence.oracleTwap5minPercentDivergence = new BN(
+		oracleGuardrails.priceDivergence.oracleTwap5MinPercentDivergence = new BN(
 			100
 		).mul(PERCENTAGE_PRECISION);
 		await driftClient.updateOracleGuardRails(oracleGuardrails);

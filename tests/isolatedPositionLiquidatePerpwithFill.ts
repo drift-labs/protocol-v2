@@ -25,7 +25,12 @@ import {
 	mockUserUSDCAccount,
 	setFeedPriceNoProgram,
 } from './testHelpers';
-import { DriftProgram, OrderType, PERCENTAGE_PRECISION, PerpOperation } from '../sdk';
+import {
+	DriftProgram,
+	OrderType,
+	PERCENTAGE_PRECISION,
+	PerpOperation,
+} from '../sdk';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
@@ -77,7 +82,6 @@ describe('liquidate perp (no open orders)', () => {
 
 		eventSubscriber = new EventSubscriber(
 			bankrunContextWrapper.connection.toConnection(),
-			//@ts-ignore
 			chProgram
 		);
 
@@ -127,7 +131,7 @@ describe('liquidate perp (no open orders)', () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
 				markOraclePercentDivergence: PERCENTAGE_PRECISION.muln(100),
-				oracleTwap5minPercentDivergence: PERCENTAGE_PRECISION.muln(100),
+				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION.muln(100),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),

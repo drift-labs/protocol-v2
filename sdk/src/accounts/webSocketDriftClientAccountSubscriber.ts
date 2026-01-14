@@ -23,11 +23,7 @@ import { OracleInfo, OraclePriceData } from '../oracles/types';
 import { OracleClientCache } from '../oracles/oracleClientCache';
 import { QUOTE_ORACLE_PRICE_DATA } from '../oracles/quoteAssetOracleClient';
 import { findAllMarketAndOracles, DriftProgram } from '../config';
-import {
-	findDelistedPerpMarketsAndOracles,
-	normalizePerpMarketAccount,
-	normalizeSpotMarketAccount,
-} from './utils';
+import { findDelistedPerpMarketsAndOracles } from './utils';
 import { getOracleId } from '../oracles/oracleId';
 import { OracleSource } from '../types';
 import { WebSocketAccountSubscriberV2 } from './webSocketAccountSubscriberV2';
@@ -174,7 +170,7 @@ export class WebSocketDriftClientAccountSubscriber
 		console.info('start state account sub');
 		// create and activate main state account subscription
 		this.stateAccountSubscriber = new WebSocketAccountSubscriber(
-			'State',
+			'state',
 			this.program,
 			statePublicKey,
 			undefined,
@@ -241,12 +237,11 @@ export class WebSocketDriftClientAccountSubscriber
 				perpMarketAccountInfos
 					.filter((accountInfo) => !!accountInfo)
 					.map((accountInfo) => {
-						const perpMarket = normalizePerpMarketAccount(
+						const perpMarket: PerpMarketAccount =
 							this.program.coder.accounts.decode(
 								'perpMarket',
 								accountInfo.data
-							)
-						);
+							);
 						return [perpMarket.marketIndex, perpMarket];
 					})
 			);
@@ -268,12 +263,11 @@ export class WebSocketDriftClientAccountSubscriber
 				spotMarketAccountInfos
 					.filter((accountInfo) => !!accountInfo)
 					.map((accountInfo) => {
-						const spotMarket = normalizeSpotMarketAccount(
+						const spotMarket: SpotMarketAccount =
 							this.program.coder.accounts.decode(
 								'spotMarket',
 								accountInfo.data
-							)
-						);
+							);
 						return [spotMarket.marketIndex, spotMarket];
 					})
 			);

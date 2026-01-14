@@ -141,7 +141,7 @@ describe('max leverage order params', () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
 				markOraclePercentDivergence: PERCENTAGE_PRECISION.div(new BN(10)),
-				oracleTwap5minPercentDivergence: PERCENTAGE_PRECISION,
+				oracleTwap5MinPercentDivergence: PERCENTAGE_PRECISION,
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),

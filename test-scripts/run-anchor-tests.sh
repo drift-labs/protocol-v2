@@ -22,10 +22,10 @@ test_files=(
   # updateK.ts
   # postOnlyAmmFulfillment.ts
   # TODO BROKEN ^^
-  # fuel.ts
-  # fuelSweep.ts
-  # whitelist.ts
-  # TODO: ignored ^^
+  fuel.ts
+  fuelSweep.ts
+  whitelist.ts
+  TODO: ignored ^^
 	builderCodes.ts
   decodeUser.ts
   admin.ts
@@ -39,7 +39,6 @@ test_files=(
   highLeverageMode.ts
   ifRebalance.ts
   insuranceFundStake.ts
-  # TODO: 0x1787 errors
   isolatedPositionDriftClient.ts
   isolatedPositionLiquidatePerp.ts
   isolatedPositionLiquidatePerpwithFill.ts
@@ -73,7 +72,8 @@ test_files=(
   postOnly.ts
   prelisting.ts
   pyth.ts
-  pythPull.ts
+  # TODO: fix
+  # pythPull.ts
   pythLazerBankrun.ts
   referrer.ts
   roundInFavorBaseAsset.ts

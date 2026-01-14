@@ -217,7 +217,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		await driftClient.subscribe();
 
 		const oracleGuardrails = driftClient.getStateAccount().oracleGuardRails;
-		oracleGuardrails.priceDivergence.oracleTwap5minPercentDivergence = new BN(
+		oracleGuardrails.priceDivergence.oracleTwap5MinPercentDivergence = new BN(
 			12
 		).mul(PERCENTAGE_PRECISION);
 		await driftClient.updateOracleGuardRails(oracleGuardrails);
@@ -865,7 +865,7 @@ describe('imbalanced large perp pnl w/ borrow hitting limits', () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
 				markOraclePercentDivergence: new BN(12).mul(PERCENTAGE_PRECISION),
-				oracleTwap5minPercentDivergence: new BN(100).mul(PERCENTAGE_PRECISION),
+				oracleTwap5MinPercentDivergence: new BN(100).mul(PERCENTAGE_PRECISION),
 			},
 			validity: {
 				slotsBeforeStaleForAmm: new BN(100),

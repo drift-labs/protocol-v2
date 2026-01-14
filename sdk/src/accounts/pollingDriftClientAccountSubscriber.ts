@@ -22,11 +22,7 @@ import {
 	getSpotMarketPublicKey,
 } from '../addresses/pda';
 import { BulkAccountLoader } from './bulkAccountLoader';
-import {
-	findDelistedPerpMarketsAndOracles,
-	normalizePerpMarketAccount,
-	normalizeSpotMarketAccount,
-} from './utils';
+import { findDelistedPerpMarketsAndOracles } from './utils';
 import { PublicKey } from '@solana/web3.js';
 import { OracleInfo, OraclePriceData } from '../oracles/types';
 import { OracleClientCache } from '../oracles/oracleClientCache';
@@ -259,16 +255,10 @@ export class PollingDriftClientAccountSubscriber
 			(buffer: Buffer, slot: number) => {
 				if (!buffer) return;
 
-				let data = this.program.coder.accounts.decodeUnchecked(
+				const data = this.program.coder.accounts.decodeUnchecked(
 					accountToPoll.key,
 					buffer
 				);
-				// Normalize account data to fix field name mismatches
-				if (accountToPoll.key === 'perpMarket') {
-					data = normalizePerpMarketAccount(data);
-				} else if (accountToPoll.key === 'spotMarket') {
-					data = normalizeSpotMarketAccount(data);
-				}
 				const dataAndSlot = {
 					data,
 					slot,
