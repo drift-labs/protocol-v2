@@ -124,11 +124,12 @@ jobs:
           key: ${{ runner.os }}-anchor-cli-${{ env.ANCHOR_VERSION }}
 
       - name: Install Anchor CLI
-        if: steps.cache-anchor.outputs.cache-hit != 'true'
+        # if: steps.cache-anchor.outputs.cache-hit != 'true'
         run: |
           sudo apt update -y && sudo apt install libudev-dev
           cargo install --git https://github.com/coral-xyz/anchor avm --force
           avm install ${{ env.ANCHOR_VERSION }}
+          avm use ${{ env.ANCHOR_VERSION }}
 
       - name: Setup node
         uses: actions/setup-node@v2
@@ -157,7 +158,6 @@ jobs:
         env:
           RUST_LOG: solana_runtime::message_processor::stable_log=info
         run: |
-          avm use ${{ env.ANCHOR_VERSION }}
           bash test-scripts/run-anchor-tests.sh
   verify-sdk-configs:
     name: Verify SDK Configs
