@@ -374,10 +374,10 @@ describe('pyth-oracle', () => {
 		console.log(
 			'PRICE',
 			convertToNumber(
-				calculateReservePrice(
-					driftClient.getPerpMarketAccount(marketIndex),
-					driftClient.getOracleDataForPerpMarket(marketIndex)
-				)
+				calculateReservePrice(driftClient.getPerpMarketAccount(marketIndex), {
+					...driftClient.getOracleDataForPerpMarket(marketIndex),
+					isMMOracleActive: false,
+				})
 			)
 		);
 
@@ -401,10 +401,10 @@ describe('pyth-oracle', () => {
 		console.log(
 			'PRICE AFTER',
 			convertToNumber(
-				calculateReservePrice(
-					market,
-					driftClient.getOracleDataForPerpMarket(marketIndex)
-				)
+				calculateReservePrice(market, {
+					...driftClient.getOracleDataForPerpMarket(marketIndex),
+					isMMOracleActive: false,
+				})
 			)
 		);
 

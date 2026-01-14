@@ -22,10 +22,10 @@ test_files=(
   # updateK.ts
   # postOnlyAmmFulfillment.ts
   # TODO BROKEN ^^
-  fuel.ts
-  fuelSweep.ts
-  whitelist.ts
-  TODO: ignored ^^
+  # fuel.ts
+  # fuelSweep.ts
+  # whitelist.ts
+  # TODO: ignored ^^
 	builderCodes.ts
   decodeUser.ts
   admin.ts
@@ -72,8 +72,7 @@ test_files=(
   postOnly.ts
   prelisting.ts
   pyth.ts
-  # TODO: fix
-  # pythPull.ts
+  pythPull.ts
   pythLazerBankrun.ts
   referrer.ts
   roundInFavorBaseAsset.ts

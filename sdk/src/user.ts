@@ -348,8 +348,6 @@ export class User {
 			maxMarginRatio: 0,
 			isolatedPositionScaledBalance: ZERO,
 			positionFlag: 0,
-			perLpBase: 0,
-			remainderBaseAssetAmount: 0,
 		};
 	}
 

@@ -338,13 +338,11 @@ jobs:
 
       - name: Install Anchor CLI
         run: |
-          cargo install --git https://github.com/coral-xyz/anchor avm --force
-          avm install ${{ env.ANCHOR_VERSION }}
+          cargo install solana-verify --version 0.4.11
 
       - name: Verifiable Build
         run: |
-          docker -v
-          anchor build --verifiable  --skip-lint --no-idl -p drift -d solanafoundation/anchor:${{ env.ANCHOR_VERSION }} -s v${{ env.SOLANA_VERSION }}
+          solana-verify build --library-name drift -b solanafoundation/solana-verifiable-build:${{ env.SOLANA_VERSION }}
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4

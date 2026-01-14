@@ -1136,11 +1136,8 @@ export type PerpPosition = {
 	openAsks: BN;
 	settledPnl: BN;
 	lpShares: BN;
-	/**	 TODO: remove this field - it doesn't exist on chain */
-	remainderBaseAssetAmount: number;
 	maxMarginRatio: number;
 	lastQuoteAssetAmountPerLp: BN;
-	perLpBase: number;
 	isolatedPositionScaledBalance: BN;
 	positionFlag: number;
 };
@@ -1250,7 +1247,7 @@ export type Order = {
 	marketIndex: number;
 	price: BN;
 	baseAssetAmount: BN;
-	quoteAssetAmount: BN;
+	quoteAssetAmount?: BN;
 	baseAssetAmountFilled: BN;
 	quoteAssetAmountFilled: BN;
 	direction: PositionDirection;

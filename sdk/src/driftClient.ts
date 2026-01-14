@@ -219,6 +219,7 @@ import {
 	WormholeCoreBridgeSolana,
 	PythSolanaReceiver,
 } from './pyth';
+import { Drift } from './idl/drift';
 
 /**
  * Union type for swap clients (Titan and Jupiter) - Legacy type
