@@ -11,10 +11,7 @@ import {
 	JupiterClient,
 	QuoteResponse as JupiterQuoteResponse,
 } from '../jupiter/jupiterClient';
-import {
-	TitanClient,
-	SwapMode as TitanSwapMode,
-} from '../titan/titanClient';
+import { TitanClient, SwapMode as TitanSwapMode } from '../titan/titanClient';
 
 export type SwapMode = 'ExactIn' | 'ExactOut';
 export type SwapClientType = 'jupiter' | 'titan';
