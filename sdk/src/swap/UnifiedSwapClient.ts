@@ -13,7 +13,6 @@ import {
 } from '../jupiter/jupiterClient';
 import {
 	TitanClient,
-	QuoteResponse as TitanQuoteResponse,
 	SwapMode as TitanSwapMode,
 } from '../titan/titanClient';
 
