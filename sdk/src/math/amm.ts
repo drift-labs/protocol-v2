@@ -1067,7 +1067,7 @@ export function calculateSpreadReserves(
 			reservePrice,
 			amm.last24hAvgFundingRate,
 			liquidityFractionAfterDeadband,
-			amm.historicalOracleData.lastOraclePriceTwap5min,
+			amm.historicalOracleData.lastOraclePriceTwap5Min,
 			amm.lastMarkPriceTwap5min,
 			amm.historicalOracleData.lastOraclePriceTwap,
 			amm.lastMarkPriceTwap,

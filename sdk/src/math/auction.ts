@@ -284,7 +284,7 @@ export function getTriggerAuctionStartPrice(params: {
 		const oracleTwapSlow =
 			perpMarket.amm.historicalOracleData.lastOraclePriceTwap;
 		const oracleTwapFast =
-			perpMarket.amm.historicalOracleData.lastOraclePriceTwap5min;
+			perpMarket.amm.historicalOracleData.lastOraclePriceTwap5Min;
 
 		const offsetSlow = markTwapSlow.sub(oracleTwapSlow);
 		const offsetFast = markTwapFast.sub(oracleTwapFast);
