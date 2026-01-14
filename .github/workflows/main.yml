@@ -336,8 +336,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Anchor CLI
+      - name: Install Solana Verify CLI
         run: |
+          sudo apt update -y && sudo apt install libudev-dev
           cargo install solana-verify --version 0.4.11
 
       - name: Verifiable Build

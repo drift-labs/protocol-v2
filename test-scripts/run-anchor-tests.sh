@@ -97,7 +97,9 @@ test_files=(
   userOrderId.ts
 )
 
-
-for test_file in ${test_files[@]}; do
-  ts-mocha -t 300000 ./tests/${test_file} || exit 1
-done
+ts-mocha \
+  --parallel \
+  --jobs 4 \
+  --timeout 50000 \
+  --bail \
+  $(printf './tests/%s ' "${test_files[@]}") || exit 1

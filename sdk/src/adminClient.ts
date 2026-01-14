@@ -4601,17 +4601,15 @@ export class AdminClient extends DriftClient {
 	public async getUpdateFeatureBitFlagsMMOracleIx(
 		enable: boolean
 	): Promise<TransactionInstruction> {
-		return await this.program.instruction.updateFeatureBitFlagsMmOracle(
-			enable,
-			{
-				accounts: {
-					admin: this.useHotWalletAdmin
-						? this.wallet.publicKey
-						: this.getStateAccount().admin,
-					state: await this.getStatePublicKey(),
-				},
-			}
-		);
+		return await this.program.methods
+			.updateFeatureBitFlagsMmOracle(enable)
+			.accounts({
+				admin: this.useHotWalletAdmin
+					? this.wallet.publicKey
+					: this.getStateAccount().admin,
+				state: await this.getStatePublicKey(),
+			})
+			.instruction();
 	}
 
 	public async updateFeatureBitFlagsBuilderCodes(
