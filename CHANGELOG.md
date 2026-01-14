@@ -9,10 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.154.0] - 2026-01-08
+
+### Features
+
 - program: isolated positions [#1757](https://github.com/drift-labs/protocol-v2/pull/1757)
 - program: delete serum/openbook configs [#2066](https://github.com/drift-labs/protocol-v2/pull/2066)
 
 ### Fixes
+
+### Breaking
+
+## [2.153.0] - 2025-12-30
+
+### Features
+
+- ui: save titan tx when quoted and reuse on swap by @cha-kos in [#2055](https://github.com/drift-labs/protocol-v2/pull/2055)
+- feat: minified with esbuild by @LukasDeco in [#2056](https://github.com/drift-labs/protocol-v2/pull/2056)
+- ui: fix falsely failing quotes from titan by @cha-kos in [#2058](https://github.com/drift-labs/protocol-v2/pull/2058)
+
+### Fixes
+
+- security patch: check feed id after pyth pull atomic update [84b5011](https://github.com/drift-labs/protocol-v2/commit/84b50116c15050c7d19608cd01745a8f7fc39b92)
 
 ### Breaking
 

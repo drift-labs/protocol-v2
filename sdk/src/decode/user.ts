@@ -96,10 +96,12 @@ export function decodeUser(buffer: Buffer): UserAccount {
 			openOrders === 0 &&
 			quoteAssetAmount.eq(ZERO) &&
 			lpShares.eq(ZERO) &&
-			isolatedPositionScaledBalance.eq(ZERO)
-			&& !((positionFlag &
-				(PositionFlag.BeingLiquidated | PositionFlag.Bankruptcy)) >
-			0)
+			isolatedPositionScaledBalance.eq(ZERO) &&
+			!(
+				(positionFlag &
+					(PositionFlag.BeingLiquidated | PositionFlag.Bankruptcy)) >
+				0
+			)
 		) {
 			offset += 96;
 			continue;
