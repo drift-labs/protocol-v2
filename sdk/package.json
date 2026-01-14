@@ -1,6 +1,6 @@
 {
 	"name": "@drift-labs/sdk",
-	"version": "2.155.0-beta.2",
+	"version": "2.155.0-beta.3",
 	"main": "lib/node/index.js",
 	"types": "lib/node/index.d.ts",
 	"module": "./lib/browser/index.js",
@@ -51,7 +51,6 @@
 		"@project-serum/serum": "0.13.65",
 		"@pythnetwork/client": "2.5.3",
 		"@pythnetwork/price-service-sdk": "1.7.1",
-		"@pythnetwork/pyth-solana-receiver": "0.7.0",
 		"@solana/spl-token": "0.4.13",
 		"@solana/web3.js": "1.98.0",
 		"@switchboard-xyz/common": "3.0.14",
@@ -150,9 +149,9 @@
 		"has-ansi": "<6.0.1"
 	},
 	"browser": {
-		"helius-laserstream": false,
-		"@triton-one/yellowstone-grpc": false,
 		"@grpc/grpc-js": false,
+		"@triton-one/yellowstone-grpc": false,
+		"helius-laserstream": false,
 		"zstddec": false
 	}
 }
