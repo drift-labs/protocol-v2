@@ -173,11 +173,11 @@ fn use_mm_oracle() {
     let mut market = PerpMarket {
         market_index: 0,
         amm: AMM {
-            base_asset_reserve: 512295081967,
-            quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
-            sqrt_k: 500 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 22_100_000_000,
-            base_asset_amount_with_amm: (12295081967_i128),
+            base_asset_reserve: 512295081967.into(),
+            quote_asset_reserve: (488 * AMM_RESERVE_PRECISION).into(),
+            sqrt_k: (500 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: 22_100_000_000.into(),
+            base_asset_amount_with_amm: (12295081967_i128).into(),
             max_spread: 1000,
             mm_oracle_price: 130 * PRICE_PRECISION_I64 + 973,
             mm_oracle_slot: slot,
@@ -267,11 +267,11 @@ fn mm_oracle_confidence() {
     let market = PerpMarket {
         market_index: 0,
         amm: AMM {
-            base_asset_reserve: 512295081967,
-            quote_asset_reserve: 488 * AMM_RESERVE_PRECISION,
-            sqrt_k: 500 * AMM_RESERVE_PRECISION,
-            peg_multiplier: 22_100_000_000,
-            base_asset_amount_with_amm: (12295081967_i128),
+            base_asset_reserve: 512295081967.into(),
+            quote_asset_reserve: (488 * AMM_RESERVE_PRECISION).into(),
+            sqrt_k: (500 * AMM_RESERVE_PRECISION).into(),
+            peg_multiplier: 22_100_000_000.into(),
+            base_asset_amount_with_amm: (12295081967_i128).into(),
             max_spread: 1000,
             mm_oracle_price: 130 * PRICE_PRECISION_I64 + 999,
             mm_oracle_slot: slot,

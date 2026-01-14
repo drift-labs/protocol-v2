@@ -11,7 +11,7 @@ import {
 	getAssociatedTokenAddressSync,
 	TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
-import { BN, Program } from '@coral-xyz/anchor';
+import { BN, Program } from '@coral-xyz/anchor-29';
 
 export const OPENBOOK = new PublicKey(
 	'opnb2LAfJYbRMAHHvqjCwQxanZn7ReEHp1k81EohpZb'

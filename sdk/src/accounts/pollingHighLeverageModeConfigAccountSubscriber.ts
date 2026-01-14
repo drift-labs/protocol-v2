@@ -4,18 +4,18 @@ import {
 	HighLeverageModeConfigAccountEvents,
 	HighLeverageModeConfigAccountSubscriber,
 } from './types';
-import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
 import { BulkAccountLoader } from './bulkAccountLoader';
 import { HighLeverageModeConfig } from '../types';
+import { DriftProgram } from '../config';
 
 export class PollingHighLeverageModeConfigAccountSubscriber
 	implements HighLeverageModeConfigAccountSubscriber
 {
 	isSubscribed: boolean;
-	program: Program;
+	program: DriftProgram;
 	eventEmitter: StrictEventEmitter<
 		EventEmitter,
 		HighLeverageModeConfigAccountEvents
@@ -29,7 +29,7 @@ export class PollingHighLeverageModeConfigAccountSubscriber
 	highLeverageModeConfigAccountAndSlot?: DataAndSlot<HighLeverageModeConfig>;
 
 	public constructor(
-		program: Program,
+		program: DriftProgram,
 		publicKey: PublicKey,
 		accountLoader: BulkAccountLoader
 	) {
@@ -86,7 +86,7 @@ export class PollingHighLeverageModeConfigAccountSubscriber
 				}
 
 				const account = this.program.account.user.coder.accounts.decode(
-					'HighLeverageModeConfig',
+					'highLeverageModeConfig',
 					buffer
 				);
 				this.highLeverageModeConfigAccountAndSlot = { data: account, slot };
@@ -118,7 +118,11 @@ export class PollingHighLeverageModeConfigAccountSubscriber
 				(this.highLeverageModeConfigAccountAndSlot?.slot ?? 0)
 			) {
 				this.highLeverageModeConfigAccountAndSlot = {
-					data: dataAndContext.data as HighLeverageModeConfig,
+					data: {
+						maxUsers: dataAndContext.data.maxUsers,
+						currentUsers: dataAndContext.data.currentUsers,
+						reduceOnly: dataAndContext.data.reduceOnly > 0,
+					},
 					slot: dataAndContext.context.slot,
 				};
 			}

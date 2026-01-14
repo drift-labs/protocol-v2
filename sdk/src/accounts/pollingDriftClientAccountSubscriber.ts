@@ -7,7 +7,6 @@ import {
 	NotSubscribedError,
 	OraclesToPoll,
 } from './types';
-import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import {
@@ -23,12 +22,12 @@ import {
 	getSpotMarketPublicKey,
 } from '../addresses/pda';
 import { BulkAccountLoader } from './bulkAccountLoader';
-import { capitalize, findDelistedPerpMarketsAndOracles } from './utils';
+import { findDelistedPerpMarketsAndOracles } from './utils';
 import { PublicKey } from '@solana/web3.js';
 import { OracleInfo, OraclePriceData } from '../oracles/types';
 import { OracleClientCache } from '../oracles/oracleClientCache';
 import { QUOTE_ORACLE_PRICE_DATA } from '../oracles/quoteAssetOracleClient';
-import { findAllMarketAndOracles } from '../config';
+import { findAllMarketAndOracles, DriftProgram } from '../config';
 import { getOracleId } from '../oracles/oracleId';
 
 const ORACLE_DEFAULT_ID = getOracleId(
@@ -40,7 +39,7 @@ export class PollingDriftClientAccountSubscriber
 	implements DriftClientAccountSubscriber
 {
 	isSubscribed: boolean;
-	program: Program;
+	program: DriftProgram;
 	perpMarketIndexes: number[];
 	spotMarketIndexes: number[];
 	oracleInfos: OracleInfo[];
@@ -71,7 +70,7 @@ export class PollingDriftClientAccountSubscriber
 	private subscriptionPromiseResolver: (val: boolean) => void;
 
 	public constructor(
-		program: Program,
+		program: DriftProgram,
 		accountLoader: BulkAccountLoader,
 		perpMarketIndexes: number[],
 		spotMarketIndexes: number[],
@@ -256,11 +255,12 @@ export class PollingDriftClientAccountSubscriber
 			(buffer: Buffer, slot: number) => {
 				if (!buffer) return;
 
-				const account = this.program.account[
-					accountToPoll.key
-				].coder.accounts.decodeUnchecked(capitalize(accountToPoll.key), buffer);
+				const data = this.program.coder.accounts.decodeUnchecked(
+					accountToPoll.key,
+					buffer
+				);
 				const dataAndSlot = {
-					data: account,
+					data,
 					slot,
 				};
 				if (accountToPoll.mapKey != undefined) {
@@ -270,7 +270,7 @@ export class PollingDriftClientAccountSubscriber
 				}
 
 				// @ts-ignore
-				this.eventEmitter.emit(accountToPoll.eventType, account);
+				this.eventEmitter.emit(accountToPoll.eventType, data);
 				this.eventEmitter.emit('update');
 
 				if (!this.isSubscribed) {
@@ -328,17 +328,18 @@ export class PollingDriftClientAccountSubscriber
 			const { buffer, slot } = bufferAndSlot;
 
 			if (buffer) {
-				const account = this.program.account[
-					accountToPoll.key
-				].coder.accounts.decodeUnchecked(capitalize(accountToPoll.key), buffer);
+				const data = this.program.coder.accounts.decodeUnchecked(
+					accountToPoll.key,
+					buffer
+				);
 				if (accountToPoll.mapKey != undefined) {
 					this[accountToPoll.key].set(accountToPoll.mapKey, {
-						data: account,
+						data,
 						slot,
 					});
 				} else {
 					this[accountToPoll.key] = {
-						data: account,
+						data,
 						slot,
 					};
 				}

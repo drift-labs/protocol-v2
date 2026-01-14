@@ -1,44 +1,43 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import { PublicKey } from '@solana/web3.js';
 
 import {
-	TestClient,
 	BN,
-	OracleSource,
-	ZERO,
-	EventSubscriber,
-	PRICE_PRECISION,
-	getTokenAmount,
-	SpotBalanceType,
-	isVariant,
-	User,
-	QUOTE_PRECISION,
 	convertToNumber,
+	EventSubscriber,
+	getTokenAmount,
+	isVariant,
 	LIQUIDATION_PCT_PRECISION,
+	OracleSource,
+	PRICE_PRECISION,
+	QUOTE_PRECISION,
+	SpotBalanceType,
+	TestClient,
+	User,
+	ZERO,
 } from '../sdk/src';
 
+import { startAnchor } from 'solana-bankrun';
+import { PERCENTAGE_PRECISION } from '../sdk/src';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
+	createUserWithUSDCAndWSOLAccount,
+	createWSolTokenAccountForUser,
+	initializeQuoteSpotMarket,
+	initializeSolSpotMarket,
 	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
-	initializeQuoteSpotMarket,
-	createUserWithUSDCAndWSOLAccount,
-	createWSolTokenAccountForUser,
-	initializeSolSpotMarket,
-	sleep,
 	setFeedPriceNoProgram,
+	sleep,
 } from './testHelpers';
-import { PERCENTAGE_PRECISION } from '../sdk';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('liquidate spot', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -300,7 +299,7 @@ describe('liquidate spot', () => {
 		);
 
 		const liquidationRecord =
-			eventSubscriber.getEventsArray('LiquidationRecord')[0];
+			eventSubscriber.getEventsArray('liquidationRecord')[0];
 		assert(liquidationRecord.liquidationId === 1);
 		assert(isVariant(liquidationRecord.liquidationType, 'liquidateSpot'));
 		assert(liquidationRecord.liquidateSpot.assetPrice.eq(PRICE_PRECISION));

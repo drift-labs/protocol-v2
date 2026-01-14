@@ -22,6 +22,7 @@ describe('Verify Constants', function () {
 
 	// avoid breaking pre-commit
 	if (MAINNET_RPC_ENDPOINT === undefined || DEVNET_RPC_ENDPOINT === undefined) {
+		console.warn('expected MAINNET_RPC_ENDPOINT && DEVNET_RPC_ENDPOINT is set');
 		return;
 	}
 

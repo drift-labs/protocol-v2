@@ -1,38 +1,37 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import {
+	BASE_PRECISION,
 	BN,
+	EventSubscriber,
+	getLimitOrderParams,
+	getPrelaunchOraclePublicKey,
+	OracleSource,
+	PositionDirection,
 	PRICE_PRECISION,
 	TestClient,
-	PositionDirection,
 	User,
-	EventSubscriber,
-	BASE_PRECISION,
-	getLimitOrderParams,
-	OracleSource,
-	getPrelaunchOraclePublicKey,
 } from '../sdk/src';
 
+import { startAnchor } from 'solana-bankrun';
+import {
+	BID_ASK_SPREAD_PRECISION,
+	PEG_PRECISION,
+	PostOnlyParams,
+} from '../sdk/src';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
 	initializeQuoteSpotMarket,
 	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import {
-	BID_ASK_SPREAD_PRECISION,
-	PEG_PRECISION,
-	PostOnlyParams,
-} from '../sdk';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('prelisting', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let adminDriftClient: TestClient;
 	let adminDriftClientUser: User;

@@ -1,4 +1,3 @@
-import { Program } from '@coral-xyz/anchor';
 import {
 	Connection,
 	Finality,
@@ -10,6 +9,7 @@ import {
 import { WrappedEvents } from './types';
 import { promiseTimeout } from '../util/promiseTimeout';
 import { parseLogs } from './parse';
+import { DriftProgram } from '../config';
 
 type Log = { txSig: TransactionSignature; slot: number; logs: string[] };
 type FetchLogsResponse = {
@@ -135,9 +135,9 @@ function chunk<T>(array: readonly T[], size: number): T[][] {
 }
 
 export class LogParser {
-	private program: Program;
+	private program: DriftProgram;
 
-	constructor(program: Program) {
+	constructor(program: DriftProgram) {
 		this.program = program;
 	}
 

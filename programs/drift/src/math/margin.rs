@@ -155,9 +155,9 @@ pub fn calculate_perp_position_value_and_pnl(
     // the funding must be calculated before calculated the unrealized pnl w simulated lp position
     let unrealized_funding = calculate_funding_payment(
         if market_position.base_asset_amount > 0 {
-            market.amm.cumulative_funding_rate_long
+            market.amm.cumulative_funding_rate_long()
         } else {
-            market.amm.cumulative_funding_rate_short
+            market.amm.cumulative_funding_rate_short()
         },
         market_position,
     )?;
@@ -1077,9 +1077,9 @@ pub fn calculate_user_equity(
 
         let unrealized_funding = calculate_funding_payment(
             if market_position.base_asset_amount > 0 {
-                market.amm.cumulative_funding_rate_long
+                market.amm.cumulative_funding_rate_long()
             } else {
-                market.amm.cumulative_funding_rate_short
+                market.amm.cumulative_funding_rate_short()
             },
             market_position,
         )?;

@@ -1,55 +1,55 @@
 import * as anchor from '@coral-xyz/anchor';
+import { Keypair } from '@solana/web3.js';
 import { assert } from 'chai';
 import {
-	BN,
-	calculatePrice,
-	getMarketOrderParams,
-	OracleSource,
-	BID_ASK_SPREAD_PRECISION,
-	PEG_PRECISION,
-	QUOTE_SPOT_MARKET_INDEX,
-	getTokenAmount,
-	SpotBalanceType,
-	ZERO,
-	getLimitOrderParams,
-	TestClient,
-	OraclePriceData,
-	OracleGuardRails,
 	BASE_PRECISION,
+	BID_ASK_SPREAD_PRECISION,
+	BN,
 	BulkAccountLoader,
-	PERCENTAGE_PRECISION,
+	calculatePrice,
 	ContractTier,
-} from '../sdk';
-import { Keypair } from '@solana/web3.js';
-import { Program } from '@coral-xyz/anchor';
-
-import {
-	User,
-	// PRICE_PRECISION,
-	AMM_RESERVE_PRECISION,
-	QUOTE_PRECISION,
-	// calculateReservePrice,
-	PositionDirection,
-	EventSubscriber,
-	convertToNumber,
-	calculateBidAskPrice,
-	calculateUpdatedAMM,
-	calculateSpread,
-	calculateSpreadBN,
-	calculateInventoryScale,
-	calculateEffectiveLeverage,
-	calculateLiveOracleStd,
+	getLimitOrderParams,
+	getMarketOrderParams,
+	getTokenAmount,
+	OracleGuardRails,
+	OraclePriceData,
+	OracleSource,
+	PEG_PRECISION,
+	PERCENTAGE_PRECISION,
+	QUOTE_SPOT_MARKET_INDEX,
+	SpotBalanceType,
+	TestClient,
+	ZERO,
 } from '../sdk/src';
 
 import {
+	// PRICE_PRECISION,
+	AMM_RESERVE_PRECISION,
+	calculateBidAskPrice,
+	calculateEffectiveLeverage,
+	calculateInventoryScale,
+	calculateLiveOracleStd,
+	calculateSpread,
+	calculateSpreadBN,
+	calculateUpdatedAMM,
+	convertToNumber,
+	EventSubscriber,
+	// calculateReservePrice,
+	PositionDirection,
+	QUOTE_PRECISION,
+	User,
+} from '../sdk/src';
+
+import { DriftProgram } from '../sdk/src/config';
+import {
 	getFeedData,
-	initUserAccounts,
-	mockOracle,
-	mockUserUSDCAccount,
-	mockUSDCMint,
-	setFeedPrice,
 	getOraclePriceData,
 	initializeQuoteSpotMarket,
+	initUserAccounts,
+	mockOracle,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+	setFeedPrice,
 } from './testHelpers';
 
 async function depositToFeePoolFromIF(
@@ -136,7 +136,7 @@ describe('repeg and spread amm', () => {
 	});
 	const connection = provider.connection;
 	anchor.setProvider(provider);
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 	const eventSubscriber = new EventSubscriber(connection, chProgram, {
@@ -455,7 +455,7 @@ describe('repeg and spread amm', () => {
 			liveOracleStd,
 			prepegAMM.longIntensityVolume,
 			prepegAMM.shortIntensityVolume,
-			prepegAMM.volume24H
+			prepegAMM.volume24h
 		);
 		console.log('spreads:', ls1, ss1);
 		const maxSpread = market0.amm.maxSpread;

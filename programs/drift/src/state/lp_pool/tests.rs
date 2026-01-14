@@ -581,7 +581,7 @@ mod swap_tests {
         out_volatility: u64,
     ) {
         let lp_pool = LPPool {
-            last_aum: 1_000_000_000_000,
+            last_aum: 1_000_000_000_000.into(),
             target_oracle_delay_fee_bps_per_10_slots: 2,
             target_position_delay_fee_bps_per_10_slots: 10,
             ..LPPool::default()
@@ -596,10 +596,12 @@ mod swap_tests {
             ..OraclePriceData::default()
         };
 
-        let in_notional = (in_current_weight as u128) * lp_pool.last_aum / PERCENTAGE_PRECISION;
+        let in_notional =
+            (in_current_weight as u128) * lp_pool.last_aum.as_u128() / PERCENTAGE_PRECISION;
         let in_token_amount = in_notional * 10_u128.pow(in_decimals) / oracle_0.price as u128;
 
-        let out_notional = (out_current_weight as u128) * lp_pool.last_aum / PERCENTAGE_PRECISION;
+        let out_notional =
+            (out_current_weight as u128) * lp_pool.last_aum.as_u128() / PERCENTAGE_PRECISION;
         let out_token_amount = out_notional * 10_u128.pow(out_decimals) / oracle_1.price as u128;
 
         let constituent_0 = Constituent {
@@ -748,7 +750,7 @@ mod swap_tests {
             max_weight_deviation: PERCENTAGE_PRECISION_I64 / 10, // 10%
             spot_market_index: 0,
             spot_balance: ConstituentSpotBalance {
-                scaled_balance: 500_000,
+                scaled_balance: 500_000.into(),
                 cumulative_deposits: 1_000_000,
                 balance_type: SpotBalanceType::Deposit,
                 market_index: 0,
@@ -762,7 +764,7 @@ mod swap_tests {
         let spot_market = SpotMarket {
             market_index: 0,
             decimals: 6,
-            cumulative_deposit_interest: 10_000_000_000_000,
+            cumulative_deposit_interest: 10_000_000_000_000.into(),
             ..SpotMarket::default()
         };
 
@@ -810,7 +812,7 @@ mod swap_tests {
         volatility: u64,
     ) {
         let lp_pool = LPPool {
-            last_aum,
+            last_aum: last_aum.into(),
             _padding: 0,
             min_mint_fee: 0,
             ..LPPool::default()
@@ -834,7 +836,7 @@ mod swap_tests {
             max_weight_deviation: PERCENTAGE_PRECISION_I64 / 10,
             spot_market_index: 0,
             spot_balance: ConstituentSpotBalance {
-                scaled_balance: 0,
+                scaled_balance: 0.into(),
                 cumulative_deposits: 0,
                 balance_type: SpotBalanceType::Deposit,
                 market_index: 0,
@@ -1002,7 +1004,7 @@ mod swap_tests {
         volatility: u64,
     ) {
         let lp_pool = LPPool {
-            last_aum,
+            last_aum: last_aum.into(),
             _padding: 0,
             min_mint_fee: 100, // 1 bps
             ..LPPool::default()
@@ -1026,7 +1028,7 @@ mod swap_tests {
             max_weight_deviation: PERCENTAGE_PRECISION_I64 / 10,
             spot_market_index: 0,
             spot_balance: ConstituentSpotBalance {
-                scaled_balance: 0,
+                scaled_balance: 0.into(),
                 cumulative_deposits: 0,
                 balance_type: SpotBalanceType::Deposit,
                 market_index: 0,
@@ -1213,7 +1215,7 @@ mod swap_tests {
         out_target_weight: i64,
     ) -> (u128, u128, i128, i128, i128, i128) {
         let lp_pool = LPPool {
-            last_aum: 1_000_000_000_000,
+            last_aum: 1_000_000_000_000.into(),
             ..LPPool::default()
         };
 
@@ -1231,16 +1233,18 @@ mod swap_tests {
         let in_token_amount = in_notional * 10_i128.pow(6) / oracle_0.price as i128;
         let in_spot_balance = if in_token_amount > 0 {
             ConstituentSpotBalance {
-                scaled_balance: (in_token_amount.abs() as u128)
-                    * (SPOT_BALANCE_PRECISION / 10_u128.pow(6)),
+                scaled_balance: ((in_token_amount.abs() as u128)
+                    * (SPOT_BALANCE_PRECISION / 10_u128.pow(6)))
+                .into(),
                 balance_type: SpotBalanceType::Deposit,
                 market_index: 0,
                 ..ConstituentSpotBalance::default()
             }
         } else {
             ConstituentSpotBalance {
-                scaled_balance: (in_token_amount.abs() as u128)
-                    * (SPOT_BALANCE_PRECISION / 10_u128.pow(6)),
+                scaled_balance: ((in_token_amount.abs() as u128)
+                    * (SPOT_BALANCE_PRECISION / 10_u128.pow(6)))
+                .into(),
                 balance_type: SpotBalanceType::Borrow,
                 market_index: 0,
                 ..ConstituentSpotBalance::default()
@@ -1252,16 +1256,18 @@ mod swap_tests {
         let out_token_amount = out_notional * 10_i128.pow(6) / oracle_1.price as i128;
         let out_spot_balance = if out_token_amount > 0 {
             ConstituentSpotBalance {
-                scaled_balance: (out_token_amount.abs() as u128)
-                    * (SPOT_BALANCE_PRECISION / 10_u128.pow(6)),
+                scaled_balance: ((out_token_amount.abs() as u128)
+                    * (SPOT_BALANCE_PRECISION / 10_u128.pow(6)))
+                .into(),
                 balance_type: SpotBalanceType::Deposit,
                 market_index: 0,
                 ..ConstituentSpotBalance::default()
             }
         } else {
             ConstituentSpotBalance {
-                scaled_balance: (out_token_amount.abs() as u128)
-                    * (SPOT_BALANCE_PRECISION / 10_u128.pow(6)),
+                scaled_balance: ((out_token_amount.abs() as u128)
+                    * (SPOT_BALANCE_PRECISION / 10_u128.pow(6)))
+                .into(),
                 balance_type: SpotBalanceType::Deposit,
                 market_index: 0,
                 ..ConstituentSpotBalance::default()
@@ -1589,7 +1595,7 @@ mod swap_fee_tests {
     #[test]
     fn test_lp_pool_get_linear_fee_execution() {
         let lp_pool = LPPool {
-            last_aum: 10_000_000 * QUOTE_PRECISION, // $10,000,000
+            last_aum: (10_000_000 * QUOTE_PRECISION).into(), // $10,000,000
             ..LPPool::default()
         };
 
@@ -1610,7 +1616,7 @@ mod swap_fee_tests {
     #[test]
     fn test_lp_pool_get_quadratic_fee_execution() {
         let lp_pool = LPPool {
-            last_aum: 10_000_000 * QUOTE_PRECISION, // $10,000,000
+            last_aum: (10_000_000 * QUOTE_PRECISION).into(), // $10,000,000
             ..LPPool::default()
         };
 
@@ -1631,7 +1637,7 @@ mod swap_fee_tests {
     #[test]
     fn test_lp_pool_get_quadratic_fee_inventory() {
         let lp_pool = LPPool {
-            last_aum: 10_000_000 * QUOTE_PRECISION, // $10,000,000
+            last_aum: (10_000_000 * QUOTE_PRECISION).into(), // $10,000,000
             ..LPPool::default()
         };
 
@@ -1657,7 +1663,7 @@ mod swap_fee_tests {
     #[test]
     fn test_target_delays() {
         let lp_pool = LPPool {
-            last_aum: 10_000_000 * QUOTE_PRECISION, // $10,000,000
+            last_aum: (10_000_000 * QUOTE_PRECISION).into(), // $10,000,000
             target_oracle_delay_fee_bps_per_10_slots: 2,
             target_position_delay_fee_bps_per_10_slots: 10,
             ..LPPool::default()
@@ -2534,7 +2540,7 @@ mod update_aum_tests {
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
             ..SpotMarket::default()
@@ -2545,7 +2551,7 @@ mod update_aum_tests {
             market_index: 1,
             oracle_source: OracleSource::PythLazer,
             oracle: sol_oracle_pubkey,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             historical_oracle_data: HistoricalOracleData::default_price(200 * PRICE_PRECISION_I64),
             ..SpotMarket::default()
@@ -2556,7 +2562,7 @@ mod update_aum_tests {
             market_index: 2,
             oracle_source: OracleSource::PythLazer,
             oracle: btc_oracle_pubkey,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 8,
             historical_oracle_data: HistoricalOracleData::default_price(
                 100_000 * PRICE_PRECISION_I64,
@@ -2569,7 +2575,7 @@ mod update_aum_tests {
             market_index: 3,
             oracle_source: OracleSource::PythLazer,
             oracle: bonk_oracle_pubkey,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 5,
             historical_oracle_data: HistoricalOracleData::default_price(22),
             ..SpotMarket::default()
@@ -2671,7 +2677,8 @@ mod update_aum_tests {
 
         // Verify LP pool state was updated
         assert_eq!(
-            lp_pool.last_aum, aum,
+            lp_pool.last_aum,
+            aum.into(),
             "{}: last_aum should match calculated AUM",
             test_name
         );
@@ -2942,7 +2949,7 @@ mod update_constituent_target_base_for_derivatives_tests {
             market_index: parent_index,
             oracle_source: OracleSource::PythLazer,
             oracle: parent_oracle_pubkey,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             historical_oracle_data: HistoricalOracleData::default_price(parent_oracle.price),
             ..SpotMarket::default()
@@ -2957,7 +2964,7 @@ mod update_constituent_target_base_for_derivatives_tests {
             market_index: derivative1_index,
             oracle_source: OracleSource::PythLazer,
             oracle: derivative1_oracle_pubkey,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             historical_oracle_data: HistoricalOracleData::default_price(derivative1_oracle.price),
             ..SpotMarket::default()
@@ -2972,7 +2979,7 @@ mod update_constituent_target_base_for_derivatives_tests {
             market_index: derivative2_index,
             oracle_source: OracleSource::PythLazer,
             oracle: derivative2_oracle_pubkey,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             historical_oracle_data: HistoricalOracleData::default_price(derivative2_oracle.price),
             ..SpotMarket::default()
@@ -2987,7 +2994,7 @@ mod update_constituent_target_base_for_derivatives_tests {
             market_index: derivative3_index,
             oracle_source: OracleSource::PythLazer,
             oracle: derivative3_oracle_pubkey,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             historical_oracle_data: HistoricalOracleData::default_price(derivative3_oracle.price),
             ..SpotMarket::default()
@@ -3258,7 +3265,7 @@ mod update_constituent_target_base_for_derivatives_tests {
             market_index: parent_index,
             oracle_source: OracleSource::PythLazer,
             oracle: parent_oracle_pubkey,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             historical_oracle_data: HistoricalOracleData::default_price(parent_oracle.price),
             ..SpotMarket::default()
@@ -3273,7 +3280,7 @@ mod update_constituent_target_base_for_derivatives_tests {
             market_index: derivative_index,
             oracle_source: OracleSource::PythLazer,
             oracle: derivative_oracle_pubkey,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             historical_oracle_data: HistoricalOracleData::default_price(derivative_oracle.price),
             ..SpotMarket::default()
@@ -3547,7 +3554,7 @@ mod update_constituent_target_base_for_derivatives_tests {
             market_index: parent_index,
             oracle_source: OracleSource::PythLazer,
             oracle: parent_oracle_pubkey,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             historical_oracle_data: HistoricalOracleData::default_price(parent_oracle.price),
             ..SpotMarket::default()
@@ -3562,7 +3569,7 @@ mod update_constituent_target_base_for_derivatives_tests {
             market_index: derivative_index,
             oracle_source: OracleSource::PythLazer,
             oracle: derivative_oracle_pubkey,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             historical_oracle_data: HistoricalOracleData::default_price(derivative_oracle.price),
             ..SpotMarket::default()
@@ -3761,7 +3768,7 @@ mod update_constituent_target_base_for_derivatives_tests {
             market_index: parent_index,
             oracle_source: OracleSource::PythLazer,
             oracle: parent_oracle_pubkey,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             historical_oracle_data: HistoricalOracleData::default_price(parent_oracle.price),
             ..SpotMarket::default()
@@ -3776,7 +3783,7 @@ mod update_constituent_target_base_for_derivatives_tests {
             market_index: derivative1_index,
             oracle_source: OracleSource::PythLazer,
             oracle: derivative1_oracle_pubkey,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             historical_oracle_data: HistoricalOracleData::default_price(derivative1_oracle.price),
             ..SpotMarket::default()
@@ -3791,7 +3798,7 @@ mod update_constituent_target_base_for_derivatives_tests {
             market_index: derivative2_index,
             oracle_source: OracleSource::PythLazer,
             oracle: derivative2_oracle_pubkey,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 9,
             historical_oracle_data: HistoricalOracleData::default_price(derivative2_oracle.price),
             ..SpotMarket::default()

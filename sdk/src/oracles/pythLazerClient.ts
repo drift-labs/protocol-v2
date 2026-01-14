@@ -7,15 +7,15 @@ import {
 	QUOTE_PRECISION,
 	TEN,
 } from '../constants/numericConstants';
-import { DRIFT_PROGRAM_ID } from '../config';
 import { Wallet } from '../wallet';
 import driftIDL from '../idl/drift.json';
+import { DriftProgram } from '../config';
 
 export class PythLazerClient implements OracleClient {
 	private connection: Connection;
 	private multiple: BN;
 	private stableCoin: boolean;
-	private program: Program;
+	private program: DriftProgram;
 	readonly decodeFunc: (name: string, data: Buffer) => any;
 
 	public constructor(
@@ -34,11 +34,7 @@ export class PythLazerClient implements OracleClient {
 				commitment: connection.commitment,
 			}
 		);
-		this.program = new Program(
-			driftIDL as Idl,
-			new PublicKey(DRIFT_PROGRAM_ID),
-			provider
-		);
+		this.program = new Program(driftIDL as Idl, provider);
 		this.decodeFunc =
 			this.program.account.pythLazerOracle.coder.accounts.decodeUnchecked.bind(
 				this.program.account.pythLazerOracle.coder.accounts
@@ -53,7 +49,7 @@ export class PythLazerClient implements OracleClient {
 	}
 
 	public getOraclePriceDataFromBuffer(buffer: Buffer): OraclePriceData {
-		const priceData = this.decodeFunc('PythLazerOracle', buffer);
+		const priceData = this.decodeFunc('pythLazerOracle', buffer);
 		const confidence = convertPythPrice(
 			priceData.conf,
 			priceData.exponent,

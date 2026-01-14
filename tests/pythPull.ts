@@ -1,5 +1,5 @@
 import * as anchor from '@coral-xyz/anchor';
-import { Program } from '@coral-xyz/anchor';
+
 import {
 	OracleSource,
 	TestClient,
@@ -7,6 +7,7 @@ import {
 } from '../sdk/src';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import { startAnchor } from 'solana-bankrun';
 import { AccountInfo, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
 import { WORMHOLE_DATA } from './pythPullOracleData';
@@ -27,7 +28,7 @@ const GUARDIAN_SET_KEY = new PublicKey(
 );
 
 describe('pyth pull oracles', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 

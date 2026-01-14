@@ -1,19 +1,23 @@
 import * as anchor from '@coral-xyz/anchor';
 
-import { Program } from '@coral-xyz/anchor';
-
 import {
-	QUOTE_SPOT_MARKET_INDEX,
-	TestClient,
 	BN,
 	EventSubscriber,
-	PRICE_PRECISION,
+	MarketStatus,
 	OracleSource,
 	PositionDirection,
+	PRICE_PRECISION,
+	QUOTE_SPOT_MARKET_INDEX,
+	TestClient,
 	Wallet,
-	MarketStatus,
 } from '../sdk/src';
 
+import { Keypair } from '@solana/web3.js';
+import { assert } from 'chai';
+import { startAnchor } from 'solana-bankrun';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
 	createFundedKeyPair,
 	initializeQuoteSpotMarket,
@@ -21,14 +25,9 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { assert } from 'chai';
-import { Keypair } from '@solana/web3.js';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('user delegate', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 	let eventSubscriber: EventSubscriber;

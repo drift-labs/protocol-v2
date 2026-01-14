@@ -2,7 +2,7 @@ import { Connection, PublicKey } from '@solana/web3.js';
 import { PRICE_PRECISION, TEN } from '../constants/numericConstants';
 import { OracleClient, OraclePriceData } from './types';
 import switchboardV2Idl from '../idl/switchboard.json';
-import { BorshAccountsCoder, BN, Idl } from '@coral-xyz/anchor';
+import { BorshAccountsCoder, BN, Idl } from '@coral-xyz/anchor-29';
 
 type SwitchboardDecimal = {
 	scale: number;
@@ -37,7 +37,7 @@ export class SwitchboardClient implements OracleClient {
 
 	public getOraclePriceDataFromBuffer(buffer: Buffer): OraclePriceData {
 		const aggregatorAccountData = this.coder.decodeUnchecked(
-			'AggregatorAccountData',
+			'aggregatorAccountData',
 			buffer
 		) as AggregatorAccountData;
 

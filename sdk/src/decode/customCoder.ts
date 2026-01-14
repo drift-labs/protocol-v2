@@ -1,102 +1,48 @@
 import { Buffer } from 'buffer';
+import { Layout } from 'buffer-layout';
 import camelcase from 'camelcase';
-import { Idl, IdlTypeDef } from '@coral-xyz/anchor/dist/cjs/idl';
-import {
-	AccountsCoder,
-	BorshAccountsCoder,
-	BorshEventCoder,
-	BorshInstructionCoder,
-	Coder,
-} from '@coral-xyz/anchor/dist/cjs/coder';
-import { BorshTypesCoder } from '@coral-xyz/anchor/dist/cjs/coder/borsh/types';
-import { discriminator } from '@coral-xyz/anchor/dist/cjs/coder/borsh/discriminator';
+import { BorshAccountsCoder, BorshCoder, Idl } from '@coral-xyz/anchor';
+import { discriminator } from '@coral-xyz/anchor-29/dist/cjs/coder/borsh/discriminator';
+import { IdlDiscriminator } from '@coral-xyz/anchor/dist/cjs/idl';
 
-export class CustomBorshCoder<
-	A extends string = string,
-	T extends string = string,
-> implements Coder
-{
-	readonly idl: Idl;
-
-	/**
-	 * Instruction coder.
-	 */
-	readonly instruction: BorshInstructionCoder;
-
+export class CustomBorshCoder<A extends string = string> extends BorshCoder {
 	/**
 	 * Account coder.
 	 */
-	readonly accounts: CustomBorshAccountsCoder<A>;
-
-	/**
-	 * Coder for events.
-	 */
-	readonly events: BorshEventCoder;
-
-	/**
-	 * Coder for user-defined types.
-	 */
-	readonly types: BorshTypesCoder<T>;
-
+	override readonly accounts: CustomBorshAccountsCoder<A>;
 	constructor(idl: Idl) {
-		this.instruction = new BorshInstructionCoder(idl);
+		super(idl);
+		// only need to patch the accounts encoder
+		// @ts-ignore
 		this.accounts = new CustomBorshAccountsCoder(idl);
-		this.events = new BorshEventCoder(idl);
-		this.types = new BorshTypesCoder(idl);
-		this.idl = idl;
 	}
 }
 
 /**
  * Custom accounts coder that wraps BorshAccountsCoder to fix encode buffer sizing.
  */
-export class CustomBorshAccountsCoder<A extends string = string>
-	implements AccountsCoder
-{
-	private baseCoder: BorshAccountsCoder<A>;
-	private idl: Idl;
-
+export class CustomBorshAccountsCoder<
+	A extends string = string,
+> extends BorshAccountsCoder {
 	public constructor(idl: Idl) {
-		this.baseCoder = new BorshAccountsCoder<A>(idl);
-		this.idl = idl;
+		super(idl);
 	}
 
 	public async encode<T = any>(accountName: A, account: T): Promise<Buffer> {
-		const idlAcc = this.idl.accounts?.find((acc) => acc.name === accountName);
-		if (!idlAcc) {
-			throw new Error(`Unknown account not found in idl: ${accountName}`);
-		}
-
-		const buffer = Buffer.alloc(this.size(idlAcc)); // fix encode issue - use proper size instead of fixed 1000
-		const layout = this.baseCoder['accountLayouts'].get(accountName);
+		const buffer = Buffer.alloc(this.size(accountName)); // fix encode issue - use proper size instead of fixed 1000
+		const layout = (
+			this['accountLayouts'] as Map<
+				A,
+				{ discriminator: IdlDiscriminator; layout: Layout }
+			>
+		).get(accountName);
 		if (!layout) {
 			throw new Error(`Unknown account: ${accountName}`);
 		}
-		const len = layout.encode(account, buffer);
+		const len = layout.layout.encode(account, buffer);
 		const accountData = buffer.slice(0, len);
-		const discriminator = BorshAccountsCoder.accountDiscriminator(accountName);
+		const discriminator = this.accountDiscriminator(accountName);
 		return Buffer.concat([discriminator, accountData]);
-	}
-
-	// Delegate all other methods to the base coder
-	public decode<T = any>(accountName: A, data: Buffer): T {
-		return this.baseCoder.decode(accountName, data);
-	}
-
-	public decodeAny<T = any>(data: Buffer): T {
-		return this.baseCoder.decodeAny(data);
-	}
-
-	public decodeUnchecked<T = any>(accountName: A, ix: Buffer): T {
-		return this.baseCoder.decodeUnchecked(accountName, ix);
-	}
-
-	public memcmp(accountName: A, appendData?: Buffer): any {
-		return this.baseCoder.memcmp(accountName, appendData);
-	}
-
-	public size(idlAccount: IdlTypeDef): number {
-		return this.baseCoder.size(idlAccount);
 	}
 
 	/**

@@ -1,23 +1,26 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import { Keypair } from '@solana/web3.js';
 
 import {
-	BN,
-	PRICE_PRECISION,
-	TestClient,
-	PositionDirection,
-	User,
-	Wallet,
-	EventSubscriber,
 	BASE_PRECISION,
+	BN,
+	EventSubscriber,
 	getLimitOrderParams,
 	OracleSource,
+	PositionDirection,
+	PRICE_PRECISION,
+	TestClient,
+	User,
+	Wallet,
 } from '../sdk/src';
 
+import { startAnchor } from 'solana-bankrun';
+import { PEG_PRECISION, PerpOperation, PostOnlyParams } from '../sdk/src';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
 	initializeQuoteSpotMarket,
 	mockOracleNoProgram,
@@ -25,13 +28,9 @@ import {
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpers';
-import { PEG_PRECISION, PerpOperation, PostOnlyParams } from '../sdk';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('place and make perp order', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let makerDriftClient: TestClient;
 	let makerDriftClientUser: User;

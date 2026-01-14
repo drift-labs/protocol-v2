@@ -1,5 +1,7 @@
 import * as anchor from '@coral-xyz/anchor';
-import { Program } from '@coral-xyz/anchor';
+
+import { AccountInfo, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
+import { startAnchor } from 'solana-bankrun';
 import {
 	BN,
 	OracleSource,
@@ -14,15 +16,17 @@ import {
 } from '../sdk/src';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
-import { startAnchor } from 'solana-bankrun';
-import { AccountInfo, LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
-import { initializeQuoteSpotMarket, mockUSDCMint } from './testHelpers';
+import { DriftProgram } from '../sdk/src/config';
 import {
 	PYTH_LAZER_HEX_STRING_MULTI,
 	PYTH_LAZER_HEX_STRING_SOL,
 	PYTH_STORAGE_DATA,
 } from './pythLazerData';
-import { mockOracleNoProgram } from './testHelpers';
+import {
+	initializeQuoteSpotMarket,
+	mockOracleNoProgram,
+	mockUSDCMint,
+} from './testHelpers';
 
 // set up account infos to load into banks client
 const PYTH_STORAGE_ACCOUNT_INFO: AccountInfo<Buffer> = {
@@ -34,7 +38,7 @@ const PYTH_STORAGE_ACCOUNT_INFO: AccountInfo<Buffer> = {
 };
 
 describe('pyth pull oracles', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 

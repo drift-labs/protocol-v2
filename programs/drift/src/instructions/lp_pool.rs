@@ -376,13 +376,13 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         in_constituent.constituent_index,
         &in_spot_market,
         in_oracle.price,
-        lp_pool.last_aum,
+        lp_pool.last_aum(),
     )?;
     let out_target_weight = constituent_target_base.get_target_weight(
         out_constituent.constituent_index,
         &out_spot_market,
         out_oracle.price,
-        lp_pool.last_aum,
+        lp_pool.last_aum(),
     )?;
     let in_target_datum = constituent_target_base.get(in_constituent.constituent_index as u32);
     let in_target_position_slot_delay = slot.saturating_sub(in_target_datum.last_position_slot);
@@ -463,20 +463,20 @@ pub fn handle_lp_pool_swap<'c: 'info, 'info>(
         in_constituent_index: in_constituent.constituent_index,
         out_oracle_price: out_oracle.price,
         in_oracle_price: in_oracle.price,
-        last_aum: lp_pool.last_aum,
+        last_aum: lp_pool.last_aum(),
         last_aum_slot: lp_pool.last_aum_slot,
         in_market_current_weight: in_constituent.get_weight(
             in_oracle.price,
             &in_spot_market,
             0,
-            lp_pool.last_aum,
+            lp_pool.last_aum(),
         )?,
         in_market_target_weight: in_target_weight,
         out_market_current_weight: out_constituent.get_weight(
             out_oracle.price,
             &out_spot_market,
             0,
-            lp_pool.last_aum,
+            lp_pool.last_aum(),
         )?,
         out_market_target_weight: out_target_weight,
         in_swap_id,
@@ -722,15 +722,15 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
 
     update_spot_market_cumulative_interest(&mut in_spot_market, Some(&in_oracle), now)?;
 
-    msg!("aum: {}", lp_pool.last_aum);
-    let in_target_weight = if lp_pool.last_aum == 0 {
+    msg!("aum: {}", lp_pool.last_aum());
+    let in_target_weight = if lp_pool.last_aum() == 0 {
         PERCENTAGE_PRECISION_I64 // 100% weight if no aum
     } else {
         constituent_target_base.get_target_weight(
             in_constituent.constituent_index,
             &in_spot_market,
             in_oracle.price,
-            lp_pool.last_aum, // TODO: add in_amount * in_oracle to est post add_liquidity aum
+            lp_pool.last_aum(), // TODO: add in_amount * in_oracle to est post add_liquidity aum
         )?
     };
 
@@ -817,14 +817,17 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
 
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
 
-    lp_pool.last_aum = lp_pool.last_aum.safe_add(
-        in_amount
-            .cast::<u128>()?
-            .safe_mul(in_oracle.price.cast::<u128>()?)?
-            .safe_div(10_u128.pow(in_spot_market.decimals))?,
-    )?;
+    let last_aum = lp_pool.last_aum();
+    lp_pool.set_last_aum(
+        last_aum.safe_add(
+            in_amount
+                .cast::<u128>()?
+                .safe_mul(in_oracle.price.cast::<u128>()?)?
+                .safe_div(10_u128.pow(in_spot_market.decimals))?,
+        )?,
+    );
 
-    if lp_pool.last_aum > lp_pool.max_aum {
+    if lp_pool.last_aum() > lp_pool.max_aum() {
         return Err(ErrorCode::MaxDlpAumBreached.into());
     }
 
@@ -864,13 +867,13 @@ pub fn handle_lp_pool_add_liquidity<'c: 'info, 'info>(
         lp_fee: lp_fee_amount,
         lp_price: lp_price_after,
         mint_redeem_id,
-        last_aum: lp_pool.last_aum,
+        last_aum: lp_pool.last_aum(),
         last_aum_slot: lp_pool.last_aum_slot,
         in_market_current_weight: in_constituent.get_weight(
             in_oracle.price,
             &in_spot_market,
             0,
-            lp_pool.last_aum,
+            lp_pool.last_aum(),
         )?,
         in_market_target_weight: in_target_weight,
         lp_pool: lp_pool_key,
@@ -938,15 +941,15 @@ pub fn handle_view_lp_pool_add_liquidity_fees<'c: 'info, 'info>(
         return Err(ErrorCode::InvalidOracle.into());
     }
 
-    msg!("aum: {}", lp_pool.last_aum);
-    let in_target_weight = if lp_pool.last_aum == 0 {
+    msg!("aum: {}", lp_pool.last_aum());
+    let in_target_weight = if lp_pool.last_aum() == 0 {
         PERCENTAGE_PRECISION_I64 // 100% weight if no aum
     } else {
         constituent_target_base.get_target_weight(
             in_constituent.constituent_index,
             &in_spot_market,
             in_oracle.price,
-            lp_pool.last_aum, // TODO: add in_amount * in_oracle to est post add_liquidity aum
+            lp_pool.last_aum(), // TODO: add in_amount * in_oracle to est post add_liquidity aum
         )?
     };
 
@@ -1094,7 +1097,7 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
         out_constituent.constituent_index,
         &out_spot_market,
         out_oracle.price,
-        lp_pool.last_aum, // TODO: remove out_amount * out_oracle to est post remove_liquidity aum
+        lp_pool.last_aum(), // TODO: remove out_amount * out_oracle to est post remove_liquidity aum
     )?;
 
     let dlp_total_supply = ctx.accounts.lp_mint.supply;
@@ -1219,12 +1222,15 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
 
     let mut lp_pool = ctx.accounts.lp_pool.load_mut()?;
 
-    lp_pool.last_aum = lp_pool.last_aum.safe_sub(
-        out_amount_net_fees
-            .cast::<u128>()?
-            .safe_mul(out_oracle.price.cast::<u128>()?)?
-            .safe_div(10_u128.pow(out_spot_market.decimals))?,
-    )?;
+    let last_aum = lp_pool.last_aum();
+    lp_pool.set_last_aum(
+        last_aum.safe_sub(
+            out_amount_net_fees
+                .cast::<u128>()?
+                .safe_mul(out_oracle.price.cast::<u128>()?)?
+                .safe_div(10_u128.pow(out_spot_market.decimals))?,
+        )?,
+    );
 
     ctx.accounts.constituent_out_token_account.reload()?;
     ctx.accounts.lp_mint.reload()?;
@@ -1262,13 +1268,13 @@ pub fn handle_lp_pool_remove_liquidity<'c: 'info, 'info>(
         lp_fee: lp_fee_amount,
         lp_price: lp_price_after,
         mint_redeem_id,
-        last_aum: lp_pool.last_aum,
+        last_aum: lp_pool.last_aum(),
         last_aum_slot: lp_pool.last_aum_slot,
         in_market_current_weight: out_constituent.get_weight(
             out_oracle.price,
             &out_spot_market,
             0,
-            lp_pool.last_aum,
+            lp_pool.last_aum(),
         )?,
         in_market_target_weight: out_target_weight,
         lp_pool: lp_pool_key,
@@ -1346,7 +1352,7 @@ pub fn handle_view_lp_pool_remove_liquidity_fees<'c: 'info, 'info>(
         out_constituent.constituent_index,
         &out_spot_market,
         out_oracle.price,
-        lp_pool.last_aum,
+        lp_pool.last_aum(),
     )?;
 
     let dlp_total_supply = ctx.accounts.lp_mint.supply;
@@ -1881,14 +1887,14 @@ pub struct LPPoolSwap<'info> {
 
     #[account(
         mut,
-        seeds = [CONSTITUENT_PDA_SEED.as_ref(), lp_pool.key().as_ref(), in_market_index.to_le_bytes().as_ref()],
+        seeds = [CONSTITUENT_PDA_SEED.as_bytes(), lp_pool.key().as_ref(), in_market_index.to_le_bytes().as_ref()],
         bump=in_constituent.load()?.bump,
         constraint = in_constituent.load()?.mint.eq(&constituent_in_token_account.mint)
     )]
     pub in_constituent: AccountLoader<'info, Constituent>,
     #[account(
         mut,
-        seeds = [CONSTITUENT_PDA_SEED.as_ref(), lp_pool.key().as_ref(), out_market_index.to_le_bytes().as_ref()],
+        seeds = [CONSTITUENT_PDA_SEED.as_bytes(), lp_pool.key().as_ref(), out_market_index.to_le_bytes().as_ref()],
         bump=out_constituent.load()?.bump,
         constraint = out_constituent.load()?.mint.eq(&constituent_out_token_account.mint)
     )]
@@ -1938,14 +1944,14 @@ pub struct ViewLPPoolSwapFees<'info> {
 
     #[account(
         mut,
-        seeds = [CONSTITUENT_PDA_SEED.as_ref(), lp_pool.key().as_ref(), in_market_index.to_le_bytes().as_ref()],
+        seeds = [CONSTITUENT_PDA_SEED.as_bytes(), lp_pool.key().as_ref(), in_market_index.to_le_bytes().as_ref()],
         bump=in_constituent.load()?.bump,
         constraint = in_constituent.load()?.mint.eq(&constituent_in_token_account.mint)
     )]
     pub in_constituent: AccountLoader<'info, Constituent>,
     #[account(
         mut,
-        seeds = [CONSTITUENT_PDA_SEED.as_ref(), lp_pool.key().as_ref(), out_market_index.to_le_bytes().as_ref()],
+        seeds = [CONSTITUENT_PDA_SEED.as_bytes(), lp_pool.key().as_ref(), out_market_index.to_le_bytes().as_ref()],
         bump=out_constituent.load()?.bump,
         constraint = out_constituent.load()?.mint.eq(&constituent_out_token_account.mint)
     )]
@@ -1969,7 +1975,7 @@ pub struct LPPoolAddLiquidity<'info> {
     pub in_market_mint: Box<InterfaceAccount<'info, Mint>>,
     #[account(
         mut,
-        seeds = [CONSTITUENT_PDA_SEED.as_ref(), lp_pool.key().as_ref(), in_market_index.to_le_bytes().as_ref()],
+        seeds = [CONSTITUENT_PDA_SEED.as_bytes(), lp_pool.key().as_ref(), in_market_index.to_le_bytes().as_ref()],
         bump,
         constraint =
             in_constituent.load()?.mint.eq(&constituent_in_token_account.mint)
@@ -2005,7 +2011,7 @@ pub struct LPPoolAddLiquidity<'info> {
 
     #[account(
         mut,
-        seeds = [LP_POOL_TOKEN_VAULT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        seeds = [LP_POOL_TOKEN_VAULT_PDA_SEED.as_bytes(), lp_pool.key().as_ref()],
         bump,
     )]
     pub lp_pool_token_vault: Box<InterfaceAccount<'info, TokenAccount>>,
@@ -2023,7 +2029,7 @@ pub struct ViewLPPoolAddLiquidityFees<'info> {
     pub authority: Signer<'info>,
     pub in_market_mint: Box<InterfaceAccount<'info, Mint>>,
     #[account(
-        seeds = [CONSTITUENT_PDA_SEED.as_ref(), lp_pool.key().as_ref(), in_market_index.to_le_bytes().as_ref()],
+        seeds = [CONSTITUENT_PDA_SEED.as_bytes(), lp_pool.key().as_ref(), in_market_index.to_le_bytes().as_ref()],
         bump,
     )]
     pub in_constituent: AccountLoader<'info, Constituent>,
@@ -2053,7 +2059,7 @@ pub struct LPPoolRemoveLiquidity<'info> {
     pub out_market_mint: Box<InterfaceAccount<'info, Mint>>,
     #[account(
         mut,
-        seeds = [CONSTITUENT_PDA_SEED.as_ref(), lp_pool.key().as_ref(), out_market_index.to_le_bytes().as_ref()],
+        seeds = [CONSTITUENT_PDA_SEED.as_bytes(), lp_pool.key().as_ref(), out_market_index.to_le_bytes().as_ref()],
         bump,
         constraint =
             out_constituent.load()?.mint.eq(&constituent_out_token_account.mint)
@@ -2093,7 +2099,7 @@ pub struct LPPoolRemoveLiquidity<'info> {
 
     #[account(
         mut,
-        seeds = [LP_POOL_TOKEN_VAULT_PDA_SEED.as_ref(), lp_pool.key().as_ref()],
+        seeds = [LP_POOL_TOKEN_VAULT_PDA_SEED.as_bytes(), lp_pool.key().as_ref()],
         bump,
     )]
     pub lp_pool_token_vault: Box<InterfaceAccount<'info, TokenAccount>>,
@@ -2101,7 +2107,7 @@ pub struct LPPoolRemoveLiquidity<'info> {
     pub token_program: Interface<'info, TokenInterface>,
 
     #[account(
-        seeds = [AMM_POSITIONS_CACHE.as_ref()],
+        seeds = [AMM_POSITIONS_CACHE.as_bytes()],
         bump,
     )]
     /// CHECK: checked in AmmCacheZeroCopy checks
@@ -2118,7 +2124,7 @@ pub struct ViewLPPoolRemoveLiquidityFees<'info> {
     pub authority: Signer<'info>,
     pub out_market_mint: Box<InterfaceAccount<'info, Mint>>,
     #[account(
-        seeds = [CONSTITUENT_PDA_SEED.as_ref(), lp_pool.key().as_ref(), in_market_index.to_le_bytes().as_ref()],
+        seeds = [CONSTITUENT_PDA_SEED.as_bytes(), lp_pool.key().as_ref(), in_market_index.to_le_bytes().as_ref()],
         bump,
     )]
     pub out_constituent: AccountLoader<'info, Constituent>,

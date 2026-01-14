@@ -1,34 +1,33 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import {
-	TestClient,
+	AMM_RESERVE_PRECISION,
 	BN,
+	MarketStatus,
+	OracleSource,
 	PRICE_PRECISION,
 	PositionDirection,
+	TestClient,
 	User,
 	getLimitOrderParams,
-	MarketStatus,
-	AMM_RESERVE_PRECISION,
-	OracleSource,
 	isVariant,
 } from '../sdk/src';
 
+import { startAnchor } from 'solana-bankrun';
+import { ContractTier, ExchangeStatus } from '../sdk/src';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
 	initializeQuoteSpotMarket,
 	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { ContractTier, ExchangeStatus } from '../sdk';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('user order id', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 
@@ -123,7 +122,7 @@ describe('user order id', () => {
 			undefined,
 			undefined,
 			undefined,
-			false
+			0
 		);
 		await driftClient.updatePerpMarketStatus(0, MarketStatus.ACTIVE);
 

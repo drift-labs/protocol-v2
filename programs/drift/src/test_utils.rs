@@ -52,7 +52,7 @@ pub fn get_account_bytes<T: bytemuck::Pod>(account: &mut T) -> BytesMut {
 
 pub fn get_anchor_account_bytes<T: ZeroCopy + Owner>(account: &mut T) -> BytesMut {
     let mut bytes = BytesMut::new();
-    bytes.extend_from_slice(&T::discriminator());
+    bytes.extend_from_slice(&T::DISCRIMINATOR);
     let data = bytemuck::bytes_of_mut(account);
     bytes.extend_from_slice(data);
     bytes

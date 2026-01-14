@@ -1,9 +1,7 @@
 #![allow(clippy::too_many_arguments)]
+#![allow(unexpected_cfgs)]
 
-use anchor_lang::prelude::{
-    borsh::{BorshDeserialize, BorshSerialize},
-    *,
-};
+use anchor_lang::prelude::*;
 
 declare_id!("opnb2LAfJYbRMAHHvqjCwQxanZn7ReEHp1k81EohpZb");
 

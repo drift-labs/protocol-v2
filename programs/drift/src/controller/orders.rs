@@ -395,17 +395,17 @@ pub fn place_perp_order(
         )?;
     }
 
-    let max_oi = market.amm.max_open_interest;
+    let max_oi = market.amm.max_open_interest();
     if max_oi != 0 && risk_increasing {
         let oi_plus_order = match params.direction {
             PositionDirection::Long => market
                 .amm
-                .base_asset_amount_long
+                .base_asset_amount_long()
                 .safe_add(order_base_asset_amount.cast()?)?
                 .unsigned_abs(),
             PositionDirection::Short => market
                 .amm
-                .base_asset_amount_short
+                .base_asset_amount_short()
                 .safe_sub(order_base_asset_amount.cast()?)?
                 .unsigned_abs(),
         };
@@ -1377,7 +1377,7 @@ pub fn fill_perp_order(
         let market = perp_market_map.get_ref(&market_index)?;
 
         let open_interest = market.get_open_interest();
-        let max_open_interest = market.amm.max_open_interest;
+        let max_open_interest = market.amm.max_open_interest();
 
         validate!(
             max_open_interest == 0 || max_open_interest > open_interest,
@@ -2352,16 +2352,24 @@ pub fn fulfill_perp_order_with_amm(
     }
 
     // Increment the protocol's total fee variables
-    market.amm.total_fee = market.amm.total_fee.safe_add(fee_to_market.cast()?)?;
-    market.amm.total_exchange_fee = market.amm.total_exchange_fee.safe_add(user_fee.cast()?)?;
-    market.amm.total_mm_fee = market
+    market
         .amm
-        .total_mm_fee
-        .safe_add(quote_asset_amount_surplus.cast()?)?;
-    market.amm.total_fee_minus_distributions = market
+        .set_total_fee(market.amm.total_fee().safe_add(fee_to_market.cast()?)?);
+    market
         .amm
-        .total_fee_minus_distributions
-        .safe_add(fee_to_market.cast()?)?;
+        .set_total_exchange_fee(market.amm.total_exchange_fee().safe_add(user_fee.cast()?)?);
+    market.amm.set_total_mm_fee(
+        market
+            .amm
+            .total_mm_fee()
+            .safe_add(quote_asset_amount_surplus.cast()?)?,
+    );
+    market.amm.set_total_fee_minus_distributions(
+        market
+            .amm
+            .total_fee_minus_distributions()
+            .safe_add(fee_to_market.cast()?)?,
+    );
     market.amm.net_revenue_since_last_funding = market
         .amm
         .net_revenue_since_last_funding
@@ -2874,15 +2882,21 @@ pub fn fulfill_perp_order_with_match(
     }
 
     // Increment the markets house's total fee variables
-    market.amm.total_fee = market.amm.total_fee.safe_add(fee_to_market.cast()?)?;
-    market.amm.total_exchange_fee = market
+    market
         .amm
-        .total_exchange_fee
-        .safe_add(fee_to_market.cast()?)?;
-    market.amm.total_fee_minus_distributions = market
-        .amm
-        .total_fee_minus_distributions
-        .safe_add(fee_to_market.cast()?)?;
+        .set_total_fee(market.amm.total_fee().safe_add(fee_to_market.cast()?)?);
+    market.amm.set_total_exchange_fee(
+        market
+            .amm
+            .total_exchange_fee()
+            .safe_add(fee_to_market.cast()?)?,
+    );
+    market.amm.set_total_fee_minus_distributions(
+        market
+            .amm
+            .total_fee_minus_distributions()
+            .safe_add(fee_to_market.cast()?)?,
+    );
     market.amm.net_revenue_since_last_funding = market
         .amm
         .net_revenue_since_last_funding
@@ -5087,7 +5101,11 @@ pub fn fulfill_spot_order_with_match(
     }
 
     // Update base market
-    base_market.total_spot_fee = base_market.total_spot_fee.safe_add(fee_to_market.cast()?)?;
+    base_market.set_total_spot_fee(
+        base_market
+            .total_spot_fee()
+            .safe_add(fee_to_market.cast()?)?,
+    );
 
     update_spot_balances(
         fee_to_market.cast()?,
@@ -5255,7 +5273,7 @@ pub fn fulfill_spot_order_with_external_market(
     )?;
 
     let fee_pool_amount = get_token_amount(
-        base_market.spot_fee_pool.scaled_balance,
+        base_market.spot_fee_pool.scaled_balance(),
         quote_market,
         &SpotBalanceType::Deposit,
     )?;
@@ -5376,7 +5394,11 @@ pub fn fulfill_spot_order_with_external_market(
         )?;
     }
 
-    base_market.total_spot_fee = base_market.total_spot_fee.safe_add(fee_to_market.cast()?)?;
+    base_market.set_total_spot_fee(
+        base_market
+            .total_spot_fee()
+            .safe_add(fee_to_market.cast()?)?,
+    );
 
     let fill_record_id = get_then_update_id!(base_market, next_fill_record_id);
     let order_action_record = get_order_action_record(

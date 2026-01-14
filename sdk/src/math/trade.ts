@@ -999,19 +999,19 @@ export function getUser30dRollingVolumeEstimate(
 ) {
 	now = now || new BN(new Date().getTime() / 1000);
 	const sinceLastTaker = BN.max(
-		now.sub(userStatsAccount.lastTakerVolume30DTs),
+		now.sub(userStatsAccount.lastTakerVolume30dTs),
 		ZERO
 	);
 	const sinceLastMaker = BN.max(
-		now.sub(userStatsAccount.lastMakerVolume30DTs),
+		now.sub(userStatsAccount.lastMakerVolume30dTs),
 		ZERO
 	);
 	const thirtyDaysInSeconds = new BN(60 * 60 * 24 * 30);
-	const last30dVolume = userStatsAccount.takerVolume30D
+	const last30dVolume = userStatsAccount.takerVolume30d
 		.mul(BN.max(thirtyDaysInSeconds.sub(sinceLastTaker), ZERO))
 		.div(thirtyDaysInSeconds)
 		.add(
-			userStatsAccount.makerVolume30D
+			userStatsAccount.makerVolume30d
 				.mul(BN.max(thirtyDaysInSeconds.sub(sinceLastMaker), ZERO))
 				.div(thirtyDaysInSeconds)
 		);

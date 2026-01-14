@@ -1,33 +1,32 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import { AccountInfo, Keypair, PublicKey } from '@solana/web3.js';
 
 import {
 	BN,
-	TestClient,
+	FuelOverflowStatus,
 	QUOTE_PRECISION,
+	TestClient,
 	UserStatsAccount,
 	getFuelOverflowAccountPublicKey,
 	parseLogs,
-	FuelOverflowStatus,
 } from '../sdk/src';
 
+import dotenv from 'dotenv';
+import { startAnchor } from 'solana-bankrun';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
 	initializeQuoteSpotMarket,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
-import dotenv from 'dotenv';
 dotenv.config();
 
 describe('fuel sweep', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 	let bankrunContextWrapper: BankrunContextWrapper;
 	let bulkAccountLoader: TestBulkAccountLoader;
 
@@ -304,7 +303,7 @@ async function getUserStatsDecoded(
 	);
 	const userStatsBefore: UserStatsAccount =
 		driftClient.program.account.userStats.coder.accounts.decode(
-			'UserStats',
+			'userStats',
 			accountInfo.data
 		);
 
@@ -325,7 +324,7 @@ async function overWriteUserStats(
 		owner: userStats.owner,
 		lamports: userStats.lamports,
 		data: await driftClient.program.account.userStats.coder.accounts.encode(
-			'UserStats',
+			'userStats',
 			userStats.data
 		),
 		rentEpoch: userStats.rentEpoch,

@@ -1,36 +1,36 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { BASE_PRECISION, BN } from '../sdk';
+import { BASE_PRECISION, BN } from '../sdk/src';
 
 import {
-	mockOracleNoProgram,
-	mockUserUSDCAccount,
-	mockUSDCMint,
-	setFeedPriceNoProgram,
+	getFeedDataNoProgram,
 	initializeQuoteSpotMarket,
 	initUserAccounts,
-	getFeedDataNoProgram,
+	mockOracleNoProgram,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+	setFeedPriceNoProgram,
 } from './testHelpers';
-import { Program } from '@coral-xyz/anchor';
 
 import { Keypair, PublicKey } from '@solana/web3.js';
 
+import { startAnchor } from 'solana-bankrun';
 import {
 	calculateReservePrice,
+	convertToNumber,
+	FUNDING_RATE_BUFFER_PRECISION,
+	MarketStatus,
 	PEG_PRECISION,
 	PositionDirection,
-	convertToNumber,
-	MarketStatus,
 	PRICE_PRECISION,
-	FUNDING_RATE_BUFFER_PRECISION,
+	QUOTE_SPOT_MARKET_INDEX,
 	TestClient,
 	User,
-	QUOTE_SPOT_MARKET_INDEX,
 } from '../sdk/src';
-import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 
 async function updateFundingRateHelper(
 	driftClient: TestClient,
@@ -160,7 +160,7 @@ async function updateFundingRateHelper(
 }
 
 describe('pyth-oracle', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 	let driftClient2: TestClient;
@@ -374,10 +374,10 @@ describe('pyth-oracle', () => {
 		console.log(
 			'PRICE',
 			convertToNumber(
-				calculateReservePrice(
-					driftClient.getPerpMarketAccount(marketIndex),
-					driftClient.getOracleDataForPerpMarket(marketIndex)
-				)
+				calculateReservePrice(driftClient.getPerpMarketAccount(marketIndex), {
+					...driftClient.getOracleDataForPerpMarket(marketIndex),
+					isMMOracleActive: false,
+				})
 			)
 		);
 
@@ -401,10 +401,10 @@ describe('pyth-oracle', () => {
 		console.log(
 			'PRICE AFTER',
 			convertToNumber(
-				calculateReservePrice(
-					market,
-					driftClient.getOracleDataForPerpMarket(marketIndex)
-				)
+				calculateReservePrice(market, {
+					...driftClient.getOracleDataForPerpMarket(marketIndex),
+					isMMOracleActive: false,
+				})
 			)
 		);
 

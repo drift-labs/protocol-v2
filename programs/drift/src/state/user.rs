@@ -28,9 +28,13 @@ use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::traits::Size;
 use crate::validate;
 use crate::{get_then_update_id, ID};
-use anchor_lang::prelude::*;
-use borsh::{BorshDeserialize, BorshSerialize};
+use anchor_lang::prelude::{
+    borsh::{self, BorshDeserialize, BorshSerialize},
+    *,
+};
 use bytemuck::{Pod, Zeroable};
+use drift_macros::legacy_layout;
+use num_traits::Zero;
 use std::cmp::max;
 use std::fmt;
 use std::ops::Neg;
@@ -48,7 +52,7 @@ use crate::state::spot_market_map::SpotMarketMap;
 #[cfg(test)]
 mod tests;
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]
 pub enum UserStatus {
     // Active = 0
     BeingLiquidated = 0b00000001,
@@ -1474,7 +1478,7 @@ impl PerpPosition {
 
 #[zero_copy(unsafe)]
 #[repr(C)]
-#[derive(AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]
+#[derive(BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub struct Order {
     /// The slot the order was placed
     pub slot: u64,
@@ -1541,7 +1545,7 @@ pub struct Order {
     pub padding: [u8; 1],
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Debug)]
 pub enum AssetType {
     Base,
     Quote,
@@ -1870,7 +1874,7 @@ impl Default for Order {
     }
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Eq, Debug)]
 pub enum OrderStatus {
     /// The order is not in use
     Init,
@@ -1882,7 +1886,7 @@ pub enum OrderStatus {
     Canceled,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum OrderType {
     Market,
     #[default]
@@ -1893,7 +1897,7 @@ pub enum OrderType {
     Oracle,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum OrderTriggerCondition {
     #[default]
     Above,
@@ -1902,7 +1906,7 @@ pub enum OrderTriggerCondition {
     TriggeredBelow, // below condition has been triggered
 }
 
-#[derive(Default, Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Default, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]
 pub enum MarketType {
     #[default]
     Spot,
@@ -1921,7 +1925,7 @@ impl fmt::Display for MarketType {
 unsafe impl Zeroable for MarketType {}
 unsafe impl Pod for MarketType {}
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]
 pub enum OrderBitFlag {
     SignedMessage = 0b00000001,
     OracleTriggerMarket = 0b00000010,
@@ -2007,7 +2011,7 @@ pub struct UserStats {
     pub padding: [u8; 12],
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]
 #[repr(u8)]
 pub enum ReferrerStatus {
     IsReferrer = 0b00000001,
@@ -2372,7 +2376,7 @@ impl Size for ReferrerName {
     const SIZE: usize = 136;
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq, Default)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq, Default)]
 pub enum MarginMode {
     #[default]
     Default,
@@ -2380,7 +2384,7 @@ pub enum MarginMode {
     HighLeverageMaintenance,
 }
 
-#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[derive(Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Debug, Eq)]
 #[repr(u8)]
 pub enum FuelOverflowStatus {
     Exists = 0b00000001,
@@ -2391,6 +2395,8 @@ impl FuelOverflowStatus {
         status & FuelOverflowStatus::Exists as u8 != 0
     }
 }
+
+#[legacy_layout]
 #[account(zero_copy(unsafe))]
 #[derive(Default, Debug)]
 #[repr(C)]
@@ -2417,40 +2423,57 @@ impl FuelOverflow {
     pub fn update_from_user_stats(&mut self, user_stats: &UserStats, now: u32) -> DriftResult<()> {
         self.fuel_insurance = self
             .fuel_insurance
-            .safe_add(user_stats.fuel_insurance.cast()?)?;
+            .as_u128()
+            .safe_add(user_stats.fuel_insurance as u128)?
+            .into();
         self.fuel_deposits = self
             .fuel_deposits
-            .safe_add(user_stats.fuel_deposits.cast()?)?;
+            .as_u128()
+            .safe_add(user_stats.fuel_deposits as u128)?
+            .into();
         self.fuel_borrows = self
             .fuel_borrows
-            .safe_add(user_stats.fuel_borrows.cast()?)?;
+            .as_u128()
+            .safe_add(user_stats.fuel_borrows as u128)?
+            .into();
         self.fuel_positions = self
             .fuel_positions
-            .safe_add(user_stats.fuel_positions.cast()?)?;
-        self.fuel_taker = self.fuel_taker.safe_add(user_stats.fuel_taker.cast()?)?;
-        self.fuel_maker = self.fuel_maker.safe_add(user_stats.fuel_maker.cast()?)?;
+            .as_u128()
+            .safe_add(user_stats.fuel_positions as u128)?
+            .into();
+        self.fuel_taker = self
+            .fuel_taker
+            .as_u128()
+            .safe_add(user_stats.fuel_taker as u128)?
+            .into();
+        self.fuel_maker = self
+            .fuel_maker
+            .as_u128()
+            .safe_add(user_stats.fuel_maker as u128)?
+            .into();
         self.last_fuel_sweep_ts = now;
 
         Ok(())
     }
 
     pub fn reset_fuel(&mut self, now: u32) {
-        self.fuel_insurance = 0;
-        self.fuel_deposits = 0;
-        self.fuel_borrows = 0;
-        self.fuel_positions = 0;
-        self.fuel_taker = 0;
-        self.fuel_maker = 0;
+        self.fuel_insurance = Zero::zero();
+        self.fuel_deposits = Zero::zero();
+        self.fuel_borrows = Zero::zero();
+        self.fuel_positions = Zero::zero();
+        self.fuel_taker = Zero::zero();
+        self.fuel_maker = Zero::zero();
         self.last_reset_ts = now;
     }
 
     pub fn total_fuel(&self) -> DriftResult<u128> {
         self.fuel_insurance
-            .safe_add(self.fuel_deposits)?
-            .safe_add(self.fuel_borrows)?
-            .safe_add(self.fuel_positions)?
-            .safe_add(self.fuel_taker)?
-            .safe_add(self.fuel_maker)
+            .as_u128()
+            .safe_add(self.fuel_deposits.as_u128())?
+            .safe_add(self.fuel_borrows.as_u128())?
+            .safe_add(self.fuel_positions.as_u128())?
+            .safe_add(self.fuel_taker.as_u128())?
+            .safe_add(self.fuel_maker.as_u128())
     }
 }
 

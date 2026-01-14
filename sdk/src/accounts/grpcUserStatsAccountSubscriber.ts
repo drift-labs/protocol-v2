@@ -1,16 +1,16 @@
 import { ResubOpts, GrpcConfigs } from './types';
-import { Program } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
 import { UserStatsAccount } from '../types';
 import { WebSocketUserStatsAccountSubscriber } from './webSocketUserStatsAccountSubsriber';
 import { grpcAccountSubscriber } from './grpcAccountSubscriber';
+import { DriftProgram } from '../config';
 
 export class grpcUserStatsAccountSubscriber extends WebSocketUserStatsAccountSubscriber {
 	private grpcConfigs: GrpcConfigs;
 
 	public constructor(
 		grpcConfigs: GrpcConfigs,
-		program: Program,
+		program: DriftProgram,
 		userStatsAccountPublicKey: PublicKey,
 		resubOpts?: ResubOpts
 	) {

@@ -2,9 +2,9 @@ import { BN } from '@coral-xyz/anchor';
 import {
 	PRICE_PRECISION,
 	PerpMarketAccount,
+	ZERO,
 	calculateReservePrice,
 	calculateTargetPriceTrade,
-	ZERO,
 } from '../sdk/src';
 
 /**

@@ -138,11 +138,11 @@ pub mod fill_order_protected_maker {
         let mut market = PerpMarket {
             paused_operations: PerpOperation::AmmFill as u8,
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                terminal_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                terminal_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 100,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -166,25 +166,33 @@ pub mod fill_order_protected_maker {
             ..PerpMarket::default()
         };
         market.status = MarketStatus::Active;
-        market.amm.max_base_asset_reserve = i128::MAX as u128;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(i128::MAX as u128);
+        market.amm.set_min_base_asset_reserve(0);
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
-        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
-        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
-        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
-        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+        market
+            .amm
+            .set_ask_base_asset_reserve(new_ask_base_asset_reserve);
+        market
+            .amm
+            .set_bid_base_asset_reserve(new_bid_base_asset_reserve);
+        market
+            .amm
+            .set_ask_quote_asset_reserve(new_ask_quote_asset_reserve);
+        market
+            .amm
+            .set_bid_quote_asset_reserve(new_bid_quote_asset_reserve);
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -572,12 +580,12 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_stats.maker_volume_30d, 100 * QUOTE_PRECISION_U64);
         assert!(maker.orders[0].is_available());
 
-        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
-        assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
-        assert_eq!(market.amm.quote_asset_amount, -20000);
-        assert_eq!(market.amm.total_fee, 20000);
-        assert_eq!(market.amm.total_fee_minus_distributions, 20000);
+        assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market.amm.base_asset_amount_long(), BASE_PRECISION_I128);
+        assert_eq!(market.amm.base_asset_amount_short(), -BASE_PRECISION_I128);
+        assert_eq!(market.amm.quote_asset_amount(), -20000);
+        assert_eq!(market.amm.total_fee(), 20000);
+        assert_eq!(market.amm.total_fee_minus_distributions(), 20000);
         assert_eq!(market.amm.net_revenue_since_last_funding, 20000);
     }
 
@@ -697,12 +705,12 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_stats.maker_volume_30d, 160 * QUOTE_PRECISION_U64);
         assert!(maker.orders[0].is_available());
 
-        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
-        assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
-        assert_eq!(market.amm.quote_asset_amount, -32000);
-        assert_eq!(market.amm.total_fee, 32000);
-        assert_eq!(market.amm.total_fee_minus_distributions, 32000);
+        assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market.amm.base_asset_amount_long(), BASE_PRECISION_I128);
+        assert_eq!(market.amm.base_asset_amount_short(), -BASE_PRECISION_I128);
+        assert_eq!(market.amm.quote_asset_amount(), -32000);
+        assert_eq!(market.amm.total_fee(), 32000);
+        assert_eq!(market.amm.total_fee_minus_distributions(), 32000);
         assert_eq!(market.amm.net_revenue_since_last_funding, 32000);
     }
 
@@ -822,12 +830,12 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_stats.maker_volume_30d, 180 * QUOTE_PRECISION_U64);
         assert!(maker.orders[0].is_available());
 
-        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
-        assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
-        assert_eq!(market.amm.quote_asset_amount, -36000);
-        assert_eq!(market.amm.total_fee, 36000);
-        assert_eq!(market.amm.total_fee_minus_distributions, 36000);
+        assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market.amm.base_asset_amount_long(), BASE_PRECISION_I128);
+        assert_eq!(market.amm.base_asset_amount_short(), -BASE_PRECISION_I128);
+        assert_eq!(market.amm.quote_asset_amount(), -36000);
+        assert_eq!(market.amm.total_fee(), 36000);
+        assert_eq!(market.amm.total_fee_minus_distributions(), 36000);
         assert_eq!(market.amm.net_revenue_since_last_funding, 36000);
     }
 
@@ -947,12 +955,12 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_stats.maker_volume_30d, 140 * QUOTE_PRECISION_U64);
         assert!(maker.orders[0].is_available());
 
-        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
-        assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
-        assert_eq!(market.amm.quote_asset_amount, -28000);
-        assert_eq!(market.amm.total_fee, 28000);
-        assert_eq!(market.amm.total_fee_minus_distributions, 28000);
+        assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market.amm.base_asset_amount_long(), BASE_PRECISION_I128);
+        assert_eq!(market.amm.base_asset_amount_short(), -BASE_PRECISION_I128);
+        assert_eq!(market.amm.quote_asset_amount(), -28000);
+        assert_eq!(market.amm.total_fee(), 28000);
+        assert_eq!(market.amm.total_fee_minus_distributions(), 28000);
         assert_eq!(market.amm.net_revenue_since_last_funding, 28000);
     }
 
@@ -1428,10 +1436,10 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_position.quote_break_even_amount, 120072000);
         assert_eq!(maker_stats.maker_volume_30d, 120 * QUOTE_PRECISION_U64);
 
-        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
-        assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
-        assert_eq!(market.amm.quote_asset_amount, -48000);
+        assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market.amm.base_asset_amount_long(), BASE_PRECISION_I128);
+        assert_eq!(market.amm.base_asset_amount_short(), -BASE_PRECISION_I128);
+        assert_eq!(market.amm.quote_asset_amount(), -48000);
     }
 
     #[test]
@@ -1540,10 +1548,10 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_position.quote_break_even_amount, 120072000);
         assert_eq!(maker_stats.maker_volume_30d, 120 * QUOTE_PRECISION_U64);
 
-        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
-        assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
-        assert_eq!(market.amm.quote_asset_amount, -48000);
+        assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market.amm.base_asset_amount_long(), BASE_PRECISION_I128);
+        assert_eq!(market.amm.base_asset_amount_short(), -BASE_PRECISION_I128);
+        assert_eq!(market.amm.quote_asset_amount(), -48000);
     }
 
     #[test]
@@ -1667,12 +1675,12 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(maker_stats.maker_volume_30d, 150 * QUOTE_PRECISION_U64);
         assert!(maker.orders[0].is_available());
 
-        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
-        assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
-        assert_eq!(market.amm.quote_asset_amount, -30000);
-        assert_eq!(market.amm.total_fee, 30000);
-        assert_eq!(market.amm.total_fee_minus_distributions, 30000);
+        assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market.amm.base_asset_amount_long(), BASE_PRECISION_I128);
+        assert_eq!(market.amm.base_asset_amount_short(), -BASE_PRECISION_I128);
+        assert_eq!(market.amm.quote_asset_amount(), -30000);
+        assert_eq!(market.amm.total_fee(), 30000);
+        assert_eq!(market.amm.total_fee_minus_distributions(), 30000);
         assert_eq!(market.amm.net_revenue_since_last_funding, 30000);
     }
 
@@ -1789,12 +1797,12 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_stats.taker_volume_30d, 100 * QUOTE_PRECISION_U64);
         assert!(taker.orders[0].is_available());
 
-        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
-        assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
-        assert_eq!(market.amm.quote_asset_amount, -20000);
-        assert_eq!(market.amm.total_fee, 20000);
-        assert_eq!(market.amm.total_fee_minus_distributions, 20000);
+        assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market.amm.base_asset_amount_long(), BASE_PRECISION_I128);
+        assert_eq!(market.amm.base_asset_amount_short(), -BASE_PRECISION_I128);
+        assert_eq!(market.amm.quote_asset_amount(), -20000);
+        assert_eq!(market.amm.total_fee(), 20000);
+        assert_eq!(market.amm.total_fee_minus_distributions(), 20000);
         assert_eq!(market.amm.net_revenue_since_last_funding, 20000);
     }
 
@@ -1912,12 +1920,12 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_stats.taker_volume_30d, 100 * QUOTE_PRECISION_U64);
         assert!(taker.orders[0].is_available());
 
-        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
-        assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
-        assert_eq!(market.amm.quote_asset_amount, -20000);
-        assert_eq!(market.amm.total_fee, 20000);
-        assert_eq!(market.amm.total_fee_minus_distributions, 20000);
+        assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market.amm.base_asset_amount_long(), BASE_PRECISION_I128);
+        assert_eq!(market.amm.base_asset_amount_short(), -BASE_PRECISION_I128);
+        assert_eq!(market.amm.quote_asset_amount(), -20000);
+        assert_eq!(market.amm.total_fee(), 20000);
+        assert_eq!(market.amm.total_fee_minus_distributions(), 20000);
         assert_eq!(market.amm.net_revenue_since_last_funding, 20000);
     }
 
@@ -1964,16 +1972,16 @@ pub mod fulfill_order_with_maker_order {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
                 short_spread: (BID_ASK_SPREAD_PRECISION / 10) as u32,
                 long_spread: (BID_ASK_SPREAD_PRECISION / 10) as u32,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
@@ -2078,16 +2086,16 @@ pub mod fulfill_order_with_maker_order {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
                 short_spread: (BID_ASK_SPREAD_PRECISION / 10) as u32,
                 long_spread: (BID_ASK_SPREAD_PRECISION / 10) as u32,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
@@ -2315,12 +2323,12 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_stats.taker_volume_30d, 100 * QUOTE_PRECISION_U64);
         assert!(taker.orders[0].is_available());
 
-        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
-        assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
-        assert_eq!(market.amm.quote_asset_amount, -20000);
-        assert_eq!(market.amm.total_fee, 20000);
-        assert_eq!(market.amm.total_fee_minus_distributions, 20000);
+        assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market.amm.base_asset_amount_long(), BASE_PRECISION_I128);
+        assert_eq!(market.amm.base_asset_amount_short(), -BASE_PRECISION_I128);
+        assert_eq!(market.amm.quote_asset_amount(), -20000);
+        assert_eq!(market.amm.total_fee(), 20000);
+        assert_eq!(market.amm.total_fee_minus_distributions(), 20000);
         assert_eq!(market.amm.net_revenue_since_last_funding, 20000);
     }
 
@@ -2468,12 +2476,12 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_stats.taker_volume_30d, 100 * QUOTE_PRECISION_U64);
         assert!(taker.orders[0].is_available());
 
-        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
-        assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
-        assert_eq!(market.amm.quote_asset_amount, -20000);
-        assert_eq!(market.amm.total_fee, 20000);
-        assert_eq!(market.amm.total_fee_minus_distributions, 20000);
+        assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market.amm.base_asset_amount_long(), BASE_PRECISION_I128);
+        assert_eq!(market.amm.base_asset_amount_short(), -BASE_PRECISION_I128);
+        assert_eq!(market.amm.quote_asset_amount(), -20000);
+        assert_eq!(market.amm.total_fee(), 20000);
+        assert_eq!(market.amm.total_fee_minus_distributions(), 20000);
         assert_eq!(market.amm.net_revenue_since_last_funding, 20000);
     }
 
@@ -2619,12 +2627,12 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_stats.taker_volume_30d, 100 * QUOTE_PRECISION_U64);
         assert!(taker.orders[0].is_available());
 
-        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
-        assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
-        assert_eq!(market.amm.quote_asset_amount, -20000);
-        assert_eq!(market.amm.total_fee, 20000);
-        assert_eq!(market.amm.total_fee_minus_distributions, 20000);
+        assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market.amm.base_asset_amount_long(), BASE_PRECISION_I128);
+        assert_eq!(market.amm.base_asset_amount_short(), -BASE_PRECISION_I128);
+        assert_eq!(market.amm.quote_asset_amount(), -20000);
+        assert_eq!(market.amm.total_fee(), 20000);
+        assert_eq!(market.amm.total_fee_minus_distributions(), 20000);
         assert_eq!(market.amm.net_revenue_since_last_funding, 20000);
     }
 
@@ -2771,12 +2779,12 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_stats.taker_volume_30d, 100 * QUOTE_PRECISION_U64);
         assert!(taker.orders[0].is_available());
 
-        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
-        assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
-        assert_eq!(market.amm.quote_asset_amount, -20000);
-        assert_eq!(market.amm.total_fee, 20000);
-        assert_eq!(market.amm.total_fee_minus_distributions, 20000);
+        assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market.amm.base_asset_amount_long(), BASE_PRECISION_I128);
+        assert_eq!(market.amm.base_asset_amount_short(), -BASE_PRECISION_I128);
+        assert_eq!(market.amm.quote_asset_amount(), -20000);
+        assert_eq!(market.amm.total_fee(), 20000);
+        assert_eq!(market.amm.total_fee_minus_distributions(), 20000);
         assert_eq!(market.amm.net_revenue_since_last_funding, 20000);
     }
 
@@ -2904,12 +2912,12 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_stats.taker_volume_30d, 100 * QUOTE_PRECISION_U64);
         assert!(taker.orders[0].is_available());
 
-        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
-        assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
-        assert_eq!(market.amm.quote_asset_amount, -20000);
-        assert_eq!(market.amm.total_fee, 20000);
-        assert_eq!(market.amm.total_fee_minus_distributions, 20000);
+        assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market.amm.base_asset_amount_long(), BASE_PRECISION_I128);
+        assert_eq!(market.amm.base_asset_amount_short(), -BASE_PRECISION_I128);
+        assert_eq!(market.amm.quote_asset_amount(), -20000);
+        assert_eq!(market.amm.total_fee(), 20000);
+        assert_eq!(market.amm.total_fee_minus_distributions(), 20000);
         assert_eq!(market.amm.net_revenue_since_last_funding, 20000);
     }
 
@@ -3036,12 +3044,12 @@ pub mod fulfill_order_with_maker_order {
         assert_eq!(taker_stats.taker_volume_30d, 100 * QUOTE_PRECISION_U64);
         assert!(taker.orders[0].is_available());
 
-        assert_eq!(market.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market.amm.base_asset_amount_long, BASE_PRECISION_I128);
-        assert_eq!(market.amm.base_asset_amount_short, -BASE_PRECISION_I128);
-        assert_eq!(market.amm.quote_asset_amount, -20000);
-        assert_eq!(market.amm.total_fee, 20000);
-        assert_eq!(market.amm.total_fee_minus_distributions, 20000);
+        assert_eq!(market.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market.amm.base_asset_amount_long(), BASE_PRECISION_I128);
+        assert_eq!(market.amm.base_asset_amount_short(), -BASE_PRECISION_I128);
+        assert_eq!(market.amm.quote_asset_amount(), -20000);
+        assert_eq!(market.amm.total_fee(), 20000);
+        assert_eq!(market.amm.total_fee_minus_distributions(), 20000);
         assert_eq!(market.amm.net_revenue_since_last_funding, 20000);
     }
 }
@@ -3087,14 +3095,14 @@ pub mod fulfill_order {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
@@ -3116,8 +3124,8 @@ pub mod fulfill_order {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         let mut state = State {
             oracle_guard_rails: OracleGuardRails {
@@ -3174,14 +3182,14 @@ pub mod fulfill_order {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -3202,8 +3210,8 @@ pub mod fulfill_order {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = i128::MAX as u128;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(i128::MAX as u128);
+        market.amm.set_min_base_asset_reserve(0);
 
         let mut state = State {
             min_perp_auction_duration: 1,
@@ -3243,14 +3251,14 @@ pub mod fulfill_order {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -3271,8 +3279,8 @@ pub mod fulfill_order {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -3280,7 +3288,7 @@ pub mod fulfill_order {
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -3446,10 +3454,10 @@ pub mod fulfill_order {
         assert_eq!(filler.perp_positions[0].quote_asset_amount, 5012);
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.base_asset_amount_with_amm, 500000000);
-        assert_eq!(market_after.amm.base_asset_amount_long, 1000000000);
-        assert_eq!(market_after.amm.base_asset_amount_short, -500000000);
-        assert_eq!(market_after.amm.quote_asset_amount, -50281374);
+        assert_eq!(market_after.amm.base_asset_amount_with_amm(), 500000000);
+        assert_eq!(market_after.amm.base_asset_amount_long(), 1000000000);
+        assert_eq!(market_after.amm.base_asset_amount_short(), -500000000);
+        assert_eq!(market_after.amm.quote_asset_amount(), -50281374);
 
         let expected_market_fee = ((taker_stats.fees.total_fee_paid
             - (maker_stats.fees.total_fee_rebate
@@ -3458,9 +3466,9 @@ pub mod fulfill_order {
             + 1; //todo
 
         // assert_eq!(expected_market_fee, 35100);
-        assert_eq!(market_after.amm.total_fee, expected_market_fee);
+        assert_eq!(market_after.amm.total_fee(), expected_market_fee);
         assert_eq!(
-            market_after.amm.total_fee_minus_distributions,
+            market_after.amm.total_fee_minus_distributions(),
             expected_market_fee
         );
         assert_eq!(
@@ -3491,14 +3499,14 @@ pub mod fulfill_order {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -3519,8 +3527,8 @@ pub mod fulfill_order {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -3528,7 +3536,7 @@ pub mod fulfill_order {
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -3710,14 +3718,14 @@ pub mod fulfill_order {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100_050 * PEG_PRECISION / 1000,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100_050 * PEG_PRECISION / 1000).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -3738,8 +3746,8 @@ pub mod fulfill_order {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -3747,7 +3755,7 @@ pub mod fulfill_order {
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -3910,19 +3918,19 @@ pub mod fulfill_order {
         assert_eq!(filler.perp_positions[0].quote_asset_amount, 5013);
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.base_asset_amount_with_amm, 500000000);
-        assert_eq!(market_after.amm.base_asset_amount_long, 1000000000);
-        assert_eq!(market_after.amm.base_asset_amount_short, -500000000);
-        assert_eq!(market_after.amm.quote_asset_amount, -50306510);
+        assert_eq!(market_after.amm.base_asset_amount_with_amm(), 500000000);
+        assert_eq!(market_after.amm.base_asset_amount_long(), 1000000000);
+        assert_eq!(market_after.amm.base_asset_amount_short(), -500000000);
+        assert_eq!(market_after.amm.quote_asset_amount(), -50306510);
 
         let expected_market_fee = (taker_stats.fees.total_fee_paid
             - (maker_stats.fees.total_fee_rebate
                 + filler.perp_positions[0].quote_asset_amount as u64))
             as i128;
         assert_eq!(expected_market_fee, 30128);
-        assert_eq!(market_after.amm.total_fee, expected_market_fee);
+        assert_eq!(market_after.amm.total_fee(), expected_market_fee);
         assert_eq!(
-            market_after.amm.total_fee_minus_distributions,
+            market_after.amm.total_fee_minus_distributions(),
             expected_market_fee
         );
         assert_eq!(
@@ -3938,14 +3946,14 @@ pub mod fulfill_order {
     fn fulfill_with_maker_with_auction_incomplete() {
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 order_step_size: 1,
                 order_tick_size: 1,
                 historical_oracle_data: HistoricalOracleData {
@@ -3969,7 +3977,7 @@ pub mod fulfill_order {
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -4126,12 +4134,12 @@ pub mod fulfill_order {
         assert_eq!(maker_stats.maker_volume_30d, 50 * QUOTE_PRECISION_U64);
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market_after.amm.base_asset_amount_long, 500000000);
-        assert_eq!(market_after.amm.base_asset_amount_short, -500000000);
-        assert_eq!(market_after.amm.quote_asset_amount, -10000);
-        assert_eq!(market_after.amm.total_fee, 10000);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, 10000);
+        assert_eq!(market_after.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market_after.amm.base_asset_amount_long(), 500000000);
+        assert_eq!(market_after.amm.base_asset_amount_short(), -500000000);
+        assert_eq!(market_after.amm.quote_asset_amount(), -10000);
+        assert_eq!(market_after.amm.total_fee(), 10000);
+        assert_eq!(market_after.amm.total_fee_minus_distributions(), 10000);
         assert_eq!(market_after.amm.net_revenue_since_last_funding, 10000);
     }
 
@@ -4154,14 +4162,14 @@ pub mod fulfill_order {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 10,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
@@ -4182,8 +4190,8 @@ pub mod fulfill_order {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -4191,7 +4199,7 @@ pub mod fulfill_order {
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -4294,12 +4302,12 @@ pub mod fulfill_order {
         assert!(taker.orders[0].is_available());
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.base_asset_amount_with_amm, 1000000000);
-        assert_eq!(market_after.amm.base_asset_amount_long, 1000000000);
-        assert_eq!(market_after.amm.base_asset_amount_short, 0);
-        assert_eq!(market_after.amm.quote_asset_amount, -104133674);
-        assert_eq!(market_after.amm.total_fee, 3123572);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, 3123572);
+        assert_eq!(market_after.amm.base_asset_amount_with_amm(), 1000000000);
+        assert_eq!(market_after.amm.base_asset_amount_long(), 1000000000);
+        assert_eq!(market_after.amm.base_asset_amount_short(), 0);
+        assert_eq!(market_after.amm.quote_asset_amount(), -104133674);
+        assert_eq!(market_after.amm.total_fee(), 3123572);
+        assert_eq!(market_after.amm.total_fee_minus_distributions(), 3123572);
         assert_eq!(market_after.amm.net_revenue_since_last_funding, 3123572);
     }
 
@@ -4323,14 +4331,14 @@ pub mod fulfill_order {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -4352,8 +4360,8 @@ pub mod fulfill_order {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -4361,7 +4369,7 @@ pub mod fulfill_order {
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -4527,14 +4535,14 @@ pub mod fulfill_order {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -4555,8 +4563,8 @@ pub mod fulfill_order {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -4564,7 +4572,7 @@ pub mod fulfill_order {
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -4714,14 +4722,14 @@ pub mod fulfill_order {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -4742,8 +4750,8 @@ pub mod fulfill_order {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u64::MAX as u128;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u64::MAX as u128);
+        market.amm.set_min_base_asset_reserve(0);
 
         let reserve_price_before = market.amm.reserve_price().unwrap();
         let bid_price = market.amm.bid_price(reserve_price_before).unwrap();
@@ -4755,7 +4763,7 @@ pub mod fulfill_order {
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -4863,12 +4871,12 @@ pub mod fulfill_order {
         assert_eq!(taker_stats.maker_volume_30d, 3499697);
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.base_asset_amount_with_amm, -35032000);
-        assert_eq!(market_after.amm.base_asset_amount_long, 0);
-        assert_eq!(market_after.amm.base_asset_amount_short, -35032000);
-        assert_eq!(market_after.amm.quote_asset_amount, 3500868);
-        assert_eq!(market_after.amm.total_fee, 1105);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, 1105);
+        assert_eq!(market_after.amm.base_asset_amount_with_amm(), -35032000);
+        assert_eq!(market_after.amm.base_asset_amount_long(), 0);
+        assert_eq!(market_after.amm.base_asset_amount_short(), -35032000);
+        assert_eq!(market_after.amm.quote_asset_amount(), 3500868);
+        assert_eq!(market_after.amm.total_fee(), 1105);
+        assert_eq!(market_after.amm.total_fee_minus_distributions(), 1105);
         assert_eq!(market_after.amm.net_revenue_since_last_funding, 1105);
 
         let market_after = market_map.get_ref(&0).unwrap();
@@ -4896,14 +4904,14 @@ pub mod fulfill_order {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -4924,8 +4932,8 @@ pub mod fulfill_order {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u64::MAX as u128;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u64::MAX as u128);
+        market.amm.set_min_base_asset_reserve(0);
 
         let reserve_price_before = market.amm.reserve_price().unwrap();
         let bid_price = market.amm.bid_price(reserve_price_before).unwrap();
@@ -4937,7 +4945,7 @@ pub mod fulfill_order {
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -5045,12 +5053,12 @@ pub mod fulfill_order {
         assert_eq!(taker_stats.maker_volume_30d, 3500096);
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.base_asset_amount_with_amm, 34966000);
-        assert_eq!(market_after.amm.base_asset_amount_long, 34966000);
-        assert_eq!(market_after.amm.base_asset_amount_short, 0);
-        assert_eq!(market_after.amm.quote_asset_amount, -3498924);
-        assert_eq!(market_after.amm.total_fee, 1100);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, 1100);
+        assert_eq!(market_after.amm.base_asset_amount_with_amm(), 34966000);
+        assert_eq!(market_after.amm.base_asset_amount_long(), 34966000);
+        assert_eq!(market_after.amm.base_asset_amount_short(), 0);
+        assert_eq!(market_after.amm.quote_asset_amount(), -3498924);
+        assert_eq!(market_after.amm.total_fee(), 1100);
+        assert_eq!(market_after.amm.total_fee_minus_distributions(), 1100);
         assert_eq!(market_after.amm.net_revenue_since_last_funding, 1100);
 
         let market_after = market_map.get_ref(&0).unwrap();
@@ -5086,15 +5094,15 @@ pub mod fulfill_order {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                terminal_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                terminal_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -5117,8 +5125,8 @@ pub mod fulfill_order {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
         market.status = MarketStatus::Active;
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
@@ -5127,7 +5135,7 @@ pub mod fulfill_order {
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -5396,14 +5404,14 @@ pub mod fulfill_order {
     fn fulfill_users_with_multiple_orders_and_markets() {
         let mut sol_market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 order_step_size: 1,
                 order_tick_size: 1,
                 historical_oracle_data: HistoricalOracleData {
@@ -5422,14 +5430,14 @@ pub mod fulfill_order {
         create_anchor_account_info!(sol_market, PerpMarket, sol_market_account_info);
         let mut btc_market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 20000 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (20000 * PEG_PRECISION).into(),
                 order_step_size: 1,
                 order_tick_size: 1,
                 historical_oracle_data: HistoricalOracleData {
@@ -5456,7 +5464,7 @@ pub mod fulfill_order {
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -5678,12 +5686,12 @@ pub mod fulfill_order {
         assert_eq!(maker.orders[0], maker_before.orders[0]);
 
         let market_after = market_map.get_ref(&0).unwrap();
-        assert_eq!(market_after.amm.base_asset_amount_with_amm, 0);
-        assert_eq!(market_after.amm.base_asset_amount_long, 500000000);
-        assert_eq!(market_after.amm.base_asset_amount_short, -500000000);
-        assert_eq!(market_after.amm.quote_asset_amount, -10000);
-        assert_eq!(market_after.amm.total_fee, 10000);
-        assert_eq!(market_after.amm.total_fee_minus_distributions, 10000);
+        assert_eq!(market_after.amm.base_asset_amount_with_amm(), 0);
+        assert_eq!(market_after.amm.base_asset_amount_long(), 500000000);
+        assert_eq!(market_after.amm.base_asset_amount_short(), -500000000);
+        assert_eq!(market_after.amm.quote_asset_amount(), -10000);
+        assert_eq!(market_after.amm.total_fee(), 10000);
+        assert_eq!(market_after.amm.total_fee_minus_distributions(), 10000);
         assert_eq!(market_after.amm.net_revenue_since_last_funding, 10000);
 
         assert_eq!(market_after.amm.last_mark_price_twap_ts, 1);
@@ -5733,14 +5741,14 @@ pub mod fulfill_order {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 50,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -5761,8 +5769,8 @@ pub mod fulfill_order {
             status: MarketStatus::Initialized,
             ..PerpMarket::default_test()
         };
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
 
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
@@ -5770,7 +5778,7 @@ pub mod fulfill_order {
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -5983,11 +5991,11 @@ pub mod fill_order {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                terminal_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                terminal_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 100,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -6011,25 +6019,33 @@ pub mod fill_order {
             ..PerpMarket::default()
         };
         market.status = MarketStatus::Active;
-        market.amm.max_base_asset_reserve = i128::MAX as u128;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(i128::MAX as u128);
+        market.amm.set_min_base_asset_reserve(0);
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
-        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
-        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
-        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
-        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+        market
+            .amm
+            .set_ask_base_asset_reserve(new_ask_base_asset_reserve);
+        market
+            .amm
+            .set_bid_base_asset_reserve(new_bid_base_asset_reserve);
+        market
+            .amm
+            .set_ask_quote_asset_reserve(new_ask_quote_asset_reserve);
+        market
+            .amm
+            .set_bid_quote_asset_reserve(new_bid_quote_asset_reserve);
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -6184,11 +6200,11 @@ pub mod fill_order {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                terminal_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                terminal_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 100,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -6212,25 +6228,33 @@ pub mod fill_order {
             ..PerpMarket::default()
         };
         market.status = MarketStatus::Active;
-        market.amm.max_base_asset_reserve = i128::MAX as u128;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(i128::MAX as u128);
+        market.amm.set_min_base_asset_reserve(0);
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
-        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
-        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
-        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
-        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+        market
+            .amm
+            .set_ask_base_asset_reserve(new_ask_base_asset_reserve);
+        market
+            .amm
+            .set_bid_base_asset_reserve(new_bid_base_asset_reserve);
+        market
+            .amm
+            .set_ask_quote_asset_reserve(new_ask_quote_asset_reserve);
+        market
+            .amm
+            .set_bid_quote_asset_reserve(new_bid_quote_asset_reserve);
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -6364,21 +6388,21 @@ pub mod fill_order {
     fn expire_order() {
         let mut market = PerpMarket {
             amm: AMM {
-                terminal_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
-                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                terminal_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                bid_base_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                bid_quote_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_base_asset_reserve: (99 * AMM_RESERVE_PRECISION).into(),
+                ask_quote_asset_reserve: (101 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 100,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 10000000,
                 order_tick_size: 1,
-                max_base_asset_reserve: 200 * AMM_RESERVE_PRECISION,
-                min_base_asset_reserve: 50 * AMM_RESERVE_PRECISION,
+                max_base_asset_reserve: (200 * AMM_RESERVE_PRECISION).into(),
+                min_base_asset_reserve: (50 * AMM_RESERVE_PRECISION).into(),
                 historical_oracle_data: HistoricalOracleData::default_price(PRICE_PRECISION_I64),
                 ..AMM::default()
             },
@@ -6396,7 +6420,7 @@ pub mod fill_order {
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             ..SpotMarket::default()
@@ -6523,17 +6547,17 @@ pub mod fill_order {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                terminal_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                terminal_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 100,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
                 order_tick_size: 1,
                 oracle: oracle_price_key,
-                max_open_interest: 100,
+                max_open_interest: 100.into(),
                 max_spread: 1000,
                 base_spread: 0,
                 long_spread: 0,
@@ -6552,25 +6576,33 @@ pub mod fill_order {
             ..PerpMarket::default()
         };
         market.status = MarketStatus::Active;
-        market.amm.max_base_asset_reserve = i128::MAX as u128;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(i128::MAX as u128);
+        market.amm.set_min_base_asset_reserve(0);
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
-        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
-        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
-        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
-        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+        market
+            .amm
+            .set_ask_base_asset_reserve(new_ask_base_asset_reserve);
+        market
+            .amm
+            .set_bid_base_asset_reserve(new_bid_base_asset_reserve);
+        market
+            .amm
+            .set_ask_quote_asset_reserve(new_ask_quote_asset_reserve);
+        market
+            .amm
+            .set_bid_quote_asset_reserve(new_bid_quote_asset_reserve);
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -6728,11 +6760,11 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_BALANCE_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION.into(),
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (101 * SPOT_BALANCE_PRECISION).into(),
             ..SpotMarket::default_quote_market()
         };
 
@@ -6792,8 +6824,8 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.maker_volume_30d, 100000000);
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
 
-        assert_eq!(base_market.total_spot_fee, 20000);
-        assert_eq!(base_market.spot_fee_pool.scaled_balance, 20000000);
+        assert_eq!(base_market.total_spot_fee(), 20000);
+        assert_eq!(base_market.spot_fee_pool.scaled_balance(), 20000000);
     }
 
     #[test]
@@ -6853,11 +6885,11 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_BALANCE_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION.into(),
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 161 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (161 * SPOT_BALANCE_PRECISION).into(),
             ..SpotMarket::default_quote_market()
         };
 
@@ -6917,8 +6949,8 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.maker_volume_30d, 160000000);
         assert_eq!(maker_stats.fees.total_fee_rebate, 48000);
 
-        assert_eq!(base_market.total_spot_fee, 32000);
-        assert_eq!(base_market.spot_fee_pool.scaled_balance, 32000000);
+        assert_eq!(base_market.total_spot_fee(), 32000);
+        assert_eq!(base_market.spot_fee_pool.scaled_balance(), 32000000);
     }
 
     #[test]
@@ -6978,11 +7010,11 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_BALANCE_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION.into(),
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (101 * SPOT_BALANCE_PRECISION).into(),
             ..SpotMarket::default_quote_market()
         };
 
@@ -7042,8 +7074,8 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.maker_volume_30d, 100000000);
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
 
-        assert_eq!(base_market.total_spot_fee, 20000);
-        assert_eq!(base_market.spot_fee_pool.scaled_balance, 20000000);
+        assert_eq!(base_market.total_spot_fee(), 20000);
+        assert_eq!(base_market.spot_fee_pool.scaled_balance(), 20000000);
     }
 
     #[test]
@@ -7103,11 +7135,11 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_BALANCE_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION.into(),
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (101 * SPOT_BALANCE_PRECISION).into(),
             ..SpotMarket::default_quote_market()
         };
 
@@ -7167,8 +7199,8 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.maker_volume_30d, 70000000);
         assert_eq!(maker_stats.fees.total_fee_rebate, 21000);
 
-        assert_eq!(base_market.total_spot_fee, 14000);
-        assert_eq!(base_market.spot_fee_pool.scaled_balance, 14000000);
+        assert_eq!(base_market.total_spot_fee(), 14000);
+        assert_eq!(base_market.spot_fee_pool.scaled_balance(), 14000000);
     }
 
     #[test]
@@ -7228,11 +7260,11 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_BALANCE_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION.into(),
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (101 * SPOT_BALANCE_PRECISION).into(),
             ..SpotMarket::default_quote_market()
         };
 
@@ -7327,11 +7359,11 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_BALANCE_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION.into(),
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (101 * SPOT_BALANCE_PRECISION).into(),
             ..SpotMarket::default_quote_market()
         };
 
@@ -7426,11 +7458,11 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_BALANCE_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION.into(),
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (101 * SPOT_BALANCE_PRECISION).into(),
             ..SpotMarket::default_quote_market()
         };
 
@@ -7525,11 +7557,11 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_BALANCE_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION.into(),
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (101 * SPOT_BALANCE_PRECISION).into(),
             ..SpotMarket::default_quote_market()
         };
 
@@ -7624,11 +7656,11 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_BALANCE_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION.into(),
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (101 * SPOT_BALANCE_PRECISION).into(),
             ..SpotMarket::default_quote_market()
         };
 
@@ -7700,8 +7732,8 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.maker_volume_30d, 100000000);
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
 
-        assert_eq!(base_market.total_spot_fee, 20000);
-        assert_eq!(base_market.spot_fee_pool.scaled_balance, 20000000);
+        assert_eq!(base_market.total_spot_fee(), 20000);
+        assert_eq!(base_market.spot_fee_pool.scaled_balance(), 20000000);
     }
 
     #[test]
@@ -7761,11 +7793,11 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_BALANCE_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION.into(),
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (101 * SPOT_BALANCE_PRECISION).into(),
             ..SpotMarket::default_quote_market()
         };
 
@@ -7837,8 +7869,8 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.maker_volume_30d, 100000000);
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
 
-        assert_eq!(base_market.total_spot_fee, 20000);
-        assert_eq!(base_market.spot_fee_pool.scaled_balance, 20000000);
+        assert_eq!(base_market.total_spot_fee(), 20000);
+        assert_eq!(base_market.spot_fee_pool.scaled_balance(), 20000000);
     }
 
     #[test]
@@ -7900,11 +7932,11 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_BALANCE_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION.into(),
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (101 * SPOT_BALANCE_PRECISION).into(),
             ..SpotMarket::default_quote_market()
         };
 
@@ -7964,8 +7996,8 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.maker_volume_30d, 100000000);
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
 
-        assert_eq!(base_market.total_spot_fee, 20000);
-        assert_eq!(base_market.spot_fee_pool.scaled_balance, 20000000);
+        assert_eq!(base_market.total_spot_fee(), 20000);
+        assert_eq!(base_market.spot_fee_pool.scaled_balance(), 20000000);
     }
 
     #[test]
@@ -8023,11 +8055,11 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_BALANCE_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION.into(),
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (101 * SPOT_BALANCE_PRECISION).into(),
             ..SpotMarket::default_quote_market()
         };
 
@@ -8087,8 +8119,8 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.maker_volume_30d, 100000000);
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
 
-        assert_eq!(base_market.total_spot_fee, 20000);
-        assert_eq!(base_market.spot_fee_pool.scaled_balance, 20000000);
+        assert_eq!(base_market.total_spot_fee(), 20000);
+        assert_eq!(base_market.spot_fee_pool.scaled_balance(), 20000000);
     }
 
     #[test]
@@ -8146,11 +8178,11 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_BALANCE_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION.into(),
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (101 * SPOT_BALANCE_PRECISION).into(),
             ..SpotMarket::default_quote_market()
         };
 
@@ -8210,8 +8242,8 @@ pub mod fulfill_spot_order_with_match {
         assert_eq!(maker_stats.maker_volume_30d, 100000000);
         assert_eq!(maker_stats.fees.total_fee_rebate, 30000);
 
-        assert_eq!(base_market.total_spot_fee, 20000);
-        assert_eq!(base_market.spot_fee_pool.scaled_balance, 20000000);
+        assert_eq!(base_market.total_spot_fee(), 20000);
+        assert_eq!(base_market.spot_fee_pool.scaled_balance(), 20000000);
     }
 
     #[test]
@@ -8270,11 +8302,11 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_BALANCE_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION.into(),
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (101 * SPOT_BALANCE_PRECISION).into(),
             ..SpotMarket::default_quote_market()
         };
 
@@ -8367,11 +8399,11 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: 0,
+            deposit_balance: 0.into(),
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (101 * SPOT_BALANCE_PRECISION).into(),
             ..SpotMarket::default_quote_market()
         };
 
@@ -8464,12 +8496,12 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_BALANCE_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION.into(),
             deposit_token_twap: SPOT_BALANCE_PRECISION as u64,
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (101 * SPOT_BALANCE_PRECISION).into(),
             deposit_token_twap: 101 * QUOTE_PRECISION_U64,
 
             ..SpotMarket::default_quote_market()
@@ -8564,11 +8596,11 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_BALANCE_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION.into(),
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 0,
+            deposit_balance: 0.into(),
             ..SpotMarket::default_quote_market()
         };
 
@@ -8661,12 +8693,12 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_BALANCE_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION.into(),
             deposit_token_twap: SPOT_BALANCE_PRECISION as u64,
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (100 * SPOT_BALANCE_PRECISION).into(),
             deposit_token_twap: 100 * QUOTE_PRECISION_U64,
             ..SpotMarket::default_quote_market()
         };
@@ -8760,12 +8792,12 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_BALANCE_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION.into(),
             deposit_token_twap: SPOT_BALANCE_PRECISION as u64,
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 0,
+            deposit_balance: 0.into(),
             deposit_token_twap: 0,
             ..SpotMarket::default_quote_market()
         };
@@ -8859,12 +8891,12 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_BALANCE_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION.into(),
             deposit_token_twap: SPOT_BALANCE_PRECISION as u64,
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (100 * SPOT_BALANCE_PRECISION).into(),
             deposit_token_twap: 100 * QUOTE_PRECISION_U64,
             ..SpotMarket::default_quote_market()
         };
@@ -8958,11 +8990,11 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: 0,
+            deposit_balance: 0.into(),
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (101 * SPOT_BALANCE_PRECISION).into(),
             ..SpotMarket::default_quote_market()
         };
 
@@ -9055,12 +9087,12 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_BALANCE_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION.into(),
             deposit_token_twap: SPOT_BALANCE_PRECISION as u64,
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (101 * SPOT_BALANCE_PRECISION).into(),
             deposit_token_twap: 101 * QUOTE_PRECISION_U64,
             ..SpotMarket::default_quote_market()
         };
@@ -9154,14 +9186,14 @@ pub mod fulfill_spot_order_with_match {
         };
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_BALANCE_PRECISION,
-            borrow_balance: SPOT_BALANCE_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION.into(),
+            borrow_balance: SPOT_BALANCE_PRECISION.into(),
             utilization_twap: SPOT_UTILIZATION_PRECISION as u64,
             ..SpotMarket::default_base_market()
         };
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
-            borrow_balance: 101 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (101 * SPOT_BALANCE_PRECISION).into(),
+            borrow_balance: (101 * SPOT_BALANCE_PRECISION).into(),
             utilization_twap: SPOT_UTILIZATION_PRECISION as u64,
             ..SpotMarket::default_quote_market()
         };
@@ -9468,7 +9500,7 @@ pub mod fulfill_spot_order {
 
         let mut base_market = SpotMarket {
             market_index: 1,
-            deposit_balance: SPOT_BALANCE_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION.into(),
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData::default_price(100 * PRICE_PRECISION_I64),
             ..SpotMarket::default_base_market()
@@ -9476,7 +9508,7 @@ pub mod fulfill_spot_order {
         create_anchor_account_info!(base_market, SpotMarket, base_market_account_info);
         let mut second_base_market = SpotMarket {
             market_index: 2,
-            deposit_balance: SPOT_BALANCE_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION.into(),
             historical_oracle_data: HistoricalOracleData::default_price(100 * PRICE_PRECISION_I64),
             ..SpotMarket::default_base_market()
         };
@@ -9487,7 +9519,7 @@ pub mod fulfill_spot_order {
         );
         let mut quote_market = SpotMarket {
             market_index: 0,
-            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (101 * SPOT_BALANCE_PRECISION).into(),
             ..SpotMarket::default_quote_market()
         };
         create_anchor_account_info!(quote_market, SpotMarket, quote_market_account_info);
@@ -9740,7 +9772,7 @@ pub mod fulfill_spot_order {
 
         let mut base_market = SpotMarket {
             market_index: 1,
-            deposit_balance: 2 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (2 * SPOT_BALANCE_PRECISION).into(),
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData::default_price(100 * PRICE_PRECISION_I64),
             ..SpotMarket::default_base_market()
@@ -9748,7 +9780,7 @@ pub mod fulfill_spot_order {
         create_anchor_account_info!(base_market, SpotMarket, base_market_account_info);
         let mut quote_market = SpotMarket {
             market_index: 0,
-            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (101 * SPOT_BALANCE_PRECISION).into(),
             ..SpotMarket::default_quote_market()
         };
         create_anchor_account_info!(quote_market, SpotMarket, quote_market_account_info);
@@ -10027,7 +10059,7 @@ pub mod fulfill_spot_order {
 
         let mut base_market = SpotMarket {
             market_index: 1,
-            deposit_balance: 10 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (10 * SPOT_BALANCE_PRECISION).into(),
             deposit_token_twap: 10 * LAMPORTS_PER_SOL_U64,
             oracle: oracle_price_key,
             historical_oracle_data: HistoricalOracleData::default_price(100 * PRICE_PRECISION_I64),
@@ -10036,7 +10068,7 @@ pub mod fulfill_spot_order {
         create_anchor_account_info!(base_market, SpotMarket, base_market_account_info);
         let mut quote_market = SpotMarket {
             market_index: 0,
-            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (101 * SPOT_BALANCE_PRECISION).into(),
             ..SpotMarket::default_quote_market()
         };
         create_anchor_account_info!(quote_market, SpotMarket, quote_market_account_info);
@@ -10215,13 +10247,13 @@ pub mod fill_spot_order {
         let perp_market_map = PerpMarketMap::empty();
 
         let mut base_market = SpotMarket {
-            deposit_balance: SPOT_BALANCE_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION.into(),
             historical_oracle_data: HistoricalOracleData::default_price(PRICE_PRECISION_I64),
             ..SpotMarket::default_base_market()
         };
         create_anchor_account_info!(base_market, SpotMarket, base_market_account_info);
         let mut quote_market = SpotMarket {
-            deposit_balance: 101 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (101 * SPOT_BALANCE_PRECISION).into(),
             ..SpotMarket::default_quote_market()
         };
         create_anchor_account_info!(quote_market, SpotMarket, quote_market_account_info);
@@ -10397,15 +10429,15 @@ pub mod force_cancel_orders {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                terminal_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                terminal_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
                 // bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
                 // bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 // ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
                 // ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 100,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -10429,27 +10461,35 @@ pub mod force_cancel_orders {
             ..PerpMarket::default()
         };
         market.status = MarketStatus::Active;
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
-        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
-        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
-        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
-        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+        market
+            .amm
+            .set_ask_base_asset_reserve(new_ask_base_asset_reserve);
+        market
+            .amm
+            .set_bid_base_asset_reserve(new_bid_base_asset_reserve);
+        market
+            .amm
+            .set_ask_quote_asset_reserve(new_ask_quote_asset_reserve);
+        market
+            .amm
+            .set_bid_quote_asset_reserve(new_bid_quote_asset_reserve);
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
         let mut usdc_spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            deposit_balance: SPOT_BALANCE_PRECISION,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION.into(),
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -10459,9 +10499,9 @@ pub mod force_cancel_orders {
 
         let mut sol_spot_market = SpotMarket {
             market_index: 1,
-            deposit_balance: SPOT_BALANCE_PRECISION,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
-            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            deposit_balance: SPOT_BALANCE_PRECISION.into(),
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             oracle: oracle_price_key,
             ..SpotMarket::default_base_market()
         };
@@ -10691,11 +10731,11 @@ pub mod get_maker_orders_info {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                terminal_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                terminal_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 100,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -10719,25 +10759,33 @@ pub mod get_maker_orders_info {
             ..PerpMarket::default()
         };
         market.status = MarketStatus::Active;
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
-        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
-        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
-        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
-        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+        market
+            .amm
+            .set_ask_base_asset_reserve(new_ask_base_asset_reserve);
+        market
+            .amm
+            .set_bid_base_asset_reserve(new_bid_base_asset_reserve);
+        market
+            .amm
+            .set_ask_quote_asset_reserve(new_ask_quote_asset_reserve);
+        market
+            .amm
+            .set_bid_quote_asset_reserve(new_bid_quote_asset_reserve);
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -10881,11 +10929,11 @@ pub mod get_maker_orders_info {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                terminal_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                terminal_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 100,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -10909,25 +10957,33 @@ pub mod get_maker_orders_info {
             ..PerpMarket::default()
         };
         market.status = MarketStatus::Active;
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
-        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
-        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
-        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
-        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+        market
+            .amm
+            .set_ask_base_asset_reserve(new_ask_base_asset_reserve);
+        market
+            .amm
+            .set_bid_base_asset_reserve(new_bid_base_asset_reserve);
+        market
+            .amm
+            .set_ask_quote_asset_reserve(new_ask_quote_asset_reserve);
+        market
+            .amm
+            .set_bid_quote_asset_reserve(new_bid_quote_asset_reserve);
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -11072,11 +11128,11 @@ pub mod get_maker_orders_info {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                terminal_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                terminal_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 100,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -11100,25 +11156,33 @@ pub mod get_maker_orders_info {
             ..PerpMarket::default()
         };
         market.status = MarketStatus::Active;
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
-        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
-        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
-        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
-        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+        market
+            .amm
+            .set_ask_base_asset_reserve(new_ask_base_asset_reserve);
+        market
+            .amm
+            .set_bid_base_asset_reserve(new_bid_base_asset_reserve);
+        market
+            .amm
+            .set_ask_quote_asset_reserve(new_ask_quote_asset_reserve);
+        market
+            .amm
+            .set_bid_quote_asset_reserve(new_bid_quote_asset_reserve);
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -11249,11 +11313,11 @@ pub mod get_maker_orders_info {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                terminal_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                terminal_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 100,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -11277,25 +11341,33 @@ pub mod get_maker_orders_info {
             ..PerpMarket::default()
         };
         market.status = MarketStatus::Active;
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
-        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
-        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
-        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
-        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+        market
+            .amm
+            .set_ask_base_asset_reserve(new_ask_base_asset_reserve);
+        market
+            .amm
+            .set_bid_base_asset_reserve(new_bid_base_asset_reserve);
+        market
+            .amm
+            .set_ask_quote_asset_reserve(new_ask_quote_asset_reserve);
+        market
+            .amm
+            .set_bid_quote_asset_reserve(new_bid_quote_asset_reserve);
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -11500,11 +11572,11 @@ pub mod get_maker_orders_info {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                terminal_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                terminal_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 100,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -11528,25 +11600,33 @@ pub mod get_maker_orders_info {
             ..PerpMarket::default()
         };
         market.status = MarketStatus::Active;
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
-        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
-        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
-        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
-        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+        market
+            .amm
+            .set_ask_base_asset_reserve(new_ask_base_asset_reserve);
+        market
+            .amm
+            .set_bid_base_asset_reserve(new_bid_base_asset_reserve);
+        market
+            .amm
+            .set_ask_quote_asset_reserve(new_ask_quote_asset_reserve);
+        market
+            .amm
+            .set_bid_quote_asset_reserve(new_bid_quote_asset_reserve);
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -11693,11 +11773,11 @@ pub mod get_maker_orders_info {
 
         let mut market = PerpMarket {
             amm: AMM {
-                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                terminal_quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
-                sqrt_k: 100 * AMM_RESERVE_PRECISION,
-                peg_multiplier: 100 * PEG_PRECISION,
+                base_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                terminal_quote_asset_reserve: (100 * AMM_RESERVE_PRECISION).into(),
+                sqrt_k: (100 * AMM_RESERVE_PRECISION).into(),
+                peg_multiplier: (100 * PEG_PRECISION).into(),
                 max_slippage_ratio: 100,
                 max_fill_reserve_fraction: 100,
                 order_step_size: 1000,
@@ -11721,25 +11801,33 @@ pub mod get_maker_orders_info {
             ..PerpMarket::default()
         };
         market.status = MarketStatus::Active;
-        market.amm.max_base_asset_reserve = u128::MAX;
-        market.amm.min_base_asset_reserve = 0;
+        market.amm.set_max_base_asset_reserve(u128::MAX);
+        market.amm.set_min_base_asset_reserve(0);
         let (new_ask_base_asset_reserve, new_ask_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Long)
                 .unwrap();
         let (new_bid_base_asset_reserve, new_bid_quote_asset_reserve) =
             crate::math::amm_spread::calculate_spread_reserves(&market, PositionDirection::Short)
                 .unwrap();
-        market.amm.ask_base_asset_reserve = new_ask_base_asset_reserve;
-        market.amm.bid_base_asset_reserve = new_bid_base_asset_reserve;
-        market.amm.ask_quote_asset_reserve = new_ask_quote_asset_reserve;
-        market.amm.bid_quote_asset_reserve = new_bid_quote_asset_reserve;
+        market
+            .amm
+            .set_ask_base_asset_reserve(new_ask_base_asset_reserve);
+        market
+            .amm
+            .set_bid_base_asset_reserve(new_bid_base_asset_reserve);
+        market
+            .amm
+            .set_ask_quote_asset_reserve(new_ask_quote_asset_reserve);
+        market
+            .amm
+            .set_bid_quote_asset_reserve(new_bid_quote_asset_reserve);
         create_anchor_account_info!(market, PerpMarket, market_account_info);
         let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
 
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -11942,7 +12030,7 @@ pub mod get_spot_maker_orders_info {
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -11952,7 +12040,7 @@ pub mod get_spot_maker_orders_info {
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
 
         let mut base_market = SpotMarket {
-            deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (100 * SPOT_BALANCE_PRECISION).into(),
             oracle: oracle_price_key,
             ..SpotMarket::default_base_market()
         };
@@ -12099,7 +12187,7 @@ pub mod get_spot_maker_orders_info {
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -12109,7 +12197,7 @@ pub mod get_spot_maker_orders_info {
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
 
         let mut base_market = SpotMarket {
-            deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (100 * SPOT_BALANCE_PRECISION).into(),
             oracle: oracle_price_key,
             ..SpotMarket::default_base_market()
         };
@@ -12258,7 +12346,7 @@ pub mod get_spot_maker_orders_info {
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -12268,7 +12356,7 @@ pub mod get_spot_maker_orders_info {
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
 
         let mut base_market = SpotMarket {
-            deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (100 * SPOT_BALANCE_PRECISION).into(),
             oracle: oracle_price_key,
             ..SpotMarket::default_base_market()
         };
@@ -12402,7 +12490,7 @@ pub mod get_spot_maker_orders_info {
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -12412,7 +12500,7 @@ pub mod get_spot_maker_orders_info {
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
 
         let mut base_market = SpotMarket {
-            deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (100 * SPOT_BALANCE_PRECISION).into(),
             oracle: oracle_price_key,
             ..SpotMarket::default_base_market()
         };
@@ -12624,7 +12712,7 @@ pub mod get_spot_maker_orders_info {
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -12634,7 +12722,7 @@ pub mod get_spot_maker_orders_info {
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
 
         let mut base_market = SpotMarket {
-            deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (100 * SPOT_BALANCE_PRECISION).into(),
             oracle: oracle_price_key,
             ..SpotMarket::default_base_market()
         };
@@ -12785,7 +12873,7 @@ pub mod get_spot_maker_orders_info {
         let mut spot_market = SpotMarket {
             market_index: 0,
             oracle_source: OracleSource::QuoteAsset,
-            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION.into(),
             decimals: 6,
             initial_asset_weight: SPOT_WEIGHT_PRECISION,
             maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
@@ -12795,7 +12883,7 @@ pub mod get_spot_maker_orders_info {
         create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
 
         let mut base_market = SpotMarket {
-            deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+            deposit_balance: (100 * SPOT_BALANCE_PRECISION).into(),
             oracle: oracle_price_key,
             ..SpotMarket::default_base_market()
         };

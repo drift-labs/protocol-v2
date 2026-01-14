@@ -87,18 +87,21 @@ pub fn calculate_if_shares_lost(
     spot_market: &SpotMarket,
     insurance_fund_vault_balance: u64,
 ) -> DriftResult<u128> {
-    let n_shares = insurance_fund_stake.last_withdraw_request_shares;
+    let n_shares = insurance_fund_stake.last_withdraw_request_shares();
 
     let amount = if_shares_to_vault_amount(
         n_shares,
-        spot_market.insurance_fund.total_shares,
+        spot_market.insurance_fund.total_shares(),
         insurance_fund_vault_balance,
     )?;
 
     let if_shares_lost = if amount > insurance_fund_stake.last_withdraw_request_value {
         let new_n_shares = vault_amount_to_if_shares(
             insurance_fund_stake.last_withdraw_request_value,
-            spot_market.insurance_fund.total_shares.safe_sub(n_shares)?,
+            spot_market
+                .insurance_fund
+                .total_shares()
+                .safe_sub(n_shares)?,
             insurance_fund_vault_balance
                 .safe_sub(insurance_fund_stake.last_withdraw_request_value)?,
         )?;

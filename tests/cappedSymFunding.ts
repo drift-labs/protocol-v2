@@ -2,42 +2,41 @@ import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
 import {
-	getFeedData,
-	initUserAccounts,
-	mockOracle,
-	mockUserUSDCAccount,
-	mockUSDCMint,
-	setFeedPrice,
-	initializeQuoteSpotMarket,
-	sleep,
-	printTxLogs,
-} from './testHelpers';
-import {
-	TestClient,
-	BN,
-	QUOTE_SPOT_MARKET_INDEX,
-	PRICE_PRECISION,
-	FUNDING_RATE_BUFFER_PRECISION,
-	PEG_PRECISION,
-	User,
-	PositionDirection,
-	QUOTE_PRECISION,
 	AMM_RESERVE_PRECISION,
+	BASE_PRECISION,
+	BN,
 	calculateReservePrice,
+	ContractTier,
 	convertToNumber,
 	ExchangeStatus,
-	BASE_PRECISION,
-	OracleSource,
+	FUNDING_RATE_BUFFER_PRECISION,
 	isVariant,
-	ContractTier,
+	OracleSource,
+	PEG_PRECISION,
+	PositionDirection,
+	PRICE_PRECISION,
+	QUOTE_PRECISION,
+	QUOTE_SPOT_MARKET_INDEX,
+	TestClient,
+	User,
 } from '../sdk/src';
-
-import { Program } from '@coral-xyz/anchor';
+import {
+	getFeedData,
+	initializeQuoteSpotMarket,
+	initUserAccounts,
+	mockOracle,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+	printTxLogs,
+	setFeedPrice,
+	sleep,
+} from './testHelpers';
 
 import { Keypair, PublicKey } from '@solana/web3.js';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 
 async function updateFundingRateHelper(
 	driftClient: TestClient,
@@ -449,7 +448,7 @@ async function cappedSymFundingScenario(
 }
 
 describe('capped funding', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 

@@ -27,7 +27,7 @@ pub fn calculate_base_asset_amount_to_trade_to_price(
     limit_price: u64,
     direction: PositionDirection,
 ) -> DriftResult<(u64, PositionDirection)> {
-    let invariant_sqrt_u192 = U192::from(amm.sqrt_k);
+    let invariant_sqrt_u192 = U192::from(amm.sqrt_k());
     let invariant = invariant_sqrt_u192.safe_mul(invariant_sqrt_u192)?;
 
     validate!(
@@ -39,7 +39,7 @@ pub fn calculate_base_asset_amount_to_trade_to_price(
     let new_base_asset_reserve_squared = invariant
         .safe_mul(U192::from(PRICE_PRECISION))?
         .safe_div(U192::from(limit_price))?
-        .safe_mul(U192::from(amm.peg_multiplier))?
+        .safe_mul(U192::from(amm.peg_multiplier()))?
         .safe_div(U192::from(PEG_PRECISION))?;
 
     let new_base_asset_reserve = new_base_asset_reserve_squared
@@ -50,7 +50,7 @@ pub fn calculate_base_asset_amount_to_trade_to_price(
         let (spread_base_asset_reserve, _) = get_spread_reserves(amm, direction)?;
         spread_base_asset_reserve
     } else {
-        amm.base_asset_reserve
+        amm.base_asset_reserve()
     };
 
     if new_base_asset_reserve > base_asset_reserve_before {
@@ -519,8 +519,8 @@ pub fn calculate_spread(
 
 pub fn get_spread_reserves(amm: &AMM, direction: PositionDirection) -> DriftResult<(u128, u128)> {
     let (base_asset_reserve, quote_asset_reserve) = match direction {
-        PositionDirection::Long => (amm.ask_base_asset_reserve, amm.ask_quote_asset_reserve),
-        PositionDirection::Short => (amm.bid_base_asset_reserve, amm.bid_quote_asset_reserve),
+        PositionDirection::Long => (amm.ask_base_asset_reserve(), amm.ask_quote_asset_reserve()),
+        PositionDirection::Short => (amm.bid_base_asset_reserve(), amm.bid_quote_asset_reserve()),
     };
 
     Ok((base_asset_reserve, quote_asset_reserve))
@@ -548,7 +548,7 @@ pub fn calculate_spread_reserves(
             BID_ASK_SPREAD_PRECISION_I128 / (spread_with_offset / 2).cast::<i128>()?;
         market
             .amm
-            .quote_asset_reserve
+            .quote_asset_reserve()
             .cast::<i128>()?
             .safe_div(quote_reserve_divisor)?
     } else {
@@ -558,12 +558,12 @@ pub fn calculate_spread_reserves(
     let mut quote_asset_reserve = if quote_asset_reserve_delta > 0 {
         market
             .amm
-            .quote_asset_reserve
+            .quote_asset_reserve()
             .safe_add(quote_asset_reserve_delta.unsigned_abs())?
     } else {
         market
             .amm
-            .quote_asset_reserve
+            .quote_asset_reserve()
             .safe_sub(quote_asset_reserve_delta.unsigned_abs())?
     };
 
@@ -577,7 +577,7 @@ pub fn calculate_spread_reserves(
         );
     }
 
-    let invariant_sqrt_u192 = U192::from(market.amm.sqrt_k);
+    let invariant_sqrt_u192 = U192::from(market.amm.sqrt_k());
     let invariant = invariant_sqrt_u192.safe_mul(invariant_sqrt_u192)?;
 
     let base_asset_reserve = invariant

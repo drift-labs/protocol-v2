@@ -1,21 +1,29 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import {
-	TestClient,
-	BN,
-	PRICE_PRECISION,
-	PositionDirection,
-	EventSubscriber,
-	MarketStatus,
 	BASE_PRECISION,
+	BN,
+	EventSubscriber,
 	isVariant,
+	MarketStatus,
 	OracleSource,
 	PEG_PRECISION,
+	PositionDirection,
+	PRICE_PRECISION,
+	TestClient,
 } from '../sdk/src';
 
+import { startAnchor } from 'solana-bankrun';
+import {
+	MARGIN_PRECISION,
+	OrderType,
+	PerpOperation,
+	PostOnlyParams,
+} from '../sdk/src';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
 	createUserWithUSDCAccount,
 	initializeQuoteSpotMarket,
@@ -24,18 +32,9 @@ import {
 	mockUserUSDCAccount,
 	setFeedPriceNoProgram,
 } from './testHelpers';
-import {
-	MARGIN_PRECISION,
-	OrderType,
-	PerpOperation,
-	PostOnlyParams,
-} from '../sdk';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('oracle fill guardrails', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let fillerDriftClient: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -240,8 +239,8 @@ describe('oracle fill guardrails', () => {
 
 		// assert that the
 		const orderActionRecord =
-			eventSubscriber.getEventsArray('OrderActionRecord')[0];
-		// console.log(eventSubscriber.getEventsArray('OrderActionRecord'));
+			eventSubscriber.getEventsArray('orderActionRecord')[0];
+		// console.log(eventSubscriber.getEventsArray('orderActionRecord'));
 		assert(isVariant(orderActionRecord.action, 'cancel'));
 
 		await makerDriftClient.placePerpOrder({

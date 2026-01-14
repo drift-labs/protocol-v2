@@ -4,7 +4,6 @@ import { Connection, Keypair } from '@solana/web3.js';
 import {
 	decodeUser,
 	Wallet,
-	DRIFT_PROGRAM_ID,
 	isSpotPositionAvailable,
 	isVariant,
 	Order,
@@ -22,7 +21,7 @@ describe('Custom user decode', () => {
 		const wallet = new Wallet(new Keypair());
 		// @ts-ignore
 		const provider = new AnchorProvider(connection, wallet);
-		const program = new Program(driftIDL as Idl, DRIFT_PROGRAM_ID, provider);
+		const program = new Program(driftIDL as Idl, provider);
 
 		let totalAnchorSize = 0;
 		let totalCustomSize = 0;
@@ -52,7 +51,7 @@ function testUserAccountDecode(program: Program, buffer: Buffer, i: number) {
 	console.log(`Testing user account decode ${i}`);
 
 	const anchorStartTimestamp = Date.now();
-	const anchorUserAccount = program.coder.accounts.decode('User', buffer);
+	const anchorUserAccount = program.coder.accounts.decode('user', buffer);
 	const anchorEndTimestamp = Date.now();
 	const anchorTime = anchorEndTimestamp - anchorStartTimestamp;
 
@@ -190,7 +189,11 @@ function testPerpPosition(anchor: PerpPosition, custom: PerpPosition) {
 	assert(anchor.lastQuoteAssetAmountPerLp.eq(custom.lastQuoteAssetAmountPerLp));
 	assert(anchor.openOrders === custom.openOrders);
 	assert(anchor.perLpBase === custom.perLpBase);
-	assert(anchor.isolatedPositionScaledBalance.eq(custom.isolatedPositionScaledBalance));
+	assert(
+		anchor.isolatedPositionScaledBalance.eq(
+			custom.isolatedPositionScaledBalance
+		)
+	);
 	assert(anchor.positionFlag === custom.positionFlag);
 }
 

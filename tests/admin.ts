@@ -1,5 +1,4 @@
 import * as anchor from '@coral-xyz/anchor';
-import { Program } from '@coral-xyz/anchor';
 import { assert, expect } from 'chai';
 import { startAnchor } from 'solana-bankrun';
 import {
@@ -30,9 +29,10 @@ import {
 } from '../sdk/src/bankrun/bankrunConnection';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { createTransferCheckedInstruction } from '@solana/spl-token';
+import { DriftProgram } from '../sdk/src/config';
 
 describe('admin', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 
@@ -218,6 +218,7 @@ describe('admin', () => {
 		const oracleGuardRails: OracleGuardRails = {
 			priceDivergence: {
 				markOraclePercentDivergence: new BN(1000000),
+				// @ts-ignore
 				oracleTwap5MinPercentDivergence: new BN(1000000),
 			},
 			validity: {

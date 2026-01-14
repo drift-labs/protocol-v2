@@ -543,10 +543,10 @@ pub fn liquidate_perp(
             market.amm.order_step_size
         )?;
 
-        market.amm.total_liquidation_fee = market
+        let tlf = market.amm.total_liquidation_fee();
+        market
             .amm
-            .total_liquidation_fee
-            .safe_add(if_fee.unsigned_abs().cast()?)?;
+            .set_total_liquidation_fee(tlf.safe_add(if_fee.unsigned_abs().cast()?)?);
 
         (
             user_existing_position_direction,
@@ -685,10 +685,10 @@ pub fn liquidate_perp(
         maker_order_cumulative_quote_asset_amount_filled: Some(base_asset_value),
         oracle_price,
         bit_flags: 0,
-        taker_existing_quote_entry_amount: taker_existing_quote_entry_amount,
-        taker_existing_base_asset_amount: taker_existing_base_asset_amount,
-        maker_existing_quote_entry_amount: maker_existing_quote_entry_amount,
-        maker_existing_base_asset_amount: maker_existing_base_asset_amount,
+        taker_existing_quote_entry_amount,
+        taker_existing_base_asset_amount,
+        maker_existing_quote_entry_amount,
+        maker_existing_base_asset_amount,
         trigger_price: None,
         builder_idx: None,
         builder_fee: None,
@@ -1130,10 +1130,10 @@ pub fn liquidate_perp_with_fill(
         let user_position = user.get_perp_position_mut(market_index)?;
         update_quote_asset_and_break_even_amount(user_position, &mut market, if_fee)?;
 
-        market.amm.total_liquidation_fee = market
-            .amm
-            .total_liquidation_fee
-            .safe_add(if_fee.unsigned_abs().cast()?)?;
+        let total_liquidation_fee = market.amm.total_liquidation_fee();
+        market.amm.set_total_liquidation_fee(
+            total_liquidation_fee.safe_add(if_fee.unsigned_abs().cast()?)?,
+        );
     }
 
     let (margin_freed_for_perp_position, margin_calculation_after) = calculate_margin_freed(
@@ -3479,20 +3479,20 @@ pub fn resolve_perp_bankruptcy(
     if loss_to_socialize < 0 {
         let mut market = perp_market_map.get_ref_mut(&market_index)?;
 
-        market.amm.total_social_loss = market
+        let total_social_loss = market.amm.total_social_loss();
+        market
             .amm
-            .total_social_loss
-            .safe_add(loss_to_socialize.unsigned_abs())?;
+            .set_total_social_loss(total_social_loss.safe_add(loss_to_socialize.unsigned_abs())?);
 
-        market.amm.cumulative_funding_rate_long = market
-            .amm
-            .cumulative_funding_rate_long
-            .safe_add(cumulative_funding_rate_delta)?;
+        let cumulative_funding_rate_long = market.amm.cumulative_funding_rate_long();
+        market.amm.set_cumulative_funding_rate_long(
+            cumulative_funding_rate_long.safe_add(cumulative_funding_rate_delta)?,
+        );
 
-        market.amm.cumulative_funding_rate_short = market
-            .amm
-            .cumulative_funding_rate_short
-            .safe_sub(cumulative_funding_rate_delta)?;
+        let cumulative_funding_rate_short = market.amm.cumulative_funding_rate_short();
+        market.amm.set_cumulative_funding_rate_short(
+            cumulative_funding_rate_short.safe_sub(cumulative_funding_rate_delta)?,
+        );
     }
 
     // clear bad debt
@@ -3655,17 +3655,18 @@ pub fn resolve_spot_bankruptcy(
             None,
         )?;
 
-        spot_market.cumulative_deposit_interest = spot_market
-            .cumulative_deposit_interest
-            .safe_sub(cumulative_deposit_interest_delta)?;
+        let cumulative_deposit_interest = spot_market.cumulative_deposit_interest();
+        spot_market.set_cumulative_deposit_interest(
+            cumulative_deposit_interest.safe_sub(cumulative_deposit_interest_delta)?,
+        );
 
-        spot_market.total_social_loss = spot_market
-            .total_social_loss
-            .safe_add(borrow_amount.cast()?)?;
+        let total_social_loss = spot_market.total_social_loss();
+        spot_market.set_total_social_loss(total_social_loss.safe_add(borrow_amount.cast()?)?);
 
-        spot_market.total_quote_social_loss = spot_market
-            .total_quote_social_loss
-            .safe_add(quote_social_loss.unsigned_abs().cast()?)?;
+        let total_quote_social_loss = spot_market.total_quote_social_loss();
+        spot_market.set_total_quote_social_loss(
+            total_quote_social_loss.safe_add(quote_social_loss.unsigned_abs().cast()?)?,
+        );
     }
 
     // exit bankruptcy

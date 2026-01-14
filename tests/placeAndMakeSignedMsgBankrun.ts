@@ -1,8 +1,6 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import {
 	AccountInfo,
 	AddressLookupTableAccount,
@@ -19,36 +17,53 @@ import {
 } from '@solana/web3.js';
 
 import {
-	BN,
-	PRICE_PRECISION,
-	TestClient,
-	PositionDirection,
-	User,
-	Wallet,
-	EventSubscriber,
 	BASE_PRECISION,
-	getLimitOrderParams,
-	OracleSource,
-	OrderTriggerCondition,
-	SignedMsgOrderParamsMessage,
-	MarketType,
-	getMarketOrderParams,
-	SignedMsgOrderRecord,
-	getSignedMsgUserAccountPublicKey,
-	PYTH_LAZER_STORAGE_ACCOUNT_KEY,
-	PTYH_LAZER_PROGRAM_ID,
-	OrderType,
-	ZERO,
-	Order,
-	getPythLazerOraclePublicKey,
-	getUserStatsAccountPublicKey,
-	UserStatsAccount,
+	BN,
 	convertToNumber,
+	EventSubscriber,
+	getLimitOrderParams,
+	getMarketOrderParams,
+	getPythLazerOraclePublicKey,
+	getSignedMsgUserAccountPublicKey,
+	getUserStatsAccountPublicKey,
+	MarketType,
+	OracleSource,
+	Order,
 	OrderParams,
-	SignedMsgOrderParamsDelegateMessage,
 	OrderParamsBitFlag,
+	OrderTriggerCondition,
+	OrderType,
+	PositionDirection,
+	PRICE_PRECISION,
+	PTYH_LAZER_PROGRAM_ID,
+	PYTH_LAZER_STORAGE_ACCOUNT_KEY,
+	SignedMsgOrderParamsDelegateMessage,
+	SignedMsgOrderParamsMessage,
+	SignedMsgOrderRecord,
+	TestClient,
+	User,
+	UserStatsAccount,
+	Wallet,
+	ZERO,
 } from '../sdk/src';
 
+import { createHash } from 'crypto';
+import dotenv from 'dotenv';
+import { nanoid } from 'nanoid';
+import { startAnchor } from 'solana-bankrun';
+import {
+	getTriggerLimitOrderParams,
+	PEG_PRECISION,
+	PostOnlyParams,
+} from '../sdk/src';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
+import {
+	PYTH_LAZER_HEX_STRING_SOL,
+	PYTH_LAZER_HEX_STRING_SOL_LATER,
+	PYTH_STORAGE_DATA,
+} from './pythLazerData';
 import {
 	initializeQuoteSpotMarket,
 	mockOracleNoProgram,
@@ -56,22 +71,6 @@ import {
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpers';
-import {
-	getTriggerLimitOrderParams,
-	PEG_PRECISION,
-	PostOnlyParams,
-} from '../sdk/src';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
-import dotenv from 'dotenv';
-import { nanoid } from 'nanoid';
-import { createHash } from 'crypto';
-import {
-	PYTH_LAZER_HEX_STRING_SOL,
-	PYTH_LAZER_HEX_STRING_SOL_LATER,
-	PYTH_STORAGE_DATA,
-} from './pythLazerData';
 
 dotenv.config();
 
@@ -84,7 +83,7 @@ const PYTH_STORAGE_ACCOUNT_INFO: AccountInfo<Buffer> = {
 };
 
 describe('place and make signedMsg order', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let slot: BN;
 
@@ -301,7 +300,7 @@ describe('place and make signedMsg order', () => {
 		// Make sure that the event is in the logs
 		const events = eventSubscriber.getEventsByTx(txSig);
 		const event = events.find(
-			(event) => event.eventType == 'SignedMsgOrderRecord'
+			(event) => event.eventType == 'signedMsgOrderRecord'
 		);
 		assert(event !== undefined);
 		assert(
@@ -411,7 +410,7 @@ describe('place and make signedMsg order', () => {
 		// Make sure that the event is in the logs
 		const events = eventSubscriber.getEventsByTx(txSig);
 		const event = events.find(
-			(event) => event.eventType == 'SignedMsgOrderRecord'
+			(event) => event.eventType == 'signedMsgOrderRecord'
 		);
 		assert(event !== undefined);
 		assert(
@@ -682,7 +681,7 @@ describe('place and make signedMsg order', () => {
 		);
 		const userStats: UserStatsAccount =
 			chProgram.account.userStats.coder.accounts.decodeUnchecked(
-				'UserStats',
+				'userStats',
 				userStatsData.data
 			);
 
@@ -1710,7 +1709,7 @@ describe('place and make signedMsg order', () => {
 
 async function initializeNewTakerClientAndUser(
 	bankrunContextWrapper: BankrunContextWrapper,
-	chProgram: Program,
+	chProgram: DriftProgram,
 	usdcMint: Keypair,
 	usdcAmount: BN,
 	marketIndexes: number[],

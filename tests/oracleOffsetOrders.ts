@@ -1,40 +1,39 @@
 import * as anchor from '@coral-xyz/anchor';
 
-import { Program } from '@coral-xyz/anchor';
-
 import { Keypair } from '@solana/web3.js';
 
 import { assert } from 'chai';
 
 import {
+	AMM_RESERVE_PRECISION,
 	BN,
-	PRICE_PRECISION,
-	TestClient,
-	PositionDirection,
-	User,
-	Wallet,
+	calculateBreakEvenPrice,
 	getLimitOrderParams,
 	MarketStatus,
-	AMM_RESERVE_PRECISION,
 	OracleSource,
+	PositionDirection,
+	PRICE_PRECISION,
+	TestClient,
+	User,
+	Wallet,
 	ZERO,
-	calculateBreakEvenPrice,
 } from '../sdk/src';
 
+import { startAnchor } from 'solana-bankrun';
+import { calculateEntryPrice, PostOnlyParams } from '../sdk/src';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
+	initializeQuoteSpotMarket,
 	mockOracleNoProgram,
 	mockUSDCMint,
 	mockUserUSDCAccount,
 	setFeedPriceNoProgram,
-	initializeQuoteSpotMarket,
 } from './testHelpers';
-import { calculateEntryPrice, PostOnlyParams } from '../sdk';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('oracle offset', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 

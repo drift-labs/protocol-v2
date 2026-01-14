@@ -16,7 +16,7 @@ import {
 	ResubOpts,
 	DelistedMarketSetting,
 } from './accounts/types';
-import { Coder, Program } from '@coral-xyz/anchor';
+import { Coder } from '@coral-xyz/anchor';
 import { WebSocketAccountSubscriber } from './accounts/webSocketAccountSubscriber';
 import { WebSocketAccountSubscriberV2 } from './accounts/webSocketAccountSubscriberV2';
 import { grpcDriftClientAccountSubscriberV2 } from './accounts/grpcDriftClientAccountSubscriberV2';
@@ -25,6 +25,7 @@ import { grpcMultiUserAccountSubscriber } from './accounts/grpcMultiUserAccountS
 import { WebSocketProgramAccountSubscriber } from './accounts/webSocketProgramAccountSubscriber';
 import { WebSocketDriftClientAccountSubscriber } from './accounts/webSocketDriftClientAccountSubscriber';
 import { WebSocketDriftClientAccountSubscriberV2 } from './accounts/webSocketDriftClientAccountSubscriberV2';
+import { DriftProgram } from './config';
 
 export type DriftClientConfig = {
 	connection: Connection;
@@ -65,7 +66,7 @@ export type DriftClientSubscriptionConfig =
 			logResubMessages?: boolean;
 			driftClientAccountSubscriber?: new (
 				grpcConfigs: GrpcConfigs,
-				program: Program,
+				program: DriftProgram,
 				perpMarketIndexes: number[],
 				spotMarketIndexes: number[],
 				oracleInfos: OracleInfo[],
@@ -84,7 +85,7 @@ export type DriftClientSubscriptionConfig =
 			programUserAccountSubscriber?: WebSocketProgramAccountSubscriber<UserAccount>;
 			perpMarketAccountSubscriber?: new (
 				accountName: string,
-				program: Program,
+				program: DriftProgram,
 				accountPublicKey: PublicKey,
 				decodeBuffer?: (buffer: Buffer) => any,
 				resubOpts?: ResubOpts,
@@ -92,7 +93,7 @@ export type DriftClientSubscriptionConfig =
 			) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>;
 			/** If you use V2 here, whatever you pass for perpMarketAccountSubscriber will be ignored and it will use v2 under the hood regardless */
 			driftClientAccountSubscriber?: new (
-				program: Program,
+				program: DriftProgram,
 				perpMarketIndexes: number[],
 				spotMarketIndexes: number[],
 				oracleInfos: OracleInfo[],

@@ -1,7 +1,5 @@
 import * as anchor from '@coral-xyz/anchor';
 
-import { Program } from '@coral-xyz/anchor';
-
 import {
 	Account,
 	Keypair,
@@ -13,14 +11,20 @@ import { listMarket, makePlaceOrderTransaction, SERUM } from './serumHelper';
 
 import {
 	BN,
-	TestClient,
 	EventSubscriber,
-	OracleSource,
-	OracleInfo,
 	getSerumSignerPublicKey,
+	OracleInfo,
+	OracleSource,
 	PERCENTAGE_PRECISION,
+	TestClient,
 } from '../sdk/src';
 
+import { DexInstructions, Market, OpenOrders } from '@project-serum/serum';
+import { NATIVE_MINT } from '@solana/spl-token';
+import { startAnchor } from 'solana-bankrun';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
 	createUserWithUSDCAndWSOLAccount,
 	createWSolTokenAccountForUser,
@@ -31,14 +35,9 @@ import {
 	mockUserUSDCAccount,
 	setFeedPriceNoProgram,
 } from './testHelpers';
-import { NATIVE_MINT } from '@solana/spl-token';
-import { DexInstructions, Market, OpenOrders } from '@project-serum/serum';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('spot swap', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let makerDriftClient: TestClient;
 	let makerWSOL: PublicKey;

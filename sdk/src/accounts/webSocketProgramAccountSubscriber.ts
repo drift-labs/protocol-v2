@@ -1,5 +1,5 @@
 import { BufferAndSlot, ProgramAccountSubscriber, ResubOpts } from './types';
-import { AnchorProvider, Program } from '@coral-xyz/anchor';
+import { AnchorProvider } from '@coral-xyz/anchor';
 import {
 	Commitment,
 	Context,
@@ -8,6 +8,7 @@ import {
 	PublicKey,
 } from '@solana/web3.js';
 import * as Buffer from 'buffer';
+import { DriftProgram } from '../config';
 
 export class WebSocketProgramAccountSubscriber<T>
 	implements ProgramAccountSubscriber<T>
@@ -16,7 +17,7 @@ export class WebSocketProgramAccountSubscriber<T>
 	accountDiscriminator: string;
 	bufferAndSlot?: BufferAndSlot;
 	bufferAndSlotMap: Map<string, BufferAndSlot> = new Map();
-	program: Program;
+	program: DriftProgram;
 	decodeBuffer: (accountName: string, ix: Buffer) => T;
 	onChange: (
 		accountId: PublicKey,
@@ -35,7 +36,7 @@ export class WebSocketProgramAccountSubscriber<T>
 	public constructor(
 		subscriptionName: string,
 		accountDiscriminator: string,
-		program: Program,
+		program: DriftProgram,
 		decodeBufferFn: (accountName: string, ix: Buffer) => T,
 		options: { filters: MemcmpFilter[]; commitment?: Commitment } = {
 			filters: [],

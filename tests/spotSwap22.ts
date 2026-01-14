@@ -1,8 +1,6 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import {
 	Keypair,
 	LAMPORTS_PER_SOL,
@@ -12,15 +10,25 @@ import {
 
 import {
 	BN,
-	TestClient,
 	EventSubscriber,
-	OracleSource,
 	OracleInfo,
+	OracleSource,
 	QUOTE_PRECISION,
+	TestClient,
 	UserStatsAccount,
 	getUserStatsAccountPublicKey,
 } from '../sdk/src';
 
+import {
+	TOKEN_2022_PROGRAM_ID,
+	TOKEN_PROGRAM_ID,
+	createTransferInstruction,
+} from '@solana/spl-token';
+import { startAnchor } from 'solana-bankrun';
+import { DRIFT_PROGRAM_ID } from '../sdk/src';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
 import {
 	createUserWithUSDCAndWSOLAccount,
 	createWSolTokenAccountForUser,
@@ -30,18 +38,9 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import {
-	TOKEN_2022_PROGRAM_ID,
-	TOKEN_PROGRAM_ID,
-	createTransferInstruction,
-} from '@solana/spl-token';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
-import { DRIFT_PROGRAM_ID } from '../sdk/src';
 
 describe('spot swap 22', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let makerDriftClient: TestClient;
 	let makerWSOL: PublicKey;
@@ -236,14 +235,14 @@ describe('spot swap 22', () => {
 
 		const userStatsAccount = accountInfo
 			? (takerDriftClient.program.account.user.coder.accounts.decodeUnchecked(
-					'UserStats',
+					'userStats',
 					accountInfo.data
 			  ) as UserStatsAccount)
 			: undefined;
 
 		assert(userStatsAccount.takerVolume30D.eq(new BN(0)));
 
-		const swapRecord = eventSubscriber.getEventsArray('SwapRecord')[0];
+		const swapRecord = eventSubscriber.getEventsArray('swapRecord')[0];
 		assert(swapRecord.amountOut.eq(new BN(1000000000)));
 		assert(swapRecord.outMarketIndex === 1);
 		assert(swapRecord.amountIn.eq(new BN(100000000)));
@@ -302,7 +301,7 @@ describe('spot swap 22', () => {
 		console.log(takerUSDCAmount.toString());
 		assert(takerUSDCAmount.eq(new BN(199999999)));
 
-		const swapRecord = eventSubscriber.getEventsArray('SwapRecord')[0];
+		const swapRecord = eventSubscriber.getEventsArray('swapRecord')[0];
 		assert(swapRecord.amountOut.eq(new BN(100000000)));
 		assert(swapRecord.outMarketIndex === 0);
 		assert(swapRecord.amountIn.eq(new BN(1000000000)));

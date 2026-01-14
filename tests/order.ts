@@ -1,40 +1,31 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import { Keypair, PublicKey } from '@solana/web3.js';
 
 import {
-	TestClient,
 	BN,
-	PRICE_PRECISION,
-	PositionDirection,
-	User,
-	OrderStatus,
-	OrderAction,
-	OrderTriggerCondition,
+	calculateBaseAssetAmountForAmmToFulfill,
 	calculateTargetPriceTrade,
-	convertToNumber,
-	QUOTE_PRECISION,
-	Wallet,
 	calculateTradeSlippage,
+	convertToNumber,
+	EventSubscriber,
 	getLimitOrderParams,
 	getTriggerMarketOrderParams,
-	EventSubscriber,
-	standardizeBaseAssetAmount,
-	calculateBaseAssetAmountForAmmToFulfill,
 	OracleGuardRails,
+	OrderAction,
+	OrderStatus,
+	OrderTriggerCondition,
+	PositionDirection,
+	PRICE_PRECISION,
+	QUOTE_PRECISION,
+	standardizeBaseAssetAmount,
+	TestClient,
+	User,
+	Wallet,
 } from '../sdk/src';
 
-import {
-	mockOracleNoProgram,
-	mockUserUSDCAccount,
-	mockUSDCMint,
-	setFeedPriceNoProgram,
-	initializeQuoteSpotMarket,
-	sleep,
-} from './testHelpers';
+import { startAnchor } from 'solana-bankrun';
 import {
 	AMM_RESERVE_PRECISION,
 	calculateReservePrice,
@@ -45,10 +36,18 @@ import {
 	TEN_THOUSAND,
 	TWO,
 	ZERO,
-} from '../sdk';
-import { startAnchor } from 'solana-bankrun';
+} from '../sdk/src';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
+import {
+	initializeQuoteSpotMarket,
+	mockOracleNoProgram,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+	setFeedPriceNoProgram,
+	sleep,
+} from './testHelpers';
 
 const enumsAreEqual = (
 	actual: Record<string, unknown>,
@@ -58,7 +57,7 @@ const enumsAreEqual = (
 };
 
 describe('orders', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 	let driftClientUser: User;
@@ -376,7 +375,7 @@ describe('orders', () => {
 		assert(position.openBids.eq(baseAssetAmount));
 		assert(position.openAsks.eq(ZERO));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('orderActionRecord')[0];
 		assert(orderRecord.ts.gt(ZERO));
 		assert(enumsAreEqual(orderRecord.action, OrderAction.PLACE));
 		assert(
@@ -401,7 +400,7 @@ describe('orders', () => {
 		assert(position.openBids.eq(ZERO));
 		assert(position.openAsks.eq(ZERO));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('orderActionRecord')[0];
 		const expectedOrderId = 1;
 		assert(orderRecord.ts.gt(ZERO));
 		assert(orderRecord.takerOrderId === expectedOrderId);
@@ -505,7 +504,7 @@ describe('orders', () => {
 		assert(firstPosition.quoteEntryAmount.eq(expectedQuoteAssetAmount));
 		assert(firstPosition.quoteBreakEvenAmount.eq(expectedQuoteBreakEvenAmount));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('orderActionRecord')[0];
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
 		assert.ok(
 			orderRecord.quoteAssetAmountFilled.eq(expectedQuoteAssetAmount.abs())
@@ -627,7 +626,7 @@ describe('orders', () => {
 		const expectedQuoteAssetAmount = new BN(0);
 		assert(firstPosition.quoteBreakEvenAmount.eq(expectedQuoteAssetAmount));
 
-		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('orderActionRecord')[0];
 
 		assert.ok(orderRecord.baseAssetAmountFilled.eq(baseAssetAmount));
 		const expectedTradeQuoteAssetAmount = new BN(1000002);
@@ -1555,7 +1554,7 @@ describe('orders', () => {
 		await driftClientUser.fetchAccounts();
 		console.log('2');
 
-		let orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[1];
+		let orderRecord = eventSubscriber.getEventsArray('orderActionRecord')[1];
 		console.log(orderRecord);
 		assert(orderRecord.baseAssetAmountFilled.eq(AMM_RESERVE_PRECISION));
 		assert(
@@ -1584,7 +1583,7 @@ describe('orders', () => {
 		await driftClient.fetchAccounts();
 		await driftClientUser.fetchAccounts();
 
-		orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[1];
+		orderRecord = eventSubscriber.getEventsArray('orderActionRecord')[1];
 		assert(orderRecord.baseAssetAmountFilled.eq(AMM_RESERVE_PRECISION));
 		assert(
 			!isVariant(driftClientUser.getUserAccount().orders[1].status, 'open')

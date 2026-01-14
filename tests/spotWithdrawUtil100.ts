@@ -1,35 +1,45 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-import { setFeedPriceNoProgram } from './testHelpers';
 import { PublicKey } from '@solana/web3.js';
 import {
-	PositionDirection,
-	User,
 	BASE_PRECISION,
 	getLimitOrderParams,
+	PositionDirection,
 	PostOnlyParams,
+	User,
 } from '../sdk/src';
+import { setFeedPriceNoProgram } from './testHelpers';
 
 import {
-	TestClient,
 	BN,
 	EventSubscriber,
-	SPOT_MARKET_RATE_PRECISION,
-	SpotBalanceType,
 	isVariant,
-	OracleSource,
-	SPOT_MARKET_WEIGHT_PRECISION,
-	SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
-	OracleInfo,
-	QUOTE_PRECISION,
-	ZERO,
 	ONE,
-	SPOT_MARKET_BALANCE_PRECISION,
+	OracleInfo,
+	OracleSource,
 	PRICE_PRECISION,
+	QUOTE_PRECISION,
+	SPOT_MARKET_BALANCE_PRECISION,
+	SPOT_MARKET_CUMULATIVE_INTEREST_PRECISION,
+	SPOT_MARKET_RATE_PRECISION,
+	SPOT_MARKET_WEIGHT_PRECISION,
+	SpotBalanceType,
+	TestClient,
+	ZERO,
 } from '../sdk/src';
 
+import { NATIVE_MINT } from '@solana/spl-token';
+import { startAnchor } from 'solana-bankrun';
+import { ContractTier } from '../sdk/src';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
+import {
+	calculateInterestAccumulated,
+	calculateUtilization,
+	getBalance,
+} from '../sdk/src/math/spotBalance';
 import {
 	createUserWithUSDCAccount,
 	createUserWithUSDCAndWSOLAccount,
@@ -38,19 +48,9 @@ import {
 	mockUserUSDCAccount,
 	sleep,
 } from './testHelpers';
-import {
-	getBalance,
-	calculateInterestAccumulated,
-	calculateUtilization,
-} from '../sdk/src/math/spotBalance';
-import { NATIVE_MINT } from '@solana/spl-token';
-import { ContractTier } from '../sdk';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('test function when spot market at >= 100% util', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let admin: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -290,7 +290,7 @@ describe('test function when spot market at >= 100% util', () => {
 			)
 		);
 		assert(
-			spotMarket.historicalOracleData.lastOraclePriceTwap5Min.eq(
+			spotMarket.historicalOracleData.lastOraclePriceTwap5min.eq(
 				new BN(30 * PRICE_PRECISION.toNumber())
 			)
 		);
@@ -387,7 +387,7 @@ describe('test function when spot market at >= 100% util', () => {
 			)
 		);
 		assert(
-			spotMarket.historicalOracleData.lastOraclePriceTwap5Min.eq(
+			spotMarket.historicalOracleData.lastOraclePriceTwap5min.eq(
 				new BN(30 * PRICE_PRECISION.toNumber())
 			)
 		);

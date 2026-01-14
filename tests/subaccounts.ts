@@ -1,17 +1,28 @@
 import * as anchor from '@coral-xyz/anchor';
 
-import { Program } from '@coral-xyz/anchor';
-
 import {
+	BN,
+	EventSubscriber,
+	fetchUserAccounts,
 	getUserAccountPublicKey,
 	isVariant,
 	QUOTE_SPOT_MARKET_INDEX,
 	TestClient,
-	BN,
-	EventSubscriber,
-	fetchUserAccounts,
 } from '../sdk/src';
 
+import { PublicKey } from '@solana/web3.js';
+import { assert } from 'chai';
+import { startAnchor } from 'solana-bankrun';
+import {
+	getTokenAmount,
+	LAMPORTS_PRECISION,
+	MARGIN_PRECISION,
+	SpotBalanceType,
+} from '../sdk/src';
+import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
+import { decodeName } from '../sdk/src/userName';
 import {
 	createFundedKeyPair,
 	initializeQuoteSpotMarket,
@@ -20,21 +31,9 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { decodeName } from '../sdk/src/userName';
-import { assert } from 'chai';
-import {
-	getTokenAmount,
-	LAMPORTS_PRECISION,
-	MARGIN_PRECISION,
-	SpotBalanceType,
-} from '../sdk';
-import { PublicKey } from '@solana/web3.js';
-import { startAnchor } from 'solana-bankrun';
-import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
-import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('subaccounts', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -204,7 +203,7 @@ describe('subaccounts', () => {
 		assert(driftClient.getQuoteAssetTokenAmount().eq(usdcAmount));
 
 		await eventSubscriber.awaitTx(txSig);
-		const depositRecords = eventSubscriber.getEventsArray('DepositRecord');
+		const depositRecords = eventSubscriber.getEventsArray('depositRecord');
 
 		const toUser = await getUserAccountPublicKey(
 			chProgram.programId,

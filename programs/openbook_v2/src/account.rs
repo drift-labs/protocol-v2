@@ -4,7 +4,7 @@ use crate::*;
 use bytemuck::Zeroable;
 
 #[zero_copy]
-#[derive(AnchorDeserialize, AnchorSerialize, Debug)]
+#[derive(AnchorDeserialize, Debug)]
 pub struct OracleConfig {
     pub conf_filter: f64,
     pub max_staleness_slots: i64,
@@ -207,7 +207,6 @@ impl BookSide {
 }
 
 #[zero_copy]
-#[derive(AnchorSerialize)]
 pub struct AnyNode {
     pub tag: u8,
     pub data: [u8; 79],
@@ -221,7 +220,7 @@ pub struct OrderTreeNodes {
     pub padding: [u8; 3],
     pub bump_index: u32,
     pub free_list_len: u32,
-    pub free_list_head: NodeHandle,
+    pub free_list_head: u32,
     pub reserved: [u8; 512],
     pub nodes: [AnyNode; MAX_ORDERTREE_NODES],
 }
@@ -231,7 +230,7 @@ pub type NodeHandle = u32;
 #[zero_copy]
 #[derive(Debug)]
 pub struct OrderTreeRoot {
-    pub maybe_node: NodeHandle,
+    pub maybe_node: u32,
     pub leaf_count: u32,
 }
 
@@ -335,7 +334,7 @@ impl LeafNode {
 }
 
 #[zero_copy]
-#[derive(AnchorSerialize, AnchorDeserialize, Debug, Default, PartialEq)]
+#[derive(AnchorDeserialize, Debug, Default, PartialEq)]
 pub struct NonZeroPubkeyOption {
     key: Pubkey,
 }
@@ -394,20 +393,20 @@ impl NonZeroPubkeyOption {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
+#[derive(AnchorDeserialize, Debug, AnchorSerialize)]
 pub enum Side {
     Bid,
     Ask,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
+#[derive(AnchorDeserialize, Debug, AnchorSerialize)]
 pub enum SelfTradeBehavior {
     DecrementTake,
     CancelProvide,
     AbortTransaction,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
+#[derive(AnchorDeserialize, Debug, AnchorSerialize)]
 pub enum PlaceOrderType {
     Limit,
     ImmediateOrCancel,

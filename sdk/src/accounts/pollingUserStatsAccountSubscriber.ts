@@ -4,18 +4,18 @@ import {
 	UserStatsAccountSubscriber,
 	UserStatsAccountEvents,
 } from './types';
-import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { PublicKey } from '@solana/web3.js';
 import { UserStatsAccount } from '../types';
 import { BulkAccountLoader } from './bulkAccountLoader';
+import { DriftProgram } from '../config';
 
 export class PollingUserStatsAccountSubscriber
 	implements UserStatsAccountSubscriber
 {
 	isSubscribed: boolean;
-	program: Program;
+	program: DriftProgram;
 	eventEmitter: StrictEventEmitter<EventEmitter, UserStatsAccountEvents>;
 	userStatsAccountPublicKey: PublicKey;
 
@@ -26,7 +26,7 @@ export class PollingUserStatsAccountSubscriber
 	userStats?: DataAndSlot<UserStatsAccount>;
 
 	public constructor(
-		program: Program,
+		program: DriftProgram,
 		userStatsAccountPublicKey: PublicKey,
 		accountLoader: BulkAccountLoader
 	) {
@@ -76,7 +76,7 @@ export class PollingUserStatsAccountSubscriber
 
 				const account =
 					this.program.account.userStats.coder.accounts.decodeUnchecked(
-						'UserStats',
+						'userStats',
 						buffer
 					);
 				this.userStats = { data: account, slot };
@@ -97,22 +97,32 @@ export class PollingUserStatsAccountSubscriber
 	}
 
 	async fetch(): Promise<void> {
+		let dataAndContext: {
+			data: UserStatsAccount | null;
+			context: {
+				slot: number;
+			};
+		};
 		try {
-			const dataAndContext =
-				await this.program.account.userStats.fetchAndContext(
-					this.userStatsAccountPublicKey,
-					this.accountLoader.commitment
-				);
-			if (dataAndContext.context.slot > (this.userStats?.slot ?? 0)) {
-				this.userStats = {
-					data: dataAndContext.data as UserStatsAccount,
-					slot: dataAndContext.context.slot,
+			dataAndContext = (await this.program.account.userStats.fetchAndContext(
+				this.userStatsAccountPublicKey,
+				this.accountLoader.commitment
+			)) as {
+				data: UserStatsAccount | null;
+				context: {
+					slot: number;
 				};
-			}
+			};
 		} catch (e) {
 			console.log(
 				`PollingUserStatsAccountSubscriber.fetch() UserStatsAccount does not exist: ${e.message}`
 			);
+		}
+		if (dataAndContext?.context.slot > (this.userStats?.slot ?? 0)) {
+			this.userStats = {
+				data: dataAndContext.data,
+				slot: dataAndContext.context.slot,
+			};
 		}
 	}
 

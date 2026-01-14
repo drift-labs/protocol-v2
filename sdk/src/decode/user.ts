@@ -116,7 +116,7 @@ export function decodeUser(buffer: Buffer): UserAccount {
 		offset += 4;
 		const marketIndex = buffer.readUInt16LE(offset);
 		offset += 3;
-		const perLpBase = buffer.readUInt8(offset);
+		// perLpBase but still increment offset
 		offset += 1;
 
 		perpPositions.push({
@@ -129,11 +129,9 @@ export function decodeUser(buffer: Buffer): UserAccount {
 			openAsks,
 			settledPnl,
 			lpShares,
-			remainderBaseAssetAmount: 0,
 			lastQuoteAssetAmountPerLp,
 			marketIndex,
 			openOrders,
-			perLpBase,
 			maxMarginRatio,
 			isolatedPositionScaledBalance,
 			positionFlag,

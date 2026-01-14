@@ -1,24 +1,33 @@
-import { assert } from 'chai';
 import * as anchor from '@coral-xyz/anchor';
+import { assert } from 'chai';
 
-import { Program, Idl, BN } from '@coral-xyz/anchor';
+import { BN } from '@coral-xyz/anchor';
+import { Idl as Idl29, Program as Program29 } from '@coral-xyz/anchor-29';
 
+import { Keypair } from '@solana/web3.js';
+import { startAnchor } from 'solana-bankrun';
 import {
+	LAMPORTS_PRECISION,
 	OracleSource,
 	OrderType,
 	PositionDirection,
+	PRICE_PRECISION,
 	PublicKey,
 	TestClient,
+	WRAPPED_SOL_MINT,
+	ZERO,
 } from '../sdk/src';
-import openbookIDL from '../sdk/src/idl/openbook.json';
-import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
+import openbookIDL from '../sdk/src/idl/openbook.json';
 import {
+	createBidsAsksEventHeap,
+	createMarket,
 	createOpenOrdersAccount,
 	createOpenOrdersAccountV2,
-	OPENBOOK,
 	OrderType as ObOrderType,
+	OPENBOOK,
 	placeOrder,
 	SelfTradeBehavior,
 	Side,
@@ -31,15 +40,10 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { createBidsAsksEventHeap, createMarket } from './openbookHelpers';
-import { Keypair } from '@solana/web3.js';
-import { LAMPORTS_PRECISION, PRICE_PRECISION } from '../sdk/src';
-import { WRAPPED_SOL_MINT } from '../sdk/src';
-import { ZERO } from '../sdk';
 
 describe('openbook v2', () => {
-	const chProgram = anchor.workspace.Drift as Program;
-	const openbookProgram = new Program(openbookIDL as Idl, OPENBOOK);
+	const chProgram = anchor.workspace.Drift as DriftProgram;
+	const openbookProgram = new Program29(openbookIDL as Idl29, OPENBOOK);
 
 	let driftClient: TestClient;
 

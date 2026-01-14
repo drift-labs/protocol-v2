@@ -1,5 +1,4 @@
 import * as anchor from '@coral-xyz/anchor';
-import { Program } from '@coral-xyz/anchor';
 import {
 	BASE_PRECISION,
 	BN,
@@ -26,13 +25,18 @@ import {
 	mockUserUSDCAccount,
 	setFeedPriceNoProgram,
 } from './testHelpers';
-import { OrderType, PERCENTAGE_PRECISION, PerpOperation } from '../sdk';
+import {
+	DriftProgram,
+	OrderType,
+	PERCENTAGE_PRECISION,
+	PerpOperation,
+} from '../sdk';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
 
 describe('liquidate perp (no open orders)', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -78,7 +82,6 @@ describe('liquidate perp (no open orders)', () => {
 
 		eventSubscriber = new EventSubscriber(
 			bankrunContextWrapper.connection.toConnection(),
-			//@ts-ignore
 			chProgram
 		);
 

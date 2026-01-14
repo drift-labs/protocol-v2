@@ -24,7 +24,7 @@ pub struct SpotMarketMap<'a>(
 impl<'a> SpotMarketMap<'a> {
     #[track_caller]
     #[inline(always)]
-    pub fn get_ref(&self, market_index: &u16) -> DriftResult<Ref<SpotMarket>> {
+    pub fn get_ref(&self, market_index: &u16) -> DriftResult<Ref<'_, SpotMarket>> {
         let loader = match self.0.get(market_index) {
             Some(loader) => loader,
             None => {
@@ -57,7 +57,7 @@ impl<'a> SpotMarketMap<'a> {
 
     #[track_caller]
     #[inline(always)]
-    pub fn get_ref_mut(&self, market_index: &u16) -> DriftResult<RefMut<SpotMarket>> {
+    pub fn get_ref_mut(&self, market_index: &u16) -> DriftResult<RefMut<'_, SpotMarket>> {
         if !self.1.contains(market_index) {
             let caller = Location::caller();
             msg!(
@@ -101,7 +101,7 @@ impl<'a> SpotMarketMap<'a> {
 
     #[track_caller]
     #[inline(always)]
-    pub fn get_quote_spot_market(&self) -> DriftResult<Ref<SpotMarket>> {
+    pub fn get_quote_spot_market(&self) -> DriftResult<Ref<'_, SpotMarket>> {
         let loader = match self.0.get(&QUOTE_SPOT_MARKET_INDEX) {
             Some(loader) => loader,
             None => {
@@ -134,7 +134,7 @@ impl<'a> SpotMarketMap<'a> {
 
     #[track_caller]
     #[inline(always)]
-    pub fn get_quote_spot_market_mut(&self) -> DriftResult<RefMut<SpotMarket>> {
+    pub fn get_quote_spot_market_mut(&self) -> DriftResult<RefMut<'_, SpotMarket>> {
         if !self.1.contains(&QUOTE_SPOT_MARKET_INDEX) {
             let caller = Location::caller();
             msg!(
@@ -183,7 +183,6 @@ impl<'a> SpotMarketMap<'a> {
         let mut spot_market_map: SpotMarketMap =
             SpotMarketMap(BTreeMap::new(), writable_spot_markets.clone());
 
-        let spot_market_discriminator: [u8; 8] = SpotMarket::discriminator();
         while let Some(account_info) = account_info_iter.peek() {
             let data = account_info
                 .try_borrow_data()
@@ -194,8 +193,8 @@ impl<'a> SpotMarketMap<'a> {
                 break;
             }
 
-            let account_discriminator = array_ref![data, 0, 8];
-            if account_discriminator != &spot_market_discriminator {
+            let account_discriminator = &data[..8];
+            if account_discriminator != SpotMarket::DISCRIMINATOR {
                 break;
             }
 
@@ -247,7 +246,6 @@ impl<'a> SpotMarketMap<'a> {
         let mut writable_markets = SpotMarketSet::new();
         let mut map = BTreeMap::new();
 
-        let spot_market_discriminator: [u8; 8] = SpotMarket::discriminator();
         let data = account_info
             .try_borrow_data()
             .or(Err(ErrorCode::CouldNotLoadSpotMarketData))?;
@@ -257,8 +255,8 @@ impl<'a> SpotMarketMap<'a> {
             return Err(ErrorCode::CouldNotLoadSpotMarketData);
         }
 
-        let account_discriminator = array_ref![data, 0, 8];
-        if account_discriminator != &spot_market_discriminator {
+        let account_discriminator = &data[..8];
+        if account_discriminator != SpotMarket::DISCRIMINATOR {
             return Err(ErrorCode::CouldNotLoadSpotMarketData);
         }
 
@@ -299,7 +297,6 @@ impl<'a> SpotMarketMap<'a> {
 
         let account_info_iter = account_info.into_iter();
         for account_info in account_info_iter {
-            let spot_market_discriminator: [u8; 8] = SpotMarket::discriminator();
             let data = account_info
                 .try_borrow_data()
                 .or(Err(ErrorCode::CouldNotLoadSpotMarketData))?;
@@ -309,8 +306,8 @@ impl<'a> SpotMarketMap<'a> {
                 return Err(ErrorCode::CouldNotLoadSpotMarketData);
             }
 
-            let account_discriminator = array_ref![data, 0, 8];
-            if account_discriminator != &spot_market_discriminator {
+            let account_discriminator = &data[..8];
+            if account_discriminator != SpotMarket::DISCRIMINATOR {
                 return Err(ErrorCode::CouldNotLoadSpotMarketData);
             }
 

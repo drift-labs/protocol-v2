@@ -5,7 +5,7 @@ use crate::state::perp_market::AMM;
 fn balanced_market_zero_jit() {
     let market = PerpMarket {
         amm: AMM {
-            base_asset_amount_with_amm: 0,
+            base_asset_amount_with_amm: 0.into(),
             amm_jit_intensity: 100,
             ..AMM::default_test()
         },
@@ -22,7 +22,7 @@ fn balanced_market_zero_jit() {
 fn balanced_market_zero_intensity() {
     let market = PerpMarket {
         amm: AMM {
-            base_asset_amount_with_amm: 100,
+            base_asset_amount_with_amm: 100.into(),
             amm_jit_intensity: 0,
             ..AMM::default_test()
         },
@@ -39,7 +39,7 @@ fn balanced_market_zero_intensity() {
 fn balanced_market_full_intensity() {
     let market = PerpMarket {
         amm: AMM {
-            base_asset_amount_with_amm: 100,
+            base_asset_amount_with_amm: 100.into(),
             amm_jit_intensity: 100,
             ..AMM::default_test()
         },
@@ -56,7 +56,7 @@ fn balanced_market_full_intensity() {
 fn balanced_market_half_intensity() {
     let market = PerpMarket {
         amm: AMM {
-            base_asset_amount_with_amm: 100,
+            base_asset_amount_with_amm: 100.into(),
             amm_jit_intensity: 50,
             ..AMM::default_test()
         },

@@ -68,8 +68,8 @@ pub fn settle_pnl(
         update_spot_market_cumulative_interest(spot_market, None, now)?;
 
         tvl_before = spot_market.get_tvl()?;
-        deposits_balance_before = spot_market.deposit_balance;
-        borrows_balance_before = spot_market.borrow_balance;
+        deposits_balance_before = spot_market.deposit_balance();
+        borrows_balance_before = spot_market.borrow_balance();
     }
 
     let mut market = perp_market_map.get_ref_mut(&market_index)?;
@@ -220,13 +220,13 @@ pub fn settle_pnl(
     }
 
     let pnl_pool_token_amount = get_token_amount(
-        perp_market.pnl_pool.scaled_balance,
+        perp_market.pnl_pool.scaled_balance(),
         &spot_market,
         perp_market.pnl_pool.balance_type(),
     )?;
 
     let fraction_of_fee_pool_token_amount = get_token_amount(
-        perp_market.amm.fee_pool.scaled_balance,
+        perp_market.amm.fee_pool.scaled_balance(),
         &spot_market,
         perp_market.amm.fee_pool.balance_type(),
     )?
@@ -267,8 +267,8 @@ pub fn settle_pnl(
     )?;
 
     // if the spot market balance has changed, we have to fail if we are in try settle mode
-    if (spot_market.deposit_balance != deposits_balance_before
-        || spot_market.borrow_balance != borrows_balance_before)
+    if (spot_market.deposit_balance() != deposits_balance_before
+        || spot_market.borrow_balance() != borrows_balance_before)
         && mode == SettlePnlMode::TrySettle
     {
         msg!("Spot market balance has changed, switch to MUST_SETTLE mode");
@@ -598,10 +598,10 @@ pub fn settle_expired_position(
 
     update_settled_pnl(user, position_index, pnl_to_settle_with_user.cast()?)?;
 
-    perp_market.amm.base_asset_amount_with_amm = perp_market
-        .amm
-        .base_asset_amount_with_amm
-        .safe_add(position_delta.base_asset_amount.cast()?)?;
+    let base_asset_amount_with_amm = perp_market.amm.base_asset_amount_with_amm();
+    perp_market.amm.set_base_asset_amount_with_amm(
+        base_asset_amount_with_amm.safe_add(position_delta.base_asset_amount.cast()?)?,
+    );
 
     let quote_asset_amount_after = user.perp_positions[position_index].quote_asset_amount;
 

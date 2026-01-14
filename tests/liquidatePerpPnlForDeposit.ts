@@ -1,46 +1,45 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import { PublicKey } from '@solana/web3.js';
 
 import {
 	BASE_PRECISION,
 	BN,
+	EventSubscriber,
+	LIQUIDATION_PCT_PRECISION,
+	OracleGuardRails,
 	OracleSource,
-	ZERO,
-	TestClient,
 	PRICE_PRECISION,
 	PositionDirection,
-	EventSubscriber,
-	OracleGuardRails,
-	LIQUIDATION_PCT_PRECISION,
+	TestClient,
+	ZERO,
 	convertToNumber,
 } from '../sdk/src';
 
+import { startAnchor } from 'solana-bankrun';
 import {
-	mockUSDCMint,
-	mockUserUSDCAccount,
-	initializeQuoteSpotMarket,
-	createUserWithUSDCAndWSOLAccount,
-	createWSolTokenAccountForUser,
-	initializeSolSpotMarket,
-	mockOracleNoProgram,
-	setFeedPriceNoProgram,
-} from './testHelpers';
-import {
-	isVariant,
 	PERCENTAGE_PRECISION,
 	QUOTE_PRECISION,
 	UserStatus,
-} from '../sdk';
-import { startAnchor } from 'solana-bankrun';
+	isVariant,
+} from '../sdk/src';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
+import {
+	createUserWithUSDCAndWSOLAccount,
+	createWSolTokenAccountForUser,
+	initializeQuoteSpotMarket,
+	initializeSolSpotMarket,
+	mockOracleNoProgram,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+	setFeedPriceNoProgram,
+} from './testHelpers';
 
 describe('liquidate perp pnl for deposit', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let driftClient: TestClient;
 	let eventSubscriber: EventSubscriber;
@@ -284,7 +283,7 @@ describe('liquidate perp pnl for deposit', () => {
 		);
 
 		const liquidationRecord =
-			eventSubscriber.getEventsArray('LiquidationRecord')[0];
+			eventSubscriber.getEventsArray('liquidationRecord')[0];
 
 		assert(liquidationRecord.liquidationId === 1);
 		assert(

@@ -5,8 +5,8 @@
 	"author": "",
 	"license": "ISC",
 	"devDependencies": {
-		"@coral-xyz/anchor": "0.29.0",
-		"@coral-xyz/anchor-30": "npm:@coral-xyz/anchor@0.30.1",
+		"@coral-xyz/anchor": "npm:@coral-xyz/anchor@0.31.1",
+		"@coral-xyz/anchor-29": "npm:@coral-xyz/anchor@0.29.0",
 		"@project-serum/common": "0.0.1-beta.3",
 		"@project-serum/serum": "0.13.65",
 		"@pythnetwork/client": "2.21.0",
@@ -29,16 +29,15 @@
 	},
 	"dependencies": {
 		"@ellipsis-labs/phoenix-sdk": "1.4.2",
-		"@switchboard-xyz/common": "3.0.14",
-		"@switchboard-xyz/on-demand": "2.4.1",
-		"anchor-bankrun": "0.3.0",
-		"chai-bn": "0.2.2",
+		"@switchboard-xyz/common": "5.6.1",
+		"@switchboard-xyz/on-demand": "3.8.2",
+		"anchor-bankrun": "0.5.0",
 		"csvtojson": "2.0.10",
 		"dotenv": "16.4.5",
 		"json2csv": "5.0.7",
 		"nanoid": "3.3.4",
 		"rpc-websockets": "7.5.1",
-		"solana-bankrun": "0.3.0",
+		"solana-bankrun": "0.4.0",
 		"zod": "4.0.17",
 		"zstddec": "0.1.0"
 	},
@@ -49,7 +48,7 @@
 		"prettify:fix": "prettier --write './sdk/src/**/*.ts' './tests/**.ts' './cli/**.ts'",
 		"lint": "eslint . --ext ts --quiet --format unix",
 		"lint:fix": "eslint . --ext ts --fix",
-		"update-idl": "anchor build -- --features anchor-test && cp target/idl/drift.json sdk/src/idl/drift.json"
+		"update-idl": "anchor build -- --features anchor-test && cp target/idl/drift.json sdk/src/idl/drift.json && cp target/types/drift.ts sdk/src/idl/drift.ts"
 	},
 	"engines": {
 		"node": ">=12"
@@ -72,7 +71,10 @@
 		"backslash": "<0.2.1",
 		"chalk-template": "<1.1.1",
 		"supports-hyperlinks": "<4.1.1",
-		"has-ansi": "<6.0.1"
+		"has-ansi": "<6.0.1",
+		"@coral-xyz/anchor/@solana/web3.js": "1.98.0",
+		"base-x": "^3.0.11",
+		"bs58": "^4.0.1"
 	},
 	"overrides": {
 		"chalk": "4.1.2",

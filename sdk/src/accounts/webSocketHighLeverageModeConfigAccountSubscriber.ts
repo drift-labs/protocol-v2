@@ -5,12 +5,12 @@ import {
 	HighLeverageModeConfigAccountEvents,
 	HighLeverageModeConfigAccountSubscriber,
 } from './types';
-import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { Commitment, PublicKey } from '@solana/web3.js';
 import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
 import { HighLeverageModeConfig } from '../types';
+import { DriftProgram } from '../config';
 
 export class WebSocketHighLeverageModeConfigAccountSubscriber
 	implements HighLeverageModeConfigAccountSubscriber
@@ -18,7 +18,7 @@ export class WebSocketHighLeverageModeConfigAccountSubscriber
 	isSubscribed: boolean;
 	resubTimeoutMs?: number;
 	commitment?: Commitment;
-	program: Program;
+	program: DriftProgram;
 	eventEmitter: StrictEventEmitter<
 		EventEmitter,
 		HighLeverageModeConfigAccountEvents
@@ -28,7 +28,7 @@ export class WebSocketHighLeverageModeConfigAccountSubscriber
 	highLeverageModeConfigDataAccountSubscriber: AccountSubscriber<HighLeverageModeConfig>;
 
 	public constructor(
-		program: Program,
+		program: DriftProgram,
 		highLeverageModeConfigAccountPublicKey: PublicKey,
 		resubTimeoutMs?: number,
 		commitment?: Commitment

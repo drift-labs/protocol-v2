@@ -1,43 +1,42 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import { PublicKey } from '@solana/web3.js';
 
 import {
 	BN,
-	OracleSource,
-	TestClient,
-	PRICE_PRECISION,
-	PositionDirection,
 	EventSubscriber,
-	OracleGuardRails,
-	MarketStatus,
 	LIQUIDATION_PCT_PRECISION,
+	MarketStatus,
+	OracleGuardRails,
+	OracleSource,
+	PositionDirection,
+	PRICE_PRECISION,
+	TestClient,
 } from '../sdk/src';
 
-import {
-	mockOracleNoProgram,
-	mockUSDCMint,
-	mockUserUSDCAccount,
-	initializeQuoteSpotMarket,
-	createUserWithUSDCAndWSOLAccount,
-	initializeSolSpotMarket,
-} from './testHelpers';
+import { startAnchor } from 'solana-bankrun';
 import {
 	getMarketOrderParams,
 	MARGIN_PRECISION,
 	MAX_LEVERAGE_ORDER_SIZE,
 	OrderParamsBitFlag,
 	PERCENTAGE_PRECISION,
-} from '../sdk';
-import { startAnchor } from 'solana-bankrun';
+} from '../sdk/src';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
+import {
+	createUserWithUSDCAndWSOLAccount,
+	initializeQuoteSpotMarket,
+	initializeSolSpotMarket,
+	mockOracleNoProgram,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+} from './testHelpers';
 
 describe('max leverage order params', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let bulkAccountLoader: TestBulkAccountLoader;
 	let bankrunContextWrapper: BankrunContextWrapper;

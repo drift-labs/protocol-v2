@@ -8,7 +8,6 @@ import {
 	ResubOpts,
 } from './types';
 import { PerpMarketAccount, SpotMarketAccount, StateAccount } from '../types';
-import { Program } from '@coral-xyz/anchor';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import {
@@ -22,9 +21,8 @@ import { WebSocketAccountSubscriber } from './webSocketAccountSubscriber';
 import { Commitment, PublicKey } from '@solana/web3.js';
 import { OracleInfo, OraclePriceData } from '../oracles/types';
 import { OracleClientCache } from '../oracles/oracleClientCache';
-import * as Buffer from 'buffer';
 import { QUOTE_ORACLE_PRICE_DATA } from '../oracles/quoteAssetOracleClient';
-import { findAllMarketAndOracles } from '../config';
+import { findAllMarketAndOracles, DriftProgram } from '../config';
 import { findDelistedPerpMarketsAndOracles } from './utils';
 import { getOracleId } from '../oracles/oracleId';
 import { OracleSource } from '../types';
@@ -39,7 +37,7 @@ export class WebSocketDriftClientAccountSubscriber
 	implements DriftClientAccountSubscriber
 {
 	isSubscribed: boolean;
-	program: Program;
+	program: DriftProgram;
 	commitment?: Commitment;
 	perpMarketIndexes: number[];
 	spotMarketIndexes: number[];
@@ -71,7 +69,7 @@ export class WebSocketDriftClientAccountSubscriber
 	initialOraclePriceData: Map<string, OraclePriceData>;
 	customPerpMarketAccountSubscriber?: new (
 		accountName: string,
-		program: Program,
+		program: DriftProgram,
 		accountPublicKey: PublicKey,
 		decodeBuffer?: (buffer: Buffer) => any,
 		resubOpts?: ResubOpts,
@@ -79,7 +77,7 @@ export class WebSocketDriftClientAccountSubscriber
 	) => AccountSubscriber<any>;
 	customOracleAccountSubscriber?: new (
 		accountName: string,
-		program: Program,
+		program: DriftProgram,
 		accountPublicKey: PublicKey,
 		decodeBuffer?: (buffer: Buffer) => any,
 		resubOpts?: ResubOpts,
@@ -91,7 +89,7 @@ export class WebSocketDriftClientAccountSubscriber
 	protected subscriptionPromiseResolver: (val: boolean) => void;
 
 	public constructor(
-		program: Program,
+		program: DriftProgram,
 		perpMarketIndexes: number[],
 		spotMarketIndexes: number[],
 		oracleInfos: OracleInfo[],
@@ -101,7 +99,7 @@ export class WebSocketDriftClientAccountSubscriber
 		commitment?: Commitment,
 		customPerpMarketAccountSubscriber?: new (
 			accountName: string,
-			program: Program,
+			program: DriftProgram,
 			accountPublicKey: PublicKey,
 			decodeBuffer?: (buffer: Buffer) => any,
 			resubOpts?: ResubOpts,
@@ -109,7 +107,7 @@ export class WebSocketDriftClientAccountSubscriber
 		) => WebSocketAccountSubscriberV2<any> | WebSocketAccountSubscriber<any>,
 		customOracleAccountSubscriber?: new (
 			accountName: string,
-			program: Program,
+			program: DriftProgram,
 			accountPublicKey: PublicKey,
 			decodeBuffer?: (buffer: Buffer) => any,
 			resubOpts?: ResubOpts,
@@ -169,6 +167,7 @@ export class WebSocketDriftClientAccountSubscriber
 			this.program.programId
 		);
 
+		console.info('start state account sub');
 		// create and activate main state account subscription
 		this.stateAccountSubscriber = new WebSocketAccountSubscriber(
 			'state',
@@ -182,6 +181,7 @@ export class WebSocketDriftClientAccountSubscriber
 			this.eventEmitter.emit('stateAccountUpdate', data);
 			this.eventEmitter.emit('update');
 		});
+		console.info('end state account sub');
 
 		// set initial data to avoid spamming getAccountInfo calls in webSocketAccountSubscriber
 		await this.setInitialData();
@@ -237,10 +237,11 @@ export class WebSocketDriftClientAccountSubscriber
 				perpMarketAccountInfos
 					.filter((accountInfo) => !!accountInfo)
 					.map((accountInfo) => {
-						const perpMarket = this.program.coder.accounts.decode(
-							'PerpMarket',
-							accountInfo.data
-						);
+						const perpMarket: PerpMarketAccount =
+							this.program.coder.accounts.decode(
+								'perpMarket',
+								accountInfo.data
+							);
 						return [perpMarket.marketIndex, perpMarket];
 					})
 			);
@@ -262,10 +263,11 @@ export class WebSocketDriftClientAccountSubscriber
 				spotMarketAccountInfos
 					.filter((accountInfo) => !!accountInfo)
 					.map((accountInfo) => {
-						const spotMarket = this.program.coder.accounts.decode(
-							'SpotMarket',
-							accountInfo.data
-						);
+						const spotMarket: SpotMarketAccount =
+							this.program.coder.accounts.decode(
+								'spotMarket',
+								accountInfo.data
+							);
 						return [spotMarket.marketIndex, spotMarket];
 					})
 			);

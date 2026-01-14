@@ -1,20 +1,20 @@
 import * as anchor from '@coral-xyz/anchor';
 
-import { Program } from '@coral-xyz/anchor';
-
 import {
-	TestClient,
 	EventSubscriber,
-	User,
 	OracleSource,
 	PEG_PRECISION,
 	PRICE_PRECISION,
+	TestClient,
+	User,
 } from '../sdk/src';
 
+import dotenv from 'dotenv';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
-import dotenv from 'dotenv';
+
+import { DriftProgram } from '../sdk/src/config';
 import {
 	initializeQuoteSpotMarket,
 	mockOracleNoProgram,
@@ -24,7 +24,7 @@ import {
 dotenv.config();
 
 describe('gov stake increase on devnet', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 	let makerDriftClient: TestClient;
 	let makerDriftClientUser: User;
 	let eventSubscriber: EventSubscriber;
@@ -143,8 +143,7 @@ describe('gov stake increase on devnet', () => {
 	it('should update gov stake without error', async () => {
 		await makerDriftClient.updateUserGovTokenInsuranceStake(
 			makerDriftClient.authority,
-			undefined,
-			'devnet'
+			undefined
 		);
 	});
 });

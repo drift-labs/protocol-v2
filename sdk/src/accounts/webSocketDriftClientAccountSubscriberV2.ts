@@ -13,7 +13,7 @@ import {
 	SpotMarketAccount,
 	StateAccount,
 } from '../types';
-import { Program } from '@coral-xyz/anchor';
+
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import {
@@ -45,6 +45,7 @@ import {
 } from '../memcmp';
 import { WebSocketProgramAccountsSubscriberV2 } from './webSocketProgramAccountsSubscriberV2';
 import { WebSocketAccountSubscriberV2 } from './webSocketAccountSubscriberV2';
+import { DriftProgram } from '../config';
 const ORACLE_DEFAULT_ID = getOracleId(
 	PublicKey.default,
 	OracleSource.QUOTE_ASSET
@@ -54,7 +55,7 @@ export class WebSocketDriftClientAccountSubscriberV2
 	implements DriftClientAccountSubscriber
 {
 	isSubscribed: boolean;
-	program: Program;
+	program: DriftProgram;
 	commitment?: Commitment;
 	perpMarketIndexes: number[];
 	spotMarketIndexes: number[];
@@ -97,7 +98,7 @@ export class WebSocketDriftClientAccountSubscriberV2
 		string;
 
 	public constructor(
-		program: Program,
+		program: DriftProgram,
 		perpMarketIndexes: number[],
 		spotMarketIndexes: number[],
 		oracleInfos: OracleInfo[],
@@ -203,11 +204,16 @@ export class WebSocketDriftClientAccountSubscriberV2
 			this.perpMarketAllAccountsSubscriber =
 				new WebSocketProgramAccountsSubscriberV2<PerpMarketAccount>(
 					'PerpMarketAccountsSubscriber',
-					'PerpMarket',
+					'perpMarket',
 					this.program,
-					this.program.account.perpMarket.coder.accounts.decodeUnchecked.bind(
-						this.program.account.perpMarket.coder.accounts
-					),
+					(_accountName: string, buffer: Buffer) => {
+						const decoded: PerpMarketAccount =
+							this.program.account.perpMarket.coder.accounts.decodeUnchecked(
+								'perpMarket',
+								buffer
+							);
+						return decoded;
+					},
 					{
 						filters: [getPerpMarketAccountsFilter()],
 						commitment: this.commitment,
@@ -219,11 +225,16 @@ export class WebSocketDriftClientAccountSubscriberV2
 			this.spotMarketAllAccountsSubscriber =
 				new WebSocketProgramAccountsSubscriberV2<SpotMarketAccount>(
 					'SpotMarketAccountsSubscriber',
-					'SpotMarket',
+					'spotMarket',
 					this.program,
-					this.program.account.spotMarket.coder.accounts.decodeUnchecked.bind(
-						this.program.account.spotMarket.coder.accounts
-					),
+					(_accountName: string, buffer: Buffer) => {
+						const decoded: SpotMarketAccount =
+							this.program.account.spotMarket.coder.accounts.decodeUnchecked(
+								'spotMarket',
+								buffer
+							);
+						return decoded;
+					},
 					{
 						filters: [getSpotMarketAccountsFilter()],
 						commitment: this.commitment,

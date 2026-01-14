@@ -1,28 +1,20 @@
 import * as anchor from '@coral-xyz/anchor';
 import { assert } from 'chai';
 
-import { Program } from '@coral-xyz/anchor';
-
 import { Keypair } from '@solana/web3.js';
 
 import {
-	TestClient,
 	BN,
-	PRICE_PRECISION,
-	PositionDirection,
-	User,
-	Wallet,
 	EventSubscriber,
 	MarketStatus,
+	PositionDirection,
+	PRICE_PRECISION,
+	TestClient,
+	User,
+	Wallet,
 } from '../sdk/src';
 
-import {
-	initializeQuoteSpotMarket,
-	mockOracleNoProgram,
-	mockUSDCMint,
-	mockUserUSDCAccount,
-	setFeedPriceNoProgram,
-} from './testHelpers';
+import { startAnchor } from 'solana-bankrun';
 import {
 	BASE_PRECISION,
 	calculateReservePrice,
@@ -31,13 +23,20 @@ import {
 	OracleSource,
 	PostOnlyParams,
 	ZERO,
-} from '../sdk';
-import { startAnchor } from 'solana-bankrun';
+} from '../sdk/src';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
+import { DriftProgram } from '../sdk/src/config';
+import {
+	initializeQuoteSpotMarket,
+	mockOracleNoProgram,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+	setFeedPriceNoProgram,
+} from './testHelpers';
 
 describe('post only', () => {
-	const chProgram = anchor.workspace.Drift as Program;
+	const chProgram = anchor.workspace.Drift as DriftProgram;
 
 	let fillerDriftClient: TestClient;
 	let fillerDriftClientUser: User;
@@ -247,7 +246,7 @@ describe('post only', () => {
 		assert(driftClient.getUserStats().getAccount().fees.totalFeePaid.eq(ZERO));
 
 		await fillerDriftClient.fetchAccounts();
-		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('orderActionRecord')[0];
 
 		assert(isVariant(orderRecord.action, 'fill'));
 		assert(orderRecord.takerFee.eq(ZERO));
@@ -348,7 +347,7 @@ describe('post only', () => {
 		);
 
 		await fillerDriftClient.fetchAccounts();
-		const orderRecord = eventSubscriber.getEventsArray('OrderActionRecord')[0];
+		const orderRecord = eventSubscriber.getEventsArray('orderActionRecord')[0];
 
 		assert(isVariant(orderRecord.action, 'fill'));
 		assert(orderRecord.takerFee.eq(new BN(0)));

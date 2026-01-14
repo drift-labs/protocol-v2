@@ -12,6 +12,333 @@ use uint::construct_uint;
 
 use crate::error::DriftResult;
 
+pub mod compat {
+    #![allow(non_camel_case_types)]
+    use anchor_lang::prelude::borsh::{self};
+    #[cfg(feature = "idl-build")]
+    use anchor_lang_idl_spec::{IdlRepr, IdlType, IdlTypeDef};
+    use bytemuck::{Pod, Zeroable};
+    #[cfg(feature = "idl-build")]
+    use std::collections::BTreeMap;
+    use std::{
+        cmp::Ordering,
+        convert::TryFrom,
+        ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign},
+    };
+
+    use crate::{error::DriftResult, math::casting::Cast};
+
+    /// `u128` with legacy alignment
+    #[repr(transparent)]
+    #[derive(
+        Copy, Clone, PartialEq, Eq, Debug, Default, borsh::BorshSerialize, borsh::BorshDeserialize,
+    )]
+    pub struct u128([u8; 16]);
+
+    #[cfg(feature = "idl-build")]
+    impl anchor_lang::IdlBuild for self::u128 {
+        // tell anchor IDL to treat it as std::primitive::u128
+        fn create_type() -> Option<IdlTypeDef> {
+            Some(IdlTypeDef {
+                name: Self::get_full_path(),
+                docs: vec!["compatibility u128".into()],
+                serialization: Default::default(),
+                repr: Some(IdlRepr::Transparent),
+                generics: Default::default(),
+                ty: anchor_lang_idl_spec::IdlTypeDefTy::Type {
+                    alias: IdlType::U128,
+                },
+            })
+        }
+        fn insert_types(_types: &mut BTreeMap<String, IdlTypeDef>) {}
+        fn get_full_path() -> String {
+            "u128".into()
+        }
+    }
+
+    impl std::fmt::Display for self::u128 {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            std::fmt::Display::fmt(&self.as_u128(), f)
+        }
+    }
+
+    impl PartialOrd for self::u128 {
+        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+            self.as_u128().partial_cmp(&other.as_u128())
+        }
+    }
+
+    impl PartialOrd for self::i128 {
+        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+            self.as_i128().partial_cmp(&other.as_i128())
+        }
+    }
+
+    // Safety: u128 is a transparent wrapper around [u8; 16], which is Pod + Zeroable
+    unsafe impl Pod for self::u128 {}
+    unsafe impl Zeroable for self::u128 {}
+    impl u128 {
+        pub const ONE: Self = u128(1_u128.to_le_bytes());
+        pub const ZERO: Self = u128(0_u128.to_le_bytes());
+        /// convert to std u128
+        #[inline]
+        pub fn as_u128(self) -> std::primitive::u128 {
+            std::primitive::u128::from_le_bytes(self.0)
+        }
+        pub const fn one() -> Self {
+            Self::ONE
+        }
+        pub const fn zero() -> Self {
+            Self::ZERO
+        }
+        pub fn cast<T: TryFrom<std::primitive::u128>>(&self) -> DriftResult<T> {
+            self.as_u128().cast()
+        }
+    }
+    impl From<std::primitive::u128> for u128 {
+        fn from(value: std::primitive::u128) -> Self {
+            u128(value.to_le_bytes())
+        }
+    }
+    impl From<u128> for std::primitive::u128 {
+        fn from(value: u128) -> Self {
+            value.as_u128()
+        }
+    }
+
+    impl num_traits::Zero for self::u128 {
+        fn zero() -> Self {
+            Self::ZERO
+        }
+        fn is_zero(&self) -> bool {
+            self.0 == Self::ZERO.0
+        }
+    }
+
+    // Arithmetic operations for u128 - using From/Into conversions
+    impl Add for u128 {
+        type Output = Self;
+        #[inline(always)]
+        fn add(self, other: Self) -> Self {
+            let a: std::primitive::u128 = self.into();
+            let b: std::primitive::u128 = other.into();
+            Self::from(a + b)
+        }
+    }
+    impl AddAssign for u128 {
+        #[inline(always)]
+        fn add_assign(&mut self, other: Self) {
+            *self = *self + other;
+        }
+    }
+    impl Sub for u128 {
+        type Output = Self;
+        #[inline(always)]
+        fn sub(self, other: Self) -> Self {
+            let a: std::primitive::u128 = self.into();
+            let b: std::primitive::u128 = other.into();
+            Self::from(a - b)
+        }
+    }
+    impl SubAssign for u128 {
+        #[inline(always)]
+        fn sub_assign(&mut self, other: Self) {
+            *self = *self - other;
+        }
+    }
+    impl Mul for u128 {
+        type Output = Self;
+        #[inline(always)]
+        fn mul(self, other: Self) -> Self {
+            let a: std::primitive::u128 = self.into();
+
+            let b: std::primitive::u128 = other.into();
+            Self::from(a * b)
+        }
+    }
+    impl MulAssign for u128 {
+        #[inline(always)]
+        fn mul_assign(&mut self, other: Self) {
+            *self = *self * other;
+        }
+    }
+    impl Div for u128 {
+        type Output = Self;
+        #[inline(always)]
+        fn div(self, other: Self) -> Self {
+            let a: std::primitive::u128 = self.into();
+
+            let b: std::primitive::u128 = other.into();
+            Self::from(a / b)
+        }
+    }
+    impl DivAssign for u128 {
+        #[inline(always)]
+        fn div_assign(&mut self, other: Self) {
+            *self = *self / other;
+        }
+    }
+
+    /// `i128` with legacy alignment
+    #[repr(transparent)]
+    #[derive(
+        Copy, Clone, PartialEq, Eq, Debug, Default, borsh::BorshSerialize, borsh::BorshDeserialize,
+    )]
+    pub struct i128([u8; 16]);
+
+    #[cfg(feature = "idl-build")]
+    impl anchor_lang::IdlBuild for self::i128 {
+        // tell anchor IDL to treat it as std::primitive::i128
+        fn create_type() -> Option<IdlTypeDef> {
+            Some(IdlTypeDef {
+                name: Self::get_full_path(),
+                docs: vec!["compatibility i128".into()],
+                serialization: Default::default(),
+                repr: Some(IdlRepr::Transparent),
+                generics: Default::default(),
+                ty: anchor_lang_idl_spec::IdlTypeDefTy::Type {
+                    alias: IdlType::I128,
+                },
+            })
+        }
+        fn get_full_path() -> String {
+            "i128".into()
+        }
+    }
+
+    impl std::fmt::Display for self::i128 {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            std::fmt::Display::fmt(&self.as_i128(), f)
+        }
+    }
+
+    // Safety: i128 is a transparent wrapper around [u8; 16], which is Pod + Zeroable
+    unsafe impl Pod for self::i128 {}
+    unsafe impl Zeroable for self::i128 {}
+    impl i128 {
+        pub const ONE: Self = i128(1_i128.to_le_bytes());
+        pub const ZERO: Self = i128(0_i128.to_le_bytes());
+
+        pub const fn one() -> Self {
+            Self::ONE
+        }
+        pub const fn zero() -> Self {
+            Self::ZERO
+        }
+
+        pub fn abs(&self) -> std::primitive::i128 {
+            self.as_i128().abs()
+        }
+
+        pub fn unsigned_abs(&self) -> std::primitive::u128 {
+            self.as_i128().unsigned_abs()
+        }
+
+        /// convert to std i128
+        #[inline]
+        pub fn as_i128(self) -> std::primitive::i128 {
+            std::primitive::i128::from_le_bytes(self.0)
+        }
+
+        pub fn cast<T: TryFrom<std::primitive::i128>>(&self) -> DriftResult<T> {
+            self.as_i128().cast()
+        }
+    }
+
+    impl num_traits::Zero for self::i128 {
+        fn zero() -> Self {
+            Self::ZERO
+        }
+        fn is_zero(&self) -> bool {
+            self.0 == Self::ZERO.0
+        }
+    }
+
+    impl std::ops::Neg for self::i128 {
+        type Output = std::primitive::i128;
+        fn neg(self) -> Self::Output {
+            self.as_i128().neg()
+        }
+    }
+
+    impl From<std::primitive::i128> for i128 {
+        fn from(value: std::primitive::i128) -> Self {
+            i128(value.to_le_bytes())
+        }
+    }
+    impl From<i128> for std::primitive::i128 {
+        fn from(value: i128) -> Self {
+            value.as_i128()
+        }
+    }
+
+    // Arithmetic operations for i128 - using From/Into conversions
+    impl Add for i128 {
+        type Output = Self;
+        #[inline(always)]
+        fn add(self, other: Self) -> Self {
+            let a: std::primitive::i128 = self.into();
+
+            let b: std::primitive::i128 = other.into();
+            Self::from(a + b)
+        }
+    }
+    impl AddAssign for i128 {
+        #[inline(always)]
+        fn add_assign(&mut self, other: Self) {
+            *self = *self + other;
+        }
+    }
+    impl Sub for i128 {
+        type Output = Self;
+        #[inline(always)]
+        fn sub(self, other: Self) -> Self {
+            let a: std::primitive::i128 = self.into();
+
+            let b: std::primitive::i128 = other.into();
+            Self::from(a - b)
+        }
+    }
+    impl SubAssign for i128 {
+        #[inline(always)]
+        fn sub_assign(&mut self, other: Self) {
+            *self = *self - other;
+        }
+    }
+    impl Mul for i128 {
+        type Output = Self;
+        #[inline(always)]
+        fn mul(self, other: Self) -> Self {
+            let a: std::primitive::i128 = self.into();
+
+            let b: std::primitive::i128 = other.into();
+            Self::from(a * b)
+        }
+    }
+    impl MulAssign for i128 {
+        #[inline(always)]
+        fn mul_assign(&mut self, other: Self) {
+            *self = *self * other;
+        }
+    }
+    impl Div for i128 {
+        type Output = Self;
+        #[inline(always)]
+        fn div(self, other: Self) -> Self {
+            let a: std::primitive::i128 = self.into();
+
+            let b: std::primitive::i128 = other.into();
+            Self::from(a / b)
+        }
+    }
+    impl DivAssign for i128 {
+        #[inline(always)]
+        fn div_assign(&mut self, other: Self) {
+            *self = *self / other;
+        }
+    }
+}
+
 construct_uint! {
     /// 256-bit unsigned integer.
     pub struct U256(4);

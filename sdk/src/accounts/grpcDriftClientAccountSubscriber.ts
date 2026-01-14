@@ -1,7 +1,6 @@
 import { WebSocketDriftClientAccountSubscriber } from './webSocketDriftClientAccountSubscriber';
 import { OracleInfo, OraclePriceData } from '../oracles/types';
-import { Program } from '@coral-xyz/anchor';
-import { findAllMarketAndOracles } from '../config';
+import { findAllMarketAndOracles, DriftProgram } from '../config';
 import {
 	getDriftStateAccountPublicKey,
 	getPerpMarketPublicKey,
@@ -17,7 +16,7 @@ export class grpcDriftClientAccountSubscriber extends WebSocketDriftClientAccoun
 
 	constructor(
 		grpcConfigs: GrpcConfigs,
-		program: Program,
+		program: DriftProgram,
 		perpMarketIndexes: number[],
 		spotMarketIndexes: number[],
 		oracleInfos: OracleInfo[],

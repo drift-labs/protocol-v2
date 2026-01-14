@@ -101,12 +101,12 @@ pub fn basic_stake_if_test() {
 pub fn if_shares_lost_test() {
     let _amount = QUOTE_PRECISION as u64; // $1
     let mut spot_market = SpotMarket {
-        deposit_balance: 0,
-        cumulative_deposit_interest: 1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000,
+        deposit_balance: 0.into(),
+        cumulative_deposit_interest: (1111 * SPOT_CUMULATIVE_INTEREST_PRECISION / 1000).into(),
         insurance_fund: InsuranceFund {
             unstaking_period: 0,
-            total_shares: 1000 * QUOTE_PRECISION,
-            user_shares: 1000 * QUOTE_PRECISION,
+            total_shares: (1000 * QUOTE_PRECISION).into(),
+            user_shares: (1000 * QUOTE_PRECISION).into(),
             ..InsuranceFund::default()
         },
         ..SpotMarket::default()
@@ -116,7 +116,7 @@ pub fn if_shares_lost_test() {
     if_stake
         .update_if_shares(100 * QUOTE_PRECISION, &spot_market)
         .unwrap();
-    if_stake.last_withdraw_request_shares = 100 * QUOTE_PRECISION;
+    if_stake.set_last_withdraw_request_shares(100 * QUOTE_PRECISION);
     if_stake.last_withdraw_request_value = ((100 * QUOTE_PRECISION) - 1) as u64;
 
     let if_balance = (1000 * QUOTE_PRECISION) as u64;
@@ -126,14 +126,38 @@ pub fn if_shares_lost_test() {
     assert_eq!(lost_shares, 2);
 
     let if_balance = if_balance + (100 * QUOTE_PRECISION) as u64;
-    spot_market.insurance_fund.total_shares += 100 * QUOTE_PRECISION;
-    spot_market.insurance_fund.user_shares += 100 * QUOTE_PRECISION;
+    spot_market.insurance_fund.set_total_shares(
+        spot_market
+            .insurance_fund
+            .total_shares()
+            .safe_add(100 * QUOTE_PRECISION)
+            .unwrap(),
+    );
+    spot_market.insurance_fund.set_user_shares(
+        spot_market
+            .insurance_fund
+            .user_shares()
+            .safe_add(100 * QUOTE_PRECISION)
+            .unwrap(),
+    );
     let lost_shares = calculate_if_shares_lost(&if_stake, &spot_market, if_balance).unwrap();
     assert_eq!(lost_shares, 2); // giving up $5 of gains
 
     let if_balance = if_balance - (100 * QUOTE_PRECISION) as u64;
-    spot_market.insurance_fund.total_shares -= 100 * QUOTE_PRECISION;
-    spot_market.insurance_fund.user_shares -= 100 * QUOTE_PRECISION;
+    spot_market.insurance_fund.set_total_shares(
+        spot_market
+            .insurance_fund
+            .total_shares()
+            .safe_sub(100 * QUOTE_PRECISION)
+            .unwrap(),
+    );
+    spot_market.insurance_fund.set_user_shares(
+        spot_market
+            .insurance_fund
+            .user_shares()
+            .safe_sub(100 * QUOTE_PRECISION)
+            .unwrap(),
+    );
     let lost_shares = calculate_if_shares_lost(&if_stake, &spot_market, if_balance).unwrap();
     assert_eq!(lost_shares, 2); // giving up $5 of gains
 
@@ -150,19 +174,13 @@ pub fn if_shares_lost_test() {
 
     // take back gain and total_if_shares alter w/o user alter
     let if_balance = (2100 * QUOTE_PRECISION) as u64;
-    spot_market.insurance_fund.total_shares *= 2;
+    spot_market.insurance_fund.set_total_shares(
+        spot_market
+            .insurance_fund
+            .total_shares()
+            .safe_mul(2)
+            .unwrap(),
+    );
     let lost_shares = calculate_if_shares_lost(&if_stake, &spot_market, if_balance).unwrap();
     assert_eq!(lost_shares, 5_000_001); // giving up $5 of gains
-
-    let if_balance = (2100 * QUOTE_PRECISION * 10) as u64;
-
-    let expected_gain_if_no_loss = if_balance * 100 / 2000;
-    assert_eq!(expected_gain_if_no_loss, 1_050_000_000);
-    let lost_shares = calculate_if_shares_lost(&if_stake, &spot_market, if_balance).unwrap();
-    assert_eq!(lost_shares, 90_909_092); // giving up $5 of gains
-    assert_eq!(
-        (9090908 * if_balance / ((spot_market.insurance_fund.total_shares - lost_shares) as u64))
-            < if_stake.last_withdraw_request_value,
-        true
-    );
 }

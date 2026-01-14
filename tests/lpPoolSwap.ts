@@ -1,6 +1,8 @@
 import * as anchor from '@coral-xyz/anchor';
-import { expect, assert } from 'chai';
-import { Program } from '@coral-xyz/anchor';
+import { assert, expect } from 'chai';
+
+import { DexInstructions, Market, OpenOrders } from '@project-serum/serum';
+import { NATIVE_MINT } from '@solana/spl-token';
 import {
 	Account,
 	Keypair,
@@ -8,65 +10,57 @@ import {
 	PublicKey,
 	Transaction,
 } from '@solana/web3.js';
+import dotenv from 'dotenv';
+import { startAnchor } from 'solana-bankrun';
 import {
 	BN,
-	TestClient,
-	QUOTE_PRECISION,
-	getLpPoolPublicKey,
-	getConstituentTargetBasePublicKey,
+	BN_MAX,
+	ConstituentAccount,
+	ConstituentStatus,
+	ConstituentTargetBaseAccount,
+	LPPoolAccount,
+	OracleSource,
+	PEG_PRECISION,
 	PERCENTAGE_PRECISION,
 	PRICE_PRECISION,
-	PEG_PRECISION,
-	ConstituentTargetBaseAccount,
-	OracleSource,
+	QUOTE_PRECISION,
 	SPOT_MARKET_RATE_PRECISION,
 	SPOT_MARKET_WEIGHT_PRECISION,
-	LPPoolAccount,
-	convertToNumber,
-	getConstituentVaultPublicKey,
-	getConstituentPublicKey,
-	ConstituentAccount,
+	TestClient,
 	ZERO,
+	convertToNumber,
+	getConstituentPublicKey,
+	getConstituentTargetBasePublicKey,
+	getConstituentVaultPublicKey,
+	getLpPoolPublicKey,
 	getSerumSignerPublicKey,
-	BN_MAX,
-	isVariant,
-	ConstituentStatus,
 	getSignedTokenAmount,
 	getTokenAmount,
+	isVariant,
 } from '../sdk/src';
-import {
-	initializeQuoteSpotMarket,
-	mockUSDCMint,
-	mockUserUSDCAccount,
-	mockOracleNoProgram,
-	setFeedPriceNoProgram,
-	overWriteTokenAccountBalance,
-	overwriteConstituentAccount,
-	mockAtaTokenAccountForMint,
-	overWriteMintAccount,
-	createWSolTokenAccountForUser,
-	initializeSolSpotMarket,
-	createUserWithUSDCAndWSOLAccount,
-	sleep,
-} from './testHelpers';
-import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
-import dotenv from 'dotenv';
-import { DexInstructions, Market, OpenOrders } from '@project-serum/serum';
-import { listMarket, SERUM, makePlaceOrderTransaction } from './serumHelper';
-import { NATIVE_MINT } from '@solana/spl-token';
+import { DriftProgram } from '../sdk/src/config';
+import { SERUM, listMarket, makePlaceOrderTransaction } from './serumHelper';
 import {
-	CustomBorshAccountsCoder,
-	CustomBorshCoder,
-} from '../sdk/src/decode/customCoder';
+	createUserWithUSDCAndWSOLAccount,
+	createWSolTokenAccountForUser,
+	initializeQuoteSpotMarket,
+	initializeSolSpotMarket,
+	mockAtaTokenAccountForMint,
+	mockOracleNoProgram,
+	mockUSDCMint,
+	mockUserUSDCAccount,
+	overWriteMintAccount,
+	overWriteTokenAccountBalance,
+	overwriteConstituentAccount,
+	setFeedPriceNoProgram,
+	sleep,
+} from './testHelpers';
 dotenv.config();
 
 describe('LP Pool', () => {
-	const program = anchor.workspace.Drift as Program;
-	// Align account (de)serialization with on-chain zero-copy layouts
-	// @ts-ignore
-	program.coder.accounts = new CustomBorshAccountsCoder(program.idl);
+	const program = anchor.workspace.Drift as DriftProgram;
 	let bankrunContextWrapper: BankrunContextWrapper;
 	let bulkAccountLoader: TestBulkAccountLoader;
 
@@ -155,8 +149,6 @@ describe('LP Pool', () => {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
 			},
-			// Ensure the client uses the same custom coder
-			coder: new CustomBorshCoder(program.idl),
 		});
 		await adminClient.initialize(usdcMint.publicKey, true);
 		await adminClient.subscribe();
@@ -849,7 +841,7 @@ describe('LP Pool', () => {
 
 		const { beginSwapIx, endSwapIx } = await adminClient.getSwapIx(
 			{
-				lpPoolId: lpPoolId,
+				lpPoolId,
 				amountIn: amountIn,
 				inMarketIndex: 0,
 				outMarketIndex: 2,

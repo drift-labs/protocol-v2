@@ -42,8 +42,8 @@
 		"access": "public"
 	},
 	"dependencies": {
-		"@coral-xyz/anchor": "0.29.0",
-		"@coral-xyz/anchor-30": "npm:@coral-xyz/anchor@0.30.1",
+		"@coral-xyz/anchor": "npm:@coral-xyz/anchor@0.31.1",
+		"@coral-xyz/anchor-29": "npm:@coral-xyz/anchor@0.29.0",
 		"@ellipsis-labs/phoenix-sdk": "1.4.5",
 		"@grpc/grpc-js": "1.14.0",
 		"@msgpack/msgpack": "^3.1.2",
@@ -53,16 +53,16 @@
 		"@pythnetwork/price-service-sdk": "1.7.1",
 		"@solana/spl-token": "0.4.13",
 		"@solana/web3.js": "1.98.0",
-		"@switchboard-xyz/common": "3.0.14",
-		"@switchboard-xyz/on-demand": "2.4.1",
+		"@switchboard-xyz/common": "5.6.1",
+		"@switchboard-xyz/on-demand": "3.8.2",
 		"@triton-one/yellowstone-grpc": "1.4.1",
-		"anchor-bankrun": "0.3.0",
-		"gill": "^0.10.2",
+		"anchor-bankrun": "0.5.0",
+		"gill": "^0.10.3",
 		"helius-laserstream": "0.1.8",
 		"nanoid": "3.3.4",
 		"node-cache": "5.1.2",
 		"rpc-websockets": "7.5.1",
-		"solana-bankrun": "0.3.1",
+		"solana-bankrun": "0.4.0",
 		"strict-event-emitter-types": "2.0.0",
 		"tweetnacl": "1.0.3",
 		"tweetnacl-util": "0.15.1",
@@ -126,7 +126,9 @@
 		"backslash": "<0.2.1",
 		"chalk-template": "<0.4.0",
 		"supports-hyperlinks": "<4.1.1",
-		"has-ansi": "<6.0.1"
+		"has-ansi": "<6.0.1",
+		"base-x": "^3.0.11",
+		"bs58": "^4.0.1"
 	},
 	"overrides": {
 		"chalk": "4.1.2",
@@ -146,7 +148,9 @@
 		"backslash": "<0.2.1",
 		"chalk-template": "<1.1.1",
 		"supports-hyperlinks": "<4.1.1",
-		"has-ansi": "<6.0.1"
+		"has-ansi": "<6.0.1",
+		"base-x": "^3.0.11",
+		"bs58": "^4.0.1"
 	},
 	"browser": {
 		"@grpc/grpc-js": false,
