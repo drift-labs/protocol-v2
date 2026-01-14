@@ -287,17 +287,7 @@ export class TitanClient {
 	 * Get a swap transaction for quote
 	 */
 	public async getSwap({
-		inputMint,
-		outputMint,
-		amount,
 		userPublicKey,
-		maxAccounts = 50, // 50 is an estimated amount with buffer
-		slippageBps,
-		swapMode,
-		onlyDirectRoutes,
-		excludeDexes,
-		sizeConstraint,
-		accountsLimitWritable,
 	}: {
 		inputMint: PublicKey;
 		outputMint: PublicKey;
@@ -314,22 +304,8 @@ export class TitanClient {
 		transactionMessage: TransactionMessage;
 		lookupTables: AddressLookupTableAccount[];
 	}> {
-		const params = this.buildParams({
-			inputMint,
-			outputMint,
-			amount,
-			userPublicKey,
-			maxAccounts,
-			slippageBps,
-			swapMode,
-			onlyDirectRoutes,
-			excludeDexes,
-			sizeConstraint,
-			accountsLimitWritable,
-		});
-
 		// Check if we have cached quote data that matches the current parameters
-		if (!this.lastQuoteData || this.lastQuoteParams !== params.toString()) {
+		if (!this.lastQuoteData) {
 			throw new Error(
 				'No matching quote data found. Please get a fresh quote before attempting to swap.'
 			);
