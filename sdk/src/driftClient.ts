@@ -184,17 +184,7 @@ import {
 	trimVaaSignatures,
 } from './math/oracles';
 import { TxHandler } from './tx/txHandler';
-import {
-	DEFAULT_RECEIVER_PROGRAM_ID,
-	wormholeCoreBridgeIdl,
-} from '@pythnetwork/pyth-solana-receiver';
 import { parseAccumulatorUpdateData } from '@pythnetwork/price-service-sdk';
-import {
-	DEFAULT_WORMHOLE_PROGRAM_ID,
-	getGuardianSetPda,
-} from '@pythnetwork/pyth-solana-receiver/lib/address';
-import { WormholeCoreBridgeSolana } from '@pythnetwork/pyth-solana-receiver/lib/idl/wormhole_core_bridge_solana';
-import { PythSolanaReceiver } from '@pythnetwork/pyth-solana-receiver/lib/idl/pyth_solana_receiver';
 import { getFeedIdUint8Array, trimFeedId } from './util/pythOracleUtils';
 import { createMinimalEd25519VerifyIx } from './util/ed25519Utils';
 import {
@@ -220,8 +210,15 @@ import {
 } from './math/builder';
 import { TitanClient, SwapMode as TitanSwapMode } from './titan/titanClient';
 import { UnifiedSwapClient } from './swap/UnifiedSwapClient';
-import { Drift } from './idl/drift';
 import { DriftProgram } from './config';
+import {
+	DEFAULT_RECEIVER_PROGRAM_ID,
+	WORMHOLE_CORE_BRIDGE_SOLANA_IDL,
+	DEFAULT_WORMHOLE_PROGRAM_ID,
+	getGuardianSetPda,
+	WormholeCoreBridgeSolana,
+	PythSolanaReceiver,
+} from './pyth';
 
 /**
  * Union type for swap clients (Titan and Jupiter) - Legacy type
@@ -10782,7 +10779,7 @@ export class DriftClient {
 
 		if (this.wormholeProgram === undefined) {
 			this.wormholeProgram = new Program20(
-				wormholeCoreBridgeIdl,
+				WORMHOLE_CORE_BRIDGE_SOLANA_IDL,
 				DEFAULT_WORMHOLE_PROGRAM_ID,
 				this.provider
 			);

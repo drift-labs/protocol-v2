@@ -189,6 +189,8 @@ function testPerpPosition(anchor: PerpPosition, custom: PerpPosition) {
 	assert(anchor.lastQuoteAssetAmountPerLp.eq(custom.lastQuoteAssetAmountPerLp));
 	assert(anchor.openOrders === custom.openOrders);
 	assert(anchor.perLpBase === custom.perLpBase);
+	assert(anchor.isolatedPositionScaledBalance.eq(custom.isolatedPositionScaledBalance));
+	assert(anchor.positionFlag === custom.positionFlag);
 }
 
 function* getOrders(orders: Order[]) {

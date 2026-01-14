@@ -29,12 +29,9 @@
 	},
 	"dependencies": {
 		"@ellipsis-labs/phoenix-sdk": "1.4.2",
-		"@pythnetwork/pyth-solana-receiver": "0.8.0",
 		"@switchboard-xyz/common": "5.6.1",
 		"@switchboard-xyz/on-demand": "3.8.2",
-		"@types/bs58": "^5.0.0",
 		"anchor-bankrun": "0.5.0",
-		"chai-bn": "0.2.2",
 		"csvtojson": "2.0.10",
 		"dotenv": "16.4.5",
 		"json2csv": "5.0.7",

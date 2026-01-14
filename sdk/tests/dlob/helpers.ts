@@ -69,7 +69,7 @@ export const mockAMM: AMM = {
 		lastOracleConf: new BN(0),
 		lastOracleDelay: new BN(0),
 		lastOraclePriceTwap: new BN(0),
-		lastOraclePriceTwap5min: new BN(0),
+		lastOraclePriceTwap5Min: new BN(0),
 		lastOraclePriceTwapTs: new BN(0),
 	},
 	lastOracleReservePriceSpreadPct: new BN(0),
@@ -386,7 +386,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 			lastOracleConf: new BN(0),
 			lastOracleDelay: new BN(0),
 			lastOraclePriceTwap: PRICE_PRECISION,
-			lastOraclePriceTwap5min: PRICE_PRECISION,
+			lastOraclePriceTwap5Min: PRICE_PRECISION,
 			lastOraclePriceTwapTs: new BN(0),
 		},
 		historicalIndexData: {
@@ -478,7 +478,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 			lastOracleConf: new BN(0),
 			lastOracleDelay: new BN(0),
 			lastOraclePriceTwap: new BN(0),
-			lastOraclePriceTwap5min: new BN(0),
+			lastOraclePriceTwap5Min: new BN(0),
 			lastOraclePriceTwapTs: new BN(0),
 		},
 		historicalIndexData: {
@@ -570,7 +570,7 @@ export const mockSpotMarkets: Array<SpotMarketAccount> = [
 			lastOracleConf: new BN(0),
 			lastOracleDelay: new BN(0),
 			lastOraclePriceTwap: new BN(0),
-			lastOraclePriceTwap5min: new BN(0),
+			lastOraclePriceTwap5Min: new BN(0),
 			lastOraclePriceTwapTs: new BN(0),
 		},
 		historicalIndexData: {
@@ -689,9 +689,9 @@ export class MockUserMap implements UserMapInterface {
 		});
 	}
 
-	public async subscribe(): Promise<void> {}
+	public async subscribe(): Promise<void> { }
 
-	public async unsubscribe(): Promise<void> {}
+	public async unsubscribe(): Promise<void> { }
 
 	public async addPubkey(userAccountPublicKey: PublicKey): Promise<void> {
 		const user = new User({
@@ -750,7 +750,7 @@ export class MockUserMap implements UserMapInterface {
 		);
 	}
 
-	public async updateWithOrderRecord(_record: OrderRecord): Promise<void> {}
+	public async updateWithOrderRecord(_record: OrderRecord): Promise<void> { }
 
 	public values(): IterableIterator<User> {
 		return this.userMap.values();
