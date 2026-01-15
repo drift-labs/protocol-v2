@@ -151,7 +151,14 @@ describe('liquidate perp (no open orders)', () => {
 			userUSDCAccount.publicKey
 		);
 
-		await driftClient.transferIsolatedPerpPositionDeposit(usdcAmount, 0);
+		await driftClient.transferIsolatedPerpPositionDeposit(
+			usdcAmount,
+			0,
+			undefined,
+			undefined,
+			undefined,
+			true
+		);
 
 		await driftClient.openPosition(
 			PositionDirection.LONG,
