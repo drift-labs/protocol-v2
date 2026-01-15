@@ -61,7 +61,6 @@
 		"helius-laserstream": "0.1.8",
 		"nanoid": "3.3.4",
 		"node-cache": "5.1.2",
-		"rpc-websockets": "7.5.1",
 		"solana-bankrun": "0.3.1",
 		"strict-event-emitter-types": "2.0.0",
 		"tweetnacl": "1.0.3",
