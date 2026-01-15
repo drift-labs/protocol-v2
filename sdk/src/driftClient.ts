@@ -4279,7 +4279,8 @@ export class DriftClient {
 		perpMarketIndex: number,
 		subAccountId?: number,
 		txParams?: TxParams,
-		trySettle?: boolean
+		trySettle?: boolean,
+		noBuffer?: boolean
 	): Promise<TransactionSignature> {
 		const ixs = [];
 		const tokenAmountDeposited =
@@ -4287,11 +4288,12 @@ export class DriftClient {
 		const transferIx = await this.getTransferIsolatedPerpPositionDepositIx(
 			amount,
 			perpMarketIndex,
-			subAccountId
+			subAccountId,
+			noBuffer
 		);
 
 		const needsToSettle =
-			amount.gt(tokenAmountDeposited) || amount.eq(MIN_I64) || trySettle;
+			amount.lt(tokenAmountDeposited.neg()) || amount.eq(MIN_I64) || trySettle;
 		if (needsToSettle) {
 			const settleIx = await this.settleMultiplePNLsIx(
 				await getUserAccountPublicKey(
@@ -4320,7 +4322,8 @@ export class DriftClient {
 		amount: BN,
 		perpMarketIndex: number,
 		subAccountId?: number,
-		noAmountBuffer?: boolean
+		noAmountBuffer?: boolean,
+		signingAuthority?: PublicKey
 	): Promise<TransactionInstruction> {
 		const userAccountPublicKey = await getUserAccountPublicKey(
 			this.program.programId,
@@ -4353,7 +4356,7 @@ export class DriftClient {
 					spotMarketVault: spotMarketAccount.vault,
 					user: userAccountPublicKey,
 					userStats: this.getUserStatsAccountPublicKey(),
-					authority: this.wallet.publicKey,
+					authority: signingAuthority ?? this.wallet.publicKey,
 				},
 				remainingAccounts,
 			}

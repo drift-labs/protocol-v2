@@ -1317,10 +1317,6 @@ export type OptionalOrderParams = {
 	[Property in keyof OrderParams]?: OrderParams[Property];
 } & NecessaryOrderParams;
 
-export type PerpOrderIsolatedExtras = {
-	isolatedPositionDepositAmount?: BN;
-};
-
 export type ModifyOrderParams = {
 	[Property in keyof OrderParams]?: OrderParams[Property] | null;
 } & { policy?: ModifyOrderPolicy };

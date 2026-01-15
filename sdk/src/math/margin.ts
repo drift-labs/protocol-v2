@@ -176,7 +176,7 @@ export function calculateWorstCasePerpLiabilityValue(
 			worstCaseLiabilityValue: calculatePerpLiabilityValue(
 				perpPosition.baseAssetAmount,
 				oraclePrice,
-				isVariant(perpMarket.contractType, 'prediction')
+				isPredictionMarket
 			),
 		};
 	}
