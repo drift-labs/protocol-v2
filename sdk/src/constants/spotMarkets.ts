@@ -236,7 +236,8 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 			'AT1R2jUNb9iTo4EaRfKSTPiNTX4Jb64KSwnVmig6Hu4t'
 		),
 		pythFeedId:
-			'0x9d4294bbcd1174d6f2003ec365831e64cc31d9f6f15a2b85399db8d5000960f6',
+			'0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace',
+		pythLazerId: 2
 	},
 	{
 		symbol: 'USDT',
