@@ -223,7 +223,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		symbol: 'wETH',
 		marketIndex: 4,
 		poolId: 0,
-		oracle: new PublicKey('5HP6PKAueMGQBHcJPEj2d3Wj4PE39Br69Tdgzd2qaqfq'),
+		oracle: new PublicKey('93FG52TzNKCnMiasV14Ba34BYcHDb9p4zK4GjZnLwqWR'),
 		oracleSource: OracleSource.PYTH_LAZER,
 		mint: new PublicKey('7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs'),
 		precision: new BN(10).pow(EIGHT),
