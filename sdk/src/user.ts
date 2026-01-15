@@ -504,8 +504,9 @@ export class User {
 			  )
 			: ZERO;
 
-		let freeCollateral: BN;
-		if (positionType === 'isolated' && this.isPositionEmpty(perpPosition)) {
+		let freeCollateral: BN = ZERO;
+		// if position is isolated, we always add on available quote from the cross account
+		if (positionType === 'isolated') {
 			const {
 				totalAssetValue: quoteSpotMarketAssetValue,
 				totalLiabilityValue: quoteSpotMarketLiabilityValue,
@@ -520,13 +521,16 @@ export class User {
 			freeCollateral = quoteSpotMarketAssetValue.sub(
 				quoteSpotMarketLiabilityValue
 			);
-		} else {
-			freeCollateral = this.getFreeCollateral(
+		}
+
+		// adding free collateral from the cross account or from within isolated margin calc for this marketIndex
+		freeCollateral = freeCollateral.add(
+			this.getFreeCollateral(
 				'Initial',
 				enterHighLeverageMode,
 				positionType === 'isolated' ? marketIndex : undefined
-			).sub(collateralBuffer);
-		}
+			).sub(collateralBuffer)
+		);
 
 		return this.getPerpBuyingPowerFromFreeCollateralAndBaseAssetAmount(
 			marketIndex,
@@ -574,7 +578,12 @@ export class User {
 		});
 
 		if (perpMarketIndex !== undefined) {
-			return calc.getIsolatedFreeCollateral(perpMarketIndex);
+			// getIsolatedFreeCollateral will throw if no existing isolated position but we are fetching for potential new position, so we wrap in a try/catch
+			try {
+				return calc.getIsolatedFreeCollateral(perpMarketIndex);
+			} catch (error) {
+				return ZERO;
+			}
 		} else {
 			return calc.getCrossFreeCollateral();
 		}
@@ -2363,7 +2372,7 @@ export class User {
 				enteringHighLeverage
 			);
 
-			if (freeCollateralDelta.eq(ZERO)) {
+			if (!freeCollateralDelta || freeCollateralDelta.eq(ZERO)) {
 				return new BN(-1);
 			}
 

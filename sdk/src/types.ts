@@ -591,6 +591,10 @@ export type SpotBankruptcyRecord = {
 	ifPayment: BN;
 };
 
+export class LiquidationBitFlag {
+	static readonly IsolatedPosition = 1;
+}
+
 export type SettlePnlRecord = {
 	ts: BN;
 	user: PublicKey;
@@ -1142,15 +1146,9 @@ export type PerpPosition = {
 	maxMarginRatio: number;
 	lastQuoteAssetAmountPerLp: BN;
 	perLpBase: number;
-	isolatedPositionScaledBalance: BN;
 	positionFlag: number;
+	isolatedPositionScaledBalance: BN;
 };
-
-export class PositionFlag {
-	static readonly IsolatedPosition = 1;
-	static readonly BeingLiquidated = 2;
-	static readonly Bankruptcy = 4;
-}
 
 export type UserStatsAccount = {
 	numberOfSubAccounts: number;
@@ -1300,6 +1298,12 @@ export class PostOnlyParams {
 export class OrderParamsBitFlag {
 	static readonly ImmediateOrCancel = 1;
 	static readonly UpdateHighLeverageMode = 2;
+}
+
+export class PositionFlag {
+	static readonly IsolatedPosition = 1;
+	static readonly BeingLiquidated = 2;
+	static readonly Bankruptcy = 4;
 }
 
 export type NecessaryOrderParams = {
