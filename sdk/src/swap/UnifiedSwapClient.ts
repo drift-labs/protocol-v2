@@ -11,11 +11,7 @@ import {
 	JupiterClient,
 	QuoteResponse as JupiterQuoteResponse,
 } from '../jupiter/jupiterClient';
-import {
-	TitanClient,
-	QuoteResponse as TitanQuoteResponse,
-	SwapMode as TitanSwapMode,
-} from '../titan/titanClient';
+import { TitanClient, SwapMode as TitanSwapMode } from '../titan/titanClient';
 
 export type SwapMode = 'ExactIn' | 'ExactOut';
 export type SwapClientType = 'jupiter' | 'titan';
@@ -167,18 +163,11 @@ export class UnifiedSwapClient {
 			return { transaction };
 		} else {
 			const titanClient = this.client as TitanClient;
-			const { quote, userPublicKey, slippageBps } = params;
+			const { userPublicKey } = params;
 
 			// For Titan, we need to reconstruct the parameters from the quote
-			const titanQuote = quote as TitanQuoteResponse;
 			const result = await titanClient.getSwap({
-				inputMint: new PublicKey(titanQuote.inputMint),
-				outputMint: new PublicKey(titanQuote.outputMint),
-				amount: new BN(titanQuote.inAmount),
 				userPublicKey,
-				slippageBps: slippageBps || titanQuote.slippageBps,
-				swapMode: titanQuote.swapMode,
-				sizeConstraint: 1280 - 375, // MAX_TX_BYTE_SIZE - buffer for drift instructions
 			});
 
 			return {
