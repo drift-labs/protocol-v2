@@ -9,3 +9,7 @@ export {
 	DEFAULT_RECEIVER_PROGRAM_ID,
 } from './constants';
 export { getGuardianSetPda } from './utils';
+export {
+	PythLazerSubscriber,
+	PythLazerPriceFeedArray,
+} from './pythLazerSubscriber';
