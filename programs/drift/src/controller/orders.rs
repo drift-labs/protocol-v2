@@ -901,7 +901,18 @@ fn merge_modify_order_params_with_existing_order(
     existing_order: &Order,
     modify_order_params: &ModifyOrderParams,
 ) -> DriftResult<Option<OrderParams>> {
-    let order_type = existing_order.order_type;
+
+    // If the order is a trigger limit that has already been triggered, convert it to a limit order
+    // unless the user is explicitly trying to modify the trigger price (handles race conditions)
+    let existing_order_triggered = existing_order.order_type == OrderType::TriggerLimit
+        && existing_order.triggered();
+    let user_modifying_trigger_price = modify_order_params.trigger_price.is_some();
+    
+    let order_type = if existing_order_triggered && !user_modifying_trigger_price {
+        OrderType::Limit
+    } else {
+        existing_order.order_type
+    };
     let market_type = existing_order.market_type;
     let direction = modify_order_params
         .direction
@@ -935,20 +946,27 @@ fn merge_modify_order_params_with_existing_order(
         });
     let bit_flags = 0;
     let max_ts = modify_order_params.max_ts.or(Some(existing_order.max_ts));
-    let trigger_price = modify_order_params
-        .trigger_price
-        .or(Some(existing_order.trigger_price));
-    let trigger_condition =
-        modify_order_params
-            .trigger_condition
-            .unwrap_or(match existing_order.trigger_condition {
-                OrderTriggerCondition::TriggeredAbove | OrderTriggerCondition::Above => {
-                    OrderTriggerCondition::Above
-                }
-                OrderTriggerCondition::TriggeredBelow | OrderTriggerCondition::Below => {
-                    OrderTriggerCondition::Below
-                }
-            });
+    // If converting from triggered TriggerLimit to Limit, clear trigger fields
+    // Only do this if user is not trying to modify trigger price
+    let (trigger_price, trigger_condition) = if existing_order_triggered && !user_modifying_trigger_price {
+        (None, OrderTriggerCondition::Above)
+    } else {
+        (
+            modify_order_params
+                .trigger_price
+                .or(Some(existing_order.trigger_price)),
+            modify_order_params
+                .trigger_condition
+                .unwrap_or(match existing_order.trigger_condition {
+                    OrderTriggerCondition::TriggeredAbove | OrderTriggerCondition::Above => {
+                        OrderTriggerCondition::Above
+                    }
+                    OrderTriggerCondition::TriggeredBelow | OrderTriggerCondition::Below => {
+                        OrderTriggerCondition::Below
+                    }
+                }),
+        )
+    };
     let oracle_price_offset = modify_order_params
         .oracle_price_offset
         .or(Some(existing_order.oracle_price_offset));
