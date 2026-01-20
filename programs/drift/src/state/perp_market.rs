@@ -976,7 +976,7 @@ impl PerpMarket {
                 .amm_has_low_enough_inventory(amm_wants_to_jit_make)?;
 
             if !amm_has_low_enough_inventory {
-                msg!("AMM cannot fill order: AMM has not enough inventory");
+                msg!("AMM cannot fill order: AMM has too much inventory");
                 return Ok(false);
             }
 
