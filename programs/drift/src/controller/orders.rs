@@ -1803,6 +1803,7 @@ fn fulfill_perp_order(
     };
 
     if fulfillment_methods.is_empty() {
+        msg!("no fulfillment methods found");
         return Ok((0, 0));
     }
 
