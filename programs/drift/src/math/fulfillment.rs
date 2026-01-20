@@ -73,7 +73,18 @@ pub fn determine_perp_fulfillment_methods(
 
     if amm_is_available {
         let taker_crosses_amm = match limit_price {
-            Some(taker_price) => do_orders_cross(maker_direction, amm_price, taker_price),
+            Some(taker_price) => {
+                let crosses = do_orders_cross(maker_direction, amm_price, taker_price);
+                if !crosses && fulfillment_methods.is_empty() {
+                    msg!(
+                        "taker does not cross amm: taker price {} amm price {}",
+                        taker_price,
+                        amm_price
+                    );
+                }
+                crosses
+            }
+
             None => true,
         };
 
