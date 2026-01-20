@@ -51,7 +51,7 @@
 		"@project-serum/serum": "0.13.65",
 		"@pythnetwork/client": "2.5.3",
 		"@pythnetwork/price-service-sdk": "1.7.1",
-		"@pythnetwork/pyth-lazer-sdk": "5.2.0",
+		"@pythnetwork/pyth-lazer-sdk": "5.2.1",
 		"@solana/spl-token": "0.4.13",
 		"@solana/web3.js": "1.98.0",
 		"@switchboard-xyz/common": "3.0.14",

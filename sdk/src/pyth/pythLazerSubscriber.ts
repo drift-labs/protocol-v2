@@ -122,7 +122,13 @@ export class PythLazerSubscriber {
 				urls: this.endpoints,
 				numConnections: 4, // Optionally specify number of parallel redundant connections to reduce the chance of dropped messages. The connections will round-robin across the provided URLs. Default is 4.
 				onError: (error) => {
+					console.error('⛔️ PythLazerClient error:', error.message);
+				},
+				onWebSocketError: (error) => {
 					console.error('⛔️ WebSocket error:', error.message);
+				},
+				onWebSocketPoolError: (error) => {
+					console.error('⛔️ WebSocket pool error:', error.message);
 				},
 				// Optional configuration for resilient WebSocket connections
 				rwsConfig: {
