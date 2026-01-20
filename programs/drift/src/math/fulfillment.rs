@@ -7,6 +7,7 @@ use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
 use crate::state::perp_market::AMM;
 use crate::state::user::Order;
 use solana_program::pubkey::Pubkey;
+use crate::msg;
 
 #[cfg(test)]
 mod tests;
