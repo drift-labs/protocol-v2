@@ -4842,7 +4842,7 @@ pub struct TransferIsolatedPerpPositionDeposit<'info> {
     pub user: AccountLoader<'info, User>,
     #[account(
         mut,
-        has_one = authority
+        constraint = is_stats_for_user(&user, &user_stats)?
     )]
     pub user_stats: AccountLoader<'info, UserStats>,
     pub authority: Signer<'info>,
