@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+### Fixes
+
+### Breaking
+
+## [2.155.0] - 2026-01-20
+
+### Features
+
 - program: additional logging for amm fills [#2078](https://github.com/drift-labs/protocol-v2/pull/2078)
 - program: allow delegate to transfer isolated pos deposit in sub account [#2079](https://github.com/drift-labs/protocol-v2/pull/2079)
 - program: use load_maps in update_amms [#2081](https://github.com/drift-labs/protocol-v2/pull/2081)
