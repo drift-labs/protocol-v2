@@ -2911,8 +2911,8 @@ pub fn handle_update_amms<'c: 'info, 'info>(
         ..
     } = load_maps(
         remaining_accounts_iter,
+        &get_market_set_from_list(market_indexes),
         &MarketSet::new(),
-        &get_writable_spot_market_set(market_index),
         clock.slot,
         Some(state.oracle_guard_rails),
     )?;
