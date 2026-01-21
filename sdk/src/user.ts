@@ -1685,8 +1685,12 @@ export class User {
 		const totalAssetValue = spotAssetValue.add(perpPnl);
 		const netAssetValue = totalAssetValue.sub(spotLiabilityValue);
 
-		if (netAssetValue.eq(ZERO)) {
+		if (netAssetValue.eq(ZERO) && totalLiabilityValue.eq(ZERO)) {
 			return ZERO;
+		}
+
+		if (netAssetValue.lte(ZERO)) {
+			return BN_MAX;
 		}
 
 		return totalLiabilityValue.mul(TEN_THOUSAND).div(netAssetValue);
@@ -1897,7 +1901,7 @@ export class User {
 
 		const netAssetValue = totalAssetValue.sub(spotLiabilityValue);
 
-		if (netAssetValue.eq(ZERO)) {
+		if (netAssetValue.lte(ZERO)) {
 			return ZERO;
 		}
 
@@ -1950,7 +1954,7 @@ export class User {
 
 		const netAssetValue = totalAssetValue.sub(spotLiabilityValue);
 
-		if (netAssetValue.eq(ZERO)) {
+		if (netAssetValue.lte(ZERO)) {
 			return ZERO;
 		}
 
@@ -3626,7 +3630,7 @@ export class User {
 
 		const netAssetValue = totalAssetValue.sub(totalSpotLiability);
 
-		if (netAssetValue.eq(ZERO)) {
+		if (netAssetValue.lte(ZERO)) {
 			return ZERO;
 		}
 
