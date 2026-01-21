@@ -2320,10 +2320,14 @@ pub fn handle_withdraw_from_isolated_perp_position<'c: 'info, 'info>(
     exchange_not_paused(&ctx.accounts.state)
 )]
 pub fn handle_place_perp_order<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, PlaceOrder>,
-    params: OrderParams,
-) -> Result<()> {
-    let clock = &Clock::get()?;
+      ctx: Context<'_, '_, 'c, 'info, PlaceOrder>, 
+      params: OrderParams,
+  ) -> Result<()> {
+      // SOVEREIGN OPTIMIZATION: Early Zero-Amount Sanity Check
+      require!(params.base_asset_amount > 0, ErrorCode::InvalidOrder);
+
+      let clock = &Clock::get()?;
+
     let state = &ctx.accounts.state;
 
     let mut remaining_accounts = ctx.remaining_accounts.iter().peekable();
