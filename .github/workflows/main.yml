@@ -161,7 +161,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v2
         with:
-          node-version: "22.14.x"
+          node-version: "24.x.x"
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
