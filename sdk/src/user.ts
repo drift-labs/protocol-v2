@@ -1352,10 +1352,10 @@ export class User {
 
 		const marginCalc = this.getMarginCalculation('Maintenance');
 
-		let totalCollateral: BN;
-		let maintenanceMarginReq: BN;
+		let totalCollateral: BN = ZERO;
+		let maintenanceMarginReq: BN = ZERO;
 
-		if (perpMarketIndex) {
+		if (perpMarketIndex != null) {
 			const isolatedMarginCalc =
 				marginCalc.isolatedMarginCalculations.get(perpMarketIndex);
 			if (isolatedMarginCalc) {
