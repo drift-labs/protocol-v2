@@ -474,6 +474,7 @@ impl PerpMarket {
                 margin_ratio_initial.safe_add(margin_ratio_maintenance)? / 2
             }
             MarginRequirementType::Maintenance => margin_ratio_maintenance,
+            MarginRequirementType::LiqMaintenance => margin_ratio_maintenance.saturating_sub(margin_ratio_maintenance / 3),
         };
 
         let margin_ratio =
@@ -523,7 +524,7 @@ impl PerpMarket {
             let margin_ratio = (self.high_leverage_margin_ratio_maintenance as u32)
                 .saturating_mul(LIQUIDATION_FEE_TO_MARGIN_PRECISION_RATIO);
             self.liquidator_fee
-                .min(margin_ratio.saturating_sub(margin_ratio / 5))
+                .min(margin_ratio.saturating_sub(margin_ratio / 3))
         } else {
             self.liquidator_fee
         }
@@ -547,7 +548,7 @@ impl PerpMarket {
             MarginRequirementType::Initial | MarginRequirementType::Fill => {
                 self.unrealized_pnl_initial_asset_weight
             }
-            MarginRequirementType::Maintenance => self.unrealized_pnl_maintenance_asset_weight,
+            MarginRequirementType::Maintenance | MarginRequirementType::LiqMaintenance => self.unrealized_pnl_maintenance_asset_weight,
         };
 
         if margin_asset_weight > 0
@@ -592,7 +593,7 @@ impl PerpMarket {
                         0
                     }
                 }
-                MarginRequirementType::Maintenance => self.unrealized_pnl_maintenance_asset_weight,
+                MarginRequirementType::Maintenance | MarginRequirementType::LiqMaintenance => self.unrealized_pnl_maintenance_asset_weight,
             }
         } else {
             SPOT_WEIGHT_PRECISION
