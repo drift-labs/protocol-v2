@@ -73,6 +73,14 @@ export class UnifiedSwapClient {
 	private client: JupiterClient | TitanClient;
 	private clientType: SwapClientType;
 
+	/**
+	 * Create a unified swap client
+	 * @param clientType - 'jupiter' or 'titan'
+	 * @param connection - Solana connection
+	 * @param authToken - For Titan: auth token (required when not using proxy). For Jupiter: API key (required for api.jup.ag, get free key at https://portal.jup.ag)
+	 * @param url - Optional custom URL
+	 * @param proxyUrl - Optional proxy URL for Titan
+	 */
 	constructor({
 		clientType,
 		connection,
@@ -82,7 +90,7 @@ export class UnifiedSwapClient {
 	}: {
 		clientType: SwapClientType;
 		connection: Connection;
-		authToken?: string; // Required for Titan when not using proxy, optional for Jupiter
+		authToken?: string; // For Titan: auth token. For Jupiter: API key (required for api.jup.ag)
 		url?: string; // Optional custom URL
 		proxyUrl?: string; // Optional proxy URL for Titan
 	}) {
@@ -92,6 +100,7 @@ export class UnifiedSwapClient {
 			this.client = new JupiterClient({
 				connection,
 				url,
+				apiKey: authToken,
 			});
 		} else if (clientType === 'titan') {
 			this.client = new TitanClient({
