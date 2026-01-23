@@ -297,7 +297,7 @@ export class PythLazerSubscriber {
 	/**
 	 * Retrieves the latest Solana-format price message for a specific market.
 	 * @param marketIndex - The market index to get price data for
-	 * @returns Hex-encoded price message data, or undefined if not available
+	 * @returns Hex-encoded price message data, or undefined if not found
 	 */
 	async getLatestPriceMessageForMarketIndex(
 		marketIndex: number

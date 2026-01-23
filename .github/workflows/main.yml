@@ -250,7 +250,14 @@ jobs:
           }
           echo "version=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
       - name: Publish to npm
-        run: npm publish --access=public
+        run: |
+          if [[ "$PACKAGE_VERSION" == *beta* ]]; then
+            npm publish --access=public --tag beta
+          elif [[ "$PACKAGE_VERSION" == *alpha* ]]; then
+            npm publish --access=public --tag alpha
+          else
+            npm publish --access=public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Build sdk for browser
@@ -260,7 +267,14 @@ jobs:
           # Update package name for browser version while keeping the same version
           node -e "const pkg = require('./package.json'); pkg.name = pkg.name + '-browser'; require('fs').writeFileSync('package.json', JSON.stringify(pkg, null, 2));"
       - name: Publish browser version to npm
-        run: npm publish --access=public
+        run: |
+          if [[ "$PACKAGE_VERSION" == *beta* ]]; then
+            npm publish --access=public --tag beta
+          elif [[ "$PACKAGE_VERSION" == *alpha* ]]; then
+            npm publish --access=public --tag alpha
+          else
+            npm publish --access=public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Notify Slack on failure
