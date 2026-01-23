@@ -2,8 +2,13 @@ import { Channel, PythLazerClient } from '@pythnetwork/pyth-lazer-sdk';
 import { DriftEnv } from '../config';
 import { PerpMarkets } from '../constants/perpMarkets';
 
+/**
+ * Configuration for a group of Pyth Lazer price feeds.
+ */
 export type PythLazerPriceFeedArray = {
+	/** Optional channel for update frequency (e.g., 'fixed_rate@200ms') */
 	channel?: Channel;
+	/** Array of Pyth Lazer price feed IDs to subscribe to */
 	priceFeedIds: number[];
 };
 
@@ -12,6 +17,10 @@ type FeedSymbolInfo = {
 	state: string;
 };
 
+/**
+ * Manages subscriptions to Pyth Lazer price feeds and provides access to real-time price data.
+ * Automatically filters out non-stable feeds and handles reconnection logic.
+ */
 export class PythLazerSubscriber {
 	private static readonly SYMBOLS_API_URL =
 		'https://history.pyth-lazer.dourolabs.app/history/v1/symbols';
@@ -30,15 +39,21 @@ export class PythLazerSubscriber {
 	marketIndextoPriceFeedIdChunk: Map<number, number[]> = new Map();
 	marketIndextoPriceFeedId: Map<number, number> = new Map();
 
+	/**
+	 * Creates a new PythLazerSubscriber instance.
+	 * @param endpoints - Array of WebSocket endpoint URLs for Pyth Lazer
+	 * @param token - Authentication token for Pyth Lazer API
+	 * @param priceFeedArrays - Array of price feed configurations to subscribe to
+	 * @param env - Drift environment (mainnet-beta, devnet, etc.)
+	 * @param resubTimeoutMs - Milliseconds to wait before resubscribing on data timeout
+	 * @param sdkLogging - Whether to log Pyth SDK logs to the console. This is very noisy but could be useful for debugging.
+	 */
 	constructor(
 		private endpoints: string[],
 		private token: string,
 		private priceFeedArrays: PythLazerPriceFeedArray[],
 		env: DriftEnv = 'devnet',
 		private resubTimeoutMs: number = 2000,
-		/**
-		 * Whether to log Pyth SDK logs to the console. This is very noisy but could be useful for debugging.
-		 */
 		private sdkLogging: boolean = false
 	) {
 		const markets = PerpMarkets[env].filter(
@@ -112,6 +127,10 @@ export class PythLazerSubscriber {
 		});
 	}
 
+	/**
+	 * Subscribes to Pyth Lazer price feeds. Automatically filters out non-stable feeds
+	 * and establishes WebSocket connections for real-time price updates.
+	 */
 	async subscribe() {
 		await this.fetchSymbolsIfNeeded();
 
@@ -250,6 +269,9 @@ export class PythLazerSubscriber {
 		}, this.resubTimeoutMs);
 	}
 
+	/**
+	 * Unsubscribes from all Pyth Lazer price feeds and shuts down WebSocket connections.
+	 */
 	async unsubscribe() {
 		this.isUnsubscribing = true;
 		this.pythLazerClient?.shutdown();
@@ -263,10 +285,20 @@ export class PythLazerSubscriber {
 		return 'h:' + arr.join('|');
 	}
 
+	/**
+	 * Retrieves the latest Solana-format price message for a group of feed IDs.
+	 * @param feedIds - Array of price feed IDs
+	 * @returns Hex-encoded price message data, or undefined if not available
+	 */
 	async getLatestPriceMessage(feedIds: number[]): Promise<string | undefined> {
 		return this.feedIdChunkToPriceMessage.get(this.hash(feedIds));
 	}
 
+	/**
+	 * Retrieves the latest Solana-format price message for a specific market.
+	 * @param marketIndex - The market index to get price data for
+	 * @returns Hex-encoded price message data, or undefined if not available
+	 */
 	async getLatestPriceMessageForMarketIndex(
 		marketIndex: number
 	): Promise<string | undefined> {
@@ -277,14 +309,29 @@ export class PythLazerSubscriber {
 		return await this.getLatestPriceMessage(feedIds);
 	}
 
+	/**
+	 * Gets the array of price feed IDs associated with a market index.
+	 * @param marketIndex - The market index to look up
+	 * @returns Array of price feed IDs, or empty array if not found
+	 */
 	getPriceFeedIdsFromMarketIndex(marketIndex: number): number[] {
 		return this.marketIndextoPriceFeedIdChunk.get(marketIndex) || [];
 	}
 
+	/**
+	 * Gets the array of price feed IDs from a subscription hash.
+	 * @param hash - The subscription hash
+	 * @returns Array of price feed IDs, or empty array if not found
+	 */
 	getPriceFeedIdsFromHash(hash: string): number[] {
 		return this.feedIdHashToFeedIds.get(hash) || [];
 	}
 
+	/**
+	 * Gets the current parsed price for a specific market index.
+	 * @param marketIndex - The market index to get the price for
+	 * @returns The price as a number, or undefined if not available
+	 */
 	getPriceFromMarketIndex(marketIndex: number): number | undefined {
 		const feedId = this.marketIndextoPriceFeedId.get(marketIndex);
 		if (feedId === undefined) {
