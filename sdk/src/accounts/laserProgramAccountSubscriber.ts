@@ -6,12 +6,12 @@ import { WebSocketProgramAccountSubscriber } from './webSocketProgramAccountSubs
 
 import {
 	LaserCommitmentLevel,
-	LaserSubscribe,
 	LaserstreamConfig,
 	LaserSubscribeRequest,
 	LaserSubscribeUpdate,
-	CompressionAlgorithms,
 	CommitmentLevel,
+	getLaserSubscribe,
+	getLaserCompressionAlgorithms,
 } from '../isomorphic/grpc';
 
 type LaserCommitment =
@@ -66,12 +66,15 @@ export class LaserstreamProgramAccountSubscriber<
 		},
 		resubOpts?: ResubOpts
 	): Promise<LaserstreamProgramAccountSubscriber<U>> {
+		// Load the compression algorithms from the optional helius-laserstream module
+		const compressionAlgorithms = await getLaserCompressionAlgorithms();
+
 		const laserConfig: LaserstreamConfig = {
 			apiKey: grpcConfigs.token,
 			endpoint: grpcConfigs.endpoint,
 			maxReconnectAttempts: grpcConfigs.enableReconnect ? 10 : 0,
 			channelOptions: {
-				'grpc.default_compression_algorithm': CompressionAlgorithms.zstd,
+				'grpc.default_compression_algorithm': compressionAlgorithms.zstd,
 				'grpc.max_receive_message_length': 1_000_000_000,
 			},
 		};
@@ -131,7 +134,10 @@ export class LaserstreamProgramAccountSubscriber<
 		};
 
 		try {
-			const stream = await LaserSubscribe(
+			// Dynamically load LaserSubscribe from the optional helius-laserstream module
+			const laserSubscribe = await getLaserSubscribe();
+
+			const stream = await laserSubscribe(
 				this.laserConfig,
 				request,
 				async (update: LaserSubscribeUpdate) => {
