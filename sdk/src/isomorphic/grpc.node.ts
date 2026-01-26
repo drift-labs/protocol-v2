@@ -59,9 +59,10 @@ export const CompressionAlgorithms = new Proxy(
 	{
 		get(_target, prop) {
 			const values: Record<string, number> = {
-				none: 0,
-				gzip: 1,
-				zstd: 2,
+				identity: 0,
+				deflate: 1,
+				gzip: 2,
+				zstd: 3,
 			};
 			return values[prop as string];
 		},
@@ -92,14 +93,19 @@ export async function getLaserCompressionAlgorithms(): Promise<
 	return module.CompressionAlgorithms;
 }
 
-// Synchronous wrapper that throws if module isn't loaded - for backwards compatibility
+let laserSubscribeWarned = false;
+
+// Backwards-compatible wrapper that lazy-loads the module and warns once.
 export function LaserSubscribe(
-	..._args: Parameters<typeof import('helius-laserstream').subscribe>
+	...args: Parameters<typeof import('helius-laserstream').subscribe>
 ): ReturnType<typeof import('helius-laserstream').subscribe> {
-	throw new Error(
-		'LaserSubscribe must be accessed via getLaserSubscribe(). ' +
-			'helius-laserstream is an optional dependency that may not be available on all platforms (e.g., Windows).'
-	);
+	if (!laserSubscribeWarned) {
+		laserSubscribeWarned = true;
+		console.warn(
+			'LaserSubscribe is deprecated. Use getLaserSubscribe() for optional helius-laserstream support.'
+		);
+	}
+	return getLaserSubscribe().then((subscribe) => subscribe(...args));
 }
 
 export { CommitmentLevel, Client };

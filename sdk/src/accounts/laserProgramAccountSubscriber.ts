@@ -12,6 +12,7 @@ import {
 	CommitmentLevel,
 	getLaserSubscribe,
 	getLaserCompressionAlgorithms,
+	getLaserCommitmentLevel,
 } from '../isomorphic/grpc';
 
 type LaserCommitment =
@@ -32,10 +33,12 @@ export class LaserstreamProgramAccountSubscriber<
 	public listenerId?: number;
 
 	private readonly laserConfig: LaserstreamConfig;
+	private readonly laserCommitmentLevel: typeof LaserCommitmentLevel;
 
 	private constructor(
 		laserConfig: LaserstreamConfig,
 		commitmentLevel: CommitmentLevel,
+		laserCommitmentLevel: typeof LaserCommitmentLevel,
 		subscriptionName: string,
 		accountDiscriminator: string,
 		program: Program,
@@ -52,6 +55,7 @@ export class LaserstreamProgramAccountSubscriber<
 			resubOpts
 		);
 		this.laserConfig = laserConfig;
+		this.laserCommitmentLevel = laserCommitmentLevel;
 		this.commitmentLevel = this.toLaserCommitment(commitmentLevel);
 	}
 
@@ -66,8 +70,11 @@ export class LaserstreamProgramAccountSubscriber<
 		},
 		resubOpts?: ResubOpts
 	): Promise<LaserstreamProgramAccountSubscriber<U>> {
-		// Load the compression algorithms from the optional helius-laserstream module
-		const compressionAlgorithms = await getLaserCompressionAlgorithms();
+		// Load enums from the optional helius-laserstream module
+		const [compressionAlgorithms, laserCommitmentLevel] = await Promise.all([
+			getLaserCompressionAlgorithms(),
+			getLaserCommitmentLevel(),
+		]);
 
 		const laserConfig: LaserstreamConfig = {
 			apiKey: grpcConfigs.token,
@@ -85,6 +92,7 @@ export class LaserstreamProgramAccountSubscriber<
 		return new LaserstreamProgramAccountSubscriber<U>(
 			laserConfig,
 			commitmentLevel,
+			laserCommitmentLevel,
 			subscriptionName,
 			accountDiscriminator,
 			program,
@@ -212,10 +220,10 @@ export class LaserstreamProgramAccountSubscriber<
 	): LaserCommitment {
 		if (typeof level === 'string') {
 			return (
-				(LaserCommitmentLevel as any)[level.toUpperCase()] ??
-				LaserCommitmentLevel.CONFIRMED
+				(this.laserCommitmentLevel as any)[level.toUpperCase()] ??
+				this.laserCommitmentLevel.CONFIRMED
 			);
 		}
-		return (level as LaserCommitment) ?? LaserCommitmentLevel.CONFIRMED;
+		return (level as LaserCommitment) ?? this.laserCommitmentLevel.CONFIRMED;
 	}
 }
