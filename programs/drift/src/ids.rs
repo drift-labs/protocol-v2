@@ -140,5 +140,7 @@ pub const WHITELISTED_SWAP_PROGRAMS: &[solana_program::pubkey::Pubkey] = &[
     titan_mainnet_argos_v1::id(),
 ];
 
-pub const WHITELISTED_EXTERNAL_DEPOSITORS: [Pubkey; 1] =
-    [pubkey!("zApVWDs3nSychNnUXSS2czhY78Ycopa15zELrK2gAdM")];
+pub const WHITELISTED_EXTERNAL_DEPOSITORS: [Pubkey; 2] = [
+    pubkey!("zApVWDs3nSychNnUXSS2czhY78Ycopa15zELrK2gAdM"),
+    pubkey!("4B62MS5gxpRZ2hwkGCNAAayA5f7LYZRW4z1ASSfU3SXo"),
+];
