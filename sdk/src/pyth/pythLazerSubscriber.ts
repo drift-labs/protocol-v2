@@ -270,7 +270,7 @@ export class PythLazerSubscriber {
 	}
 
 	/**
-	 * Unsubscribes from all Pyth Lazer price feeds and shuts down WebSocket connections.
+	 * Unsubscribes from all Pyth Lazer price feeds and closes WebSocket connections.
 	 */
 	async unsubscribe() {
 		this.isUnsubscribing = true;
