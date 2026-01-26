@@ -34,7 +34,13 @@ export * from './accounts/types';
 export * from './addresses/pda';
 export * from './adminClient';
 export * from './assert/assert';
-export { PythLazerSubscriber, PythLazerPriceFeedArray } from './pyth';
+export {
+	PythLazerSubscriber,
+	PythLazerPriceFeedArray,
+	PriceUpdateAccount,
+	PythSolanaReceiver,
+	WormholeCoreBridgeSolana,
+} from './pyth';
 export * from './testClient';
 export * from './user';
 export * from './userConfig';
