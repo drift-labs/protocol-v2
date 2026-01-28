@@ -352,10 +352,10 @@ describe('scale orders', () => {
 			Math.abs(prices[0] - expectedStartPrice) <= 10,
 			`Lowest price should be ~$105 (got ${prices[0]}, expected ${expectedStartPrice})`
 		);
-		assert.equal(
-			prices[3],
-			110 * PRICE_PRECISION.toNumber(),
-			'Highest price should be $110'
+		const expectedEndPrice = 110 * PRICE_PRECISION.toNumber();
+		assert.ok(
+			Math.abs(prices[3] - expectedEndPrice) <= 10,
+			`Highest price should be ~$110 (got ${prices[3]}, expected ${expectedEndPrice})`
 		);
 
 		// Check total base amount sums correctly

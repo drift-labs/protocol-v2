@@ -1330,20 +1330,6 @@ export type ScaleOrderParams = {
 	maxTs: BN | null;
 };
 
-export const DefaultScaleOrderParams: ScaleOrderParams = {
-	direction: PositionDirection.LONG,
-	marketIndex: 0,
-	totalBaseAssetAmount: ZERO,
-	startPrice: ZERO,
-	endPrice: ZERO,
-	orderCount: 2,
-	sizeDistribution: SizeDistribution.FLAT,
-	reduceOnly: false,
-	postOnly: PostOnlyParams.NONE,
-	bitFlags: 0,
-	maxTs: null,
-};
-
 export class OrderParamsBitFlag {
 	static readonly ImmediateOrCancel = 1;
 	static readonly UpdateHighLeverageMode = 2;
