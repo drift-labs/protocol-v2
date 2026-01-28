@@ -1316,7 +1316,7 @@ export type ScaleOrderParams = {
 	startPrice: BN;
 	/** Ending price for the scale (in PRICE_PRECISION) */
 	endPrice: BN;
-	/** Number of orders to place (min 2, max 10) */
+	/** Number of orders to place (min 2, max 32). User cannot exceed 32 total open orders. */
 	orderCount: number;
 	/** How to distribute sizes across orders */
 	sizeDistribution: SizeDistribution;

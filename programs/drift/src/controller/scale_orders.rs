@@ -1,15 +1,43 @@
 use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
+use crate::math::constants::MAX_OPEN_ORDERS;
 use crate::math::safe_math::SafeMath;
 use crate::state::order_params::{OrderParams, ScaleOrderParams, SizeDistribution};
-use crate::state::user::{MarketType, OrderTriggerCondition, OrderType};
+use crate::state::user::{MarketType, OrderTriggerCondition, OrderType, User};
 use crate::validate;
 use solana_program::msg;
 
-/// Maximum number of orders allowed in a scale order
-pub const MAX_SCALE_ORDER_COUNT: u8 = 10;
+/// Maximum number of orders allowed in a single scale order instruction
+pub const MAX_SCALE_ORDER_COUNT: u8 = MAX_OPEN_ORDERS;
 /// Minimum number of orders required for a scale order
 pub const MIN_SCALE_ORDER_COUNT: u8 = 2;
+
+/// Validates that placing scale orders won't exceed user's max open orders
+pub fn validate_user_can_place_scale_orders(
+    user: &User,
+    order_count: u8,
+) -> DriftResult<()> {
+    let current_open_orders = user
+        .orders
+        .iter()
+        .filter(|o| o.status == crate::state::user::OrderStatus::Open)
+        .count() as u8;
+
+    let total_after = current_open_orders.saturating_add(order_count);
+
+    validate!(
+        total_after <= MAX_OPEN_ORDERS,
+        ErrorCode::MaxNumberOfOrders,
+        "placing {} scale orders would exceed max open orders ({} current + {} new = {} > {} max)",
+        order_count,
+        current_open_orders,
+        order_count,
+        total_after,
+        MAX_OPEN_ORDERS
+    )?;
+
+    Ok(())
+}
 
 /// Validates the scale order parameters
 pub fn validate_scale_order_params(
@@ -258,7 +286,7 @@ mod tests {
 
         // Test maximum order count
         let params = ScaleOrderParams {
-            order_count: 11, // Above maximum
+            order_count: 33, // Above maximum (MAX_OPEN_ORDERS = 32)
             ..params
         };
         assert!(validate_scale_order_params(&params, step_size).is_err());

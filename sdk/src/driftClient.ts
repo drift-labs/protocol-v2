@@ -52,7 +52,6 @@ import {
 	SerumV3FulfillmentConfigAccount,
 	SettlePnlMode,
 	SignedTxData,
-	SizeDistribution,
 	SpotBalanceType,
 	SpotMarketAccount,
 	SpotPosition,

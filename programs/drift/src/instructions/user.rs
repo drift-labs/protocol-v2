@@ -2656,6 +2656,9 @@ fn place_orders_impl<'c: 'info, 'info>(
     let user_key = ctx.accounts.user.key();
     let mut user = load_mut!(ctx.accounts.user)?;
 
+    // Validate that user won't exceed max open orders
+    controller::scale_orders::validate_user_can_place_scale_orders(&user, order_params.len() as u8)?;
+
     let num_orders = order_params.len();
     for (i, params) in order_params.iter().enumerate() {
         if validate_ioc {

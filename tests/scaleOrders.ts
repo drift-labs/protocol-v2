@@ -3,7 +3,7 @@ import { assert } from 'chai';
 
 import { Program } from '@coral-xyz/anchor';
 
-import { Keypair, PublicKey } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 
 import {
 	TestClient,
@@ -11,7 +11,6 @@ import {
 	PRICE_PRECISION,
 	PositionDirection,
 	User,
-	Wallet,
 	EventSubscriber,
 	PostOnlyParams,
 	SizeDistribution,
@@ -42,7 +41,7 @@ describe('scale orders', () => {
 
 	let bankrunContextWrapper: BankrunContextWrapper;
 
-	let userAccountPublicKey: PublicKey;
+	let _userAccountPublicKey: PublicKey;
 
 	let usdcMint;
 	let userUSDCAccount;
@@ -148,7 +147,7 @@ describe('scale orders', () => {
 			new BN(1)
 		);
 
-		[, userAccountPublicKey] =
+		[, _userAccountPublicKey] =
 			await driftClient.initializeUserAccountAndDepositCollateral(
 				usdcAmount,
 				userUSDCAccount.publicKey
