@@ -64,21 +64,21 @@ pub fn validate_scale_order_params(
         "start_price and end_price cannot be equal"
     )?;
 
-    // For long orders, start price should be lower than end price
-    // For short orders, start price should be higher than end price
+    // For long orders, start price is higher (first buy) and end price is lower (DCA down)
+    // For short orders, start price is lower (first sell) and end price is higher (scale out up)
     match params.direction {
         PositionDirection::Long => {
             validate!(
-                params.start_price < params.end_price,
+                params.start_price > params.end_price,
                 ErrorCode::InvalidOrderScalePriceRange,
-                "for long scale orders, start_price must be less than end_price"
+                "for long scale orders, start_price must be greater than end_price (scaling down)"
             )?;
         }
         PositionDirection::Short => {
             validate!(
-                params.start_price > params.end_price,
+                params.start_price < params.end_price,
                 ErrorCode::InvalidOrderScalePriceRange,
-                "for short scale orders, start_price must be greater than end_price"
+                "for short scale orders, start_price must be less than end_price (scaling up)"
             )?;
         }
     }
@@ -269,12 +269,13 @@ mod tests {
         let step_size = BASE_PRECISION_U64 / 1000; // 0.001
 
         // Test minimum order count
+        // Long: start high, end low (DCA down)
         let params = ScaleOrderParams {
             direction: PositionDirection::Long,
             market_index: 0,
             total_base_asset_amount: BASE_PRECISION_U64,
-            start_price: 100 * PRICE_PRECISION_U64,
-            end_price: 110 * PRICE_PRECISION_U64,
+            start_price: 110 * PRICE_PRECISION_U64,
+            end_price: 100 * PRICE_PRECISION_U64,
             order_count: 1, // Below minimum
             size_distribution: SizeDistribution::Flat,
             reduce_only: false,
@@ -303,13 +304,13 @@ mod tests {
     fn test_validate_price_range() {
         let step_size = BASE_PRECISION_U64 / 1000;
 
-        // Long orders: start_price must be < end_price
+        // Long orders: start_price must be > end_price (scaling down)
         let params = ScaleOrderParams {
             direction: PositionDirection::Long,
             market_index: 0,
             total_base_asset_amount: BASE_PRECISION_U64,
-            start_price: 110 * PRICE_PRECISION_U64, // Wrong: higher than end
-            end_price: 100 * PRICE_PRECISION_U64,
+            start_price: 100 * PRICE_PRECISION_U64, // Wrong: lower than end
+            end_price: 110 * PRICE_PRECISION_U64,
             order_count: 5,
             size_distribution: SizeDistribution::Flat,
             reduce_only: false,
@@ -319,29 +320,29 @@ mod tests {
         };
         assert!(validate_scale_order_params(&params, step_size).is_err());
 
-        // Short orders: start_price must be > end_price
+        // Short orders: start_price must be < end_price (scaling up)
         let params = ScaleOrderParams {
             direction: PositionDirection::Short,
-            start_price: 100 * PRICE_PRECISION_U64, // Wrong: lower than end
-            end_price: 110 * PRICE_PRECISION_U64,
+            start_price: 110 * PRICE_PRECISION_U64, // Wrong: higher than end
+            end_price: 100 * PRICE_PRECISION_U64,
             ..params
         };
         assert!(validate_scale_order_params(&params, step_size).is_err());
 
-        // Valid long order
+        // Valid long order (start high, end low - DCA down)
         let params = ScaleOrderParams {
             direction: PositionDirection::Long,
-            start_price: 100 * PRICE_PRECISION_U64,
-            end_price: 110 * PRICE_PRECISION_U64,
+            start_price: 110 * PRICE_PRECISION_U64,
+            end_price: 100 * PRICE_PRECISION_U64,
             ..params
         };
         assert!(validate_scale_order_params(&params, step_size).is_ok());
 
-        // Valid short order
+        // Valid short order (start low, end high - scale out up)
         let params = ScaleOrderParams {
             direction: PositionDirection::Short,
-            start_price: 110 * PRICE_PRECISION_U64,
-            end_price: 100 * PRICE_PRECISION_U64,
+            start_price: 100 * PRICE_PRECISION_U64,
+            end_price: 110 * PRICE_PRECISION_U64,
             ..params
         };
         assert!(validate_scale_order_params(&params, step_size).is_ok());
@@ -349,33 +350,9 @@ mod tests {
 
     #[test]
     fn test_price_distribution_long() {
+        // Long: start high, end low (DCA down)
         let params = ScaleOrderParams {
             direction: PositionDirection::Long,
-            market_index: 0,
-            total_base_asset_amount: BASE_PRECISION_U64,
-            start_price: 100 * PRICE_PRECISION_U64,
-            end_price: 110 * PRICE_PRECISION_U64,
-            order_count: 5,
-            size_distribution: SizeDistribution::Flat,
-            reduce_only: false,
-            post_only: PostOnlyParam::None,
-            bit_flags: 0,
-            max_ts: None,
-        };
-
-        let prices = calculate_price_distribution(&params).unwrap();
-        assert_eq!(prices.len(), 5);
-        assert_eq!(prices[0], 100 * PRICE_PRECISION_U64);
-        assert_eq!(prices[1], 102500000); // 102.5
-        assert_eq!(prices[2], 105 * PRICE_PRECISION_U64);
-        assert_eq!(prices[3], 107500000); // 107.5
-        assert_eq!(prices[4], 110 * PRICE_PRECISION_U64);
-    }
-
-    #[test]
-    fn test_price_distribution_short() {
-        let params = ScaleOrderParams {
-            direction: PositionDirection::Short,
             market_index: 0,
             total_base_asset_amount: BASE_PRECISION_U64,
             start_price: 110 * PRICE_PRECISION_U64,
@@ -398,15 +375,42 @@ mod tests {
     }
 
     #[test]
+    fn test_price_distribution_short() {
+        // Short: start low, end high (scale out up)
+        let params = ScaleOrderParams {
+            direction: PositionDirection::Short,
+            market_index: 0,
+            total_base_asset_amount: BASE_PRECISION_U64,
+            start_price: 100 * PRICE_PRECISION_U64,
+            end_price: 110 * PRICE_PRECISION_U64,
+            order_count: 5,
+            size_distribution: SizeDistribution::Flat,
+            reduce_only: false,
+            post_only: PostOnlyParam::None,
+            bit_flags: 0,
+            max_ts: None,
+        };
+
+        let prices = calculate_price_distribution(&params).unwrap();
+        assert_eq!(prices.len(), 5);
+        assert_eq!(prices[0], 100 * PRICE_PRECISION_U64);
+        assert_eq!(prices[1], 102500000); // 102.5
+        assert_eq!(prices[2], 105 * PRICE_PRECISION_U64);
+        assert_eq!(prices[3], 107500000); // 107.5
+        assert_eq!(prices[4], 110 * PRICE_PRECISION_U64);
+    }
+
+    #[test]
     fn test_flat_size_distribution() {
         let step_size = BASE_PRECISION_U64 / 1000; // 0.001
 
+        // Long: start high, end low (DCA down)
         let params = ScaleOrderParams {
             direction: PositionDirection::Long,
             market_index: 0,
             total_base_asset_amount: BASE_PRECISION_U64, // 1.0
-            start_price: 100 * PRICE_PRECISION_U64,
-            end_price: 110 * PRICE_PRECISION_U64,
+            start_price: 110 * PRICE_PRECISION_U64,
+            end_price: 100 * PRICE_PRECISION_U64,
             order_count: 5,
             size_distribution: SizeDistribution::Flat,
             reduce_only: false,
@@ -434,12 +438,13 @@ mod tests {
     fn test_ascending_size_distribution() {
         let step_size = BASE_PRECISION_U64 / 1000; // 0.001
 
+        // Long: start high, end low (DCA down)
         let params = ScaleOrderParams {
             direction: PositionDirection::Long,
             market_index: 0,
             total_base_asset_amount: BASE_PRECISION_U64, // 1.0
-            start_price: 100 * PRICE_PRECISION_U64,
-            end_price: 110 * PRICE_PRECISION_U64,
+            start_price: 110 * PRICE_PRECISION_U64,
+            end_price: 100 * PRICE_PRECISION_U64,
             order_count: 5,
             size_distribution: SizeDistribution::Ascending,
             reduce_only: false,
@@ -466,12 +471,13 @@ mod tests {
     fn test_descending_size_distribution() {
         let step_size = BASE_PRECISION_U64 / 1000; // 0.001
 
+        // Long: start high, end low (DCA down)
         let params = ScaleOrderParams {
             direction: PositionDirection::Long,
             market_index: 0,
             total_base_asset_amount: BASE_PRECISION_U64, // 1.0
-            start_price: 100 * PRICE_PRECISION_U64,
-            end_price: 110 * PRICE_PRECISION_U64,
+            start_price: 110 * PRICE_PRECISION_U64,
+            end_price: 100 * PRICE_PRECISION_U64,
             order_count: 5,
             size_distribution: SizeDistribution::Descending,
             reduce_only: false,
@@ -498,12 +504,13 @@ mod tests {
     fn test_expand_to_order_params() {
         let step_size = BASE_PRECISION_U64 / 1000; // 0.001
 
+        // Long: start high, end low (DCA down)
         let params = ScaleOrderParams {
             direction: PositionDirection::Long,
             market_index: 1,
             total_base_asset_amount: BASE_PRECISION_U64, // 1.0
-            start_price: 100 * PRICE_PRECISION_U64,
-            end_price: 110 * PRICE_PRECISION_U64,
+            start_price: 110 * PRICE_PRECISION_U64,
+            end_price: 100 * PRICE_PRECISION_U64,
             order_count: 3,
             size_distribution: SizeDistribution::Flat,
             reduce_only: true,
@@ -530,10 +537,10 @@ mod tests {
             assert!(matches!(op.direction, PositionDirection::Long));
         }
 
-        // Check prices are distributed
-        assert_eq!(order_params[0].price, 100 * PRICE_PRECISION_U64);
+        // Check prices are distributed (high to low for long)
+        assert_eq!(order_params[0].price, 110 * PRICE_PRECISION_U64);
         assert_eq!(order_params[1].price, 105 * PRICE_PRECISION_U64);
-        assert_eq!(order_params[2].price, 110 * PRICE_PRECISION_U64);
+        assert_eq!(order_params[2].price, 100 * PRICE_PRECISION_U64);
 
         // Check total size
         let total: u64 = order_params.iter().map(|op| op.base_asset_amount).sum();
@@ -542,12 +549,13 @@ mod tests {
 
     #[test]
     fn test_two_orders_price_distribution() {
+        // Long: start high, end low (DCA down)
         let params = ScaleOrderParams {
             direction: PositionDirection::Long,
             market_index: 0,
             total_base_asset_amount: BASE_PRECISION_U64,
-            start_price: 100 * PRICE_PRECISION_U64,
-            end_price: 110 * PRICE_PRECISION_U64,
+            start_price: 110 * PRICE_PRECISION_U64,
+            end_price: 100 * PRICE_PRECISION_U64,
             order_count: 2,
             size_distribution: SizeDistribution::Flat,
             reduce_only: false,
@@ -558,8 +566,8 @@ mod tests {
 
         let prices = calculate_price_distribution(&params).unwrap();
         assert_eq!(prices.len(), 2);
-        assert_eq!(prices[0], 100 * PRICE_PRECISION_U64);
-        assert_eq!(prices[1], 110 * PRICE_PRECISION_U64);
+        assert_eq!(prices[0], 110 * PRICE_PRECISION_U64);
+        assert_eq!(prices[1], 100 * PRICE_PRECISION_U64);
     }
 
     #[test]
@@ -567,12 +575,13 @@ mod tests {
         let step_size = BASE_PRECISION_U64 / 10; // 0.1
 
         // Total size is too small for 5 orders with this step size
+        // Long: start high, end low (DCA down)
         let params = ScaleOrderParams {
             direction: PositionDirection::Long,
             market_index: 0,
             total_base_asset_amount: BASE_PRECISION_U64 / 20, // 0.05 - not enough
-            start_price: 100 * PRICE_PRECISION_U64,
-            end_price: 110 * PRICE_PRECISION_U64,
+            start_price: 110 * PRICE_PRECISION_U64,
+            end_price: 100 * PRICE_PRECISION_U64,
             order_count: 5,
             size_distribution: SizeDistribution::Flat,
             reduce_only: false,

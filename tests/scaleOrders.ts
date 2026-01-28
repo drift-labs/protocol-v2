@@ -189,12 +189,13 @@ describe('scale orders', () => {
 		const totalBaseAmount = BASE_PRECISION; // 1 SOL
 		const orderCount = 5;
 
+		// Long: start high, end low (DCA down)
 		const txSig = await driftClient.placeScalePerpOrders({
 			direction: PositionDirection.LONG,
 			marketIndex: 0,
 			totalBaseAssetAmount: totalBaseAmount,
-			startPrice: new BN(95).mul(PRICE_PRECISION), // $95
-			endPrice: new BN(100).mul(PRICE_PRECISION), // $100
+			startPrice: new BN(100).mul(PRICE_PRECISION), // $100 (start high)
+			endPrice: new BN(95).mul(PRICE_PRECISION), // $95 (end low)
 			orderCount: orderCount,
 			sizeDistribution: SizeDistribution.FLAT,
 			reduceOnly: false,
@@ -215,17 +216,17 @@ describe('scale orders', () => {
 
 		assert.equal(orders.length, orderCount, 'Should have 5 open orders');
 
-		// Check orders are distributed across prices
+		// Check orders are distributed across prices (sorted low to high)
 		const prices = orders.map((o) => o.price.toNumber()).sort((a, b) => a - b);
 		assert.equal(
 			prices[0],
 			95 * PRICE_PRECISION.toNumber(),
-			'First price should be $95'
+			'Lowest price should be $95'
 		);
 		assert.equal(
 			prices[4],
 			100 * PRICE_PRECISION.toNumber(),
-			'Last price should be $100'
+			'Highest price should be $100'
 		);
 
 		// Check total base amount sums correctly
@@ -246,12 +247,13 @@ describe('scale orders', () => {
 		const totalBaseAmount = BASE_PRECISION; // 1 SOL
 		const orderCount = 3;
 
+		// Long: start high, end low (DCA down)
 		const txSig = await driftClient.placeScalePerpOrders({
 			direction: PositionDirection.LONG,
 			marketIndex: 0,
 			totalBaseAssetAmount: totalBaseAmount,
-			startPrice: new BN(90).mul(PRICE_PRECISION), // $90
-			endPrice: new BN(100).mul(PRICE_PRECISION), // $100
+			startPrice: new BN(100).mul(PRICE_PRECISION), // $100 (start high)
+			endPrice: new BN(90).mul(PRICE_PRECISION), // $90 (end low)
 			orderCount: orderCount,
 			sizeDistribution: SizeDistribution.ASCENDING,
 			reduceOnly: false,
@@ -272,8 +274,8 @@ describe('scale orders', () => {
 
 		assert.equal(orders.length, orderCount, 'Should have 3 open orders');
 
-		// For ascending, smallest order at lowest price, largest at highest price
-		// Since it's ascending and long, orders at lower prices are smaller
+		// For ascending distribution, sizes increase from first to last order
+		// First order (at start price $100) is smallest, last order (at end price $90) is largest
 		console.log(
 			'Order sizes (ascending):',
 			orders.map((o) => ({
@@ -282,10 +284,10 @@ describe('scale orders', () => {
 			}))
 		);
 
-		// Verify sizes are ascending with price
+		// Verify sizes - lowest price should have largest size (ascending from start to end)
 		assert.ok(
-			orders[0].baseAssetAmount.lt(orders[2].baseAssetAmount),
-			'First order (lowest price) should be smaller than last order (highest price)'
+			orders[0].baseAssetAmount.gt(orders[2].baseAssetAmount),
+			'Order at lowest price ($90) should have largest size (ascending distribution ends there)'
 		);
 
 		// Check total base amount sums correctly
@@ -306,12 +308,13 @@ describe('scale orders', () => {
 		const totalBaseAmount = BASE_PRECISION.div(new BN(2)); // 0.5 SOL
 		const orderCount = 4;
 
+		// Short: start low, end high (scale out up)
 		const txSig = await driftClient.placeScalePerpOrders({
 			direction: PositionDirection.SHORT,
 			marketIndex: 0,
 			totalBaseAssetAmount: totalBaseAmount,
-			startPrice: new BN(110).mul(PRICE_PRECISION), // $110 (start high for shorts)
-			endPrice: new BN(105).mul(PRICE_PRECISION), // $105 (end low)
+			startPrice: new BN(105).mul(PRICE_PRECISION), // $105 (start low)
+			endPrice: new BN(110).mul(PRICE_PRECISION), // $110 (end high)
 			orderCount: orderCount,
 			sizeDistribution: SizeDistribution.FLAT,
 			reduceOnly: false,
@@ -341,18 +344,18 @@ describe('scale orders', () => {
 			);
 		}
 
-		// Check prices are distributed from 110 to 105
-		const prices = orders.map((o) => o.price.toNumber()).sort((a, b) => b - a);
-		assert.equal(
-			prices[0],
-			110 * PRICE_PRECISION.toNumber(),
-			'First price should be $110'
-		);
-		// Allow small rounding tolerance for end price
-		const expectedEndPrice = 105 * PRICE_PRECISION.toNumber();
+		// Check prices are distributed from 105 to 110
+		const prices = orders.map((o) => o.price.toNumber()).sort((a, b) => a - b);
+		// Allow small rounding tolerance
+		const expectedStartPrice = 105 * PRICE_PRECISION.toNumber();
 		assert.ok(
-			Math.abs(prices[3] - expectedEndPrice) <= 10,
-			`Last price should be ~$105 (got ${prices[3]}, expected ${expectedEndPrice})`
+			Math.abs(prices[0] - expectedStartPrice) <= 10,
+			`Lowest price should be ~$105 (got ${prices[0]}, expected ${expectedStartPrice})`
+		);
+		assert.equal(
+			prices[3],
+			110 * PRICE_PRECISION.toNumber(),
+			'Highest price should be $110'
 		);
 
 		// Check total base amount sums correctly
@@ -373,12 +376,13 @@ describe('scale orders', () => {
 		const totalBaseAmount = BASE_PRECISION; // 1 SOL
 		const orderCount = 3;
 
+		// Long: start high, end low (DCA down)
 		const txSig = await driftClient.placeScalePerpOrders({
 			direction: PositionDirection.LONG,
 			marketIndex: 0,
 			totalBaseAssetAmount: totalBaseAmount,
-			startPrice: new BN(90).mul(PRICE_PRECISION),
-			endPrice: new BN(100).mul(PRICE_PRECISION),
+			startPrice: new BN(100).mul(PRICE_PRECISION), // $100 (start high)
+			endPrice: new BN(90).mul(PRICE_PRECISION), // $90 (end low)
 			orderCount: orderCount,
 			sizeDistribution: SizeDistribution.DESCENDING,
 			reduceOnly: false,
@@ -399,7 +403,9 @@ describe('scale orders', () => {
 
 		assert.equal(orders.length, orderCount, 'Should have 3 open orders');
 
-		// For descending, largest order at lowest price, smallest at highest price
+		// For descending distribution, sizes decrease from first order to last
+		// First order (at start price $100) gets largest size
+		// Last order (at end price $90) gets smallest size
 		console.log(
 			'Order sizes (descending):',
 			orders.map((o) => ({
@@ -408,10 +414,10 @@ describe('scale orders', () => {
 			}))
 		);
 
-		// Verify sizes are descending with price
+		// Verify sizes - highest price (start) has largest size, lowest price (end) has smallest
 		assert.ok(
-			orders[0].baseAssetAmount.gt(orders[2].baseAssetAmount),
-			'First order (lowest price) should be larger than last order (highest price)'
+			orders[2].baseAssetAmount.gt(orders[0].baseAssetAmount),
+			'Order at highest price ($100) should have largest size, lowest price ($90) smallest'
 		);
 
 		// Check total base amount sums correctly
@@ -433,12 +439,13 @@ describe('scale orders', () => {
 		// Note: We don't need an actual position to test the flag is set correctly
 		const totalBaseAmount = BASE_PRECISION.div(new BN(2)); // 0.5 SOL
 
+		// Long: start high, end low (DCA down)
 		const txSig = await driftClient.placeScalePerpOrders({
 			direction: PositionDirection.LONG,
 			marketIndex: 0,
 			totalBaseAssetAmount: totalBaseAmount,
-			startPrice: new BN(95).mul(PRICE_PRECISION),
-			endPrice: new BN(100).mul(PRICE_PRECISION),
+			startPrice: new BN(100).mul(PRICE_PRECISION), // $100 (start high)
+			endPrice: new BN(95).mul(PRICE_PRECISION), // $95 (end low)
 			orderCount: 2,
 			sizeDistribution: SizeDistribution.FLAT,
 			reduceOnly: true, // Test reduce only flag
@@ -472,12 +479,13 @@ describe('scale orders', () => {
 		const totalBaseAmount = BASE_PRECISION;
 		const orderCount = 2; // Minimum allowed
 
+		// Long: start high, end low (DCA down)
 		const txSig = await driftClient.placeScalePerpOrders({
 			direction: PositionDirection.LONG,
 			marketIndex: 0,
 			totalBaseAssetAmount: totalBaseAmount,
-			startPrice: new BN(95).mul(PRICE_PRECISION),
-			endPrice: new BN(100).mul(PRICE_PRECISION),
+			startPrice: new BN(100).mul(PRICE_PRECISION), // $100 (start high)
+			endPrice: new BN(95).mul(PRICE_PRECISION), // $95 (end low)
 			orderCount: orderCount,
 			sizeDistribution: SizeDistribution.FLAT,
 			reduceOnly: false,
@@ -502,12 +510,12 @@ describe('scale orders', () => {
 		assert.equal(
 			prices[0],
 			95 * PRICE_PRECISION.toNumber(),
-			'First price should be $95'
+			'Lowest price should be $95'
 		);
 		assert.equal(
 			prices[1],
 			100 * PRICE_PRECISION.toNumber(),
-			'Second price should be $100'
+			'Highest price should be $100'
 		);
 
 		// Cancel all orders
