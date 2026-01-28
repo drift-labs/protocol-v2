@@ -252,7 +252,7 @@ jobs:
       - name: Publish to npm
         run: |
           if [[ "$PACKAGE_VERSION" == *beta* ]]; then
-            npm publish --access=public --tag beta
+            npm publish --access=public --tag latest
           elif [[ "$PACKAGE_VERSION" == *alpha* ]]; then
             npm publish --access=public --tag alpha
           else

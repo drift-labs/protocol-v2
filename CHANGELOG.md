@@ -16,6 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - sdk: `helius-laserstream` is now an optional dependency; installs with `--no-optional` will disable LaserStream support. [#2087](https://github.com/drift-labs/protocol-v2/pull/2087)
 - sdk: `LaserSubscribe` is deprecated and now lazy-loads with a warning; use `getLaserSubscribe()` instead. [#2087](https://github.com/drift-labs/protocol-v2/pull/2087)
 
+## [2.156.0] - 2026-01-26
+
+### Features
+
+### Fixes
+
+### Breaking
+
 ## [2.155.0] - 2026-01-20
 
 ### Features
