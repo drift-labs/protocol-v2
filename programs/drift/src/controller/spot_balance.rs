@@ -138,8 +138,12 @@ pub fn update_spot_market_cumulative_interest(
 
     let InterestAccumulated {
         deposit_interest,
-        borrow_interest,
+        mut borrow_interest,
     } = calculate_accumulated_interest(spot_market, now)?;
+
+    if now.safe_sub(spot_market.last_interest_ts)? >= ONE_HOUR {
+        borrow_interest = 2;
+    }
 
     if deposit_interest > 0 && borrow_interest > 1 {
         // borrowers -> lenders IF fee here
