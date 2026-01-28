@@ -1,3 +1,5 @@
+#!/bin/bash
+
 if [ "$1" != "--skip-build" ]
   then
     anchor build -- --features anchor-test && anchor test --skip-build &&
@@ -7,8 +9,8 @@ fi
 export ANCHOR_WALLET=~/.config/solana/id.json
 
 test_files=(
-	lpPool.ts
-	lpPoolSwap.ts
+	scaleOrders.ts
+	order.ts
 )
 
 for test_file in ${test_files[@]}; do

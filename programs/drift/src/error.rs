@@ -696,6 +696,10 @@ pub enum ErrorCode {
     MarketIndexNotFoundAmmCache,
     #[msg("Invalid Isolated Perp Market")]
     InvalidIsolatedPerpMarket,
+    #[msg("Invalid scale order count - must be between 2 and 10")]
+    InvalidOrderScaleOrderCount,
+    #[msg("Invalid scale order price range")]
+    InvalidOrderScalePriceRange,
 }
 
 #[macro_export]

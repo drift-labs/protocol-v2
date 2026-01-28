@@ -48,6 +48,7 @@ import {
 	PositionDirection,
 	ReferrerInfo,
 	ReferrerNameAccount,
+	ScaleOrderParams,
 	SerumV3FulfillmentConfigAccount,
 	SettlePnlMode,
 	SignedTxData,
@@ -5600,6 +5601,96 @@ export class DriftClient {
 			);
 
 		return [placeOrdersIxs, setPositionMaxLevIxs];
+	}
+
+	/**
+	 * Place scale orders - multiple limit orders distributed across a price range
+	 * @param params Scale order parameters
+	 * @param txParams Optional transaction parameters
+	 * @param subAccountId Optional sub account ID
+	 * @returns Transaction signature
+	 */
+	public async placeScaleOrders(
+		params: ScaleOrderParams,
+		txParams?: TxParams,
+		subAccountId?: number
+	): Promise<TransactionSignature> {
+		const { txSig } = await this.sendTransaction(
+			(await this.preparePlaceScaleOrdersTx(params, txParams, subAccountId))
+				.placeScaleOrdersTx,
+			[],
+			this.opts,
+			false
+		);
+		return txSig;
+	}
+
+	public async preparePlaceScaleOrdersTx(
+		params: ScaleOrderParams,
+		txParams?: TxParams,
+		subAccountId?: number
+	) {
+		const lookupTableAccounts = await this.fetchAllLookupTableAccounts();
+
+		const tx = await this.buildTransaction(
+			await this.getPlaceScaleOrdersIx(params, subAccountId),
+			txParams,
+			undefined,
+			lookupTableAccounts
+		);
+
+		return {
+			placeScaleOrdersTx: tx,
+		};
+	}
+
+	public async getPlaceScaleOrdersIx(
+		params: ScaleOrderParams,
+		subAccountId?: number
+	): Promise<TransactionInstruction> {
+		const user = await this.getUserAccountPublicKey(subAccountId);
+
+		const isPerp = isVariant(params.marketType, 'perp');
+
+		const remainingAccounts = this.getRemainingAccounts({
+			userAccounts: [this.getUserAccount(subAccountId)],
+			readablePerpMarketIndex: isPerp ? [params.marketIndex] : [],
+			readableSpotMarketIndexes: isPerp ? [] : [params.marketIndex],
+			useMarketLastSlotCache: true,
+		});
+
+		if (isUpdateHighLeverageMode(params.bitFlags)) {
+			remainingAccounts.push({
+				pubkey: getHighLeverageModeConfigPublicKey(this.program.programId),
+				isWritable: true,
+				isSigner: false,
+			});
+		}
+
+		const formattedParams = {
+			marketType: params.marketType,
+			direction: params.direction,
+			marketIndex: params.marketIndex,
+			totalBaseAssetAmount: params.totalBaseAssetAmount,
+			startPrice: params.startPrice,
+			endPrice: params.endPrice,
+			orderCount: params.orderCount,
+			sizeDistribution: params.sizeDistribution,
+			reduceOnly: params.reduceOnly,
+			postOnly: params.postOnly,
+			bitFlags: params.bitFlags,
+			maxTs: params.maxTs,
+		};
+
+		return await this.program.instruction.placeScaleOrders(formattedParams, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				user,
+				userStats: this.getUserStatsAccountPublicKey(),
+				authority: this.wallet.publicKey,
+			},
+			remainingAccounts,
+		});
 	}
 
 	public async fillPerpOrder(
