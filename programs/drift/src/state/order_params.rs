@@ -1027,3 +1027,40 @@ pub fn parse_optional_params(optional_params: Option<u32>) -> (u8, u8) {
         None => (0, 100),
     }
 }
+
+/// How to distribute order sizes across scale orders
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Default, Eq, PartialEq, Debug)]
+pub enum SizeDistribution {
+    /// Equal size for all orders
+    #[default]
+    Flat,
+    /// Smallest orders at start price, largest at end price
+    Ascending,
+    /// Largest orders at start price, smallest at end price
+    Descending,
+}
+
+/// Parameters for placing scale orders - multiple limit orders distributed across a price range
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
+pub struct ScaleOrderParams {
+    pub direction: PositionDirection,
+    pub market_index: u16,
+    /// Total base asset amount to distribute across all orders
+    pub total_base_asset_amount: u64,
+    /// Starting price for the scale (in PRICE_PRECISION)
+    pub start_price: u64,
+    /// Ending price for the scale (in PRICE_PRECISION)
+    pub end_price: u64,
+    /// Number of orders to place (min 2, max 10)
+    pub order_count: u8,
+    /// How to distribute sizes across orders
+    pub size_distribution: SizeDistribution,
+    /// Whether orders should be reduce-only
+    pub reduce_only: bool,
+    /// Post-only setting for all orders
+    pub post_only: PostOnlyParam,
+    /// Bit flags (e.g., for high leverage mode)
+    pub bit_flags: u8,
+    /// Maximum timestamp for orders to be valid
+    pub max_ts: Option<i64>,
+}

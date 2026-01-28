@@ -12,7 +12,7 @@ use state::oracle::OracleSource;
 use crate::controller::position::PositionDirection;
 use crate::state::if_rebalance_config::IfRebalanceConfigParams;
 use crate::state::oracle::PrelaunchOracleParams;
-use crate::state::order_params::{ModifyOrderParams, OrderParams};
+use crate::state::order_params::{ModifyOrderParams, OrderParams, ScaleOrderParams};
 use crate::state::perp_market::{ContractTier, MarketStatus};
 use crate::state::settle_pnl_mode::SettlePnlMode;
 use crate::state::spot_market::AssetTier;
@@ -365,6 +365,13 @@ pub mod drift {
         params: Vec<OrderParams>,
     ) -> Result<()> {
         handle_place_orders(ctx, params)
+    }
+
+    pub fn place_scale_perp_orders<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, PlaceOrder>,
+        params: ScaleOrderParams,
+    ) -> Result<()> {
+        handle_place_scale_perp_orders(ctx, params)
     }
 
     pub fn begin_swap<'c: 'info, 'info>(
