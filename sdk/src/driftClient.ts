@@ -5610,14 +5610,14 @@ export class DriftClient {
 	 * @param subAccountId Optional sub account ID
 	 * @returns Transaction signature
 	 */
-	public async placeScalePerpOrders(
+	public async placeScaleOrders(
 		params: ScaleOrderParams,
 		txParams?: TxParams,
 		subAccountId?: number
 	): Promise<TransactionSignature> {
 		const { txSig } = await this.sendTransaction(
-			(await this.preparePlaceScalePerpOrdersTx(params, txParams, subAccountId))
-				.placeScalePerpOrdersTx,
+			(await this.preparePlaceScaleOrdersTx(params, txParams, subAccountId))
+				.placeScaleOrdersTx,
 			[],
 			this.opts,
 			false
@@ -5625,7 +5625,7 @@ export class DriftClient {
 		return txSig;
 	}
 
-	public async preparePlaceScalePerpOrdersTx(
+	public async preparePlaceScaleOrdersTx(
 		params: ScaleOrderParams,
 		txParams?: TxParams,
 		subAccountId?: number
@@ -5633,26 +5633,29 @@ export class DriftClient {
 		const lookupTableAccounts = await this.fetchAllLookupTableAccounts();
 
 		const tx = await this.buildTransaction(
-			await this.getPlaceScalePerpOrdersIx(params, subAccountId),
+			await this.getPlaceScaleOrdersIx(params, subAccountId),
 			txParams,
 			undefined,
 			lookupTableAccounts
 		);
 
 		return {
-			placeScalePerpOrdersTx: tx,
+			placeScaleOrdersTx: tx,
 		};
 	}
 
-	public async getPlaceScalePerpOrdersIx(
+	public async getPlaceScaleOrdersIx(
 		params: ScaleOrderParams,
 		subAccountId?: number
 	): Promise<TransactionInstruction> {
 		const user = await this.getUserAccountPublicKey(subAccountId);
 
+		const isPerp = isVariant(params.marketType, 'perp');
+
 		const remainingAccounts = this.getRemainingAccounts({
 			userAccounts: [this.getUserAccount(subAccountId)],
-			readablePerpMarketIndex: [params.marketIndex],
+			readablePerpMarketIndex: isPerp ? [params.marketIndex] : [],
+			readableSpotMarketIndexes: isPerp ? [] : [params.marketIndex],
 			useMarketLastSlotCache: true,
 		});
 
@@ -5665,6 +5668,7 @@ export class DriftClient {
 		}
 
 		const formattedParams = {
+			marketType: params.marketType,
 			direction: params.direction,
 			marketIndex: params.marketIndex,
 			totalBaseAssetAmount: params.totalBaseAssetAmount,
@@ -5678,18 +5682,15 @@ export class DriftClient {
 			maxTs: params.maxTs,
 		};
 
-		return await this.program.instruction.placeScalePerpOrders(
-			formattedParams,
-			{
-				accounts: {
-					state: await this.getStatePublicKey(),
-					user,
-					userStats: this.getUserStatsAccountPublicKey(),
-					authority: this.wallet.publicKey,
-				},
-				remainingAccounts,
-			}
-		);
+		return await this.program.instruction.placeScaleOrders(formattedParams, {
+			accounts: {
+				state: await this.getStatePublicKey(),
+				user,
+				userStats: this.getUserStatsAccountPublicKey(),
+				authority: this.wallet.publicKey,
+			},
+			remainingAccounts,
+		});
 	}
 
 	public async fillPerpOrder(

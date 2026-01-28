@@ -100,7 +100,7 @@ pub fn validate_scale_order_params(
 
 /// Calculate evenly distributed prices between start and end price
 pub fn calculate_price_distribution(params: &ScaleOrderParams) -> DriftResult<Vec<u64>> {
-    let order_count = params.order_count as u64;
+    let order_count = params.order_count as usize;
 
     if order_count == 1 {
         return Ok(vec![params.start_price]);
@@ -117,11 +117,15 @@ pub fn calculate_price_distribution(params: &ScaleOrderParams) -> DriftResult<Ve
     };
 
     let price_range = max_price.safe_sub(min_price)?;
-    let price_step = price_range.safe_div(order_count.safe_sub(1)?)?;
+    let num_steps = (order_count - 1) as u64;
+    let price_step = price_range.safe_div(num_steps)?;
 
-    let mut prices = Vec::with_capacity(params.order_count as usize);
-    for i in 0..params.order_count {
-        let price = if params.start_price < params.end_price {
+    let mut prices = Vec::with_capacity(order_count);
+    for i in 0..order_count {
+        // Use exact end_price for the last order to avoid rounding errors
+        let price = if i == order_count - 1 {
+            params.end_price
+        } else if params.start_price < params.end_price {
             params.start_price.safe_add(price_step.safe_mul(i as u64)?)?
         } else {
             params.start_price.safe_sub(price_step.safe_mul(i as u64)?)?
@@ -239,7 +243,7 @@ pub fn expand_scale_order_params(
     for (i, (price, size)) in prices.iter().zip(sizes.iter()).enumerate() {
         order_params.push(OrderParams {
             order_type: OrderType::Limit,
-            market_type: MarketType::Perp,
+            market_type: params.market_type,
             direction: params.direction,
             user_order_id: 0,
             base_asset_amount: *size,

@@ -2607,7 +2607,7 @@ enum PlaceOrdersInput {
 }
 
 /// Internal implementation for placing multiple orders.
-/// Used by both handle_place_orders and handle_place_scale_perp_orders.
+/// Used by both handle_place_orders and handle_place_scale_orders.
 fn place_orders_impl<'c: 'info, 'info>(
     ctx: &Context<'_, '_, 'c, 'info, PlaceOrder>,
     input: PlaceOrdersInput,
@@ -2634,9 +2634,20 @@ fn place_orders_impl<'c: 'info, 'info>(
     let (order_params, validate_ioc) = match input {
         PlaceOrdersInput::Orders(params) => (params, true),
         PlaceOrdersInput::ScaleOrders(scale_params) => {
-            let market = perp_market_map.get_ref(&scale_params.market_index)?;
-            let order_step_size = market.amm.order_step_size;
-            drop(market);
+            let order_step_size = match scale_params.market_type {
+                MarketType::Perp => {
+                    let market = perp_market_map.get_ref(&scale_params.market_index)?;
+                    let step_size = market.amm.order_step_size;
+                    drop(market);
+                    step_size
+                }
+                MarketType::Spot => {
+                    let market = spot_market_map.get_ref(&scale_params.market_index)?;
+                    let step_size = market.order_step_size;
+                    drop(market);
+                    step_size
+                }
+            };
 
             let expanded = controller::scale_orders::expand_scale_order_params(&scale_params, order_step_size)
                 .map_err(|e| {
@@ -2693,8 +2704,7 @@ fn place_orders_impl<'c: 'info, 'info>(
                 options,
                 &mut None,
             )?;
-        } else if validate_ioc {
-            // Only place spot orders for regular place_orders, not scale orders
+        } else {
             controller::orders::place_spot_order(
                 state,
                 &mut user,
@@ -2725,7 +2735,7 @@ pub fn handle_place_orders<'c: 'info, 'info>(
 #[access_control(
     exchange_not_paused(&ctx.accounts.state)
 )]
-pub fn handle_place_scale_perp_orders<'c: 'info, 'info>(
+pub fn handle_place_scale_orders<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, PlaceOrder>,
     params: ScaleOrderParams,
 ) -> Result<()> {

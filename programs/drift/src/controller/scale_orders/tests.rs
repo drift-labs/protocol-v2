@@ -1,5 +1,6 @@
 use crate::controller::scale_orders::*;
 use crate::state::order_params::{PostOnlyParam, ScaleOrderParams, SizeDistribution};
+use crate::state::user::MarketType;
 use crate::{PositionDirection, BASE_PRECISION_U64, PRICE_PRECISION_U64};
 
 #[test]
@@ -9,6 +10,7 @@ fn test_validate_order_count_bounds() {
     // Test minimum order count
     // Long: start high, end low (DCA down)
     let params = ScaleOrderParams {
+        market_type: MarketType::Perp,
         direction: PositionDirection::Long,
         market_index: 0,
         total_base_asset_amount: BASE_PRECISION_U64,
@@ -44,6 +46,7 @@ fn test_validate_price_range() {
 
     // Long orders: start_price must be > end_price (scaling down)
     let params = ScaleOrderParams {
+        market_type: MarketType::Perp,
         direction: PositionDirection::Long,
         market_index: 0,
         total_base_asset_amount: BASE_PRECISION_U64,
@@ -90,6 +93,7 @@ fn test_validate_price_range() {
 fn test_price_distribution_long() {
     // Long: start high, end low (DCA down)
     let params = ScaleOrderParams {
+        market_type: MarketType::Perp,
         direction: PositionDirection::Long,
         market_index: 0,
         total_base_asset_amount: BASE_PRECISION_U64,
@@ -116,6 +120,7 @@ fn test_price_distribution_long() {
 fn test_price_distribution_short() {
     // Short: start low, end high (scale out up)
     let params = ScaleOrderParams {
+        market_type: MarketType::Perp,
         direction: PositionDirection::Short,
         market_index: 0,
         total_base_asset_amount: BASE_PRECISION_U64,
@@ -144,6 +149,7 @@ fn test_flat_size_distribution() {
 
     // Long: start high, end low (DCA down)
     let params = ScaleOrderParams {
+        market_type: MarketType::Perp,
         direction: PositionDirection::Long,
         market_index: 0,
         total_base_asset_amount: BASE_PRECISION_U64, // 1.0
@@ -178,6 +184,7 @@ fn test_ascending_size_distribution() {
 
     // Long: start high, end low (DCA down)
     let params = ScaleOrderParams {
+        market_type: MarketType::Perp,
         direction: PositionDirection::Long,
         market_index: 0,
         total_base_asset_amount: BASE_PRECISION_U64, // 1.0
@@ -211,6 +218,7 @@ fn test_descending_size_distribution() {
 
     // Long: start high, end low (DCA down)
     let params = ScaleOrderParams {
+        market_type: MarketType::Perp,
         direction: PositionDirection::Long,
         market_index: 0,
         total_base_asset_amount: BASE_PRECISION_U64, // 1.0
@@ -239,11 +247,12 @@ fn test_descending_size_distribution() {
 }
 
 #[test]
-fn test_expand_to_order_params() {
+fn test_expand_to_order_params_perp() {
     let step_size = BASE_PRECISION_U64 / 1000; // 0.001
 
     // Long: start high, end low (DCA down)
     let params = ScaleOrderParams {
+        market_type: MarketType::Perp,
         direction: PositionDirection::Long,
         market_index: 1,
         total_base_asset_amount: BASE_PRECISION_U64, // 1.0
@@ -268,6 +277,7 @@ fn test_expand_to_order_params() {
 
     // Check common properties
     for op in &order_params {
+        assert_eq!(op.market_type, MarketType::Perp);
         assert_eq!(op.market_index, 1);
         assert_eq!(op.reduce_only, true);
         assert_eq!(op.post_only, PostOnlyParam::MustPostOnly);
@@ -286,9 +296,95 @@ fn test_expand_to_order_params() {
 }
 
 #[test]
+fn test_expand_to_order_params_spot() {
+    let step_size = BASE_PRECISION_U64 / 1000; // 0.001
+
+    // Spot Long: start high, end low (DCA down)
+    let params = ScaleOrderParams {
+        market_type: MarketType::Spot,
+        direction: PositionDirection::Long,
+        market_index: 1, // SOL spot market
+        total_base_asset_amount: BASE_PRECISION_U64, // 1.0
+        start_price: 110 * PRICE_PRECISION_U64,
+        end_price: 100 * PRICE_PRECISION_U64,
+        order_count: 3,
+        size_distribution: SizeDistribution::Flat,
+        reduce_only: false,
+        post_only: PostOnlyParam::None,
+        bit_flags: 0,
+        max_ts: None,
+    };
+
+    let order_params = expand_scale_order_params(&params, step_size).unwrap();
+    assert_eq!(order_params.len(), 3);
+
+    // Check all orders are Spot market type
+    for op in &order_params {
+        assert_eq!(op.market_type, MarketType::Spot);
+        assert_eq!(op.market_index, 1);
+        assert!(matches!(op.direction, PositionDirection::Long));
+    }
+
+    // Check prices are distributed (high to low for long)
+    assert_eq!(order_params[0].price, 110 * PRICE_PRECISION_U64);
+    assert_eq!(order_params[1].price, 105 * PRICE_PRECISION_U64);
+    assert_eq!(order_params[2].price, 100 * PRICE_PRECISION_U64);
+
+    // Check total size
+    let total: u64 = order_params.iter().map(|op| op.base_asset_amount).sum();
+    assert_eq!(total, BASE_PRECISION_U64);
+}
+
+#[test]
+fn test_spot_short_scale_orders() {
+    let step_size = BASE_PRECISION_U64 / 1000; // 0.001
+
+    // Spot Short: start low, end high (scale out up)
+    let params = ScaleOrderParams {
+        market_type: MarketType::Spot,
+        direction: PositionDirection::Short,
+        market_index: 1, // SOL spot market
+        total_base_asset_amount: BASE_PRECISION_U64, // 1.0
+        start_price: 100 * PRICE_PRECISION_U64,
+        end_price: 110 * PRICE_PRECISION_U64,
+        order_count: 4,
+        size_distribution: SizeDistribution::Ascending,
+        reduce_only: false,
+        post_only: PostOnlyParam::MustPostOnly,
+        bit_flags: 0,
+        max_ts: Some(99999),
+    };
+
+    let order_params = expand_scale_order_params(&params, step_size).unwrap();
+    assert_eq!(order_params.len(), 4);
+
+    // Check all orders are Spot market type and Short direction
+    for op in &order_params {
+        assert_eq!(op.market_type, MarketType::Spot);
+        assert_eq!(op.market_index, 1);
+        assert!(matches!(op.direction, PositionDirection::Short));
+        assert_eq!(op.post_only, PostOnlyParam::MustPostOnly);
+        assert_eq!(op.max_ts, Some(99999));
+    }
+
+    // Check prices are distributed (low to high for short)
+    assert_eq!(order_params[0].price, 100 * PRICE_PRECISION_U64);
+    // Middle prices
+    assert_eq!(order_params[3].price, 110 * PRICE_PRECISION_U64);
+
+    // Ascending: sizes should increase
+    assert!(order_params[0].base_asset_amount < order_params[3].base_asset_amount);
+
+    // Check total size
+    let total: u64 = order_params.iter().map(|op| op.base_asset_amount).sum();
+    assert_eq!(total, BASE_PRECISION_U64);
+}
+
+#[test]
 fn test_two_orders_price_distribution() {
     // Long: start high, end low (DCA down)
     let params = ScaleOrderParams {
+        market_type: MarketType::Perp,
         direction: PositionDirection::Long,
         market_index: 0,
         total_base_asset_amount: BASE_PRECISION_U64,
@@ -315,6 +411,7 @@ fn test_validate_min_total_size() {
     // Total size is too small for 5 orders with this step size
     // Long: start high, end low (DCA down)
     let params = ScaleOrderParams {
+        market_type: MarketType::Perp,
         direction: PositionDirection::Long,
         market_index: 0,
         total_base_asset_amount: BASE_PRECISION_U64 / 20, // 0.05 - not enough

@@ -1383,7 +1383,7 @@
       ]
     },
     {
-      "name": "placeScalePerpOrders",
+      "name": "placeScaleOrders",
       "accounts": [
         {
           "name": "state",
@@ -13297,6 +13297,12 @@
         "kind": "struct",
         "fields": [
           {
+            "name": "marketType",
+            "type": {
+              "defined": "MarketType"
+            }
+          },
+          {
             "name": "direction",
             "type": {
               "defined": "PositionDirection"
@@ -13330,7 +13336,7 @@
           {
             "name": "orderCount",
             "docs": [
-              "Number of orders to place (min 2, max 10)"
+              "Number of orders to place (min 2, max 32)"
             ],
             "type": "u8"
           },
@@ -19973,8 +19979,5 @@
       "name": "InvalidOrderScalePriceRange",
       "msg": "Invalid scale order price range"
     }
-  ],
-  "metadata": {
-    "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
-  }
+  ]
 }

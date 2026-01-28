@@ -1308,6 +1308,7 @@ export class SizeDistribution {
  * Parameters for placing scale orders - multiple limit orders distributed across a price range
  */
 export type ScaleOrderParams = {
+	marketType: MarketType;
 	direction: PositionDirection;
 	marketIndex: number;
 	/** Total base asset amount to distribute across all orders */

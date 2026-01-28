@@ -1043,6 +1043,7 @@ pub enum SizeDistribution {
 /// Parameters for placing scale orders - multiple limit orders distributed across a price range
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Eq, PartialEq, Debug)]
 pub struct ScaleOrderParams {
+    pub market_type: MarketType,
     pub direction: PositionDirection,
     pub market_index: u16,
     /// Total base asset amount to distribute across all orders
@@ -1051,7 +1052,7 @@ pub struct ScaleOrderParams {
     pub start_price: u64,
     /// Ending price for the scale (in PRICE_PRECISION)
     pub end_price: u64,
-    /// Number of orders to place (min 2, max 10)
+    /// Number of orders to place (min 2, max 32)
     pub order_count: u8,
     /// How to distribute sizes across orders
     pub size_distribution: SizeDistribution,

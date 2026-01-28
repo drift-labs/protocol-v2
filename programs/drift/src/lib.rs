@@ -367,11 +367,11 @@ pub mod drift {
         handle_place_orders(ctx, params)
     }
 
-    pub fn place_scale_perp_orders<'c: 'info, 'info>(
+    pub fn place_scale_orders<'c: 'info, 'info>(
         ctx: Context<'_, '_, 'c, 'info, PlaceOrder>,
         params: ScaleOrderParams,
     ) -> Result<()> {
-        handle_place_scale_perp_orders(ctx, params)
+        handle_place_scale_orders(ctx, params)
     }
 
     pub fn begin_swap<'c: 'info, 'info>(
