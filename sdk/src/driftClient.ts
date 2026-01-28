@@ -5679,15 +5679,18 @@ export class DriftClient {
 			maxTs: params.maxTs,
 		};
 
-		return await this.program.instruction.placeScalePerpOrders(formattedParams, {
-			accounts: {
-				state: await this.getStatePublicKey(),
-				user,
-				userStats: this.getUserStatsAccountPublicKey(),
-				authority: this.wallet.publicKey,
-			},
-			remainingAccounts,
-		});
+		return await this.program.instruction.placeScalePerpOrders(
+			formattedParams,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					user,
+					userStats: this.getUserStatsAccountPublicKey(),
+					authority: this.wallet.publicKey,
+				},
+				remainingAccounts,
+			}
+		);
 	}
 
 	public async fillPerpOrder(
