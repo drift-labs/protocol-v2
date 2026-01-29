@@ -4775,4 +4775,296 @@ mod get_margin_calculation_for_disable_high_leverage_mode {
         // should not change user
         assert_eq!(user, user_before);
     }
+
+    mod margin_type_config {
+        use crate::math::margin::MarginRequirementType;
+        use crate::state::margin_calculation::MarginTypeConfig;
+
+        #[test]
+        fn default_returns_same_type_for_cross_and_isolated() {
+            // Test with Initial
+            let config = MarginTypeConfig::Default(MarginRequirementType::Initial);
+            assert_eq!(
+                config.get_cross_margin_requirement_type(),
+                MarginRequirementType::Initial
+            );
+            assert_eq!(
+                config.get_isolated_margin_requirement_type(0),
+                MarginRequirementType::Initial
+            );
+            assert_eq!(
+                config.get_isolated_margin_requirement_type(1),
+                MarginRequirementType::Initial
+            );
+            assert_eq!(
+                config.get_isolated_margin_requirement_type(99),
+                MarginRequirementType::Initial
+            );
+
+            // Test with Maintenance
+            let config = MarginTypeConfig::Default(MarginRequirementType::Maintenance);
+            assert_eq!(
+                config.get_cross_margin_requirement_type(),
+                MarginRequirementType::Maintenance
+            );
+            assert_eq!(
+                config.get_isolated_margin_requirement_type(0),
+                MarginRequirementType::Maintenance
+            );
+            assert_eq!(
+                config.get_isolated_margin_requirement_type(1),
+                MarginRequirementType::Maintenance
+            );
+
+            // Test with Fill
+            let config = MarginTypeConfig::Default(MarginRequirementType::Fill);
+            assert_eq!(
+                config.get_cross_margin_requirement_type(),
+                MarginRequirementType::Fill
+            );
+            assert_eq!(
+                config.get_isolated_margin_requirement_type(0),
+                MarginRequirementType::Fill
+            );
+        }
+
+        #[test]
+        fn isolated_position_override_cross_uses_default() {
+            // When using IsolatedPositionOverride, cross margin should use the default type
+            let config = MarginTypeConfig::IsolatedPositionOverride {
+                market_index: 0,
+                margin_requirement_type: MarginRequirementType::Initial,
+                default_margin_requirement_type: MarginRequirementType::Maintenance,
+            };
+
+            // Cross margin should get the default (Maintenance)
+            assert_eq!(
+                config.get_cross_margin_requirement_type(),
+                MarginRequirementType::Maintenance
+            );
+        }
+
+        #[test]
+        fn isolated_position_override_matching_market_uses_override() {
+            let config = MarginTypeConfig::IsolatedPositionOverride {
+                market_index: 5,
+                margin_requirement_type: MarginRequirementType::Initial,
+                default_margin_requirement_type: MarginRequirementType::Maintenance,
+            };
+
+            // The matching market index should get the override (Initial)
+            assert_eq!(
+                config.get_isolated_margin_requirement_type(5),
+                MarginRequirementType::Initial
+            );
+        }
+
+        #[test]
+        fn isolated_position_override_non_matching_market_uses_default() {
+            let config = MarginTypeConfig::IsolatedPositionOverride {
+                market_index: 5,
+                margin_requirement_type: MarginRequirementType::Initial,
+                default_margin_requirement_type: MarginRequirementType::Maintenance,
+            };
+
+            // Non-matching market indexes should get the default (Maintenance)
+            assert_eq!(
+                config.get_isolated_margin_requirement_type(0),
+                MarginRequirementType::Maintenance
+            );
+            assert_eq!(
+                config.get_isolated_margin_requirement_type(1),
+                MarginRequirementType::Maintenance
+            );
+            assert_eq!(
+                config.get_isolated_margin_requirement_type(4),
+                MarginRequirementType::Maintenance
+            );
+            assert_eq!(
+                config.get_isolated_margin_requirement_type(6),
+                MarginRequirementType::Maintenance
+            );
+            assert_eq!(
+                config.get_isolated_margin_requirement_type(99),
+                MarginRequirementType::Maintenance
+            );
+        }
+
+        #[test]
+        fn cross_margin_override_cross_uses_override() {
+            // When using CrossMarginOverride, cross margin should use the override type
+            let config = MarginTypeConfig::CrossMarginOverride {
+                margin_requirement_type: MarginRequirementType::Initial,
+                default_margin_requirement_type: MarginRequirementType::Maintenance,
+            };
+
+            // Cross margin should get the override (Initial)
+            assert_eq!(
+                config.get_cross_margin_requirement_type(),
+                MarginRequirementType::Initial
+            );
+        }
+
+        #[test]
+        fn cross_margin_override_all_isolated_use_default() {
+            // When using CrossMarginOverride, all isolated positions should use the default type
+            let config = MarginTypeConfig::CrossMarginOverride {
+                margin_requirement_type: MarginRequirementType::Initial,
+                default_margin_requirement_type: MarginRequirementType::Maintenance,
+            };
+
+            // All isolated positions should get the default (Maintenance)
+            assert_eq!(
+                config.get_isolated_margin_requirement_type(0),
+                MarginRequirementType::Maintenance
+            );
+            assert_eq!(
+                config.get_isolated_margin_requirement_type(1),
+                MarginRequirementType::Maintenance
+            );
+            assert_eq!(
+                config.get_isolated_margin_requirement_type(5),
+                MarginRequirementType::Maintenance
+            );
+            assert_eq!(
+                config.get_isolated_margin_requirement_type(99),
+                MarginRequirementType::Maintenance
+            );
+        }
+
+        #[test]
+        fn scenario_increase_cross_position_size() {
+            // Scenario: User has cross position + multiple isolated positions
+            // They want to increase size on cross account (risk increasing)
+            // Expected: Cross = Initial, All isolated = Maintenance
+            let config = MarginTypeConfig::CrossMarginOverride {
+                margin_requirement_type: MarginRequirementType::Initial,
+                default_margin_requirement_type: MarginRequirementType::Maintenance,
+            };
+
+            // Cross position gets Initial (stricter check for risk increasing)
+            assert_eq!(
+                config.get_cross_margin_requirement_type(),
+                MarginRequirementType::Initial
+            );
+
+            // SOL-PERP isolated (market 0) gets Maintenance
+            assert_eq!(
+                config.get_isolated_margin_requirement_type(0),
+                MarginRequirementType::Maintenance
+            );
+
+            // ETH-PERP isolated (market 1) gets Maintenance
+            assert_eq!(
+                config.get_isolated_margin_requirement_type(1),
+                MarginRequirementType::Maintenance
+            );
+
+            // BTC-PERP isolated (market 2) gets Maintenance
+            assert_eq!(
+                config.get_isolated_margin_requirement_type(2),
+                MarginRequirementType::Maintenance
+            );
+        }
+
+        #[test]
+        fn scenario_increase_isolated_position_size() {
+            // Scenario: User has cross position + multiple isolated positions
+            // They want to increase size on SOL-PERP isolated (market 0) (risk increasing)
+            // Expected: SOL-PERP = Initial, Cross + other isolated = Maintenance
+            let config = MarginTypeConfig::IsolatedPositionOverride {
+                market_index: 0, // SOL-PERP
+                margin_requirement_type: MarginRequirementType::Initial,
+                default_margin_requirement_type: MarginRequirementType::Maintenance,
+            };
+
+            // Cross position gets default (Maintenance)
+            assert_eq!(
+                config.get_cross_margin_requirement_type(),
+                MarginRequirementType::Maintenance
+            );
+
+            // SOL-PERP isolated (market 0) gets Initial (stricter check for risk increasing)
+            assert_eq!(
+                config.get_isolated_margin_requirement_type(0),
+                MarginRequirementType::Initial
+            );
+
+            // ETH-PERP isolated (market 1) gets Maintenance
+            assert_eq!(
+                config.get_isolated_margin_requirement_type(1),
+                MarginRequirementType::Maintenance
+            );
+
+            // BTC-PERP isolated (market 2) gets Maintenance
+            assert_eq!(
+                config.get_isolated_margin_requirement_type(2),
+                MarginRequirementType::Maintenance
+            );
+        }
+
+        #[test]
+        fn scenario_reduce_position_size() {
+            // Scenario: User is reducing position size (not risk increasing)
+            // Expected: Everything uses Maintenance
+            let config = MarginTypeConfig::Default(MarginRequirementType::Maintenance);
+
+            // Cross position gets Maintenance
+            assert_eq!(
+                config.get_cross_margin_requirement_type(),
+                MarginRequirementType::Maintenance
+            );
+
+            // All isolated positions get Maintenance
+            assert_eq!(
+                config.get_isolated_margin_requirement_type(0),
+                MarginRequirementType::Maintenance
+            );
+            assert_eq!(
+                config.get_isolated_margin_requirement_type(1),
+                MarginRequirementType::Maintenance
+            );
+            assert_eq!(
+                config.get_isolated_margin_requirement_type(2),
+                MarginRequirementType::Maintenance
+            );
+        }
+
+        #[test]
+        fn fill_margin_type_scenarios() {
+            // Test with Fill margin type (used for maker fills)
+            let config = MarginTypeConfig::IsolatedPositionOverride {
+                market_index: 3,
+                margin_requirement_type: MarginRequirementType::Fill,
+                default_margin_requirement_type: MarginRequirementType::Maintenance,
+            };
+
+            assert_eq!(
+                config.get_cross_margin_requirement_type(),
+                MarginRequirementType::Maintenance
+            );
+            assert_eq!(
+                config.get_isolated_margin_requirement_type(3),
+                MarginRequirementType::Fill
+            );
+            assert_eq!(
+                config.get_isolated_margin_requirement_type(0),
+                MarginRequirementType::Maintenance
+            );
+
+            let config = MarginTypeConfig::CrossMarginOverride {
+                margin_requirement_type: MarginRequirementType::Fill,
+                default_margin_requirement_type: MarginRequirementType::Maintenance,
+            };
+
+            assert_eq!(
+                config.get_cross_margin_requirement_type(),
+                MarginRequirementType::Fill
+            );
+            assert_eq!(
+                config.get_isolated_margin_requirement_type(0),
+                MarginRequirementType::Maintenance
+            );
+        }
+    }
 }
