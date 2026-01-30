@@ -719,7 +719,8 @@ pub enum MarginTypeConfig {
     IsolatedPositionOverride {
         market_index: u16,
         margin_requirement_type: MarginRequirementType,
-        default_margin_requirement_type: MarginRequirementType,
+        default_isolated_margin_requirement_type: MarginRequirementType,
+        cross_margin_requirement_type: MarginRequirementType,
     },
     CrossMarginOverride {
         margin_requirement_type: MarginRequirementType,
@@ -732,9 +733,9 @@ impl MarginTypeConfig {
         match self {
             MarginTypeConfig::Default(margin_requirement_type) => *margin_requirement_type,
             MarginTypeConfig::IsolatedPositionOverride {
-                default_margin_requirement_type,
+                cross_margin_requirement_type,
                 ..
-            } => *default_margin_requirement_type,
+            } => *cross_margin_requirement_type,
             MarginTypeConfig::CrossMarginOverride {
                 margin_requirement_type,
                 ..
@@ -747,13 +748,14 @@ impl MarginTypeConfig {
             MarginTypeConfig::Default(margin_requirement_type) => *margin_requirement_type,
             MarginTypeConfig::IsolatedPositionOverride {
                 margin_requirement_type,
-                default_margin_requirement_type,
+                default_isolated_margin_requirement_type,
                 market_index: self_market_index,
+                ..
             } => {
                 if *self_market_index == market_index {
                     *margin_requirement_type
                 } else {
-                    *default_margin_requirement_type
+                    *default_isolated_margin_requirement_type
                 }
             }
             MarginTypeConfig::CrossMarginOverride {

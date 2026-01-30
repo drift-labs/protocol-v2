@@ -45,7 +45,10 @@ cd sdk/ && yarn && yarn build && cd ..
 
 ## Running Rust Test
 
+For running cargo tests, you'll need version 1.70.
+
 ```bash
+rustup override set 1.70
 cargo test
 ```
 
@@ -60,11 +63,13 @@ bash test-scripts/run-anchor-tests.sh
 We've provided a devcontainer `Dockerfile` to help you spin up a dev environment with the correct versions of Rust, Solana, and Anchor for program development.
 
 Build the container and tag it `drift-dev`:
+
 ```
 cd .devcontainer && docker build -t drift-dev .
 ```
 
 Open a shell to the container:
+
 ```
 # Find the container ID first
 docker ps
@@ -83,6 +88,7 @@ Alternatively use an extension provided by your IDE to make use of the dev conta
 ```
 
 Use the dev container as you would a local build environment:
+
 ```
 # build program
 anchor build

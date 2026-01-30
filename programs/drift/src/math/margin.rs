@@ -766,7 +766,8 @@ pub fn meets_place_order_margin_requirement(
             Some(market_index) => MarginTypeConfig::IsolatedPositionOverride {
                 market_index,
                 margin_requirement_type: MarginRequirementType::Initial,
-                default_margin_requirement_type: MarginRequirementType::Maintenance,
+                default_isolated_margin_requirement_type: MarginRequirementType::Maintenance,
+                cross_margin_requirement_type: MarginRequirementType::Initial,
             },
             None => MarginTypeConfig::CrossMarginOverride {
                 margin_requirement_type: MarginRequirementType::Initial,
