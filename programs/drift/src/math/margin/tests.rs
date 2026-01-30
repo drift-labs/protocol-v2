@@ -4834,13 +4834,14 @@ mod get_margin_calculation_for_disable_high_leverage_mode {
             let config = MarginTypeConfig::IsolatedPositionOverride {
                 market_index: 0,
                 margin_requirement_type: MarginRequirementType::Initial,
-                default_margin_requirement_type: MarginRequirementType::Maintenance,
+                default_isolated_margin_requirement_type: MarginRequirementType::Maintenance,
+                cross_margin_requirement_type: MarginRequirementType::Initial,
             };
 
-            // Cross margin should get the default (Maintenance)
+            // Cross margin should get the default (Initial)
             assert_eq!(
                 config.get_cross_margin_requirement_type(),
-                MarginRequirementType::Maintenance
+                MarginRequirementType::Initial
             );
         }
 
@@ -4849,7 +4850,8 @@ mod get_margin_calculation_for_disable_high_leverage_mode {
             let config = MarginTypeConfig::IsolatedPositionOverride {
                 market_index: 5,
                 margin_requirement_type: MarginRequirementType::Initial,
-                default_margin_requirement_type: MarginRequirementType::Maintenance,
+                default_isolated_margin_requirement_type: MarginRequirementType::Maintenance,
+                cross_margin_requirement_type: MarginRequirementType::Initial,
             };
 
             // The matching market index should get the override (Initial)
@@ -4864,7 +4866,8 @@ mod get_margin_calculation_for_disable_high_leverage_mode {
             let config = MarginTypeConfig::IsolatedPositionOverride {
                 market_index: 5,
                 margin_requirement_type: MarginRequirementType::Initial,
-                default_margin_requirement_type: MarginRequirementType::Maintenance,
+                default_isolated_margin_requirement_type: MarginRequirementType::Maintenance,
+                cross_margin_requirement_type: MarginRequirementType::Initial,
             };
 
             // Non-matching market indexes should get the default (Maintenance)
@@ -4975,13 +4978,14 @@ mod get_margin_calculation_for_disable_high_leverage_mode {
             let config = MarginTypeConfig::IsolatedPositionOverride {
                 market_index: 0, // SOL-PERP
                 margin_requirement_type: MarginRequirementType::Initial,
-                default_margin_requirement_type: MarginRequirementType::Maintenance,
+                default_isolated_margin_requirement_type: MarginRequirementType::Maintenance,
+                cross_margin_requirement_type: MarginRequirementType::Initial,
             };
 
-            // Cross position gets default (Maintenance)
+            // Cross position gets default (Initial)
             assert_eq!(
                 config.get_cross_margin_requirement_type(),
-                MarginRequirementType::Maintenance
+                MarginRequirementType::Initial
             );
 
             // SOL-PERP isolated (market 0) gets Initial (stricter check for risk increasing)
@@ -5036,12 +5040,13 @@ mod get_margin_calculation_for_disable_high_leverage_mode {
             let config = MarginTypeConfig::IsolatedPositionOverride {
                 market_index: 3,
                 margin_requirement_type: MarginRequirementType::Fill,
-                default_margin_requirement_type: MarginRequirementType::Maintenance,
+                default_isolated_margin_requirement_type: MarginRequirementType::Maintenance,
+                cross_margin_requirement_type: MarginRequirementType::Initial,
             };
 
             assert_eq!(
                 config.get_cross_margin_requirement_type(),
-                MarginRequirementType::Maintenance
+                MarginRequirementType::Initial
             );
             assert_eq!(
                 config.get_isolated_margin_requirement_type(3),
@@ -5074,10 +5079,12 @@ mod get_margin_calculation_for_disable_high_leverage_mode {
 
         use anchor_lang::prelude::Pubkey;
 
+        use crate::controller::position::PositionDirection;
         use crate::create_account_info;
         use crate::math::constants::{
-            AMM_RESERVE_PRECISION, BASE_PRECISION_I64, PEG_PRECISION, SPOT_BALANCE_PRECISION,
-            SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
+            AMM_RESERVE_PRECISION, BASE_PRECISION_I64, BASE_PRECISION_U64, PEG_PRECISION,
+            SPOT_BALANCE_PRECISION, SPOT_BALANCE_PRECISION_U64, SPOT_CUMULATIVE_INTEREST_PRECISION,
+            SPOT_WEIGHT_PRECISION,
         };
         use crate::math::margin::meets_place_order_margin_requirement;
         use crate::state::oracle::{HistoricalOracleData, OracleSource};
@@ -5086,7 +5093,10 @@ mod get_margin_calculation_for_disable_high_leverage_mode {
         use crate::state::perp_market_map::PerpMarketMap;
         use crate::state::spot_market::{SpotBalanceType, SpotMarket};
         use crate::state::spot_market_map::SpotMarketMap;
-        use crate::state::user::{Order, PerpPosition, PositionFlag, SpotPosition, User};
+        use crate::state::user::{
+            MarketType, Order, OrderStatus, OrderType, PerpPosition, PositionFlag, SpotPosition,
+            User,
+        };
         use crate::test_utils::get_pyth_price;
         use crate::test_utils::*;
         use crate::{create_anchor_account_info, QUOTE_PRECISION_I64};
@@ -5564,6 +5574,526 @@ mod get_margin_calculation_for_disable_high_leverage_mode {
             assert!(
                 result.is_err(),
                 "Isolated order should fail when cross account fails initial margin"
+            );
+        }
+
+        #[test]
+        fn isolated_order_fails_when_isolated_deposit_would_make_cross_fail_initial_margin() {
+            // Scenario:
+            // - User has a cross account that is PASSING initial margin
+            // - User has an isolated position that is currently PASSING initial margin
+            // - User places an order to increase the isolated position
+            // - The order increases the worst-case position size, increasing IM required
+            // - The new IM required exceeds isolated collateral
+            // - The deposit required to cover the shortfall would make cross fail IM
+            // - Expected: Order should FAIL
+            //
+            // This ensures users can't increase isolated positions when the required
+            // deposit would make their cross account undercollateralized
+            //
+            // Key numbers:
+            // - Cross: $110 collateral, $100 IM required -> PASSES ($110 > $100)
+            // - Isolated position: 1 ETH = $1000 notional, $100 IM required
+            // - Isolated collateral: $110 -> PASSES current IM ($110 > $100)
+            // - Order: Buy 0.5 ETH more (open_bids = 0.5 ETH)
+            // - Worst case position: 1.5 ETH = $1500 notional = $150 IM required
+            // - Isolated collateral: $110 < $150 IM required -> FAILS
+            // - Shortfall: $40
+            // - If cross deposits $40 to isolated: cross has $70 vs $100 IM -> FAILS
+
+            let slot = 0_u64;
+
+            let pyth_program = crate::ids::pyth_program::id();
+            let mut sol_oracle_price = get_pyth_price(100, 6);
+            let sol_oracle_price_key =
+                Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+            create_account_info!(
+                sol_oracle_price,
+                &sol_oracle_price_key,
+                &pyth_program,
+                sol_oracle_account_info
+            );
+            let mut eth_oracle_price = get_pyth_price(1000, 6);
+            let eth_oracle_price_key =
+                Pubkey::from_str("AHRAk64kPiGwkbkisDvjVYzq6Ho5Q2wQSj28vAaAt7Tq").unwrap();
+            create_account_info!(
+                eth_oracle_price,
+                &eth_oracle_price_key,
+                &pyth_program,
+                eth_oracle_account_info
+            );
+
+            let oracle_account_infos = vec![sol_oracle_account_info, eth_oracle_account_info];
+            let mut oracle_map =
+                OracleMap::load(&mut oracle_account_infos.iter().peekable(), slot, None).unwrap();
+
+            // SOL-PERP market (cross position) with 10% initial margin, 5% maintenance margin
+            let mut sol_perp_market = PerpMarket {
+                market_index: 0,
+                amm: AMM {
+                    base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                    quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                    bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                    bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                    ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                    ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                    sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                    peg_multiplier: 100 * PEG_PRECISION,
+                    order_step_size: 10000000,
+                    oracle: sol_oracle_price_key,
+                    ..AMM::default()
+                },
+                margin_ratio_initial: 1000,    // 10%
+                margin_ratio_maintenance: 500, // 5%
+                status: MarketStatus::Initialized,
+                ..PerpMarket::default()
+            };
+
+            // ETH-PERP market (isolated position) with 10% initial margin, 5% maintenance margin
+            let mut eth_perp_market = PerpMarket {
+                market_index: 2,
+                amm: AMM {
+                    base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                    quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                    bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                    bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                    ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                    ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                    sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                    peg_multiplier: 1000 * PEG_PRECISION,
+                    order_step_size: 10000000,
+                    oracle: eth_oracle_price_key,
+                    ..AMM::default()
+                },
+                margin_ratio_initial: 1000,    // 10%
+                margin_ratio_maintenance: 500, // 5%
+                status: MarketStatus::Initialized,
+                ..PerpMarket::default()
+            };
+            create_anchor_account_info!(sol_perp_market, PerpMarket, sol_perp_market_account_info);
+            create_anchor_account_info!(eth_perp_market, PerpMarket, eth_perp_market_account_info);
+            let perp_market_map = PerpMarketMap::load_multiple(
+                vec![&sol_perp_market_account_info, &eth_perp_market_account_info],
+                true,
+            )
+            .unwrap();
+
+            let mut usdc_spot_market = SpotMarket {
+                market_index: 0,
+                oracle_source: OracleSource::QuoteAsset,
+                cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+                decimals: 6,
+                initial_asset_weight: SPOT_WEIGHT_PRECISION,
+                maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+                deposit_balance: 100000 * SPOT_BALANCE_PRECISION,
+                liquidator_fee: 0,
+                historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
+                ..SpotMarket::default()
+            };
+            create_anchor_account_info!(
+                usdc_spot_market,
+                SpotMarket,
+                usdc_spot_market_account_info
+            );
+            let spot_market_account_infos = Vec::from([&usdc_spot_market_account_info]);
+            let spot_market_map =
+                SpotMarketMap::load_multiple(spot_market_account_infos, true).unwrap();
+
+            // User has:
+            // - 110 USDC cross collateral (PASSES initial margin for cross position)
+            // - Cross SOL-PERP position: 10 SOL long @ $100 = $1000 notional
+            //   - Initial margin required: $1000 * 10% = $100 (PASSES - $110 > $100)
+            // - Isolated ETH-PERP position: 1 ETH long @ $1000 = $1000 notional
+            //   - With $110 isolated collateral
+            //   - Current IM required: $1000 * 10% = $100 (PASSES - $110 > $100)
+            //   - User places order to buy 0.5 ETH more (open_bids = 0.5 ETH)
+            //   - Worst case position: 1.5 ETH = $1500 notional
+            //   - New IM required: $1500 * 10% = $150 (FAILS - $110 < $150)
+            //   - Shortfall: $40
+            //   - If cross deposits $40: cross has $70 vs $100 IM -> FAILS
+            let mut spot_positions = [SpotPosition::default(); 8];
+            spot_positions[0] = SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 110 * SPOT_BALANCE_PRECISION_U64, // 110 USDC cross collateral (passes IM)
+                ..SpotPosition::default()
+            };
+
+            let mut perp_positions = [PerpPosition::default(); 8];
+            // Cross SOL-PERP position (not isolated)
+            perp_positions[0] = PerpPosition {
+                market_index: 0,
+                base_asset_amount: 10 * BASE_PRECISION_I64, // 10 SOL long
+                quote_asset_amount: -1000 * QUOTE_PRECISION_I64, // Entry at $100
+                // No isolated flag - this is a cross position
+                ..PerpPosition::default()
+            };
+            // Isolated ETH-PERP position with sufficient collateral for current position,
+            // but with an open order that increases the worst-case position size
+            perp_positions[1] = PerpPosition {
+                market_index: 2,
+                base_asset_amount: 1 * BASE_PRECISION_I64, // 1 ETH long
+                quote_asset_amount: -1000 * QUOTE_PRECISION_I64, // Entry at $1000
+                position_flag: PositionFlag::IsolatedPosition as u8,
+                isolated_position_scaled_balance: 110 * SPOT_BALANCE_PRECISION_U64, // $110 isolated collateral
+                open_orders: 1,                    // Has an open order
+                open_bids: BASE_PRECISION_I64 / 2, // Order to buy 0.5 ETH more
+                ..PerpPosition::default()
+            };
+
+            // Create an order for the isolated position
+            let mut orders = [Order::default(); 32];
+            orders[0] = Order {
+                status: OrderStatus::Open,
+                order_type: OrderType::Limit,
+                market_type: MarketType::Perp,
+                market_index: 2,
+                direction: PositionDirection::Long,
+                base_asset_amount: BASE_PRECISION_U64 / 2, // 0.5 ETH
+                ..Order::default()
+            };
+
+            let user = User {
+                orders,
+                perp_positions,
+                spot_positions,
+                ..User::default()
+            };
+
+            // Test: Check margin after placing an isolated ETH-PERP order (risk_increasing = true)
+            // The order has already been "placed" by setting open_bids on the position
+            // This uses IsolatedPositionOverride: ETH-PERP=Initial, cross=Initial
+            //
+            // Margin calculation:
+            // - Worst case position = base_asset_amount + open_bids = 1 + 0.5 = 1.5 ETH
+            // - Worst case notional = 1.5 * $1000 = $1500
+            // - IM required = $1500 * 10% = $150
+            // - Isolated collateral = $110 < $150 -> FAILS isolated IM
+            let result = meets_place_order_margin_requirement(
+                &user,
+                &perp_market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                true,    // risk_increasing
+                Some(2), // isolated_market_index = 2 means this is an ETH-PERP order
+            );
+
+            // Should FAIL because:
+            // - Worst case isolated ETH-PERP: 1.5 ETH = $1500 notional, $150 IM required
+            // - Isolated collateral: $110 < $150 -> FAILS
+            // - Cross passes IM ($110 > $100), but can't spare $40 without failing
+            // - If cross deposited $40 to isolated: cross would have $70 vs $100 IM -> fails
+            //
+            // This is different from the previous test where cross was already failing IM.
+            // Here, cross is passing IM, but the deposit required to fund the isolated
+            // position increase would make cross fail.
+            assert!(
+                result.is_err(),
+                "Isolated order should fail when deposit would make cross fail IM"
+            );
+        }
+
+        #[test]
+        fn isolated_order_passes_when_cross_has_plenty_of_collateral() {
+            // Scenario:
+            // - User has a cross account with plenty of USDC collateral
+            // - User has no existing positions
+            // - User opens a new isolated position
+            // - Expected: Order should PASS because cross has plenty of collateral
+            //
+            // Key numbers:
+            // - Cross: $1000 USDC collateral, no positions -> $0 IM required
+            // - New isolated position: 1 ETH = $1000 notional = $100 IM required
+            // - Isolated collateral provided: $150 (from cross)
+            // - After transfer: Cross has $850, still $0 IM required -> PASSES
+
+            let slot = 0_u64;
+
+            let pyth_program = crate::ids::pyth_program::id();
+            let mut eth_oracle_price = get_pyth_price(1000, 6);
+            let eth_oracle_price_key =
+                Pubkey::from_str("AHRAk64kPiGwkbkisDvjVYzq6Ho5Q2wQSj28vAaAt7Tq").unwrap();
+            create_account_info!(
+                eth_oracle_price,
+                &eth_oracle_price_key,
+                &pyth_program,
+                eth_oracle_account_info
+            );
+
+            let oracle_account_infos = vec![eth_oracle_account_info];
+            let mut oracle_map =
+                OracleMap::load(&mut oracle_account_infos.iter().peekable(), slot, None).unwrap();
+
+            // ETH-PERP market (isolated position) with 10% initial margin, 5% maintenance margin
+            let mut eth_perp_market = PerpMarket {
+                market_index: 2,
+                amm: AMM {
+                    base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                    quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                    bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                    bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                    ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                    ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                    sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                    peg_multiplier: 1000 * PEG_PRECISION,
+                    order_step_size: 10000000,
+                    oracle: eth_oracle_price_key,
+                    ..AMM::default()
+                },
+                margin_ratio_initial: 1000,    // 10%
+                margin_ratio_maintenance: 500, // 5%
+                status: MarketStatus::Initialized,
+                ..PerpMarket::default()
+            };
+            create_anchor_account_info!(eth_perp_market, PerpMarket, eth_perp_market_account_info);
+            let perp_market_map =
+                PerpMarketMap::load_one(&eth_perp_market_account_info, true).unwrap();
+
+            let mut usdc_spot_market = SpotMarket {
+                market_index: 0,
+                oracle_source: OracleSource::QuoteAsset,
+                cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+                decimals: 6,
+                initial_asset_weight: SPOT_WEIGHT_PRECISION,
+                maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+                deposit_balance: 100000 * SPOT_BALANCE_PRECISION,
+                liquidator_fee: 0,
+                historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
+                ..SpotMarket::default()
+            };
+            create_anchor_account_info!(
+                usdc_spot_market,
+                SpotMarket,
+                usdc_spot_market_account_info
+            );
+            let spot_market_account_infos = Vec::from([&usdc_spot_market_account_info]);
+            let spot_market_map =
+                SpotMarketMap::load_multiple(spot_market_account_infos, true).unwrap();
+
+            // User has:
+            // - 1000 USDC cross collateral (plenty of buffer)
+            // - New isolated ETH-PERP position: 1 ETH long @ $1000 = $1000 notional
+            //   - With $150 isolated collateral
+            //   - IM required: $1000 * 10% = $100 (PASSES - $150 > $100)
+            let mut spot_positions = [SpotPosition::default(); 8];
+            spot_positions[0] = SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 1000 * SPOT_BALANCE_PRECISION_U64, // 1000 USDC cross collateral
+                ..SpotPosition::default()
+            };
+
+            let mut perp_positions = [PerpPosition::default(); 8];
+            // New isolated ETH-PERP position with sufficient collateral
+            perp_positions[0] = PerpPosition {
+                market_index: 2,
+                base_asset_amount: 1 * BASE_PRECISION_I64, // 1 ETH long
+                quote_asset_amount: -1000 * QUOTE_PRECISION_I64, // Entry at $1000
+                position_flag: PositionFlag::IsolatedPosition as u8,
+                isolated_position_scaled_balance: 150 * SPOT_BALANCE_PRECISION_U64, // $150 isolated collateral
+                ..PerpPosition::default()
+            };
+
+            let user = User {
+                orders: [Order::default(); 32],
+                perp_positions,
+                spot_positions,
+                ..User::default()
+            };
+
+            let result = meets_place_order_margin_requirement(
+                &user,
+                &perp_market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                true,
+                Some(2),
+            );
+
+            // Should PASS because:
+            // - Cross has $1000, no positions, $0 IM required -> PASSES
+            // - Isolated ETH-PERP: $150 collateral >= $100 IM required -> PASSES
+            assert!(
+                result.is_ok(),
+                "Isolated order should pass when cross has plenty of collateral. Error: {:?}",
+                result
+            );
+        }
+
+        #[test]
+        fn isolated_order_fails_when_other_isolated_fails_maintenance_margin() {
+            // Scenario:
+            // - User has a cross account with USDC collateral
+            // - User has an existing isolated SOL-PERP position that FAILS maintenance margin
+            // - User tries to open a new isolated ETH-PERP position
+            // - Expected: Order should FAIL because existing isolated position fails MM
+            //
+            // Key numbers:
+            // - Cross: $1000 USDC collateral
+            // - Existing isolated SOL-PERP: 10 SOL @ $100 = $1000 notional
+            //   - MM required: $1000 * 5% = $50
+            //   - Isolated collateral: $40 < $50 -> FAILS MM
+            // - New isolated ETH-PERP order: would pass on its own
+            // - But since existing isolated fails MM, can't open new isolated
+
+            let slot = 0_u64;
+
+            let pyth_program = crate::ids::pyth_program::id();
+            let mut sol_oracle_price = get_pyth_price(100, 6);
+            let sol_oracle_price_key =
+                Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+            create_account_info!(
+                sol_oracle_price,
+                &sol_oracle_price_key,
+                &pyth_program,
+                sol_oracle_account_info
+            );
+            let mut eth_oracle_price = get_pyth_price(1000, 6);
+            let eth_oracle_price_key =
+                Pubkey::from_str("AHRAk64kPiGwkbkisDvjVYzq6Ho5Q2wQSj28vAaAt7Tq").unwrap();
+            create_account_info!(
+                eth_oracle_price,
+                &eth_oracle_price_key,
+                &pyth_program,
+                eth_oracle_account_info
+            );
+
+            let oracle_account_infos = vec![sol_oracle_account_info, eth_oracle_account_info];
+            let mut oracle_map =
+                OracleMap::load(&mut oracle_account_infos.iter().peekable(), slot, None).unwrap();
+
+            // SOL-PERP market with 10% initial margin, 5% maintenance margin
+            let mut sol_perp_market = PerpMarket {
+                market_index: 0,
+                amm: AMM {
+                    base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                    quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                    bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                    bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                    ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                    ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                    sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                    peg_multiplier: 100 * PEG_PRECISION,
+                    order_step_size: 10000000,
+                    oracle: sol_oracle_price_key,
+                    ..AMM::default()
+                },
+                margin_ratio_initial: 1000,    // 10%
+                margin_ratio_maintenance: 500, // 5%
+                status: MarketStatus::Initialized,
+                ..PerpMarket::default()
+            };
+
+            // ETH-PERP market (new isolated position) with 10% initial margin, 5% maintenance margin
+            let mut eth_perp_market = PerpMarket {
+                market_index: 2,
+                amm: AMM {
+                    base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                    quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                    bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                    bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                    ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                    ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                    sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                    peg_multiplier: 1000 * PEG_PRECISION,
+                    order_step_size: 10000000,
+                    oracle: eth_oracle_price_key,
+                    ..AMM::default()
+                },
+                margin_ratio_initial: 1000,    // 10%
+                margin_ratio_maintenance: 500, // 5%
+                status: MarketStatus::Initialized,
+                ..PerpMarket::default()
+            };
+            create_anchor_account_info!(sol_perp_market, PerpMarket, sol_perp_market_account_info);
+            create_anchor_account_info!(eth_perp_market, PerpMarket, eth_perp_market_account_info);
+            let perp_market_map = PerpMarketMap::load_multiple(
+                vec![&sol_perp_market_account_info, &eth_perp_market_account_info],
+                true,
+            )
+            .unwrap();
+
+            let mut usdc_spot_market = SpotMarket {
+                market_index: 0,
+                oracle_source: OracleSource::QuoteAsset,
+                cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+                decimals: 6,
+                initial_asset_weight: SPOT_WEIGHT_PRECISION,
+                maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+                deposit_balance: 100000 * SPOT_BALANCE_PRECISION,
+                liquidator_fee: 0,
+                historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
+                ..SpotMarket::default()
+            };
+            create_anchor_account_info!(
+                usdc_spot_market,
+                SpotMarket,
+                usdc_spot_market_account_info
+            );
+            let spot_market_account_infos = Vec::from([&usdc_spot_market_account_info]);
+            let spot_market_map =
+                SpotMarketMap::load_multiple(spot_market_account_infos, true).unwrap();
+
+            // User has:
+            // - 1000 USDC cross collateral
+            // - Existing isolated SOL-PERP position: 10 SOL long @ $100 = $1000 notional
+            //   - With only $40 isolated collateral
+            //   - MM required: $1000 * 5% = $50 (FAILS - $40 < $50)
+            // - New isolated ETH-PERP position: 1 ETH long @ $1000 = $1000 notional
+            //   - With $200 isolated collateral
+            //   - IM required: $1000 * 10% = $100 (PASSES - $200 > $100)
+            let mut spot_positions = [SpotPosition::default(); 8];
+            spot_positions[0] = SpotPosition {
+                market_index: 0,
+                balance_type: SpotBalanceType::Deposit,
+                scaled_balance: 1000 * SPOT_BALANCE_PRECISION_U64, // 1000 USDC cross collateral
+                ..SpotPosition::default()
+            };
+
+            let mut perp_positions = [PerpPosition::default(); 8];
+            // Existing isolated SOL-PERP position that FAILS maintenance margin
+            perp_positions[0] = PerpPosition {
+                market_index: 0,
+                base_asset_amount: 10 * BASE_PRECISION_I64, // 10 SOL long
+                quote_asset_amount: -1000 * QUOTE_PRECISION_I64, // Entry at $100
+                position_flag: PositionFlag::IsolatedPosition as u8,
+                isolated_position_scaled_balance: 40 * SPOT_BALANCE_PRECISION_U64, // Only $40 - fails MM
+                ..PerpPosition::default()
+            };
+            // New isolated ETH-PERP position with sufficient collateral
+            perp_positions[1] = PerpPosition {
+                market_index: 2,
+                base_asset_amount: 1 * BASE_PRECISION_I64, // 1 ETH long
+                quote_asset_amount: -1000 * QUOTE_PRECISION_I64, // Entry at $1000
+                position_flag: PositionFlag::IsolatedPosition as u8,
+                isolated_position_scaled_balance: 200 * SPOT_BALANCE_PRECISION_U64, // $200 isolated collateral
+                ..PerpPosition::default()
+            };
+
+            let user = User {
+                orders: [Order::default(); 32],
+                perp_positions,
+                spot_positions,
+                ..User::default()
+            };
+
+            // Test: Try to place an order on the new ETH-PERP isolated position
+            // Even though ETH-PERP itself passes IM, the existing SOL-PERP fails MM
+            let result = meets_place_order_margin_requirement(
+                &user,
+                &perp_market_map,
+                &spot_market_map,
+                &mut oracle_map,
+                true,
+                Some(2), // isolated_market_index = 2 (ETH-PERP)
+            );
+
+            // Should FAIL because:
+            // - Existing isolated SOL-PERP: $40 collateral < $50 MM required -> FAILS MM
+            // - When opening new isolated position, all other isolated positions must pass MM
+            assert!(
+                result.is_err(),
+                "Isolated order should fail when other isolated position fails maintenance margin"
             );
         }
     }

@@ -15490,6 +15490,66 @@
       }
     },
     {
+      "name": "MarginTypeConfig",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Default",
+            "fields": [
+              {
+                "defined": "MarginRequirementType"
+              }
+            ]
+          },
+          {
+            "name": "IsolatedPositionOverride",
+            "fields": [
+              {
+                "name": "marketIndex",
+                "type": "u16"
+              },
+              {
+                "name": "marginRequirementType",
+                "type": {
+                  "defined": "MarginRequirementType"
+                }
+              },
+              {
+                "name": "defaultIsolatedMarginRequirementType",
+                "type": {
+                  "defined": "MarginRequirementType"
+                }
+              },
+              {
+                "name": "crossMarginRequirementType",
+                "type": {
+                  "defined": "MarginRequirementType"
+                }
+              }
+            ]
+          },
+          {
+            "name": "CrossMarginOverride",
+            "fields": [
+              {
+                "name": "marginRequirementType",
+                "type": {
+                  "defined": "MarginRequirementType"
+                }
+              },
+              {
+                "name": "defaultMarginRequirementType",
+                "type": {
+                  "defined": "MarginRequirementType"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "name": "OracleSource",
       "type": {
         "kind": "enum",
