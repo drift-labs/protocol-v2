@@ -504,8 +504,8 @@ export class User {
 			  )
 			: ZERO;
 
-		let freeCollateral: BN = ZERO;
 		// if position is isolated, we always add on available quote from the cross account
+		let freeCollateral: BN = ZERO;
 		if (positionType === 'isolated') {
 			const {
 				totalAssetValue: quoteSpotMarketAssetValue,
@@ -518,19 +518,26 @@ export class User {
 				true
 			);
 
-			freeCollateral = quoteSpotMarketAssetValue.sub(
+			const usdcAvailableForIsolatedMargin = quoteSpotMarketAssetValue.sub(
 				quoteSpotMarketLiabilityValue
 			);
-		}
-
-		// adding free collateral from the cross account or from within isolated margin calc for this marketIndex
-		freeCollateral = freeCollateral.add(
-			this.getFreeCollateral(
+			const generalFreeCollateral = this.getFreeCollateral(
 				'Initial',
 				enterHighLeverageMode,
-				positionType === 'isolated' ? marketIndex : undefined
-			).sub(collateralBuffer)
-		);
+				undefined
+			);
+			freeCollateral = BN.min(
+				usdcAvailableForIsolatedMargin,
+				generalFreeCollateral
+			).sub(collateralBuffer);
+		} else {
+			// free collateral from the cross account only
+			freeCollateral = this.getFreeCollateral(
+				'Initial',
+				enterHighLeverageMode,
+				undefined
+			).sub(collateralBuffer);
+		}
 
 		return this.getPerpBuyingPowerFromFreeCollateralAndBaseAssetAmount(
 			marketIndex,
