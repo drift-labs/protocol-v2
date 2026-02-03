@@ -379,6 +379,7 @@ pub fn place_perp_order(
 
     // when orders are placed in bulk, only need to check margin on last place
     if options.enforce_margin_check && !options.is_liquidation() {
+        // if isolated position, use the isolated margin calculation
         let isolated_market_index = if user.perp_positions[position_index].is_isolated() {
             Some(market_index)
         } else {
@@ -3850,7 +3851,7 @@ pub fn place_spot_order(
             spot_market_map,
             oracle_map,
             options.risk_increasing,
-            None,
+            None, // no isolated positions for spot positions
         )?;
     }
 
