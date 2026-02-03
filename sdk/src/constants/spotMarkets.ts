@@ -951,7 +951,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		marketIndex: 57,
 		poolId: 0,
 		oracle: new PublicKey('GqqkoqHU5pqgTvL88xSCipH9txbPETyzvAvybQ3zRpzw'),
-		oracleSource: OracleSource.PYTH_LAZER_STABLE_COIN,
+		oracleSource: OracleSource.PYTH_LAZER,
 		mint: new PublicKey('AvZZF1YaZDziPY2RCK4oJrRVrbN3mTD9NL24hPeaZeUj'),
 		precision: new BN(10).pow(SIX),
 		precisionExp: SIX,
