@@ -307,14 +307,6 @@
     "@grpc/proto-loader" "^0.8.0"
     "@js-sdsl/ordered-map" "^4.4.2"
 
-"@grpc/grpc-js@^1.8.0":
-  version "1.14.3"
-  resolved "https://registry.yarnpkg.com/@grpc/grpc-js/-/grpc-js-1.14.3.tgz#4c9b817a900ae4020ddc28515ae4b52c78cfb8da"
-  integrity sha512-Iq8QQQ/7X3Sac15oB6p0FmUg/klxQvXLeileoqrTRGJYLV+/9tubbr9ipz0GKHjmXVsgFPo/+W+2cA8eNcR+XA==
-  dependencies:
-    "@grpc/proto-loader" "^0.8.0"
-    "@js-sdsl/ordered-map" "^4.4.2"
-
 "@grpc/proto-loader@^0.8.0":
   version "0.8.0"
   resolved "https://registry.yarnpkg.com/@grpc/proto-loader/-/proto-loader-0.8.0.tgz#b6c324dd909c458a0e4aa9bfd3d69cf78a4b9bd8"
@@ -912,6 +904,17 @@
     "@solana/errors" "2.3.0"
     "@solana/nominal-types" "2.3.0"
 
+"@solana/keys@5.1.0":
+  version "5.1.0"
+  resolved "https://registry.yarnpkg.com/@solana/keys/-/keys-5.1.0.tgz#ddfb57d7273c147e4072334d34e55010233e508e"
+  integrity sha512-ma4zTTuSOmtTCvATHMfUGNTw0Vqah/6XPe1VmLc66ohwXMI3yqatX1FQPXgDZozr15SvLAesfs7/bgl2TRoe9w==
+  dependencies:
+    "@solana/assertions" "5.1.0"
+    "@solana/codecs-core" "5.1.0"
+    "@solana/codecs-strings" "5.1.0"
+    "@solana/errors" "5.1.0"
+    "@solana/nominal-types" "5.1.0"
+
 "@solana/kit@^2.3.0":
   version "2.3.0"
   resolved "https://registry.yarnpkg.com/@solana/kit/-/kit-2.3.0.tgz#92deb7c4883293617209aecac9a43d5e41ccf092"
@@ -1324,6 +1327,24 @@
     "@solana/nominal-types" "2.3.0"
     "@solana/rpc-types" "2.3.0"
     "@solana/transaction-messages" "2.3.0"
+
+"@solana/transactions@5.1.0":
+  version "5.1.0"
+  resolved "https://registry.yarnpkg.com/@solana/transactions/-/transactions-5.1.0.tgz#75f6f49581daa1f7b41cec2daed7de52e311b586"
+  integrity sha512-06JwSPtz+38ozNgpysAXS2eTMPQCufIisXB6K88X8J4GF8ziqs4nkq0BpXAXn+MpZTkuMt+JeW2RxP3HKhXe5g==
+  dependencies:
+    "@solana/addresses" "5.1.0"
+    "@solana/codecs-core" "5.1.0"
+    "@solana/codecs-data-structures" "5.1.0"
+    "@solana/codecs-numbers" "5.1.0"
+    "@solana/codecs-strings" "5.1.0"
+    "@solana/errors" "5.1.0"
+    "@solana/functional" "5.1.0"
+    "@solana/instructions" "5.1.0"
+    "@solana/keys" "5.1.0"
+    "@solana/nominal-types" "5.1.0"
+    "@solana/rpc-types" "5.1.0"
+    "@solana/transaction-messages" "5.1.0"
 
 "@solana/web3.js@1.98.0", "@solana/web3.js@^1.17.0", "@solana/web3.js@^1.21.0", "@solana/web3.js@^1.30.2", "@solana/web3.js@^1.32.0", "@solana/web3.js@^1.36.0", "@solana/web3.js@^1.56.2", "@solana/web3.js@^1.68.0", "@solana/web3.js@^1.77.3", "@solana/web3.js@^1.98.0", "@solana/web3.js@^1.98.2":
   version "1.98.0"
