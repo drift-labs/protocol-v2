@@ -1,5 +1,5 @@
-use crate::controller::scale_orders::*;
-use crate::state::order_params::{PostOnlyParam, ScaleOrderParams, SizeDistribution};
+use crate::state::order_params::PostOnlyParam;
+use crate::state::scale_order_params::{ScaleOrderParams, SizeDistribution};
 use crate::state::user::MarketType;
 use crate::{PositionDirection, BASE_PRECISION_U64, PRICE_PRECISION_U64};
 
@@ -23,21 +23,21 @@ fn test_validate_order_count_bounds() {
         bit_flags: 0,
         max_ts: None,
     };
-    assert!(validate_scale_order_params(&params, step_size).is_err());
+    assert!(params.validate(step_size).is_err());
 
     // Test maximum order count
     let params = ScaleOrderParams {
         order_count: 33, // Above maximum (MAX_OPEN_ORDERS = 32)
         ..params
     };
-    assert!(validate_scale_order_params(&params, step_size).is_err());
+    assert!(params.validate(step_size).is_err());
 
     // Test valid order count
     let params = ScaleOrderParams {
         order_count: 5,
         ..params
     };
-    assert!(validate_scale_order_params(&params, step_size).is_ok());
+    assert!(params.validate(step_size).is_ok());
 }
 
 #[test]
@@ -59,7 +59,7 @@ fn test_validate_price_range() {
         bit_flags: 0,
         max_ts: None,
     };
-    assert!(validate_scale_order_params(&params, step_size).is_err());
+    assert!(params.validate(step_size).is_err());
 
     // Short orders: start_price must be < end_price (scaling up)
     let params = ScaleOrderParams {
@@ -68,7 +68,7 @@ fn test_validate_price_range() {
         end_price: 100 * PRICE_PRECISION_U64,
         ..params
     };
-    assert!(validate_scale_order_params(&params, step_size).is_err());
+    assert!(params.validate(step_size).is_err());
 
     // Valid long order (start high, end low - DCA down)
     let params = ScaleOrderParams {
@@ -77,7 +77,7 @@ fn test_validate_price_range() {
         end_price: 100 * PRICE_PRECISION_U64,
         ..params
     };
-    assert!(validate_scale_order_params(&params, step_size).is_ok());
+    assert!(params.validate(step_size).is_ok());
 
     // Valid short order (start low, end high - scale out up)
     let params = ScaleOrderParams {
@@ -86,7 +86,7 @@ fn test_validate_price_range() {
         end_price: 110 * PRICE_PRECISION_U64,
         ..params
     };
-    assert!(validate_scale_order_params(&params, step_size).is_ok());
+    assert!(params.validate(step_size).is_ok());
 }
 
 #[test]
@@ -107,7 +107,7 @@ fn test_price_distribution_long() {
         max_ts: None,
     };
 
-    let prices = calculate_price_distribution(&params).unwrap();
+    let prices = params.calculate_price_distribution().unwrap();
     assert_eq!(prices.len(), 5);
     assert_eq!(prices[0], 110 * PRICE_PRECISION_U64);
     assert_eq!(prices[1], 107500000); // 107.5
@@ -134,7 +134,7 @@ fn test_price_distribution_short() {
         max_ts: None,
     };
 
-    let prices = calculate_price_distribution(&params).unwrap();
+    let prices = params.calculate_price_distribution().unwrap();
     assert_eq!(prices.len(), 5);
     assert_eq!(prices[0], 100 * PRICE_PRECISION_U64);
     assert_eq!(prices[1], 102500000); // 102.5
@@ -163,18 +163,26 @@ fn test_flat_size_distribution() {
         max_ts: None,
     };
 
-    let sizes = calculate_size_distribution(&params, step_size).unwrap();
+    let sizes = params.calculate_size_distribution(step_size).unwrap();
     assert_eq!(sizes.len(), 5);
 
-    // All sizes should be roughly equal
+    // Total must equal the requested amount
     let total: u64 = sizes.iter().sum();
     assert_eq!(total, BASE_PRECISION_U64);
 
-    // Check that all sizes are roughly 0.2 (200_000_000)
-    for (i, size) in sizes.iter().enumerate() {
-        if i < 4 {
-            assert_eq!(*size, 200000000); // 0.2
-        }
+    // Flat distribution: each order should be 1/5 = 20% of total
+    // Expected: 200_000_000 each (0.2 BASE)
+    // First 4 orders are exactly 0.2, last order gets any remainder
+    assert_eq!(sizes[0], 200_000_000); // 20%
+    assert_eq!(sizes[1], 200_000_000); // 20%
+    assert_eq!(sizes[2], 200_000_000); // 20%
+    assert_eq!(sizes[3], 200_000_000); // 20%
+    assert_eq!(sizes[4], 200_000_000); // 20% (remainder goes here if any)
+
+    // Verify each order is exactly 20% of total
+    for size in &sizes {
+        let pct = (*size as f64) / (BASE_PRECISION_U64 as f64) * 100.0;
+        assert!((pct - 20.0).abs() < 0.1, "Expected ~20%, got {}%", pct);
     }
 }
 
@@ -198,18 +206,41 @@ fn test_ascending_size_distribution() {
         max_ts: None,
     };
 
-    let sizes = calculate_size_distribution(&params, step_size).unwrap();
+    let sizes = params.calculate_size_distribution(step_size).unwrap();
     assert_eq!(sizes.len(), 5);
 
-    // Ascending: first should be smallest, last should be largest
-    assert!(sizes[0] < sizes[4]);
-    assert!(sizes[0] <= sizes[1]);
-    assert!(sizes[1] <= sizes[2]);
-    assert!(sizes[2] <= sizes[3]);
-    assert!(sizes[3] <= sizes[4]);
-
+    // Total must equal the requested amount
     let total: u64 = sizes.iter().sum();
     assert_eq!(total, BASE_PRECISION_U64);
+
+    // Ascending distribution uses multipliers: 1x, 1.5x, 2x, 2.5x, 3x
+    // Scaled by 2 for precision: 2, 3, 4, 5, 6 (sum = 20)
+    // Expected proportions: 10%, 15%, 20%, 25%, 30%
+    // For 1_000_000_000 total: 100M, 150M, 200M, 250M, 300M
+    assert_eq!(sizes[0], 100_000_000); // 10% - smallest
+    assert_eq!(sizes[1], 150_000_000); // 15%
+    assert_eq!(sizes[2], 200_000_000); // 20%
+    assert_eq!(sizes[3], 250_000_000); // 25%
+    assert_eq!(sizes[4], 300_000_000); // 30% - largest
+
+    // Verify ascending order: each subsequent order is larger
+    assert!(sizes[0] < sizes[1]);
+    assert!(sizes[1] < sizes[2]);
+    assert!(sizes[2] < sizes[3]);
+    assert!(sizes[3] < sizes[4]);
+
+    // Verify the proportions are correct (within 1% tolerance for rounding)
+    let expected_pcts = [10.0, 15.0, 20.0, 25.0, 30.0];
+    for (i, (size, expected_pct)) in sizes.iter().zip(expected_pcts.iter()).enumerate() {
+        let actual_pct = (*size as f64) / (BASE_PRECISION_U64 as f64) * 100.0;
+        assert!(
+            (actual_pct - expected_pct).abs() < 1.0,
+            "Order {}: expected ~{}%, got {}%",
+            i,
+            expected_pct,
+            actual_pct
+        );
+    }
 }
 
 #[test]
@@ -232,18 +263,126 @@ fn test_descending_size_distribution() {
         max_ts: None,
     };
 
-    let sizes = calculate_size_distribution(&params, step_size).unwrap();
+    let sizes = params.calculate_size_distribution(step_size).unwrap();
     assert_eq!(sizes.len(), 5);
 
-    // Descending: first should be largest, last should be smallest
-    assert!(sizes[0] > sizes[4]);
-    assert!(sizes[0] >= sizes[1]);
-    assert!(sizes[1] >= sizes[2]);
-    assert!(sizes[2] >= sizes[3]);
-    assert!(sizes[3] >= sizes[4]);
-
+    // Total must equal the requested amount
     let total: u64 = sizes.iter().sum();
     assert_eq!(total, BASE_PRECISION_U64);
+
+    // Descending distribution is reverse of ascending
+    // Multipliers (reversed): 3x, 2.5x, 2x, 1.5x, 1x
+    // Expected proportions: 30%, 25%, 20%, 15%, 10%
+    // For 1_000_000_000 total: 300M, 250M, 200M, 150M, 100M
+    assert_eq!(sizes[0], 300_000_000); // 30% - largest
+    assert_eq!(sizes[1], 250_000_000); // 25%
+    assert_eq!(sizes[2], 200_000_000); // 20%
+    assert_eq!(sizes[3], 150_000_000); // 15%
+    assert_eq!(sizes[4], 100_000_000); // 10% - smallest
+
+    // Verify descending order: each subsequent order is smaller
+    assert!(sizes[0] > sizes[1]);
+    assert!(sizes[1] > sizes[2]);
+    assert!(sizes[2] > sizes[3]);
+    assert!(sizes[3] > sizes[4]);
+
+    // Verify the proportions are correct (within 1% tolerance for rounding)
+    let expected_pcts = [30.0, 25.0, 20.0, 15.0, 10.0];
+    for (i, (size, expected_pct)) in sizes.iter().zip(expected_pcts.iter()).enumerate() {
+        let actual_pct = (*size as f64) / (BASE_PRECISION_U64 as f64) * 100.0;
+        assert!(
+            (actual_pct - expected_pct).abs() < 1.0,
+            "Order {}: expected ~{}%, got {}%",
+            i,
+            expected_pct,
+            actual_pct
+        );
+    }
+}
+
+#[test]
+fn test_ascending_size_distribution_3_orders() {
+    // Test with different order count to verify formula works correctly
+    let step_size = BASE_PRECISION_U64 / 1000; // 0.001
+
+    let params = ScaleOrderParams {
+        market_type: MarketType::Perp,
+        direction: PositionDirection::Long,
+        market_index: 0,
+        total_base_asset_amount: BASE_PRECISION_U64, // 1.0
+        start_price: 110 * PRICE_PRECISION_U64,
+        end_price: 100 * PRICE_PRECISION_U64,
+        order_count: 3,
+        size_distribution: SizeDistribution::Ascending,
+        reduce_only: false,
+        post_only: PostOnlyParam::None,
+        bit_flags: 0,
+        max_ts: None,
+    };
+
+    let sizes = params.calculate_size_distribution(step_size).unwrap();
+    assert_eq!(sizes.len(), 3);
+
+    // Total must equal the requested amount
+    let total: u64 = sizes.iter().sum();
+    assert_eq!(total, BASE_PRECISION_U64);
+
+    // For 3 orders: multiplier_sum = n*(n+3)/2 = 3*6/2 = 9
+    // Multipliers (scaled by 2): 2, 3, 4
+    // Expected proportions: 2/9 ≈ 22.2%, 3/9 ≈ 33.3%, 4/9 ≈ 44.4%
+    let expected_pcts = [22.22, 33.33, 44.44];
+    for (i, (size, expected_pct)) in sizes.iter().zip(expected_pcts.iter()).enumerate() {
+        let actual_pct = (*size as f64) / (BASE_PRECISION_U64 as f64) * 100.0;
+        assert!(
+            (actual_pct - expected_pct).abs() < 1.0,
+            "Order {}: expected ~{}%, got {}%",
+            i,
+            expected_pct,
+            actual_pct
+        );
+    }
+
+    // Verify ascending order
+    assert!(sizes[0] < sizes[1]);
+    assert!(sizes[1] < sizes[2]);
+}
+
+#[test]
+fn test_flat_distribution_with_remainder() {
+    // Test flat distribution where total doesn't divide evenly
+    let step_size = BASE_PRECISION_U64 / 1000; // 0.001
+
+    let params = ScaleOrderParams {
+        market_type: MarketType::Perp,
+        direction: PositionDirection::Long,
+        market_index: 0,
+        total_base_asset_amount: BASE_PRECISION_U64, // 1.0
+        start_price: 110 * PRICE_PRECISION_U64,
+        end_price: 100 * PRICE_PRECISION_U64,
+        order_count: 3, // 1.0 / 3 doesn't divide evenly
+        size_distribution: SizeDistribution::Flat,
+        reduce_only: false,
+        post_only: PostOnlyParam::None,
+        bit_flags: 0,
+        max_ts: None,
+    };
+
+    let sizes = params.calculate_size_distribution(step_size).unwrap();
+    assert_eq!(sizes.len(), 3);
+
+    // Total must still equal exactly the requested amount
+    let total: u64 = sizes.iter().sum();
+    assert_eq!(total, BASE_PRECISION_U64);
+
+    // Each order should be ~33.3%, with remainder going to last order
+    // step_size = 1_000_000 (0.001)
+    // base_size = 1_000_000_000 / 3 = 333_333_333
+    // rounded_size = (333_333_333 / 1_000_000) * 1_000_000 = 333_000_000
+    // First two orders: 333_000_000 each
+    // Last order: 1_000_000_000 - 2*333_000_000 = 334_000_000
+    assert_eq!(sizes[0], 333_000_000);
+    assert_eq!(sizes[1], 333_000_000);
+    assert_eq!(sizes[2], 334_000_000); // Gets the remainder
 }
 
 #[test]
@@ -266,7 +405,7 @@ fn test_expand_to_order_params_perp() {
         max_ts: Some(12345),
     };
 
-    let order_params = expand_scale_order_params(&params, step_size).unwrap();
+    let order_params = params.expand_to_order_params(step_size).unwrap();
     assert_eq!(order_params.len(), 3);
 
     // Check first order has bit flags
@@ -315,7 +454,7 @@ fn test_expand_to_order_params_spot() {
         max_ts: None,
     };
 
-    let order_params = expand_scale_order_params(&params, step_size).unwrap();
+    let order_params = params.expand_to_order_params(step_size).unwrap();
     assert_eq!(order_params.len(), 3);
 
     // Check all orders are Spot market type
@@ -355,7 +494,7 @@ fn test_spot_short_scale_orders() {
         max_ts: Some(99999),
     };
 
-    let order_params = expand_scale_order_params(&params, step_size).unwrap();
+    let order_params = params.expand_to_order_params(step_size).unwrap();
     assert_eq!(order_params.len(), 4);
 
     // Check all orders are Spot market type and Short direction
@@ -398,7 +537,7 @@ fn test_two_orders_price_distribution() {
         max_ts: None,
     };
 
-    let prices = calculate_price_distribution(&params).unwrap();
+    let prices = params.calculate_price_distribution().unwrap();
     assert_eq!(prices.len(), 2);
     assert_eq!(prices[0], 110 * PRICE_PRECISION_U64);
     assert_eq!(prices[1], 100 * PRICE_PRECISION_U64);
@@ -425,5 +564,5 @@ fn test_validate_min_total_size() {
         max_ts: None,
     };
 
-    assert!(validate_scale_order_params(&params, step_size).is_err());
+    assert!(params.validate(step_size).is_err());
 }

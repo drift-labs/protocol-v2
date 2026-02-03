@@ -78,9 +78,10 @@ use crate::state::margin_calculation::MarginContext;
 use crate::state::oracle::StrictOraclePrice;
 use crate::state::order_params::{
     parse_optional_params, ModifyOrderParams, OrderParams, PlaceAndTakeOrderSuccessCondition,
-    PlaceOrderOptions, PostOnlyParam, ScaleOrderParams,
+    PlaceOrderOptions, PostOnlyParam,
 };
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
+use crate::state::scale_order_params::ScaleOrderParams;
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::protected_maker_mode_config::ProtectedMakerModeConfig;
@@ -2649,7 +2650,7 @@ fn place_orders_impl<'c: 'info, 'info>(
                 }
             };
 
-            let expanded = controller::scale_orders::expand_scale_order_params(&scale_params, order_step_size)
+            let expanded = scale_params.expand_to_order_params(order_step_size)
                 .map_err(|e| {
                     msg!("Failed to expand scale order params: {:?}", e);
                     ErrorCode::InvalidOrder
@@ -2668,7 +2669,7 @@ fn place_orders_impl<'c: 'info, 'info>(
     let mut user = load_mut!(ctx.accounts.user)?;
 
     // Validate that user won't exceed max open orders
-    controller::scale_orders::validate_user_can_place_scale_orders(&user, order_params.len() as u8)?;
+    ScaleOrderParams::validate_user_order_count(&user, order_params.len() as u8)?;
 
     let num_orders = order_params.len();
     for (i, params) in order_params.iter().enumerate() {
