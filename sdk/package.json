@@ -56,7 +56,7 @@
 		"@solana/web3.js": "1.98.0",
 		"@switchboard-xyz/common": "3.0.14",
 		"@switchboard-xyz/on-demand": "2.4.1",
-		"@triton-one/yellowstone-grpc": "1.4.1",
+		"@triton-one/yellowstone-grpc": "5.0.2",
 		"anchor-bankrun": "0.3.0",
 		"gill": "^0.10.2",
 		"nanoid": "3.3.4",

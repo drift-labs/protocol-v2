@@ -42,10 +42,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - program: isolated positions [#1757](https://github.com/drift-labs/protocol-v2/pull/1757)
 - program: delete serum/openbook configs [#2066](https://github.com/drift-labs/protocol-v2/pull/2066)
+- sdk: update yellowstone-grpc to rust client [#2070](https://github.com/drift-labs/protocol-v2/pull/2070)
 
 ### Fixes
 
 ### Breaking
+- sdk: `channelOptions` in the GrpcConfigs type has been updated to work with new grpc lib
 
 ## [2.153.0] - 2025-12-30
 
