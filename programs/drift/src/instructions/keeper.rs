@@ -2905,13 +2905,19 @@ pub fn handle_update_amms<'c: 'info, 'info>(
     let state = &ctx.accounts.state;
 
     let remaining_accounts_iter = &mut ctx.remaining_accounts.iter().peekable();
-    let oracle_map = &mut OracleMap::load(remaining_accounts_iter, clock.slot, None)?;
-    let market_map = &mut PerpMarketMap::load(
-        &get_market_set_from_list(market_indexes),
+    let AccountMaps {
+        mut perp_market_map,
+        mut oracle_map,
+        ..
+    } = load_maps(
         remaining_accounts_iter,
+        &get_market_set_from_list(market_indexes),
+        &MarketSet::new(),
+        clock.slot,
+        Some(state.oracle_guard_rails),
     )?;
 
-    controller::repeg::update_amms(market_map, oracle_map, state, &clock)?;
+    controller::repeg::update_amms(&mut perp_market_map, &mut oracle_map, state, &clock)?;
 
     Ok(())
 }

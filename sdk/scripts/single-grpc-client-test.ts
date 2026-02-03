@@ -48,9 +48,7 @@ async function initializeSingleGrpcClient() {
 	const allPerpMarketProgramAccounts =
 		(await program.account.perpMarket.all()) as ProgramAccount<PerpMarketAccount>[];
 	const perpMarketProgramAccounts = allPerpMarketProgramAccounts.filter((val) =>
-		[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].includes(
-			val.account.marketIndex
-		)
+		[46].includes(val.account.marketIndex)
 	);
 	const perpMarketIndexes = perpMarketProgramAccounts.map(
 		(val) => val.account.marketIndex
@@ -60,7 +58,7 @@ async function initializeSingleGrpcClient() {
 	const allSpotMarketProgramAccounts =
 		(await program.account.spotMarket.all()) as ProgramAccount<SpotMarketAccount>[];
 	const spotMarketProgramAccounts = allSpotMarketProgramAccounts.filter((val) =>
-		[0, 1, 2, 3, 4, 5].includes(val.account.marketIndex)
+		[0].includes(val.account.marketIndex)
 	);
 	const spotMarketIndexes = spotMarketProgramAccounts.map(
 		(val) => val.account.marketIndex
@@ -181,6 +179,10 @@ async function initializeSingleGrpcClient() {
 			// Test getPerpMarketAccount for each perp market (50 times per second per market)
 			for (const marketIndex of perpMarketIndexes) {
 				const perpMarketAccount = client.getPerpMarketAccount(marketIndex);
+				if (!perpMarketAccount) {
+					console.log(`Perp market ${marketIndex} not found`);
+					continue;
+				}
 				console.log(
 					'perpMarketAccount name: ',
 					decodeName(perpMarketAccount.name)
@@ -212,6 +214,34 @@ async function initializeSingleGrpcClient() {
 					);
 				} catch (error) {
 					// Ignore errors for load testing
+				}
+			}
+
+			for (const marketIndex of perpMarketIndexes) {
+				try {
+					const { data, slot } =
+						client.accountSubscriber.getMarketAccountAndSlot(marketIndex);
+					if (!data) {
+						console.log(
+							`Perp market getMarketAccountAndSlot ${marketIndex} not found`
+						);
+						continue;
+					}
+					console.log(
+						'marketAccountAndSlot: ',
+						JSON.stringify({
+							marketIndex: data.marketIndex,
+							name: decodeName(data.name),
+							slot: slot?.toString(),
+							baseAssetReserve: data.amm.baseAssetReserve.toString(),
+							quoteAssetReserve: data.amm.quoteAssetReserve.toString(),
+						})
+					);
+				} catch (error) {
+					console.error(
+						`Error getting market account and slot for market ${marketIndex}:`,
+						error
+					);
 				}
 			}
 		} catch (error) {

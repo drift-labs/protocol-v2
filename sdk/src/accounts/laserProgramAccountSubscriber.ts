@@ -6,12 +6,13 @@ import { WebSocketProgramAccountSubscriber } from './webSocketProgramAccountSubs
 
 import {
 	LaserCommitmentLevel,
-	LaserSubscribe,
 	LaserstreamConfig,
 	LaserSubscribeRequest,
 	LaserSubscribeUpdate,
-	CompressionAlgorithms,
 	CommitmentLevel,
+	getLaserSubscribe,
+	getLaserCompressionAlgorithms,
+	getLaserCommitmentLevel,
 } from '../isomorphic/grpc';
 
 type LaserCommitment =
@@ -32,10 +33,12 @@ export class LaserstreamProgramAccountSubscriber<
 	public listenerId?: number;
 
 	private readonly laserConfig: LaserstreamConfig;
+	private readonly laserCommitmentLevel: typeof LaserCommitmentLevel;
 
 	private constructor(
 		laserConfig: LaserstreamConfig,
 		commitmentLevel: CommitmentLevel,
+		laserCommitmentLevel: typeof LaserCommitmentLevel,
 		subscriptionName: string,
 		accountDiscriminator: string,
 		program: Program,
@@ -52,6 +55,7 @@ export class LaserstreamProgramAccountSubscriber<
 			resubOpts
 		);
 		this.laserConfig = laserConfig;
+		this.laserCommitmentLevel = laserCommitmentLevel;
 		this.commitmentLevel = this.toLaserCommitment(commitmentLevel);
 	}
 
@@ -66,17 +70,20 @@ export class LaserstreamProgramAccountSubscriber<
 		},
 		resubOpts?: ResubOpts
 	): Promise<LaserstreamProgramAccountSubscriber<U>> {
-		const channelOptions = {
-			'grpc.default_compression_algorithm': CompressionAlgorithms.zstd,
-			'grpc.max_receive_message_length': 1_000_000_000,
-			...(grpcConfigs.channelOptions ?? {}),
-		};
+		// Load enums from the optional helius-laserstream module
+		const [compressionAlgorithms, laserCommitmentLevel] = await Promise.all([
+			getLaserCompressionAlgorithms(),
+			getLaserCommitmentLevel(),
+		]);
 
 		const laserConfig: LaserstreamConfig = {
 			apiKey: grpcConfigs.token,
 			endpoint: grpcConfigs.endpoint,
 			maxReconnectAttempts: grpcConfigs.enableReconnect ? 10 : 0,
-			channelOptions,
+			channelOptions: {
+				'grpc.default_compression_algorithm': compressionAlgorithms.zstd,
+				'grpc.max_receive_message_length': 1_000_000_000,
+			},
 		};
 
 		const commitmentLevel =
@@ -85,6 +92,7 @@ export class LaserstreamProgramAccountSubscriber<
 		return new LaserstreamProgramAccountSubscriber<U>(
 			laserConfig,
 			commitmentLevel,
+			laserCommitmentLevel,
 			subscriptionName,
 			accountDiscriminator,
 			program,
@@ -134,7 +142,10 @@ export class LaserstreamProgramAccountSubscriber<
 		};
 
 		try {
-			const stream = await LaserSubscribe(
+			// Dynamically load LaserSubscribe from the optional helius-laserstream module
+			const laserSubscribe = await getLaserSubscribe();
+
+			const stream = await laserSubscribe(
 				this.laserConfig,
 				request,
 				async (update: LaserSubscribeUpdate) => {
@@ -209,10 +220,10 @@ export class LaserstreamProgramAccountSubscriber<
 	): LaserCommitment {
 		if (typeof level === 'string') {
 			return (
-				(LaserCommitmentLevel as any)[level.toUpperCase()] ??
-				LaserCommitmentLevel.CONFIRMED
+				(this.laserCommitmentLevel as any)[level.toUpperCase()] ??
+				this.laserCommitmentLevel.CONFIRMED
 			);
 		}
-		return (level as LaserCommitment) ?? LaserCommitmentLevel.CONFIRMED;
+		return (level as LaserCommitment) ?? this.laserCommitmentLevel.CONFIRMED;
 	}
 }

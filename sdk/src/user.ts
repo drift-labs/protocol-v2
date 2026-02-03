@@ -504,8 +504,9 @@ export class User {
 			  )
 			: ZERO;
 
-		let freeCollateral: BN;
-		if (positionType === 'isolated' && this.isPositionEmpty(perpPosition)) {
+		// if position is isolated, we always add on available quote from the cross account
+		let freeCollateral: BN = ZERO;
+		if (positionType === 'isolated') {
 			const {
 				totalAssetValue: quoteSpotMarketAssetValue,
 				totalLiabilityValue: quoteSpotMarketLiabilityValue,
@@ -517,14 +518,24 @@ export class User {
 				true
 			);
 
-			freeCollateral = quoteSpotMarketAssetValue.sub(
+			const usdcAvailableForIsolatedMargin = quoteSpotMarketAssetValue.sub(
 				quoteSpotMarketLiabilityValue
 			);
+			const generalFreeCollateral = this.getFreeCollateral(
+				'Initial',
+				enterHighLeverageMode,
+				undefined
+			);
+			freeCollateral = BN.min(
+				usdcAvailableForIsolatedMargin,
+				generalFreeCollateral
+			).sub(collateralBuffer);
 		} else {
+			// free collateral from the cross account only
 			freeCollateral = this.getFreeCollateral(
 				'Initial',
 				enterHighLeverageMode,
-				positionType === 'isolated' ? marketIndex : undefined
+				undefined
 			).sub(collateralBuffer);
 		}
 
@@ -574,7 +585,12 @@ export class User {
 		});
 
 		if (perpMarketIndex !== undefined) {
-			return calc.getIsolatedFreeCollateral(perpMarketIndex);
+			// getIsolatedFreeCollateral will throw if no existing isolated position but we are fetching for potential new position, so we wrap in a try/catch
+			try {
+				return calc.getIsolatedFreeCollateral(perpMarketIndex);
+			} catch (error) {
+				return ZERO;
+			}
 		} else {
 			return calc.getCrossFreeCollateral();
 		}
@@ -1343,10 +1359,10 @@ export class User {
 
 		const marginCalc = this.getMarginCalculation('Maintenance');
 
-		let totalCollateral: BN;
-		let maintenanceMarginReq: BN;
+		let totalCollateral: BN = ZERO;
+		let maintenanceMarginReq: BN = ZERO;
 
-		if (perpMarketIndex) {
+		if (perpMarketIndex != null) {
 			const isolatedMarginCalc =
 				marginCalc.isolatedMarginCalculations.get(perpMarketIndex);
 			if (isolatedMarginCalc) {
@@ -2363,7 +2379,7 @@ export class User {
 				enteringHighLeverage
 			);
 
-			if (freeCollateralDelta.eq(ZERO)) {
+			if (!freeCollateralDelta || freeCollateralDelta.eq(ZERO)) {
 				return new BN(-1);
 			}
 

@@ -11,11 +11,7 @@ import {
 	JupiterClient,
 	QuoteResponse as JupiterQuoteResponse,
 } from '../jupiter/jupiterClient';
-import {
-	TitanClient,
-	QuoteResponse as TitanQuoteResponse,
-	SwapMode as TitanSwapMode,
-} from '../titan/titanClient';
+import { TitanClient, SwapMode as TitanSwapMode } from '../titan/titanClient';
 
 export type SwapMode = 'ExactIn' | 'ExactOut';
 export type SwapClientType = 'jupiter' | 'titan';
@@ -77,6 +73,14 @@ export class UnifiedSwapClient {
 	private client: JupiterClient | TitanClient;
 	private clientType: SwapClientType;
 
+	/**
+	 * Create a unified swap client
+	 * @param clientType - 'jupiter' or 'titan'
+	 * @param connection - Solana connection
+	 * @param authToken - For Titan: auth token (required when not using proxy). For Jupiter: API key (required for api.jup.ag, get free key at https://portal.jup.ag)
+	 * @param url - Optional custom URL
+	 * @param proxyUrl - Optional proxy URL for Titan
+	 */
 	constructor({
 		clientType,
 		connection,
@@ -86,7 +90,7 @@ export class UnifiedSwapClient {
 	}: {
 		clientType: SwapClientType;
 		connection: Connection;
-		authToken?: string; // Required for Titan when not using proxy, optional for Jupiter
+		authToken?: string; // For Titan: auth token. For Jupiter: API key (required for api.jup.ag)
 		url?: string; // Optional custom URL
 		proxyUrl?: string; // Optional proxy URL for Titan
 	}) {
@@ -96,6 +100,7 @@ export class UnifiedSwapClient {
 			this.client = new JupiterClient({
 				connection,
 				url,
+				apiKey: authToken,
 			});
 		} else if (clientType === 'titan') {
 			this.client = new TitanClient({
@@ -167,18 +172,11 @@ export class UnifiedSwapClient {
 			return { transaction };
 		} else {
 			const titanClient = this.client as TitanClient;
-			const { quote, userPublicKey, slippageBps } = params;
+			const { userPublicKey } = params;
 
 			// For Titan, we need to reconstruct the parameters from the quote
-			const titanQuote = quote as TitanQuoteResponse;
 			const result = await titanClient.getSwap({
-				inputMint: new PublicKey(titanQuote.inputMint),
-				outputMint: new PublicKey(titanQuote.outputMint),
-				amount: new BN(titanQuote.inAmount),
 				userPublicKey,
-				slippageBps: slippageBps || titanQuote.slippageBps,
-				swapMode: titanQuote.swapMode,
-				sizeConstraint: 1280 - 375, // MAX_TX_BYTE_SIZE - buffer for drift instructions
 			});
 
 			return {

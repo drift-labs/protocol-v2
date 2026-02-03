@@ -911,10 +911,12 @@ impl PerpMarket {
         mm_oracle_price_data: &MMOraclePriceData,
     ) -> DriftResult<bool> {
         if self.is_operation_paused(PerpOperation::AmmFill) {
+            msg!("AMM cannot fill order: AMM fill operation is paused");
             return Ok(false);
         }
 
         if self.has_too_much_drawdown()? {
+            msg!("AMM cannot fill order: has too much drawdown");
             return Ok(false);
         }
 
@@ -964,15 +966,29 @@ impl PerpMarket {
                 return Ok(false);
             }
             let amm_wants_to_jit_make = self.amm.amm_wants_to_jit_make(order.direction)?;
+            if !amm_wants_to_jit_make {
+                msg!("AMM cannot fill order: AMM does not want to JIT make");
+                return Ok(false);
+            }
+
             let amm_has_low_enough_inventory = self
                 .amm
                 .amm_has_low_enough_inventory(amm_wants_to_jit_make)?;
+
+            if !amm_has_low_enough_inventory {
+                msg!("AMM cannot fill order: AMM has too much inventory");
+                return Ok(false);
+            }
+
             let amm_can_skip_duration =
                 self.can_skip_auction_duration(&state, amm_has_low_enough_inventory)?;
 
-            amm_can_skip_duration
-                && oracle_valid_for_can_fill_immediately
-                && user_can_skip_auction_duration
+            if !amm_can_skip_duration {
+                msg!("AMM cannot fill order: AMM cannot skip duration");
+                return Ok(false);
+            }
+
+            true
         };
 
         Ok(can_fill_order)

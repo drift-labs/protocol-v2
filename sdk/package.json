@@ -1,6 +1,6 @@
 {
 	"name": "@drift-labs/sdk",
-	"version": "2.155.0-beta.2",
+	"version": "2.157.0-beta.2",
 	"main": "lib/node/index.js",
 	"types": "lib/node/index.d.ts",
 	"module": "./lib/browser/index.js",
@@ -51,7 +51,7 @@
 		"@project-serum/serum": "0.13.65",
 		"@pythnetwork/client": "2.5.3",
 		"@pythnetwork/price-service-sdk": "1.7.1",
-		"@pythnetwork/pyth-solana-receiver": "0.7.0",
+		"@pythnetwork/pyth-lazer-sdk": "5.2.1",
 		"@solana/spl-token": "0.4.13",
 		"@solana/web3.js": "1.98.0",
 		"@switchboard-xyz/common": "3.0.14",
@@ -59,10 +59,8 @@
 		"@triton-one/yellowstone-grpc": "5.0.2",
 		"anchor-bankrun": "0.3.0",
 		"gill": "^0.10.2",
-		"helius-laserstream": "0.1.8",
 		"nanoid": "3.3.4",
 		"node-cache": "5.1.2",
-		"rpc-websockets": "7.5.1",
 		"solana-bankrun": "0.3.1",
 		"strict-event-emitter-types": "2.0.0",
 		"tweetnacl": "1.0.3",
@@ -71,6 +69,9 @@
 		"yargs": "17.7.2",
 		"zod": "4.0.17",
 		"zstddec": "0.1.0"
+	},
+	"optionalDependencies": {
+		"helius-laserstream": "0.1.8"
 	},
 	"devDependencies": {
 		"@types/big.js": "6.2.2",
@@ -104,7 +105,7 @@
 	},
 	"description": "SDK for Drift Protocol",
 	"engines": {
-		"node": ">=22.14.0"
+		"node": "^24.0.0"
 	},
 	"resolutions": {
 		"@solana/web3.js": "1.98.0",
@@ -150,9 +151,9 @@
 		"has-ansi": "<6.0.1"
 	},
 	"browser": {
-		"helius-laserstream": false,
-		"@triton-one/yellowstone-grpc": false,
 		"@grpc/grpc-js": false,
+		"@triton-one/yellowstone-grpc": false,
+		"helius-laserstream": false,
 		"zstddec": false
 	}
 }
