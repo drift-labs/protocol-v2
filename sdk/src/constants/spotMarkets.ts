@@ -950,7 +950,7 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		symbol: 'syrupUSDC',
 		marketIndex: 57,
 		poolId: 0,
-		oracle: new PublicKey('GqqkoqHU5pqgTvL88xSCipH9txbPETyzvAvybQ3zRpzw'),
+		oracle: new PublicKey('6cvX4Sgcuw53y8yYXLcpAjZ7fn1VcLKojVS23tor9sVx'),
 		oracleSource: OracleSource.PYTH_LAZER,
 		mint: new PublicKey('AvZZF1YaZDziPY2RCK4oJrRVrbN3mTD9NL24hPeaZeUj'),
 		precision: new BN(10).pow(SIX),
