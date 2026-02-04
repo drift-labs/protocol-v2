@@ -5,7 +5,6 @@ import * as Buffer from 'buffer';
 import { WebSocketProgramAccountSubscriber } from './webSocketProgramAccountSubscriber';
 import {
 	Client,
-	ClientDuplexStream,
 	CommitmentLevel,
 	createClient,
 	SubscribeRequest,
@@ -16,7 +15,7 @@ export class grpcProgramAccountSubscriber<
 	T,
 > extends WebSocketProgramAccountSubscriber<T> {
 	private client: Client;
-	private stream: Awaited<ReturnType<Client["subscribe"]>>;;
+	private stream: Awaited<ReturnType<Client["subscribe"]>>;
 	private commitmentLevel: CommitmentLevel;
 	public listenerId?: number;
 
@@ -91,7 +90,7 @@ export class grpcProgramAccountSubscriber<
 		this.onChange = onChange;
 
 		// Subscribe with grpc
-		this.stream = await this.client.subscribe()
+		this.stream = await this.client.subscribe();
 
 		const filters = this.options.filters.map((filter) => {
 			return {
