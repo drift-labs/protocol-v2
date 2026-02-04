@@ -15,7 +15,7 @@ export class grpcProgramAccountSubscriber<
 	T,
 > extends WebSocketProgramAccountSubscriber<T> {
 	private client: Client;
-	private stream: Awaited<ReturnType<Client["subscribe"]>>;
+	private stream: Awaited<ReturnType<Client['subscribe']>>;
 	private commitmentLevel: CommitmentLevel;
 	public listenerId?: number;
 
