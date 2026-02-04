@@ -94,14 +94,16 @@ export class grpcProgramAccountSubscriber<
 		// Subscribe with grpc
 		this.stream =
 			(await this.client.subscribe()) as unknown as typeof this.stream;
+
 		const filters = this.options.filters.map((filter) => {
 			return {
 				memcmp: {
 					offset: filter.memcmp.offset.toString(),
-					bytes: bs58.decode(filter.memcmp.bytes),
+					base58: filter.memcmp.bytes,
 				},
 			};
 		});
+
 		const request: SubscribeRequest = {
 			slots: {},
 			accounts: {
