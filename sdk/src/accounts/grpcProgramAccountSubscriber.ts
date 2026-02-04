@@ -1,6 +1,5 @@
 import { ResubOpts, GrpcConfigs } from './types';
 import { Program } from '@coral-xyz/anchor';
-import bs58 from 'bs58';
 import { Context, MemcmpFilter, PublicKey } from '@solana/web3.js';
 import * as Buffer from 'buffer';
 import { WebSocketProgramAccountSubscriber } from './webSocketProgramAccountSubscriber';
