@@ -2601,7 +2601,27 @@ pub fn handle_modify_order_by_user_order_id<'c: 'info, 'info>(
     Ok(())
 }
 
-/// Input for place_orders_impl - either direct OrderParams or ScaleOrderParams to expand
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_place_orders<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, PlaceOrder>,
+    params: Vec<OrderParams>,
+) -> Result<()> {
+    place_orders(&ctx, PlaceOrdersInput::Orders(params))
+}
+
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_place_scale_orders<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, PlaceOrder>,
+    params: ScaleOrderParams,
+) -> Result<()> {
+    place_orders(&ctx, PlaceOrdersInput::ScaleOrders(params))
+}
+
+/// Input for place_orders - either direct OrderParams or ScaleOrderParams to expand
 enum PlaceOrdersInput {
     Orders(Vec<OrderParams>),
     ScaleOrders(ScaleOrderParams),
@@ -2609,7 +2629,7 @@ enum PlaceOrdersInput {
 
 /// Internal implementation for placing multiple orders.
 /// Used by both handle_place_orders and handle_place_scale_orders.
-fn place_orders_impl<'c: 'info, 'info>(
+fn place_orders<'c: 'info, 'info>(
     ctx: &Context<'_, '_, 'c, 'info, PlaceOrder>,
     input: PlaceOrdersInput,
 ) -> Result<()> {
@@ -2632,30 +2652,25 @@ fn place_orders_impl<'c: 'info, 'info>(
     let high_leverage_mode_config = get_high_leverage_mode_config(&mut remaining_accounts)?;
 
     // Convert input to order params, expanding scale orders if needed
-    let (order_params, validate_ioc) = match input {
-        PlaceOrdersInput::Orders(params) => (params, true),
+    let order_params = match input {
+        PlaceOrdersInput::Orders(params) => params,
         PlaceOrdersInput::ScaleOrders(scale_params) => {
             let order_step_size = match scale_params.market_type {
                 MarketType::Perp => {
                     let market = perp_market_map.get_ref(&scale_params.market_index)?;
-                    let step_size = market.amm.order_step_size;
-                    drop(market);
-                    step_size
+                    market.amm.order_step_size
                 }
                 MarketType::Spot => {
                     let market = spot_market_map.get_ref(&scale_params.market_index)?;
-                    let step_size = market.order_step_size;
-                    drop(market);
-                    step_size
+                    market.order_step_size
                 }
             };
 
-            let expanded = scale_params.expand_to_order_params(order_step_size)
+            scale_params.expand_to_order_params(order_step_size)
                 .map_err(|e| {
                     msg!("Failed to expand scale order params: {:?}", e);
                     ErrorCode::InvalidOrder
-                })?;
-            (expanded, false)
+                })?
         }
     };
 
@@ -2668,18 +2683,13 @@ fn place_orders_impl<'c: 'info, 'info>(
     let user_key = ctx.accounts.user.key();
     let mut user = load_mut!(ctx.accounts.user)?;
 
-    // Validate that user won't exceed max open orders
-    ScaleOrderParams::validate_user_order_count(&user, order_params.len() as u8)?;
-
     let num_orders = order_params.len();
     for (i, params) in order_params.iter().enumerate() {
-        if validate_ioc {
-            validate!(
-                !params.is_immediate_or_cancel(),
-                ErrorCode::InvalidOrderIOC,
-                "immediate_or_cancel order must be in place_and_make or place_and_take"
-            )?;
-        }
+        validate!(
+            !params.is_immediate_or_cancel(),
+            ErrorCode::InvalidOrderIOC,
+            "immediate_or_cancel order must be in place_and_make or place_and_take"
+        )?;
 
         // only enforce margin on last order and only try to expire on first order
         let options = PlaceOrderOptions {
@@ -2721,26 +2731,6 @@ fn place_orders_impl<'c: 'info, 'info>(
     }
 
     Ok(())
-}
-
-#[access_control(
-    exchange_not_paused(&ctx.accounts.state)
-)]
-pub fn handle_place_orders<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, PlaceOrder>,
-    params: Vec<OrderParams>,
-) -> Result<()> {
-    place_orders_impl(&ctx, PlaceOrdersInput::Orders(params))
-}
-
-#[access_control(
-    exchange_not_paused(&ctx.accounts.state)
-)]
-pub fn handle_place_scale_orders<'c: 'info, 'info>(
-    ctx: Context<'_, '_, 'c, 'info, PlaceOrder>,
-    params: ScaleOrderParams,
-) -> Result<()> {
-    place_orders_impl(&ctx, PlaceOrdersInput::ScaleOrders(params))
 }
 
 #[access_control(

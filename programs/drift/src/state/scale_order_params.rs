@@ -3,10 +3,9 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::constants::MAX_OPEN_ORDERS;
 use crate::math::safe_math::SafeMath;
 use crate::state::order_params::{OrderParams, PostOnlyParam};
-use crate::state::user::{MarketType, OrderStatus, OrderTriggerCondition, OrderType, User};
+use crate::state::user::{MarketType, OrderTriggerCondition, OrderType};
 use crate::validate;
 use anchor_lang::prelude::*;
-use solana_program::msg;
 
 #[cfg(test)]
 mod tests;
@@ -55,30 +54,6 @@ pub struct ScaleOrderParams {
 }
 
 impl ScaleOrderParams {
-    /// Validates that placing scale orders won't exceed user's max open orders
-    pub fn validate_user_order_count(user: &User, order_count: u8) -> DriftResult<()> {
-        let current_open_orders = user
-            .orders
-            .iter()
-            .filter(|o| o.status == OrderStatus::Open)
-            .count() as u8;
-
-        let total_after = current_open_orders.saturating_add(order_count);
-
-        validate!(
-            total_after <= MAX_OPEN_ORDERS,
-            ErrorCode::MaxNumberOfOrders,
-            "placing {} scale orders would exceed max open orders ({} current + {} new = {} > {} max)",
-            order_count,
-            current_open_orders,
-            order_count,
-            total_after,
-            MAX_OPEN_ORDERS
-        )?;
-
-        Ok(())
-    }
-
     /// Validates the scale order parameters
     pub fn validate(&self, order_step_size: u64) -> DriftResult<()> {
         validate!(
