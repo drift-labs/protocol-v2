@@ -2965,7 +2965,7 @@ fn cancel_reduce_only_trigger_orders(
             continue;
         }
 
-        if !user.orders[order_index].must_be_triggered() {
+        if !user.orders[order_index].must_be_triggered() || user.orders[order_index].triggered() {
             continue;
         }
 
