@@ -951,12 +951,13 @@ export const MainnetSpotMarkets: SpotMarketConfig[] = [
 		marketIndex: 57,
 		poolId: 0,
 		oracle: new PublicKey('GqqkoqHU5pqgTvL88xSCipH9txbPETyzvAvybQ3zRpzw'),
-		oracleSource: OracleSource.PYTH_PULL,
+		oracleSource: OracleSource.PYTH_LAZER,
 		mint: new PublicKey('AvZZF1YaZDziPY2RCK4oJrRVrbN3mTD9NL24hPeaZeUj'),
 		precision: new BN(10).pow(SIX),
 		precisionExp: SIX,
 		pythFeedId:
 			'0x2ad31d1c4a85fbf2156ce57fab4104124c5ef76a6386375ecfc8da1ed5ce1486',
+		pythLazerId: 2941,
 	},
 	{
 		symbol: 'LBTC',
