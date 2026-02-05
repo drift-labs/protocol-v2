@@ -24,6 +24,7 @@ test_files=(
   # TODO BROKEN ^^
 	builderCodes.ts
   decodeUser.ts
+  scaleOrders.ts
   # fuel.ts
   # fuelSweep.ts
   admin.ts
