@@ -270,7 +270,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
         .margin_type_config
         .get_cross_margin_requirement_type();
 
-    let mut user_custom_margin_ratio =
+    let mut spot_user_custom_margin_ratio =
         if cross_margin_requirement_type == MarginRequirementType::Initial {
             user.max_margin_ratio
         } else {
@@ -278,7 +278,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
         };
 
     if let Some(margin_ratio_override) = context.margin_ratio_override {
-        user_custom_margin_ratio = margin_ratio_override.max(user_custom_margin_ratio);
+        spot_user_custom_margin_ratio = margin_ratio_override.max(spot_user_custom_margin_ratio);
     }
 
     let user_pool_id = user.pool_id;
@@ -416,7 +416,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 .apply_user_custom_margin_ratio(
                     &spot_market,
                     strict_oracle_price.current,
-                    user_custom_margin_ratio,
+                    spot_user_custom_margin_ratio,
                 )?;
 
             if worst_case_token_amount == 0 {
@@ -590,12 +590,24 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 .get_cross_margin_requirement_type()
         };
 
-        let perp_position_custom_margin_ratio =
+        let perp_user_custom_margin_ratio =
             if position_margin_type == MarginRequirementType::Initial {
-                market_position.max_margin_ratio as u32
+                user.max_margin_ratio
             } else {
                 0_u32
             };
+
+        let mut perp_position_custom_margin_ratio =
+            if position_margin_type == MarginRequirementType::Initial {
+                perp_user_custom_margin_ratio.max(market_position.max_margin_ratio as u32)
+            } else {
+                0_u32
+            };
+
+        if let Some(margin_ratio_override) = context.margin_ratio_override {
+            perp_position_custom_margin_ratio =
+                margin_ratio_override.max(perp_user_custom_margin_ratio);
+        }
 
         let (perp_margin_requirement, weighted_pnl, worst_case_liability_value, base_asset_value) =
             calculate_perp_position_value_and_pnl(
@@ -604,7 +616,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 oracle_price_data,
                 &strict_quote_price,
                 position_margin_type,
-                user_custom_margin_ratio.max(perp_position_custom_margin_ratio),
+                perp_position_custom_margin_ratio,
                 user_high_leverage_mode,
             )?;
 

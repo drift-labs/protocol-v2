@@ -1205,6 +1205,204 @@ mod calculate_margin_requirement_and_total_collateral {
     }
 
     #[test]
+    pub fn user_and_position_max_margin_ratio_initial_vs_maintenance() {
+        // Four scenarios: user vs perp_position max_margin_ratio for Initial vs Maintenance.
+        // Maintenance always uses market-only (custom = 0). Initial uses max(user, position).
+        let slot = 0_u64;
+
+        let mut sol_oracle_price = get_pyth_price(100, 6);
+        let sol_oracle_price_key =
+            Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+        let pyth_program = crate::ids::pyth_program::id();
+        create_account_info!(
+            sol_oracle_price,
+            &sol_oracle_price_key,
+            &pyth_program,
+            oracle_account_info
+        );
+        let mut oracle_map = OracleMap::load_one(&oracle_account_info, slot, None).unwrap();
+
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+                bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+                ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+                sqrt_k: 100 * AMM_RESERVE_PRECISION,
+                peg_multiplier: 100 * PEG_PRECISION,
+                order_step_size: 10000000,
+                oracle: sol_oracle_price_key,
+                ..AMM::default()
+            },
+            margin_ratio_initial: 1000,
+            margin_ratio_maintenance: 500,
+            status: MarketStatus::Initialized,
+            ..PerpMarket::default()
+        };
+        create_anchor_account_info!(market, PerpMarket, market_account_info);
+        let perp_market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
+
+        let mut usdc_spot_market = SpotMarket {
+            market_index: 0,
+            oracle_source: OracleSource::QuoteAsset,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 6,
+            initial_asset_weight: SPOT_WEIGHT_PRECISION,
+            maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+            deposit_balance: 10000 * SPOT_BALANCE_PRECISION,
+            liquidator_fee: 0,
+            historical_oracle_data: HistoricalOracleData::default_quote_oracle(),
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(usdc_spot_market, SpotMarket, usdc_spot_market_account_info);
+        let mut sol_spot_market = SpotMarket {
+            market_index: 1,
+            oracle_source: OracleSource::Pyth,
+            oracle: sol_oracle_price_key,
+            cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            cumulative_borrow_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+            decimals: 9,
+            initial_asset_weight: 8 * SPOT_WEIGHT_PRECISION / 10,
+            maintenance_asset_weight: 9 * SPOT_WEIGHT_PRECISION / 10,
+            initial_liability_weight: 12 * SPOT_WEIGHT_PRECISION / 10,
+            maintenance_liability_weight: 11 * SPOT_WEIGHT_PRECISION / 10,
+            liquidator_fee: LIQUIDATION_FEE_PRECISION / 1000,
+            ..SpotMarket::default()
+        };
+        create_anchor_account_info!(sol_spot_market, SpotMarket, sol_spot_market_account_info);
+        let spot_market_account_infos = Vec::from([
+            &usdc_spot_market_account_info,
+            &sol_spot_market_account_info,
+        ]);
+        let spot_market_map =
+            SpotMarketMap::load_multiple(spot_market_account_infos, true).unwrap();
+
+        let mut spot_positions = [SpotPosition::default(); 8];
+        spot_positions[0] = SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: 100 * SPOT_BALANCE_PRECISION_U64,
+            ..SpotPosition::default()
+        };
+
+        // Baseline: no custom ratios → maintenance margin = market-only (100 * $100 * 0.05 = 500 in quote → 500000000)
+        let user_baseline = User {
+            orders: [Order::default(); 32],
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                base_asset_amount: 100 * BASE_PRECISION_I64,
+                max_margin_ratio: 0,
+                ..PerpPosition::default()
+            }),
+            spot_positions,
+            max_margin_ratio: 0,
+            ..User::default()
+        };
+        let MarginCalculation {
+            margin_requirement: maintenance_baseline,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user_baseline,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Maintenance),
+        )
+        .unwrap();
+        assert_eq!(maintenance_baseline, 500000000); // market maintenance only: 10000 * 500 / MARGIN_PRECISION
+
+        // Scenario 1: User max_margin_ratio higher than perp position — Maintenance → market-only (custom = 0)
+        let user_high = User {
+            max_margin_ratio: 4 * MARGIN_PRECISION,
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                base_asset_amount: 100 * BASE_PRECISION_I64,
+                max_margin_ratio: 2 * MARGIN_PRECISION as u16,
+                ..PerpPosition::default()
+            }),
+            ..user_baseline
+        };
+        let MarginCalculation {
+            margin_requirement: maintenance_user_higher,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user_high,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Maintenance),
+        )
+        .unwrap();
+        assert_eq!(
+            maintenance_user_higher, maintenance_baseline,
+            "Maintenance must use market-only when user ratio is higher than position"
+        );
+
+        // Scenario 2: User max_margin_ratio higher than perp position — Initial → use user ratio (4 * MARGIN_PRECISION)
+        let MarginCalculation {
+            margin_requirement: initial_user_higher,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user_high,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Initial),
+        )
+        .unwrap();
+        assert_eq!(
+            initial_user_higher, 40000000000,
+            "Initial must use user.max_margin_ratio when user > position"
+        );
+
+        // Scenario 3: User max_margin_ratio lower than perp position — Maintenance → market-only
+        let user_low = User {
+            max_margin_ratio: MARGIN_PRECISION / 2,
+            perp_positions: get_positions(PerpPosition {
+                market_index: 0,
+                base_asset_amount: 100 * BASE_PRECISION_I64,
+                max_margin_ratio: 4 * MARGIN_PRECISION as u16,
+                ..PerpPosition::default()
+            }),
+            ..user_baseline
+        };
+        let MarginCalculation {
+            margin_requirement: maintenance_user_lower,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user_low,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Maintenance),
+        )
+        .unwrap();
+        assert_eq!(
+            maintenance_user_lower, maintenance_baseline,
+            "Maintenance must use market-only when position ratio is higher than user"
+        );
+
+        // Scenario 4: User max_margin_ratio lower than perp position — Initial → use position ratio (4 * MARGIN_PRECISION)
+        let MarginCalculation {
+            margin_requirement: initial_user_lower,
+            ..
+        } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            &user_low,
+            &perp_market_map,
+            &spot_market_map,
+            &mut oracle_map,
+            MarginContext::standard(MarginRequirementType::Initial),
+        )
+        .unwrap();
+        assert_eq!(
+            initial_user_lower, 40000000000,
+            "Initial must use perp_position.max_margin_ratio when position > user"
+        );
+    }
+
+    #[test]
     pub fn user_dust_deposit() {
         let slot = 0_u64;
 
