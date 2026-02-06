@@ -355,24 +355,6 @@ pub fn get_position_delta_for_fill(
 }
 
 #[inline(always)]
-pub fn should_expire_order_before_fill(
-    user: &User,
-    order_index: usize,
-    now: i64,
-) -> DriftResult<bool> {
-    let should_order_be_expired = should_expire_order(user, order_index, now)?;
-    if should_order_be_expired && user.orders[order_index].is_limit_order() {
-        let now_sub_buffer = now.safe_sub(15)?;
-        if !should_expire_order(user, order_index, now_sub_buffer)? {
-            msg!("invalid fill. cant force expire limit order until 15s after max_ts. max ts {}, now {}, now plus buffer {}", user.orders[order_index].max_ts, now, now_sub_buffer);
-            return Err(ErrorCode::ImpossibleFill);
-        }
-    }
-
-    Ok(should_order_be_expired)
-}
-
-#[inline(always)]
 pub fn should_expire_order(user: &User, user_order_index: usize, now: i64) -> DriftResult<bool> {
     let order = &user.orders[user_order_index];
     if order.status != OrderStatus::Open || order.max_ts == 0 || order.must_be_triggered() {

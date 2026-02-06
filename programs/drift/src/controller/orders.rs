@@ -1232,7 +1232,7 @@ pub fn fill_perp_order(
         }
     }
 
-    let should_expire_order = should_expire_order_before_fill(user, order_index, now)?;
+    let should_expire_order = should_expire_order(user, order_index, now)?;
 
     let position_index =
         get_position_index(&user.perp_positions, user.orders[order_index].market_index)?;
@@ -4069,7 +4069,7 @@ pub fn fill_spot_order(
         }
     }
 
-    let should_expire_order = should_expire_order_before_fill(user, order_index, now)?;
+    let should_expire_order = should_expire_order(user, order_index, now)?;
 
     let should_cancel_reduce_only = if user.orders[order_index].reduce_only {
         let market_index = user.orders[order_index].market_index;
