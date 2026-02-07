@@ -15,6 +15,7 @@ pub mod oracle;
 pub mod oracle_map;
 pub mod order_params;
 pub mod paused_operations;
+pub mod scale_order_params;
 pub mod perp_market;
 pub mod perp_market_map;
 pub mod protected_maker_mode_config;

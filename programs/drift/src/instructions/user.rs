@@ -81,6 +81,7 @@ use crate::state::order_params::{
     PlaceOrderOptions, PostOnlyParam,
 };
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
+use crate::state::scale_order_params::ScaleOrderParams;
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::protected_maker_mode_config::ProtectedMakerModeConfig;
@@ -2607,6 +2608,31 @@ pub fn handle_place_orders<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, PlaceOrder>,
     params: Vec<OrderParams>,
 ) -> Result<()> {
+    place_orders(&ctx, PlaceOrdersInput::Orders(params))
+}
+
+#[access_control(
+    exchange_not_paused(&ctx.accounts.state)
+)]
+pub fn handle_place_scale_orders<'c: 'info, 'info>(
+    ctx: Context<'_, '_, 'c, 'info, PlaceOrder>,
+    params: ScaleOrderParams,
+) -> Result<()> {
+    place_orders(&ctx, PlaceOrdersInput::ScaleOrders(params))
+}
+
+/// Input for place_orders - either direct OrderParams or ScaleOrderParams to expand
+enum PlaceOrdersInput {
+    Orders(Vec<OrderParams>),
+    ScaleOrders(ScaleOrderParams),
+}
+
+/// Internal implementation for placing multiple orders.
+/// Used by both handle_place_orders and handle_place_scale_orders.
+fn place_orders<'c: 'info, 'info>(
+    ctx: &Context<'_, '_, 'c, 'info, PlaceOrder>,
+    input: PlaceOrdersInput,
+) -> Result<()> {
     let clock = &Clock::get()?;
     let state = &ctx.accounts.state;
 
@@ -2625,8 +2651,31 @@ pub fn handle_place_orders<'c: 'info, 'info>(
 
     let high_leverage_mode_config = get_high_leverage_mode_config(&mut remaining_accounts)?;
 
+    // Convert input to order params, expanding scale orders if needed
+    let order_params = match input {
+        PlaceOrdersInput::Orders(params) => params,
+        PlaceOrdersInput::ScaleOrders(scale_params) => {
+            let order_step_size = match scale_params.market_type {
+                MarketType::Perp => {
+                    let market = perp_market_map.get_ref(&scale_params.market_index)?;
+                    market.amm.order_step_size
+                }
+                MarketType::Spot => {
+                    let market = spot_market_map.get_ref(&scale_params.market_index)?;
+                    market.order_step_size
+                }
+            };
+
+            scale_params.expand_to_order_params(order_step_size)
+                .map_err(|e| {
+                    msg!("Failed to expand scale order params: {:?}", e);
+                    ErrorCode::InvalidOrder
+                })?
+        }
+    };
+
     validate!(
-        params.len() <= 32,
+        order_params.len() <= 32,
         ErrorCode::DefaultError,
         "max 32 order params"
     )?;
@@ -2634,8 +2683,8 @@ pub fn handle_place_orders<'c: 'info, 'info>(
     let user_key = ctx.accounts.user.key();
     let mut user = load_mut!(ctx.accounts.user)?;
 
-    let num_orders = params.len();
-    for (i, params) in params.iter().enumerate() {
+    let num_orders = order_params.len();
+    for (i, params) in order_params.iter().enumerate() {
         validate!(
             !params.is_immediate_or_cancel(),
             ErrorCode::InvalidOrderIOC,
@@ -2654,7 +2703,7 @@ pub fn handle_place_orders<'c: 'info, 'info>(
 
         if params.market_type == MarketType::Perp {
             controller::orders::place_perp_order(
-                &ctx.accounts.state,
+                state,
                 &mut user,
                 user_key,
                 &perp_market_map,
@@ -2668,7 +2717,7 @@ pub fn handle_place_orders<'c: 'info, 'info>(
             )?;
         } else {
             controller::orders::place_spot_order(
-                &ctx.accounts.state,
+                state,
                 &mut user,
                 user_key,
                 &perp_market_map,

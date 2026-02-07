@@ -1027,3 +1027,4 @@ pub fn parse_optional_params(optional_params: Option<u32>) -> (u8, u8) {
         None => (0, 100),
     }
 }
+
