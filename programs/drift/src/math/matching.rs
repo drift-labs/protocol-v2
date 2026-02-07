@@ -18,7 +18,7 @@ pub fn is_maker_for_taker(
     slot: u64,
 ) -> DriftResult<bool> {
     // Self match protection handled upstream via maker_key != taker_key check.
-    // Removed slot equality restriction to enable same slot fills for swift limit orders.
+    // Removed slot equality restriction to enable same slot fills.
 
     // taker cant be post only and maker must be resting limit order
     if taker_order.post_only || !maker_order.is_resting_limit_order(slot)? {
