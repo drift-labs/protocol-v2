@@ -40,11 +40,13 @@ use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral_and_liability_info,
     validate_any_isolated_tier_requirements,
 };
-use crate::state::margin_calculation::{MarginCalculation, MarginContext};
+use crate::state::margin_calculation::{MarginCalculation, MarginContext, MarginTypeConfig};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market_map::SpotMarketMap;
 
+#[cfg(test)]
+mod isolated_transfer_tests;
 #[cfg(test)]
 mod tests;
 
@@ -769,7 +771,13 @@ impl User {
         isolated_market_index: u16,
     ) -> DriftResult<bool> {
         let strict = margin_requirement_type == MarginRequirementType::Initial;
-        let context = MarginContext::standard(margin_requirement_type)
+        let margin_type_config = MarginTypeConfig::IsolatedPositionOverride {
+            market_index: isolated_market_index,
+            margin_requirement_type,
+            default_isolated_margin_requirement_type: MarginRequirementType::Maintenance,
+            cross_margin_requirement_type: MarginRequirementType::Maintenance,
+        };
+        let context = MarginContext::standard_with_config(margin_type_config)
             .strict(strict)
             .ignore_invalid_deposit_oracles(true)
             .fuel_spot_delta(withdraw_market_index, withdraw_amount.cast::<i128>()?)
