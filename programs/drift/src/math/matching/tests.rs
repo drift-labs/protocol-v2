@@ -177,6 +177,55 @@ mod is_maker_for_taker {
 
         assert_eq!(is_maker_for_taker(&maker, &taker, slot).unwrap(), true);
     }
+
+    #[test]
+    fn same_slot_maker_taker_non_resting() {
+        let slot = 0;
+
+        // Taker market order
+        let taker = Order {
+            post_only: false,
+            order_type: OrderType::Market,
+            slot: 0,
+            ..Default::default()
+        };
+
+        // Maker resting with 0 auction
+        let maker = Order {
+            post_only: false,
+            order_type: OrderType::Limit,
+            slot: 0,
+            auction_duration: 0,
+            ..Default::default()
+        };
+
+        assert_eq!(is_maker_for_taker(&maker, &taker, slot).unwrap(), true);
+    }
+
+    #[test]
+    fn same_slot_maker_taker_both_resting() {
+        let slot = 20;
+
+        // Resting taker order
+        let taker = Order {
+            post_only: false,
+            order_type: OrderType::Limit,
+            slot: 10,
+            auction_duration: 5,
+            ..Default::default()
+        };
+
+        // Resting maker order (older)
+        let maker = Order {
+            post_only: false,
+            order_type: OrderType::Limit,
+            slot: 5,
+            auction_duration: 2,
+            ..Default::default()
+        };
+
+        assert_eq!(is_maker_for_taker(&maker, &taker, slot).unwrap(), true);
+    }
 }
 
 #[test]
