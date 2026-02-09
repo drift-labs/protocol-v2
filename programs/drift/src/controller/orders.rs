@@ -1232,7 +1232,7 @@ pub fn fill_perp_order(
         }
     }
 
-    let should_expire_order = should_expire_order_before_fill(user, order_index, now)?;
+    let should_expire_order = should_expire_order(user, order_index, now)?;
 
     let position_index =
         get_position_index(&user.perp_positions, user.orders[order_index].market_index)?;
@@ -1369,7 +1369,7 @@ pub fn fill_perp_order(
         )?
     }
 
-    if base_asset_amount_after == 0 && user.perp_positions[position_index].open_orders != 0 {
+    if base_asset_amount_after == 0 && user.perp_positions[position_index].open_asks == 0 && user.perp_positions[position_index].open_bids == 0 {
         cancel_reduce_only_trigger_orders(
             user,
             &user_key,
@@ -4134,7 +4134,7 @@ pub fn fill_spot_order(
         }
     }
 
-    let should_expire_order = should_expire_order_before_fill(user, order_index, now)?;
+    let should_expire_order = should_expire_order(user, order_index, now)?;
 
     let should_cancel_reduce_only = if user.orders[order_index].reduce_only {
         let market_index = user.orders[order_index].market_index;
