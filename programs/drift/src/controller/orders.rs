@@ -1379,7 +1379,7 @@ pub fn fill_perp_order(
         )?
     }
 
-    if base_asset_amount_after == 0 && user.perp_positions[position_index].open_orders != 0 {
+    if base_asset_amount_after == 0 && user.perp_positions[position_index].open_asks == 0 && user.perp_positions[position_index].open_bids == 0 {
         cancel_reduce_only_trigger_orders(
             user,
             &user_key,
