@@ -72,8 +72,6 @@ describe('spot swap', () => {
 	let spotMarketIndexes: number[];
 	let oracleInfos: OracleInfo[];
 
-	const solSpotMarketIndex = 1;
-
 	let takerKeypair: Keypair;
 
 	before(async () => {
@@ -244,12 +242,6 @@ describe('spot swap', () => {
 
 		console.log('\n\n\n\n\n here \n\n\n\n\n');
 
-		await makerDriftClient.initializeSerumFulfillmentConfig(
-			solSpotMarketIndex,
-			serumMarketPublicKey,
-			SERUM
-		);
-
 		console.log('\n\n\n\n\n here \n\n\n\n\n');
 
 		const market = await Market.load(
@@ -364,23 +356,21 @@ describe('spot swap', () => {
 			}
 		);
 
-		const serumConfig = await takerDriftClient.getSerumV3FulfillmentConfig(
-			market.publicKey
-		);
 		const settleFundsIx = DexInstructions.settleFunds({
 			market: market.publicKey,
 			openOrders: takerOpenOrders,
 			owner: takerDriftClient.wallet.publicKey,
 			// @ts-ignore
-			baseVault: serumConfig.serumBaseVault,
+			baseVault: market._decoded.baseVault,
 			// @ts-ignore
-			quoteVault: serumConfig.serumQuoteVault,
+			quoteVault: market._decoded.quoteVault,
 			baseWallet: takerWSOL,
 			quoteWallet: takerUSDC,
 			vaultSigner: getSerumSignerPublicKey(
 				market.programId,
 				market.publicKey,
-				serumConfig.serumSignerNonce
+				// @ts-ignore
+				market._decoded.vaultSignerNonce
 			),
 			programId: market.programId,
 		});

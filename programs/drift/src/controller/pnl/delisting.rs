@@ -209,6 +209,7 @@ pub mod delisting_test {
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (99 * PRICE_PRECISION) as i64,
                     ..HistoricalOracleData::default()
                 },
                 quote_asset_amount: -(QUOTE_PRECISION_I128 * 50), //longs have $100 cost basis
@@ -318,6 +319,7 @@ pub mod delisting_test {
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (99 * PRICE_PRECISION) as i64,
                     ..HistoricalOracleData::default()
                 },
                 quote_asset_amount: -(QUOTE_PRECISION_I128 * 10), //longs have $20 cost basis
@@ -430,6 +432,7 @@ pub mod delisting_test {
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (99 * PRICE_PRECISION) as i64,
                     ..HistoricalOracleData::default()
                 },
                 total_fee_minus_distributions: -(100000 * QUOTE_PRECISION_I128), // down $100k
@@ -543,6 +546,7 @@ pub mod delisting_test {
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (99 * PRICE_PRECISION) as i64,
                     ..HistoricalOracleData::default()
                 },
                 total_fee_minus_distributions: -(100000 * QUOTE_PRECISION_I128), // down $100k
@@ -652,6 +656,7 @@ pub mod delisting_test {
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (99 * PRICE_PRECISION) as i64,
                     ..HistoricalOracleData::default()
                 },
                 quote_asset_amount: -(QUOTE_PRECISION_I128 * 10), //longs have $20 cost basis
@@ -870,6 +875,8 @@ pub mod delisting_test {
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (99 * PRICE_PRECISION) as i64,
+
                     ..HistoricalOracleData::default()
                 },
                 quote_asset_amount: (QUOTE_PRECISION_I128 * 10), //longs have -$20 cost basis
@@ -1091,6 +1098,8 @@ pub mod delisting_test {
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (99 * PRICE_PRECISION) as i64,
+
                     ..HistoricalOracleData::default()
                 },
                 quote_asset_amount: (QUOTE_PRECISION_I128 * 20 * 2000), //longs have -$20 cost basis
@@ -1294,6 +1303,8 @@ pub mod delisting_test {
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (99 * PRICE_PRECISION) as i64,
+
                     ..HistoricalOracleData::default()
                 },
                 quote_asset_amount: -(QUOTE_PRECISION_I128 * 20 * 1000 - QUOTE_PRECISION_I128),
@@ -1717,6 +1728,8 @@ pub mod delisting_test {
                 amm_jit_intensity: 100,
                 historical_oracle_data: HistoricalOracleData {
                     last_oracle_price_twap: (99 * PRICE_PRECISION) as i64,
+                    last_oracle_price_twap_5min: (99 * PRICE_PRECISION) as i64,
+
                     ..HistoricalOracleData::default()
                 },
                 quote_asset_amount: (QUOTE_PRECISION_I128 * 200)
@@ -2336,7 +2349,7 @@ pub mod delisting_test {
             let oracle_price_data = oracle_map.get_price_data(&market.oracle_id()).unwrap();
 
             let strict_quote_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
-            let (perp_margin_requirement, weighted_pnl, _, _, _) =
+            let (perp_margin_requirement, weighted_pnl, _, _) =
                 calculate_perp_position_value_and_pnl(
                     &shorter.perp_positions[0],
                     &market,
@@ -2344,7 +2357,6 @@ pub mod delisting_test {
                     &strict_quote_price,
                     MarginRequirementType::Initial,
                     0,
-                    false,
                     false,
                 )
                 .unwrap();
@@ -2383,8 +2395,8 @@ pub mod delisting_test {
             let mut shorter_user_stats = UserStats::default();
             let mut liq_user_stats = UserStats::default();
 
-            assert_eq!(shorter.is_being_liquidated(), false);
-            assert_eq!(shorter.is_bankrupt(), false);
+            assert_eq!(shorter.is_cross_margin_being_liquidated(), false);
+            assert_eq!(shorter.is_cross_margin_bankrupt(), false);
             let state = State {
                 liquidation_margin_buffer_ratio: 10,
                 ..Default::default()
@@ -2408,15 +2420,15 @@ pub mod delisting_test {
             )
             .unwrap();
 
-            assert_eq!(shorter.is_being_liquidated(), true);
-            assert_eq!(shorter.is_bankrupt(), false);
+            assert_eq!(shorter.is_cross_margin_being_liquidated(), true);
+            assert_eq!(shorter.is_cross_margin_bankrupt(), false);
 
             {
                 let market = market_map.get_ref_mut(&0).unwrap();
                 let oracle_price_data = oracle_map.get_price_data(&market.oracle_id()).unwrap();
 
                 let strict_quote_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
-                let (perp_margin_requirement, weighted_pnl, _, _, _) =
+                let (perp_margin_requirement, weighted_pnl, _, _) =
                     calculate_perp_position_value_and_pnl(
                         &shorter.perp_positions[0],
                         &market,
@@ -2424,7 +2436,6 @@ pub mod delisting_test {
                         &strict_quote_price,
                         MarginRequirementType::Initial,
                         0,
-                        false,
                         false,
                     )
                     .unwrap();
@@ -2491,8 +2502,8 @@ pub mod delisting_test {
             )
             .unwrap();
 
-            assert_eq!(shorter.is_being_liquidated(), true);
-            assert_eq!(shorter.is_bankrupt(), false);
+            assert_eq!(shorter.is_cross_margin_being_liquidated(), true);
+            assert_eq!(shorter.is_cross_margin_bankrupt(), false);
 
             {
                 let mut market = market_map.get_ref_mut(&0).unwrap();
@@ -2504,7 +2515,7 @@ pub mod delisting_test {
                 assert_eq!(market.amm.cumulative_funding_rate_short, 0);
 
                 let strict_quote_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
-                let (perp_margin_requirement, weighted_pnl, _, _, _) =
+                let (perp_margin_requirement, weighted_pnl, _, _) =
                     calculate_perp_position_value_and_pnl(
                         &shorter.perp_positions[0],
                         &market,
@@ -2512,7 +2523,6 @@ pub mod delisting_test {
                         &strict_quote_price,
                         MarginRequirementType::Initial,
                         0,
-                        false,
                         false,
                     )
                     .unwrap();
@@ -2583,8 +2593,8 @@ pub mod delisting_test {
             )
             .unwrap();
 
-            assert_eq!(shorter.is_being_liquidated(), true);
-            assert_eq!(shorter.is_bankrupt(), true);
+            assert_eq!(shorter.is_cross_margin_being_liquidated(), true);
+            assert_eq!(shorter.is_cross_margin_bankrupt(), true);
 
             {
                 let market = market_map.get_ref_mut(&0).unwrap();
@@ -2596,7 +2606,7 @@ pub mod delisting_test {
                 assert_eq!(market.amm.cumulative_funding_rate_short, 0);
 
                 let strict_quote_price = StrictOraclePrice::test(QUOTE_PRECISION_I64);
-                let (perp_margin_requirement, weighted_pnl, _, _, _) =
+                let (perp_margin_requirement, weighted_pnl, _, _) =
                     calculate_perp_position_value_and_pnl(
                         &shorter.perp_positions[0],
                         &market,
@@ -2604,7 +2614,6 @@ pub mod delisting_test {
                         &strict_quote_price,
                         MarginRequirementType::Initial,
                         0,
-                        false,
                         false,
                     )
                     .unwrap();

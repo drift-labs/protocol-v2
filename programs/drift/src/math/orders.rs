@@ -1,8 +1,6 @@
 use std::cmp::min;
 use std::ops::Sub;
 
-use crate::math::constants::PERCENTAGE_PRECISION;
-use crate::math::constants::PERCENTAGE_PRECISION_I128;
 use crate::msg;
 
 use crate::controller::position::PositionDelta;
@@ -10,16 +8,16 @@ use crate::controller::position::PositionDirection;
 use crate::error::{DriftResult, ErrorCode};
 use crate::math::amm::calculate_amm_available_liquidity;
 use crate::math::casting::Cast;
+use crate::math::constants::{
+    BASE_PRECISION_I128, FEE_ADJUSTMENT_MAX, MARGIN_PRECISION_I128, MARGIN_PRECISION_U128,
+    MAX_PREDICTION_MARKET_PRICE, MAX_PREDICTION_MARKET_PRICE_I64, OPEN_ORDER_MARGIN_REQUIREMENT,
+    PERCENTAGE_PRECISION_I128, PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, PRICE_PRECISION_U64,
+    QUOTE_PRECISION_I128, SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_I128,
+};
 use crate::state::protected_maker_mode_config::ProtectedMakerParams;
 use crate::state::user::OrderBitFlag;
-use crate::{
-    load, math, FeeTier, BASE_PRECISION_I128, FEE_ADJUSTMENT_MAX, MARGIN_PRECISION_I128,
-    MAX_PREDICTION_MARKET_PRICE, MAX_PREDICTION_MARKET_PRICE_I64, OPEN_ORDER_MARGIN_REQUIREMENT,
-    PERCENTAGE_PRECISION_U64, PRICE_PRECISION_I128, PRICE_PRECISION_U64, QUOTE_PRECISION_I128,
-    SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_I128,
-};
+use crate::{load, math, FeeTier};
 
-use crate::math::constants::MARGIN_PRECISION_U128;
 use crate::math::margin::{
     calculate_margin_requirement_and_total_collateral_and_liability_info, MarginRequirementType,
 };
@@ -354,24 +352,6 @@ pub fn get_position_delta_for_fill(
             PositionDirection::Short => -base_asset_amount.cast()?,
         },
     })
-}
-
-#[inline(always)]
-pub fn should_expire_order_before_fill(
-    user: &User,
-    order_index: usize,
-    now: i64,
-) -> DriftResult<bool> {
-    let should_order_be_expired = should_expire_order(user, order_index, now)?;
-    if should_order_be_expired && user.orders[order_index].is_limit_order() {
-        let now_sub_buffer = now.safe_sub(15)?;
-        if !should_expire_order(user, order_index, now_sub_buffer)? {
-            msg!("invalid fill. cant force expire limit order until 15s after max_ts. max ts {}, now {}, now plus buffer {}", user.orders[order_index].max_ts, now, now_sub_buffer);
-            return Err(ErrorCode::ImpossibleFill);
-        }
-    }
-
-    Ok(should_order_be_expired)
 }
 
 #[inline(always)]
@@ -796,23 +776,30 @@ pub fn calculate_max_perp_order_size(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
 ) -> DriftResult<u64> {
+    let margin_context = MarginContext::standard(MarginRequirementType::Initial).strict(true);
     // calculate initial margin requirement
-    let MarginCalculation {
-        margin_requirement,
-        total_collateral,
-        ..
-    } = calculate_margin_requirement_and_total_collateral_and_liability_info(
+    let margin_calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
         user,
         perp_market_map,
         spot_market_map,
         oracle_map,
-        MarginContext::standard(MarginRequirementType::Initial).strict(true),
+        margin_context,
     )?;
 
     let user_custom_margin_ratio = user.max_margin_ratio;
+    let perp_position_margin_ratio = user.perp_positions[position_index].max_margin_ratio as u32;
     let user_high_leverage_mode = user.is_high_leverage_mode(MarginRequirementType::Initial);
 
-    let free_collateral_before = total_collateral.safe_sub(margin_requirement.cast()?)?;
+    let is_isolated_position = user.perp_positions[position_index].is_isolated();
+    let free_collateral_before = if is_isolated_position {
+        margin_calculation
+            .get_isolated_free_collateral(market_index)?
+            .cast::<i128>()?
+    } else {
+        margin_calculation
+            .get_cross_free_collateral()?
+            .cast::<i128>()?
+    };
 
     let perp_market = perp_market_map.get_ref(&market_index)?;
 
@@ -839,7 +826,8 @@ pub fn calculate_max_perp_order_size(
             MarginRequirementType::Initial,
             user_high_leverage_mode,
         )?
-        .max(user_custom_margin_ratio);
+        .max(user_custom_margin_ratio)
+        .max(perp_position_margin_ratio);
 
     let mut order_size_to_reduce_position = 0_u64;
     let mut free_collateral_released = 0_i128;
@@ -916,7 +904,8 @@ pub fn calculate_max_perp_order_size(
                 MarginRequirementType::Initial,
                 user_high_leverage_mode,
             )?
-            .max(user_custom_margin_ratio);
+            .max(user_custom_margin_ratio)
+            .max(perp_position_margin_ratio);
 
         Ok((new_order_size, new_margin_ratio))
     };

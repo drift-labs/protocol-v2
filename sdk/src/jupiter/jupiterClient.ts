@@ -8,8 +8,7 @@ import {
 } from '@solana/web3.js';
 import fetch from 'node-fetch';
 import { BN } from '@coral-xyz/anchor';
-
-export type SwapMode = 'ExactIn' | 'ExactOut';
+import { SwapMode } from '../swap/UnifiedSwapClient';
 
 export interface MarketInfo {
 	id: string;
@@ -225,16 +224,48 @@ export interface QuoteResponse {
 }
 
 export const RECOMMENDED_JUPITER_API_VERSION = '/v1';
-export const RECOMMENDED_JUPITER_API = 'https://lite-api.jup.ag/swap';
+/** @deprecated Use RECOMMENDED_JUPITER_API instead. lite-api.jup.ag requires migration to api.jup.ag with API key. */
+export const LEGACY_JUPITER_API = 'https://lite-api.jup.ag/swap';
+export const RECOMMENDED_JUPITER_API = 'https://api.jup.ag/swap';
 
 export class JupiterClient {
 	url: string;
 	connection: Connection;
 	lookupTableCahce = new Map<string, AddressLookupTableAccount>();
+	private apiKey?: string;
 
-	constructor({ connection, url }: { connection: Connection; url?: string }) {
+	/**
+	 * Create a Jupiter client
+	 * @param connection - Solana connection
+	 * @param url - Optional custom API URL. Defaults to https://api.jup.ag/swap
+	 * @param apiKey - API key for Jupiter API. Required for api.jup.ag (free tier available at https://portal.jup.ag)
+	 */
+	constructor({
+		connection,
+		url,
+		apiKey,
+	}: {
+		connection: Connection;
+		url?: string;
+		apiKey?: string;
+	}) {
 		this.connection = connection;
 		this.url = url ?? RECOMMENDED_JUPITER_API;
+		this.apiKey = apiKey;
+	}
+
+	/**
+	 * Get the headers for API requests, including API key if configured
+	 */
+	private getHeaders(contentType?: string): Record<string, string> {
+		const headers: Record<string, string> = {};
+		if (contentType) {
+			headers['Content-Type'] = contentType;
+		}
+		if (this.apiKey) {
+			headers['x-api-key'] = this.apiKey;
+		}
+		return headers;
 	}
 
 	/**
@@ -290,11 +321,17 @@ export class JupiterClient {
 			params.delete('maxAccounts');
 		}
 		const apiVersionParam =
-			this.url === RECOMMENDED_JUPITER_API
+			this.url === RECOMMENDED_JUPITER_API || this.url === LEGACY_JUPITER_API
 				? RECOMMENDED_JUPITER_API_VERSION
 				: '';
+		const headers = this.getHeaders();
+		const fetchOptions: RequestInit =
+			Object.keys(headers).length > 0 ? { headers } : {};
 		const quote = await (
-			await fetch(`${this.url}${apiVersionParam}/quote?${params.toString()}`)
+			await fetch(
+				`${this.url}${apiVersionParam}/quote?${params.toString()}`,
+				fetchOptions
+			)
 		).json();
 		return quote as QuoteResponse;
 	}
@@ -319,15 +356,13 @@ export class JupiterClient {
 		}
 
 		const apiVersionParam =
-			this.url === RECOMMENDED_JUPITER_API
+			this.url === RECOMMENDED_JUPITER_API || this.url === LEGACY_JUPITER_API
 				? RECOMMENDED_JUPITER_API_VERSION
 				: '';
 		const resp = await (
 			await fetch(`${this.url}${apiVersionParam}/swap`, {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
+				headers: this.getHeaders('application/json'),
 				body: JSON.stringify({
 					quoteResponse: quote,
 					userPublicKey,

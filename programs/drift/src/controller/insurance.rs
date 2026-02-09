@@ -14,9 +14,9 @@ use crate::error::ErrorCode;
 use crate::math::amm::calculate_net_user_pnl;
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT,
+    FUEL_START_TS, GOV_SPOT_MARKET_INDEX, MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT,
     MAX_APR_PER_REVENUE_SETTLE_TO_INSURANCE_FUND_VAULT_GOV, ONE_YEAR, PERCENTAGE_PRECISION,
-    SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_DENOMINATOR,
+    QUOTE_SPOT_MARKET_INDEX, SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_DENOMINATOR,
     SHARE_OF_REVENUE_ALLOCATED_TO_INSURANCE_FUND_VAULT_NUMERATOR,
 };
 use crate::math::fuel::calculate_insurance_fuel_bonus;
@@ -40,7 +40,7 @@ use crate::state::perp_market::PerpMarket;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::state::State;
 use crate::state::user::UserStats;
-use crate::{emit, validate, FUEL_START_TS, GOV_SPOT_MARKET_INDEX, QUOTE_SPOT_MARKET_INDEX};
+use crate::{emit, validate};
 
 #[cfg(test)]
 mod tests;
@@ -112,6 +112,7 @@ pub fn add_insurance_fund_stake(
     user_stats: &mut UserStats,
     spot_market: &mut SpotMarket,
     now: i64,
+    admin_deposit: bool,
 ) -> DriftResult {
     validate!(
         !(insurance_vault_amount == 0 && spot_market.insurance_fund.total_shares != 0),
@@ -161,7 +162,11 @@ pub fn add_insurance_fund_stake(
     emit!(InsuranceFundStakeRecord {
         ts: now,
         user_authority: user_stats.authority,
-        action: StakeAction::Stake,
+        action: if admin_deposit {
+            StakeAction::AdminDeposit
+        } else {
+            StakeAction::Stake
+        },
         amount,
         market_index: spot_market.market_index,
         insurance_vault_amount_before: insurance_vault_amount,
@@ -843,11 +848,20 @@ pub fn resolve_perp_pnl_deficit(
         &SpotBalanceType::Deposit,
     )?;
 
+    let net_user_pnl = calculate_net_user_pnl(
+        &market.amm,
+        market
+            .amm
+            .historical_oracle_data
+            .last_oracle_price_twap_5min,
+    )?;
+
     validate!(
-        pnl_pool_token_amount == 0,
+        pnl_pool_token_amount.cast::<i128>()? < net_user_pnl,
         ErrorCode::SufficientPerpPnlPool,
-        "pnl_pool_token_amount > 0 (={})",
-        pnl_pool_token_amount
+        "pnl_pool_token_amount >= net_user_pnl ({} >= {})",
+        pnl_pool_token_amount,
+        net_user_pnl
     )?;
 
     update_spot_market_cumulative_interest(spot_market, None, now)?;
@@ -973,7 +987,7 @@ pub fn handle_if_begin_swap(
     out_insurance_fund_vault_amount: u64,
     in_spot_market: &mut SpotMarket,
     out_spot_market: &mut SpotMarket,
-    in_amount: u64,
+    _in_amount: u64,
     now: i64,
 ) -> DriftResult<()> {
     if now
@@ -1096,6 +1110,14 @@ pub fn handle_if_end_swap(
         "epoch_in_amount={} > epoch_max_in_amount={}",
         if_rebalance_config.epoch_in_amount,
         if_rebalance_config.epoch_max_in_amount
+    )?;
+
+    validate!(
+        if_rebalance_config.current_in_amount <= if_rebalance_config.total_in_amount,
+        ErrorCode::InvalidIfRebalanceSwap,
+        "current_in_amount={} > total_in_amount={}",
+        if_rebalance_config.current_in_amount,
+        if_rebalance_config.total_in_amount
     )?;
 
     let oracle_twap = out_spot_market

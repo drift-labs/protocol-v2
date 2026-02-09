@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod test {
+    use crate::controller::amm::update_spreads;
     use crate::math::amm::calculate_price;
     use crate::math::amm_spread::*;
     use crate::math::constants::{
@@ -59,7 +60,7 @@ mod test {
             max_offset,
         )
         .unwrap();
-        assert_eq!(res, 158); // 237*2/3); // 1 penny divergence
+        assert_eq!(res, 455); // 237*2/3); // 1 penny divergence
         let res = calculate_reference_price_offset(
             rev_price,
             1,
@@ -72,7 +73,7 @@ mod test {
             max_offset,
         )
         .unwrap();
-        assert_eq!(res, 237 * 2); // 3 penny divergence
+        assert_eq!(res, 2035);
 
         let res = calculate_reference_price_offset(
             rev_price,
@@ -86,7 +87,7 @@ mod test {
             max_offset,
         )
         .unwrap();
-        assert_eq!(res, -517); // counter acting 24h_avg sign
+        assert_eq!(res, 0); // disregard 24h_avg sign
 
         let res = calculate_reference_price_offset(
             rev_price,
@@ -100,7 +101,7 @@ mod test {
             max_offset,
         )
         .unwrap();
-        assert_eq!(res, -542); // counteracting 24h_avg / base inventory sign
+        assert_eq!(res, -2500); // counteracting 24h_avg / base inventory sign
 
         let res = calculate_reference_price_offset(
             rev_price,
@@ -114,7 +115,7 @@ mod test {
             max_offset,
         )
         .unwrap();
-        assert_eq!(res, -1149); // flipped
+        assert_eq!(res, -2500); // flipped
 
         let res = calculate_reference_price_offset(
             rev_price,
@@ -128,7 +129,7 @@ mod test {
             max_offset,
         )
         .unwrap();
-        assert_eq!(res, 1660 * 2 / 3); // 7 penny divergence
+        assert_eq!(res, 2500); // 7 penny divergence
 
         let res = calculate_reference_price_offset(
             rev_price,
@@ -187,6 +188,76 @@ mod test {
         )
         .unwrap();
         assert_eq!(res, 0);
+    }
+
+    #[test]
+    fn calculate_reference_price_offset_deadband_tests() {
+        let mut market = PerpMarket {
+            amm: AMM {
+                base_asset_reserve: AMM_RESERVE_PRECISION * 11,
+                quote_asset_reserve: AMM_RESERVE_PRECISION * 10,
+                sqrt_k: AMM_RESERVE_PRECISION * 10,
+                peg_multiplier: 34_000_000,
+                min_base_asset_reserve: AMM_RESERVE_PRECISION * 7,
+                max_base_asset_reserve: AMM_RESERVE_PRECISION * 14,
+                base_spread: 1000,
+                max_spread: 20_000,
+                curve_update_intensity: 110,
+                last_24h_avg_funding_rate: 1,
+                last_mark_price_twap_5min: 4216 * 10000 + 2 * 10000,
+                last_mark_price_twap: 4216 * 10000 + 2 * 10000,
+                historical_oracle_data: {
+                    let mut hod: crate::state::oracle::HistoricalOracleData = Default::default();
+                    hod.last_oracle_price_twap_5min = 4216 * 10000;
+                    hod.last_oracle_price_twap = 4216 * 10000;
+                    hod
+                },
+                ..AMM::default()
+            },
+            ..PerpMarket::default()
+        };
+
+        let reserve_price = 4216 * 10000;
+
+        market.amm.base_asset_amount_with_amm = (AMM_RESERVE_PRECISION * 7 / 20) as i128;
+        let inventory_ratio = calculate_inventory_liquidity_ratio_for_reference_price_offset(
+            market.amm.base_asset_amount_with_amm,
+            market.amm.base_asset_reserve,
+            market.amm.min_base_asset_reserve,
+            market.amm.max_base_asset_reserve,
+        )
+        .unwrap();
+        assert_eq!(inventory_ratio, 100000); // 10%
+
+        market.amm.reference_price_offset_deadband_pct = 10; // 10%
+
+        // If inventory exceeds threshold positive ref price offset
+        market.amm.base_asset_amount_with_amm = (AMM_RESERVE_PRECISION * 8 / 20) as i128;
+        let (_l, _s) = update_spreads(&mut market, reserve_price as u64, None).unwrap();
+        assert!(market.amm.reference_price_offset > 0);
+
+        // If inventory is small, goes to 0
+        market.amm.base_asset_amount_with_amm = (AMM_RESERVE_PRECISION * 6 / 20) as i128;
+        let (_l, _s) = update_spreads(&mut market, reserve_price as u64, None).unwrap();
+        assert_eq!(market.amm.reference_price_offset, 0);
+
+        // Same for short pos
+        // Make sure that the premium is also short
+        market.amm.last_24h_avg_funding_rate = -1;
+        market.amm.last_mark_price_twap_5min = 4216 * 10000 - 2 * 10000;
+        market.amm.last_mark_price_twap = 4216 * 10000 - 2 * 10000;
+        market.amm.base_asset_amount_with_amm = (AMM_RESERVE_PRECISION * 8 / 20) as i128 * -1;
+        let (_l, _s) = update_spreads(&mut market, reserve_price as u64, None).unwrap();
+        println!(
+            "ref offset: {}, {}, {}",
+            market.amm.reference_price_offset, _l, _s
+        );
+        assert!(market.amm.reference_price_offset - (_s as i32) < 0);
+
+        // Same for short pos
+        market.amm.base_asset_amount_with_amm = (AMM_RESERVE_PRECISION * 6 / 20) as i128 * -1;
+        let (_l, _s) = update_spreads(&mut market, reserve_price as u64, None).unwrap();
+        assert_eq!(market.amm.reference_price_offset, 0);
     }
 
     #[test]
@@ -393,7 +464,7 @@ mod test {
 
         market.amm.curve_update_intensity = 110;
         let max_ref_offset = market.amm.get_max_reference_price_offset().unwrap();
-        assert_eq!(max_ref_offset, 1000); // 10 bps
+        assert_eq!(max_ref_offset, 500); // 5 bps
 
         market.amm.curve_update_intensity = 200;
         let max_ref_offset = market.amm.get_max_reference_price_offset().unwrap();

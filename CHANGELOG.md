@@ -9,6 +9,244 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: remove same slot matching restriction [#2104](https://github.com/drift-labs/protocol-v2/pull/2104)
+
+### Fixes
+
+### Breaking
+
+- sdk: `helius-laserstream` is now an optional dependency; installs with `--no-optional` will disable LaserStream support. [#2087](https://github.com/drift-labs/protocol-v2/pull/2087)
+- sdk: `LaserSubscribe` is deprecated and now lazy-loads with a warning; use `getLaserSubscribe()` instead. [#2087](https://github.com/drift-labs/protocol-v2/pull/2087)
+
+## [2.156.0] - 2026-01-26
+
+### Features
+
+### Fixes
+
+### Breaking
+
+## [2.155.0] - 2026-01-20
+
+### Features
+
+- program: additional logging for amm fills [#2078](https://github.com/drift-labs/protocol-v2/pull/2078)
+- program: allow delegate to transfer isolated pos deposit in sub account [#2079](https://github.com/drift-labs/protocol-v2/pull/2079)
+- program: use load_maps in update_amms [#2081](https://github.com/drift-labs/protocol-v2/pull/2081)
+
+### Fixes
+
+### Breaking
+
+## [2.154.0] - 2026-01-08
+
+### Features
+
+- program: isolated positions [#1757](https://github.com/drift-labs/protocol-v2/pull/1757)
+- program: delete serum/openbook configs [#2066](https://github.com/drift-labs/protocol-v2/pull/2066)
+- sdk: update yellowstone-grpc to rust client [#2070](https://github.com/drift-labs/protocol-v2/pull/2070)
+
+### Fixes
+
+### Breaking
+
+- sdk: `channelOptions` in the GrpcConfigs type has been updated to work with new grpc lib
+
+## [2.153.0] - 2025-12-30
+
+### Features
+
+- ui: save titan tx when quoted and reuse on swap by @cha-kos in [#2055](https://github.com/drift-labs/protocol-v2/pull/2055)
+- feat: minified with esbuild by @LukasDeco in [#2056](https://github.com/drift-labs/protocol-v2/pull/2056)
+- ui: fix falsely failing quotes from titan by @cha-kos in [#2058](https://github.com/drift-labs/protocol-v2/pull/2058)
+
+### Fixes
+
+- security patch: check feed id after pyth pull atomic update [84b5011](https://github.com/drift-labs/protocol-v2/commit/84b50116c15050c7d19608cd01745a8f7fc39b92)
+
+### Breaking
+
+## [2.152.0] - 2025-12-12
+
+### Features
+
+- program: add bit_flags to liquidation record [#2053](https://github.com/drift-labs/protocol-v2/pull/2053)
+
+### Fixes
+
+- program: fix base spread validate for perp market [#2052](https://github.com/drift-labs/protocol-v2/pull/2052)
+- sdk: fix for initializing a new user account with a token2022 deposit
+
+### Breaking
+
+## [2.151.0] - 2025-12-03
+
+### Features
+
+- program: add reduce only atomic taking against amm option [#2037](https://github.com/drift-labs/protocol-v2/pull/2037)
+
+### Fixes
+
+### Breaking
+
+## [2.150.0] - 2025-12-01
+
+### Features
+
+- program: stricter logic for atomic fills [#2042](https://github.com/drift-labs/protocol-v2/pull/2042)
+- program: reset lp fields in update_user_idle [#2018](https://github.com/drift-labs/protocol-v2/pull/2018)
+
+### Fixes
+
+### Breaking
+
+## [2.149.1] - 2025-11-19
+
+### Features
+
+### Fixes
+
+### Breaking
+
+- program: add DepositRecord::spot_balance_after [#2034](https://github.com/drift-labs/protocol-v2/pull/2034)
+
+## [2.149.0] - 2025-11-19
+
+### Features
+
+- sdk: allow deposit from external authority directly to drift account
+
+### Fixes
+
+### Breaking
+
+## [2.148.0] - 2025-11-14
+
+### Features
+
+- pyth lazer zero guard [#2023](https://github.com/drift-labs/protocol-v2/pull/2023)
+
+### Fixes
+
+### Breaking
+
+## [2.147.0] - 2025-11-06
+
+### Features
+
+- whitelist ATA program in begin_swap ix [#2021](https://github.com/drift-labs/protocol-v2/pull/2021)
+
+### Fixes
+
+### Breaking
+
+## [2.146.0] - 2025-11-03
+
+### Features
+
+- program: add isolated_position_deposit to signed msg params
+
+### Fixes
+
+### Breaking
+
+## [2.145.1] - 2025-10-20
+
+### Features
+
+### Fixes
+
+- dlp ([#1998](https://github.com/drift-labs/protocol-v2/pull/1998))
+- dlp ([#1999](https://github.com/drift-labs/protocol-v2/pull/1999))
+- dlp ([#2000](https://github.com/drift-labs/protocol-v2/pull/2000))
+
+### Breaking
+
+## [2.145.0] - 2025-10-28
+
+### Features
+
+- dlp ([#1885](https://github.com/drift-labs/protocol-v2/pull/1885))
+
+### Fixes
+
+### Breaking
+
+## [2.144.0] - 2025-10-27
+
+### Features
+
+- program: use-5min-for-target-expiry-price ([#1967](https://github.com/drift-labs/protocol-v2/pull/1967))
+
+### Fixes
+
+### Breaking
+
+## [2.143.0] - 2025-10-22
+
+- program: relax filling conditions for low risk orders vs amm ([#1968](https://github.com/drift-labs/protocol-v2/pull/1968))
+- sdk: make oracle validity match program and propogate to dlob and math functions ([#1968](https://github.com/drift-labs/protocol-v2/pull/1968))
+
+### Features
+
+- program: make imf smoother between hlm and non hlm users ([#1969](https://github.com/drift-labs/protocol-v2/pull/1969))
+
+### Fixes
+
+### Breaking
+
+## [2.142.0] - 2025-10-14
+
+### Features
+
+- program: add titan to whitelisted swap programs ([#1952](https://github.com/drift-labs/protocol-v2/pull/1952))
+- program: allow hot wallet to increase max spread and pause funding ([#1957](https://github.com/drift-labs/protocol-v2/pull/1957))
+
+### Fixes
+
+### Breaking
+
+## [2.141.0] - 2025-10-03
+
+### Features
+
+- program: disallow builder to be escrow authority ([#1930](https://github.com/drift-labs/protocol-v2/pull/1930))
+- dont panic on settle-pnl when no position ([#1928](https://github.com/drift-labs/protocol-v2/pull/1928))
+
+### Fixes
+
+### Breaking
+
+## [2.140.0] - 2025-09-29
+
+### Features
+
+- program: builder codes ([#1805](https://github.com/drift-labs/protocol-v2/pull/1805))
+
+### Fixes
+
+### Breaking
+
+## [2.139.0] - 2025-09-25
+
+### Features
+
+- program: all token 22 use immutable owner ([#1904](https://github.com/drift-labs/protocol-v2/pull/1904))
+- program: allow resolve perp pnl deficit if pnl pool isnt 0 but at deficit ([#1909](https://github.com/drift-labs/protocol-v2/pull/1909))
+- program: auction order params account for twap divergence ([#1882](https://github.com/drift-labs/protocol-v2/pull/1882))
+- program: add delegate stake if ([#1859](https://github.com/drift-labs/protocol-v2/pull/1859))
+
+### Fixes
+
+### Breaking
+
+## [2.138.0] - 2025-09-22
+
+### Features
+
+- program: support scaled ui extension ([#1894](https://github.com/drift-labs/protocol-v2/pull/1894))
+- Revert "Crispeaney/revert swift max margin ratio ([#1877](https://github.com/drift-labs/protocol-v2/pull/1877))
+
 ### Fixes
 
 ### Breaking
@@ -20,6 +258,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - program: post only respects reduce only ([#1878](https://github.com/drift-labs/protocol-v2/pull/1878))
 - program: add sequence id to exchange/mm oracle ([#1834](https://github.com/drift-labs/protocol-v2/pull/1834))
 - program: perp position max margin ratio ([#1847](https://github.com/drift-labs/protocol-v2/pull/1847))
+- program: add padding to swift messages ([#1845](https://github.com/drift-labs/protocol-v2/pull/1845))
 - program: rm lp ([#1755](https://github.com/drift-labs/protocol-v2/pull/1755))
 
 ### Fixes
@@ -36,16 +275,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - program: update referral fee validate rules ([#1843](https://github.com/drift-labs/protocol-v2/pull/1843))
 
 ### Fixes
-
-### Breaking
-
-## [2.135.0] - 2025-08-22
-
-### Features
-
-### Fixes
-
-- program: trigger price use 5min mark price ([#1830](https://github.com/drift-labs/protocol-v2/pull/1830))
 
 ### Breaking
 

@@ -29,10 +29,18 @@ export * from './accounts/pollingInsuranceFundStakeAccountSubscriber';
 export * from './accounts/pollingHighLeverageModeConfigAccountSubscriber';
 export * from './accounts/basicUserAccountSubscriber';
 export * from './accounts/oneShotUserAccountSubscriber';
+export * from './accounts/oneShotUserStatsAccountSubscriber';
 export * from './accounts/types';
 export * from './addresses/pda';
 export * from './adminClient';
 export * from './assert/assert';
+export {
+	PythLazerSubscriber,
+	PythLazerPriceFeedArray,
+	PriceUpdateAccount,
+	PythSolanaReceiver,
+	WormholeCoreBridgeSolana,
+} from './pyth';
 export * from './testClient';
 export * from './user';
 export * from './userConfig';
@@ -52,7 +60,10 @@ export * from './events/webSocketLogProvider';
 export * from './events/parse';
 export * from './events/pollingLogProvider';
 export * from './jupiter/jupiterClient';
+// Primary swap client interface - use this for all swap operations
+export * from './swap/UnifiedSwapClient';
 export * from './math/auction';
+export * from './math/builder';
 export * from './math/spotMarket';
 export * from './math/conversion';
 export * from './math/exchangeStatus';
@@ -121,6 +132,7 @@ export * from './dlob/orderBookLevels';
 export * from './userMap/userMap';
 export * from './userMap/referrerMap';
 export * from './userMap/userStatsMap';
+export * from './userMap/revenueShareEscrowMap';
 export * from './userMap/userMapConfig';
 export * from './math/bankruptcy';
 export * from './orderSubscriber';
@@ -136,5 +148,6 @@ export * from './clock/clockSubscriber';
 export * from './math/userStatus';
 export * from './indicative-quotes/indicativeQuotesSender';
 export * from './constants';
+export * from './constituentMap/constituentMap';
 
 export { BN, PublicKey, pyth };

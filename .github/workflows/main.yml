@@ -4,7 +4,7 @@ on:
   push:
     branches: [master]
   pull_request:
-    branches: [master]
+    branches: [master, devnet]
 
 defaults:
   run:
@@ -74,7 +74,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v2
         with:
-          node-version: "20.18.x"
+          node-version: "24.x.x"
           registry-url: "https://registry.npmjs.org"
       - name: Install yarn
         run: yarn
@@ -89,13 +89,14 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v2
         with:
-          node-version: "20.18.x"
+          node-version: "24.x.x"
           registry-url: "https://registry.npmjs.org"
       - name: Install yarn
         run: yarn
       - name: Run lint
         run: yarn lint
   anchor-tests:
+    name: Anchor tests
     runs-on: ubicloud
     timeout-minutes: 60
     steps:
@@ -128,7 +129,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v2
         with:
-          node-version: "20.18.x"
+          node-version: "24.x.x"
           registry-url: "https://registry.npmjs.org"
 
       - name: Setup yarn
@@ -161,7 +162,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v2
         with:
-          node-version: "20.18.x"
+          node-version: "24.x.x"
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
@@ -224,7 +225,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v2
         with:
-          node-version: "20.18.x"
+          node-version: "24.x.x"
           registry-url: "https://registry.npmjs.org"
       - name: Build sdk
         run: yarn
@@ -249,7 +250,14 @@ jobs:
           }
           echo "version=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
       - name: Publish to npm
-        run: npm publish --access=public
+        run: |
+          if [[ "$PACKAGE_VERSION" == *beta* ]]; then
+            npm publish --access=public --tag latest
+          elif [[ "$PACKAGE_VERSION" == *alpha* ]]; then
+            npm publish --access=public --tag alpha
+          else
+            npm publish --access=public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Build sdk for browser
@@ -259,7 +267,14 @@ jobs:
           # Update package name for browser version while keeping the same version
           node -e "const pkg = require('./package.json'); pkg.name = pkg.name + '-browser'; require('fs').writeFileSync('package.json', JSON.stringify(pkg, null, 2));"
       - name: Publish browser version to npm
-        run: npm publish --access=public
+        run: |
+          if [[ "$PACKAGE_VERSION" == *beta* ]]; then
+            npm publish --access=public --tag beta
+          elif [[ "$PACKAGE_VERSION" == *alpha* ]]; then
+            npm publish --access=public --tag alpha
+          else
+            npm publish --access=public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Notify Slack on failure

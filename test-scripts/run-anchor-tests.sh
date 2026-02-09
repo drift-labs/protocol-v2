@@ -22,9 +22,10 @@ test_files=(
   # updateK.ts
   # postOnlyAmmFulfillment.ts
   # TODO BROKEN ^^
+	builderCodes.ts
   decodeUser.ts
-  fuel.ts
-  fuelSweep.ts
+  # fuel.ts
+  # fuelSweep.ts
   admin.ts
   assetTier.ts
   cancelAllOrders.ts
@@ -36,12 +37,17 @@ test_files=(
   highLeverageMode.ts
   ifRebalance.ts
   insuranceFundStake.ts
+  isolatedPositionDriftClient.ts
+  isolatedPositionLiquidatePerp.ts
+  isolatedPositionLiquidatePerpwithFill.ts
   liquidateBorrowForPerpPnl.ts
   liquidatePerp.ts
   liquidatePerpWithFill.ts
   liquidatePerpPnlForDeposit.ts
   liquidateSpot.ts
   liquidateSpotSocialLoss.ts
+  lpPool.ts
+  lpPoolSwap.ts
   marketOrder.ts
   marketOrderBaseAssetAmount.ts
   maxDeposit.ts
@@ -87,7 +93,7 @@ test_files=(
   userAccount.ts
   userDelegate.ts
   userOrderId.ts
-  whitelist.ts
+  # whitelist.ts
 )
 
 

@@ -1,12 +1,14 @@
 pub mod amm;
 pub mod funding;
 pub mod insurance;
+pub mod isolated_position;
 pub mod liquidation;
 pub mod orders;
 pub mod pda;
 pub mod pnl;
 pub mod position;
 pub mod repeg;
+pub mod revenue_share;
 pub mod spot_balance;
 pub mod spot_position;
 pub mod token;

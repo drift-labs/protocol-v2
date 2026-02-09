@@ -8,6 +8,7 @@ import {
 	OrderType,
 	PerpPosition,
 	PositionDirection,
+	PositionFlag,
 	SpotBalanceType,
 	SpotPosition,
 	UserAccount,
@@ -83,13 +84,24 @@ export function decodeUser(buffer: Buffer): UserAccount {
 		const baseAssetAmount = readSignedBigInt64LE(buffer, offset + 8);
 		const quoteAssetAmount = readSignedBigInt64LE(buffer, offset + 16);
 		const lpShares = readUnsignedBigInt64LE(buffer, offset + 64);
+		const isolatedPositionScaledBalance = readSignedBigInt64LE(
+			buffer,
+			offset + 72
+		);
 		const openOrders = buffer.readUInt8(offset + 94);
+		const positionFlag = buffer.readUInt8(offset + 95);
 
 		if (
 			baseAssetAmount.eq(ZERO) &&
 			openOrders === 0 &&
 			quoteAssetAmount.eq(ZERO) &&
-			lpShares.eq(ZERO)
+			lpShares.eq(ZERO) &&
+			isolatedPositionScaledBalance.eq(ZERO) &&
+			!(
+				(positionFlag &
+					(PositionFlag.BeingLiquidated | PositionFlag.Bankruptcy)) >
+				0
+			)
 		) {
 			offset += 96;
 			continue;
@@ -106,9 +118,7 @@ export function decodeUser(buffer: Buffer): UserAccount {
 		const openAsks = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
 		const settledPnl = readSignedBigInt64LE(buffer, offset);
-		offset += 16;
-		const lastBaseAssetAmountPerLp = readSignedBigInt64LE(buffer, offset);
-		offset += 8;
+		offset += 24;
 		const lastQuoteAssetAmountPerLp = readSignedBigInt64LE(buffer, offset);
 		offset += 8;
 		const maxMarginRatio = buffer.readUInt16LE(offset);
@@ -117,7 +127,6 @@ export function decodeUser(buffer: Buffer): UserAccount {
 		offset += 3;
 		const perLpBase = buffer.readUInt8(offset);
 		offset += 1;
-
 		perpPositions.push({
 			lastCumulativeFundingRate,
 			baseAssetAmount,
@@ -129,12 +138,13 @@ export function decodeUser(buffer: Buffer): UserAccount {
 			settledPnl,
 			lpShares,
 			remainderBaseAssetAmount: 0,
-			lastBaseAssetAmountPerLp,
 			lastQuoteAssetAmountPerLp,
 			marketIndex,
 			openOrders,
 			perLpBase,
 			maxMarginRatio,
+			positionFlag,
+			isolatedPositionScaledBalance,
 		});
 	}
 

@@ -12,6 +12,7 @@ use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_l
 use crate::math::safe_math::SafeMath;
 use crate::math::spot_balance::get_token_amount;
 
+use crate::math::constants::{BASE_PRECISION, LIQUIDATION_FEE_INCREASE_PER_SLOT};
 use crate::math::spot_swap::calculate_swap_price;
 use crate::msg;
 use crate::state::margin_calculation::MarginContext;
@@ -21,10 +22,7 @@ use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{SpotBalanceType, SpotMarket};
 use crate::state::spot_market_map::SpotMarketMap;
 use crate::state::user::{OrderType, User};
-use crate::{
-    validate, MarketType, OrderParams, PositionDirection, BASE_PRECISION,
-    LIQUIDATION_FEE_INCREASE_PER_SLOT,
-};
+use crate::{validate, MarketType, OrderParams, PositionDirection};
 
 pub const LIQUIDATION_FEE_ADJUST_GRACE_PERIOD_SLOTS: u64 = 1_500; // ~10 minutes
 
@@ -198,7 +196,7 @@ pub fn calculate_asset_transfer_for_liability_transfer(
     Ok(asset_transfer)
 }
 
-pub fn is_user_being_liquidated(
+pub fn is_cross_margin_being_liquidated(
     user: &User,
     market_map: &PerpMarketMap,
     spot_market_map: &SpotMarketMap,
@@ -213,7 +211,7 @@ pub fn is_user_being_liquidated(
         MarginContext::liquidation(liquidation_margin_buffer_ratio),
     )?;
 
-    let is_being_liquidated = !margin_calculation.can_exit_liquidation()?;
+    let is_being_liquidated = !margin_calculation.can_exit_cross_margin_liquidation()?;
 
     Ok(is_being_liquidated)
 }
@@ -229,21 +227,60 @@ pub fn validate_user_not_being_liquidated(
         return Ok(());
     }
 
-    let is_still_being_liquidated = is_user_being_liquidated(
+    let margin_calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
         user,
         market_map,
         spot_market_map,
         oracle_map,
-        liquidation_margin_buffer_ratio,
+        MarginContext::liquidation(liquidation_margin_buffer_ratio),
     )?;
 
-    if is_still_being_liquidated {
-        return Err(ErrorCode::UserIsBeingLiquidated);
+    if user.is_cross_margin_being_liquidated() {
+        if margin_calculation.can_exit_cross_margin_liquidation()? {
+            user.exit_cross_margin_liquidation();
+        } else {
+            return Err(ErrorCode::UserIsBeingLiquidated);
+        }
     } else {
-        user.exit_liquidation()
+        let isolated_positions_being_liquidated = user
+            .perp_positions
+            .iter()
+            .filter(|position| position.is_isolated() && position.is_being_liquidated())
+            .map(|position| position.market_index)
+            .collect::<Vec<_>>();
+
+        for perp_market_index in isolated_positions_being_liquidated {
+            if margin_calculation.can_exit_isolated_margin_liquidation(perp_market_index)? {
+                user.exit_isolated_margin_liquidation(perp_market_index)?;
+            } else {
+                return Err(ErrorCode::UserIsBeingLiquidated);
+            }
+        }
     }
 
     Ok(())
+}
+
+pub fn is_isolated_margin_being_liquidated(
+    user: &User,
+    market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+    perp_market_index: u16,
+    liquidation_margin_buffer_ratio: u32,
+) -> DriftResult<bool> {
+    let margin_calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
+        user,
+        market_map,
+        spot_market_map,
+        oracle_map,
+        MarginContext::liquidation(liquidation_margin_buffer_ratio),
+    )?;
+
+    let is_being_liquidated =
+        !margin_calculation.can_exit_isolated_margin_liquidation(perp_market_index)?;
+
+    Ok(is_being_liquidated)
 }
 
 pub enum LiquidationMultiplierType {

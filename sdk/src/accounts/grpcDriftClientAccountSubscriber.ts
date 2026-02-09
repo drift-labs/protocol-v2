@@ -12,7 +12,7 @@ import { grpcAccountSubscriber } from './grpcAccountSubscriber';
 import { PerpMarketAccount, SpotMarketAccount, StateAccount } from '../types';
 import { getOracleId } from '../oracles/oracleId';
 
-export class gprcDriftClientAccountSubscriber extends WebSocketDriftClientAccountSubscriber {
+export class grpcDriftClientAccountSubscriber extends WebSocketDriftClientAccountSubscriber {
 	private grpcConfigs: GrpcConfigs;
 
 	constructor(

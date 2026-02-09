@@ -11,12 +11,12 @@ use crate::controller::spot_balance::{
 };
 use crate::error::{DriftResult, ErrorCode};
 use crate::get_then_update_id;
-use crate::math::amm::calculate_quote_asset_amount_swapped;
+use crate::math::amm::{calculate_net_user_pnl, calculate_quote_asset_amount_swapped};
 use crate::math::amm_spread::{calculate_spread_reserves, get_spread_reserves};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    CONCENTRATION_PRECISION, FEE_ADJUSTMENT_MAX, FEE_POOL_TO_REVENUE_POOL_THRESHOLD,
-    K_BPS_UPDATE_SCALE, MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE, MAX_SQRT_K,
+    CONCENTRATION_PRECISION, FEE_POOL_TO_REVENUE_POOL_THRESHOLD, K_BPS_UPDATE_SCALE,
+    MAX_CONCENTRATION_COEFFICIENT, MAX_K_BPS_INCREASE, MAX_SQRT_K,
 };
 use crate::math::cp_curve::get_update_k_result;
 use crate::math::repeg::get_total_fee_lower_bound;
@@ -29,9 +29,10 @@ use crate::math::{amm, amm_spread, bn, cp_curve, quote_asset::*};
 
 use crate::state::events::CurveRecord;
 use crate::state::oracle::OraclePriceData;
+use crate::state::paused_operations::PerpOperation;
 use crate::state::perp_market::{PerpMarket, AMM};
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
-use crate::state::user::{SpotPosition, User};
+use crate::state::user::User;
 use crate::validate;
 
 #[cfg(test)]
@@ -185,20 +186,33 @@ pub fn update_spreads(
     let max_ref_offset = market.amm.get_max_reference_price_offset()?;
 
     let reference_price_offset = if max_ref_offset > 0 {
-        let liquidity_ratio = amm_spread::calculate_inventory_liquidity_ratio(
-            market.amm.base_asset_amount_with_amm,
-            market.amm.base_asset_reserve,
-            market.amm.min_base_asset_reserve,
-            market.amm.max_base_asset_reserve,
-        )?;
+        let liquidity_ratio =
+            amm_spread::calculate_inventory_liquidity_ratio_for_reference_price_offset(
+                market.amm.base_asset_amount_with_amm,
+                market.amm.base_asset_reserve,
+                market.amm.min_base_asset_reserve,
+                market.amm.max_base_asset_reserve,
+            )?;
 
         let signed_liquidity_ratio =
             liquidity_ratio.safe_mul(market.amm.get_protocol_owned_position()?.signum().cast()?)?;
 
+        let deadband_pct = market.amm.get_reference_price_offset_deadband_pct()?;
+        let liquidity_fraction_after_deadband =
+            if signed_liquidity_ratio.unsigned_abs() <= deadband_pct {
+                0
+            } else {
+                signed_liquidity_ratio.safe_sub(
+                    deadband_pct
+                        .cast::<i128>()?
+                        .safe_mul(signed_liquidity_ratio.signum())?,
+                )?
+            };
+
         amm_spread::calculate_reference_price_offset(
             reserve_price,
             market.amm.last_24h_avg_funding_rate,
-            signed_liquidity_ratio,
+            liquidity_fraction_after_deadband,
             market.amm.min_order_size,
             market
                 .amm
@@ -263,6 +277,7 @@ pub fn update_spreads(
     market.amm.short_spread = short_spread;
 
     let do_reference_price_smooth = {
+        // let val_changed: bool = reference_price_offset != market.amm.reference_price_offset;
         let sign_changed: bool =
             reference_price_offset.signum() != market.amm.reference_price_offset.signum();
 
@@ -278,18 +293,18 @@ pub fn update_spreads(
                 .saturating_sub(market.amm.reference_price_offset.cast::<i128>()?);
             let raw = full_offset_delta
                 .abs()
-                .cast::<i128>()?
-                .min(slots_passed.cast::<i128>()?.safe_mul(1000)?)
-                .cast::<i128>()?
+                .min(slots_passed.cast::<i128>()?.safe_mul(1000_i128)?)
                 .safe_div(10_i128)?
                 .cast::<i32>()?;
 
             full_offset_delta.signum().cast::<i32>()?
-                * (raw.max(10).min(if market.amm.reference_price_offset != 0 {
-                    market.amm.reference_price_offset.abs()
-                } else {
-                    reference_price_offset.abs()
-                }))
+                * (raw
+                    .max(10_i32)
+                    .min(if market.amm.reference_price_offset != 0 {
+                        market.amm.reference_price_offset.abs()
+                    } else {
+                        reference_price_offset.abs()
+                    }))
         };
 
         market.amm.reference_price_offset = market
@@ -486,6 +501,10 @@ fn calculate_revenue_pool_transfer(
     // If the AMM budget is above `FEE_POOL_TO_REVENUE_POOL_THRESHOLD` (in surplus), settle fees collected to the revenue pool depending on the health of the AMM state
     // Otherwise, spull from the revenue pool (up to a constraint amount)
 
+    if market.is_operation_paused(PerpOperation::SettleRevPool) {
+        return Ok(0);
+    }
+
     let amm_budget_surplus =
         terminal_state_surplus.saturating_sub(FEE_POOL_TO_REVENUE_POOL_THRESHOLD.cast()?);
 
@@ -577,7 +596,7 @@ fn calculate_revenue_pool_transfer(
 pub fn update_pool_balances(
     market: &mut PerpMarket,
     spot_market: &mut SpotMarket,
-    user_quote_position: &SpotPosition,
+    user_quote_token_amount: i128,
     user_unsettled_pnl: i128,
     now: i64,
 ) -> DriftResult<i128> {
@@ -725,12 +744,13 @@ pub fn update_pool_balances(
     let pnl_to_settle_with_user = if user_unsettled_pnl > 0 {
         min(user_unsettled_pnl, pnl_pool_token_amount.cast::<i128>()?)
     } else {
-        let token_amount = user_quote_position.get_signed_token_amount(spot_market)?;
-
         // dont settle negative pnl to spot borrows when utilization is high (> 80%)
-        let max_withdraw_amount =
-            -get_max_withdraw_for_market_with_token_amount(spot_market, token_amount, false)?
-                .cast::<i128>()?;
+        let max_withdraw_amount = -get_max_withdraw_for_market_with_token_amount(
+            spot_market,
+            user_quote_token_amount,
+            false,
+        )?
+        .cast::<i128>()?;
 
         max_withdraw_amount.max(user_unsettled_pnl)
     };
@@ -770,7 +790,7 @@ pub fn update_pool_balances(
 
 pub fn update_pnl_pool_and_user_balance(
     market: &mut PerpMarket,
-    bank: &mut SpotMarket,
+    quote_spot_market: &mut SpotMarket,
     user: &mut User,
     unrealized_pnl_with_fee: i128,
 ) -> DriftResult<i128> {
@@ -778,7 +798,7 @@ pub fn update_pnl_pool_and_user_balance(
         unrealized_pnl_with_fee.min(
             get_token_amount(
                 market.pnl_pool.scaled_balance,
-                bank,
+                quote_spot_market,
                 market.pnl_pool.balance_type(),
             )?
             .cast()?,
@@ -809,14 +829,37 @@ pub fn update_pnl_pool_and_user_balance(
         return Ok(0);
     }
 
-    let user_spot_position = user.get_quote_spot_position_mut();
+    let is_isolated_position = user.get_perp_position(market.market_index)?.is_isolated();
+    if is_isolated_position {
+        let perp_position = user.force_get_isolated_perp_position_mut(market.market_index)?;
+        let perp_position_token_amount =
+            perp_position.get_isolated_token_amount(quote_spot_market)?;
 
-    transfer_spot_balances(
-        pnl_to_settle_with_user,
-        bank,
-        &mut market.pnl_pool,
-        user_spot_position,
-    )?;
+        if pnl_to_settle_with_user < 0 {
+            validate!(
+                perp_position_token_amount >= pnl_to_settle_with_user.unsigned_abs(),
+                ErrorCode::InsufficientCollateral,
+                "user has insufficient deposit for market {}",
+                market.market_index
+            )?;
+        }
+
+        transfer_spot_balances(
+            pnl_to_settle_with_user,
+            quote_spot_market,
+            &mut market.pnl_pool,
+            perp_position,
+        )?;
+    } else {
+        let user_spot_position = user.get_quote_spot_position_mut();
+
+        transfer_spot_balances(
+            pnl_to_settle_with_user,
+            quote_spot_market,
+            &mut market.pnl_pool,
+            user_spot_position,
+        )?;
+    }
 
     Ok(pnl_to_settle_with_user)
 }
@@ -942,7 +985,7 @@ pub fn calculate_perp_market_amm_summary_stats(
         .safe_add(fee_pool_token_amount)?
         .cast()?;
 
-    let net_user_pnl = amm::calculate_net_user_pnl(&perp_market.amm, perp_market_oracle_price)?;
+    let net_user_pnl = calculate_net_user_pnl(&perp_market.amm, perp_market_oracle_price)?;
 
     // amm's mm_fee can be incorrect with drifting integer math error
     let mut new_total_fee_minus_distributions = pnl_tokens_available.safe_sub(net_user_pnl)?;

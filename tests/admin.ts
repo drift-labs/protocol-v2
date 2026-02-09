@@ -106,6 +106,7 @@ describe('admin', () => {
 			new BN(1000),
 			periodicity
 		);
+		await driftClient.initializeAmmCache();
 	});
 
 	it('checks market name', async () => {
@@ -123,17 +124,6 @@ describe('admin', () => {
 			`market name does not match \n actual: ${decodeName(
 				newMarket.name
 			)} \n expected: ${newName}`
-		);
-	});
-
-	it('Update lp cooldown time', async () => {
-		await driftClient.updateLpCooldownTime(new BN(420));
-		await driftClient.fetchAccounts();
-		assert(
-			driftClient.getStateAccount().lpCooldownTime.eq(new BN(420)),
-			`lp cooldown time does not match \n actual: ${
-				driftClient.getStateAccount().lpCooldownTime
-			} \n expected: ${new BN(420)}`
 		);
 	});
 
@@ -443,6 +433,15 @@ describe('admin', () => {
 		await driftClient.updateMmOracleNative(0, oraclePrice.addn(1), oracleTS);
 		assert(perpMarket.amm.mmOraclePrice.eq(oraclePrice));
 
+		// Errors if we try and update it with price of zero
+		try {
+			await driftClient.updateMmOracleNative(0, new BN(0), oracleTS);
+			assert.fail('Should have thrown');
+		} catch (e) {
+			console.log(e.message);
+			assert(e.message.includes('custom program error'));
+		}
+
 		// Doesnt update if we flip the admin switch
 		await driftClient.updateFeatureBitFlagsMMOracle(false);
 		try {
@@ -470,6 +469,19 @@ describe('admin', () => {
 		await driftClient.updateAmmSpreadAdjustmentNative(0, ammSpreadAdjustment);
 		const perpMarket = driftClient.getPerpMarketAccount(0);
 		assert(perpMarket.amm.ammSpreadAdjustment == ammSpreadAdjustment);
+	});
+
+	it('update perp market reference offset deadband pct', async () => {
+		const referenceOffsetDeadbandPct = 5;
+		await driftClient.updatePerpMarketReferencePriceOffsetDeadbandPct(
+			0,
+			referenceOffsetDeadbandPct
+		);
+		const perpMarket = driftClient.getPerpMarketAccount(0);
+		assert(
+			perpMarket.amm.referencePriceOffsetDeadbandPct ==
+				referenceOffsetDeadbandPct
+		);
 	});
 
 	it('update pnl pool', async () => {

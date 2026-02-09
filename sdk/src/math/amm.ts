@@ -389,6 +389,31 @@ export function calculateInventoryLiquidityRatio(
 	return inventoryScaleBN;
 }
 
+export function calculateInventoryLiquidityRatioForReferencePriceOffset(
+	baseAssetAmountWithAmm: BN,
+	baseAssetReserve: BN,
+	minBaseAssetReserve: BN,
+	maxBaseAssetReserve: BN
+): BN {
+	// inventory skew
+	const [openBids, openAsks] = calculateMarketOpenBidAsk(
+		baseAssetReserve,
+		minBaseAssetReserve,
+		maxBaseAssetReserve
+	);
+
+	const avgSideLiquidity = openBids.abs().add(openAsks.abs()).div(TWO);
+
+	const inventoryScaleBN = BN.min(
+		baseAssetAmountWithAmm
+			.mul(PERCENTAGE_PRECISION)
+			.div(BN.max(avgSideLiquidity, ONE))
+			.abs(),
+		PERCENTAGE_PRECISION
+	);
+	return inventoryScaleBN;
+}
+
 export function calculateInventoryScale(
 	baseAssetAmountWithAmm: BN,
 	baseAssetReserve: BN,
@@ -440,7 +465,7 @@ export function calculateReferencePriceOffset(
 	markTwapSlow: BN,
 	maxOffsetPct: number
 ): BN {
-	if (last24hAvgFundingRate.eq(ZERO)) {
+	if (last24hAvgFundingRate.eq(ZERO) || liquidityFraction.eq(ZERO)) {
 		return ZERO;
 	}
 
@@ -478,16 +503,10 @@ export function calculateReferencePriceOffset(
 		.mul(PRICE_PRECISION)
 		.div(reservePrice);
 
-	const inventoryPct = clampBN(
-		liquidityFraction.mul(new BN(maxOffsetPct)).div(PERCENTAGE_PRECISION),
-		new BN(maxOffsetPct).mul(new BN(-1)),
-		new BN(maxOffsetPct)
-	);
-
 	// Only apply when inventory is consistent with recent and 24h market premium
-	let offsetPct = markPremiumAvgPct.add(inventoryPct);
+	let offsetPct = markPremiumAvgPct.mul(liquidityFraction.abs()).divn(2);
 
-	if (!sigNum(inventoryPct).eq(sigNum(markPremiumAvgPct))) {
+	if (!sigNum(liquidityFraction).eq(sigNum(markPremiumAvgPct))) {
 		offsetPct = ZERO;
 	}
 
@@ -1007,25 +1026,48 @@ export function calculateSpreadReserves(
 	let maxOffset = 0;
 	let referencePriceOffset = 0;
 	if (amm.curveUpdateIntensity > 100) {
-		maxOffset = Math.max(
-			amm.maxSpread / 2,
-			(PERCENTAGE_PRECISION.toNumber() / 10000) *
-				(amm.curveUpdateIntensity - 100)
-		);
+		if (amm.curveUpdateIntensity == 200) {
+			maxOffset = Math.max(amm.maxSpread / 2, 10_000);
+		} else {
+			maxOffset = Math.min(
+				amm.maxSpread / 2,
+				(PERCENTAGE_PRECISION.toNumber() / 10000) *
+					(amm.curveUpdateIntensity - 100)
+			);
+		}
 
-		const liquidityFraction = calculateInventoryLiquidityRatio(
-			amm.baseAssetAmountWithAmm,
-			amm.baseAssetReserve,
-			amm.minBaseAssetReserve,
-			amm.maxBaseAssetReserve
-		);
+		const liquidityFraction =
+			calculateInventoryLiquidityRatioForReferencePriceOffset(
+				amm.baseAssetAmountWithAmm,
+				amm.baseAssetReserve,
+				amm.minBaseAssetReserve,
+				amm.maxBaseAssetReserve
+			);
 		const liquidityFractionSigned = liquidityFraction.mul(
 			sigNum(amm.baseAssetAmountWithAmm.add(amm.baseAssetAmountWithUnsettledLp))
 		);
+
+		let liquidityFractionAfterDeadband = liquidityFractionSigned;
+		const deadbandPct = amm.referencePriceOffsetDeadbandPct
+			? PERCENTAGE_PRECISION.mul(
+					new BN(amm.referencePriceOffsetDeadbandPct as number)
+			  ).divn(100)
+			: ZERO;
+		if (!liquidityFractionAfterDeadband.eq(ZERO) && deadbandPct.gt(ZERO)) {
+			const abs = liquidityFractionAfterDeadband.abs();
+			if (abs.lte(deadbandPct)) {
+				liquidityFractionAfterDeadband = ZERO;
+			} else {
+				liquidityFractionAfterDeadband = liquidityFractionAfterDeadband.sub(
+					deadbandPct.mul(sigNum(liquidityFractionAfterDeadband))
+				);
+			}
+		}
+
 		referencePriceOffset = calculateReferencePriceOffset(
 			reservePrice,
 			amm.last24HAvgFundingRate,
-			liquidityFractionSigned,
+			liquidityFractionAfterDeadband,
 			amm.historicalOracleData.lastOraclePriceTwap5Min,
 			amm.lastMarkPriceTwap5Min,
 			amm.historicalOracleData.lastOraclePriceTwap,

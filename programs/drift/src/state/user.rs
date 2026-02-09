@@ -3,8 +3,9 @@ use crate::error::{DriftResult, ErrorCode};
 use crate::math::auction::{calculate_auction_price, is_auction_complete};
 use crate::math::casting::Cast;
 use crate::math::constants::{
-    EPOCH_DURATION, FUEL_OVERFLOW_THRESHOLD_U32, FUEL_START_TS, OPEN_ORDER_MARGIN_REQUIREMENT,
-    PRICE_TIMES_AMM_TO_QUOTE_PRECISION_RATIO, QUOTE_PRECISION, QUOTE_SPOT_MARKET_INDEX, THIRTY_DAY,
+    EPOCH_DURATION, FUEL_OVERFLOW_THRESHOLD_U32, FUEL_START_TS, MAX_PREDICTION_MARKET_PRICE,
+    OPEN_ORDER_MARGIN_REQUIREMENT, QUOTE_PRECISION_U64, QUOTE_SPOT_MARKET_INDEX,
+    SPOT_WEIGHT_PRECISION, SPOT_WEIGHT_PRECISION_I128, THIRTY_DAY,
 };
 use crate::math::margin::MarginRequirementType;
 use crate::math::orders::{
@@ -18,17 +19,18 @@ use crate::math::spot_balance::{
     get_signed_token_amount, get_strict_token_value, get_token_amount, get_token_value,
 };
 use crate::math::stats::calculate_rolling_sum;
+use crate::math_error;
 use crate::msg;
+use crate::safe_increment;
 use crate::state::oracle::StrictOraclePrice;
 use crate::state::perp_market::ContractType;
 use crate::state::spot_market::{SpotBalance, SpotBalanceType, SpotMarket};
 use crate::state::traits::Size;
-use crate::{get_then_update_id, ID, QUOTE_PRECISION_U64};
-use crate::{math_error, SPOT_WEIGHT_PRECISION_I128};
-use crate::{safe_increment, SPOT_WEIGHT_PRECISION};
-use crate::{validate, MAX_PREDICTION_MARKET_PRICE};
+use crate::validate;
+use crate::{get_then_update_id, ID};
 use anchor_lang::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
+use bytemuck::{Pod, Zeroable};
 use std::cmp::max;
 use std::fmt;
 use std::ops::Neg;
@@ -135,10 +137,18 @@ pub struct User {
 
 impl User {
     pub fn is_being_liquidated(&self) -> bool {
+        self.is_cross_margin_being_liquidated() || self.has_isolated_margin_being_liquidated()
+    }
+
+    pub fn is_cross_margin_being_liquidated(&self) -> bool {
         self.status & (UserStatus::BeingLiquidated as u8 | UserStatus::Bankrupt as u8) > 0
     }
 
     pub fn is_bankrupt(&self) -> bool {
+        self.is_cross_margin_bankrupt() || self.has_isolated_margin_bankrupt()
+    }
+
+    pub fn is_cross_margin_bankrupt(&self) -> bool {
         self.status & (UserStatus::Bankrupt as u8) > 0
     }
 
@@ -257,6 +267,40 @@ impl User {
         Ok(&mut self.perp_positions[position_index])
     }
 
+    pub fn force_get_isolated_perp_position_mut(
+        &mut self,
+        perp_market_index: u16,
+    ) -> DriftResult<&mut PerpPosition> {
+        if let Ok(position_index) = get_position_index(&self.perp_positions, perp_market_index) {
+            let perp_position = &mut self.perp_positions[position_index];
+            validate!(
+                perp_position.is_isolated(),
+                ErrorCode::InvalidPerpPosition,
+                "perp position is not isolated"
+            )?;
+
+            Ok(&mut self.perp_positions[position_index])
+        } else {
+            let position_index = add_new_position(&mut self.perp_positions, perp_market_index)?;
+
+            let perp_position = &mut self.perp_positions[position_index];
+            perp_position.position_flag = PositionFlag::IsolatedPosition as u8;
+
+            Ok(&mut self.perp_positions[position_index])
+        }
+    }
+
+    pub fn get_isolated_perp_position(&self, perp_market_index: u16) -> DriftResult<&PerpPosition> {
+        let position_index = get_position_index(&self.perp_positions, perp_market_index)?;
+        validate!(
+            self.perp_positions[position_index].is_isolated(),
+            ErrorCode::InvalidPerpPosition,
+            "perp position is not isolated"
+        )?;
+
+        Ok(&self.perp_positions[position_index])
+    }
+
     pub fn get_order_index(&self, order_id: u32) -> DriftResult<usize> {
         self.orders
             .iter()
@@ -285,6 +329,30 @@ impl User {
         } else {
             self.next_order_id - 1
         }
+    }
+
+    pub fn get_total_token_amount(&self, spot_market: &SpotMarket) -> DriftResult<i128> {
+        let spot_token_amount = {
+            if let Ok(spot_position) = self.get_spot_position(spot_market.market_index) {
+                spot_position.get_signed_token_amount(spot_market)?
+            } else {
+                0_i128
+            }
+        };
+
+        if spot_market.market_index != QUOTE_SPOT_MARKET_INDEX {
+            return Ok(spot_token_amount);
+        }
+
+        let mut perp_token_amount = 0;
+        for perp_position in self.perp_positions.iter() {
+            if perp_position.is_isolated() {
+                perp_token_amount = perp_token_amount
+                    .safe_add(perp_position.get_isolated_token_amount(&spot_market)?)?;
+            }
+        }
+
+        spot_token_amount.safe_add(perp_token_amount.cast::<i128>()?)
     }
 
     pub fn increment_total_deposits(
@@ -335,32 +403,110 @@ impl User {
         Ok(())
     }
 
-    pub fn enter_liquidation(&mut self, slot: u64) -> DriftResult<u16> {
-        if self.is_being_liquidated() {
+    pub fn enter_cross_margin_liquidation(&mut self, slot: u64) -> DriftResult<u16> {
+        if self.is_cross_margin_being_liquidated() {
             return self.next_liquidation_id.safe_sub(1);
         }
 
         self.add_user_status(UserStatus::BeingLiquidated);
         self.liquidation_margin_freed = 0;
-        self.last_active_slot = slot;
-        Ok(get_then_update_id!(self, next_liquidation_id))
+
+        let liquidation_id = if self.has_isolated_margin_being_liquidated() {
+            self.next_liquidation_id.safe_sub(1)?
+        } else {
+            self.last_active_slot = slot;
+            get_then_update_id!(self, next_liquidation_id)
+        };
+
+        Ok(liquidation_id)
     }
 
-    pub fn exit_liquidation(&mut self) {
+    pub fn exit_cross_margin_liquidation(&mut self) {
         self.remove_user_status(UserStatus::BeingLiquidated);
         self.remove_user_status(UserStatus::Bankrupt);
         self.liquidation_margin_freed = 0;
     }
 
-    pub fn enter_bankruptcy(&mut self) {
+    pub fn enter_cross_margin_bankruptcy(&mut self) {
         self.remove_user_status(UserStatus::BeingLiquidated);
         self.add_user_status(UserStatus::Bankrupt);
     }
 
-    pub fn exit_bankruptcy(&mut self) {
+    pub fn exit_cross_margin_bankruptcy(&mut self) {
         self.remove_user_status(UserStatus::BeingLiquidated);
         self.remove_user_status(UserStatus::Bankrupt);
         self.liquidation_margin_freed = 0;
+    }
+
+    pub fn has_isolated_margin_being_liquidated(&self) -> bool {
+        self.perp_positions
+            .iter()
+            .any(|position| position.is_isolated() && position.is_being_liquidated())
+    }
+
+    pub fn enter_isolated_margin_liquidation(
+        &mut self,
+        perp_market_index: u16,
+        slot: u64,
+    ) -> DriftResult<u16> {
+        if self.is_isolated_margin_being_liquidated(perp_market_index)? {
+            return self.next_liquidation_id.safe_sub(1);
+        }
+
+        let liquidation_id = if self.is_cross_margin_being_liquidated()
+            || self.has_isolated_margin_being_liquidated()
+        {
+            self.next_liquidation_id.safe_sub(1)?
+        } else {
+            self.last_active_slot = slot;
+            get_then_update_id!(self, next_liquidation_id)
+        };
+
+        let perp_position = self.force_get_isolated_perp_position_mut(perp_market_index)?;
+
+        perp_position.position_flag |= PositionFlag::BeingLiquidated as u8;
+
+        Ok(liquidation_id)
+    }
+
+    pub fn exit_isolated_margin_liquidation(&mut self, perp_market_index: u16) -> DriftResult {
+        let perp_position = self.force_get_isolated_perp_position_mut(perp_market_index)?;
+        perp_position.position_flag &= !(PositionFlag::BeingLiquidated as u8);
+        perp_position.position_flag &= !(PositionFlag::Bankrupt as u8);
+        Ok(())
+    }
+
+    pub fn is_isolated_margin_being_liquidated(&self, perp_market_index: u16) -> DriftResult<bool> {
+        if let Ok(perp_position) = self.get_isolated_perp_position(perp_market_index) {
+            Ok(perp_position.is_being_liquidated())
+        } else {
+            Ok(false)
+        }
+    }
+
+    pub fn has_isolated_margin_bankrupt(&self) -> bool {
+        self.perp_positions
+            .iter()
+            .any(|position| position.is_isolated() && position.is_bankrupt())
+    }
+
+    pub fn enter_isolated_margin_bankruptcy(&mut self, perp_market_index: u16) -> DriftResult {
+        let perp_position = self.force_get_isolated_perp_position_mut(perp_market_index)?;
+        perp_position.position_flag &= !(PositionFlag::BeingLiquidated as u8);
+        perp_position.position_flag |= PositionFlag::Bankrupt as u8;
+        Ok(())
+    }
+
+    pub fn exit_isolated_margin_bankruptcy(&mut self, perp_market_index: u16) -> DriftResult {
+        let perp_position = self.force_get_isolated_perp_position_mut(perp_market_index)?;
+        perp_position.position_flag &= !(PositionFlag::BeingLiquidated as u8);
+        perp_position.position_flag &= !(PositionFlag::Bankrupt as u8);
+        Ok(())
+    }
+
+    pub fn is_isolated_margin_bankrupt(&self, perp_market_index: u16) -> DriftResult<bool> {
+        let perp_position = self.get_isolated_perp_position(perp_market_index)?;
+        Ok(perp_position.position_flag & (PositionFlag::Bankrupt as u8) != 0)
     }
 
     pub fn increment_margin_freed(&mut self, margin_free: u64) -> DriftResult {
@@ -535,14 +681,13 @@ impl User {
             )?;
         }
 
-        validate_any_isolated_tier_requirements(self, calculation)?;
+        validate_any_isolated_tier_requirements(self, &calculation)?;
 
         validate!(
             calculation.meets_margin_requirement(),
             ErrorCode::InsufficientCollateral,
-            "User attempting to withdraw where total_collateral {} is below initial_margin_requirement {}",
-            calculation.total_collateral,
-            calculation.margin_requirement
+            "margin calculation: {:?}",
+            calculation
         )?;
 
         user_stats.update_fuel_bonus(
@@ -590,14 +735,13 @@ impl User {
             )?;
         }
 
-        validate_any_isolated_tier_requirements(self, calculation)?;
+        validate_any_isolated_tier_requirements(self, &calculation)?;
 
         validate!(
             calculation.meets_margin_requirement(),
             ErrorCode::InsufficientCollateral,
-            "User attempting to withdraw where total_collateral {} is below initial_margin_requirement {}",
-            calculation.total_collateral,
-            calculation.margin_requirement
+            "margin calculation: {:?}",
+            calculation
         )?;
 
         user_stats.update_fuel_bonus(
@@ -611,8 +755,92 @@ impl User {
         Ok(true)
     }
 
-    pub fn can_skip_auction_duration(&self, user_stats: &UserStats) -> DriftResult<bool> {
-        if user_stats.disable_update_perp_bid_ask_twap {
+    pub fn meets_transfer_isolated_position_deposit_margin_requirement(
+        &mut self,
+        perp_market_map: &PerpMarketMap,
+        spot_market_map: &SpotMarketMap,
+        oracle_map: &mut OracleMap,
+        margin_requirement_type: MarginRequirementType,
+        withdraw_market_index: u16,
+        withdraw_amount: u128,
+        user_stats: &mut UserStats,
+        now: i64,
+        to_isolated_position: bool,
+        isolated_market_index: u16,
+    ) -> DriftResult<bool> {
+        let strict = margin_requirement_type == MarginRequirementType::Initial;
+        let context = MarginContext::standard(margin_requirement_type)
+            .strict(strict)
+            .ignore_invalid_deposit_oracles(true)
+            .fuel_spot_delta(withdraw_market_index, withdraw_amount.cast::<i128>()?)
+            .fuel_numerator(self, now);
+
+        let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
+            self,
+            perp_market_map,
+            spot_market_map,
+            oracle_map,
+            context,
+        )?;
+
+        if calculation.margin_requirement > 0 || calculation.get_num_of_liabilities()? > 0 {
+            validate!(
+                calculation.all_liability_oracles_valid,
+                ErrorCode::InvalidOracle,
+                "User attempting to withdraw with outstanding liabilities when an oracle is invalid"
+            )?;
+        }
+
+        validate_any_isolated_tier_requirements(self, &calculation)?;
+
+        if to_isolated_position {
+            validate!(
+                calculation.meets_cross_margin_requirement(),
+                ErrorCode::InsufficientCollateral,
+                "margin calculation: {:?}",
+                calculation
+            )?;
+        } else {
+            // may not exist if user withdrew their remaining deposit
+            if let Some(isolated_margin_calculation) = calculation
+                .isolated_margin_calculations
+                .get(&isolated_market_index)
+            {
+                validate!(
+                    isolated_margin_calculation.meets_margin_requirement(),
+                    ErrorCode::InsufficientCollateral,
+                    "margin calculation: {:?}",
+                    calculation
+                )?;
+            }
+        }
+
+        user_stats.update_fuel_bonus(
+            self,
+            calculation.fuel_deposits,
+            calculation.fuel_borrows,
+            calculation.fuel_positions,
+            now,
+        )?;
+
+        Ok(true)
+    }
+
+    pub fn can_skip_auction_duration(
+        &self,
+        user_stats: &UserStats,
+        reduce_only_order: bool,
+    ) -> DriftResult<bool> {
+        let atomic_fill_paused = UserStatsPausedOperations::is_operation_paused(
+            user_stats.paused_operations,
+            UserStatsPausedOperations::AmmAtomicFill,
+        );
+        let atomic_risk_increasing_fill_paused = UserStatsPausedOperations::is_operation_paused(
+            user_stats.paused_operations,
+            UserStatsPausedOperations::AmmAtomicRiskIncreasingFill,
+        );
+
+        if atomic_fill_paused || (atomic_risk_increasing_fill_paused && !reduce_only_order) {
             return Ok(false);
         }
 
@@ -624,11 +852,6 @@ impl User {
         market_index: u16,
         margin_ratio: u16,
     ) -> DriftResult<()> {
-        if self.max_margin_ratio > margin_ratio as u32 {
-            msg!("user.max_margin_ratio ({}) > margin_ratio ({}), setting user.max_margin_ratio to margin_ratio", self.max_margin_ratio, margin_ratio);
-            self.max_margin_ratio = margin_ratio as u32;
-        }
-
         let perp_position = self.force_get_perp_position_mut(market_index)?;
         msg!(
             "perp_position.max_margin_ratio ({}) -> {}",
@@ -971,10 +1194,9 @@ pub struct PerpPosition {
     /// LP shares allow users to provide liquidity via the AMM
     /// precision: BASE_PRECISION
     pub lp_shares: u64,
-    /// The last base asset amount per lp the amm had
-    /// Used to settle the users lp position
-    /// precision: BASE_PRECISION
-    pub last_base_asset_amount_per_lp: i64,
+    /// The scaled balance of the isolated position
+    /// precision: SPOT_BALANCE_PRECISION
+    pub isolated_position_scaled_balance: u64,
     /// The last quote asset amount per lp the amm had
     /// Used to settle the users lp position
     /// precision: QUOTE_PRECISION
@@ -986,7 +1208,7 @@ pub struct PerpPosition {
     pub market_index: u16,
     /// The number of open orders
     pub open_orders: u8,
-    pub per_lp_base: i8,
+    pub position_flag: u8,
 }
 
 impl PerpPosition {
@@ -995,7 +1217,11 @@ impl PerpPosition {
     }
 
     pub fn is_available(&self) -> bool {
-        !self.is_open_position() && !self.has_open_order() && !self.has_unsettled_pnl()
+        !self.is_open_position()
+            && !self.has_open_order()
+            && !self.has_unsettled_pnl()
+            && self.isolated_position_scaled_balance == 0
+            && !self.is_being_liquidated()
     }
 
     pub fn is_open_position(&self) -> bool {
@@ -1138,6 +1364,67 @@ impl PerpPosition {
         } else {
             None
         }
+    }
+
+    pub fn is_isolated(&self) -> bool {
+        self.position_flag & PositionFlag::IsolatedPosition as u8 > 0
+    }
+
+    pub fn get_isolated_token_amount(&self, spot_market: &SpotMarket) -> DriftResult<u128> {
+        get_token_amount(
+            self.isolated_position_scaled_balance as u128,
+            spot_market,
+            &SpotBalanceType::Deposit,
+        )
+    }
+
+    pub fn is_being_liquidated(&self) -> bool {
+        self.position_flag & (PositionFlag::BeingLiquidated as u8 | PositionFlag::Bankrupt as u8)
+            > 0
+    }
+
+    pub fn is_bankrupt(&self) -> bool {
+        self.position_flag & PositionFlag::Bankrupt as u8 > 0
+    }
+
+    pub fn can_transfer_isolated_position_deposit(&self) -> bool {
+        self.is_isolated()
+            && self.isolated_position_scaled_balance > 0
+            && !self.is_open_position()
+            && !self.has_open_order()
+            && !self.has_unsettled_pnl()
+    }
+}
+
+impl SpotBalance for PerpPosition {
+    fn market_index(&self) -> u16 {
+        QUOTE_SPOT_MARKET_INDEX
+    }
+
+    fn balance_type(&self) -> &SpotBalanceType {
+        &SpotBalanceType::Deposit
+    }
+
+    fn balance(&self) -> u128 {
+        self.isolated_position_scaled_balance as u128
+    }
+
+    fn increase_balance(&mut self, delta: u128) -> DriftResult {
+        self.isolated_position_scaled_balance = self
+            .isolated_position_scaled_balance
+            .safe_add(delta.cast::<u64>()?)?;
+        Ok(())
+    }
+
+    fn decrease_balance(&mut self, delta: u128) -> DriftResult {
+        self.isolated_position_scaled_balance = self
+            .isolated_position_scaled_balance
+            .safe_sub(delta.cast::<u64>()?)?;
+        Ok(())
+    }
+
+    fn update_balance_type(&mut self, _balance_type: SpotBalanceType) -> DriftResult {
+        Err(ErrorCode::CantUpdateSpotBalanceType)
     }
 }
 
@@ -1502,6 +1789,10 @@ impl Order {
         self.is_bit_flag_set(OrderBitFlag::SignedMessage)
     }
 
+    pub fn is_has_builder(&self) -> bool {
+        self.is_bit_flag_set(OrderBitFlag::HasBuilder)
+    }
+
     pub fn add_bit_flag(&mut self, flag: OrderBitFlag) {
         self.bit_flags |= flag as u8;
     }
@@ -1518,6 +1809,31 @@ impl Order {
         !self.must_be_triggered()
             || (self.triggered()
                 && !(self.reduce_only && self.is_bit_flag_set(OrderBitFlag::NewTriggerReduceOnly)))
+    }
+
+    pub fn is_low_risk_for_amm(
+        &self,
+        mm_oracle_delay: i64,
+        clock_slot: u64,
+        is_liquidation: bool,
+        user_can_skip_auction_duration: bool,
+    ) -> DriftResult<bool> {
+        if self.market_type == MarketType::Spot {
+            return Ok(false);
+        }
+
+        let order_older_than_oracle_delay = {
+            let clock_minus_delay = clock_slot.cast::<i64>()?.safe_sub(mm_oracle_delay)?;
+            if user_can_skip_auction_duration {
+                clock_minus_delay >= self.slot.cast::<i64>()?
+            } else {
+                clock_minus_delay > self.slot.cast::<i64>()?
+            }
+        };
+
+        Ok(order_older_than_oracle_delay
+            || is_liquidation
+            || self.is_bit_flag_set(OrderBitFlag::SafeTriggerOrder))
     }
 }
 
@@ -1602,12 +1918,24 @@ impl fmt::Display for MarketType {
     }
 }
 
+unsafe impl Zeroable for MarketType {}
+unsafe impl Pod for MarketType {}
+
 #[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
 pub enum OrderBitFlag {
     SignedMessage = 0b00000001,
     OracleTriggerMarket = 0b00000010,
     SafeTriggerOrder = 0b00000100,
     NewTriggerReduceOnly = 0b00001000,
+    HasBuilder = 0b00010000,
+    IsIsolatedPosition = 0b00100000,
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+pub enum PositionFlag {
+    IsolatedPosition = 0b00000001,
+    BeingLiquidated = 0b00000010,
+    Bankrupt = 0b00000100,
 }
 
 #[account(zero_copy(unsafe))]
@@ -1653,8 +1981,8 @@ pub struct UserStats {
     /// First bit (LSB): 1 if user is a referrer, 0 otherwise
     /// Second bit: 1 if user was referred, 0 otherwise
     pub referrer_status: u8,
-    pub disable_update_perp_bid_ask_twap: bool,
-    pub padding1: [u8; 1],
+    pub disable_update_perp_bid_ask_twap: u8,
+    pub paused_operations: u8,
     /// whether the user has a FuelOverflow account
     pub fuel_overflow_status: u8,
     /// accumulated fuel for token amounts of insurance
@@ -1684,6 +2012,7 @@ pub struct UserStats {
 pub enum ReferrerStatus {
     IsReferrer = 0b00000001,
     IsReferred = 0b00000010,
+    BuilderReferral = 0b00000100,
 }
 
 impl ReferrerStatus {
@@ -1693,6 +2022,10 @@ impl ReferrerStatus {
 
     pub fn is_referred(status: u8) -> bool {
         status & ReferrerStatus::IsReferred as u8 != 0
+    }
+
+    pub fn has_builder_referral(status: u8) -> bool {
+        status & ReferrerStatus::BuilderReferral as u8 != 0
     }
 }
 
@@ -1900,6 +2233,14 @@ impl UserStats {
         }
     }
 
+    pub fn update_builder_referral_status(&mut self) {
+        if !self.referrer.eq(&Pubkey::default()) {
+            self.referrer_status |= ReferrerStatus::BuilderReferral as u8;
+        } else {
+            self.referrer_status &= !(ReferrerStatus::BuilderReferral as u8);
+        }
+    }
+
     pub fn update_fuel_overflow_status(&mut self, has_overflow: bool) {
         if has_overflow {
             self.fuel_overflow_status |= FuelOverflowStatus::Exists as u8;
@@ -1990,6 +2331,14 @@ impl UserStats {
                 }
             }
         }
+    }
+
+    pub fn can_update_bid_ask_twap(&self) -> bool {
+        let update_mark_twap_paused = UserStatsPausedOperations::is_operation_paused(
+            self.paused_operations,
+            UserStatsPausedOperations::UpdateBidAskTwap,
+        );
+        !update_mark_twap_paused
     }
 }
 
@@ -2102,5 +2451,19 @@ impl FuelOverflow {
             .safe_add(self.fuel_positions)?
             .safe_add(self.fuel_taker)?
             .safe_add(self.fuel_maker)
+    }
+}
+
+#[derive(Clone, Copy, BorshSerialize, BorshDeserialize, PartialEq, Debug, Eq)]
+#[repr(u8)]
+pub enum UserStatsPausedOperations {
+    UpdateBidAskTwap = 0b00000001,
+    AmmAtomicFill = 0b00000010,
+    AmmAtomicRiskIncreasingFill = 0b00000100,
+}
+
+impl UserStatsPausedOperations {
+    pub fn is_operation_paused(current: u8, operation: UserStatsPausedOperations) -> bool {
+        current & operation as u8 != 0
     }
 }

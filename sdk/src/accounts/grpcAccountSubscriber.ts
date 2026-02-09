@@ -39,13 +39,16 @@ export class grpcAccountSubscriber<T> extends WebSocketAccountSubscriber<T> {
 		program: Program,
 		accountPublicKey: PublicKey,
 		decodeBuffer?: (buffer: Buffer) => U,
-		resubOpts?: ResubOpts
+		resubOpts?: ResubOpts,
+		clientProp?: Client
 	): Promise<grpcAccountSubscriber<U>> {
-		const client = await createClient(
-			grpcConfigs.endpoint,
-			grpcConfigs.token,
-			grpcConfigs.channelOptions ?? {}
-		);
+		const client = clientProp
+			? clientProp
+			: await createClient(
+					grpcConfigs.endpoint,
+					grpcConfigs.token,
+					grpcConfigs.channelOptions ?? {}
+			  );
 		const commitmentLevel =
 			// @ts-ignore :: isomorphic exported enum fails typescript but will work at runtime
 			grpcConfigs.commitmentLevel ?? CommitmentLevel.CONFIRMED;

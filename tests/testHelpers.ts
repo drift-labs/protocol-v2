@@ -43,7 +43,10 @@ import {
 	PositionDirection,
 	DriftClient,
 	OrderType,
-} from '../sdk';
+	ReferrerInfo,
+	ConstituentAccount,
+	SpotMarketAccount,
+} from '../sdk/src';
 import {
 	TestClient,
 	SPOT_MARKET_RATE_PRECISION,
@@ -401,7 +404,8 @@ export async function initializeAndSubscribeDriftClient(
 	marketIndexes: number[],
 	bankIndexes: number[],
 	oracleInfos: OracleInfo[] = [],
-	accountLoader?: TestBulkAccountLoader
+	accountLoader?: TestBulkAccountLoader,
+	referrerInfo?: ReferrerInfo
 ): Promise<TestClient> {
 	const driftClient = new TestClient({
 		connection,
@@ -426,7 +430,7 @@ export async function initializeAndSubscribeDriftClient(
 			  },
 	});
 	await driftClient.subscribe();
-	await driftClient.initializeUserAccount();
+	await driftClient.initializeUserAccount(0, undefined, referrerInfo);
 	return driftClient;
 }
 
@@ -438,7 +442,8 @@ export async function createUserWithUSDCAccount(
 	marketIndexes: number[],
 	bankIndexes: number[],
 	oracleInfos: OracleInfo[] = [],
-	accountLoader?: TestBulkAccountLoader
+	accountLoader?: TestBulkAccountLoader,
+	referrerInfo?: ReferrerInfo
 ): Promise<[TestClient, PublicKey, Keypair]> {
 	const userKeyPair = await createFundedKeyPair(context);
 	const usdcAccount = await createUSDCAccountForUser(
@@ -454,7 +459,8 @@ export async function createUserWithUSDCAccount(
 		marketIndexes,
 		bankIndexes,
 		oracleInfos,
-		accountLoader
+		accountLoader,
+		referrerInfo
 	);
 
 	return [driftClient, usdcAccount, userKeyPair];
@@ -557,7 +563,6 @@ export async function printTxLogs(
 	const tx = await connection.getTransaction(txSig, {
 		commitment: 'confirmed',
 	});
-	console.log('tx logs', tx.meta.logMessages);
 	return tx.meta.logMessages;
 }
 
@@ -1205,6 +1210,23 @@ export async function overWritePerpMarket(
 	});
 }
 
+export async function overWriteSpotMarket(
+	driftClient: TestClient,
+	bankrunContextWrapper: BankrunContextWrapper,
+	spotMarketKey: PublicKey,
+	spotMarket: SpotMarketAccount
+) {
+	bankrunContextWrapper.context.setAccount(spotMarketKey, {
+		executable: false,
+		owner: driftClient.program.programId,
+		lamports: LAMPORTS_PER_SOL,
+		data: await driftClient.program.account.spotMarket.coder.accounts.encode(
+			'SpotMarket',
+			spotMarket
+		),
+	});
+}
+
 export async function getPerpMarketDecoded(
 	driftClient: TestClient,
 	bankrunContextWrapper: BankrunContextWrapper,
@@ -1358,4 +1380,30 @@ export async function placeAndFillVammTrade({
 		console.log('fill failed!');
 		console.error(e);
 	}
+}
+
+export async function overwriteConstituentAccount(
+	bankrunContextWrapper: BankrunContextWrapper,
+	program: Program,
+	constituentPublicKey: PublicKey,
+	overwriteFields: Array<[key: keyof ConstituentAccount, value: any]>
+) {
+	const acc = await program.account.constituent.fetch(constituentPublicKey);
+	if (!acc) {
+		throw new Error(
+			`Constituent account ${constituentPublicKey.toBase58()} not found`
+		);
+	}
+	for (const [key, value] of overwriteFields) {
+		acc[key] = value;
+	}
+	bankrunContextWrapper.context.setAccount(constituentPublicKey, {
+		executable: false,
+		owner: program.programId,
+		lamports: LAMPORTS_PER_SOL,
+		data: await program.account.constituent.coder.accounts.encode(
+			'Constituent',
+			acc
+		),
+	});
 }

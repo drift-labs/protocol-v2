@@ -6,6 +6,7 @@ import {
 	UserAccount,
 	UserStatsAccount,
 	InsuranceFundStake,
+	ConstituentAccount,
 	HighLeverageModeConfig,
 } from '../types';
 import StrictEventEmitter from 'strict-event-emitter-types';
@@ -14,7 +15,7 @@ import { Context, PublicKey } from '@solana/web3.js';
 import { Account } from '@solana/spl-token';
 import { OracleInfo, OraclePriceData } from '../oracles/types';
 import { User } from '../user';
-import { ChannelOptions, CommitmentLevel } from '../isomorphic/grpc';
+import { Client, CommitmentLevel, LaserstreamConfig } from '../isomorphic/grpc';
 
 export interface AccountSubscriber<T> {
 	dataAndSlot?: DataAndSlot<T>;
@@ -224,17 +225,28 @@ export interface UserStatsAccountSubscriber {
 	getUserStatsAccountAndSlot(): DataAndSlot<UserStatsAccount>;
 }
 
-export type GrpcConfigs = {
+type BaseGrpcConfigs = {
 	endpoint: string;
 	token: string;
 	commitmentLevel?: CommitmentLevel;
-	channelOptions?: ChannelOptions;
 	/**
 	 * Whether to enable automatic reconnection on connection loss .
 	 * Defaults to false, will throw on connection loss.
 	 */
 	enableReconnect?: boolean;
 };
+
+export type YellowstoneGrpcConfigs = BaseGrpcConfigs & {
+	client?: 'yellowstone';
+	channelOptions?: ConstructorParameters<typeof Client>[2];
+};
+
+export type LaserGrpcConfigs = BaseGrpcConfigs & {
+	client: 'laser';
+	channelOptions?: LaserstreamConfig['channelOptions'];
+};
+
+export type GrpcConfigs = YellowstoneGrpcConfigs | LaserGrpcConfigs;
 
 export interface HighLeverageModeConfigAccountSubscriber {
 	eventEmitter: StrictEventEmitter<
@@ -255,6 +267,25 @@ export interface HighLeverageModeConfigAccountSubscriber {
 export interface HighLeverageModeConfigAccountEvents {
 	highLeverageModeConfigAccountUpdate: (
 		payload: HighLeverageModeConfig
+	) => void;
+	update: void;
+	error: (e: Error) => void;
+}
+
+export interface ConstituentAccountSubscriber {
+	eventEmitter: StrictEventEmitter<EventEmitter, ConstituentAccountEvents>;
+	isSubscribed: boolean;
+
+	subscribe(constituentAccount?: ConstituentAccount): Promise<boolean>;
+	sync(): Promise<void>;
+	unsubscribe(): Promise<void>;
+}
+
+export interface ConstituentAccountEvents {
+	onAccountUpdate: (
+		account: ConstituentAccount,
+		pubkey: PublicKey,
+		slot: number
 	) => void;
 	update: void;
 	error: (e: Error) => void;
