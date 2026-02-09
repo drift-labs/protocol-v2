@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - program: block amm fills when paused_operations set [#2108](https://github.com/drift-labs/protocol-v2/pull/2108)
+- program: remove same slot matching restriction [#2104](https://github.com/drift-labs/protocol-v2/pull/2104)
 
 ### Fixes
 
