@@ -1383,6 +1383,34 @@
       ]
     },
     {
+      "name": "placeScaleOrders",
+      "accounts": [
+        {
+          "name": "state",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "user",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": "ScaleOrderParams"
+          }
+        }
+      ]
+    },
+    {
       "name": "beginSwap",
       "accounts": [
         {
@@ -13261,6 +13289,102 @@
       }
     },
     {
+      "name": "ScaleOrderParams",
+      "docs": [
+        "Parameters for placing scale orders - multiple limit orders distributed across a price range"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "marketType",
+            "type": {
+              "defined": "MarketType"
+            }
+          },
+          {
+            "name": "direction",
+            "type": {
+              "defined": "PositionDirection"
+            }
+          },
+          {
+            "name": "marketIndex",
+            "type": "u16"
+          },
+          {
+            "name": "totalBaseAssetAmount",
+            "docs": [
+              "Total base asset amount to distribute across all orders"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "startPrice",
+            "docs": [
+              "Starting price for the scale (in PRICE_PRECISION)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "endPrice",
+            "docs": [
+              "Ending price for the scale (in PRICE_PRECISION)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "orderCount",
+            "docs": [
+              "Number of orders to place (min 2, max 32)"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "sizeDistribution",
+            "docs": [
+              "How to distribute sizes across orders"
+            ],
+            "type": {
+              "defined": "SizeDistribution"
+            }
+          },
+          {
+            "name": "reduceOnly",
+            "docs": [
+              "Whether orders should be reduce-only"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "postOnly",
+            "docs": [
+              "Post-only setting for all orders"
+            ],
+            "type": {
+              "defined": "PostOnlyParam"
+            }
+          },
+          {
+            "name": "bitFlags",
+            "docs": [
+              "Bit flags (e.g., for high leverage mode)"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "maxTs",
+            "docs": [
+              "Maximum timestamp for orders to be valid"
+            ],
+            "type": {
+              "option": "i64"
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "InsuranceClaim",
       "type": {
         "kind": "struct",
@@ -15603,6 +15727,26 @@
           },
           {
             "name": "FullFill"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SizeDistribution",
+      "docs": [
+        "How to distribute order sizes across scale orders"
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Flat"
+          },
+          {
+            "name": "Ascending"
+          },
+          {
+            "name": "Descending"
           }
         ]
       }
@@ -19824,9 +19968,16 @@
       "code": 6345,
       "name": "InvalidIsolatedPerpMarket",
       "msg": "Invalid Isolated Perp Market"
+    },
+    {
+      "code": 6346,
+      "name": "InvalidOrderScaleOrderCount",
+      "msg": "Invalid scale order count - must be between 2 and 10"
+    },
+    {
+      "code": 6347,
+      "name": "InvalidOrderScalePriceRange",
+      "msg": "Invalid scale order price range"
     }
-  ],
-  "metadata": {
-    "address": "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"
-  }
+  ]
 }

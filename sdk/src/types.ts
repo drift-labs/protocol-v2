@@ -1295,6 +1295,42 @@ export class PostOnlyParams {
 	static readonly SLIDE = { slide: {} }; // Modify price to be post only if can't be post only
 }
 
+/**
+ * How to distribute order sizes across scale orders
+ */
+export class SizeDistribution {
+	static readonly FLAT = { flat: {} }; // Equal size for all orders
+	static readonly ASCENDING = { ascending: {} }; // Smallest at start price, largest at end price
+	static readonly DESCENDING = { descending: {} }; // Largest at start price, smallest at end price
+}
+
+/**
+ * Parameters for placing scale orders - multiple limit orders distributed across a price range
+ */
+export type ScaleOrderParams = {
+	marketType: MarketType;
+	direction: PositionDirection;
+	marketIndex: number;
+	/** Total base asset amount to distribute across all orders */
+	totalBaseAssetAmount: BN;
+	/** Starting price for the scale (in PRICE_PRECISION) */
+	startPrice: BN;
+	/** Ending price for the scale (in PRICE_PRECISION) */
+	endPrice: BN;
+	/** Number of orders to place (min 2, max 32). User cannot exceed 32 total open orders. */
+	orderCount: number;
+	/** How to distribute sizes across orders */
+	sizeDistribution: SizeDistribution;
+	/** Whether orders should be reduce-only */
+	reduceOnly: boolean;
+	/** Post-only setting for all orders */
+	postOnly: PostOnlyParams;
+	/** Bit flags (e.g., for high leverage mode) */
+	bitFlags: number;
+	/** Maximum timestamp for orders to be valid */
+	maxTs: BN | null;
+};
+
 export class OrderParamsBitFlag {
 	static readonly ImmediateOrCancel = 1;
 	static readonly UpdateHighLeverageMode = 2;
