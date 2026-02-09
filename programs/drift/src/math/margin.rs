@@ -779,7 +779,7 @@ pub fn meets_place_order_margin_requirement(
                 market_index,
                 margin_requirement_type: MarginRequirementType::Initial,
                 default_isolated_margin_requirement_type: MarginRequirementType::Maintenance,
-                cross_margin_requirement_type: MarginRequirementType::Initial,
+                cross_margin_requirement_type: MarginRequirementType::Maintenance,
             },
             None => MarginTypeConfig::CrossMarginOverride {
                 margin_requirement_type: MarginRequirementType::Initial,
