@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: remove same slot matching restriction [#2104](https://github.com/drift-labs/protocol-v2/pull/2104)
+
 ### Fixes
 
 ### Breaking
@@ -47,6 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixes
 
 ### Breaking
+
 - sdk: `channelOptions` in the GrpcConfigs type has been updated to work with new grpc lib
 
 ## [2.153.0] - 2025-12-30
@@ -104,11 +107,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixes
 
 ### Breaking
+
 - program: add DepositRecord::spot_balance_after [#2034](https://github.com/drift-labs/protocol-v2/pull/2034)
 
 ## [2.149.0] - 2025-11-19
 
 ### Features
+
 - sdk: allow deposit from external authority directly to drift account
 
 ### Fixes
@@ -171,7 +176,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- program: use-5min-for-target-expiry-price  ([#1967](https://github.com/drift-labs/protocol-v2/pull/1967))
+- program: use-5min-for-target-expiry-price ([#1967](https://github.com/drift-labs/protocol-v2/pull/1967))
 
 ### Fixes
 
