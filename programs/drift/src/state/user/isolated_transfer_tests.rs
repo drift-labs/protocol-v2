@@ -128,7 +128,10 @@ fn can_transfer_to_isolated_when_cross_still_meets_after_withdraw() {
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
-        MarginRequirementType::Initial,
+        MarginTypeConfig::CrossMarginOverride {
+            margin_requirement_type: MarginRequirementType::Initial,
+            default_margin_requirement_type: MarginRequirementType::Maintenance,
+        },
         0,
         transfer_amount,
         &mut user_stats,
@@ -217,9 +220,9 @@ fn cannot_transfer_to_isolated_when_cross_would_fail_after_withdraw() {
     let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
 
     // User state AFTER transfer: cross has only 30 USDC (we transferred 50), and has a cross
-    // perp position on market 1: 10 long @ $100 = $1000 notional, maintenance margin 5% = $50.
-    // So cross needs $50 but only has $30 -> fails.
-    let cross_after = 30 * SPOT_BALANCE_PRECISION_U64;
+    // perp position on market 1: 10 long @ $100 = $1000 notional, initial margin 10% = $100.
+    // So cross needs $100 but only has $60 -> fails.
+    let cross_after = 60 * SPOT_BALANCE_PRECISION_U64;
     let transfer_amount = 50 * 1_000_000_u128;
 
     let mut user = User {
@@ -257,7 +260,10 @@ fn cannot_transfer_to_isolated_when_cross_would_fail_after_withdraw() {
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
-        MarginRequirementType::Initial,
+        MarginTypeConfig::CrossMarginOverride {
+            margin_requirement_type: MarginRequirementType::Initial,
+            default_margin_requirement_type: MarginRequirementType::Maintenance,
+        },
         0,
         transfer_amount,
         &mut user_stats,
@@ -364,7 +370,12 @@ fn can_transfer_from_isolated_when_isolated_still_meets_after_withdraw() {
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
-        MarginRequirementType::Initial,
+        MarginTypeConfig::IsolatedPositionOverride {
+            margin_requirement_type: MarginRequirementType::Initial,
+            default_isolated_margin_requirement_type: MarginRequirementType::Maintenance,
+            cross_margin_requirement_type: MarginRequirementType::Maintenance,
+            market_index: 0,
+        },
         0,
         0,
         &mut user_stats,
@@ -471,7 +482,12 @@ fn cannot_transfer_from_isolated_when_isolated_would_fail() {
         &perp_market_map,
         &spot_market_map,
         &mut oracle_map,
-        MarginRequirementType::Initial,
+        MarginTypeConfig::IsolatedPositionOverride {
+            market_index: 0,
+            margin_requirement_type: MarginRequirementType::Initial,
+            default_isolated_margin_requirement_type: MarginRequirementType::Maintenance,
+            cross_margin_requirement_type: MarginRequirementType::Maintenance,
+        },
         0,
         0,
         &mut user_stats,

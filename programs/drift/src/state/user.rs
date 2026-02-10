@@ -762,7 +762,7 @@ impl User {
         perp_market_map: &PerpMarketMap,
         spot_market_map: &SpotMarketMap,
         oracle_map: &mut OracleMap,
-        margin_requirement_type: MarginRequirementType,
+        margin_type_config: MarginTypeConfig,
         withdraw_market_index: u16,
         withdraw_amount: u128,
         user_stats: &mut UserStats,
@@ -771,12 +771,6 @@ impl User {
         isolated_market_index: u16,
     ) -> DriftResult<bool> {
         let strict = margin_requirement_type == MarginRequirementType::Initial;
-        let margin_type_config = MarginTypeConfig::IsolatedPositionOverride {
-            market_index: isolated_market_index,
-            margin_requirement_type,
-            default_isolated_margin_requirement_type: MarginRequirementType::Maintenance,
-            cross_margin_requirement_type: MarginRequirementType::Maintenance,
-        };
         let context = MarginContext::standard_with_config(margin_type_config)
             .strict(strict)
             .ignore_invalid_deposit_oracles(true)
@@ -801,27 +795,12 @@ impl User {
 
         validate_any_isolated_tier_requirements(self, &calculation)?;
 
-        if to_isolated_position {
-            validate!(
-                calculation.meets_cross_margin_requirement(),
-                ErrorCode::InsufficientCollateral,
-                "margin calculation: {:?}",
-                calculation
-            )?;
-        } else {
-            // may not exist if user withdrew their remaining deposit
-            if let Some(isolated_margin_calculation) = calculation
-                .isolated_margin_calculations
-                .get(&isolated_market_index)
-            {
-                validate!(
-                    isolated_margin_calculation.meets_margin_requirement(),
-                    ErrorCode::InsufficientCollateral,
-                    "margin calculation: {:?}",
-                    calculation
-                )?;
-            }
-        }
+        validate!(
+            calculation.meets_margin_requirement(),
+            ErrorCode::InsufficientCollateral,
+            "margin calculation: {:?}",
+            calculation
+        )?;
 
         user_stats.update_fuel_bonus(
             self,
