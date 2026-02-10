@@ -282,7 +282,6 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
     }
 
     let user_pool_id = user.pool_id;
-    let user_high_leverage_mode = user.is_high_leverage_mode(cross_margin_requirement_type);
 
     for spot_position in user.spot_positions.iter() {
         validation::position::validate_spot_position(spot_position)?;
@@ -609,6 +608,9 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 margin_ratio_override.max(perp_user_custom_margin_ratio);
         }
 
+        let perp_position_user_high_leverage_mode =
+            user.is_high_leverage_mode(position_margin_type);
+
         let (perp_margin_requirement, weighted_pnl, worst_case_liability_value, base_asset_value) =
             calculate_perp_position_value_and_pnl(
                 market_position,
@@ -617,7 +619,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 &strict_quote_price,
                 position_margin_type,
                 perp_position_custom_margin_ratio,
-                user_high_leverage_mode,
+                perp_position_user_high_leverage_mode,
             )?;
 
         calculation.update_fuel_perp_bonus(
