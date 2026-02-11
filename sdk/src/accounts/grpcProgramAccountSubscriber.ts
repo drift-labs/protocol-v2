@@ -54,10 +54,15 @@ export class grpcProgramAccountSubscriber<
 		},
 		resubOpts?: ResubOpts
 	): Promise<grpcProgramAccountSubscriber<U>> {
+		const channelOptions: GrpcConfigs['channelOptions'] = {
+			...(grpcConfigs.channelOptions ?? {}),
+			grpcDefaultCompressionAlgorithm: 1, // always use zstd compression
+			grpcHttp2AdaptiveWindow: true, // enable adaptive window size management
+		};
 		const client = await createClient(
 			grpcConfigs.endpoint,
 			grpcConfigs.token,
-			grpcConfigs.channelOptions ?? {}
+			channelOptions
 		);
 		const commitmentLevel =
 			// @ts-ignore :: isomorphic exported enum fails typescript but will work at runtime
