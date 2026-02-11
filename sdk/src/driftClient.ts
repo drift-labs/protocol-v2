@@ -5604,7 +5604,7 @@ export class DriftClient {
 	}
 
 	/**
-	 * Place scale orders - multiple limit orders distributed across a price range
+	 * Place scale orders: multiple limit orders distributed across a price range
 	 * @param params Scale order parameters
 	 * @param txParams Optional transaction parameters
 	 * @param subAccountId Optional sub account ID
