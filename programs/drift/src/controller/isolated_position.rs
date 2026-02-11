@@ -8,6 +8,7 @@ use crate::math::liquidation::is_isolated_margin_being_liquidated;
 use crate::math::margin::{validate_spot_margin_trading, MarginRequirementType};
 use crate::math::safe_math::SafeMath;
 use crate::state::events::{DepositDirection, DepositExplanation, DepositRecord};
+use crate::state::margin_calculation::MarginTypeConfig;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::PerpMarketMap;

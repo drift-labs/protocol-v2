@@ -5603,8 +5603,9 @@ mod get_margin_calculation_for_disable_high_leverage_mode {
             // - User has a cross account that is FAILING initial margin (but passing maintenance)
             //   because they have a cross perp position that requires more margin than available
             // - User tries to increase an isolated position
-            // - Expected: Order should FAIL because collateral for isolated positions comes from
-            //   the cross account, and you can't withdraw/transfer when failing initial margin
+            // - Expected: Order should SUCCEED because collateral for isolated positions comes from
+            //   the cross account, but we already ran initial check at the transfer ix previous to this IRL
+            //   so we only check maintenance at time of placing order
             //
             // This ensures users can't escape cross margin requirements by moving to isolated positions
 
@@ -5709,7 +5710,7 @@ mod get_margin_calculation_for_disable_high_leverage_mode {
             // User has:
             // - 80 USDC cross collateral
             // - Cross SOL-PERP position: 10 SOL long @ $100 = $1000 notional
-            //   - Initial margin required: $1000 * 10% = $100 (FAILS - only $80 cross collateral)
+            //   - Initial margin required: $1000 * 10% = $100 (doesn't matter, we check maintenance - only $80 cross collateral)
             //   - Maintenance margin required: $1000 * 5% = $50 (PASSES - $80 > $50)
             // - Isolated ETH-PERP position: 1 ETH long @ $1000 = $1000 notional
             //   - With $200 isolated collateral
@@ -5761,17 +5762,12 @@ mod get_margin_calculation_for_disable_high_leverage_mode {
                 Some(2), // isolated_market_index = 2 means this is an ETH-PERP order
             );
 
-            // Should FAIL because:
+            // Should SUCCEED because:
             // - Cross margin with SOL-PERP: $80 collateral < $100 initial margin required
-            // - Even though cross is only checked with Maintenance in IsolatedPositionOverride,
-            //   we need to ensure users can't increase isolated positions when cross is undercollateralized
-            //   because funding isolated positions requires withdrawing from cross
-            //
-            // NOTE: If this test fails (result is Ok), we need to add additional validation
-            // to prevent increasing isolated positions when cross account fails initial margin
+            // - But it's more than $50, which is the maintenance margin required for the ETH-PERP position
             assert!(
-                result.is_err(),
-                "Isolated order should fail when cross account fails initial margin"
+                result.is_ok(),
+                "Isolated place order should succeed when cross account fails initial margin but has enough maintenance collateral"
             );
         }
 

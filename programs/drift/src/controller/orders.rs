@@ -58,7 +58,7 @@ use crate::state::events::{emit_stack, get_order_action_record, OrderActionRecor
 use crate::state::events::{OrderAction, OrderActionExplanation};
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
-use crate::state::margin_calculation::{MarginCalculation, MarginContext};
+use crate::state::margin_calculation::{MarginCalculation, MarginContext, MarginTypeConfig};
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
 use crate::state::order_params::{
@@ -2060,13 +2060,13 @@ fn fulfill_perp_order(
         let margin_type_config = if is_isolated_position {
             MarginTypeConfig::IsolatedPositionOverride {
                 market_index,
-                margin_requirement_type,
+                margin_requirement_type: margin_type,
                 default_isolated_margin_requirement_type: MarginRequirementType::Maintenance,
                 cross_margin_requirement_type: MarginRequirementType::Maintenance,
             }
         } else {
             MarginTypeConfig::CrossMarginOverride {
-                margin_requirement_type,
+                margin_requirement_type: margin_type,
                 default_margin_requirement_type: MarginRequirementType::Maintenance,
             }
         };
