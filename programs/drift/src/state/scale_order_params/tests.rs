@@ -442,7 +442,7 @@ fn test_expand_to_order_params_spot() {
     let params = ScaleOrderParams {
         market_type: MarketType::Spot,
         direction: PositionDirection::Long,
-        market_index: 1, // SOL spot market
+        market_index: 1,                             // SOL spot market
         total_base_asset_amount: BASE_PRECISION_U64, // 1.0
         start_price: 110 * PRICE_PRECISION_U64,
         end_price: 100 * PRICE_PRECISION_U64,
@@ -482,7 +482,7 @@ fn test_spot_short_scale_orders() {
     let params = ScaleOrderParams {
         market_type: MarketType::Spot,
         direction: PositionDirection::Short,
-        market_index: 1, // SOL spot market
+        market_index: 1,                             // SOL spot market
         total_base_asset_amount: BASE_PRECISION_U64, // 1.0
         start_price: 100 * PRICE_PRECISION_U64,
         end_price: 110 * PRICE_PRECISION_U64,

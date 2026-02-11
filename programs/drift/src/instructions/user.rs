@@ -81,7 +81,6 @@ use crate::state::order_params::{
     PlaceOrderOptions, PostOnlyParam,
 };
 use crate::state::paused_operations::{PerpOperation, SpotOperation};
-use crate::state::scale_order_params::ScaleOrderParams;
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::{get_writable_perp_market_set, MarketSet};
 use crate::state::protected_maker_mode_config::ProtectedMakerModeConfig;
@@ -91,6 +90,7 @@ use crate::state::revenue_share::RevenueShareEscrow;
 use crate::state::revenue_share::RevenueShareOrder;
 use crate::state::revenue_share::REVENUE_SHARE_ESCROW_PDA_SEED;
 use crate::state::revenue_share::REVENUE_SHARE_PDA_SEED;
+use crate::state::scale_order_params::ScaleOrderParams;
 use crate::state::signed_msg_user::SignedMsgOrderId;
 use crate::state::signed_msg_user::SignedMsgUserOrdersLoader;
 use crate::state::signed_msg_user::SignedMsgWsDelegates;
@@ -2666,7 +2666,8 @@ fn place_orders<'c: 'info, 'info>(
                 }
             };
 
-            scale_params.expand_to_order_params(order_step_size)
+            scale_params
+                .expand_to_order_params(order_step_size)
                 .map_err(|e| {
                     msg!("Failed to expand scale order params: {:?}", e);
                     ErrorCode::InvalidOrder
