@@ -771,7 +771,8 @@ impl User {
         isolated_market_index: u16,
     ) -> DriftResult<bool> {
         let strict = if !to_isolated_position {
-            margin_type_config.get_isolated_margin_requirement_type(isolated_market_index) == MarginRequirementType::Initial
+            margin_type_config.get_isolated_margin_requirement_type(isolated_market_index)
+                == MarginRequirementType::Initial
         } else {
             margin_type_config.get_cross_margin_requirement_type() == MarginRequirementType::Initial
         };

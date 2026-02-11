@@ -15,6 +15,7 @@ use crate::math::constants::{
     SPOT_CUMULATIVE_INTEREST_PRECISION, SPOT_WEIGHT_PRECISION,
 };
 use crate::math::margin::MarginRequirementType;
+use crate::state::margin_calculation::MarginTypeConfig;
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::{MarketStatus, PerpMarket, AMM};
@@ -27,7 +28,6 @@ use crate::test_utils::{
     get_pyth_price, get_spot_positions,
 };
 use crate::{create_anchor_account_info, PRICE_PRECISION_I64};
-use crate::state::margin_calculation::MarginTypeConfig;
 
 #[test]
 fn can_transfer_to_isolated_when_cross_still_meets_after_withdraw() {
