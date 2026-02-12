@@ -2057,7 +2057,9 @@ fn fulfill_perp_order(
             market_index,
         )?;
 
-        let margin_type_config = if is_isolated_position {
+        let maker_perp_position = maker.get_perp_position(market_index)?;
+
+        let margin_type_config = if maker_perp_position.is_isolated() {
             MarginTypeConfig::IsolatedPositionOverride {
                 market_index,
                 margin_requirement_type: margin_type,
