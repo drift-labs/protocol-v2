@@ -6,7 +6,7 @@ This README will try explain how to do this, and you should be able to follow th
 
 ## High Level Explanation
 
-At a high level, we just want to make sure that we're not importing any incompatible code into the final compiled .js output files. The only real way this can "get done" is by importing types or by importing classes/methods/values out of an offending packages. The goal of our isomorphic seperation is to ensure that we have SDK-Side code which is still properly typed and easy for devs to work with, without putting anything bad into the output code. We will do this with some typescript magic and a simple but handy postbuild script.
+At a high level, we just want to make sure that we're not importing any incompatible code into the final compiled .js output files. The only real way this can "get done" is by importing types or by importing classes/methods/values out of an offending packages. The goal of our isomorphic separation is to ensure that we have SDK-Side code which is still properly typed and easy for devs to work with, without putting anything bad into the output code. We will do this with some typescript magic and a simple but handy postbuild script.
 
 ## Step-by-step isomorphic code:
 
