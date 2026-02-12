@@ -47,88 +47,89 @@ reviews:
       util_dirs: []
       essential_rules: true
       packages: []
+    # Rust - primary language
+    clippy:
+      enabled: true
+    # TypeScript/JavaScript - SDK
+    eslint:
+      enabled: true
+    # Shell scripts
     shellcheck:
       enabled: true
-    ruff:
-      enabled: true
+    # Markdown docs
     markdownlint:
+      enabled: true
+    # YAML config files
+    yamllint:
+      enabled: true
+    # GitHub Actions workflows
+    actionlint:
       enabled: true
     github-checks:
       enabled: true
       timeout_ms: 90000
-    languagetool:
-      enabled: true
-      enabled_rules: []
-      disabled_rules: []
-      enabled_categories: []
-      disabled_categories: []
-      enabled_only: false
-      level: default
-    biome:
-      enabled: true
-    hadolint:
-      enabled: true
-    swiftlint:
-      enabled: true
-    phpstan:
-      enabled: true
-      level: default
-    phpmd:
-      enabled: true
-    phpcs:
-      enabled: true
-    golangci-lint:
-      enabled: true
-    yamllint:
-      enabled: true
+    # Security scanning
     gitleaks:
       enabled: true
+    # Disabled - not applicable to this project (Rust/TypeScript)
+    ruff:
+      enabled: false
+    languagetool:
+      enabled: false
+    biome:
+      enabled: false
+    hadolint:
+      enabled: false
+    swiftlint:
+      enabled: false
+    phpstan:
+      enabled: false
+    phpmd:
+      enabled: false
+    phpcs:
+      enabled: false
+    golangci-lint:
+      enabled: false
     checkov:
-      enabled: true
+      enabled: false
     detekt:
-      enabled: true
-    eslint:
-      enabled: true
+      enabled: false
     flake8:
-      enabled: true
+      enabled: false
     rubocop:
-      enabled: true
+      enabled: false
     buf:
-      enabled: true
+      enabled: false
     regal:
-      enabled: true
-    actionlint:
-      enabled: true
+      enabled: false
     pmd:
-      enabled: true
+      enabled: false
     cppcheck:
-      enabled: true
+      enabled: false
     semgrep:
-      enabled: true
+      enabled: false
     circleci:
-      enabled: true
-    clippy:
-      enabled: true
+      enabled: false
     sqlfluff:
-      enabled: true
+      enabled: false
     prismaLint:
-      enabled: true
+      enabled: false
     pylint:
-      enabled: true
+      enabled: false
     oxc:
-      enabled: true
+      enabled: false
     shopifyThemeCheck:
-      enabled: true
+      enabled: false
     luacheck:
-      enabled: true
+      enabled: false
     brakeman:
-      enabled: true
+      enabled: false
     dotenvLint:
-      enabled: true
+      enabled: false
     htmlhint:
-      enabled: true
+      enabled: false
     checkmake:
-      enabled: true
+      enabled: false
 chat:
   auto_reply: true
   integrations:
