@@ -1,0 +1,12 @@
+{
+  "name": "switchboard-on-demand-rust-docs",
+  "scripts": {
+    "docgen": "cargo doc --all-features --no-deps",
+    "docgen:compile": "pnpm docgen && ts-node ./scripts/compile_docs.ts",
+    "docgen:deploy": "pnpm docgen:compile && cd target && firebase deploy --project docs --only hosting:switchboard-on-demand-rust-docs"
+  },
+  "dependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "fs-extra": "^11.2.0"
+  }
+}

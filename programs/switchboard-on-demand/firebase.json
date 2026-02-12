@@ -1,0 +1,14 @@
+{
+  "hosting": [
+    {
+      "site": "switchboard-on-demand-rust-docs",
+      "public": "doc",
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "index.html"
+        }
+      ]
+    }
+  ]
+}
