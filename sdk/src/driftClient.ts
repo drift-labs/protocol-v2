@@ -8233,7 +8233,10 @@ export class DriftClient {
 
 	public async preparePlaceAndTakeSpotOrder(
 		orderParams: OptionalOrderParams,
-		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
+		fulfillmentConfig?:
+			| SerumV3FulfillmentConfigAccount
+			| PhoenixV1FulfillmentConfigAccount
+			| OpenbookV2FulfillmentConfigAccount,
 		makerInfo?: MakerInfo,
 		referrerInfo?: ReferrerInfo,
 		txParams?: TxParams,
@@ -8257,7 +8260,10 @@ export class DriftClient {
 
 	public async placeAndTakeSpotOrder(
 		orderParams: OptionalOrderParams,
-		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
+		fulfillmentConfig?:
+			| SerumV3FulfillmentConfigAccount
+			| PhoenixV1FulfillmentConfigAccount
+			| OpenbookV2FulfillmentConfigAccount,
 		makerInfo?: MakerInfo,
 		referrerInfo?: ReferrerInfo,
 		txParams?: TxParams,
@@ -8284,7 +8290,10 @@ export class DriftClient {
 	}
 	public async getPlaceAndTakeSpotOrderIx(
 		orderParams: OptionalOrderParams,
-		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
+		fulfillmentConfig?:
+			| SerumV3FulfillmentConfigAccount
+			| PhoenixV1FulfillmentConfigAccount
+			| OpenbookV2FulfillmentConfigAccount,
 		makerInfo?: MakerInfo,
 		referrerInfo?: ReferrerInfo,
 		subAccountId?: number
@@ -8359,7 +8368,10 @@ export class DriftClient {
 	public async placeAndMakeSpotOrder(
 		orderParams: OptionalOrderParams,
 		takerInfo: TakerInfo,
-		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
+		fulfillmentConfig?:
+			| SerumV3FulfillmentConfigAccount
+			| PhoenixV1FulfillmentConfigAccount
+			| OpenbookV2FulfillmentConfigAccount,
 		referrerInfo?: ReferrerInfo,
 		txParams?: TxParams,
 		subAccountId?: number
@@ -8386,7 +8398,10 @@ export class DriftClient {
 	public async getPlaceAndMakeSpotOrderIx(
 		orderParams: OptionalOrderParams,
 		takerInfo: TakerInfo,
-		fulfillmentConfig?: SerumV3FulfillmentConfigAccount,
+		fulfillmentConfig?:
+			| SerumV3FulfillmentConfigAccount
+			| PhoenixV1FulfillmentConfigAccount
+			| OpenbookV2FulfillmentConfigAccount,
 		referrerInfo?: ReferrerInfo,
 		subAccountId?: number
 	): Promise<TransactionInstruction> {
