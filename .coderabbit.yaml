@@ -5,6 +5,7 @@ enable_free_tier: true
 reviews:
   profile: chill
   request_changes_workflow: false
+  max_files: 500
   high_level_summary: true
   high_level_summary_placeholder: '@coderabbitai summary'
   high_level_summary_in_walkthrough: false
