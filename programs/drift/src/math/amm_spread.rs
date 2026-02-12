@@ -111,7 +111,13 @@ pub fn calculate_long_short_vol_spread(
     short_intensity_volume: u64,
     volume_24h: u64,
 ) -> DriftResult<(u64, u64)> {
-    // 1.6 * std
+    const FACTOR_CLAMP_MIN: u128 = PERCENTAGE_PRECISION / 100; // 0.01
+    const FACTOR_CLAMP_MAX: u128 = PERCENTAGE_PRECISION * 2; // 2.00
+
+    // Asymmetry strength: bump the dominant side by up to 50% at full skew; relieve the other side by half of that.
+    const K_ASYM_NUM: u128 = PERCENTAGE_PRECISION / 2; // 0.50
+    const K_ASYM_CAP: u128 = PERCENTAGE_PRECISION * 3 / 4; // 0.75 max bump
+
     let market_avg_std_pct: u128 = oracle_std
         .safe_add(mark_std)?
         .cast::<u128>()?
@@ -121,45 +127,84 @@ pub fn calculate_long_short_vol_spread(
 
     let vol_spread: u128 = last_oracle_conf_pct
         .cast::<u128>()?
-        .max(market_avg_std_pct.safe_div(4)?);
+        .max(market_avg_std_pct.safe_div(3)?);
 
-    let factor_clamp_min: u128 = PERCENTAGE_PRECISION / 100; // .01
-    let factor_clamp_max: u128 = PERCENTAGE_PRECISION; // 1
+    let v_hr = max(volume_24h.cast::<u128>()?.safe_div(24)?, 1);
 
-    let long_vol_spread_factor: u128 = long_intensity_volume
+    let long_factor_base: u128 = long_intensity_volume
         .cast::<u128>()?
         .safe_mul(PERCENTAGE_PRECISION)?
-        .safe_div(max(volume_24h.cast::<u128>()?, 1))?
-        .clamp(factor_clamp_min, factor_clamp_max);
-    let short_vol_spread_factor: u128 = short_intensity_volume
+        .safe_div(v_hr)?
+        .clamp(FACTOR_CLAMP_MIN, FACTOR_CLAMP_MAX);
+
+    let short_factor_base: u128 = short_intensity_volume
         .cast::<u128>()?
         .safe_mul(PERCENTAGE_PRECISION)?
-        .safe_div(max(volume_24h.cast::<u128>()?, 1))?
-        .clamp(factor_clamp_min, factor_clamp_max);
+        .safe_div(v_hr)?
+        .clamp(FACTOR_CLAMP_MIN, FACTOR_CLAMP_MAX);
 
-    // only consider confidence interval at full value when above 25 bps
+    // ---- skew to one side ([-PCT, +PCT]) ----
+    let l_u = long_intensity_volume.cast::<u128>()?;
+    let s_u = short_intensity_volume.cast::<u128>()?;
+    let sum_ls = l_u.safe_add(s_u)?.max(1);
+
+    // skew_pct signed in i128, magnitude in [0, PCT]
+    let skew_num = l_u.cast::<i128>()?.safe_sub(s_u.cast::<i128>()?)?;
+    let skew_den = sum_ls.cast::<i128>()?;
+    let skew_pct_signed: i128 = skew_num
+        .safe_mul(PERCENTAGE_PRECISION.cast::<i128>()?)?
+        .safe_div(skew_den)?; // >0 = long pressure, <0 = short pressure
+
+    let skew_mag: u128 = skew_pct_signed.unsigned_abs();
+
+    // bump (dominant side) and relief (other side)
+    let bump = skew_mag.safe_div(2)?.min(K_ASYM_CAP); // cap
+    let relief = bump.safe_div(2)?; // softer on passive side
+
+    // ---- apply asymmetry to factors ----
+    let (long_factor, short_factor) = if skew_pct_signed >= 0 {
+        let long_factor = long_factor_base
+            .safe_mul(PERCENTAGE_PRECISION.safe_add(bump)?)?
+            .safe_div(PERCENTAGE_PRECISION)?;
+        let short_factor = short_factor_base
+            .safe_mul(PERCENTAGE_PRECISION.safe_sub(relief)?)?
+            .safe_div(PERCENTAGE_PRECISION)?
+            .max(FACTOR_CLAMP_MIN); // don't squash below min
+        (long_factor, short_factor)
+    } else {
+        let short_factor = short_factor_base
+            .safe_mul(PERCENTAGE_PRECISION.safe_add(bump)?)?
+            .safe_div(PERCENTAGE_PRECISION)?;
+        let long_factor = long_factor_base
+            .safe_mul(PERCENTAGE_PRECISION.safe_sub(relief)?)?
+            .safe_div(PERCENTAGE_PRECISION)?
+            .max(FACTOR_CLAMP_MIN);
+        (long_factor, short_factor)
+    };
+
     let conf_component = if last_oracle_conf_pct > PERCENTAGE_PRECISION_U64 / 400 {
         last_oracle_conf_pct
     } else {
         last_oracle_conf_pct.safe_div(20)?
     };
 
-    Ok((
-        max(
-            conf_component,
-            vol_spread
-                .safe_mul(long_vol_spread_factor)?
-                .safe_div(PERCENTAGE_PRECISION)?
-                .cast::<u64>()?,
-        ),
-        max(
-            conf_component,
-            vol_spread
-                .safe_mul(short_vol_spread_factor)?
-                .safe_div(PERCENTAGE_PRECISION)?
-                .cast::<u64>()?,
-        ),
-    ))
+    let long_spread = max(
+        conf_component,
+        vol_spread
+            .safe_mul(long_factor)?
+            .safe_div(PERCENTAGE_PRECISION)?
+            .cast::<u64>()?,
+    );
+
+    let short_spread = max(
+        conf_component,
+        vol_spread
+            .safe_mul(short_factor)?
+            .safe_div(PERCENTAGE_PRECISION)?
+            .cast::<u64>()?,
+    );
+
+    Ok((long_spread, short_spread))
 }
 
 pub fn calculate_inventory_liquidity_ratio(
