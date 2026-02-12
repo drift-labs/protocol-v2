@@ -419,7 +419,7 @@ pub fn get_pyth_price(
         let price_message = pyth_solana_receiver_sdk::price_update::PriceUpdateV2::try_deserialize(
             &mut pyth_price_data,
         )
-        .unwrap();
+        .map_err(|_| crate::error::ErrorCode::UnableToLoadOracle)?;
         oracle_price = price_message.price_message.price;
         oracle_conf = price_message.price_message.conf;
         oracle_precision = 10_u128.pow(price_message.price_message.exponent.unsigned_abs());
@@ -451,7 +451,8 @@ pub fn get_pyth_price(
         published_slot = price_data.valid_slot;
         sequence_id = None;
     } else {
-        let price_data = PythLazerOracle::try_deserialize(&mut pyth_price_data).unwrap();
+        let price_data = PythLazerOracle::try_deserialize(&mut pyth_price_data)
+            .map_err(|_| crate::error::ErrorCode::UnableToLoadOracle)?;
         oracle_price = price_data.price;
         oracle_conf = price_data.conf;
         oracle_precision = 10_u128.pow(price_data.exponent.unsigned_abs());
@@ -564,6 +565,11 @@ pub fn get_sb_on_demand_price(
 
     let latest_oracle_submssions: Vec<switchboard_on_demand::OracleSubmission> =
         pull_feed_account_info.latest_submissions();
+
+    if latest_oracle_submssions.is_empty() {
+        return Err(ErrorCode::UnableToLoadOracle);
+    }
+
     let average_price = latest_oracle_submssions
         .iter()
         .map(|submission| submission.value)
@@ -629,7 +635,7 @@ pub fn get_prelaunch_price(price_oracle: &AccountInfo, slot: u64) -> DriftResult
     Ok(OraclePriceData {
         price: oracle.price,
         confidence: oracle.confidence,
-        delay: oracle.amm_last_update_slot.saturating_sub(slot).cast()?,
+        delay: slot.saturating_sub(oracle.amm_last_update_slot).cast()?,
         has_sufficient_number_of_data_points: true,
         sequence_id: None,
     })
