@@ -12,7 +12,7 @@ use crate::safe_decrement;
 use crate::safe_increment;
 use crate::state::paused_operations::SpotOperation;
 use crate::state::perp_market::MarketStatus;
-use crate::state::spot_market::{AssetTier, SpotBalance, SpotBalanceType, SpotMarket};
+use crate::state::spot_market::{AssetTier, SpotBalanceType, SpotMarket};
 use crate::state::user::{SpotPosition, User};
 
 use crate::validate;
@@ -106,6 +106,17 @@ pub fn update_spot_balances_and_cumulative_deposits(
         }
     }
 
+    if spot_market.asset_tier == AssetTier::Protected
+        && spot_position.balance_type == SpotBalanceType::Borrow
+        && update_direction == &SpotBalanceType::Borrow
+    {
+        msg!(
+            "Spot Market {} has Protected status and cannot be borrowed",
+            spot_market.market_index
+        );
+        return Err(ErrorCode::ProtectedAssetTierViolation);
+    }
+
     Ok(())
 }
 
@@ -151,14 +162,6 @@ pub fn update_spot_balances_and_cumulative_deposits_with_limits(
         !spot_market.is_operation_paused(SpotOperation::Withdraw),
         ErrorCode::MarketWithdrawPaused,
         "Spot Market {} withdraws are currently paused",
-        spot_market.market_index
-    )?;
-
-    validate!(
-        !(spot_market.asset_tier == AssetTier::Protected
-            && user.spot_positions[spot_position_index].balance_type() == &SpotBalanceType::Borrow),
-        ErrorCode::ProtectedAssetTierViolation,
-        "Spot Market {} has Protected status and cannot be borrowed",
         spot_market.market_index
     )?;
 
