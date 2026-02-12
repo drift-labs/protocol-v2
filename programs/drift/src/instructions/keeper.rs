@@ -2648,8 +2648,17 @@ pub fn handle_update_prelaunch_oracle(ctx: Context<UpdatePrelaunchOracle>) -> Re
 )]
 pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
     ctx: Context<'_, '_, 'c, 'info, UpdatePerpBidAskTwap<'info>>,
+    update_market_summary_stats: bool,
 ) -> Result<()> {
     let perp_market = &mut load_mut!(ctx.accounts.perp_market)?;
+    let spot_market = &mut load_mut!(ctx.accounts.quote_spot_market)?;
+
+    validate!(
+        spot_market.market_index == QUOTE_SPOT_MARKET_INDEX,
+        ErrorCode::DefaultError,
+        "invalid spot market"
+    )?;
+
     let clock = Clock::get()?;
     let now = clock.unix_timestamp;
     let slot = clock.slot;
@@ -2744,6 +2753,16 @@ pub fn handle_update_perp_bid_ask_twap<'c: 'info, 'info>(
             ErrorCode::CantUpdatePerpBidAskTwap,
             "bid or ask twap unchanged from small ts delta update",
         )?;
+    }
+
+    if update_market_summary_stats {
+        let new_total_fees_minus_distributions = calculate_perp_market_amm_summary_stats(
+            perp_market,
+            spot_market,
+            mm_oracle_price_data.get_price(),
+            false,
+        );
+        perp_market.amm.total_fee_minus_distributions = new_total_fees_minus_distributions;
     }
 
     let funding_paused =
@@ -4200,6 +4219,7 @@ pub struct UpdatePerpBidAskTwap<'info> {
     pub state: Box<Account<'info, State>>,
     #[account(mut)]
     pub perp_market: AccountLoader<'info, PerpMarket>,
+    pub quote_spot_market: AccountLoader<'info, SpotMarket>,
     /// CHECK: checked in `update_funding_rate` ix constraint
     pub oracle: AccountInfo<'info>,
     pub keeper_stats: AccountLoader<'info, UserStats>,
