@@ -26,7 +26,7 @@ use crate::state::perp_market::{ContractTier, MarketStatus, PerpMarket};
 use crate::state::perp_market_map::PerpMarketMap;
 use crate::state::spot_market::{AssetTier, SpotBalanceType};
 use crate::state::spot_market_map::SpotMarketMap;
-use crate::state::user::{MarketType, OrderFillSimulation, PerpPosition, User};
+use crate::state::user::{MarginMode, MarketType, OrderFillSimulation, PerpPosition, User};
 use num_integer::Roots;
 use std::cmp::{max, min, Ordering};
 use std::collections::BTreeMap;
@@ -815,6 +815,32 @@ pub fn meets_maintenance_margin_requirement(
         MarginContext::standard(MarginRequirementType::Maintenance),
     )
     .map(|calc| calc.meets_margin_requirement())
+}
+
+/// Validates that the user is allowed to enable high leverage mode: not already in HLM and meets maintenance margin.
+/// Same logic as handle_enable_user_high_leverage_mode uses before calling config.enable_high_leverage.
+pub fn validate_user_can_enable_high_leverage_mode(
+    user: &User,
+    perp_market_map: &PerpMarketMap,
+    spot_market_map: &SpotMarketMap,
+    oracle_map: &mut OracleMap,
+) -> DriftResult<()> {
+    validate!(
+        user.margin_mode != MarginMode::HighLeverage,
+        ErrorCode::DefaultError,
+        "user already in high leverage mode"
+    )?;
+
+    let meets_maintenance_requirement =
+        meets_maintenance_margin_requirement(user, perp_market_map, spot_market_map, oracle_map)?;
+
+    validate!(
+        meets_maintenance_requirement,
+        ErrorCode::InsufficientCollateral,
+        "user does not meet maintenance margin requirement"
+    )?;
+
+    Ok(())
 }
 
 pub fn calculate_max_withdrawable_amount(

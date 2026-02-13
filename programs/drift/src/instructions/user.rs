@@ -41,7 +41,8 @@ use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_l
 use crate::math::margin::meets_initial_margin_requirement;
 use crate::math::margin::{
     calculate_max_withdrawable_amount, meets_maintenance_margin_requirement,
-    validate_spot_margin_trading, MarginRequirementType,
+    validate_spot_margin_trading, validate_user_can_enable_high_leverage_mode,
+    MarginRequirementType,
 };
 use crate::math::oracle::is_oracle_valid_for_action;
 use crate::math::oracle::DriftAction;
@@ -108,8 +109,7 @@ use crate::state::user::Order;
 use crate::state::user::OrderStatus;
 use crate::state::user::ReferrerStatus;
 use crate::state::user::{
-    FuelOverflow, FuelOverflowProvider, MarginMode, MarketType, OrderType, ReferrerName, User,
-    UserStats,
+    FuelOverflow, FuelOverflowProvider, MarketType, OrderType, ReferrerName, User, UserStats,
 };
 use crate::state::user_map::{load_user_maps, UserMap, UserStatsMap};
 use crate::validate;
@@ -3740,13 +3740,7 @@ pub fn handle_enable_user_high_leverage_mode<'c: 'info, 'info>(
         Some(state.oracle_guard_rails),
     )?;
 
-    validate!(
-        user.margin_mode != MarginMode::HighLeverage,
-        ErrorCode::DefaultError,
-        "user already in high leverage mode"
-    )?;
-
-    meets_maintenance_margin_requirement(
+    validate_user_can_enable_high_leverage_mode(
         &user,
         &perp_market_map,
         &spot_market_map,

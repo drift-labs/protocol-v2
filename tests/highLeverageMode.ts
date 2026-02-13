@@ -24,6 +24,7 @@ import {
 	initializeQuoteSpotMarket,
 	createUserWithUSDCAndWSOLAccount,
 	initializeSolSpotMarket,
+	setFeedPriceNoProgram,
 } from './testHelpers';
 import {
 	getMarketOrderParams,
@@ -31,7 +32,10 @@ import {
 	MAX_LEVERAGE_ORDER_SIZE,
 	OrderParamsBitFlag,
 	PERCENTAGE_PRECISION,
+	BASE_PRECISION,
+	QUOTE_PRECISION,
 } from '../sdk';
+import { Transaction } from '@solana/web3.js';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
 import { BankrunContextWrapper } from '../sdk/src/bankrun/bankrunConnection';
@@ -206,6 +210,39 @@ describe('max leverage order params', () => {
 		await driftClient.unsubscribe();
 		await lendorDriftClient.unsubscribe();
 		await eventSubscriber.unsubscribe();
+	});
+
+	it.only('enable user high leverage mode fails when user does not meet maintenance margin requirement', async () => {
+		// Open a long position so user has perp exposure
+		await driftClient.openPosition(
+			PositionDirection.LONG,
+			new BN(13).mul(BASE_PRECISION),
+			0,
+			new BN(0)
+		);
+
+		// Crash oracle price so the long position has large unrealized loss and user no longer meets maintenance
+		await setFeedPriceNoProgram(bankrunContextWrapper, 0.2, solOracle);
+
+		await driftClient.fetchAccounts();
+
+		// Attempt to enable high leverage via instruction; should fail with InsufficientCollateral (0x1773)
+		const enableIx = await driftClient.getEnableHighLeverageModeIx(0);
+		const tx = new Transaction().add(enableIx);
+
+		let failed = false;
+		try {
+			await driftClient.sendTransaction(tx);
+		} catch (e) {
+			const err = e as Error;
+			if (err.message.includes('0x1773')) {
+				failed = true;
+			}
+		}
+		assert(
+			failed,
+			'enableUserHighLeverageMode should fail with InsufficientCollateral when user does not meet maintenance'
+		);
 	});
 
 	it('max perp leverage', async () => {

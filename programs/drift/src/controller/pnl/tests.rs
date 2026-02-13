@@ -14,6 +14,7 @@ use crate::math::constants::{
 };
 use crate::math::margin::{
     meets_maintenance_margin_requirement, meets_settle_pnl_maintenance_margin_requirement,
+    validate_user_can_enable_high_leverage_mode,
 };
 use crate::state::oracle::{HistoricalOracleData, OracleSource};
 use crate::state::oracle_map::OracleMap;
@@ -414,6 +415,134 @@ pub fn user_does_not_meet_strict_maintenance_requirement() {
     .unwrap();
 
     assert_eq!(meets_settle_pnl_maintenance, false);
+}
+
+/// When a user does not meet the (standard) maintenance margin requirement,
+/// the enable-high-leverage validation (same logic as handle_enable_user_high_leverage_mode)
+/// returns ErrorCode::InsufficientCollateral.
+#[test]
+pub fn enable_high_leverage_mode_fails_when_user_does_not_meet_maintenance_requirement() {
+    let clock = Clock {
+        slot: 0,
+        epoch_start_timestamp: 0,
+        epoch: 0,
+        leader_schedule_epoch: 0,
+        unix_timestamp: 0,
+    };
+
+    let state = State {
+        oracle_guard_rails: OracleGuardRails {
+            validity: ValidityGuardRails {
+                slots_before_stale_for_amm: 10,
+                slots_before_stale_for_margin: 120,
+                confidence_interval_max_size: 1000,
+                too_volatile_ratio: 5,
+            },
+            ..OracleGuardRails::default()
+        },
+        ..State::default()
+    };
+
+    // Oracle at 50: user's long position will have large unrealized loss
+    let mut oracle_price = get_pyth_price(50, 6);
+    let oracle_price_key =
+        Pubkey::from_str("J83w4HKfqxwcq3BEMMkPFSppX3gqekLyLJBexebFVkix").unwrap();
+    let pyth_program = crate::ids::pyth_program::id();
+    create_account_info!(
+        oracle_price,
+        &oracle_price_key,
+        &pyth_program,
+        oracle_account_info
+    );
+    let mut oracle_map = OracleMap::load_one(&oracle_account_info, clock.slot, None).unwrap();
+
+    let mut market = PerpMarket {
+        amm: AMM {
+            base_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            quote_asset_reserve: 100 * AMM_RESERVE_PRECISION,
+            bid_base_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+            bid_quote_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+            ask_base_asset_reserve: 99 * AMM_RESERVE_PRECISION,
+            ask_quote_asset_reserve: 101 * AMM_RESERVE_PRECISION,
+            sqrt_k: 100 * AMM_RESERVE_PRECISION,
+            peg_multiplier: 100 * PEG_PRECISION,
+            max_slippage_ratio: 50,
+            max_fill_reserve_fraction: 100,
+            order_step_size: 10000000,
+            quote_asset_amount: -150 * QUOTE_PRECISION_I128,
+            base_asset_amount_with_amm: BASE_PRECISION_I128,
+            base_asset_amount_long: BASE_PRECISION_I128,
+            oracle: oracle_price_key,
+            historical_oracle_data: HistoricalOracleData {
+                last_oracle_price: oracle_price.agg.price,
+                last_oracle_price_twap_5min: oracle_price.agg.price,
+                last_oracle_price_twap: oracle_price.agg.price,
+                ..HistoricalOracleData::default()
+            },
+            ..AMM::default()
+        },
+        margin_ratio_initial: 1000,
+        margin_ratio_maintenance: 500,
+        number_of_users_with_base: 1,
+        status: MarketStatus::Active,
+        liquidator_fee: LIQUIDATION_FEE_PRECISION / 100,
+        pnl_pool: PoolBalance {
+            scaled_balance: (50 * SPOT_BALANCE_PRECISION),
+            market_index: QUOTE_SPOT_MARKET_INDEX,
+            ..PoolBalance::default()
+        },
+        unrealized_pnl_maintenance_asset_weight: SPOT_WEIGHT_PRECISION.cast().unwrap(),
+        ..PerpMarket::default()
+    };
+    create_anchor_account_info!(market, PerpMarket, market_account_info);
+    let market_map = PerpMarketMap::load_one(&market_account_info, true).unwrap();
+
+    let mut spot_market = SpotMarket {
+        market_index: 0,
+        oracle_source: OracleSource::QuoteAsset,
+        cumulative_deposit_interest: SPOT_CUMULATIVE_INTEREST_PRECISION,
+        decimals: 6,
+        initial_asset_weight: SPOT_WEIGHT_PRECISION,
+        maintenance_asset_weight: SPOT_WEIGHT_PRECISION,
+        deposit_balance: 100 * SPOT_BALANCE_PRECISION,
+        historical_oracle_data: HistoricalOracleData {
+            last_oracle_price_twap_5min: PRICE_PRECISION_I64 / 2,
+            ..HistoricalOracleData::default_price(QUOTE_PRECISION_I64)
+        },
+        ..SpotMarket::default()
+    };
+    create_anchor_account_info!(spot_market, SpotMarket, spot_market_account_info);
+    let spot_market_map = SpotMarketMap::load_one(&spot_market_account_info, true).unwrap();
+
+    // User: small spot deposit (10) and large long position entered at 100; at oracle 50 the position has large unrealized loss
+    let user = User {
+        perp_positions: get_positions(PerpPosition {
+            market_index: 0,
+            base_asset_amount: 100 * BASE_PRECISION_I64,
+            quote_asset_amount: -10000 * QUOTE_PRECISION_I64, // entry ~100
+            ..PerpPosition::default()
+        }),
+        spot_positions: get_spot_positions(SpotPosition {
+            market_index: 0,
+            balance_type: SpotBalanceType::Deposit,
+            scaled_balance: 10 * SPOT_BALANCE_PRECISION_U64,
+            ..SpotPosition::default()
+        }),
+        ..User::default()
+    };
+
+    let result = validate_user_can_enable_high_leverage_mode(
+        &user,
+        &market_map,
+        &spot_market_map,
+        &mut oracle_map,
+    );
+
+    assert_eq!(
+        result,
+        Err(ErrorCode::InsufficientCollateral),
+        "enable-high-leverage validation should fail with InsufficientCollateral when user does not meet maintenance"
+    );
 }
 
 #[test]
