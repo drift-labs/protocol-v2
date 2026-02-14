@@ -45,7 +45,7 @@ cd sdk/ && yarn && yarn build && cd ..
 
 ## Running Rust Test
 
-For running cargo tests, you'll need version 1.70.
+For running cargo tests, you'll need version 1.70. You'll also need Solana CLI version 1.16.27
 
 ```bash
 rustup override set 1.70
