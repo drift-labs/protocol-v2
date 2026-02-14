@@ -58,7 +58,7 @@ use crate::state::events::{emit_stack, get_order_action_record, OrderActionRecor
 use crate::state::events::{OrderAction, OrderActionExplanation};
 use crate::state::fill_mode::FillMode;
 use crate::state::fulfillment::{PerpFulfillmentMethod, SpotFulfillmentMethod};
-use crate::state::margin_calculation::{MarginCalculation, MarginContext};
+use crate::state::margin_calculation::{MarginCalculation, MarginContext, MarginTypeConfig};
 use crate::state::oracle::{OraclePriceData, StrictOraclePrice};
 use crate::state::oracle_map::OracleMap;
 use crate::state::order_params::{
@@ -379,12 +379,19 @@ pub fn place_perp_order(
 
     // when orders are placed in bulk, only need to check margin on last place
     if options.enforce_margin_check && !options.is_liquidation() {
+        // if isolated position, use the isolated margin calculation
+        let isolated_market_index = if user.perp_positions[position_index].is_isolated() {
+            Some(market_index)
+        } else {
+            None
+        };
         meets_place_order_margin_requirement(
             user,
             perp_market_map,
             spot_market_map,
             oracle_map,
             options.risk_increasing,
+            isolated_market_index,
         )?;
     }
 
@@ -1971,6 +1978,9 @@ fn fulfill_perp_order(
         base_asset_amount
     )?;
 
+    let perp_position = user.get_perp_position(market_index)?;
+    let is_isolated_position = perp_position.is_isolated();
+
     if !fill_mode.is_liquidation() {
         // if the maker is long, the user sold so
         let taker_base_asset_amount_delta = if maker_direction == PositionDirection::Long {
@@ -1979,13 +1989,29 @@ fn fulfill_perp_order(
             -(base_asset_amount as i64)
         };
 
-        let mut context = MarginContext::standard(if user_order_position_decreasing {
+        let margin_requirement_type = if user_order_position_decreasing {
             MarginRequirementType::Maintenance
         } else {
             MarginRequirementType::Fill
-        })
-        .fuel_perp_delta(market_index, taker_base_asset_amount_delta)
-        .fuel_numerator(user, now);
+        };
+
+        let margin_type_config = if is_isolated_position {
+            MarginTypeConfig::IsolatedPositionOverride {
+                market_index,
+                margin_requirement_type,
+                default_isolated_margin_requirement_type: MarginRequirementType::Maintenance,
+                cross_margin_requirement_type: MarginRequirementType::Maintenance,
+            }
+        } else {
+            MarginTypeConfig::CrossMarginOverride {
+                margin_requirement_type,
+                default_margin_requirement_type: MarginRequirementType::Maintenance,
+            }
+        };
+
+        let mut context = MarginContext::standard_with_config(margin_type_config)
+            .fuel_perp_delta(market_index, taker_base_asset_amount_delta)
+            .fuel_numerator(user, now);
 
         if oracle_stale_for_margin && !user_order_position_decreasing {
             context = context.margin_ratio_override(MARGIN_PRECISION);
@@ -2048,7 +2074,23 @@ fn fulfill_perp_order(
             market_index,
         )?;
 
-        let mut context = MarginContext::standard(margin_type)
+        let maker_perp_position = maker.get_perp_position(market_index)?;
+
+        let margin_type_config = if maker_perp_position.is_isolated() {
+            MarginTypeConfig::IsolatedPositionOverride {
+                market_index,
+                margin_requirement_type: margin_type,
+                default_isolated_margin_requirement_type: MarginRequirementType::Maintenance,
+                cross_margin_requirement_type: MarginRequirementType::Maintenance,
+            }
+        } else {
+            MarginTypeConfig::CrossMarginOverride {
+                margin_requirement_type: margin_type,
+                default_margin_requirement_type: MarginRequirementType::Maintenance,
+            }
+        };
+
+        let mut context = MarginContext::standard_with_config(margin_type_config)
             .fuel_perp_delta(market_index, -maker_base_asset_amount_filled)
             .fuel_numerator(&maker, now);
 
@@ -2220,6 +2262,7 @@ pub fn fulfill_perp_order_with_amm(
                 user_stats,
                 fee_structure,
                 &MarketType::Perp,
+                //TODO: add a comment on PR here asking what to do, do we need to check if it's an isolated fill and how we handle HLM in an isolated fill context?
                 user.is_high_leverage_mode(MarginRequirementType::Initial),
             )?;
             let (base_asset_amount, limit_price) = calculate_base_asset_amount_for_amm_to_fulfill(
@@ -3912,6 +3955,7 @@ pub fn place_spot_order(
             spot_market_map,
             oracle_map,
             options.risk_increasing,
+            None, // no isolated positions for spot positions
         )?;
     }
 

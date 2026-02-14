@@ -8,6 +8,7 @@ use crate::math::oracle::LogMode;
 use crate::math::position::calculate_base_asset_value_and_pnl_with_oracle_price;
 
 use crate::math::constants::{MARGIN_PRECISION, PRICE_PRECISION_I128, PRICE_PRECISION_I64};
+use crate::state::margin_calculation::MarginTypeConfig;
 use crate::validate;
 use crate::validation;
 
@@ -265,19 +266,22 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
     context: MarginContext,
 ) -> DriftResult<MarginCalculation> {
     let mut calculation = MarginCalculation::new(context);
+    let cross_margin_requirement_type = context
+        .margin_type_config
+        .get_cross_margin_requirement_type();
 
-    let mut user_custom_margin_ratio = if context.margin_type == MarginRequirementType::Initial {
-        user.max_margin_ratio
-    } else {
-        0_u32
-    };
+    let mut spot_user_custom_margin_ratio =
+        if cross_margin_requirement_type == MarginRequirementType::Initial {
+            user.max_margin_ratio
+        } else {
+            0_u32
+        };
 
     if let Some(margin_ratio_override) = context.margin_ratio_override {
-        user_custom_margin_ratio = margin_ratio_override.max(user_custom_margin_ratio);
+        spot_user_custom_margin_ratio = margin_ratio_override.max(spot_user_custom_margin_ratio);
     }
 
     let user_pool_id = user.pool_id;
-    let user_high_leverage_mode = user.is_high_leverage_mode(context.margin_type);
 
     for spot_position in user.spot_positions.iter() {
         validation::position::validate_spot_position(spot_position)?;
@@ -406,12 +410,12 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                     &spot_market,
                     &strict_oracle_price,
                     Some(signed_token_amount),
-                    context.margin_type,
+                    cross_margin_requirement_type,
                 )?
                 .apply_user_custom_margin_ratio(
                     &spot_market,
                     strict_oracle_price.current,
-                    user_custom_margin_ratio,
+                    spot_user_custom_margin_ratio,
                 )?;
 
             if worst_case_token_amount == 0 {
@@ -575,12 +579,37 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             Some(LogMode::Margin),
         )?;
 
-        let perp_position_custom_margin_ratio =
-            if context.margin_type == MarginRequirementType::Initial {
-                market_position.max_margin_ratio as u32
+        let position_margin_type = if market_position.is_isolated() {
+            context
+                .margin_type_config
+                .get_isolated_margin_requirement_type(market_position.market_index)
+        } else {
+            context
+                .margin_type_config
+                .get_cross_margin_requirement_type()
+        };
+
+        let perp_user_custom_margin_ratio =
+            if position_margin_type == MarginRequirementType::Initial {
+                user.max_margin_ratio
             } else {
                 0_u32
             };
+
+        let mut perp_position_custom_margin_ratio =
+            if position_margin_type == MarginRequirementType::Initial {
+                perp_user_custom_margin_ratio.max(market_position.max_margin_ratio as u32)
+            } else {
+                0_u32
+            };
+
+        if let Some(margin_ratio_override) = context.margin_ratio_override {
+            perp_position_custom_margin_ratio =
+                margin_ratio_override.max(perp_position_custom_margin_ratio);
+        }
+
+        let perp_position_user_high_leverage_mode =
+            user.is_high_leverage_mode(position_margin_type);
 
         let (perp_margin_requirement, weighted_pnl, worst_case_liability_value, base_asset_value) =
             calculate_perp_position_value_and_pnl(
@@ -588,9 +617,9 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
                 market,
                 oracle_price_data,
                 &strict_quote_price,
-                context.margin_type,
-                user_custom_margin_ratio.max(perp_position_custom_margin_ratio),
-                user_high_leverage_mode,
+                position_margin_type,
+                perp_position_custom_margin_ratio,
+                perp_position_user_high_leverage_mode,
             )?;
 
         calculation.update_fuel_perp_bonus(
@@ -652,7 +681,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
             );
         }
 
-        if has_perp_liability || calculation.context.margin_type != MarginRequirementType::Initial {
+        if has_perp_liability || position_margin_type != MarginRequirementType::Initial {
             calculation.update_all_liability_oracles_valid(is_oracle_valid_for_action(
                 quote_oracle_validity,
                 Some(DriftAction::MarginCalc),
@@ -744,11 +773,23 @@ pub fn meets_place_order_margin_requirement(
     spot_market_map: &SpotMarketMap,
     oracle_map: &mut OracleMap,
     risk_increasing: bool,
+    isolated_market_index: Option<u16>,
 ) -> DriftResult {
-    let margin_type = if risk_increasing {
-        MarginRequirementType::Initial
+    let margin_type_config = if risk_increasing {
+        match isolated_market_index {
+            Some(market_index) => MarginTypeConfig::IsolatedPositionOverride {
+                market_index,
+                margin_requirement_type: MarginRequirementType::Initial,
+                default_isolated_margin_requirement_type: MarginRequirementType::Maintenance,
+                cross_margin_requirement_type: MarginRequirementType::Maintenance,
+            },
+            None => MarginTypeConfig::CrossMarginOverride {
+                margin_requirement_type: MarginRequirementType::Initial,
+                default_margin_requirement_type: MarginRequirementType::Maintenance,
+            },
+        }
     } else {
-        MarginRequirementType::Maintenance
+        MarginTypeConfig::Default(MarginRequirementType::Maintenance)
     };
 
     let calculation = calculate_margin_requirement_and_total_collateral_and_liability_info(
@@ -756,7 +797,7 @@ pub fn meets_place_order_margin_requirement(
         perp_market_map,
         spot_market_map,
         oracle_map,
-        MarginContext::standard(margin_type).strict(true),
+        MarginContext::standard_with_config(margin_type_config).strict(true),
     )?;
 
     if !calculation.meets_margin_requirement() {

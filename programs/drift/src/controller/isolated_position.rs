@@ -8,6 +8,7 @@ use crate::math::liquidation::is_isolated_margin_being_liquidated;
 use crate::math::margin::{validate_spot_margin_trading, MarginRequirementType};
 use crate::math::safe_math::SafeMath;
 use crate::state::events::{DepositDirection, DepositExplanation, DepositRecord};
+use crate::state::margin_calculation::MarginTypeConfig;
 use crate::state::oracle_map::OracleMap;
 use crate::state::perp_market::MarketStatus;
 use crate::state::perp_market_map::PerpMarketMap;
@@ -234,7 +235,10 @@ pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
                 &perp_market_map,
                 &spot_market_map,
                 oracle_map,
-                MarginRequirementType::Initial,
+                MarginTypeConfig::CrossMarginOverride {
+                    margin_requirement_type: MarginRequirementType::Initial,
+                    default_margin_requirement_type: MarginRequirementType::Maintenance,
+                },
                 spot_market_index,
                 amount as u128,
                 user_stats,
@@ -298,7 +302,12 @@ pub fn transfer_isolated_perp_position_deposit<'c: 'info, 'info>(
                 &perp_market_map,
                 &spot_market_map,
                 oracle_map,
-                MarginRequirementType::Initial,
+                MarginTypeConfig::IsolatedPositionOverride {
+                    margin_requirement_type: MarginRequirementType::Initial,
+                    default_isolated_margin_requirement_type: MarginRequirementType::Maintenance,
+                    cross_margin_requirement_type: MarginRequirementType::Maintenance,
+                    market_index: perp_market_index,
+                },
                 0,
                 0,
                 user_stats,
