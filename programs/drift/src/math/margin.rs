@@ -605,7 +605,7 @@ pub fn calculate_margin_requirement_and_total_collateral_and_liability_info(
 
         if let Some(margin_ratio_override) = context.margin_ratio_override {
             perp_position_custom_margin_ratio =
-                margin_ratio_override.max(perp_user_custom_margin_ratio);
+                margin_ratio_override.max(perp_position_custom_margin_ratio);
         }
 
         let perp_position_user_high_leverage_mode =
