@@ -90,8 +90,8 @@ describe('order margin checks with isolated positions', () => {
 		);
 
 		// Create oracles for SOL and ETH
-		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 100); // $1 per SOL
-		ethUsd = await mockOracleNoProgram(bankrunContextWrapper, 1000); // $1 per ETH
+		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 100); // $100 per SOL
+		ethUsd = await mockOracleNoProgram(bankrunContextWrapper, 1000); // $1000 per ETH
 
 		eventSubscriber = new EventSubscriber(
 			bankrunContextWrapper.connection.toConnection(),
