@@ -33,7 +33,6 @@ import {
 	OrderParamsBitFlag,
 	PERCENTAGE_PRECISION,
 	BASE_PRECISION,
-	QUOTE_PRECISION,
 } from '../sdk';
 import { Transaction } from '@solana/web3.js';
 import { startAnchor } from 'solana-bankrun';
