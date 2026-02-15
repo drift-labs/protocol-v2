@@ -212,39 +212,6 @@ describe('max leverage order params', () => {
 		await eventSubscriber.unsubscribe();
 	});
 
-	it.only('enable user high leverage mode fails when user does not meet maintenance margin requirement', async () => {
-		// Open a long position so user has perp exposure
-		await driftClient.openPosition(
-			PositionDirection.LONG,
-			new BN(13).mul(BASE_PRECISION),
-			0,
-			new BN(0)
-		);
-
-		// Crash oracle price so the long position has large unrealized loss and user no longer meets maintenance
-		await setFeedPriceNoProgram(bankrunContextWrapper, 0.2, solOracle);
-
-		await driftClient.fetchAccounts();
-
-		// Attempt to enable high leverage via instruction; should fail with InsufficientCollateral (0x1773)
-		const enableIx = await driftClient.getEnableHighLeverageModeIx(0);
-		const tx = new Transaction().add(enableIx);
-
-		let failed = false;
-		try {
-			await driftClient.sendTransaction(tx);
-		} catch (e) {
-			const err = e as Error;
-			if (err.message.includes('0x1773')) {
-				failed = true;
-			}
-		}
-		assert(
-			failed,
-			'enableUserHighLeverageMode should fail with InsufficientCollateral when user does not meet maintenance'
-		);
-	});
-
 	it('max perp leverage', async () => {
 		await driftClient.placePerpOrder(
 			getMarketOrderParams({
@@ -278,5 +245,46 @@ describe('max leverage order params', () => {
 		assert(leverage === 99.9);
 
 		await driftClient.cancelOrderByUserId(1);
+	});
+
+	it('enable user high leverage mode fails when user does not meet maintenance margin requirement', async () => {
+		// Open a long position so user has perp exposure
+		await driftClient.openPosition(
+			PositionDirection.LONG,
+			new BN(13).mul(BASE_PRECISION),
+			0,
+			new BN(0)
+		);
+
+		await driftClient.disableUserHighLeverageMode(
+			await driftClient.getUserAccountPublicKey(),
+			driftClient.getUserAccount()
+		);
+
+		// Crash oracle price so the long position has large unrealized loss and user no longer meets maintenance
+		await setFeedPriceNoProgram(bankrunContextWrapper, 0.2, solOracle);
+
+		await driftClient.fetchAccounts();
+
+		// Attempt to enable high leverage via instruction; should fail with InsufficientCollateral (0x1773)
+		const enableIx = await driftClient.getEnableHighLeverageModeIx(0);
+		const tx = new Transaction().add(enableIx);
+
+		let failed = false;
+		try {
+			await driftClient.sendTransaction(tx);
+		} catch (e) {
+			const err = e as Error;
+			if (err.message.includes('0x1773')) {
+				failed = true;
+			}
+		} finally {
+			await setFeedPriceNoProgram(bankrunContextWrapper, 1, solOracle);
+			await driftClient.closePosition(0);
+		}
+		assert(
+			failed,
+			'enableUserHighLeverageMode should fail with InsufficientCollateral when user does not meet maintenance'
+		);
 	});
 });
