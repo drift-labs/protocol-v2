@@ -61,6 +61,7 @@ test_files=(
   oracleOffsetOrders.ts
   order.ts
   orderMarginChecks.ts
+  isolatedTransferMarginChecks.ts
   ordersWithSpread.ts
   pauseExchange.ts
   pauseDepositWithdraw.ts
