@@ -187,6 +187,10 @@ describe('order margin checks with isolated positions', () => {
 
 	// Reset user state between tests
 	async function resetUserState() {
+		// Restore oracle feeds to default prices so tests start with deterministic state
+		await setFeedPriceNoProgram(bankrunContextWrapper, 100, solUsd);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 1000, ethUsd);
+
 		await driftClient.fetchAccounts();
 
 		// Close any open positions
@@ -197,6 +201,8 @@ describe('order margin checks with isolated positions', () => {
 					await driftClient.closePosition(perpPosition.marketIndex);
 				} catch (e) {
 					// Ignore errors when closing
+				} finally {
+					await driftClient.fetchAccounts();
 				}
 			}
 		}
@@ -430,7 +436,7 @@ describe('order margin checks with isolated positions', () => {
 			// Cross: $800 collateral, 10 SOL cross position ($500 IM required) -> passes with $300 buffer
 			// Isolated: 1 ETH with $550 collateral, want to increase by 0.5 ETH
 			// After increase: 1.5 ETH = $750 IM required, but only $550 isolated collateral
-			// Shortfall: $200. Cross provides $200, cross has $600 vs $500 IM -> passes
+			// Shortfall: $202. Cross provides $202, cross has $598 vs $500 IM -> passes
 
 			// Deposit initial cross collateral
 			await driftClient.deposit(
@@ -472,8 +478,14 @@ describe('order margin checks with isolated positions', () => {
 			// Cross already at effective $800 from oracle move above
 			await driftClient.fetchAccounts();
 
-			// Now increase isolated position by 0.5 ETH - should pass
-			// Shortfall of $200 from cross leaves cross with $600 > $500 IM -> passes
+			// $202 from cross leaves cross with $598 > $500 IM -> passes (202 because of rounding)
+			await driftClient.depositIntoIsolatedPerpPosition(
+				new BN(202 * 10 ** 6),
+				1,
+				userUSDCAccount.publicKey
+			);
+
+			// Now increase isolated position by 0.5 ETH - should pass with $750 collateral on IM
 			const txSig = await driftClient.placePerpOrder(
 				getOrderParams({
 					orderType: OrderType.MARKET,
