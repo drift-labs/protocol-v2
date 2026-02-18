@@ -11,9 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
+- program: prevent user from enabling HLM when they are failing maintenance margin check [#2116](https://github.com/drift-labs/protocol-v2/pull/2116)
+
 ### Breaking
 
 ## [2.157.0] - 2026-02-11
+
 ### Features
 
 - program: block amm fills when paused_operations set [#2108](https://github.com/drift-labs/protocol-v2/pull/2108)
