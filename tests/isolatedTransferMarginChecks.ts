@@ -40,6 +40,7 @@ describe('isolated transfer margin checks', () => {
 
 	let solUsd;
 	let ethUsd;
+	let btcUsd;
 
 	// ammInvariant == k == x * y
 	const mantissaSqrtScale = new BN(100000);
@@ -87,9 +88,10 @@ describe('isolated transfer margin checks', () => {
 			bankrunContextWrapper
 		);
 
-		// Create oracles for SOL and ETH
+		// Create oracles for SOL, ETH and BTC
 		solUsd = await mockOracleNoProgram(bankrunContextWrapper, 100); // $100 per SOL
 		ethUsd = await mockOracleNoProgram(bankrunContextWrapper, 1000); // $1000 per ETH
+		btcUsd = await mockOracleNoProgram(bankrunContextWrapper, 100000); // $100000 per BTC
 
 		eventSubscriber = new EventSubscriber(
 			bankrunContextWrapper.connection.toConnection(),
@@ -106,12 +108,13 @@ describe('isolated transfer margin checks', () => {
 				commitment: 'confirmed',
 			},
 			activeSubAccountId: 0,
-			perpMarketIndexes: [0, 1],
+			perpMarketIndexes: [0, 1, 2],
 			spotMarketIndexes: [0],
 			subAccountIds: [],
 			oracleInfos: [
 				{ publicKey: solUsd, source: OracleSource.PYTH },
 				{ publicKey: ethUsd, source: OracleSource.PYTH },
+				{ publicKey: btcUsd, source: OracleSource.PYTH },
 			],
 			userStats: true,
 			accountSubscription: {
@@ -149,6 +152,16 @@ describe('isolated transfer margin checks', () => {
 			new BN(1000 * PEG_PRECISION.toNumber())
 		);
 
+		// Initialize BTC-PERP market (index 2)
+		await driftClient.initializePerpMarket(
+			2,
+			btcUsd,
+			ammInitialBaseAssetAmount,
+			ammInitialQuoteAssetAmount,
+			periodicity,
+			new BN(100000 * PEG_PRECISION.toNumber())
+		);
+
 		// Set step sizes
 		await driftClient.updatePerpMarketStepSizeAndTickSize(
 			0,
@@ -157,6 +170,11 @@ describe('isolated transfer margin checks', () => {
 		);
 		await driftClient.updatePerpMarketStepSizeAndTickSize(
 			1,
+			new BN(1),
+			new BN(1)
+		);
+		await driftClient.updatePerpMarketStepSizeAndTickSize(
+			2,
 			new BN(1),
 			new BN(1)
 		);
@@ -169,6 +187,11 @@ describe('isolated transfer margin checks', () => {
 		);
 		await driftClient.updatePerpMarketMarginRatio(
 			1,
+			MARGIN_PRECISION.toNumber() / 2, // 50% IM
+			MARGIN_PRECISION.toNumber() / 3 // 33% MM
+		);
+		await driftClient.updatePerpMarketMarginRatio(
+			2,
 			MARGIN_PRECISION.toNumber() / 2, // 50% IM
 			MARGIN_PRECISION.toNumber() / 3 // 33% MM
 		);
@@ -189,6 +212,7 @@ describe('isolated transfer margin checks', () => {
 		// Restore oracle feeds to default prices so tests start with deterministic state
 		await setFeedPriceNoProgram(bankrunContextWrapper, 100, solUsd);
 		await setFeedPriceNoProgram(bankrunContextWrapper, 1000, ethUsd);
+		await setFeedPriceNoProgram(bankrunContextWrapper, 100000, btcUsd);
 
 		await driftClient.fetchAccounts();
 
@@ -222,6 +246,15 @@ describe('isolated transfer margin checks', () => {
 				await driftClient.getUserAccountPublicKey(),
 				driftClient.getUserAccount(),
 				1
+			);
+		} catch (e) {
+			// Ignore
+		}
+		try {
+			await driftClient.settlePNL(
+				await driftClient.getUserAccountPublicKey(),
+				driftClient.getUserAccount(),
+				2
 			);
 		} catch (e) {
 			// Ignore
@@ -332,7 +365,11 @@ describe('isolated transfer margin checks', () => {
 				);
 				assert(false, 'Transfer should have failed - cross would fail IM');
 			} catch (e) {
-				assert(true, 'Transfer correctly failed');
+				if (e.message.includes('0x1773')) {
+					assert(true, 'Transfer correctly failed');
+				} else {
+					throw e;
+				}
 			} finally {
 				restoreConsole();
 			}
@@ -348,7 +385,8 @@ describe('isolated transfer margin checks', () => {
 		it('should fail transfer when cross already fails IM', async () => {
 			await resetUserState();
 
-			// Cross: $400, 10 SOL long @ $100 -> $500 IM required, cross fails IM
+			// Cross: $600, 10 SOL long @ $100 -> $500 IM required
+			// SOL price moves to $70, cross has $300 effective collateral, IM is 10 x 70 x .5 = $350
 			// Transfer $100 to isolated. Should fail (cross already below IM)
 
 			await driftClient.deposit(
@@ -361,8 +399,8 @@ describe('isolated transfer margin checks', () => {
 				new BN(10 * 10 ** 9),
 				0
 			);
-			// 10 SOL @ 100->80: loss 200, effective 400, need 500 IM
-			await setFeedPriceNoProgram(bankrunContextWrapper, 80, solUsd);
+			// 10 SOL @ 100->70: loss 200, effective 300 collateral, need 350 IM
+			await setFeedPriceNoProgram(bankrunContextWrapper, 70, solUsd);
 			await driftClient.fetchAccounts();
 
 			const restoreConsole = suppressConsole();
@@ -377,7 +415,11 @@ describe('isolated transfer margin checks', () => {
 				);
 				assert(false, 'Transfer should have failed - cross fails IM');
 			} catch (e) {
-				assert(true, 'Transfer correctly failed');
+				if (e.message.includes('0x1773')) {
+					assert(true, 'Transfer correctly failed');
+				} else {
+					throw e;
+				}
 			} finally {
 				restoreConsole();
 			}
@@ -415,7 +457,11 @@ describe('isolated transfer margin checks', () => {
 				);
 				assert(false, 'Transfer should have failed - cross fails MM');
 			} catch (e) {
-				assert(true, 'Transfer correctly failed');
+				if (e.message.includes('0x1773')) {
+					assert(true, 'Transfer correctly failed');
+				} else {
+					throw e;
+				}
 			} finally {
 				restoreConsole();
 			}
@@ -426,8 +472,8 @@ describe('isolated transfer margin checks', () => {
 		it('should fail transfer when other isolated fails MM', async () => {
 			await resetUserState();
 
-			// Cross: $800, no cross positions. Other isolated: SOL 10 long with $300 collateral,
-			// SOL at 70 -> effective $300 < $333 MM. Transfer $200 to isolated ETH.
+			// Cross: $2000, no cross positions. Other isolated: SOL 10 long with $600 collateral,
+			// SOL at 50 -> effective $100 < $333 MM. Transfer $200 to isolated ETH.
 			// Cross after $600, no IM. But other isolated fails MM -> FAIL
 
 			await driftClient.deposit(
@@ -435,21 +481,20 @@ describe('isolated transfer margin checks', () => {
 				0,
 				userUSDCAccount.publicKey
 			);
-			await driftClient.depositIntoIsolatedPerpPosition(
+			await driftClient.transferIsolatedPerpPositionDeposit(
 				new BN(600 * 10 ** 6),
-				0,
-				userUSDCAccount.publicKey
+				0
 			);
 			await driftClient.openPosition(
 				PositionDirection.LONG,
 				new BN(10 * 10 ** 9),
 				0
 			);
-			// SOL at 70: 10*(100-70)=300 loss, 600-300=300 < 333 MM
-			await setFeedPriceNoProgram(bankrunContextWrapper, 70, solUsd);
+			// SOL at 50: 10*(100-50)=500 loss, 600-500=100 < 333 MM
+			await setFeedPriceNoProgram(bankrunContextWrapper, 50, solUsd);
 			await driftClient.fetchAccounts();
 
-			// Cross has 1400, isolated SOL has 300 effective (fails MM)
+			// Cross has 1400, isolated SOL has 100 effective (fails MM)
 			const restoreConsole = suppressConsole();
 			try {
 				await driftClient.transferIsolatedPerpPositionDeposit(
@@ -462,7 +507,11 @@ describe('isolated transfer margin checks', () => {
 				);
 				assert(false, 'Transfer should have failed - other isolated fails MM');
 			} catch (e) {
-				assert(true, 'Transfer correctly failed');
+				if (e.message.includes('0x1773')) {
+					assert(true, 'Transfer correctly failed');
+				} else {
+					throw e;
+				}
 			} finally {
 				restoreConsole();
 			}
@@ -520,12 +569,12 @@ describe('isolated transfer margin checks', () => {
 		it('should fail when both cross would fail IM after and other isolated fails MM', async () => {
 			await resetUserState();
 
-			// Cross: $700, 10 SOL long ($500 IM). Other isolated: ETH 1 long with $300,
+			// Cross: $700, 10 SOL long ($500 IM). Other isolated: ETH 1 long with $600,
 			// ETH at 700 -> effective $300 < $333 MM. Transfer $250.
 			// Cross after $450 < $500 IM. Other isolated fails MM. FAIL
 
 			await driftClient.deposit(
-				new BN(1000 * 10 ** 6),
+				new BN(700 * 10 ** 6),
 				0,
 				userUSDCAccount.publicKey
 			);
@@ -544,16 +593,16 @@ describe('isolated transfer margin checks', () => {
 				new BN(1 * 10 ** 9),
 				1
 			);
-			// Cross: 1000, 10 SOL @ 100. Sol at 100, cross IM 500, cross ok.
+			// Cross: 700, 10 SOL @ 100. Sol at 100, cross IM 500, cross ok.
 			// ETH at 700: 1*(1000-700)=300 loss, 600-300=300 < 333 MM
 			await setFeedPriceNoProgram(bankrunContextWrapper, 700, ethUsd);
 			await driftClient.fetchAccounts();
 
-			const restoreConsole = suppressConsole();
+			// const restoreConsole = suppressConsole();
 			try {
 				await driftClient.transferIsolatedPerpPositionDeposit(
 					new BN(250 * 10 ** 6),
-					1,
+					2,
 					undefined,
 					undefined,
 					undefined,
@@ -561,9 +610,13 @@ describe('isolated transfer margin checks', () => {
 				);
 				assert(false, 'Transfer should have failed');
 			} catch (e) {
-				assert(true, 'Transfer correctly failed');
+				if (e.message.includes('0x1773')) {
+					assert(true, 'Transfer correctly failed');
+				} else {
+					throw e;
+				}
 			} finally {
-				restoreConsole();
+				// restoreConsole();
 			}
 		});
 	});
@@ -572,12 +625,12 @@ describe('isolated transfer margin checks', () => {
 		it('should fail when cross would fail IM after even if other isolated passes MM', async () => {
 			await resetUserState();
 
-			// Cross: $700, 10 SOL long ($500 IM). Other isolated: ETH 1 long with $400,
-			// ETH at 800 -> effective $400 > $333 MM. Transfer $250.
-			// Cross after $450 < $500 IM -> FAIL (other isolated is fine)
+			// Cross: $700, 10 SOL long ($500 IM). Other isolated: ETH 1 long with $600,
+			// ETH at 800 -> $200 loss, effective collateral $400 > $333 MM. Transfer $250.
+			// Cross after transfer is $450 < $500 IM -> FAIL (other isolated is fine)
 
 			await driftClient.deposit(
-				new BN(1000 * 10 ** 6),
+				new BN(700 * 10 ** 6),
 				0,
 				userUSDCAccount.publicKey
 			);
@@ -612,7 +665,11 @@ describe('isolated transfer margin checks', () => {
 				);
 				assert(false, 'Transfer should have failed - cross would fail IM');
 			} catch (e) {
-				assert(true, 'Transfer correctly failed');
+				if (e.message.includes('0x1773')) {
+					assert(true, 'Transfer correctly failed');
+				} else {
+					throw e;
+				}
 			} finally {
 				restoreConsole();
 			}
@@ -624,7 +681,7 @@ describe('isolated transfer margin checks', () => {
 			await resetUserState();
 
 			// Cross: $2000. Isolated SOL: 10 long, $400 collateral at 80 -> passes MM.
-			// Isolated ETH: 1 long, $300 collateral at 700 -> fails MM ($333).
+			// Isolated ETH: 1 long, $300 collateral at 600 -> fails MM ($333).
 			// Transfer $100 to... we need a third market. We only have SOL and ETH.
 			// So: SOL isolated passes, ETH isolated fails. Transfer cross->ETH isolated (adding to failing one)
 			// actually that would improve ETH. Let me reconsider.
@@ -654,9 +711,9 @@ describe('isolated transfer margin checks', () => {
 				new BN(1 * 10 ** 9),
 				1
 			);
-			// SOL at 80: passes MM. ETH at 700: fails MM
+			// SOL at 80: passes MM. ETH at 600: fails MM
 			await setFeedPriceNoProgram(bankrunContextWrapper, 80, solUsd);
-			await setFeedPriceNoProgram(bankrunContextWrapper, 700, ethUsd);
+			await setFeedPriceNoProgram(bankrunContextWrapper, 600, ethUsd);
 			await driftClient.fetchAccounts();
 
 			const restoreConsole = suppressConsole();
@@ -671,7 +728,11 @@ describe('isolated transfer margin checks', () => {
 				);
 				assert(false, 'Transfer should fail - ETH isolated fails MM');
 			} catch (e) {
-				assert(true, 'Transfer correctly failed');
+				if (e.message.includes('0x1773')) {
+					assert(true, 'Transfer correctly failed');
+				} else {
+					throw e;
+				}
 			} finally {
 				restoreConsole();
 			}
