@@ -42,7 +42,6 @@ pub fn handle_update_pyth_lazer_oracle<'c: 'info, 'info>(
 
     let data = PayloadData::deserialize_slice_le(&deserialized_pyth_message.payload)
         .map_err(|_| ProgramError::InvalidInstructionData)?;
-    let next_timestamp = data.timestamp_us.0;
 
     validate!(
         remaining_accounts.len() == data.feeds.len(),
@@ -70,59 +69,71 @@ pub fn handle_update_pyth_lazer_oracle<'c: 'info, 'info>(
 
         let current_timestamp = pyth_lazer_oracle.publish_time;
 
-        if next_timestamp > current_timestamp {
-            let PayloadPropertyValue::Price(Some(price)) = payload_data.properties[0] else {
+        let PayloadPropertyValue::Price(Some(price)) = payload_data.properties[0] else {
                 return Err(ErrorCode::InvalidPythLazerMessage.into());
             };
 
-            let mut best_bid_price: Option<Price> = None;
-            let mut best_ask_price: Option<Price> = None;
-            let mut exponent: Option<i16> = None;
+        let mut best_bid_price: Option<Price> = None;
+        let mut best_ask_price: Option<Price> = None;
+        let mut exponent: Option<i16> = None;
+        let mut feed_update_timestamp: Option<TimestampUs> = None;
 
-            for property in &payload_data.properties {
-                match property {
-                    PayloadPropertyValue::BestBidPrice(price) => best_bid_price = *price,
-                    PayloadPropertyValue::BestAskPrice(price) => best_ask_price = *price,
-                    PayloadPropertyValue::Exponent(exp) => exponent = Some(*exp),
-                    _ => {}
+        for property in &payload_data.properties {
+            match property {
+                PayloadPropertyValue::BestBidPrice(price) => best_bid_price = *price,
+                PayloadPropertyValue::BestAskPrice(price) => best_ask_price = *price,
+                PayloadPropertyValue::Exponent(exp) => exponent = Some(*exp),
+                PayloadPropertyValue::FeedUpdateTimestamp(timestamp) => {
+                    feed_update_timestamp = *timestamp
+                }
+                _ => {}
+            }
+        }
+
+        match feed_update_timestamp {
+            Some(timestamp) => {
+                if timestamp > current_timestamp {
+                    msg!(
+                        "Skipping lazer price update. current ts {} >= feed_update_timestamp {}",
+                        current_timestamp,
+                        timestamp
+                    );
+                    return Err(ErrorCode::InvalidPythLazerMessage.into());
                 }
             }
-
-            let price = price.0.get();
-            if price == 0 {
-                msg!("Pyth lazer price is zero, not enough publishers");
+            None => {
                 return Err(ErrorCode::InvalidPythLazerMessage.into());
             }
-
-            let exponent = exponent.ok_or(ErrorCode::InvalidPythLazerMessage)?;
-
-            // Default to 20bps of the price for conf if bid > ask or one-sided market
-            let mut conf: i64 = price.safe_div(500)?;
-            if let (Some(bid), Some(ask)) = (best_bid_price, best_ask_price) {
-                if bid.0.get() < ask.0.get() {
-                    conf = ask.0.get() - bid.0.get();
-                }
-            }
-
-            pyth_lazer_oracle.price = price;
-            pyth_lazer_oracle.posted_slot = Clock::get()?.slot;
-            pyth_lazer_oracle.publish_time = next_timestamp;
-            pyth_lazer_oracle.exponent = exponent.cast::<i32>()?;
-            pyth_lazer_oracle.conf = conf.cast::<u64>()?;
-            msg!("Price updated to {}", price);
-
-            msg!(
-                "Posting new lazer update. current ts {} < next ts {}",
-                current_timestamp,
-                next_timestamp
-            );
-        } else {
-            msg!(
-                "Skipping new lazer update. current ts {} >= next ts {}",
-                current_timestamp,
-                next_timestamp
-            );
         }
+
+        let price = price.0.get();
+        if price == 0 {
+            msg!("Pyth lazer price is zero, not enough publishers");
+            return Err(ErrorCode::InvalidPythLazerMessage.into());
+        }
+
+        let exponent = exponent.ok_or(ErrorCode::InvalidPythLazerMessage)?;
+
+        // Default to 20bps of the price for conf if bid > ask or one-sided market
+        let mut conf: i64 = price.safe_div(500)?;
+        if let (Some(bid), Some(ask)) = (best_bid_price, best_ask_price) {
+            if bid.0.get() < ask.0.get() {
+                conf = ask.0.get() - bid.0.get();
+            }
+        }
+
+        pyth_lazer_oracle.price = price;
+        pyth_lazer_oracle.posted_slot = Clock::get()?.slot;
+        pyth_lazer_oracle.publish_time = next_timestamp;
+        pyth_lazer_oracle.exponent = exponent.cast::<i32>()?;
+        pyth_lazer_oracle.conf = conf.cast::<u64>()?;
+        msg!("Price updated to {}", price);
+
+        msg!(
+            "Posting new lazer update. current ts {} < next ts {}",
+            current_timestamp,
+            next_timestamp
+        );
     }
 
     Ok(())
