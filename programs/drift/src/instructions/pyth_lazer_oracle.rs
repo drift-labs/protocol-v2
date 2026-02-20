@@ -124,15 +124,15 @@ pub fn handle_update_pyth_lazer_oracle<'c: 'info, 'info>(
 
         pyth_lazer_oracle.price = price;
         pyth_lazer_oracle.posted_slot = Clock::get()?.slot;
-        pyth_lazer_oracle.publish_time = next_timestamp;
+        pyth_lazer_oracle.publish_time = feed_update_timestamp;
         pyth_lazer_oracle.exponent = exponent.cast::<i32>()?;
         pyth_lazer_oracle.conf = conf.cast::<u64>()?;
         msg!("Price updated to {}", price);
 
         msg!(
-            "Posting new lazer update. current ts {} < next ts {}",
+            "Posting new lazer update. current ts {} < feed_update_timestamp {}",
             current_timestamp,
-            next_timestamp
+            feed_update_timestamp
         );
     }
 
