@@ -33,7 +33,7 @@ const PYTH_STORAGE_ACCOUNT_INFO: AccountInfo<Buffer> = {
 	data: Buffer.from(PYTH_STORAGE_DATA, 'base64'),
 };
 
-describe('pyth pull oracles', () => {
+describe('pyth lazer oracles', () => {
 	const chProgram = anchor.workspace.Drift as Program;
 
 	let driftClient: TestClient;
