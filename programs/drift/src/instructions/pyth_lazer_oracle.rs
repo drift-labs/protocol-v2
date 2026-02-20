@@ -7,7 +7,9 @@ use crate::state::pyth_lazer_oracle::{
 use crate::validate;
 use anchor_lang::prelude::*;
 use pyth_lazer_solana_contract::protocol::message::SolanaMessage;
-use pyth_lazer_solana_contract::protocol::payload::{PayloadData, PayloadPropertyValue};
+use pyth_lazer_solana_contract::protocol::payload::{
+    PayloadData, PayloadPropertyValue, TimestampUs,
+};
 use pyth_lazer_solana_contract::protocol::router::Price;
 use pyth_lazer_solana_contract::Storage;
 use solana_program::sysvar::instructions::load_current_index_checked;
@@ -76,23 +78,26 @@ pub fn handle_update_pyth_lazer_oracle<'c: 'info, 'info>(
         let mut best_bid_price: Option<Price> = None;
         let mut best_ask_price: Option<Price> = None;
         let mut exponent: Option<i16> = None;
-        let mut feed_update_timestamp: Option<TimestampUs> = None;
+        let mut feed_update_timestamp: Option<u64> = None;
 
         for property in &payload_data.properties {
             match property {
                 PayloadPropertyValue::BestBidPrice(price) => best_bid_price = *price,
                 PayloadPropertyValue::BestAskPrice(price) => best_ask_price = *price,
                 PayloadPropertyValue::Exponent(exp) => exponent = Some(*exp),
-                PayloadPropertyValue::FeedUpdateTimestamp(timestamp) => {
-                    feed_update_timestamp = *timestamp
-                }
+                PayloadPropertyValue::FeedUpdateTimestamp(timestamp) => match timestamp {
+                    Some(timestamp) => match *timestamp {
+                        TimestampUs(ts) => feed_update_timestamp = Some(ts),
+                    },
+                    None => return Err(ErrorCode::InvalidPythLazerMessage.into()),
+                },
                 _ => {}
             }
         }
 
         match feed_update_timestamp {
             Some(timestamp) => {
-                if timestamp > current_timestamp {
+                if current_timestamp >= timestamp {
                     msg!(
                         "Skipping lazer price update. current ts {} >= feed_update_timestamp {}",
                         current_timestamp,
@@ -102,6 +107,7 @@ pub fn handle_update_pyth_lazer_oracle<'c: 'info, 'info>(
                 }
             }
             None => {
+                msg!("Skipping lazer price update. feed_update_timestamp is None",);
                 return Err(ErrorCode::InvalidPythLazerMessage.into());
             }
         }
@@ -124,7 +130,7 @@ pub fn handle_update_pyth_lazer_oracle<'c: 'info, 'info>(
 
         pyth_lazer_oracle.price = price;
         pyth_lazer_oracle.posted_slot = Clock::get()?.slot;
-        pyth_lazer_oracle.publish_time = feed_update_timestamp;
+        pyth_lazer_oracle.publish_time = feed_update_timestamp.unwrap();
         pyth_lazer_oracle.exponent = exponent.cast::<i32>()?;
         pyth_lazer_oracle.conf = conf.cast::<u64>()?;
         msg!("Price updated to {}", price);
@@ -132,7 +138,7 @@ pub fn handle_update_pyth_lazer_oracle<'c: 'info, 'info>(
         msg!(
             "Posting new lazer update. current ts {} < feed_update_timestamp {}",
             current_timestamp,
-            feed_update_timestamp
+            feed_update_timestamp.unwrap()
         );
     }
 

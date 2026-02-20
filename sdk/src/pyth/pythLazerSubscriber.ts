@@ -28,6 +28,9 @@ export class PythLazerSubscriber {
 	private pythLazerClient?: PythLazerClient;
 	feedIdChunkToPriceMessage: Map<string, string> = new Map();
 	feedIdToPrice: Map<number, number> = new Map();
+	/** Map of feed IDs to whether the price is stale
+	 * Not used right now. Want to implement this so we know we can use staleness checks on the client if we want to in the future.
+	 */
 	feedIdToIsStale: Map<number, boolean> = new Map();
 	feedIdHashToFeedIds: Map<string, number[]> = new Map();
 	subscriptionIdsToFeedIdsHash: Map<number, string> = new Map();
@@ -358,49 +361,5 @@ export class PythLazerSubscriber {
 			return undefined;
 		}
 		return this.feedIdToPrice.get(feedId);
-	}
-
-	/**
-	 * Returns whether the current price for a feed ID is stale (carried forward from an earlier update).
-	 * Use feedUpdateTimestamp vs timestampUs: if feedUpdateTimestamp < timestampUs, the price is stale.
-	 * @param feedId - The Pyth Lazer feed ID to check
-	 * @returns true if price is carried forward (e.g. market closed, no new data), false if fresh, undefined if no data
-	 */
-	isFeedIdStale(feedId: number): boolean | undefined {
-		return this.feedIdToIsStale.get(feedId);
-	}
-
-	/**
-	 * Returns whether the current price for a market is stale (carried forward from an earlier update).
-	 * Use feedUpdateTimestamp vs timestampUs: if feedUpdateTimestamp < timestampUs, the price is stale.
-	 * @param marketIndex - The market index to check
-	 * @returns true if price is carried forward (e.g. market closed, no new data), false if fresh, undefined if no data
-	 */
-	isPriceStaleForMarket(marketIndex: number): boolean | undefined {
-		const feedId = this.marketIndextoPriceFeedId.get(marketIndex);
-		if (feedId === undefined) {
-			return undefined;
-		}
-		return this.feedIdToIsStale.get(feedId);
-	}
-
-	/**
-	 * Gets the current price and staleness for a market index.
-	 * @param marketIndex - The market index to get the price for
-	 * @returns Object with price and isStale, or undefined if no price available
-	 */
-	getPriceWithStaleness(
-		marketIndex: number
-	): { price: number; isStale: boolean } | undefined {
-		const feedId = this.marketIndextoPriceFeedId.get(marketIndex);
-		if (feedId === undefined) {
-			return undefined;
-		}
-		const price = this.feedIdToPrice.get(feedId);
-		if (price === undefined) {
-			return undefined;
-		}
-		const isStale = this.feedIdToIsStale.get(feedId) ?? false;
-		return { price, isStale };
 	}
 }
