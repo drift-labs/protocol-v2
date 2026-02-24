@@ -1785,6 +1785,7 @@ fn fulfill_perp_order(
 
     let user_order_position_decreasing =
         determine_if_user_order_is_position_decreasing(user, market_index, user_order_index)?;
+    let user_is_isolated_position = user.get_perp_position(market_index)?.is_isolated();
 
     let perp_market = perp_market_map.get_ref(&market_index)?;
     let limit_price = fill_mode.get_limit_price(
@@ -1961,9 +1962,6 @@ fn fulfill_perp_order(
         base_asset_amount
     )?;
 
-    let perp_position = user.get_perp_position(market_index)?;
-    let is_isolated_position = perp_position.is_isolated();
-
     if !fill_mode.is_liquidation() {
         // if the maker is long, the user sold so
         let taker_base_asset_amount_delta = if maker_direction == PositionDirection::Long {
@@ -1978,7 +1976,7 @@ fn fulfill_perp_order(
             MarginRequirementType::Fill
         };
 
-        let margin_type_config = if is_isolated_position {
+        let margin_type_config = if user_is_isolated_position {
             MarginTypeConfig::IsolatedPositionOverride {
                 market_index,
                 margin_requirement_type,
@@ -2044,6 +2042,7 @@ fn fulfill_perp_order(
 
     for (maker_key, maker_base_asset_amount_filled) in maker_fills {
         let mut maker = makers_and_referrer.get_ref_mut(&maker_key)?;
+        let maker_is_isolated_position = maker.get_perp_position(market_index)?.is_isolated();
 
         let maker_stats = if maker.authority == user.authority {
             None
@@ -2057,9 +2056,7 @@ fn fulfill_perp_order(
             market_index,
         )?;
 
-        let maker_perp_position = maker.get_perp_position(market_index)?;
-
-        let margin_type_config = if maker_perp_position.is_isolated() {
+        let margin_type_config = if maker_is_isolated_position {
             MarginTypeConfig::IsolatedPositionOverride {
                 market_index,
                 margin_requirement_type: margin_type,
@@ -2245,7 +2242,6 @@ pub fn fulfill_perp_order_with_amm(
                 user_stats,
                 fee_structure,
                 &MarketType::Perp,
-                //TODO: add a comment on PR here asking what to do, do we need to check if it's an isolated fill and how we handle HLM in an isolated fill context?
                 user.is_high_leverage_mode(MarginRequirementType::Initial),
             )?;
             let (base_asset_amount, limit_price) = calculate_base_asset_amount_for_amm_to_fulfill(
