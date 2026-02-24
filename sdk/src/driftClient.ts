@@ -10215,9 +10215,11 @@ export class DriftClient {
 
 	public async getUpdatePerpBidAskTwapIx(
 		perpMarketIndex: number,
-		makers: [PublicKey, PublicKey][]
+		makers: [PublicKey, PublicKey][],
+		updateMarketSummaryStats = true
 	): Promise<TransactionInstruction> {
 		const perpMarket = this.getPerpMarketAccount(perpMarketIndex);
+		const spotMarket = this.getQuoteSpotMarketAccount();
 
 		const remainingAccounts = [];
 		for (const [maker, makerStats] of makers) {
@@ -10233,16 +10235,20 @@ export class DriftClient {
 			});
 		}
 
-		return await this.program.instruction.updatePerpBidAskTwap({
-			accounts: {
-				state: await this.getStatePublicKey(),
-				perpMarket: perpMarket.pubkey,
-				oracle: perpMarket.amm.oracle,
-				authority: this.wallet.publicKey,
-				keeperStats: this.getUserStatsAccountPublicKey(),
-			},
-			remainingAccounts,
-		});
+		return await this.program.instruction.updatePerpBidAskTwap(
+			updateMarketSummaryStats,
+			{
+				accounts: {
+					state: await this.getStatePublicKey(),
+					perpMarket: perpMarket.pubkey,
+					quoteSpotMarket: spotMarket.pubkey,
+					oracle: perpMarket.amm.oracle,
+					authority: this.wallet.publicKey,
+					keeperStats: this.getUserStatsAccountPublicKey(),
+				},
+				remainingAccounts,
+			}
+		);
 	}
 
 	public async settleFundingPayment(
