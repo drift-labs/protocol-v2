@@ -34,6 +34,9 @@ pub mod state;
 mod test_utils;
 mod validation;
 
+// Generate Switchboard quote account bindings
+switchboard_on_demand::switchboard_anchor_bindings!();
+
 // main program entrypoint
 // anchor `#[program]` entrypoint is compiled out by `no-entrypoint`
 #[cfg(not(feature = "cpi"))]
