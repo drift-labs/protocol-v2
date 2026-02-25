@@ -37,7 +37,11 @@ import {
 	mockUSDCMint,
 	mockUserUSDCAccount,
 } from './testHelpers';
-import { NATIVE_MINT } from '@solana/spl-token';
+import {
+	NATIVE_MINT,
+	createCloseAccountInstruction,
+	createTransferInstruction,
+} from '@solana/spl-token';
 import { DexInstructions, Market, OpenOrders } from '@project-serum/serum';
 import { startAnchor } from 'solana-bankrun';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
@@ -707,6 +711,95 @@ describe('spot swap', () => {
 			}
 		}
 		assert(failed);
+	});
+
+	it('close non-swap token account after end_swap fails', async () => {
+		const amountIn = new BN(100).mul(QUOTE_PRECISION);
+		const { beginSwapIx, endSwapIx } = await takerDriftClient.getSwapIx({
+			amountIn,
+			inMarketIndex: 0,
+			outMarketIndex: 1,
+			outTokenAccount: takerWSOL,
+			inTokenAccount: takerUSDC,
+		});
+
+		// Close instruction targeting a NON-swap token account
+		const randomAccount = Keypair.generate().publicKey;
+		const closeIx = createCloseAccountInstruction(
+			randomAccount,
+			takerDriftClient.wallet.publicKey,
+			takerDriftClient.wallet.publicKey
+		);
+
+		const tx = new Transaction()
+			.add(beginSwapIx)
+			.add(endSwapIx)
+			.add(closeIx);
+
+		let failed = false;
+		try {
+			await takerDriftClient.sendTransaction(tx);
+		} catch (e) {
+			const err = e as Error;
+			if (err.toString().includes('0x1868')) {
+				failed = true;
+			}
+		}
+		assert(failed);
+	});
+
+	it('swap and close token account after end_swap', async () => {
+		// takerUSDC has 0 balance - it can be closed after endSwap
+		const amountIn = new BN(100).mul(QUOTE_PRECISION);
+		const { beginSwapIx, endSwapIx } = await takerDriftClient.getSwapIx({
+			amountIn,
+			inMarketIndex: 0,
+			outMarketIndex: 1,
+			inTokenAccount: takerUSDC,
+			outTokenAccount: takerWSOL,
+		});
+
+		// Simulate swap: send all USDC to maker
+		const transferIn = createTransferInstruction(
+			takerUSDC,
+			makerUSDC.publicKey,
+			takerDriftClient.wallet.publicKey,
+			amountIn.toNumber()
+		);
+
+		// Simulate swap: receive SOL from maker
+		const transferOut = createTransferInstruction(
+			makerWSOL,
+			takerWSOL,
+			makerDriftClient.wallet.publicKey,
+			LAMPORTS_PER_SOL
+		);
+
+		// Close takerUSDC after endSwap (balance will be 0)
+		const closeIx = createCloseAccountInstruction(
+			takerUSDC,
+			takerDriftClient.wallet.publicKey,
+			takerDriftClient.wallet.publicKey
+		);
+
+		const tx = new Transaction()
+			.add(beginSwapIx)
+			.add(transferIn)
+			.add(transferOut)
+			.add(endSwapIx)
+			.add(closeIx);
+
+		const { txSig } = await takerDriftClient.sendTransaction(tx, [
+			// @ts-ignore
+			makerDriftClient.wallet.payer,
+		]);
+
+		bankrunContextWrapper.printTxLogs(txSig);
+
+		// Verify the token account is actually closed
+		const accountInfo =
+			await bankrunContextWrapper.connection.getAccountInfo(takerUSDC);
+		assert(accountInfo === null, 'takerUSDC should be closed');
 	});
 
 	it('donate to revenue pool for a great feature!', async () => {

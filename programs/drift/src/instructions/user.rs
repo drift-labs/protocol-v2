@@ -3754,6 +3754,34 @@ pub fn handle_enable_user_high_leverage_mode<'c: 'info, 'info>(
     Ok(())
 }
 
+/// Checks if an instruction is a SPL Token CloseAccount targeting
+/// one of the swap's token accounts.
+fn is_token_close_account_for_swap_ix(
+    ix: &solana_program::instruction::Instruction,
+    in_token_account: &Pubkey,
+    out_token_account: &Pubkey,
+) -> bool {
+    let is_token_program = ix.program_id == Token::id() || ix.program_id == Token2022::id();
+    if !is_token_program {
+        return false;
+    }
+
+    // SPL Token CloseAccount discriminator is byte 9
+    // (TokenInstruction enum variant index)
+    const CLOSE_ACCOUNT_DISCRIMINATOR: u8 = 9;
+    if ix.data.is_empty() || ix.data[0] != CLOSE_ACCOUNT_DISCRIMINATOR {
+        return false;
+    }
+
+    // The first account in CloseAccount is the account being closed
+    if ix.accounts.is_empty() {
+        return false;
+    }
+
+    let account_to_close = &ix.accounts[0].pubkey;
+    account_to_close == in_token_account || account_to_close == out_token_account
+}
+
 #[access_control(
     fill_not_paused(&ctx.accounts.state)
 )]
@@ -3983,6 +4011,15 @@ pub fn handle_begin_swap<'c: 'info, 'info>(
         } else {
             if found_end {
                 if ix.program_id == lighthouse::ID {
+                    continue;
+                }
+
+                // Allow closing the swap's token accounts after end_swap
+                if is_token_close_account_for_swap_ix(
+                    &ix,
+                    &ctx.accounts.in_token_account.key(),
+                    &ctx.accounts.out_token_account.key(),
+                ) {
                     continue;
                 }
 

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- program: allow for swap-involved ATA closures [#2118](https://github.com/drift-labs/protocol-v2/pull/2118)
+
 ### Fixes
 
 - program: prevent user from enabling HLM when they are failing maintenance margin check [#2116](https://github.com/drift-labs/protocol-v2/pull/2116)
