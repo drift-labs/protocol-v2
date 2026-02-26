@@ -731,10 +731,7 @@ describe('spot swap', () => {
 			takerDriftClient.wallet.publicKey
 		);
 
-		const tx = new Transaction()
-			.add(beginSwapIx)
-			.add(endSwapIx)
-			.add(closeIx);
+		const tx = new Transaction().add(beginSwapIx).add(endSwapIx).add(closeIx);
 
 		let failed = false;
 		try {
@@ -797,8 +794,9 @@ describe('spot swap', () => {
 		bankrunContextWrapper.printTxLogs(txSig);
 
 		// Verify the token account is actually closed
-		const accountInfo =
-			await bankrunContextWrapper.connection.getAccountInfo(takerUSDC);
+		const accountInfo = await bankrunContextWrapper.connection.getAccountInfo(
+			takerUSDC
+		);
 		assert(accountInfo === null, 'takerUSDC should be closed');
 	});
 
