@@ -135,6 +135,17 @@ impl<'a> PerpMarketMap<'a> {
 
         Ok(perp_market_map)
     }
+
+    /// Build a single-market map from an existing AccountLoader (e.g. from instruction context).
+    /// Use when the loader outlives the margin check and you have the market_index.
+    pub fn from_single_loader(
+        loader: &AccountLoader<'a, PerpMarket>,
+        market_index: u16,
+    ) -> DriftResult<PerpMarketMap<'a>> {
+        let mut map = BTreeMap::new();
+        map.insert(market_index, loader.clone());
+        Ok(PerpMarketMap(map))
+    }
 }
 
 #[cfg(test)]

@@ -969,6 +969,7 @@ dependencies = [
  "drift-macros",
  "enumflags2",
  "hex",
+ "midprice_book_view",
  "num-integer",
  "num-traits",
  "openbook-v2-light",
@@ -977,7 +978,6 @@ dependencies = [
  "pyth-client",
  "pyth-lazer-solana-contract",
  "pyth-solana-receiver-sdk",
- "pythnet-sdk",
  "serum_dex",
  "solana-program",
  "solana-security-txt",
@@ -1467,6 +1467,10 @@ dependencies = [
  "rand_core 0.6.4",
  "zeroize",
 ]
+
+[[package]]
+name = "midprice_book_view"
+version = "0.1.0"
 
 [[package]]
 name = "num"

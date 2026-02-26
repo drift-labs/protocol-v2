@@ -40,9 +40,8 @@ use crate::math::liquidation::is_cross_margin_being_liquidated;
 use crate::math::margin::calculate_margin_requirement_and_total_collateral_and_liability_info;
 use crate::math::margin::meets_initial_margin_requirement;
 use crate::math::margin::{
-    calculate_max_withdrawable_amount, meets_maintenance_margin_requirement,
-    validate_spot_margin_trading, validate_user_can_enable_high_leverage_mode,
-    MarginRequirementType,
+    calculate_max_withdrawable_amount, validate_spot_margin_trading,
+    validate_user_can_enable_high_leverage_mode, MarginRequirementType,
 };
 use crate::math::oracle::is_oracle_valid_for_action;
 use crate::math::oracle::DriftAction;

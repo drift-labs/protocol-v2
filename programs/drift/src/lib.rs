@@ -32,6 +32,11 @@ mod signer;
 pub mod state;
 #[cfg(test)]
 mod test_utils;
+#[cfg(test)]
+pub use test_utils::{
+    create_account_info, create_executable_program_account_info, get_account_bytes,
+    get_anchor_account_bytes, get_pyth_price,
+};
 mod validation;
 
 // main program entrypoint
@@ -324,6 +329,15 @@ pub mod drift {
             signed_msg_order_params_message_bytes,
             is_delegate_signer,
         )
+    }
+
+    /// Match a perp order against prop AMM (midprice_pino) liquidity. Permissionless: anyone may call.
+    /// Remaining accounts: [midprice_program], [spot_markets...] (canonical: consume while SpotMarket discriminator), then (matcher, midprice, maker_user, maker_stats)* per AMM.
+    pub fn match_perp_order_via_prop_amm<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, MatchPerpOrderViaPropAmm<'info>>,
+        taker_order_id: u32,
+    ) -> Result<()> {
+        handle_match_perp_order_via_prop_amm(ctx, taker_order_id)
     }
 
     pub fn place_spot_order<'c: 'info, 'info>(
@@ -869,29 +883,6 @@ pub mod drift {
         amount: u64,
     ) -> Result<()> {
         handle_deposit_into_insurance_fund_stake(ctx, market_index, amount)
-    }
-
-    pub fn update_pyth_pull_oracle(
-        ctx: Context<UpdatePythPullOraclePriceFeed>,
-        feed_id: [u8; 32],
-        params: Vec<u8>,
-    ) -> Result<()> {
-        handle_update_pyth_pull_oracle(ctx, feed_id, params)
-    }
-
-    pub fn post_pyth_pull_oracle_update_atomic(
-        ctx: Context<PostPythPullOracleUpdateAtomic>,
-        feed_id: [u8; 32],
-        params: Vec<u8>,
-    ) -> Result<()> {
-        handle_post_pyth_pull_oracle_update_atomic(ctx, feed_id, params)
-    }
-
-    pub fn post_multi_pyth_pull_oracle_updates_atomic<'c: 'info, 'info>(
-        ctx: Context<'_, '_, 'c, 'info, PostPythPullMultiOracleUpdatesAtomic<'info>>,
-        params: Vec<u8>,
-    ) -> Result<()> {
-        handle_post_multi_pyth_pull_oracle_updates_atomic(ctx, params)
     }
 
     pub fn pause_spot_market_deposit_withdraw(
@@ -1840,13 +1831,6 @@ pub mod drift {
         perp_market_index: u16,
     ) -> Result<()> {
         handle_delete_prelaunch_oracle(ctx, perp_market_index)
-    }
-
-    pub fn initialize_pyth_pull_oracle(
-        ctx: Context<InitPythPullPriceFeed>,
-        feed_id: [u8; 32],
-    ) -> Result<()> {
-        handle_initialize_pyth_pull_oracle(ctx, feed_id)
     }
 
     pub fn initialize_pyth_lazer_oracle(

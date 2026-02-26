@@ -104,9 +104,7 @@ pub mod fill_order_protected_maker {
         UserStatsPausedOperations, UserStatus,
     };
     use crate::test_utils::*;
-    use crate::test_utils::{
-        create_account_info, get_orders, get_positions, get_pyth_price, get_spot_positions,
-    };
+    use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
     use crate::{create_account_info, QUOTE_PRECISION_I64};
 
     use super::*;
@@ -448,9 +446,7 @@ pub mod fulfill_order_with_maker_order {
     use crate::state::user::{Order, OrderType, PerpPosition, User, UserStats};
 
     use crate::create_account_info;
-    use crate::test_utils::{
-        create_account_info, get_account_bytes, get_orders, get_positions, get_pyth_price,
-    };
+    use crate::test_utils::{get_account_bytes, get_orders, get_positions, get_pyth_price};
 
     use super::*;
     use crate::state::oracle::{HistoricalOracleData, OracleSource};
@@ -6107,9 +6103,7 @@ pub mod fill_order {
     use crate::state::state::State;
     use crate::state::user::{MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::test_utils::*;
-    use crate::test_utils::{
-        create_account_info, get_orders, get_positions, get_pyth_price, get_spot_positions,
-    };
+    use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
     use crate::{create_account_info, QUOTE_PRECISION_I64};
 
     use super::*;
@@ -10344,7 +10338,7 @@ pub mod fill_spot_order {
     use crate::state::user::{MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::state::user_map::{UserMap, UserStatsMap};
     use crate::test_utils::*;
-    use crate::test_utils::{create_account_info, get_orders, get_pyth_price};
+    use crate::test_utils::{get_orders, get_pyth_price};
 
     use super::*;
 
@@ -10525,9 +10519,7 @@ pub mod force_cancel_orders {
     use crate::state::state::State;
     use crate::state::user::{MarketType, OrderStatus, OrderType, SpotPosition, User, UserStats};
     use crate::test_utils::*;
-    use crate::test_utils::{
-        create_account_info, get_positions, get_pyth_price, get_spot_positions,
-    };
+    use crate::test_utils::{get_positions, get_pyth_price, get_spot_positions};
 
     use super::*;
 
@@ -10774,9 +10766,7 @@ pub mod cancel_reduce_only_trigger_orders {
     use crate::state::state::State;
     use crate::state::user::{MarketType, OrderStatus, OrderType, SpotPosition, User};
     use crate::test_utils::*;
-    use crate::test_utils::{
-        create_account_info, get_positions, get_pyth_price, get_spot_positions,
-    };
+    use crate::test_utils::{get_positions, get_pyth_price, get_spot_positions};
 
     use super::*;
 
@@ -11038,9 +11028,7 @@ pub mod get_maker_orders_info {
     use crate::state::user::{OrderStatus, OrderType, SpotPosition, User};
     use crate::state::user_map::UserMap;
     use crate::test_utils::*;
-    use crate::test_utils::{
-        create_account_info, get_orders, get_positions, get_pyth_price, get_spot_positions,
-    };
+    use crate::test_utils::{get_orders, get_positions, get_pyth_price, get_spot_positions};
     use crate::{create_account_info, get_orders};
     use crate::{create_anchor_account_info, QUOTE_PRECISION_I64};
 
@@ -12285,7 +12273,7 @@ pub mod get_spot_maker_orders_info {
     use crate::state::user::{OrderStatus, OrderType, SpotPosition, User};
     use crate::state::user_map::UserMap;
     use crate::test_utils::*;
-    use crate::test_utils::{create_account_info, get_orders, get_pyth_price, get_spot_positions};
+    use crate::test_utils::{get_orders, get_pyth_price, get_spot_positions};
     use crate::{
         create_account_info, get_orders, LAMPORTS_PER_SOL_I64, QUOTE_PRECISION_U64,
         SPOT_BALANCE_PRECISION,

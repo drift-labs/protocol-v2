@@ -1,0 +1,8 @@
+[package]
+name = "midprice_book_view"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "midprice_book_view"
+path = "src/lib.rs"

@@ -1,0 +1,5 @@
+# Minimal workspace to build only midprice_pino_mock for bankrun.
+# Use Cargo.lock from repo root (copy before build) so resolution uses constant_time_eq 0.3.
+[workspace]
+resolver = "2"
+members = ["midprice_pino_mock"]

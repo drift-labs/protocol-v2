@@ -222,6 +222,18 @@ impl<'a> SpotMarketMap<'a> {
         Ok(spot_market_map)
     }
 
+    /// Empty map for instructions that do not use spot markets (e.g. prop_amm match).
+    pub fn default_empty() -> Self {
+        SpotMarketMap(BTreeMap::new(), SpotMarketSet::new())
+    }
+
+    /// Map containing only the quote (USDC) spot market for margin/collateral calculation.
+    pub fn from_quote_spot_market(loader: AccountLoader<'a, SpotMarket>) -> Self {
+        let mut map = BTreeMap::new();
+        map.insert(QUOTE_SPOT_MARKET_INDEX, loader);
+        SpotMarketMap(map, SpotMarketSet::new())
+    }
+
     pub fn update_writable_spot_market(&mut self, market_index: u16) -> DriftResult {
         if !self.0.contains_key(&market_index) {
             return Err(ErrorCode::InvalidSpotMarketAccount);

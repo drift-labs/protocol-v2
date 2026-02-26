@@ -68,6 +68,15 @@ pub fn create_account_info<'a>(
     AccountInfo::new(key, false, is_writable, lamports, bytes, owner, false, 0)
 }
 
+/// Like create_account_info but marks the account as executable (for program accounts in tests).
+pub fn create_executable_program_account_info<'a>(
+    key: &'a Pubkey,
+    lamports: &'a mut u64,
+    bytes: &'a mut [u8],
+) -> AccountInfo<'a> {
+    AccountInfo::new(key, false, false, lamports, bytes, key, true, 0)
+}
+
 pub fn get_pyth_price(price: i64, expo: i32) -> Price {
     let mut pyth_price = Price::default();
     let price = price * 10_i64.pow(expo as u32);

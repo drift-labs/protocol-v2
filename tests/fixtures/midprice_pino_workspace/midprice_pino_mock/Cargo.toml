@@ -1,0 +1,12 @@
+# Minimal mock of midprice_pino for bankrun tests: opcode 4 = no-op.
+[package]
+name = "midprice_pino_mock"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "midprice_pino_mock"
+
+[dependencies]
+solana-program = "=1.16.25"

@@ -4,8 +4,8 @@ pub use if_staker::*;
 pub use keeper::*;
 pub use lp_admin::*;
 pub use lp_pool::*;
+pub use prop_amm::*;
 pub use pyth_lazer_oracle::*;
-pub use pyth_pull_oracle::*;
 pub use user::*;
 
 mod admin;
@@ -15,6 +15,6 @@ mod keeper;
 mod lp_admin;
 mod lp_pool;
 pub mod optional_accounts;
+mod prop_amm;
 mod pyth_lazer_oracle;
-mod pyth_pull_oracle;
 mod user;

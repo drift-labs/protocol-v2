@@ -23,7 +23,6 @@ solana-program = "1.16"
 anchor-spl = { version = "0.29.0", features = [] }
 pyth-client = "0.2.2"
 pyth-lazer-solana-contract = { git = "https://github.com/drift-labs/pyth-crosschain", rev = "d790d1cb4da873a949cf33ff70349b7614b232eb", features = ["no-entrypoint"]}
-pythnet-sdk = { git = "https://github.com/drift-labs/pyth-crosschain", rev = "d790d1cb4da873a949cf33ff70349b7614b232eb"}
 pyth-solana-receiver-sdk = { git = "https://github.com/drift-labs/pyth-crosschain", rev = "d790d1cb4da873a949cf33ff70349b7614b232eb"}
 bytemuck = { version = "1.4.0" }
 borsh = "0.10.3"
@@ -43,6 +42,7 @@ switchboard = { path = "../switchboard", features = ["no-entrypoint"] }
 openbook-v2-light = { path = "../openbook_v2", features = ["no-entrypoint"] }
 switchboard-on-demand = { path = "../switchboard-on-demand", features = ["no-entrypoint"] }
 byteorder = "1.4.3"
+midprice_book_view = { path = "../../crates/midprice_book_view" }
 
 [dev-dependencies]
 bytes = "1.2.0"
