@@ -12,7 +12,7 @@ use switchboard::{AggregatorAccountData, SwitchboardDecimal};
 use switchboard_on_demand::{PullFeedAccountData, SB_ON_DEMAND_PRECISION};
 
 use crate::error::ErrorCode::{InvalidOracle, UnableToLoadOracle};
-use crate::math::oracle::{is_oracle_valid_for_action, DriftAction, OracleValidity};
+use crate::math::oracle::{self, is_oracle_valid_for_action, DriftAction, OracleValidity};
 use crate::math::safe_unwrap::SafeUnwrap;
 use crate::state::load_ref::load_ref;
 use crate::state::perp_market::PerpMarket;
@@ -415,49 +415,12 @@ pub fn get_pyth_price(
     let published_slot: u64;
     let sequence_id: Option<u64>;
 
-    if oracle_source.is_pyth_pull_oracle() {
-        let price_message = pyth_solana_receiver_sdk::price_update::PriceUpdateV2::try_deserialize(
-            &mut pyth_price_data,
-        )
-        .unwrap();
-        oracle_price = price_message.price_message.price;
-        oracle_conf = price_message.price_message.conf;
-        oracle_precision = 10_u128.pow(price_message.price_message.exponent.unsigned_abs());
-        published_slot = price_message.posted_slot;
-        sequence_id = Some(
-            price_message
-                .price_message
-                .publish_time
-                .max(0)
-                .cast::<u64>()?,
-        );
-    } else if oracle_source.is_pyth_push_oracle() {
-        let price_data = pyth_client::cast::<pyth_client::Price>(pyth_price_data);
-        oracle_price = price_data.agg.price;
-        oracle_conf = price_data.agg.conf;
-        let min_publishers = price_data.num.min(3);
-        let publisher_count = price_data.num_qt;
-
-        #[cfg(feature = "mainnet-beta")]
-        {
-            has_sufficient_number_of_data_points = publisher_count >= min_publishers;
-        }
-        #[cfg(not(feature = "mainnet-beta"))]
-        {
-            has_sufficient_number_of_data_points = true;
-        }
-
-        oracle_precision = 10_u128.pow(price_data.expo.unsigned_abs());
-        published_slot = price_data.valid_slot;
-        sequence_id = None;
-    } else {
-        let price_data = PythLazerOracle::try_deserialize(&mut pyth_price_data).unwrap();
-        oracle_price = price_data.price;
-        oracle_conf = price_data.conf;
-        oracle_precision = 10_u128.pow(price_data.exponent.unsigned_abs());
-        published_slot = price_data.posted_slot;
-        sequence_id = Some(price_data.publish_time.max(0).cast::<u64>()?);
-    }
+    let price_data = PythLazerOracle::try_deserialize(&mut pyth_price_data).unwrap();
+    oracle_price = price_data.price;
+    oracle_conf = price_data.conf;
+    oracle_precision = 10_u128.pow(price_data.exponent.unsigned_abs());
+    published_slot = price_data.posted_slot;
+    sequence_id = Some(price_data.publish_time.max(0).cast::<u64>()?);
 
     if oracle_precision <= multiple {
         msg!("Multiple larger than oracle precision");
