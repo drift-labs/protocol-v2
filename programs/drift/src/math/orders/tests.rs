@@ -4281,13 +4281,14 @@ pub mod find_bids_and_asks_from_users {
                 .unwrap();
 
         // Apply the 15% oracle divergence filter (as done in update_perp_bid_ask_twap)
-        let (filtered_bids, filtered_asks) = crate::math::orders::filter_bids_asks_by_oracle_divergence(
-            bids,
-            asks,
-            oracle_price_data.price,
-            crate::math::constants::BID_ASK_TWAP_MAX_ORACLE_DIVERGENCE_PERCENT,
-        )
-        .unwrap();
+        let (filtered_bids, filtered_asks) =
+            crate::math::orders::filter_bids_asks_by_oracle_divergence(
+                bids,
+                asks,
+                oracle_price_data.price,
+                crate::math::constants::BID_ASK_TWAP_MAX_ORACLE_DIVERGENCE_PERCENT,
+            )
+            .unwrap();
 
         // Oracle at 100. With 15% filter: min bid = 85, max ask = 115
         // Raw bids were 80-95. After filter: 85-95 (11 bids)
