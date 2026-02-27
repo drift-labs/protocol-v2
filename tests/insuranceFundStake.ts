@@ -117,7 +117,7 @@ describe('insurance fund stake', () => {
 			oracleInfos: [
 				{
 					publicKey: solOracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			userStats: true,
@@ -479,7 +479,7 @@ describe('insurance fund stake', () => {
 			[
 				{
 					publicKey: solOracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			bulkAccountLoader

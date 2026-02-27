@@ -88,7 +88,7 @@ describe('modify orders', () => {
 			oracleInfos: [
 				{
 					publicKey: oracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			accountSubscription: {

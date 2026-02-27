@@ -212,11 +212,11 @@ async function cappedSymFundingScenario(
 		ContractTier.A
 	);
 	await driftClient.accountSubscriber.addOracle({
-		source: OracleSource.PYTH,
+		source: OracleSource.PYTH_LAZER,
 		publicKey: priceFeedAddress,
 	});
 	await driftClient2.accountSubscriber.addOracle({
-		source: OracleSource.PYTH,
+		source: OracleSource.PYTH_LAZER,
 		publicKey: priceFeedAddress,
 	});
 	await sleep(2500);

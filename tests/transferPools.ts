@@ -85,7 +85,7 @@ describe('spot deposit and withdraw', () => {
 
 		marketIndexes = [];
 		spotMarketIndexes = [0, 1, 2, 3];
-		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH }];
+		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH_LAZER }];
 
 		admin = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -201,7 +201,7 @@ describe('spot deposit and withdraw', () => {
 			optimalRate,
 			maxRate,
 			solOracle,
-			OracleSource.PYTH,
+			OracleSource.PYTH_LAZER,
 			initialAssetWeight,
 			maintenanceAssetWeight,
 			initialLiabilityWeight,
@@ -223,7 +223,7 @@ describe('spot deposit and withdraw', () => {
 			optimalRate,
 			maxRate,
 			solOracle,
-			OracleSource.PYTH,
+			OracleSource.PYTH_LAZER,
 			initialAssetWeight,
 			maintenanceAssetWeight,
 			initialLiabilityWeight,

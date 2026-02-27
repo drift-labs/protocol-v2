@@ -67,7 +67,7 @@ describe('round in favor', () => {
 
 		marketIndexes = [0];
 		spotMarketIndexes = [0];
-		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
+		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH_LAZER }];
 
 		primaryDriftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),

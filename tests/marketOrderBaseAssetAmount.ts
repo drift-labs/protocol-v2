@@ -74,7 +74,7 @@ describe('market orders', () => {
 		const solUsd = await mockOracleNoProgram(bankrunContextWrapper, 1);
 		marketIndexes = [0];
 		spotMarketIndexes = [0];
-		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
+		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH_LAZER }];
 
 		driftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),

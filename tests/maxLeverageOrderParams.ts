@@ -103,7 +103,7 @@ describe('max leverage order params', () => {
 			oracleInfos: [
 				{
 					publicKey: solOracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			accountSubscription: {
@@ -171,7 +171,7 @@ describe('max leverage order params', () => {
 			[
 				{
 					publicKey: solOracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			bulkAccountLoader

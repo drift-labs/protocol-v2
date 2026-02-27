@@ -157,7 +157,7 @@ describe('builder codes', () => {
 
 		marketIndexes = [0, 1];
 		spotMarketIndexes = [0, 1];
-		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
+		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH_LAZER }];
 
 		builderClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),

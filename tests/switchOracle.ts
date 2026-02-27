@@ -82,7 +82,7 @@ describe('switch oracles', () => {
 
 		marketIndexes = [0];
 		spotMarketIndexes = [0, 1];
-		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH }];
+		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH_LAZER }];
 
 		admin = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -121,8 +121,8 @@ describe('switch oracles', () => {
 	});
 
 	beforeEach(async () => {
-		await admin.updateSpotMarketOracle(1, solOracle, OracleSource.PYTH, true);
-		await admin.updatePerpMarketOracle(0, solOracle, OracleSource.PYTH, true);
+		await admin.updateSpotMarketOracle(1, solOracle, OracleSource.PYTH_LAZER, true);
+		await admin.updatePerpMarketOracle(0, solOracle, OracleSource.PYTH_LAZER, true);
 	});
 
 	after(async () => {
@@ -148,7 +148,7 @@ describe('switch oracles', () => {
 		await admin.updatePerpMarketOracle(
 			0,
 			newSolOracle,
-			OracleSource.PYTH,
+			OracleSource.PYTH_LAZER,
 			true
 		);
 
@@ -168,7 +168,7 @@ describe('switch oracles', () => {
 		await admin.updateSpotMarketOracle(
 			1,
 			newSolOracle,
-			OracleSource.PYTH,
+			OracleSource.PYTH_LAZER,
 			true
 		);
 
@@ -214,7 +214,7 @@ describe('switch oracles', () => {
 		await admin.updatePerpMarketOracle(
 			0,
 			newSolOracle,
-			OracleSource.PYTH,
+			OracleSource.PYTH_LAZER,
 			true
 		);
 
@@ -234,7 +234,7 @@ describe('switch oracles', () => {
 		await admin.updateSpotMarketOracle(
 			1,
 			newSolOracle,
-			OracleSource.PYTH,
+			OracleSource.PYTH_LAZER,
 			true
 		);
 

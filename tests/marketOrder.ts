@@ -102,8 +102,8 @@ describe('market order', () => {
 		const marketIndexes = [0, 1];
 		const spotMarketIndexes = [0];
 		const oracleInfos = [
-			{ publicKey: solUsd, source: OracleSource.PYTH },
-			{ publicKey: btcUsd, source: OracleSource.PYTH },
+			{ publicKey: solUsd, source: OracleSource.PYTH_LAZER },
+			{ publicKey: btcUsd, source: OracleSource.PYTH_LAZER },
 		];
 
 		driftClient = new TestClient({

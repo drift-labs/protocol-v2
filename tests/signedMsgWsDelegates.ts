@@ -74,7 +74,7 @@ describe('place and make signedMsg order', () => {
 
 		marketIndexes = [0];
 		spotMarketIndexes = [0, 1];
-		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH }];
+		oracleInfos = [{ publicKey: solUsd, source: OracleSource.PYTH_LAZER }];
 
 		makerDriftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),

@@ -107,11 +107,11 @@ describe('stop limit', () => {
 		const oracleInfos = [
 			{
 				publicKey: solUsd,
-				source: OracleSource.PYTH,
+				source: OracleSource.PYTH_LAZER,
 			},
 			{
 				publicKey: btcUsd,
-				source: OracleSource.PYTH,
+				source: OracleSource.PYTH_LAZER,
 			},
 		];
 

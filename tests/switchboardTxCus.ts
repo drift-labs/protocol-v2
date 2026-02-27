@@ -105,7 +105,7 @@ describe('switchboard place orders cus', () => {
 			oracleInfos: [
 				{
 					publicKey: oracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			accountSubscription: {
@@ -174,7 +174,7 @@ describe('switchboard place orders cus', () => {
 			oracleInfos: [
 				{
 					publicKey: oracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			accountSubscription: {

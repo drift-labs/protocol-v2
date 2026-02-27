@@ -138,9 +138,9 @@ describe('orders', () => {
 		const bankIndexes = [0];
 		const oracleInfos = [
 			{ publicKey: PublicKey.default, source: OracleSource.QUOTE_ASSET },
-			{ publicKey: solUsd, source: OracleSource.PYTH },
-			{ publicKey: btcUsd, source: OracleSource.PYTH },
-			{ publicKey: ethUsd, source: OracleSource.PYTH },
+			{ publicKey: solUsd, source: OracleSource.PYTH_LAZER },
+			{ publicKey: btcUsd, source: OracleSource.PYTH_LAZER },
+			{ publicKey: ethUsd, source: OracleSource.PYTH_LAZER },
 		];
 
 		driftClient = new TestClient({

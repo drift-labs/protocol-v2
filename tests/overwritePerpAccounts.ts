@@ -91,7 +91,7 @@ describe('Bankrun Overwrite Accounts', () => {
 			oracleInfos: [
 				{
 					publicKey: spotMarketOracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			accountSubscription: {

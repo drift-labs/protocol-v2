@@ -99,7 +99,7 @@ describe('referrer', () => {
 		const oracleInfos = [
 			{
 				publicKey: solOracle,
-				source: OracleSource.PYTH,
+				source: OracleSource.PYTH_LAZER,
 			},
 		];
 		referrerDriftClient = new TestClient({

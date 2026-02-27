@@ -93,7 +93,7 @@ describe('liquidate spot w/ social loss', () => {
 			oracleInfos: [
 				{
 					publicKey: solOracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			accountSubscription: {
@@ -144,7 +144,7 @@ describe('liquidate spot w/ social loss', () => {
 				[
 					{
 						publicKey: solOracle,
-						source: OracleSource.PYTH,
+						source: OracleSource.PYTH_LAZER,
 					},
 				],
 				bulkAccountLoader

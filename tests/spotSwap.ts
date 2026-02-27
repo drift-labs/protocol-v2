@@ -130,7 +130,7 @@ describe('spot swap', () => {
 
 		marketIndexes = [];
 		spotMarketIndexes = [0, 1];
-		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH }];
+		oracleInfos = [{ publicKey: solOracle, source: OracleSource.PYTH_LAZER }];
 
 		makerDriftClient = new TestClient({
 			connection: bankrunContextWrapper.connection.toConnection(),
@@ -177,7 +177,7 @@ describe('spot swap', () => {
 				[
 					{
 						publicKey: solOracle,
-						source: OracleSource.PYTH,
+						source: OracleSource.PYTH_LAZER,
 					},
 				],
 				bulkAccountLoader

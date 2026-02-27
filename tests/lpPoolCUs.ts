@@ -182,7 +182,7 @@ describe('LP Pool', () => {
 			subAccountIds: [],
 			perpMarketIndexes: [0, 1, 2],
 			spotMarketIndexes: [0, 1],
-			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH }],
+			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH_LAZER }],
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
@@ -326,7 +326,7 @@ describe('LP Pool', () => {
 				optimalRate,
 				maxRate,
 				spotMarketOracle2,
-				OracleSource.PYTH,
+				OracleSource.PYTH_LAZER,
 				initialAssetWeight,
 				maintenanceAssetWeight,
 				initialLiabilityWeight,
@@ -347,7 +347,7 @@ describe('LP Pool', () => {
 			subAccountIds: [],
 			perpMarketIndexes: [0, 1],
 			spotMarketIndexes: SPOT_MARKET_INDEXES,
-			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH }],
+			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH_LAZER }],
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
@@ -433,7 +433,7 @@ describe('LP Pool', () => {
 			subAccountIds: [],
 			perpMarketIndexes: PERP_MARKET_INDEXES,
 			spotMarketIndexes: SPOT_MARKET_INDEXES,
-			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH }],
+			oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH_LAZER }],
 			accountSubscription: {
 				type: 'polling',
 				accountLoader: bulkAccountLoader,
@@ -459,7 +459,7 @@ describe('LP Pool', () => {
 				subAccountIds: [],
 				perpMarketIndexes: PERP_MARKET_INDEXES,
 				spotMarketIndexes: SPOT_MARKET_INDEXES,
-				oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH }],
+				oracleInfos: [{ publicKey: solUsd, source: OracleSource.PYTH_LAZER }],
 				accountSubscription: {
 					type: 'polling',
 					accountLoader: bulkAccountLoader,

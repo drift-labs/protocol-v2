@@ -113,7 +113,7 @@ describe('liquidate borrow for perp pnl', () => {
 			oracleInfos: [
 				{
 					publicKey: solOracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			accountSubscription: {
@@ -194,7 +194,7 @@ describe('liquidate borrow for perp pnl', () => {
 				[
 					{
 						publicKey: solOracle,
-						source: OracleSource.PYTH,
+						source: OracleSource.PYTH_LAZER,
 					},
 				],
 				bulkAccountLoader

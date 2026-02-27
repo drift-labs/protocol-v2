@@ -60,8 +60,11 @@ import {
 	BankrunContextWrapper,
 	BankrunConnection,
 } from '../sdk/src/bankrun/bankrunConnection';
-import pythIDL from '../sdk/src/idl/pyth.json';
 import { TestBulkAccountLoader } from '../sdk/src/accounts/testBulkAccountLoader';
+import { DRIFT_PROGRAM_ID } from '../sdk/src/config';
+import * as crypto from 'crypto';
+
+export const MOCK_ORACLE_SOURCE = OracleSource.PYTH_LAZER;
 
 export async function mockOracle(
 	price: number = 50 * 10e7,
@@ -99,39 +102,53 @@ export async function mockOracleNoProgram(
 	expo = -7,
 	confidence?: number
 ): Promise<PublicKey> {
-	const provider = new AnchorProvider(
-		context.connection.toConnection(),
-		context.provider.wallet,
-		{
-			commitment: 'processed',
-		}
-	);
+	const currentSlot = Number(await context.connection.getSlot());
+	const driftProgramId = new PublicKey(DRIFT_PROGRAM_ID);
 
-	const program = new Program(
-		pythIDL as anchor.Idl,
-		new PublicKey('FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH'),
-		provider
-	);
+	const scaledPrice = BigInt(Math.round(price * 10 ** -expo));
+	const scaledConf = confidence
+		? BigInt(Math.round(confidence * 10 ** -expo))
+		: scaledPrice / BigInt(10);
 
-	const priceFeedAddress = await createPriceFeedBankrun({
-		oracleProgram: program,
-		context: context,
-		initPrice: price,
-		expo: expo,
-		confidence,
+	const discriminator = crypto
+		.createHash('sha256')
+		.update('account:PythLazerOracle')
+		.digest()
+		.subarray(0, 8);
+
+	const oracleData = Buffer.alloc(48);
+	discriminator.copy(oracleData, 0);
+	oracleData.writeBigInt64LE(scaledPrice, 8);
+	oracleData.writeBigUInt64LE(BigInt(1), 16);
+	oracleData.writeBigUInt64LE(BigInt(currentSlot + 10000), 24);
+	oracleData.writeInt32LE(expo, 32);
+	oracleData.writeUInt32LE(0, 36);
+	oracleData.writeBigUInt64LE(scaledConf, 40);
+
+	const lamports = LAMPORTS_PER_SOL / 20;
+	const oracleKeypair = anchor.web3.Keypair.generate();
+	const createAccountIx = SystemProgram.createAccount({
+		fromPubkey: context.context.payer.publicKey,
+		newAccountPubkey: oracleKeypair.publicKey,
+		space: 48,
+		lamports,
+		programId: driftProgramId,
+	});
+	const tx = new Transaction().add(createAccountIx);
+	tx.feePayer = context.context.payer.publicKey;
+	tx.recentBlockhash = context.context.lastBlockhash;
+	tx.sign(oracleKeypair, context.context.payer);
+	await context.connection.sendTransaction(tx);
+
+	context.context.setAccount(oracleKeypair.publicKey, {
+		executable: false,
+		owner: driftProgramId,
+		lamports,
+		data: oracleData,
+		rentEpoch: 0,
 	});
 
-	// @ts-ignore
-	const feedData = await getFeedDataNoProgram(
-		context.connection,
-		priceFeedAddress
-	);
-	if (feedData.price !== price) {
-		console.log('mockOracle precision error:', feedData.price, '!=', price);
-	}
-	assert.ok(Math.abs(feedData.price - price) < 1e-10);
-
-	return priceFeedAddress;
+	return oracleKeypair.publicKey;
 }
 
 export async function mockUSDCMint(
@@ -787,34 +804,24 @@ export const setFeedPriceNoProgram = async (
 	priceFeed: PublicKey
 ) => {
 	const info = await context.connection.getAccountInfo(priceFeed);
-	const data = parsePriceData(info.data);
+	const data = Buffer.from(info.data);
 
-	const provider = new AnchorProvider(
-		context.connection.toConnection(),
-		context.provider.wallet,
-		{
-			commitment: 'processed',
-		}
-	);
+	const currentSlot = Number(await context.connection.getSlot());
+	const exponent = data.readInt32LE(32);
+	const scaledPrice = BigInt(Math.round(newPrice * 10 ** -exponent));
+	const scaledConf = scaledPrice / BigInt(10);
 
-	const program = new Program(
-		pythIDL as anchor.Idl,
-		new PublicKey('FsJ3A3u2vn5cTVofAjvy6y5kwABJAqYWpe4975bi2epH'),
-		provider
-	);
+	data.writeBigInt64LE(scaledPrice, 8);
+	data.writeBigUInt64LE(BigInt(currentSlot + 10000), 24);
+	data.writeBigUInt64LE(scaledConf, 40);
 
-	const ix = program.instruction.setPrice(
-		new BN(newPrice * 10 ** -data.exponent),
-		{
-			accounts: { price: priceFeed },
-		}
-	);
-
-	const tx = new Transaction().add(ix);
-	tx.feePayer = context.context.payer.publicKey;
-	tx.recentBlockhash = (await context.getLatestBlockhash()).toString();
-	tx.sign(...[context.context.payer]);
-	await context.connection.sendTransaction(tx);
+	context.context.setAccount(priceFeed, {
+		executable: info.executable,
+		owner: info.owner,
+		lamports: info.lamports,
+		data: data,
+		rentEpoch: info.rentEpoch ?? 0,
+	});
 };
 
 export const setFeedTwap = async (
@@ -1151,7 +1158,7 @@ export async function initializeSolSpotMarket(
 	admin: TestClient,
 	solOracle: PublicKey,
 	solMint = NATIVE_MINT,
-	oracleSource: OracleSource = OracleSource.PYTH
+	oracleSource: OracleSource = OracleSource.PYTH_LAZER
 ): Promise<string> {
 	const optimalUtilization = SPOT_MARKET_RATE_PRECISION.div(
 		new BN(2)

@@ -126,7 +126,7 @@ describe('delist market, liquidation of expired position', () => {
 			oracleInfos: [
 				{
 					publicKey: solOracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			accountSubscription: {
@@ -197,7 +197,7 @@ describe('delist market, liquidation of expired position', () => {
 			oracleInfos: [
 				{
 					publicKey: solOracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			accountSubscription: {
@@ -343,7 +343,7 @@ describe('delist market, liquidation of expired position', () => {
 			[
 				{
 					publicKey: solOracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			bulkAccountLoader

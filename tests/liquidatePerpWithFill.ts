@@ -106,7 +106,7 @@ describe('liquidate perp (no open orders)', () => {
 			oracleInfos: [
 				{
 					publicKey: oracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			accountSubscription: {
@@ -184,7 +184,7 @@ describe('liquidate perp (no open orders)', () => {
 			oracleInfos: [
 				{
 					publicKey: oracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			accountSubscription: {
@@ -209,7 +209,7 @@ describe('liquidate perp (no open orders)', () => {
 			[
 				{
 					publicKey: oracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			bulkAccountLoader

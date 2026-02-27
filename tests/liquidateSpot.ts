@@ -106,7 +106,7 @@ describe('liquidate spot', () => {
 			oracleInfos: [
 				{
 					publicKey: solOracle,
-					source: OracleSource.PYTH,
+					source: OracleSource.PYTH_LAZER,
 				},
 			],
 			accountSubscription: {
@@ -150,7 +150,7 @@ describe('liquidate spot', () => {
 				[
 					{
 						publicKey: solOracle,
-						source: OracleSource.PYTH,
+						source: OracleSource.PYTH_LAZER,
 					},
 				],
 				bulkAccountLoader
