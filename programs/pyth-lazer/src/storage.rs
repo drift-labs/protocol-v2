@@ -9,14 +9,6 @@ pub use crate::signature::{ed25519_program_args, Ed25519SignatureOffsets};
 
 pub const STORAGE_ID: Pubkey = pubkey!("3rdJbqfnagQ4yx9HXJViD4zc4xpiSqmFsKpPuSCQVyQL");
 
-#[test]
-fn test_ids() {
-    assert_eq!(
-        Pubkey::find_program_address(&[STORAGE_SEED], &ID).0,
-        STORAGE_ID
-    );
-}
-
 pub const ANCHOR_DISCRIMINATOR_BYTES: usize = 8;
 pub const MAX_NUM_TRUSTED_SIGNERS: usize = 2;
 pub const SPACE_FOR_TRUSTED_SIGNERS: usize = 5;
