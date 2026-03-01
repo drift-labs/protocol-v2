@@ -3,8 +3,6 @@ use anchor_lang::prelude::*;
 use anchor_spl::token_2022::Token2022;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use phoenix::quantities::WrapperU64;
-use pyth_solana_receiver_sdk::cpi::accounts::InitPriceUpdate;
-use pyth_solana_receiver_sdk::program::PythSolanaReceiver;
 use serum_dex::state::ToAlignedBytes;
 use std::convert::{identity, TryInto};
 use std::mem::size_of;
@@ -4637,31 +4635,6 @@ pub fn handle_delete_prelaunch_oracle(
         ErrorCode::DefaultError,
         "prelaunch oracle currently in use"
     )?;
-
-    Ok(())
-}
-
-pub fn handle_initialize_pyth_pull_oracle(
-    ctx: Context<InitPythPullPriceFeed>,
-    feed_id: [u8; 32],
-) -> Result<()> {
-    let cpi_program = ctx.accounts.pyth_solana_receiver.to_account_info();
-    let cpi_accounts = InitPriceUpdate {
-        payer: ctx.accounts.admin.to_account_info(),
-        price_update_account: ctx.accounts.price_feed.to_account_info(),
-        system_program: ctx.accounts.system_program.to_account_info(),
-        write_authority: ctx.accounts.price_feed.to_account_info(),
-    };
-
-    let seeds = &[
-        PTYH_PRICE_FEED_SEED_PREFIX,
-        feed_id.as_ref(),
-        &[ctx.bumps.price_feed],
-    ];
-    let signer_seeds = &[&seeds[..]];
-    let cpi_context = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
-
-    pyth_solana_receiver_sdk::cpi::init_price_update(cpi_context, feed_id)?;
 
     Ok(())
 }
