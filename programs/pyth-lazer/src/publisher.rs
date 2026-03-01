@@ -31,7 +31,7 @@ pub struct PriceFeedDataV2 {
 
 /// Old Represents a binary (bincode-serialized) stream update sent
 /// from the publisher to the router.
-/// Superseded by `PriceFeedData`.
+/// Superseded by `PriceFeedDataV2`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PriceFeedDataV1 {

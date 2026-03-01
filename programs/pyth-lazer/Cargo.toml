@@ -8,10 +8,12 @@ edition = "2021"
 crate-type = ["lib"]
 
 [features]
-default = []
 no-entrypoint = []
-# Enable when building the pyth-lazer program binary; leave off when using as a library (e.g. from drift)
-program = []
+no-idl = []
+cpi = ["no-entrypoint"]
+default = ["mainnet-beta"]
+mainnet-beta=[]
+anchor-test= []
 
 [dependencies]
 anchor-lang = "0.29.0"
